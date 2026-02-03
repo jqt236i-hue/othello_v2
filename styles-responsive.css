@@ -1,0 +1,64 @@
+/* ===== Media Queries for Mobile/Tablet Responsiveness ===== */
+
+@media (max-width: 900px) {
+    #card-detail-panel {
+        position: fixed;
+        left: 12px;
+        transform: none;
+        right: 12px;
+        width: auto;
+        top: auto;
+        bottom: 140px;
+    }
+}
+
+@media (max-width: 650px) {
+    #board {
+        grid-template-columns: repeat(8, 1fr);
+        grid-template-rows: repeat(8, 1fr);
+        width: 90vw;
+        height: 90vw;
+        max-width: 400px;
+        max-height: 400px;
+    }
+
+    .cell {
+        width: 100%;
+        height: 100%;
+    }
+
+    .disc {
+        width: 85%;
+        height: 85%;
+    }
+}
+
+@media (max-width: 420px) {
+    .result-panel { 
+        padding: 20px; 
+        min-width: 300px; 
+    }
+    
+    .dialogue-row .character-name { 
+        min-width: 72px; 
+        font-size: 14px; 
+    }
+    
+    .dialogue-row .dialogue-text { 
+        font-size: 14px; 
+    }
+}
+
+@media (hover: hover) {
+    .cell.legal:hover::after {
+        background: rgba(100, 255, 100, 0.4);
+        transform: scale(1.3);
+        border-color: rgba(150, 255, 150, 0.8);
+        box-shadow: 0 0 8px rgba(100, 255, 100, 0.6);
+    }
+
+    .cell.legal:hover {
+        cursor: pointer;
+        background-color: rgba(255, 255, 255, 0.03);
+    }
+}

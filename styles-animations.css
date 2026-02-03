@@ -1,0 +1,62 @@
+/* Card Animations */
+
+@keyframes card-fade-in {
+    from {
+        opacity: 0;
+        transform: scale(0.8) translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.card-fade-in {
+    animation: card-fade-in 0.5s ease-out forwards;
+}
+
+/* Prevent "flash then fade" by allowing new cards to be rendered hidden before the fade-in starts. */
+.card-fade-prep {
+    opacity: 0;
+    transform: scale(0.8) translateY(10px);
+}
+
+/* Stone flip animation */
+.disc {
+    backface-visibility: hidden;
+    transform-style: preserve-3d;
+}
+
+@keyframes stone-flip {
+    0% {
+        transform: scaleX(1);
+        filter: brightness(1);
+    }
+    50% {
+        transform: scaleX(0.05);
+        filter: brightness(1.15);
+    }
+    100% {
+        transform: scaleX(1);
+        filter: brightness(1);
+    }
+}
+
+/* flip class performs a visible squash-flip (works without 3D perspective) */
+.disc.flip {
+    animation: stone-flip 0.6s cubic-bezier(.2,.85,.3,1);
+}
+
+/* destroy fade fallback (keyframes-based; do not override board styles) */
+.disc.destroy-fade {
+    animation: fadeOutDestroy 0.5s ease-out forwards !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .disc.destroy-fade {
+        transition: none !important;
+        animation: none !important;
+        opacity: 0 !important;
+    }
+}

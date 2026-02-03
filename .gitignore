@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+
+# Generated ML artifacts (safe to regenerate)
+logs/
+reports/
+checkpoints*/
+final-dataset/
+training-data*/
+selfplay-data*/
+deploy_stage/
+out-test/
+test-batch/
+test-curated/
+test-output/
+test-results/
+test-speed*/
+replays/
+weakness/
+policies/
+_archive/
+playwright-report/
+
+# Temporary files
+*.log
+*.tmp
+*.cache
+
+# Large archives
+*.zip
+*.tar.gz
+
+# Test artifacts
+breeding-*.png
+
+# Debug Python scripts
+check_*.py
+debug_*.py
+analyze_*.py
+show_*.py
+step_*.py
+test_*.py
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IMPORTANT: Do NOT ignore these (required for re-training/browser game dependencies)
+!ai/train/**
+!ai/deepcfr/**
+!ai/ismcts/**
+
+# Ignore locally generated distribution patches
+patches/*.patch

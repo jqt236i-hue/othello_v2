@@ -1,0 +1,143 @@
+## feature/flip-minimal...origin/feature/flip-minimal
+ M flip-evidence-minimal.txt
+feature/flip-minimal
+commit 9ee3315aab7b9043b37b8f85a123de67a255afca
+Author: GitHub Copilot <noreply@localhost>
+Date:   Thu Jan 29 14:00:36 2026 +0900
+
+    fix(ui): limit flip transition to .disc.flip to avoid broad transform conflicts
+
+M	styles-animations.css
+
+commit 4a119fa23cb43f6aa3b8446ddd08022f53ea7bdc
+Author: GitHub Copilot <noreply@localhost>
+Date:   Thu Jan 29 13:54:27 2026 +0900
+
+    chore(evidence): add flip minimal branch evidence
+
+A	flip-evidence-minimal.txt
+
+commit fcccd3024cdaa7d650a44ea4f3f8913fc109c37a
+Author: GitHub Copilot <noreply@localhost>
+Date:   Thu Jan 29 13:54:18 2026 +0900
+
+    flip(minimal): add flip UI + CSS + unit test (minimal branch)
+
+M	styles-animations.css
+A	tests/unit/ui/animation-engine.flip.test.js
+M	ui/animation-engine.js
+A	flip-evidence-minimal.txt
+M	styles-animations.css
+A	tests/unit/ui/animation-engine.flip.test.js
+M	ui/animation-engine.js
+diff --git a/styles-animations.css b/styles-animations.css
+index 10949ba..9ca51a6 100644
+--- a/styles-animations.css
++++ b/styles-animations.css
+@@ -21,3 +21,21 @@
+     opacity: 0;
+     transform: scale(0.8) translateY(10px);
+ }
++
++/* Stone flip animation */
++.disc {
++    backface-visibility: hidden;
++    transform-style: preserve-3d;
++}
++
++/* flip class performs a 180deg Y rotation */
++.disc.flip {
++    transform: rotateY(180deg);
++    transition: transform 0.6s cubic-bezier(.2,.85,.3,1);
++}
++
++/* destroy fade fallback */
++.disc.destroy-fade {
++    opacity: 0;
++    transition: opacity 0.3s ease-out;
++}
+diff --git a/tests/unit/ui/animation-engine.flip.test.js b/tests/unit/ui/animation-engine.flip.test.js
+new file mode 100644
+index 0000000..50997b7
+--- /dev/null
++++ b/tests/unit/ui/animation-engine.flip.test.js
+@@ -0,0 +1,44 @@
++const jsdom = require('jsdom');
++const { JSDOM } = jsdom;
++
++beforeEach(() => {
++  const dom = new JSDOM(require('fs').readFileSync(require('path').resolve(__dirname, '../../../index.html'), 'utf8'));
++  global.window = dom.window;
++  global.document = dom.window.document;
++  document.body.innerHTML = '<div id="board"></div>';
++  global.boardEl = document.getElementById('board');
++
++  // Expose timer registry and make timers execute immediately for deterministic test
++  const TimerRegistry = require('../../../ui/timer-registry.js');
++  window.TimerRegistry = TimerRegistry;
++  // Make setTimeout call immediate to avoid waiting during tests
++  window.TimerRegistry.setTimeout = (fn, ms, scope) => { try { fn(); } catch (e) { } return 0; };
++});
++
++afterEach(() => {
++  delete global.window;
++  delete global.document;
++});
++
++test('flip animation applies final visual state and does not leave flip class', async () => {
++  const AnimationEngine = require('../../../ui/animation-engine.js');
++
++  // Ensure a place event happens first
++  const events = [
++    { type: 'place', phase: 1, targets: [{ r: 2, col: 2, after: { color: 1, special: null, timer: null } }] },
++    { type: 'flip', phase: 2, targets: [{ r: 2, col: 2, after: { color: -1, special: null, timer: null } }] }
++  ];
++
++  await AnimationEngine.play(events);
++
++  const cell = document.querySelector('.cell[data-row="2"][data-col="2"]');
++  expect(cell).toBeTruthy();
++  const disc = cell.querySelector('.disc');
++  expect(disc).toBeTruthy();
++
++  // final color should be white (-1)
++  expect(disc.classList.contains('white')).toBe(true);
++
++  // flip class should not be left on the element after animation completes
++  expect(disc.classList.contains('flip')).toBe(false);
++});
+\ No newline at end of file
+diff --git a/ui/animation-engine.js b/ui/animation-engine.js
+index bfe6935..aa9b7e0 100644
+--- a/ui/animation-engine.js
++++ b/ui/animation-engine.js
+@@ -247,11 +247,22 @@
+                 // Section 1.4 "Spec B": Swap visuals immediately, then motion.
+                 this.syncDiscVisual(disc, after);
+ 
+-                disc.classList.remove('flip');
+-                disc.offsetHeight; // reset animation
+-                // flip animation suppressed (visual-only change)
++                // Trigger flip animation: remove any previous, force reflow, then add
++                try {
++                    disc.classList.remove('flip');
++                    disc.offsetHeight; // reset animation
++                    if (!_isNoAnim()) {
++                        disc.classList.add('flip');
++                    }
++                } catch (e) { /* defensive: ignore */ }
++
++                // Wait for flip animation to complete (no-op in NOANIM)
++                const res = await this._sleep(FLIP_MS);
++
++                // Ensure flip class is removed so it can be re-added on next flip
++                try { disc.classList.remove('flip'); } catch (e) { }
+ 
+-                return this._sleep(FLIP_MS);
++                return res;
+             });
+             await Promise.all(promises);
+         }
+origin	https://github.com/jqt236i-hue/othello-v22.git (fetch)
+origin	https://github.com/jqt236i-hue/othello-v22.git (push)
+9ee3315aab7b9043b37b8f85a123de67a255afca	refs/heads/feature/flip-minimal

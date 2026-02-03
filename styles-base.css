@@ -1,0 +1,76 @@
+/* ===== Global Reset, Base Typography, Body, H1, and Status Styling ===== */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', serif;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #1a120b;
+    background-image:
+        radial-gradient(circle at center, rgba(255, 204, 153, 0.15) 0%, rgba(0, 0, 0, 0.85) 85%),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.02) 0px, rgba(255, 255, 255, 0.02) 1px, transparent 1px, transparent 10px),
+        linear-gradient(#2c1e12, #1a0f08);
+    color: #e0d0b0;
+}
+
+h1 {
+    margin-bottom: 5px;
+    font-size: 24px;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+    opacity: 0.8;
+    font-weight: 300;
+}
+
+/* Status Display */
+#status {
+    margin-bottom: 15px;
+    font-size: 16px;
+    padding: 10px 25px;
+    background: linear-gradient(to bottom, #3d2e20, #2a1f15);
+    border: 1px solid #4a3828;
+    border-radius: 4px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    color: #d0c0a0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    position: relative;
+    transform: scale(0.7) translateX(-24px);
+    transform-origin: center bottom;
+    margin-top: -5px;
+}
+
+/* Metal rivets on status plate */
+#status::before,
+#status::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: linear-gradient(#d4af37, #8a7020);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    transform: translateY(-50%);
+}
+
+#status::before {
+    left: 8px;
+}
+
+#status::after {
+    right: 8px;
+}
+
+/* temporary diagnostics badge for Work visual debugging */
+#work-visual-diagnostics {
+    font-family: monospace;
+    line-height: 1.2;
+    opacity: 0.92;
+}

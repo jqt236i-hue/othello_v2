@@ -1,0 +1,452 @@
+/* ===== Card Items, Hands, Deck, Card Detail Panel, Card Styling ===== */
+
+.deck-stack {
+    --deck-ratio: 1;
+    position: relative;
+    width: 59px;
+    height: 78px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 25;
+    perspective: 200px;
+    flex-shrink: 0;
+}
+
+.deck-stack::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(145deg, #f5f5dc, #d4c89a);
+    border: 1px solid #8b7355;
+    border-radius: 4px;
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    z-index: 3;
+}
+
+.deck-stack::after {
+    content: '';
+    position: absolute;
+    top: calc(2px * var(--deck-ratio));
+    left: calc(-1px * var(--deck-ratio));
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(145deg, #e8e5d0, #c9b88a);
+    border: 1px solid #7a6355;
+    border-radius: 4px;
+    z-index: 2;
+    transform: translateZ(calc(-2px * var(--deck-ratio)));
+}
+
+.deck-stack .deck-edge {
+    position: absolute;
+    bottom: calc(-2px - (6px * var(--deck-ratio)));
+    left: 2px;
+    right: 2px;
+    height: calc(2px + (6px * var(--deck-ratio)));
+    background: repeating-linear-gradient(180deg,
+            #b8a67a 0px,
+            #b8a67a 1px,
+            #8b7355 1px,
+            #8b7355 2px);
+    border-radius: 0 0 2px 2px;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.deck-stack .deck-count {
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    color: #d4af37;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.card-item {
+    width: 91px;
+    height: 124px;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    padding: 3px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    user-select: none;
+    pointer-events: none;
+    position: relative;
+}
+
+.card-name {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-cost-badge {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: rgba(42, 42, 42, 0.85);
+    color: #ffd700;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 3px;
+    border: 1px solid rgba(255, 215, 0, 0.4);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.card-item.visible {
+    background: linear-gradient(135deg, #f5f5dc, #d4c89a);
+    border: 1px solid #8b7355;
+    color: #2a1f15;
+}
+
+.card-item.hidden {
+    background: linear-gradient(135deg, #3d2e20, #1a0f08);
+    border: 1px solid #4a3828;
+    color: #d4af37;
+}
+
+.card-item.selected {
+    box-shadow: 0 0 12px 4px rgba(255, 215, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.5);
+    border: 2px solid #ffd700;
+    transform: translateY(-5px);
+    z-index: 10;
+}
+
+.card-item.visible.clickable {
+    cursor: pointer;
+    pointer-events: auto;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card-item.visible.clickable:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.card-item.usable {
+    box-shadow: 0 0 16px 6px rgba(82, 214, 120, 0.55), 0 6px 18px rgba(0,0,0,0.4);
+    border: 2px solid rgba(82, 214, 120, 0.9);
+    transform: translateY(-6px);
+}
+
+.card-item.usable .card-cost-badge {
+    background: rgba(50, 120, 40, 0.95);
+    color: #e6ffe6;
+    border-color: rgba(200,255,200,0.4);
+}
+
+#hand-black .card-item {
+    width: 114px;
+    height: 155px;
+    font-size: 17.5px;
+}
+
+#hand-black .card-item .card-cost-badge {
+    font-size: 12px;
+    bottom: 6px;
+    right: 6px;
+    padding: 3px 6px;
+}
+
+.flying-card {
+    position: absolute;
+    width: 91px;
+    height: 124px;
+    border-radius: 5px;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    padding: 3px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    transition: transform 300ms ease-out, opacity 200ms ease-out;
+    z-index: 100;
+}
+
+.flying-card.face-up {
+    background: linear-gradient(135deg, #f5f5dc, #d4c89a);
+    border: 1px solid #8b7355;
+    color: #2a1f15;
+}
+
+.flying-card.face-down {
+    background: linear-gradient(135deg, #3d2e20, #1a0f08);
+    border: 1px solid #4a3828;
+    color: #d4af37;
+}
+
+#card-detail-panel {
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 0;
+    width: 300px;
+    min-height: 110px;
+    padding: 12px 14px;
+    background: linear-gradient(to bottom, #2a1f15, #1a1108);
+    border: 2px solid #4a3828;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.62);
+    transform-origin: top left;
+    transform: translateX(-1.0cm) translateY(-4cm) scale(1.2, 1.02);
+    z-index: 150;
+}
+
+#card-detail-header {
+    font-size: 11px;
+    color: #8b7355;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#card-detail-name {
+    font-size: 14px;
+    font-weight: bold;
+    color: #d4af37;
+    margin-bottom: 4px;
+}
+
+#card-detail-desc {
+    font-size: 16px;
+    font-weight: 500;
+    color: #c0a080;
+    margin-bottom: 10px;
+    line-height: 1.5;
+    min-height: 40px;
+}
+
+#card-detail-panel > #card-detail-header,
+#card-detail-panel > #card-detail-name,
+#card-detail-panel > #card-detail-desc,
+#card-detail-panel > #use-card-btn,
+#card-detail-panel > #cancel-card-btn,
+#card-detail-panel > #use-card-reason {
+    display: block;
+    width: 100%;
+    text-align: center;
+    transform-origin: center top;
+    transform: scale(0.8333333, 0.9803922);
+}
+
+#card-detail-panel > #use-card-btn,
+#card-detail-panel > #cancel-card-btn {
+    display: inline-block;
+    width: auto;
+    box-sizing: border-box;
+}
+
+#use-card-btn {
+    padding: 6px 20px;
+    font-size: 12px;
+    font-weight: bold;
+    background: linear-gradient(to bottom, #4a7c59, #2d5a3a);
+    border: 1px solid #5a9c6a;
+    border-radius: 4px;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-top: 8mm;
+}
+
+#use-card-btn:hover:not(:disabled) {
+    background: linear-gradient(to bottom, #5a9c6a, #3d7a4a);
+    box-shadow: 0 0 8px rgba(90, 156, 106, 0.5);
+}
+
+#use-card-btn:disabled {
+    background: linear-gradient(to bottom, #555, #333);
+    border-color: #666;
+    color: #888;
+    cursor: not-allowed;
+}
+
+/* For cards that are unusable but should still show a reason on click (e.g., TEMPT_WILL with no targets). */
+#use-card-btn.pseudo-disabled {
+    background: linear-gradient(to bottom, #555, #333);
+    border-color: #666;
+    color: #888;
+    cursor: not-allowed;
+    opacity: 0.95;
+    box-shadow: none;
+}
+
+#cancel-card-btn {
+    margin-top: 6px;
+    padding: 4px 16px;
+    font-size: 11px;
+    background: linear-gradient(to bottom, #5a4a3a, #3a2f25);
+    border: 1px solid #7a634f;
+    border-radius: 4px;
+    color: #f0d8b0;
+    cursor: pointer;
+}
+
+#cancel-card-btn:hover {
+    background: linear-gradient(to bottom, #6a5a49, #44372c);
+}
+
+#use-card-reason {
+    font-size: 10px;
+    color: #a08060;
+    margin-top: 4px;
+    min-height: 14px;
+}
+
+
+#discard-display {
+    margin-top: calc(8px - 3.5cm);
+    padding: 6px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.discard-label {
+    font-size: 10px;
+    color: #8b7355;
+}
+
+#discard-count {
+    font-size: 12px;
+    font-weight: bold;
+    color: #d4af37;
+}
+
+.active-effect-slot {
+    display: none;
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 100px;
+    padding: 10px;
+    background: linear-gradient(to bottom, rgba(30, 20, 10, 0.9), rgba(15, 10, 5, 0.9));
+    border: 1px solid #4a3828;
+    border-radius: 6px;
+    text-align: center;
+    z-index: 50;
+}
+
+#active-black {
+    left: 10px;
+}
+
+#active-white {
+    right: 10px;
+}
+
+.effect-slot-label {
+    font-size: 10px;
+    color: #8b7355;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.effect-slot-content {
+    font-size: 11px;
+    color: #c0a080;
+    min-height: 20px;
+}
+
+#handLayer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1000;
+    overflow: hidden;
+    display: none;
+}
+
+#handWrapper {
+    position: absolute;
+    width: 120px;
+    height: 180px;
+    transform-origin: center bottom;
+    filter: drop-shadow(5px 10px 10px rgba(0, 0, 0, 0.6));
+    will-change: transform;
+}
+
+.hand-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.held-stone {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    left: 35px;
+    top: 40px;
+    z-index: -1;
+    box-shadow: 2px 4px 6px rgba(0, 0, 0, 0.5);
+    display: none;
+}
+
+.held-stone.black {
+    background: radial-gradient(circle at 35% 35%, #444 0%, #1a1a1a 40%, #000 100%);
+}
+
+.held-stone.white {
+    background: radial-gradient(circle at 35% 35%, #fffdf0 0%, #e0e0d0 40%, #b0b0a0 100%);
+}
+
+#handSvg {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+}
+
+#handSvg path {
+    stroke: #d6a066;
+    stroke-width: 1;
+}
+
+.card-hand-sprite {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    pointer-events: none;
+    background: radial-gradient(circle, rgba(255, 230, 200, 0.9), rgba(220, 180, 140, 0.7));
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    opacity: 0.8;
+    z-index: 99;
+    transition: transform 250ms ease-out, opacity 150ms ease-out;
+}
+
+#card-fx-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1025;
+    overflow: visible;
+}

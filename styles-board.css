@@ -1,0 +1,676 @@
+/* ===== Board Grid, Cells, Discs (Stones), Flip Animations ===== */
+
+#board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    width: 70vmin;
+    height: 70vmin;
+    max-width: 500px;
+    max-height: 500px;
+    background-color: #1b4d2e;
+    border: 4px solid #000;
+    box-shadow:
+        0 0 10px rgba(0, 0, 0, 0.8),
+        inset 0 0 20px rgba(0, 0, 0, 0.5);
+    position: relative;
+    background-image: url('data:image/svg+xml;utf8,<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100" height="100" filter="url(%23noise)" opacity="0.15"/></svg>'),
+        radial-gradient(circle at center, rgba(255, 255, 255, 0.05) 0%, transparent 80%);
+    background-size: 150px 150px,
+        100% 100%;
+}
+
+/* Disable interactions during active playback */
+#board.playback-locked {
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
+:root {
+    --stone-crossfade-ms: 600ms;
+}
+
+.cell {
+    width: 100%;
+    height: 100%;
+    background-color: transparent;
+    border-top: 1px solid rgba(0, 0, 0, 0.3);
+    border-left: 1px solid rgba(0, 0, 0, 0.3);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+}
+
+.cell.legal,
+.cell.legal-free,
+.cell.selectable-friendly {
+    background-color: #00695c;
+    box-shadow: inset 0 0 15px rgba(100, 255, 218, 0.1), inset 1px 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.cell.legal::after,
+.cell.legal-free::after,
+.cell.selectable-friendly::after {
+    content: "";
+    width: 14px;
+    height: 14px;
+    background: rgba(100, 255, 100, 0.2);
+    border: 1px solid rgba(130, 255, 130, 0.6);
+    border-radius: 50%;
+    box-shadow: 0 0 4px rgba(100, 255, 100, 0.4);
+    transition: all 0.2s ease;
+}
+
+@media (hover: hover) {
+
+    .cell.legal:hover::after,
+    .cell.legal-free:hover::after,
+    .cell.selectable-friendly:hover::after {
+        background: rgba(100, 255, 100, 0.4);
+        transform: scale(1.3);
+        border-color: rgba(150, 255, 150, 0.8);
+        box-shadow: 0 0 8px rgba(100, 255, 100, 0.6);
+    }
+
+    .cell.legal:hover,
+    .cell.legal-free:hover,
+    .cell.selectable-friendly:hover {
+        cursor: pointer;
+        background-color: rgba(255, 255, 255, 0.03);
+    }
+}
+
+.disc {
+    width: 86%;
+    height: 86%;
+    border-radius: 50%;
+    position: absolute;
+    top: 7%;
+    left: 7%;
+    box-shadow: none; /* visual decoration moved to image assets */
+    overflow: hidden; /* clip images to circle */
+    transform-style: preserve-3d;
+    will-change: transform;
+    z-index: 10;
+    background-size: 100% 100%;
+    background-position: center center;
+    background-repeat: no-repeat;
+    /* Smooth cross-fade for all stone state changes */
+    transition: background var(--stone-crossfade-ms) ease-in-out;
+}
+
+/* Overlay image used to ensure image covers the disc fully (hides transparent canvas margins) */
+.disc::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: cover; /* ensure coverage to hide transparent edges */
+    pointer-events: none;
+    z-index: 15;
+    /* Uses element-level CSS var --stone-image which may reference --normal-stone-*-image */
+    background-image: var(--stone-image, none);
+}
+
+/* Ensure special-stone overlay appears above normal disc overlay */
+.disc.special-stone::before {
+    z-index: 25; /* keep above .disc::after (z-index:15) */
+    position: absolute;
+}
+
+
+/* Hidden state for the whole stone */
+.disc.stone-hidden-all {
+    opacity: 0;
+}
+
+/* Instant state change (disable transitions temporarily) */
+.disc.stone-instant,
+.disc.stone-instant::before {
+    transition: none !important;
+}
+
+/* Temporary overlay for seamless cross-fade */
+.disc.stone-fade-overlay {
+    position: absolute;
+    z-index: 20;
+    pointer-events: none;
+    opacity: 0;
+    /* opacity transition removed to prevent cross-fade */
+    display: none; /* overlays are disabled */
+}
+
+.disc.black {
+    background: var(--normal-stone-black-image) center/100% 100% no-repeat;
+    background-color: #050505; /* 画像の透明領域を埋める */
+    /* border removed: visual rim is now provided by image assets */
+}
+ 
+.disc.white {
+    background: var(--normal-stone-white-image) center/100% 100% no-repeat;
+    background-color: #ffffff; /* 画像の透明領域を埋める */
+}
+
+/* When stone images are loaded we prefer the overlay pseudo-element and hide the base backgrounds
+   This enables image-only rendering while preserving colored fallback for older/failed loads */
+html.stone-images-loaded .disc.black,
+html.stone-images-loaded .disc.white {
+    background: none !important;
+    background-color: transparent !important;
+}
+
+/* Fallback overlay assignment: if per-disc --stone-image isn't set, assign based on owner class so stones remain visible
+   This makes the transition resilient to timing/order differences between preload and rendering. */
+html.stone-images-loaded .disc.black::after {
+    background-image: var(--normal-stone-black-image);
+}
+html.stone-images-loaded .disc.white::after {
+    background-image: var(--normal-stone-white-image);
+}
+
+.disc.protected {
+    /* Use image-based protected visuals; allow inline/background-image to take effect */
+    background: none !important;
+    /* visual border removed: image assets supply final rim */
+    box-shadow: none !important;
+    filter: none;
+}
+
+.disc.perma-protected.perma-black {
+    box-sizing: border-box;
+    /* Perma-protected uses an image applied via JS; clear gradient to allow image to show. */
+    background: none !important;
+    /* visual border/shine removed: image supplies the rim */
+    box-shadow: none;
+}
+
+.disc.perma-protected.perma-black::after {
+    display: none; /* remove CSS aura; image should include it if needed */
+}
+
+.disc.perma-protected.perma-black::before {
+    display: none;
+}
+
+
+.disc.perma-protected.perma-white {
+    box-sizing: border-box;
+    /* Perma-protected uses image-based visuals; let JS set the image */
+    background: none !important;
+    /* visual border/shine removed: image supplies the rim */
+    box-shadow: none;
+}
+
+.disc.perma-protected.perma-white::after {
+    display: none; /* remove CSS aura; image should include it if needed */
+}
+
+.disc.perma-protected.perma-white::before {
+    display: none;
+}
+
+
+.disc.bomb {
+    /* Use image-based special stone visuals for bombs */
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.disc.bomb.bomb-black {
+    --special-stone-image: url('assets/images/stones/TIME_BOMB-black.png');
+}
+
+.disc.bomb.bomb-white {
+    --special-stone-image: url('assets/images/stones/TIME_BOMB-white.png');
+}
+
+.disc.time-bomb-stone {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.bomb-icon {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 14px;
+    color: #ff6400;
+    font-weight: bold;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.bomb-timer {
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-weight: bold;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.55);
+    padding: 1px 4px;
+    border-radius: 4px;
+    min-width: 14px;
+    text-align: center;
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* ===== Stone Visual Effects (Unified via visual-effects-map.js) ===== */
+
+/*
+ * Special Stone Unified Overlay
+ * - Any card that changes a disc's appearance should be treated as a "special stone".
+ * - All special stones share the same size control via --special-stone-scale.
+ */
+
+.disc.special-stone::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-image: var(--special-stone-image);
+    background-size: 100% 100% !important;
+    background-position: center center;
+    background-repeat: no-repeat;
+    transform: scale(var(--special-stone-scale, 1));
+    transform-origin: center;
+    pointer-events: none;
+    z-index: 25; /* ensure special stones overlay above normal stone overlay */
+}
+
+/* Fallback inline image inside .disc used only when pseudo-element or CSS vars fail */
+.disc .special-stone-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* ensure images fill the disc */
+    pointer-events: none;
+    z-index: 60;
+    border-radius: inherit; /* match disc rounding */
+}
+
+
+/**
+ * Protected Stone (硬い意志)
+ * - 効果継続ターン中のみブルー画像を表示
+ * - 効果切れ時はフェードアウトアニメーション
+ */
+.disc.protected-stone {
+    /* background image is set by JavaScript based on owner */
+    box-shadow: none !important;
+    border: none !important;
+    background: none !important;
+}
+
+.disc.protected-stone.fade-out {
+    animation: fadeOutStone 0.6s ease-out forwards;
+}
+
+.disc.protected-gray.fade-out {
+    animation: fadeOutStone 0.6s ease-out forwards;
+}
+
+/* Short-term protection (弱い意志) gray overlay */
+.disc.protected-gray {
+    background-size: 100% 100% !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+    box-shadow: none !important;
+    border: none !important;
+    background-color: transparent !important;
+}
+
+@keyframes fadeOutStone {
+    0% {
+        opacity: 1;
+        background-image: url('assets/images/stones/protected_next_stone.png') !important;
+    }
+
+    50% {
+        opacity: 0.5;
+        background-image: url('assets/images/stones/protected_next_stone.png') !important;
+    }
+
+    100% {
+        opacity: 1;
+        background-image: none;
+    }
+}
+
+/* Stone destruction fade-out animation */
+.disc.destroy-fade {
+    animation: fadeOutDestroy 0.5s ease-out forwards !important;
+}
+
+/* When selecting a target for a card, "placeable move" markers must not appear. */
+#board.selection-mode .cell.legal,
+#board.selection-mode .cell.legal-free {
+    background-color: transparent;
+    box-shadow: none;
+}
+
+#board.selection-mode .cell.legal::after,
+#board.selection-mode .cell.legal-free::after,
+#board.selection-mode .cell.legal:hover::after,
+#board.selection-mode .cell.legal-free:hover::after {
+    opacity: 0;
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    transform: none;
+}
+
+@keyframes fadeOutDestroy {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .disc.destroy-fade {
+        animation: none !important;
+        opacity: 0 !important;
+    }
+}
+
+/* Stone destruction "shatter" animation (used by animateDestroyAt) */
+.disc.shatter {
+    animation: shatterStone 0.3s ease-out forwards !important;
+}
+
+@keyframes shatterStone {
+    0% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+/**
+ * Ultimate Reverse Dragon
+ * - Owner別に龍画像を表示（::before 擬似要素）
+ * - 黒所有 → 黒龍
+ * - 白所有 → 白龍
+ */
+.disc.ultimate-dragon {
+    background: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+.disc.ultimate-dragon.ud-black,
+.disc.ultimate-dragon[data-ud="black"] {
+    --special-stone-image: var(--dragon-image-path, url('assets/images/stones/ultimate_reverse_dragon-black.png'));
+}
+
+.disc.ultimate-dragon.ud-white,
+.disc.ultimate-dragon[data-ud="white"] {
+    --special-stone-image: var(--dragon-image-path, url('assets/images/stones/ultimate_reverse_dragon-white.png'));
+}
+
+.disc.ultimate-dragon.ud-black {
+    box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.8);
+}
+
+.disc.ultimate-dragon.ud-white {
+    box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.dragon-icon {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 14px;
+    color: #ff6400;
+    font-weight: bold;
+    text-shadow: 0 0 3px rgba(255, 100, 0, 0.8);
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+}
+
+.dragon-timer {
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-weight: bold;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.55);
+    padding: 1px 4px;
+    border-radius: 4px;
+    min-width: 14px;
+    text-align: center;
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* ===== Breeding Stone (繁殖の意志) ===== */
+.disc.breeding-stone {
+    /* 背景を透明化 - 画像が表示できるように */
+    background: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+.disc.breeding-stone[data-breeding="black"] {
+    --special-stone-image: var(--breeding-image-path, url('assets/images/stones/BREEDING_WILL-black.png'));
+}
+
+.disc.breeding-stone[data-breeding="white"] {
+    --special-stone-image: var(--breeding-image-path, url('assets/images/stones/BREEDING_WILL-white.png'));
+}
+
+.disc.ultimate-destroy-god {
+    /* UDG is a full-skin stone; hide base disc gradients/borders */
+    background: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+.disc.ultimate-destroy-god.ud-black,
+.disc.ultimate-destroy-god[data-ud="black"] {
+    --special-stone-image: url('assets/images/stones/ULTIMATE_DESTROY_GOD-black.png');
+}
+
+.disc.ultimate-destroy-god.ud-white,
+.disc.ultimate-destroy-god[data-ud="white"] {
+    --special-stone-image: url('assets/images/stones/ULTIMATE_DESTROY_GOD-white.png');
+}
+
+.breeding-timer {
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-weight: bold;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.55);
+    padding: 1px 4px;
+    border-radius: 4px;
+    min-width: 14px;
+    text-align: center;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.work-timer {
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-weight: bold;
+    color: #ffffff;
+    background: rgba(0, 100, 160, 0.8);
+    padding: 1px 4px;
+    border-radius: 4px;
+    min-width: 14px;
+    text-align: center;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.udg-timer {
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-weight: bold;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.55);
+    padding: 1px 4px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 2;
+    min-width: 14px;
+    text-align: center;
+}
+
+/* Breeding spawn animation removed to avoid opacity fades */
+/* .disc.breeding-spawn animation intentionally removed */
+
+
+
+/* NOANIM safety: disable transitions/animations under a global marker */
+.no-anim #board .disc,
+.no-anim .board .disc,
+.no-anim #board .disc::before,
+.no-anim .stone-fade-overlay {
+    transition: none !important;
+    animation: none !important;
+    opacity: 1 !important;
+}
+
+/* Also ensure overlays are not visible on NOANIM */
+.no-anim .stone-fade-overlay {
+    display: none !important;
+}
+
+/**
+ * Gold Stone
+ * - 背景画像で直接置き換え
+ * - フェードアウトアニメーション後に盤上から消滅
+ */
+.disc.gold-stone {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    /* Use default .disc sizing so gold stone matches other stones */
+    width: 82%;
+    height: 82%;
+    top: 9%;
+    left: 9%;
+}
+
+/**
+ * Silver Stone
+ * - Same visual mechanism as Gold Stone
+ */
+.disc.silver-stone {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    width: 82%;
+    height: 82%;
+    top: 9%;
+    left: 9%;
+}
+
+.disc.hyperactive-moving {
+    transition: transform 0.28s cubic-bezier(0.2, 0.85, 0.3, 1);
+    will-change: transform;
+}
+
+#card-fx-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 30;
+}
+
+.hyperactive-move-ghost {
+    z-index: 30;
+}
+
+.disc.hyperactive-stone {
+    background: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+.disc.hyperactive-stone.ud-black,
+.disc.hyperactive-stone[data-ud="black"] {
+    --special-stone-image: url('assets/images/stones/HYPERACTIVE_WILL-black.png');
+}
+
+.disc.hyperactive-stone.ud-white,
+.disc.hyperactive-stone[data-ud="white"] {
+    --special-stone-image: url('assets/images/stones/HYPERACTIVE_WILL-white.png');
+}
+
+/* Regen stone base style (Ensure background is NOT none) */
+
+/* Universal cross-fade system for all special stone icons */
+.disc.special-stone::before {
+    transition: opacity var(--stone-crossfade-ms) ease-in-out;
+}
+
+/* Hidden state for cross-fade */
+.disc.special-stone.stone-hidden::before {
+    opacity: 0;
+}
+
+.disc.regen-stone.ud-black,
+.disc.regen-stone[data-ud="black"] {
+    --special-stone-image: url('assets/images/stones/regen_stone-black.png');
+}
+
+.disc.regen-stone.ud-white,
+.disc.regen-stone[data-ud="white"] {
+    --special-stone-image: url('assets/images/stones/regen_stone-white.png');
+}
+
+
+
+@keyframes strongWillFadeIn {
+    0% {
+        opacity: 0.0;
+    }
+
+    100% {
+        opacity: 1.0;
+    }
+}
+
+.disc.strong-will-apply {
+    animation: strongWillFadeIn 0.5s ease-out;
+}

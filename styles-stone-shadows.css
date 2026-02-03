@@ -1,0 +1,64 @@
+/* Stone shadows — enabled via html.stone-shadow-enabled */
+/* Use filter drop-shadow on the image overlay (disc::after) for shape-following shadow */
+
+html.stone-shadow-enabled .disc::after {
+    /* shape-following shadow that follows the image alpha */
+    filter: drop-shadow(0 var(--stone-shadow-offset-y) var(--stone-shadow-blur) var(--stone-shadow-color));
+    transition: none !important; /* Spec B: no transition latency */
+    will-change: filter;
+    pointer-events: none;
+}
+
+/* Fallback: box-shadow on the disk element if filter isn't available */
+html.stone-shadow-enabled .disc {
+    box-shadow: 0 var(--stone-shadow-offset-y) var(--stone-shadow-blur) var(--stone-shadow-color);
+}
+
+/* Apply shadow rules for special stones and protected stones */
+/* Special stones often have unique artwork; apply a slightly softer shadow to their overlay layer */
+html.stone-shadow-enabled .disc.special-stone::before,
+html.stone-shadow-enabled .disc.special-stone::after {
+    filter: drop-shadow(0 calc(var(--stone-shadow-offset-y) * 0.7) calc(var(--stone-shadow-blur) * 0.8) rgba(0,0,0,0.35));
+    transition: none !important;
+    will-change: filter;
+    pointer-events: none;
+}
+
+/* Perma-protected stones often hide their ::after overlay; apply box-shadow on the element itself */
+html.stone-shadow-enabled .disc.perma-protected {
+    box-shadow: 0 calc(var(--stone-shadow-offset-y) * 0.6) calc(var(--stone-shadow-blur) * 0.8) rgba(0,0,0,0.42);
+}
+
+/* Bombs and other marked stones get a slightly stronger, tighter shadow */
+html.stone-shadow-enabled .disc.bomb::after,
+html.stone-shadow-enabled .disc.bomb {
+    filter: drop-shadow(0 calc(var(--stone-shadow-offset-y) * 0.5) calc(var(--stone-shadow-blur) * 0.7) rgba(0,0,0,0.5));
+    box-shadow: 0 calc(var(--stone-shadow-offset-y) * 0.5) calc(var(--stone-shadow-blur) * 0.7) rgba(0,0,0,0.45);
+}
+
+/* Gold/special metal stones: slightly darker shadow for contrast */
+html.stone-shadow-enabled .disc.gold {
+    box-shadow: 0 var(--stone-shadow-offset-y) calc(var(--stone-shadow-blur) * 0.6) rgba(0,0,0,0.55);
+}
+
+/* Ensure default fallback remains for any other stone variants */
+html.stone-shadow-enabled .disc.silver {
+    box-shadow: 0 calc(var(--stone-shadow-offset-y) * 0.9) calc(var(--stone-shadow-blur) * 0.9) rgba(0,0,0,0.45);
+}
+
+/* Force-enable shadows for classes that explicitly disable them in base styles (use !important to override) */
+html.stone-shadow-enabled .disc.protected {
+    box-shadow: 0 calc(var(--stone-shadow-offset-y) * 0.9) calc(var(--stone-shadow-blur) * 0.9) rgba(0,0,0,0.5) !important;
+    filter: drop-shadow(0 var(--stone-shadow-offset-y) var(--stone-shadow-blur) rgba(0,0,0,0.45)) !important;
+}
+
+html.stone-shadow-enabled .disc.bomb,
+html.stone-shadow-enabled .disc.time-bomb-stone {
+    box-shadow: 0 calc(var(--stone-shadow-offset-y) * 0.6) calc(var(--stone-shadow-blur) * 0.8) rgba(0,0,0,0.5) !important;
+    filter: drop-shadow(0 calc(var(--stone-shadow-offset-y) * 0.6) calc(var(--stone-shadow-blur) * 0.8) rgba(0,0,0,0.45)) !important;
+}
+
+/* Perma-protected: ensure element-level box-shadow even if ::after is hidden */
+html.stone-shadow-enabled .disc.perma-protected {
+    box-shadow: 0 calc(var(--stone-shadow-offset-y) * 0.7) calc(var(--stone-shadow-blur) * 0.9) rgba(0,0,0,0.48) !important;
+}

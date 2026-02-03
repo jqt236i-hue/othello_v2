@@ -1,0 +1,78 @@
+/* ===== CSS Variables, Color Palette, and Sizing Constants ===== */
+
+:root {
+    /* Primary Color Palette */
+    --color-bg-dark: #1a120b;
+    --color-board-green: #1b4d2e;
+    --color-gold: #d4af37;
+    --color-gold-bright: #ffd700;
+    
+    /* Text Colors */
+    --color-text-primary: #e0d0b0;
+    --color-text-secondary: #d0c0a0;
+    --color-text-warm: #c0a080;
+    --color-text-bright: #f0f0f0;
+    --color-text-muted: #8b7355;
+    --color-text-gold: #d4af37;
+    --color-text-gold-light: #ffecb3;
+    
+    /* Background Colors */
+    --bg-status: #3d2e20;
+    --bg-status-lighter: #2a1f15;
+    --bg-frame: #2a2a2a;
+    --bg-frame-dark: #000000;
+    --bg-panel-dark: #1a0f08;
+    --bg-glass: rgba(30, 30, 30, 0.85);
+    
+    /* Border Colors */
+    --border-status: #4a3828;
+    --border-frame: #000;
+    --border-card: #4a3828;
+    
+    /* Stone Colors */
+    --stone-black-light: #555;
+    --stone-black-dark: #050505;
+    --stone-white: #ffffff;
+    --stone-white-base: #f0f0f0;
+    --stone-white-shadow: #bbbbbb;
+    --stone-protected: #999999;
+    --normal-stone-black-image: url('assets/images/stones/normal_stone-black.png');
+    --normal-stone-white-image: url('assets/images/stones/normal_stone-white.png');
+    
+    /* Accent Colors */
+    --color-legal-bg: #00695c;
+    --color-legal-accent: #78ffaa;
+    --color-usable-green: #52d678;
+    --color-danger: #ff6400;
+    --color-dragon-green: #2aff78;
+    --color-hand-skin: #ddb892;
+    
+    /* Panel Colors */
+    --color-panel-light: #fffdf6;
+    --color-panel-light-alt: #f7efe2;
+    
+    /* Size Variables - Cards */
+    --card-width: 91px;
+    --card-height: 124px;
+    --card-width-large: 114px;
+    --card-height-large: 155px;
+    
+    /* Size Variables - Deck */
+    --deck-width: 59px;
+    --deck-height: 78px;
+    
+    /* Size Variables - Board */
+    --board-size-vmin: 70vmin;
+    --board-size-max: 500px;
+    --board-size-responsive: 90vw;
+    --board-size-responsive-max: 400px;
+
+    /* Special stones (cards that change disc appearance) */
+    /* 1.0 = no scale; e.g. 1.10 = +10% */
+    --special-stone-scale: 1.10;
+    /* Stone shadow variables */
+    --stone-shadow-color: rgba(0, 0, 0, 0.45);
+    --stone-shadow-offset-y: 6px;
+    --stone-shadow-blur: 6px;
+    --stone-shadow-spread: 0px; 
+}

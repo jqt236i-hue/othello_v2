@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カードオセロ</title>
+    <!-- CSS Split Modules -->
+    <link rel="stylesheet" href="styles-variables.css">
+    <link rel="stylesheet" href="styles-base.css">
+    <link rel="stylesheet" href="styles-layout.css">
+    <link rel="stylesheet" href="styles-board.css">
+    <link rel="stylesheet" href="styles-cards.css">
+    <link rel="stylesheet" href="styles-animations.css">
+    <link rel="stylesheet" href="styles-responsive.css">
+    <link rel="stylesheet" href="styles-stone-shadows.css">
+</head>
+
+<body>
+    <!-- Top-Left Info Panel -->
+    <div id="info-panel">
+        <h1>カードオセロ</h1>
+    </div>
+
+    <!-- Enemy CPU Character Display -->
+    <div id="cpu-character-panel">
+        <img id="cpu-character-img" src="" alt="敵CPU">
+        <div id="cpu-level-label">レベル: -</div>
+    </div>
+
+    <!-- Hero Character Display -->
+    <div id="hero-character-panel">
+        <img id="hero-character-img" src="assets/images/hero/hero.png" alt="オセロの勇者">
+        <div id="hero-label">オセロの勇者</div>
+    </div>
+
+    <div id="game-container">
+        <!-- Opponent Area (Deck + Hand) -->
+        <div class="player-area-top">
+            <div id="deck-white" class="deck-stack">
+                <div class="deck-edge"></div>
+                <div class="deck-count">10</div>
+            </div>
+            <div id="hand-white" class="hand-container"></div>
+        </div>
+
+        <div id="board-frame">
+            <div id="board"></div>
+            <!-- Occupancy UI (removed) -->
+            <!-- Charge UI -->
+            <div id="charge-black" class="charge-display">布石: 0 / 30</div>
+            <div id="charge-white" class="charge-display">布石: 0 / 30</div>
+            <!-- Card Animation FX Layer -->
+            <div id="card-fx-layer"></div>
+        </div>
+
+        <!-- Player Area (Hand + Deck) -->
+        <div class="player-area-bottom">
+            <div id="hand-black" class="hand-container"></div>
+            <div id="deck-black" class="deck-stack">
+                <div class="deck-edge"></div>
+                <div class="deck-count">10</div>
+            </div>
+            <!-- Card Detail Panel: placed next to player's deck/hand for quick access -->
+            <div id="card-detail-panel">
+                <div id="card-detail-header">カード詳細</div>
+                <div id="card-detail-name">-</div>
+                <div id="card-detail-desc">カードを選択してください</div>
+                <button id="use-card-btn" disabled>使用</button>
+                <button id="cancel-card-btn" style="display:none;" onclick="cancelPendingDestroy()">キャンセル</button>
+                <div id="use-card-reason"></div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Side UI Panel -->
+    <div id="side-panel">
+        <!-- Compact Control Panel -->
+        <div id="control-panel">
+            <!-- Game Controls -->
+            <div class="control-group">
+                <div class="control-label">GAME</div>
+                <button id="resetBtn" class="btn-small">リセット</button>
+                <button id="autoToggleBtn" class="btn-small">AUTO: OFF</button>
+                <button id="debugModeBtn" class="btn-small" style="background-color: #4a3828; color: #ff6b6b;">DEBUG:
+                    OFF</button>
+                <button id="humanVsHumanBtn" class="btn-small"
+                    style="background-color: #5a3a2d; color: #ffb366; display: none;">人間vs人間: OFF</button>
+                <button id="visualTestBtn" class="btn-small"
+                    style="background-color: #3a2a5a; color: #ffa500; display: none;">石ビジュアル</button>
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">AI SMART</div>
+                <label class="small-label">黒</label>
+                <select id="smartBlack" class="compact-select" style="width: 70px;"></select>
+                <label class="small-label">白</label>
+                <select id="smartWhite" class="compact-select" style="width: 70px;"></select>
+            </div>
+
+            <!-- Sound Effects -->
+            <div class="control-group">
+                <div class="control-label">SE</div>
+                <button id="muteBtn" class="btn-small">🔊 ON</button>
+                <select id="seTypeSelect" class="compact-select"></select>
+                <input type="range" id="seVolSlider" class="compact-slider" min="0" max="1" step="0.05">
+            </div>
+
+            <!-- BGM -->
+            <div class="control-group">
+                <div class="control-label">BGM</div>
+                <button id="bgmPlayBtn" class="btn-small">▶</button>
+                <button id="bgmPauseBtn" class="btn-small">⏸</button>
+                <select id="bgmTrackSelect" class="compact-select" style="max-width: 120px;"></select>
+                <input type="range" id="bgmVolSlider" class="compact-slider" min="0" max="0.5" step="0.01">
+            </div>
+        </div>
+
+        <div id="log"></div>
+
+        <!-- Discard Display -->
+        <div id="discard-display">
+            <div class="discard-label">捨て札</div>
+            <div id="discard-count">0</div>
+        </div>
+    </div>
+
+    <!-- Active Effect Slots (Phase 2) -->
+    <div id="active-black" class="active-effect-slot">
+        <div class="effect-slot-label">黒の効果</div>
+        <div class="effect-slot-content">なし</div>
+    </div>
+    <div id="active-white" class="active-effect-slot">
+        <div class="effect-slot-label">白の効果</div>
+        <div class="effect-slot-content">なし</div>
+    </div>
+
+    <!-- Hand Animation Elements -->
+    <div id="handLayer">
+        <div id="handWrapper">
+            <svg id="handSvg" viewBox="0 0 200 300" preserveAspectRatio="xMidYMax meet">
+                <defs>
+                    <linearGradient id="skinGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#e0ac69;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#d49a58;stop-opacity:1" />
+                    </linearGradient>
+                    <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+                        <feOffset dx="2" dy="2" result="offsetblur" />
+                        <feComponentTransfer>
+                            <feFuncA type="linear" slope="0.3" />
+                        </feComponentTransfer>
+                        <feMerge>
+                            <feMergeNode />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                </defs>
+                <path id="handPath"
+                    d="M80,300 C70,250 60,200 55,180 C50,160 30,150 20,130 C10,110 15,90 25,85 C35,80 45,90 50,110 C50,110 50,80 55,60 C60,40 75,35 85,40 C95,45 90,70 85,110 C85,110 95,70 105,50 C115,30 130,35 135,45 C140,55 130,80 125,115 C125,115 140,90 150,80 C160,70 175,75 175,90 C175,105 160,130 140,150 L120,200 C130,220 150,280 160,300 Z"
+                    fill="url(#skinGradient)" filter="url(#dropShadow)" />
+                <path id="thumbPath"
+                    d="M80,300 C90,260 110,230 130,220 C150,210 170,200 180,180 C190,160 180,140 165,145 C150,150 130,170 110,200 L100,220"
+                    fill="url(#skinGradient)" filter="url(#dropShadow)" />
+            </svg>
+            <div id="heldStone" class="disc black"></div>
+        </div>
+    </div>
+
+
+    <!-- Scripts -->
+    <!-- Environment Utilities (must load first) -->
+    <script src="is-env-capable.js"></script>
+
+    <!-- Constants & Utilities -->
+    <script src="constants/difficulty-constants.js"></script>
+    <script src="constants/ui-element-cache.js"></script>
+    <script src="constants/animation-constants.js"></script>
+
+    <!-- Game Core -->
+    <script src="cards/catalog.js"></script>
+    <script src="shared-constants.js"></script>
+    <script src="game/logic/markers_adapter.js"></script>
+    <script src="game/logic/board_ops.js"></script>
+    <script src="utils/owner-helpers.js"></script>
+    <script src="game/logic/core.js"></script>
+    <script>
+        // Compatibility alias: some modules expect `Core` global while core.js exports `CoreLogic`
+        if (typeof Core === 'undefined' && typeof CoreLogic !== 'undefined') {
+            Core = CoreLogic;
+        }
+    </script>
+    <script src="game/logic/cards/defs.js"></script>
+    <script src="game/logic/cards/costs.js"></script>
+    <script src="game/logic/cards/utils.js"></script>
+    <script src="game/logic/cards/targets.js"></script>
+    <script src="game/logic/cards/selectors.js"></script>
+    <script src="game/logic/cards/flips.js"></script>
+    <script src="game/logic/cards/chain.js"></script>
+    <script src="game/logic/cards/regen.js"></script>
+    <script src="game/logic/cards/time_bomb.js"></script>
+    <script src="game/logic/cards/breeding.js"></script>
+    <script src="game/logic/cards/hyperactive.js"></script>
+    <script src="game/logic/cards/udg.js"></script>
+    <script src="game/logic/cards/work_will.js"></script>
+    <script src="game/logic/effects/dragon.js"></script>
+    <script src="game/logic/effects/swap_with_enemy.js"></script>
+    <script src="game/logic/effects/destroy_one_stone.js"></script>
+    <script src="game/logic/cards.js"></script>
+    <script>
+        (function() {
+            try {
+                var qs = (typeof location !== 'undefined' && location.search) ? location.search : '';
+                var enableDebug = /[?&]debug=1/.test(qs) || /[?&]debug=true/.test(qs);
+                if (!enableDebug) return;
+                var s = document.createElement('script');
+                s.src = 'game/debug/debug-actions.js';
+                s.async = false;
+                document.head.appendChild(s);
+            } catch (e) { /* ignore */ }
+        })();
+    </script>
+    <script src="game/logic/position-weights.js"></script>
+    <script src="game/schema/prng.js"></script>
+    <script src="game/schema/action_manager.js"></script>
+    <script src="game-events.js"></script>
+
+    <!-- Game Logic Modules -->
+    <script src="game/game-core-logic.js"></script>
+    <script src="game/move-generator.js"></script>
+
+    <script src="card-system.js"></script>
+    <script src="ui/storage/action-log.js"></script>
+
+    <!-- UI Bootstrap (small, always-available helpers required during init) -->
+    <script src="ui/bootstrap.js"></script>
+    <script src="ui/marker-bridge.js"></script>
+    <!-- UI Main (loaded early so specialized modules can override) -->
+    <script src="ui.js"></script>
+
+    <!-- UI Modules (non-initialization) -->
+    <!-- Animation resolver + shared + helpers (must be available as window.AnimationResolver/AnimationShared/AnimationHelpers in browser) -->
+    <script src="ui/animation-resolver.js"></script>
+    <script src="ui/animation-shared.js"></script>
+    <script src="ui/animation-helpers.js"></script>
+    <script src="ui/diff-renderer.js"></script>
+    <script src="ui/board-renderer.js"></script>
+    <script src="ui/status-display.js"></script>
+    <script src="ui/animation-utils.js"></script>
+    <script src="ui/stone-visuals.js"></script>
+    <!-- Single Visual Writer (board animations) -->
+    <script src="ui/animation-constants.js"></script>
+    <script src="ui/animation-engine.js"></script>
+    <!-- UI-side presentation event consumer (PLAYBACK_EVENTS / SCHEDULE_CPU_TURN) -->
+    <script src="ui/playback-engine.js"></script>
+    <script src="ui/move-executor-visuals.js"></script>
+    <script src="ui/visual-effects-map.js"></script>
+    <script src="ui/result-overlay.js"></script>
+
+    <script src="sound-engine.js"></script>
+
+    <!-- Card Modules -->
+    <!-- animation modules removed (Phase2): card transfer / draw / charge visuals consolidated into AnimationEngine or no-op when absent -->
+    <script src="cards/card-renderer.js"></script>
+    <script src="cards/card-interaction.js"></script>
+
+    <!-- Simple Auto (replaces legacy auto-loop) -->
+    <script src="game/timers.js"></script>
+    <script src="game/auto.js"></script>
+
+    <!-- Game Controller Modules (load in dependency order) -->
+    <script src="game/visual-effects-map.js"></script>
+    <script src="game/log-messages.js"></script>
+    <script src="game/turn/turn_pipeline_phases.js"></script>
+    <script src="game/turn/turn_pipeline.js"></script>
+    <script src="game/turn/pipeline_ui_adapter.js"></script>
+    <script src="game/controller-events.js"></script>
+    <script src="game/move-executor-visuals.js"></script>
+    <script src="game/special-effects/helpers.js"></script>
+    <script src="game/special-effects/bombs.js"></script>
+    <script src="game/special-effects/dragons.js"></script>
+    <script src="game/special-effects/breeding.js"></script>
+    <script src="game/special-effects/hyperactive.js"></script>
+    <script src="game/special-effects/udg.js"></script>
+    <script src="game/special-effects/protections.js"></script>
+    <script src="game/special-effects-handler.js"></script>
+    <script src="game/card-effects/helpers.js"></script>
+    <script src="game/card-effects/placement.js"></script>
+    <script src="game/card-effects/destroy.js"></script>
+    <script src="game/card-effects/inherit.js"></script>
+    <script src="game/card-effects/tempt.js"></script>
+    <script src="game/card-effects/swap.js"></script>
+    <script src="game/card-effects-applier.js"></script>
+    <!-- CPU Decision Modules (依存関係順: policy → evaluator → decision) -->
+    <!-- Ensure AISystem is loaded before CPU decision logic -->
+    <script src="game/ai/level-system.js"></script>
+    <script src="game/cpu-decision.js"></script>
+    <script src="game/pass-handler.js"></script>
+    <script src="game/move-executor.js"></script>
+    <script src="game/turn-manager.js"></script>
+    <script src="game/cpu-turn-handler.js"></script>
+    <script src="game/game-controller-slim.js"></script>
+
+
+    <!-- UI Initialization (MUST load AFTER game-controller-slim to access resetGame) -->
+    <script src="ui/handlers/auto.js"></script>
+    <script src="ui/handlers/smart.js"></script>
+    <script src="ui/handlers/sound.js"></script>
+    <script src="ui/handlers/cpu-policy.js"></script>
+    <!-- DEBUG controls must load before init so their handlers register synchronously. -->
+    <script src="ui/handlers/debug.js"></script>
+    <script src="ui/handlers/init.js"></script>
+    <script src="ui/presentation-handler.js"></script>
+    <script src="ui/event-handlers.js"></script>
+
+</body>
+
+</html>

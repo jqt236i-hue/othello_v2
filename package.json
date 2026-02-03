@@ -1,0 +1,48 @@
+{
+  "name": "othello",
+  "version": "1.0.0",
+  "description": "Card Othello Game",
+  "main": "index.html",
+  "scripts": {
+    "serve": "http-server . -p 8000 -c-1",
+    "test:jest:changed": "jest --onlyChanged",
+    "test:jest": "jest --runInBand",
+    "check:window": "node scripts/check-window-usage.js",
+    "test:jest:coverage": "jest --runInBand --coverage",
+    "test:jest:noanim": "NOANIM=1 jest --runInBand",
+    "test:jest:noanim:coverage": "NOANIM=1 jest --runInBand --coverage",
+    "generate:catalog": "node scripts/generate-catalog.js",
+    "generate:asset-manifest": "node scripts/generate-asset-manifest.js",
+    "test:visual": "node tests/visual-regression/run-visual-check.js",
+    "test": "npm run test:jest",
+    "test:quick": "npm test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "jest": {
+    "testEnvironment": "node",
+    "setupFiles": [
+      "<rootDir>/tests/jest.setup.js"
+    ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/jest.afterenv.js"
+    ],
+    "collectCoverageFrom": [
+      "game/**/*.js",
+      "!**/vendor/**"
+    ],
+    "testPathIgnorePatterns": [
+      "<rootDir>/01-CARD-OTHELLO/"
+    ]
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "jest": "^29.6.1",
+    "jsdom": "^22.1.0",
+    "pixelmatch": "^7.1.0",
+    "playwright": "^1.57.0",
+    "pngjs": "^7.0.0"
+  }
+}
