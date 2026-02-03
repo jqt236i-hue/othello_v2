@@ -55,7 +55,7 @@ describe('game ↔ UI boundary (headless)', () => {
     jest.resetModules();
     const registerMock = jest.fn();
     // Provide a mock ui/bootstrap before requiring the module
-    jest.doMock('../ui/bootstrap', () => ({ registerUIGlobals: registerMock }));
+    jest.doMock('../shared/ui-bootstrap-shared', () => ({ registerUIGlobals: registerMock }));
 
     const tm = require('../game/turn-manager');
     expect(typeof tm.setUIImpl).toBe('function');

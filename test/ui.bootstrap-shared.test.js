@@ -1,0 +1,1 @@
+const s = require('../shared/ui-bootstrap-shared'); describe('shared/ui-bootstrap-shared', () => { afterEach(() => { try { s.registerUIGlobals({}); } catch (e) {} }); test('register and get work', () => { const result = s.registerUIGlobals({ a: 1 }); expect(result.a).toBe(1); const g = s.getRegisteredUIGlobals(); expect(g.a).toBe(1); }); });
