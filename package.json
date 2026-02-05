@@ -14,6 +14,8 @@
     "generate:catalog": "node scripts/generate-catalog.js",
     "generate:asset-manifest": "node scripts/generate-asset-manifest.js",
     "test:visual": "node tests/visual-regression/run-visual-check.js",
+    "checkall": "node scripts/run-all-checks.js",
+    "pretest": "npm run checkall",
     "test": "npm run test:jest",
     "test:quick": "npm test"
   },
