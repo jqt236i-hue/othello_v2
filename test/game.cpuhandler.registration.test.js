@@ -5,7 +5,7 @@ describe('cpu-turn-handler registration', () => {
     const calls = [];
     jest.isolateModules(() => {
       jest.resetModules();
-      jest.doMock(path.resolve(__dirname, '..', 'ui', 'bootstrap.js'), () => ({
+      jest.doMock(path.resolve(__dirname, '..', 'shared', 'ui-bootstrap-shared.js'), () => ({
         registerUIGlobals: (obj) => { calls.push(obj); return obj; }
       }), { virtual: false });
 

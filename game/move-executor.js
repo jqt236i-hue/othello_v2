@@ -107,7 +107,7 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
         // Do not record, do not increment turnIndex
         // Important: reset isProcessing to allow auto-loop to continue
         isProcessing = false;
-        emitBoardUpdate();
+        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
         return;
     }
 
@@ -120,9 +120,51 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
         }
     }
 
+    // Update canonical states. Preserve existing object references where possible so
+    // modules that keep a reference to the old cardState object see updates immediately.
     gameState = res.nextGameState;
-    cardState = res.nextCardState;
-    console.log('[DEBUG][executeMoveViaPipeline] after apply', { gameStateCurrentPlayer: gameState.currentPlayer, playerKey, isProcessing, isCardAnimating, pendingEffect: cardState.pendingEffectByPlayer });
+    if (res.nextCardState) {
+        try {
+            let applied = false;
+            try {
+                let cs = null;
+                if (typeof require === 'function') {
+                    try { cs = require('../card-system'); } catch (e) { cs = null; }
+                }
+                if (cs && typeof cs.applyCardStateSnapshot === 'function') {
+                    cs.applyCardStateSnapshot(res.nextCardState);
+                    applied = true;
+                } else if (typeof globalThis !== 'undefined' && typeof globalThis.applyCardStateSnapshot === 'function') {
+                    globalThis.applyCardStateSnapshot(res.nextCardState);
+                    applied = true;
+                }
+            } catch (e) { applied = false; }
+
+            if (!applied) {
+                const snapshot = res.nextCardState;
+                if (typeof globalThis !== 'undefined' && globalThis.cardState && typeof globalThis.cardState === 'object') {
+                    for (const k in globalThis.cardState) delete globalThis.cardState[k];
+                    Object.assign(globalThis.cardState, snapshot);
+                }
+                if (cardState && typeof cardState === 'object') {
+                    for (const k in cardState) delete cardState[k];
+                    Object.assign(cardState, snapshot);
+                } else {
+                    cardState = snapshot;
+                    try { if (typeof globalThis !== 'undefined') globalThis.cardState = cardState; } catch (e) { /* ignore */ }
+                }
+            }
+        } catch (e) {
+            cardState = res.nextCardState;
+            try { if (typeof globalThis !== 'undefined') globalThis.cardState = cardState; } catch (e2) { /* ignore */ }
+        }
+        try { if (typeof emitCardStateChange === 'function') emitCardStateChange(); } catch (e) { /* ignore */ }
+        try { if (typeof renderCardUI === 'function') renderCardUI(); } catch (e) { /* ignore */ }
+    }
+
+    const safeIsProcessing = (typeof isProcessing !== 'undefined') ? isProcessing : undefined;
+    const safeIsCardAnimating = (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined;
+    console.log('[DEBUG][executeMoveViaPipeline] after apply', { gameStateCurrentPlayer: gameState.currentPlayer, playerKey, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, pendingEffect: cardState.pendingEffectByPlayer });
 
     const phases = res.phases || {};
     const effects = res.placementEffects || {};
@@ -139,7 +181,7 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
     }
 
     // Finalize turn: pipeline handles the turn-end logic (do NOT call the CardLogic turn-end writer from UI)
-    if (isGameOver(gameState)) { showResult(); isProcessing = false; return; }
+    if (typeof isGameOver === 'function' && isGameOver(gameState)) { if (typeof showResult === 'function') { showResult(); } isProcessing = false; return; }
 
     // Wait for move playback to finish before advancing the turn.
     // In some browser builds, DI bootstrap may not be active; fall back to the global helper if present.
@@ -158,15 +200,16 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
         const now = getTimeNow();
         if (typeof now === 'number') global.__lastMoveCompletedAt = now;
     } catch (e) { /* ignore environments without global */ }
-    console.log('[DEBUG][executeMoveViaPipeline] after onTurnStart', { gameStateCurrentPlayer: gameState.currentPlayer, isProcessing, isCardAnimating, pendingEffect: cardState.pendingEffectByPlayer });
+    console.log('[DEBUG][executeMoveViaPipeline] after onTurnStart', { gameStateCurrentPlayer: gameState.currentPlayer, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, pendingEffect: cardState.pendingEffectByPlayer });
     const debugHvH = (__uiImpl_move_executor && __uiImpl_move_executor.DEBUG_HUMAN_VS_HUMAN) ||
         (typeof globalThis !== 'undefined' && globalThis.DEBUG_HUMAN_VS_HUMAN === true);
-    if (gameState.currentPlayer === WHITE && !debugHvH) {
+    const safeCpuDelay = (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 600;
+    if (typeof WHITE !== 'undefined' && gameState.currentPlayer === WHITE && !debugHvH) {
         isProcessing = true;
-        console.log('[DEBUG][executeMoveViaPipeline] scheduling CPU', { CPU_DELAY: CPU_TURN_DELAY_MS });
+        console.log('[DEBUG][executeMoveViaPipeline] scheduling CPU', { CPU_DELAY: safeCpuDelay });
         if (__uiImpl_move_executor && typeof __uiImpl_move_executor.scheduleCpuTurn === 'function') {
-            __uiImpl_move_executor.scheduleCpuTurn(CPU_TURN_DELAY_MS, () => {
-                console.log('[DEBUG][executeMoveViaPipeline] scheduled CPU callback firing, isProcessing, isCardAnimating', { isProcessing, isCardAnimating });
+            __uiImpl_move_executor.scheduleCpuTurn(safeCpuDelay, () => {
+                console.log('[DEBUG][executeMoveViaPipeline] scheduled CPU callback firing, isProcessing, isCardAnimating', { isProcessing: (typeof isProcessing !== 'undefined') ? isProcessing : undefined, isCardAnimating: (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined });
                 try { processCpuTurn(); } catch (e) { console.error('[DEBUG][executeMoveViaPipeline] processCpuTurn threw', e); }
             });
         } else {
@@ -175,17 +218,17 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
             // instead of relying on the UI to consume a presentation event. This makes the game
             // robust to boot-order issues where UI registration happens after a move completes.
             try {
-                const globalCpu = (typeof globalThis !== 'undefined' && typeof globalThis.processCpuTurn === 'function') ? globalThis.processCpuTurn : (typeof window !== 'undefined' && typeof window.processCpuTurn === 'function') ? window.processCpuTurn : null;
+                const globalCpu = (typeof globalThis !== 'undefined' && typeof globalThis.processCpuTurn === 'function') ? globalThis.processCpuTurn : null;
                 if (globalCpu) {
-                    console.log('[DEBUG][executeMoveViaPipeline] global processCpuTurn available; scheduling via setTimeout', { delay: CPU_TURN_DELAY_MS });
+                    console.log('[DEBUG][executeMoveViaPipeline] global processCpuTurn available; scheduling via setTimeout', { delay: safeCpuDelay });
                     setTimeout(() => {
                         try { globalCpu(); } catch (err) { console.error('[DEBUG][executeMoveViaPipeline] global processCpuTurn threw', err); }
-                    }, CPU_TURN_DELAY_MS);
+                    }, safeCpuDelay);
                 } else {
                     // Fallback: do not call time APIs in game layer. Emit a presentation event so UI can schedule the CPU turn.
                     console.log('[DEBUG][executeMoveViaPipeline] scheduleCpuTurn not available; emitting SCHEDULE_CPU_TURN presentation event');
                     try {
-                        emitPresentationEventViaBoardOps({ type: 'SCHEDULE_CPU_TURN', delayMs: CPU_TURN_DELAY_MS, reason: 'CPU_TURN' });
+                        emitPresentationEventViaBoardOps({ type: 'SCHEDULE_CPU_TURN', delayMs: safeCpuDelay, reason: 'CPU_TURN' });
                         // Ensure UI gets a chance to consume the scheduling request.
                         // In some browser flows, the last BOARD_UPDATED may have fired before this event is appended.
                         try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
@@ -198,11 +241,11 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
             }
         }
     } else {
-        if (gameState.currentPlayer === WHITE && debugHvH) {
+        if (typeof WHITE !== 'undefined' && gameState.currentPlayer === WHITE && debugHvH) {
             console.log('[DEBUG][executeMoveViaPipeline] DEBUG_HUMAN_VS_HUMAN: skip CPU scheduling');
         }
         isProcessing = false;
-        emitBoardUpdate();
+        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
     }
 }
 

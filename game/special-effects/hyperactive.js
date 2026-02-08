@@ -113,7 +113,6 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
         if (uiBootstrap && typeof uiBootstrap.getRegisteredUIGlobals === 'function') {
             const g = uiBootstrap.getRegisteredUIGlobals();
             if (g && g.PlaybackEngine && typeof g.PlaybackEngine.playPresentationEvents === 'function') {
-                try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) {}
                 return;
             }
         }
@@ -122,7 +121,7 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
     // Fallback: check globalThis PlaybackEngine (avoid using window in non-UI modules)
     try {
         const hasUiPlayback = (typeof globalThis !== 'undefined' && globalThis.PlaybackEngine && typeof globalThis.PlaybackEngine.playPresentationEvents === 'function');
-        if (hasUiPlayback) { try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) {} return; }
+        if (hasUiPlayback) { return; }
     } catch (e) { /* ignore */ }
 
     // Animate using the pre-move DOM first, then sync to post-move state.
@@ -140,7 +139,7 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
             }
         }
     }
-    emitBoardUpdate();
+    try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
 
     let delay = 800;
     if (typeof require === 'function') {

@@ -35,11 +35,12 @@ function updateCpuCharacter() {
             // Then increase monster images by 23% as requested
             const SIZE_SHRINK = 0.62;
             const MONSTER_BOOST = 1.23; // +23%
-            const scaleValue = baseScale * 1.3 * MONSTER_BOOST * SIZE_SHRINK; // apply level base, +30%, +23%, then shrink
+            const SIZE_DOWN = 0.9;
+            const scaleValue = baseScale * 1.3 * MONSTER_BOOST * SIZE_SHRINK * SIZE_DOWN; // apply level base, +30%, +23%, then shrink, then size down
             charImg.style.transform = `scale(${scaleValue})`;
-            // Adjust displayed pixel size accordingly (279px * 1.23 ≈ 343px)
-            charImg.style.width = '343px';
-            charImg.style.height = '343px';
+            // Adjust displayed pixel size accordingly, then size down by 10%
+            charImg.style.width = '308.7px';
+            charImg.style.height = '308.7px';
         };
         img.onerror = () => {
             if (img.src.endsWith(primaryPath)) {
@@ -60,6 +61,10 @@ function updateCpuCharacter() {
 }
 
 function showResult() {
+    if (gameState && gameState.__resultShown) return;
+    if (gameState) gameState.__resultShown = true;
+    const resultToken = gameState ? (gameState.__resultToken = Date.now()) : null;
+
     const counts = countDiscs(gameState);
     let result;
     if (counts.black > counts.white) {
@@ -74,8 +79,11 @@ function showResult() {
 
 
     
-    // Show centered result overlay
-    try { showResultOverlay(); } catch (e) { console.warn('showResultOverlay failed', e); }
+    // Show centered result overlay after a short delay
+    setTimeout(() => {
+        if (resultToken && gameState && gameState.__resultToken !== resultToken) return;
+        try { showResultOverlay(); } catch (e) { console.warn('showResultOverlay failed', e); }
+    }, 2000);
 }
 
 // Create or show a result overlay in the center of the screen.
@@ -134,13 +142,22 @@ function showResultOverlay() {
 
     const btnRow = document.createElement('div');
     btnRow.className = 'result-btn-row';
+    const restartBtn = document.createElement('button');
+    restartBtn.className = 'premium-btn primary';
+    restartBtn.textContent = '再戦';
+    restartBtn.addEventListener('click', () => {
+        const el = document.getElementById('result-overlay');
+        if (el) el.parentNode.removeChild(el);
+        if (typeof resetGame === 'function') resetGame();
+    });
     const closeBtn = document.createElement('button');
-    closeBtn.className = 'btn result-close-btn';
+    closeBtn.className = 'premium-btn secondary';
     closeBtn.textContent = '閉じる';
     closeBtn.addEventListener('click', () => {
         const el = document.getElementById('result-overlay');
         if (el) el.parentNode.removeChild(el);
     });
+    btnRow.appendChild(restartBtn);
     btnRow.appendChild(closeBtn);
     panel.appendChild(btnRow);
 

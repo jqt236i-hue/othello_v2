@@ -25,6 +25,23 @@
     })();
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
 
+    function addChargeWithTotal(cardState, playerKey, amount) {
+        if (!cardState || !amount) return 0;
+        if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
+        if (!cardState.chargeGainedTotal) cardState.chargeGainedTotal = { black: 0, white: 0 };
+
+        const before = cardState.charge[playerKey] || 0;
+        const after = Math.min(30, before + amount);
+        const added = after - before;
+
+        cardState.charge[playerKey] = after;
+        if (added > 0) {
+            cardState.chargeGainedTotal[playerKey] = (cardState.chargeGainedTotal[playerKey] || 0) + added;
+        }
+
+        return added;
+    }
+
     function applyTurnStartPhase(CardLogic, Core, cardState, gameState, playerKey, events, prng) {
         const p = prng || undefined;
 
@@ -87,7 +104,7 @@
                     } else if (t === 'DRAGON' && owner === playerKey) {
                         const res = CardLogic.processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col);
                         if (res && res.converted && res.converted.length) {
-                            cardState.charge[playerKey] = Math.min(30, (cardState.charge[playerKey] || 0) + res.converted.length);
+                            addChargeWithTotal(cardState, playerKey, res.converted.length);
                             events.push({ type: 'dragon_converted_start', details: res.converted });
                         }
                         if (res && res.destroyed && res.destroyed.length) events.push({ type: 'dragon_destroyed_anchor_start', details: res.destroyed });
@@ -95,7 +112,7 @@
                         const res = CardLogic.processBreedingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, p);
                         if (res && res.spawned && res.spawned.length) events.push({ type: 'breeding_spawned_start', details: res.spawned });
                         if (res && res.flipped && res.flipped.length) {
-                            cardState.charge[playerKey] = Math.min(30, (cardState.charge[playerKey] || 0) + res.flipped.length);
+                            addChargeWithTotal(cardState, playerKey, res.flipped.length);
                             events.push({ type: 'breeding_flipped_start', details: res.flipped });
                         }
                         if (res && res.destroyed && res.destroyed.length) events.push({ type: 'breeding_destroyed_anchor_start', details: res.destroyed });
@@ -119,8 +136,7 @@
                             hyperAggregated.flippedByOwner[ownerKey] = hyperAggregated.flippedByOwner[ownerKey] || [];
                             hyperAggregated.flippedByOwner[ownerKey].push(...res.flipped);
                             // Rule: flip count grants charge to the effect owner (clamped to 30).
-                            cardState.charge = cardState.charge || { black: 0, white: 0 };
-                            cardState.charge[ownerKey] = Math.min(30, (cardState.charge[ownerKey] || 0) + res.flipped.length);
+                            addChargeWithTotal(cardState, ownerKey, res.flipped.length);
                         }
                     }
                 }
@@ -151,11 +167,10 @@
             }
             if (regenCaptureFlips.length) {
                 // Capture flips grant charge to the regen owner (clamped to 30).
-                cardState.charge = cardState.charge || { black: 0, white: 0 };
                 for (const ownerKey of ['black', 'white']) {
                     const arr = regenCaptureByOwner[ownerKey] || [];
                     if (!arr.length) continue;
-                    cardState.charge[ownerKey] = Math.min(30, (cardState.charge[ownerKey] || 0) + arr.length);
+                    addChargeWithTotal(cardState, ownerKey, arr.length);
                 }
                 events.push({ type: 'regen_capture_flipped_start', details: regenCaptureFlips });
             }
@@ -219,10 +234,30 @@
         }
     }
 
+    function resolveSafeCardContext(CardLogic, cardState) {
+        let ctx = null;
+        try {
+            const ctxHelper = (typeof require === 'function') ? require('../logic/context') : (typeof globalThis !== 'undefined' ? globalThis.GameLogicContext : null);
+            if (ctxHelper && typeof ctxHelper.getSafeCardContext === 'function') {
+                ctx = ctxHelper.getSafeCardContext(cardState);
+            }
+        } catch (e) { /* ignore and fallback */ }
+        if (!ctx) {
+            try { ctx = CardLogic.getCardContext(cardState); } catch (e) { ctx = { protectedStones: [], permaProtectedStones: [], bombs: [] }; }
+        }
+        return ctx;
+    }
+
     function applyActionPhase(CardLogic, Core, cardState, gameState, playerKey, action, events, prng, BoardOps) {
         const p = prng || undefined;
 
         if (action.type === 'pass') {
+            const player = playerKey === 'black' ? Core.BLACK : Core.WHITE;
+            const ctx = resolveSafeCardContext(CardLogic, cardState);
+            const legalMoves = Core.getLegalMoves(gameState, player, ctx);
+            if (legalMoves.length > 0) {
+                throw new Error('Illegal pass: legal moves available');
+            }
             const newState = Core.applyPass(gameState);
             Object.assign(gameState, newState);
             events.push({ type: 'pass', player: playerKey });
@@ -251,6 +286,47 @@
                 return;
             } else if (pending && pending.type === 'DESTROY_ONE_STONE' && action.destroyTarget == null) {
                 throw new Error('DESTROY_ONE_STONE requires destroyTarget before placement');
+            }
+            if (pending && pending.type === 'STRONG_WIND_WILL' && action.strongWindTarget) {
+                const res = CardLogic.applyStrongWindWill(
+                    cardState,
+                    gameState,
+                    playerKey,
+                    action.strongWindTarget.row,
+                    action.strongWindTarget.col,
+                    p
+                );
+                events.push({ type: 'strong_wind_selected', player: playerKey, target: action.strongWindTarget, applied: !!(res && res.applied), from: res && res.from ? res.from : null, to: res && res.to ? res.to : null });
+                // Selection-only pre-placement effect: stop after handling selection
+                return;
+            } else if (pending && pending.type === 'STRONG_WIND_WILL' && action.strongWindTarget == null) {
+                throw new Error('STRONG_WIND_WILL requires strongWindTarget before placement');
+            }
+            if (pending && pending.type === 'SACRIFICE_WILL' && action.sacrificeTarget) {
+                const res = CardLogic.applySacrificeWill(
+                    cardState,
+                    gameState,
+                    playerKey,
+                    action.sacrificeTarget.row,
+                    action.sacrificeTarget.col
+                );
+                events.push({ type: 'sacrifice_selected', player: playerKey, target: action.sacrificeTarget, applied: !!(res && res.applied), gained: res && res.gained ? res.gained : 0, completed: !!(res && res.completed) });
+                // Selection-only pre-placement effect: stop after handling selection
+                return;
+            } else if (pending && pending.type === 'SACRIFICE_WILL' && action.sacrificeTarget == null) {
+                throw new Error('SACRIFICE_WILL requires sacrificeTarget before placement');
+            }
+            if (pending && pending.type === 'SELL_CARD_WILL' && action.sellCardId) {
+                const res = CardLogic.applySellCardWill(
+                    cardState,
+                    playerKey,
+                    action.sellCardId
+                );
+                events.push({ type: 'sell_selected', player: playerKey, soldCardId: action.sellCardId, applied: !!(res && res.applied), gained: res && res.gained ? res.gained : 0 });
+                // Selection-only pre-placement effect: stop after handling selection
+                return;
+            } else if (pending && pending.type === 'SELL_CARD_WILL' && action.sellCardId == null) {
+                throw new Error('SELL_CARD_WILL requires sellCardId before placement');
             }
             if (pending && pending.type === 'TEMPT_WILL' && action.temptTarget) {
                 const res = CardLogic.applyTemptWill(
@@ -282,16 +358,7 @@
             }
 
             // Determine flips using a safe context helper when possible
-            let ctx = null;
-            try {
-                const ctxHelper = (typeof require === 'function') ? require('../logic/context') : (typeof globalThis !== 'undefined' ? globalThis.GameLogicContext : null);
-                if (ctxHelper && typeof ctxHelper.getSafeCardContext === 'function') {
-                    ctx = ctxHelper.getSafeCardContext(cardState);
-                }
-            } catch (e) { /* ignore and fallback */ }
-            if (!ctx) {
-                try { ctx = CardLogic.getCardContext(cardState); } catch (e) { ctx = { protectedStones: [], permaProtectedStones: [], bombs: [] }; }
-            }
+            const ctx = resolveSafeCardContext(CardLogic, cardState);
             const player = playerKey === 'black' ? Core.BLACK : Core.WHITE;
 
             // SWAP_WITH_ENEMY supports selecting an opponent stone as the placement coordinate in browser.
@@ -333,7 +400,19 @@
             const preExtra = cardState.extraPlaceRemainingByPlayer[playerKey] || 0;
 
             if (BoardOps && typeof BoardOps.spawnAt === 'function') {
-                BoardOps.spawnAt(cardState, gameState, action.row, action.col, playerKey, 'SYSTEM', 'standard_place');
+                const spawnMeta = {};
+                if (pendingType === 'GOLD_STONE') {
+                    spawnMeta.special = 'GOLD';
+                    spawnMeta.owner = playerKey;
+                } else if (pendingType === 'SILVER_STONE') {
+                    spawnMeta.special = 'SILVER';
+                    spawnMeta.owner = playerKey;
+                } else if (pendingType === 'CROSS_BOMB') {
+                    // Show bomb-like special visual briefly before immediate cross explosion.
+                    spawnMeta.special = 'CROSS_BOMB';
+                    spawnMeta.owner = playerKey;
+                }
+                BoardOps.spawnAt(cardState, gameState, action.row, action.col, playerKey, 'SYSTEM', 'standard_place', spawnMeta);
                 for (const [fr, fc] of flips) {
                     BoardOps.changeAt(cardState, gameState, fr, fc, playerKey, 'SYSTEM', 'standard_flip');
                 }
@@ -402,7 +481,7 @@
             if (effects && effects.dragonPlaced && typeof CardLogic.processDragonEffectsAtAnchor === 'function') {
                 const dragonNow = CardLogic.processDragonEffectsAtAnchor(cardState, gameState, playerKey, action.row, action.col);
                 if (dragonNow.converted && dragonNow.converted.length) {
-                    cardState.charge[playerKey] = Math.min(30, (cardState.charge[playerKey] || 0) + dragonNow.converted.length);
+                    addChargeWithTotal(cardState, playerKey, dragonNow.converted.length);
                     events.push({ type: 'dragon_converted_immediate', details: dragonNow.converted });
                 }
             }
@@ -412,7 +491,7 @@
                     events.push({ type: 'breeding_spawned_immediate', details: breedingNow.spawned });
                 }
                 if (breedingNow.flipped && breedingNow.flipped.length) {
-                    cardState.charge[playerKey] = Math.min(30, (cardState.charge[playerKey] || 0) + breedingNow.flipped.length);
+                    addChargeWithTotal(cardState, playerKey, breedingNow.flipped.length);
                     events.push({ type: 'breeding_flipped_immediate', details: breedingNow.flipped });
                 }
             }

@@ -100,14 +100,19 @@
         // SWAP_WITH_ENEMY (交換の意志) - 1 card, cost: 5
         { id: 'swap_01', name: '交換の意志', type: 'SWAP_WITH_ENEMY', cost: 5, desc: '次に置く石を、相手の石1つと入れ替えて配置できる' },
 
+        // SACRIFICE_WILL (生贄の意志) - 1 card, cost: 5
+        { id: 'sacrifice_01', name: '生贄の意志', type: 'SACRIFICE_WILL', cost: 5, desc: '盤面上の自分の石を最大3つまで選んで破壊し、1つにつき布石を5獲得する。' },
+
         // PERMA_PROTECT_NEXT_STONE (強い意志) - 1 card, cost: 12
         { id: 'perma_01', name: '強い意志', type: 'PERMA_PROTECT_NEXT_STONE', cost: 12, desc: '次に置いた石は、ずっと反転されない。' },
+        // STRONG_WIND_WILL (強風の意志) - 1 card, cost: 11
+        { id: 'strong_wind_01', name: '強風の意志', type: 'STRONG_WIND_WILL', cost: 11, desc: '盤面の石1つを選び、進める上下左右のいずれかへランダムに端まで飛ばす。' },
 
         { id: 'inherit_01', name: '意志の継承', type: 'INHERIT_WILL', cost: 14, desc: '盤面上の自分の通常石を1つ選び、強い意志状態にする。' },
 
         { id: 'chain_01', name: '連鎖の意志', type: 'CHAIN_WILL', cost: 22, desc: 'このターンの配置で発生した通常反転を起点に、最大1方向のみ追加反転を行う。' },
 
-        { id: 'regen_01', name: '再生の意志', type: 'REGEN_WILL', cost: 15, desc: '次に置いた石は1回だけ再生し、反転されたら元の色に戻る。戻った結果、そのマスを起点に挟める列があれば成立する方向の石を反転する。' },
+        { id: 'regen_01', name: '復活の意志', type: 'REGEN_WILL', cost: 15, desc: '次に置いた石は1回だけ再生し、反転されたら元の色に戻る。戻った結果、そのマスを起点に挟める列があれば成立する方向の石を反転する。' },
 
         // DESTROY_ONE_STONE (破壊神) - 1 card, cost: 10
         { id: 'destroy_01', name: '破壊神', type: 'DESTROY_ONE_STONE', cost: 10, desc: '盤上の石を1つ選び、破壊する。' },
@@ -120,9 +125,13 @@
 
         // BREEDING_WILL (繁殖の意志) - 1 card, cost: 16
         { id: 'breeding_01', name: '繁殖の意志', type: 'BREEDING_WILL', cost: 16, desc: '次に置く石を儀式石化。配置ターン即時＋自ターン開始時、周囲8マスの空きマスに石を1個生成。生成石で挟める場合は通常反転（反転数はチャージ対象）。持続3ターン（配置ターン含め最大4回生成）で儀式石は破壊。' },
+        { id: 'cross_bomb_01', name: '十字爆弾', type: 'CROSS_BOMB', cost: 18, desc: '次に置く石を十字爆弾化。通常反転後に即起爆し、中心と縦横1マスの石を破壊する。' },
 
         // HYPERACTIVE_WILL (多動の意志) - 1 card, cost: 8
         { id: 'hyperactive_01', name: '多動の意志', type: 'HYPERACTIVE_WILL', cost: 8, desc: '次に置く石を多動石化。両者のターン開始時に、周囲8マスの空きへランダムに1マス移動し、移動後に挟める場合は通常反転。' },
+
+        // SELL_CARD_WILL (売却の意志) - 1 card, cost: 8
+        { id: 'sell_01', name: '売却の意志', type: 'SELL_CARD_WILL', cost: 8, desc: 'カード使用後、自分の手札から1枚を売却し、そのカードのコスト分の布石を獲得する。' },
 
         // PLUNDER_WILL (吸収の意志) - 1 card, cost: 4
         { id: 'plunder_will', name: '吸収の意志', type: 'PLUNDER_WILL', cost: 4, desc: '次の反転数だけ相手の布石を奪う。' },
@@ -154,7 +163,9 @@
         'FREE_PLACEMENT',
         'PROTECTED_NEXT_STONE',
         'SWAP_WITH_ENEMY',
+        'SACRIFICE_WILL',
         'PERMA_PROTECT_NEXT_STONE',
+        'STRONG_WIND_WILL',
         'INHERIT_WILL',
         'TEMPT_WILL',
         'CHAIN_WILL',
@@ -163,6 +174,7 @@
         'TIME_BOMB',
         'ULTIMATE_REVERSE_DRAGON',
         'BREEDING_WILL',
+        'CROSS_BOMB',
         'DOUBLE_PLACE',
         'PLUNDER_WILL',
         'WORK_WILL',
@@ -170,7 +182,8 @@
         'SILVER_STONE',
         'STEAL_CARD',
         'ULTIMATE_DESTROY_GOD',
-        'HYPERACTIVE_WILL'
+        'HYPERACTIVE_WILL',
+        'SELL_CARD_WILL'
     ];
 
     // ===== DEBUG MODE =====
@@ -234,5 +247,3 @@
 
     return exports;
 });
-
-

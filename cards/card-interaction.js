@@ -16,9 +16,22 @@ function _getDebugActions() {
     return null;
 }
 
+function _isDebugAllowed() {
+    try {
+        if (typeof window === 'undefined') return false;
+        if (window.DEBUG_MODE_ALLOWED === true) return true;
+        if (window.DEBUG_MODE_ALLOWED === false) return false;
+        const qs = (typeof location !== 'undefined' && location.search) ? location.search : '';
+        return /[?&]debug=1/.test(qs) || /[?&]debug=true/.test(qs);
+    } catch (e) {
+        return false;
+    }
+}
+
 function ensureDebugActionsLoaded(cb) {
     try {
         if (typeof window === 'undefined') return cb && cb(null);
+        if (!_isDebugAllowed()) return cb && cb(null);
         if (typeof DebugActions !== 'undefined') return cb && cb(DebugActions);
         if (window.__debugActionsLoading) {
             window.__debugActionsWaiters = window.__debugActionsWaiters || [];
@@ -70,6 +83,47 @@ function _emitPresentationEvent(ev) {
     return false;
 }
 
+function _isProcessingNow() {
+    return (
+        (typeof isProcessing !== 'undefined' && !!isProcessing) ||
+        (typeof window !== 'undefined' && !!window.isProcessing)
+    );
+}
+
+function _isCardAnimatingNow() {
+    return (
+        (typeof isCardAnimating !== 'undefined' && !!isCardAnimating) ||
+        (typeof window !== 'undefined' && !!window.isCardAnimating) ||
+        (typeof window !== 'undefined' && window.VisualPlaybackActive === true)
+    );
+}
+
+function _isCardUiBusy() {
+    return _isProcessingNow() || _isCardAnimatingNow();
+}
+
+function _resolveCoreApi() {
+    if (typeof Core !== 'undefined' && Core && typeof Core.getLegalMoves === 'function') return Core;
+    if (typeof CoreLogic !== 'undefined' && CoreLogic && typeof CoreLogic.getLegalMoves === 'function') return CoreLogic;
+    return null;
+}
+
+function _getLegalMovesForCurrentPlayer() {
+    if (!gameState || !cardState) return [];
+    const playerValue = gameState.currentPlayer;
+    const core = _resolveCoreApi();
+    if (!core) return [];
+
+    try {
+        const ctx = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardContext === 'function')
+            ? CardLogic.getCardContext(cardState)
+            : { protectedStones: [], permaProtectedStones: [], bombs: [] };
+        return core.getLegalMoves(gameState, playerValue, ctx) || [];
+    } catch (e) {
+        return [];
+    }
+}
+
 function _runPipelineAction(playerKey, action) {
     if (typeof TurnPipelineUIAdapter === 'undefined' || typeof TurnPipeline === 'undefined') {
         console.error('[CARD_UI] TurnPipeline/Adapter not available for action', action);
@@ -102,6 +156,7 @@ function _runPipelineAction(playerKey, action) {
 
 // Fill hand with all card types for debug testing
 function fillDebugHand() {
+    if (!_isDebugAllowed()) return;
     if (!window.DEBUG_HUMAN_VS_HUMAN && !window.DEBUG_UNLIMITED_USAGE) return;
     const shouldFillWhite = window.DEBUG_HUMAN_VS_HUMAN === true;
     const dbg = _getDebugActions();
@@ -127,6 +182,7 @@ function updateCardDetailPanel() {
     const nameEl = document.getElementById('card-detail-name');
     const descEl = document.getElementById('card-detail-desc');
     const useBtn = document.getElementById('use-card-btn');
+    const passBtn = document.getElementById('pass-btn');
     const reasonEl = document.getElementById('use-card-reason');
     const cancelBtn = document.getElementById('cancel-card-btn');
 
@@ -145,20 +201,25 @@ function updateCardDetailPanel() {
 
     // Determine if use button should be enabled
     const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
+    const isAutoMode = typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true;
     const playerKey = isDebugHvH ? (gameState.currentPlayer === BLACK ? 'black' : 'white') : 'black';
     const isBlackTurn = gameState.currentPlayer === BLACK;
     const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true || isDebugHvH;
     const hasSelection = selectedId !== null;
     // 毎ターン1回使用可能（毎ターン開始時にリセット）、ただしデバッグモードでは制限なし
     const hasNotUsedThisTurn = isDebugUnlimited ? true : !cardState.hasUsedCardThisTurnByPlayer[playerKey];
-    const canInteract = isDebugUnlimited ? true : (!isProcessing && !isCardAnimating);
+    const canInteract = isDebugUnlimited ? true : !_isCardUiBusy();
 
     // Check charge (デバッグモードでは無視)
     const cardDef = selectedId ? CardLogic.getCardDef(selectedId) : null;
     const cost = cardDef ? (cardDef.cost || 0) : 0;
     const canAfford = isDebugUnlimited ? true : (cardState.charge[playerKey] || 0) >= cost;
+    const legalMoves = _getLegalMovesForCurrentPlayer();
+    const noLegalMoves = legalMoves.length === 0;
+    const pending = cardState.pendingEffectByPlayer[playerKey];
+    const isSelectingTarget = !!(pending && pending.stage === 'selectTarget');
 
-    let canUse = (isBlackTurn || isDebugHvH) && hasSelection && hasNotUsedThisTurn && canInteract && canAfford;
+    let canUse = !isAutoMode && (isBlackTurn || isDebugHvH) && hasSelection && hasNotUsedThisTurn && canInteract && canAfford;
     if (isDebugUnlimited) {
         canUse = (isBlackTurn || isDebugHvH) && hasSelection;
     }
@@ -168,6 +229,9 @@ function updateCardDetailPanel() {
         reason = '';
     } else if (!isBlackTurn && !isDebugHvH) {
         reason = '自分のターンではありません';
+        canUse = false;
+    } else if (isAutoMode) {
+        reason = 'AUTO進行中...';
         canUse = false;
     } else if (!hasNotUsedThisTurn) {
         reason = 'このターンは既に使用済み';
@@ -190,7 +254,7 @@ function updateCardDetailPanel() {
         try {
             const chargeVal = (cardState && cardState.charge) ? cardState.charge[playerKey] : undefined;
             if (typeof chargeVal === 'number' && typeof cost === 'number' && chargeVal >= cost) {
-                console.warn('[CARD_UI] USE DISABLED despite sufficient charge', { selectedId, cardId: selectedId, cost, charge: chargeVal, hasUsedThisTurn: cardState.hasUsedCardThisTurnByPlayer && cardState.hasUsedCardThisTurnByPlayer[playerKey], isProcessing: !!isProcessing, isCardAnimating: !!isCardAnimating, currentPlayer: gameState && gameState.currentPlayer });
+                console.warn('[CARD_UI] USE DISABLED despite sufficient charge', { selectedId, cardId: selectedId, cost, charge: chargeVal, hasUsedThisTurn: cardState.hasUsedCardThisTurnByPlayer && cardState.hasUsedCardThisTurnByPlayer[playerKey], isProcessing: _isProcessingNow(), isCardAnimating: _isCardAnimatingNow(), currentPlayer: gameState && gameState.currentPlayer });
             }
         } catch (e) { /* ignore */ }
     } else {
@@ -200,26 +264,89 @@ function updateCardDetailPanel() {
     reasonEl.textContent = reason;
 
     // 選択モード用のキャンセルボタン表示制御
-    const pending = cardState.pendingEffectByPlayer[playerKey];
     const selecting = pending && pending.stage === 'selectTarget' &&
-        (pending.type === 'DESTROY_ONE_STONE' || pending.type === 'INHERIT_WILL');
+        (
+            pending.type === 'DESTROY_ONE_STONE' ||
+            pending.type === 'STRONG_WIND_WILL' ||
+            pending.type === 'INHERIT_WILL' ||
+            pending.type === 'SACRIFICE_WILL' ||
+            pending.type === 'SELL_CARD_WILL'
+        );
+    const cancellableSelecting = selecting &&
+        (pending.type === 'DESTROY_ONE_STONE' || pending.type === 'INHERIT_WILL' || pending.type === 'SACRIFICE_WILL');
     if (cancelBtn) {
-        cancelBtn.style.display = selecting ? 'block' : 'none';
+        cancelBtn.style.display = cancellableSelecting ? 'block' : 'none';
+        if (cancellableSelecting && pending.type === 'SACRIFICE_WILL' && Number(pending.selectedCount || 0) > 0) {
+            cancelBtn.textContent = '終了';
+        } else {
+            cancelBtn.textContent = 'キャンセル';
+        }
         // Add specific listener for HvH mode to ensure it uses the correct context
         cancelBtn.onclick = () => cancelPendingSelection(playerKey);
     }
     if (selecting) {
-        reasonEl.textContent = pending.type === 'INHERIT_WILL'
-            ? '対象の通常石を選んでください（キャンセル可）'
-            : '破壊対象を選んでください（キャンセル可）';
+        if (pending.type === 'INHERIT_WILL') {
+            reasonEl.textContent = '対象の通常石を選んでください（キャンセル可）';
+        } else if (pending.type === 'STRONG_WIND_WILL') {
+            reasonEl.textContent = '移動させる石を選んでください';
+        } else if (pending.type === 'SACRIFICE_WILL') {
+            const selectedCount = Number(pending.selectedCount || 0);
+            const maxSelections = Number(pending.maxSelections || 3);
+            const remain = Math.max(0, maxSelections - selectedCount);
+            reasonEl.textContent = selectedCount > 0
+                ? `自分の石を選択（残り${remain}回）/ 終了も可`
+                : '自分の石を選択してください（最大3回・キャンセル可）';
+        } else if (pending.type === 'SELL_CARD_WILL') {
+            reasonEl.textContent = '売却するカードを手札から1枚選んでください';
+        } else {
+            reasonEl.textContent = '破壊対象を選んでください（キャンセル可）';
+        }
+    }
+
+    if (passBtn) {
+        const canShowPass = (isBlackTurn || isDebugHvH) &&
+            noLegalMoves &&
+            !isSelectingTarget;
+        const canPass = !isAutoMode &&
+            canShowPass &&
+            canInteract;
+        passBtn.style.display = canShowPass ? 'inline-block' : 'none';
+        passBtn.disabled = !canPass;
     }
 }
 
 function onCardClick(cardId) {
     const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
     const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true || isDebugHvH;
-    if (isCardAnimating && !isDebugUnlimited) return;
+    if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return;
+    const playerKey = isDebugHvH ? (gameState.currentPlayer === BLACK ? 'black' : 'white') : 'black';
+    const pending = cardState.pendingEffectByPlayer[playerKey];
+    const allowDuringAnimForSell = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
+    if (_isCardAnimatingNow() && !isDebugUnlimited && !allowDuringAnimForSell) return;
     if (gameState.currentPlayer !== BLACK && !isDebugHvH) return;
+    if (pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget') {
+        if (!cardState.hands[playerKey] || !cardState.hands[playerKey].includes(cardId)) return;
+
+        const soldCardDef = CardLogic.getCardDef(cardId);
+        const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
+            ? ActionManager.ActionManager.createAction('place', playerKey, { sellCardId: cardId })
+            : { type: 'place', sellCardId: cardId };
+        const result = _runPipelineAction(playerKey, action);
+        if (!result.ok) {
+            addLog('売却に失敗しました');
+            return;
+        }
+
+        const gain = soldCardDef ? (soldCardDef.cost || 0) : 0;
+        addLog(`${playerKey === 'black' ? '黒' : '白'}が${soldCardDef ? soldCardDef.name : cardId}を売却（+${gain}）`);
+        renderCardUI();
+        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+        else if (typeof renderBoard === 'function') renderBoard();
+        if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
+            try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
+        }
+        return;
+    }
 
     if (cardState.selectedCardId === cardId) {
         cardState.selectedCardId = null;
@@ -233,7 +360,8 @@ function onCardClick(cardId) {
 function useSelectedCard() {
     const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
     const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true || isDebugHvH;
-    if ((isProcessing || isCardAnimating) && !isDebugUnlimited) return;
+    if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return;
+    if (_isCardUiBusy() && !isDebugUnlimited) return;
     if (gameState.currentPlayer !== BLACK && !isDebugHvH) return;
     if (cardState.selectedCardId === null) return;
 
@@ -251,8 +379,6 @@ function useSelectedCard() {
         addLog(`布石不足: ${cardDef ? cardDef.name : cardId} (必要: ${cost}, 所持: ${cardState.charge[playerKey] || 0})`);
         return;
     }
-
-    // Get element for animation before modifying state
     const usedCardEl = document.querySelector(`[data-card-id="${cardId}"]`);
 
     // Determine ownerKey (actual hand holding the card)
@@ -287,21 +413,41 @@ function useSelectedCard() {
     // Clear selection
     cardState.selectedCardId = null;
 
-    // Animation
-    if (typeof window !== 'undefined') window.isCardAnimating = true; else isCardAnimating = true;
+    // Direct animation fallback for browser reliability.
+    try {
+        if (typeof playCardUseHandAnimation === 'function') {
+            playCardUseHandAnimation({
+                player: playerKey,
+                owner: ownerKey,
+                cardId,
+                cost: Number.isFinite(cost) ? cost : null,
+                name: cardDef ? cardDef.name : null,
+                sourceCardEl: usedCardEl || null
+            }).catch(() => {});
+        }
+    } catch (e) { /* ignore */ }
 
-    if (typeof animateCardToCharge === 'function' && usedCardEl) {
-        animateCardToCharge(usedCardEl, true).then(() => {
-            if (typeof window !== 'undefined') window.isCardAnimating = false; else isCardAnimating = false;
-            renderCardUI();
-            if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-            else if (typeof renderBoard === 'function') renderBoard();
-        });
-    } else {
-        if (typeof window !== 'undefined') window.isCardAnimating = false; else isCardAnimating = false;
-        renderCardUI();
-        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-        else if (typeof renderBoard === 'function') renderBoard();
+    renderCardUI();
+    if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+    else if (typeof renderBoard === 'function') renderBoard();
+    if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
+        try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
+    }
+}
+
+function passCurrentTurn() {
+    const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
+    const isAutoMode = typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true;
+    if (isAutoMode) return;
+    if (_isCardUiBusy()) return;
+    if (gameState.currentPlayer !== BLACK && !isDebugHvH) return;
+
+    const legalMoves = _getLegalMovesForCurrentPlayer();
+    if (legalMoves.length > 0) return;
+
+    const playerKey = gameState.currentPlayer === BLACK ? 'black' : 'white';
+    if (typeof processPassTurn === 'function') {
+        processPassTurn(playerKey, false);
     }
 }
 
@@ -311,7 +457,7 @@ function cancelPendingSelection(specificPlayerKey) {
 
     const pending = cardState.pendingEffectByPlayer[playerKey];
     if (!pending || pending.stage !== 'selectTarget') return;
-    if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'INHERIT_WILL') return;
+    if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'INHERIT_WILL' && pending.type !== 'SACRIFICE_WILL') return;
 
     const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true || isDebugHvH;
     const cancelOptions = isDebugUnlimited ? { refundCost: false, resetUsage: false, noConsume: true } : null;
@@ -325,9 +471,17 @@ function cancelPendingSelection(specificPlayerKey) {
         return;
     }
 
-    addLog(pending.type === 'INHERIT_WILL'
-        ? `${playerKey === 'black' ? '黒' : '白'}の意志の継承をキャンセルしました`
-        : `${playerKey === 'black' ? '黒' : '白'}の破壊神をキャンセルしました`);
+    if (pending.type === 'INHERIT_WILL') {
+        addLog(`${playerKey === 'black' ? '黒' : '白'}の意志の継承をキャンセルしました`);
+    } else if (pending.type === 'SACRIFICE_WILL') {
+        if (Number(pending.selectedCount || 0) > 0) {
+            addLog(`${playerKey === 'black' ? '黒' : '白'}の生贄の意志を終了しました`);
+        } else {
+            addLog(`${playerKey === 'black' ? '黒' : '白'}の生贄の意志をキャンセルしました`);
+        }
+    } else {
+        addLog(`${playerKey === 'black' ? '黒' : '白'}の破壊神をキャンセルしました`);
+    }
     renderCardUI();
     if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
     else if (typeof renderBoard === 'function') renderBoard();
@@ -342,5 +496,7 @@ window.fillDebugHand = fillDebugHand;
 window.updateCardDetailPanel = updateCardDetailPanel;
 window.onCardClick = onCardClick;
 window.useSelectedCard = useSelectedCard;
+window.passCurrentTurn = passCurrentTurn;
 window.cancelPendingDestroy = cancelPendingDestroy;
 window.cancelPendingSelection = cancelPendingSelection;
+

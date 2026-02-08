@@ -8,6 +8,10 @@
  * Show game result in log and overlay
  */
 function showResult() {
+    if (gameState && gameState.__resultShown) return;
+    if (gameState) gameState.__resultShown = true;
+    const resultToken = gameState ? (gameState.__resultToken = Date.now()) : null;
+
     const counts = countDiscs(gameState);
     let result;
     if (counts.black > counts.white) {
@@ -21,8 +25,11 @@ function showResult() {
 
 
 
-    // Show centered result overlay
-    try { showResultOverlay(); } catch (e) { console.warn('showResultOverlay failed', e); }
+    // Show centered result overlay after a short delay
+    setTimeout(() => {
+        if (resultToken && gameState && gameState.__resultToken !== resultToken) return;
+        try { showResultOverlay(); } catch (e) { console.warn('showResultOverlay failed', e); }
+    }, 2000);
 }
 
 /**
@@ -31,17 +38,19 @@ function showResult() {
  */
 function showResultOverlay() {
     const counts = countDiscs(gameState);
+    const chargeTotals = getChargeTotals();
+    const cardUseTotals = getCardUseTotals();
     let title = '';
     let statusClass = '';
 
     if (counts.black > counts.white) {
-        title = 'VICTORY';
+        title = '勝利！';
         statusClass = 'win';
     } else if (counts.white > counts.black) {
-        title = 'DEFEAT';
+        title = '敗北...';
         statusClass = 'lose';
     } else {
-        title = 'DRAW';
+        title = '引き分け';
         statusClass = 'draw';
     }
 
@@ -61,25 +70,12 @@ function showResultOverlay() {
     titleEl.textContent = title;
     panel.appendChild(titleEl);
 
-    const scoreRow = document.createElement('div');
-    scoreRow.className = 'result-score-row';
-
-    const blackScore = document.createElement('div');
-    blackScore.className = 'score-item black-player';
-    blackScore.innerHTML = `<span class="score-label">PLAYER</span><span class="score-value">${counts.black}</span>`;
-
-    const vsLabel = document.createElement('div');
-    vsLabel.className = 'vs-label';
-    vsLabel.textContent = 'VS';
-
-    const whiteScore = document.createElement('div');
-    whiteScore.className = 'score-item white-player';
-    whiteScore.innerHTML = `<span class="score-label">MONSTER</span><span class="score-value">${counts.white}</span>`;
-
-    scoreRow.appendChild(blackScore);
-    scoreRow.appendChild(vsLabel);
-    scoreRow.appendChild(whiteScore);
-    panel.appendChild(scoreRow);
+    const stats = document.createElement('div');
+    stats.className = 'result-stats';
+    stats.appendChild(createStatRow('石枚数', counts.black, counts.white));
+    stats.appendChild(createStatRow('獲得布石', chargeTotals.black, chargeTotals.white));
+    stats.appendChild(createStatRow('カード使用', cardUseTotals.black, cardUseTotals.white));
+    panel.appendChild(stats);
 
     // Monster speech area
     const dialogContainer = createMonsterDialogue(counts);
@@ -90,11 +86,11 @@ function showResultOverlay() {
 
     const restartBtn = document.createElement('button');
     restartBtn.className = 'premium-btn primary';
-    restartBtn.textContent = 'もう一度プレイ';
+    restartBtn.textContent = '再戦';
     restartBtn.onclick = () => {
         const el = document.getElementById('result-overlay');
         if (el) el.parentNode.removeChild(el);
-        resetGame();
+        if (typeof resetGame === 'function') resetGame();
     };
 
     const closeBtn = document.createElement('button');
@@ -116,6 +112,55 @@ function showResultOverlay() {
     setTimeout(() => {
         overlay.classList.add('active');
     }, 10);
+}
+
+function createStatRow(label, blackValue, whiteValue) {
+    const row = document.createElement('div');
+    row.className = 'result-stat-row';
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'result-stat-label';
+    labelEl.textContent = label;
+
+    const values = document.createElement('div');
+    values.className = 'result-stat-values';
+
+    const blackEl = document.createElement('span');
+    blackEl.className = 'result-stat-value black';
+    blackEl.textContent = `黒 ${blackValue}`;
+
+    const whiteEl = document.createElement('span');
+    whiteEl.className = 'result-stat-value white';
+    whiteEl.textContent = `白 ${whiteValue}`;
+
+    values.appendChild(blackEl);
+    values.appendChild(whiteEl);
+
+    row.appendChild(labelEl);
+    row.appendChild(values);
+
+    return row;
+}
+
+function getChargeTotals() {
+    if (typeof cardState === 'undefined' || !cardState || !cardState.chargeGainedTotal) {
+        return { black: 0, white: 0 };
+    }
+
+    return {
+        black: cardState.chargeGainedTotal.black || 0,
+        white: cardState.chargeGainedTotal.white || 0
+    };
+}
+
+function getCardUseTotals() {
+    if (typeof cardState === 'undefined' || !cardState || !cardState.cardUseCountByPlayer) {
+        return { black: 0, white: 0 };
+    }
+    return {
+        black: cardState.cardUseCountByPlayer.black || 0,
+        white: cardState.cardUseCountByPlayer.white || 0
+    };
 }
 
 /**

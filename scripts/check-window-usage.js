@@ -38,20 +38,26 @@ for (const f of files) {
     if (!shouldCheck(rel)) continue;
     let content = '';
     try { content = fs.readFileSync(f, 'utf8'); } catch (e) { continue; }
-    const re = /\bwindow\./g;
-    let m;
-    while ((m = re.exec(content)) !== null) {
-        // report each occurrence with line number
-        const pos = m.index;
-        const before = content.slice(0, pos);
-        const line = before.split('\n').length;
-        violations.push({ file: rel, line });
+    const res = [
+        { re: /\bwindow\./g, label: 'window.' },
+        { re: /\bdocument\./g, label: 'document.' },
+        { re: /require\(\s*['"]\.\.\/ui\/bootstrap['"]\s*\)/g, label: "require('../ui/bootstrap')" }
+    ];
+    for (const { re, label } of res) {
+        let m;
+        while ((m = re.exec(content)) !== null) {
+            // report each occurrence with line number
+            const pos = m.index;
+            const before = content.slice(0, pos);
+            const line = before.split('\n').length;
+            violations.push({ file: rel, line, label });
+        }
     }
 }
 
 if (violations.length > 0) {
-    console.error('\n[STATIC-CHECK] Forbidden `window.` usage found in non-UI files:');
-    violations.forEach(v => console.error(` - ${v.file}:${v.line}`));
+    console.error('\n[STATIC-CHECK] Forbidden usage found in non-UI files:');
+    violations.forEach(v => console.error(` - ${v.file}:${v.line} (${v.label})`));
     console.error('\nPlease register UI globals via `ui/bootstrap.registerUIGlobals` or migrate to UIBootstrap.');
     process.exit(2);
 }

@@ -35,6 +35,8 @@ const AnimationConstants = {
     PHASE_GAP_MS: 200,
     TURN_TRANSITION_GAP_MS: 200,
     FADE_IN_MS: 300,
+    BREEDING_SPAWN_FADE_MS: getTiming('BREEDING_SPAWN_FADE_MS', 500),
+    REGEN_CONSUME_FADE_MS: getTiming('REGEN_CONSUME_FADE_MS', 500),
     FADE_OUT_MS: getTiming('FADE_OUT_MS', 500),
     OVERLAY_CROSSFADE_MS: 600,
     MOVE_MS: 300,
@@ -53,6 +55,7 @@ const AnimationConstants = {
         STATUS_REMOVED: 'status_removed',
         HAND_ADD: 'hand_add',
         HAND_REMOVE: 'hand_remove',
+        CARD_USE_ANIMATION: 'card_use_animation',
         LOG: 'log'
     }
 };

@@ -7,6 +7,19 @@
  * UI初期化
  * Initialize all UI event listeners and elements
  */
+function _isDebugAllowed() {
+    try {
+        if (typeof window !== 'undefined') {
+            if (window.DEBUG_MODE_ALLOWED === true) return true;
+            if (window.DEBUG_MODE_ALLOWED === false) return false;
+        }
+        const qs = (typeof location !== 'undefined' && location.search) ? location.search : '';
+        return /[?&]debug=1/.test(qs) || /[?&]debug=true/.test(qs);
+    } catch (e) {
+        return false;
+    }
+}
+
 function initializeUI() {
     const resetBtn = document.getElementById('resetBtn');
     const muteBtn = document.getElementById('muteBtn');
@@ -22,6 +35,7 @@ function initializeUI() {
     const debugModeBtn = document.getElementById('debugModeBtn');
     const humanVsHumanBtn = document.getElementById('humanVsHumanBtn');
     const visualTestBtn = document.getElementById('visualTestBtn');
+    const debugAllowed = _isDebugAllowed();
 
     // Reset
     if (resetBtn) {
@@ -36,8 +50,12 @@ function initializeUI() {
     }
 
     // Debug / Visual test controls
-    if (typeof setupDebugControls === 'function') {
+    if (debugAllowed && typeof setupDebugControls === 'function') {
         setupDebugControls(debugModeBtn, humanVsHumanBtn, visualTestBtn);
+    } else {
+        if (debugModeBtn) debugModeBtn.style.display = 'none';
+        if (humanVsHumanBtn) humanVsHumanBtn.style.display = 'none';
+        if (visualTestBtn) visualTestBtn.style.display = 'none';
     }
 
 
@@ -64,13 +82,21 @@ function initializeUI() {
 
     // Initialize card UI handlers
     const useBtn = document.getElementById('use-card-btn');
+    const passBtn = document.getElementById('pass-btn');
     if (useBtn) {
         useBtn.addEventListener('click', useSelectedCard);
+    }
+    if (passBtn && typeof passCurrentTurn === 'function') {
+        passBtn.addEventListener('click', passCurrentTurn);
     }
 
     // Load CPU policy based on CPU level
     if (typeof loadCpuPolicy === 'function') {
         loadCpuPolicy();
+    }
+    // Load local policy-table model for browser CPU (safe fallback on failure)
+    if (typeof initPolicyTableModel === 'function') {
+        initPolicyTableModel();
     }
 
     // Load LvMax Deep CFR models
@@ -143,11 +169,6 @@ function initializeUI() {
         window.isCardAnimating = typeof isCardAnimating !== 'undefined' ? isCardAnimating : false;
         window.isProcessing = typeof isProcessing !== 'undefined' ? isProcessing : false;
 
-        // Telemetry: minimal counters for watchdog and single-writer events
-        window.__telemetry__ = window.__telemetry__ || { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 };
-        window.getTelemetrySnapshot = function () { return Object.assign({}, window.__telemetry__); };
-        window.resetTelemetry = function () { window.__telemetry__ = { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 }; };
-
         // If no-anim mode is enabled, ensure flags are not stuck true
         if (window.DISABLE_ANIMATIONS === true) {
             window.isCardAnimating = false;
@@ -155,44 +176,51 @@ function initializeUI() {
             isProcessing = false;
         }
 
-        // Mirror internal animation flags to window for telemetry and Playwright checks
-        window._uiMirrorIntervalId = setInterval(() => {
-            if (typeof window !== 'undefined') {
-                window.isCardAnimating = typeof isCardAnimating !== 'undefined' ? isCardAnimating : false;
-                window.isProcessing = typeof isProcessing !== 'undefined' ? isProcessing : false;
+        if (debugAllowed) {
+            // Telemetry: minimal counters for watchdog and single-writer events
+            window.__telemetry__ = window.__telemetry__ || { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 };
+            window.getTelemetrySnapshot = function () { return Object.assign({}, window.__telemetry__); };
+            window.resetTelemetry = function () { window.__telemetry__ = { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 }; };
+
+            // Mirror internal animation flags to window for telemetry and checks
+            window._uiMirrorIntervalId = setInterval(() => {
+                if (typeof window !== 'undefined') {
+                    window.isCardAnimating = typeof isCardAnimating !== 'undefined' ? isCardAnimating : false;
+                    window.isProcessing = typeof isProcessing !== 'undefined' ? isProcessing : false;
+                }
+            }, 100);
+
+            // Watchdog ping for stuck flags (game/turn-manager.js provides watchdogPing)
+            if (typeof window._watchdogIntervalId === 'undefined' || window._watchdogIntervalId === null) {
+                window._watchdogIntervalId = setInterval(() => {
+                    try {
+                        if (typeof watchdogPing === 'function') watchdogPing();
+                    } catch (e) { /* ignore */ }
+                }, 250);
             }
-        }, 100);
 
-        // Watchdog ping for stuck flags (game/turn-manager.js provides watchdogPing)
-        if (typeof window._watchdogIntervalId === 'undefined' || window._watchdogIntervalId === null) {
-            window._watchdogIntervalId = setInterval(() => {
-                try {
-                    if (typeof watchdogPing === 'function') watchdogPing();
-                } catch (e) { /* ignore */ }
-            }, 250);
-        }
-
-        // UI-side playback watchdog: abort visuals if playback gets stuck too long
-        if (typeof window._playbackWatchdogId === 'undefined' || window._playbackWatchdogId === null) {
-            window._playbackWatchdogId = setInterval(() => {
-                try {
-                    if (window.VisualPlaybackActive === true) {
-                        window.__playbackActiveSince = window.__playbackActiveSince || Date.now();
-                        const elapsed = Date.now() - window.__playbackActiveSince;
-                        if (elapsed > 15000) {
-                            if (window.AnimationEngine && typeof window.AnimationEngine.abortAndSync === 'function') {
-                                window.AnimationEngine.abortAndSync();
+            // UI-side playback watchdog: abort visuals if playback gets stuck too long
+            if (typeof window._playbackWatchdogId === 'undefined' || window._playbackWatchdogId === null) {
+                window._playbackWatchdogId = setInterval(() => {
+                    try {
+                        if (window.VisualPlaybackActive === true) {
+                            window.__playbackActiveSince = window.__playbackActiveSince || Date.now();
+                            const elapsed = Date.now() - window.__playbackActiveSince;
+                            if (elapsed > 15000) {
+                                if (window.AnimationEngine && typeof window.AnimationEngine.abortAndSync === 'function') {
+                                    window.AnimationEngine.abortAndSync();
+                                }
+                                window.VisualPlaybackActive = false;
+                                const board = document.getElementById('board');
+                                if (board) board.classList.remove('playback-locked');
+                                window.__playbackActiveSince = null;
                             }
-                            window.VisualPlaybackActive = false;
-                            const board = document.getElementById('board');
-                            if (board) board.classList.remove('playback-locked');
+                        } else {
                             window.__playbackActiveSince = null;
                         }
-                    } else {
-                        window.__playbackActiveSince = null;
-                    }
-                } catch (e) { /* ignore */ }
-            }, 500);
+                    } catch (e) { /* ignore */ }
+                }, 500);
+            }
         }
     }
 }

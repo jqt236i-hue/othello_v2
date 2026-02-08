@@ -1,5 +1,14 @@
 // ===== Card Rendering =====
 
+function getCardCostTier(cost) {
+    const safeCost = Number.isFinite(cost) ? cost : 0;
+    if (safeCost >= 21) return 'gold';
+    if (safeCost >= 16) return 'purple';
+    if (safeCost >= 11) return 'blue';
+    if (safeCost >= 6) return 'red';
+    return 'gray';
+}
+
 function renderCardUI() {
     // Get elements
     const deckBlackEl = document.getElementById('deck-black');
@@ -19,20 +28,21 @@ function renderCardUI() {
 
     // Update deck visuals (shared deck - both show same count)
     const deckCount = cardState.deck.length;
-    const deckRatio = Math.max(0, Math.min(1, deckCount / 20));
+    const totalDeck = Number.isFinite(cardState.initialDeckSize) ? cardState.initialDeckSize : 30;
+    const deckRatio = Math.max(0, Math.min(1, deckCount / Math.max(1, totalDeck)));
 
     // Set visuals for Black deck (shared)
     if (deckBlackEl) {
         deckBlackEl.style.setProperty('--deck-ratio', deckRatio);
         const countLabel = deckBlackEl.querySelector('.deck-count');
-        if (countLabel) countLabel.textContent = `${deckCount}/20`;
+        if (countLabel) countLabel.textContent = `${deckCount}/${totalDeck}`;
     }
 
     // Set visuals for White deck (shared - same values)
     if (deckWhiteEl) {
         deckWhiteEl.style.setProperty('--deck-ratio', deckRatio);
         const countLabel = deckWhiteEl.querySelector('.deck-count');
-        if (countLabel) countLabel.textContent = `${deckCount}/20`;
+        if (countLabel) countLabel.textContent = `${deckCount}/${totalDeck}`;
     }
 
     const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
@@ -43,7 +53,11 @@ function renderCardUI() {
         const isBlackTurn = gameState.currentPlayer === BLACK;
         // Allow visual interaction unless an animation is playing.
         // Keep actual 'use' guarded elsewhere to prevent action during processing.
-        const canInteract = !isCardAnimating;
+        const isAnimating = ((typeof isCardAnimating !== 'undefined' && !!isCardAnimating) || (typeof window !== 'undefined' && !!window.isCardAnimating) || (typeof window !== 'undefined' && window.VisualPlaybackActive === true));
+        const playerKey = isDebugHvH ? (gameState.currentPlayer === BLACK ? 'black' : 'white') : 'black';
+        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const allowDuringAnimForSell = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
+        const canInteract = !isAnimating || allowDuringAnimForSell;
         const fadeState = (typeof window !== 'undefined')
             ? (window.__handFadeInState || window.__handFadeInHint || null)
             : null;
@@ -59,7 +73,9 @@ function renderCardUI() {
 
             // Determine usability: same rules as use-button
             const cost = cardDef ? (cardDef.cost || 0) : 0;
-            const playerKey = isDebugHvH ? (gameState.currentPlayer === BLACK ? 'black' : 'white') : 'black';
+            const costTier = getCardCostTier(cost);
+            const tierClass = `cost-tier-${costTier}`;
+            cardEl.classList.add(tierClass);
             const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true || isDebugHvH;
             const hasNotUsedThisTurn = isDebugUnlimited ? true : !cardState.hasUsedCardThisTurnByPlayer[playerKey];
             const canAfford = isDebugUnlimited ? true : ((cardState.charge[playerKey] || 0) >= cost);
@@ -89,6 +105,7 @@ function renderCardUI() {
             // Cost badge
             const costBadge = document.createElement('div');
             costBadge.className = 'card-cost-badge';
+            costBadge.classList.add(tierClass);
             costBadge.textContent = `コスト${cost}`;
             cardEl.appendChild(costBadge);
 
@@ -128,11 +145,17 @@ function renderCardUI() {
                 const cardDef = CARD_DEFS.find(c => c.id === cardId);
                 cardEl.className = 'card-item visible';
                 const isWhiteTurn = gameState.currentPlayer === WHITE;
-                const canInteract = !isCardAnimating;
+                const isAnimating = ((typeof isCardAnimating !== 'undefined' && !!isCardAnimating) || (typeof window !== 'undefined' && !!window.isCardAnimating) || (typeof window !== 'undefined' && window.VisualPlaybackActive === true));
                 const playerKey = 'white';
+                const pending = cardState.pendingEffectByPlayer[playerKey];
+                const allowDuringAnimForSell = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
+                const canInteract = !isAnimating || allowDuringAnimForSell;
                 const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true || isDebugHvH;
                 const hasNotUsedThisTurn = isDebugUnlimited ? true : !cardState.hasUsedCardThisTurnByPlayer[playerKey];
                 const cost = cardDef ? (cardDef.cost || 0) : 0;
+                const costTier = getCardCostTier(cost);
+                const tierClass = `cost-tier-${costTier}`;
+                cardEl.classList.add(tierClass);
                 const canAfford = isDebugUnlimited ? true : ((cardState.charge[playerKey] || 0) >= cost);
                 const usable = (isWhiteTurn || (isDebugHvH && gameState.currentPlayer === WHITE)) && canInteract && hasNotUsedThisTurn && canAfford;
                 if ((isWhiteTurn || (isDebugHvH && gameState.currentPlayer === WHITE)) && canInteract) {
@@ -150,6 +173,7 @@ function renderCardUI() {
                 cardEl.appendChild(nameSpan);
                 const costBadge = document.createElement('div');
                 costBadge.className = 'card-cost-badge';
+                costBadge.classList.add(tierClass);
                 costBadge.textContent = `コスト${cost}`;
                 cardEl.appendChild(costBadge);
                 cardEl.addEventListener('click', () => onCardClick(cardId));
@@ -188,4 +212,5 @@ function renderCardUI() {
         }
     }
 }
+
 

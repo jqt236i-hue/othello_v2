@@ -23,6 +23,93 @@ function hasUsableCardFor(playerKey) {
     return false;
 }
 
+function resolveCoreApi() {
+    if (typeof Core !== 'undefined' && Core && typeof Core.getLegalMoves === 'function') return Core;
+    if (typeof CoreLogic !== 'undefined' && CoreLogic && typeof CoreLogic.getLegalMoves === 'function') return CoreLogic;
+    return null;
+}
+
+function getLegalMovesForPlayer(playerValue) {
+    if (!gameState) return [];
+
+    const core = resolveCoreApi();
+    if (core) {
+        try {
+            const ctx = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardContext === 'function')
+                ? CardLogic.getCardContext(cardState)
+                : { protectedStones: [], permaProtectedStones: [], bombs: [] };
+            return core.getLegalMoves(gameState, playerValue, ctx) || [];
+        } catch (e) { /* ignore */ }
+    }
+
+    if (typeof getLegalMoves !== 'function') return [];
+    try {
+        const probeState = Object.assign({}, gameState, { currentPlayer: playerValue });
+        const protection = (typeof getActiveProtectionForPlayer === 'function')
+            ? getActiveProtectionForPlayer(playerValue)
+            : [];
+        const perma = (typeof getFlipBlockers === 'function')
+            ? getFlipBlockers()
+            : [];
+        return getLegalMoves(probeState, protection, perma) || [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function playerHasAnyAvailableAction(playerValue) {
+    const playerKey = (typeof BLACK !== 'undefined' && playerValue === BLACK) ? 'black' : 'white';
+    const legalMoves = getLegalMovesForPlayer(playerValue);
+    if (legalMoves.length > 0) return true;
+    return hasUsableCardFor(playerKey);
+}
+
+function isNoActionTerminalState() {
+    const safeBlack = (typeof BLACK !== 'undefined') ? BLACK : 1;
+    const safeWhite = (typeof WHITE !== 'undefined') ? WHITE : -1;
+    return !playerHasAnyAvailableAction(safeBlack) && !playerHasAnyAvailableAction(safeWhite);
+}
+
+function finalizeNoActionTerminal() {
+    if (!isNoActionTerminalState()) return false;
+    if (gameState && (typeof gameState.consecutivePasses !== 'number' || gameState.consecutivePasses < 2)) {
+        gameState.consecutivePasses = 2;
+    }
+    if (typeof showResult === 'function') showResult();
+    isProcessing = false;
+    return true;
+}
+
+function handleRejectedPass() {
+    if (finalizeNoActionTerminal()) return true;
+    console.warn('[PASS-HANDLER] Pass was rejected; keeping current turn');
+    isProcessing = false;
+    return false;
+}
+
+function ensureCurrentPlayerCanActOrPass(options) {
+    if (!gameState || !cardState) return false;
+    const opts = options || {};
+    const currentPlayer = gameState.currentPlayer;
+    const playerKey = (typeof BLACK !== 'undefined' && currentPlayer === BLACK) ? 'black' : 'white';
+    const pending = (cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[playerKey]) ? cardState.pendingEffectByPlayer[playerKey] : null;
+
+    // Target selection is still an available action, so do not auto-pass.
+    if (pending && pending.stage === 'selectTarget') return false;
+
+    const legalMoves = getLegalMovesForPlayer(currentPlayer);
+    const hasCard = hasUsableCardFor(playerKey);
+    if (legalMoves.length > 0 || hasCard) return false;
+
+    if (opts.useBlackDelay && typeof BLACK !== 'undefined' && currentPlayer === BLACK) {
+        handleBlackPassWhenNoMoves();
+        return true;
+    }
+
+    processPassTurn(playerKey, !!opts.autoMode);
+    return true;
+}
+
 /**
  * Helper to apply pass via TurnPipeline with safe fallback.
  * @param {string} playerKey - 'black' or 'white'
@@ -78,11 +165,15 @@ function applyPassViaPipeline(playerKey) {
 
 async function _postApplyPassCommon() {
     // Shared continuation logic after applyPassViaPipeline
-    emitBoardUpdate();
-    emitGameStateChange();
+    try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+    try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
 
-    if (isGameOver(gameState)) {
-        showResult();
+    if (finalizeNoActionTerminal()) {
+        return true;
+    }
+
+    if (typeof isGameOver === 'function' && isGameOver(gameState)) {
+        if (typeof showResult === 'function') showResult();
         isProcessing = false;
         return true;
     }
@@ -96,21 +187,24 @@ async function _postApplyPassCommon() {
         ? getFlipBlockers()
         : [];
 
-    const nextMoves = getLegalMoves(gameState, nextProtection, nextPerma);
-    const nextHasCard = hasUsableCardFor(nextPlayer === BLACK ? 'black' : 'white');
+    const nextMoves = (typeof getLegalMoves === 'function')
+        ? getLegalMoves(gameState, nextProtection, nextPerma)
+        : [];
+    const nextHasCard = hasUsableCardFor((typeof BLACK !== 'undefined' && nextPlayer === BLACK) ? 'black' : 'white');
 
+    const nextIsWhite = (typeof WHITE !== 'undefined' && nextPlayer === WHITE);
     if (!nextMoves.length && !nextHasCard) {
-        if (isGameOver(gameState)) {
-            showResult();
+        if (typeof isGameOver === 'function' && isGameOver(gameState)) {
+            if (typeof showResult === 'function') showResult();
             isProcessing = false;
             return true;
         }
 
-        if (nextPlayer === WHITE) {
+        if (nextIsWhite) {
             isProcessing = true;
-            if (typeof onTurnStart === 'function') onTurnStart(WHITE);
+            if (typeof onTurnStart === 'function' && typeof WHITE !== 'undefined') onTurnStart(WHITE);
             if (timers && typeof timers.waitMs === 'function') {
-                timers.waitMs(CPU_TURN_DELAY_MS).then(processCpuTurn);
+                timers.waitMs(typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600).then(processCpuTurn);
             } else {
                 processCpuTurn();
             }
@@ -132,7 +226,7 @@ async function _postApplyPassCommon() {
     } else {
         isProcessing = false;
         if (typeof onTurnStart === 'function') onTurnStart(BLACK);
-        emitBoardUpdate();
+        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
     }
     return true;
 }
@@ -142,11 +236,11 @@ async function handleDoublePlaceNoSecondMove(move, passedPlayer) {
     if (timers && typeof timers.waitMs === 'function') {
         timers.waitMs(DOUBLE_PLACE_PASS_DELAY_MS).then(async () => {
             if (typeof emitLogAdded === 'function') emitLogAdded(`${playerName}: 二連投石 追加手なし → パス`);
-            const playerKey = passedPlayer === BLACK ? 'black' : 'white';
+            const playerKey = (typeof BLACK !== 'undefined' && passedPlayer === BLACK) ? 'black' : 'white';
 
             const result = applyPassViaPipeline(playerKey);
             if (!result.ok) {
-                console.warn('[PASS-HANDLER] Pass was rejected, continuing anyway');
+                return handleRejectedPass();
             }
 
             await _postApplyPassCommon();
@@ -154,11 +248,11 @@ async function handleDoublePlaceNoSecondMove(move, passedPlayer) {
     } else {
         // Fallback immediate path
         if (typeof emitLogAdded === 'function') emitLogAdded(`${playerName}: 二連投石 追加手なし → パス`);
-        const playerKey = passedPlayer === BLACK ? 'black' : 'white';
+        const playerKey = (typeof BLACK !== 'undefined' && passedPlayer === BLACK) ? 'black' : 'white';
 
         const result = applyPassViaPipeline(playerKey);
         if (!result.ok) {
-            console.warn('[PASS-HANDLER] Pass was rejected, continuing anyway');
+            return handleRejectedPass();
         }
 
         await _postApplyPassCommon();
@@ -166,27 +260,29 @@ async function handleDoublePlaceNoSecondMove(move, passedPlayer) {
 }
 
 async function handleBlackPassWhenNoMoves() {
+    const safeBlackPassDelay = (typeof BLACK_PASS_DELAY_MS !== 'undefined') ? BLACK_PASS_DELAY_MS : 1000;
+    const safeBlackName = (typeof BLACK !== 'undefined' && typeof getPlayerName === 'function') ? getPlayerName(BLACK) : '黒';
     if (timers && typeof timers.waitMs === 'function') {
-        timers.waitMs(BLACK_PASS_DELAY_MS).then(async () => {
-            if (typeof emitLogAdded === 'function') emitLogAdded(`${getPlayerName(BLACK)}: パス (置ける場所がありません)`);
+        timers.waitMs(safeBlackPassDelay).then(async () => {
+            if (typeof emitLogAdded === 'function') emitLogAdded(`${safeBlackName}: パス (置ける場所がありません)`);
             const passedPlayer = gameState.currentPlayer;
-            const playerKey = passedPlayer === BLACK ? 'black' : 'white';
+            const playerKey = (typeof BLACK !== 'undefined' && passedPlayer === BLACK) ? 'black' : 'white';
 
             const result = applyPassViaPipeline(playerKey);
             if (!result.ok) {
-                console.warn('[PASS-HANDLER] Pass was rejected, continuing anyway');
+                return handleRejectedPass();
             }
 
             await _postApplyPassCommon();
         });
     } else {
-        if (typeof emitLogAdded === 'function') emitLogAdded(`${getPlayerName(BLACK)}: パス (置ける場所がありません)`);
+        if (typeof emitLogAdded === 'function') emitLogAdded(`${safeBlackName}: パス (置ける場所がありません)`);
         const passedPlayer = gameState.currentPlayer;
-        const playerKey = passedPlayer === BLACK ? 'black' : 'white';
+        const playerKey = (typeof BLACK !== 'undefined' && passedPlayer === BLACK) ? 'black' : 'white';
 
         const result = applyPassViaPipeline(playerKey);
         if (!result.ok) {
-            console.warn('[PASS-HANDLER] Pass was rejected, continuing anyway');
+            return handleRejectedPass();
         }
 
         await _postApplyPassCommon();
@@ -197,27 +293,26 @@ async function processPassTurn(playerKey, autoMode) {
     const selfName = playerKey === 'white' ? '白' : '黒';
     if (typeof emitLogAdded === 'function') emitLogAdded(`${selfName}: パス${autoMode ? ' (AUTO)' : ''}`);
     const passedPlayer = gameState.currentPlayer;
-    const passedPlayerKey = passedPlayer === BLACK ? 'black' : 'white';
+    const passedPlayerKey = (typeof BLACK !== 'undefined' && passedPlayer === BLACK) ? 'black' : 'white';
 
     const result = applyPassViaPipeline(passedPlayerKey);
     if (!result.ok) {
-        console.warn('[PASS-HANDLER] Pass was rejected, continuing anyway');
+        return handleRejectedPass();
     }
 
-    emitBoardUpdate();
-    emitGameStateChange();
+    try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+    try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
 
-    if (isGameOver(gameState)) {
-        showResult();
+    if (typeof isGameOver === 'function' && isGameOver(gameState)) {
+        if (typeof showResult === 'function') showResult();
         isProcessing = false;
         return true;
     }
 
     const nextPlayer = gameState.currentPlayer;
-    if (typeof getLegalMoves === 'undefined') {
-        console.error('getLegalMoves undefined');
-        return true;
-    }
+    const safeGetLegalMoves = (typeof getLegalMoves === 'function')
+        ? getLegalMoves
+        : null;
 
     const nextProtection = (typeof getActiveProtectionForPlayer === 'function')
         ? getActiveProtectionForPlayer(nextPlayer)
@@ -227,29 +322,32 @@ async function processPassTurn(playerKey, autoMode) {
         ? getFlipBlockers()
         : [];
 
-    const nextMoves = getLegalMoves(gameState, nextProtection, nextPerma);
-    const nextHasCard = hasUsableCardFor(nextPlayer === BLACK ? 'black' : 'white');
+    const nextMoves = safeGetLegalMoves
+        ? safeGetLegalMoves(gameState, nextProtection, nextPerma)
+        : [];
+    const nextHasCard = hasUsableCardFor((typeof BLACK !== 'undefined' && nextPlayer === BLACK) ? 'black' : 'white');
+    const nextIsWhite = (typeof WHITE !== 'undefined' && nextPlayer === WHITE);
 
     if (!nextMoves.length && !nextHasCard) {
-        if (isGameOver(gameState)) {
-            showResult();
+        if (typeof isGameOver === 'function' && isGameOver(gameState)) {
+            if (typeof showResult === 'function') showResult();
             isProcessing = false;
             return true;
         }
 
-        if (nextPlayer === WHITE) {
+        if (nextIsWhite) {
             isProcessing = true;
-            if (typeof onTurnStart === 'function') onTurnStart(WHITE);
+            if (typeof onTurnStart === 'function' && typeof WHITE !== 'undefined') onTurnStart(WHITE);
             if (timers && typeof timers.waitMs === 'function') {
-                timers.waitMs(CPU_TURN_DELAY_MS).then(processCpuTurn);
+                timers.waitMs(typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600).then(processCpuTurn);
             } else {
                 processCpuTurn();
             }
         } else {
-            if (nextPlayer === WHITE) {
+            if (nextIsWhite) {
                 isProcessing = true;
                 if (timers && typeof timers.waitMs === 'function') {
-                    timers.waitMs(CPU_TURN_DELAY_MS).then(processCpuTurn);
+                    timers.waitMs(typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600).then(processCpuTurn);
                 } else {
                     processCpuTurn();
                 }
@@ -260,18 +358,18 @@ async function processPassTurn(playerKey, autoMode) {
         return true;
     }
 
-    if (nextPlayer === WHITE) {
+    if (nextIsWhite) {
         isProcessing = true;
-        if (typeof onTurnStart === 'function') onTurnStart(WHITE);
+        if (typeof onTurnStart === 'function' && typeof WHITE !== 'undefined') onTurnStart(WHITE);
         if (timers && typeof timers.waitMs === 'function') {
-            timers.waitMs(CPU_TURN_DELAY_MS).then(processCpuTurn);
+            timers.waitMs(typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600).then(processCpuTurn);
         } else {
             processCpuTurn();
         }
     } else {
         isProcessing = false;
-        if (typeof onTurnStart === 'function') onTurnStart(BLACK);
-        emitBoardUpdate();
+        if (typeof onTurnStart === 'function' && typeof BLACK !== 'undefined') onTurnStart(BLACK);
+        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
     }
     return true;
 }
@@ -282,7 +380,14 @@ if (typeof module !== 'undefined' && module.exports) {
         handleDoublePlaceNoSecondMove,
         handleBlackPassWhenNoMoves,
         processPassTurn,
-        hasUsableCardFor
+        hasUsableCardFor,
+        ensureCurrentPlayerCanActOrPass
     };
 }
+try {
+    if (typeof globalThis !== 'undefined') {
+        try { globalThis.processPassTurn = processPassTurn; } catch (e) { /* ignore */ }
+        try { globalThis.ensureCurrentPlayerCanActOrPass = ensureCurrentPlayerCanActOrPass; } catch (e) { /* ignore */ }
+    }
+} catch (e) { /* ignore */ }
 })();

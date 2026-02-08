@@ -154,6 +154,7 @@ function renderBoardFull() {
 
             const val = gameState.board[r][c];
             if (val !== EMPTY) {
+                cell.classList.add('has-disc');
                 const disc = document.createElement('div');
                 disc.className = 'disc ' + (val === BLACK ? 'black' : 'white');
                 // Set element-level CSS var for the overlay image (used by .disc::after)

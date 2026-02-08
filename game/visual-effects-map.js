@@ -134,6 +134,15 @@ const GAME_STONE_VISUAL_EFFECTS = {
             '-1': 'assets/images/stones/TIME_BOMB-white.png'
         },
         dataAttributes: {}
+    },
+    crossBombStone: {
+        cssClass: 'cross-bomb-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/stones/CROSS_BOMB-black.png',
+            '-1': 'assets/images/stones/CROSS_BOMB-white.png'
+        },
+        dataAttributes: {}
     }
 };
 
@@ -151,7 +160,8 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     // Ensure WORK pending visuals are applied at placement-time as well
     'WORK_WILL': 'workStone'
     ,
-    'TIME_BOMB': 'timeBombStone'
+    'TIME_BOMB': 'timeBombStone',
+    'CROSS_BOMB': 'crossBombStone'
 };
 
 function getEffectKeyForPendingType(pendingType) {
@@ -171,7 +181,8 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'SILVER': 'silverStone',
     'WORK': 'workStone'
     ,
-    'TIME_BOMB': 'timeBombStone'
+    'TIME_BOMB': 'timeBombStone',
+    'CROSS_BOMB': 'crossBombStone'
 };
 
 function getEffectKeyForSpecialType(type) {

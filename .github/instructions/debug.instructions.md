@@ -4,6 +4,7 @@ applyTo: "game/debug/**/*.js,ui/handlers/debug.js"
 
 # debug（診断）向け追加指示
 
+- ローカル完結（厳禁）: 外部のコード保管先への送受信や外部レビュー依頼を前提にした提案をしない（詳細は `.github/copilot-instructions.md`）。
 - 本番動作に影響する debug は `?debug=1` 等で明示的にONにする（通常時は無効）。
 - 常駐 `setInterval` は原則禁止（必要なら debug 時のみ有効化）。
 - `window` への公開は最小限。追加する場合は「公開理由」と「参照先」を明記する。
@@ -11,3 +12,4 @@ applyTo: "game/debug/**/*.js,ui/handlers/debug.js"
 変更時チェック:
 - 通常プレイ時に副作用が出ない
 - グローバル公開が増えていない（増えるなら理由が書かれている）
+- game/ と ui/ の境界に直接触れていない

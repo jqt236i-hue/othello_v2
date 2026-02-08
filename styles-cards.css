@@ -93,26 +93,128 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    color: inherit;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
+    letter-spacing: 0.02em;
 }
 
 .card-cost-badge {
     position: absolute;
     bottom: 4px;
     right: 4px;
-    background: rgba(42, 42, 42, 0.85);
-    color: #ffd700;
+    background:
+        linear-gradient(180deg, var(--card-tier-badge-hi, rgba(255, 255, 255, 0.28)) 0%, transparent 45%),
+        linear-gradient(145deg, var(--card-tier-badge-bg-a, rgba(140, 128, 92, 0.97)) 0%, var(--card-tier-badge-bg-b, rgba(88, 80, 56, 0.96)) 100%);
+    color: var(--card-tier-badge-text, #fff0c8);
     font-size: 10px;
     font-weight: 700;
     padding: 2px 5px;
     border-radius: 3px;
-    border: 1px solid rgba(255, 215, 0, 0.4);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--card-tier-badge-border, rgba(255, 215, 0, 0.78));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.25),
+        0 1px 2px rgba(0, 0, 0, 0.55);
 }
 
 .card-item.visible {
-    background: linear-gradient(135deg, #f5f5dc, #d4c89a);
-    border: 1px solid #8b7355;
-    color: #2a1f15;
+    background:
+        radial-gradient(140% 100% at 12% 6%, var(--card-tier-hi, rgba(255, 255, 255, 0.28)) 0%, transparent 48%),
+        linear-gradient(165deg, var(--card-tier-bg-a, #5e6773) 0%, var(--card-tier-bg-b, #3f4954) 52%, var(--card-tier-bg-c, #242c36) 100%);
+    border: 1px solid var(--card-tier-border, #d9b766);
+    color: var(--card-tier-text, #fff6e2);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.28),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.38),
+        0 3px 8px rgba(0, 0, 0, 0.4);
+}
+
+.card-item.visible.cost-tier-gray {
+    --card-tier-bg-a: #757e8b;
+    --card-tier-bg-b: #59626f;
+    --card-tier-bg-c: #3d4652;
+    --card-tier-hi: rgba(247, 251, 255, 0.24);
+    --card-tier-border: #e0c27a;
+    --card-tier-text: #fdfcff;
+    --card-tier-badge-bg-a: rgba(156, 166, 180, 0.97);
+    --card-tier-badge-bg-b: rgba(110, 122, 138, 0.96);
+    --card-tier-badge-hi: rgba(255, 255, 255, 0.28);
+    --card-tier-badge-text: #ffffff;
+    --card-tier-badge-border: rgba(224, 194, 122, 0.85);
+}
+
+.card-item.visible.cost-tier-red {
+    --card-tier-bg-a: #468b62;
+    --card-tier-bg-b: #326849;
+    --card-tier-bg-c: #214232;
+    --card-tier-hi: rgba(219, 255, 232, 0.22);
+    --card-tier-border: #e0c27a;
+    --card-tier-text: #f4fff7;
+    --card-tier-badge-bg-a: rgba(98, 166, 126, 0.96);
+    --card-tier-badge-bg-b: rgba(66, 120, 92, 0.95);
+    --card-tier-badge-hi: rgba(232, 255, 242, 0.26);
+    --card-tier-badge-text: #f1fff2;
+    --card-tier-badge-border: rgba(224, 194, 122, 0.86);
+}
+
+.card-item.visible.cost-tier-blue {
+    --card-tier-bg-a: #456ba3;
+    --card-tier-bg-b: #34547f;
+    --card-tier-bg-c: #223754;
+    --card-tier-hi: rgba(219, 238, 255, 0.22);
+    --card-tier-border: #e0c27a;
+    --card-tier-text: #f5f9ff;
+    --card-tier-badge-bg-a: rgba(100, 141, 190, 0.96);
+    --card-tier-badge-bg-b: rgba(66, 104, 155, 0.95);
+    --card-tier-badge-hi: rgba(227, 242, 255, 0.26);
+    --card-tier-badge-text: #f3f8ff;
+    --card-tier-badge-border: rgba(224, 194, 122, 0.86);
+}
+
+.card-item.visible.cost-tier-purple {
+    --card-tier-bg-a: #6f4f98;
+    --card-tier-bg-b: #533771;
+    --card-tier-bg-c: #361f4e;
+    --card-tier-hi: rgba(240, 224, 255, 0.22);
+    --card-tier-border: #e0c27a;
+    --card-tier-text: #fbf4ff;
+    --card-tier-badge-bg-a: rgba(140, 112, 180, 0.96);
+    --card-tier-badge-bg-b: rgba(100, 76, 142, 0.95);
+    --card-tier-badge-hi: rgba(248, 235, 255, 0.26);
+    --card-tier-badge-text: #faf3ff;
+    --card-tier-badge-border: rgba(224, 194, 122, 0.86);
+}
+
+.card-item.visible.cost-tier-gold {
+    --card-tier-bg-a: #9a7838;
+    --card-tier-bg-b: #745828;
+    --card-tier-bg-c: #503818;
+    --card-tier-hi: rgba(255, 242, 196, 0.24);
+    --card-tier-border: #f1d27a;
+    --card-tier-text: #fff6dc;
+    --card-tier-badge-bg-a: rgba(178, 146, 86, 0.96);
+    --card-tier-badge-bg-b: rgba(128, 102, 52, 0.95);
+    --card-tier-badge-hi: rgba(255, 244, 202, 0.28);
+    --card-tier-badge-text: #fff9df;
+    --card-tier-badge-border: rgba(241, 210, 122, 0.9);
+}
+
+.card-item.visible.cost-tier-special {
+    --card-tier-bg-a: #413f3c;
+    --card-tier-bg-b: #282624;
+    --card-tier-bg-c: #141311;
+    --card-tier-hi: rgba(255, 240, 195, 0.2);
+    --card-tier-border: #f1d27a;
+    --card-tier-text: #fff6dc;
+    --card-tier-badge-bg-a: rgba(150, 128, 76, 0.96);
+    --card-tier-badge-bg-b: rgba(102, 84, 44, 0.95);
+    --card-tier-badge-hi: rgba(255, 238, 188, 0.26);
+    --card-tier-badge-text: #ffefbe;
+    --card-tier-badge-border: rgba(241, 210, 122, 0.9);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 241, 198, 0.32),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.42),
+        0 0 10px rgba(241, 210, 122, 0.18),
+        0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 .card-item.hidden {
@@ -140,15 +242,19 @@
 }
 
 .card-item.usable {
-    box-shadow: 0 0 16px 6px rgba(82, 214, 120, 0.55), 0 6px 18px rgba(0,0,0,0.4);
-    border: 2px solid rgba(82, 214, 120, 0.9);
-    transform: translateY(-6px);
+    box-shadow:
+        0 0 14px 5px rgba(240, 210, 122, 0.48),
+        0 0 24px 9px rgba(255, 215, 140, 0.22),
+        0 8px 18px rgba(0, 0, 0, 0.45);
+    border: 2px solid rgba(255, 228, 140, 0.98);
+    transform: translateY(-6px) scale(1.01);
 }
 
 .card-item.usable .card-cost-badge {
-    background: rgba(50, 120, 40, 0.95);
-    color: #e6ffe6;
-    border-color: rgba(200,255,200,0.4);
+    border-color: rgba(255, 228, 140, 0.98);
+    box-shadow:
+        0 0 7px rgba(255, 220, 130, 0.4),
+        0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 #hand-black .card-item {
@@ -239,6 +345,7 @@
 #card-detail-panel > #card-detail-name,
 #card-detail-panel > #card-detail-desc,
 #card-detail-panel > #use-card-btn,
+#card-detail-panel > #pass-btn,
 #card-detail-panel > #cancel-card-btn,
 #card-detail-panel > #use-card-reason {
     display: block;
@@ -249,6 +356,7 @@
 }
 
 #card-detail-panel > #use-card-btn,
+#card-detail-panel > #pass-btn,
 #card-detail-panel > #cancel-card-btn {
     display: inline-block;
     width: auto;
@@ -266,6 +374,31 @@
     cursor: pointer;
     transition: all 0.15s ease;
     margin-top: 8mm;
+}
+
+#pass-btn {
+    padding: 6px 20px;
+    font-size: 12px;
+    font-weight: bold;
+    background: linear-gradient(to bottom, #7c5a4a, #5a3d2d);
+    border: 1px solid #9c7a5a;
+    border-radius: 4px;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-top: 6px;
+}
+
+#pass-btn:hover:not(:disabled) {
+    background: linear-gradient(to bottom, #8c6a58, #6a4a36);
+    box-shadow: 0 0 8px rgba(156, 122, 90, 0.45);
+}
+
+#pass-btn:disabled {
+    background: linear-gradient(to bottom, #555, #333);
+    border-color: #666;
+    color: #888;
+    cursor: not-allowed;
 }
 
 #use-card-btn:hover:not(:disabled) {
@@ -416,6 +549,73 @@
 
 .held-stone.white {
     background: radial-gradient(circle at 35% 35%, #fffdf0 0%, #e0e0d0 40%, #b0b0a0 100%);
+}
+
+.held-draw-card {
+    position: absolute;
+    width: 58px;
+    height: 78px;
+    left: 30px;
+    top: 58px;
+    border-radius: 4px;
+    box-shadow: 1px 3px 8px rgba(0, 0, 0, 0.55);
+    z-index: 1;
+}
+
+.held-draw-card.face-up {
+    background: linear-gradient(135deg, #f5f5dc, #d4c89a);
+    border: 1px solid #8b7355;
+}
+
+.held-draw-card.face-down {
+    background: linear-gradient(135deg, #3d2e20, #1a0f08);
+    border: 1px solid #4a3828;
+}
+
+.held-use-card {
+    position: absolute;
+    width: 91px;
+    height: 124px;
+    left: 14px;
+    top: 40px;
+    border-radius: 5px;
+    box-shadow: 1px 4px 10px rgba(0, 0, 0, 0.58);
+    z-index: 6;
+    padding: 6px 5px 18px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.held-use-card.face-up {
+    background: linear-gradient(135deg, #f5f5dc, #d4c89a);
+    border: 1px solid #8b7355;
+    color: #2a1f15;
+}
+
+.held-use-card.face-down {
+    background: linear-gradient(135deg, #3d2e20, #1a0f08);
+    border: 1px solid #4a3828;
+    color: #d4af37;
+}
+
+.held-use-card-name {
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 700;
+}
+
+.held-use-card-cost {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    font-size: 10px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: rgba(32, 24, 20, 0.82);
+    color: #ffd36e;
 }
 
 #handSvg {

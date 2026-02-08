@@ -14,7 +14,6 @@ if (typeof getAnimationTiming !== 'function' && typeof globalThis !== 'undefined
 const FLIP_ANIMATION_DURATION_MS = (typeof getAnimationTiming === 'function' ? getAnimationTiming('FLIP_ANIMATION_DURATION') : 600) || 600;
 const CPU_TURN_DELAY_MS = 600;
 const ANIMATION_RETRY_DELAY_MS = 80;
-const ANIMATION_SETTLE_DELAY_MS = 100;
 const DOUBLE_PLACE_PASS_DELAY_MS = 250;
 const BLACK_PASS_DELAY_MS = 1000;
 
@@ -113,6 +112,9 @@ function handleCellClick(row, col) {
 
 
 
+    // Auto mode owns progression; ignore manual board input.
+    if (typeof globalThis !== 'undefined' && globalThis.AUTO_MODE_ACTIVE === true) return;
+
     // Block while animations are running
     if (isAnimationInProgress()) return;
 
@@ -122,6 +124,22 @@ function handleCellClick(row, col) {
     // Selection-mode (destroy) has priority
     if (pending && pending.type === 'DESTROY_ONE_STONE' && pending.stage === 'selectTarget') {
         handleDestroySelection(row, col, playerKey);
+        return;
+    }
+    if (pending && pending.type === 'SACRIFICE_WILL' && pending.stage === 'selectTarget') {
+        if (typeof handleSacrificeSelection === 'function') {
+            handleSacrificeSelection(row, col, playerKey);
+        }
+        return;
+    }
+    if (pending && pending.type === 'STRONG_WIND_WILL' && pending.stage === 'selectTarget') {
+        if (typeof handleStrongWindSelection === 'function') {
+            handleStrongWindSelection(row, col, playerKey);
+        }
+        return;
+    }
+    if (pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget') {
+        // This effect is resolved by selecting a card from hand UI, not board cells.
         return;
     }
     if (pending && pending.type === 'INHERIT_WILL' && pending.stage === 'selectTarget') {
@@ -172,18 +190,17 @@ function handleCellClick(row, col) {
     try { emitPresentationEventViaBoardOps({ type: 'PLAY_HAND_ANIMATION', player: playerKey, row, col }); } catch (e) { /* do not block move on presentation failures */ }
 
     playHandAnimation(gameState.currentPlayer, row, col, () => {
-        if (isCardAnimating) {
-            scheduleRetry(() => executeMove(move), ANIMATION_SETTLE_DELAY_MS);
-        } else {
-            executeMove(move);
-        }
+        executeMove(move);
     });
 }
 
 function isAnimationInProgress() {
     const proc = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isProcessing !== 'undefined') ? __uiImpl.isProcessing : (typeof isProcessing !== 'undefined' ? isProcessing : false);
     const card = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isCardAnimating !== 'undefined') ? __uiImpl.isCardAnimating : (typeof isCardAnimating !== 'undefined' ? isCardAnimating : false);
-    return proc || card;
+    const winProc = (typeof globalThis !== 'undefined') ? !!globalThis.isProcessing : false;
+    const winCard = (typeof globalThis !== 'undefined') ? !!globalThis.isCardAnimating : false;
+    const visualPlayback = (typeof globalThis !== 'undefined') ? (globalThis.VisualPlaybackActive === true) : false;
+    return proc || card || winProc || winCard || visualPlayback;
 }
 
 function getPlayerKey(player) {
@@ -254,8 +271,8 @@ function resetGame() {
     if (typeof emitLogAdded === 'function') {
         emitLogAdded(`ゲーム開始 (黒: Lv${cpuSmartness.black}, 白: Lv${cpuSmartness.white})`);
     }
-    emitBoardUpdate();
-    emitGameStateChange();
+    try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+    try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
 
     // Lock input during initial dealing animation
     isProcessing = true;
@@ -358,34 +375,36 @@ async function onTurnStart(player) {
 
     // 3. Draw Animation (if draw happened during the turn-start phase)
     if (handSizeAfter > handSizeBefore) {
-        // A card was drawn - animate it
+        // A card was drawn - convert to playback event and let AnimationEngine own the visuals.
         console.log(`[DRAW] Card drawn for ${playerKey}! handBefore=${handSizeBefore}, handAfter=${handSizeAfter}`);
-        isCardAnimating = true;
         try {
             const drawnCardId = cardState.hands[playerKey][cardState.hands[playerKey].length - 1];
             if (drawnCardId !== null && drawnCardId !== undefined) {
                 if (typeof emitLogAdded === 'function') emitLogAdded(`${getPlayerName(player)}がドローしました`);
-                // Emit DRAW_CARD presentation event via BoardOps (type, player, cardId)
-                try { emitPresentationEventViaBoardOps({ type: 'DRAW_CARD', player: playerKey, cardId: drawnCardId }); } catch (e) { /* do not break turn if presentation hook fails */ }
-                if (typeof updateDeckVisual === 'function') updateDeckVisual();
-                const isHidden = (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.isDocumentHidden === 'function') ?
-                    __uiImpl.isDocumentHidden() : (typeof __uiImpl !== 'undefined' && __uiImpl && __uiImpl.__BACKGROUND_MODE__ === true);
-
-                if (!isHidden) {
-                    if (typeof playDrawAnimation === 'function') {
-                        await playDrawAnimation(player, drawnCardId);
+                const drawPresentation = { type: 'DRAW_CARD', player: playerKey, cardId: drawnCardId, count: 1 };
+                if (TurnPipelineUIAdapter && typeof TurnPipelineUIAdapter.mapToPlaybackEvents === 'function') {
+                    const drawPlayback = TurnPipelineUIAdapter.mapToPlaybackEvents([drawPresentation], cardState, gameState) || [];
+                    if (drawPlayback.length > 0) {
+                        const basePhase = turnStartPlaybackEvents.reduce((maxP, ev) => {
+                            const p = Number(ev && ev.phase || 0);
+                            return Number.isFinite(p) && p > maxP ? p : maxP;
+                        }, 0);
+                        for (const ev of drawPlayback) {
+                            const srcPhase = Number(ev && ev.phase || 1);
+                            ev.phase = basePhase + (Number.isFinite(srcPhase) ? srcPhase : 1);
+                        }
+                        turnStartPlaybackEvents.push(...drawPlayback);
+                    } else {
+                        // Fallback for unusual adapter behavior: persist as a presentation event.
+                        try { emitPresentationEventViaBoardOps(drawPresentation); } catch (e) { /* ignore */ }
                     }
-
-                    // Deck pulse: delegate to UI for visual feedback
-                    if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.pulseDeckUI === 'function') {
-                        __uiImpl.pulseDeckUI();
-                    }
+                } else {
+                    // Fallback when adapter is unavailable.
+                    try { emitPresentationEventViaBoardOps(drawPresentation); } catch (e) { /* ignore */ }
                 }
             }
         } catch (err) {
             console.error('Draw animation error:', err);
-        } finally {
-            isCardAnimating = false;
         }
     }
 
@@ -424,6 +443,13 @@ async function onTurnStart(player) {
         requestUIRender();
     }
 
+    // Human-side safety: if no legal move and no usable card, force pass progression.
+    // CPU side already has its own pass path, so limit this check to black / HvH.
+    const debugHvH = !!(__uiImpl_turn_manager && __uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN);
+    if ((player === BLACK || debugHvH) && typeof ensureCurrentPlayerCanActOrPass === 'function') {
+        try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
+    }
+
     // 7. DEBUG: Shared Hand Logic (opt-in only)
     if (typeof __uiImpl !== 'undefined' && __uiImpl && __uiImpl.DEBUG_SHARED_HAND) {
         if (cardState.hands.white.length > 0) {
@@ -456,7 +482,7 @@ function watchdogPing(nowMs) {
             isCardAnimating = false;
             lastFlagActiveTime = null;
             if (typeof emitLogAdded === 'function') emitLogAdded('警告: 処理が長時間停滞したため強制解除しました');
-            emitBoardUpdate();
+            try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
         }
     } else {
         lastFlagActiveTime = null;

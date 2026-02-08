@@ -57,6 +57,12 @@
 
     // DI: Install game-side implementations (timers, UI helpers)
     function installGameDI() {
+        try {
+            if (typeof document !== 'undefined' && document.documentElement && document.documentElement.classList) {
+                document.documentElement.classList.add('stone-shadow-enabled');
+            }
+        } catch (e) { /* ignore */ }
+
         // Ensure BoardOps is available globally for presentation/event wiring
         try {
             if (typeof globalThis !== 'undefined' && !globalThis.BoardOps) {
@@ -204,45 +210,7 @@
                             try {
                                 if (typeof document !== 'undefined' && document.documentElement && document.documentElement.classList) {
                                     document.documentElement.classList.add('stone-images-loaded');
-                                    // Enable stone shadows by default and provide a toggle for quick rollback
-                                    try {
-                                        const rootToggleTarget = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined') ? globalThis : null;
-                                        if (rootToggleTarget) {
-                                            rootToggleTarget.toggleStoneShadows = function(enable) {
-                                                try {
-                                                    const cl = (document && document.documentElement) ? document.documentElement.classList : null;
-                                                    if (enable === undefined) {
-                                                        if (cl && typeof cl.toggle === 'function') {
-                                                            // DOM toggle
-                                                            cl.toggle('stone-shadow-enabled');
-                                                            // Keep fake test shim in sync if present
-                                                            if (cl && cl.added) {
-                                                                cl.added['stone-shadow-enabled'] = !!(document.documentElement.classList && document.documentElement.classList.contains && document.documentElement.classList.contains('stone-shadow-enabled'));
-                                                            }
-                                                            return document.documentElement.classList.contains ? document.documentElement.classList.contains('stone-shadow-enabled') : !!(cl && cl.added && cl.added['stone-shadow-enabled']);
-                                                        }
-                                                        // Fallback for test shim with .added map
-                                                        if (cl && cl.added) {
-                                                            const cur = !!cl.added['stone-shadow-enabled'];
-                                                            cl.added['stone-shadow-enabled'] = !cur;
-                                                            return !cur;
-                                                        }
-                                                        return false;
-                                                    }
-                                                    if (enable) {
-                                                        if (cl && typeof cl.add === 'function') cl.add('stone-shadow-enabled');
-                                                        if (cl && cl.added) cl.added['stone-shadow-enabled'] = true;
-                                                    } else {
-                                                        if (cl && typeof cl.remove === 'function') cl.remove('stone-shadow-enabled');
-                                                        if (cl && cl.added) cl.added['stone-shadow-enabled'] = false;
-                                                    }
-                                                    return enable;
-                                                } catch (e) { return false; }
-                                            };
-                                            // Default: enable shadows
-                                            try { rootToggleTarget.toggleStoneShadows(true); } catch (e) {}
-                                        }
-                                    } catch (e) { /* ignore toggle attach errors */ }
+                                    document.documentElement.classList.add('stone-shadow-enabled');
                                     // After declaring images as loaded, ensure existing discs have per-disc overlay var set
                                     try {
                                         const discs = Array.from(document.querySelectorAll('.disc.black, .disc.white')) || [];

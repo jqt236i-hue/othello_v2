@@ -88,6 +88,9 @@ function generateMovesForPlayer(player, pending, protection, perma) {
     // Target-selection cards must be resolved BEFORE any placement can happen.
     if (pending.stage === 'selectTarget' && (
         pendingType === 'DESTROY_ONE_STONE' ||
+        pendingType === 'STRONG_WIND_WILL' ||
+        pendingType === 'SACRIFICE_WILL' ||
+        pendingType === 'SELL_CARD_WILL' ||
         pendingType === 'SWAP_WITH_ENEMY' ||
         pendingType === 'INHERIT_WILL' ||
         pendingType === 'TEMPT_WILL'

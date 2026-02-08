@@ -78,7 +78,7 @@ async function processUltimateReverseDragonsAtTurnStart(player, precomputedEvent
 
         // Dragon timer visuals are UI-only. Emit a board update and let UI sync any timer elements from state.
         if (Array.isArray(result.anchors) && result.anchors.length > 0) {
-            if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+            try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
         }
 
         // Charge updates MUST be applied by the rule pipeline; do not mutate rule state here.
@@ -93,6 +93,31 @@ async function processUltimateReverseDragonsAtTurnStart(player, precomputedEvent
         }
     } else {
         console.error('[DRAGONS] No precomputed events provided and pipeline unavailable; skipping dragon processing');
+        return;
+    }
+
+    const hasUiPlayback = (typeof globalThis !== 'undefined'
+        && globalThis.PlaybackEngine
+        && typeof globalThis.PlaybackEngine.playPresentationEvents === 'function');
+    if (hasUiPlayback) {
+        // Keep regen cross-fade requests, but avoid legacy DOM animation path during active playback.
+        if (regenRes.regened && regenRes.regened.length) {
+            for (const pos of regenRes.regened) {
+                const ownerColor = gameState.board[pos.row][pos.col];
+                emitPresentationEventViaBoardOps({
+                    type: 'CROSSFADE_STONE',
+                    row: pos.row,
+                    col: pos.col,
+                    effectKey: 'regenStone',
+                    owner: ownerColor,
+                    newColor: ownerColor,
+                    durationMs: 600,
+                    autoFadeOut: true,
+                    fadeWholeStone: true
+                });
+            }
+        }
+        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
         return;
     }
 
@@ -137,11 +162,6 @@ async function processUltimateReverseDragonsAtTurnStart(player, precomputedEvent
             // Bombs become normal stones when flipped, so remove bomb visuals immediately.
             removeBombOverlayAt(pos.row, pos.col);
             setDiscColorAt(pos.row, pos.col, initialColor);
-
-            // If it was a special stone (like Regen but NOT regened now, though that shouldn't happen here),
-            // remove its effect because it's been flipped.
-            // Request a UI-side cross-fade for regen visuals via presentation events
-            emitPresentationEventViaBoardOps({ type: 'CROSSFADE_STONE', row: pos.row, col: pos.col, effectKey: 'regenStone', owner: player, fadeIn: false, durationMs: 600 });
         }
 
         // Flip suppression is handled by applyFlipAnimations below for consistency.
@@ -192,8 +212,8 @@ async function processUltimateReverseDragonsAtTurnStart(player, precomputedEvent
     }
 
     // Final UI sync after all animations
-    emitBoardUpdate();
-    emitGameStateChange();
+    try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+    try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
 }
 
 /**

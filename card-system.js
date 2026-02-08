@@ -54,14 +54,8 @@ function initCardState(seed) {
     Object.assign(cardState, newState);
 
     console.log('🎴 Deck initialized with', cardState.deck.length, 'cards');
-    // For browser test harness: prefer UIBootstrap registration for exposing cardState; fallback to globalThis for legacy
-    try {
-        const uiBootstrap = require('./ui/bootstrap');
-        if (uiBootstrap && typeof uiBootstrap.registerUIGlobals === 'function') {
-            uiBootstrap.registerUIGlobals({ cardState });
-        }
-    } catch (e) { /* ignore */ }
-    try { if (typeof globalThis !== 'undefined') globalThis.cardState = cardState; } catch (e) {}
+    // For browser test harness: expose cardState on global scope when available
+    if (typeof globalThis !== 'undefined') globalThis.cardState = cardState;
 }
 
 // Exports for CommonJS (tests)

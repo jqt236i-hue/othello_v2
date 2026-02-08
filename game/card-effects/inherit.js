@@ -7,6 +7,7 @@ async function handleInheritSelection(row, col, playerKey) {
     if (isProcessing || isCardAnimating) return;
     isProcessing = true;
     isCardAnimating = true;
+    let shouldCheckAutoPass = false;
 
     try {
         const res = CardLogic.applyInheritWill(cardState, gameState, playerKey, row, col);
@@ -21,9 +22,13 @@ async function handleInheritSelection(row, col, playerKey) {
         // Visuals are handled by presentationEvents (BoardOps); just trigger updates
         if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
         if (typeof emitGameStateChange === 'function') emitGameStateChange();
+        shouldCheckAutoPass = true;
     } finally {
         isProcessing = false;
         isCardAnimating = false;
+        if (shouldCheckAutoPass && typeof ensureCurrentPlayerCanActOrPass === 'function') {
+            try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
+        }
     }
 }
 

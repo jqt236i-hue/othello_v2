@@ -14,6 +14,23 @@
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 
+    function addChargeWithTotal(cardState, playerKey, amount) {
+        if (!cardState || !amount) return 0;
+        if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
+        if (!cardState.chargeGainedTotal) cardState.chargeGainedTotal = { black: 0, white: 0 };
+
+        const before = cardState.charge[playerKey] || 0;
+        const after = Math.min(30, before + amount);
+        const added = after - before;
+
+        cardState.charge[playerKey] = after;
+        if (added > 0) {
+            cardState.chargeGainedTotal[playerKey] = (cardState.chargeGainedTotal[playerKey] || 0) + added;
+        }
+
+        return added;
+    }
+
     function placeWorkStone(cardState, gameState, playerKey, row, col, deps = {}) {
         try { console.log('[WORK_DEBUG] placeWorkStone called', { playerKey, row, col }); } catch (e) { }
         // Ensure only one per player: remove old work stone if exists
@@ -93,7 +110,7 @@
 
         const gain = Math.min(30, (1 << stage)); // 1,2,4,8,16 (but later clamp)
         // apply charge with clamp at 30
-        cardState.charge[playerKey] = Math.min(30, (cardState.charge[playerKey] || 0) + gain);
+        addChargeWithTotal(cardState, playerKey, gain);
 
         // increment stage
         const newStage = stage + 1;

@@ -68,11 +68,22 @@
     --board-size-responsive-max: 400px;
 
     /* Special stones (cards that change disc appearance) */
-    /* 1.0 = no scale; e.g. 1.10 = +10% */
-    --special-stone-scale: 1.10;
+    /* 1.0 = no scale (uniform diameter for all special stones) */
+    --special-stone-scale: 1.00;
     /* Stone shadow variables */
     --stone-shadow-color: rgba(0, 0, 0, 0.45);
     --stone-shadow-offset-y: 6px;
     --stone-shadow-blur: 6px;
-    --stone-shadow-spread: 0px; 
+    --stone-shadow-spread: 0px;
+
+    /* Board depth shadow variables */
+    --board-shadow-outer: 0 0 10px rgba(0, 0, 0, 0.8);
+    --board-shadow-inset: inset 0 0 20px rgba(0, 0, 0, 0.5);
+    --board-shadow-rim: inset 0 2px 1px rgba(255, 255, 255, 0.08);
+
+    /* Per-cell contact shadow for occupied cells */
+    --cell-contact-shadow-offset-y: 7%;
+    --cell-contact-shadow-blur: 9%;
+    --cell-contact-shadow-color: rgba(0, 0, 0, 0.28);
+    --cell-contact-shadow-highlight: rgba(255, 255, 255, 0.06);
 }

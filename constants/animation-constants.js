@@ -14,6 +14,8 @@ const ANIMATION_TIMINGS = {
     
     // Board flip animation
     FLIP_ANIMATION_DURATION: 600,     // Time for disc to flip (0.6s)
+    BREEDING_SPAWN_FADE_MS: 500,      // Fade-in when BREEDING spawns a new stone
+    REGEN_CONSUME_FADE_MS: 500,       // Fade when REGEN visual is consumed and returns to normal
     
     // General delays
     ANIMATION_FRAME_DELAY: 100,       // Delay between animation frames

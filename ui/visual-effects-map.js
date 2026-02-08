@@ -2,51 +2,19 @@
 // This file contains DOM-manipulating visual helpers intended to run in the browser UI.
 console.log('[VISUAL_EFFECTS] ui/visual-effects-map.js loaded');
 
-// Attempt to use UIBootstrap registration first for canonical UI globals
-let _registerUIGlobals_visual = null;
-let _getUIBootstrapGlobals_visual = null;
-try {
-    const uiBootstrap = require('./bootstrap');
-    if (uiBootstrap) {
-        if (typeof uiBootstrap.registerUIGlobals === 'function') _registerUIGlobals_visual = uiBootstrap.registerUIGlobals;
-        if (typeof uiBootstrap.getRegisteredUIGlobals === 'function') _getUIBootstrapGlobals_visual = uiBootstrap.getRegisteredUIGlobals;
-    }
-} catch (e) { /* ignore - headless or non-UI context */ }
-
-function setUIGlobal(key, value) {
-    try {
-        if (_registerUIGlobals_visual) {
-            const p = {};
-            p[key] = value;
-            _registerUIGlobals_visual(p);
-            return;
-        }
-    } catch (e) { /* ignore */ }
-    try { if (typeof window !== 'undefined') window[key] = value; } catch (e) { }
-}
-
-// Single source: consume maps from game/visual-effects-map.js (UI registration, globals or require)
+// Single source: consume maps from game/visual-effects-map.js (globals or require)
 function getSharedVisualEffectsMap() {
-    try {
-        if (_getUIBootstrapGlobals_visual) {
-            const g = _getUIBootstrapGlobals_visual() || {};
-            if (g.GameVisualEffectsMap && g.GameVisualEffectsMap.STONE_VISUAL_EFFECTS) return g.GameVisualEffectsMap;
-        }
-    } catch (e) { /* ignore */ }
-
     try {
         if (typeof window !== 'undefined' && window.GameVisualEffectsMap && window.GameVisualEffectsMap.STONE_VISUAL_EFFECTS) {
             return window.GameVisualEffectsMap;
         }
     } catch (e) { /* ignore */ }
-
     try {
         if (typeof require === 'function') {
             const mod = require('../game/visual-effects-map');
             if (mod && mod.STONE_VISUAL_EFFECTS) return mod;
         }
     } catch (e) { /* ignore */ }
-
     try {
         if (typeof window !== 'undefined' && window.STONE_VISUAL_EFFECTS) {
             return { STONE_VISUAL_EFFECTS: window.STONE_VISUAL_EFFECTS };
@@ -56,61 +24,35 @@ function getSharedVisualEffectsMap() {
 }
 
 const SHARED_MAP = getSharedVisualEffectsMap();
-// Keep these mutable so we can synchronously refresh when game map becomes available
-let UI_STONE_VISUAL_EFFECTS = SHARED_MAP.STONE_VISUAL_EFFECTS || {};
-let UI_PENDING_TYPE_TO_EFFECT_KEY = SHARED_MAP.PENDING_TYPE_TO_EFFECT_KEY || {};
-let UI_SPECIAL_TYPE_TO_EFFECT_KEY = SHARED_MAP.SPECIAL_TYPE_TO_EFFECT_KEY || {};
-
-// Synchronously refresh shared maps and preload images to ensure immediate visuals on placement
-function refreshSharedVisualMaps() {
-    const shared = getSharedVisualEffectsMap();
-    UI_STONE_VISUAL_EFFECTS = (shared && shared.STONE_VISUAL_EFFECTS) || {};
-    UI_PENDING_TYPE_TO_EFFECT_KEY = (shared && shared.PENDING_TYPE_TO_EFFECT_KEY) || {};
-    UI_SPECIAL_TYPE_TO_EFFECT_KEY = (shared && shared.SPECIAL_TYPE_TO_EFFECT_KEY) || {};
-
-    // Preload all referenced images so they appear immediately when applied
-    try {
-        const paths = new Set();
-        Object.values(UI_STONE_VISUAL_EFFECTS || {}).forEach(effect => {
-            if (effect.imagePath) paths.add(effect.imagePath);
-            if (effect.imagePathByOwner) Object.values(effect.imagePathByOwner).forEach(p => paths.add(p));
-            if (effect.imagePathByPlayer) Object.values(effect.imagePathByPlayer).forEach(p => paths.add(p));
-        });
-        paths.forEach(p => {
-            try {
-                const img = new Image();
-                // Resolve against document.baseURI if available
-                img.src = (typeof document !== 'undefined' && document.baseURI) ? new URL(p, document.baseURI).href : p;
-            } catch (e) { /* ignore preload failures */ }
-        });
-    } catch (e) { /* ignore */ }
+function getUiStoneVisualEffects() {
+    const map = getSharedVisualEffectsMap();
+    return (map && map.STONE_VISUAL_EFFECTS) ? map.STONE_VISUAL_EFFECTS : {};
 }
 
-// Expose a notify function so game map can synchronously inform UI when it's ready
-try {
-    if (_registerUIGlobals_visual) {
-        _registerUIGlobals_visual({ __visualEffectsMapReady: refreshSharedVisualMaps });
-    }
-} catch (e) { /* ignore */ }
-// Fallback for legacy consumers
-try { if (typeof window !== 'undefined') window.__visualEffectsMapReady = refreshSharedVisualMaps; } catch (e) {}
+function getUiPendingTypeToEffectKey() {
+    const map = getSharedVisualEffectsMap();
+    return (map && map.PENDING_TYPE_TO_EFFECT_KEY) ? map.PENDING_TYPE_TO_EFFECT_KEY : {};
+}
 
-// Call once at load in case game map was already present
-try { refreshSharedVisualMaps(); } catch (e) { /* ignore */ }
+function getUiSpecialTypeToEffectKey() {
+    const map = getSharedVisualEffectsMap();
+    return (map && map.SPECIAL_TYPE_TO_EFFECT_KEY) ? map.SPECIAL_TYPE_TO_EFFECT_KEY : {};
+}
 
 function getEffectKeyForPendingType(pendingType) {
-    return UI_PENDING_TYPE_TO_EFFECT_KEY[pendingType] || null;
+    const pendingMap = getUiPendingTypeToEffectKey();
+    return pendingMap[pendingType] || null;
 }
 
 function getEffectKeyForSpecialType(type) {
-    return UI_SPECIAL_TYPE_TO_EFFECT_KEY[type] || null;
+    const specialMap = getUiSpecialTypeToEffectKey();
+    return specialMap[type] || null;
 } 
 
 async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
     console.log('[VISUAL_DEBUG] applyStoneVisualEffect called', effectKey, options);
-    // Re-read shared map at call time to handle late registration from game/visual-effects-map.js
-    const shared = getSharedVisualEffectsMap();
-    const effect = (shared && shared.STONE_VISUAL_EFFECTS && shared.STONE_VISUAL_EFFECTS[effectKey]) || UI_STONE_VISUAL_EFFECTS[effectKey];
+    const visualMap = getUiStoneVisualEffects();
+    const effect = visualMap[effectKey];
     try { if (!discElement) console.warn('[VISUAL_DEBUG] applyStoneVisualEffect: discElement missing for', effectKey); } catch (e) {}
     try { console.log('[VISUAL_DEBUG] effect lookup:', effectKey, effect ? effect.cssClass : null); } catch (e) {}
     if (!effect) {
@@ -120,7 +62,7 @@ async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
 
     if (effectKey === 'workStone') {
         console.log('[VISUAL_DEBUG] applyStoneVisualEffect(workStone) called, options:', options, 'effect:', effect);
-        try { setUIGlobal('_lastApplyWorkTs', Date.now()); } catch (e) {}
+        try { window._lastApplyWorkTs = Date.now(); } catch (e) {}
     }
 
     discElement.classList.add('special-stone');
@@ -167,42 +109,42 @@ async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
                 }
             } catch (e) { /* ignore: fallback to original imagePath */ }
 
-            // Apply inline CSS immediately so the visual appears as soon as possible.
             discElement.style.setProperty('--special-stone-image', `url('${resolvedPath}')`);
             try { discElement.style.backgroundImage = `url('${resolvedPath}')`; } catch (e) { }
 
-            // Immediate fallback image injection (guarantee visible even if pseudo/::before hasn't painted yet)
-            // We add the fallback and remove it later if CSS pseudo/inline background wins.
-            let existing = discElement.querySelector('.special-stone-img');
-            if (!existing) {
-                const img = document.createElement('img');
-                img.className = 'special-stone-img';
-                img.src = resolvedPath;
-                img.alt = effectKey;
-                img.setAttribute('aria-hidden', 'true');
-                img.style.position = 'absolute';
-                img.style.top = '0';
-                img.style.left = '0';
-                img.style.width = '100%';
-                img.style.height = '100%';
-                img.style.objectFit = 'contain';
-                img.style.pointerEvents = 'none';
-                img.style.zIndex = '60';
-                discElement.appendChild(img);
-                existing = img;
+            // Poll a few frames to allow browser to paint pseudo/inline bg. If not painted, inject fallback <img>.
+            let success = false;
+            const maxAttempts = 6;
+            for (let i = 0; i < maxAttempts; i++) {
+                const { hasBefore, hasInline } = hasVisibleBackground(discElement);
+                if (hasBefore || hasInline) { success = true; break; }
+                await waitForNextPaint();
             }
 
-            // When the image loads, check whether the pseudo/inline background is already in place; if so remove the fallback to avoid duplication.
-            existing.addEventListener('load', () => {
-                // Use rAF to allow CSS painting to occur
-                requestAnimationFrame(() => {
-                    const { hasBefore, hasInline } = hasVisibleBackground(discElement);
-                    if (hasBefore || hasInline) {
-                        try { existing.remove(); } catch (e) {}
-                    }
-                });
-            });
-
+            const existing = discElement.querySelector('.special-stone-img');
+            if (!success) {
+                if (!existing) {
+                    const img = document.createElement('img');
+                    img.className = 'special-stone-img';
+                    img.src = resolvedPath;
+                    img.alt = effectKey;
+                    img.setAttribute('aria-hidden', 'true');
+                    img.style.position = 'absolute';
+                    img.style.top = '0';
+                    img.style.left = '0';
+                    img.style.width = '100%';
+                    img.style.height = '100%';
+                    img.style.objectFit = 'contain';
+                    img.style.pointerEvents = 'none';
+                    img.style.zIndex = '60';
+                    discElement.appendChild(img);
+                    console.warn('[VISUAL_EFFECTS] Injected fallback image for', effectKey, resolvedPath);
+                    try { window._lastWorkInjected = { key: effectKey, imgPath: resolvedPath, ts: Date.now() }; } catch (e) {}
+                }
+                return true;
+            }
+            // If inline or before background applied, ensure existing fallback is removed
+            if (existing) existing.remove();
             return true;
         } else {
             console.warn(`[VISUAL_EFFECTS] No imagePath found for effect: ${effectKey}, options:`, options);
@@ -270,7 +212,7 @@ async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
                         img.style.zIndex = '60';
                         discElement.appendChild(img);
                         console.warn('[VISUAL_EFFECTS] Injected fallback image for', effectKey, resolvedPath);
-                        try { setUIGlobal('_lastWorkInjected', { key: effectKey, imgPath: resolvedPath, ts: Date.now() }); } catch (e) {}
+                        try { window._lastWorkInjected = { key: effectKey, imgPath: resolvedPath, ts: Date.now() }; } catch (e) {}
                     }
                     return true;
                 }
@@ -311,7 +253,8 @@ async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
 }
 
 function removeStoneVisualEffect(discElement, effectKey) {
-    const effect = UI_STONE_VISUAL_EFFECTS[effectKey];
+    const visualMap = getUiStoneVisualEffects();
+    const effect = visualMap[effectKey];
     if (!effect) return;
 
     discElement.classList.remove(effect.cssClass);
@@ -332,15 +275,15 @@ function removeStoneVisualEffect(discElement, effectKey) {
 }
 
 function getSupportedEffectKeys() {
-    return Object.keys(UI_STONE_VISUAL_EFFECTS);
+    return Object.keys(getUiStoneVisualEffects());
 }
 
 if (typeof module === 'object' && module.exports) {
     module.exports = {
-        UI_STONE_VISUAL_EFFECTS,
-        PENDING_TYPE_TO_EFFECT_KEY: UI_PENDING_TYPE_TO_EFFECT_KEY,
+        UI_STONE_VISUAL_EFFECTS: getUiStoneVisualEffects(),
+        PENDING_TYPE_TO_EFFECT_KEY: getUiPendingTypeToEffectKey(),
         getEffectKeyForPendingType,
-        SPECIAL_TYPE_TO_EFFECT_KEY: UI_SPECIAL_TYPE_TO_EFFECT_KEY,
+        SPECIAL_TYPE_TO_EFFECT_KEY: getUiSpecialTypeToEffectKey(),
         getEffectKeyForSpecialType,
         applyStoneVisualEffect,
         removeStoneVisualEffect,
@@ -348,46 +291,30 @@ if (typeof module === 'object' && module.exports) {
     };
 }
 
-// In UI, export globals for backward compatibility (prefer UIBootstrap registration)
-try {
-    if (_registerUIGlobals_visual) {
-        const payload = {};
-        if (Object.keys(UI_STONE_VISUAL_EFFECTS || {}).length > 0) payload.STONE_VISUAL_EFFECTS = UI_STONE_VISUAL_EFFECTS;
-        if (Object.keys(UI_PENDING_TYPE_TO_EFFECT_KEY || {}).length > 0) {
-            payload.PENDING_TYPE_TO_EFFECT_KEY = UI_PENDING_TYPE_TO_EFFECT_KEY;
-            payload.getEffectKeyForPendingType = getEffectKeyForPendingType;
-        }
-        if (Object.keys(UI_SPECIAL_TYPE_TO_EFFECT_KEY || {}).length > 0) {
-            payload.SPECIAL_TYPE_TO_EFFECT_KEY = UI_SPECIAL_TYPE_TO_EFFECT_KEY;
-            payload.getEffectKeyForSpecialType = getEffectKeyForSpecialType;
-        }
-        payload.applyStoneVisualEffect = applyStoneVisualEffect;
-        payload.removeStoneVisualEffect = removeStoneVisualEffect;
-        payload.getSupportedEffectKeys = getSupportedEffectKeys;
-        _registerUIGlobals_visual(payload);
-    }
-} catch (e) { /* ignore */ }
-// Fallback to window globals for legacy consumers
-try {
-    if (typeof window !== 'undefined') {
-        if (typeof window.STONE_VISUAL_EFFECTS === 'undefined' && Object.keys(UI_STONE_VISUAL_EFFECTS || {}).length > 0) {
-            window.STONE_VISUAL_EFFECTS = UI_STONE_VISUAL_EFFECTS;
-        }
-        if (Object.keys(UI_PENDING_TYPE_TO_EFFECT_KEY || {}).length > 0) {
-            window.PENDING_TYPE_TO_EFFECT_KEY = window.PENDING_TYPE_TO_EFFECT_KEY || UI_PENDING_TYPE_TO_EFFECT_KEY;
-            window.getEffectKeyForPendingType = window.getEffectKeyForPendingType || getEffectKeyForPendingType;
-        }
-        if (Object.keys(UI_SPECIAL_TYPE_TO_EFFECT_KEY || {}).length > 0) {
-            window.SPECIAL_TYPE_TO_EFFECT_KEY = window.SPECIAL_TYPE_TO_EFFECT_KEY || UI_SPECIAL_TYPE_TO_EFFECT_KEY;
-            window.getEffectKeyForSpecialType = window.getEffectKeyForSpecialType || getEffectKeyForSpecialType;
-        }
-        window.applyStoneVisualEffect = applyStoneVisualEffect;
-        window.removeStoneVisualEffect = removeStoneVisualEffect;
-        window.getSupportedEffectKeys = getSupportedEffectKeys;
-    }
-} catch (e) { /* ignore */ }
+// In UI, export globals for backward compatibility (ensure we don't overwrite an existing global)
+if (typeof window !== 'undefined') {
+    const currentVisualMap = getUiStoneVisualEffects();
+    const currentPendingMap = getUiPendingTypeToEffectKey();
+    const currentSpecialMap = getUiSpecialTypeToEffectKey();
 
-function setSpecialStoneScale(scale) {
+    if (typeof window.STONE_VISUAL_EFFECTS === 'undefined' && Object.keys(currentVisualMap || {}).length > 0) {
+        window.STONE_VISUAL_EFFECTS = currentVisualMap;
+    }
+    // Do not overwrite existing globals if present; prefer existing definitions.
+    if (Object.keys(currentPendingMap || {}).length > 0) {
+        window.PENDING_TYPE_TO_EFFECT_KEY = window.PENDING_TYPE_TO_EFFECT_KEY || currentPendingMap;
+        window.getEffectKeyForPendingType = window.getEffectKeyForPendingType || getEffectKeyForPendingType;
+    }
+    if (Object.keys(currentSpecialMap || {}).length > 0) {
+        window.SPECIAL_TYPE_TO_EFFECT_KEY = window.SPECIAL_TYPE_TO_EFFECT_KEY || currentSpecialMap;
+        window.getEffectKeyForSpecialType = window.getEffectKeyForSpecialType || getEffectKeyForSpecialType;
+    }
+    window.applyStoneVisualEffect = applyStoneVisualEffect;
+    window.removeStoneVisualEffect = removeStoneVisualEffect;
+    window.getSupportedEffectKeys = getSupportedEffectKeys;
+}
+
+window.setSpecialStoneScale = function setSpecialStoneScale(scale) {
     const n = Number(scale);
     if (!Number.isFinite(n) || n <= 0) {
         console.warn('[VISUAL_EFFECTS] Invalid special stone scale:', scale);
@@ -396,10 +323,7 @@ function setSpecialStoneScale(scale) {
     if (typeof document !== 'undefined' && document.documentElement) {
         document.documentElement.style.setProperty('--special-stone-scale', String(n));
     }
-}
-// Expose to UIBootstrap when available and fallback to window
-try { if (_registerUIGlobals_visual) _registerUIGlobals_visual({ setSpecialStoneScale }); } catch (e) {}
-try { if (typeof window !== 'undefined') window.setSpecialStoneScale = setSpecialStoneScale; } catch (e) {}
+};
 
 // Notify game/ module that UI implementations are available so game can delegate without using window.
 try {
@@ -410,7 +334,7 @@ try {
             removeStoneVisualEffect,
             getSupportedEffectKeys,
             // Expose any UI-level helpers that might be useful
-            __setSpecialStoneScaleImpl__: function(scale) { return setSpecialStoneScale(scale); }
+            __setSpecialStoneScaleImpl__: function(scale) { window.setSpecialStoneScale(scale); }
         });
     }
 } catch (e) { /* ignore in non-module UI contexts */ }

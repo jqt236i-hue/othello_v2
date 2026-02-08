@@ -55,21 +55,57 @@ function _getUIGlobals() {
     return (typeof window !== 'undefined') ? window : {};
 }
 
+function _hasPendingPlaybackOrPresentation() {
+    try {
+        const pending = (cardState && Array.isArray(cardState._presentationEventsPersist)) ? cardState._presentationEventsPersist.length : 0;
+        const live = (cardState && Array.isArray(cardState.presentationEvents)) ? cardState.presentationEvents.length : 0;
+        const playback = (typeof window !== 'undefined') ? (window.VisualPlaybackActive === true) : false;
+        return playback || pending > 0 || live > 0;
+    } catch (e) {
+        return (typeof window !== 'undefined') ? (window.VisualPlaybackActive === true) : false;
+    }
+}
+
+let _deferredUiSyncQueued = false;
+function _deferUiSyncUntilPlaybackIdle() {
+    if (_deferredUiSyncQueued) return;
+    _deferredUiSyncQueued = true;
+    const raf = (typeof requestAnimationFrame === 'function')
+        ? requestAnimationFrame
+        : (cb) => setTimeout(cb, 16);
+    const tick = () => {
+        if (_hasPendingPlaybackOrPresentation()) {
+            raf(tick);
+            return;
+        }
+        _deferredUiSyncQueued = false;
+        try { renderBoard(); } catch (e) { /* ignore */ }
+        try { updateStatus(); } catch (e) { /* ignore */ }
+    };
+    raf(tick);
+}
+
+function _runWhenPlaybackIdle(onIdle) {
+    if (_hasPendingPlaybackOrPresentation()) {
+        _deferUiSyncUntilPlaybackIdle();
+        return;
+    }
+    onIdle();
+}
+
 
 // ===== Event System Integration =====
 if (typeof GameEvents !== 'undefined' && GameEvents.gameEvents) {
     GameEvents.gameEvents.on(GameEvents.EVENT_TYPES.BOARD_UPDATED, () => {
-        // If presentation events are pending, defer to PlaybackEngine.
-        try {
-            const pending = (cardState && Array.isArray(cardState._presentationEventsPersist)) ? cardState._presentationEventsPersist.length : 0;
-            const live = (cardState && Array.isArray(cardState.presentationEvents)) ? cardState.presentationEvents.length : 0;
-            if (pending > 0 || live > 0) return;
-        } catch (e) { /* ignore */ }
-        renderBoard();
+        _runWhenPlaybackIdle(() => {
+            renderBoard();
+        });
     });
     GameEvents.gameEvents.on(GameEvents.EVENT_TYPES.GAME_STATE_CHANGED, () => {
-        renderBoard();
-        updateStatus();
+        _runWhenPlaybackIdle(() => {
+            renderBoard();
+            updateStatus();
+        });
     });
     GameEvents.gameEvents.on(GameEvents.EVENT_TYPES.CARD_STATE_CHANGED, () => {
         if (typeof renderCardUI === 'function') renderCardUI();

@@ -15,14 +15,23 @@
     }
 }(typeof self !== 'undefined' ? self : this, function (Constants, Visuals) {
 
-    const { EVENT_TYPES, FLIP_MS, PHASE_GAP_MS, FADE_IN_MS, FADE_OUT_MS, OVERLAY_CROSSFADE_MS, MOVE_MS } = Constants;
+    const { EVENT_TYPES, FLIP_MS, PHASE_GAP_MS, FADE_IN_MS, BREEDING_SPAWN_FADE_MS, REGEN_CONSUME_FADE_MS, FADE_OUT_MS, OVERLAY_CROSSFADE_MS, MOVE_MS } = Constants;
+    const REGEN_CAUSE = 'REGEN';
+    const REGEN_TRIGGER_REASON = 'regen_triggered';
 
-    // Shared animation helpers (resolved lazily via AnimationResolver)
-    let __anim_res = null;
-    try { __anim_res = (typeof require === 'function') ? require('./animation-resolver') : (typeof globalThis !== 'undefined' ? globalThis.AnimationResolver : null); } catch (e) { __anim_res = (typeof globalThis !== 'undefined' ? globalThis.AnimationResolver : null); }
-    function _getAnimationShared() { return (__anim_res && typeof __anim_res.getAnimationShared === 'function') ? __anim_res.getAnimationShared() : null; }
-    function _isNoAnim() { const fn = (__anim_res && typeof __anim_res.isNoAnim === 'function') ? __anim_res.isNoAnim() : function () { return false; }; return fn(); }
-    function _Timer() { return (__anim_res && typeof __anim_res.getTimer === 'function') ? __anim_res.getTimer() : (function () {
+    function hasRegenBackFlip(events) {
+        return (events || []).some(e =>
+            e &&
+            e.type === EVENT_TYPES.FLIP &&
+            Array.isArray(e.targets) &&
+            e.targets.some(t => t && t.cause === REGEN_CAUSE && t.reason === REGEN_TRIGGER_REASON)
+        );
+    }
+
+    // Shared animation helpers (deduplicated)
+    var AnimationShared = (typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null);
+    var _isNoAnim = (AnimationShared && AnimationShared.isNoAnim) ? AnimationShared.isNoAnim : function () { return false; };
+    var _Timer = (AnimationShared && AnimationShared.getTimer) ? AnimationShared.getTimer : function () {
         if (typeof TimerRegistry !== 'undefined') return TimerRegistry;
         return {
             setTimeout: (fn, ms) => setTimeout(fn, ms),
@@ -32,7 +41,7 @@
             newScope: () => null,
             clearScope: () => {}
         };
-    })(); }
+    };
 
     // Ensure minimal telemetry helpers exist even without initializeUI
     if (typeof window !== 'undefined') {
@@ -52,6 +61,7 @@
             this.isPlaying = false;
             this.boardEl = document.getElementById('board');
             this.isAborted = false;
+            this._watchdogFired = false;
             this.playbackScope = null;
             this._remainingEvents = [];
             this._watchdogId = null;
@@ -69,6 +79,10 @@
                 if (typeof window !== 'undefined') window.VisualPlaybackActive = false;
                 return;
             }
+            // Clear stale abort/watchdog state from previous runs.
+            this.isAborted = false;
+            this._watchdogFired = false;
+            let abortedDuringPlay = false;
 
             // Only suppress DiffRenderer's fallback flip animation when this playback actually includes flip events.
             // Otherwise, if flip events were dropped (e.g., missing BoardOps CHANGE events), suppressing would remove
@@ -107,7 +121,10 @@
                 const sortedPhases = Object.keys(phases).sort((a, b) => Number(a) - Number(b));
 
                 for (const phase of sortedPhases) {
-                    if (this.isAborted) break;
+                    if (this.isAborted) {
+                        abortedDuringPlay = true;
+                        break;
+                    }
 
                     // Remove processed phases from remainingEvents
                     this._remainingEvents = this._remainingEvents.filter(ev => Number(ev.phase || 0) > Number(phase));
@@ -123,12 +140,14 @@
                         const nextEvents = phases[nextPhaseKey] || [];
                         const hasPlaceOrSpawn = phaseEvents.some(e => e && (e.type === EVENT_TYPES.PLACE || e.type === EVENT_TYPES.SPAWN));
                         const nextHasFlip = nextEvents.some(e => e && e.type === EVENT_TYPES.FLIP);
-                        if (!(hasPlaceOrSpawn && nextHasFlip)) {
+                        const nextHasRegenBackFlip = hasRegenBackFlip(nextEvents);
+                        if (!(hasPlaceOrSpawn && nextHasFlip && !nextHasRegenBackFlip)) {
                             await this._sleep(PHASE_GAP_MS);
                         }
                     }
                 }
             } catch (err) {
+                abortedDuringPlay = true;
                 console.error('[AnimationEngine] Playback error:', err);
             } finally {
                 // cleanup watchdog & scope
@@ -150,9 +169,11 @@
                  // After playback, AnimationEngine triggers `emitBoardUpdate()` to sync any non-animated UI (timers, hints).
                  // DiffRenderer has a fallback "owner changed => add .flip" animation which would otherwise replay flips,
                  // making stones appear to flip twice. This flag is consumed/cleared by ui/diff-renderer.js.
-                 if (shouldSuppressNextDiffFlip) {
+                 if (shouldSuppressNextDiffFlip && !abortedDuringPlay && !this._watchdogFired && !this.isAborted) {
                      try { window.__suppressNextDiffFlip = true; } catch (e) { /* ignore */ }
                  }
+                 // Avoid leaking abort state into the next playback run.
+                 this.isAborted = false;
                  // After playback completes, request a final board diff render to ensure DOM matches state.
                  // This avoids stale visuals when diff rendering was suppressed during playback.
                  try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
@@ -188,6 +209,7 @@
 
         async handleWatchdog() {
             console.warn('[AnimationEngine] WATCHDOG fired. Forcing playback abort and sync.');
+            this._watchdogFired = true;
             // Telemetry increment
             if (typeof window !== 'undefined') { window.__telemetry__ = window.__telemetry__ || { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 }; window.__telemetry__.watchdogFired = (window.__telemetry__.watchdogFired || 0) + 1; }
             // Clear timers in this scope and mark aborted
@@ -233,6 +255,30 @@
                 case EVENT_TYPES.STATUS_APPLIED:
                 case EVENT_TYPES.STATUS_REMOVED:
                     return this.handleStatusChange(ev);
+                case EVENT_TYPES.HAND_ADD:
+                    if (typeof window !== 'undefined' && typeof window.playDrawCardHandAnimation === 'function') {
+                        const t = (ev.targets && ev.targets[0]) ? ev.targets[0] : ev;
+                        return window.playDrawCardHandAnimation({
+                            player: t.player,
+                            cardId: t.cardId,
+                            count: t.count
+                        });
+                    }
+                    return Promise.resolve();
+                case EVENT_TYPES.CARD_USE_ANIMATION:
+                    if (typeof window !== 'undefined' && typeof window.playCardUseHandAnimation === 'function') {
+                        const t2 = (ev.targets && ev.targets[0]) ? ev.targets[0] : ev;
+                        return window.playCardUseHandAnimation({
+                            player: t2.player,
+                            owner: t2.owner,
+                            cardId: t2.cardId,
+                            cost: t2.cost,
+                            name: t2.name
+                        });
+                    }
+                    return Promise.resolve();
+                case EVENT_TYPES.HAND_REMOVE:
+                    return Promise.resolve();
                 case EVENT_TYPES.LOG:
                     this.log(ev.message);
                     return Promise.resolve();
@@ -314,7 +360,7 @@
                 } catch (e) { /* ignore */ }
 
                 // Trigger flip animation immediately
-                try { const _as = _getAnimationShared(); if (_as && _as.triggerFlip) _as.triggerFlip(disc); } catch (e) { /* defensive */ }
+                try { if (AnimationShared && AnimationShared.triggerFlip) AnimationShared.triggerFlip(disc); } catch (e) { /* defensive */ }
 
                 // Swap visuals exactly mid-way so color change aligns with motion start
                 await this._sleep(FLIP_MS / 2);
@@ -322,7 +368,7 @@
 
                 // Finish motion and clean up
                 await this._sleep(FLIP_MS / 2);
-                try { const _as = _getAnimationShared(); if (_as && _as.removeFlip) _as.removeFlip(disc); } catch (e) { }
+                try { if (AnimationShared && AnimationShared.removeFlip) AnimationShared.removeFlip(disc); } catch (e) { }
             });
             await Promise.all(promises);
         }
@@ -382,16 +428,97 @@
         }
 
         async handleSpawn(ev) {
-            // Spawn is similar to place but explicitly for card-induced spawning
-            return this.handlePlace(ev);
+            // Spawn is similar to place, but BREEDING spawn has its own fade-in.
+            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
+            if (!targets.length) return Promise.resolve();
+
+            const normalTargets = [];
+            const breedingTargets = [];
+            for (const t of targets) {
+                if (this.isBreedingSpawnTarget(t)) breedingTargets.push(t);
+                else normalTargets.push(t);
+            }
+
+            if (normalTargets.length) {
+                await this.handlePlace(Object.assign({}, ev, { targets: normalTargets }));
+            }
+
+            if (!breedingTargets.length) return Promise.resolve();
+
+            const fadePromises = breedingTargets.map(async (t) => {
+                const cell = this.getCellEl(t.r, t.col);
+                if (!cell) return;
+                const after = t.after || {};
+                const disc = this.createDisc(after);
+                cell.innerHTML = '';
+                cell.appendChild(disc);
+
+                const fadeMs = this.getSpawnFadeInMs(t);
+                if (_isNoAnim() || !Number.isFinite(fadeMs) || fadeMs <= 0) return;
+
+                // Targeted fade-in only for breeding spawn; no global opacity side-effects.
+                const prevTransition = disc.style.transition || '';
+                disc.style.opacity = '0';
+                disc.classList.add('stone-instant');
+                disc.offsetHeight; // force reflow
+                disc.classList.remove('stone-instant');
+                disc.style.transition = prevTransition ? `${prevTransition}, opacity ${fadeMs}ms ease` : `opacity ${fadeMs}ms ease`;
+
+                await new Promise((resolve) => {
+                    let timeoutId = null;
+                    let done = false;
+                    const finish = () => {
+                        if (done) return;
+                        done = true;
+                        try { disc.removeEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
+                        if (timeoutId !== null) {
+                            try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
+                            timeoutId = null;
+                        }
+                        disc.style.opacity = '';
+                        disc.style.transition = prevTransition;
+                        resolve();
+                    };
+                    const onEnd = (e) => {
+                        if (!e || e.propertyName === 'opacity') finish();
+                    };
+                    try { disc.addEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
+                    try { timeoutId = _Timer().setTimeout(finish, fadeMs + 120, this.playbackScope); } catch (e) { timeoutId = setTimeout(finish, fadeMs + 120); }
+                    try { requestAnimationFrame(() => { disc.style.opacity = '1'; }); } catch (e) { disc.style.opacity = '1'; }
+                });
+            });
+
+            await Promise.all(fadePromises);
+        }
+
+        isBreedingSpawnTarget(t) {
+            if (!t) return false;
+            const cause = String(t.cause || '').toUpperCase();
+            const reason = String(t.reason || '').toLowerCase();
+            return cause === 'BREEDING' && reason.indexOf('breeding_spawn') === 0;
+        }
+
+        getSpawnFadeInMs(t) {
+            if (this.isBreedingSpawnTarget(t)) return BREEDING_SPAWN_FADE_MS;
+            return 0;
         }
 
         async handleMove(ev) {
             const promises = ev.targets.map(async t => {
                 const fromCell = this.getCellEl(t.from.r, t.from.col);
                 const toCell = this.getCellEl(t.to.r, t.to.col);
-                const disc = fromCell?.querySelector('.disc');
-                if (!disc || !toCell) return;
+                if (!fromCell || !toCell) return;
+                let disc = fromCell.querySelector('.disc');
+                let sourceCell = fromCell;
+                // Fallback for race: board may already be in "after" state (disc only exists at destination).
+                if (!disc) {
+                    const toDisc = toCell.querySelector('.disc');
+                    if (!toDisc) return;
+                    disc = toDisc;
+                    sourceCell = toCell;
+                }
+                // Move visuals must stay as "move only" and never look like destroy.
+                disc.classList.remove('destroy-fade', 'shatter');
 
                 // Section 5.5: Straight-line interpolation via ghost
                 const fromRect = fromCell.getBoundingClientRect();
@@ -403,7 +530,7 @@
                         toCell.innerHTML = '';
                         disc.style.visibility = 'visible';
                         toCell.appendChild(disc);
-                        fromCell.innerHTML = '';
+                        if (sourceCell === fromCell) fromCell.innerHTML = '';
                     } catch (e) {
                         // best-effort
                     }
@@ -411,34 +538,72 @@
                 }
 
                 const ghost = disc.cloneNode(true);
+                ghost.classList.remove('destroy-fade', 'shatter');
                 ghost.classList.add('stone-instant');
                 document.body.appendChild(ghost);
 
+                const discScale = 0.82;
+                const discInsetRatio = (1 - discScale) / 2;
                 ghost.style.position = 'fixed';
-                ghost.style.top = `${fromRect.top + fromRect.height * 0.09}px`;
-                ghost.style.left = `${fromRect.left + fromRect.width * 0.09}px`;
-                ghost.style.width = `${fromRect.width * 0.82}px`;
-                ghost.style.height = `${fromRect.height * 0.82}px`;
+                ghost.style.top = `${fromRect.top + fromRect.height * discInsetRatio}px`;
+                ghost.style.left = `${fromRect.left + fromRect.width * discInsetRatio}px`;
+                ghost.style.width = `${fromRect.width * discScale}px`;
+                ghost.style.height = `${fromRect.height * discScale}px`;
                 ghost.style.margin = '0';
                 ghost.style.zIndex = '1000';
 
                 disc.style.visibility = 'hidden';
 
+                const travelPx = Math.hypot(toRect.left - fromRect.left, toRect.top - fromRect.top);
+                const cellStepPx = Math.max(1, Math.min(fromRect.width, fromRect.height));
+                const cellDistance = Math.max(1, travelPx / cellStepPx);
+                const durationMs = Math.round(MOVE_MS * cellDistance);
+
                 const anim = ghost.animate([
                     { transform: 'translate(0, 0)' },
                     { transform: `translate(${toRect.left - fromRect.left}px, ${toRect.top - fromRect.top}px)` }
                 ], {
-                    duration: MOVE_MS,
+                    duration: durationMs,
                     easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)'
                 });
 
-                await anim.finished;
+                // Some environments resolve `finished` too early or don't support it reliably.
+                // Wait for finish event with a timeout fallback so move never becomes an instant teleport.
+                await new Promise((resolve) => {
+                    let timeoutId = null;
+                    let done = false;
+                    const finish = () => {
+                        if (done) return;
+                        done = true;
+                        try { if (anim && typeof anim.removeEventListener === 'function') anim.removeEventListener('finish', finish); } catch (e) { /* ignore */ }
+                        if (timeoutId !== null) {
+                            try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
+                            timeoutId = null;
+                        }
+                        resolve();
+                    };
+                    try {
+                        if (anim && typeof anim.addEventListener === 'function') {
+                            anim.addEventListener('finish', finish, { once: true });
+                        }
+                    } catch (e) { /* ignore */ }
+                    try {
+                        timeoutId = _Timer().setTimeout(finish, durationMs + 220, this.playbackScope);
+                    } catch (e) {
+                        timeoutId = setTimeout(finish, durationMs + 220);
+                    }
+                    try {
+                        if (anim && anim.finished && typeof anim.finished.then === 'function') {
+                            anim.finished.then(finish).catch(finish);
+                        }
+                    } catch (e) { /* ignore */ }
+                });
 
                 // Cleanup
                 toCell.innerHTML = '';
                 disc.style.visibility = 'visible';
                 toCell.appendChild(disc);
-                fromCell.innerHTML = '';
+                if (sourceCell === fromCell) fromCell.innerHTML = '';
                 ghost.remove();
             });
             await Promise.all(promises);
@@ -450,6 +615,19 @@
                 if (!disc) return;
 
                 const after = t.after || {};
+                const isRegenConsumed =
+                    ev &&
+                    ev.type === EVENT_TYPES.STATUS_REMOVED &&
+                    ev.meta &&
+                    ev.meta.special === 'REGEN' &&
+                    ev.meta.reason === 'regen_consumed' &&
+                    !after.special;
+
+                if (isRegenConsumed) {
+                    await this.crossfadeDiscToState(disc, after, REGEN_CONSUME_FADE_MS);
+                    return;
+                }
+
                 const effectKey = window.getEffectKeyForSpecialType(after.special);
 
                 // Section 1.5: True Cross-Fade via overlay
@@ -468,6 +646,69 @@
                 }
             });
             await Promise.all(promises);
+        }
+
+        async crossfadeDiscToState(disc, after, durationMs) {
+            if (!disc) return;
+            const cell = disc.parentElement;
+            if (!cell || _isNoAnim() || !Number.isFinite(durationMs) || durationMs <= 0) {
+                this.syncDiscVisual(disc, after);
+                return;
+            }
+
+            const ghost = disc.cloneNode(true);
+            ghost.style.position = 'absolute';
+            ghost.style.top = '0';
+            ghost.style.left = '0';
+            ghost.style.width = '100%';
+            ghost.style.height = '100%';
+            ghost.style.margin = '0';
+            ghost.style.pointerEvents = 'none';
+            ghost.style.zIndex = '85';
+            ghost.style.opacity = '1';
+            ghost.classList.add('stone-instant');
+            cell.appendChild(ghost);
+
+            const prevDiscTransition = disc.style.transition || '';
+            disc.style.opacity = '0';
+            this.syncDiscVisual(disc, after);
+            disc.classList.add('stone-instant');
+            disc.offsetHeight; // force reflow
+            disc.classList.remove('stone-instant');
+            disc.style.transition = prevDiscTransition ? `${prevDiscTransition}, opacity ${durationMs}ms ease` : `opacity ${durationMs}ms ease`;
+            ghost.style.transition = `opacity ${durationMs}ms ease`;
+
+            await new Promise((resolve) => {
+                let timeoutId = null;
+                let done = false;
+                const finish = () => {
+                    if (done) return;
+                    done = true;
+                    if (timeoutId !== null) {
+                        try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
+                        timeoutId = null;
+                    }
+                    try { ghost.removeEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
+                    try { if (ghost.parentElement) ghost.parentElement.removeChild(ghost); } catch (e) { /* ignore */ }
+                    disc.style.opacity = '';
+                    disc.style.transition = prevDiscTransition;
+                    resolve();
+                };
+                const onEnd = (e) => {
+                    if (!e || e.propertyName === 'opacity') finish();
+                };
+                try { ghost.addEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
+                try { timeoutId = _Timer().setTimeout(finish, durationMs + 120, this.playbackScope); } catch (e) { timeoutId = setTimeout(finish, durationMs + 120); }
+                try {
+                    requestAnimationFrame(() => {
+                        disc.style.opacity = '1';
+                        ghost.style.opacity = '0';
+                    });
+                } catch (e) {
+                    disc.style.opacity = '1';
+                    ghost.style.opacity = '0';
+                }
+            });
         }
 
         // --- Helpers ---

@@ -1,7 +1,7 @@
 const path = require('path');
 
 describe('hyperactive playback detection', () => {
-  test('uses bootstrap registered PlaybackEngine when available and calls emitBoardUpdate', async () => {
+  test('uses bootstrap registered PlaybackEngine when available and does not force emitBoardUpdate', async () => {
     jest.isolateModules(() => {
       jest.resetModules();
       // Mock bootstrap to return PlaybackEngine
@@ -15,7 +15,7 @@ describe('hyperactive playback detection', () => {
       const hyper = require(path.resolve(__dirname, '..', 'game', 'special-effects', 'hyperactive.js'));
       // call processHyperactiveMovesAtTurnStart with minimal params
       return hyper.processHyperactiveMovesAtTurnStart(1, { moved: [], destroyed: [], flipped: [] }).then(() => {
-        expect(global.emitBoardUpdate).toHaveBeenCalled();
+        expect(global.emitBoardUpdate).not.toHaveBeenCalled();
       });
     });
   });

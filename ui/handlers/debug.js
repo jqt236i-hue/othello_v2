@@ -14,6 +14,18 @@ try {
     }
 } catch (e) { /* ignore */ }
 
+function _isDebugAllowed() {
+    try {
+        const seed = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {}));
+        if (seed.DEBUG_MODE_ALLOWED === true) return true;
+        if (seed.DEBUG_MODE_ALLOWED === false) return false;
+        const qs = (typeof location !== 'undefined' && location.search) ? location.search : '';
+        return /[?&]debug=1/.test(qs) || /[?&]debug=true/.test(qs);
+    } catch (e) {
+        return false;
+    }
+}
+
 function _syncDebugFlags(debugEnabled, humanVsHuman) {
     try {
         const payload = {
@@ -82,6 +94,12 @@ function _syncDebugFlags(debugEnabled, humanVsHuman) {
 }
 
 function setupDebugControls(debugModeBtn, humanVsHumanBtn, visualTestBtn) {
+    if (!_isDebugAllowed()) {
+        if (debugModeBtn) debugModeBtn.style.display = 'none';
+        if (humanVsHumanBtn) humanVsHumanBtn.style.display = 'none';
+        if (visualTestBtn) visualTestBtn.style.display = 'none';
+        return;
+    }
     // Ensure game-layer debug flags are synced on init
     const seed = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {}));
     _syncDebugFlags(seed.DEBUG_UNLIMITED_USAGE === true, seed.DEBUG_HUMAN_VS_HUMAN === true);

@@ -30,10 +30,8 @@ let previousBoardState = null;
  */
 let cellCache = [];
 
-// Shared animation helpers resolved lazily
-let __anim_res_diff = null;
-try { __anim_res_diff = (typeof require === 'function') ? require('./animation-resolver') : (typeof globalThis !== 'undefined' ? globalThis.AnimationResolver : null); } catch (e) { __anim_res_diff = (typeof globalThis !== 'undefined' ? globalThis.AnimationResolver : null); }
-function _getAnimationShared() { return (__anim_res_diff && typeof __anim_res_diff.getAnimationShared === 'function') ? __anim_res_diff.getAnimationShared() : null; }
+// Shared animation helpers (normalized)
+var AnimationShared = (typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null);
 
 // Internal (per-render) flag to suppress fallback flip animation.
 // AnimationEngine already animates flip events; DiffRenderer is used to sync final DOM state after playback.
@@ -79,7 +77,7 @@ function buildCurrentCellState() {
     if (cardState && Array.isArray(cardState.markers)) {
         context = CardLogic.getCardContext(cardState);
     } else {
-        try { if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.warn('[DiffRenderer] cardState missing or incomplete — using empty CardContext to continue rendering'); } catch (e) { }
+        console.warn('[DiffRenderer] cardState missing or incomplete — using empty CardContext to continue rendering');
         context = { protectedStones: [], permaProtectedStones: [], bombs: [] };
     }
     const playerKey = getPlayerKey(player);
@@ -221,15 +219,21 @@ function updateCellDOM(cell, state, row, col, prevState) {
     }
 
     // If a stone is being removed and playback didn't handle it, apply a fallback destroy-fade.
+    // Exception: HYPERACTIVE source cells become EMPTY due to MOVE, not DESTROY.
+    // Do not show destroy fade there.
     if (prevState && prevState.value !== EMPTY && state.value === EMPTY && currentDisc) {
-        const __as_destroy = _getAnimationShared();
-        const noAnim = (__as_destroy && typeof __as_destroy.isNoAnim === 'function') ? __as_destroy.isNoAnim() : ((typeof window !== 'undefined' && window.DISABLE_ANIMATIONS === true) || (typeof location !== 'undefined' && /[?&]noanim=1/.test(location.search)));
+        const wasHyperactiveStone = !!(prevState.special && prevState.special.type === 'HYPERACTIVE');
+        if (wasHyperactiveStone) {
+            cell.innerHTML = '';
+            return;
+        }
+        const noAnim = (AnimationShared && typeof AnimationShared.isNoAnim === 'function') ? AnimationShared.isNoAnim() : ((typeof window !== 'undefined' && window.DISABLE_ANIMATIONS === true) || (typeof location !== 'undefined' && /[?&]noanim=1/.test(location.search)));
         if (!noAnim) {
             currentDisc.classList.add('destroy-fade');
             const fadeMs = (typeof SharedConstants !== 'undefined' && SharedConstants.DESTROY_FADE_MS)
                 ? SharedConstants.DESTROY_FADE_MS
                 : ((typeof window !== 'undefined' && window.DESTROY_FADE_MS) ? window.DESTROY_FADE_MS : 500);
-            const timer = (__as_destroy && __as_destroy.getTimer) ? __as_destroy.getTimer() : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : { setTimeout: (fn, ms) => setTimeout(fn, ms) });
+            const timer = (AnimationShared && AnimationShared.getTimer) ? AnimationShared.getTimer() : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : { setTimeout: (fn, ms) => setTimeout(fn, ms) });
             timer.setTimeout(() => {
                 try { cell.innerHTML = ''; } catch (e) { /* ignore */ }
                 try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
@@ -254,6 +258,7 @@ function updateCellDOM(cell, state, row, col, prevState) {
 
     // Create disc if occupied
     if (state.value !== EMPTY) {
+        cell.classList.add('has-disc');
         const disc = document.createElement('div');
         disc.className = 'disc ' + (state.value === BLACK ? 'black' : 'white');
 
@@ -319,14 +324,13 @@ function updateCellDOM(cell, state, row, col, prevState) {
 
         // Fallback flip animation in case PlaybackEngine path fails:
         // when a stone stays occupied but owner changes, add a quick flip class.
-        const __as_check = _getAnimationShared();
-        const noAnim = (__as_check && typeof __as_check.isNoAnim === 'function') ? __as_check.isNoAnim() : ((typeof window !== 'undefined' && window.DISABLE_ANIMATIONS === true) || (typeof location !== 'undefined' && /[?&]noanim=1/.test(location.search)));
+        const noAnim = (AnimationShared && typeof AnimationShared.isNoAnim === 'function') ? AnimationShared.isNoAnim() : ((typeof window !== 'undefined' && window.DISABLE_ANIMATIONS === true) || (typeof location !== 'undefined' && /[?&]noanim=1/.test(location.search)));
         if (!suppressFallbackFlipThisRender && !noAnim && prevState && prevState.value !== EMPTY && prevState.value !== state.value) {
             const flipMs = (typeof window !== 'undefined' && window.AnimationConstants && window.AnimationConstants.FLIP_MS) ? window.AnimationConstants.FLIP_MS : 600;
             try {
-                const _as = _getAnimationShared(); if (_as && typeof _as.triggerFlip === 'function') _as.triggerFlip(disc);
-                const timer = (_as && _as.getTimer) ? _as.getTimer() : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : { setTimeout: (fn, ms) => setTimeout(fn, ms) });
-                timer.setTimeout(() => { try { const __as = _getAnimationShared(); if (__as && __as.removeFlip) __as.removeFlip(disc); else disc.classList.remove('flip'); } catch (e) { } }, flipMs);
+                if (AnimationShared && AnimationShared.triggerFlip) AnimationShared.triggerFlip(disc);
+                const timer = (AnimationShared && AnimationShared.getTimer) ? AnimationShared.getTimer() : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : { setTimeout: (fn, ms) => setTimeout(fn, ms) });
+                timer.setTimeout(() => { try { if (AnimationShared && AnimationShared.removeFlip) AnimationShared.removeFlip(disc); else disc.classList.remove('flip'); } catch (e) { } }, flipMs);
             } catch (e) { /* ignore */ }
         }
 

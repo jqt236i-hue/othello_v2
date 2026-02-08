@@ -1,0 +1,2 @@
+# This training setup runs with Python standard library only.
+# Add extra packages here if needed later.

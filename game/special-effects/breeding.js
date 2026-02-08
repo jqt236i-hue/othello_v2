@@ -110,8 +110,8 @@ async function processBreedingEffectsAtTurnStart(player, precomputedEvents = nul
     }
 
     // Final UI sync after all animations
-    emitBoardUpdate();
-    emitGameStateChange();
+    try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+    try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
 }
 
 /**

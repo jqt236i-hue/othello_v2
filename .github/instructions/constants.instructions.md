@@ -4,6 +4,7 @@ applyTo: "constants/**/*.js,shared-constants.js"
 
 # constants/ & shared-constants（定数）向け追加指示
 
+- ローカル完結（厳禁）: 外部のコード保管先への送受信や外部レビュー依頼を前提にした提案をしない（詳細は `.github/copilot-instructions.md`）。
 - 定数は単一ソース。同じ意味の値を複数ファイルに複製しない。
 - 追加・変更時は、参照箇所の一括更新ができる形（列挙/マップ/共通関数）を優先する。
 - 既存の命名・粒度を崩さず、差分最小で追加する。
@@ -11,3 +12,4 @@ applyTo: "constants/**/*.js,shared-constants.js"
 変更時チェック:
 - 重複定数を増やしていない
 - 参照側の更新漏れがない
+- 画面向けの値を game/ に埋め込んでいない

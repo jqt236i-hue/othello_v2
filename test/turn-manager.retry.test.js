@@ -23,16 +23,15 @@ describe('turn-manager scheduling', () => {
     delete global.executeMove;
   });
 
-  test('handleCellClick uses timers.waitMs when isCardAnimating', async () => {
-    // Spy on internal timers module that scheduleRetry will prefer
+  test('handleCellClick executes move immediately after hand animation callback', async () => {
+    // Spy on internal timers module to ensure no settle-delay wait is used
     const timersModule = require('../game/timers');
     const spy = jest.spyOn(timersModule, 'waitMs').mockImplementation(() => Promise.resolve());
 
     const rm = require('../game/turn-manager');
     rm.handleCellClick(0, 0);
-    // allow microtasks to run
-    await new Promise(resolve => setTimeout(resolve, 0));
-    expect(spy).toHaveBeenCalled();
+    expect(global.executeMove).toHaveBeenCalled();
+    expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
   });
 });

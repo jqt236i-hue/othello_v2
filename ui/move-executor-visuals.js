@@ -2,9 +2,8 @@
 // UI-side visual helpers and animation sequence for move execution
 // This file contains DOM-manipulating code and is intended to run in browser/UI context.
 
-// Shared animation helpers (resolved lazily via AnimationResolver)
-let __anim_res = null;
-try { __anim_res = (typeof require === 'function') ? require('./animation-resolver') : (typeof globalThis !== 'undefined' ? globalThis.AnimationResolver : null); } catch (e) { __anim_res = (typeof globalThis !== 'undefined' ? globalThis.AnimationResolver : null); }
+// Shared animation helpers (normalized)
+var AnimationShared = (typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null);
 
 // Visual helpers and animation sequence for move execution
 
@@ -24,16 +23,15 @@ function _assertNotDuringPlayback() {
     return true;
 }
 
-// NOANIM helper (delegated to AnimationResolver)
-function _getAnimationShared() { return (__anim_res && typeof __anim_res.getAnimationShared === 'function') ? __anim_res.getAnimationShared() : null; }
-function _isNoAnim() { const fn = (__anim_res && typeof __anim_res.isNoAnim === 'function') ? __anim_res.isNoAnim() : function () {
+// NOANIM helper (delegated to AnimationShared)
+var _isNoAnim = (typeof AnimationShared !== 'undefined' && AnimationShared && AnimationShared.isNoAnim) ? AnimationShared.isNoAnim : function () {
     try {
         if (typeof window !== 'undefined' && window.DISABLE_ANIMATIONS === true) return true;
         if (typeof location !== 'undefined' && /[?&]noanim=1/.test(location.search)) return true;
         if (typeof process !== 'undefined' && (process.env.NOANIM === '1' || process.env.NOANIM === 'true' || process.env.DISABLE_ANIMATIONS === '1')) return true;
     } catch (e) { }
     return false;
-}; return fn(); }
+};
 
 function applyFlipAnimations(flipsToAnimate) {
     if (!_assertNotDuringPlayback()) return;
@@ -43,19 +41,15 @@ function applyFlipAnimations(flipsToAnimate) {
             const cell = boardEl.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
             const disc = cell ? cell.querySelector('.disc') : null;
             if (disc) {
-            const __as = _getAnimationShared();
-            if (__as && typeof __as.removeFlip === 'function') {
-                __as.removeFlip(disc);
-            } else {
-                disc.classList.remove('flip');
+                if (typeof AnimationShared !== 'undefined' && AnimationShared && AnimationShared.removeFlip) {
+                    AnimationShared.removeFlip(disc);
+                } else {
+                    disc.classList.remove('flip');
+                }
+                void disc.offsetWidth;
+                // flip animation suppressed (visual-only change)
+                console.log(`Suppressed flip animation for (${r},${c})`);
             }
-            void disc.offsetWidth;
-            if (__as && typeof __as.triggerFlip === 'function') {
-                __as.triggerFlip(disc);
-            } else {
-                disc.classList.add('flip');
-            }
-        }
         });
     });
 }
@@ -223,18 +217,14 @@ async function animateFlipsWithDeferredColor(flips, fromColor, toColor) {
         // Apply flip classes next frame
         await new Promise(resolve => requestAnimationFrame(() => {
             for (const { r, c, disc } of discsToAnimate) {
-                const __as = _getAnimationShared();
-                if (__as && typeof __as.removeFlip === 'function') {
-                    __as.removeFlip(disc);
+                if (typeof AnimationShared !== 'undefined' && AnimationShared && AnimationShared.removeFlip) {
+                    AnimationShared.removeFlip(disc);
                 } else {
                     disc.classList.remove('flip');
                 }
                 void disc.offsetWidth;
-                if (__as && typeof __as.triggerFlip === 'function') {
-                    __as.triggerFlip(disc);
-                } else {
-                    disc.classList.add('flip');
-                }
+                // deferred flip animation suppressed (color-after option)
+                console.log(`Deferred flip suppressed for (${r},${c}) with color-after option`);
             }
             setTimeout(resolve, delay);
         }));
@@ -264,18 +254,14 @@ async function animateFlipsWithDeferredColor(flips, fromColor, toColor) {
         // Apply flip classes in next frame to ensure DOM updates have settled
         await new Promise(resolve => requestAnimationFrame(() => {
             for (const { r, c, disc } of discsToAnimate) {
-                const __as = _getAnimationShared();
-                if (__as && typeof __as.removeFlip === 'function') {
-                    __as.removeFlip(disc);
+                if (typeof AnimationShared !== 'undefined' && AnimationShared && AnimationShared.removeFlip) {
+                    AnimationShared.removeFlip(disc);
                 } else {
                     disc.classList.remove('flip');
                 }
                 void disc.offsetWidth;
-                if (__as && typeof __as.triggerFlip === 'function') {
-                    __as.triggerFlip(disc);
-                } else {
-                    disc.classList.add('flip');
-                }
+                // deferred flip animation suppressed
+                console.log(`Deferred flip suppressed for (${r},${c})`);
             }
             // wait for animation duration
             setTimeout(resolve, delay);

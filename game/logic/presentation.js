@@ -79,14 +79,15 @@ function emitPresentationEvent(cardState, ev) {
 function flushPersistedEvents() {
     try {
         if (!(typeof globalThis !== 'undefined' && globalThis.BoardOps && typeof globalThis.BoardOps.emitPresentationEvent === 'function')) return false;
+        let flushedCount = 0;
         if (typeof CardLogic !== 'undefined' && typeof CardLogic.flushPresentationEvents === 'function') {
             try {
                 const events = CardLogic.flushPresentationEvents(cardState) || [];
                 for (const ev of events) {
                     try { globalThis.BoardOps.emitPresentationEvent(cardState, ev); } catch (e) { /* best-effort */ }
                 }
-                return events.length > 0;
-            } catch (e) { return false; }
+                flushedCount += events.length;
+            } catch (e) { /* ignore and continue */ }
         }
         // As a fallback, if cardState._presentationEventsPersist exists, drain it
         if (cardState && Array.isArray(cardState._presentationEventsPersist) && cardState._presentationEventsPersist.length) {
@@ -95,8 +96,9 @@ function flushPersistedEvents() {
             for (const ev of persist) {
                 try { globalThis.BoardOps.emitPresentationEvent(cardState, ev); } catch (e) { /* ignore */ }
             }
-            return true;
+            flushedCount += persist.length;
         }
+        return flushedCount > 0;
     } catch (e) { /* ignore */ }
     return false;
 }

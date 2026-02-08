@@ -1,6 +1,6 @@
 {
-  "version": "2026-02-03",
-  "generatedAt": "2026-02-03T11:21:04.718Z",
+  "version": "2026-02-07",
+  "generatedAt": "2026-02-07T10:57:56.417Z",
   "files": [
     {
       "path": "assets/images/stones/BREEDING_WILL-black.png",
@@ -9,6 +9,14 @@
     {
       "path": "assets/images/stones/BREEDING_WILL-white.png",
       "sha256": "9ab6065f949a6bf5428a917af2a1410dad561cd259c6ce49ae958df939d6557c"
+    },
+    {
+      "path": "assets/images/stones/CROSS_BOMB-black.png",
+      "sha256": "19518270d5894034cba5d6bc8c3623a206423c4e6eda0f3462f98cad85009171"
+    },
+    {
+      "path": "assets/images/stones/CROSS_BOMB-white.png",
+      "sha256": "3123e16d7c713ab01a9b9fb37fcfe8b886cbdb579cd4c245a684a60549954ea4"
     },
     {
       "path": "assets/images/stones/gold_stone.png",

@@ -35,7 +35,7 @@ describe('move-executor CPU scheduling fallback', () => {
         const pipeline = {}; // not used by adapter mock
 
         const mockCpu = jest.fn();
-        global.processCpuTurn = mockCpu;
+        globalThis.processCpuTurn = mockCpu;
 
         // Act
         await moveExecutor.executeMoveViaPipeline(move, false, playerKey, adapter, pipeline);

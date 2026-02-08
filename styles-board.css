@@ -11,8 +11,9 @@
     background-color: #1b4d2e;
     border: 4px solid #000;
     box-shadow:
-        0 0 10px rgba(0, 0, 0, 0.8),
-        inset 0 0 20px rgba(0, 0, 0, 0.5);
+        var(--board-shadow-outer),
+        var(--board-shadow-inset),
+        var(--board-shadow-rim);
     position: relative;
     background-image: url('data:image/svg+xml;utf8,<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100" height="100" filter="url(%23noise)" opacity="0.15"/></svg>'),
         radial-gradient(circle at center, rgba(255, 255, 255, 0.05) 0%, transparent 80%);
@@ -43,6 +44,24 @@
     justify-content: center;
     cursor: pointer;
     position: relative;
+}
+
+.cell.has-disc::before {
+    content: "";
+    position: absolute;
+    left: 14%;
+    right: 14%;
+    bottom: 13%;
+    height: 16%;
+    border-radius: 50%;
+    background: radial-gradient(
+        ellipse at center,
+        var(--cell-contact-shadow-color) 0%,
+        transparent 72%
+    );
+    box-shadow: 0 calc(var(--cell-contact-shadow-offset-y) * -0.2) calc(var(--cell-contact-shadow-blur) * 0.7) var(--cell-contact-shadow-highlight);
+    pointer-events: none;
+    z-index: 2;
 }
 
 .cell.legal,
@@ -101,6 +120,14 @@
     background-repeat: no-repeat;
     /* Smooth cross-fade for all stone state changes */
     transition: background var(--stone-crossfade-ms) ease-in-out;
+}
+
+/* Board stones: enlarge all discs by +10% while keeping them centered in each cell. */
+#board .disc {
+    width: 89.9%;
+    height: 89.9%;
+    top: 5.05%;
+    left: 5.05%;
 }
 
 /* Overlay image used to ensure image covers the disc fully (hides transparent canvas margins) */
@@ -245,6 +272,8 @@ html.stone-images-loaded .disc.white::after {
     color: #ff6400;
     font-weight: bold;
     text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+    z-index: 70;
+    pointer-events: none;
 }
 
 .bomb-timer {
@@ -260,7 +289,26 @@ html.stone-images-loaded .disc.white::after {
     border-radius: 4px;
     min-width: 14px;
     text-align: center;
-    z-index: 2;
+    z-index: 70;
+    pointer-events: none;
+}
+
+/* Keep all timer labels above special-stone overlays (::before z-index:25) */
+.stone-timer,
+.special-timer {
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-weight: bold;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.55);
+    padding: 1px 4px;
+    border-radius: 4px;
+    min-width: 14px;
+    text-align: center;
+    z-index: 70;
     pointer-events: none;
 }
 
@@ -449,6 +497,8 @@ html.stone-images-loaded .disc.white::after {
     font-weight: bold;
     text-shadow: 0 0 3px rgba(255, 100, 0, 0.8);
     filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+    z-index: 70;
+    pointer-events: none;
 }
 
 .dragon-timer {
@@ -464,7 +514,7 @@ html.stone-images-loaded .disc.white::after {
     border-radius: 4px;
     min-width: 14px;
     text-align: center;
-    z-index: 2;
+    z-index: 70;
     pointer-events: none;
 }
 
@@ -514,7 +564,7 @@ html.stone-images-loaded .disc.white::after {
     border-radius: 4px;
     min-width: 14px;
     text-align: center;
-    z-index: 2;
+    z-index: 70;
     pointer-events: none;
 }
 
@@ -531,7 +581,7 @@ html.stone-images-loaded .disc.white::after {
     border-radius: 4px;
     min-width: 14px;
     text-align: center;
-    z-index: 2;
+    z-index: 70;
     pointer-events: none;
 }
 
@@ -547,7 +597,7 @@ html.stone-images-loaded .disc.white::after {
     padding: 1px 4px;
     border-radius: 4px;
     pointer-events: none;
-    z-index: 2;
+    z-index: 70;
     min-width: 14px;
     text-align: center;
 }

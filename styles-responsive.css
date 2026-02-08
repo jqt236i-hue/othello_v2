@@ -37,6 +37,7 @@
     .result-panel { 
         padding: 20px; 
         min-width: 300px; 
+        transform: scale(1.0);
     }
     
     .dialogue-row .character-name { 

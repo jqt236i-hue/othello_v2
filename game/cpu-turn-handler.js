@@ -6,6 +6,10 @@ let timers = null;
 if (typeof require === 'function') {
     try { timers = require('./timers'); } catch (e) { /* ignore */ }
 }
+let passHandler = null;
+if (typeof require === 'function') {
+    try { passHandler = require('./pass-handler'); } catch (e) { /* ignore */ }
+}
 
 // Local safe constants to avoid ReferenceError for undeclared globals in test environments
 const CONST_BLACK = (typeof BLACK !== 'undefined') ? BLACK : ((typeof global !== 'undefined' && typeof global.BLACK !== 'undefined') ? global.BLACK : 1);
@@ -16,6 +20,34 @@ function setTimers(t) {
     timers = t;
 }
 function getTimers() { return timers; }
+
+function isUiAnimationBusy() {
+    const localCard = (typeof isCardAnimating !== 'undefined') ? !!isCardAnimating : false;
+    const winCard = (typeof globalThis !== 'undefined') ? !!globalThis.isCardAnimating : false;
+    const winPlayback = (typeof globalThis !== 'undefined') ? (globalThis.VisualPlaybackActive === true) : false;
+    return localCard || winCard || winPlayback;
+}
+const _cpuRetryPendingByPlayer = { black: false, white: false };
+function scheduleRunCpuTurn(playerKey, options, delayMs) {
+    const key = playerKey === 'white' ? 'white' : 'black';
+    if (_cpuRetryPendingByPlayer[key]) return;
+    _cpuRetryPendingByPlayer[key] = true;
+    scheduleRetry(() => {
+        _cpuRetryPendingByPlayer[key] = false;
+        runCpuTurn(key, options || {});
+    }, delayMs);
+}
+
+function resolveProcessPassTurn() {
+    if (typeof processPassTurn === 'function') return processPassTurn;
+    if (passHandler && typeof passHandler.processPassTurn === 'function') return passHandler.processPassTurn;
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis && typeof globalThis.processPassTurn === 'function') {
+            return globalThis.processPassTurn;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
 
 // Prefer shared scheduleRetry helper from game/timer-utils when available, fallback to a local implementation
 // Build scheduleRetry as a small wrapper that prefers the injected `timers` (set via setTimers),
@@ -45,6 +77,9 @@ function scheduleRetry(fn, delayMs = (typeof ANIMATION_RETRY_DELAY_MS !== 'undef
 function getPendingTypeHandlers(playerKey) {
     return {
         'DESTROY_ONE_STONE': async () => { await cpuSelectDestroyWithPolicy(playerKey); },
+        'STRONG_WIND_WILL': async () => { if (typeof cpuSelectStrongWindWillWithPolicy === 'function') await cpuSelectStrongWindWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
+        'SACRIFICE_WILL': async () => { if (typeof cpuSelectSacrificeWillWithPolicy === 'function') await cpuSelectSacrificeWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
+        'SELL_CARD_WILL': async () => { if (typeof cpuSelectSellCardWillWithPolicy === 'function') await cpuSelectSellCardWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'INHERIT_WILL': async () => { await cpuSelectInheritWillWithPolicy(playerKey); },
         'SWAP_WITH_ENEMY': async () => { if (typeof cpuSelectSwapWithEnemyWithPolicy === 'function') await cpuSelectSwapWithEnemyWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'TEMPT_WILL': async () => { if (typeof cpuSelectTemptWillWithPolicy === 'function') await cpuSelectTemptWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; }
@@ -53,13 +88,36 @@ function getPendingTypeHandlers(playerKey) {
 
 async function processCpuTurn() {
     console.log('[DEBUG][processCpuTurn] enter', { isProcessing, isCardAnimating, gameStateCurrentPlayer: gameState && gameState.currentPlayer });
-    runCpuTurn('white');
+    if (typeof isGameOver === 'function' && gameState && isGameOver(gameState)) {
+        if (typeof showResult === 'function') showResult();
+        isProcessing = false;
+        console.log('[DEBUG][processCpuTurn] skip: game over');
+        return;
+    }
+    const current = gameState && gameState.currentPlayer;
+    const isWhiteTurn = current === CONST_WHITE || current === 'white';
+    if (!gameState || !isWhiteTurn) {
+        console.log('[DEBUG][processCpuTurn] skip: not white turn');
+        return;
+    }
+    if (isProcessing || isUiAnimationBusy()) {
+        scheduleRunCpuTurn('white', { autoMode: false }, ANIMATION_RETRY_DELAY_MS);
+        console.log('[DEBUG][processCpuTurn] defer: busy');
+        return;
+    }
+    runCpuTurn('white', { autoMode: false });
     console.log('[DEBUG][processCpuTurn] exit');
 }
 
 async function processAutoBlackTurn() {
     // Re-enabled for Auto mode: invoke black run with autoMode flag
+    if (typeof isGameOver === 'function' && gameState && isGameOver(gameState)) {
+        if (typeof showResult === 'function') showResult();
+        isProcessing = false;
+        return;
+    }
     if (isProcessing || isCardAnimating) return;
+    if (isUiAnimationBusy()) return;
     if (gameState.currentPlayer !== BLACK) return;
     return runCpuTurn('black', { autoMode: true });
 }
@@ -68,6 +126,12 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
     const isWhite = playerKey === 'white';
     const selfColor = isWhite ? CONST_WHITE : CONST_BLACK;
     const selfName = isWhite ? '白' : '黒';
+
+    if (typeof isGameOver === 'function' && gameState && isGameOver(gameState)) {
+        if (typeof showResult === 'function') showResult();
+        isProcessing = false;
+        return;
+    }
 
     if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
         debugLog(`[AI] Starting CPU turn for ${playerKey}`, 'info', {
@@ -81,8 +145,9 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
 
     isProcessing = true;
 
-    if (isCardAnimating) {
-        scheduleRetry(() => runCpuTurn(playerKey, { autoMode }), ANIMATION_RETRY_DELAY_MS);
+    if (isUiAnimationBusy()) {
+        isProcessing = false;
+        scheduleRunCpuTurn(playerKey, { autoMode }, ANIMATION_RETRY_DELAY_MS);
         return;
     }
 
@@ -90,11 +155,16 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
         if (!cardState.hasUsedCardThisTurnByPlayer[playerKey] && cardState.pendingEffectByPlayer[playerKey] === null) {
             const applied = (typeof cpuMaybeUseCardWithPolicy === 'function') ? cpuMaybeUseCardWithPolicy(playerKey) : false;
             if (applied) {
-                if (isCardAnimating) {
-                    isProcessing = false; // Reset before retry
-                    scheduleRetry(() => runCpuTurn(playerKey, { autoMode }), ANIMATION_RETRY_DELAY_MS);
-                    return;
-                }
+                isProcessing = false;
+                const resumeAfterCardAnimation = () => {
+                    if (isUiAnimationBusy()) {
+                        scheduleRunCpuTurn(playerKey, { autoMode }, ANIMATION_RETRY_DELAY_MS);
+                        return;
+                    }
+                    runCpuTurn(playerKey, { autoMode });
+                };
+                scheduleRetry(resumeAfterCardAnimation, ANIMATION_RETRY_DELAY_MS);
+                return;
             }
         }
 
@@ -109,6 +179,11 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 }
                 await handler();
                 pending = cardState.pendingEffectByPlayer[playerKey];
+                if (isUiAnimationBusy()) {
+                    isProcessing = false;
+                    scheduleRunCpuTurn(playerKey, { autoMode }, ANIMATION_RETRY_DELAY_MS);
+                    return;
+                }
             }
         }
 
@@ -117,7 +192,28 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
         const candidateMoves = generateMovesForPlayer(selfColor, pending, protection, perma);
 
         if (!candidateMoves.length) {
-            processPassTurn(playerKey, autoMode);
+            const stillUsableCard = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.hasUsableCard === 'function')
+                ? !!CardLogic.hasUsableCard(cardState, gameState, playerKey)
+                : false;
+            if (stillUsableCard) {
+                const retried = (typeof cpuMaybeUseCardWithPolicy === 'function') ? cpuMaybeUseCardWithPolicy(playerKey) : false;
+                if (retried) {
+                    isProcessing = false;
+                    scheduleRunCpuTurn(playerKey, { autoMode }, ANIMATION_RETRY_DELAY_MS);
+                    return;
+                }
+                // Avoid illegal-pass spam: keep turn and retry later.
+                isProcessing = false;
+                scheduleRunCpuTurn(playerKey, { autoMode }, ANIMATION_RETRY_DELAY_MS);
+                return;
+            }
+            const passFn = resolveProcessPassTurn();
+            if (passFn) {
+                passFn(playerKey, autoMode);
+            } else {
+                console.error('[AI] processPassTurn is not available');
+                isProcessing = false;
+            }
             return;
         }
 
@@ -132,11 +228,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
         }
 
         playHandAnimation(selfColor, move.row, move.col, () => {
-            if (isCardAnimating) {
-                scheduleRetry(() => executeMove(move), ANIMATION_SETTLE_DELAY_MS);
-            } else {
-                executeMove(move);
-            }
+            executeMove(move);
         });
     } catch (error) {
         console.error(`[AI] Error in runCpuTurn for ${playerKey}:`, error);

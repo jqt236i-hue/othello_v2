@@ -22,13 +22,15 @@
     }
 
     // Constants
-    const INITIAL_HAND_SIZE = 2;
+    // Policy: no initial draw at game start.
+    const INITIAL_HAND_SIZE = 0;
     const MAX_HAND_SIZE = 5;
-    const DRAW_INTERVAL = 2; // Draw every 2 turns (turn 2, 4, 6, ...)
+    const DRAW_INTERVAL = 1; // Draw every turn (turn 1, 2, 3, ...)
     const DOUBLE_PLACE_EXTRA = 1;
     const TIME_BOMB_TURNS = 3;
     const ULTIMATE_DRAGON_TURNS = 5;
     const ULTIMATE_DESTROY_GOD_TURNS = 3;
+    const DECK_SIZE = 30;
 
     function destroyAt(cardState, gameState, row, col) {
         if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
@@ -219,8 +221,8 @@
     function createCardState(prng) {
         const p = prng || defaultPrng;
 
-        // Generate deck (limited to 20 cards)
-        // Spec: when total unique types < 20, the deck should include at least one card of each type.
+        // Generate deck (30 cards)
+        // Spec: guarantee at least one card per type, then allow duplicates to fill to DECK_SIZE.
         const enabledDefs = CARD_DEFS.filter(c => c.enabled !== false);
         const idsByType = new Map();
         for (const def of enabledDefs) {
@@ -235,17 +237,21 @@
             guaranteed.push(pool[0]);
         }
 
-        const guaranteedSet = new Set(guaranteed);
-        const remainingPool = enabledDefs.map(d => d.id).filter(id => !guaranteedSet.has(id));
-        p.shuffle(remainingPool);
-
-        const deck = guaranteed.concat(remainingPool).slice(0, 20);
+        const deck = guaranteed.slice();
+        const allIds = enabledDefs.map(d => d.id);
+        while (deck.length < DECK_SIZE && allIds.length > 0) {
+            const pool = allIds.slice();
+            p.shuffle(pool);
+            deck.push(pool[0]);
+        }
         // Shuffle final deck so draw order isn't fixed by catalog/type iteration order.
         p.shuffle(deck);
 
         return {
             deck: deck,
             discard: [],
+            initialDeckSize: deck.length,
+            reshuffleRequiresFullCycle: false,
             hands: { black: [], white: [] },
             turnIndex: 0,
             lastTurnStartedFor: null,
@@ -275,9 +281,11 @@
 
             // Recent usage
             lastUsedCardByPlayer: { black: null, white: null },
+            cardUseCountByPlayer: { black: 0, white: 0 },
 
             // Resources
             charge: { black: 0, white: 0 },
+            chargeGainedTotal: { black: 0, white: 0 },
 
             // Extra actions
             extraPlaceRemainingByPlayer: { black: 0, white: 0 },
@@ -324,8 +332,12 @@
             hyperactiveSeqCounter: cs.hyperactiveSeqCounter || 0,
 
             lastUsedCardByPlayer: { ...cs.lastUsedCardByPlayer },
+            cardUseCountByPlayer: { ...(cs.cardUseCountByPlayer || { black: 0, white: 0 }) },
             charge: { ...cs.charge },
-            extraPlaceRemainingByPlayer: { ...cs.extraPlaceRemainingByPlayer }
+            chargeGainedTotal: { ...(cs.chargeGainedTotal || { black: 0, white: 0 }) },
+            extraPlaceRemainingByPlayer: { ...cs.extraPlaceRemainingByPlayer },
+            initialDeckSize: Number.isFinite(cs.initialDeckSize) ? cs.initialDeckSize : ((cs.deck ? cs.deck.length : 0) + (cs.discard ? cs.discard.length : 0)),
+            reshuffleRequiresFullCycle: cs.reshuffleRequiresFullCycle !== false
         };
     }
 
@@ -335,13 +347,10 @@
      * @param {Object} [prng]
      */
     function dealInitialHands(cardState, prng) {
+        // Keep API for compatibility. Current policy intentionally performs no initial draw.
+        // eslint-disable-next-line no-unused-vars
         const p = prng || defaultPrng;
-        for (let i = 0; i < INITIAL_HAND_SIZE; i++) {
-            commitDraw(cardState, 'black', p);
-            commitDraw(cardState, 'white', p);
-        }
-        // Reset turn counts to 0 so first onTurnStart increments to 1
-        // (draw happens at turn 2, 4, 6, ... not at turn 1)
+        // Reset turn counts to 0 so first onTurnStart increments to 1.
         cardState.turnCountByPlayer['black'] = 0;
         cardState.turnCountByPlayer['white'] = 0;
     }
@@ -351,7 +360,7 @@
      * This function ensures that PRNG consumption order is fixed:
      * 1. Deck generation (shuffle for guaranteed cards per type)
      * 2. Deck final shuffle
-     * 3. Initial hand draws (black, white alternating)
+     * 3. No initial hand draw (policy)
      * 
      * For online/replay, both client and server should call this with the same seed.
      * 
@@ -366,7 +375,7 @@
         // Step 1: Create card state (consumes PRNG for deck generation)
         const cardState = createCardState(prng);
 
-        // Step 2: Deal initial hands (consumes PRNG for draws)
+        // Step 2: Apply start-of-game hand policy (currently no initial draw)
         dealInitialHands(cardState, prng);
 
         // Return card state and PRNG state for serialization
@@ -488,15 +497,9 @@
             return null; // Hand full, cannot draw
         }
 
-        // Reshuffle if empty
+        // No reshuffle policy: if deck is empty, draw fails.
         if (cardState.deck.length === 0) {
-            if (cardState.discard.length > 0) {
-                cardState.deck = cardState.discard.slice();
-                cardState.discard = [];
-                p.shuffle(cardState.deck);
-            } else {
-                return null;
-            }
+            return null;
         }
 
         if (cardState.deck.length > 0) {
@@ -592,6 +595,11 @@
             if (!def) continue;
             const type = def.type;
 
+            if (type === 'SELL_CARD_WILL') {
+                // Must have at least one other card to sell after consuming this card.
+                if (hand.length <= 1) continue;
+            }
+
             // Cards that require valid targets
             if (gameState) {
                 if (type === 'TEMPT_WILL') {
@@ -601,6 +609,14 @@
                 if (CardSelectorsModule) {
                     if (type === 'DESTROY_ONE_STONE' && typeof CardSelectorsModule.getDestroyTargets === 'function') {
                         const targets = CardSelectorsModule.getDestroyTargets(cardState, gameState);
+                        if (!targets || targets.length === 0) continue;
+                    }
+                    if (type === 'STRONG_WIND_WILL' && typeof CardSelectorsModule.getStrongWindTargets === 'function') {
+                        const targets = CardSelectorsModule.getStrongWindTargets(cardState, gameState);
+                        if (!targets || targets.length === 0) continue;
+                    }
+                    if (type === 'SACRIFICE_WILL' && typeof CardSelectorsModule.getSacrificeTargets === 'function') {
+                        const targets = CardSelectorsModule.getSacrificeTargets(cardState, gameState, playerKey);
                         if (!targets || targets.length === 0) continue;
                     }
                     if (type === 'SWAP_WITH_ENEMY' && typeof CardSelectorsModule.getSwapTargets === 'function') {
@@ -670,6 +686,15 @@
             const targets = getTemptWillTargets(cardState, gameState, chargeOwnerKey);
             if (!targets.length) return false;
         }
+        if (cardType === 'STRONG_WIND_WILL') {
+            if (!gameState) return false;
+            const targets = getStrongWindTargets(cardState, gameState);
+            if (!targets.length) return false;
+        }
+        if (cardType === 'SELL_CARD_WILL') {
+            const remainingHandCount = (cardState.hands[handKey] ? cardState.hands[handKey].length : 0) - 1;
+            if (remainingHandCount <= 0) return false;
+        }
 
         if (!(opts && opts.noConsume)) {
             // Remove from hand
@@ -680,15 +705,26 @@
             cardState.charge[chargeOwnerKey] -= cost;
             // Set used flag
             cardState.hasUsedCardThisTurnByPlayer[chargeOwnerKey] = true;
+            cardState.cardUseCountByPlayer = cardState.cardUseCountByPlayer || { black: 0, white: 0 };
+            cardState.cardUseCountByPlayer[chargeOwnerKey] = (cardState.cardUseCountByPlayer[chargeOwnerKey] || 0) + 1;
         }
         cardState.lastUsedCardByPlayer[chargeOwnerKey] = cardId;
 
         const needsSelection =
             cardType === 'DESTROY_ONE_STONE' ||
+            cardType === 'STRONG_WIND_WILL' ||
+            cardType === 'SACRIFICE_WILL' ||
+            cardType === 'SELL_CARD_WILL' ||
             cardType === 'SWAP_WITH_ENEMY' ||
             cardType === 'INHERIT_WILL' ||
             cardType === 'TEMPT_WILL';
-        cardState.pendingEffectByPlayer[chargeOwnerKey] = { type: cardType, cardId, stage: needsSelection ? 'selectTarget' : null };
+        cardState.pendingEffectByPlayer[chargeOwnerKey] = {
+            type: cardType,
+            cardId,
+            stage: needsSelection ? 'selectTarget' : null,
+            selectedCount: cardType === 'SACRIFICE_WILL' ? 0 : undefined,
+            maxSelections: cardType === 'SACRIFICE_WILL' ? 3 : undefined
+        };
 
         // Special handling for WORK_WILL: arm next placement for this player
         if (cardType === 'WORK_WILL') {
@@ -696,6 +732,22 @@
             cardState.workNextPlacementArmedByPlayer[chargeOwnerKey] = true;
             try { console.log('[WORK_DEBUG] Card played: WORK_WILL armed for', chargeOwnerKey); } catch (e) {}
         }
+
+        const usedCardDef = getCardDef(cardId);
+
+        // Emit a presentation event for card-use transport animation (UI playback).
+        try {
+            emitPresentationEvent(cardState, {
+                type: 'CARD_USED',
+                player: chargeOwnerKey,
+                cardId: cardId,
+                meta: {
+                    owner: handKey,
+                    cost: Number.isFinite(cost) ? cost : null,
+                    name: (usedCardDef && usedCardDef.name) ? usedCardDef.name : null
+                }
+            });
+        } catch (e) { /* ignore presentation emission failures */ }
 
         return true;
     }
@@ -711,8 +763,15 @@
         if (!cardState || !cardState.pendingEffectByPlayer) return { canceled: false, reason: 'no_state' };
         const pending = cardState.pendingEffectByPlayer[playerKey];
         if (!pending || pending.stage !== 'selectTarget') return { canceled: false, reason: 'not_pending' };
-        if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'INHERIT_WILL') {
+        if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'INHERIT_WILL' && pending.type !== 'SACRIFICE_WILL') {
             return { canceled: false, reason: 'not_cancellable' };
+        }
+
+        // SACRIFICE_WILL can be "finished" after at least one selection.
+        // In that case this is not a refund-cancel, just end the selection mode.
+        if (pending.type === 'SACRIFICE_WILL' && Number(pending.selectedCount || 0) > 0) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+            return { canceled: true, cardId: pending.cardId, finished: true };
         }
 
         const cardId = pending.cardId;
@@ -727,6 +786,10 @@
         }
         if (resetUsage && !noConsume) {
             cardState.hasUsedCardThisTurnByPlayer[playerKey] = false;
+        }
+        if (!noConsume) {
+            cardState.cardUseCountByPlayer = cardState.cardUseCountByPlayer || { black: 0, white: 0 };
+            cardState.cardUseCountByPlayer[playerKey] = Math.max(0, (cardState.cardUseCountByPlayer[playerKey] || 0) - 1);
         }
 
         if (cardId) {
@@ -845,6 +908,96 @@
         return { applied: true };
     }
 
+    function getStrongWindTargets(cardState, gameState) {
+        if (CardSelectorsModule && typeof CardSelectorsModule.getStrongWindTargets === 'function') {
+            return CardSelectorsModule.getStrongWindTargets(cardState, gameState);
+        }
+        const res = [];
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (gameState.board[r][c] === EMPTY) continue;
+                const hasMove =
+                    (r > 0 && gameState.board[r - 1][c] === EMPTY) ||
+                    (r < 7 && gameState.board[r + 1][c] === EMPTY) ||
+                    (c > 0 && gameState.board[r][c - 1] === EMPTY) ||
+                    (c < 7 && gameState.board[r][c + 1] === EMPTY);
+                if (hasMove) res.push({ row: r, col: c });
+            }
+        }
+        return res;
+    }
+
+    function _getStrongWindMoveOptions(gameState, row, col) {
+        const dirs = [
+            { dr: -1, dc: 0 },
+            { dr: 1, dc: 0 },
+            { dr: 0, dc: -1 },
+            { dr: 0, dc: 1 }
+        ];
+        const options = [];
+        for (const d of dirs) {
+            const nr = row + d.dr;
+            const nc = col + d.dc;
+            if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) continue;
+            if (gameState.board[nr][nc] !== EMPTY) continue;
+
+            let tr = nr;
+            let tc = nc;
+            while (true) {
+                const rr = tr + d.dr;
+                const cc = tc + d.dc;
+                if (rr < 0 || rr >= 8 || cc < 0 || cc >= 8) break;
+                if (gameState.board[rr][cc] !== EMPTY) break;
+                tr = rr;
+                tc = cc;
+            }
+            options.push({ direction: d, target: { row: tr, col: tc } });
+        }
+        return options;
+    }
+
+    function _moveMarkersForStrongWind(cardState, fromRow, fromCol, toRow, toCol) {
+        const markers = getMarkers(cardState);
+        for (const m of markers) {
+            if (!m) continue;
+            if (m.row !== fromRow || m.col !== fromCol) continue;
+            m.row = toRow;
+            m.col = toCol;
+        }
+    }
+
+    function applyStrongWindWill(cardState, gameState, playerKey, row, col, prng) {
+        const pending = cardState.pendingEffectByPlayer[playerKey];
+        if (!pending || pending.type !== 'STRONG_WIND_WILL' || pending.stage !== 'selectTarget') {
+            return { applied: false, reason: 'not_pending' };
+        }
+        if (row < 0 || row >= 8 || col < 0 || col >= 8) return { applied: false, reason: 'out_of_board' };
+        if (gameState.board[row][col] === EMPTY) return { applied: false, reason: 'empty' };
+
+        const options = _getStrongWindMoveOptions(gameState, row, col);
+        if (!options.length) return { applied: false, reason: 'no_move_options' };
+
+        const p = (prng && typeof prng.random === 'function') ? prng : { random: Math.random };
+        const pick = options[Math.floor(p.random() * options.length)];
+        const to = pick.target;
+
+        _moveMarkersForStrongWind(cardState, row, col, to.row, to.col);
+
+        if (BoardOpsModule && typeof BoardOpsModule.moveAt === 'function') {
+            const res = BoardOpsModule.moveAt(cardState, gameState, row, col, to.row, to.col, 'STRONG_WIND_WILL', 'strong_wind_move');
+            if (!res || !res.moved) {
+                return { applied: false, reason: 'move_failed' };
+            }
+        } else {
+            const val = gameState.board[row][col];
+            gameState.board[row][col] = EMPTY;
+            gameState.board[to.row][to.col] = val;
+        }
+
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return { applied: true, from: { row, col }, to, direction: pick.direction };
+    }
+
     /**
      * Turn start processing
      * @param {Object} cardState
@@ -864,7 +1017,7 @@
         // Reset extra place counters (valid only for the turn they are granted)
         cardState.extraPlaceRemainingByPlayer[playerKey] = 0;
 
-        // Draw card every 2 turns (Rule 4.4: Draw at turn 2, 4, 6, ...)
+        // Draw card every turn (Rule 4.4)
         // Debug override: if debugNoDraw is enabled, skip draws
         if (cardState.debugNoDraw !== true && cardState.turnCountByPlayer[playerKey] % DRAW_INTERVAL === 0) {
             commitDraw(cardState, playerKey, p);
@@ -875,7 +1028,9 @@
         for (const m of specialMarkers) {
             const data = m.data || {};
             if (data.expiresForPlayer === playerKey) {
-                // GOLD/SILVER: expire the stone itself on opponent turn start.
+                // GOLD/SILVER: markers are no longer created (stones are destroyed
+                // immediately on placement).  This block is kept as a legacy safety
+                // net but should not normally trigger.
                 if (data.type === 'GOLD' || data.type === 'SILVER') {
                     if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
                         BoardOpsModule.destroyAt(cardState, gameState, m.row, m.col, 'SYSTEM', 'gold_silver_expired');
@@ -932,6 +1087,23 @@
      * @param {number} flipCount
      * @returns {Object} Applied effects info
      */
+    function addChargeWithTotal(cardState, playerKey, amount) {
+        if (!cardState || !amount) return 0;
+        if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
+        if (!cardState.chargeGainedTotal) cardState.chargeGainedTotal = { black: 0, white: 0 };
+
+        const before = cardState.charge[playerKey] || 0;
+        const after = Math.min(30, before + amount);
+        const added = after - before;
+
+        cardState.charge[playerKey] = after;
+        if (added > 0) {
+            cardState.chargeGainedTotal[playerKey] = (cardState.chargeGainedTotal[playerKey] || 0) + added;
+        }
+
+        return added;
+    }
+
     function applyPlacementEffects(cardState, gameState, playerKey, row, col, flipCount) {
         const effects = { chargeGained: 0 };
         const pending = cardState.pendingEffectByPlayer[playerKey];
@@ -945,50 +1117,38 @@
         let chargeGain = flipCount;
 
         // GOLD_STONE logic - multiplier on flip-based charge gain
-        // IMPORTANT:
-        // - The placed stone must disappear (become EMPTY) after placement (rulebook 10.7).
-        // - We intentionally do NOT register GOLD as a board special-stone marker because
-        //   it disappears immediately and leaving metadata behind breaks "special stone exists"
-        //   checks (e.g. TEMPT_WILL) on an EMPTY cell.
+        // Immediately destroy the placed stone after charge calculation.
+        // UI plays SPAWN → (phase gap) → DESTROY(500ms fade) so the stone
+        // is briefly visible before disappearing.  No marker survives to next turn.
         if (pending && pending.type === 'GOLD_STONE') {
             chargeGain = flipCount * 4;
             effects.goldStoneUsed = true;
-            // Keep the stone until the opponent's turn start, then remove.
-            addMarker(cardState, 'specialStone', row, col, playerKey, {
-                type: 'GOLD',
-                expiresForPlayer: opponentKey
-            });
-            emitPresentationEvent(cardState, {
-                type: 'STATUS_APPLIED',
-                row,
-                col,
-                meta: { special: 'GOLD', owner: ownerVal }
-            });
+            // Destroy the placed stone in the same turn (presentation: DESTROY event)
+            if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
+                BoardOpsModule.destroyAt(cardState, gameState, row, col, 'SYSTEM', 'gold_stone_sacrifice');
+            } else {
+                gameState.board[row][col] = EMPTY;
+            }
         }
 
         // SILVER_STONE logic - multiplier on flip-based charge gain
-        // Same reasoning as GOLD_STONE (rulebook 10.7.1).
+        // Immediately destroy the placed stone after charge calculation.
         if (pending && pending.type === 'SILVER_STONE') {
             chargeGain = flipCount * 3;
             effects.silverStoneUsed = true;
-            // Keep the stone until the opponent's turn start, then remove.
-            addMarker(cardState, 'specialStone', row, col, playerKey, {
-                type: 'SILVER',
-                expiresForPlayer: opponentKey
-            });
-            emitPresentationEvent(cardState, {
-                type: 'STATUS_APPLIED',
-                row,
-                col,
-                meta: { special: 'SILVER', owner: ownerVal }
-            });
+            // Destroy the placed stone in the same turn (presentation: DESTROY event)
+            if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
+                BoardOpsModule.destroyAt(cardState, gameState, row, col, 'SYSTEM', 'silver_stone_sacrifice');
+            } else {
+                gameState.board[row][col] = EMPTY;
+            }
         }
 
         // PLUNDER_WILL logic - delegate to effect module
         if (pending && pending.type === 'PLUNDER_WILL') {
             let plunderEffect;
             if (typeof module === 'object' && module.exports) {
-                plunderEffect = require('./effects/plunder_will').applyPlunderWill;
+                try { plunderEffect = require('./effects/plunder_will').applyPlunderWill; } catch (e) { /* fallback below */ }
             }
             if (typeof plunderEffect === 'function') {
                 const res = plunderEffect(cardState, playerKey, flipCount);
@@ -1006,7 +1166,7 @@
         if (pending && pending.type === 'STEAL_CARD') {
             let stealEffect;
             if (typeof module === 'object' && module.exports) {
-                stealEffect = require('./effects/steal_card').applyStealCard;
+                try { stealEffect = require('./effects/steal_card').applyStealCard; } catch (e) { /* fallback below */ }
             }
             if (typeof stealEffect === 'function') {
                 const res = stealEffect(cardState, playerKey, flipCount);
@@ -1031,7 +1191,7 @@
         }
 
         // Apply charge
-        cardState.charge[playerKey] = Math.min(30, cardState.charge[playerKey] + chargeGain);
+        addChargeWithTotal(cardState, playerKey, chargeGain);
         effects.chargeGained = chargeGain;
 
         // PROTECTED_NEXT_STONE logic - delegate to module when present
@@ -1170,11 +1330,44 @@
             effects.hyperactivePlaced = true;
         }
 
+        // CROSS_BOMB logic - trigger immediate cross explosion after normal flips.
+        // Destroy center + orthogonal 1-tile neighbors regardless of owner/special/protection.
+        if (pending && pending.type === 'CROSS_BOMB') {
+            const targets = [
+                { row, col },
+                { row: row - 1, col },
+                { row: row + 1, col },
+                { row, col: col - 1 },
+                { row, col: col + 1 }
+            ].filter(pos => pos.row >= 0 && pos.row < 8 && pos.col >= 0 && pos.col < 8);
+
+            let destroyedCount = 0;
+            for (const pos of targets) {
+                if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
+                    const res = BoardOpsModule.destroyAt(
+                        cardState,
+                        gameState,
+                        pos.row,
+                        pos.col,
+                        'CROSS_BOMB',
+                        'cross_bomb_explosion'
+                    );
+                    if (res && res.destroyed) destroyedCount++;
+                } else if (gameState.board[pos.row][pos.col] !== EMPTY) {
+                    removeMarkersAt(cardState, pos.row, pos.col);
+                    gameState.board[pos.row][pos.col] = EMPTY;
+                    destroyedCount++;
+                }
+            }
+            effects.crossBombExploded = true;
+            effects.crossBombDestroyed = destroyedCount;
+        }
+
         // DOUBLE_PLACE logic - delegate to effect module
         if (pending && pending.type === 'DOUBLE_PLACE') {
             let dpEffect;
             if (typeof module === 'object' && module.exports) {
-                dpEffect = require('./effects/double_place').applyDoublePlace;
+                try { dpEffect = require('./effects/double_place').applyDoublePlace; } catch (e) { /* fallback below */ }
             }
             if (typeof dpEffect === 'function') {
                 const res = dpEffect(cardState, playerKey);
@@ -1255,6 +1448,7 @@
             return mod.applyRegenAfterFlips(cardState, gameState, flips, flipperKey, skipCapture, {
                 getCardContext,
                 clearBombAt,
+                removeMarkersAt,
                 BoardOps: BoardOpsModule
             });
         }
@@ -1263,6 +1457,7 @@
             return CardRegen.applyRegenAfterFlips(cardState, gameState, flips, flipperKey, skipCapture, {
                 getCardContext,
                 clearBombAt,
+                removeMarkersAt,
                 BoardOps: BoardOpsModule
             });
         }
@@ -1288,6 +1483,77 @@
         applyStrongWill(cardState, playerKey, row, col);
         cardState.pendingEffectByPlayer[playerKey] = null;
         return { applied: true };
+    }
+
+    /**
+     * Apply SACRIFICE_WILL (生贄の意志)
+     * Destroy own stone and gain +5 charge, up to 3 selections.
+     * @param {Object} cardState
+     * @param {Object} gameState
+     * @param {string} playerKey
+     * @param {number} row
+     * @param {number} col
+     * @returns {{applied:boolean, reason?:string, gained?:number, selectedCount?:number, maxSelections?:number, completed?:boolean}}
+     */
+    function applySacrificeWill(cardState, gameState, playerKey, row, col) {
+        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        if (!pending || pending.type !== 'SACRIFICE_WILL' || pending.stage !== 'selectTarget') {
+            return { applied: false, reason: 'pending_not_found' };
+        }
+
+        const ownerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
+        if (!gameState || !gameState.board || gameState.board[row][col] !== ownerVal) {
+            return { applied: false, reason: '自分の石のみ選択できます' };
+        }
+
+        const destroyed = destroyAt(cardState, gameState, row, col);
+        if (!destroyed) {
+            return { applied: false, reason: '破壊に失敗しました' };
+        }
+
+        const gained = addChargeWithTotal(cardState, playerKey, 5);
+        const selectedCount = Number(pending.selectedCount || 0) + 1;
+        const maxSelections = Number(pending.maxSelections || 3);
+        pending.selectedCount = selectedCount;
+        pending.maxSelections = maxSelections;
+
+        const remainTargets = getSelectableTargets(cardState, gameState, playerKey);
+        const completed = selectedCount >= maxSelections || remainTargets.length === 0;
+        if (completed) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+
+        return { applied: true, gained, selectedCount, maxSelections, completed };
+    }
+
+    /**
+     * Apply SELL_CARD_WILL (売却の意志)
+     * Sell exactly one card from own hand and gain charge equal to its cost.
+     * @param {Object} cardState
+     * @param {string} playerKey
+     * @param {string} soldCardId
+     * @returns {{applied:boolean, reason?:string, soldCardId?:string, gained?:number}}
+     */
+    function applySellCardWill(cardState, playerKey, soldCardId) {
+        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        if (!pending || pending.type !== 'SELL_CARD_WILL' || pending.stage !== 'selectTarget') {
+            return { applied: false, reason: 'pending_not_found' };
+        }
+        if (!soldCardId || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) {
+            return { applied: false, reason: 'invalid_target' };
+        }
+        const idx = cardState.hands[playerKey].indexOf(soldCardId);
+        if (idx === -1) {
+            return { applied: false, reason: '手札にないカードは売却できません' };
+        }
+
+        cardState.hands[playerKey].splice(idx, 1);
+        cardState.discard.push(soldCardId);
+
+        const gainBase = getCardCost(soldCardId);
+        const gained = addChargeWithTotal(cardState, playerKey, gainBase);
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return { applied: true, soldCardId, gained };
     }
 
     function getDirectionalChainFlips(gameState, row, col, ownerVal, dir, context) {
@@ -1378,14 +1644,14 @@
         if (!bomb) return { exploded: [], destroyed: [], removed: false };
         if (typeof module === 'object' && module.exports) {
             try {
-                const mod = require('./cards/time_bomb_single');
+                const mod = require('./cards/time_bomb');
                 if (mod && typeof mod.tickBombAt === 'function') return mod.tickBombAt(cardState, gameState, bomb, activeKey, { BoardOps: BoardOpsModule, destroyAt });
             } catch (e) { /* ignore */ }
         }
-        if (typeof CardTimeBombSingle !== 'undefined' && typeof CardTimeBombSingle.tickBombAt === 'function') {
-            return CardTimeBombSingle.tickBombAt(cardState, gameState, bomb, activeKey, { BoardOps: BoardOpsModule, destroyAt });
+        if (typeof CardTimeBomb !== 'undefined' && typeof CardTimeBomb.tickBombAt === 'function') {
+            return CardTimeBomb.tickBombAt(cardState, gameState, bomb, activeKey, { BoardOps: BoardOpsModule, destroyAt });
         }
-        // Fallback: emulate tick for single bomb (non-perfect)
+        // Fallback: emulate tick for single bomb
         const bombs = getBombMarkers(cardState);
         const idx = bombs.findIndex(b => (bomb.id && b.id === bomb.id) || (b.row === bomb.row && b.col === bomb.col && b.owner === bomb.owner && b.createdSeq === bomb.createdSeq));
         if (idx === -1) return { exploded: [], destroyed: [], removed: false };
@@ -1402,8 +1668,14 @@
                     const r = b.row + dr;
                     const c = b.col + dc;
                     if (r >= 0 && r < 8 && c >= 0 && c < 8) {
-                        const res = destroyAt(cardState, gameState, r, c);
-                        if (res) destroyed.push({ row: r, col: c });
+                        let destroyedRes = false;
+                        if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
+                            const res = BoardOpsModule.destroyAt(cardState, gameState, r, c, 'TIME_BOMB', 'bomb_explosion');
+                            destroyedRes = !!(res && res.destroyed);
+                        } else {
+                            destroyedRes = destroyAt(cardState, gameState, r, c);
+                        }
+                        if (destroyedRes) destroyed.push({ row: r, col: c });
                     }
                 }
             }
@@ -1881,9 +2153,11 @@
     function flushPresentationEvents(cardState) {
         if (!cardState || !cardState.presentationEvents) return [];
         const out = cardState.presentationEvents.slice();
-        // Persist a copy so UI-side handlers can pick up events even if flush runs earlier than UI handler.
-        if (!cardState._presentationEventsPersist) cardState._presentationEventsPersist = [];
-        cardState._presentationEventsPersist.push(...out);
+        // Persist only when BoardOps is not available (BoardOps already persists on emit).
+        if (!(BoardOpsModule && typeof BoardOpsModule.emitPresentationEvent === 'function')) {
+            if (!cardState._presentationEventsPersist) cardState._presentationEventsPersist = [];
+            cardState._presentationEventsPersist.push(...out);
+        }
         cardState.presentationEvents.length = 0;
         return out;
     }
@@ -1907,7 +2181,7 @@
      * @returns {Array<{row:number,col:number}>}
      */
     function getSelectableTargets(cardState, gameState, playerKey) {
-const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
         if (!pending) return [];
 
         // Delegate to selectors module when available
@@ -1917,6 +2191,12 @@ const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendi
                 if (mod) {
                     if (pending.type === 'DESTROY_ONE_STONE' && typeof mod.getDestroyTargets === 'function') {
                         return mod.getDestroyTargets(cardState, gameState);
+                    }
+                    if (pending.type === 'STRONG_WIND_WILL' && typeof mod.getStrongWindTargets === 'function') {
+                        return mod.getStrongWindTargets(cardState, gameState);
+                    }
+                    if (pending.type === 'SACRIFICE_WILL' && typeof mod.getSacrificeTargets === 'function') {
+                        return mod.getSacrificeTargets(cardState, gameState, playerKey);
                     }
                     if (pending.type === 'SWAP_WITH_ENEMY' && typeof mod.getSwapTargets === 'function') {
                         return mod.getSwapTargets(cardState, gameState, playerKey);
@@ -1943,6 +2223,21 @@ const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendi
                 }
             }
             return res;
+        }
+
+        if (pending.type === 'SACRIFICE_WILL') {
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if (gameState.board[r][c] === playerVal) {
+                        res.push({ row: r, col: c });
+                    }
+                }
+            }
+            return res;
+        }
+
+        if (pending.type === 'STRONG_WIND_WILL') {
+            return getStrongWindTargets(cardState, gameState);
         }
 
         if (pending.type === 'SWAP_WITH_ENEMY') {
@@ -2027,7 +2322,10 @@ const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendi
         applySwapEffect,
         applyStrongWill,
         applyInheritWill,
+        applySacrificeWill,
+        applySellCardWill,
         applyTemptWill,
+        applyStrongWindWill,
         applyRegenWill,
         applyRegenAfterFlips,
         applyChainWillAfterMove,
@@ -2041,12 +2339,12 @@ const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendi
         hasPendingEffect,
         getPendingEffectType,
         getSelectableTargets,
+        getStrongWindTargets,
         cancelPendingSelection,
         getTemptWillTargets,
         clearHyperactiveAtPositions,
         processHyperactiveMoves,
         processHyperactiveMoveAtAnchor,
-
         // Presentation helpers (PoC)
         allocateStoneId,
         emitPresentationEvent,

@@ -21,26 +21,192 @@ if (!isAISystemAvailable()) {
 let cpuRng = { random: () => 0.5 };
 function setCpuRng(rng) { cpuRng = rng || cpuRng; }
 
+let CpuPolicyCore = null;
+if (typeof require === 'function') {
+    try { CpuPolicyCore = require('./ai/cpu-policy-core'); } catch (e) { /* ignore */ }
+}
+let CpuPolicyTableRuntime = null;
+if (typeof require === 'function') {
+    try { CpuPolicyTableRuntime = require('./ai/policy-table-runtime'); } catch (e) { /* ignore */ }
+}
+
+function resolvePolicyTableRuntime() {
+    try {
+        if (
+            typeof globalThis !== 'undefined' &&
+            globalThis.CpuPolicyTableRuntime &&
+            (
+                typeof globalThis.CpuPolicyTableRuntime.chooseMove === 'function' ||
+                typeof globalThis.CpuPolicyTableRuntime.getActionScoreForKey === 'function'
+            )
+        ) {
+            CpuPolicyTableRuntime = globalThis.CpuPolicyTableRuntime;
+            return CpuPolicyTableRuntime;
+        }
+    } catch (e) { /* ignore */ }
+    if (
+        CpuPolicyTableRuntime &&
+        (
+            typeof CpuPolicyTableRuntime.chooseMove === 'function' ||
+            typeof CpuPolicyTableRuntime.getActionScoreForKey === 'function'
+        )
+    ) return CpuPolicyTableRuntime;
+    return null;
+}
+
+function resolvePendingType(playerKey) {
+    try {
+        if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getPendingEffectType === 'function') {
+            return CardLogic.getPendingEffectType(cardState, playerKey);
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        return pending && pending.type ? pending.type : null;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function selectMoveFromLearnedPolicy(candidateMoves, playerKey, level) {
+    const runtime = resolvePolicyTableRuntime();
+    if (!runtime || typeof runtime.chooseMove !== 'function') return null;
+    try {
+        return runtime.chooseMove(candidateMoves, {
+            playerKey,
+            level,
+            board: gameState && gameState.board,
+            pendingType: resolvePendingType(playerKey),
+            legalMovesCount: candidateMoves.length
+        });
+    } catch (e) {
+        console.warn('[CPU] policy-table runtime failed, fallback to default policy', e);
+        return null;
+    }
+}
+
+function createLearnedScoreFn(playerKey, level, legalMovesCount) {
+    const runtime = resolvePolicyTableRuntime();
+    if (!runtime || typeof runtime.getActionScore !== 'function') return null;
+    return function scoreMove(move) {
+        try {
+            const s = runtime.getActionScore(move, {
+                playerKey,
+                level,
+                board: gameState && gameState.board,
+                pendingType: resolvePendingType(playerKey),
+                legalMovesCount
+            });
+            return Number.isFinite(s) ? s : 0;
+        } catch (e) {
+            return 0;
+        }
+    };
+}
+
+function selectCardFromLearnedPolicy(playerKey, level, legalMovesCount, usableCardIds) {
+    const runtime = resolvePolicyTableRuntime();
+    if (!runtime || typeof runtime.getActionScoreForKey !== 'function') return null;
+    if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
+
+    let bestCardId = null;
+    let bestScore = -Infinity;
+    for (const cardId of usableCardIds) {
+        const actionKey = `use_card:${cardId}`;
+        let score = null;
+        try {
+            score = runtime.getActionScoreForKey(actionKey, {
+                playerKey,
+                level,
+                board: gameState && gameState.board,
+                pendingType: resolvePendingType(playerKey),
+                legalMovesCount
+            });
+        } catch (e) { score = null; }
+        if (!Number.isFinite(score)) continue;
+        if (score > bestScore) {
+            bestScore = score;
+            bestCardId = cardId;
+        }
+    }
+    if (!bestCardId) return null;
+    const cardDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
+        ? CardLogic.getCardDef(bestCardId)
+        : null;
+    return { cardId: bestCardId, cardDef };
+}
+
+function emitPresentationEventForCpu(ev) {
+    try {
+        if (typeof require === 'function') {
+            const pres = require('./logic/presentation');
+            if (pres && typeof pres.emitPresentationEvent === 'function') {
+                return !!pres.emitPresentationEvent(cardState, ev);
+            }
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof BoardOps !== 'undefined' && BoardOps && typeof BoardOps.emitPresentationEvent === 'function') {
+            BoardOps.emitPresentationEvent(cardState, ev);
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof PresentationHelper !== 'undefined' && PresentationHelper && typeof PresentationHelper.emitPresentationEvent === 'function') {
+            PresentationHelper.emitPresentationEvent(cardState, ev);
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        // Last-resort persistence so PresentationHandler can consume on next BOARD_UPDATED.
+        if (cardState && typeof cardState === 'object') {
+            if (!Array.isArray(cardState._presentationEventsPersist)) {
+                cardState._presentationEventsPersist = [];
+            }
+            cardState._presentationEventsPersist.push(ev);
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function emitCpuSelectionStateChange() {
+    if (typeof emitCardStateChange === 'function') emitCardStateChange();
+    if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+    if (typeof emitGameStateChange === 'function') emitGameStateChange();
+}
+
+function getTargetAwareUsableCardIds(playerKey) {
+    if (typeof CardLogic === 'undefined' || !CardLogic) return [];
+    if (!cardState || !gameState) return [];
+    if (typeof CardLogic.getUsableCardIds === 'function') {
+        try {
+            return CardLogic.getUsableCardIds(cardState, gameState, playerKey) || [];
+        } catch (e) { /* ignore */ }
+    }
+    if (typeof CardLogic.hasUsableCard === 'function' && CardLogic.hasUsableCard(cardState, gameState, playerKey)) {
+        // Fallback when only boolean API is available.
+        const hand = (cardState.hands && cardState.hands[playerKey]) ? cardState.hands[playerKey] : [];
+        return hand.slice();
+    }
+    if (typeof CardLogic.canUseCard === 'function') {
+        const hand = (cardState.hands && cardState.hands[playerKey]) ? cardState.hands[playerKey] : [];
+        return hand.filter((id) => {
+            try { return !!CardLogic.canUseCard(cardState, playerKey, id); } catch (e) { return false; }
+        });
+    }
+    return [];
+}
+
 function selectCardFallback(cardState, gameState, playerKey, level, legalMoves) {
     if (typeof cardState === 'undefined' || !cardState) return null;
-    if (typeof CardLogic === 'undefined' || !CardLogic.canUseCard) return null;
-    const hand = cardState.hands[playerKey] || [];
-    const usable = hand.filter(id => CardLogic.canUseCard(cardState, playerKey, id));
+    if (typeof CardLogic === 'undefined') return null;
+    const usable = getTargetAwareUsableCardIds(playerKey);
     if (!usable.length) return null;
 
-    // レベルに応じた使用確率（高レベルほど高確率でカードを使う）
-    const probs = {1:0.15, 2:0.25, 3:0.35, 4:0.55, 5:0.75, 6:0.9, 7:1.0};
-    const p = probs[level] || 0.2;
-    if (cpuRng.random() > p) return null;
-
-    // 優先するカードタイプ
-    const prefTypes = new Set(['DESTROY_ONE_STONE','INHERIT_WILL','TEMPT_WILL','SWAP_WITH_ENEMY','FREE_PLACEMENT','DOUBLE_PLACE','PLUNDER_WILL','GOLD_STONE','SILVER_STONE']);
-    const pref = usable.filter(id => {
-        const def = (typeof CardLogic.getCardDef === 'function') ? CardLogic.getCardDef(id) : null;
-        return def && prefTypes.has(def.type);
-    });
-
-    const choiceId = (pref.length ? pref[Math.floor(cpuRng.random()*pref.length)] : usable[Math.floor(cpuRng.random()*usable.length)]);
+    if (CpuPolicyCore && typeof CpuPolicyCore.chooseHighestCostCard === 'function') {
+        return CpuPolicyCore.chooseHighestCostCard(usable, CardLogic.getCardCost, CardLogic.getCardDef);
+    }
+    const choiceId = usable[0];
     const cardDef = (typeof CardLogic.getCardDef === 'function') ? CardLogic.getCardDef(choiceId) : null;
     return { cardId: choiceId, cardDef };
 }
@@ -64,6 +230,23 @@ function selectCardToUse(playerKey) {
     const perma = (typeof getFlipBlockers === 'function') ? getFlipBlockers() : [];
     const safeGameState = (typeof gameState !== 'undefined') ? gameState : null;
     const legalMoves = (typeof getLegalMoves === 'function') ? getLegalMoves(safeGameState, protection, perma) : [];
+
+    // Always prefer using an affordable card in the provisional CPU behavior.
+    if (typeof CardLogic !== 'undefined') {
+        const usable = getTargetAwareUsableCardIds(playerKey);
+        if (usable.length) {
+            const learnedChoice = selectCardFromLearnedPolicy(playerKey, level, legalMoves.length, usable);
+            if (learnedChoice) return learnedChoice;
+        }
+        if (usable.length) {
+            if (CpuPolicyCore && typeof CpuPolicyCore.chooseHighestCostCard === 'function') {
+                return CpuPolicyCore.chooseHighestCostCard(usable, CardLogic.getCardCost, CardLogic.getCardDef);
+            }
+            const choiceId = usable[0];
+            const cardDef = (typeof CardLogic.getCardDef === 'function') ? CardLogic.getCardDef(choiceId) : null;
+            return { cardId: choiceId, cardDef };
+        }
+    }
 
     // Try AISystem via safe wrapper
     let cardChoice = null;
@@ -102,6 +285,64 @@ function applyCardChoice(playerKey, cardChoice) {
     }
     const ok = CardLogic.applyCardUsage(cardState, gameState, playerKey, cardId);
     if (!ok) return false;
+    const cardCost = (cardDef && Number.isFinite(cardDef.cost)) ? cardDef.cost : null;
+    const cardName = (cardDef && cardDef.name) ? cardDef.name : null;
+
+    // Normalize CPU card-use visuals through PlaybackEvents so CPU/AUTO and manual use
+    // the same animation path.
+    let emittedCardUsePlayback = false;
+    try {
+        if (
+            typeof CardLogic.flushPresentationEvents === 'function' &&
+            typeof TurnPipelineUIAdapter !== 'undefined' &&
+            TurnPipelineUIAdapter &&
+            typeof TurnPipelineUIAdapter.mapToPlaybackEvents === 'function'
+        ) {
+            const pres = CardLogic.flushPresentationEvents(cardState) || [];
+            const playback = TurnPipelineUIAdapter.mapToPlaybackEvents(pres, cardState, gameState) || [];
+            if (playback.length > 0) {
+                emitPresentationEventForCpu({ type: 'PLAYBACK_EVENTS', events: playback, meta: { source: 'cpu_card_use' } });
+                emittedCardUsePlayback = true;
+            } else {
+                for (const ev of pres) emitPresentationEventForCpu(ev);
+            }
+        }
+    } catch (e) {
+        // Keep game flow even if animation conversion fails.
+    }
+    if (!emittedCardUsePlayback) {
+        emitPresentationEventForCpu({
+            type: 'PLAYBACK_EVENTS',
+            events: [{
+                type: 'card_use_animation',
+                phase: 1,
+                targets: [{
+                    player: playerKey,
+                    owner: playerKey,
+                    cardId: cardId,
+                    cost: cardCost,
+                    name: cardName
+                }]
+            }],
+            meta: { source: 'cpu_card_use_fallback' }
+        });
+    }
+
+    // Browser safety fallback: if playback wiring misses in this build/order, play once directly.
+    // Duplicate calls are suppressed in playCardUseHandAnimation via timestamp guard.
+    try {
+        if (typeof globalThis !== 'undefined' && typeof globalThis.playCardUseHandAnimation === 'function') {
+            if (globalThis.VisualPlaybackActive !== true) {
+                globalThis.playCardUseHandAnimation({
+                    player: playerKey,
+                    owner: playerKey,
+                    cardId: cardId,
+                    cost: cardCost,
+                    name: cardName
+                }).catch(() => {});
+            }
+        }
+    } catch (e) { /* ignore */ }
 
     const level = cpuSmartness[playerKey] || 1;
     console.log(`[CPU] Lv${level} ${playerKey}: カード使用 - ${cardDef ? cardDef.name : cardId}`);
@@ -111,12 +352,6 @@ function applyCardChoice(playerKey, cardChoice) {
 
     if (typeof emitCardStateChange === 'function') emitCardStateChange();
     if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-
-    if (typeof isCardAnimating !== 'undefined') {
-        // Keep existing contract: briefly toggle to signal animation-driven UI if needed
-        isCardAnimating = true;
-        isCardAnimating = false;
-    }
 
     return true;
 }
@@ -140,9 +375,8 @@ function cpuMaybeUseCardWithPolicy(playerKey) {
     if (applyCardChoice(playerKey, cardChoice)) return true;
 
     // Try other usable cards as fallback (preserve original retry behavior)
-    if (typeof CardLogic !== 'undefined' && CardLogic.canUseCard) {
-        const hand = cardState.hands[playerKey] || [];
-        const usable = hand.filter(id => CardLogic.canUseCard(cardState, playerKey, id));
+    if (typeof CardLogic !== 'undefined') {
+        const usable = getTargetAwareUsableCardIds(playerKey);
         for (const id of usable) {
             if (id === (cardChoice && cardChoice.cardId)) continue;
             const def = CardLogic.getCardDef ? CardLogic.getCardDef(id) : null;
@@ -161,16 +395,39 @@ function cpuMaybeUseCardWithPolicy(playerKey) {
  * @returns {Object} 選択された手
  */
 function selectCpuMoveWithPolicy(candidateMoves, playerKey) {
-    if (!isAISystemAvailable() || typeof AISystem.selectMove !== 'function') {
-        // フォールバック: ランダム (injectable via setCpuRng)
-        console.warn('[CPU] AISystem not available, using random');
-        return candidateMoves[Math.floor(cpuRng.random() * candidateMoves.length)];
-    }
-
     const level = cpuSmartness[playerKey] || 1;
+
     // 人間プレイヤーの場合はエラー（このコードは呼ばれてはいけない）
     if (level < 0) {
         console.error(`[CPU] selectCpuMoveWithPolicy called for human player ${playerKey}, returning random move`);
+        return candidateMoves[Math.floor(cpuRng.random() * candidateMoves.length)];
+    }
+
+    const aiSelector = isAISystemAvailable() && typeof AISystem.selectMove === 'function'
+        ? (moves, lv) => AISystem.selectMove(gameState, cardState, moves, lv, null)
+        : null;
+
+    const learnedMove = (level >= 6) ? selectMoveFromLearnedPolicy(candidateMoves, playerKey, level) : null;
+    if (learnedMove) {
+        console.log(`[CPU] Lv${level} ${playerKey}: 学習選択 (${learnedMove.row}, ${learnedMove.col}) - 反転${learnedMove.flips.length}枚`);
+        return learnedMove;
+    }
+    const learnedScoreFn = createLearnedScoreFn(playerKey, level, candidateMoves.length);
+
+    if (CpuPolicyCore && typeof CpuPolicyCore.chooseMove === 'function') {
+        const selected = CpuPolicyCore.chooseMove(candidateMoves, level, cpuRng, aiSelector, {
+            enableHeuristic: level >= 3,
+            scoreMove: learnedScoreFn
+        });
+        if (selected) {
+            console.log(`[CPU] Lv${level} ${playerKey}: 選択 (${selected.row}, ${selected.col}) - 反転${selected.flips.length}枚`);
+            return selected;
+        }
+    }
+
+    if (!isAISystemAvailable() || typeof AISystem.selectMove !== 'function') {
+        // フォールバック: ランダム (injectable via setCpuRng)
+        console.warn('[CPU] AISystem not available, using random');
         return candidateMoves[Math.floor(cpuRng.random() * candidateMoves.length)];
     }
     try {
@@ -235,9 +492,115 @@ async function cpuSelectDestroyWithPolicy(playerKey) {
 
     console.log(`[CPU] Lv${level} ${playerKey}: 破壊ターゲット (${target.row}, ${target.col})`);
 
-    // 破壊実行
+    // CPU must bypass UI lock-based handlers and apply effect directly.
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyDestroyEffect === 'function') {
+        const applied = !!CardLogic.applyDestroyEffect(cardState, gameState, playerKey, target.row, target.col);
+        if (!applied) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+        emitCpuSelectionStateChange();
+        return;
+    }
+    // Fallback for legacy environments.
     if (typeof handleDestroySelection === 'function') {
-        handleDestroySelection(target.row, target.col, playerKey);
+        await handleDestroySelection(target.row, target.col, playerKey);
+    }
+}
+
+/**
+ * 強風の意志 対象選択
+ * @param {string} playerKey - 'black' または 'white'
+ */
+async function cpuSelectStrongWindWillWithPolicy(playerKey) {
+    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
+        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+        : [];
+
+    if (!targets.length) {
+        console.log(`[CPU] ${playerKey}: 強風対象なし`);
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return;
+    }
+
+    const target = targets[Math.floor(cpuRng.random() * targets.length)];
+    console.log(`[CPU] ${playerKey}: 強風ターゲット (${target.row}, ${target.col})`);
+
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyStrongWindWill === 'function') {
+        const res = CardLogic.applyStrongWindWill(cardState, gameState, playerKey, target.row, target.col, cpuRng);
+        if (!res || !res.applied) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+        emitCpuSelectionStateChange();
+        return;
+    }
+}
+
+/**
+ * 生贄の意志 対象選択
+ * @param {string} playerKey - 'black' または 'white'
+ */
+async function cpuSelectSacrificeWillWithPolicy(playerKey) {
+    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
+        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+        : [];
+
+    if (!targets.length) {
+        console.log(`[CPU] ${playerKey}: 生贄対象なし`);
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return;
+    }
+
+    const target = targets[Math.floor(cpuRng.random() * targets.length)];
+    console.log(`[CPU] ${playerKey}: 生贄ターゲット (${target.row}, ${target.col})`);
+
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySacrificeWill === 'function') {
+        const res = CardLogic.applySacrificeWill(cardState, gameState, playerKey, target.row, target.col);
+        if (!res || !res.applied) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+        emitCpuSelectionStateChange();
+        return;
+    }
+
+    if (typeof handleSacrificeSelection === 'function') {
+        await handleSacrificeSelection(target.row, target.col, playerKey);
+    }
+}
+
+/**
+ * 売却の意志 対象選択
+ * @param {string} playerKey - 'black' または 'white'
+ */
+async function cpuSelectSellCardWillWithPolicy(playerKey) {
+    const hand = (cardState && cardState.hands && Array.isArray(cardState.hands[playerKey]))
+        ? cardState.hands[playerKey].slice()
+        : [];
+    if (!hand.length) {
+        console.log(`[CPU] ${playerKey}: 売却対象なし`);
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return;
+    }
+
+    let targetCardId = hand[0];
+    let bestCost = -Infinity;
+    for (const cardId of hand) {
+        const cost = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardCost === 'function')
+            ? (CardLogic.getCardCost(cardId) || 0)
+            : 0;
+        if (cost > bestCost) {
+            bestCost = cost;
+            targetCardId = cardId;
+        }
+    }
+    console.log(`[CPU] ${playerKey}: 売却カード ${targetCardId} (cost=${bestCost})`);
+
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySellCardWill === 'function') {
+        const res = CardLogic.applySellCardWill(cardState, playerKey, targetCardId);
+        if (!res || !res.applied) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+        emitCpuSelectionStateChange();
+        return;
     }
 }
 
@@ -259,8 +622,17 @@ async function cpuSelectInheritWillWithPolicy(playerKey) {
     const target = targets[Math.floor(cpuRng.random() * targets.length)];
     console.log(`[CPU] ${playerKey}: 継承ターゲット (${target.row}, ${target.col})`);
 
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyInheritWill === 'function') {
+        const res = CardLogic.applyInheritWill(cardState, gameState, playerKey, target.row, target.col);
+        if (!res || !res.applied) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+        emitCpuSelectionStateChange();
+        return;
+    }
+
     if (typeof handleInheritSelection === 'function') {
-        handleInheritSelection(target.row, target.col, playerKey);
+        await handleInheritSelection(target.row, target.col, playerKey);
     }
 }
 
@@ -282,8 +654,17 @@ async function cpuSelectSwapWithEnemyWithPolicy(playerKey) {
     const target = targets[Math.floor(cpuRng.random() * targets.length)];
     console.log(`[CPU] ${playerKey}: 交換ターゲット (${target.row}, ${target.col})`);
 
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySwapEffect === 'function') {
+        const applied = !!CardLogic.applySwapEffect(cardState, gameState, playerKey, target.row, target.col);
+        if (!applied) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+        emitCpuSelectionStateChange();
+        return;
+    }
+
     if (typeof handleSwapSelection === 'function') {
-        handleSwapSelection(target.row, target.col, playerKey);
+        await handleSwapSelection(target.row, target.col, playerKey);
     }
 }
 
@@ -305,8 +686,17 @@ async function cpuSelectTemptWillWithPolicy(playerKey) {
     const target = targets[Math.floor(cpuRng.random() * targets.length)];
     console.log(`[CPU] ${playerKey}: 誘惑ターゲット (${target.row}, ${target.col})`);
 
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyTemptWill === 'function') {
+        const res = CardLogic.applyTemptWill(cardState, gameState, playerKey, target.row, target.col);
+        if (!res || !res.applied) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+        emitCpuSelectionStateChange();
+        return;
+    }
+
     if (typeof handleTemptSelection === 'function') {
-        handleTemptSelection(target.row, target.col, playerKey);
+        await handleTemptSelection(target.row, target.col, playerKey);
     }
 }
 
@@ -350,6 +740,8 @@ if (typeof module !== 'undefined' && module.exports) {
         applyCardChoice,
         selectCpuMoveWithPolicy,
         cpuSelectDestroyWithPolicy,
+        cpuSelectSacrificeWillWithPolicy,
+        cpuSelectSellCardWillWithPolicy,
         cpuSelectInheritWithPolicy: cpuSelectInheritWillWithPolicy,
         cpuSelectSwapWithEnemyWithPolicy,
         cpuSelectTemptWillWithPolicy,

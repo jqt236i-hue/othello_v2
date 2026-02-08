@@ -35,6 +35,7 @@ async function executeDestroy(row, col, playerKey) {
     if (isProcessing || isCardAnimating) return;
     isProcessing = true;
     isCardAnimating = true;
+    let shouldCheckAutoPass = false;
 
     try {
         if (typeof clearSpecialAt === 'function') clearSpecialAt(row, col);
@@ -77,10 +78,14 @@ async function executeDestroy(row, col, playerKey) {
         if (typeof emitCardStateChange === 'function') emitCardStateChange();
         if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
         if (typeof emitGameStateChange === 'function') emitGameStateChange();
+        shouldCheckAutoPass = true;
 
     } finally {
         isProcessing = false;
         isCardAnimating = false;
+        if (shouldCheckAutoPass && typeof ensureCurrentPlayerCanActOrPass === 'function') {
+            try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
+        }
     }
 }
 

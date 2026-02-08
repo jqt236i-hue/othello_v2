@@ -1,7 +1,7 @@
 /**
  * @file pipeline_ui_adapter.js
  * @description Bridge TurnPipeline event log -> browser UI via Canonical Playback Events.
- * alings with 03-visual-rulebook.v2.txt.
+ * aligns with 03-visual-rulebook.v2.txt.
  */
 
 (function (root, factory) {
@@ -25,6 +25,32 @@
         return globalScope.MarkersAdapter || null;
     })();
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
+    const REGEN_CAUSE = 'REGEN';
+    const REGEN_TRIGGER_REASON = 'regen_triggered';
+    const REGEN_CONSUMED_REASON = 'regen_consumed';
+    const BATCH_DESTROY_CAUSES = new Set(['TIME_BOMB', 'ULTIMATE_DESTROY_GOD', 'CROSS_BOMB']);
+
+    function isRegenTriggeredChange(ev) {
+        return !!(ev && ev.cause === REGEN_CAUSE && ev.reason === REGEN_TRIGGER_REASON);
+    }
+
+    function isRegenConsumedStatus(ev) {
+        return !!(ev && ev.meta && ev.meta.special === REGEN_CAUSE && ev.meta.reason === REGEN_CONSUMED_REASON);
+    }
+
+    function isRegenFlipStep(target, eventMeta) {
+        if (!target) return false;
+        const isPrimaryFlipOnRegenStone = target.reason === 'standard_flip' && eventMeta && eventMeta.special === REGEN_CAUSE;
+        const isRegenBackFlip = target.cause === REGEN_CAUSE && target.reason === REGEN_TRIGGER_REASON;
+        return !!(isPrimaryFlipOnRegenStone || isRegenBackFlip);
+    }
+
+    function isChainFlipPresentationEvent(ev) {
+        if (!ev) return false;
+        const reason = String(ev.reason || '').toLowerCase();
+        const cause = String(ev.cause || '').toUpperCase();
+        return reason === 'chain_flip' || cause === 'CHAIN_WILL';
+    }
 
     /**
      * Helper to get visual state of a cell from game/card state.
@@ -71,12 +97,15 @@
     function mapToPlaybackEvents(presEvents, finalCardState, finalGameState) {
         const playbackEvents = [];
         let currentPhase = 1;
+        let prevWasChainFlip = false;
+        let prevDestroyCause = null;
 
         for (const ev of presEvents || []) {
             const pEvent = {
                 type: null,
                 phase: currentPhase,
                 targets: [],
+                meta: ev.meta || null,
                 rawType: ev.type,
                 actionId: ev.actionId || null,
                 turnIndex: (typeof ev.turnIndex === 'number') ? ev.turnIndex : (finalCardState && typeof finalCardState.turnIndex === 'number' ? finalCardState.turnIndex : 0),
@@ -85,55 +114,139 @@
 
             switch (ev.type) {
                 case 'SPAWN':
+                    prevWasChainFlip = false;
+                    prevDestroyCause = null;
                     pEvent.type = 'spawn';
-                    pEvent.targets = [{ r: ev.row, col: ev.col, stoneId: ev.stoneId, ownerAfter: ev.ownerAfter }];
+                    pEvent.targets = [{
+                        r: ev.row,
+                        col: ev.col,
+                        stoneId: ev.stoneId,
+                        ownerAfter: ev.ownerAfter,
+                        cause: ev.cause || null,
+                        reason: ev.reason || null
+                    }];
                     break;
                 case 'DESTROY':
+                    prevWasChainFlip = false;
                     pEvent.type = 'destroy';
                     pEvent.targets = [{ r: ev.row, col: ev.col, stoneId: ev.stoneId, ownerBefore: ev.ownerBefore }];
-                    currentPhase++;
-                    pEvent.phase = currentPhase;
+                    // For area-destroy effects, keep all destroys in the same phase so UI can animate simultaneously.
+                    const destroyCause = String(ev.cause || '');
+                    if (BATCH_DESTROY_CAUSES.has(destroyCause)) {
+                        if (prevDestroyCause !== destroyCause) {
+                            currentPhase++;
+                        }
+                        pEvent.phase = currentPhase;
+                    } else {
+                        currentPhase++;
+                        pEvent.phase = currentPhase;
+                    }
+                    prevDestroyCause = destroyCause;
                     break;
                 case 'CHANGE':
+                    prevDestroyCause = null;
                     // Map CHANGE -> flip to match UI AnimationEngine expectations (Spec B)
                     pEvent.type = 'flip';
-                    pEvent.targets = [{ r: ev.row, col: ev.col, ownerBefore: ev.ownerBefore, ownerAfter: ev.ownerAfter }];
+                    pEvent.targets = [{
+                        r: ev.row,
+                        col: ev.col,
+                        ownerBefore: ev.ownerBefore,
+                        ownerAfter: ev.ownerAfter,
+                        cause: ev.cause || null,
+                        reason: ev.reason || null
+                    }];
+                    if (isChainFlipPresentationEvent(ev) && !prevWasChainFlip) {
+                        // 7.1 CHAIN_WILL: primary flips (batch) -> gap -> chain flips (batch)
+                        currentPhase++;
+                        pEvent.phase = currentPhase;
+                    }
+                    if (isRegenTriggeredChange(ev)) {
+                        // Keep "normal flip -> regen back" readable by separating phases.
+                        // Without this, both flips can be batched together for the same cell.
+                        currentPhase++;
+                        pEvent.phase = currentPhase;
+                    }
+                    prevWasChainFlip = isChainFlipPresentationEvent(ev);
                     break;
                 case 'MOVE':
+                    prevWasChainFlip = false;
+                    prevDestroyCause = null;
                     pEvent.type = 'move';
-                    pEvent.targets = [{ from: { r: ev.prevRow, c: ev.prevCol }, to: { r: ev.row, c: ev.col }, stoneId: ev.stoneId }];
+                    pEvent.targets = [{ from: { r: ev.prevRow, col: ev.prevCol }, to: { r: ev.row, col: ev.col }, stoneId: ev.stoneId }];
                     currentPhase++;
                     pEvent.phase = currentPhase;
                     break;
                 case 'STATUS_APPLIED':
+                    prevWasChainFlip = false;
+                    prevDestroyCause = null;
                     pEvent.type = 'status_applied';
                     pEvent.targets = [{ r: ev.row, col: ev.col }];
                     break;
                 case 'STATUS_TICK':
+                    prevWasChainFlip = false;
+                    prevDestroyCause = null;
                     pEvent.type = 'status_applied';
                     pEvent.targets = [{ r: ev.row, col: ev.col }];
                     break;
                 case 'STATUS_REMOVED':
+                    prevWasChainFlip = false;
+                    prevDestroyCause = null;
                     pEvent.type = 'status_removed';
                     pEvent.targets = [{ r: ev.row, col: ev.col }];
+                    if (isRegenConsumedStatus(ev)) {
+                        currentPhase++;
+                        pEvent.phase = currentPhase;
+                    }
+                    break;
+                case 'DRAW_CARD':
+                    prevWasChainFlip = false;
+                    prevDestroyCause = null;
+                    pEvent.type = 'hand_add';
+                    pEvent.targets = [{
+                        player: ev.player || null,
+                        cardId: ev.cardId || null,
+                        count: Number.isFinite(ev.count) ? ev.count : 1
+                    }];
+                    // Draw animation should run as its own readable step.
+                    currentPhase++;
+                    pEvent.phase = currentPhase;
+                    break;
+                case 'CARD_USED':
+                    prevWasChainFlip = false;
+                    prevDestroyCause = null;
+                    pEvent.type = 'card_use_animation';
+                    pEvent.targets = [{
+                        player: ev.player || null,
+                        owner: (ev.meta && ev.meta.owner) ? ev.meta.owner : (ev.player || null),
+                        cardId: ev.cardId || null,
+                        cost: (ev.meta && Number.isFinite(ev.meta.cost)) ? ev.meta.cost : null,
+                        name: (ev.meta && ev.meta.name) ? ev.meta.name : null
+                    }];
+                    // Card-use transport is also a readable step.
+                    currentPhase++;
+                    pEvent.phase = currentPhase;
                     break;
                 default:
                     // Unknown presentation event -> log
                     pEvent.type = 'log';
                     pEvent.message = `PresentationEvent: ${ev.type}`;
+                    prevWasChainFlip = false;
+                    prevDestroyCause = null;
             }
 
             // NOTE: Do not populate 'after' using a final snapshot. Adapter is a thin transform.
             // Instead, include minimal per-target 'after' info derived from the presentation event itself
             // so that visual writers can render based on event payload without requiring snapshots.
-            if (pEvent.type !== 'log') {
+            if (pEvent.type !== 'log' && pEvent.type !== 'card_use_animation') {
                 for (const t of pEvent.targets) {
                     // Add a best-effort 'after' using event-sourced owner fields (no final snapshot)
                     if (t.ownerAfter !== undefined) {
+                        const regenFlipStep = isRegenFlipStep(t, ev.meta);
                         t.after = {
                             color: (t.ownerAfter === 'black') ? 1 : -1,
-                            special: (ev.meta && ev.meta.special) || null,
-                            timer: (ev.meta && ev.meta.timer) || null,
+                            // For regen flow, show as normal stone between/after flips for readability.
+                            special: regenFlipStep ? null : ((ev.meta && ev.meta.special) || null),
+                            timer: regenFlipStep ? null : ((ev.meta && ev.meta.timer) || null),
                             owner: (ev.meta && ev.meta.owner) || null
                         };
                     } else if (pEvent.type === 'spawn') {

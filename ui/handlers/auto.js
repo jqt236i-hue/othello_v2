@@ -55,7 +55,12 @@ function _uiAutoTick() {
         }
 
         if (typeof gameState !== 'undefined' && gameState && gameState.currentPlayer === BLACK) {
-            if (!isProcessing && !isCardAnimating && !(typeof window !== 'undefined' && window.VisualPlaybackActive === true)) {
+            const winBusy = (typeof window !== 'undefined') && (
+                window.VisualPlaybackActive === true ||
+                window.isCardAnimating === true ||
+                window.isProcessing === true
+            );
+            if (!isProcessing && !isCardAnimating && !winBusy) {
                 if (typeof processAutoBlackTurn === 'function') processAutoBlackTurn();
             }
         }

@@ -47,6 +47,7 @@
         const regened = [];
         const captureFlips = [];
         if (!flips || !flips.length) return { regened, captureFlips };
+        const consumedRegenKeys = new Set();
 
         const getCardContext = deps.getCardContext || (() => ({ protectedStones: (cardState.markers ? cardState.markers.filter(m => m.kind === 'specialStone' && m.data && m.data.type === 'PROTECTED').map(m => ({ row: m.row, col: m.col })) : []), permaProtectedStones: (cardState.markers ? cardState.markers.filter(m => m.kind === 'specialStone' && m.data && (m.data.type === 'PERMA_PROTECTED' || m.data.type === 'DRAGON' || m.data.type === 'BREEDING' || m.data.type === 'ULTIMATE_DESTROY_GOD')).map(m => ({ row: m.row, col: m.col })) : []) }));
         const clearBombAt = deps.clearBombAt || ((cs, r, c) => { if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'bomb' && m.row === r && m.col === c)); });
@@ -108,6 +109,43 @@
                         }
                         clearBombAt(cardState, p.row, p.col);
                         captureFlips.push(p);
+                    }
+                }
+            }
+
+            // REGEN is one-time use. Remove marker immediately and emit a status-removed event
+            // so UI can run "regen visual -> normal stone" transition right after regen sequence.
+            if ((regen.data.regenRemaining || 0) <= 0) {
+                const k = `${pos.row},${pos.col}`;
+                if (!consumedRegenKeys.has(k)) {
+                    consumedRegenKeys.add(k);
+
+                    if (typeof deps.removeMarkersAt === 'function') {
+                        deps.removeMarkersAt(cardState, pos.row, pos.col, {
+                            kind: 'specialStone',
+                            type: 'REGEN',
+                            owner: regen.owner
+                        });
+                    } else if (Array.isArray(cardState.markers)) {
+                        cardState.markers = cardState.markers.filter(m => !(
+                            m &&
+                            m.kind === 'specialStone' &&
+                            m.row === pos.row &&
+                            m.col === pos.col &&
+                            m.data &&
+                            m.data.type === 'REGEN'
+                        ));
+                    }
+
+                    if (deps.BoardOps && typeof deps.BoardOps.emitPresentationEvent === 'function') {
+                        deps.BoardOps.emitPresentationEvent(cardState, {
+                            type: 'STATUS_REMOVED',
+                            row: pos.row,
+                            col: pos.col,
+                            cause: 'REGEN',
+                            reason: 'regen_consumed',
+                            meta: { special: 'REGEN', reason: 'regen_consumed' }
+                        });
                     }
                 }
             }

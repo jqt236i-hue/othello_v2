@@ -55,6 +55,20 @@
         return res;
     }
 
+    // Return sacrifice targets: own stones (normal/special both allowed)
+    function getSacrificeTargets(cardState, gameState, playerKey) {
+        const res = [];
+        const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (gameState.board[r][c] === playerVal) {
+                    res.push({ row: r, col: c });
+                }
+            }
+        }
+        return res;
+    }
+
     // Return inherit targets: normal stones for player (uses CardUtils if available)
     function getInheritTargets(cardState, gameState, playerKey) {
         if (CardUtils && typeof CardUtils.isNormalStoneForPlayer === 'function') {
@@ -83,9 +97,55 @@
         return res;
     }
 
+    function _getStrongWindDirectionDestination(gameState, row, col, dr, dc) {
+        const nr = row + dr;
+        const nc = col + dc;
+        if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) return null;
+        if (gameState.board[nr][nc] !== EMPTY) return null;
+
+        let tr = nr;
+        let tc = nc;
+        while (true) {
+            const rr = tr + dr;
+            const cc = tc + dc;
+            if (rr < 0 || rr >= 8 || cc < 0 || cc >= 8) break;
+            if (gameState.board[rr][cc] !== EMPTY) break;
+            tr = rr;
+            tc = cc;
+        }
+        return { row: tr, col: tc };
+    }
+
+    // Return strong-wind targets: any non-empty stone that has at least one movable orthogonal direction.
+    function getStrongWindTargets(cardState, gameState) {
+        const dirs = [
+            { dr: -1, dc: 0 },
+            { dr: 1, dc: 0 },
+            { dr: 0, dc: -1 },
+            { dr: 0, dc: 1 }
+        ];
+        const res = [];
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (gameState.board[r][c] === EMPTY) continue;
+                let movable = false;
+                for (const d of dirs) {
+                    if (_getStrongWindDirectionDestination(gameState, r, c, d.dr, d.dc)) {
+                        movable = true;
+                        break;
+                    }
+                }
+                if (movable) res.push({ row: r, col: c });
+            }
+        }
+        return res;
+    }
+
     return {
         getDestroyTargets,
         getSwapTargets,
-        getInheritTargets
+        getInheritTargets,
+        getSacrificeTargets,
+        getStrongWindTargets
     };
 }));

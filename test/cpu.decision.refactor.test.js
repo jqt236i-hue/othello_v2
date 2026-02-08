@@ -14,6 +14,7 @@ describe('cpu decision refactor helpers', () => {
     global.emitCardStateChange = jest.fn();
     global.emitBoardUpdate = jest.fn();
     global.emitLogAdded = jest.fn();
+    delete global.CpuPolicyTableRuntime;
   });
 
   test('selectCardToUse returns AISystem suggestion when present', () => {
@@ -52,6 +53,21 @@ describe('cpu decision refactor helpers', () => {
     expect(res.cardId).toBeDefined();
   });
 
+  test('selectCardToUse prefers learned use_card action when score exists', () => {
+    global.cardState.hands.white = ['c_low', 'c_high'];
+    global.CardLogic = {
+      canUseCard: () => true,
+      getCardDef: (id) => ({ name: id })
+    };
+    global.CpuPolicyTableRuntime = {
+      getActionScoreForKey: jest.fn((key) => (key === 'use_card:c_high' ? 9999 : null))
+    };
+
+    const res = cpuDecision.selectCardToUse('white');
+    expect(res).toBeDefined();
+    expect(res.cardId).toBe('c_high');
+  });
+
   test('selectCpuMoveWithPolicy falls back to random when AISystem.selectMove throws', () => {
     // deterministic random to pick first candidate
     cpuDecision.setCpuRng({ random: () => 0.0 });
@@ -62,6 +78,19 @@ describe('cpu decision refactor helpers', () => {
     expect(move).toBeDefined();
     // With rng=0.0, random-based fallback returns index 0
     expect(move.row).toBe(0);
+  });
+
+  test('selectCpuMoveWithPolicy prefers policy-table runtime move when available', () => {
+    const candidates = [{ row: 0, col: 0, flips: [] }, { row: 1, col: 1, flips: [] }];
+    global.gameState = { board: [[0, 0], [0, 0]] };
+    global.cpuSmartness.white = 6;
+    global.CpuPolicyTableRuntime = {
+      chooseMove: jest.fn(() => candidates[1])
+    };
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+    expect(move).toBe(candidates[1]);
+    expect(global.CpuPolicyTableRuntime.chooseMove).toHaveBeenCalled();
   });
 
   test('applyCardChoice applies via CardLogic and triggers UI update hooks', () => {

@@ -67,6 +67,7 @@
                 <div id="card-detail-name">-</div>
                 <div id="card-detail-desc">カードを選択してください</div>
                 <button id="use-card-btn" disabled>使用</button>
+                <button id="pass-btn" disabled>パス</button>
                 <button id="cancel-card-btn" style="display:none;" onclick="cancelPendingDestroy()">キャンセル</button>
                 <div id="use-card-reason"></div>
             </div>
@@ -164,7 +165,7 @@
                     d="M80,300 C90,260 110,230 130,220 C150,210 170,200 180,180 C190,160 180,140 165,145 C150,150 130,170 110,200 L100,220"
                     fill="url(#skinGradient)" filter="url(#dropShadow)" />
             </svg>
-            <div id="heldStone" class="disc black"></div>
+            <div id="heldStone" class="held-stone black"></div>
         </div>
     </div>
 
@@ -213,6 +214,7 @@
             try {
                 var qs = (typeof location !== 'undefined' && location.search) ? location.search : '';
                 var enableDebug = /[?&]debug=1/.test(qs) || /[?&]debug=true/.test(qs);
+                if (typeof window !== 'undefined') window.DEBUG_MODE_ALLOWED = enableDebug;
                 if (!enableDebug) return;
                 var s = document.createElement('script');
                 s.src = 'game/debug/debug-actions.js';
@@ -288,6 +290,8 @@
     <script src="game/card-effects/helpers.js"></script>
     <script src="game/card-effects/placement.js"></script>
     <script src="game/card-effects/destroy.js"></script>
+    <script src="game/card-effects/sacrifice.js"></script>
+    <script src="game/card-effects/strong-wind.js"></script>
     <script src="game/card-effects/inherit.js"></script>
     <script src="game/card-effects/tempt.js"></script>
     <script src="game/card-effects/swap.js"></script>
@@ -295,6 +299,7 @@
     <!-- CPU Decision Modules (依存関係順: policy → evaluator → decision) -->
     <!-- Ensure AISystem is loaded before CPU decision logic -->
     <script src="game/ai/level-system.js"></script>
+    <script src="game/ai/policy-table-runtime.js"></script>
     <script src="game/cpu-decision.js"></script>
     <script src="game/pass-handler.js"></script>
     <script src="game/move-executor.js"></script>

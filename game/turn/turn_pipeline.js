@@ -24,7 +24,7 @@
 
     /**
      * Apply a single action within a turn, following a fixed turn pipeline.
-     * - action: { type: 'place' | 'pass' | 'use_card' | 'cancel_card', row?, col?, useCardId?, useCardOwnerKey?, debugOptions?, cancelOptions?, destroyTarget?: {row:number,col:number}, temptTarget?, inheritTarget? }
+     * - action: { type: 'place' | 'pass' | 'use_card' | 'cancel_card', row?, col?, useCardId?, useCardOwnerKey?, debugOptions?, cancelOptions?, destroyTarget?: {row:number,col:number}, strongWindTarget?: {row:number,col:number}, sacrificeTarget?: {row:number,col:number}, sellCardId?: string, temptTarget?, inheritTarget? }
      * - If useCardId is provided it will be applied before placement (consuming charge/hand)
      * Returns { gameState, cardState, events }
      *

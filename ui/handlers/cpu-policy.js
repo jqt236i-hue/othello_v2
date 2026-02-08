@@ -61,7 +61,52 @@ async function loadCpuPolicy() {
     }
 }
 
+/**
+ * Policy-table model loading for browser CPU runtime.
+ * Fails safely: CPU falls back to default policy logic.
+ */
+async function initPolicyTableModel() {
+    let runtime = null;
+    try {
+        if (typeof window !== 'undefined' && window.CpuPolicyTableRuntime) {
+            runtime = window.CpuPolicyTableRuntime;
+        }
+    } catch (e) { /* ignore */ }
+    if (!runtime || typeof runtime.loadFromUrl !== 'function') return;
+
+    try {
+        // Keep defaults explicit so behavior is easy to track.
+        if (typeof runtime.configure === 'function') {
+            runtime.configure({
+                enabled: true,
+                minLevel: 4,
+                sourceUrl: 'data/models/policy-table.json'
+            });
+        }
+        const ok = await runtime.loadFromUrl('data/models/policy-table.json');
+        if (ok) {
+            const status = (typeof runtime.getStatus === 'function') ? runtime.getStatus() : null;
+            const statesCount = status && Number.isFinite(status.statesCount) ? status.statesCount : '?';
+            console.log(`[CPU] policy-table loaded (states=${statesCount})`);
+        } else if (_isDebugEnabled()) {
+            const status = (typeof runtime.getStatus === 'function') ? runtime.getStatus() : null;
+            console.warn('[CPU] policy-table not loaded', status && status.lastError ? status.lastError : '');
+        }
+    } catch (err) {
+        if (_isDebugEnabled()) console.warn('[CPU] policy-table loading failed', err);
+    }
+}
+
 if (typeof window !== 'undefined') {
     window.initLvMaxModels = initLvMaxModels;
     window.loadCpuPolicy = loadCpuPolicy;
+    window.initPolicyTableModel = initPolicyTableModel;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        initLvMaxModels,
+        loadCpuPolicy,
+        initPolicyTableModel
+    };
 }

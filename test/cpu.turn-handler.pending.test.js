@@ -36,6 +36,36 @@ describe('cpu turn handler pending selection', () => {
     expect(mock).toHaveBeenCalledWith('white');
   });
 
+  test('SACRIFICE_WILL invokes cpuSelectSacrificeWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectSacrificeWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'SACRIFICE_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('STRONG_WIND_WILL invokes cpuSelectStrongWindWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectStrongWindWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'STRONG_WIND_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('SELL_CARD_WILL invokes cpuSelectSellCardWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectSellCardWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'SELL_CARD_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
   test('SWAP_WITH_ENEMY invokes cpuSelectSwapWithEnemyWithPolicy when available', async () => {
     const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
     global.cpuSelectSwapWithEnemyWithPolicy = mock;

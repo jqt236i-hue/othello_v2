@@ -103,8 +103,63 @@
         return { exploded, destroyed };
     }
 
+    function tickBombAt(cardState, gameState, bomb, activeKey, deps = {}) {
+        if (!bomb) return { exploded: [], destroyed: [], removed: false };
+
+        const destroyAt = deps.destroyAt || ((cs, gs, r, c) => {
+            if (gs.board[r][c] === 0) return false;
+            if (cs.markers) cs.markers = cs.markers.filter(m => !(m.row === r && m.col === c));
+            gs.board[r][c] = 0;
+            return true;
+        });
+
+        const bombs = (cardState.markers || []).filter(m => m.kind === 'bomb');
+        const idx = bombs.findIndex(b =>
+            (bomb.id !== undefined && b.id === bomb.id) ||
+            (b.row === bomb.row && b.col === bomb.col && b.owner === bomb.owner && b.createdSeq === bomb.createdSeq)
+        );
+        if (idx === -1) return { exploded: [], destroyed: [], removed: false };
+
+        const b = bombs[idx];
+        if (activeKey && b.owner !== activeKey) return { exploded: [], destroyed: [], removed: false };
+        if (b.data && b.data.placedTurn === cardState.turnIndex) return { exploded: [], destroyed: [], removed: false };
+
+        if (!b.data) b.data = {};
+        b.data.remainingTurns = (typeof b.data.remainingTurns === 'number') ? b.data.remainingTurns - 1 : -1;
+        if (b.data.remainingTurns > 0) return { exploded: [], destroyed: [], removed: false };
+
+        const exploded = [{ row: b.row, col: b.col }];
+        const destroyed = [];
+        for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+                const r = b.row + dr;
+                const c = b.col + dc;
+                if (r < 0 || r >= 8 || c < 0 || c >= 8) continue;
+
+                let destroyedRes = false;
+                if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
+                    const res = deps.BoardOps.destroyAt(cardState, gameState, r, c, 'TIME_BOMB', 'bomb_explosion');
+                    destroyedRes = !!(res && res.destroyed);
+                } else {
+                    destroyedRes = destroyAt(cardState, gameState, r, c);
+                }
+                if (destroyedRes) destroyed.push({ row: r, col: c });
+            }
+        }
+
+        if (b.id !== undefined) {
+            cardState.markers = (cardState.markers || []).filter(m => m.id !== b.id);
+        } else {
+            cardState.markers = (cardState.markers || []).filter(m =>
+                !(m.kind === 'bomb' && m.row === b.row && m.col === b.col && m.owner === b.owner)
+            );
+        }
+        return { exploded, destroyed, removed: true };
+    }
+
     return {
         applyTimeBomb,
-        tickBombs
+        tickBombs,
+        tickBombAt
     };
 }));

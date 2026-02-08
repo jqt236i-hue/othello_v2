@@ -30,7 +30,7 @@ const LOG_MESSAGES = {
     swapFailed: () => '交換できません（保護/爆弾の可能性）',
     chainExtraFlips: (count) => `連鎖の意志: 追加反転 ${count}枚`,
     placedWithFlips: (playerLabel, posText, count) => `${playerLabel}: ${posText} に置き、${count}枚反転`,
-    regenTriggered: (count) => `再生の意志: ${count}個が再生`,
+    regenTriggered: (count) => `復活の意志: ${count}個が再生`,
     regenCapture: (count) => `再生後の挟み反転: ${count}枚`,
 
     doublePlaceRemaining: (playerLabel, remaining) => `>> ${playerLabel}の連続手番（残り${remaining}回）`,

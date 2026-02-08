@@ -37,7 +37,7 @@ async function processBombs(precomputedEvents = null) {
     const bombEvents = events.filter(e => e.type === 'bombs_exploded');
     if (!bombEvents || bombEvents.length === 0) {
         // Nothing exploded but counters may have changed; emit status update
-        emitGameStateChange();
+        try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
         return;
     }
 
@@ -60,56 +60,32 @@ async function processBombs(precomputedEvents = null) {
             continue;
         }
 
-        // Animation order: 1) bomb anchor fades out, 2) surrounding destroyed stones in batch
-        const destroyedKeySet = new Set((result.destroyed || []).map(p => `${p.row},${p.col}`));
-
-        for (const center of result.exploded) {
-            const centerKey = `${center.row},${center.col}`;
-
-            // 1) bomb itself first (if present in destroyed list)
-            if (destroyedKeySet.has(centerKey) && !alreadyAnimated.has(centerKey)) {
-                alreadyAnimated.add(centerKey);
-                const ownerVal = bombOwnerValByPos.get(centerKey);
-                await animateFadeOutAt(center.row, center.col, {
-                    createGhost: true,
-                    color: ownerVal
-                });
-            }
-
-            // 2) surrounding 8 as batch
-            const batch = [];
-            for (let dr = -1; dr <= 1; dr++) {
-                for (let dc = -1; dc <= 1; dc++) {
-                    if (dr === 0 && dc === 0) continue;
-                    const r = center.row + dr;
-                    const c = center.col + dc;
-                    if (r < 0 || r >= 8 || c < 0 || c >= 8) continue;
-                    const key = `${r},${c}`;
-                    if (!destroyedKeySet.has(key) || alreadyAnimated.has(key)) continue;
-                    alreadyAnimated.add(key);
-                    batch.push(animateFadeOutAt(r, c));
-                }
-            }
-            if (batch.length > 0) await Promise.all(batch);
-        }
-
-        // Fallback: any destroyed stones not covered by exploded centers
-        const leftover = [];
+        // Fallback path: animate all destroyed stones in one batch to match simultaneous destroy visuals.
+        const explodedKeySet = new Set((result.exploded || []).map(p => `${p.row},${p.col}`));
+        const batch = [];
         for (const pos of (result.destroyed || [])) {
             const key = `${pos.row},${pos.col}`;
             if (alreadyAnimated.has(key)) continue;
             alreadyAnimated.add(key);
-            leftover.push(animateFadeOutAt(pos.row, pos.col));
+
+            if (explodedKeySet.has(key)) {
+                batch.push(animateFadeOutAt(pos.row, pos.col, {
+                    createGhost: true,
+                    color: bombOwnerValByPos.get(key)
+                }));
+            } else {
+                batch.push(animateFadeOutAt(pos.row, pos.col));
+            }
         }
-        if (leftover.length > 0) await Promise.all(leftover);
+        if (batch.length > 0) await Promise.all(batch);
     }
 
     if (!hasPlayback) {
         // Update board display after animations
-        emitBoardUpdate();
+        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
 
         // Always update status
-        emitGameStateChange();
+        try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
     }
 }
 
