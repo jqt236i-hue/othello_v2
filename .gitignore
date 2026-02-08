@@ -58,3 +58,6 @@ Thumbs.db
 
 # Ignore locally generated distribution patches
 patches/*.patch
+
+# Ignore data directory for machine learning
+data/
