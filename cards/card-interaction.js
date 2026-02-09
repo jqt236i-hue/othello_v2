@@ -564,6 +564,8 @@ function updateCardDetailPanel() {
             pending.type === 'DESTROY_ONE_STONE' ||
             pending.type === 'STRONG_WIND_WILL' ||
             pending.type === 'INHERIT_WILL' ||
+            pending.type === 'TRAP_WILL' ||
+            pending.type === 'GUARD_WILL' ||
             pending.type === 'SACRIFICE_WILL' ||
             pending.type === 'SELL_CARD_WILL'
         );
@@ -591,6 +593,10 @@ function updateCardDetailPanel() {
             reasonEl.textContent = selectedCount > 0
                 ? `自分の石を選択（残り${remain}回）/ 終了も可`
                 : '自分の石を選択してください（最大3回・キャンセル可）';
+        } else if (pending.type === 'TRAP_WILL') {
+            reasonEl.textContent = '罠石にする自分の石を選んでください';
+        } else if (pending.type === 'GUARD_WILL') {
+            reasonEl.textContent = '守る石にする自分の石を選んでください';
         } else if (pending.type === 'SELL_CARD_WILL') {
             reasonEl.textContent = selectedSellCardId
                 ? '売却対象を選択済みです。売却ボタンで確定してください'

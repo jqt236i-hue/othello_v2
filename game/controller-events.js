@@ -38,11 +38,27 @@ function emitCardStateChange() {
     emitGameEvent(eventType, []);
 }
 
-function emitLogAdded(message) {
+function emitLogAdded(message, kind) {
     const eventType = (typeof GameEvents !== 'undefined' && GameEvents.EVENT_TYPES)
         ? GameEvents.EVENT_TYPES.LOG_ADDED
         : null;
+    const resolvedKind = (kind === 'effect' || kind === 'normal') ? kind : 'normal';
+    const payload = {
+        text: String(message),
+        kind: resolvedKind,
+        ts: Date.now()
+    };
     emitGameEvent(eventType, [
-        () => { if (typeof console !== 'undefined' && console.log) console.log('[log]', String(message)); }
-    ], message);
+        () => { if (typeof console !== 'undefined' && console.log) console.log('[log]', payload.text); }
+    ], payload);
 }
+
+function emitEffectLog(message) {
+    emitLogAdded(message, 'effect');
+}
+
+function emitNormalLog(message) {
+    emitLogAdded(message, 'normal');
+}
+
+

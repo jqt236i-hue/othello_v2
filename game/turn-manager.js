@@ -162,6 +162,18 @@ function handleCellClick(row, col) {
         }
         return;
     }
+    if (pending && pending.type === 'TRAP_WILL' && pending.stage === 'selectTarget') {
+        if (typeof handleTrapSelection === 'function') {
+            handleTrapSelection(row, col, playerKey);
+        }
+        return;
+    }
+    if (pending && pending.type === 'GUARD_WILL' && pending.stage === 'selectTarget') {
+        if (typeof handleGuardSelection === 'function') {
+            handleGuardSelection(row, col, playerKey);
+        }
+        return;
+    }
     if (pending && pending.type === 'SWAP_WITH_ENEMY' && pending.stage === 'selectTarget') {
         if (typeof handleSwapSelection === 'function') {
             handleSwapSelection(row, col, playerKey);
@@ -277,7 +289,7 @@ function resetGame() {
     }
 
     if (typeof emitLogAdded === 'function') {
-        emitLogAdded(`ゲーム開始 (黒: Lv${cpuSmartness.black}, 白: Lv${cpuSmartness.white})`);
+        emitLogAdded(`ゲーム開始 (黒: Lv${cpuSmartness.black}, 白: Lv${cpuSmartness.white})`, 'normal');
     }
     try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
     try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
@@ -291,12 +303,12 @@ function resetGame() {
             .then(() => {
                 isProcessing = false;
                 onTurnStart(BLACK);
-                if (typeof emitLogAdded === 'function') emitLogAdded('カード配布完了');
+                if (typeof emitLogAdded === 'function') emitLogAdded('カード配布完了', 'normal');
 
             })
             .catch((err) => {
                 console.error('Deal animation error:', err);
-                if (typeof emitLogAdded === 'function') emitLogAdded('エラー: カード配布に失敗しました');
+                if (typeof emitLogAdded === 'function') emitLogAdded('エラー: カード配布に失敗しました', 'normal');
             })
             .finally(() => {
                 isCardAnimating = false;
@@ -312,7 +324,7 @@ function resetGame() {
                 onTurnStart(BLACK);
             }
         } catch (e) { console.error('onTurnStart error (noanim fallback):', e); }
-        if (typeof emitLogAdded === 'function') emitLogAdded('カード配布完了 (no animation)');
+        if (typeof emitLogAdded === 'function') emitLogAdded('カード配布完了', 'normal');
     }
 
 }
@@ -357,6 +369,12 @@ async function onTurnStart(player) {
                 if (pres.length > 0) {
                     turnStartPlaybackEvents = TurnPipelineUIAdapter.mapToPlaybackEvents(pres, cardState, gameState) || [];
                 }
+                if (typeof TurnPipelineUIAdapter.mapEffectLogsFromPipeline === 'function' && typeof emitEffectLog === 'function') {
+                    const effectMsgs = TurnPipelineUIAdapter.mapEffectLogsFromPipeline(_startEvents, pres, playerKey) || [];
+                    for (const m of effectMsgs) {
+                        if (m) emitEffectLog(m);
+                    }
+                }
             }
         } catch (e) {
             console.error('[CRITICAL][onTurnStart] TurnPipelinePhases.applyTurnStartPhase threw', e && e.stack || e);
@@ -379,7 +397,7 @@ async function onTurnStart(player) {
 
     // 2. Log
     const turnCount = gameState.turnNumber + 1;
-    if (typeof emitLogAdded === 'function') emitLogAdded(`== ${getPlayerName(player)}のターン (${turnCount}手目) ==`);
+    if (typeof emitLogAdded === 'function') emitLogAdded(`== ${getPlayerName(player)}のターン (${turnCount}手目) ==`, 'normal');
 
     // 3. Draw Animation (if draw happened during the turn-start phase)
     if (handSizeAfter > handSizeBefore) {
@@ -388,7 +406,7 @@ async function onTurnStart(player) {
         try {
             const drawnCardId = cardState.hands[playerKey][cardState.hands[playerKey].length - 1];
             if (drawnCardId !== null && drawnCardId !== undefined) {
-                if (typeof emitLogAdded === 'function') emitLogAdded(`${getPlayerName(player)}がドローしました`);
+                if (typeof emitLogAdded === 'function') emitLogAdded(`${getPlayerName(player)}がドローしました`, 'normal');
                 const drawPresentation = { type: 'DRAW_CARD', player: playerKey, cardId: drawnCardId, count: 1 };
                 if (TurnPipelineUIAdapter && typeof TurnPipelineUIAdapter.mapToPlaybackEvents === 'function') {
                     const drawPlayback = TurnPipelineUIAdapter.mapToPlaybackEvents([drawPresentation], cardState, gameState) || [];
@@ -489,7 +507,7 @@ function watchdogPing(nowMs) {
             isProcessing = false;
             isCardAnimating = false;
             lastFlagActiveTime = null;
-            if (typeof emitLogAdded === 'function') emitLogAdded('警告: 処理が長時間停滞したため強制解除しました');
+            if (typeof emitLogAdded === 'function') emitLogAdded('警告: 処理が長時間停滞したため強制解除しました', 'normal');
             try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
         }
     } else {

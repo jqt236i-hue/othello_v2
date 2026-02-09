@@ -127,6 +127,18 @@
         const prev = gameState.board[row][col];
         if (prev === EMPTY) return { destroyed: false };
 
+        const guardMarker = Array.isArray(cardState.markers)
+            ? cardState.markers.find(m => (
+                m &&
+                m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+                m.row === row &&
+                m.col === col &&
+                m.data &&
+                m.data.type === 'GUARD'
+            ))
+            : null;
+        if (guardMarker) return { destroyed: false, reason: 'guard_protected' };
+
         let stoneId = null;
         if (cardState.stoneIdMap) {
             stoneId = cardState.stoneIdMap[row][col];

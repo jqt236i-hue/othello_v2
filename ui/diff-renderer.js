@@ -40,6 +40,13 @@ let suppressFallbackFlipThisRender = false;
 const LONG_PRESS_MS = 420;
 const LONG_PRESS_MOVE_CANCEL_PX = 8;
 
+function _isBoardHiddenTrap(marker) {
+    if (!marker || !marker.data || marker.data.type !== 'TRAP') return false;
+    // TRAP is hidden information on board after placement.
+    // It should not be shown as a persistent special-stone visual to either side.
+    return true;
+}
+
 const SPECIAL_STONE_INFO = {
     PROTECTED: {
         name: '弱い石',
@@ -88,6 +95,14 @@ const SPECIAL_STONE_INFO = {
     CROSS_BOMB: {
         name: '十字爆弾',
         desc: 'カウント0で十字方向を巻き込んで壊す。'
+    },
+    GUARD: {
+        name: '守る石',
+        desc: '3ターン、反転/交換/破壊/誘惑を無効化する。'
+    },
+    TRAP: {
+        name: '罠石',
+        desc: '次の相手ターン中に反転されると発動する。'
     }
 };
 
@@ -123,11 +138,29 @@ function _getMarkerKinds() {
 function _getMarkerEntryAt(row, col) {
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     const kinds = _getMarkerKinds();
-    const special = markers.find(m => m && m.kind === kinds.SPECIAL_STONE && m.row === row && m.col === col);
+    const special = markers.find(m => (
+        m &&
+        m.kind === kinds.SPECIAL_STONE &&
+        m.row === row &&
+        m.col === col &&
+        !_isBoardHiddenTrap(m)
+    ));
     if (special) return { kind: kinds.SPECIAL_STONE, marker: special };
     const bomb = markers.find(m => m && m.kind === kinds.BOMB && m.row === row && m.col === col);
     if (bomb) return { kind: kinds.BOMB, marker: bomb };
     return null;
+}
+
+function _hasGuardMarkerAt(row, col) {
+    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+    return markers.some(m => (
+        m &&
+        m.kind === _getMarkerKinds().SPECIAL_STONE &&
+        m.row === row &&
+        m.col === col &&
+        m.data &&
+        m.data.type === 'GUARD'
+    ));
 }
 
 function _getEntryType(entry) {
@@ -138,21 +171,24 @@ function _getEntryType(entry) {
     return (entry.marker.data && entry.marker.data.type) ? entry.marker.data.type : null;
 }
 
-function _getProtectionInfo(type, entry) {
+function _getProtectionInfo(type, entry, hasGuard) {
     const flipProtectedTypes = new Set([
         'PROTECTED',
         'PERMA_PROTECTED',
         'DRAGON',
         'BREEDING',
-        'ULTIMATE_DESTROY_GOD'
+        'ULTIMATE_DESTROY_GOD',
+        'GUARD'
     ]);
     const isBomb = !!(entry && entry.kind === _getMarkerKinds().BOMB);
-    const flipProtected = isBomb ? false : flipProtectedTypes.has(type);
-    // SWAP targets are normal stones only, so any special stone/bomb is swap-protected.
-    const swapProtected = !!entry;
+    const flipProtected = hasGuard ? true : (isBomb ? false : flipProtectedTypes.has(type));
+    // Trap stone is intentionally not swap-protected on the rule side.
+    const swapProtected = hasGuard ? true : (!!entry && type !== 'TRAP');
+    const destroyProtected = hasGuard || type === 'GUARD';
     return {
         flipProtected,
-        swapProtected
+        swapProtected,
+        destroyProtected
     };
 }
 
@@ -169,7 +205,8 @@ function showSpecialStoneInfoAt(row, col) {
     }
 
     const info = SPECIAL_STONE_INFO[type] || { name: type, desc: '効果情報は未登録です。' };
-    const protection = _getProtectionInfo(type, entry);
+    const hasGuard = _hasGuardMarkerAt(row, col);
+    const protection = _getProtectionInfo(type, entry, hasGuard);
 
     const panel = _ensureStoneInfoPanel();
     if (!panel) return false;
@@ -182,8 +219,10 @@ function showSpecialStoneInfoAt(row, col) {
     nameEl.textContent = info.name;
     descEl.textContent = info.desc;
     const badges = [];
+    if (hasGuard) badges.push('守る意志適用中');
     if (protection.flipProtected) badges.push('反転保護');
     if (protection.swapProtected) badges.push('交換保護');
+    if (protection.destroyProtected) badges.push('破壊保護');
     metaEl.textContent = badges.join(' / ');
     metaEl.style.display = badges.length > 0 ? '' : 'none';
 
@@ -331,6 +370,7 @@ function buildCurrentCellState() {
             pending.type === 'DESTROY_ONE_STONE' ||
             pending.type === 'SWAP_WITH_ENEMY' ||
             pending.type === 'INHERIT_WILL' ||
+            pending.type === 'GUARD_WILL' ||
             pending.type === 'TEMPT_WILL'
         )
     );
@@ -350,9 +390,20 @@ function buildCurrentCellState() {
         : { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' };
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     const specialMap = new Map();
+    const guardMap = new Map();
     const bombMap = new Map();
     for (const m of markers) {
         if (m.kind === markerKinds.SPECIAL_STONE && m.data && m.data.type) {
+            if (_isBoardHiddenTrap(m)) continue;
+            if (m.data.type === 'GUARD') {
+                guardMap.set(`${m.row},${m.col}`, {
+                    row: m.row,
+                    col: m.col,
+                    owner: m.owner,
+                    remainingOwnerTurns: m.data.remainingOwnerTurns
+                });
+                continue;
+            }
             specialMap.set(`${m.row},${m.col}`, {
                 row: m.row,
                 col: m.col,
@@ -382,6 +433,7 @@ function buildCurrentCellState() {
 
             // Get special stone at this position
             const special = val !== EMPTY ? specialMap.get(key) : null;
+            const guard = val !== EMPTY ? guardMap.get(key) : null;
             const bomb = val !== EMPTY ? bombMap.get(key) : null;
 
             // Normalize owner to BLACK/WHITE constant
@@ -400,6 +452,10 @@ function buildCurrentCellState() {
                     type: special.type,
                     owner: getOwnerVal(special.owner),
                     remainingOwnerTurns: special.remainingOwnerTurns
+                } : null,
+                guard: guard ? {
+                    owner: getOwnerVal(guard.owner),
+                    remainingOwnerTurns: guard.remainingOwnerTurns
                 } : null,
                 bomb: bomb ? { remainingTurns: bomb.remainingTurns, owner: getOwnerVal(bomb.owner) } : null
             };
@@ -428,6 +484,12 @@ function cellStatesEqual(a, b) {
         if (a.special.type !== b.special.type) return false;
         if (a.special.owner !== b.special.owner) return false;
         if (a.special.remainingOwnerTurns !== b.special.remainingOwnerTurns) return false;
+    }
+
+    if ((a.guard === null) !== (b.guard === null)) return false;
+    if (a.guard && b.guard) {
+        if (a.guard.owner !== b.guard.owner) return false;
+        if (a.guard.remainingOwnerTurns !== b.guard.remainingOwnerTurns) return false;
     }
 
     // Compare bomb state
@@ -525,6 +587,17 @@ function updateCellDOM(cell, state, row, col, prevState) {
             if (effectKey) {
                 applyStoneVisualEffect(disc, effectKey, { owner: normalizeOwnerVal(state.special.owner) });
             }
+            // Robust fallback: ensure reveal-only trap image is visible if visual-map lookup/DI fails.
+            if (state.special.type === 'TRAP_REVEAL') {
+                const ownerVal = normalizeOwnerVal(state.special.owner);
+                const trapImagePath = ownerVal === BLACK
+                    ? 'assets/images/stones/trap_stone-black.png'
+                    : 'assets/images/stones/trap_stone-white.png';
+                try {
+                    disc.classList.add('special-stone', 'trap-stone');
+                    disc.style.setProperty('--special-stone-image', `url('${trapImagePath}')`);
+                } catch (e) { /* ignore */ }
+            }
 
             // Ensure WORK visuals are applied even if mapping lookup fails
             if (state.special.type === 'WORK') {
@@ -558,6 +631,13 @@ function updateCellDOM(cell, state, row, col, prevState) {
             timeLabel.className = 'bomb-timer';
             timeLabel.textContent = state.bomb.remainingTurns;
             disc.appendChild(timeLabel);
+        }
+
+        if (state.guard && typeof state.guard.remainingOwnerTurns === 'number') {
+            const guardTimer = document.createElement('div');
+            guardTimer.className = 'guard-timer';
+            guardTimer.textContent = Math.max(0, state.guard.remainingOwnerTurns);
+            disc.appendChild(guardTimer);
         }
 
         cell.appendChild(disc);
@@ -598,7 +678,9 @@ function getEffectKeyForType(type) {
         'GOLD': 'goldStone',
         'SILVER': 'silverStone',
         'REGEN': 'regenStone',
-        'WORK': 'workStone'
+        'WORK': 'workStone',
+        'TRAP': 'trapStone',
+        'TRAP_REVEAL': 'trapStone'
     };
     return map[type] || null;
 }

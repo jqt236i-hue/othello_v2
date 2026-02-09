@@ -27,9 +27,15 @@
         if (!gameState || gameState.board[row][col] !== opponent) return result;
 
         // Swap targets must be NORMAL stones only.
-        const hasSpecialOrBomb = (cardState.markers || []).some(m =>
-            m.row === row && m.col === col && (m.kind === 'specialStone' || m.kind === 'bomb')
-        );
+        // Hidden trap stones owned by opponent are treated as normal for the acting player.
+        const hasSpecialOrBomb = (cardState.markers || []).some(m => {
+            if (!m || m.row !== row || m.col !== col) return false;
+            if (m.kind === 'bomb') return true;
+            if (m.kind !== 'specialStone') return false;
+            const isHiddenTrapForPlayer = !!(m.data && m.data.type === 'TRAP' && m.owner && m.owner !== playerKey);
+            if (isHiddenTrapForPlayer) return false;
+            return true;
+        });
         if (hasSpecialOrBomb) return result;
 
         if (boardOpsInstance && typeof boardOpsInstance.changeAt === 'function') {

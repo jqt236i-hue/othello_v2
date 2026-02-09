@@ -22,6 +22,11 @@
         <h1>カードオセロ</h1>
     </div>
 
+    <div id="effect-live-panel" aria-live="polite" aria-atomic="false">
+        <div class="effect-live-title">効果ログ</div>
+        <div id="effect-live-lines"></div>
+    </div>
+
     <!-- Enemy CPU Character Display -->
     <div id="cpu-character-panel">
         <img id="cpu-character-img" src="" alt="敵CPU">
@@ -49,7 +54,9 @@
             <!-- Occupancy UI (removed) -->
             <!-- Charge UI -->
             <div id="charge-black" class="charge-display">布石: 0 / 30</div>
+            <div id="charge-delta-black" class="charge-delta" aria-live="polite"></div>
             <div id="charge-white" class="charge-display">布石: 0 / 30</div>
+            <div id="charge-delta-white" class="charge-delta" aria-live="polite"></div>
             <!-- Card Animation FX Layer -->
             <div id="card-fx-layer"></div>
         </div>
@@ -295,6 +302,8 @@
     <script src="game/card-effects/strong-wind.js"></script>
     <script src="game/card-effects/inherit.js"></script>
     <script src="game/card-effects/tempt.js"></script>
+    <script src="game/card-effects/trap.js"></script>
+    <script src="game/card-effects/guard.js"></script>
     <script src="game/card-effects/swap.js"></script>
     <script src="game/card-effects-applier.js"></script>
     <!-- CPU Decision Modules (依存関係順: policy → evaluator → decision) -->
@@ -323,3 +332,6 @@
 </body>
 
 </html>
+
+
+

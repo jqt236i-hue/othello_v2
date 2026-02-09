@@ -227,11 +227,12 @@
                     pEvent.phase = currentPhase;
                     break;
                 default:
-                    // Unknown presentation event -> log
-                    pEvent.type = 'log';
-                    pEvent.message = `PresentationEvent: ${ev.type}`;
+                    // Unknown presentation event:
+                    // keep playback resilient by ignoring silently in player-facing logs.
+                    pEvent.type = null;
                     prevWasChainFlip = false;
                     prevDestroyCause = null;
+                    continue;
             }
 
             // NOTE: Do not populate 'after' using a final snapshot. Adapter is a thin transform.
@@ -267,11 +268,18 @@
                         t.after = { color: 0, special: null, timer: null };
                     } else if (pEvent.type === 'status_applied' || pEvent.type === 'status_removed') {
                         const visual = getVisualStateAt(t.r, t.col, finalCardState, finalGameState);
+                        const specialFromEvent = (ev.meta && ev.meta.special) || null;
+                        const ownerFromEvent = (ev.meta && ev.meta.owner) || null;
+                        let color = visual.color || 0;
+                        if (color === 0 && (specialFromEvent === 'TRAP' || specialFromEvent === 'TRAP_REVEAL')) {
+                            if (ownerFromEvent === 'black' || ownerFromEvent === 1 || ownerFromEvent === '1') color = 1;
+                            if (ownerFromEvent === 'white' || ownerFromEvent === -1 || ownerFromEvent === '-1') color = -1;
+                        }
                         t.after = {
-                            color: visual.color || 0,
-                            special: (ev.meta && ev.meta.special) || visual.special || null,
+                            color,
+                            special: specialFromEvent || visual.special || null,
                             timer: (ev.meta && ev.meta.timer) || visual.timer || null,
-                            owner: (ev.meta && ev.meta.owner) || visual.owner || null
+                            owner: ownerFromEvent || visual.owner || null
                         };
                     } else {
                         t.after = { color: 0, special: null, timer: null };
@@ -283,6 +291,235 @@
         }
 
         return playbackEvents;
+    }
+
+    function _playerLabel(playerKey) {
+        return playerKey === 'black' ? '黒' : '白';
+    }
+
+    function _toPosText(pos) {
+        if (!pos || !Number.isInteger(pos.row) || !Number.isInteger(pos.col)) return '';
+        const file = String.fromCharCode('A'.charCodeAt(0) + pos.col);
+        return `${file}${pos.row + 1}`;
+    }
+
+    function _specialLabelJa(rawSpecial) {
+        const s = String(rawSpecial || '').toUpperCase();
+        if (s === 'BREEDING') return '繁殖石';
+        if (s === 'TIME_BOMB') return '時限爆弾';
+        if (s === 'DRAGON') return '究極反転龍';
+        if (s === 'ULTIMATE_DESTROY_GOD') return '究極破壊神';
+        if (s === 'HYPERACTIVE') return '多動石';
+        if (s === 'REGEN') return '復活石';
+        if (s === 'WORK') return '労働石';
+        if (s === 'PROTECTED') return '反転保護';
+        if (s === 'PERMA_PROTECTED') return '永続反転保護';
+        if (s === 'GUARD') return '守る石';
+        if (s === 'TRAP' || s === 'TRAP_REVEAL') return '罠石';
+        return rawSpecial || '';
+    }
+
+    function _detailCount(ev) {
+        return (ev && Array.isArray(ev.details)) ? ev.details.length : 0;
+    }
+
+    function _pushCountLog(logs, ev, label, suffix) {
+        logs.push(`${label}${_detailCount(ev)}${suffix}`);
+    }
+
+    function mapEffectLogsFromPipeline(rawEvents, presEvents, playerKey) {
+        const logs = [];
+        const actor = _playerLabel(playerKey);
+        const events = Array.isArray(rawEvents) ? rawEvents : [];
+        const seenStatusTick = new Set();
+
+        for (const ev of events) {
+            if (!ev || !ev.type) continue;
+            switch (ev.type) {
+                case 'bombs_exploded':
+                    logs.push(`時限爆弾が${(ev.details && Array.isArray(ev.details.exploded)) ? ev.details.exploded.length : 0}箇所で爆発`);
+                    break;
+                case 'chain_flipped':
+                    _pushCountLog(logs, ev, '連鎖: ', '枚を追加反転');
+                    break;
+                case 'dragon_converted_start':
+                case 'dragon_converted_immediate':
+                    _pushCountLog(logs, ev, '究極反転龍: ', '枚を反転');
+                    break;
+                case 'dragon_destroyed_anchor_start':
+                case 'dragon_destroyed_anchor_immediate':
+                    _pushCountLog(logs, ev, '究極反転龍: 親石', '個が消滅');
+                    break;
+                case 'breeding_spawned_start':
+                case 'breeding_spawned_immediate':
+                    _pushCountLog(logs, ev, '繁殖石: ', '個を生成');
+                    break;
+                case 'breeding_flipped_start':
+                case 'breeding_flipped_immediate':
+                    _pushCountLog(logs, ev, '繁殖石: ', '枚を反転');
+                    break;
+                case 'breeding_destroyed_anchor_start':
+                    _pushCountLog(logs, ev, '繁殖石: 親石', '個が消滅');
+                    break;
+                case 'hyperactive_moved_start':
+                case 'hyperactive_moved_immediate':
+                    _pushCountLog(logs, ev, '多動石: ', '回移動');
+                    break;
+                case 'hyperactive_destroyed_start':
+                case 'hyperactive_destroyed_immediate':
+                    _pushCountLog(logs, ev, '多動石: ', '個が消滅');
+                    break;
+                case 'hyperactive_flipped_start':
+                case 'hyperactive_flipped_immediate':
+                    _pushCountLog(logs, ev, '多動石: ', '枚を反転');
+                    break;
+                case 'regen_triggered_start':
+                case 'regen_triggered':
+                    _pushCountLog(logs, ev, '復活石: ', '個が再生');
+                    break;
+                case 'regen_capture_flipped_start':
+                case 'regen_capture_flipped':
+                    _pushCountLog(logs, ev, '復活石: 再生後に', '枚を反転');
+                    break;
+                case 'udg_destroyed_start':
+                case 'udg_destroyed_immediate':
+                    _pushCountLog(logs, ev, '究極破壊神: ', '個を破壊');
+                    break;
+                case 'udg_expired_start':
+                case 'udg_expired_immediate':
+                    _pushCountLog(logs, ev, '究極破壊神: 親石', '個が消滅');
+                    break;
+                case 'destroy_selected':
+                    if (ev.destroyed) logs.push(`${actor}: 破壊神で${_toPosText(ev.target)}を破壊`);
+                    break;
+                case 'strong_wind_selected':
+                    if (ev.applied) logs.push(`${actor}: 強風で${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動`);
+                    break;
+                case 'sacrifice_selected':
+                    if (ev.applied) logs.push(`${actor}: 生贄で${_toPosText(ev.target)}を破壊（布石+${ev.gained || 0}）`);
+                    break;
+                case 'sell_selected':
+                    if (ev.applied) logs.push(`${actor}: 売却で+${ev.gained || 0}`);
+                    break;
+                case 'heaven_blessing_selected':
+                    if (ev.applied) logs.push(`${actor}: 天の恵みでカード獲得`);
+                    break;
+                case 'condemn_selected':
+                    if (ev.applied) logs.push(`${actor}: 断罪で相手カードを破壊`);
+                    break;
+                case 'tempt_selected':
+                    if (ev.applied) logs.push(`${actor}: 誘惑で特殊石を奪取`);
+                    break;
+                case 'inherit_selected':
+                    if (ev.applied) logs.push(`${actor}: 継承で強い石へ変換`);
+                    break;
+                case 'swap_selected':
+                    if (ev.swapped) logs.push(`${actor}: 交換で${_toPosText({ row: ev.row, col: ev.col })}を変換`);
+                    break;
+                case 'trap_selected':
+                    if (ev.applied) logs.push('罠石がどこかに潜んでいる...');
+                    break;
+                case 'guard_selected':
+                    if (ev.applied) logs.push(`${actor}: 守る意志で完全保護を付与`);
+                    break;
+                case 'treasure_box_gain':
+                    logs.push(`宝箱: 布石+${Number(ev.gained) || 0}`);
+                    break;
+                case 'trap_triggered': {
+                    const details = Array.isArray(ev.details) ? ev.details : [];
+                    if (details.length > 0) {
+                        const stolenHand = details.reduce((sum, d) => sum + (Number(d && d.stolenHandCount) || 0), 0);
+                        logs.push(`罠石が発動: 布石全没収 / 手札${stolenHand}枚没収`);
+                    }
+                    break;
+                }
+                case 'trap_expired':
+                    if (_detailCount(ev) > 0) logs.push('罠石は不発で消滅');
+                    break;
+                case 'trap_disarmed':
+                    if (_detailCount(ev) > 0) logs.push('罠石は不発で解除');
+                    break;
+                case 'placement_effects':
+                    if (ev.effects) {
+                        const e = ev.effects;
+                        if (e.doublePlaceActivated) logs.push('二連投石: 追加手を獲得');
+                        if (e.freePlacementUsed) logs.push('自由の意志:自由な空きマスに配置');
+                        if (e.silverStoneUsed) logs.push('銀石: 獲得布石3倍');
+                        if (e.goldStoneUsed) logs.push('金石: 獲得布石4倍');
+                        if (e.protected) logs.push('反転保護を付与');
+                        if (e.permaProtected) logs.push('永続反転保護を付与');
+                        if (e.bombPlaced) logs.push('時限爆弾を設置');
+                        if (e.dragonPlaced) logs.push('究極反転龍を設置');
+                        if (e.ultimateDestroyGodPlaced) logs.push('究極破壊神を設置');
+                        if (e.hyperactivePlaced) logs.push('多動石を設置');
+                        if (e.crossBombExploded) logs.push(`十字爆弾: ${e.crossBombDestroyed || 0}個を破壊`);
+                        if (e.plunderAmount > 0) logs.push(`吸収の意志: 布石を${e.plunderAmount}吸収`);
+                        if (e.stolenCount > 0) logs.push(`略奪: カード${e.stolenCount}枚`);
+                    }
+                    break;
+                case 'extra_place_consumed':
+                    logs.push('二連投石: 追加手を消費');
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        const pres = Array.isArray(presEvents) ? presEvents : [];
+        for (const ev of pres) {
+            if (!ev) continue;
+            if (ev.type === 'WORK_INCOME') {
+                const gained = Number.isFinite(ev.gained) ? ev.gained : ((ev.meta && Number.isFinite(ev.meta.gained)) ? ev.meta.gained : 0);
+                logs.push(`労働石: 布石 +${gained}`);
+                continue;
+            }
+            if (ev.type === 'WORK_REMOVED') {
+                logs.push('労働石: 効果終了');
+                continue;
+            }
+            if (!ev || ev.type !== 'STATUS_TICK' || !ev.meta) continue;
+            const special = String(ev.meta.special || '');
+            const timer = ev.meta.timer;
+            const key = `${special}:${ev.row},${ev.col}:${timer}`;
+            if (seenStatusTick.has(key)) continue;
+            seenStatusTick.add(key);
+            if (special === 'TIME_BOMB' && Number.isFinite(timer)) {
+                logs.push(`時限爆弾: ${_toPosText(ev)} のカウント ${timer}`);
+            } else if (special && Number.isFinite(timer)) {
+                logs.push(`${_specialLabelJa(special)}: ${_toPosText(ev)} の残り ${timer}`);
+            }
+        }
+
+        // De-duplicate only consecutive identical entries.
+        const compact = [];
+        for (const line of logs) {
+            if (!line) continue;
+            if (compact.length > 0 && compact[compact.length - 1] === line) continue;
+            compact.push(line);
+        }
+        return compact;
+    }
+
+    function mapNormalLogsFromPipeline(rawEvents, playerKey) {
+        const logs = [];
+        const actor = _playerLabel(playerKey);
+        const events = Array.isArray(rawEvents) ? rawEvents : [];
+
+        for (const ev of events) {
+            if (!ev || !ev.type) continue;
+            if (ev.type === 'place') {
+                const flipCount = Array.isArray(ev.flips) ? ev.flips.length : 0;
+                if (flipCount > 0) logs.push(`${actor}が${flipCount}枚反転！`);
+            }
+        }
+
+        const compact = [];
+        for (const line of logs) {
+            if (!line) continue;
+            if (compact.length > 0 && compact[compact.length - 1] === line) continue;
+            compact.push(line);
+        }
+        return compact;
     }
 
     /**
@@ -308,7 +545,6 @@
 
         // Attempt to pass the current game PRNG (when available in browser env) to ensure deterministic rule logic
         const runtimePrng = (typeof getGamePrng === 'function') ? getGamePrng() : (typeof globalThis !== 'undefined' && typeof globalThis.getGamePrng === 'function') ? globalThis.getGamePrng() : undefined;
-        if (typeof console !== 'undefined' && console.log) console.log('[TurnPipelineUIAdapter] runtimePrng available:', !!runtimePrng);
         const result = (typeof turnPipeline.applyTurnSafe === 'function')
             ? turnPipeline.applyTurnSafe(cardState, gameState, playerKey, action, runtimePrng, options)
             : turnPipeline.applyTurn(cardState, gameState, playerKey, action, runtimePrng);
@@ -320,6 +556,20 @@
         // Prefer pipeline-produced presentationEvents when available
         const pres = result.presentationEvents || result.cardState && result.cardState.presentationEvents || [];
         const playbackEvents = mapToPlaybackEvents(pres, result.cardState, result.gameState);
+        const effectLogMessages = mapEffectLogsFromPipeline(result.events, pres, playerKey);
+        const normalLogMessages = mapNormalLogsFromPipeline(result.events, playerKey);
+        try {
+            if (typeof emitEffectLog === 'function') {
+                for (const msg of effectLogMessages) emitEffectLog(msg);
+            } else if (typeof emitLogAdded === 'function') {
+                for (const msg of effectLogMessages) emitLogAdded(msg, 'effect');
+            }
+            if (typeof emitNormalLog === 'function') {
+                for (const msg of normalLogMessages) emitNormalLog(msg);
+            } else if (typeof emitLogAdded === 'function') {
+                for (const msg of normalLogMessages) emitLogAdded(msg, 'normal');
+            }
+        } catch (e) { /* ignore */ }
 
         return {
             ok: true,
@@ -327,12 +577,15 @@
             nextGameState: result.gameState,
             playbackEvents: playbackEvents,
             rawEvents: result.events,
-            presentationEvents: pres
+            presentationEvents: pres,
+            effectLogMessages
         };
     }
 
     return {
         mapToPlaybackEvents,
+        mapEffectLogsFromPipeline,
+        mapNormalLogsFromPipeline,
         runTurnWithAdapter
     };
 }));

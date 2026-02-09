@@ -143,6 +143,15 @@ const GAME_STONE_VISUAL_EFFECTS = {
             '-1': 'assets/images/stones/CROSS_BOMB-white.png'
         },
         dataAttributes: {}
+    },
+    trapStone: {
+        cssClass: 'trap-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/stones/trap_stone-black.png',
+            '-1': 'assets/images/stones/trap_stone-white.png'
+        },
+        dataAttributes: {}
     }
 };
 
@@ -161,7 +170,8 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'WORK_WILL': 'workStone'
     ,
     'TIME_BOMB': 'timeBombStone',
-    'CROSS_BOMB': 'crossBombStone'
+    'CROSS_BOMB': 'crossBombStone',
+    'TRAP_WILL': 'trapStone'
 };
 
 function getEffectKeyForPendingType(pendingType) {
@@ -182,7 +192,9 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'WORK': 'workStone'
     ,
     'TIME_BOMB': 'timeBombStone',
-    'CROSS_BOMB': 'crossBombStone'
+    'CROSS_BOMB': 'crossBombStone',
+    'TRAP': 'trapStone',
+    'TRAP_REVEAL': 'trapStone'
 };
 
 function getEffectKeyForSpecialType(type) {

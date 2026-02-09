@@ -613,6 +613,14 @@
                     const targets = getTemptWillTargets(cardState, gameState, playerKey);
                     if (!targets || targets.length === 0) continue;
                 }
+                if (type === 'TRAP_WILL') {
+                    const targets = getTrapTargets(cardState, gameState, playerKey);
+                    if (!targets || targets.length === 0) continue;
+                }
+                if (type === 'GUARD_WILL') {
+                    const targets = getGuardTargets(cardState, gameState, playerKey);
+                    if (!targets || targets.length === 0) continue;
+                }
                 if (CardSelectorsModule) {
                     if (type === 'DESTROY_ONE_STONE' && typeof CardSelectorsModule.getDestroyTargets === 'function') {
                         const targets = CardSelectorsModule.getDestroyTargets(cardState, gameState);
@@ -632,6 +640,14 @@
                     }
                     if (type === 'INHERIT_WILL' && typeof CardSelectorsModule.getInheritTargets === 'function') {
                         const targets = CardSelectorsModule.getInheritTargets(cardState, gameState, playerKey);
+                        if (!targets || targets.length === 0) continue;
+                    }
+                    if (type === 'TRAP_WILL' && typeof CardSelectorsModule.getTrapTargets === 'function') {
+                        const targets = CardSelectorsModule.getTrapTargets(cardState, gameState, playerKey);
+                        if (!targets || targets.length === 0) continue;
+                    }
+                    if (type === 'GUARD_WILL' && typeof CardSelectorsModule.getGuardTargets === 'function') {
+                        const targets = CardSelectorsModule.getGuardTargets(cardState, gameState, playerKey);
                         if (!targets || targets.length === 0) continue;
                     }
                 }
@@ -732,6 +748,16 @@
         if (cardType === 'CONDEMN_WILL' && (!condemnOffers || condemnOffers.length === 0)) {
             return false;
         }
+        if (cardType === 'TRAP_WILL') {
+            if (!gameState) return false;
+            const targets = getTrapTargets(cardState, gameState, chargeOwnerKey);
+            if (!targets.length) return false;
+        }
+        if (cardType === 'GUARD_WILL') {
+            if (!gameState) return false;
+            const targets = getGuardTargets(cardState, gameState, chargeOwnerKey);
+            if (!targets.length) return false;
+        }
 
         if (!(opts && opts.noConsume)) {
             // Remove from hand
@@ -756,7 +782,9 @@
             cardType === 'CONDEMN_WILL' ||
             cardType === 'SWAP_WITH_ENEMY' ||
             cardType === 'INHERIT_WILL' ||
-            cardType === 'TEMPT_WILL';
+            cardType === 'TRAP_WILL' ||
+            cardType === 'TEMPT_WILL' ||
+            cardType === 'GUARD_WILL';
         cardState.pendingEffectByPlayer[chargeOwnerKey] = {
             type: cardType,
             cardId,
@@ -887,14 +915,197 @@
         }
         const opponentKey = playerKey === 'black' ? 'white' : 'black';
         const res = [];
+        const hasGuardMarkerAt = (row, col) => getSpecialMarkers(cardState).some(m => (
+            m &&
+            m.row === row &&
+            m.col === col &&
+            m.data &&
+            m.data.type === 'GUARD'
+        ));
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
+                if (hasGuardMarkerAt(r, c)) continue;
                 if (!isSpecialStoneAt(cardState, r, c)) continue;
                 if (getSpecialOwnerAt(cardState, r, c) !== opponentKey) continue;
                 if (gameState.board[r][c] === 0) continue;
                 res.push({ row: r, col: c });
             }
         }
+        return res;
+    }
+
+    function getTrapTargets(cardState, gameState, playerKey) {
+        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
+            try {
+                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
+                if (mod && typeof mod.getTrapTargets === 'function') {
+                    return mod.getTrapTargets(cardState, gameState, playerKey);
+                }
+            } catch (e) {
+                // fall through to local implementation
+            }
+        }
+        const P_BLACK = BLACK || 1;
+        const P_WHITE = WHITE || -1;
+        const playerVal = playerKey === 'black' ? P_BLACK : P_WHITE;
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        const res = [];
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (gameState.board[r][c] !== playerVal) continue;
+                const hasBomb = markers.some(m => m && m.row === r && m.col === c && m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb'));
+                if (hasBomb) continue;
+                const hasOwnTrap = markers.some(m => (
+                    m &&
+                    m.row === r &&
+                    m.col === c &&
+                    m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+                    m.owner === playerKey &&
+                    m.data &&
+                    m.data.type === 'TRAP'
+                ));
+                if (hasOwnTrap) continue;
+                res.push({ row: r, col: c });
+            }
+        }
+        return res;
+    }
+
+    function getGuardTargets(cardState, gameState, playerKey) {
+        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
+            try {
+                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
+                if (mod && typeof mod.getGuardTargets === 'function') {
+                    return mod.getGuardTargets(cardState, gameState, playerKey);
+                }
+            } catch (e) {
+                // fall through to local implementation
+            }
+        }
+        const P_BLACK = BLACK || 1;
+        const P_WHITE = WHITE || -1;
+        const playerVal = playerKey === 'black' ? P_BLACK : P_WHITE;
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        const res = [];
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (gameState.board[r][c] !== playerVal) continue;
+                const hasBomb = markers.some(m => m && m.row === r && m.col === c && m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb'));
+                if (hasBomb) continue;
+                res.push({ row: r, col: c });
+            }
+        }
+        return res;
+    }
+
+    function applyTrapWill(cardState, gameState, playerKey, row, col) {
+        const pending = cardState.pendingEffectByPlayer[playerKey];
+        if (!pending || pending.type !== 'TRAP_WILL' || pending.stage !== 'selectTarget') {
+            return { applied: false, reason: 'not_pending' };
+        }
+        const targets = getTrapTargets(cardState, gameState, playerKey);
+        const allowed = targets.some(t => t.row === row && t.col === col);
+        if (!allowed) return { applied: false, reason: 'invalid_target' };
+
+        // Trap replaces any existing special marker at the target cell.
+        removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone' });
+
+        const opponentKey = playerKey === 'black' ? 'white' : 'black';
+        addMarker(cardState, 'specialStone', row, col, playerKey, {
+            type: 'TRAP',
+            armedForPlayer: opponentKey,
+            hidden: true
+        });
+
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return { applied: true, row, col };
+    }
+
+    function processTrapEffects(cardState, gameState, activePlayerKey, options) {
+        const opts = options || {};
+        const expireOnOwnerTurnStart = !!opts.expireOnOwnerTurnStart;
+        const res = { triggered: [], expired: [], disarmed: [] };
+        if (!cardState || !gameState || !gameState.board) return res;
+
+        const P_BLACK = BLACK || 1;
+        const P_WHITE = WHITE || -1;
+        const specials = getSpecialMarkers(cardState).filter(m => m && m.data && m.data.type === 'TRAP');
+        if (!specials.length) return res;
+
+        for (const trap of specials) {
+            const row = trap.row;
+            const col = trap.col;
+            const ownerKey = trap.owner === 'white' ? 'white' : 'black';
+            const opponentKey = ownerKey === 'black' ? 'white' : 'black';
+            const ownerVal = ownerKey === 'black' ? P_BLACK : P_WHITE;
+            const activeVal = activePlayerKey === 'black' ? P_BLACK : P_WHITE;
+            const cellVal = gameState.board[row][col];
+
+            if (cellVal === EMPTY) {
+                removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: ownerKey });
+                res.disarmed.push({ row, col, owner: ownerKey, reason: 'empty' });
+                continue;
+            }
+
+            if (cellVal === ownerVal) {
+                if (expireOnOwnerTurnStart && activePlayerKey === ownerKey) {
+                    // Reveal just before destroy so both sides can read the trap icon at expiry.
+                    emitPresentationEvent(cardState, {
+                        type: 'STATUS_APPLIED',
+                        row,
+                        col,
+                        meta: { special: 'TRAP_REVEAL', owner: ownerKey, reason: 'trap_expired_reveal' }
+                    });
+                    if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
+                        BoardOpsModule.destroyAt(cardState, gameState, row, col, 'TRAP_WILL', 'trap_expired', { special: 'TRAP_REVEAL', owner: ownerKey });
+                    } else {
+                        gameState.board[row][col] = EMPTY;
+                        removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: ownerKey });
+                    }
+                    res.expired.push({ row, col, owner: ownerKey });
+                }
+                continue;
+            }
+
+            if (activePlayerKey === opponentKey && cellVal === activeVal) {
+                const victimKey = opponentKey;
+                const victimCharge = Math.max(0, Number(cardState.charge[victimKey] || 0));
+                cardState.charge[victimKey] = 0;
+                const gainedCharge = addChargeWithTotal(cardState, ownerKey, victimCharge);
+
+                const victimHand = Array.isArray(cardState.hands[victimKey]) ? cardState.hands[victimKey] : [];
+                const stolenCount = Math.min(3, victimHand.length);
+                const stolenCards = victimHand.splice(0, stolenCount);
+
+                const ownerHand = Array.isArray(cardState.hands[ownerKey]) ? cardState.hands[ownerKey] : [];
+                const handSpace = Math.max(0, MAX_HAND_SIZE - ownerHand.length);
+                const toHand = stolenCards.slice(0, handSpace);
+                const toDeck = stolenCards.slice(handSpace);
+                if (toHand.length > 0) ownerHand.push(...toHand);
+                if (toDeck.length > 0) {
+                    if (!Array.isArray(cardState.deck)) cardState.deck = [];
+                    cardState.deck.push(...toDeck);
+                }
+
+                removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: ownerKey });
+                res.triggered.push({
+                    row,
+                    col,
+                    owner: ownerKey,
+                    victim: victimKey,
+                    stolenCharge: victimCharge,
+                    gainedCharge,
+                    stolenHandCount: stolenCount,
+                    toHandCount: toHand.length,
+                    toDeckCount: toDeck.length
+                });
+                continue;
+            }
+
+            removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: ownerKey });
+            res.disarmed.push({ row, col, owner: ownerKey, reason: 'changed_without_trigger' });
+        }
+
         return res;
     }
 
@@ -908,6 +1119,14 @@
         if (!isSpecialStoneAt(cardState, row, col)) return { applied: false, reason: 'not_special' };
         if (getSpecialOwnerAt(cardState, row, col) !== opponentKey) return { applied: false, reason: 'not_opponent_special' };
         if (gameState.board[row][col] === 0) return { applied: false, reason: 'empty' };
+        const guarded = getSpecialMarkers(cardState).some(m => (
+            m &&
+            m.row === row &&
+            m.col === col &&
+            m.data &&
+            m.data.type === 'GUARD'
+        ));
+        if (guarded) return { applied: false, reason: 'guarded' };
 
         // Use BoardOps.changeAt if available
         if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
@@ -946,6 +1165,28 @@
 
         cardState.pendingEffectByPlayer[playerKey] = null;
         return { applied: true };
+    }
+
+    function applyGuardWill(cardState, gameState, playerKey, row, col) {
+        const pending = cardState.pendingEffectByPlayer[playerKey];
+        if (!pending || pending.type !== 'GUARD_WILL' || pending.stage !== 'selectTarget') {
+            return { applied: false, reason: 'not_pending' };
+        }
+        const targets = getGuardTargets(cardState, gameState, playerKey);
+        const allowed = targets.some(t => t.row === row && t.col === col);
+        if (!allowed) return { applied: false, reason: 'invalid_target' };
+
+        removeMarkersAt(cardState, row, col, {
+            kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
+            type: 'GUARD',
+            owner: playerKey
+        });
+        addMarker(cardState, 'specialStone', row, col, playerKey, {
+            type: 'GUARD',
+            remainingOwnerTurns: 3
+        });
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return { applied: true, row, col };
     }
 
     function getStrongWindTargets(cardState, gameState) {
@@ -1090,6 +1331,16 @@
             if (data.type === 'REGEN' && (data.regenRemaining || 0) <= 0) {
                 removeMarkersAt(cardState, m.row, m.col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: data.type, owner: m.owner });
             }
+            if (data.type === 'GUARD' && m.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
+                data.remainingOwnerTurns -= 1;
+                if (data.remainingOwnerTurns <= 0) {
+                    removeMarkersAt(cardState, m.row, m.col, {
+                        kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
+                        type: 'GUARD',
+                        owner: m.owner
+                    });
+                }
+            }
         }
 
         // Special effects that mutate the board at turn START (e.g., DRAGON, BREEDING)
@@ -1147,6 +1398,9 @@
     function applyPlacementEffects(cardState, gameState, playerKey, row, col, flipCount) {
         const effects = { chargeGained: 0 };
         const pending = cardState.pendingEffectByPlayer[playerKey];
+        if (pending && pending.type === 'FREE_PLACEMENT') {
+            effects.freePlacementUsed = true;
+        }
         const opponentKey = playerKey === 'black' ? 'white' : 'black';
         const P_BLACK = BLACK || 1;
         const P_WHITE = WHITE || -1;
@@ -1215,17 +1469,26 @@
                     effects.stolenCards = res.stolenCards;
                 }
             } else {
-                const maxSteal = Math.min(
+                const totalSteal = Math.min(
                     flipCount,
-                    cardState.hands[opponentKey].length,
-                    MAX_HAND_SIZE - cardState.hands[playerKey].length
+                    cardState.hands[opponentKey].length
                 );
 
-                if (maxSteal > 0) {
-                    const stolenCards = cardState.hands[opponentKey].splice(0, maxSteal);
-                    cardState.hands[playerKey].push(...stolenCards);
-                    effects.stolenCards = stolenCards;
-                    effects.stolenCount = maxSteal;
+                if (totalSteal > 0) {
+                    const stolenCards = cardState.hands[opponentKey].splice(0, totalSteal);
+                    const handSpace = Math.max(0, MAX_HAND_SIZE - cardState.hands[playerKey].length);
+                    const toHand = stolenCards.slice(0, handSpace);
+                    const toDeck = stolenCards.slice(handSpace);
+
+                    if (toHand.length > 0) {
+                        cardState.hands[playerKey].push(...toHand);
+                    }
+                    if (toDeck.length > 0) {
+                        cardState.deck.push(...toDeck);
+                    }
+
+                    effects.stolenCards = toHand;
+                    effects.stolenCount = totalSteal;
                 }
             }
         }
@@ -2206,9 +2469,15 @@
             .filter(s => s.data && s.data.type === 'PROTECTED')
             .map(s => ({ row: s.row, col: s.col, owner: s.owner }));
 
-        // PERMA_PROTECTED, DRAGON, BREEDING, and UDG stones are immune to flipping
+        // PERMA_PROTECTED, DRAGON, BREEDING, UDG, and GUARD stones are immune to flipping
         const permaProtectedStones = specials
-            .filter(s => s.data && (s.data.type === 'PERMA_PROTECTED' || s.data.type === 'DRAGON' || s.data.type === 'BREEDING' || s.data.type === 'ULTIMATE_DESTROY_GOD'))
+            .filter(s => s.data && (
+                s.data.type === 'PERMA_PROTECTED' ||
+                s.data.type === 'DRAGON' ||
+                s.data.type === 'BREEDING' ||
+                s.data.type === 'ULTIMATE_DESTROY_GOD' ||
+                s.data.type === 'GUARD'
+            ))
             .map(s => ({
                 row: s.row,
                 col: s.col,
@@ -2328,6 +2597,12 @@
                     if (pending.type === 'INHERIT_WILL' && typeof mod.getInheritTargets === 'function') {
                         return mod.getInheritTargets(cardState, gameState, playerKey);
                     }
+                    if (pending.type === 'TRAP_WILL' && typeof mod.getTrapTargets === 'function') {
+                        return mod.getTrapTargets(cardState, gameState, playerKey);
+                    }
+                    if (pending.type === 'GUARD_WILL' && typeof mod.getGuardTargets === 'function') {
+                        return mod.getGuardTargets(cardState, gameState, playerKey);
+                    }
                 }
             } catch (e) {
                 // fall through to local implementation
@@ -2393,6 +2668,14 @@
             return getTemptWillTargets(cardState, gameState, playerKey);
         }
 
+        if (pending.type === 'TRAP_WILL') {
+            return getTrapTargets(cardState, gameState, playerKey);
+        }
+
+        if (pending.type === 'GUARD_WILL') {
+            return getGuardTargets(cardState, gameState, playerKey);
+        }
+
         return res;
     }
 
@@ -2446,6 +2729,7 @@
         applyHeavenBlessingChoice,
         applyCondemnWill,
         applyTemptWill,
+        applyGuardWill,
         applyStrongWindWill,
         applyRegenWill,
         applyRegenAfterFlips,
@@ -2463,6 +2747,10 @@
         getStrongWindTargets,
         cancelPendingSelection,
         getTemptWillTargets,
+        getGuardTargets,
+        getTrapTargets,
+        applyTrapWill,
+        processTrapEffects,
         clearHyperactiveAtPositions,
         processHyperactiveMoves,
         processHyperactiveMoveAtAnchor,

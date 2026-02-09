@@ -60,6 +60,28 @@ describe('SWAP_WITH_ENEMY normal-stone only policy', () => {
     expect(gameState.board[4][5]).toBe(1);
   });
 
+  test('SWAP treats hidden opponent trap as normal-stone target', () => {
+    const { cardState, gameState } = makeState();
+    cardState.pendingEffectByPlayer.black = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget', cardId: 'swap_01' };
+    gameState.board[1][1] = -1;
+    cardState.markers.push({
+      id: 9,
+      kind: 'specialStone',
+      row: 1,
+      col: 1,
+      owner: 'white',
+      data: { type: 'TRAP', hidden: true }
+    });
+
+    const targets = CardLogic.getSelectableTargets(cardState, gameState, 'black');
+    const set = new Set(targets.map(t => `${t.row},${t.col}`));
+    expect(set.has('1,1')).toBe(true);
+
+    const ok = CardLogic.applySwapEffect(cardState, gameState, 'black', 1, 1);
+    expect(ok).toBe(true);
+    expect(gameState.board[1][1]).toBe(1);
+  });
+
   test('TEMPT_WILL still accepts enemy special stone target', () => {
     const { cardState, gameState } = makeState();
     cardState.pendingEffectByPlayer.black = { type: 'TEMPT_WILL', stage: 'selectTarget', cardId: 'tempt_01' };

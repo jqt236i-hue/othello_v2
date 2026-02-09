@@ -27,6 +27,7 @@ function renderBoard() {
                 pending.type === 'DESTROY_ONE_STONE' ||
                 pending.type === 'SWAP_WITH_ENEMY' ||
                 pending.type === 'INHERIT_WILL' ||
+                pending.type === 'GUARD_WILL' ||
                 pending.type === 'TEMPT_WILL'
             )
         );
@@ -52,6 +53,13 @@ function renderBoard() {
  * フォールバック：全セル再描画
  * Fallback: Full board re-render (legacy method)
  */
+function _isBoardHiddenTrapForBoardRenderer(marker) {
+    if (!marker || !marker.data || marker.data.type !== 'TRAP') return false;
+    // TRAP is hidden information on board after placement.
+    // It should not be shown as a persistent special-stone visual to either side.
+    return true;
+}
+
 function renderBoardFull() {
     // Single Visual Writer: skip renders during active playback
     if (typeof window !== 'undefined' && window.VisualPlaybackActive === true) {
@@ -71,6 +79,7 @@ function renderBoardFull() {
             pending.type === 'DESTROY_ONE_STONE' ||
             pending.type === 'SWAP_WITH_ENEMY' ||
             pending.type === 'INHERIT_WILL' ||
+            pending.type === 'GUARD_WILL' ||
             pending.type === 'TEMPT_WILL'
         )
     );
@@ -88,9 +97,20 @@ function renderBoardFull() {
         : { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' };
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     const specialMap = new Map();
+    const guardMap = new Map();
     const bombMap = new Map();
     for (const m of markers) {
         if (m.kind === markerKinds.SPECIAL_STONE && m.data && m.data.type) {
+            if (_isBoardHiddenTrapForBoardRenderer(m)) continue;
+            if (m.data.type === 'GUARD') {
+                guardMap.set(`${m.row},${m.col}`, {
+                    row: m.row,
+                    col: m.col,
+                    owner: m.owner,
+                    remainingOwnerTurns: m.data.remainingOwnerTurns
+                });
+                continue;
+            }
             specialMap.set(`${m.row},${m.col}`, {
                 row: m.row,
                 col: m.col,
@@ -121,7 +141,9 @@ function renderBoardFull() {
             'GOLD': 'goldStone',
             'SILVER': 'silverStone',
             'REGEN': 'regenStone',
-            'WORK': 'workStone'
+            'WORK': 'workStone',
+            'TRAP': 'trapStone',
+            'TRAP_REVEAL': 'trapStone'
         };
         return map[type] || null;
     };
@@ -167,6 +189,17 @@ function renderBoardFull() {
                     if (effectKey) {
                         applyStoneVisualEffect(disc, effectKey, { owner: getOwnerVal(special.owner) });
                     }
+                    // Robust fallback: ensure reveal-only trap image is visible if visual-map lookup/DI fails.
+                    if (special.type === 'TRAP_REVEAL') {
+                        const ownerVal = getOwnerVal(special.owner);
+                        const trapImagePath = ownerVal === BLACK
+                            ? 'assets/images/stones/trap_stone-black.png'
+                            : 'assets/images/stones/trap_stone-white.png';
+                        try {
+                            disc.classList.add('special-stone', 'trap-stone');
+                            disc.style.setProperty('--special-stone-image', `url('${trapImagePath}')`);
+                        } catch (e) { /* ignore */ }
+                    }
 
                     // Ensure WORK visuals are applied even if mapping returns null
                     if (special.type === 'WORK') {
@@ -201,6 +234,14 @@ function renderBoardFull() {
                     timeLabel.className = 'bomb-timer';
                     timeLabel.textContent = bomb.remainingTurns;
                     disc.appendChild(timeLabel);
+                }
+
+                const guardData = guardMap.get(key);
+                if (guardData && typeof guardData.remainingOwnerTurns === 'number') {
+                    const guardTimer = document.createElement('div');
+                    guardTimer.className = 'guard-timer';
+                    guardTimer.textContent = Math.max(0, guardData.remainingOwnerTurns);
+                    disc.appendChild(guardTimer);
                 }
 
                 cell.appendChild(disc);

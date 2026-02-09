@@ -21,10 +21,20 @@
     function getTemptWillTargets(cardState, gameState, playerKey) {
         const opponentKey = playerKey === 'black' ? 'white' : 'black';
         const res = [];
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        const isGuarded = (r, c) => markers.some(m =>
+            m &&
+            m.kind === 'specialStone' &&
+            m.row === r &&
+            m.col === c &&
+            m.data &&
+            m.data.type === 'GUARD'
+        );
         // Prefer CardUtils if available (handles bombs and special stones uniformly)
         const CardUtils = (typeof require === 'function') ? require('./utils') : (typeof globalThis !== 'undefined' ? globalThis.CardUtils : null);
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
+                if (isGuarded(r, c)) continue;
                 // Must be a special stone or bomb owned by opponent and not an empty cell
                 if (CardUtils && typeof CardUtils.isSpecialStoneAt === 'function') {
                     if (!CardUtils.isSpecialStoneAt(cardState, r, c)) continue;

@@ -53,6 +53,7 @@ EMPTY（空）
 自分の手番で合法手が 1 つも無い場合、プレイヤーは「カード使用」または「パス」を選べる。
 カード使用後に合法手が増えれば配置できる。増えなければパスする。
 パスは「手番が来た回数」としてカウントされる。
+カード使用後にパスした場合、その時点で未解決のカード効果はすべて破棄され、次ターンへ持ち越さない（消費済みコスト/使用カードは戻らない）。
 
 2.6 詰み（Stalemate）
 
@@ -203,6 +204,7 @@ PermaProtected は Protected の永続版：
 合法手が無い：カード使用（任意）またはパスを選択
 
 カード使用後も合法手が無い：パス
+（このとき未解決のカード効果は破棄し、次ターンへ持ち越さない）
 
 FREE_PLACEMENT 中：空きマスなら任意配置可（反転 0 も可）
 
@@ -300,9 +302,11 @@ DOUBLE_PLACE が有効なターンは、1 ターンに最大 2 回配置でき�
 
 10.4 SWAP_WITH_ENEMY
 
-敵石 1 枚を自分色に変換（反転扱いでチャージ対象）
+相手の通常石 1 枚を自分色に変換（反転扱いでチャージ対象）
 
-対象が Protected / PermaProtected の場合：交換不可のため不発（変化なし）
+- 使用条件：盤面に「相手の通常石」が 1 つ以上存在すること（存在しない場合は使用不可）
+- 対象は相手の通常石のみ（特殊石・爆弾石は対象外）
+- Protected / PermaProtected は交換不可のため対象外
 
 10.5 DESTROY_ONE_STONE
 
@@ -359,13 +363,15 @@ Protected / PermaProtected でも破壊可能
 
 10.9 STEAL_CARD（略奪の意志）
 
-このターンに発生した反転枚数だけ相手のカードを奪って自分の手札に加える
+このターンに発生した反転枚数だけ相手のカードを奪う
 
-奪取数 = min(反転枚数, 相手の手札枚数, 5 - 自分の手札枚数)
+奪取数 = min(反転枚数, 相手の手札枚数)
 
-相手の手札の左から順に奪う
+相手の手札の左から順に奪う（奪われたカードは相手手札から除去される）
 
-奪ったカードは自分の手札の末尾に追加される
+奪ったカードのうち、手札上限 5 に収まる分は自分の手札末尾に追加する
+
+手札上限で受け取れない超過分は破棄せず、自分のデッキに加える
 
 反転0の場合は何も奪えない（チャージのみ消費）
 
@@ -495,7 +501,7 @@ Protected / PermaProtected でも破壊可能
 
 盤面上の石を1つ選び、強風で一直線に飛ばす（選択型カード）
 
-- コスト: 11
+- コスト: 9
 - 対象は **盤面上の任意の石**（自分/相手/通常/特殊を問わない）
 - ただし、上下左右のいずれにも1マスも進めない石（隣接4方向すべてが盤外または石）は選択不可
 - 選択後、進める方向（上下左右）からランダムで1方向を選ぶ
@@ -505,6 +511,67 @@ Protected / PermaProtected でも破壊可能
 - 移動は反転ではない（チャージ加算なし）
 - 追加破壊・追加反転は発生しない
 - 演出は多動石の直線移動アニメーションを流用する
+
+10.24 HEAVEN_BLESSING（天の恵み）
+
+候補カードから1枚を選んで獲得する（手札選択型カード）
+
+- コスト: 3
+- 使用時、全カードプールからランダムに最大5枚を候補として提示する
+  - 候補は重複なし
+  - このカード自身（天の恵み）は候補に含めない
+- 候補から1枚を選ぶと、そのカードを自分の手札に加える
+- 選ばれなかった候補は捨て札に行かず消滅する
+- 手札上限（5枚）に達している場合は選択不可
+- 候補を生成できない場合（候補0枚）はこのカードは使用不可
+
+10.25 CONDEMN_WILL（断罪の意志）
+
+相手の手札を見て1枚を選び、破壊する（手札選択型カード）
+
+- コスト: 6
+- 使用条件：相手手札が1枚以上あること（0枚なら使用不可）
+- 相手手札を公開し、1枚を選んで破壊する
+- 破壊したカードは捨て札に送られる
+- 破壊回数は1回固定（0回終了は不可）
+
+10.26 TRAP_WILL（罠の意志）
+
+盤面上の自分の石を1つ選び、罠石にする（選択型カード）
+
+- コスト: 14
+- 使用時、罠の設置自体は公開するが、罠の座標は非公開とする
+- 設置者本人は罠石の座標を常に確認できる
+- 罠石は「次の相手ターンのみ」有効
+- 相手ターン中に相手がその罠石を反転した場合、即時に発動する
+- 発動時:
+  - 相手の布石を 0 にし、その値を自分に加算する（上限30）
+  - 相手手札を左から最大3枚没収する
+  - 没収したカードのうち手札上限5を超える分は破棄せず自分デッキ末尾へ加える
+- 相手ターン中に反転されなかった場合、罠石は不発で消滅する
+- 罠石が破壊された場合、罠は不発で終了する（発動しない）
+
+10.27 GUARD_WILL（守る意志）
+
+盤面上の自分の石を1つ選び、完全保護を付与する（選択型カード）
+
+- コスト: 7
+- 対象は **自分の石のみ**（通常石・特殊石どちらも可）
+- 付与中は **反転無効 / 交換無効 / 破壊無効**
+- 付与中は **誘惑（TEMPT_WILL）も無効**
+- 持続は **3ターン**（所有者のターン開始時に 3→2→1→0 と減少し、0で解除）
+- UI表示:
+  - シールド残りターンは **石の中央上** に表示
+  - タイマー枠自体をシールド形（五角形）で表現する
+
+10.28 TREASURE_BOX（宝箱）
+
+使用時に布石をランダム獲得する（即時発動カード）
+
+- コスト: 0
+- 使用時、布石を **1 / 2 / 3** のいずれかからランダムで獲得する
+- 加算は即時に行い、上限は30
+- 選択操作は不要（対象選択なし）
 
 10.14 INHERIT_WILL（意志の継承）
 
@@ -551,6 +618,14 @@ Protected / PermaProtected でも破壊可能
 この節は **参考** であり、カードごとのチャージコストの一次情報は `cards/catalog.json` とする。
 実装・テスト・本表が食い違う場合は、まず `cards/catalog.json` を正として扱い、本表とルール本文を更新する。
 
+カードUIのコスト色分け:
+- cost 0: 白
+- cost 1〜5: 灰
+- cost 6〜10: 緑
+- cost 11〜15: 青
+- cost 16〜20: 紫
+- cost 21以上: 金
+
 各カード（高い順）：
 
 - cost 30
@@ -578,22 +653,23 @@ Protected / PermaProtected でも破壊可能
   - `regen_01` — **復活の意志** (`REGEN_WILL`) — 枚数: 1
 
 - cost 14
-  - `inherit_01` — **意志の継承** (`INHERIT_WILL`) — 枚数: 1
+  - `trap_01` — **罠の意志** (`TRAP_WILL`) — 枚数: 1
 
 - cost 13
   - `bomb_01` — **時限爆弾** (`TIME_BOMB`) — 枚数: 1
 
 - cost 12
   - `perma_01` — **強い意志** (`PERMA_PROTECT_NEXT_STONE`) — 枚数: 1
+  - `inherit_01` — **意志の継承** (`INHERIT_WILL`) — 枚数: 1
 
 - cost 11
-  - `strong_wind_01` — **強風の意志** (`STRONG_WIND_WILL`) — 枚数: 1
+  - `work_01` — **出稼ぎの意志** (`WORK_WILL`) — 枚数: 1
 
 - cost 10
   - `destroy_01` — **破壊神** (`DESTROY_ONE_STONE`) — 枚数: 1
 
 - cost 9
-  - `work_01` — **出稼ぎの意志** (`WORK_WILL`) — 枚数: 1
+  - `strong_wind_01` — **強風の意志** (`STRONG_WIND_WILL`) — 枚数: 1
 
 - cost 8
   - `sell_01` — **売却の意志** (`SELL_CARD_WILL`) — 枚数: 1
@@ -601,8 +677,10 @@ Protected / PermaProtected でも破壊可能
 
 - cost 7
   - `steal_card_01` — **略奪の意志** (`STEAL_CARD`) — 枚数: 1
+  - `guard_01` — **守る意志** (`GUARD_WILL`) — 枚数: 1
 
 - cost 6
+  - `condemn_01` — **断罪の意志** (`CONDEMN_WILL`) — 枚数: 1
   - `gold_stone` — **金の意志** (`GOLD_STONE`) — 枚数: 1
 
 - cost 5
@@ -613,6 +691,7 @@ Protected / PermaProtected でも破壊可能
   - `plunder_will` — **吸収の意志** (`PLUNDER_WILL`) — 枚数: 1
 
 - cost 3
+  - `heaven_01` — **天の恵み** (`HEAVEN_BLESSING`) — 枚数: 1
   - `silver_stone` — **銀の意志** (`SILVER_STONE`) — 枚数: 1
 
 - cost 2
@@ -621,7 +700,10 @@ Protected / PermaProtected でも破壊可能
 - cost 1
   - `hard_01` — **弱い意志** (`PROTECTED_NEXT_STONE`) — 枚数: 1
 
-合計枚数（デッキ構成）：30枚
+- cost 0
+  - `chest_01` — **宝箱** (`TREASURE_BOX`) — 枚数: 1
+
+合計枚数（カード種類）：29種類
 
 ---
 
@@ -792,6 +874,29 @@ Notes:
 ### 5.8 log
 - Visual: append log line immediately (no animation requirement).
 
+### 5.9 effect log（効果ログ）
+- 通常ログとは別に、効果ログ欄を持つ。
+- 効果ログには「実際に発動した効果」だけを表示する（ターン開始/ドロー/カード使用そのもの等は表示しない）。
+- 表示はスクロール履歴ではなく、最新表示を更新する方式（固定行数）とする。
+- 位置は既定位置から右に 1cm、下に 1cm 移動し、大きさは 110% とする。
+- 最新行は通常の濃さで表示し、他の行は薄く表示する。
+- 効果ログの文言は日本語で統一する。
+- 通常ログ側にはカード効果の文言を表示しない（重複表示を防ぐ）。
+
+### 5.10 normal log（通常ログ）
+- 通常ログには進行情報を表示する（ゲーム開始、ターン開始、ドロー、パスなど）。
+- 配置で反転が発生した場合、`黒がX枚反転！` / `白がX枚反転！` の要約を表示する。
+- 内部向け文言（例: `no animation`, `PresentationEvent: ...`）は表示しない。
+
+
+### 5.11 charge delta (charge UI)
+- When a player's charge value changes, show a delta label next to that player's charge display immediately.
+- Black: left of its charge display. White: right of its charge display.
+- Text: `布石+N` / `布石-N`.
+- Increase color: blue-tinted. Decrease color: red-tinted.
+- Timing: keep visible for 4s, then fade out (opacity only) over 0.5s.
+- New changes overwrite the current label and restart timing.
+
 ---
 
 ## 6) UI Highlights (global)
@@ -835,6 +940,12 @@ Flip clears bomb:
   - Gap (PHASE_GAP_MS), then second placement starts.
 - Do NOT replay turn-start effects between the two placements.
 
+### 7.5 TRAP_WILL
+- 罠石は設置者には専用見た目で表示し、相手には通常石として表示する（秘匿）。
+- 相手ターンで不発終了する場合、消滅直前に罠見た目へ切り替えてから既存の destroy-fade で消す。
+- 効果ログには座標を出さず、設置時に `罠石がどこかに潜んでいる...` を表示する。
+- 罠石の画像は `assets/images/stones/trap_stone-black.png` / `assets/images/stones/trap_stone-white.png` を使用する。
+
 ### 7.5 HYPERACTIVE_WILL
 Placement turn: no hyperactive move.
 Turn-start move:
@@ -862,5 +973,7 @@ Readability:
 - TIME_BOMB explosion shows bomb first, then surrounding stones.
 - Target selection highlights do not modify disc appearance.
 - No mid-playback full rerender; no UI diff inference of missing events.
+
+
 
 

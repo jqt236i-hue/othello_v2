@@ -28,6 +28,10 @@
                 result.destroyed = true;
                 return result;
             }
+            // If BoardOps rejected destroy (e.g. guard protection), do not bypass with fallback paths.
+            if (res && res.destroyed === false) {
+                return result;
+            }
         }
 
         // If destroyAt function provided

@@ -21,9 +21,20 @@
     // Return all non-empty cells (for DESTROY_ONE_STONE)
     function getDestroyTargets(cardState, gameState) {
         const res = [];
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
-                if (gameState.board[r][c] !== EMPTY) res.push({ row: r, col: c });
+                if (gameState.board[r][c] === EMPTY) continue;
+                const guarded = markers.some(m =>
+                    m &&
+                    m.kind === 'specialStone' &&
+                    m.row === r &&
+                    m.col === c &&
+                    m.data &&
+                    m.data.type === 'GUARD'
+                );
+                if (guarded) continue;
+                res.push({ row: r, col: c });
             }
         }
         return res;
@@ -34,11 +45,25 @@
         const res = [];
         const opVal = playerKey === 'black' ? SharedConstants.WHITE : SharedConstants.BLACK;
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        const isHiddenTrapForPlayer = (m) => (
+            m &&
+            m.kind === 'specialStone' &&
+            m.data &&
+            m.data.type === 'TRAP' &&
+            m.owner &&
+            m.owner !== playerKey
+        );
 
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
                 if (gameState.board[r][c] !== opVal) continue;
-                const hasSpecialOrBomb = markers.some(m => (m.row === r && m.col === c) && (m.kind === 'specialStone' || m.kind === 'bomb'));
+                const hasSpecialOrBomb = markers.some(m => {
+                    if (!m || m.row !== r || m.col !== c) return false;
+                    if (m.kind === 'bomb') return true;
+                    if (m.kind !== 'specialStone') return false;
+                    if (isHiddenTrapForPlayer(m)) return false;
+                    return true;
+                });
                 if (hasSpecialOrBomb) continue;
                 res.push({ row: r, col: c });
             }
@@ -50,9 +75,19 @@
     function getSacrificeTargets(cardState, gameState, playerKey) {
         const res = [];
         const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
                 if (gameState.board[r][c] === playerVal) {
+                    const guarded = markers.some(m =>
+                        m &&
+                        m.kind === 'specialStone' &&
+                        m.row === r &&
+                        m.col === c &&
+                        m.data &&
+                        m.data.type === 'GUARD'
+                    );
+                    if (guarded) continue;
                     res.push({ row: r, col: c });
                 }
             }
@@ -132,11 +167,56 @@
         return res;
     }
 
+    // Return trap targets: own stones (including special stones), excluding bombs/own existing trap.
+    function getTrapTargets(cardState, gameState, playerKey) {
+        const res = [];
+        const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (gameState.board[r][c] !== playerVal) continue;
+                const hasBomb = markers.some(m => m && m.row === r && m.col === c && m.kind === 'bomb');
+                if (hasBomb) continue;
+                const hasOwnTrap = markers.some(m => (
+                    m &&
+                    m.row === r &&
+                    m.col === c &&
+                    m.kind === 'specialStone' &&
+                    m.owner === playerKey &&
+                    m.data &&
+                    m.data.type === 'TRAP'
+                ));
+                if (hasOwnTrap) continue;
+                res.push({ row: r, col: c });
+            }
+        }
+        return res;
+    }
+
+    // Return guard targets: own stones (normal/special both allowed), excluding bombs.
+    function getGuardTargets(cardState, gameState, playerKey) {
+        const res = [];
+        const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (gameState.board[r][c] !== playerVal) continue;
+                const hasBomb = markers.some(m => m && m.row === r && m.col === c && m.kind === 'bomb');
+                if (hasBomb) continue;
+                res.push({ row: r, col: c });
+            }
+        }
+        return res;
+    }
+
     return {
         getDestroyTargets,
         getSwapTargets,
         getInheritTargets,
         getSacrificeTargets,
-        getStrongWindTargets
+        getStrongWindTargets,
+        getTrapTargets,
+        getGuardTargets
     };
 }));

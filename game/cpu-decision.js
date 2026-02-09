@@ -175,6 +175,17 @@ function emitCpuSelectionStateChange() {
     if (typeof emitGameStateChange === 'function') emitGameStateChange();
 }
 
+function emitCpuEffectLog(message) {
+    if (!message) return;
+    if (typeof emitEffectLog === 'function') {
+        emitEffectLog(message);
+        return;
+    }
+    if (typeof emitLogAdded === 'function') {
+        emitLogAdded(message, 'effect');
+    }
+}
+
 function getTargetAwareUsableCardIds(playerKey) {
     if (typeof CardLogic === 'undefined' || !CardLogic) return [];
     if (!cardState || !gameState) return [];
@@ -195,6 +206,74 @@ function getTargetAwareUsableCardIds(playerKey) {
         });
     }
     return [];
+}
+
+function _isCpuTrapOnlyModeEnabled(playerKey) {
+    try {
+        if (typeof window === 'undefined' || typeof location === 'undefined') return false;
+        const qs = String(location.search || '');
+        const debugEnabled =
+            /[?&]debug=(1|true)\b/i.test(qs) ||
+            window.DEBUG_UNLIMITED_USAGE === true;
+        if (!debugEnabled) return false;
+        const enabled = /[?&]cpuTrapOnly=(1|true)\b/i.test(qs);
+        if (!enabled) return false;
+        // Default target is white CPU (opponent from normal player perspective).
+        const m = qs.match(/[?&]cpuTrapOnlyFor=([^&]+)/i);
+        const raw = m && m[1] ? decodeURIComponent(m[1]).toLowerCase() : 'white';
+        if (raw === 'all') return true;
+        return raw === String(playerKey || '').toLowerCase();
+    } catch (e) {
+        return false;
+    }
+}
+
+function _findTrapCardIdInCatalog() {
+    try {
+        const defs = (typeof CARD_DEFS !== 'undefined' && Array.isArray(CARD_DEFS))
+            ? CARD_DEFS
+            : (typeof window !== 'undefined' && Array.isArray(window.CARD_DEFS) ? window.CARD_DEFS : []);
+        const def = defs.find(c => c && c.type === 'TRAP_WILL' && c.enabled !== false);
+        return def ? def.id : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function _prepareCpuTrapOnlyCard(playerKey) {
+    if (!_isCpuTrapOnlyModeEnabled(playerKey)) return null;
+    if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return null;
+    if (typeof CardLogic === 'undefined' || !CardLogic) return null;
+
+    const hand = cardState.hands[playerKey];
+    let trapId = null;
+    for (const id of hand) {
+        try {
+            const def = CardLogic.getCardDef ? CardLogic.getCardDef(id) : null;
+            if (def && def.type === 'TRAP_WILL') {
+                trapId = id;
+                break;
+            }
+        } catch (e) { /* ignore */ }
+    }
+    if (!trapId) {
+        trapId = _findTrapCardIdInCatalog();
+        if (!trapId) return null;
+        // Debug-only convenience: ensure CPU always has trap card in hand.
+        if (hand.length >= ((typeof HAND_LIMIT !== 'undefined') ? HAND_LIMIT : 5)) {
+            hand.shift();
+        }
+        hand.push(trapId);
+    }
+
+    try {
+        const cost = (typeof CardLogic.getCardCost === 'function') ? (CardLogic.getCardCost(trapId) || 0) : 0;
+        if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
+        const curr = Number(cardState.charge[playerKey] || 0);
+        if (curr < cost) cardState.charge[playerKey] = cost;
+    } catch (e) { /* ignore */ }
+
+    return trapId;
 }
 
 function selectCardFallback(cardState, gameState, playerKey, level, legalMoves) {
@@ -230,6 +309,18 @@ function selectCardToUse(playerKey) {
     const perma = (typeof getFlipBlockers === 'function') ? getFlipBlockers() : [];
     const safeGameState = (typeof gameState !== 'undefined') ? gameState : null;
     const legalMoves = (typeof getLegalMoves === 'function') ? getLegalMoves(safeGameState, protection, perma) : [];
+
+    // Debug-only accelerator: CPU uses Trap Will preferentially.
+    const trapId = _prepareCpuTrapOnlyCard(playerKey);
+    if (trapId) {
+        const usableNow = getTargetAwareUsableCardIds(playerKey);
+        if (usableNow.includes(trapId)) {
+            const trapDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
+                ? CardLogic.getCardDef(trapId)
+                : null;
+            return { cardId: trapId, cardDef: trapDef };
+        }
+    }
 
     // Always prefer using an affordable card in the provisional CPU behavior.
     if (typeof CardLogic !== 'undefined') {
@@ -634,6 +725,9 @@ async function cpuSelectHeavenBlessingWithPolicy(playerKey) {
         const res = CardLogic.applyHeavenBlessingChoice(cardState, playerKey, targetCardId);
         if (!res || !res.applied) {
             cardState.pendingEffectByPlayer[playerKey] = null;
+        } else {
+            const actor = playerKey === 'black' ? '黒' : '白';
+            emitCpuEffectLog(`${actor}: 天の恵みでカード獲得`);
         }
         emitCpuSelectionStateChange();
     }
@@ -744,6 +838,62 @@ async function cpuSelectSwapWithEnemyWithPolicy(playerKey) {
 }
 
 /**
+ * 罠の意志 対象選択
+ * @param {string} playerKey - 'black' または 'white'
+ */
+async function cpuSelectTrapWillWithPolicy(playerKey) {
+    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
+        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+        : [];
+
+    if (!targets.length) {
+        console.log(`[CPU] ${playerKey}: 罠対象なし`);
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return;
+    }
+
+    const target = targets[Math.floor(cpuRng.random() * targets.length)];
+    console.log(`[CPU] ${playerKey}: 罠ターゲット (${target.row}, ${target.col})`);
+
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyTrapWill === 'function') {
+        const res = CardLogic.applyTrapWill(cardState, gameState, playerKey, target.row, target.col);
+        if (!res || !res.applied) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+        emitCpuSelectionStateChange();
+        return;
+    }
+}
+
+/**
+ * 守る意志 対象選択
+ * @param {string} playerKey - 'black' または 'white'
+ */
+async function cpuSelectGuardWillWithPolicy(playerKey) {
+    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
+        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+        : [];
+
+    if (!targets.length) {
+        console.log(`[CPU] ${playerKey}: 守る対象なし`);
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return;
+    }
+
+    const target = targets[Math.floor(cpuRng.random() * targets.length)];
+    console.log(`[CPU] ${playerKey}: 守るターゲット (${target.row}, ${target.col})`);
+
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyGuardWill === 'function') {
+        const res = CardLogic.applyGuardWill(cardState, gameState, playerKey, target.row, target.col);
+        if (!res || !res.applied) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+        emitCpuSelectionStateChange();
+        return;
+    }
+}
+
+/**
  * 誘惑の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
@@ -821,6 +971,8 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuSelectCondemnWillWithPolicy,
         cpuSelectInheritWithPolicy: cpuSelectInheritWillWithPolicy,
         cpuSelectSwapWithEnemyWithPolicy,
+        cpuSelectTrapWillWithPolicy,
+        cpuSelectGuardWillWithPolicy,
         cpuSelectTemptWillWithPolicy,
         computeCpuAction,
         setCpuRng

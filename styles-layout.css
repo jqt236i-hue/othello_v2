@@ -142,6 +142,59 @@
     transform: translateX(-50%);
 }
 
+
+/* Charge Delta Display */
+.charge-delta {
+    position: absolute;
+    background: rgba(40, 40, 40, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 3px 8px;
+    border-radius: 12px;
+    color: #e6f2ff;
+    font-size: 13px;
+    font-weight: 700;
+    pointer-events: none;
+    z-index: 1011;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+    opacity: 0;
+    transition: none;
+    white-space: nowrap;
+}
+
+.charge-delta.is-visible {
+    opacity: 1;
+    transition: none;
+}
+
+.charge-delta.is-fadeout {
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+.charge-delta.is-increase {
+    background: rgba(20, 70, 140, 0.9);
+    border-color: rgba(120, 190, 255, 0.85);
+    color: #b3dcff;
+}
+
+.charge-delta.is-decrease {
+    background: rgba(120, 20, 20, 0.9);
+    border-color: rgba(255, 120, 120, 0.85);
+    color: #ffd0d0;
+}
+
+#charge-delta-black {
+    left: 50%;
+    bottom: calc(-25px + 5mm);
+    transform: translateX(-50%) translateX(-90px);
+}
+
+#charge-delta-white {
+    left: 50%;
+    top: calc(-25px + 5mm);
+    transform: translateX(-50%) translateX(90px);
+}
 /* Player Area Containers */
 .player-area-top,
 .player-area-bottom {
@@ -400,6 +453,50 @@ input[type=range].compact-slider::-webkit-slider-thumb {
 #log .logEntry {
     direction: ltr;
     text-align: left;
+}
+
+#effect-live-panel {
+    position: fixed;
+    left: calc(12px + 1cm + 360px + 8px + 1cm);
+    top: calc(50% - 3.2cm + 1cm);
+    z-index: 11990;
+    width: 180px;
+    min-height: 156px;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-status);
+    border-radius: 8px;
+    box-shadow: var(--board-shadow-outer);
+    padding: 9px 10px;
+    pointer-events: none;
+    transform: scale(1.1);
+    transform-origin: top left;
+}
+
+.effect-live-title {
+    font-size: 12px;
+    color: var(--color-text-gold);
+    margin-bottom: 4px;
+}
+
+#effect-live-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.effectLiveLine {
+    font-size: 12px;
+    line-height: 1.2;
+    color: var(--color-text-bright);
+    min-height: 1.25em;
+    white-space: normal;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.effectLiveLine--dim {
+    opacity: 0.45;
+    transition: opacity 120ms linear;
 }
 
 #controls {
@@ -677,3 +774,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     position: relative;
     display: block;
 }
+
+
+
+

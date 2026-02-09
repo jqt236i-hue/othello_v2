@@ -37,6 +37,9 @@ const cpuLevelLabel = document.getElementById('cpu-level-label');
 const handLayer = document.getElementById('handLayer');
 const handWrapper = document.getElementById('handWrapper');
 const heldStone = document.getElementById('heldStone');
+const effectLiveLinesEl = document.getElementById('effect-live-lines');
+const _effectLiveEntries = [];
+const _EFFECT_LIVE_MAX = 6;
 
 // Register DOM elements via UIBootstrap so other modules can access them from the canonical source
 try {
@@ -93,6 +96,63 @@ function _runWhenPlaybackIdle(onIdle) {
     onIdle();
 }
 
+function updateEffectLivePanel(text) {
+    if (!effectLiveLinesEl) return;
+    const msg = String(text || '').trim();
+    if (!msg) return;
+    _effectLiveEntries.push(msg);
+    if (_effectLiveEntries.length > _EFFECT_LIVE_MAX) {
+        _effectLiveEntries.splice(0, _effectLiveEntries.length - _EFFECT_LIVE_MAX);
+    }
+    effectLiveLinesEl.innerHTML = '';
+    for (let i = _effectLiveEntries.length - 1; i >= 0; i--) {
+        const line = document.createElement('div');
+        line.className = 'effectLiveLine';
+        if (i !== _effectLiveEntries.length - 1) {
+            line.classList.add('effectLiveLine--dim');
+        }
+        line.textContent = _effectLiveEntries[i];
+        effectLiveLinesEl.appendChild(line);
+    }
+}
+
+function isCardEffectOnlyLogLine(text) {
+    const t = String(text || '').trim();
+    if (!t) return false;
+
+    // Internal/technical lines are not player-facing logs.
+    if (t.startsWith('PresentationEvent:')) return true;
+
+    // Card usage itself should remain in the normal log.
+    if (t.includes('カードを使用')) return false;
+
+    // Card usage/effect lines should live in the effect-only panel.
+    const cardEffectHints = [
+        '破壊神',
+        '時限爆弾',
+        '究極反転龍',
+        '繁殖石',
+        '究極破壊神',
+        '多動石',
+        '復活石',
+        '生贄',
+        '売却',
+        '天の恵み',
+        '断罪',
+        '誘惑',
+        '継承',
+        '交換',
+        '二連投石',
+        '十字爆弾',
+        '反転保護',
+        '永続反転保護',
+        '略奪',
+        '吸収',
+        '出稼ぎ'
+    ];
+    return cardEffectHints.some((k) => t.includes(k));
+}
+
 
 // ===== Event System Integration =====
 if (typeof GameEvents !== 'undefined' && GameEvents.gameEvents) {
@@ -114,7 +174,21 @@ if (typeof GameEvents !== 'undefined' && GameEvents.gameEvents) {
         updateStatus();
     });
     GameEvents.gameEvents.on(GameEvents.EVENT_TYPES.LOG_ADDED, (msg) => {
-        if (typeof addLog === 'function') addLog(msg);
+        const isObjectPayload = !!(msg && typeof msg === 'object' && typeof msg.text === 'string');
+        const text = isObjectPayload ? msg.text : String(msg);
+        const kind = isObjectPayload ? msg.kind : 'normal';
+        const normalizeEffectLogText = (rawText) => {
+            const normalized = String(rawText || '').trim();
+            if (normalized === '反転保護を付与') return '弱い石: 反転保護';
+            if (normalized === '永続反転保護を付与') return '強い石: 永続反転保護';
+            return normalized;
+        };
+        if (kind === 'effect') {
+            updateEffectLivePanel(normalizeEffectLogText(text));
+            return;
+        }
+        if (isCardEffectOnlyLogLine(text)) return;
+        if (typeof addLog === 'function') addLog(text);
     });
 }
 

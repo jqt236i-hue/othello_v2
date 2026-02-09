@@ -6,6 +6,13 @@ window.CardCatalog = {
   "version": 1,
   "cards": [
     {
+      "id": "chest_01",
+      "name": "宝箱",
+      "type": "TREASURE_BOX",
+      "cost": 0,
+      "desc": "使用時に布石を1〜3ランダムで獲得する。"
+    },
+    {
       "id": "free_01",
       "name": "自由の意志",
       "type": "FREE_PLACEMENT",
@@ -44,15 +51,22 @@ window.CardCatalog = {
       "id": "strong_wind_01",
       "name": "強風の意志",
       "type": "STRONG_WIND_WILL",
-      "cost": 11,
+      "cost": 9,
       "desc": "盤面の石1つを選び、進める上下左右のいずれかへランダムに端まで飛ばす。"
     },
     {
       "id": "inherit_01",
       "name": "意志の継承",
       "type": "INHERIT_WILL",
-      "cost": 14,
+      "cost": 12,
       "desc": "自分の通常石1つを強い意志にする。"
+    },
+    {
+      "id": "trap_01",
+      "name": "罠の意志",
+      "type": "TRAP_WILL",
+      "cost": 14,
+      "desc": "自分の石1つを罠石化。次の相手ターン中に反転されると相手の布石全没収+手札3枚没収。"
     },
     {
       "id": "tempt_01",
@@ -135,7 +149,7 @@ window.CardCatalog = {
       "id": "work_01",
       "name": "出稼ぎの意志",
       "type": "WORK_WILL",
-      "cost": 9,
+      "cost": 11,
       "desc": "次の配置石をアンカー化。自ターン開始時に1→2→4→8→16の順でチャージ獲得（最大30）。失うと終了。"
     },
     {
@@ -178,7 +192,14 @@ window.CardCatalog = {
       "name": "略奪の意志",
       "type": "STEAL_CARD",
       "cost": 7,
-      "desc": "反転枚数ぶん相手のカードを奪う。"
+      "desc": "反転枚数ぶん相手の手札を奪う。手札上限超過分は自分のデッキに入る。"
+    },
+    {
+      "id": "guard_01",
+      "name": "守る意志",
+      "type": "GUARD_WILL",
+      "cost": 7,
+      "desc": "自分の石1つに完全保護を付与する。3ターン持続。"
     },
     {
       "id": "udg_01",

@@ -95,7 +95,9 @@ function generateMovesForPlayer(player, pending, protection, perma) {
         pendingType === 'CONDEMN_WILL' ||
         pendingType === 'SWAP_WITH_ENEMY' ||
         pendingType === 'INHERIT_WILL' ||
-        pendingType === 'TEMPT_WILL'
+        pendingType === 'TRAP_WILL' ||
+        pendingType === 'TEMPT_WILL' ||
+        pendingType === 'GUARD_WILL'
     )) {
         return [];
     }

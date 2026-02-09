@@ -1,6 +1,6 @@
 /**
- * @file tempt.js
- * @description Tempt Will card handlers
+ * @file guard.js
+ * @description Guard Will card handlers
  */
 
 function emitPresentationEventViaBoardOps(ev) {
@@ -11,7 +11,7 @@ function emitPresentationEventViaBoardOps(ev) {
     return false;
 }
 
-async function handleTemptSelection(row, col, playerKey) {
+async function handleGuardSelection(row, col, playerKey) {
     if (isProcessing || isCardAnimating) return;
     isProcessing = true;
     isCardAnimating = true;
@@ -19,11 +19,11 @@ async function handleTemptSelection(row, col, playerKey) {
 
     try {
         const pending = cardState.pendingEffectByPlayer[playerKey];
-        if (!pending || pending.type !== 'TEMPT_WILL' || pending.stage !== 'selectTarget') return;
+        if (!pending || pending.type !== 'GUARD_WILL' || pending.stage !== 'selectTarget') return;
 
         const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-            ? ActionManager.ActionManager.createAction('place', playerKey, { temptTarget: { row, col } })
-            : { type: 'place', temptTarget: { row, col } };
+            ? ActionManager.ActionManager.createAction('place', playerKey, { guardTarget: { row, col } })
+            : { type: 'place', guardTarget: { row, col } };
         if (action && cardState && typeof cardState.turnIndex === 'number') {
             action.turnIndex = cardState.turnIndex;
         }
@@ -33,13 +33,13 @@ async function handleTemptSelection(row, col, playerKey) {
             : null;
 
         if (!res || res.ok === false) {
-            if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.temptSelectPrompt());
+            if (typeof emitLogAdded === 'function') emitLogAdded('守る石にする自分の石を選んでください');
             return;
         }
 
-        const selected = (res.rawEvents || []).find(e => e && e.type === 'tempt_selected');
+        const selected = (res.rawEvents || []).find(e => e && e.type === 'guard_selected');
         if (!selected || !selected.applied) {
-            if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.temptSelectPrompt());
+            if (typeof emitLogAdded === 'function') emitLogAdded('守る石にする自分の石を選んでください');
             return;
         }
 
@@ -50,12 +50,8 @@ async function handleTemptSelection(row, col, playerKey) {
             emitPresentationEventViaBoardOps({
                 type: 'PLAYBACK_EVENTS',
                 events: res.playbackEvents,
-                meta: { cause: 'TEMPT_WILL', target: { row, col } }
+                meta: { cause: 'GUARD_WILL', target: { row, col } }
             });
-        }
-
-        if (typeof emitLogAdded === 'function') {
-            emitLogAdded(LOG_MESSAGES.temptApplied(playerKey === 'black' ? '黒' : '白', posToNotation(row, col)));
         }
 
         if (typeof emitCardStateChange === 'function') emitCardStateChange();
@@ -72,5 +68,5 @@ async function handleTemptSelection(row, col, playerKey) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { handleTemptSelection };
+    module.exports = { handleGuardSelection };
 }

@@ -96,6 +96,40 @@ async function crossfadeStoneVisual(disc, options = {}) {
 }
 
 // Export for window or module systems
+
+var _chargeDeltaTimers = { black: null, white: null };
+var _chargeDeltaClearTimers = { black: null, white: null };
+
+function showChargeDelta(playerKey, delta) {
+    if (!Number.isFinite(delta) || delta === 0) return;
+    if (typeof document === 'undefined') return;
+
+    var key = (playerKey === 'white' || playerKey === WHITE || playerKey === -1) ? 'white' : 'black';
+    var elId = (key === 'black') ? 'charge-delta-black' : 'charge-delta-white';
+    var el = document.getElementById(elId);
+    if (!el) return;
+
+    var sign = delta > 0 ? '+' : '';
+    el.textContent = '布石' + sign + delta;
+
+    el.classList.remove('is-increase', 'is-decrease');
+    el.classList.add(delta > 0 ? 'is-increase' : 'is-decrease');
+
+    var timer = _Timer();
+    if (_chargeDeltaTimers[key]) timer.clearTimeout(_chargeDeltaTimers[key]);
+    if (_chargeDeltaClearTimers[key]) timer.clearTimeout(_chargeDeltaClearTimers[key]);
+
+    el.classList.remove('is-fadeout');
+    el.classList.add('is-visible');
+    _chargeDeltaTimers[key] = timer.setTimeout(function () {
+        el.classList.remove('is-visible');
+        el.classList.add('is-fadeout');
+        _chargeDeltaClearTimers[key] = timer.setTimeout(function () {
+            el.textContent = '';
+            el.classList.remove('is-fadeout');
+        }, 500);
+    }, 4000);
+}
 if (typeof window !== 'undefined') {
     window.crossfadeStoneVisual = crossfadeStoneVisual;
 }
@@ -229,10 +263,53 @@ function applyPendingSpecialstoneVisual(move, pendingType) {
     if (effectKey && typeof applyStoneVisualEffect === 'function') applyStoneVisualEffect(disc, effectKey, { owner: move.player });
 }
 
+
+var _chargeDeltaTimers = { black: null, white: null };
+var _chargeDeltaClearTimers = { black: null, white: null };
+
+function showChargeDelta(playerKey, delta) {
+    if (!Number.isFinite(delta) || delta === 0) return;
+    if (typeof document === 'undefined') return;
+
+    var key = (playerKey === 'white' || playerKey === WHITE || playerKey === -1) ? 'white' : 'black';
+    var elId = (key === 'black') ? 'charge-delta-black' : 'charge-delta-white';
+    var el = document.getElementById(elId);
+    if (!el) return;
+
+    var sign = delta > 0 ? '+' : '';
+    el.textContent = '布石' + sign + delta;
+
+    el.classList.remove('is-increase', 'is-decrease');
+    el.classList.add(delta > 0 ? 'is-increase' : 'is-decrease');
+
+    var timer = _Timer();
+    if (_chargeDeltaTimers[key]) timer.clearTimeout(_chargeDeltaTimers[key]);
+    if (_chargeDeltaClearTimers[key]) timer.clearTimeout(_chargeDeltaClearTimers[key]);
+
+    el.classList.remove('is-fadeout');
+    el.classList.add('is-visible');
+    _chargeDeltaTimers[key] = timer.setTimeout(function () {
+        el.classList.remove('is-visible');
+        el.classList.add('is-fadeout');
+        _chargeDeltaClearTimers[key] = timer.setTimeout(function () {
+            el.textContent = '';
+            el.classList.remove('is-fadeout');
+        }, 500);
+    }, 4000);
+}
 if (typeof window !== 'undefined') {
     // Expose helpers to legacy consumers
-    try { window.StoneVisuals = window.StoneVisuals || {}; Object.assign(window.StoneVisuals, { crossfadeStoneVisual, setDiscColorAt, removeBombOverlayAt, clearAllStoneVisualEffectsAt, syncDiscVisualToCurrentState, applyPendingSpecialstoneVisual }); } catch (e) {}
+    try { window.StoneVisuals = window.StoneVisuals || {}; Object.assign(window.StoneVisuals, { crossfadeStoneVisual, setDiscColorAt, removeBombOverlayAt, clearAllStoneVisualEffectsAt, syncDiscVisualToCurrentState, applyPendingSpecialstoneVisual, showChargeDelta }); } catch (e) {}
 }
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { crossfadeStoneVisual, setDiscColorAt, removeBombOverlayAt, clearAllStoneVisualEffectsAt, syncDiscVisualToCurrentState, applyPendingSpecialstoneVisual };
+    module.exports = { crossfadeStoneVisual, setDiscColorAt, removeBombOverlayAt, clearAllStoneVisualEffectsAt, syncDiscVisualToCurrentState, applyPendingSpecialstoneVisual, showChargeDelta };
 }
+
+
+
+
+
+
+
+
+

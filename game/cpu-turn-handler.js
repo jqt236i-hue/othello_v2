@@ -84,6 +84,8 @@ function getPendingTypeHandlers(playerKey) {
         'CONDEMN_WILL': async () => { if (typeof cpuSelectCondemnWillWithPolicy === 'function') await cpuSelectCondemnWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'INHERIT_WILL': async () => { await cpuSelectInheritWillWithPolicy(playerKey); },
         'SWAP_WITH_ENEMY': async () => { if (typeof cpuSelectSwapWithEnemyWithPolicy === 'function') await cpuSelectSwapWithEnemyWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
+        'TRAP_WILL': async () => { if (typeof cpuSelectTrapWillWithPolicy === 'function') await cpuSelectTrapWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
+        'GUARD_WILL': async () => { if (typeof cpuSelectGuardWillWithPolicy === 'function') await cpuSelectGuardWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'TEMPT_WILL': async () => { if (typeof cpuSelectTemptWillWithPolicy === 'function') await cpuSelectTemptWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; }
     };
 }

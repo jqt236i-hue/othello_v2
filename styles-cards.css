@@ -142,6 +142,20 @@
     --card-tier-badge-border: rgba(224, 194, 122, 0.85);
 }
 
+.card-item.visible.cost-tier-white {
+    --card-tier-bg-a: #f5f7fb;
+    --card-tier-bg-b: #dfe5ef;
+    --card-tier-bg-c: #b9c4d3;
+    --card-tier-hi: rgba(255, 255, 255, 0.62);
+    --card-tier-border: #e0c27a;
+    --card-tier-text: #1f2a3c;
+    --card-tier-badge-bg-a: rgba(247, 250, 255, 0.98);
+    --card-tier-badge-bg-b: rgba(210, 220, 236, 0.96);
+    --card-tier-badge-hi: rgba(255, 255, 255, 0.56);
+    --card-tier-badge-text: #1e2a40;
+    --card-tier-badge-border: rgba(224, 194, 122, 0.9);
+}
+
 .card-item.visible.cost-tier-red {
     --card-tier-bg-a: #468b62;
     --card-tier-bg-b: #326849;

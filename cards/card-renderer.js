@@ -2,12 +2,15 @@
 
 function getCardCostTier(cost) {
     const safeCost = Number.isFinite(cost) ? cost : 0;
+    if (safeCost === 0) return 'white';
     if (safeCost >= 21) return 'gold';
     if (safeCost >= 16) return 'purple';
     if (safeCost >= 11) return 'blue';
     if (safeCost >= 6) return 'red';
     return 'gray';
 }
+
+var _lastChargeForDelta = { black: null, white: null, turnIndex: null };
 
 function renderCardUI() {
     // Get elements
@@ -26,6 +29,35 @@ function renderCardUI() {
         chargeWhiteEl.textContent = `布石: ${cardState.charge.white || 0} / 30`;
     }
 
+    const chargeDeltaHandler = (typeof window !== 'undefined' && window.StoneVisuals && typeof window.StoneVisuals.showChargeDelta === 'function')
+        ? window.StoneVisuals.showChargeDelta
+        : null;
+    const chargeState = (cardState && cardState.charge) ? cardState.charge : { black: 0, white: 0 };
+    const currentBlackCharge = Number.isFinite(chargeState.black) ? chargeState.black : Number(chargeState.black || 0);
+    const currentWhiteCharge = Number.isFinite(chargeState.white) ? chargeState.white : Number(chargeState.white || 0);
+    const currentTurnIndex = (cardState && typeof cardState.turnIndex === 'number') ? cardState.turnIndex : null;
+
+    if (currentTurnIndex !== null && _lastChargeForDelta.turnIndex !== null && currentTurnIndex < _lastChargeForDelta.turnIndex) {
+        _lastChargeForDelta.black = null;
+        _lastChargeForDelta.white = null;
+    }
+    if (currentTurnIndex === 0 && _lastChargeForDelta.turnIndex !== 0) {
+        _lastChargeForDelta.black = null;
+        _lastChargeForDelta.white = null;
+    }
+
+    if (_lastChargeForDelta.black !== null) {
+        const deltaBlack = currentBlackCharge - _lastChargeForDelta.black;
+        if (deltaBlack !== 0 && chargeDeltaHandler) chargeDeltaHandler('black', deltaBlack);
+    }
+    if (_lastChargeForDelta.white !== null) {
+        const deltaWhite = currentWhiteCharge - _lastChargeForDelta.white;
+        if (deltaWhite !== 0 && chargeDeltaHandler) chargeDeltaHandler('white', deltaWhite);
+    }
+
+    _lastChargeForDelta.black = currentBlackCharge;
+    _lastChargeForDelta.white = currentWhiteCharge;
+    _lastChargeForDelta.turnIndex = currentTurnIndex;
     // Update deck visuals (shared deck - both show same count)
     const deckCount = cardState.deck.length;
     const totalDeck = Number.isFinite(cardState.initialDeckSize) ? cardState.initialDeckSize : 30;
@@ -212,5 +244,7 @@ function renderCardUI() {
         }
     }
 }
+
+
 
 

@@ -5,6 +5,13 @@ window.CardCatalog = {
   "notes": "Source of truth for card display name (ja) <-> code/type. Keep this in sync with SharedConstants/CARD_DEFS.",
   "cards": [
     {
+      "id": "chest_01",
+      "name_ja": "宝箱",
+      "type": "TREASURE_BOX",
+      "cost": 0,
+      "desc_ja": "使用時に布石を1〜3ランダムで獲得する。"
+    },
+    {
       "id": "free_01",
       "name_ja": "自由の意志",
       "type": "FREE_PLACEMENT",
@@ -43,15 +50,22 @@ window.CardCatalog = {
       "id": "strong_wind_01",
       "name_ja": "強風の意志",
       "type": "STRONG_WIND_WILL",
-      "cost": 11,
+      "cost": 9,
       "desc_ja": "盤面の石1つを選び、進める上下左右のいずれかへランダムに端まで飛ばす。"
     },
     {
       "id": "inherit_01",
       "name_ja": "意志の継承",
       "type": "INHERIT_WILL",
-      "cost": 14,
+      "cost": 12,
       "desc_ja": "自分の通常石1つを強い意志にする。"
+    },
+    {
+      "id": "trap_01",
+      "name_ja": "罠の意志",
+      "type": "TRAP_WILL",
+      "cost": 14,
+      "desc_ja": "自分の石1つを罠石化。次の相手ターン中に反転されると相手の布石全没収+手札3枚没収。"
     },
     {
       "id": "tempt_01",
@@ -134,7 +148,7 @@ window.CardCatalog = {
       "id": "work_01",
       "name_ja": "出稼ぎの意志",
       "type": "WORK_WILL",
-      "cost": 9,
+      "cost": 11,
       "desc_ja": "次の配置石をアンカー化。自ターン開始時に1→2→4→8→16の順でチャージ獲得（最大30）。失うと終了。"
     },
     {
@@ -143,6 +157,20 @@ window.CardCatalog = {
       "type": "DOUBLE_PLACE",
       "cost": 27,
       "desc_ja": "このターンは石を2回置ける。"
+    },
+    {
+      "id": "heaven_01",
+      "name_ja": "天の恵み",
+      "type": "HEAVEN_BLESSING",
+      "cost": 3,
+      "desc_ja": "ランダムな候補5枚から1枚を選んで獲得する。"
+    },
+    {
+      "id": "condemn_01",
+      "name_ja": "断罪の意志",
+      "type": "CONDEMN_WILL",
+      "cost": 6,
+      "desc_ja": "相手手札を公開し、1枚選んで破壊する。"
     },
     {
       "id": "gold_stone",
@@ -163,7 +191,14 @@ window.CardCatalog = {
       "name_ja": "略奪の意志",
       "type": "STEAL_CARD",
       "cost": 7,
-      "desc_ja": "反転枚数ぶん相手のカードを奪う。"
+      "desc_ja": "反転枚数ぶん相手の手札を奪う。手札上限超過分は自分のデッキに入る。"
+    },
+    {
+      "id": "guard_01",
+      "name_ja": "守る意志",
+      "type": "GUARD_WILL",
+      "cost": 7,
+      "desc_ja": "自分の石1つに完全保護を付与する。3ターン持続。"
     },
     {
       "id": "udg_01",

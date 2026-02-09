@@ -89,6 +89,9 @@
     // PERMA_PROTECT_NEXT_STONE(4), DESTROY_ONE_STONE(4), TIME_BOMB(3)
     // 20-card deck (Rule 4.1)
     const CARD_DEFS_FALLBACK = [
+        // TREASURE_BOX (宝箱) - 1 card, cost: 0
+        { id: 'chest_01', name: '宝箱', type: 'TREASURE_BOX', cost: 0, desc: '使用時に布石を1〜3ランダムで獲得する。' },
+
         // FREE_PLACEMENT (自由の意志) - 1 card, cost: 2
         { id: 'free_01', name: '自由の意志', type: 'FREE_PLACEMENT', cost: 2, desc: '反転できなくても、空いているマスならどこにでも石を置ける' },
 
@@ -105,10 +108,11 @@
 
         // PERMA_PROTECT_NEXT_STONE (強い意志) - 1 card, cost: 12
         { id: 'perma_01', name: '強い意志', type: 'PERMA_PROTECT_NEXT_STONE', cost: 12, desc: '次に置いた石は、ずっと反転されない。' },
-        // STRONG_WIND_WILL (強風の意志) - 1 card, cost: 11
-        { id: 'strong_wind_01', name: '強風の意志', type: 'STRONG_WIND_WILL', cost: 11, desc: '盤面の石1つを選び、進める上下左右のいずれかへランダムに端まで飛ばす。' },
+        // STRONG_WIND_WILL (強風の意志) - 1 card, cost: 9
+        { id: 'strong_wind_01', name: '強風の意志', type: 'STRONG_WIND_WILL', cost: 9, desc: '盤面の石1つを選び、進める上下左右のいずれかへランダムに端まで飛ばす。' },
 
-        { id: 'inherit_01', name: '意志の継承', type: 'INHERIT_WILL', cost: 14, desc: '盤面上の自分の通常石を1つ選び、強い意志状態にする。' },
+        { id: 'inherit_01', name: '意志の継承', type: 'INHERIT_WILL', cost: 12, desc: '盤面上の自分の通常石を1つ選び、強い意志状態にする。' },
+        { id: 'trap_01', name: '罠の意志', type: 'TRAP_WILL', cost: 14, desc: '自分の石を1つ罠石にする。次の相手ターン中に反転されると、相手の布石全没収＋手札3枚没収。' },
 
         { id: 'chain_01', name: '連鎖の意志', type: 'CHAIN_WILL', cost: 22, desc: 'このターンの配置で発生した通常反転を起点に、最大1方向のみ追加反転を行う。' },
 
@@ -136,7 +140,7 @@
         // PLUNDER_WILL (吸収の意志) - 1 card, cost: 4
         { id: 'plunder_will', name: '吸収の意志', type: 'PLUNDER_WILL', cost: 4, desc: '次の反転数だけ相手の布石を奪う。' },
 
-        { id: 'work_01', name: '出稼ぎの意志', type: 'WORK_WILL', cost: 9, desc: '次の配置をアンカーにして、その石がある限り自ターン開始時に1,2,4,8,16の順でチャージを得る（最大30）。石が相手に取られるか破壊されると効果は終了する。' },
+        { id: 'work_01', name: '出稼ぎの意志', type: 'WORK_WILL', cost: 11, desc: '次の配置をアンカーにして、その石がある限り自ターン開始時に1,2,4,8,16の順でチャージを得る（最大30）。石が相手に取られるか破壊されると効果は終了する。' },
 
         // DOUBLE_PLACE (二連投石) - 1 card, cost: 27
         { id: 'double_01', name: '二連投石', type: 'DOUBLE_PLACE', cost: 27, desc: 'このターン、石を2回置ける。' },
@@ -149,7 +153,10 @@
         { id: 'gold_stone', name: '金の意志', type: 'GOLD_STONE', cost: 6, desc: '次の反転で得る布石が4倍。使用後その石は消滅する。' },
 
         // STEAL_CARD (略奪の意志) - 1 card, cost: 7
-        { id: 'steal_card_01', name: '略奪の意志', type: 'STEAL_CARD', cost: 7, desc: '反転させた枚数だけ相手のカードを奪う。' },
+        { id: 'steal_card_01', name: '略奪の意志', type: 'STEAL_CARD', cost: 7, desc: '反転枚数ぶん相手手札を奪う。手札上限超過分は自分のデッキに加える。' },
+
+        // GUARD_WILL (守る意志) - 1 card, cost: 7
+        { id: 'guard_01', name: '守る意志', type: 'GUARD_WILL', cost: 7, desc: '自分の石1つに完全保護を付与する。3ターン持続。' },
 
         // ULTIMATE_DESTROY_GOD (究極破壊神) - 1 card, cost: 25
         { id: 'udg_01', name: '究極破壊神', type: 'ULTIMATE_DESTROY_GOD', cost: 25, desc: '次に置く石を究極破壊神化。配置ターン即時＋自ターン開始時、周囲8マスの敵石を破壊。持続3ターン（配置ターン含め最大4回）。' }
@@ -164,6 +171,7 @@
     }, {});
 
     const CARD_TYPES = [
+        'TREASURE_BOX',
         'FREE_PLACEMENT',
         'PROTECTED_NEXT_STONE',
         'SWAP_WITH_ENEMY',
@@ -171,6 +179,7 @@
         'PERMA_PROTECT_NEXT_STONE',
         'STRONG_WIND_WILL',
         'INHERIT_WILL',
+        'TRAP_WILL',
         'TEMPT_WILL',
         'CHAIN_WILL',
         'REGEN_WILL',
@@ -187,6 +196,7 @@
         'GOLD_STONE',
         'SILVER_STONE',
         'STEAL_CARD',
+        'GUARD_WILL',
         'ULTIMATE_DESTROY_GOD',
         'HYPERACTIVE_WILL',
         'SELL_CARD_WILL'

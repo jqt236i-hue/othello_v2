@@ -112,4 +112,55 @@ describe('CardLogic applyCardUsage presentation event', () => {
     const used = CardLogic.applyCardUsage(cardState, gameState, 'black', sellDef.id);
     expect(used).toBe(false);
   });
+
+  test('STEAL_CARD removes cards from opponent and receives within hand limit', () => {
+    const defs = Array.isArray(SharedConstants.CARD_DEFS) ? SharedConstants.CARD_DEFS : [];
+    const stealDef = defs.find(d => d && d.id && d.type === 'STEAL_CARD');
+    expect(stealDef).toBeTruthy();
+
+    const prng = { shuffle: () => {}, random: () => 0.5 };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: 1 };
+
+    cardState.hands.black = [stealDef.id, 'a', 'b', 'c'];
+    cardState.hands.white = ['w1', 'w2', 'w3', 'w4', 'w5'];
+    cardState.charge.black = Number.isFinite(stealDef.cost) ? stealDef.cost : 0;
+    cardState.deck = ['d1'];
+
+    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', stealDef.id);
+    expect(used).toBe(true);
+
+    const effects = CardLogic.applyPlacementEffects(cardState, gameState, 'black', 3, 3, 3);
+    expect(effects.stolenCount).toBe(3);
+    expect(cardState.hands.black).toEqual(['a', 'b', 'c', 'w1', 'w2']);
+    expect(cardState.hands.white).toEqual(['w4', 'w5']);
+    expect(cardState.deck).toEqual(['d1', 'w3']);
+  });
+
+  test('STEAL_CARD over-hand cards are added to own deck, not discarded', () => {
+    const defs = Array.isArray(SharedConstants.CARD_DEFS) ? SharedConstants.CARD_DEFS : [];
+    const stealDef = defs.find(d => d && d.id && d.type === 'STEAL_CARD');
+    expect(stealDef).toBeTruthy();
+
+    const prng = { shuffle: () => {}, random: () => 0.5 };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: 1 };
+
+    // Hand is full before use. After using STEAL_CARD, one slot opens.
+    cardState.hands.black = [stealDef.id, 'a', 'b', 'c', 'd'];
+    cardState.hands.white = ['w1', 'w2', 'w3', 'w4', 'w5'];
+    cardState.charge.black = Number.isFinite(stealDef.cost) ? stealDef.cost : 0;
+    cardState.deck = ['d1', 'd2'];
+    cardState.discard = [];
+
+    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', stealDef.id);
+    expect(used).toBe(true);
+
+    const effects = CardLogic.applyPlacementEffects(cardState, gameState, 'black', 3, 3, 5);
+    expect(effects.stolenCount).toBe(5);
+    expect(cardState.hands.black).toEqual(['a', 'b', 'c', 'd', 'w1']);
+    expect(cardState.hands.white).toEqual([]);
+    expect(cardState.deck).toEqual(['d1', 'd2', 'w2', 'w3', 'w4', 'w5']);
+    expect(cardState.discard.includes(stealDef.id)).toBe(true);
+  });
 });

@@ -24,7 +24,7 @@
 
     /**
      * Apply a single action within a turn, following a fixed turn pipeline.
-     * - action: { type: 'place' | 'pass' | 'use_card' | 'cancel_card', row?, col?, useCardId?, useCardOwnerKey?, debugOptions?, cancelOptions?, destroyTarget?: {row:number,col:number}, strongWindTarget?: {row:number,col:number}, sacrificeTarget?: {row:number,col:number}, sellCardId?: string, temptTarget?, inheritTarget? }
+     * - action: { type: 'place' | 'pass' | 'use_card' | 'cancel_card', row?, col?, useCardId?, useCardOwnerKey?, debugOptions?, cancelOptions?, destroyTarget?: {row:number,col:number}, strongWindTarget?: {row:number,col:number}, sacrificeTarget?: {row:number,col:number}, sellCardId?: string, temptTarget?, inheritTarget?, trapTarget?: {row:number,col:number} }
      * - If useCardId is provided it will be applied before placement (consuming charge/hand)
      * Returns { gameState, cardState, events }
      *
@@ -37,7 +37,7 @@
         TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, playerKey, events, p);
 
         // 2) Card usage (optional)
-        TurnPipelinePhases.applyCardUsagePhase(CardLogic, cardState, gameState, playerKey, action, events);
+        TurnPipelinePhases.applyCardUsagePhase(CardLogic, cardState, gameState, playerKey, action, events, p);
 
         // 3) Action
     // Attach action meta to cardState so BoardOps and other helpers can populate presentationEvents with action metadata
