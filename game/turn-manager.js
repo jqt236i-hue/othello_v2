@@ -142,6 +142,14 @@ function handleCellClick(row, col) {
         // This effect is resolved by selecting a card from hand UI, not board cells.
         return;
     }
+    if (pending && pending.type === 'HEAVEN_BLESSING' && pending.stage === 'selectTarget') {
+        // This effect is resolved via the heaven blessing overlay UI.
+        return;
+    }
+    if (pending && pending.type === 'CONDEMN_WILL' && pending.stage === 'selectTarget') {
+        // This effect is resolved via the hand selection overlay UI.
+        return;
+    }
     if (pending && pending.type === 'INHERIT_WILL' && pending.stage === 'selectTarget') {
         if (typeof handleInheritSelection === 'function') {
             handleInheritSelection(row, col, playerKey);

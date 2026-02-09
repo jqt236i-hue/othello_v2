@@ -27,6 +27,7 @@
     const MAX_HAND_SIZE = 5;
     const DRAW_INTERVAL = 1; // Draw every turn (turn 1, 2, 3, ...)
     const DOUBLE_PLACE_EXTRA = 1;
+    const HEAVEN_BLESSING_OFFER_COUNT = 5;
     const TIME_BOMB_TURNS = 3;
     const ULTIMATE_DRAGON_TURNS = 5;
     const ULTIMATE_DESTROY_GOD_TURNS = 3;
@@ -599,6 +600,12 @@
                 // Must have at least one other card to sell after consuming this card.
                 if (hand.length <= 1) continue;
             }
+            if (type === 'CONDEMN_WILL') {
+                // Must have at least one opponent hand card to destroy.
+                const opponentKey = playerKey === 'black' ? 'white' : 'black';
+                const opponentHand = (cardState.hands && Array.isArray(cardState.hands[opponentKey])) ? cardState.hands[opponentKey] : [];
+                if (opponentHand.length === 0) continue;
+            }
 
             // Cards that require valid targets
             if (gameState) {
@@ -645,6 +652,28 @@
      */
     function hasUsableCard(cardState, gameState, playerKey) {
         return getUsableCardIds(cardState, gameState, playerKey).length > 0;
+    }
+
+    function buildHeavenBlessingOffers(cardIdToExclude) {
+        const pool = (CARD_DEFS || [])
+            .filter(c => c && c.enabled !== false && c.id && c.id !== cardIdToExclude)
+            .map(c => c.id);
+        if (pool.length === 0) return [];
+
+        const out = [];
+        while (pool.length > 0 && out.length < HEAVEN_BLESSING_OFFER_COUNT) {
+            const idx = Math.floor(Math.random() * pool.length);
+            out.push(pool[idx]);
+            pool.splice(idx, 1);
+        }
+        return out;
+    }
+
+    function buildCondemnOffers(cardState, playerKey) {
+        if (!cardState || !cardState.hands) return [];
+        const opponentKey = playerKey === 'black' ? 'white' : 'black';
+        const hand = Array.isArray(cardState.hands[opponentKey]) ? cardState.hands[opponentKey] : [];
+        return hand.map((cardId, handIndex) => ({ handIndex, cardId }));
     }
 
     /**
@@ -695,6 +724,14 @@
             const remainingHandCount = (cardState.hands[handKey] ? cardState.hands[handKey].length : 0) - 1;
             if (remainingHandCount <= 0) return false;
         }
+        const heavenOffers = (cardType === 'HEAVEN_BLESSING') ? buildHeavenBlessingOffers(cardId) : null;
+        if (cardType === 'HEAVEN_BLESSING' && (!heavenOffers || heavenOffers.length === 0)) {
+            return false;
+        }
+        const condemnOffers = (cardType === 'CONDEMN_WILL') ? buildCondemnOffers(cardState, chargeOwnerKey) : null;
+        if (cardType === 'CONDEMN_WILL' && (!condemnOffers || condemnOffers.length === 0)) {
+            return false;
+        }
 
         if (!(opts && opts.noConsume)) {
             // Remove from hand
@@ -715,6 +752,8 @@
             cardType === 'STRONG_WIND_WILL' ||
             cardType === 'SACRIFICE_WILL' ||
             cardType === 'SELL_CARD_WILL' ||
+            cardType === 'HEAVEN_BLESSING' ||
+            cardType === 'CONDEMN_WILL' ||
             cardType === 'SWAP_WITH_ENEMY' ||
             cardType === 'INHERIT_WILL' ||
             cardType === 'TEMPT_WILL';
@@ -722,6 +761,7 @@
             type: cardType,
             cardId,
             stage: needsSelection ? 'selectTarget' : null,
+            offers: heavenOffers || condemnOffers || undefined,
             selectedCount: cardType === 'SACRIFICE_WILL' ? 0 : undefined,
             maxSelections: cardType === 'SACRIFICE_WILL' ? 3 : undefined
         };
@@ -1556,6 +1596,90 @@
         return { applied: true, soldCardId, gained };
     }
 
+    /**
+     * Apply HEAVEN_BLESSING (天の恵み)
+     * Select exactly one offered card and add it to hand.
+     * Non-selected offers are removed (not discarded).
+     * @param {Object} cardState
+     * @param {string} playerKey
+     * @param {string} selectedCardId
+     * @returns {{applied:boolean, reason?:string, selectedCardId?:string, vanished?:string[]}}
+     */
+    function applyHeavenBlessingChoice(cardState, playerKey, selectedCardId) {
+        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        if (!pending || pending.type !== 'HEAVEN_BLESSING' || pending.stage !== 'selectTarget') {
+            return { applied: false, reason: 'pending_not_found' };
+        }
+
+        const offers = Array.isArray(pending.offers) ? pending.offers.slice() : [];
+        if (!offers.length) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+            return { applied: false, reason: 'offers_not_found' };
+        }
+        if (!selectedCardId || !offers.includes(selectedCardId)) {
+            return { applied: false, reason: 'invalid_target' };
+        }
+        if (!cardState.hands || !Array.isArray(cardState.hands[playerKey])) {
+            return { applied: false, reason: 'invalid_hand' };
+        }
+        if (cardState.hands[playerKey].length >= MAX_HAND_SIZE) {
+            return { applied: false, reason: 'hand_full' };
+        }
+
+        cardState.hands[playerKey].push(selectedCardId);
+        const vanished = offers.filter(id => id !== selectedCardId);
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return { applied: true, selectedCardId, vanished };
+    }
+
+    /**
+     * Apply CONDEMN_WILL (断罪の意志)
+     * Reveal opponent hand and destroy exactly one selected card.
+     * @param {Object} cardState
+     * @param {string} playerKey
+     * @param {number} targetIndex
+     * @returns {{applied:boolean, reason?:string, destroyedCardId?:string}}
+     */
+    function applyCondemnWill(cardState, playerKey, targetIndex) {
+        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        if (!pending || pending.type !== 'CONDEMN_WILL' || pending.stage !== 'selectTarget') {
+            return { applied: false, reason: 'pending_not_found' };
+        }
+
+        const offers = Array.isArray(pending.offers) ? pending.offers.slice() : [];
+        if (!offers.length) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+            return { applied: false, reason: 'offers_not_found' };
+        }
+
+        if (!Number.isInteger(targetIndex)) {
+            return { applied: false, reason: 'invalid_target' };
+        }
+        const offer = offers.find(o => o && Number.isInteger(o.handIndex) && o.handIndex === targetIndex);
+        if (!offer || !offer.cardId) {
+            return { applied: false, reason: 'invalid_target' };
+        }
+
+        const opponentKey = playerKey === 'black' ? 'white' : 'black';
+        const opponentHand = (cardState.hands && Array.isArray(cardState.hands[opponentKey])) ? cardState.hands[opponentKey] : null;
+        if (!opponentHand) {
+            return { applied: false, reason: 'invalid_hand' };
+        }
+        if (targetIndex < 0 || targetIndex >= opponentHand.length) {
+            return { applied: false, reason: 'invalid_target' };
+        }
+        if (opponentHand[targetIndex] !== offer.cardId) {
+            return { applied: false, reason: 'target_mismatch' };
+        }
+
+        const destroyedCardId = opponentHand[targetIndex];
+        opponentHand.splice(targetIndex, 1);
+        cardState.discard.push(destroyedCardId);
+        cardState.pendingEffectByPlayer[playerKey] = null;
+
+        return { applied: true, destroyedCardId };
+    }
+
     function getDirectionalChainFlips(gameState, row, col, ownerVal, dir, context) {
         // Delegate to module
         if (typeof module === 'object' && module.exports) {
@@ -2241,18 +2365,13 @@
         }
 
         if (pending.type === 'SWAP_WITH_ENEMY') {
-            const protectedSet = new Set(
-                getSpecialMarkers(cardState)
-                    .filter(s => s.data && (s.data.type === 'PROTECTED' || s.data.type === 'PERMA_PROTECTED' || s.data.type === 'DRAGON' || s.data.type === 'BREEDING' || s.data.type === 'ULTIMATE_DESTROY_GOD'))
-                    .map(s => `${s.row},${s.col}`)
-            );
-            const bombSet = new Set(getBombMarkers(cardState).map(b => `${b.row},${b.col}`));
+            const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
 
             for (let r = 0; r < 8; r++) {
                 for (let c = 0; c < 8; c++) {
                     if (gameState.board[r][c] !== opponentVal) continue;
-                    const key = `${r},${c}`;
-                    if (protectedSet.has(key) || bombSet.has(key)) continue;
+                    const hasSpecialOrBomb = markers.some(m => (m.row === r && m.col === c) && (m.kind === 'specialStone' || m.kind === 'bomb'));
+                    if (hasSpecialOrBomb) continue;
                     res.push({ row: r, col: c });
                 }
             }
@@ -2324,6 +2443,8 @@
         applyInheritWill,
         applySacrificeWill,
         applySellCardWill,
+        applyHeavenBlessingChoice,
+        applyCondemnWill,
         applyTemptWill,
         applyStrongWindWill,
         applyRegenWill,

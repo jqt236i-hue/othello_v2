@@ -346,6 +346,7 @@
 #card-detail-panel > #card-detail-desc,
 #card-detail-panel > #use-card-btn,
 #card-detail-panel > #pass-btn,
+#card-detail-panel > #sell-card-btn,
 #card-detail-panel > #cancel-card-btn,
 #card-detail-panel > #use-card-reason {
     display: block;
@@ -357,6 +358,7 @@
 
 #card-detail-panel > #use-card-btn,
 #card-detail-panel > #pass-btn,
+#card-detail-panel > #sell-card-btn,
 #card-detail-panel > #cancel-card-btn {
     display: inline-block;
     width: auto;
@@ -387,6 +389,31 @@
     cursor: pointer;
     transition: all 0.15s ease;
     margin-top: 6px;
+}
+
+#sell-card-btn {
+    padding: 6px 20px;
+    font-size: 12px;
+    font-weight: bold;
+    background: linear-gradient(to bottom, #8a6342, #66452f);
+    border: 1px solid #b88a5f;
+    border-radius: 4px;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-top: 6px;
+}
+
+#sell-card-btn:hover:not(:disabled) {
+    background: linear-gradient(to bottom, #9a7452, #75523a);
+    box-shadow: 0 0 8px rgba(184, 138, 95, 0.45);
+}
+
+#sell-card-btn:disabled {
+    background: linear-gradient(to bottom, #555, #333);
+    border-color: #666;
+    color: #888;
+    cursor: not-allowed;
 }
 
 #pass-btn:hover:not(:disabled) {
@@ -649,4 +676,153 @@
     pointer-events: none;
     z-index: 1025;
     overflow: visible;
+}
+
+.heaven-blessing-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1800;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 360ms ease;
+}
+
+.heaven-blessing-overlay.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.heaven-blessing-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.38);
+    backdrop-filter: blur(1px);
+    transition: opacity 380ms ease;
+}
+
+.heaven-blessing-panel {
+    position: absolute;
+    width: min(96vw, 560px);
+    max-height: calc(100vh - 24px);
+    overflow: visible;
+    border-radius: 10px;
+    border: none;
+    background: none;
+    box-shadow: none;
+    padding: 0;
+    opacity: 0;
+    transition: opacity 320ms ease;
+}
+
+.heaven-blessing-overlay.active .heaven-blessing-panel {
+    opacity: 1;
+}
+
+.heaven-blessing-title {
+    display: none;
+}
+
+.heaven-blessing-subtitle {
+    display: none;
+}
+
+.heaven-blessing-offers {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+.heaven-blessing-offers .heaven-offer-card {
+    width: 114px;
+    height: 155px;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.heaven-blessing-offers .heaven-offer-card:hover {
+    transform: translateY(-3px);
+    box-shadow:
+        0 0 16px rgba(255, 210, 122, 0.38),
+        0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+.heaven-blessing-detail {
+    margin-top: 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(222, 196, 128, 0.52);
+    background: rgba(8, 25, 21, 0.86);
+    padding: 8px 10px;
+}
+
+.heaven-blessing-detail-name {
+    font-size: 20px;
+    font-weight: 800;
+    color: #f8fff9;
+    margin-bottom: 4px;
+}
+
+.heaven-blessing-detail-desc {
+    font-size: 15px;
+    line-height: 1.35;
+    color: #e5f6ee;
+    min-height: 1.35em;
+}
+
+.heaven-blessing-select-btn {
+    margin-top: 6px;
+    min-width: 110px;
+    border: 1px solid #e0c27a;
+    border-radius: 6px;
+    padding: 5px 12px;
+    background: linear-gradient(180deg, #587f68, #2e4f3f);
+    color: #f8fff9;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.heaven-blessing-select-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.heaven-blessing-reason {
+    margin-top: 4px;
+    color: #ffd6a2;
+    font-size: 13px;
+    min-height: 1.2em;
+}
+
+@media (max-width: 780px) {
+    .heaven-blessing-panel {
+        width: min(96vw, 480px);
+    }
+
+    .heaven-blessing-offers {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 680px) {
+    .heaven-blessing-panel {
+        width: min(96vw, 340px);
+    }
+
+    .heaven-blessing-offers .heaven-offer-card {
+        width: 91px;
+        height: 124px;
+    }
+
+    .heaven-blessing-detail-name {
+        font-size: 18px;
+    }
+
+    .heaven-blessing-detail-desc {
+        font-size: 14px;
+    }
 }

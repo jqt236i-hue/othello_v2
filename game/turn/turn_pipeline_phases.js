@@ -328,6 +328,41 @@
             } else if (pending && pending.type === 'SELL_CARD_WILL' && action.sellCardId == null) {
                 throw new Error('SELL_CARD_WILL requires sellCardId before placement');
             }
+            if (pending && pending.type === 'HEAVEN_BLESSING' && action.heavenBlessingCardId) {
+                const res = CardLogic.applyHeavenBlessingChoice(
+                    cardState,
+                    playerKey,
+                    action.heavenBlessingCardId
+                );
+                events.push({
+                    type: 'heaven_blessing_selected',
+                    player: playerKey,
+                    selectedCardId: action.heavenBlessingCardId,
+                    applied: !!(res && res.applied)
+                });
+                // Selection-only pre-placement effect: stop after handling selection
+                return;
+            } else if (pending && pending.type === 'HEAVEN_BLESSING' && action.heavenBlessingCardId == null) {
+                throw new Error('HEAVEN_BLESSING requires heavenBlessingCardId before placement');
+            }
+            if (pending && pending.type === 'CONDEMN_WILL' && action.condemnTargetIndex != null) {
+                const res = CardLogic.applyCondemnWill(
+                    cardState,
+                    playerKey,
+                    action.condemnTargetIndex
+                );
+                events.push({
+                    type: 'condemn_selected',
+                    player: playerKey,
+                    condemnTargetIndex: action.condemnTargetIndex,
+                    applied: !!(res && res.applied),
+                    destroyedCardId: (res && res.destroyedCardId) ? res.destroyedCardId : null
+                });
+                // Selection-only pre-placement effect: stop after handling selection
+                return;
+            } else if (pending && pending.type === 'CONDEMN_WILL' && action.condemnTargetIndex == null) {
+                throw new Error('CONDEMN_WILL requires condemnTargetIndex before placement');
+            }
             if (pending && pending.type === 'TEMPT_WILL' && action.temptTarget) {
                 const res = CardLogic.applyTemptWill(
                     cardState,
@@ -399,6 +434,8 @@
             // Save pre-extra to determine if this placement consumes an existing extra place
             const preExtra = cardState.extraPlaceRemainingByPlayer[playerKey] || 0;
 
+            const turnNumberBeforePlace = Number(gameState.turnNumber || 0);
+
             if (BoardOps && typeof BoardOps.spawnAt === 'function') {
                 const spawnMeta = {};
                 if (pendingType === 'GOLD_STONE') {
@@ -416,9 +453,6 @@
                 for (const [fr, fc] of flips) {
                     BoardOps.changeAt(cardState, gameState, fr, fc, playerKey, 'SYSTEM', 'standard_flip');
                 }
-                gameState.currentPlayer = -player;
-                gameState.consecutivePasses = 0;
-                gameState.turnNumber = (gameState.turnNumber || 0) + 1;
             } else {
                 const newState = Core.applyMove(gameState, { row: action.row, col: action.col, flips });
                 Object.assign(gameState, newState);
@@ -512,6 +546,23 @@
             if (preExtra > 0) {
                 cardState.extraPlaceRemainingByPlayer[playerKey] = Math.max(0, (cardState.extraPlaceRemainingByPlayer[playerKey] || 0) - 1);
                 events.push({ type: 'extra_place_consumed', player: playerKey });
+            }
+
+            // Turn transition policy:
+            // - If this move consumed a previously granted extra placement, switch to opponent.
+            // - If this move newly granted an extra placement, keep the same player for the next placement.
+            // - Otherwise behave as a normal move (switch to opponent).
+            const postExtra = cardState.extraPlaceRemainingByPlayer[playerKey] || 0;
+            const keepTurnForExtra = preExtra <= 0 && postExtra > 0;
+
+            if (keepTurnForExtra) {
+                gameState.currentPlayer = player;
+                gameState.consecutivePasses = 0;
+                gameState.turnNumber = turnNumberBeforePlace;
+            } else {
+                gameState.currentPlayer = -player;
+                gameState.consecutivePasses = 0;
+                gameState.turnNumber = turnNumberBeforePlace + 1;
             }
         } else {
             throw new Error('Unknown action.type');

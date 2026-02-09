@@ -80,6 +80,8 @@ function getPendingTypeHandlers(playerKey) {
         'STRONG_WIND_WILL': async () => { if (typeof cpuSelectStrongWindWillWithPolicy === 'function') await cpuSelectStrongWindWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'SACRIFICE_WILL': async () => { if (typeof cpuSelectSacrificeWillWithPolicy === 'function') await cpuSelectSacrificeWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'SELL_CARD_WILL': async () => { if (typeof cpuSelectSellCardWillWithPolicy === 'function') await cpuSelectSellCardWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
+        'HEAVEN_BLESSING': async () => { if (typeof cpuSelectHeavenBlessingWithPolicy === 'function') await cpuSelectHeavenBlessingWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
+        'CONDEMN_WILL': async () => { if (typeof cpuSelectCondemnWillWithPolicy === 'function') await cpuSelectCondemnWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'INHERIT_WILL': async () => { await cpuSelectInheritWillWithPolicy(playerKey); },
         'SWAP_WITH_ENEMY': async () => { if (typeof cpuSelectSwapWithEnemyWithPolicy === 'function') await cpuSelectSwapWithEnemyWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'TEMPT_WILL': async () => { if (typeof cpuSelectTemptWillWithPolicy === 'function') await cpuSelectTemptWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; }
@@ -180,6 +182,14 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 await handler();
                 pending = cardState.pendingEffectByPlayer[playerKey];
                 if (isUiAnimationBusy()) {
+                    isProcessing = false;
+                    scheduleRunCpuTurn(playerKey, { autoMode }, ANIMATION_RETRY_DELAY_MS);
+                    return;
+                }
+                // Multi-step selection cards (e.g. SACRIFICE_WILL) may keep pending selectTarget
+                // after one application. Do not proceed to normal move generation/pass until
+                // selection flow is finished.
+                if (pending && pending.stage === 'selectTarget') {
                     isProcessing = false;
                     scheduleRunCpuTurn(playerKey, { autoMode }, ANIMATION_RETRY_DELAY_MS);
                     return;

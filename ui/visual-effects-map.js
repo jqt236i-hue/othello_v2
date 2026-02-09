@@ -50,11 +50,12 @@ function getEffectKeyForSpecialType(type) {
 } 
 
 async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
-    console.log('[VISUAL_DEBUG] applyStoneVisualEffect called', effectKey, options);
+    const debugVisual = (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true);
+    if (debugVisual) console.log('[VISUAL_DEBUG] applyStoneVisualEffect called', effectKey, options);
     const visualMap = getUiStoneVisualEffects();
     const effect = visualMap[effectKey];
-    try { if (!discElement) console.warn('[VISUAL_DEBUG] applyStoneVisualEffect: discElement missing for', effectKey); } catch (e) {}
-    try { console.log('[VISUAL_DEBUG] effect lookup:', effectKey, effect ? effect.cssClass : null); } catch (e) {}
+    try { if (!discElement && debugVisual) console.warn('[VISUAL_DEBUG] applyStoneVisualEffect: discElement missing for', effectKey); } catch (e) {}
+    try { if (debugVisual) console.log('[VISUAL_DEBUG] effect lookup:', effectKey, effect ? effect.cssClass : null); } catch (e) {}
     if (!effect) {
         console.warn(`[VISUAL_EFFECTS] Unknown effect key: ${effectKey}`);
         return false;
@@ -68,7 +69,7 @@ async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
     discElement.classList.add('special-stone');
     discElement.classList.add(effect.cssClass);
 
-    try { console.log('[VISUAL_DEBUG] after apply classes:', discElement.className, 'cssVar:', discElement.style.getPropertyValue('--special-stone-image')); } catch(e){}
+    try { if (debugVisual) console.log('[VISUAL_DEBUG] after apply classes:', discElement.className, 'cssVar:', discElement.style.getPropertyValue('--special-stone-image')); } catch(e){}
 
     // Helper: wait for paint using rAF + short timeout
     async function waitForNextPaint() {
@@ -90,13 +91,25 @@ async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
         } catch (e) { return { hasBefore: false, hasInline: false }; }
     }
 
+    function normalizeOwnerKey(owner) {
+        if (owner === undefined || owner === null) return null;
+        if (owner === 1 || owner === '1' || owner === 'black') return '1';
+        if (owner === -1 || owner === '-1' || owner === 'white') return '-1';
+        const s = String(owner).trim().toLowerCase();
+        if (s === 'black') return '1';
+        if (s === 'white') return '-1';
+        if (s === '1') return '1';
+        if (s === '-1') return '-1';
+        return String(owner);
+    }
+
     // Background-based effects
     if (effect.cssMethod === 'background') {
         let imagePath = effect.imagePath;
         if (effect.imagePathByOwner && options.owner !== undefined) {
-            const ownerKey = options.owner.toString();
+            const ownerKey = normalizeOwnerKey(options.owner);
             imagePath = effect.imagePathByOwner[ownerKey];
-            console.log(`[VISUAL_EFFECTS] PermaProtected stone - owner: ${options.owner}, ownerKey: "${ownerKey}", imagePath: "${imagePath}"`);
+            if (debugVisual) console.log(`[VISUAL_EFFECTS] PermaProtected stone - owner: ${options.owner}, ownerKey: "${ownerKey}", imagePath: "${imagePath}"`);
         } else if (effect.imagePathByPlayer && options.player !== undefined) {
             imagePath = effect.imagePathByPlayer[options.player];
         }
@@ -111,6 +124,20 @@ async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
 
             discElement.style.setProperty('--special-stone-image', `url('${resolvedPath}')`);
             try { discElement.style.backgroundImage = `url('${resolvedPath}')`; } catch (e) { }
+
+            // Fast-path for protection stones: apply immediately and skip multi-frame paint probing.
+            // This avoids visible one-beat lag when strong/weak protection is applied.
+            if (effectKey === 'protectedStone' || effectKey === 'protectedStoneTemporary') {
+                Object.entries(effect.dataAttributes || {}).forEach(([key, value]) => {
+                    discElement.dataset[key] = value;
+                });
+                if (effect.clearStyles) {
+                    Object.entries(effect.clearStyles).forEach(([property, value]) => {
+                        discElement.style.setProperty(property, value, 'important');
+                    });
+                }
+                return true;
+            }
 
             // Poll a few frames to allow browser to paint pseudo/inline bg. If not painted, inject fallback <img>.
             let success = false;
@@ -138,7 +165,7 @@ async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
                     img.style.pointerEvents = 'none';
                     img.style.zIndex = '60';
                     discElement.appendChild(img);
-                    console.warn('[VISUAL_EFFECTS] Injected fallback image for', effectKey, resolvedPath);
+                    if (debugVisual) console.warn('[VISUAL_EFFECTS] Injected fallback image for', effectKey, resolvedPath);
                     try { window._lastWorkInjected = { key: effectKey, imgPath: resolvedPath, ts: Date.now() }; } catch (e) {}
                 }
                 return true;
@@ -211,7 +238,7 @@ async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
                         img.style.pointerEvents = 'none';
                         img.style.zIndex = '60';
                         discElement.appendChild(img);
-                        console.warn('[VISUAL_EFFECTS] Injected fallback image for', effectKey, resolvedPath);
+                        if (debugVisual) console.warn('[VISUAL_EFFECTS] Injected fallback image for', effectKey, resolvedPath);
                         try { window._lastWorkInjected = { key: effectKey, imgPath: resolvedPath, ts: Date.now() }; } catch (e) {}
                     }
                     return true;

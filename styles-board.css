@@ -724,3 +724,60 @@ html.stone-images-loaded .disc.white::after {
 .disc.strong-will-apply {
     animation: strongWillFadeIn 0.5s ease-out;
 }
+
+.stone-info-panel {
+    position: fixed;
+    z-index: 10020;
+    display: none;
+    width: min(460px, calc(100vw - 20px));
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.34);
+    background: rgba(10, 24, 18, 0.96);
+    color: #f1fff6;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+}
+
+.stone-info-panel.visible {
+    display: block;
+}
+
+.stone-info-name {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin-bottom: 8px;
+}
+
+.stone-info-desc {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #e6f5ec;
+    margin-bottom: 10px;
+}
+
+.stone-info-meta {
+    font-size: 14px;
+    line-height: 1.55;
+    color: #d0e4d8;
+}
+
+@media (max-width: 640px) {
+    .stone-info-panel {
+        width: min(94vw, 420px);
+        padding: 12px 14px;
+    }
+
+    .stone-info-name {
+        font-size: 18px;
+    }
+
+    .stone-info-desc {
+        font-size: 15px;
+    }
+
+    .stone-info-meta {
+        font-size: 13px;
+    }
+}

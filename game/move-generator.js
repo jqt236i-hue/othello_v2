@@ -91,6 +91,8 @@ function generateMovesForPlayer(player, pending, protection, perma) {
         pendingType === 'STRONG_WIND_WILL' ||
         pendingType === 'SACRIFICE_WILL' ||
         pendingType === 'SELL_CARD_WILL' ||
+        pendingType === 'HEAVEN_BLESSING' ||
+        pendingType === 'CONDEMN_WILL' ||
         pendingType === 'SWAP_WITH_ENEMY' ||
         pendingType === 'INHERIT_WILL' ||
         pendingType === 'TEMPT_WILL'
@@ -129,6 +131,7 @@ function generateSwapMoves(player, legal, protection, perma) {
     const moves = [];
     const legalSet = new Set(legal.map(m => m.row + ',' + m.col));
     const protectedCells = createProtectedCellSet(protection, perma);
+    const markers = (typeof cardState !== 'undefined' && cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
 
     const deepCloneState = (s) => (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') ? globalThis.structuredClone(s) : JSON.parse(JSON.stringify(s));
 
@@ -138,6 +141,8 @@ function generateSwapMoves(player, legal, protection, perma) {
             const key = r + ',' + c;
 
             if (cellVal === -player && !protectedCells.has(key)) {
+                const hasSpecialOrBomb = markers.some(m => (m.row === r && m.col === c) && (m.kind === 'specialStone' || m.kind === 'bomb'));
+                if (hasSpecialOrBomb) continue;
                 // Avoid mutating the real game state: work on a shallow clone when computing hypothetical flips
                 const clonedState = deepCloneState(gameState);
                 clonedState.board[r][c] = EMPTY;

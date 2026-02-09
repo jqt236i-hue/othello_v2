@@ -605,6 +605,81 @@ async function cpuSelectSellCardWillWithPolicy(playerKey) {
 }
 
 /**
+ * 天の恵み 候補選択
+ * @param {string} playerKey - 'black' または 'white'
+ */
+async function cpuSelectHeavenBlessingWithPolicy(playerKey) {
+    const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
+    const offers = (pending && Array.isArray(pending.offers)) ? pending.offers.slice() : [];
+    if (!offers.length) {
+        console.log(`[CPU] ${playerKey}: 天の恵み候補なし`);
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return;
+    }
+
+    let targetCardId = offers[0];
+    let bestCost = -Infinity;
+    for (const cardId of offers) {
+        const cost = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardCost === 'function')
+            ? (CardLogic.getCardCost(cardId) || 0)
+            : 0;
+        if (cost > bestCost) {
+            bestCost = cost;
+            targetCardId = cardId;
+        }
+    }
+    console.log(`[CPU] ${playerKey}: 天の恵み選択 ${targetCardId} (cost=${bestCost})`);
+
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyHeavenBlessingChoice === 'function') {
+        const res = CardLogic.applyHeavenBlessingChoice(cardState, playerKey, targetCardId);
+        if (!res || !res.applied) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+        emitCpuSelectionStateChange();
+    }
+}
+
+/**
+ * 断罪の意志 対象選択
+ * @param {string} playerKey - 'black' または 'white'
+ */
+async function cpuSelectCondemnWillWithPolicy(playerKey) {
+    const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
+    const offers = (pending && Array.isArray(pending.offers)) ? pending.offers.slice() : [];
+    if (!offers.length) {
+        console.log(`[CPU] ${playerKey}: 断罪候補なし`);
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return;
+    }
+
+    let target = offers[0];
+    let bestCost = -Infinity;
+    for (const offer of offers) {
+        if (!offer || !offer.cardId) continue;
+        const cost = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardCost === 'function')
+            ? (CardLogic.getCardCost(offer.cardId) || 0)
+            : 0;
+        if (cost > bestCost) {
+            bestCost = cost;
+            target = offer;
+        }
+    }
+    if (!target || !Number.isInteger(target.handIndex)) {
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return;
+    }
+    console.log(`[CPU] ${playerKey}: 断罪選択 index=${target.handIndex} card=${target.cardId} (cost=${bestCost})`);
+
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyCondemnWill === 'function') {
+        const res = CardLogic.applyCondemnWill(cardState, playerKey, target.handIndex);
+        if (!res || !res.applied) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+        emitCpuSelectionStateChange();
+    }
+}
+
+/**
  * 意志の継承 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
@@ -742,6 +817,8 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuSelectDestroyWithPolicy,
         cpuSelectSacrificeWillWithPolicy,
         cpuSelectSellCardWillWithPolicy,
+        cpuSelectHeavenBlessingWithPolicy,
+        cpuSelectCondemnWillWithPolicy,
         cpuSelectInheritWithPolicy: cpuSelectInheritWillWithPolicy,
         cpuSelectSwapWithEnemyWithPolicy,
         cpuSelectTemptWillWithPolicy,

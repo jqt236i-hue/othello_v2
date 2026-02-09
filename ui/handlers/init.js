@@ -83,8 +83,12 @@ function initializeUI() {
     // Initialize card UI handlers
     const useBtn = document.getElementById('use-card-btn');
     const passBtn = document.getElementById('pass-btn');
+    const sellBtn = document.getElementById('sell-card-btn');
     if (useBtn) {
         useBtn.addEventListener('click', useSelectedCard);
+    }
+    if (sellBtn && typeof confirmSellCardSelection === 'function') {
+        sellBtn.addEventListener('click', confirmSellCardSelection);
     }
     if (passBtn && typeof passCurrentTurn === 'function') {
         passBtn.addEventListener('click', passCurrentTurn);

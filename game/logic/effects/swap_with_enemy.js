@@ -26,15 +26,11 @@
 
         if (!gameState || gameState.board[row][col] !== opponent) return result;
 
-        // TIME_BOMB stones are not swappable
-        if ((cardState.markers || []).some(b => b.kind === 'bomb' && b.row === row && b.col === col)) return result;
-
-        // Check protection
-        const isProtected = (cardState.markers || []).some(s =>
-            s.kind === 'specialStone' && s.row === row && s.col === col &&
-            s.data && (s.data.type === 'PROTECTED' || s.data.type === 'PERMA_PROTECTED' || s.data.type === 'DRAGON' || s.data.type === 'BREEDING' || s.data.type === 'ULTIMATE_DESTROY_GOD')
+        // Swap targets must be NORMAL stones only.
+        const hasSpecialOrBomb = (cardState.markers || []).some(m =>
+            m.row === row && m.col === col && (m.kind === 'specialStone' || m.kind === 'bomb')
         );
-        if (isProtected) return result;
+        if (hasSpecialOrBomb) return result;
 
         if (boardOpsInstance && typeof boardOpsInstance.changeAt === 'function') {
             boardOpsInstance.changeAt(cardState, gameState, row, col, playerKey, 'SWAP', 'swap_with_enemy');

@@ -206,7 +206,11 @@ function renderBoardFull() {
                 cell.appendChild(disc);
             }
 
-            cell.addEventListener('click', () => handleCellClick(r, c));
+            if (typeof attachBoardCellInteraction === 'function') {
+                attachBoardCellInteraction(cell, r, c);
+            } else {
+                cell.addEventListener('click', () => handleCellClick(r, c));
+            }
             boardEl.appendChild(cell);
         }
     }

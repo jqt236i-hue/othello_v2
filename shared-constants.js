@@ -140,6 +140,10 @@
 
         // DOUBLE_PLACE (二連投石) - 1 card, cost: 27
         { id: 'double_01', name: '二連投石', type: 'DOUBLE_PLACE', cost: 27, desc: 'このターン、石を2回置ける。' },
+        // HEAVEN_BLESSING (天の恵み) - 1 card, cost: 3
+        { id: 'heaven_01', name: '天の恵み', type: 'HEAVEN_BLESSING', cost: 3, desc: 'ランダムな候補5枚から1枚を選んで獲得する。' },
+        // CONDEMN_WILL (断罪の意志) - 1 card, cost: 6
+        { id: 'condemn_01', name: '断罪の意志', type: 'CONDEMN_WILL', cost: 6, desc: '相手手札を公開し、1枚選んで破壊する。' },
 
         // GOLD_STONE (金の意志) - 1 card, cost: 6
         { id: 'gold_stone', name: '金の意志', type: 'GOLD_STONE', cost: 6, desc: '次の反転で得る布石が4倍。使用後その石は消滅する。' },
@@ -176,6 +180,8 @@
         'BREEDING_WILL',
         'CROSS_BOMB',
         'DOUBLE_PLACE',
+        'HEAVEN_BLESSING',
+        'CONDEMN_WILL',
         'PLUNDER_WILL',
         'WORK_WILL',
         'GOLD_STONE',

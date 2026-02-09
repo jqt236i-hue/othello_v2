@@ -66,6 +66,26 @@ describe('cpu turn handler pending selection', () => {
     expect(mock).toHaveBeenCalledWith('white');
   });
 
+  test('HEAVEN_BLESSING invokes cpuSelectHeavenBlessingWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectHeavenBlessingWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'HEAVEN_BLESSING', stage: 'selectTarget', offers: ['gold_stone'] };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('CONDEMN_WILL invokes cpuSelectCondemnWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectCondemnWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'CONDEMN_WILL', stage: 'selectTarget', offers: [{ handIndex: 0, cardId: 'gold_stone' }] };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
   test('SWAP_WITH_ENEMY invokes cpuSelectSwapWithEnemyWithPolicy when available', async () => {
     const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
     global.cpuSelectSwapWithEnemyWithPolicy = mock;
@@ -102,5 +122,22 @@ describe('cpu turn handler pending selection', () => {
     cpuHandler.processCpuTurn();
     await waitTick();
     expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('SACRIFICE_WILL with remaining pending does not attempt pass/move immediately', async () => {
+    const mock = jest.fn(async () => {
+      // Keep pending as selectTarget to emulate multi-step selection flow.
+    });
+    global.cpuSelectSacrificeWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'SACRIFICE_WILL', stage: 'selectTarget', selectedCount: 1, maxSelections: 3 };
+    global.processPassTurn = jest.fn();
+    global.generateMovesForPlayer = jest.fn(() => []);
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+
+    expect(mock).toHaveBeenCalledWith('white');
+    expect(global.processPassTurn).not.toHaveBeenCalled();
+    expect(global.generateMovesForPlayer).not.toHaveBeenCalled();
   });
 });

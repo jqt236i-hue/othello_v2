@@ -29,26 +29,17 @@
         return res;
     }
 
-    // Return swap targets: opponent stones excluding protected/bomb
+    // Return swap targets: opponent NORMAL stones only (no special markers, no bombs)
     function getSwapTargets(cardState, gameState, playerKey) {
-        const opponentKey = playerKey === 'black' ? 'white' : 'black';
-        const opponentVal = (playerKey === 'black') ? (SharedConstants.BLACK) * -1 : (SharedConstants.WHITE) * -1; // not used, we'll just compare values
-
-        const protectedSet = new Set(
-            (cardState.markers || [])
-                .filter(m => m.kind === 'specialStone' && m.data && (m.data.type === 'PROTECTED' || m.data.type === 'PERMA_PROTECTED' || m.data.type === 'DRAGON' || m.data.type === 'BREEDING' || m.data.type === 'ULTIMATE_DESTROY_GOD'))
-                .map(m => `${m.row},${m.col}`)
-        );
-        const bombSet = new Set((cardState.markers || []).filter(m => m.kind === 'bomb').map(m => `${m.row},${m.col}`));
-
         const res = [];
         const opVal = playerKey === 'black' ? SharedConstants.WHITE : SharedConstants.BLACK;
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
 
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
                 if (gameState.board[r][c] !== opVal) continue;
-                const key = `${r},${c}`;
-                if (protectedSet.has(key) || bombSet.has(key)) continue;
+                const hasSpecialOrBomb = markers.some(m => (m.row === r && m.col === c) && (m.kind === 'specialStone' || m.kind === 'bomb'));
+                if (hasSpecialOrBomb) continue;
                 res.push({ row: r, col: c });
             }
         }

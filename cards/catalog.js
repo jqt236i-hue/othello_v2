@@ -146,6 +146,20 @@ window.CardCatalog = {
       "desc": "このターンは石を2回置ける。"
     },
     {
+      "id": "heaven_01",
+      "name": "天の恵み",
+      "type": "HEAVEN_BLESSING",
+      "cost": 3,
+      "desc": "ランダムな候補5枚から1枚を選んで獲得する。"
+    },
+    {
+      "id": "condemn_01",
+      "name": "断罪の意志",
+      "type": "CONDEMN_WILL",
+      "cost": 6,
+      "desc": "相手手札を公開し、1枚選んで破壊する。"
+    },
+    {
       "id": "gold_stone",
       "name": "金の意志",
       "type": "GOLD_STONE",

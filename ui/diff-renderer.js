@@ -37,6 +37,246 @@ var AnimationShared = (typeof require === 'function') ? require('./animation-hel
 // AnimationEngine already animates flip events; DiffRenderer is used to sync final DOM state after playback.
 let suppressFallbackFlipThisRender = false;
 
+const LONG_PRESS_MS = 420;
+const LONG_PRESS_MOVE_CANCEL_PX = 8;
+
+const SPECIAL_STONE_INFO = {
+    PROTECTED: {
+        name: '弱い石',
+        desc: '次の自分ターン開始まで反転されない。'
+    },
+    PERMA_PROTECTED: {
+        name: '強い石',
+        desc: '反転されない。'
+    },
+    DRAGON: {
+        name: '究極反転龍',
+        desc: 'ターン開始時に周囲を反転する。'
+    },
+    BREEDING: {
+        name: '繁殖石',
+        desc: '自ターン開始時に周囲に石を生成。'
+    },
+    ULTIMATE_DESTROY_GOD: {
+        name: '究極破壊神',
+        desc: 'ターン開始時に周囲の敵石を壊す。'
+    },
+    HYPERACTIVE: {
+        name: '多動石',
+        desc: 'ターン開始時にランダム方向1マスに移動。'
+    },
+    REGEN: {
+        name: '復活石',
+        desc: '反転されると一度だけ元の色に戻る。'
+    },
+    GOLD: {
+        name: '金石',
+        desc: '配置直後に自壊し、そのターンの獲得布石を4倍にする。'
+    },
+    SILVER: {
+        name: '銀石',
+        desc: '配置直後に自壊し、そのターンの獲得布石を3倍にする。'
+    },
+    WORK: {
+        name: '労働石',
+        desc: '自ターン開始時に1→2→4→8→16布石獲得。'
+    },
+    TIME_BOMB: {
+        name: '時限爆弾',
+        desc: 'カウント0で周囲を巻き込んで壊す。'
+    },
+    CROSS_BOMB: {
+        name: '十字爆弾',
+        desc: 'カウント0で十字方向を巻き込んで壊す。'
+    }
+};
+
+function _ensureStoneInfoPanel() {
+    if (typeof document === 'undefined') return null;
+    let panel = document.getElementById('stone-info-panel');
+    if (panel) return panel;
+
+    panel = document.createElement('div');
+    panel.id = 'stone-info-panel';
+    panel.className = 'stone-info-panel';
+    panel.innerHTML = [
+        '<div id="stone-info-name" class="stone-info-name"></div>',
+        '<div id="stone-info-desc" class="stone-info-desc"></div>',
+        '<div id="stone-info-meta" class="stone-info-meta"></div>'
+    ].join('');
+    document.body.appendChild(panel);
+    return panel;
+}
+
+function _hideStoneInfoPanel() {
+    const panel = _ensureStoneInfoPanel();
+    if (!panel) return;
+    panel.classList.remove('visible');
+}
+
+function _getMarkerKinds() {
+    return (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && MarkersAdapter.MARKER_KINDS)
+        ? MarkersAdapter.MARKER_KINDS
+        : { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' };
+}
+
+function _getMarkerEntryAt(row, col) {
+    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+    const kinds = _getMarkerKinds();
+    const special = markers.find(m => m && m.kind === kinds.SPECIAL_STONE && m.row === row && m.col === col);
+    if (special) return { kind: kinds.SPECIAL_STONE, marker: special };
+    const bomb = markers.find(m => m && m.kind === kinds.BOMB && m.row === row && m.col === col);
+    if (bomb) return { kind: kinds.BOMB, marker: bomb };
+    return null;
+}
+
+function _getEntryType(entry) {
+    if (!entry || !entry.marker) return null;
+    if (entry.kind === (_getMarkerKinds().BOMB)) {
+        return (entry.marker.data && entry.marker.data.type) ? entry.marker.data.type : 'TIME_BOMB';
+    }
+    return (entry.marker.data && entry.marker.data.type) ? entry.marker.data.type : null;
+}
+
+function _getProtectionInfo(type, entry) {
+    const flipProtectedTypes = new Set([
+        'PROTECTED',
+        'PERMA_PROTECTED',
+        'DRAGON',
+        'BREEDING',
+        'ULTIMATE_DESTROY_GOD'
+    ]);
+    const isBomb = !!(entry && entry.kind === _getMarkerKinds().BOMB);
+    const flipProtected = isBomb ? false : flipProtectedTypes.has(type);
+    // SWAP targets are normal stones only, so any special stone/bomb is swap-protected.
+    const swapProtected = !!entry;
+    return {
+        flipProtected,
+        swapProtected
+    };
+}
+
+function showSpecialStoneInfoAt(row, col) {
+    const entry = _getMarkerEntryAt(row, col);
+    if (!entry) {
+        _hideStoneInfoPanel();
+        return false;
+    }
+    const type = _getEntryType(entry);
+    if (!type) {
+        _hideStoneInfoPanel();
+        return false;
+    }
+
+    const info = SPECIAL_STONE_INFO[type] || { name: type, desc: '効果情報は未登録です。' };
+    const protection = _getProtectionInfo(type, entry);
+
+    const panel = _ensureStoneInfoPanel();
+    if (!panel) return false;
+
+    const nameEl = document.getElementById('stone-info-name');
+    const descEl = document.getElementById('stone-info-desc');
+    const metaEl = document.getElementById('stone-info-meta');
+    if (!nameEl || !descEl || !metaEl) return false;
+
+    nameEl.textContent = info.name;
+    descEl.textContent = info.desc;
+    const badges = [];
+    if (protection.flipProtected) badges.push('反転保護');
+    if (protection.swapProtected) badges.push('交換保護');
+    metaEl.textContent = badges.join(' / ');
+    metaEl.style.display = badges.length > 0 ? '' : 'none';
+
+    panel.classList.add('visible');
+
+    const cell = cellCache[row] && cellCache[row][col] ? cellCache[row][col] : null;
+    if (cell && typeof window !== 'undefined') {
+        const rect = cell.getBoundingClientRect();
+        const panelRect = panel.getBoundingClientRect();
+        const margin = 10;
+        const maxLeft = Math.max(margin, window.innerWidth - panelRect.width - margin);
+        const left = Math.min(maxLeft, Math.max(margin, rect.left + 6));
+        const topCandidate = rect.top - panelRect.height - 8;
+        const top = topCandidate < margin ? Math.min(window.innerHeight - panelRect.height - margin, rect.bottom + 8) : topCandidate;
+        panel.style.left = `${left}px`;
+        panel.style.top = `${Math.max(margin, top)}px`;
+    }
+
+    return true;
+}
+
+let _outsideCloseHandlerBound = false;
+function _ensureOutsideCloseHandler() {
+    if (_outsideCloseHandlerBound || typeof document === 'undefined') return;
+    _outsideCloseHandlerBound = true;
+    document.addEventListener('pointerdown', (ev) => {
+        const panel = document.getElementById('stone-info-panel');
+        if (!panel || !panel.classList.contains('visible')) return;
+        const target = ev.target;
+        if (panel.contains(target)) return;
+        const board = document.getElementById('board');
+        if (board && board.contains(target)) return;
+        _hideStoneInfoPanel();
+    }, true);
+}
+
+function attachBoardCellInteraction(cell, row, col) {
+    if (!cell) return;
+
+    let pressTimer = null;
+    let pressActive = false;
+    let longPressed = false;
+    let startX = 0;
+    let startY = 0;
+
+    const clearPress = () => {
+        pressActive = false;
+        if (pressTimer) {
+            clearTimeout(pressTimer);
+            pressTimer = null;
+        }
+    };
+
+    cell.addEventListener('pointerdown', (ev) => {
+        if (ev.button !== 0) return;
+        _ensureOutsideCloseHandler();
+        clearPress();
+        longPressed = false;
+        pressActive = true;
+        startX = Number(ev.clientX || 0);
+        startY = Number(ev.clientY || 0);
+        pressTimer = setTimeout(() => {
+            if (!pressActive) return;
+            longPressed = true;
+            showSpecialStoneInfoAt(row, col);
+        }, LONG_PRESS_MS);
+    });
+
+    cell.addEventListener('pointermove', (ev) => {
+        if (!pressActive) return;
+        const dx = Math.abs(Number(ev.clientX || 0) - startX);
+        const dy = Math.abs(Number(ev.clientY || 0) - startY);
+        if (dx > LONG_PRESS_MOVE_CANCEL_PX || dy > LONG_PRESS_MOVE_CANCEL_PX) {
+            clearPress();
+        }
+    });
+
+    cell.addEventListener('pointerup', (ev) => {
+        if (!pressActive && !longPressed) return;
+        const wasLongPressed = longPressed;
+        clearPress();
+        if (wasLongPressed) {
+            ev.preventDefault();
+            return;
+        }
+        _hideStoneInfoPanel();
+        handleCellClick(row, col);
+    });
+
+    cell.addEventListener('pointercancel', () => clearPress());
+    cell.addEventListener('mouseleave', () => clearPress());
+}
+
 /**
  * 盤面を初期化（最初の1回のみ全レンダリング）
  * Initialize board with full rendering (first time only)
@@ -53,7 +293,7 @@ function initializeBoardDOM(boardEl) {
             cell.className = 'cell';
             cell.dataset.row = r;
             cell.dataset.col = c;
-            cell.addEventListener('click', () => handleCellClick(r, c));
+            attachBoardCellInteraction(cell, r, c);
             boardEl.appendChild(cell);
             cellCache[r][c] = cell;
         }
@@ -461,9 +701,13 @@ if (typeof module !== 'undefined' && module.exports) {
         buildCurrentCellState,
         renderBoardDiff,
         forceFullRender,
-        resetRenderStats
+        resetRenderStats,
+        attachBoardCellInteraction,
+        showSpecialStoneInfoAt
     };
 }
 if (typeof window !== 'undefined') {
     window.forceFullRender = forceFullRender;
+    window.attachBoardCellInteraction = attachBoardCellInteraction;
+    window.showSpecialStoneInfoAt = showSpecialStoneInfoAt;
 }

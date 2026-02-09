@@ -180,6 +180,7 @@ body.auto-mode-active .hand-container,
 body.auto-mode-active #card-detail-panel,
 body.auto-mode-active #use-card-btn,
 body.auto-mode-active #pass-btn,
+body.auto-mode-active #sell-card-btn,
 body.auto-mode-active #cancel-card-btn {
     pointer-events: none;
     cursor: not-allowed;

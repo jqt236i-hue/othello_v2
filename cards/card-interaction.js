@@ -64,6 +64,275 @@ if (typeof window !== 'undefined') {
     window.ensureDebugActionsLoaded = ensureDebugActionsLoaded;
 }
 
+const _sellSelectionByPlayer = { black: null, white: null };
+const _heavenSelectionByPlayer = { black: null, white: null };
+let _heavenOverlayRefs = null;
+
+function _clearSellSelection(playerKey) {
+    if (!playerKey) return;
+    const prev = _sellSelectionByPlayer[playerKey];
+    _sellSelectionByPlayer[playerKey] = null;
+    if (cardState && cardState.selectedCardId === prev) {
+        cardState.selectedCardId = null;
+    }
+}
+
+function _executeSellSelection(playerKey, sellCardId) {
+    if (!sellCardId) return { ok: false, reason: 'no_sell_card' };
+    const soldCardDef = CardLogic.getCardDef(sellCardId);
+    const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
+        ? ActionManager.ActionManager.createAction('place', playerKey, { sellCardId })
+        : { type: 'place', sellCardId };
+    const result = _runPipelineAction(playerKey, action);
+    if (!result.ok) return result;
+
+    const gain = soldCardDef ? (soldCardDef.cost || 0) : 0;
+    addLog(`${playerKey === 'black' ? '黒' : '白'}が${soldCardDef ? soldCardDef.name : sellCardId}を売却（+${gain}）`);
+    _clearSellSelection(playerKey);
+    renderCardUI();
+    if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+    else if (typeof renderBoard === 'function') renderBoard();
+    if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
+        try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
+    }
+    return { ok: true };
+}
+
+function _clearHeavenSelection(playerKey) {
+    if (!playerKey) return;
+    _heavenSelectionByPlayer[playerKey] = null;
+}
+
+function _ensureHeavenOverlay() {
+    if (typeof document === 'undefined') return null;
+    if (_heavenOverlayRefs && _heavenOverlayRefs.root && _heavenOverlayRefs.root.isConnected) {
+        return _heavenOverlayRefs;
+    }
+
+    let root = document.getElementById('heaven-blessing-overlay');
+    if (!root) {
+        root = document.createElement('div');
+        root.id = 'heaven-blessing-overlay';
+        root.className = 'heaven-blessing-overlay';
+        root.innerHTML = [
+            '<div class="heaven-blessing-backdrop"></div>',
+            '<div class="heaven-blessing-panel">',
+            '  <div class="heaven-blessing-title">天の恵み</div>',
+            '  <div class="heaven-blessing-subtitle">候補から1枚を選んで獲得</div>',
+            '  <div class="heaven-blessing-offers" id="heaven-blessing-offers"></div>',
+            '  <div class="heaven-blessing-detail">',
+            '    <div class="heaven-blessing-detail-name" id="heaven-blessing-detail-name">-</div>',
+            '    <div class="heaven-blessing-detail-desc" id="heaven-blessing-detail-desc">カードを選択してください</div>',
+            '    <button class="heaven-blessing-select-btn" id="heaven-blessing-select-btn" disabled>選択</button>',
+            '    <div class="heaven-blessing-reason" id="heaven-blessing-reason"></div>',
+            '  </div>',
+            '</div>'
+        ].join('');
+        document.body.appendChild(root);
+    }
+
+    _heavenOverlayRefs = {
+        root,
+        offers: root.querySelector('#heaven-blessing-offers'),
+        detailName: root.querySelector('#heaven-blessing-detail-name'),
+        detailDesc: root.querySelector('#heaven-blessing-detail-desc'),
+        selectBtn: root.querySelector('#heaven-blessing-select-btn'),
+        reason: root.querySelector('#heaven-blessing-reason')
+    };
+
+    return _heavenOverlayRefs;
+}
+
+function _hideHeavenOverlay() {
+    const refs = _ensureHeavenOverlay();
+    if (!refs || !refs.root) return;
+    refs.root.classList.remove('active');
+}
+
+function _positionHeavenOverlayNearBoard() {
+    const refs = _ensureHeavenOverlay();
+    if (!refs || !refs.root) return;
+    const panel = refs.root.querySelector('.heaven-blessing-panel');
+    if (!panel) return;
+
+    const boardFrame = document.getElementById('board-frame');
+    if (!boardFrame || !boardFrame.getBoundingClientRect) return;
+    const rect = boardFrame.getBoundingClientRect();
+    const targetLeft = Math.round(rect.left + (rect.width / 2));
+    const liftUpPx = Math.round((96 / 2.54) * 5); // 5cm
+    let targetTop = Math.round(rect.bottom + 18 - liftUpPx);
+
+    const estimatedHeight = 230;
+    const maxTop = Math.max(12, window.innerHeight - estimatedHeight - 8);
+    if (targetTop > maxTop) targetTop = maxTop;
+    if (targetTop < 12) targetTop = 12;
+
+    panel.style.left = `${targetLeft}px`;
+    panel.style.top = `${targetTop}px`;
+    panel.style.transform = 'translate(-50%, 0)';
+}
+
+function _getOverlayOfferKey(offer) {
+    if (offer && typeof offer === 'object') {
+        const idx = Number.isInteger(offer.handIndex) ? offer.handIndex : -1;
+        return `${idx}:${offer.cardId || ''}`;
+    }
+    return String(offer || '');
+}
+
+function _resolveOverlayOfferByKey(offers, offerKey) {
+    if (!Array.isArray(offers) || !offers.length) return null;
+    for (const offer of offers) {
+        if (_getOverlayOfferKey(offer) === offerKey) return offer;
+    }
+    return null;
+}
+
+function _renderHeavenOverlay(playerKey) {
+    const refs = _ensureHeavenOverlay();
+    if (!refs || !refs.root) return;
+
+    const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+    const pendingType = pending && pending.type ? pending.type : null;
+    const isSelecting = !!(pending && pending.stage === 'selectTarget' && (pendingType === 'HEAVEN_BLESSING' || pendingType === 'CONDEMN_WILL'));
+    if (!isSelecting) {
+        _hideHeavenOverlay();
+        return;
+    }
+    const titleEl = refs.root.querySelector('.heaven-blessing-title');
+    const subtitleEl = refs.root.querySelector('.heaven-blessing-subtitle');
+    if (titleEl) titleEl.textContent = pendingType === 'CONDEMN_WILL' ? '断罪の意志' : '天の恵み';
+    if (subtitleEl) subtitleEl.textContent = pendingType === 'CONDEMN_WILL' ? '相手手札から1枚を選んで破壊' : '候補から1枚を選んで獲得';
+
+    const offers = Array.isArray(pending.offers) ? pending.offers.slice() : [];
+    if (!offers.length) {
+        refs.root.classList.add('active');
+        refs.offers.innerHTML = '';
+        refs.detailName.textContent = '候補なし';
+        refs.detailDesc.textContent = pendingType === 'CONDEMN_WILL' ? '対象カードがありません' : '候補カードがありません';
+        refs.selectBtn.disabled = true;
+        refs.reason.textContent = '';
+        return;
+    }
+
+    let selectedKey = _heavenSelectionByPlayer[playerKey];
+    if (!selectedKey || !_resolveOverlayOfferByKey(offers, selectedKey)) {
+        selectedKey = _getOverlayOfferKey(offers[0]);
+        _heavenSelectionByPlayer[playerKey] = selectedKey;
+    }
+
+    const handSize = (cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])) ? cardState.hands[playerKey].length : 0;
+    const handLimit = (typeof HAND_LIMIT !== 'undefined') ? HAND_LIMIT : 5;
+    const handFull = (pendingType === 'HEAVEN_BLESSING') ? (handSize >= handLimit) : false;
+
+    refs.offers.innerHTML = '';
+    for (const offer of offers) {
+        const offerKey = _getOverlayOfferKey(offer);
+        const cardId = (offer && typeof offer === 'object') ? offer.cardId : offer;
+        const def = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
+            ? CardLogic.getCardDef(cardId)
+            : null;
+        const cardEl = document.createElement('div');
+        cardEl.className = 'card-item visible heaven-offer-card';
+        const cost = def ? (def.cost || 0) : 0;
+        const tier = getCardCostTier(cost);
+        cardEl.classList.add(`cost-tier-${tier}`);
+        if (selectedKey === offerKey) cardEl.classList.add('selected');
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'card-name';
+        nameSpan.textContent = def ? def.name : cardId;
+        cardEl.appendChild(nameSpan);
+
+        const costBadge = document.createElement('div');
+        costBadge.className = 'card-cost-badge';
+        costBadge.classList.add(`cost-tier-${tier}`);
+        costBadge.textContent = `コスト${cost}`;
+        cardEl.appendChild(costBadge);
+
+        cardEl.addEventListener('click', () => {
+            _heavenSelectionByPlayer[playerKey] = offerKey;
+            _renderHeavenOverlay(playerKey);
+        });
+
+        refs.offers.appendChild(cardEl);
+    }
+
+    const selectedOffer = _resolveOverlayOfferByKey(offers, selectedKey);
+    const selectedCardId = (selectedOffer && typeof selectedOffer === 'object') ? selectedOffer.cardId : selectedOffer;
+    const selectedDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
+        ? CardLogic.getCardDef(selectedCardId)
+        : null;
+    refs.detailName.textContent = selectedDef ? selectedDef.name : (selectedCardId || '-');
+    refs.detailDesc.textContent = selectedDef && selectedDef.desc ? selectedDef.desc : '説明なし';
+
+    refs.selectBtn.textContent = pendingType === 'CONDEMN_WILL' ? '破壊' : '選択';
+    refs.selectBtn.disabled = handFull || !selectedOffer;
+    refs.selectBtn.onclick = () => {
+        if (!selectedOffer) return;
+        if (pendingType === 'CONDEMN_WILL') {
+            const targetIndex = (selectedOffer && typeof selectedOffer === 'object') ? selectedOffer.handIndex : null;
+            _executeCondemnSelection(playerKey, targetIndex, selectedCardId);
+            return;
+        }
+        _executeHeavenSelection(playerKey, selectedCardId);
+    };
+
+    refs.reason.textContent = handFull ? '手札上限のため選択できません' : '';
+    refs.root.classList.add('active');
+    _positionHeavenOverlayNearBoard();
+}
+
+function _executeHeavenSelection(playerKey, selectedCardId) {
+    if (!selectedCardId) return { ok: false, reason: 'no_selection' };
+    const def = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
+        ? CardLogic.getCardDef(selectedCardId)
+        : null;
+
+    const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
+        ? ActionManager.ActionManager.createAction('place', playerKey, { heavenBlessingCardId: selectedCardId })
+        : { type: 'place', heavenBlessingCardId: selectedCardId };
+
+    const result = _runPipelineAction(playerKey, action);
+    if (!result.ok) return result;
+
+    addLog(`${playerKey === 'black' ? '黒' : '白'}が天の恵みで${def ? def.name : selectedCardId}を獲得`);
+    _clearHeavenSelection(playerKey);
+    _hideHeavenOverlay();
+    renderCardUI();
+    if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+    else if (typeof renderBoard === 'function') renderBoard();
+    if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
+        try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
+    }
+    return { ok: true };
+}
+
+function _executeCondemnSelection(playerKey, targetIndex, targetCardId) {
+    if (!Number.isInteger(targetIndex)) return { ok: false, reason: 'no_selection' };
+    const targetDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
+        ? CardLogic.getCardDef(targetCardId)
+        : null;
+
+    const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
+        ? ActionManager.ActionManager.createAction('place', playerKey, { condemnTargetIndex: targetIndex })
+        : { type: 'place', condemnTargetIndex: targetIndex };
+
+    const result = _runPipelineAction(playerKey, action);
+    if (!result.ok) return result;
+
+    addLog(`${playerKey === 'black' ? '黒' : '白'}が断罪の意志で${targetDef ? targetDef.name : (targetCardId || 'カード')}を破壊`);
+    _clearHeavenSelection(playerKey);
+    _hideHeavenOverlay();
+    renderCardUI();
+    if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+    else if (typeof renderBoard === 'function') renderBoard();
+    if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
+        try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
+    }
+    return { ok: true };
+}
+
 let _boardOps = null;
 function _getBoardOps() {
     if (_boardOps) return _boardOps;
@@ -183,6 +452,7 @@ function updateCardDetailPanel() {
     const descEl = document.getElementById('card-detail-desc');
     const useBtn = document.getElementById('use-card-btn');
     const passBtn = document.getElementById('pass-btn');
+    const sellBtn = document.getElementById('sell-card-btn');
     const reasonEl = document.getElementById('use-card-reason');
     const cancelBtn = document.getElementById('cancel-card-btn');
 
@@ -218,6 +488,15 @@ function updateCardDetailPanel() {
     const noLegalMoves = legalMoves.length === 0;
     const pending = cardState.pendingEffectByPlayer[playerKey];
     const isSelectingTarget = !!(pending && pending.stage === 'selectTarget');
+    const isSellSelecting = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
+    const isHeavenSelecting = !!(pending && (pending.type === 'HEAVEN_BLESSING' || pending.type === 'CONDEMN_WILL') && pending.stage === 'selectTarget');
+    const selectedSellCardId = _sellSelectionByPlayer[playerKey];
+    if (!isSellSelecting && selectedSellCardId) {
+        _clearSellSelection(playerKey);
+    }
+    if (!isHeavenSelecting) {
+        _clearHeavenSelection(playerKey);
+    }
 
     let canUse = !isAutoMode && (isBlackTurn || isDebugHvH) && hasSelection && hasNotUsedThisTurn && canInteract && canAfford;
     if (isDebugUnlimited) {
@@ -263,6 +542,22 @@ function updateCardDetailPanel() {
 
     reasonEl.textContent = reason;
 
+    if (isSellSelecting) {
+        useBtn.style.display = 'none';
+        if (passBtn) passBtn.style.display = 'none';
+        if (sellBtn) {
+            sellBtn.style.display = 'inline-block';
+            sellBtn.disabled = !selectedSellCardId;
+        }
+    } else if (isHeavenSelecting) {
+        useBtn.style.display = 'none';
+        if (passBtn) passBtn.style.display = 'none';
+        if (sellBtn) sellBtn.style.display = 'none';
+    } else {
+        useBtn.style.display = 'inline-block';
+        if (sellBtn) sellBtn.style.display = 'none';
+    }
+
     // 選択モード用のキャンセルボタン表示制御
     const selecting = pending && pending.stage === 'selectTarget' &&
         (
@@ -297,13 +592,24 @@ function updateCardDetailPanel() {
                 ? `自分の石を選択（残り${remain}回）/ 終了も可`
                 : '自分の石を選択してください（最大3回・キャンセル可）';
         } else if (pending.type === 'SELL_CARD_WILL') {
-            reasonEl.textContent = '売却するカードを手札から1枚選んでください';
+            reasonEl.textContent = selectedSellCardId
+                ? '売却対象を選択済みです。売却ボタンで確定してください'
+                : '売却するカードを手札から1枚選んでください';
+        } else if (pending.type === 'HEAVEN_BLESSING') {
+            reasonEl.textContent = '候補5枚から1枚選択してください';
+        } else if (pending.type === 'CONDEMN_WILL') {
+            reasonEl.textContent = '相手手札から破壊する1枚を選択してください';
         } else {
             reasonEl.textContent = '破壊対象を選んでください（キャンセル可）';
         }
     }
 
     if (passBtn) {
+        if (isSellSelecting) {
+            passBtn.style.display = 'none';
+            passBtn.disabled = true;
+            return;
+        }
         const canShowPass = (isBlackTurn || isDebugHvH) &&
             noLegalMoves &&
             !isSelectingTarget;
@@ -313,6 +619,8 @@ function updateCardDetailPanel() {
         passBtn.style.display = canShowPass ? 'inline-block' : 'none';
         passBtn.disabled = !canPass;
     }
+
+    _renderHeavenOverlay(playerKey);
 }
 
 function onCardClick(cardId) {
@@ -324,27 +632,19 @@ function onCardClick(cardId) {
     const allowDuringAnimForSell = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
     if (_isCardAnimatingNow() && !isDebugUnlimited && !allowDuringAnimForSell) return;
     if (gameState.currentPlayer !== BLACK && !isDebugHvH) return;
+    if (pending && (pending.type === 'HEAVEN_BLESSING' || pending.type === 'CONDEMN_WILL') && pending.stage === 'selectTarget') {
+        return;
+    }
     if (pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget') {
         if (!cardState.hands[playerKey] || !cardState.hands[playerKey].includes(cardId)) return;
-
-        const soldCardDef = CardLogic.getCardDef(cardId);
-        const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-            ? ActionManager.ActionManager.createAction('place', playerKey, { sellCardId: cardId })
-            : { type: 'place', sellCardId: cardId };
-        const result = _runPipelineAction(playerKey, action);
-        if (!result.ok) {
-            addLog('売却に失敗しました');
-            return;
+        if (_sellSelectionByPlayer[playerKey] === cardId) {
+            _sellSelectionByPlayer[playerKey] = null;
+            if (cardState.selectedCardId === cardId) cardState.selectedCardId = null;
+        } else {
+            _sellSelectionByPlayer[playerKey] = cardId;
+            cardState.selectedCardId = cardId;
         }
-
-        const gain = soldCardDef ? (soldCardDef.cost || 0) : 0;
-        addLog(`${playerKey === 'black' ? '黒' : '白'}が${soldCardDef ? soldCardDef.name : cardId}を売却（+${gain}）`);
         renderCardUI();
-        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-        else if (typeof renderBoard === 'function') renderBoard();
-        if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
-            try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
-        }
         return;
     }
 
@@ -355,6 +655,26 @@ function onCardClick(cardId) {
     }
 
     renderCardUI();
+}
+
+function confirmSellCardSelection() {
+    const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
+    if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return;
+    const playerKey = isDebugHvH ? (gameState.currentPlayer === BLACK ? 'black' : 'white') : 'black';
+    const pending = cardState.pendingEffectByPlayer[playerKey];
+    if (!pending || pending.type !== 'SELL_CARD_WILL' || pending.stage !== 'selectTarget') return;
+
+    const sellCardId = _sellSelectionByPlayer[playerKey];
+    if (!sellCardId) {
+        addLog('売却するカードを先に選んでください');
+        renderCardUI();
+        return;
+    }
+
+    const result = _executeSellSelection(playerKey, sellCardId);
+    if (!result.ok) {
+        addLog('売却に失敗しました');
+    }
 }
 
 function useSelectedCard() {
@@ -496,7 +816,7 @@ window.fillDebugHand = fillDebugHand;
 window.updateCardDetailPanel = updateCardDetailPanel;
 window.onCardClick = onCardClick;
 window.useSelectedCard = useSelectedCard;
+window.confirmSellCardSelection = confirmSellCardSelection;
 window.passCurrentTurn = passCurrentTurn;
 window.cancelPendingDestroy = cancelPendingDestroy;
 window.cancelPendingSelection = cancelPendingSelection;
-
