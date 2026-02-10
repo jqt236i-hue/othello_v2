@@ -49,7 +49,9 @@ function readJson(p) {
 
 function validatePolicyModel(model) {
     if (!model || typeof model !== 'object') throw new Error('candidate model is not an object');
-    if (model.schemaVersion !== 'policy_table.v1') throw new Error('candidate model schema must be policy_table.v1');
+    if (model.schemaVersion !== 'policy_table.v1' && model.schemaVersion !== 'policy_table.v2') {
+        throw new Error('candidate model schema must be policy_table.v1 or policy_table.v2');
+    }
     if (!model.states || typeof model.states !== 'object') throw new Error('candidate model must include states object');
 }
 

@@ -170,7 +170,7 @@ describe('policy-table-runtime', () => {
     expect(score).toBeGreaterThan(1000);
   });
 
-  test('chooseMove does not use abstract state fallback for placement', () => {
+  test('chooseMove uses abstract state fallback for placement', () => {
     const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
     board[3][3] = 1;
     board[3][4] = -1;
@@ -197,6 +197,6 @@ describe('policy-table-runtime', () => {
       pendingType: null,
       legalMovesCount: 2
     });
-    expect(selected).toBeNull();
+    expect(selected).toEqual({ row: 0, col: 0, flips: [] });
   });
 });

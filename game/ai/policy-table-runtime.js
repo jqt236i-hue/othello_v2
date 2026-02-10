@@ -16,6 +16,17 @@ let _config = {
 let _lastError = null;
 let _sourceUrl = DEFAULT_MODEL_URL;
 
+const POSITION_WEIGHTS = [
+    [120, -20, 20, 5, 5, 20, -20, 120],
+    [-20, -40, -5, -5, -5, -5, -40, -20],
+    [20, -5, 15, 3, 3, 15, -5, 20],
+    [5, -5, 3, 3, 3, 3, -5, 5],
+    [5, -5, 3, 3, 3, 3, -5, 5],
+    [20, -5, 15, 3, 3, 15, -5, 20],
+    [-20, -40, -5, -5, -5, -5, -40, -20],
+    [120, -20, 20, 5, 5, 20, -20, 120]
+];
+
 function toCellChar(v) {
     if (v === 1) return 'B';
     if (v === -1) return 'W';
@@ -170,6 +181,94 @@ function makeActionKeyFromMoveWithTransform(move, transformId, boardSize) {
     return `place:${p.row}:${p.col}`;
 }
 
+function cloneBoard(board) {
+    if (!Array.isArray(board)) return [];
+    return board.map((row) => Array.isArray(row) ? row.slice() : []);
+}
+
+function applyMoveToBoard(board, move, playerKey) {
+    const out = cloneBoard(board);
+    if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return out;
+    const own = playerKey === 'black' ? 1 : -1;
+    if (Array.isArray(out[move.row])) out[move.row][move.col] = own;
+    const flips = Array.isArray(move.flips) ? move.flips : [];
+    for (const f of flips) {
+        if (!f || !Number.isFinite(f.row) || !Number.isFinite(f.col)) continue;
+        if (Array.isArray(out[f.row])) out[f.row][f.col] = own;
+    }
+    return out;
+}
+
+function countDiscsFor(board, playerKey) {
+    const own = playerKey === 'black' ? 1 : -1;
+    const opp = -own;
+    let ownCount = 0;
+    let oppCount = 0;
+    for (let r = 0; r < board.length; r++) {
+        for (let c = 0; c < board[r].length; c++) {
+            const v = board[r][c];
+            if (v === own) ownCount++;
+            else if (v === opp) oppCount++;
+        }
+    }
+    return ownCount - oppCount;
+}
+
+function countCornersFor(board, playerKey) {
+    if (!Array.isArray(board) || !board.length) return 0;
+    const own = playerKey === 'black' ? 1 : -1;
+    const opp = -own;
+    const n = board.length;
+    const corners = [[0, 0], [0, n - 1], [n - 1, 0], [n - 1, n - 1]];
+    let ownCount = 0;
+    let oppCount = 0;
+    for (const p of corners) {
+        const v = board[p[0]][p[1]];
+        if (v === own) ownCount++;
+        else if (v === opp) oppCount++;
+    }
+    return ownCount - oppCount;
+}
+
+function countEmpties(board) {
+    if (!Array.isArray(board)) return 0;
+    let empties = 0;
+    for (let r = 0; r < board.length; r++) {
+        for (let c = 0; c < board[r].length; c++) {
+            if (board[r][c] === 0) empties++;
+        }
+    }
+    return empties;
+}
+
+function positionalScoreForMove(move) {
+    if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return -99999;
+    return (POSITION_WEIGHTS[move.row] && Number.isFinite(POSITION_WEIGHTS[move.row][move.col]))
+        ? POSITION_WEIGHTS[move.row][move.col]
+        : 0;
+}
+
+function estimateMoveHeuristic(move, context) {
+    const flips = Array.isArray(move && move.flips) ? move.flips.length : 0;
+    const board = Array.isArray(context && context.board) ? context.board : [];
+    const playerKey = context && context.playerKey === 'black' ? 'black' : 'white';
+    const after = applyMoveToBoard(board, move, playerKey);
+    const empties = countEmpties(after);
+    const discWeight = empties <= 12 ? 18 : (empties <= 24 ? 8 : 2);
+    const discDiff = countDiscsFor(after, playerKey);
+    const cornerDiff = countCornersFor(after, playerKey);
+    const row = Number.isFinite(move && move.row) ? move.row : 0;
+    const col = Number.isFinite(move && move.col) ? move.col : 0;
+    const tie = (7 - row) * 0.001 + (7 - col) * 0.0001;
+    return (
+        (flips * 80) +
+        (positionalScoreForMove(move) * 8) +
+        (discDiff * discWeight) +
+        (cornerDiff * 300) +
+        tie
+    );
+}
+
 function isValidModel(model) {
     if (!model || typeof model !== 'object') return false;
     if (model.schemaVersion !== 'policy_table.v1' && model.schemaVersion !== MODEL_SCHEMA_VERSION) return false;
@@ -276,7 +375,6 @@ function chooseMove(candidateMoves, context) {
     const canonical = schema === 'policy_table.v1' ? { boardKey: encodeBoard(ctx.board), transformId: 0 } : canonicalizeBoard(ctx.board);
     const stateMeta = getStateEntry(playerKey, ctx.board, ctx.pendingType || null, legalMovesCount);
     if (!stateMeta || !stateMeta.entry || !stateMeta.entry.actions || typeof stateMeta.entry.actions !== 'object') return null;
-    if (stateMeta.abstract) return null;
     const boardSize = Array.isArray(ctx.board) ? ctx.board.length : 8;
 
     let bestMove = null;
@@ -295,7 +393,13 @@ function chooseMove(candidateMoves, context) {
         const visits = Number.isFinite(stat.visits) ? stat.visits : 0;
         const avgOutcome = Number.isFinite(stat.avgOutcome) ? stat.avgOutcome : 0;
         const isBestAction = stateMeta.entry.bestAction === actionKey ? 1 : 0;
-        const score = (isBestAction * 1_000_000) + (visits * 1_000) + avgOutcome;
+        const bestBonus = stateMeta.abstract ? 100_000 : 1_000_000;
+        const baseScore = (isBestAction * bestBonus) + (visits * 1_000) + avgOutcome;
+        const heuristicScore = estimateMoveHeuristic(move, {
+            board: ctx.board,
+            playerKey
+        });
+        const score = baseScore + heuristicScore;
         if (score > bestScore) {
             bestScore = score;
             bestMove = move;
@@ -320,7 +424,6 @@ function getActionScore(move, context) {
     const canonical = schema === 'policy_table.v1' ? { boardKey: encodeBoard(ctx.board), transformId: 0 } : canonicalizeBoard(ctx.board);
     const stateMeta = getStateEntry(playerKey, ctx.board, ctx.pendingType || null, legalMovesCount);
     if (!stateMeta || !stateMeta.entry || !stateMeta.entry.actions || typeof stateMeta.entry.actions !== 'object') return null;
-    if (stateMeta.abstract) return null;
 
     const boardSize = Array.isArray(ctx.board) ? ctx.board.length : 8;
     let actionKey = schema === 'policy_table.v1'
@@ -334,8 +437,14 @@ function getActionScore(move, context) {
 
     const visits = Number.isFinite(stat.visits) ? stat.visits : 0;
     const avgOutcome = Number.isFinite(stat.avgOutcome) ? stat.avgOutcome : 0;
-    const bestBonus = stateMeta.entry.bestAction === actionKey ? 1_000_000 : 0;
-    return bestBonus + (visits * 1_000) + avgOutcome;
+    const bestBonus = stateMeta.entry.bestAction === actionKey
+        ? (stateMeta.abstract ? 100_000 : 1_000_000)
+        : 0;
+    const heuristicScore = estimateMoveHeuristic(move, {
+        board: ctx.board,
+        playerKey
+    });
+    return bestBonus + (visits * 1_000) + avgOutcome + heuristicScore;
 }
 
 function getActionScoreForKey(actionKey, context) {

@@ -1,6 +1,6 @@
 # 最強CPU実装・学習 完遂計画書
 
-最終更新: 2026-02-08  
+最終更新: 2026-02-10  
 対象リポジトリ: `othello_v2`
 
 ## 1. 目的
@@ -65,12 +65,13 @@
 ## 4.3 データ契約（固定）
 
 - self-play記録スキーマ: `selfplay.v1`（`src/engine/selfplay-runner.js`）
-- 学習モデルスキーマ: `policy_table.v1`（`ai/train/train_policy_table.py`）
+- 学習モデルスキーマ: `policy_table.v2`（`ai/train/train_policy_table.py`）
 
 ルール:
 
 - スキーマ変更時はバージョンを必ず更新する。
 - 旧バージョン読み込み時は明示エラーを出す。
+- 補足: 実行時は `v1` / `v2` 互換読み込みを許可するが、学習出力と新規採用判定は `v2` を正とする。
 
 ## 5. 実行フェーズ（詳細手順）
 
@@ -140,6 +141,11 @@ npm run selfplay:generate -- --games 3000 --seed 100001 --max-plies 220 --with-c
 .\.venv\Scripts\python.exe .\ai\train\evaluate_policy_table.py --input data/selfplay.eval.ndjson --model data/models/policy-table.json
 ```
 
+補足:
+
+- 学習用追加パッケージの管理先は `ai/train/requirements.txt` とする（ルート直下の `requirements.txt` は使わない）。
+- `train_policy_table.py` の出力 `schemaVersion` が `policy_table.v2` であることを毎回確認する。
+
 完了条件:
 
 - `data/models/policy-table.json` が生成される。
@@ -196,16 +202,25 @@ npm run selfplay:generate -- --games 3000 --seed 100001 --max-plies 220 --with-c
 
 - 「強い時だけ更新」を機械的に判定する。
 
-採用基準（初期案）:
+採用基準（更新版）:
 
 1. ベンチ総合スコアが基準線 +5%以上
 2. 反転不能・進行停止・例外発生が0件
 3. 既存主要テストが全通過
+4. 最終判定は `games=2000`（先行ふるいは `games=500` を許可）
+5. 自己対戦だけで採用確定しない。人間操作を含む確認対戦ログを残す（最低20ゲーム、同条件）
+
+判定の進め方:
+
+1. 先行ふるい: `games=500` で候補を絞る
+2. 本判定: `games=2000` で再判定
+3. 人間操作を含む確認対戦ログを保存して採用可否を最終確定
 
 実行:
 
 ```powershell
-npm run selfplay:benchmark -- --games 500 --seed 1 --max-plies 220 --a-with-cards --a-rate 0.25 --b-with-cards --b-rate 0.2 --out data/benchmark.candidate.json
+npm run selfplay:benchmark -- --games 500 --seed 1 --max-plies 220 --a-with-cards --a-rate 0.25 --b-with-cards --b-rate 0.2 --a-model data/models/policy-table.candidate.json --out data/benchmark.candidate.quick.json
+npm run selfplay:benchmark -- --games 2000 --seed 1 --max-plies 220 --a-with-cards --a-rate 0.25 --b-with-cards --b-rate 0.2 --a-model data/models/policy-table.candidate.json --out data/benchmark.candidate.final.json
 npm run test:jest
 npm run check:window
 ```
@@ -217,7 +232,8 @@ npm run check:window
 採用判定の自動化:
 
 ```powershell
-npm run selfplay:adoption-check -- --games 500 --seed 1 --max-plies 220 --threshold 0.05 --candidate-model data/models/policy-table.json --out data/benchmark.adoption.json
+npm run selfplay:adoption-check -- --games 500 --seed 1 --max-plies 220 --threshold 0.05 --candidate-model data/models/policy-table.candidate.json --out data/benchmark.adoption.quick.json
+npm run selfplay:adoption-check -- --games 2000 --seed 1 --max-plies 220 --threshold 0.05 --candidate-model data/models/policy-table.candidate.json --out data/benchmark.adoption.final.json
 ```
 
 補足:
@@ -229,7 +245,7 @@ npm run selfplay:adoption-check -- --games 500 --seed 1 --max-plies 220 --thresh
 採用後の反映:
 
 ```powershell
-npm run selfplay:promote-model -- --adoption-result data/benchmark.adoption.json --candidate-model data/models/policy-table.candidate.json
+npm run selfplay:promote-model -- --adoption-result data/benchmark.adoption.final.json --candidate-model data/models/policy-table.candidate.json
 ```
 
 補足:

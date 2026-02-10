@@ -54,4 +54,29 @@ describe('selfplay policy promotion', () => {
         fs.unlinkSync(candidate);
         fs.unlinkSync(target);
     });
+
+    test('promoteModel accepts v2 candidate schema', () => {
+        const dir = path.resolve(__dirname, '..', 'data', 'models');
+        fs.mkdirSync(dir, { recursive: true });
+        const adoption = path.join(dir, 'adoption.v2.pass.test.json');
+        const candidate = path.join(dir, 'candidate.v2.pass.test.json');
+        const target = path.join(dir, 'target.v2.pass.test.json');
+        const payload = { schemaVersion: 'policy_table.v2', states: { k: { bestAction: 'place:0:0', actions: {} } } };
+        fs.writeFileSync(adoption, JSON.stringify({ decision: { passed: true } }), 'utf8');
+        fs.writeFileSync(candidate, JSON.stringify(payload), 'utf8');
+
+        const out = promoteModel({
+            adoptionResultPath: adoption,
+            candidateModelPath: candidate,
+            targetModelPath: target,
+            force: false
+        });
+        expect(out.targetModelPath).toBe(target);
+        const copied = JSON.parse(fs.readFileSync(target, 'utf8'));
+        expect(copied.schemaVersion).toBe('policy_table.v2');
+
+        fs.unlinkSync(adoption);
+        fs.unlinkSync(candidate);
+        fs.unlinkSync(target);
+    });
 });
