@@ -128,24 +128,20 @@ function renderBoardFull() {
         }
     }
 
-    // Helper for effect key mapping: delegate to canonical visual-effects map
+    // Helper for effect key mapping: delegate to canonical visual-effects map.
     const getEffectKeyForType = (type) => {
         if (typeof getEffectKeyForSpecialType === 'function') return getEffectKeyForSpecialType(type);
-        const map = {
-            'PROTECTED': 'protectedStoneTemporary',
-            'PERMA_PROTECTED': 'protectedStone',
-            'DRAGON': 'ultimateDragon',
-            'BREEDING': 'breedingStone',
-            'ULTIMATE_DESTROY_GOD': 'ultimateDestroyGod',
-            'HYPERACTIVE': 'hyperactiveStone',
-            'GOLD': 'goldStone',
-            'SILVER': 'silverStone',
-            'REGEN': 'regenStone',
-            'WORK': 'workStone',
-            'TRAP': 'trapStone',
-            'TRAP_REVEAL': 'trapStone'
-        };
-        return map[type] || null;
+        try {
+            if (typeof SPECIAL_TYPE_TO_EFFECT_KEY !== 'undefined' && SPECIAL_TYPE_TO_EFFECT_KEY) {
+                return SPECIAL_TYPE_TO_EFFECT_KEY[type] || null;
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof window !== 'undefined' && window.SPECIAL_TYPE_TO_EFFECT_KEY) {
+                return window.SPECIAL_TYPE_TO_EFFECT_KEY[type] || null;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
     };
 
     // Helper to normalize owner
@@ -190,15 +186,8 @@ function renderBoardFull() {
                         applyStoneVisualEffect(disc, effectKey, { owner: getOwnerVal(special.owner) });
                     }
                     // Robust fallback: ensure reveal-only trap image is visible if visual-map lookup/DI fails.
-                    if (special.type === 'TRAP_REVEAL') {
-                        const ownerVal = getOwnerVal(special.owner);
-                        const trapImagePath = ownerVal === BLACK
-                            ? 'assets/images/stones/trap_stone-black.png'
-                            : 'assets/images/stones/trap_stone-white.png';
-                        try {
-                            disc.classList.add('special-stone', 'trap-stone');
-                            disc.style.setProperty('--special-stone-image', `url('${trapImagePath}')`);
-                        } catch (e) { /* ignore */ }
+                    if (special.type === 'TRAP_REVEAL' && typeof applyTrapStoneFallbackVisual === 'function') {
+                        applyTrapStoneFallbackVisual(disc, getOwnerVal(special.owner));
                     }
 
                     // Ensure WORK visuals are applied even if mapping returns null

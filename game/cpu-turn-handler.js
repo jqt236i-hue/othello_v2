@@ -15,6 +15,87 @@ if (typeof require === 'function') {
 const CONST_BLACK = (typeof BLACK !== 'undefined') ? BLACK : ((typeof global !== 'undefined' && typeof global.BLACK !== 'undefined') ? global.BLACK : 1);
 const CONST_WHITE = (typeof WHITE !== 'undefined') ? WHITE : ((typeof global !== 'undefined' && typeof global.WHITE !== 'undefined') ? global.WHITE : -1);
 
+function getAnimationRetryDelayMs() {
+    const fallback = 200;
+    try {
+        if (typeof ANIMATION_RETRY_DELAY_MS !== 'undefined' && Number.isFinite(ANIMATION_RETRY_DELAY_MS)) {
+            return ANIMATION_RETRY_DELAY_MS;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && Number.isFinite(globalThis.ANIMATION_RETRY_DELAY_MS)) {
+            return globalThis.ANIMATION_RETRY_DELAY_MS;
+        }
+    } catch (e) { /* ignore */ }
+    return fallback;
+}
+
+function getActiveProtectionSafe(playerValue) {
+    try {
+        if (typeof getActiveProtectionForPlayer === 'function') {
+            return getActiveProtectionForPlayer(playerValue) || [];
+        }
+    } catch (e) { /* ignore */ }
+    return [];
+}
+
+function getFlipBlockersSafe() {
+    try {
+        if (typeof getFlipBlockers === 'function') {
+            return getFlipBlockers() || [];
+        }
+    } catch (e) { /* ignore */ }
+    return [];
+}
+
+function getCurrentPlayerKeySafe() {
+    try {
+        const current = gameState ? gameState.currentPlayer : null;
+        if (current === CONST_BLACK || current === 'black') return 'black';
+        if (current === CONST_WHITE || current === 'white') return 'white';
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function getCurrentTurnNumberSafe() {
+    try {
+        const turnNumber = gameState ? gameState.turnNumber : null;
+        return Number.isFinite(turnNumber) ? turnNumber : null;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function debugCpuTrace(message, meta) {
+    try {
+        if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
+            if (typeof debugLog === 'function') {
+                debugLog(message, 'debug', meta || {});
+            } else {
+                console.log(message, meta || {});
+            }
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function selectCpuMoveSafe(candidateMoves, playerKey) {
+    if (!Array.isArray(candidateMoves) || candidateMoves.length === 0) return null;
+    try {
+        if (typeof selectCpuMoveWithPolicy === 'function') {
+            const selected = selectCpuMoveWithPolicy(candidateMoves, playerKey);
+            if (selected && Number.isFinite(selected.row) && Number.isFinite(selected.col)) {
+                return selected;
+            }
+        }
+    } catch (e) {
+        debugCpuTrace('[AI] selectCpuMoveWithPolicy failed; fallback to first candidate', {
+            playerKey,
+            error: e && e.message ? e.message : String(e)
+        });
+    }
+    // Test/headless fallback: keep deterministic behavior instead of throwing.
+    return candidateMoves[0];
+}
+
 // Allow injection of timers for tests and for alternate scheduler implementations
 function setTimers(t) {
     timers = t;
@@ -28,12 +109,75 @@ function isUiAnimationBusy() {
     return localCard || winCard || winPlayback;
 }
 const _cpuRetryPendingByPlayer = { black: false, white: false };
+const _pendingSelectRetryStateByPlayer = {
+    black: { key: '', count: 0 },
+    white: { key: '', count: 0 }
+};
+const MAX_STUCK_PENDING_SELECT_RETRIES = 4;
+
+function _retryStateKey(playerKey) {
+    return playerKey === 'white' ? 'white' : 'black';
+}
+
+function resetPendingSelectRetryState(playerKey) {
+    const key = _retryStateKey(playerKey);
+    _pendingSelectRetryStateByPlayer[key].key = '';
+    _pendingSelectRetryStateByPlayer[key].count = 0;
+}
+
+function makePendingSelectRetryKey(pending) {
+    if (!pending) return '';
+    const type = String(pending.type || '');
+    const stage = String(pending.stage || '');
+    const selectedCount = Number.isFinite(pending.selectedCount) ? pending.selectedCount : 0;
+    const maxSelections = Number.isFinite(pending.maxSelections) ? pending.maxSelections : 0;
+    const offersLen = Array.isArray(pending.offers) ? pending.offers.length : 0;
+    return `${type}:${stage}:${selectedCount}:${maxSelections}:${offersLen}`;
+}
+
+function shouldAbortStuckPendingSelection(playerKey, pending) {
+    const key = _retryStateKey(playerKey);
+    const retryKey = makePendingSelectRetryKey(pending);
+    const state = _pendingSelectRetryStateByPlayer[key];
+    if (state.key === retryKey) {
+        state.count += 1;
+    } else {
+        state.key = retryKey;
+        state.count = 1;
+    }
+    return state.count > MAX_STUCK_PENDING_SELECT_RETRIES;
+}
+
 function scheduleRunCpuTurn(playerKey, options, delayMs) {
     const key = playerKey === 'white' ? 'white' : 'black';
     if (_cpuRetryPendingByPlayer[key]) return;
     _cpuRetryPendingByPlayer[key] = true;
+    const expectedPlayerKey = getCurrentPlayerKeySafe();
+    const expectedTurnNumber = getCurrentTurnNumberSafe();
     scheduleRetry(() => {
         _cpuRetryPendingByPlayer[key] = false;
+        const currentPlayerKey = getCurrentPlayerKeySafe();
+        const currentTurnNumber = getCurrentTurnNumberSafe();
+        if (expectedPlayerKey && currentPlayerKey !== expectedPlayerKey) {
+            debugCpuTrace('[AI] skip stale scheduled CPU run (player changed)', {
+                playerKey: key,
+                expectedPlayerKey,
+                currentPlayerKey,
+                expectedTurnNumber,
+                currentTurnNumber
+            });
+            return;
+        }
+        if (expectedTurnNumber !== null && currentTurnNumber !== expectedTurnNumber) {
+            debugCpuTrace('[AI] skip stale scheduled CPU run (turn changed)', {
+                playerKey: key,
+                expectedPlayerKey,
+                currentPlayerKey,
+                expectedTurnNumber,
+                currentTurnNumber
+            });
+            return;
+        }
         runCpuTurn(key, options || {});
     }, delayMs);
 }
@@ -50,26 +194,28 @@ function resolveProcessPassTurn() {
 }
 
 // Prefer shared scheduleRetry helper from game/timer-utils when available, fallback to a local implementation
-// Build scheduleRetry as a small wrapper that prefers the injected `timers` (set via setTimers),
-// then falls back to a shared helper in `game/timer-utils`, and finally to setTimeout.
-let _sharedScheduleRetry = null;
-try { const tu = require('./timer-utils'); if (tu && typeof tu.scheduleRetry === 'function') _sharedScheduleRetry = tu.scheduleRetry; } catch (e) { /* ignore */ }
-function scheduleRetry(fn, delayMs = (typeof ANIMATION_RETRY_DELAY_MS !== 'undefined' ? ANIMATION_RETRY_DELAY_MS : 200)) {
-    // 1) Prefer module-scoped injected timers when present (useful for tests)
-    if (timers && typeof timers.waitMs === 'function') {
+// Build scheduleRetry as a small wrapper that prefers injected timers with a real impl,
+// then falls back to setTimeout.
+function hasUsableWaitMs(t) {
+    if (!t || typeof t.waitMs !== 'function') return false;
+    // game/timers exposes hasTimerImpl(): false means Promise.resolve() immediate fallback
+    // which can cause tight retry loops.
+    if (typeof t.hasTimerImpl === 'function' && !t.hasTimerImpl()) return false;
+    return true;
+}
+
+function scheduleRetry(fn, delayMs = getAnimationRetryDelayMs()) {
+    // 1) Prefer module-scoped injected timers when a real impl is present.
+    if (hasUsableWaitMs(timers)) {
         try {
             timers.waitMs(delayMs).then(() => { try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); } });
             return;
         } catch (e) { /* fall through */ }
     }
 
-    // 2) Use shared helper if available
-    if (_sharedScheduleRetry) {
-        try { _sharedScheduleRetry(fn, delayMs, timers); return; } catch (e) { /* fall through */ }
-    }
-
-    // 3) Fallback to setTimeout
-    setTimeout(() => { try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); } }, delayMs);
+    // 2) Fallback to setTimeout
+    const tid = setTimeout(() => { try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); } }, delayMs);
+    if (tid && typeof tid.unref === 'function') tid.unref();
 }
 
 // Return a mapping of pending-effect type => async handler for a given playerKey.
@@ -91,26 +237,31 @@ function getPendingTypeHandlers(playerKey) {
 }
 
 async function processCpuTurn() {
-    console.log('[DEBUG][processCpuTurn] enter', { isProcessing, isCardAnimating, gameStateCurrentPlayer: gameState && gameState.currentPlayer });
+    const localIsCardAnimating = (typeof isCardAnimating !== 'undefined') ? !!isCardAnimating : false;
+    debugCpuTrace('[DEBUG][processCpuTurn] enter', {
+        isProcessing,
+        isCardAnimating: localIsCardAnimating,
+        gameStateCurrentPlayer: gameState && gameState.currentPlayer
+    });
     if (typeof isGameOver === 'function' && gameState && isGameOver(gameState)) {
         if (typeof showResult === 'function') showResult();
         isProcessing = false;
-        console.log('[DEBUG][processCpuTurn] skip: game over');
+        debugCpuTrace('[DEBUG][processCpuTurn] skip: game over');
         return;
     }
     const current = gameState && gameState.currentPlayer;
     const isWhiteTurn = current === CONST_WHITE || current === 'white';
     if (!gameState || !isWhiteTurn) {
-        console.log('[DEBUG][processCpuTurn] skip: not white turn');
+        debugCpuTrace('[DEBUG][processCpuTurn] skip: not white turn');
         return;
     }
     if (isProcessing || isUiAnimationBusy()) {
-        scheduleRunCpuTurn('white', { autoMode: false }, ANIMATION_RETRY_DELAY_MS);
-        console.log('[DEBUG][processCpuTurn] defer: busy');
+        scheduleRunCpuTurn('white', { autoMode: false }, getAnimationRetryDelayMs());
+        debugCpuTrace('[DEBUG][processCpuTurn] defer: busy');
         return;
     }
     runCpuTurn('white', { autoMode: false });
-    console.log('[DEBUG][processCpuTurn] exit');
+    debugCpuTrace('[DEBUG][processCpuTurn] exit');
 }
 
 async function processAutoBlackTurn() {
@@ -120,9 +271,8 @@ async function processAutoBlackTurn() {
         isProcessing = false;
         return;
     }
-    if (isProcessing || isCardAnimating) return;
-    if (isUiAnimationBusy()) return;
-    if (gameState.currentPlayer !== BLACK) return;
+    if (isProcessing || isUiAnimationBusy()) return;
+    if (gameState.currentPlayer !== CONST_BLACK) return;
     return runCpuTurn('black', { autoMode: true });
 }
 
@@ -130,9 +280,22 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
     const isWhite = playerKey === 'white';
     const selfColor = isWhite ? CONST_WHITE : CONST_BLACK;
     const selfName = isWhite ? '白' : '黒';
+    const currentPlayer = gameState ? gameState.currentPlayer : null;
+    const currentPlayerKey = (currentPlayer === CONST_BLACK || currentPlayer === 'black')
+        ? 'black'
+        : ((currentPlayer === CONST_WHITE || currentPlayer === 'white') ? 'white' : null);
 
     if (typeof isGameOver === 'function' && gameState && isGameOver(gameState)) {
         if (typeof showResult === 'function') showResult();
+        isProcessing = false;
+        return;
+    }
+    if (currentPlayerKey && currentPlayerKey !== playerKey) {
+        debugCpuTrace('[AI] runCpuTurn aborted: out-of-turn invocation', {
+            playerKey,
+            currentPlayer,
+            autoMode
+        });
         isProcessing = false;
         return;
     }
@@ -151,7 +314,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
 
     if (isUiAnimationBusy()) {
         isProcessing = false;
-        scheduleRunCpuTurn(playerKey, { autoMode }, ANIMATION_RETRY_DELAY_MS);
+        scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
         return;
     }
 
@@ -162,12 +325,12 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 isProcessing = false;
                 const resumeAfterCardAnimation = () => {
                     if (isUiAnimationBusy()) {
-                        scheduleRunCpuTurn(playerKey, { autoMode }, ANIMATION_RETRY_DELAY_MS);
+                        scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
                         return;
                     }
                     runCpuTurn(playerKey, { autoMode });
                 };
-                scheduleRetry(resumeAfterCardAnimation, ANIMATION_RETRY_DELAY_MS);
+                scheduleRetry(resumeAfterCardAnimation, getAnimationRetryDelayMs());
                 return;
             }
         }
@@ -185,22 +348,34 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 pending = cardState.pendingEffectByPlayer[playerKey];
                 if (isUiAnimationBusy()) {
                     isProcessing = false;
-                    scheduleRunCpuTurn(playerKey, { autoMode }, ANIMATION_RETRY_DELAY_MS);
+                    scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
                     return;
                 }
                 // Multi-step selection cards (e.g. SACRIFICE_WILL) may keep pending selectTarget
                 // after one application. Do not proceed to normal move generation/pass until
                 // selection flow is finished.
                 if (pending && pending.stage === 'selectTarget') {
+                    if (shouldAbortStuckPendingSelection(playerKey, pending)) {
+                        // Safety valve: avoid infinite retry loops when a selector cannot progress.
+                        if (cardState && cardState.pendingEffectByPlayer) {
+                            cardState.pendingEffectByPlayer[playerKey] = null;
+                        }
+                        resetPendingSelectRetryState(playerKey);
+                        isProcessing = false;
+                        scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
+                        return;
+                    }
                     isProcessing = false;
-                    scheduleRunCpuTurn(playerKey, { autoMode }, ANIMATION_RETRY_DELAY_MS);
+                    scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
                     return;
                 }
             }
         }
 
-        const protection = getActiveProtectionForPlayer(selfColor); // Fixed to use selfColor
-        const perma = (typeof getFlipBlockers === 'function') ? getFlipBlockers() : [];
+        resetPendingSelectRetryState(playerKey);
+
+        const protection = getActiveProtectionSafe(selfColor);
+        const perma = getFlipBlockersSafe();
         const candidateMoves = generateMovesForPlayer(selfColor, pending, protection, perma);
 
         if (!candidateMoves.length) {
@@ -211,12 +386,12 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 const retried = (typeof cpuMaybeUseCardWithPolicy === 'function') ? cpuMaybeUseCardWithPolicy(playerKey) : false;
                 if (retried) {
                     isProcessing = false;
-                    scheduleRunCpuTurn(playerKey, { autoMode }, ANIMATION_RETRY_DELAY_MS);
+                    scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
                     return;
                 }
                 // Avoid illegal-pass spam: keep turn and retry later.
                 isProcessing = false;
-                scheduleRunCpuTurn(playerKey, { autoMode }, ANIMATION_RETRY_DELAY_MS);
+                scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
                 return;
             }
             const passFn = resolveProcessPassTurn();
@@ -226,10 +401,20 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 console.error('[AI] processPassTurn is not available');
                 isProcessing = false;
             }
+            resetPendingSelectRetryState(playerKey);
             return;
         }
 
-        const move = selectCpuMoveWithPolicy(candidateMoves, playerKey);
+        const move = selectCpuMoveSafe(candidateMoves, playerKey);
+        if (!move) {
+            const passFn = resolveProcessPassTurn();
+            if (passFn) {
+                passFn(playerKey, autoMode);
+            } else {
+                isProcessing = false;
+            }
+            return;
+        }
         if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
             debugLog(`[AI] Move selected`, 'info', {
                 playerKey,
@@ -242,6 +427,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
         playHandAnimation(selfColor, move.row, move.col, () => {
             executeMove(move);
         });
+        resetPendingSelectRetryState(playerKey);
     } catch (error) {
         console.error(`[AI] Error in runCpuTurn for ${playerKey}:`, error);
         console.error(`[AI] Error message: ${error.message}`);
@@ -257,6 +443,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
         if (typeof emitLogAdded === 'function') {
             emitLogAdded(`${selfName}の思考中にエラーが発生しました`);
         }
+        resetPendingSelectRetryState(playerKey);
     }
 }
 

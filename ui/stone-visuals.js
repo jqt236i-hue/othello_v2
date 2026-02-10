@@ -96,40 +96,6 @@ async function crossfadeStoneVisual(disc, options = {}) {
 }
 
 // Export for window or module systems
-
-var _chargeDeltaTimers = { black: null, white: null };
-var _chargeDeltaClearTimers = { black: null, white: null };
-
-function showChargeDelta(playerKey, delta) {
-    if (!Number.isFinite(delta) || delta === 0) return;
-    if (typeof document === 'undefined') return;
-
-    var key = (playerKey === 'white' || playerKey === WHITE || playerKey === -1) ? 'white' : 'black';
-    var elId = (key === 'black') ? 'charge-delta-black' : 'charge-delta-white';
-    var el = document.getElementById(elId);
-    if (!el) return;
-
-    var sign = delta > 0 ? '+' : '';
-    el.textContent = '布石' + sign + delta;
-
-    el.classList.remove('is-increase', 'is-decrease');
-    el.classList.add(delta > 0 ? 'is-increase' : 'is-decrease');
-
-    var timer = _Timer();
-    if (_chargeDeltaTimers[key]) timer.clearTimeout(_chargeDeltaTimers[key]);
-    if (_chargeDeltaClearTimers[key]) timer.clearTimeout(_chargeDeltaClearTimers[key]);
-
-    el.classList.remove('is-fadeout');
-    el.classList.add('is-visible');
-    _chargeDeltaTimers[key] = timer.setTimeout(function () {
-        el.classList.remove('is-visible');
-        el.classList.add('is-fadeout');
-        _chargeDeltaClearTimers[key] = timer.setTimeout(function () {
-            el.textContent = '';
-            el.classList.remove('is-fadeout');
-        }, 500);
-    }, 4000);
-}
 if (typeof window !== 'undefined') {
     window.crossfadeStoneVisual = crossfadeStoneVisual;
 }
@@ -266,6 +232,7 @@ function applyPendingSpecialstoneVisual(move, pendingType) {
 
 var _chargeDeltaTimers = { black: null, white: null };
 var _chargeDeltaClearTimers = { black: null, white: null };
+var _chargeDeltaSeq = { black: 0, white: 0 };
 
 function showChargeDelta(playerKey, delta) {
     if (!Number.isFinite(delta) || delta === 0) return;
@@ -285,17 +252,39 @@ function showChargeDelta(playerKey, delta) {
     var timer = _Timer();
     if (_chargeDeltaTimers[key]) timer.clearTimeout(_chargeDeltaTimers[key]);
     if (_chargeDeltaClearTimers[key]) timer.clearTimeout(_chargeDeltaClearTimers[key]);
+    var seq = (_chargeDeltaSeq[key] || 0) + 1;
+    _chargeDeltaSeq[key] = seq;
 
-    el.classList.remove('is-fadeout');
-    el.classList.add('is-visible');
-    _chargeDeltaTimers[key] = timer.setTimeout(function () {
-        el.classList.remove('is-visible');
-        el.classList.add('is-fadeout');
-        _chargeDeltaClearTimers[key] = timer.setTimeout(function () {
-            el.textContent = '';
-            el.classList.remove('is-fadeout');
-        }, 500);
-    }, 4000);
+    // Re-trigger entrance animation even when the same text is shown repeatedly.
+    // Force-reset to the start pose first, then re-show on the next frame.
+    el.classList.remove('is-visible', 'is-fadeout', 'is-restart');
+    el.classList.add('is-restart');
+    void el.offsetWidth;
+    var startShow = function () {
+        if ((_chargeDeltaSeq[key] || 0) !== seq) return;
+        el.classList.remove('is-restart');
+        el.classList.remove('is-fadeout');
+        el.classList.add('is-visible');
+        _chargeDeltaTimers[key] = timer.setTimeout(function () {
+            if ((_chargeDeltaSeq[key] || 0) !== seq) return;
+            el.classList.remove('is-visible');
+            el.classList.add('is-fadeout');
+            _chargeDeltaClearTimers[key] = timer.setTimeout(function () {
+                if ((_chargeDeltaSeq[key] || 0) !== seq) return;
+                el.textContent = '';
+                el.classList.remove('is-fadeout');
+            }, 500);
+        }, 4000);
+    };
+    try {
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(startShow);
+        } else {
+            timer.setTimeout(startShow, 16);
+        }
+    } catch (e) {
+        timer.setTimeout(startShow, 16);
+    }
 }
 if (typeof window !== 'undefined') {
     // Expose helpers to legacy consumers

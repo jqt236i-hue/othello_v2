@@ -49,6 +49,33 @@ function getEffectKeyForSpecialType(type) {
     return specialMap[type] || null;
 } 
 
+function normalizeOwnerValue(owner) {
+    if (owner === 1 || owner === '1' || owner === 'black') return 1;
+    if (owner === -1 || owner === '-1' || owner === 'white') return -1;
+    const n = Number(owner);
+    if (Number.isFinite(n) && (n === 1 || n === -1)) return n;
+    return 1;
+}
+
+/**
+ * Robust fallback for trap reveal visuals.
+ * Used when normal map application/DI timing fails and we still need the trap icon visible.
+ */
+function applyTrapStoneFallbackVisual(discElement, owner) {
+    if (!discElement || !discElement.classList) return false;
+    const ownerVal = normalizeOwnerValue(owner);
+    const trapImagePath = ownerVal === 1
+        ? 'assets/images/stones/trap_stone-black.png'
+        : 'assets/images/stones/trap_stone-white.png';
+    try {
+        discElement.classList.add('special-stone', 'trap-stone');
+        discElement.style.setProperty('--special-stone-image', `url('${trapImagePath}')`);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
 async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
     const debugVisual = (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true);
     if (debugVisual) console.log('[VISUAL_DEBUG] applyStoneVisualEffect called', effectKey, options);
@@ -312,6 +339,8 @@ if (typeof module === 'object' && module.exports) {
         getEffectKeyForPendingType,
         SPECIAL_TYPE_TO_EFFECT_KEY: getUiSpecialTypeToEffectKey(),
         getEffectKeyForSpecialType,
+        normalizeOwnerValue,
+        applyTrapStoneFallbackVisual,
         applyStoneVisualEffect,
         removeStoneVisualEffect,
         getSupportedEffectKeys
@@ -336,6 +365,8 @@ if (typeof window !== 'undefined') {
         window.SPECIAL_TYPE_TO_EFFECT_KEY = window.SPECIAL_TYPE_TO_EFFECT_KEY || currentSpecialMap;
         window.getEffectKeyForSpecialType = window.getEffectKeyForSpecialType || getEffectKeyForSpecialType;
     }
+    window.normalizeOwnerValue = window.normalizeOwnerValue || normalizeOwnerValue;
+    window.applyTrapStoneFallbackVisual = window.applyTrapStoneFallbackVisual || applyTrapStoneFallbackVisual;
     window.applyStoneVisualEffect = applyStoneVisualEffect;
     window.removeStoneVisualEffect = removeStoneVisualEffect;
     window.getSupportedEffectKeys = getSupportedEffectKeys;

@@ -45,4 +45,37 @@ describe('move-executor CPU scheduling fallback', () => {
 
         expect(mockCpu).toHaveBeenCalled();
     });
+
+    test('stale scheduled CPU callback is skipped when turn/player changed', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)), turnNumber: 12 };
+
+        const moveExecutor = require('../game/move-executor');
+        const move = { row: 2, col: 3, player: 1 };
+        const playerKey = 'black';
+
+        const fakeRes = {
+            ok: true,
+            nextGameState: { currentPlayer: -1, turnNumber: 12 }, // WHITE turn expected
+            nextCardState: global.cardState,
+            playbackEvents: [{ type: 'PLAYBACK_EVENTS', events: [] }],
+            phases: {},
+            placementEffects: {},
+            immediate: {}
+        };
+
+        const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
+        const pipeline = {};
+        const mockCpu = jest.fn();
+        globalThis.processCpuTurn = mockCpu;
+
+        await moveExecutor.executeMoveViaPipeline(move, false, playerKey, adapter, pipeline);
+
+        // Simulate state changed before delayed callback fires.
+        global.gameState.currentPlayer = 1;
+        jest.runAllTimers();
+
+        expect(mockCpu).not.toHaveBeenCalled();
+    });
 });

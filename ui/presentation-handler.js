@@ -117,6 +117,17 @@
             if (ev.type === 'SCHEDULE_CPU_TURN') {
                 const delay = Number.isFinite(ev.delayMs) ? ev.delayMs : 0;
                 setTimeout(function () {
+                    try {
+                        const currentPlayer = (typeof gameState !== 'undefined' && gameState) ? gameState.currentPlayer : null;
+                        const currentPlayerKey = (currentPlayer === 'white' || (typeof WHITE !== 'undefined' && currentPlayer === WHITE))
+                            ? 'white'
+                            : ((currentPlayer === 'black' || (typeof BLACK !== 'undefined' && currentPlayer === BLACK)) ? 'black' : null);
+                        const currentTurnNumber = (typeof gameState !== 'undefined' && gameState && Number.isFinite(gameState.turnNumber))
+                            ? gameState.turnNumber
+                            : null;
+                        if (ev.expectedPlayerKey && ev.expectedPlayerKey !== currentPlayerKey) return;
+                        if (Number.isFinite(ev.expectedTurnNumber) && ev.expectedTurnNumber !== currentTurnNumber) return;
+                    } catch (e) { /* ignore */ }
                     const cpuFn = resolveCpuTurnFn();
                     if (cpuFn) cpuFn();
                     else console.warn('[PresentationHandler] processCpuTurn not available for fallback SCHEDULE_CPU_TURN');

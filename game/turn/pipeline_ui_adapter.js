@@ -327,138 +327,168 @@
         logs.push(`${label}${_detailCount(ev)}${suffix}`);
     }
 
+    function _normalizePlayerKey(v) {
+        if (v === 'black' || v === 1 || v === '1') return 'black';
+        if (v === 'white' || v === -1 || v === '-1') return 'white';
+        return null;
+    }
+
+    function _resolveEventActorKey(ev, fallbackPlayerKey) {
+        const byPlayer = _normalizePlayerKey(ev && ev.player);
+        if (byPlayer) return byPlayer;
+        const details = ev && Array.isArray(ev.details) ? ev.details : null;
+        if (details && details.length > 0) {
+            const byDetailOwner = _normalizePlayerKey(details[0] && details[0].owner);
+            if (byDetailOwner) return byDetailOwner;
+            const byDetailOwnerKey = _normalizePlayerKey(details[0] && details[0].ownerKey);
+            if (byDetailOwnerKey) return byDetailOwnerKey;
+        }
+        return _normalizePlayerKey(fallbackPlayerKey) || 'black';
+    }
+
+    function _withActorPrefix(line, actorKey) {
+        const text = String(line || '').trim();
+        if (!text) return '';
+        if (/^(黒|白):/.test(text)) return text;
+        return `${_playerLabel(actorKey)}: ${text}`;
+    }
+
     function mapEffectLogsFromPipeline(rawEvents, presEvents, playerKey) {
         const logs = [];
-        const actor = _playerLabel(playerKey);
         const events = Array.isArray(rawEvents) ? rawEvents : [];
         const seenStatusTick = new Set();
 
         for (const ev of events) {
             if (!ev || !ev.type) continue;
+            const actorKey = _resolveEventActorKey(ev, playerKey);
+            const push = (line) => {
+                const msg = _withActorPrefix(line, actorKey);
+                if (msg) logs.push(msg);
+            };
             switch (ev.type) {
                 case 'bombs_exploded':
-                    logs.push(`時限爆弾が${(ev.details && Array.isArray(ev.details.exploded)) ? ev.details.exploded.length : 0}箇所で爆発`);
+                    push(`時限爆弾が${(ev.details && Array.isArray(ev.details.exploded)) ? ev.details.exploded.length : 0}箇所で爆発`);
                     break;
                 case 'chain_flipped':
-                    _pushCountLog(logs, ev, '連鎖: ', '枚を追加反転');
+                    push(`連鎖: ${_detailCount(ev)}枚を追加反転`);
                     break;
                 case 'dragon_converted_start':
                 case 'dragon_converted_immediate':
-                    _pushCountLog(logs, ev, '究極反転龍: ', '枚を反転');
+                    push(`究極反転龍: ${_detailCount(ev)}枚を反転`);
                     break;
                 case 'dragon_destroyed_anchor_start':
                 case 'dragon_destroyed_anchor_immediate':
-                    _pushCountLog(logs, ev, '究極反転龍: 親石', '個が消滅');
+                    push(`究極反転龍: 親石${_detailCount(ev)}個が消滅`);
                     break;
                 case 'breeding_spawned_start':
                 case 'breeding_spawned_immediate':
-                    _pushCountLog(logs, ev, '繁殖石: ', '個を生成');
+                    push(`繁殖石: ${_detailCount(ev)}個を生成`);
                     break;
                 case 'breeding_flipped_start':
                 case 'breeding_flipped_immediate':
-                    _pushCountLog(logs, ev, '繁殖石: ', '枚を反転');
+                    push(`繁殖石: ${_detailCount(ev)}枚を反転`);
                     break;
                 case 'breeding_destroyed_anchor_start':
-                    _pushCountLog(logs, ev, '繁殖石: 親石', '個が消滅');
+                    push(`繁殖石: 親石${_detailCount(ev)}個が消滅`);
                     break;
                 case 'hyperactive_moved_start':
                 case 'hyperactive_moved_immediate':
-                    _pushCountLog(logs, ev, '多動石: ', '回移動');
+                    push(`多動石: ${_detailCount(ev)}回移動`);
                     break;
                 case 'hyperactive_destroyed_start':
                 case 'hyperactive_destroyed_immediate':
-                    _pushCountLog(logs, ev, '多動石: ', '個が消滅');
+                    push(`多動石: ${_detailCount(ev)}個が消滅`);
                     break;
                 case 'hyperactive_flipped_start':
                 case 'hyperactive_flipped_immediate':
-                    _pushCountLog(logs, ev, '多動石: ', '枚を反転');
+                    push(`多動石: ${_detailCount(ev)}枚を反転`);
                     break;
                 case 'regen_triggered_start':
                 case 'regen_triggered':
-                    _pushCountLog(logs, ev, '復活石: ', '個が再生');
+                    push(`復活石: ${_detailCount(ev)}個が再生`);
                     break;
                 case 'regen_capture_flipped_start':
                 case 'regen_capture_flipped':
-                    _pushCountLog(logs, ev, '復活石: 再生後に', '枚を反転');
+                    push(`復活石: 再生後に${_detailCount(ev)}枚を反転`);
                     break;
                 case 'udg_destroyed_start':
                 case 'udg_destroyed_immediate':
-                    _pushCountLog(logs, ev, '究極破壊神: ', '個を破壊');
+                    push(`究極破壊神: ${_detailCount(ev)}個を破壊`);
                     break;
                 case 'udg_expired_start':
                 case 'udg_expired_immediate':
-                    _pushCountLog(logs, ev, '究極破壊神: 親石', '個が消滅');
+                    push(`究極破壊神: 親石${_detailCount(ev)}個が消滅`);
                     break;
                 case 'destroy_selected':
-                    if (ev.destroyed) logs.push(`${actor}: 破壊神で${_toPosText(ev.target)}を破壊`);
+                    if (ev.destroyed) push(`破壊神で${_toPosText(ev.target)}を破壊`);
                     break;
                 case 'strong_wind_selected':
-                    if (ev.applied) logs.push(`${actor}: 強風で${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動`);
+                    if (ev.applied) push(`強風で${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動`);
                     break;
                 case 'sacrifice_selected':
-                    if (ev.applied) logs.push(`${actor}: 生贄で${_toPosText(ev.target)}を破壊（布石+${ev.gained || 0}）`);
+                    if (ev.applied) push(`生贄で${_toPosText(ev.target)}を破壊（布石+${ev.gained || 0}）`);
                     break;
                 case 'sell_selected':
-                    if (ev.applied) logs.push(`${actor}: 売却で+${ev.gained || 0}`);
+                    if (ev.applied) push(`売却で+${ev.gained || 0}`);
                     break;
                 case 'heaven_blessing_selected':
-                    if (ev.applied) logs.push(`${actor}: 天の恵みでカード獲得`);
+                    if (ev.applied) push('天の恵みでカード獲得');
                     break;
                 case 'condemn_selected':
-                    if (ev.applied) logs.push(`${actor}: 断罪で相手カードを破壊`);
+                    if (ev.applied) push('断罪で相手カードを破壊');
                     break;
                 case 'tempt_selected':
-                    if (ev.applied) logs.push(`${actor}: 誘惑で特殊石を奪取`);
+                    if (ev.applied) push('誘惑で特殊石を奪取');
                     break;
                 case 'inherit_selected':
-                    if (ev.applied) logs.push(`${actor}: 継承で強い石へ変換`);
+                    if (ev.applied) push('継承で強い石へ変換');
                     break;
                 case 'swap_selected':
-                    if (ev.swapped) logs.push(`${actor}: 交換で${_toPosText({ row: ev.row, col: ev.col })}を変換`);
+                    if (ev.swapped) push(`交換で${_toPosText({ row: ev.row, col: ev.col })}を変換`);
                     break;
                 case 'trap_selected':
-                    if (ev.applied) logs.push('罠石がどこかに潜んでいる...');
+                    if (ev.applied) push('罠石がどこかに潜んでいる...');
                     break;
                 case 'guard_selected':
-                    if (ev.applied) logs.push(`${actor}: 守る意志で完全保護を付与`);
+                    if (ev.applied) push('守る意志で完全保護を付与');
                     break;
                 case 'treasure_box_gain':
-                    logs.push(`宝箱: 布石+${Number(ev.gained) || 0}`);
+                    push(`宝箱: 布石+${Number(ev.gained) || 0}`);
                     break;
                 case 'trap_triggered': {
                     const details = Array.isArray(ev.details) ? ev.details : [];
                     if (details.length > 0) {
                         const stolenHand = details.reduce((sum, d) => sum + (Number(d && d.stolenHandCount) || 0), 0);
-                        logs.push(`罠石が発動: 布石全没収 / 手札${stolenHand}枚没収`);
+                        push(`罠石が発動: 布石全没収 / 手札${stolenHand}枚没収`);
                     }
                     break;
                 }
                 case 'trap_expired':
-                    if (_detailCount(ev) > 0) logs.push('罠石は不発で消滅');
+                    if (_detailCount(ev) > 0) push('罠石は不発で消滅');
                     break;
                 case 'trap_disarmed':
-                    if (_detailCount(ev) > 0) logs.push('罠石は不発で解除');
+                    if (_detailCount(ev) > 0) push('罠石は不発で解除');
                     break;
                 case 'placement_effects':
                     if (ev.effects) {
                         const e = ev.effects;
-                        if (e.doublePlaceActivated) logs.push('二連投石: 追加手を獲得');
-                        if (e.freePlacementUsed) logs.push('自由の意志:自由な空きマスに配置');
-                        if (e.silverStoneUsed) logs.push('銀石: 獲得布石3倍');
-                        if (e.goldStoneUsed) logs.push('金石: 獲得布石4倍');
-                        if (e.protected) logs.push('反転保護を付与');
-                        if (e.permaProtected) logs.push('永続反転保護を付与');
-                        if (e.bombPlaced) logs.push('時限爆弾を設置');
-                        if (e.dragonPlaced) logs.push('究極反転龍を設置');
-                        if (e.ultimateDestroyGodPlaced) logs.push('究極破壊神を設置');
-                        if (e.hyperactivePlaced) logs.push('多動石を設置');
-                        if (e.crossBombExploded) logs.push(`十字爆弾: ${e.crossBombDestroyed || 0}個を破壊`);
-                        if (e.plunderAmount > 0) logs.push(`吸収の意志: 布石を${e.plunderAmount}吸収`);
-                        if (e.stolenCount > 0) logs.push(`略奪: カード${e.stolenCount}枚`);
+                        if (e.doublePlaceActivated) push('二連投石: 追加手を獲得');
+                        if (e.freePlacementUsed) push('自由の意志:自由な空きマスに配置');
+                        if (e.silverStoneUsed) push('銀石: 獲得布石3倍');
+                        if (e.goldStoneUsed) push('金石: 獲得布石4倍');
+                        if (e.protected) push('反転保護を付与');
+                        if (e.permaProtected) push('永続反転保護を付与');
+                        if (e.bombPlaced) push('時限爆弾を設置');
+                        if (e.dragonPlaced) push('究極反転龍を設置');
+                        if (e.ultimateDestroyGodPlaced) push('究極破壊神を設置');
+                        if (e.hyperactivePlaced) push('多動石を設置');
+                        if (e.crossBombExploded) push(`十字爆弾: ${e.crossBombDestroyed || 0}個を破壊`);
+                        if (e.plunderAmount > 0) push(`吸収の意志: 布石を${e.plunderAmount}吸収`);
+                        if (e.stolenCount > 0) push(`略奪: カード${e.stolenCount}枚`);
                     }
                     break;
                 case 'extra_place_consumed':
-                    logs.push('二連投石: 追加手を消費');
+                    push('二連投石: 追加手を消費');
                     break;
                 default:
                     break;
@@ -468,13 +498,18 @@
         const pres = Array.isArray(presEvents) ? presEvents : [];
         for (const ev of pres) {
             if (!ev) continue;
+            const actorKey = _resolveEventActorKey(ev, playerKey);
+            const push = (line) => {
+                const msg = _withActorPrefix(line, actorKey);
+                if (msg) logs.push(msg);
+            };
             if (ev.type === 'WORK_INCOME') {
                 const gained = Number.isFinite(ev.gained) ? ev.gained : ((ev.meta && Number.isFinite(ev.meta.gained)) ? ev.meta.gained : 0);
-                logs.push(`労働石: 布石 +${gained}`);
+                push(`労働石: 布石 +${gained}`);
                 continue;
             }
             if (ev.type === 'WORK_REMOVED') {
-                logs.push('労働石: 効果終了');
+                push('労働石: 効果終了');
                 continue;
             }
             if (!ev || ev.type !== 'STATUS_TICK' || !ev.meta) continue;
@@ -484,9 +519,9 @@
             if (seenStatusTick.has(key)) continue;
             seenStatusTick.add(key);
             if (special === 'TIME_BOMB' && Number.isFinite(timer)) {
-                logs.push(`時限爆弾: ${_toPosText(ev)} のカウント ${timer}`);
+                push(`時限爆弾: ${_toPosText(ev)} のカウント ${timer}`);
             } else if (special && Number.isFinite(timer)) {
-                logs.push(`${_specialLabelJa(special)}: ${_toPosText(ev)} の残り ${timer}`);
+                push(`${_specialLabelJa(special)}: ${_toPosText(ev)} の残り ${timer}`);
             }
         }
 

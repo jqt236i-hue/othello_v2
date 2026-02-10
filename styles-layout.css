@@ -158,18 +158,26 @@
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
     opacity: 0;
-    transition: none;
+    transform: var(--charge-delta-base-transform, translateX(-50%)) translateY(1cm);
+    transition: opacity 0.2s ease, transform 0.28s cubic-bezier(0.2, 0.9, 0.2, 1);
     white-space: nowrap;
+}
+
+.charge-delta.is-restart {
+    opacity: 0 !important;
+    transform: var(--charge-delta-base-transform, translateX(-50%)) translateY(1cm) !important;
+    transition: none !important;
 }
 
 .charge-delta.is-visible {
     opacity: 1;
-    transition: none;
+    transform: var(--charge-delta-base-transform, translateX(-50%)) translateY(0);
 }
 
 .charge-delta.is-fadeout {
     opacity: 0;
-    transition: opacity 0.5s ease;
+    transform: var(--charge-delta-base-transform, translateX(-50%)) translateY(-0.15cm);
+    transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
 .charge-delta.is-increase {
@@ -187,13 +195,13 @@
 #charge-delta-black {
     left: 50%;
     bottom: calc(-25px + 5mm);
-    transform: translateX(-50%) translateX(-90px);
+    --charge-delta-base-transform: translateX(-50%) translateX(-90px);
 }
 
 #charge-delta-white {
     left: 50%;
     top: calc(-25px + 5mm);
-    transform: translateX(-50%) translateX(90px);
+    --charge-delta-base-transform: translateX(-50%) translateX(90px);
 }
 /* Player Area Containers */
 .player-area-top,

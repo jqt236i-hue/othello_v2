@@ -38,18 +38,24 @@ function getActiveProtectionForPlayer(player) {
  * @returns {string|null} Effect key for applyStoneVisualEffect
  */
 function getEffectKeyForType(type) {
-    const map = {
-        'PROTECTED': 'protectedStoneTemporary',
-        'PERMA_PROTECTED': 'protectedStone',
-        'DRAGON': 'ultimateDragon',
-        'BREEDING': 'breedingStone',
-        'ULTIMATE_DESTROY_GOD': 'ultimateDestroyGod',
-        'HYPERACTIVE': 'hyperactiveStone',
-        'GOLD': 'goldStone',
-        'SILVER': 'silverStone',
-        'REGEN': 'regenStone'
-    };
-    return map[type] || null;
+    try {
+        if (typeof require === 'function') {
+            const mod = require('../visual-effects-map');
+            if (mod && typeof mod.getEffectKeyForSpecialType === 'function') {
+                return mod.getEffectKeyForSpecialType(type);
+            }
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (
+            typeof globalThis !== 'undefined' &&
+            globalThis.GameVisualEffectsMap &&
+            typeof globalThis.GameVisualEffectsMap.getEffectKeyForSpecialType === 'function'
+        ) {
+            return globalThis.GameVisualEffectsMap.getEffectKeyForSpecialType(type);
+        }
+    } catch (e) { /* ignore */ }
+    return null;
 }
 
 if (typeof module !== 'undefined' && module.exports) {

@@ -23,6 +23,14 @@
     })();
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
 
+    function isBoardOpsDebugEnabled(cardState) {
+        if (cardState && cardState.debugBoardOpsLog === true) return true;
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.DEBUG_BOARDOPS_LOG === true) return true;
+        } catch (e) { /* ignore */ }
+        return false;
+    }
+
     function _ensureCardState(cardState) {
         if (!cardState.presentationEvents) cardState.presentationEvents = [];
         if (cardState._nextStoneId === undefined || cardState._nextStoneId === null) cardState._nextStoneId = 1;
@@ -82,7 +90,9 @@
         // CardLogic.flushPresentationEvents may be called before the UI handler runs.
         if (!cardState._presentationEventsPersist) cardState._presentationEventsPersist = [];
         cardState._presentationEventsPersist.push(out);
-        try { if (typeof console !== 'undefined' && console.log) console.log('[BOARDOPS] emitPresentationEvent pushed, persist len', cardState._presentationEventsPersist.length); } catch (e) {}
+        if (isBoardOpsDebugEnabled(cardState)) {
+            try { if (typeof console !== 'undefined' && console.log) console.log('[BOARDOPS] emitPresentationEvent pushed, persist len', cardState._presentationEventsPersist.length); } catch (e) {}
+        }
 
         // Advance the ply index if using metaSource
         if (metaSource && typeof metaSource.plyIndex === 'number') {

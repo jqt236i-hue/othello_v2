@@ -14,6 +14,8 @@ describe('cpu decision refactor helpers', () => {
     global.emitCardStateChange = jest.fn();
     global.emitBoardUpdate = jest.fn();
     global.emitLogAdded = jest.fn();
+    delete global.TurnPipeline;
+    delete global.TurnPipelineUIAdapter;
     delete global.CpuPolicyTableRuntime;
   });
 
@@ -93,21 +95,46 @@ describe('cpu decision refactor helpers', () => {
     expect(global.CpuPolicyTableRuntime.chooseMove).toHaveBeenCalled();
   });
 
-  test('applyCardChoice applies via CardLogic and triggers UI update hooks', () => {
+  test('applyCardChoice uses pipeline result and updates logs', () => {
     global.CardLogic = { applyCardUsage: jest.fn(() => true) };
     global.cardState.hands.white = ['c1'];
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          hands: { ...global.cardState.hands, white: [] },
+          hasUsedCardThisTurnByPlayer: { ...global.cardState.hasUsedCardThisTurnByPlayer, white: true }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
 
     const ok = cpuDecision.applyCardChoice('white', { cardId: 'c1', cardDef: { name: 'C1' } });
     expect(ok).toBe(true);
-    expect(CardLogic.applyCardUsage).toHaveBeenCalledWith(cardState, gameState, 'white', 'c1');
-    expect(emitCardStateChange).toHaveBeenCalled();
-    expect(emitBoardUpdate).toHaveBeenCalled();
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
+    expect(CardLogic.applyCardUsage).not.toHaveBeenCalled();
     expect(emitLogAdded).toHaveBeenCalled();
   });
 
   test('cpuMaybeUseCardWithPolicy returns true when a card applied', () => {
     global.CardLogic = { applyCardUsage: jest.fn(() => true), canUseCard: () => true, getCardDef: (id) => ({ name: id }) };
     global.cardState.hands.white = ['c2'];
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          hands: { ...global.cardState.hands, white: [] },
+          hasUsedCardThisTurnByPlayer: { ...global.cardState.hasUsedCardThisTurnByPlayer, white: true }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
     // ensure AISystem returns our card
     global.AISystem = { selectCardToUse: () => ({ cardId: 'c2', cardDef: { name: 'C2' } }) };
 
@@ -123,23 +150,135 @@ describe('cpu decision refactor helpers', () => {
   });
 
   test('cpuMaybeUseCardWithPolicy tries other usable cards when first apply fails', () => {
-    // two cards: first will fail to apply, second will succeed
+    // two cards: first pipeline use is rejected, second is accepted
     global.cardState = { hands: { white: ['first', 'second'] }, pendingEffectByPlayer: { white: null }, hasUsedCardThisTurnByPlayer: { white: false } };
-    const applyMock = jest.fn((cs, gs, p, id) => id === 'second');
-    global.CardLogic = { applyCardUsage: applyMock, canUseCard: () => true, getCardDef: (id) => ({ name: id }) };
+    global.CardLogic = { applyCardUsage: jest.fn(), canUseCard: () => true, getCardDef: (id) => ({ name: id }) };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn((_cs, _gs, _p, action) => {
+        if (action && action.useCardId === 'first') return { ok: false };
+        return {
+          ok: true,
+          nextCardState: {
+            ...global.cardState,
+            hands: { ...global.cardState.hands, white: ['first'] },
+            hasUsedCardThisTurnByPlayer: { ...global.cardState.hasUsedCardThisTurnByPlayer, white: true }
+          },
+          nextGameState: global.gameState,
+          playbackEvents: []
+        };
+      })
+    };
     // AISystem suggests 'first'
     global.AISystem = { selectCardToUse: () => ({ cardId: 'first', cardDef: { name: 'first' } }) };
 
     const applied = cpuDecision.cpuMaybeUseCardWithPolicy('white');
     expect(applied).toBe(true);
-    // both were attempted: first failed, second succeeded
-    expect(applyMock).toHaveBeenCalledWith(global.cardState, global.gameState, 'white', 'first');
-    expect(applyMock).toHaveBeenCalledWith(global.cardState, global.gameState, 'white', 'second');
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(2);
+    expect(global.CardLogic.applyCardUsage).not.toHaveBeenCalled();
   });
 
   test('cpuMaybeUseCardWithPolicy returns false when player already used card this turn', () => {
     global.cardState.hasUsedCardThisTurnByPlayer.white = true;
     const applied = cpuDecision.cpuMaybeUseCardWithPolicy('white');
     expect(applied).toBe(false);
+  });
+
+  test('cpuSelectSwapWithEnemyWithPolicy prefers pipeline adapter path', async () => {
+    global.cardState.pendingEffectByPlayer.white = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 2, col: 3 }],
+      applySwapEffect: jest.fn(() => true)
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: [{ type: 'dummy' }]
+      }))
+    };
+    global.emitGameStateChange = jest.fn();
+
+    await cpuDecision.cpuSelectSwapWithEnemyWithPolicy('white');
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
+    expect(global.CardLogic.applySwapEffect).not.toHaveBeenCalled();
+    expect(global.emitCardStateChange).toHaveBeenCalled();
+    expect(global.emitBoardUpdate).toHaveBeenCalled();
+    expect(global.emitGameStateChange).toHaveBeenCalled();
+  });
+
+  test('cpuSelectSwapWithEnemyWithPolicy does not fallback when pipeline path rejects', async () => {
+    global.cardState.pendingEffectByPlayer.white = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 4, col: 5 }],
+      applySwapEffect: jest.fn(() => true)
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({ ok: false }))
+    };
+    global.emitGameStateChange = jest.fn();
+
+    await cpuDecision.cpuSelectSwapWithEnemyWithPolicy('white');
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
+    expect(global.CardLogic.applySwapEffect).not.toHaveBeenCalled();
+    expect(global.emitCardStateChange).not.toHaveBeenCalled();
+    expect(global.emitBoardUpdate).not.toHaveBeenCalled();
+    expect(global.emitGameStateChange).not.toHaveBeenCalled();
+  });
+
+  test('applyCardChoice uses pipeline path for immediate cards (treasure box)', () => {
+    global.cardState = {
+      hands: { white: ['treasure_01'], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      turnIndex: 7
+    };
+    global.gameState = { board: [], currentPlayer: -1 };
+    global.CardLogic = { applyCardUsage: jest.fn(() => true) };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          hands: { white: [], black: [] },
+          hasUsedCardThisTurnByPlayer: { white: true, black: false },
+          charge: { white: 2, black: 0 }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+    global.emitGameStateChange = jest.fn();
+
+    const ok = cpuDecision.applyCardChoice('white', { cardId: 'treasure_01', cardDef: { name: '宝箱', cost: 0 } });
+    expect(ok).toBe(true);
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
+    expect(global.CardLogic.applyCardUsage).not.toHaveBeenCalled();
+    expect(global.cardState.charge.white).toBe(2);
+    expect(global.emitLogAdded).toHaveBeenCalledWith(expect.stringContaining('カードを使用'));
+  });
+
+  test('applyCardChoice rejects when pipeline card-use fails', () => {
+    global.cardState.hands.white = ['treasure_01'];
+    global.CardLogic = { applyCardUsage: jest.fn(() => true) };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({ ok: false }))
+    };
+
+    const ok = cpuDecision.applyCardChoice('white', { cardId: 'treasure_01', cardDef: { name: '宝箱', cost: 0 } });
+    expect(ok).toBe(false);
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
+    expect(global.CardLogic.applyCardUsage).not.toHaveBeenCalled();
   });
 });

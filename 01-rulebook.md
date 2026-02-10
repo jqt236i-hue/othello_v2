@@ -775,6 +775,7 @@ For ownership/icon changes that are NOT intended to look like a physical flip (T
 ### 1.6 Placement shows final look immediately
 - When a special stone is placed, its final PNG look MUST be visible immediately.
 - Optional appear animation is allowed, but no delayed PNG swap.
+- All special stones MUST use the same drop-shadow rule as other stones (no stone-specific shadow disable).
 
 ---
 
@@ -881,11 +882,14 @@ Notes:
 - 位置は既定位置から右に 1cm、下に 1cm 移動し、大きさは 110% とする。
 - 最新行は通常の濃さで表示し、他の行は薄く表示する。
 - 効果ログの文言は日本語で統一する。
+- 効果ログの各行は、必ず `黒:` / `白:` の発動者プレフィックスを付ける。
 - 通常ログ側にはカード効果の文言を表示しない（重複表示を防ぐ）。
+- ゲームリセット時（新規ゲーム開始を含む）に効果ログはクリアする。
 
 ### 5.10 normal log（通常ログ）
 - 通常ログには進行情報を表示する（ゲーム開始、ターン開始、ドロー、パスなど）。
 - 配置で反転が発生した場合、`黒がX枚反転！` / `白がX枚反転！` の要約を表示する。
+- カード使用ログ（`黒/白がカードを使用: ...`）は AUTO/手動で共通の条件で表示する。
 - 内部向け文言（例: `no animation`, `PresentationEvent: ...`）は表示しない。
 
 
@@ -894,7 +898,8 @@ Notes:
 - Black: left of its charge display. White: right of its charge display.
 - Text: `布石+N` / `布石-N`.
 - Increase color: blue-tinted. Decrease color: red-tinted.
-- Timing: keep visible for 4s, then fade out (opacity only) over 0.5s.
+- Entrance motion: appear from 1cm below and slide upward into place.
+- Timing: keep visible for 4s, then fade out over 0.5s.
 - New changes overwrite the current label and restart timing.
 
 ---

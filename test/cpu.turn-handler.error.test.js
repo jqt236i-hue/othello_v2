@@ -22,4 +22,19 @@ describe('cpu-turn-handler error handling', () => {
     expect(global.isProcessing).toBe(false);
     expect(global.emitLogAdded).toHaveBeenCalled();
   });
+
+  test('runCpuTurn aborts when called out of turn', async () => {
+    global.gameState.currentPlayer = 'white';
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false }
+    };
+    global.isCardAnimating = false;
+    global.isProcessing = false;
+
+    await mod.runCpuTurn('black');
+
+    expect(global.isProcessing).toBe(false);
+  });
 });

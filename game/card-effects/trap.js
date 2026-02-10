@@ -3,6 +3,40 @@
  * @description Trap Will card handlers
  */
 
+let __uiImpl_trap = {};
+function setUIImpl(obj) {
+    __uiImpl_trap = Object.assign({}, __uiImpl_trap || {}, obj || {});
+}
+
+function getTrapBoardElement() {
+    try {
+        if (__uiImpl_trap && typeof __uiImpl_trap.getBoardElement === 'function') {
+            return __uiImpl_trap.getBoardElement();
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (
+            typeof globalThis !== 'undefined' &&
+            globalThis.__uiImpl_trap &&
+            typeof globalThis.__uiImpl_trap.getBoardElement === 'function'
+        ) {
+            return globalThis.__uiImpl_trap.getBoardElement();
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof document !== 'undefined') {
+            const el = document.getElementById('board');
+            if (el) return el;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.boardEl && typeof globalThis.boardEl.querySelector === 'function') {
+            return globalThis.boardEl;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
 function emitPresentationEventViaBoardOps(ev) {
     try {
         const pres = (typeof require === 'function') ? require('../logic/presentation') : (typeof globalThis !== 'undefined' ? globalThis.PresentationHelper : null);
@@ -13,64 +47,72 @@ function emitPresentationEventViaBoardOps(ev) {
 
 function _isTrapFlashVisibleForViewer(playerKey) {
     try {
-        if (typeof window === 'undefined') return true;
-        if (window.BOARD_VIEWER_KEY === 'black' || window.BOARD_VIEWER_KEY === 'white') {
-            return window.BOARD_VIEWER_KEY === playerKey;
+        const root = (typeof globalThis !== 'undefined') ? globalThis : null;
+        if (!root) return true;
+        if (root.BOARD_VIEWER_KEY === 'black' || root.BOARD_VIEWER_KEY === 'white') {
+            return root.BOARD_VIEWER_KEY === playerKey;
         }
-        if (window.LOCAL_PLAYER_KEY === 'black' || window.LOCAL_PLAYER_KEY === 'white') {
-            return window.LOCAL_PLAYER_KEY === playerKey;
+        if (root.LOCAL_PLAYER_KEY === 'black' || root.LOCAL_PLAYER_KEY === 'white') {
+            return root.LOCAL_PLAYER_KEY === playerKey;
         }
         // Local HvH: currently operating side is the viewer.
-        if (window.DEBUG_HUMAN_VS_HUMAN === true) return true;
+        if (root.DEBUG_HUMAN_VS_HUMAN === true) return true;
     } catch (e) { /* ignore */ }
     return true;
 }
 
 function _playTrapPlacementFlash(row, col, playerKey) {
-    if (typeof document === 'undefined') return;
     if (!_isTrapFlashVisibleForViewer(playerKey)) return;
-
-    const board = document.getElementById('board');
-    if (!board) return;
-    const cell = board.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-    if (!cell) return;
-    const disc = cell.querySelector('.disc');
-    if (!disc) return;
 
     const imagePath = playerKey === 'black'
         ? 'assets/images/stones/trap_stone-black.png'
         : 'assets/images/stones/trap_stone-white.png';
+    const flashId = `trapflash-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const durationMs = 760;
+    const stepMs = 90;
+    const endAt = Date.now() + durationMs;
 
-    const cleanup = () => {
+    function ensureOverlay() {
+        const board = getTrapBoardElement();
+        if (!board || typeof board.querySelector !== 'function') return null;
+        const cell = board.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+        if (!cell) return null;
+        const baseDisc = cell.querySelector('.disc');
+        if (!baseDisc) return null;
+        if (typeof document === 'undefined' || typeof document.createElement !== 'function') return null;
+
+        let overlay = cell.querySelector(`.trap-place-overlay[data-trap-flash-id="${flashId}"]`);
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'disc special-stone trap-stone trap-place-flash trap-place-overlay';
+            overlay.dataset.trapFlashId = flashId;
+            cell.appendChild(overlay);
+        }
         try {
-            disc.classList.remove('trap-place-flash');
-            disc.classList.remove('trap-stone');
-            disc.classList.remove('special-stone');
-            disc.style.removeProperty('--special-stone-image');
+            overlay.style.setProperty('--special-stone-image', `url('${imagePath}')`);
         } catch (e) { /* ignore */ }
-    };
-
-    try {
-        disc.classList.remove('trap-place-flash');
-        disc.classList.add('special-stone', 'trap-stone');
-        disc.style.setProperty('--special-stone-image', `url('${imagePath}')`);
-        // Reflow to restart the animation if needed.
-        disc.offsetHeight;
-        disc.classList.add('trap-place-flash');
-    } catch (e) {
-        cleanup();
-        return;
+        return overlay;
     }
 
-    let cleaned = false;
-    const onEnd = () => {
-        if (cleaned) return;
-        cleaned = true;
-        disc.removeEventListener('animationend', onEnd);
-        cleanup();
-    };
-    disc.addEventListener('animationend', onEnd, { once: true });
-    setTimeout(onEnd, 900);
+    function clearOverlay() {
+        const board = getTrapBoardElement();
+        if (!board || typeof board.querySelector !== 'function') return;
+        const cell = board.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+        if (!cell) return;
+        const target = cell.querySelector(`.trap-place-overlay[data-trap-flash-id="${flashId}"]`);
+        if (target && target.parentNode) {
+            target.parentNode.removeChild(target);
+        }
+    }
+
+    (function tick() {
+        ensureOverlay();
+        if (Date.now() >= endAt) {
+            clearOverlay();
+            return;
+        }
+        setTimeout(tick, stepMs);
+    })();
 }
 
 async function handleTrapSelection(row, col, playerKey) {
@@ -136,5 +178,5 @@ async function handleTrapSelection(row, col, playerKey) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { handleTrapSelection };
+    module.exports = { handleTrapSelection, setUIImpl };
 }

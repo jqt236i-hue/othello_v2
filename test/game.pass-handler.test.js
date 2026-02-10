@@ -115,4 +115,23 @@ describe('pass-handler flows', () => {
         expect(handled).toBe(true);
         expect(global.TurnPipeline.applyTurnSafe).toHaveBeenCalledTimes(1);
     });
+
+    test('white CPU scheduling is skipped when state changed before delay callback', async () => {
+        jest.useFakeTimers();
+        delete require.cache[modPath];
+        global.cardState = { turnIndex: 0, turnCountByPlayer: { black: 0, white: 0 }, hands: { black: [], white: [] } };
+        global.gameState = { currentPlayer: global.BLACK, turnNumber: 3 };
+        global.Core = { getLegalMoves: jest.fn(() => [{ row: 0, col: 0, flips: [[0, 1]] }]) };
+        global.TurnPipeline = makeTurnPipeline();
+
+        const ph = require('../game/pass-handler');
+        await ph.processPassTurn('black', false);
+
+        // Before delayed callback executes, state changed away from white turn.
+        global.gameState.currentPlayer = global.BLACK;
+        jest.runAllTimers();
+
+        expect(global.processCpuTurn).not.toHaveBeenCalled();
+        jest.useRealTimers();
+    });
 });

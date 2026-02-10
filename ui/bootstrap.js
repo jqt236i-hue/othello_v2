@@ -145,6 +145,13 @@
             __setSpecialStoneScaleImpl__: uiMod.__setSpecialStoneScaleImpl__ || function(scale) { if (typeof window !== 'undefined' && window.setSpecialStoneScale) window.setSpecialStoneScale(scale); }
         }));
 
+        // Trap placement flash (game-side logic requests board element via DI)
+        connect('./diff-renderer', '../game/card-effects/trap', () => ({
+            getBoardElement: () => {
+                try { return (typeof document !== 'undefined') ? document.getElementById('board') : null; } catch (e) { return null; }
+            }
+        }));
+
         // Turn manager helpers (readCpuSmartness / scheduleCpuTurn / isDocumentHidden / pulseDeckUI)
         try {
             const tm = require('../game/turn-manager');
@@ -153,7 +160,23 @@
                     readCpuSmartness: () => ({ black: 1, white: 1 }),
                     isDocumentHidden: () => (typeof document !== 'undefined' && document.hidden) || false,
                     pulseDeckUI: () => {},
-                    scheduleCpuTurn: (ms, cb) => { timersImpl.waitMs(ms || 0).then(cb); }
+                    scheduleCpuTurn: (ms, cb) => { timersImpl.waitMs(ms || 0).then(cb); },
+                    clearLogUI: () => {
+                        try {
+                            const el = (typeof document !== 'undefined') ? document.getElementById('log') : null;
+                            if (el) el.innerHTML = '';
+                        } catch (e) { /* ignore */ }
+                        try {
+                            if (typeof globalThis !== 'undefined' && typeof globalThis.clearEffectLivePanel === 'function') {
+                                globalThis.clearEffectLivePanel();
+                                return;
+                            }
+                        } catch (e) { /* ignore */ }
+                        try {
+                            const effectEl = (typeof document !== 'undefined') ? document.getElementById('effect-live-lines') : null;
+                            if (effectEl) effectEl.innerHTML = '';
+                        } catch (e) { /* ignore */ }
+                    }
                 });
             }
         } catch (e) { /* ignore */ }

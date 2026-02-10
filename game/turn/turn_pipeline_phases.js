@@ -284,6 +284,12 @@
         return ctx;
     }
 
+    function applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events) {
+        if (!CardLogic || typeof CardLogic.processTrapEffects !== 'function') return;
+        const trapRes = CardLogic.processTrapEffects(cardState, gameState, playerKey, { expireOnOwnerTurnStart: false });
+        pushTrapEvents(events, trapRes);
+    }
+
     function applyActionPhase(CardLogic, Core, cardState, gameState, playerKey, action, events, prng, BoardOps) {
         const p = prng || undefined;
 
@@ -322,10 +328,7 @@
                     action.destroyTarget.col
                 );
                 events.push({ type: 'destroy_selected', player: playerKey, target: action.destroyTarget, destroyed });
-                if (typeof CardLogic.processTrapEffects === 'function') {
-                    const trapRes = CardLogic.processTrapEffects(cardState, gameState, playerKey, { expireOnOwnerTurnStart: false });
-                    pushTrapEvents(events, trapRes);
-                }
+                applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
                 // Selection-only pre-placement effect: stop after handling selection
                 return;
             } else if (pending && pending.type === 'DESTROY_ONE_STONE' && action.destroyTarget == null) {
@@ -341,10 +344,7 @@
                     p
                 );
                 events.push({ type: 'strong_wind_selected', player: playerKey, target: action.strongWindTarget, applied: !!(res && res.applied), from: res && res.from ? res.from : null, to: res && res.to ? res.to : null });
-                if (typeof CardLogic.processTrapEffects === 'function') {
-                    const trapRes = CardLogic.processTrapEffects(cardState, gameState, playerKey, { expireOnOwnerTurnStart: false });
-                    pushTrapEvents(events, trapRes);
-                }
+                applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
                 // Selection-only pre-placement effect: stop after handling selection
                 return;
             } else if (pending && pending.type === 'STRONG_WIND_WILL' && action.strongWindTarget == null) {
@@ -359,10 +359,7 @@
                     action.sacrificeTarget.col
                 );
                 events.push({ type: 'sacrifice_selected', player: playerKey, target: action.sacrificeTarget, applied: !!(res && res.applied), gained: res && res.gained ? res.gained : 0, completed: !!(res && res.completed) });
-                if (typeof CardLogic.processTrapEffects === 'function') {
-                    const trapRes = CardLogic.processTrapEffects(cardState, gameState, playerKey, { expireOnOwnerTurnStart: false });
-                    pushTrapEvents(events, trapRes);
-                }
+                applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
                 // Selection-only pre-placement effect: stop after handling selection
                 return;
             } else if (pending && pending.type === 'SACRIFICE_WILL' && action.sacrificeTarget == null) {
@@ -424,10 +421,7 @@
                     action.temptTarget.col
                 );
                 events.push({ type: 'tempt_selected', player: playerKey, target: action.temptTarget, applied: !!(res && res.applied) });
-                if (typeof CardLogic.processTrapEffects === 'function') {
-                    const trapRes = CardLogic.processTrapEffects(cardState, gameState, playerKey, { expireOnOwnerTurnStart: false });
-                    pushTrapEvents(events, trapRes);
-                }
+                applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
                 // Selection-only pre-placement effect: stop after handling selection
                 return;
             } else if (pending && pending.type === 'TEMPT_WILL' && action.temptTarget == null) {
@@ -442,10 +436,7 @@
                     action.inheritTarget.col
                 );
                 events.push({ type: 'inherit_selected', player: playerKey, target: action.inheritTarget, applied: !!(res && res.applied) });
-                if (typeof CardLogic.processTrapEffects === 'function') {
-                    const trapRes = CardLogic.processTrapEffects(cardState, gameState, playerKey, { expireOnOwnerTurnStart: false });
-                    pushTrapEvents(events, trapRes);
-                }
+                applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
                 // Selection-only pre-placement effect: stop after handling selection
                 return;
             } else if (pending && pending.type === 'INHERIT_WILL' && action.inheritTarget == null) {
@@ -463,10 +454,7 @@
                 if (!swapped) {
                     throw new Error('SWAP_WITH_ENEMY: invalid target (protected/bomb?)');
                 }
-                if (typeof CardLogic.processTrapEffects === 'function') {
-                    const trapRes = CardLogic.processTrapEffects(cardState, gameState, playerKey, { expireOnOwnerTurnStart: false });
-                    pushTrapEvents(events, trapRes);
-                }
+                applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
                 // Selection-only pre-placement effect: stop after handling selection
                 return;
             } else if (pending && pending.type === 'SWAP_WITH_ENEMY' && action.swapTarget == null) {

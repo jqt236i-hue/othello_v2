@@ -51,9 +51,7 @@ const GAME_STONE_VISUAL_EFFECTS = {
         backgroundSize: '100% 100%',
         dataAttributes: {},
         clearStyles: {
-            'background-color': 'transparent',
-            'box-shadow': 'none',
-            'border': 'none'
+            'background-color': 'transparent'
         }
     },
     // 短期保護（弱い意志）
@@ -65,9 +63,7 @@ const GAME_STONE_VISUAL_EFFECTS = {
         backgroundSize: '100% 100%',
         dataAttributes: {},
         clearStyles: {
-            'background-color': 'transparent',
-            'box-shadow': 'none',
-            'border': 'none'
+            'background-color': 'transparent'
         }
     },
     ultimateDragon: {

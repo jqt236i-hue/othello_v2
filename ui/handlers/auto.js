@@ -19,6 +19,18 @@ let _autoTickCount = 0;
 let _stallTickCount = 0;
 let _lastTurnNumber = null;
 
+function _hasPendingPresentationEvents() {
+    try {
+        const cs = (typeof cardState !== 'undefined') ? cardState : ((typeof window !== 'undefined') ? window.cardState : null);
+        if (!cs) return false;
+        const pendingPersist = Array.isArray(cs._presentationEventsPersist) ? cs._presentationEventsPersist.length : 0;
+        const pendingLive = Array.isArray(cs.presentationEvents) ? cs.presentationEvents.length : 0;
+        return pendingPersist > 0 || pendingLive > 0;
+    } catch (e) {
+        return false;
+    }
+}
+
 function _setUiAutoActive(enabled) {
     try {
         if (typeof window !== 'undefined') window.AUTO_MODE_ACTIVE = !!enabled;
@@ -60,7 +72,8 @@ function _uiAutoTick() {
                 window.isCardAnimating === true ||
                 window.isProcessing === true
             );
-            if (!isProcessing && !isCardAnimating && !winBusy) {
+            const hasPendingPresentation = _hasPendingPresentationEvents();
+            if (!isProcessing && !isCardAnimating && !winBusy && !hasPendingPresentation) {
                 if (typeof processAutoBlackTurn === 'function') processAutoBlackTurn();
             }
         }

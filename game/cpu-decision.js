@@ -10,8 +10,27 @@ function isAISystemAvailable() {
     return (typeof AISystem !== 'undefined' && AISystem && typeof AISystem === 'object');
 }
 
+function isCpuDebugEnabled() {
+    try {
+        if (typeof isDebugLogAvailable === 'function') return !!isDebugLogAvailable();
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.DEBUG_CPU_LOG === true) return true;
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function cpuDebugLog() {
+    if (!isCpuDebugEnabled()) return;
+    try { if (typeof console !== 'undefined' && console.log) console.log.apply(console, arguments); } catch (e) { /* ignore */ }
+}
+
 if (!isAISystemAvailable()) {
-    console.error('[CPU] AISystem is not loaded. Please include game/ai/level-system.js');
+    // Keep runtime warning in browser/dev, but avoid noisy test output.
+    const isTestEnv = (typeof process !== 'undefined' && process && process.env && process.env.NODE_ENV === 'test');
+    if (!isTestEnv) {
+        console.error('[CPU] AISystem is not loaded. Please include game/ai/level-system.js');
+    }
 }
 
 /**
@@ -175,6 +194,173 @@ function emitCpuSelectionStateChange() {
     if (typeof emitGameStateChange === 'function') emitGameStateChange();
 }
 
+function resolveTurnPipelineAdapter() {
+    try {
+        if (typeof TurnPipelineUIAdapter !== 'undefined' && TurnPipelineUIAdapter) return TurnPipelineUIAdapter;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof require === 'function') return require('./turn/pipeline_ui_adapter');
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.TurnPipelineUIAdapter) return globalThis.TurnPipelineUIAdapter;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function resolveTurnPipeline() {
+    try {
+        if (typeof TurnPipeline !== 'undefined' && TurnPipeline) return TurnPipeline;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof require === 'function') return require('./turn/turn_pipeline');
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.TurnPipeline) return globalThis.TurnPipeline;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function runCpuPendingSelectionViaPipeline(playerKey, actionPayload, pendingType) {
+    const adapter = resolveTurnPipelineAdapter();
+    const pipeline = resolveTurnPipeline();
+    if (!adapter || !pipeline || typeof adapter.runTurnWithAdapter !== 'function') return null;
+
+    const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
+        ? ActionManager.ActionManager.createAction('place', playerKey, actionPayload || {})
+        : Object.assign({ type: 'place' }, actionPayload || {});
+    if (action && cardState && typeof cardState.turnIndex === 'number') {
+        action.turnIndex = cardState.turnIndex;
+    }
+
+    const res = adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline);
+    if (!res || res.ok === false) {
+        return { ok: false, res };
+    }
+
+    if (res.nextCardState) cardState = res.nextCardState;
+    if (res.nextGameState) gameState = res.nextGameState;
+    if (res.playbackEvents && res.playbackEvents.length) {
+        emitPresentationEventForCpu({
+            type: 'PLAYBACK_EVENTS',
+            events: res.playbackEvents,
+            meta: { source: 'cpu_pending_selection', pendingType: pendingType || null }
+        });
+    }
+    emitCpuSelectionStateChange();
+    return { ok: true, res };
+}
+
+function resolveAppliedCardMeta(playerKey, fallbackCardId, fallbackCardDef) {
+    const appliedCardId = (cardState && cardState.lastUsedCardByPlayer && cardState.lastUsedCardByPlayer[playerKey])
+        ? cardState.lastUsedCardByPlayer[playerKey]
+        : fallbackCardId;
+    const appliedCardDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
+        ? (CardLogic.getCardDef(appliedCardId) || fallbackCardDef || null)
+        : (fallbackCardDef || null);
+    const appliedCardCost = (appliedCardDef && Number.isFinite(appliedCardDef.cost)) ? appliedCardDef.cost : null;
+    const appliedCardName = (appliedCardDef && appliedCardDef.name) ? appliedCardDef.name : null;
+    return { appliedCardId, appliedCardDef, appliedCardCost, appliedCardName };
+}
+
+function normalizeCardUsePlaybackEvents(playbackEvents, playerKey, cardMeta) {
+    const events = Array.isArray(playbackEvents) ? playbackEvents : [];
+    const meta = cardMeta || {};
+    return events.map((ev) => {
+        if (!ev || ev.type !== 'card_use_animation') return ev;
+        const targets = Array.isArray(ev.targets) ? ev.targets : [];
+        const normalizedTargets = targets.length > 0
+            ? targets.map((t) => Object.assign({}, t, {
+                cardId: meta.appliedCardId,
+                cost: meta.appliedCardCost,
+                name: meta.appliedCardName
+            }))
+            : [{
+                player: playerKey,
+                owner: playerKey,
+                cardId: meta.appliedCardId,
+                cost: meta.appliedCardCost,
+                name: meta.appliedCardName
+            }];
+        return Object.assign({}, ev, { targets: normalizedTargets });
+    });
+}
+
+function emitCpuCardUseLog(playerKey, level, cardDefOrNull, cardIdOrNull) {
+    const shownName = cardDefOrNull ? cardDefOrNull.name : cardIdOrNull;
+    cpuDebugLog(`[CPU] Lv${level} ${playerKey}: カード使用 - ${shownName}`);
+    if (typeof emitLogAdded === 'function') {
+        emitLogAdded(`${playerKey === 'black' ? '黒' : '白'}(Lv${level})がカードを使用: ${shownName}`);
+    }
+}
+
+function runCpuCardUseViaPipeline(playerKey, cardId, cardDef) {
+    const adapter = resolveTurnPipelineAdapter();
+    const pipeline = resolveTurnPipeline();
+    if (!adapter || !pipeline || typeof adapter.runTurnWithAdapter !== 'function') return null;
+
+    const actionPayload = {
+        useCardId: cardId,
+        useCardOwnerKey: playerKey
+    };
+    const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
+        ? ActionManager.ActionManager.createAction('use_card', playerKey, actionPayload)
+        : Object.assign({ type: 'use_card' }, actionPayload);
+
+    if (action && cardState && typeof cardState.turnIndex === 'number') {
+        action.turnIndex = cardState.turnIndex;
+    }
+
+    const res = adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline);
+    if (!res || res.ok === false) {
+        return { ok: false, res };
+    }
+
+    if (res.nextCardState) cardState = res.nextCardState;
+    if (res.nextGameState) gameState = res.nextGameState;
+
+    const cardMeta = resolveAppliedCardMeta(playerKey, cardId, cardDef);
+
+    let emittedCardUsePlayback = false;
+    if (res.playbackEvents && res.playbackEvents.length) {
+        const normalizedPlaybackEvents = normalizeCardUsePlaybackEvents(res.playbackEvents, playerKey, cardMeta);
+        emitPresentationEventForCpu({
+            type: 'PLAYBACK_EVENTS',
+            events: normalizedPlaybackEvents,
+            meta: { source: 'cpu_card_use_pipeline', cardId: cardMeta.appliedCardId || null }
+        });
+        emittedCardUsePlayback = true;
+    }
+
+    if (!emittedCardUsePlayback) {
+        emitPresentationEventForCpu({
+            type: 'PLAYBACK_EVENTS',
+            events: [{
+                type: 'card_use_animation',
+                phase: 1,
+                targets: [{
+                    player: playerKey,
+                    owner: playerKey,
+                    cardId: cardMeta.appliedCardId,
+                    cost: cardMeta.appliedCardCost,
+                    name: cardMeta.appliedCardName
+                }]
+            }],
+            meta: { source: 'cpu_card_use_pipeline_fallback' }
+        });
+    }
+
+    emitCpuSelectionStateChange();
+    return {
+        ok: true,
+        res,
+        emittedCardUsePlayback,
+        appliedCardId: cardMeta.appliedCardId,
+        appliedCardDef: cardMeta.appliedCardDef,
+        appliedCardCost: cardMeta.appliedCardCost,
+        appliedCardName: cardMeta.appliedCardName
+    };
+}
+
 function emitCpuEffectLog(message) {
     if (!message) return;
     if (typeof emitEffectLog === 'function') {
@@ -210,11 +396,12 @@ function getTargetAwareUsableCardIds(playerKey) {
 
 function _isCpuTrapOnlyModeEnabled(playerKey) {
     try {
-        if (typeof window === 'undefined' || typeof location === 'undefined') return false;
-        const qs = String(location.search || '');
+        const root = (typeof globalThis !== 'undefined') ? globalThis : null;
+        if (!root) return false;
+        const qs = String((root.location && root.location.search) || '');
         const debugEnabled =
             /[?&]debug=(1|true)\b/i.test(qs) ||
-            window.DEBUG_UNLIMITED_USAGE === true;
+            root.DEBUG_UNLIMITED_USAGE === true;
         if (!debugEnabled) return false;
         const enabled = /[?&]cpuTrapOnly=(1|true)\b/i.test(qs);
         if (!enabled) return false;
@@ -230,9 +417,10 @@ function _isCpuTrapOnlyModeEnabled(playerKey) {
 
 function _findTrapCardIdInCatalog() {
     try {
+        const root = (typeof globalThis !== 'undefined') ? globalThis : null;
         const defs = (typeof CARD_DEFS !== 'undefined' && Array.isArray(CARD_DEFS))
             ? CARD_DEFS
-            : (typeof window !== 'undefined' && Array.isArray(window.CARD_DEFS) ? window.CARD_DEFS : []);
+            : (root && Array.isArray(root.CARD_DEFS) ? root.CARD_DEFS : []);
         const def = defs.find(c => c && c.type === 'TRAP_WILL' && c.enabled !== false);
         return def ? def.id : null;
     } catch (e) {
@@ -368,16 +556,51 @@ function applyCardChoice(playerKey, cardChoice) {
     // Side-effectful application: applies the chosen card and updates UI/state
     if (!cardChoice) return false;
     const { cardId, cardDef } = cardChoice;
-    const handIndex = cardState.hands[playerKey].indexOf(cardId);
-    if (handIndex === -1) return false;
+    if (cardState.hands[playerKey].indexOf(cardId) === -1) return false;
+    const fallbackCardCost = (cardDef && Number.isFinite(cardDef.cost)) ? cardDef.cost : null;
+    const fallbackCardName = (cardDef && cardDef.name) ? cardDef.name : null;
+    const pipelineResult = runCpuCardUseViaPipeline(playerKey, cardId, cardDef);
+    if (pipelineResult && pipelineResult.ok) {
+        const appliedCardId = pipelineResult.appliedCardId || cardId;
+        const appliedCardDef = pipelineResult.appliedCardDef || cardDef;
+        const appliedCardCost = Number.isFinite(pipelineResult.appliedCardCost)
+            ? pipelineResult.appliedCardCost
+            : ((appliedCardDef && Number.isFinite(appliedCardDef.cost)) ? appliedCardDef.cost : null);
+        const appliedCardName = pipelineResult.appliedCardName || (appliedCardDef && appliedCardDef.name) || null;
+
+        try {
+            if (typeof globalThis !== 'undefined' && typeof globalThis.playCardUseHandAnimation === 'function') {
+                if (globalThis.VisualPlaybackActive !== true) {
+                    globalThis.playCardUseHandAnimation({
+                        player: playerKey,
+                        owner: playerKey,
+                        cardId: appliedCardId,
+                        cost: appliedCardCost,
+                        name: appliedCardName
+                    }).catch(() => {});
+                }
+            }
+        } catch (e) { /* ignore */ }
+
+        const level = cpuSmartness[playerKey] || 1;
+        emitCpuCardUseLog(playerKey, level, appliedCardDef, appliedCardId);
+        return true;
+    }
+    if (pipelineResult && pipelineResult.ok === false) {
+        const level = cpuSmartness[playerKey] || 1;
+        const rejectedReason = pipelineResult.res && pipelineResult.res.rejectedReason
+            ? pipelineResult.res.rejectedReason
+            : 'PIPELINE_REJECTED';
+        cpuDebugLog(`[CPU] Lv${level} ${playerKey}: カード使用拒否(${rejectedReason}) - ${cardDef ? cardDef.name : cardId}`);
+        return false;
+    }
+
     if (typeof CardLogic === 'undefined' || !CardLogic.applyCardUsage) {
         console.warn('[CPU] CardLogic.applyCardUsage not available, skipping card use');
         return false;
     }
     const ok = CardLogic.applyCardUsage(cardState, gameState, playerKey, cardId);
     if (!ok) return false;
-    const cardCost = (cardDef && Number.isFinite(cardDef.cost)) ? cardDef.cost : null;
-    const cardName = (cardDef && cardDef.name) ? cardDef.name : null;
 
     // Normalize CPU card-use visuals through PlaybackEvents so CPU/AUTO and manual use
     // the same animation path.
@@ -411,8 +634,8 @@ function applyCardChoice(playerKey, cardChoice) {
                     player: playerKey,
                     owner: playerKey,
                     cardId: cardId,
-                    cost: cardCost,
-                    name: cardName
+                    cost: fallbackCardCost,
+                    name: fallbackCardName
                 }]
             }],
             meta: { source: 'cpu_card_use_fallback' }
@@ -428,18 +651,15 @@ function applyCardChoice(playerKey, cardChoice) {
                     player: playerKey,
                     owner: playerKey,
                     cardId: cardId,
-                    cost: cardCost,
-                    name: cardName
+                    cost: fallbackCardCost,
+                    name: fallbackCardName
                 }).catch(() => {});
             }
         }
     } catch (e) { /* ignore */ }
 
     const level = cpuSmartness[playerKey] || 1;
-    console.log(`[CPU] Lv${level} ${playerKey}: カード使用 - ${cardDef ? cardDef.name : cardId}`);
-    if (typeof emitLogAdded === 'function') {
-        emitLogAdded(`${playerKey === 'black' ? '黒' : '白'}(Lv${level})がカードを使用: ${cardDef ? cardDef.name : cardId}`);
-    }
+    emitCpuCardUseLog(playerKey, level, cardDef || null, cardId || null);
 
     if (typeof emitCardStateChange === 'function') emitCardStateChange();
     if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
@@ -459,7 +679,7 @@ function cpuMaybeUseCardWithPolicy(playerKey) {
     const level = cpuSmartness && cpuSmartness[playerKey] ? cpuSmartness[playerKey] : 1;
     const cardChoice = selectCardToUse(playerKey);
     if (!cardChoice) {
-        console.log(`[CPU] Lv${level} ${playerKey}: カードスキップ (no candidate)`);
+        cpuDebugLog(`[CPU] Lv${level} ${playerKey}: カードスキップ (no candidate)`);
         return false;
     }
 
@@ -475,7 +695,7 @@ function cpuMaybeUseCardWithPolicy(playerKey) {
         }
     }
 
-    console.log(`[CPU] Lv${level} ${playerKey}: カード使用に失敗`);
+    cpuDebugLog(`[CPU] Lv${level} ${playerKey}: カード使用に失敗`);
     return false;
 }
 
@@ -500,7 +720,7 @@ function selectCpuMoveWithPolicy(candidateMoves, playerKey) {
 
     const learnedMove = (level >= 6) ? selectMoveFromLearnedPolicy(candidateMoves, playerKey, level) : null;
     if (learnedMove) {
-        console.log(`[CPU] Lv${level} ${playerKey}: 学習選択 (${learnedMove.row}, ${learnedMove.col}) - 反転${learnedMove.flips.length}枚`);
+        cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 学習選択 (${learnedMove.row}, ${learnedMove.col}) - 反転${learnedMove.flips.length}枚`);
         return learnedMove;
     }
     const learnedScoreFn = createLearnedScoreFn(playerKey, level, candidateMoves.length);
@@ -511,7 +731,7 @@ function selectCpuMoveWithPolicy(candidateMoves, playerKey) {
             scoreMove: learnedScoreFn
         });
         if (selected) {
-            console.log(`[CPU] Lv${level} ${playerKey}: 選択 (${selected.row}, ${selected.col}) - 反転${selected.flips.length}枚`);
+            cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 選択 (${selected.row}, ${selected.col}) - 反転${selected.flips.length}枚`);
             return selected;
         }
     }
@@ -523,7 +743,7 @@ function selectCpuMoveWithPolicy(candidateMoves, playerKey) {
     }
     try {
         const selectedMove = AISystem.selectMove(gameState, cardState, candidateMoves, level, null);
-        console.log(`[CPU] Lv${level} ${playerKey}: 選択 (${selectedMove.row}, ${selectedMove.col}) - 反転${selectedMove.flips.length}枚`);
+        cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 選択 (${selectedMove.row}, ${selectedMove.col}) - 反転${selectedMove.flips.length}枚`);
         return selectedMove;
     } catch (e) {
         console.warn('[CPU] AISystem.selectMove failed, falling back to random', e);
@@ -556,7 +776,7 @@ async function cpuSelectDestroyWithPolicy(playerKey) {
     }
 
     if (targets.length === 0) {
-        console.log(`[CPU] Lv${level} ${playerKey}: 破壊対象なし`);
+        cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 破壊対象なし`);
         cardState.pendingEffectByPlayer[playerKey] = null;
         return;
     }
@@ -581,7 +801,14 @@ async function cpuSelectDestroyWithPolicy(playerKey) {
         target = targets[Math.floor(cpuRng.random() * targets.length)];
     }
 
-    console.log(`[CPU] Lv${level} ${playerKey}: 破壊ターゲット (${target.row}, ${target.col})`);
+    cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 破壊ターゲット (${target.row}, ${target.col})`);
+
+    const pipelineResult = runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { destroyTarget: { row: target.row, col: target.col } },
+        'DESTROY_ONE_STONE'
+    );
+    if (pipelineResult) return;
 
     // CPU must bypass UI lock-based handlers and apply effect directly.
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyDestroyEffect === 'function') {
@@ -608,13 +835,20 @@ async function cpuSelectStrongWindWillWithPolicy(playerKey) {
         : [];
 
     if (!targets.length) {
-        console.log(`[CPU] ${playerKey}: 強風対象なし`);
+        cpuDebugLog(`[CPU] ${playerKey}: 強風対象なし`);
         cardState.pendingEffectByPlayer[playerKey] = null;
         return;
     }
 
     const target = targets[Math.floor(cpuRng.random() * targets.length)];
-    console.log(`[CPU] ${playerKey}: 強風ターゲット (${target.row}, ${target.col})`);
+    cpuDebugLog(`[CPU] ${playerKey}: 強風ターゲット (${target.row}, ${target.col})`);
+
+    const pipelineResult = runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { strongWindTarget: { row: target.row, col: target.col } },
+        'STRONG_WIND_WILL'
+    );
+    if (pipelineResult) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyStrongWindWill === 'function') {
         const res = CardLogic.applyStrongWindWill(cardState, gameState, playerKey, target.row, target.col, cpuRng);
@@ -636,13 +870,20 @@ async function cpuSelectSacrificeWillWithPolicy(playerKey) {
         : [];
 
     if (!targets.length) {
-        console.log(`[CPU] ${playerKey}: 生贄対象なし`);
+        cpuDebugLog(`[CPU] ${playerKey}: 生贄対象なし`);
         cardState.pendingEffectByPlayer[playerKey] = null;
         return;
     }
 
     const target = targets[Math.floor(cpuRng.random() * targets.length)];
-    console.log(`[CPU] ${playerKey}: 生贄ターゲット (${target.row}, ${target.col})`);
+    cpuDebugLog(`[CPU] ${playerKey}: 生贄ターゲット (${target.row}, ${target.col})`);
+
+    const pipelineResult = runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { sacrificeTarget: { row: target.row, col: target.col } },
+        'SACRIFICE_WILL'
+    );
+    if (pipelineResult) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySacrificeWill === 'function') {
         const res = CardLogic.applySacrificeWill(cardState, gameState, playerKey, target.row, target.col);
@@ -667,7 +908,7 @@ async function cpuSelectSellCardWillWithPolicy(playerKey) {
         ? cardState.hands[playerKey].slice()
         : [];
     if (!hand.length) {
-        console.log(`[CPU] ${playerKey}: 売却対象なし`);
+        cpuDebugLog(`[CPU] ${playerKey}: 売却対象なし`);
         cardState.pendingEffectByPlayer[playerKey] = null;
         return;
     }
@@ -683,7 +924,14 @@ async function cpuSelectSellCardWillWithPolicy(playerKey) {
             targetCardId = cardId;
         }
     }
-    console.log(`[CPU] ${playerKey}: 売却カード ${targetCardId} (cost=${bestCost})`);
+    cpuDebugLog(`[CPU] ${playerKey}: 売却カード ${targetCardId} (cost=${bestCost})`);
+
+    const pipelineResult = runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { sellCardId: targetCardId },
+        'SELL_CARD_WILL'
+    );
+    if (pipelineResult) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySellCardWill === 'function') {
         const res = CardLogic.applySellCardWill(cardState, playerKey, targetCardId);
@@ -703,7 +951,7 @@ async function cpuSelectHeavenBlessingWithPolicy(playerKey) {
     const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
     const offers = (pending && Array.isArray(pending.offers)) ? pending.offers.slice() : [];
     if (!offers.length) {
-        console.log(`[CPU] ${playerKey}: 天の恵み候補なし`);
+        cpuDebugLog(`[CPU] ${playerKey}: 天の恵み候補なし`);
         cardState.pendingEffectByPlayer[playerKey] = null;
         return;
     }
@@ -719,7 +967,14 @@ async function cpuSelectHeavenBlessingWithPolicy(playerKey) {
             targetCardId = cardId;
         }
     }
-    console.log(`[CPU] ${playerKey}: 天の恵み選択 ${targetCardId} (cost=${bestCost})`);
+    cpuDebugLog(`[CPU] ${playerKey}: 天の恵み選択 ${targetCardId} (cost=${bestCost})`);
+
+    const pipelineResult = runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { heavenBlessingCardId: targetCardId },
+        'HEAVEN_BLESSING'
+    );
+    if (pipelineResult) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyHeavenBlessingChoice === 'function') {
         const res = CardLogic.applyHeavenBlessingChoice(cardState, playerKey, targetCardId);
@@ -741,7 +996,7 @@ async function cpuSelectCondemnWillWithPolicy(playerKey) {
     const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
     const offers = (pending && Array.isArray(pending.offers)) ? pending.offers.slice() : [];
     if (!offers.length) {
-        console.log(`[CPU] ${playerKey}: 断罪候補なし`);
+        cpuDebugLog(`[CPU] ${playerKey}: 断罪候補なし`);
         cardState.pendingEffectByPlayer[playerKey] = null;
         return;
     }
@@ -762,7 +1017,14 @@ async function cpuSelectCondemnWillWithPolicy(playerKey) {
         cardState.pendingEffectByPlayer[playerKey] = null;
         return;
     }
-    console.log(`[CPU] ${playerKey}: 断罪選択 index=${target.handIndex} card=${target.cardId} (cost=${bestCost})`);
+    cpuDebugLog(`[CPU] ${playerKey}: 断罪選択 index=${target.handIndex} card=${target.cardId} (cost=${bestCost})`);
+
+    const pipelineResult = runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { condemnTargetIndex: target.handIndex },
+        'CONDEMN_WILL'
+    );
+    if (pipelineResult) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyCondemnWill === 'function') {
         const res = CardLogic.applyCondemnWill(cardState, playerKey, target.handIndex);
@@ -783,13 +1045,20 @@ async function cpuSelectInheritWillWithPolicy(playerKey) {
         : [];
 
     if (!targets.length) {
-        console.log(`[CPU] ${playerKey}: 継承対象なし`);
+        cpuDebugLog(`[CPU] ${playerKey}: 継承対象なし`);
         cardState.pendingEffectByPlayer[playerKey] = null;
         return;
     }
 
     const target = targets[Math.floor(cpuRng.random() * targets.length)];
-    console.log(`[CPU] ${playerKey}: 継承ターゲット (${target.row}, ${target.col})`);
+    cpuDebugLog(`[CPU] ${playerKey}: 継承ターゲット (${target.row}, ${target.col})`);
+
+    const pipelineResult = runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { inheritTarget: { row: target.row, col: target.col } },
+        'INHERIT_WILL'
+    );
+    if (pipelineResult) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyInheritWill === 'function') {
         const res = CardLogic.applyInheritWill(cardState, gameState, playerKey, target.row, target.col);
@@ -815,13 +1084,20 @@ async function cpuSelectSwapWithEnemyWithPolicy(playerKey) {
         : [];
 
     if (!targets.length) {
-        console.log(`[CPU] ${playerKey}: 交換対象なし`);
+        cpuDebugLog(`[CPU] ${playerKey}: 交換対象なし`);
         cardState.pendingEffectByPlayer[playerKey] = null;
         return;
     }
 
     const target = targets[Math.floor(cpuRng.random() * targets.length)];
-    console.log(`[CPU] ${playerKey}: 交換ターゲット (${target.row}, ${target.col})`);
+    cpuDebugLog(`[CPU] ${playerKey}: 交換ターゲット (${target.row}, ${target.col})`);
+
+    const pipelineResult = runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { swapTarget: { row: target.row, col: target.col } },
+        'SWAP_WITH_ENEMY'
+    );
+    if (pipelineResult) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySwapEffect === 'function') {
         const applied = !!CardLogic.applySwapEffect(cardState, gameState, playerKey, target.row, target.col);
@@ -847,13 +1123,20 @@ async function cpuSelectTrapWillWithPolicy(playerKey) {
         : [];
 
     if (!targets.length) {
-        console.log(`[CPU] ${playerKey}: 罠対象なし`);
+        cpuDebugLog(`[CPU] ${playerKey}: 罠対象なし`);
         cardState.pendingEffectByPlayer[playerKey] = null;
         return;
     }
 
     const target = targets[Math.floor(cpuRng.random() * targets.length)];
-    console.log(`[CPU] ${playerKey}: 罠ターゲット (${target.row}, ${target.col})`);
+    cpuDebugLog(`[CPU] ${playerKey}: 罠ターゲット (${target.row}, ${target.col})`);
+
+    const pipelineResult = runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { trapTarget: { row: target.row, col: target.col } },
+        'TRAP_WILL'
+    );
+    if (pipelineResult) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyTrapWill === 'function') {
         const res = CardLogic.applyTrapWill(cardState, gameState, playerKey, target.row, target.col);
@@ -875,13 +1158,20 @@ async function cpuSelectGuardWillWithPolicy(playerKey) {
         : [];
 
     if (!targets.length) {
-        console.log(`[CPU] ${playerKey}: 守る対象なし`);
+        cpuDebugLog(`[CPU] ${playerKey}: 守る対象なし`);
         cardState.pendingEffectByPlayer[playerKey] = null;
         return;
     }
 
     const target = targets[Math.floor(cpuRng.random() * targets.length)];
-    console.log(`[CPU] ${playerKey}: 守るターゲット (${target.row}, ${target.col})`);
+    cpuDebugLog(`[CPU] ${playerKey}: 守るターゲット (${target.row}, ${target.col})`);
+
+    const pipelineResult = runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { guardTarget: { row: target.row, col: target.col } },
+        'GUARD_WILL'
+    );
+    if (pipelineResult) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyGuardWill === 'function') {
         const res = CardLogic.applyGuardWill(cardState, gameState, playerKey, target.row, target.col);
@@ -903,13 +1193,20 @@ async function cpuSelectTemptWillWithPolicy(playerKey) {
         : [];
 
     if (!targets.length) {
-        console.log(`[CPU] ${playerKey}: 誘惑対象なし`);
+        cpuDebugLog(`[CPU] ${playerKey}: 誘惑対象なし`);
         cardState.pendingEffectByPlayer[playerKey] = null;
         return;
     }
 
     const target = targets[Math.floor(cpuRng.random() * targets.length)];
-    console.log(`[CPU] ${playerKey}: 誘惑ターゲット (${target.row}, ${target.col})`);
+    cpuDebugLog(`[CPU] ${playerKey}: 誘惑ターゲット (${target.row}, ${target.col})`);
+
+    const pipelineResult = runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { temptTarget: { row: target.row, col: target.col } },
+        'TEMPT_WILL'
+    );
+    if (pipelineResult) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyTemptWill === 'function') {
         const res = CardLogic.applyTemptWill(cardState, gameState, playerKey, target.row, target.col);
@@ -987,3 +1284,4 @@ try {
     if (uiBootstrap && typeof uiBootstrap.registerUIGlobals === 'function') uiBootstrap.registerUIGlobals({ computeCpuAction });
 } catch (e) { /* ignore */ }
 try { if (typeof globalThis !== 'undefined') globalThis.computeCpuAction = computeCpuAction; } catch (e) {}
+

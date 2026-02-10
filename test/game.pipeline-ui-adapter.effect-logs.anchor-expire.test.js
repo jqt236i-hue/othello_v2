@@ -10,8 +10,8 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'black');
 
     expect(out).toEqual([
-      '究極破壊神: 親石2個が消滅',
-      '究極反転龍: 親石1個が消滅'
+      '黒: 究極破壊神: 親石2個が消滅',
+      '黒: 究極反転龍: 親石1個が消滅'
     ]);
   });
 
@@ -24,8 +24,8 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'white');
 
     expect(out).toEqual([
-      '究極破壊神: 親石1個が消滅',
-      '究極反転龍: 親石2個が消滅'
+      '白: 究極破壊神: 親石1個が消滅',
+      '白: 究極反転龍: 親石2個が消滅'
     ]);
   });
 
@@ -39,8 +39,8 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], "black");
 
     expect(out).toEqual([
-      "究極反転龍: 1枚を反転",
-      "究極反転龍: 2枚を反転"
+      "黒: 究極反転龍: 1枚を反転",
+      "黒: 究極反転龍: 2枚を反転"
     ]);
   });
 
@@ -53,7 +53,7 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'black');
 
     expect(out).toEqual([
-      '十字爆弾: 3個を破壊'
+      '黒: 十字爆弾: 3個を破壊'
     ]);
   });
 
@@ -66,8 +66,8 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'black');
 
     expect(out).toEqual([
-      '銀石: 獲得布石3倍',
-      '金石: 獲得布石4倍'
+      '黒: 銀石: 獲得布石3倍',
+      '黒: 金石: 獲得布石4倍'
     ]);
   });
 
@@ -80,7 +80,7 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'black');
 
     expect(out).toEqual([
-      '自由の意志:自由な空きマスに配置'
+      '黒: 自由の意志:自由な空きマスに配置'
     ]);
   });
 });

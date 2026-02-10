@@ -33,6 +33,24 @@
     const ULTIMATE_DESTROY_GOD_TURNS = 3;
     const DECK_SIZE = 30;
 
+    function isWorkDebugEnabled(cardState) {
+        if (cardState && cardState.debugWorkLog === true) return true;
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.DEBUG_WORK_LOG === true) return true;
+        } catch (e) { /* ignore */ }
+        return false;
+    }
+
+    function workDebugLog(cardState) {
+        if (!isWorkDebugEnabled(cardState)) return;
+        try { if (typeof console !== 'undefined' && console.log) console.log.apply(console, Array.prototype.slice.call(arguments, 1)); } catch (e) { /* ignore */ }
+    }
+
+    function workDebugError(cardState) {
+        if (!isWorkDebugEnabled(cardState)) return;
+        try { if (typeof console !== 'undefined' && console.error) console.error.apply(console, Array.prototype.slice.call(arguments, 1)); } catch (e) { /* ignore */ }
+    }
+
     function destroyAt(cardState, gameState, row, col) {
         if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
             const res = BoardOpsModule.destroyAt(cardState, gameState, row, col, 'SYSTEM', 'legacy_fallback');
@@ -798,7 +816,7 @@
         if (cardType === 'WORK_WILL') {
             if (!cardState.workNextPlacementArmedByPlayer) cardState.workNextPlacementArmedByPlayer = { black: false, white: false };
             cardState.workNextPlacementArmedByPlayer[chargeOwnerKey] = true;
-            try { console.log('[WORK_DEBUG] Card played: WORK_WILL armed for', chargeOwnerKey); } catch (e) {}
+            workDebugLog(cardState, '[WORK_DEBUG] Card played: WORK_WILL armed for', chargeOwnerKey);
         }
 
         const usedCardDef = getCardDef(cardId);
@@ -1539,7 +1557,7 @@
         // Work Will: if armed, place a Work marker anchored to this placement
         // Diagnostic logging added to help trace environments where marker isn't created
         try {
-            console.log('[WORK_DEBUG] workNextPlacementArmedByPlayer state:', cardState.workNextPlacementArmedByPlayer, 'playerKey:', playerKey, 'row:', row, 'col:', col);
+            workDebugLog(cardState, '[WORK_DEBUG] workNextPlacementArmedByPlayer state:', cardState.workNextPlacementArmedByPlayer, 'playerKey:', playerKey, 'row:', row, 'col:', col);
             if (cardState.workNextPlacementArmedByPlayer && cardState.workNextPlacementArmedByPlayer[playerKey]) {
                 let workMod;
                 if (typeof require === 'function') {
@@ -1549,15 +1567,15 @@
                 }
                 try {
                     if (workMod && typeof workMod.placeWorkStone === 'function') {
-                        console.log('[WORK_DEBUG] Calling placeWorkStone for', playerKey, row, col);
+                        workDebugLog(cardState, '[WORK_DEBUG] Calling placeWorkStone for', playerKey, row, col);
                         workMod.placeWorkStone(cardState, gameState, playerKey, row, col, { addMarker });
                         effects.workPlaced = true;
                         try { if (typeof globalThis !== 'undefined') globalThis._lastWorkPlaced = { playerKey, row, col }; else if (typeof global !== 'undefined') global._lastWorkPlaced = { playerKey, row, col }; } catch (e) {}
                     } else {
-                        console.log('[WORK_DEBUG] workMod.placeWorkStone not available, workMod:', !!workMod);
+                        workDebugLog(cardState, '[WORK_DEBUG] workMod.placeWorkStone not available, workMod:', !!workMod);
                     }
                 } catch (e) {
-                    console.error('[WORK_DEBUG] placeWorkStone threw', e && e.message ? e.message : e);
+                    workDebugError(cardState, '[WORK_DEBUG] placeWorkStone threw', e && e.message ? e.message : e);
                 }
                 cardState.workNextPlacementArmedByPlayer[playerKey] = false;
             }
@@ -1683,10 +1701,10 @@
             }
         }
 
-        // Clear pending after placement unless it's CHAIN_WILL (turn-scoped)
-        if (!(pending && pending.type === 'CHAIN_WILL')) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
-        }
+        // Clear pending after placement.
+        // CHAIN_WILL is consumed in the same placement turn (applyChainWillAfterMove runs before this),
+        // so it must not remain into future turns.
+        cardState.pendingEffectByPlayer[playerKey] = null;
 
         return effects;
     }

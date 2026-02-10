@@ -14,6 +14,14 @@
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 
+    function isWorkDebugEnabled(cardState) {
+        if (cardState && cardState.debugWorkLog === true) return true;
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.DEBUG_WORK_LOG === true) return true;
+        } catch (e) { /* ignore */ }
+        return false;
+    }
+
     function addChargeWithTotal(cardState, playerKey, amount) {
         if (!cardState || !amount) return 0;
         if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
@@ -32,7 +40,9 @@
     }
 
     function placeWorkStone(cardState, gameState, playerKey, row, col, deps = {}) {
-        try { console.log('[WORK_DEBUG] placeWorkStone called', { playerKey, row, col }); } catch (e) { }
+        if (isWorkDebugEnabled(cardState)) {
+            try { console.log('[WORK_DEBUG] placeWorkStone called', { playerKey, row, col }); } catch (e) { /* ignore */ }
+        }
         // Ensure only one per player: remove old work stone if exists
         const prev = (cardState.workAnchorPosByPlayer && cardState.workAnchorPosByPlayer[playerKey]) || null;
         if (prev && (prev.row !== row || prev.col !== col)) {

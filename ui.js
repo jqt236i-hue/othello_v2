@@ -41,6 +41,13 @@ const effectLiveLinesEl = document.getElementById('effect-live-lines');
 const _effectLiveEntries = [];
 const _EFFECT_LIVE_MAX = 6;
 
+function clearEffectLivePanel() {
+    _effectLiveEntries.length = 0;
+    if (effectLiveLinesEl) {
+        effectLiveLinesEl.innerHTML = '';
+    }
+}
+
 // Register DOM elements via UIBootstrap so other modules can access them from the canonical source
 try {
     const uiBootstrap = require('./ui/bootstrap');
@@ -177,6 +184,9 @@ if (typeof GameEvents !== 'undefined' && GameEvents.gameEvents) {
         const isObjectPayload = !!(msg && typeof msg === 'object' && typeof msg.text === 'string');
         const text = isObjectPayload ? msg.text : String(msg);
         const kind = isObjectPayload ? msg.kind : 'normal';
+        if (kind === 'normal' && String(text).startsWith('ゲーム開始')) {
+            clearEffectLivePanel();
+        }
         const normalizeEffectLogText = (rawText) => {
             const normalized = String(rawText || '').trim();
             if (normalized === '反転保護を付与') return '弱い石: 反転保護';
@@ -482,6 +492,7 @@ function initWorkVisualDiagnosticsAuto() {
 // Expose helper in UI global for the single entrypoint to call
 window.initWorkVisualsHelpers = initWorkVisualsHelpers;
 window.initWorkVisualDiagnosticsAuto = initWorkVisualDiagnosticsAuto;
+window.clearEffectLivePanel = clearEffectLivePanel;
 
 
 // ===== BGM UI Helper =====

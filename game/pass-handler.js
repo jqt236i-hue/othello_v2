@@ -2,16 +2,45 @@
 // Pass and game-end handling utilities extracted from turn-manager
 // Refactored to use TurnPipeline exclusively (no legacy path)
 
-if (typeof CardLogic === 'undefined') {
-    console.warn('CardLogic not loaded in pass-handler.js');
-}
-
 const PASS_HANDLER_VERSION = '2.0'; // TurnPipeline-only version
 
 // Timers abstraction (injected by UI)
 let timers = null;
 if (typeof require === 'function') {
     try { timers = require('./timers'); } catch (e) { /* ignore */ }
+}
+
+function hasUsableWaitMs(t) {
+    if (!t || typeof t.waitMs !== 'function') return false;
+    // game/timers default waitMs() is immediate unless UI impl is injected.
+    if (typeof t.hasTimerImpl === 'function' && !t.hasTimerImpl()) return false;
+    return true;
+}
+
+function scheduleWithDelay(delayMs, callback, immediateWithoutTimers) {
+    const safeDelay = Number.isFinite(delayMs) ? delayMs : 0;
+    if (hasUsableWaitMs(timers)) {
+        timers.waitMs(safeDelay).then(callback);
+        return;
+    }
+    if (immediateWithoutTimers) {
+        callback();
+        return;
+    }
+    const tid = setTimeout(callback, safeDelay);
+    if (tid && typeof tid.unref === 'function') tid.unref();
+}
+
+function scheduleWhiteCpuTurnGuarded(delayMs) {
+    const expectedTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
+    scheduleWithDelay(delayMs, () => {
+        const currentPlayer = gameState ? gameState.currentPlayer : null;
+        const isWhiteTurn = (typeof WHITE !== 'undefined' && currentPlayer === WHITE) || currentPlayer === 'white';
+        if (!isWhiteTurn) return;
+        const currentTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
+        if (expectedTurnNumber !== null && currentTurnNumber !== null && expectedTurnNumber !== currentTurnNumber) return;
+        if (typeof processCpuTurn === 'function') processCpuTurn();
+    });
 }
 
 function hasUsableCardFor(playerKey) {
@@ -203,11 +232,7 @@ async function _postApplyPassCommon() {
         if (nextIsWhite) {
             isProcessing = true;
             if (typeof onTurnStart === 'function' && typeof WHITE !== 'undefined') onTurnStart(WHITE);
-            if (timers && typeof timers.waitMs === 'function') {
-                timers.waitMs(typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600).then(processCpuTurn);
-            } else {
-                processCpuTurn();
-            }
+            scheduleWhiteCpuTurnGuarded((typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600));
         } else {
             // Delegate to black-pass handler for additional delays/flows
             handleBlackPassWhenNoMoves();
@@ -218,11 +243,7 @@ async function _postApplyPassCommon() {
     if (nextPlayer === WHITE) {
         isProcessing = true;
         if (typeof onTurnStart === 'function') onTurnStart(WHITE);
-        if (timers && typeof timers.waitMs === 'function') {
-            timers.waitMs(CPU_TURN_DELAY_MS).then(processCpuTurn);
-        } else {
-            processCpuTurn();
-        }
+        scheduleWhiteCpuTurnGuarded(CPU_TURN_DELAY_MS);
     } else {
         isProcessing = false;
         if (typeof onTurnStart === 'function') onTurnStart(BLACK);
@@ -233,20 +254,7 @@ async function _postApplyPassCommon() {
 
 async function handleDoublePlaceNoSecondMove(move, passedPlayer) {
     const playerName = getPlayerName(passedPlayer);
-    if (timers && typeof timers.waitMs === 'function') {
-        timers.waitMs(DOUBLE_PLACE_PASS_DELAY_MS).then(async () => {
-            if (typeof emitLogAdded === 'function') emitLogAdded(`${playerName}: 二連投石 追加手なし → パス`);
-            const playerKey = (typeof BLACK !== 'undefined' && passedPlayer === BLACK) ? 'black' : 'white';
-
-            const result = applyPassViaPipeline(playerKey);
-            if (!result.ok) {
-                return handleRejectedPass();
-            }
-
-            await _postApplyPassCommon();
-        });
-    } else {
-        // Fallback immediate path
+    scheduleWithDelay(DOUBLE_PLACE_PASS_DELAY_MS, async () => {
         if (typeof emitLogAdded === 'function') emitLogAdded(`${playerName}: 二連投石 追加手なし → パス`);
         const playerKey = (typeof BLACK !== 'undefined' && passedPlayer === BLACK) ? 'black' : 'white';
 
@@ -256,26 +264,13 @@ async function handleDoublePlaceNoSecondMove(move, passedPlayer) {
         }
 
         await _postApplyPassCommon();
-    }
+    });
 }
 
 async function handleBlackPassWhenNoMoves() {
     const safeBlackPassDelay = (typeof BLACK_PASS_DELAY_MS !== 'undefined') ? BLACK_PASS_DELAY_MS : 1000;
     const safeBlackName = (typeof BLACK !== 'undefined' && typeof getPlayerName === 'function') ? getPlayerName(BLACK) : '黒';
-    if (timers && typeof timers.waitMs === 'function') {
-        timers.waitMs(safeBlackPassDelay).then(async () => {
-            if (typeof emitLogAdded === 'function') emitLogAdded(`${safeBlackName}: パス (置ける場所がありません)`);
-            const passedPlayer = gameState.currentPlayer;
-            const playerKey = (typeof BLACK !== 'undefined' && passedPlayer === BLACK) ? 'black' : 'white';
-
-            const result = applyPassViaPipeline(playerKey);
-            if (!result.ok) {
-                return handleRejectedPass();
-            }
-
-            await _postApplyPassCommon();
-        });
-    } else {
+    scheduleWithDelay(safeBlackPassDelay, async () => {
         if (typeof emitLogAdded === 'function') emitLogAdded(`${safeBlackName}: パス (置ける場所がありません)`);
         const passedPlayer = gameState.currentPlayer;
         const playerKey = (typeof BLACK !== 'undefined' && passedPlayer === BLACK) ? 'black' : 'white';
@@ -286,7 +281,7 @@ async function handleBlackPassWhenNoMoves() {
         }
 
         await _postApplyPassCommon();
-    }
+    }, true);
 }
 
 async function processPassTurn(playerKey, autoMode) {
@@ -338,22 +333,9 @@ async function processPassTurn(playerKey, autoMode) {
         if (nextIsWhite) {
             isProcessing = true;
             if (typeof onTurnStart === 'function' && typeof WHITE !== 'undefined') onTurnStart(WHITE);
-            if (timers && typeof timers.waitMs === 'function') {
-                timers.waitMs(typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600).then(processCpuTurn);
-            } else {
-                processCpuTurn();
-            }
+            scheduleWhiteCpuTurnGuarded((typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600));
         } else {
-            if (nextIsWhite) {
-                isProcessing = true;
-                if (timers && typeof timers.waitMs === 'function') {
-                    timers.waitMs(typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600).then(processCpuTurn);
-                } else {
-                    processCpuTurn();
-                }
-            } else {
-                handleBlackPassWhenNoMoves();
-            }
+            handleBlackPassWhenNoMoves();
         }
         return true;
     }
@@ -361,11 +343,7 @@ async function processPassTurn(playerKey, autoMode) {
     if (nextIsWhite) {
         isProcessing = true;
         if (typeof onTurnStart === 'function' && typeof WHITE !== 'undefined') onTurnStart(WHITE);
-        if (timers && typeof timers.waitMs === 'function') {
-            timers.waitMs(typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600).then(processCpuTurn);
-        } else {
-            processCpuTurn();
-        }
+        scheduleWhiteCpuTurnGuarded((typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600));
     } else {
         isProcessing = false;
         if (typeof onTurnStart === 'function' && typeof BLACK !== 'undefined') onTurnStart(BLACK);

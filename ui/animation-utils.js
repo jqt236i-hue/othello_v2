@@ -527,9 +527,11 @@ function playCardUseHandAnimation(payload) {
         const handRect = handEl.getBoundingClientRect();
         const chargeRect = chargeEl.getBoundingClientRect();
         const explicitSourceCardEl = (data.sourceCardEl && typeof data.sourceCardEl.cloneNode === 'function') ? data.sourceCardEl : null;
-        // Opponent hand is normally face-down; for clarity, do not clone hidden card on CPU side.
-        const fallbackSourceCardEl = isPlayerSide ? handEl.querySelector('.card-item:last-child') : null;
-        const sourceCardEl = explicitSourceCardEl || fallbackSourceCardEl || null;
+        // IMPORTANT:
+        // Do not auto-pick "last hand card" as animation source.
+        // In AUTO mode the hand can update between decision/apply/render, causing visible card mismatch.
+        // Prefer payload(cardId/name/cost) unless an explicit source element is supplied.
+        const sourceCardEl = explicitSourceCardEl || null;
         const HOLD_MS = 850;
         const FADE_MS = 420;
 

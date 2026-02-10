@@ -1,14 +1,14 @@
 {
-  "version": "2026-02-07",
-  "generatedAt": "2026-02-07T10:57:56.417Z",
+  "version": "2026-02-09",
+  "generatedAt": "2026-02-09T21:39:03.781Z",
   "files": [
     {
       "path": "assets/images/stones/BREEDING_WILL-black.png",
-      "sha256": "b6d03007475581aedf6996e7cfaf2b65d472a7fa13a39161150a1f52a69a8b15"
+      "sha256": "f4093988a550e156fd93b4d17d25bfcfb85e59d275914cb119134da42f6b7c98"
     },
     {
       "path": "assets/images/stones/BREEDING_WILL-white.png",
-      "sha256": "9ab6065f949a6bf5428a917af2a1410dad561cd259c6ce49ae958df939d6557c"
+      "sha256": "d927fecc9a458029e66e17c6e1f2610b7dbc03359c3e8bcb97fab1137cc4e6ee"
     },
     {
       "path": "assets/images/stones/CROSS_BOMB-black.png",
@@ -20,79 +20,87 @@
     },
     {
       "path": "assets/images/stones/gold_stone.png",
-      "sha256": "8133c851bd46196276986287960c90b3358ac1d63b3a23bcfa30842d5e8b74d5"
+      "sha256": "93cbe22366eb790f20c313d89519848d457f30462a206cee30d9f4f538ef8923"
     },
     {
       "path": "assets/images/stones/HYPERACTIVE_WILL-black.png",
-      "sha256": "a664dce1637119806efb10176c29f281a239362212a599a36cde725f1f18f6e7"
+      "sha256": "42d18e2701049d2cd8092791b668f78b8ae9909d8501a5ab9450f8a62771b139"
     },
     {
       "path": "assets/images/stones/HYPERACTIVE_WILL-white.png",
-      "sha256": "e804077cbd1f4171432b6ed14c2de6d67b16dffa30a2dcae03f664246cd32396"
+      "sha256": "dd15b7c8aa8d9f16905bc919b931512447a05424c4c2bf6ab3f9b454bc0181e1"
     },
     {
       "path": "assets/images/stones/normal_stone-black.png",
-      "sha256": "f95916d02cb32e22891ddab946ac3ac8beefd20d87cfb6397da3c563c4d64e57"
+      "sha256": "f1eb934b000b028ef0d383a392033fe22b98f1b2f28bdbeca968b79a652b14bb"
     },
     {
       "path": "assets/images/stones/normal_stone-white.png",
-      "sha256": "b5944083dabf79c0838124383f9aa3b23c08c55830820e9675b09691922ecb9e"
+      "sha256": "79ef47c29a8707cf5f1f50aa7b7587dfa5ec270866725708b103419535c48509"
     },
     {
       "path": "assets/images/stones/perma_protect_next_stone-black.png",
-      "sha256": "fc1a069e7bdd6700c14829aa998584524bfaa27d5db77c1aca3a06b5b8e5f669"
+      "sha256": "4b9ee0c7c41042fb308809262bec346cbad4babf5d3cb50956060002b0a0a877"
     },
     {
       "path": "assets/images/stones/perma_protect_next_stone-white.png",
-      "sha256": "f433c96ad69d21912540639368380668dd574a84bd702608974503ace0d81296"
+      "sha256": "5ea01367badbcf27f904c42f1d1044beec870bd8f51cab73d6448d35f397962c"
     },
     {
       "path": "assets/images/stones/protected_next_stone.png",
-      "sha256": "8758d8f66ac19d4f834ce21f15f4613304ef13e7ab2db606d647ca9291e9120b"
+      "sha256": "80991c995b35769eadb407afcd287d03bed5401932826a5dbe36f8b4e05b1145"
     },
     {
       "path": "assets/images/stones/regen_stone-black.png",
-      "sha256": "f1378343224cd3f83cf943130ddaac1d0bc5537b97c8483c68285bb5c43d095e"
+      "sha256": "b06c1a05632562ed1034b60aa7b44ffbc910cac0a18cc458b800d5e456922077"
     },
     {
       "path": "assets/images/stones/regen_stone-white.png",
-      "sha256": "daab97ec08def6b275d8d6358a187ffcd395530754ab6a98eede54f5ed4f63c2"
+      "sha256": "f5818bb9ea9e9dc34019428593240f7eada8eceb60c71d27a53d08a6645ca7ab"
     },
     {
       "path": "assets/images/stones/silver.stone.png",
-      "sha256": "62ca121c36ce664161bbefecf285e868cf2c15b64bdbb52550e0996a6fdd0c95"
+      "sha256": "1c3e864c24a873f282270faed691e5c949a4ad0aeaa58e7bd0f282924303c232"
     },
     {
       "path": "assets/images/stones/TIME_BOMB-black.png",
-      "sha256": "8b0eef43ea49455c0d8477c4adf8362863ae90dab308f6bb004dbbe1e370543e"
+      "sha256": "05bafefc700b1f6c3897660983725892caee71417657d93261ceb10c9d7584a0"
     },
     {
       "path": "assets/images/stones/TIME_BOMB-white.png",
-      "sha256": "9ce945501dcf3e828f0cefc1ca0fc45d5ff89e23559146e3bed350b51e511e3f"
+      "sha256": "48fb5bf577bed96ca27fcafdd4bb674abb86e2d2c4d51da91532965ed8f4cc7d"
+    },
+    {
+      "path": "assets/images/stones/trap_stone-black.png",
+      "sha256": "1fd54d9b01807bdb7599f8648bca69d7acb7084aedb6b7cdce937f0488ec3ab0"
+    },
+    {
+      "path": "assets/images/stones/trap_stone-white.png",
+      "sha256": "45ac0eecd6dba50ff10d221a3d27a2c7dcd0f507fae4ec2c45dc64b9bcb86505"
     },
     {
       "path": "assets/images/stones/ULTIMATE_DESTROY_GOD-black.png",
-      "sha256": "15776127d14619c13da2ad582adca9ad8abebc104a2e8a7a2b7a6f17906b77bc"
+      "sha256": "42ef6e1564c814a3118dbe400f7fd6b020b1d59181ac7040ea967cb15bda4981"
     },
     {
       "path": "assets/images/stones/ULTIMATE_DESTROY_GOD-white.png",
-      "sha256": "4e2771477e42da00a8285256a37c259e523553889b2759a6e9b5b86662c18174"
+      "sha256": "483dae76d222562bab6398d924b3ed3eb035c930171e6cf3c98a0deddc551cbe"
     },
     {
       "path": "assets/images/stones/ultimate_reverse_dragon-black.png",
-      "sha256": "ca000f8af98b7234c5a0cba08ec9208cac32ceee38cd4fc1d5ffa1c57df07b9b"
+      "sha256": "b38b8ed7e42d670a8d4d4ed8cfd597a5068450f253096e19051c59fe5293eeb0"
     },
     {
       "path": "assets/images/stones/ultimate_reverse_dragon-white.png",
-      "sha256": "a2b6bb2f1a97cfc325be0da2d053a9a52df7a1924abe8f4dd7f5de091615c962"
+      "sha256": "929c14b12bcbd7d389a1c5a804458c9d344a640713d99dca14d24919eaad264d"
     },
     {
       "path": "assets/images/stones/work_stone-black.png",
-      "sha256": "0638094a108373c8c7081e5cbe8cc2e86fae4a3b4df8410c2385f115a3fc0d39"
+      "sha256": "9809e2da5c1e8640cd90e44b746808eec748d03e4072352c82c3612a2ed324a9"
     },
     {
       "path": "assets/images/stones/work_stone-white.png",
-      "sha256": "6c52a3d316e4bd02d8bf355d5eef25ead2a053ddccbe5343acc175b1d7d7e3d9"
+      "sha256": "cda5b3d3b4b6d6b3a798df2307b57083fa6b66f8838cd26c8fc054034028113a"
     }
   ]
 }
