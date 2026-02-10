@@ -12,168 +12,148 @@
 }(typeof self !== 'undefined' ? self : this, function (SharedConstants) {
     'use strict';
 
-    const { BLACK, WHITE, DIRECTIONS, EMPTY } = SharedConstants || {};
+    const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 
-    if (BLACK === undefined || WHITE === undefined || DIRECTIONS === undefined || EMPTY === undefined) {
+    if (BLACK === undefined || WHITE === undefined || EMPTY === undefined) {
         throw new Error('SharedConstants missing required values');
     }
 
-    function processBreedingEffects(cardState, gameState, playerKey, prng, deps = {}) {
-        const p = prng || (deps.defaultPrng || { random: () => 0 });
-        const player = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        const spawned = [];
-        const destroyed = [];
-        const flipped = [];
-        const anchors = [];
-        const flippedSet = new Set();
-
-        const specials = (cardState.markers || []).filter(m => m.kind === 'specialStone');
-        const breedings = specials.filter(s => s.data && s.data.type === 'BREEDING');
-        const getCardContext = deps.getCardContext || (() => ({ protectedStones: specials.filter(s => s.data && s.data.type === 'PROTECTED').map(s => ({ row: s.row, col: s.col })), permaProtectedStones: specials.filter(s => s.data && (s.data.type === 'PERMA_PROTECTED' || s.data.type === 'DRAGON' || s.data.type === 'BREEDING' || s.data.type === 'ULTIMATE_DESTROY_GOD')).map(s => ({ row: s.row, col: s.col, owner: s.owner === 'black' ? BLACK : WHITE })) }));
-        const getFlipsWithContext = deps.getFlipsWithContext || ((gs, r, c, playerVal, ctx) => []);
-        const clearBombAt = deps.clearBombAt || ((cs, r, c) => { if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'bomb' && m.row === r && m.col === c)); });
-
-        const context = getCardContext(cardState);
-
-        for (const breeding of breedings) {
-            if (breeding.owner !== playerKey) continue;
-
-            // Anchor must still be the owner's stone
-            if (gameState.board[breeding.row][breeding.col] !== player) {
-                if (breeding.data) breeding.data.remainingOwnerTurns = -1; // Terminate effect
-                continue;
-            }
-
-            // Turn countdown: decrement first, then fire if >= 0 (0 fires too)
-            const before = (breeding.data && (breeding.data.remainingOwnerTurns !== undefined && breeding.data.remainingOwnerTurns !== null))
-                ? breeding.data.remainingOwnerTurns
-                : 0;
-            const afterDec = before - 1;
-            if (breeding.data) breeding.data.remainingOwnerTurns = afterDec;
-            if (afterDec < 0) continue;
-            anchors.push({ row: breeding.row, col: breeding.col, remainingNow: afterDec });
-
-            // Find empty surrounding cells (8 squares)
-            const emptyCells = [];
-            for (let dr = -1; dr <= 1; dr++) {
-                for (let dc = -1; dc <= 1; dc++) {
-                    if (dr === 0 && dc === 0) continue; // Skip anchor itself
-                    const r = breeding.row + dr;
-                    const c = breeding.col + dc;
-                    if (r >= 0 && r < 8 && c >= 0 && c < 8 && gameState.board[r][c] === EMPTY) {
-                        emptyCells.push({ row: r, col: c });
-                    }
-                }
-            }
-
-            if (emptyCells.length > 0) {
-                const index = Math.floor(p.random() * emptyCells.length);
-                const target = emptyCells[index];
-                const flips = getFlipsWithContext(gameState, target.row, target.col, player, context);
-                let spawnRes = null;
-                if (deps.BoardOps && typeof deps.BoardOps.spawnAt === 'function') {
-                    spawnRes = deps.BoardOps.spawnAt(cardState, gameState, target.row, target.col, playerKey, 'BREEDING', 'breeding_spawn');
-                } else {
-                    gameState.board[target.row][target.col] = player;
-                }
-
-                spawned.push({ row: target.row, col: target.col, anchorRow: breeding.row, anchorCol: breeding.col, stoneId: spawnRes ? spawnRes.stoneId : undefined });
-
-                for (const [r, c] of flips) {
-                    if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
-                        deps.BoardOps.changeAt(cardState, gameState, r, c, playerKey, 'BREEDING', 'breeding_flip');
-                    } else {
-                        gameState.board[r][c] = player;
-                    }
-                    clearBombAt(cardState, r, c);
-                    const key = `${r},${c}`;
-                    if (!flippedSet.has(key)) {
-                        flippedSet.add(key);
-                        flipped.push({ row: r, col: c });
-                    }
-                }
-            }
-
-            if (afterDec === 0) {
-                destroyed.push({ row: breeding.row, col: breeding.col });
-                if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                    deps.BoardOps.destroyAt(cardState, gameState, breeding.row, breeding.col, 'BREEDING', 'anchor_expired');
-                } else {
-                    gameState.board[breeding.row][breeding.col] = EMPTY;
-                }
-                if (breeding.data) breeding.data.remainingOwnerTurns = -1;
-            }
-        }
-
-        // Remove expired breeding anchors
-        if (cardState.markers) {
-            cardState.markers = cardState.markers.filter(m => {
-                if (m.kind !== 'specialStone') return true;
-                if (!m.data || m.data.type !== 'BREEDING') return true;
-                const turns = m.data.remainingOwnerTurns;
-                return (turns !== undefined && turns !== null && turns >= 0);
-            });
-        }
-
-        if (flipped.length > 0 && typeof deps.clearHyperactiveAtPositions === 'function') {
-            deps.clearHyperactiveAtPositions(cardState, flipped);
-        }
-
-        return { spawned, destroyed, flipped, anchors };
+    function _posKey(row, col) {
+        return `${row},${col}`;
     }
 
-    function processBreedingEffectsAtAnchor(cardState, gameState, playerKey, row, col, prng, deps = {}) {
-        const p = prng || (deps.defaultPrng || { random: () => 0 });
-        const player = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        const spawned = [];
-        const destroyed = [];
-        const flipped = [];
-        const flippedSet = new Set();
+    function _normalizePositions(positions) {
+        const out = [];
+        const seen = new Set();
+        const src = Array.isArray(positions) ? positions : [];
+        for (const p of src) {
+            if (!p || !Number.isInteger(p.row) || !Number.isInteger(p.col)) continue;
+            const key = _posKey(p.row, p.col);
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push({ row: p.row, col: p.col });
+        }
+        return out;
+    }
 
-        const anchor = (cardState.markers || []).find(s => s.kind === 'specialStone' && s.data && s.data.type === 'BREEDING' && s.owner === playerKey && s.row === row && s.col === col);
-        if (!anchor) return { spawned, destroyed, flipped };
-        if (gameState.board[row][col] !== player) return { spawned, destroyed, flipped };
+    function _ensureBreedingRuntime(cardState) {
+        if (!cardState || typeof cardState !== 'object') return;
+        if (!cardState.breedingFrontierByAnchorId || typeof cardState.breedingFrontierByAnchorId !== 'object') {
+            cardState.breedingFrontierByAnchorId = {};
+        }
+        if (!cardState.breedingSproutByOwner || typeof cardState.breedingSproutByOwner !== 'object') {
+            cardState.breedingSproutByOwner = { black: [], white: [] };
+        }
+        if (!Array.isArray(cardState.breedingSproutByOwner.black)) cardState.breedingSproutByOwner.black = [];
+        if (!Array.isArray(cardState.breedingSproutByOwner.white)) cardState.breedingSproutByOwner.white = [];
+        if (!cardState._breedingSproutClearedTokenByOwner || typeof cardState._breedingSproutClearedTokenByOwner !== 'object') {
+            cardState._breedingSproutClearedTokenByOwner = { black: null, white: null };
+        }
+    }
 
-        const specials2 = (cardState.markers || []).filter(m => m.kind === 'specialStone');
-        const getCardContext = deps.getCardContext || (() => ({ protectedStones: specials2.filter(s => s.data && s.data.type === 'PROTECTED').map(s => ({ row: s.row, col: s.col })), permaProtectedStones: specials2.filter(s => s.data && (s.data.type === 'PERMA_PROTECTED' || s.data.type === 'DRAGON' || s.data.type === 'BREEDING' || s.data.type === 'ULTIMATE_DESTROY_GOD')).map(s => ({ row: s.row, col: s.col, owner: s.owner === 'black' ? BLACK : WHITE })) }));
-        const getFlipsWithContext = deps.getFlipsWithContext || ((gs, r, c, playerVal, ctx) => []);
-        const clearBombAt = deps.clearBombAt || ((cs, r, c) => { if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'bomb' && m.row === r && m.col === c)); });
+    function _getFrontier(cardState, anchorId) {
+        _ensureBreedingRuntime(cardState);
+        const key = String(anchorId);
+        const frontier = cardState.breedingFrontierByAnchorId[key];
+        return _normalizePositions(frontier);
+    }
 
-        const context = getCardContext(cardState);
-        const emptyCells = [];
-        for (let dr = -1; dr <= 1; dr++) {
-            for (let dc = -1; dc <= 1; dc++) {
-                if (dr === 0 && dc === 0) continue;
-                const r = row + dr;
-                const c = col + dc;
-                if (r >= 0 && r < 8 && c >= 0 && c < 8 && gameState.board[r][c] === EMPTY) {
-                    emptyCells.push({ row: r, col: c });
+    function _setFrontier(cardState, anchorId, positions) {
+        _ensureBreedingRuntime(cardState);
+        const key = String(anchorId);
+        cardState.breedingFrontierByAnchorId[key] = _normalizePositions(positions);
+    }
+
+    function _clearFrontier(cardState, anchorId) {
+        _ensureBreedingRuntime(cardState);
+        delete cardState.breedingFrontierByAnchorId[String(anchorId)];
+    }
+
+    function _replaceSprouts(cardState, playerKey, positions) {
+        _ensureBreedingRuntime(cardState);
+        cardState.breedingSproutByOwner[playerKey] = _normalizePositions(positions);
+    }
+
+    function _mergeSprouts(cardState, playerKey, positions) {
+        _ensureBreedingRuntime(cardState);
+        const base = cardState.breedingSproutByOwner[playerKey] || [];
+        cardState.breedingSproutByOwner[playerKey] = _normalizePositions(base.concat(positions || []));
+    }
+
+    function _clearSproutsOnceAtTurn(cardState, playerKey) {
+        _ensureBreedingRuntime(cardState);
+        const token = `${playerKey}:${Number.isFinite(cardState.turnIndex) ? cardState.turnIndex : 0}`;
+        if (cardState._breedingSproutClearedTokenByOwner[playerKey] !== token) {
+            cardState._breedingSproutClearedTokenByOwner[playerKey] = token;
+            _replaceSprouts(cardState, playerKey, []);
+        }
+    }
+
+    function _collectEmptyNeighborTargets(gameState, origins) {
+        const targets = [];
+        const seen = new Set();
+        const src = _normalizePositions(origins);
+        for (const origin of src) {
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+                    const r = origin.row + dr;
+                    const c = origin.col + dc;
+                    if (r < 0 || r >= 8 || c < 0 || c >= 8) continue;
+                    if (gameState.board[r][c] !== EMPTY) continue;
+                    const key = _posKey(r, c);
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    targets.push({ row: r, col: c });
                 }
             }
         }
+        return targets;
+    }
 
-        if (emptyCells.length > 0) {
-            const index = Math.floor(p.random() * emptyCells.length);
-            const target = emptyCells[index];
+    function _pickRandomTarget(targets, prng) {
+        const list = Array.isArray(targets) ? targets : [];
+        if (list.length === 0) return null;
+        const p = (prng && typeof prng.random === 'function') ? prng : { random: () => 0 };
+        const idx = Math.floor(p.random() * list.length);
+        return list[Math.max(0, Math.min(list.length - 1, idx))];
+    }
+
+    function _spawnAndFlipBatch(cardState, gameState, playerKey, player, targets, cause, reason, anchorPos, deps) {
+        const spawned = [];
+        const flipped = [];
+        const flippedSet = new Set();
+        const getCardContext = deps.getCardContext || (() => ({ protectedStones: [], permaProtectedStones: [] }));
+        const getFlipsWithContext = deps.getFlipsWithContext || ((gs, r, c, playerVal, ctx) => []);
+        const clearBombAt = deps.clearBombAt || ((cs, r, c) => { if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'bomb' && m.row === r && m.col === c)); });
+        const clearHyperactiveAtPositions = deps.clearHyperactiveAtPositions;
+
+        for (const target of targets) {
+            const context = getCardContext(cardState);
             const flips = getFlipsWithContext(gameState, target.row, target.col, player, context);
 
             let spawnRes = null;
             if (deps.BoardOps && typeof deps.BoardOps.spawnAt === 'function') {
-                spawnRes = deps.BoardOps.spawnAt(cardState, gameState, target.row, target.col, playerKey, 'BREEDING', 'breeding_spawn_immediate');
+                spawnRes = deps.BoardOps.spawnAt(cardState, gameState, target.row, target.col, playerKey, cause, reason);
             } else {
                 gameState.board[target.row][target.col] = player;
             }
-
-            spawned.push({ row: target.row, col: target.col, anchorRow: row, anchorCol: col, stoneId: spawnRes ? spawnRes.stoneId : undefined });
+            spawned.push({
+                row: target.row,
+                col: target.col,
+                anchorRow: anchorPos.row,
+                anchorCol: anchorPos.col,
+                stoneId: spawnRes ? spawnRes.stoneId : undefined
+            });
 
             for (const [fr, fc] of flips) {
                 if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
-                    deps.BoardOps.changeAt(cardState, gameState, fr, fc, playerKey, 'BREEDING', 'breeding_flip_immediate');
+                    deps.BoardOps.changeAt(cardState, gameState, fr, fc, playerKey, 'BREEDING', 'breeding_flip');
                 } else {
                     gameState.board[fr][fc] = player;
                 }
                 clearBombAt(cardState, fr, fc);
-                const key = `${fr},${fc}`;
+                const key = _posKey(fr, fc);
                 if (!flippedSet.has(key)) {
                     flippedSet.add(key);
                     flipped.push({ row: fr, col: fc });
@@ -181,21 +161,20 @@
             }
         }
 
-        if (flipped.length > 0 && typeof deps.clearHyperactiveAtPositions === 'function') {
-            deps.clearHyperactiveAtPositions(cardState, flipped);
+        if (flipped.length > 0 && typeof clearHyperactiveAtPositions === 'function') {
+            clearHyperactiveAtPositions(cardState, flipped);
         }
-
-        return { spawned, destroyed, flipped };
+        return { spawned, flipped };
     }
 
-    function processBreedingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, prng, deps = {}) {
-        const p = prng || (deps.defaultPrng || { random: () => 0 });
+    function _processTurnStartAnchor(cardState, gameState, playerKey, row, col, prng, deps = {}) {
         const player = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const spawned = [];
         const destroyed = [];
         const flipped = [];
-        const flippedSet = new Set();
         const anchors = [];
+        _ensureBreedingRuntime(cardState);
+        _clearSproutsOnceAtTurn(cardState, playerKey);
 
         const anchor = (cardState.markers || []).find(s =>
             s.kind === 'specialStone' && s.data && s.data.type === 'BREEDING' && s.owner === playerKey && s.row === row && s.col === col
@@ -203,6 +182,7 @@
         if (!anchor) return { spawned, destroyed, flipped, anchors };
         if (gameState.board[row][col] !== player) {
             if (anchor.data) anchor.data.remainingOwnerTurns = -1;
+            _clearFrontier(cardState, anchor.id);
             return { spawned, destroyed, flipped, anchors };
         }
 
@@ -215,52 +195,32 @@
         if (afterDec < 0) return { spawned, destroyed, flipped, anchors };
         anchors.push({ row, col, remainingNow: afterDec });
 
-        const specials2 = (cardState.markers || []).filter(m => m.kind === 'specialStone');
-        const getCardContext = deps.getCardContext || (() => ({ protectedStones: specials2.filter(s => s.data && s.data.type === 'PROTECTED').map(s => ({ row: s.row, col: s.col })), permaProtectedStones: specials2.filter(s => s.data && (s.data.type === 'PERMA_PROTECTED' || s.data.type === 'DRAGON' || s.data.type === 'BREEDING' || s.data.type === 'ULTIMATE_DESTROY_GOD')).map(s => ({ row: s.row, col: s.col, owner: s.owner === 'black' ? BLACK : WHITE })) }));
-        const getFlipsWithContext = deps.getFlipsWithContext || ((gs, r, c, playerVal, ctx) => []);
-        const clearBombAt = deps.clearBombAt || ((cs, r, c) => { if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'bomb' && m.row === r && m.col === c)); });
+        const previousFrontier = _getFrontier(cardState, anchor.id);
+        const brokenFrontier = previousFrontier.some(p => gameState.board[p.row][p.col] !== player);
+        const origins = previousFrontier.length === 0 || brokenFrontier
+            ? [{ row, col }]
+            : previousFrontier;
+        const targets = _collectEmptyNeighborTargets(gameState, origins);
+        const picked = _pickRandomTarget(targets, prng);
 
-        const context = getCardContext(cardState);
-        const emptyCells = [];
-        for (let dr = -1; dr <= 1; dr++) {
-            for (let dc = -1; dc <= 1; dc++) {
-                if (dr === 0 && dc === 0) continue;
-                const r = row + dr;
-                const c = col + dc;
-                if (r >= 0 && r < 8 && c >= 0 && c < 8 && gameState.board[r][c] === EMPTY) {
-                    emptyCells.push({ row: r, col: c });
-                }
-            }
-        }
+        const batch = _spawnAndFlipBatch(
+            cardState,
+            gameState,
+            playerKey,
+            player,
+            picked ? [picked] : [],
+            'BREEDING',
+            'breeding_spawned',
+            { row, col },
+            deps
+        );
+        spawned.push(...batch.spawned);
+        flipped.push(...batch.flipped);
 
-        if (emptyCells.length > 0) {
-            const index = Math.floor(p.random() * emptyCells.length);
-            const target = emptyCells[index];
-            const flips = getFlipsWithContext(gameState, target.row, target.col, player, context);
+        if (spawned.length > 0) _setFrontier(cardState, anchor.id, spawned);
+        else if (previousFrontier.length === 0 || brokenFrontier) _setFrontier(cardState, anchor.id, []);
 
-            let spawnRes = null;
-            if (deps.BoardOps && typeof deps.BoardOps.spawnAt === 'function') {
-                spawnRes = deps.BoardOps.spawnAt(cardState, gameState, target.row, target.col, playerKey, 'BREEDING', 'breeding_spawned');
-            } else {
-                gameState.board[target.row][target.col] = player;
-            }
-
-            spawned.push({ row: target.row, col: target.col, anchorRow: row, anchorCol: col, stoneId: spawnRes ? spawnRes.stoneId : undefined });
-
-            for (const [fr, fc] of flips) {
-                if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
-                    deps.BoardOps.changeAt(cardState, gameState, fr, fc, playerKey, 'BREEDING', 'breeding_flip');
-                } else {
-                    gameState.board[fr][fc] = player;
-                }
-                clearBombAt(cardState, fr, fc);
-                const key = `${fr},${fc}`;
-                if (!flippedSet.has(key)) {
-                    flippedSet.add(key);
-                    flipped.push({ row: fr, col: fc });
-                }
-            }
-        }
+        _mergeSprouts(cardState, playerKey, spawned);
 
         if (afterDec === 0) {
             destroyed.push({ row, col });
@@ -270,16 +230,73 @@
                 gameState.board[row][col] = EMPTY;
             }
             if (anchor.data) anchor.data.remainingOwnerTurns = -1;
+            _clearFrontier(cardState, anchor.id);
             if (cardState.markers) {
                 cardState.markers = cardState.markers.filter(m => !(m.kind === 'specialStone' && m.data && m.data.type === 'BREEDING' && m.row === row && m.col === col && m.owner === playerKey));
             }
         }
 
-        if (flipped.length > 0 && typeof deps.clearHyperactiveAtPositions === 'function') {
-            deps.clearHyperactiveAtPositions(cardState, flipped);
+        return { spawned, destroyed, flipped, anchors };
+    }
+
+    function processBreedingEffects(cardState, gameState, playerKey, prng, deps = {}) {
+        const spawned = [];
+        const destroyed = [];
+        const flipped = [];
+        const anchors = [];
+        _ensureBreedingRuntime(cardState);
+        _replaceSprouts(cardState, playerKey, []);
+
+        const anchorsForOwner = (cardState.markers || []).filter(s =>
+            s.kind === 'specialStone' && s.data && s.data.type === 'BREEDING' && s.owner === playerKey
+        );
+        for (const anchor of anchorsForOwner) {
+            const one = _processTurnStartAnchor(cardState, gameState, playerKey, anchor.row, anchor.col, prng, deps);
+            if (one.spawned && one.spawned.length) spawned.push(...one.spawned);
+            if (one.destroyed && one.destroyed.length) destroyed.push(...one.destroyed);
+            if (one.flipped && one.flipped.length) flipped.push(...one.flipped);
+            if (one.anchors && one.anchors.length) anchors.push(...one.anchors);
         }
 
         return { spawned, destroyed, flipped, anchors };
+    }
+
+    function processBreedingEffectsAtAnchor(cardState, gameState, playerKey, row, col, prng, deps = {}) {
+        const player = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
+        const spawned = [];
+        const destroyed = [];
+        const flipped = [];
+        _ensureBreedingRuntime(cardState);
+
+        const anchor = (cardState.markers || []).find(s =>
+            s.kind === 'specialStone' && s.data && s.data.type === 'BREEDING' && s.owner === playerKey && s.row === row && s.col === col
+        );
+        if (!anchor) return { spawned, destroyed, flipped };
+        if (gameState.board[row][col] !== player) return { spawned, destroyed, flipped };
+
+        const targets = _collectEmptyNeighborTargets(gameState, [{ row, col }]);
+        const picked = _pickRandomTarget(targets, prng);
+        const batch = _spawnAndFlipBatch(
+            cardState,
+            gameState,
+            playerKey,
+            player,
+            picked ? [picked] : [],
+            'BREEDING',
+            'breeding_spawn_immediate',
+            { row, col },
+            deps
+        );
+        spawned.push(...batch.spawned);
+        flipped.push(...batch.flipped);
+        _setFrontier(cardState, anchor.id, spawned);
+        _mergeSprouts(cardState, playerKey, spawned);
+
+        return { spawned, destroyed, flipped };
+    }
+
+    function processBreedingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, prng, deps = {}) {
+        return _processTurnStartAnchor(cardState, gameState, playerKey, row, col, prng, deps);
     }
 
     return {

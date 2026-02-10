@@ -109,7 +109,7 @@
         // PERMA_PROTECT_NEXT_STONE (強い意志) - 1 card, cost: 12
         { id: 'perma_01', name: '強い意志', type: 'PERMA_PROTECT_NEXT_STONE', cost: 12, desc: '次に置いた石は、ずっと反転されない。' },
         // STRONG_WIND_WILL (強風の意志) - 1 card, cost: 9
-        { id: 'strong_wind_01', name: '強風の意志', type: 'STRONG_WIND_WILL', cost: 9, desc: '盤面の石1つを選び、進める上下左右のいずれかへランダムに端まで飛ばす。' },
+        { id: 'strong_wind_01', name: '強風の意志', type: 'STRONG_WIND_WILL', cost: 9, desc: '盤面の石1つを選び、最も長く進める上下左右方向へ飛ばす（同距離はランダム）。移動したマス数ぶん布石を得る。' },
 
         { id: 'inherit_01', name: '意志の継承', type: 'INHERIT_WILL', cost: 12, desc: '盤面上の自分の通常石を1つ選び、強い意志状態にする。' },
         { id: 'trap_01', name: '罠の意志', type: 'TRAP_WILL', cost: 14, desc: '自分の石を1つ罠石にする。次の相手ターン中に反転されると、相手の布石全没収＋手札3枚没収。' },
@@ -128,7 +128,7 @@
         { id: 'udr_01', name: '究極反転龍', type: 'ULTIMATE_REVERSE_DRAGON', cost: 30, desc: '次に置く石を龍化。配置ターン即時＋自ターン開始時、周囲8マスの相手石を自分色に反転（反転数はチャージ対象）。持続5ターン（配置ターン含め最大6回発動）で消滅。' },
 
         // BREEDING_WILL (繁殖の意志) - 1 card, cost: 16
-        { id: 'breeding_01', name: '繁殖の意志', type: 'BREEDING_WILL', cost: 16, desc: '次に置く石を儀式石化。配置ターン即時＋自ターン開始時、周囲8マスの空きマスに石を1個生成。生成石で挟める場合は通常反転（反転数はチャージ対象）。持続3ターン（配置ターン含め最大4回生成）で儀式石は破壊。' },
+        { id: 'breeding_01', name: '繁殖の意志', type: 'BREEDING_WILL', cost: 16, desc: '次に置く石を繁殖石化。配置時と自ターン開始時に周囲8マスへランダム1個生成。以後は前回生成石の周囲へ拡散。生成石が反転/消滅した場合は親石起点に戻る。持続3ターン。' },
         { id: 'cross_bomb_01', name: '十字爆弾', type: 'CROSS_BOMB', cost: 18, desc: '次に置く石を十字爆弾化。通常反転後に即起爆し、中心と縦横1マスの石を破壊する。' },
 
         // HYPERACTIVE_WILL (多動の意志) - 1 card, cost: 8
@@ -159,7 +159,7 @@
         { id: 'guard_01', name: '守る意志', type: 'GUARD_WILL', cost: 7, desc: '自分の石1つに完全保護を付与する。3ターン持続。' },
 
         // ULTIMATE_DESTROY_GOD (究極破壊神) - 1 card, cost: 25
-        { id: 'udg_01', name: '究極破壊神', type: 'ULTIMATE_DESTROY_GOD', cost: 25, desc: '次に置く石を究極破壊神化。配置ターン即時＋自ターン開始時、周囲8マスの敵石を破壊。持続3ターン（配置ターン含め最大4回）。' },
+        { id: 'udg_01', name: '究極破壊神', type: 'ULTIMATE_DESTROY_GOD', cost: 25, desc: '次に置く石を究極破壊神化。配置ターン即時＋自ターン開始時、周囲8マスの敵石を破壊。持続5ターン（配置ターン含め最大6回）。' },
 
         // ULTIMATE_HYPERACTIVE_GOD (究極多動神) - 1 card, cost: 28
         { id: 'ultimate_hyperactive_01', name: '究極多動神', type: 'ULTIMATE_HYPERACTIVE_GOD', cost: 28, desc: '次に置く石を究極多動神化。両者ターン開始時に1マス移動を2回行い、着地隣接の敵石を最大2マス吹き飛ばす。成功1回ごとに布石+2。' }

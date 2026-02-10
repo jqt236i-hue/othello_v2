@@ -19,6 +19,79 @@ function _Timer() { return (__anim_res_utils && typeof __anim_res_utils.getTimer
         clearScope: () => {}
     };
 })(); }
+
+function _animateCompat(el, keyframes, options, scope) {
+    return new Promise((resolve) => {
+        if (!el) return resolve();
+        const duration = Math.max(0, Number(options && options.duration) || 0);
+        let done = false;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            resolve();
+        };
+
+        // Primary path: Web Animations API
+        try {
+            if (typeof el.animate === 'function') {
+                const anim = el.animate(keyframes, options || {});
+                if (anim) {
+                    try { anim.addEventListener('finish', finish, { once: true }); } catch (e) { /* ignore */ }
+                    try {
+                        if (anim.finished && typeof anim.finished.then === 'function') {
+                            anim.finished.then(finish).catch(finish);
+                        }
+                    } catch (e) { /* ignore */ }
+                    _Timer().setTimeout(finish, duration + 140, scope);
+                    return;
+                }
+            }
+        } catch (e) { /* fallback below */ }
+
+        // Fallback path: transition-based minimal animation
+        const frames = Array.isArray(keyframes) ? keyframes : [];
+        const first = frames.length ? frames[0] : {};
+        const last = frames.length ? frames[frames.length - 1] : first;
+        const easing = (options && options.easing) ? options.easing : 'linear';
+        const supportsStyle = !!(el && el.style);
+        const prevTransition = supportsStyle ? (el.style.transition || '') : '';
+
+        if (supportsStyle) {
+            if (first && Object.prototype.hasOwnProperty.call(first, 'transform')) el.style.transform = first.transform;
+            if (first && Object.prototype.hasOwnProperty.call(first, 'opacity')) el.style.opacity = first.opacity;
+            try { void el.offsetHeight; } catch (e) { /* ignore */ }
+
+            const transitionParts = [];
+            if ((first && Object.prototype.hasOwnProperty.call(first, 'transform')) || (last && Object.prototype.hasOwnProperty.call(last, 'transform'))) {
+                transitionParts.push(`transform ${duration}ms ${easing}`);
+            }
+            if ((first && Object.prototype.hasOwnProperty.call(first, 'opacity')) || (last && Object.prototype.hasOwnProperty.call(last, 'opacity'))) {
+                transitionParts.push(`opacity ${duration}ms ${easing}`);
+            }
+            if (transitionParts.length) {
+                el.style.transition = transitionParts.join(', ');
+            }
+
+            const applyLast = () => {
+                try {
+                    if (last && Object.prototype.hasOwnProperty.call(last, 'transform')) el.style.transform = last.transform;
+                    if (last && Object.prototype.hasOwnProperty.call(last, 'opacity')) el.style.opacity = last.opacity;
+                } catch (e) { /* ignore */ }
+            };
+            try {
+                if (typeof requestAnimationFrame === 'function') requestAnimationFrame(applyLast);
+                else _Timer().setTimeout(applyLast, 16, scope);
+            } catch (e) {
+                applyLast();
+            }
+        }
+
+        _Timer().setTimeout(() => {
+            try { if (supportsStyle) el.style.transition = prevTransition; } catch (e) { /* ignore */ }
+            finish();
+        }, duration + 40, scope);
+    });
+}
 /**
  * 破壊アニメーション
  * Animate destruction at a single board cell (returns a Promise)
@@ -179,7 +252,8 @@ function playHandAnimation(player, row, col, onComplete) {
     };
     if (typeof window !== 'undefined') window.isProcessing = true; else isProcessing = true; // Lock interactions
 
-    const targetCell = boardEl.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+    const boardRoot = (typeof boardEl !== 'undefined' && boardEl) ? boardEl : document.getElementById('board');
+    const targetCell = boardRoot ? boardRoot.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`) : null;
     if (!targetCell) {
         unlockProcessing();
         syncCardAnimating(false);
@@ -198,6 +272,17 @@ function playHandAnimation(player, row, col, onComplete) {
         return;
     }
 
+    const layerEl = (typeof handLayer !== 'undefined' && handLayer) ? handLayer : document.getElementById('handLayer');
+    const wrapperEl = (typeof handWrapper !== 'undefined' && handWrapper) ? handWrapper : document.getElementById('handWrapper');
+    const heldStoneEl = (typeof heldStone !== 'undefined' && heldStone) ? heldStone : document.getElementById('heldStone');
+    if (!layerEl || !wrapperEl || !heldStoneEl || !boardRoot) {
+        unlockProcessing();
+        syncCardAnimating(false);
+        refreshCardUi();
+        onComplete();
+        return;
+    }
+
     // Mark that a UI card animation is in progress so Auto loop waits for visual completion
     syncCardAnimating(true);
     // Safety: clear the flag after a maximum duration in case animationend doesn't fire
@@ -207,13 +292,13 @@ function playHandAnimation(player, row, col, onComplete) {
         refreshCardUi();
     }, 3000, sc);
 
-    const boardRect = boardEl.getBoundingClientRect();
+    const boardRect = boardRoot.getBoundingClientRect();
     const cellRect = targetCell.getBoundingClientRect();
 
     // Setup Hand
-    handLayer.style.display = 'block';
-    heldStone.style.display = 'block';
-    heldStone.className = 'held-stone ' + (player === BLACK ? 'black' : 'white');
+    layerEl.style.display = 'block';
+    heldStoneEl.style.display = 'block';
+    heldStoneEl.className = 'held-stone ' + (player === BLACK ? 'black' : 'white');
 
     // Calculate Position
     const cellCenterX = cellRect.left + (cellRect.width / 2);
@@ -239,62 +324,71 @@ function playHandAnimation(player, row, col, onComplete) {
     const dropX = cellCenterX - (wrapW / 2);
 
     // Set initial state
-    handWrapper.style.transform = `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`;
+    wrapperEl.style.transform = `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`;
+    let completed = false;
+    const completeMove = () => {
+        if (completed) return;
+        completed = true;
+        try { onComplete(); } catch (e) { /* ignore */ }
+    };
+    const cleanup = () => {
+        layerEl.style.display = 'none';
+        if (handAnimationTimeout) {
+            _Timer().clearTimeout(handAnimationTimeout);
+            handAnimationTimeout = null;
+        }
+        syncCardAnimating(false);
+        unlockProcessing();
+        refreshCardUi();
+    };
 
-    // 1. Approach
-    const approachAnim = handWrapper.animate([
-        { transform: `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` },
-        { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` }
-    ], {
-        duration: 400,
-        easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
-        fill: 'forwards'
-    });
+    (async () => {
+        // 1. Approach
+        await _animateCompat(wrapperEl, [
+            { transform: `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` },
+            { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` }
+        ], {
+            duration: 400,
+            easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+            fill: 'forwards'
+        }, sc);
 
-    approachAnim.onfinish = () => {
         // 2. Place (Bobbing effect)
         const bobOffset = (player === BLACK) ? 10 : -10;
-
-        const placeAnim = handWrapper.animate([
+        const placeAnim = _animateCompat(wrapperEl, [
             { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` },
             { transform: `translate(${dropX}px, ${dropY + bobOffset}px) rotate(${rotation}deg) scale(${scale * 0.95})` },
             { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` }
         ], {
             duration: 150,
             easing: 'ease-in-out'
-        });
+        }, sc);
 
         // Reflect placement immediately when the hand starts the place motion.
-        heldStone.style.display = 'none';
-        // --- SOUND TRIGGER --- ensure audio context then play
-        SoundEngine.init();
-        SoundEngine.playStoneClack();
-        onComplete(); // Trigger game logic immediately
+        heldStoneEl.style.display = 'none';
+        try {
+            if (typeof SoundEngine !== 'undefined' && SoundEngine) {
+                SoundEngine.init();
+                SoundEngine.playStoneClack();
+            }
+        } catch (e) { /* ignore */ }
+        completeMove();
+        await placeAnim;
 
-        placeAnim.onfinish = () => {
-            // 3. Retreat
-            const retreatAnim = handWrapper.animate([
-                { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` },
-                { transform: `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` }
-            ], {
-                duration: 300,
-                easing: 'ease-in',
-                fill: 'forwards'
-            });
-
-            retreatAnim.onfinish = () => {
-                handLayer.style.display = 'none';
-                // Animation fully finished; clear card-animating flag and safety timeout
-                if (handAnimationTimeout) {
-                    _Timer().clearTimeout(handAnimationTimeout);
-                    handAnimationTimeout = null;
-                }
-                syncCardAnimating(false);
-                unlockProcessing();
-                refreshCardUi();
-            };
-        };
-    };
+        // 3. Retreat
+        await _animateCompat(wrapperEl, [
+            { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` },
+            { transform: `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` }
+        ], {
+            duration: 300,
+            easing: 'ease-in',
+            fill: 'forwards'
+        }, sc);
+    })().catch(() => {
+        completeMove();
+    }).finally(() => {
+        cleanup();
+    });
 }
 
 /**
@@ -369,7 +463,7 @@ function playDrawCardHandAnimation(payload) {
         const wrapperEl = (typeof handWrapper !== 'undefined' && handWrapper) ? handWrapper : document.getElementById('handWrapper');
         const heldStoneEl = (typeof heldStone !== 'undefined' && heldStone) ? heldStone : document.getElementById('heldStone');
 
-        if (!deckEl || !handEl || !layerEl || !wrapperEl || typeof wrapperEl.animate !== 'function') {
+        if (!deckEl || !handEl || !layerEl || !wrapperEl) {
             done();
             return;
         }
@@ -409,53 +503,55 @@ function playDrawCardHandAnimation(payload) {
         heldCard.className = `held-draw-card ${toPlayerKey === 'black' ? 'face-up' : 'face-down'}`;
         wrapperEl.appendChild(heldCard);
 
-        const approach = wrapperEl.animate([
-            { transform: `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` },
-            { transform: `translate(${startX}px, ${startY + (fromBottom ? -14 : 14)}px) rotate(${rotation}deg) scale(${scale * 0.96})` }
-        ], {
-            duration: 140,
-            easing: 'ease-out',
-            fill: 'forwards'
-        });
+        const cleanup = () => {
+            try {
+                if (heldCard && heldCard.parentElement) heldCard.parentElement.removeChild(heldCard);
+            } catch (e) { /* ignore */ }
+            layerEl.style.display = 'none';
+            if (timeoutId) {
+                _Timer().clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+            if (typeof isCardAnimating !== 'undefined') isCardAnimating = false;
+            try { if (typeof window !== 'undefined') window.__drawHandAnimActive = false; } catch (e) { /* ignore */ }
+            done();
+        };
 
-        approach.onfinish = () => {
-            const carry = wrapperEl.animate([
+        (async () => {
+            await _animateCompat(wrapperEl, [
+                { transform: `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` },
+                { transform: `translate(${startX}px, ${startY + (fromBottom ? -14 : 14)}px) rotate(${rotation}deg) scale(${scale * 0.96})` }
+            ], {
+                duration: 140,
+                easing: 'ease-out',
+                fill: 'forwards'
+            }, sc);
+
+            await _animateCompat(wrapperEl, [
                 { transform: `translate(${startX}px, ${startY + (fromBottom ? -14 : 14)}px) rotate(${rotation}deg) scale(${scale * 0.96})` },
                 { transform: `translate(${endX}px, ${endY}px) rotate(${rotation}deg) scale(${scale})` }
             ], {
                 duration: 360,
                 easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)',
                 fill: 'forwards'
-            });
+            }, sc);
 
-            carry.onfinish = () => {
-                // Release near hand and retreat.
-                heldCard.style.display = 'none';
-                const retreatY = fromBottom ? (handRect.bottom + 70) : (handRect.top - 210);
-                const retreat = wrapperEl.animate([
-                    { transform: `translate(${endX}px, ${endY}px) rotate(${rotation}deg) scale(${scale})` },
-                    { transform: `translate(${endX}px, ${retreatY}px) rotate(${rotation}deg) scale(${scale})` }
-                ], {
-                    duration: 220,
-                    easing: 'ease-in',
-                    fill: 'forwards'
-                });
-
-                retreat.onfinish = () => {
-                    try {
-                        if (heldCard.parentElement) heldCard.parentElement.removeChild(heldCard);
-                    } catch (e) { /* ignore */ }
-                    layerEl.style.display = 'none';
-                    if (timeoutId) {
-                        _Timer().clearTimeout(timeoutId);
-                        timeoutId = null;
-                    }
-                    if (typeof isCardAnimating !== 'undefined') isCardAnimating = false;
-                    try { if (typeof window !== 'undefined') window.__drawHandAnimActive = false; } catch (e) { /* ignore */ }
-                    done();
-                };
-            };
-        };
+            // Release near hand and retreat.
+            heldCard.style.display = 'none';
+            const retreatY = fromBottom ? (handRect.bottom + 70) : (handRect.top - 210);
+            await _animateCompat(wrapperEl, [
+                { transform: `translate(${endX}px, ${endY}px) rotate(${rotation}deg) scale(${scale})` },
+                { transform: `translate(${endX}px, ${retreatY}px) rotate(${rotation}deg) scale(${scale})` }
+            ], {
+                duration: 220,
+                easing: 'ease-in',
+                fill: 'forwards'
+            }, sc);
+        })().catch(() => {
+            // no-op
+        }).finally(() => {
+            cleanup();
+        });
     });
 }
 
@@ -578,18 +674,34 @@ function playCardUseHandAnimation(payload) {
 
         const dx = targetX - startX;
         const dy = targetY - startY;
-        const approach = movingCard.animate([
-            { transform: 'translate(0px, 0px)' },
-            { transform: `translate(${dx}px, ${dy}px)` }
-        ], {
-            duration: 320,
-            easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)',
-            fill: 'forwards'
-        });
+        const waitHold = () => new Promise((r) => _Timer().setTimeout(r, HOLD_MS, sc));
+        const cleanup = () => {
+            try {
+                if (movingCard && movingCard.parentElement) movingCard.parentElement.removeChild(movingCard);
+            } catch (e) { /* ignore */ }
+            if (handSvgEl) handSvgEl.style.visibility = prevHandSvgVisibility;
+            if (heldStoneEl) heldStoneEl.style.display = prevHeldStoneDisplay;
+            layerEl.style.display = 'none';
+            if (timeoutId) {
+                _Timer().clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+            setCardAnimating(false);
+            done();
+        };
 
-        approach.onfinish = () => {
+        (async () => {
+            await _animateCompat(movingCard, [
+                { transform: 'translate(0px, 0px)' },
+                { transform: `translate(${dx}px, ${dy}px)` }
+            ], {
+                duration: 320,
+                easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)',
+                fill: 'forwards'
+            }, sc);
+
             const bob = isPlayerSide ? -8 : 8;
-            const present = movingCard.animate([
+            await _animateCompat(movingCard, [
                 { transform: `translate(${dx}px, ${dy}px)` },
                 { transform: `translate(${dx}px, ${dy + bob}px)` },
                 { transform: `translate(${dx}px, ${dy}px)` }
@@ -597,38 +709,23 @@ function playCardUseHandAnimation(payload) {
                 duration: 170,
                 easing: 'ease-in-out',
                 fill: 'forwards'
-            });
+            }, sc);
 
-            present.onfinish = () => {
-                const holdId = _Timer().setTimeout(() => {
-                    const fade = movingCard.animate([
-                        { opacity: 1 },
-                        { opacity: 0 }
-                    ], {
-                        duration: FADE_MS,
-                        easing: 'ease-out',
-                        fill: 'forwards'
-                    });
-                    fade.onfinish = () => {
-                        try {
-                            if (movingCard.parentElement) movingCard.parentElement.removeChild(movingCard);
-                        } catch (e) { /* ignore */ }
-                        if (handSvgEl) handSvgEl.style.visibility = prevHandSvgVisibility;
-                        if (heldStoneEl) heldStoneEl.style.display = prevHeldStoneDisplay;
-                        layerEl.style.display = 'none';
-                        if (timeoutId) {
-                            _Timer().clearTimeout(timeoutId);
-                            timeoutId = null;
-                        }
-                        setCardAnimating(false);
-                        done();
-                    };
-                }, HOLD_MS, sc);
-                if (holdId == null) {
-                    // noop
-                }
-            };
-        };
+            await waitHold();
+
+            await _animateCompat(movingCard, [
+                { opacity: 1 },
+                { opacity: 0 }
+            ], {
+                duration: FADE_MS,
+                easing: 'ease-out',
+                fill: 'forwards'
+            }, sc);
+        })().catch(() => {
+            // no-op
+        }).finally(() => {
+            cleanup();
+        });
     });
 }
 

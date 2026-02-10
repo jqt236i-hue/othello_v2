@@ -48,6 +48,8 @@ describe('STRONG_WIND_WILL', () => {
     expect(res && res.applied).toBe(true);
     expect(res.from).toEqual({ row: 3, col: 3 });
     expect(res.to).toEqual({ row: 3, col: 5 });
+    expect(res.movedDistance).toBe(2);
+    expect(res.chargeGained).toBe(2);
 
     expect(gameState.board[3][3]).toBe(0);
     expect(gameState.board[3][5]).toBe(1);
@@ -57,6 +59,7 @@ describe('STRONG_WIND_WILL', () => {
     const movedMarker = cardState.markers.find(m => m.id === 'm1');
     expect(movedMarker.row).toBe(3);
     expect(movedMarker.col).toBe(5);
+    expect(cardState.charge.black).toBe(2);
 
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
 
@@ -79,5 +82,41 @@ describe('STRONG_WIND_WILL', () => {
     expect(cardState.pendingEffectByPlayer.black).toBeTruthy();
     expect(gameState.board[3][3]).toBe(1);
   });
-});
 
+  test('prefers direction with longest movement distance', () => {
+    const { cardState, gameState } = makeState();
+
+    gameState.board[4][4] = 1;
+    // Up can move 1 (to 3,4) because 2,4 is blocked.
+    gameState.board[2][4] = -1;
+    // Down can move 3 (to 7,4).
+    // Left can move 2 (to 4,2) because 4,1 is blocked.
+    gameState.board[4][1] = -1;
+    // Right can move 1 (to 4,5) because 4,6 is blocked.
+    gameState.board[4][6] = -1;
+
+    const res = CardLogic.applyStrongWindWill(cardState, gameState, 'black', 4, 4, { random: () => 0.0 });
+    expect(res && res.applied).toBe(true);
+    expect(res.to).toEqual({ row: 7, col: 4 });
+    expect(res.movedDistance).toBe(3);
+    expect(cardState.charge.black).toBe(3);
+  });
+
+  test('chooses randomly among tied longest-distance directions', () => {
+    const { cardState, gameState } = makeState();
+
+    gameState.board[3][3] = 1;
+    // Up and down both move 2 (tie). Left/right are blocked at adjacency.
+    gameState.board[0][3] = -1; // up path stops at 1,3 (2 steps)
+    gameState.board[6][3] = -1; // down path stops at 5,3 (2 steps)
+    gameState.board[3][2] = -1;
+    gameState.board[3][4] = -1;
+
+    const res = CardLogic.applyStrongWindWill(cardState, gameState, 'black', 3, 3, { random: () => 0.9 });
+    expect(res && res.applied).toBe(true);
+    // 0.9 picks second tied option in deterministic array order.
+    expect(res.to).toEqual({ row: 5, col: 3 });
+    expect(res.movedDistance).toBe(2);
+    expect(cardState.charge.black).toBe(2);
+  });
+});

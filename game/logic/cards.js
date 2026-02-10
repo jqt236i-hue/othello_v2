@@ -31,7 +31,7 @@
     const HEAVEN_BLESSING_OFFER_COUNT = 5;
     const TIME_BOMB_TURNS = 3;
     const ULTIMATE_DRAGON_TURNS = 5;
-    const ULTIMATE_DESTROY_GOD_TURNS = 3;
+    const ULTIMATE_DESTROY_GOD_TURNS = 5;
     const DECK_SIZE = 30;
 
     function isWorkDebugEnabled(cardState) {
@@ -354,7 +354,14 @@
 
             // Work Will state
             workAnchorPosByPlayer: { black: null, white: null },
-            workNextPlacementArmedByPlayer: { black: false, white: false }
+            workNextPlacementArmedByPlayer: { black: false, white: false },
+
+            // Breeding runtime state
+            // - frontier: next breeding origins per anchor id
+            // - sprout: one-turn visual tags for stones spawned by breeding
+            breedingFrontierByAnchorId: {},
+            breedingSproutByOwner: { black: [], white: [] },
+            _breedingSproutClearedTokenByOwner: { black: null, white: null }
         };
     }
 
@@ -420,7 +427,29 @@
             extraPlaceRemainingByPlayer: { ...cs.extraPlaceRemainingByPlayer },
             initialDeckSize: Number.isFinite(cs.initialDeckSize) ? cs.initialDeckSize : decks.black.length,
             initialDeckSizeByPlayer,
-            reshuffleRequiresFullCycle: cs.reshuffleRequiresFullCycle !== false
+            reshuffleRequiresFullCycle: cs.reshuffleRequiresFullCycle !== false,
+
+            // Breeding runtime state
+            breedingFrontierByAnchorId: (cs.breedingFrontierByAnchorId && typeof cs.breedingFrontierByAnchorId === 'object')
+                ? Object.fromEntries(Object.entries(cs.breedingFrontierByAnchorId).map(([k, arr]) => [
+                    String(k),
+                    Array.isArray(arr) ? arr.map(p => ({ row: p.row, col: p.col })) : []
+                ]))
+                : {},
+            breedingSproutByOwner: {
+                black: (cs.breedingSproutByOwner && Array.isArray(cs.breedingSproutByOwner.black))
+                    ? cs.breedingSproutByOwner.black.map(p => ({ row: p.row, col: p.col }))
+                    : [],
+                white: (cs.breedingSproutByOwner && Array.isArray(cs.breedingSproutByOwner.white))
+                    ? cs.breedingSproutByOwner.white.map(p => ({ row: p.row, col: p.col }))
+                    : []
+            },
+            _breedingSproutClearedTokenByOwner: (cs._breedingSproutClearedTokenByOwner && typeof cs._breedingSproutClearedTokenByOwner === 'object')
+                ? {
+                    black: cs._breedingSproutClearedTokenByOwner.black || null,
+                    white: cs._breedingSproutClearedTokenByOwner.white || null
+                }
+                : { black: null, white: null }
         };
     }
 
@@ -1373,7 +1402,8 @@
                 tr = rr;
                 tc = cc;
             }
-            options.push({ direction: d, target: { row: tr, col: tc } });
+            const distance = Math.abs(tr - row) + Math.abs(tc - col);
+            options.push({ direction: d, target: { row: tr, col: tc }, distance });
         }
         return options;
     }
@@ -1399,9 +1429,12 @@
         const options = _getStrongWindMoveOptions(gameState, row, col);
         if (!options.length) return { applied: false, reason: 'no_move_options' };
 
+        const maxDistance = options.reduce((m, o) => Math.max(m, Number(o && o.distance) || 0), 0);
+        const bestOptions = options.filter(o => (Number(o && o.distance) || 0) === maxDistance);
         const p = (prng && typeof prng.random === 'function') ? prng : { random: Math.random };
-        const pick = options[Math.floor(p.random() * options.length)];
+        const pick = bestOptions[Math.floor(p.random() * bestOptions.length)];
         const to = pick.target;
+        const movedDistance = Math.abs(to.row - row) + Math.abs(to.col - col);
 
         _moveMarkersForStrongWind(cardState, row, col, to.row, to.col);
 
@@ -1416,8 +1449,15 @@
             gameState.board[to.row][to.col] = val;
         }
 
+        if (!cardState.chargeGainedTotal) cardState.chargeGainedTotal = { black: 0, white: 0 };
+        const gainRes = addChargeValue(cardState, playerKey, movedDistance, 'strong_wind_move_distance');
+        const gained = Number(gainRes && gainRes.delta) || 0;
+        if (gained > 0) {
+            cardState.chargeGainedTotal[playerKey] = (cardState.chargeGainedTotal[playerKey] || 0) + gained;
+        }
+
         cardState.pendingEffectByPlayer[playerKey] = null;
-        return { applied: true, from: { row, col }, to, direction: pick.direction };
+        return { applied: true, from: { row, col }, to, direction: pick.direction, movedDistance, chargeGained: gained };
     }
 
     /**
@@ -1432,6 +1472,22 @@
         cardState.turnCountByPlayer[playerKey]++;
         cardState.turnIndex++;
         cardState.lastTurnStartedFor = playerKey;
+
+        // Breeding sprout visuals are one-turn tags.
+        // Clear the current player's sprout list at turn start even when no breeding anchors remain.
+        if (!cardState.breedingSproutByOwner || typeof cardState.breedingSproutByOwner !== 'object') {
+            cardState.breedingSproutByOwner = { black: [], white: [] };
+        }
+        if (!Array.isArray(cardState.breedingSproutByOwner.black)) cardState.breedingSproutByOwner.black = [];
+        if (!Array.isArray(cardState.breedingSproutByOwner.white)) cardState.breedingSproutByOwner.white = [];
+        if (!cardState._breedingSproutClearedTokenByOwner || typeof cardState._breedingSproutClearedTokenByOwner !== 'object') {
+            cardState._breedingSproutClearedTokenByOwner = { black: null, white: null };
+        }
+        const breedingSproutToken = `${playerKey}:${Number.isFinite(cardState.turnIndex) ? cardState.turnIndex : 0}`;
+        if (cardState._breedingSproutClearedTokenByOwner[playerKey] !== breedingSproutToken) {
+            cardState._breedingSproutClearedTokenByOwner[playerKey] = breedingSproutToken;
+            cardState.breedingSproutByOwner[playerKey] = [];
+        }
 
         // Reset usage flag
         cardState.hasUsedCardThisTurnByPlayer[playerKey] = false;

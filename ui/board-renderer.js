@@ -99,6 +99,7 @@ function renderBoardFull() {
     const specialMap = new Map();
     const guardMap = new Map();
     const bombMap = new Map();
+    const sproutMap = new Map();
     for (const m of markers) {
         if (m.kind === markerKinds.SPECIAL_STONE && m.data && m.data.type) {
             if (_isBoardHiddenTrapForBoardRenderer(m)) continue;
@@ -127,6 +128,23 @@ function renderBoardFull() {
             });
         }
     }
+    try {
+        const sproutByOwner = (cardState && cardState.breedingSproutByOwner && typeof cardState.breedingSproutByOwner === 'object')
+            ? cardState.breedingSproutByOwner
+            : { black: [], white: [] };
+        const addSprout = (ownerKey, positions) => {
+            const ownerVal = ownerKey === 'black' ? BLACK : WHITE;
+            if (!Array.isArray(positions)) return;
+            for (const p of positions) {
+                if (!p || !Number.isInteger(p.row) || !Number.isInteger(p.col)) continue;
+                if (p.row < 0 || p.row >= 8 || p.col < 0 || p.col >= 8) continue;
+                if (gameState.board[p.row][p.col] !== ownerVal) continue;
+                sproutMap.set(`${p.row},${p.col}`, true);
+            }
+        };
+        addSprout('black', sproutByOwner.black);
+        addSprout('white', sproutByOwner.white);
+    } catch (e) { /* ignore */ }
 
     // Helper for effect key mapping: delegate to canonical visual-effects map.
     const getEffectKeyForType = (type) => {
@@ -231,6 +249,12 @@ function renderBoardFull() {
                     guardTimer.className = 'guard-timer';
                     guardTimer.textContent = Math.max(0, guardData.remainingOwnerTurns);
                     disc.appendChild(guardTimer);
+                }
+                if (sproutMap.has(key)) {
+                    disc.classList.add('breeding-sprout');
+                    const sproutIcon = document.createElement('div');
+                    sproutIcon.className = 'breeding-sprout-icon';
+                    disc.appendChild(sproutIcon);
                 }
 
                 cell.appendChild(disc);

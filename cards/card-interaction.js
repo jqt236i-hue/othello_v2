@@ -103,6 +103,17 @@ function _clearHeavenSelection(playerKey) {
     _heavenSelectionByPlayer[playerKey] = null;
 }
 
+function _findCardElementInOwnerHand(cardId, ownerKey) {
+    if (!cardId || typeof document === 'undefined') return null;
+    const handId = ownerKey === 'white' ? 'hand-white' : 'hand-black';
+    const handEl = document.getElementById(handId);
+    if (!handEl) return null;
+    const candidates = Array.from(handEl.querySelectorAll(`.card-item[data-card-id="${cardId}"]`));
+    if (!candidates.length) return null;
+    const visible = candidates.find((el) => !el.classList.contains('hidden'));
+    return visible || candidates[0];
+}
+
 function _ensureHeavenOverlay() {
     if (typeof document === 'undefined') return null;
     if (_heavenOverlayRefs && _heavenOverlayRefs.root && _heavenOverlayRefs.root.isConnected) {
@@ -708,13 +719,12 @@ function useSelectedCard() {
         addLog(`布石不足: ${cardDef ? cardDef.name : cardId} (必要: ${cost}, 所持: ${cardState.charge[playerKey] || 0})`);
         return;
     }
-    const usedCardEl = document.querySelector(`[data-card-id="${cardId}"]`);
-
     // Determine ownerKey (actual hand holding the card)
     let ownerKey = playerKey;
     if (isDebugHvH && !cardState.hands[playerKey].includes(cardId)) {
         ownerKey = playerKey === 'black' ? 'white' : 'black';
     }
+    const usedCardEl = _findCardElementInOwnerHand(cardId, ownerKey);
     const debugOptions = isDebugUnlimited ? { ignoreCost: true, noConsume: true } : null;
     const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
         ? ActionManager.ActionManager.createAction('use_card', playerKey, { useCardId: cardId, useCardOwnerKey: ownerKey, debugOptions })

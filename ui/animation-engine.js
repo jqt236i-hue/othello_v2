@@ -761,19 +761,53 @@
             }
 
             // Timer handling
-            const existingTimer = disc.querySelector('.stone-timer');
-            if (state.timer != null && state.timer > 0) {
-                if (!existingTimer) {
-                    const timer = document.createElement('div');
-                    timer.className = 'stone-timer bomb-timer'; // reuse class for now
-                    timer.textContent = state.timer;
-                    disc.appendChild(timer);
-                } else {
-                    existingTimer.textContent = state.timer;
-                }
-            } else if (existingTimer) {
-                existingTimer.remove();
+            // Keep only one timer element and align class with the special type so guard timer
+            // does not accidentally render as a second bomb-style count.
+            const timerClasses = [
+                'stone-timer',
+                'bomb-timer',
+                'special-timer',
+                'dragon-timer',
+                'udg-timer',
+                'breeding-timer',
+                'work-timer',
+                'guard-timer'
+            ];
+            const allTimerSelector = '.stone-timer, .bomb-timer, .special-timer, .dragon-timer, .udg-timer, .breeding-timer, .work-timer, .guard-timer';
+            const existingTimers = Array.from(disc.querySelectorAll(allTimerSelector));
+            if (!(state.timer != null && state.timer > 0)) {
+                existingTimers.forEach((el) => el.remove());
+                return;
             }
+
+            const specialType = String(state.special || '').toUpperCase();
+            let desiredClass = 'stone-timer special-timer';
+            if (specialType === 'TIME_BOMB') desiredClass = 'stone-timer bomb-timer';
+            else if (specialType === 'GUARD') desiredClass = 'guard-timer';
+            else if (specialType === 'DRAGON') desiredClass = 'stone-timer dragon-timer';
+            else if (specialType === 'ULTIMATE_DESTROY_GOD') desiredClass = 'stone-timer udg-timer';
+            else if (specialType === 'BREEDING') desiredClass = 'stone-timer breeding-timer';
+            else if (specialType === 'WORK') desiredClass = 'stone-timer work-timer';
+
+            let timerEl = null;
+            for (const el of existingTimers) {
+                const isDesired = desiredClass.split(' ').every((cls) => el.classList.contains(cls));
+                if (!timerEl && isDesired) {
+                    timerEl = el;
+                    continue;
+                }
+                el.remove();
+            }
+
+            if (!timerEl) {
+                timerEl = document.createElement('div');
+                timerEl.className = desiredClass;
+                disc.appendChild(timerEl);
+            } else {
+                timerClasses.forEach((cls) => timerEl.classList.remove(cls));
+                desiredClass.split(' ').forEach((cls) => timerEl.classList.add(cls));
+            }
+            timerEl.textContent = state.timer;
         }
 
         applyFinalStates(ev) {

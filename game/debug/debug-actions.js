@@ -140,8 +140,8 @@
         // Row 7: Ultimate destroy god
         gameState.board[7][0] = black;
         gameState.board[7][1] = white;
-        addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', 7, 0, 'black', { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 3 });
-        addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', 7, 1, 'white', { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 3 });
+        addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', 7, 0, 'black', { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 });
+        addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', 7, 1, 'white', { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 });
 
         return true;
     }

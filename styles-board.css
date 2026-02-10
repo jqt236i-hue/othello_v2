@@ -794,6 +794,51 @@ html.stone-images-loaded .disc.white::after {
     pointer-events: none;
 }
 
+/* Breeding propagation: freshly generated stones are shown as "sprouts" for one turn. */
+.disc.breeding-sprout {
+    width: 86%;
+    height: 86%;
+    top: 7%;
+    left: 7%;
+}
+
+/* Simple sprout icon (stem + 2 leaves) shown inside spawned breeding stones. */
+.breeding-sprout-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 3.2%;
+    height: 14%;
+    transform: translateX(-50%);
+    border-radius: 2px;
+    background: #6fda2f;
+    pointer-events: none;
+    z-index: 73;
+}
+
+.breeding-sprout-icon::before,
+.breeding-sprout-icon::after {
+    content: "";
+    position: absolute;
+    top: -40%;
+    width: 230%;
+    height: 62%;
+    background: #6fda2f;
+    border-radius: 90% 16% 90% 16%;
+}
+
+.breeding-sprout-icon::before {
+    right: 50%;
+    transform-origin: 100% 85%;
+    transform: rotate(-24deg);
+}
+
+.breeding-sprout-icon::after {
+    left: 50%;
+    transform-origin: 0% 85%;
+    transform: rotate(24deg) scaleX(-1);
+}
+
 .stone-info-panel.visible {
     display: block;
 }

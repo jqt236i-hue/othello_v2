@@ -14,6 +14,7 @@
  * @property {string|null} permaOwner - 永久保護の所有者 ('black'|'white'|null)
  * @property {Object|null} bomb - 爆弾情報 {remainingTurns: number}
  * @property {Object|null} dragon - 龍情報 {owner: number, remainingOwnerTurns: number}
+ * @property {boolean} breedingSprout - 繁殖生成の1ターン草表示
  */
 
 /**
@@ -408,6 +409,7 @@ function buildCurrentCellState() {
     const specialMap = new Map();
     const guardMap = new Map();
     const bombMap = new Map();
+    const sproutMap = new Map();
     for (const m of markers) {
         if (m.kind === markerKinds.SPECIAL_STONE && m.data && m.data.type) {
             if (_isBoardHiddenTrap(m)) continue;
@@ -436,6 +438,23 @@ function buildCurrentCellState() {
             });
         }
     }
+    try {
+        const sproutByOwner = (cardState && cardState.breedingSproutByOwner && typeof cardState.breedingSproutByOwner === 'object')
+            ? cardState.breedingSproutByOwner
+            : { black: [], white: [] };
+        const addSprout = (ownerKey, positions) => {
+            const ownerVal = ownerKey === 'black' ? BLACK : WHITE;
+            if (!Array.isArray(positions)) return;
+            for (const p of positions) {
+                if (!p || !Number.isInteger(p.row) || !Number.isInteger(p.col)) continue;
+                if (p.row < 0 || p.row >= 8 || p.col < 0 || p.col >= 8) continue;
+                if (gameState.board[p.row][p.col] !== ownerVal) continue;
+                sproutMap.set(`${p.row},${p.col}`, true);
+            }
+        };
+        addSprout('black', sproutByOwner.black);
+        addSprout('white', sproutByOwner.white);
+    } catch (e) { /* ignore */ }
 
     const state = [];
     for (let r = 0; r < 8; r++) {
@@ -463,6 +482,7 @@ function buildCurrentCellState() {
                 isLegal: isLegal && !isLegalFree,
                 isLegalFree,
                 isSelectableFriendly,
+                breedingSprout: (val !== EMPTY) && sproutMap.has(key),
                 // Unified special stone field
                 special: special ? {
                     type: special.type,
@@ -493,6 +513,7 @@ function cellStatesEqual(a, b) {
     if (a.isLegal !== b.isLegal) return false;
     if (a.isLegalFree !== b.isLegalFree) return false;
     if (a.isSelectableFriendly !== b.isSelectableFriendly) return false;
+    if (!!a.breedingSprout !== !!b.breedingSprout) return false;
 
     // Compare unified special stone
     if ((a.special === null) !== (b.special === null)) return false;
@@ -647,6 +668,13 @@ function updateCellDOM(cell, state, row, col, prevState) {
             guardTimer.className = 'guard-timer';
             guardTimer.textContent = Math.max(0, state.guard.remainingOwnerTurns);
             disc.appendChild(guardTimer);
+        }
+
+        if (state.breedingSprout) {
+            disc.classList.add('breeding-sprout');
+            const sproutIcon = document.createElement('div');
+            sproutIcon.className = 'breeding-sprout-icon';
+            disc.appendChild(sproutIcon);
         }
 
         cell.appendChild(disc);
