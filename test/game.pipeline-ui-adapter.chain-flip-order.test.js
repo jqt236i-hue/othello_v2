@@ -47,4 +47,22 @@ describe('pipeline_ui_adapter chain flip ordering', () => {
     expect(out[1].phase).toBeGreaterThan(out[0].phase);
     expect(out[2].phase).toBe(out[1].phase);
   });
+
+  test('separates chain link 1 and chain link 2 into different phases', () => {
+    const pres = [
+      { type: 'CHANGE', row: 3, col: 3, ownerBefore: 'white', ownerAfter: 'black', cause: 'SYSTEM', reason: 'standard_flip' },
+      { type: 'CHANGE', row: 4, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'CHAIN_WILL', reason: 'chain_flip', meta: { chainLink: 1 } },
+      { type: 'CHANGE', row: 5, col: 5, ownerBefore: 'white', ownerAfter: 'black', cause: 'CHAIN_WILL', reason: 'chain_flip', meta: { chainLink: 2 } }
+    ];
+
+    const out = adapter.mapToPlaybackEvents(
+      pres,
+      { markers: [] },
+      { board: Array(8).fill(null).map(() => Array(8).fill(0)) }
+    );
+
+    expect(out).toHaveLength(3);
+    expect(out[1].phase).toBeGreaterThan(out[0].phase);
+    expect(out[2].phase).toBeGreaterThan(out[1].phase);
+  });
 });

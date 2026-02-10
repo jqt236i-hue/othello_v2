@@ -54,4 +54,28 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
     expect(disc.classList.contains('flip')).toBe(false);
     expect(window.__suppressNextDiffFlip).not.toBe(true);
   });
+
+  test('does not apply fallback .flip while PLAYBACK_EVENTS are pending', () => {
+    const diff = require('../ui/diff-renderer');
+
+    gameState.board[0][0] = BLACK;
+    diff.forceFullRender(boardEl);
+
+    gameState.board[0][0] = WHITE;
+    cardState._presentationEventsPersist = [
+      {
+        type: 'PLAYBACK_EVENTS',
+        events: [{ type: 'flip', phase: 1, targets: [{ r: 0, col: 0, ownerBefore: 'black', ownerAfter: 'white' }] }]
+      }
+    ];
+
+    diff.renderBoardDiff(boardEl);
+
+    const cell = document.querySelector('.cell[data-row="0"][data-col="0"]');
+    expect(cell).toBeTruthy();
+    const disc = cell.querySelector('.disc');
+    expect(disc).toBeTruthy();
+    expect(disc.classList.contains('white')).toBe(true);
+    expect(disc.classList.contains('flip')).toBe(false);
+  });
 });

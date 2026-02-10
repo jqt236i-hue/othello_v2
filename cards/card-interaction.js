@@ -566,6 +566,7 @@ function updateCardDetailPanel() {
             pending.type === 'INHERIT_WILL' ||
             pending.type === 'TRAP_WILL' ||
             pending.type === 'GUARD_WILL' ||
+            pending.type === 'TIME_BOMB' ||
             pending.type === 'SACRIFICE_WILL' ||
             pending.type === 'SELL_CARD_WILL'
         );
@@ -597,6 +598,8 @@ function updateCardDetailPanel() {
             reasonEl.textContent = '罠石にする自分の石を選んでください';
         } else if (pending.type === 'GUARD_WILL') {
             reasonEl.textContent = '守る石にする自分の石を選んでください';
+        } else if (pending.type === 'TIME_BOMB') {
+            reasonEl.textContent = '時限爆弾にする自分の石を選んでください';
         } else if (pending.type === 'SELL_CARD_WILL') {
             reasonEl.textContent = selectedSellCardId
                 ? '売却対象を選択済みです。売却ボタンで確定してください'

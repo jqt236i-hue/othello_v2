@@ -15,6 +15,7 @@ const LOG_MESSAGES = {
     timeBombPlaced: (ownerName) => `⏱️ ${ownerName}: 時限爆弾を設置（6→5...）`,
     dragonPlaced: (ownerName) => `🐉 ${ownerName}: 究極反転龍を配置`,
     udgPlaced: (ownerName) => `💥 ${ownerName}: 究極破壊神を配置`,
+    ultimateHyperactivePlaced: (ownerName) => `${ownerName}: 究極多動神を配置`,
     hyperactivePlaced: (ownerName) => `${ownerName}: 多動の意志を配置`,
 
     doublePlaceActivated: () => '二連投石発動：このターンもう1回置ける',
@@ -44,6 +45,9 @@ const LOG_MESSAGES = {
     udgDestroyedImmediate: (playerName, count) => `💥 ${playerName}の究極破壊神が即時に周囲${count}個の石を破壊！`,
     hyperactiveMoved: (count) => `多動の意志が${count}回移動`,
     hyperactiveDestroyed: (count) => `多動の意志が${count}個消滅`,
+    ultimateHyperactiveMoved: (count) => `究極多動神が${count}回移動`,
+    ultimateHyperactiveDestroyed: (count) => `究極多動神が${count}個消滅`,
+    ultimateHyperactiveBlown: (count) => `究極多動神が${count}個の石を吹き飛ばした`,
     hyperactiveMovedImmediate: () => '多動の意志が即時に移動',
     hyperactiveDestroyedImmediate: () => '多動の意志が即時に消滅'
 };

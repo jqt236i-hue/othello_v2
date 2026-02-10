@@ -24,17 +24,34 @@
         return globalScope.MarkersAdapter || null;
     })();
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
+    const CardUtilsModule = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('../logic/cards/utils');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.CardUtils || null;
+    })();
 
     function addChargeWithTotal(cardState, playerKey, amount) {
         if (!cardState || !amount) return 0;
         if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
         if (!cardState.chargeGainedTotal) cardState.chargeGainedTotal = { black: 0, white: 0 };
-
-        const before = cardState.charge[playerKey] || 0;
-        const after = Math.min(30, before + amount);
-        const added = after - before;
-
-        cardState.charge[playerKey] = after;
+        const deltaRes = (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function')
+            ? CardUtilsModule.addChargeWithDelta(cardState, playerKey, amount, 'turn_start_effect')
+            : null;
+        let added = deltaRes ? (Number(deltaRes.delta) || 0) : 0;
+        if (!deltaRes) {
+            const before = cardState.charge[playerKey] || 0;
+            const after = Math.min(30, before + amount);
+            cardState.charge[playerKey] = after;
+            added = after - before;
+        }
         if (added > 0) {
             cardState.chargeGainedTotal[playerKey] = (cardState.chargeGainedTotal[playerKey] || 0) + added;
         }
@@ -150,6 +167,21 @@
                             hyperAggregated.flippedByOwner[ownerKey].push(...res.flipped);
                             // Rule: flip count grants charge to the effect owner (clamped to 30).
                             addChargeWithTotal(cardState, ownerKey, res.flipped.length);
+                        }
+                    } else if (t === 'ULTIMATE_HYPERACTIVE') {
+                        const ownerKey = owner;
+                        const res = CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, ownerKey, row, col, p);
+                        if (res && res.moved && res.moved.length) {
+                            events.push({ type: 'ultimate_hyperactive_moved_start', details: res.moved });
+                        }
+                        if (res && res.blown && res.blown.length) {
+                            events.push({ type: 'ultimate_hyperactive_blown_start', details: res.blown });
+                        }
+                        if (res && res.destroyed && res.destroyed.length) {
+                            events.push({ type: 'ultimate_hyperactive_destroyed_start', details: res.destroyed });
+                        }
+                        if (res && Number(res.chargeGain) > 0) {
+                            addChargeWithTotal(cardState, ownerKey, Number(res.chargeGain));
                         }
                     }
                 }
@@ -486,6 +518,19 @@
             } else if (pending && pending.type === 'GUARD_WILL' && action.guardTarget == null) {
                 throw new Error('GUARD_WILL requires guardTarget before placement');
             }
+            if (pending && pending.type === 'TIME_BOMB' && action.bombTarget) {
+                const res = CardLogic.applyTimeBombWill(
+                    cardState,
+                    gameState,
+                    playerKey,
+                    action.bombTarget.row,
+                    action.bombTarget.col
+                );
+                events.push({ type: 'time_bomb_selected', player: playerKey, target: action.bombTarget, applied: !!(res && res.applied) });
+                return;
+            } else if (pending && pending.type === 'TIME_BOMB' && action.bombTarget == null) {
+                throw new Error('TIME_BOMB requires bombTarget before placement');
+            }
 
             // Determine flips using a safe context helper when possible
             const ctx = resolveSafeCardContext(CardLogic, cardState);
@@ -635,6 +680,10 @@
             // hyperactive moves only occur at turn-start processing (consistent and deterministic).
             if (effects && effects.hyperactivePlaced) {
                 if (typeof console !== 'undefined' && console.log) console.log('[TurnPipeline] hyperactivePlaced detected on placement — immediate activation suppressed by spec');
+            }
+            // ULTIMATE_HYPERACTIVE_GOD also starts from turn-start processing only.
+            if (effects && effects.ultimateHyperactivePlaced) {
+                if (typeof console !== 'undefined' && console.log) console.log('[TurnPipeline] ultimateHyperactivePlaced detected on placement — immediate activation suppressed by spec');
             }
 
             if (typeof CardLogic.processTrapEffects === 'function') {

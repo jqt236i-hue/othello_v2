@@ -53,7 +53,7 @@ describe('TRAP_WILL (罠の意志)', () => {
     cardState.charge.white = 12;
     cardState.hands.black = ['b1', 'b2', 'b3', 'b4'];
     cardState.hands.white = ['w1', 'w2', 'w3', 'w4'];
-    cardState.deck = ['d0'];
+    cardState.decks.black = ['d0'];
 
     const res = CardLogic.processTrapEffects(cardState, gameState, 'white', { expireOnOwnerTurnStart: false });
     expect(res.triggered.length).toBe(1);
@@ -64,7 +64,7 @@ describe('TRAP_WILL (罠の意志)', () => {
     expect(cardState.charge.black).toBe(17);
     expect(cardState.hands.black).toEqual(['b1', 'b2', 'b3', 'b4', 'w1']);
     expect(cardState.hands.white).toEqual(['w4']);
-    expect(cardState.deck).toEqual(['d0', 'w2', 'w3']);
+    expect(cardState.decks.black).toEqual(['d0', 'w2', 'w3']);
 
     const remainingTrap = (cardState.markers || []).find(m => m && m.data && m.data.type === 'TRAP');
     expect(remainingTrap).toBeUndefined();

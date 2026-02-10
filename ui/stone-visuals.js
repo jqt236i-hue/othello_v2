@@ -233,15 +233,28 @@ function applyPendingSpecialstoneVisual(move, pendingType) {
 var _chargeDeltaTimers = { black: null, white: null };
 var _chargeDeltaClearTimers = { black: null, white: null };
 var _chargeDeltaSeq = { black: 0, white: 0 };
+var _chargeDeltaQueue = { black: [], white: [] };
+var _chargeDeltaRunning = { black: false, white: false };
 
-function showChargeDelta(playerKey, delta) {
-    if (!Number.isFinite(delta) || delta === 0) return;
+function _playNextChargeDelta(key) {
     if (typeof document === 'undefined') return;
+    if (_chargeDeltaRunning[key]) return;
+    var queue = _chargeDeltaQueue[key] || [];
+    if (!queue.length) return;
 
-    var key = (playerKey === 'white' || playerKey === WHITE || playerKey === -1) ? 'white' : 'black';
+    var delta = queue.shift();
+    if (!Number.isFinite(delta) || delta === 0) {
+        _playNextChargeDelta(key);
+        return;
+    }
+
+    _chargeDeltaRunning[key] = true;
     var elId = (key === 'black') ? 'charge-delta-black' : 'charge-delta-white';
     var el = document.getElementById(elId);
-    if (!el) return;
+    if (!el) {
+        _chargeDeltaRunning[key] = false;
+        return;
+    }
 
     var sign = delta > 0 ? '+' : '';
     el.textContent = '布石' + sign + delta;
@@ -255,8 +268,6 @@ function showChargeDelta(playerKey, delta) {
     var seq = (_chargeDeltaSeq[key] || 0) + 1;
     _chargeDeltaSeq[key] = seq;
 
-    // Re-trigger entrance animation even when the same text is shown repeatedly.
-    // Force-reset to the start pose first, then re-show on the next frame.
     el.classList.remove('is-visible', 'is-fadeout', 'is-restart');
     el.classList.add('is-restart');
     void el.offsetWidth;
@@ -273,6 +284,8 @@ function showChargeDelta(playerKey, delta) {
                 if ((_chargeDeltaSeq[key] || 0) !== seq) return;
                 el.textContent = '';
                 el.classList.remove('is-fadeout');
+                _chargeDeltaRunning[key] = false;
+                _playNextChargeDelta(key);
             }, 500);
         }, 4000);
     };
@@ -285,6 +298,16 @@ function showChargeDelta(playerKey, delta) {
     } catch (e) {
         timer.setTimeout(startShow, 16);
     }
+}
+
+function showChargeDelta(playerKey, delta) {
+    if (!Number.isFinite(delta) || delta === 0) return;
+    if (typeof document === 'undefined') return;
+
+    var key = (playerKey === 'white' || playerKey === WHITE || playerKey === -1) ? 'white' : 'black';
+    if (!_chargeDeltaQueue[key]) _chargeDeltaQueue[key] = [];
+    _chargeDeltaQueue[key].push(delta);
+    _playNextChargeDelta(key);
 }
 if (typeof window !== 'undefined') {
     // Expose helpers to legacy consumers

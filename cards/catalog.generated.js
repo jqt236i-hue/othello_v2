@@ -79,7 +79,7 @@ window.CardCatalog = {
       "name_ja": "連鎖の意志",
       "type": "CHAIN_WILL",
       "cost": 22,
-      "desc_ja": "この手で起きた通常反転を起点に、追加反転を1方向だけ行う。"
+      "desc_ja": "この手で起きた通常反転を起点に、追加反転を最大2回まで行う。"
     },
     {
       "id": "regen_01",
@@ -100,7 +100,7 @@ window.CardCatalog = {
       "name_ja": "時限爆弾",
       "type": "TIME_BOMB",
       "cost": 13,
-      "desc_ja": "次に置く石を時限爆弾化。3ターン後に周囲9マスを破壊。反転されると解除。"
+      "desc_ja": "盤面上の自分の石1つを時限爆弾化。3ターン後に周囲9マスを破壊。反転されると解除。"
     },
     {
       "id": "udr_01",
@@ -155,7 +155,7 @@ window.CardCatalog = {
       "id": "double_01",
       "name_ja": "二連投石",
       "type": "DOUBLE_PLACE",
-      "cost": 27,
+      "cost": 24,
       "desc_ja": "このターンは石を2回置ける。"
     },
     {
@@ -206,6 +206,13 @@ window.CardCatalog = {
       "type": "ULTIMATE_DESTROY_GOD",
       "cost": 25,
       "desc_ja": "次に置く石を破壊神化。置いた時と自ターン開始時に周囲8マスの敵石を破壊。3ターン持続。"
+    },
+    {
+      "id": "ultimate_hyperactive_01",
+      "name_ja": "究極多動神",
+      "type": "ULTIMATE_HYPERACTIVE_GOD",
+      "cost": 28,
+      "desc_ja": "次に置く石を究極多動神化。両者ターン開始時に1マス移動を2回行い、着地隣接の敵石を最大2マス吹き飛ばす。成功1回ごとに布石+2。"
     }
   ]
 };

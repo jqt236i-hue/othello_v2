@@ -37,6 +37,18 @@ var AnimationShared = (typeof require === 'function') ? require('./animation-hel
 // AnimationEngine already animates flip events; DiffRenderer is used to sync final DOM state after playback.
 let suppressFallbackFlipThisRender = false;
 
+function _hasPendingPlaybackEvents() {
+    try {
+        if (typeof cardState === 'undefined' || !cardState) return false;
+        const pending = [];
+        if (Array.isArray(cardState.presentationEvents)) pending.push(...cardState.presentationEvents);
+        if (Array.isArray(cardState._presentationEventsPersist)) pending.push(...cardState._presentationEventsPersist);
+        return pending.some(ev => ev && ev.type === 'PLAYBACK_EVENTS');
+    } catch (e) {
+        return false;
+    }
+}
+
 const LONG_PRESS_MS = 420;
 const LONG_PRESS_MOVE_CANCEL_PX = 8;
 
@@ -71,6 +83,10 @@ const SPECIAL_STONE_INFO = {
     HYPERACTIVE: {
         name: '多動石',
         desc: 'ターン開始時にランダム方向1マスに移動。'
+    },
+    ULTIMATE_HYPERACTIVE: {
+        name: '究極多動神',
+        desc: 'ターン開始時に1マス移動を2回行い、隣接敵石を吹き飛ばす。'
     },
     REGEN: {
         name: '復活石',
@@ -695,7 +711,7 @@ function renderBoardDiff(boardEl) {
 
     // One-shot suppression set by AnimationEngine at the end of playback.
     // This prevents DiffRenderer from replaying the fallback ".flip" when syncing the final board state.
-    suppressFallbackFlipThisRender = (typeof window !== 'undefined' && window.__suppressNextDiffFlip === true);
+    suppressFallbackFlipThisRender = (typeof window !== 'undefined' && window.__suppressNextDiffFlip === true) || _hasPendingPlaybackEvents();
     if (suppressFallbackFlipThisRender) {
         try { window.__suppressNextDiffFlip = false; } catch (e) { /* ignore */ }
     }

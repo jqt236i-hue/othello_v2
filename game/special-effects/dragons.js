@@ -11,6 +11,8 @@ try { timers = (typeof require === 'function') ? require('../timers') : timers; 
 var waitMs = (ms) => (timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve());
 var BoardOpsModule = null;
 try { BoardOpsModule = (typeof require === 'function') ? require('../logic/board_ops') : (typeof BoardOps !== 'undefined' ? BoardOps : null); } catch (e) { BoardOpsModule = BoardOpsModule || null; }
+var CardUtilsModule = null;
+try { CardUtilsModule = (typeof require === 'function') ? require('../logic/cards/utils') : (typeof CardUtils !== 'undefined' ? CardUtils : null); } catch (e) { CardUtilsModule = CardUtilsModule || null; }
 var BoardPresentation = null;
 if (typeof require === 'function') {
     try { BoardPresentation = require('../logic/presentation'); } catch (e) { /* ignore */ }
@@ -239,7 +241,11 @@ async function processUltimateReverseDragonImmediateAtPlacement(player, row, col
     regenRes = result.regen || result.regenRes || regenRes;
 
     if (result.converted && result.converted.length > 0) {
-        cardState.charge[playerKey] = Math.min(30, cardState.charge[playerKey] + result.converted.length);
+        if (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function') {
+            CardUtilsModule.addChargeWithDelta(cardState, playerKey, result.converted.length, 'dragon_immediate_convert');
+        } else {
+            cardState.charge[playerKey] = Math.min(30, cardState.charge[playerKey] + result.converted.length);
+        }
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.dragonConvertedImmediate(getPlayerName(player), result.converted.length));
     }
 

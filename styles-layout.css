@@ -215,6 +215,12 @@
     position: relative;
 }
 
+/* Opponent UI micro-offset: move only top deck/hand slightly closer to board. */
+.player-area-top {
+    top: 12px;
+    margin-bottom: -2px;
+}
+
 #hand-white {
     margin-bottom: 10px;
 }

@@ -52,6 +52,12 @@
         return reason === 'chain_flip' || cause === 'CHAIN_WILL';
     }
 
+    function getChainFlipLink(ev) {
+        if (!ev || !ev.meta || !Number.isFinite(ev.meta.chainLink)) return 1;
+        const link = Number(ev.meta.chainLink);
+        return link >= 1 ? link : 1;
+    }
+
     /**
      * Helper to get visual state of a cell from game/card state.
      */
@@ -98,6 +104,7 @@
         const playbackEvents = [];
         let currentPhase = 1;
         let prevWasChainFlip = false;
+        let prevChainFlipLink = null;
         let prevDestroyCause = null;
 
         for (const ev of presEvents || []) {
@@ -115,6 +122,7 @@
             switch (ev.type) {
                 case 'SPAWN':
                     prevWasChainFlip = false;
+                    prevChainFlipLink = null;
                     prevDestroyCause = null;
                     pEvent.type = 'spawn';
                     pEvent.targets = [{
@@ -128,6 +136,7 @@
                     break;
                 case 'DESTROY':
                     prevWasChainFlip = false;
+                    prevChainFlipLink = null;
                     pEvent.type = 'destroy';
                     pEvent.targets = [{ r: ev.row, col: ev.col, stoneId: ev.stoneId, ownerBefore: ev.ownerBefore }];
                     // For area-destroy effects, keep all destroys in the same phase so UI can animate simultaneously.
@@ -155,8 +164,10 @@
                         cause: ev.cause || null,
                         reason: ev.reason || null
                     }];
-                    if (isChainFlipPresentationEvent(ev) && !prevWasChainFlip) {
-                        // 7.1 CHAIN_WILL: primary flips (batch) -> gap -> chain flips (batch)
+                    const isChainFlip = isChainFlipPresentationEvent(ev);
+                    const chainFlipLink = isChainFlip ? getChainFlipLink(ev) : null;
+                    if (isChainFlip && (!prevWasChainFlip || prevChainFlipLink !== chainFlipLink)) {
+                        // CHAIN_WILL: primary flips -> chain link 1 -> chain link 2 ...
                         currentPhase++;
                         pEvent.phase = currentPhase;
                     }
@@ -166,10 +177,12 @@
                         currentPhase++;
                         pEvent.phase = currentPhase;
                     }
-                    prevWasChainFlip = isChainFlipPresentationEvent(ev);
+                    prevWasChainFlip = isChainFlip;
+                    prevChainFlipLink = isChainFlip ? chainFlipLink : null;
                     break;
                 case 'MOVE':
                     prevWasChainFlip = false;
+                    prevChainFlipLink = null;
                     prevDestroyCause = null;
                     pEvent.type = 'move';
                     pEvent.targets = [{ from: { r: ev.prevRow, col: ev.prevCol }, to: { r: ev.row, col: ev.col }, stoneId: ev.stoneId }];
@@ -178,18 +191,21 @@
                     break;
                 case 'STATUS_APPLIED':
                     prevWasChainFlip = false;
+                    prevChainFlipLink = null;
                     prevDestroyCause = null;
                     pEvent.type = 'status_applied';
                     pEvent.targets = [{ r: ev.row, col: ev.col }];
                     break;
                 case 'STATUS_TICK':
                     prevWasChainFlip = false;
+                    prevChainFlipLink = null;
                     prevDestroyCause = null;
                     pEvent.type = 'status_applied';
                     pEvent.targets = [{ r: ev.row, col: ev.col }];
                     break;
                 case 'STATUS_REMOVED':
                     prevWasChainFlip = false;
+                    prevChainFlipLink = null;
                     prevDestroyCause = null;
                     pEvent.type = 'status_removed';
                     pEvent.targets = [{ r: ev.row, col: ev.col }];
@@ -200,6 +216,7 @@
                     break;
                 case 'DRAW_CARD':
                     prevWasChainFlip = false;
+                    prevChainFlipLink = null;
                     prevDestroyCause = null;
                     pEvent.type = 'hand_add';
                     pEvent.targets = [{
@@ -213,6 +230,7 @@
                     break;
                 case 'CARD_USED':
                     prevWasChainFlip = false;
+                    prevChainFlipLink = null;
                     prevDestroyCause = null;
                     pEvent.type = 'card_use_animation';
                     pEvent.targets = [{
@@ -231,6 +249,7 @@
                     // keep playback resilient by ignoring silently in player-facing logs.
                     pEvent.type = null;
                     prevWasChainFlip = false;
+                    prevChainFlipLink = null;
                     prevDestroyCause = null;
                     continue;
             }
@@ -310,6 +329,7 @@
         if (s === 'DRAGON') return '究極反転龍';
         if (s === 'ULTIMATE_DESTROY_GOD') return '究極破壊神';
         if (s === 'HYPERACTIVE') return '多動石';
+        if (s === 'ULTIMATE_HYPERACTIVE') return '究極多動神';
         if (s === 'REGEN') return '復活石';
         if (s === 'WORK') return '労働石';
         if (s === 'PROTECTED') return '反転保護';
@@ -403,6 +423,18 @@
                 case 'hyperactive_flipped_immediate':
                     push(`多動石: ${_detailCount(ev)}枚を反転`);
                     break;
+                case 'ultimate_hyperactive_moved_start':
+                case 'ultimate_hyperactive_moved_immediate':
+                    push(`究極多動神: ${_detailCount(ev)}回移動`);
+                    break;
+                case 'ultimate_hyperactive_destroyed_start':
+                case 'ultimate_hyperactive_destroyed_immediate':
+                    push(`究極多動神: ${_detailCount(ev)}個が消滅`);
+                    break;
+                case 'ultimate_hyperactive_blown_start':
+                case 'ultimate_hyperactive_blown_immediate':
+                    push(`究極多動神: ${_detailCount(ev)}個を吹き飛ばし`);
+                    break;
                 case 'regen_triggered_start':
                 case 'regen_triggered':
                     push(`復活石: ${_detailCount(ev)}個が再生`);
@@ -452,6 +484,9 @@
                 case 'guard_selected':
                     if (ev.applied) push('守る意志で完全保護を付与');
                     break;
+                case 'time_bomb_selected':
+                    if (ev.applied) push(`時限爆弾を${_toPosText(ev.target)}に設置`);
+                    break;
                 case 'treasure_box_gain':
                     push(`宝箱: 布石+${Number(ev.gained) || 0}`);
                     break;
@@ -481,6 +516,7 @@
                         if (e.bombPlaced) push('時限爆弾を設置');
                         if (e.dragonPlaced) push('究極反転龍を設置');
                         if (e.ultimateDestroyGodPlaced) push('究極破壊神を設置');
+                        if (e.ultimateHyperactivePlaced) push('究極多動神を設置');
                         if (e.hyperactivePlaced) push('多動石を設置');
                         if (e.crossBombExploded) push(`十字爆弾: ${e.crossBombDestroyed || 0}個を破壊`);
                         if (e.plunderAmount > 0) push(`吸収の意志: 布石を${e.plunderAmount}吸収`);

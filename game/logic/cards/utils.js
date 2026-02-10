@@ -63,10 +63,77 @@
         return true;
     }
 
+    function normalizePlayerKey(playerKey) {
+        if (playerKey === 'black' || playerKey === BLACK || playerKey === 1 || playerKey === '1') return 'black';
+        if (playerKey === 'white' || playerKey === WHITE || playerKey === -1 || playerKey === '-1') return 'white';
+        return null;
+    }
+
+    function ensureChargeState(cardState) {
+        if (!cardState) return;
+        if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
+        if (!Array.isArray(cardState.chargeDeltaEvents)) cardState.chargeDeltaEvents = [];
+        if (typeof cardState._nextChargeDeltaSeq !== 'number') cardState._nextChargeDeltaSeq = 1;
+    }
+
+    function enqueueChargeDelta(cardState, playerKey, before, after, reason) {
+        if (!cardState) return;
+        const normalized = normalizePlayerKey(playerKey);
+        if (!normalized) return;
+        const delta = after - before;
+        if (!Number.isFinite(delta) || delta === 0) return;
+        ensureChargeState(cardState);
+        cardState.chargeDeltaEvents.push({
+            seq: cardState._nextChargeDeltaSeq++,
+            player: normalized,
+            delta,
+            before,
+            after,
+            reason: reason || null
+        });
+    }
+
+    function setChargeWithDelta(cardState, playerKey, nextValue, reason) {
+        const normalized = normalizePlayerKey(playerKey);
+        if (!cardState || !normalized) return { changed: false, before: 0, after: 0, delta: 0 };
+
+        ensureChargeState(cardState);
+
+        const beforeRaw = Number(cardState.charge[normalized] || 0);
+        const safeBefore = Number.isFinite(beforeRaw) ? beforeRaw : 0;
+        const requested = Number(nextValue);
+        const safeRequested = Number.isFinite(requested) ? requested : safeBefore;
+        const after = Math.max(0, Math.min(30, safeRequested));
+
+        cardState.charge[normalized] = after;
+        enqueueChargeDelta(cardState, normalized, safeBefore, after, reason);
+
+        return {
+            changed: after !== safeBefore,
+            before: safeBefore,
+            after,
+            delta: after - safeBefore
+        };
+    }
+
+    function addChargeWithDelta(cardState, playerKey, amount, reason) {
+        const normalized = normalizePlayerKey(playerKey);
+        if (!cardState || !normalized) return { changed: false, before: 0, after: 0, delta: 0 };
+        ensureChargeState(cardState);
+        const beforeRaw = Number(cardState.charge[normalized] || 0);
+        const safeBefore = Number.isFinite(beforeRaw) ? beforeRaw : 0;
+        const add = Number(amount);
+        const safeAdd = Number.isFinite(add) ? add : 0;
+        return setChargeWithDelta(cardState, normalized, safeBefore + safeAdd, reason);
+    }
+
     return {
         getSpecialMarkerAt,
         isSpecialStoneAt,
         getSpecialOwnerAt,
-        isNormalStoneForPlayer
+        isNormalStoneForPlayer,
+        normalizePlayerKey,
+        setChargeWithDelta,
+        addChargeWithDelta
     };
 }));

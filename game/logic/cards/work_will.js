@@ -5,11 +5,20 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'));
+        module.exports = factory(
+            require('../../../shared-constants'),
+            (function () {
+                try {
+                    return require('./utils');
+                } catch (e) {
+                    return null;
+                }
+            })()
+        );
     } else {
-        root.CardWork = factory(root.SharedConstants);
+        root.CardWork = factory(root.SharedConstants, root.CardUtils || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardUtils) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
@@ -26,12 +35,16 @@
         if (!cardState || !amount) return 0;
         if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
         if (!cardState.chargeGainedTotal) cardState.chargeGainedTotal = { black: 0, white: 0 };
-
-        const before = cardState.charge[playerKey] || 0;
-        const after = Math.min(30, before + amount);
-        const added = after - before;
-
-        cardState.charge[playerKey] = after;
+        const deltaRes = (CardUtils && typeof CardUtils.addChargeWithDelta === 'function')
+            ? CardUtils.addChargeWithDelta(cardState, playerKey, amount, 'work_income')
+            : null;
+        let added = deltaRes ? (Number(deltaRes.delta) || 0) : 0;
+        if (!deltaRes) {
+            const before = cardState.charge[playerKey] || 0;
+            const after = Math.min(30, before + amount);
+            cardState.charge[playerKey] = after;
+            added = after - before;
+        }
         if (added > 0) {
             cardState.chargeGainedTotal[playerKey] = (cardState.chargeGainedTotal[playerKey] || 0) + added;
         }

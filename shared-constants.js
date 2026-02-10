@@ -114,7 +114,7 @@
         { id: 'inherit_01', name: '意志の継承', type: 'INHERIT_WILL', cost: 12, desc: '盤面上の自分の通常石を1つ選び、強い意志状態にする。' },
         { id: 'trap_01', name: '罠の意志', type: 'TRAP_WILL', cost: 14, desc: '自分の石を1つ罠石にする。次の相手ターン中に反転されると、相手の布石全没収＋手札3枚没収。' },
 
-        { id: 'chain_01', name: '連鎖の意志', type: 'CHAIN_WILL', cost: 22, desc: 'このターンの配置で発生した通常反転を起点に、最大1方向のみ追加反転を行う。' },
+        { id: 'chain_01', name: '連鎖の意志', type: 'CHAIN_WILL', cost: 22, desc: 'このターンの配置で発生した通常反転を起点に、追加反転を最大2回まで行う。' },
 
         { id: 'regen_01', name: '復活の意志', type: 'REGEN_WILL', cost: 15, desc: '次に置いた石は1回だけ再生し、反転されたら元の色に戻る。戻った結果、そのマスを起点に挟める列があれば成立する方向の石を反転する。' },
 
@@ -122,7 +122,7 @@
         { id: 'destroy_01', name: '破壊神', type: 'DESTROY_ONE_STONE', cost: 10, desc: '盤上の石を1つ選び、破壊する。' },
 
         // TIME_BOMB (時限爆弾) - 1 card, cost: 13
-        { id: 'bomb_01', name: '時限爆弾', type: 'TIME_BOMB', cost: 13, desc: 'このカードで置いた石は3ターン後に爆発し、周囲9マスの石を破壊する。反転されると爆弾は解除され通常石になる。' },
+        { id: 'bomb_01', name: '時限爆弾', type: 'TIME_BOMB', cost: 13, desc: '盤面上の自分の石1つを時限爆弾化。3ターン後に周囲9マスを破壊。反転されると解除。' },
 
         // ULTIMATE_REVERSE_DRAGON (究極反転龍) - 1 card, cost: 30
         { id: 'udr_01', name: '究極反転龍', type: 'ULTIMATE_REVERSE_DRAGON', cost: 30, desc: '次に置く石を龍化。配置ターン即時＋自ターン開始時、周囲8マスの相手石を自分色に反転（反転数はチャージ対象）。持続5ターン（配置ターン含め最大6回発動）で消滅。' },
@@ -142,8 +142,8 @@
 
         { id: 'work_01', name: '出稼ぎの意志', type: 'WORK_WILL', cost: 11, desc: '次の配置をアンカーにして、その石がある限り自ターン開始時に1,2,4,8,16の順でチャージを得る（最大30）。石が相手に取られるか破壊されると効果は終了する。' },
 
-        // DOUBLE_PLACE (二連投石) - 1 card, cost: 27
-        { id: 'double_01', name: '二連投石', type: 'DOUBLE_PLACE', cost: 27, desc: 'このターン、石を2回置ける。' },
+        // DOUBLE_PLACE (二連投石) - 1 card, cost: 24
+        { id: 'double_01', name: '二連投石', type: 'DOUBLE_PLACE', cost: 24, desc: 'このターン、石を2回置ける。' },
         // HEAVEN_BLESSING (天の恵み) - 1 card, cost: 3
         { id: 'heaven_01', name: '天の恵み', type: 'HEAVEN_BLESSING', cost: 3, desc: 'ランダムな候補5枚から1枚を選んで獲得する。' },
         // CONDEMN_WILL (断罪の意志) - 1 card, cost: 6
@@ -159,7 +159,10 @@
         { id: 'guard_01', name: '守る意志', type: 'GUARD_WILL', cost: 7, desc: '自分の石1つに完全保護を付与する。3ターン持続。' },
 
         // ULTIMATE_DESTROY_GOD (究極破壊神) - 1 card, cost: 25
-        { id: 'udg_01', name: '究極破壊神', type: 'ULTIMATE_DESTROY_GOD', cost: 25, desc: '次に置く石を究極破壊神化。配置ターン即時＋自ターン開始時、周囲8マスの敵石を破壊。持続3ターン（配置ターン含め最大4回）。' }
+        { id: 'udg_01', name: '究極破壊神', type: 'ULTIMATE_DESTROY_GOD', cost: 25, desc: '次に置く石を究極破壊神化。配置ターン即時＋自ターン開始時、周囲8マスの敵石を破壊。持続3ターン（配置ターン含め最大4回）。' },
+
+        // ULTIMATE_HYPERACTIVE_GOD (究極多動神) - 1 card, cost: 28
+        { id: 'ultimate_hyperactive_01', name: '究極多動神', type: 'ULTIMATE_HYPERACTIVE_GOD', cost: 28, desc: '次に置く石を究極多動神化。両者ターン開始時に1マス移動を2回行い、着地隣接の敵石を最大2マス吹き飛ばす。成功1回ごとに布石+2。' }
     ];
 
     const CARD_DEFS = (catalogCards && catalogCards.length) ? catalogCards : CARD_DEFS_FALLBACK;
@@ -198,6 +201,7 @@
         'STEAL_CARD',
         'GUARD_WILL',
         'ULTIMATE_DESTROY_GOD',
+        'ULTIMATE_HYPERACTIVE_GOD',
         'HYPERACTIVE_WILL',
         'SELL_CARD_WILL'
     ];

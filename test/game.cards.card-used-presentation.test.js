@@ -125,7 +125,7 @@ describe('CardLogic applyCardUsage presentation event', () => {
     cardState.hands.black = [stealDef.id, 'a', 'b', 'c'];
     cardState.hands.white = ['w1', 'w2', 'w3', 'w4', 'w5'];
     cardState.charge.black = Number.isFinite(stealDef.cost) ? stealDef.cost : 0;
-    cardState.deck = ['d1'];
+    cardState.decks.black = ['d1'];
 
     const used = CardLogic.applyCardUsage(cardState, gameState, 'black', stealDef.id);
     expect(used).toBe(true);
@@ -134,7 +134,7 @@ describe('CardLogic applyCardUsage presentation event', () => {
     expect(effects.stolenCount).toBe(3);
     expect(cardState.hands.black).toEqual(['a', 'b', 'c', 'w1', 'w2']);
     expect(cardState.hands.white).toEqual(['w4', 'w5']);
-    expect(cardState.deck).toEqual(['d1', 'w3']);
+    expect(cardState.decks.black).toEqual(['d1', 'w3']);
   });
 
   test('STEAL_CARD over-hand cards are added to own deck, not discarded', () => {
@@ -150,7 +150,7 @@ describe('CardLogic applyCardUsage presentation event', () => {
     cardState.hands.black = [stealDef.id, 'a', 'b', 'c', 'd'];
     cardState.hands.white = ['w1', 'w2', 'w3', 'w4', 'w5'];
     cardState.charge.black = Number.isFinite(stealDef.cost) ? stealDef.cost : 0;
-    cardState.deck = ['d1', 'd2'];
+    cardState.decks.black = ['d1', 'd2'];
     cardState.discard = [];
 
     const used = CardLogic.applyCardUsage(cardState, gameState, 'black', stealDef.id);
@@ -160,7 +160,7 @@ describe('CardLogic applyCardUsage presentation event', () => {
     expect(effects.stolenCount).toBe(5);
     expect(cardState.hands.black).toEqual(['a', 'b', 'c', 'd', 'w1']);
     expect(cardState.hands.white).toEqual([]);
-    expect(cardState.deck).toEqual(['d1', 'd2', 'w2', 'w3', 'w4', 'w5']);
+    expect(cardState.decks.black).toEqual(['d1', 'd2', 'w2', 'w3', 'w4', 'w5']);
     expect(cardState.discard.includes(stealDef.id)).toBe(true);
   });
 });

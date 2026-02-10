@@ -102,6 +102,15 @@ const GAME_STONE_VISUAL_EFFECTS = {
         },
         dataAttributes: {}
     },
+    ultimateHyperactiveGod: {
+        cssClass: 'hyperactive-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/stones/ULTIMATE_HYPERACTIVE_GOD-black.png',
+            '-1': 'assets/images/stones/ULTIMATE_HYPERACTIVE_GOD-white.png'
+        },
+        dataAttributes: {}
+    },
     regenStone: {
         cssClass: 'regen-stone',
         cssMethod: 'pseudoElement',
@@ -158,6 +167,7 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'ULTIMATE_REVERSE_DRAGON': 'ultimateDragon',
     'BREEDING_WILL': 'breedingStone',
     'ULTIMATE_DESTROY_GOD': 'ultimateDestroyGod',
+    'ULTIMATE_HYPERACTIVE_GOD': 'ultimateHyperactiveGod',
     'HYPERACTIVE_WILL': 'hyperactiveStone',
     'REGEN_WILL': 'regenStone',
     'GOLD_STONE': 'goldStone',
@@ -181,6 +191,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'DRAGON': 'ultimateDragon',
     'BREEDING': 'breedingStone',
     'ULTIMATE_DESTROY_GOD': 'ultimateDestroyGod',
+    'ULTIMATE_HYPERACTIVE': 'ultimateHyperactiveGod',
     'HYPERACTIVE': 'hyperactiveStone',
     'REGEN': 'regenStone',
     'GOLD': 'goldStone',

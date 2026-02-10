@@ -37,6 +37,9 @@ function logPlacementEffects(effects, player) {
     if (effects.ultimateDestroyGodPlaced) {
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.udgPlaced(ownerName));
     }
+    if (effects.ultimateHyperactivePlaced) {
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.ultimateHyperactivePlaced(ownerName));
+    }
     if (effects.hyperactivePlaced) {
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.hyperactivePlaced(ownerName));
     }

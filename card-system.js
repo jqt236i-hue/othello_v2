@@ -53,7 +53,9 @@ function initCardState(seed) {
     for (const key in cardState) delete cardState[key];
     Object.assign(cardState, newState);
 
-    console.log('🎴 Deck initialized with', cardState.deck.length, 'cards');
+    const blackDeckCount = (cardState.decks && Array.isArray(cardState.decks.black)) ? cardState.decks.black.length : (Array.isArray(cardState.deck) ? cardState.deck.length : 0);
+    const whiteDeckCount = (cardState.decks && Array.isArray(cardState.decks.white)) ? cardState.decks.white.length : (Array.isArray(cardState.deck) ? cardState.deck.length : 0);
+    console.log('🎴 Deck initialized with', `black=${blackDeckCount}, white=${whiteDeckCount}`);
     // For browser test harness: expose cardState on global scope when available
     if (typeof globalThis !== 'undefined') globalThis.cardState = cardState;
 }
@@ -71,15 +73,17 @@ if (typeof module !== 'undefined' && module.exports) {
 function commitDraw(player) {
     const playerKey = player === BLACK ? 'black' : 'white';
     const prng = getGamePrng();
+    const playerDeck = (cardState.decks && Array.isArray(cardState.decks[playerKey]))
+        ? cardState.decks[playerKey]
+        : (Array.isArray(cardState.deck) ? cardState.deck : []);
 
     // Check deck state before draw for logging
-    const wasDeckEmpty = cardState.deck.length === 0;
-    const wasDiscardEmpty = cardState.discard.length === 0;
+    const wasDeckEmpty = playerDeck.length === 0;
 
     const cardId = CardLogic.commitDraw(cardState, playerKey, prng);
 
-    if (cardId === null && wasDeckEmpty && wasDiscardEmpty) {
-        addLog('山札・捨て札が空のためドローなし');
+    if (cardId === null && wasDeckEmpty) {
+        addLog(`${playerKey === 'black' ? '黒' : '白'}の山札が空のためドローなし`);
     }
 
     return cardId;

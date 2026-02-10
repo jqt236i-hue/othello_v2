@@ -7,6 +7,8 @@ var mv = (typeof mv !== 'undefined') ? mv : null;
 try { mv = (typeof require === 'function') ? require('../move-executor-visuals') : mv; } catch (e) { mv = mv || null; }
 var BoardOpsModule = null;
 try { BoardOpsModule = (typeof require === 'function') ? require('../logic/board_ops') : (typeof BoardOps !== 'undefined' ? BoardOps : null); } catch (e) { BoardOpsModule = BoardOpsModule || null; }
+var CardUtilsModule = null;
+try { CardUtilsModule = (typeof require === 'function') ? require('../logic/cards/utils') : (typeof CardUtils !== 'undefined' ? CardUtils : null); } catch (e) { CardUtilsModule = CardUtilsModule || null; }
 // Shared constants (prefer canonical require, fall back to globals)
 let BLACK = null, WHITE = null;
 try { ({ BLACK, WHITE } = (typeof require === 'function' ? require('../../shared-constants') : (typeof SharedConstants !== 'undefined' ? SharedConstants : {}))); } catch (e) { BLACK = typeof globalThis !== 'undefined' ? globalThis.BLACK : BLACK; WHITE = typeof globalThis !== 'undefined' ? globalThis.WHITE : WHITE; }
@@ -56,7 +58,10 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
             moved: [],
             destroyed: [],
             flipped: [],
-            flippedByOwner: {}
+            flippedByOwner: {},
+            ultimateMoved: [],
+            ultimateDestroyed: [],
+            ultimateBlown: []
         };
 
         for (const ev of events) {
@@ -76,6 +81,15 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
                     result.flippedByOwner[owner] = result.flippedByOwner[owner] || [];
                     result.flippedByOwner[owner].push({ row: p.row, col: p.col });
                 }
+            }
+            if (ev.type === 'ultimate_hyperactive_moved_start' || ev.type === 'ultimate_hyperactive_moved_immediate') {
+                if (Array.isArray(ev.details)) result.ultimateMoved.push(...ev.details);
+            }
+            if (ev.type === 'ultimate_hyperactive_destroyed_start' || ev.type === 'ultimate_hyperactive_destroyed_immediate') {
+                if (Array.isArray(ev.details)) result.ultimateDestroyed.push(...ev.details);
+            }
+            if (ev.type === 'ultimate_hyperactive_blown_start' || ev.type === 'ultimate_hyperactive_blown_immediate') {
+                if (Array.isArray(ev.details)) result.ultimateBlown.push(...ev.details);
             }
 
             if (ev.type === 'regen_triggered_start' && Array.isArray(ev.details)) {
@@ -97,6 +111,15 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
     }
     if (result.destroyed && result.destroyed.length > 0) {
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.hyperactiveDestroyed(result.destroyed.length));
+    }
+    if (result.ultimateMoved && result.ultimateMoved.length > 0) {
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.ultimateHyperactiveMoved(result.ultimateMoved.length));
+    }
+    if (result.ultimateDestroyed && result.ultimateDestroyed.length > 0) {
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.ultimateHyperactiveDestroyed(result.ultimateDestroyed.length));
+    }
+    if (result.ultimateBlown && result.ultimateBlown.length > 0) {
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.ultimateHyperactiveBlown(result.ultimateBlown.length));
     }
     if (regenTriggered.length > 0) {
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.regenTriggered(regenTriggered.length));
@@ -125,15 +148,19 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
     } catch (e) { /* ignore */ }
 
     // Animate using the pre-move DOM first, then sync to post-move state.
-    if (result.destroyed.length > 0) {
-        for (const pos of result.destroyed) {
+    const allDestroyed = (result.destroyed || []).concat(result.ultimateDestroyed || []);
+    if (allDestroyed.length > 0) {
+        for (const pos of allDestroyed) {
             if (mv && typeof mv.animateFadeOutAt === 'function') {
                 await mv.animateFadeOutAt(pos.row, pos.col);
             }
         }
     }
-    if (result.moved.length > 0) {
-        for (const m of result.moved) {
+    const allMoved = (result.moved || [])
+        .concat(result.ultimateMoved || [])
+        .concat(result.ultimateBlown || []);
+    if (allMoved.length > 0) {
+        for (const m of allMoved) {
             if (mv && typeof mv.animateHyperactiveMove === 'function') {
                 await mv.animateHyperactiveMove(m.from, m.to);
             }
@@ -373,13 +400,21 @@ async function processHyperactiveImmediateAtPlacement(player, row, col, precompu
             }
         }
 
-        cardState.charge[playerKey] = Math.min(30, (cardState.charge[playerKey] || 0) + result.flipped.length);
+        if (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function') {
+            CardUtilsModule.addChargeWithDelta(cardState, playerKey, result.flipped.length, 'hyperactive_immediate_flip');
+        } else {
+            cardState.charge[playerKey] = Math.min(30, (cardState.charge[playerKey] || 0) + result.flipped.length);
+        }
         if (regenCaptureFlips.length > 0) {
             for (const pos of regenCaptureFlips) {
                 const color = gameState.board[pos.row][pos.col];
                 const key = color === BLACK ? 'black' : (color === WHITE ? 'white' : null);
                 if (!key) continue;
-                cardState.charge[key] = Math.min(30, (cardState.charge[key] || 0) + 1);
+                if (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function') {
+                    CardUtilsModule.addChargeWithDelta(cardState, key, 1, 'regen_capture_flip');
+                } else {
+                    cardState.charge[key] = Math.min(30, (cardState.charge[key] || 0) + 1);
+                }
             }
         }
     }

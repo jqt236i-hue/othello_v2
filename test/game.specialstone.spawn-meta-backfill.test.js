@@ -29,5 +29,24 @@ describe('special stone placement visuals (spawn meta backfill)', () => {
     const status = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'STATUS_APPLIED' && e.row === 0 && e.col === 0);
     expect(status && status.meta && status.meta.special).toBe('HYPERACTIVE');
   });
-});
 
+  test('ultimate hyperactive marker also backfills SPAWN meta', () => {
+    const prng = { shuffle: (arr) => arr };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = { board: Array(8).fill(null).map(() => Array(8).fill(0)) };
+
+    cardState._currentActionMeta = { actionId: 'a2', turnIndex: 0, plyIndex: 0 };
+
+    BoardOps.spawnAt(cardState, gameState, 1, 1, 'black', 'SYSTEM', 'standard_place');
+    cardState.pendingEffectByPlayer.black = { type: 'ULTIMATE_HYPERACTIVE_GOD' };
+
+    const effects = CardLogic.applyPlacementEffects(cardState, gameState, 'black', 1, 1, 0);
+    expect(effects && effects.ultimateHyperactivePlaced).toBe(true);
+
+    const spawn = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'SPAWN' && e.row === 1 && e.col === 1);
+    expect(spawn && spawn.meta && spawn.meta.special).toBe('ULTIMATE_HYPERACTIVE');
+
+    const status = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'STATUS_APPLIED' && e.row === 1 && e.col === 1);
+    expect(status && status.meta && status.meta.special).toBe('ULTIMATE_HYPERACTIVE');
+  });
+});

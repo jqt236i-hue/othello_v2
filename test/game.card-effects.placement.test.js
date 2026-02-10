@@ -35,6 +35,7 @@ describe('applyProtectionAfterMove', () => {
             bombPlaced: true,
             dragonPlaced: true,
             ultimateDestroyGodPlaced: true,
+            ultimateHyperactivePlaced: true,
             hyperactivePlaced: true,
             doublePlaceActivated: true,
             regenTriggered: 1,
@@ -48,6 +49,7 @@ describe('applyProtectionAfterMove', () => {
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.silverCharge(3));
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.plunderPoints(5));
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.protectNext('黒'));
+        expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.ultimateHyperactivePlaced('黒'));
         expect(res.pendingType).toBe('FREE_PLACEMENT');
     });
 });

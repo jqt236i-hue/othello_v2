@@ -5,11 +5,20 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'));
+        module.exports = factory(
+            require('../../../shared-constants'),
+            (function () {
+                try {
+                    return require('../cards/utils');
+                } catch (e) {
+                    return null;
+                }
+            })()
+        );
     } else {
-        root.SwapWithEnemy = factory(root.SharedConstants);
+        root.SwapWithEnemy = factory(root.SharedConstants, root.CardUtils || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardUtils) {
     'use strict';
 
     const { BLACK, WHITE } = SharedConstants || {};
@@ -58,7 +67,11 @@
 
         // Rule 10.4: SWAP は反転扱いでチャージ対象（1枚分加算）
         cardState.charge = cardState.charge || { black: 0, white: 0 };
-        cardState.charge[playerKey] = Math.min(30, (cardState.charge[playerKey] || 0) + 1);
+        if (CardUtils && typeof CardUtils.addChargeWithDelta === 'function') {
+            CardUtils.addChargeWithDelta(cardState, playerKey, 1, 'swap_flip_gain');
+        } else {
+            cardState.charge[playerKey] = Math.min(30, (cardState.charge[playerKey] || 0) + 1);
+        }
 
         result.swapped = true;
         return result;

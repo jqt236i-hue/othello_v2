@@ -12,6 +12,28 @@ function getCardCostTier(cost) {
 
 var _lastChargeForDelta = { black: null, white: null, turnIndex: null };
 
+function consumeChargeDeltaEvents(cardState, chargeDeltaHandler) {
+    if (!cardState || !Array.isArray(cardState.chargeDeltaEvents) || cardState.chargeDeltaEvents.length === 0) {
+        return false;
+    }
+    const events = cardState.chargeDeltaEvents
+        .filter((ev) => ev && Number.isFinite(Number(ev.delta)) && Number(ev.delta) !== 0)
+        .sort((a, b) => {
+            const sa = Number(a.seq || 0);
+            const sb = Number(b.seq || 0);
+            return sa - sb;
+        });
+
+    cardState.chargeDeltaEvents.length = 0;
+    if (!chargeDeltaHandler || events.length === 0) return events.length > 0;
+
+    for (const ev of events) {
+        const player = (ev.player === 'white' || ev.player === -1 || ev.player === '-1') ? 'white' : 'black';
+        chargeDeltaHandler(player, Number(ev.delta));
+    }
+    return true;
+}
+
 function renderCardUI() {
     // Get elements
     const deckBlackEl = document.getElementById('deck-black');
@@ -46,35 +68,53 @@ function renderCardUI() {
         _lastChargeForDelta.white = null;
     }
 
-    if (_lastChargeForDelta.black !== null) {
-        const deltaBlack = currentBlackCharge - _lastChargeForDelta.black;
-        if (deltaBlack !== 0 && chargeDeltaHandler) chargeDeltaHandler('black', deltaBlack);
-    }
-    if (_lastChargeForDelta.white !== null) {
-        const deltaWhite = currentWhiteCharge - _lastChargeForDelta.white;
-        if (deltaWhite !== 0 && chargeDeltaHandler) chargeDeltaHandler('white', deltaWhite);
+    const consumedQueue = consumeChargeDeltaEvents(cardState, chargeDeltaHandler);
+
+    if (!consumedQueue) {
+        if (_lastChargeForDelta.black !== null) {
+            const deltaBlack = currentBlackCharge - _lastChargeForDelta.black;
+            if (deltaBlack !== 0 && chargeDeltaHandler) chargeDeltaHandler('black', deltaBlack);
+        }
+        if (_lastChargeForDelta.white !== null) {
+            const deltaWhite = currentWhiteCharge - _lastChargeForDelta.white;
+            if (deltaWhite !== 0 && chargeDeltaHandler) chargeDeltaHandler('white', deltaWhite);
+        }
     }
 
     _lastChargeForDelta.black = currentBlackCharge;
     _lastChargeForDelta.white = currentWhiteCharge;
     _lastChargeForDelta.turnIndex = currentTurnIndex;
-    // Update deck visuals (shared deck - both show same count)
-    const deckCount = cardState.deck.length;
-    const totalDeck = Number.isFinite(cardState.initialDeckSize) ? cardState.initialDeckSize : 30;
-    const deckRatio = Math.max(0, Math.min(1, deckCount / Math.max(1, totalDeck)));
+    const decks = (cardState && cardState.decks && typeof cardState.decks === 'object') ? cardState.decks : null;
+    const deckCountBlack = (decks && Array.isArray(decks.black))
+        ? decks.black.length
+        : (Array.isArray(cardState.deck) ? cardState.deck.length : 0);
+    const deckCountWhite = (decks && Array.isArray(decks.white))
+        ? decks.white.length
+        : (Array.isArray(cardState.deck) ? cardState.deck.length : 0);
+    const initialByPlayer = (cardState && cardState.initialDeckSizeByPlayer && typeof cardState.initialDeckSizeByPlayer === 'object')
+        ? cardState.initialDeckSizeByPlayer
+        : null;
+    const totalBlack = Number.isFinite(initialByPlayer && initialByPlayer.black)
+        ? initialByPlayer.black
+        : (Number.isFinite(cardState.initialDeckSize) ? cardState.initialDeckSize : 30);
+    const totalWhite = Number.isFinite(initialByPlayer && initialByPlayer.white)
+        ? initialByPlayer.white
+        : (Number.isFinite(cardState.initialDeckSize) ? cardState.initialDeckSize : 30);
+    const deckRatioBlack = Math.max(0, Math.min(1, deckCountBlack / Math.max(1, totalBlack)));
+    const deckRatioWhite = Math.max(0, Math.min(1, deckCountWhite / Math.max(1, totalWhite)));
 
-    // Set visuals for Black deck (shared)
+    // Set visuals for Black deck
     if (deckBlackEl) {
-        deckBlackEl.style.setProperty('--deck-ratio', deckRatio);
+        deckBlackEl.style.setProperty('--deck-ratio', deckRatioBlack);
         const countLabel = deckBlackEl.querySelector('.deck-count');
-        if (countLabel) countLabel.textContent = `${deckCount}/${totalDeck}`;
+        if (countLabel) countLabel.textContent = `${deckCountBlack}/${totalBlack}`;
     }
 
-    // Set visuals for White deck (shared - same values)
+    // Set visuals for White deck
     if (deckWhiteEl) {
-        deckWhiteEl.style.setProperty('--deck-ratio', deckRatio);
+        deckWhiteEl.style.setProperty('--deck-ratio', deckRatioWhite);
         const countLabel = deckWhiteEl.querySelector('.deck-count');
-        if (countLabel) countLabel.textContent = `${deckCount}/${totalDeck}`;
+        if (countLabel) countLabel.textContent = `${deckCountWhite}/${totalWhite}`;
     }
 
     const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;

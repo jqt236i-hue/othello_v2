@@ -27,6 +27,7 @@
     const MAX_HAND_SIZE = 5;
     const DRAW_INTERVAL = 1; // Draw every turn (turn 1, 2, 3, ...)
     const DOUBLE_PLACE_EXTRA = 1;
+    const CHAIN_WILL_MAX_LINKS = 2;
     const HEAVEN_BLESSING_OFFER_COUNT = 5;
     const TIME_BOMB_TURNS = 3;
     const ULTIMATE_DRAGON_TURNS = 5;
@@ -123,6 +124,34 @@
             : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
         return globalScope.CardUtils || null;
     })();
+
+    function setChargeValue(cardState, playerKey, nextValue, reason) {
+        if (CardUtilsModule && typeof CardUtilsModule.setChargeWithDelta === 'function') {
+            return CardUtilsModule.setChargeWithDelta(cardState, playerKey, nextValue, reason);
+        }
+        if (!cardState) return { changed: false, before: 0, after: 0, delta: 0 };
+        if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
+        const before = Number(cardState.charge[playerKey] || 0);
+        const safeBefore = Number.isFinite(before) ? before : 0;
+        const requested = Number(nextValue);
+        const safeRequested = Number.isFinite(requested) ? requested : safeBefore;
+        const after = Math.max(0, Math.min(30, safeRequested));
+        cardState.charge[playerKey] = after;
+        return { changed: after !== safeBefore, before: safeBefore, after, delta: after - safeBefore };
+    }
+
+    function addChargeValue(cardState, playerKey, amount, reason) {
+        if (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function') {
+            return CardUtilsModule.addChargeWithDelta(cardState, playerKey, amount, reason);
+        }
+        if (!cardState) return { changed: false, before: 0, after: 0, delta: 0 };
+        if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
+        const before = Number(cardState.charge[playerKey] || 0);
+        const safeBefore = Number.isFinite(before) ? before : 0;
+        const add = Number(amount);
+        const safeAdd = Number.isFinite(add) ? add : 0;
+        return setChargeValue(cardState, playerKey, safeBefore + safeAdd, reason);
+    }
 
     const CardSelectorsModule = (() => {
         if (typeof require === 'function') {
@@ -240,36 +269,48 @@
     function createCardState(prng) {
         const p = prng || defaultPrng;
 
-        // Generate deck (30 cards)
+        // Generate one deck (30 cards)
         // Spec: guarantee at least one card per type, then allow duplicates to fill to DECK_SIZE.
-        const enabledDefs = CARD_DEFS.filter(c => c.enabled !== false);
-        const idsByType = new Map();
-        for (const def of enabledDefs) {
-            if (!idsByType.has(def.type)) idsByType.set(def.type, []);
-            idsByType.get(def.type).push(def.id);
-        }
+        const buildDeck = () => {
+            const enabledDefs = CARD_DEFS.filter(c => c.enabled !== false);
+            const idsByType = new Map();
+            for (const def of enabledDefs) {
+                if (!idsByType.has(def.type)) idsByType.set(def.type, []);
+                idsByType.get(def.type).push(def.id);
+            }
 
-        const guaranteed = [];
-        for (const [type, ids] of idsByType.entries()) {
-            const pool = ids.slice();
-            p.shuffle(pool);
-            guaranteed.push(pool[0]);
-        }
+            const guaranteed = [];
+            for (const ids of idsByType.values()) {
+                const pool = ids.slice();
+                p.shuffle(pool);
+                guaranteed.push(pool[0]);
+            }
 
-        const deck = guaranteed.slice();
-        const allIds = enabledDefs.map(d => d.id);
-        while (deck.length < DECK_SIZE && allIds.length > 0) {
-            const pool = allIds.slice();
-            p.shuffle(pool);
-            deck.push(pool[0]);
-        }
-        // Shuffle final deck so draw order isn't fixed by catalog/type iteration order.
-        p.shuffle(deck);
+            const deck = guaranteed.slice();
+            const allIds = enabledDefs.map(d => d.id);
+            while (deck.length < DECK_SIZE && allIds.length > 0) {
+                const pool = allIds.slice();
+                p.shuffle(pool);
+                deck.push(pool[0]);
+            }
+            p.shuffle(deck);
+            return deck;
+        };
+
+        const blackDeck = buildDeck();
+        const whiteDeck = buildDeck();
 
         return {
-            deck: deck,
+            // Per-player decks (non-shared)
+            decks: {
+                black: blackDeck,
+                white: whiteDeck
+            },
+            // Legacy compatibility field. Do not use in new code.
+            deck: blackDeck.slice(),
             discard: [],
-            initialDeckSize: deck.length,
+            initialDeckSize: DECK_SIZE,
+            initialDeckSizeByPlayer: { black: DECK_SIZE, white: DECK_SIZE },
             reshuffleRequiresFullCycle: false,
             hands: { black: [], white: [] },
             turnIndex: 0,
@@ -305,6 +346,8 @@
             // Resources
             charge: { black: 0, white: 0 },
             chargeGainedTotal: { black: 0, white: 0 },
+            chargeDeltaEvents: [],
+            _nextChargeDeltaSeq: 1,
 
             // Extra actions
             extraPlaceRemainingByPlayer: { black: 0, white: 0 },
@@ -321,8 +364,26 @@
      * @returns {Object} Copied card state
      */
     function copyCardState(cs) {
+        const legacyDeck = Array.isArray(cs.deck) ? cs.deck.slice() : [];
+        const decks = (cs.decks && typeof cs.decks === 'object')
+            ? {
+                black: Array.isArray(cs.decks.black) ? cs.decks.black.slice() : legacyDeck.slice(),
+                white: Array.isArray(cs.decks.white) ? cs.decks.white.slice() : legacyDeck.slice()
+            }
+            : { black: legacyDeck.slice(), white: legacyDeck.slice() };
+        const initialDeckSizeByPlayer = (cs.initialDeckSizeByPlayer && typeof cs.initialDeckSizeByPlayer === 'object')
+            ? {
+                black: Number.isFinite(cs.initialDeckSizeByPlayer.black) ? cs.initialDeckSizeByPlayer.black : decks.black.length,
+                white: Number.isFinite(cs.initialDeckSizeByPlayer.white) ? cs.initialDeckSizeByPlayer.white : decks.white.length
+            }
+            : {
+                black: Number.isFinite(cs.initialDeckSize) ? cs.initialDeckSize : decks.black.length,
+                white: Number.isFinite(cs.initialDeckSize) ? cs.initialDeckSize : decks.white.length
+            };
         return {
-            deck: cs.deck.slice(),
+            decks,
+            // Legacy compatibility field. Do not use in new code.
+            deck: decks.black.slice(),
             discard: cs.discard.slice(),
             hands: {
                 black: cs.hands.black.slice(),
@@ -354,8 +415,11 @@
             cardUseCountByPlayer: { ...(cs.cardUseCountByPlayer || { black: 0, white: 0 }) },
             charge: { ...cs.charge },
             chargeGainedTotal: { ...(cs.chargeGainedTotal || { black: 0, white: 0 }) },
+            chargeDeltaEvents: Array.isArray(cs.chargeDeltaEvents) ? cs.chargeDeltaEvents.map(e => ({ ...e })) : [],
+            _nextChargeDeltaSeq: (typeof cs._nextChargeDeltaSeq === 'number') ? cs._nextChargeDeltaSeq : 1,
             extraPlaceRemainingByPlayer: { ...cs.extraPlaceRemainingByPlayer },
-            initialDeckSize: Number.isFinite(cs.initialDeckSize) ? cs.initialDeckSize : ((cs.deck ? cs.deck.length : 0) + (cs.discard ? cs.discard.length : 0)),
+            initialDeckSize: Number.isFinite(cs.initialDeckSize) ? cs.initialDeckSize : decks.black.length,
+            initialDeckSizeByPlayer,
             reshuffleRequiresFullCycle: cs.reshuffleRequiresFullCycle !== false
         };
     }
@@ -510,6 +574,11 @@
      */
     function commitDraw(cardState, playerKey, prng) {
         const p = prng || defaultPrng;
+        const decks = (cardState && cardState.decks && typeof cardState.decks === 'object') ? cardState.decks : null;
+        const playerDeck = (decks && Array.isArray(decks[playerKey]))
+            ? decks[playerKey]
+            : (Array.isArray(cardState.deck) ? cardState.deck : null);
+        if (!playerDeck) return null;
 
         // Check if hand is at max capacity
         if (cardState.hands[playerKey].length >= MAX_HAND_SIZE) {
@@ -517,12 +586,12 @@
         }
 
         // No reshuffle policy: if deck is empty, draw fails.
-        if (cardState.deck.length === 0) {
+        if (playerDeck.length === 0) {
             return null;
         }
 
-        if (cardState.deck.length > 0) {
-            const cardId = cardState.deck.pop();
+        if (playerDeck.length > 0) {
+            const cardId = playerDeck.pop();
             cardState.hands[playerKey].push(cardId);
             return cardId;
         }
@@ -639,6 +708,10 @@
                     const targets = getGuardTargets(cardState, gameState, playerKey);
                     if (!targets || targets.length === 0) continue;
                 }
+                if (type === 'TIME_BOMB') {
+                    const targets = getTimeBombTargets(cardState, gameState, playerKey);
+                    if (!targets || targets.length === 0) continue;
+                }
                 if (CardSelectorsModule) {
                     if (type === 'DESTROY_ONE_STONE' && typeof CardSelectorsModule.getDestroyTargets === 'function') {
                         const targets = CardSelectorsModule.getDestroyTargets(cardState, gameState);
@@ -666,6 +739,10 @@
                     }
                     if (type === 'GUARD_WILL' && typeof CardSelectorsModule.getGuardTargets === 'function') {
                         const targets = CardSelectorsModule.getGuardTargets(cardState, gameState, playerKey);
+                        if (!targets || targets.length === 0) continue;
+                    }
+                    if (type === 'TIME_BOMB' && typeof CardSelectorsModule.getTimeBombTargets === 'function') {
+                        const targets = CardSelectorsModule.getTimeBombTargets(cardState, gameState, playerKey);
                         if (!targets || targets.length === 0) continue;
                     }
                 }
@@ -776,6 +853,11 @@
             const targets = getGuardTargets(cardState, gameState, chargeOwnerKey);
             if (!targets.length) return false;
         }
+        if (cardType === 'TIME_BOMB') {
+            if (!gameState) return false;
+            const targets = getTimeBombTargets(cardState, gameState, chargeOwnerKey);
+            if (!targets.length) return false;
+        }
 
         if (!(opts && opts.noConsume)) {
             // Remove from hand
@@ -783,7 +865,7 @@
             // Add to discard
             cardState.discard.push(cardId);
             // Consume charge
-            cardState.charge[chargeOwnerKey] -= cost;
+            addChargeValue(cardState, chargeOwnerKey, -cost, 'card_use_cost');
             // Set used flag
             cardState.hasUsedCardThisTurnByPlayer[chargeOwnerKey] = true;
             cardState.cardUseCountByPlayer = cardState.cardUseCountByPlayer || { black: 0, white: 0 };
@@ -802,7 +884,8 @@
             cardType === 'INHERIT_WILL' ||
             cardType === 'TRAP_WILL' ||
             cardType === 'TEMPT_WILL' ||
-            cardType === 'GUARD_WILL';
+            cardType === 'GUARD_WILL' ||
+            cardType === 'TIME_BOMB';
         cardState.pendingEffectByPlayer[chargeOwnerKey] = {
             type: cardType,
             cardId,
@@ -868,7 +951,7 @@
         const noConsume = !!(opts && opts.noConsume);
 
         if (refundCost && !noConsume) {
-            cardState.charge[playerKey] = (cardState.charge[playerKey] || 0) + cost;
+            addChargeValue(cardState, playerKey, cost, 'card_cancel_refund');
         }
         if (resetUsage && !noConsume) {
             cardState.hasUsedCardThisTurnByPlayer[playerKey] = false;
@@ -1016,6 +1099,20 @@
         return res;
     }
 
+    function getTimeBombTargets(cardState, gameState, playerKey) {
+        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
+            try {
+                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
+                if (mod && typeof mod.getTimeBombTargets === 'function') {
+                    return mod.getTimeBombTargets(cardState, gameState, playerKey);
+                }
+            } catch (e) {
+                // fall through to local implementation
+            }
+        }
+        return getGuardTargets(cardState, gameState, playerKey);
+    }
+
     function applyTrapWill(cardState, gameState, playerKey, row, col) {
         const pending = cardState.pendingEffectByPlayer[playerKey];
         if (!pending || pending.type !== 'TRAP_WILL' || pending.stage !== 'selectTarget') {
@@ -1088,7 +1185,7 @@
             if (activePlayerKey === opponentKey && cellVal === activeVal) {
                 const victimKey = opponentKey;
                 const victimCharge = Math.max(0, Number(cardState.charge[victimKey] || 0));
-                cardState.charge[victimKey] = 0;
+                setChargeValue(cardState, victimKey, 0, 'trap_confiscated');
                 const gainedCharge = addChargeWithTotal(cardState, ownerKey, victimCharge);
 
                 const victimHand = Array.isArray(cardState.hands[victimKey]) ? cardState.hands[victimKey] : [];
@@ -1101,8 +1198,11 @@
                 const toDeck = stolenCards.slice(handSpace);
                 if (toHand.length > 0) ownerHand.push(...toHand);
                 if (toDeck.length > 0) {
-                    if (!Array.isArray(cardState.deck)) cardState.deck = [];
-                    cardState.deck.push(...toDeck);
+                    if (!cardState.decks || typeof cardState.decks !== 'object') {
+                        cardState.decks = { black: [], white: [] };
+                    }
+                    if (!Array.isArray(cardState.decks[ownerKey])) cardState.decks[ownerKey] = [];
+                    cardState.decks[ownerKey].push(...toDeck);
                 }
 
                 removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: ownerKey });
@@ -1203,6 +1303,29 @@
             type: 'GUARD',
             remainingOwnerTurns: 3
         });
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return { applied: true, row, col };
+    }
+
+    function applyTimeBombWill(cardState, gameState, playerKey, row, col) {
+        const pending = cardState.pendingEffectByPlayer[playerKey];
+        if (!pending || pending.type !== 'TIME_BOMB' || pending.stage !== 'selectTarget') {
+            return { applied: false, reason: 'not_pending' };
+        }
+        const targets = getTimeBombTargets(cardState, gameState, playerKey);
+        const allowed = targets.some(t => t.row === row && t.col === col);
+        if (!allowed) return { applied: false, reason: 'invalid_target' };
+
+        // Convert selected stone into a bomb marker.
+        removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone' });
+        const existingBomb = findBombMarkerAt(cardState, row, col);
+        if (existingBomb) return { applied: false, reason: 'exists' };
+
+        addMarker(cardState, 'bomb', row, col, playerKey, {
+            remainingTurns: TIME_BOMB_TURNS,
+            placedTurn: cardState.turnIndex
+        });
+
         cardState.pendingEffectByPlayer[playerKey] = null;
         return { applied: true, row, col };
     }
@@ -1401,11 +1524,8 @@
         if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
         if (!cardState.chargeGainedTotal) cardState.chargeGainedTotal = { black: 0, white: 0 };
 
-        const before = cardState.charge[playerKey] || 0;
-        const after = Math.min(30, before + amount);
-        const added = after - before;
-
-        cardState.charge[playerKey] = after;
+        const deltaRes = addChargeValue(cardState, playerKey, amount, 'placement_or_effect_gain');
+        const added = Number(deltaRes.delta) || 0;
         if (added > 0) {
             cardState.chargeGainedTotal[playerKey] = (cardState.chargeGainedTotal[playerKey] || 0) + added;
         }
@@ -1468,7 +1588,7 @@
                 effects.plunderAmount = res.plundered || 0;
             } else {
                 const stolen = Math.min(flipCount, cardState.charge[opponentKey]);
-                cardState.charge[opponentKey] -= stolen;
+                addChargeValue(cardState, opponentKey, -stolen, 'plunder_loss');
                 chargeGain += stolen;
                 effects.plunderAmount = stolen;
             }
@@ -1502,7 +1622,11 @@
                         cardState.hands[playerKey].push(...toHand);
                     }
                     if (toDeck.length > 0) {
-                        cardState.deck.push(...toDeck);
+                        if (!cardState.decks || typeof cardState.decks !== 'object') {
+                            cardState.decks = { black: [], white: [] };
+                        }
+                        if (!Array.isArray(cardState.decks[playerKey])) cardState.decks[playerKey] = [];
+                        cardState.decks[playerKey].push(...toDeck);
                     }
 
                     effects.stolenCards = toHand;
@@ -1581,29 +1705,6 @@
             }
         } catch (e) { /* defensive */ }
 
-
-        // TIME_BOMB logic - delegate to cards module when present
-        if (pending && pending.type === 'TIME_BOMB') {
-            let bombEffect;
-            if (typeof require === 'function') {
-                try {
-                    bombEffect = require('./cards/time_bomb').applyTimeBomb;
-                } catch (e) {
-                    try { bombEffect = require('./effects/time_bomb').applyTimeBomb; } catch (ee) { }
-                }
-            }
-            if (typeof bombEffect === 'function') {
-                const res = bombEffect(cardState, playerKey, row, col, { addMarker });
-                if (res.placed) effects.bombPlaced = true;
-            } else {
-                addMarker(cardState, 'bomb', row, col, playerKey, {
-                    remainingTurns: TIME_BOMB_TURNS,
-                    placedTurn: cardState.turnIndex
-                });
-                effects.bombPlaced = true;
-            }
-        }
-
         // ULTIMATE_REVERSE_DRAGON logic - delegate to module when present
         if (pending && pending.type === 'ULTIMATE_REVERSE_DRAGON') {
             let mod;
@@ -1649,6 +1750,14 @@
                 hyperactiveSeq: cardState.hyperactiveSeqCounter
             });
             effects.hyperactivePlaced = true;
+        }
+
+        // ULTIMATE_HYPERACTIVE_GOD logic - ultimate hyperactive anchor
+        if (pending && pending.type === 'ULTIMATE_HYPERACTIVE_GOD') {
+            addMarker(cardState, 'specialStone', row, col, playerKey, {
+                type: 'ULTIMATE_HYPERACTIVE'
+            });
+            effects.ultimateHyperactivePlaced = true;
         }
 
         // CROSS_BOMB logic - trigger immediate cross explosion after normal flips.
@@ -1986,36 +2095,41 @@
         const context = getCardContext(cardState);
         const p = prng || defaultPrng;
 
+        function runChainLinks(findChainChoiceFn) {
+            const appliedFlips = [];
+            const chosenSteps = [];
+            let sourceFlips = Array.isArray(primaryFlips) ? primaryFlips.slice() : [];
+            for (let i = 0; i < CHAIN_WILL_MAX_LINKS; i++) {
+                const res = findChainChoiceFn(gameState, sourceFlips, ownerVal, context, p);
+                if (!res || !res.applied || !Array.isArray(res.flips) || res.flips.length === 0) break;
+                const chainLink = i + 1;
+                for (const pos of res.flips) {
+                    if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
+                        BoardOpsModule.changeAt(cardState, gameState, pos.row, pos.col, playerKey, 'CHAIN_WILL', 'chain_flip', { chainLink });
+                    } else {
+                        gameState.board[pos.row][pos.col] = ownerVal;
+                    }
+                    clearBombAt(cardState, pos.row, pos.col);
+                }
+                clearHyperactiveAtPositions(cardState, res.flips);
+                appliedFlips.push(...res.flips);
+                chosenSteps.push(res.chosen || null);
+                sourceFlips = res.flips;
+            }
+            if (appliedFlips.length === 0) return { applied: false, flips: [], chosen: null, chosenSteps: [] };
+            return { applied: true, flips: appliedFlips, chosen: chosenSteps[chosenSteps.length - 1] || null, chosenSteps };
+        }
+
         // Delegate to chain module
         if (typeof module === 'object' && module.exports) {
             const mod = require('./cards/chain');
-            const res = mod.findChainChoice(gameState, primaryFlips, ownerVal, context, p);
-            if (!res.applied) return res;
-            for (const pos of res.flips) {
-                if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
-                    BoardOpsModule.changeAt(cardState, gameState, pos.row, pos.col, playerKey, 'CHAIN_WILL', 'chain_flip');
-                } else {
-                    gameState.board[pos.row][pos.col] = ownerVal;
-                }
-                clearBombAt(cardState, pos.row, pos.col);
+            if (mod && typeof mod.findChainChoice === 'function') {
+                return runChainLinks(mod.findChainChoice);
             }
-            clearHyperactiveAtPositions(cardState, res.flips);
-            return { applied: true, flips: res.flips, chosen: res.chosen };
         }
         // Browser: use global
         if (typeof CardChain !== 'undefined' && typeof CardChain.findChainChoice === 'function') {
-            const res = CardChain.findChainChoice(gameState, primaryFlips, ownerVal, context, p);
-            if (!res.applied) return res;
-            for (const pos of res.flips) {
-                if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
-                    BoardOpsModule.changeAt(cardState, gameState, pos.row, pos.col, playerKey, 'CHAIN_WILL', 'chain_flip');
-                } else {
-                    gameState.board[pos.row][pos.col] = ownerVal;
-                }
-                clearBombAt(cardState, pos.row, pos.col);
-            }
-            clearHyperactiveAtPositions(cardState, res.flips);
-            return { applied: true, flips: res.flips, chosen: res.chosen };
+            return runChainLinks(CardChain.findChainChoice);
         }
         console.warn('[cards.js] CardChain module not available');
         return { applied: false, flips: [], chosen: null };
@@ -2238,7 +2352,7 @@
         if (!cardState || !Array.isArray(cardState.markers)) return;
         cardState.markers = cardState.markers.filter(m => {
             if (m.kind !== (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) return true;
-            if (!m.data || m.data.type !== 'HYPERACTIVE') return true;
+            if (!m.data || (m.data.type !== 'HYPERACTIVE' && m.data.type !== 'ULTIMATE_HYPERACTIVE')) return true;
             return !removeSet.has(`${m.row},${m.col}`);
         });
     }
@@ -2333,6 +2447,36 @@
         }
         console.warn('[cards.js] CardHyperactive module not available');
         return { moved: [], destroyed: [], flipped: [] };
+    }
+
+    function processUltimateHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng) {
+        // Delegate to module
+        if (typeof module === 'object' && module.exports) {
+            const mod = require('./cards/hyperactive');
+            return mod.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
+                defaultPrng: defaultPrng,
+                clearUltimateAtPositions: clearHyperactiveAtPositions,
+                clearHyperactiveAtPositions,
+                clearBombAt,
+                getCardContext,
+                BoardOps: BoardOpsModule,
+                destroyAt
+            });
+        }
+        // Browser: use global
+        if (typeof CardHyperactive !== 'undefined' && typeof CardHyperactive.processUltimateHyperactiveMoveAtAnchor === 'function') {
+            return CardHyperactive.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
+                defaultPrng: defaultPrng,
+                clearUltimateAtPositions: clearHyperactiveAtPositions,
+                clearHyperactiveAtPositions,
+                clearBombAt,
+                getCardContext,
+                BoardOps: BoardOpsModule,
+                destroyAt
+            });
+        }
+        console.warn('[cards.js] CardHyperactive ultimate module not available');
+        return { moved: [], destroyed: [], blown: [], chargeGain: 0, ownerKey: playerKey };
     }
 
 
@@ -2621,6 +2765,9 @@
                     if (pending.type === 'GUARD_WILL' && typeof mod.getGuardTargets === 'function') {
                         return mod.getGuardTargets(cardState, gameState, playerKey);
                     }
+                    if (pending.type === 'TIME_BOMB' && typeof mod.getTimeBombTargets === 'function') {
+                        return mod.getTimeBombTargets(cardState, gameState, playerKey);
+                    }
                 }
             } catch (e) {
                 // fall through to local implementation
@@ -2693,6 +2840,9 @@
         if (pending.type === 'GUARD_WILL') {
             return getGuardTargets(cardState, gameState, playerKey);
         }
+        if (pending.type === 'TIME_BOMB') {
+            return getTimeBombTargets(cardState, gameState, playerKey);
+        }
 
         return res;
     }
@@ -2748,6 +2898,7 @@
         applyCondemnWill,
         applyTemptWill,
         applyGuardWill,
+        applyTimeBombWill,
         applyStrongWindWill,
         applyRegenWill,
         applyRegenAfterFlips,
@@ -2766,12 +2917,14 @@
         cancelPendingSelection,
         getTemptWillTargets,
         getGuardTargets,
+        getTimeBombTargets,
         getTrapTargets,
         applyTrapWill,
         processTrapEffects,
         clearHyperactiveAtPositions,
         processHyperactiveMoves,
         processHyperactiveMoveAtAnchor,
+        processUltimateHyperactiveMoveAtAnchor,
         // Presentation helpers (PoC)
         allocateStoneId,
         emitPresentationEvent,

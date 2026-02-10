@@ -210,6 +210,11 @@
         return res;
     }
 
+    // Return time-bomb targets: own stones (normal/special both allowed), excluding bombs.
+    function getTimeBombTargets(cardState, gameState, playerKey) {
+        return getGuardTargets(cardState, gameState, playerKey);
+    }
+
     return {
         getDestroyTargets,
         getSwapTargets,
@@ -217,6 +222,7 @@
         getSacrificeTargets,
         getStrongWindTargets,
         getTrapTargets,
-        getGuardTargets
+        getGuardTargets,
+        getTimeBombTargets
     };
 }));

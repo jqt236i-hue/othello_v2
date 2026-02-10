@@ -174,6 +174,12 @@ function handleCellClick(row, col) {
         }
         return;
     }
+    if (pending && pending.type === 'TIME_BOMB' && pending.stage === 'selectTarget') {
+        if (typeof handleTimeBombSelection === 'function') {
+            handleTimeBombSelection(row, col, playerKey);
+        }
+        return;
+    }
     if (pending && pending.type === 'SWAP_WITH_ENEMY' && pending.stage === 'selectTarget') {
         if (typeof handleSwapSelection === 'function') {
             handleSwapSelection(row, col, playerKey);
