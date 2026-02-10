@@ -1184,6 +1184,40 @@ async function cpuSelectGuardWillWithPolicy(playerKey) {
 }
 
 /**
+ * 時限爆弾 対象選択
+ * @param {string} playerKey - 'black' または 'white'
+ */
+async function cpuSelectTimeBombWithPolicy(playerKey) {
+    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getTimeBombTargets === 'function')
+        ? CardLogic.getTimeBombTargets(cardState, gameState, playerKey)
+        : [];
+
+    if (!targets.length) {
+        cpuDebugLog(`[CPU] ${playerKey}: 時限爆弾対象なし`);
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return;
+    }
+
+    const target = targets[Math.floor(cpuRng.random() * targets.length)];
+    cpuDebugLog(`[CPU] ${playerKey}: 時限爆弾ターゲット (${target.row}, ${target.col})`);
+
+    const pipelineResult = runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { bombTarget: { row: target.row, col: target.col } },
+        'TIME_BOMB'
+    );
+    if (pipelineResult) return;
+
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyTimeBombWill === 'function') {
+        const res = CardLogic.applyTimeBombWill(cardState, gameState, playerKey, target.row, target.col);
+        if (!res || !res.applied) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+        emitCpuSelectionStateChange();
+    }
+}
+
+/**
  * 誘惑の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
@@ -1270,6 +1304,7 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuSelectSwapWithEnemyWithPolicy,
         cpuSelectTrapWillWithPolicy,
         cpuSelectGuardWillWithPolicy,
+        cpuSelectTimeBombWithPolicy,
         cpuSelectTemptWillWithPolicy,
         computeCpuAction,
         setCpuRng
