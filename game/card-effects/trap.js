@@ -24,12 +24,6 @@ function getTrapBoardElement() {
         }
     } catch (e) { /* ignore */ }
     try {
-        if (typeof document !== 'undefined') {
-            const el = document.getElementById('board');
-            if (el) return el;
-        }
-    } catch (e) { /* ignore */ }
-    try {
         if (typeof globalThis !== 'undefined' && globalThis.boardEl && typeof globalThis.boardEl.querySelector === 'function') {
             return globalThis.boardEl;
         }
@@ -79,11 +73,12 @@ function _playTrapPlacementFlash(row, col, playerKey) {
         if (!cell) return null;
         const baseDisc = cell.querySelector('.disc');
         if (!baseDisc) return null;
-        if (typeof document === 'undefined' || typeof document.createElement !== 'function') return null;
+        const domDoc = cell.ownerDocument;
+        if (!domDoc || typeof domDoc.createElement !== 'function') return null;
 
         let overlay = cell.querySelector(`.trap-place-overlay[data-trap-flash-id="${flashId}"]`);
         if (!overlay) {
-            overlay = document.createElement('div');
+            overlay = domDoc.createElement('div');
             overlay.className = 'disc special-stone trap-stone trap-place-flash trap-place-overlay';
             overlay.dataset.trapFlashId = flashId;
             cell.appendChild(overlay);

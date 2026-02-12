@@ -329,7 +329,7 @@
     text-align: center;
     box-shadow: 0 8px 22px rgba(0, 0, 0, 0.62);
     transform-origin: top left;
-    transform: translateX(-1.0cm) translateY(-4cm) scale(1.2, 1.02);
+    transform: translateX(clamp(-38px, -2vw, -16px)) translateY(clamp(-150px, -12vh, -80px)) scale(1.2, 1.02);
     z-index: 150;
 }
 
@@ -352,15 +352,35 @@
     font-size: 16px;
     font-weight: 500;
     color: #c0a080;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     line-height: 1.5;
-    min-height: 40px;
+    min-height: 28px;
+}
+
+#card-detail-more {
+    font-size: 13px;
+    color: #cfba9a;
+    line-height: 1.45;
+    white-space: pre-line;
+    margin: 2px 0 8px;
+    min-height: 0;
+}
+
+#card-detail-actions {
+    margin-top: clamp(18px, 3.2vh, 30px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
 }
 
 #card-detail-panel > #card-detail-header,
 #card-detail-panel > #card-detail-name,
 #card-detail-panel > #card-detail-desc,
+#card-detail-panel > #card-detail-more,
+#card-detail-panel > #card-detail-actions,
 #card-detail-panel > #use-card-btn,
+#card-detail-panel > #toggle-card-detail-btn,
 #card-detail-panel > #pass-btn,
 #card-detail-panel > #sell-card-btn,
 #card-detail-panel > #cancel-card-btn,
@@ -372,7 +392,8 @@
     transform: scale(0.8333333, 0.9803922);
 }
 
-#card-detail-panel > #use-card-btn,
+#card-detail-actions > #use-card-btn,
+#card-detail-actions > #toggle-card-detail-btn,
 #card-detail-panel > #pass-btn,
 #card-detail-panel > #sell-card-btn,
 #card-detail-panel > #cancel-card-btn {
@@ -391,7 +412,31 @@
     color: #fff;
     cursor: pointer;
     transition: all 0.15s ease;
-    margin-top: 8mm;
+    margin-top: 0;
+}
+
+#toggle-card-detail-btn {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: bold;
+    background: linear-gradient(to bottom, #5c5f85, #3c3f61);
+    border: 1px solid #787ca8;
+    border-radius: 4px;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+#toggle-card-detail-btn:hover:not(:disabled) {
+    background: linear-gradient(to bottom, #6e73a0, #4b5080);
+    box-shadow: 0 0 8px rgba(120, 124, 168, 0.45);
+}
+
+#toggle-card-detail-btn:disabled {
+    background: linear-gradient(to bottom, #555, #333);
+    border-color: #666;
+    color: #888;
+    cursor: not-allowed;
 }
 
 #pass-btn {
@@ -490,7 +535,7 @@
 
 
 #discard-display {
-    margin-top: calc(8px - 3.5cm);
+    margin-top: calc(8px - clamp(64px, 11vh, 132px));
     padding: 6px;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.1);

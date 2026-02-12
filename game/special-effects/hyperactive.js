@@ -58,10 +58,9 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
             moved: [],
             destroyed: [],
             flipped: [],
-            flippedByOwner: {},
             ultimateMoved: [],
             ultimateDestroyed: [],
-            ultimateBlown: []
+            ultimateFlipped: []
         };
 
         for (const ev of events) {
@@ -74,22 +73,14 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
             if (ev.type === 'hyperactive_flipped_start' || ev.type === 'hyperactive_flipped_immediate') {
                 if (Array.isArray(ev.details)) result.flipped.push(...ev.details);
             }
-            if (ev.type === 'hyperactive_flipped_start' && Array.isArray(ev.details)) {
-                for (const p of ev.details) {
-                    const owner = p.owner || null;
-                    if (!owner) continue;
-                    result.flippedByOwner[owner] = result.flippedByOwner[owner] || [];
-                    result.flippedByOwner[owner].push({ row: p.row, col: p.col });
-                }
-            }
             if (ev.type === 'ultimate_hyperactive_moved_start' || ev.type === 'ultimate_hyperactive_moved_immediate') {
                 if (Array.isArray(ev.details)) result.ultimateMoved.push(...ev.details);
             }
             if (ev.type === 'ultimate_hyperactive_destroyed_start' || ev.type === 'ultimate_hyperactive_destroyed_immediate') {
                 if (Array.isArray(ev.details)) result.ultimateDestroyed.push(...ev.details);
             }
-            if (ev.type === 'ultimate_hyperactive_blown_start' || ev.type === 'ultimate_hyperactive_blown_immediate') {
-                if (Array.isArray(ev.details)) result.ultimateBlown.push(...ev.details);
+            if (ev.type === 'ultimate_hyperactive_flipped_start' || ev.type === 'ultimate_hyperactive_flipped_immediate') {
+                if (Array.isArray(ev.details)) result.ultimateFlipped.push(...ev.details);
             }
 
             if (ev.type === 'regen_triggered_start' && Array.isArray(ev.details)) {
@@ -102,7 +93,6 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
         }
     }
 
-    const byOwner = result.flippedByOwner || {};
     const regenTriggered = result.regenTriggered || [];
     const regenCaptureFlips = result.regenCaptureFlips || [];
 
@@ -118,8 +108,8 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
     if (result.ultimateDestroyed && result.ultimateDestroyed.length > 0) {
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.ultimateHyperactiveDestroyed(result.ultimateDestroyed.length));
     }
-    if (result.ultimateBlown && result.ultimateBlown.length > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.ultimateHyperactiveBlown(result.ultimateBlown.length));
+    if (result.ultimateFlipped && result.ultimateFlipped.length > 0) {
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.ultimateHyperactiveFlipped(result.ultimateFlipped.length));
     }
     if (regenTriggered.length > 0) {
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.regenTriggered(regenTriggered.length));
@@ -157,8 +147,7 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
         }
     }
     const allMoved = (result.moved || [])
-        .concat(result.ultimateMoved || [])
-        .concat(result.ultimateBlown || []);
+        .concat(result.ultimateMoved || []);
     if (allMoved.length > 0) {
         for (const m of allMoved) {
             if (mv && typeof mv.animateHyperactiveMove === 'function') {
@@ -194,21 +183,20 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
 
     const waitMs = (ms) => (timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve());
 
-    if (result.flipped.length > 0) {
+    const allFlipped = (result.flipped || []).concat(result.ultimateFlipped || []);
+    if (allFlipped.length > 0) {
         // Stage: make flipped stones visually start from the "before flip" color.
         const regenedSet = new Set(regenTriggered.map(p => `${p.row},${p.col}`));
-        for (const pos of result.flipped) {
+        for (const pos of allFlipped) {
             if (regenedSet.has(`${pos.row},${pos.col}`)) continue; // Skip staging for Regen stones
 
-            const ownerKey = (byOwner.black || []).some(p => p.row === pos.row && p.col === pos.col) ? 'black'
-                : ((byOwner.white || []).some(p => p.row === pos.row && p.col === pos.col) ? 'white' : null);
-            const toColor = ownerKey === 'black' ? BLACK : (ownerKey === 'white' ? WHITE : null);
-            if (toColor == null) continue;
+            const toColor = gameState.board[pos.row][pos.col];
+            if (toColor !== BLACK && toColor !== WHITE) continue;
             const fromColor = -toColor;
             setDiscColorAt(pos.row, pos.col, fromColor);
         }
 
-        const flipCoords = result.flipped
+        const flipCoords = allFlipped
             .filter(p => !regenedSet.has(`${p.row},${p.col}`))
             .map(p => [p.row, p.col]);
         if (flipCoords.length > 0) {
@@ -222,13 +210,11 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
         }
 
         // Finish initial flip colors
-        for (const pos of result.flipped) {
+        for (const pos of allFlipped) {
             if (regenedSet.has(`${pos.row},${pos.col}`)) continue; // Skip color sync for Regen stones
 
-            const ownerKey = (byOwner.black || []).some(p => p.row === pos.row && p.col === pos.col) ? 'black'
-                : ((byOwner.white || []).some(p => p.row === pos.row && p.col === pos.col) ? 'white' : null);
-            const toColor = ownerKey === 'black' ? BLACK : (ownerKey === 'white' ? WHITE : null);
-            if (toColor == null) continue;
+            const toColor = gameState.board[pos.row][pos.col];
+            if (toColor !== BLACK && toColor !== WHITE) continue;
             setDiscColorAt(pos.row, pos.col, toColor);
         }
 

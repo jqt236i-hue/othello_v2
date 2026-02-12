@@ -557,7 +557,12 @@
                 const travelPx = Math.hypot(toRect.left - fromRect.left, toRect.top - fromRect.top);
                 const cellStepPx = Math.max(1, Math.min(fromRect.width, fromRect.height));
                 const cellDistance = Math.max(1, travelPx / cellStepPx);
-                const durationMs = Math.round(MOVE_MS * cellDistance);
+                const moveCause = String(t && t.cause ? t.cause : '').toUpperCase();
+                const moveReason = String(t && t.reason ? t.reason : '').toLowerCase();
+                const isPositionSwapMove =
+                    moveCause === 'POSITION_SWAP_WILL' || moveReason === 'position_swap';
+                const durationScale = isPositionSwapMove ? 0.8 : 1;
+                const durationMs = Math.round(MOVE_MS * cellDistance * durationScale);
 
                 const anim = ghost.animate([
                     { transform: 'translate(0, 0)' },

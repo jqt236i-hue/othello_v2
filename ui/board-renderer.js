@@ -26,7 +26,6 @@ function renderBoard() {
                 pending.stage === 'selectTarget' ||
                 pending.type === 'DESTROY_ONE_STONE' ||
                 pending.type === 'SWAP_WITH_ENEMY' ||
-                pending.type === 'INHERIT_WILL' ||
                 pending.type === 'GUARD_WILL' ||
                 pending.type === 'TEMPT_WILL'
             )
@@ -78,7 +77,6 @@ function renderBoardFull() {
             pending.stage === 'selectTarget' ||
             pending.type === 'DESTROY_ONE_STONE' ||
             pending.type === 'SWAP_WITH_ENEMY' ||
-            pending.type === 'INHERIT_WILL' ||
             pending.type === 'GUARD_WILL' ||
             pending.type === 'TEMPT_WILL'
         )

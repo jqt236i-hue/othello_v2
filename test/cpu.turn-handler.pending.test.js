@@ -26,16 +26,6 @@ describe('cpu turn handler pending selection', () => {
     expect(mock).toHaveBeenCalledWith('white');
   });
 
-  test('INHERIT_WILL invokes cpuSelectInheritWillWithPolicy', async () => {
-    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
-    global.cpuSelectInheritWillWithPolicy = mock;
-    cardState.pendingEffectByPlayer.white = { type: 'INHERIT_WILL', stage: 'selectTarget' };
-
-    cpuHandler.processCpuTurn();
-    await waitTick();
-    expect(mock).toHaveBeenCalledWith('white');
-  });
-
   test('SACRIFICE_WILL invokes cpuSelectSacrificeWillWithPolicy when available', async () => {
     const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
     global.cpuSelectSacrificeWillWithPolicy = mock;
@@ -99,6 +89,25 @@ describe('cpu turn handler pending selection', () => {
   test('SWAP_WITH_ENEMY clears pending when function absent', async () => {
     delete global.cpuSelectSwapWithEnemyWithPolicy;
     cardState.pendingEffectByPlayer.white = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('POSITION_SWAP_WILL invokes cpuSelectPositionSwapWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectPositionSwapWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'POSITION_SWAP_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('POSITION_SWAP_WILL clears pending when function absent', async () => {
+    delete global.cpuSelectPositionSwapWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'POSITION_SWAP_WILL', stage: 'selectTarget' };
 
     cpuHandler.processCpuTurn();
     await waitTick();

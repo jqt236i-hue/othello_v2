@@ -201,7 +201,7 @@
                 useCardId: a.useCardId,
                 destroyTarget: a.destroyTarget,
                 swapTarget: a.swapTarget,
-                inheritTarget: a.inheritTarget,
+                positionSwapTarget: a.positionSwapTarget,
                 temptTarget: a.temptTarget
             }));
         },

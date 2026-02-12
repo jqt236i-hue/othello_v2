@@ -3,10 +3,12 @@
  * @description Runtime loader/query helper for policy-table models.
  */
 
+(() => {
 'use strict';
 
-const MODEL_SCHEMA_VERSION = 'policy_table.v2';
+const POLICY_TABLE_MODEL_SCHEMA_VERSION = 'policy_table.v2';
 const DEFAULT_MODEL_URL = 'data/models/policy-table.json';
+const MODEL_HEURISTIC_WEIGHT = 1;
 
 let _model = null;
 let _config = {
@@ -199,6 +201,43 @@ function applyMoveToBoard(board, move, playerKey) {
     return out;
 }
 
+function getFlipsBasic(board, row, col, playerValue) {
+    if (!Array.isArray(board) || !Array.isArray(board[row])) return [];
+    if (board[row][col] !== 0) return [];
+    const dirs = [
+        [-1, -1], [-1, 0], [-1, 1],
+        [0, -1],           [0, 1],
+        [1, -1],  [1, 0],  [1, 1]
+    ];
+    const out = [];
+    for (const d of dirs) {
+        const temp = [];
+        let r = row + d[0];
+        let c = col + d[1];
+        while (r >= 0 && c >= 0 && r < board.length && c < board.length && board[r][c] === -playerValue) {
+            temp.push({ row: r, col: c });
+            r += d[0];
+            c += d[1];
+        }
+        if (temp.length > 0 && r >= 0 && c >= 0 && r < board.length && c < board.length && board[r][c] === playerValue) {
+            out.push(...temp);
+        }
+    }
+    return out;
+}
+
+function getLegalMovesBasic(board, playerValue) {
+    if (!Array.isArray(board)) return [];
+    const moves = [];
+    for (let r = 0; r < board.length; r++) {
+        for (let c = 0; c < board[r].length; c++) {
+            const flips = getFlipsBasic(board, r, c, playerValue);
+            if (flips.length > 0) moves.push({ row: r, col: c, flips });
+        }
+    }
+    return moves;
+}
+
 function countDiscsFor(board, playerKey) {
     const own = playerKey === 'black' ? 1 : -1;
     const opp = -own;
@@ -257,21 +296,36 @@ function estimateMoveHeuristic(move, context) {
     const discWeight = empties <= 12 ? 18 : (empties <= 24 ? 8 : 2);
     const discDiff = countDiscsFor(after, playerKey);
     const cornerDiff = countCornersFor(after, playerKey);
+    const opponentValue = playerKey === 'black' ? -1 : 1;
+    const opponentMoves = getLegalMovesBasic(after, opponentValue);
+    let opponentThreat = 0;
+    let givesCorner = false;
+    for (const oppMove of opponentMoves) {
+        const pressure = ((Array.isArray(oppMove.flips) ? oppMove.flips.length : 0) * 80) + (positionalScoreForMove(oppMove) * 8);
+        if (pressure > opponentThreat) opponentThreat = pressure;
+        const rr = Number.isFinite(oppMove.row) ? oppMove.row : -1;
+        const cc = Number.isFinite(oppMove.col) ? oppMove.col : -1;
+        const n = Array.isArray(after) ? after.length : 8;
+        if ((rr === 0 || rr === n - 1) && (cc === 0 || cc === n - 1)) givesCorner = true;
+    }
     const row = Number.isFinite(move && move.row) ? move.row : 0;
     const col = Number.isFinite(move && move.col) ? move.col : 0;
     const tie = (7 - row) * 0.001 + (7 - col) * 0.0001;
     return (
-        (flips * 80) +
+        (flips * 60) +
         (positionalScoreForMove(move) * 8) +
         (discDiff * discWeight) +
         (cornerDiff * 300) +
+        (opponentMoves.length * -45) +
+        (opponentThreat * -6) +
+        (givesCorner ? -1800 : 0) +
         tie
     );
 }
 
 function isValidModel(model) {
     if (!model || typeof model !== 'object') return false;
-    if (model.schemaVersion !== 'policy_table.v1' && model.schemaVersion !== MODEL_SCHEMA_VERSION) return false;
+    if (model.schemaVersion !== 'policy_table.v1' && model.schemaVersion !== POLICY_TABLE_MODEL_SCHEMA_VERSION) return false;
     if (!model.states || typeof model.states !== 'object') return false;
     return true;
 }
@@ -297,7 +351,7 @@ function getStateEntry(playerKey, board, pendingType, legalMovesCount) {
 
 function setModel(model, options) {
     if (!isValidModel(model)) {
-        _lastError = new Error(`invalid model schema (expected ${MODEL_SCHEMA_VERSION})`);
+        _lastError = new Error(`invalid model schema (expected ${POLICY_TABLE_MODEL_SCHEMA_VERSION})`);
         return false;
     }
     _model = model;
@@ -393,13 +447,13 @@ function chooseMove(candidateMoves, context) {
         const visits = Number.isFinite(stat.visits) ? stat.visits : 0;
         const avgOutcome = Number.isFinite(stat.avgOutcome) ? stat.avgOutcome : 0;
         const isBestAction = stateMeta.entry.bestAction === actionKey ? 1 : 0;
-        const bestBonus = stateMeta.abstract ? 100_000 : 1_000_000;
-        const baseScore = (isBestAction * bestBonus) + (visits * 1_000) + avgOutcome;
+        const bestBonus = stateMeta.abstract ? 50 : 100;
+        const baseScore = (isBestAction * bestBonus) + (Math.log1p(Math.max(0, visits)) * 15) + (avgOutcome * 80);
         const heuristicScore = estimateMoveHeuristic(move, {
             board: ctx.board,
             playerKey
         });
-        const score = baseScore + heuristicScore;
+        const score = baseScore + (heuristicScore * MODEL_HEURISTIC_WEIGHT);
         if (score > bestScore) {
             bestScore = score;
             bestMove = move;
@@ -438,13 +492,13 @@ function getActionScore(move, context) {
     const visits = Number.isFinite(stat.visits) ? stat.visits : 0;
     const avgOutcome = Number.isFinite(stat.avgOutcome) ? stat.avgOutcome : 0;
     const bestBonus = stateMeta.entry.bestAction === actionKey
-        ? (stateMeta.abstract ? 100_000 : 1_000_000)
+        ? (stateMeta.abstract ? 50 : 100)
         : 0;
     const heuristicScore = estimateMoveHeuristic(move, {
         board: ctx.board,
         playerKey
     });
-    return bestBonus + (visits * 1_000) + avgOutcome + heuristicScore;
+    return bestBonus + (Math.log1p(Math.max(0, visits)) * 15) + (avgOutcome * 80) + (heuristicScore * MODEL_HEURISTIC_WEIGHT);
 }
 
 function getActionScoreForKey(actionKey, context) {
@@ -464,12 +518,12 @@ function getActionScoreForKey(actionKey, context) {
     if (!stat) return null;
     const visits = Number.isFinite(stat.visits) ? stat.visits : 0;
     const avgOutcome = Number.isFinite(stat.avgOutcome) ? stat.avgOutcome : 0;
-    const bestBonus = stateMeta.entry.bestAction === actionKey ? 1_000_000 : 0;
-    return bestBonus + (visits * 1_000) + avgOutcome;
+    const bestBonus = stateMeta.entry.bestAction === actionKey ? (stateMeta.abstract ? 50 : 100) : 0;
+    return bestBonus + (Math.log1p(Math.max(0, visits)) * 15) + (avgOutcome * 80);
 }
 
 const Api = {
-    MODEL_SCHEMA_VERSION,
+    MODEL_SCHEMA_VERSION: POLICY_TABLE_MODEL_SCHEMA_VERSION,
     DEFAULT_MODEL_URL,
     configure,
     getStatus,
@@ -495,3 +549,5 @@ try {
         globalThis.CpuPolicyTableRuntime = Api;
     }
 } catch (e) { /* ignore */ }
+
+})();

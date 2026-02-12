@@ -29,6 +29,7 @@
 - CPU選択コア: `game/ai/cpu-policy-core.js`
 - CPU判断本体: `game/cpu-decision.js`
 - Python学習雛形:
+  - `ai/train/train_policy_onnx.py`
   - `ai/train/train_policy_table.py`
   - `ai/train/evaluate_policy_table.py`
   - `ai/train/setup.ps1`
@@ -37,6 +38,8 @@
 
 - `npm run selfplay:generate`
 - `npm run selfplay:benchmark`
+- `npm run selfplay:train-onnx`
+- `npm run selfplay:train-cycle`
 - `npm run test:jest`
 - `npm run check:window`
 
@@ -45,9 +48,9 @@
 ## 4.1 学習パイプライン
 
 1. `selfplay-runner` で対戦ログ（NDJSON）を生成
-2. Pythonでモデル（JSON）を学習
+2. Pythonでモデル（ONNX + 互換JSON）を学習
 3. 同形式の別データで評価
-4. ブラウザCPUへモデルを読み込んで利用
+4. ブラウザCPUへモデルを読み込んで利用（ONNX優先）
 5. ベンチ勝率で採用可否を判定
 
 ## 4.2 実行時CPUの構成
@@ -66,6 +69,7 @@
 
 - self-play記録スキーマ: `selfplay.v1`（`src/engine/selfplay-runner.js`）
 - 学習モデルスキーマ: `policy_table.v2`（`ai/train/train_policy_table.py`）
+- ONNXモデルスキーマ: `policy_onnx.v1`（`ai/train/train_policy_onnx.py`）
 
 ルール:
 
@@ -121,7 +125,7 @@ npm run selfplay:generate -- --games 3000 --seed 100001 --max-plies 220 --with-c
 - `train` と `eval` が別ファイルで生成される。
 - summary JSONに `schemaVersion` が記録される。
 
-## フェーズ2: Python学習（初版）
+## フェーズ2: Python学習（PyTorch/ONNX）
 
 目的:
 
@@ -130,14 +134,15 @@ npm run selfplay:generate -- --games 3000 --seed 100001 --max-plies 220 --with-c
 作業:
 
 1. Python環境セットアップ
-2. 方策表モデル学習
-3. 評価レポート確認
+2. PyTorch方策モデル学習 + ONNX出力
+3. 互換 policy-table 出力（採用判定/比較用）
+4. 評価レポート確認
 
 実行:
 
 ```powershell
 .\ai\train\setup.ps1
-.\.venv\Scripts\python.exe .\ai\train\train_policy_table.py --input data/selfplay.train.ndjson --model-out data/models/policy-table.json --min-visits 3
+.\.venv\Scripts\python.exe .\ai\train\train_policy_onnx.py --input data/selfplay.train.ndjson --onnx-out data/models/policy-net.onnx --meta-out data/models/policy-net.onnx.meta.json --policy-table-out data/models/policy-table.json --min-visits 12 --shape-immediate 0.4
 .\.venv\Scripts\python.exe .\ai\train\evaluate_policy_table.py --input data/selfplay.eval.ndjson --model data/models/policy-table.json
 ```
 
@@ -145,10 +150,15 @@ npm run selfplay:generate -- --games 3000 --seed 100001 --max-plies 220 --with-c
 
 - 学習用追加パッケージの管理先は `ai/train/requirements.txt` とする（ルート直下の `requirements.txt` は使わない）。
 - `train_policy_table.py` の出力 `schemaVersion` が `policy_table.v2` であることを毎回確認する。
+- `train_policy_onnx.py` のメタ出力 `schemaVersion` が `policy_onnx.v1` であることを毎回確認する。
+- `setup.ps1` は GPU を自動検出して `torch/torchvision/torchaudio` を導入する（CPU固定時は `.\ai\train\setup.ps1 -CpuOnly`）。
+- 導入確認は `.\.venv\Scripts\python.exe .\ai\train\check_torch_env.py` を使う。
+- `setup.ps1` は既定で `torch` のみ導入する。画像/音声系も必要なときは `-WithVisionAudio` を付ける。
 
 完了条件:
 
 - `data/models/policy-table.json` が生成される。
+- `data/models/policy-net.onnx` / `data/models/policy-net.onnx.meta.json` が生成される。
 - 評価コマンドがエラーなく最後まで完走する。
 
 ## フェーズ3: ブラウザCPUへの組み込み
@@ -159,7 +169,8 @@ npm run selfplay:generate -- --games 3000 --seed 100001 --max-plies 220 --with-c
 
 実装対象:
 
-- 新規: `game/ai/policy-table-runtime.js`（読み込み・問い合わせ）
+- 新規: `game/ai/policy-onnx-runtime.js`（ONNX読み込み・問い合わせ）
+- 新規: `game/ai/policy-table-runtime.js`（互換JSON読み込み・問い合わせ）
 - 変更: `game/cpu-decision.js`（候補手順位にモデルを反映）
 - 必要に応じて: `index.html`（読み込み順）
 
@@ -252,6 +263,26 @@ npm run selfplay:promote-model -- --adoption-result data/benchmark.adoption.fina
 
 - 判定が `passed=true` のときのみ `data/models/policy-table.json` へ反映される。
 - 強制反映が必要なときだけ `--force` を使う。
+
+一括反復コマンド（自己対戦→学習→評価→採用判定→昇格）:
+
+```powershell
+npm run selfplay:train-cycle -- --iterations 2 --max-hours 6 --train-games 12000 --eval-games 2000 --seed 1 --max-plies 220 --with-cards --card-usage-rate 0.25 --onnx-epochs 8 --onnx-batch-size 2048 --onnx-lr 0.001 --onnx-hidden-size 256 --onnx-device auto --min-visits 12 --shape-immediate 0.4 --quick-games 500 --final-games 2000 --threshold 0.05
+```
+
+補足:
+
+- `--max-hours 6` を指定すると6時間で自動停止し、途中結果サマリを保存する。
+- `--bootstrap-policy-model data/models/policy-table.json` を指定すると自己対戦データ生成を既存モデルで開始する。
+- `--resume-checkpoint <path>` を指定すると `train_policy_onnx.py` が前回チェックポイントから再開する。
+- 学習中の loss は `train_policy_onnx.py` の標準出力で epoch ごとに表示される。
+- `--onnx-log-interval-steps <n>` を指定すると batch 間隔でも loss を表示できる。
+- 各反復で `data/runs` に train/eval/adoption 結果が保存される。
+- 各反復で `data/runs/train.metrics.<tag>.itXX.jsonl` に epoch メトリクスが保存される。
+- 各反復で `data/models/policy-net.candidate.<tag>.itXX.onnx` と `.meta.json` が保存される。
+- 各反復で `data/models/policy-net.candidate.<tag>.itXX.checkpoint.pt` が保存される。
+- 候補モデルは `data/models/policy-table.candidate.<tag>.itXX.json` に保存される。
+- 最終判定通過時のみ `policy-table.json` へ自動昇格する（`--no-promote` 指定時を除く）。
 
 ## 6. テスト計画
 

@@ -174,14 +174,12 @@
                         if (res && res.moved && res.moved.length) {
                             events.push({ type: 'ultimate_hyperactive_moved_start', details: res.moved });
                         }
-                        if (res && res.blown && res.blown.length) {
-                            events.push({ type: 'ultimate_hyperactive_blown_start', details: res.blown });
+                        if (res && res.flipped && res.flipped.length) {
+                            events.push({ type: 'ultimate_hyperactive_flipped_start', details: res.flipped });
+                            addChargeWithTotal(cardState, ownerKey, res.flipped.length);
                         }
                         if (res && res.destroyed && res.destroyed.length) {
                             events.push({ type: 'ultimate_hyperactive_destroyed_start', details: res.destroyed });
-                        }
-                        if (res && Number(res.chargeGain) > 0) {
-                            addChargeWithTotal(cardState, ownerKey, Number(res.chargeGain));
                         }
                     }
                 }
@@ -459,21 +457,6 @@
             } else if (pending && pending.type === 'TEMPT_WILL' && action.temptTarget == null) {
                 throw new Error('TEMPT_WILL requires temptTarget before placement');
             }
-            if (pending && pending.type === 'INHERIT_WILL' && action.inheritTarget) {
-                const res = CardLogic.applyInheritWill(
-                    cardState,
-                    gameState,
-                    playerKey,
-                    action.inheritTarget.row,
-                    action.inheritTarget.col
-                );
-                events.push({ type: 'inherit_selected', player: playerKey, target: action.inheritTarget, applied: !!(res && res.applied) });
-                applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
-                // Selection-only pre-placement effect: stop after handling selection
-                return;
-            } else if (pending && pending.type === 'INHERIT_WILL' && action.inheritTarget == null) {
-                throw new Error('INHERIT_WILL requires inheritTarget before placement');
-            }
             if (pending && pending.type === 'SWAP_WITH_ENEMY' && action.swapTarget) {
                 const swapped = CardLogic.applySwapEffect(
                     cardState,
@@ -491,6 +474,29 @@
                 return;
             } else if (pending && pending.type === 'SWAP_WITH_ENEMY' && action.swapTarget == null) {
                 throw new Error('SWAP_WITH_ENEMY requires swapTarget before placement');
+            }
+            if (pending && pending.type === 'POSITION_SWAP_WILL' && action.positionSwapTarget) {
+                const res = CardLogic.applyPositionSwapWill(
+                    cardState,
+                    gameState,
+                    playerKey,
+                    action.positionSwapTarget.row,
+                    action.positionSwapTarget.col
+                );
+                events.push({
+                    type: res && res.completed ? 'position_swap_selected' : 'position_swap_first_selected',
+                    player: playerKey,
+                    target: action.positionSwapTarget,
+                    from: res && res.from ? res.from : (res && res.firstTarget ? res.firstTarget : null),
+                    to: res && res.to ? res.to : null,
+                    applied: !!(res && res.applied),
+                    completed: !!(res && res.completed)
+                });
+                applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
+                // Selection-only pre-placement effect: stop after handling selection
+                return;
+            } else if (pending && pending.type === 'POSITION_SWAP_WILL' && action.positionSwapTarget == null) {
+                throw new Error('POSITION_SWAP_WILL requires positionSwapTarget before placement');
             }
             if (pending && pending.type === 'TRAP_WILL' && action.trapTarget) {
                 const res = CardLogic.applyTrapWill(

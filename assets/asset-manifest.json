@@ -1,6 +1,6 @@
 {
-  "version": "2026-02-09",
-  "generatedAt": "2026-02-09T21:39:03.781Z",
+  "version": "2026-02-12",
+  "generatedAt": "2026-02-12T05:12:49.271Z",
   "files": [
     {
       "path": "assets/images/stones/BREEDING_WILL-black.png",
@@ -85,6 +85,14 @@
     {
       "path": "assets/images/stones/ULTIMATE_DESTROY_GOD-white.png",
       "sha256": "483dae76d222562bab6398d924b3ed3eb035c930171e6cf3c98a0deddc551cbe"
+    },
+    {
+      "path": "assets/images/stones/ULTIMATE_HYPERACTIVE_GOD-black.png",
+      "sha256": "fe15d709c073652d32b44e3b94e34a174622ab3f3492dd426bcd9abd7db32380"
+    },
+    {
+      "path": "assets/images/stones/ULTIMATE_HYPERACTIVE_GOD-white.png",
+      "sha256": "e3f0b256fdf755758064f71a65f7d9298c33597c5f7af0047be6d1b366a587a4"
     },
     {
       "path": "assets/images/stones/ultimate_reverse_dragon-black.png",

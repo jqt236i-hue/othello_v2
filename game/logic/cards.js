@@ -261,6 +261,59 @@
         });
     }
 
+    function swapCellCoordinates(cardState, posA, posB) {
+        if (!cardState || !posA || !posB) return;
+
+        const aRow = Number(posA.row);
+        const aCol = Number(posA.col);
+        const bRow = Number(posB.row);
+        const bCol = Number(posB.col);
+        if (!Number.isInteger(aRow) || !Number.isInteger(aCol) || !Number.isInteger(bRow) || !Number.isInteger(bCol)) return;
+
+        if (cardState.stoneIdMap && cardState.stoneIdMap[aRow] && cardState.stoneIdMap[bRow]) {
+            const stoneA = cardState.stoneIdMap[aRow][aCol];
+            const stoneB = cardState.stoneIdMap[bRow][bCol];
+            cardState.stoneIdMap[aRow][aCol] = stoneB;
+            cardState.stoneIdMap[bRow][bCol] = stoneA;
+        }
+
+        const markers = getMarkers(cardState);
+        for (const m of markers) {
+            if (!m) continue;
+            if (m.row === aRow && m.col === aCol) {
+                m.row = bRow;
+                m.col = bCol;
+            } else if (m.row === bRow && m.col === bCol) {
+                m.row = aRow;
+                m.col = aCol;
+            }
+        }
+
+        const swapPoint = (p) => {
+            if (!p || !Number.isInteger(p.row) || !Number.isInteger(p.col)) return p;
+            if (p.row === aRow && p.col === aCol) return { row: bRow, col: bCol };
+            if (p.row === bRow && p.col === bCol) return { row: aRow, col: aCol };
+            return p;
+        };
+
+        if (cardState.workAnchorPosByPlayer) {
+            cardState.workAnchorPosByPlayer.black = swapPoint(cardState.workAnchorPosByPlayer.black);
+            cardState.workAnchorPosByPlayer.white = swapPoint(cardState.workAnchorPosByPlayer.white);
+        }
+        if (cardState.breedingSproutByOwner) {
+            for (const owner of ['black', 'white']) {
+                const arr = Array.isArray(cardState.breedingSproutByOwner[owner]) ? cardState.breedingSproutByOwner[owner] : [];
+                cardState.breedingSproutByOwner[owner] = arr.map(swapPoint);
+            }
+        }
+        if (cardState.breedingFrontierByAnchorId && typeof cardState.breedingFrontierByAnchorId === 'object') {
+            for (const key of Object.keys(cardState.breedingFrontierByAnchorId)) {
+                const arr = Array.isArray(cardState.breedingFrontierByAnchorId[key]) ? cardState.breedingFrontierByAnchorId[key] : [];
+                cardState.breedingFrontierByAnchorId[key] = arr.map(swapPoint);
+            }
+        }
+    }
+
     /**
      * Create initial card state
      * @param {Object} [prng] - PRNG object (optional)
@@ -741,6 +794,15 @@
                     const targets = getTimeBombTargets(cardState, gameState, playerKey);
                     if (!targets || targets.length === 0) continue;
                 }
+                if (type === 'POSITION_SWAP_WILL') {
+                    let occupied = 0;
+                    for (let r = 0; r < 8; r++) {
+                        for (let c = 0; c < 8; c++) {
+                            if (gameState.board[r][c] !== EMPTY) occupied++;
+                        }
+                    }
+                    if (occupied < 2) continue;
+                }
                 if (CardSelectorsModule) {
                     if (type === 'DESTROY_ONE_STONE' && typeof CardSelectorsModule.getDestroyTargets === 'function') {
                         const targets = CardSelectorsModule.getDestroyTargets(cardState, gameState);
@@ -758,9 +820,9 @@
                         const targets = CardSelectorsModule.getSwapTargets(cardState, gameState, playerKey);
                         if (!targets || targets.length === 0) continue;
                     }
-                    if (type === 'INHERIT_WILL' && typeof CardSelectorsModule.getInheritTargets === 'function') {
-                        const targets = CardSelectorsModule.getInheritTargets(cardState, gameState, playerKey);
-                        if (!targets || targets.length === 0) continue;
+                    if (type === 'POSITION_SWAP_WILL' && typeof CardSelectorsModule.getPositionSwapTargets === 'function') {
+                        const targets = CardSelectorsModule.getPositionSwapTargets(cardState, gameState, playerKey, null);
+                        if (!targets || targets.length < 2) continue;
                     }
                     if (type === 'TRAP_WILL' && typeof CardSelectorsModule.getTrapTargets === 'function') {
                         const targets = CardSelectorsModule.getTrapTargets(cardState, gameState, playerKey);
@@ -887,6 +949,17 @@
             const targets = getTimeBombTargets(cardState, gameState, chargeOwnerKey);
             if (!targets.length) return false;
         }
+        if (cardType === 'POSITION_SWAP_WILL') {
+            if (!gameState) return false;
+            const targets = getSelectableTargets({
+                ...cardState,
+                pendingEffectByPlayer: {
+                    ...(cardState.pendingEffectByPlayer || { black: null, white: null }),
+                    [chargeOwnerKey]: { type: 'POSITION_SWAP_WILL', stage: 'selectTarget' }
+                }
+            }, gameState, chargeOwnerKey);
+            if (!targets || targets.length < 2) return false;
+        }
 
         if (!(opts && opts.noConsume)) {
             // Remove from hand
@@ -910,7 +983,7 @@
             cardType === 'HEAVEN_BLESSING' ||
             cardType === 'CONDEMN_WILL' ||
             cardType === 'SWAP_WITH_ENEMY' ||
-            cardType === 'INHERIT_WILL' ||
+            cardType === 'POSITION_SWAP_WILL' ||
             cardType === 'TRAP_WILL' ||
             cardType === 'TEMPT_WILL' ||
             cardType === 'GUARD_WILL' ||
@@ -961,7 +1034,7 @@
         if (!cardState || !cardState.pendingEffectByPlayer) return { canceled: false, reason: 'no_state' };
         const pending = cardState.pendingEffectByPlayer[playerKey];
         if (!pending || pending.stage !== 'selectTarget') return { canceled: false, reason: 'not_pending' };
-        if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'INHERIT_WILL' && pending.type !== 'SACRIFICE_WILL') {
+        if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'SACRIFICE_WILL' && pending.type !== 'POSITION_SWAP_WILL') {
             return { canceled: false, reason: 'not_cancellable' };
         }
 
@@ -1330,7 +1403,7 @@
         });
         addMarker(cardState, 'specialStone', row, col, playerKey, {
             type: 'GUARD',
-            remainingOwnerTurns: 3
+            remainingOwnerTurns: 5
         });
         cardState.pendingEffectByPlayer[playerKey] = null;
         return { applied: true, row, col };
@@ -1817,18 +1890,21 @@
         }
 
         // CROSS_BOMB logic - trigger immediate cross explosion after normal flips.
-        // Destroy center + orthogonal 1-tile neighbors regardless of owner/special/protection.
+        // Destroy center + orthogonal neighbors up to 2 tiles regardless of owner/special/protection.
         if (pending && pending.type === 'CROSS_BOMB') {
-            const targets = [
-                { row, col },
-                { row: row - 1, col },
-                { row: row + 1, col },
-                { row, col: col - 1 },
-                { row, col: col + 1 }
-            ].filter(pos => pos.row >= 0 && pos.row < 8 && pos.col >= 0 && pos.col < 8);
+            const targets = [{ row, col }];
+            for (const dist of [1, 2]) {
+                targets.push(
+                    { row: row - dist, col },
+                    { row: row + dist, col },
+                    { row, col: col - dist },
+                    { row, col: col + dist }
+                );
+            }
+            const inBoundsTargets = targets.filter(pos => pos.row >= 0 && pos.row < 8 && pos.col >= 0 && pos.col < 8);
 
             let destroyedCount = 0;
-            for (const pos of targets) {
+            for (const pos of inBoundsTargets) {
                 if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
                     const res = BoardOpsModule.destroyAt(
                         cardState,
@@ -1951,25 +2027,6 @@
         return { regened: [], captureFlips: [] };
     }
 
-
-    /**
-     * Apply INHERIT_WILL (意志の継承)
-     * @param {Object} cardState
-     * @param {Object} gameState
-     * @param {string} playerKey
-     * @param {number} row
-     * @param {number} col
-     * @returns {Object} { applied:boolean, reason?:string }
-     */
-    function applyInheritWill(cardState, gameState, playerKey, row, col) {
-        if (!isNormalStoneForPlayer(cardState, gameState, playerKey, row, col)) {
-            return { applied: false, reason: '通常石のみ選択できます' };
-        }
-
-        applyStrongWill(cardState, playerKey, row, col);
-        cardState.pendingEffectByPlayer[playerKey] = null;
-        return { applied: true };
-    }
 
     /**
      * Apply SACRIFICE_WILL (生贄の意志)
@@ -2514,6 +2571,7 @@
                 clearUltimateAtPositions: clearHyperactiveAtPositions,
                 clearHyperactiveAtPositions,
                 clearBombAt,
+                getFlipsWithContext: getFlipsWithContextLocal,
                 getCardContext,
                 BoardOps: BoardOpsModule,
                 destroyAt
@@ -2526,13 +2584,14 @@
                 clearUltimateAtPositions: clearHyperactiveAtPositions,
                 clearHyperactiveAtPositions,
                 clearBombAt,
+                getFlipsWithContext: getFlipsWithContextLocal,
                 getCardContext,
                 BoardOps: BoardOpsModule,
                 destroyAt
             });
         }
         console.warn('[cards.js] CardHyperactive ultimate module not available');
-        return { moved: [], destroyed: [], blown: [], chargeGain: 0, ownerKey: playerKey };
+        return { moved: [], destroyed: [], flipped: [], ownerKey: playerKey };
     }
 
 
@@ -2675,6 +2734,72 @@
         return false;
     }
 
+    function applyPositionSwapWill(cardState, gameState, playerKey, row, col) {
+        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        if (!pending || pending.type !== 'POSITION_SWAP_WILL' || pending.stage !== 'selectTarget') {
+            return { applied: false, reason: 'not_pending' };
+        }
+        if (row < 0 || row >= 8 || col < 0 || col >= 8) return { applied: false, reason: 'out_of_board' };
+        if (!gameState || !gameState.board || gameState.board[row][col] === EMPTY) return { applied: false, reason: 'empty' };
+
+        const first = pending.firstTarget ? { row: pending.firstTarget.row, col: pending.firstTarget.col } : null;
+        if (!first) {
+            pending.firstTarget = { row, col };
+            return { applied: true, completed: false, firstTarget: { row, col } };
+        }
+
+        if (first.row === row && first.col === col) {
+            return { applied: false, reason: 'same_target' };
+        }
+        if (first.row < 0 || first.row >= 8 || first.col < 0 || first.col >= 8) {
+            pending.firstTarget = { row, col };
+            return { applied: true, completed: false, firstTarget: { row, col } };
+        }
+        if (gameState.board[first.row][first.col] === EMPTY) {
+            pending.firstTarget = { row, col };
+            return { applied: true, completed: false, firstTarget: { row, col } };
+        }
+
+        const stoneIdA = cardState.stoneIdMap && cardState.stoneIdMap[first.row] ? cardState.stoneIdMap[first.row][first.col] : null;
+        const stoneIdB = cardState.stoneIdMap && cardState.stoneIdMap[row] ? cardState.stoneIdMap[row][col] : null;
+        const ownerBeforeA = gameState.board[first.row][first.col] === (BLACK || 1) ? 'black' : 'white';
+        const ownerBeforeB = gameState.board[row][col] === (BLACK || 1) ? 'black' : 'white';
+
+        const tmp = gameState.board[first.row][first.col];
+        gameState.board[first.row][first.col] = gameState.board[row][col];
+        gameState.board[row][col] = tmp;
+
+        swapCellCoordinates(cardState, first, { row, col });
+        cardState.pendingEffectByPlayer[playerKey] = null;
+
+        emitPresentationEvent(cardState, {
+            type: 'MOVE',
+            stoneId: stoneIdA,
+            row,
+            col,
+            prevRow: first.row,
+            prevCol: first.col,
+            ownerBefore: ownerBeforeA,
+            ownerAfter: ownerBeforeA,
+            cause: 'POSITION_SWAP_WILL',
+            reason: 'position_swap'
+        });
+        emitPresentationEvent(cardState, {
+            type: 'MOVE',
+            stoneId: stoneIdB,
+            row: first.row,
+            col: first.col,
+            prevRow: row,
+            prevCol: col,
+            ownerBefore: ownerBeforeB,
+            ownerAfter: ownerBeforeB,
+            cause: 'POSITION_SWAP_WILL',
+            reason: 'position_swap'
+        });
+
+        return { applied: true, completed: true, from: first, to: { row, col } };
+    }
+
 
     /**
      * Get context for core logic
@@ -2812,8 +2937,8 @@
                     if (pending.type === 'SWAP_WITH_ENEMY' && typeof mod.getSwapTargets === 'function') {
                         return mod.getSwapTargets(cardState, gameState, playerKey);
                     }
-                    if (pending.type === 'INHERIT_WILL' && typeof mod.getInheritTargets === 'function') {
-                        return mod.getInheritTargets(cardState, gameState, playerKey);
+                    if (pending.type === 'POSITION_SWAP_WILL' && typeof mod.getPositionSwapTargets === 'function') {
+                        return mod.getPositionSwapTargets(cardState, gameState, playerKey, pending);
                     }
                     if (pending.type === 'TRAP_WILL' && typeof mod.getTrapTargets === 'function') {
                         return mod.getTrapTargets(cardState, gameState, playerKey);
@@ -2874,12 +2999,13 @@
             return res;
         }
 
-        if (pending.type === 'INHERIT_WILL') {
+        if (pending.type === 'POSITION_SWAP_WILL') {
+            const first = pending.firstTarget ? { row: pending.firstTarget.row, col: pending.firstTarget.col } : null;
             for (let r = 0; r < 8; r++) {
                 for (let c = 0; c < 8; c++) {
-                    if (isNormalStoneForPlayer(cardState, gameState, playerKey, r, c)) {
-                        res.push({ row: r, col: c });
-                    }
+                    if (gameState.board[r][c] === EMPTY) continue;
+                    if (first && first.row === r && first.col === c) continue;
+                    res.push({ row: r, col: c });
                 }
             }
             return res;
@@ -2946,8 +3072,8 @@
         processDragonEffectsAtAnchor,
         applyDestroyEffect,
         applySwapEffect,
+        applyPositionSwapWill,
         applyStrongWill,
-        applyInheritWill,
         applySacrificeWill,
         applySellCardWill,
         applyHeavenBlessingChoice,

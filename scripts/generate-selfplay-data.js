@@ -13,6 +13,7 @@ function parseArgs(argv) {
         out: path.resolve(process.cwd(), 'data', 'selfplay.ndjson'),
         allowCardUsage: true,
         cardUsageRate: 0.2,
+        policyModelPath: null,
         verbose: false,
         help: false
     };
@@ -51,6 +52,10 @@ function parseArgs(argv) {
             args.cardUsageRate = Number(argv[++i]);
             continue;
         }
+        if (a === '--policy-model') {
+            args.policyModelPath = path.resolve(process.cwd(), argv[++i]);
+            continue;
+        }
         if (a === '--verbose') {
             args.verbose = true;
             continue;
@@ -62,6 +67,9 @@ function parseArgs(argv) {
     if (!Number.isFinite(args.maxPlies) || args.maxPlies < 1) throw new Error('--max-plies must be >= 1');
     if (!Number.isFinite(args.cardUsageRate) || args.cardUsageRate < 0 || args.cardUsageRate > 1) {
         throw new Error('--card-usage-rate must be in [0,1]');
+    }
+    if (args.policyModelPath && !fs.existsSync(args.policyModelPath)) {
+        throw new Error(`--policy-model not found: ${args.policyModelPath}`);
     }
 
     return args;
@@ -80,9 +88,24 @@ function printHelp() {
         '      --with-cards          Enable card usage in self-play (default: on)',
         '      --no-cards            Disable card usage in self-play',
         '      --card-usage-rate <r> Probability of using a card if legal moves exist (default: 0.2)',
+        '      --policy-model <path> Optional policy-table JSON used by both players',
         '      --verbose             Keep internal game debug logs',
         '  -h, --help                Show this help'
     ].join('\n'));
+}
+
+function loadPolicyModel(modelPath) {
+    if (!modelPath) return null;
+    const raw = fs.readFileSync(modelPath, 'utf8');
+    const model = JSON.parse(raw);
+    const schema = model && model.schemaVersion;
+    if (schema !== 'policy_table.v1' && schema !== 'policy_table.v2' && schema !== SELFPLAY_SCHEMA_VERSION) {
+        throw new Error(`unsupported --policy-model schema: ${schema || 'unknown'}`);
+    }
+    if (!model || typeof model !== 'object' || !model.states || typeof model.states !== 'object') {
+        throw new Error('--policy-model must contain states object');
+    }
+    return model;
 }
 
 function withFilteredConsole(enabled, fn) {
@@ -129,6 +152,7 @@ function main() {
 
     let finishedGames = 0;
     const startedAt = Date.now();
+    const policyModel = loadPolicyModel(args.policyModelPath);
 
     const result = withFilteredConsole(!args.verbose, () => runSelfPlayGames({
         games: args.games,
@@ -136,6 +160,22 @@ function main() {
         maxPlies: args.maxPlies,
         allowCardUsage: args.allowCardUsage,
         cardUsageRate: args.cardUsageRate,
+        playerPolicies: policyModel ? {
+            black: {
+                allowCardUsage: args.allowCardUsage,
+                cardUsageRate: args.cardUsageRate,
+                policyTableModel: policyModel,
+                enableTacticalLookahead: true,
+                tacticalWeight: 1
+            },
+            white: {
+                allowCardUsage: args.allowCardUsage,
+                cardUsageRate: args.cardUsageRate,
+                policyTableModel: policyModel,
+                enableTacticalLookahead: true,
+                tacticalWeight: 1
+            }
+        } : null,
         onRecord: (record) => {
             outStream.write(`${JSON.stringify(record)}\n`);
         },
@@ -159,7 +199,9 @@ function main() {
             seed: args.seed,
             maxPlies: args.maxPlies,
             allowCardUsage: args.allowCardUsage,
-            cardUsageRate: args.cardUsageRate
+            cardUsageRate: args.cardUsageRate,
+            hasPolicyModel: !!policyModel,
+            policyModelPath: args.policyModelPath || null
         },
         summary: result.summary
     };
@@ -168,6 +210,9 @@ function main() {
     console.log(`[selfplay] records: ${args.out}`);
     console.log(`[selfplay] summary: ${summaryPath}`);
     console.log(`[selfplay] totalGames=${result.summary.totalGames} avgPlies=${result.summary.avgPlies.toFixed(2)} wins=${JSON.stringify(result.summary.wins)}`);
+    if (args.policyModelPath) {
+        console.log(`[selfplay] policyModel=${args.policyModelPath}`);
+    }
 }
 
 if (require.main === module) {

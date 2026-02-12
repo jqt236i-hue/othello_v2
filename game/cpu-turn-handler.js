@@ -228,8 +228,8 @@ function getPendingTypeHandlers(playerKey) {
         'SELL_CARD_WILL': async () => { if (typeof cpuSelectSellCardWillWithPolicy === 'function') await cpuSelectSellCardWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'HEAVEN_BLESSING': async () => { if (typeof cpuSelectHeavenBlessingWithPolicy === 'function') await cpuSelectHeavenBlessingWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'CONDEMN_WILL': async () => { if (typeof cpuSelectCondemnWillWithPolicy === 'function') await cpuSelectCondemnWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'INHERIT_WILL': async () => { await cpuSelectInheritWillWithPolicy(playerKey); },
         'SWAP_WITH_ENEMY': async () => { if (typeof cpuSelectSwapWithEnemyWithPolicy === 'function') await cpuSelectSwapWithEnemyWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
+        'POSITION_SWAP_WILL': async () => { if (typeof cpuSelectPositionSwapWillWithPolicy === 'function') await cpuSelectPositionSwapWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'TRAP_WILL': async () => { if (typeof cpuSelectTrapWillWithPolicy === 'function') await cpuSelectTrapWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'GUARD_WILL': async () => { if (typeof cpuSelectGuardWillWithPolicy === 'function') await cpuSelectGuardWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'TEMPT_WILL': async () => { if (typeof cpuSelectTemptWillWithPolicy === 'function') await cpuSelectTemptWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
@@ -406,7 +406,23 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
             return;
         }
 
-        const move = selectCpuMoveSafe(candidateMoves, playerKey);
+        const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
+            ? cpuSmartness[playerKey]
+            : 1;
+        let move = null;
+        if (typeof selectMoveFromOnnxPolicyAsync === 'function') {
+            try {
+                move = await selectMoveFromOnnxPolicyAsync(candidateMoves, playerKey, level);
+            } catch (e) {
+                debugCpuTrace('[AI] selectMoveFromOnnxPolicyAsync failed; fallback to policy table/core', {
+                    playerKey,
+                    error: e && e.message ? e.message : String(e)
+                });
+            }
+        }
+        if (!move) {
+            move = selectCpuMoveSafe(candidateMoves, playerKey);
+        }
         if (!move) {
             const passFn = resolveProcessPassTurn();
             if (passFn) {

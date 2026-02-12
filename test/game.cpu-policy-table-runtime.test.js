@@ -93,28 +93,39 @@ describe('policy-table-runtime', () => {
     expect(runtime.hasModel()).toBe(true);
   });
 
-  test('getActionScore returns numeric score for known action', () => {
-    const board = [[0]];
-    const stateKey = runtime.makeStateKey('white', board, null, 1);
+  test('getActionScore ranks known better action above weaker known action', () => {
+    const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
+    const stateKey = runtime.makeStateKey('white', runtime.canonicalizeBoard(board).boardKey, null, 2);
     expect(runtime.setModel({
       schemaVersion: runtime.MODEL_SCHEMA_VERSION,
       states: {
         [stateKey]: {
-          bestAction: 'place:0:0',
-          actions: { 'place:0:0': { visits: 5, avgOutcome: 0.3 } }
+          bestAction: 'place:3:3',
+          actions: {
+            'place:3:3': { visits: 10, avgOutcome: 0.5 },
+            'place:3:4': { visits: 1, avgOutcome: -0.2 }
+          }
         }
       }
     })).toBe(true);
 
-    const score = runtime.getActionScore({ row: 0, col: 0 }, {
+    const strongScore = runtime.getActionScore({ row: 3, col: 3 }, {
       playerKey: 'white',
       level: 5,
       board,
       pendingType: null,
-      legalMovesCount: 1
+      legalMovesCount: 2
     });
-    expect(typeof score).toBe('number');
-    expect(score).toBeGreaterThan(1000);
+    const weakScore = runtime.getActionScore({ row: 3, col: 4 }, {
+      playerKey: 'white',
+      level: 5,
+      board,
+      pendingType: null,
+      legalMovesCount: 2
+    });
+    expect(typeof strongScore).toBe('number');
+    expect(typeof weakScore).toBe('number');
+    expect(strongScore).toBeGreaterThan(weakScore);
   });
 
   test('chooseMove supports v2 canonicalized state keys', () => {
@@ -147,7 +158,7 @@ describe('policy-table-runtime', () => {
     expect(selected).toBeTruthy();
   });
 
-  test('getActionScoreForKey returns numeric score for use_card action', () => {
+  test('getActionScoreForKey ranks better use_card action above weaker action', () => {
     const board = [[0]];
     const stateKey = runtime.makeStateKey('white', runtime.canonicalizeBoard(board).boardKey, null, 0);
     expect(runtime.setModel({
@@ -155,19 +166,30 @@ describe('policy-table-runtime', () => {
       states: {
         [stateKey]: {
           bestAction: 'use_card:c1',
-          actions: { 'use_card:c1': { visits: 7, avgOutcome: 0.4 } }
+          actions: {
+            'use_card:c1': { visits: 7, avgOutcome: 0.4 },
+            'use_card:c2': { visits: 1, avgOutcome: -0.1 }
+          }
         }
       }
     })).toBe(true);
-    const score = runtime.getActionScoreForKey('use_card:c1', {
+    const strongScore = runtime.getActionScoreForKey('use_card:c1', {
       playerKey: 'white',
       level: 5,
       board,
       pendingType: null,
       legalMovesCount: 0
     });
-    expect(typeof score).toBe('number');
-    expect(score).toBeGreaterThan(1000);
+    const weakScore = runtime.getActionScoreForKey('use_card:c2', {
+      playerKey: 'white',
+      level: 5,
+      board,
+      pendingType: null,
+      legalMovesCount: 0
+    });
+    expect(typeof strongScore).toBe('number');
+    expect(typeof weakScore).toBe('number');
+    expect(strongScore).toBeGreaterThan(weakScore);
   });
 
   test('chooseMove uses abstract state fallback for placement', () => {

@@ -62,6 +62,66 @@ async function loadCpuPolicy() {
 }
 
 /**
+ * ONNX model loading for browser CPU runtime.
+ * Fails safely: CPU falls back to policy-table/default logic.
+ */
+async function initPolicyOnnxModel() {
+    let runtime = null;
+    try {
+        if (typeof window !== 'undefined' && window.CpuPolicyOnnxRuntime) {
+            runtime = window.CpuPolicyOnnxRuntime;
+        }
+    } catch (e) { /* ignore */ }
+    if (!runtime || typeof runtime.loadFromUrl !== 'function') return;
+
+    const modelUrl = 'data/models/policy-net.onnx';
+    const metaUrl = 'data/models/policy-net.onnx.meta.json';
+
+    // If the model files are not present locally, skip loading to avoid noisy 404/errors.
+    // Browser-only: use window.fetch so Node/Jest tests do not attempt relative URL fetches.
+    const fetchImpl = (typeof window !== 'undefined' && typeof window.fetch === 'function')
+        ? window.fetch.bind(window)
+        : null;
+    if (fetchImpl) {
+        try {
+            const headModel = await fetchImpl(modelUrl, { method: 'HEAD', cache: 'no-store' });
+            if (!headModel || !headModel.ok) {
+                if (_isDebugEnabled()) console.warn('[CPU] policy-onnx model file not found; skip load');
+                return;
+            }
+            const headMeta = await fetchImpl(metaUrl, { method: 'HEAD', cache: 'no-store' });
+            if (!headMeta || !headMeta.ok) {
+                if (_isDebugEnabled()) console.warn('[CPU] policy-onnx meta file not found; skip load');
+                return;
+            }
+        } catch (e) {
+            if (_isDebugEnabled()) console.warn('[CPU] policy-onnx presence check failed; skip load', e);
+            return;
+        }
+    }
+
+    try {
+        if (typeof runtime.configure === 'function') {
+            runtime.configure({
+                enabled: true,
+                minLevel: 6,
+                sourceUrl: modelUrl,
+                metaUrl: metaUrl
+            });
+        }
+        const ok = await runtime.loadFromUrl(modelUrl, metaUrl);
+        if (ok) {
+            console.log('[CPU] policy-onnx loaded');
+        } else if (_isDebugEnabled()) {
+            const status = (typeof runtime.getStatus === 'function') ? runtime.getStatus() : null;
+            console.warn('[CPU] policy-onnx not loaded', status && status.lastError ? status.lastError : '');
+        }
+    } catch (err) {
+        if (_isDebugEnabled()) console.warn('[CPU] policy-onnx loading failed', err);
+    }
+}
+
+/**
  * Policy-table model loading for browser CPU runtime.
  * Fails safely: CPU falls back to default policy logic.
  */
@@ -100,6 +160,7 @@ async function initPolicyTableModel() {
 if (typeof window !== 'undefined') {
     window.initLvMaxModels = initLvMaxModels;
     window.loadCpuPolicy = loadCpuPolicy;
+    window.initPolicyOnnxModel = initPolicyOnnxModel;
     window.initPolicyTableModel = initPolicyTableModel;
 }
 
@@ -107,6 +168,7 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         initLvMaxModels,
         loadCpuPolicy,
+        initPolicyOnnxModel,
         initPolicyTableModel
     };
 }

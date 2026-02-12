@@ -48,6 +48,10 @@ let CpuPolicyTableRuntime = null;
 if (typeof require === 'function') {
     try { CpuPolicyTableRuntime = require('./ai/policy-table-runtime'); } catch (e) { /* ignore */ }
 }
+let CpuPolicyOnnxRuntime = null;
+if (typeof require === 'function') {
+    try { CpuPolicyOnnxRuntime = require('./ai/policy-onnx-runtime'); } catch (e) { /* ignore */ }
+}
 
 function resolvePolicyTableRuntime() {
     try {
@@ -70,6 +74,21 @@ function resolvePolicyTableRuntime() {
             typeof CpuPolicyTableRuntime.getActionScoreForKey === 'function'
         )
     ) return CpuPolicyTableRuntime;
+    return null;
+}
+
+function resolvePolicyOnnxRuntime() {
+    try {
+        if (
+            typeof globalThis !== 'undefined' &&
+            globalThis.CpuPolicyOnnxRuntime &&
+            typeof globalThis.CpuPolicyOnnxRuntime.chooseMove === 'function'
+        ) {
+            CpuPolicyOnnxRuntime = globalThis.CpuPolicyOnnxRuntime;
+            return CpuPolicyOnnxRuntime;
+        }
+    } catch (e) { /* ignore */ }
+    if (CpuPolicyOnnxRuntime && typeof CpuPolicyOnnxRuntime.chooseMove === 'function') return CpuPolicyOnnxRuntime;
     return null;
 }
 
@@ -120,6 +139,26 @@ function createLearnedScoreFn(playerKey, level, legalMovesCount) {
             return 0;
         }
     };
+}
+
+async function selectMoveFromOnnxPolicyAsync(candidateMoves, playerKey, level) {
+    const runtime = resolvePolicyOnnxRuntime();
+    if (!runtime || typeof runtime.chooseMove !== 'function') return null;
+    try {
+        return await runtime.chooseMove(candidateMoves, {
+            playerKey,
+            level,
+            board: gameState && gameState.board,
+            pendingType: resolvePendingType(playerKey),
+            legalMovesCount: candidateMoves.length,
+            ownCharge: (cardState && cardState.charge && Number.isFinite(cardState.charge[playerKey])) ? cardState.charge[playerKey] : 0,
+            oppCharge: (cardState && cardState.charge && Number.isFinite(cardState.charge[playerKey === 'black' ? 'white' : 'black'])) ? cardState.charge[playerKey === 'black' ? 'white' : 'black'] : 0,
+            deckCount: (cardState && cardState.deck && Number.isFinite(cardState.deck.length)) ? cardState.deck.length : 0
+        });
+    } catch (e) {
+        console.warn('[CPU] policy-onnx runtime failed, fallback to default policy', e);
+        return null;
+    }
 }
 
 function selectCardFromLearnedPolicy(playerKey, level, legalMovesCount, usableCardIds) {
@@ -1036,45 +1075,6 @@ async function cpuSelectCondemnWillWithPolicy(playerKey) {
 }
 
 /**
- * 意志の継承 対象選択
- * @param {string} playerKey - 'black' または 'white'
- */
-async function cpuSelectInheritWillWithPolicy(playerKey) {
-    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
-        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
-        : [];
-
-    if (!targets.length) {
-        cpuDebugLog(`[CPU] ${playerKey}: 継承対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
-        return;
-    }
-
-    const target = targets[Math.floor(cpuRng.random() * targets.length)];
-    cpuDebugLog(`[CPU] ${playerKey}: 継承ターゲット (${target.row}, ${target.col})`);
-
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
-        playerKey,
-        { inheritTarget: { row: target.row, col: target.col } },
-        'INHERIT_WILL'
-    );
-    if (pipelineResult) return;
-
-    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyInheritWill === 'function') {
-        const res = CardLogic.applyInheritWill(cardState, gameState, playerKey, target.row, target.col);
-        if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
-        }
-        emitCpuSelectionStateChange();
-        return;
-    }
-
-    if (typeof handleInheritSelection === 'function') {
-        await handleInheritSelection(target.row, target.col, playerKey);
-    }
-}
-
-/**
  * 交換の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
@@ -1110,6 +1110,45 @@ async function cpuSelectSwapWithEnemyWithPolicy(playerKey) {
 
     if (typeof handleSwapSelection === 'function') {
         await handleSwapSelection(target.row, target.col, playerKey);
+    }
+}
+
+/**
+ * 入替の意志 対象選択（2段階）
+ * @param {string} playerKey - 'black' または 'white'
+ */
+async function cpuSelectPositionSwapWillWithPolicy(playerKey) {
+    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
+        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+        : [];
+
+    if (!targets.length) {
+        cpuDebugLog(`[CPU] ${playerKey}: 入替対象なし`);
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return;
+    }
+
+    const target = targets[Math.floor(cpuRng.random() * targets.length)];
+    cpuDebugLog(`[CPU] ${playerKey}: 入替ターゲット (${target.row}, ${target.col})`);
+
+    const pipelineResult = runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { positionSwapTarget: { row: target.row, col: target.col } },
+        'POSITION_SWAP_WILL'
+    );
+    if (pipelineResult) return;
+
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyPositionSwapWill === 'function') {
+        const res = CardLogic.applyPositionSwapWill(cardState, gameState, playerKey, target.row, target.col);
+        if (!res || !res.applied) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+        emitCpuSelectionStateChange();
+        return;
+    }
+
+    if (typeof handlePositionSwapSelection === 'function') {
+        await handlePositionSwapSelection(target.row, target.col, playerKey);
     }
 }
 
@@ -1295,13 +1334,14 @@ if (typeof module !== 'undefined' && module.exports) {
         selectCardToUse,
         applyCardChoice,
         selectCpuMoveWithPolicy,
+        selectMoveFromOnnxPolicyAsync,
         cpuSelectDestroyWithPolicy,
         cpuSelectSacrificeWillWithPolicy,
         cpuSelectSellCardWillWithPolicy,
         cpuSelectHeavenBlessingWithPolicy,
         cpuSelectCondemnWillWithPolicy,
-        cpuSelectInheritWithPolicy: cpuSelectInheritWillWithPolicy,
         cpuSelectSwapWithEnemyWithPolicy,
+        cpuSelectPositionSwapWillWithPolicy,
         cpuSelectTrapWillWithPolicy,
         cpuSelectGuardWillWithPolicy,
         cpuSelectTimeBombWithPolicy,

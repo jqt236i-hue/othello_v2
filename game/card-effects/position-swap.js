@@ -1,6 +1,6 @@
 /**
- * @file inherit.js
- * @description Inherit Will card handlers
+ * @file position-swap.js
+ * @description Position Swap Will card handlers
  */
 
 function emitPresentationEventViaBoardOps(ev) {
@@ -11,16 +11,19 @@ function emitPresentationEventViaBoardOps(ev) {
     return false;
 }
 
-async function handleInheritSelection(row, col, playerKey) {
+async function handlePositionSwapSelection(row, col, playerKey) {
     if (isProcessing || isCardAnimating) return;
     isProcessing = true;
     isCardAnimating = true;
     let shouldCheckAutoPass = false;
 
     try {
+        const pending = cardState.pendingEffectByPlayer[playerKey];
+        if (!pending || pending.type !== 'POSITION_SWAP_WILL' || pending.stage !== 'selectTarget') return;
+
         const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-            ? ActionManager.ActionManager.createAction('place', playerKey, { inheritTarget: { row, col } })
-            : { type: 'place', inheritTarget: { row, col } };
+            ? ActionManager.ActionManager.createAction('place', playerKey, { positionSwapTarget: { row, col } })
+            : { type: 'place', positionSwapTarget: { row, col } };
         if (action && cardState && typeof cardState.turnIndex === 'number') {
             action.turnIndex = cardState.turnIndex;
         }
@@ -30,13 +33,14 @@ async function handleInheritSelection(row, col, playerKey) {
             : null;
 
         if (!res || res.ok === false) {
-            if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.normalStoneSelectPrompt());
+            if (typeof emitLogAdded === 'function') emitLogAdded('入替対象の石を選んでください');
             return;
         }
 
-        const selected = (res.rawEvents || []).find(e => e && e.type === 'inherit_selected');
-        if (!selected || !selected.applied) {
-            if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.normalStoneSelectPrompt());
+        const firstSelected = (res.rawEvents || []).find(e => e && e.type === 'position_swap_first_selected');
+        const swapped = (res.rawEvents || []).find(e => e && e.type === 'position_swap_selected' && e.applied && e.completed);
+        if (!firstSelected && !swapped) {
+            if (typeof emitLogAdded === 'function') emitLogAdded('入替対象の石を選んでください');
             return;
         }
 
@@ -47,15 +51,19 @@ async function handleInheritSelection(row, col, playerKey) {
             emitPresentationEventViaBoardOps({
                 type: 'PLAYBACK_EVENTS',
                 events: res.playbackEvents,
-                meta: { cause: 'INHERIT_WILL', target: { row, col } }
+                meta: { cause: 'POSITION_SWAP_WILL', target: { row, col } }
             });
         }
 
         if (typeof emitLogAdded === 'function') {
-            emitLogAdded(LOG_MESSAGES.inheritApplied(playerKey === 'black' ? '黒' : '白', posToNotation(row, col)));
+            if (swapped) {
+                emitLogAdded(`${playerKey === 'black' ? '黒' : '白'}が入替の意志で${posToNotation(swapped.from.row, swapped.from.col)}と${posToNotation(swapped.to.row, swapped.to.col)}を入替`);
+            } else {
+                emitLogAdded('入替の意志: 2つ目の石を選んでください');
+            }
         }
-        if (typeof emitCardStateChange === 'function') emitCardStateChange();
 
+        if (typeof emitCardStateChange === 'function') emitCardStateChange();
         if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
         if (typeof emitGameStateChange === 'function') emitGameStateChange();
         shouldCheckAutoPass = true;
@@ -69,5 +77,5 @@ async function handleInheritSelection(row, col, playerKey) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { handleInheritSelection };
+    module.exports = { handlePositionSwapSelection };
 }

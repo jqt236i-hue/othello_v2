@@ -431,9 +431,9 @@
                 case 'ultimate_hyperactive_destroyed_immediate':
                     push(`究極多動神: ${_detailCount(ev)}個が消滅`);
                     break;
-                case 'ultimate_hyperactive_blown_start':
-                case 'ultimate_hyperactive_blown_immediate':
-                    push(`究極多動神: ${_detailCount(ev)}個を吹き飛ばし`);
+                case 'ultimate_hyperactive_flipped_start':
+                case 'ultimate_hyperactive_flipped_immediate':
+                    push(`究極多動神: ${_detailCount(ev)}枚を反転`);
                     break;
                 case 'regen_triggered_start':
                 case 'regen_triggered':
@@ -472,11 +472,14 @@
                 case 'tempt_selected':
                     if (ev.applied) push('誘惑で特殊石を奪取');
                     break;
-                case 'inherit_selected':
-                    if (ev.applied) push('継承で強い石へ変換');
-                    break;
                 case 'swap_selected':
                     if (ev.swapped) push(`交換で${_toPosText({ row: ev.row, col: ev.col })}を変換`);
+                    break;
+                case 'position_swap_first_selected':
+                    if (ev.applied) push(`入替の意志: 1つ目に${_toPosText(ev.from || ev.target)}を選択`);
+                    break;
+                case 'position_swap_selected':
+                    if (ev.applied && ev.completed) push(`入替の意志: ${_toPosText(ev.from)} と ${_toPosText(ev.to)} を入替`);
                     break;
                 case 'trap_selected':
                     if (ev.applied) push('罠石がどこかに潜んでいる...');

@@ -23,7 +23,6 @@ const LOG_MESSAGES = {
     swapSelectPrompt: () => '交換対象（相手の石）を選んでください',
     normalStoneSelectPrompt: () => '通常石を選んでください',
     temptSelectPrompt: () => '対象の相手特殊石を選んでください',
-    inheritApplied: (playerLabel, posText) => `${playerLabel}が意志の継承で ${posText} を強い意志に変換`,
     temptApplied: (playerLabel, posText) => `${playerLabel}が誘惑の意志で ${posText} の支配権を奪った`,
     destroyApplied: (playerLabel, posText) => `${playerLabel}が破壊神で ${posText} を破壊`,
     swapApplied: (playerLabel, posText) => `${playerLabel}が交換の意志で ${posText} を自分の石に変換`,
@@ -47,7 +46,7 @@ const LOG_MESSAGES = {
     hyperactiveDestroyed: (count) => `多動の意志が${count}個消滅`,
     ultimateHyperactiveMoved: (count) => `究極多動神が${count}回移動`,
     ultimateHyperactiveDestroyed: (count) => `究極多動神が${count}個消滅`,
-    ultimateHyperactiveBlown: (count) => `究極多動神が${count}個の石を吹き飛ばした`,
+    ultimateHyperactiveFlipped: (count) => `究極多動神が${count}枚反転`,
     hyperactiveMovedImmediate: () => '多動の意志が即時に移動',
     hyperactiveDestroyedImmediate: () => '多動の意志が即時に消滅'
 };

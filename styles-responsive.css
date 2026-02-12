@@ -63,3 +63,485 @@
         background-color: rgba(255, 255, 255, 0.03);
     }
 }
+
+/* 16:10 and narrower: start tightening side panels before 4:3 */
+@media (max-aspect-ratio: 16/10) {
+    #board {
+        width: 66vmin;
+        height: 66vmin;
+        max-width: 490px;
+        max-height: 490px;
+    }
+
+    #side-panel {
+        right: 14px;
+        bottom: 14px;
+        width: clamp(240px, 25vw, 285px);
+    }
+
+    #log {
+        left: 14px;
+        top: 14px;
+        transform: none;
+        width: clamp(230px, 23vw, 280px);
+        max-height: 42vh;
+    }
+
+    #effect-live-panel {
+        left: 14px;
+        top: calc(14px + 42vh + 8px);
+        transform: none;
+        width: clamp(185px, 19vw, 225px);
+        max-height: 24vh;
+        min-height: 128px;
+    }
+
+    #cpu-character-panel {
+        top: 14px;
+        right: 14px;
+    }
+
+    #cpu-character-img {
+        width: clamp(220px, 25vw, 290px);
+        height: clamp(220px, 25vw, 290px);
+    }
+
+    #hero-character-panel {
+        left: 14px;
+        bottom: 14px;
+    }
+
+    #hero-character-img {
+        width: clamp(180px, 21vw, 245px);
+        height: clamp(180px, 21vw, 245px);
+        transform: translateY(clamp(10px, 1.6vmin, 18px));
+    }
+
+    #hero-character-img:hover {
+        transform: translateY(clamp(10px, 1.6vmin, 18px)) scale(1.08);
+    }
+
+    #hero-label {
+        transform: translateY(clamp(10px, 1.6vmin, 18px));
+    }
+}
+
+/* 3:2 and narrower: tighten spacing further while keeping board readability */
+@media (max-aspect-ratio: 3/2) {
+    #game-container {
+        padding-bottom: 5vh;
+        gap: 8px;
+    }
+
+    #board {
+        width: 64vmin;
+        height: 64vmin;
+        max-width: 475px;
+        max-height: 475px;
+    }
+
+    #side-panel {
+        right: 12px;
+        bottom: 12px;
+        width: clamp(230px, 24vw, 270px);
+    }
+
+    #log {
+        left: 12px;
+        top: 12px;
+        transform: none;
+        width: clamp(220px, 22vw, 260px);
+        max-height: 38vh;
+        font-size: 12px;
+        padding: 10px 11px;
+    }
+
+    #effect-live-panel {
+        left: 12px;
+        top: calc(12px + 38vh + 8px);
+        transform: none;
+        width: clamp(175px, 19vw, 215px);
+        min-height: 124px;
+        max-height: 23vh;
+        overflow: hidden;
+        padding: 8px 9px;
+    }
+
+    #cpu-character-panel {
+        top: 12px;
+        right: 12px;
+    }
+
+    #cpu-character-img {
+        width: clamp(205px, 24vw, 275px);
+        height: clamp(205px, 24vw, 275px);
+    }
+
+    #cpu-level-label {
+        font-size: clamp(15px, 1.9vw, 19px);
+        transform: translateY(clamp(-12px, -0.8vmin, -6px));
+    }
+
+    #hero-character-panel {
+        left: 12px;
+        bottom: 12px;
+    }
+
+    #hero-character-img {
+        width: clamp(170px, 20vw, 230px);
+        height: clamp(170px, 20vw, 230px);
+        transform: translateY(clamp(10px, 1.4vmin, 16px));
+    }
+
+    #hero-character-img:hover {
+        transform: translateY(clamp(10px, 1.4vmin, 16px)) scale(1.08);
+    }
+
+    #hero-label {
+        font-size: clamp(14px, 1.9vw, 18px);
+        transform: translateY(clamp(10px, 1.4vmin, 16px));
+    }
+}
+
+/* 4:3 and narrower: prevent fixed UI overlap with board */
+@media (max-aspect-ratio: 4/3) {
+    #game-container {
+        padding-bottom: 4vh;
+        gap: 8px;
+    }
+
+    #board {
+        width: 62vmin;
+        height: 62vmin;
+        max-width: 460px;
+        max-height: 460px;
+    }
+
+    #side-panel {
+        right: 12px;
+        bottom: 12px;
+        width: clamp(220px, 24vw, 260px);
+    }
+
+    #log {
+        left: 12px;
+        top: 12px;
+        transform: none;
+        width: clamp(210px, 22vw, 250px);
+        max-height: 34vh;
+        font-size: 12px;
+        padding: 10px 11px;
+    }
+
+    #effect-live-panel {
+        left: 12px;
+        top: calc(12px + 34vh + 8px);
+        transform: none;
+        width: clamp(170px, 18vw, 210px);
+        min-height: 120px;
+        max-height: 22vh;
+        overflow: hidden;
+        padding: 8px 9px;
+    }
+
+    #cpu-character-panel {
+        top: 12px;
+        right: 12px;
+    }
+
+    #cpu-character-img {
+        width: clamp(190px, 24vw, 260px);
+        height: clamp(190px, 24vw, 260px);
+    }
+
+    #cpu-level-label {
+        font-size: clamp(15px, 1.9vw, 18px);
+        transform: translateY(clamp(-12px, -0.8vmin, -6px));
+    }
+
+    #hero-character-panel {
+        left: 12px;
+        bottom: 12px;
+    }
+
+    #hero-character-img {
+        width: clamp(160px, 20vw, 220px);
+        height: clamp(160px, 20vw, 220px);
+        transform: translateY(clamp(10px, 1.4vmin, 16px));
+    }
+
+    #hero-character-img:hover {
+        transform: translateY(clamp(10px, 1.4vmin, 16px)) scale(1.08);
+    }
+
+    #hero-label {
+        font-size: clamp(14px, 1.9vw, 18px);
+        transform: translateY(clamp(10px, 1.4vmin, 16px));
+    }
+}
+
+/* tighter fallback for classic 5:4 monitors */
+@media (max-aspect-ratio: 5/4) {
+    #board {
+        width: 58vmin;
+        height: 58vmin;
+        max-width: 420px;
+        max-height: 420px;
+    }
+
+    #log {
+        width: clamp(190px, 21vw, 230px);
+        max-height: 31vh;
+    }
+
+    #effect-live-panel {
+        width: clamp(155px, 17vw, 190px);
+    }
+
+    #cpu-character-img {
+        width: clamp(170px, 22vw, 235px);
+        height: clamp(170px, 22vw, 235px);
+    }
+
+    #hero-character-img {
+        width: clamp(145px, 18vw, 195px);
+        height: clamp(145px, 18vw, 195px);
+    }
+}
+
+/* forced simulation via URL query: ?simAspect=16:10 */
+html.sim-aspect-16-10 #board {
+    width: 66vmin;
+    height: 66vmin;
+    max-width: 490px;
+    max-height: 490px;
+}
+
+html.sim-aspect-16-10 #side-panel {
+    right: 14px;
+    bottom: 14px;
+    width: clamp(240px, 25vw, 285px);
+}
+
+html.sim-aspect-16-10 #log {
+    left: 14px;
+    top: 14px;
+    transform: none;
+    width: clamp(230px, 23vw, 280px);
+    max-height: 42vh;
+}
+
+html.sim-aspect-16-10 #effect-live-panel {
+    left: 14px;
+    top: calc(14px + 42vh + 8px);
+    transform: none;
+    width: clamp(185px, 19vw, 225px);
+    max-height: 24vh;
+    min-height: 128px;
+}
+
+html.sim-aspect-16-10 #cpu-character-panel {
+    top: 14px;
+    right: 14px;
+}
+
+html.sim-aspect-16-10 #cpu-character-img {
+    width: clamp(220px, 25vw, 290px);
+    height: clamp(220px, 25vw, 290px);
+}
+
+html.sim-aspect-16-10 #hero-character-panel {
+    left: 14px;
+    bottom: 14px;
+}
+
+html.sim-aspect-16-10 #hero-character-img {
+    width: clamp(180px, 21vw, 245px);
+    height: clamp(180px, 21vw, 245px);
+    transform: translateY(clamp(10px, 1.6vmin, 18px));
+}
+
+html.sim-aspect-16-10 #hero-character-img:hover {
+    transform: translateY(clamp(10px, 1.6vmin, 18px)) scale(1.08);
+}
+
+html.sim-aspect-16-10 #hero-label {
+    transform: translateY(clamp(10px, 1.6vmin, 18px));
+}
+
+/* forced simulation via URL query: ?simAspect=3:2 */
+html.sim-aspect-3-2 #game-container {
+    padding-bottom: 5vh;
+    gap: 8px;
+}
+
+html.sim-aspect-3-2 #board {
+    width: 64vmin;
+    height: 64vmin;
+    max-width: 475px;
+    max-height: 475px;
+}
+
+html.sim-aspect-3-2 #side-panel {
+    right: 12px;
+    bottom: 12px;
+    width: clamp(230px, 24vw, 270px);
+}
+
+html.sim-aspect-3-2 #log {
+    left: 12px;
+    top: 12px;
+    transform: none;
+    width: clamp(220px, 22vw, 260px);
+    max-height: 38vh;
+    font-size: 12px;
+    padding: 10px 11px;
+}
+
+html.sim-aspect-3-2 #effect-live-panel {
+    left: 12px;
+    top: calc(12px + 38vh + 8px);
+    transform: none;
+    width: clamp(175px, 19vw, 215px);
+    min-height: 124px;
+    max-height: 23vh;
+    overflow: hidden;
+    padding: 8px 9px;
+}
+
+html.sim-aspect-3-2 #cpu-character-panel {
+    top: 12px;
+    right: 12px;
+}
+
+html.sim-aspect-3-2 #cpu-character-img {
+    width: clamp(205px, 24vw, 275px);
+    height: clamp(205px, 24vw, 275px);
+}
+
+html.sim-aspect-3-2 #cpu-level-label {
+    font-size: clamp(15px, 1.9vw, 19px);
+    transform: translateY(clamp(-12px, -0.8vmin, -6px));
+}
+
+html.sim-aspect-3-2 #hero-character-panel {
+    left: 12px;
+    bottom: 12px;
+}
+
+html.sim-aspect-3-2 #hero-character-img {
+    width: clamp(170px, 20vw, 230px);
+    height: clamp(170px, 20vw, 230px);
+    transform: translateY(clamp(10px, 1.4vmin, 16px));
+}
+
+html.sim-aspect-3-2 #hero-character-img:hover {
+    transform: translateY(clamp(10px, 1.4vmin, 16px)) scale(1.08);
+}
+
+html.sim-aspect-3-2 #hero-label {
+    font-size: clamp(14px, 1.9vw, 18px);
+    transform: translateY(clamp(10px, 1.4vmin, 16px));
+}
+
+/* forced simulation via URL query: ?simAspect=4:3 */
+html.sim-aspect-4-3 #game-container {
+    padding-bottom: 4vh;
+    gap: 8px;
+}
+
+html.sim-aspect-4-3 #board {
+    width: 62vmin;
+    height: 62vmin;
+    max-width: 460px;
+    max-height: 460px;
+}
+
+html.sim-aspect-4-3 #side-panel {
+    right: 12px;
+    bottom: 12px;
+    width: clamp(220px, 24vw, 260px);
+}
+
+html.sim-aspect-4-3 #log {
+    left: 12px;
+    top: 12px;
+    transform: none;
+    width: clamp(210px, 22vw, 250px);
+    max-height: 34vh;
+    font-size: 12px;
+    padding: 10px 11px;
+}
+
+html.sim-aspect-4-3 #effect-live-panel {
+    left: 12px;
+    top: calc(12px + 34vh + 8px);
+    transform: none;
+    width: clamp(170px, 18vw, 210px);
+    min-height: 120px;
+    max-height: 22vh;
+    overflow: hidden;
+    padding: 8px 9px;
+}
+
+html.sim-aspect-4-3 #cpu-character-panel {
+    top: 12px;
+    right: 12px;
+}
+
+html.sim-aspect-4-3 #cpu-character-img {
+    width: clamp(190px, 24vw, 260px);
+    height: clamp(190px, 24vw, 260px);
+}
+
+html.sim-aspect-4-3 #cpu-level-label {
+    font-size: clamp(15px, 1.9vw, 18px);
+    transform: translateY(clamp(-12px, -0.8vmin, -6px));
+}
+
+html.sim-aspect-4-3 #hero-character-panel {
+    left: 12px;
+    bottom: 12px;
+}
+
+html.sim-aspect-4-3 #hero-character-img {
+    width: clamp(160px, 20vw, 220px);
+    height: clamp(160px, 20vw, 220px);
+    transform: translateY(clamp(10px, 1.4vmin, 16px));
+}
+
+html.sim-aspect-4-3 #hero-character-img:hover {
+    transform: translateY(clamp(10px, 1.4vmin, 16px)) scale(1.08);
+}
+
+html.sim-aspect-4-3 #hero-label {
+    font-size: clamp(14px, 1.9vw, 18px);
+    transform: translateY(clamp(10px, 1.4vmin, 16px));
+}
+
+/* forced simulation via URL query: ?simAspect=5:4 */
+html.sim-aspect-5-4 #board {
+    width: 58vmin;
+    height: 58vmin;
+    max-width: 420px;
+    max-height: 420px;
+}
+
+html.sim-aspect-5-4 #log {
+    width: clamp(190px, 21vw, 230px);
+    max-height: 31vh;
+}
+
+html.sim-aspect-5-4 #effect-live-panel {
+    width: clamp(155px, 17vw, 190px);
+}
+
+html.sim-aspect-5-4 #cpu-character-img {
+    width: clamp(170px, 22vw, 235px);
+    height: clamp(170px, 22vw, 235px);
+}
+
+html.sim-aspect-5-4 #hero-character-img {
+    width: clamp(145px, 18vw, 195px);
+    height: clamp(145px, 18vw, 195px);
+}

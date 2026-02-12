@@ -30,8 +30,15 @@ window.CardCatalog = {
       "id": "swap_01",
       "name": "交換の意志",
       "type": "SWAP_WITH_ENEMY",
-      "cost": 5,
+      "cost": 13,
       "desc": "次に置く石を相手石1つと入れ替えて置ける。"
+    },
+    {
+      "id": "position_swap_01",
+      "name": "入替の意志",
+      "type": "POSITION_SWAP_WILL",
+      "cost": 17,
+      "desc": "盤面上の石2つを選び、位置を入れ替える。通常石・特殊石・爆弾を問わず対象にできる。"
     },
     {
       "id": "sacrifice_01",
@@ -55,17 +62,10 @@ window.CardCatalog = {
       "desc": "盤面の石1つを選び、最も長く進める上下左右方向へ飛ばす（同距離はランダム）。移動したマス数ぶん布石を得る。"
     },
     {
-      "id": "inherit_01",
-      "name": "意志の継承",
-      "type": "INHERIT_WILL",
-      "cost": 12,
-      "desc": "自分の通常石1つを強い意志にする。"
-    },
-    {
       "id": "trap_01",
       "name": "罠の意志",
       "type": "TRAP_WILL",
-      "cost": 14,
+      "cost": 10,
       "desc": "自分の石1つを罠石化。次の相手ターン中に反転されると相手の布石全没収+手札3枚没収。"
     },
     {
@@ -93,7 +93,7 @@ window.CardCatalog = {
       "id": "destroy_01",
       "name": "破壊神",
       "type": "DESTROY_ONE_STONE",
-      "cost": 10,
+      "cost": 14,
       "desc": "盤上の石1つを破壊する。"
     },
     {
@@ -122,7 +122,7 @@ window.CardCatalog = {
       "name": "十字爆弾",
       "type": "CROSS_BOMB",
       "cost": 18,
-      "desc": "次に置く石を十字爆弾化。通常反転後に即起爆し、中心と縦横1マスの石を破壊する。"
+      "desc": "次に置く石を十字爆弾化。通常反転後に即起爆し、中心と縦横2マスの石を破壊する。"
     },
     {
       "id": "hyperactive_01",
@@ -199,7 +199,7 @@ window.CardCatalog = {
       "name": "守る意志",
       "type": "GUARD_WILL",
       "cost": 7,
-      "desc": "自分の石1つに完全保護を付与する。3ターン持続。"
+      "desc": "自分の石1つに完全保護を付与する。5ターン持続。"
     },
     {
       "id": "udg_01",
@@ -213,7 +213,7 @@ window.CardCatalog = {
       "name": "究極多動神",
       "type": "ULTIMATE_HYPERACTIVE_GOD",
       "cost": 28,
-      "desc": "次に置く石を究極多動神化。両者ターン開始時に1マス移動を2回行い、着地隣接の敵石を最大2マス吹き飛ばす。成功1回ごとに布石+2。"
+      "desc": "次に置く石を究極多動神化。両者ターン開始時に1マス移動を2回行い、移動後に挟めば反転。移動先が無いと消滅し、周囲8マスの敵石を破壊。"
     }
   ]
 };

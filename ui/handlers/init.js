@@ -82,10 +82,14 @@ function initializeUI() {
 
     // Initialize card UI handlers
     const useBtn = document.getElementById('use-card-btn');
+    const detailBtn = document.getElementById('toggle-card-detail-btn');
     const passBtn = document.getElementById('pass-btn');
     const sellBtn = document.getElementById('sell-card-btn');
     if (useBtn) {
         useBtn.addEventListener('click', useSelectedCard);
+    }
+    if (detailBtn && typeof toggleCardDetailExpanded === 'function') {
+        detailBtn.addEventListener('click', toggleCardDetailExpanded);
     }
     if (sellBtn && typeof confirmSellCardSelection === 'function') {
         sellBtn.addEventListener('click', confirmSellCardSelection);
@@ -97,6 +101,10 @@ function initializeUI() {
     // Load CPU policy based on CPU level
     if (typeof loadCpuPolicy === 'function') {
         loadCpuPolicy();
+    }
+    // Load local ONNX model for browser CPU (safe fallback on failure)
+    if (typeof initPolicyOnnxModel === 'function') {
+        initPolicyOnnxModel();
     }
     // Load local policy-table model for browser CPU (safe fallback on failure)
     if (typeof initPolicyTableModel === 'function') {

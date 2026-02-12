@@ -27,6 +27,26 @@ describe('ui cpu-policy handler', () => {
     await expect(handlers.initPolicyTableModel()).resolves.toBeUndefined();
   });
 
+  test('initPolicyOnnxModel returns safely when runtime is unavailable', async () => {
+    await expect(handlers.initPolicyOnnxModel()).resolves.toBeUndefined();
+  });
+
+  test('initPolicyOnnxModel configures and loads runtime when available', async () => {
+    const configure = jest.fn();
+    const loadFromUrl = jest.fn(async () => true);
+    global.window.CpuPolicyOnnxRuntime = { configure, loadFromUrl };
+
+    await handlers.initPolicyOnnxModel();
+
+    expect(configure).toHaveBeenCalledWith({
+      enabled: true,
+      minLevel: 6,
+      sourceUrl: 'data/models/policy-net.onnx',
+      metaUrl: 'data/models/policy-net.onnx.meta.json'
+    });
+    expect(loadFromUrl).toHaveBeenCalledWith('data/models/policy-net.onnx', 'data/models/policy-net.onnx.meta.json');
+  });
+
   test('initPolicyTableModel configures and loads runtime when available', async () => {
     const configure = jest.fn();
     const loadFromUrl = jest.fn(async () => true);
@@ -56,4 +76,3 @@ describe('ui cpu-policy handler', () => {
     expect(loadFromUrl).toHaveBeenCalledTimes(1);
   });
 });
-

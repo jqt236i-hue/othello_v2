@@ -15,6 +15,8 @@
     "selfplay:benchmark": "node scripts/benchmark-selfplay-policy.js",
     "selfplay:adoption-check": "node scripts/benchmark-policy-adoption.js",
     "selfplay:promote-model": "node scripts/promote-policy-model.js",
+    "selfplay:train-onnx": ".\\.venv\\Scripts\\python.exe .\\ai\\train\\train_policy_onnx.py",
+    "selfplay:train-cycle": "node scripts/run-selfplay-training-cycle.js",
     "generate:catalog": "node scripts/generate-catalog.js",
     "generate:asset-manifest": "node scripts/generate-asset-manifest.js",
     "test:visual": "node tests/visual-regression/run-visual-check.js",
@@ -27,6 +29,9 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "dependencies": {
+    "onnxruntime-web": "^1.22.0"
+  },
   "jest": {
     "testEnvironment": "node",
     "setupFiles": [

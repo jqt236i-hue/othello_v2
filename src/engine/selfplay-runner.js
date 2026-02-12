@@ -20,7 +20,7 @@ const TARGET_SELECTION_CARD_TYPES = new Set([
     'SACRIFICE_WILL',
     'SELL_CARD_WILL',
     'SWAP_WITH_ENEMY',
-    'INHERIT_WILL',
+    'POSITION_SWAP_WILL',
     'TEMPT_WILL'
 ]);
 
@@ -46,7 +46,7 @@ const CANDIDATE_CARD_TYPES = new Set([
     'SACRIFICE_WILL',
     'SELL_CARD_WILL',
     'SWAP_WITH_ENEMY',
-    'INHERIT_WILL',
+    'POSITION_SWAP_WILL',
     'TEMPT_WILL'
 ]);
 
@@ -157,6 +157,43 @@ function isCSquare(row, col) {
     const nearTopBottom = (row === 0 || row === 7) && (col === 1 || col === 6);
     const nearLeftRight = (col === 0 || col === 7) && (row === 1 || row === 6);
     return nearTopBottom || nearLeftRight;
+}
+
+function getFlipsBasic(board, row, col, playerValue) {
+    if (!Array.isArray(board) || !Array.isArray(board[row])) return [];
+    if (board[row][col] !== 0) return [];
+    const dirs = [
+        [-1, -1], [-1, 0], [-1, 1],
+        [0, -1],           [0, 1],
+        [1, -1],  [1, 0],  [1, 1]
+    ];
+    const out = [];
+    for (const d of dirs) {
+        const temp = [];
+        let r = row + d[0];
+        let c = col + d[1];
+        while (r >= 0 && c >= 0 && r < board.length && c < board.length && board[r][c] === -playerValue) {
+            temp.push({ row: r, col: c });
+            r += d[0];
+            c += d[1];
+        }
+        if (temp.length > 0 && r >= 0 && c >= 0 && r < board.length && c < board.length && board[r][c] === playerValue) {
+            out.push(...temp);
+        }
+    }
+    return out;
+}
+
+function getLegalMovesBasic(board, playerValue) {
+    if (!Array.isArray(board)) return [];
+    const moves = [];
+    for (let row = 0; row < board.length; row++) {
+        for (let col = 0; col < board[row].length; col++) {
+            const flips = getFlipsBasic(board, row, col, playerValue);
+            if (flips.length > 0) moves.push({ row, col, flips });
+        }
+    }
+    return moves;
 }
 
 function scoreMove(move, rng) {
@@ -284,21 +321,32 @@ function scoreTacticalMove(move, context) {
     if (!context || !context.gameState || !context.cardState) return 0;
     const playerKey = context.playerKey === 'black' ? 'black' : 'white';
     const playerValue = toPlayerValue(playerKey);
-    const safeContext = getSafeCardContext(context.cardState);
     const nextState = applyMoveForEvaluation(context.gameState, move, playerValue);
-    const ownEval = evaluateBoardForPlayer(nextState, context.cardState, playerKey);
-    const opponentMoves = isStandardBoard(nextState.board)
-        ? Core.getLegalMoves(nextState, -playerValue, safeContext)
-        : [];
+    const empties = countEmpties(nextState.board);
+    const discWeight = empties <= 12 ? 18 : (empties <= 24 ? 8 : 2);
+    const discDiff = countDiscsByValue(nextState, playerValue);
+    const cornerDiff = countCorners(nextState.board, playerValue);
+    const opponentMoves = getLegalMovesBasic(nextState.board, -playerValue);
     let opponentThreat = 0;
     let givesCorner = false;
     for (const oppMove of opponentMoves) {
-        const immediate = (oppMove.flips ? oppMove.flips.length : 0) * 80 + evaluatePositionValue(oppMove.row, oppMove.col);
-        if (immediate > opponentThreat) opponentThreat = immediate;
+        const pressure = ((oppMove.flips ? oppMove.flips.length : 0) * 80) + (evaluatePositionValue(oppMove.row, oppMove.col) * 8);
+        if (pressure > opponentThreat) opponentThreat = pressure;
         if (isCorner(oppMove.row, oppMove.col)) givesCorner = true;
     }
-
-    return ownEval - (opponentThreat * 8) - (opponentMoves.length * 40) - (givesCorner ? 1800 : 0);
+    const row = Number.isFinite(move && move.row) ? move.row : 0;
+    const col = Number.isFinite(move && move.col) ? move.col : 0;
+    const tie = (7 - row) * 0.001 + (7 - col) * 0.0001;
+    return (
+        ((Array.isArray(move.flips) ? move.flips.length : 0) * 60) +
+        (evaluatePositionValue(row, col) * 8) +
+        (discDiff * discWeight) +
+        (cornerDiff * 300) +
+        (opponentMoves.length * -45) +
+        (opponentThreat * -6) +
+        (givesCorner ? -1800 : 0) +
+        tie
+    );
 }
 
 function makePolicyStateKey(playerKey, board, pendingType, legalMovesCount) {
@@ -417,8 +465,10 @@ function getPolicyScore(options, context, move) {
     if (!stat) return null;
     const visits = Number.isFinite(stat.visits) ? stat.visits : 0;
     const avgOutcome = Number.isFinite(stat.avgOutcome) ? stat.avgOutcome : 0;
-    const bestBonus = state.bestAction === actionKey ? (isAbstract ? 100_000 : 1_000_000) : 0;
-    return bestBonus + visits * 1_000 + avgOutcome;
+    const bestBonus = state.bestAction === actionKey ? (isAbstract ? 50 : 100) : 0;
+    const visitBonus = Math.log1p(Math.max(0, visits)) * 15;
+    const outcomeBonus = avgOutcome * 80;
+    return bestBonus + visitBonus + outcomeBonus;
 }
 
 function getPolicyActionScoreByKey(options, context, actionKey) {
@@ -449,13 +499,16 @@ function getPolicyActionScoreByKey(options, context, actionKey) {
 
 function selectPlacementMove(legalMoves, rng, context, options) {
     const enableTacticalLookahead = !!(options && (options.enableTacticalLookahead || options.policyTableModel));
+    const tacticalWeight = enableTacticalLookahead
+        ? (Number.isFinite(options && options.tacticalWeight) ? options.tacticalWeight : 1)
+        : 0;
     let best = null;
     let bestScore = -Infinity;
     for (const move of legalMoves) {
         const heuristic = scoreMove(move, rng);
         const policy = getPolicyScore(options, context, move);
         const tactical = enableTacticalLookahead ? scoreTacticalMove(move, context) : 0;
-        const s = heuristic + (policy !== null ? policy : 0) + tactical;
+        const s = heuristic + (policy !== null ? policy : 0) + (tactical * tacticalWeight);
         if (s > bestScore) {
             bestScore = s;
             best = move;
@@ -530,7 +583,7 @@ function chooseSwapTarget(gameState, cardState, playerKey, rng) {
     return best;
 }
 
-function chooseInheritTarget(gameState, cardState, playerKey, rng) {
+function choosePositionSwapTarget(gameState, cardState, playerKey, rng) {
     const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
     if (!targets.length) return null;
     let best = null;
@@ -625,6 +678,11 @@ function buildPendingSelectionAction(gameState, cardState, playerKey, pendingTyp
         if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
         return { type: 'place', swapTarget: { row: t.row, col: t.col } };
     }
+    if (pendingType === 'POSITION_SWAP_WILL') {
+        const t = choosePositionSwapTarget(gameState, cardState, playerKey, rng);
+        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', positionSwapTarget: { row: t.row, col: t.col } };
+    }
     if (pendingType === 'DESTROY_ONE_STONE') {
         const t = chooseDestroyTarget(gameState, cardState, playerKey, rng);
         if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
@@ -644,11 +702,6 @@ function buildPendingSelectionAction(gameState, cardState, playerKey, pendingTyp
         const cardId = chooseSellCardTarget(cardState, playerKey);
         if (!cardId) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
         return { type: 'place', sellCardId: cardId };
-    }
-    if (pendingType === 'INHERIT_WILL') {
-        const t = chooseInheritTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', inheritTarget: { row: t.row, col: t.col } };
     }
     if (pendingType === 'TEMPT_WILL') {
         const t = chooseTemptTarget(gameState, cardState, playerKey, rng);
@@ -806,7 +859,8 @@ function getPolicyForPlayer(options, playerKey) {
     const base = {
         allowCardUsage: options.allowCardUsage,
         cardUsageRate: options.cardUsageRate,
-        enableTacticalLookahead: false
+        enableTacticalLookahead: false,
+        tacticalWeight: 0
     };
     if (!options.playerPolicies || !options.playerPolicies[playerKey]) return base;
     const override = options.playerPolicies[playerKey];
@@ -818,7 +872,10 @@ function getPolicyForPlayer(options, playerKey) {
         policyTableModel: override.policyTableModel || null,
         enableTacticalLookahead: override.enableTacticalLookahead !== undefined
             ? !!override.enableTacticalLookahead
-            : !!override.policyTableModel
+            : !!override.policyTableModel,
+        tacticalWeight: Number.isFinite(override.tacticalWeight)
+            ? Math.max(0, override.tacticalWeight)
+            : (override.policyTableModel ? 1 : 0)
     };
 }
 

@@ -13,13 +13,6 @@
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
-    const ORTHO_DIRS = [
-        { dr: -1, dc: 0 }, // up
-        { dr: 0, dc: 1 },  // right
-        { dr: 1, dc: 0 },  // down
-        { dr: 0, dc: -1 }  // left
-    ];
-
     function clearUltimateHyperactiveAtPositions(cardState, positions) {
         if (!cardState || !Array.isArray(cardState.markers)) return;
         const removeSet = new Set((positions || []).map(p => `${p.row},${p.col}`));
@@ -28,15 +21,6 @@
             if (!m.data || m.data.type !== 'ULTIMATE_HYPERACTIVE') return true;
             return !removeSet.has(`${m.row},${m.col}`);
         });
-    }
-
-    function moveMarkersAt(cardState, fromRow, fromCol, toRow, toCol) {
-        if (!cardState || !Array.isArray(cardState.markers)) return;
-        for (const m of cardState.markers) {
-            if (!m || m.row !== fromRow || m.col !== fromCol) continue;
-            m.row = toRow;
-            m.col = toCol;
-        }
     }
 
     function getNeighborEmptyCandidates(gameState, row, col) {
@@ -53,79 +37,52 @@
         return out;
     }
 
-    function getOrthogonalPushOptions(gameState, row, col, maxSteps = 2) {
-        const options = [];
-        for (const d of ORTHO_DIRS) {
-            const nr = row + d.dr;
-            const nc = col + d.dc;
-            if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) continue;
-            if (gameState.board[nr][nc] !== EMPTY) continue;
-
-            let tr = nr;
-            let tc = nc;
-            let steps = 1;
-            while (steps < maxSteps) {
-                const rr = tr + d.dr;
-                const cc = tc + d.dc;
-                if (rr < 0 || rr >= 8 || cc < 0 || cc >= 8) break;
-                if (gameState.board[rr][cc] !== EMPTY) break;
-                tr = rr;
-                tc = cc;
-                steps++;
-            }
-            options.push({ direction: d, target: { row: tr, col: tc }, steps });
-        }
-        return options;
-    }
-
-    function getAdjacentEnemyPositions(gameState, row, col, enemyVal) {
+    function getNeighborEnemyCandidates(gameState, row, col, enemyVal) {
         const out = [];
-        for (const d of ORTHO_DIRS) {
-            const r = row + d.dr;
-            const c = col + d.dc;
-            if (r < 0 || r >= 8 || c < 0 || c >= 8) continue;
-            if (gameState.board[r][c] === enemyVal) out.push({ row: r, col: c });
+        for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+                if (dr === 0 && dc === 0) continue;
+                const r = row + dr;
+                const c = col + dc;
+                if (r < 0 || r >= 8 || c < 0 || c >= 8) continue;
+                if (gameState.board[r][c] === enemyVal) out.push({ row: r, col: c });
+            }
         }
         return out;
     }
 
-    function pushStoneByWind(cardState, gameState, fromRow, fromCol, prng, deps = {}) {
-        const p = prng || (deps.defaultPrng || { random: () => 0 });
-        const options = getOrthogonalPushOptions(gameState, fromRow, fromCol, 2);
-        if (!options.length) {
-            return { moved: false, from: { row: fromRow, col: fromCol }, to: { row: fromRow, col: fromCol }, steps: 0 };
-        }
-
-        const picked = options[Math.floor(p.random() * options.length)];
-        const to = picked.target;
-        let moved = false;
-        if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
-            const res = deps.BoardOps.moveAt(
-                cardState,
-                gameState,
-                fromRow,
-                fromCol,
-                to.row,
-                to.col,
-                'ULTIMATE_HYPERACTIVE_GOD',
-                'ultimate_hyperactive_blow',
-                { steps: picked.steps }
-            );
-            moved = !!(res && res.moved);
-        } else {
-            const val = gameState.board[fromRow][fromCol];
-            if (val !== EMPTY && gameState.board[to.row][to.col] === EMPTY) {
-                gameState.board[fromRow][fromCol] = EMPTY;
-                gameState.board[to.row][to.col] = val;
-                moved = true;
+    function destroyUltimateAnchorWithBurst(cardState, gameState, entry, ownerVal, deps, destroyAt) {
+        const destroyed = [];
+        const enemyVal = -ownerVal;
+        const enemyTargets = getNeighborEnemyCandidates(gameState, entry.row, entry.col, enemyVal);
+        for (const target of enemyTargets) {
+            if (gameState.board[target.row][target.col] !== enemyVal) continue;
+            let enemyDestroyed = false;
+            if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
+                const res = deps.BoardOps.destroyAt(
+                    cardState,
+                    gameState,
+                    target.row,
+                    target.col,
+                    'ULTIMATE_HYPERACTIVE_GOD',
+                    'no_candidates_burst'
+                );
+                enemyDestroyed = !!(res && res.destroyed);
+            } else {
+                enemyDestroyed = destroyAt(cardState, gameState, target.row, target.col);
             }
-        }
-        if (!moved) {
-            return { moved: false, from: { row: fromRow, col: fromCol }, to: { row: fromRow, col: fromCol }, steps: 0 };
+            if (enemyDestroyed) destroyed.push({ row: target.row, col: target.col });
         }
 
-        moveMarkersAt(cardState, fromRow, fromCol, to.row, to.col);
-        return { moved: true, from: { row: fromRow, col: fromCol }, to, steps: picked.steps };
+        let anchorDestroyed = false;
+        if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
+            const res = deps.BoardOps.destroyAt(cardState, gameState, entry.row, entry.col, 'ULTIMATE_HYPERACTIVE_GOD', 'no_candidates');
+            anchorDestroyed = !!(res && res.destroyed);
+        } else {
+            anchorDestroyed = destroyAt(cardState, gameState, entry.row, entry.col);
+        }
+        if (anchorDestroyed) destroyed.push({ row: entry.row, col: entry.col });
+        return destroyed;
     }
 
     function moveHyperactiveOnce(cardState, gameState, entry, prng, deps = {}) {
@@ -260,13 +217,13 @@
             s.col === col
         );
         if (!entry) {
-            return { moved: [], destroyed: [], blown: [], chargeGain: 0, ownerKey: playerKey };
+            return { moved: [], destroyed: [], flipped: [], ownerKey: playerKey };
         }
 
         const ownerKey = entry.owner;
         const ownerVal = ownerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        const enemyVal = -ownerVal;
         const clearUltimateAtPositions = deps.clearUltimateAtPositions || clearUltimateHyperactiveAtPositions;
+        const getFlipsWithContext = deps.getFlipsWithContext || (() => []);
         const destroyAt = deps.destroyAt || ((cs, gs, r, c) => {
             if (gs.board[r][c] === EMPTY) return false;
             if (cs.markers) cs.markers = cs.markers.filter(m => !(m.row === r && m.col === c));
@@ -276,31 +233,30 @@
 
         const moved = [];
         const destroyed = [];
-        const blown = [];
-        let chargeGain = 0;
+        const flipped = [];
 
         // Anchor is removed if the board owner no longer matches marker owner.
         if (gameState.board[entry.row][entry.col] !== ownerVal) {
             clearUltimateAtPositions(cardState, [{ row: entry.row, col: entry.col }]);
-            return { moved, destroyed, blown, chargeGain, ownerKey };
+            return { moved, destroyed, flipped, ownerKey };
         }
 
         for (let step = 1; step <= 2; step++) {
             const candidates = getNeighborEmptyCandidates(gameState, entry.row, entry.col);
             if (!candidates.length) {
-                let destroyedRes = false;
-                if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                    const res = deps.BoardOps.destroyAt(cardState, gameState, entry.row, entry.col, 'ULTIMATE_HYPERACTIVE_GOD', 'no_candidates');
-                    destroyedRes = !!(res && res.destroyed);
-                } else {
-                    destroyedRes = destroyAt(cardState, gameState, entry.row, entry.col);
-                }
-                if (destroyedRes) destroyed.push({ row: entry.row, col: entry.col });
+                destroyed.push(...destroyUltimateAnchorWithBurst(cardState, gameState, entry, ownerVal, deps, destroyAt));
                 break;
             }
 
             const target = candidates[Math.floor(p.random() * candidates.length)];
             const from = { row: entry.row, col: entry.col };
+            const flipCells = getFlipsWithContext(
+                gameState,
+                target.row,
+                target.col,
+                ownerVal,
+                deps.getCardContext ? deps.getCardContext(cardState) : {}
+            );
             let movedRes = false;
             if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
                 const res = deps.BoardOps.moveAt(
@@ -326,23 +282,24 @@
             entry.col = target.col;
             moved.push({ from, to: { row: target.row, col: target.col }, step });
 
-            // Snapshot adjacent enemies first, then process each (fixed order: up→right→down→left).
-            const adjacentEnemies = getAdjacentEnemyPositions(gameState, entry.row, entry.col, enemyVal);
-            for (const enemy of adjacentEnemies) {
-                if (gameState.board[enemy.row][enemy.col] !== enemyVal) continue;
-                const blowRes = pushStoneByWind(cardState, gameState, enemy.row, enemy.col, p, deps);
-                if (!blowRes.moved) continue;
-                blown.push({
-                    from: blowRes.from,
-                    to: blowRes.to,
-                    steps: blowRes.steps,
-                    sourceStep: step
-                });
-                chargeGain += 2;
+            if (flipCells.length > 0) {
+                const flipPositions = flipCells.map(([r, c]) => ({ row: r, col: c }));
+                for (const [r, c] of flipCells) {
+                    if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
+                        deps.BoardOps.changeAt(cardState, gameState, r, c, ownerKey, 'ULTIMATE_HYPERACTIVE_GOD', 'ultimate_hyperactive_flip');
+                    } else {
+                        gameState.board[r][c] = ownerVal;
+                    }
+                }
+                // Flipped hyperactive/ultimate stones lose their special status.
+                if (deps.clearHyperactiveAtPositions) {
+                    deps.clearHyperactiveAtPositions(cardState, flipPositions);
+                }
+                flipped.push(...flipPositions);
             }
         }
 
-        return { moved, destroyed, blown, chargeGain, ownerKey };
+        return { moved, destroyed, flipped, ownerKey };
     }
 
     return {

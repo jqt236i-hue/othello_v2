@@ -71,6 +71,20 @@
         return res;
     }
 
+    // Return position-swap targets: any occupied cell; if first target exists, exclude it.
+    function getPositionSwapTargets(cardState, gameState, playerKey, pending) {
+        const res = [];
+        const first = pending && pending.firstTarget ? pending.firstTarget : null;
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (gameState.board[r][c] === EMPTY) continue;
+                if (first && first.row === r && first.col === c) continue;
+                res.push({ row: r, col: c });
+            }
+        }
+        return res;
+    }
+
     // Return sacrifice targets: own stones (normal/special both allowed)
     function getSacrificeTargets(cardState, gameState, playerKey) {
         const res = [];
@@ -90,34 +104,6 @@
                     if (guarded) continue;
                     res.push({ row: r, col: c });
                 }
-            }
-        }
-        return res;
-    }
-
-    // Return inherit targets: normal stones for player (uses CardUtils if available)
-    function getInheritTargets(cardState, gameState, playerKey) {
-        if (CardUtils && typeof CardUtils.isNormalStoneForPlayer === 'function') {
-            const res = [];
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
-                    if (CardUtils.isNormalStoneForPlayer(cardState, gameState, playerKey, r, c)) {
-                        res.push({ row: r, col: c });
-                    }
-                }
-            }
-            return res;
-        }
-        // Fallback: replicate minimal logic
-        const res = [];
-        const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (gameState.board[r][c] !== playerVal) continue;
-                const markers = cardState.markers || [];
-                if (markers.some(m => m.kind === 'specialStone' && m.row === r && m.col === c)) continue;
-                if (markers.some(m => m.kind === 'bomb' && m.row === r && m.col === c)) continue;
-                res.push({ row: r, col: c });
             }
         }
         return res;
@@ -218,7 +204,7 @@
     return {
         getDestroyTargets,
         getSwapTargets,
-        getInheritTargets,
+        getPositionSwapTargets,
         getSacrificeTargets,
         getStrongWindTargets,
         getTrapTargets,

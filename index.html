@@ -5,6 +5,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>カードオセロ</title>
+    <script>
+        (function () {
+            try {
+                var params = new URLSearchParams((typeof location !== 'undefined' && location.search) ? location.search : '');
+                var raw = (params.get('simAspect') || params.get('sim-aspect') || '').trim().toLowerCase();
+                var normalized = raw.replace(/\s+/g, '');
+                var root = document.documentElement;
+                if (!root || !normalized) return;
+                if (normalized === '16:10' || normalized === '16x10' || normalized === '1610') {
+                    root.classList.add('sim-aspect-16-10');
+                    root.setAttribute('data-sim-aspect', '16:10');
+                } else if (normalized === '3:2' || normalized === '3x2' || normalized === '32') {
+                    root.classList.add('sim-aspect-3-2');
+                    root.setAttribute('data-sim-aspect', '3:2');
+                } else if (normalized === '4:3' || normalized === '4x3' || normalized === '43') {
+                    root.classList.add('sim-aspect-4-3');
+                    root.setAttribute('data-sim-aspect', '4:3');
+                } else if (normalized === '5:4' || normalized === '5x4' || normalized === '54') {
+                    root.classList.add('sim-aspect-5-4');
+                    root.setAttribute('data-sim-aspect', '5:4');
+                }
+            } catch (e) {
+                // ignore malformed query
+            }
+        })();
+    </script>
     <!-- CSS Split Modules -->
     <link rel="stylesheet" href="styles-variables.css">
     <link rel="stylesheet" href="styles-base.css">
@@ -73,7 +99,11 @@
                 <div id="card-detail-header">カード詳細</div>
                 <div id="card-detail-name">-</div>
                 <div id="card-detail-desc">カードを選択してください</div>
-                <button id="use-card-btn" disabled>使用</button>
+                <div id="card-detail-more" style="display:none;"></div>
+                <div id="card-detail-actions">
+                    <button id="use-card-btn" disabled>使用</button>
+                    <button id="toggle-card-detail-btn" disabled>詳細</button>
+                </div>
                 <button id="pass-btn" disabled>パス</button>
                 <button id="sell-card-btn" style="display:none;" disabled>売却</button>
                 <button id="cancel-card-btn" style="display:none;" onclick="cancelPendingDestroy()">キャンセル</button>
@@ -300,16 +330,18 @@
     <script src="game/card-effects/destroy.js"></script>
     <script src="game/card-effects/sacrifice.js"></script>
     <script src="game/card-effects/strong-wind.js"></script>
-    <script src="game/card-effects/inherit.js"></script>
     <script src="game/card-effects/tempt.js"></script>
     <script src="game/card-effects/time-bomb.js"></script>
     <script src="game/card-effects/trap.js"></script>
     <script src="game/card-effects/guard.js"></script>
     <script src="game/card-effects/swap.js"></script>
+    <script src="game/card-effects/position-swap.js"></script>
     <script src="game/card-effects-applier.js"></script>
     <!-- CPU Decision Modules (依存関係順: policy → evaluator → decision) -->
     <!-- Ensure AISystem is loaded before CPU decision logic -->
     <script src="game/ai/level-system.js"></script>
+    <script src="node_modules/onnxruntime-web/dist/ort.min.js"></script>
+    <script src="game/ai/policy-onnx-runtime.js"></script>
     <script src="game/ai/policy-table-runtime.js"></script>
     <script src="game/cpu-decision.js"></script>
     <script src="game/pass-handler.js"></script>

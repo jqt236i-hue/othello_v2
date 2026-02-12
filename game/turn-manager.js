@@ -150,12 +150,6 @@ function handleCellClick(row, col) {
         // This effect is resolved via the hand selection overlay UI.
         return;
     }
-    if (pending && pending.type === 'INHERIT_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handleInheritSelection === 'function') {
-            handleInheritSelection(row, col, playerKey);
-        }
-        return;
-    }
     if (pending && pending.type === 'TEMPT_WILL' && pending.stage === 'selectTarget') {
         if (typeof handleTemptSelection === 'function') {
             handleTemptSelection(row, col, playerKey);
@@ -183,6 +177,12 @@ function handleCellClick(row, col) {
     if (pending && pending.type === 'SWAP_WITH_ENEMY' && pending.stage === 'selectTarget') {
         if (typeof handleSwapSelection === 'function') {
             handleSwapSelection(row, col, playerKey);
+        }
+        return;
+    }
+    if (pending && pending.type === 'POSITION_SWAP_WILL' && pending.stage === 'selectTarget') {
+        if (typeof handlePositionSwapSelection === 'function') {
+            handlePositionSwapSelection(row, col, playerKey);
         }
         return;
     }
@@ -247,12 +247,17 @@ function requestUIRender() {
 function resetGame() {
     // Auto mode removed: nothing to stop or reset
 
+    const clampCpuLevel = (value) => {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return 1;
+        return Math.max(1, Math.min(6, Math.floor(n)));
+    };
 
     // Read CPU smartness from UI helper if available (avoid direct DOM access in game/)
     if (__uiImpl_turn_manager && typeof __uiImpl_turn_manager.readCpuSmartness === 'function') {
         const vals = __uiImpl_turn_manager.readCpuSmartness();
-        cpuSmartness.black = Number(vals && vals.black) || cpuSmartness.black || 1;
-        cpuSmartness.white = Number(vals && vals.white) || cpuSmartness.white || 1;
+        cpuSmartness.black = clampCpuLevel((vals && vals.black) || cpuSmartness.black || 1);
+        cpuSmartness.white = clampCpuLevel((vals && vals.white) || cpuSmartness.white || 1);
     }
 
     console.log(`[resetGame] CPU Levels - Black: ${cpuSmartness.black}, White: ${cpuSmartness.white}`);

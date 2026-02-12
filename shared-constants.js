@@ -100,8 +100,10 @@
         // PROTECTED_NEXT_STONE (弱い意志) - 1 card, cost: 1
         { id: 'hard_01', name: '弱い意志', type: 'PROTECTED_NEXT_STONE', cost: 1, desc: '次に置いた石は、次の相手ターンの間、反転されない' },
 
-        // SWAP_WITH_ENEMY (交換の意志) - 1 card, cost: 5
-        { id: 'swap_01', name: '交換の意志', type: 'SWAP_WITH_ENEMY', cost: 5, desc: '次に置く石を、相手の石1つと入れ替えて配置できる' },
+        // SWAP_WITH_ENEMY (交換の意志) - 1 card, cost: 13
+        { id: 'swap_01', name: '交換の意志', type: 'SWAP_WITH_ENEMY', cost: 13, desc: '次に置く石を、相手の石1つと入れ替えて配置できる' },
+        // POSITION_SWAP_WILL (入替の意志) - 1 card, cost: 17
+        { id: 'position_swap_01', name: '入替の意志', type: 'POSITION_SWAP_WILL', cost: 17, desc: '盤面上の石2つを選び、位置を入れ替える。通常石・特殊石・爆弾を問わず対象にできる。' },
 
         // SACRIFICE_WILL (生贄の意志) - 1 card, cost: 5
         { id: 'sacrifice_01', name: '生贄の意志', type: 'SACRIFICE_WILL', cost: 5, desc: '盤面上の自分の石を最大3つまで選んで破壊し、1つにつき布石を5獲得する。' },
@@ -111,15 +113,14 @@
         // STRONG_WIND_WILL (強風の意志) - 1 card, cost: 9
         { id: 'strong_wind_01', name: '強風の意志', type: 'STRONG_WIND_WILL', cost: 9, desc: '盤面の石1つを選び、最も長く進める上下左右方向へ飛ばす（同距離はランダム）。移動したマス数ぶん布石を得る。' },
 
-        { id: 'inherit_01', name: '意志の継承', type: 'INHERIT_WILL', cost: 12, desc: '盤面上の自分の通常石を1つ選び、強い意志状態にする。' },
-        { id: 'trap_01', name: '罠の意志', type: 'TRAP_WILL', cost: 14, desc: '自分の石を1つ罠石にする。次の相手ターン中に反転されると、相手の布石全没収＋手札3枚没収。' },
+        { id: 'trap_01', name: '罠の意志', type: 'TRAP_WILL', cost: 10, desc: '自分の石を1つ罠石にする。次の相手ターン中に反転されると、相手の布石全没収＋手札3枚没収。' },
 
         { id: 'chain_01', name: '連鎖の意志', type: 'CHAIN_WILL', cost: 22, desc: 'このターンの配置で発生した通常反転を起点に、追加反転を最大2回まで行う。' },
 
         { id: 'regen_01', name: '復活の意志', type: 'REGEN_WILL', cost: 15, desc: '次に置いた石は1回だけ再生し、反転されたら元の色に戻る。戻った結果、そのマスを起点に挟める列があれば成立する方向の石を反転する。' },
 
-        // DESTROY_ONE_STONE (破壊神) - 1 card, cost: 10
-        { id: 'destroy_01', name: '破壊神', type: 'DESTROY_ONE_STONE', cost: 10, desc: '盤上の石を1つ選び、破壊する。' },
+        // DESTROY_ONE_STONE (破壊神) - 1 card, cost: 14
+        { id: 'destroy_01', name: '破壊神', type: 'DESTROY_ONE_STONE', cost: 14, desc: '盤上の石を1つ選び、破壊する。' },
 
         // TIME_BOMB (時限爆弾) - 1 card, cost: 13
         { id: 'bomb_01', name: '時限爆弾', type: 'TIME_BOMB', cost: 13, desc: '盤面上の自分の石1つを時限爆弾化。3ターン後に周囲9マスを破壊。反転されると解除。' },
@@ -156,13 +157,13 @@
         { id: 'steal_card_01', name: '略奪の意志', type: 'STEAL_CARD', cost: 7, desc: '反転枚数ぶん相手手札を奪う。手札上限超過分は自分のデッキに加える。' },
 
         // GUARD_WILL (守る意志) - 1 card, cost: 7
-        { id: 'guard_01', name: '守る意志', type: 'GUARD_WILL', cost: 7, desc: '自分の石1つに完全保護を付与する。3ターン持続。' },
+        { id: 'guard_01', name: '守る意志', type: 'GUARD_WILL', cost: 7, desc: '自分の石1つに完全保護を付与する。5ターン持続。' },
 
         // ULTIMATE_DESTROY_GOD (究極破壊神) - 1 card, cost: 25
         { id: 'udg_01', name: '究極破壊神', type: 'ULTIMATE_DESTROY_GOD', cost: 25, desc: '次に置く石を究極破壊神化。配置ターン即時＋自ターン開始時、周囲8マスの敵石を破壊。持続5ターン（配置ターン含め最大6回）。' },
 
         // ULTIMATE_HYPERACTIVE_GOD (究極多動神) - 1 card, cost: 28
-        { id: 'ultimate_hyperactive_01', name: '究極多動神', type: 'ULTIMATE_HYPERACTIVE_GOD', cost: 28, desc: '次に置く石を究極多動神化。両者ターン開始時に1マス移動を2回行い、着地隣接の敵石を最大2マス吹き飛ばす。成功1回ごとに布石+2。' }
+        { id: 'ultimate_hyperactive_01', name: '究極多動神', type: 'ULTIMATE_HYPERACTIVE_GOD', cost: 28, desc: '次に置く石を究極多動神化。両者ターン開始時に1マス移動を2回行い、移動後に挟めば反転。移動先が無いと消滅し、周囲8マスの敵石を破壊。' }
     ];
 
     const CARD_DEFS = (catalogCards && catalogCards.length) ? catalogCards : CARD_DEFS_FALLBACK;
@@ -178,10 +179,10 @@
         'FREE_PLACEMENT',
         'PROTECTED_NEXT_STONE',
         'SWAP_WITH_ENEMY',
+        'POSITION_SWAP_WILL',
         'SACRIFICE_WILL',
         'PERMA_PROTECT_NEXT_STONE',
         'STRONG_WIND_WILL',
-        'INHERIT_WILL',
         'TRAP_WILL',
         'TEMPT_WILL',
         'CHAIN_WILL',

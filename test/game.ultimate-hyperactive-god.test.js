@@ -100,7 +100,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     expect(marker).toBeUndefined();
   });
 
-  test('blows all adjacent enemies and gains +2 per successful blow (special/bomb included)', () => {
+  test('flips capturable stones after landing (same rule as hyperactive)', () => {
     const { cardState, gameState } = makeState();
     gameState.board[3][3] = 1;
     cardState.markers.push({
@@ -116,49 +116,45 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     for (const [r, c] of [[2,2], [2,3], [3,2], [4,2], [4,3]]) {
       gameState.board[r][c] = 1;
     }
-    // Adjacent enemies at landing cell.
-    gameState.board[2][4] = -1;
-    gameState.board[4][4] = -1;
-    // Blow options: (2,4) only up to (0,4), (4,4) only down to (6,4).
-    gameState.board[2][5] = 1;
-    gameState.board[4][5] = 1;
-    gameState.board[1][4] = 0;
-    gameState.board[0][4] = 0;
-    gameState.board[5][4] = 0;
-    gameState.board[6][4] = 0;
-
-    cardState.markers.push({
-      id: 31,
-      kind: 'specialStone',
-      row: 2,
-      col: 4,
-      owner: 'white',
-      data: { type: 'WORK', remainingOwnerTurns: 2 }
-    });
-    cardState.markers.push({
-      id: 32,
-      kind: 'bomb',
-      row: 4,
-      col: 4,
-      owner: 'white',
-      data: { remainingTurns: 2 }
-    });
+    gameState.board[2][4] = 1;
+    gameState.board[4][4] = 1;
+    // From landing (3,4), line 3,5(enemy)-3,6(self) is capturable.
+    gameState.board[3][5] = -1;
+    gameState.board[3][6] = 1;
 
     const res = CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, 'black', 3, 3, { random: () => 0.1 });
-    const blownFrom = new Set((res.blown || []).map(b => `${b.from.row},${b.from.col}`));
+    const flippedSet = new Set((res.flipped || []).map(p => `${p.row},${p.col}`));
+    expect(flippedSet.has('3,5')).toBe(true);
+    expect(gameState.board[3][5]).toBe(1);
+  });
 
-    expect(blownFrom.has('2,4')).toBe(true);
-    expect(blownFrom.has('4,4')).toBe(true);
-    expect(res.chargeGain).toBeGreaterThanOrEqual(4);
+  test('self-destruction destroys adjacent enemy stones in 8 directions', () => {
+    const { cardState, gameState } = makeState();
+    gameState.board[3][3] = 1;
+    cardState.markers.push({
+      id: 4,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'ULTIMATE_HYPERACTIVE' }
+    });
 
-    const movedSpecial = cardState.markers.find(m => m.id === 31);
-    const movedBomb = cardState.markers.find(m => m.id === 32);
-    expect(movedSpecial.row).toBe(0);
-    expect(movedSpecial.col).toBe(4);
-    expect(movedBomb.row).toBe(6);
-    expect(movedBomb.col).toBe(4);
-    expect(gameState.board[0][4]).toBe(-1);
-    expect(gameState.board[6][4]).toBe(-1);
+    const around = [
+      [2, 2], [2, 3], [2, 4],
+      [3, 2],         [3, 4],
+      [4, 2], [4, 3], [4, 4]
+    ];
+    for (const [r, c] of around) gameState.board[r][c] = -1;
+
+    const res = CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, 'black', 3, 3, { random: () => 0.1 });
+    const destroyedSet = new Set((res.destroyed || []).map(p => `${p.row},${p.col}`));
+
+    for (const [r, c] of around) {
+      expect(gameState.board[r][c]).toBe(0);
+      expect(destroyedSet.has(`${r},${c}`)).toBe(true);
+    }
+    expect(gameState.board[3][3]).toBe(0);
+    expect(destroyedSet.has('3,3')).toBe(true);
   });
 });
-

@@ -67,6 +67,106 @@ if (typeof window !== 'undefined') {
 const _sellSelectionByPlayer = { black: null, white: null };
 const _heavenSelectionByPlayer = { black: null, white: null };
 let _heavenOverlayRefs = null;
+let _cardDetailExpanded = false;
+let _cardDetailExpandedForCardId = null;
+
+const _quickCardEffectByType = Object.freeze({
+    TREASURE_BOX: '布石を1〜3獲得',
+    PLACE_ON_EMPTY: '反転0でも空きマスに置ける',
+    SHIELD_WILL: '次に置く石を1ターン保護',
+    SWAP_WITH_ENEMY: '次に置く石を敵石1つと入替えて配置',
+    POSITION_SWAP_WILL: '盤面の石2つを入れ替える',
+    SACRIFICE_WILL: '自分石を壊して布石+5（最大3個）',
+    ANCHOR_WILL: '次に置く石を完全固定',
+    STRONG_WIND_WILL: '石1つを飛ばし、移動距離ぶん布石を得る',
+    TRAP_WILL: '自分石1つを罠化（次の相手ターンのみ）',
+    TEMPT_WILL: '相手の特殊石1つを自分色にする',
+    CHAIN_WILL: 'この手の反転後に追加反転を最大2回',
+    REGEN_WILL: '次に置く石が1回だけ再生反転',
+    DESTROY_ONE_STONE: '盤面の石1つを破壊',
+    TIME_BOMB: '自分石1つを時限爆弾化（3ターン後に爆発）',
+    ULTIMATE_REVERSE_DRAGON: '次石を龍化し周囲8マスを継続反転',
+    BREEDING_WILL: '次石を繁殖化し周囲へ増殖',
+    CROSS_BOMB: '次石を十字爆弾化',
+    HYPERACTIVE_WILL: '次石を多動化（毎ターン1マス移動）',
+    SELL_CARD_WILL: '手札1枚を売って布石に変換',
+    PLUNDER_WILL: '次の反転枚数ぶん相手布石を奪う',
+    WORK_WILL: '次石をアンカー化し毎ターン布石を獲得',
+    DOUBLE_PLACE: 'このターンは2回置ける',
+    HEAVEN_BLESSING: '候補5枚から1枚を選んで獲得',
+    CONDEMN_WILL: '相手手札を見て1枚破壊',
+    GOLD_STONE: '次の反転布石を4倍',
+    SILVER_STONE: '次の反転布石を3倍',
+    STEAL_CARD: '反転枚数ぶん相手手札を奪う',
+    GUARD_WILL: '自分石1つに5ターン完全保護',
+    ULTIMATE_DESTROY_GOD: '次石を破壊神化し周囲敵石を継続破壊',
+    ULTIMATE_HYPERACTIVE_GOD: '次石を究極多動神化（毎ターン2回移動）'
+});
+
+const _detailCardEffectByType = Object.freeze({
+    TREASURE_BOX: '使用時に布石を1〜3獲得。',
+    PLACE_ON_EMPTY: 'このターンの配置で反転が0でも空きマスに置ける。',
+    SHIELD_WILL: '次に置く石は、次の相手ターン中のみ反転されない。',
+    SWAP_WITH_ENEMY: '次に置く石を、選んだ相手石1つと入れ替えて配置する。',
+    POSITION_SWAP_WILL: '盤面上の石2つを選び、位置を入れ替える。\n通常石・特殊石・爆弾を含む全種類が対象。',
+    SACRIFICE_WILL: '自分石を最大3個まで破壊できる。\n破壊1個ごとに布石+5。',
+    ANCHOR_WILL: '次に置く石をアンカー化。\n以後ずっと反転されない。',
+    STRONG_WIND_WILL: '石1つを選び、上下左右の最長方向へ飛ばす。\n移動したマス数ぶん布石を獲得。',
+    TRAP_WILL: '自分石1つを罠石化。\n次の相手ターン中に反転されると相手の布石全没収+手札3枚没収。',
+    TEMPT_WILL: '相手の特殊石1つを自分色に変更。\n残りターンなどの状態は維持。',
+    CHAIN_WILL: 'この手の通常反転を起点に、追加反転を最大2回行う。',
+    REGEN_WILL: '次に置く石は1回だけ再生。\n反転されると元色へ戻り、戻った位置から挟める列を反転。',
+    DESTROY_ONE_STONE: '盤面上の石1つを選んで破壊。',
+    TIME_BOMB: '盤面上の自分石1つを時限爆弾化。\n3ターン後に周囲9マスを破壊。反転されると解除。',
+    ULTIMATE_REVERSE_DRAGON: '次に置く石を龍化。\n配置時と自ターン開始時に周囲8マスを反転（5ターン）。',
+    BREEDING_WILL: '次に置く石を繁殖化。\n配置時と自ターン開始時に周囲へランダム生成し、3ターン継続。',
+    CROSS_BOMB: '次に置く石を十字爆弾化。\n通常反転後、中心と縦横1マスを破壊。',
+    HYPERACTIVE_WILL: '次に置く石を多動化。\n両者ターン開始時に1マス移動し、挟める列があれば反転。',
+    SELL_CARD_WILL: '使用後、手札から1枚を売却。\n売却カードのコストぶん布石を獲得。',
+    PLUNDER_WILL: '次の配置で反転した枚数ぶん、相手布石を奪って自分に加算。',
+    WORK_WILL: '次の配置石をアンカー化。\n自ターン開始時に1→2→4→8→16で布石を獲得（最大30）。',
+    DOUBLE_PLACE: 'このターンだけ、石を2回置ける。',
+    HEAVEN_BLESSING: 'ランダム候補5枚から1枚を選んで獲得。',
+    CONDEMN_WILL: '相手手札を公開し、選んだ1枚を破壊。',
+    GOLD_STONE: '次の反転で得る布石を4倍。\n使用後その石は消滅。',
+    SILVER_STONE: '次の反転で得る布石を3倍。\n使用後その石は消滅。',
+    STEAL_CARD: 'この手の反転枚数ぶん相手手札を奪う。\n手札上限超過分は自分デッキへ送る。',
+    GUARD_WILL: '自分石1つに完全保護を付与。\n5ターン持続。',
+    ULTIMATE_DESTROY_GOD: '次に置く石を破壊神化。\n配置時と自ターン開始時に周囲8マスの敵石を破壊（5ターン）。',
+    ULTIMATE_HYPERACTIVE_GOD: '次に置く石を究極多動神化。\n両者ターン開始時に1マス移動を2回行い、移動後に挟めば反転。\n移動先が無いと消滅し、周囲8マスの敵石を破壊。'
+});
+
+function _normalizeCardDescText(text) {
+    return String(text || '')
+        .replace(/\s+/g, ' ')
+        .replace(/。+/g, '。')
+        .trim();
+}
+
+function _fallbackQuickCardEffect(cardDef) {
+    const normalized = _normalizeCardDescText(cardDef && cardDef.desc ? cardDef.desc : '');
+    if (!normalized) return '効果説明は準備中';
+    const firstSentence = normalized.split('。').map(s => s.trim()).filter(Boolean)[0] || normalized;
+    return firstSentence.length > 32 ? `${firstSentence.slice(0, 32)}...` : firstSentence;
+}
+
+function _fallbackDetailCardEffect(cardDef) {
+    const normalized = _normalizeCardDescText(cardDef && cardDef.desc ? cardDef.desc : '');
+    if (!normalized) return '詳細説明は準備中';
+    return normalized.replace(/。/g, '。\n').trim();
+}
+
+function _getQuickCardEffect(cardDef) {
+    if (!cardDef) return 'カードを選択してください';
+    if (cardDef.type && _quickCardEffectByType[cardDef.type]) return _quickCardEffectByType[cardDef.type];
+    return _fallbackQuickCardEffect(cardDef);
+}
+
+function _getDetailCardEffect(cardDef) {
+    if (!cardDef) return '';
+    if (cardDef.type && _detailCardEffectByType[cardDef.type]) return _detailCardEffectByType[cardDef.type];
+    return _fallbackDetailCardEffect(cardDef);
+}
 
 function _clearSellSelection(playerKey) {
     if (!playerKey) return;
@@ -461,6 +561,9 @@ function fillDebugHand() {
 function updateCardDetailPanel() {
     const nameEl = document.getElementById('card-detail-name');
     const descEl = document.getElementById('card-detail-desc');
+    const detailMoreEl = document.getElementById('card-detail-more');
+    const detailBtn = document.getElementById('toggle-card-detail-btn');
+    const detailActionsEl = document.getElementById('card-detail-actions');
     const useBtn = document.getElementById('use-card-btn');
     const passBtn = document.getElementById('pass-btn');
     const sellBtn = document.getElementById('sell-card-btn');
@@ -471,13 +574,29 @@ function updateCardDetailPanel() {
 
     const selectedId = cardState.selectedCardId;
 
+    if (!selectedId || _cardDetailExpandedForCardId !== selectedId) {
+        _cardDetailExpanded = false;
+        _cardDetailExpandedForCardId = selectedId || null;
+    }
+
     if (selectedId) {
         const cardDef = CardLogic.getCardDef(selectedId);
         nameEl.textContent = cardDef ? cardDef.name : '?';
-        descEl.textContent = cardDef && cardDef.desc ? cardDef.desc : '効果はPhase3で実装';
+        descEl.textContent = _getQuickCardEffect(cardDef);
+        if (detailMoreEl) detailMoreEl.textContent = _getDetailCardEffect(cardDef);
     } else {
         nameEl.textContent = '-';
         descEl.textContent = 'カードを選択してください';
+        if (detailMoreEl) detailMoreEl.textContent = '';
+    }
+    if (detailBtn) {
+        const canToggle = !!selectedId;
+        detailBtn.disabled = !canToggle;
+        detailBtn.textContent = _cardDetailExpanded ? '閉じる' : '詳細';
+        detailBtn.setAttribute('aria-expanded', _cardDetailExpanded ? 'true' : 'false');
+    }
+    if (detailMoreEl) {
+        detailMoreEl.style.display = (_cardDetailExpanded && selectedId) ? 'block' : 'none';
     }
 
     // Determine if use button should be enabled
@@ -555,6 +674,8 @@ function updateCardDetailPanel() {
 
     if (isSellSelecting) {
         useBtn.style.display = 'none';
+        if (detailBtn) detailBtn.style.display = 'none';
+        if (detailActionsEl) detailActionsEl.style.display = 'none';
         if (passBtn) passBtn.style.display = 'none';
         if (sellBtn) {
             sellBtn.style.display = 'inline-block';
@@ -562,10 +683,14 @@ function updateCardDetailPanel() {
         }
     } else if (isHeavenSelecting) {
         useBtn.style.display = 'none';
+        if (detailBtn) detailBtn.style.display = 'none';
+        if (detailActionsEl) detailActionsEl.style.display = 'none';
         if (passBtn) passBtn.style.display = 'none';
         if (sellBtn) sellBtn.style.display = 'none';
     } else {
         useBtn.style.display = 'inline-block';
+        if (detailBtn) detailBtn.style.display = 'inline-block';
+        if (detailActionsEl) detailActionsEl.style.display = 'flex';
         if (sellBtn) sellBtn.style.display = 'none';
     }
 
@@ -574,7 +699,7 @@ function updateCardDetailPanel() {
         (
             pending.type === 'DESTROY_ONE_STONE' ||
             pending.type === 'STRONG_WIND_WILL' ||
-            pending.type === 'INHERIT_WILL' ||
+            pending.type === 'POSITION_SWAP_WILL' ||
             pending.type === 'TRAP_WILL' ||
             pending.type === 'GUARD_WILL' ||
             pending.type === 'TIME_BOMB' ||
@@ -582,7 +707,7 @@ function updateCardDetailPanel() {
             pending.type === 'SELL_CARD_WILL'
         );
     const cancellableSelecting = selecting &&
-        (pending.type === 'DESTROY_ONE_STONE' || pending.type === 'INHERIT_WILL' || pending.type === 'SACRIFICE_WILL');
+        (pending.type === 'DESTROY_ONE_STONE' || pending.type === 'SACRIFICE_WILL' || pending.type === 'POSITION_SWAP_WILL');
     if (cancelBtn) {
         cancelBtn.style.display = cancellableSelecting ? 'block' : 'none';
         if (cancellableSelecting && pending.type === 'SACRIFICE_WILL' && Number(pending.selectedCount || 0) > 0) {
@@ -594,10 +719,13 @@ function updateCardDetailPanel() {
         cancelBtn.onclick = () => cancelPendingSelection(playerKey);
     }
     if (selecting) {
-        if (pending.type === 'INHERIT_WILL') {
-            reasonEl.textContent = '対象の通常石を選んでください（キャンセル可）';
-        } else if (pending.type === 'STRONG_WIND_WILL') {
+        if (pending.type === 'STRONG_WIND_WILL') {
             reasonEl.textContent = '移動させる石を選んでください';
+        } else if (pending.type === 'POSITION_SWAP_WILL') {
+            const first = pending.firstTarget;
+            reasonEl.textContent = first
+                ? `2つ目の石を選んでください（1つ目: ${posToNotation(first.row, first.col)}）`
+                : '1つ目の石を選んでください（全ての石が対象）';
         } else if (pending.type === 'SACRIFICE_WILL') {
             const selectedCount = Number(pending.selectedCount || 0);
             const maxSelections = Number(pending.maxSelections || 3);
@@ -641,6 +769,22 @@ function updateCardDetailPanel() {
     }
 
     _renderHeavenOverlay(playerKey);
+}
+
+function toggleCardDetailExpanded() {
+    const selectedId = cardState ? cardState.selectedCardId : null;
+    if (!selectedId) {
+        _cardDetailExpanded = false;
+        _cardDetailExpandedForCardId = null;
+        updateCardDetailPanel();
+        return;
+    }
+    if (_cardDetailExpandedForCardId !== selectedId) {
+        _cardDetailExpandedForCardId = selectedId;
+        _cardDetailExpanded = false;
+    }
+    _cardDetailExpanded = !_cardDetailExpanded;
+    updateCardDetailPanel();
 }
 
 function onCardClick(cardId) {
@@ -796,7 +940,7 @@ function cancelPendingSelection(specificPlayerKey) {
 
     const pending = cardState.pendingEffectByPlayer[playerKey];
     if (!pending || pending.stage !== 'selectTarget') return;
-    if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'INHERIT_WILL' && pending.type !== 'SACRIFICE_WILL') return;
+    if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'SACRIFICE_WILL' && pending.type !== 'POSITION_SWAP_WILL') return;
 
     const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true || isDebugHvH;
     const cancelOptions = isDebugUnlimited ? { refundCost: false, resetUsage: false, noConsume: true } : null;
@@ -810,8 +954,8 @@ function cancelPendingSelection(specificPlayerKey) {
         return;
     }
 
-    if (pending.type === 'INHERIT_WILL') {
-        addLog(`${playerKey === 'black' ? '黒' : '白'}の意志の継承をキャンセルしました`);
+    if (pending.type === 'POSITION_SWAP_WILL') {
+        addLog(`${playerKey === 'black' ? '黒' : '白'}の入替の意志をキャンセルしました`);
     } else if (pending.type === 'SACRIFICE_WILL') {
         if (Number(pending.selectedCount || 0) > 0) {
             addLog(`${playerKey === 'black' ? '黒' : '白'}の生贄の意志を終了しました`);
@@ -835,6 +979,7 @@ window.fillDebugHand = fillDebugHand;
 window.updateCardDetailPanel = updateCardDetailPanel;
 window.onCardClick = onCardClick;
 window.useSelectedCard = useSelectedCard;
+window.toggleCardDetailExpanded = toggleCardDetailExpanded;
 window.confirmSellCardSelection = confirmSellCardSelection;
 window.passCurrentTurn = passCurrentTurn;
 window.cancelPendingDestroy = cancelPendingDestroy;

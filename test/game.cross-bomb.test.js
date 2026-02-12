@@ -65,7 +65,7 @@ describe('CROSS_BOMB (十字爆弾)', () => {
         };
     }
 
-    test('通常反転後に中心+十字4マスを即時破壊し、破壊では布石を獲得しない', () => {
+    test('通常反転後に中心+十字8マスを即時破壊し、破壊では布石を獲得しない', () => {
         const gs = {
             currentPlayer: 1,
             board: Array.from({ length: 8 }, () => Array(8).fill(0)),
@@ -74,12 +74,16 @@ describe('CROSS_BOMB (十字爆弾)', () => {
         };
         const cs = makeCardState();
 
-        // Center + cross targets
+        // Center + cross targets (distance 1 and 2)
         gs.board[3][3] = 1;
         gs.board[2][3] = -1;
         gs.board[4][3] = 1;
         gs.board[3][2] = -1;
         gs.board[3][4] = 1;
+        gs.board[1][3] = -1;
+        gs.board[5][3] = 1;
+        gs.board[3][1] = -1;
+        gs.board[3][5] = 1;
         // Diagonal (must survive)
         gs.board[2][2] = -1;
 
@@ -89,6 +93,10 @@ describe('CROSS_BOMB (十字爆弾)', () => {
         cs.stoneIdMap[4][3] = 's3';
         cs.stoneIdMap[3][2] = 's4';
         cs.stoneIdMap[3][4] = 's5';
+        cs.stoneIdMap[1][3] = 's7';
+        cs.stoneIdMap[5][3] = 's8';
+        cs.stoneIdMap[3][1] = 's9';
+        cs.stoneIdMap[3][5] = 's10';
         cs.stoneIdMap[2][2] = 's6';
 
         // Special markers on targets should not protect from destroy
@@ -112,7 +120,7 @@ describe('CROSS_BOMB (十字爆弾)', () => {
         const effects = CardLogic.applyPlacementEffects(cs, gs, 'black', 3, 3, 2);
 
         expect(effects.crossBombExploded).toBe(true);
-        expect(effects.crossBombDestroyed).toBe(5);
+        expect(effects.crossBombDestroyed).toBe(9);
         expect(effects.chargeGained).toBe(2);
         expect(cs.charge.black).toBe(2);
 
@@ -121,6 +129,10 @@ describe('CROSS_BOMB (十字爆弾)', () => {
         expect(gs.board[4][3]).toBe(0);
         expect(gs.board[3][2]).toBe(0);
         expect(gs.board[3][4]).toBe(0);
+        expect(gs.board[1][3]).toBe(0);
+        expect(gs.board[5][3]).toBe(0);
+        expect(gs.board[3][1]).toBe(0);
+        expect(gs.board[3][5]).toBe(0);
         expect(gs.board[2][2]).toBe(-1);
 
         // Markers at destroyed cells are removed
@@ -132,6 +144,6 @@ describe('CROSS_BOMB (十字爆弾)', () => {
         const destroyEvents = (cs._presentationEventsPersist || []).filter(
             e => e.type === 'DESTROY' && e.cause === 'CROSS_BOMB' && e.reason === 'cross_bomb_explosion'
         );
-        expect(destroyEvents).toHaveLength(5);
+        expect(destroyEvents).toHaveLength(9);
     });
 });

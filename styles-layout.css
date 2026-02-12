@@ -132,13 +132,13 @@
 
 #charge-black {
     left: 50%;
-    bottom: calc(-25px + 5mm);
+    bottom: calc(-25px + clamp(8px, 1.8vmin, 19px));
     transform: translateX(-50%);
 }
 
 #charge-white {
     left: 50%;
-    top: calc(-25px + 5mm);
+    top: calc(-25px + clamp(8px, 1.8vmin, 19px));
     transform: translateX(-50%);
 }
 
@@ -158,14 +158,14 @@
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
     opacity: 0;
-    transform: var(--charge-delta-base-transform, translateX(-50%)) translateY(1cm);
+    transform: var(--charge-delta-base-transform, translateX(-50%)) translateY(clamp(20px, 3.5vmin, 38px));
     transition: opacity 0.2s ease, transform 0.28s cubic-bezier(0.2, 0.9, 0.2, 1);
     white-space: nowrap;
 }
 
 .charge-delta.is-restart {
     opacity: 0 !important;
-    transform: var(--charge-delta-base-transform, translateX(-50%)) translateY(1cm) !important;
+    transform: var(--charge-delta-base-transform, translateX(-50%)) translateY(clamp(20px, 3.5vmin, 38px)) !important;
     transition: none !important;
 }
 
@@ -176,7 +176,7 @@
 
 .charge-delta.is-fadeout {
     opacity: 0;
-    transform: var(--charge-delta-base-transform, translateX(-50%)) translateY(-0.15cm);
+    transform: var(--charge-delta-base-transform, translateX(-50%)) translateY(clamp(-8px, -0.5vmin, -4px));
     transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
@@ -194,13 +194,13 @@
 
 #charge-delta-black {
     left: 50%;
-    bottom: calc(-25px + 5mm);
+    bottom: calc(-25px + clamp(8px, 1.8vmin, 19px));
     --charge-delta-base-transform: translateX(-50%) translateX(-90px);
 }
 
 #charge-delta-white {
     left: 50%;
-    top: calc(-25px + 5mm);
+    top: calc(-25px + clamp(8px, 1.8vmin, 19px));
     --charge-delta-base-transform: translateX(-50%) translateX(90px);
 }
 /* Player Area Containers */
@@ -246,6 +246,7 @@ body.auto-mode-active #board,
 body.auto-mode-active .hand-container,
 body.auto-mode-active #card-detail-panel,
 body.auto-mode-active #use-card-btn,
+body.auto-mode-active #toggle-card-detail-btn,
 body.auto-mode-active #pass-btn,
 body.auto-mode-active #sell-card-btn,
 body.auto-mode-active #cancel-card-btn {
@@ -291,8 +292,8 @@ body.auto-mode-active #cancel-card-btn {
 /* Side Panel (Fixed Right Bottom) */
 #side-panel {
     position: fixed;
-    bottom: 2cm;
-    right: calc(2cm - 15mm);
+    bottom: clamp(16px, 5vh, 72px);
+    right: clamp(12px, 2vw, 28px);
     width: 300px;
     display: flex;
     flex-direction: column;
@@ -388,7 +389,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     position: absolute;
     top: 20px;
     left: 20%;
-    transform: translateX(calc(-50% - 3cm));
+    transform: translateX(calc(-50% - clamp(48px, 6vw, 112px)));
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -416,8 +417,8 @@ input[type=range].compact-slider::-webkit-slider-thumb {
 
 #log {
     position: fixed;
-    left: calc(12px + 1cm);
-    top: calc(50% - 3cm);
+    left: clamp(20px, 3.2vw, 52px);
+    top: calc(50% - clamp(56px, 6.4vh, 112px));
     transform: translateY(-50%);
     z-index: 12000;
     font-size: 13px;
@@ -471,8 +472,8 @@ input[type=range].compact-slider::-webkit-slider-thumb {
 
 #effect-live-panel {
     position: fixed;
-    left: calc(12px + 1cm + 360px + 8px + 1cm);
-    top: calc(50% - 3.2cm + 1cm);
+    left: calc(clamp(20px, 3.2vw, 52px) + 360px + 8px + clamp(16px, 2vw, 38px));
+    top: calc(50% - clamp(44px, 4.8vh, 84px));
     z-index: 11990;
     width: 180px;
     min-height: 156px;
@@ -688,8 +689,8 @@ input[type=range].compact-slider::-webkit-slider-thumb {
 /* CPU Character Panel - Top Right */
 #cpu-character-panel {
     position: fixed;
-    top: calc(20px + 3cm);
-    right: calc(40px + 6cm);
+    top: clamp(24px, 12vh, 132px);
+    right: clamp(32px, 14vw, 268px);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -733,7 +734,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     margin-bottom: 0;
     padding: 0;
     order: 2;
-    transform: translateY(calc(-100px + 2cm));
+    transform: translateY(clamp(-24px, -1.4vmin, -10px));
     transition: transform 0.25s ease;
     z-index: 110;
 }
@@ -741,8 +742,8 @@ input[type=range].compact-slider::-webkit-slider-thumb {
 /* Hero Character Panel - Bottom Left */
 #hero-character-panel {
     position: fixed;
-    bottom: calc(20px + 2cm);
-    left: calc(40px + 4cm);
+    bottom: clamp(20px, 9vh, 96px);
+    left: clamp(24px, 10vw, 192px);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -762,11 +763,11 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     display: block;
     order: 1;
     transform-origin: center;
-    transform: translateY(2cm);
+    transform: translateY(clamp(36px, 4vmin, 76px));
 }
 
 #hero-character-img:hover {
-    transform: translateY(2cm) scale(1.08);
+    transform: translateY(clamp(36px, 4vmin, 76px)) scale(1.08);
     filter: drop-shadow(0 8px 20px rgba(100, 150, 255, 0.4));
 }
 
@@ -780,7 +781,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     letter-spacing: 1.5px;
     padding: 0;
     order: 2;
-    transform: translateY(2cm);
+    transform: translateY(clamp(36px, 4vmin, 76px));
     margin-top: 8px;
     text-align: center;
     transition: none;

@@ -2,7 +2,7 @@ const CardLogic = require('../game/logic/cards');
 const TurnPipelinePhases = require('../game/turn/turn_pipeline_phases');
 
 describe('ULTIMATE_HYPERACTIVE turn-start integration', () => {
-  test('emits move/blow events and grants charge on successful blows', () => {
+  test('emits move/flip events and grants charge from flipped stones', () => {
     const prng = { shuffle: (arr) => arr, random: () => 0.1 };
     const cardState = CardLogic.createCardState(prng);
     const gameState = {
@@ -22,18 +22,14 @@ describe('ULTIMATE_HYPERACTIVE turn-start integration', () => {
       data: { type: 'ULTIMATE_HYPERACTIVE' }
     });
 
-    // Force first move to (3,4) and place two adjacent enemy stones there.
+    // Force first move to (3,4) and make one capturable line from the landing cell.
     for (const [r, c] of [[2,2], [2,3], [3,2], [4,2], [4,3]]) {
       gameState.board[r][c] = 1;
     }
-    gameState.board[2][4] = -1;
-    gameState.board[4][4] = -1;
-    gameState.board[2][5] = 1;
-    gameState.board[4][5] = 1;
-    gameState.board[1][4] = 0;
-    gameState.board[0][4] = 0;
-    gameState.board[5][4] = 0;
-    gameState.board[6][4] = 0;
+    gameState.board[2][4] = 1;
+    gameState.board[4][4] = 1;
+    gameState.board[3][5] = -1;
+    gameState.board[3][6] = 1;
 
     const events = [];
     TurnPipelinePhases.applyTurnStartPhase(
@@ -48,8 +44,8 @@ describe('ULTIMATE_HYPERACTIVE turn-start integration', () => {
 
     const types = new Set(events.map(ev => ev && ev.type));
     expect(types.has('ultimate_hyperactive_moved_start')).toBe(true);
-    expect(types.has('ultimate_hyperactive_blown_start')).toBe(true);
-    expect(cardState.charge.black).toBeGreaterThanOrEqual(4);
+    expect(types.has('ultimate_hyperactive_flipped_start')).toBe(true);
+    expect(types.has('ultimate_hyperactive_blown_start')).toBe(false);
+    expect(cardState.charge.black).toBeGreaterThanOrEqual(1);
   });
 });
-
