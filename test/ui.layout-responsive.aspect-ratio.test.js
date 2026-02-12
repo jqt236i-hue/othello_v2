@@ -10,9 +10,10 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/@media\s*\(max-aspect-ratio:\s*3\/2\)/);
     expect(css).toMatch(/@media\s*\(max-aspect-ratio:\s*4\/3\)/);
     expect(css).toMatch(/@media\s*\(max-aspect-ratio:\s*5\/4\)/);
-    expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-width:\s*1450px\)/);
+    expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(min-width:\s*901px\)\s*and\s*\(max-width:\s*1450px\)/);
     expect(css).toMatch(/safe-area-inset-right/);
     expect(css).toMatch(/safe-area-inset-left/);
+    expect(css).toMatch(/#card-detail-panel[\s\S]*position:\s*fixed/);
     expect(css).toMatch(/html\.sim-aspect-16-10\s+#board/);
     expect(css).toMatch(/html\.sim-aspect-3-2\s+#board/);
     expect(css).toMatch(/html\.sim-aspect-4-3\s+#effect-live-panel/);

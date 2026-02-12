@@ -65,7 +65,7 @@
 }
 
 /* Landscape fallback for tablets/windowed play: width-based compaction when aspect queries miss. */
-@media (orientation: landscape) and (max-width: 1450px) {
+@media (orientation: landscape) and (min-width: 901px) and (max-width: 1450px) {
     #game-container {
         padding-bottom: clamp(18px, 3.2vh, 34px);
         gap: 8px;
@@ -145,8 +145,13 @@
     }
 
     #card-detail-panel {
-        width: clamp(240px, 24vw, 290px);
-        transform: translateX(clamp(-20px, -1.4vw, -8px)) translateY(clamp(-86px, -7vh, -52px)) scale(1.0, 0.98);
+        position: fixed;
+        right: max(12px, env(safe-area-inset-right));
+        bottom: calc(max(12px, env(safe-area-inset-bottom)) + clamp(170px, 22vh, 230px));
+        left: auto;
+        top: auto;
+        width: clamp(205px, 22vw, 250px);
+        transform: none;
     }
 }
 
