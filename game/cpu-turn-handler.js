@@ -77,6 +77,28 @@ function debugCpuTrace(message, meta) {
     } catch (e) { /* ignore */ }
 }
 
+async function maybeUseCardFromOnnx(playerKey, level, legalMovesCount) {
+    if (typeof selectCardFromOnnxPolicyAsync !== 'function') return false;
+    if (typeof applyCardChoice !== 'function') return false;
+    if (typeof CardLogic === 'undefined' || !CardLogic || !cardState || !gameState) return false;
+    try {
+        let usable = [];
+        if (typeof CardLogic.getUsableCardIds === 'function') {
+            usable = CardLogic.getUsableCardIds(cardState, gameState, playerKey) || [];
+        }
+        if (!Array.isArray(usable) || usable.length === 0) return false;
+        const choice = await selectCardFromOnnxPolicyAsync(playerKey, level, legalMovesCount, usable);
+        if (!choice || !choice.cardId) return false;
+        return !!applyCardChoice(playerKey, choice);
+    } catch (e) {
+        debugCpuTrace('[AI] selectCardFromOnnxPolicyAsync failed; fallback to policy table/core', {
+            playerKey,
+            error: e && e.message ? e.message : String(e)
+        });
+        return false;
+    }
+}
+
 function selectCpuMoveSafe(candidateMoves, playerKey) {
     if (!Array.isArray(candidateMoves) || candidateMoves.length === 0) return null;
     try {
@@ -320,8 +342,14 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
     }
 
     try {
+        const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
+            ? cpuSmartness[playerKey]
+            : 1;
         if (!cardState.hasUsedCardThisTurnByPlayer[playerKey] && cardState.pendingEffectByPlayer[playerKey] === null) {
-            const applied = (typeof cpuMaybeUseCardWithPolicy === 'function') ? cpuMaybeUseCardWithPolicy(playerKey) : false;
+            let applied = await maybeUseCardFromOnnx(playerKey, level, 0);
+            if (!applied) {
+                applied = (typeof cpuMaybeUseCardWithPolicy === 'function') ? cpuMaybeUseCardWithPolicy(playerKey) : false;
+            }
             if (applied) {
                 isProcessing = false;
                 const resumeAfterCardAnimation = () => {
@@ -384,7 +412,10 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 ? !!CardLogic.hasUsableCard(cardState, gameState, playerKey)
                 : false;
             if (stillUsableCard) {
-                const retried = (typeof cpuMaybeUseCardWithPolicy === 'function') ? cpuMaybeUseCardWithPolicy(playerKey) : false;
+                let retried = await maybeUseCardFromOnnx(playerKey, level, 0);
+                if (!retried) {
+                    retried = (typeof cpuMaybeUseCardWithPolicy === 'function') ? cpuMaybeUseCardWithPolicy(playerKey) : false;
+                }
                 if (retried) {
                     isProcessing = false;
                     scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
@@ -406,9 +437,6 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
             return;
         }
 
-        const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-            ? cpuSmartness[playerKey]
-            : 1;
         let move = null;
         if (typeof selectMoveFromOnnxPolicyAsync === 'function') {
             try {

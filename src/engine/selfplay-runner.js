@@ -960,6 +960,15 @@ function runSingleGame(gameIndex, seed, options) {
         const countsBefore = Core.countDiscs(decisionGameState);
         const boardBefore = encodeBoard(decisionGameState.board);
         const turnNumberBefore = decisionGameState.turnNumber || 0;
+        const handCards = decisionCardState && decisionCardState.hands && Array.isArray(decisionCardState.hands[playerKey])
+            ? decisionCardState.hands[playerKey].slice()
+            : [];
+        let usableCardIds = [];
+        try {
+            usableCardIds = getDirectUsableCardIds(decisionCardState, decisionGameState, playerKey);
+        } catch (e) {
+            usableCardIds = [];
+        }
         const decision = execution.decision;
         const action = execution.action;
         const result = execution.result;
@@ -987,6 +996,8 @@ function runSingleGame(gameIndex, seed, options) {
             whiteCountBefore: countsBefore.white,
             board: boardBefore
         };
+        record.handCards = handCards;
+        record.usableCardIds = usableCardIds;
 
         state.cardState = result.cardState;
         state.gameState = result.gameState;

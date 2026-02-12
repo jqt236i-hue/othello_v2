@@ -63,4 +63,37 @@ describe('policy-onnx-runtime', () => {
     });
     expect(selected).toEqual(candidates[1]);
   });
+
+  test('chooseCard selects highest score among usable cards', async () => {
+    const placeScores = new Float32Array(64);
+    const cardScores = new Float32Array(3);
+    cardScores[0] = 0.3; // card_a
+    cardScores[1] = 2.7; // card_b
+    cardScores[2] = 1.1; // card_c
+
+    runtime.__setLoadedForTest({
+      run: jest.fn(async () => ({
+        place_logits: { data: placeScores },
+        card_logits: { data: cardScores }
+      }))
+    }, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      placeOutputName: 'place_logits',
+      cardOutputName: 'card_logits',
+      inputDim: 76,
+      cardActionIds: ['card_a', 'card_b', 'card_c']
+    });
+
+    const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
+    const selected = await runtime.chooseCard(['card_a', 'card_c', 'card_b'], {
+      playerKey: 'white',
+      level: 6,
+      board,
+      legalMovesCount: 4,
+      handCardIds: ['card_a', 'card_b'],
+      usableCardIds: ['card_a', 'card_c', 'card_b']
+    });
+    expect(selected).toBe('card_b');
+  });
 });

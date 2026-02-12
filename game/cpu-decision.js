@@ -82,13 +82,22 @@ function resolvePolicyOnnxRuntime() {
         if (
             typeof globalThis !== 'undefined' &&
             globalThis.CpuPolicyOnnxRuntime &&
-            typeof globalThis.CpuPolicyOnnxRuntime.chooseMove === 'function'
+            (
+                typeof globalThis.CpuPolicyOnnxRuntime.chooseMove === 'function' ||
+                typeof globalThis.CpuPolicyOnnxRuntime.chooseCard === 'function'
+            )
         ) {
             CpuPolicyOnnxRuntime = globalThis.CpuPolicyOnnxRuntime;
             return CpuPolicyOnnxRuntime;
         }
     } catch (e) { /* ignore */ }
-    if (CpuPolicyOnnxRuntime && typeof CpuPolicyOnnxRuntime.chooseMove === 'function') return CpuPolicyOnnxRuntime;
+    if (
+        CpuPolicyOnnxRuntime &&
+        (
+            typeof CpuPolicyOnnxRuntime.chooseMove === 'function' ||
+            typeof CpuPolicyOnnxRuntime.chooseCard === 'function'
+        )
+    ) return CpuPolicyOnnxRuntime;
     return null;
 }
 
@@ -103,6 +112,29 @@ function resolvePendingType(playerKey) {
         return pending && pending.type ? pending.type : null;
     } catch (e) { /* ignore */ }
     return null;
+}
+
+function getHandCardIdsForPlayer(playerKey) {
+    const hand = (cardState && cardState.hands && Array.isArray(cardState.hands[playerKey]))
+        ? cardState.hands[playerKey]
+        : [];
+    return hand.slice();
+}
+
+function buildOnnxContext(playerKey, level, legalMovesCount, handCardIds, usableCardIds) {
+    const opponentKey = playerKey === 'black' ? 'white' : 'black';
+    return {
+        playerKey,
+        level,
+        board: gameState && gameState.board,
+        pendingType: resolvePendingType(playerKey),
+        legalMovesCount: Number.isFinite(legalMovesCount) ? legalMovesCount : 0,
+        ownCharge: (cardState && cardState.charge && Number.isFinite(cardState.charge[playerKey])) ? cardState.charge[playerKey] : 0,
+        oppCharge: (cardState && cardState.charge && Number.isFinite(cardState.charge[opponentKey])) ? cardState.charge[opponentKey] : 0,
+        deckCount: (cardState && cardState.deck && Number.isFinite(cardState.deck.length)) ? cardState.deck.length : 0,
+        handCardIds: Array.isArray(handCardIds) ? handCardIds.slice() : getHandCardIdsForPlayer(playerKey),
+        usableCardIds: Array.isArray(usableCardIds) ? usableCardIds.slice() : null
+    };
 }
 
 function selectMoveFromLearnedPolicy(candidateMoves, playerKey, level) {
@@ -145,18 +177,34 @@ async function selectMoveFromOnnxPolicyAsync(candidateMoves, playerKey, level) {
     const runtime = resolvePolicyOnnxRuntime();
     if (!runtime || typeof runtime.chooseMove !== 'function') return null;
     try {
-        return await runtime.chooseMove(candidateMoves, {
-            playerKey,
-            level,
-            board: gameState && gameState.board,
-            pendingType: resolvePendingType(playerKey),
-            legalMovesCount: candidateMoves.length,
-            ownCharge: (cardState && cardState.charge && Number.isFinite(cardState.charge[playerKey])) ? cardState.charge[playerKey] : 0,
-            oppCharge: (cardState && cardState.charge && Number.isFinite(cardState.charge[playerKey === 'black' ? 'white' : 'black'])) ? cardState.charge[playerKey === 'black' ? 'white' : 'black'] : 0,
-            deckCount: (cardState && cardState.deck && Number.isFinite(cardState.deck.length)) ? cardState.deck.length : 0
-        });
+        const handCardIds = getHandCardIdsForPlayer(playerKey);
+        return await runtime.chooseMove(
+            candidateMoves,
+            buildOnnxContext(playerKey, level, candidateMoves.length, handCardIds, null)
+        );
     } catch (e) {
         console.warn('[CPU] policy-onnx runtime failed, fallback to default policy', e);
+        return null;
+    }
+}
+
+async function selectCardFromOnnxPolicyAsync(playerKey, level, legalMovesCount, usableCardIds) {
+    const runtime = resolvePolicyOnnxRuntime();
+    if (!runtime || typeof runtime.chooseCard !== 'function') return null;
+    if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
+    try {
+        const handCardIds = getHandCardIdsForPlayer(playerKey);
+        const selectedCardId = await runtime.chooseCard(
+            usableCardIds,
+            buildOnnxContext(playerKey, level, legalMovesCount, handCardIds, usableCardIds)
+        );
+        if (!selectedCardId) return null;
+        const cardDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
+            ? CardLogic.getCardDef(selectedCardId)
+            : null;
+        return { cardId: selectedCardId, cardDef };
+    } catch (e) {
+        console.warn('[CPU] policy-onnx card runtime failed, fallback to default policy', e);
         return null;
     }
 }
@@ -1335,6 +1383,7 @@ if (typeof module !== 'undefined' && module.exports) {
         applyCardChoice,
         selectCpuMoveWithPolicy,
         selectMoveFromOnnxPolicyAsync,
+        selectCardFromOnnxPolicyAsync,
         cpuSelectDestroyWithPolicy,
         cpuSelectSacrificeWillWithPolicy,
         cpuSelectSellCardWillWithPolicy,

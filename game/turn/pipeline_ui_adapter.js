@@ -523,7 +523,10 @@
                         if (e.hyperactivePlaced) push('多動石を設置');
                         if (e.crossBombExploded) push(`十字爆弾: ${e.crossBombDestroyed || 0}個を破壊`);
                         if (e.plunderAmount > 0) push(`吸収の意志: 布石を${e.plunderAmount}吸収`);
-                        if (e.stolenCount > 0) push(`略奪: カード${e.stolenCount}枚`);
+                        if (e.stolenCount > 0) {
+                            const gain = Number.isFinite(Number(e.resaleGain)) ? Number(e.resaleGain) : (e.stolenCount * 2);
+                            push(`転売: 相手カード${e.stolenCount}枚を売却（布石+${gain}）`);
+                        }
                     }
                     break;
                 case 'extra_place_consumed':

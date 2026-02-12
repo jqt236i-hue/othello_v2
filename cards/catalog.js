@@ -16,7 +16,7 @@ window.CardCatalog = {
       "id": "free_01",
       "name": "自由の意志",
       "type": "FREE_PLACEMENT",
-      "cost": 2,
+      "cost": 9,
       "desc": "反転0でも空きマスに置ける。"
     },
     {
@@ -143,7 +143,7 @@ window.CardCatalog = {
       "name": "吸収の意志",
       "type": "PLUNDER_WILL",
       "cost": 4,
-      "desc": "次の反転枚数だけ相手の布石を奪う。"
+      "desc": "次の反転枚数だけ相手の布石を吸収する。"
     },
     {
       "id": "work_01",
@@ -189,17 +189,17 @@ window.CardCatalog = {
     },
     {
       "id": "steal_card_01",
-      "name": "略奪の意志",
+      "name": "転売の意志",
       "type": "STEAL_CARD",
       "cost": 7,
-      "desc": "反転枚数ぶん相手の手札を奪う。手札上限超過分は自分のデッキに入る。"
+      "desc": "この手の反転枚数ぶん相手手札からカードを奪って売却する。売却したカード1枚につき布石を2獲得。"
     },
     {
       "id": "guard_01",
       "name": "守る意志",
       "type": "GUARD_WILL",
-      "cost": 7,
-      "desc": "自分の石1つに完全保護を付与する。5ターン持続。"
+      "cost": 2,
+      "desc": "自分の石1つに完全保護を付与する。3ターン持続。"
     },
     {
       "id": "udg_01",

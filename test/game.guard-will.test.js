@@ -36,7 +36,7 @@ describe('GUARD_WILL (守る意志)', () => {
     const guardMarker = (cardState.markers || []).find(m => m && m.row === 2 && m.col === 2 && m.data && m.data.type === 'GUARD');
     expect(guardMarker).toBeTruthy();
     expect(guardMarker.owner).toBe('black');
-    expect(guardMarker.data.remainingOwnerTurns).toBe(5);
+    expect(guardMarker.data.remainingOwnerTurns).toBe(3);
   });
 
   test('destroy is blocked while guarded', () => {
@@ -48,7 +48,7 @@ describe('GUARD_WILL (守る意志)', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'GUARD', remainingOwnerTurns: 5 }
+      data: { type: 'GUARD', remainingOwnerTurns: 3 }
     });
 
     const destroyed = BoardOps.destroyAt(cardState, gameState, 3, 3, 'SYSTEM', 'test');
@@ -66,7 +66,7 @@ describe('GUARD_WILL (守る意志)', () => {
       row: 4,
       col: 4,
       owner: 'white',
-      data: { type: 'GUARD', remainingOwnerTurns: 5 }
+      data: { type: 'GUARD', remainingOwnerTurns: 3 }
     });
 
     const targets = CardSelectors.getSwapTargets(cardState, gameState, 'black');
@@ -91,7 +91,7 @@ describe('GUARD_WILL (守る意志)', () => {
         row: 5,
         col: 5,
         owner: 'white',
-        data: { type: 'GUARD', remainingOwnerTurns: 5 }
+        data: { type: 'GUARD', remainingOwnerTurns: 3 }
       }
     );
 
@@ -111,19 +111,11 @@ describe('GUARD_WILL (守る意志)', () => {
       row: 1,
       col: 1,
       owner: 'black',
-      data: { type: 'GUARD', remainingOwnerTurns: 5 }
+      data: { type: 'GUARD', remainingOwnerTurns: 3 }
     });
 
     CardLogic.onTurnStart(cardState, 'white', gameState);
     let guard = (cardState.markers || []).find(m => m && m.data && m.data.type === 'GUARD');
-    expect(guard.data.remainingOwnerTurns).toBe(5);
-
-    CardLogic.onTurnStart(cardState, 'black', gameState);
-    guard = (cardState.markers || []).find(m => m && m.data && m.data.type === 'GUARD');
-    expect(guard.data.remainingOwnerTurns).toBe(4);
-
-    CardLogic.onTurnStart(cardState, 'black', gameState);
-    guard = (cardState.markers || []).find(m => m && m.data && m.data.type === 'GUARD');
     expect(guard.data.remainingOwnerTurns).toBe(3);
 
     CardLogic.onTurnStart(cardState, 'black', gameState);

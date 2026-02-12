@@ -10,6 +10,7 @@ function parseArgs(argv) {
     const args = {
         black: 1,
         white: 5,
+        seed: null,
         out: path.resolve(process.cwd(), 'data', 'runs', 'level-match.json'),
         timeoutMs: 180000,
         headless: true,
@@ -30,6 +31,10 @@ function parseArgs(argv) {
             args.white = Number(argv[++i]);
             continue;
         }
+        if (a === '--seed') {
+            args.seed = Number(argv[++i]);
+            continue;
+        }
         if (a === '--out' || a === '-o') {
             args.out = path.resolve(process.cwd(), argv[++i]);
             continue;
@@ -46,6 +51,7 @@ function parseArgs(argv) {
 
     if (!Number.isFinite(args.black) || args.black < 1) throw new Error('--black must be >= 1');
     if (!Number.isFinite(args.white) || args.white < 1) throw new Error('--white must be >= 1');
+    if (args.seed !== null && !Number.isFinite(args.seed)) throw new Error('--seed must be a number');
     if (!Number.isFinite(args.timeoutMs) || args.timeoutMs < 1000) throw new Error('--timeout-ms must be >= 1000');
 
     return args;
@@ -59,6 +65,7 @@ function printHelp() {
         'Options:',
         '  --black <n>       Black CPU level (default: 1)',
         '  --white <n>       White CPU level (default: 5)',
+        '  --seed <n>        Optional reset seed (uses Date.now override during reset)',
         '  -o, --out <path>  Output JSON path (default: data/runs/level-match.json)',
         '  --timeout-ms <n>  Max wait time for game end (default: 180000)',
         '  --headed          Run browser with UI',
@@ -97,6 +104,19 @@ async function runMatch(args) {
     const port = server.address().port;
     const browser = await chromium.launch({ headless: args.headless });
     const page = await browser.newPage();
+    const consoleMessages = [];
+    const pageErrors = [];
+    page.on('console', (msg) => {
+        if (consoleMessages.length >= 300) return;
+        consoleMessages.push({
+            type: msg.type(),
+            text: msg.text()
+        });
+    });
+    page.on('pageerror', (err) => {
+        if (pageErrors.length >= 100) return;
+        pageErrors.push(String(err && err.message ? err.message : err));
+    });
 
     try {
         page.setDefaultTimeout(args.timeoutMs);
@@ -116,7 +136,24 @@ async function runMatch(args) {
             if (w) w.dispatchEvent(new Event('change'));
         });
 
-        await page.click('#resetBtn').catch(() => {});
+        if (args.seed !== null && Number.isFinite(args.seed)) {
+            await page.evaluate((seedValue) => {
+                const oldNow = Date.now;
+                Date.now = () => seedValue;
+                try {
+                    if (typeof window.resetGame === 'function') {
+                        window.resetGame();
+                        return;
+                    }
+                    const btn = document.getElementById('resetBtn');
+                    if (btn) btn.click();
+                } finally {
+                    Date.now = oldNow;
+                }
+            }, Math.floor(args.seed));
+        } else {
+            await page.click('#resetBtn').catch(() => {});
+        }
         await page.click('#autoToggleBtn').catch(() => {});
 
         await page.waitForFunction(() => {
@@ -145,11 +182,24 @@ async function runMatch(args) {
                 turnNumber: window.gameState ? window.gameState.turnNumber : null
             };
         });
+        const runtimeStatus = await page.evaluate(() => {
+            const onnx = (window.CpuPolicyOnnxRuntime && typeof window.CpuPolicyOnnxRuntime.getStatus === 'function')
+                ? window.CpuPolicyOnnxRuntime.getStatus()
+                : null;
+            const table = (window.CpuPolicyTableRuntime && typeof window.CpuPolicyTableRuntime.getStatus === 'function')
+                ? window.CpuPolicyTableRuntime.getStatus()
+                : null;
+            return { onnx, table };
+        });
 
         return {
             levels: { black: args.black, white: args.white },
+            seed: args.seed,
             finishedAt: new Date().toISOString(),
-            result
+            result,
+            runtimeStatus,
+            consoleMessages,
+            pageErrors
         };
     } finally {
         await page.close().catch(() => {});
@@ -178,3 +228,8 @@ if (require.main === module) {
         process.exit(1);
     });
 }
+
+module.exports = {
+    parseArgs,
+    runMatch
+};

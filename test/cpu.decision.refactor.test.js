@@ -70,6 +70,21 @@ describe('cpu decision refactor helpers', () => {
     expect(res.cardId).toBe('c_high');
   });
 
+  test('selectCardFromOnnxPolicyAsync returns onnx-picked card when available', async () => {
+    global.cardState.hands.white = ['c_low', 'c_high'];
+    global.CardLogic = {
+      getCardDef: (id) => ({ name: id })
+    };
+    global.CpuPolicyOnnxRuntime = {
+      chooseCard: jest.fn(async () => 'c_high')
+    };
+
+    const res = await cpuDecision.selectCardFromOnnxPolicyAsync('white', 6, 0, ['c_low', 'c_high']);
+    expect(res).toBeDefined();
+    expect(res.cardId).toBe('c_high');
+    expect(global.CpuPolicyOnnxRuntime.chooseCard).toHaveBeenCalled();
+  });
+
   test('selectCpuMoveWithPolicy falls back to random when AISystem.selectMove throws', () => {
     // deterministic random to pick first candidate
     cpuDecision.setCpuRng({ random: () => 0.0 });

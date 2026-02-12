@@ -8,7 +8,7 @@ const { spawnSync } = require('child_process');
 function parseArgs(argv) {
     const args = {
         iterations: 1,
-        maxHours: 6,
+        maxHours: 24,
         trainGames: 12000,
         evalGames: 2000,
         seed: 1,
@@ -18,7 +18,7 @@ function parseArgs(argv) {
         allowCardUsage: true,
         cardUsageRate: 0.25,
         pythonPath: path.resolve(process.cwd(), '.venv', 'Scripts', 'python.exe'),
-        onnxEpochs: 8,
+        onnxEpochs: 9999,
         onnxBatchSize: 2048,
         onnxLr: 0.001,
         onnxHiddenSize: 256,
@@ -33,6 +33,22 @@ function parseArgs(argv) {
         quickGames: 500,
         finalGames: 2000,
         threshold: 0.05,
+        adoptionSeedCount: 1,
+        adoptionSeedStride: 1000,
+        adoptionFinalSeedOffset: 500000,
+        adoptionMinSeedUplift: -1,
+        adoptionMinSeedPassCount: 0,
+        onnxGateEnabled: false,
+        onnxGateGames: 8,
+        onnxGateSeedCount: 1,
+        onnxGateSeedStride: 1000,
+        onnxGateSeedOffset: 700000,
+        onnxGateThreshold: 0.5,
+        onnxGateMinSeedScore: 0,
+        onnxGateMinSeedPassCount: 0,
+        onnxGateTimeoutMs: 180000,
+        onnxGateBlackLevel: 6,
+        onnxGateWhiteLevel: 5,
         promoteOnPass: true,
         bootstrapPolicyModelPath: null,
         resumeCheckpointPath: null,
@@ -74,6 +90,23 @@ function parseArgs(argv) {
         if (a === '--quick-games') { args.quickGames = Number(argv[++i]); continue; }
         if (a === '--final-games') { args.finalGames = Number(argv[++i]); continue; }
         if (a === '--threshold') { args.threshold = Number(argv[++i]); continue; }
+        if (a === '--adoption-seed-count') { args.adoptionSeedCount = Number(argv[++i]); continue; }
+        if (a === '--adoption-seed-stride') { args.adoptionSeedStride = Number(argv[++i]); continue; }
+        if (a === '--adoption-final-seed-offset') { args.adoptionFinalSeedOffset = Number(argv[++i]); continue; }
+        if (a === '--adoption-min-seed-uplift') { args.adoptionMinSeedUplift = Number(argv[++i]); continue; }
+        if (a === '--adoption-min-seed-pass-count') { args.adoptionMinSeedPassCount = Number(argv[++i]); continue; }
+        if (a === '--onnx-gate') { args.onnxGateEnabled = true; continue; }
+        if (a === '--no-onnx-gate') { args.onnxGateEnabled = false; continue; }
+        if (a === '--onnx-gate-games') { args.onnxGateGames = Number(argv[++i]); continue; }
+        if (a === '--onnx-gate-seed-count') { args.onnxGateSeedCount = Number(argv[++i]); continue; }
+        if (a === '--onnx-gate-seed-stride') { args.onnxGateSeedStride = Number(argv[++i]); continue; }
+        if (a === '--onnx-gate-seed-offset') { args.onnxGateSeedOffset = Number(argv[++i]); continue; }
+        if (a === '--onnx-gate-threshold') { args.onnxGateThreshold = Number(argv[++i]); continue; }
+        if (a === '--onnx-gate-min-seed-score') { args.onnxGateMinSeedScore = Number(argv[++i]); continue; }
+        if (a === '--onnx-gate-min-seed-pass-count') { args.onnxGateMinSeedPassCount = Number(argv[++i]); continue; }
+        if (a === '--onnx-gate-timeout-ms') { args.onnxGateTimeoutMs = Number(argv[++i]); continue; }
+        if (a === '--onnx-gate-black-level') { args.onnxGateBlackLevel = Number(argv[++i]); continue; }
+        if (a === '--onnx-gate-white-level') { args.onnxGateWhiteLevel = Number(argv[++i]); continue; }
         if (a === '--promote') { args.promoteOnPass = true; continue; }
         if (a === '--no-promote') { args.promoteOnPass = false; continue; }
         if (a === '--bootstrap-policy-model') { args.bootstrapPolicyModelPath = path.resolve(process.cwd(), argv[++i]); continue; }
@@ -129,6 +162,59 @@ function parseArgs(argv) {
     if (!Number.isFinite(args.threshold) || args.threshold < 0 || args.threshold > 1) {
         throw new Error('--threshold must be in [0,1]');
     }
+    if (!Number.isFinite(args.adoptionSeedCount) || args.adoptionSeedCount < 1) {
+        throw new Error('--adoption-seed-count must be >= 1');
+    }
+    if (!Number.isFinite(args.adoptionSeedStride) || args.adoptionSeedStride < 1) {
+        throw new Error('--adoption-seed-stride must be >= 1');
+    }
+    if (!Number.isFinite(args.adoptionFinalSeedOffset) || args.adoptionFinalSeedOffset < 1) {
+        throw new Error('--adoption-final-seed-offset must be >= 1');
+    }
+    if (!Number.isFinite(args.adoptionMinSeedUplift) || args.adoptionMinSeedUplift < -1 || args.adoptionMinSeedUplift > 1) {
+        throw new Error('--adoption-min-seed-uplift must be in [-1,1]');
+    }
+    if (!Number.isFinite(args.adoptionMinSeedPassCount) || args.adoptionMinSeedPassCount < 0) {
+        throw new Error('--adoption-min-seed-pass-count must be >= 0');
+    }
+    args.adoptionMinSeedPassCount = Math.floor(args.adoptionMinSeedPassCount);
+    if (args.adoptionMinSeedPassCount > args.adoptionSeedCount) {
+        throw new Error('--adoption-min-seed-pass-count must be <= --adoption-seed-count');
+    }
+    if (!Number.isFinite(args.onnxGateGames) || args.onnxGateGames < 1) {
+        throw new Error('--onnx-gate-games must be >= 1');
+    }
+    if (!Number.isFinite(args.onnxGateSeedCount) || args.onnxGateSeedCount < 1) {
+        throw new Error('--onnx-gate-seed-count must be >= 1');
+    }
+    if (!Number.isFinite(args.onnxGateSeedStride) || args.onnxGateSeedStride < 1) {
+        throw new Error('--onnx-gate-seed-stride must be >= 1');
+    }
+    if (!Number.isFinite(args.onnxGateSeedOffset) || args.onnxGateSeedOffset < 1) {
+        throw new Error('--onnx-gate-seed-offset must be >= 1');
+    }
+    if (!Number.isFinite(args.onnxGateThreshold) || args.onnxGateThreshold < 0 || args.onnxGateThreshold > 1) {
+        throw new Error('--onnx-gate-threshold must be in [0,1]');
+    }
+    if (!Number.isFinite(args.onnxGateMinSeedScore) || args.onnxGateMinSeedScore < 0 || args.onnxGateMinSeedScore > 1) {
+        throw new Error('--onnx-gate-min-seed-score must be in [0,1]');
+    }
+    if (!Number.isFinite(args.onnxGateMinSeedPassCount) || args.onnxGateMinSeedPassCount < 0) {
+        throw new Error('--onnx-gate-min-seed-pass-count must be >= 0');
+    }
+    args.onnxGateMinSeedPassCount = Math.floor(args.onnxGateMinSeedPassCount);
+    if (args.onnxGateMinSeedPassCount > args.onnxGateSeedCount) {
+        throw new Error('--onnx-gate-min-seed-pass-count must be <= --onnx-gate-seed-count');
+    }
+    if (!Number.isFinite(args.onnxGateTimeoutMs) || args.onnxGateTimeoutMs < 1000) {
+        throw new Error('--onnx-gate-timeout-ms must be >= 1000');
+    }
+    if (!Number.isFinite(args.onnxGateBlackLevel) || args.onnxGateBlackLevel < 1 || args.onnxGateBlackLevel > 6) {
+        throw new Error('--onnx-gate-black-level must be in [1,6]');
+    }
+    if (!Number.isFinite(args.onnxGateWhiteLevel) || args.onnxGateWhiteLevel < 1 || args.onnxGateWhiteLevel > 6) {
+        throw new Error('--onnx-gate-white-level must be in [1,6]');
+    }
     if (args.bootstrapPolicyModelPath && !fs.existsSync(args.bootstrapPolicyModelPath)) {
         throw new Error(`--bootstrap-policy-model not found: ${args.bootstrapPolicyModelPath}`);
     }
@@ -148,7 +234,7 @@ function printHelp() {
         '',
         'Options:',
         '  -n, --iterations <n>        Number of full training cycles (default: 1)',
-        '      --max-hours <h>         Time budget in hours (default: 6)',
+        '      --max-hours <h>         Time budget in hours (default: 24)',
         '      --train-games <n>       Self-play games for train data (default: 12000)',
         '      --eval-games <n>        Self-play games for eval data (default: 2000)',
         '  -s, --seed <n>              Base seed (default: 1)',
@@ -159,7 +245,7 @@ function printHelp() {
         '      --no-cards              Disable cards in self-play',
         '      --card-usage-rate <r>   Card usage rate [0..1] (default: 0.25)',
         '      --python <path>         Python executable path (default: .venv/Scripts/python.exe)',
-        '      --onnx-epochs <n>       train_policy_onnx --epochs (default: 8)',
+        '      --onnx-epochs <n>       train_policy_onnx --epochs (default: 9999)',
         '      --onnx-batch-size <n>   train_policy_onnx --batch-size (default: 2048)',
         '      --onnx-lr <r>           train_policy_onnx --lr (default: 0.001)',
         '      --onnx-hidden-size <n>  train_policy_onnx --hidden-size (default: 256)',
@@ -173,7 +259,24 @@ function printHelp() {
         '      --shape-immediate <r>   compatibility policy-table --shape-immediate (default: 0.4)',
         '      --quick-games <n>       Adoption quick check games (default: 500)',
         '      --final-games <n>       Adoption final check games (default: 2000)',
-        '      --threshold <r>         Required uplift threshold [0..1] (default: 0.05)',
+        '      --threshold <r>         Required average uplift threshold [0..1] (default: 0.05)',
+        '      --adoption-seed-count <n>  Number of seeds for adoption averaging (default: 1)',
+        '      --adoption-seed-stride <n> Seed step for adoption averaging (default: 1000)',
+        '      --adoption-final-seed-offset <n> Seed offset for final adoption run (default: 500000)',
+        '      --adoption-min-seed-uplift <r> Required minimum per-seed uplift [-1..1] (default: -1)',
+        '      --adoption-min-seed-pass-count <n> Required per-seed threshold pass count (default: 0)',
+        '      --onnx-gate             Enable browser ONNX gate before promotion (default: off)',
+        '      --no-onnx-gate          Disable browser ONNX gate',
+        '      --onnx-gate-games <n>   ONNX gate games per side/seed (default: 8)',
+        '      --onnx-gate-seed-count <n> ONNX gate seed count (default: 1)',
+        '      --onnx-gate-seed-stride <n> ONNX gate seed stride (default: 1000)',
+        '      --onnx-gate-seed-offset <n> ONNX gate base seed offset (default: 700000)',
+        '      --onnx-gate-threshold <r> ONNX gate average score threshold [0..1] (default: 0.5)',
+        '      --onnx-gate-min-seed-score <r> ONNX gate minimum seed score [0..1] (default: 0)',
+        '      --onnx-gate-min-seed-pass-count <n> ONNX gate minimum passing seeds (default: 0)',
+        '      --onnx-gate-timeout-ms <n> ONNX gate per-match timeout in ms (default: 180000)',
+        '      --onnx-gate-black-level <n> ONNX gate black CPU level [1..6] (default: 6)',
+        '      --onnx-gate-white-level <n> ONNX gate white CPU level [1..6] (default: 5)',
         '      --promote               Promote model when final check passes (default: on)',
         '      --no-promote            Skip promotion even when final check passes',
         '      --bootstrap-policy-model <path>  Seed self-play with an existing policy-table JSON',
@@ -236,7 +339,8 @@ function buildIterationPaths(args, iterationIndex) {
         onnxMetricsPath: path.resolve(args.runsDir, `train.metrics.${tag}.jsonl`),
         candidateModelPath: path.resolve(args.modelsDir, `policy-table.candidate.${tag}.json`),
         quickAdoptionPath: path.resolve(args.runsDir, `adoption.quick.${tag}.json`),
-        finalAdoptionPath: path.resolve(args.runsDir, `adoption.final.${tag}.json`)
+        finalAdoptionPath: path.resolve(args.runsDir, `adoption.final.${tag}.json`),
+        onnxGatePath: path.resolve(args.runsDir, `adoption.onnx.${tag}.json`)
     };
 }
 
@@ -252,6 +356,7 @@ function getRemainingMs(deadlineMs) {
 
 function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const seed = args.seed + ((iterationIndex - 1) * args.seedStride);
+    const finalAdoptionSeed = seed + args.adoptionFinalSeedOffset;
     const evalSeed = seed + args.evalSeedOffset;
     const p = buildIterationPaths(args, iterationIndex);
     const steps = [];
@@ -262,6 +367,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         : ['--no-cards', '--card-usage-rate', '0'];
     const guideModelArgs = guideModelPath ? ['--policy-model', guideModelPath] : [];
     const verboseArgs = args.verbose ? ['--verbose'] : [];
+    const adoptionCardRate = args.allowCardUsage ? args.cardUsageRate : 0;
 
     fs.mkdirSync(args.runsDir, { recursive: true });
     fs.mkdirSync(args.modelsDir, { recursive: true });
@@ -328,8 +434,14 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         path.resolve('scripts', 'benchmark-policy-adoption.js'),
         '--games', String(args.quickGames),
         '--seed', String(seed),
+        '--seed-count', String(args.adoptionSeedCount),
+        '--seed-stride', String(args.adoptionSeedStride),
         '--max-plies', String(args.maxPlies),
         '--threshold', String(args.threshold),
+        '--min-seed-uplift', String(args.adoptionMinSeedUplift),
+        '--min-seed-pass-count', String(args.adoptionMinSeedPassCount),
+        '--a-rate', String(adoptionCardRate),
+        '--b-rate', String(adoptionCardRate),
         '--candidate-model', p.candidateModelPath,
         '--out', p.quickAdoptionPath
     ].concat(verboseArgs), { allowExitCodes: [0, 2] });
@@ -342,9 +454,15 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         runStep('adoption-final', process.execPath, [
             path.resolve('scripts', 'benchmark-policy-adoption.js'),
             '--games', String(args.finalGames),
-            '--seed', String(seed),
+            '--seed', String(finalAdoptionSeed),
+            '--seed-count', String(args.adoptionSeedCount),
+            '--seed-stride', String(args.adoptionSeedStride),
             '--max-plies', String(args.maxPlies),
             '--threshold', String(args.threshold),
+            '--min-seed-uplift', String(args.adoptionMinSeedUplift),
+            '--min-seed-pass-count', String(args.adoptionMinSeedPassCount),
+            '--a-rate', String(adoptionCardRate),
+            '--b-rate', String(adoptionCardRate),
             '--candidate-model', p.candidateModelPath,
             '--out', p.finalAdoptionPath
         ].concat(verboseArgs), { allowExitCodes: [0, 2] });
@@ -352,12 +470,37 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         finalPassed = !!(finalPayload && finalPayload.decision && finalPayload.decision.passed);
     }
 
+    let onnxGatePayload = null;
+    let onnxGatePassed = !args.onnxGateEnabled;
+    if (finalPassed && args.onnxGateEnabled) {
+        runStep('adoption-onnx-gate', process.execPath, [
+            path.resolve('scripts', 'benchmark-policy-onnx-gate.js'),
+            '--games', String(args.onnxGateGames),
+            '--seed', String(seed + args.onnxGateSeedOffset),
+            '--seed-count', String(args.onnxGateSeedCount),
+            '--seed-stride', String(args.onnxGateSeedStride),
+            '--threshold', String(args.onnxGateThreshold),
+            '--min-seed-score', String(args.onnxGateMinSeedScore),
+            '--min-seed-pass-count', String(args.onnxGateMinSeedPassCount),
+            '--timeout-ms', String(args.onnxGateTimeoutMs),
+            '--black-level', String(args.onnxGateBlackLevel),
+            '--white-level', String(args.onnxGateWhiteLevel),
+            '--candidate-onnx', p.onnxModelPath,
+            '--candidate-onnx-meta', p.onnxMetaPath,
+            '--out', p.onnxGatePath
+        ], { allowExitCodes: [0, 2] });
+        onnxGatePayload = readJsonSafe(p.onnxGatePath);
+        onnxGatePassed = !!(onnxGatePayload && onnxGatePayload.decision && onnxGatePayload.decision.passed);
+    }
+
     let promoted = false;
-    if (finalPassed && args.promoteOnPass) {
+    if (finalPassed && onnxGatePassed && args.promoteOnPass) {
         runStep('promote-model', process.execPath, [
             path.resolve('scripts', 'promote-policy-model.js'),
             '--adoption-result', p.finalAdoptionPath,
-            '--candidate-model', p.candidateModelPath
+            '--candidate-model', p.candidateModelPath,
+            '--candidate-onnx', p.onnxModelPath,
+            '--candidate-onnx-meta', p.onnxMetaPath
         ]);
         promoted = true;
     }
@@ -365,12 +508,14 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     return {
         iteration: iterationIndex,
         seed,
+        finalAdoptionSeed,
         evalSeed,
         usedGuideModelPath: guideModelPath,
         usedResumeCheckpointPath: resumeCheckpointPath,
         paths: p,
         quickDecision: quickPayload && quickPayload.decision ? quickPayload.decision : null,
         finalDecision: finalPayload && finalPayload.decision ? finalPayload.decision : null,
+        onnxGateDecision: onnxGatePayload && onnxGatePayload.decision ? onnxGatePayload.decision : null,
         promoted,
         steps
     };
@@ -418,7 +563,8 @@ function main() {
             }
         }
         const finalPassed = !!(result.finalDecision && result.finalDecision.passed);
-        console.log(`[training-cycle] iteration ${i} done quick_pass=${!!(result.quickDecision && result.quickDecision.passed)} final_pass=${finalPassed} promoted=${result.promoted}`);
+        const onnxGatePassed = result.onnxGateDecision ? !!result.onnxGateDecision.passed : !args.onnxGateEnabled;
+        console.log(`[training-cycle] iteration ${i} done quick_pass=${!!(result.quickDecision && result.quickDecision.passed)} final_pass=${finalPassed} onnx_gate_pass=${onnxGatePassed} promoted=${result.promoted}`);
     }
     if (stoppedByTimeBudget) {
         console.warn(`[training-cycle] stopped by time budget: ${stopReason}`);
@@ -454,6 +600,22 @@ function main() {
             quickGames: args.quickGames,
             finalGames: args.finalGames,
             threshold: args.threshold,
+            adoptionSeedCount: args.adoptionSeedCount,
+            adoptionSeedStride: args.adoptionSeedStride,
+            adoptionFinalSeedOffset: args.adoptionFinalSeedOffset,
+            adoptionMinSeedUplift: args.adoptionMinSeedUplift,
+            adoptionMinSeedPassCount: args.adoptionMinSeedPassCount,
+            onnxGateEnabled: args.onnxGateEnabled,
+            onnxGateGames: args.onnxGateGames,
+            onnxGateSeedCount: args.onnxGateSeedCount,
+            onnxGateSeedStride: args.onnxGateSeedStride,
+            onnxGateSeedOffset: args.onnxGateSeedOffset,
+            onnxGateThreshold: args.onnxGateThreshold,
+            onnxGateMinSeedScore: args.onnxGateMinSeedScore,
+            onnxGateMinSeedPassCount: args.onnxGateMinSeedPassCount,
+            onnxGateTimeoutMs: args.onnxGateTimeoutMs,
+            onnxGateBlackLevel: args.onnxGateBlackLevel,
+            onnxGateWhiteLevel: args.onnxGateWhiteLevel,
             promoteOnPass: args.promoteOnPass,
             bootstrapPolicyModelPath: args.bootstrapPolicyModelPath,
             resumeCheckpointPath: args.resumeCheckpointPath,

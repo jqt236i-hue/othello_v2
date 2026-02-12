@@ -44,6 +44,8 @@ describe('selfplay runner', () => {
             expect(['black', 'white', 'draw']).toContain(rec.winner);
             expect([-1, 0, 1]).toContain(rec.outcome);
             expect(typeof rec.board).toBe('string');
+            expect(Array.isArray(rec.handCards)).toBe(true);
+            expect(Array.isArray(rec.usableCardIds)).toBe(true);
         }
     });
 

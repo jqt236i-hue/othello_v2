@@ -90,15 +90,15 @@ const _quickCardEffectByType = Object.freeze({
     CROSS_BOMB: '次石を十字爆弾化',
     HYPERACTIVE_WILL: '次石を多動化（毎ターン1マス移動）',
     SELL_CARD_WILL: '手札1枚を売って布石に変換',
-    PLUNDER_WILL: '次の反転枚数ぶん相手布石を奪う',
+    PLUNDER_WILL: '次の反転枚数ぶん相手布石を吸収',
     WORK_WILL: '次石をアンカー化し毎ターン布石を獲得',
     DOUBLE_PLACE: 'このターンは2回置ける',
     HEAVEN_BLESSING: '候補5枚から1枚を選んで獲得',
     CONDEMN_WILL: '相手手札を見て1枚破壊',
     GOLD_STONE: '次の反転布石を4倍',
     SILVER_STONE: '次の反転布石を3倍',
-    STEAL_CARD: '反転枚数ぶん相手手札を奪う',
-    GUARD_WILL: '自分石1つに5ターン完全保護',
+    STEAL_CARD: '反転枚数ぶん相手手札を売却',
+    GUARD_WILL: '自分石1つに3ターン完全保護',
     ULTIMATE_DESTROY_GOD: '次石を破壊神化し周囲敵石を継続破壊',
     ULTIMATE_HYPERACTIVE_GOD: '次石を究極多動神化（毎ターン2回移動）'
 });
@@ -120,18 +120,18 @@ const _detailCardEffectByType = Object.freeze({
     TIME_BOMB: '盤面上の自分石1つを時限爆弾化。\n3ターン後に周囲9マスを破壊。反転されると解除。',
     ULTIMATE_REVERSE_DRAGON: '次に置く石を龍化。\n配置時と自ターン開始時に周囲8マスを反転（5ターン）。',
     BREEDING_WILL: '次に置く石を繁殖化。\n配置時と自ターン開始時に周囲へランダム生成し、3ターン継続。',
-    CROSS_BOMB: '次に置く石を十字爆弾化。\n通常反転後、中心と縦横1マスを破壊。',
+    CROSS_BOMB: '次に置く石を十字爆弾化。\n通常反転後、中心と縦横2マスを破壊。',
     HYPERACTIVE_WILL: '次に置く石を多動化。\n両者ターン開始時に1マス移動し、挟める列があれば反転。',
     SELL_CARD_WILL: '使用後、手札から1枚を売却。\n売却カードのコストぶん布石を獲得。',
-    PLUNDER_WILL: '次の配置で反転した枚数ぶん、相手布石を奪って自分に加算。',
+    PLUNDER_WILL: '次の配置で反転した枚数ぶん、相手布石を吸収して自分に加算。',
     WORK_WILL: '次の配置石をアンカー化。\n自ターン開始時に1→2→4→8→16で布石を獲得（最大30）。',
     DOUBLE_PLACE: 'このターンだけ、石を2回置ける。',
     HEAVEN_BLESSING: 'ランダム候補5枚から1枚を選んで獲得。',
     CONDEMN_WILL: '相手手札を公開し、選んだ1枚を破壊。',
     GOLD_STONE: '次の反転で得る布石を4倍。\n使用後その石は消滅。',
     SILVER_STONE: '次の反転で得る布石を3倍。\n使用後その石は消滅。',
-    STEAL_CARD: 'この手の反転枚数ぶん相手手札を奪う。\n手札上限超過分は自分デッキへ送る。',
-    GUARD_WILL: '自分石1つに完全保護を付与。\n5ターン持続。',
+    STEAL_CARD: 'この手の反転枚数ぶん相手手札を奪って売却。\n1枚ごとに布石+2。',
+    GUARD_WILL: '自分石1つに完全保護を付与。\n3ターン持続。',
     ULTIMATE_DESTROY_GOD: '次に置く石を破壊神化。\n配置時と自ターン開始時に周囲8マスの敵石を破壊（5ターン）。',
     ULTIMATE_HYPERACTIVE_GOD: '次に置く石を究極多動神化。\n両者ターン開始時に1マス移動を2回行い、移動後に挟めば反転。\n移動先が無いと消滅し、周囲8マスの敵石を破壊。'
 });
@@ -984,3 +984,4 @@ window.confirmSellCardSelection = confirmSellCardSelection;
 window.passCurrentTurn = passCurrentTurn;
 window.cancelPendingDestroy = cancelPendingDestroy;
 window.cancelPendingSelection = cancelPendingSelection;
+

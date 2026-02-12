@@ -1,6 +1,6 @@
 /**
  * @file policy-onnx-runtime.js
- * @description Async ONNX runtime helper for browser CPU move selection.
+ * @description Async ONNX runtime helper for browser CPU move/card selection.
  */
 
 (() => {
@@ -9,11 +9,16 @@
 const POLICY_ONNX_MODEL_SCHEMA_VERSION = 'policy_onnx.v1';
 const DEFAULT_MODEL_URL = 'data/models/policy-net.onnx';
 const DEFAULT_META_URL = 'data/models/policy-net.onnx.meta.json';
+const BASE_INPUT_DIM = 70;
+const MAX_HAND_SIZE = 5;
 
 let _session = null;
 let _meta = null;
 let _inputName = 'obs';
-let _outputName = 'logits';
+let _placeOutputName = 'logits';
+let _cardOutputName = null;
+let _cardActionIds = [];
+let _cardActionIndexById = Object.create(null);
 let _lastError = null;
 let _sourceUrl = DEFAULT_MODEL_URL;
 let _metaUrl = DEFAULT_META_URL;
@@ -35,7 +40,10 @@ function clearModel() {
     _session = null;
     _meta = null;
     _inputName = 'obs';
-    _outputName = 'logits';
+    _placeOutputName = 'logits';
+    _cardOutputName = null;
+    _cardActionIds = [];
+    _cardActionIndexById = Object.create(null);
     _lastError = null;
 }
 
@@ -43,11 +51,17 @@ function hasModel() {
     return !!_session;
 }
 
+function hasCardHead() {
+    return !!(_cardOutputName && _cardActionIds.length > 0);
+}
+
 function getStatus() {
     return {
         enabled: _config.enabled === true,
         minLevel: _config.minLevel,
         loaded: hasModel(),
+        hasCardHead: hasCardHead(),
+        cardActionCount: _cardActionIds.length,
         schemaVersion: _meta && _meta.schemaVersion ? _meta.schemaVersion : null,
         sourceUrl: _sourceUrl,
         metaUrl: _metaUrl,
@@ -84,6 +98,24 @@ async function loadMetaJson(url, fetchImpl) {
     }
 }
 
+function applyCardActionIds(ids) {
+    _cardActionIds = Array.isArray(ids) ? ids.filter((one) => typeof one === 'string' && one.trim()) : [];
+    _cardActionIndexById = Object.create(null);
+    for (let i = 0; i < _cardActionIds.length; i++) {
+        _cardActionIndexById[_cardActionIds[i]] = i;
+    }
+}
+
+function resolveTensorByName(outputs, preferredName, fallbackIndex) {
+    if (!outputs || typeof outputs !== 'object') return null;
+    if (preferredName && outputs[preferredName] && outputs[preferredName].data) return outputs[preferredName];
+    const keys = Object.keys(outputs);
+    if (keys.length <= 0) return null;
+    const idx = Number.isFinite(fallbackIndex) ? Math.max(0, Math.floor(fallbackIndex)) : 0;
+    const key = keys[idx] || keys[0];
+    return outputs[key] || null;
+}
+
 async function loadFromUrl(modelUrl, metaUrl, fetchImpl) {
     const ortApi = resolveOrtApi(true);
     if (!ortApi) {
@@ -103,9 +135,16 @@ async function loadFromUrl(modelUrl, metaUrl, fetchImpl) {
         }
         const meta = await loadMetaJson(targetMeta, fetchImpl);
         _session = session;
-        _meta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: 70 };
+        _meta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM };
         _inputName = (_meta && _meta.inputName) || (session.inputNames && session.inputNames[0]) || 'obs';
-        _outputName = (_meta && _meta.outputName) || (session.outputNames && session.outputNames[0]) || 'logits';
+        _placeOutputName =
+            (_meta && (_meta.placeOutputName || _meta.outputName)) ||
+            (session.outputNames && session.outputNames[0]) ||
+            'logits';
+        _cardOutputName =
+            (_meta && _meta.cardOutputName) ||
+            (session.outputNames && session.outputNames.length > 1 ? session.outputNames[1] : null);
+        applyCardActionIds(_meta && _meta.cardActionIds);
         _sourceUrl = targetModel;
         _metaUrl = targetMeta;
         _lastError = null;
@@ -124,15 +163,26 @@ function perspectiveCell(v, playerKey) {
     return 0;
 }
 
+function buildCardCounts(cardIds) {
+    const counts = Object.create(null);
+    if (!Array.isArray(cardIds)) return counts;
+    for (const one of cardIds) {
+        if (typeof one !== 'string') continue;
+        const cardId = one.trim();
+        if (!cardId) continue;
+        counts[cardId] = (counts[cardId] || 0) + 1;
+    }
+    return counts;
+}
+
 function buildInputVector(context) {
     const ctx = context || {};
     const board = Array.isArray(ctx.board) ? ctx.board : [];
     const playerKey = ctx.playerKey === 'black' ? 'black' : 'white';
-    const inputDim = (_meta && Number.isFinite(_meta.inputDim) && _meta.inputDim > 64) ? Math.floor(_meta.inputDim) : 70;
+    const inputDim = (_meta && Number.isFinite(_meta.inputDim) && _meta.inputDim > 64) ? Math.floor(_meta.inputDim) : BASE_INPUT_DIM;
     const out = new Float32Array(inputDim);
 
-    const n = board.length;
-    if (n > 0) {
+    if (board.length > 0) {
         let idx = 0;
         for (let r = 0; r < Math.min(8, board.length); r++) {
             const row = Array.isArray(board[r]) ? board[r] : [];
@@ -168,6 +218,22 @@ function buildInputVector(context) {
     if (inputDim > 67) out[67] = oppCharge / 50;
     if (inputDim > 68) out[68] = deckCount / 60;
     if (inputDim > 69) out[69] = pendingFlag;
+
+    const cardDim = _cardActionIds.length;
+    if (cardDim > 0 && inputDim >= (BASE_INPUT_DIM + (cardDim * 2))) {
+        const handCounts = buildCardCounts(ctx.handCardIds);
+        const usableFlags = buildCardCounts(ctx.usableCardIds);
+        const handOffset = BASE_INPUT_DIM;
+        const usableOffset = BASE_INPUT_DIM + cardDim;
+        for (const cardId of _cardActionIds) {
+            const idx = _cardActionIndexById[cardId];
+            const handCount = Number(handCounts[cardId] || 0);
+            const usableCount = Number(usableFlags[cardId] || 0);
+            out[handOffset + idx] = Math.min(MAX_HAND_SIZE, handCount) / MAX_HAND_SIZE;
+            out[usableOffset + idx] = usableCount > 0 ? 1 : 0;
+        }
+    }
+
     return out;
 }
 
@@ -175,6 +241,15 @@ function indexFromMove(move) {
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return -1;
     if (move.row < 0 || move.row >= 8 || move.col < 0 || move.col >= 8) return -1;
     return (move.row * 8) + move.col;
+}
+
+async function runInference(context) {
+    const ortApi = resolveOrtApi(false);
+    if (!ortApi) return null;
+    const x = buildInputVector(context || {});
+    const feeds = {};
+    feeds[_inputName] = new ortApi.Tensor('float32', x, [1, x.length]);
+    return _session.run(feeds);
 }
 
 async function chooseMove(candidateMoves, context) {
@@ -185,15 +260,9 @@ async function chooseMove(candidateMoves, context) {
     const level = Number.isFinite(context && context.level) ? context.level : 1;
     if (level < _config.minLevel) return null;
 
-    const ortApi = resolveOrtApi(false);
-    if (!ortApi) return null;
-
     try {
-        const x = buildInputVector(context || {});
-        const feeds = {};
-        feeds[_inputName] = new ortApi.Tensor('float32', x, [1, x.length]);
-        const outputs = await _session.run(feeds);
-        const out = outputs[_outputName] || outputs[Object.keys(outputs)[0]];
+        const outputs = await runInference(context || {});
+        const out = resolveTensorByName(outputs, _placeOutputName, 0);
         if (!out || !out.data) return null;
         const scores = out.data;
 
@@ -222,11 +291,52 @@ async function chooseMove(candidateMoves, context) {
     }
 }
 
+async function chooseCard(usableCardIds, context) {
+    if (!_config.enabled) return null;
+    if (!hasModel()) return null;
+    if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
+    if (!hasCardHead()) return null;
+
+    const level = Number.isFinite(context && context.level) ? context.level : 1;
+    if (level < _config.minLevel) return null;
+
+    try {
+        const outputs = await runInference(context || {});
+        const out = resolveTensorByName(outputs, _cardOutputName, 1);
+        if (!out || !out.data) return null;
+        const scores = out.data;
+
+        let bestCardId = null;
+        let bestScore = -Infinity;
+        for (const cardId of usableCardIds) {
+            if (typeof cardId !== 'string') continue;
+            const idx = _cardActionIndexById[cardId];
+            if (!Number.isFinite(idx) || idx < 0 || idx >= scores.length) continue;
+            const score = Number(scores[idx]);
+            if (!Number.isFinite(score)) continue;
+            if (score > bestScore) {
+                bestScore = score;
+                bestCardId = cardId;
+                continue;
+            }
+            if (score === bestScore && bestCardId && cardId < bestCardId) {
+                bestCardId = cardId;
+            }
+        }
+        return bestCardId;
+    } catch (err) {
+        _lastError = err instanceof Error ? err : new Error(String(err));
+        return null;
+    }
+}
+
 function __setLoadedForTest(session, meta) {
     _session = session || null;
-    _meta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: 70 };
+    _meta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM };
     _inputName = (_meta && _meta.inputName) || 'obs';
-    _outputName = (_meta && _meta.outputName) || 'logits';
+    _placeOutputName = (_meta && (_meta.placeOutputName || _meta.outputName)) || 'logits';
+    _cardOutputName = (_meta && _meta.cardOutputName) || null;
+    applyCardActionIds(_meta && _meta.cardActionIds);
     _lastError = null;
 }
 
@@ -240,6 +350,7 @@ const Api = {
     hasModel,
     loadFromUrl,
     chooseMove,
+    chooseCard,
     __setLoadedForTest
 };
 

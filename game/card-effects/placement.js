@@ -17,7 +17,7 @@ function logPlacementEffects(effects, player) {
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.plunderPoints(effects.plunderAmount));
     }
     if (effects.stolenCount > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.plunderCards(effects.stolenCount));
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.plunderCards(effects.stolenCount, effects.resaleGain));
     }
     if (effects.protected) {
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.protectNext(ownerName));

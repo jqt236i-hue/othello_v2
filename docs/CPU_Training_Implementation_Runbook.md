@@ -243,8 +243,9 @@ npm run check:window
 採用判定の自動化:
 
 ```powershell
-npm run selfplay:adoption-check -- --games 500 --seed 1 --max-plies 220 --threshold 0.05 --candidate-model data/models/policy-table.candidate.json --out data/benchmark.adoption.quick.json
-npm run selfplay:adoption-check -- --games 2000 --seed 1 --max-plies 220 --threshold 0.05 --candidate-model data/models/policy-table.candidate.json --out data/benchmark.adoption.final.json
+npm run selfplay:adoption-check -- --games 500 --seed 1 --seed-count 3 --seed-stride 1000 --max-plies 220 --threshold 0.05 --min-seed-uplift -0.01 --min-seed-pass-count 2 --candidate-model data/models/policy-table.candidate.json --out data/benchmark.adoption.quick.json
+npm run selfplay:adoption-check -- --games 2000 --seed 500001 --seed-count 3 --seed-stride 1000 --max-plies 220 --threshold 0.05 --min-seed-uplift -0.01 --min-seed-pass-count 2 --candidate-model data/models/policy-table.candidate.json --out data/benchmark.adoption.final.json
+npm run selfplay:onnx-gate -- --candidate-onnx data/models/policy-net.candidate.onnx --candidate-onnx-meta data/models/policy-net.candidate.onnx.meta.json --seed 800001 --seed-count 3 --games 8 --threshold 0.52 --min-seed-score 0.45 --min-seed-pass-count 2 --out data/benchmark.adoption.onnx.json
 ```
 
 補足:
@@ -267,7 +268,47 @@ npm run selfplay:promote-model -- --adoption-result data/benchmark.adoption.fina
 一括反復コマンド（自己対戦→学習→評価→採用判定→昇格）:
 
 ```powershell
-npm run selfplay:train-cycle -- --iterations 2 --max-hours 6 --train-games 12000 --eval-games 2000 --seed 1 --max-plies 220 --with-cards --card-usage-rate 0.25 --onnx-epochs 8 --onnx-batch-size 2048 --onnx-lr 0.001 --onnx-hidden-size 256 --onnx-device auto --min-visits 12 --shape-immediate 0.4 --quick-games 500 --final-games 2000 --threshold 0.05
+npm run selfplay:train-cycle -- --iterations 2 --max-hours 6 --train-games 12000 --eval-games 2000 --seed 1 --max-plies 220 --with-cards --card-usage-rate 0.25 --onnx-epochs 8 --onnx-batch-size 2048 --onnx-lr 0.001 --onnx-hidden-size 256 --onnx-device auto --min-visits 12 --shape-immediate 0.4 --quick-games 500 --final-games 2000 --threshold 0.05 --adoption-seed-count 3 --adoption-seed-stride 1000 --adoption-final-seed-offset 500000 --adoption-min-seed-uplift -0.01 --adoption-min-seed-pass-count 2 --onnx-gate --onnx-gate-games 8 --onnx-gate-seed-count 3 --onnx-gate-seed-stride 1000 --onnx-gate-seed-offset 800000 --onnx-gate-threshold 0.52 --onnx-gate-min-seed-score 0.45 --onnx-gate-min-seed-pass-count 2
+```
+
+本学習前の土台準備（推奨）:
+
+```powershell
+npm run selfplay:prepare-foundation
+```
+
+補足:
+
+- `data/runs` と `data/models` の学習成果物を安全に初期化する。
+- Python/Torch 環境と静的チェックを実行し、長時間学習の前提を確認する。
+- カード重視の推奨プリセットは次で起動できる。
+
+DeepCFR/CFR+ 移行用の土台準備（推奨）:
+
+```powershell
+npm run selfplay:prepare-foundation:deepcfr
+```
+
+補足:
+
+- 旧学習成果物を掃除しつつ、配備済みモデル (`policy-table.json` / `policy-net.onnx`) は保持する。
+- `data/deepcfr` 配下の作業ディレクトリを初期化する。
+- `data/deepcfr/deepcfr_config.active.yaml` を生成する。
+- `ai/train/check_deepcfr_env.py` を使って DeepCFR/CFR+ 用の前提を検証し、`data/runs/deepcfr.preflight.*.json` を保存する。
+
+DeepCFR/CFR+ 蒸留学習（PyTorch -> ONNX + 互換表モデル）:
+
+```powershell
+npm run selfplay:train-deepcfr -- --input data/selfplay.train.ndjson --onnx-out data/models/policy-net.onnx --meta-out data/models/policy-net.onnx.meta.json --policy-table-out data/models/policy-table.json --report-out data/runs/deepcfr.report.json --metrics-out data/runs/deepcfr.metrics.jsonl --checkpoint-out data/models/policy-net.deepcfr.checkpoint.pt --cfr-iterations 12 --max-samples 600000 --epochs 24 --val-split 0.1 --early-stop-patience 4 --early-stop-min-delta 0.0002 --early-stop-monitor val_loss --min-visits 12 --shape-immediate 0.25
+```
+
+補足:
+
+- 入力データは `generate-selfplay-data.js` で作成した NDJSON を使う。
+- 出力は `policy-net.onnx` / `policy-net.onnx.meta.json` / `policy-table.json` で、ブラウザ実行にそのまま使える。
+
+```powershell
+npm run selfplay:train-preset:cards -- --max-hours 6 --seed 1
 ```
 
 補足:
@@ -282,7 +323,8 @@ npm run selfplay:train-cycle -- --iterations 2 --max-hours 6 --train-games 12000
 - 各反復で `data/models/policy-net.candidate.<tag>.itXX.onnx` と `.meta.json` が保存される。
 - 各反復で `data/models/policy-net.candidate.<tag>.itXX.checkpoint.pt` が保存される。
 - 候補モデルは `data/models/policy-table.candidate.<tag>.itXX.json` に保存される。
-- 最終判定通過時のみ `policy-table.json` へ自動昇格する（`--no-promote` 指定時を除く）。
+- `--onnx-gate` を有効にした場合、最終採用前にブラウザ実行ONNXゲートが走る。
+- 最終判定とONNXゲート通過時のみ `policy-table.json` / `policy-net.onnx` へ自動昇格する（`--no-promote` 指定時を除く）。
 
 ## 6. テスト計画
 

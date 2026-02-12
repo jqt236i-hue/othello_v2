@@ -1403,7 +1403,7 @@
         });
         addMarker(cardState, 'specialStone', row, col, playerKey, {
             type: 'GUARD',
-            remainingOwnerTurns: 5
+            remainingOwnerTurns: 3
         });
         cardState.pendingEffectByPlayer[playerKey] = null;
         return { applied: true, row, col };
@@ -1723,7 +1723,7 @@
             }
         }
 
-        // STEAL_CARD logic - delegate to effect module
+        // STEAL_CARD logic - steal opponent hand cards then sell for +2 charge per card
         if (pending && pending.type === 'STEAL_CARD') {
             let stealEffect;
             if (typeof module === 'object' && module.exports) {
@@ -1731,9 +1731,13 @@
             }
             if (typeof stealEffect === 'function') {
                 const res = stealEffect(cardState, playerKey, flipCount);
-                if (res.stolenCount > 0) {
+                if (res && res.stolenCount > 0) {
                     effects.stolenCount = res.stolenCount;
                     effects.stolenCards = res.stolenCards;
+                }
+                if (res && res.resaleGain > 0) {
+                    chargeGain += res.resaleGain;
+                    effects.resaleGain = res.resaleGain;
                 }
             } else {
                 const totalSteal = Math.min(
@@ -1743,23 +1747,15 @@
 
                 if (totalSteal > 0) {
                     const stolenCards = cardState.hands[opponentKey].splice(0, totalSteal);
-                    const handSpace = Math.max(0, MAX_HAND_SIZE - cardState.hands[playerKey].length);
-                    const toHand = stolenCards.slice(0, handSpace);
-                    const toDeck = stolenCards.slice(handSpace);
+                    if (!Array.isArray(cardState.discard)) cardState.discard = [];
+                    cardState.discard.push(...stolenCards);
 
-                    if (toHand.length > 0) {
-                        cardState.hands[playerKey].push(...toHand);
-                    }
-                    if (toDeck.length > 0) {
-                        if (!cardState.decks || typeof cardState.decks !== 'object') {
-                            cardState.decks = { black: [], white: [] };
-                        }
-                        if (!Array.isArray(cardState.decks[playerKey])) cardState.decks[playerKey] = [];
-                        cardState.decks[playerKey].push(...toDeck);
-                    }
+                    const resaleGain = totalSteal * 2;
+                    chargeGain += resaleGain;
 
-                    effects.stolenCards = toHand;
+                    effects.stolenCards = stolenCards;
                     effects.stolenCount = totalSteal;
+                    effects.resaleGain = resaleGain;
                 }
             }
         }

@@ -1,0 +1,47 @@
+version: 1
+
+run:
+  run_tag: deepcfr_main
+  seed: 1001
+  max_hours: 24
+  iterations: 64
+
+selfplay:
+  train_games: 16000
+  eval_games: 3000
+  max_plies: 220
+  card_usage_rates:
+    - 0.20
+    - 0.30
+    - 0.40
+  seed_stride: 1000
+  eval_seed_offset: 100000
+
+cfr_plus:
+  enabled: true
+  abstraction_version: infoset_v1
+  traversals_per_iteration: 20000
+  regret_floor: 0.0
+  strategy_decay: 1.0
+
+deep_cfr:
+  enabled: true
+  advantage:
+    hidden_size: 512
+    batch_size: 2048
+    learning_rate: 0.0005
+    epochs_per_iteration: 6
+  policy:
+    hidden_size: 512
+    batch_size: 2048
+    learning_rate: 0.0003
+    epochs_per_iteration: 4
+  replay:
+    advantage_capacity: 1500000
+    strategy_capacity: 1500000
+
+distill:
+  export_onnx: true
+  onnx_out: data/models/policy-net.onnx
+  meta_out: data/models/policy-net.onnx.meta.json
+  min_level_for_runtime: 6

@@ -12,6 +12,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $pythonExe = Join-Path $repoRoot ".venv\Scripts\python.exe"
 $requirements = Join-Path $PSScriptRoot "requirements.txt"
+$deepcfrCheck = Join-Path $PSScriptRoot "check_deepcfr_env.py"
 
 if (-not (Test-Path $pythonExe)) {
     throw "Python executable was not found: $pythonExe"
@@ -73,5 +74,10 @@ if torch.cuda.is_available():
     print("[py-setup] cuda_device_name:", torch.cuda.get_device_name(0))
 '@
 $torchCheckScript | & $pythonExe -
+
+if (Test-Path $deepcfrCheck) {
+    Write-Host "[py-setup] deepcfr foundation check"
+    & $pythonExe $deepcfrCheck
+}
 
 Write-Host "[py-setup] done"

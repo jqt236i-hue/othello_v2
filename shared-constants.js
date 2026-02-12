@@ -92,8 +92,8 @@
         // TREASURE_BOX (宝箱) - 1 card, cost: 0
         { id: 'chest_01', name: '宝箱', type: 'TREASURE_BOX', cost: 0, desc: '使用時に布石を1〜3ランダムで獲得する。' },
 
-        // FREE_PLACEMENT (自由の意志) - 1 card, cost: 2
-        { id: 'free_01', name: '自由の意志', type: 'FREE_PLACEMENT', cost: 2, desc: '反転できなくても、空いているマスならどこにでも石を置ける' },
+        // FREE_PLACEMENT (自由の意志) - 1 card, cost: 9
+        { id: 'free_01', name: '自由の意志', type: 'FREE_PLACEMENT', cost: 9, desc: '反転できなくても、空いているマスならどこにでも石を置ける' },
 
 
 
@@ -130,7 +130,7 @@
 
         // BREEDING_WILL (繁殖の意志) - 1 card, cost: 16
         { id: 'breeding_01', name: '繁殖の意志', type: 'BREEDING_WILL', cost: 16, desc: '次に置く石を繁殖石化。配置時と自ターン開始時に周囲8マスへランダム1個生成。以後は前回生成石の周囲へ拡散。生成石が反転/消滅した場合は親石起点に戻る。持続3ターン。' },
-        { id: 'cross_bomb_01', name: '十字爆弾', type: 'CROSS_BOMB', cost: 18, desc: '次に置く石を十字爆弾化。通常反転後に即起爆し、中心と縦横1マスの石を破壊する。' },
+        { id: 'cross_bomb_01', name: '十字爆弾', type: 'CROSS_BOMB', cost: 18, desc: '次に置く石を十字爆弾化。通常反転後に即起爆し、中心と縦横2マスの石を破壊する。' },
 
         // HYPERACTIVE_WILL (多動の意志) - 1 card, cost: 8
         { id: 'hyperactive_01', name: '多動の意志', type: 'HYPERACTIVE_WILL', cost: 8, desc: '次に置く石を多動石化。両者のターン開始時に、周囲8マスの空きへランダムに1マス移動し、移動後に挟める場合は通常反転。' },
@@ -139,7 +139,7 @@
         { id: 'sell_01', name: '売却の意志', type: 'SELL_CARD_WILL', cost: 8, desc: 'カード使用後、自分の手札から1枚を売却し、そのカードのコスト分の布石を獲得する。' },
 
         // PLUNDER_WILL (吸収の意志) - 1 card, cost: 4
-        { id: 'plunder_will', name: '吸収の意志', type: 'PLUNDER_WILL', cost: 4, desc: '次の反転数だけ相手の布石を奪う。' },
+        { id: 'plunder_will', name: '吸収の意志', type: 'PLUNDER_WILL', cost: 4, desc: '次の反転数だけ相手の布石を吸収する。' },
 
         { id: 'work_01', name: '出稼ぎの意志', type: 'WORK_WILL', cost: 11, desc: '次の配置をアンカーにして、その石がある限り自ターン開始時に1,2,4,8,16の順でチャージを得る（最大30）。石が相手に取られるか破壊されると効果は終了する。' },
 
@@ -153,11 +153,11 @@
         // GOLD_STONE (金の意志) - 1 card, cost: 6
         { id: 'gold_stone', name: '金の意志', type: 'GOLD_STONE', cost: 6, desc: '次の反転で得る布石が4倍。使用後その石は消滅する。' },
 
-        // STEAL_CARD (略奪の意志) - 1 card, cost: 7
-        { id: 'steal_card_01', name: '略奪の意志', type: 'STEAL_CARD', cost: 7, desc: '反転枚数ぶん相手手札を奪う。手札上限超過分は自分のデッキに加える。' },
+        // STEAL_CARD (転売の意志) - 1 card, cost: 7
+        { id: 'steal_card_01', name: '転売の意志', type: 'STEAL_CARD', cost: 7, desc: 'この手の反転枚数ぶん相手手札からカードを奪って売却する。売却したカード1枚につき布石を2獲得。' },
 
-        // GUARD_WILL (守る意志) - 1 card, cost: 7
-        { id: 'guard_01', name: '守る意志', type: 'GUARD_WILL', cost: 7, desc: '自分の石1つに完全保護を付与する。5ターン持続。' },
+        // GUARD_WILL (守る意志) - 1 card, cost: 2
+        { id: 'guard_01', name: '守る意志', type: 'GUARD_WILL', cost: 2, desc: '自分の石1つに完全保護を付与する。3ターン持続。' },
 
         // ULTIMATE_DESTROY_GOD (究極破壊神) - 1 card, cost: 25
         { id: 'udg_01', name: '究極破壊神', type: 'ULTIMATE_DESTROY_GOD', cost: 25, desc: '次に置く石を究極破壊神化。配置ターン即時＋自ターン開始時、周囲8マスの敵石を破壊。持続5ターン（配置ターン含め最大6回）。' },
@@ -268,3 +268,4 @@
 
     return exports;
 });
+
