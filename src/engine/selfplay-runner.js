@@ -11,6 +11,7 @@ const TurnPipeline = require('../../game/turn/turn_pipeline');
 const TurnPipelinePhases = require('../../game/turn/turn_pipeline_phases');
 const SeededPRNG = require('../../game/schema/prng');
 const deepClone = require('../../utils/deepClone');
+const CpuPolicyCore = require('../../game/ai/cpu-policy-core');
 
 const SELFPLAY_SCHEMA_VERSION = 'selfplay.v1';
 
@@ -545,9 +546,31 @@ function getDirectUsableCardIds(cardState, gameState, playerKey) {
     });
 }
 
+function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCount) {
+    const ownKey = playerKey === 'black' ? 'black' : 'white';
+    const oppKey = ownKey === 'black' ? 'white' : 'black';
+    return {
+        level: 6,
+        playerValue: toPlayerValue(playerKey),
+        legalMovesCount: Number.isFinite(legalMovesCount) ? legalMovesCount : 0,
+        discDiff: countDiscsByValue(gameState, toPlayerValue(playerKey)),
+        empties: countEmpties(gameState.board),
+        ownCharge: cardState && cardState.charge && Number.isFinite(cardState.charge[ownKey]) ? cardState.charge[ownKey] : 0,
+        oppCharge: cardState && cardState.charge && Number.isFinite(cardState.charge[oppKey]) ? cardState.charge[oppKey] : 0,
+        handSize: cardState && cardState.hands && Array.isArray(cardState.hands[ownKey]) ? cardState.hands[ownKey].length : 0,
+        forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0
+    };
+}
+
 function selectCardIdToUse(cardState, gameState, playerKey, options, context) {
     const usable = getDirectUsableCardIds(cardState, gameState, playerKey);
     if (!usable.length) return null;
+    const riskContext = buildCardDecisionContext(
+        gameState,
+        cardState,
+        playerKey,
+        context && Number.isFinite(context.legalMovesCount) ? context.legalMovesCount : 0
+    );
 
     if (options && options.policyTableModel && context) {
         let bestCardId = null;
@@ -560,11 +583,40 @@ function selectCardIdToUse(cardState, gameState, playerKey, options, context) {
                 bestCardId = cardId;
             }
         }
-        if (bestCardId) return bestCardId;
+        if (bestCardId) {
+            if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function') return bestCardId;
+            const score = CpuPolicyCore.scoreCardUseDecision(
+                bestCardId,
+                CardLogic.getCardCost,
+                CardLogic.getCardDef,
+                riskContext
+            );
+            if (!score || score.shouldUse) return bestCardId;
+        }
+    }
+
+    if (CpuPolicyCore && typeof CpuPolicyCore.chooseCardWithRiskProfile === 'function') {
+        const selected = CpuPolicyCore.chooseCardWithRiskProfile(
+            usable,
+            CardLogic.getCardCost,
+            CardLogic.getCardDef,
+            riskContext
+        );
+        if (selected && selected.cardId) return selected.cardId;
     }
 
     usable.sort((a, b) => CardLogic.getCardCost(b) - CardLogic.getCardCost(a));
-    return usable[0];
+    if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function') return usable[0];
+    for (const cardId of usable) {
+        const score = CpuPolicyCore.scoreCardUseDecision(
+            cardId,
+            CardLogic.getCardCost,
+            CardLogic.getCardDef,
+            riskContext
+        );
+        if (!score || score.shouldUse) return cardId;
+    }
+    return null;
 }
 
 function chooseSwapTarget(gameState, cardState, playerKey, rng) {
@@ -771,7 +823,23 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
             legalMovesCount: legalMoves.length
         });
         const mustUseCardToCreateMove = legalMoves.length === 0;
-        const randomUse = rng.random() < options.cardUsageRate;
+        let adjustedRate = Number.isFinite(options.cardUsageRate) ? options.cardUsageRate : 0;
+        if (cardId && CpuPolicyCore && typeof CpuPolicyCore.scoreCardUseDecision === 'function') {
+            const risk = CpuPolicyCore.scoreCardUseDecision(
+                cardId,
+                CardLogic.getCardCost,
+                CardLogic.getCardDef,
+                buildCardDecisionContext(activeGameState, activeCardState, playerKey, legalMoves.length)
+            );
+            if (risk && risk.shouldUse === false) {
+                adjustedRate = 0;
+            } else if (risk && Number.isFinite(risk.score)) {
+                if (risk.score >= 60) adjustedRate = Math.min(1, adjustedRate * 1.8);
+                else if (risk.score >= 25) adjustedRate = Math.min(1, adjustedRate * 1.3);
+                else if (risk.score < 10) adjustedRate *= 0.35;
+            }
+        }
+        const randomUse = rng.random() < adjustedRate;
         if (cardId && (mustUseCardToCreateMove || randomUse)) {
             return { action: { type: 'use_card', useCardId: cardId, useCardOwnerKey: playerKey }, legalMoves };
         }

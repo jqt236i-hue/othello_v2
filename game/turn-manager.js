@@ -12,7 +12,7 @@ if (typeof getAnimationTiming !== 'function' && typeof globalThis !== 'undefined
     getAnimationTiming = globalThis.getAnimationTiming;
 }
 const FLIP_ANIMATION_DURATION_MS = (typeof getAnimationTiming === 'function' ? getAnimationTiming('FLIP_ANIMATION_DURATION') : 600) || 600;
-const CPU_TURN_DELAY_MS = 600;
+const CPU_TURN_DELAY_MS = (typeof globalThis !== 'undefined' && globalThis.__BENCH_FAST_MODE === true) ? 0 : 600;
 const ANIMATION_RETRY_DELAY_MS = 80;
 const DOUBLE_PLACE_PASS_DELAY_MS = 250;
 const BLACK_PASS_DELAY_MS = 1000;

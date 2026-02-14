@@ -11,6 +11,7 @@ const DEFAULT_MODEL_URL = 'data/models/policy-net.onnx';
 const DEFAULT_META_URL = 'data/models/policy-net.onnx.meta.json';
 const BASE_INPUT_DIM = 70;
 const MAX_HAND_SIZE = 5;
+const NO_CARD_ACTION_ID = '__no_card__';
 
 let _session = null;
 let _meta = null;
@@ -19,6 +20,7 @@ let _placeOutputName = 'logits';
 let _cardOutputName = null;
 let _cardActionIds = [];
 let _cardActionIndexById = Object.create(null);
+let _noCardActionIndex = -1;
 let _lastError = null;
 let _sourceUrl = DEFAULT_MODEL_URL;
 let _metaUrl = DEFAULT_META_URL;
@@ -44,6 +46,7 @@ function clearModel() {
     _cardOutputName = null;
     _cardActionIds = [];
     _cardActionIndexById = Object.create(null);
+    _noCardActionIndex = -1;
     _lastError = null;
 }
 
@@ -61,6 +64,7 @@ function getStatus() {
         minLevel: _config.minLevel,
         loaded: hasModel(),
         hasCardHead: hasCardHead(),
+        noCardSupported: _noCardActionIndex >= 0,
         cardActionCount: _cardActionIds.length,
         schemaVersion: _meta && _meta.schemaVersion ? _meta.schemaVersion : null,
         sourceUrl: _sourceUrl,
@@ -104,6 +108,9 @@ function applyCardActionIds(ids) {
     for (let i = 0; i < _cardActionIds.length; i++) {
         _cardActionIndexById[_cardActionIds[i]] = i;
     }
+    _noCardActionIndex = Number.isFinite(_cardActionIndexById[NO_CARD_ACTION_ID])
+        ? _cardActionIndexById[NO_CARD_ACTION_ID]
+        : -1;
 }
 
 function resolveTensorByName(outputs, preferredName, fallbackIndex) {
@@ -321,6 +328,17 @@ async function chooseCard(usableCardIds, context) {
             }
             if (score === bestScore && bestCardId && cardId < bestCardId) {
                 bestCardId = cardId;
+            }
+        }
+        const noCardScore = (
+            _noCardActionIndex >= 0 &&
+            _noCardActionIndex < scores.length &&
+            Number.isFinite(Number(scores[_noCardActionIndex]))
+        ) ? Number(scores[_noCardActionIndex]) : null;
+
+        if (noCardScore !== null) {
+            if (!Number.isFinite(bestScore) || noCardScore >= bestScore) {
+                return null;
             }
         }
         return bestCardId;

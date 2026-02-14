@@ -89,6 +89,10 @@ async function maybeUseCardFromOnnx(playerKey, level, legalMovesCount) {
         if (!Array.isArray(usable) || usable.length === 0) return false;
         const choice = await selectCardFromOnnxPolicyAsync(playerKey, level, legalMovesCount, usable);
         if (!choice || !choice.cardId) return false;
+        if (typeof isCardChoiceAllowedByRisk === 'function') {
+            const allowed = isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, choice.cardId);
+            if (!allowed) return false;
+        }
         return !!applyCardChoice(playerKey, choice);
     } catch (e) {
         debugCpuTrace('[AI] selectCardFromOnnxPolicyAsync failed; fallback to policy table/core', {

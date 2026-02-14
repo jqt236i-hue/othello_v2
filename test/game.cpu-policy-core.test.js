@@ -43,4 +43,43 @@ describe('cpu-policy-core', () => {
         });
         expect(selected).toEqual(moves[1]);
     });
+
+    test('chooseCardWithRiskProfile avoids high-variance expensive card while ahead', () => {
+        const defs = {
+            high: { id: 'high', type: 'ULTIMATE_REVERSE_DRAGON' },
+            safe: { id: 'safe', type: 'GUARD_WILL' }
+        };
+        const costs = { high: 30, safe: 2 };
+        const selected = core.chooseCardWithRiskProfile(
+            ['high', 'safe'],
+            (id) => costs[id],
+            (id) => defs[id],
+            {
+                level: 6,
+                legalMovesCount: 1,
+                discDiff: 14,
+                empties: 10,
+                ownCharge: 30
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(selected.cardId).toBe('safe');
+    });
+
+    test('scoreCardUseDecision forceUseCard allows risky card when no legal move exists', () => {
+        const out = core.scoreCardUseDecision(
+            'high',
+            () => 30,
+            () => ({ id: 'high', type: 'ULTIMATE_REVERSE_DRAGON' }),
+            {
+                level: 6,
+                legalMovesCount: 0,
+                forceUseCard: true,
+                discDiff: 16,
+                empties: 8,
+                ownCharge: 30
+            }
+        );
+        expect(out.shouldUse).toBe(true);
+    });
 });

@@ -198,7 +198,16 @@ async function selectCardFromOnnxPolicyAsync(playerKey, level, legalMovesCount, 
             usableCardIds,
             buildOnnxContext(playerKey, level, legalMovesCount, handCardIds, usableCardIds)
         );
-        if (!selectedCardId) return null;
+        if (!selectedCardId) {
+            // ONNX model can explicitly choose "hold card" via no-card head output.
+            if (typeof runtime.getStatus === 'function') {
+                const status = runtime.getStatus() || {};
+                if (status.loaded === true && status.hasCardHead === true && status.noCardSupported === true && !status.lastError) {
+                    return { hold: true };
+                }
+            }
+            return null;
+        }
         const cardDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
             ? CardLogic.getCardDef(selectedCardId)
             : null;
@@ -481,6 +490,74 @@ function getTargetAwareUsableCardIds(playerKey) {
     return [];
 }
 
+function countBoardStatsForPlayer(playerValue) {
+    if (!gameState || !Array.isArray(gameState.board)) {
+        return { discDiff: 0, empties: 0 };
+    }
+    let own = 0;
+    let opp = 0;
+    let empties = 0;
+    for (let r = 0; r < gameState.board.length; r++) {
+        const row = Array.isArray(gameState.board[r]) ? gameState.board[r] : [];
+        for (let c = 0; c < row.length; c++) {
+            const v = row[c];
+            if (v === playerValue) own += 1;
+            else if (v === -playerValue) opp += 1;
+            else if (v === 0) empties += 1;
+        }
+    }
+    return { discDiff: own - opp, empties };
+}
+
+function buildCardUseDecisionContext(playerKey, level, legalMovesCount) {
+    const playerValue = playerKey === 'black'
+        ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+        : (typeof WHITE !== 'undefined' ? WHITE : -1);
+    const stats = countBoardStatsForPlayer(playerValue);
+    const ownCharge = cardState && cardState.charge && Number.isFinite(cardState.charge[playerKey])
+        ? cardState.charge[playerKey]
+        : 0;
+    const opponentKey = playerKey === 'black' ? 'white' : 'black';
+    const oppCharge = cardState && cardState.charge && Number.isFinite(cardState.charge[opponentKey])
+        ? cardState.charge[opponentKey]
+        : 0;
+    const handSize = cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])
+        ? cardState.hands[playerKey].length
+        : 0;
+
+    return {
+        level,
+        playerValue,
+        legalMovesCount: Number.isFinite(legalMovesCount) ? legalMovesCount : 0,
+        discDiff: stats.discDiff,
+        empties: stats.empties,
+        ownCharge,
+        oppCharge,
+        handSize,
+        forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0
+    };
+}
+
+function isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, cardId, prebuiltContext) {
+    if (!cardId) return false;
+    if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function' || typeof CardLogic === 'undefined' || !CardLogic) {
+        return true;
+    }
+    try {
+        const context = prebuiltContext || buildCardUseDecisionContext(playerKey, level, legalMovesCount);
+        const decision = CpuPolicyCore.scoreCardUseDecision(
+            cardId,
+            CardLogic.getCardCost,
+            CardLogic.getCardDef,
+            context
+        );
+        if (!decision) return true;
+        return decision.shouldUse === true;
+    } catch (e) {
+        return true;
+    }
+}
+
 function _isCpuTrapOnlyModeEnabled(playerKey) {
     try {
         const root = (typeof globalThis !== 'undefined') ? globalThis : null;
@@ -556,12 +633,28 @@ function selectCardFallback(cardState, gameState, playerKey, level, legalMoves) 
     if (typeof CardLogic === 'undefined') return null;
     const usable = getTargetAwareUsableCardIds(playerKey);
     if (!usable.length) return null;
+    const legalMovesCount = Array.isArray(legalMoves) ? legalMoves.length : 0;
+    const decisionContext = buildCardUseDecisionContext(playerKey, level, legalMovesCount);
 
+    if (CpuPolicyCore && typeof CpuPolicyCore.chooseCardWithRiskProfile === 'function') {
+        const selected = CpuPolicyCore.chooseCardWithRiskProfile(
+            usable,
+            CardLogic.getCardCost,
+            CardLogic.getCardDef,
+            decisionContext
+        );
+        if (selected) return selected;
+    }
     if (CpuPolicyCore && typeof CpuPolicyCore.chooseHighestCostCard === 'function') {
-        return CpuPolicyCore.chooseHighestCostCard(usable, CardLogic.getCardCost, CardLogic.getCardDef);
+        const fallback = CpuPolicyCore.chooseHighestCostCard(usable, CardLogic.getCardCost, CardLogic.getCardDef);
+        if (!fallback) return null;
+        return isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, fallback.cardId, decisionContext)
+            ? fallback
+            : null;
     }
     const choiceId = usable[0];
     const cardDef = (typeof CardLogic.getCardDef === 'function') ? CardLogic.getCardDef(choiceId) : null;
+    if (!isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, choiceId, decisionContext)) return null;
     return { cardId: choiceId, cardDef };
 }
 
@@ -584,6 +677,8 @@ function selectCardToUse(playerKey) {
     const perma = (typeof getFlipBlockers === 'function') ? getFlipBlockers() : [];
     const safeGameState = (typeof gameState !== 'undefined') ? gameState : null;
     const legalMoves = (typeof getLegalMoves === 'function') ? getLegalMoves(safeGameState, protection, perma) : [];
+    const legalMovesCount = Array.isArray(legalMoves) ? legalMoves.length : 0;
+    const decisionContext = buildCardUseDecisionContext(playerKey, level, legalMovesCount);
 
     // Debug-only accelerator: CPU uses Trap Will preferentially.
     const trapId = _prepareCpuTrapOnlyCard(playerKey);
@@ -602,15 +697,31 @@ function selectCardToUse(playerKey) {
         const usable = getTargetAwareUsableCardIds(playerKey);
         if (usable.length) {
             const learnedChoice = selectCardFromLearnedPolicy(playerKey, level, legalMoves.length, usable);
-            if (learnedChoice) return learnedChoice;
+            if (learnedChoice && isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, learnedChoice.cardId, decisionContext)) {
+                return learnedChoice;
+            }
         }
         if (usable.length) {
+            if (CpuPolicyCore && typeof CpuPolicyCore.chooseCardWithRiskProfile === 'function') {
+                const selected = CpuPolicyCore.chooseCardWithRiskProfile(
+                    usable,
+                    CardLogic.getCardCost,
+                    CardLogic.getCardDef,
+                    decisionContext
+                );
+                if (selected) return selected;
+            }
             if (CpuPolicyCore && typeof CpuPolicyCore.chooseHighestCostCard === 'function') {
-                return CpuPolicyCore.chooseHighestCostCard(usable, CardLogic.getCardCost, CardLogic.getCardDef);
+                const fallback = CpuPolicyCore.chooseHighestCostCard(usable, CardLogic.getCardCost, CardLogic.getCardDef);
+                if (fallback && isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, fallback.cardId, decisionContext)) {
+                    return fallback;
+                }
             }
             const choiceId = usable[0];
             const cardDef = (typeof CardLogic.getCardDef === 'function') ? CardLogic.getCardDef(choiceId) : null;
-            return { cardId: choiceId, cardDef };
+            if (isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, choiceId, decisionContext)) {
+                return { cardId: choiceId, cardDef };
+            }
         }
     }
 
@@ -630,6 +741,9 @@ function selectCardToUse(playerKey) {
         const safeCardState = (typeof cardState !== 'undefined') ? cardState : null;
         const safeGameState = (typeof gameState !== 'undefined') ? gameState : null;
         cardChoice = selectCardFallback(safeCardState, safeGameState, playerKey, level, legalMoves);
+    }
+    if (cardChoice && !isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, cardChoice.cardId, decisionContext)) {
+        return null;
     }
     return cardChoice || null;
 }
@@ -1384,6 +1498,8 @@ if (typeof module !== 'undefined' && module.exports) {
         selectCpuMoveWithPolicy,
         selectMoveFromOnnxPolicyAsync,
         selectCardFromOnnxPolicyAsync,
+        isCardChoiceAllowedByRisk,
+        buildCardUseDecisionContext,
         cpuSelectDestroyWithPolicy,
         cpuSelectSacrificeWillWithPolicy,
         cpuSelectSellCardWillWithPolicy,

@@ -85,10 +85,13 @@ function startServer(rootDir, port = 0) {
                 return;
             }
             const ext = path.extname(filePath).toLowerCase();
-            const mime = ext === '.html' ? 'text/html'
-                : ext === '.js' ? 'application/javascript'
-                    : ext === '.css' ? 'text/css'
-                        : 'application/octet-stream';
+            const mime = ext === '.html' ? 'text/html; charset=utf-8'
+                : (ext === '.js' || ext === '.mjs') ? 'application/javascript; charset=utf-8'
+                    : ext === '.css' ? 'text/css; charset=utf-8'
+                        : ext === '.json' ? 'application/json; charset=utf-8'
+                            : ext === '.wasm' ? 'application/wasm'
+                                : ext === '.ico' ? 'image/x-icon'
+                                    : 'application/octet-stream';
             res.setHeader('Content-Type', mime);
             res.end(data);
         });
@@ -104,6 +107,42 @@ async function runMatch(args) {
     const port = server.address().port;
     const browser = await chromium.launch({ headless: args.headless });
     const page = await browser.newPage();
+    await page.addInitScript(() => {
+        try { globalThis.__BENCH_FAST_MODE = true; } catch (e) { /* ignore */ }
+        try { globalThis.ANIMATION_RETRY_DELAY_MS = 0; } catch (e) { /* ignore */ }
+        try {
+            const originalSetTimeout = globalThis.setTimeout ? globalThis.setTimeout.bind(globalThis) : null;
+            if (originalSetTimeout) {
+                globalThis.setTimeout = function benchSetTimeout(fn, ms, ...rest) {
+                    const n = Number(ms);
+                    const capped = Number.isFinite(n) ? Math.max(0, Math.min(n, 16)) : 0;
+                    return originalSetTimeout(fn, capped, ...rest);
+                };
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            const originalSetInterval = globalThis.setInterval ? globalThis.setInterval.bind(globalThis) : null;
+            if (originalSetInterval) {
+                globalThis.setInterval = function benchSetInterval(fn, ms, ...rest) {
+                    const n = Number(ms);
+                    const capped = Number.isFinite(n) ? Math.max(1, Math.min(n, 16)) : 1;
+                    return originalSetInterval(fn, capped, ...rest);
+                };
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis.getAnimationTiming !== 'function') {
+                globalThis.getAnimationTiming = () => 0;
+            } else {
+                const originalGetAnimationTiming = globalThis.getAnimationTiming.bind(globalThis);
+                globalThis.getAnimationTiming = function benchGetAnimationTiming(key) {
+                    const base = Number(originalGetAnimationTiming(key));
+                    if (!Number.isFinite(base)) return 0;
+                    return Math.min(base, 16);
+                };
+            }
+        } catch (e) { /* ignore */ }
+    });
     const consoleMessages = [];
     const pageErrors = [];
     page.on('console', (msg) => {
@@ -126,8 +165,30 @@ async function runMatch(args) {
         await page.waitForSelector('#smartBlack');
         await page.waitForSelector('#smartWhite');
 
-        await page.selectOption('#smartBlack', String(args.black)).catch(() => {});
-        await page.selectOption('#smartWhite', String(args.white)).catch(() => {});
+        // Benchmark mode: reduce animation waits so headless matches finish reliably.
+        await page.evaluate(() => {
+            try { globalThis.ANIMATION_RETRY_DELAY_MS = 0; } catch (e) { /* ignore */ }
+            try {
+                const original = (typeof globalThis.getAnimationTiming === 'function')
+                    ? globalThis.getAnimationTiming.bind(globalThis)
+                    : null;
+                if (original) {
+                    globalThis.getAnimationTiming = function patchedGetAnimationTiming(key) {
+                        const base = Number(original(key));
+                        if (!Number.isFinite(base)) return 0;
+                        return Math.min(base, 16);
+                    };
+                }
+            } catch (e) { /* ignore */ }
+            try {
+                if (globalThis.autoSimple && typeof globalThis.autoSimple.setIntervalMs === 'function') {
+                    globalThis.autoSimple.setIntervalMs(16);
+                }
+            } catch (e) { /* ignore */ }
+        });
+
+        await page.selectOption('#smartBlack', String(args.black));
+        await page.selectOption('#smartWhite', String(args.white));
 
         await page.evaluate(() => {
             const b = document.getElementById('smartBlack');
@@ -135,6 +196,20 @@ async function runMatch(args) {
             if (b) b.dispatchEvent(new Event('change'));
             if (w) w.dispatchEvent(new Event('change'));
         });
+
+        const selectedLevels = await page.evaluate(() => {
+            const b = document.getElementById('smartBlack');
+            const w = document.getElementById('smartWhite');
+            return {
+                black: b ? Number(b.value) : null,
+                white: w ? Number(w.value) : null
+            };
+        });
+        if (selectedLevels.black !== args.black || selectedLevels.white !== args.white) {
+            throw new Error(
+                `cpu level select mismatch: expected black=${args.black},white=${args.white} got black=${selectedLevels.black},white=${selectedLevels.white}`
+            );
+        }
 
         if (args.seed !== null && Number.isFinite(args.seed)) {
             await page.evaluate((seedValue) => {
@@ -154,7 +229,12 @@ async function runMatch(args) {
         } else {
             await page.click('#resetBtn').catch(() => {});
         }
-        await page.click('#autoToggleBtn').catch(() => {});
+        await page.click('#autoToggleBtn');
+        await page.waitForFunction(() => {
+            const btn = document.getElementById('autoToggleBtn');
+            const txt = btn ? String(btn.textContent || '') : '';
+            return txt.includes('ON') || (globalThis.AUTO_MODE_ACTIVE === true);
+        }, { timeout: 5000 });
 
         await page.waitForFunction(() => {
             return !!(window.gameState && window.gameState.__resultShown === true);

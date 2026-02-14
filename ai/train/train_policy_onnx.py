@@ -21,6 +21,7 @@ BASE_INPUT_DIM = 70
 PLACE_OUTPUT_DIM = BOARD_SIZE * BOARD_SIZE
 IGNORE_INDEX = -100
 MAX_HAND_SIZE = 5.0
+NO_CARD_ACTION_ID = "__no_card__"
 
 
 def load_card_action_ids() -> list[str]:
@@ -49,7 +50,9 @@ def load_card_action_ids() -> list[str]:
                 continue
             seen.add(card_id)
             out.append(card_id)
-        return out
+        if len(out) <= 0:
+            return []
+        return [NO_CARD_ACTION_ID] + out
     except Exception:
         return []
 
@@ -57,6 +60,7 @@ def load_card_action_ids() -> list[str]:
 CARD_ACTION_IDS = load_card_action_ids()
 CARD_ACTION_INDEX = {card_id: idx for idx, card_id in enumerate(CARD_ACTION_IDS)}
 CARD_ACTION_DIM = len(CARD_ACTION_IDS)
+NO_CARD_ACTION_INDEX = CARD_ACTION_INDEX.get(NO_CARD_ACTION_ID)
 INPUT_DIM = BASE_INPUT_DIM + (CARD_ACTION_DIM * 2)
 
 
@@ -268,15 +272,24 @@ def place_target_index(rec: dict) -> int | None:
 def card_target_index(rec: dict) -> int | None:
     if CARD_ACTION_DIM <= 0:
         return None
-    if rec.get("actionType") != "use_card":
-        return None
-    card_id = rec.get("useCardId")
-    if not isinstance(card_id, str):
-        return None
-    card_id = card_id.strip()
-    if not card_id:
-        return None
-    return CARD_ACTION_INDEX.get(card_id)
+    action_type = rec.get("actionType")
+    if action_type == "use_card":
+        card_id = rec.get("useCardId")
+        if not isinstance(card_id, str):
+            return None
+        card_id = card_id.strip()
+        if not card_id:
+            return None
+        return CARD_ACTION_INDEX.get(card_id)
+
+    # Learn "hold card" explicitly when a place move is chosen while cards are usable.
+    if action_type == "place" and NO_CARD_ACTION_INDEX is not None:
+        usable_cards = rec.get("usableCardIds")
+        if isinstance(usable_cards, list):
+            for one in usable_cards:
+                if isinstance(one, str) and one.strip():
+                    return int(NO_CARD_ACTION_INDEX)
+    return None
 
 
 def load_dataset(path: str) -> DatasetBundle:

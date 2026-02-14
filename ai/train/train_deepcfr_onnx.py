@@ -55,6 +55,7 @@ class DistillSample:
     action_type: str
     place_index: int
     card_index: int
+    had_usable_cards: bool
 
 
 @dataclass
@@ -250,6 +251,10 @@ def load_infosets_and_samples(input_path: str, max_samples: int, seed: int, shap
                 action_type=str(rec.get("actionType") or ""),
                 place_index=int(place_index) if place_index is not None else IGNORE_INDEX,
                 card_index=int(card_index) if card_index is not None else IGNORE_INDEX,
+                had_usable_cards=any(
+                    isinstance(one, str) and one.strip()
+                    for one in (rec.get("usableCardIds") if isinstance(rec.get("usableCardIds"), list) else [])
+                ),
             )
             reservoir_append(samples, sample, train_records, max_samples, rng)
 
@@ -287,6 +292,7 @@ def build_distill_dataset(samples: list[DistillSample], final_policy: dict[str, 
 
     place_records = 0
     card_records = 0
+    no_card_idx = onnx_base.NO_CARD_ACTION_INDEX if hasattr(onnx_base, "NO_CARD_ACTION_INDEX") else None
 
     for i, sample in enumerate(samples):
         x[i] = torch.tensor(sample.features, dtype=torch.float32)
@@ -310,6 +316,18 @@ def build_distill_dataset(samples: list[DistillSample], final_policy: dict[str, 
             else:
                 place_target[i].fill_(1.0 / float(place_dim))
             place_records += 1
+
+            # Teach explicit "hold card" decision when cards were usable but a place move was taken.
+            if (
+                card_dim > 0 and
+                sample.had_usable_cards and
+                isinstance(no_card_idx, int) and
+                no_card_idx >= 0 and
+                no_card_idx < card_dim
+            ):
+                card_mask[i] = True
+                card_target[i, no_card_idx] = 1.0
+                card_records += 1
             continue
 
         if sample.action_type == "use_card" and card_dim > 0:

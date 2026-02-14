@@ -70,6 +70,37 @@ describe('cpu decision refactor helpers', () => {
     expect(res.cardId).toBe('c_high');
   });
 
+  test('selectCardToUse can withhold risky expensive card when already ahead', () => {
+    global.gameState = {
+      board: [
+        [-1, -1, -1, -1, -1, -1, -1, -1],
+        [-1, -1, -1, -1, -1, -1, -1, -1],
+        [-1, -1, -1, -1, -1, -1, -1, -1],
+        [-1, -1, -1, -1, 1, 1, 0, 0],
+        [-1, -1, -1, -1, 1, 1, 0, 0],
+        [-1, -1, -1, -1, 1, 1, 0, 0],
+        [-1, -1, -1, -1, 1, 1, 0, 0],
+        [-1, -1, -1, -1, 1, 1, 0, 0]
+      ],
+      currentPlayer: 'white'
+    };
+    global.getLegalMoves = () => [{ row: 2, col: 3, flips: [{ row: 2, col: 2 }] }];
+    global.cpuSmartness.white = 6;
+    global.cardState.hands.white = ['udr'];
+    global.cardState.charge = { white: 35, black: 10 };
+    global.CardLogic = {
+      getUsableCardIds: () => ['udr'],
+      getCardDef: () => ({ id: 'udr', name: 'dragon', type: 'ULTIMATE_REVERSE_DRAGON' }),
+      getCardCost: () => 30
+    };
+    global.CpuPolicyTableRuntime = {
+      getActionScoreForKey: jest.fn(() => 9999)
+    };
+
+    const res = cpuDecision.selectCardToUse('white');
+    expect(res).toBeNull();
+  });
+
   test('selectCardFromOnnxPolicyAsync returns onnx-picked card when available', async () => {
     global.cardState.hands.white = ['c_low', 'c_high'];
     global.CardLogic = {

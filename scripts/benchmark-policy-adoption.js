@@ -203,8 +203,13 @@ function buildSeedList(baseSeed, seedCount, seedStride) {
 function runAdoptionCheck(options) {
     const seeds = buildSeedList(options.seed, options.seedCount, options.seedStride);
     const perSeed = [];
+    const startedAt = Date.now();
+    console.log(`[policy-adoption] start games=${options.games} seeds=${seeds.length} max_plies=${options.maxPlies} a_rate=${options.aRate} b_rate=${options.bRate}`);
 
-    for (const currentSeed of seeds) {
+    for (let seedIndex = 0; seedIndex < seeds.length; seedIndex++) {
+        const currentSeed = seeds[seedIndex];
+        const seedStartedAt = Date.now();
+        console.log(`[policy-adoption] seed ${seedIndex + 1}/${seeds.length} start seed=${currentSeed}`);
         const common = {
             games: options.games,
             seed: currentSeed,
@@ -218,6 +223,12 @@ function runAdoptionCheck(options) {
             modelAPath: options.candidateModelPath
         }));
         const oneDecision = computeAdoptionDecision(baseline, candidate, options.threshold);
+        const elapsedSec = ((Date.now() - seedStartedAt) / 1000).toFixed(1);
+        console.log(
+            `[policy-adoption] seed ${seedIndex + 1}/${seeds.length} done seed=${currentSeed} ` +
+            `baseline=${oneDecision.baselineScore.toFixed(3)} candidate=${oneDecision.candidateScore.toFixed(3)} ` +
+            `uplift=${oneDecision.uplift.toFixed(3)} pass=${oneDecision.passed} elapsed_s=${elapsedSec}`
+        );
         perSeed.push({
             seed: currentSeed,
             baseline,
@@ -233,6 +244,8 @@ function runAdoptionCheck(options) {
         options.minSeedPassCount
     );
     const first = perSeed[0] || null;
+    const totalElapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
+    console.log(`[policy-adoption] done total_elapsed_s=${totalElapsedSec}`);
 
     return {
         generatedAt: new Date().toISOString(),
