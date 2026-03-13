@@ -86,4 +86,61 @@ describe('pipeline_ui_adapter move metadata', () => {
       owner: 'black'
     });
   });
+
+  test('will hunter king slash destroy and move stay in the same phase with evade counters', () => {
+    const pres = [
+      {
+        type: 'DESTROY',
+        row: 4,
+        col: 5,
+        stoneId: 'enemy1',
+        ownerBefore: 'white',
+        cause: 'WILL_HUNTER_KING',
+        reason: 'will_hunter_king_slash',
+        meta: {
+          sourceRow: 4,
+          sourceCol: 3,
+          projectileOwner: 'black',
+          projectileStone: 'will_hunter_king'
+        }
+      },
+      {
+        type: 'MOVE',
+        prevRow: 4,
+        prevCol: 3,
+        row: 4,
+        col: 5,
+        stoneId: 'king1',
+        ownerBefore: 'black',
+        ownerAfter: 'black',
+        cause: 'WILL_HUNTER_KING',
+        reason: 'will_hunter_king_slash_move',
+        meta: {
+          special: 'WILL_HUNTER_KING',
+          timer: 7,
+          owner: 'black',
+          flipEvadeRemaining: 2,
+          destroyEvadeRemaining: 1
+        }
+      }
+    ];
+
+    const out = adapter.mapToPlaybackEvents(
+      pres,
+      { markers: [] },
+      { board: Array(8).fill(null).map(() => Array(8).fill(0)) }
+    );
+
+    expect(out).toHaveLength(2);
+    expect(out[0].type).toBe('destroy');
+    expect(out[1].type).toBe('move');
+    expect(out[0].phase).toBe(out[1].phase);
+    expect(out[1].targets[0].after).toMatchObject({
+      color: 1,
+      special: 'WILL_HUNTER_KING',
+      owner: 'black',
+      flipEvadeRemaining: 2,
+      destroyEvadeRemaining: 1
+    });
+  });
 });

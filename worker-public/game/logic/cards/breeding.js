@@ -18,18 +18,89 @@
         throw new Error('SharedConstants missing required values');
     }
 
+    function _isMainBoardCell(row, col) {
+        return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < 8 && col >= 0 && col < 8;
+    }
+
+    function _resolveExpansionSide(side, row, col) {
+        if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
+        if (col === -1) return 'left';
+        if (col === 8) return 'right';
+        if (row === -1) return 'top';
+        if (row === 8) return 'bottom';
+        return null;
+    }
+
+    function _getExpansionCellRef(gameState, row, col) {
+        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
+            ? gameState.boardExpansion
+            : null;
+        if (!expansion) return null;
+
+        if (Array.isArray(expansion.cells)) {
+            for (let index = 0; index < expansion.cells.length; index++) {
+                const cell = expansion.cells[index];
+                if (!cell || typeof cell !== 'object') continue;
+                const cellCol = Number.isInteger(cell.col)
+                    ? cell.col
+                    : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : null));
+                if (!Number.isInteger(cellCol)) continue;
+                if (cell.row === row && cellCol === col) {
+                    return { expansion, index, cell, legacy: false };
+                }
+            }
+        }
+
+        if (expansion.active === true) {
+            const legacyCol = Number.isInteger(expansion.col)
+                ? expansion.col
+                : (expansion.side === 'left' ? -1 : (expansion.side === 'right' ? 8 : null));
+            if (expansion.row === row && legacyCol === col) {
+                return { expansion, index: -1, cell: expansion, legacy: true };
+            }
+        }
+
+        return null;
+    }
+
     function _getBoardCell(gameState, row, col) {
-        if (!gameState || !Array.isArray(gameState.board)) return null;
-        const boardRow = gameState.board[row];
-        if (!Array.isArray(boardRow)) return null;
-        return boardRow[col];
+        if (_isMainBoardCell(row, col)) {
+            if (!gameState || !Array.isArray(gameState.board)) return null;
+            const boardRow = gameState.board[row];
+            if (!Array.isArray(boardRow)) return null;
+            return boardRow[col];
+        }
+        const ref = _getExpansionCellRef(gameState, row, col);
+        return ref ? Number(ref.cell.owner) : null;
     }
 
     function _setBoardCell(gameState, row, col, value) {
-        if (!gameState || !Array.isArray(gameState.board)) return false;
-        const boardRow = gameState.board[row];
-        if (!Array.isArray(boardRow)) return false;
-        boardRow[col] = value;
+        if (_isMainBoardCell(row, col)) {
+            if (!gameState || !Array.isArray(gameState.board)) return false;
+            const boardRow = gameState.board[row];
+            if (!Array.isArray(boardRow)) return false;
+            boardRow[col] = value;
+            return true;
+        }
+
+        const ref = _getExpansionCellRef(gameState, row, col);
+        if (!ref) return false;
+        const normalizedOwner = (value === BLACK || value === WHITE) ? value : EMPTY;
+
+        if (!ref.legacy) {
+            ref.expansion.cells[ref.index] = {
+                side: _resolveExpansionSide(ref.cell.side, row, col),
+                row,
+                col,
+                owner: normalizedOwner
+            };
+            return true;
+        }
+
+        ref.expansion.side = _resolveExpansionSide(ref.cell.side, row, col);
+        ref.expansion.row = row;
+        ref.expansion.col = col;
+        ref.expansion.owner = normalizedOwner;
         return true;
     }
 
@@ -131,7 +202,6 @@
                     if (dr === 0 && dc === 0) continue;
                     const r = origin.row + dr;
                     const c = origin.col + dc;
-                    if (r < 0 || r >= 8 || c < 0 || c >= 8) continue;
                     if (_getBoardCell(gameState, r, c) !== EMPTY) continue;
                     if (_isBlockedByBlockade(cardState, r, c, gameState, deps)) continue;
                     const key = _posKey(r, c);

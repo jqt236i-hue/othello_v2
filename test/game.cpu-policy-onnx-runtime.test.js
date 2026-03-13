@@ -254,4 +254,91 @@ describe('policy-onnx-runtime', () => {
 
     expect(selected).toBe('card_b');
   });
+
+  test('choosePendingTarget selects highest score among legal targets', async () => {
+    const targetScores = new Float32Array(64);
+    targetScores[8] = 0.4;   // (1,0)
+    targetScores[27] = 2.9;  // (3,3)
+    targetScores[63] = 1.1;  // (7,7)
+
+    runtime.__setTargetModelForTest({
+      run: jest.fn(async () => ({
+        target_logits: { data: targetScores }
+      }))
+    }, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      targetOutputName: 'target_logits',
+      inputDim: 105,
+      pendingTypes: ['DESTROY_ONE_STONE', 'TELEPORT_WILL']
+    });
+
+    const targets = [
+      { row: 1, col: 0 },
+      { row: 3, col: 3 },
+      { row: 7, col: 7 }
+    ];
+
+    const selected = await runtime.choosePendingTarget(targets, {
+      playerKey: 'white',
+      level: 6,
+      pendingType: 'TELEPORT_WILL',
+      board: Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0)),
+      legalMovesCount: 3
+    });
+
+    expect(selected).toEqual(targets[1]);
+    expect(runtime.getStatus().targetModelLoaded).toBe(true);
+  });
+
+  test('evaluatePosition returns scalar value from value model', async () => {
+    runtime.__setValueModelForTest({
+      run: jest.fn(async () => ({
+        value: { data: new Float32Array([0.625]) }
+      }))
+    }, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      valueOutputName: 'value',
+      inputDim: 80
+    });
+
+    const value = await runtime.evaluatePosition({
+      playerKey: 'white',
+      level: 6,
+      board: Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0)),
+      legalMovesCount: 4
+    });
+
+    expect(value).toBeCloseTo(0.625, 6);
+    expect(runtime.getStatus().valueModelLoaded).toBe(true);
+  });
+
+  test('getStatus exposes latency summaries after ONNX calls', async () => {
+    const scores = new Float32Array(64);
+    scores[0] = 1.25;
+    runtime.__setLoadedForTest({
+      run: jest.fn(async () => ({
+        logits: { data: scores }
+      }))
+    }, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      outputName: 'logits',
+      inputDim: 70
+    });
+
+    await runtime.chooseMove([{ row: 0, col: 0, flips: [] }], {
+      playerKey: 'white',
+      level: 6,
+      board: Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0)),
+      legalMovesCount: 1
+    });
+
+    const status = runtime.getStatus();
+    expect(status.latency).toBeTruthy();
+    expect(status.latency.overall.count).toBe(1);
+    expect(status.latency.perOperation.chooseMove.count).toBe(1);
+    expect(status.latency.perOperation.chooseMove.totalMs).toBeGreaterThanOrEqual(0);
+  });
 });

@@ -374,6 +374,28 @@
         return line;
     }
 
+    function pickRandomLineFromPools(playerState, pools) {
+        const recentSet = new Set(playerState.recent || []);
+        const allPools = [];
+        const freshPools = [];
+
+        for (const pool of (Array.isArray(pools) ? pools : [])) {
+            const lines = (Array.isArray(pool) ? pool : []).filter((line) => typeof line === 'string' && line.trim());
+            if (!lines.length) continue;
+            allPools.push(lines);
+
+            const freshLines = lines.filter((line) => !recentSet.has(line));
+            if (freshLines.length) freshPools.push(freshLines);
+        }
+
+        const sourcePools = freshPools.length ? freshPools : allPools;
+        if (!sourcePools.length) return '';
+
+        const poolIdx = Math.floor(Math.random() * sourcePools.length);
+        const selected = sourcePools[Math.max(0, Math.min(sourcePools.length - 1, poolIdx))] || sourcePools[0] || [];
+        return pickRandomLine(playerState, selected);
+    }
+
     function sanitize(line, maxChars) {
         const text = String(line || '').replace(/\s+/g, ' ').trim();
         if (!text) return '';
@@ -463,62 +485,41 @@
 
     function chooseTurnStartLine(playerState, phase, advantage) {
         if (phase === 'opening') {
-            const roll = Math.random();
-            if (roll < 0.2) return pickRandomLine(playerState, DB.tauntLines);
-            if (roll < 0.35) return pickRandomLine(playerState, DB.chatterLines);
-            return pickRandomLine(playerState, DB.openingLines);
+            return pickRandomLineFromPools(playerState, [DB.tauntLines, DB.chatterLines, DB.openingLines]);
         }
 
         if (advantage === 'behind' && playerState.behindStreak >= config.behindThreshold) {
-            const fromNegative = Math.random() < 0.75;
-            if (fromNegative) return pickRandomLine(playerState, DB.negativeLines);
-            return pickRandomLine(playerState, DB.bluffLines);
+            return pickRandomLineFromPools(playerState, [DB.negativeLines, DB.bluffLines, DB.middleBehindLines]);
         }
 
         if (playerState.unchangedStreak >= config.unchangedThreshold) {
             if (advantage === 'ahead') {
-                if (Math.random() < 0.55) return pickRandomLine(playerState, DB.tauntLines);
-                return pickRandomLine(playerState, DB.middleAheadLines);
+                return pickRandomLineFromPools(playerState, [DB.tauntLines, DB.middleAheadLines]);
             }
             if (advantage === 'behind') {
-                const roll = Math.random();
-                if (roll < 0.45) return pickRandomLine(playerState, DB.negativeLines);
-                if (roll < 0.70) return pickRandomLine(playerState, DB.bluffLines);
-                return pickRandomLine(playerState, DB.chatterLines);
+                return pickRandomLineFromPools(playerState, [DB.negativeLines, DB.bluffLines, DB.chatterLines, DB.middleBehindLines]);
             }
-            const roll = Math.random();
-            if (roll < 0.5) return pickRandomLine(playerState, DB.chatterLines);
-            if (roll < 0.8) return pickRandomLine(playerState, DB.tauntLines);
-            return pickRandomLine(playerState, DB.bluffLines);
+            return pickRandomLineFromPools(playerState, [DB.chatterLines, DB.tauntLines, DB.bluffLines, DB.middleEvenLines]);
         }
 
         if (phase === 'endgame') {
             if (advantage === 'ahead') {
-                if (Math.random() < 0.35) return pickRandomLine(playerState, DB.tauntLines);
-                return pickRandomLine(playerState, DB.endAheadLines);
+                return pickRandomLineFromPools(playerState, [DB.tauntLines, DB.endAheadLines]);
             }
             if (advantage === 'behind') {
-                const roll = Math.random();
-                if (roll < 0.55) return pickRandomLine(playerState, DB.negativeLines);
-                if (roll < 0.75) return pickRandomLine(playerState, DB.bluffLines);
-                return pickRandomLine(playerState, DB.endBehindLines);
+                return pickRandomLineFromPools(playerState, [DB.negativeLines, DB.bluffLines, DB.endBehindLines]);
             }
-            return pickRandomLine(playerState, DB.endEvenLines);
+            return pickRandomLineFromPools(playerState, [DB.chatterLines, DB.endEvenLines]);
         }
 
         if (advantage === 'ahead') {
-            if (Math.random() < 0.3) return pickRandomLine(playerState, DB.tauntLines);
-            return pickRandomLine(playerState, DB.middleAheadLines);
+            return pickRandomLineFromPools(playerState, [DB.tauntLines, DB.middleAheadLines]);
         }
         if (advantage === 'behind') {
-            const roll = Math.random();
-            if (roll < 0.35) return pickRandomLine(playerState, DB.negativeLines);
-            if (roll < 0.52) return pickRandomLine(playerState, DB.bluffLines);
-            return pickRandomLine(playerState, DB.middleBehindLines);
+            return pickRandomLineFromPools(playerState, [DB.negativeLines, DB.bluffLines, DB.middleBehindLines]);
         }
 
-        if (Math.random() < 0.2) return pickRandomLine(playerState, DB.chatterLines);
-        return pickRandomLine(playerState, DB.middleEvenLines);
+        return pickRandomLineFromPools(playerState, [DB.chatterLines, DB.middleEvenLines]);
     }
 
     function buildCommentary(context) {

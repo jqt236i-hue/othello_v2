@@ -20,6 +20,16 @@ describe('cpu decision refactor helpers', () => {
     delete global.TurnPipeline;
     delete global.TurnPipelineUIAdapter;
     delete global.CpuPolicyTableRuntime;
+    delete global.CpuPolicyOnnxRuntime;
+    delete global.CPU_LV6_PENDING_SELECTION_ONNX_MAX_MS;
+    delete global.CPU_LV6_ONNX_RUNTIME_GUARD;
+    delete global.NetworkMatchClient;
+    delete global.onTurnStart;
+    delete global.waitForPlaybackIdle;
+    delete global.processCpuTurn;
+    delete global.DEBUG_HUMAN_VS_HUMAN;
+    delete global.MATCH_MODE;
+    delete global.CPU_TURN_DELAY_MS;
   });
 
   test('selectCardToUse returns AISystem suggestion when present', () => {
@@ -88,8 +98,8 @@ describe('cpu decision refactor helpers', () => {
       currentPlayer: -1
     };
     global.getLegalMoves = () => [
-      { row: 0, col: 0, flips: [{ row: 1, col: 1 }] },
-      { row: 2, col: 3, flips: [{ row: 3, col: 3 }] }
+      { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+      { row: 4, col: 5, flips: [{ row: 4, col: 4 }] }
     ];
     global.cpuSmartness.white = 6;
     global.cardState = {
@@ -208,7 +218,7 @@ describe('cpu decision refactor helpers', () => {
     expect(res.cardId).toBe('destroy_01');
   });
 
-  test('selectCardToUse uses corner hold card when corner move exists', () => {
+  test('selectCardToUse skips guard card when legal corner move exists', () => {
     global.gameState = {
       board: [
         [0, 0, 0, 0, 0, 0, 0, 0],
@@ -236,8 +246,67 @@ describe('cpu decision refactor helpers', () => {
     };
 
     const res = cpuDecision.selectCardToUse('white');
+    expect(res).toBeNull();
+  });
+
+  test('selectCardToUse still allows high-yield GOLD_STONE when charge is tight', () => {
+    global.AISystem = null;
+    global.CpuPolicyTableRuntime = null;
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 1, 1, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: ['gold_01'], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 8, black: 8 },
+      turnIndex: 10
+    };
+    global.cpuSmartness.white = 6;
+    global.getLegalMoves = () => [
+      { row: 2, col: 4, flips: [{ row: 3, col: 4 }, { row: 3, col: 5 }, { row: 3, col: 6 }] }
+    ];
+    global.CardLogic = {
+      canUseCard: () => true,
+      getCardDef: () => ({ id: 'gold_01', name: 'gold_01', type: 'GOLD_STONE' }),
+      getCardCost: () => 6
+    };
+
+    const res = cpuDecision.selectCardToUse('white');
     expect(res).toBeDefined();
-    expect(res.cardId).toBe('guard_01');
+    expect(res.cardId).toBe('gold_01');
+  });
+
+  test('selectCardToUse suppresses SACRIFICE_WILL for Lv6 before turn 25', () => {
+    global.gameState = { turnNumber: 23 };
+    global.cpuSmartness.white = 6;
+    global.cardState.hands.white = ['sacrifice_01'];
+    global.CardLogic = {
+      getUsableCardIds: () => ['sacrifice_01'],
+      canUseCard: () => true,
+      getCardDef: () => ({ id: 'sacrifice_01', name: '生贄の意志', type: 'SACRIFICE_WILL' }),
+      getCardCost: () => 5
+    };
+    global.AISystem = {
+      selectCardToUse: () => ({
+        cardId: 'sacrifice_01',
+        cardDef: { id: 'sacrifice_01', name: '生贄の意志', type: 'SACRIFICE_WILL' }
+      })
+    };
+
+    const res = cpuDecision.selectCardToUse('white');
+    expect(res).toBeNull();
   });
 
   test('cpuSelectHeavenBlessingWithPolicy prefers future-utility card over merely expensive volatile card', async () => {
@@ -481,6 +550,22 @@ describe('cpu decision refactor helpers', () => {
     expect(res.cardId).toBe('guard_01');
   });
 
+  test('selectCardFromOnnxPolicyAsync falls back when card ONNX exceeds latency budget', async () => {
+    global.CPU_LV6_ONNX_RUNTIME_GUARD = { cardBudgetMs: 5 };
+    global.cardState.hands.white = ['c_low', 'c_high'];
+    global.CardLogic = {
+      getCardDef: (id) => ({ name: id })
+    };
+    global.CpuPolicyOnnxRuntime = {
+      chooseCard: jest.fn(() => new Promise((resolve) => {
+        setTimeout(() => resolve('c_high'), 25);
+      }))
+    };
+
+    const res = await cpuDecision.selectCardFromOnnxPolicyAsync('white', 6, 0, ['c_low', 'c_high']);
+    expect(res).toBeNull();
+  });
+
   test('selectMoveFromOnnxPolicyAsync applies tactical correction for risky non-corner move at Lv6', async () => {
     const candidates = [
       { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
@@ -515,6 +600,159 @@ describe('cpu decision refactor helpers', () => {
     expect(move).toBe(candidates[1]);
   });
 
+  test('selectMoveFromOnnxPolicyAsync keeps Lv6 corner candidates ahead of opponent special-flip moves', async () => {
+    const cornerMove = { row: 0, col: 0, flips: [{ row: 1, col: 1 }] };
+    const specialKillMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+    const candidates = [cornerMove, specialKillMove];
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: [
+        { kind: 'specialStone', row: 3, col: 3, owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 4 } }
+      ]
+    };
+    global.CpuPolicyOnnxRuntime = {
+      chooseMove: jest.fn(async (moves) => {
+        expect(moves).toEqual([cornerMove]);
+        return moves[0];
+      })
+    };
+
+    const move = await cpuDecision.selectMoveFromOnnxPolicyAsync(candidates, 'white', 6);
+    expect(move).toBe(cornerMove);
+  });
+
+  test('selectMoveFromOnnxPolicyAsync keeps Lv6 edge candidates ahead of numbered inner moves', async () => {
+    const bonusMove = { row: 2, col: 4, flips: [{ row: 3, col: 4 }] };
+    const edgeMove = { row: 0, col: 3, flips: [{ row: 1, col: 3 }] };
+    const candidates = [bonusMove, edgeMove];
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: { '2,4': 6 },
+      boardBonusConsumedByCell: {},
+      markers: []
+    };
+    global.CpuPolicyOnnxRuntime = {
+      chooseMove: jest.fn(async (moves) => {
+        expect(moves).toEqual([edgeMove]);
+        return moves[0];
+      })
+    };
+
+    const move = await cpuDecision.selectMoveFromOnnxPolicyAsync(candidates, 'white', 6);
+    expect(move).toBe(edgeMove);
+  });
+
+  test('selectMoveFromOnnxPolicyAsync narrows Lv6 special-flip candidates to higher-value removal move', async () => {
+    const lowValueSpecialKillMove = { row: 4, col: 5, flips: [{ row: 4, col: 4 }] };
+    const highValueSpecialKillMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+    const candidates = [lowValueSpecialKillMove, highValueSpecialKillMove];
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: [
+        { kind: 'specialStone', row: 3, col: 3, owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 4 } },
+        { kind: 'specialStone', row: 4, col: 4, owner: 'black', data: { type: 'TRAP', remainingOwnerTurns: 1 } }
+      ]
+    };
+    global.CpuPolicyOnnxRuntime = {
+      chooseMove: jest.fn(async (moves) => {
+        expect(moves).toEqual([highValueSpecialKillMove]);
+        return moves[0];
+      })
+    };
+
+    const move = await cpuDecision.selectMoveFromOnnxPolicyAsync(candidates, 'white', 6);
+    expect(move).toBe(highValueSpecialKillMove);
+  });
+
+  test('selectMoveFromOnnxPolicyAsync keeps safer Lv6 edge candidate when another edge is an open-corner C-square', async () => {
+    const riskyEdgeMove = { row: 0, col: 1, flips: [{ row: 1, col: 1 }] };
+    const safeEdgeMove = { row: 0, col: 4, flips: [{ row: 1, col: 4 }] };
+    const candidates = [riskyEdgeMove, safeEdgeMove];
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 1, 0, 0, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: []
+    };
+    global.CpuPolicyOnnxRuntime = {
+      chooseMove: jest.fn(async (moves) => {
+        expect(moves).toEqual([safeEdgeMove]);
+        return moves[0];
+      })
+    };
+
+    const move = await cpuDecision.selectMoveFromOnnxPolicyAsync(candidates, 'white', 6);
+    expect(move).toBe(safeEdgeMove);
+  });
+
   test('selectMoveFromOnnxPolicyAsync keeps ONNX move at Lv5 (no tactical correction)', async () => {
     const candidates = [
       { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
@@ -547,6 +785,82 @@ describe('cpu decision refactor helpers', () => {
 
     const move = await cpuDecision.selectMoveFromOnnxPolicyAsync(candidates, 'white', 5);
     expect(move).toBe(candidates[0]);
+  });
+
+  test('selectMoveFromOnnxPolicyAsync falls back when move ONNX exceeds latency budget', async () => {
+    const candidates = [
+      { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+      { row: 0, col: 0, flips: [{ row: 1, col: 1 }] }
+    ];
+    global.CPU_LV6_ONNX_RUNTIME_GUARD = { moveBudgetMs: 5 };
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.CpuPolicyOnnxRuntime = {
+      chooseMove: jest.fn(() => new Promise((resolve) => {
+        setTimeout(() => resolve(candidates[0]), 25);
+      }))
+    };
+
+    const move = await cpuDecision.selectMoveFromOnnxPolicyAsync(candidates, 'white', 6);
+    expect(move).toBeNull();
+  });
+
+  test('cpuSelectTrapWillWithPolicy skips pending ONNX when latency gate is already exceeded', async () => {
+    global.cpuSmartness.white = 6;
+    global.CPU_LV6_ONNX_RUNTIME_GUARD = {
+      minSamples: 1,
+      maxAverageLatencyMs: 5,
+      maxP95LatencyMs: 7,
+      maxMaxLatencyMs: 9
+    };
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'TRAP_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 2, col: 2 }, { row: 2, col: 5 }],
+      applyTrapWill: jest.fn(() => ({ applied: true }))
+    };
+    global.CpuPolicyOnnxRuntime = {
+      choosePendingTarget: jest.fn(async (targets) => targets[1]),
+      getStatus: jest.fn(() => ({
+        latency: {
+          overall: { count: 1, averageMs: 12, p95Ms: 12, maxMs: 12 },
+          perOperation: {
+            choosePendingTarget: { count: 1, averageMs: 12, p95Ms: 12, maxMs: 12 }
+          }
+        }
+      }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectTrapWillWithPolicy('white');
+
+    expect(global.CpuPolicyOnnxRuntime.choosePendingTarget).not.toHaveBeenCalled();
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.trapTarget).toEqual({ row: 2, col: 2 });
   });
 
   test('selectCpuMoveWithPolicy falls back to random when AISystem.selectMove throws', () => {
@@ -611,6 +925,155 @@ describe('cpu decision refactor helpers', () => {
 
     const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
     expect(move).toBe(candidates[1]);
+  });
+
+  test('selectCpuMoveWithPolicy forces Lv6 to choose opponent special-flip move before non-corner alternative', () => {
+    const plainMove = { row: 4, col: 5, flips: [{ row: 4, col: 4 }] };
+    const specialKillMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+    const candidates = [plainMove, specialKillMove];
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: [
+        { kind: 'specialStone', row: 3, col: 3, owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 4 } }
+      ]
+    };
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
+      expect(moves).toEqual([specialKillMove]);
+      return moves[0];
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+    expect(move).toBe(specialKillMove);
+  });
+
+  test('selectCpuMoveWithPolicy does not hard-force numbered move before plain inner move when no corner special or edge exists', () => {
+    const plainMove = { row: 4, col: 5, flips: [{ row: 4, col: 4 }] };
+    const bonusMove = { row: 2, col: 4, flips: [{ row: 3, col: 4 }] };
+    const candidates = [plainMove, bonusMove];
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: { '2,4': 6 },
+      boardBonusConsumedByCell: {},
+      markers: []
+    };
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
+      expect(moves).toEqual(candidates);
+      return moves[0];
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+    expect(move).toBe(plainMove);
+  });
+
+  test('selectCpuMoveWithPolicy narrows Lv6 special-flip choices to the most dangerous opponent special stone', () => {
+    const lowValueSpecialKillMove = { row: 4, col: 5, flips: [{ row: 4, col: 4 }] };
+    const highValueSpecialKillMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+    const candidates = [lowValueSpecialKillMove, highValueSpecialKillMove];
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: [
+        { kind: 'specialStone', row: 3, col: 3, owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 4 } },
+        { kind: 'specialStone', row: 4, col: 4, owner: 'black', data: { type: 'TRAP', remainingOwnerTurns: 1 } }
+      ]
+    };
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
+      expect(moves).toEqual([highValueSpecialKillMove]);
+      return moves[0];
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+    expect(move).toBe(highValueSpecialKillMove);
+  });
+
+  test('selectCpuMoveWithPolicy drops risky open-corner edge when safer Lv6 edge exists', () => {
+    const riskyEdgeMove = { row: 0, col: 1, flips: [{ row: 1, col: 1 }] };
+    const safeEdgeMove = { row: 0, col: 4, flips: [{ row: 1, col: 4 }] };
+    const candidates = [riskyEdgeMove, safeEdgeMove];
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 1, 0, 0, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: []
+    };
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
+      expect(moves).toEqual([safeEdgeMove]);
+      return moves[0];
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+    expect(move).toBe(safeEdgeMove);
   });
 
   test('selectCpuMoveWithPolicy prioritizes corner during LAST_RESORT pending placement', () => {
@@ -829,6 +1292,21 @@ describe('cpu decision refactor helpers', () => {
     expect(emitLogAdded).toHaveBeenCalled();
   });
 
+  test('applyCardChoice rejects SACRIFICE_WILL for Lv6 before turn 25', () => {
+    global.gameState = { turnNumber: 23 };
+    global.cpuSmartness.white = 6;
+    global.cardState.hands.white = ['sacrifice_01'];
+    global.CardLogic = { applyCardUsage: jest.fn(() => true) };
+
+    const ok = cpuDecision.applyCardChoice('white', {
+      cardId: 'sacrifice_01',
+      cardDef: { id: 'sacrifice_01', name: '生贄の意志', type: 'SACRIFICE_WILL' }
+    });
+
+    expect(ok).toBe(false);
+    expect(global.CardLogic.applyCardUsage).not.toHaveBeenCalled();
+  });
+
   test('cpuMaybeUseCardWithPolicy returns true when a card applied', () => {
     global.CardLogic = { applyCardUsage: jest.fn(() => true), canUseCard: () => true, getCardDef: (id) => ({ name: id }) };
     global.cardState.hands.white = ['c2'];
@@ -954,6 +1432,204 @@ describe('cpu decision refactor helpers', () => {
     expect(applied).toBe(false);
   });
 
+  test('cpuSelectSacrificeWillWithPolicy cancels early Lv6 pending sacrifice immediately', async () => {
+    global.gameState = { turnNumber: 23 };
+    global.cpuSmartness.white = 6;
+    global.cardState.pendingEffectByPlayer.white = { type: 'SACRIFICE_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: jest.fn(() => [{ row: 2, col: 3 }]),
+      applySacrificeWill: jest.fn(() => ({ applied: true }))
+    };
+
+    await cpuDecision.cpuSelectSacrificeWillWithPolicy('white');
+
+    expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
+    expect(global.CardLogic.getSelectableTargets).not.toHaveBeenCalled();
+    expect(global.CardLogic.applySacrificeWill).not.toHaveBeenCalled();
+  });
+
+  test('cpuSelectSacrificeWillWithPolicy avoids sacrificing valuable timed own special stone', async () => {
+    global.gameState = {
+      turnNumber: 29,
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 1, -1, 0, 0, 0, 0],
+        [0, 0, -1, 1, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.markers = [
+      {
+        kind: 'specialStone',
+        owner: 'white',
+        row: 3,
+        col: 3,
+        data: { type: 'GUARD', remainingOwnerTurns: 5 }
+      }
+    ];
+    global.cardState.pendingEffectByPlayer.white = { type: 'SACRIFICE_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 3, col: 3 }, { row: 4, col: 2 }],
+      applySacrificeWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectSacrificeWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.sacrificeTarget).toEqual({ row: 4, col: 2 });
+  });
+
+  test('cpuSelectCloneWillWithPolicy prefers cloning valuable own timed stone over plain source', async () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 1, -1, 0, 0, 0, 0],
+        [0, 0, 0, 0, -1, 1, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.markers = [
+      {
+        kind: 'specialStone',
+        owner: 'white',
+        row: 3,
+        col: 3,
+        data: { type: 'WORK', remainingOwnerTurns: 4 }
+      }
+    ];
+    global.cardState.pendingEffectByPlayer.white = { type: 'CLONE_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 4, col: 4 }, { row: 3, col: 3 }],
+      applyCloneWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectCloneWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.cloneTarget).toEqual({ row: 3, col: 3 });
+  });
+
+  test('cpuSelectSplitWillWithPolicy avoids splitting long-lived own timed stone when plain source exists', async () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 0, -1, -1, 0, 0, 0],
+        [0, 0, 0, 0, -1, 1, 0, 0],
+        [0, 0, 0, 0, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.markers = [
+      {
+        kind: 'specialStone',
+        owner: 'white',
+        row: 3,
+        col: 3,
+        data: { type: 'WORK', remainingOwnerTurns: 6 }
+      }
+    ];
+    global.cardState.pendingEffectByPlayer.white = { type: 'SPLIT_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 3, col: 3 }, { row: 4, col: 4 }],
+      applySplitWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectSplitWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.splitTarget).toEqual({ row: 3, col: 3 });
+  });
+
+  test('cpuSelectCloneWillWithPolicy clears pending when Lv6 has only normal-stone sources', async () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 0, -1, -1, 0, 0, 0],
+        [0, 0, 0, 0, -1, 1, 0, 0],
+        [0, 0, 0, 0, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.markers = [];
+    global.cardState.pendingEffectByPlayer.white = { type: 'CLONE_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 3, col: 3 }, { row: 4, col: 4 }],
+      applyCloneWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: global.cardState,
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectCloneWillWithPolicy('white');
+
+    expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
+    expect(global.CardLogic.applyCloneWill).not.toHaveBeenCalled();
+  });
+
   test('cpuSelectSwapWithEnemyWithPolicy prefers pipeline adapter path', async () => {
     global.cardState.pendingEffectByPlayer.white = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget' };
     global.CardLogic = {
@@ -1021,6 +1697,57 @@ describe('cpu decision refactor helpers', () => {
     expect(action.swapTarget).toEqual({ row: 0, col: 0 });
   });
 
+  test('cpuSelectSwapWithEnemyWithPolicy continues turn start after immediate handoff', async () => {
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1,
+      turnNumber: 7,
+      consecutivePasses: 0
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 2, col: 3 }],
+      applySwapEffect: jest.fn(() => true)
+    };
+    global.waitForPlaybackIdle = jest.fn(async () => {});
+    global.onTurnStart = jest.fn(async () => ({ playbackEvents: [{ type: 'turn_start_dummy' }] }));
+    global.NetworkMatchClient = {
+      isActive: jest.fn(() => true),
+      publishSnapshot: jest.fn()
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: {
+          ...global.gameState,
+          currentPlayer: 1,
+          turnNumber: 8,
+          consecutivePasses: 0
+        },
+        playbackEvents: [{ type: 'dummy' }]
+      }))
+    };
+
+    await cpuDecision.cpuSelectSwapWithEnemyWithPolicy('white');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.deferNetworkPublish).toBe(true);
+    expect(global.waitForPlaybackIdle).toHaveBeenCalled();
+    expect(global.onTurnStart).toHaveBeenCalledWith(1);
+    expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      playerKey: 'white',
+      actionType: 'place',
+      playbackEvents: [{ type: 'dummy' }, { type: 'turn_start_dummy' }]
+    }));
+  });
+
   test('cpuSelectGuardWillWithPolicy prefers guarding valuable timed special stone over corner', async () => {
     global.gameState = {
       board: [
@@ -1066,6 +1793,122 @@ describe('cpu decision refactor helpers', () => {
 
     const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
     expect(action.guardTarget).toEqual({ row: 3, col: 3 });
+  });
+
+  test('cpuSelectTrapWillWithPolicy uses ONNX pending target when heuristic scores tie', async () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'TRAP_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 2, col: 2 }, { row: 2, col: 5 }],
+      applyTrapWill: jest.fn(() => ({ applied: true }))
+    };
+    global.CpuPolicyOnnxRuntime = {
+      choosePendingTarget: jest.fn(async (targets) => targets[1])
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectTrapWillWithPolicy('white');
+
+    expect(global.CpuPolicyOnnxRuntime.choosePendingTarget).toHaveBeenCalled();
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.trapTarget).toEqual({ row: 2, col: 5 });
+  });
+
+  test('cpuSelectTrapWillWithPolicy falls back when pending ONNX exceeds latency budget', async () => {
+    global.cpuSmartness.white = 6;
+    global.CPU_LV6_PENDING_SELECTION_ONNX_MAX_MS = 5;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'TRAP_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 2, col: 2 }, { row: 2, col: 5 }],
+      applyTrapWill: jest.fn(() => ({ applied: true }))
+    };
+    global.CpuPolicyOnnxRuntime = {
+      choosePendingTarget: jest.fn((targets) => new Promise((resolve) => {
+        setTimeout(() => resolve(targets[1]), 25);
+      }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectTrapWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.trapTarget).toEqual({ row: 2, col: 2 });
+  });
+
+  test('cpuSelectDestroyWithPolicy can rerank ONNX target with value model', async () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' };
+    global.CpuPolicyOnnxRuntime = {
+      choosePendingTarget: jest.fn(async (targets) => targets[1]),
+      evaluatePosition: jest.fn(async (context) => {
+        const board = context && Array.isArray(context.board) ? context.board : [];
+        if (Array.isArray(board[3]) && board[3][2] === 0) return 0.9;
+        if (Array.isArray(board[3]) && board[3][5] === 0) return -0.9;
+        return 0;
+      })
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectDestroyWithPolicy('white');
+
+    expect(global.CpuPolicyOnnxRuntime.choosePendingTarget).toHaveBeenCalled();
+    expect(global.CpuPolicyOnnxRuntime.evaluatePosition).toHaveBeenCalled();
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.destroyTarget).toEqual({ row: 3, col: 2 });
   });
 
   test('cpuSelectTeleportWillWithPolicy prefers enemy corner target', async () => {
@@ -1161,6 +2004,82 @@ describe('cpu decision refactor helpers', () => {
     global.cardState.pendingEffectByPlayer.white = { type: 'SUPER_GRAVITY_WILL', stage: 'selectTarget' };
     global.CardLogic = {
       getSelectableTargets: () => [{ row: 4, col: 4 }, { row: 4, col: 7 }],
+      applySuperGravityWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectSuperGravityWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.superGravityTarget).toEqual({ row: 4, col: 7 });
+  });
+
+  test('cpuSelectSuperBuoyancyWillWithPolicy avoids moving enemy edge stone into open corner', async () => {
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [1, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [-1, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'SUPER_BUOYANCY_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 1, col: 0 }, { row: 3, col: 0 }],
+      applySuperBuoyancyWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectSuperBuoyancyWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.superBuoyancyTarget).toEqual({ row: 3, col: 0 });
+  });
+
+  test('cpuSelectSuperGravityWillWithPolicy avoids moving enemy edge stone into open corner', async () => {
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [-1, 0, 0, 0, 0, 0, 0, -1],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [1, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'SUPER_GRAVITY_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 6, col: 0 }, { row: 4, col: 7 }],
       applySuperGravityWill: jest.fn(() => ({ applied: true }))
     };
     global.TurnPipeline = {};

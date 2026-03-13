@@ -19,6 +19,16 @@ function _Timer() { return (__anim_res_utils && typeof __anim_res_utils.getTimer
         clearScope: () => {}
     };
 })(); }
+let __playback_state_utils = null;
+try { __playback_state_utils = (typeof require === 'function') ? require('./playback-state-manager') : (typeof globalThis !== 'undefined' ? globalThis.PlaybackStateManager : null); } catch (e) { __playback_state_utils = (typeof globalThis !== 'undefined' ? globalThis.PlaybackStateManager : null); }
+function _setCardAnimatingState(locked) {
+    if (__playback_state_utils && typeof __playback_state_utils.setCardAnimating === 'function') {
+        __playback_state_utils.setCardAnimating(locked);
+        return;
+    }
+    if (typeof isCardAnimating !== 'undefined') isCardAnimating = !!locked;
+    if (typeof window !== 'undefined') window.isCardAnimating = !!locked;
+}
 
 function _normalizeHandOwnerKey(value) {
     if (value === 'white' || value === -1 || value === '-1') return 'white';
@@ -117,6 +127,27 @@ function _setHandRevealCount(playerKey, visibleCount, reason) {
     const ownerKey = _normalizeHandOwnerKey(playerKey);
     const safeCount = Math.max(0, Math.trunc(Number(visibleCount) || 0));
     _setHandRevealState({ playerKey: ownerKey, visibleCount: safeCount, reason: reason || null });
+}
+
+function _installAnimationResolveFallback(done, timeoutMs) {
+    if (typeof done !== 'function') return function () {};
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return function () {};
+
+    let fallbackId = null;
+    try {
+        fallbackId = setTimeout(() => {
+            fallbackId = null;
+            done();
+        }, timeoutMs);
+    } catch (e) {
+        fallbackId = null;
+    }
+
+    return function clearFallback() {
+        if (fallbackId === null) return;
+        try { clearTimeout(fallbackId); } catch (e) { /* ignore */ }
+        fallbackId = null;
+    };
 }
 
 function _animateCompat(el, keyframes, options, scope) {
@@ -338,8 +369,7 @@ function animateStrongWillApply(row, col) {
  */
 function playHandAnimation(player, row, col, onComplete) {
     const syncCardAnimating = (locked) => {
-        if (typeof isCardAnimating !== 'undefined') isCardAnimating = !!locked;
-        if (typeof window !== 'undefined') window.isCardAnimating = !!locked;
+        _setCardAnimatingState(locked);
     };
     const refreshCardUi = () => {
         try {
@@ -509,6 +539,7 @@ function playClearHandAnimation(payload) {
     const clearReason = data.reason || null;
 
     return new Promise((resolve) => {
+        let clearResolveFallback = function () {};
         if (clearReason === 'rebuild_will') {
             _setHandRevealCount(ownerKey, 0, clearReason);
         } else {
@@ -516,6 +547,7 @@ function playClearHandAnimation(payload) {
         }
 
         const done = () => {
+            clearResolveFallback();
             const resolvedCardState = _resolveCardStateForHandAnimations();
             const hand = (resolvedCardState && resolvedCardState.hands && Array.isArray(resolvedCardState.hands[ownerKey]))
                 ? resolvedCardState.hands[ownerKey]
@@ -603,6 +635,10 @@ function playClearHandAnimation(payload) {
             ? SharedConstants.DESTROY_FADE_MS
             : ((typeof window !== 'undefined' && window.DESTROY_FADE_MS) ? window.DESTROY_FADE_MS : 500);
         const scope = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
+        clearResolveFallback = _installAnimationResolveFallback(
+            done,
+            Math.max(1000, ((fadeTargets.length - 1) * staggerMs) + fadeMs + 400)
+        );
 
         const animations = fadeTargets.map((cardEl, index) => {
             return new Promise((resolveOne) => {
@@ -640,7 +676,9 @@ function playDrawCardHandAnimation(payload) {
     const toPlayerKey = _normalizeHandOwnerKey(data.player);
 
     return new Promise(resolve => {
+        let clearResolveFallback = function () {};
         const done = () => {
+            clearResolveFallback();
             try {
                 if (typeof window !== 'undefined') window.__drawHandAnimActive = false;
             } catch (e) { /* ignore */ }
@@ -728,11 +766,11 @@ function playDrawCardHandAnimation(payload) {
         if (heldStoneEl) heldStoneEl.style.display = 'none';
 
         // Keep lock local to this animation only.
-        if (typeof isCardAnimating !== 'undefined') isCardAnimating = true;
+        _setCardAnimatingState(true);
         const sc = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
         let heldCard = null;
         let timeoutId = _Timer().setTimeout(() => {
-            if (typeof isCardAnimating !== 'undefined') isCardAnimating = false;
+            _setCardAnimatingState(false);
             try { if (typeof window !== 'undefined') window.__drawHandAnimActive = false; } catch (e) { /* ignore */ }
             try {
                 if (heldCard && heldCard.parentElement) heldCard.parentElement.removeChild(heldCard);
@@ -768,10 +806,11 @@ function playDrawCardHandAnimation(payload) {
                 _Timer().clearTimeout(timeoutId);
                 timeoutId = null;
             }
-            if (typeof isCardAnimating !== 'undefined') isCardAnimating = false;
+            _setCardAnimatingState(false);
             try { if (typeof window !== 'undefined') window.__drawHandAnimActive = false; } catch (e) { /* ignore */ }
             done();
         };
+        clearResolveFallback = _installAnimationResolveFallback(cleanup, 2600);
 
         (async () => {
             await _animateCompat(wrapperEl, [
@@ -825,6 +864,7 @@ function playCardUseHandAnimation(payload) {
     const fromBottom = _isOwnerOnBottomSlot(ownerKey);
 
     return new Promise(resolve => {
+        let clearResolveFallback = function () {};
         try {
             if (typeof window !== 'undefined') {
                 const now = Date.now();
@@ -836,10 +876,12 @@ function playCardUseHandAnimation(payload) {
                 window.__lastCardUseAnimAt = now;
             }
         } catch (e) { /* ignore */ }
-        const done = () => resolve();
+        const done = () => {
+            clearResolveFallback();
+            resolve();
+        };
         const setCardAnimating = (locked) => {
-            if (typeof isCardAnimating !== 'undefined') isCardAnimating = !!locked;
-            if (typeof window !== 'undefined') window.isCardAnimating = !!locked;
+            _setCardAnimatingState(locked);
         };
 
         if (_isNoAnim()) {
@@ -945,6 +987,7 @@ function playCardUseHandAnimation(payload) {
             setCardAnimating(false);
             done();
         };
+        clearResolveFallback = _installAnimationResolveFallback(cleanup, 3600);
 
         (async () => {
             await _animateCompat(movingCard, [

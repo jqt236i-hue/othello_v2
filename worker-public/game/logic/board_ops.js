@@ -266,20 +266,180 @@
         return false;
     }
 
+    function _normalizeCounterValue(value) {
+        if (value === null || value === undefined || value === '') return null;
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return null;
+        return Math.max(0, Math.trunc(numeric));
+    }
+
+    function _normalizeBoardIndex(value) {
+        if (value === null || value === undefined || value === '') return null;
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return null;
+        return Math.trunc(numeric);
+    }
+
+    function _normalizeCellPosition(row, col) {
+        const normalizedRow = _normalizeBoardIndex(row);
+        const normalizedCol = _normalizeBoardIndex(col);
+        if (normalizedRow === null || normalizedCol === null) return null;
+        return { row: normalizedRow, col: normalizedCol };
+    }
+
+    function _getSpecialMarkersAt(cardState, row, col) {
+        const pos = _normalizeCellPosition(row, col);
+        if (!pos) return [];
+        if (!cardState || !Array.isArray(cardState.markers)) return [];
+        return cardState.markers.filter((m) => (
+            m &&
+            m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+            _normalizeBoardIndex(m.row) === pos.row &&
+            _normalizeBoardIndex(m.col) === pos.col
+        ));
+    }
+
+    function _isBlockingMarkerType(type) {
+        const typeUpper = String(type || '').toUpperCase();
+        return typeUpper === 'BLOCKADE' || typeUpper === 'METEOR_HOLE' || typeUpper === 'FREEZE';
+    }
+
+    function _isFrozenCell(cardState, row, col) {
+        const markers = _getSpecialMarkersAt(cardState, row, col);
+        return markers.some((marker) => String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase() === 'FREEZE');
+    }
+
+    function _isBlockedDestinationCell(cardState, row, col) {
+        const markers = _getSpecialMarkersAt(cardState, row, col);
+        return markers.some((marker) => _isBlockingMarkerType(marker && marker.data && marker.data.type));
+    }
+
+    function _getDestroyEvadeMarkerAt(cardState, row, col) {
+        const markersAtCell = _getSpecialMarkersAt(cardState, row, col);
+        let bestMarker = null;
+        let bestCreatedSeq = Number.POSITIVE_INFINITY;
+        for (const marker of markersAtCell) {
+            const remaining = _normalizeCounterValue(marker && marker.data && marker.data.destroyEvadeRemaining);
+            if (remaining === null || remaining <= 0) continue;
+            const createdSeq = Number.isFinite(Number(marker && marker.createdSeq))
+                ? Number(marker.createdSeq)
+                : Number.POSITIVE_INFINITY;
+            if (bestMarker === null || createdSeq < bestCreatedSeq) {
+                bestCreatedSeq = createdSeq;
+                bestMarker = marker;
+            }
+        }
+        return bestMarker;
+    }
+
+    function _collectAllBoardCoordinates(gameState) {
+        const coords = [];
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                coords.push({ row, col });
+            }
+        }
+        const expansions = getExpansionDescriptors(gameState);
+        for (const expansion of expansions) {
+            if (!expansion) continue;
+            coords.push({ row: expansion.row, col: expansion.col });
+        }
+        return coords;
+    }
+
+    function _getChebyshevDistance(fromRow, fromCol, toRow, toCol) {
+        return Math.max(Math.abs(Number(fromRow) - Number(toRow)), Math.abs(Number(fromCol) - Number(toCol)));
+    }
+
+    function _getManhattanDistance(fromRow, fromCol, toRow, toCol) {
+        return Math.abs(Number(fromRow) - Number(toRow)) + Math.abs(Number(fromCol) - Number(toCol));
+    }
+
+    function _getForbiddenDestroyEvadeCellSet(meta) {
+        const out = new Set();
+        const cells = meta && Array.isArray(meta.forbiddenEvadeCells) ? meta.forbiddenEvadeCells : [];
+        for (const cell of cells) {
+            if (!cell) continue;
+            const pos = _normalizeCellPosition(cell.row, cell.col);
+            if (!pos) continue;
+            out.add(`${pos.row},${pos.col}`);
+        }
+        return out;
+    }
+
+    function _findDestroyEvadeDestination(cardState, gameState, row, col, meta) {
+        const forbiddenCells = _getForbiddenDestroyEvadeCellSet(meta);
+        const candidates = [];
+        for (const cell of _collectAllBoardCoordinates(gameState)) {
+            if (!cell) continue;
+            if (cell.row === row && cell.col === col) continue;
+            if (forbiddenCells.has(`${cell.row},${cell.col}`)) continue;
+            const value = getCellValue(gameState, cell.row, cell.col);
+            if (value !== EMPTY) continue;
+            if (_isBlockedDestinationCell(cardState, cell.row, cell.col)) continue;
+            candidates.push({
+                row: cell.row,
+                col: cell.col,
+                chebyshev: _getChebyshevDistance(row, col, cell.row, cell.col),
+                manhattan: _getManhattanDistance(row, col, cell.row, cell.col)
+            });
+        }
+        if (!candidates.length) return null;
+        candidates.sort((a, b) => {
+            if (a.chebyshev !== b.chebyshev) return a.chebyshev - b.chebyshev;
+            if (a.manhattan !== b.manhattan) return a.manhattan - b.manhattan;
+            if (a.row !== b.row) return a.row - b.row;
+            return a.col - b.col;
+        });
+        return { row: candidates[0].row, col: candidates[0].col };
+    }
+
+    function _moveCellMarkers(cardState, fromRow, fromCol, toRow, toCol) {
+        if (!cardState || !Array.isArray(cardState.markers)) return;
+        for (const marker of cardState.markers) {
+            if (!marker || marker.row !== fromRow || marker.col !== fromCol) continue;
+            if (_isBlockingMarkerType(marker && marker.data && marker.data.type)) continue;
+            marker.row = toRow;
+            marker.col = toCol;
+        }
+    }
+
+    function _shouldSkipDestroyEvade(cause, reason, meta) {
+        if (meta && (meta.ignoreDestroyEvade === true || meta.evade === true)) return true;
+        const normalizedReason = String(reason || '').toLowerCase();
+        return normalizedReason === 'anchor_expired'
+            || normalizedReason === 'duration_end'
+            || normalizedReason.indexOf('expire') >= 0;
+    }
+
+    function _resolveSpecialDisplayTimerValue(markerData) {
+        const primaryTimer = _normalizeCounterValue(markerData && markerData.remainingOwnerTurns);
+        if (primaryTimer !== null) return primaryTimer;
+        if (String(markerData && markerData.type ? markerData.type : '').toUpperCase() === 'REGEN') {
+            return _normalizeCounterValue(markerData && markerData.regenRemaining);
+        }
+        return null;
+    }
+
     function _getSpecialVisualMeta(cardState, row, col) {
         let special = null;
         let timer = null;
         let owner = null;
         let inheritedTimer = null;
         let inheritedOwner = null;
+        let flipEvadeRemaining = null;
+        let inheritedFlipEvadeRemaining = null;
+        let destroyEvadeRemaining = null;
 
         if (cardState && Array.isArray(cardState.markers)) {
-            const markersAtCell = cardState.markers.filter((m) => (
-                m &&
-                m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
-                m.row === row &&
-                m.col === col
-            ));
+            const markersAtCell = _getSpecialMarkersAt(cardState, row, col);
+            const destroyEvadeTotal = markersAtCell.reduce((sum, marker) => {
+                const remaining = _normalizeCounterValue(marker && marker.data && marker.data.destroyEvadeRemaining);
+                return remaining === null ? sum : (sum + remaining);
+            }, 0);
+            if (destroyEvadeTotal > 0 || markersAtCell.some((marker) => _normalizeCounterValue(marker && marker.data && marker.data.destroyEvadeRemaining) === 0)) {
+                destroyEvadeRemaining = destroyEvadeTotal;
+            }
 
             const inherited = markersAtCell.find((m) => (
                 m &&
@@ -291,6 +451,7 @@
                     ? inherited.data.remainingOwnerTurns
                     : null;
                 inheritedOwner = (inherited.owner !== undefined && inherited.owner !== null) ? inherited.owner : null;
+                inheritedFlipEvadeRemaining = _normalizeCounterValue(inherited.data && inherited.data.flipEvadeRemaining);
             }
 
             const visualSpecial = markersAtCell.find((m) => {
@@ -303,11 +464,19 @@
 
             if (visualSpecial) {
                 special = (visualSpecial.data && visualSpecial.data.type) || null;
-                timer = (visualSpecial.data && typeof visualSpecial.data.remainingOwnerTurns === 'number')
-                    ? visualSpecial.data.remainingOwnerTurns
-                    : null;
+                timer = _resolveSpecialDisplayTimerValue(visualSpecial.data);
                 owner = (visualSpecial.owner !== undefined && visualSpecial.owner !== null) ? visualSpecial.owner : null;
-                return { special, timer, owner, inheritedTimer, inheritedOwner };
+                flipEvadeRemaining = _normalizeCounterValue(visualSpecial.data && visualSpecial.data.flipEvadeRemaining);
+                return {
+                    special,
+                    timer,
+                    owner,
+                    inheritedTimer,
+                    inheritedOwner,
+                    flipEvadeRemaining,
+                    inheritedFlipEvadeRemaining,
+                    destroyEvadeRemaining
+                };
             }
 
             const b = MarkersAdapter && typeof MarkersAdapter.findBombMarkerAt === 'function'
@@ -317,11 +486,29 @@
                 special = 'TIME_BOMB';
                 timer = (b.data && typeof b.data.remainingTurns === 'number') ? b.data.remainingTurns : null;
                 owner = (b.owner !== undefined && b.owner !== null) ? b.owner : null;
-                return { special, timer, owner, inheritedTimer, inheritedOwner };
+                return {
+                    special,
+                    timer,
+                    owner,
+                    inheritedTimer,
+                    inheritedOwner,
+                    flipEvadeRemaining,
+                    inheritedFlipEvadeRemaining,
+                    destroyEvadeRemaining
+                };
             }
         }
 
-        return { special: null, timer: null, owner: null, inheritedTimer, inheritedOwner };
+        return {
+            special: null,
+            timer: null,
+            owner: null,
+            inheritedTimer,
+            inheritedOwner,
+            flipEvadeRemaining,
+            inheritedFlipEvadeRemaining,
+            destroyEvadeRemaining
+        };
     }
 
     function emitPresentationEvent(cardState, ev) {
@@ -352,6 +539,11 @@
 
     function spawnAt(cardState, gameState, row, col, ownerKey, cause, reason, meta = {}) {
         _ensureCardState(cardState);
+        const pos = _normalizeCellPosition(row, col);
+        if (!pos) return { spawned: false, reason: 'out_of_board' };
+        row = pos.row;
+        col = pos.col;
+        if (_isBlockedDestinationCell(cardState, row, col)) return { spawned: false, reason: 'blocked_destination' };
         const ownerVal = ownerKey === 'black' ? (SharedConstants.BLACK || 1) : (SharedConstants.WHITE || -1);
         if (!setCellValue(gameState, row, col, ownerVal)) return { spawned: false };
         const stoneId = allocateStoneId(cardState);
@@ -367,6 +559,9 @@
             if (visual.owner !== null) metaOut.owner = visual.owner;
             if (visual.inheritedTimer !== null) metaOut.inheritedTimer = visual.inheritedTimer;
             if (visual.inheritedOwner !== null) metaOut.inheritedOwner = visual.inheritedOwner;
+            if (visual.flipEvadeRemaining !== null) metaOut.flipEvadeRemaining = visual.flipEvadeRemaining;
+            if (visual.inheritedFlipEvadeRemaining !== null) metaOut.inheritedFlipEvadeRemaining = visual.inheritedFlipEvadeRemaining;
+            if (visual.destroyEvadeRemaining !== null) metaOut.destroyEvadeRemaining = visual.destroyEvadeRemaining;
         }
         emitPresentationEvent(cardState, {
             type: 'SPAWN',
@@ -383,6 +578,10 @@
 
     function destroyAt(cardState, gameState, row, col, cause, reason, meta = {}) {
         _ensureCardState(cardState);
+        const pos = _normalizeCellPosition(row, col);
+        if (!pos) return { destroyed: false, reason: 'out_of_board' };
+        row = pos.row;
+        col = pos.col;
         const prev = getCellValue(gameState, row, col);
         if (prev === EMPTY) return { destroyed: false };
         if (prev === null) return { destroyed: false, reason: 'out_of_board' };
@@ -399,6 +598,56 @@
             ))
             : null;
         if (guardMarker && !ignoreGuard) return { destroyed: false, reason: 'guard_protected' };
+        if (_isFrozenCell(cardState, row, col)) return { destroyed: false, reason: 'frozen_protected' };
+
+        const destroyEvadeMarker = _shouldSkipDestroyEvade(cause, reason, meta)
+            ? null
+            : _getDestroyEvadeMarkerAt(cardState, row, col);
+        if (destroyEvadeMarker) {
+            const destination = _findDestroyEvadeDestination(cardState, gameState, row, col, meta);
+            if (destination) {
+                const beforeRemaining = _normalizeCounterValue(destroyEvadeMarker.data && destroyEvadeMarker.data.destroyEvadeRemaining) || 0;
+                const afterRemaining = Math.max(0, beforeRemaining - 1);
+                destroyEvadeMarker.data.destroyEvadeRemaining = afterRemaining;
+                const visual = _getSpecialVisualMeta(cardState, row, col);
+                const moveMeta = Object.assign({}, meta, {
+                    special: visual.special !== null ? visual.special : ((destroyEvadeMarker.data && destroyEvadeMarker.data.type) || null),
+                    timer: visual.timer !== null ? visual.timer : null,
+                    owner: visual.owner !== null ? visual.owner : ((destroyEvadeMarker.owner !== undefined && destroyEvadeMarker.owner !== null) ? destroyEvadeMarker.owner : null),
+                    inheritedTimer: visual.inheritedTimer !== null ? visual.inheritedTimer : null,
+                    inheritedOwner: visual.inheritedOwner !== null ? visual.inheritedOwner : null,
+                    flipEvadeRemaining: visual.flipEvadeRemaining !== null ? visual.flipEvadeRemaining : null,
+                    inheritedFlipEvadeRemaining: visual.inheritedFlipEvadeRemaining !== null ? visual.inheritedFlipEvadeRemaining : null,
+                    destroyEvadeRemaining: afterRemaining,
+                    destroyEvadeTriggeredBy: cause || null,
+                    destroyEvadeTriggerReason: reason || null,
+                    destroyEvadeOriginRow: row,
+                    destroyEvadeOriginCol: col
+                });
+                const moveResult = moveAt(
+                    cardState,
+                    gameState,
+                    row,
+                    col,
+                    destination.row,
+                    destination.col,
+                    'DESTROY_EVADE',
+                    'destroy_evade_move',
+                    moveMeta
+                );
+                if (moveResult && moveResult.moved) {
+                    _moveCellMarkers(cardState, row, col, destination.row, destination.col);
+                    return {
+                        destroyed: false,
+                        evaded: true,
+                        reason: 'destroy_evaded',
+                        from: { row, col },
+                        to: { row: destination.row, col: destination.col }
+                    };
+                }
+                destroyEvadeMarker.data.destroyEvadeRemaining = beforeRemaining;
+            }
+        }
 
         let stoneId = null;
         stoneId = getStoneIdAt(cardState, gameState, row, col);
@@ -422,15 +671,20 @@
             reason: reason || null,
             meta
         });
-        return { destroyed: true };
+        return { destroyed: true, evaded: false };
     }
 
     function changeAt(cardState, gameState, row, col, ownerAfterKey, cause, reason, meta = {}) {
         _ensureCardState(cardState);
+        const pos = _normalizeCellPosition(row, col);
+        if (!pos) return { changed: false, reason: 'out_of_board' };
+        row = pos.row;
+        col = pos.col;
         const prev = getCellValue(gameState, row, col);
         if (prev === null) return { changed: false, reason: 'out_of_board' };
         const ownerAfterVal = ownerAfterKey === 'black' ? (SharedConstants.BLACK || 1) : (SharedConstants.WHITE || -1);
         if (prev === ownerAfterVal) return { changed: false };
+        if (_isFrozenCell(cardState, row, col)) return { changed: false, reason: 'frozen_protected' };
         const ownerBeforeKey = (prev === (SharedConstants.BLACK || 1))
             ? 'black'
             : ((prev === (SharedConstants.WHITE || -1)) ? 'white' : null);
@@ -453,6 +707,9 @@
             if (visual.owner !== null) metaOut.owner = visual.owner;
             if (visual.inheritedTimer !== null) metaOut.inheritedTimer = visual.inheritedTimer;
             if (visual.inheritedOwner !== null) metaOut.inheritedOwner = visual.inheritedOwner;
+            if (visual.flipEvadeRemaining !== null) metaOut.flipEvadeRemaining = visual.flipEvadeRemaining;
+            if (visual.inheritedFlipEvadeRemaining !== null) metaOut.inheritedFlipEvadeRemaining = visual.inheritedFlipEvadeRemaining;
+            if (visual.destroyEvadeRemaining !== null) metaOut.destroyEvadeRemaining = visual.destroyEvadeRemaining;
         }
 
         emitPresentationEvent(cardState, {
@@ -471,13 +728,23 @@
 
     function moveAt(cardState, gameState, fromRow, fromCol, toRow, toCol, cause, reason, meta = {}) {
         _ensureCardState(cardState);
+        const fromPos = _normalizeCellPosition(fromRow, fromCol);
+        const toPos = _normalizeCellPosition(toRow, toCol);
+        if (!fromPos) return { moved: false, reason: 'from_out_of_board' };
+        if (!toPos) return { moved: false, reason: 'to_out_of_board' };
+        fromRow = fromPos.row;
+        fromCol = fromPos.col;
+        toRow = toPos.row;
+        toCol = toPos.col;
         const prev = getCellValue(gameState, fromRow, fromCol);
         if (prev === EMPTY) return { moved: false };
         if (prev === null) return { moved: false, reason: 'from_out_of_board' };
+        if (_isFrozenCell(cardState, fromRow, fromCol)) return { moved: false, reason: 'frozen_source' };
         // If dest occupied, we consider it invalid for now
         const destVal = getCellValue(gameState, toRow, toCol);
         if (destVal === null) return { moved: false, reason: 'to_out_of_board' };
         if (destVal !== EMPTY) return { moved: false, reason: 'dest_not_empty' };
+        if (_isBlockedDestinationCell(cardState, toRow, toCol)) return { moved: false, reason: 'blocked_destination' };
 
         const stoneId = getStoneIdAt(cardState, gameState, fromRow, fromCol);
         setStoneIdAt(cardState, gameState, fromRow, fromCol, null);
@@ -493,6 +760,9 @@
             if (visual.owner !== null) metaOut.owner = visual.owner;
             if (visual.inheritedTimer !== null) metaOut.inheritedTimer = visual.inheritedTimer;
             if (visual.inheritedOwner !== null) metaOut.inheritedOwner = visual.inheritedOwner;
+            if (visual.flipEvadeRemaining !== null) metaOut.flipEvadeRemaining = visual.flipEvadeRemaining;
+            if (visual.inheritedFlipEvadeRemaining !== null) metaOut.inheritedFlipEvadeRemaining = visual.inheritedFlipEvadeRemaining;
+            if (visual.destroyEvadeRemaining !== null) metaOut.destroyEvadeRemaining = visual.destroyEvadeRemaining;
         }
         emitPresentationEvent(cardState, {
             type: 'MOVE',
@@ -524,6 +794,11 @@
         destroyAt,
         changeAt,
         moveAt,
+        getExpansionDescriptors,
+        getCellValue,
+        setCellValue,
+        isExpansionCell,
+        isMainBoardCell,
         allocateStoneId,
         emitPresentationEvent,
         setActionContext,

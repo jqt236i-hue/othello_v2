@@ -206,7 +206,8 @@
                 temptTarget: a.temptTarget,
                 expansionTarget: a.expansionTarget,
                 blockadeTarget: a.blockadeTarget,
-                meteorTarget: a.meteorTarget
+                meteorTarget: a.meteorTarget,
+                freezeTarget: a.freezeTarget
             }));
         },
 

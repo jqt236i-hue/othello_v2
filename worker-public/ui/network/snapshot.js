@@ -112,6 +112,48 @@
             } catch (e) { /* ignore */ }
         }
 
+        function clearTransientPresentationQueues(cardStateRef) {
+            if (!cardStateRef || typeof cardStateRef !== 'object') return;
+            if (!Array.isArray(cardStateRef.presentationEvents)) cardStateRef.presentationEvents = [];
+            else cardStateRef.presentationEvents.length = 0;
+            if (!Array.isArray(cardStateRef._presentationEventsPersist)) cardStateRef._presentationEventsPersist = [];
+            else cardStateRef._presentationEventsPersist.length = 0;
+        }
+
+        function captureTransientPresentationQueues(cardStateRef) {
+            if (!cardStateRef || typeof cardStateRef !== 'object') {
+                return {
+                    presentationEvents: [],
+                    persistentEvents: [],
+                    hasPending: false
+                };
+            }
+
+            const presentationEvents = Array.isArray(cardStateRef.presentationEvents)
+                ? cloneData(cardStateRef.presentationEvents)
+                : [];
+            const persistentEvents = Array.isArray(cardStateRef._presentationEventsPersist)
+                ? cloneData(cardStateRef._presentationEventsPersist)
+                : [];
+
+            return {
+                presentationEvents,
+                persistentEvents,
+                hasPending: presentationEvents.length > 0 || persistentEvents.length > 0
+            };
+        }
+
+        function restoreTransientPresentationQueues(cardStateRef, queues) {
+            if (!cardStateRef || typeof cardStateRef !== 'object') return;
+            const source = queues && typeof queues === 'object' ? queues : {};
+            cardStateRef.presentationEvents = Array.isArray(source.presentationEvents)
+                ? source.presentationEvents.slice()
+                : [];
+            cardStateRef._presentationEventsPersist = Array.isArray(source.persistentEvents)
+                ? source.persistentEvents.slice()
+                : [];
+        }
+
         function hasPendingPlaybackOrPresentation() {
             const cardStateRef = resolveGlobalObject('cardState');
             try {
@@ -246,17 +288,35 @@
 
             if (!snapshot.gameState || !snapshot.cardState) return false;
 
+            const hadPendingPlaybackOrPresentation = hasPendingPlaybackOrPresentation();
+            const preservedQueues = captureTransientPresentationQueues(resolveGlobalObject('cardState'));
+            const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
+            const hasPlaybackEvents = playbackEvents.length > 0;
+
             replaceObjectState('gameState', snapshot.gameState);
             replaceObjectState('cardState', snapshot.cardState);
+            try {
+                const ensureLegacyMarkers = resolveGlobalFunction('ensureLegacyMarkers', cfg.ensureLegacyMarkers);
+                const cardStateRef = resolveGlobalObject('cardState');
+                if (ensureLegacyMarkers && cardStateRef) ensureLegacyMarkers(cardStateRef);
+            } catch (e) { /* ignore */ }
 
-            setGlobalFlag('isProcessing', false);
-            setGlobalFlag('isCardAnimating', false);
+            const cardStateRef = resolveGlobalObject('cardState');
+            if (hasPlaybackEvents) {
+                clearTransientPresentationQueues(cardStateRef);
+            } else if (preservedQueues.hasPending) {
+                restoreTransientPresentationQueues(cardStateRef, preservedQueues);
+            } else {
+                clearTransientPresentationQueues(cardStateRef);
+            }
 
             if (nextVersion !== null) {
                 state.stateVersion = nextVersion;
             }
 
-            const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
+            const shouldKeepBusy = hasPlaybackEvents || hadPendingPlaybackOrPresentation;
+            setGlobalFlag('isProcessing', shouldKeepBusy);
+            setGlobalFlag('isCardAnimating', shouldKeepBusy);
             if (playbackEvents.length > 0) {
                 emitPlaybackEvents(playbackEvents);
             }

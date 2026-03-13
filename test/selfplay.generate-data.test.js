@@ -50,7 +50,8 @@ describe('selfplay generate data script', () => {
             '--tactical-depth-opening', '4',
             '--tactical-depth-mid', '8',
             '--tactical-depth-end', '12',
-            '--tactical-beam-width', '8'
+            '--tactical-beam-width', '8',
+            '--worker-retries', '2.9'
         ]);
         expect(args.policyMixRate).toBeCloseTo(0.72, 6);
         expect(args.cardUsageRateJitter).toBeCloseTo(0.18, 6);
@@ -60,6 +61,7 @@ describe('selfplay generate data script', () => {
         expect(args.tacticalDepthMid).toBe(8);
         expect(args.tacticalDepthEnd).toBe(12);
         expect(args.tacticalBeamWidth).toBe(8);
+        expect(args.workerRetries).toBe(2);
     });
 
     test('parseArgs validates diversity control ranges', () => {
@@ -72,6 +74,7 @@ describe('selfplay generate data script', () => {
         expect(() => parseArgs(['--tactical-depth-mid', '-1'])).toThrow('--tactical-depth-mid must be >= 0');
         expect(() => parseArgs(['--tactical-depth-end', '-1'])).toThrow('--tactical-depth-end must be >= 0');
         expect(() => parseArgs(['--tactical-beam-width', '-1'])).toThrow('--tactical-beam-width must be >= 0');
+        expect(() => parseArgs(['--worker-retries', '-1'])).toThrow('--worker-retries must be >= 0');
     });
 
     test('parseArgs applies resolved profile defaults and derives hardcase split output', () => {

@@ -266,6 +266,25 @@ describe('cpu turn handler pending selection', () => {
     expect(cardState.pendingEffectByPlayer.white).toBeNull();
   });
 
+  test('FREEZE_WILL invokes cpuSelectFreezeWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectFreezeWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'FREEZE_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('FREEZE_WILL clears pending when function absent', async () => {
+    delete global.cpuSelectFreezeWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'FREEZE_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
   test('CLONE_WILL invokes cpuSelectCloneWillWithPolicy when available', async () => {
     const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
     global.cpuSelectCloneWillWithPolicy = mock;

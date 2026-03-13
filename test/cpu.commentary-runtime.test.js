@@ -9,6 +9,14 @@ function normalizeCommentaryBody(line) {
     .trim();
 }
 
+function sanitizeCommentaryLine(line, maxChars = 120) {
+  const text = String(line || '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  const chars = Array.from(text);
+  if (!Number.isFinite(maxChars) || maxChars <= 0 || chars.length <= maxChars) return text;
+  return chars.slice(0, maxChars).join('');
+}
+
 describe('cpu commentary runtime', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -66,7 +74,7 @@ describe('cpu commentary runtime', () => {
     expect(text.includes('相手の通常石1つ')).toBe(true);
   });
 
-  test('basic pools are fixed to 100 lines total', () => {
+  test('basic pools are fixed to 100000 lines total', () => {
     const pools = [
       data.openingLines,
       data.middleAheadLines,
@@ -84,7 +92,7 @@ describe('cpu commentary runtime', () => {
       data.cardTargetLines
     ];
     const total = pools.reduce((n, one) => n + (Array.isArray(one) ? one.length : 0), 0);
-    expect(total).toBe(100);
+    expect(total).toBe(100000);
   });
 
   test('basic pools keep unique lines in each pool', () => {
@@ -108,6 +116,124 @@ describe('cpu commentary runtime', () => {
       expect(Array.isArray(one)).toBe(true);
       expect(new Set(one).size).toBe(one.length);
     }
+  });
+
+  test('corner commentary pools keep 2400 varied unique lines', () => {
+    const pools = [
+      data.cornerFirstOwnedLines,
+      data.cornerFirstLostLines,
+      data.cornerStreakTwoOwnedLines,
+      data.cornerStreakTwoLostLines,
+      data.cornerStreakThreeOwnedLines,
+      data.cornerStreakThreeLostLines,
+      data.cornerAllOwnedLines,
+      data.cornerAllLostLines
+    ];
+
+    for (const one of pools) {
+      expect(Array.isArray(one)).toBe(true);
+      expect(one.length).toBe(2400);
+      expect(new Set(one).size).toBe(one.length);
+    }
+  });
+
+  test('card commentary pools expand to 480 lines per card and advantage context', () => {
+    const useLines = data.getCardUseLines('SWAP_WITH_ENEMY', 'even');
+    const hitLines = data.getCardHitLines('SWAP_WITH_ENEMY', 'even');
+
+    expect(useLines.length).toBe(480);
+    expect(hitLines.length).toBe(480);
+    expect(new Set(useLines).size).toBe(useLines.length);
+    expect(new Set(hitLines).size).toBe(hitLines.length);
+  });
+
+  test('in-match dialogue pools match requested totals', () => {
+    const fixedPools = [
+      data.openingLines,
+      data.middleAheadLines,
+      data.middleEvenLines,
+      data.middleBehindLines,
+      data.endAheadLines,
+      data.endEvenLines,
+      data.endBehindLines,
+      data.chatterLines,
+      data.tauntLines,
+      data.negativeLines,
+      data.bluffLines,
+      data.boardSwingLines,
+      data.passLines,
+      data.cardTargetLines,
+      data.cornerFirstOwnedLines,
+      data.cornerFirstLostLines,
+      data.cornerStreakTwoOwnedLines,
+      data.cornerStreakTwoLostLines,
+      data.cornerStreakThreeOwnedLines,
+      data.cornerStreakThreeLostLines,
+      data.cornerAllOwnedLines,
+      data.cornerAllLostLines
+    ];
+    const fixedTotal = fixedPools.reduce((n, one) => n + (Array.isArray(one) ? one.length : 0), 0);
+    const cardTypes = Object.keys(data.CARD_TYPE_LABELS || {});
+
+    let cardUseTotal = 0;
+    let cardHitTotal = 0;
+    for (const cardType of cardTypes) {
+      for (const advantage of ['ahead', 'even', 'behind']) {
+        cardUseTotal += data.getCardUseLines(cardType, advantage).length;
+        cardHitTotal += data.getCardHitLines(cardType, advantage).length;
+      }
+    }
+
+    expect(fixedTotal).toBe(119200);
+    expect(cardUseTotal).toBe(54720);
+    expect(cardHitTotal).toBe(54720);
+    expect(fixedTotal + cardUseTotal + cardHitTotal).toBe(228640);
+  });
+
+  test('all in-match dialogue lines stay globally unique including sanitized display text', () => {
+    const cardTypes = Object.keys(data.CARD_TYPE_LABELS || {});
+    const allLines = [];
+
+    const pools = [
+      data.openingLines,
+      data.middleAheadLines,
+      data.middleEvenLines,
+      data.middleBehindLines,
+      data.endAheadLines,
+      data.endEvenLines,
+      data.endBehindLines,
+      data.chatterLines,
+      data.tauntLines,
+      data.negativeLines,
+      data.bluffLines,
+      data.boardSwingLines,
+      data.passLines,
+      data.cardTargetLines,
+      data.cornerFirstOwnedLines,
+      data.cornerFirstLostLines,
+      data.cornerStreakTwoOwnedLines,
+      data.cornerStreakTwoLostLines,
+      data.cornerStreakThreeOwnedLines,
+      data.cornerStreakThreeLostLines,
+      data.cornerAllOwnedLines,
+      data.cornerAllLostLines
+    ];
+
+    for (const pool of pools) {
+      allLines.push(...pool);
+    }
+
+    for (const cardType of cardTypes) {
+      for (const advantage of ['ahead', 'even', 'behind']) {
+        allLines.push(...data.getCardUseLines(cardType, advantage));
+        allLines.push(...data.getCardHitLines(cardType, advantage));
+      }
+    }
+
+    const sanitized = allLines.map((line) => sanitizeCommentaryLine(line, 120));
+
+    expect(new Set(allLines).size).toBe(allLines.length);
+    expect(new Set(sanitized).size).toBe(sanitized.length);
   });
 
   test('通常ターン文は2ターンに1回だけ更新する', () => {
@@ -248,6 +374,76 @@ describe('cpu commentary runtime', () => {
       const body = normalizeCommentaryBody(line);
       const bluffBodies = new Set((data.bluffLines || []).map(normalizeCommentaryBody));
       expect(bluffBodies.has(body)).toBe(false);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  test('開幕の通常ターン文は候補プールを均等寄りにランダム選択する', () => {
+    const randomSpy = jest.spyOn(Math, 'random');
+    try {
+      randomSpy
+        .mockReturnValueOnce(0.1)
+        .mockReturnValueOnce(0.5)
+        .mockReturnValueOnce(0.1);
+
+      engine.resetState();
+      engine.setConfig({ maxChars: 200, regularTurnInterval: 1 });
+
+      const base = {
+        eventType: 'turn_start',
+        playerKey: 'white',
+        phase: 'opening',
+        advantage: 'even',
+        counts: { black: 2, white: 2 },
+        corners: { own: 0, opp: 0 }
+      };
+
+      engine._buildCommentaryForTest({ ...base, turnNumber: 1 });
+      const line = engine._buildCommentaryForTest({ ...base, turnNumber: 2 });
+
+      const body = normalizeCommentaryBody(line);
+      const chatterBodies = new Set((data.chatterLines || []).map(normalizeCommentaryBody));
+      expect(chatterBodies.has(body)).toBe(true);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  test('劣勢継続時も通常の劣勢プールを混ぜてランダム選択する', () => {
+    const randomSpy = jest.spyOn(Math, 'random');
+    try {
+      randomSpy
+        .mockReturnValueOnce(0.1)
+        .mockReturnValueOnce(0.9)
+        .mockReturnValueOnce(0.1);
+
+      engine.resetState();
+      engine.setConfig({ maxChars: 200, regularTurnInterval: 1, behindThreshold: 1 });
+
+      engine._buildCommentaryForTest({
+        eventType: 'turn_start',
+        playerKey: 'white',
+        phase: 'opening',
+        advantage: 'even',
+        turnNumber: 1,
+        counts: { black: 2, white: 2 },
+        corners: { own: 0, opp: 0 }
+      });
+
+      const line = engine._buildCommentaryForTest({
+        eventType: 'turn_start',
+        playerKey: 'white',
+        phase: 'middle',
+        advantage: 'behind',
+        turnNumber: 2,
+        counts: { black: 3, white: 2 },
+        corners: { own: 0, opp: 0 }
+      });
+
+      const body = normalizeCommentaryBody(line);
+      const behindBodies = new Set((data.middleBehindLines || []).map(normalizeCommentaryBody));
+      expect(behindBodies.has(body)).toBe(true);
     } finally {
       randomSpy.mockRestore();
     }

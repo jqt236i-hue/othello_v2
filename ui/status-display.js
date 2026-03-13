@@ -73,6 +73,63 @@ function getOwnSeatKeyForLabels() {
     return 'black';
 }
 
+function getTutorialStateApiForStatus() {
+    try {
+        if (typeof window !== 'undefined' && window && window.Tutorial && window.Tutorial.State) {
+            return window.Tutorial.State;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function getStoryEncounterApiForStatus() {
+    try {
+        if (typeof window !== 'undefined' && window && window.Story && window.Story.Encounter) {
+            return window.Story.Encounter;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function resolveStoryEncounterCpuPresentation() {
+    const encounterApi = getStoryEncounterApiForStatus();
+    if (!encounterApi || typeof encounterApi.resolveStoryEncounterPresentation !== 'function') {
+        return null;
+    }
+    return encounterApi.resolveStoryEncounterPresentation();
+}
+
+function resolveObserverDuelCpuPresentation() {
+    const stateApi = getTutorialStateApiForStatus();
+    if (!stateApi || typeof stateApi.isObserverDuelActive !== 'function' || !stateApi.isObserverDuelActive()) {
+        return null;
+    }
+
+    const scenario = typeof stateApi.getTutorialScenarioContext === 'function'
+        ? stateApi.getTutorialScenarioContext()
+        : null;
+    return {
+        imageSrc: scenario && scenario.observerImageSrc ? String(scenario.observerImageSrc) : 'assets/images/cpu/level6.png',
+        label: scenario && scenario.observerName ? String(scenario.observerName) : '盤理の観測者',
+        fadeOut: !!(scenario && scenario.observerDuelPostResultPhase === 'fade_out')
+    };
+}
+
+function applyObserverDuelCpuPanelState(observerDuelPresentation, charImg, levelLabel) {
+    const panel = document.getElementById('cpu-character-panel');
+    const faded = !!(observerDuelPresentation && observerDuelPresentation.fadeOut === true);
+    if (panel) {
+        panel.style.transition = 'opacity 280ms ease';
+        panel.style.opacity = faded ? '0.18' : '1';
+    }
+    if (charImg) {
+        charImg.style.opacity = faded ? '0.18' : '1';
+    }
+    if (levelLabel) {
+        levelLabel.style.opacity = faded ? '0.42' : '1';
+    }
+}
+
 function applyNetworkSeatLabels(levelLabel) {
     const heroLabel = document.getElementById('hero-label');
     if (!isNetworkModeForLabels()) {
@@ -217,39 +274,59 @@ function applyCpuCharacterLevelScale(charImg, level) {
 
 function updateCpuCharacter() {
     const level = cpuSmartness.white || 1;
+    const storyEncounterPresentation = resolveStoryEncounterCpuPresentation();
+    const observerDuelPresentation = resolveObserverDuelCpuPresentation();
+    const specialPresentation = storyEncounterPresentation || observerDuelPresentation;
+    const displayLevel = observerDuelPresentation ? 6 : level;
     const charImg = getElement('cpuCharacterImg');
     const levelLabel = getElement('cpuLevelLabel');
+    const heroLabel = document.getElementById('hero-label');
     
     if (charImg && levelLabel) {
-        const primaryPath = `assets/images/cpu/level${level}.png`;
-        const fallbackPath = `assets/cpu-characters/level${level}.png`;
+        const primaryPath = specialPresentation && specialPresentation.imageSrc
+            ? String(specialPresentation.imageSrc)
+            : `assets/images/cpu/level${displayLevel}.png`;
+        const fallbackCandidates = [];
+        const levelImagePath = `assets/images/cpu/level${displayLevel}.png`;
+        const legacyFallbackPath = `assets/cpu-characters/level${displayLevel}.png`;
+        if (levelImagePath !== primaryPath) fallbackCandidates.push(levelImagePath);
+        fallbackCandidates.push(legacyFallbackPath);
+        let fallbackIndex = 0;
         
         // プリロード + フェード効果（新パス→旧パスの順で試行）
         const img = new Image();
         img.onload = () => {
             charImg.src = img.src;
-            charImg.style.opacity = '1';
-            applyCpuCharacterLevelScale(charImg, level);
+            applyCpuCharacterLevelScale(charImg, displayLevel);
+            applyObserverDuelCpuPanelState(observerDuelPresentation, charImg, levelLabel);
             try { positionCpuSpeechBubble(); } catch (e) { /* ignore */ }
         };
         img.onerror = () => {
-            if (img.src.endsWith(primaryPath)) {
-                // 新構成が見つからなければ旧構成にフォールバック
-                img.src = fallbackPath;
-            } else {
-                charImg.style.opacity = '0.3';
-                // エラー時にはデフォルトサイズに戻す
-                charImg.style.transform = '';
-                charImg.style.width = '';
-                charImg.style.height = '';
-                charImg.style.removeProperty('--cpu-level-scale');
-                console.warn(`敵キャラクター画像が見つかりません: ${primaryPath} / ${fallbackPath}`);
+            while (fallbackIndex < fallbackCandidates.length) {
+                const nextPath = fallbackCandidates[fallbackIndex++];
+                if (nextPath && img.src !== nextPath) {
+                    img.src = nextPath;
+                    return;
+                }
             }
+            charImg.style.opacity = '0.3';
+            charImg.style.transform = '';
+            charImg.style.width = '';
+            charImg.style.height = '';
+            charImg.style.removeProperty('--cpu-level-scale');
+            applyObserverDuelCpuPanelState(observerDuelPresentation, charImg, levelLabel);
+            console.warn(`敵キャラクター画像が見つかりません: ${primaryPath}`);
         };
         img.src = primaryPath;
 
-        levelLabel.textContent = CPU_LEVEL_NAMES[level] || 'レベル ' + level;
-        applyNetworkSeatLabels(levelLabel);
+        levelLabel.textContent = specialPresentation
+            ? specialPresentation.label
+            : (CPU_LEVEL_NAMES[level] || 'レベル ' + level);
+        if (specialPresentation) {
+            if (heroLabel) heroLabel.textContent = HERO_DEFAULT_LABEL;
+        } else {
+            applyNetworkSeatLabels(levelLabel);
+        }
     }
 }
 

@@ -74,6 +74,27 @@ function publishNetworkSnapshot(meta) {
         globalThis.NetworkMatchClient.publishSnapshot(meta || {});
     } catch (e) { /* ignore */ }
 }
+
+function captureNetworkPublishSnapshot(gameStateValue, cardStateValue) {
+    if (!gameStateValue || !cardStateValue) return null;
+    try {
+        if (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') {
+            return {
+                gameState: globalThis.structuredClone(gameStateValue),
+                cardState: globalThis.structuredClone(cardStateValue)
+            };
+        }
+    } catch (e) { /* ignore */ }
+
+    try {
+        return {
+            gameState: JSON.parse(JSON.stringify(gameStateValue)),
+            cardState: JSON.parse(JSON.stringify(cardStateValue))
+        };
+    } catch (e) {
+        return null;
+    }
+}
 // Centralized presentation helper
 var BoardPresentation = null;
 if (typeof require === 'function') {
@@ -230,6 +251,8 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
         }
     }
 
+    const publishSnapshotOverride = captureNetworkPublishSnapshot(gameState, cardState);
+
     const safeIsProcessing = (typeof isProcessing !== 'undefined') ? isProcessing : undefined;
     const safeIsCardAnimating = (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined;
     debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] after apply', { gameStateCurrentPlayer: gameState.currentPlayer, playerKey, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, pendingEffect: cardState.pendingEffectByPlayer });
@@ -251,11 +274,13 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
     // Finalize turn: pipeline handles the turn-end logic (do NOT call the CardLogic turn-end writer from UI)
     if (typeof isGameOver === 'function' && isGameOver(gameState)) {
         if (typeof showResult === 'function') { showResult(); }
-        publishNetworkSnapshot({
+        const publishMeta = {
             playerKey,
             actionType: (action && action.type) ? action.type : 'place',
             playbackEvents: Array.isArray(res.playbackEvents) ? res.playbackEvents : []
-        });
+        };
+        if (publishSnapshotOverride) publishMeta.snapshot = publishSnapshotOverride;
+        publishNetworkSnapshot(publishMeta);
         isProcessing = false;
         return;
     }
@@ -289,11 +314,13 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
         publishPlaybackEvents.push(...turnStartPlaybackEvents);
     }
 
-    publishNetworkSnapshot({
+    const publishMeta = {
         playerKey,
         actionType: (action && action.type) ? action.type : 'place',
         playbackEvents: publishPlaybackEvents
-    });
+    };
+    if (publishSnapshotOverride) publishMeta.snapshot = publishSnapshotOverride;
+    publishNetworkSnapshot(publishMeta);
     const humanMode = isHumanVsHumanModeEnabled();
     const safeCpuDelay = (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 600;
     if (typeof WHITE !== 'undefined' && gameState.currentPlayer === WHITE && !humanMode) {

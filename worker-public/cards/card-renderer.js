@@ -1,5 +1,15 @@
 // ===== Card Rendering =====
 
+var PlaybackStateModule = null;
+if (typeof require === 'function') {
+    try { PlaybackStateModule = require('../ui/playback-state-manager'); } catch (e) { /* ignore */ }
+}
+if (!PlaybackStateModule) {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) PlaybackStateModule = globalThis.PlaybackStateManager;
+    } catch (e) { /* ignore */ }
+}
+
 function getCardCostTier(cost) {
     const safeCost = Number.isFinite(cost) ? cost : 0;
     if (safeCost === 0) return 'white';
@@ -91,6 +101,75 @@ function _resolveCardRendererCardState() {
     return null;
 }
 
+function _getCardRendererPlaybackStaleMs() {
+    try {
+        if (typeof window !== 'undefined') {
+            const ms = Number(window.PASS_STALE_PLAYBACK_MS);
+            if (Number.isFinite(ms) && ms > 0) return ms;
+        }
+    } catch (e) { /* ignore */ }
+    return 3500;
+}
+
+function _isStaleVisualPlaybackLockForRender() {
+    try {
+        if (!_isVisualPlaybackActiveForRender()) return false;
+        if (typeof window !== 'undefined' && window.AnimationEngine && typeof window.AnimationEngine.isPlaying === 'boolean') {
+            return window.AnimationEngine.isPlaying !== true;
+        }
+        const startedAt = _getPlaybackStartedAtForRender();
+        if (Number.isFinite(startedAt)) {
+            return (Date.now() - startedAt) > _getCardRendererPlaybackStaleMs();
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function _isVisualPlaybackActiveForRender() {
+    if (PlaybackStateModule && typeof PlaybackStateModule.getPlaybackActive === 'function') {
+        return PlaybackStateModule.getPlaybackActive() === true;
+    }
+    return (typeof window !== 'undefined' && window.VisualPlaybackActive === true);
+}
+
+function _getPlaybackStartedAtForRender() {
+    if (PlaybackStateModule && typeof PlaybackStateModule.getPlaybackStartedAt === 'function') {
+        return PlaybackStateModule.getPlaybackStartedAt();
+    }
+    if (typeof window === 'undefined') return null;
+    const startedAt = Number(window.__playbackActiveSince);
+    return Number.isFinite(startedAt) ? startedAt : null;
+}
+
+function _isCardAnimatingForRender() {
+    if (PlaybackStateModule && typeof PlaybackStateModule.getCardAnimating === 'function') {
+        return PlaybackStateModule.getCardAnimating() === true;
+    }
+    return (
+        (typeof isCardAnimating !== 'undefined' && !!isCardAnimating) ||
+        (typeof window !== 'undefined' && !!window.isCardAnimating) ||
+        _isVisualPlaybackActiveForRender()
+    );
+}
+
+
+function _isHiddenHandTokenForRender(cardId) {
+    try {
+        if (typeof OwnerHelpers !== 'undefined' && OwnerHelpers && typeof OwnerHelpers.isHiddenHandToken === 'function') {
+            return OwnerHelpers.isHiddenHandToken(cardId);
+        }
+    } catch (e) { /* ignore */ }
+    return typeof cardId === 'string' && /^__hidden_hand__:(black|white):(\d+)$/.test(cardId);
+}
+
+function _createHiddenHandCardElement(cardId, ownerKey) {
+    const cardEl = document.createElement('div');
+    cardEl.className = 'card-item hidden';
+    cardEl.dataset.cardId = cardId;
+    cardEl.dataset.ownerKey = ownerKey;
+    cardEl.textContent = 'CARD';
+    return cardEl;
+}
 function _refreshDebugHandLayoutIfNeeded() {
     try {
         if (typeof require === 'function') {
@@ -109,6 +188,31 @@ function _refreshDebugHandLayoutIfNeeded() {
             window.refreshDebugHandLayout();
         }
     } catch (e) { /* ignore */ }
+}
+
+function createCardFaceElement(cardId) {
+    const cardDef = CARD_DEFS.find(c => c.id === cardId);
+    const cardEl = document.createElement('div');
+    cardEl.className = 'card-item visible';
+
+    const cost = cardDef ? (cardDef.cost || 0) : 0;
+    const costTier = getCardCostTier(cost);
+    const tierClass = `cost-tier-${costTier}`;
+    cardEl.classList.add(tierClass);
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'card-name';
+    nameSpan.textContent = cardDef ? cardDef.name : '?';
+    cardEl.appendChild(nameSpan);
+
+    const costBadge = document.createElement('div');
+    costBadge.className = 'card-cost-badge';
+    costBadge.classList.add(tierClass);
+    costBadge.textContent = `コスト${cost}`;
+    cardEl.appendChild(costBadge);
+
+    cardEl.dataset.cardId = cardId;
+    return cardEl;
 }
 
 function _normalizeCardStateForRender(state) {
@@ -297,13 +401,14 @@ function renderCardUI() {
     }
 
     const isBlackTurn = gameState.currentPlayer === BLACK;
-    const isAnimating = ((typeof isCardAnimating !== 'undefined' && !!isCardAnimating) || (typeof window !== 'undefined' && !!window.isCardAnimating) || (typeof window !== 'undefined' && window.VisualPlaybackActive === true));
+    const isAnimating = _isCardAnimatingForRender();
+    const staleVisualPlaybackLock = _isStaleVisualPlaybackLockForRender();
     const inputPlayerKey = isNetworkMode
         ? localPlayerKey
         : (isDebugHvH ? (isBlackTurn ? 'black' : 'white') : 'black');
     const pending = cardState.pendingEffectByPlayer[inputPlayerKey];
     const allowDuringAnimForSell = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
-    const canInteract = !isAnimating || allowDuringAnimForSell;
+    const canInteract = !isAnimating || allowDuringAnimForSell || staleVisualPlaybackLock;
 
     const fadeState = (typeof window !== 'undefined')
         ? (window.__handFadeInState || window.__handFadeInHint || null)
@@ -339,35 +444,33 @@ function renderCardUI() {
             : inputPlayerKey;
 
         ownerHand.forEach((cardId, idx) => {
-            const cardEl = document.createElement('div');
+            let cardEl = document.createElement('div');
             const canShowFace = isNetworkMode
                 ? (ownerKey === localPlayerKey)
                 : revealByDefault;
+            const isHiddenToken = _isHiddenHandTokenForRender(cardId);
 
-            if (!canShowFace) {
-                cardEl.className = 'card-item hidden';
-                cardEl.dataset.cardId = cardId;
-                cardEl.dataset.ownerKey = ownerKey;
-                cardEl.textContent = 'CARD';
+            if (!canShowFace || isHiddenToken) {
+                cardEl = _createHiddenHandCardElement(cardId, ownerKey);
             } else {
                 const cardDef = CARD_DEFS.find(c => c.id === cardId);
-                cardEl.className = 'card-item visible';
+                cardEl = createCardFaceElement(cardId);
 
                 const cost = cardDef ? (cardDef.cost || 0) : 0;
-                const costTier = getCardCostTier(cost);
-                const tierClass = `cost-tier-${costTier}`;
-                cardEl.classList.add(tierClass);
 
                 const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
                 const hasNotUsedThisTurn = isDebugUnlimited ? true : !cardState.hasUsedCardThisTurnByPlayer[ownerKey];
                 const canAfford = isDebugUnlimited ? true : ((cardState.charge[ownerKey] || 0) >= cost);
                 const isOwnerTurn = ownerKey === 'black' ? isBlackTurn : !isBlackTurn;
+                const canInspectOwnerHand = isNetworkMode
+                    ? (ownerKey === localPlayerKey)
+                    : (isDebugHvH ? isOwnerTurn : (ownerKey === 'black'));
                 const canControlOwnerHand = isNetworkMode
                     ? (ownerKey === localPlayerKey && isOwnerTurn)
                     : (isDebugHvH ? isOwnerTurn : (ownerKey === 'black' && isOwnerTurn));
                 const usable = canControlOwnerHand && canInteract && hasNotUsedThisTurn && canAfford;
 
-                if (canControlOwnerHand && canInteract) {
+                if (canInspectOwnerHand && canInteract) {
                     cardEl.classList.add('clickable');
                     cardEl.addEventListener('click', () => onCardClick(cardId, ownerKey));
                 }
@@ -377,17 +480,6 @@ function renderCardUI() {
                 if (cardState.selectedCardId === cardId && ownerKey === inputPlayerKey && selectedOwnerKey === ownerKey) {
                     cardEl.classList.add('selected');
                 }
-
-                const nameSpan = document.createElement('span');
-                nameSpan.className = 'card-name';
-                nameSpan.textContent = cardDef ? cardDef.name : '?';
-                cardEl.appendChild(nameSpan);
-
-                const costBadge = document.createElement('div');
-                costBadge.className = 'card-cost-badge';
-                costBadge.classList.add(tierClass);
-                costBadge.textContent = `コスト${cost}`;
-                cardEl.appendChild(costBadge);
 
                 cardEl.dataset.cardId = cardId;
                 cardEl.dataset.ownerKey = ownerKey;

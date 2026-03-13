@@ -1,6 +1,6 @@
 {
-  "version": "2026-03-07",
-  "generatedAt": "2026-03-07T04:32:25.298Z",
+  "version": "2026-03-12",
+  "generatedAt": "2026-03-12T11:20:01.159Z",
   "files": [
     {
       "path": "assets/images/stones/BREEDING_WILL-black.png",
@@ -80,11 +80,11 @@
     },
     {
       "path": "assets/images/stones/OBSERVER_WILL-black.png",
-      "sha256": "7d0e603275ccaab579d128a489cbd9348418a7e99dcc9d06a6f0438d987979d7"
+      "sha256": "7ab2eb56159cc8545b4576c161e26c59feadf98cc5916a3c031694f43cad4c99"
     },
     {
       "path": "assets/images/stones/OBSERVER_WILL-white.png",
-      "sha256": "8248d0e5f6fef0c14cb73dfdcc1771e511b8948307a910d8d46f1028e003172d"
+      "sha256": "d38dbff6bce968e18565312bfdc05261cece4dc358842a113605d86fe8f5299d"
     },
     {
       "path": "assets/images/stones/perma_protect_next_stone-black.png",
@@ -97,6 +97,10 @@
     {
       "path": "assets/images/stones/protected_next_stone.png",
       "sha256": "80991c995b35769eadb407afcd287d03bed5401932826a5dbe36f8b4e05b1145"
+    },
+    {
+      "path": "assets/images/stones/rainbow_stone.png",
+      "sha256": "e098264f24c16a8ff7263d1b3be12414845ef47c5c7e68f58abc4f93a5d417d3"
     },
     {
       "path": "assets/images/stones/rakurai-black.png",
@@ -173,6 +177,14 @@
     {
       "path": "assets/images/stones/ultimate_reverse_dragon-white.png",
       "sha256": "929c14b12bcbd7d389a1c5a804458c9d344a640713d99dca14d24919eaad264d"
+    },
+    {
+      "path": "assets/images/stones/WILL_HUNTER_KING-black.png",
+      "sha256": "bc89c269590ab222b6cb0760143e9522dfea13901e6705a21bd42d7d92aba703"
+    },
+    {
+      "path": "assets/images/stones/WILL_HUNTER_KING-white.png",
+      "sha256": "2959376041799edc39415890f29d46557d6a1fbe7c6abbd7b9bd13a8ff554e91"
     },
     {
       "path": "assets/images/stones/work_stone-black.png",

@@ -108,4 +108,19 @@ describe('visual-effects map shared between game/ui', () => {
     expect(gluttonousMap.imagePathByOwner['1']).toContain('GLUTTONOUS_WILL-black.png');
     expect(gluttonousMap.imagePathByOwner['-1']).toContain('GLUTTONOUS_WILL-white.png');
   });
+
+  test('WILL_HUNTER_KING が正式画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared).toBeTruthy();
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.WILL_HUNTER_KING).toBe('willHunterKingStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.WILL_HUNTER_KING).toBe('willHunterKingStone');
+
+    const willHunterKingMap = shared.STONE_VISUAL_EFFECTS.willHunterKingStone;
+    expect(willHunterKingMap).toBeTruthy();
+    expect(willHunterKingMap.imagePathByOwner['1']).toContain('WILL_HUNTER_KING-black.png');
+    expect(willHunterKingMap.imagePathByOwner['-1']).toContain('WILL_HUNTER_KING-white.png');
+  });
 });

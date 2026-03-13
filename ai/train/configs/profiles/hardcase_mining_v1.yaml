@@ -1,0 +1,90 @@
+schemaVersion: training_profile.v1
+name: hardcase_mining_v1
+description: >
+  hardcase 抽出を優先し、selfplay.v2 の difficult 局面を集中的に保存するための隔離 profile。
+runTagPrefix: hardcase_mining_v1
+gateProfile: adoption_v2
+paths:
+  runsDir: data/runs/hardcase_mining_v1
+  modelsDir: data/models/hardcase_mining_v1
+bootstrap:
+  sourcePolicyTable: data/models/policy-table.json
+  sourceOnnxModel: data/models/policy-net.onnx
+  sourceOnnxMeta: data/models/policy-net.onnx.meta.json
+  copyPromotedPolicyTable: true
+  copyPromotedOnnxModel: true
+  copyPromotedOnnxMeta: true
+  useCopiedPolicyTableAsBootstrap: true
+  autoResumeLatestCheckpoint: true
+preflight:
+  enabled: true
+  strict: false
+  allowArtifacts: true
+  checkWindow: true
+trainCycleArgs:
+  - --iterations
+  - "48"
+  - --max-hours
+  - "24"
+  - --train-games
+  - "8000"
+  - --eval-games
+  - "1600"
+  - --selfplay-jobs
+  - "4"
+  - --adoption-jobs
+  - "4"
+  - --onnx-gate-jobs
+  - "4"
+  - --seed
+  - "1"
+  - --max-plies
+  - "220"
+  - --with-cards
+  - --card-usage-rate
+  - "0.60"
+  - --selfplay-policy-mix-rate
+  - "1.0"
+  - --selfplay-policy-model-pool-size
+  - "3"
+  - --selfplay-policy-pool-sampling
+  - recency
+  - --selfplay-policy-pool-recency-decay
+  - "2.5"
+  - --selfplay-policy-current-anchor-rate
+  - "0.50"
+  - --selfplay-tactical-weight-min
+  - "1.0"
+  - --selfplay-tactical-weight-max
+  - "1.0"
+  - --selfplay-tactical-depth-opening
+  - "6"
+  - --selfplay-tactical-depth-mid
+  - "8"
+  - --selfplay-tactical-depth-end
+  - "10"
+  - --selfplay-tactical-beam-width
+  - "10"
+  - --onnx-epochs
+  - "600"
+  - --onnx-batch-size
+  - "1024"
+  - --onnx-lr
+  - "0.00065"
+  - --onnx-hidden-size
+  - "320"
+  - --onnx-device
+  - auto
+  - --onnx-val-split
+  - "0.15"
+  - --onnx-early-stop-patience
+  - "16"
+  - --onnx-early-stop-min-delta
+  - "0.00008"
+  - --onnx-early-stop-min-epochs
+  - "80"
+  - --onnx-early-stop-monitor
+  - val_loss
+  - --onnx-early-stop-smoothing-window
+  - "3"
+  - --carry-over-checkpoint

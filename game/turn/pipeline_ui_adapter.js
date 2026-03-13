@@ -109,13 +109,6 @@
         return !!(ev && ev.meta && ev.meta.special === REGEN_CAUSE && ev.meta.reason === REGEN_CONSUMED_REASON);
     }
 
-    function isRegenFlipStep(target, eventMeta) {
-        if (!target) return false;
-        const isPrimaryFlipOnRegenStone = target.reason === 'standard_flip' && eventMeta && eventMeta.special === REGEN_CAUSE;
-        const isRegenBackFlip = target.cause === REGEN_CAUSE && target.reason === REGEN_TRIGGER_REASON;
-        return !!(isPrimaryFlipOnRegenStone || isRegenBackFlip);
-    }
-
     function isChainFlipPresentationEvent(ev) {
         if (!ev) return false;
         const reason = String(ev.reason || '').toLowerCase();
@@ -138,10 +131,19 @@
         return isInheritedHyperactiveType(special) ? null : special;
     }
 
+    function resolveDisplayTimerValue(special, timerValue, regenRemainingValue) {
+        if (isInheritedHyperactiveType(special)) return null;
+        const timer = toCounterOrNull(timerValue);
+        if (timer !== null) return timer;
+        if (String(special || '').toUpperCase() === 'REGEN') {
+            return toCounterOrNull(regenRemainingValue);
+        }
+        return null;
+    }
+
     function getPrimaryTimerFromMeta(meta) {
         const special = (meta && meta.special) || null;
-        if (isInheritedHyperactiveType(special)) return null;
-        return (meta && meta.timer) || null;
+        return resolveDisplayTimerValue(special, meta && meta.timer, meta && meta.regenRemaining);
     }
 
     function getInheritedTimerFromMeta(meta) {
@@ -177,6 +179,10 @@
             return getFlipEvadeRemainingFromMeta(meta);
         }
         return null;
+    }
+
+    function getDestroyEvadeRemainingFromMeta(meta) {
+        return toCounterOrNull(meta && meta.destroyEvadeRemaining);
     }
 
     function isMainBoardCell(r, c) {
@@ -229,7 +235,8 @@
             inheritedTimer: null,
             inheritedOwner: null,
             flipEvadeRemaining: null,
-            inheritedFlipEvadeRemaining: null
+            inheritedFlipEvadeRemaining: null,
+            destroyEvadeRemaining: null
         };
         const color = getCellColorAt(gameState, r, c);
 
@@ -241,6 +248,7 @@
         let inheritedOwner = null;
         let flipEvadeRemaining = null;
         let inheritedFlipEvadeRemaining = null;
+        let destroyEvadeRemaining = null;
 
         if (cardState && cardState.markers) {
             const markersAtCell = cardState.markers.filter((m) => (
@@ -273,11 +281,14 @@
 
             if (visualSpecial) {
                 special = (visualSpecial.data && visualSpecial.data.type) || null;
-                timer = (visualSpecial.data && Number.isFinite(Number(visualSpecial.data.remainingOwnerTurns)))
-                    ? Number(visualSpecial.data.remainingOwnerTurns)
-                    : null;
+                timer = resolveDisplayTimerValue(
+                    special,
+                    visualSpecial.data && visualSpecial.data.remainingOwnerTurns,
+                    visualSpecial.data && visualSpecial.data.regenRemaining
+                );
                 owner = (visualSpecial.owner !== undefined && visualSpecial.owner !== null) ? visualSpecial.owner : null;
                 flipEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.flipEvadeRemaining);
+                destroyEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.destroyEvadeRemaining);
                 if (flipEvadeRemaining === null && String(special || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE') {
                     flipEvadeRemaining = 5;
                 }
@@ -304,7 +315,8 @@
             inheritedTimer,
             inheritedOwner,
             flipEvadeRemaining,
-            inheritedFlipEvadeRemaining
+            inheritedFlipEvadeRemaining,
+            destroyEvadeRemaining
         };
     }
 
@@ -322,6 +334,7 @@
         let superCrushActionId = null;
         let gluttonousEatPhase = null;
         let gluttonousEatActionId = null;
+        let willHunterKingSlashPhase = null;
 
         for (const ev of presEvents || []) {
             const pEvent = {
@@ -340,6 +353,7 @@
                     prevWasChainFlip = false;
                     prevChainFlipLink = null;
                     prevDestroyCause = null;
+                    willHunterKingSlashPhase = null;
                     const spawnCause = String(ev.cause || '').toUpperCase();
                     if (
                         (spawnCause === 'CLONE_WILL' || spawnCause === 'SPLIT_WILL') &&
@@ -398,7 +412,11 @@
                     const isSuperCrushDestroy =
                         SUPER_CRUSH_CAUSES.has(destroyCauseUpper) &&
                         (destroyReason.indexOf('super_buoyancy_collision') === 0 || destroyReason.indexOf('super_gravity_collision') === 0);
+                    const isWillHunterKingSlashDestroy =
+                        destroyCauseUpper === 'WILL_HUNTER_KING' &&
+                        destroyReason.indexOf('will_hunter_king_slash') === 0;
                     if (isGluttonousEatDestroy) {
+                        willHunterKingSlashPhase = null;
                         superCrushPhase = null;
                         superCrushActionId = null;
                         const destroyActionId = ev.actionId || null;
@@ -414,6 +432,7 @@
                         gluttonousEatActionId = destroyActionId;
                         pEvent.phase = gluttonousEatPhase;
                     } else if (isSuperCrushDestroy) {
+                        willHunterKingSlashPhase = null;
                         gluttonousEatPhase = null;
                         gluttonousEatActionId = null;
                         const destroyActionId = ev.actionId || null;
@@ -428,7 +447,16 @@
                         }
                         superCrushActionId = destroyActionId;
                         pEvent.phase = superCrushPhase;
+                    } else if (isWillHunterKingSlashDestroy) {
+                        gluttonousEatPhase = null;
+                        gluttonousEatActionId = null;
+                        superCrushPhase = null;
+                        superCrushActionId = null;
+                        currentPhase++;
+                        willHunterKingSlashPhase = currentPhase;
+                        pEvent.phase = willHunterKingSlashPhase;
                     } else if (BATCH_DESTROY_CAUSES.has(destroyCauseUpper)) {
+                        willHunterKingSlashPhase = null;
                         gluttonousEatPhase = null;
                         gluttonousEatActionId = null;
                         superCrushPhase = null;
@@ -438,6 +466,7 @@
                         }
                         pEvent.phase = currentPhase;
                     } else {
+                        willHunterKingSlashPhase = null;
                         gluttonousEatPhase = null;
                         gluttonousEatActionId = null;
                         superCrushPhase = null;
@@ -449,6 +478,7 @@
                     break;
                 case 'CHANGE':
                     prevDestroyCause = null;
+                    willHunterKingSlashPhase = null;
                     // Map CHANGE -> flip to match UI AnimationEngine expectations (Spec B)
                     pEvent.type = 'flip';
                     pEvent.targets = [{
@@ -497,6 +527,9 @@
                     const isSuperCrushMove =
                         SUPER_CRUSH_CAUSES.has(moveCause) &&
                         (moveReason.indexOf('super_buoyancy_move') === 0 || moveReason.indexOf('super_gravity_move') === 0);
+                    const isWillHunterKingSlashMove =
+                        moveCause === 'WILL_HUNTER_KING' &&
+                        moveReason.indexOf('will_hunter_king_slash_move') === 0;
                     const moveActionId = ev.actionId || null;
                     const isSuperCrushActionMatched =
                         superCrushActionId === null ||
@@ -510,6 +543,8 @@
                         pEvent.phase = gluttonousEatPhase;
                     } else if (isSuperCrushMove && superCrushPhase !== null && isSuperCrushActionMatched) {
                         pEvent.phase = superCrushPhase;
+                    } else if (isWillHunterKingSlashMove && willHunterKingSlashPhase !== null) {
+                        pEvent.phase = willHunterKingSlashPhase;
                     } else {
                         currentPhase++;
                         pEvent.phase = currentPhase;
@@ -518,11 +553,13 @@
                     gluttonousEatActionId = null;
                     superCrushPhase = null;
                     superCrushActionId = null;
+                    willHunterKingSlashPhase = null;
                     break;
                 case 'STATUS_APPLIED':
                     prevWasChainFlip = false;
                     prevChainFlipLink = null;
                     prevDestroyCause = null;
+                    willHunterKingSlashPhase = null;
                     pEvent.type = 'status_applied';
                     pEvent.targets = [{ r: ev.row, col: ev.col }];
                     break;
@@ -530,6 +567,7 @@
                     prevWasChainFlip = false;
                     prevChainFlipLink = null;
                     prevDestroyCause = null;
+                    willHunterKingSlashPhase = null;
                     pEvent.type = 'status_applied';
                     pEvent.targets = [{ r: ev.row, col: ev.col }];
                     break;
@@ -537,6 +575,7 @@
                     prevWasChainFlip = false;
                     prevChainFlipLink = null;
                     prevDestroyCause = null;
+                    willHunterKingSlashPhase = null;
                     pEvent.type = 'status_removed';
                     pEvent.targets = [{ r: ev.row, col: ev.col }];
                     if (isRegenConsumedStatus(ev)) {
@@ -549,6 +588,7 @@
                     prevWasChainFlip = false;
                     prevChainFlipLink = null;
                     prevDestroyCause = null;
+                    willHunterKingSlashPhase = null;
                     pEvent.type = 'hand_remove';
                     pEvent.targets = [{
                         player: ev.player || null,
@@ -564,6 +604,7 @@
                     prevWasChainFlip = false;
                     prevChainFlipLink = null;
                     prevDestroyCause = null;
+                    willHunterKingSlashPhase = null;
                     pEvent.type = 'hand_add';
                     pEvent.targets = [{
                         player: ev.player || null,
@@ -578,6 +619,7 @@
                     prevWasChainFlip = false;
                     prevChainFlipLink = null;
                     prevDestroyCause = null;
+                    willHunterKingSlashPhase = null;
                     pEvent.type = 'card_use_animation';
                     pEvent.targets = [{
                         player: ev.player || null,
@@ -594,6 +636,7 @@
                     prevWasChainFlip = false;
                     prevChainFlipLink = null;
                     prevDestroyCause = null;
+                    willHunterKingSlashPhase = null;
                     pEvent.type = 'log';
                     pEvent.targets = [];
                     if (Number.isInteger(ev.row) && Number.isInteger(ev.col)) {
@@ -622,6 +665,7 @@
                     prevWasChainFlip = false;
                     prevChainFlipLink = null;
                     prevDestroyCause = null;
+                    willHunterKingSlashPhase = null;
                     pEvent.type = 'log';
                     pEvent.targets = [];
                     if (!_isWorkDurationExpiredPresentationEvent(ev) && Number.isInteger(ev.row) && Number.isInteger(ev.col)) {
@@ -675,6 +719,7 @@
                     prevWasChainFlip = false;
                     prevChainFlipLink = null;
                     prevDestroyCause = null;
+                    willHunterKingSlashPhase = null;
                     pEvent.type = 'observer_bubble';
                     pEvent.targets = [{
                         r: ev.row,
@@ -706,17 +751,16 @@
                 for (const t of pEvent.targets) {
                     // Add a best-effort 'after' using event-sourced owner fields (no final snapshot)
                     if (t.ownerAfter !== undefined) {
-                        const regenFlipStep = isRegenFlipStep(t, ev.meta);
                         t.after = {
                             color: (t.ownerAfter === 'black') ? 1 : -1,
-                            // For regen flow, show as normal stone between/after flips for readability.
-                            special: regenFlipStep ? null : getVisualSpecialFromMeta(ev.meta),
-                            timer: regenFlipStep ? null : getPrimaryTimerFromMeta(ev.meta),
+                            special: getVisualSpecialFromMeta(ev.meta),
+                            timer: getPrimaryTimerFromMeta(ev.meta),
                             owner: (ev.meta && ev.meta.owner) || null,
                             inheritedTimer: getInheritedTimerFromMeta(ev.meta),
                             inheritedOwner: getInheritedOwnerFromMeta(ev.meta),
                             flipEvadeRemaining: getFlipEvadeRemainingFromMeta(ev.meta),
-                            inheritedFlipEvadeRemaining: getInheritedFlipEvadeRemainingFromMeta(ev.meta)
+                            inheritedFlipEvadeRemaining: getInheritedFlipEvadeRemainingFromMeta(ev.meta),
+                            destroyEvadeRemaining: getDestroyEvadeRemainingFromMeta(ev.meta)
                         };
                     } else if (pEvent.type === 'spawn') {
                         t.after = {
@@ -727,7 +771,8 @@
                             inheritedTimer: getInheritedTimerFromMeta(ev.meta),
                             inheritedOwner: getInheritedOwnerFromMeta(ev.meta),
                             flipEvadeRemaining: getFlipEvadeRemainingFromMeta(ev.meta),
-                            inheritedFlipEvadeRemaining: getInheritedFlipEvadeRemainingFromMeta(ev.meta)
+                            inheritedFlipEvadeRemaining: getInheritedFlipEvadeRemainingFromMeta(ev.meta),
+                            destroyEvadeRemaining: getDestroyEvadeRemainingFromMeta(ev.meta)
                         };
                     } else if (pEvent.type === 'move') {
                         const afterColor = (t.ownerAfter === 'black') ? 1 : ((t.ownerAfter === 'white') ? -1 : 0);
@@ -739,7 +784,8 @@
                             inheritedTimer: getInheritedTimerFromMeta(ev.meta),
                             inheritedOwner: getInheritedOwnerFromMeta(ev.meta),
                             flipEvadeRemaining: getFlipEvadeRemainingFromMeta(ev.meta),
-                            inheritedFlipEvadeRemaining: getInheritedFlipEvadeRemainingFromMeta(ev.meta)
+                            inheritedFlipEvadeRemaining: getInheritedFlipEvadeRemainingFromMeta(ev.meta),
+                            destroyEvadeRemaining: getDestroyEvadeRemainingFromMeta(ev.meta)
                         };
                     } else if (pEvent.type === 'destroy') {
                         t.after = {
@@ -750,7 +796,8 @@
                             inheritedTimer: null,
                             inheritedOwner: null,
                             flipEvadeRemaining: null,
-                            inheritedFlipEvadeRemaining: null
+                            inheritedFlipEvadeRemaining: null,
+                            destroyEvadeRemaining: null
                         };
                     } else if (pEvent.type === 'status_applied' || pEvent.type === 'status_removed') {
                         const visual = getVisualStateAt(t.r, t.col, finalCardState, finalGameState);
@@ -761,6 +808,7 @@
                         const inheritedOwnerFromEvent = getInheritedOwnerFromMeta(ev.meta);
                         const flipEvadeRemainingFromEvent = getFlipEvadeRemainingFromMeta(ev.meta);
                         const inheritedFlipEvadeRemainingFromEvent = getInheritedFlipEvadeRemainingFromMeta(ev.meta);
+                        const destroyEvadeRemainingFromEvent = getDestroyEvadeRemainingFromMeta(ev.meta);
                         const isStatusRemoved = pEvent.type === 'status_removed';
                         let color = visual.color || 0;
                         if (color === 0 && (specialFromEventRaw === 'TRAP' || specialFromEventRaw === 'TRAP_REVEAL')) {
@@ -786,6 +834,9 @@
                         const inheritedFlipEvadeRemainingForVisual = isStatusRemoved
                             ? (visual.inheritedFlipEvadeRemaining ?? null)
                             : ((inheritedFlipEvadeRemainingFromEvent ?? visual.inheritedFlipEvadeRemaining) ?? null);
+                        const destroyEvadeRemainingForVisual = isStatusRemoved
+                            ? (visual.destroyEvadeRemaining ?? null)
+                            : ((destroyEvadeRemainingFromEvent ?? visual.destroyEvadeRemaining) ?? null);
                         t.after = {
                             color,
                             special: specialForVisual,
@@ -794,7 +845,8 @@
                             inheritedTimer: inheritedTimerForVisual,
                             inheritedOwner: inheritedOwnerForVisual,
                             flipEvadeRemaining: flipEvadeRemainingForVisual,
-                            inheritedFlipEvadeRemaining: inheritedFlipEvadeRemainingForVisual
+                            inheritedFlipEvadeRemaining: inheritedFlipEvadeRemainingForVisual,
+                            destroyEvadeRemaining: destroyEvadeRemainingForVisual
                         };
                     } else {
                         t.after = {
@@ -805,7 +857,8 @@
                             inheritedTimer: null,
                             inheritedOwner: null,
                             flipEvadeRemaining: null,
-                            inheritedFlipEvadeRemaining: null
+                            inheritedFlipEvadeRemaining: null,
+                            destroyEvadeRemaining: null
                         };
                     }
                 }
@@ -915,7 +968,7 @@
 
     function _isGoldSilverSelfDestroyTarget(target) {
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
-        return reason === 'gold_stone_sacrifice' || reason === 'silver_stone_sacrifice';
+        return reason === 'gold_stone_sacrifice' || reason === 'rainbow_stone_sacrifice' || reason === 'silver_stone_sacrifice';
     }
 
     function _isGoldSilverSelfDestroyEvent(ev) {
@@ -1065,8 +1118,16 @@
             (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'TRAP',
             fallbackPhase
         );
+        const timeBombSelectPhase = _findPhase(
+            base,
+            (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'TIME_BOMB',
+            fallbackPhase
+        );
         if (_hasRawEvent(raw, 'trap_selected', (ev) => !!(ev && ev.applied))) {
             pushCue('trap_select', trapSelectPhase, 'trap_selected');
+        }
+        if (_hasRawEvent(raw, 'time_bomb_selected', (ev) => !!(ev && ev.applied))) {
+            pushCue('trap_select', timeBombSelectPhase, 'time_bomb_selected');
         }
 
         const guardSelectPhase = _findPhase(
@@ -1076,6 +1137,15 @@
         );
         if (_hasRawEvent(raw, 'guard_selected', (ev) => !!(ev && ev.applied))) {
             pushCue('guard_select', guardSelectPhase, 'guard_selected');
+        }
+
+        const freezeSelectPhase = _findPhase(
+            base,
+            (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'FREEZE',
+            fallbackPhase
+        );
+        if (_hasRawEvent(raw, 'freeze_selected', (ev) => !!(ev && ev.applied))) {
+            pushCue('freeze_select', freezeSelectPhase, 'freeze_selected');
         }
 
         const trapTriggeredEvent = raw.find((ev) => ev && ev.type === 'trap_triggered' && _rawDetailCount(ev) > 0);
@@ -1562,6 +1632,18 @@
                 case 'lightning_expired_immediate':
                     push(`落雷石: 親石${_detailCount(ev)}個が消滅`);
                     break;
+                case 'will_hunter_king_destroyed_start':
+                case 'will_hunter_king_destroyed_immediate':
+                    push(`意志狩りの王: ${_detailCount(ev)}個を斬撃破壊`);
+                    break;
+                case 'will_hunter_king_moved_start':
+                case 'will_hunter_king_moved_immediate':
+                    push(`意志狩りの王: ${_detailCount(ev)}回移動`);
+                    break;
+                case 'will_hunter_king_expired_start':
+                case 'will_hunter_king_expired_immediate':
+                    push(`意志狩りの王: 親石${_detailCount(ev)}個が消滅`);
+                    break;
                 case 'observer_triggered_start':
                 case 'observer_triggered_immediate':
                     push(`盤理の観測者: 布石+${_detailGainedSum(ev)}`);
@@ -1602,6 +1684,9 @@
                     break;
                 case 'supply_will_resolved':
                     push(`補給の意志: ${Number(ev.drawnCount) || 0}枚ドロー`);
+                    break;
+                case 'corner_tribute_resolved':
+                    push(`角の代償: 相手の布石を${Number(ev.stolen) || 0}奪取`);
                     break;
                 case 'ribo_will_resolved':
                     push(`リボ払いの意志: 布石+${Number(ev.gained) || 0}、以後${Number(ev.remainingOwnerTurns) || 0}ターンは開始時に${Number(ev.repaymentAmount) || 0}返済`);
@@ -1677,6 +1762,9 @@
                 case 'meteor_selected':
                     if (ev.applied) push(`隕石: ${_toPosText(ev.target)}をマスごと破壊`);
                     break;
+                case 'freeze_selected':
+                    if (ev.applied) push(`凍結の意志: ${_toPosText(ev.target)}を5ターン凍結`);
+                    break;
                 case 'treasure_box_gain':
                     push(`宝箱: 布石+${Number(ev.gained) || 0}`);
                     break;
@@ -1687,7 +1775,7 @@
                     const details = Array.isArray(ev.details) ? ev.details : [];
                     if (details.length > 0) {
                         const destroyedHand = details.reduce((sum, d) => sum + (Number(d && (d.destroyedHandCount ?? d.stolenHandCount)) || 0), 0);
-                        push(`罠石が発動: 布石全没収 / 手札全破壊（${destroyedHand}枚）`);
+                        push(`罠石が発動: 布石最大20奪取 / 手札全破壊（${destroyedHand}枚）`);
                     }
                     break;
                 }
@@ -1705,8 +1793,10 @@
                         if (e.sniperPlaced) push('狙撃の意志: 狙撃石を設置');
                         if (e.lightningPlaced) push('落雷の意志: 落雷石を設置');
                         if (e.observerPlaced) push('盤理の観測者を設置');
+                        if (e.willHunterKingPlaced) push('意志狩りの王を設置');
                         if (e.silverStoneUsed) push('銀石: 獲得布石3倍');
                         if (e.goldStoneUsed) push('金石: 獲得布石4倍');
+                        if (e.rainbowStoneUsed) push('虹石: 獲得布石6倍');
                         if (e.protected) push('反転保護を付与');
                         if (e.permaProtected) push('永続反転保護を付与');
                         if (e.bombPlaced) push('時限爆弾を設置');
@@ -1722,10 +1812,6 @@
                         if (e.crossBombExploded) push(`十字爆弾: ${e.crossBombDestroyed || 0}個を爆破`);
                         if (e.xBombExploded) push(`クロス爆弾: ${e.xBombDestroyed || 0}個を爆破`);
                         if (e.plunderAmount > 0) push(`吸収の意志: 布石を${e.plunderAmount}吸収`);
-                        if (e.stolenCount > 0) {
-                            const gain = Number.isFinite(Number(e.resaleGain)) ? Number(e.resaleGain) : (e.stolenCount * 2);
-                            push(`転売: 相手カード${e.stolenCount}枚を売却（布石+${gain}）`);
-                        }
                     }
                     break;
                 case 'extra_place_consumed':
@@ -1805,7 +1891,7 @@
         if (!turnPipeline) throw new Error('TurnPipeline not available');
 
         // Build options for applyTurnSafe: include current state version and previous action ids if ActionManager is available
-        const options = {};
+        const options = { skipTurnStart: true };
         if (typeof ActionManager !== 'undefined' && ActionManager.ActionManager) {
             try {
                 if (typeof ActionManager.ActionManager.getRecentActionIds === 'function') {
@@ -1823,7 +1909,7 @@
         const runtimePrng = (typeof getGamePrng === 'function') ? getGamePrng() : (typeof globalThis !== 'undefined' && typeof globalThis.getGamePrng === 'function') ? globalThis.getGamePrng() : undefined;
         const result = (typeof turnPipeline.applyTurnSafe === 'function')
             ? turnPipeline.applyTurnSafe(cardState, gameState, playerKey, action, runtimePrng, options)
-            : turnPipeline.applyTurn(cardState, gameState, playerKey, action, runtimePrng);
+            : turnPipeline.applyTurn(cardState, gameState, playerKey, action, runtimePrng, options);
 
         if (result.ok === false) {
             return { ok: false, rejectedReason: result.rejectedReason || 'UNKNOWN', events: result.events };

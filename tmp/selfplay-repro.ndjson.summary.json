@@ -1,0 +1,54 @@
+{
+  "generatedAt": "2026-03-09T09:09:19.483Z",
+  "elapsedMs": 36949,
+  "schemaVersion": "selfplay.v2",
+  "config": {
+    "games": 100,
+    "seed": 1,
+    "maxPlies": 220,
+    "hardcaseOut": "C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\selfplay-repro.hardcase.ndjson",
+    "allowCardUsage": true,
+    "cardUsageRate": 0.6,
+    "policyMixRate": 1,
+    "cardUsageRateJitter": 0.12,
+    "tacticalWeightMin": 0.9,
+    "tacticalWeightMax": 1.4,
+    "tacticalDepthOpening": 4,
+    "tacticalDepthMid": 6,
+    "tacticalDepthEnd": 7,
+    "tacticalBeamWidth": 6,
+    "teacherCommitteeWeightMin": 48,
+    "teacherCommitteeWeightMax": 72,
+    "teacherCommitteeConsensusBonusMin": 620,
+    "teacherCommitteeConsensusBonusMax": 1080,
+    "policyScoreWeightMin": 1,
+    "policyScoreWeightMax": 1,
+    "heuristicWeightMin": 1,
+    "heuristicWeightMax": 1,
+    "jobs": 10,
+    "hasPolicyModel": true,
+    "policyModelPath": "C:\\Users\\quarr\\Desktop\\othello_v2\\data\\models\\production_v3\\policy-table.json",
+    "policyModelPoolPaths": [
+      "C:\\Users\\quarr\\Desktop\\othello_v2\\data\\models\\production_v3\\policy-table.json"
+    ],
+    "policyModelPoolSize": 1,
+    "policyPoolSampling": "uniform",
+    "policyPoolRecencyDecay": 1,
+    "policyCurrentAnchorRate": 1,
+    "seedFamily": "train",
+    "dataLane": "train-main",
+    "resolvedConfigPath": null
+  },
+  "summary": {
+    "schemaVersion": "selfplay.v2",
+    "totalGames": 100,
+    "totalPlies": 9229,
+    "avgPlies": 92.29,
+    "hardcaseRecords": 8922,
+    "wins": {
+      "black": 48,
+      "white": 49,
+      "draw": 3
+    }
+  }
+}

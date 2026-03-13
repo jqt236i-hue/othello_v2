@@ -1,0 +1,131 @@
+schemaVersion: training_profile.v1
+name: production_v3
+description: >
+  自己対局主役の本番主線。昇格済み guide を固定しつつ、
+  promotion_v3 で大きな退行を防ぎながら champion 昇格を狙う。
+runTagPrefix: production_v3
+gateProfile: promotion_v3
+syncCpuLv6SharedTeacher: true
+paths:
+  runsDir: data/runs/production_v3
+  modelsDir: data/models/production_v3
+bootstrap:
+  sourcePolicyTable: data/models/policy-table.json
+  sourceOnnxModel: data/models/policy-net.onnx
+  sourceOnnxMeta: data/models/policy-net.onnx.meta.json
+  copyPromotedPolicyTable: true
+  copyPromotedOnnxModel: true
+  copyPromotedOnnxMeta: true
+  useCopiedPolicyTableAsBootstrap: true
+  autoResumeLatestCheckpoint: true
+preflight:
+  enabled: true
+  strict: false
+  allowArtifacts: true
+  checkWindow: true
+trainCycleArgs:
+  - --iterations
+  - "999"
+  - --max-hours
+  - "100"
+  - --train-games
+  - "10000"
+  - --eval-games
+  - "2400"
+  - --selfplay-jobs
+  - "8"
+  - --adoption-jobs
+  - "8"
+  - --onnx-gate-jobs
+  - "8"
+  - --seed
+  - "1"
+  - --max-plies
+  - "220"
+  - --with-cards
+  - --card-usage-rate
+  - "0.60"
+  - --selfplay-policy-mix-rate
+  - "1.0"
+  - --selfplay-policy-model-pool-size
+  - "4"
+  - --selfplay-policy-pool-sampling
+  - recency
+  - --selfplay-policy-pool-recency-decay
+  - "2.0"
+  - --selfplay-policy-current-anchor-rate
+  - "0.35"
+  - --selfplay-card-usage-rate-jitter
+  - "0.12"
+  - --selfplay-tactical-weight-min
+  - "0.90"
+  - --selfplay-tactical-weight-max
+  - "1.40"
+  - --selfplay-tactical-depth-opening
+  - "4"
+  - --selfplay-tactical-depth-mid
+  - "6"
+  - --selfplay-tactical-depth-end
+  - "8"
+  - --selfplay-tactical-beam-width
+  - "10"
+  - --selfplay-teacher-committee-weight-min
+  - "32"
+  - --selfplay-teacher-committee-weight-max
+  - "52"
+  - --selfplay-teacher-committee-consensus-bonus-min
+  - "360"
+  - --selfplay-teacher-committee-consensus-bonus-max
+  - "700"
+  - --selfplay-use-promoted-model-only
+  - --onnx-epochs
+  - "9999"
+  - --onnx-batch-size
+  - "2048"
+  - --onnx-lr
+  - "0.00055"
+  - --onnx-hidden-size
+  - "384"
+  - --onnx-device
+  - auto
+  - --onnx-val-split
+  - "0.15"
+  - --onnx-early-stop-patience
+  - "24"
+  - --onnx-early-stop-min-delta
+  - "0.00004"
+  - --onnx-early-stop-min-epochs
+  - "120"
+  - --onnx-early-stop-monitor
+  - val_loss
+  - --onnx-early-stop-smoothing-window
+  - "5"
+  - --onnx-card-no-action-weight
+  - "0.66"
+  - --onnx-card-class-balance-power
+  - "0.45"
+  - --onnx-winner-sample-boost
+  - "0.40"
+  - --onnx-loser-sample-weight
+  - "0.92"
+  - --onnx-draw-sample-weight
+  - "1.0"
+  - --onnx-corner-emergency-sample-boost
+  - "0.75"
+  - --onnx-negative-future-disc-sample-boost
+  - "0.65"
+  - --onnx-negative-future-disc-threshold
+  - "-1.0"
+  - --onnx-tactical-miss-sample-boost
+  - "0.60"
+  - --onnx-tactical-miss-threshold
+  - "0.05"
+  - --onnx-hand-pressure-sample-boost
+  - "0.35"
+  - --onnx-pending-target-sample-boost
+  - "0.45"
+  - --min-visits
+  - "4"
+  - --shape-immediate
+  - "0.48"
+  - --carry-over-checkpoint

@@ -22,7 +22,13 @@ describe('selfplay clean artifacts script', () => {
         expect(shouldDeleteModelFile('policy-net.onnx', false)).toBe(true);
         expect(shouldDeleteModelFile('policy-net.onnx', true)).toBe(false);
         expect(shouldDeleteModelFile('policy-net.onnx.meta.json', true)).toBe(false);
+        expect(shouldDeleteModelFile('policy-target.onnx', true)).toBe(false);
+        expect(shouldDeleteModelFile('policy-target.onnx.meta.json', true)).toBe(false);
+        expect(shouldDeleteModelFile('policy-value.onnx', true)).toBe(false);
+        expect(shouldDeleteModelFile('policy-value.onnx.meta.json', true)).toBe(false);
         expect(shouldDeleteModelFile('policy-net.candidate.x.onnx', true)).toBe(true);
+        expect(shouldDeleteModelFile('policy-target.candidate.x.onnx', true)).toBe(true);
+        expect(shouldDeleteModelFile('policy-value.candidate.x.onnx', true)).toBe(true);
         expect(shouldDeleteModelFile('model.checkpoint.pt', true)).toBe(true);
         expect(shouldDeleteModelFile('readme.txt', false)).toBe(false);
     });

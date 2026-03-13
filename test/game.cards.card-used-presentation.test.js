@@ -1,5 +1,6 @@
 const SharedConstants = require('../shared-constants');
 const CardLogic = require('../game/logic/cards');
+const TurnPipeline = require('../game/turn/turn_pipeline');
 
 describe('CardLogic applyCardUsage presentation event', () => {
   test('emits CARD_USED presentation event', () => {
@@ -72,6 +73,50 @@ describe('CardLogic applyCardUsage presentation event', () => {
     expect(cardState.charge.black).toBe(5);
   });
 
+  test('SACRIFICE_WILL can select a bottom expansion stone through TurnPipeline', () => {
+    const defs = Array.isArray(SharedConstants.CARD_DEFS) ? SharedConstants.CARD_DEFS : [];
+    const def = defs.find(d => d && d.id && d.type === 'SACRIFICE_WILL');
+    expect(def).toBeTruthy();
+
+    const prng = { shuffle: () => {}, random: () => 0.5 };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: 1,
+      turnNumber: 1,
+      consecutivePasses: 0,
+      boardExpansion: {
+        active: true,
+        side: 'bottom',
+        row: 8,
+        owner: 0,
+        usedByPlayer: { black: true, white: false },
+        cells: [
+          { side: 'bottom', row: 8, col: 3, owner: 1 }
+        ]
+      }
+    };
+
+    cardState.hands.black = [def.id];
+    cardState.charge.black = Number.isFinite(def.cost) ? def.cost : 0;
+
+    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', def.id);
+    expect(used).toBe(true);
+
+    const result = TurnPipeline.applyTurn(cardState, gameState, 'black', {
+      type: 'place',
+      sacrificeTarget: { row: 8, col: 3 }
+    });
+
+    const bottomCell = result.gameState.boardExpansion.cells.find((cell) => cell && cell.row === 8 && cell.col === 3);
+    expect(bottomCell && bottomCell.owner).toBe(0);
+    expect(result.cardState.charge.black).toBe(5);
+    expect(result.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'sacrifice_selected', applied: true })
+    ]));
+  });
+
   test('SELL_CARD_WILL sells one hand card and gains its cost', () => {
     const defs = Array.isArray(SharedConstants.CARD_DEFS) ? SharedConstants.CARD_DEFS : [];
     const sellDef = defs.find(d => d && d.id && d.type === 'SELL_CARD_WILL');
@@ -113,58 +158,4 @@ describe('CardLogic applyCardUsage presentation event', () => {
     expect(used).toBe(false);
   });
 
-  test('STEAL_CARD steals from opponent hand, sells, and gains +2 per card', () => {
-    const defs = Array.isArray(SharedConstants.CARD_DEFS) ? SharedConstants.CARD_DEFS : [];
-    const stealDef = defs.find(d => d && d.id && d.type === 'STEAL_CARD');
-    expect(stealDef).toBeTruthy();
-
-    const prng = { shuffle: () => {}, random: () => 0.5 };
-    const cardState = CardLogic.createCardState(prng);
-    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: 1 };
-
-    cardState.hands.black = [stealDef.id, 'a', 'b', 'c'];
-    cardState.hands.white = ['w1', 'w2', 'w3', 'w4', 'w5'];
-    cardState.charge.black = Number.isFinite(stealDef.cost) ? stealDef.cost : 0;
-    cardState.decks.black = ['d1'];
-
-    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', stealDef.id);
-    expect(used).toBe(true);
-
-    const effects = CardLogic.applyPlacementEffects(cardState, gameState, 'black', 3, 3, 3);
-    expect(effects.stolenCount).toBe(3);
-    expect(effects.resaleGain).toBe(6);
-    expect(cardState.hands.black).toEqual(['a', 'b', 'c']);
-    expect(cardState.hands.white).toEqual(['w4', 'w5']);
-    expect(cardState.decks.black).toEqual(['d1']);
-    expect(cardState.discard).toEqual(expect.arrayContaining([stealDef.id, 'w1', 'w2', 'w3']));
-    expect(cardState.charge.black).toBe(9);
-  });
-
-  test('STEAL_CARD sells all stolen cards and does not add them to hand/deck', () => {
-    const defs = Array.isArray(SharedConstants.CARD_DEFS) ? SharedConstants.CARD_DEFS : [];
-    const stealDef = defs.find(d => d && d.id && d.type === 'STEAL_CARD');
-    expect(stealDef).toBeTruthy();
-
-    const prng = { shuffle: () => {}, random: () => 0.5 };
-    const cardState = CardLogic.createCardState(prng);
-    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: 1 };
-
-    cardState.hands.black = [stealDef.id, 'a', 'b', 'c', 'd'];
-    cardState.hands.white = ['w1', 'w2', 'w3', 'w4', 'w5'];
-    cardState.charge.black = Number.isFinite(stealDef.cost) ? stealDef.cost : 0;
-    cardState.decks.black = ['d1', 'd2'];
-    cardState.discard = [];
-
-    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', stealDef.id);
-    expect(used).toBe(true);
-
-    const effects = CardLogic.applyPlacementEffects(cardState, gameState, 'black', 3, 3, 5);
-    expect(effects.stolenCount).toBe(5);
-    expect(effects.resaleGain).toBe(10);
-    expect(cardState.hands.black).toEqual(['a', 'b', 'c', 'd']);
-    expect(cardState.hands.white).toEqual([]);
-    expect(cardState.decks.black).toEqual(['d1', 'd2']);
-    expect(cardState.discard).toEqual(expect.arrayContaining([stealDef.id, 'w1', 'w2', 'w3', 'w4', 'w5']));
-    expect(cardState.charge.black).toBe(15);
-  });
 });

@@ -84,4 +84,45 @@ describe('CLONE_WILL（複製の意志）', () => {
     expect(gameState.board[4][4]).toBe(Core.EMPTY);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
+
+  test('expansion stone can be cloned into an adjacent main-board cell', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.WHITE));
+    gameState.board[3][0] = Core.EMPTY;
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: false, white: false },
+      cells: [{ side: 'left', row: 3, col: -1, owner: Core.BLACK }]
+    };
+
+    cardState.markers.push({
+      id: 1001,
+      kind: 'specialStone',
+      row: 3,
+      col: -1,
+      owner: 'black',
+      data: { type: 'DRAGON', remainingOwnerTurns: 2 }
+    });
+    cardState.pendingEffectByPlayer.black = {
+      type: 'CLONE_WILL',
+      stage: 'selectTarget',
+      cardId: 'clone_expansion_01'
+    };
+
+    const targets = CardLogic.getCloneTargets(cardState, gameState, 'black');
+    expect(targets).toEqual(expect.arrayContaining([{ row: 3, col: -1 }]));
+
+    const res = CardLogic.applyCloneWill(cardState, gameState, 'black', 3, -1, createPrng(0));
+
+    expect(res && res.applied).toBe(true);
+    expect(res.spawned).toEqual([{ row: 3, col: 0 }]);
+    expect(gameState.board[3][0]).toBe(Core.BLACK);
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 3, col: 0, owner: 'black', data: expect.objectContaining({ type: 'DRAGON', remainingOwnerTurns: 2 }) })
+    ]));
+  });
 });

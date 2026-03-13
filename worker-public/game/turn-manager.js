@@ -43,6 +43,38 @@ if (!OwnerHelpersModule && typeof globalThis !== 'undefined' && globalThis.Owner
     OwnerHelpersModule = globalThis.OwnerHelpers;
 }
 
+function getPlaybackStateForTurnManager() {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) {
+            return globalThis.PlaybackStateManager;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function isVisualPlaybackActiveForTurnManager() {
+    const playbackState = getPlaybackStateForTurnManager();
+    if (playbackState && typeof playbackState.getPlaybackActive === 'function') {
+        return playbackState.getPlaybackActive() === true;
+    }
+    return (typeof globalThis !== 'undefined') ? (globalThis.VisualPlaybackActive === true) : false;
+}
+
+function clearPlaybackLockForTurnManager() {
+    const playbackState = getPlaybackStateForTurnManager();
+    if (playbackState && typeof playbackState.clearPlaybackLock === 'function') {
+        playbackState.clearPlaybackLock();
+        return;
+    }
+    try {
+        if (typeof globalThis !== 'undefined') {
+            globalThis.isCardAnimating = false;
+            globalThis.VisualPlaybackActive = false;
+            globalThis.__playbackActiveSince = null;
+        }
+    } catch (e) { /* ignore */ }
+}
+
 function emitPresentationEventViaBoardOps(ev) {
     try {
         const pres = (typeof require === 'function') ? require('./logic/presentation') : (typeof globalThis !== 'undefined' ? globalThis.PresentationHelper : null);
@@ -101,6 +133,15 @@ if (!scheduleRetry) {
 }
 
 
+
+function hasQueuedPresentationEventsForTurnManager() {
+    try {
+        if (!cardState || typeof cardState !== 'object') return false;
+        return (Array.isArray(cardState.presentationEvents) && cardState.presentationEvents.length > 0)
+            || (Array.isArray(cardState._presentationEventsPersist) && cardState._presentationEventsPersist.length > 0);
+    } catch (e) { /* ignore */ }
+    return false;
+}
 function handleCellClick(row, col) {
     // Initialize Audio Context on FIRST interaction (defensive: SoundEngine may not be loaded in some builds)
     try {
@@ -249,6 +290,12 @@ function handleCellClick(row, col) {
         }
         return;
     }
+    if (pending && pending.type === 'FREEZE_WILL' && pending.stage === 'selectTarget') {
+        if (typeof handleFreezeSelection === 'function') {
+            handleFreezeSelection(row, col, playerKey);
+        }
+        return;
+    }
     if (pending && pending.type === 'CLONE_WILL' && pending.stage === 'selectTarget') {
         if (typeof handleCloneSelection === 'function') {
             handleCloneSelection(row, col, playerKey);
@@ -300,9 +347,15 @@ function isAnimationInProgress() {
     const proc = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isProcessing !== 'undefined') ? __uiImpl.isProcessing : (typeof isProcessing !== 'undefined' ? isProcessing : false);
     const card = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isCardAnimating !== 'undefined') ? __uiImpl.isCardAnimating : (typeof isCardAnimating !== 'undefined' ? isCardAnimating : false);
     const winProc = (typeof globalThis !== 'undefined') ? !!globalThis.isProcessing : false;
-    const winCard = (typeof globalThis !== 'undefined') ? !!globalThis.isCardAnimating : false;
-    const visualPlayback = (typeof globalThis !== 'undefined') ? (globalThis.VisualPlaybackActive === true) : false;
-    return proc || card || winProc || winCard || visualPlayback;
+    const playbackState = getPlaybackStateForTurnManager();
+    const winCard = playbackState && typeof playbackState.getCardAnimating === 'function'
+        ? (playbackState.getCardAnimating() === true)
+        : ((typeof globalThis !== 'undefined') ? !!globalThis.isCardAnimating : false);
+    const visualPlayback = isVisualPlaybackActiveForTurnManager();
+    // UI render is deferred while presentation events are queued, so board clicks must
+    // remain locked until the queue is consumed to avoid stale legal-hint clicks.
+    const queuedPresentation = hasQueuedPresentationEventsForTurnManager();
+    return proc || card || winProc || winCard || visualPlayback || queuedPresentation;
 }
 
 function isHumanVsHumanModeEnabled() {
@@ -449,16 +502,37 @@ function resetGame() {
         updateCpuCharacter();
     }
 
+    let cardInitOptions = {};
+    if (__uiImpl_turn_manager && typeof __uiImpl_turn_manager.buildCardInitOptions === 'function') {
+        try {
+            const built = __uiImpl_turn_manager.buildCardInitOptions();
+            cardInitOptions = (built && typeof built === 'object') ? built : {};
+        } catch (e) {
+            console.warn('[resetGame] buildCardInitOptions failed:', e && e.message ? e.message : e);
+            cardInitOptions = {};
+        }
+    } else if (__uiImpl_turn_manager && typeof __uiImpl_turn_manager.readActiveDeckSpec === 'function') {
+        try {
+            const activeDeckSpec = __uiImpl_turn_manager.readActiveDeckSpec();
+            if (activeDeckSpec) {
+                cardInitOptions = { initialDeckSpec: activeDeckSpec };
+            }
+        } catch (e) {
+            console.warn('[resetGame] readActiveDeckSpec failed:', e && e.message ? e.message : e);
+            cardInitOptions = {};
+        }
+    }
+
     gameState = createGameState();
     try {
         // initCardState may rely on PRNG; if unavailable, tests should mock or skip
-        if (typeof initCardState === 'function') initCardState();
+        if (typeof initCardState === 'function') initCardState(undefined, cardInitOptions);
     } catch (e) {
         // In test environments without PRNG, allow fallback to a minimal cardState via CardLogic
         console.warn('[resetGame] initCardState failed (test environment):', e.message);
         if (typeof CardLogic !== 'undefined' && typeof CardLogic.createCardState === 'function') {
             const prngStub = { next: () => 0.5, _seed: 1 };
-            const newState = CardLogic.createCardState(prngStub);
+            const newState = CardLogic.createCardState(prngStub, cardInitOptions);
             // Wipe and copy properties to maintain global reference pattern
             if (typeof cardState !== 'undefined') {
                 for (const k in cardState) delete cardState[k];
@@ -723,6 +797,7 @@ function watchdogPing(nowMs) {
             });
             isProcessing = false;
             isCardAnimating = false;
+            clearPlaybackLockForTurnManager();
             lastFlagActiveTime = null;
             if (typeof emitLogAdded === 'function') emitLogAdded('警告: 処理が長時間停滞したため強制解除しました', 'normal');
             try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }

@@ -3,14 +3,20 @@ describe('animation-engine hand_add', () => {
     jest.resetModules();
     global.window = {
       __telemetry__: { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 },
+      MATCH_MODE: 'cpu',
       playClearHandAnimation: jest.fn(() => Promise.resolve()),
       playDrawCardHandAnimation: jest.fn(() => Promise.resolve()),
-      playCardUseHandAnimation: jest.fn(() => Promise.resolve())
+      playCardUseHandAnimation: jest.fn(() => Promise.resolve()),
+      playHandAnimation: jest.fn((player, row, col, onComplete) => {
+        if (typeof onComplete === 'function') onComplete();
+      })
     };
     global.SoundEngine = {
       init: jest.fn(),
       playEffectByKey: jest.fn()
     };
+    global.BLACK = 1;
+    global.WHITE = -1;
     global.document = {
       getElementById: () => ({
         classList: { add() {}, remove() {} },
@@ -24,6 +30,8 @@ describe('animation-engine hand_add', () => {
     delete global.document;
     delete global.SoundEngine;
     delete global.CardLogic;
+    delete global.BLACK;
+    delete global.WHITE;
   });
 
   test('delegates hand_add to draw-hand animation helper', async () => {
@@ -41,15 +49,43 @@ describe('animation-engine hand_add', () => {
 
   test('delegates card_use_animation to card-use hand animation helper', async () => {
     const engine = require('../ui/animation-engine');
+    const sourceCardEl = { nodeType: 1 };
     await engine.executeEvent({
       type: 'card_use_animation',
-      targets: [{ player: 'black', owner: 'black', cardId: 'card_2', cost: 5, name: 'X' }]
+      targets: [{ player: 'black', owner: 'black', cardId: 'card_2', cost: 5, name: 'X', sourceCardEl }]
     });
 
     expect(global.window.playCardUseHandAnimation).toHaveBeenCalledTimes(1);
     expect(global.window.playCardUseHandAnimation).toHaveBeenCalledWith(
-      expect.objectContaining({ player: 'black', owner: 'black', cardId: 'card_2', cost: 5, name: 'X' })
+      expect.objectContaining({ player: 'black', owner: 'black', cardId: 'card_2', cost: 5, name: 'X', sourceCardEl })
     );
+  });
+
+  test('delegates place_hand_animation to placement hand helper for remote network moves', async () => {
+    const engine = require('../ui/animation-engine');
+    global.window.MATCH_MODE = 'network';
+    global.window.LOCAL_PLAYER_KEY = 'black';
+
+    await engine.executeEvent({
+      type: 'place_hand_animation',
+      targets: [{ player: 'white', owner: 'white', r: 4, col: 3 }]
+    });
+
+    expect(global.window.playHandAnimation).toHaveBeenCalledTimes(1);
+    expect(global.window.playHandAnimation).toHaveBeenCalledWith(global.WHITE, 4, 3, expect.any(Function));
+  });
+
+  test('skips place_hand_animation for local network moves', async () => {
+    const engine = require('../ui/animation-engine');
+    global.window.MATCH_MODE = 'network';
+    global.window.LOCAL_PLAYER_KEY = 'black';
+
+    await engine.executeEvent({
+      type: 'place_hand_animation',
+      targets: [{ player: 'black', owner: 'black', r: 2, col: 5 }]
+    });
+
+    expect(global.window.playHandAnimation).not.toHaveBeenCalled();
   });
 
   test('delegates hand_remove to clear-hand animation helper', async () => {

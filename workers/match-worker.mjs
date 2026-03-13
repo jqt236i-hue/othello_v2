@@ -15,7 +15,7 @@ const LEADERBOARD_STORAGE_VERSION = 3;
 const LEADERBOARD_ROOM_ID = '__leaderboard__';
 const LEADERBOARD_PLAYER_NAME_MAX = NETWORK_PLAYER_NAME_MAX;
 const LEADERBOARD_DEFAULT_LIMIT = 10;
-const LEADERBOARD_MAX_LIMIT = 30;
+const LEADERBOARD_MAX_LIMIT = 100;
 const LEADERBOARD_MAX_STORED_PLAYERS = 200;
 const LEADERBOARD_PLAYER_ID_RE = /^[A-Za-z0-9_-]{8,80}$/;
 const NETWORK_TURN_LIMIT_SECONDS = 120;
@@ -25,6 +25,8 @@ const SSE_WRITE_TIMEOUT_MS = 2500;
 const OPERATION_ID_MAX_LENGTH = 128;
 
 let coreLogicModulePromise = null;
+let deckModulesPromise = null;
+let turnStartModulesPromise = null;
 
 const CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -105,6 +107,24 @@ function resolveCardIdFromHiddenToken(value, previousHands) {
     return ownerHand[parsed.handIndex];
 }
 
+function rehydrateHiddenTokensInPlace(value, previousHands, visited = new WeakSet()) {
+    const resolved = resolveCardIdFromHiddenToken(value, previousHands);
+    if (resolved) return resolved;
+    if (!value || typeof value !== 'object') return value;
+    if (visited.has(value)) return value;
+    visited.add(value);
+    if (Array.isArray(value)) {
+        for (let i = 0; i < value.length; i += 1) {
+            value[i] = rehydrateHiddenTokensInPlace(value[i], previousHands, visited);
+        }
+        return value;
+    }
+    for (const key of Object.keys(value)) {
+        value[key] = rehydrateHiddenTokensInPlace(value[key], previousHands, visited);
+    }
+    return value;
+}
+
 function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
     if (!room || !room.seatTokens) return null;
     const seatToken = String(seatTokenValue || '').trim();
@@ -142,6 +162,33 @@ function loadCoreLogicModule() {
         coreLogicModulePromise = import('../game/logic/core.js').then((mod) => mod.default || mod);
     }
     return coreLogicModulePromise;
+}
+
+function loadDeckModules() {
+    if (!deckModulesPromise) {
+        deckModulesPromise = Promise.all([
+            import('../shared/deck-spec.js').then((mod) => mod.default || mod),
+            import('../shared/deck-codec.js').then((mod) => mod.default || mod)
+        ]).then(([deckSpecHelpers, deckCodecModule]) => ({ deckSpecHelpers, deckCodecModule }));
+    }
+    return deckModulesPromise;
+}
+
+function loadTurnStartModules() {
+    if (!turnStartModulesPromise) {
+        turnStartModulesPromise = Promise.all([
+            import('../game/logic/core.js').then((mod) => mod.default || mod),
+            import('../game/logic/cards.js').then((mod) => mod.default || mod),
+            import('../game/turn/turn_pipeline_phases.js').then((mod) => mod.default || mod),
+            import('../game/schema/prng.js').then((mod) => mod.default || mod)
+        ]).then(([Core, CardLogic, TurnPipelinePhases, SeededPRNG]) => ({
+            Core,
+            CardLogic,
+            TurnPipelinePhases,
+            SeededPRNG
+        }));
+    }
+    return turnStartModulesPromise;
 }
 
 function parseJsonBody(raw) {
@@ -257,16 +304,13 @@ function sortLeaderboardEntries(entries) {
     });
 }
 
-async function makeInitialSnapshot(seed) {
-    const [{ default: Core }, { default: CardLogic }, { default: TurnPipelinePhases }, { default: SeededPRNG }] = await Promise.all([
-        import('../game/logic/core.js'),
-        import('../game/logic/cards.js'),
-        import('../game/turn/turn_pipeline_phases.js'),
-        import('../game/schema/prng.js')
-    ]);
+async function makeInitialSnapshot(seed, options) {
+    const { Core, CardLogic, TurnPipelinePhases, SeededPRNG } = await loadTurnStartModules();
     const gameState = Core.createGameState();
     const prng = SeededPRNG.createPRNG(seed);
-    const cardState = CardLogic.createCardState(prng);
+    const opts = (options && typeof options === 'object') ? options : {};
+    const cardInitOptions = buildInitialDeckSnapshotOptions(opts);
+    const cardState = CardLogic.createCardState(prng, cardInitOptions);
 
     const startupEvents = [];
     TurnPipelinePhases.applyTurnStartPhase(
@@ -285,6 +329,149 @@ async function makeInitialSnapshot(seed) {
         stateVersion: 0,
         updatedAt: Date.now()
     };
+}
+
+function isPlainObject(value) {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function mergeWithDefaultShape(defaultValue, overrideValue) {
+    if (Array.isArray(defaultValue)) {
+        return Array.isArray(overrideValue) ? deepClone(overrideValue) : deepClone(defaultValue);
+    }
+
+    if (isPlainObject(defaultValue)) {
+        const result = deepClone(defaultValue);
+        if (!isPlainObject(overrideValue)) {
+            return result;
+        }
+        for (const [key, value] of Object.entries(overrideValue)) {
+            const baseValue = Object.prototype.hasOwnProperty.call(defaultValue, key)
+                ? defaultValue[key]
+                : undefined;
+            result[key] = mergeWithDefaultShape(baseValue, value);
+        }
+        return result;
+    }
+
+    return (typeof overrideValue === 'undefined')
+        ? deepClone(defaultValue)
+        : deepClone(overrideValue);
+}
+
+function mixSeed(seed, value) {
+    const numeric = Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : 0;
+    const normalizedSeed = (Number(seed) >>> 0) || 1;
+    return ((normalizedSeed ^ (numeric >>> 0)) * 1664525 + 1013904223) >>> 0;
+}
+
+function createWorkerTurnStartSeed(room, snapshot, playerKey) {
+    const gameState = snapshot && snapshot.gameState;
+    const cardState = snapshot && snapshot.cardState;
+    let seed = Number.isFinite(Number(room && room.seed)) ? (Math.trunc(Number(room.seed)) >>> 0) : 1;
+    seed = mixSeed(seed, snapshot && snapshot.stateVersion);
+    seed = mixSeed(seed, gameState && gameState.turnNumber);
+    seed = mixSeed(seed, cardState && cardState.turnIndex);
+    seed = mixSeed(seed, playerKey === 'white' ? 0x9E3779B1 : 0x243F6A88);
+    return seed || 1;
+}
+
+function createWorkerTurnStartPrng(room, snapshot, playerKey, SeededPRNG) {
+    const savedState = snapshot && snapshot.cardState && snapshot.cardState.prngState;
+    if (
+        savedState
+        && typeof savedState === 'object'
+        && Number.isFinite(Number(savedState.seed))
+        && Number.isFinite(Number(savedState.calls))
+        && typeof SeededPRNG.fromState === 'function'
+    ) {
+        try {
+            return SeededPRNG.fromState({
+                seed: Math.trunc(Number(savedState.seed)),
+                calls: Math.max(0, Math.trunc(Number(savedState.calls)))
+            });
+        } catch (e) {
+            // Fall through to derived seed when the serialized state is unusable.
+        }
+    }
+    return SeededPRNG.createPRNG(createWorkerTurnStartSeed(room, snapshot, playerKey));
+}
+
+function normalizeCardStateForWorkerTurnStart(room, snapshot, CardLogic, SeededPRNG) {
+    if (!snapshot || typeof snapshot !== 'object') return null;
+    const currentCardState = (snapshot.cardState && typeof snapshot.cardState === 'object')
+        ? snapshot.cardState
+        : {};
+    const currentPlayerKey = getCurrentPlayerKey(snapshot.gameState);
+    const baselinePrng = SeededPRNG.createPRNG(createWorkerTurnStartSeed(room, snapshot, currentPlayerKey));
+    const baselineCardState = CardLogic.createCardState(baselinePrng, buildInitialDeckSnapshotOptions(room));
+    snapshot.cardState = mergeWithDefaultShape(baselineCardState, currentCardState);
+    if (!Array.isArray(snapshot.cardState.presentationEvents)) {
+        snapshot.cardState.presentationEvents = [];
+    }
+    if (!Array.isArray(snapshot.cardState._presentationEventsPersist)) {
+        snapshot.cardState._presentationEventsPersist = [];
+    }
+    return snapshot.cardState;
+}
+
+function validatePublishedHands(snapshot, publishingSeatKey) {
+    const seatKey = parseSeatKeyOptional(publishingSeatKey);
+    const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object')
+        ? snapshot.cardState
+        : null;
+    const hands = (cardState && cardState.hands && typeof cardState.hands === 'object')
+        ? cardState.hands
+        : null;
+
+    if (!seatKey || !hands) {
+        return { ok: false, reason: 'INVALID_HAND_STATE' };
+    }
+
+    for (const ownerKey of PLAYER_KEYS) {
+        if (!Array.isArray(hands[ownerKey])) {
+            return { ok: false, reason: 'INVALID_HAND_STATE' };
+        }
+    }
+
+    const opponentKey = getOpponentKey(seatKey);
+    for (const cardId of hands[opponentKey]) {
+        const parsed = parseHiddenHandToken(cardId);
+        if (!parsed || parsed.ownerKey !== opponentKey) {
+            return { ok: false, reason: 'INVALID_OPPONENT_HAND_STATE' };
+        }
+    }
+
+    return { ok: true };
+}
+
+async function reconcileTurnStartIfNeeded(room, snapshot) {
+    if (!snapshot || !snapshot.gameState || !snapshot.cardState) return snapshot;
+
+    const currentPlayerKey = getCurrentPlayerKey(snapshot.gameState);
+    const lastTurnStartedFor = parseSeatKeyOptional(snapshot.cardState.lastTurnStartedFor);
+    if (lastTurnStartedFor === currentPlayerKey) {
+        return snapshot;
+    }
+
+    const { Core, CardLogic, TurnPipelinePhases, SeededPRNG } = await loadTurnStartModules();
+    if (typeof Core.isGameOver === 'function' && Core.isGameOver(snapshot.gameState)) {
+        return snapshot;
+    }
+
+    normalizeCardStateForWorkerTurnStart(room, snapshot, CardLogic, SeededPRNG);
+    const prng = createWorkerTurnStartPrng(room, snapshot, currentPlayerKey, SeededPRNG);
+    const turnStartEvents = [];
+    TurnPipelinePhases.applyTurnStartPhase(
+        CardLogic,
+        Core,
+        snapshot.cardState,
+        snapshot.gameState,
+        currentPlayerKey,
+        turnStartEvents,
+        prng
+    );
+    return snapshot;
 }
 
 function cloneSnapshotWithVersion(room) {
@@ -385,6 +572,16 @@ function rehydrateSnapshotForPublish(previousSnapshot, incomingSnapshot) {
         });
     }
 
+    rehydrateHiddenTokensInPlace(nextCardState, previousHands);
+
+    nextCardState.presentationEvents = [];
+    nextCardState._presentationEventsPersist = [];
+    delete nextCardState._currentActionMeta;
+
+    if (nextSnapshot.gameState && typeof nextSnapshot.gameState === 'object') {
+        delete nextSnapshot.gameState.__resultShown;
+    }
+
     return nextSnapshot;
 }
 
@@ -404,6 +601,210 @@ function toPublicSeatNames(room) {
     return {
         black: normalizeNetworkPlayerName(names.black),
         white: normalizeNetworkPlayerName(names.white)
+    };
+}
+
+function normalizeDeckSizeValue(value) {
+    if (value === null || typeof value === 'undefined' || value === '') return null;
+    return Number.isFinite(Number(value))
+        ? Math.max(0, Math.trunc(Number(value)))
+        : null;
+}
+
+function cloneInitialDeckSpecByPlayer(value) {
+    const source = (value && typeof value === 'object') ? value : {};
+    return {
+        black: (source.black && typeof source.black === 'object') ? deepClone(source.black) : null,
+        white: (source.white && typeof source.white === 'object') ? deepClone(source.white) : null
+    };
+}
+
+function normalizeRoomDeckMetadata(value) {
+    const source = (value && typeof value === 'object') ? value : null;
+    if (!source) return null;
+
+    const mode = String(source.mode || '').trim();
+    const sharedDeckCode = String(source.deckCode || '').trim();
+    const sharedDeckSize = normalizeDeckSizeValue(source.deckSize);
+    const deckCodeByPlayerSource = (source.deckCodeByPlayer && typeof source.deckCodeByPlayer === 'object')
+        ? source.deckCodeByPlayer
+        : null;
+    const deckSizeByPlayerSource = (source.deckSizeByPlayer && typeof source.deckSizeByPlayer === 'object')
+        ? source.deckSizeByPlayer
+        : null;
+    const hasExplicitPerPlayerData = !!(deckCodeByPlayerSource || deckSizeByPlayerSource);
+    const deckCodeByPlayer = {
+        black: deckCodeByPlayerSource
+            ? String(deckCodeByPlayerSource.black || '').trim()
+            : (mode === 'shared' ? sharedDeckCode : ''),
+        white: deckCodeByPlayerSource
+            ? String(deckCodeByPlayerSource.white || '').trim()
+            : (mode === 'shared' ? sharedDeckCode : '')
+    };
+    const deckSizeByPlayer = {
+        black: deckSizeByPlayerSource
+            ? normalizeDeckSizeValue(deckSizeByPlayerSource.black)
+            : (mode === 'shared' ? sharedDeckSize : null),
+        white: deckSizeByPlayerSource
+            ? normalizeDeckSizeValue(deckSizeByPlayerSource.white)
+            : (mode === 'shared' ? sharedDeckSize : null)
+    };
+    const hasPerPlayerData = !!(
+        deckCodeByPlayer.black ||
+        deckCodeByPlayer.white ||
+        deckSizeByPlayer.black !== null ||
+        deckSizeByPlayer.white !== null
+    );
+
+    if (!hasPerPlayerData && !sharedDeckCode && sharedDeckSize === null) {
+        return null;
+    }
+
+    return {
+        mode: (mode === 'shared' && (sharedDeckCode || sharedDeckSize !== null))
+            ? 'shared'
+            : ((mode === 'perPlayer' || hasExplicitPerPlayerData)
+                ? 'perPlayer'
+                : ((sharedDeckCode || sharedDeckSize !== null) ? 'shared' : 'perPlayer')),
+        source: String(source.source || 'room').trim() || 'room',
+        deckCode: sharedDeckCode,
+        deckSize: sharedDeckSize,
+        deckCodeByPlayer,
+        deckSizeByPlayer
+    };
+}
+
+function hasRoomDeckMetadataEntries(value) {
+    const metadata = normalizeRoomDeckMetadata(value);
+    if (!metadata) return false;
+
+    return !!(
+        metadata.deckCode ||
+        metadata.deckSize !== null ||
+        metadata.deckCodeByPlayer.black ||
+        metadata.deckCodeByPlayer.white ||
+        metadata.deckSizeByPlayer.black !== null ||
+        metadata.deckSizeByPlayer.white !== null
+    );
+}
+
+function buildInitialDeckSnapshotOptions(value) {
+    const source = (value && typeof value === 'object') ? value : {};
+    const initialDeckSpecByPlayer = cloneInitialDeckSpecByPlayer(source.initialDeckSpecByPlayer);
+    if (initialDeckSpecByPlayer.black || initialDeckSpecByPlayer.white) {
+        return { initialDeckSpecByPlayer };
+    }
+
+    const initialDeckSpec = (source.initialDeckSpec && typeof source.initialDeckSpec === 'object')
+        ? deepClone(source.initialDeckSpec)
+        : null;
+    return initialDeckSpec ? { initialDeckSpec } : {};
+}
+
+function getRoomInitialDeckSpecByPlayer(room) {
+    const initialDeckSpecByPlayer = cloneInitialDeckSpecByPlayer(room && room.initialDeckSpecByPlayer);
+    if (initialDeckSpecByPlayer.black || initialDeckSpecByPlayer.white) {
+        return initialDeckSpecByPlayer;
+    }
+
+    const sharedDeckSpec = (room && room.initialDeckSpec && typeof room.initialDeckSpec === 'object')
+        ? room.initialDeckSpec
+        : null;
+    if (!sharedDeckSpec) {
+        return { black: null, white: null };
+    }
+
+    return {
+        black: deepClone(sharedDeckSpec),
+        white: deepClone(sharedDeckSpec)
+    };
+}
+
+function assignRoomDeckSelection(room, seatKey, deckSelection) {
+    if (!room || !deckSelection || deckSelection.hasCustomDeck !== true) return;
+
+    const normalizedSeatKey = normalizePlayerKey(seatKey);
+    const initialDeckSpecByPlayer = getRoomInitialDeckSpecByPlayer(room);
+    initialDeckSpecByPlayer[normalizedSeatKey] = deepClone(deckSelection.deckSpec);
+    room.initialDeckSpecByPlayer = initialDeckSpecByPlayer;
+    room.initialDeckSpec = null;
+
+    const roomDeck = normalizeRoomDeckMetadata(room.roomDeck) || {
+        mode: 'perPlayer',
+        source: 'room',
+        deckCode: '',
+        deckSize: null,
+        deckCodeByPlayer: { black: '', white: '' },
+        deckSizeByPlayer: { black: null, white: null }
+    };
+
+    roomDeck.mode = 'perPlayer';
+    roomDeck.source = 'room';
+    roomDeck.deckCode = '';
+    roomDeck.deckSize = null;
+    roomDeck.deckCodeByPlayer = Object.assign({ black: '', white: '' }, roomDeck.deckCodeByPlayer || {});
+    roomDeck.deckSizeByPlayer = Object.assign({ black: null, white: null }, roomDeck.deckSizeByPlayer || {});
+    roomDeck.deckCodeByPlayer[normalizedSeatKey] = String(deckSelection.deckCode || '').trim();
+    roomDeck.deckSizeByPlayer[normalizedSeatKey] = normalizeDeckSizeValue(deckSelection.deckSize);
+
+    room.roomDeck = hasRoomDeckMetadataEntries(roomDeck) ? roomDeck : null;
+}
+
+function toPublicRoomDeck(room) {
+    const metadata = normalizeRoomDeckMetadata(room && room.roomDeck);
+    const snapshotDeckSizes = {
+        black: normalizeDeckSizeValue(
+            room
+            && room.snapshot
+            && room.snapshot.cardState
+            && room.snapshot.cardState.initialDeckSizeByPlayer
+            && room.snapshot.cardState.initialDeckSizeByPlayer.black
+        ),
+        white: normalizeDeckSizeValue(
+            room
+            && room.snapshot
+            && room.snapshot.cardState
+            && room.snapshot.cardState.initialDeckSizeByPlayer
+            && room.snapshot.cardState.initialDeckSizeByPlayer.white
+        )
+    };
+    const snapshotDeckSize = snapshotDeckSizes.black !== null
+        ? snapshotDeckSizes.black
+        : normalizeDeckSizeValue(room && room.snapshot && room.snapshot.cardState && room.snapshot.cardState.initialDeckSize);
+
+    if (metadata && metadata.mode === 'perPlayer') {
+        const deckCodeByPlayer = {
+            black: String(metadata.deckCodeByPlayer.black || '').trim(),
+            white: String(metadata.deckCodeByPlayer.white || '').trim()
+        };
+        const deckSizeByPlayer = {
+            black: metadata.deckSizeByPlayer.black !== null ? metadata.deckSizeByPlayer.black : snapshotDeckSizes.black,
+            white: metadata.deckSizeByPlayer.white !== null ? metadata.deckSizeByPlayer.white : snapshotDeckSizes.white
+        };
+        const sharedDeckCode = deckCodeByPlayer.black && deckCodeByPlayer.black === deckCodeByPlayer.white
+            ? deckCodeByPlayer.black
+            : '';
+        const sharedDeckSize = sharedDeckCode && deckSizeByPlayer.black === deckSizeByPlayer.white
+            ? deckSizeByPlayer.black
+            : null;
+
+        return {
+            mode: 'perPlayer',
+            deckCode: sharedDeckCode,
+            deckSize: sharedDeckSize,
+            deckCodeByPlayer,
+            deckSizeByPlayer,
+            source: metadata.source || 'room'
+        };
+    }
+
+    if (!metadata && snapshotDeckSize === null) return null;
+
+    return {
+        mode: metadata && metadata.mode ? String(metadata.mode) : 'shared',
+        deckCode: metadata && metadata.deckCode ? String(metadata.deckCode).trim() : '',
+        deckSize: metadata && metadata.deckSize !== null ? metadata.deckSize : snapshotDeckSize,
+        source: metadata && metadata.source ? String(metadata.source) : 'room'
     };
 }
 
@@ -503,6 +904,7 @@ function buildSnapshotPayload(room, meta, viewerSeatKey) {
         snapshot: toPublicSnapshot(room, viewerSeatKey),
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
+        roomDeck: toPublicRoomDeck(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
         operationId: meta && meta.operationId ? String(meta.operationId) : null,
@@ -525,6 +927,7 @@ function buildPresencePayload(room, meta) {
         rejoined: !!(meta && meta.rejoined),
         seats: toPublicSeats(room),
         seatNames,
+        roomDeck: toPublicRoomDeck(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
     };
@@ -615,17 +1018,88 @@ async function forwardGetToLeaderboard(env, pathname, sourceUrl) {
     return withCORS(response);
 }
 
+async function resolveDeckSelection(rawDeckCodeValue) {
+    const rawDeckCode = String(rawDeckCodeValue || '').trim();
+    if (!rawDeckCode) {
+        return {
+            ok: true,
+            hasCustomDeck: false,
+            deckSpec: null,
+            deckCode: '',
+            deckSize: null
+        };
+    }
+
+    try {
+        const { deckSpecHelpers, deckCodecModule } = await loadDeckModules();
+        const decodedDeckSpec = deckCodecModule.decodeDeckCode(rawDeckCode);
+        const normalizedDeckSpec = deckSpecHelpers.normalizeDeckSpec(decodedDeckSpec);
+        const summary = deckSpecHelpers.summarizeDeckSpec(normalizedDeckSpec);
+        const canonicalDeckCode = deckCodecModule.encodeDeckSpec(normalizedDeckSpec);
+        return {
+            ok: true,
+            hasCustomDeck: true,
+            deckSpec: normalizedDeckSpec,
+            deckCode: canonicalDeckCode,
+            deckSize: Number.isFinite(Number(summary && summary.deckSize)) ? Number(summary.deckSize) : null
+        };
+    } catch (error) {
+        return {
+            ok: false,
+            reason: (error && error.code) ? String(error.code) : 'DECK_CODE_INVALID',
+            error
+        };
+    }
+}
+
 async function handleCreate(env, options) {
     const opts = (options && typeof options === 'object') ? options : {};
+    const deckSelection = await resolveDeckSelection(opts.deckCode);
+    if (!deckSelection.ok) {
+        return jsonResponse(400, {
+            ok: false,
+            reason: deckSelection.reason || 'DECK_CODE_INVALID'
+        });
+    }
+
+    const initialDeckSpecByPlayer = deckSelection.hasCustomDeck
+        ? { black: deckSelection.deckSpec }
+        : null;
+    const roomDeck = deckSelection.hasCustomDeck
+        ? {
+            mode: 'perPlayer',
+            deckCode: '',
+            deckSize: null,
+            deckCodeByPlayer: {
+                black: deckSelection.deckCode,
+                white: ''
+            },
+            deckSizeByPlayer: {
+                black: deckSelection.deckSize,
+                white: null
+            },
+            source: 'room'
+        }
+        : null;
+
     for (let attempt = 0; attempt < 12; attempt += 1) {
         const roomId = makeRoomId();
         const seed = Date.now();
-        const snapshot = await makeInitialSnapshot(seed);
+        const snapshot = await makeInitialSnapshot(seed, {
+            initialDeckSpecByPlayer
+        });
         const stub = getRoomStub(env, roomId);
         const req = new Request('https://room/internal/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roomId, seed, snapshot, playerName: opts.playerName })
+            body: JSON.stringify({
+                roomId,
+                seed,
+                snapshot,
+                playerName: opts.playerName,
+                initialDeckSpecByPlayer,
+                roomDeck
+            })
         });
         const response = await stub.fetch(req);
         if (response.status === 409) {
@@ -784,6 +1258,7 @@ export class MatchRoomDurableObject {
             stateVersion: Number.isFinite(Number(this.room.stateVersion)) ? Number(this.room.stateVersion) : 0,
             seats: toPublicSeats(this.room),
             seatNames: toPublicSeatNames(this.room),
+            roomDeck: toPublicRoomDeck(this.room),
             turnTimer: toPublicTurnTimer(this.room, serverTime),
             serverTime
         };
@@ -875,11 +1350,19 @@ export class MatchRoomDurableObject {
         const opts = initOptions || {};
         const seed = Number.isFinite(Number(opts.seed)) ? Number(opts.seed) : Date.now();
         const snapshot = (opts.snapshot && typeof opts.snapshot === 'object') ? deepClone(opts.snapshot) : null;
+        const initialDeckSpec = (opts.initialDeckSpec && typeof opts.initialDeckSpec === 'object') ? deepClone(opts.initialDeckSpec) : null;
+        const initialDeckSpecByPlayer = (opts.initialDeckSpecByPlayer && typeof opts.initialDeckSpecByPlayer === 'object')
+            ? cloneInitialDeckSpecByPlayer(opts.initialDeckSpecByPlayer)
+            : null;
+        const roomDeck = (opts.roomDeck && typeof opts.roomDeck === 'object') ? deepClone(opts.roomDeck) : null;
         const nowMs = Date.now();
         return {
             roomId,
             seed,
             snapshot,
+            initialDeckSpec,
+            initialDeckSpecByPlayer,
+            roomDeck,
             stateVersion: 0,
             seats: { black: false, white: false },
             seatNames: { black: '', white: '' },
@@ -982,9 +1465,21 @@ export class MatchRoomDurableObject {
         const core = await loadCoreLogicModule();
         const nextSnapshot = deepClone(snapshot);
         nextSnapshot.gameState = core.applyPass(nextSnapshot.gameState);
+        if (nextSnapshot.cardState && typeof nextSnapshot.cardState === 'object') {
+            nextSnapshot.cardState.presentationEvents = [];
+            nextSnapshot.cardState._presentationEventsPersist = [];
+            delete nextSnapshot.cardState._currentActionMeta;
+            if (
+                parseSeatKeyOptional(nextSnapshot.cardState.selectedCardOwnerKey) === timedOutSeatKey
+            ) {
+                nextSnapshot.cardState.selectedCardId = null;
+                nextSnapshot.cardState.selectedCardOwnerKey = null;
+            }
+        }
         if (nextSnapshot.cardState && nextSnapshot.cardState.pendingEffectByPlayer && typeof nextSnapshot.cardState.pendingEffectByPlayer === 'object') {
             nextSnapshot.cardState.pendingEffectByPlayer[timedOutSeatKey] = null;
         }
+        await reconcileTurnStartIfNeeded(room, nextSnapshot);
 
         room.stateVersion = Number.isFinite(Number(room.stateVersion))
             ? Math.max(0, Math.trunc(Number(room.stateVersion))) + 1
@@ -1022,6 +1517,15 @@ export class MatchRoomDurableObject {
         const seed = Number.isFinite(Number(payload.seed)) ? Number(payload.seed) : Date.now();
         const snapshot = (payload.snapshot && typeof payload.snapshot === 'object') ? payload.snapshot : null;
         const playerName = normalizeNetworkPlayerName(payload.playerName);
+        const initialDeckSpec = (payload.initialDeckSpec && typeof payload.initialDeckSpec === 'object')
+            ? deepClone(payload.initialDeckSpec)
+            : null;
+        const initialDeckSpecByPlayer = (payload.initialDeckSpecByPlayer && typeof payload.initialDeckSpecByPlayer === 'object')
+            ? cloneInitialDeckSpecByPlayer(payload.initialDeckSpecByPlayer)
+            : null;
+        const roomDeck = (payload.roomDeck && typeof payload.roomDeck === 'object')
+            ? deepClone(payload.roomDeck)
+            : null;
 
         if (!roomId) {
             return jsonResponse(400, { ok: false, reason: 'ROOM_ID_REQUIRED' });
@@ -1035,7 +1539,10 @@ export class MatchRoomDurableObject {
 
         this.room = this.createRoomState(roomId, {
             seed,
-            snapshot
+            snapshot,
+            initialDeckSpec,
+            initialDeckSpecByPlayer,
+            roomDeck
         });
         this.room.seats.black = true;
         this.room.seatNames.black = playerName;
@@ -1053,6 +1560,7 @@ export class MatchRoomDurableObject {
             seatToken: this.room.seatTokens.black,
             seats: toPublicSeats(this.room),
             seatNames: toPublicSeatNames(this.room),
+            roomDeck: toPublicRoomDeck(this.room),
             stateVersion: this.room.stateVersion,
             snapshot: toPublicSnapshot(this.room, 'black'),
             turnTimer: toPublicTurnTimer(this.room, serverTime),
@@ -1065,6 +1573,14 @@ export class MatchRoomDurableObject {
         const room = this.room;
         if (!room) {
             return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+
+        const deckSelection = await resolveDeckSelection(body.deckCode);
+        if (!deckSelection.ok) {
+            return jsonResponse(400, {
+                ok: false,
+                reason: deckSelection.reason || 'DECK_CODE_INVALID'
+            });
         }
 
         const playerName = normalizeNetworkPlayerName(body.playerName);
@@ -1092,12 +1608,42 @@ export class MatchRoomDurableObject {
             ? room.seatNames
             : { black: '', white: '' };
         room.seatNames[seatKey] = playerName;
-        room.updatedAt = Date.now();
+        if (deckSelection.hasCustomDeck) {
+            assignRoomDeckSelection(room, seatKey, deckSelection);
+        }
+
+        const hasTwoSeatsNow = hasTwoActiveSeats(room);
+        let rebasedInitialSnapshot = false;
+        if (!hadTwoSeats && hasTwoSeatsNow && room.stateVersion === 0) {
+            try {
+                const nextSnapshot = await makeInitialSnapshot(room.seed, buildInitialDeckSnapshotOptions(room));
+                room.stateVersion = 1;
+                nextSnapshot.stateVersion = room.stateVersion;
+                nextSnapshot.updatedAt = Date.now();
+                room.snapshot = nextSnapshot;
+                room.updatedAt = nextSnapshot.updatedAt;
+                rebasedInitialSnapshot = true;
+            } catch (e) {
+                return jsonResponse(500, { ok: false, reason: 'JOIN_DECK_INIT_FAILED' });
+            }
+        } else {
+            room.updatedAt = Date.now();
+        }
+
         await this.refreshTurnTimer({
             nowMs: room.updatedAt,
-            forceRestart: !hadTwoSeats && hasTwoActiveSeats(room)
+            forceRestart: !hadTwoSeats && hasTwoSeatsNow
         });
         await this.saveRoom();
+
+        if (rebasedInitialSnapshot) {
+            await this.broadcastSnapshot({
+                playerKey: seatKey,
+                actionType: 'join_room',
+                playbackEvents: [],
+                operationId: `join_room_${room.stateVersion}`
+            });
+        }
 
         await this.broadcastPresence({
             type: 'join',
@@ -1115,6 +1661,7 @@ export class MatchRoomDurableObject {
             rejoined: !!rejoined,
             seats: toPublicSeats(room),
             seatNames: toPublicSeatNames(room),
+            roomDeck: toPublicRoomDeck(room),
             stateVersion: room.stateVersion,
             snapshot: toPublicSnapshot(room, seatKey),
             turnTimer: toPublicTurnTimer(room, serverTime),
@@ -1281,7 +1828,7 @@ export class MatchRoomDurableObject {
         if (isRematchResetAction) {
             const rematchSeed = Date.now();
             try {
-                nextSnapshot = await makeInitialSnapshot(rematchSeed);
+                nextSnapshot = await makeInitialSnapshot(rematchSeed, buildInitialDeckSnapshotOptions(room));
                 room.seed = rematchSeed;
             } catch (e) {
                 return jsonResponse(500, {
@@ -1308,7 +1855,21 @@ export class MatchRoomDurableObject {
                     serverTime: Date.now()
                 });
             }
+            const handsValidation = validatePublishedHands(snapshot, seatKey);
+            if (!handsValidation.ok) {
+                return jsonResponse(409, {
+                    ok: false,
+                    rejectedReason: handsValidation.reason,
+                    snapshot: toPublicSnapshot(room, seatKey),
+                    seats: toPublicSeats(room),
+                    seatNames: toPublicSeatNames(room),
+                    stateVersion: room.stateVersion,
+                    turnTimer: toPublicTurnTimer(room),
+                    serverTime: Date.now()
+                });
+            }
             nextSnapshot = rehydrateSnapshotForPublish(room.snapshot, snapshot);
+            await reconcileTurnStartIfNeeded(room, nextSnapshot);
         }
 
         room.stateVersion += 1;
@@ -1344,6 +1905,7 @@ export class MatchRoomDurableObject {
             stateVersion: room.stateVersion,
             seats: toPublicSeats(room),
             seatNames: toPublicSeatNames(room),
+            roomDeck: toPublicRoomDeck(room),
             snapshot: toPublicSnapshot(room, seatKey),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
@@ -1374,6 +1936,7 @@ export class MatchRoomDurableObject {
             stateVersion: room.stateVersion,
             seats: toPublicSeats(room),
             seatNames: toPublicSeatNames(room),
+            roomDeck: toPublicRoomDeck(room),
             snapshot: toPublicSnapshot(room, viewerSeatKey),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
@@ -1427,6 +1990,7 @@ export class MatchRoomDurableObject {
                         type: 'history',
                         seats: toPublicSeats(room),
                         seatNames: toPublicSeatNames(room),
+                        roomDeck: toPublicRoomDeck(room),
                         messages: toPublicChatMessages(room)
                     });
                 } catch (e) {

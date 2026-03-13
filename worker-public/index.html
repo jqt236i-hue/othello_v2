@@ -92,8 +92,12 @@
                         <dd>相手に石を置かれて反転されるとき、マス移動でその石だけ回避する。</dd>
                     </div>
                     <div class="rules-help-effect-item">
+                        <dt>破壊回避</dt>
+                        <dd>破壊対象になったとき、最短の空きマスへ移動してその石だけ回避する。隣接に空きがなくても空きマスが1つでもあれば長距離移動で回避する。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
                         <dt>特殊石</dt>
-                        <dd>通常石ではないカード由来の石。交換の意志の対象外。</dd>
+                        <dd>通常石画像を使わない石。normal_stone-black.png / normal_stone-white.png 以外の見た目の石を指し、交換の意志の対象外。</dd>
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>反転保護</dt>
@@ -158,9 +162,13 @@
         <div id="hero-label">オセロの勇者</div>
     </div>
 
+    <button id="storyBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="storyMenuOverlay">story</button>
+    <button id="tutorialBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="tutorialOverlay">tutorial</button>
     <button id="debugModeBtn" class="btn-small" type="button" aria-pressed="false"
         style="background-color: #4a3828; color: #ff6b6b;">DEBUG: OFF</button>
     <button id="rulesHelpBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="rules-help-panel">help</button>
+
+    <div id="storyMenuOverlay" aria-hidden="true"></div>
 
     <div id="networkChatPanel" aria-hidden="true">
         <button id="networkChatToggle" type="button" aria-expanded="false">対戦チャット</button>
@@ -246,6 +254,11 @@
                 <button id="modeNetworkBtn" class="btn-small" type="button" aria-controls="networkOverlay" aria-expanded="false">ネット対戦</button>
                 <button id="leaderboardOpenBtn" class="btn-small" type="button" aria-controls="leaderboardOverlay" aria-expanded="false">ランキング</button>
             </div>
+            <div class="control-group deck-builder-group">
+                <div class="control-label">DECK</div>
+                <button id="deckBuilderOpenBtn" class="btn-small" type="button" aria-controls="deckBuilderOverlay" aria-expanded="false">デッキ</button>
+                <div id="deckBuilderControlSummary" class="deck-builder-control-summary">標準デッキ / 41枚</div>
+            </div>
             <div id="networkTimerStatus" aria-live="polite" aria-atomic="true"></div>
 
             <div class="control-group">
@@ -304,6 +317,7 @@
                     <button id="networkJoinBtn" class="btn-small">参加</button>
                     <button id="networkLeaveBtn" class="btn-small">退出</button>
                     <div id="networkStatusText"></div>
+                    <div id="networkDeckInfo"></div>
                 </div>
             </div>
         </div>
@@ -326,6 +340,21 @@
             </div>
         </div>
     </div>
+
+    <div id="deckBuilderOverlay" aria-hidden="true">
+        <div id="deckBuilderModal" role="dialog" aria-modal="true" aria-label="デッキ構築">
+            <div id="deckBuilderModalHeader">
+                <div class="deck-builder-title-wrap">
+                    <div class="deck-builder-title">デッキ構築</div>
+                    <div id="deckBuilderHeaderSummary"></div>
+                </div>
+                <button id="deckBuilderCloseBtn" class="btn-small" type="button" aria-label="デッキ構築を閉じる">×</button>
+            </div>
+            <div id="deckBuilderBody"></div>
+        </div>
+    </div>
+
+    <div id="tutorialOverlay" aria-hidden="true"></div>
 
     <!-- Active Effect Slots (Phase 2) -->
     <div id="active-black" class="active-effect-slot">
@@ -382,6 +411,8 @@
     <!-- Game Core -->
     <script src="cards/catalog.js"></script>
     <script src="shared-constants.js"></script>
+    <script src="shared/deck-spec.js"></script>
+    <script src="shared/deck-codec.js"></script>
     <script src="game/logic/markers_adapter.js"></script>
     <script src="game/logic/board_ops.js"></script>
     <script src="utils/owner-helpers.js"></script>
@@ -407,10 +438,17 @@
     <script src="game/logic/cards/sniper.js"></script>
     <script src="game/logic/cards/lightning.js"></script>
     <script src="game/logic/cards/destroy_dragon.js"></script>
+    <script src="game/logic/cards/will_hunter_king.js"></script>
     <script src="game/logic/cards/work_will.js"></script>
+    <script src="game/logic/cards/expansion.js"></script>
+    <script src="game/logic/cards/markers.js"></script>
     <script src="game/logic/effects/dragon.js"></script>
     <script src="game/logic/effects/swap_with_enemy.js"></script>
     <script src="game/logic/effects/destroy_one_stone.js"></script>
+    <script src="game/logic/cards-internal/card-usage-prechecks.js"></script>
+    <script src="game/logic/cards-internal/selector-orchestrator.js"></script>
+    <script src="game/logic/cards-internal/hand-manager.js"></script>
+    <script src="game/logic/cards-internal/effect-timing.js"></script>
     <script src="game/logic/cards.js"></script>
     <script>
         (function() {
@@ -451,6 +489,7 @@
     <script src="ui/animation-resolver.js"></script>
     <script src="ui/animation-shared.js"></script>
     <script src="ui/animation-helpers.js"></script>
+    <script src="ui/playback-state-manager.js"></script>
     <script src="ui/diff-renderer.js"></script>
     <script src="ui/board-renderer.js"></script>
     <script src="ui/status-display.js"></script>
@@ -477,6 +516,10 @@
     <script src="cards/card-renderer.js"></script>
     <script src="cards/card-interaction-effects.js"></script>
     <script src="cards/card-interaction.js"></script>
+    <script src="ui/storage/deck-presets.js"></script>
+    <script src="ui/deck-builder-state.js"></script>
+    <script src="ui/deck-builder-renderer.js"></script>
+    <script src="ui/deck-builder-controller.js"></script>
 
     <!-- Simple Auto (replaces legacy auto-loop) -->
     <script src="game/timers.js"></script>
@@ -516,6 +559,7 @@
     <script src="game/card-effects/board-expansion.js"></script>
     <script src="game/card-effects/blockade.js"></script>
     <script src="game/card-effects/meteor.js"></script>
+    <script src="game/card-effects/freeze.js"></script>
     <script src="game/card-effects/clone.js"></script>
     <script src="game/card-effects-applier.js"></script>
     <!-- CPU Decision Modules (依存関係順: policy → evaluator → decision) -->
@@ -536,13 +580,31 @@
     <script src="game/cpu-turn-handler.js"></script>
     <script src="game/game-controller-slim.js"></script>
 
+    <script src="ui/tutorial/tutorial-state.js"></script>
+    <script src="ui/tutorial/tutorial-storage.js"></script>
+    <script src="ui/tutorial/tutorial-steps.js"></script>
+    <script src="ui/tutorial/typewriter.js"></script>
+    <script src="ui/tutorial/tutorial-overlay.js"></script>
+    <script src="ui/tutorial/tutorial-action-wait.js"></script>
+    <script src="ui/tutorial/tutorial-runtime.js"></script>
+    <script src="ui/tutorial/tutorial-scenario-duel.js"></script>
+    <script src="ui/tutorial/tutorial-controller.js"></script>
+    <script src="ui/story/story-state.js"></script>
+    <script src="ui/story/story-steps.js"></script>
+    <script src="ui/story/story-encounter.js"></script>
+    <script src="ui/story/story-controller.js"></script>
+    <script src="ui/story/story-battle-ui.js"></script>
+
 
     <!-- UI Initialization (MUST load AFTER game-controller-slim to access resetGame) -->
     <script src="ui/handlers/auto.js"></script>
     <script src="ui/handlers/smart.js"></script>
     <script src="ui/handlers/sound.js"></script>
     <script src="ui/handlers/rules-help.js"></script>
+    <script src="ui/handlers/story.js"></script>
+    <script src="ui/handlers/tutorial.js"></script>
     <script src="ui/handlers/cpu-policy.js"></script>
+    <script src="ui/handlers/deck-builder.js"></script>
     <script src="ui/handlers/match-mode.js"></script>
     <!-- DEBUG controls must load before init so their handlers register synchronously. -->
     <script src="ui/handlers/debug.js"></script>

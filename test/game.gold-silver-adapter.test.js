@@ -87,6 +87,25 @@ describe('金/銀 — pipeline_ui_adapter 変換', () => {
         expect(destroy.phase).toBeGreaterThan(spawn.phase);
     });
 
+    test('RAINBOW_STONE: DESTROY は SPAWN/CHANGE より後のフェーズ', () => {
+        const { gameState, cardState } = makeMinimalState();
+
+        const presEvents = [
+            { type: 'CARD_USED', player: 'black', cardId: 'rainbow_stone', meta: { owner: 'black', cost: 10, name: '虹の意志' } },
+            { type: 'SPAWN', stoneId: 's5', row: 2, col: 3, ownerAfter: 'black', cause: 'SYSTEM', reason: 'standard_place', meta: { special: 'RAINBOW' } },
+            { type: 'CHANGE', stoneId: 's1', row: 3, col: 3, ownerBefore: 'white', ownerAfter: 'black', cause: 'SYSTEM', reason: 'standard_flip', meta: {} },
+            { type: 'DESTROY', stoneId: 's5', row: 2, col: 3, ownerBefore: 'black', cause: 'SYSTEM', reason: 'rainbow_stone_sacrifice', meta: {} }
+        ];
+
+        const playback = adapter.mapToPlaybackEvents(presEvents, cardState, gameState);
+        const spawn = playback.find(e => e.type === 'spawn');
+        const destroy = playback.find(e => e.type === 'destroy');
+
+        expect(spawn).toBeDefined();
+        expect(destroy).toBeDefined();
+        expect(destroy.phase).toBeGreaterThan(spawn.phase);
+    });
+
     test('通常配置: DESTROY イベントを含まない（回帰確認）', () => {
         const { gameState, cardState } = makeMinimalState();
         gameState.board[2][3] = 1; // placed stone remains

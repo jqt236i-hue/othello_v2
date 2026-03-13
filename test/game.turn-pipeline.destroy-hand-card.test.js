@@ -125,23 +125,31 @@ describe('TurnPipeline destroy_hand_card', () => {
     expect(handRemove.cardIds).toEqual(['w1', 'w2', 'w3']);
   });
 
-  test('STEAL_CARDで相手手札を奪うとHAND_REMOVEを出す', () => {
+  test('skipTurnStart prevents card use from redrawing and clearing used flag mid-turn', () => {
+    const permaCardId = 'perma_01';
     const gameState = Core.createGameState();
-    const cardState = CardLogic.createCardState();
+    const cardState = CardLogic.createCardState({ shuffle: () => {}, random: () => 0.5 });
 
-    cardState.pendingEffectByPlayer.black = { type: 'STEAL_CARD', stage: 'place' };
-    cardState.hands.white = ['s1', 's2'];
+    cardState.turnIndex = 7;
+    cardState.turnCountByPlayer.black = 0;
+    cardState.hands.black = [permaCardId];
+    cardState.decks.black = ['draw_should_not_happen'];
+    cardState.charge.black = 15;
+    cardState.hasUsedCardThisTurnByPlayer.black = false;
 
-    const res = TurnPipeline.applyTurn(cardState, gameState, 'black', {
-      type: 'place',
-      row: 2,
-      col: 3
-    });
+    const res = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'use_card', useCardId: permaCardId, useCardOwnerKey: 'black' },
+      { shuffle: () => {}, random: () => 0.5 },
+      { skipTurnStart: true }
+    );
 
-    expect(res.cardState.hands.white.length).toBe(1);
-    const handRemove = findHandRemoveEvent(res.presentationEvents, 'steal_card');
-    expect(handRemove).toMatchObject({ player: 'white', count: 1 });
-    expect(Array.isArray(handRemove.cardIds)).toBe(true);
-    expect(handRemove.cardIds).toEqual(['s1']);
+    expect(res.cardState.turnIndex).toBe(7);
+    expect(res.cardState.turnCountByPlayer.black).toBe(0);
+    expect(res.cardState.hasUsedCardThisTurnByPlayer.black).toBe(true);
+    expect(res.cardState.hands.black).toEqual([]);
+    expect(res.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({ type: 'PERMA_PROTECT_NEXT_STONE' }));
   });
 });

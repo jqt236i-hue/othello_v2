@@ -246,6 +246,18 @@ def parse_args() -> argparse.Namespace:
         default=0.08,
         help="Threshold for tacticalScoreMissRatio danger boost (default: 0.08).",
     )
+    p.add_argument(
+        "--hand-pressure-sample-boost",
+        type=float,
+        default=0.0,
+        help="Extra sample weight boost when handCards length is >= 4 (default: 0.0).",
+    )
+    p.add_argument(
+        "--pending-target-sample-boost",
+        type=float,
+        default=0.0,
+        help="Extra sample weight boost when pendingType is active (default: 0.0).",
+    )
     p.add_argument("--min-visits", type=int, default=12, help="Compat policy-table --min-visits.")
     p.add_argument(
         "--shape-immediate",
@@ -284,6 +296,52 @@ def build_card_counts(card_ids: list[str] | None) -> Counter[str]:
             continue
         out[card_id] += 1
     return out
+
+
+def resolve_card_candidate_ids(rec: dict) -> list[str]:
+    action_type = rec.get("actionType")
+    pending_type = rec.get("pendingType")
+    if action_type == "destroy_hand_card":
+        source = rec.get("handCards")
+    elif action_type == "place" and pending_type == "SELL_CARD_WILL":
+        source = rec.get("handCards")
+    else:
+        source = rec.get("usableCardIds")
+
+    out: list[str] = []
+    seen: set[str] = set()
+    if not isinstance(source, list):
+        return out
+    for one in source:
+        if not isinstance(one, str):
+            continue
+        card_id = one.strip()
+        if not card_id or card_id in seen:
+            continue
+        if card_id not in CARD_ACTION_INDEX:
+            continue
+        seen.add(card_id)
+        out.append(card_id)
+    return out
+
+
+def resolve_card_target_card_id(rec: dict) -> str | None:
+    action_type = rec.get("actionType")
+    if action_type == "use_card":
+        card_id = rec.get("useCardId")
+    elif action_type == "destroy_hand_card":
+        card_id = rec.get("destroyCardId")
+    elif action_type == "place" and rec.get("pendingType") == "SELL_CARD_WILL":
+        card_id = rec.get("sellCardId")
+    else:
+        return None
+
+    if not isinstance(card_id, str):
+        return None
+    card_id = card_id.strip()
+    if not card_id:
+        return None
+    return card_id
 
 
 def feature_vector(rec: dict) -> list[float]:
@@ -349,15 +407,11 @@ def feature_vector(rec: dict) -> list[float]:
                 continue
             out[hand_offset + idx] = min(MAX_HAND_SIZE, float(count)) / MAX_HAND_SIZE
 
-        usable_cards = rec.get("usableCardIds")
-        if isinstance(usable_cards, list):
-            for one in usable_cards:
-                if not isinstance(one, str):
-                    continue
-                idx = CARD_ACTION_INDEX.get(one)
-                if idx is None:
-                    continue
-                out[usable_offset + idx] = 1.0
+        for card_id in resolve_card_candidate_ids(rec):
+            idx = CARD_ACTION_INDEX.get(card_id)
+            if idx is None:
+                continue
+            out[usable_offset + idx] = 1.0
     return out
 
 
@@ -377,22 +431,14 @@ def card_target_index(rec: dict) -> int | None:
     if CARD_ACTION_DIM <= 0:
         return None
     action_type = rec.get("actionType")
-    if action_type == "use_card":
-        card_id = rec.get("useCardId")
-        if not isinstance(card_id, str):
-            return None
-        card_id = card_id.strip()
-        if not card_id:
-            return None
-        return CARD_ACTION_INDEX.get(card_id)
+    target_card_id = resolve_card_target_card_id(rec)
+    if isinstance(target_card_id, str):
+        return CARD_ACTION_INDEX.get(target_card_id)
 
     # Learn "hold card" explicitly when a place move is chosen while cards are usable.
     if action_type == "place" and NO_CARD_ACTION_INDEX is not None:
-        usable_cards = rec.get("usableCardIds")
-        if isinstance(usable_cards, list):
-            for one in usable_cards:
-                if isinstance(one, str) and one.strip():
-                    return int(NO_CARD_ACTION_INDEX)
+        if resolve_card_candidate_ids(rec):
+            return int(NO_CARD_ACTION_INDEX)
     return None
 
 
@@ -406,6 +452,8 @@ def sample_weight_for_record(
     negative_future_disc_threshold: float,
     tactical_miss_sample_boost: float,
     tactical_miss_threshold: float,
+    hand_pressure_sample_boost: float,
+    pending_target_sample_boost: float,
 ) -> tuple[float, str]:
     danger_multiplier = 1.0
     try:
@@ -426,6 +474,14 @@ def sample_weight_for_record(
             danger_multiplier += tactical_miss_sample_boost
     except (TypeError, ValueError):
         pass
+
+    hand_cards = rec.get("handCards")
+    if isinstance(hand_cards, list) and len(hand_cards) >= 4:
+        danger_multiplier += hand_pressure_sample_boost
+
+    pending_type = rec.get("pendingType")
+    if isinstance(pending_type, str) and pending_type.strip():
+        danger_multiplier += pending_target_sample_boost
 
     outcome = rec.get("outcome")
     if isinstance(outcome, (int, float)):
@@ -468,6 +524,8 @@ def load_dataset(
     negative_future_disc_threshold: float = -1.0,
     tactical_miss_sample_boost: float = 0.0,
     tactical_miss_threshold: float = 0.08,
+    hand_pressure_sample_boost: float = 0.0,
+    pending_target_sample_boost: float = 0.0,
 ) -> DatasetBundle:
     xs: list[list[float]] = []
     y_place: list[int] = []
@@ -507,6 +565,8 @@ def load_dataset(
                 negative_future_disc_threshold=negative_future_disc_threshold,
                 tactical_miss_sample_boost=tactical_miss_sample_boost,
                 tactical_miss_threshold=tactical_miss_threshold,
+                hand_pressure_sample_boost=hand_pressure_sample_boost,
+                pending_target_sample_boost=pending_target_sample_boost,
             )
             sample_weight.append(float(weight_value))
             train_records += 1
@@ -662,6 +722,8 @@ def train_model(
     negative_future_disc_threshold: float = -1.0,
     tactical_miss_sample_boost: float = 0.0,
     tactical_miss_threshold: float = 0.08,
+    hand_pressure_sample_boost: float = 0.0,
+    pending_target_sample_boost: float = 0.0,
 ) -> tuple[nn.Module, torch.optim.Optimizer, TrainSummary, str | None, list[dict]]:
     if epochs < 1:
         raise ValueError("--epochs must be >= 1")
@@ -985,6 +1047,8 @@ def train_model(
                 "negativeFutureDiscThreshold": negative_future_disc_threshold,
                 "tacticalMissSampleBoost": tactical_miss_sample_boost,
                 "tacticalMissThreshold": tactical_miss_threshold,
+                "handPressureSampleBoost": hand_pressure_sample_boost,
+                "pendingTargetSampleBoost": pending_target_sample_boost,
             }
         )
 
@@ -1119,7 +1183,7 @@ def write_meta(
     if CARD_ACTION_DIM > 0:
         feature_spec += [
             "hand_card_counts_norm",
-            "usable_card_mask",
+            "card_candidate_mask",
         ]
 
     payload = {
@@ -1134,8 +1198,9 @@ def write_meta(
         "outputDim": PLACE_OUTPUT_DIM,
         "cardOutputDim": CARD_ACTION_DIM,
         "boardSize": BOARD_SIZE,
-        "actionSpace": "place_8x8+use_card",
+        "actionSpace": "place_8x8+card_choice",
         "cardActionIds": CARD_ACTION_IDS,
+        "cardDecisionKinds": ["keep", "use", "destroy", "sell"],
         "featureSpec": feature_spec,
         "training": {
             "epochs": args.epochs,
@@ -1161,6 +1226,8 @@ def write_meta(
             "negativeFutureDiscThreshold": args.negative_future_disc_threshold,
             "tacticalMissSampleBoost": args.tactical_miss_sample_boost,
             "tacticalMissThreshold": args.tactical_miss_threshold,
+            "handPressureSampleBoost": args.hand_pressure_sample_boost,
+            "pendingTargetSampleBoost": args.pending_target_sample_boost,
             "resumeCheckpoint": (args.resume_checkpoint or "").strip() or None,
             "resumeOptimizer": bool(args.resume_optimizer),
             "checkpointOut": (args.checkpoint_out or "").strip() or None,
@@ -1236,6 +1303,8 @@ def maybe_write_checkpoint(
             "negativeFutureDiscThreshold": float(args.negative_future_disc_threshold),
             "tacticalMissSampleBoost": float(args.tactical_miss_sample_boost),
             "tacticalMissThreshold": float(args.tactical_miss_threshold),
+            "handPressureSampleBoost": float(args.hand_pressure_sample_boost),
+            "pendingTargetSampleBoost": float(args.pending_target_sample_boost),
             "resumedFrom": resumed_from,
             "resumeOptimizer": bool(args.resume_optimizer),
         },
@@ -1304,6 +1373,8 @@ def main() -> int:
         negative_future_disc_threshold=float(args.negative_future_disc_threshold),
         tactical_miss_sample_boost=float(args.tactical_miss_sample_boost),
         tactical_miss_threshold=float(args.tactical_miss_threshold),
+        hand_pressure_sample_boost=float(args.hand_pressure_sample_boost),
+        pending_target_sample_boost=float(args.pending_target_sample_boost),
     )
     model, optimizer, train_summary, resumed_from, epoch_metrics = train_model(
         data=data,
@@ -1333,6 +1404,8 @@ def main() -> int:
         negative_future_disc_threshold=float(args.negative_future_disc_threshold),
         tactical_miss_sample_boost=float(args.tactical_miss_sample_boost),
         tactical_miss_threshold=float(args.tactical_miss_threshold),
+        hand_pressure_sample_boost=float(args.hand_pressure_sample_boost),
+        pending_target_sample_boost=float(args.pending_target_sample_boost),
     )
     export_onnx(model, args.onnx_out)
     write_meta(meta_out, args, data, train_summary, device)

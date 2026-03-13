@@ -7,13 +7,8 @@
 const LOG_MESSAGES = {
     silverCharge: (gain) => `銀の意志：布石 +${gain}（3倍）`,
     goldCharge: (gain) => `金の意志：布石 +${gain}（4倍）`,
+    rainbowCharge: (gain) => `虹の意志：布石 +${gain}（6倍）`,
     plunderPoints: (amount) => `吸収：${amount}ポイントを吸収`,
-    plunderCards: (count, gain) => {
-        const n = Number.isFinite(Number(gain)) ? Number(gain) : 0;
-        return n > 0
-            ? `転売：${count}枚を売却（布石 +${n}）`
-            : `転売：${count}枚を売却`;
-    },
 
     protectNext: (ownerName) => `${ownerName}: 次の石を保護`,
     permaProtectNext: (ownerName) => `${ownerName}: 次の石を永続保護`,

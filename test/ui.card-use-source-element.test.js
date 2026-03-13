@@ -13,6 +13,17 @@ describe('card use source element selection', () => {
             <span class="card-name">Duplicate Card</span>
           </div>
         </div>
+        <div id="card-detail-name"></div>
+        <div id="card-detail-desc"></div>
+        <button id="use-card-btn" type="button"></button>
+        <button id="destroy-card-btn" type="button"></button>
+        <button id="toggle-card-detail-btn" type="button"></button>
+        <button id="pass-btn" type="button"></button>
+        <button id="sell-card-btn" type="button"></button>
+        <button id="cancel-card-btn" type="button"></button>
+        <div id="use-card-reason"></div>
+        <div id="card-detail-actions"></div>
+        <div id="card-detail-more"></div>
       </body></html>
     `);
     global.window = dom.window;
@@ -75,6 +86,26 @@ describe('card use source element selection', () => {
     expect(payload.sourceCardEl).toBeTruthy();
     expect(payload.sourceCardEl.closest('#hand-black')).not.toBeNull();
     expect(payload.sourceCardEl.closest('#hand-white')).toBeNull();
+  });
+
+  test('useSelectedCard skips direct fallback when playback already contains card_use_animation', () => {
+    const playbackEvents = [{
+      type: 'card_use_animation',
+      targets: [{ player: 'black', owner: 'black', cardId: 'dup_card' }]
+    }];
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      nextCardState: global.cardState,
+      nextGameState: global.gameState,
+      playbackEvents
+    }));
+
+    require('../cards/card-interaction.js');
+    window.useSelectedCard();
+
+    expect(global.playCardUseHandAnimation).not.toHaveBeenCalled();
+    expect(playbackEvents[0].targets[0].sourceCardEl).toBeTruthy();
+    expect(playbackEvents[0].targets[0].sourceCardEl.closest('#hand-black')).not.toBeNull();
   });
 
   test('network mode blocks selecting and using opponent hand card', () => {
@@ -149,6 +180,22 @@ describe('card use source element selection', () => {
     expect(call[3].useCardOwnerKey).toBe('white');
   });
 
+  test('useSelectedCard sends a use_card action through the shared adapter path', () => {
+    require('../cards/card-interaction.js');
+
+    window.useSelectedCard();
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+    const call = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0];
+    expect(call[2]).toBe('black');
+    expect(call[3]).toEqual(expect.objectContaining({
+      type: 'use_card',
+      useCardId: 'dup_card',
+      useCardOwnerKey: 'black'
+    }));
+    expect(call[4]).toBe(global.TurnPipeline);
+  });
+
   test('network mode prioritizes NetworkMatchClient seat over stale LOCAL_PLAYER_KEY', () => {
     require('../cards/card-interaction.js');
 
@@ -195,6 +242,84 @@ describe('card use source element selection', () => {
     expect(global.cardState.selectedCardOwnerKey).toBe('white');
   });
 
+  test('stale visual playback lock no longer blocks selecting and using own hand card', () => {
+    require('../cards/card-interaction.js');
+
+    global.window.VisualPlaybackActive = true;
+    global.window.AnimationEngine = { isPlaying: false };
+    global.isCardAnimating = true;
+    global.window.isCardAnimating = true;
+    global.cardState.selectedCardId = null;
+    global.cardState.selectedCardOwnerKey = null;
+
+    window.onCardClick('dup_card', 'black');
+    expect(global.cardState.selectedCardId).toBe('dup_card');
+    expect(global.cardState.selectedCardOwnerKey).toBe('black');
+
+    window.useSelectedCard();
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+    expect(global.window.VisualPlaybackActive).toBe(false);
+    expect(global.window.isCardAnimating).toBe(false);
+  });
+
+  test('useSelectedCard keeps window and module shared state snapshots aligned', () => {
+    const initialCardStateRef = global.cardState;
+    const initialGameStateRef = global.gameState;
+    const nextCardState = {
+      ...global.cardState,
+      charge: { black: 9, white: 10 },
+      lastUsedCardByPlayer: {
+        black: { id: 'dup_card', name: 'Duplicate Card', desc: 'd' },
+        white: null
+      },
+      selectedCardId: 'dup_card'
+    };
+    const nextGameState = {
+      ...global.gameState,
+      currentPlayer: global.WHITE,
+      turnNumber: 2
+    };
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      nextCardState,
+      nextGameState,
+      playbackEvents: []
+    }));
+
+    require('../cards/card-interaction.js');
+
+    window.useSelectedCard();
+
+    expect(global.cardState).toBe(initialCardStateRef);
+    expect(global.gameState).toBe(initialGameStateRef);
+    expect(global.window.cardState).toBe(global.cardState);
+    expect(global.window.gameState).toBe(global.gameState);
+    expect(global.cardState.charge.black).toBe(9);
+    expect(global.gameState.currentPlayer).toBe(global.WHITE);
+    expect(global.cardState.lastUsedCardByPlayer.black).toEqual({
+      id: 'dup_card',
+      name: 'Duplicate Card',
+      desc: 'd'
+    });
+  });
+
+  test('active visual playback still blocks selecting own hand card', () => {
+    require('../cards/card-interaction.js');
+
+    global.window.VisualPlaybackActive = true;
+    global.window.AnimationEngine = { isPlaying: true };
+    global.isCardAnimating = true;
+    global.window.isCardAnimating = true;
+    global.cardState.selectedCardId = null;
+    global.cardState.selectedCardOwnerKey = null;
+
+    window.onCardClick('dup_card', 'black');
+
+    expect(global.cardState.selectedCardId).toBeNull();
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
+  });
+
   test('network mode keeps useSelectedCard blocked while waiting for opponent turn', () => {
     require('../cards/card-interaction.js');
 
@@ -231,6 +356,27 @@ describe('card use source element selection', () => {
     window.useSelectedCard();
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
     expect(global.addLog).toHaveBeenCalledWith('このカードは現在使用できません（対象不足など）');
+  });
+
+  test('updateCardDetailPanel does not warn when card use is normally blocked after one use this turn', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    require('../cards/card-interaction.js');
+
+    global.cardState.hasUsedCardThisTurnByPlayer.black = true;
+    global.cardState.selectedCardId = 'dup_card';
+    global.cardState.selectedCardOwnerKey = 'black';
+    global.gameState.currentPlayer = global.BLACK;
+
+    window.updateCardDetailPanel();
+
+    expect(document.getElementById('use-card-btn').disabled).toBe(true);
+    expect(document.getElementById('use-card-reason').textContent).toBe('このターンは既に使用済み');
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      '[CARD_UI] USE DISABLED - already used this turn',
+      expect.anything()
+    );
+
+    warnSpy.mockRestore();
   });
 
     test('TREASURE_BOX 使用時は playback 完了後に renderCardUI で布石表示を更新する', async () => {

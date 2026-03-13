@@ -10,6 +10,37 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(out[0].targets[0].soundKey).toBe('trap_select');
   });
 
+  test('time_bomb_selected 成功時は TIME_BOMB の status_applied phase で trap_select を再生する', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 8,
+      targets: [{ r: 2, col: 2, after: { color: 1, special: 'TIME_BOMB', timer: 3 } }],
+      meta: { special: 'TIME_BOMB', timer: 3 }
+    }];
+    const raw = [{ type: 'time_bomb_selected', applied: true, target: { row: 2, col: 2 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'trap_select');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(8);
+  });
+
+  test('time_bomb_selected が不成立なら trap_select を再生しない', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 5,
+      targets: [{ r: 4, col: 4, after: { color: 1, special: 'TIME_BOMB', timer: 3 } }],
+      meta: { special: 'TIME_BOMB', timer: 3 }
+    }];
+    const raw = [{ type: 'time_bomb_selected', applied: false, target: { row: 4, col: 4 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'trap_select');
+
+    expect(cue).toBeUndefined();
+  });
+
   test('guard_selected 成功時は GUARD の status_applied phase で guard_select を再生する', () => {
     const base = [{
       type: 'status_applied',
@@ -37,6 +68,37 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
     const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'guard_select');
+
+    expect(cue).toBeUndefined();
+  });
+
+  test('freeze_selected 成功時は FREEZE の status_applied phase で freeze_select を再生する', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 11,
+      targets: [{ r: 4, col: 6, after: { special: 'FREEZE', timer: 5 } }],
+      meta: { special: 'FREEZE', timer: 5 }
+    }];
+    const raw = [{ type: 'freeze_selected', applied: true, target: { row: 4, col: 6 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'freeze_select');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(11);
+  });
+
+  test('freeze_selected が不成立なら freeze_select を再生しない', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 6,
+      targets: [{ r: 1, col: 7, after: { special: 'FREEZE', timer: 5 } }],
+      meta: { special: 'FREEZE', timer: 5 }
+    }];
+    const raw = [{ type: 'freeze_selected', applied: false, target: { row: 1, col: 7 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'freeze_select');
 
     expect(cue).toBeUndefined();
   });
@@ -438,6 +500,22 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     expect(gainCue).toBeTruthy();
     expect(gainCue.phase).toBe(11);
+    expect(stoneCue).toBeUndefined();
+  });
+
+  test('虹の意志の自己破壊は stone_destroy ではなく sell_sacrifice_gain を再生する', () => {
+    const base = [{
+      type: 'destroy',
+      phase: 12,
+      targets: [{ r: 4, col: 4, cause: 'SYSTEM', reason: 'rainbow_stone_sacrifice' }]
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const gainCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'sell_sacrifice_gain');
+    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+
+    expect(gainCue).toBeTruthy();
+    expect(gainCue.phase).toBe(12);
     expect(stoneCue).toBeUndefined();
   });
 

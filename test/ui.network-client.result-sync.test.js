@@ -20,6 +20,11 @@ describe('NetworkMatchClient result sync', () => {
     global.emitGameStateChange = jest.fn();
     global.emitBoardUpdate = jest.fn();
     global.renderCardUI = jest.fn();
+    global.ensureLegacyMarkers = jest.fn((state) => {
+      state.specialStones = [{ row: 1, col: 2, type: 'WORK' }];
+      state.bombs = [{ row: 3, col: 4, remainingTurns: 2 }];
+    });
+    window.ensureLegacyMarkers = global.ensureLegacyMarkers;
 
     global.isGameOver = jest.fn(() => true);
     global.showResult = jest.fn();
@@ -39,6 +44,7 @@ describe('NetworkMatchClient result sync', () => {
     delete global.emitGameStateChange;
     delete global.emitBoardUpdate;
     delete global.renderCardUI;
+    delete global.ensureLegacyMarkers;
     delete global.isGameOver;
     delete global.showResult;
   });
@@ -103,5 +109,101 @@ describe('NetworkMatchClient result sync', () => {
 
     expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
     expect(global.renderCardUI).not.toHaveBeenCalled();
+  });
+
+  test('network snapshot clears stale presentation queues and keeps busy lock while playback starts', () => {
+    global.isProcessing = false;
+    global.isCardAnimating = false;
+    global.cardState = {
+      markers: [],
+      presentationEvents: [{ type: 'stale_live' }],
+      _presentationEventsPersist: [{ type: 'stale_persist' }]
+    };
+    global.BoardOps = {
+      emitPresentationEvent: jest.fn((state, ev) => {
+        if (!state || !ev) return;
+        if (!Array.isArray(state.presentationEvents)) state.presentationEvents = [];
+        state.presentationEvents.push(ev);
+      })
+    };
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    client.applySnapshot({
+      stateVersion: 10,
+      gameState: { currentPlayer: 1, turnNumber: 42, __resultShown: false },
+      cardState: {
+        markers: [],
+        presentationEvents: [{ type: 'stale_from_snapshot' }],
+        _presentationEventsPersist: [{ type: 'stale_persist_from_snapshot' }]
+      }
+    }, {
+      force: true,
+      skipResultOverlay: true,
+      playbackEvents: [{ type: 'hand_add', phase: 1, targets: [{ player: 'black', count: 1 }] }]
+    });
+
+    expect(global.isProcessing).toBe(true);
+    expect(global.isCardAnimating).toBe(true);
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.cardState.presentationEvents).toHaveLength(1);
+    expect(global.cardState.presentationEvents[0].type).toBe('PLAYBACK_EVENTS');
+    expect(global.cardState._presentationEventsPersist).toEqual([]);
+  });
+
+  test('force sync without incoming playback preserves local presentation queues', () => {
+    global.isProcessing = true;
+    global.isCardAnimating = true;
+    global.cardState = {
+      markers: [],
+      presentationEvents: [{ type: 'local_live' }],
+      _presentationEventsPersist: [{ type: 'local_persist' }]
+    };
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    client.applySnapshot({
+      stateVersion: 11,
+      gameState: { currentPlayer: 1, turnNumber: 44, __resultShown: false },
+      cardState: {
+        markers: [],
+        presentationEvents: [{ type: 'stale_from_snapshot' }],
+        _presentationEventsPersist: [{ type: 'stale_persist_from_snapshot' }]
+      }
+    }, {
+      force: true,
+      skipResultOverlay: true
+    });
+
+    expect(global.isProcessing).toBe(true);
+    expect(global.isCardAnimating).toBe(true);
+    expect(global.cardState.presentationEvents).toEqual([{ type: 'local_live' }]);
+    expect(global.cardState._presentationEventsPersist).toEqual([{ type: 'local_persist' }]);
+    expect(global.renderCardUI).not.toHaveBeenCalled();
+  });
+
+  test('snapshot apply rehydrates legacy marker fields for fallback UI paths', () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    const snapshot = {
+      stateVersion: 10,
+      gameState: { currentPlayer: 1, turnNumber: 43, __resultShown: false },
+      cardState: {
+        markers: [
+          { id: 1, kind: 'specialStone', row: 1, col: 2, owner: 'black', data: { type: 'WORK' } },
+          { id: 2, kind: 'bomb', row: 3, col: 4, owner: 'white', data: { remainingTurns: 2 } }
+        ]
+      }
+    };
+
+    client.applySnapshot(snapshot, { force: true, skipResultOverlay: true });
+
+    expect(global.ensureLegacyMarkers).toHaveBeenCalledTimes(1);
+    expect(global.ensureLegacyMarkers).toHaveBeenCalledWith(global.cardState);
+    expect(global.cardState.specialStones).toEqual([{ row: 1, col: 2, type: 'WORK' }]);
+    expect(global.cardState.bombs).toEqual([{ row: 3, col: 4, remainingTurns: 2 }]);
   });
 });

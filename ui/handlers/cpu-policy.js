@@ -48,6 +48,50 @@ function _shouldForceOnnxLoad() {
     return false;
 }
 
+function _getCpuModelLoadTimeoutMs() {
+    try {
+        if (typeof window !== 'undefined' && Number.isFinite(Number(window.CPU_MODEL_LOAD_TIMEOUT_MS))) {
+            const n = Math.floor(Number(window.CPU_MODEL_LOAD_TIMEOUT_MS));
+            if (n >= 1) return n;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        const qs = (typeof location !== 'undefined' && location.search) ? location.search : '';
+        const match = qs.match(/[?&]cpuModelLoadTimeoutMs=(\d+)\b/i);
+        if (match) {
+            const n = Math.floor(Number(match[1]));
+            if (n >= 1) return n;
+        }
+    } catch (e) { /* ignore */ }
+    return 15000;
+}
+
+function _withLoadTimeout(promise, timeoutMs, label) {
+    const ms = Math.max(1, Math.floor(Number(timeoutMs) || 0));
+    return new Promise((resolve, reject) => {
+        let settled = false;
+        const timerId = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            reject(new Error(`${label} timed out after ${ms}ms`));
+        }, ms);
+        Promise.resolve(promise).then(
+            (value) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timerId);
+                resolve(value);
+            },
+            (err) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timerId);
+                reject(err);
+            }
+        );
+    });
+}
+
 function _resolveCpuLv6SharedProfile() {
     try {
         if (typeof globalThis !== 'undefined' && globalThis.CPU_LV6_SHARED_PROFILE && typeof globalThis.CPU_LV6_SHARED_PROFILE === 'object') {
@@ -220,6 +264,65 @@ async function _resolveSingleAsset(fetchImpl, relativePath) {
     return null;
 }
 
+async function _resolveOptionalAssetPair(fetchImpl, primaryRelativePath, secondaryRelativePath, preferredRoot) {
+    const preferred = String(preferredRoot || '').trim();
+    if (preferred) {
+        const primaryUrl = _joinAssetUrl(preferred, primaryRelativePath);
+        const secondaryUrl = _joinAssetUrl(preferred, secondaryRelativePath);
+        const primaryOk = await _probeUrl(fetchImpl, primaryUrl);
+        const secondaryOk = primaryOk ? await _probeUrl(fetchImpl, secondaryUrl) : false;
+        if (primaryOk && secondaryOk) {
+            return { primaryUrl, secondaryUrl };
+        }
+    }
+    return _resolveAssetPair(fetchImpl, primaryRelativePath, secondaryRelativePath);
+}
+
+async function _loadAuxiliaryPolicyOnnxModels(runtime, options) {
+    const cfg = options && typeof options === 'object' ? options : {};
+    if (!runtime || typeof runtime !== 'object') return;
+
+    if (cfg.hasTargetModel && typeof runtime.loadTargetModelFromUrl === 'function') {
+        try {
+            const targetOk = await _withLoadTimeout(
+                runtime.loadTargetModelFromUrl(cfg.targetModelUrl, cfg.targetMetaUrl),
+                cfg.loadTimeoutMs,
+                'policy-target load'
+            );
+            _setCpuModelLoadStatus('onnx', {
+                targetLoaded: !!targetOk,
+                targetSourceUrl: cfg.targetModelUrl,
+                targetMetaUrl: cfg.targetMetaUrl
+            });
+            if (targetOk) {
+                console.log(`[CPU] policy-target loaded (${cfg.targetModelUrl})`);
+            }
+        } catch (targetErr) {
+            if (_isDebugEnabled()) console.warn('[CPU] policy-target loading failed', targetErr);
+        }
+    }
+
+    if (cfg.hasValueModel && typeof runtime.loadValueModelFromUrl === 'function') {
+        try {
+            const valueOk = await _withLoadTimeout(
+                runtime.loadValueModelFromUrl(cfg.valueModelUrl, cfg.valueMetaUrl),
+                cfg.loadTimeoutMs,
+                'policy-value load'
+            );
+            _setCpuModelLoadStatus('onnx', {
+                valueLoaded: !!valueOk,
+                valueSourceUrl: cfg.valueModelUrl,
+                valueMetaUrl: cfg.valueMetaUrl
+            });
+            if (valueOk) {
+                console.log(`[CPU] policy-value loaded (${cfg.valueModelUrl})`);
+            }
+        } catch (valueErr) {
+            if (_isDebugEnabled()) console.warn('[CPU] policy-value loading failed', valueErr);
+        }
+    }
+}
+
 /**
  * LvMax Deep CFR モデルの読み込み
  * Load LvMax Deep CFR models
@@ -279,7 +382,8 @@ async function initPolicyOnnxModel() {
         }
     } catch (e) { /* ignore */ }
     if (!runtime || typeof runtime.loadFromUrl !== 'function') return;
-    if (!_shouldLoadBrowserOnnxRuntime()) {
+    const shouldLoadPrimaryOnnx = _shouldLoadBrowserOnnxRuntime();
+    if (!shouldLoadPrimaryOnnx) {
         _setCpuModelLoadStatus('onnx', {
             loaded: false,
             sourceUrl: '',
@@ -287,28 +391,43 @@ async function initPolicyOnnxModel() {
             triedRoots: [],
             lastError: '',
             skipped: true,
-            skipReason: 'shared-profile-policy-table-parity'
+            skipReason: 'shared-profile-policy-table-parity',
+            targetLoaded: false,
+            targetSourceUrl: '',
+            targetMetaUrl: '',
+            valueLoaded: false,
+            valueSourceUrl: '',
+            valueMetaUrl: ''
         });
-        if (_isDebugEnabled()) console.log('[CPU] policy-onnx skipped by shared Lv6 parity profile');
-        return;
     }
 
     const modelRel = 'data/models/policy-net.onnx';
     const metaRel = 'data/models/policy-net.onnx.meta.json';
     const cardModelRel = 'data/models/policy-card.onnx';
     const cardMetaRel = 'data/models/policy-card.onnx.meta.json';
+    const targetModelRel = 'data/models/policy-target.onnx';
+    const targetMetaRel = 'data/models/policy-target.onnx.meta.json';
+    const valueModelRel = 'data/models/policy-value.onnx';
+    const valueMetaRel = 'data/models/policy-value.onnx.meta.json';
     let modelUrl = modelRel;
     let metaUrl = metaRel;
     let cardModelUrl = cardModelRel;
     let cardMetaUrl = cardMetaRel;
+    let targetModelUrl = targetModelRel;
+    let targetMetaUrl = targetMetaRel;
+    let valueModelUrl = valueModelRel;
+    let valueMetaUrl = valueMetaRel;
     let useCardSpecialist = _shouldUseCardSpecialistByDefault();
+    let hasTargetModel = false;
+    let hasValueModel = false;
+    const loadTimeoutMs = _getCpuModelLoadTimeoutMs();
 
     // If the model files are not present locally, skip loading to avoid noisy 404/errors.
     // Browser-only: use window.fetch so Node/Jest tests do not attempt relative URL fetches.
     const fetchImpl = (typeof window !== 'undefined' && typeof window.fetch === 'function')
         ? window.fetch.bind(window)
         : null;
-    if (fetchImpl) {
+    if (fetchImpl && shouldLoadPrimaryOnnx) {
         const resolved = await _resolveAssetPair(fetchImpl, modelRel, metaRel);
         if (!resolved) {
             _reportCriticalModelLoadIssue(
@@ -329,7 +448,19 @@ async function initPolicyOnnxModel() {
         });
     }
 
-    if (fetchImpl && useCardSpecialist) {
+    if (fetchImpl && shouldLoadPrimaryOnnx) {
+        const resolvedRoot = _deriveResolvedRootFromUrl(modelUrl, modelRel);
+        if (resolvedRoot) {
+            cardModelUrl = _joinAssetUrl(resolvedRoot, cardModelRel);
+            cardMetaUrl = _joinAssetUrl(resolvedRoot, cardMetaRel);
+            targetModelUrl = _joinAssetUrl(resolvedRoot, targetModelRel);
+            targetMetaUrl = _joinAssetUrl(resolvedRoot, targetMetaRel);
+            valueModelUrl = _joinAssetUrl(resolvedRoot, valueModelRel);
+            valueMetaUrl = _joinAssetUrl(resolvedRoot, valueMetaRel);
+        }
+    }
+
+    if (fetchImpl && shouldLoadPrimaryOnnx && useCardSpecialist) {
         const resolvedRoot = _deriveResolvedRootFromUrl(modelUrl, modelRel);
         const candidateCardModelUrl = _joinAssetUrl(resolvedRoot, cardModelRel);
         const candidateCardMetaUrl = _joinAssetUrl(resolvedRoot, cardMetaRel);
@@ -344,6 +475,36 @@ async function initPolicyOnnxModel() {
         }
     }
 
+    if (fetchImpl) {
+        const resolvedRoot = shouldLoadPrimaryOnnx ? _deriveResolvedRootFromUrl(modelUrl, modelRel) : '';
+        const resolvedTarget = await _resolveOptionalAssetPair(fetchImpl, targetModelRel, targetMetaRel, resolvedRoot);
+        if (resolvedTarget) {
+            targetModelUrl = resolvedTarget.primaryUrl;
+            targetMetaUrl = resolvedTarget.secondaryUrl;
+            hasTargetModel = true;
+        }
+        const resolvedValue = await _resolveOptionalAssetPair(fetchImpl, valueModelRel, valueMetaRel, resolvedRoot);
+        if (resolvedValue) {
+            valueModelUrl = resolvedValue.primaryUrl;
+            valueMetaUrl = resolvedValue.secondaryUrl;
+            hasValueModel = true;
+        }
+    }
+
+    if (!shouldLoadPrimaryOnnx) {
+        if (_isDebugEnabled()) console.log('[CPU] policy-onnx skipped by shared Lv6 parity profile');
+        await _loadAuxiliaryPolicyOnnxModels(runtime, {
+            hasTargetModel,
+            targetModelUrl,
+            targetMetaUrl,
+            hasValueModel,
+            valueModelUrl,
+            valueMetaUrl,
+            loadTimeoutMs
+        });
+        return;
+    }
+
     try {
         if (typeof runtime.configure === 'function') {
             runtime.configure({
@@ -353,21 +514,31 @@ async function initPolicyOnnxModel() {
                 metaUrl: metaUrl,
                 cardSourceUrl: cardModelUrl,
                 cardMetaUrl: cardMetaUrl,
+                targetSourceUrl: targetModelUrl,
+                targetMetaUrl: targetMetaUrl,
+                valueSourceUrl: valueModelUrl,
+                valueMetaUrl: valueMetaUrl,
                 useCardSpecialist
             });
         }
-        const ok = await runtime.loadFromUrl(modelUrl, metaUrl);
+        const ok = await _withLoadTimeout(runtime.loadFromUrl(modelUrl, metaUrl), loadTimeoutMs, 'policy-onnx load');
         if (ok) {
             _setCpuModelLoadStatus('onnx', {
                 loaded: true,
                 sourceUrl: modelUrl,
                 metaUrl,
+                targetLoaded: false,
+                targetSourceUrl: hasTargetModel ? targetModelUrl : '',
+                targetMetaUrl: hasTargetModel ? targetMetaUrl : '',
+                valueLoaded: false,
+                valueSourceUrl: hasValueModel ? valueModelUrl : '',
+                valueMetaUrl: hasValueModel ? valueMetaUrl : '',
                 lastError: ''
             });
             console.log(`[CPU] policy-onnx loaded (${modelUrl})`);
             if (useCardSpecialist && typeof runtime.loadCardModelFromUrl === 'function') {
                 try {
-                    const cardOk = await runtime.loadCardModelFromUrl(cardModelUrl, cardMetaUrl);
+                    const cardOk = await _withLoadTimeout(runtime.loadCardModelFromUrl(cardModelUrl, cardMetaUrl), loadTimeoutMs, 'policy-card load');
                     if (cardOk) {
                         console.log(`[CPU] policy-card loaded (${cardModelUrl})`);
                     } else if (_isDebugEnabled()) {
@@ -378,6 +549,15 @@ async function initPolicyOnnxModel() {
                     if (_isDebugEnabled()) console.warn('[CPU] policy-card loading failed', cardErr);
                 }
             }
+            await _loadAuxiliaryPolicyOnnxModels(runtime, {
+                hasTargetModel,
+                targetModelUrl,
+                targetMetaUrl,
+                hasValueModel,
+                valueModelUrl,
+                valueMetaUrl,
+                loadTimeoutMs
+            });
         } else {
             const status = (typeof runtime.getStatus === 'function') ? runtime.getStatus() : null;
             _reportCriticalModelLoadIssue('onnx', status && status.lastError ? status.lastError : 'runtime returned not loaded', {
@@ -410,6 +590,7 @@ async function initPolicyTableModel() {
 
     const modelRel = 'data/models/policy-table.json';
     let modelUrl = modelRel;
+    const loadTimeoutMs = _getCpuModelLoadTimeoutMs();
     const fetchImpl = (typeof window !== 'undefined' && typeof window.fetch === 'function')
         ? window.fetch.bind(window)
         : null;
@@ -441,7 +622,7 @@ async function initPolicyTableModel() {
                 sourceUrl: modelUrl
             });
         }
-        const ok = await runtime.loadFromUrl(modelUrl);
+        const ok = await _withLoadTimeout(runtime.loadFromUrl(modelUrl), loadTimeoutMs, 'policy-table load');
         if (ok) {
             _setCpuModelLoadStatus('table', {
                 loaded: true,

@@ -6,7 +6,13 @@ function createBoard() {
   return Array.from({ length: 8 }, () => Array(8).fill(0));
 }
 
-function createRendererContext(seatKey) {
+function createRendererContext(options = {}) {
+  const {
+    seatKey = 'black',
+    includeNetworkClient = true,
+    hands = { black: [], white: [] }
+  } = options;
+
   const dom = new JSDOM(
     `<!doctype html><html><body>
       <div id="deck-black"><div class="deck-count"></div></div>
@@ -35,7 +41,10 @@ function createRendererContext(seatKey) {
     turnIndex: 1,
     charge: { black: 0, white: 0 },
     chargeDeltaEvents: [],
-    hands: { black: [], white: [] },
+    hands: {
+      black: Array.isArray(hands.black) ? hands.black.slice() : [],
+      white: Array.isArray(hands.white) ? hands.white.slice() : []
+    },
     decks: { black: [], white: [] },
     discard: [],
     pendingEffectByPlayer: { black: null, white: null },
@@ -48,10 +57,13 @@ function createRendererContext(seatKey) {
   window.StoneVisuals = {
     showChargeDelta: jest.fn()
   };
+  window.OwnerHelpers = require('../utils/owner-helpers');
   window.MATCH_MODE = 'network';
-  window.NetworkMatchClient = {
-    getSeatKey: () => seatKey
-  };
+  if (includeNetworkClient) {
+    window.NetworkMatchClient = {
+      getSeatKey: () => seatKey
+    };
+  }
 
   const rendererCode = fs.readFileSync(path.resolve(__dirname, '../cards/card-renderer.js'), 'utf8');
   window.eval(rendererCode);
@@ -61,7 +73,7 @@ function createRendererContext(seatKey) {
 
 describe('network charge seat layout', () => {
   test('shows local player charge in bottom slot for white seat', () => {
-    const dom = createRendererContext('white');
+    const dom = createRendererContext({ seatKey: 'white' });
     const { window } = dom;
 
     window.cardState.charge.black = 4;
@@ -75,7 +87,7 @@ describe('network charge seat layout', () => {
   });
 
   test('tags deck slots with seat-mapped owner keys in network mode', () => {
-    const dom = createRendererContext('white');
+    const dom = createRendererContext({ seatKey: 'white' });
     const { window } = dom;
 
     window.renderCardUI();
@@ -87,7 +99,7 @@ describe('network charge seat layout', () => {
   });
 
   test('maps charge delta popup to bottom slot for local seat owner', () => {
-    const dom = createRendererContext('white');
+    const dom = createRendererContext({ seatKey: 'white' });
     const { window } = dom;
 
     window.cardState.charge.black = 3;
@@ -106,7 +118,7 @@ describe('network charge seat layout', () => {
   });
 
   test('aggregates multiple charge delta events in one render for local slot', () => {
-    const dom = createRendererContext('white');
+    const dom = createRendererContext({ seatKey: 'white' });
     const { window } = dom;
 
     window.cardState.chargeDeltaEvents = [
@@ -117,6 +129,30 @@ describe('network charge seat layout', () => {
 
     expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledTimes(1);
     expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledWith('black', 4);
+
+    dom.window.close();
+  });
+
+  test('infers white seat from projected hidden black hand when seat globals are unavailable', () => {
+    const dom = createRendererContext({
+      includeNetworkClient: false,
+      hands: {
+        black: ['__hidden_hand__:black:0'],
+        white: ['own_card']
+      }
+    });
+    const { window } = dom;
+
+    window.cardState.charge.black = 4;
+    window.cardState.charge.white = 11;
+    window.CARD_DEFS = [{ id: 'own_card', name: 'Own Card', desc: 'd', cost: 1 }];
+    window.renderCardUI();
+
+    expect(window.document.getElementById('deck-black').dataset.ownerKey).toBe('white');
+    expect(window.document.getElementById('charge-black').textContent).toBe('布石: 11 / 99');
+    expect(window.document.getElementById('charge-white').textContent).toBe('布石: 4 / 99');
+    expect(window.document.querySelector('#hand-black .card-item.visible')).not.toBeNull();
+    expect(window.document.querySelector('#hand-white .card-item.hidden')).not.toBeNull();
 
     dom.window.close();
   });

@@ -53,6 +53,53 @@
             };
         }
 
+        function normalizeRoomDeck(value) {
+            const source = (value && typeof value === 'object') ? value : null;
+            if (!source) return null;
+
+            const deckCode = String(source.deckCode || '').trim();
+            const parseDeckSize = (candidate) => {
+                if (candidate === null || typeof candidate === 'undefined' || candidate === '') return null;
+                return Number.isFinite(Number(candidate))
+                    ? Math.max(0, Math.trunc(Number(candidate)))
+                    : null;
+            };
+            const deckSize = parseDeckSize(source.deckSize);
+            const deckCodeByPlayerSource = (source.deckCodeByPlayer && typeof source.deckCodeByPlayer === 'object')
+                ? source.deckCodeByPlayer
+                : null;
+            const deckSizeByPlayerSource = (source.deckSizeByPlayer && typeof source.deckSizeByPlayer === 'object')
+                ? source.deckSizeByPlayer
+                : null;
+            const deckCodeByPlayer = {
+                black: deckCodeByPlayerSource ? String(deckCodeByPlayerSource.black || '').trim() : '',
+                white: deckCodeByPlayerSource ? String(deckCodeByPlayerSource.white || '').trim() : ''
+            };
+            const deckSizeByPlayer = {
+                black: parseDeckSize(deckSizeByPlayerSource && deckSizeByPlayerSource.black),
+                white: parseDeckSize(deckSizeByPlayerSource && deckSizeByPlayerSource.white)
+            };
+            const hasPerPlayerDeck = !!(
+                deckCodeByPlayer.black ||
+                deckCodeByPlayer.white ||
+                deckSizeByPlayer.black !== null ||
+                deckSizeByPlayer.white !== null
+            );
+            const mode = String(source.mode || (hasPerPlayerDeck ? 'perPlayer' : 'shared')).trim() || 'shared';
+            const roomSource = String(source.source || 'room').trim() || 'room';
+
+            if (!deckCode && deckSize === null && !hasPerPlayerDeck) return null;
+
+            return {
+                mode,
+                deckCode,
+                deckSize,
+                deckCodeByPlayer,
+                deckSizeByPlayer,
+                source: roomSource
+            };
+        }
+
         function getSeatDisplayName(seatKey) {
             return normalizePlayerKey(seatKey) === 'white' ? '白' : '黒';
         }
@@ -72,6 +119,7 @@
                     seatKey: state.seatKey,
                     seats: normalizeRoomSeats(state.roomSeats),
                     seatNames: normalizeSeatNames(state.seatNames),
+                    roomDeck: normalizeRoomDeck(state.roomDeck),
                     hasTwoPlayers: hasTwoPlayers()
                 });
             } catch (e) { /* ignore */ }
@@ -88,6 +136,10 @@
             }
             if (Object.prototype.hasOwnProperty.call(payload, 'seatNames')) {
                 state.seatNames = normalizeSeatNames(payload.seatNames);
+                changed = true;
+            }
+            if (Object.prototype.hasOwnProperty.call(payload, 'roomDeck')) {
+                state.roomDeck = normalizeRoomDeck(payload.roomDeck);
                 changed = true;
             }
 
@@ -173,6 +225,7 @@
             state.chatHistory = [];
             state.roomSeats = normalizeRoomSeats(payload.seats);
             state.seatNames = normalizeSeatNames(payload.seatNames);
+            state.roomDeck = normalizeRoomDeck(payload.roomDeck);
 
             const ownName = normalizePlayerName(payload.playerName);
             if (ownName) {
@@ -204,6 +257,7 @@
             state.seatToken = '';
             state.roomSeats = { black: false, white: false };
             state.seatNames = { black: '', white: '' };
+            state.roomDeck = null;
             state.chatHistory = [];
             state.stateVersion = null;
             state.lastResultVersionShown = null;

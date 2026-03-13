@@ -76,6 +76,7 @@ function parseArgs(argv) {
         heuristicWeightMin: 1,
         heuristicWeightMax: 1,
         jobs: 10,
+        workerRetries: 1,
         policyModelPath: null,
         policyModelPoolPaths: [],
         policyPoolSampling: 'uniform',
@@ -218,6 +219,11 @@ function parseArgs(argv) {
         if (a === '--jobs' || a === '-j') {
             args.jobs = Number(argv[++i]);
             specified.add('jobs');
+            continue;
+        }
+        if (a === '--worker-retries') {
+            args.workerRetries = Number(argv[++i]);
+            specified.add('workerRetries');
             continue;
         }
         if (a === '--policy-model') {
@@ -368,6 +374,10 @@ function parseArgs(argv) {
     }
     if (!Number.isFinite(args.jobs) || args.jobs < 1) throw new Error('--jobs must be >= 1');
     args.jobs = Math.floor(args.jobs);
+    if (!Number.isFinite(args.workerRetries) || args.workerRetries < 0) {
+        throw new Error('--worker-retries must be >= 0');
+    }
+    args.workerRetries = Math.floor(args.workerRetries);
     if (args.policyModelPath && !fs.existsSync(args.policyModelPath)) {
         throw new Error(`--policy-model not found: ${args.policyModelPath}`);
     }
@@ -420,6 +430,7 @@ function printHelp() {
         '      --heuristic-weight-min <r> Min heuristic score weight (default: 1)',
         '      --heuristic-weight-max <r> Max heuristic score weight (default: 1)',
         '  -j, --jobs <n>            Number of parallel self-play workers (default: 10)',
+        '      --worker-retries <n>  Retry count for a shard worker that exits unexpectedly (default: 1)',
         '      --policy-model <path> Optional policy-table JSON used by both players',
         '      --policy-model-pool <paths> Comma-separated model paths for league-style mixed self-play',
         '      --policy-pool-sampling <mode> Model pool sampling mode: uniform|recency (default: uniform)',
@@ -792,12 +803,15 @@ async function mergeShardFiles(shardPaths, outPath) {
     }
 }
 
-function runShardWorker(task) {
+function runShardWorker(task, options) {
+    const workerOptions = options || {};
+    const shardIndex = Number(task && task.shardIndex);
     return new Promise((resolve, reject) => {
         const child = fork(__filename, [], {
             env: Object.assign({}, process.env, {
                 [WORKER_ENV_FLAG]: '1',
-                [WORKER_TASK_ENV]: JSON.stringify(task)
+                [WORKER_TASK_ENV]: JSON.stringify(task),
+                SELFPLAY_DEBUG_STACK: workerOptions.debugStack ? '1' : String(process.env.SELFPLAY_DEBUG_STACK || '0')
             }),
             stdio: ['inherit', 'inherit', 'inherit', 'ipc']
         });
@@ -811,7 +825,9 @@ function runShardWorker(task) {
         child.on('message', (msg) => {
             if (!msg || typeof msg !== 'object') return;
             if (msg.type === 'progress') {
-                finish(null, { progressOnly: true, progress: msg });
+                if (typeof workerOptions.onProgress === 'function') {
+                    workerOptions.onProgress(msg);
+                }
                 return;
             }
             if (msg.type === 'result' && msg.payload) {
@@ -819,19 +835,83 @@ function runShardWorker(task) {
                 return;
             }
             if (msg.type === 'error') {
-                finish(new Error(msg.message || 'worker error'));
+                const error = new Error(msg.message || 'worker error');
+                error.workerFailureType = 'message';
+                error.shardIndex = Number.isFinite(shardIndex) ? shardIndex : null;
+                error.retriable = false;
+                finish(error);
             }
         });
-        child.once('error', (err) => finish(err));
+        child.once('error', (err) => {
+            const error = err instanceof Error ? err : new Error(String(err));
+            error.workerFailureType = 'spawn';
+            error.shardIndex = Number.isFinite(shardIndex) ? shardIndex : null;
+            error.retriable = true;
+            finish(error);
+        });
         child.once('exit', (code, signal) => {
             if (done) return;
-            if (code === 0) {
-                finish(new Error('worker exited without result'));
-            } else {
-                finish(new Error(`worker failed code=${code} signal=${signal || 'none'}`));
-            }
+            const suffix = Number.isFinite(shardIndex) ? ` shard=${shardIndex}` : '';
+            const error = (code === 0)
+                ? new Error(`worker exited without result${suffix}`)
+                : new Error(`worker failed code=${code} signal=${signal || 'none'}${suffix}`);
+            error.workerFailureType = 'exit';
+            error.shardIndex = Number.isFinite(shardIndex) ? shardIndex : null;
+            error.exitCode = code;
+            error.signal = signal || null;
+            error.retriable = true;
+            finish(error);
         });
     });
+}
+
+function cloneWorkerError(err, message) {
+    const source = err instanceof Error ? err : new Error(String(err));
+    const target = new Error(message || source.message || String(source));
+    const copyKeys = ['workerFailureType', 'shardIndex', 'exitCode', 'signal', 'retriable'];
+    for (const key of copyKeys) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+            target[key] = source[key];
+        }
+    }
+    return target;
+}
+
+function isRetriableWorkerFailure(err) {
+    return !!(err && err.retriable === true);
+}
+
+async function runShardWithRetries(task, args, options) {
+    const hooks = options || {};
+    const maxAttempts = 1 + Math.max(0, Math.floor(Number(args && args.workerRetries) || 0));
+    let attempt = 0;
+    let lastError = null;
+    while (attempt < maxAttempts) {
+        attempt += 1;
+        if (attempt > 1 && typeof hooks.onRetryStart === 'function') {
+            hooks.onRetryStart(attempt);
+        }
+        try {
+            return await runShardWorker(task, {
+                onProgress: hooks.onProgress,
+                debugStack: attempt > 1
+            });
+        } catch (err) {
+            lastError = err;
+            const hasRetry = attempt < maxAttempts && isRetriableWorkerFailure(err);
+            if (!hasRetry) {
+                if (attempt <= 1) {
+                    throw err;
+                }
+                throw cloneWorkerError(err, `${err && err.message ? err.message : String(err)} attempts=${attempt}/${maxAttempts}`);
+            }
+            console.warn(`[selfplay] shard retry ${attempt}/${maxAttempts - 1} shard=${task.shardIndex} seed=${task.seed} games=${task.games}: ${err && err.message ? err.message : String(err)}`);
+        }
+    }
+    if (lastError) {
+        throw cloneWorkerError(lastError, `${lastError.message || String(lastError)} attempts=${maxAttempts}/${maxAttempts}`);
+    }
+    throw new Error(`worker failed shard=${task && task.shardIndex}`);
 }
 
 function createWorkerTask(args, shard, shardOutPath, hardcaseOutPath) {
@@ -895,53 +975,22 @@ async function runSelfPlayParallel(args) {
             )
             : null;
         const task = createWorkerTask(args, shard, shardOutPath, shardHardcaseOutPath);
-        const worker = fork(__filename, [], {
-            env: Object.assign({}, process.env, {
-                [WORKER_ENV_FLAG]: '1',
-                [WORKER_TASK_ENV]: JSON.stringify(task)
-            }),
-            stdio: ['inherit', 'inherit', 'inherit', 'ipc']
-        });
-        shardPromises.push(new Promise((resolve, reject) => {
-            let settled = false;
-            const finish = (err, value) => {
-                if (settled) return;
-                settled = true;
-                if (err) reject(err);
-                else resolve(value);
-            };
-            worker.on('message', (msg) => {
-                if (!msg || typeof msg !== 'object') return;
-                if (msg.type === 'progress') {
-                    const idx = Number(msg.shardIndex);
-                    const completed = Number(msg.completed || 0);
-                    if (Number.isFinite(idx) && idx >= 0 && idx < shardProgress.length) {
-                        shardProgress[idx] = completed;
-                        const globalCompleted = shardProgress.reduce((sum, one) => sum + one, 0);
-                        if (globalCompleted >= nextGlobalLog || globalCompleted >= args.games) {
-                            console.log(`[selfplay] ${Math.min(args.games, globalCompleted)}/${args.games} completed (last winner: ${msg.winner || 'n/a'})`);
-                            while (nextGlobalLog <= globalCompleted) nextGlobalLog += 10;
-                        }
+        shardPromises.push(runShardWithRetries(task, args, {
+            onRetryStart: () => {
+                shardProgress[shard.shardIndex] = 0;
+            },
+            onProgress: (msg) => {
+                const idx = Number(msg.shardIndex);
+                const completed = Number(msg.completed || 0);
+                if (Number.isFinite(idx) && idx >= 0 && idx < shardProgress.length) {
+                    shardProgress[idx] = completed;
+                    const globalCompleted = shardProgress.reduce((sum, one) => sum + one, 0);
+                    if (globalCompleted >= nextGlobalLog || globalCompleted >= args.games) {
+                        console.log(`[selfplay] ${Math.min(args.games, globalCompleted)}/${args.games} completed (last winner: ${msg.winner || 'n/a'})`);
+                        while (nextGlobalLog <= globalCompleted) nextGlobalLog += 10;
                     }
-                    return;
                 }
-                if (msg.type === 'result' && msg.payload) {
-                    finish(null, msg.payload);
-                    return;
-                }
-                if (msg.type === 'error') {
-                    finish(new Error(msg.message || 'worker error'));
-                }
-            });
-            worker.once('error', (err) => finish(err));
-            worker.once('exit', (code, signal) => {
-                if (settled) return;
-                if (code === 0) {
-                    finish(new Error(`worker exited without result (shard=${shard.shardIndex})`));
-                } else {
-                    finish(new Error(`worker failed code=${code} signal=${signal || 'none'} shard=${shard.shardIndex}`));
-                }
-            });
+            }
         }));
     }
 
@@ -1074,6 +1123,7 @@ async function main() {
             heuristicWeightMin: args.heuristicWeightMin,
             heuristicWeightMax: args.heuristicWeightMax,
             jobs: args.jobs,
+            workerRetries: args.workerRetries,
             hasPolicyModel: policyModels.length > 0,
             policyModelPath: args.policyModelPath || null,
             policyModelPoolPaths: policyModelPaths,
@@ -1113,5 +1163,9 @@ if (require.main === module) {
 }
 
 module.exports = {
-    parseArgs
+    parseArgs,
+    createShardPlan,
+    runShardWorker,
+    runSelfPlayParallel,
+    isRetriableWorkerFailure
 };

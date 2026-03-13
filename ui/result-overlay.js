@@ -138,6 +138,61 @@ function resolveResultTitleAndStatus(counts, viewerKey, resultContext) {
     return { title: '引き分け', statusClass: 'draw', localOutcomeKey };
 }
 
+function getTutorialStateApiForResult() {
+    try {
+        if (typeof window !== 'undefined' && window && window.Tutorial && window.Tutorial.State) {
+            return window.Tutorial.State;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function getTutorialScenarioDuelApi() {
+    try {
+        if (typeof window !== 'undefined' && window && window.Tutorial && window.Tutorial.ScenarioDuel) {
+            return window.Tutorial.ScenarioDuel;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function getStoryEncounterApi() {
+    try {
+        if (typeof window !== 'undefined' && window && window.Story && window.Story.Encounter) {
+            return window.Story.Encounter;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function isObserverDuelResultActive() {
+    const stateApi = getTutorialStateApiForResult();
+    return !!(stateApi && typeof stateApi.isObserverDuelActive === 'function' && stateApi.isObserverDuelActive());
+}
+
+function isStoryEncounterResultActive() {
+    const encounterApi = getStoryEncounterApi();
+    return !!(encounterApi && typeof encounterApi.isActive === 'function' && encounterApi.isActive());
+}
+
+function resolveObserverDuelResultOverride(counts, viewerKey) {
+    const duelApi = getTutorialScenarioDuelApi();
+    if (!duelApi || typeof duelApi.resolveObserverDuelResult !== 'function') return null;
+    return duelApi.resolveObserverDuelResult(counts, viewerKey);
+}
+
+function resolveStoryEncounterResultOverride(counts, viewerKey) {
+    const encounterApi = getStoryEncounterApi();
+    if (!encounterApi || typeof encounterApi.resolveStoryEncounterResult !== 'function') return null;
+    return encounterApi.resolveStoryEncounterResult(counts, viewerKey);
+}
+
+function finishObserverDuelIfNeeded() {
+    const duelApi = getTutorialScenarioDuelApi();
+    if (!duelApi || typeof duelApi.finishObserverDuel !== 'function') return false;
+    return duelApi.finishObserverDuel();
+}
+
 function toFiniteInteger(value, fallback) {
     const n = Number(value);
     if (!Number.isFinite(n)) return fallback;
@@ -330,6 +385,12 @@ function computeScoreSummaryForViewer(options) {
 
 function updateCpuLeaderboard(scoreSummary, viewerKey) {
     const cpuLevel = resolveCpuLevelForViewer(viewerKey);
+    if (isStoryEncounterResultActive()) {
+        return { mode: 'story-encounter', enabled: false, cpuLevel, bestScore: null, updated: false, previousBest: null };
+    }
+    if (isObserverDuelResultActive()) {
+        return { mode: 'observer-duel', enabled: false, cpuLevel, bestScore: null, updated: false, previousBest: null };
+    }
     if (!isCpuMatchMode()) {
         return { mode: 'network', enabled: false, cpuLevel, bestScore: null, updated: false, previousBest: null };
     }
@@ -405,6 +466,20 @@ function createScoreMetaLine(scoreSummary, leaderboardState) {
     return line;
 }
 
+function createObserverDuelMetaLine(override) {
+    const line = document.createElement('div');
+    line.className = 'result-score-meta';
+    line.textContent = override && override.metaText ? String(override.metaText) : '観測者対局: ランキング対象外';
+    return line;
+}
+
+function createStoryEncounterMetaLine(override) {
+    const line = document.createElement('div');
+    line.className = 'result-score-meta';
+    line.textContent = override && override.metaText ? String(override.metaText) : 'ストーリー対局: ランキング対象外';
+    return line;
+}
+
 function notifySharedLeaderboardUpdated(detail) {
     try {
         if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
@@ -455,6 +530,8 @@ function canAutoSubmitSharedLeaderboard(client) {
 function submitSharedLeaderboardScore(scoreSummary, viewerKey) {
     try {
         if (typeof window === 'undefined') return;
+        if (isStoryEncounterResultActive()) return;
+        if (isObserverDuelResultActive()) return;
         const client = window.LeaderboardClient;
         if (!canAutoSubmitSharedLeaderboard(client)) return;
 
@@ -471,6 +548,145 @@ function submitSharedLeaderboardScore(scoreSummary, viewerKey) {
             })
             .catch(() => {});
     } catch (e) { /* ignore */ }
+}
+
+function createObserverDuelDialogue(override) {
+    const dialogContainer = document.createElement('div');
+    dialogContainer.className = 'result-dialogues';
+
+    const row = document.createElement('div');
+    row.className = 'dialogue-row monster';
+
+    const name = document.createElement('div');
+    name.className = 'character-name';
+    name.textContent = override && override.speakerName ? String(override.speakerName) : '盤理の観測者';
+
+    const text = document.createElement('div');
+    text.className = 'dialogue-text';
+    const lines = override && Array.isArray(override.dialogueLines) ? override.dialogueLines : [];
+    text.textContent = lines.join(' ');
+
+    row.appendChild(name);
+    row.appendChild(text);
+    dialogContainer.appendChild(row);
+
+    return dialogContainer;
+}
+
+function createStoryEncounterDialogue(override) {
+    const dialogContainer = document.createElement('div');
+    dialogContainer.className = 'result-dialogues';
+
+    const row = document.createElement('div');
+    row.className = 'dialogue-row monster';
+
+    const name = document.createElement('div');
+    name.className = 'character-name';
+    name.textContent = override && override.speakerName ? String(override.speakerName) : 'ストーリー対局';
+
+    const text = document.createElement('div');
+    text.className = 'dialogue-text';
+    const lines = override && Array.isArray(override.dialogueLines) ? override.dialogueLines : [];
+    text.textContent = lines.join(' ');
+
+    row.appendChild(name);
+    row.appendChild(text);
+    dialogContainer.appendChild(row);
+
+    return dialogContainer;
+}
+
+function removeExistingResultOverlay() {
+    const existing = document.getElementById('result-overlay');
+    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+}
+
+function createStoryEncounterHeroRow(override, counts) {
+    const body = document.createElement('div');
+    body.className = 'story-result-body';
+
+    const portraitWrap = document.createElement('div');
+    portraitWrap.className = 'story-result-portrait-wrap';
+
+    const portrait = document.createElement('img');
+    portrait.className = 'story-result-portrait';
+    portrait.alt = override && override.speakerName ? String(override.speakerName) : '敵';
+    portrait.src = override && override.enemyImageSrc ? String(override.enemyImageSrc) : '';
+    portrait.hidden = !portrait.src;
+    portraitWrap.appendChild(portrait);
+
+    const summary = document.createElement('div');
+    summary.className = 'story-result-summary';
+
+    const name = document.createElement('div');
+    name.className = 'story-result-name';
+    name.textContent = override && override.speakerName ? String(override.speakerName) : 'ストーリー対局';
+    summary.appendChild(name);
+    summary.appendChild(createResultDiscCountsLine(counts));
+    summary.appendChild(createStoryEncounterMetaLine(override));
+
+    body.appendChild(portraitWrap);
+    body.appendChild(summary);
+    return body;
+}
+
+function appendScenarioButtons(panel, override) {
+    const btnRow = document.createElement('div');
+    btnRow.className = 'result-btn-row';
+
+    const primaryBtn = document.createElement('button');
+    primaryBtn.className = 'premium-btn primary';
+    primaryBtn.textContent = override && override.primaryLabel ? String(override.primaryLabel) : '続ける';
+    primaryBtn.onclick = () => {
+        const el = document.getElementById('result-overlay');
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+        Promise.resolve(override && typeof override.onPrimary === 'function' ? override.onPrimary() : null).catch(() => {});
+    };
+
+    const secondaryBtn = document.createElement('button');
+    secondaryBtn.className = 'premium-btn secondary';
+    secondaryBtn.textContent = override && override.secondaryLabel ? String(override.secondaryLabel) : '終了';
+    secondaryBtn.onclick = () => {
+        const el = document.getElementById('result-overlay');
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+        Promise.resolve(override && typeof override.onSecondary === 'function' ? override.onSecondary() : null).catch(() => {});
+    };
+
+    btnRow.appendChild(primaryBtn);
+    btnRow.appendChild(secondaryBtn);
+    panel.appendChild(btnRow);
+}
+
+function showStoryEncounterResultOverlay(override, counts) {
+    removeExistingResultOverlay();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'result-overlay';
+    overlay.className = `result-overlay story-result-overlay ${override && override.statusClass ? override.statusClass : 'draw'}`;
+
+    const panel = document.createElement('div');
+    panel.className = 'result-panel story-result-panel glass-morphism';
+
+    const eyebrow = document.createElement('div');
+    eyebrow.className = 'story-result-eyebrow';
+    eyebrow.textContent = 'ストーリー対局';
+    panel.appendChild(eyebrow);
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 'result-title main-title';
+    titleEl.textContent = override && override.title ? String(override.title) : '結果';
+    panel.appendChild(titleEl);
+
+    panel.appendChild(createStoryEncounterHeroRow(override, counts));
+    panel.appendChild(createStoryEncounterDialogue(override));
+    appendScenarioButtons(panel, override);
+
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    setTimeout(() => {
+        overlay.classList.add('active');
+    }, 10);
 }
 
 function createDetailStatsSection(counts, chargeTotals, cardUseTotals, flipTotals, cornerCaptureTotals) {
@@ -547,8 +763,21 @@ function showResultOverlay() {
     const flipTotals = getFlipTotals();
     const cornerCaptureTotals = getCornerCaptureTotals();
     const viewerKey = resolveResultViewerKey();
+    const storyEncounterOverride = resolveStoryEncounterResultOverride(counts, viewerKey);
+    const observerDuelOverride = resolveObserverDuelResultOverride(counts, viewerKey);
+    if (storyEncounterOverride) {
+        showStoryEncounterResultOverlay(storyEncounterOverride, counts);
+        return;
+    }
+    const scenarioOverride = observerDuelOverride;
     const resultContext = resolveResultWinnerContext(gameState, counts);
-    const resultView = resolveResultTitleAndStatus(counts, viewerKey, resultContext);
+    const resultView = scenarioOverride
+        ? {
+            title: scenarioOverride.title,
+            statusClass: scenarioOverride.statusClass,
+            localOutcomeKey: scenarioOverride.localOutcomeKey
+        }
+        : resolveResultTitleAndStatus(counts, viewerKey, resultContext);
     const localOutcomeKey = resultView.localOutcomeKey;
     const title = resultView.title;
     const statusClass = resultView.statusClass;
@@ -561,12 +790,14 @@ function showResultOverlay() {
         flipTotals,
         cornerCaptureTotals
     });
-    const leaderboardState = updateCpuLeaderboard(scoreSummary, viewerKey);
-    submitSharedLeaderboardScore(scoreSummary, viewerKey);
+    const leaderboardState = scenarioOverride
+        ? { mode: 'observer-duel', enabled: false, cpuLevel: resolveCpuLevelForViewer(viewerKey), bestScore: null, updated: false, previousBest: null }
+        : updateCpuLeaderboard(scoreSummary, viewerKey);
+    if (!scenarioOverride) {
+        submitSharedLeaderboardScore(scoreSummary, viewerKey);
+    }
 
-    // Remove existing overlay if any
-    const existing = document.getElementById('result-overlay');
-    if (existing) existing.parentNode.removeChild(existing);
+    removeExistingResultOverlay();
 
     const overlay = document.createElement('div');
     overlay.id = 'result-overlay';
@@ -595,7 +826,9 @@ function showResultOverlay() {
     totalScore.appendChild(totalValue);
     panel.appendChild(totalScore);
 
-    const scoreMeta = createScoreMetaLine(scoreSummary, leaderboardState);
+    const scoreMeta = observerDuelOverride
+        ? createObserverDuelMetaLine(observerDuelOverride)
+        : createScoreMetaLine(scoreSummary, leaderboardState);
     panel.appendChild(scoreMeta);
 
     const breakdown = document.createElement('div');
@@ -614,7 +847,9 @@ function showResultOverlay() {
     const detailSection = createDetailStatsSection(counts, chargeTotals, cardUseTotals, flipTotals, cornerCaptureTotals);
     panel.appendChild(detailSection);
 
-    const dialogContainer = createMonsterDialogue(counts, localOutcomeKey);
+    const dialogContainer = observerDuelOverride
+        ? createObserverDuelDialogue(observerDuelOverride)
+        : createMonsterDialogue(counts, localOutcomeKey);
     panel.appendChild(dialogContainer);
 
     const btnRow = document.createElement('div');
@@ -650,6 +885,9 @@ function showResultOverlay() {
             return;
         }
 
+        if (observerDuelOverride) {
+            finishObserverDuelIfNeeded();
+        }
         const el = document.getElementById('result-overlay');
         if (el) el.parentNode.removeChild(el);
         if (typeof resetGame === 'function') resetGame();
@@ -659,6 +897,9 @@ function showResultOverlay() {
     closeBtn.className = 'premium-btn secondary';
     closeBtn.textContent = '閉じる';
     closeBtn.onclick = () => {
+        if (observerDuelOverride) {
+            finishObserverDuelIfNeeded();
+        }
         const el = document.getElementById('result-overlay');
         if (el) el.parentNode.removeChild(el);
     };
@@ -838,10 +1079,12 @@ if (typeof module !== 'undefined' && module.exports) {
         showResult,
         showResultOverlay,
         createMonsterDialogue,
+        createObserverDuelDialogue,
         getMonsterDialogues,
         computeScoreSummaryForViewer,
         resolveCpuLevelForViewer,
-        resolveCurrentMatchMode
+        resolveCurrentMatchMode,
+        resolveObserverDuelResultOverride
     };
 }
 

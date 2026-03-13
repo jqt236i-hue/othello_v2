@@ -1,8 +1,16 @@
 # カードオセロ / AGENTS.md
 
-最終更新: 2026-02-26
+最終更新: 2026-03-13
 
 このファイルは作業の段取りです。強制ルールは `.github/copilot-instructions.md` ですが、下記の「共通ルール」は両ファイルで同一に保ちます。
+
+## カスタマイズmdの役割分担
+
+- `.github/copilot-instructions.md` と `AGENTS.md` は意味差を広げない。違いは入口と導線だけに留める。
+- `.github/copilot-instructions.md` は常時効く制約、完了条件、境界ルールを優先して書く。
+- `AGENTS.md` は読む順、調査順、編集順、確認順を優先して書く。
+- `.github/instructions/*.instructions.md` は `applyTo` で効く局所ルールだけを書く。
+- `.github/agents/*.agent.md` と `.github/skills/**/SKILL.md` は特定作業の進め方に絞り、仕様や強制ルールを重複定義しない。
 
 ## 重要: 片方しか読まれない場合の共通ルール（衝突防止）
 
@@ -22,7 +30,8 @@
 1) 仕様（一次情報）: `01-rulebook.md`（末尾の UI/演出仕様を含む）  
 2) 共通ルール（このファイルと `.github/copilot-instructions.md` の同名節）  
 3) 対象別の追加指示: `.github/instructions/*.instructions.md`（`applyTo` 範囲のみ）  
-4) 補助ガイド: `cards/README.ai.md` など各ディレクトリの `README.ai.md`
+4) タスク別の導線: `.github/agents/*.agent.md`, `.github/skills/**/SKILL.md`
+5) 補助ガイド: `cards/README.ai.md` など各ディレクトリの `README.ai.md`
 
 ## 共通実行ルール（Codex/Copilot 同一）
 

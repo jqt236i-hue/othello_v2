@@ -191,6 +191,33 @@ describe('DESTROY_DRAGON_WILL（破壊龍）', () => {
     expect(gameState.boardExpansion.owner).toBe(Shared.EMPTY);
   });
 
+  test('上側拡張セルの隣接敵石も破壊対象になる', () => {
+    const { cardState, gameState } = createStates(0.2);
+
+    gameState.board[0][0] = Shared.BLACK;
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: Shared.EMPTY,
+      usedByPlayer: { black: true, white: false },
+      cells: [{ side: 'top', row: -1, col: 0, owner: Shared.WHITE }]
+    };
+
+    cardState.markers.push({
+      id: 8306,
+      kind: 'specialStone',
+      row: 0,
+      col: 0,
+      owner: 'black',
+      data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 3 }
+    });
+
+    const out = CardLogic.processDestroyDragonEffectsAtTurnStartAnchor(cardState, gameState, 'black', 0, 0, createPrng(0.2));
+    expect((out.destroyed || []).some((p) => p.row === -1 && p.col === 0)).toBe(true);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === -1 && cell.col === 0).owner).toBe(Shared.EMPTY);
+  });
+
   test('ターン開始フェーズで破壊と期限切れイベントを発行する', () => {
     const { cardState, gameState } = createStates(0.2);
 

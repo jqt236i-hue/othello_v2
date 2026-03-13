@@ -17,6 +17,21 @@
     const PUBLISH_RETRY_MAX_ATTEMPTS = 3;
     const PUBLISH_RETRY_BASE_DELAY_MS = 400;
     const PUBLISH_RETRY_MAX_DELAY_MS = 4000;
+    const PlaybackStateModule = (typeof require === 'function')
+        ? (() => {
+            try { return require('./playback-state-manager'); } catch (e) { return root.PlaybackStateManager || null; }
+        })()
+        : (root.PlaybackStateManager || null);
+
+    function setSuppressNextDiffFlip() {
+        try {
+            if (PlaybackStateModule && typeof PlaybackStateModule.setSuppressNextDiffFlip === 'function') {
+                PlaybackStateModule.setSuppressNextDiffFlip(true);
+            } else {
+                root.__suppressNextDiffFlip = true;
+            }
+        } catch (e) { /* ignore */ }
+    }
 
     function normalizeRoomId(value) {
         const roomId = String(value || '').trim().toUpperCase();
@@ -83,6 +98,7 @@
         seatToken: '',
         roomSeats: { black: false, white: false },
         seatNames: { black: '', white: '' },
+        roomDeck: null,
         serverUrl: deriveInitialServerUrl(),
         stateVersion: null,
         eventSource: null,
@@ -95,6 +111,7 @@
         originalRunTurnWithAdapter: null,
         actionBridgeInstalled: false,
         publishChain: Promise.resolve(),
+        queuedPublishSequence: 0,
         lastPublishedOperationId: null,
         lastResultVersionShown: null,
         resultShownForUnversioned: false,
@@ -229,6 +246,17 @@
         return networkSessionSeatController;
     }
 
+    function invokeControllerMethod(resolveController, methodName, argsLike, fallback) {
+        const controller = (typeof resolveController === 'function') ? resolveController() : null;
+        if (controller && typeof controller[methodName] === 'function') {
+            return controller[methodName].apply(controller, argsLike || []);
+        }
+        if (typeof fallback === 'function') {
+            return fallback.apply(null, argsLike || []);
+        }
+        return fallback;
+    }
+
     function resolveOwnerHelpers() {
         if (ownerHelpers) return ownerHelpers;
 
@@ -284,24 +312,15 @@
     }
 
     function readSeatClaim(roomId) {
-        const controller = getNetworkSessionSeatController();
-        return (controller && typeof controller.readSeatClaim === 'function')
-            ? controller.readSeatClaim(roomId)
-            : null;
+        return invokeControllerMethod(getNetworkSessionSeatController, 'readSeatClaim', arguments, null);
     }
 
     function writeSeatClaim(roomId, seatKey, seatToken) {
-        const controller = getNetworkSessionSeatController();
-        if (controller && typeof controller.writeSeatClaim === 'function') {
-            controller.writeSeatClaim(roomId, seatKey, seatToken);
-        }
+        invokeControllerMethod(getNetworkSessionSeatController, 'writeSeatClaim', arguments, undefined);
     }
 
     function clearSeatClaim(roomId) {
-        const controller = getNetworkSessionSeatController();
-        if (controller && typeof controller.clearSeatClaim === 'function') {
-            controller.clearSeatClaim(roomId);
-        }
+        invokeControllerMethod(getNetworkSessionSeatController, 'clearSeatClaim', arguments, undefined);
     }
 
     function emitStatus(text, isError) {
@@ -334,58 +353,66 @@
     }
 
     function emitSnapshotCommentary(payload, snapshot, isSelfOperation, playbackEvents) {
-        const controller = getNetworkCommentaryController();
-        if (!controller || typeof controller.emitSnapshotCommentary !== 'function') return;
-        controller.emitSnapshotCommentary(payload, snapshot, isSelfOperation, playbackEvents);
+        invokeControllerMethod(getNetworkCommentaryController, 'emitSnapshotCommentary', arguments, undefined);
     }
 
     function getSeatDisplayName(seatKey) {
-        const controller = getNetworkSessionSeatController();
-        return (controller && typeof controller.getSeatDisplayName === 'function')
-            ? controller.getSeatDisplayName(seatKey)
-            : (normalizePlayerKey(seatKey) === 'white' ? '白' : '黒');
+        return invokeControllerMethod(
+            getNetworkSessionSeatController,
+            'getSeatDisplayName',
+            arguments,
+            () => (normalizePlayerKey(seatKey) === 'white' ? '白' : '黒')
+        );
     }
 
     function normalizePlayerName(value) {
-        const controller = getNetworkSessionSeatController();
-        return (controller && typeof controller.normalizePlayerName === 'function')
-            ? controller.normalizePlayerName(value)
-            : String(value || '').replace(/\s+/g, ' ').trim();
+        return invokeControllerMethod(
+            getNetworkSessionSeatController,
+            'normalizePlayerName',
+            arguments,
+            () => String(value || '').replace(/\s+/g, ' ').trim()
+        );
     }
 
     function normalizeRoomSeats(value) {
-        const controller = getNetworkSessionSeatController();
-        return (controller && typeof controller.normalizeRoomSeats === 'function')
-            ? controller.normalizeRoomSeats(value)
-            : { black: !!(value && value.black), white: !!(value && value.white) };
+        return invokeControllerMethod(
+            getNetworkSessionSeatController,
+            'normalizeRoomSeats',
+            arguments,
+            () => ({ black: !!(value && value.black), white: !!(value && value.white) })
+        );
     }
 
     function normalizeSeatNames(value) {
-        const controller = getNetworkSessionSeatController();
-        return (controller && typeof controller.normalizeSeatNames === 'function')
-            ? controller.normalizeSeatNames(value)
-            : { black: normalizePlayerName(value && value.black), white: normalizePlayerName(value && value.white) };
+        return invokeControllerMethod(
+            getNetworkSessionSeatController,
+            'normalizeSeatNames',
+            arguments,
+            () => ({ black: normalizePlayerName(value && value.black), white: normalizePlayerName(value && value.white) })
+        );
     }
 
     function hasTwoPlayers() {
-        const controller = getNetworkSessionSeatController();
-        return (controller && typeof controller.hasTwoPlayers === 'function')
-            ? controller.hasTwoPlayers()
-            : !!(state.roomSeats && state.roomSeats.black && state.roomSeats.white);
+        return invokeControllerMethod(
+            getNetworkSessionSeatController,
+            'hasTwoPlayers',
+            arguments,
+            () => !!(state.roomSeats && state.roomSeats.black && state.roomSeats.white)
+        );
     }
 
     function emitRoomStateChanged() {
-        const controller = getNetworkSessionSeatController();
-        if (controller && typeof controller.emitRoomStateChanged === 'function') {
-            controller.emitRoomStateChanged();
-        }
+        invokeControllerMethod(getNetworkSessionSeatController, 'emitRoomStateChanged', arguments, undefined);
     }
 
     function updateRoomSeatsFromPayload(payload) {
-        const controller = getNetworkSessionSeatController();
-        if (controller && typeof controller.updateRoomSeatsFromPayload === 'function') {
-            controller.updateRoomSeatsFromPayload(payload);
-        }
+        invokeControllerMethod(getNetworkSessionSeatController, 'updateRoomSeatsFromPayload', arguments, undefined);
+    }
+
+    function applyPayloadSessionState(payload) {
+        if (!payload || typeof payload !== 'object') return;
+        updateTurnTimerFromPayload(payload);
+        updateRoomSeatsFromPayload(payload);
     }
 
     function normalizeTurnTimerPayload(value) {
@@ -595,10 +622,7 @@
     }
 
     function ensureOwnSeatJoined() {
-        const controller = getNetworkSessionSeatController();
-        if (controller && typeof controller.ensureOwnSeatJoined === 'function') {
-            controller.ensureOwnSeatJoined();
-        }
+        invokeControllerMethod(getNetworkSessionSeatController, 'ensureOwnSeatJoined', arguments, undefined);
     }
 
     function normalizeChatText(value) {
@@ -631,9 +655,7 @@
     function handleChatPayload(payload) {
         if (!payload || payload.ok !== true) return;
 
-        updateTurnTimerFromPayload(payload);
-
-        updateRoomSeatsFromPayload(payload);
+        applyPayloadSessionState(payload);
 
         const type = String(payload.type || 'message');
         if (type === 'history') {
@@ -666,9 +688,7 @@
     function handlePresencePayload(payload) {
         if (!payload || payload.ok !== true) return;
 
-        updateTurnTimerFromPayload(payload);
-
-        updateRoomSeatsFromPayload(payload);
+        applyPayloadSessionState(payload);
 
         const type = String(payload.type || 'join');
         if (type !== 'join' && type !== 'leave') return;
@@ -700,24 +720,32 @@
     }
 
     function applySnapshot(snapshot, options) {
-        const controller = getNetworkSnapshotController();
-        return (controller && typeof controller.applySnapshot === 'function')
-            ? controller.applySnapshot(snapshot, options)
-            : false;
+        return invokeControllerMethod(getNetworkSnapshotController, 'applySnapshot', arguments, false);
     }
 
     function activateSessionFromResponse(data, fallbackRoomId) {
-        const controller = getNetworkSessionSeatController();
-        if (controller && typeof controller.activateSessionFromResponse === 'function') {
-            controller.activateSessionFromResponse(data, fallbackRoomId);
-        }
+        invokeControllerMethod(getNetworkSessionSeatController, 'activateSessionFromResponse', arguments, undefined);
     }
 
     function setSeatGlobals(seatKey) {
-        const controller = getNetworkSessionSeatController();
-        if (controller && typeof controller.setSeatGlobals === 'function') {
-            controller.setSeatGlobals(seatKey);
+        invokeControllerMethod(getNetworkSessionSeatController, 'setSeatGlobals', arguments, undefined);
+    }
+
+    function parseStreamEventPayload(event) {
+        try {
+            return JSON.parse((event && event.data) || '{}');
+        } catch (e) {
+            return null;
         }
+    }
+
+    function createStreamPayloadHandler(payloadHandler) {
+        return function handleParsedStreamEvent(event) {
+            const payload = parseStreamEventPayload(event);
+            if (!payload) return;
+            markStreamActivity();
+            payloadHandler(payload);
+        };
     }
 
     async function requestJson(method, path, payload) {
@@ -773,7 +801,8 @@
 
             if (state.active && result && result.ok !== false) {
                 const isBoardPlacement = action && Number.isFinite(action.row) && Number.isFinite(action.col);
-                if (!isBoardPlacement) {
+                const shouldDeferNetworkPublish = !!(action && action.deferNetworkPublish === true);
+                if (!isBoardPlacement && !shouldDeferNetworkPublish) {
                     const nextSnapshot = (result.nextGameState && result.nextCardState)
                         ? {
                             gameState: result.nextGameState,
@@ -925,9 +954,7 @@
 
         const onSnapshot = (payload) => {
             if (!payload || payload.ok !== true) return;
-            markStreamActivity();
-            updateTurnTimerFromPayload(payload);
-            updateRoomSeatsFromPayload(payload);
+            applyPayloadSessionState(payload);
             const snapshot = payload.snapshot;
             const playbackEvents = Array.isArray(payload.playbackEvents) ? payload.playbackEvents : [];
             const operationId = payload && payload.operationId ? String(payload.operationId) : '';
@@ -936,7 +963,7 @@
             if (isSelfOperation) {
                 acceptedPlaybackEvents = [];
                 if (playbackEvents.length > 0) {
-                    try { root.__suppressNextDiffFlip = true; } catch (e) { /* ignore */ }
+                    setSuppressNextDiffFlip();
                 }
                 state.lastPublishedOperationId = null;
             }
@@ -947,39 +974,13 @@
             handleTimeoutPassPayload(payload);
         };
 
-        const handleStreamEvent = (event) => {
-            try {
-                const payload = JSON.parse(event.data || '{}');
-                onSnapshot(payload);
-            } catch (e) { /* ignore */ }
-        };
-
-        const handlePresenceEvent = (event) => {
-            try {
-                const payload = JSON.parse(event.data || '{}');
-                markStreamActivity();
-                handlePresencePayload(payload);
-            } catch (e) { /* ignore */ }
-        };
-
-        const handleChatEvent = (event) => {
-            try {
-                const payload = JSON.parse(event.data || '{}');
-                markStreamActivity();
-                handleChatPayload(payload);
-            } catch (e) { /* ignore */ }
-        };
-
-        const handleHeartbeatEvent = (event) => {
-            try {
-                const payload = JSON.parse(event.data || '{}');
-                markStreamActivity();
-                updateTurnTimerFromPayload(payload);
-                updateRoomSeatsFromPayload(payload);
-                updateServerTimeOffset(payload && payload.serverTime);
-                maybeSyncFromHeartbeat(payload);
-            } catch (e) { /* ignore */ }
-        };
+        const handleStreamEvent = createStreamPayloadHandler(onSnapshot);
+        const handlePresenceEvent = createStreamPayloadHandler(handlePresencePayload);
+        const handleChatEvent = createStreamPayloadHandler(handleChatPayload);
+        const handleHeartbeatEvent = createStreamPayloadHandler((payload) => {
+            applyPayloadSessionState(payload);
+            maybeSyncFromHeartbeat(payload);
+        });
 
         es.addEventListener('snapshot', handleStreamEvent);
         es.addEventListener('presence', handlePresenceEvent);
@@ -1049,7 +1050,12 @@
             return { ok: false, reason: 'PLAYER_NAME_REQUIRED' };
         }
 
-        const res = await requestJson('POST', '/api/match/create', { playerName });
+        const requestPayload = { playerName };
+        if (opts.deckCode) {
+            requestPayload.deckCode = String(opts.deckCode).trim();
+        }
+
+        const res = await requestJson('POST', '/api/match/create', requestPayload);
         if (!res.ok || !res.data || res.data.ok !== true) {
             if (isMatchApiMissing(res)) {
                 emitStatus('ネット対戦: 対戦用API(/api/match)が見つかりません', true);
@@ -1092,6 +1098,9 @@
         }
 
         const joinPayload = { roomId: normalizedRoomId, playerName };
+        if (opts.deckCode) {
+            joinPayload.deckCode = String(opts.deckCode).trim();
+        }
         const storedClaim = readSeatClaim(normalizedRoomId);
         let usedStoredClaim = false;
         if (storedClaim) {
@@ -1102,7 +1111,11 @@
         let res = await requestJson('POST', '/api/match/join', joinPayload);
         if ((!res.ok || !res.data || res.data.ok !== true) && usedStoredClaim && shouldRetryJoinWithoutStoredClaim(res)) {
             clearSeatClaim(normalizedRoomId);
-            res = await requestJson('POST', '/api/match/join', { roomId: normalizedRoomId, playerName });
+            const retryPayload = { roomId: normalizedRoomId, playerName };
+            if (opts.deckCode) {
+                retryPayload.deckCode = String(opts.deckCode).trim();
+            }
+            res = await requestJson('POST', '/api/match/join', retryPayload);
         }
         if (!res.ok || !res.data || res.data.ok !== true) {
             if (isMatchApiMissing(res)) {
@@ -1132,12 +1145,39 @@
         if (!res.ok || !res.data || res.data.ok !== true) {
             return { ok: false, reason: (res.data && res.data.reason) || 'STATE_FETCH_FAILED' };
         }
-        updateTurnTimerFromPayload(res.data);
-        updateRoomSeatsFromPayload(res.data);
+        applyPayloadSessionState(res.data);
         if (res.data.snapshot) {
             applySnapshot(res.data.snapshot, { force: true });
         }
         return { ok: true };
+    }
+
+    function getCurrentAppliedGameState() {
+        try {
+            if (root && root.gameState && typeof root.gameState === 'object') return root.gameState;
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.gameState && typeof globalThis.gameState === 'object') {
+                return globalThis.gameState;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function isCurrentAppliedGameOver() {
+        const currentGameState = getCurrentAppliedGameState();
+        if (!currentGameState) return false;
+
+        try {
+            const gameOverFn = (root && typeof root.isGameOver === 'function')
+                ? root.isGameOver
+                : ((typeof globalThis !== 'undefined' && typeof globalThis.isGameOver === 'function') ? globalThis.isGameOver : null);
+            if (typeof gameOverFn === 'function') {
+                return !!gameOverFn(currentGameState);
+            }
+        } catch (e) { /* ignore */ }
+
+        return false;
     }
 
     async function leaveRoom() {
@@ -1175,6 +1215,7 @@
             state.seatNames = { black: '', white: '' };
             state.chatHistory = [];
             state.stateVersion = null;
+            state.queuedPublishSequence = 0;
             state.lastResultVersionShown = null;
             state.resultShownForUnversioned = false;
         }
@@ -1190,10 +1231,17 @@
     }
 
     function getCurrentSnapshotForPublish() {
-        const controller = getNetworkSnapshotController();
-        return (controller && typeof controller.getCurrentSnapshotForPublish === 'function')
-            ? controller.getCurrentSnapshotForPublish(arguments[0] || {})
-            : null;
+        return invokeControllerMethod(getNetworkSnapshotController, 'getCurrentSnapshotForPublish', arguments, null);
+    }
+
+    function hasNewerQueuedPublish(sequence) {
+        const queuedSequence = Number.isFinite(Number(state.queuedPublishSequence))
+            ? Number(state.queuedPublishSequence)
+            : 0;
+        const currentSequence = Number.isFinite(Number(sequence))
+            ? Number(sequence)
+            : 0;
+        return queuedSequence > currentSequence;
     }
 
     function publishSnapshot(meta) {
@@ -1206,6 +1254,16 @@
             emitStatus(`ネット対戦: 操作主体が座席と不一致です (${playerKey} != ${state.seatKey})`, true);
             return Promise.resolve({ ok: false, reason: 'SEAT_MISMATCH_LOCAL' });
         }
+        const queuedSnapshot = getCurrentSnapshotForPublish(info);
+        if (!queuedSnapshot) {
+            return Promise.resolve({ ok: false, reason: 'SNAPSHOT_FAILED' });
+        }
+        const queuedPlaybackEvents = Array.isArray(info.playbackEvents) ? info.playbackEvents.slice() : [];
+        const queuedActionType = info.actionType || null;
+        const queuedPublishSequence = (Number.isFinite(Number(state.queuedPublishSequence))
+            ? Number(state.queuedPublishSequence)
+            : 0) + 1;
+        state.queuedPublishSequence = queuedPublishSequence;
 
         const operationId = createOperationId();
 
@@ -1218,29 +1276,23 @@
                     return { ok: false, reason: 'SEAT_TOKEN_REQUIRED' };
                 }
 
-                const snapshot = getCurrentSnapshotForPublish(info);
-                if (!snapshot) {
-                    return { ok: false, reason: 'SNAPSHOT_FAILED' };
-                }
-
                 const payload = {
                     roomId: state.roomId,
                     seatKey: state.seatKey,
                     seatToken: state.seatToken,
                     playerKey,
-                    actionType: info.actionType || null,
-                    playbackEvents: Array.isArray(info.playbackEvents) ? info.playbackEvents : [],
+                    actionType: queuedActionType,
+                    playbackEvents: queuedPlaybackEvents,
                     operationId,
                     baseVersion: state.stateVersion,
-                    snapshot
+                    snapshot: queuedSnapshot
                 };
 
                 state.lastPublishedOperationId = operationId;
                 const res = await publishRequestWithRetry(payload);
                 if (!res.ok || !res.data || res.data.ok !== true) {
                     const reason = (res.data && res.data.rejectedReason) || 'PUBLISH_REJECTED';
-                    updateTurnTimerFromPayload(res.data);
-                    updateRoomSeatsFromPayload(res.data);
+                    applyPayloadSessionState(res.data);
                     if (state.lastPublishedOperationId === operationId) {
                         state.lastPublishedOperationId = null;
                     }
@@ -1250,12 +1302,11 @@
                     emitStatus(`ネット対戦: 操作が拒否されました (${reason})`, true);
                     return { ok: false, reason };
                 }
-                updateTurnTimerFromPayload(res.data);
-                updateRoomSeatsFromPayload(res.data);
+                applyPayloadSessionState(res.data);
                 if (Number.isFinite(Number(res.data.stateVersion))) {
                     state.stateVersion = Number(res.data.stateVersion);
                 }
-                if (res.data && res.data.snapshot) {
+                if (res.data && res.data.snapshot && !hasNewerQueuedPublish(queuedPublishSequence)) {
                     applySnapshot(res.data.snapshot, { force: true });
                 }
                 return { ok: true };
@@ -1297,6 +1348,10 @@
             // keep rematch flow best-effort; fall through to one retry publish
         }
 
+        if (!isCurrentAppliedGameOver()) {
+            return { ok: true, reason: 'ALREADY_REMATCHED' };
+        }
+
         try {
             return await makeRequest();
         } catch (e) {
@@ -1322,6 +1377,12 @@
 
     function getSeatNames() {
         return normalizeSeatNames(state.seatNames);
+    }
+
+    function getRoomDeck() {
+        return (state.roomDeck && typeof state.roomDeck === 'object')
+            ? Object.assign({}, state.roomDeck)
+            : null;
     }
 
     function setRoomStateListener(listener) {
@@ -1377,8 +1438,7 @@
         const res = await requestJson('POST', '/api/match/chat', payload);
         if (!res.ok || !res.data || res.data.ok !== true) {
             const reason = (res.data && res.data.reason) || 'CHAT_SEND_FAILED';
-            updateTurnTimerFromPayload(res.data);
-            updateRoomSeatsFromPayload(res.data);
+            applyPayloadSessionState(res.data);
 
             if (reason === 'CHAT_DISABLED') {
                 emitStatus('チャットは2人そろってから利用できます', true);
@@ -1395,8 +1455,7 @@
             return { ok: false, reason };
         }
 
-        updateTurnTimerFromPayload(res.data);
-        updateRoomSeatsFromPayload(res.data);
+        applyPayloadSessionState(res.data);
 
         return {
             ok: true,
@@ -1426,7 +1485,8 @@
         applySnapshot,
         getSeatKey,
         getRoomId,
-        getStateVersion
+        getStateVersion,
+        getRoomDeck
     };
 
     root.NetworkMatchClient = api;

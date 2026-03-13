@@ -41,6 +41,7 @@ function runStreamScenario() {
     "    roomId: 'SSE1',",
     "    playerName: 'くろ',",
     "    seed: 1,",
+    "    roomDeck: { mode: 'shared', deckCode: 'D1C1:test_card*3', deckSize: 30, source: 'room' },",
     "    snapshot: {",
     "      gameState: {",
     "        board,",
@@ -67,6 +68,7 @@ function runStreamScenario() {
     "",
     "  process.stdout.write(JSON.stringify({",
     "    status: streamResponse.status,",
+    "    createRoomDeck: createPayload.roomDeck,",
     "    firstChunk",
     "  }));",
     "})().catch((error) => {",
@@ -83,9 +85,11 @@ describe('match worker stream SSE', () => {
     const result = runStreamScenario();
 
     expect(result.status).toBe(200);
+    expect(result.createRoomDeck).toEqual(expect.objectContaining({ mode: 'shared', deckCode: 'D1C1:test_card*3', deckSize: 30 }));
     expect(typeof result.firstChunk).toBe('string');
     expect(result.firstChunk).toContain('event: snapshot');
     expect(result.firstChunk).toContain('id: ');
     expect(result.firstChunk).toContain('data: ');
+    expect(result.firstChunk).toContain('"roomDeck":{"mode":"shared"');
   });
 });

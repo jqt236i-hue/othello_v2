@@ -80,7 +80,60 @@ function runTimeoutPassScenario() {
     "(async () => {",
     "  const modulePath = process.argv[1];",
     "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const board = Array.from({ length: 8 }, () => Array(8).fill(0));",
+    "  board[3][3] = -1;",
+    "  board[3][4] = 1;",
+    "  board[4][3] = 1;",
+    "  board[4][4] = -1;",
+    "  const room = {",
+    "    roomId: 'TMR2',",
+    "    seed: 1,",
+    "    stateVersion: 4,",
+    "    updatedAt: Date.now(),",
+    "    seats: { black: true, white: true },",
+    "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    seatNames: { black: 'くろ', white: 'しろ' },",
+    "    roomDeck: null,",
+    "    lastAcceptedOperationBySeat: { black: null, white: null },",
+    "    turnTimer: {",
+    "      limitSeconds: 120,",
+    "      active: true,",
+    "      turnSeatKey: 'black',",
+    "      turnStartedAt: Date.now() - 300000,",
+    "      turnDeadlineAt: Date.now() - 10",
+    "    },",
+    "    snapshot: {",
+    "      gameState: {",
+    "        board,",
+    "        currentPlayer: 1,",
+    "        consecutivePasses: 0,",
+    "        turnNumber: 9",
+    "      },",
+    "      cardState: {",
+    "        hands: { black: ['b0'], white: [] },",
+    "        decks: { black: [], white: ['wdraw'] },",
+    "        discard: [],",
+    "        turnIndex: 10,",
+    "        lastTurnStartedFor: 'black',",
+    "        turnCountByPlayer: { black: 3, white: 2 },",
+    "        selectedCardId: 'timeout_card',",
+    "        selectedCardOwnerKey: 'black',",
+    "        hasUsedCardThisTurnByPlayer: { black: true, white: true },",
+    "        hasDestroyedCardThisTurnByPlayer: { black: false, white: false },",
+    "        pendingEffectByPlayer: { black: { type: 'PERMA_PROTECT_NEXT_STONE' }, white: null },",
+    "        extraPlaceRemainingByPlayer: { black: 0, white: 0 },",
+    "        charge: { black: 0, white: 0 },",
+    "        chargeGainedTotal: { black: 0, white: 0 },",
+    "        breedingSproutByOwner: { black: [], white: [] },",
+    "        _breedingSproutClearedTokenByOwner: { black: null, white: null },",
+    "        presentationEvents: [],",
+    "        _presentationEventsPersist: [],",
+    "        markers: []",
+    "      }",
+    "    }",
+    "  };",
     "  const storage = new Map();",
+    "  storage.set('match_room_state_v1', room);",
     "  const state = {",
     "    storage: {",
     "      get: async (key) => storage.get(key),",
@@ -89,45 +142,14 @@ function runTimeoutPassScenario() {
     "    }",
     "  };",
     "  const durableObject = new MatchRoomDurableObject(state);",
-    "",
-    "  const board = Array.from({ length: 8 }, () => Array(8).fill(0));",
-    "  board[3][3] = -1;",
-    "  board[3][4] = 1;",
-    "  board[4][3] = 1;",
-    "  board[4][4] = -1;",
-    "",
-    "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
-    "    roomId: 'TMR2',",
-    "    playerName: 'くろ',",
-    "    seed: 1,",
-    "    snapshot: {",
-    "      gameState: {",
-    "        board,",
-    "        currentPlayer: 1,",
-    "        consecutivePasses: 0,",
-    "        turnNumber: 0",
-    "      },",
-    "      cardState: {}",
-    "    }",
-    "  });",
-    "  const createPayload = await createResponse.json();",
-    "",
-    "  const joinResponse = await durableObject.handleJoin({ seatKey: 'white', playerName: 'しろ' });",
-    "  await joinResponse.json();",
-    "",
-    "  await durableObject.loadRoom();",
-    "  durableObject.room.turnTimer.active = true;",
-    "  durableObject.room.turnTimer.turnSeatKey = 'black';",
-    "  durableObject.room.turnTimer.turnStartedAt = Date.now() - 300000;",
-    "  durableObject.room.turnTimer.turnDeadlineAt = Date.now() - 10;",
-    "  await durableObject.saveRoom();",
-    "",
-    "  const stateResponse = await durableObject.handleState(new URL(`https://room/api/match/state?seatKey=black&seatToken=${createPayload.seatToken}`));",
+    "  const stateResponse = await durableObject.handleState(new URL('https://room/api/match/state?seatKey=black&seatToken=token_black'));",
     "  const statePayload = await stateResponse.json();",
+    "  await durableObject.loadRoom();",
     "",
     "  process.stdout.write(JSON.stringify({",
     "    statePayload,",
-    "    status: stateResponse.status",
+    "    status: stateResponse.status,",
+    "    internalSnapshot: durableObject.room.snapshot",
     "  }));",
     "})().catch((error) => {",
     "  console.error(error && error.stack ? error.stack : String(error));",
@@ -152,12 +174,22 @@ describe('match worker turn timer', () => {
 
   test('手番期限切れ時はサーバー側で自動的に手番が進む', () => {
     const result = runTimeoutPassScenario();
+    const internalSnapshot = result.internalSnapshot;
 
     expect(result.status).toBe(200);
     expect(result.statePayload && result.statePayload.ok).toBe(true);
-    expect(result.statePayload.stateVersion).toBe(1);
-    expect(result.statePayload.snapshot.gameState.currentPlayer).toBe(-1);
-    expect(result.statePayload.snapshot.gameState.consecutivePasses).toBe(1);
+    expect(result.statePayload.stateVersion).toBe(5);
+    expect(internalSnapshot.gameState.currentPlayer).toBe(-1);
+    expect(internalSnapshot.gameState.consecutivePasses).toBe(1);
+    expect(internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(internalSnapshot.cardState.selectedCardId).toBeNull();
+    expect(internalSnapshot.cardState.selectedCardOwnerKey).toBeNull();
+    expect(internalSnapshot.cardState.hasUsedCardThisTurnByPlayer.white).toBe(false);
+    expect(internalSnapshot.cardState.hands.white).toEqual(['wdraw']);
+    expect(internalSnapshot.cardState.decks.white).toEqual([]);
+    expect(internalSnapshot.cardState.turnIndex).toBe(11);
+    expect(internalSnapshot.cardState.lastTurnStartedFor).toBe('white');
+    expect(internalSnapshot.cardState.turnCountByPlayer.white).toBe(3);
 
     const timer = result.statePayload.turnTimer;
     expect(timer.active).toBe(true);

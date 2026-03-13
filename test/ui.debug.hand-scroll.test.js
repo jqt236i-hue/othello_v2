@@ -36,7 +36,7 @@ describe('debug hand fling', () => {
     try { delete global.renderCardUI; } catch (e) {}
   });
 
-  test('debug on enables long-press hand fling and suppresses post-drag card click', () => {
+  test('debug on allows immediate horizontal swipe and suppresses post-drag card click', () => {
     const dom = new JSDOM(`
       <!doctype html>
       <html>
@@ -97,7 +97,6 @@ describe('debug hand fling', () => {
     cardEl.addEventListener('click', clickSpy);
 
     dispatchPointer(cardEl, 'pointerdown', { clientX: 160, clientY: 32 });
-    jest.advanceTimersByTime(140);
     dispatchPointer(handBlackEl, 'pointermove', { clientX: 92, clientY: 35 });
     expect(handTrackEl.style.transform).toBe('translate3d(-68px, 0, 0)');
 
@@ -159,5 +158,62 @@ describe('debug hand fling', () => {
 
     dispatchWheel(handBlackEl, { deltaY: 50 });
     expect(handTrackEl.style.transform).toBe('translate3d(-45px, 0, 0)');
+  });
+
+  test('debug hand wheel wraps to the opposite side when it passes the edge', () => {
+    const dom = new JSDOM(`
+      <!doctype html>
+      <html>
+        <body>
+          <div id="hand-black" class="hand-container"><div class="hand-track"><div id="black-card" class="card-item visible clickable"></div></div></div>
+          <div id="hand-white" class="hand-container"></div>
+          <button id="autoToggleBtn" type="button">AUTO: ON</button>
+        </body>
+      </html>
+    `);
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.Event = dom.window.Event;
+    global.addLog = jest.fn();
+    global.fillDebugHand = jest.fn();
+    global.renderCardUI = jest.fn();
+
+    const uiState = {
+      DEBUG_MODE_ALLOWED: false,
+      DEBUG_UNLIMITED_USAGE: false,
+      DEBUG_HUMAN_VS_HUMAN: false,
+      disableAutoMode: jest.fn()
+    };
+    const registerCalls = [];
+
+    jest.isolateModules(() => {
+      jest.doMock(path.resolve(__dirname, '..', 'ui', 'bootstrap.js'), () => ({
+        registerUIGlobals: (obj) => {
+          registerCalls.push(obj);
+          Object.assign(uiState, obj);
+          return obj;
+        },
+        getRegisteredUIGlobals: () => uiState
+      }), { virtual: false });
+
+      require(path.resolve(__dirname, '..', 'ui', 'handlers', 'debug.js'));
+    });
+
+    const registered = registerCalls.find((entry) => entry && typeof entry.setupDebugControls === 'function');
+    const debugBtn = document.createElement('button');
+    registered.setupDebugControls(debugBtn, document.createElement('button'), document.createElement('button'));
+    debugBtn.dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
+
+    const handBlackEl = document.getElementById('hand-black');
+    const handTrackEl = handBlackEl.querySelector('.hand-track');
+    Object.defineProperty(handBlackEl, 'clientWidth', { configurable: true, value: 120 });
+    Object.defineProperty(handTrackEl, 'scrollWidth', { configurable: true, value: 320 });
+    handTrackEl.getBoundingClientRect = () => ({ width: 320, left: 0, right: 320, top: 0, bottom: 80, height: 80 });
+
+    dispatchWheel(handBlackEl, { deltaY: 300 });
+    expect(handTrackEl.style.transform).toBe('translate3d(-70px, 0, 0)');
+
+    dispatchWheel(handBlackEl, { deltaY: -230 });
+    expect(handTrackEl.style.transform).toBe('translate3d(-63px, 0, 0)');
   });
 });

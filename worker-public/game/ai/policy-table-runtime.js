@@ -393,23 +393,27 @@ async function readPolicyTablePayload(response, sourceUrl, fetchImpl) {
     return JSON.parse(jsonText);
 }
 
-function getStateEntry(playerKey, board, pendingType, legalMovesCount) {
-    if (!_model || !_model.states) return null;
-    const schema = _model.schemaVersion;
+function getStateEntryForModel(model, playerKey, board, pendingType, legalMovesCount) {
+    if (!model || !model.states) return null;
+    const schema = model.schemaVersion;
     if (schema === 'policy_table.v1') {
         const key = makeStateKey(playerKey, board, pendingType, legalMovesCount);
-        return _model.states[key] ? { entry: _model.states[key], abstract: false } : null;
+        return model.states[key] ? { entry: model.states[key], abstract: false } : null;
     }
     const canonicalKey = makeStateKey(playerKey, canonicalizeBoard(board).boardKey, pendingType, legalMovesCount);
-    if (_model.states[canonicalKey]) return { entry: _model.states[canonicalKey], abstract: false };
+    if (model.states[canonicalKey]) return { entry: model.states[canonicalKey], abstract: false };
     // Backward-compatible fallback: allow non-canonical key in v2 payloads.
     const rawKey = makeStateKey(playerKey, board, pendingType, legalMovesCount);
-    if (_model.states[rawKey]) return { entry: _model.states[rawKey], abstract: false };
-    if (_model.abstractStates && typeof _model.abstractStates === 'object') {
+    if (model.states[rawKey]) return { entry: model.states[rawKey], abstract: false };
+    if (model.abstractStates && typeof model.abstractStates === 'object') {
         const abstractKey = makeAbstractStateKey(playerKey, board, pendingType, legalMovesCount);
-        if (_model.abstractStates[abstractKey]) return { entry: _model.abstractStates[abstractKey], abstract: true };
+        if (model.abstractStates[abstractKey]) return { entry: model.abstractStates[abstractKey], abstract: true };
     }
     return null;
+}
+
+function getStateEntry(playerKey, board, pendingType, legalMovesCount) {
+    return getStateEntryForModel(_model, playerKey, board, pendingType, legalMovesCount);
 }
 
 function setModel(model, options) {
@@ -477,20 +481,16 @@ async function loadFromUrl(url, fetchImpl) {
     }
 }
 
-function chooseMove(candidateMoves, context) {
-    if (!_config.enabled) return null;
-    if (!hasModel()) return null;
+function chooseMoveFromModel(model, candidateMoves, context) {
+    if (!isValidModel(model)) return null;
     if (!Array.isArray(candidateMoves) || candidateMoves.length === 0) return null;
 
     const ctx = context || {};
-    const level = Number.isFinite(ctx.level) ? ctx.level : 1;
-    if (level < _config.minLevel) return null;
-
     const playerKey = ctx.playerKey === 'black' ? 'black' : 'white';
     const legalMovesCount = Number.isFinite(ctx.legalMovesCount) ? ctx.legalMovesCount : candidateMoves.length;
-    const schema = _model.schemaVersion;
+    const schema = model.schemaVersion;
     const canonical = schema === 'policy_table.v1' ? { boardKey: encodeBoard(ctx.board), transformId: 0 } : canonicalizeBoard(ctx.board);
-    const stateMeta = getStateEntry(playerKey, ctx.board, ctx.pendingType || null, legalMovesCount);
+    const stateMeta = getStateEntryForModel(model, playerKey, ctx.board, ctx.pendingType || null, legalMovesCount);
     if (!stateMeta || !stateMeta.entry || !stateMeta.entry.actions || typeof stateMeta.entry.actions !== 'object') return null;
     const boardSize = Array.isArray(ctx.board) ? ctx.board.length : 8;
 
@@ -526,20 +526,25 @@ function chooseMove(candidateMoves, context) {
     return bestMove;
 }
 
-function getActionScore(move, context) {
+function chooseMove(candidateMoves, context) {
     if (!_config.enabled) return null;
     if (!hasModel()) return null;
-    if (!move) return null;
-
     const ctx = context || {};
     const level = Number.isFinite(ctx.level) ? ctx.level : 1;
     if (level < _config.minLevel) return null;
+    return chooseMoveFromModel(_model, candidateMoves, ctx);
+}
 
+function getActionScoreFromModel(model, move, context) {
+    if (!isValidModel(model)) return null;
+    if (!move) return null;
+
+    const ctx = context || {};
     const playerKey = ctx.playerKey === 'black' ? 'black' : 'white';
     const legalMovesCount = Number.isFinite(ctx.legalMovesCount) ? ctx.legalMovesCount : 0;
-    const schema = _model.schemaVersion;
+    const schema = model.schemaVersion;
     const canonical = schema === 'policy_table.v1' ? { boardKey: encodeBoard(ctx.board), transformId: 0 } : canonicalizeBoard(ctx.board);
-    const stateMeta = getStateEntry(playerKey, ctx.board, ctx.pendingType || null, legalMovesCount);
+    const stateMeta = getStateEntryForModel(model, playerKey, ctx.board, ctx.pendingType || null, legalMovesCount);
     if (!stateMeta || !stateMeta.entry || !stateMeta.entry.actions || typeof stateMeta.entry.actions !== 'object') return null;
 
     const boardSize = Array.isArray(ctx.board) ? ctx.board.length : 8;
@@ -562,6 +567,15 @@ function getActionScore(move, context) {
         playerKey
     });
     return bestBonus + (Math.log1p(Math.max(0, visits)) * 15) + (avgOutcome * 80) + (heuristicScore * MODEL_HEURISTIC_WEIGHT);
+}
+
+function getActionScore(move, context) {
+    if (!_config.enabled) return null;
+    if (!hasModel()) return null;
+    const ctx = context || {};
+    const level = Number.isFinite(ctx.level) ? ctx.level : 1;
+    if (level < _config.minLevel) return null;
+    return getActionScoreFromModel(_model, move, ctx);
 }
 
 function getActionScoreForKey(actionKey, context) {
@@ -595,7 +609,9 @@ const Api = {
     hasModel,
     loadFromUrl,
     chooseMove,
+    chooseMoveFromModel,
     getActionScore,
+    getActionScoreFromModel,
     getActionScoreForKey,
     makeStateKey,
     makeActionKeyFromMove,

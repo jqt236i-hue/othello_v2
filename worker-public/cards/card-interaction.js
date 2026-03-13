@@ -64,6 +64,17 @@ if (typeof window !== 'undefined') {
     window.ensureDebugActionsLoaded = ensureDebugActionsLoaded;
 }
 
+const _playbackStateModule = (() => {
+    if (typeof PlaybackStateManager !== 'undefined' && PlaybackStateManager) return PlaybackStateManager;
+    if (typeof require === 'function') {
+        try { return require('../ui/playback-state-manager'); } catch (e) { /* ignore */ }
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) return globalThis.PlaybackStateManager;
+    } catch (e) { /* ignore */ }
+    return null;
+})();
+
 const _sellSelectionByPlayer = { black: null, white: null };
 const _heavenSelectionByPlayer = { black: null, white: null };
 let _heavenOverlayRefs = null;
@@ -85,7 +96,8 @@ const _hiddenHandTokenPattern = /^__hidden_hand__:(black|white):(\d+)$/;
 const CARD_DETAIL_TAG_MEANINGS = Object.freeze({
     '多動状態': '両者ターン開始時マス移動する、基本ランダム移動。',
     '反転回避': '相手に石を置かれて反転されるとき、マス移動でその石だけ回避する。',
-    '特殊石': '通常石ではないカード由来の石。交換の意志の対象外。',
+    '破壊回避': '破壊対象になったとき、空きマスへ移動してその石だけ回避する。',
+    '特殊石': '通常石画像を使わない石。normal_stone-black.png / normal_stone-white.png 以外の見た目の石を指す。交換の意志の対象外。',
     '反転保護': '反転されない。挟める列ごと無効できる。',
     '完全保護': 'マス破壊以外の全ての効果を無効化。',
     'マス破壊': 'マスごと穴にして永続封鎖。誰も置けず、反転経路も遮断する。',
@@ -376,11 +388,25 @@ function _hasFlipEvasionTagSignal(sourceText) {
     return patterns.some((pattern) => pattern.test(normalized));
 }
 
+function _hasDestroyEvasionTagSignal(sourceText) {
+    const normalized = String(sourceText || '').replace(/\s+/g, '');
+    if (!normalized) return false;
+    if (normalized.includes('破壊回避')) return true;
+
+    const patterns = [
+        /破壊対象(?:になった時|になったとき|時)?[^。！？!?]*回避/,
+        /破壊され(?:そうになるとき|そうになったとき|るとき|る時)[^。！？!?]*回避/,
+        /破壊ターゲット[^。！？!?]*回避/
+    ];
+    return patterns.some((pattern) => pattern.test(normalized));
+}
+
 const CARD_DETAIL_EFFECT_TAG_TERMS = Object.freeze([
     '反転保護',
     '特殊石',
     '完全保護',
     '反転回避',
+    '破壊回避',
     '多動状態',
     'マス破壊',
     '破壊／爆発',
@@ -398,6 +424,7 @@ function _collectCardDetailEffectTags(cardDef, quickText, detailText) {
 
     const usesNonNormalStoneImage = _usesNonNormalStoneImage(cardDef);
     const hasFlipEvasionTagSignal = _hasFlipEvasionTagSignal(sourceText);
+    const hasDestroyEvasionTagSignal = _hasDestroyEvasionTagSignal(sourceText);
     const tags = [];
     for (const term of CARD_DETAIL_EFFECT_TAG_TERMS) {
         if (term === '特殊石') {
@@ -406,6 +433,10 @@ function _collectCardDetailEffectTags(cardDef, quickText, detailText) {
         }
         if (term === '反転回避') {
             if (sourceText.includes(term) || hasFlipEvasionTagSignal) tags.push(term);
+            continue;
+        }
+        if (term === '破壊回避') {
+            if (sourceText.includes(term) || hasDestroyEvasionTagSignal) tags.push(term);
             continue;
         }
         if (sourceText.includes(term)) tags.push(term);
@@ -864,6 +895,7 @@ function _renderHeavenOverlay(playerKey) {
             : null;
         const cardEl = document.createElement('div');
         cardEl.className = 'card-item visible heaven-offer-card';
+        cardEl.dataset.cardId = cardId;
         const cost = def ? (def.cost || 0) : 0;
         const tier = getCardCostTier(cost);
         cardEl.classList.add(`cost-tier-${tier}`);
@@ -985,18 +1017,32 @@ function _emitPresentationEvent(ev) {
     return false;
 }
 
+function _getUiRootRef() {
+    if (typeof window !== 'undefined' && window) return window;
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis) return globalThis;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
 function _isProcessingNow() {
+    const rootRef = _getUiRootRef();
     return (
         (typeof isProcessing !== 'undefined' && !!isProcessing) ||
-        (typeof window !== 'undefined' && !!window.isProcessing)
+        !!(rootRef && rootRef.isProcessing)
     );
 }
 
 function _isCardAnimatingNow() {
+    const rootRef = _getUiRootRef();
+    const managedAnimating = (_playbackStateModule && typeof _playbackStateModule.getCardAnimating === 'function')
+        ? _playbackStateModule.getCardAnimating()
+        : false;
     return (
         (typeof isCardAnimating !== 'undefined' && !!isCardAnimating) ||
-        (typeof window !== 'undefined' && !!window.isCardAnimating) ||
-        (typeof window !== 'undefined' && window.VisualPlaybackActive === true)
+        managedAnimating === true ||
+        !!(rootRef && rootRef.isCardAnimating) ||
+        _isVisualPlaybackActiveNow()
     );
 }
 
@@ -1005,12 +1051,17 @@ function _isCardUiBusy() {
 }
 
 function _isVisualPlaybackActiveNow() {
-    return (typeof window !== 'undefined' && window.VisualPlaybackActive === true);
+    if (_playbackStateModule && typeof _playbackStateModule.getPlaybackActive === 'function') {
+        return _playbackStateModule.getPlaybackActive() === true;
+    }
+    const rootRef = _getUiRootRef();
+    return !!(rootRef && rootRef.VisualPlaybackActive === true);
 }
 
 function _getVisualPlaybackStaleMs() {
-    if (typeof window !== 'undefined') {
-        const ms = Number(window.PASS_STALE_PLAYBACK_MS);
+    const rootRef = _getUiRootRef();
+    if (rootRef) {
+        const ms = Number(rootRef.PASS_STALE_PLAYBACK_MS);
         if (Number.isFinite(ms) && ms > 0) return ms;
     }
     return 3500;
@@ -1018,8 +1069,9 @@ function _getVisualPlaybackStaleMs() {
 
 function _isVisualPlaybackRunningNow() {
     if (!_isVisualPlaybackActiveNow()) return false;
-    if (typeof window !== 'undefined' && window.AnimationEngine && typeof window.AnimationEngine.isPlaying === 'boolean') {
-        return window.AnimationEngine.isPlaying === true;
+    const rootRef = _getUiRootRef();
+    if (rootRef && rootRef.AnimationEngine && typeof rootRef.AnimationEngine.isPlaying === 'boolean') {
+        return rootRef.AnimationEngine.isPlaying === true;
     }
     return true;
 }
@@ -1027,18 +1079,68 @@ function _isVisualPlaybackRunningNow() {
 function _isStaleVisualPlaybackLock() {
     if (!_isVisualPlaybackActiveNow()) return false;
 
-    if (typeof window !== 'undefined' && window.AnimationEngine && typeof window.AnimationEngine.isPlaying === 'boolean') {
-        return window.AnimationEngine.isPlaying !== true;
+    const rootRef = _getUiRootRef();
+
+    if (rootRef && rootRef.AnimationEngine && typeof rootRef.AnimationEngine.isPlaying === 'boolean') {
+        return rootRef.AnimationEngine.isPlaying !== true;
     }
 
-    if (typeof window !== 'undefined') {
-        const startedAt = Number(window.__playbackActiveSince);
+    if (rootRef) {
+        const startedAt = (_playbackStateModule && typeof _playbackStateModule.getPlaybackStartedAt === 'function')
+            ? _playbackStateModule.getPlaybackStartedAt()
+            : Number(rootRef.__playbackActiveSince);
         if (Number.isFinite(startedAt)) {
             return (Date.now() - startedAt) > _getVisualPlaybackStaleMs();
         }
     }
 
     return false;
+}
+
+function _clearPlaybackLockedDomState() {
+    if (typeof document === 'undefined') return;
+    const board = document.getElementById('board');
+    if (board && board.classList) board.classList.remove('playback-locked');
+    if (document.body && document.body.classList) document.body.classList.remove('playback-locked');
+}
+
+function _clearCardUiBusyFlags(options) {
+    const opts = options || {};
+    const clearProcessing = opts.clearProcessing !== false;
+    const clearPlayback = opts.clearPlayback === true;
+    const rootRef = _getUiRootRef();
+
+    try {
+        if (clearProcessing && typeof isProcessing !== 'undefined') isProcessing = false;
+        if (typeof isCardAnimating !== 'undefined') isCardAnimating = false;
+        if (rootRef) {
+            if (clearProcessing) rootRef.isProcessing = false;
+            rootRef.isCardAnimating = false;
+        }
+        if (clearPlayback) {
+            if (_playbackStateModule && typeof _playbackStateModule.clearPlaybackLock === 'function') {
+                _playbackStateModule.clearPlaybackLock();
+            } else if (rootRef) {
+                rootRef.VisualPlaybackActive = false;
+                rootRef.__playbackActiveSince = null;
+            }
+            _clearPlaybackLockedDomState();
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function _releaseStaleVisualPlaybackLock() {
+    if (_isProcessingNow()) return false;
+    if (!_isStaleVisualPlaybackLock()) return false;
+
+    _clearCardUiBusyFlags({ clearProcessing: false, clearPlayback: true });
+
+    return true;
+}
+
+function _canInteractWithCardUi() {
+    if (!_isCardUiBusy()) return true;
+    return _releaseStaleVisualPlaybackLock();
 }
 
 function _resolveCoreApi() {
@@ -1121,6 +1223,52 @@ function _canInputPlayerActNow() {
     return _resolveInputPlayerKey() === currentPlayerKey;
 }
 
+function _commitSharedStateSnapshot(stateKey, nextState) {
+    if (!nextState) return null;
+
+    const sharedRoots = [];
+    if (typeof globalThis !== 'undefined' && globalThis) sharedRoots.push(globalThis);
+    if (typeof window !== 'undefined' && window && !sharedRoots.includes(window)) sharedRoots.push(window);
+
+    let localState = null;
+    try {
+        localState = stateKey === 'cardState' ? cardState : gameState;
+    } catch (e) {
+        localState = null;
+    }
+
+    const targetState = (localState && typeof localState === 'object')
+        ? localState
+        : (() => {
+            for (const root of sharedRoots) {
+                if (root && root[stateKey] && typeof root[stateKey] === 'object') {
+                    return root[stateKey];
+                }
+            }
+            return null;
+        })();
+
+    if (targetState && typeof nextState === 'object') {
+        if (targetState !== nextState) {
+            for (const key in targetState) delete targetState[key];
+            Object.assign(targetState, nextState);
+        }
+        if (stateKey === 'cardState') cardState = targetState;
+        else gameState = targetState;
+        for (const root of sharedRoots) {
+            root[stateKey] = targetState;
+        }
+        return targetState;
+    }
+
+    if (stateKey === 'cardState') cardState = nextState;
+    else gameState = nextState;
+    for (const root of sharedRoots) {
+        root[stateKey] = nextState;
+    }
+    return nextState;
+}
+
 function _runPipelineAction(playerKey, action) {
     if (typeof TurnPipelineUIAdapter === 'undefined' || typeof TurnPipeline === 'undefined') {
         console.error('[CARD_UI] TurnPipeline/Adapter not available for action', action);
@@ -1139,8 +1287,8 @@ function _runPipelineAction(playerKey, action) {
     const res = TurnPipelineUIAdapter.runTurnWithAdapter(cardState, gameState, playerKey, action, TurnPipeline);
     if (res.ok === false) return res;
 
-    if (res.nextCardState) cardState = res.nextCardState;
-    if (res.nextGameState) gameState = res.nextGameState;
+    if (res.nextCardState) _commitSharedStateSnapshot('cardState', res.nextCardState);
+    if (res.nextGameState) _commitSharedStateSnapshot('gameState', res.nextGameState);
 
     if (typeof ActionManager !== 'undefined' && ActionManager.ActionManager) {
         try {
@@ -1161,11 +1309,35 @@ function _runPipelineAction(playerKey, action) {
     return { ok: true, result: res, gameOver: gameOverNow };
 }
 
-function _hasHandRemovePlaybackEvent(runResult) {
+function _getRunResultPlaybackEvents(runResult) {
     const playbackEvents = (runResult && runResult.result && Array.isArray(runResult.result.playbackEvents))
         ? runResult.result.playbackEvents
         : [];
-    return playbackEvents.some((ev) => ev && ev.type === 'hand_remove');
+    return playbackEvents;
+}
+
+function _hasPlaybackEventType(runResult, eventType) {
+    return _getRunResultPlaybackEvents(runResult).some((ev) => ev && ev.type === eventType);
+}
+
+function _hasHandRemovePlaybackEvent(runResult) {
+    return _hasPlaybackEventType(runResult, 'hand_remove');
+}
+
+function _attachCardUsePlaybackSourceElement(runResult, sourceCardEl) {
+    if (!sourceCardEl || typeof sourceCardEl.cloneNode !== 'function') return;
+    const playbackEvents = _getRunResultPlaybackEvents(runResult);
+    for (const ev of playbackEvents) {
+        if (!ev || ev.type !== 'card_use_animation') continue;
+        if (Array.isArray(ev.targets) && ev.targets.length > 0) {
+            for (const target of ev.targets) {
+                if (!target || typeof target !== 'object' || target.sourceCardEl) continue;
+                target.sourceCardEl = sourceCardEl;
+            }
+            continue;
+        }
+        if (!ev.sourceCardEl) ev.sourceCardEl = sourceCardEl;
+    }
 }
 
 function _renderCardUiWithOptionalPlaybackDelay(shouldDelay) {
@@ -1196,7 +1368,6 @@ function fillDebugHand() {
     if (!window.DEBUG_HUMAN_VS_HUMAN && !window.DEBUG_UNLIMITED_USAGE) return;
     const shouldFillWhite = window.DEBUG_HUMAN_VS_HUMAN === true;
     const dbg = _getDebugActions();
-    if (cardState.debugHandFilled === true) return;
     if (!dbg || typeof dbg.fillDebugHand !== 'function') {
         ensureDebugActionsLoaded((loaded) => {
             if (!loaded || typeof loaded.fillDebugHand !== 'function') {
@@ -1283,7 +1454,7 @@ function updateCardDetailPanel() {
     _ensureHandDestroyFlags();
     // カード使用は毎ターン1回（毎ターン開始時にリセット）、ただしデバッグモードでは制限なし
     const hasNotUsedThisTurn = isDebugUnlimited ? true : !cardState.hasUsedCardThisTurnByPlayer[playerKey];
-    const canInteract = isDebugUnlimited ? true : !_isCardUiBusy();
+    const canInteract = isDebugUnlimited ? true : _canInteractWithCardUi();
 
     // Check charge (デバッグモードでは無視)
     const cardDef = hasSelection ? CardLogic.getCardDef(selectedId) : null;
@@ -1327,8 +1498,6 @@ function updateCardDetailPanel() {
     } else if (!hasNotUsedThisTurn) {
         reason = 'このターンは既に使用済み';
         canUse = false;
-        // Diagnostic: unexpected same-turn block
-        try { console.warn('[CARD_UI] USE DISABLED - already used this turn', { selectedId, hasUsedThisTurn: cardState.hasUsedCardThisTurnByPlayer && cardState.hasUsedCardThisTurnByPlayer[playerKey], playerKey, gameStateCurrentPlayer: gameState && gameState.currentPlayer }); } catch (e) {}
     } else if (!canAfford) {
         reason = '';
         canUse = false;
@@ -1447,7 +1616,7 @@ function updateCardDetailPanel() {
                 ? `自分の石を選択（残り${remain}回）/ 終了も可`
                 : '自分の石を選択してください（最大3回・キャンセル可）';
         } else if (pending.type === 'TRAP_WILL') {
-            reasonEl.textContent = '罠石にする自分の石を選んでください';
+            reasonEl.textContent = '罠を設置する自分の石を選んでください（選択後にターン終了）';
         } else if (pending.type === 'GUARD_WILL') {
             reasonEl.textContent = '守る石にする自分の石を選んでください';
         } else if (pending.type === 'GUARDIAN_GOD') {
@@ -1544,7 +1713,7 @@ function onCardClick(cardId, ownerKey) {
         : null;
     const pending = cardState.pendingEffectByPlayer[playerKey];
     const allowDuringAnimForSell = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
-    if (_isCardAnimatingNow() && !isDebugUnlimited && !allowDuringAnimForSell) return;
+    if (_isCardAnimatingNow() && !isDebugUnlimited && !allowDuringAnimForSell && !_releaseStaleVisualPlaybackLock()) return;
 
     _closeCardDetailTagTabIfOpen();
 
@@ -1602,7 +1771,7 @@ function confirmSellCardSelection() {
 function destroySelectedHandCard() {
     const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
     if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return;
-    if (_isCardUiBusy() && !isDebugUnlimited) return;
+    if (!isDebugUnlimited && !_canInteractWithCardUi()) return;
     if (!_canInputPlayerActNow()) return;
     if (cardState.selectedCardId === null) return;
 
@@ -1648,7 +1817,7 @@ function destroySelectedHandCard() {
 function useSelectedCard() {
     const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
     if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return;
-    if (_isCardUiBusy() && !isDebugUnlimited) return;
+    if (!isDebugUnlimited && !_canInteractWithCardUi()) return;
     if (!_canInputPlayerActNow()) return;
     if (cardState.selectedCardId === null) return;
 
@@ -1713,19 +1882,24 @@ function useSelectedCard() {
     // Clear selection
     _clearSelectedCardSelection();
 
+    _attachCardUsePlaybackSourceElement(result, usedCardEl);
+    const hasCardUsePlayback = _hasPlaybackEventType(result, 'card_use_animation');
+
     // Direct animation fallback for browser reliability.
-    try {
-        if (typeof playCardUseHandAnimation === 'function') {
-            playCardUseHandAnimation({
-                player: playerKey,
-                owner: ownerKey,
-                cardId,
-                cost: Number.isFinite(cost) ? cost : null,
-                name: cardDef ? cardDef.name : null,
-                sourceCardEl: usedCardEl || null
-            }).catch(() => {});
-        }
-    } catch (e) { /* ignore */ }
+    if (!hasCardUsePlayback) {
+        try {
+            if (typeof playCardUseHandAnimation === 'function') {
+                playCardUseHandAnimation({
+                    player: playerKey,
+                    owner: ownerKey,
+                    cardId,
+                    cost: Number.isFinite(cost) ? cost : null,
+                    name: cardDef ? cardDef.name : null,
+                    sourceCardEl: usedCardEl || null
+                }).catch(() => {});
+            }
+        } catch (e) { /* ignore */ }
+    }
 
     const shouldDelayPostUseHandVisual = !!(cardDef && (cardDef.type === 'TREASURE_BOX' || cardDef.type === 'REBUILD_WILL' || cardDef.type === 'SUPPLY_WILL'))
         || _hasHandRemovePlaybackEvent(result);
@@ -1753,20 +1927,7 @@ function passCurrentTurn() {
     if (_isCardUiBusy()) {
         const staleVisualLock = _isStaleVisualPlaybackLock();
         if (_isVisualPlaybackRunningNow() && !staleVisualLock) return;
-        try {
-            if (typeof isProcessing !== 'undefined') isProcessing = false;
-            if (typeof isCardAnimating !== 'undefined') isCardAnimating = false;
-            if (typeof window !== 'undefined') {
-                window.isProcessing = false;
-                window.isCardAnimating = false;
-                if (staleVisualLock) {
-                    window.VisualPlaybackActive = false;
-                    if (typeof document !== 'undefined' && document.body && document.body.classList) {
-                        document.body.classList.remove('playback-locked');
-                    }
-                }
-            }
-        } catch (e) { /* ignore */ }
+        _clearCardUiBusyFlags({ clearProcessing: true, clearPlayback: staleVisualLock });
     }
 
     if (typeof processPassTurn === 'function') {

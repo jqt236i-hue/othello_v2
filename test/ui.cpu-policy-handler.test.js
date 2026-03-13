@@ -45,6 +45,36 @@ describe('ui cpu-policy handler', () => {
     expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.skipReason).toBe('shared-profile-policy-table-parity');
   });
 
+  test('initPolicyOnnxModel still loads target/value models when base ONNX path is skipped', async () => {
+    const loadFromUrl = jest.fn(async () => true);
+    const loadTargetModelFromUrl = jest.fn(async () => true);
+    const loadValueModelFromUrl = jest.fn(async () => true);
+    global.window.fetch = jest.fn(async (url) => {
+      const s = String(url || '');
+      const ok =
+        s === './data/models/policy-target.onnx' ||
+        s === './data/models/policy-target.onnx.meta.json' ||
+        s === './data/models/policy-value.onnx' ||
+        s === './data/models/policy-value.onnx.meta.json';
+      return { ok, status: ok ? 200 : 404 };
+    });
+    global.window.CpuPolicyOnnxRuntime = {
+      loadFromUrl,
+      loadTargetModelFromUrl,
+      loadValueModelFromUrl
+    };
+
+    await handlers.initPolicyOnnxModel();
+
+    expect(loadFromUrl).not.toHaveBeenCalled();
+    expect(loadTargetModelFromUrl).toHaveBeenCalledWith('./data/models/policy-target.onnx', './data/models/policy-target.onnx.meta.json');
+    expect(loadValueModelFromUrl).toHaveBeenCalledWith('./data/models/policy-value.onnx', './data/models/policy-value.onnx.meta.json');
+    expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.loaded).toBe(false);
+    expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.skipReason).toBe('shared-profile-policy-table-parity');
+    expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.targetLoaded).toBe(true);
+    expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.valueLoaded).toBe(true);
+  });
+
   test('initPolicyOnnxModel configures and loads runtime when available', async () => {
     const configure = jest.fn();
     const loadFromUrl = jest.fn(async () => true);
@@ -60,6 +90,10 @@ describe('ui cpu-policy handler', () => {
       metaUrl: 'data/models/policy-net.onnx.meta.json',
       cardSourceUrl: 'data/models/policy-card.onnx',
       cardMetaUrl: 'data/models/policy-card.onnx.meta.json',
+      targetSourceUrl: 'data/models/policy-target.onnx',
+      targetMetaUrl: 'data/models/policy-target.onnx.meta.json',
+      valueSourceUrl: 'data/models/policy-value.onnx',
+      valueMetaUrl: 'data/models/policy-value.onnx.meta.json',
       useCardSpecialist: false
     });
     expect(loadFromUrl).toHaveBeenCalledWith('data/models/policy-net.onnx', 'data/models/policy-net.onnx.meta.json');
@@ -84,6 +118,10 @@ describe('ui cpu-policy handler', () => {
     expect(configure).toHaveBeenCalledWith(expect.objectContaining({
       sourceUrl: '/data/models/policy-net.onnx',
       metaUrl: '/data/models/policy-net.onnx.meta.json',
+      targetSourceUrl: '/data/models/policy-target.onnx',
+      targetMetaUrl: '/data/models/policy-target.onnx.meta.json',
+      valueSourceUrl: '/data/models/policy-value.onnx',
+      valueMetaUrl: '/data/models/policy-value.onnx.meta.json',
       useCardSpecialist: false
     }));
   });
@@ -114,7 +152,48 @@ describe('ui cpu-policy handler', () => {
     const configure = jest.fn();
     const loadFromUrl = jest.fn(async () => true);
     const loadCardModelFromUrl = jest.fn(async () => true);
+    const loadTargetModelFromUrl = jest.fn(async () => true);
+    const loadValueModelFromUrl = jest.fn(async () => true);
     global.location = { search: '?cardSpecialist=1&cpuOnnx=1', pathname: '/app/index.html' };
+    global.window.fetch = jest.fn(async (url) => {
+      const s = String(url || '');
+      const ok =
+        s === '/data/models/policy-net.onnx' ||
+        s === '/data/models/policy-net.onnx.meta.json' ||
+        s === '/data/models/policy-card.onnx' ||
+        s === '/data/models/policy-card.onnx.meta.json' ||
+        s === '/data/models/policy-target.onnx' ||
+        s === '/data/models/policy-target.onnx.meta.json' ||
+        s === '/data/models/policy-value.onnx' ||
+        s === '/data/models/policy-value.onnx.meta.json';
+      return { ok, status: ok ? 200 : 404 };
+    });
+    global.window.CpuPolicyOnnxRuntime = { configure, loadFromUrl, loadCardModelFromUrl, loadTargetModelFromUrl, loadValueModelFromUrl };
+
+    await handlers.initPolicyOnnxModel();
+
+    expect(configure).toHaveBeenCalledWith(expect.objectContaining({
+      sourceUrl: '/data/models/policy-net.onnx',
+      metaUrl: '/data/models/policy-net.onnx.meta.json',
+      cardSourceUrl: '/data/models/policy-card.onnx',
+      cardMetaUrl: '/data/models/policy-card.onnx.meta.json',
+      targetSourceUrl: '/data/models/policy-target.onnx',
+      targetMetaUrl: '/data/models/policy-target.onnx.meta.json',
+      valueSourceUrl: '/data/models/policy-value.onnx',
+      valueMetaUrl: '/data/models/policy-value.onnx.meta.json',
+      useCardSpecialist: true
+    }));
+    expect(loadCardModelFromUrl).toHaveBeenCalledWith('/data/models/policy-card.onnx', '/data/models/policy-card.onnx.meta.json');
+    expect(loadTargetModelFromUrl).toHaveBeenCalledWith('/data/models/policy-target.onnx', '/data/models/policy-target.onnx.meta.json');
+    expect(loadValueModelFromUrl).toHaveBeenCalledWith('/data/models/policy-value.onnx', '/data/models/policy-value.onnx.meta.json');
+  });
+
+  test('initPolicyOnnxModel times out a hung specialist card load without hanging UI init', async () => {
+    const configure = jest.fn();
+    const loadFromUrl = jest.fn(async () => true);
+    const loadCardModelFromUrl = jest.fn(() => new Promise(() => {}));
+    global.location = { search: '?cardSpecialist=1&cpuOnnx=1', pathname: '/app/index.html' };
+    global.window.CPU_MODEL_LOAD_TIMEOUT_MS = 1;
     global.window.fetch = jest.fn(async (url) => {
       const s = String(url || '');
       const ok =
@@ -126,16 +205,11 @@ describe('ui cpu-policy handler', () => {
     });
     global.window.CpuPolicyOnnxRuntime = { configure, loadFromUrl, loadCardModelFromUrl };
 
-    await handlers.initPolicyOnnxModel();
+    await expect(handlers.initPolicyOnnxModel()).resolves.toBeUndefined();
 
-    expect(configure).toHaveBeenCalledWith(expect.objectContaining({
-      sourceUrl: '/data/models/policy-net.onnx',
-      metaUrl: '/data/models/policy-net.onnx.meta.json',
-      cardSourceUrl: '/data/models/policy-card.onnx',
-      cardMetaUrl: '/data/models/policy-card.onnx.meta.json',
-      useCardSpecialist: true
-    }));
-    expect(loadCardModelFromUrl).toHaveBeenCalledWith('/data/models/policy-card.onnx', '/data/models/policy-card.onnx.meta.json');
+    expect(loadFromUrl).toHaveBeenCalledTimes(1);
+    expect(loadCardModelFromUrl).toHaveBeenCalledTimes(1);
+    expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.loaded).toBe(true);
   });
 
   test('initPolicyOnnxModel records critical status when model assets are missing', async () => {
@@ -202,6 +276,22 @@ describe('ui cpu-policy handler', () => {
     expect(global.window.__CPU_MODEL_LOAD_STATUS__.table.loaded).toBe(false);
     expect(global.window.__CPU_MODEL_LOAD_STATUS__.table.lastError).toMatch(/missing policy-table asset/i);
     expect(consoleError).toHaveBeenCalled();
+
+    consoleError.mockRestore();
+  });
+
+  test('initPolicyTableModel times out hung runtime load for safe fallback', async () => {
+    global.window.CPU_MODEL_LOAD_TIMEOUT_MS = 1;
+    global.window.CpuPolicyTableRuntime = {
+      configure: jest.fn(),
+      loadFromUrl: jest.fn(() => new Promise(() => {}))
+    };
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(handlers.initPolicyTableModel()).resolves.toBeUndefined();
+
+    expect(global.window.__CPU_MODEL_LOAD_STATUS__.table.loaded).toBe(false);
+    expect(global.window.__CPU_MODEL_LOAD_STATUS__.table.lastError).toMatch(/policy-table load timed out/i);
 
     consoleError.mockRestore();
   });

@@ -91,6 +91,7 @@ describe('UI stone rendering', () => {
     gameState.board[0][7] = BLACK;
     gameState.board[1][0] = BLACK;
     gameState.board[1][1] = BLACK;
+    gameState.board[1][2] = BLACK;
 
     cardState.markers = [
       { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'DRAGON', remainingOwnerTurns: 10 } },
@@ -103,7 +104,8 @@ describe('UI stone rendering', () => {
       { id: 8, kind: 'specialStone', row: 0, col: 7, owner: 'black', data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 } },
       { id: 9, kind: 'specialStone', row: 1, col: 0, owner: 'black', data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 } },
       { id: 10, kind: 'specialStone', row: 1, col: 0, owner: 'black', data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 4, flipEvadeRemaining: 1 } },
-      { id: 11, kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'PROTECTED', remainingOwnerTurns: 2, flipEvadeRemaining: 0 } }
+      { id: 11, kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'PROTECTED', remainingOwnerTurns: 2, flipEvadeRemaining: 0 } },
+      { id: 12, kind: 'specialStone', row: 1, col: 2, owner: 'black', data: { type: 'REGEN', regenRemaining: 3 } }
     ];
 
     const diffRenderer = require('../ui/diff-renderer');
@@ -133,6 +135,92 @@ describe('UI stone rendering', () => {
 
     const protectedDisc = boardEl.querySelector('.cell[data-row="1"][data-col="1"] .disc');
     assert.strictEqual(protectedDisc.querySelector('.flip-evade-timer'), null);
+
+    const regenDisc = boardEl.querySelector('.cell[data-row="1"][data-col="2"] .disc');
+    assert.strictEqual(regenDisc.querySelector('.special-timer').textContent, '3');
+  });
+
+  test('diff-renderer shows destroy evade remaining for will hunter king', () => {
+    if (typeof document === 'undefined') {
+      const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+      global.window = dom.window;
+      global.document = dom.window.document;
+      global.HTMLElement = dom.window.HTMLElement;
+    }
+
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    gameState.board[2][3] = BLACK;
+    cardState.markers = [
+      {
+        id: 21,
+        kind: 'specialStone',
+        row: 2,
+        col: 3,
+        owner: 'black',
+        data: {
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
+          flipEvadeRemaining: 2,
+          destroyEvadeRemaining: 2
+        }
+      }
+    ];
+
+    const diffRenderer = require('../ui/diff-renderer');
+    diffRenderer.renderBoardDiff(boardEl);
+
+    const disc = boardEl.querySelector('.cell[data-row="2"][data-col="3"] .disc');
+    assert.ok(disc, 'expected will hunter king disc');
+    const flipEvadeTimer = disc.querySelector('.flip-evade-timer');
+    const destroyEvadeTimer = disc.querySelector('.destroy-evade-timer');
+    assert.ok(flipEvadeTimer, 'expected flip evade timer');
+    assert.strictEqual(flipEvadeTimer.textContent, '2');
+    assert.ok(destroyEvadeTimer, 'expected destroy evade timer');
+    assert.strictEqual(destroyEvadeTimer.textContent, '2');
+  });
+
+  test('diff-renderer renders freeze overlay and remaining turns on frozen cells', () => {
+    if (typeof document === 'undefined') {
+      const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+      global.window = dom.window;
+      global.document = dom.window.document;
+      global.HTMLElement = dom.window.HTMLElement;
+    }
+
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    gameState.board[4][4] = BLACK;
+    cardState.markers = [
+      {
+        id: 31,
+        kind: 'specialStone',
+        row: 4,
+        col: 4,
+        owner: 'black',
+        data: { type: 'FREEZE', remainingOwnerTurns: 5 }
+      }
+    ];
+
+    const diffRenderer = require('../ui/diff-renderer');
+    diffRenderer.renderBoardDiff(boardEl);
+
+    const cell = boardEl.querySelector('.cell[data-row="4"][data-col="4"]');
+    assert.ok(cell.classList.contains('frozen-cell'));
+    const freezeMark = cell.querySelector('.freeze-mark');
+    assert.ok(freezeMark, 'expected freeze overlay');
+    assert.strictEqual(freezeMark.querySelector('.freeze-turn').textContent, '5');
+  });
+
+  test('board stylesheet references ICE overlay asset for frozen cells', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '..', 'styles-board.css'), 'utf8');
+    assert.ok(css.includes("assets/images/other/ICE.png"));
+    assert.ok(css.includes('.freeze-mark'));
   });
 
 

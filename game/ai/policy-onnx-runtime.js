@@ -11,6 +11,10 @@ const DEFAULT_MODEL_URL = 'data/models/policy-net.onnx';
 const DEFAULT_META_URL = 'data/models/policy-net.onnx.meta.json';
 const DEFAULT_CARD_MODEL_URL = 'data/models/policy-card.onnx';
 const DEFAULT_CARD_META_URL = 'data/models/policy-card.onnx.meta.json';
+const DEFAULT_TARGET_MODEL_URL = 'data/models/policy-target.onnx';
+const DEFAULT_TARGET_META_URL = 'data/models/policy-target.onnx.meta.json';
+const DEFAULT_VALUE_MODEL_URL = 'data/models/policy-value.onnx';
+const DEFAULT_VALUE_META_URL = 'data/models/policy-value.onnx.meta.json';
 const BASE_INPUT_DIM = 80;
 const MAX_HAND_SIZE = 5;
 const CHARGE_MAX_NORMALIZER = (() => {
@@ -47,17 +51,139 @@ let _cardHeadOutputName = 'card_logits';
 let _cardModelActionIds = [];
 let _cardModelActionIndexById = Object.create(null);
 let _cardModelNoCardActionIndex = -1;
+let _targetSession = null;
+let _targetMeta = null;
+let _targetInputName = 'obs';
+let _targetOutputName = 'target_logits';
+let _valueSession = null;
+let _valueMeta = null;
+let _valueInputName = 'obs';
+let _valueOutputName = 'value';
 let _lastError = null;
 let _cardLastError = null;
+let _targetLastError = null;
+let _valueLastError = null;
 let _sourceUrl = DEFAULT_MODEL_URL;
 let _metaUrl = DEFAULT_META_URL;
 let _cardSourceUrl = DEFAULT_CARD_MODEL_URL;
 let _cardMetaUrl = DEFAULT_CARD_META_URL;
+let _targetSourceUrl = DEFAULT_TARGET_MODEL_URL;
+let _targetMetaUrl = DEFAULT_TARGET_META_URL;
+let _valueSourceUrl = DEFAULT_VALUE_MODEL_URL;
+let _valueMetaUrl = DEFAULT_VALUE_META_URL;
 let _config = {
     enabled: true,
     minLevel: 6,
     useCardSpecialist: true
 };
+const LATENCY_SAMPLE_LIMIT = 512;
+const LATENCY_OPERATION_KEYS = Object.freeze([
+    'chooseMove',
+    'chooseCard',
+    'choosePendingTarget',
+    'evaluatePosition'
+]);
+let _latencyStats = createLatencyStats();
+
+function createLatencyBucket() {
+    return {
+        count: 0,
+        totalMs: 0,
+        maxMs: 0,
+        lastMs: 0,
+        samples: []
+    };
+}
+
+function createLatencyStats() {
+    const perOperation = Object.create(null);
+    for (const key of LATENCY_OPERATION_KEYS) {
+        perOperation[key] = createLatencyBucket();
+    }
+    return {
+        overall: createLatencyBucket(),
+        perOperation
+    };
+}
+
+function resetLatencyStats() {
+    _latencyStats = createLatencyStats();
+}
+
+function nowMs() {
+    try {
+        if (typeof performance !== 'undefined' && performance && typeof performance.now === 'function') {
+            return Number(performance.now());
+        }
+    } catch (e) { /* ignore */ }
+    return Date.now();
+}
+
+function normalizeDurationMs(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return 0;
+    return Math.max(0, n);
+}
+
+function pushLatencySample(bucket, durationMs) {
+    if (!bucket || !Array.isArray(bucket.samples)) return;
+    bucket.samples.push(durationMs);
+    if (bucket.samples.length > LATENCY_SAMPLE_LIMIT) {
+        bucket.samples.shift();
+    }
+}
+
+function recordLatency(operationKey, startedAt) {
+    if (!operationKey) return;
+    const bucket = _latencyStats && _latencyStats.perOperation
+        ? _latencyStats.perOperation[operationKey]
+        : null;
+    const durationMs = normalizeDurationMs(nowMs() - startedAt);
+    const targets = [bucket, _latencyStats ? _latencyStats.overall : null];
+    for (const one of targets) {
+        if (!one) continue;
+        one.count += 1;
+        one.totalMs += durationMs;
+        one.lastMs = durationMs;
+        if (durationMs > one.maxMs) one.maxMs = durationMs;
+        pushLatencySample(one, durationMs);
+    }
+}
+
+function summarizeLatencyBucket(bucket) {
+    if (!bucket) {
+        return { count: 0, totalMs: 0, averageMs: 0, p95Ms: 0, maxMs: 0, lastMs: 0 };
+    }
+    const count = Number(bucket.count) || 0;
+    const totalMs = Number(bucket.totalMs) || 0;
+    const maxMs = Number(bucket.maxMs) || 0;
+    const lastMs = Number(bucket.lastMs) || 0;
+    let p95Ms = 0;
+    if (Array.isArray(bucket.samples) && bucket.samples.length > 0) {
+        const sorted = bucket.samples.slice().sort((a, b) => a - b);
+        const index = Math.max(0, Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1));
+        p95Ms = Number(sorted[index]) || 0;
+    }
+    return {
+        count,
+        totalMs,
+        averageMs: count > 0 ? (totalMs / count) : 0,
+        p95Ms,
+        maxMs,
+        lastMs
+    };
+}
+
+function getLatencyStatus() {
+    const perOperation = Object.create(null);
+    for (const key of LATENCY_OPERATION_KEYS) {
+        perOperation[key] = summarizeLatencyBucket(_latencyStats.perOperation[key]);
+    }
+    return {
+        overall: summarizeLatencyBucket(_latencyStats.overall),
+        perOperation
+    };
+}
 
 function configure(config) {
     if (!config || typeof config !== 'object') return getStatus();
@@ -67,6 +193,10 @@ function configure(config) {
     if (typeof config.metaUrl === 'string' && config.metaUrl.trim()) _metaUrl = config.metaUrl.trim();
     if (typeof config.cardSourceUrl === 'string' && config.cardSourceUrl.trim()) _cardSourceUrl = config.cardSourceUrl.trim();
     if (typeof config.cardMetaUrl === 'string' && config.cardMetaUrl.trim()) _cardMetaUrl = config.cardMetaUrl.trim();
+    if (typeof config.targetSourceUrl === 'string' && config.targetSourceUrl.trim()) _targetSourceUrl = config.targetSourceUrl.trim();
+    if (typeof config.targetMetaUrl === 'string' && config.targetMetaUrl.trim()) _targetMetaUrl = config.targetMetaUrl.trim();
+    if (typeof config.valueSourceUrl === 'string' && config.valueSourceUrl.trim()) _valueSourceUrl = config.valueSourceUrl.trim();
+    if (typeof config.valueMetaUrl === 'string' && config.valueMetaUrl.trim()) _valueMetaUrl = config.valueMetaUrl.trim();
     if (typeof config.useCardSpecialist === 'boolean') _config.useCardSpecialist = config.useCardSpecialist;
     return getStatus();
 }
@@ -87,8 +217,19 @@ function clearModel() {
     _cardModelActionIds = [];
     _cardModelActionIndexById = Object.create(null);
     _cardModelNoCardActionIndex = -1;
+    _targetSession = null;
+    _targetMeta = null;
+    _targetInputName = 'obs';
+    _targetOutputName = 'target_logits';
+    _valueSession = null;
+    _valueMeta = null;
+    _valueInputName = 'obs';
+    _valueOutputName = 'value';
     _lastError = null;
     _cardLastError = null;
+    _targetLastError = null;
+    _valueLastError = null;
+    resetLatencyStats();
 }
 
 function hasModel() {
@@ -107,12 +248,22 @@ function hasCardHead() {
     return hasPrimaryCardHead() || hasCardSpecialistModel();
 }
 
+function hasTargetModel() {
+    return !!_targetSession;
+}
+
+function hasValueModel() {
+    return !!_valueSession;
+}
+
 function getStatus() {
     return {
         enabled: _config.enabled === true,
         minLevel: _config.minLevel,
         loaded: hasModel(),
         cardModelLoaded: hasCardSpecialistModel(),
+        targetModelLoaded: hasTargetModel(),
+        valueModelLoaded: hasValueModel(),
         useCardSpecialist: _config.useCardSpecialist === true,
         hasCardHead: hasCardHead(),
         hasPrimaryCardHead: hasPrimaryCardHead(),
@@ -121,12 +272,21 @@ function getStatus() {
         cardModelActionCount: _cardModelActionIds.length,
         schemaVersion: _meta && _meta.schemaVersion ? _meta.schemaVersion : null,
         cardSchemaVersion: _cardMeta && _cardMeta.schemaVersion ? _cardMeta.schemaVersion : null,
+        targetSchemaVersion: _targetMeta && _targetMeta.schemaVersion ? _targetMeta.schemaVersion : null,
+        valueSchemaVersion: _valueMeta && _valueMeta.schemaVersion ? _valueMeta.schemaVersion : null,
         sourceUrl: _sourceUrl,
         metaUrl: _metaUrl,
         cardSourceUrl: _cardSourceUrl,
         cardMetaUrl: _cardMetaUrl,
+        targetSourceUrl: _targetSourceUrl,
+        targetMetaUrl: _targetMetaUrl,
+        valueSourceUrl: _valueSourceUrl,
+        valueMetaUrl: _valueMetaUrl,
         lastError: _lastError ? _lastError.message : null,
-        cardLastError: _cardLastError ? _cardLastError.message : null
+        cardLastError: _cardLastError ? _cardLastError.message : null,
+        targetLastError: _targetLastError ? _targetLastError.message : null,
+        valueLastError: _valueLastError ? _valueLastError.message : null,
+        latency: getLatencyStatus()
     };
 }
 
@@ -267,6 +427,84 @@ async function loadCardModelFromUrl(modelUrl, metaUrl, fetchImpl) {
         _cardInputName = 'obs';
         _cardHeadOutputName = 'card_logits';
         applyCardModelActionIds([]);
+        return false;
+    }
+}
+
+async function loadTargetModelFromUrl(modelUrl, metaUrl, fetchImpl) {
+    const ortApi = resolveOrtApi(true);
+    if (!ortApi) {
+        _targetLastError = new Error('onnxruntime-web is not available');
+        return false;
+    }
+
+    const targetModel = (typeof modelUrl === 'string' && modelUrl.trim()) ? modelUrl.trim() : _targetSourceUrl;
+    const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _targetMetaUrl;
+
+    try {
+        let session = null;
+        try {
+            session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['webgpu', 'wasm'] });
+        } catch (primaryErr) {
+            session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['wasm'] });
+        }
+        const meta = await loadMetaJson(targetMeta, fetchImpl);
+        _targetSession = session;
+        _targetMeta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
+        _targetInputName = (_targetMeta && _targetMeta.inputName) || (session.inputNames && session.inputNames[0]) || 'obs';
+        _targetOutputName =
+            (_targetMeta && (_targetMeta.targetOutputName || _targetMeta.outputName)) ||
+            (session.outputNames && session.outputNames[0]) ||
+            'target_logits';
+        _targetSourceUrl = targetModel;
+        _targetMetaUrl = targetMeta;
+        _targetLastError = null;
+        return true;
+    } catch (err) {
+        _targetLastError = err instanceof Error ? err : new Error(String(err));
+        _targetSession = null;
+        _targetMeta = null;
+        _targetInputName = 'obs';
+        _targetOutputName = 'target_logits';
+        return false;
+    }
+}
+
+async function loadValueModelFromUrl(modelUrl, metaUrl, fetchImpl) {
+    const ortApi = resolveOrtApi(true);
+    if (!ortApi) {
+        _valueLastError = new Error('onnxruntime-web is not available');
+        return false;
+    }
+
+    const targetModel = (typeof modelUrl === 'string' && modelUrl.trim()) ? modelUrl.trim() : _valueSourceUrl;
+    const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _valueMetaUrl;
+
+    try {
+        let session = null;
+        try {
+            session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['webgpu', 'wasm'] });
+        } catch (primaryErr) {
+            session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['wasm'] });
+        }
+        const meta = await loadMetaJson(targetMeta, fetchImpl);
+        _valueSession = session;
+        _valueMeta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
+        _valueInputName = (_valueMeta && _valueMeta.inputName) || (session.inputNames && session.inputNames[0]) || 'obs';
+        _valueOutputName =
+            (_valueMeta && (_valueMeta.valueOutputName || _valueMeta.outputName)) ||
+            (session.outputNames && session.outputNames[0]) ||
+            'value';
+        _valueSourceUrl = targetModel;
+        _valueMetaUrl = targetMeta;
+        _valueLastError = null;
+        return true;
+    } catch (err) {
+        _valueLastError = err instanceof Error ? err : new Error(String(err));
+        _valueSession = null;
+        _valueMeta = null;
+        _valueInputName = 'obs';
+        _valueOutputName = 'value';
         return false;
     }
 }
@@ -512,6 +750,23 @@ function buildInputVector(context, metaOverride, actionIdsOverride) {
         }
     }
 
+    const pendingTypes = modelMeta && Array.isArray(modelMeta.pendingTypes)
+        ? modelMeta.pendingTypes.filter((one) => typeof one === 'string' && one.trim())
+        : [];
+    if (pendingTypes.length > 0) {
+        const fullCardOffset = baseInputDim + (cardDim * 2);
+        const pendingOffset = inputDim >= (fullCardOffset + pendingTypes.length)
+            ? fullCardOffset
+            : (inputDim >= (baseInputDim + pendingTypes.length) ? baseInputDim : -1);
+        if (pendingOffset >= 0) {
+            const pendingType = typeof ctx.pendingType === 'string' ? ctx.pendingType.trim() : '';
+            const pendingIndex = pendingTypes.indexOf(pendingType);
+            if (pendingIndex >= 0 && pendingOffset + pendingIndex < out.length) {
+                out[pendingOffset + pendingIndex] = 1;
+            }
+        }
+    }
+
     return out;
 }
 
@@ -542,6 +797,7 @@ async function chooseMove(candidateMoves, context) {
 
     const level = Number.isFinite(context && context.level) ? context.level : 1;
     if (level < _config.minLevel) return null;
+    const startedAt = nowMs();
 
     try {
         const inferenceContext = Object.assign({}, context || {}, { candidateMoves });
@@ -572,6 +828,8 @@ async function chooseMove(candidateMoves, context) {
     } catch (err) {
         _lastError = err instanceof Error ? err : new Error(String(err));
         return null;
+    } finally {
+        recordLatency('chooseMove', startedAt);
     }
 }
 
@@ -583,6 +841,7 @@ async function chooseCard(usableCardIds, context) {
 
     const level = Number.isFinite(context && context.level) ? context.level : 1;
     if (level < _config.minLevel) return null;
+    const startedAt = nowMs();
 
     try {
         const useCardSpecialist = _config.useCardSpecialist === true && hasCardSpecialistModel();
@@ -635,6 +894,72 @@ async function chooseCard(usableCardIds, context) {
     } catch (err) {
         _lastError = err instanceof Error ? err : new Error(String(err));
         return null;
+    } finally {
+        recordLatency('chooseCard', startedAt);
+    }
+}
+
+async function choosePendingTarget(candidateTargets, context) {
+    if (!_config.enabled) return null;
+    if (!hasTargetModel()) return null;
+    if (!Array.isArray(candidateTargets) || candidateTargets.length === 0) return null;
+
+    const level = Number.isFinite(context && context.level) ? context.level : 1;
+    if (level < _config.minLevel) return null;
+    const startedAt = nowMs();
+
+    try {
+        const outputs = await runInferenceForSession(_targetSession, _targetInputName, context || {}, _targetMeta, _targetMeta && _targetMeta.cardActionIds);
+        const out = resolveTensorByName(outputs, _targetOutputName, 0);
+        if (!out || !out.data) return null;
+        const scores = out.data;
+
+        let best = null;
+        let bestScore = -Infinity;
+        for (const target of candidateTargets) {
+            const idx = indexFromMove(target);
+            if (idx < 0 || idx >= scores.length) continue;
+            const score = Number(scores[idx]);
+            if (!Number.isFinite(score)) continue;
+            if (score > bestScore) {
+                bestScore = score;
+                best = target;
+                continue;
+            }
+            if (score === bestScore && best) {
+                if (target.row < best.row || (target.row === best.row && target.col < best.col)) {
+                    best = target;
+                }
+            }
+        }
+        return best;
+    } catch (err) {
+        _targetLastError = err instanceof Error ? err : new Error(String(err));
+        return null;
+    } finally {
+        recordLatency('choosePendingTarget', startedAt);
+    }
+}
+
+async function evaluatePosition(context) {
+    if (!_config.enabled) return null;
+    if (!hasValueModel()) return null;
+
+    const level = Number.isFinite(context && context.level) ? context.level : 1;
+    if (level < _config.minLevel) return null;
+    const startedAt = nowMs();
+
+    try {
+        const outputs = await runInferenceForSession(_valueSession, _valueInputName, context || {}, _valueMeta, _valueMeta && _valueMeta.cardActionIds);
+        const out = resolveTensorByName(outputs, _valueOutputName, 0);
+        if (!out || !out.data || out.data.length <= 0) return null;
+        const value = Number(out.data[0]);
+        return Number.isFinite(value) ? value : null;
+    } catch (err) {
+        _valueLastError = err instanceof Error ? err : new Error(String(err));
+        return null;
+    } finally {
+        recordLatency('evaluatePosition', startedAt);
     }
 }
 
@@ -657,20 +982,48 @@ function __setCardModelForTest(session, meta) {
     _cardLastError = null;
 }
 
+function __setTargetModelForTest(session, meta) {
+    _targetSession = session || null;
+    _targetMeta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
+    _targetInputName = (_targetMeta && _targetMeta.inputName) || 'obs';
+    _targetOutputName = (_targetMeta && (_targetMeta.targetOutputName || _targetMeta.outputName)) || 'target_logits';
+    _targetLastError = null;
+}
+
+function __setValueModelForTest(session, meta) {
+    _valueSession = session || null;
+    _valueMeta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
+    _valueInputName = (_valueMeta && _valueMeta.inputName) || 'obs';
+    _valueOutputName = (_valueMeta && (_valueMeta.valueOutputName || _valueMeta.outputName)) || 'value';
+    _valueLastError = null;
+}
+
 const Api = {
     MODEL_SCHEMA_VERSION: POLICY_ONNX_MODEL_SCHEMA_VERSION,
     DEFAULT_MODEL_URL,
     DEFAULT_META_URL,
+    DEFAULT_TARGET_MODEL_URL,
+    DEFAULT_TARGET_META_URL,
+    DEFAULT_VALUE_MODEL_URL,
+    DEFAULT_VALUE_META_URL,
     configure,
     getStatus,
     clearModel,
     hasModel,
+    hasTargetModel,
+    hasValueModel,
     loadFromUrl,
     loadCardModelFromUrl,
+    loadTargetModelFromUrl,
+    loadValueModelFromUrl,
     chooseMove,
     chooseCard,
+    choosePendingTarget,
+    evaluatePosition,
     __setLoadedForTest,
-    __setCardModelForTest
+    __setCardModelForTest,
+    __setTargetModelForTest,
+    __setValueModelForTest
 };
 
 if (typeof module !== 'undefined' && module.exports) {

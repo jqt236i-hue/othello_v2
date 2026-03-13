@@ -5,11 +5,11 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'));
+        module.exports = factory(require('../../../shared-constants'), require('../board_ops'));
     } else {
-        root.CardLightning = factory(root.SharedConstants);
+        root.CardLightning = factory(root.SharedConstants, root.BoardOps || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, BoardOpsModule) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
@@ -23,6 +23,9 @@
     }
 
     function getExpansionCells(gameState) {
+        if (BoardOpsModule && typeof BoardOpsModule.getExpansionDescriptors === 'function') {
+            return BoardOpsModule.getExpansionDescriptors(gameState);
+        }
         const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
             ? gameState.boardExpansion
             : null;
@@ -79,6 +82,9 @@
     }
 
     function getCellValue(gameState, row, col) {
+        if (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function') {
+            return BoardOpsModule.getCellValue(gameState, row, col);
+        }
         if (row >= 0 && row < 8 && col >= 0 && col < 8) return gameState.board[row][col];
         const expansionCells = getExpansionCells(gameState);
         for (const expansion of expansionCells) {
@@ -89,6 +95,9 @@
     }
 
     function setCellValue(gameState, row, col, value) {
+        if (BoardOpsModule && typeof BoardOpsModule.setCellValue === 'function') {
+            return BoardOpsModule.setCellValue(gameState, row, col, value);
+        }
         if (row >= 0 && row < 8 && col >= 0 && col < 8) {
             gameState.board[row][col] = value;
             return true;

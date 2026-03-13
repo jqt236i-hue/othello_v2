@@ -1,0 +1,91 @@
+schemaVersion: training_profile.v1
+name: browser_lv6_deploy_v1
+description: >
+  本番ブラウザLv6配備を最優先にした主線。shared teacher と policy-table を軸に、
+  quality/final adoption を通った成果物だけを昇格する。
+runTagPrefix: browser_lv6_deploy_v1
+gateProfile: browser_lv6_deploy_v1
+syncCpuLv6SharedTeacher: true
+paths:
+  runsDir: data/runs/browser_lv6_deploy_v1
+  modelsDir: data/models/browser_lv6_deploy_v1
+bootstrap:
+  sourcePolicyTable: data/models/policy-table.json
+  copyPromotedPolicyTable: true
+  useCopiedPolicyTableAsBootstrap: true
+  autoResumeLatestCheckpoint: true
+preflight:
+  enabled: true
+  strict: false
+  allowArtifacts: true
+  checkWindow: true
+trainCycleArgs:
+  - --iterations
+  - "999"
+  - --max-hours
+  - "100"
+  - --train-games
+  - "10000"
+  - --eval-games
+  - "2400"
+  - --selfplay-jobs
+  - "10"
+  - --adoption-jobs
+  - "16"
+  - --seed
+  - "1"
+  - --max-plies
+  - "220"
+  - --with-cards
+  - --card-usage-rate
+  - "0.60"
+  - --selfplay-card-usage-rate-jitter
+  - "0.08"
+  - --selfplay-tactical-weight-min
+  - "0.95"
+  - --selfplay-tactical-weight-max
+  - "1.25"
+  - --selfplay-use-promoted-model-only
+  - --onnx-epochs
+  - "9999"
+  - --onnx-batch-size
+  - "2048"
+  - --onnx-lr
+  - "0.00035"
+  - --onnx-hidden-size
+  - "384"
+  - --onnx-device
+  - auto
+  - --onnx-val-split
+  - "0.15"
+  - --onnx-early-stop-patience
+  - "16"
+  - --onnx-early-stop-min-delta
+  - "0.00010"
+  - --onnx-early-stop-min-epochs
+  - "48"
+  - --onnx-early-stop-monitor
+  - val_loss
+  - --onnx-early-stop-smoothing-window
+  - "3"
+  - --onnx-resume-optimizer
+  - --onnx-card-no-action-weight
+  - "0.66"
+  - --onnx-card-class-balance-power
+  - "0.45"
+  - --onnx-winner-sample-boost
+  - "0.40"
+  - --onnx-loser-sample-weight
+  - "0.92"
+  - --onnx-draw-sample-weight
+  - "1.0"
+  - --onnx-corner-emergency-sample-boost
+  - "0.75"
+  - --onnx-negative-future-disc-sample-boost
+  - "0.65"
+  - --onnx-negative-future-disc-threshold
+  - "-1.0"
+  - --onnx-tactical-miss-sample-boost
+  - "0.60"
+  - --onnx-tactical-miss-threshold
+  - "0.08"

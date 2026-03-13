@@ -8,12 +8,14 @@ function jsonResponse(status, data) {
   };
 }
 
-function createSnapshot(stateVersion) {
+function createSnapshot(stateVersion, gameStateOverrides = {}) {
   return {
     stateVersion,
     gameState: {
       currentPlayer: -1,
-      turnNumber: 1
+      turnNumber: 1,
+      consecutivePasses: 0,
+      ...gameStateOverrides
     },
     cardState: {
       selectedCardId: null,
@@ -48,6 +50,12 @@ describe('NetworkMatchClient reconnect and resync', () => {
 
     global.gameState = createSnapshot(1).gameState;
     global.cardState = createSnapshot(1).cardState;
+    global.isGameOver = jest.fn((gameStateArg) => !!(
+      gameStateArg && (
+        Number(gameStateArg.turnNumber) >= 60 ||
+        Number(gameStateArg.consecutivePasses) >= 2
+      )
+    ));
 
     global.addLog = jest.fn();
     global.emitCardStateChange = jest.fn();
@@ -140,6 +148,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
     delete global.localStorage;
     delete global.gameState;
     delete global.cardState;
+    delete global.isGameOver;
     delete global.addLog;
     delete global.emitCardStateChange;
     delete global.emitGameStateChange;
@@ -332,6 +341,75 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(publishBodies).toHaveLength(1);
     expect(publishBodies[0].actionType).toBe('reset_game');
     expect(publishBodies[0].playerKey).toBe('white');
+  });
+
+  test('requestRematch は VERSION_MISMATCH 後に再戦済みの最新局面へ同期したら再送しない', async () => {
+    let publishAttempt = 0;
+    global.fetch = jest.fn(async (url, init = {}) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/join') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'white',
+          seatToken: 'token_white',
+          seats: { black: true, white: true },
+          stateVersion: 1,
+          snapshot: createSnapshot(1, { currentPlayer: -1, turnNumber: 60, consecutivePasses: 2 })
+        });
+      }
+
+      if (path === '/api/match/state') {
+        stateFetchCount += 1;
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seats: { black: true, white: true },
+          stateVersion: 2,
+          snapshot: createSnapshot(2, { currentPlayer: 1, turnNumber: 0, consecutivePasses: 0 })
+        });
+      }
+
+      if (path === '/api/match/publish') {
+        const body = JSON.parse(String(init.body || '{}'));
+        publishBodies.push(body);
+        publishAttempt += 1;
+        if (publishAttempt === 1) {
+          return jsonResponse(409, {
+            ok: false,
+            rejectedReason: 'VERSION_MISMATCH',
+            roomId: 'ABC',
+            seats: { black: true, white: true },
+            stateVersion: 2,
+            snapshot: createSnapshot(2, { currentPlayer: 1, turnNumber: 0, consecutivePasses: 0 })
+          });
+        }
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seats: { black: true, white: true },
+          stateVersion: 3,
+          snapshot: createSnapshot(3, { currentPlayer: 1, turnNumber: 0, consecutivePasses: 0 })
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
+    expect(joined.ok).toBe(true);
+
+    const result = await client.requestRematch();
+    expect(result).toEqual({ ok: true, reason: 'ALREADY_REMATCHED' });
+    expect(stateFetchCount).toBe(1);
+    expect(publishBodies).toHaveLength(1);
+    expect(publishBodies[0].actionType).toBe('reset_game');
   });
 
   test('非終局スナップショットの適用時に result overlay を自動で閉じる', async () => {

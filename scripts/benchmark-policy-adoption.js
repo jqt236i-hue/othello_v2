@@ -506,6 +506,20 @@ function confidenceZScore(confidenceLevel) {
     return 0;
 }
 
+function createPolicyAdoptionAbortError(message) {
+    const err = new Error(message || 'policy adoption aborted');
+    err.code = 'POLICY_ADOPTION_ABORTED';
+    return err;
+}
+
+function isPolicyAdoptionAbortError(err) {
+    return !!(err && err.code === 'POLICY_ADOPTION_ABORTED');
+}
+
+function isBenchmarkAbortError(err) {
+    return !!(err && err.code === 'BENCHMARK_ABORTED');
+}
+
 function computeAdoptionDecisionAverage(seedDecisions, threshold, minSeedUplift, minSeedPassCount, confidenceLevel, minLowerBound) {
     const requiredMinSeedUplift = Number.isFinite(minSeedUplift) ? minSeedUplift : -1;
     const requiredMinSeedPassCount = Number.isFinite(minSeedPassCount) ? Math.max(0, Math.floor(minSeedPassCount)) : 0;
@@ -599,6 +613,194 @@ function computeAdoptionDecisionAverage(seedDecisions, threshold, minSeedUplift,
     };
 }
 
+function sumConfiguredQualityWeights(options) {
+    return [
+        'qualityWeightCorner',
+        'qualityWeightEdge',
+        'qualityWeightCornerRecovery',
+        'qualityWeightCornerRecapture',
+        'qualityWeightEdgeRecovery',
+        'qualityWeightCornerHold',
+        'qualityWeightCornerHoldTurns',
+        'qualityWeightEdgeHold',
+        'qualityWeightFinalCornerShare',
+        'qualityWeightFinalEdgeShare',
+        'qualityWeightBonus',
+        'qualityWeightCardImmediate',
+        'qualityWeightCardFuture',
+        'qualityWeightPlaceDelta'
+    ].reduce((sum, key) => sum + (Number(options && options[key]) || 0), 0);
+}
+
+function defaultDecisionSelector(entry) {
+    return entry && entry.decision ? entry.decision : null;
+}
+
+function getDecisionSelector(options) {
+    return typeof (options && options.decisionSelector) === 'function'
+        ? options.decisionSelector
+        : defaultDecisionSelector;
+}
+
+function getMaxPossibleSeedUplift(options) {
+    if (Number.isFinite(options && options.maxPossibleSeedUplift)) {
+        return Math.max(0, Number(options.maxPossibleSeedUplift));
+    }
+    return 1 + sumConfiguredQualityWeights(options);
+}
+
+function evaluateEarlyFailure(seedDecisions, totalSeedCount, options) {
+    if (!Array.isArray(seedDecisions) || seedDecisions.length <= 0) return null;
+
+    const safeTotalSeedCount = Math.max(seedDecisions.length, Math.floor(Number(totalSeedCount) || 0));
+    const completedSeedCount = seedDecisions.length;
+    const remainingSeedCount = Math.max(0, safeTotalSeedCount - completedSeedCount);
+    const requiredMinSeedPassCount = Number.isFinite(options && options.minSeedPassCount)
+        ? Math.max(0, Math.floor(options.minSeedPassCount))
+        : 0;
+    const requiredMinSeedUplift = Number.isFinite(options && options.minSeedUplift)
+        ? Number(options.minSeedUplift)
+        : -1;
+    const threshold = Number.isFinite(options && options.threshold) ? Number(options.threshold) : 0;
+    const requiredMinLowerBound = Number.isFinite(options && options.minLowerBound)
+        ? Number(options.minLowerBound)
+        : -1;
+    const maxPossibleSeedUplift = getMaxPossibleSeedUplift(options);
+
+    let upliftSum = 0;
+    let seedPassCount = 0;
+    let minSeedUpliftObserved = Infinity;
+    for (const one of seedDecisions) {
+        const uplift = Number(one && one.uplift) || 0;
+        upliftSum += uplift;
+        if (one && one.passed === true) seedPassCount += 1;
+        if (uplift < minSeedUpliftObserved) minSeedUpliftObserved = uplift;
+    }
+    if (!Number.isFinite(minSeedUpliftObserved)) minSeedUpliftObserved = 0;
+
+    const remainingPossibleSeedPassCount = seedPassCount + remainingSeedCount;
+    const maxAchievableAverageUplift = safeTotalSeedCount > 0
+        ? ((upliftSum + (remainingSeedCount * maxPossibleSeedUplift)) / safeTotalSeedCount)
+        : 0;
+
+    if (requiredMinSeedUplift > -1 && minSeedUpliftObserved < requiredMinSeedUplift) {
+        return {
+            reason: 'min-seed-uplift-impossible',
+            completedSeedCount,
+            remainingSeedCount,
+            seedPassCount,
+            remainingPossibleSeedPassCount,
+            requiredMinSeedUplift,
+            minSeedUpliftObserved,
+            maxPossibleSeedUplift,
+            maxAchievableAverageUplift
+        };
+    }
+    if (remainingPossibleSeedPassCount < requiredMinSeedPassCount) {
+        return {
+            reason: 'min-seed-pass-count-impossible',
+            completedSeedCount,
+            remainingSeedCount,
+            seedPassCount,
+            remainingPossibleSeedPassCount,
+            requiredMinSeedPassCount,
+            minSeedUpliftObserved,
+            maxPossibleSeedUplift,
+            maxAchievableAverageUplift
+        };
+    }
+    if (maxAchievableAverageUplift < threshold) {
+        return {
+            reason: 'average-threshold-impossible',
+            completedSeedCount,
+            remainingSeedCount,
+            seedPassCount,
+            remainingPossibleSeedPassCount,
+            threshold,
+            minSeedUpliftObserved,
+            maxPossibleSeedUplift,
+            maxAchievableAverageUplift
+        };
+    }
+    if (requiredMinLowerBound > -1 && maxAchievableAverageUplift < requiredMinLowerBound) {
+        return {
+            reason: 'lower-bound-impossible',
+            completedSeedCount,
+            remainingSeedCount,
+            seedPassCount,
+            remainingPossibleSeedPassCount,
+            requiredMinLowerBound,
+            minSeedUpliftObserved,
+            maxPossibleSeedUplift,
+            maxAchievableAverageUplift
+        };
+    }
+
+    return null;
+}
+
+function buildEarlyStopDecision(seedDecisions, totalSeedCount, options, earlyStop) {
+    const partial = computeAdoptionDecisionAverage(
+        seedDecisions,
+        options.threshold,
+        options.minSeedUplift,
+        options.minSeedPassCount,
+        options.confidenceLevel,
+        options.minLowerBound
+    );
+    const decision = Object.assign({}, partial, {
+        seedCount: Math.max(seedDecisions.length, Math.floor(Number(totalSeedCount) || 0)),
+        seedPassCount: Number.isFinite(earlyStop && earlyStop.seedPassCount)
+            ? earlyStop.seedPassCount
+            : partial.seedPassCount,
+        passed: false,
+        earlyStop: true,
+        earlyStopReason: earlyStop && earlyStop.reason ? earlyStop.reason : 'unknown',
+        completedSeedCount: Number.isFinite(earlyStop && earlyStop.completedSeedCount)
+            ? earlyStop.completedSeedCount
+            : seedDecisions.length,
+        remainingSeedCount: Number.isFinite(earlyStop && earlyStop.remainingSeedCount)
+            ? earlyStop.remainingSeedCount
+            : 0,
+        remainingPossibleSeedPassCount: Number.isFinite(earlyStop && earlyStop.remainingPossibleSeedPassCount)
+            ? earlyStop.remainingPossibleSeedPassCount
+            : partial.seedPassCount,
+        maxAchievableAverageUplift: Number.isFinite(earlyStop && earlyStop.maxAchievableAverageUplift)
+            ? earlyStop.maxAchievableAverageUplift
+            : partial.uplift,
+        maxPossibleSeedUplift: Number.isFinite(earlyStop && earlyStop.maxPossibleSeedUplift)
+            ? earlyStop.maxPossibleSeedUplift
+            : getMaxPossibleSeedUplift(options)
+    });
+
+    if (decision.earlyStopReason === 'min-seed-uplift-impossible') {
+        decision.passedByMinSeedUplift = false;
+        decision.minSeedUplift = Number.isFinite(earlyStop && earlyStop.minSeedUpliftObserved)
+            ? earlyStop.minSeedUpliftObserved
+            : decision.minSeedUplift;
+    }
+    if (decision.earlyStopReason === 'min-seed-pass-count-impossible') {
+        decision.passedBySeedPassCount = false;
+    }
+    if (decision.earlyStopReason === 'average-threshold-impossible') {
+        decision.passedByAverage = false;
+    }
+    if (decision.earlyStopReason === 'lower-bound-impossible') {
+        decision.passedByLowerBound = false;
+    }
+
+    return decision;
+}
+
+function logEarlyStop(earlyStop) {
+    if (!earlyStop) return;
+    console.log(
+        `[policy-adoption] early-stop reason=${earlyStop.reason} completed_seeds=${earlyStop.completedSeedCount || 0} ` +
+        `remaining_seeds=${earlyStop.remainingSeedCount || 0} seed_pass=${earlyStop.seedPassCount || 0} ` +
+        `seed_pass_possible=${earlyStop.remainingPossibleSeedPassCount || 0} max_avg_uplift=${Number(earlyStop.maxAchievableAverageUplift || 0).toFixed(3)}`
+    );
+}
+
 function buildSeedList(baseSeed, seedCount, seedStride) {
     const out = [];
     for (let i = 0; i < seedCount; i++) {
@@ -607,11 +809,44 @@ function buildSeedList(baseSeed, seedCount, seedStride) {
     return out;
 }
 
-function runOneSeed(options, seedIndex, totalSeeds, currentSeed, log, startedAtMs) {
+function buildSeedBenchmarkJobPlan(totalJobs, seedCount, cpuCount) {
+    const safeCpuCount = Math.max(1, Math.floor(Number(cpuCount) || os.cpus().length || 1));
+    const safeSeedCount = Math.max(1, Math.floor(Number(seedCount) || 1));
+    const safeTotalJobs = Math.max(1, Math.min(Math.floor(Number(totalJobs) || 1), safeCpuCount));
+
+    if (safeTotalJobs <= safeSeedCount) {
+        return {
+            totalJobs: safeTotalJobs,
+            seedWorkers: safeTotalJobs,
+            benchmarkJobsBySeed: new Array(safeSeedCount).fill(1)
+        };
+    }
+
+    const baseJobs = Math.floor(safeTotalJobs / safeSeedCount);
+    const remainder = safeTotalJobs % safeSeedCount;
+    const benchmarkJobsBySeed = [];
+    for (let i = 0; i < safeSeedCount; i++) {
+        benchmarkJobsBySeed.push(baseJobs + (i < remainder ? 1 : 0));
+    }
+
+    return {
+        totalJobs: safeTotalJobs,
+        seedWorkers: safeSeedCount,
+        benchmarkJobsBySeed
+    };
+}
+
+async function runOneSeed(options, seedIndex, totalSeeds, currentSeed, log, startedAtMs) {
     const seedStartedAt = Date.now();
+    const benchmarkJobs = Number.isFinite(options.benchmarkJobs) && options.benchmarkJobs > 0
+        ? Math.max(1, Math.floor(options.benchmarkJobs))
+        : 1;
+    const shouldStop = typeof options.shouldStop === 'function' ? options.shouldStop : null;
     const common = {
         games: options.games,
         seed: currentSeed,
+        jobs: benchmarkJobs,
+        shouldStop,
         maxPlies: options.maxPlies,
         policyA: {
             allowCardUsage: true,
@@ -645,7 +880,7 @@ function runOneSeed(options, seedIndex, totalSeeds, currentSeed, log, startedAtM
 
     let baselineProgressLogged = 0;
     log(`[policy-adoption] seed ${seedIndex + 1}/${totalSeeds} baseline start seed=${currentSeed}`);
-    const baseline = runBenchmark(Object.assign({}, common, {
+    const baseline = await runBenchmark(Object.assign({}, common, {
         modelAPath: options.baselineModelPath || undefined,
         modelBPath: options.opponentModelPath || undefined,
         onProgress: (progress) => {
@@ -670,7 +905,7 @@ function runOneSeed(options, seedIndex, totalSeeds, currentSeed, log, startedAtM
 
     let candidateProgressLogged = 0;
     log(`[policy-adoption] seed ${seedIndex + 1}/${totalSeeds} candidate start seed=${currentSeed}`);
-    const candidate = runBenchmark(Object.assign({}, common, {
+    const candidate = await runBenchmark(Object.assign({}, common, {
         modelAPath: options.candidateModelPath,
         modelBPath: options.opponentModelPath || undefined,
         onProgress: (progress) => {
@@ -727,15 +962,20 @@ function runOneSeed(options, seedIndex, totalSeeds, currentSeed, log, startedAtM
     };
 }
 
-function buildAdoptionPayload(options, perSeed, startedAt) {
-    const decision = computeAdoptionDecisionAverage(
-        perSeed.map((x) => x.decision),
-        options.threshold,
-        options.minSeedUplift,
-        options.minSeedPassCount,
-        options.confidenceLevel,
-        options.minLowerBound
-    );
+function buildAdoptionPayload(options, perSeed, startedAt, runtime) {
+    const runtimeOptions = runtime || {};
+    const decisionSelector = getDecisionSelector(options);
+    const selectedSeedDecisions = perSeed.map((entry) => decisionSelector(entry, options));
+    const decision = runtimeOptions.earlyStop
+        ? buildEarlyStopDecision(selectedSeedDecisions, options.seedCount, options, runtimeOptions.earlyStop)
+        : computeAdoptionDecisionAverage(
+            selectedSeedDecisions,
+            options.threshold,
+            options.minSeedUplift,
+            options.minSeedPassCount,
+            options.confidenceLevel,
+            options.minLowerBound
+        );
     const first = perSeed[0] || null;
     const progressEvery = Number.isFinite(options.progressEvery)
         ? Math.max(0, Math.floor(options.progressEvery))
@@ -789,56 +1029,99 @@ function buildAdoptionPayload(options, perSeed, startedAt) {
         },
         baseline: first ? first.baseline : null,
         candidate: first ? first.candidate : null,
+        completedSeedCount: perSeed.length,
+        scheduledSeedCount: options.seedCount,
+        earlyStop: runtimeOptions.earlyStop || null,
         perSeed,
         decision
     };
 }
 
-function runAdoptionCheck(options) {
+async function runSeedEvaluationsSequential(options) {
     const seeds = buildSeedList(options.seed, options.seedCount, options.seedStride);
     const perSeed = [];
     const startedAt = Date.now();
     const progressEvery = Number.isFinite(options.progressEvery)
         ? Math.max(0, Math.floor(options.progressEvery))
         : 100;
+    const jobPlan = buildSeedBenchmarkJobPlan(options.jobs || 1, seeds.length, os.cpus().length);
+    const decisionSelector = getDecisionSelector(options);
     console.log(
         `[policy-adoption] start games=${options.games} seeds=${seeds.length} max_plies=${options.maxPlies} ` +
         `a_rate=${options.aRate} b_rate=${options.bRate} tactical_weight=${options.tacticalWeight} tactical_depth=${options.tacticalDepthOpening}/${options.tacticalDepthMid}/${options.tacticalDepthEnd} beam=${options.tacticalBeamWidth} policy_weight=${options.policyScoreWeight} heuristic_weight=${options.heuristicWeight} white_priority=${options.whitePriority} ` +
         `q_corner=${options.qualityWeightCorner} q_edge=${options.qualityWeightEdge} q_corner_recovery=${options.qualityWeightCornerRecovery} q_corner_recapture=${options.qualityWeightCornerRecapture} q_edge_recovery=${options.qualityWeightEdgeRecovery} q_corner_hold=${options.qualityWeightCornerHold} q_corner_hold_turns=${options.qualityWeightCornerHoldTurns} q_edge_hold=${options.qualityWeightEdgeHold} q_final_corner=${options.qualityWeightFinalCornerShare} q_final_edge=${options.qualityWeightFinalEdgeShare} q_bonus=${options.qualityWeightBonus} q_card=${options.qualityWeightCardImmediate} q_card_future=${options.qualityWeightCardFuture} q_place=${options.qualityWeightPlaceDelta} ` +
-        `jobs=1 progress_every=${progressEvery} script=${__filename}`
+        `jobs=1 total_jobs=${jobPlan.totalJobs} benchmark_jobs=${jobPlan.benchmarkJobsBySeed[0] || 1} progress_every=${progressEvery} script=${__filename}`
     );
 
+    let earlyStop = null;
     for (let seedIndex = 0; seedIndex < seeds.length; seedIndex++) {
         const currentSeed = seeds[seedIndex];
-        perSeed.push(runOneSeed(options, seedIndex, seeds.length, currentSeed, console.log, startedAt));
+        perSeed.push(await runOneSeed(Object.assign({}, options, {
+            benchmarkJobs: jobPlan.benchmarkJobsBySeed[seedIndex] || 1
+        }), seedIndex, seeds.length, currentSeed, console.log, startedAt));
+        const seedDecisions = perSeed.map((entry) => decisionSelector(entry, options));
+        earlyStop = evaluateEarlyFailure(seedDecisions, seeds.length, options);
+        if (earlyStop) {
+            logEarlyStop(earlyStop);
+            break;
+        }
     }
 
-    return buildAdoptionPayload(options, perSeed, startedAt);
+    return {
+        perSeed,
+        startedAt,
+        earlyStop
+    };
+}
+
+async function runAdoptionCheck(options) {
+    const execution = await runSeedEvaluationsSequential(options);
+    return buildAdoptionPayload(options, execution.perSeed, execution.startedAt, {
+        earlyStop: execution.earlyStop
+    });
 }
 
 function runWorkerSeedTask() {
     const payloadRaw = process.env.POLICY_ADOPTION_WORKER_TASK;
     if (!payloadRaw) throw new Error('missing POLICY_ADOPTION_WORKER_TASK');
     const task = JSON.parse(payloadRaw);
+    let abortRequested = false;
+    if (typeof process.on === 'function') {
+        process.on('message', (msg) => {
+            if (msg && msg.type === 'abort') abortRequested = true;
+        });
+    }
     const log = (line) => {
         if (typeof process.send === 'function') process.send({ type: 'log', line });
     };
-    const perSeed = withFilteredConsole(!task.options.verbose, () =>
-        runOneSeed(task.options, task.seedIndex, task.totalSeeds, task.currentSeed, log, task.startedAt)
-    );
-    if (typeof process.send === 'function') process.send({ type: 'result', perSeed });
+    return withFilteredConsole(!task.options.verbose, async () => {
+        try {
+            const perSeed = await runOneSeed(Object.assign({}, task.options, {
+                benchmarkJobs: task.benchmarkJobs,
+                shouldStop: () => abortRequested
+            }), task.seedIndex, task.totalSeeds, task.currentSeed, log, task.startedAt);
+            if (typeof process.send === 'function') process.send({ type: 'result', perSeed });
+        } catch (err) {
+            if (isBenchmarkAbortError(err) || isPolicyAdoptionAbortError(err)) {
+                if (typeof process.send === 'function') process.send({ type: 'aborted' });
+                return;
+            }
+            throw err;
+        }
+    });
 }
 
-function runSeedInChild(task) {
-    return new Promise((resolve, reject) => {
-        const child = fork(__filename, [], {
-            env: Object.assign({}, process.env, {
-                POLICY_ADOPTION_WORKER: '1',
-                POLICY_ADOPTION_WORKER_TASK: JSON.stringify(task)
-            }),
-            stdio: ['inherit', 'inherit', 'inherit', 'ipc']
-        });
-        let done = false;
+function startSeedInChild(task) {
+    const child = fork(__filename, [], {
+        env: Object.assign({}, process.env, {
+            POLICY_ADOPTION_WORKER: '1',
+            POLICY_ADOPTION_WORKER_TASK: JSON.stringify(task)
+        }),
+        stdio: ['inherit', 'inherit', 'inherit', 'ipc']
+    });
+    let done = false;
+    let abortRequested = false;
+    const promise = new Promise((resolve, reject) => {
         const finish = (err, value) => {
             if (done) return;
             done = true;
@@ -851,6 +1134,10 @@ function runSeedInChild(task) {
                 console.log(msg.line);
                 return;
             }
+            if (msg.type === 'aborted') {
+                finish(createPolicyAdoptionAbortError('policy adoption worker aborted'));
+                return;
+            }
             if (msg.type === 'result' && msg.perSeed) {
                 finish(null, msg.perSeed);
             }
@@ -858,13 +1145,40 @@ function runSeedInChild(task) {
         child.once('error', (err) => finish(err));
         child.once('exit', (code, signal) => {
             if (done) return;
+            if (abortRequested && code === 0) {
+                finish(createPolicyAdoptionAbortError('policy adoption worker aborted'));
+                return;
+            }
             if (code === 0) finish(new Error('worker exited without result'));
             else finish(new Error(`worker failed code=${code} signal=${signal || 'none'}`));
         });
     });
+
+    return {
+        promise,
+        abort: () => {
+            if (done) return;
+            abortRequested = true;
+            if (child.connected) {
+                try {
+                    child.send({ type: 'abort' });
+                    return;
+                } catch (err) {
+                    // Fall through to kill if IPC is already gone.
+                }
+            }
+            if (!child.killed) {
+                try {
+                    child.kill();
+                } catch (err) {
+                    // Ignore late abort races.
+                }
+            }
+        }
+    };
 }
 
-async function runAdoptionCheckParallel(options) {
+async function runSeedEvaluationsParallel(options) {
     const seeds = buildSeedList(options.seed, options.seedCount, options.seedStride);
     const perSeed = new Array(seeds.length);
     const startedAt = Date.now();
@@ -872,47 +1186,96 @@ async function runAdoptionCheckParallel(options) {
         ? Math.max(0, Math.floor(options.progressEvery))
         : 100;
     const cpuCount = Math.max(1, os.cpus().length);
-    const jobs = Math.max(1, Math.min(options.jobs || 1, seeds.length, cpuCount));
+    const jobPlan = buildSeedBenchmarkJobPlan(options.jobs || 1, seeds.length, cpuCount);
+    const jobs = jobPlan.seedWorkers;
+    const decisionSelector = getDecisionSelector(options);
+    const benchmarkJobsSummary = jobPlan.totalJobs > jobs
+        ? ` benchmark_jobs=${jobPlan.benchmarkJobsBySeed.join(',')}`
+        : '';
     console.log(
         `[policy-adoption] start games=${options.games} seeds=${seeds.length} max_plies=${options.maxPlies} ` +
         `a_rate=${options.aRate} b_rate=${options.bRate} tactical_weight=${options.tacticalWeight} tactical_depth=${options.tacticalDepthOpening}/${options.tacticalDepthMid}/${options.tacticalDepthEnd} beam=${options.tacticalBeamWidth} policy_weight=${options.policyScoreWeight} heuristic_weight=${options.heuristicWeight} white_priority=${options.whitePriority} ` +
         `q_corner=${options.qualityWeightCorner} q_edge=${options.qualityWeightEdge} q_corner_recovery=${options.qualityWeightCornerRecovery} q_corner_recapture=${options.qualityWeightCornerRecapture} q_edge_recovery=${options.qualityWeightEdgeRecovery} q_corner_hold=${options.qualityWeightCornerHold} q_corner_hold_turns=${options.qualityWeightCornerHoldTurns} q_edge_hold=${options.qualityWeightEdgeHold} q_final_corner=${options.qualityWeightFinalCornerShare} q_final_edge=${options.qualityWeightFinalEdgeShare} q_bonus=${options.qualityWeightBonus} q_card=${options.qualityWeightCardImmediate} q_card_future=${options.qualityWeightCardFuture} q_place=${options.qualityWeightPlaceDelta} ` +
-        `jobs=${jobs} progress_every=${progressEvery} script=${__filename}`
+        `jobs=${jobs} total_jobs=${jobPlan.totalJobs}${benchmarkJobsSummary} progress_every=${progressEvery} script=${__filename}`
     );
 
     let cursor = 0;
+    let earlyStop = null;
+    const activeWorkers = new Map();
+    const abortActiveWorkers = () => {
+        for (const controller of activeWorkers.values()) controller.abort();
+    };
     const launchNext = async () => {
-        const i = cursor;
-        if (i >= seeds.length) return;
-        cursor += 1;
-        const currentSeed = seeds[i];
-        const task = {
-            options,
-            seedIndex: i,
-            totalSeeds: seeds.length,
-            currentSeed,
-            startedAt
-        };
-        perSeed[i] = await runSeedInChild(task);
-        return launchNext();
+        while (true) {
+            if (earlyStop) return;
+            const i = cursor;
+            if (i >= seeds.length) return;
+            cursor += 1;
+            const currentSeed = seeds[i];
+            const task = {
+                options,
+                seedIndex: i,
+                totalSeeds: seeds.length,
+                currentSeed,
+                benchmarkJobs: jobPlan.benchmarkJobsBySeed[i] || 1,
+                startedAt
+            };
+            const controller = startSeedInChild(task);
+            activeWorkers.set(i, controller);
+            try {
+                perSeed[i] = await controller.promise;
+                activeWorkers.delete(i);
+                const seedDecisions = perSeed
+                    .filter(Boolean)
+                    .map((entry) => decisionSelector(entry, options));
+                earlyStop = evaluateEarlyFailure(seedDecisions, seeds.length, options);
+                if (earlyStop) {
+                    logEarlyStop(earlyStop);
+                    abortActiveWorkers();
+                    return;
+                }
+            } catch (err) {
+                activeWorkers.delete(i);
+                if (isPolicyAdoptionAbortError(err) && earlyStop) return;
+                throw err;
+            }
+        }
     };
 
     const workers = [];
     for (let i = 0; i < jobs; i++) workers.push(launchNext());
     await Promise.all(workers);
-    return buildAdoptionPayload(options, perSeed, startedAt);
+    return {
+        perSeed: perSeed.filter(Boolean),
+        startedAt,
+        earlyStop
+    };
+}
+
+async function runSeedEvaluations(options) {
+    if ((options.jobs || 1) <= 1 || (options.seedCount || 1) <= 1) {
+        return runSeedEvaluationsSequential(options);
+    }
+    return runSeedEvaluationsParallel(options);
+}
+
+async function runAdoptionCheckParallel(options) {
+    const execution = await runSeedEvaluationsParallel(options);
+    return buildAdoptionPayload(options, execution.perSeed, execution.startedAt, {
+        earlyStop: execution.earlyStop
+    });
 }
 
 async function main() {
     if (process.env.POLICY_ADOPTION_WORKER === '1') {
-        runWorkerSeedTask();
+        await runWorkerSeedTask();
         return;
     }
     const args = parseArgs(process.argv.slice(2));
     if (args.help) { printHelp(); return; }
 
     const result = await withFilteredConsole(!args.verbose, async () => {
-        if ((args.jobs || 1) <= 1 || (args.seedCount || 1) <= 1) return runAdoptionCheck(args);
+        if ((args.jobs || 1) <= 1 || (args.seedCount || 1) <= 1) return await runAdoptionCheck(args);
         return runAdoptionCheckParallel(args);
     });
     if (args.out) {
@@ -925,7 +1288,7 @@ async function main() {
         `[policy-adoption] baseline=${d.baselineScore.toFixed(3)} candidate=${d.candidateScore.toFixed(3)} uplift=${d.uplift.toFixed(3)} uplift_lb=${d.upliftLowerBound.toFixed(3)} lb_req=${d.requiredMinLowerBound.toFixed(3)} conf=${d.confidenceLevel.toFixed(3)} min_seed_uplift=${d.minSeedUplift.toFixed(3)} threshold=${d.threshold.toFixed(3)} ` +
         `seeds=${d.seedCount || 1} seed_pass=${d.seedPassCount || 0}/${d.seedCount || 0} min_seed_req=${d.requiredMinSeedPassCount || 0} tactical_weight=${args.tacticalWeight.toFixed(2)} tactical_depth=${args.tacticalDepthOpening}/${args.tacticalDepthMid}/${args.tacticalDepthEnd} beam=${args.tacticalBeamWidth} ` +
         `policy_weight=${args.policyScoreWeight.toFixed(2)} heuristic_weight=${args.heuristicWeight.toFixed(2)} white_priority=${args.whitePriority.toFixed(2)} q_corner=${args.qualityWeightCorner.toFixed(3)} q_edge=${args.qualityWeightEdge.toFixed(3)} q_corner_recovery=${args.qualityWeightCornerRecovery.toFixed(3)} q_corner_recapture=${args.qualityWeightCornerRecapture.toFixed(3)} q_edge_recovery=${args.qualityWeightEdgeRecovery.toFixed(3)} ` +
-        `q_corner_hold=${args.qualityWeightCornerHold.toFixed(3)} q_corner_hold_turns=${args.qualityWeightCornerHoldTurns.toFixed(3)} q_edge_hold=${args.qualityWeightEdgeHold.toFixed(3)} q_final_corner=${args.qualityWeightFinalCornerShare.toFixed(3)} q_final_edge=${args.qualityWeightFinalEdgeShare.toFixed(3)} q_bonus=${args.qualityWeightBonus.toFixed(3)} q_card=${args.qualityWeightCardImmediate.toFixed(3)} q_card_future=${args.qualityWeightCardFuture.toFixed(3)} q_place=${args.qualityWeightPlaceDelta.toFixed(3)} pass=${d.passed}`
+        `q_corner_hold=${args.qualityWeightCornerHold.toFixed(3)} q_corner_hold_turns=${args.qualityWeightCornerHoldTurns.toFixed(3)} q_edge_hold=${args.qualityWeightEdgeHold.toFixed(3)} q_final_corner=${args.qualityWeightFinalCornerShare.toFixed(3)} q_final_edge=${args.qualityWeightFinalEdgeShare.toFixed(3)} q_bonus=${args.qualityWeightBonus.toFixed(3)} q_card=${args.qualityWeightCardImmediate.toFixed(3)} q_card_future=${args.qualityWeightCardFuture.toFixed(3)} q_place=${args.qualityWeightPlaceDelta.toFixed(3)} early_stop=${d.earlyStopReason || 'none'} pass=${d.passed}`
     );
     process.exit(d.passed ? 0 : 2);
 }
@@ -941,7 +1304,12 @@ module.exports = {
     parseArgs,
     computeAdoptionDecision,
     computeAdoptionDecisionAverage,
+    buildAdoptionPayload,
+    buildEarlyStopDecision,
     buildSeedList,
+    buildSeedBenchmarkJobPlan,
+    evaluateEarlyFailure,
+    runSeedEvaluations,
     runAdoptionCheck,
     runAdoptionCheckParallel
 };

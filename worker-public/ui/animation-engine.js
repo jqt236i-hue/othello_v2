@@ -8,12 +8,13 @@
     if (typeof module === 'object' && module.exports) {
         module.exports = factory(
             require('./animation-constants'),
-            require('./stone-visuals')
+            require('./stone-visuals'),
+            require('./playback-state-manager')
         );
     } else {
-        root.AnimationEngine = factory(root.AnimationConstants, { crossfadeStoneVisual: root.crossfadeStoneVisual });
+        root.AnimationEngine = factory(root.AnimationConstants, { crossfadeStoneVisual: root.crossfadeStoneVisual }, root.PlaybackStateManager);
     }
-}(typeof self !== 'undefined' ? self : this, function (Constants, Visuals) {
+}(typeof self !== 'undefined' ? self : this, function (Constants, Visuals, PlaybackStateManager) {
 
     const { EVENT_TYPES, FLIP_MS, PHASE_GAP_MS, FADE_IN_MS, BREEDING_SPAWN_FADE_MS, REGEN_CONSUME_FADE_MS, FADE_OUT_MS, OVERLAY_CROSSFADE_MS, MOVE_MS, OBSERVER_BUBBLE_MS, OBSERVER_BUBBLE_FADE_MS } = Constants;
     const REGEN_CAUSE = 'REGEN';
@@ -57,6 +58,7 @@
             clearScope: () => {}
         };
     };
+    var PlaybackState = PlaybackStateManager || null;
 
     // Ensure minimal telemetry helpers exist even without initializeUI
     if (typeof window !== 'undefined') {
@@ -80,6 +82,7 @@
             this.playbackScope = null;
             this._remainingEvents = [];
             this._watchdogId = null;
+            this._phaseContext = null;
         }
 
         _toBoardIndex(value) {
@@ -190,12 +193,48 @@
             return ownerColor === blackVal ? 'black' : 'white';
         }
 
-        _normalizePlayerKey(value) {
-            if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKey === 'function') {
-                return OwnerHelpersModule.normalizePlayerKey(value, 'black');
+        _normalizePlayerKeyOptional(value) {
+            if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKeyOptional === 'function') {
+                const normalized = OwnerHelpersModule.normalizePlayerKeyOptional(value);
+                if (normalized === 'black' || normalized === 'white') return normalized;
             }
+            if (value === 'black' || value === 1 || value === '1') return 'black';
             if (value === 'white' || value === -1 || value === '-1') return 'white';
-            return 'black';
+            return null;
+        }
+
+        _normalizePlayerKey(value) {
+            return this._normalizePlayerKeyOptional(value) || 'black';
+        }
+
+        _getCurrentMatchMode() {
+            try {
+                if (OwnerHelpersModule && typeof OwnerHelpersModule.getCurrentMatchMode === 'function') {
+                    return String(OwnerHelpersModule.getCurrentMatchMode(typeof window !== 'undefined' ? window : null) || 'cpu').toLowerCase();
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function') {
+                    return String(window.getCurrentMatchMode() || 'cpu').toLowerCase();
+                }
+                if (typeof window !== 'undefined' && window) {
+                    const matchMode = window.MATCH_MODE || window.__MATCH_MODE;
+                    if (matchMode) return String(matchMode).toLowerCase();
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof globalThis !== 'undefined' && typeof globalThis.getCurrentMatchMode === 'function') {
+                    return String(globalThis.getCurrentMatchMode() || 'cpu').toLowerCase();
+                }
+                if (typeof globalThis !== 'undefined') {
+                    const matchMode = globalThis.MATCH_MODE || globalThis.__MATCH_MODE;
+                    if (matchMode) return String(matchMode).toLowerCase();
+                }
+            } catch (e) { /* ignore */ }
+
+            return 'cpu';
         }
 
         _resolveLocalSeatKey() {
@@ -233,6 +272,33 @@
                 return this._normalizePlayerKey(t.player);
             }
             return null;
+        }
+
+        _resolvePlaceHandDescriptor(target) {
+            const normalizedTarget = this._normalizeTarget(target, EVENT_TYPES.PLACE_HAND_ANIMATION);
+            const playerKey = this._normalizePlayerKeyOptional(
+                normalizedTarget && (normalizedTarget.player || normalizedTarget.owner)
+            );
+            if (!playerKey) return null;
+            if (!Number.isInteger(normalizedTarget.r) || !Number.isInteger(normalizedTarget.col)) return null;
+            return {
+                r: normalizedTarget.r,
+                col: normalizedTarget.col,
+                playerKey
+            };
+        }
+
+        _shouldPlayPlaceHandAnimation(target) {
+            if (this._getCurrentMatchMode() !== 'network') return false;
+            const descriptor = this._resolvePlaceHandDescriptor(target);
+            if (!descriptor) return false;
+            return descriptor.playerKey !== this._resolveLocalSeatKey();
+        }
+
+        _resolvePlayerValue(playerKey) {
+            const blackVal = (typeof BLACK !== 'undefined') ? BLACK : 1;
+            const whiteVal = (typeof WHITE !== 'undefined') ? WHITE : -1;
+            return playerKey === 'white' ? whiteVal : blackVal;
         }
 
         _shouldPlayCardUseButtonCue(target) {
@@ -291,17 +357,22 @@
                 const isGluttonousEatMove =
                     cause === 'GLUTTONOUS_WILL' &&
                     reason.indexOf('gluttonous_eat_move') === 0;
+                const isDestroyEvadeMove =
+                    cause === 'DESTROY_EVADE' ||
+                    reason.indexOf('destroy_evade_move') === 0;
                 return cause === 'STRONG_WIND_WILL' ||
                     cause === 'SUPER_BUOYANCY_WILL' ||
                     cause === 'SUPER_GRAVITY_WILL' ||
                     cause === 'POSITION_SWAP_WILL' ||
                     cause === 'TELEPORT_WILL' ||
                     isGluttonousEatMove ||
+                    isDestroyEvadeMove ||
                     reason.indexOf('position_swap') === 0 ||
                     reason.indexOf('strong_wind_move') === 0 ||
                     reason.indexOf('super_buoyancy_move') === 0 ||
                     reason.indexOf('super_gravity_move') === 0 ||
-                    reason.indexOf('teleport_move') === 0;
+                    reason.indexOf('teleport_move') === 0 ||
+                    reason.indexOf('destroy_evade_move') === 0;
             }
             return eventType === EVENT_TYPES.FLIP ||
                 eventType === EVENT_TYPES.DESTROY ||
@@ -951,7 +1022,6 @@
             // No events: just ensure flags are clean and return.
             if (!normalizedEvents.length) {
                 this.setGlobalInteractionLock(false);
-                if (typeof window !== 'undefined') window.VisualPlaybackActive = false;
                 return;
             }
             // Clear stale abort/watchdog state from previous runs.
@@ -980,7 +1050,6 @@
 
             // VisualPlaybackActive is the single source of truth during playback
             try {
-                window.VisualPlaybackActive = true;
                 this.setGlobalInteractionLock(true);
 
                 // Watchdog to prevent permanent freezes
@@ -1014,7 +1083,7 @@
                         // Visually, flips should start as soon as possible after the move is applied.
                         const nextPhaseKey = sortedPhases[sortedPhases.indexOf(phase) + 1];
                         const nextEvents = phases[nextPhaseKey] || [];
-                        const hasPlaceOrSpawn = phaseEvents.some(e => e && (e.type === EVENT_TYPES.PLACE || e.type === EVENT_TYPES.SPAWN));
+                        const hasPlaceOrSpawn = phaseEvents.some(e => e && (e.type === EVENT_TYPES.PLACE || e.type === EVENT_TYPES.SPAWN || e.type === EVENT_TYPES.PLACE_HAND_ANIMATION));
                         const nextHasFlip = nextEvents.some(e => e && e.type === EVENT_TYPES.FLIP);
                         const nextHasRegenBackFlip = hasRegenBackFlip(nextEvents);
                         const hasCardUseAnimation = phaseEvents.some(e => e && e.type === EVENT_TYPES.CARD_USE_ANIMATION);
@@ -1047,14 +1116,19 @@
                 }
                 this.isPlaying = false;
                 this.setGlobalInteractionLock(false);
-                window.VisualPlaybackActive = false;
 
                  // One-shot flag for DiffRenderer:
                  // After playback, AnimationEngine triggers `emitBoardUpdate()` to sync any non-animated UI (timers, hints).
                  // DiffRenderer has a fallback "owner changed => add .flip" animation which would otherwise replay flips,
                  // making stones appear to flip twice. This flag is consumed/cleared by ui/diff-renderer.js.
                  if (shouldSuppressNextDiffFlip && !abortedDuringPlay && !this._watchdogFired && !this.isAborted) {
-                     try { window.__suppressNextDiffFlip = true; } catch (e) { /* ignore */ }
+                     try {
+                         if (PlaybackState && typeof PlaybackState.setSuppressNextDiffFlip === 'function') {
+                             PlaybackState.setSuppressNextDiffFlip(true);
+                         } else {
+                             window.__suppressNextDiffFlip = true;
+                         }
+                     } catch (e) { /* ignore */ }
                  }
                  // Avoid leaking abort state into the next playback run.
                  this.isAborted = false;
@@ -1070,6 +1144,75 @@
                 acc[p].push(ev);
                 return acc;
             }, {});
+        }
+
+        _isSuperCrushMoveTarget(target) {
+            const cause = this._getTargetCause(target);
+            const reason = this._getTargetReason(target);
+            return this._isSuperCrushCause(cause) ||
+                reason.indexOf('super_buoyancy_move') === 0 ||
+                reason.indexOf('super_gravity_move') === 0;
+        }
+
+        _buildPhaseContext(events) {
+            const superCrushDestinations = new Map();
+            for (const ev of events || []) {
+                if (!ev || ev.type !== EVENT_TYPES.MOVE || !Array.isArray(ev.targets)) continue;
+                for (const target of ev.targets) {
+                    if (!this._isSuperCrushMoveTarget(target)) continue;
+                    const from = target && target.from ? target.from : null;
+                    const to = target && target.to ? target.to : null;
+                    if (!to || !Number.isInteger(to.r) || !Number.isInteger(to.col)) continue;
+                    const fromCell = from && Number.isInteger(from.r) && Number.isInteger(from.col)
+                        ? this.getCellEl(from.r, from.col)
+                        : null;
+                    const toCell = this.getCellEl(to.r, to.col);
+                    superCrushDestinations.set(`${to.r},${to.col}`, {
+                        sourceHadDisc: !!(fromCell && fromCell.querySelector('.disc')),
+                        destinationHadDisc: !!(toCell && toCell.querySelector('.disc'))
+                    });
+                }
+            }
+            return { superCrushDestinations };
+        }
+
+        _getSuperCrushDestinationContext(row, col) {
+            const ctx = this._phaseContext;
+            if (!ctx || !(ctx.superCrushDestinations instanceof Map)) return null;
+            return ctx.superCrushDestinations.get(`${row},${col}`) || null;
+        }
+
+        async _withPhaseContext(context, runner) {
+            const prev = this._phaseContext;
+            this._phaseContext = context || null;
+            try {
+                return await runner();
+            } finally {
+                this._phaseContext = prev;
+            }
+        }
+
+        async _animateDestroyGhostAtCell(cell, ownerColor) {
+            if (!cell) return;
+            const ghost = document.createElement('div');
+            ghost.className = 'disc';
+            if (ownerColor === ((typeof BLACK !== 'undefined') ? BLACK : 1)) ghost.classList.add('black');
+            else if (ownerColor === ((typeof WHITE !== 'undefined') ? WHITE : -1)) ghost.classList.add('white');
+            ghost.style.pointerEvents = 'none';
+            ghost.classList.add('destroy-fade');
+            cell.appendChild(ghost);
+            await this._sleep(FADE_OUT_MS);
+            if (ghost.parentElement) ghost.parentElement.removeChild(ghost);
+        }
+
+        _removeDiscFromCell(cell, disc) {
+            if (!cell || !disc) return;
+            try {
+                if (disc.parentElement === cell) cell.removeChild(disc);
+            } catch (e) { /* ignore */ }
+            try {
+                if (!cell.querySelector('.disc')) cell.classList.remove('has-disc');
+            } catch (e) { /* ignore */ }
         }
 
         async executePhase(phaseEvents) {
@@ -1102,13 +1245,16 @@
                 : events;
 
             // Batch flip events within the same phase so that multiple flips animate together.
-            const flips = effectiveEvents.filter(ev => ev && ev.type === EVENT_TYPES.FLIP);
-            const nonFlips = effectiveEvents.filter(ev => !ev || ev.type !== EVENT_TYPES.FLIP);
+            const phaseContext = this._buildPhaseContext(effectiveEvents);
+            await this._withPhaseContext(phaseContext, async () => {
+                const flips = effectiveEvents.filter(ev => ev && ev.type === EVENT_TYPES.FLIP);
+                const nonFlips = effectiveEvents.filter(ev => !ev || ev.type !== EVENT_TYPES.FLIP);
 
-            const promises = [];
-            if (flips.length) promises.push(this.executeFlipBatch(flips));
-            if (nonFlips.length) promises.push(...nonFlips.map(ev => this.executeEvent(ev)));
-            await Promise.all(promises);
+                const promises = [];
+                if (flips.length) promises.push(this.executeFlipBatch(flips));
+                if (nonFlips.length) promises.push(...nonFlips.map(ev => this.executeEvent(ev)));
+                await Promise.all(promises);
+            });
         }
 
         async _sleep(ms) {
@@ -1147,7 +1293,6 @@
             } catch (e) { }
             this.isAborted = true;
             this.setGlobalInteractionLock(false);
-            window.VisualPlaybackActive = false;
             try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { }
         }
 
@@ -1176,6 +1321,38 @@
                         });
                     }
                     return Promise.resolve();
+                case EVENT_TYPES.PLACE_HAND_ANIMATION:
+                    {
+                        const tPlace = (ev.targets && ev.targets[0]) ? ev.targets[0] : ev;
+                        const descriptor = this._resolvePlaceHandDescriptor(tPlace);
+                        if (!descriptor || !this._shouldPlayPlaceHandAnimation(tPlace)) {
+                            return Promise.resolve();
+                        }
+                        const handAnimationFn = (typeof window !== 'undefined' && typeof window.playHandAnimation === 'function')
+                            ? window.playHandAnimation
+                            : ((typeof playHandAnimation === 'function') ? playHandAnimation : null);
+                        if (typeof handAnimationFn !== 'function') return Promise.resolve();
+                        return new Promise((resolve) => {
+                            let finished = false;
+                            const finish = () => {
+                                if (finished) return;
+                                finished = true;
+                                resolve();
+                            };
+                            const timeoutId = _Timer().setTimeout(finish, 1800, this.playbackScope);
+                            const done = () => {
+                                if (timeoutId) {
+                                    _Timer().clearTimeout(timeoutId);
+                                }
+                                finish();
+                            };
+                            try {
+                                handAnimationFn(this._resolvePlayerValue(descriptor.playerKey), descriptor.r, descriptor.col, done);
+                            } catch (e) {
+                                done();
+                            }
+                        });
+                    }
                 case EVENT_TYPES.CARD_USE_ANIMATION:
                     {
                         const t2 = (ev.targets && ev.targets[0]) ? ev.targets[0] : ev;
@@ -1186,7 +1363,8 @@
                                 owner: t2.owner,
                                 cardId: t2.cardId,
                                 cost: t2.cost,
-                                name: t2.name
+                                name: t2.name,
+                                sourceCardEl: t2.sourceCardEl || null
                             });
                         }
                     }
@@ -1464,12 +1642,29 @@
 
                 const cell = this.getCellEl(t.r, t.col);
                 if (!cell) return;
-                const disc = cell?.querySelector('.disc');
-                if (!disc) return;
+                const destroyCause = this._getTargetCause(t);
+                const destroyReason = this._getTargetReason(t);
+                const isSuperCrushCollision = this._isSuperCrushCause(destroyCause) && (
+                    destroyReason.indexOf('super_buoyancy_collision') === 0 ||
+                    destroyReason.indexOf('super_gravity_collision') === 0
+                );
+                const superCrushDestinationContext = isSuperCrushCollision
+                    ? this._getSuperCrushDestinationContext(t.r, t.col)
+                    : null;
+                const ownerColor = this._resolveOwnerColorFromBefore(t && t.ownerBefore);
+                const disc = cell.querySelector('.disc');
+                if (!disc && !isSuperCrushCollision) return;
 
                 await this._runWithEffectTargetHighlight(cell, EVENT_TYPES.DESTROY, t, async () => {
-                    const destroyCause = this._getTargetCause(t);
-                    const destroyReason = this._getTargetReason(t);
+                    const useGhostOnlySuperCrushDestroy = isSuperCrushCollision && (
+                        !disc ||
+                        (superCrushDestinationContext && superCrushDestinationContext.sourceHadDisc === false)
+                    );
+                    if (useGhostOnlySuperCrushDestroy) {
+                        await this._animateDestroyGhostAtCell(cell, ownerColor);
+                        return;
+                    }
+
                     if (destroyCause === 'SNIPER_WILL' && this._resolveSniperSource(t)) {
                         await this.animateSniperProjectile(t);
                     }
@@ -1481,6 +1676,9 @@
                     }
                     if (destroyCause === 'LIGHTNING_WILL' && destroyReason === 'lightning_destroyed' && this._resolveSniperSource(t)) {
                         await this.animateUdgLightningStrike(t);
+                    }
+                    if (destroyCause === 'WILL_HUNTER_KING' && destroyReason.indexOf('will_hunter_king_slash') === 0) {
+                        await this.animateWillHunterKingSlash(t);
                     }
                     if (destroyCause === 'ROBOT_VACUUM' && destroyReason === 'robot_vacuum_suck' && this._resolveRobotVacuumSource(t)) {
                         await this.animateRobotVacuumSuction(t);
@@ -1497,7 +1695,6 @@
 
                     // Section 5.3: Fade out using animateFadeOutAt (waits for animationend + safety timeout)
                     if (typeof animateFadeOutAt === 'function') {
-                        const ownerColor = this._resolveOwnerColorFromBefore(t && t.ownerBefore);
                         await animateFadeOutAt(t.r, t.col, { createGhost: true, color: ownerColor });
 
                         // If no destroy-fade is visible (e.g., disc removed too early), force a ghost fade.
@@ -1519,10 +1716,66 @@
                         disc.classList.add('destroy-fade');
                         await this._sleep(FADE_OUT_MS);
                     }
-                    cell.innerHTML = '';
+                    this._removeDiscFromCell(cell, disc);
                 });
             });
             await Promise.all(promises);
+        }
+
+        async animateWillHunterKingSlash(target) {
+            if (!target || _isNoAnim()) return;
+
+            const cell = this.getCellEl(target.r, target.col);
+            if (!cell) return;
+
+            const cellRect = cell.getBoundingClientRect();
+            const source = this._resolveSniperSource(target);
+            const slash = document.createElement('div');
+            slash.className = 'will-hunter-king-slash';
+
+            let angleDeg = -32;
+            if (source) {
+                const sourceCell = this.getCellEl(source.row, source.col);
+                if (sourceCell) {
+                    const sourceRect = sourceCell.getBoundingClientRect();
+                    angleDeg = Math.atan2(
+                        (cellRect.top + (cellRect.height / 2)) - (sourceRect.top + (sourceRect.height / 2)),
+                        (cellRect.left + (cellRect.width / 2)) - (sourceRect.left + (sourceRect.width / 2))
+                    ) * (180 / Math.PI);
+                }
+            }
+
+            slash.style.position = 'fixed';
+            slash.style.left = `${cellRect.left}px`;
+            slash.style.top = `${cellRect.top}px`;
+            slash.style.width = `${cellRect.width}px`;
+            slash.style.height = `${cellRect.height}px`;
+            slash.style.setProperty('--slash-angle-deg', `${angleDeg}deg`);
+            slash.style.pointerEvents = 'none';
+            slash.style.zIndex = '1300';
+            document.body.appendChild(slash);
+
+            const durationMs = 280;
+            try {
+                if (typeof slash.animate === 'function') {
+                    const anim = slash.animate([
+                        { opacity: 0, transform: 'scale(0.6)' },
+                        { opacity: 1, transform: 'scale(1)' },
+                        { opacity: 0, transform: 'scale(1.08)' }
+                    ], {
+                        duration: durationMs,
+                        easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)'
+                    });
+                    await Promise.race([
+                        anim.finished.catch(() => undefined),
+                        this._sleep(durationMs + 80)
+                    ]);
+                } else {
+                    await this._sleep(durationMs);
+                }
+            } finally {
+                try { if (slash.parentElement) slash.parentElement.removeChild(slash); } catch (e) { /* ignore */ }
+            }
         }
 
         async handleSpawn(ev) {
@@ -1624,10 +1877,15 @@
                 let highlightedCells = [];
                 try {
                     if (this._shouldHighlightEffectTarget(EVENT_TYPES.MOVE, t)) {
+                        const isDestroyEvadeMove =
+                            moveCause === 'DESTROY_EVADE' ||
+                            moveReason.indexOf('destroy_evade_move') === 0;
                         const shouldHighlightBothCells =
                             moveCause === 'POSITION_SWAP_WILL' ||
                             moveReason.indexOf('position_swap') === 0;
-                        const cellsToHighlight = shouldHighlightBothCells ? [fromCell, toCell] : [toCell];
+                        const cellsToHighlight = shouldHighlightBothCells
+                            ? [fromCell, toCell]
+                            : (isDestroyEvadeMove ? [fromCell] : [toCell]);
                         for (const oneCell of cellsToHighlight) {
                             if (!oneCell || highlightedCells.indexOf(oneCell) >= 0) continue;
                             try {
@@ -2062,7 +2320,7 @@
         syncDiscTimerOnly(disc, state) {
             if (!disc || !state) return;
 
-            const allTimerSelector = '.stone-timer, .bomb-timer, .special-timer, .inherited-hyperactive-timer, .dragon-timer, .udg-timer, .breeding-timer, .work-timer, .guard-timer, .flip-evade-timer';
+            const allTimerSelector = '.stone-timer, .bomb-timer, .special-timer, .inherited-hyperactive-timer, .dragon-timer, .udg-timer, .breeding-timer, .work-timer, .guard-timer, .flip-evade-timer, .destroy-evade-timer';
             const existingTimers = Array.from(disc.querySelectorAll(allTimerSelector));
             existingTimers.forEach((el) => el.remove());
 
@@ -2077,6 +2335,7 @@
             };
             let flipEvadeRemaining = parseCounterOrNaN(state.flipEvadeRemaining);
             let inheritedFlipEvadeRemaining = parseCounterOrNaN(state.inheritedFlipEvadeRemaining);
+            const destroyEvadeRemaining = parseCounterOrNaN(state.destroyEvadeRemaining);
 
             if (specialType === 'INHERITED_HYPERACTIVE' && Number.isFinite(primaryTimerValue) && primaryTimerValue > 0) {
                 if (!(Number.isFinite(inheritedTimerValue) && inheritedTimerValue > 0)) {
@@ -2121,7 +2380,8 @@
                 specialType === 'HYPERACTIVE' ||
                 specialType === 'EXTREME_HYPERACTIVE' ||
                 specialType === 'ESCAPE_HYPERACTIVE' ||
-                specialType === 'ULTIMATE_HYPERACTIVE'
+                specialType === 'ULTIMATE_HYPERACTIVE' ||
+                specialType === 'WILL_HUNTER_KING'
             );
             const hasInheritedContext = (
                 specialType === 'INHERITED_HYPERACTIVE' ||
@@ -2136,6 +2396,14 @@
                 : (hasInheritedEvadeCounter ? inheritedFlipEvadeRemaining : NaN);
             if (Number.isFinite(evadeCounterValue) && evadeCounterValue >= 0) {
                 appendTimer('stone-timer flip-evade-timer', evadeCounterValue, { allowZero: true });
+            }
+
+            const hasDestroyEvadeCounter =
+                specialType === 'WILL_HUNTER_KING' &&
+                Number.isFinite(destroyEvadeRemaining) &&
+                destroyEvadeRemaining >= 0;
+            if (hasDestroyEvadeCounter) {
+                appendTimer('stone-timer destroy-evade-timer', destroyEvadeRemaining, { allowZero: true });
             }
         }
 
@@ -2161,9 +2429,13 @@
 
         setGlobalInteractionLock(locked) {
             window.isProcessing = locked;
-            window.isCardAnimating = locked; // legacy flag
-            // VisualPlaybackActive is the single source of truth for playback state
-            window.VisualPlaybackActive = locked;
+            if (PlaybackState && typeof PlaybackState.setInteractionLock === 'function') {
+                PlaybackState.setInteractionLock(locked);
+            } else {
+                window.isCardAnimating = locked; // legacy flag
+                window.VisualPlaybackActive = locked;
+                window.__playbackActiveSince = locked ? Date.now() : null;
+            }
             if (this.boardEl) {
                 if (locked) this.boardEl.classList.add('playback-locked');
                 else this.boardEl.classList.remove('playback-locked');

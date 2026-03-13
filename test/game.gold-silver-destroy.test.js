@@ -180,4 +180,32 @@ describe('金/銀の意志 — 即時破壊', () => {
         const effects = CardLogic.applyPlacementEffects(cs, gs, 'black', 2, 3, 3);
         expect(effects.chargeGained).toBe(9);
     });
+
+    test('RAINBOW_STONE: 配置直後に盤面が EMPTY になり、SPAWN → DESTROY イベントが出る', () => {
+        const gs = makeGameState();
+        const cs = makeCardState('RAINBOW_STONE');
+
+        gs.board[2][3] = 1;
+        cs.stoneIdMap[2][3] = 's5';
+
+        const effects = CardLogic.applyPlacementEffects(cs, gs, 'black', 2, 3, 1);
+
+        expect(gs.board[2][3]).toBe(0);
+        expect(effects.rainbowStoneUsed).toBe(true);
+        expect(effects.chargeGained).toBe(6);
+
+        const allEvents = (cs._presentationEventsPersist || []).concat(cs.presentationEvents || []);
+        const destroyEvents = allEvents.filter(e => e.type === 'DESTROY' && e.row === 2 && e.col === 3);
+        expect(destroyEvents.length).toBeGreaterThanOrEqual(1);
+        expect(destroyEvents[0].reason).toBe('rainbow_stone_sacrifice');
+    });
+
+    test('RAINBOW_STONE: flipCount=3 なら chargeGained=18', () => {
+        const gs = makeGameState();
+        const cs = makeCardState('RAINBOW_STONE');
+        gs.board[2][3] = 1;
+        cs.stoneIdMap[2][3] = 's5';
+        const effects = CardLogic.applyPlacementEffects(cs, gs, 'black', 2, 3, 3);
+        expect(effects.chargeGained).toBe(18);
+    });
 });

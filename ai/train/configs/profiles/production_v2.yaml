@@ -4,6 +4,7 @@ description: >
   本番主線を壊さずに隔離ディレクトリで回す、100時間の自己対戦 + ONNX 学習ループ。
 runTagPrefix: production_v2
 gateProfile: adoption_v2
+syncCpuLv6SharedTeacher: true
 paths:
   runsDir: data/runs/production_v2
   modelsDir: data/models/production_v2
@@ -27,11 +28,11 @@ trainCycleArgs:
   - --max-hours
   - "100"
   - --train-games
-  - "16000"
+  - "12000"
   - --eval-games
-  - "3000"
+  - "2000"
   - --selfplay-jobs
-  - "6"
+  - "10"
   - --adoption-jobs
   - "6"
   - --onnx-gate-jobs
@@ -39,7 +40,7 @@ trainCycleArgs:
   - --seed
   - "1"
   - --max-plies
-  - "220"
+  - "200"
   - --with-cards
   - --card-usage-rate
   - "0.55"
@@ -54,13 +55,13 @@ trainCycleArgs:
   - --selfplay-policy-current-anchor-rate
   - "1.0"
   - --selfplay-tactical-depth-opening
-  - "6"
+  - "4"
   - --selfplay-tactical-depth-mid
-  - "8"
+  - "6"
   - --selfplay-tactical-depth-end
-  - "10"
+  - "7"
   - --selfplay-tactical-beam-width
-  - "10"
+  - "6"
   - --selfplay-use-promoted-model-only
   - --onnx-epochs
   - "9999"

@@ -45,6 +45,56 @@ describe('OwnerHelpers network seat helpers', () => {
     expect(OwnerHelpers.resolveLocalPlayerKey({})).toBe('black');
   });
 
+  test('resolveLocalPlayerKey infers white seat from projected hidden black hand', () => {
+    const root = {
+      cardState: {
+        hands: {
+          black: ['__hidden_hand__:black:0', '__hidden_hand__:black:1'],
+          white: ['own_card']
+        },
+        pendingEffectByPlayer: { black: null, white: null }
+      }
+    };
+
+    expect(OwnerHelpers.resolveLocalPlayerKey(root)).toBe('white');
+  });
+
+  test('resolveLocalPlayerKey lets projected hidden-hand evidence override stale black seat', () => {
+    const root = {
+      NetworkMatchClient: {
+        getSeatKey: () => 'black',
+        isActive: () => false
+      },
+      cardState: {
+        hands: {
+          black: ['__hidden_hand__:black:0'],
+          white: ['own_card']
+        },
+        pendingEffectByPlayer: { black: null, white: null }
+      }
+    };
+
+    expect(OwnerHelpers.resolveLocalPlayerKey(root)).toBe('white');
+  });
+
+  test('resolveLocalPlayerKey keeps active client seat when projected hands disagree', () => {
+    const root = {
+      NetworkMatchClient: {
+        getSeatKey: () => 'black',
+        isActive: () => true
+      },
+      cardState: {
+        hands: {
+          black: ['__hidden_hand__:black:0'],
+          white: ['own_card']
+        },
+        pendingEffectByPlayer: { black: null, white: null }
+      }
+    };
+
+    expect(OwnerHelpers.resolveLocalPlayerKey(root)).toBe('black');
+  });
+
   test('isNetworkMode reflects current mode getter/fallback', () => {
     expect(OwnerHelpers.isNetworkMode({ getCurrentMatchMode: () => 'network' })).toBe(true);
     expect(OwnerHelpers.isNetworkMode({ MATCH_MODE: 'network' })).toBe(true);

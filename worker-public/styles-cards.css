@@ -233,6 +233,34 @@
         0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
+.card-item.visible[data-card-id="rainbow_stone"] {
+    --card-tier-bg-a: #ff5a7a;
+    --card-tier-bg-b: #ff9f43;
+    --card-tier-bg-c: #5b56ff;
+    --card-tier-hi: rgba(255, 255, 255, 0.34);
+    --card-tier-border: #ffe7a3;
+    --card-tier-text: #fffdf6;
+    --card-tier-badge-bg-a: rgba(255, 103, 145, 0.98);
+    --card-tier-badge-bg-b: rgba(99, 92, 255, 0.96);
+    --card-tier-badge-hi: rgba(255, 255, 255, 0.38);
+    --card-tier-badge-text: #fffdf7;
+    --card-tier-badge-border: rgba(255, 233, 167, 0.95);
+    background:
+        radial-gradient(130% 110% at 14% 10%, rgba(255, 255, 255, 0.36) 0%, transparent 42%),
+        linear-gradient(135deg, #ff5e7a 0%, #ffb84d 20%, #ffe066 38%, #54d69e 56%, #59b7ff 74%, #7d62ff 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.32),
+        inset 0 -2px 0 rgba(62, 16, 76, 0.28),
+        0 0 12px rgba(103, 156, 255, 0.3),
+        0 3px 10px rgba(0, 0, 0, 0.45);
+}
+
+.card-item.visible[data-card-id="rainbow_stone"] .card-cost-badge {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, transparent 44%),
+        linear-gradient(135deg, rgba(255, 104, 135, 0.98) 0%, rgba(255, 193, 92, 0.96) 32%, rgba(96, 208, 255, 0.96) 66%, rgba(115, 91, 255, 0.96) 100%);
+}
+
 .card-item.hidden {
     background: linear-gradient(135deg, #3d2e20, #1a0f08);
     border: var(--layout-size-border-thin) solid #4a3828;

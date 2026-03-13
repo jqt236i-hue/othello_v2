@@ -1,0 +1,65 @@
+schemaVersion: training_profile.v1
+name: hardcase_mining_v2
+description: >
+  hardcase 収集専用レーン。league self-play から難局面だけを抜き出して teacher relabel の入口を作る。
+runTagPrefix: hardcase_mining_v2
+launcherScript: scripts/run-hardcase-mining.js
+paths:
+  runsDir: data/runs/hardcase_mining_v2
+  modelsDir: data/models/hardcase_mining_v2
+bootstrap:
+  sourcePolicyTable: data/models/policy-table.json
+  copyPromotedPolicyTable: true
+  useCopiedPolicyTableAsBootstrap: true
+  autoResumeLatestCheckpoint: false
+preflight:
+  enabled: true
+  strict: false
+  allowArtifacts: true
+  checkWindow: true
+trainCycleArgs:
+  - --train-games
+  - "10000"
+  - --eval-games
+  - "2000"
+  - --selfplay-jobs
+  - "6"
+  - --seed
+  - "1"
+  - --eval-seed-offset
+  - "100000"
+  - --max-plies
+  - "220"
+  - --with-cards
+  - --card-usage-rate
+  - "0.65"
+  - --selfplay-policy-mix-rate
+  - "0.75"
+  - --selfplay-policy-pool-sampling
+  - recency
+  - --selfplay-policy-pool-recency-decay
+  - "2.0"
+  - --selfplay-policy-current-anchor-rate
+  - "0.35"
+  - --selfplay-card-usage-rate-jitter
+  - "0.15"
+  - --selfplay-tactical-weight-min
+  - "0.90"
+  - --selfplay-tactical-weight-max
+  - "1.60"
+  - --selfplay-tactical-depth-opening
+  - "4"
+  - --selfplay-tactical-depth-mid
+  - "6"
+  - --selfplay-tactical-depth-end
+  - "8"
+  - --selfplay-tactical-beam-width
+  - "10"
+  - --selfplay-teacher-committee-weight-min
+  - "44"
+  - --selfplay-teacher-committee-weight-max
+  - "68"
+  - --selfplay-teacher-committee-consensus-bonus-min
+  - "560"
+  - --selfplay-teacher-committee-consensus-bonus-max
+  - "920"

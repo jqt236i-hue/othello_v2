@@ -42,12 +42,30 @@ function getGamePrng() {
 
 // ===== Card State Management =====
 
-function initCardState(seed) {
+function normalizeInitCardStateArgs(seedOrOptions, maybeOptions) {
+    const firstLooksLikeOptions = !!(
+        seedOrOptions
+        && typeof seedOrOptions === 'object'
+        && !Array.isArray(seedOrOptions)
+        && typeof maybeOptions === 'undefined'
+    );
+
+    return {
+        seed: firstLooksLikeOptions ? undefined : seedOrOptions,
+        options: firstLooksLikeOptions
+            ? seedOrOptions
+            : ((maybeOptions && typeof maybeOptions === 'object') ? maybeOptions : undefined)
+    };
+}
+
+function initCardState(seedOrOptions, maybeOptions) {
+    const normalizedArgs = normalizeInitCardStateArgs(seedOrOptions, maybeOptions);
+
     // Initialize PRNG if not already done
-    initGamePrng(seed);
+    initGamePrng(normalizedArgs.seed);
 
     const prng = getGamePrng();
-    const newState = CardLogic.createCardState(prng);
+    const newState = CardLogic.createCardState(prng, normalizedArgs.options);
 
     // Wipe and copy properties to maintain global reference
     for (const key in cardState) delete cardState[key];

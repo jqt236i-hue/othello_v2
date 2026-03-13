@@ -19,6 +19,7 @@ describe('selfplay benchmark policy script', () => {
         const args = parseArgs([
             '--games', '8',
             '--seed', '9',
+            '--jobs', '3',
             '--max-plies', '77',
             '--a-no-cards',
             '--a-rate', '0.1',
@@ -29,6 +30,7 @@ describe('selfplay benchmark policy script', () => {
 
         expect(args.games).toBe(8);
         expect(args.seed).toBe(9);
+        expect(args.jobs).toBe(3);
         expect(args.maxPlies).toBe(77);
         expect(args.policyA).toEqual({
             allowCardUsage: false,
@@ -45,7 +47,7 @@ describe('selfplay benchmark policy script', () => {
         expect(args.modelAPath).toContain(path.join('data', 'models', 'policy-table.json'));
     });
 
-    test('runBenchmark is deterministic and mirrored-fair for identical policies', () => {
+    test('runBenchmark is deterministic and mirrored-fair for identical policies', async () => {
         const options = {
             games: 2,
             seed: 14,
@@ -53,8 +55,8 @@ describe('selfplay benchmark policy script', () => {
             policyA: { allowCardUsage: false, cardUsageRate: 0 },
             policyB: { allowCardUsage: false, cardUsageRate: 0 }
         };
-        const a = runBenchmark(options);
-        const b = runBenchmark(options);
+        const a = await runBenchmark(options);
+        const b = await runBenchmark(options);
 
         expect(a).toEqual(b);
         expect(a.schemaVersion).toBe('selfplay.v2');
@@ -70,7 +72,7 @@ describe('selfplay benchmark policy script', () => {
         expect(a.result.quality.A).toHaveProperty('avgCardFutureDiscDelta3Ply');
     });
 
-    test('runBenchmark accepts model path options', () => {
+    test('runBenchmark accepts model path options', async () => {
         const tmpDir = path.resolve(__dirname, '..', 'data', 'models');
         fs.mkdirSync(tmpDir, { recursive: true });
         const modelPath = path.join(tmpDir, 'policy-table.bench.test.json');
@@ -80,7 +82,7 @@ describe('selfplay benchmark policy script', () => {
         };
         fs.writeFileSync(modelPath, JSON.stringify(model), 'utf8');
 
-        const out = runBenchmark({
+        const out = await runBenchmark({
             games: 1,
             seed: 1,
             maxPlies: 40,
@@ -93,9 +95,9 @@ describe('selfplay benchmark policy script', () => {
         fs.unlinkSync(modelPath);
     });
 
-    test('runBenchmark emits progress callbacks', () => {
+    test('runBenchmark emits progress callbacks', async () => {
         const logs = [];
-        runBenchmark({
+        await runBenchmark({
             games: 2,
             seed: 3,
             maxPlies: 60,
@@ -109,15 +111,31 @@ describe('selfplay benchmark policy script', () => {
         expect(logs[logs.length - 1].total).toBe(4);
     });
 
-    test('runBenchmark honors card enable flags during simulation', () => {
-        const withCards = runBenchmark({
+    test('runBenchmark aborts when shouldStop requests early exit', async () => {
+        let stopRequested = false;
+
+        await expect(runBenchmark({
+            games: 4,
+            seed: 3,
+            maxPlies: 60,
+            policyA: { allowCardUsage: false, cardUsageRate: 0 },
+            policyB: { allowCardUsage: false, cardUsageRate: 0 },
+            shouldStop: () => stopRequested,
+            onProgress: (one) => {
+                if (one && one.completed >= 1) stopRequested = true;
+            }
+        })).rejects.toMatchObject({ code: 'BENCHMARK_ABORTED' });
+    });
+
+    test('runBenchmark honors card enable flags during simulation', async () => {
+        const withCards = await runBenchmark({
             games: 2,
             seed: 19,
             maxPlies: 220,
             policyA: { allowCardUsage: true, cardUsageRate: 1 },
             policyB: { allowCardUsage: true, cardUsageRate: 1 }
         });
-        const noCards = runBenchmark({
+        const noCards = await runBenchmark({
             games: 2,
             seed: 19,
             maxPlies: 220,
@@ -128,4 +146,21 @@ describe('selfplay benchmark policy script', () => {
         expect(withCards.result.quality.A.useCardActions + withCards.result.quality.B.useCardActions).toBeGreaterThan(0);
         expect(noCards.result.quality.A.useCardActions + noCards.result.quality.B.useCardActions).toBe(0);
     });
+
+    test('runBenchmark parallel mode preserves deterministic results', async () => {
+        const options = {
+            games: 2,
+            seed: 21,
+            maxPlies: 80,
+            policyA: { allowCardUsage: false, cardUsageRate: 0 },
+            policyB: { allowCardUsage: false, cardUsageRate: 0 }
+        };
+
+        const sequential = await runBenchmark(Object.assign({}, options, { jobs: 1 }));
+        const parallel = await runBenchmark(Object.assign({}, options, { jobs: 2 }));
+
+        expect(parallel.result).toEqual(sequential.result);
+        expect(parallel.config.jobs).toBe(2);
+        expect(sequential.config.jobs).toBe(1);
+    }, 60000);
 });

@@ -1,7 +1,8 @@
-const { runSelfPlayGames, decideAction } = require('../src/engine/selfplay-runner');
+const { runSelfPlayGames, runSingleGame, decideAction } = require('../src/engine/selfplay-runner');
 const Core = require('../game/logic/core');
 const CardLogic = require('../game/logic/cards');
 const CpuPolicyCore = require('../game/ai/cpu-policy-core');
+const TurnPipeline = require('../game/turn/turn_pipeline');
 
 describe('selfplay runner', () => {
     beforeEach(() => {
@@ -12,6 +13,39 @@ describe('selfplay runner', () => {
     afterEach(() => {
         jest.restoreAllMocks();
     });
+
+    function createGameStateWithRightExpansion(cells) {
+        const gameState = Core.createGameState();
+        gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        gameState.boardExpansion = {
+            active: true,
+            side: 'right',
+            row: Array.isArray(cells) && cells.length ? cells[0].row : 0,
+            owner: 0,
+            usedByPlayer: { black: false, white: false },
+            cells: (cells || []).map((cell) => ({
+                side: 'right',
+                row: cell.row,
+                col: 8,
+                owner: cell.owner
+            }))
+        };
+        gameState.currentPlayer = 1;
+        return gameState;
+    }
+
+    function createPendingCardState(pendingType, markers = []) {
+        return {
+            pendingEffectByPlayer: {
+                black: { type: pendingType, stage: 'selectTarget' },
+                white: null
+            },
+            markers,
+            charge: { black: 0, white: 0 },
+            hands: { black: [], white: [] },
+            hasUsedCardThisTurnByPlayer: { black: true, white: false }
+        };
+    }
 
     test('is deterministic for the same config/seed', () => {
         const options = {
@@ -66,6 +100,188 @@ describe('selfplay runner', () => {
         });
         expect(result.summary.totalGames).toBe(1);
         expect(result.records.length).toBeGreaterThan(0);
+    });
+
+    test('records pending target selections with structured labels', () => {
+        const result = runSelfPlayGames({
+            games: 1,
+            baseSeed: 1,
+            maxPlies: 140,
+            allowCardUsage: true,
+            cardUsageRate: 0.35
+        });
+
+        const pendingRecord = result.records.find((one) => one && one.pendingSelection && one.pendingSelection.kind === 'board_cell');
+        expect(pendingRecord).toBeTruthy();
+        expect(pendingRecord.pendingSelection.pendingType).toBeTruthy();
+        expect(Number.isInteger(pendingRecord.pendingSelection.row)).toBe(true);
+        expect(Number.isInteger(pendingRecord.pendingSelection.col)).toBe(true);
+        expect(pendingRecord.actorView).toBeTruthy();
+        expect(pendingRecord.actorView.pendingSelection).toEqual(expect.objectContaining({
+            kind: 'board_cell',
+            pendingType: pendingRecord.pendingSelection.pendingType,
+            row: pendingRecord.pendingSelection.row,
+            col: pendingRecord.pendingSelection.col
+        }));
+        expect(pendingRecord.actorView.selectionTrace).toEqual(expect.objectContaining({
+            kind: 'place',
+            pendingSelection: expect.objectContaining({
+                kind: 'board_cell',
+                row: pendingRecord.pendingSelection.row,
+                col: pendingRecord.pendingSelection.col
+            })
+        }));
+    });
+
+    test('retries with refreshed state after an invalid action rejection', () => {
+        const forcedRetryState = Core.createGameState();
+        forcedRetryState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        forcedRetryState.board[0][0] = 1;
+        forcedRetryState.board[0][1] = -1;
+        forcedRetryState.currentPlayer = 1;
+
+        const applyTurnSafeSpy = jest.spyOn(TurnPipeline, 'applyTurnSafe')
+            .mockImplementationOnce((cardState, gameState) => ({
+                ok: false,
+                rejectedReason: 'ILLEGAL_MOVE',
+                errorMessage: 'mock invalid action',
+                cardState,
+                gameState: forcedRetryState,
+                nextStateVersion: 1
+            }))
+            .mockImplementationOnce((cardState, gameState, playerKey, action) => ({
+                ok: true,
+                cardState,
+                gameState,
+                nextStateVersion: 2,
+                action
+            }));
+
+        const result = runSingleGame(0, 1, {
+            maxPlies: 1,
+            allowCardUsage: false
+        });
+
+        expect(applyTurnSafeSpy).toHaveBeenCalledTimes(2);
+        const retriedAction = applyTurnSafeSpy.mock.calls[1][3];
+        expect(retriedAction.type).toBe('place');
+        expect(retriedAction.row).toBe(0);
+        expect(retriedAction.col).toBe(2);
+        expect(result.records).toHaveLength(1);
+        expect(result.records[0].row).toBe(0);
+        expect(result.records[0].col).toBe(2);
+    });
+
+    test('falls back to a deterministic legal place after repeated unknown place rejection', () => {
+        const forcedRetryState = Core.createGameState();
+        forcedRetryState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        forcedRetryState.board[0][0] = 1;
+        forcedRetryState.board[0][1] = -1;
+        forcedRetryState.currentPlayer = 1;
+
+        const applyTurnSafeSpy = jest.spyOn(TurnPipeline, 'applyTurnSafe')
+            .mockImplementationOnce((cardState, gameState) => ({
+                ok: false,
+                rejectedReason: 'UNKNOWN',
+                errorMessage: "Cannot read properties of undefined (reading '8')",
+                cardState,
+                gameState: forcedRetryState,
+                nextStateVersion: 1
+            }))
+            .mockImplementationOnce((cardState, gameState) => ({
+                ok: false,
+                rejectedReason: 'UNKNOWN',
+                errorMessage: "Cannot read properties of undefined (reading '8')",
+                cardState,
+                gameState,
+                nextStateVersion: 1
+            }))
+            .mockImplementationOnce((cardState, gameState, playerKey, action) => ({
+                ok: true,
+                cardState,
+                gameState,
+                nextStateVersion: 2,
+                action
+            }));
+
+        const result = runSingleGame(0, 1, {
+            maxPlies: 1,
+            allowCardUsage: false
+        });
+
+        expect(applyTurnSafeSpy).toHaveBeenCalledTimes(3);
+        const fallbackAction = applyTurnSafeSpy.mock.calls[2][3];
+        expect(fallbackAction.type).toBe('place');
+        expect(fallbackAction.row).toBe(0);
+        expect(fallbackAction.col).toBe(2);
+        expect(result.records).toHaveLength(1);
+        expect(result.records[0].row).toBe(0);
+        expect(result.records[0].col).toBe(2);
+    });
+
+    test('preserves SACRIFICE_WILL target selection in retry fallback', () => {
+        const forcedRetryState = Core.createGameState();
+        forcedRetryState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        forcedRetryState.board[3][3] = 1;
+        forcedRetryState.board[3][4] = 1;
+        forcedRetryState.board[4][4] = -1;
+        forcedRetryState.currentPlayer = 1;
+
+        const forcedRetryCardState = {
+            pendingEffectByPlayer: {
+                black: { type: 'SACRIFICE_WILL', stage: 'selectTarget', selectedCount: 0, maxSelections: 3 },
+                white: null
+            },
+            markers: [],
+            charge: { black: 0, white: 0 },
+            hands: { black: [], white: [] },
+            hasUsedCardThisTurnByPlayer: { black: true, white: false },
+            deck: [],
+            discard: []
+        };
+
+        const applyTurnSafeSpy = jest.spyOn(TurnPipeline, 'applyTurnSafe')
+            .mockImplementationOnce(() => ({
+                ok: false,
+                rejectedReason: 'UNKNOWN',
+                errorMessage: 'mock invalid action',
+                cardState: forcedRetryCardState,
+                gameState: forcedRetryState,
+                nextStateVersion: 1
+            }))
+            .mockImplementationOnce(() => ({
+                ok: false,
+                rejectedReason: 'UNKNOWN',
+                errorMessage: 'mock invalid action',
+                cardState: forcedRetryCardState,
+                gameState: forcedRetryState,
+                nextStateVersion: 1
+            }))
+            .mockImplementationOnce((cardState, gameState, playerKey, action) => ({
+                ok: true,
+                cardState,
+                gameState,
+                nextStateVersion: 2,
+                action
+            }));
+
+        const result = runSingleGame(0, 1, {
+            maxPlies: 1,
+            allowCardUsage: false
+        });
+
+        expect(applyTurnSafeSpy).toHaveBeenCalledTimes(3);
+        const fallbackAction = applyTurnSafeSpy.mock.calls[2][3];
+        expect(fallbackAction.type).toBe('place');
+        expect(fallbackAction.sacrificeTarget).toBeTruthy();
+        expect(result.records).toHaveLength(1);
+        expect(result.records[0].pendingSelection).toEqual({
+            kind: 'board_cell',
+            pendingType: 'SACRIFICE_WILL',
+            sourceKey: 'sacrificeTarget',
+            row: fallbackAction.sacrificeTarget.row,
+            col: fallbackAction.sacrificeTarget.col
+        });
     });
 
     test('mixed guide-policy selfplay remains deterministic', () => {
@@ -166,6 +382,36 @@ describe('selfplay runner', () => {
         expect(decision.action.teleportTarget).toBeTruthy();
     });
 
+    test('decideAction chooses a placement for UDR pending on an otherwise flipless board', () => {
+        const gameState = Core.createGameState();
+        gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        gameState.currentPlayer = 1;
+
+        const cardState = {
+            pendingEffectByPlayer: {
+                black: { type: 'ULTIMATE_REVERSE_DRAGON', stage: null, cardId: 'udr_01' },
+                white: null
+            },
+            markers: [],
+            charge: { black: 0, white: 0 },
+            hands: { black: [], white: [] },
+            hasUsedCardThisTurnByPlayer: { black: true, white: false }
+        };
+
+        const decision = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0 },
+            { allowCardUsage: true, cardUsageRate: 0.25 },
+            { gameState, cardState }
+        );
+
+        expect(decision.action.type).toBe('place');
+        expect(Number.isInteger(decision.action.row)).toBe(true);
+        expect(Number.isInteger(decision.action.col)).toBe(true);
+    });
+
     test('decideAction resolves CELL_TELEPORT_WILL pending target instead of canceling', () => {
         const gameState = Core.createGameState();
         gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
@@ -203,6 +449,45 @@ describe('selfplay runner', () => {
         );
         expect(decision.action.type).toBe('place');
         expect(decision.action.teleportTarget).toBeTruthy();
+    });
+
+    test('decideAction resolves DESTROY_ONE_STONE on occupied expansion cells', () => {
+        const gameState = Core.createGameState();
+        gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        gameState.boardExpansion = {
+            active: true,
+            side: 'left',
+            row: 2,
+            owner: -1,
+            usedByPlayer: { black: false, white: false },
+            cells: [
+                { side: 'left', row: 2, col: -1, owner: -1 }
+            ]
+        };
+        gameState.currentPlayer = 1;
+
+        const cardState = {
+            pendingEffectByPlayer: {
+                black: { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' },
+                white: null
+            },
+            markers: [],
+            charge: { black: 0, white: 0 },
+            hands: { black: [], white: [] },
+            hasUsedCardThisTurnByPlayer: { black: true, white: false }
+        };
+
+        const decision = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.1 },
+            { allowCardUsage: true, cardUsageRate: 0.25 },
+            { gameState, cardState }
+        );
+
+        expect(decision.action.type).toBe('place');
+        expect(decision.action.destroyTarget).toEqual({ row: 2, col: -1 });
     });
 
     test('decideAction resolves SUPER_BUOYANCY_WILL pending target instead of canceling', () => {
@@ -329,6 +614,147 @@ describe('selfplay runner', () => {
 
         const key = `${decision.action.corrosionTarget.row},${decision.action.corrosionTarget.col}`;
         expect(['3,3', '4,4']).toContain(key);
+    });
+
+    test('decideAction resolves STRONG_WIND_WILL on right expansion targets without crashing', () => {
+        const gameState = createGameStateWithRightExpansion([
+            { row: 2, owner: 1 }
+        ]);
+        const cardState = createPendingCardState('STRONG_WIND_WILL');
+
+        const decision = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.1 },
+            { allowCardUsage: true, cardUsageRate: 0.25 },
+            { gameState, cardState }
+        );
+
+        expect(decision.action.type).toBe('place');
+        expect(decision.action.strongWindTarget).toEqual({ row: 2, col: 8 });
+    });
+
+    test('decideAction resolves SUPER_BUOYANCY_WILL on right expansion targets without crashing', () => {
+        const gameState = createGameStateWithRightExpansion([
+            { row: 1, owner: 0 },
+            { row: 2, owner: 0 },
+            { row: 3, owner: 1 }
+        ]);
+        const cardState = createPendingCardState('SUPER_BUOYANCY_WILL');
+
+        const decision = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.2 },
+            { allowCardUsage: true, cardUsageRate: 0.25 },
+            { gameState, cardState }
+        );
+
+        expect(decision.action.type).toBe('place');
+        expect(decision.action.superBuoyancyTarget).toEqual({ row: 3, col: 8 });
+    });
+
+    test('decideAction resolves SUPER_GRAVITY_WILL on right expansion targets without crashing', () => {
+        const gameState = createGameStateWithRightExpansion([
+            { row: 3, owner: 1 },
+            { row: 4, owner: 0 },
+            { row: 5, owner: 0 }
+        ]);
+        const cardState = createPendingCardState('SUPER_GRAVITY_WILL');
+
+        const decision = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.3 },
+            { allowCardUsage: true, cardUsageRate: 0.25 },
+            { gameState, cardState }
+        );
+
+        expect(decision.action.type).toBe('place');
+        expect(decision.action.superGravityTarget).toEqual({ row: 3, col: 8 });
+    });
+
+    test('decideAction resolves HYPERACTIVE_INHERIT_WILL on right expansion targets without crashing', () => {
+        const gameState = createGameStateWithRightExpansion([
+            { row: 2, owner: 1 }
+        ]);
+        const cardState = createPendingCardState('HYPERACTIVE_INHERIT_WILL');
+
+        const decision = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.4 },
+            { allowCardUsage: true, cardUsageRate: 0.25 },
+            { gameState, cardState }
+        );
+
+        expect(decision.action.type).toBe('place');
+        expect(decision.action.hyperactiveInheritTarget).toEqual({ row: 2, col: 8 });
+    });
+
+    test('decideAction resolves TELEPORT_WILL on right expansion targets without crashing', () => {
+        const gameState = createGameStateWithRightExpansion([
+            { row: 2, owner: -1 }
+        ]);
+        const cardState = createPendingCardState('TELEPORT_WILL');
+
+        const decision = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.5 },
+            { allowCardUsage: true, cardUsageRate: 0.25 },
+            { gameState, cardState }
+        );
+
+        expect(decision.action.type).toBe('place');
+        expect(decision.action.teleportTarget).toEqual({ row: 2, col: 8 });
+    });
+
+    test('decideAction resolves EXTEND_LIFE_WILL on right expansion targets without crashing', () => {
+        const gameState = createGameStateWithRightExpansion([
+            { row: 2, owner: 1 }
+        ]);
+        const cardState = createPendingCardState('EXTEND_LIFE_WILL', [
+            { kind: 'specialStone', row: 2, col: 8, owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 3 } }
+        ]);
+
+        const decision = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.6 },
+            { allowCardUsage: true, cardUsageRate: 0.25 },
+            { gameState, cardState }
+        );
+
+        expect(decision.action.type).toBe('place');
+        expect(decision.action.extendTarget).toEqual({ row: 2, col: 8 });
+    });
+
+    test('decideAction resolves CORROSION_WILL on right expansion targets without crashing', () => {
+        const gameState = createGameStateWithRightExpansion([
+            { row: 2, owner: -1 }
+        ]);
+        const cardState = createPendingCardState('CORROSION_WILL', [
+            { kind: 'specialStone', row: 2, col: 8, owner: 'white', data: { type: 'GUARD', remainingOwnerTurns: 3 } }
+        ]);
+
+        const decision = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.7 },
+            { allowCardUsage: true, cardUsageRate: 0.25 },
+            { gameState, cardState }
+        );
+
+        expect(decision.action.type).toBe('place');
+        expect(decision.action.corrosionTarget).toEqual({ row: 2, col: 8 });
     });
 
     test('decideAction can choose destroy_hand_card for deck cycling before card use', () => {

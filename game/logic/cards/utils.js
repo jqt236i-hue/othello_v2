@@ -6,14 +6,22 @@
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
         let OwnerHelpersModule = null;
+        let GameVisualEffectsMapModule = null;
+        let BoardOpsModule = null;
         try {
             OwnerHelpersModule = require('../../../utils/owner-helpers');
         } catch (e) { /* ignore */ }
-        module.exports = factory(require('../../../shared-constants'), OwnerHelpersModule);
+        try {
+            GameVisualEffectsMapModule = require('../../visual-effects-map');
+        } catch (e) { /* ignore */ }
+        try {
+            BoardOpsModule = require('../board_ops');
+        } catch (e) { /* ignore */ }
+        module.exports = factory(require('../../../shared-constants'), OwnerHelpersModule, GameVisualEffectsMapModule, BoardOpsModule);
     } else {
-        root.CardUtils = factory(root.SharedConstants, root.OwnerHelpers || null);
+        root.CardUtils = factory(root.SharedConstants, root.OwnerHelpers || null, root.GameVisualEffectsMap || null, root.BoardOps || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, OwnerHelpersModule) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, OwnerHelpersModule, GameVisualEffectsMapModule, BoardOpsModule) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY, CHARGE_MAX } = SharedConstants || {};
@@ -36,21 +44,116 @@
         throw new Error('SharedConstants not loaded');
     }
 
+    function normalizeBoardIndex(value) {
+        if (value === null || value === undefined || value === '') return null;
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return null;
+        return Math.trunc(numeric);
+    }
+
     function getSpecialMarkerAt(cardState, row, col) {
+        const targetRow = normalizeBoardIndex(row);
+        const targetCol = normalizeBoardIndex(col);
+        if (targetRow === null || targetCol === null) return null;
         const markers = (cardState && cardState.markers) ? cardState.markers : [];
-        const special = markers.find(m => m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') && m.row === row && m.col === col);
+        const special = markers.find(m => (
+            m &&
+            m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+            normalizeBoardIndex(m.row) === targetRow &&
+            normalizeBoardIndex(m.col) === targetCol
+        ));
         if (special) return { kind: 'specialStone', marker: special };
-        const bomb = markers.find(m => m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb') && m.row === row && m.col === col);
+        const bomb = markers.find(m => (
+            m &&
+            m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb') &&
+            normalizeBoardIndex(m.row) === targetRow &&
+            normalizeBoardIndex(m.col) === targetCol
+        ));
         if (bomb) return { kind: 'bomb', marker: bomb };
         return null;
     }
 
+    function getGameVisualEffectsMap() {
+        if (GameVisualEffectsMapModule && typeof GameVisualEffectsMapModule.getEffectKeyForSpecialType === 'function') {
+            return GameVisualEffectsMapModule;
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        const globalMap = globalScope && globalScope.GameVisualEffectsMap;
+        return (globalMap && typeof globalMap.getEffectKeyForSpecialType === 'function') ? globalMap : null;
+    }
+
+    function resolveSpecialEffectKey(type) {
+        if (!type) return null;
+        const visualEffectsMap = getGameVisualEffectsMap();
+        if (visualEffectsMap) {
+            return visualEffectsMap.getEffectKeyForSpecialType(type);
+        }
+        return null;
+    }
+
+    function isBoardHiddenTrapMarker(marker) {
+        return !!(
+            marker &&
+            marker.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+            marker.data &&
+            String(marker.data.type || '').toUpperCase() === 'TRAP'
+        );
+    }
+
+    function isBoardCellModifierMarker(marker) {
+        if (!marker || !marker.data) return false;
+        const typeUpper = String(marker.data.type || '').toUpperCase();
+        return typeUpper === 'BLOCKADE' || typeUpper === 'METEOR_HOLE' || typeUpper === 'FREEZE';
+    }
+
+    function isFrozenCell(cardState, row, col) {
+        const targetRow = normalizeBoardIndex(row);
+        const targetCol = normalizeBoardIndex(col);
+        const effectiveSet = cardState && cardState._frozenCellsActiveAtTurnStart;
+        const effectiveKey = (targetRow === null || targetCol === null) ? null : `${targetRow},${targetCol}`;
+        if (effectiveKey && effectiveSet) {
+            if (effectiveSet instanceof Set && effectiveSet.has(effectiveKey)) {
+                return true;
+            }
+            if (Array.isArray(effectiveSet) && effectiveSet.includes(effectiveKey)) {
+                return true;
+            }
+        }
+        const entry = getSpecialMarkerAt(cardState, row, col);
+        const marker = (entry && entry.kind === 'specialStone') ? entry.marker : null;
+        return !!(
+            marker &&
+            marker.data &&
+            String(marker.data.type || '').toUpperCase() === 'FREEZE'
+        );
+    }
+
+    function isMarkerRenderedAsSpecialStone(entry) {
+        if (!entry || !entry.marker) return false;
+        if (entry.kind === 'specialStone') {
+            if (isBoardHiddenTrapMarker(entry.marker)) return false;
+            if (isBoardCellModifierMarker(entry.marker)) return false;
+            return true;
+        }
+        if (entry.kind === 'bomb') {
+            return true;
+        }
+        return false;
+    }
+
+    function getRenderedSpecialMarkerAt(cardState, row, col) {
+        const entry = getSpecialMarkerAt(cardState, row, col);
+        return isMarkerRenderedAsSpecialStone(entry) ? entry : null;
+    }
+
     function isSpecialStoneAt(cardState, row, col) {
-        return !!getSpecialMarkerAt(cardState, row, col);
+        return !!getRenderedSpecialMarkerAt(cardState, row, col);
     }
 
     function getSpecialOwnerAt(cardState, row, col) {
-        const entry = getSpecialMarkerAt(cardState, row, col);
+        const entry = getRenderedSpecialMarkerAt(cardState, row, col);
         if (!entry) return null;
         return entry.marker && entry.marker.owner ? entry.marker.owner : null;
     }
@@ -58,13 +161,11 @@
     function isNormalStoneForPlayer(cardState, gameState, playerKey, row, col) {
         const playerVal = playerKey === 'black' ? BLACK : WHITE;
 
-        if (gameState.board[row][col] !== playerVal) return false;
-
-        const markers = (cardState && cardState.markers) ? cardState.markers : [];
-        if (markers.some(m => m.row === row && m.col === col && m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'))) return false;
-        if (markers.some(m => m.row === row && m.col === col && m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb'))) return false;
-
-        return true;
+        const cellValue = (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function')
+            ? BoardOpsModule.getCellValue(gameState, row, col)
+            : (gameState && gameState.board && gameState.board[row] ? gameState.board[row][col] : null);
+        if (cellValue !== playerVal) return false;
+        return !getRenderedSpecialMarkerAt(cardState, row, col);
     }
 
     function normalizePlayerKey(playerKey) {
@@ -144,8 +245,15 @@
 
     return {
         getSpecialMarkerAt,
+        getRenderedSpecialMarkerAt,
+        isFrozenCell,
         isSpecialStoneAt,
         getSpecialOwnerAt,
+        getGameVisualEffectsMap,
+        resolveSpecialEffectKey,
+        isBoardHiddenTrapMarker,
+        isBoardCellModifierMarker,
+        isMarkerRenderedAsSpecialStone,
         isNormalStoneForPlayer,
         normalizePlayerKey,
         setChargeWithDelta,

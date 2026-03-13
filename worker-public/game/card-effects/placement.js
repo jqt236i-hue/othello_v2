@@ -7,6 +7,9 @@ function logPlacementEffects(effects, player) {
     if (!effects) return;
     const ownerName = getPlayerDisplayName(player);
 
+    if (effects.rainbowStoneUsed) {
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.rainbowCharge(effects.chargeGained));
+    }
     if (effects.silverStoneUsed) {
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.silverCharge(effects.chargeGained));
     }
@@ -15,9 +18,6 @@ function logPlacementEffects(effects, player) {
     }
     if (effects.plunderAmount > 0) {
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.plunderPoints(effects.plunderAmount));
-    }
-    if (effects.stolenCount > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.plunderCards(effects.stolenCount, effects.resaleGain));
     }
     if (effects.protected) {
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.protectNext(ownerName));

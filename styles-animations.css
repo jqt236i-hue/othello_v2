@@ -61,3 +61,29 @@ the fade-in starts. */
         opacity: 0 !important;
     }
 }
+
+.will-hunter-king-slash {
+    --slash-angle-deg: -32deg;
+}
+
+.will-hunter-king-slash::before,
+.will-hunter-king-slash::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.will-hunter-king-slash::before {
+    background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 251, 228, 0.92) 46%, rgba(255, 255, 255, 0) 100%);
+    transform: rotate(var(--slash-angle-deg)) scale(0.42);
+    filter: drop-shadow(0 0 10px rgba(255, 244, 190, 0.72));
+    border-radius: 100vmax;
+}
+
+.will-hunter-king-slash::after {
+    background:
+        radial-gradient(circle, rgba(255, 244, 198, 0.54) 0%, rgba(255, 244, 198, 0.18) 34%, rgba(255, 244, 198, 0) 72%);
+    transform: scale(1.15);
+}

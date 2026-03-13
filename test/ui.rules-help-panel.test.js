@@ -219,9 +219,10 @@ describe('rules help panel', () => {
     expect(detailBody.textContent).not.toContain('反転0でも空きマスに置ける。');
   });
 
-  test('effect glossary list includes 反転回避 entry', () => {
+  test('effect glossary list includes 反転回避 and 破壊回避 entries', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     expect(html).toMatch(/<dt>\s*反転回避\s*<\/dt>/);
+    expect(html).toMatch(/<dt>\s*破壊回避\s*<\/dt>/);
   });
 
 });

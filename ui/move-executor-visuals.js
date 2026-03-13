@@ -4,11 +4,21 @@
 
 // Shared animation helpers (normalized)
 var AnimationShared = (typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null);
+var PlaybackStateModule = (typeof require === 'function') ? (function () {
+    try { return require('./playback-state-manager'); } catch (e) { return (typeof window !== 'undefined' ? window.PlaybackStateManager : null); }
+}()) : (typeof window !== 'undefined' ? window.PlaybackStateManager : null);
 
 // Visual helpers and animation sequence for move execution
 
+function _isPlaybackActiveForLegacyVisuals() {
+    if (PlaybackStateModule && typeof PlaybackStateModule.getPlaybackActive === 'function') {
+        return PlaybackStateModule.getPlaybackActive() === true;
+    }
+    return typeof window !== 'undefined' && window.VisualPlaybackActive === true;
+}
+
 function _assertNotDuringPlayback() {
-    if (typeof window !== 'undefined' && window.VisualPlaybackActive === true) {
+    if (_isPlaybackActiveForLegacyVisuals()) {
         if (typeof window !== 'undefined' && window.__DEV__ === true) {
             throw new Error('Legacy visual helper called during active VisualPlayback (dev fail-fast)');
         } else {
@@ -333,10 +343,10 @@ function waitForPlaybackIdle() {
 
             const tick = () => {
                 try {
-                    if (window.VisualPlaybackActive === true) {
+                    if (_isPlaybackActiveForLegacyVisuals()) {
                         // Playback active: wait until it becomes idle.
                         const waitEnd = () => {
-                            if (window.VisualPlaybackActive !== true) return resolve();
+                            if (!_isPlaybackActiveForLegacyVisuals()) return resolve();
                             try { requestAnimationFrame(waitEnd); } catch (e) { setTimeout(waitEnd, 16); }
                         };
                         return waitEnd();

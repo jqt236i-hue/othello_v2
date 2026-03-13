@@ -25,11 +25,11 @@ describe('applyProtectionAfterMove', () => {
     test('logs placement messages and returns pendingType', () => {
         const move = { row: 0, col: 0, player: 1 };
         const effects = {
+            rainbowStoneUsed: true,
             silverStoneUsed: true,
             chargeGained: 3,
             goldStoneUsed: true,
             plunderAmount: 5,
-            stolenCount: 2,
             protected: true,
             permaProtected: true,
             bombPlaced: true,
@@ -46,6 +46,7 @@ describe('applyProtectionAfterMove', () => {
         const res = applyProtectionAfterMove(move, effects);
         expect(global.emitLogAdded).toHaveBeenCalled();
         // Check a couple of expected messages
+        expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.rainbowCharge(3));
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.silverCharge(3));
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.plunderPoints(5));
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.protectNext('黒'));

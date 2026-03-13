@@ -93,4 +93,66 @@ describe('TELEPORT_WILL（テレポート）', () => {
 
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
+
+  test('occupied expansion cell is a teleport target and can move onto the main board', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.WHITE));
+    gameState.board[4][0] = Core.EMPTY;
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: false, white: false },
+      cells: [{ side: 'left', row: 4, col: -1, owner: Core.BLACK }]
+    };
+
+    const targets = CardLogic.getTeleportTargets(cardState, gameState);
+    expect(targets).toEqual(expect.arrayContaining([{ row: 4, col: -1 }]));
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'TELEPORT_WILL',
+      stage: 'selectTarget',
+      cardId: 'teleport_expansion_source_01'
+    };
+
+    const res = CardLogic.applyTeleportWill(cardState, gameState, 'black', 4, -1, createPrng(0));
+
+    expect(res && res.applied).toBe(true);
+    expect(res.from).toEqual({ row: 4, col: -1 });
+    expect(res.to).toEqual({ row: 4, col: 0 });
+    expect(gameState.board[4][0]).toBe(Core.BLACK);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 4 && cell.col === -1).owner).toBe(Core.EMPTY);
+  });
+
+  test('empty expansion cell can be chosen as the only teleport destination', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.WHITE));
+    gameState.board[3][3] = Core.BLACK;
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: false, white: false },
+      cells: [{ side: 'left', row: 3, col: -1, owner: Core.EMPTY }]
+    };
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'TELEPORT_WILL',
+      stage: 'selectTarget',
+      cardId: 'teleport_expansion_dest_01'
+    };
+
+    const res = CardLogic.applyTeleportWill(cardState, gameState, 'black', 3, 3, createPrng(0));
+
+    expect(res && res.applied).toBe(true);
+    expect(res.to).toEqual({ row: 3, col: -1 });
+    expect(gameState.board[3][3]).toBe(Core.EMPTY);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 3 && cell.col === -1).owner).toBe(Core.BLACK);
+  });
 });

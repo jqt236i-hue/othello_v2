@@ -222,6 +222,29 @@ describe('board cell long press info', () => {
     });
   });
 
+  test('showSpecialStoneInfoAt adds 破壊回避 tag for will hunter king', () => {
+    global.cardState.markers = [{
+      kind: 'specialStone',
+      row: 5,
+      col: 5,
+      owner: 'black',
+      data: {
+        type: 'WILL_HUNTER_KING',
+        remainingOwnerTurns: 8,
+        flipEvadeRemaining: 2,
+        destroyEvadeRemaining: 2
+      }
+    }];
+
+    const mod = require('../ui/diff-renderer.js');
+    const shown = mod.showSpecialStoneInfoAt(5, 5);
+    expect(shown).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('意志狩りの王');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避');
+  });
+
   test('long press keeps inherited-hyperactive tags when base special stone coexists', () => {
     global.cardState.markers = [
       {
@@ -341,6 +364,30 @@ describe('board cell long press info', () => {
 
     expect(document.getElementById('stone-info-name').textContent).toBe('流星穴');
     expect(document.getElementById('stone-info-desc').textContent).toContain('永続穴');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('反転経路も遮断');
+    expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
+  });
+
+  test('long press on FREEZE shows registered freeze-cell info', () => {
+    global.cardState.markers.push({
+      kind: 'specialStone',
+      row: 2,
+      col: 6,
+      owner: 'black',
+      data: { type: 'FREEZE', remainingOwnerTurns: 5 }
+    });
+
+    const mod = require('../ui/diff-renderer.js');
+    const cell = document.createElement('div');
+    document.getElementById('board').appendChild(cell);
+    mod.attachBoardCellInteraction(cell, 2, 6);
+
+    dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 118, clientY: 84 });
+    jest.advanceTimersByTime(430);
+
+    expect(document.getElementById('stone-info-name').textContent).toBe('凍結マス');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('5ターン');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('反転・破壊・移動されない');
     expect(document.getElementById('stone-info-desc').textContent).toContain('反転経路も遮断');
     expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
   });

@@ -13,12 +13,19 @@
                 } catch (e) {
                     return null;
                 }
+            })(),
+            (function () {
+                try {
+                    return require('../board_ops');
+                } catch (e) {
+                    return null;
+                }
             })()
         );
     } else {
-        root.CardWork = factory(root.SharedConstants, root.CardUtils || null);
+        root.CardWork = factory(root.SharedConstants, root.CardUtils || null, root.BoardOps || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardUtils) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardUtils, BoardOps) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY, CHARGE_MAX } = SharedConstants || {};
@@ -29,6 +36,44 @@
             if (typeof globalThis !== 'undefined' && globalThis.DEBUG_WORK_LOG === true) return true;
         } catch (e) { /* ignore */ }
         return false;
+    }
+
+    function isFrozenCell(cardState, row, col) {
+        return !!(CardUtils && typeof CardUtils.isFrozenCell === 'function' && CardUtils.isFrozenCell(cardState, row, col));
+    }
+
+    function getCellValue(gameState, row, col) {
+        if (BoardOps && typeof BoardOps.getCellValue === 'function') {
+            return BoardOps.getCellValue(gameState, row, col);
+        }
+        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
+            ? gameState.boardExpansion
+            : null;
+        if (expansion) {
+            const cells = Array.isArray(expansion.cells) ? expansion.cells : [];
+            for (const cell of cells) {
+                if (!cell || typeof cell !== 'object') continue;
+                const cellCol = Number.isInteger(cell.col)
+                    ? cell.col
+                    : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : null));
+                if (!Number.isInteger(cellCol)) continue;
+                if (cell.row === row && cellCol === col) {
+                    return (cell.owner === BLACK || cell.owner === WHITE) ? cell.owner : EMPTY;
+                }
+            }
+            if (expansion.active === true) {
+                const legacyCol = expansion.side === 'left' ? -1 : (expansion.side === 'right' ? 8 : null);
+                if (Number.isInteger(legacyCol) && expansion.row === row && legacyCol === col) {
+                    return (expansion.owner === BLACK || expansion.owner === WHITE) ? expansion.owner : EMPTY;
+                }
+            }
+        }
+        if (!Array.isArray(gameState && gameState.board)) return null;
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+        if (row < 0 || row >= gameState.board.length) return null;
+        const rowArr = gameState.board[row];
+        if (!Array.isArray(rowArr) || col < 0 || col >= rowArr.length) return null;
+        return rowArr[col];
     }
 
     function addChargeWithTotal(cardState, playerKey, amount) {
@@ -96,6 +141,16 @@
 
         const r = Number(row);
         const c = Number(col);
+        if (
+            BoardOps &&
+            typeof BoardOps.getCellValue === 'function' &&
+            typeof BoardOps.setCellValue === 'function' &&
+            Number.isInteger(r) &&
+            Number.isInteger(c) &&
+            BoardOps.getCellValue(gameState, r, c) !== null
+        ) {
+            return BoardOps.setCellValue(gameState, r, c, EMPTY);
+        }
         if (Number.isInteger(r) && Number.isInteger(c)) {
             const expansion = (gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
                 ? gameState.boardExpansion
@@ -182,11 +237,22 @@
             };
         }
 
+        if (isFrozenCell(cardState, row, col)) {
+            return {
+                gained: 0,
+                removed: false,
+                row,
+                col,
+                removedReason: null,
+                incomeStep: null
+            };
+        }
+
         // validate: cell must exist and match ownerColor
-        const cellVal = gameState.board[row][col];
+        const cellVal = getCellValue(gameState, row, col);
         const ownerColor = (special.data && special.data.ownerColor) || special.owner; // ownerColor may be string 'black'/'white'
         const expectedVal = ownerColor === 'black' ? P_BLACK : (ownerColor === 'white' ? P_WHITE : (playerKey === 'black' ? P_BLACK : P_WHITE));
-        if (cellVal === EMPTY || cellVal !== expectedVal) {
+        if (cellVal === null || cellVal === EMPTY || cellVal !== expectedVal) {
             // remove special marker
             cardState.markers = (cardState.markers || []).filter(m => !(m.kind === 'specialStone' && m.data && m.data.type === 'WORK' && m.owner === playerKey && m.row === row && m.col === col));
             cardState.workAnchorPosByPlayer[playerKey] = null;

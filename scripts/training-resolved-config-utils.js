@@ -117,15 +117,65 @@ function applyAdoptionArgsFromResolvedConfig(target, specified, resolved) {
     const argMap = buildTrainCycleArgMap(resolved);
     const gatePhase = String(target && target.gatePhase ? target.gatePhase : 'quality').trim().toLowerCase();
     const isQuick = gatePhase === 'quick';
+    const isQuality = gatePhase === 'quality';
 
-    setNumberFromFlag(target, specified, 'games', argMap, isQuick ? '--quick-games' : '--final-games');
-    setNumberFromFlag(target, specified, 'seedCount', argMap, isQuick ? '--quick-adoption-seed-count' : '--final-adoption-seed-count');
-    setNumberFromFlag(target, specified, 'seedStride', argMap, isQuick ? '--quick-adoption-seed-stride' : '--final-adoption-seed-stride');
-    setNumberFromFlag(target, specified, 'threshold', argMap, isQuick ? '--quick-adoption-threshold' : '--final-adoption-threshold');
-    setNumberFromFlag(target, specified, 'confidenceLevel', argMap, isQuick ? '--quick-adoption-confidence-level' : '--final-adoption-confidence-level');
-    setNumberFromFlag(target, specified, 'minLowerBound', argMap, isQuick ? '--quick-adoption-min-lower-bound' : '--final-adoption-min-lower-bound');
-    setNumberFromFlag(target, specified, 'minSeedUplift', argMap, isQuick ? '--quick-adoption-min-seed-uplift' : '--final-adoption-min-seed-uplift');
-    setNumberFromFlag(target, specified, 'minSeedPassCount', argMap, isQuick ? '--quick-adoption-min-seed-pass-count' : '--final-adoption-min-seed-pass-count');
+    const gamesFlag = isQuick
+        ? '--quick-games'
+        : (isQuality ? '--quality-gate-games' : '--final-games');
+    const seedCountFlag = isQuick
+        ? '--quick-adoption-seed-count'
+        : (isQuality ? '--quality-gate-seed-count' : '--final-adoption-seed-count');
+    const seedStrideFlag = isQuick
+        ? '--quick-adoption-seed-stride'
+        : (isQuality ? '--quality-gate-seed-stride' : '--final-adoption-seed-stride');
+    const thresholdFlag = isQuick
+        ? '--quick-adoption-threshold'
+        : (isQuality ? '--quality-gate-threshold' : '--final-adoption-threshold');
+    const confidenceLevelFlag = isQuick
+        ? '--quick-adoption-confidence-level'
+        : (isQuality ? '--quality-gate-confidence-level' : '--final-adoption-confidence-level');
+    const minLowerBoundFlag = isQuick
+        ? '--quick-adoption-min-lower-bound'
+        : (isQuality ? '--quality-gate-min-lower-bound' : '--final-adoption-min-lower-bound');
+    const minSeedUpliftFlag = isQuick
+        ? '--quick-adoption-min-seed-uplift'
+        : (isQuality ? '--quality-gate-min-seed-uplift' : '--final-adoption-min-seed-uplift');
+    const minSeedPassCountFlag = isQuick
+        ? '--quick-adoption-min-seed-pass-count'
+        : (isQuality ? '--quality-gate-min-seed-pass-count' : '--final-adoption-min-seed-pass-count');
+
+    setNumberFromFlag(target, specified, 'games', argMap, gamesFlag);
+    if (isQuality && (!specified || !specified.has('games'))) {
+        setNumberFromFlag(target, specified, 'games', argMap, '--final-games');
+    }
+    setNumberFromFlag(target, specified, 'seedCount', argMap, seedCountFlag);
+    if (isQuality && (!specified || !specified.has('seedCount'))) {
+        setNumberFromFlag(target, specified, 'seedCount', argMap, '--adoption-seed-count');
+    }
+    setNumberFromFlag(target, specified, 'seedStride', argMap, seedStrideFlag);
+    if (isQuality && (!specified || !specified.has('seedStride'))) {
+        setNumberFromFlag(target, specified, 'seedStride', argMap, '--adoption-seed-stride');
+    }
+    setNumberFromFlag(target, specified, 'threshold', argMap, thresholdFlag);
+    if (isQuality && (!specified || !specified.has('threshold'))) {
+        setNumberFromFlag(target, specified, 'threshold', argMap, '--threshold');
+    }
+    setNumberFromFlag(target, specified, 'confidenceLevel', argMap, confidenceLevelFlag);
+    if (isQuality && (!specified || !specified.has('confidenceLevel'))) {
+        setNumberFromFlag(target, specified, 'confidenceLevel', argMap, '--adoption-confidence-level');
+    }
+    setNumberFromFlag(target, specified, 'minLowerBound', argMap, minLowerBoundFlag);
+    if (isQuality && (!specified || !specified.has('minLowerBound'))) {
+        setNumberFromFlag(target, specified, 'minLowerBound', argMap, '--adoption-min-lower-bound');
+    }
+    setNumberFromFlag(target, specified, 'minSeedUplift', argMap, minSeedUpliftFlag);
+    if (isQuality && (!specified || !specified.has('minSeedUplift'))) {
+        setNumberFromFlag(target, specified, 'minSeedUplift', argMap, '--adoption-min-seed-uplift');
+    }
+    setNumberFromFlag(target, specified, 'minSeedPassCount', argMap, minSeedPassCountFlag);
+    if (isQuality && (!specified || !specified.has('minSeedPassCount'))) {
+        setNumberFromFlag(target, specified, 'minSeedPassCount', argMap, '--adoption-min-seed-pass-count');
+    }
 
     setNumberFromFlag(target, specified, 'jobs', argMap, '--adoption-jobs');
     setNumberFromFlag(target, specified, 'maxPlies', argMap, '--max-plies');
@@ -168,6 +218,9 @@ function applyOnnxGateArgsFromResolvedConfig(target, specified, resolved) {
     setNumberFromFlag(target, specified, 'threshold', argMap, '--onnx-gate-threshold');
     setNumberFromFlag(target, specified, 'minSeedScore', argMap, '--onnx-gate-min-seed-score');
     setNumberFromFlag(target, specified, 'minSeedPassCount', argMap, '--onnx-gate-min-seed-pass-count');
+    setNumberFromFlag(target, specified, 'maxAverageLatencyMs', argMap, '--onnx-gate-max-average-latency-ms');
+    setNumberFromFlag(target, specified, 'maxP95LatencyMs', argMap, '--onnx-gate-max-p95-latency-ms');
+    setNumberFromFlag(target, specified, 'maxMaxLatencyMs', argMap, '--onnx-gate-max-max-latency-ms');
     setNumberFromFlag(target, specified, 'jobs', argMap, '--onnx-gate-jobs');
     setNumberFromFlag(target, specified, 'timeoutMs', argMap, '--onnx-gate-timeout-ms');
     setNumberFromFlag(target, specified, 'blackLevel', argMap, '--onnx-gate-black-level');
@@ -189,6 +242,22 @@ function applyOnnxGateArgsFromResolvedConfig(target, specified, resolved) {
     if (!specified || !specified.has('targetCardOnnxMetaPath')) {
         const modelsDir = resolved && resolved.paths ? resolved.paths.modelsDir : null;
         if (modelsDir) setPathIfMissing(target, specified, 'targetCardOnnxMetaPath', path.join(modelsDir, 'policy-card.onnx.meta.json'));
+    }
+    if (!specified || !specified.has('targetTargetOnnxPath')) {
+        const modelsDir = resolved && resolved.paths ? resolved.paths.modelsDir : null;
+        if (modelsDir) setPathIfMissing(target, specified, 'targetTargetOnnxPath', path.join(modelsDir, 'policy-target.onnx'));
+    }
+    if (!specified || !specified.has('targetTargetOnnxMetaPath')) {
+        const modelsDir = resolved && resolved.paths ? resolved.paths.modelsDir : null;
+        if (modelsDir) setPathIfMissing(target, specified, 'targetTargetOnnxMetaPath', path.join(modelsDir, 'policy-target.onnx.meta.json'));
+    }
+    if (!specified || !specified.has('targetValueOnnxPath')) {
+        const modelsDir = resolved && resolved.paths ? resolved.paths.modelsDir : null;
+        if (modelsDir) setPathIfMissing(target, specified, 'targetValueOnnxPath', path.join(modelsDir, 'policy-value.onnx'));
+    }
+    if (!specified || !specified.has('targetValueOnnxMetaPath')) {
+        const modelsDir = resolved && resolved.paths ? resolved.paths.modelsDir : null;
+        if (modelsDir) setPathIfMissing(target, specified, 'targetValueOnnxMetaPath', path.join(modelsDir, 'policy-value.onnx.meta.json'));
     }
 }
 

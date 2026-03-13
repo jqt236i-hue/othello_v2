@@ -157,6 +157,34 @@ describe('LIGHTNING_WILL（落雷）', () => {
     expect(marker.data.remainingOwnerTurns).toBe(4);
   });
 
+  test('自ターン開始時に下側拡張セルの敵石も破壊対象に含める', () => {
+    const { cardState, gameState } = createStates(0.0);
+
+    gameState.board[7][7] = Shared.BLACK;
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: Shared.EMPTY,
+      usedByPlayer: { black: true, white: false },
+      cells: [{ side: 'bottom', row: 8, col: 7, owner: Shared.WHITE }]
+    };
+
+    cardState.markers.push({
+      id: 9105,
+      kind: 'specialStone',
+      row: 7,
+      col: 7,
+      owner: 'black',
+      data: { type: 'LIGHTNING', remainingOwnerTurns: 5 }
+    });
+
+    const out = CardLogic.processLightningWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 7, 7, createPrng(0.0));
+
+    expect((out.destroyed || [])).toEqual([expect.objectContaining({ row: 8, col: 7, sourceRow: 7, sourceCol: 7 })]);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 8 && cell.col === 7).owner).toBe(Shared.EMPTY);
+  });
+
   test('5回目の所有者ターン開始で落雷石アンカーが消滅する', () => {
     const { cardState, gameState } = createStates(0.3);
 

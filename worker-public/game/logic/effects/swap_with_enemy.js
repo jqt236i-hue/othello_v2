@@ -40,15 +40,94 @@
             .map(f => [f[0], f[1]]);
     }
 
+    function getExpansionCells(gameState) {
+        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
+            ? gameState.boardExpansion
+            : null;
+        if (!expansion) return [];
+
+        const cells = Array.isArray(expansion.cells)
+            ? expansion.cells
+            : (expansion.active ? [expansion] : []);
+
+        return cells
+            .map((cell) => {
+                if (!cell || typeof cell !== 'object') return null;
+                const row = Number(cell.row);
+                const col = Number.isInteger(cell.col)
+                    ? cell.col
+                    : (
+                        cell.side === 'left' ? -1
+                            : (cell.side === 'right' ? 8
+                                : (cell.side === 'top' || cell.side === 'bottom' ? Number(cell.col) : null))
+                    );
+                if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+                return { row, col, owner: Number(cell.owner || 0) };
+            })
+            .filter(Boolean);
+    }
+
+    function getCellValue(gameState, row, col) {
+        if (!gameState || !Array.isArray(gameState.board)) return null;
+        if (Number.isInteger(row) && row >= 0 && row < 8 && Number.isInteger(col) && col >= 0 && col < 8) {
+            return gameState.board[row][col];
+        }
+        const expansionCells = getExpansionCells(gameState);
+        for (const cell of expansionCells) {
+            if (cell.row === row && cell.col === col) return cell.owner;
+        }
+        return null;
+    }
+
+    function setCellValue(gameState, row, col, value) {
+        if (!gameState || !Array.isArray(gameState.board)) return false;
+        if (Number.isInteger(row) && row >= 0 && row < 8 && Number.isInteger(col) && col >= 0 && col < 8) {
+            gameState.board[row][col] = value;
+            return true;
+        }
+        const expansion = (gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
+            ? gameState.boardExpansion
+            : null;
+        if (!expansion) return false;
+
+        const cells = Array.isArray(expansion.cells)
+            ? expansion.cells.slice()
+            : (expansion.active ? [Object.assign({}, expansion)] : []);
+        let changed = false;
+        for (let i = 0; i < cells.length; i++) {
+            const cell = cells[i];
+            if (!cell || typeof cell !== 'object') continue;
+            const cellRow = Number(cell.row);
+            const cellCol = Number.isInteger(cell.col)
+                ? cell.col
+                : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : Number(cell.col)));
+            if (!Number.isInteger(cellRow) || !Number.isInteger(cellCol)) continue;
+            if (cellRow !== row || cellCol !== col) continue;
+            cells[i] = Object.assign({}, cell, { owner: Number(value) });
+            changed = true;
+            break;
+        }
+        if (!changed) return false;
+
+        if (Array.isArray(expansion.cells)) {
+            expansion.cells = cells;
+        } else if (expansion.active) {
+            const matched = cells.find((cell) => cell && Number(cell.row) === row && Number(cell.col) === col);
+            if (matched) expansion.owner = Number(value);
+        }
+        return true;
+    }
+
     function resolveSwapFlips(gameState, row, col, player, context, core) {
         if (!core || typeof core.getFlipsWithContext !== 'function') return [];
-        if (!gameState || !Array.isArray(gameState.board) || !Array.isArray(gameState.board[row])) return [];
-        const prev = gameState.board[row][col];
-        gameState.board[row][col] = P_EMPTY;
+        if (!gameState) return [];
+        const prev = getCellValue(gameState, row, col);
+        if (prev === null) return [];
+        if (!setCellValue(gameState, row, col, P_EMPTY)) return [];
         try {
             return normalizeFlips(core.getFlipsWithContext(gameState, row, col, player, context || {}));
         } finally {
-            gameState.board[row][col] = prev;
+            setCellValue(gameState, row, col, prev);
         }
     }
 
@@ -63,7 +142,7 @@
         const player = playerKey === 'black' ? P_BLACK : P_WHITE;
         const opponent = -player;
 
-        if (!gameState || gameState.board[row][col] !== opponent) return result;
+        if (!gameState || getCellValue(gameState, row, col) !== opponent) return result;
 
         // Swap targets must be NORMAL stones only.
         // Hidden trap stones owned by opponent are treated as normal for the acting player.
@@ -87,7 +166,7 @@
         if (boardOpsInstance && typeof boardOpsInstance.changeAt === 'function') {
             boardOpsInstance.changeAt(cardState, gameState, row, col, playerKey, 'SWAP', 'swap_with_enemy');
         } else {
-            gameState.board[row][col] = player;
+            if (!setCellValue(gameState, row, col, player)) return result;
         }
 
         // Clear hyperactive at swapped position

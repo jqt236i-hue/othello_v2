@@ -1,6 +1,49 @@
 const { JSDOM } = require('jsdom');
 const path = require('path');
 
+function createScopedTimerMock() {
+  const scopeMap = new Map();
+
+  const forgetTimer = (id) => {
+    for (const ids of scopeMap.values()) {
+      ids.delete(id);
+    }
+  };
+
+  return {
+    setTimeout(fn, ms, scope) {
+      const id = setTimeout(() => {
+        forgetTimer(id);
+        fn();
+      }, ms);
+      if (scope) {
+        if (!scopeMap.has(scope)) scopeMap.set(scope, new Set());
+        scopeMap.get(scope).add(id);
+      }
+      return id;
+    },
+    clearTimeout(id) {
+      clearTimeout(id);
+      forgetTimer(id);
+    },
+    clearAll() {},
+    pendingCount() {
+      return 0;
+    },
+    newScope() {
+      return Symbol('scope');
+    },
+    clearScope(scope) {
+      const ids = scopeMap.get(scope);
+      if (!ids) return;
+      for (const id of ids) {
+        clearTimeout(id);
+      }
+      scopeMap.delete(scope);
+    }
+  };
+}
+
 describe('animation-utils hand fallback', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -11,11 +54,14 @@ describe('animation-utils hand fallback', () => {
         </div>
         <div id="deck-black"></div>
         <div id="deck-white"></div>
+        <div id="charge-black"></div>
+        <div id="charge-white"></div>
         <div id="hand-black"></div>
         <div id="hand-white"></div>
         <div id="handLayer" style="display:none;"></div>
         <div id="handWrapper"></div>
         <div id="heldStone"></div>
+        <svg id="handSvg"></svg>
       </body></html>
     `);
     global.window = dom.window;
@@ -193,5 +239,45 @@ describe('animation-utils hand fallback', () => {
 
     await expect(mod.playDrawCardHandAnimation({ player: '1', cardId: 'deck_a', count: 1 })).resolves.toBeUndefined();
     expect(window.__handSequentialRevealState).toBeNull();
+  });
+
+  test('playDrawCardHandAnimation resolves after playback scope timers are cleared', async () => {
+    jest.useFakeTimers();
+    const timerApi = createScopedTimerMock();
+
+    jest.doMock(path.resolve(__dirname, '..', 'ui', 'animation-shared.js'), () => ({
+      isNoAnim: () => false,
+      getTimer: () => timerApi
+    }));
+
+    window._currentPlaybackScope = 'draw-scope';
+    const mod = require('../ui/animation-utils');
+
+    const promise = mod.playDrawCardHandAnimation({ player: 'black', count: 1 });
+    timerApi.clearScope('draw-scope');
+    jest.advanceTimersByTime(3000);
+
+    await expect(promise).resolves.toBeUndefined();
+    expect(document.getElementById('handLayer').style.display).toBe('none');
+  });
+
+  test('playCardUseHandAnimation resolves after playback scope timers are cleared', async () => {
+    jest.useFakeTimers();
+    const timerApi = createScopedTimerMock();
+
+    jest.doMock(path.resolve(__dirname, '..', 'ui', 'animation-shared.js'), () => ({
+      isNoAnim: () => false,
+      getTimer: () => timerApi
+    }));
+
+    window._currentPlaybackScope = 'card-use-scope';
+    const mod = require('../ui/animation-utils');
+
+    const promise = mod.playCardUseHandAnimation({ player: 'black', owner: 'black', cardId: 'card_1', cost: 5, name: 'Test' });
+    timerApi.clearScope('card-use-scope');
+    jest.advanceTimersByTime(4000);
+
+    await expect(promise).resolves.toBeUndefined();
+    expect(document.getElementById('handLayer').style.display).toBe('none');
   });
 });

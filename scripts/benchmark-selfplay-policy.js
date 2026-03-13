@@ -2,13 +2,16 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const { fork } = require('child_process');
 const { runSelfPlayGames, SELFPLAY_SCHEMA_VERSION } = require('../src/engine/selfplay-runner');
 
 function parseArgs(argv) {
     const args = {
         games: 100,
         seed: 1,
+        jobs: 1,
         maxPlies: 220,
         out: null,
         policyA: { allowCardUsage: true, cardUsageRate: 0.2, policyScoreWeight: 1, heuristicWeight: 1 },
@@ -31,6 +34,10 @@ function parseArgs(argv) {
         }
         if (a === '--seed' || a === '-s') {
             args.seed = Number(argv[++i]);
+            continue;
+        }
+        if (a === '--jobs' || a === '-j') {
+            args.jobs = Number(argv[++i]);
             continue;
         }
         if (a === '--max-plies') {
@@ -97,6 +104,8 @@ function parseArgs(argv) {
 
     if (!Number.isFinite(args.games) || args.games < 1) throw new Error('--games must be >= 1');
     if (!Number.isFinite(args.seed)) throw new Error('--seed must be a number');
+    if (!Number.isFinite(args.jobs) || args.jobs < 1) throw new Error('--jobs must be >= 1');
+    args.jobs = Math.floor(args.jobs);
     if (!Number.isFinite(args.maxPlies) || args.maxPlies < 1) throw new Error('--max-plies must be >= 1');
     if (!Number.isFinite(args.policyA.cardUsageRate) || args.policyA.cardUsageRate < 0 || args.policyA.cardUsageRate > 1) {
         throw new Error('--a-rate must be in [0,1]');
@@ -128,6 +137,7 @@ function printHelp() {
         'Options:',
         '  -g, --games <n>      Games per side (default: 100)',
         '  -s, --seed <n>       Base seed (default: 1)',
+        '  -j, --jobs <n>       Parallel worker processes for benchmark games (default: 1)',
         '      --max-plies <n>  Max plies per game (default: 220)',
         '  -o, --out <path>     Optional JSON output path',
         '      --a-with-cards   Enable cards for Policy A (default: on)',
@@ -171,11 +181,31 @@ function withFilteredConsole(enabled, fn) {
     };
 
     try {
-        return fn();
-    } finally {
+        const out = fn();
+        if (out && typeof out.then === 'function') {
+            return out.finally(() => {
+                console.log = originalLog;
+                console.warn = originalWarn;
+            });
+        }
         console.log = originalLog;
         console.warn = originalWarn;
+        return out;
+    } catch (err) {
+        console.log = originalLog;
+        console.warn = originalWarn;
+        throw err;
     }
+}
+
+function createBenchmarkAbortError(message) {
+    const err = new Error(message || 'benchmark aborted');
+    err.code = 'BENCHMARK_ABORTED';
+    return err;
+}
+
+function isBenchmarkAbortError(err) {
+    return !!(err && err.code === 'BENCHMARK_ABORTED');
 }
 
 function mapWinnerToPolicy(winner, blackPolicy) {
@@ -461,52 +491,146 @@ function finalizeQualityStat(stat) {
 }
 
 function summarizePolicyResults(resultAB, resultBA, qualityAcc) {
-    const totals = { A: 0, B: 0, draw: 0 };
-    const bySide = {
-        blackA_whiteB: { A: 0, B: 0, draw: 0 },
-        blackB_whiteA: { A: 0, B: 0, draw: 0 }
+    return finalizeBenchmarkAggregate(buildBenchmarkAggregate(resultAB, resultBA, qualityAcc));
+}
+
+function mergeNumericObject(target, source) {
+    if (!target || !source) return;
+    for (const key of Object.keys(target)) {
+        target[key] += toFiniteNumber(source[key]);
+    }
+}
+
+function mergeQualityAccumulator(target, source) {
+    if (!target || !source) return;
+    mergeNumericObject(target.A, source.A || {});
+    mergeNumericObject(target.B, source.B || {});
+}
+
+function createBenchmarkAggregate() {
+    return {
+        totalGames: 0,
+        totalPlies: 0,
+        totals: { A: 0, B: 0, draw: 0 },
+        bySide: {
+            blackA_whiteB: { A: 0, B: 0, draw: 0 },
+            blackB_whiteA: { A: 0, B: 0, draw: 0 }
+        },
+        qualityAcc: createQualityAccumulator()
     };
-    let totalPlies = 0;
+}
+
+function buildBenchmarkAggregate(resultAB, resultBA, qualityAcc) {
+    const aggregate = createBenchmarkAggregate();
+    mergeQualityAccumulator(aggregate.qualityAcc, qualityAcc);
 
     for (const game of resultAB.gameSummaries) {
         const winner = mapWinnerToPolicy(game.winner, 'A');
-        bySide.blackA_whiteB[winner] += 1;
-        totals[winner] += 1;
-        totalPlies += game.plies;
-        updateQualityFinalFromSummary(qualityAcc, game, 'A');
+        aggregate.bySide.blackA_whiteB[winner] += 1;
+        aggregate.totals[winner] += 1;
+        aggregate.totalPlies += game.plies;
+        aggregate.totalGames += 1;
+        updateQualityFinalFromSummary(aggregate.qualityAcc, game, 'A');
     }
     for (const game of resultBA.gameSummaries) {
         const winner = mapWinnerToPolicy(game.winner, 'B');
-        bySide.blackB_whiteA[winner] += 1;
-        totals[winner] += 1;
-        totalPlies += game.plies;
-        updateQualityFinalFromSummary(qualityAcc, game, 'B');
+        aggregate.bySide.blackB_whiteA[winner] += 1;
+        aggregate.totals[winner] += 1;
+        aggregate.totalPlies += game.plies;
+        aggregate.totalGames += 1;
+        updateQualityFinalFromSummary(aggregate.qualityAcc, game, 'B');
     }
 
-    const totalGames = resultAB.gameSummaries.length + resultBA.gameSummaries.length;
-    const scoreA = totals.A + (totals.draw * 0.5);
-    const scoreB = totals.B + (totals.draw * 0.5);
+    return aggregate;
+}
+
+function mergeBenchmarkAggregate(target, source) {
+    if (!target || !source) return;
+    target.totalGames += toFiniteNumber(source.totalGames);
+    target.totalPlies += toFiniteNumber(source.totalPlies);
+    mergeNumericObject(target.totals, source.totals || {});
+    mergeNumericObject(target.bySide.blackA_whiteB, source.bySide && source.bySide.blackA_whiteB ? source.bySide.blackA_whiteB : {});
+    mergeNumericObject(target.bySide.blackB_whiteA, source.bySide && source.bySide.blackB_whiteA ? source.bySide.blackB_whiteA : {});
+    mergeQualityAccumulator(target.qualityAcc, source.qualityAcc || {});
+}
+
+function finalizeBenchmarkAggregate(aggregate) {
+    const scoreA = aggregate.totals.A + (aggregate.totals.draw * 0.5);
+    const scoreB = aggregate.totals.B + (aggregate.totals.draw * 0.5);
 
     return {
-        totalGames,
-        totalPlies,
-        avgPlies: totalGames > 0 ? totalPlies / totalGames : 0,
-        totals,
-        bySide,
+        totalGames: aggregate.totalGames,
+        totalPlies: aggregate.totalPlies,
+        avgPlies: aggregate.totalGames > 0 ? aggregate.totalPlies / aggregate.totalGames : 0,
+        totals: aggregate.totals,
+        bySide: aggregate.bySide,
         score: {
             A: scoreA,
             B: scoreB,
-            APercent: totalGames > 0 ? scoreA / totalGames : 0,
-            BPercent: totalGames > 0 ? scoreB / totalGames : 0
+            APercent: aggregate.totalGames > 0 ? scoreA / aggregate.totalGames : 0,
+            BPercent: aggregate.totalGames > 0 ? scoreB / aggregate.totalGames : 0
         },
         quality: {
-            A: finalizeQualityStat(qualityAcc.A),
-            B: finalizeQualityStat(qualityAcc.B)
+            A: finalizeQualityStat(aggregate.qualityAcc.A),
+            B: finalizeQualityStat(aggregate.qualityAcc.B)
         }
     };
 }
 
-function runBenchmark(options) {
+function createGameChunks(games, jobs) {
+    const safeGames = Math.max(1, Math.floor(Number(games) || 0));
+    const safeJobs = Math.max(1, Math.min(Math.floor(Number(jobs) || 1), safeGames));
+    const chunks = [];
+    const baseSize = Math.floor(safeGames / safeJobs);
+    const remainder = safeGames % safeJobs;
+    let gameOffset = 0;
+
+    for (let i = 0; i < safeJobs; i++) {
+        const size = baseSize + (i < remainder ? 1 : 0);
+        if (size <= 0) continue;
+        chunks.push({
+            chunkIndex: i,
+            gameOffset,
+            games: size
+        });
+        gameOffset += size;
+    }
+
+    return chunks;
+}
+
+function buildBenchmarkConfig(options, effectiveJobs) {
+    const games = Number.isFinite(options.games) ? options.games : 100;
+    const seed = Number.isFinite(options.seed) ? options.seed : 1;
+    const maxPlies = Number.isFinite(options.maxPlies) ? options.maxPlies : 220;
+    const policyA = Object.assign({ allowCardUsage: true, cardUsageRate: 0.2, policyScoreWeight: 1, heuristicWeight: 1 }, options.policyA || {});
+    const policyB = Object.assign({ allowCardUsage: true, cardUsageRate: 0.2, policyScoreWeight: 1, heuristicWeight: 1 }, options.policyB || {});
+
+    return {
+        games,
+        seed,
+        jobs: effectiveJobs,
+        maxPlies,
+        policyA: {
+            allowCardUsage: policyA.allowCardUsage,
+            cardUsageRate: policyA.cardUsageRate,
+            policyScoreWeight: policyA.policyScoreWeight,
+            heuristicWeight: policyA.heuristicWeight,
+            hasModel: !!(policyA.policyTableModel || options.modelAPath),
+            modelPath: options.modelAPath || null
+        },
+        policyB: {
+            allowCardUsage: policyB.allowCardUsage,
+            cardUsageRate: policyB.cardUsageRate,
+            policyScoreWeight: policyB.policyScoreWeight,
+            heuristicWeight: policyB.heuristicWeight,
+            hasModel: !!(policyB.policyTableModel || options.modelBPath),
+            modelPath: options.modelBPath || null
+        }
+    };
+}
+
+function runBenchmarkSequentialExecution(options) {
     const games = Number.isFinite(options.games) ? options.games : 100;
     const seed = Number.isFinite(options.seed) ? options.seed : 1;
     const maxPlies = Number.isFinite(options.maxPlies) ? options.maxPlies : 220;
@@ -514,6 +638,7 @@ function runBenchmark(options) {
     const policyB = Object.assign({ allowCardUsage: true, cardUsageRate: 0.2, policyScoreWeight: 1, heuristicWeight: 1 }, options.policyB || {});
     const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
     const onRecordExternal = typeof options.onRecord === 'function' ? options.onRecord : null;
+    const shouldStop = typeof options.shouldStop === 'function' ? options.shouldStop : null;
     const qualityAcc = createQualityAccumulator();
     const benchmarkStartedAt = Date.now();
     const totalGames = games * 2;
@@ -561,6 +686,7 @@ function runBenchmark(options) {
         maxPlies,
         allowCardUsage: globalAllowCards,
         cardUsageRate: globalCardUsageRate,
+        shouldStop,
         playerPolicies: {
             black: policyA,
             white: policyB
@@ -571,6 +697,9 @@ function runBenchmark(options) {
         },
         onGameEnd: (summary) => emitProgress('blackA_whiteB', summary)
     });
+    if (resultAB && resultAB.summary && resultAB.summary.aborted) {
+        throw createBenchmarkAbortError('benchmark aborted during blackA_whiteB');
+    }
 
     const resultBA = runSelfPlayGames({
         games,
@@ -578,6 +707,7 @@ function runBenchmark(options) {
         maxPlies,
         allowCardUsage: globalAllowCards,
         cardUsageRate: globalCardUsageRate,
+        shouldStop,
         playerPolicies: {
             black: policyB,
             white: policyA
@@ -588,35 +718,240 @@ function runBenchmark(options) {
         },
         onGameEnd: (summary) => emitProgress('blackB_whiteA', summary)
     });
+    if (resultBA && resultBA.summary && resultBA.summary.aborted) {
+        throw createBenchmarkAbortError('benchmark aborted during blackB_whiteA');
+    }
 
     return {
         schemaVersion: SELFPLAY_SCHEMA_VERSION,
-        config: {
-            games,
-            seed,
-            maxPlies,
-            policyA: {
-                allowCardUsage: policyA.allowCardUsage,
-                cardUsageRate: policyA.cardUsageRate,
-                policyScoreWeight: policyA.policyScoreWeight,
-                heuristicWeight: policyA.heuristicWeight,
-                hasModel: !!policyA.policyTableModel,
-                modelPath: options.modelAPath || null
-            },
-            policyB: {
-                allowCardUsage: policyB.allowCardUsage,
-                cardUsageRate: policyB.cardUsageRate,
-                policyScoreWeight: policyB.policyScoreWeight,
-                heuristicWeight: policyB.heuristicWeight,
-                hasModel: !!policyB.policyTableModel,
-                modelPath: options.modelBPath || null
-            }
-        },
-        result: summarizePolicyResults(resultAB, resultBA, qualityAcc)
+        config: buildBenchmarkConfig(options, 1),
+        aggregate: buildBenchmarkAggregate(resultAB, resultBA, qualityAcc)
     };
 }
 
-function main() {
+function runBenchmarkWorkerTask() {
+    const payloadRaw = process.env.BENCHMARK_SELFPLAY_POLICY_WORKER_TASK;
+    if (!payloadRaw) throw new Error('missing BENCHMARK_SELFPLAY_POLICY_WORKER_TASK');
+    const task = JSON.parse(payloadRaw);
+    let abortRequested = false;
+    if (typeof process.on === 'function') {
+        process.on('message', (msg) => {
+            if (msg && msg.type === 'abort') abortRequested = true;
+        });
+    }
+    const options = Object.assign({}, task.options, {
+        games: task.games,
+        seed: (Number(task.options.seed) || 0) + (Number(task.seedOffset) || 0),
+        jobs: 1,
+        shouldStop: () => abortRequested,
+        onProgress: (progress) => {
+            if (typeof process.send === 'function') {
+                process.send({
+                    type: 'progress',
+                    chunkIndex: task.chunkIndex,
+                    completed: Number(progress && progress.completed) || 0,
+                    total: Number(progress && progress.total) || 0,
+                    stage: progress && progress.stage ? progress.stage : null,
+                    winner: progress && progress.winner ? progress.winner : null,
+                    plies: progress && Number.isFinite(progress.plies) ? progress.plies : null
+                });
+            }
+        }
+    });
+
+    return withFilteredConsole(!options.verbose, () => {
+        try {
+            const execution = runBenchmarkSequentialExecution(options);
+            if (typeof process.send === 'function') {
+                process.send({ type: 'result', execution }, () => {
+                    if (typeof process.disconnect === 'function') process.disconnect();
+                    process.exit(0);
+                });
+                return;
+            }
+            process.exit(0);
+            return;
+        } catch (err) {
+            if (isBenchmarkAbortError(err)) {
+                if (typeof process.send === 'function') {
+                    process.send({ type: 'aborted' }, () => {
+                        if (typeof process.disconnect === 'function') process.disconnect();
+                        process.exit(0);
+                    });
+                    return;
+                }
+                process.exit(130);
+                return;
+            }
+            throw err;
+        }
+    });
+}
+
+function startBenchmarkChunkInChild(task, onProgress) {
+    const child = fork(__filename, [], {
+        env: Object.assign({}, process.env, {
+            BENCHMARK_SELFPLAY_POLICY_WORKER: '1',
+            BENCHMARK_SELFPLAY_POLICY_WORKER_TASK: JSON.stringify(task)
+        }),
+        stdio: ['inherit', 'inherit', 'inherit', 'ipc']
+    });
+    let finished = false;
+    let abortRequested = false;
+    const promise = new Promise((resolve, reject) => {
+        const finish = (err, value) => {
+            if (finished) return;
+            finished = true;
+            if (err) reject(err);
+            else resolve(value);
+        };
+        child.on('message', (msg) => {
+            if (!msg || typeof msg !== 'object') return;
+            if (msg.type === 'progress') {
+                if (typeof onProgress === 'function') onProgress(msg);
+                return;
+            }
+            if (msg.type === 'aborted') {
+                finish(createBenchmarkAbortError('benchmark worker aborted'));
+                return;
+            }
+            if (msg.type === 'result' && msg.execution) {
+                finish(null, msg.execution);
+            }
+        });
+        child.once('error', (err) => finish(err));
+        child.once('exit', (code, signal) => {
+            if (finished) return;
+            if (abortRequested && code === 0) {
+                finish(createBenchmarkAbortError('benchmark worker aborted'));
+                return;
+            }
+            if (code === 0) finish(new Error('benchmark worker exited without result'));
+            else finish(new Error(`benchmark worker failed code=${code} signal=${signal || 'none'}`));
+        });
+    });
+
+    return {
+        promise,
+        abort: () => {
+            if (finished) return;
+            abortRequested = true;
+            if (child.connected) {
+                try {
+                    child.send({ type: 'abort' });
+                    return;
+                } catch (err) {
+                    // Fall through to kill if IPC is already gone.
+                }
+            }
+            if (!child.killed) {
+                try {
+                    child.kill();
+                } catch (err) {
+                    // Ignore late abort races.
+                }
+            }
+        }
+    };
+}
+
+async function runBenchmarkParallelExecution(options) {
+    const games = Number.isFinite(options.games) ? Math.floor(options.games) : 100;
+    const cpuCount = Math.max(1, os.cpus().length);
+    const requestedJobs = Number.isFinite(options.jobs) ? Math.floor(options.jobs) : 1;
+    const effectiveJobs = Math.max(1, Math.min(requestedJobs, games, cpuCount));
+    if (effectiveJobs <= 1 || games <= 1) {
+        return runBenchmarkSequentialExecution(Object.assign({}, options, { jobs: 1 }));
+    }
+    if (typeof options.onRecord === 'function') {
+        throw new Error('parallel benchmark does not support onRecord callback');
+    }
+    const policyA = Object.assign({}, options.policyA || {});
+    const policyB = Object.assign({}, options.policyB || {});
+    if (policyA.policyTableModel || policyB.policyTableModel) {
+        throw new Error('parallel benchmark does not support inline policyTableModel objects');
+    }
+
+    const chunks = createGameChunks(games, effectiveJobs);
+    const aggregate = createBenchmarkAggregate();
+    const progressByChunk = new Array(chunks.length).fill(0);
+    const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
+    const shouldStop = typeof options.shouldStop === 'function' ? options.shouldStop : null;
+    const startedAt = Date.now();
+    const totalGames = games * 2;
+    const workerBaseOptions = Object.assign({}, options, {
+        jobs: 1,
+        onProgress: undefined,
+        onRecord: undefined
+    });
+
+    const controllers = chunks.map((chunk, chunkIndex) => startBenchmarkChunkInChild({
+        chunkIndex,
+        games: chunk.games,
+        seedOffset: chunk.gameOffset,
+        options: workerBaseOptions
+    }, (progress) => {
+        progressByChunk[chunkIndex] = Number(progress && progress.completed) || 0;
+        if (!onProgress) return;
+        const completed = progressByChunk.reduce((sum, value) => sum + value, 0);
+        onProgress({
+            stage: progress && progress.stage ? progress.stage : null,
+            completed,
+            total: totalGames,
+            winner: progress && progress.winner ? progress.winner : null,
+            plies: progress && Number.isFinite(progress.plies) ? progress.plies : null,
+            elapsedMs: Date.now() - startedAt
+        });
+    }));
+    const abortAll = () => {
+        for (const controller of controllers) controller.abort();
+    };
+    const abortPoller = shouldStop
+        ? setInterval(() => {
+            if (shouldStop()) abortAll();
+        }, 100)
+        : null;
+
+    let executions;
+    try {
+        executions = await Promise.all(controllers.map((controller) => controller.promise));
+    } catch (err) {
+        if (isBenchmarkAbortError(err)) abortAll();
+        throw err;
+    } finally {
+        if (abortPoller) clearInterval(abortPoller);
+    }
+
+    for (const execution of executions) {
+        mergeBenchmarkAggregate(aggregate, execution.aggregate);
+    }
+
+    return {
+        schemaVersion: SELFPLAY_SCHEMA_VERSION,
+        config: buildBenchmarkConfig(options, effectiveJobs),
+        aggregate
+    };
+}
+
+async function runBenchmark(options) {
+    const requestedJobs = Number.isFinite(options && options.jobs) ? Math.floor(options.jobs) : 1;
+    const execution = requestedJobs > 1
+        ? await runBenchmarkParallelExecution(options || {})
+        : runBenchmarkSequentialExecution(Object.assign({}, options, { jobs: 1 }));
+
+    return {
+        schemaVersion: execution.schemaVersion,
+        config: execution.config,
+        result: finalizeBenchmarkAggregate(execution.aggregate)
+    };
+}
+
+async function main() {
+    if (process.env.BENCHMARK_SELFPLAY_POLICY_WORKER === '1') {
+        await runBenchmarkWorkerTask();
+        return;
+    }
+
     const args = parseArgs(process.argv.slice(2));
     if (args.help) {
         printHelp();
@@ -624,7 +959,7 @@ function main() {
     }
 
     const startedAt = Date.now();
-    const benchmark = withFilteredConsole(!args.verbose, () => runBenchmark(args));
+    const benchmark = await withFilteredConsole(!args.verbose, () => runBenchmark(args));
     const elapsedMs = Date.now() - startedAt;
     const payload = {
         generatedAt: new Date().toISOString(),
@@ -643,16 +978,19 @@ function main() {
 }
 
 if (require.main === module) {
-    try {
-        main();
-    } catch (err) {
+    main().catch((err) => {
+        if (isBenchmarkAbortError(err)) {
+            console.warn('[selfplay-benchmark] aborted');
+            process.exit(130);
+        }
         console.error('[selfplay-benchmark] failed:', err && err.message ? err.message : err);
         process.exit(1);
-    }
+    });
 }
 
 module.exports = {
     parseArgs,
     runBenchmark,
+    createGameChunks,
     summarizePolicyResults
 };

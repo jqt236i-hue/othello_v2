@@ -17,16 +17,19 @@ function makeState() {
 describe('TABOO_REVERSE_WILL（禁忌の反転）', () => {
   test('applyCardUsage arms pending effect without target selection', () => {
     const { cardState, gameState } = makeState();
-    cardState.hands.black.push('taboo_reverse_01');
-    cardState.charge.black = 26;
+    const def = (Shared.CARD_DEFS || []).find((card) => card && card.id === 'taboo_reverse_01');
+    expect(def).toBeTruthy();
 
-    const ok = CardLogic.applyCardUsage(cardState, gameState, 'black', 'taboo_reverse_01');
+    cardState.hands.black.push(def.id);
+    cardState.charge.black = Number(def.cost || 0);
+
+    const ok = CardLogic.applyCardUsage(cardState, gameState, 'black', def.id);
 
     expect(ok).toBe(true);
     expect(cardState.pendingEffectByPlayer.black).toMatchObject({
       type: 'TABOO_REVERSE_WILL',
       stage: null,
-      cardId: 'taboo_reverse_01'
+      cardId: def.id
     });
   });
 
@@ -68,6 +71,20 @@ describe('TABOO_REVERSE_WILL（禁忌の反転）', () => {
     expect(res.gameState.board[3][3]).toBe(Shared.BLACK);
     expect(res.events.some((ev) => ev && ev.type === 'taboo_reverse_flipped')).toBe(false);
     expect(res.cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
+  test('frozen enemy stone blocks taboo reverse candidates', () => {
+    const { cardState, gameState } = makeState();
+    cardState.pendingEffectByPlayer.black = { type: 'TABOO_REVERSE_WILL', cardId: 'taboo_reverse_01', stage: null };
+    cardState.markers = [
+      { kind: 'specialStone', row: 2, col: 5, owner: 'white', data: { type: 'FREEZE', remainingOwnerTurns: 5 } }
+    ];
+
+    gameState.board[2][4] = Shared.WHITE;
+    gameState.board[2][5] = Shared.WHITE;
+
+    const candidates = CardLogic.getTabooReverseCandidates(cardState, gameState, 'black', 2, 3);
+    expect(candidates).toHaveLength(0);
   });
 
   test('allows placement with zero normal flips and reverses only the longest enemy line', () => {

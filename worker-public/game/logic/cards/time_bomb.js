@@ -5,11 +5,11 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'));
+        module.exports = factory(require('../../../shared-constants'), require('../board_ops'));
     } else {
-        root.CardTimeBomb = factory(root.SharedConstants);
+        root.CardTimeBomb = factory(root.SharedConstants, root.BoardOps || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, BoardOpsModule) {
     'use strict';
 
     const { TIME_BOMB_TURNS } = SharedConstants || {};
@@ -19,6 +19,9 @@
     }
 
     function getExpansionCells(gameState) {
+        if (BoardOpsModule && typeof BoardOpsModule.getExpansionDescriptors === 'function') {
+            return BoardOpsModule.getExpansionDescriptors(gameState);
+        }
         const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
             ? gameState.boardExpansion
             : null;
@@ -75,6 +78,9 @@
     }
 
     function getCellValue(gameState, row, col) {
+        if (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function') {
+            return BoardOpsModule.getCellValue(gameState, row, col);
+        }
         if (row >= 0 && row < 8 && col >= 0 && col < 8) return gameState.board[row][col];
         const expansionCells = getExpansionCells(gameState);
         for (const expansion of expansionCells) {
@@ -85,6 +91,9 @@
     }
 
     function setCellValue(gameState, row, col, value) {
+        if (BoardOpsModule && typeof BoardOpsModule.setCellValue === 'function') {
+            return BoardOpsModule.setCellValue(gameState, row, col, value);
+        }
         if (row >= 0 && row < 8 && col >= 0 && col < 8) {
             gameState.board[row][col] = value;
             return true;
@@ -120,6 +129,15 @@
                 handler(r, c, value);
             }
         }
+    }
+
+    function getExplosionTargetsSnapshot(gameState, row, col) {
+        const targets = [];
+        forEachNeighborCell(gameState, row, col, (r, c, value) => {
+            if (value === null || value === 0) return;
+            targets.push({ row: r, col: c });
+        });
+        return targets;
     }
 
     function applyTimeBomb(cardState, playerKey, row, col, deps = {}) {
@@ -176,18 +194,27 @@
             bomb.data.remainingTurns = (typeof bomb.data.remainingTurns === 'number') ? bomb.data.remainingTurns - 1 : -1;
             if (bomb.data.remainingTurns <= 0) {
                 exploded.push({ row: bomb.row, col: bomb.col });
-                forEachNeighborCell(gameState, bomb.row, bomb.col, (r, c) => {
-                            let destroyedRes = false;
-                            if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                                const res = deps.BoardOps.destroyAt(cardState, gameState, r, c, 'TIME_BOMB', 'bomb_explosion');
-                                destroyedRes = !!res.destroyed;
-                            } else {
-                                destroyedRes = destroyAt(cardState, gameState, r, c);
-                            }
-                            if (destroyedRes) {
-                                destroyed.push({ row: r, col: c });
-                            }
+                const targets = getExplosionTargetsSnapshot(gameState, bomb.row, bomb.col);
+                const forbiddenEvadeCells = [];
+                forEachNeighborCell(gameState, bomb.row, bomb.col, (r, c, value) => {
+                    if (value === null) return;
+                    forbiddenEvadeCells.push({ row: r, col: c });
                 });
+                for (const target of targets) {
+                    if (!target) continue;
+                    let destroyedRes = false;
+                    if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
+                        const res = deps.BoardOps.destroyAt(cardState, gameState, target.row, target.col, 'TIME_BOMB', 'bomb_explosion', {
+                            forbiddenEvadeCells
+                        });
+                        destroyedRes = !!(res && res.destroyed);
+                    } else {
+                        destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
+                    }
+                    if (destroyedRes) {
+                        destroyed.push({ row: target.row, col: target.col });
+                    }
+                }
                 if (bomb.id !== undefined) {
                     removeIds.add(bomb.id);
                 } else {
@@ -234,17 +261,25 @@
 
         const exploded = [{ row: b.row, col: b.col }];
         const destroyed = [];
-        forEachNeighborCell(gameState, b.row, b.col, (r, c) => {
-
-                let destroyedRes = false;
-                if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                    const res = deps.BoardOps.destroyAt(cardState, gameState, r, c, 'TIME_BOMB', 'bomb_explosion');
-                    destroyedRes = !!(res && res.destroyed);
-                } else {
-                    destroyedRes = destroyAt(cardState, gameState, r, c);
-                }
-                if (destroyedRes) destroyed.push({ row: r, col: c });
+        const targets = getExplosionTargetsSnapshot(gameState, b.row, b.col);
+        const forbiddenEvadeCells = [];
+        forEachNeighborCell(gameState, b.row, b.col, (r, c, value) => {
+            if (value === null) return;
+            forbiddenEvadeCells.push({ row: r, col: c });
         });
+        for (const target of targets) {
+            if (!target) continue;
+            let destroyedRes = false;
+            if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
+                const res = deps.BoardOps.destroyAt(cardState, gameState, target.row, target.col, 'TIME_BOMB', 'bomb_explosion', {
+                    forbiddenEvadeCells
+                });
+                destroyedRes = !!(res && res.destroyed);
+            } else {
+                destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
+            }
+            if (destroyedRes) destroyed.push({ row: target.row, col: target.col });
+        }
 
         if (b.id !== undefined) {
             cardState.markers = (cardState.markers || []).filter(m => m.id !== b.id);

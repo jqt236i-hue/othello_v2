@@ -8,6 +8,7 @@ const WORKER_ASSET_MAX_BYTES = 25 * 1024 * 1024;
 
 const ROOT_FILES = [
     'index.html',
+    'story-deck-lab.html',
     'is-env-capable.js',
     'shared-constants.js',
     'card-system.js',
@@ -20,6 +21,7 @@ const ROOT_FILES = [
     'styles-cards.css',
     'styles-layout.css',
     'styles-responsive.css',
+    'styles-story-deck-lab.css',
     'styles-stone-shadows.css',
     'styles-variables.css'
 ];
@@ -51,6 +53,10 @@ const OPTIONAL_FILES = [
     'data/models/policy-net.onnx.meta.json',
     'data/models/policy-card.onnx',
     'data/models/policy-card.onnx.meta.json',
+    'data/models/policy-target.onnx',
+    'data/models/policy-target.onnx.meta.json',
+    'data/models/policy-value.onnx',
+    'data/models/policy-value.onnx.meta.json',
     'node_modules/onnxruntime-web/dist/ort.min.js',
     'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs',
     'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm',
@@ -72,7 +78,21 @@ function toMiBString(bytes) {
 }
 
 function rmDirSafe(targetPath) {
-    fs.rmSync(targetPath, { recursive: true, force: true });
+    if (!fs.existsSync(targetPath)) return;
+
+    const stat = fs.lstatSync(targetPath);
+    if (!stat.isDirectory()) {
+        fs.rmSync(targetPath, { force: true, maxRetries: 5, retryDelay: 50 });
+        return;
+    }
+
+    // Windows can keep the directory handle itself busy even when its children are removable.
+    // Clear the contents in place so prepare still works if worker-public is the current cwd elsewhere.
+    const entries = fs.readdirSync(targetPath, { withFileTypes: true });
+    for (const entry of entries) {
+        const entryPath = path.join(targetPath, entry.name);
+        fs.rmSync(entryPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+    }
 }
 
 function ensureDir(dirPath) {

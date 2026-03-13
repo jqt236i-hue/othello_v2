@@ -1,9 +1,17 @@
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const {
     parseArgs,
+    TRAINING_CYCLE_STEP_ORDER,
     buildIterationPaths,
+    hasCoordinatePendingSelectionRecords,
     iterationTag,
-    resolveQuickComponentDelta
+    normalizeRestartFromStep,
+    shouldReuseStepArtifacts,
+    resolveQuickComponentDelta,
+    extractTrainingCycleFailureDetail,
+    annotateTrainingCycleError
 } = require('../scripts/run-selfplay-training-cycle');
 
 describe('selfplay training cycle script', () => {
@@ -39,6 +47,8 @@ describe('selfplay training cycle script', () => {
         expect(args.onnxNegativeFutureDiscThreshold).toBeCloseTo(-1.0, 6);
         expect(args.onnxTacticalMissSampleBoost).toBeCloseTo(0.0, 6);
         expect(args.onnxTacticalMissThreshold).toBeCloseTo(0.08, 6);
+        expect(args.onnxHandPressureSampleBoost).toBeCloseTo(0.0, 6);
+        expect(args.onnxPendingTargetSampleBoost).toBeCloseTo(0.0, 6);
         expect(args.adoptionTacticalWeight).toBeCloseTo(0.25, 6);
         expect(args.adoptionTacticalDepthOpening).toBe(4);
         expect(args.adoptionTacticalDepthMid).toBe(6);
@@ -63,6 +73,16 @@ describe('selfplay training cycle script', () => {
         expect(args.adoptionQualityWeightPlaceDelta).toBeCloseTo(0.015, 6);
         expect(args.adoptionConfidenceLevel).toBeCloseTo(0.95, 6);
         expect(args.adoptionMinLowerBound).toBeCloseTo(-1, 6);
+        expect(args.qualityGateEnabled).toBe(false);
+        expect(args.qualityGateGames).toBe(1000);
+        expect(args.qualityGateSeedCount).toBe(1);
+        expect(args.qualityGateSeedStride).toBe(1000);
+        expect(args.qualityGateSeedOffset).toBe(250000);
+        expect(args.qualityGateThreshold).toBeCloseTo(0, 6);
+        expect(args.qualityGateConfidenceLevel).toBeCloseTo(0.95, 6);
+        expect(args.qualityGateMinLowerBound).toBeCloseTo(-1, 6);
+        expect(args.qualityGateMinSeedUplift).toBeCloseTo(-1, 6);
+        expect(args.qualityGateMinSeedPassCount).toBe(0);
         expect(args.quickAdoptionThreshold).toBeNull();
         expect(args.quickAdoptionSeedCount).toBeNull();
         expect(args.quickAdoptionSeedStride).toBeNull();
@@ -90,6 +110,21 @@ describe('selfplay training cycle script', () => {
         expect(args.onnxPrimaryMinOnnxGateAvg).toBeCloseTo(0, 6);
         expect(args.onnxPrimaryMinOnnxGateMinSeed).toBeCloseTo(0, 6);
         expect(args.onnxGateCandidateColorMode).toBe('both');
+        expect(args.onnxGateMaxAverageLatencyMs).toBe(0);
+        expect(args.onnxGateMaxP95LatencyMs).toBe(0);
+        expect(args.onnxGateMaxMaxLatencyMs).toBe(0);
+        expect(args.reuseExistingArtifacts).toBe(false);
+    });
+
+    test('parseArgs enables existing artifact reuse when requested', () => {
+        const args = parseArgs(['--reuse-existing-artifacts']);
+        expect(args.reuseExistingArtifacts).toBe(true);
+    });
+
+    test('parseArgs accepts restart-from-step for midpoint reruns', () => {
+        const args = parseArgs(['--reuse-existing-artifacts', '--restart-from-step', 'adoption-quality-gate']);
+        expect(args.reuseExistingArtifacts).toBe(true);
+        expect(args.restartFromStep).toBe('adoption-quality-gate');
     });
 
     test('parseArgs validates range options', () => {
@@ -123,6 +158,8 @@ describe('selfplay training cycle script', () => {
         expect(() => parseArgs(['--onnx-negative-future-disc-threshold', 'abc'])).toThrow('--onnx-negative-future-disc-threshold must be a number');
         expect(() => parseArgs(['--onnx-tactical-miss-sample-boost', '-0.1'])).toThrow('--onnx-tactical-miss-sample-boost must be >= 0');
         expect(() => parseArgs(['--onnx-tactical-miss-threshold', '-0.1'])).toThrow('--onnx-tactical-miss-threshold must be >= 0');
+        expect(() => parseArgs(['--onnx-hand-pressure-sample-boost', '-0.1'])).toThrow('--onnx-hand-pressure-sample-boost must be >= 0');
+        expect(() => parseArgs(['--onnx-pending-target-sample-boost', '-0.1'])).toThrow('--onnx-pending-target-sample-boost must be >= 0');
         expect(() => parseArgs(['--shape-immediate', '-0.1'])).toThrow('--shape-immediate must be in [0,1]');
         expect(() => parseArgs(['--threshold', '2'])).toThrow('--threshold must be in [0,1]');
         expect(() => parseArgs(['--adoption-seed-count', '0'])).toThrow('--adoption-seed-count must be >= 1');
@@ -130,6 +167,16 @@ describe('selfplay training cycle script', () => {
         expect(() => parseArgs(['--adoption-final-seed-offset', '0'])).toThrow('--adoption-final-seed-offset must be >= 1');
         expect(() => parseArgs(['--adoption-confidence-level', '1'])).toThrow('--adoption-confidence-level must be in [0.5,1)');
         expect(() => parseArgs(['--adoption-min-lower-bound', '2'])).toThrow('--adoption-min-lower-bound must be in [-1,1]');
+        expect(() => parseArgs(['--quality-gate-games', '0'])).toThrow('--quality-gate-games must be >= 1');
+        expect(() => parseArgs(['--quality-gate-seed-count', '0'])).toThrow('--quality-gate-seed-count must be >= 1');
+        expect(() => parseArgs(['--quality-gate-seed-stride', '0'])).toThrow('--quality-gate-seed-stride must be >= 1');
+        expect(() => parseArgs(['--quality-gate-seed-offset', '0'])).toThrow('--quality-gate-seed-offset must be >= 1');
+        expect(() => parseArgs(['--quality-gate-threshold', '2'])).toThrow('--quality-gate-threshold must be in [-1,1]');
+        expect(() => parseArgs(['--quality-gate-confidence-level', '1'])).toThrow('--quality-gate-confidence-level must be in [0.5,1)');
+        expect(() => parseArgs(['--quality-gate-min-lower-bound', '2'])).toThrow('--quality-gate-min-lower-bound must be in [-1,1]');
+        expect(() => parseArgs(['--quality-gate-min-seed-uplift', '-2'])).toThrow('--quality-gate-min-seed-uplift must be in [-1,1]');
+        expect(() => parseArgs(['--quality-gate-min-seed-pass-count', '-1'])).toThrow('--quality-gate-min-seed-pass-count must be >= 0');
+        expect(() => parseArgs(['--quality-gate-seed-count', '3', '--quality-gate-min-seed-pass-count', '4'])).toThrow('--quality-gate-min-seed-pass-count must be <= --quality-gate-seed-count');
         expect(() => parseArgs(['--quick-adoption-threshold', '2'])).toThrow('--quick-adoption-threshold must be in [0,1]');
         expect(() => parseArgs(['--quick-adoption-seed-count', '0'])).toThrow('--quick-adoption-seed-count must be >= 1');
         expect(() => parseArgs(['--quick-adoption-seed-stride', '0'])).toThrow('--quick-adoption-seed-stride must be >= 1');
@@ -173,6 +220,9 @@ describe('selfplay training cycle script', () => {
         expect(() => parseArgs(['--onnx-gate-threshold', '2'])).toThrow('--onnx-gate-threshold must be in [0,1]');
         expect(() => parseArgs(['--onnx-gate-min-seed-score', '-1'])).toThrow('--onnx-gate-min-seed-score must be in [0,1]');
         expect(() => parseArgs(['--onnx-gate-seed-count', '0'])).toThrow('--onnx-gate-seed-count must be >= 1');
+        expect(() => parseArgs(['--onnx-gate-max-average-latency-ms', '-1'])).toThrow('--onnx-gate-max-average-latency-ms must be >= 0');
+        expect(() => parseArgs(['--onnx-gate-max-p95-latency-ms', '-1'])).toThrow('--onnx-gate-max-p95-latency-ms must be >= 0');
+        expect(() => parseArgs(['--onnx-gate-max-max-latency-ms', '-1'])).toThrow('--onnx-gate-max-max-latency-ms must be >= 0');
         expect(() => parseArgs(['--onnx-gate-timeout-ms', '999'])).toThrow('--onnx-gate-timeout-ms must be >= 1000');
         expect(() => parseArgs(['--onnx-gate-candidate-color-mode', 'black'])).toThrow('--onnx-gate-candidate-color-mode must be one of: both, white');
         expect(() => parseArgs(['--promotion-mode', 'unknown'])).toThrow('--promotion-mode must be strict or onnx-primary');
@@ -185,6 +235,16 @@ describe('selfplay training cycle script', () => {
         expect(() => parseArgs(['--onnx-primary-min-onnx-gate-avg', '-0.1'])).toThrow('--onnx-primary-min-onnx-gate-avg must be in [0,1]');
         expect(() => parseArgs(['--onnx-primary-min-onnx-gate-min-seed', '2'])).toThrow('--onnx-primary-min-onnx-gate-min-seed must be in [0,1]');
         expect(() => parseArgs(['--promotion-mode', 'onnx-primary'])).toThrow('--promotion-mode onnx-primary requires --onnx-gate');
+        expect(() => parseArgs(['--restart-from-step', 'bad-step'])).toThrow('--restart-from-step must be one of:');
+    });
+
+    test('restart helpers reuse only steps before the requested restart point', () => {
+        expect(TRAINING_CYCLE_STEP_ORDER).toContain('adoption-quick');
+        expect(normalizeRestartFromStep('ADOPTION-final')).toBe('adoption-final');
+        expect(shouldReuseStepArtifacts({ reuseExistingArtifacts: true, restartFromStep: 'adoption-quality-gate' }, 'train-policy')).toBe(true);
+        expect(shouldReuseStepArtifacts({ reuseExistingArtifacts: true, restartFromStep: 'adoption-quality-gate' }, 'adoption-quality-gate')).toBe(false);
+        expect(shouldReuseStepArtifacts({ reuseExistingArtifacts: true, restartFromStep: 'adoption-quality-gate' }, 'adoption-final')).toBe(false);
+        expect(shouldReuseStepArtifacts({ reuseExistingArtifacts: false, restartFromStep: 'adoption-quality-gate' }, 'train-policy')).toBe(false);
     });
 
     test('parseArgs keeps explicit run tag and paths', () => {
@@ -201,6 +261,16 @@ describe('selfplay training cycle script', () => {
             '--adoption-min-lower-bound', '0.01',
             '--adoption-min-seed-uplift', '-0.01',
             '--adoption-min-seed-pass-count', '2',
+            '--quality-gate',
+            '--quality-gate-games', '900',
+            '--quality-gate-seed-count', '4',
+            '--quality-gate-seed-stride', '600',
+            '--quality-gate-seed-offset', '250000',
+            '--quality-gate-threshold', '0.004',
+            '--quality-gate-confidence-level', '0.9',
+            '--quality-gate-min-lower-bound', '-0.02',
+            '--quality-gate-min-seed-uplift', '-0.04',
+            '--quality-gate-min-seed-pass-count', '2',
             '--selfplay-policy-model-pool-size', '6',
             '--selfplay-policy-pool-sampling', 'uniform',
             '--selfplay-policy-pool-recency-decay', '3',
@@ -227,6 +297,9 @@ describe('selfplay training cycle script', () => {
             '--onnx-gate-threshold', '0.52',
             '--onnx-gate-min-seed-score', '0.45',
             '--onnx-gate-min-seed-pass-count', '2',
+            '--onnx-gate-max-average-latency-ms', '14',
+            '--onnx-gate-max-p95-latency-ms', '22',
+            '--onnx-gate-max-max-latency-ms', '35',
             '--onnx-gate-timeout-ms', '200000',
             '--onnx-gate-black-level', '6',
             '--onnx-gate-white-level', '5',
@@ -236,6 +309,8 @@ describe('selfplay training cycle script', () => {
             '--onnx-negative-future-disc-threshold', '-3',
             '--onnx-tactical-miss-sample-boost', '0.5',
             '--onnx-tactical-miss-threshold', '0.06',
+            '--onnx-hand-pressure-sample-boost', '0.25',
+            '--onnx-pending-target-sample-boost', '0.35',
             '--onnx-early-stop-smoothing-window', '4',
             '--promotion-mode', 'onnx-primary',
             '--onnx-primary-max-quick-regression', '0.06',
@@ -264,6 +339,16 @@ describe('selfplay training cycle script', () => {
         expect(args.adoptionMinLowerBound).toBeCloseTo(0.01, 6);
         expect(args.adoptionMinSeedUplift).toBeCloseTo(-0.01, 6);
         expect(args.adoptionMinSeedPassCount).toBe(2);
+        expect(args.qualityGateEnabled).toBe(true);
+        expect(args.qualityGateGames).toBe(900);
+        expect(args.qualityGateSeedCount).toBe(4);
+        expect(args.qualityGateSeedStride).toBe(600);
+        expect(args.qualityGateSeedOffset).toBe(250000);
+        expect(args.qualityGateThreshold).toBeCloseTo(0.004, 6);
+        expect(args.qualityGateConfidenceLevel).toBeCloseTo(0.9, 6);
+        expect(args.qualityGateMinLowerBound).toBeCloseTo(-0.02, 6);
+        expect(args.qualityGateMinSeedUplift).toBeCloseTo(-0.04, 6);
+        expect(args.qualityGateMinSeedPassCount).toBe(2);
         expect(args.selfplayPolicyModelPoolSize).toBe(6);
         expect(args.selfplayPolicyPoolSampling).toBe('uniform');
         expect(args.selfplayPolicyPoolRecencyDecay).toBeCloseTo(3, 6);
@@ -288,12 +373,17 @@ describe('selfplay training cycle script', () => {
         expect(args.onnxGateThreshold).toBeCloseTo(0.52, 6);
         expect(args.onnxGateMinSeedScore).toBeCloseTo(0.45, 6);
         expect(args.onnxGateMinSeedPassCount).toBe(2);
+        expect(args.onnxGateMaxAverageLatencyMs).toBe(14);
+        expect(args.onnxGateMaxP95LatencyMs).toBe(22);
+        expect(args.onnxGateMaxMaxLatencyMs).toBe(35);
         expect(args.onnxGateCandidateColorMode).toBe('white');
         expect(args.onnxCornerEmergencySampleBoost).toBeCloseTo(0.4, 6);
         expect(args.onnxNegativeFutureDiscSampleBoost).toBeCloseTo(0.3, 6);
         expect(args.onnxNegativeFutureDiscThreshold).toBeCloseTo(-3, 6);
         expect(args.onnxTacticalMissSampleBoost).toBeCloseTo(0.5, 6);
         expect(args.onnxTacticalMissThreshold).toBeCloseTo(0.06, 6);
+        expect(args.onnxHandPressureSampleBoost).toBeCloseTo(0.25, 6);
+        expect(args.onnxPendingTargetSampleBoost).toBeCloseTo(0.35, 6);
         expect(args.onnxEarlyStopSmoothingWindow).toBe(4);
         expect(args.adoptionUseGuideBaseline).toBe(true);
         expect(args.promotionMode).toBe('onnx-primary');
@@ -328,11 +418,40 @@ describe('selfplay training cycle script', () => {
         expect(p.onnxModelPath.endsWith(path.join('data', 'models', 'policy-net.candidate.abc123.it03.onnx'))).toBe(true);
         expect(p.onnxMetaPath.endsWith(path.join('data', 'models', 'policy-net.candidate.abc123.it03.onnx.meta.json'))).toBe(true);
         expect(p.checkpointPath.endsWith(path.join('data', 'models', 'policy-net.candidate.abc123.it03.checkpoint.pt'))).toBe(true);
+        expect(p.cardOnnxModelPath.endsWith(path.join('data', 'models', 'policy-card.candidate.abc123.it03.onnx'))).toBe(true);
+        expect(p.cardOnnxMetaPath.endsWith(path.join('data', 'models', 'policy-card.candidate.abc123.it03.onnx.meta.json'))).toBe(true);
+        expect(p.cardCheckpointPath.endsWith(path.join('data', 'models', 'policy-card.candidate.abc123.it03.checkpoint.pt'))).toBe(true);
         expect(p.onnxMetricsPath.endsWith(path.join('data', 'runs', 'train.metrics.abc123.it03.jsonl'))).toBe(true);
+        expect(p.cardMetricsPath.endsWith(path.join('data', 'runs', 'train.card.metrics.abc123.it03.jsonl'))).toBe(true);
         expect(p.candidateModelPath.endsWith(path.join('data', 'models', 'policy-table.candidate.abc123.it03.json'))).toBe(true);
         expect(p.quickAdoptionPath.endsWith(path.join('data', 'runs', 'adoption.quick.abc123.it03.json'))).toBe(true);
         expect(p.finalAdoptionPath.endsWith(path.join('data', 'runs', 'adoption.final.abc123.it03.json'))).toBe(true);
+        expect(p.qualityGatePath.endsWith(path.join('data', 'runs', 'adoption.quality.abc123.it03.json'))).toBe(true);
         expect(p.onnxGatePath.endsWith(path.join('data', 'runs', 'adoption.onnx.abc123.it03.json'))).toBe(true);
+    });
+
+    test('hasCoordinatePendingSelectionRecords scans ndjson incrementally', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-cycle-'));
+        const positivePath = path.join(tempDir, 'positive.ndjson');
+        const negativePath = path.join(tempDir, 'negative.ndjson');
+        const filler = JSON.stringify({ pendingSelection: null, filler: 'x'.repeat(96) });
+        const target = JSON.stringify({
+            pendingSelection: {
+                kind: 'board_cell',
+                row: 8,
+                col: 0
+            }
+        });
+
+        try {
+            fs.writeFileSync(positivePath, [filler, filler, filler, target, filler].join('\n'), 'utf8');
+            fs.writeFileSync(negativePath, [filler, filler, filler].join('\n'), 'utf8');
+
+            expect(hasCoordinatePendingSelectionRecords(positivePath, { chunkSizeBytes: 64 })).toBe(true);
+            expect(hasCoordinatePendingSelectionRecords(negativePath, { chunkSizeBytes: 64 })).toBe(false);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
     });
 
     test('resolveQuickComponentDelta uses decision-level values when available', () => {
@@ -385,5 +504,52 @@ describe('selfplay training cycle script', () => {
         const quickDecision = {};
         expect(resolveQuickComponentDelta(quickPayload, quickDecision, 'baselineCoreScore', 'candidateCoreScore'))
             .toBe(-Infinity);
+    });
+
+    test('annotates failed step with iteration and exit metadata', () => {
+        const baseError = new Error('command failed (exit=1): python train_card_onnx.py');
+        baseError.code = 'COMMAND_FAILED';
+        baseError.exitCode = 1;
+        baseError.command = 'python train_card_onnx.py';
+
+        const annotated = annotateTrainingCycleError(baseError, {
+            iteration: 4,
+            step: 'train-card-policy',
+            runTag: 'production_v3_test',
+            iterationTag: 'production_v3_test.it04',
+            summaryOut: 'C:/tmp/training-cycle.summary.json',
+            stepOutputs: ['C:/tmp/train.card.metrics.jsonl']
+        });
+
+        expect(annotated.message).toContain('iteration=4');
+        expect(annotated.message).toContain('step=train-card-policy');
+        expect(annotated.message).toContain('exit=1');
+        expect(annotated.trainingCycle).toMatchObject({
+            iteration: 4,
+            step: 'train-card-policy',
+            runTag: 'production_v3_test',
+            iterationTag: 'production_v3_test.it04',
+            summaryOut: 'C:/tmp/training-cycle.summary.json',
+            exitCode: 1,
+            command: 'python train_card_onnx.py'
+        });
+    });
+
+    test('extracts failure detail from annotated errors', () => {
+        const detail = extractTrainingCycleFailureDetail({
+            trainingCycle: {
+                iteration: 3,
+                step: 'adoption-onnx-gate',
+                exitCode: 2,
+                command: 'node benchmark-policy-onnx-gate.js'
+            }
+        });
+
+        expect(detail).toEqual({
+            iteration: 3,
+            step: 'adoption-onnx-gate',
+            exitCode: 2,
+            command: 'node benchmark-policy-onnx-gate.js'
+        });
     });
 });

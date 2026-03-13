@@ -102,6 +102,13 @@ function getExpansionCellsForMoveGeneration(state) {
     return cells;
 }
 
+function isFreePlacementPendingTypeForMoveGeneration(pendingType) {
+    if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.isFreePlacementPendingType === 'function') {
+        return CardLogic.isFreePlacementPendingType(pendingType);
+    }
+    return pendingType === 'FREE_PLACEMENT' || pendingType === 'SNIPER_WILL' || pendingType === 'LAST_RESORT';
+}
+
 /**
  * プレイヤーの手を生成（カード効果考慮）
  */
@@ -135,11 +142,12 @@ function generateMovesForPlayer(player, pending, protection, perma) {
         pendingType === 'BOARD_EXPANSION_WILL' ||
         pendingType === 'BOARD_EXPANSION_GOD' ||
         pendingType === 'BLOCKADE_WILL' ||
-        pendingType === 'METEOR_WILL'
+        pendingType === 'METEOR_WILL' ||
+        pendingType === 'FREEZE_WILL'
     )) {
         return [];
     }
-    if (pendingType === 'FREE_PLACEMENT' || pendingType === 'SNIPER_WILL' || pendingType === 'LAST_RESORT') {
+    if (isFreePlacementPendingTypeForMoveGeneration(pendingType)) {
         return generateFreePlacementMoves(player, protection, perma, pendingType);
     }
     if (pendingType === 'TABOO_REVERSE_WILL') {

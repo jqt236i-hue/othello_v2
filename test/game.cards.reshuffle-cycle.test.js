@@ -1,5 +1,6 @@
 const SharedConstants = require('../shared-constants');
 const CardLogic = require('../game/logic/cards');
+const DeckSpecHelpers = require('../shared/deck-spec');
 
 describe('CardLogic commitDraw reshuffle cycle policy', () => {
   test('initial deck contains each enabled card id exactly once (no duplicates)', () => {
@@ -51,5 +52,29 @@ describe('CardLogic commitDraw reshuffle cycle policy', () => {
     }
 
     expect(seen.size).toBe(cardState.initialDeckSizeByPlayer.black);
+  });
+
+  test('custom initialDeckSpec initializes both players with the requested 30-card deck', () => {
+    const enabledIds = (SharedConstants.CARD_DEFS || [])
+      .filter((card) => card && card.enabled !== false && card.id)
+      .map((card) => card.id)
+      .slice(0, 10);
+
+    expect(enabledIds).toHaveLength(10);
+
+    const customDeckIds = enabledIds.flatMap((cardId) => [cardId, cardId, cardId]);
+    const deckSpec = DeckSpecHelpers.createDeckSpecFromCardIds(customDeckIds);
+    const prng = { shuffle: (arr) => arr, random: () => 0.5 };
+    const cardState = CardLogic.createCardState(prng, { initialDeckSpec: deckSpec });
+
+    expect(cardState.initialDeckSize).toBe(30);
+    expect(cardState.initialDeckSizeByPlayer.black).toBe(30);
+    expect(cardState.initialDeckSizeByPlayer.white).toBe(30);
+    expect(cardState.decks.black).toHaveLength(30);
+    expect(cardState.decks.white).toHaveLength(30);
+    expect(cardState.decks.black).toEqual(customDeckIds);
+    expect(cardState.decks.white).toEqual(customDeckIds);
+    expect(cardState.decks.black.filter((cardId) => cardId === enabledIds[0])).toHaveLength(3);
+    expect(cardState.decks.white.filter((cardId) => cardId === enabledIds[0])).toHaveLength(3);
   });
 });

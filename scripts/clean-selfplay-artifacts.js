@@ -34,7 +34,7 @@ function printHelp() {
         '      --runs-dir <path>      Runs directory (default: data/runs)',
         '      --models-dir <path>    Models directory (default: data/models)',
         '      --apply                Delete listed files (default: dry-run)',
-        '      --keep-deployed        Keep deployed models (policy-table.json, policy-net.onnx, policy-net.onnx.meta.json, policy-card.onnx, policy-card.onnx.meta.json)',
+        '      --keep-deployed        Keep deployed models (policy-table.json, policy-net.onnx, policy-net.onnx.meta.json, policy-card.onnx, policy-card.onnx.meta.json, policy-target.onnx, policy-target.onnx.meta.json, policy-value.onnx, policy-value.onnx.meta.json)',
         '  -h, --help                 Show this help'
     ].join('\n'));
 }
@@ -64,13 +64,19 @@ function shouldDeleteModelFile(fileName, keepDeployed) {
     const isPolicyTable = lower.startsWith('policy-table') && lower.endsWith('.json');
     const isPolicyNet = lower.startsWith('policy-net') && (lower.endsWith('.onnx') || lower.endsWith('.meta.json'));
     const isPolicyCard = lower.startsWith('policy-card') && (lower.endsWith('.onnx') || lower.endsWith('.meta.json'));
-    if (!isCheckpoint && !isPolicyTable && !isPolicyNet && !isPolicyCard) return false;
+    const isPolicyTarget = lower.startsWith('policy-target') && (lower.endsWith('.onnx') || lower.endsWith('.meta.json'));
+    const isPolicyValue = lower.startsWith('policy-value') && (lower.endsWith('.onnx') || lower.endsWith('.meta.json'));
+    if (!isCheckpoint && !isPolicyTable && !isPolicyNet && !isPolicyCard && !isPolicyTarget && !isPolicyValue) return false;
     if (!keepDeployed) return true;
     if (lower === 'policy-table.json') return false;
     if (lower === 'policy-net.onnx') return false;
     if (lower === 'policy-net.onnx.meta.json') return false;
     if (lower === 'policy-card.onnx') return false;
     if (lower === 'policy-card.onnx.meta.json') return false;
+    if (lower === 'policy-target.onnx') return false;
+    if (lower === 'policy-target.onnx.meta.json') return false;
+    if (lower === 'policy-value.onnx') return false;
+    if (lower === 'policy-value.onnx.meta.json') return false;
     return true;
 }
 

@@ -1,6 +1,22 @@
 /* ===== Media Queries for Mobile/Tablet Responsiveness ===== */
 
 @media (max-width: 56.25em) {
+    #storyBtn {
+        left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
+        bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(124px * var(--layout-stage-scale)));
+        min-width: calc(80px * var(--layout-stage-scale));
+        padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+        font-size: calc(11px * var(--layout-stage-scale));
+    }
+
+    #tutorialBtn {
+        left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
+        bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(86px * var(--layout-stage-scale)));
+        min-width: calc(80px * var(--layout-stage-scale));
+        padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+        font-size: calc(11px * var(--layout-stage-scale));
+    }
+
     #debugModeBtn {
         left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
         bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(48px * var(--layout-stage-scale)));
@@ -60,6 +76,43 @@
     #networkChatMessages {
         min-height: calc(56px * var(--layout-stage-scale));
         max-height: calc(84px * var(--layout-stage-scale));
+    }
+
+    #tutorialOverlay .tutorial-observer-stage {
+        top: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-top));
+    }
+
+    #tutorialOverlay .tutorial-observer-image {
+        width: calc(126px * var(--layout-stage-scale));
+        height: calc(126px * var(--layout-stage-scale));
+    }
+
+    #tutorialOverlay .tutorial-support-stage {
+        transform: translate(calc(112px * var(--layout-stage-scale)), calc(-44%));
+        width: min(calc(164px * var(--layout-stage-scale)), 32vw);
+    }
+
+    #tutorialOverlay .tutorial-dialog-window {
+        width: min(calc(720px * var(--layout-stage-scale)), calc(100vw - calc(24px * var(--layout-stage-scale))));
+        bottom: calc(max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(8px * var(--layout-stage-scale)));
+    }
+
+    #tutorialOverlay.tutorial-passthrough .tutorial-dialog-window {
+        left: max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-left));
+        width: min(calc(332px * var(--layout-stage-scale)), calc(100vw - calc(24px * var(--layout-stage-scale))));
+        bottom: calc(max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(12px * var(--layout-stage-scale)));
+    }
+
+    #tutorialOverlay .tutorial-choice-panel {
+        width: min(calc(720px * var(--layout-stage-scale)), calc(100vw - calc(24px * var(--layout-stage-scale))));
+        bottom: calc(max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(196px * var(--layout-stage-scale)));
+    }
+
+    #storyMenuOverlay .story-menu-panel {
+        left: max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-left));
+        right: max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-right));
+        bottom: calc(max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(162px * var(--layout-stage-scale)));
+        width: auto;
     }
 
 }
@@ -187,6 +240,11 @@ html.layout-profile-phone-portrait #networkChatPanel.is-open {
 html.layout-profile-phone-portrait #rulesHelpBtn {
     left: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-left));
     bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(44px * var(--layout-stage-scale)));
+}
+
+html.layout-profile-phone-portrait #tutorialBtn {
+    left: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-left));
+    bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(132px * var(--layout-stage-scale)));
 }
 
 html.layout-profile-phone-portrait #debugModeBtn {
@@ -1312,6 +1370,22 @@ html.sim-aspect-5-4 #hero-character-img {
         bottom: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-bottom-reserve, calc(var(--layout-anchor-card-detail-bottom) * var(--layout-stage-scale))) + var(--layout-stage-bottom-safe-shift) + calc(18px * var(--layout-stage-scale)));
     }
 
+    body.story-battle-active html.layout-stage-enabled #card-detail-panel,
+    html.layout-stage-enabled body.story-battle-active #card-detail-panel {
+        right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)));
+        bottom: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-bottom-reserve, calc(var(--layout-anchor-card-detail-bottom) * var(--layout-stage-scale))));
+        left: auto;
+        top: auto;
+        width: calc(var(--layout-anchor-card-detail-width) * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+        transform: none;
+    }
+
+    body.story-battle-active html.layout-profile-tablet-4x3.layout-stage-enabled #card-detail-panel,
+    html.layout-profile-tablet-4x3.layout-stage-enabled body.story-battle-active #card-detail-panel {
+        right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)));
+        bottom: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-bottom-reserve, calc(var(--layout-anchor-card-detail-bottom) * var(--layout-stage-scale))) + var(--layout-stage-bottom-safe-shift) + calc(18px * var(--layout-stage-scale)));
+    }
+
     html.layout-stage-enabled #hand-white {
         min-height: var(--layout-size-hand-min-height-top);
         margin-bottom: calc(4px * var(--layout-stage-scale));
@@ -1488,5 +1562,19 @@ html.sim-aspect-5-4 #hero-character-img {
     html.layout-stage-enabled #debugModeBtn {
         left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
         bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + calc(52px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
+    }
+
+    html.layout-stage-enabled body.story-battle-active #card-detail-panel {
+        right: max(12px, env(safe-area-inset-right)) !important;
+        bottom: calc(max(12px, env(safe-area-inset-bottom)) + clamp(calc(154px * var(--layout-stage-scale)), 22vh, calc(228px * var(--layout-stage-scale)))) !important;
+        left: auto !important;
+        top: auto !important;
+        width: clamp(calc(190px * var(--layout-stage-scale)), 20vw, calc(230px * var(--layout-stage-scale))) !important;
+        transform: none !important;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body.story-battle-active #card-detail-panel {
+        right: max(12px, env(safe-area-inset-right)) !important;
+        bottom: calc(max(12px, env(safe-area-inset-bottom)) + clamp(calc(154px * var(--layout-stage-scale)), 22vh, calc(228px * var(--layout-stage-scale)))) !important;
     }
 }

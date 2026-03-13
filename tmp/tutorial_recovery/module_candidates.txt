@@ -1,0 +1,62 @@
+
+Count Name
+----- ----
+   29 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\4d564a55-5d41-4a55-b64e-139c178bcf6d\contents\59c4d39
+   29 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\a0a1ac0
+   29 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\4d564a55-5d41-4a55-b64e-139c178bcf6d\contents\e93b166
+   29 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\4d564a55-5d41-4a55-b64e-139c178bcf6d\contents\a0a1ac0
+   29 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\3eb43b30-a37b-4742-9055-7ba0bc747e01\contents\e93b166
+   29 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\3eb43b30-a37b-4742-9055-7ba0bc747e01\contents\a0a1ac0
+   29 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\e93b166
+   29 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\59c4d39
+   29 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\04a0691a-70a9-483c-bfc5-91d9d956a0ce\contents\a0a1ac0
+   29 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\04a0691a-70a9-483c-bfc5-91d9d956a0ce\contents\59c4d39
+   29 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\04a0691a-70a9-483c-bfc5-91d9d956a0ce\contents\e93b166
+   24 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\8bf3496
+   24 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\37ff17d
+   24 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\1960266
+   23 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\4fc782e
+   23 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\e0f5811
+   23 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\8578f7f
+   23 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\15f4f8b
+   15 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\5dcc7d0
+   11 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\ee0f463
+   11 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\fb3a379
+   10 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\6802a34
+    9 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\f8bfe1f
+    9 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\34475df
+    9 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\9291d15
+    9 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\f322242
+    9 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\c9ffb9f
+    9 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\6f62b60
+    6 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\118e118
+    5 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\a9a71db
+    5 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\GitHub.copilot-chat\chat-session-resources\a292fba8-e9ae-44f3-ab2b-01b9e5295238\call_BddGDvoHyF8klVbiQ1shIYmA__vscode-1773180644353\content.txt
+    5 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\fe68fca
+    5 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\04a0691a-70a9-483c-bfc5-91d9d956a0ce\contents\a9a71db
+    5 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\386a493
+    5 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\5d31a26
+    4 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\fde685e
+    4 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\4dfc72f
+    4 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\3eb43b30-a37b-4742-9055-7ba0bc747e01\contents\1107ff6
+    4 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\1107ff6
+    4 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\3eb43b30-a37b-4742-9055-7ba0bc747e01\contents\4dfc72f
+    3 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\04a0691a-70a9-483c-bfc5-91d9d956a0ce\contents\927b58a
+    3 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\04a0691a-70a9-483c-bfc5-91d9d956a0ce\contents\a3eebcc
+    3 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\04a0691a-70a9-483c-bfc5-91d9d956a0ce\contents\c910140
+    3 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\3eb43b30-a37b-4742-9055-7ba0bc747e01\contents\4a75d3a
+    3 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\e0bc7e4
+    3 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\3eb43b30-a37b-4742-9055-7ba0bc747e01\contents\c910140
+    3 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\a3eebcc
+    3 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\927b58a
+    3 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\4a75d3a
+    3 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\6640d21
+    3 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\c910140
+    3 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\04a0691a-70a9-483c-bfc5-91d9d956a0ce\contents\4a75d3a
+    2 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\ec05f19
+    2 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\7ba2590
+    2 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\6178f4a
+    1 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\410783d
+    1 C:\Users\quarr\AppData\Roaming\Code\User\workspaceStorage\e6c44fae0e34f67890d8ca293ae778af\chatEditingSessions\a292fba8-e9ae-44f3-ab2b-01b9e5295238\contents\4b45bc3
+
+

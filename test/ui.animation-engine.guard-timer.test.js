@@ -330,6 +330,90 @@ describe('animation-engine guard timer rendering', () => {
     expect(finalDisc.style.visibility).not.toBe('hidden');
   });
 
+  test.each([
+    ['SUPER_BUOYANCY_WILL', 'super_buoyancy_move', 'super_buoyancy_collision'],
+    ['SUPER_GRAVITY_WILL', 'super_gravity_move', 'super_gravity_collision']
+  ])('%s destination collision keeps final disc visible during after-state playback', async (cause, moveReason, destroyReason) => {
+    const board = document.getElementById('board');
+    const setRect = (el, row, col) => {
+      const left = col * 100;
+      const top = row * 100;
+      el.getBoundingClientRect = () => ({
+        left,
+        top,
+        width: 100,
+        height: 100,
+        right: left + 100,
+        bottom: top + 100
+      });
+    };
+    const makeCell = (row, col) => {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.row = String(row);
+      cell.dataset.col = String(col);
+      setRect(cell, row, col);
+      board.appendChild(cell);
+      return cell;
+    };
+
+    const fromCell = makeCell(4, 4);
+    const toCell = makeCell(1, 4);
+    const finalDisc = document.createElement('div');
+    finalDisc.className = 'disc black';
+    toCell.appendChild(finalDisc);
+
+    const proto = window.Element && window.Element.prototype;
+    const originalAnimate = proto ? proto.animate : undefined;
+    if (proto) {
+      proto.animate = () => ({
+        addEventListener: (type, cb) => {
+          if (type === 'finish') setTimeout(cb, 400);
+        },
+        removeEventListener: () => {},
+        finished: new Promise((resolve) => setTimeout(resolve, 400))
+      });
+    }
+
+    try {
+      const engine = require('../ui/animation-engine');
+      await engine.executePhase([
+        {
+          type: 'destroy',
+          targets: [{
+            r: 1,
+            col: 4,
+            cause,
+            reason: destroyReason,
+            ownerBefore: 'white',
+            meta: { collisionProgress: 0.88 }
+          }]
+        },
+        {
+          type: 'move',
+          targets: [{
+            from: { r: 4, col: 4 },
+            to: { r: 1, col: 4 },
+            ownerAfter: 'black',
+            cause,
+            reason: moveReason,
+            after: { color: 1, special: null, timer: null, owner: 'black' }
+          }]
+        }
+      ]);
+    } finally {
+      if (proto) proto.animate = originalAnimate;
+    }
+
+    expect(fromCell.querySelector('.disc')).toBeNull();
+    const visibleDisc = toCell.querySelector('.disc');
+    expect(visibleDisc).not.toBeNull();
+    expect(visibleDisc.classList.contains('black')).toBe(true);
+    expect(visibleDisc.style.visibility).not.toBe('hidden');
+    expect(visibleDisc.style.opacity).not.toBe('0');
+    expect(visibleDisc.classList.contains('destroy-fade')).toBe(false);
+  });
+
   test('TELEPORT_WILL move appears instantly at destination without translate trajectory', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board');
@@ -1163,6 +1247,62 @@ describe('animation-engine guard timer rendering', () => {
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
+  });
+
+  test('destroy evade move applies and clears red cell highlight at source', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const fromCell = document.createElement('div');
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '4';
+    fromCell.dataset.col = '4';
+
+    const toCell = document.createElement('div');
+    toCell.className = 'cell';
+    toCell.dataset.row = '7';
+    toCell.dataset.col = '7';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc white special-stone';
+    fromCell.appendChild(disc);
+
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    const addFromSpy = jest.spyOn(fromCell.classList, 'add');
+    const addToSpy = jest.spyOn(toCell.classList, 'add');
+    const removeFromSpy = jest.spyOn(fromCell.classList, 'remove');
+    const removeToSpy = jest.spyOn(toCell.classList, 'remove');
+
+    await engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 4, col: 4 },
+        to: { r: 7, col: 7 },
+        ownerAfter: 'white',
+        cause: 'DESTROY_EVADE',
+        reason: 'destroy_evade_move',
+        after: {
+          color: -1,
+          special: 'WILL_HUNTER_KING',
+          timer: null,
+          owner: 'white'
+        }
+      }]
+    });
+
+    expect(addFromSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeFromSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(addToSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeToSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(fromCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(toCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    addFromSpy.mockRestore();
+    addToSpy.mockRestore();
+    removeFromSpy.mockRestore();
+    removeToSpy.mockRestore();
   });
 
   test('position swap move applies and clears red cell highlight on both cells', async () => {

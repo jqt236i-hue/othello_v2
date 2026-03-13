@@ -147,4 +147,26 @@ describe('animation-engine inherited hyperactive timer rendering', () => {
     expect(inheritedTimer.textContent).toBe('4');
     expect(disc.querySelectorAll('.stone-timer, .guard-timer').length).toBe(2);
   });
+
+  test('WILL_HUNTER_KING は破壊回避カウントを表示する', () => {
+    const engine = require('../ui/animation-engine');
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+
+    engine.syncDiscVisual(disc, {
+      color: 1,
+      special: 'WILL_HUNTER_KING',
+      timer: 8,
+      owner: 'black',
+      flipEvadeRemaining: 2,
+      destroyEvadeRemaining: 2
+    });
+
+    const destroyEvadeTimer = disc.querySelector('.destroy-evade-timer');
+    const flipEvadeTimer = disc.querySelector('.flip-evade-timer');
+    expect(destroyEvadeTimer).not.toBeNull();
+    expect(destroyEvadeTimer.textContent).toBe('2');
+    expect(flipEvadeTimer).not.toBeNull();
+    expect(flipEvadeTimer.textContent).toBe('2');
+  });
 });

@@ -28,6 +28,11 @@ describe('pass-handler flows', () => {
         global.Core = {
             getLegalMoves: jest.fn(() => [])
         };
+        delete global.getLegalMoves;
+        global.NetworkMatchClient = {
+            isActive: jest.fn(() => true),
+            publishSnapshot: jest.fn()
+        };
         // Remove TurnPipeline if exists
         delete global.TurnPipeline;
         delete global.TurnPipelinePhases;
@@ -185,6 +190,37 @@ describe('pass-handler flows', () => {
         jest.useRealTimers();
     });
 
+    test('white CPU scheduling retries briefly when processCpuTurn becomes available after pass', async () => {
+        jest.useFakeTimers();
+        delete require.cache[modPath];
+        delete global.processCpuTurn;
+        global.CPU_TURN_DELAY_MS = 10;
+        global.cardState = { turnIndex: 0, turnCountByPlayer: { black: 0, white: 0 }, hands: { black: [], white: [] } };
+        global.gameState = { currentPlayer: global.BLACK, turnNumber: 3 };
+        global.Core = { getLegalMoves: jest.fn(() => [{ row: 0, col: 0, flips: [[0, 1]] }]) };
+        global.TurnPipeline = {
+            applyTurnSafe: jest.fn((cs, gs) => ({
+                ok: true,
+                gameState: Object.assign({}, gs, { currentPlayer: global.WHITE, turnNumber: 4 }),
+                cardState: cs,
+                events: []
+            }))
+        };
+
+        const ph = require('../game/pass-handler');
+        await expect(ph.processPassTurn('black', false)).resolves.toBe(true);
+
+        jest.advanceTimersByTime(10);
+        const cpuTurnMock = jest.fn();
+        global.processCpuTurn = cpuTurnMock;
+        globalThis.processCpuTurn = cpuTurnMock;
+        jest.advanceTimersByTime(32);
+
+        expect(cpuTurnMock).toHaveBeenCalledTimes(1);
+        delete global.CPU_TURN_DELAY_MS;
+        jest.useRealTimers();
+    });
+
     test('network mode と手番の表記揺れを正規化して自動パスを抑止する', () => {
         delete require.cache[modPath];
         global.MATCH_MODE = 'network';
@@ -196,5 +232,50 @@ describe('pass-handler flows', () => {
         const handled = ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
         expect(handled).toBe(false);
         expect(global.TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
+    });
+
+    test('network pass publish は onTurnStart 前の snapshot を送る', async () => {
+        delete require.cache[modPath];
+        global.MATCH_MODE = 'network';
+        global.cardState = {
+            turnIndex: 3,
+            turnCountByPlayer: { black: 1, white: 0 },
+            lastTurnStartedFor: 'black',
+            hands: { black: ['black_card'], white: [] }
+        };
+        global.gameState = { currentPlayer: global.BLACK, turnNumber: 7, consecutivePasses: 0 };
+        global.TurnPipeline = {
+            applyTurnSafe: jest.fn((cs, gs) => ({
+                ok: true,
+                gameState: Object.assign({}, gs, { currentPlayer: global.WHITE, turnNumber: 8, consecutivePasses: 1 }),
+                cardState: Object.assign({}, cs, {
+                    turnIndex: 4,
+                    turnCountByPlayer: { black: 1, white: 0 },
+                    lastTurnStartedFor: 'black',
+                    hands: { black: ['black_card'], white: [] }
+                }),
+                events: []
+            }))
+        };
+        global.getLegalMoves = jest.fn(() => [{ row: 0, col: 0, flips: [[0, 1]] }]);
+        global.onTurnStart = jest.fn(() => {
+            global.cardState.hands.white = ['white_draw'];
+            global.cardState.turnIndex = 5;
+            global.cardState.turnCountByPlayer.white = 1;
+            global.cardState.lastTurnStartedFor = 'white';
+        });
+
+        const ph = require('../game/pass-handler');
+        const ok = await ph.processPassTurn('black', false);
+
+        expect(ok).toBe(true);
+        expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledTimes(1);
+        const payload = global.NetworkMatchClient.publishSnapshot.mock.calls[0][0];
+        expect(payload.snapshot.gameState.currentPlayer).toBe(global.WHITE);
+        expect(payload.snapshot.gameState.turnNumber).toBe(8);
+        expect(payload.snapshot.cardState.hands.white).toEqual([]);
+        expect(payload.snapshot.cardState.turnIndex).toBe(4);
+        expect(payload.snapshot.cardState.lastTurnStartedFor).toBe('black');
+        expect(global.cardState.hands.white).toEqual(['white_draw']);
     });
 });

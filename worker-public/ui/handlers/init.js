@@ -20,7 +20,16 @@ function _isDebugAllowed() {
     }
 }
 
-function initializeUI() {
+function setUiInitializedFlag(value) {
+    try {
+        const ready = value === true;
+        if (typeof globalThis !== 'undefined') globalThis.__uiInitialized = ready;
+        if (typeof window !== 'undefined') window.__uiInitialized = ready;
+    } catch (e) { /* ignore */ }
+}
+
+async function initializeUI() {
+    setUiInitializedFlag(false);
     try {
         if (typeof UIBootstrap !== 'undefined' && UIBootstrap && typeof UIBootstrap.installGameDI === 'function') {
             UIBootstrap.installGameDI();
@@ -42,6 +51,10 @@ function initializeUI() {
     const bgmPauseBtn = document.getElementById('bgmPauseBtn');
     const bgmTrackSelect = document.getElementById('bgmTrackSelect');
     const bgmVolSlider = document.getElementById('bgmVolSlider');
+    const storyBtn = document.getElementById('storyBtn');
+    const storyMenuOverlay = document.getElementById('storyMenuOverlay');
+    const tutorialBtn = document.getElementById('tutorialBtn');
+    const tutorialOverlay = document.getElementById('tutorialOverlay');
     const rulesHelpBtn = document.getElementById('rulesHelpBtn');
     const rulesHelpPanel = document.getElementById('rules-help-panel');
     const autoToggleBtn = document.getElementById('autoToggleBtn');
@@ -53,6 +66,12 @@ function initializeUI() {
     const modeCpuBtn = document.getElementById('modeCpuBtn');
     const modeNetworkBtn = document.getElementById('modeNetworkBtn');
     const controlPanel = document.getElementById('control-panel');
+    const deckBuilderOpenBtn = document.getElementById('deckBuilderOpenBtn');
+    const deckBuilderControlSummary = document.getElementById('deckBuilderControlSummary');
+    const deckBuilderOverlay = document.getElementById('deckBuilderOverlay');
+    const deckBuilderCloseBtn = document.getElementById('deckBuilderCloseBtn');
+    const deckBuilderHeaderSummary = document.getElementById('deckBuilderHeaderSummary');
+    const deckBuilderBody = document.getElementById('deckBuilderBody');
     const networkPanel = document.getElementById('networkPanel');
     const networkAdvancedSettings = document.getElementById('networkAdvancedSettings');
     const networkServerInput = document.getElementById('networkServerInput');
@@ -62,6 +81,7 @@ function initializeUI() {
     const networkJoinBtn = document.getElementById('networkJoinBtn');
     const networkLeaveBtn = document.getElementById('networkLeaveBtn');
     const networkStatusText = document.getElementById('networkStatusText');
+    const networkDeckInfo = document.getElementById('networkDeckInfo');
     const networkTimerStatus = document.getElementById('networkTimerStatus');
     const networkOverlay = document.getElementById('networkOverlay');
     const networkCloseBtn = document.getElementById('networkCloseBtn');
@@ -124,6 +144,7 @@ function initializeUI() {
             networkJoinBtn,
             networkLeaveBtn,
             networkStatus: networkStatusText,
+            networkDeckInfo,
             networkTimerStatus,
             networkOverlay,
             networkCloseBtn,
@@ -144,6 +165,17 @@ function initializeUI() {
         });
     }
 
+    if (typeof setupDeckBuilderControls === 'function') {
+        setupDeckBuilderControls({
+            openBtn: deckBuilderOpenBtn,
+            controlSummary: deckBuilderControlSummary,
+            overlay: deckBuilderOverlay,
+            closeBtn: deckBuilderCloseBtn,
+            headerSummary: deckBuilderHeaderSummary,
+            body: deckBuilderBody
+        });
+    }
+
     // Smart Level Selects
     if (typeof setupSmartSelects === 'function') {
         setupSmartSelects(smartBlack, smartWhite);
@@ -161,6 +193,26 @@ function initializeUI() {
 
     if (typeof setupRulesHelp === 'function') {
         setupRulesHelp(rulesHelpBtn, rulesHelpPanel);
+    }
+
+    if (typeof setupStoryControls === 'function') {
+        setupStoryControls(storyBtn, storyMenuOverlay, tutorialOverlay);
+    }
+
+    if (typeof setupStoryBattleUi === 'function') {
+        setupStoryBattleUi({
+            root: window,
+            soundRefs: {
+                muteBtn,
+                seVolSlider,
+                bgmVolSlider,
+                bgmTrackSelect
+            }
+        });
+    }
+
+    if (typeof setupTutorialControls === 'function') {
+        setupTutorialControls(tutorialBtn, tutorialOverlay);
     }
 
     if (sidePanel && sidePanelToggleBtn) {
@@ -256,11 +308,11 @@ function initializeUI() {
     }
     // Load local ONNX model for browser CPU (safe fallback on failure)
     if (typeof initPolicyOnnxModel === 'function') {
-        initPolicyOnnxModel();
+        await initPolicyOnnxModel();
     }
     // Load local policy-table model for browser CPU (safe fallback on failure)
     if (typeof initPolicyTableModel === 'function') {
-        initPolicyTableModel();
+        await initPolicyTableModel();
     }
 
     // Load LvMax Deep CFR models
@@ -272,6 +324,7 @@ function initializeUI() {
     try {
         if (typeof resetGame === 'function') resetGame();
     } catch (e) { console.error('[init] resetGame threw', e && e.message); }
+    setUiInitializedFlag(true);
 
     // Attempt to preload asset manifest (optional; source of truth for assets in network play)
     try {
@@ -390,7 +443,11 @@ function initializeUI() {
 }
 
 // Auto-initialize UI when DOM is ready
-document.addEventListener('DOMContentLoaded', initializeUI);
+document.addEventListener('DOMContentLoaded', () => {
+    Promise.resolve(initializeUI()).catch((err) => {
+        console.error('[init] initializeUI failed', err && err.message ? err.message : err);
+    });
+});
 
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
@@ -399,7 +456,8 @@ if (typeof module !== 'undefined' && module.exports) {
         setupSmartSelects: (typeof setupSmartSelects !== 'undefined') ? setupSmartSelects : function () {},
         setupSoundControls: (typeof setupSoundControls !== 'undefined') ? setupSoundControls : function () {},
         setupBgmControls: (typeof setupBgmControls !== 'undefined') ? setupBgmControls : function () {},
-        loadCpuPolicy: (typeof loadCpuPolicy !== 'undefined') ? loadCpuPolicy : function () {}
+        loadCpuPolicy: (typeof loadCpuPolicy !== 'undefined') ? loadCpuPolicy : function () {},
+        setUiInitializedFlag
     };
 } 
 

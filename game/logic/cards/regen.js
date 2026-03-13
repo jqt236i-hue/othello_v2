@@ -13,9 +13,93 @@
     'use strict';
 
     const { BLACK, WHITE, DIRECTIONS, EMPTY } = SharedConstants || {};
+    const REGEN_REVIVE_LIMIT = 3;
 
     if (BLACK === undefined || WHITE === undefined || DIRECTIONS === undefined) {
         throw new Error('SharedConstants (BLACK/WHITE/DIRECTIONS) required');
+    }
+
+    function isMainBoardCell(row, col) {
+        return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < 8 && col >= 0 && col < 8;
+    }
+
+    function resolveExpansionSide(side, row, col) {
+        if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
+        if (col === -1) return 'left';
+        if (col === 8) return 'right';
+        if (row === -1) return 'top';
+        if (row === 8) return 'bottom';
+        return null;
+    }
+
+    function getExpansionCellRef(gameState, row, col) {
+        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
+            ? gameState.boardExpansion
+            : null;
+        if (!expansion) return null;
+
+        if (Array.isArray(expansion.cells)) {
+            for (let index = 0; index < expansion.cells.length; index++) {
+                const cell = expansion.cells[index];
+                if (!cell || typeof cell !== 'object') continue;
+                const cellCol = Number.isInteger(cell.col)
+                    ? cell.col
+                    : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : null));
+                if (!Number.isInteger(cellCol)) continue;
+                if (cell.row === row && cellCol === col) {
+                    return { expansion, index, cell, legacy: false };
+                }
+            }
+        }
+
+        if (expansion.active === true) {
+            const legacyCol = Number.isInteger(expansion.col)
+                ? expansion.col
+                : (expansion.side === 'left' ? -1 : (expansion.side === 'right' ? 8 : null));
+            if (expansion.row === row && legacyCol === col) {
+                return { expansion, index: -1, cell: expansion, legacy: true };
+            }
+        }
+
+        return null;
+    }
+
+    function getCellValue(gameState, row, col) {
+        if (isMainBoardCell(row, col)) {
+            return (gameState && Array.isArray(gameState.board) && Array.isArray(gameState.board[row]))
+                ? gameState.board[row][col]
+                : null;
+        }
+        const ref = getExpansionCellRef(gameState, row, col);
+        return ref ? Number(ref.cell.owner) : null;
+    }
+
+    function setCellValue(gameState, row, col, value) {
+        if (isMainBoardCell(row, col)) {
+            if (!gameState || !Array.isArray(gameState.board) || !Array.isArray(gameState.board[row])) return false;
+            gameState.board[row][col] = value;
+            return true;
+        }
+
+        const ref = getExpansionCellRef(gameState, row, col);
+        if (!ref) return false;
+        const normalizedOwner = (value === BLACK || value === WHITE) ? value : EMPTY;
+
+        if (!ref.legacy) {
+            ref.expansion.cells[ref.index] = {
+                side: resolveExpansionSide(ref.cell.side, row, col),
+                row,
+                col,
+                owner: normalizedOwner
+            };
+            return true;
+        }
+
+        ref.expansion.side = resolveExpansionSide(ref.cell.side, row, col);
+        ref.expansion.row = row;
+        ref.expansion.col = col;
+        ref.expansion.owner = normalizedOwner;
+        return true;
     }
 
     function applyRegenWill(cardState, playerKey, row, col, deps = {}) {
@@ -30,14 +114,20 @@
                 kind: kind,
                 owner,
                 createdSeq,
-                data: { type: data.type, regenRemaining: data.regenRemaining, ownerColor: data.ownerColor }
+                data: {
+                    type: data.type,
+                    regenRemaining: data.regenRemaining,
+                    remainingOwnerTurns: data.remainingOwnerTurns,
+                    ownerColor: data.ownerColor
+                }
             });
             return true;
         });
 
         addMarker(cardState, 'specialStone', row, col, playerKey, {
             type: 'REGEN',
-            regenRemaining: 1,
+            regenRemaining: REGEN_REVIVE_LIMIT,
+            remainingOwnerTurns: REGEN_REVIVE_LIMIT,
             ownerColor: playerKey === 'black' ? (BLACK || 1) : (WHITE || -1)
         });
         return { applied: true };
@@ -67,10 +157,12 @@
         const dirs = DIRECTIONS;
 
         const context = getCardContext(cardState);
+        const blockedSet = context.blockedCells ? new Set(context.blockedCells.map(p => `${p.row},${p.col}`)) : null;
+        const protSet = context.protectedStones ? new Set(context.protectedStones.map(p => `${p.row},${p.col}`)) : null;
+        const permaSet = context.permaProtectedStones ? new Set(context.permaProtectedStones.map(p => `${p.row},${p.col}`)) : null;
         const isBlocked = (r, c) => {
             const key = `${r},${c}`;
-            const protSet = context.protectedStones ? new Set(context.protectedStones.map(p => `${p.row},${p.col}`)) : null;
-            const permaSet = context.permaProtectedStones ? new Set(context.permaProtectedStones.map(p => `${p.row},${p.col}`)) : null;
+            if (blockedSet && blockedSet.has(key)) return true;
             if (protSet && protSet.has(key)) return true;
             if (permaSet && permaSet.has(key)) return true;
             return false;
@@ -84,14 +176,16 @@
             if (idx === -1) continue;
             const regen = specials[idx];
             const ownerColor = regen.owner === 'black' ? (BLACK || 1) : (WHITE || -1);
-            if (gameState.board[pos.row][pos.col] === ownerColor) continue; // not flipped against owner
+            if (getCellValue(gameState, pos.row, pos.col) === ownerColor) continue; // not flipped against owner
 
             // consume regen and revert color
-            regen.data.regenRemaining -= 1;
+            const nextRemaining = Math.max(0, Number(regen.data.regenRemaining || 0) - 1);
+            regen.data.regenRemaining = nextRemaining;
+            regen.data.remainingOwnerTurns = nextRemaining;
             if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
                 deps.BoardOps.changeAt(cardState, gameState, pos.row, pos.col, regen.owner, 'REGEN', 'regen_triggered');
             } else {
-                gameState.board[pos.row][pos.col] = ownerColor;
+                setCellValue(gameState, pos.row, pos.col, ownerColor);
             }
             regened.push({ row: pos.row, col: pos.col });
 
@@ -102,7 +196,7 @@
                 const line = [];
                 let r = pos.row + dr;
                 let c = pos.col + dc;
-                while (r >= 0 && r < 8 && c >= 0 && c < 8 && gameState.board[r][c] === -ownerColor) {
+                while (getCellValue(gameState, r, c) === -ownerColor) {
                     if (isBlocked(r, c)) {
                         line.length = 0;
                         break;
@@ -111,12 +205,12 @@
                     r += dr;
                     c += dc;
                 }
-                if (line.length > 0 && r >= 0 && r < 8 && c >= 0 && c < 8 && gameState.board[r][c] === ownerColor) {
+                if (line.length > 0 && !isBlocked(r, c) && getCellValue(gameState, r, c) === ownerColor) {
                     for (const p of line) {
                         if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
                             deps.BoardOps.changeAt(cardState, gameState, p.row, p.col, regen.owner, 'REGEN', 'regen_capture_flip');
                         } else {
-                            gameState.board[p.row][p.col] = ownerColor;
+                            setCellValue(gameState, p.row, p.col, ownerColor);
                         }
                         clearBombAt(cardState, p.row, p.col);
                         captureFlips.push(p);

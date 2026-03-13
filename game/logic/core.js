@@ -263,6 +263,10 @@
             let r = row + dr;
             let c = col + dc;
             while (getCellValue(state, r, c) === -player) {
+                if (blockedSet && blockedSet.has(`${r},${c}`)) {
+                    flips.length = 0;
+                    break;
+                }
                 // Protection block
                 if ((protectedSet && protectedSet.has(`${r},${c}`)) ||
                     (permaSet && permaSet.has(`${r},${c}`))) {
@@ -273,6 +277,7 @@
                 r += dr;
                 c += dc;
             }
+            if (blockedSet && blockedSet.has(`${r},${c}`)) continue;
             if (flips.length > 0 && getCellValue(state, r, c) === player) {
                 allFlips.push(...flips);
             }

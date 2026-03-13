@@ -172,6 +172,42 @@ describe('ESCAPE_WILL（逃げる意志）', () => {
     expect(placeEvent.flips).toEqual([[3, 4]]);
   });
 
+  test('expansion cell can be chosen as an escape destination', () => {
+    const prng = makePrng(0.99);
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = { board: createEmptyBoard(), currentPlayer: Core.BLACK };
+
+    gameState.board[3][0] = Core.BLACK;
+    gameState.board[3][1] = Core.WHITE;
+    gameState.board[2][0] = Core.WHITE;
+    gameState.board[2][1] = Core.WHITE;
+    gameState.board[4][0] = Core.WHITE;
+    gameState.board[4][1] = Core.WHITE;
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: false, white: false },
+      cells: [{ side: 'left', row: 3, col: -1, owner: Core.EMPTY }]
+    };
+    cardState.markers.push({
+      id: 190,
+      kind: 'specialStone',
+      row: 3,
+      col: 0,
+      owner: 'black',
+      data: { type: 'ESCAPE_HYPERACTIVE', remainingOwnerTurns: 5 }
+    });
+
+    const res = CardLogic.processHyperactiveMoveAtAnchor(cardState, gameState, 'black', 3, 0, prng);
+
+    expect(res && res.moved && res.moved.length).toBe(1);
+    expect(res.moved[0].to).toEqual({ row: 3, col: -1 });
+    expect(gameState.board[3][0]).toBe(Core.EMPTY);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 3 && cell.col === -1).owner).toBe(Core.BLACK);
+  });
+
   test('回避を使い切った逃亡石は通常どおり反転される', () => {
     const prng = makePrng();
     const cardState = CardLogic.createCardState(prng);

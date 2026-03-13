@@ -5,11 +5,14 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory();
+        module.exports = factory(
+            require('../shared/shared-board-utils'),
+            require('../shared/shared-card-heuristics')
+        );
     } else {
-        root.CpuDecisionBoardUtils = factory();
+        root.CpuDecisionBoardUtils = factory(root.SharedBoardUtils, root.SharedCardHeuristics);
     }
-}(typeof self !== 'undefined' ? self : this, function () {
+}(typeof self !== 'undefined' ? self : this, function (SharedBoardUtils, SharedCardHeuristics) {
     const DEFAULT_CORNER_RECOVERY_CARD_TYPES = new Set([
         'DESTROY_ONE_STONE',
         'SWAP_WITH_ENEMY',
@@ -34,14 +37,20 @@
     const DEFAULT_CHARGE_RAMP_CARD_TYPES = new Set([
         'TREASURE_BOX',
         'GOLD_STONE',
+        'RAINBOW_STONE',
         'SILVER_STONE',
         'SELL_CARD_WILL',
         'PLUNDER_WILL',
-        'STEAL_CARD',
         'WORK_WILL'
     ]);
 
+    const BoardUtils = SharedBoardUtils || null;
+    const CardHeuristics = SharedCardHeuristics || null;
+
     function countBoardEmpties(board) {
+        if (BoardUtils && typeof BoardUtils.countBoardEmpties === 'function') {
+            return BoardUtils.countBoardEmpties(board);
+        }
         if (!Array.isArray(board)) return 0;
         let empties = 0;
         for (let r = 0; r < board.length; r++) {
@@ -54,6 +63,9 @@
     }
 
     function isStandardBoard8x8(board) {
+        if (BoardUtils && typeof BoardUtils.isStandardBoard8x8 === 'function') {
+            return BoardUtils.isStandardBoard8x8(board);
+        }
         if (!Array.isArray(board) || board.length !== 8) return false;
         for (const row of board) {
             if (!Array.isArray(row) || row.length !== 8) return false;
@@ -62,6 +74,9 @@
     }
 
     function resolveBoardBounds(boardOrRows, maybeCols) {
+        if (BoardUtils && typeof BoardUtils.resolveBoardBounds === 'function') {
+            return BoardUtils.resolveBoardBounds(boardOrRows, maybeCols);
+        }
         if (Array.isArray(boardOrRows)) {
             if (boardOrRows.length <= 0) return null;
             let maxCol = -1;
@@ -79,6 +94,9 @@
     }
 
     function isCornerCell(row, col, boardOrRows, maybeCols) {
+        if (BoardUtils && typeof BoardUtils.isCornerCell === 'function') {
+            return BoardUtils.isCornerCell(row, col, boardOrRows, maybeCols);
+        }
         const bounds = resolveBoardBounds(boardOrRows, maybeCols);
         if (!bounds) return false;
         return (
@@ -90,6 +108,9 @@
     }
 
     function isEdgeCell(row, col, boardOrRows, maybeCols) {
+        if (BoardUtils && typeof BoardUtils.isEdgeCell === 'function') {
+            return BoardUtils.isEdgeCell(row, col, boardOrRows, maybeCols);
+        }
         const bounds = resolveBoardBounds(boardOrRows, maybeCols);
         if (!bounds) return false;
         return (
@@ -119,6 +140,9 @@
     }
 
     function countCornerControl(board, playerValue) {
+        if (BoardUtils && typeof BoardUtils.countCornerControl === 'function') {
+            return BoardUtils.countCornerControl(board, playerValue);
+        }
         if (!Array.isArray(board)) return { ownCorners: 0, oppCorners: 0 };
         const bounds = resolveBoardBounds(board);
         if (!bounds) return { ownCorners: 0, oppCorners: 0 };
@@ -141,6 +165,9 @@
     }
 
     function countEdgeControl(board, playerValue) {
+        if (BoardUtils && typeof BoardUtils.countEdgeControl === 'function') {
+            return BoardUtils.countEdgeControl(board, playerValue);
+        }
         if (!Array.isArray(board)) return { ownEdges: 0, oppEdges: 0 };
         const bounds = resolveBoardBounds(board);
         if (!bounds) return { ownEdges: 0, oppEdges: 0 };
@@ -159,14 +186,23 @@
     }
 
     function isRecoveryCardType(cardType) {
+        if (CardHeuristics && typeof CardHeuristics.isRecoveryCardType === 'function') {
+            return CardHeuristics.isRecoveryCardType(cardType);
+        }
         return DEFAULT_CORNER_RECOVERY_CARD_TYPES.has(String(cardType || ''));
     }
 
     function isHoldCardType(cardType) {
+        if (CardHeuristics && typeof CardHeuristics.isHoldCardType === 'function') {
+            return CardHeuristics.isHoldCardType(cardType);
+        }
         return DEFAULT_CORNER_HOLD_CARD_TYPES.has(String(cardType || ''));
     }
 
     function isChargeRampCardType(cardType) {
+        if (CardHeuristics && typeof CardHeuristics.isChargeRampCardType === 'function') {
+            return CardHeuristics.isChargeRampCardType(cardType);
+        }
         return DEFAULT_CHARGE_RAMP_CARD_TYPES.has(String(cardType || ''));
     }
 

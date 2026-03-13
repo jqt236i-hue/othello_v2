@@ -88,6 +88,17 @@ function isHumanVsHumanModeEnabled() {
     return debugHvH || matchMode === 'network';
 }
 
+function shouldAbortCpuForHumanMode(playerKey, context) {
+    if (!isHumanVsHumanModeEnabled()) return false;
+    resetPendingSelectRetryState(playerKey);
+    isProcessing = false;
+    debugCpuTrace('[AI] abort CPU run in human-controlled mode', {
+        playerKey,
+        context: context || 'unknown'
+    });
+    return true;
+}
+
 function debugCpuTrace(message, meta) {
     try {
         if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
@@ -233,6 +244,23 @@ function countDiscsSafe(state) {
         });
     }
     return { black: 0, white: 0 };
+}
+
+function countOwnedBasicCornersSafe(stateOrBoard, playerKey) {
+    const board = Array.isArray(stateOrBoard)
+        ? stateOrBoard
+        : (stateOrBoard && Array.isArray(stateOrBoard.board) ? stateOrBoard.board : null);
+    if (!Array.isArray(board) || board.length < 8) return 0;
+
+    const ownValue = playerKey === 'black' ? CONST_BLACK : CONST_WHITE;
+    const cornerPoints = [[0, 0], [0, 7], [7, 0], [7, 7]];
+    let owned = 0;
+    for (const point of cornerPoints) {
+        const row = board[point[0]];
+        if (!Array.isArray(row)) continue;
+        if (row[point[1]] === ownValue) owned += 1;
+    }
+    return owned;
 }
 
 function resolvePhaseByTurn(turnNumber, occupiedCells) {
@@ -517,6 +545,9 @@ function scheduleRunCpuTurn(playerKey, options, delayMs) {
     const expectedTurnNumber = getCurrentTurnNumberSafe();
     scheduleRetry(() => {
         _cpuRetryPendingByPlayer[key] = false;
+        if (shouldAbortCpuForHumanMode(key, 'scheduled_retry')) {
+            return;
+        }
         const currentPlayerKey = getCurrentPlayerKeySafe();
         const currentTurnNumber = getCurrentTurnNumberSafe();
         if (expectedPlayerKey && currentPlayerKey !== expectedPlayerKey) {
@@ -607,6 +638,7 @@ function getPendingTypeHandlers(playerKey) {
         'BOARD_EXPANSION_GOD': async () => { if (typeof cpuSelectBoardExpansionWillWithPolicy === 'function') await cpuSelectBoardExpansionWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'BLOCKADE_WILL': async () => { if (typeof cpuSelectBlockadeWillWithPolicy === 'function') await cpuSelectBlockadeWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'METEOR_WILL': async () => { if (typeof cpuSelectMeteorWillWithPolicy === 'function') await cpuSelectMeteorWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
+        'FREEZE_WILL': async () => { if (typeof cpuSelectFreezeWillWithPolicy === 'function') await cpuSelectFreezeWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'CLONE_WILL': async () => { if (typeof cpuSelectCloneWillWithPolicy === 'function') await cpuSelectCloneWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'SPLIT_WILL': async () => { if (typeof cpuSelectSplitWillWithPolicy === 'function') await cpuSelectSplitWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; }
     };
@@ -666,6 +698,10 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
     const currentPlayerKey = (currentPlayer === CONST_BLACK || currentPlayer === 'black')
         ? 'black'
         : ((currentPlayer === CONST_WHITE || currentPlayer === 'white') ? 'white' : null);
+
+    if (shouldAbortCpuForHumanMode(playerKey, 'run_start')) {
+        return;
+    }
 
     if (typeof isGameOver === 'function' && gameState && isGameOver(gameState)) {
         if (typeof showResult === 'function') showResult();
@@ -739,6 +775,9 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
             const previewLegalMovesCount = Array.isArray(previewMoves) ? previewMoves.length : 0;
 
             const onnxCardDecision = await maybeUseCardFromOnnx(playerKey, level, previewLegalMovesCount, previewMoves);
+            if (shouldAbortCpuForHumanMode(playerKey, 'after_onnx_card_decision')) {
+                return;
+            }
             let applied = !!(onnxCardDecision && onnxCardDecision.applied === true);
             const heldByOnnx = !!(onnxCardDecision && onnxCardDecision.hold === true);
             const overrideHold = heldByOnnx && shouldOverrideOnnxHoldDecision(playerKey, level, previewLegalMovesCount);
@@ -752,6 +791,9 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 });
                 isProcessing = false;
                 const resumeAfterCardAnimation = () => {
+                    if (shouldAbortCpuForHumanMode(playerKey, 'resume_after_card_animation')) {
+                        return;
+                    }
                     if (isUiAnimationBusy()) {
                         scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
                         return;
@@ -780,10 +822,22 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                     debugLog(`[AI] CPU selecting ${pending.type.replace(/_/g, ' ').toLowerCase()} target`, 'debug', { playerKey, pendingEffect: pending });
                 }
                 await handler();
+                if (shouldAbortCpuForHumanMode(playerKey, 'after_pending_selection')) {
+                    return;
+                }
                 pending = cardState.pendingEffectByPlayer[playerKey];
                 if (isUiAnimationBusy()) {
                     isProcessing = false;
                     scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
+                    return;
+                }
+                const activePlayerAfterSelection = gameState ? gameState.currentPlayer : null;
+                const activePlayerKeyAfterSelection = (activePlayerAfterSelection === CONST_BLACK || activePlayerAfterSelection === 'black')
+                    ? 'black'
+                    : ((activePlayerAfterSelection === CONST_WHITE || activePlayerAfterSelection === 'white') ? 'white' : null);
+                if (activePlayerKeyAfterSelection && activePlayerKeyAfterSelection !== playerKey) {
+                    resetPendingSelectRetryState(playerKey);
+                    isProcessing = false;
                     return;
                 }
                 // Multi-step selection cards (e.g. SACRIFICE_WILL) may keep pending selectTarget
@@ -829,6 +883,9 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 : false;
             if (stillUsableCard) {
                 const onnxCardDecision = await maybeUseCardFromOnnx(playerKey, level, 0, []);
+                if (shouldAbortCpuForHumanMode(playerKey, 'after_onnx_retry')) {
+                    return;
+                }
                 const heldByOnnx = !!(onnxCardDecision && onnxCardDecision.hold === true);
                 const overrideHold = heldByOnnx && shouldOverrideOnnxHoldDecision(playerKey, level, 0);
                 let retried = !!(onnxCardDecision && onnxCardDecision.applied === true);
@@ -847,6 +904,9 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
             }
             const passFn = resolveProcessPassTurn();
             if (passFn) {
+                if (shouldAbortCpuForHumanMode(playerKey, 'before_pass')) {
+                    return;
+                }
                 emitCpuCommentary('pass', playerKey, {
                     level,
                     legalMovesCount: 0
@@ -864,6 +924,9 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
         if (shouldUseOnnxMoveDecision(level) && typeof selectMoveFromOnnxPolicyAsync === 'function') {
             try {
                 move = await selectMoveFromOnnxPolicyAsync(candidateMoves, playerKey, level);
+                if (shouldAbortCpuForHumanMode(playerKey, 'after_onnx_move_decision')) {
+                    return;
+                }
             } catch (e) {
                 debugCpuTrace('[AI] selectMoveFromOnnxPolicyAsync failed; fallback to policy table/core', {
                     playerKey,
@@ -897,6 +960,9 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
         const extraDelayMs = Math.max(0, minThinkMs - thinkElapsedMs);
 
         const commitSelectedMove = () => {
+            if (shouldAbortCpuForHumanMode(playerKey, 'commit_selected_move')) {
+                return;
+            }
             const nowCurrent = gameState ? gameState.currentPlayer : null;
             const nowCurrentKey = (nowCurrent === CONST_BLACK || nowCurrent === 'black')
                 ? 'black'
@@ -914,8 +980,13 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 isProcessing = false;
                 return;
             }
+            const cornersBeforeMove = countOwnedBasicCornersSafe(gameState, playerKey);
             playHandAnimation(selfColor, move.row, move.col, () => {
                 executeMove(move);
+                const cornersAfterMove = countOwnedBasicCornersSafe(gameState, playerKey);
+                if (cornersAfterMove > cornersBeforeMove) {
+                    emitCpuCommentary('turn_start', playerKey, { level });
+                }
             });
         };
 

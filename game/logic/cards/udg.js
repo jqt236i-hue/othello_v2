@@ -5,11 +5,11 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'));
+        module.exports = factory(require('../../../shared-constants'), require('../board_ops'));
     } else {
-        root.CardUdG = factory(root.SharedConstants);
+        root.CardUdG = factory(root.SharedConstants, root.BoardOps || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, BoardOpsModule) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
@@ -23,6 +23,9 @@
     }
 
     function getExpansionCells(gameState) {
+        if (BoardOpsModule && typeof BoardOpsModule.getExpansionDescriptors === 'function') {
+            return BoardOpsModule.getExpansionDescriptors(gameState);
+        }
         const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
             ? gameState.boardExpansion
             : null;
@@ -79,6 +82,9 @@
     }
 
     function getCellValue(gameState, row, col) {
+        if (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function') {
+            return BoardOpsModule.getCellValue(gameState, row, col);
+        }
         if (row >= 0 && row < 8 && col >= 0 && col < 8) return gameState.board[row][col];
         const expansionCells = getExpansionCells(gameState);
         for (const expansion of expansionCells) {
@@ -89,6 +95,9 @@
     }
 
     function setCellValue(gameState, row, col, value) {
+        if (BoardOpsModule && typeof BoardOpsModule.setCellValue === 'function') {
+            return BoardOpsModule.setCellValue(gameState, row, col, value);
+        }
         if (row >= 0 && row < 8 && col >= 0 && col < 8) {
             gameState.board[row][col] = value;
             return true;
@@ -127,6 +136,14 @@
         }
     }
 
+    function getNeighborCellsSnapshot(gameState, row, col) {
+        const cells = [];
+        forEachNeighborCell(gameState, row, col, (r, c, value) => {
+            cells.push({ row: r, col: c, value });
+        });
+        return cells;
+    }
+
     function processUltimateDestroyGodEffects(cardState, gameState, playerKey, deps = {}) {
         const destroyed = [];
         const anchors = [];
@@ -156,24 +173,28 @@
             }
 
             // 1) Destroy surrounding enemy stones (Destroy)
-            forEachNeighborCell(gameState, udg.row, udg.col, (r, c, value) => {
-                    if (value !== opponent) return;
-                    let destroyedRes = false;
-                    if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                            const res = deps.BoardOps.destroyAt(cardState, gameState, r, c, 'ULTIMATE_DESTROY_GOD', 'udg_destroyed', {
-                                sourceRow: udg.row,
-                                sourceCol: udg.col,
-                                projectileOwner: playerKey,
-                                projectileStone: 'udg_lightning'
-                            });
-                        destroyedRes = !!res.destroyed;
-                    } else {
-                        destroyedRes = destroyAt(cardState, gameState, r, c);
-                    }
-                    if (destroyedRes) {
-                        destroyed.push({ row: r, col: c });
-                    }
-            });
+            const neighborCells = getNeighborCellsSnapshot(gameState, udg.row, udg.col);
+            const targets = neighborCells.filter((cell) => cell && cell.value === opponent);
+            const forbiddenEvadeCells = neighborCells.map((cell) => ({ row: cell.row, col: cell.col }));
+            for (const target of targets) {
+                if (!target) continue;
+                let destroyedRes = false;
+                if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
+                    const res = deps.BoardOps.destroyAt(cardState, gameState, target.row, target.col, 'ULTIMATE_DESTROY_GOD', 'udg_destroyed', {
+                        sourceRow: udg.row,
+                        sourceCol: udg.col,
+                        projectileOwner: playerKey,
+                        projectileStone: 'udg_lightning',
+                        forbiddenEvadeCells
+                    });
+                    destroyedRes = !!(res && res.destroyed);
+                } else {
+                    destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
+                }
+                if (destroyedRes) {
+                    destroyed.push({ row: target.row, col: target.col });
+                }
+            }
 
             // 2) Decrement remaining turns
             const before = (udg.data && (udg.data.remainingOwnerTurns !== undefined && udg.data.remainingOwnerTurns !== null))
@@ -234,24 +255,28 @@
         if (getCellValue(gameState, row, col) !== player) return { destroyed };
 
         // 1) Destroy surrounding enemy stones (Destroy)
-        forEachNeighborCell(gameState, row, col, (r, c, value) => {
-                if (value !== opponent) return;
-                let destroyedRes = false;
-                if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                    const res = deps.BoardOps.destroyAt(cardState, gameState, r, c, 'ULTIMATE_DESTROY_GOD', 'udg_destroyed', {
-                        sourceRow: row,
-                        sourceCol: col,
-                        projectileOwner: playerKey,
-                        projectileStone: 'udg_lightning'
-                    });
-                    destroyedRes = !!res.destroyed;
-                } else {
-                    destroyedRes = destroyAt(cardState, gameState, r, c);
-                }
-                if (destroyedRes) {
-                    destroyed.push({ row: r, col: c });
-                }
-        });
+        const neighborCells = getNeighborCellsSnapshot(gameState, row, col);
+        const targets = neighborCells.filter((cell) => cell && cell.value === opponent);
+        const forbiddenEvadeCells = neighborCells.map((cell) => ({ row: cell.row, col: cell.col }));
+        for (const target of targets) {
+            if (!target) continue;
+            let destroyedRes = false;
+            if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
+                const res = deps.BoardOps.destroyAt(cardState, gameState, target.row, target.col, 'ULTIMATE_DESTROY_GOD', 'udg_destroyed', {
+                    sourceRow: row,
+                    sourceCol: col,
+                    projectileOwner: playerKey,
+                    projectileStone: 'udg_lightning',
+                    forbiddenEvadeCells
+                });
+                destroyedRes = !!(res && res.destroyed);
+            } else {
+                destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
+            }
+            if (destroyedRes) {
+                destroyed.push({ row: target.row, col: target.col });
+            }
+        }
 
         // 2) Decrement remaining turns (skip decrement for immediate placement if requested)
         const before = (udg.data && (udg.data.remainingOwnerTurns !== undefined && udg.data.remainingOwnerTurns !== null))

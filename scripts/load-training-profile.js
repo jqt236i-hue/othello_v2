@@ -19,6 +19,22 @@ const RESERVED_TRAIN_CYCLE_FLAGS = new Set([
     '--run-tag'
 ]);
 
+const SHARED_TEACHER_ARG_SPECS = Object.freeze([
+    { flag: '--selfplay-policy-mix-rate', key: 'policyMixRate', type: 'number' },
+    { flag: '--selfplay-policy-model-pool-size', key: 'policyModelPoolSize', type: 'integer' },
+    { flag: '--selfplay-policy-pool-sampling', key: 'policyPoolSampling', type: 'string' },
+    { flag: '--selfplay-policy-pool-recency-decay', key: 'policyPoolRecencyDecay', type: 'number' },
+    { flag: '--selfplay-policy-current-anchor-rate', key: 'policyCurrentAnchorRate', type: 'number' },
+    { flag: '--selfplay-tactical-depth-opening', key: 'tacticalDepthOpening', type: 'integer' },
+    { flag: '--selfplay-tactical-depth-mid', key: 'tacticalDepthMid', type: 'integer' },
+    { flag: '--selfplay-tactical-depth-end', key: 'tacticalDepthEnd', type: 'integer' },
+    { flag: '--selfplay-tactical-beam-width', key: 'tacticalBeamWidth', type: 'integer' },
+    { flag: '--selfplay-teacher-committee-weight-min', key: 'teacherCommitteeWeightMin', type: 'number' },
+    { flag: '--selfplay-teacher-committee-weight-max', key: 'teacherCommitteeWeightMax', type: 'number' },
+    { flag: '--selfplay-teacher-committee-consensus-bonus-min', key: 'teacherCommitteeConsensusBonusMin', type: 'number' },
+    { flag: '--selfplay-teacher-committee-consensus-bonus-max', key: 'teacherCommitteeConsensusBonusMax', type: 'number' }
+]);
+
 function defaultPythonPath(cwd) {
     return path.resolve(cwd || process.cwd(), '.venv', 'Scripts', 'python.exe');
 }
@@ -81,7 +97,7 @@ function resolveNamedConfigPath(kind, ref, cwd) {
         }
     }
 
-    throw new Error(`${label} not found: ${raw}`);
+    throw new Error(`${label} not found: ${raw} (searched: ${candidates.join(', ')})`);
 }
 
 function loadStructuredFile(filePath, pythonPath) {
@@ -96,7 +112,7 @@ function loadStructuredFile(filePath, pythonPath) {
 
     const pyPath = resolveMaybePath(process.cwd(), pythonPath || defaultPythonPath(process.cwd()));
     if (!pyPath || !fs.existsSync(pyPath)) {
-        throw new Error(`python executable not found for YAML loading: ${pyPath || '(empty)'}`);
+        throw new Error(`python executable not found for YAML loading: ${pyPath || '(empty)'} (file: ${filePath})`);
     }
 
     const script = [
@@ -125,13 +141,13 @@ function loadStructuredFile(filePath, pythonPath) {
         throw result.error;
     }
     if (result.status !== 0) {
-        throw new Error(`YAML load failed for ${filePath}: ${result.stderr || `exit=${result.status}`}`);
+        throw new Error(`YAML load failed for ${filePath} via ${pyPath}: ${result.stderr || `exit=${result.status}`}`);
     }
 
     try {
         return JSON.parse(result.stdout || 'null');
     } catch (e) {
-        throw new Error(`YAML loader returned invalid JSON for ${filePath}: ${e.message}`);
+        throw new Error(`YAML loader returned invalid JSON for ${filePath} via ${pyPath}: ${e.message}`);
     }
 }
 
@@ -270,6 +286,90 @@ function shellQuote(arg) {
     return `"${raw.replace(/"/g, '\\"')}"`;
 }
 
+function findFlagIndex(args, flag) {
+    if (!Array.isArray(args) || !flag) return -1;
+    for (let i = 0; i < args.length; i++) {
+        if (String(args[i] || '').trim() === flag) return i;
+    }
+    return -1;
+}
+
+function removeFlagAndValue(args, flag) {
+    if (!Array.isArray(args) || !flag) return args || [];
+    const out = args.slice();
+    const index = findFlagIndex(out, flag);
+    if (index < 0) return out;
+    out.splice(index, 1);
+    if (index < out.length && !String(out[index] || '').trim().startsWith('--')) {
+        out.splice(index, 1);
+    }
+    return out;
+}
+
+function upsertFlagValue(args, flag, value) {
+    const out = removeFlagAndValue(args, flag);
+    out.push(flag, String(value));
+    return out;
+}
+
+function upsertBooleanFlag(args, flag, enabled) {
+    const out = removeFlagAndValue(args, flag);
+    if (enabled) out.push(flag);
+    return out;
+}
+
+function loadCpuLv6SharedTeacherProfile(cwd) {
+    const sharedPath = path.resolve(cwd, 'constants', 'cpu-lv6-shared-profile.js');
+    if (!fs.existsSync(sharedPath)) return null;
+    try {
+        const shared = require(sharedPath);
+        if (!shared || typeof shared !== 'object') return null;
+        const teacher = shared.teacher;
+        return teacher && typeof teacher === 'object' ? teacher : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function formatSharedTeacherValue(type, value) {
+    if (type === 'integer') {
+        const numeric = Math.max(0, Math.floor(Number(value) || 0));
+        return String(numeric);
+    }
+    if (type === 'number') {
+        const numeric = Number(value);
+        return String(Number.isFinite(numeric) ? numeric : 0);
+    }
+    return String(value);
+}
+
+function applySharedTeacherProfileArgs(trainCycleArgs, teacherProfile) {
+    let nextArgs = Array.isArray(trainCycleArgs) ? trainCycleArgs.slice() : [];
+    if (!teacherProfile || typeof teacherProfile !== 'object') return nextArgs;
+
+    for (const spec of SHARED_TEACHER_ARG_SPECS) {
+        const rawValue = teacherProfile[spec.key];
+        if (rawValue == null) continue;
+        nextArgs = upsertFlagValue(nextArgs, spec.flag, formatSharedTeacherValue(spec.type, rawValue));
+    }
+    const hasExplicitGuideMode =
+        findFlagIndex(nextArgs, '--selfplay-use-promoted-model-only') >= 0 ||
+        findFlagIndex(nextArgs, '--selfplay-use-candidate-every-iteration') >= 0;
+    if (!hasExplicitGuideMode) {
+        nextArgs = upsertBooleanFlag(
+            nextArgs,
+            '--selfplay-use-promoted-model-only',
+            teacherProfile.usePromotedModelOnly !== false
+        );
+        nextArgs = upsertBooleanFlag(
+            nextArgs,
+            '--selfplay-use-candidate-every-iteration',
+            teacherProfile.usePromotedModelOnly === false
+        );
+    }
+    return nextArgs;
+}
+
 function buildPreflightCommand(resolved) {
     if (!resolved.preflight.enabled) return null;
     const args = [
@@ -353,7 +453,13 @@ function resolveTrainingProfile(profileRef, options) {
         resumeCheckpointPath = findLatestCheckpoint(modelsDir);
     }
 
-    const profileTrainCycleArgs = ensureArrayOfStrings(profile.trainCycleArgs, 'profile.trainCycleArgs');
+    let profileTrainCycleArgs = ensureArrayOfStrings(profile.trainCycleArgs, 'profile.trainCycleArgs');
+    if (profile.syncCpuLv6SharedTeacher === true) {
+        const sharedTeacherProfile = loadCpuLv6SharedTeacherProfile(cwd);
+        if (sharedTeacherProfile) {
+            profileTrainCycleArgs = applySharedTeacherProfileArgs(profileTrainCycleArgs, sharedTeacherProfile);
+        }
+    }
     const gateTrainCycleArgs = gate ? ensureArrayOfStrings(gate.trainCycleArgs, 'gate.trainCycleArgs') : [];
 
     const generatedArgs = [
@@ -370,8 +476,16 @@ function resolveTrainingProfile(profileRef, options) {
         generatedArgs.push('--resume-checkpoint', resumeCheckpointPath);
     }
 
-    const trainCycleScriptPath = path.resolve(cwd, 'scripts', 'run-selfplay-training-cycle.js');
-    const trainCycleArgs = [trainCycleScriptPath]
+    const launcherScriptPath = resolveMaybePath(
+        cwd,
+        (profile && typeof profile.launcherScript === 'string' && profile.launcherScript.trim())
+            ? profile.launcherScript.trim()
+            : path.join('scripts', 'run-selfplay-training-cycle.js')
+    );
+    if (!launcherScriptPath || !fs.existsSync(launcherScriptPath)) {
+        throw new Error(`launcher script not found: ${launcherScriptPath || '(empty)'}`);
+    }
+    const trainCycleArgs = [launcherScriptPath]
         .concat(profileTrainCycleArgs)
         .concat(gateTrainCycleArgs)
         .concat(generatedArgs)
@@ -415,6 +529,9 @@ function resolveTrainingProfile(profileRef, options) {
             executable: process.execPath,
             args: trainCycleArgs,
             display: [process.execPath].concat(trainCycleArgs).map(shellQuote).join(' ')
+        },
+        launcher: {
+            scriptPath: launcherScriptPath
         },
         preflightCommand: null,
         passThrough

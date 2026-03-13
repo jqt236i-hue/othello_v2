@@ -61,15 +61,49 @@ function scheduleWithDelay(delayMs, callback, immediateWithoutTimers) {
     if (tid && typeof tid.unref === 'function') tid.unref();
 }
 
-function scheduleWhiteCpuTurnGuarded(delayMs) {
+const WHITE_CPU_TURN_RETRY_DELAY_MS = 32;
+const WHITE_CPU_TURN_MAX_RETRIES = 2;
+
+function resolveCpuTurnFnForPass() {
+    try {
+        if (typeof processCpuTurn === 'function') return processCpuTurn;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && typeof globalThis.processCpuTurn === 'function') {
+            return globalThis.processCpuTurn;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function scheduleWhiteCpuTurnGuarded(delayMs, options) {
     if (isHumanVsHumanModeEnabled()) return;
-    const expectedTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
+    const opts = options || {};
+    const expectedTurnNumber = Number.isFinite(opts.expectedTurnNumber)
+        ? opts.expectedTurnNumber
+        : ((gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null);
+    const retryCount = Number.isFinite(opts.retryCount) ? Math.max(0, opts.retryCount) : 0;
     scheduleWithDelay(delayMs, () => {
         const currentPlayer = gameState ? gameState.currentPlayer : null;
         if (normalizePlayerKeyOptional(currentPlayer) !== 'white') return;
         const currentTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
-        if (expectedTurnNumber !== null && currentTurnNumber !== null && expectedTurnNumber !== currentTurnNumber) return;
-        if (typeof processCpuTurn === 'function') processCpuTurn();
+        const cpuFn = resolveCpuTurnFnForPass();
+        if (!cpuFn) {
+            if (retryCount < WHITE_CPU_TURN_MAX_RETRIES) {
+                scheduleWhiteCpuTurnGuarded(WHITE_CPU_TURN_RETRY_DELAY_MS, {
+                    expectedTurnNumber: currentTurnNumber !== null ? currentTurnNumber : expectedTurnNumber,
+                    retryCount: retryCount + 1
+                });
+            }
+            return;
+        }
+        // Pass resolution can advance bookkeeping before the delayed callback fires.
+        // If it is still white's turn, continue with the latest white turn instead of dropping the handoff.
+        if (expectedTurnNumber !== null && currentTurnNumber !== null && expectedTurnNumber !== currentTurnNumber) {
+            cpuFn();
+            return;
+        }
+        cpuFn();
     });
 }
 
@@ -120,8 +154,31 @@ function publishNetworkSnapshot(meta) {
     } catch (e) { /* ignore */ }
 }
 
-function publishPassSnapshot(playerKey) {
-    publishNetworkSnapshot({ playerKey: playerKey, actionType: 'pass', playbackEvents: [] });
+function captureNetworkPublishSnapshot(gameStateValue, cardStateValue) {
+    if (!gameStateValue || !cardStateValue) return null;
+    try {
+        if (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') {
+            return {
+                gameState: globalThis.structuredClone(gameStateValue),
+                cardState: globalThis.structuredClone(cardStateValue)
+            };
+        }
+    } catch (e) { /* ignore */ }
+
+    try {
+        return {
+            gameState: JSON.parse(JSON.stringify(gameStateValue)),
+            cardState: JSON.parse(JSON.stringify(cardStateValue))
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
+function publishPassSnapshot(playerKey, snapshotOverride) {
+    const meta = { playerKey: playerKey, actionType: 'pass', playbackEvents: [] };
+    if (snapshotOverride) meta.snapshot = snapshotOverride;
+    publishNetworkSnapshot(meta);
 }
 
 function hasUsableCardFor(playerKey) {
@@ -197,6 +254,12 @@ function handleRejectedPass() {
     return false;
 }
 
+function syncPassPipelineState(result) {
+    if (!result || typeof result !== 'object') return;
+    if (result.gameState) gameState = result.gameState;
+    if (result.cardState) cardState = result.cardState;
+}
+
 function ensureCurrentPlayerCanActOrPass(options) {
     if (!gameState || !cardState) return false;
     const opts = options || {};
@@ -263,7 +326,12 @@ function applyPassViaPipeline(playerKey) {
             ActionManager.ActionManager.incrementTurnIndex();
         }
 
-        return { ok: true, events: result.events };
+        return {
+            ok: true,
+            events: result.events,
+            gameState: result.gameState,
+            cardState: result.cardState
+        };
     } else {
         // Fallback to regular applyTurn
         const res = TurnPipeline.applyTurn(cardState, gameState, playerKey, action);
@@ -276,7 +344,12 @@ function applyPassViaPipeline(playerKey) {
             ActionManager.ActionManager.incrementTurnIndex();
         }
 
-        return { ok: true, events: res.events || [] };
+        return {
+            ok: true,
+            events: res.events || [],
+            gameState: res.gameState,
+            cardState: res.cardState
+        };
     }
 }
 
@@ -285,10 +358,12 @@ async function _postApplyPassCommon(lastPlayerKey) {
     try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
     try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
 
+    const publishSnapshotOverride = captureNetworkPublishSnapshot(gameState, cardState);
+
     if (typeof isGameOver === 'function' && isGameOver(gameState)) {
         if (typeof showResult === 'function') showResult();
         isProcessing = false;
-        publishPassSnapshot(lastPlayerKey || 'black');
+        publishPassSnapshot(lastPlayerKey || 'black', publishSnapshotOverride);
         return true;
     }
 
@@ -312,7 +387,7 @@ async function _postApplyPassCommon(lastPlayerKey) {
         if (typeof isGameOver === 'function' && isGameOver(gameState)) {
             if (typeof showResult === 'function') showResult();
             isProcessing = false;
-            publishPassSnapshot(lastPlayerKey || 'black');
+            publishPassSnapshot(lastPlayerKey || 'black', publishSnapshotOverride);
             return true;
         }
 
@@ -329,7 +404,7 @@ async function _postApplyPassCommon(lastPlayerKey) {
             // Delegate to black-pass handler for additional delays/flows
             handleBlackPassWhenNoMoves();
         }
-        publishPassSnapshot(lastPlayerKey || 'black');
+        publishPassSnapshot(lastPlayerKey || 'black', publishSnapshotOverride);
         return true;
     }
 
@@ -344,7 +419,7 @@ async function _postApplyPassCommon(lastPlayerKey) {
         if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue('black', nextPlayer));
         try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
     }
-    publishPassSnapshot(lastPlayerKey || 'black');
+    publishPassSnapshot(lastPlayerKey || 'black', publishSnapshotOverride);
     return true;
 }
 
@@ -358,6 +433,7 @@ async function handleDoublePlaceNoSecondMove(move, passedPlayer) {
         if (!result.ok) {
             return handleRejectedPass();
         }
+        syncPassPipelineState(result);
 
         await _postApplyPassCommon(playerKey);
     });
@@ -375,6 +451,7 @@ async function handleBlackPassWhenNoMoves() {
         if (!result.ok) {
             return handleRejectedPass();
         }
+        syncPassPipelineState(result);
 
         await _postApplyPassCommon(playerKey);
     }, true);
@@ -391,14 +468,17 @@ async function processPassTurn(playerKey, autoMode) {
     if (!result.ok) {
         return handleRejectedPass();
     }
+    syncPassPipelineState(result);
 
     try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
     try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
 
+    const publishSnapshotOverride = captureNetworkPublishSnapshot(gameState, cardState);
+
     if (typeof isGameOver === 'function' && isGameOver(gameState)) {
         if (typeof showResult === 'function') showResult();
         isProcessing = false;
-        publishPassSnapshot(passedPlayerKey);
+        publishPassSnapshot(passedPlayerKey, publishSnapshotOverride);
         return true;
     }
 
@@ -427,7 +507,7 @@ async function processPassTurn(playerKey, autoMode) {
         if (typeof isGameOver === 'function' && isGameOver(gameState)) {
             if (typeof showResult === 'function') showResult();
             isProcessing = false;
-            publishPassSnapshot(passedPlayerKey);
+            publishPassSnapshot(passedPlayerKey, publishSnapshotOverride);
             return true;
         }
 
@@ -443,7 +523,7 @@ async function processPassTurn(playerKey, autoMode) {
         } else {
             handleBlackPassWhenNoMoves();
         }
-        publishPassSnapshot(passedPlayerKey);
+        publishPassSnapshot(passedPlayerKey, publishSnapshotOverride);
         return true;
     }
 
@@ -458,7 +538,7 @@ async function processPassTurn(playerKey, autoMode) {
         if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue('black', nextPlayer));
         try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
     }
-    publishPassSnapshot(passedPlayerKey);
+    publishPassSnapshot(passedPlayerKey, publishSnapshotOverride);
     return true;
 }
 

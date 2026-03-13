@@ -120,7 +120,7 @@
         { id: 'hard_01', name: '弱い意志', type: 'PROTECTED_NEXT_STONE', cost: 1, desc: '次に置いた石は、次の相手ターンの間、反転されない' },
 
         // SWAP_WITH_ENEMY (交換の意志) - 1 card, cost: 17
-        { id: 'swap_01', name: '交換の意志', type: 'SWAP_WITH_ENEMY', cost: 17, desc: '相手の通常石1つを自分色に交換し、その位置で挟める相手石を反転する。' },
+        { id: 'swap_01', name: '交換の意志', type: 'SWAP_WITH_ENEMY', cost: 17, desc: '相手の通常石1つを自分色に交換し、その位置で挟める相手石を反転する。石は置かず、そのままターン終了。' },
         // POSITION_SWAP_WILL (入替の意志) - 1 card, cost: 13
         { id: 'position_swap_01', name: '入替の意志', type: 'POSITION_SWAP_WILL', cost: 13, desc: '盤面上の石2つを選び、位置を入れ替える。通常石・特殊石・爆弾を問わず対象にできる。' },
 
@@ -136,7 +136,7 @@
         // SUPER_GRAVITY_WILL (超重力) - 1 card, cost: 14
         { id: 'super_gravity_01', name: '超重力', type: 'SUPER_GRAVITY_WILL', cost: 14, desc: '盤面の石1つを選び、下方向へ限界まで移動させる。進行方向上の石は衝突時にすべて破壊して進む。' },
 
-        { id: 'trap_01', name: '罠の意志', type: 'TRAP_WILL', cost: 4, desc: '自分の石を1つ罠石にする。次の相手ターン中に反転されると、相手の布石全没収＋手札全破壊。' },
+        { id: 'trap_01', name: '罠の意志', type: 'TRAP_WILL', cost: 4, desc: '自分の石を1つ罠石にしてターン終了。次の相手ターン中に反転されると、相手の布石を最大20奪う＋手札全破壊。' },
 
         { id: 'chain_01', name: '連鎖の意志', type: 'CHAIN_WILL', cost: 22, desc: 'このターンの配置で発生した通常反転を起点に、追加反転を最大2回まで行う。' },
 
@@ -151,7 +151,7 @@
         { id: 'bomb_01', name: '時限爆弾', type: 'TIME_BOMB', cost: 13, desc: '盤面上の自分の石1つを時限爆弾化。3ターン後に周囲9マスを破壊。反転されると解除。' },
 
         // ULTIMATE_REVERSE_DRAGON (究極反転龍) - 1 card, cost: 30
-        { id: 'udr_01', name: '究極反転龍', type: 'ULTIMATE_REVERSE_DRAGON', cost: 30, desc: '次に置く石を龍化。配置ターン即時＋自ターン開始時、周囲8マスの相手石を自分色に反転（反転数はチャージ対象）。持続5ターン（配置ターン含め最大6回発動）で消滅。反転保護を持つ特殊石。' },
+        { id: 'udr_01', name: '究極反転龍', type: 'ULTIMATE_REVERSE_DRAGON', cost: 30, desc: '反転0でも空きマスに配置可能。次に置く石を龍化。配置ターン即時＋自ターン開始時、周囲8マスの相手石を自分色に反転（反転数はチャージ対象）。持続5ターン（配置ターン含め最大6回発動）で消滅。反転保護を持つ特殊石。' },
 
         // BREEDING_WILL (繁殖の意志) - 1 card, cost: 16
         { id: 'breeding_01', name: '繁殖の意志', type: 'BREEDING_WILL', cost: 16, desc: '次に置く石を繁殖石化。配置時と自ターン開始時に周囲8マスへランダム1個生成。以後は前回生成石の周囲へ拡散。生成石が反転/消滅した場合は親石起点に戻る。持続3ターン。' },
@@ -179,6 +179,7 @@
 
         // GLUTTONOUS_WILL (悪食の意志) - 1 card, cost: 29
         { id: 'gluttonous_will_01', name: '悪食の意志', type: 'GLUTTONOUS_WILL', cost: 29, desc: '使用後、残り手札をすべて破壊し、次に置く石を悪食石化。両者ターン開始時に敵石方向へ1マス移動し、隣接敵石へは優先して進入しながら捕食する。隣接敵石が無い場合は近づくように移動し、2連続で捕食できなければ飢えて消滅する。反転保護を持つ特殊石。' },
+        { id: 'will_hunter_king_01', name: '意志狩りの王', type: 'WILL_HUNTER_KING', cost: 33, desc: '次に置く石を意志狩りの王石化。自ターン開始時、ランダムな敵石1つのマスへ移動しながら破壊する。敵の特殊石がある場合は優先して狙う。8ターン持続。反転回避2回と破壊回避2回を持つ特殊石。' },
 
         // INSTANT_HYPERACTIVE_WILL (瞬間多動) - 1 card, cost: 5
         { id: 'instant_hyperactive_01', name: '瞬間多動', type: 'INSTANT_HYPERACTIVE_WILL', cost: 5, desc: '次に置く石を瞬間多動石化。配置直後にランダム1マス移動を3回行い、各移動後に挟める場合は通常反転。最後に消滅する。' },
@@ -194,6 +195,8 @@
 
         // PLUNDER_WILL (吸収の意志) - 1 card, cost: 4
         { id: 'plunder_will', name: '吸収の意志', type: 'PLUNDER_WILL', cost: 4, desc: '次の反転数だけ相手の布石を吸収する。' },
+
+        { id: 'corner_tribute_01', name: '角の代償', type: 'CORNER_TRIBUTE', cost: 0, desc: '相手が角に4個以上石を置いている時だけ使用可能。相手の布石を最大20奪う。' },
 
         { id: 'work_01', name: '出稼ぎの意志', type: 'WORK_WILL', cost: 11, desc: '次の配置をアンカーにして、その石がある限り自ターン開始時に1,2,4,8,16の順でチャージを得る（最大99）。石が相手に取られるか破壊されると効果は終了する。' },
 
@@ -211,8 +214,8 @@
         // GOLD_STONE (金の意志) - 1 card, cost: 6
         { id: 'gold_stone', name: '金の意志', type: 'GOLD_STONE', cost: 6, desc: '次の反転で得る布石が4倍。使用後その石は消滅する。' },
 
-        // STEAL_CARD (転売の意志) - 1 card, cost: 7
-        { id: 'steal_card_01', name: '転売の意志', type: 'STEAL_CARD', cost: 7, desc: 'この手の反転枚数ぶん相手手札からカードを奪って売却する。売却したカード1枚につき布石を2獲得。' },
+        // RAINBOW_STONE (虹の意志) - 1 card, cost: 10
+        { id: 'rainbow_stone', name: '虹の意志', type: 'RAINBOW_STONE', cost: 10, desc: '次の反転で得る布石が6倍。使用後その石は消滅する。' },
 
         // EXTEND_LIFE_WILL (延命の意志) - 1 card, cost: 2
         { id: 'extend_life_01', name: '延命の意志', type: 'EXTEND_LIFE_WILL', cost: 2, desc: '盤面上の自分の特殊石1つを選び、その持続ターン(remainingOwnerTurns)を2倍にする。' },
@@ -233,7 +236,7 @@
         { id: 'lightning_01', name: '落雷', type: 'LIGHTNING_WILL', cost: 26, desc: '次に置く石を落雷石化。配置ターン即時と自ターン開始時に盤面上のランダムな敵石を1個破壊する。5ターン持続。反転保護を持つ特殊石。' },
 
         // ULTIMATE_DESTROY_GOD (究極破壊神) - 1 card, cost: 25
-        { id: 'udg_01', name: '究極破壊神', type: 'ULTIMATE_DESTROY_GOD', cost: 25, desc: '次に置く石を究極破壊神化。配置ターン即時＋自ターン開始時、周囲8マスの敵石を破壊。持続5ターン（配置ターン含め最大6回）。' },
+        { id: 'udg_01', name: '究極破壊神', type: 'ULTIMATE_DESTROY_GOD', cost: 25, desc: '反転0でも空きマスに配置可能。次に置く石を究極破壊神化。配置ターン即時＋自ターン開始時、周囲8マスの敵石を破壊。持続5ターン（配置ターン含め最大6回）。' },
 
         // ULTIMATE_HYPERACTIVE_GOD (究極多動神) - 1 card, cost: 28
         { id: 'ultimate_hyperactive_01', name: '究極多動神', type: 'ULTIMATE_HYPERACTIVE_GOD', cost: 28, desc: '次に置く石を究極多動神化。両者ターン開始時に直線1〜5マス移動を2回行い、2マス以上は途中の石を飛び越える。移動後に挟めば反転。反転対象時はマス移動で回避し、最大5回まで。移動先が無いと消滅。特殊石として扱われ、10ターン後は自己消滅する。' },
@@ -249,6 +252,9 @@
 
         // METEOR_WILL (隕石) - 1 card, cost: 21
         { id: 'meteor_01', name: '隕石', type: 'METEOR_WILL', cost: 21, desc: '盤面上のマスを1つ選び、石ごとマスを破壊して穴にする。穴は永続し、誰も配置できず反転経路も遮断する。守る意志・守護神の完全保護も貫通する。' },
+
+        // FREEZE_WILL (凍結の意志) - 1 card, cost: 5
+        { id: 'freeze_01', name: '凍結の意志', type: 'FREEZE_WILL', cost: 5, desc: '盤面上のマスを1つ選び、5ターン凍結する。凍結マスとその石は反転・破壊されず、凍結中は特殊石の持続ターンが減らない。' },
 
         // OBSERVER_WILL (盤理の観測者) - 1 card, cost: 1
         { id: 'observer_01', name: '盤理の観測者', type: 'OBSERVER_WILL', cost: 1, desc: '次に置く石を観測者石化。所有者ターン開始時に30%で発動し、布石を1〜5獲得。5ターン持続。' }
@@ -293,12 +299,13 @@
         'HEAVEN_BLESSING',
         'CONDEMN_WILL',
         'PLUNDER_WILL',
+        'CORNER_TRIBUTE',
         'WORK_WILL',
         'RIBO_WILL',
         'LOSS_WILL',
         'GOLD_STONE',
+        'RAINBOW_STONE',
         'SILVER_STONE',
-        'STEAL_CARD',
         'EXTEND_LIFE_WILL',
         'CORROSION_WILL',
         'GUARD_WILL',
@@ -311,6 +318,7 @@
         'BOARD_EXPANSION_GOD',
         'BLOCKADE_WILL',
         'METEOR_WILL',
+        'FREEZE_WILL',
         'OBSERVER_WILL',
         'HYPERACTIVE_WILL',
         'HYPERACTIVE_INHERIT_WILL',
@@ -318,6 +326,7 @@
         'ESCAPE_WILL',
         'ROBOT_VACUUM_WILL',
         'GLUTTONOUS_WILL',
+        'WILL_HUNTER_KING',
         'INSTANT_HYPERACTIVE_WILL',
         'SELL_CARD_WILL',
         'REBUILD_WILL',

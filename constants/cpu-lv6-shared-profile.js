@@ -8,68 +8,78 @@
     }
 }(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     return {
-        version: 'teacher_lv6_parity_v2',
+        version: 'teacher_lv6_parity_v4',
         browser: {
             minThinkMsWhite: 250,
             moveDecisionMode: 'policy-table-lookahead',
             cardDecisionMode: 'policy-table-core',
+            sacrificeWillMinTurnNumber: 25,
             lookaheadTimeCaps: {
                 whiteUi: {
-                    moveCapMs: 2800,
-                    endgameCapMs: 4200,
-                    quiescenceMoveCapMs: 2800,
-                    quiescenceEndgameCapMs: 4200,
-                    quiescenceEndgameMinMs: 2200
+                    moveCapMs: 1250,
+                    endgameCapMs: 1800,
+                    quiescenceMoveCapMs: 1000,
+                    quiescenceEndgameCapMs: 1700,
+                    quiescenceEndgameMinMs: 800
                 },
                 whiteHeadless: {
-                    moveCapMs: 2400,
-                    endgameCapMs: 3000,
-                    quiescenceMoveCapMs: 2400,
-                    quiescenceEndgameCapMs: 3000,
-                    quiescenceEndgameMinMs: 1800
+                    moveCapMs: 900,
+                    endgameCapMs: 1300,
+                    quiescenceMoveCapMs: 750,
+                    quiescenceEndgameCapMs: 1200,
+                    quiescenceEndgameMinMs: 600
                 },
                 black: {
-                    moveCapMs: 2200,
-                    endgameCapMs: 12000,
-                    quiescenceMoveCapMs: 3500,
-                    quiescenceEndgameCapMs: 20000,
-                    quiescenceEndgameMinMs: 4000
+                    moveCapMs: 1000,
+                    endgameCapMs: 1500,
+                    quiescenceMoveCapMs: 800,
+                    quiescenceEndgameCapMs: 1400,
+                    quiescenceEndgameMinMs: 700
                 }
             },
             lookaheadStages: {
                 opening: {
                     maxOccupiedRatio: 0.28,
-                    depth: 6,
-                    maxBranch: 10,
-                    nodeBudgetBase: 3000000,
-                    maxTimeBaseMs: 2800
+                    depth: 4,
+                    maxBranch: 6,
+                    nodeBudgetBase: 900000,
+                    maxTimeBaseMs: 900
                 },
                 mid: {
                     maxOccupiedRatio: 0.62,
-                    depth: 8,
-                    maxBranch: 10,
-                    nodeBudgetBase: 6000000,
-                    maxTimeBaseMs: 3200
+                    depth: 6,
+                    maxBranch: 7,
+                    nodeBudgetBase: 1900000,
+                    maxTimeBaseMs: 1200
                 },
                 end: {
-                    depth: 10,
-                    maxBranch: 10,
-                    nodeBudgetBase: 10000000,
-                    maxTimeBaseMs: 4200
+                    depth: 7,
+                    maxBranch: 8,
+                    nodeBudgetBase: 2800000,
+                    maxTimeBaseMs: 1600
                 }
             },
             endgameLookahead: {
-                solveEmptiesOpeningMid: 44,
-                solveEmptiesEnd: 46,
-                depthOpeningMid: 44,
-                depthEnd: 48,
-                nodeBudgetBase: 32000000,
-                maxTimeBaseMs: 22000
+                solveEmptiesOpeningMid: 16,
+                solveEmptiesEnd: 20,
+                depthOpeningMid: 12,
+                depthEnd: 16,
+                nodeBudgetBase: 4800000,
+                maxTimeBaseMs: 1800
             },
             lookaheadWeights: {
                 onnxRefinePriorWeight: 66,
                 policyLookaheadPriorWeight: 62,
                 searchWeight: 1.8
+            },
+            onnxRuntimeGuard: {
+                minSamples: 4,
+                maxAverageLatencyMs: 18,
+                maxP95LatencyMs: 28,
+                maxMaxLatencyMs: 45,
+                moveBudgetMs: 120,
+                cardBudgetMs: 80,
+                pendingSelectionBudgetMs: 120
             }
         },
         teacher: {
@@ -85,10 +95,10 @@
             policyPoolSampling: 'uniform',
             policyPoolRecencyDecay: 1.0,
             policyCurrentAnchorRate: 1.0,
-            tacticalDepthOpening: 6,
-            tacticalDepthMid: 8,
-            tacticalDepthEnd: 10,
-            tacticalBeamWidth: 10,
+            tacticalDepthOpening: 4,
+            tacticalDepthMid: 6,
+            tacticalDepthEnd: 7,
+            tacticalBeamWidth: 6,
             teacherCommitteeWeightMin: 48,
             teacherCommitteeWeightMax: 72,
             teacherCommitteeConsensusBonusMin: 620,

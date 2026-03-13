@@ -14,6 +14,9 @@ const deepClone = require('../../utils/deepClone');
 const CpuPolicyCore = require('../../game/ai/cpu-policy-core');
 const CpuPolicyTableRuntime = require('../../game/ai/policy-table-runtime');
 const CpuLv6LookaheadProfile = require('../../game/ai/cpu-lv6-lookahead-profile');
+const SharedBoardUtils = require('../../shared/shared-board-utils');
+const SharedCardHeuristics = require('../../shared/shared-card-heuristics');
+const PendingTargetSelector = require('../../game/turn-handlers/pending-target-selector');
 
 const SELFPLAY_SCHEMA_VERSION = 'selfplay.v2';
 const LEGACY_SELFPLAY_SCHEMA_VERSION = 'selfplay.v1';
@@ -83,7 +86,6 @@ const CANDIDATE_CARD_TYPES = new Set([
     'CONDEMN_WILL',
     'GOLD_STONE',
     'SILVER_STONE',
-    'STEAL_CARD',
     'ULTIMATE_HYPERACTIVE_GOD',
     'ULTIMATE_DESTROY_GOD',
     'DESTROY_ONE_STONE',
@@ -114,29 +116,44 @@ const POSITION_WEIGHTS = [
     [120, -20, 20, 5, 5, 20, -20, 120]
 ];
 
-const FALLBACK_CORNER_RECOVERY_CARD_TYPES = new Set([
-    'DESTROY_ONE_STONE',
-    'SWAP_WITH_ENEMY',
-    'POSITION_SWAP_WILL',
-    'STRONG_WIND_WILL',
-    'SUPER_BUOYANCY_WILL',
-    'SUPER_GRAVITY_WILL',
-    'TEMPT_WILL',
-    'ULTIMATE_DESTROY_GOD',
-    'ULTIMATE_REVERSE_DRAGON',
-    'METEOR_WILL',
-    'BOARD_EXPANSION_WILL',
-    'BOARD_EXPANSION_GOD'
-]);
+const FALLBACK_CORNER_RECOVERY_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeuristics.createExtendedTypeSet === 'function')
+    ? SharedCardHeuristics.createExtendedTypeSet(
+        SharedCardHeuristics.DEFAULT_CORNER_RECOVERY_CARD_TYPES,
+        [
+            'SUPER_BUOYANCY_WILL',
+            'SUPER_GRAVITY_WILL',
+            'BOARD_EXPANSION_WILL',
+            'BOARD_EXPANSION_GOD'
+        ]
+    )
+    : new Set([
+        'DESTROY_ONE_STONE',
+        'SWAP_WITH_ENEMY',
+        'POSITION_SWAP_WILL',
+        'STRONG_WIND_WILL',
+        'SUPER_BUOYANCY_WILL',
+        'SUPER_GRAVITY_WILL',
+        'TEMPT_WILL',
+        'ULTIMATE_DESTROY_GOD',
+        'ULTIMATE_REVERSE_DRAGON',
+        'METEOR_WILL',
+        'BOARD_EXPANSION_WILL',
+        'BOARD_EXPANSION_GOD'
+    ]);
 
-const FALLBACK_CORNER_HOLD_CARD_TYPES = new Set([
-    'PROTECTED_NEXT_STONE',
-    'PERMA_PROTECT_NEXT_STONE',
-    'GUARD_WILL',
-    'GUARDIAN_GOD',
-    'REGEN_WILL',
-    'BLOCKADE_WILL'
-]);
+const FALLBACK_CORNER_HOLD_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeuristics.createExtendedTypeSet === 'function')
+    ? SharedCardHeuristics.createExtendedTypeSet(
+        SharedCardHeuristics.DEFAULT_CORNER_HOLD_CARD_TYPES,
+        []
+    )
+    : new Set([
+        'PROTECTED_NEXT_STONE',
+        'PERMA_PROTECT_NEXT_STONE',
+        'GUARD_WILL',
+        'GUARDIAN_GOD',
+        'REGEN_WILL',
+        'BLOCKADE_WILL'
+    ]);
 
 function toPlayerKey(playerValue) {
     return playerValue === Core.BLACK ? 'black' : 'white';
@@ -219,10 +236,16 @@ function canonicalizeBoard(board) {
 }
 
 function isCorner(row, col) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.isCorner === 'function') {
+        return SharedBoardUtils.isCorner(row, col, 8, 8);
+    }
     return (row === 0 || row === 7) && (col === 0 || col === 7);
 }
 
 function isEdge(row, col) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.isEdge === 'function') {
+        return SharedBoardUtils.isEdge(row, col, 8, 8);
+    }
     return row === 0 || row === 7 || col === 0 || col === 7;
 }
 
@@ -264,16 +287,25 @@ function resolveForcedPlacementCandidates(legalMoves, options) {
 }
 
 function isXSquare(row, col) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.isXSquare === 'function') {
+        return SharedBoardUtils.isXSquare(row, col, 8, 8);
+    }
     return (row === 1 || row === 6) && (col === 1 || col === 6);
 }
 
 function isCSquare(row, col) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.isCSquare === 'function') {
+        return SharedBoardUtils.isCSquare(row, col, 8, 8);
+    }
     const nearTopBottom = (row === 0 || row === 7) && (col === 1 || col === 6);
     const nearLeftRight = (col === 0 || col === 7) && (row === 1 || row === 6);
     return nearTopBottom || nearLeftRight;
 }
 
 function getFlipsBasic(board, row, col, playerValue) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.getFlipsBasic === 'function') {
+        return SharedBoardUtils.getFlipsBasic(board, row, col, playerValue);
+    }
     if (!Array.isArray(board) || !Array.isArray(board[row])) return [];
     if (board[row][col] !== 0) return [];
     const dirs = [
@@ -299,6 +331,9 @@ function getFlipsBasic(board, row, col, playerValue) {
 }
 
 function getLegalMovesBasic(board, playerValue) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.getLegalMovesBasic === 'function') {
+        return SharedBoardUtils.getLegalMovesBasic(board, playerValue);
+    }
     if (!Array.isArray(board)) return [];
     const moves = [];
     for (let row = 0; row < board.length; row++) {
@@ -396,6 +431,9 @@ function countCorners(board, playerValue) {
 }
 
 function countCornerControl(board, playerValue) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.countCornerControl === 'function') {
+        return SharedBoardUtils.countCornerControl(board, playerValue);
+    }
     if (!Array.isArray(board) || board.length === 0) return { ownCorners: 0, oppCorners: 0 };
     const n = board.length - 1;
     const points = [[0, 0], [0, n], [n, 0], [n, n]];
@@ -412,6 +450,9 @@ function countCornerControl(board, playerValue) {
 }
 
 function countEdgeControl(board, playerValue) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.countEdgeControl === 'function') {
+        return SharedBoardUtils.countEdgeControl(board, playerValue);
+    }
     if (!Array.isArray(board) || board.length === 0) return { ownEdges: 0, oppEdges: 0 };
     let ownEdges = 0;
     let oppEdges = 0;
@@ -496,6 +537,113 @@ function classifySelectionSeat(row, col, board) {
     return 'inner';
 }
 
+function cloneTargetCell(target) {
+    if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
+    return { row: target.row, col: target.col };
+}
+
+function buildPendingSelectionRecord(action, pendingType) {
+    if (!action || typeof action !== 'object' || action.type !== 'place') return null;
+
+    const boardTargetKeys = [
+        'destroyTarget',
+        'strongWindTarget',
+        'superBuoyancyTarget',
+        'superGravityTarget',
+        'sacrificeTarget',
+        'temptTarget',
+        'swapTarget',
+        'positionSwapTarget',
+        'guardTarget',
+        'extendTarget',
+        'corrosionTarget',
+        'bombTarget',
+        'cloneTarget',
+        'splitTarget',
+        'blockadeTarget',
+        'meteorTarget',
+        'teleportTarget',
+        'expansionTarget',
+        'trapTarget',
+        'hyperactiveInheritTarget'
+    ];
+
+    for (const key of boardTargetKeys) {
+        const cell = cloneTargetCell(action[key]);
+        if (!cell) continue;
+        return {
+            kind: 'board_cell',
+            pendingType: pendingType || null,
+            sourceKey: key,
+            row: cell.row,
+            col: cell.col
+        };
+    }
+
+    if (Number.isInteger(action.condemnTargetIndex)) {
+        return {
+            kind: 'hand_index',
+            pendingType: pendingType || null,
+            sourceKey: 'condemnTargetIndex',
+            handIndex: action.condemnTargetIndex
+        };
+    }
+
+    if (typeof action.heavenBlessingCardId === 'string' && action.heavenBlessingCardId.trim()) {
+        return {
+            kind: 'offer_card',
+            pendingType: pendingType || null,
+            sourceKey: 'heavenBlessingCardId',
+            cardId: action.heavenBlessingCardId.trim()
+        };
+    }
+
+    if (pendingType === 'SELL_CARD_WILL' && typeof action.sellCardId === 'string' && action.sellCardId.trim()) {
+        return {
+            kind: 'hand_card',
+            pendingType: pendingType || null,
+            sourceKey: 'sellCardId',
+            cardId: action.sellCardId.trim()
+        };
+    }
+
+    return null;
+}
+
+function buildPendingSelectionTrace(record) {
+    if (!record || typeof record !== 'object') return null;
+    const selection = record.pendingSelection;
+    if (!selection || typeof selection !== 'object') return null;
+
+    if (selection.kind === 'board_cell') {
+        return {
+            kind: 'board_cell',
+            pendingType: selection.pendingType || null,
+            sourceKey: selection.sourceKey || null,
+            row: Number.isFinite(selection.row) ? Number(selection.row) : null,
+            col: Number.isFinite(selection.col) ? Number(selection.col) : null,
+            seat: classifySelectionSeat(selection.row, selection.col)
+        };
+    }
+    if (selection.kind === 'hand_index') {
+        return {
+            kind: 'hand_index',
+            pendingType: selection.pendingType || null,
+            sourceKey: selection.sourceKey || null,
+            handIndex: Number.isFinite(selection.handIndex) ? Number(selection.handIndex) : null
+        };
+    }
+    if (selection.kind === 'offer_card' || selection.kind === 'hand_card') {
+        return {
+            kind: selection.kind,
+            pendingType: selection.pendingType || null,
+            sourceKey: selection.sourceKey || null,
+            cardId: selection.cardId || null
+        };
+    }
+    return null;
+}
+
 function buildSelectionTrace(record) {
     if (!record || typeof record !== 'object') return null;
     const actionType = String(record.actionType || '');
@@ -524,7 +672,8 @@ function buildSelectionTrace(record) {
                 selectedCellBonus: Number.isFinite(record.selectedCellBonus) ? Number(record.selectedCellBonus) : null
             },
             topCandidates,
-            forcedPlacementCategory: record.forcedPlacementCategory || null
+            forcedPlacementCategory: record.forcedPlacementCategory || null,
+            pendingSelection: buildPendingSelectionTrace(record)
         };
     }
     if (actionType === 'use_card') {
@@ -584,6 +733,7 @@ function buildActorViewSnapshot(record) {
         highBonusMoveAvailable: record.highBonusMoveAvailable ? 1 : 0,
         maxLegalMoveBonus: Number.isFinite(record.maxLegalMoveBonus) ? Number(record.maxLegalMoveBonus) : 0,
         selectedCellBonus: Number.isFinite(record.selectedCellBonus) ? Number(record.selectedCellBonus) : 0,
+        pendingSelection: buildPendingSelectionTrace(record),
         selectionTrace: buildSelectionTrace(record)
     };
 }
@@ -671,6 +821,11 @@ function isRecoveryCardType(cardType) {
             return CpuPolicyCore.isCornerRecoveryCardType(type) === true;
         } catch (e) { /* ignore */ }
     }
+    if (SharedCardHeuristics && typeof SharedCardHeuristics.isRecoveryCardType === 'function') {
+        try {
+            if (SharedCardHeuristics.isRecoveryCardType(type) === true) return true;
+        } catch (e) { /* ignore */ }
+    }
     return FALLBACK_CORNER_RECOVERY_CARD_TYPES.has(type);
 }
 
@@ -680,6 +835,11 @@ function isHoldCardType(cardType) {
     if (CpuPolicyCore && typeof CpuPolicyCore.isCornerHoldCardType === 'function') {
         try {
             return CpuPolicyCore.isCornerHoldCardType(type) === true;
+        } catch (e) { /* ignore */ }
+    }
+    if (SharedCardHeuristics && typeof SharedCardHeuristics.isHoldCardType === 'function') {
+        try {
+            if (SharedCardHeuristics.isHoldCardType(type) === true) return true;
         } catch (e) { /* ignore */ }
     }
     return FALLBACK_CORNER_HOLD_CARD_TYPES.has(type);
@@ -815,6 +975,9 @@ function countDiscsByValue(gameState, playerValue) {
 }
 
 function countEmpties(board) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.countBoardEmpties === 'function') {
+        return SharedBoardUtils.countBoardEmpties(board);
+    }
     let empties = 0;
     for (let row = 0; row < board.length; row++) {
         for (let col = 0; col < board[row].length; col++) {
@@ -825,6 +988,9 @@ function countEmpties(board) {
 }
 
 function isStandardBoard(board) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.isStandardBoard8x8 === 'function') {
+        return SharedBoardUtils.isStandardBoard8x8(board);
+    }
     if (!Array.isArray(board) || board.length !== 8) return false;
     for (const row of board) {
         if (!Array.isArray(row) || row.length !== 8) return false;
@@ -969,6 +1135,17 @@ function resolveTacticalBeamWidth(options, empties) {
     if (empties <= 12) return 12;
     if (empties <= 28) return 10;
     return 8;
+}
+
+function resolveTacticalMetricsCandidateLimit(options, candidateCount) {
+    const total = Number.isFinite(candidateCount) ? Math.max(0, Math.floor(candidateCount)) : 0;
+    if (total <= 0) return 0;
+    const configured = Number.isFinite(options && options.tacticalMetricsCandidateLimit)
+        ? Math.max(1, Math.floor(options.tacticalMetricsCandidateLimit))
+        : 0;
+    if (configured > 0) return Math.min(total, configured);
+    if (total <= 4) return total;
+    return Math.min(total, 3);
 }
 
 function minimaxBoardSearch(board, currentPlayer, rootPlayer, depth, alpha, beta, passCount, beamWidth) {
@@ -1544,29 +1721,24 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
     const parityMove = paritySelection && paritySelection.move ? paritySelection.move : null;
     const scoredMoves = [];
     let bestCombinedScore = -Infinity;
-    let bestTacticalScore = -Infinity;
     for (const move of candidateMoves) {
         const heuristic = scoreMove(move, rng, scoreContext);
         const policy = getPolicyScore(options, Object.assign({}, context || {}, {
             legalMovesCount: candidateMoves.length
         }), move);
-        const tactical = enableTacticalLookahead ? scoreTacticalMove(move, scoreContext, options) : 0;
         const policyScore = policy !== null ? policy : 0;
         const combined = parityCombinedScoreFn ? Number(parityCombinedScoreFn(move) || 0) : 0;
         scoredMoves.push({
             move,
             heuristicScore: heuristic,
             policyScore,
-            tacticalScore: tactical,
+            tacticalScore: 0,
             combinedScore: combined,
             committeeScore: 0,
             finalScore: combined,
             committeeVotes: 0
         });
         if (combined > bestCombinedScore) bestCombinedScore = combined;
-        if (tactical > bestTacticalScore) {
-            bestTacticalScore = tactical;
-        }
     }
 
     let selected = parityMove
@@ -1597,6 +1769,37 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
 
     if (!selected) {
         return { move: null, metrics: null };
+    }
+
+    let bestTacticalScore = 0;
+    if (enableTacticalLookahead) {
+        const tacticalLimit = resolveTacticalMetricsCandidateLimit(options, scoredMoves.length);
+        if (tacticalLimit > 0) {
+            const tacticalCandidates = scoredMoves
+                .slice()
+                .sort((a, b) => {
+                    const aScore = Number(a && a.finalScore) || 0;
+                    const bScore = Number(b && b.finalScore) || 0;
+                    if (bScore !== aScore) return bScore - aScore;
+                    const aRow = Number(a && a.move && a.move.row);
+                    const bRow = Number(b && b.move && b.move.row);
+                    if (aRow !== bRow) return aRow - bRow;
+                    const aCol = Number(a && a.move && a.move.col);
+                    const bCol = Number(b && b.move && b.move.col);
+                    return aCol - bCol;
+                })
+                .slice(0, tacticalLimit);
+
+            if (!tacticalCandidates.some((one) => one === selected)) {
+                tacticalCandidates.push(selected);
+            }
+
+            for (const one of tacticalCandidates) {
+                const tactical = scoreTacticalMove(one.move, scoreContext, options);
+                one.tacticalScore = tactical;
+                if (tactical > bestTacticalScore) bestTacticalScore = tactical;
+            }
+        }
     }
 
     const sortedByFinalScore = scoredMoves
@@ -1695,7 +1898,7 @@ function getLegalMovesForAction(gameState, cardState, playerKey) {
     const context = getSafeCardContext(cardState);
     const pendingType = CardLogic.getPendingEffectType(cardState, playerKey);
 
-    if (pendingType === 'FREE_PLACEMENT' || pendingType === 'SNIPER_WILL' || pendingType === 'LAST_RESORT') {
+    if (CardLogic.isFreePlacementPendingType(pendingType)) {
         return Core.getFreePlacementMoves(gameState, player, context);
     }
     return Core.getLegalMoves(gameState, player, context);
@@ -1892,64 +2095,75 @@ function selectDestroyHandCardId(cardState, gameState, playerKey, context) {
     return selected && selected.cardId ? selected.cardId : null;
 }
 
+function choosePendingTargetByScore(targets, scoreTarget) {
+    const safeTargets = Array.isArray(targets)
+        ? targets.filter((target) => target && Number.isInteger(target.row) && Number.isInteger(target.col))
+        : [];
+    if (!safeTargets.length) return null;
+
+    if (
+        PendingTargetSelector &&
+        typeof PendingTargetSelector.choosePendingTargetWithPolicy === 'function'
+    ) {
+        return PendingTargetSelector.choosePendingTargetWithPolicy({
+            targets: safeTargets,
+            scoreTarget
+        });
+    }
+
+    let best = null;
+    let bestScore = Number.NEGATIVE_INFINITY;
+    for (const target of safeTargets) {
+        let score = Number.NEGATIVE_INFINITY;
+        try {
+            const rawScore = Number(scoreTarget(target));
+            score = Number.isFinite(rawScore) ? rawScore : Number.NEGATIVE_INFINITY;
+        } catch (e) {
+            score = Number.NEGATIVE_INFINITY;
+        }
+        if (!best || score > bestScore || (score === bestScore && ((target.row < best.row) || (target.row === best.row && target.col < best.col)))) {
+            best = target;
+            bestScore = score;
+        }
+    }
+    return best || safeTargets[0];
+}
+
 function chooseSwapTarget(gameState, cardState, playerKey, rng) {
     const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
     if (!targets.length) return null;
-    let best = null;
-    let bestScore = -Infinity;
-    for (const t of targets) {
-        // Swap also places on the target cell, so use placement scoring.
-        const s = evaluatePositionValue(t.row, t.col) + rng.random() * 0.01;
-        if (s > bestScore) {
-            bestScore = s;
-            best = t;
-        }
-    }
-    return best;
+    return choosePendingTargetByScore(
+        targets,
+        (target) => evaluatePositionValue(target.row, target.col) + rng.random() * 0.01
+    );
 }
 
 function choosePositionSwapTarget(gameState, cardState, playerKey, rng) {
     const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
     if (!targets.length) return null;
-    let best = null;
-    let bestScore = -Infinity;
-    for (const t of targets) {
-        const s = evaluatePositionValue(t.row, t.col) + rng.random() * 0.01;
-        if (s > bestScore) {
-            bestScore = s;
-            best = t;
-        }
-    }
-    return best;
+    return choosePendingTargetByScore(
+        targets,
+        (target) => evaluatePositionValue(target.row, target.col) + rng.random() * 0.01
+    );
 }
 
 function chooseDestroyTarget(gameState, cardState, playerKey, rng) {
     const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
     if (!targets.length) return null;
     const selfVal = toPlayerValue(playerKey);
-    let best = null;
-    let bestScore = -Infinity;
-    for (const t of targets) {
-        const occupant = gameState.board[t.row][t.col];
+    return choosePendingTargetByScore(targets, (target) => {
+        const occupant = getCellOwnerValueForSelfplay(gameState, target.row, target.col);
         const isEnemy = occupant === -selfVal;
-        const base = evaluatePositionValue(t.row, t.col);
-        // Prefer destroying enemy strategic stones.
-        const s = (isEnemy ? 2000 : 0) + base + rng.random() * 0.01;
-        if (s > bestScore) {
-            bestScore = s;
-            best = t;
-        }
-    }
-    return best;
+        const base = evaluatePositionValue(target.row, target.col);
+        return (isEnemy ? 2000 : 0) + base + rng.random() * 0.01;
+    });
 }
 
 function chooseTargetBySimulation(gameState, cardState, playerKey, rng, applyEffectFn, fallbackScoreFn, scoreAdjustFn) {
     const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
     if (!targets.length) return null;
 
-    let best = null;
-    let bestScore = -Infinity;
-    for (const t of targets) {
+    return choosePendingTargetByScore(targets, (target) => {
         let score = null;
         try {
             const simGameState = Core.copyGameState(gameState);
@@ -1957,29 +2171,22 @@ function chooseTargetBySimulation(gameState, cardState, playerKey, rng, applyEff
                 ? CardLogic.copyCardState(cardState)
                 : deepClone(cardState);
             const simRng = clonePrng(rng);
-            const result = applyEffectFn(simCardState, simGameState, playerKey, t.row, t.col, simRng);
+            const result = applyEffectFn(simCardState, simGameState, playerKey, target.row, target.col, simRng);
             if (result && result.applied === true) {
                 score = evaluateBoardForPlayer(simGameState, simCardState, playerKey);
                 if (typeof scoreAdjustFn === 'function') {
-                    score += Number(scoreAdjustFn(t, result, simGameState, simCardState, gameState, cardState, playerKey) || 0);
+                    score += Number(scoreAdjustFn(target, result, simGameState, simCardState, gameState, cardState, playerKey) || 0);
                 }
             }
         } catch (e) { /* fallback score */ }
 
         if (!Number.isFinite(score)) {
             score = typeof fallbackScoreFn === 'function'
-                ? Number(fallbackScoreFn(t, gameState, cardState, playerKey) || 0)
-                : evaluatePositionValue(t.row, t.col);
+                ? Number(fallbackScoreFn(target, gameState, cardState, playerKey) || 0)
+                : evaluatePositionValue(target.row, target.col);
         }
-
-        const tie = (7 - t.row) * 0.001 + (7 - t.col) * 0.0001;
-        const finalScore = score + tie;
-        if (finalScore > bestScore) {
-            bestScore = finalScore;
-            best = t;
-        }
-    }
-    return best;
+        return score;
+    });
 }
 
 function chooseStrongWindTarget(gameState, cardState, playerKey, rng) {
@@ -1992,17 +2199,13 @@ function chooseStrongWindTarget(gameState, cardState, playerKey, rng) {
             CardLogic.applyStrongWindWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
         (target, sourceGameState, _sourceCardState, onePlayerKey) => {
             const selfVal = toPlayerValue(onePlayerKey);
-            const occupant = sourceGameState && sourceGameState.board && sourceGameState.board[target.row]
-                ? sourceGameState.board[target.row][target.col]
-                : 0;
+                const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const base = evaluatePositionValue(target.row, target.col);
             return occupant === selfVal ? (base * -0.4) : (base * -1.2);
         },
         (target, result, _simGameState, _simCardState, sourceGameState, sourceCardState, onePlayerKey) => {
             const selfVal = toPlayerValue(onePlayerKey);
-            const fromVal = sourceGameState && sourceGameState.board && sourceGameState.board[target.row]
-                ? sourceGameState.board[target.row][target.col]
-                : 0;
+                const fromVal = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const isOwnStone = fromVal === selfVal;
             let extra = 0;
             if (isCorner(target.row, target.col) && !isOwnStone) extra += 7000;
@@ -2029,9 +2232,7 @@ function chooseSuperBuoyancyTarget(gameState, cardState, playerKey, rng) {
             CardLogic.applySuperBuoyancyWill(simCardState, simGameState, onePlayerKey, row, col),
         (target, sourceGameState, _sourceCardState, onePlayerKey) => {
             const selfVal = toPlayerValue(onePlayerKey);
-            const occupant = sourceGameState && sourceGameState.board && sourceGameState.board[target.row]
-                ? sourceGameState.board[target.row][target.col]
-                : 0;
+                const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const isEnemy = occupant === -selfVal;
             const base = evaluatePositionValue(target.row, target.col);
             return isEnemy ? (base * 1.5) + 1200 : (base * -0.35);
@@ -2062,9 +2263,7 @@ function chooseSuperGravityTarget(gameState, cardState, playerKey, rng) {
             CardLogic.applySuperGravityWill(simCardState, simGameState, onePlayerKey, row, col),
         (target, sourceGameState, _sourceCardState, onePlayerKey) => {
             const selfVal = toPlayerValue(onePlayerKey);
-            const occupant = sourceGameState && sourceGameState.board && sourceGameState.board[target.row]
-                ? sourceGameState.board[target.row][target.col]
-                : 0;
+                const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const isEnemy = occupant === -selfVal;
             const base = evaluatePositionValue(target.row, target.col);
             return isEnemy ? (base * 1.5) + 1200 : (base * -0.35);
@@ -2184,9 +2383,7 @@ function chooseHyperactiveInheritTarget(gameState, cardState, playerKey, rng) {
         (target) => (evaluatePositionValue(target.row, target.col) * 1.15),
         (target, _result, sourceGameState, _sourceCardState, _origGameState, _origCardState, onePlayerKey) => {
             const selfVal = toPlayerValue(onePlayerKey);
-            const occupant = sourceGameState && sourceGameState.board && sourceGameState.board[target.row]
-                ? sourceGameState.board[target.row][target.col]
-                : 0;
+                const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             let extra = 0;
             if (occupant === selfVal && isCorner(target.row, target.col)) extra += 1200;
             if (occupant === selfVal && !isCorner(target.row, target.col) && isEdge(target.row, target.col)) extra += 600;
@@ -2206,9 +2403,7 @@ function chooseTeleportTarget(gameState, cardState, playerKey, rng) {
             CardLogic.applyTeleportWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
         (target, sourceGameState, _sourceCardState, onePlayerKey) => {
             const selfVal = toPlayerValue(onePlayerKey);
-            const occupant = sourceGameState && sourceGameState.board && sourceGameState.board[target.row]
-                ? sourceGameState.board[target.row][target.col]
-                : 0;
+                const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const isEnemy = occupant === -selfVal;
             const base = evaluatePositionValue(target.row, target.col);
             if (isEnemy) return (base * 1.4) + 900;
@@ -2274,9 +2469,7 @@ function chooseExtendLifeTarget(gameState, cardState, playerKey, rng) {
         },
         (target, _result, _simGameState, _simCardState, sourceGameState, sourceCardState, onePlayerKey) => {
             const marker = getSpecialMarkerAt(sourceCardState, target.row, target.col, onePlayerKey);
-            const occupant = sourceGameState && sourceGameState.board && sourceGameState.board[target.row]
-                ? sourceGameState.board[target.row][target.col]
-                : 0;
+                const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const selfVal = toPlayerValue(onePlayerKey);
             let extra = getExtendLifeMarkerPriority(marker);
             if (occupant === selfVal && isCorner(target.row, target.col)) extra += 1600;
@@ -2316,9 +2509,7 @@ function chooseCorrosionTarget(gameState, cardState, playerKey, rng) {
 
     const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
     const selfVal = toPlayerValue(playerKey);
-    let best = null;
-    let bestScore = -Infinity;
-    for (const target of targets) {
+    return choosePendingTargetByScore(targets, (target) => {
         let score = evaluatePositionValue(target.row, target.col) * 0.15;
 
         for (const marker of markers) {
@@ -2335,9 +2526,7 @@ function chooseCorrosionTarget(gameState, cardState, playerKey, rng) {
             else score += magnitude;
         }
 
-        const occupant = gameState && gameState.board && gameState.board[target.row]
-            ? gameState.board[target.row][target.col]
-            : 0;
+        const occupant = getCellOwnerValueForSelfplay(gameState, target.row, target.col);
         if (occupant === -selfVal) score += 180;
         else if (occupant === selfVal) score -= 160;
 
@@ -2345,13 +2534,8 @@ function chooseCorrosionTarget(gameState, cardState, playerKey, rng) {
         else if (isEdge(target.row, target.col)) score += (occupant === -selfVal) ? 220 : -220;
 
         score += (rng && typeof rng.random === 'function') ? (rng.random() * 0.01) : 0;
-        if (score > bestScore) {
-            bestScore = score;
-            best = target;
-        }
-    }
-
-    return best;
+        return score;
+    });
 }
 
 function getSpecialMarkerAt(cardState, row, col, ownerKey) {
@@ -2471,16 +2655,10 @@ function chooseSacrificeTarget(gameState, cardState, playerKey, rng) {
 function chooseTemptTarget(gameState, cardState, playerKey, rng) {
     const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
     if (!targets.length) return null;
-    let best = null;
-    let bestScore = -Infinity;
-    for (const t of targets) {
-        const s = evaluatePositionValue(t.row, t.col) + rng.random() * 0.01;
-        if (s > bestScore) {
-            bestScore = s;
-            best = t;
-        }
-    }
-    return best;
+    return choosePendingTargetByScore(
+        targets,
+        (target) => evaluatePositionValue(target.row, target.col) + rng.random() * 0.01
+    );
 }
 
 function scoreTimeBombTarget(gameState, playerKey, target, rng) {
@@ -2534,16 +2712,10 @@ function chooseTimeBombTarget(gameState, cardState, playerKey, rng) {
         ? (CardLogic.getTimeBombTargets(cardState, gameState, playerKey) || [])
         : (CardLogic.getSelectableTargets(cardState, gameState, playerKey) || []);
     if (!targets.length) return null;
-    let best = null;
-    let bestScore = -Infinity;
-    for (const one of targets) {
-        const score = scoreTimeBombTarget(gameState, playerKey, one, rng);
-        if (score > bestScore) {
-            bestScore = score;
-            best = one;
-        }
-    }
-    return best;
+    return choosePendingTargetByScore(
+        targets,
+        (target) => scoreTimeBombTarget(gameState, playerKey, target, rng)
+    );
 }
 
 function chooseSellCardTarget(gameState, cardState, playerKey) {
@@ -2582,166 +2754,40 @@ function chooseSellCardTarget(gameState, cardState, playerKey) {
 }
 
 function buildPendingSelectionAction(gameState, cardState, playerKey, pendingType, rng) {
-    if (pendingType === 'SWAP_WITH_ENEMY') {
-        const t = chooseSwapTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', swapTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'POSITION_SWAP_WILL') {
-        const t = choosePositionSwapTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', positionSwapTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'DESTROY_ONE_STONE') {
-        const t = chooseDestroyTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', destroyTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'STRONG_WIND_WILL') {
-        const t = chooseStrongWindTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', strongWindTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'SUPER_BUOYANCY_WILL') {
-        const t = chooseSuperBuoyancyTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', superBuoyancyTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'SUPER_GRAVITY_WILL') {
-        const t = chooseSuperGravityTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', superGravityTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'SACRIFICE_WILL') {
-        const t = chooseSacrificeTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', sacrificeTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'SELL_CARD_WILL') {
-        const cardId = chooseSellCardTarget(gameState, cardState, playerKey);
-        if (!cardId) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', sellCardId: cardId };
-    }
-    if (pendingType === 'TEMPT_WILL') {
-        const t = chooseTemptTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', temptTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'TIME_BOMB') {
-        const t = chooseTimeBombTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', bombTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'GUARD_WILL' || pendingType === 'GUARDIAN_GOD') {
-        const t = chooseGuardTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', guardTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'BOARD_EXPANSION_WILL' || pendingType === 'BOARD_EXPANSION_GOD') {
-        const t = chooseBoardExpansionTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', expansionTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'BLOCKADE_WILL') {
-        const t = chooseBlockadeTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', blockadeTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'METEOR_WILL') {
-        const t = chooseMeteorTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', meteorTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'TRAP_WILL') {
-        const t = chooseTrapTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', trapTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'CLONE_WILL') {
-        const t = chooseCloneTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', cloneTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'HYPERACTIVE_INHERIT_WILL') {
-        const t = chooseHyperactiveInheritTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', hyperactiveInheritTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'TELEPORT_WILL') {
-        const t = chooseTeleportTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', teleportTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'CELL_TELEPORT_WILL') {
-        const t = chooseCellTeleportTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', teleportTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'EXTEND_LIFE_WILL') {
-        const t = chooseExtendLifeTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', extendTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'CORROSION_WILL') {
-        const t = chooseCorrosionTarget(gameState, cardState, playerKey, rng);
-        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', corrosionTarget: { row: t.row, col: t.col } };
-    }
-    if (pendingType === 'HEAVEN_BLESSING') {
-        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
-        const offers = pending && Array.isArray(pending.offers) ? pending.offers.filter((id) => typeof id === 'string') : [];
-        if (!offers.length) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        const legalMoves = getLegalMovesForAction(gameState, cardState, playerKey);
-        const riskContext = buildCardDecisionContext(gameState, cardState, playerKey, legalMoves.length, legalMoves);
-        let bestCardId = offers[0];
-        let bestScore = -Infinity;
-        for (const cardId of offers) {
-            let score = (Number(CardLogic.getCardCost(cardId) || 0) * 2);
-            if (CpuPolicyCore && typeof CpuPolicyCore.scoreCardUseDecision === 'function') {
-                const one = CpuPolicyCore.scoreCardUseDecision(
-                    cardId,
-                    CardLogic.getCardCost,
-                    CardLogic.getCardDef,
-                    riskContext
-                );
-                if (one && Number.isFinite(one.score)) score += (one.score * 4);
-            }
-            if (score > bestScore || (score === bestScore && String(cardId) < String(bestCardId))) {
-                bestScore = score;
-                bestCardId = cardId;
-            }
-        }
-        return { type: 'place', heavenBlessingCardId: bestCardId };
-    }
-    if (pendingType === 'CONDEMN_WILL') {
-        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
-        const offers = pending && Array.isArray(pending.offers) ? pending.offers : [];
-        if (!offers.length) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-
-        const opponentKey = playerKey === 'black' ? 'white' : 'black';
-        const oppLegalMoves = getLegalMovesForAction(gameState, cardState, opponentKey);
-        const oppRiskContext = buildCardDecisionContext(gameState, cardState, opponentKey, oppLegalMoves.length, oppLegalMoves);
-        let best = null;
-        for (const offer of offers) {
-            if (!offer || !Number.isInteger(offer.handIndex) || typeof offer.cardId !== 'string') continue;
-            let score = Number(CardLogic.getCardCost(offer.cardId) || 0) * 3;
-            if (CpuPolicyCore && typeof CpuPolicyCore.scoreCardUseDecision === 'function') {
-                const oppScore = CpuPolicyCore.scoreCardUseDecision(
-                    offer.cardId,
-                    CardLogic.getCardCost,
-                    CardLogic.getCardDef,
-                    oppRiskContext
-                );
-                if (oppScore && Number.isFinite(oppScore.score)) score += (oppScore.score * 4.5);
-            }
-            if (!best || score > best.score || (score === best.score && offer.handIndex < best.handIndex)) {
-                best = { handIndex: offer.handIndex, score };
-            }
-        }
-        if (!best) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
-        return { type: 'place', condemnTargetIndex: best.handIndex };
-    }
-    return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+    return PendingTargetSelector.buildPendingSelectionAction({
+        gameState,
+        cardState,
+        playerKey,
+        pendingType,
+        rng,
+        selectors: {
+            chooseSwapTarget,
+            choosePositionSwapTarget,
+            chooseDestroyTarget,
+            chooseStrongWindTarget,
+            chooseSuperBuoyancyTarget,
+            chooseSuperGravityTarget,
+            chooseSacrificeTarget,
+            chooseSellCardTarget,
+            chooseTemptTarget,
+            chooseTimeBombTarget,
+            chooseGuardTarget,
+            chooseBoardExpansionTarget,
+            chooseBlockadeTarget,
+            chooseMeteorTarget,
+            chooseTrapTarget,
+            chooseCloneTarget,
+            chooseHyperactiveInheritTarget,
+            chooseTeleportTarget,
+            chooseCellTeleportTarget,
+            chooseExtendLifeTarget,
+            chooseCorrosionTarget
+        },
+        getLegalMovesForAction,
+        buildCardDecisionContext,
+        cpuPolicyCore: CpuPolicyCore,
+        cardLogic: CardLogic
+    });
 }
 
 function clonePrng(rng) {
@@ -3033,6 +3079,7 @@ function normalizeOptions(options) {
         dataLane: typeof opts.dataLane === 'string' && opts.dataLane.trim()
             ? opts.dataLane.trim()
             : 'selfplay-games',
+        shouldStop: typeof opts.shouldStop === 'function' ? opts.shouldStop : null,
         onRecord: typeof opts.onRecord === 'function' ? opts.onRecord : null,
         onGameEnd: typeof opts.onGameEnd === 'function' ? opts.onGameEnd : null
     };
@@ -3046,7 +3093,7 @@ function getPolicyForPlayer(options, playerKey) {
         disableLookaheadTimeBudget: false,
         lookaheadMaxTimeMs: Number.NaN,
         lookaheadEndgameMaxTimeMs: Number.NaN,
-        lookaheadVirtualTimePerNodeMs: Number.NaN,
+        lookaheadVirtualTimePerNodeMs: 10,
         tacticalWeight: Number.NaN,
         policyScoreWeight: Number.NaN,
         heuristicWeight: Number.NaN,
@@ -3250,6 +3297,46 @@ function applyActionSafe(state, playerKey, action) {
     );
 }
 
+function getPendingSelectionState(cardState, playerKey) {
+    const pending = cardState && cardState.pendingEffectByPlayer
+        ? cardState.pendingEffectByPlayer[playerKey]
+        : null;
+    if (!pending || pending.stage !== 'selectTarget') return null;
+    return pending;
+}
+
+function buildRetryFallbackDecision(gameState, cardState, playerKey, rng, options) {
+    const pending = getPendingSelectionState(cardState, playerKey);
+    if (pending) {
+        const pendingAction = buildPendingSelectionAction(gameState, cardState, playerKey, pending.type, rng);
+        if (pendingAction) {
+            return {
+                action: pendingAction,
+                legalMoves: getLegalMovesForAction(gameState, cardState, playerKey)
+            };
+        }
+        return {
+            action: { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } },
+            legalMoves: getLegalMovesForAction(gameState, cardState, playerKey)
+        };
+    }
+
+    const fallbackLegalMoves = getLegalMovesForAction(gameState, cardState, playerKey);
+    const sortedFallbackMoves = Array.isArray(fallbackLegalMoves)
+        ? fallbackLegalMoves.slice().sort((a, b) => (a.row - b.row) || (a.col - b.col))
+        : [];
+    const forcedFallback = resolveForcedPlacementCandidates(sortedFallbackMoves, options);
+    const fallbackMoves = Array.isArray(forcedFallback.moves) && forcedFallback.moves.length > 0
+        ? forcedFallback.moves
+        : sortedFallbackMoves;
+    return {
+        action: (fallbackMoves.length > 0)
+            ? { type: 'place', row: fallbackMoves[0].row, col: fallbackMoves[0].col }
+            : { type: 'pass' },
+        legalMoves: sortedFallbackMoves
+    };
+}
+
 function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actionCounterRef) {
     const firstSnapshot = buildDecisionSnapshot(state.gameState, state.cardState, playerKey, state.prng);
     const firstDecision = decideAction(state.gameState, state.cardState, playerKey, state.prng, options, firstSnapshot);
@@ -3270,6 +3357,7 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
     const canRetry =
         first.actionType === 'use_card' ||
         first.actionType === 'destroy_hand_card' ||
+        first.actionType === 'place' ||
         result.rejectedReason === 'ILLEGAL_MOVE' ||
         illegalPassRejected;
     if (!canRetry) {
@@ -3292,21 +3380,13 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
         state.stateVersion = result.nextStateVersion;
 
         const fallbackSnapshot = buildDecisionSnapshot(state.gameState, state.cardState, playerKey, state.prng);
-        const fallbackLegalMoves = getLegalMovesForAction(fallbackSnapshot.gameState, fallbackSnapshot.cardState, playerKey);
-        const sortedFallbackMoves = Array.isArray(fallbackLegalMoves)
-            ? fallbackLegalMoves.slice().sort((a, b) => (a.row - b.row) || (a.col - b.col))
-            : [];
-        const forcedFallback = resolveForcedPlacementCandidates(sortedFallbackMoves, options);
-        const fallbackMoves = Array.isArray(forcedFallback.moves) && forcedFallback.moves.length > 0
-            ? forcedFallback.moves
-            : sortedFallbackMoves;
-        const fallbackAction = (fallbackMoves.length > 0)
-            ? { type: 'place', row: fallbackMoves[0].row, col: fallbackMoves[0].col }
-            : { type: 'pass' };
-        const fallbackDecision = {
-            action: fallbackAction,
-            legalMoves: sortedFallbackMoves
-        };
+        const fallbackDecision = buildRetryFallbackDecision(
+            fallbackSnapshot.gameState,
+            fallbackSnapshot.cardState,
+            playerKey,
+            state.prng,
+            options
+        );
 
         actionCounterRef.value += 1;
         const forced = createAction(fallbackDecision, gameIndex, actionCounterRef.value, state.stateVersion);
@@ -3356,6 +3436,7 @@ function runSingleGame(gameIndex, seed, options) {
         const decision = execution.decision;
         const action = execution.action;
         const result = execution.result;
+        const pendingSelection = buildPendingSelectionRecord(action, pendingType);
         const planStateBefore = buildCornerPlanState(
             decisionGameState,
             decisionCardState,
@@ -3437,7 +3518,8 @@ function runSingleGame(gameIndex, seed, options) {
                 : null,
             tacticalScoreMissRatio: placementMetrics && Number.isFinite(placementMetrics.tacticalScoreMissRatio)
                 ? Number(placementMetrics.tacticalScoreMissRatio)
-                : null
+                : null,
+            pendingSelection
         };
         record.handCards = handCards;
         record.usableCardIds = usableCardIds;
@@ -3507,6 +3589,9 @@ function runSelfPlayGames(options) {
     let totalPlies = 0;
 
     for (let i = 0; i < opts.games; i++) {
+        if (opts.shouldStop && opts.shouldStop()) {
+            break;
+        }
         const seed = opts.baseSeed + i;
         const gamePlayerPolicies = opts.playerPolicyResolver
             ? opts.playerPolicyResolver(i, seed)
@@ -3535,9 +3620,11 @@ function runSelfPlayGames(options) {
         gameSummaries,
         summary: {
             schemaVersion: opts.schemaVersion,
-            totalGames: opts.games,
+            totalGames: gameSummaries.length,
+            plannedGames: opts.games,
+            aborted: gameSummaries.length < opts.games,
             totalPlies,
-            avgPlies: opts.games > 0 ? totalPlies / opts.games : 0,
+            avgPlies: gameSummaries.length > 0 ? totalPlies / gameSummaries.length : 0,
             wins: totals
         }
     };

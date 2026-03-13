@@ -119,4 +119,35 @@ describe('STRONG_WIND_WILL', () => {
     expect(res.movedDistance).toBe(2);
     expect(cardState.charge.black).toBe(0);
   });
+
+  test('can push a main-board stone into an empty expansion cell', () => {
+    const { cardState, gameState } = makeState();
+
+    gameState.board[3][0] = 1;
+    gameState.board[2][0] = -1;
+    gameState.board[4][0] = -1;
+    gameState.board[3][1] = -1;
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: 0,
+      usedByPlayer: { black: false, white: false },
+      cells: [{ side: 'left', row: 3, col: -1, owner: 0 }]
+    };
+    cardState.stoneIdMap[3][0] = 'wind-exp-1';
+
+    const targets = CardLogic.getStrongWindTargets(cardState, gameState);
+    expect(targets).toEqual(expect.arrayContaining([{ row: 3, col: 0 }]));
+
+    const res = CardLogic.applyStrongWindWill(cardState, gameState, 'black', 3, 0, { random: () => 0 });
+
+    expect(res && res.applied).toBe(true);
+    expect(res.to).toEqual({ row: 3, col: -1 });
+    expect(res.movedDistance).toBe(1);
+    expect(gameState.board[3][0]).toBe(0);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 3 && cell.col === -1).owner).toBe(1);
+    expect(cardState.stoneIdMap[3][0]).toBeNull();
+    expect(cardState.expansionStoneIdByCell['3,-1']).toBe('wind-exp-1');
+  });
 });

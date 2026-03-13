@@ -41,7 +41,7 @@ function _setDebugModeAllowed(debugAllowed) {
     } catch (e) { /* ignore */ }
 }
 
-const DEBUG_HAND_SCROLL_LONG_PRESS_MS = 120;
+const DEBUG_HAND_SCROLL_LONG_PRESS_MS = 80;
 const DEBUG_HAND_SCROLL_MOVE_THRESHOLD_PX = 10;
 const DEBUG_HAND_SCROLL_SUPPRESS_CLICK_MS = 280;
 const DEBUG_HAND_FLING_FRICTION = 0.92;
@@ -129,13 +129,25 @@ function _getDebugHandOffsetLimit(containerEl) {
     const containerWidth = Number(containerEl.clientWidth) || 0;
     const trackWidth = Math.max(Number(trackEl.scrollWidth) || 0, Number(trackEl.getBoundingClientRect().width) || 0);
     if (!containerWidth || !trackWidth || trackWidth <= containerWidth) return 0;
-    return (trackWidth - containerWidth) / 2;
+    return trackWidth - containerWidth;
+}
+
+function _wrapDebugHandOffset(containerEl, nextOffsetX) {
+    const limit = _getDebugHandOffsetLimit(containerEl);
+    if (!Number.isFinite(limit) || limit <= 0) return 0;
+    const safeOffset = Number(nextOffsetX) || 0;
+    const minOffset = -limit;
+    const maxOffset = 0;
+    const span = maxOffset - minOffset;
+    if (span <= 0) return 0;
+    if (safeOffset >= minOffset && safeOffset <= maxOffset) return safeOffset;
+    const normalized = ((safeOffset - minOffset) % span + span) % span;
+    const wrapped = minOffset + normalized;
+    return Math.abs(wrapped) < 0.001 ? 0 : wrapped;
 }
 
 function _clampDebugHandOffset(containerEl, nextOffsetX) {
-    const limit = _getDebugHandOffsetLimit(containerEl);
-    if (!Number.isFinite(limit) || limit <= 0) return 0;
-    return Math.max(-limit, Math.min(limit, Number(nextOffsetX) || 0));
+    return _wrapDebugHandOffset(containerEl, nextOffsetX);
 }
 
 function _applyDebugHandTrackTransform(containerEl, offsetX) {
@@ -246,8 +258,17 @@ function _installDebugHandScroll(containerEl) {
         if (!state.dragReady) {
             if (Math.abs(deltaY) > DEBUG_HAND_SCROLL_MOVE_THRESHOLD_PX && Math.abs(deltaY) > Math.abs(deltaX)) {
                 _clearDebugHandScrollTimer(state);
+                return;
             }
-            return;
+            if (Math.abs(deltaX) >= DEBUG_HAND_SCROLL_MOVE_THRESHOLD_PX && Math.abs(deltaX) >= Math.abs(deltaY)) {
+                _clearDebugHandScrollTimer(state);
+                state.dragReady = true;
+                if (containerEl.classList) {
+                    containerEl.classList.add('debug-hand-fling-ready');
+                }
+            } else {
+                return;
+            }
         }
         if (!state.dragging && Math.abs(deltaX) < DEBUG_HAND_SCROLL_MOVE_THRESHOLD_PX) {
             return;

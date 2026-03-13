@@ -56,6 +56,23 @@ describe('turn-manager scheduling', () => {
     spy.mockRestore();
   });
 
+  test.each([
+    ['presentationEvents', { presentationEvents: [{ type: 'place' }], _presentationEventsPersist: [] }],
+    ['_presentationEventsPersist', { presentationEvents: [], _presentationEventsPersist: [{ type: 'place' }] }]
+  ])('queued %s blocks stale board clicks until playback sync finishes', (_label, queues) => {
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      presentationEvents: queues.presentationEvents,
+      _presentationEventsPersist: queues._presentationEventsPersist
+    };
+
+    const rm = require('../game/turn-manager');
+    rm.handleCellClick(0, 0);
+
+    expect(global.findMoveForCell).not.toHaveBeenCalled();
+    expect(global.executeMove).not.toHaveBeenCalled();
+  });
+
   test('network modeでcurrentPlayerが"white"文字列でも白手番を操作できる', () => {
     global.MATCH_MODE = 'network';
     global.NetworkMatchClient = { getSeatKey: () => 'white' };

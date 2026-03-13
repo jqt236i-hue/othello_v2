@@ -25,6 +25,9 @@ function parseArgs(argv) {
         threshold: 0.5,
         minSeedScore: 0,
         minSeedPassCount: 0,
+        maxAverageLatencyMs: 0,
+        maxP95LatencyMs: 0,
+        maxMaxLatencyMs: 0,
         blackLevel: 6,
         whiteLevel: 6,
         candidateColorMode: 'both',
@@ -35,10 +38,18 @@ function parseArgs(argv) {
         candidateOnnxMetaPath: null,
         candidateCardOnnxPath: null,
         candidateCardOnnxMetaPath: null,
+        candidateTargetOnnxPath: null,
+        candidateTargetOnnxMetaPath: null,
+        candidateValueOnnxPath: null,
+        candidateValueOnnxMetaPath: null,
         targetOnnxPath: path.resolve(process.cwd(), 'data', 'models', 'policy-net.onnx'),
         targetOnnxMetaPath: path.resolve(process.cwd(), 'data', 'models', 'policy-net.onnx.meta.json'),
         targetCardOnnxPath: path.resolve(process.cwd(), 'data', 'models', 'policy-card.onnx'),
         targetCardOnnxMetaPath: path.resolve(process.cwd(), 'data', 'models', 'policy-card.onnx.meta.json'),
+        targetTargetOnnxPath: path.resolve(process.cwd(), 'data', 'models', 'policy-target.onnx'),
+        targetTargetOnnxMetaPath: path.resolve(process.cwd(), 'data', 'models', 'policy-target.onnx.meta.json'),
+        targetValueOnnxPath: path.resolve(process.cwd(), 'data', 'models', 'policy-value.onnx'),
+        targetValueOnnxMetaPath: path.resolve(process.cwd(), 'data', 'models', 'policy-value.onnx.meta.json'),
         resolvedConfigPath: null,
         out: null,
         verbose: false,
@@ -57,6 +68,9 @@ function parseArgs(argv) {
         if (a === '--threshold') { args.threshold = Number(argv[++i]); specified.add('threshold'); continue; }
         if (a === '--min-seed-score') { args.minSeedScore = Number(argv[++i]); specified.add('minSeedScore'); continue; }
         if (a === '--min-seed-pass-count') { args.minSeedPassCount = Number(argv[++i]); specified.add('minSeedPassCount'); continue; }
+        if (a === '--max-average-latency-ms') { args.maxAverageLatencyMs = Number(argv[++i]); specified.add('maxAverageLatencyMs'); continue; }
+        if (a === '--max-p95-latency-ms') { args.maxP95LatencyMs = Number(argv[++i]); specified.add('maxP95LatencyMs'); continue; }
+        if (a === '--max-max-latency-ms') { args.maxMaxLatencyMs = Number(argv[++i]); specified.add('maxMaxLatencyMs'); continue; }
         if (a === '--black-level') { args.blackLevel = Number(argv[++i]); specified.add('blackLevel'); continue; }
         if (a === '--white-level') { args.whiteLevel = Number(argv[++i]); specified.add('whiteLevel'); continue; }
         if (a === '--candidate-color-mode') { args.candidateColorMode = String(argv[++i] || '').toLowerCase(); specified.add('candidateColorMode'); continue; }
@@ -67,10 +81,18 @@ function parseArgs(argv) {
         if (a === '--candidate-onnx-meta') { args.candidateOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); specified.add('candidateOnnxMetaPath'); continue; }
         if (a === '--candidate-card-onnx') { args.candidateCardOnnxPath = path.resolve(process.cwd(), argv[++i]); specified.add('candidateCardOnnxPath'); continue; }
         if (a === '--candidate-card-onnx-meta') { args.candidateCardOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); specified.add('candidateCardOnnxMetaPath'); continue; }
+        if (a === '--candidate-target-onnx') { args.candidateTargetOnnxPath = path.resolve(process.cwd(), argv[++i]); specified.add('candidateTargetOnnxPath'); continue; }
+        if (a === '--candidate-target-onnx-meta') { args.candidateTargetOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); specified.add('candidateTargetOnnxMetaPath'); continue; }
+        if (a === '--candidate-value-onnx') { args.candidateValueOnnxPath = path.resolve(process.cwd(), argv[++i]); specified.add('candidateValueOnnxPath'); continue; }
+        if (a === '--candidate-value-onnx-meta') { args.candidateValueOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); specified.add('candidateValueOnnxMetaPath'); continue; }
         if (a === '--target-onnx') { args.targetOnnxPath = path.resolve(process.cwd(), argv[++i]); specified.add('targetOnnxPath'); continue; }
         if (a === '--target-onnx-meta') { args.targetOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); specified.add('targetOnnxMetaPath'); continue; }
         if (a === '--target-card-onnx') { args.targetCardOnnxPath = path.resolve(process.cwd(), argv[++i]); specified.add('targetCardOnnxPath'); continue; }
         if (a === '--target-card-onnx-meta') { args.targetCardOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); specified.add('targetCardOnnxMetaPath'); continue; }
+        if (a === '--target-target-onnx') { args.targetTargetOnnxPath = path.resolve(process.cwd(), argv[++i]); specified.add('targetTargetOnnxPath'); continue; }
+        if (a === '--target-target-onnx-meta') { args.targetTargetOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); specified.add('targetTargetOnnxMetaPath'); continue; }
+        if (a === '--target-value-onnx') { args.targetValueOnnxPath = path.resolve(process.cwd(), argv[++i]); specified.add('targetValueOnnxPath'); continue; }
+        if (a === '--target-value-onnx-meta') { args.targetValueOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); specified.add('targetValueOnnxMetaPath'); continue; }
         if (a === '--resolved-config') { args.resolvedConfigPath = path.resolve(process.cwd(), argv[++i]); specified.add('resolvedConfigPath'); continue; }
         if (a === '--out' || a === '-o') { args.out = path.resolve(process.cwd(), argv[++i]); specified.add('out'); continue; }
         if (a === '--verbose') { args.verbose = true; continue; }
@@ -84,9 +106,12 @@ function parseArgs(argv) {
     if (args.help) return args;
 
     if (!Number.isFinite(args.games) || args.games < 1) throw new Error('--games must be >= 1');
+    args.games = Math.floor(args.games);
     if (!Number.isFinite(args.seed)) throw new Error('--seed must be a number');
     if (!Number.isFinite(args.seedCount) || args.seedCount < 1) throw new Error('--seed-count must be >= 1');
+    args.seedCount = Math.floor(args.seedCount);
     if (!Number.isFinite(args.seedStride) || args.seedStride < 1) throw new Error('--seed-stride must be >= 1');
+    args.seedStride = Math.floor(args.seedStride);
     if (!Number.isFinite(args.jobs) || args.jobs < 1) throw new Error('--jobs must be >= 1');
     args.jobs = Math.floor(args.jobs);
     if (!Number.isFinite(args.threshold) || args.threshold < 0 || args.threshold > 1) throw new Error('--threshold must be in [0,1]');
@@ -94,6 +119,9 @@ function parseArgs(argv) {
     if (!Number.isFinite(args.minSeedPassCount) || args.minSeedPassCount < 0) throw new Error('--min-seed-pass-count must be >= 0');
     args.minSeedPassCount = Math.floor(args.minSeedPassCount);
     if (args.minSeedPassCount > args.seedCount) throw new Error('--min-seed-pass-count must be <= --seed-count');
+    if (!Number.isFinite(args.maxAverageLatencyMs) || args.maxAverageLatencyMs < 0) throw new Error('--max-average-latency-ms must be >= 0');
+    if (!Number.isFinite(args.maxP95LatencyMs) || args.maxP95LatencyMs < 0) throw new Error('--max-p95-latency-ms must be >= 0');
+    if (!Number.isFinite(args.maxMaxLatencyMs) || args.maxMaxLatencyMs < 0) throw new Error('--max-max-latency-ms must be >= 0');
     if (!Number.isFinite(args.blackLevel) || args.blackLevel < 1 || args.blackLevel > 6) throw new Error('--black-level must be in [1,6]');
     if (!Number.isFinite(args.whiteLevel) || args.whiteLevel < 1 || args.whiteLevel > 6) throw new Error('--white-level must be in [1,6]');
     if (!['both', 'white'].includes(args.candidateColorMode)) {
@@ -111,6 +139,16 @@ function parseArgs(argv) {
         if (!args.candidateCardOnnxMetaPath) args.candidateCardOnnxMetaPath = `${args.candidateCardOnnxPath}.meta.json`;
         if (!fs.existsSync(args.candidateCardOnnxPath)) throw new Error(`candidate card onnx not found: ${args.candidateCardOnnxPath}`);
         if (!fs.existsSync(args.candidateCardOnnxMetaPath)) throw new Error(`candidate card onnx meta not found: ${args.candidateCardOnnxMetaPath}`);
+    }
+    if (args.candidateTargetOnnxPath) {
+        if (!args.candidateTargetOnnxMetaPath) args.candidateTargetOnnxMetaPath = `${args.candidateTargetOnnxPath}.meta.json`;
+        if (!fs.existsSync(args.candidateTargetOnnxPath)) throw new Error(`candidate target onnx not found: ${args.candidateTargetOnnxPath}`);
+        if (!fs.existsSync(args.candidateTargetOnnxMetaPath)) throw new Error(`candidate target onnx meta not found: ${args.candidateTargetOnnxMetaPath}`);
+    }
+    if (args.candidateValueOnnxPath) {
+        if (!args.candidateValueOnnxMetaPath) args.candidateValueOnnxMetaPath = `${args.candidateValueOnnxPath}.meta.json`;
+        if (!fs.existsSync(args.candidateValueOnnxPath)) throw new Error(`candidate value onnx not found: ${args.candidateValueOnnxPath}`);
+        if (!fs.existsSync(args.candidateValueOnnxMetaPath)) throw new Error(`candidate value onnx meta not found: ${args.candidateValueOnnxMetaPath}`);
     }
 
     return args;
@@ -130,6 +168,9 @@ function printHelp() {
         '      --threshold <r>          Required average score [0..1] (default: 0.5)',
         '      --min-seed-score <r>     Required minimum per-seed score [0..1] (default: 0)',
         '      --min-seed-pass-count <n> Required count of seeds scoring >= threshold (default: 0)',
+        '      --max-average-latency-ms <n> Required max overall average inference latency in ms (default: 0=off)',
+        '      --max-p95-latency-ms <n> Required max worst-match p95 inference latency in ms (default: 0=off)',
+        '      --max-max-latency-ms <n> Required max peak inference latency in ms (default: 0=off)',
         '      --black-level <n>        Candidate side level when black (default: 6)',
         '      --white-level <n>        Baseline side level when white (default: 6)',
         '      --candidate-color-mode <m> Candidate side usage: both | white (default: both)',
@@ -140,10 +181,18 @@ function printHelp() {
         '      --candidate-onnx-meta <path> Candidate ONNX meta path (default: <candidate>.meta.json)',
         '      --candidate-card-onnx <path> Optional candidate card-specialist ONNX path',
         '      --candidate-card-onnx-meta <path> Candidate card-specialist meta path (default: <candidate-card>.meta.json)',
+        '      --candidate-target-onnx <path> Optional candidate pending-target ONNX path',
+        '      --candidate-target-onnx-meta <path> Candidate pending-target meta path (default: <candidate-target>.meta.json)',
+        '      --candidate-value-onnx <path> Optional candidate value ONNX path',
+        '      --candidate-value-onnx-meta <path> Candidate value meta path (default: <candidate-value>.meta.json)',
         '      --target-onnx <path>     Deployed ONNX path used by browser runtime',
         '      --target-onnx-meta <path> Deployed ONNX meta path used by browser runtime',
         '      --target-card-onnx <path> Deployed card-specialist ONNX path used by browser runtime',
         '      --target-card-onnx-meta <path> Deployed card-specialist meta path used by browser runtime',
+        '      --target-target-onnx <path> Deployed pending-target ONNX path used by browser runtime',
+        '      --target-target-onnx-meta <path> Deployed pending-target ONNX meta path used by browser runtime',
+        '      --target-value-onnx <path> Deployed value ONNX path used by browser runtime',
+        '      --target-value-onnx-meta <path> Deployed value ONNX meta path used by browser runtime',
         '      --resolved-config <path> Apply defaults from a resolved training profile JSON',
         '  -o, --out <path>             Optional JSON output path',
         '      --verbose                Print match-level logs',
@@ -152,8 +201,10 @@ function printHelp() {
 }
 
 function buildSeedList(baseSeed, seedCount, seedStride) {
+    const normalizedSeedCount = Number.isFinite(Number(seedCount)) ? Math.max(0, Math.floor(Number(seedCount))) : 0;
+    const normalizedSeedStride = Number.isFinite(Number(seedStride)) ? Math.max(1, Math.floor(Number(seedStride))) : 1;
     const out = [];
-    for (let i = 0; i < seedCount; i++) out.push(baseSeed + (i * seedStride));
+    for (let i = 0; i < normalizedSeedCount; i++) out.push(baseSeed + (i * normalizedSeedStride));
     return out;
 }
 
@@ -171,6 +222,84 @@ function restoreFile(filePath, payload) {
     fs.writeFileSync(filePath, payload);
 }
 
+const ONNX_ARTIFACT_VARIANTS = Object.freeze([
+    Object.freeze({
+        key: 'primary',
+        candidatePathKey: 'candidateOnnxPath',
+        candidateMetaPathKey: 'candidateOnnxMetaPath',
+        targetPathKey: 'targetOnnxPath',
+        targetMetaPathKey: 'targetOnnxMetaPath',
+        required: true
+    }),
+    Object.freeze({
+        key: 'card',
+        candidatePathKey: 'candidateCardOnnxPath',
+        candidateMetaPathKey: 'candidateCardOnnxMetaPath',
+        targetPathKey: 'targetCardOnnxPath',
+        targetMetaPathKey: 'targetCardOnnxMetaPath',
+        required: false
+    }),
+    Object.freeze({
+        key: 'target',
+        candidatePathKey: 'candidateTargetOnnxPath',
+        candidateMetaPathKey: 'candidateTargetOnnxMetaPath',
+        targetPathKey: 'targetTargetOnnxPath',
+        targetMetaPathKey: 'targetTargetOnnxMetaPath',
+        required: false
+    }),
+    Object.freeze({
+        key: 'value',
+        candidatePathKey: 'candidateValueOnnxPath',
+        candidateMetaPathKey: 'candidateValueOnnxMetaPath',
+        targetPathKey: 'targetValueOnnxPath',
+        targetMetaPathKey: 'targetValueOnnxMetaPath',
+        required: false
+    })
+]);
+
+function buildOnnxArtifactDescriptors(options) {
+    return ONNX_ARTIFACT_VARIANTS.map((variant) => {
+        const candidatePath = options[variant.candidatePathKey] || null;
+        const candidateMetaPath = options[variant.candidateMetaPathKey] || null;
+        const targetPath = options[variant.targetPathKey] || null;
+        const targetMetaPath = options[variant.targetMetaPathKey] || null;
+        if (!variant.required && !candidatePath) return null;
+        return {
+            key: variant.key,
+            candidatePath,
+            candidateMetaPath,
+            targetPath,
+            targetMetaPath
+        };
+    }).filter(Boolean);
+}
+
+function captureOnnxArtifactBackups(descriptors) {
+    return descriptors.map((descriptor) => ({
+        ...descriptor,
+        targetBackup: backupFile(descriptor.targetPath),
+        targetMetaBackup: backupFile(descriptor.targetMetaPath)
+    }));
+}
+
+function copyOnnxArtifactsIntoTargets(descriptors) {
+    for (const descriptor of descriptors) {
+        fs.mkdirSync(path.dirname(descriptor.targetPath), { recursive: true });
+        fs.mkdirSync(path.dirname(descriptor.targetMetaPath), { recursive: true });
+        const sameTargetPath = path.resolve(descriptor.candidatePath) === path.resolve(descriptor.targetPath);
+        const sameTargetMetaPath = path.resolve(descriptor.candidateMetaPath) === path.resolve(descriptor.targetMetaPath);
+        if (!sameTargetPath) fs.copyFileSync(descriptor.candidatePath, descriptor.targetPath);
+        if (!sameTargetMetaPath) fs.copyFileSync(descriptor.candidateMetaPath, descriptor.targetMetaPath);
+    }
+}
+
+function restoreOnnxArtifactBackups(descriptors) {
+    for (const descriptor of descriptors) {
+        restoreFile(descriptor.targetPath, descriptor.targetBackup);
+        restoreFile(descriptor.targetMetaPath, descriptor.targetMetaBackup);
+    }
+}
+
 function scoreWinnerForCandidate(winner, candidateColor) {
     if (winner === 'draw') return 0.5;
     return winner === candidateColor ? 1 : 0;
@@ -180,10 +309,25 @@ function collectOnnxDiagnostics(matchPayload) {
     const runtime = matchPayload && matchPayload.runtimeStatus ? matchPayload.runtimeStatus : {};
     const onnxStatus = runtime.onnx && typeof runtime.onnx === 'object' ? runtime.onnx : null;
     const onnxLoaded = !!(onnxStatus && onnxStatus.loaded === true);
-    const cardModelLoaded = !!(onnxStatus && onnxStatus.cardModelLoaded === true);
+    const cardModelLoaded = !!(
+        onnxStatus && (
+            onnxStatus.cardModelLoaded === true ||
+            onnxStatus.hasCardHead === true
+        )
+    );
+    const targetModelLoaded = !!(onnxStatus && onnxStatus.targetModelLoaded === true);
+    const valueModelLoaded = !!(onnxStatus && onnxStatus.valueModelLoaded === true);
+    const latencyStatus = onnxStatus && onnxStatus.latency && typeof onnxStatus.latency === 'object'
+        ? onnxStatus.latency
+        : null;
+    const overallLatency = latencyStatus && latencyStatus.overall && typeof latencyStatus.overall === 'object'
+        ? latencyStatus.overall
+        : null;
     const logs = Array.isArray(matchPayload && matchPayload.consoleMessages) ? matchPayload.consoleMessages : [];
     let runtimeErrorCount = 0;
     let cardRuntimeErrorCount = 0;
+    let targetRuntimeErrorCount = 0;
+    let valueRuntimeErrorCount = 0;
     for (const log of logs) {
         const text = String(log && log.text ? log.text : '');
         if (!text) continue;
@@ -191,14 +335,38 @@ function collectOnnxDiagnostics(matchPayload) {
         if (text.includes('[CPU] policy-onnx not loaded')) runtimeErrorCount += 1;
         if (text.includes('[CPU] policy-onnx loading failed')) runtimeErrorCount += 1;
         if (text.includes('[CPU] policy-card runtime failed')) cardRuntimeErrorCount += 1;
+        if (text.includes('[CPU] policy-onnx card runtime failed')) cardRuntimeErrorCount += 1;
         if (text.includes('[CPU] policy-card not loaded')) cardRuntimeErrorCount += 1;
         if (text.includes('[CPU] policy-card loading failed')) cardRuntimeErrorCount += 1;
+        if (text.includes('[CPU] policy-onnx pending runtime failed')) targetRuntimeErrorCount += 1;
+        if (text.includes('[CPU] policy-target runtime failed')) targetRuntimeErrorCount += 1;
+        if (text.includes('[CPU] policy-target not loaded')) targetRuntimeErrorCount += 1;
+        if (text.includes('[CPU] policy-target loading failed')) targetRuntimeErrorCount += 1;
+        if (text.includes('[CPU] policy-value runtime failed')) valueRuntimeErrorCount += 1;
+        if (text.includes('[CPU] policy-value not loaded')) valueRuntimeErrorCount += 1;
+        if (text.includes('[CPU] policy-value loading failed')) valueRuntimeErrorCount += 1;
     }
-    return { onnxLoaded, runtimeErrorCount, cardModelLoaded, cardRuntimeErrorCount };
+    return {
+        onnxLoaded,
+        runtimeErrorCount,
+        cardModelLoaded,
+        cardRuntimeErrorCount,
+        targetModelLoaded,
+        targetRuntimeErrorCount,
+        valueModelLoaded,
+        valueRuntimeErrorCount,
+        latencyCallCount: Number(overallLatency && overallLatency.count) || 0,
+        latencyTotalMs: Number(overallLatency && overallLatency.totalMs) || 0,
+        averageLatencyMs: Number(overallLatency && overallLatency.averageMs) || 0,
+        p95LatencyMs: Number(overallLatency && overallLatency.p95Ms) || 0,
+        maxLatencyMs: Number(overallLatency && overallLatency.maxMs) || 0
+    };
 }
 
 function computeOnnxGateDecision(perSeed, options, diagnostics) {
     const requireCardLoaded = !!(diagnostics && diagnostics.requireCardLoaded);
+    const requireTargetLoaded = !!(diagnostics && diagnostics.requireTargetLoaded);
+    const requireValueLoaded = !!(diagnostics && diagnostics.requireValueLoaded);
     if (!Array.isArray(perSeed) || perSeed.length <= 0) {
         return {
             averageScore: 0,
@@ -210,10 +378,21 @@ function computeOnnxGateDecision(perSeed, options, diagnostics) {
             seedPassCount: 0,
             onnxLoadedMatches: 0,
             cardLoadedMatches: 0,
+            targetLoadedMatches: 0,
+            valueLoadedMatches: 0,
             totalMatches: 0,
             runtimeErrorCount: 0,
             cardRuntimeErrorCount: 0,
+            targetRuntimeErrorCount: 0,
+            valueRuntimeErrorCount: 0,
             matchErrorCount: 0,
+            averageLatencyMs: 0,
+            worstP95LatencyMs: 0,
+            maxLatencyMs: 0,
+            latencyCallCount: 0,
+            requiredMaxAverageLatencyMs: options.maxAverageLatencyMs,
+            requiredMaxP95LatencyMs: options.maxP95LatencyMs,
+            requiredMaxMaxLatencyMs: options.maxMaxLatencyMs,
             passedByAverage: false,
             passedByMinSeedScore: false,
             passedBySeedPassCount: false,
@@ -221,7 +400,14 @@ function computeOnnxGateDecision(perSeed, options, diagnostics) {
             passedByNoRuntimeErrors: false,
             passedByCardLoaded: !requireCardLoaded,
             passedByNoCardRuntimeErrors: !requireCardLoaded,
+            passedByTargetLoaded: !requireTargetLoaded,
+            passedByNoTargetRuntimeErrors: !requireTargetLoaded,
+            passedByValueLoaded: !requireValueLoaded,
+            passedByNoValueRuntimeErrors: !requireValueLoaded,
             passedByNoMatchErrors: false,
+            passedByAverageLatency: options.maxAverageLatencyMs <= 0,
+            passedByP95Latency: options.maxP95LatencyMs <= 0,
+            passedByMaxLatency: options.maxMaxLatencyMs <= 0,
             passed: false
         };
     }
@@ -241,9 +427,18 @@ function computeOnnxGateDecision(perSeed, options, diagnostics) {
     const totalMatches = Number(diagnostics && diagnostics.totalMatches) || 0;
     const onnxLoadedMatches = Number(diagnostics && diagnostics.onnxLoadedMatches) || 0;
     const cardLoadedMatches = Number(diagnostics && diagnostics.cardLoadedMatches) || 0;
+    const targetLoadedMatches = Number(diagnostics && diagnostics.targetLoadedMatches) || 0;
+    const valueLoadedMatches = Number(diagnostics && diagnostics.valueLoadedMatches) || 0;
     const runtimeErrorCount = Number(diagnostics && diagnostics.runtimeErrorCount) || 0;
     const cardRuntimeErrorCount = Number(diagnostics && diagnostics.cardRuntimeErrorCount) || 0;
+    const targetRuntimeErrorCount = Number(diagnostics && diagnostics.targetRuntimeErrorCount) || 0;
+    const valueRuntimeErrorCount = Number(diagnostics && diagnostics.valueRuntimeErrorCount) || 0;
     const matchErrorCount = Number(diagnostics && diagnostics.matchErrorCount) || 0;
+    const latencyCallCount = Number(diagnostics && diagnostics.latencyCallCount) || 0;
+    const latencyTotalMs = Number(diagnostics && diagnostics.latencyTotalMs) || 0;
+    const averageLatencyMs = latencyCallCount > 0 ? (latencyTotalMs / latencyCallCount) : 0;
+    const worstP95LatencyMs = Number(diagnostics && diagnostics.latencyP95Ms) || 0;
+    const maxLatencyMs = Number(diagnostics && diagnostics.latencyMaxMs) || 0;
 
     const passedByAverage = averageScore >= options.threshold;
     const passedByMinSeedScore = minSeedScore >= options.minSeedScore;
@@ -252,7 +447,20 @@ function computeOnnxGateDecision(perSeed, options, diagnostics) {
     const passedByCardLoaded = !requireCardLoaded || (totalMatches > 0 && cardLoadedMatches >= totalMatches);
     const passedByNoRuntimeErrors = runtimeErrorCount === 0;
     const passedByNoCardRuntimeErrors = !requireCardLoaded || cardRuntimeErrorCount === 0;
+    const passedByTargetLoaded = !requireTargetLoaded || (totalMatches > 0 && targetLoadedMatches >= totalMatches);
+    const passedByNoTargetRuntimeErrors = !requireTargetLoaded || targetRuntimeErrorCount === 0;
+    const passedByValueLoaded = !requireValueLoaded || (totalMatches > 0 && valueLoadedMatches >= totalMatches);
+    const passedByNoValueRuntimeErrors = !requireValueLoaded || valueRuntimeErrorCount === 0;
     const passedByNoMatchErrors = matchErrorCount === 0;
+    const passedByAverageLatency = options.maxAverageLatencyMs <= 0
+        ? true
+        : (latencyCallCount > 0 && averageLatencyMs <= options.maxAverageLatencyMs);
+    const passedByP95Latency = options.maxP95LatencyMs <= 0
+        ? true
+        : (latencyCallCount > 0 && worstP95LatencyMs <= options.maxP95LatencyMs);
+    const passedByMaxLatency = options.maxMaxLatencyMs <= 0
+        ? true
+        : (latencyCallCount > 0 && maxLatencyMs <= options.maxMaxLatencyMs);
     const passed = passedByAverage &&
         passedByMinSeedScore &&
         passedBySeedPassCount &&
@@ -260,7 +468,14 @@ function computeOnnxGateDecision(perSeed, options, diagnostics) {
         passedByCardLoaded &&
         passedByNoRuntimeErrors &&
         passedByNoCardRuntimeErrors &&
-        passedByNoMatchErrors;
+        passedByTargetLoaded &&
+        passedByNoTargetRuntimeErrors &&
+        passedByValueLoaded &&
+        passedByNoValueRuntimeErrors &&
+        passedByNoMatchErrors &&
+        passedByAverageLatency &&
+        passedByP95Latency &&
+        passedByMaxLatency;
 
     return {
         averageScore,
@@ -272,10 +487,21 @@ function computeOnnxGateDecision(perSeed, options, diagnostics) {
         seedPassCount,
         onnxLoadedMatches,
         cardLoadedMatches,
+        targetLoadedMatches,
+        valueLoadedMatches,
         totalMatches,
         runtimeErrorCount,
         cardRuntimeErrorCount,
+        targetRuntimeErrorCount,
+        valueRuntimeErrorCount,
         matchErrorCount,
+        averageLatencyMs,
+        worstP95LatencyMs,
+        maxLatencyMs,
+        latencyCallCount,
+        requiredMaxAverageLatencyMs: options.maxAverageLatencyMs,
+        requiredMaxP95LatencyMs: options.maxP95LatencyMs,
+        requiredMaxMaxLatencyMs: options.maxMaxLatencyMs,
         passedByAverage,
         passedByMinSeedScore,
         passedBySeedPassCount,
@@ -283,9 +509,38 @@ function computeOnnxGateDecision(perSeed, options, diagnostics) {
         passedByCardLoaded,
         passedByNoRuntimeErrors,
         passedByNoCardRuntimeErrors,
+        passedByTargetLoaded,
+        passedByNoTargetRuntimeErrors,
+        passedByValueLoaded,
+        passedByNoValueRuntimeErrors,
         passedByNoMatchErrors,
+        passedByAverageLatency,
+        passedByP95Latency,
+        passedByMaxLatency,
         passed
     };
+}
+
+function buildUiLevelMatchArgs(options, outPath) {
+    const args = [
+        path.resolve('scripts', 'run-ui-level-match.js'),
+        '--black', String(options.blackLevel),
+        '--white', String(options.whiteLevel),
+        '--seed', String(options.seed),
+        '--timeout-ms', String(options.timeoutMs),
+        '--require-onnx-loaded'
+    ];
+
+    if (options.requireCardModelLoaded) args.push('--require-card-model-loaded');
+    if (options.requireTargetModelLoaded) args.push('--require-target-model-loaded');
+    if (options.requireValueModelLoaded) args.push('--require-value-model-loaded');
+
+    args.push(
+        '--onnx-wait-ms', String(options.onnxWaitMs || Math.max(10000, Math.floor(options.timeoutMs * 0.5))),
+        '--out', outPath
+    );
+
+    return args;
 }
 
 function runUiLevelMatch(options) {
@@ -295,16 +550,7 @@ function runUiLevelMatch(options) {
         'runs',
         `onnx-gate.match.${process.pid}.${Date.now()}.${Math.floor(Math.random() * 100000)}.json`
     );
-    const args = [
-        path.resolve('scripts', 'run-ui-level-match.js'),
-        '--black', String(options.blackLevel),
-        '--white', String(options.whiteLevel),
-        '--seed', String(options.seed),
-        '--timeout-ms', String(options.timeoutMs),
-        '--require-onnx-loaded',
-        '--onnx-wait-ms', String(options.onnxWaitMs || Math.max(10000, Math.floor(options.timeoutMs * 0.5))),
-        '--out', outPath
-    ];
+    const args = buildUiLevelMatchArgs(options, outPath);
     const shown = [process.execPath].concat(args).join(' ');
     if (options.verbose) console.log(`[onnx-gate] run: ${shown}`);
     const spawnTimeoutMs = Math.max(120000, options.timeoutMs + 60000);
@@ -349,10 +595,13 @@ function runUiLevelMatch(options) {
 }
 
 function buildMatchTasks(options, seeds) {
+    const gamesPerSeed = Number.isFinite(Number(options && options.games))
+        ? Math.max(0, Math.floor(Number(options.games)))
+        : 0;
     const tasks = [];
     for (let seedIndex = 0; seedIndex < seeds.length; seedIndex++) {
         const seed = seeds[seedIndex];
-        for (let gameIndex = 0; gameIndex < options.games; gameIndex++) {
+        for (let gameIndex = 0; gameIndex < gamesPerSeed; gameIndex++) {
             const gameSeed = seed + gameIndex;
             if (options.candidateColorMode !== 'white') {
                 tasks.push({
@@ -379,10 +628,9 @@ function buildMatchTasks(options, seeds) {
 
 async function runOnnxGate(options) {
     const requireCardLoaded = !!options.candidateCardOnnxPath;
-    const backupOnnx = backupFile(options.targetOnnxPath);
-    const backupOnnxMeta = backupFile(options.targetOnnxMetaPath);
-    const backupCardOnnx = requireCardLoaded ? backupFile(options.targetCardOnnxPath) : null;
-    const backupCardOnnxMeta = requireCardLoaded ? backupFile(options.targetCardOnnxMetaPath) : null;
+    const requireTargetLoaded = !!options.candidateTargetOnnxPath;
+    const requireValueLoaded = !!options.candidateValueOnnxPath;
+    const artifactDescriptors = captureOnnxArtifactBackups(buildOnnxArtifactDescriptors(options));
     const seeds = buildSeedList(options.seed, options.seedCount, options.seedStride);
     const seedState = seeds.map((seed) => ({
         seed,
@@ -394,30 +642,27 @@ async function runOnnxGate(options) {
         totalMatches: 0,
         onnxLoadedMatches: 0,
         cardLoadedMatches: 0,
+        targetLoadedMatches: 0,
+        valueLoadedMatches: 0,
         runtimeErrorCount: 0,
         cardRuntimeErrorCount: 0,
+        targetRuntimeErrorCount: 0,
+        valueRuntimeErrorCount: 0,
         matchErrorCount: 0,
         matchRetryCount: 0,
+        latencyCallCount: 0,
+        latencyTotalMs: 0,
+        latencyP95Ms: 0,
+        latencyMaxMs: 0,
         maxTotalMs: options.maxTotalMs,
         timedOut: false,
-        requireCardLoaded
+        requireCardLoaded,
+        requireTargetLoaded,
+        requireValueLoaded
     };
     const gateStartedAt = Date.now();
 
-    fs.mkdirSync(path.dirname(options.targetOnnxPath), { recursive: true });
-    fs.mkdirSync(path.dirname(options.targetOnnxMetaPath), { recursive: true });
-    const sameOnnxPath = path.resolve(options.candidateOnnxPath) === path.resolve(options.targetOnnxPath);
-    const sameOnnxMetaPath = path.resolve(options.candidateOnnxMetaPath) === path.resolve(options.targetOnnxMetaPath);
-    if (!sameOnnxPath) fs.copyFileSync(options.candidateOnnxPath, options.targetOnnxPath);
-    if (!sameOnnxMetaPath) fs.copyFileSync(options.candidateOnnxMetaPath, options.targetOnnxMetaPath);
-    if (requireCardLoaded) {
-        fs.mkdirSync(path.dirname(options.targetCardOnnxPath), { recursive: true });
-        fs.mkdirSync(path.dirname(options.targetCardOnnxMetaPath), { recursive: true });
-        const sameCardOnnxPath = path.resolve(options.candidateCardOnnxPath) === path.resolve(options.targetCardOnnxPath);
-        const sameCardOnnxMetaPath = path.resolve(options.candidateCardOnnxMetaPath) === path.resolve(options.targetCardOnnxMetaPath);
-        if (!sameCardOnnxPath) fs.copyFileSync(options.candidateCardOnnxPath, options.targetCardOnnxPath);
-        if (!sameCardOnnxMetaPath) fs.copyFileSync(options.candidateCardOnnxMetaPath, options.targetCardOnnxMetaPath);
-    }
+    copyOnnxArtifactsIntoTargets(artifactDescriptors);
 
     try {
         const tasks = buildMatchTasks(options, seeds);
@@ -456,6 +701,9 @@ async function runOnnxGate(options) {
                         seed: task.gameSeed,
                         timeoutMs: options.timeoutMs,
                         onnxWaitMs: Math.max(10000, Math.min(options.timeoutMs, 45000)),
+                        requireCardModelLoaded: requireCardLoaded,
+                        requireTargetModelLoaded: requireTargetLoaded,
+                        requireValueModelLoaded: requireValueLoaded,
                         verbose: options.verbose
                     });
                         const score = scoreWinnerForCandidate(payload.result.winner, task.candidateColor);
@@ -467,8 +715,16 @@ async function runOnnxGate(options) {
                         const diag = collectOnnxDiagnostics(payload);
                         if (diag.onnxLoaded) diagnostics.onnxLoadedMatches += 1;
                         if (requireCardLoaded && diag.cardModelLoaded) diagnostics.cardLoadedMatches += 1;
+                        if (requireTargetLoaded && diag.targetModelLoaded) diagnostics.targetLoadedMatches += 1;
+                        if (requireValueLoaded && diag.valueModelLoaded) diagnostics.valueLoadedMatches += 1;
                         diagnostics.runtimeErrorCount += diag.runtimeErrorCount;
                         diagnostics.cardRuntimeErrorCount += diag.cardRuntimeErrorCount;
+                        diagnostics.targetRuntimeErrorCount += diag.targetRuntimeErrorCount;
+                        diagnostics.valueRuntimeErrorCount += diag.valueRuntimeErrorCount;
+                        diagnostics.latencyCallCount += diag.latencyCallCount;
+                        diagnostics.latencyTotalMs += diag.latencyTotalMs;
+                        diagnostics.latencyP95Ms = Math.max(diagnostics.latencyP95Ms, diag.p95LatencyMs);
+                        diagnostics.latencyMaxMs = Math.max(diagnostics.latencyMaxMs, diag.maxLatencyMs);
                         completed = true;
                     } catch (err) {
                         const msg = err && err.message ? err.message : String(err);
@@ -499,12 +755,7 @@ async function runOnnxGate(options) {
         for (let i = 0; i < jobs; i++) workers.push(runWorker());
         await Promise.all(workers);
     } finally {
-        restoreFile(options.targetOnnxPath, backupOnnx);
-        restoreFile(options.targetOnnxMetaPath, backupOnnxMeta);
-        if (requireCardLoaded) {
-            restoreFile(options.targetCardOnnxPath, backupCardOnnx);
-            restoreFile(options.targetCardOnnxMetaPath, backupCardOnnxMeta);
-        }
+        restoreOnnxArtifactBackups(artifactDescriptors);
     }
 
     const perSeed = [];
@@ -530,6 +781,9 @@ async function runOnnxGate(options) {
             threshold: options.threshold,
             minSeedScore: options.minSeedScore,
             minSeedPassCount: options.minSeedPassCount,
+            maxAverageLatencyMs: options.maxAverageLatencyMs,
+            maxP95LatencyMs: options.maxP95LatencyMs,
+            maxMaxLatencyMs: options.maxMaxLatencyMs,
             blackLevel: options.blackLevel,
             whiteLevel: options.whiteLevel,
             candidateColorMode: options.candidateColorMode,
@@ -539,7 +793,11 @@ async function runOnnxGate(options) {
             candidateOnnxPath: options.candidateOnnxPath,
             candidateOnnxMetaPath: options.candidateOnnxMetaPath,
             candidateCardOnnxPath: options.candidateCardOnnxPath || null,
-            candidateCardOnnxMetaPath: options.candidateCardOnnxMetaPath || null
+            candidateCardOnnxMetaPath: options.candidateCardOnnxMetaPath || null,
+            candidateTargetOnnxPath: options.candidateTargetOnnxPath || null,
+            candidateTargetOnnxMetaPath: options.candidateTargetOnnxMetaPath || null,
+            candidateValueOnnxPath: options.candidateValueOnnxPath || null,
+            candidateValueOnnxMetaPath: options.candidateValueOnnxMetaPath || null
         },
         perSeed,
         diagnostics,
@@ -560,8 +818,11 @@ async function main() {
     console.log(
         `[onnx-gate] avg=${d.averageScore.toFixed(3)} min_seed=${d.minSeedScore.toFixed(3)} threshold=${d.threshold.toFixed(3)} ` +
         `seed_pass=${d.seedPassCount}/${d.seedCount} onnx_loaded=${d.onnxLoadedMatches}/${d.totalMatches} ` +
-        `card_loaded=${d.cardLoadedMatches}/${d.totalMatches} runtime_errors=${d.runtimeErrorCount} ` +
-        `card_runtime_errors=${d.cardRuntimeErrorCount} match_errors=${d.matchErrorCount} pass=${d.passed}`
+        `latency_avg=${d.averageLatencyMs.toFixed(2)}ms latency_p95=${d.worstP95LatencyMs.toFixed(2)}ms latency_max=${d.maxLatencyMs.toFixed(2)}ms ` +
+        `card_loaded=${d.cardLoadedMatches}/${d.totalMatches} target_loaded=${d.targetLoadedMatches}/${d.totalMatches} ` +
+        `value_loaded=${d.valueLoadedMatches}/${d.totalMatches} runtime_errors=${d.runtimeErrorCount} ` +
+        `card_runtime_errors=${d.cardRuntimeErrorCount} target_runtime_errors=${d.targetRuntimeErrorCount} ` +
+        `value_runtime_errors=${d.valueRuntimeErrorCount} match_errors=${d.matchErrorCount} pass=${d.passed}`
     );
     process.exit(d.passed ? 0 : 2);
 }
@@ -576,6 +837,9 @@ if (require.main === module) {
 module.exports = {
     parseArgs,
     buildSeedList,
+    buildOnnxArtifactDescriptors,
+    buildUiLevelMatchArgs,
+    collectOnnxDiagnostics,
     computeOnnxGateDecision,
     runOnnxGate
 };

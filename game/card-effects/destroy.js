@@ -20,13 +20,40 @@ function emitPresentationEventViaBoardOps(ev) {
     return false;
 } 
 
+function applyPipelineStateResult(result) {
+    if (result && result.nextCardState) {
+        if (cardState && typeof cardState === 'object') {
+            for (const key in cardState) delete cardState[key];
+            Object.assign(cardState, result.nextCardState);
+        } else {
+            cardState = result.nextCardState;
+        }
+        try {
+            if (typeof globalThis !== 'undefined') globalThis.cardState = cardState;
+        } catch (e) { /* ignore */ }
+    }
+
+    if (result && result.nextGameState) {
+        if (gameState && typeof gameState === 'object') {
+            for (const key in gameState) delete gameState[key];
+            Object.assign(gameState, result.nextGameState);
+        } else {
+            gameState = result.nextGameState;
+        }
+        try {
+            if (typeof globalThis !== 'undefined') globalThis.gameState = gameState;
+        } catch (e) { /* ignore */ }
+    }
+}
+
 async function handleDestroySelection(row, col, playerKey) {
-    // UI flow mostly stays here, calls executeDestroy
-    // Logic for validation is simple enough to keep or delegate
-    const val = gameState.board[row][col];
-    if (val === EMPTY) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.destroySelectPrompt());
-        return;
+    if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getSelectableTargets === 'function') {
+        const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
+        const allowed = targets.some((target) => target && target.row === row && target.col === col);
+        if (!allowed) {
+            if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.destroySelectPrompt());
+            return;
+        }
     }
     await executeDestroy(row, col, playerKey);
 }
@@ -38,8 +65,6 @@ async function executeDestroy(row, col, playerKey) {
     let shouldCheckAutoPass = false;
 
     try {
-        if (typeof clearSpecialAt === 'function') clearSpecialAt(row, col);
-
         // Run destroy as an action through the TurnPipeline to ensure single writer
         const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
             ? ActionManager.ActionManager.createAction('place', playerKey, { destroyTarget: { row, col } })
@@ -65,9 +90,7 @@ async function executeDestroy(row, col, playerKey) {
             return;
         }
 
-        // Apply new states
-        if (res.nextCardState) cardState = res.nextCardState;
-        if (res.nextGameState) gameState = res.nextGameState;
+        applyPipelineStateResult(res);
 
         // Emit playback request to UI via presentationEvents (UI/PlaybackEngine should consume and play)
         if (res.playbackEvents && res.playbackEvents.length) {

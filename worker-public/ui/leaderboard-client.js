@@ -4,6 +4,7 @@
     const PLAYER_NAME_MAX = 7;
     const DEFAULT_PLAYER_NAME = 'ななし';
     const PLAYER_ID_RE = /^[A-Za-z0-9_-]{8,80}$/;
+    const LEADERBOARD_FETCH_LIMIT_MAX = 100;
 
     function canUseStorage() {
         try {
@@ -150,7 +151,9 @@
 
     async function fetchLeaderboard(options) {
         const opts = options || {};
-        const limit = Number.isFinite(Number(opts.limit)) ? Math.max(1, Math.min(30, Math.trunc(Number(opts.limit)))) : 10;
+        const limit = Number.isFinite(Number(opts.limit))
+            ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
+            : 10;
         const res = await requestJson('GET', `/api/leaderboard/list?limit=${limit}`, null, opts);
         if (!res.ok) {
             return { ok: false, reason: res.reason || 'LIST_FAILED', entries: [], updatedAt: 0 };
@@ -184,7 +187,9 @@
             turnCount: Number.isFinite(Number(summary.turnCount)) ? Math.max(0, Math.trunc(Number(summary.turnCount))) : null,
             mode: opts.mode === 'network' ? 'network' : 'cpu',
             cpuLevel: Number.isFinite(Number(opts.cpuLevel)) ? Math.max(1, Math.min(6, Math.trunc(Number(opts.cpuLevel)))) : null,
-            limit: Number.isFinite(Number(opts.limit)) ? Math.max(1, Math.min(30, Math.trunc(Number(opts.limit)))) : 10
+            limit: Number.isFinite(Number(opts.limit))
+                ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
+                : 10
         };
 
         const res = await requestJson('POST', '/api/leaderboard/submit', payload, opts);

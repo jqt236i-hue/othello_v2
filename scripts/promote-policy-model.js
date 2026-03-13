@@ -10,9 +10,21 @@ function parseArgs(argv) {
         candidateModelPath: null,
         candidateOnnxPath: null,
         candidateOnnxMetaPath: null,
+        candidateCardOnnxPath: null,
+        candidateCardOnnxMetaPath: null,
+        candidateTargetOnnxPath: null,
+        candidateTargetOnnxMetaPath: null,
+        candidateValueOnnxPath: null,
+        candidateValueOnnxMetaPath: null,
         targetModelPath: path.resolve(process.cwd(), 'data', 'models', 'policy-table.json'),
         targetOnnxPath: path.resolve(process.cwd(), 'data', 'models', 'policy-net.onnx'),
         targetOnnxMetaPath: path.resolve(process.cwd(), 'data', 'models', 'policy-net.onnx.meta.json'),
+        targetCardOnnxPath: path.resolve(process.cwd(), 'data', 'models', 'policy-card.onnx'),
+        targetCardOnnxMetaPath: path.resolve(process.cwd(), 'data', 'models', 'policy-card.onnx.meta.json'),
+        targetTargetOnnxPath: path.resolve(process.cwd(), 'data', 'models', 'policy-target.onnx'),
+        targetTargetOnnxMetaPath: path.resolve(process.cwd(), 'data', 'models', 'policy-target.onnx.meta.json'),
+        targetValueOnnxPath: path.resolve(process.cwd(), 'data', 'models', 'policy-value.onnx'),
+        targetValueOnnxMetaPath: path.resolve(process.cwd(), 'data', 'models', 'policy-value.onnx.meta.json'),
         promotedDir: path.resolve(process.cwd(), 'data', 'models', 'promoted'),
         archiveDir: path.resolve(process.cwd(), 'data', 'models', 'archive'),
         manifestPath: null,
@@ -27,9 +39,21 @@ function parseArgs(argv) {
         if (a === '--candidate-model') { args.candidateModelPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--candidate-onnx') { args.candidateOnnxPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--candidate-onnx-meta') { args.candidateOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--candidate-card-onnx') { args.candidateCardOnnxPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--candidate-card-onnx-meta') { args.candidateCardOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--candidate-target-onnx') { args.candidateTargetOnnxPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--candidate-target-onnx-meta') { args.candidateTargetOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--candidate-value-onnx') { args.candidateValueOnnxPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--candidate-value-onnx-meta') { args.candidateValueOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--target-model') { args.targetModelPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--target-onnx') { args.targetOnnxPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--target-onnx-meta') { args.targetOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--target-card-onnx') { args.targetCardOnnxPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--target-card-onnx-meta') { args.targetCardOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--target-target-onnx') { args.targetTargetOnnxPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--target-target-onnx-meta') { args.targetTargetOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--target-value-onnx') { args.targetValueOnnxPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--target-value-onnx-meta') { args.targetValueOnnxMetaPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--promoted-dir') { args.promotedDir = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--archive-dir') { args.archiveDir = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--manifest') { args.manifestPath = path.resolve(process.cwd(), argv[++i]); continue; }
@@ -52,9 +76,21 @@ function printHelp() {
         '      --candidate-model <path>  Candidate policy model JSON (required)',
         '      --candidate-onnx <path>   Candidate ONNX model path (optional)',
         '      --candidate-onnx-meta <path> Candidate ONNX meta path (optional)',
+        '      --candidate-card-onnx <path> Candidate card-specialist ONNX path (optional)',
+        '      --candidate-card-onnx-meta <path> Candidate card-specialist ONNX meta path (optional)',
+        '      --candidate-target-onnx <path> Candidate pending-target ONNX path (optional)',
+        '      --candidate-target-onnx-meta <path> Candidate pending-target ONNX meta path (optional)',
+        '      --candidate-value-onnx <path> Candidate value ONNX path (optional)',
+        '      --candidate-value-onnx-meta <path> Candidate value ONNX meta path (optional)',
         '      --target-model <path>     Promotion target path (default: data/models/policy-table.json)',
         '      --target-onnx <path>      ONNX promotion target path (default: data/models/policy-net.onnx)',
         '      --target-onnx-meta <path> ONNX meta promotion target path (default: data/models/policy-net.onnx.meta.json)',
+        '      --target-card-onnx <path> Card-specialist promotion target path (default: data/models/policy-card.onnx)',
+        '      --target-card-onnx-meta <path> Card-specialist meta promotion target path (default: data/models/policy-card.onnx.meta.json)',
+        '      --target-target-onnx <path> Pending-target promotion target path (default: data/models/policy-target.onnx)',
+        '      --target-target-onnx-meta <path> Pending-target meta promotion target path (default: data/models/policy-target.onnx.meta.json)',
+        '      --target-value-onnx <path> Value promotion target path (default: data/models/policy-value.onnx)',
+        '      --target-value-onnx-meta <path> Value meta promotion target path (default: data/models/policy-value.onnx.meta.json)',
         '      --promoted-dir <path>     Champion/challenger snapshot root (default: data/models/promoted)',
         '      --archive-dir <path>      Archived champion root (default: data/models/archive)',
         '      --manifest <path>         Promotion manifest path (default: <promoted-dir>/promotion-manifest.json)',
@@ -89,7 +125,13 @@ function buildBundlePaths(rootDir, bundleName, options) {
         rootDir: baseDir,
         modelPath: path.join(baseDir, path.basename(options.targetModelPath)),
         onnxPath: options.targetOnnxPath ? path.join(baseDir, path.basename(options.targetOnnxPath)) : null,
-        onnxMetaPath: options.targetOnnxMetaPath ? path.join(baseDir, path.basename(options.targetOnnxMetaPath)) : null
+        onnxMetaPath: options.targetOnnxMetaPath ? path.join(baseDir, path.basename(options.targetOnnxMetaPath)) : null,
+        cardOnnxPath: options.targetCardOnnxPath ? path.join(baseDir, path.basename(options.targetCardOnnxPath)) : null,
+        cardOnnxMetaPath: options.targetCardOnnxMetaPath ? path.join(baseDir, path.basename(options.targetCardOnnxMetaPath)) : null,
+        targetOnnxPath: options.targetTargetOnnxPath ? path.join(baseDir, path.basename(options.targetTargetOnnxPath)) : null,
+        targetOnnxMetaPath: options.targetTargetOnnxMetaPath ? path.join(baseDir, path.basename(options.targetTargetOnnxMetaPath)) : null,
+        valueOnnxPath: options.targetValueOnnxPath ? path.join(baseDir, path.basename(options.targetValueOnnxPath)) : null,
+        valueOnnxMetaPath: options.targetValueOnnxMetaPath ? path.join(baseDir, path.basename(options.targetValueOnnxMetaPath)) : null
     };
 }
 
@@ -154,6 +196,12 @@ function promoteModel(options) {
     fs.mkdirSync(targetDir, { recursive: true });
     const candidateOnnxPath = options.candidateOnnxPath || null;
     const candidateOnnxMetaPath = options.candidateOnnxMetaPath || (candidateOnnxPath ? `${candidateOnnxPath}.meta.json` : null);
+    const candidateCardOnnxPath = options.candidateCardOnnxPath || null;
+    const candidateCardOnnxMetaPath = options.candidateCardOnnxMetaPath || (candidateCardOnnxPath ? `${candidateCardOnnxPath}.meta.json` : null);
+    const candidateTargetOnnxPath = options.candidateTargetOnnxPath || null;
+    const candidateTargetOnnxMetaPath = options.candidateTargetOnnxMetaPath || (candidateTargetOnnxPath ? `${candidateTargetOnnxPath}.meta.json` : null);
+    const candidateValueOnnxPath = options.candidateValueOnnxPath || null;
+    const candidateValueOnnxMetaPath = options.candidateValueOnnxMetaPath || (candidateValueOnnxPath ? `${candidateValueOnnxPath}.meta.json` : null);
     const championPaths = buildBundlePaths(promotedDir, 'champion', options);
     const challengerPaths = buildBundlePaths(promotedDir, 'challenger', options);
     const archivePaths = buildBundlePaths(archiveDir, promotionId, options);
@@ -161,32 +209,62 @@ function promoteModel(options) {
     const archivedChampion = {
         model: archiveExistingFile(options.targetModelPath, archivePaths.modelPath),
         onnx: archiveExistingFile(options.targetOnnxPath, archivePaths.onnxPath),
-        onnxMeta: archiveExistingFile(options.targetOnnxMetaPath, archivePaths.onnxMetaPath)
+        onnxMeta: archiveExistingFile(options.targetOnnxMetaPath, archivePaths.onnxMetaPath),
+        cardOnnx: archiveExistingFile(options.targetCardOnnxPath, archivePaths.cardOnnxPath),
+        cardOnnxMeta: archiveExistingFile(options.targetCardOnnxMetaPath, archivePaths.cardOnnxMetaPath),
+        targetOnnx: archiveExistingFile(options.targetTargetOnnxPath, archivePaths.targetOnnxPath),
+        targetOnnxMeta: archiveExistingFile(options.targetTargetOnnxMetaPath, archivePaths.targetOnnxMetaPath),
+        valueOnnx: archiveExistingFile(options.targetValueOnnxPath, archivePaths.valueOnnxPath),
+        valueOnnxMeta: archiveExistingFile(options.targetValueOnnxMetaPath, archivePaths.valueOnnxMetaPath)
     };
 
     fs.copyFileSync(options.candidateModelPath, options.targetModelPath);
     const onnxPromotion = promoteOptionalFile(candidateOnnxPath, options.targetOnnxPath);
     const onnxMetaPromotion = promoteOptionalFile(candidateOnnxMetaPath, options.targetOnnxMetaPath);
+    const cardOnnxPromotion = promoteOptionalFile(candidateCardOnnxPath, options.targetCardOnnxPath);
+    const cardOnnxMetaPromotion = promoteOptionalFile(candidateCardOnnxMetaPath, options.targetCardOnnxMetaPath);
+    const targetOnnxPromotion = promoteOptionalFile(candidateTargetOnnxPath, options.targetTargetOnnxPath);
+    const targetOnnxMetaPromotion = promoteOptionalFile(candidateTargetOnnxMetaPath, options.targetTargetOnnxMetaPath);
+    const valueOnnxPromotion = promoteOptionalFile(candidateValueOnnxPath, options.targetValueOnnxPath);
+    const valueOnnxMetaPromotion = promoteOptionalFile(candidateValueOnnxMetaPath, options.targetValueOnnxMetaPath);
 
     const championPromotion = {
         model: copyRequiredFile(options.candidateModelPath, championPaths.modelPath, 'candidate model'),
         onnx: promoteOptionalFile(candidateOnnxPath, championPaths.onnxPath),
-        onnxMeta: promoteOptionalFile(candidateOnnxMetaPath, championPaths.onnxMetaPath)
+        onnxMeta: promoteOptionalFile(candidateOnnxMetaPath, championPaths.onnxMetaPath),
+        cardOnnx: promoteOptionalFile(candidateCardOnnxPath, championPaths.cardOnnxPath),
+        cardOnnxMeta: promoteOptionalFile(candidateCardOnnxMetaPath, championPaths.cardOnnxMetaPath),
+        targetOnnx: promoteOptionalFile(candidateTargetOnnxPath, championPaths.targetOnnxPath),
+        targetOnnxMeta: promoteOptionalFile(candidateTargetOnnxMetaPath, championPaths.targetOnnxMetaPath),
+        valueOnnx: promoteOptionalFile(candidateValueOnnxPath, championPaths.valueOnnxPath),
+        valueOnnxMeta: promoteOptionalFile(candidateValueOnnxMetaPath, championPaths.valueOnnxMetaPath)
     };
     const challengerSnapshot = {
         model: copyRequiredFile(options.candidateModelPath, challengerPaths.modelPath, 'candidate model'),
         onnx: promoteOptionalFile(candidateOnnxPath, challengerPaths.onnxPath),
-        onnxMeta: promoteOptionalFile(candidateOnnxMetaPath, challengerPaths.onnxMetaPath)
+        onnxMeta: promoteOptionalFile(candidateOnnxMetaPath, challengerPaths.onnxMetaPath),
+        cardOnnx: promoteOptionalFile(candidateCardOnnxPath, challengerPaths.cardOnnxPath),
+        cardOnnxMeta: promoteOptionalFile(candidateCardOnnxMetaPath, challengerPaths.cardOnnxMetaPath),
+        targetOnnx: promoteOptionalFile(candidateTargetOnnxPath, challengerPaths.targetOnnxPath),
+        targetOnnxMeta: promoteOptionalFile(candidateTargetOnnxMetaPath, challengerPaths.targetOnnxMetaPath),
+        valueOnnx: promoteOptionalFile(candidateValueOnnxPath, challengerPaths.valueOnnxPath),
+        valueOnnxMeta: promoteOptionalFile(candidateValueOnnxMetaPath, challengerPaths.valueOnnxMetaPath)
     };
 
     const rollback = {
         modelPath: archivedChampion.model.archived ? archivedChampion.model.targetPath : null,
         onnxPath: archivedChampion.onnx.archived ? archivedChampion.onnx.targetPath : null,
-        onnxMetaPath: archivedChampion.onnxMeta.archived ? archivedChampion.onnxMeta.targetPath : null
+        onnxMetaPath: archivedChampion.onnxMeta.archived ? archivedChampion.onnxMeta.targetPath : null,
+        cardOnnxPath: archivedChampion.cardOnnx.archived ? archivedChampion.cardOnnx.targetPath : null,
+        cardOnnxMetaPath: archivedChampion.cardOnnxMeta.archived ? archivedChampion.cardOnnxMeta.targetPath : null,
+        targetOnnxPath: archivedChampion.targetOnnx.archived ? archivedChampion.targetOnnx.targetPath : null,
+        targetOnnxMetaPath: archivedChampion.targetOnnxMeta.archived ? archivedChampion.targetOnnxMeta.targetPath : null,
+        valueOnnxPath: archivedChampion.valueOnnx.archived ? archivedChampion.valueOnnx.targetPath : null,
+        valueOnnxMetaPath: archivedChampion.valueOnnxMeta.archived ? archivedChampion.valueOnnxMeta.targetPath : null
     };
 
     const manifest = {
-        schemaVersion: 'policy_promotion.v2',
+        schemaVersion: 'policy_promotion.v3',
         promotionId,
         promotedAt,
         forced: !!options.force,
@@ -196,12 +274,24 @@ function promoteModel(options) {
             modelPath: options.candidateModelPath,
             onnxPath: candidateOnnxPath,
             onnxMetaPath: candidateOnnxMetaPath,
+            cardOnnxPath: candidateCardOnnxPath,
+            cardOnnxMetaPath: candidateCardOnnxMetaPath,
+            targetOnnxPath: candidateTargetOnnxPath,
+            targetOnnxMetaPath: candidateTargetOnnxMetaPath,
+            valueOnnxPath: candidateValueOnnxPath,
+            valueOnnxMetaPath: candidateValueOnnxMetaPath,
             schemaVersion: candidate.schemaVersion
         },
         deployed: {
             modelPath: options.targetModelPath,
             onnxPath: options.targetOnnxPath,
-            onnxMetaPath: options.targetOnnxMetaPath
+            onnxMetaPath: options.targetOnnxMetaPath,
+            cardOnnxPath: options.targetCardOnnxPath,
+            cardOnnxMetaPath: options.targetCardOnnxMetaPath,
+            targetOnnxPath: options.targetTargetOnnxPath,
+            targetOnnxMetaPath: options.targetTargetOnnxMetaPath,
+            valueOnnxPath: options.targetValueOnnxPath,
+            valueOnnxMetaPath: options.targetValueOnnxMetaPath
         },
         champion: championPaths,
         challenger: challengerPaths,
@@ -210,7 +300,13 @@ function promoteModel(options) {
             rootDir: archivePaths.rootDir,
             model: archivedChampion.model,
             onnx: archivedChampion.onnx,
-            onnxMeta: archivedChampion.onnxMeta
+            onnxMeta: archivedChampion.onnxMeta,
+            cardOnnx: archivedChampion.cardOnnx,
+            cardOnnxMeta: archivedChampion.cardOnnxMeta,
+            targetOnnx: archivedChampion.targetOnnx,
+            targetOnnxMeta: archivedChampion.targetOnnxMeta,
+            valueOnnx: archivedChampion.valueOnnx,
+            valueOnnxMeta: archivedChampion.valueOnnxMeta
         },
         rollback
     };
@@ -221,6 +317,12 @@ function promoteModel(options) {
         candidateModelPath: options.candidateModelPath,
         onnxPromotion,
         onnxMetaPromotion,
+        cardOnnxPromotion,
+        cardOnnxMetaPromotion,
+        targetOnnxPromotion,
+        targetOnnxMetaPromotion,
+        valueOnnxPromotion,
+        valueOnnxMetaPromotion,
         championPromotion,
         challengerSnapshot,
         archivedChampion,
@@ -246,6 +348,36 @@ function main() {
         console.log(`[policy-promote] promoted onnx meta -> ${result.onnxMetaPromotion.targetPath}`);
     } else if (result.onnxMetaPromotion && result.onnxMetaPromotion.skipped && result.onnxMetaPromotion.reason !== 'not_requested') {
         console.warn(`[policy-promote] skipped onnx meta promotion (${result.onnxMetaPromotion.reason}): ${result.onnxMetaPromotion.sourcePath}`);
+    }
+    if (result.cardOnnxPromotion && result.cardOnnxPromotion.promoted) {
+        console.log(`[policy-promote] promoted card onnx -> ${result.cardOnnxPromotion.targetPath}`);
+    } else if (result.cardOnnxPromotion && result.cardOnnxPromotion.skipped && result.cardOnnxPromotion.reason !== 'not_requested') {
+        console.warn(`[policy-promote] skipped card onnx promotion (${result.cardOnnxPromotion.reason}): ${result.cardOnnxPromotion.sourcePath}`);
+    }
+    if (result.cardOnnxMetaPromotion && result.cardOnnxMetaPromotion.promoted) {
+        console.log(`[policy-promote] promoted card onnx meta -> ${result.cardOnnxMetaPromotion.targetPath}`);
+    } else if (result.cardOnnxMetaPromotion && result.cardOnnxMetaPromotion.skipped && result.cardOnnxMetaPromotion.reason !== 'not_requested') {
+        console.warn(`[policy-promote] skipped card onnx meta promotion (${result.cardOnnxMetaPromotion.reason}): ${result.cardOnnxMetaPromotion.sourcePath}`);
+    }
+    if (result.targetOnnxPromotion && result.targetOnnxPromotion.promoted) {
+        console.log(`[policy-promote] promoted target onnx -> ${result.targetOnnxPromotion.targetPath}`);
+    } else if (result.targetOnnxPromotion && result.targetOnnxPromotion.skipped && result.targetOnnxPromotion.reason !== 'not_requested') {
+        console.warn(`[policy-promote] skipped target onnx promotion (${result.targetOnnxPromotion.reason}): ${result.targetOnnxPromotion.sourcePath}`);
+    }
+    if (result.targetOnnxMetaPromotion && result.targetOnnxMetaPromotion.promoted) {
+        console.log(`[policy-promote] promoted target onnx meta -> ${result.targetOnnxMetaPromotion.targetPath}`);
+    } else if (result.targetOnnxMetaPromotion && result.targetOnnxMetaPromotion.skipped && result.targetOnnxMetaPromotion.reason !== 'not_requested') {
+        console.warn(`[policy-promote] skipped target onnx meta promotion (${result.targetOnnxMetaPromotion.reason}): ${result.targetOnnxMetaPromotion.sourcePath}`);
+    }
+    if (result.valueOnnxPromotion && result.valueOnnxPromotion.promoted) {
+        console.log(`[policy-promote] promoted value onnx -> ${result.valueOnnxPromotion.targetPath}`);
+    } else if (result.valueOnnxPromotion && result.valueOnnxPromotion.skipped && result.valueOnnxPromotion.reason !== 'not_requested') {
+        console.warn(`[policy-promote] skipped value onnx promotion (${result.valueOnnxPromotion.reason}): ${result.valueOnnxPromotion.sourcePath}`);
+    }
+    if (result.valueOnnxMetaPromotion && result.valueOnnxMetaPromotion.promoted) {
+        console.log(`[policy-promote] promoted value onnx meta -> ${result.valueOnnxMetaPromotion.targetPath}`);
+    } else if (result.valueOnnxMetaPromotion && result.valueOnnxMetaPromotion.skipped && result.valueOnnxMetaPromotion.reason !== 'not_requested') {
+        console.warn(`[policy-promote] skipped value onnx meta promotion (${result.valueOnnxMetaPromotion.reason}): ${result.valueOnnxMetaPromotion.sourcePath}`);
     }
     console.log(`[policy-promote] manifest -> ${result.manifestPath}`);
     if (result.rollback && result.rollback.modelPath) {

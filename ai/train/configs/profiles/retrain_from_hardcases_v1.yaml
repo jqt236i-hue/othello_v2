@@ -1,0 +1,70 @@
+schemaVersion: training_profile.v1
+name: retrain_from_hardcases_v1
+description: >
+  最新 hardcase / teacher_solution を再学習し、move/card/target/value 候補を作り直す補助レーン。
+runTagPrefix: retrain_from_hardcases_v1
+launcherScript: scripts/run-hardcase-retrain.js
+paths:
+  runsDir: data/runs/retrain_from_hardcases_v1
+  modelsDir: data/models/retrain_from_hardcases_v1
+bootstrap:
+  autoResumeLatestCheckpoint: false
+preflight:
+  enabled: true
+  strict: false
+  allowArtifacts: true
+  checkWindow: true
+trainCycleArgs:
+  - --with-cards
+  - --onnx-epochs
+  - "400"
+  - --onnx-batch-size
+  - "1024"
+  - --onnx-lr
+  - "0.00055"
+  - --onnx-hidden-size
+  - "320"
+  - --onnx-device
+  - auto
+  - --onnx-log-interval-steps
+  - "0"
+  - --onnx-val-split
+  - "0.15"
+  - --onnx-early-stop-patience
+  - "16"
+  - --onnx-early-stop-min-delta
+  - "0.00008"
+  - --onnx-early-stop-min-epochs
+  - "40"
+  - --onnx-early-stop-monitor
+  - val_loss
+  - --onnx-early-stop-smoothing-window
+  - "3"
+  - --onnx-card-no-action-weight
+  - "0.70"
+  - --onnx-card-class-balance-power
+  - "0.40"
+  - --onnx-winner-sample-boost
+  - "0.40"
+  - --onnx-loser-sample-weight
+  - "0.90"
+  - --onnx-draw-sample-weight
+  - "1.0"
+  - --onnx-corner-emergency-sample-boost
+  - "0.60"
+  - --onnx-negative-future-disc-sample-boost
+  - "0.55"
+  - --onnx-negative-future-disc-threshold
+  - "-1.0"
+  - --onnx-tactical-miss-sample-boost
+  - "0.45"
+  - --onnx-tactical-miss-threshold
+  - "0.07"
+  - --onnx-hand-pressure-sample-boost
+  - "0.55"
+  - --onnx-pending-target-sample-boost
+  - "0.75"
+  - --min-visits
+  - "2"
+  - --shape-immediate
+  - "0.45"

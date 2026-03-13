@@ -26,7 +26,7 @@ function mapBlockedMarkers(cardState) {
             m &&
             m.kind === 'specialStone' &&
             m.data &&
-            (m.data.type === 'BLOCKADE' || m.data.type === 'METEOR_HOLE')
+            (m.data.type === 'BLOCKADE' || m.data.type === 'METEOR_HOLE' || m.data.type === 'FREEZE')
         ))
         .map(m => ({
             row: m.row,

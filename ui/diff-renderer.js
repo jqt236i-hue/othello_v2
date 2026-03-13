@@ -174,6 +174,16 @@ function _applyDoubleDigitTimerClassForDiff(timerElement, rawValue) {
     }
 }
 
+function _resolveSpecialDisplayTurnsForDiff(data) {
+    const primary = Number(data && data.remainingOwnerTurns);
+    if (Number.isFinite(primary)) return Math.max(0, Math.trunc(primary));
+    if (String(data && data.type ? data.type : '').toUpperCase() === 'REGEN') {
+        const regenRemaining = Number(data && data.regenRemaining);
+        if (Number.isFinite(regenRemaining)) return Math.max(0, Math.trunc(regenRemaining));
+    }
+    return undefined;
+}
+
 function _cacheCell(row, col, cell) {
     if (!cellCache[row]) cellCache[row] = [];
     cellCache[row][col] = cell;
@@ -194,6 +204,33 @@ if (!OwnerHelpersModule) {
     try {
         if (typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) OwnerHelpersModule = globalThis.OwnerHelpers;
     } catch (e) { /* ignore */ }
+}
+var PlaybackStateModule = null;
+if (typeof require === 'function') {
+    try { PlaybackStateModule = require('./playback-state-manager'); } catch (e) { /* ignore */ }
+}
+if (!PlaybackStateModule) {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) PlaybackStateModule = globalThis.PlaybackStateManager;
+    } catch (e) { /* ignore */ }
+}
+
+function _isVisualPlaybackActiveForDiff() {
+    if (PlaybackStateModule && typeof PlaybackStateModule.getPlaybackActive === 'function') {
+        return PlaybackStateModule.getPlaybackActive() === true;
+    }
+    return (typeof window !== 'undefined' && window.VisualPlaybackActive === true);
+}
+
+function _consumeSuppressNextDiffFlipForDiff() {
+    if (PlaybackStateModule && typeof PlaybackStateModule.consumeSuppressNextDiffFlip === 'function') {
+        return PlaybackStateModule.consumeSuppressNextDiffFlip() === true;
+    }
+    const active = (typeof window !== 'undefined' && window.__suppressNextDiffFlip === true);
+    if (active) {
+        try { window.__suppressNextDiffFlip = false; } catch (e) { /* ignore */ }
+    }
+    return active;
 }
 
 // Internal (per-render) flag to suppress fallback flip animation.
@@ -257,7 +294,9 @@ function _buildEmptyCellStateForDiffRender() {
                 inherited: null,
                 guard: null,
                 bomb: null,
-                blockade: null
+                blockade: null,
+                frozen: null,
+                destroyEvadeRemaining: null
             };
         }
     }
@@ -272,7 +311,8 @@ function _resolveFlipEvadeDisplayForDiff(special, inherited) {
         specialTypeUpper === 'HYPERACTIVE' ||
         specialTypeUpper === 'EXTREME_HYPERACTIVE' ||
         specialTypeUpper === 'ESCAPE_HYPERACTIVE' ||
-        specialTypeUpper === 'ULTIMATE_HYPERACTIVE'
+        specialTypeUpper === 'ULTIMATE_HYPERACTIVE' ||
+        specialTypeUpper === 'WILL_HUNTER_KING'
     );
     const specialEvade = (special && specialSupportsFlipEvade && Number.isFinite(Number(special.flipEvadeRemaining)))
         ? Math.max(0, Math.trunc(Number(special.flipEvadeRemaining)))
@@ -297,7 +337,8 @@ const LONG_PRESS_MOVE_CANCEL_PX = 8;
 const STONE_INFO_TAG_MEANINGS = Object.freeze({
     '多動状態': '両者ターン開始時にマス移動する状態。',
     '反転回避': '反転対象になったとき、マス移動でその石だけ回避する。',
-    '特殊石': '通常石ではないカード由来の石。',
+    '破壊回避': '破壊対象になったとき、空きマスへ移動してその石だけ回避する。',
+    '特殊石': '通常石画像を使わない石。normal_stone-black.png / normal_stone-white.png 以外の見た目の石。',
     '反転保護': '反転されない。挟める列ごと無効化する。',
     '破壊保護': '破壊効果を受けない。',
     '守る意志適用中': '守る意志または守護神の完全保護が重なっている。',
@@ -407,6 +448,10 @@ const SPECIAL_STONE_INFO = {
         name: '金石',
         desc: '配置直後に自壊し、そのターンの獲得布石を4倍にする。'
     },
+    RAINBOW: {
+        name: '虹石',
+        desc: '配置直後に自壊し、そのターンの獲得布石を6倍にする。'
+    },
     SILVER: {
         name: '銀石',
         desc: '配置直後に自壊し、そのターンの獲得布石を3倍にする。'
@@ -435,6 +480,10 @@ const SPECIAL_STONE_INFO = {
         name: '罠石',
         desc: '次の相手ターン中に反転されると発動する。'
     },
+    FREEZE: {
+        name: '凍結マス',
+        desc: '5ターンの間このマスを凍結する。石がある場合はその石ごと凍結され、凍結中の石は反転・破壊・移動されない。凍結マスには配置・移動できず、反転経路も遮断する。'
+    },
     BLOCKADE: {
         name: '封鎖マス',
         desc: 'このマスには3ターンの間、配置・移動で入れない。'
@@ -442,6 +491,10 @@ const SPECIAL_STONE_INFO = {
     OBSERVER: {
         name: '盤理の観測者石',
         desc: '所有者ターン開始時に30%で発動し、布石を1〜5獲得する。5ターン持続。'
+    },
+    WILL_HUNTER_KING: {
+        name: '意志狩りの王',
+        desc: '自ターン開始時に敵石1つを狙い、特殊石があれば優先してその方向へ移動しながら斬撃で破壊する。反転回避2回と破壊回避2回を持ち、8ターン後に自己消滅する。'
     },
     METEOR_HOLE: {
         name: '流星穴',
@@ -714,7 +767,12 @@ const STONE_INFO_FLIP_EVADE_TYPES = new Set([
     'ESCAPE_HYPERACTIVE',
     'INHERITED_HYPERACTIVE',
     'EXTREME_HYPERACTIVE',
-    'ULTIMATE_HYPERACTIVE'
+    'ULTIMATE_HYPERACTIVE',
+    'WILL_HUNTER_KING'
+]);
+
+const STONE_INFO_DESTROY_EVADE_TYPES = new Set([
+    'WILL_HUNTER_KING'
 ]);
 
 function _hasActiveFlipEvadeForEntry(type, entry) {
@@ -748,6 +806,14 @@ function _buildSpecialStoneBadges(entries, hasGuard, protection) {
     }
     if (contexts.some((ctx) => _hasActiveFlipEvadeForEntry(ctx.type, ctx.entry))) {
         badges.push('反転回避');
+    }
+    if (contexts.some((ctx) => {
+        if (!ctx || !ctx.type || !STONE_INFO_DESTROY_EVADE_TYPES.has(ctx.type)) return false;
+        const data = ctx.entry && ctx.entry.marker && ctx.entry.marker.data ? ctx.entry.marker.data : null;
+        const remaining = Number(data ? data.destroyEvadeRemaining : NaN);
+        return Number.isFinite(remaining) && Math.max(0, Math.trunc(remaining)) > 0;
+    })) {
+        badges.push('破壊回避');
     }
 
     if (protection.flipProtected) badges.push('反転保護');
@@ -999,7 +1065,15 @@ function buildCurrentCellState() {
     }
     const playerKey = getPlayerKey(player);
     const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
-    const freePlacementActive = pending && (pending.type === 'FREE_PLACEMENT' || pending.type === 'SNIPER_WILL' || pending.type === 'LAST_RESORT');
+    const freePlacementActive = !!(pending && (
+        (typeof CardLogic !== 'undefined' &&
+            CardLogic &&
+            typeof CardLogic.isFreePlacementPendingType === 'function' &&
+            CardLogic.isFreePlacementPendingType(pending.type)) ||
+        pending.type === 'FREE_PLACEMENT' ||
+        pending.type === 'SNIPER_WILL' ||
+        pending.type === 'LAST_RESORT'
+    ));
     const isTabooReversePending = !!(pending && pending.type === 'TABOO_REVERSE_WILL');
     let canControlCurrentTurn = true;
     try {
@@ -1088,6 +1162,7 @@ function buildCurrentCellState() {
     const inheritedMap = new Map();
     const bombMap = new Map();
     const blockadeMap = new Map();
+    const freezeMap = new Map();
     const sproutMap = new Map();
     for (const m of markers) {
         if (m.kind === markerKinds.SPECIAL_STONE && m.data && m.data.type) {
@@ -1114,6 +1189,15 @@ function buildCurrentCellState() {
                 });
                 continue;
             }
+            if (m.data.type === 'FREEZE') {
+                freezeMap.set(`${m.row},${m.col}`, {
+                    row: m.row,
+                    col: m.col,
+                    owner: m.owner,
+                    remainingOwnerTurns: m.data.remainingOwnerTurns
+                });
+                continue;
+            }
             if (m.data.type === 'GUARD') {
                 guardMap.set(`${m.row},${m.col}`, {
                     row: m.row,
@@ -1128,14 +1212,18 @@ function buildCurrentCellState() {
                 markerTypeUpper === 'HYPERACTIVE' ||
                 markerTypeUpper === 'EXTREME_HYPERACTIVE' ||
                 markerTypeUpper === 'ESCAPE_HYPERACTIVE' ||
-                markerTypeUpper === 'ULTIMATE_HYPERACTIVE'
+                markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ||
+                markerTypeUpper === 'WILL_HUNTER_KING'
             );
             specialMap.set(`${m.row},${m.col}`, {
                 row: m.row,
                 col: m.col,
                 type: m.data.type,
                 owner: m.owner,
-                remainingOwnerTurns: m.data.remainingOwnerTurns,
+                remainingOwnerTurns: _resolveSpecialDisplayTurnsForDiff(m.data),
+                destroyEvadeRemaining: Number.isFinite(Number(m.data.destroyEvadeRemaining))
+                    ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))
+                    : null,
                 flipEvadeRemaining: markerSupportsFlipEvade
                     ? (
                         Number.isFinite(Number(m.data.flipEvadeRemaining))
@@ -1178,12 +1266,13 @@ function buildCurrentCellState() {
             const key = r + ',' + c;
             const val = gameState.board[r][c];
             const blockade = blockadeMap.get(key) || null;
+            const frozen = freezeMap.get(key) || null;
             const isLegal = showLegalHints && val === EMPTY && legalSet.has(key);
             const isTabooLegal = showLegalHints && val === EMPTY && tabooLegalSet.has(key);
             const isLegalFree = showLegalHints && val === EMPTY && freePlacementActive;
             const isSelectableFriendly = isHumanTurn && selectableTargetSet.has(key);
             const isExtendLifeTarget = isSelectableFriendly && isExtendLifeSelection;
-            const bonusValueRaw = (val === EMPTY && !blockade && boardBonusConsumedByCell[key] !== true)
+            const bonusValueRaw = (val === EMPTY && !blockade && !frozen && boardBonusConsumedByCell[key] !== true)
                 ? Number(boardBonusByCell[key] || 0)
                 : 0;
             const boardBonus = Number.isFinite(bonusValueRaw) && bonusValueRaw > 0 ? bonusValueRaw : null;
@@ -1200,7 +1289,8 @@ function buildCurrentCellState() {
                     String(special.type || '').toUpperCase() === 'HYPERACTIVE' ||
                     String(special.type || '').toUpperCase() === 'EXTREME_HYPERACTIVE' ||
                     String(special.type || '').toUpperCase() === 'ESCAPE_HYPERACTIVE' ||
-                    String(special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE'
+                    String(special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE' ||
+                    String(special.type || '').toUpperCase() === 'WILL_HUNTER_KING'
                 )
             );
 
@@ -1224,7 +1314,8 @@ function buildCurrentCellState() {
                     type: special.type,
                     owner: getOwnerVal(special.owner),
                     remainingOwnerTurns: special.remainingOwnerTurns,
-                    flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay.special : 0
+                    flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay.special : 0,
+                    destroyEvadeRemaining: special.destroyEvadeRemaining
                 } : null,
                 inherited: inherited ? {
                     owner: getOwnerVal(inherited.owner),
@@ -1240,7 +1331,12 @@ function buildCurrentCellState() {
                     type: blockade.type,
                     owner: getOwnerVal(blockade.owner),
                     remainingOwnerTurns: blockade.remainingOwnerTurns
-                } : null
+                } : null,
+                frozen: frozen ? {
+                    owner: getOwnerVal(frozen.owner),
+                    remainingOwnerTurns: frozen.remainingOwnerTurns
+                } : null,
+                destroyEvadeRemaining: special ? special.destroyEvadeRemaining : null
             };
         }
     }
@@ -1267,7 +1363,8 @@ function buildCurrentCellState() {
                 String(special.type || '').toUpperCase() === 'HYPERACTIVE' ||
                 String(special.type || '').toUpperCase() === 'EXTREME_HYPERACTIVE' ||
                 String(special.type || '').toUpperCase() === 'ESCAPE_HYPERACTIVE' ||
-                String(special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE'
+                String(special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE' ||
+                String(special.type || '').toUpperCase() === 'WILL_HUNTER_KING'
             )
         );
 
@@ -1288,11 +1385,16 @@ function buildCurrentCellState() {
             isExtendLifeTarget,
             breedingSprout: false,
             boardBonus: null,
+            frozen: freezeMap.get(expKey) ? {
+                owner: getOwnerVal(freezeMap.get(expKey).owner),
+                remainingOwnerTurns: freezeMap.get(expKey).remainingOwnerTurns
+            } : null,
             special: special ? {
                 type: special.type,
                 owner: getOwnerVal(special.owner),
                 remainingOwnerTurns: special.remainingOwnerTurns,
-                flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay.special : 0
+                flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay.special : 0,
+                destroyEvadeRemaining: special.destroyEvadeRemaining
             } : null,
             inherited: inherited ? {
                 owner: getOwnerVal(inherited.owner),
@@ -1308,7 +1410,8 @@ function buildCurrentCellState() {
                 type: blockade.type,
                 owner: getOwnerVal(blockade.owner),
                 remainingOwnerTurns: blockade.remainingOwnerTurns
-            } : null
+            } : null,
+            destroyEvadeRemaining: special ? special.destroyEvadeRemaining : null
         });
     }
     state._expansionCell = state._expansionCells.length > 0 ? state._expansionCells[0] : null;
@@ -1340,6 +1443,7 @@ function cellStatesEqual(a, b) {
         if (a.special.owner !== b.special.owner) return false;
         if (a.special.remainingOwnerTurns !== b.special.remainingOwnerTurns) return false;
         if (a.special.flipEvadeRemaining !== b.special.flipEvadeRemaining) return false;
+        if (a.special.destroyEvadeRemaining !== b.special.destroyEvadeRemaining) return false;
     }
 
     if ((a.inherited === null) !== (b.inherited === null)) return false;
@@ -1369,6 +1473,12 @@ function cellStatesEqual(a, b) {
         if (a.blockade.owner !== b.blockade.owner) return false;
     }
 
+    if ((a.frozen === null) !== (b.frozen === null)) return false;
+    if (a.frozen && b.frozen) {
+        if (a.frozen.remainingOwnerTurns !== b.frozen.remainingOwnerTurns) return false;
+        if (a.frozen.owner !== b.frozen.owner) return false;
+    }
+
     return true;
 }
 
@@ -1390,7 +1500,7 @@ function updateCellDOM(cell, state, row, col, prevState) {
         currentDisc.classList.contains('stone-hidden-all') ||
         currentDisc.classList.contains('stone-instant')
     )) {
-        const isPlaybackActive = (typeof window !== 'undefined' && window.VisualPlaybackActive === true);
+        const isPlaybackActive = _isVisualPlaybackActiveForDiff();
         if (isPlaybackActive) return;
         try {
             currentDisc.classList.remove('stone-hidden', 'stone-hidden-all', 'stone-instant');
@@ -1452,18 +1562,18 @@ function updateCellDOM(cell, state, row, col, prevState) {
     }
 
     // Add legal move indicators
-    if (state.isLegalFree && !state.blockade) {
+    if (state.isLegalFree && !state.blockade && !state.frozen) {
         cell.classList.add('legal-free');
-    } else if (state.isLegal && !state.blockade) {
+    } else if (state.isLegal && !state.blockade && !state.frozen) {
         cell.classList.add('legal');
     }
-    if (state.isTabooLegal && !state.blockade) {
+    if (state.isTabooLegal && !state.blockade && !state.frozen) {
         cell.classList.add('effect-target-highlight');
     }
-    if (state.isSelectableFriendly && !state.blockade) {
+    if (state.isSelectableFriendly && !state.blockade && !state.frozen) {
         cell.classList.add('selectable-friendly');
     }
-    if (state.isExtendLifeTarget && !state.blockade) {
+    if (state.isExtendLifeTarget && !state.blockade && !state.frozen) {
         cell.classList.add('selectable-friendly-no-circle');
     }
 
@@ -1525,9 +1635,15 @@ function updateCellDOM(cell, state, row, col, prevState) {
                 String(state.special.type || '').toUpperCase() === 'HYPERACTIVE' ||
                 String(state.special.type || '').toUpperCase() === 'EXTREME_HYPERACTIVE' ||
                 String(state.special.type || '').toUpperCase() === 'ESCAPE_HYPERACTIVE' ||
-                String(state.special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE'
+                String(state.special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE' ||
+                String(state.special.type || '').toUpperCase() === 'WILL_HUNTER_KING'
             ) &&
             Number.isFinite(state.special.flipEvadeRemaining)
+        );
+        const canShowDestroyEvade = !!(
+            state.special &&
+            String(state.special.type || '').toUpperCase() === 'WILL_HUNTER_KING' &&
+            Number.isFinite(state.special.destroyEvadeRemaining)
         );
 
         // Unified special stone visual effect
@@ -1567,6 +1683,15 @@ function updateCellDOM(cell, state, row, col, prevState) {
                 evadeTimer.textContent = String(specialEvadeRemaining);
                 _applyDoubleDigitTimerClassForDiff(evadeTimer, specialEvadeRemaining);
                 disc.appendChild(evadeTimer);
+            }
+
+            if (canShowDestroyEvade) {
+                const destroyEvadeTimer = document.createElement('div');
+                destroyEvadeTimer.className = 'stone-timer destroy-evade-timer';
+                const destroyEvadeRemaining = Math.max(0, Math.trunc(state.special.destroyEvadeRemaining));
+                destroyEvadeTimer.textContent = String(destroyEvadeRemaining);
+                _applyDoubleDigitTimerClassForDiff(destroyEvadeTimer, destroyEvadeRemaining);
+                disc.appendChild(destroyEvadeTimer);
             }
         }
 
@@ -1635,6 +1760,20 @@ function updateCellDOM(cell, state, row, col, prevState) {
         }
 
     }
+
+    if (state.frozen) {
+        cell.classList.add('frozen-cell');
+        const freezeMark = document.createElement('div');
+        freezeMark.className = 'freeze-mark';
+        const remain = Number(state.frozen.remainingOwnerTurns);
+        if (Number.isFinite(remain)) {
+            const turnLabel = document.createElement('div');
+            turnLabel.className = 'freeze-turn';
+            turnLabel.textContent = String(Math.max(0, Math.trunc(remain)));
+            freezeMark.appendChild(turnLabel);
+        }
+        cell.appendChild(freezeMark);
+    }
 }
 
 /**
@@ -1680,7 +1819,7 @@ function reconcileCellHasDiscClasses(boardEl) {
  */
 function renderBoardDiff(boardEl) {
     // Single Visual Writer detection: prevent diff/rerender during active playback
-    if (typeof window !== 'undefined' && window.VisualPlaybackActive === true) {
+    if (_isVisualPlaybackActiveForDiff()) {
         if (typeof window !== 'undefined' && window.__DEV__ === true) {
             throw new Error('renderBoardDiff called during active VisualPlayback (dev fail-fast)');
         } else {
@@ -1694,10 +1833,7 @@ function renderBoardDiff(boardEl) {
 
     // One-shot suppression set by AnimationEngine at the end of playback.
     // This prevents DiffRenderer from replaying the fallback ".flip" when syncing the final board state.
-    suppressFallbackFlipThisRender = (typeof window !== 'undefined' && window.__suppressNextDiffFlip === true) || _hasPendingPlaybackEvents();
-    if (suppressFallbackFlipThisRender) {
-        try { window.__suppressNextDiffFlip = false; } catch (e) { /* ignore */ }
-    }
+    suppressFallbackFlipThisRender = _consumeSuppressNextDiffFlipForDiff() || _hasPendingPlaybackEvents();
 
     try {
         const gameState = _resolveGameStateForDiffRender();

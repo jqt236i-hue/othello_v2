@@ -202,4 +202,75 @@ describe('GLUTTONOUS_WILL（悪食の意志）', () => {
     expect(marker).toBeUndefined();
     expect(gameState.board[3][6]).toBe(Shared.WHITE);
   });
+
+  test('悪食自身が完全保護中でも2連続捕食失敗で必ず消滅し、相手側の完全保護は維持される', () => {
+    const { cardState, gameState } = createState(0);
+
+    gameState.board[3][3] = Shared.BLACK;
+    gameState.board[3][4] = Shared.WHITE;
+
+    cardState.markers.push(
+      {
+        id: 3301,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'GLUTTONOUS' }
+      },
+      {
+        id: 3302,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'GUARD', remainingOwnerTurns: 3 }
+      },
+      {
+        id: 3303,
+        kind: 'specialStone',
+        row: 3,
+        col: 4,
+        owner: 'white',
+        data: { type: 'GUARD', remainingOwnerTurns: 3 }
+      }
+    );
+
+    const firstEvents = [];
+    TurnPipelinePhases.applyTurnStartPhase(
+      CardLogic,
+      { BLACK: Shared.BLACK, WHITE: Shared.WHITE },
+      cardState,
+      gameState,
+      'black',
+      firstEvents,
+      createPrng(0)
+    );
+
+    const markerAfterFirstMiss = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'GLUTTONOUS');
+    expect(markerAfterFirstMiss).toBeTruthy();
+    expect(markerAfterFirstMiss.data && markerAfterFirstMiss.data.gluttonousMissStreak).toBe(1);
+    expect(gameState.board[3][4]).toBe(Shared.WHITE);
+
+    gameState.currentPlayer = Shared.WHITE;
+    gameState.turnNumber += 1;
+
+    const secondEvents = [];
+    TurnPipelinePhases.applyTurnStartPhase(
+      CardLogic,
+      { BLACK: Shared.BLACK, WHITE: Shared.WHITE },
+      cardState,
+      gameState,
+      'white',
+      secondEvents,
+      createPrng(0)
+    );
+
+    const secondDestroyedEvent = secondEvents.find((ev) => ev && ev.type === 'hyperactive_destroyed_start');
+    expect(secondDestroyedEvent && secondDestroyedEvent.details).toHaveLength(1);
+    expect((cardState.markers || []).some((m) => m && m.owner === 'black' && m.data && m.data.type === 'GLUTTONOUS')).toBe(false);
+    expect((cardState.markers || []).some((m) => m && m.owner === 'black' && m.data && m.data.type === 'GUARD')).toBe(false);
+    expect(gameState.board[3][4]).toBe(Shared.WHITE);
+    expect((cardState.markers || []).some((m) => m && m.owner === 'white' && m.row === 3 && m.col === 4 && m.data && m.data.type === 'GUARD')).toBe(true);
+  });
 });

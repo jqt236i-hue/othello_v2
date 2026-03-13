@@ -61,6 +61,12 @@ DeepCFR/CFR+ distillation trainer (keeps browser-compatible outputs):
 npm run selfplay:train-deepcfr -- --input data/selfplay.train.ndjson --onnx-out data/models/policy-net.onnx --meta-out data/models/policy-net.onnx.meta.json --policy-table-out data/models/policy-table.json --report-out data/runs/deepcfr.report.json --metrics-out data/runs/deepcfr.metrics.jsonl --checkpoint-out data/models/policy-net.deepcfr.checkpoint.pt --cfr-iterations 12 --max-samples 600000 --epochs 24 --val-split 0.1 --early-stop-patience 4 --early-stop-min-delta 0.0002 --early-stop-monitor val_loss --min-visits 12 --shape-immediate 0.25
 ```
 
+Card specialist ONNX trainer:
+
+```powershell
+npm run selfplay:train-card -- --input data/selfplay.train.ndjson --onnx-out data/models/policy-card.onnx --meta-out data/models/policy-card.onnx.meta.json --metrics-out data/runs/train.card.metrics.jsonl --checkpoint-out data/models/policy-card.checkpoint.pt
+```
+
 ## 4) Evaluate
 
 ```powershell
@@ -70,6 +76,8 @@ npm run selfplay:train-deepcfr -- --input data/selfplay.train.ndjson --onnx-out 
 ## Output
 
 - ONNX model: `data/models/policy-net.onnx`
+- Card specialist ONNX: `data/models/policy-card.onnx`
+- Card specialist metadata: `data/models/policy-card.onnx.meta.json`
 - ONNX metadata: `data/models/policy-net.onnx.meta.json`
 - ONNX checkpoint (optional): `data/models/*.checkpoint.pt`
 - Model file: `data/models/policy-table.json`
@@ -118,6 +126,18 @@ npm run selfplay:resolve-profile -- --profile production_v2
 npm run selfplay:train-profile:production
 ```
 
+研究線の設定だけ解決して確認する:
+
+```powershell
+npm run selfplay:resolve-profile -- --profile research_deepcfr_v1
+```
+
+hardcase 採掘線の設定だけ解決して確認する:
+
+```powershell
+npm run selfplay:resolve-profile -- --profile hardcase_mining_v1
+```
+
 主な出力先:
 
 - 実行設定: `data/runs/production_v2/<runTag>/config.resolved.json`
@@ -125,19 +145,44 @@ npm run selfplay:train-profile:production
 - 学習サマリ: `data/runs/production_v2/<runTag>/training-cycle.summary.json`
 - 隔離モデル置き場: `data/models/production_v2/`
 
+`adoption_v2` gate profile では quick gate の後に quality gate、その後に final adoption と browser ONNX gate を順番に実行する。browser ONNX gate では、必要に応じて平均 / p95 / 最大推論レイテンシの閾値も使える。
+
 必要なら末尾に `-- --max-hours 12` のような上書きを追加できる。
 
 `cards_v1` preset now includes:
 
 - multi-seed adoption checks with average/min/per-seed-pass gates
 - independent seed stream for final adoption
-- browser ONNX gate before promotion
+- browser ONNX gate before promotion, including latency thresholds when configured
 
 Standalone ONNX gate:
 
 ```powershell
-npm run selfplay:onnx-gate -- --candidate-onnx data/models/policy-net.candidate.example.onnx --candidate-onnx-meta data/models/policy-net.candidate.example.onnx.meta.json --seed 1 --seed-count 3 --games 8 --threshold 0.52 --min-seed-score 0.45 --min-seed-pass-count 2 --out data/runs/adoption.onnx.example.json
+npm run selfplay:onnx-gate -- --candidate-onnx data/models/policy-net.candidate.example.onnx --candidate-onnx-meta data/models/policy-net.candidate.example.onnx.meta.json --seed 1 --seed-count 3 --games 8 --threshold 0.52 --min-seed-score 0.45 --min-seed-pass-count 2 --max-average-latency-ms 18 --max-p95-latency-ms 28 --max-max-latency-ms 45 --out data/runs/adoption.onnx.example.json
 ```
+
+## Teacher-solution export from hardcases
+
+研究線で分離保存した hardcase NDJSON から、固定形式の `teacher_solution.v1` を生成できる。
+出力は元レコードの学習互換フィールドを保持するため、そのまま既存の ONNX 学習入力へ渡せる。
+
+```powershell
+npm run selfplay:export-teacher -- --input data/runs/hardcase_mining_v1/selfplay.train.hardcase.sample.ndjson --out data/runs/hardcase_mining_v1/teacher_solution.sample.ndjson
+```
+
+生成した teacher-solution を蒸留元として使う例:
+
+```powershell
+npm run selfplay:train-deepcfr -- --input data/runs/hardcase_mining_v1/teacher_solution.sample.ndjson --onnx-out data/models/research_deepcfr_v1/policy-net.teacher.onnx --meta-out data/models/research_deepcfr_v1/policy-net.teacher.onnx.meta.json --policy-table-out data/models/research_deepcfr_v1/policy-table.teacher.json
+```
+
+`teacher_solution.v1` には次が含まれる:
+
+- 元の `board` / `player` / `legalMoves` / `handCards` / `usableCardIds` など学習互換フィールド
+- `teacherSolution.method = selfplay.committee_hardcase.v1`
+- `teacherSolution.decisionKind = place/use/destroy/sell/keep`
+- `teacherSolution.candidates` と `selectedActionKey`
+- `hardcaseTags` / `hardcasePrimaryTag` / `actorView`
 
 ## DeepCFR/CFR+ Foundation Files
 

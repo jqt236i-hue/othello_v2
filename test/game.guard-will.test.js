@@ -214,4 +214,55 @@ describe('GUARD_WILL / GUARDIAN_GOD (守る意志/守護神)', () => {
     CardLogic.processDragonEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4);
     expect(gameState.board[4][5]).toBe(-1);
   });
+
+  test('can guard own expansion stone', () => {
+    const { cardState, gameState } = makeState();
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: SharedConstants.EMPTY,
+      usedByPlayer: { black: false, white: false },
+      cells: [{ side: 'left', row: 2, col: -1, owner: SharedConstants.BLACK }]
+    };
+    cardState.pendingEffectByPlayer.black = { type: 'GUARD_WILL', stage: 'selectTarget', cardId: 'guard_expansion_01' };
+
+    const applied = CardLogic.applyGuardWill(cardState, gameState, 'black', 2, -1);
+
+    expect(applied).toMatchObject({ applied: true, row: 2, col: -1 });
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 2, col: -1, owner: 'black', data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 3 }) })
+    ]));
+  });
+
+  test('tempt targets and steals opponent expansion special stone', () => {
+    const { cardState, gameState } = makeState();
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: SharedConstants.EMPTY,
+      usedByPlayer: { black: false, white: false },
+      cells: [{ side: 'left', row: 5, col: -1, owner: SharedConstants.WHITE }]
+    };
+    cardState.markers.push({
+      id: 301,
+      kind: 'specialStone',
+      row: 5,
+      col: -1,
+      owner: 'white',
+      data: { type: 'DRAGON', remainingOwnerTurns: 4 }
+    });
+
+    const targets = CardLogic.getTemptWillTargets(cardState, gameState, 'black');
+    expect(targets).toEqual(expect.arrayContaining([{ row: 5, col: -1 }]));
+
+    cardState.pendingEffectByPlayer.black = { type: 'TEMPT_WILL', stage: 'selectTarget' };
+    const res = CardLogic.applyTemptWill(cardState, gameState, 'black', 5, -1);
+
+    expect(res).toMatchObject({ applied: true });
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 5 && cell.col === -1).owner).toBe(SharedConstants.BLACK);
+    const marker = cardState.markers.find((entry) => entry && entry.row === 5 && entry.col === -1 && entry.data && entry.data.type === 'DRAGON');
+    expect(marker && marker.owner).toBe('black');
+  });
 });

@@ -12,6 +12,7 @@ const EFFECT_GLOSSARY_TERMS = Object.freeze([
     '反転保護',
     '完全保護',
     '反転回避',
+    '破壊回避',
     '多動状態'
 ]);
 

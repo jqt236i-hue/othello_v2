@@ -19,7 +19,22 @@
     }
 
     function isBlockingMarkerType(type) {
-        return type === 'BLOCKADE' || type === 'METEOR_HOLE';
+        return type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE';
+    }
+
+    function isFrozenCell(cardState, row, col) {
+        if (CardUtils && typeof CardUtils.isFrozenCell === 'function') {
+            return !!CardUtils.isFrozenCell(cardState, row, col);
+        }
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        return markers.some(m => (
+            m &&
+            m.kind === 'specialStone' &&
+            m.row === row &&
+            m.col === col &&
+            m.data &&
+            m.data.type === 'FREEZE'
+        ));
     }
 
     function isBlockedCell(cardState, row, col) {
@@ -65,6 +80,41 @@
         return !!(marker && marker.data && marker.data.type === 'GLUTTONOUS');
     }
 
+    function getCellValue(gameState, row, col) {
+        if (isMainBoardCell(row, col)) {
+            return (gameState && Array.isArray(gameState.board) && Array.isArray(gameState.board[row]))
+                ? gameState.board[row][col]
+                : null;
+        }
+        for (const expansion of getExpansionCells(gameState)) {
+            if (!expansion) continue;
+            if (expansion.row === row && expansion.col === col) {
+                return Number(expansion.owner);
+            }
+        }
+        return null;
+    }
+
+    function hasBoardShapeCell(gameState, row, col) {
+        return getCellValue(gameState, row, col) !== null;
+    }
+
+    function forEachBoardShapeCell(gameState, visitor) {
+        if (typeof visitor !== 'function') return;
+        if (!gameState || !Array.isArray(gameState.board) || gameState.board.length !== 8) return;
+
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                visitor(row, col, gameState.board[row][col]);
+            }
+        }
+
+        for (const expansion of getExpansionCells(gameState)) {
+            if (!expansion) continue;
+            visitor(expansion.row, expansion.col, Number(expansion.owner));
+        }
+    }
+
     // Return all non-empty cells (for DESTROY_ONE_STONE)
     function getDestroyTargets(cardState, gameState) {
         const res = [];
@@ -81,9 +131,26 @@
                     m.data.type === 'GUARD'
                 );
                 if (guarded) continue;
+                if (isFrozenCell(cardState, r, c)) continue;
                 res.push({ row: r, col: c });
             }
         }
+
+        for (const expansion of getExpansionCells(gameState)) {
+            if (!expansion || Number(expansion.owner) === EMPTY) continue;
+            const guarded = markers.some((m) => (
+                m &&
+                m.kind === 'specialStone' &&
+                m.row === expansion.row &&
+                m.col === expansion.col &&
+                m.data &&
+                m.data.type === 'GUARD'
+            ));
+            if (guarded) continue;
+            if (isFrozenCell(cardState, expansion.row, expansion.col)) continue;
+            res.push({ row: expansion.row, col: expansion.col });
+        }
+
         return res;
     }
 
@@ -101,26 +168,35 @@
             m.owner !== playerKey
         );
 
+        const canSwapCell = (row, col, ownerValue) => {
+            if (ownerValue !== opVal) return;
+            const hasSpecialOrBomb = markers.some(m => {
+                if (!m || m.row !== row || m.col !== col) return false;
+                if (m.kind === 'bomb') return true;
+                if (m.kind !== 'specialStone') return false;
+                if (isHiddenTrapForPlayer(m)) return false;
+                const isExpiredUltimateHyperactive = !!(
+                    m.data &&
+                    m.data.type === 'ULTIMATE_HYPERACTIVE' &&
+                    Number.isFinite(Number(m.data.remainingOwnerTurns)) &&
+                    Number(m.data.remainingOwnerTurns) <= 0
+                );
+                if (isExpiredUltimateHyperactive) return false;
+                return true;
+            });
+            if (hasSpecialOrBomb) return;
+            res.push({ row, col });
+        };
+
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
-                if (gameState.board[r][c] !== opVal) continue;
-                const hasSpecialOrBomb = markers.some(m => {
-                    if (!m || m.row !== r || m.col !== c) return false;
-                    if (m.kind === 'bomb') return true;
-                    if (m.kind !== 'specialStone') return false;
-                    if (isHiddenTrapForPlayer(m)) return false;
-                    const isExpiredUltimateHyperactive = !!(
-                        m.data &&
-                        m.data.type === 'ULTIMATE_HYPERACTIVE' &&
-                        Number.isFinite(Number(m.data.remainingOwnerTurns)) &&
-                        Number(m.data.remainingOwnerTurns) <= 0
-                    );
-                    if (isExpiredUltimateHyperactive) return false;
-                    return true;
-                });
-                if (hasSpecialOrBomb) continue;
-                res.push({ row: r, col: c });
+                canSwapCell(r, c, gameState.board[r][c]);
             }
+        }
+
+        for (const expansion of getExpansionCells(gameState)) {
+            if (!expansion) continue;
+            canSwapCell(expansion.row, expansion.col, Number(expansion.owner));
         }
         return res;
     }
@@ -129,13 +205,23 @@
     function getPositionSwapTargets(cardState, gameState, playerKey, pending) {
         const res = [];
         const first = pending && pending.firstTarget ? pending.firstTarget : null;
+
+        const pushIfOccupied = (row, col, ownerValue) => {
+            if (ownerValue === EMPTY) return;
+            if (first && first.row === row && first.col === col) return;
+            if (isPositionSwapProtectedCell(cardState, row, col)) return;
+            res.push({ row, col });
+        };
+
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
-                if (gameState.board[r][c] === EMPTY) continue;
-                if (first && first.row === r && first.col === c) continue;
-                if (isPositionSwapProtectedCell(cardState, r, c)) continue;
-                res.push({ row: r, col: c });
+                pushIfOccupied(r, c, gameState.board[r][c]);
             }
+        }
+
+        for (const expansion of getExpansionCells(gameState)) {
+            if (!expansion) continue;
+            pushIfOccupied(expansion.row, expansion.col, Number(expansion.owner));
         }
         return res;
     }
@@ -145,30 +231,27 @@
         const res = [];
         const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (gameState.board[r][c] === playerVal) {
-                    const guarded = markers.some(m =>
-                        m &&
-                        m.kind === 'specialStone' &&
-                        m.row === r &&
-                        m.col === c &&
-                        m.data &&
-                        m.data.type === 'GUARD'
-                    );
-                    if (guarded) continue;
-                    res.push({ row: r, col: c });
-                }
-            }
-        }
+        forEachBoardShapeCell(gameState, (r, c, owner) => {
+            if (owner !== playerVal) return;
+            const guarded = markers.some(m =>
+                m &&
+                m.kind === 'specialStone' &&
+                m.row === r &&
+                m.col === c &&
+                m.data &&
+                m.data.type === 'GUARD'
+            );
+            if (guarded) return;
+            res.push({ row: r, col: c });
+        });
         return res;
     }
 
     function _getStrongWindDirectionDestination(cardState, gameState, row, col, dr, dc) {
         const nr = row + dr;
         const nc = col + dc;
-        if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) return null;
-        if (gameState.board[nr][nc] !== EMPTY) return null;
+        if (!hasBoardShapeCell(gameState, nr, nc)) return null;
+        if (getCellValue(gameState, nr, nc) !== EMPTY) return null;
         if (isBlockedCell(cardState, nr, nc)) return null;
 
         let tr = nr;
@@ -176,8 +259,8 @@
         while (true) {
             const rr = tr + dr;
             const cc = tc + dc;
-            if (rr < 0 || rr >= 8 || cc < 0 || cc >= 8) break;
-            if (gameState.board[rr][cc] !== EMPTY) break;
+            if (!hasBoardShapeCell(gameState, rr, cc)) break;
+            if (getCellValue(gameState, rr, cc) !== EMPTY) break;
             if (isBlockedCell(cardState, rr, cc)) break;
             tr = rr;
             tc = cc;
@@ -194,51 +277,45 @@
             { dr: 0, dc: 1 }
         ];
         const res = [];
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (gameState.board[r][c] === EMPTY) continue;
-                let movable = false;
-                for (const d of dirs) {
-                    if (_getStrongWindDirectionDestination(cardState, gameState, r, c, d.dr, d.dc)) {
-                        movable = true;
-                        break;
-                    }
+        forEachBoardShapeCell(gameState, (r, c, owner) => {
+            if (owner === EMPTY) return;
+            let movable = false;
+            for (const d of dirs) {
+                if (_getStrongWindDirectionDestination(cardState, gameState, r, c, d.dr, d.dc)) {
+                    movable = true;
+                    break;
                 }
-                if (movable) res.push({ row: r, col: c });
             }
-        }
+            if (movable) res.push({ row: r, col: c });
+        });
         return res;
     }
 
     function _collectVerticalCrushDestination(cardState, gameState, row, col, dr) {
-        if (!gameState || !Array.isArray(gameState.board) || gameState.board.length !== 8) return null;
         if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
         if (dr !== -1 && dr !== 1) return null;
 
         const firstRow = row + dr;
-        if (firstRow < 0 || firstRow >= 8) return null;
+        if (!hasBoardShapeCell(gameState, firstRow, col)) return null;
 
         let destination = null;
-        for (let r = firstRow; r >= 0 && r < 8; r += dr) {
+        for (let r = firstRow; hasBoardShapeCell(gameState, r, col); r += dr) {
             if (isBlockedCell(cardState, r, col)) break;
-            if (gameState.board[r][col] !== EMPTY && isGuardProtectedCell(cardState, r, col)) break;
+            if (getCellValue(gameState, r, col) !== EMPTY && isGuardProtectedCell(cardState, r, col)) break;
             destination = { row: r, col };
         }
         return destination;
     }
 
     function _getVerticalCrushTargets(cardState, gameState, dr) {
-        if (!gameState || !Array.isArray(gameState.board) || gameState.board.length !== 8) return [];
         const res = [];
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (gameState.board[r][c] === EMPTY) continue;
-                const destination = _collectVerticalCrushDestination(cardState, gameState, r, c, dr);
-                if (!destination) continue;
-                if (destination.row === r && destination.col === c) continue;
-                res.push({ row: r, col: c });
-            }
-        }
+        forEachBoardShapeCell(gameState, (r, c, owner) => {
+            if (owner === EMPTY) return;
+            const destination = _collectVerticalCrushDestination(cardState, gameState, r, c, dr);
+            if (!destination) return;
+            if (destination.row === r && destination.col === c) return;
+            res.push({ row: r, col: c });
+        });
         return res;
     }
 
@@ -256,24 +333,22 @@
         const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
 
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (gameState.board[r][c] !== playerVal) continue;
-                const hasBomb = markers.some(m => m && m.row === r && m.col === c && m.kind === 'bomb');
-                if (hasBomb) continue;
-                const hasOwnTrap = markers.some(m => (
-                    m &&
-                    m.row === r &&
-                    m.col === c &&
-                    m.kind === 'specialStone' &&
-                    m.owner === playerKey &&
-                    m.data &&
-                    m.data.type === 'TRAP'
-                ));
-                if (hasOwnTrap) continue;
-                res.push({ row: r, col: c });
-            }
-        }
+        forEachBoardShapeCell(gameState, (r, c, owner) => {
+            if (owner !== playerVal) return;
+            const hasBomb = markers.some(m => m && m.row === r && m.col === c && m.kind === 'bomb');
+            if (hasBomb) return;
+            const hasOwnTrap = markers.some(m => (
+                m &&
+                m.row === r &&
+                m.col === c &&
+                m.kind === 'specialStone' &&
+                m.owner === playerKey &&
+                m.data &&
+                m.data.type === 'TRAP'
+            ));
+            if (hasOwnTrap) return;
+            res.push({ row: r, col: c });
+        });
         return res;
     }
 
@@ -282,14 +357,12 @@
         const res = [];
         const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (gameState.board[r][c] !== playerVal) continue;
-                const hasBomb = markers.some(m => m && m.row === r && m.col === c && m.kind === 'bomb');
-                if (hasBomb) continue;
-                res.push({ row: r, col: c });
-            }
-        }
+        forEachBoardShapeCell(gameState, (r, c, owner) => {
+            if (owner !== playerVal) return;
+            const hasBomb = markers.some(m => m && m.row === r && m.col === c && m.kind === 'bomb');
+            if (hasBomb) return;
+            res.push({ row: r, col: c });
+        });
         return res;
     }
 
@@ -310,23 +383,19 @@
         if (!gameState || !Array.isArray(gameState.board) || gameState.board.length !== 8) return [];
 
         let hasDestination = false;
-        for (let r = 0; r < 8 && !hasDestination; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (gameState.board[r][c] !== EMPTY) continue;
-                if (isBlockedCell(cardState, r, c)) continue;
-                hasDestination = true;
-                break;
-            }
-        }
+        forEachBoardShapeCell(gameState, (r, c, owner) => {
+            if (hasDestination) return;
+            if (owner !== EMPTY) return;
+            if (isBlockedCell(cardState, r, c)) return;
+            hasDestination = true;
+        });
         if (!hasDestination) return [];
 
         const res = [];
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (gameState.board[r][c] === EMPTY) continue;
-                res.push({ row: r, col: c });
-            }
-        }
+        forEachBoardShapeCell(gameState, (r, c, owner) => {
+            if (owner === EMPTY) return;
+            res.push({ row: r, col: c });
+        });
         return res;
     }
 
@@ -345,8 +414,8 @@
                 if (dr === 0 && dc === 0) continue;
                 const nr = row + dr;
                 const nc = col + dc;
-                if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) continue;
-                if (gameState.board[nr][nc] !== EMPTY) continue;
+                if (!hasBoardShapeCell(gameState, nr, nc)) continue;
+                if (getCellValue(gameState, nr, nc) !== EMPTY) continue;
                 if (isBlockedCell(cardState, nr, nc)) continue;
                 return true;
             }
@@ -357,13 +426,11 @@
     function getCloneTargets(cardState, gameState, playerKey) {
         const res = [];
         const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (gameState.board[r][c] !== playerVal) continue;
-                if (!hasCloneSpawnSpace(cardState, gameState, r, c)) continue;
-                res.push({ row: r, col: c });
-            }
-        }
+        forEachBoardShapeCell(gameState, (r, c, owner) => {
+            if (owner !== playerVal) return;
+            if (!hasCloneSpawnSpace(cardState, gameState, r, c)) return;
+            res.push({ row: r, col: c });
+        });
         return res;
     }
 
@@ -637,6 +704,7 @@
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
                 if (isMeteorHoleCell(cardState, r, c)) continue;
+                if (isFrozenCell(cardState, r, c)) continue;
                 res.push({ row: r, col: c });
             }
         }
@@ -645,6 +713,26 @@
         for (const expansion of expansionCells) {
             if (!expansion) continue;
             if (isMeteorHoleCell(cardState, expansion.row, expansion.col)) continue;
+            if (isFrozenCell(cardState, expansion.row, expansion.col)) continue;
+            res.push({ row: expansion.row, col: expansion.col });
+        }
+        return res;
+    }
+
+    function getFreezeTargets(cardState, gameState) {
+        if (!gameState || !gameState.board || gameState.board.length !== 8) return [];
+        const res = [];
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (isBlockedCell(cardState, r, c)) continue;
+                res.push({ row: r, col: c });
+            }
+        }
+
+        const expansionCells = getExpansionCells(gameState);
+        for (const expansion of expansionCells) {
+            if (!expansion) continue;
+            if (isBlockedCell(cardState, expansion.row, expansion.col)) continue;
             res.push({ row: expansion.row, col: expansion.col });
         }
         return res;
@@ -671,6 +759,7 @@
         getBoardExpansionGodTargets,
         getBlockadeTargets,
         getMeteorTargets,
+        getFreezeTargets,
         isBlockedCell
     };
 }));

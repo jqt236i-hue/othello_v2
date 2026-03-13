@@ -340,6 +340,37 @@
         return added;
     }
 
+    function transferChargeBetweenPlayers(cardState, fromPlayerKey, toPlayerKey, amount, reasonKey) {
+        if (!cardState || !amount) return 0;
+        if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
+
+        const fromCharge = Math.max(0, Number(cardState.charge[fromPlayerKey] || 0));
+        const toCharge = Math.max(0, Number(cardState.charge[toPlayerKey] || 0));
+        const toRoom = Math.max(0, CHARGE_MAX - toCharge);
+        const requested = Math.max(0, Number(amount) || 0);
+        const movable = Math.min(requested, fromCharge, toRoom);
+        if (movable <= 0) return 0;
+
+        const gained = addChargeWithTotal(cardState, toPlayerKey, movable);
+        if (gained <= 0) return 0;
+
+        if (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function') {
+            CardUtilsModule.addChargeWithDelta(cardState, fromPlayerKey, -gained, `${reasonKey || 'transfer'}_loss`);
+        } else {
+            cardState.charge[fromPlayerKey] = Math.max(0, fromCharge - gained);
+        }
+        return gained;
+    }
+
+    function handOffTurnAfterSelection(Core, gameState, playerKey) {
+        if (!Core || !gameState) return;
+        const player = playerKey === 'black' ? Core.BLACK : Core.WHITE;
+        const turnNumberBeforeAction = Number(gameState.turnNumber || 0);
+        gameState.currentPlayer = -player;
+        gameState.consecutivePasses = 0;
+        gameState.turnNumber = turnNumberBeforeAction + 1;
+    }
+
     function pushTrapEvents(events, trapRes) {
         if (!events || !trapRes) return;
         if (Array.isArray(trapRes.triggered) && trapRes.triggered.length > 0) {
@@ -361,6 +392,21 @@
         if (player === 'black' || player === 1 || player === '1') return 'black';
         if (player === 'white' || player === -1 || player === '-1') return 'white';
         return null;
+    }
+
+    function isFrozenCell(cardState, row, col) {
+        if (CardUtilsModule && typeof CardUtilsModule.isFrozenCell === 'function') {
+            return !!CardUtilsModule.isFrozenCell(cardState, row, col);
+        }
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        return markers.some((m) => (
+            m &&
+            m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+            Number(m.row) === Number(row) &&
+            Number(m.col) === Number(col) &&
+            m.data &&
+            m.data.type === 'FREEZE'
+        ));
     }
 
     function emitHandRemovePresentation(CardLogic, cardState, payload) {
@@ -475,6 +521,7 @@
 
             for (const m of markers) {
                 if (m.kind === 'bomb') {
+                    if (isFrozenCell(cardState, m.marker && m.marker.row, m.marker && m.marker.col)) continue;
                     const res = CardLogic.tickBombAt(cardState, gameState, m.marker, playerKey);
                     if (res && res.exploded && res.exploded.length) {
                         events.push({ type: 'bombs_exploded', details: res });
@@ -484,6 +531,7 @@
                     const owner = m.marker.owner;
                     const row = m.marker.row;
                     const col = m.marker.col;
+                    if (t !== 'FREEZE' && isFrozenCell(cardState, row, col)) continue;
                     if (t === 'ULTIMATE_DESTROY_GOD' && owner === playerKey) {
                         const res = CardLogic.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col);
                         if (res && res.destroyed && res.destroyed.length) events.push({ type: 'udg_destroyed_start', details: res.destroyed });
@@ -500,6 +548,11 @@
                         const res = CardLogic.processLightningWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, p);
                         if (res && res.destroyed && res.destroyed.length) events.push({ type: 'lightning_destroyed_start', details: res.destroyed });
                         if (res && res.expired && res.expired.length) events.push({ type: 'lightning_expired_start', details: res.expired });
+                    } else if (t === 'WILL_HUNTER_KING' && owner === playerKey) {
+                        const res = CardLogic.processWillHunterKingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, p);
+                        if (res && res.destroyed && res.destroyed.length) events.push({ type: 'will_hunter_king_destroyed_start', details: res.destroyed });
+                        if (res && res.moved && res.moved.length) events.push({ type: 'will_hunter_king_moved_start', details: res.moved });
+                        if (res && res.expired && res.expired.length) events.push({ type: 'will_hunter_king_expired_start', details: res.expired });
                     } else if (t === 'OBSERVER' && owner === playerKey) {
                         const res = CardLogic.processObserverWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, p);
                         if (res && res.triggered && Number(res.gained) > 0) {
@@ -752,6 +805,8 @@
                 }
             } catch (e) { /* ignore */ }
 
+            delete cardState._frozenCellsActiveAtTurnStart;
+
         }
     }
 
@@ -798,6 +853,24 @@
                         cardState.pendingEffectByPlayer[playerKey] = null;
                     }
                     events.push({ type: 'treasure_box_gain', player: playerKey, gained });
+                }
+
+                if (pendingType === 'CORNER_TRIBUTE') {
+                    const opponentKey = playerKey === 'black' ? 'white' : 'black';
+                    const opponentCornerCount = (typeof CardLogic.countOccupiedCornersForPlayer === 'function')
+                        ? CardLogic.countOccupiedCornersForPlayer(cardState, gameState, opponentKey)
+                        : 0;
+                    const stolen = transferChargeBetweenPlayers(cardState, opponentKey, playerKey, 20, 'corner_tribute');
+                    if (cardState && cardState.pendingEffectByPlayer) {
+                        cardState.pendingEffectByPlayer[playerKey] = null;
+                    }
+                    events.push({
+                        type: 'corner_tribute_resolved',
+                        player: playerKey,
+                        opponent: opponentKey,
+                        stolen,
+                        opponentCornerCount
+                    });
                 }
 
                 if (pendingType === 'RIBO_WILL') {
@@ -949,6 +1022,35 @@
             try { ctx = CardLogic.getCardContext(cardState); } catch (e) { ctx = { protectedStones: [], permaProtectedStones: [], bombs: [] }; }
         }
         return ctx;
+    }
+
+    function getActionCellOwner(gameState, row, col) {
+        if (!gameState) return null;
+
+        const boardRow = Array.isArray(gameState.board) ? gameState.board[row] : null;
+        if (Array.isArray(boardRow) && Number.isInteger(col) && col >= 0 && col < boardRow.length) {
+            return boardRow[col];
+        }
+
+        const expansion = gameState.boardExpansion;
+        const cells = Array.isArray(expansion && expansion.cells)
+            ? expansion.cells
+            : ((expansion && expansion.active) ? [expansion] : []);
+
+        for (const cell of cells) {
+            if (!cell) continue;
+            const cellRow = Number(cell.row);
+            let cellCol = Number.isInteger(cell.col) ? cell.col : null;
+            if (!Number.isInteger(cellCol)) {
+                if (cell.side === 'left') cellCol = -1;
+                else if (cell.side === 'right') cellCol = 8;
+            }
+            if (cellRow !== row || cellCol !== col) continue;
+            const owner = Number(cell.owner);
+            return Number.isFinite(owner) ? owner : null;
+        }
+
+        return null;
     }
 
     function applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events) {
@@ -1224,10 +1326,14 @@
                     throw new Error('SWAP_WITH_ENEMY: invalid target (protected/bomb?)');
                 }
                 applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
+                handOffTurnAfterSelection(Core, gameState, playerKey);
                 // Selection-only pre-placement effect: stop after handling selection
                 return;
             } else if (pending && pending.type === 'SWAP_WITH_ENEMY' && action.swapTarget == null) {
-                throw new Error('SWAP_WITH_ENEMY requires swapTarget before placement');
+                const hasLegacyBoardClickTarget = Number.isInteger(action.row) && Number.isInteger(action.col);
+                if (!hasLegacyBoardClickTarget) {
+                    throw new Error('SWAP_WITH_ENEMY requires swapTarget before placement');
+                }
             }
             if (pending && pending.type === 'POSITION_SWAP_WILL' && action.positionSwapTarget) {
                 const res = CardLogic.applyPositionSwapWill(
@@ -1261,6 +1367,9 @@
                     action.trapTarget.col
                 );
                 events.push({ type: 'trap_selected', player: playerKey, target: action.trapTarget, applied: !!(res && res.applied) });
+                if (res && res.applied) {
+                    handOffTurnAfterSelection(Core, gameState, playerKey);
+                }
                 return;
             } else if (pending && pending.type === 'TRAP_WILL' && action.trapTarget == null) {
                 throw new Error('TRAP_WILL requires trapTarget before placement');
@@ -1456,6 +1565,19 @@
             } else if (pending && pending.type === 'METEOR_WILL' && action.meteorTarget == null) {
                 throw new Error('METEOR_WILL requires meteorTarget before placement');
             }
+            if (pending && pending.type === 'FREEZE_WILL' && action.freezeTarget) {
+                const res = CardLogic.applyFreezeWill(
+                    cardState,
+                    gameState,
+                    playerKey,
+                    action.freezeTarget.row,
+                    action.freezeTarget.col
+                );
+                events.push({ type: 'freeze_selected', player: playerKey, target: action.freezeTarget, applied: !!(res && res.applied) });
+                return;
+            } else if (pending && pending.type === 'FREEZE_WILL' && action.freezeTarget == null) {
+                throw new Error('FREEZE_WILL requires freezeTarget before placement');
+            }
 
             // Determine flips using a safe context helper when possible
             const ctx = resolveSafeCardContext(CardLogic, cardState);
@@ -1471,8 +1593,7 @@
             // Treat as selection-only action (same as action.swapTarget).
             const pendingType = CardLogic.getPendingEffectType(cardState, playerKey);
             if (pendingType === 'SWAP_WITH_ENEMY') {
-                const boardRow = Array.isArray(gameState.board) ? gameState.board[action.row] : null;
-                const targetCell = Array.isArray(boardRow) ? boardRow[action.col] : null;
+                const targetCell = getActionCellOwner(gameState, action.row, action.col);
                 if (targetCell === -player) {
                     const swapped = CardLogic.applySwapEffect(cardState, gameState, playerKey, action.row, action.col);
                     events.push({ type: 'swap_selected', player: playerKey, row: action.row, col: action.col, swapped });
@@ -1480,6 +1601,7 @@
                         throw new Error('SWAP_WITH_ENEMY: invalid target (protected/bomb?)');
                     }
                     applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
+                    handOffTurnAfterSelection(Core, gameState, playerKey);
                     return;
                 } else {
                     throw new Error('SWAP_WITH_ENEMY requires selecting an enemy stone before placement');
@@ -1504,9 +1626,13 @@
             }
             let flipCount = flips.length;
 
-            // For legality, require flips > 0 unless FREE_PLACEMENT/SNIPER_WILL/LAST_RESORT pending.
+            // For legality, require flips > 0 unless the pending card explicitly allows free placement.
             // TABOO_REVERSE_WILL first tries taboo flips, and falls back to normal sandwich flips when taboo is unavailable.
-            const freePlacement = (pendingType === 'FREE_PLACEMENT' || pendingType === 'SNIPER_WILL' || pendingType === 'LAST_RESORT');
+            const freePlacement = !!(
+                CardLogic &&
+                typeof CardLogic.isFreePlacementPendingType === 'function' &&
+                CardLogic.isFreePlacementPendingType(pendingType)
+            );
             if (flipCount === 0 && !freePlacement) {
                 throw new Error('Illegal move: no flips and not free placement');
             }
@@ -1524,6 +1650,9 @@
                 const spawnMeta = {};
                 if (pendingType === 'GOLD_STONE') {
                     spawnMeta.special = 'GOLD';
+                    spawnMeta.owner = playerKey;
+                } else if (pendingType === 'RAINBOW_STONE') {
+                    spawnMeta.special = 'RAINBOW';
                     spawnMeta.owner = playerKey;
                 } else if (pendingType === 'SILVER_STONE') {
                     spawnMeta.special = 'SILVER';
@@ -1659,16 +1788,6 @@
             const effects = CardLogic.applyPlacementEffects(cardState, gameState, playerKey, action.row, action.col, flipCount);
             events.push({ type: 'placement_effects', player: playerKey, effects });
 
-            if (effects && Number.isFinite(Number(effects.stolenCount)) && Number(effects.stolenCount) > 0) {
-                const opponentKey = playerKey === 'black' ? 'white' : 'black';
-                emitHandRemovePresentation(CardLogic, cardState, {
-                    player: opponentKey,
-                    count: Number(effects.stolenCount),
-                    reason: 'steal_card',
-                    cardIds: Array.isArray(effects.stolenCards) ? effects.stolenCards.slice() : []
-                });
-            }
-
             // GOLD/SILVER: the placed stone disappears on the opponent's next turn start.
 
             // Immediate activation on placement turn (spec): dragon/breeding fire immediately after normal flips.
@@ -1729,6 +1848,21 @@
                 }
                 if (lightningNow && lightningNow.expired && lightningNow.expired.length) {
                     events.push({ type: 'lightning_expired_immediate', details: lightningNow.expired });
+                }
+            }
+            if (effects && effects.willHunterKingPlaced && typeof CardLogic.processWillHunterKingEffectsAtTurnStartAnchor === 'function') {
+                const willHunterKingNow = CardLogic.processWillHunterKingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, action.row, action.col, {
+                    decrementRemainingOwnerTurns: false,
+                    random: p
+                });
+                if (willHunterKingNow && willHunterKingNow.destroyed && willHunterKingNow.destroyed.length) {
+                    events.push({ type: 'will_hunter_king_destroyed_immediate', details: willHunterKingNow.destroyed });
+                }
+                if (willHunterKingNow && willHunterKingNow.moved && willHunterKingNow.moved.length) {
+                    events.push({ type: 'will_hunter_king_moved_immediate', details: willHunterKingNow.moved });
+                }
+                if (willHunterKingNow && willHunterKingNow.expired && willHunterKingNow.expired.length) {
+                    events.push({ type: 'will_hunter_king_expired_immediate', details: willHunterKingNow.expired });
                 }
             }
             if (effects && effects.observerPlaced) {

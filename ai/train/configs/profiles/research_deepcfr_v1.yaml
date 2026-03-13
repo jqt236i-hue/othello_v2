@@ -1,0 +1,78 @@
+schemaVersion: training_profile.v1
+name: research_deepcfr_v1
+description: >
+  DeepCFR 系の研究線を本番主線から分離して検証するための隔離 profile。
+runTagPrefix: research_deepcfr_v1
+gateProfile: adoption_v2
+paths:
+  runsDir: data/runs/research_deepcfr_v1
+  modelsDir: data/models/research_deepcfr_v1
+bootstrap:
+  sourcePolicyTable: data/models/policy-table.json
+  sourceOnnxModel: data/models/policy-net.onnx
+  sourceOnnxMeta: data/models/policy-net.onnx.meta.json
+  copyPromotedPolicyTable: false
+  copyPromotedOnnxModel: false
+  copyPromotedOnnxMeta: false
+  useCopiedPolicyTableAsBootstrap: false
+  autoResumeLatestCheckpoint: true
+preflight:
+  enabled: true
+  strict: false
+  allowArtifacts: true
+  checkWindow: true
+trainCycleArgs:
+  - --iterations
+  - "24"
+  - --max-hours
+  - "24"
+  - --train-games
+  - "6000"
+  - --eval-games
+  - "1200"
+  - --selfplay-jobs
+  - "4"
+  - --adoption-jobs
+  - "4"
+  - --onnx-gate-jobs
+  - "4"
+  - --seed
+  - "1"
+  - --max-plies
+  - "220"
+  - --with-cards
+  - --card-usage-rate
+  - "0.55"
+  - --selfplay-policy-mix-rate
+  - "0.5"
+  - --selfplay-policy-model-pool-size
+  - "2"
+  - --selfplay-policy-pool-sampling
+  - recency
+  - --selfplay-policy-pool-recency-decay
+  - "2.0"
+  - --selfplay-policy-current-anchor-rate
+  - "0.25"
+  - --onnx-epochs
+  - "400"
+  - --onnx-batch-size
+  - "1024"
+  - --onnx-lr
+  - "0.0007"
+  - --onnx-hidden-size
+  - "256"
+  - --onnx-device
+  - auto
+  - --onnx-val-split
+  - "0.15"
+  - --onnx-early-stop-patience
+  - "16"
+  - --onnx-early-stop-min-delta
+  - "0.0001"
+  - --onnx-early-stop-min-epochs
+  - "60"
+  - --onnx-early-stop-monitor
+  - val_loss
+  - --onnx-early-stop-smoothing-window
+  - "3"
+  - --carry-over-checkpoint

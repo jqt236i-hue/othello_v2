@@ -4,6 +4,7 @@
     const CHAT_INPUT_FALLBACK_MAX = 20;
     const PLAYER_NAME_MAX = 7;
     const DEFAULT_PLAYER_NAME = 'ななし';
+    const SHARED_LEADERBOARD_PANEL_LIMIT = 100;
 
     let currentMode = MODE_CPU;
     let networkChatVisible = false;
@@ -25,6 +26,7 @@
         networkJoinBtn: null,
         networkLeaveBtn: null,
         networkStatus: null,
+        networkDeckInfo: null,
         networkTimerStatus: null,
         networkOverlay: null,
         networkCloseBtn: null,
@@ -82,6 +84,108 @@
             }
         } catch (e) { /* ignore */ }
         return '';
+    }
+
+    function getDeckBuilderController() {
+        try {
+            if (root.UIBootstrap && typeof root.UIBootstrap.getRegisteredUIGlobals === 'function') {
+                const globals = root.UIBootstrap.getRegisteredUIGlobals() || {};
+                if (globals.DeckBuilderController) {
+                    return globals.DeckBuilderController;
+                }
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function getActiveLocalDeckCode() {
+        const controller = getDeckBuilderController();
+        if (!controller || typeof controller.getActiveLocalChoice !== 'function') {
+            return '';
+        }
+        try {
+            const choice = controller.getActiveLocalChoice();
+            return (choice && choice.mode === 'custom') ? String(choice.deckCode || '').trim() : '';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function formatPendingRoomDeckText() {
+        const controller = getDeckBuilderController();
+        if (!controller || typeof controller.getActiveLocalChoice !== 'function') {
+            return '作成時に送るデッキ: 標準デッキ';
+        }
+        try {
+            const choice = controller.getActiveLocalChoice();
+            if (choice && choice.mode === 'custom') {
+                const deckSize = Number.isFinite(Number(choice.deckSize)) ? Number(choice.deckSize) : 30;
+                return `作成時に送るデッキ: カスタム ${deckSize}枚`;
+            }
+            const standardSize = Number.isFinite(Number(choice && choice.deckSize)) ? Number(choice.deckSize) : 64;
+            return `作成時に送るデッキ: 標準 ${standardSize}枚`;
+        } catch (e) {
+            return '作成時に送るデッキ: 標準デッキ';
+        }
+    }
+
+    function formatSeatDeckText(seatLabel, deckCode, deckSize) {
+        if (deckCode) {
+            const customSize = Number.isFinite(Number(deckSize)) ? Number(deckSize) : 30;
+            return `${seatLabel}カスタム ${customSize}枚`;
+        }
+        if (Number.isFinite(Number(deckSize))) {
+            return `${seatLabel}標準 ${Number(deckSize)}枚`;
+        }
+        return `${seatLabel}標準デッキ`;
+    }
+
+    function hasCustomRoomDeck(roomDeck) {
+        if (!roomDeck || typeof roomDeck !== 'object') return false;
+        if (roomDeck.deckCode) return true;
+        const byPlayer = roomDeck.deckCodeByPlayer && typeof roomDeck.deckCodeByPlayer === 'object'
+            ? roomDeck.deckCodeByPlayer
+            : null;
+        return !!(byPlayer && (byPlayer.black || byPlayer.white));
+    }
+
+    function formatRoomDeckText(roomDeck) {
+        if (!roomDeck || typeof roomDeck !== 'object') {
+            return formatPendingRoomDeckText();
+        }
+        if (roomDeck.mode === 'perPlayer') {
+            const deckCodeByPlayer = (roomDeck.deckCodeByPlayer && typeof roomDeck.deckCodeByPlayer === 'object')
+                ? roomDeck.deckCodeByPlayer
+                : {};
+            const deckSizeByPlayer = (roomDeck.deckSizeByPlayer && typeof roomDeck.deckSizeByPlayer === 'object')
+                ? roomDeck.deckSizeByPlayer
+                : {};
+            return `部屋デッキ: ${formatSeatDeckText('黒', deckCodeByPlayer.black, deckSizeByPlayer.black)} / ${formatSeatDeckText('白', deckCodeByPlayer.white, deckSizeByPlayer.white)}`;
+        }
+        if (roomDeck.deckCode) {
+            const deckSize = Number.isFinite(Number(roomDeck.deckSize)) ? Number(roomDeck.deckSize) : 30;
+            return `部屋デッキ: カスタム ${deckSize}枚`;
+        }
+        if (Number.isFinite(Number(roomDeck.deckSize))) {
+            return `部屋デッキ: 標準 ${Number(roomDeck.deckSize)}枚`;
+        }
+        return '部屋デッキ: 標準デッキ';
+    }
+
+    function renderNetworkDeckInfo(roomState) {
+        const el = uiRefs.networkDeckInfo;
+        if (!el) return;
+
+        let roomDeck = roomState && roomState.roomDeck;
+        if (!roomDeck && root.NetworkMatchClient && typeof root.NetworkMatchClient.getRoomDeck === 'function') {
+            try {
+                roomDeck = root.NetworkMatchClient.getRoomDeck();
+            } catch (e) { /* ignore */ }
+        }
+
+        el.textContent = formatRoomDeckText(roomDeck);
+        el.style.color = hasCustomRoomDeck(roomDeck) ? '#ffecb3' : '#d7ccc8';
+        scheduleControlPanelLayoutSync();
     }
 
     function setSharedPlayerName(value) {
@@ -226,6 +330,7 @@
         const open = !!visible;
         uiRefs.networkOverlay.classList.toggle('is-open', open);
         uiRefs.networkOverlay.setAttribute('aria-hidden', open ? 'false' : 'true');
+        renderNetworkDeckInfo();
 
         if (uiRefs.modeNetworkBtn) {
             uiRefs.modeNetworkBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -376,7 +481,7 @@
 
         let result = null;
         try {
-            const fetchOptions = Object.assign({ limit: 10 }, opts);
+            const fetchOptions = Object.assign({ limit: SHARED_LEADERBOARD_PANEL_LIMIT }, opts);
             delete fetchOptions.force;
             result = await root.LeaderboardClient.fetchLeaderboard(fetchOptions);
         } catch (e) {
@@ -870,8 +975,9 @@
         }
 
         if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setRoomStateListener === 'function') {
-            root.NetworkMatchClient.setRoomStateListener(() => {
+            root.NetworkMatchClient.setRoomStateListener((roomState) => {
                 refreshNetworkChatVisibility();
+                renderNetworkDeckInfo(roomState);
                 try {
                     if (typeof root.updateCpuCharacter === 'function') {
                         root.updateCpuCharacter();
@@ -976,16 +1082,18 @@
                 await setMode(MODE_NETWORK, { silentLog: true });
                 const serverUrl = uiRefs.networkServerInput ? uiRefs.networkServerInput.value.trim() : '';
                 const playerName = resolveRequiredNetworkPlayerName();
+                const deckCode = getActiveLocalDeckCode();
                 if (!playerName) return;
                 try {
                     if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
                         root.NetworkMatchClient.setServerUrl(serverUrl);
                     }
-                    const result = await root.NetworkMatchClient.createRoom({ serverUrl, playerName });
+                    const result = await root.NetworkMatchClient.createRoom({ serverUrl, playerName, deckCode });
                     if (result && result.ok && uiRefs.networkRoomInput) {
                         uiRefs.networkRoomInput.value = result.roomId || '';
                     }
                     refreshNetworkChatVisibility();
+                    renderNetworkDeckInfo();
                     refreshBoardUi();
                 } catch (e) {
                     writeNetworkStatus('部屋作成に失敗しました', true);
@@ -999,13 +1107,15 @@
                 const roomId = uiRefs.networkRoomInput ? formatRoomIdInput(uiRefs.networkRoomInput.value) : '';
                 const serverUrl = uiRefs.networkServerInput ? uiRefs.networkServerInput.value.trim() : '';
                 const playerName = resolveRequiredNetworkPlayerName();
+                const deckCode = getActiveLocalDeckCode();
                 if (!playerName) return;
                 try {
                     if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
                         root.NetworkMatchClient.setServerUrl(serverUrl);
                     }
-                    await root.NetworkMatchClient.joinRoom(roomId, { serverUrl, playerName });
+                    await root.NetworkMatchClient.joinRoom(roomId, { serverUrl, playerName, deckCode });
                     refreshNetworkChatVisibility();
+                    renderNetworkDeckInfo();
                     refreshBoardUi();
                 } catch (e) {
                     writeNetworkStatus('部屋参加に失敗しました', true);
@@ -1021,12 +1131,14 @@
                     }
                 } catch (e) { /* ignore */ }
                 await setMode(MODE_CPU, { silentLog: true });
+                renderNetworkDeckInfo(null);
                 refreshBoardUi();
             });
         }
 
         setNetworkChatExpanded(false);
         refreshNetworkChatVisibility();
+        renderNetworkDeckInfo();
     }
 
     function setupMatchModeControls(options) {
@@ -1043,6 +1155,7 @@
         uiRefs.networkJoinBtn = opts.networkJoinBtn || null;
         uiRefs.networkLeaveBtn = opts.networkLeaveBtn || null;
         uiRefs.networkStatus = opts.networkStatus || null;
+        uiRefs.networkDeckInfo = opts.networkDeckInfo || null;
         uiRefs.networkTimerStatus = opts.networkTimerStatus || null;
         uiRefs.networkOverlay = opts.networkOverlay || null;
         uiRefs.networkCloseBtn = opts.networkCloseBtn || null;

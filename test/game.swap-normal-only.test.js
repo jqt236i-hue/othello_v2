@@ -1,4 +1,5 @@
 const CardLogic = require('../game/logic/cards');
+const TurnPipeline = require('../game/turn/turn_pipeline');
 
 describe('SWAP_WITH_ENEMY normal-stone only policy', () => {
   function makeState() {
@@ -6,7 +7,9 @@ describe('SWAP_WITH_ENEMY normal-stone only policy', () => {
     const cardState = CardLogic.createCardState(prng);
     const gameState = {
       board: Array.from({ length: 8 }, () => Array(8).fill(0)),
-      currentPlayer: 1
+      currentPlayer: 1,
+      turnNumber: 1,
+      consecutivePasses: 0
     };
     return { cardState, gameState };
   }
@@ -120,6 +123,74 @@ describe('SWAP_WITH_ENEMY normal-stone only policy', () => {
     const ok = CardLogic.applySwapEffect(cardState, gameState, 'black', 1, 1);
     expect(ok).toBe(true);
     expect(gameState.board[1][1]).toBe(1);
+  });
+
+  test('SWAP includes occupied expansion cells and can capture from them', () => {
+    const { cardState, gameState } = makeState();
+    cardState.pendingEffectByPlayer.black = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget', cardId: 'swap_01' };
+    gameState.board[3][0] = -1;
+    gameState.board[3][1] = 1;
+    gameState.boardExpansion = {
+      active: true,
+      side: 'left',
+      row: 3,
+      owner: -1,
+      usedByPlayer: { black: false, white: false },
+      cells: [{ side: 'left', row: 3, col: -1, owner: -1 }]
+    };
+
+    const targets = CardLogic.getSelectableTargets(cardState, gameState, 'black');
+    expect(targets).toEqual(expect.arrayContaining([{ row: 3, col: -1 }]));
+
+    const ok = CardLogic.applySwapEffect(cardState, gameState, 'black', 3, -1);
+    expect(ok).toBe(true);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 3 && cell.col === -1).owner).toBe(1);
+    expect(gameState.board[3][0]).toBe(1);
+    expect(cardState.charge.black).toBe(2);
+  });
+
+  test('TurnPipeline accepts top expansion selection via legacy board click', () => {
+    const { cardState, gameState } = makeState();
+    cardState.pendingEffectByPlayer.black = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget', cardId: 'swap_01' };
+    gameState.boardExpansion = {
+      active: true,
+      side: 'top',
+      row: -1,
+      owner: -1,
+      usedByPlayer: { black: true, white: false },
+      cells: [{ side: 'top', row: -1, col: 0, owner: -1 }]
+    };
+
+    const result = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: -1, col: 0 });
+
+    expect(result.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'swap_selected', row: -1, col: 0, swapped: true })
+    ]));
+    expect(result.gameState.boardExpansion.cells.find((cell) => cell && cell.row === -1 && cell.col === 0).owner).toBe(1);
+    expect(result.gameState.currentPlayer).toBe(-1);
+    expect(result.gameState.turnNumber).toBe(2);
+    expect(result.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.cardState.charge.black).toBe(1);
+  });
+
+  test('TurnPipeline swapTarget selection ends the turn immediately', () => {
+    const { cardState, gameState } = makeState();
+    cardState.pendingEffectByPlayer.black = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget', cardId: 'swap_01' };
+    gameState.board[2][2] = -1;
+    gameState.turnNumber = 4;
+
+    const result = TurnPipeline.applyTurn(cardState, gameState, 'black', {
+      type: 'place',
+      swapTarget: { row: 2, col: 2 }
+    });
+
+    expect(result.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'swap_selected', row: 2, col: 2, swapped: true })
+    ]));
+    expect(result.gameState.board[2][2]).toBe(1);
+    expect(result.gameState.currentPlayer).toBe(-1);
+    expect(result.gameState.turnNumber).toBe(5);
+    expect(result.cardState.pendingEffectByPlayer.black).toBeNull();
   });
 
   test('TEMPT_WILL still accepts enemy special stone target', () => {

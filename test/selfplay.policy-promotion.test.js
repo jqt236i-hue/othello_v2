@@ -122,6 +122,48 @@ describe('selfplay policy promotion', () => {
         fs.unlinkSync(targetOnnxMeta);
     });
 
+    test('promoteModel also copies card specialist onnx and meta when provided', () => {
+        const dir = path.resolve(__dirname, '..', 'data', 'models');
+        fs.mkdirSync(dir, { recursive: true });
+        const adoption = path.join(dir, 'adoption.card.pass.test.json');
+        const candidate = path.join(dir, 'candidate.card.pass.test.json');
+        const target = path.join(dir, 'target.card.pass.test.json');
+        const candidateCardOnnx = path.join(dir, 'candidate.card.pass.test.onnx');
+        const candidateCardOnnxMeta = path.join(dir, 'candidate.card.pass.test.onnx.meta.json');
+        const targetCardOnnx = path.join(dir, 'target.card.pass.test.onnx');
+        const targetCardOnnxMeta = path.join(dir, 'target.card.pass.test.onnx.meta.json');
+        const payload = { schemaVersion: 'policy_table.v2', states: { k: { bestAction: 'place:0:0', actions: {} } } };
+
+        fs.writeFileSync(adoption, JSON.stringify({ decision: { passed: true } }), 'utf8');
+        fs.writeFileSync(candidate, JSON.stringify(payload), 'utf8');
+        fs.writeFileSync(candidateCardOnnx, 'card-onnx-bytes', 'utf8');
+        fs.writeFileSync(candidateCardOnnxMeta, JSON.stringify({ schemaVersion: 'policy_onnx.v1', cardOutputName: 'card_logits' }), 'utf8');
+
+        const out = promoteModel({
+            adoptionResultPath: adoption,
+            candidateModelPath: candidate,
+            candidateCardOnnxPath: candidateCardOnnx,
+            candidateCardOnnxMetaPath: candidateCardOnnxMeta,
+            targetModelPath: target,
+            targetCardOnnxPath: targetCardOnnx,
+            targetCardOnnxMetaPath: targetCardOnnxMeta,
+            force: false
+        });
+
+        expect(out.cardOnnxPromotion.promoted).toBe(true);
+        expect(out.cardOnnxMetaPromotion.promoted).toBe(true);
+        expect(fs.readFileSync(targetCardOnnx, 'utf8')).toBe('card-onnx-bytes');
+        expect(JSON.parse(fs.readFileSync(targetCardOnnxMeta, 'utf8')).cardOutputName).toBe('card_logits');
+
+        fs.unlinkSync(adoption);
+        fs.unlinkSync(candidate);
+        fs.unlinkSync(candidateCardOnnx);
+        fs.unlinkSync(candidateCardOnnxMeta);
+        fs.unlinkSync(target);
+        fs.unlinkSync(targetCardOnnx);
+        fs.unlinkSync(targetCardOnnxMeta);
+    });
+
     test('promoteModel archives the previous champion and writes rollback manifest', () => {
         const dir = path.resolve(__dirname, '..', 'data', 'models', 'promotion.lifecycle.test');
         fs.rmSync(dir, { recursive: true, force: true });
@@ -134,6 +176,14 @@ describe('selfplay policy promotion', () => {
         const candidateOnnxMeta = path.join(dir, 'candidate.lifecycle.test.onnx.meta.json');
         const targetOnnx = path.join(dir, 'policy-net.onnx');
         const targetOnnxMeta = path.join(dir, 'policy-net.onnx.meta.json');
+        const candidateTargetOnnx = path.join(dir, 'candidate.target.lifecycle.test.onnx');
+        const candidateTargetOnnxMeta = path.join(dir, 'candidate.target.lifecycle.test.onnx.meta.json');
+        const targetTargetOnnx = path.join(dir, 'policy-target.onnx');
+        const targetTargetOnnxMeta = path.join(dir, 'policy-target.onnx.meta.json');
+        const candidateValueOnnx = path.join(dir, 'candidate.value.lifecycle.test.onnx');
+        const candidateValueOnnxMeta = path.join(dir, 'candidate.value.lifecycle.test.onnx.meta.json');
+        const targetValueOnnx = path.join(dir, 'policy-value.onnx');
+        const targetValueOnnxMeta = path.join(dir, 'policy-value.onnx.meta.json');
         const promotedDir = path.join(dir, 'promoted');
         const archiveDir = path.join(dir, 'archive');
         const manifestPath = path.join(promotedDir, 'promotion-manifest.json');
@@ -147,15 +197,31 @@ describe('selfplay policy promotion', () => {
         fs.writeFileSync(candidateOnnxMeta, JSON.stringify({ schemaVersion: 'policy_onnx.v1', tag: 'new' }), 'utf8');
         fs.writeFileSync(targetOnnx, 'old-onnx', 'utf8');
         fs.writeFileSync(targetOnnxMeta, JSON.stringify({ schemaVersion: 'policy_onnx.v1', tag: 'old' }), 'utf8');
+        fs.writeFileSync(candidateTargetOnnx, 'new-target-onnx', 'utf8');
+        fs.writeFileSync(candidateTargetOnnxMeta, JSON.stringify({ schemaVersion: 'policy_onnx.v1', targetOutputName: 'target_logits' }), 'utf8');
+        fs.writeFileSync(targetTargetOnnx, 'old-target-onnx', 'utf8');
+        fs.writeFileSync(targetTargetOnnxMeta, JSON.stringify({ schemaVersion: 'policy_onnx.v1', targetOutputName: 'target_logits', tag: 'old-target' }), 'utf8');
+        fs.writeFileSync(candidateValueOnnx, 'new-value-onnx', 'utf8');
+        fs.writeFileSync(candidateValueOnnxMeta, JSON.stringify({ schemaVersion: 'policy_onnx.v1', valueOutputName: 'value' }), 'utf8');
+        fs.writeFileSync(targetValueOnnx, 'old-value-onnx', 'utf8');
+        fs.writeFileSync(targetValueOnnxMeta, JSON.stringify({ schemaVersion: 'policy_onnx.v1', valueOutputName: 'value', tag: 'old-value' }), 'utf8');
 
         const out = promoteModel({
             adoptionResultPath: adoption,
             candidateModelPath: candidate,
             candidateOnnxPath: candidateOnnx,
             candidateOnnxMetaPath: candidateOnnxMeta,
+            candidateTargetOnnxPath: candidateTargetOnnx,
+            candidateTargetOnnxMetaPath: candidateTargetOnnxMeta,
+            candidateValueOnnxPath: candidateValueOnnx,
+            candidateValueOnnxMetaPath: candidateValueOnnxMeta,
             targetModelPath: target,
             targetOnnxPath: targetOnnx,
             targetOnnxMetaPath: targetOnnxMeta,
+            targetTargetOnnxPath: targetTargetOnnx,
+            targetTargetOnnxMetaPath: targetTargetOnnxMeta,
+            targetValueOnnxPath: targetValueOnnx,
+            targetValueOnnxMetaPath: targetValueOnnxMeta,
             promotedDir,
             archiveDir,
             manifestPath,
@@ -167,9 +233,13 @@ describe('selfplay policy promotion', () => {
         expect(fs.readFileSync(targetOnnx, 'utf8')).toBe('new-onnx');
         expect(out.archivedChampion.model.archived).toBe(true);
         expect(out.archivedChampion.onnx.archived).toBe(true);
+        expect(out.archivedChampion.targetOnnx.archived).toBe(true);
+        expect(out.archivedChampion.valueOnnx.archived).toBe(true);
         expect(out.rollback.modelPath).toContain(path.join('archive', '2026-03-08T12-34-56-000Z'));
         expect(JSON.parse(fs.readFileSync(out.rollback.modelPath, 'utf8'))).toEqual(previousPayload);
         expect(fs.readFileSync(out.rollback.onnxPath, 'utf8')).toBe('old-onnx');
+        expect(fs.readFileSync(out.rollback.targetOnnxPath, 'utf8')).toBe('old-target-onnx');
+        expect(fs.readFileSync(out.rollback.valueOnnxPath, 'utf8')).toBe('old-value-onnx');
 
         const championModelPath = path.join(promotedDir, 'champion', 'policy-table.json');
         const challengerModelPath = path.join(promotedDir, 'challenger', 'policy-table.json');
@@ -177,9 +247,11 @@ describe('selfplay policy promotion', () => {
         expect(JSON.parse(fs.readFileSync(challengerModelPath, 'utf8'))).toEqual(candidatePayload);
 
         const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-        expect(manifest.schemaVersion).toBe('policy_promotion.v2');
+        expect(manifest.schemaVersion).toBe('policy_promotion.v3');
         expect(manifest.rollback.modelPath).toBe(out.rollback.modelPath);
         expect(manifest.archive.model.archived).toBe(true);
+        expect(manifest.archive.targetOnnx.archived).toBe(true);
+        expect(manifest.archive.valueOnnx.archived).toBe(true);
         expect(manifest.champion.modelPath).toBe(championModelPath);
         expect(manifest.challenger.modelPath).toBe(challengerModelPath);
 

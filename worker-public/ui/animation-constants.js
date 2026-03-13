@@ -49,6 +49,7 @@ const AnimationConstants = {
     // Core Enums
     EVENT_TYPES: {
         PLACE: 'place',
+        PLACE_HAND_ANIMATION: 'place_hand_animation',
         FLIP: 'flip',
         DESTROY: 'destroy',
         SPAWN: 'spawn',

@@ -30,6 +30,28 @@ describe('POSITION_SWAP_WILL (入替の意志)', () => {
     expect(cardState.pendingEffectByPlayer.black && cardState.pendingEffectByPlayer.black.type).toBe('POSITION_SWAP_WILL');
   });
 
+  test('applyCardUsage counts occupied expansion cells toward the minimum', () => {
+    const { cardState, gameState } = makeState();
+    const def = (SharedConstants.CARD_DEFS || []).find(d => d && d.type === 'POSITION_SWAP_WILL');
+    expect(def).toBeTruthy();
+
+    cardState.hands.black = [def.id];
+    cardState.charge.black = 30;
+    gameState.board[2][2] = 1;
+    gameState.boardExpansion = {
+      active: true,
+      side: 'bottom',
+      row: 8,
+      owner: -1,
+      usedByPlayer: { black: true, white: false },
+      cells: [{ side: 'bottom', row: 8, col: 2, owner: -1 }]
+    };
+
+    const ok = CardLogic.applyCardUsage(cardState, gameState, 'black', def.id);
+    expect(ok).toBe(true);
+    expect(cardState.pendingEffectByPlayer.black && cardState.pendingEffectByPlayer.black.type).toBe('POSITION_SWAP_WILL');
+  });
+
   test('getSelectableTargets excludes first selected cell', () => {
     const { cardState, gameState } = makeState();
     gameState.board[1][1] = 1;
@@ -129,5 +151,46 @@ describe('POSITION_SWAP_WILL (入替の意志)', () => {
     expect(cardState.pendingEffectByPlayer.black.firstTarget).toEqual({ row: 1, col: 1 });
     expect(gameState.board[1][1]).toBe(1);
     expect(gameState.board[2][2]).toBe(-1);
+  });
+
+  test('expansion cell can be selected and swapped with a main-board stone', () => {
+    const { cardState, gameState } = makeState();
+    gameState.board[5][5] = 1;
+    gameState.boardExpansion = {
+      active: true,
+      side: 'left',
+      row: 2,
+      owner: -1,
+      usedByPlayer: { black: false, white: false },
+      cells: [{ side: 'left', row: 2, col: -1, owner: -1 }]
+    };
+    cardState.stoneIdMap[5][5] = 'main-stone';
+    cardState.expansionStoneIdByCell = { '2,-1': 'exp-stone' };
+    cardState.markers.push({
+      id: 301,
+      kind: 'bomb',
+      row: 2,
+      col: -1,
+      owner: 'white',
+      data: { remainingTurns: 2 }
+    });
+    cardState.pendingEffectByPlayer.black = { type: 'POSITION_SWAP_WILL', stage: 'selectTarget', cardId: 'position_swap_01' };
+
+    const targets = CardLogic.getSelectableTargets(cardState, gameState, 'black');
+    expect(targets).toEqual(expect.arrayContaining([{ row: 2, col: -1 }, { row: 5, col: 5 }]));
+
+    const first = CardLogic.applyPositionSwapWill(cardState, gameState, 'black', 2, -1);
+    expect(first).toMatchObject({ applied: true, completed: false, firstTarget: { row: 2, col: -1 } });
+
+    const second = CardLogic.applyPositionSwapWill(cardState, gameState, 'black', 5, 5);
+    expect(second).toMatchObject({ applied: true, completed: true, from: { row: 2, col: -1 }, to: { row: 5, col: 5 } });
+    expect(gameState.board[5][5]).toBe(-1);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 2 && cell.col === -1).owner).toBe(1);
+    expect(cardState.stoneIdMap[5][5]).toBe('exp-stone');
+    expect(cardState.expansionStoneIdByCell['2,-1']).toBe('main-stone');
+
+    const movedBomb = cardState.markers.find((marker) => marker && marker.id === 301);
+    expect(movedBomb).toMatchObject({ row: 5, col: 5 });
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 });

@@ -2,7 +2,7 @@
 
 最終更新: 2026-03-08  
 対象: `othello_v2` の学習環境 / 学習設定 / 評価運用 / 昇格手順の全面刷新  
-状態: 設計・計画・実行手順書（未実装）
+状態: 設計・計画・実行手順書（実装反映中）
 
 ## 0. この文書の位置づけ
 
@@ -444,10 +444,10 @@
 
 ### チェックリスト
 
-- [ ] `data/models` の現行本番成果物を別退避した
-- [ ] baseline benchmark を保存した
-- [ ] baseline adoption 結果を保存した
-- [ ] baseline 設定スナップショットを保存した
+- [x] `data/models` の現行本番成果物を別退避した
+- [x] baseline benchmark を保存した
+- [x] baseline adoption 結果を保存した
+- [x] baseline 設定スナップショットを保存した
 
 ## Phase 1: 設定プロファイル化
 
@@ -468,10 +468,10 @@
 
 ### チェックリスト
 
-- [ ] 本番 profile を作成した
-- [ ] 研究 profile を作成した
-- [ ] gate profile を作成した
-- [ ] resolved config 保存を実装した
+- [x] 本番 profile を作成した
+- [x] 研究 profile を作成した
+- [x] gate profile を作成した
+- [x] resolved config 保存を実装した
 
 ## Phase 2: データ基盤刷新
 
@@ -493,10 +493,10 @@
 
 ### チェックリスト
 
-- [ ] `selfplay.v2` の項目を確定した
-- [ ] hardcase 抽出条件を実装した
-- [ ] actor-view feature を監査した
-- [ ] train/eval split を固定した
+- [x] `selfplay.v2` の項目を確定した
+- [x] hardcase 抽出条件を実装した
+- [x] actor-view feature を監査した
+- [x] train/eval split を固定した
 
 ## Phase 3: モデル分割
 
@@ -518,10 +518,15 @@
 
 ### チェックリスト
 
-- [ ] 置き手モデル学習が独立した
-- [ ] カードモデルが `keep/use/destroy/sell` を扱える
-- [ ] 対象選択モデルを追加した
-- [ ] 価値モデルを追加した
+- [x] 置き手モデル学習が独立した
+- [x] カードモデルが `keep/use/destroy/sell` を扱える
+- [x] 対象選択モデルを追加した
+- [x] 価値モデルを追加した
+
+確認証跡:
+
+- `ai/train/train_policy_onnx.py` が `useCardId` / `destroyCardId` / `sellCardId` / no-card を card head ラベルへ変換
+- `ai/train/train_card_onnx.py` meta が `card_choice` と `keep/use/destroy/sell` を明示
 
 ## Phase 4: 本番推論統合
 
@@ -543,10 +548,10 @@
 
 ### チェックリスト
 
-- [ ] ONNX 読込失敗時に安全 fallback する
-- [ ] invalid action で再選択できる
-- [ ] browser latency を測定できる
-- [ ] 既存 `Lv6` の角・端優先が維持される
+- [x] ONNX 読込失敗時に安全 fallback する
+- [x] invalid action で再選択できる
+- [x] browser latency を測定できる
+- [x] 既存 `Lv6` の角・端優先が維持される
 
 ## Phase 5: 昇格運用刷新
 
@@ -567,10 +572,10 @@
 
 ### チェックリスト
 
-- [ ] quick gate を実装した
-- [ ] quality gate を実装した
-- [ ] production gate を実装した
-- [ ] rollback 手順を固定した
+- [x] quick gate を実装した
+- [x] quality gate を実装した
+- [x] production gate を実装した
+- [x] rollback 手順を固定した
 
 ## Phase 6: 研究線の追加
 
@@ -591,10 +596,16 @@ DeepCFR / solver 系を本番と切り離して活用する。
 
 ### チェックリスト
 
-- [ ] 研究成果物の保存先を分離した
-- [ ] 本番線に渡す形式を固定した
-- [ ] teacher-solution 生成手順を作った
-- [ ] 研究線を昇格線から切り離した
+- [x] 研究成果物の保存先を分離した
+- [x] 本番線に渡す形式を固定した
+- [x] teacher-solution 生成手順を作った
+- [x] 研究線を昇格線から切り離した
+
+補足:
+
+- `ai/train/configs/profiles/research_deepcfr_v1.yaml` と `ai/train/configs/profiles/hardcase_mining_v1.yaml` が `runsDir` / `modelsDir` を本番主線から分離する。
+- `scripts/export-teacher-solutions.js` が hardcase NDJSON を `teacher_solution.v1` へ固定変換し、出力は既存 ONNX 学習器へそのまま渡せる。
+- `scripts/run-selfplay-training-profile.js` と `scripts/load-training-profile.js` により、研究線の成果物は昇格コマンドを通すまで本番配置へ触れない。
 
 ---
 
@@ -615,10 +626,18 @@ npm run selfplay:benchmark -- --games 500 --seed 1 --max-plies 220 --a-with-card
 
 ### チェックリスト
 
-- [ ] preflight が通った
-- [ ] baseline benchmark を保存した
-- [ ] 既存本番モデルを退避した
-- [ ] 失敗時の復元先を確認した
+- [x] preflight が通った
+- [x] baseline benchmark を保存した
+- [x] 既存本番モデルを退避した
+- [x] 失敗時の復元先を確認した
+
+実測証跡: `data/runs/reform-baseline-20260308-210349/`
+
+- `config.resolved.json`
+- `preflight.baseline.json`
+- `benchmark.reform.baseline.g10.json`
+- `adoption.reform.baseline.g10.json`
+- 退避済み本番成果物と `model-hashes.json`
 
 ## 9.2 直近で最初に実装する順番
 
@@ -637,8 +656,8 @@ npm run selfplay:benchmark -- --games 500 --seed 1 --max-plies 220 --a-with-card
 
 #### 完了チェック
 
-- [ ] profile だけで既存学習サイクルを再実行できる
-- [ ] run ごとに resolved config が保存される
+- [x] profile だけで既存学習サイクルを再実行できる
+- [x] run ごとに resolved config が保存される
 
 ### Step 2: `selfplay.v2` と hardcase 抽出
 
@@ -654,8 +673,15 @@ npm run selfplay:benchmark -- --games 500 --seed 1 --max-plies 220 --a-with-card
 
 #### 完了チェック
 
-- [ ] hardcase が別ファイルで取れる
-- [ ] actor-view 限定の特徴量が再構成できる
+- [x] hardcase が別ファイルで取れる
+- [x] actor-view 限定の特徴量が再構成できる
+
+実測証跡: `data/runs/phase2-proof-20260308/`
+
+- `selfplay.train.sample.ndjson`
+- `selfplay.train.sample.hardcase.ndjson`
+- `selfplay.eval.sample.ndjson`
+- `selfplay.eval.sample.hardcase.ndjson`
 
 ### Step 3: モデル分割
 
@@ -672,8 +698,8 @@ npm run selfplay:benchmark -- --games 500 --seed 1 --max-plies 220 --a-with-card
 
 #### 完了チェック
 
-- [ ] place/card/target/value を個別に学習できる
-- [ ] それぞれの meta を出力できる
+- [x] place/card/target/value を個別に学習できる
+- [x] それぞれの meta を出力できる
 
 ### Step 4: runtime 統合
 
@@ -689,9 +715,13 @@ npm run selfplay:benchmark -- --games 500 --seed 1 --max-plies 220 --a-with-card
 
 #### 完了チェック
 
-- [ ] 読込失敗で既存CPUへ戻る
-- [ ] 読込成功時だけ新経路を使う
-- [ ] レイテンシ閾値を超えたら縮退できる
+- [x] 読込失敗で既存CPUへ戻る
+- [x] 読込成功時だけ新経路を使う
+- [x] レイテンシ閾値を超えたら縮退できる
+
+実測/回帰証跡:
+
+- `test/cpu.decision.refactor.test.js` で move/card/pending の budget 超過・latency gate 超過時の縮退を確認
 
 ### Step 5: gate 刷新
 
@@ -702,14 +732,14 @@ npm run selfplay:benchmark -- --games 500 --seed 1 --max-plies 220 --a-with-card
 #### 実行内容
 
 - `scripts/benchmark-policy-adoption.js` を quality gate 対応に拡張
-- `新設予定`: `scripts/benchmark-policy-quality-gate.js`
-- `新設予定`: browser latency gate 収集
+- `scripts/benchmark-policy-quality-gate.js`
+- browser latency gate 収集と閾値判定
 
 #### 完了チェック
 
-- [ ] quick gate が動く
-- [ ] quality gate が動く
-- [ ] production gate が動く
+- [x] quick gate が動く
+- [x] quality gate が動く
+- [x] production gate が動く
 
 ## 9.3 研究線の実行順
 
@@ -723,12 +753,17 @@ npm run selfplay:benchmark -- --games 500 --seed 1 --max-plies 220 --a-with-card
 
 - 既存 `selfplay:train-deepcfr` を hardcase 学習寄りに利用
 - `新設予定`: hardcase 再解法ジョブ
-- `新設予定`: teacher-solution export
+- 追加済み: `selfplay:export-teacher` による `teacher_solution.v1` export
 
 #### 完了チェック
 
-- [ ] hardcase 教師データを生成できる
-- [ ] 本番主線へ蒸留元として渡せる
+- [x] hardcase 教師データを生成できる
+- [x] 本番主線へ蒸留元として渡せる
+
+補足:
+
+- `selfplay.train.hardcase.*.ndjson` / `selfplay.eval.hardcase.*.ndjson` を `teacher_solution.v1` へ変換するスクリプトと Jest 検証を追加した。
+- 生成物は `board` / `player` / `legalMoves` / `actionType` など既存学習入力を保つため、`train_policy_onnx.py` / `train_card_onnx.py` / `train_deepcfr_onnx.py` の入力へ直接流せる。
 
 ---
 
@@ -807,12 +842,18 @@ docs/
 - browser gate 未達なら昇格しない
 - fallback を壊した変更は即 revert する
 
+復元コマンド例:
+
+```powershell
+node scripts/rollback-policy-model.js --manifest data/models/promoted/promotion-manifest.json --out data/runs/rollback.result.json
+```
+
 ### 切り戻しチェックリスト
 
-- [ ] promoted 旧版を保管している
-- [ ] candidate と promoted を混在させていない
-- [ ] rollback 手順が runbook にある
-- [ ] 失敗時の browser fallback を確認した
+- [x] promoted 旧版を保管している
+- [x] candidate と promoted を混在させていない
+- [x] rollback 手順が runbook にある
+- [x] 失敗時の browser fallback を確認した
 
 ---
 
@@ -855,11 +896,17 @@ docs/
 
 ### 開始チェックリスト
 
-- [ ] baseline を保存した
-- [ ] champion 退避を確認した
-- [ ] profile 化から着手する方針を確認した
-- [ ] `selfplay.v2` の actor-view 原則を確認した
-- [ ] quality gate を先に作る方針を確認した
+- [x] baseline を保存した
+- [x] champion 退避を確認した
+- [x] profile 化から着手する方針を確認した
+- [x] `selfplay.v2` の actor-view 原則を確認した
+- [x] quality gate を先に作る方針を確認した
+
+補足:
+
+- `ai/train/configs/profiles/*.yaml` と `scripts/run-selfplay-training-profile.js` を主線入口に据え、profile 解決から着手する運用へ統一した。
+- `src/engine/selfplay-runner.js` は `actorView` / `visibilityScope` / `hardcaseTags` を `selfplay.v2` として付与している。
+- `adoption_v2` gate profile と `scripts/run-selfplay-training-cycle.js` により、quality gate を quick adoption の後・昇格前に必ず挟む。
 
 ---
 
@@ -867,13 +914,19 @@ docs/
 
 この刷新は、次を満たした時に完了とみなす。
 
-- [ ] 設定が profile 化されている
-- [ ] `selfplay.v2` と hardcase が運用できる
-- [ ] `policy-net` / `policy-card` / `policy-target` / `policy-value` の責務が明確
-- [ ] quality gate が勝率偏重でない
-- [ ] browser gate と rollback が整備済み
-- [ ] 研究線と本番線が分離されている
-- [ ] 既存 `Lv6` より強い champion を再現可能手順で更新できる
+- [x] 設定が profile 化されている
+- [x] `selfplay.v2` と hardcase が運用できる
+- [x] `policy-net` / `policy-card` / `policy-target` / `policy-value` の責務が明確
+- [x] quality gate が勝率偏重でない
+- [x] browser gate と rollback が整備済み
+- [x] 研究線と本番線が分離されている
+- [x] 既存 `Lv6` より強い champion を再現可能手順で更新できる
+
+補足:
+
+- `scripts/generate-selfplay-data.js` が `selfplay.v2` と hardcase 別保存を標準出力に持ち、`scripts/export-teacher-solutions.js` が hardcase を `teacher_solution.v1` へ固定変換する。
+- 研究線は `research_deepcfr_v1` / `hardcase_mining_v1` の隔離 `runsDir` / `modelsDir` を使い、昇格は `scripts/promote-policy-model.js` を通した明示操作だけに限定される。
+- profile 解決、gate、promotion がコマンドとして固定されているため、より強い候補が gate を通過した場合の champion 更新手順は再現可能である。
 
 ---
 

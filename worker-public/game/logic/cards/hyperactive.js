@@ -14,18 +14,150 @@
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
     const ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT = 5;
+    function isMainBoardCell(row, col) {
+        return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < 8 && col >= 0 && col < 8;
+    }
+
+    function resolveExpansionSide(side, row, col) {
+        if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
+        if (col === -1) return 'left';
+        if (col === 8) return 'right';
+        if (row === -1) return 'top';
+        if (row === 8) return 'bottom';
+        return null;
+    }
+
+    function getExpansionCellRef(gameState, row, col) {
+        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
+            ? gameState.boardExpansion
+            : null;
+        if (!expansion) return null;
+
+        if (Array.isArray(expansion.cells)) {
+            for (let index = 0; index < expansion.cells.length; index++) {
+                const cell = expansion.cells[index];
+                if (!cell || typeof cell !== 'object') continue;
+                const cellCol = Number.isInteger(cell.col)
+                    ? cell.col
+                    : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : null));
+                if (!Number.isInteger(cellCol)) continue;
+                if (cell.row === row && cellCol === col) {
+                    return { expansion, index, cell, legacy: false };
+                }
+            }
+        }
+
+        if (expansion.active === true) {
+            const legacyCol = Number.isInteger(expansion.col)
+                ? expansion.col
+                : (expansion.side === 'left' ? -1 : (expansion.side === 'right' ? 8 : null));
+            if (expansion.row === row && legacyCol === col) {
+                return { expansion, index: -1, cell: expansion, legacy: true };
+            }
+        }
+
+        return null;
+    }
+
+    function hasBoardShapeCell(gameState, row, col) {
+        return getBoardCell(gameState, row, col) !== null;
+    }
+
+    function forEachBoardShapeCell(gameState, visitor) {
+        if (typeof visitor !== 'function') return;
+        if (!gameState || !Array.isArray(gameState.board) || gameState.board.length !== 8) return;
+
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                visitor(row, col, gameState.board[row][col]);
+            }
+        }
+
+        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
+            ? gameState.boardExpansion
+            : null;
+        if (!expansion) return;
+
+        const seen = new Set();
+        const pushCell = (source, legacyRow, legacyOwner) => {
+            let side = null;
+            let row = null;
+            let col = null;
+            let owner = legacyOwner;
+
+            if (source && typeof source === 'object') {
+                side = source.side;
+                row = source.row;
+                col = source.col;
+                owner = source.owner;
+                if (!Number.isInteger(col) && side === 'left') col = -1;
+                if (!Number.isInteger(col) && side === 'right') col = 8;
+            } else {
+                side = source;
+                row = legacyRow;
+                if (side === 'left') col = -1;
+                if (side === 'right') col = 8;
+            }
+
+            if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+            if (row < -1 || row > 8 || col < -1 || col > 8) return;
+            if (isMainBoardCell(row, col)) return;
+            const key = `${row},${col}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            visitor(row, col, (owner === BLACK || owner === WHITE) ? owner : EMPTY, resolveExpansionSide(side, row, col));
+        };
+
+        if (Array.isArray(expansion.cells)) {
+            for (const cell of expansion.cells) {
+                if (!cell || typeof cell !== 'object') continue;
+                pushCell(cell);
+            }
+        }
+
+        if (seen.size === 0 && expansion.active === true) {
+            pushCell(expansion);
+        }
+    }
+
     function getBoardCell(gameState, row, col) {
-        if (!gameState || !Array.isArray(gameState.board)) return null;
-        const boardRow = gameState.board[row];
-        if (!Array.isArray(boardRow)) return null;
-        return boardRow[col];
+        if (isMainBoardCell(row, col)) {
+            if (!gameState || !Array.isArray(gameState.board)) return null;
+            const boardRow = gameState.board[row];
+            if (!Array.isArray(boardRow)) return null;
+            return boardRow[col];
+        }
+        const ref = getExpansionCellRef(gameState, row, col);
+        return ref ? Number(ref.cell.owner) : null;
     }
 
     function setBoardCell(gameState, row, col, value) {
-        if (!gameState || !Array.isArray(gameState.board)) return false;
-        const boardRow = gameState.board[row];
-        if (!Array.isArray(boardRow)) return false;
-        boardRow[col] = value;
+        if (isMainBoardCell(row, col)) {
+            if (!gameState || !Array.isArray(gameState.board)) return false;
+            const boardRow = gameState.board[row];
+            if (!Array.isArray(boardRow)) return false;
+            boardRow[col] = value;
+            return true;
+        }
+
+        const ref = getExpansionCellRef(gameState, row, col);
+        if (!ref) return false;
+        const normalizedOwner = (value === BLACK || value === WHITE) ? value : EMPTY;
+
+        if (!ref.legacy) {
+            ref.expansion.cells[ref.index] = {
+                side: resolveExpansionSide(ref.cell.side, row, col),
+                row,
+                col,
+                owner: normalizedOwner
+            };
+            return true;
+        }
+
+        ref.expansion.side = resolveExpansionSide(ref.cell.side, row, col);
+        ref.expansion.row = row;
+        ref.expansion.col = col;
+        ref.expansion.owner = normalizedOwner;
         return true;
     }
 
@@ -51,9 +183,9 @@
                 if (dr === 0 && dc === 0) continue;
                 const r = row + dr;
                 const c = col + dc;
-                if (r < 0 || r >= 8 || c < 0 || c >= 8) continue;
+                if (!hasBoardShapeCell(gameState, r, c)) continue;
                 if (isBlockedCell(cardState, r, c, gameState)) continue;
-                const occupied = gameState.board[r][c] !== EMPTY;
+                const occupied = getBoardCell(gameState, r, c) !== EMPTY;
                 if (!occupied) {
                     emptyOut.push({ row: r, col: c, occupied: false });
                 } else if (includeOccupied) {
@@ -81,12 +213,16 @@
                 for (let distance = 1; distance <= maxDistance; distance++) {
                     const targetRow = row + (dr * distance);
                     const targetCol = col + (dc * distance);
-                    if (targetRow < 0 || targetRow >= 8 || targetCol < 0 || targetCol >= 8) break;
+                    if (!hasBoardShapeCell(gameState, targetRow, targetCol)) break;
 
                     let blockedOnPath = false;
                     for (let step = 1; step <= distance; step++) {
                         const stepRow = row + (dr * step);
                         const stepCol = col + (dc * step);
+                        if (!hasBoardShapeCell(gameState, stepRow, stepCol)) {
+                            blockedOnPath = true;
+                            break;
+                        }
                         if (isBlockedCell(cardState, stepRow, stepCol, gameState)) {
                             blockedOnPath = true;
                             break;
@@ -94,7 +230,7 @@
                     }
                     if (blockedOnPath) break;
 
-                    const occupied = gameState.board[targetRow][targetCol] !== EMPTY;
+                    const occupied = getBoardCell(gameState, targetRow, targetCol) !== EMPTY;
                     if (occupied) {
                         if (!allowJumpOverStones) break;
                         continue;
@@ -120,16 +256,13 @@
         const enemies = [];
         const allStones = [];
 
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                const value = gameState.board[r][c];
-                if (value === EMPTY) continue;
-                if (r === originRow && c === originCol) continue;
-                const point = { row: r, col: c };
-                allStones.push(point);
-                if (value === enemyVal) enemies.push(point);
-            }
-        }
+        forEachBoardShapeCell(gameState, (r, c, value) => {
+            if (value === EMPTY) return;
+            if (r === originRow && c === originCol) return;
+            const point = { row: r, col: c };
+            allStones.push(point);
+            if (value === enemyVal) enemies.push(point);
+        });
 
         return enemies.length > 0 ? enemies : allStones;
     }
@@ -172,13 +305,11 @@
         const enemyVal = ownerVal === BLACK_VAL ? WHITE_VAL : BLACK_VAL;
         const enemies = [];
 
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (r === originRow && c === originCol) continue;
-                if (gameState.board[r][c] !== enemyVal) continue;
-                enemies.push({ row: r, col: c });
-            }
-        }
+        forEachBoardShapeCell(gameState, (r, c, value) => {
+            if (r === originRow && c === originCol) return;
+            if (value !== enemyVal) return;
+            enemies.push({ row: r, col: c });
+        });
 
         return enemies;
     }
@@ -269,7 +400,7 @@
 
                 const toRow = fromRow + moveDr;
                 const toCol = fromCol + moveDc;
-                if (toRow < 0 || toRow >= 8 || toCol < 0 || toCol >= 8) continue;
+                if (!hasBoardShapeCell(gameState, toRow, toCol)) continue;
                 if (isBlockedCell(cardState, toRow, toCol, gameState)) continue;
                 if (getBoardCell(gameState, toRow, toCol) !== EMPTY) continue;
 
@@ -306,7 +437,7 @@
 
                 const fromRow = entry.row + dr;
                 const fromCol = entry.col + dc;
-                if (fromRow < 0 || fromRow >= 8 || fromCol < 0 || fromCol >= 8) continue;
+                if (!hasBoardShapeCell(gameState, fromRow, fromCol)) continue;
 
                 const sourceVal = getBoardCell(gameState, fromRow, fromCol);
                 if (sourceVal === null || sourceVal === EMPTY) continue;
@@ -370,7 +501,8 @@
             type === 'ESCAPE_HYPERACTIVE' ||
             type === 'INHERITED_HYPERACTIVE' ||
             type === 'EXTREME_HYPERACTIVE' ||
-            type === 'ULTIMATE_HYPERACTIVE'
+            type === 'ULTIMATE_HYPERACTIVE' ||
+            type === 'WILL_HUNTER_KING'
         ) {
             return type;
         }
@@ -434,6 +566,7 @@
     }
 
     function getFlipEvadeCause(markerTypeUpper) {
+        if (markerTypeUpper === 'WILL_HUNTER_KING') return 'WILL_HUNTER_KING';
         if (markerTypeUpper === 'ESCAPE_HYPERACTIVE') return 'ESCAPE_HYPERACTIVE';
         if (markerTypeUpper === 'INHERITED_HYPERACTIVE') return 'HYPERACTIVE_INHERIT_WILL';
         if (markerTypeUpper === 'EXTREME_HYPERACTIVE') return 'EXTREME_HYPERACTIVE_WILL';
@@ -442,6 +575,7 @@
     }
 
     function getFlipEvadeMoveReason(markerTypeUpper) {
+        if (markerTypeUpper === 'WILL_HUNTER_KING') return 'will_hunter_king_flip_evade_move';
         if (markerTypeUpper === 'ESCAPE_HYPERACTIVE') return 'escape_hyperactive_flip_evade_move';
         if (markerTypeUpper === 'INHERITED_HYPERACTIVE') return 'inherited_hyperactive_flip_evade_move';
         if (markerTypeUpper === 'EXTREME_HYPERACTIVE') return 'extreme_hyperactive_flip_evade_move';
@@ -450,6 +584,7 @@
     }
 
     function getFlipEvadeNoCandidateReason(markerTypeUpper) {
+        if (markerTypeUpper === 'WILL_HUNTER_KING') return 'will_hunter_king_flip_evade_no_candidates';
         if (markerTypeUpper === 'ESCAPE_HYPERACTIVE') return 'escape_hyperactive_flip_evade_no_candidates';
         if (markerTypeUpper === 'INHERITED_HYPERACTIVE') return 'inherited_hyperactive_flip_evade_no_candidates';
         if (markerTypeUpper === 'EXTREME_HYPERACTIVE') return 'extreme_hyperactive_flip_evade_no_candidates';
@@ -584,7 +719,7 @@
                         if (dr === 0 && dc === 0) continue;
                         const row = entry.row + dr;
                         const col = entry.col + dc;
-                        if (row < 0 || row >= 8 || col < 0 || col >= 8) continue;
+                        if (!hasBoardShapeCell(gameState, row, col)) continue;
                         blastTargets.push({ row, col });
                     }
                 }
@@ -722,7 +857,7 @@
                         if (dr === 0 && dc === 0) continue;
                         const row = entry.row + dr;
                         const col = entry.col + dc;
-                        if (row < 0 || row >= 8 || col < 0 || col >= 8) continue;
+                        if (!hasBoardShapeCell(gameState, row, col)) continue;
                         blastTargets.push({ row, col });
                     }
                 }
@@ -1175,8 +1310,8 @@
                 if (dr === 0 && dc === 0) continue;
                 const row = originRow + dr;
                 const col = originCol + dc;
-                if (row < 0 || row >= 8 || col < 0 || col >= 8) continue;
-                if (gameState.board[row][col] !== enemyVal) continue;
+                if (!hasBoardShapeCell(gameState, row, col)) continue;
+                if (getBoardCell(gameState, row, col) !== enemyVal) continue;
                 targets.push({ row, col });
             }
         }
@@ -1494,12 +1629,13 @@
                     projectileOwner: ownerKey,
                     projectileStone: 'gluttonous',
                     hungry: true,
-                    gluttonousMissStreak: nextMissStreak
+                    gluttonousMissStreak: nextMissStreak,
+                    ignoreGuard: true
                 }
             );
             selfDestroyed = !!(res && res.destroyed);
         } else if (typeof deps.destroyAt === 'function') {
-            selfDestroyed = !!deps.destroyAt(cardState, gameState, destroyRow, destroyCol);
+            selfDestroyed = !!deps.destroyAt(cardState, gameState, destroyRow, destroyCol, { ignoreGuard: true });
         }
         if (selfDestroyed) {
             destroyed.push({ row: destroyRow, col: destroyCol, specialType: 'GLUTTONOUS' });

@@ -3,7 +3,7 @@
 作成方針: `cards/catalog.json` を基準に、`cards/card-interaction.js` / `cards/card-interaction-effects.js`、`game/logic/cards.js`、`game/card-effects/**`、`game/turn/turn_pipeline_phases.js` / `game/turn/turn_pipeline_phase_helpers.js`、`game/ai/cpu-policy-core.js`、`01-rulebook.md` の順で照合。推測は記載せず、不確定は「未確認」と明示。
 
 ## 1. 概要
-- 有効カード総数: **40**（`cards/catalog.json`）
+- 有効カード総数: **39**（`cards/catalog.json`）
 - 分類（主分類）※運用カテゴリ。件数は `5.1` 更新時に再集計する。
   - 攻撃: 破壊・爆破・直接除去系
   - 防御: 保護・延命・封鎖系
@@ -23,13 +23,13 @@
 | sacrifice_01 | 生贄の意志 | SACRIFICE_WILL | 5 | 1回 +5（最大3回で +15） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + GUARDで守られていない自分石が必要 | あり | 自分石以外を選択・対象不足 | 1回 +5（最大3回で +15） | 高分散札（優勢時はCPU減点） | 終盤劣勢（巻き返し専用） | cards/catalog.json:48<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | perma_01 | 強い意志 | PERMA_PROTECT_NEXT_STONE | 15 | 次配置石の永続反転耐性 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | コスト不足/使用済み | 次配置石の永続反転耐性 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:55<br>game/logic/cards.js:2293<br>shared-constants.js:102 |
 | strong_wind_01 | 強風の意志 | STRONG_WIND_WILL | 9 | 最長方向へ石を移動（同距離ランダム） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 上下左右いずれかへ移動可能な石が必要 | あり | 移動可能対象なし・対象不正 | 最長方向へ石を移動（同距離ランダム） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:62<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
-| trap_01 | 罠の意志 | TRAP_WILL | 4 | 発動時: 相手布石没収 + 相手手札全破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 自分石の有効対象が1個以上必要 | あり | 対象不足・次相手ターンで未発動のまま消滅 | 発動時: 相手布石没収 + 相手手札全破壊 | 条件未充足で使用不可/低効率 | 中盤劣勢〜拮抗 | cards/catalog.json:69<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
+| trap_01 | 罠の意志 | TRAP_WILL | 4 | 自分石1つを罠化してターン終了。発動時: 相手布石最大20奪取 + 相手手札全破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 自分石の有効対象が1個以上必要 | あり | 対象不足・次相手ターンで未発動のまま消滅・このターンの配置価値が高い | 自分石1つを罠化してターン終了。発動時: 相手布石最大20奪取 + 相手手札全破壊 | 条件未充足で使用不可/低効率 | 中盤劣勢〜拮抗 | cards/catalog.json:69<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | tempt_01 | 誘惑の意志 | TEMPT_WILL | 20 | 相手特殊石の所有権奪取 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 相手特殊石（GUARD以外）が1個以上必要 | あり | 対象が相手特殊石でない/対象不足/GUARD保護 | 相手特殊石の所有権奪取 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:76<br>game/logic/cards.js:942<br>game/logic/cards.js:1114 |
 | chain_01 | 連鎖の意志 | CHAIN_WILL | 22 | 追加反転 最大2リンク | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 一次反転を起点に候補が無い場合は追加連鎖なし | 追加反転 最大2リンク | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:83<br>game/logic/cards.js:2786<br>game/logic/cards.js:2804 |
 | regen_01 | 復活の意志 | REGEN_WILL | 12 | 1回だけ再生 + 再生起点反転 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 反転されないままなら再生効果未発動 | 1回だけ再生 + 再生起点反転 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:90<br>game/logic/cards.js:2308<br>shared-constants.js:136 |
 | destroy_01 | 破壊神 | DESTROY_ONE_STONE | 14 | 任意1石破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + GUARDで守られていない石が1個以上必要 | あり | GUARD保護対象は破壊失敗 | 任意1石破壊 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:97<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | bomb_01 | 時限爆弾 | TIME_BOMB | 13 | 3ターン後に3x3破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 自分石の有効対象が1個以上必要 | あり | 対象不足・既存爆弾重複不可・反転で解除 | 3ターン後に3x3破壊 | 高分散札（優勢時はCPU減点） | 中盤〜終盤劣勢 | cards/catalog.json:104<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
-| udr_01 | 究極反転龍 | ULTIMATE_REVERSE_DRAGON | 30 | 配置時/ターン開始に周囲8反転（5ターン） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | アンカー喪失で終了 | 配置時/ターン開始に周囲8反転（5ターン） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:111<br>game/logic/cards.js:2341<br>shared-constants.js:144 |
+| udr_01 | 究極反転龍 | ULTIMATE_REVERSE_DRAGON | 30 | 自由配置で配置時/ターン開始に周囲8反転（5ターン） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | アンカー喪失で終了 | 自由配置で配置時/ターン開始に周囲8反転（5ターン） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:111<br>game/logic/cards.js:2341<br>shared-constants.js:144 |
 | breeding_01 | 繁殖の意志 | BREEDING_WILL | 16 | 配置時/ターン開始に生成拡散（3ターン） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 周囲空きなし時は生成なし・アンカー喪失で終了 | 配置時/ターン開始に生成拡散（3ターン） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:118<br>game/logic/cards.js:2359<br>shared-constants.js:147 |
 | clone_01 | 複製の意志 | CLONE_WILL | 16 | 隣接1マスへ同種石を1つ複製 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 周囲に空きがある自分石が1個以上必要 | あり | 周囲空きなし/対象不正で失敗 | 隣接1マスへ同種石を1つ複製 | 高分散札（優勢時はCPU減点） | 中盤（優勢維持局面） | cards/catalog.json:125<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | cross_bomb_01 | 十字爆弾 | CROSS_BOMB | 18 | 配置直後に十字範囲爆破 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 中心/十字範囲に石が無い場合は破壊効果が薄い | 配置直後に十字範囲爆破 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:132<br>game/logic/cards.js:2457<br>game/logic/cards.js:2460 |
@@ -47,10 +47,9 @@
 | condemn_01 | 断罪の意志 | CONDEMN_WILL | 6 | 相手手札1枚破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 相手手札が1枚以上必要 | あり | 対象index不正/target_mismatch | 相手手札1枚破壊 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:216<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | gold_stone | 金の意志 | GOLD_STONE | 6 | 反転布石×4、配置石は即時消滅 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 反転0〜1枚だと費用回収しにくい | 反転布石×4、配置石は即時消滅 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:223<br>game/logic/cards.js:2191<br>shared-constants.js:180 |
 | silver_stone | 銀の意志 | SILVER_STONE | 3 | 反転布石×3、配置石は即時消滅 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 反転0〜1枚だと費用回収しにくい | 反転布石×3、配置石は即時消滅 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:230<br>game/logic/cards.js:2204<br>shared-constants.js:240 |
-| steal_card_01 | 転売の意志 | STEAL_CARD | 7 | 反転枚数ぶん奪取し1枚ごとに+2 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 相手手札が少ないと売却枚数が伸びない | 反転枚数ぶん奪取し1枚ごとに+2 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:237<br>game/logic/cards.js:2234<br>shared-constants.js:183 |
 | extend_life_01 | 延命の意志 | EXTEND_LIFE_WILL | 2 | remainingOwnerTurns を2倍 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + remainingOwnerTurns>0 の自分特殊石が必要 | あり | 対象が特殊石でない/remainingOwnerTurns無効 | remainingOwnerTurns を2倍 | 条件未充足で使用不可/低効率 | 中盤〜終盤（寿命付き特殊石が残る局面） | cards/catalog.json:244<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | guard_01 | 守る意志 | GUARD_WILL | 2 | 3ターン完全保護（反転/交換/破壊/誘惑を遮断） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 自分石の有効対象が1個以上必要 | あり | 対象不足 | 3ターン完全保護（反転/交換/破壊/誘惑を遮断） | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:251<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
-| udg_01 | 究極破壊神 | ULTIMATE_DESTROY_GOD | 25 | 配置時/ターン開始に周囲8破壊（5ターン） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | アンカー喪失で終了 | 配置時/ターン開始に周囲8破壊（5ターン） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:258<br>game/logic/cards.js:2369<br>game/logic/cards.js:2371 |
+| udg_01 | 究極破壊神 | ULTIMATE_DESTROY_GOD | 25 | 自由配置で配置時/ターン開始に周囲8破壊（5ターン） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | アンカー喪失で終了 | 自由配置で配置時/ターン開始に周囲8破壊（5ターン） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:258<br>game/logic/cards.js:2369<br>game/logic/cards.js:2371 |
 | ultimate_hyperactive_01 | 究極多動神 | ULTIMATE_HYPERACTIVE_GOD | 28 | 両者ターン開始に直線1〜5マス移動×2+反転（10ターン） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 移動先なしで消滅、残り0で自己消滅 | 両者ターン開始に直線1〜5マス移動×2+反転（10ターン） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:265<br>game/logic/cards.js:2432<br>game/logic/cards/hyperactive.js:105 |
 | board_expand_01 | 盤面拡張 | BOARD_EXPANSION_WILL | 19 | 左右外側に1セル追加（各プレイヤー1回） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 未使用かつ拡張未展開、左右端選択対象が存在 | あり | 使用済み/既に拡張中で使用不可 | 左右外側に1セル追加（各プレイヤー1回） | 高分散札（優勢時はCPU減点） | 終盤劣勢（cornerEmergency想定） | cards/catalog.json:272<br>game/logic/cards.js:971<br>game/logic/cards.js:1175 |
 | blockade_01 | 封鎖の意志 | BLOCKADE_WILL | 1 | 空き1マスを3ターン封鎖 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 空きかつ未封鎖マスが1個以上必要 | あり | 空きマス不足/対象不正 | 空き1マスを3ターン封鎖 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:279<br>game/logic/cards.js:975<br>game/logic/cards.js:1016 |
@@ -260,13 +259,13 @@
   - game/card-effects/strong-wind.js:46
 
 ### trap_01 / 罠の意志（TRAP_WILL）
-- 効果詳細（処理順含む）: 発動時: 相手布石没収 + 相手手札全破壊
+- 効果詳細（処理順含む）: 自分石1つを罠化してターン終了。次の相手ターンに反転されると発動時: 相手布石最大20奪取 + 相手手札全破壊
 - 合理的な使い方
   - 発動条件「手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 自分石の有効対象が1個以上必要」を満たす局面で使う。
-  - 期待リターン「発動時: 相手布石没収 + 相手手札全破壊」を満たす見込みがある手で使う。
+  - 自分の通常配置を手放してでも、相手に反転を強要できる接触点で使う。
   - 推奨フェーズ「中盤劣勢〜拮抗」に寄せて使用する。
 - 利敵行為になる使い方
-  - 失敗条件「対象不足・次相手ターンで未発動のまま消滅」に該当する状態で切る。
+  - 失敗条件「対象不足・次相手ターンで未発動のまま消滅・このターンの配置価値が高い」に該当する状態で切る。
   - このターンのカード使用枠を、直接価値が薄い局面で消費する。
   - 対象不足を見落とし、使用不可/不発でテンポを失う。
 - 相性の良い盤面/悪い盤面: 良: 相手が反転を通しやすい接触点 / 悪: 次相手ターンで触られない孤立点
@@ -397,15 +396,15 @@
   - game/card-effects/time-bomb.js:22
 
 ### udr_01 / 究極反転龍（ULTIMATE_REVERSE_DRAGON）
-- 効果詳細（処理順含む）: 配置時/ターン開始に周囲8反転（5ターン）
+- 効果詳細（処理順含む）: 反転0でも空きマスへ配置でき、配置時/ターン開始に周囲8反転（5ターン）
 - 合理的な使い方
   - 発動条件「手札所持・布石コスト充足・このターン未使用（`applyCardUsage`）」を満たす局面で使う。
-  - 期待リターン「配置時/ターン開始に周囲8反転（5ターン）」を満たす見込みがある手で使う。
-  - CPU方針で明示がないため、対象条件を満たす時だけ選択する。
+  - 通常合法手では届かない空きマスにも置けるので、安定マスや敵石に隣接する空きマスへアンカーを置きたい時に使う。
+  - 期待リターン「自由配置で配置時/ターン開始に周囲8反転（5ターン）」を満たす見込みがある手で使う。
 - 利敵行為になる使い方
   - 失敗条件「アンカー喪失で終了」に該当する状態で切る。
   - CPU方針で高分散札として減点される局面（優勢・角確保局面）で先打ちする。
-  - 対象不足を見落とし、使用不可/不発でテンポを失う。
+  - 自由配置できても、直後に破壊・交換されやすい不安定マスへ置いてアンカーを失う。
 - 相性の良い盤面/悪い盤面: 未確認（盤面相性の明示ロジックなし）
 - 特殊石や保護状態との相互作用: 未確認（当該カード固有の追加条件は明示コードを確認できず）
 - 布石収支観点（定性的）: 0（直接の布石式は未確認）
@@ -789,28 +788,6 @@
   - 01-rulebook.md:432
   - 01-rulebook.md:717
 
-### steal_card_01 / 転売の意志（STEAL_CARD）
-- 効果詳細（処理順含む）: 反転枚数ぶん奪取し1枚ごとに+2
-- 合理的な使い方
-  - 発動条件「手札所持・布石コスト充足・このターン未使用（`applyCardUsage`）」を満たす局面で使う。
-  - 期待リターン「反転枚数ぶん奪取し1枚ごとに+2」を満たす見込みがある手で使う。
-  - CPU方針で明示がないため、対象条件を満たす時だけ選択する。
-- 利敵行為になる使い方
-  - 失敗条件「相手手札が少ないと売却枚数が伸びない」に該当する状態で切る。
-  - CPU方針で高分散札として減点される局面（優勢・角確保局面）で先打ちする。
-  - 相手手札が薄い状態で使い、売却枚数を確保できない。
-- 相性の良い盤面/悪い盤面: 未確認（盤面相性の明示ロジックなし）
-- 特殊石や保護状態との相互作用: 未確認（当該カード固有の追加条件は明示コードを確認できず）
-- 布石収支観点（定性的）: ±（-7 + flipCount + 2*売却枚数）
-- 根拠コード参照
-  - cards/catalog.json:237
-  - game/logic/cards.js:2234
-  - shared-constants.js:183
-  - game/ai/cpu-policy-core.js:36
-  - game/ai/cpu-policy-core.js:75
-  - game/ai/cpu-policy-core.js:250
-  - 01-rulebook.md:437
-
 ### extend_life_01 / 延命の意志（EXTEND_LIFE_WILL）
 - 効果詳細（処理順含む）: remainingOwnerTurns を2倍
 - 合理的な使い方
@@ -858,15 +835,15 @@
   - game/card-effects/guard.js:22
 
 ### udg_01 / 究極破壊神（ULTIMATE_DESTROY_GOD）
-- 効果詳細（処理順含む）: 配置時/ターン開始に周囲8破壊（5ターン）
+- 効果詳細（処理順含む）: 反転0でも空きマスへ配置でき、配置時/ターン開始に周囲8破壊（5ターン）
 - 合理的な使い方
   - 発動条件「手札所持・布石コスト充足・このターン未使用（`applyCardUsage`）」を満たす局面で使う。
-  - 期待リターン「配置時/ターン開始に周囲8破壊（5ターン）」を満たす見込みがある手で使う。
-  - CPU方針で明示がないため、対象条件を満たす時だけ選択する。
+  - 通常合法手では届かない空きマスにも置けるので、敵石に密着した空きマスへアンカーを置きたい時に使う。
+  - 期待リターン「自由配置で配置時/ターン開始に周囲8破壊（5ターン）」を満たす見込みがある手で使う。
 - 利敵行為になる使い方
   - 失敗条件「アンカー喪失で終了」に該当する状態で切る。
   - CPU方針で高分散札として減点される局面（優勢・角確保局面）で先打ちする。
-  - 対象不足を見落とし、使用不可/不発でテンポを失う。
+  - 自由配置できても、直後に破壊・交換されやすい不安定マスへ置いてアンカーを失う。
 - 相性の良い盤面/悪い盤面: 未確認（盤面相性の明示ロジックなし）
 - 特殊石や保護状態との相互作用: 未確認（当該カード固有の追加条件は明示コードを確認できず）
 - 布石収支観点（定性的）: 0（直接の布石式は未確認）
@@ -982,18 +959,7 @@
   - game/logic/cards.js:2216
   - game/logic/cards.js:2223
 
-### 4.4 転売の意志（STEAL_CARD）
-- 高効率ケース
-  - 実装式は `-cost + flipCount + 2*stolenCount`。
-  - 相手手札が厚く、反転枚数も確保できる局面で高効率。
-- 損するケース
-  - 相手手札が少ない/反転が少ない局面では売却枚数が不足。
-- 根拠
-  - game/logic/cards.js:1192
-  - game/logic/cards.js:2234
-  - game/logic/cards.js:2260
-
-### 4.5 反転無効/保護石が絡むときの最適対応
+### 4.4 反転無効/保護石が絡むときの最適対応
 - 高効率ケース
   - 反転判定は `protectedStones` / `permaProtectedStones` / `blockedCells` を除外して計算されるため、保護外ラインを優先して手を作る。
   - GUARD石は破壊が `guard_protected` で拒否されるため、破壊系は非GUARD対象へ切り替える。
@@ -1020,7 +986,7 @@
 - sacrifice_01 (SACRIFICE_WILL) / 優先度: C / use_if: GUARDで守られていない自分石が必要 を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
 - perma_01 (PERMA_PROTECT_NEXT_STONE) / 優先度: A / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: コスト不足/使用済み
 - strong_wind_01 (STRONG_WIND_WILL) / 優先度: C / use_if: 上下左右いずれかへ移動可能な石が必要 を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
-- trap_01 (TRAP_WILL) / 優先度: A / use_if: 自分石の有効対象が1個以上必要 を満たす / avoid_if: 対象不足・次相手ターンで未発動のまま消滅
+- trap_01 (TRAP_WILL) / 優先度: A / use_if: 自分石の有効対象が1個以上必要 を満たす / avoid_if: 対象不足・次相手ターンで未発動のまま消滅・このターンの配置価値が高い
 - tempt_01 (TEMPT_WILL) / 優先度: C / use_if: 相手特殊石（GUARD以外）が1個以上必要 を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
 - chain_01 (CHAIN_WILL) / 優先度: C / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
 - regen_01 (REGEN_WILL) / 優先度: A / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 反転されないままなら再生効果未発動
@@ -1044,7 +1010,6 @@
 - condemn_01 (CONDEMN_WILL) / 優先度: B / use_if: 相手手札が1枚以上必要 を満たす / avoid_if: 対象index不正/target_mismatch
 - gold_stone (GOLD_STONE) / 優先度: A / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 反転0〜1枚だと費用回収しにくい
 - silver_stone (SILVER_STONE) / 優先度: A / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 反転0〜1枚だと費用回収しにくい
-- steal_card_01 (STEAL_CARD) / 優先度: C / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
 - extend_life_01 (EXTEND_LIFE_WILL) / 優先度: B / use_if: remainingOwnerTurns>0 の自分特殊石が必要 を満たす / avoid_if: 対象が特殊石でない/remainingOwnerTurns無効
 - guard_01 (GUARD_WILL) / 優先度: A / use_if: 自分石の有効対象が1個以上必要 を満たす / avoid_if: 対象不足
 - udg_01 (ULTIMATE_DESTROY_GOD) / 優先度: C / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時

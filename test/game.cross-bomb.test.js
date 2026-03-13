@@ -146,4 +146,42 @@ describe('CROSS_BOMB (十字爆弾)', () => {
         );
         expect(destroyEvents).toHaveLength(9);
     });
+
+    test('左拡張マスが十字2マス先なら爆破対象に含む', () => {
+        const gs = {
+            currentPlayer: 1,
+            board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+            consecutivePasses: 0,
+            turnNumber: 1,
+            boardExpansion: {
+                active: false,
+                side: null,
+                row: null,
+                owner: EMPTY,
+                usedByPlayer: { black: false, white: false },
+                cells: [{ side: 'left', row: 3, col: -1, owner: WHITE }]
+            }
+        };
+        const cs = makeCardState();
+        cs.expansionStoneIdByCell = { '3,-1': 'sx1' };
+
+        gs.board[3][1] = BLACK;
+        cs.stoneIdMap[3][1] = 's1';
+
+        const effects = CardLogic.applyPlacementEffects(cs, gs, 'black', 3, 1, 0);
+
+        expect(effects.crossBombExploded).toBe(true);
+        expect(effects.crossBombDestroyed).toBe(2);
+        expect(gs.board[3][1]).toBe(EMPTY);
+        expect(gs.boardExpansion.cells.find((cell) => cell && cell.row === 3 && cell.col === -1).owner).toBe(EMPTY);
+
+        const destroyEvents = (cs._presentationEventsPersist || []).filter(
+            e => e.type === 'DESTROY' && e.cause === 'CROSS_BOMB' && e.reason === 'cross_bomb_explosion'
+        );
+        expect(destroyEvents).toHaveLength(2);
+        expect(destroyEvents).toEqual(expect.arrayContaining([
+            expect.objectContaining({ row: 3, col: 1 }),
+            expect.objectContaining({ row: 3, col: -1 })
+        ]));
+    });
 });

@@ -4,6 +4,8 @@
 
     let commentaryContextHelpers = null;
     let commentaryRuntimeHelpers = null;
+    let boardUpdateDrainInProgress = false;
+    let boardUpdateDrainPending = false;
 
     function resolveCommentaryContextHelpers() {
         if (commentaryContextHelpers) return commentaryContextHelpers;
@@ -340,7 +342,7 @@
         }
     }
 
-    async function onBoardUpdated() {
+    async function flushBoardPresentationEvents() {
         try {
             let events = [];
             if (typeof CardLogic !== 'undefined' && typeof CardLogic.flushPresentationEvents === 'function') {
@@ -370,6 +372,21 @@
             if (typeof renderCardUI === 'function') renderCardUI();
         } catch (e) {
             console.error('[PresentationHandler] onBoardUpdated error', e);
+        }
+    }
+
+    async function onBoardUpdated() {
+        boardUpdateDrainPending = true;
+        if (boardUpdateDrainInProgress) return;
+
+        boardUpdateDrainInProgress = true;
+        try {
+            while (boardUpdateDrainPending) {
+                boardUpdateDrainPending = false;
+                await flushBoardPresentationEvents();
+            }
+        } finally {
+            boardUpdateDrainInProgress = false;
         }
     }
 

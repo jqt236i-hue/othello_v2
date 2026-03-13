@@ -10,7 +10,6 @@
 // To avoid polluting the global scope (and colliding with ui/visual-effects-map.js),
 // wrap everything in an IIFE and only export via module.exports (CommonJS).
 (function () {
-console.log('[VISUAL_EFFECTS] game/visual-effects-map.js loaded');
 
 /**
  * カード種別 → ビジュアル効果定義
@@ -37,6 +36,13 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'silver-stone',
         cssMethod: 'background',
         imagePath: 'assets/images/stones/silver.stone.png',
+        dataAttributes: {}
+    },
+
+    rainbowStone: {
+        cssClass: 'rainbow-stone',
+        cssMethod: 'background',
+        imagePath: 'assets/images/stones/rainbow_stone.png',
         dataAttributes: {}
     },
     // 永久保護（強い意志）
@@ -117,6 +123,15 @@ const GAME_STONE_VISUAL_EFFECTS = {
         imagePathByOwner: {
             '1': 'assets/images/stones/OBSERVER_WILL-black.png',
             '-1': 'assets/images/stones/OBSERVER_WILL-white.png'
+        },
+        dataAttributes: {}
+    },
+    willHunterKingStone: {
+        cssClass: 'hyperactive-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/stones/WILL_HUNTER_KING-black.png',
+            '-1': 'assets/images/stones/WILL_HUNTER_KING-white.png'
         },
         dataAttributes: {}
     },
@@ -251,6 +266,7 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'SNIPER_WILL': 'sniperStone',
     'LIGHTNING_WILL': 'lightningStone',
     'OBSERVER_WILL': 'observerStone',
+    'WILL_HUNTER_KING': 'willHunterKingStone',
     'DESTROY_DRAGON_WILL': 'destroyDragonStone',
     'ULTIMATE_HYPERACTIVE_GOD': 'ultimateHyperactiveGod',
     'HYPERACTIVE_WILL': 'hyperactiveStone',
@@ -262,6 +278,7 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'INSTANT_HYPERACTIVE_WILL': 'hyperactiveStone',
     'REGEN_WILL': 'regenStone',
     'GOLD_STONE': 'goldStone',
+    'RAINBOW_STONE': 'rainbowStone',
     'SILVER_STONE': 'silverStone',
     // Ensure WORK pending visuals are applied at placement-time as well
     'WORK_WILL': 'workStone'
@@ -286,6 +303,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'SNIPER': 'sniperStone',
     'LIGHTNING': 'lightningStone',
     'OBSERVER': 'observerStone',
+    'WILL_HUNTER_KING': 'willHunterKingStone',
     'DESTROY_DRAGON': 'destroyDragonStone',
     'ULTIMATE_HYPERACTIVE': 'ultimateHyperactiveGod',
     'HYPERACTIVE': 'hyperactiveStone',
@@ -296,6 +314,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'GLUTTONOUS': 'gluttonousStone',
     'REGEN': 'regenStone',
     'GOLD': 'goldStone',
+    'RAINBOW': 'rainbowStone',
     'SILVER': 'silverStone',
     'WORK': 'workStone'
     ,

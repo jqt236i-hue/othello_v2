@@ -132,6 +132,34 @@ describe('SNIPER_WILL（狙撃の意志）', () => {
     expect(marker.data.remainingOwnerTurns).toBe(4);
   });
 
+  test('自ターン開始時に上側拡張セルの敵石も破壊対象に含める', () => {
+    const { cardState, gameState } = createStates(0.2);
+
+    gameState.board[0][0] = Shared.BLACK;
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: Shared.EMPTY,
+      usedByPlayer: { black: true, white: false },
+      cells: [{ side: 'top', row: -1, col: 0, owner: Shared.WHITE }]
+    };
+
+    cardState.markers.push({
+      id: 7003,
+      kind: 'specialStone',
+      row: 0,
+      col: 0,
+      owner: 'black',
+      data: { type: 'SNIPER', remainingOwnerTurns: 5 }
+    });
+
+    const out = CardLogic.processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 0, 0, createPrng(0.2));
+
+    expect((out.destroyed || [])).toEqual([expect.objectContaining({ row: -1, col: 0, sourceRow: 0, sourceCol: 0 })]);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === -1 && cell.col === 0).owner).toBe(Shared.EMPTY);
+  });
+
   test('同距離の敵石は乱数で1つを選んで破壊する', () => {
     const { cardState, gameState } = createStates(0.75);
 

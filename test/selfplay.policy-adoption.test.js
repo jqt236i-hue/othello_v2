@@ -5,7 +5,10 @@ const {
     parseArgs,
     computeAdoptionDecision,
     computeAdoptionDecisionAverage,
+    buildEarlyStopDecision,
     buildSeedList,
+    buildSeedBenchmarkJobPlan,
+    evaluateEarlyFailure,
     runAdoptionCheck
 } = require('../scripts/benchmark-policy-adoption');
 
@@ -291,13 +294,77 @@ describe('selfplay policy adoption check', () => {
         expect(buildSeedList(100, 3, 7)).toEqual([100, 107, 114]);
     });
 
-    test('runAdoptionCheck returns decision payload', () => {
+    test('buildSeedBenchmarkJobPlan distributes extra capacity within seeds', () => {
+        expect(buildSeedBenchmarkJobPlan(12, 5, 16)).toEqual({
+            totalJobs: 12,
+            seedWorkers: 5,
+            benchmarkJobsBySeed: [3, 3, 2, 2, 2]
+        });
+        expect(buildSeedBenchmarkJobPlan(12, 1, 16)).toEqual({
+            totalJobs: 12,
+            seedWorkers: 1,
+            benchmarkJobsBySeed: [12]
+        });
+    });
+
+    test('evaluateEarlyFailure detects impossible remaining seed pass count', () => {
+        const earlyStop = evaluateEarlyFailure([
+            { uplift: -0.01, passed: false },
+            { uplift: -0.02, passed: false },
+            { uplift: -0.03, passed: false }
+        ], 4, {
+            threshold: 0.01,
+            minLowerBound: -1,
+            minSeedUplift: -1,
+            minSeedPassCount: 2,
+            maxPossibleSeedUplift: 1
+        });
+
+        expect(earlyStop).toMatchObject({
+            reason: 'min-seed-pass-count-impossible',
+            completedSeedCount: 3,
+            remainingSeedCount: 1,
+            seedPassCount: 0,
+            remainingPossibleSeedPassCount: 1,
+            requiredMinSeedPassCount: 2
+        });
+    });
+
+    test('buildEarlyStopDecision marks decision as failed with reason', () => {
+        const out = buildEarlyStopDecision([
+            { baselineScore: 0.50, candidateScore: 0.48, uplift: -0.02, passed: false },
+            { baselineScore: 0.50, candidateScore: 0.49, uplift: -0.01, passed: false }
+        ], 4, {
+            threshold: 0.02,
+            confidenceLevel: 0.95,
+            minLowerBound: -1,
+            minSeedUplift: -1,
+            minSeedPassCount: 2,
+            maxPossibleSeedUplift: 1
+        }, {
+            reason: 'min-seed-pass-count-impossible',
+            completedSeedCount: 2,
+            remainingSeedCount: 2,
+            seedPassCount: 0,
+            remainingPossibleSeedPassCount: 2,
+            maxAchievableAverageUplift: 0.4925,
+            maxPossibleSeedUplift: 1
+        });
+
+        expect(out.passed).toBe(false);
+        expect(out.earlyStop).toBe(true);
+        expect(out.earlyStopReason).toBe('min-seed-pass-count-impossible');
+        expect(out.seedCount).toBe(4);
+        expect(out.completedSeedCount).toBe(2);
+    });
+
+    test('runAdoptionCheck returns decision payload', async () => {
         const modelPath = path.resolve(__dirname, '..', 'data', 'models', 'policy-table.adoption.test.json');
         const baselinePath = path.resolve(__dirname, '..', 'data', 'models', 'policy-table.adoption.base.test.json');
         fs.mkdirSync(path.dirname(modelPath), { recursive: true });
         fs.writeFileSync(modelPath, JSON.stringify({ schemaVersion: 'policy_table.v1', states: {} }), 'utf8');
         fs.writeFileSync(baselinePath, JSON.stringify({ schemaVersion: 'policy_table.v1', states: {} }), 'utf8');
-        const out = runAdoptionCheck({
+        const out = await runAdoptionCheck({
             games: 1,
             seed: 1,
             seedCount: 2,

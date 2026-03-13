@@ -2,7 +2,7 @@
 const SoundEngine = {
     ctx: null,
     isMuted: false,
-    volume: 0.3,
+    volume: 0.7,
     currentType: '2',
     bgm: null,
     bgmVolume: 0.07,
@@ -12,6 +12,7 @@ const SoundEngine = {
     // BGM Playlist
     playlist: [
         { name: 'SCARLET ZONE', file: 'assets/audio/bgm/SCARLET_ZONE.mp3' },
+        { name: 'c-othello-2', file: 'assets/audio/bgm/c-othello-2.mp3' },
         { name: 'c-othello', file: 'assets/audio/bgm/c-othello.mp3' },
         { name: '砕月', file: 'assets/audio/bgm/砕月.mp3' },
         { name: 'U.N.オーエンは彼女なのか？', file: 'assets/audio/bgm/U.N.オーエンは彼女なのか？.mp3' },
@@ -27,6 +28,7 @@ const SoundEngine = {
         clone_spawn: '複製の意志で石を複製するタイミング.mp3',
         trap_select: '罠の意志で石を選択したタイミング.mp3',
         guard_select: '守る意志で自分の石を選択するタイミング.mp3',
+        freeze_select: '凍結の意志でマスを凍結させるタイミング.mp3',
         trap_triggered: '相手の罠の意志の罠にかかってしまったタイミング.mp3',
         trap_misfire: '罠の意志の石が反転されなくて不発で消滅したタイミング.mp3',
         board_expansion_reveal: '盤面拡張系で実際に盤面が拡張されるタイミング.mp3',
@@ -143,6 +145,8 @@ const SoundEngine = {
         const key = String(effectKey || '').trim();
         if (!key) return null;
         const opts = options && typeof options === 'object' ? options : {};
+        const directFilePath = String(opts.filePath || '').trim();
+        if (directFilePath) return directFilePath;
         const fileNameRaw = opts.fileName || this.effectSoundFiles[key] || `${key}.mp3`;
         const fileName = String(fileNameRaw || '').trim();
         if (!fileName) return null;

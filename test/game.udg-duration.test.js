@@ -96,6 +96,35 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
     expect(gameState.boardExpansion.owner).toBe(0);
   });
 
+  test('destroys adjacent enemy stone on corner expansion cell', () => {
+    const { cardState, gameState } = makeStates();
+    gameState.board[0][0] = 1;
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: 0,
+      usedByPlayer: { black: true, white: false },
+      cells: [{ row: -1, col: -1, owner: -1 }]
+    };
+
+    cardState.markers.push({
+      id: 9102,
+      kind: 'specialStone',
+      row: 0,
+      col: 0,
+      owner: 'black',
+      data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 }
+    });
+
+    const res = CardLogic.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, 'black', 0, 0, {
+      decrementRemainingOwnerTurns: false
+    });
+
+    expect((res.destroyed || []).some((p) => p.row === -1 && p.col === -1)).toBe(true);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === -1 && cell.col === -1).owner).toBe(0);
+  });
+
   test('udg destroy presentation event includes source metadata for lightning', () => {
     const { cardState, gameState } = makeStates();
     gameState.board[4][4] = 1;
@@ -130,5 +159,103 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
       projectileOwner: 'black',
       projectileStone: 'udg_lightning'
     });
+  });
+
+  test('udg destruction respects destroy evade and leaves the target stone alive elsewhere', () => {
+    const { cardState, gameState } = makeStates();
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        gameState.board[row][col] = 1;
+      }
+    }
+    gameState.board[4][4] = 1;
+    gameState.board[4][5] = -1;
+    gameState.board[7][7] = 0;
+    cardState.markers.push(
+      {
+        id: 9301,
+        kind: 'specialStone',
+        row: 4,
+        col: 4,
+        owner: 'black',
+        data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 }
+      },
+      {
+        id: 9302,
+        kind: 'specialStone',
+        row: 4,
+        col: 5,
+        owner: 'white',
+        data: {
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
+          flipEvadeRemaining: 2,
+          destroyEvadeRemaining: 1
+        }
+      }
+    );
+
+    const res = CardLogic.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, 'black', 4, 4, {
+      decrementRemainingOwnerTurns: false
+    });
+
+    expect(res.destroyed).toEqual([]);
+    expect(gameState.board[4][5]).toBe(0);
+    expect(gameState.board[7][7]).toBe(-1);
+    const movedMarker = cardState.markers.find((m) => m && m.id === 9302);
+    expect(movedMarker).toBeTruthy();
+    expect(movedMarker.row).toBe(7);
+    expect(movedMarker.col).toBe(7);
+    expect(movedMarker.data.destroyEvadeRemaining).toBe(0);
+  });
+
+  test('udg makes destroy evade skip all cells targeted by the same destroy wave', () => {
+    const { cardState, gameState } = makeStates();
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        gameState.board[row][col] = 1;
+      }
+    }
+    gameState.board[4][4] = 1;
+    gameState.board[4][5] = -1;
+    gameState.board[5][5] = 0;
+    gameState.board[7][7] = 0;
+    cardState.markers.push(
+      {
+        id: 9401,
+        kind: 'specialStone',
+        row: 4,
+        col: 4,
+        owner: 'black',
+        data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 }
+      },
+      {
+        id: 9402,
+        kind: 'specialStone',
+        row: 4,
+        col: 5,
+        owner: 'white',
+        data: {
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
+          flipEvadeRemaining: 2,
+          destroyEvadeRemaining: 1
+        }
+      }
+    );
+
+    const res = CardLogic.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, 'black', 4, 4, {
+      decrementRemainingOwnerTurns: false
+    });
+
+    expect(res.destroyed).toEqual([]);
+    expect(gameState.board[4][5]).toBe(0);
+    expect(gameState.board[5][5]).toBe(0);
+    expect(gameState.board[7][7]).toBe(-1);
+    const movedMarker = cardState.markers.find((m) => m && m.id === 9402);
+    expect(movedMarker).toBeTruthy();
+    expect(movedMarker.row).toBe(7);
+    expect(movedMarker.col).toBe(7);
+    expect(movedMarker.data.destroyEvadeRemaining).toBe(0);
   });
 });

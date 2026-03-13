@@ -20,9 +20,26 @@ if (!OwnerHelpersModule) {
     } catch (e) { /* ignore */ }
 }
 
+var PlaybackStateModule = null;
+if (typeof require === 'function') {
+    try { PlaybackStateModule = require('./playback-state-manager'); } catch (e) { /* ignore */ }
+}
+if (!PlaybackStateModule) {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) PlaybackStateModule = globalThis.PlaybackStateManager;
+    } catch (e) { /* ignore */ }
+}
+
+function _isVisualPlaybackActiveForBoardRenderer() {
+    if (PlaybackStateModule && typeof PlaybackStateModule.getPlaybackActive === 'function') {
+        return PlaybackStateModule.getPlaybackActive() === true;
+    }
+    return (typeof window !== 'undefined' && window.VisualPlaybackActive === true);
+}
+
 function renderBoard() {
     // Single Visual Writer: skip renders during active playback
-    if (typeof window !== 'undefined' && window.VisualPlaybackActive === true) {
+    if (_isVisualPlaybackActiveForBoardRenderer()) {
         return;
     }
     // Determine whether we are in a "target selection" card mode.
@@ -82,8 +99,23 @@ function _isFlipEvadeSpecialTypeForBoard(type) {
         typeUpper === 'HYPERACTIVE' ||
         typeUpper === 'EXTREME_HYPERACTIVE' ||
         typeUpper === 'ESCAPE_HYPERACTIVE' ||
-        typeUpper === 'ULTIMATE_HYPERACTIVE'
+        typeUpper === 'ULTIMATE_HYPERACTIVE' ||
+        typeUpper === 'WILL_HUNTER_KING'
     );
+}
+
+function _isDestroyEvadeSpecialTypeForBoard(type) {
+    return String(type || '').toUpperCase() === 'WILL_HUNTER_KING';
+}
+
+function _resolveSpecialDisplayTurnsForBoard(data) {
+    const primary = Number(data && data.remainingOwnerTurns);
+    if (Number.isFinite(primary)) return Math.max(0, Math.trunc(primary));
+    if (String(data && data.type ? data.type : '').toUpperCase() === 'REGEN') {
+        const regenRemaining = Number(data && data.regenRemaining);
+        if (Number.isFinite(regenRemaining)) return Math.max(0, Math.trunc(regenRemaining));
+    }
+    return undefined;
 }
 
 function _applyDoubleDigitTimerClassForBoard(timerElement, rawValue) {
@@ -137,7 +169,7 @@ function _canLocalPlayerControlCurrentTurnForBoard() {
 
 function renderBoardFull() {
     // Single Visual Writer: skip renders during active playback
-    if (typeof window !== 'undefined' && window.VisualPlaybackActive === true) {
+    if (_isVisualPlaybackActiveForBoardRenderer()) {
         return;
     }
     boardEl.innerHTML = '';
@@ -146,7 +178,15 @@ function renderBoardFull() {
     const playerKey = getPlayerKey(player);
     const pending = cardState.pendingEffectByPlayer[playerKey];
     const isTabooReversePending = !!(pending && pending.type === 'TABOO_REVERSE_WILL');
-    const freePlacementActive = pending && (pending.type === 'FREE_PLACEMENT' || pending.type === 'SNIPER_WILL' || pending.type === 'LAST_RESORT');
+    const freePlacementActive = !!(pending && (
+        (typeof CardLogic !== 'undefined' &&
+            CardLogic &&
+            typeof CardLogic.isFreePlacementPendingType === 'function' &&
+            CardLogic.isFreePlacementPendingType(pending.type)) ||
+        pending.type === 'FREE_PLACEMENT' ||
+        pending.type === 'SNIPER_WILL' ||
+        pending.type === 'LAST_RESORT'
+    ));
     const isSelectingTarget = !!(
         pending && (
             pending.stage === 'selectTarget' ||
@@ -173,7 +213,7 @@ function renderBoardFull() {
 
     let normalLegalSet = new Set();
     if (showLegalHints) {
-        const legalMoves = getLegalMoves(gameState, player, context);
+        const legalMoves = getLegalMoves(gameState, context.protectedStones, context.permaProtectedStones);
         normalLegalSet = new Set(legalMoves.map(m => `${m.row},${m.col}`));
     }
 
@@ -230,7 +270,14 @@ function renderBoardFull() {
                 col: m.col,
                 type: m.data.type,
                 owner: m.owner,
-                remainingOwnerTurns: m.data.remainingOwnerTurns,
+                remainingOwnerTurns: _resolveSpecialDisplayTurnsForBoard(m.data),
+                destroyEvadeRemaining: _isDestroyEvadeSpecialTypeForBoard(markerTypeUpper)
+                    ? (
+                        Number.isFinite(Number(m.data.destroyEvadeRemaining))
+                            ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))
+                            : null
+                    )
+                    : null,
                 flipEvadeRemaining: _isFlipEvadeSpecialTypeForBoard(markerTypeUpper)
                     ? (
                         Number.isFinite(Number(m.data.flipEvadeRemaining))
@@ -327,6 +374,11 @@ function renderBoardFull() {
                     _isFlipEvadeSpecialTypeForBoard(special.type) &&
                     Number.isFinite(Number(special.flipEvadeRemaining))
                 );
+                const specialCanShowDestroyEvade = !!(
+                    special &&
+                    _isDestroyEvadeSpecialTypeForBoard(special.type) &&
+                    Number.isFinite(Number(special.destroyEvadeRemaining))
+                );
                 const specialFlipEvade = specialCanShowFlipEvade
                     ? Math.max(0, Math.trunc(Number(special.flipEvadeRemaining)))
                     : null;
@@ -374,6 +426,15 @@ function renderBoardFull() {
                         evadeTimer.textContent = String(evadeRemaining);
                         _applyDoubleDigitTimerClassForBoard(evadeTimer, evadeRemaining);
                         disc.appendChild(evadeTimer);
+                    }
+
+                    if (specialCanShowDestroyEvade) {
+                        const destroyEvadeTimer = document.createElement('div');
+                        destroyEvadeTimer.className = 'stone-timer destroy-evade-timer';
+                        const destroyEvadeRemaining = Math.max(0, Math.trunc(Number(special.destroyEvadeRemaining)));
+                        destroyEvadeTimer.textContent = String(destroyEvadeRemaining);
+                        _applyDoubleDigitTimerClassForBoard(destroyEvadeTimer, destroyEvadeRemaining);
+                        disc.appendChild(destroyEvadeTimer);
                     }
                 }
 

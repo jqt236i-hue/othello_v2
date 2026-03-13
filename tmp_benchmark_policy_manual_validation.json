@@ -1,9 +1,0 @@
-{
-  "checks": [
-    "parseArgs",
-    "deterministic",
-    "modelPath"
-  ],
-  "success": false,
-  "error": "DataCloneError: Data cannot be cloned, out of memory.\n    at new DOMException (node:internal/per_context/domexception:76:18)\n    at structuredClone (node:internal/worker/js_transferable:126:26)\n    at deepClone (C:\\Users\\quarr\\Desktop\\othello_v2\\utils\\deepClone.js:12:27)\n    at buildDecisionSnapshot (C:\\Users\\quarr\\Desktop\\othello_v2\\src\\engine\\selfplay-runner.js:2758:29)\n    at applyDecisionWithRetry (C:\\Users\\quarr\\Desktop\\othello_v2\\src\\engine\\selfplay-runner.js:3254:27)\n    at runSingleGame (C:\\Users\\quarr\\Desktop\\othello_v2\\src\\engine\\selfplay-runner.js:3336:27)\n    at runSelfPlayGames (C:\\Users\\quarr\\Desktop\\othello_v2\\src\\engine\\selfplay-runner.js:3519:21)\n    at runBenchmark (C:\\Users\\quarr\\Desktop\\othello_v2\\scripts\\benchmark-selfplay-policy.js:575:22)\n    at [eval]:1:2364\n    at runScriptInThisContext (node:internal/vm:219:10)"
-}

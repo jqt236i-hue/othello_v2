@@ -21,6 +21,38 @@ describe('pipeline_ui_adapter draw mapping', () => {
     expect(out[0].targets[0]).toMatchObject({ player: 'black', owner: 'black', cardId: 'c1', cost: 7, name: 'Test' });
   });
 
+  test('runTurnWithAdapter prepends place_hand_animation from raw place events', () => {
+    const board = Array(8).fill(null).map(() => Array(8).fill(0));
+    const turnPipeline = {
+      applyTurnSafe: jest.fn(() => ({
+        ok: true,
+        cardState: { markers: [], turnIndex: 9 },
+        gameState: { board },
+        events: [{ type: 'place', row: 2, col: 3, player: 'white', actionId: 'place-1', turnIndex: 9 }],
+        presentationEvents: []
+      }))
+    };
+
+    const out = adapter.runTurnWithAdapter(
+      { markers: [], turnIndex: 9 },
+      { board },
+      'white',
+      { type: 'place', row: 2, col: 3 },
+      turnPipeline
+    );
+
+    expect(out.ok).toBe(true);
+    expect(out.playbackEvents).toHaveLength(1);
+    expect(out.playbackEvents[0]).toMatchObject({
+      type: 'place_hand_animation',
+      phase: 0,
+      rawType: 'place',
+      actionId: 'place-1',
+      turnIndex: 9
+    });
+    expect(out.playbackEvents[0].targets[0]).toMatchObject({ r: 2, col: 3, player: 'white', owner: 'white' });
+  });
+
   test('maps HAND_CLEAR to hand_remove and keeps it before subsequent draws by phase', () => {
     const pres = [
       { type: 'HAND_CLEAR', player: 'black', count: 2, reason: 'rebuild_will' },

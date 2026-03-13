@@ -54,12 +54,15 @@
      *
      * Note: Originally headless-only. Now UMD so the browser can call the same pipeline.
      */
-    function applyTurn(cardState, gameState, playerKey, action, prng) {
+    function applyTurn(cardState, gameState, playerKey, action, prng, options) {
         const events = [];
         const p = prng || undefined;
+        const opts = (options && typeof options === 'object') ? options : {};
         const normalizedPlayerKey = normalizePlayerKey(playerKey) || playerKey;
         // 1) Turn start processing
-        TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, events, p);
+        if (opts.skipTurnStart !== true) {
+            TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, events, p);
+        }
 
         // 2) Card usage (optional)
         TurnPipelinePhases.applyCardUsagePhase(CardLogic, cardState, gameState, normalizedPlayerKey, action, events, p);
@@ -143,7 +146,7 @@
         }
 
         try {
-            const res = applyTurn(cs, gs, actionPlayerKey || playerKey, action, prng);
+            const res = applyTurn(cs, gs, actionPlayerKey || playerKey, action, prng, options);
 
             // Validate resulting state (be tolerant of missing schema modules in browser-like env)
             var StateValidatorModule = null;

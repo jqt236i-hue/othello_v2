@@ -160,6 +160,49 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     expect(cardState.expansionStoneIdByCell['5,-1']).toBeUndefined();
   });
 
+  test('DESTROY_ONE_STONEは拡張マス上の復活石も対象にできる', () => {
+    const destroyDef = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'DESTROY_ONE_STONE');
+    expect(destroyDef).toBeTruthy();
+
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    gameState.boardExpansion = {
+      active: true,
+      side: 'left',
+      row: 5,
+      owner: Core.WHITE,
+      usedByPlayer: { black: true, white: false },
+      cells: [
+        { side: 'left', row: 5, col: -1, owner: Core.WHITE }
+      ]
+    };
+    cardState.pendingEffectByPlayer.black = {
+      type: 'DESTROY_ONE_STONE',
+      cardId: destroyDef.id,
+      stage: 'selectTarget'
+    };
+    cardState.markers.push({
+      id: 'regen-expansion',
+      row: 5,
+      col: -1,
+      kind: 'specialStone',
+      owner: 'white',
+      createdSeq: 1,
+      data: { type: 'REGEN', regenRemaining: 3, ownerColor: Core.WHITE }
+    });
+
+    const targets = CardLogic.getSelectableTargets(cardState, gameState, 'black');
+    expect(targets).toEqual(expect.arrayContaining([{ row: 5, col: -1 }]));
+
+    const destroyed = CardLogic.applyDestroyEffect(cardState, gameState, 'black', 5, -1);
+    expect(destroyed).toBe(true);
+    expect(gameState.boardExpansion.cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 5, col: -1, owner: Core.EMPTY })
+    ]));
+    expect(cardState.markers.some((marker) => marker && marker.row === 5 && marker.col === -1)).toBe(false);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
   test('BOARD_EXPANSION_GODは2つの角を選び、外側6マスを同時追加する', () => {
     const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'BOARD_EXPANSION_GOD');
     expect(def).toBeTruthy();

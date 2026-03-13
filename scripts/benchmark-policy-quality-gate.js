@@ -5,9 +5,10 @@ const fs = require('fs');
 const path = require('path');
 const {
     parseArgs: parseAdoptionArgs,
+    buildAdoptionPayload,
+    buildEarlyStopDecision,
     computeAdoptionDecisionAverage,
-    runAdoptionCheck,
-    runAdoptionCheckParallel
+    runSeedEvaluations
 } = require('./benchmark-policy-adoption');
 
 const DEFAULT_QUALITY_WEIGHTS = Object.freeze({
@@ -30,8 +31,28 @@ const DEFAULT_QUALITY_WEIGHTS = Object.freeze({
 const QUALITY_WEIGHT_KEYS = Object.freeze(Object.keys(DEFAULT_QUALITY_WEIGHTS));
 
 function parseArgs(argv) {
-    const args = parseAdoptionArgs(argv);
+    let qualityThresholdOverride = null;
+    const adoptionArgv = [];
+    for (let i = 0; i < argv.length; i++) {
+        const token = String(argv[i] || '');
+        if (token === '--threshold') {
+            const rawValue = argv[i + 1];
+            const num = Number(rawValue);
+            if (Number.isFinite(num) && num < 0) {
+                qualityThresholdOverride = num;
+                adoptionArgv.push('--threshold', '0');
+                i += 1;
+                continue;
+            }
+        }
+        adoptionArgv.push(token);
+    }
+
+    const args = parseAdoptionArgs(adoptionArgv);
     args.gatePhase = 'quality';
+    if (qualityThresholdOverride !== null) {
+        args.threshold = qualityThresholdOverride;
+    }
     const hasExplicitQualityWeights = QUALITY_WEIGHT_KEYS.some((key) => Number(args[key]) > 0);
     if (!hasExplicitQualityWeights) {
         for (const key of QUALITY_WEIGHT_KEYS) {
@@ -57,20 +78,29 @@ function buildQualitySeedDecision(seedDecision, threshold) {
     };
 }
 
-function buildQualityGatePayload(adoptionPayload, options) {
+function buildQualityGatePayload(adoptionPayload, options, earlyStop) {
     const perSeed = Array.isArray(adoptionPayload && adoptionPayload.perSeed)
         ? adoptionPayload.perSeed.map((entry) => Object.assign({}, entry, {
             qualityDecision: buildQualitySeedDecision(entry && entry.decision, options.threshold)
         }))
         : [];
-    const decision = computeAdoptionDecisionAverage(
-        perSeed.map((entry) => entry.qualityDecision),
-        options.threshold,
-        options.minSeedUplift,
-        options.minSeedPassCount,
-        options.confidenceLevel,
-        options.minLowerBound
-    );
+    const qualitySeedDecisions = perSeed.map((entry) => entry.qualityDecision);
+    const maxPossibleSeedUplift = QUALITY_WEIGHT_KEYS.reduce((sum, key) => sum + (Number(options[key]) || 0), 0);
+    const decision = earlyStop
+        ? buildEarlyStopDecision(
+            qualitySeedDecisions,
+            options.seedCount,
+            Object.assign({}, options, { maxPossibleSeedUplift }),
+            earlyStop
+        )
+        : computeAdoptionDecisionAverage(
+            qualitySeedDecisions,
+            options.threshold,
+            options.minSeedUplift,
+            options.minSeedPassCount,
+            options.confidenceLevel,
+            options.minLowerBound
+        );
 
     return {
         generatedAt: new Date().toISOString(),
@@ -98,6 +128,7 @@ function buildQualityGatePayload(adoptionPayload, options) {
         },
         baseline: adoptionPayload && adoptionPayload.baseline ? adoptionPayload.baseline : null,
         candidate: adoptionPayload && adoptionPayload.candidate ? adoptionPayload.candidate : null,
+        earlyStop: earlyStop || null,
         perSeed,
         decision,
         sourceDecision: adoptionPayload && adoptionPayload.decision ? adoptionPayload.decision : null
@@ -105,10 +136,13 @@ function buildQualityGatePayload(adoptionPayload, options) {
 }
 
 async function runQualityGate(options) {
-    const adoptionPayload = ((options.jobs || 1) <= 1 || (options.seedCount || 1) <= 1)
-        ? runAdoptionCheck(options)
-        : await runAdoptionCheckParallel(options);
-    return buildQualityGatePayload(adoptionPayload, options);
+    const maxPossibleSeedUplift = QUALITY_WEIGHT_KEYS.reduce((sum, key) => sum + (Number(options[key]) || 0), 0);
+    const execution = await runSeedEvaluations(Object.assign({}, options, {
+        maxPossibleSeedUplift,
+        decisionSelector: (entry) => buildQualitySeedDecision(entry && entry.decision, options.threshold)
+    }));
+    const adoptionPayload = buildAdoptionPayload(options, execution.perSeed, execution.startedAt);
+    return buildQualityGatePayload(adoptionPayload, options, execution.earlyStop);
 }
 
 async function main() {
@@ -123,7 +157,7 @@ async function main() {
     console.log(
         `[policy-quality-gate] baseline_quality=${d.baselineScore.toFixed(3)} candidate_quality=${d.candidateScore.toFixed(3)} ` +
         `uplift=${d.uplift.toFixed(3)} uplift_lb=${d.upliftLowerBound.toFixed(3)} threshold=${d.threshold.toFixed(3)} ` +
-        `seeds=${d.seedCount || 1} seed_pass=${d.seedPassCount || 0}/${d.seedCount || 0} pass=${d.passed}`
+        `seeds=${d.seedCount || 1} seed_pass=${d.seedPassCount || 0}/${d.seedCount || 0} early_stop=${d.earlyStopReason || 'none'} pass=${d.passed}`
     );
     process.exit(d.passed ? 0 : 2);
 }

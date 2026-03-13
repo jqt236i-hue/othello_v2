@@ -111,4 +111,33 @@ describe('BREEDING_WILL frontier propagation', () => {
     expect(startRes.spawned).toHaveLength(0);
     expect(gameState.board[2][2]).toBe(0);
   });
+
+  test('expansion breeding anchor can spawn into adjacent main-board cell', () => {
+    const { cardState, gameState } = makeState();
+    const prng = { random: () => 0.0 };
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: 0,
+      usedByPlayer: { black: false, white: false },
+      cells: [{ side: 'left', row: 3, col: -1, owner: 1 }]
+    };
+    gameState.board[2][0] = -1;
+    gameState.board[4][0] = -1;
+    cardState.markers.push({
+      id: 301,
+      kind: 'specialStone',
+      row: 3,
+      col: -1,
+      owner: 'black',
+      data: { type: 'BREEDING', remainingOwnerTurns: 3 }
+    });
+
+    const immediate = CardLogic.processBreedingEffectsAtAnchor(cardState, gameState, 'black', 3, -1, prng);
+
+    expect(immediate.spawned).toHaveLength(1);
+    expect(immediate.spawned[0]).toMatchObject({ row: 3, col: 0, anchorRow: 3, anchorCol: -1 });
+    expect(gameState.board[3][0]).toBe(1);
+  });
 });

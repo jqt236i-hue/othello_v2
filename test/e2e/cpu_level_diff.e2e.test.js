@@ -29,6 +29,7 @@ describe('CPU level difference E2E', () => {
   let serverProc;
   let browser;
   let serverPort = null;
+  let page = null;
   beforeAll(async () => {
     serverProc = startServer(0);
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -37,14 +38,22 @@ describe('CPU level difference E2E', () => {
   }, 30000);
 
   afterAll(async () => {
-    if (browser) await browser.close();
+    if (page) {
+      await page.close().catch(() => {});
+      page = null;
+    }
+    if (browser) {
+      await browser.close();
+      browser = null;
+    }
     if (serverProc && typeof serverProc.close === 'function') {
       await new Promise(resolve => serverProc.close(resolve));
+      serverProc = null;
     }
-  });
+  }, 30000);
 
   test('white CPU reflects higher level in logs after reset and chooses at that level', async () => {
-    const page = await browser.newPage();
+    page = await browser.newPage();
     const consoles = [];
     page.on('console', msg => {
       try { consoles.push({ type: msg.type(), text: msg.text() }); } catch (e) { /* ignore */ }
@@ -101,5 +110,6 @@ describe('CPU level difference E2E', () => {
     expect(cpuLogFound).toBe(true);
 
     await page.close();
+    page = null;
   }, 30000);
 });

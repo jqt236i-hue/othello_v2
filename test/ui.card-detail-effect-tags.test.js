@@ -53,7 +53,7 @@ describe('card detail effect tags', () => {
         name: '究極反転龍',
         type: 'ULTIMATE_REVERSE_DRAGON',
         cost: 30,
-        desc: '次に置く石を龍化。置いた時と自ターン開始時に周囲1マス（8方向）を反転。5ターン持続。反転保護を持つ特殊石。'
+        desc: '反転0でも空きマスに配置可能。次に置く石を龍化。置いた時と自ターン開始時に周囲1マス（8方向）を反転。5ターン持続。反転保護を持つ特殊石。'
       })
     };
 
@@ -77,7 +77,7 @@ describe('card detail effect tags', () => {
     expect(tagsEl.textContent).toContain('特殊石');
 
     const desc = document.getElementById('card-detail-desc').textContent;
-    expect(desc).toContain('次に置く石を龍化');
+    expect(desc).toContain('置いた石が龍化');
     expect(desc).not.toContain('反転保護を持つ特殊石');
   });
 
@@ -198,7 +198,8 @@ describe('card detail effect tags', () => {
     const titleEl = document.getElementById('card-detail-tab-title');
     const bodyEl = document.getElementById('card-detail-tab-body');
     expect(titleEl.textContent).toBe('特殊石');
-    expect(bodyEl.textContent).toContain('通常石ではないカード由来の石');
+    expect(bodyEl.textContent).toContain('通常石画像を使わない石');
+    expect(bodyEl.textContent).toContain('normal_stone-black.png');
 
     const closeBtn = document.getElementById('card-detail-tab-close-btn');
     expect(closeBtn).not.toBeNull();
@@ -235,7 +236,7 @@ describe('card detail effect tags', () => {
       name: '究極反転龍',
       type: 'ULTIMATE_REVERSE_DRAGON',
       cost: 30,
-      desc: '次に置く石を龍化。置いた時と自ターン開始時に周囲1マス（8方向）を反転。5ターン持続。反転保護を持つ特殊石。'
+      desc: '反転0でも空きマスに配置可能。次に置く石を龍化。置いた時と自ターン開始時に周囲1マス（8方向）を反転。5ターン持続。反転保護を持つ特殊石。'
     };
     const secondCard = {
       id: 'meteor_01',

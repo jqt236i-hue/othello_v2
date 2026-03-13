@@ -81,7 +81,7 @@
 - 展開/手数系:
   - `FREE_PLACEMENT`, `DOUBLE_PLACE`, `SNIPER_WILL`, `HYPERACTIVE_WILL`, `ULTIMATE_HYPERACTIVE_GOD`, `CLONE_WILL`, `BREEDING_WILL`, `BOARD_EXPANSION_WILL`
 - 布石・手札経済系:
-  - `TREASURE_BOX`, `WORK_WILL`, `GOLD_STONE`, `SILVER_STONE`, `PLUNDER_WILL`, `SELL_CARD_WILL`, `STEAL_CARD`, `HEAVEN_BLESSING`, `CONDEMN_WILL`, `SACRIFICE_WILL`, `TRAP_WILL`, `CHAIN_WILL`, `ULTIMATE_REVERSE_DRAGON`
+  - `TREASURE_BOX`, `WORK_WILL`, `GOLD_STONE`, `SILVER_STONE`, `PLUNDER_WILL`, `SELL_CARD_WILL`, `HEAVEN_BLESSING`, `CONDEMN_WILL`, `SACRIFICE_WILL`, `TRAP_WILL`, `CHAIN_WILL`, `ULTIMATE_REVERSE_DRAGON`
 
 ### 6.2 使用禁止条件（利敵回避）
 - 条件1: 使用後1手以内に相手の角確定率が上がるなら禁止。
@@ -109,7 +109,7 @@
   - 最低防衛布石を常に `>=8` 残す。
   - 相手の高コストカード圏（20以上）入りを阻止できるなら吸収/売却を優先。
 
-### 6.5 全カード一覧（現行39種）
+### 6.5 全カード一覧（現行38種）
 | type | 名称 | cost | 主用途 |
 |---|---|---:|---|
 | TREASURE_BOX | 宝箱 | 0 | 経済 |
@@ -144,7 +144,6 @@
 | CONDEMN_WILL | 断罪の意志 | 6 | 手札干渉 |
 | GOLD_STONE | 金の意志 | 6 | 経済 |
 | SILVER_STONE | 銀の意志 | 3 | 経済 |
-| STEAL_CARD | 転売の意志 | 7 | 経済/干渉 |
 | EXTEND_LIFE_WILL | 延命の意志 | 2 | 防御 |
 | GUARD_WILL | 守る意志 | 2 | 防御 |
 | ULTIMATE_DESTROY_GOD | 究極破壊神 | 25 | 攻撃 |
@@ -244,4 +243,4 @@
 ## 13. 変更履歴
 - 2026-02-23:
   - `01-rulebook.md` と `cards/catalog.json` を基準に、Lv6教師CPU仕様を実運用値で記入。
-  - 全カード39種を用途別に分類して一覧化。
+  - 全カード38種を用途別に分類して一覧化。

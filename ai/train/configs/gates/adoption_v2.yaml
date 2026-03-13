@@ -3,6 +3,25 @@ name: adoption_v2
 description: >
   quality gate と ONNX gate を含む、本番昇格用の採用条件セット。
 trainCycleArgs:
+  - --quality-gate
+  - --quality-gate-games
+  - "1200"
+  - --quality-gate-seed-count
+  - "5"
+  - --quality-gate-seed-stride
+  - "1000"
+  - --quality-gate-seed-offset
+  - "250000"
+  - --quality-gate-threshold
+  - "0.002"
+  - --quality-gate-confidence-level
+  - "0.95"
+  - --quality-gate-min-lower-bound
+  - "-0.010"
+  - --quality-gate-min-seed-uplift
+  - "-0.020"
+  - --quality-gate-min-seed-pass-count
+  - "2"
   - --quick-games
   - "800"
   - --final-games

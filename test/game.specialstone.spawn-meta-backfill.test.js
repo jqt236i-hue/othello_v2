@@ -49,4 +49,27 @@ describe('special stone placement visuals (spawn meta backfill)', () => {
     const status = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'STATUS_APPLIED' && e.row === 1 && e.col === 1);
     expect(status && status.meta && status.meta.special).toBe('ULTIMATE_HYPERACTIVE');
   });
+
+  test('will hunter king marker backfills SPAWN meta with destroy evasion count', () => {
+    const prng = { shuffle: (arr) => arr };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = { board: Array(8).fill(null).map(() => Array(8).fill(0)) };
+
+    cardState._currentActionMeta = { actionId: 'a3', turnIndex: 0, plyIndex: 0 };
+
+    BoardOps.spawnAt(cardState, gameState, 2, 2, 'black', 'SYSTEM', 'standard_place');
+    cardState.pendingEffectByPlayer.black = { type: 'WILL_HUNTER_KING' };
+
+    const effects = CardLogic.applyPlacementEffects(cardState, gameState, 'black', 2, 2, 0);
+    expect(effects && effects.willHunterKingPlaced).toBe(true);
+
+    const spawn = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'SPAWN' && e.row === 2 && e.col === 2);
+    expect(spawn && spawn.meta && spawn.meta.special).toBe('WILL_HUNTER_KING');
+    expect(spawn && spawn.meta && spawn.meta.flipEvadeRemaining).toBe(2);
+    expect(spawn && spawn.meta && spawn.meta.destroyEvadeRemaining).toBe(2);
+
+    const status = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'STATUS_APPLIED' && e.row === 2 && e.col === 2);
+    expect(status && status.meta && status.meta.special).toBe('WILL_HUNTER_KING');
+    expect(status && status.meta && status.meta.destroyEvadeRemaining).toBe(2);
+  });
 });

@@ -221,6 +221,43 @@
     background-position: center center;
 }
 
+.cell.frozen-cell {
+    cursor: not-allowed;
+}
+
+.cell .freeze-mark {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 85;
+    background-image:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.20), rgba(126, 202, 255, 0.08)),
+        url('assets/images/other/ICE.png');
+    background-size: cover, cover;
+    background-repeat: no-repeat, no-repeat;
+    background-position: center center, center center;
+    opacity: 0.62;
+}
+
+.cell .freeze-turn {
+    position: absolute;
+    top: calc(4px * var(--layout-stage-scale));
+    left: calc(4px * var(--layout-stage-scale));
+    min-width: calc(16px * var(--layout-stage-scale));
+    height: calc(16px * var(--layout-stage-scale));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 calc(4px * var(--layout-stage-scale));
+    border-radius: calc(999px * var(--layout-stage-scale));
+    font-size: calc(10px * var(--layout-stage-scale));
+    font-weight: 700;
+    color: #f4fcff;
+    background: rgba(12, 46, 72, 0.72);
+    border: var(--layout-size-border-thin) solid rgba(203, 240, 255, 0.75);
+    box-shadow: 0 0 calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.35);
+}
+
 .cell.effect-target-highlight,
 .cell.dragon-flip-highlight {
     background-color: rgba(255, 72, 72, 0.42) !important;
@@ -560,6 +597,30 @@ html.stone-images-loaded .disc.white::after {
         rgba(92, 58, 171, 0.62);
     border: var(--layout-size-border-thin) solid rgba(210, 193, 255, 0.68);
     box-shadow: 0 0 calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
+}
+
+.stone-timer.destroy-evade-timer,
+.destroy-evade-timer {
+    left: calc(6px * var(--layout-stage-scale));
+    right: auto;
+    top: auto;
+    bottom: calc(4px * var(--layout-stage-scale));
+    transform: none;
+    line-height: 1;
+    width: calc(18px * var(--layout-stage-scale));
+    height: calc(16px * var(--layout-stage-scale));
+    min-width: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: calc(1px * var(--layout-stage-scale)) 0 calc(3px * var(--layout-stage-scale));
+    border-radius: 0;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0) 44%),
+        rgba(151, 40, 40, 0.70);
+    border: var(--layout-size-border-thin) solid rgba(255, 211, 211, 0.72);
+    box-shadow: 0 0 calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
 }
 
 /* Fallback inline image inside .disc used only when pseudo-element or CSS vars fail */

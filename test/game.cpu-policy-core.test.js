@@ -1,4 +1,5 @@
 const core = require('../game/ai/cpu-policy-core');
+const Core = require('../game/logic/core');
 const catalog = require('../cards/catalog.json');
 
 describe('cpu-policy-core', () => {
@@ -25,6 +26,92 @@ describe('cpu-policy-core', () => {
         const moves = [{ row: 1, col: 1 }, { row: 2, col: 2 }];
         const selected = core.chooseMove(moves, 3, { random: () => 0.99 }, () => moves[0]);
         expect(selected).toEqual(moves[0]);
+    });
+
+    test('scoreCardUseDecision suppresses non-emergency guard use when legal corner exists', () => {
+        const decision = core.scoreCardUseDecision(
+            'guard_01',
+            () => 2,
+            () => ({ id: 'guard_01', type: 'GUARD_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 2,
+                hasCornerMoveNow: true,
+                cornerEmergency: false,
+                ownCharge: 12,
+                reserveChargeFloor: 8,
+                handSize: 1,
+                ownDiscs: 16,
+                oppDiscs: 16,
+                empties: 40,
+                discDiff: 0,
+                ownCorners: 0,
+                oppCorners: 0,
+                ownEdges: 0,
+                oppEdges: 0
+            }
+        );
+        expect(decision.shouldUse).toBe(false);
+        expect(decision.score).toBeLessThan(decision.minUseScore);
+    });
+
+    test('scoreCardUseDecision suppresses non-corner utility when charge is tight', () => {
+        const decision = core.scoreCardUseDecision(
+            'treasure_01',
+            () => 5,
+            () => ({ id: 'treasure_01', type: 'TREASURE_BOX' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                hasCornerMoveNow: false,
+                cornerEmergency: false,
+                ownCharge: 8,
+                reserveChargeFloor: 8,
+                handSize: 2,
+                ownDiscs: 18,
+                oppDiscs: 18,
+                empties: 36,
+                discDiff: 0,
+                ownCorners: 0,
+                oppCorners: 0,
+                ownEdges: 0,
+                oppEdges: 0
+            }
+        );
+        expect(decision.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision still allows high-yield charge recovery when charge is tight', () => {
+        const decision = core.scoreCardUseDecision(
+            'gold_01',
+            () => 6,
+            () => ({ id: 'gold_01', type: 'GOLD_STONE' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 3,
+                hasCornerMoveNow: false,
+                cornerEmergency: true,
+                ownCharge: 8,
+                reserveChargeFloor: 8,
+                handSize: 3,
+                ownDiscs: 10,
+                oppDiscs: 16,
+                empties: 26,
+                discDiff: -6,
+                ownCorners: 0,
+                oppCorners: 1,
+                ownEdges: 1,
+                oppEdges: 3,
+                oppCharge: 8,
+                oppHandSize: 2,
+                maxLegalFlips: 3,
+                maxLegalGain: 4
+            }
+        );
+        expect(decision.shouldUse).toBe(true);
     });
 
     test('chooseMove falls back to deterministic rng', () => {
@@ -273,6 +360,37 @@ describe('cpu-policy-core', () => {
         expect(meta).toBeTruthy();
         expect(meta.endgameMode).toBe(true);
         expect(meta.depth).toBeGreaterThanOrEqual(30);
+    });
+
+    test('chooseMoveByLookahead exposes late-endgame parity and damped prior mix in metadata', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(Core.BLACK));
+        board[0][0] = Core.EMPTY;
+        board[0][1] = Core.EMPTY;
+        board[1][0] = Core.EMPTY;
+
+        let meta = null;
+        const selected = core.chooseMoveByLookahead([
+            { row: 0, col: 0, flips: [] }
+        ], {
+            board,
+            playerValue: Core.BLACK,
+            level: 6,
+            priorWeight: 100,
+            searchWeight: 1.8,
+            onSearchMeta: (one) => {
+                meta = one;
+            }
+        });
+
+        expect(selected).toEqual(expect.objectContaining({ row: 0, col: 0 }));
+        expect(meta).toBeTruthy();
+        expect(meta.endgameMode).toBe(true);
+        expect(meta.effectivePriorWeight).toBeLessThan(100);
+        expect(meta.effectiveSearchWeight).toBeGreaterThan(1.8);
+        expect(meta.parityOddRegionCount).toBe(1);
+        expect(meta.parityEvenRegionCount).toBe(0);
+        expect(meta.paritySignal).toBe(1);
+        expect(meta.forcedPassSignal).toBe(0);
     });
 
     test('chooseCardWithRiskProfile avoids high-variance expensive card while ahead', () => {
@@ -688,7 +806,7 @@ describe('cpu-policy-core', () => {
                 handSize: 3,
                 ownCorners: 1,
                 oppCorners: 1,
-                hasCornerMoveNow: true,
+                hasCornerMoveNow: false,
                 maxLegalFlips: 4,
                 maxLegalGain: 5,
                 avgLegalFlips: 2.8
@@ -743,7 +861,7 @@ describe('cpu-policy-core', () => {
         expect(out.shouldUse).toBe(false);
     });
 
-    test('scoreCardUseDecision suppresses SILVER_STONE below four flips', () => {
+    test('scoreCardUseDecision suppresses SILVER_STONE below three flips', () => {
         const out = core.scoreCardUseDecision(
             'silver',
             () => 5,
@@ -758,12 +876,62 @@ describe('cpu-policy-core', () => {
                 handSize: 3,
                 ownCorners: 1,
                 oppCorners: 1,
-                maxLegalFlips: 3,
-                maxLegalGain: 4,
-                avgLegalFlips: 2.3
+                maxLegalFlips: 2,
+                maxLegalGain: 2,
+                avgLegalFlips: 1.8
             }
         );
         expect(out.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision suppresses PLUNDER_WILL below three flips in white Lv6 mode', () => {
+        const out = core.scoreCardUseDecision(
+            'plunder',
+            () => 7,
+            () => ({ id: 'plunder', type: 'PLUNDER_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                discDiff: 0,
+                empties: 26,
+                ownCharge: 18,
+                oppCharge: 10,
+                handSize: 2,
+                ownCorners: 1,
+                oppCorners: 1,
+                hasCornerMoveNow: false,
+                cornerEmergency: false,
+                reserveChargeFloor: 8,
+                maxLegalFlips: 2,
+                maxLegalGain: 2,
+                avgLegalFlips: 1.8
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision uses RAINBOW_STONE when immediate charge ROI is high', () => {
+        const out = core.scoreCardUseDecision(
+            'rainbow',
+            () => 10,
+            () => ({ id: 'rainbow', type: 'RAINBOW_STONE' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: -4,
+                empties: 24,
+                ownCharge: 18,
+                handSize: 3,
+                ownCorners: 1,
+                oppCorners: 2,
+                hasCornerMoveNow: false,
+                maxLegalFlips: 4,
+                maxLegalGain: 5,
+                avgLegalFlips: 2.8
+            }
+        );
+        expect(out.shouldUse).toBe(true);
     });
 
     test('scoreCardUseDecision promotes GLUTTONOUS_WILL when four-plus flips are available', () => {
@@ -781,7 +949,7 @@ describe('cpu-policy-core', () => {
                 handSize: 3,
                 ownCorners: 0,
                 oppCorners: 1,
-                hasCornerMoveNow: true,
+                hasCornerMoveNow: false,
                 maxLegalFlips: 4,
                 maxLegalGain: 4,
                 avgLegalFlips: 2.8
@@ -1401,6 +1569,220 @@ describe('cpu-policy-core', () => {
         expect(out.shouldUse).toBe(true);
     });
 
+    test('scoreCardUseDecision suppresses gold and rainbow economy cards below 3 flips', () => {
+        const lowGold = core.scoreCardUseDecision(
+            'gold_01',
+            () => 8,
+            () => ({ id: 'gold_01', type: 'GOLD_STONE' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: 0,
+                empties: 28,
+                ownCharge: 20,
+                handSize: 3,
+                ownCorners: 1,
+                oppCorners: 1,
+                maxLegalFlips: 2,
+                maxLegalGain: 2
+            }
+        );
+        const lowRainbow = core.scoreCardUseDecision(
+            'rainbow_01',
+            () => 10,
+            () => ({ id: 'rainbow_01', type: 'RAINBOW_STONE' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: 0,
+                empties: 28,
+                ownCharge: 20,
+                handSize: 3,
+                ownCorners: 1,
+                oppCorners: 1,
+                maxLegalFlips: 2,
+                maxLegalGain: 2
+            }
+        );
+        expect(lowGold.shouldUse).toBe(false);
+        expect(lowRainbow.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision allows gold silver rainbow and plunder at 3+ flips', () => {
+        const defs = {
+            gold: { id: 'gold', type: 'GOLD_STONE' },
+            silver: { id: 'silver', type: 'SILVER_STONE' },
+            rainbow: { id: 'rainbow', type: 'RAINBOW_STONE' },
+            plunder: { id: 'plunder', type: 'PLUNDER_WILL' }
+        };
+        const common = {
+            level: 6,
+            legalMovesCount: 2,
+            discDiff: -4,
+            empties: 24,
+            ownCharge: 24,
+            handSize: 4,
+            ownCorners: 0,
+            oppCorners: 1,
+            maxLegalFlips: 3,
+            maxLegalGain: 3,
+            oppCharge: 12
+        };
+        const gold = core.scoreCardUseDecision('gold', () => 8, (id) => defs[id], common);
+        const silver = core.scoreCardUseDecision('silver', () => 6, (id) => defs[id], common);
+        const rainbow = core.scoreCardUseDecision('rainbow', () => 10, (id) => defs[id], common);
+        const plunder = core.scoreCardUseDecision('plunder', () => 7, (id) => defs[id], common);
+        expect(gold.shouldUse).toBe(true);
+        expect(silver.shouldUse).toBe(true);
+        expect(rainbow.shouldUse).toBe(true);
+        expect(plunder.shouldUse).toBe(true);
+    });
+
+    test('scoreCardUseDecision suppresses CLONE_WILL when setup budget is tight and gain is small', () => {
+        const out = core.scoreCardUseDecision(
+            'clone',
+            () => 14,
+            () => ({ id: 'clone', type: 'CLONE_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                discDiff: 0,
+                empties: 26,
+                ownCharge: 22,
+                handSize: 2,
+                ownCorners: 1,
+                oppCorners: 1,
+                ownEdges: 2,
+                oppEdges: 2,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: false,
+                cornerEmergency: false,
+                reserveChargeFloor: 8,
+                maxLegalFlips: 2,
+                maxLegalGain: 2
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision keeps CLONE_WILL available when hand pressure and charge margin are high', () => {
+        const out = core.scoreCardUseDecision(
+            'clone',
+            () => 14,
+            () => ({ id: 'clone', type: 'CLONE_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 3,
+                discDiff: -4,
+                empties: 28,
+                ownCharge: 32,
+                handSize: 5,
+                ownCorners: 1,
+                oppCorners: 1,
+                ownEdges: 2,
+                oppEdges: 2,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true,
+                cornerEmergency: false,
+                reserveChargeFloor: 8,
+                maxLegalFlips: 3,
+                maxLegalGain: 4,
+                avgLegalFlips: 2.6
+            }
+        );
+        expect(out.shouldUse).toBe(true);
+    });
+
+    test('scoreCardUseDecision suppresses CLONE_WILL when only normal stones are available', () => {
+        const out = core.scoreCardUseDecision(
+            'clone',
+            () => 14,
+            () => ({ id: 'clone', type: 'CLONE_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 3,
+                discDiff: -2,
+                empties: 28,
+                ownCharge: 32,
+                handSize: 4,
+                ownCorners: 1,
+                oppCorners: 1,
+                ownEdges: 2,
+                oppEdges: 2,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true,
+                cornerEmergency: false,
+                cloneSplitEligibleSourceCount: 0,
+                maxLegalFlips: 3,
+                maxLegalGain: 4,
+                avgLegalFlips: 2.6
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+        expect(out.score).toBeLessThan(out.minUseScore);
+    });
+
+    test('scoreCardUseDecision suppresses SPLIT_WILL when setup budget is tight and gain is small', () => {
+        const out = core.scoreCardUseDecision(
+            'split',
+            () => 16,
+            () => ({ id: 'split', type: 'SPLIT_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                discDiff: 2,
+                empties: 24,
+                ownCharge: 24,
+                handSize: 2,
+                ownCorners: 1,
+                oppCorners: 1,
+                ownEdges: 2,
+                oppEdges: 2,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: false,
+                cornerEmergency: false,
+                reserveChargeFloor: 8,
+                maxLegalFlips: 2,
+                maxLegalGain: 2
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision suppresses SPLIT_WILL when only normal stones are available', () => {
+        const out = core.scoreCardUseDecision(
+            'split',
+            () => 16,
+            () => ({ id: 'split', type: 'SPLIT_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 3,
+                discDiff: -2,
+                empties: 24,
+                ownCharge: 34,
+                handSize: 4,
+                ownCorners: 1,
+                oppCorners: 1,
+                ownEdges: 2,
+                oppEdges: 2,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true,
+                cornerEmergency: false,
+                cloneSplitEligibleSourceCount: 0,
+                maxLegalFlips: 3,
+                maxLegalGain: 4,
+                avgLegalFlips: 2.6
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+        expect(out.score).toBeLessThan(out.minUseScore);
+    });
+
     test('scoreCardUseDecision uses LIGHTNING_WILL only when stable anchor exists', () => {
         const anchored = core.scoreCardUseDecision(
             'lightning_anchored',
@@ -1710,5 +2092,147 @@ describe('cpu-policy-core', () => {
         });
 
         expect(saferScore).toBeGreaterThan(riskyScore);
+    });
+
+    test('scoreMoveForCornerEdgePlan amplifies safe-edge preference in low-disc survival mode', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[0][0] = -1;
+        board[0][7] = 1;
+        board[7][0] = 1;
+        board[7][7] = -1;
+        board[3][3] = -1;
+        board[3][4] = 1;
+        board[4][3] = 1;
+        board[4][4] = -1;
+
+        const edgeMove = { row: 0, col: 4, flips: [{ row: 1, col: 4 }] };
+        const innerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+
+        const normalEdge = core.scoreMoveForCornerEdgePlan(edgeMove, {
+            level: 6,
+            board,
+            playerValue: -1,
+            ownDiscs: 10
+        });
+        const normalInner = core.scoreMoveForCornerEdgePlan(innerMove, {
+            level: 6,
+            board,
+            playerValue: -1,
+            ownDiscs: 10
+        });
+        const survivalEdge = core.scoreMoveForCornerEdgePlan(edgeMove, {
+            level: 6,
+            board,
+            playerValue: -1,
+            ownDiscs: 4
+        });
+        const survivalInner = core.scoreMoveForCornerEdgePlan(innerMove, {
+            level: 6,
+            board,
+            playerValue: -1,
+            ownDiscs: 4
+        });
+
+        expect((survivalEdge - normalEdge)).toBeGreaterThan(survivalInner - normalInner);
+        expect((survivalEdge - survivalInner)).toBeGreaterThan(normalEdge - normalInner);
+    });
+
+    test('scoreMoveForCornerEdgePlan prefers reclaiming opponent edge control over flashy inner bonus before corner lead', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[0][3] = 1;
+        board[0][4] = 1;
+        board[3][3] = 1;
+        board[3][4] = -1;
+        board[4][3] = -1;
+        board[4][4] = 1;
+
+        const recoveryMove = {
+            row: 1,
+            col: 3,
+            flips: [{ row: 0, col: 3 }, { row: 0, col: 4 }]
+        };
+        const bonusInnerMove = {
+            row: 2,
+            col: 3,
+            flips: [{ row: 3, col: 3 }]
+        };
+
+        const recoveryScore = core.scoreMoveForCornerEdgePlan(recoveryMove, {
+            level: 6,
+            board,
+            playerValue: -1,
+            ownDiscs: 12,
+            boardBonusByCell: { '2,3': 6 },
+            boardBonusConsumedByCell: {}
+        });
+        const bonusInnerScore = core.scoreMoveForCornerEdgePlan(bonusInnerMove, {
+            level: 6,
+            board,
+            playerValue: -1,
+            ownDiscs: 12,
+            boardBonusByCell: { '2,3': 6 },
+            boardBonusConsumedByCell: {}
+        });
+
+        expect(recoveryScore).toBeGreaterThan(bonusInnerScore);
+    });
+
+    test('scoreCardUseDecision lowers non-counter utility under strong enemy threat while recovery gap remains', () => {
+        const lowThreat = core.scoreCardUseDecision(
+            'supply_01',
+            () => 0,
+            () => ({ id: 'supply_01', type: 'SUPPLY_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                hasCornerMoveNow: false,
+                cornerEmergency: false,
+                ownCharge: 14,
+                oppCharge: 8,
+                reserveChargeFloor: 8,
+                recoveryCostGap: 4,
+                handSize: 2,
+                ownDiscs: 10,
+                oppDiscs: 10,
+                empties: 28,
+                discDiff: 0,
+                ownCorners: 0,
+                oppCorners: 0,
+                ownEdges: 2,
+                oppEdges: 2,
+                ownSpecialCount: 1,
+                oppSpecialCount: 1
+            }
+        );
+        const highThreat = core.scoreCardUseDecision(
+            'supply_01',
+            () => 0,
+            () => ({ id: 'supply_01', type: 'SUPPLY_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                hasCornerMoveNow: false,
+                cornerEmergency: false,
+                ownCharge: 14,
+                oppCharge: 24,
+                reserveChargeFloor: 8,
+                recoveryCostGap: 4,
+                handSize: 2,
+                ownDiscs: 10,
+                oppDiscs: 10,
+                empties: 28,
+                discDiff: 0,
+                ownCorners: 0,
+                oppCorners: 0,
+                ownEdges: 2,
+                oppEdges: 2,
+                ownSpecialCount: 1,
+                oppSpecialCount: 4
+            }
+        );
+
+        expect(highThreat.score).toBeLessThan(lowThreat.score);
     });
 });
