@@ -47,6 +47,7 @@ describe('ui debug handler global registration', () => {
 
       // initialize with default flags false
       global.window = {};
+  global.window.DEBUG_MODE_ALLOWED = false;
       // stub global helpers used by debug handler
       global.addLog = jest.fn();
       global.disableAutoMode = jest.fn();
@@ -58,6 +59,9 @@ describe('ui debug handler global registration', () => {
 
       // initial sync should call registerUIGlobals once
       expect(calls.length).toBeGreaterThanOrEqual(1);
+      expect(debugBtn.style.display).not.toBe('none');
+      expect(debugBtn.getAttribute('aria-pressed')).toBe('false');
+      expect(visualBtn.style.display).toBe('none');
 
       // simulate clicking debug button to toggle ON
       btns['debug']();
@@ -65,6 +69,10 @@ describe('ui debug handler global registration', () => {
       // after click, registerUIGlobals should have been called with DEBUG_UNLIMITED_USAGE true
       const anyTrue = calls.some(p => p.DEBUG_UNLIMITED_USAGE === true || (p.__uiImpl && p.__uiImpl.DEBUG_UNLIMITED_USAGE === true));
       expect(anyTrue).toBeTruthy();
+      const debugAllowedEnabled = calls.some(p => p.DEBUG_MODE_ALLOWED === true);
+      expect(debugAllowedEnabled).toBeTruthy();
+      expect(global.window.DEBUG_MODE_ALLOWED).toBe(true);
+      expect(debugBtn.getAttribute('aria-pressed')).toBe('true');
     });
   });
 });

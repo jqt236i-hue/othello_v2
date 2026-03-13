@@ -152,6 +152,215 @@ describe('cpu turn handler pending selection', () => {
     expect(cardState.pendingEffectByPlayer.white).toBeNull();
   });
 
+  test('EXTEND_LIFE_WILL invokes cpuSelectExtendLifeWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectExtendLifeWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'EXTEND_LIFE_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('EXTEND_LIFE_WILL clears pending when function absent', async () => {
+    delete global.cpuSelectExtendLifeWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'EXTEND_LIFE_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('CORROSION_WILL invokes cpuSelectCorrosionWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectCorrosionWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'CORROSION_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('CORROSION_WILL clears pending when function absent', async () => {
+    delete global.cpuSelectCorrosionWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'CORROSION_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('BOARD_EXPANSION_WILL invokes cpuSelectBoardExpansionWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectBoardExpansionWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('BOARD_EXPANSION_WILL clears pending when function absent', async () => {
+    delete global.cpuSelectBoardExpansionWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('BOARD_EXPANSION_GOD invokes cpuSelectBoardExpansionWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectBoardExpansionWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'BOARD_EXPANSION_GOD', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('BOARD_EXPANSION_GOD clears pending when function absent', async () => {
+    delete global.cpuSelectBoardExpansionWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'BOARD_EXPANSION_GOD', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('BLOCKADE_WILL invokes cpuSelectBlockadeWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectBlockadeWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'BLOCKADE_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('BLOCKADE_WILL clears pending when function absent', async () => {
+    delete global.cpuSelectBlockadeWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'BLOCKADE_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('METEOR_WILL invokes cpuSelectMeteorWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectMeteorWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'METEOR_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('METEOR_WILL clears pending when function absent', async () => {
+    delete global.cpuSelectMeteorWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'METEOR_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('CLONE_WILL invokes cpuSelectCloneWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectCloneWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'CLONE_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('CLONE_WILL clears pending when function absent', async () => {
+    delete global.cpuSelectCloneWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'CLONE_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('TELEPORT_WILL invokes cpuSelectTeleportWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectTeleportWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'TELEPORT_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('TELEPORT_WILL clears pending when function absent', async () => {
+    delete global.cpuSelectTeleportWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'TELEPORT_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('CELL_TELEPORT_WILL invokes cpuSelectCellTeleportWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectCellTeleportWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'CELL_TELEPORT_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('CELL_TELEPORT_WILL clears pending when function absent', async () => {
+    delete global.cpuSelectCellTeleportWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'CELL_TELEPORT_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('SUPER_BUOYANCY_WILL invokes cpuSelectSuperBuoyancyWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectSuperBuoyancyWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'SUPER_BUOYANCY_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('SUPER_BUOYANCY_WILL clears pending when function absent', async () => {
+    delete global.cpuSelectSuperBuoyancyWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'SUPER_BUOYANCY_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('SUPER_GRAVITY_WILL invokes cpuSelectSuperGravityWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectSuperGravityWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'SUPER_GRAVITY_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('SUPER_GRAVITY_WILL clears pending when function absent', async () => {
+    delete global.cpuSelectSuperGravityWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'SUPER_GRAVITY_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
   test('SACRIFICE_WILL with remaining pending does not attempt pass/move immediately', async () => {
     const mock = jest.fn(async () => {
       // Keep pending as selectTarget to emulate multi-step selection flow.
@@ -165,6 +374,18 @@ describe('cpu turn handler pending selection', () => {
     await waitTick();
 
     expect(mock).toHaveBeenCalledWith('white');
+    expect(global.processPassTurn).not.toHaveBeenCalled();
+    expect(global.generateMovesForPlayer).not.toHaveBeenCalled();
+  });
+
+  test('unknown selectTarget pending does not immediately force pass', async () => {
+    global.processPassTurn = jest.fn();
+    global.generateMovesForPlayer = jest.fn(() => []);
+    cardState.pendingEffectByPlayer.white = { type: 'UNHANDLED_PENDING_CARD', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+
     expect(global.processPassTurn).not.toHaveBeenCalled();
     expect(global.generateMovesForPlayer).not.toHaveBeenCalled();
   });

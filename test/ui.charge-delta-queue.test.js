@@ -1,7 +1,7 @@
 const path = require('path');
 const { JSDOM } = require('jsdom');
 
-describe('StoneVisuals.showChargeDelta queue', () => {
+describe('StoneVisuals.showChargeDelta immediate update', () => {
   beforeEach(() => {
     jest.resetModules();
     jest.useFakeTimers();
@@ -31,18 +31,19 @@ describe('StoneVisuals.showChargeDelta queue', () => {
     delete global.WHITE;
   });
 
-  test('plays deltas sequentially without overwrite loss', () => {
+  test('restarts immediately when new delta arrives during display', () => {
     const stoneVisuals = require(path.resolve(__dirname, '..', 'ui', 'stone-visuals.js'));
     const el = document.getElementById('charge-delta-black');
 
     stoneVisuals.showChargeDelta('black', 1);
-    stoneVisuals.showChargeDelta('black', 2);
-
     jest.advanceTimersByTime(20);
     expect(el.textContent).toBe('布石+1');
 
-    jest.advanceTimersByTime(4500);
+    stoneVisuals.showChargeDelta('black', 2);
     jest.advanceTimersByTime(20);
     expect(el.textContent).toBe('布石+2');
+
+    jest.advanceTimersByTime(4500);
+    expect(el.textContent).toBe('');
   });
 });

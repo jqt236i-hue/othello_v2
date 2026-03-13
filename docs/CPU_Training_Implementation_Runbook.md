@@ -27,7 +27,7 @@
 - データ生成: `scripts/generate-selfplay-data.js`
 - 方針比較ベンチ: `scripts/benchmark-selfplay-policy.js`
 - CPU選択コア: `game/ai/cpu-policy-core.js`
-- CPU判断本体: `game/cpu-decision.js`
+- CPU判断本体: `game/cpu-decision.js`（補助: `game/cpu-decision-board-utils.js`）
 - Python学習雛形:
   - `ai/train/train_policy_onnx.py`
   - `ai/train/train_policy_table.py`
@@ -67,7 +67,7 @@
 
 ## 4.3 データ契約（固定）
 
-- self-play記録スキーマ: `selfplay.v1`（`src/engine/selfplay-runner.js`）
+- self-play記録スキーマ: `selfplay.v2`（`src/engine/selfplay-runner.js`）
 - 学習モデルスキーマ: `policy_table.v2`（`ai/train/train_policy_table.py`）
 - ONNXモデルスキーマ: `policy_onnx.v1`（`ai/train/train_policy_onnx.py`）
 
@@ -75,7 +75,7 @@
 
 - スキーマ変更時はバージョンを必ず更新する。
 - 旧バージョン読み込み時は明示エラーを出す。
-- 補足: 実行時は `v1` / `v2` 互換読み込みを許可するが、学習出力と新規採用判定は `v2` を正とする。
+- 補足: 実行時は `selfplay.v1` / `selfplay.v2` 互換読み込みを許可するが、学習出力と新規採用判定は `selfplay.v2` を正とする。
 
 ## 5. 実行フェーズ（詳細手順）
 
@@ -171,7 +171,7 @@ npm run selfplay:generate -- --games 3000 --seed 100001 --max-plies 220 --with-c
 
 - 新規: `game/ai/policy-onnx-runtime.js`（ONNX読み込み・問い合わせ）
 - 新規: `game/ai/policy-table-runtime.js`（互換JSON読み込み・問い合わせ）
-- 変更: `game/cpu-decision.js`（候補手順位にモデルを反映）
+- 変更: `game/cpu-decision.js`（候補手順位にモデルを反映）+ `game/cpu-decision-board-utils.js`（盤面/カードタイプ判定ヘルパー）
 - 必要に応じて: `index.html`（読み込み順）
 
 設計ルール:
@@ -425,3 +425,4 @@ npm run selfplay:train-preset:cards -- --max-hours 6 --seed 1
   - `data/runs/adoption.20260208-155701.shape0p25.mv5.json`
   - `data/runs/adoption.20260208-155701.shape0p4.mv5.json`
   - いずれも `uplift=0.000`（未採用）
+

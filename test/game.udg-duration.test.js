@@ -67,4 +67,68 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
     const marker = cardState.markers.find((m) => m && m.id === 9001);
     expect(marker).toBeUndefined();
   });
+
+  test('destroys adjacent enemy stone on expansion cell', () => {
+    const { cardState, gameState } = makeStates();
+    gameState.board[3][0] = 1;
+    gameState.boardExpansion = {
+      active: true,
+      side: 'left',
+      row: 3,
+      owner: -1,
+      usedByPlayer: { black: true, white: false }
+    };
+
+    cardState.markers.push({
+      id: 9101,
+      kind: 'specialStone',
+      row: 3,
+      col: 0,
+      owner: 'black',
+      data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 }
+    });
+
+    const res = CardLogic.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, 'black', 3, 0, {
+      decrementRemainingOwnerTurns: false
+    });
+
+    expect((res.destroyed || []).some((p) => p.row === 3 && p.col === -1)).toBe(true);
+    expect(gameState.boardExpansion.owner).toBe(0);
+  });
+
+  test('udg destroy presentation event includes source metadata for lightning', () => {
+    const { cardState, gameState } = makeStates();
+    gameState.board[4][4] = 1;
+    gameState.board[4][5] = -1;
+    cardState.markers.push({
+      id: 9201,
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 }
+    });
+
+    CardLogic.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, 'black', 4, 4, {
+      decrementRemainingOwnerTurns: false
+    });
+
+    const presentationEvents = CardLogic.flushPresentationEvents(cardState) || [];
+    const destroyEvent = presentationEvents.find((ev) => (
+      ev &&
+      ev.type === 'DESTROY' &&
+      ev.row === 4 &&
+      ev.col === 5 &&
+      ev.cause === 'ULTIMATE_DESTROY_GOD' &&
+      ev.reason === 'udg_destroyed'
+    ));
+
+    expect(destroyEvent).toBeTruthy();
+    expect(destroyEvent.meta).toMatchObject({
+      sourceRow: 4,
+      sourceCol: 4,
+      projectileOwner: 'black',
+      projectileStone: 'udg_lightning'
+    });
+  });
 });

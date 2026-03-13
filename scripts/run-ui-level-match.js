@@ -13,6 +13,8 @@ function parseArgs(argv) {
         seed: null,
         out: path.resolve(process.cwd(), 'data', 'runs', 'level-match.json'),
         timeoutMs: 180000,
+        requireOnnxLoaded: false,
+        onnxWaitMs: 30000,
         headless: true,
         help: false
     };
@@ -43,6 +45,14 @@ function parseArgs(argv) {
             args.timeoutMs = Number(argv[++i]);
             continue;
         }
+        if (a === '--require-onnx-loaded') {
+            args.requireOnnxLoaded = true;
+            continue;
+        }
+        if (a === '--onnx-wait-ms') {
+            args.onnxWaitMs = Number(argv[++i]);
+            continue;
+        }
         if (a === '--headed') {
             args.headless = false;
             continue;
@@ -53,6 +63,7 @@ function parseArgs(argv) {
     if (!Number.isFinite(args.white) || args.white < 1) throw new Error('--white must be >= 1');
     if (args.seed !== null && !Number.isFinite(args.seed)) throw new Error('--seed must be a number');
     if (!Number.isFinite(args.timeoutMs) || args.timeoutMs < 1000) throw new Error('--timeout-ms must be >= 1000');
+    if (!Number.isFinite(args.onnxWaitMs) || args.onnxWaitMs < 1000) throw new Error('--onnx-wait-ms must be >= 1000');
 
     return args;
 }
@@ -68,6 +79,8 @@ function printHelp() {
         '  --seed <n>        Optional reset seed (uses Date.now override during reset)',
         '  -o, --out <path>  Output JSON path (default: data/runs/level-match.json)',
         '  --timeout-ms <n>  Max wait time for game end (default: 180000)',
+        '  --require-onnx-loaded  Fail if ONNX runtime does not become loaded before start',
+        '  --onnx-wait-ms <n>     Wait timeout for ONNX load check (default: 30000)',
         '  --headed          Run browser with UI',
         '  -h, --help        Show this help'
     ].join('\n'));
@@ -209,6 +222,27 @@ async function runMatch(args) {
             throw new Error(
                 `cpu level select mismatch: expected black=${args.black},white=${args.white} got black=${selectedLevels.black},white=${selectedLevels.white}`
             );
+        }
+
+        // ONNX gate requires that the deployed ONNX is actually loaded before the match starts.
+        if (args.requireOnnxLoaded) {
+            await page.waitForFunction(() => {
+                const status = (window.CpuPolicyOnnxRuntime && typeof window.CpuPolicyOnnxRuntime.getStatus === 'function')
+                    ? window.CpuPolicyOnnxRuntime.getStatus()
+                    : null;
+                return !!(status && status.loaded === true);
+            }, { timeout: args.onnxWaitMs });
+        } else {
+            try {
+                await page.waitForFunction(() => {
+                    const status = (window.CpuPolicyOnnxRuntime && typeof window.CpuPolicyOnnxRuntime.getStatus === 'function')
+                        ? window.CpuPolicyOnnxRuntime.getStatus()
+                        : null;
+                    return !!(status && status.loaded === true);
+                }, { timeout: args.onnxWaitMs });
+            } catch (e) {
+                // Best-effort only when not explicitly required.
+            }
         }
 
         if (args.seed !== null && Number.isFinite(args.seed)) {

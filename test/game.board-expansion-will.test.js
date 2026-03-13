@@ -1,0 +1,352 @@
+const CardLogic = require('../game/logic/cards');
+const Core = require('../game/logic/core');
+const BoardOps = require('../game/logic/board_ops');
+const TurnPipeline = require('../game/turn/turn_pipeline');
+const SharedConstants = require('../shared-constants');
+
+function createPrng() {
+  return {
+    shuffle: (arr) => arr,
+    random: () => 0.5
+  };
+}
+
+describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
+  test('カード使用で選択待ちになり、対象選択で拡張状態が確定する', () => {
+    const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'BOARD_EXPANSION_WILL');
+    expect(def).toBeTruthy();
+
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.charge.black = 30;
+    cardState.hands.black = [def.id];
+
+    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', def.id);
+    expect(used).toBe(true);
+    expect(cardState.pendingEffectByPlayer.black && cardState.pendingEffectByPlayer.black.type).toBe('BOARD_EXPANSION_WILL');
+
+    const selected = CardLogic.applyBoardExpansionWill(cardState, gameState, 'black', 2, 0);
+    expect(selected && selected.applied).toBe(true);
+    expect(gameState.boardExpansion).toMatchObject({
+      active: true,
+      side: 'left',
+      row: 2,
+      owner: Core.EMPTY
+    });
+    expect(gameState.boardExpansion.usedByPlayer.black).toBe(true);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+
+    const targetsAfterUse = CardLogic.getBoardExpansionTargets(cardState, gameState, 'black');
+    expect(targetsAfterUse.length).toBe(15);
+    expect(targetsAfterUse.some((t) => t.row === 2 && t.col === 0)).toBe(false);
+    expect(targetsAfterUse.some((t) => t.row === 2 && t.col === 7)).toBe(true);
+  });
+
+  test('同一プレイヤーでも盤面拡張を複数回使える', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+
+    cardState.pendingEffectByPlayer.black = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
+    const first = CardLogic.applyBoardExpansionWill(cardState, gameState, 'black', 2, 0);
+    expect(first && first.applied).toBe(true);
+
+    const whiteTargets = CardLogic.getBoardExpansionTargets(cardState, gameState, 'white');
+    expect(whiteTargets.length).toBe(15);
+    expect(whiteTargets.some((t) => t.row === 2 && t.col === 0)).toBe(false);
+    expect(whiteTargets.some((t) => t.row === 5 && t.col === 7)).toBe(true);
+
+    cardState.pendingEffectByPlayer.white = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
+    const second = CardLogic.applyBoardExpansionWill(cardState, gameState, 'white', 5, 7);
+    expect(second && second.applied).toBe(true);
+
+    expect(gameState.boardExpansion.usedByPlayer).toMatchObject({ black: true, white: true });
+    expect(Array.isArray(gameState.boardExpansion.cells)).toBe(true);
+    expect(gameState.boardExpansion.cells).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ side: 'left', row: 2, owner: Core.EMPTY }),
+        expect.objectContaining({ side: 'right', row: 5, owner: Core.EMPTY })
+      ])
+    );
+
+    const blackTargetsAfterTwo = CardLogic.getBoardExpansionTargets(cardState, gameState, 'black');
+    const whiteTargetsAfterTwo = CardLogic.getBoardExpansionTargets(cardState, gameState, 'white');
+    expect(blackTargetsAfterTwo.length).toBe(14);
+    expect(whiteTargetsAfterTwo.length).toBe(14);
+    expect(blackTargetsAfterTwo.some((t) => t.row === 2 && t.col === 0)).toBe(false);
+    expect(blackTargetsAfterTwo.some((t) => t.row === 5 && t.col === 7)).toBe(false);
+
+    cardState.pendingEffectByPlayer.black = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
+    const third = CardLogic.applyBoardExpansionWill(cardState, gameState, 'black', 4, 0);
+    expect(third && third.applied).toBe(true);
+
+    const blackTargetsAfterThree = CardLogic.getBoardExpansionTargets(cardState, gameState, 'black');
+    expect(blackTargetsAfterThree.length).toBe(13);
+    expect(blackTargetsAfterThree.some((t) => t.row === 4 && t.col === 0)).toBe(false);
+  });
+
+  test('拡張セルは合法手として扱われ、通常反転に参加する', () => {
+    const gameState = Core.createGameState();
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    gameState.currentPlayer = Core.BLACK;
+    gameState.board[3][0] = Core.WHITE;
+    gameState.board[3][1] = Core.BLACK;
+    gameState.boardExpansion = {
+      active: true,
+      side: 'left',
+      row: 3,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: true, white: false }
+    };
+
+    const legalMoves = Core.getLegalMoves(gameState, Core.BLACK, {});
+    const expansionMove = legalMoves.find((move) => move.row === 3 && move.col === -1);
+    expect(expansionMove).toBeTruthy();
+    expect(expansionMove.flips).toEqual([[3, 0]]);
+
+    const nextState = Core.applyMove(gameState, expansionMove);
+    expect(nextState.boardExpansion.owner).toBe(Core.BLACK);
+    expect(nextState.board[3][0]).toBe(Core.BLACK);
+  });
+
+  test('複数拡張セルが同時に合法手へ参加する', () => {
+    const gameState = Core.createGameState();
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    gameState.currentPlayer = Core.BLACK;
+    gameState.board[2][0] = Core.WHITE;
+    gameState.board[2][1] = Core.BLACK;
+    gameState.board[5][7] = Core.WHITE;
+    gameState.board[5][6] = Core.BLACK;
+    gameState.boardExpansion = {
+      active: true,
+      side: 'right',
+      row: 5,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: true, white: true },
+      cells: [
+        { side: 'left', row: 2, owner: Core.EMPTY },
+        { side: 'right', row: 5, owner: Core.EMPTY }
+      ]
+    };
+
+    const legalMoves = Core.getLegalMoves(gameState, Core.BLACK, {});
+    const leftMove = legalMoves.find((move) => move.row === 2 && move.col === -1);
+    const rightMove = legalMoves.find((move) => move.row === 5 && move.col === 8);
+
+    expect(leftMove).toBeTruthy();
+    expect(rightMove).toBeTruthy();
+    expect(leftMove.flips).toEqual([[2, 0]]);
+    expect(rightMove.flips).toEqual([[5, 7]]);
+  });
+
+  test('BoardOpsが拡張セルの石IDを管理できる', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    gameState.boardExpansion = {
+      active: true,
+      side: 'left',
+      row: 5,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: true, white: false }
+    };
+
+    const spawned = BoardOps.spawnAt(cardState, gameState, 5, -1, 'black', 'SYSTEM', 'test_spawn');
+    expect(spawned.spawned).toBe(true);
+    expect(gameState.boardExpansion.owner).toBe(Core.BLACK);
+    expect(cardState.expansionStoneIdByCell['5,-1']).toBe(spawned.stoneId);
+
+    const destroyed = BoardOps.destroyAt(cardState, gameState, 5, -1, 'SYSTEM', 'test_destroy');
+    expect(destroyed.destroyed).toBe(true);
+    expect(gameState.boardExpansion.owner).toBe(Core.EMPTY);
+    expect(cardState.expansionStoneIdByCell['5,-1']).toBeUndefined();
+  });
+
+  test('BOARD_EXPANSION_GODは2つの角を選び、外側6マスを同時追加する', () => {
+    const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'BOARD_EXPANSION_GOD');
+    expect(def).toBeTruthy();
+
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.charge.black = 40;
+    cardState.hands.black = [def.id];
+
+    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', def.id);
+    expect(used).toBe(true);
+    expect(cardState.pendingEffectByPlayer.black && cardState.pendingEffectByPlayer.black.type).toBe('BOARD_EXPANSION_GOD');
+
+    const targetsBefore = CardLogic.getBoardExpansionGodTargets(cardState, gameState, 'black');
+    expect(targetsBefore).toEqual(expect.arrayContaining([
+      { row: 0, col: 0 },
+      { row: 0, col: 7 },
+      { row: 7, col: 0 },
+      { row: 7, col: 7 }
+    ]));
+
+    const firstSelected = CardLogic.applyBoardExpansionGod(cardState, gameState, 'black', 0, 0);
+    expect(firstSelected && firstSelected.applied).toBe(true);
+    expect(firstSelected && firstSelected.completed).toBe(false);
+    expect(firstSelected && firstSelected.selectedCount).toBe(1);
+    expect(firstSelected && firstSelected.maxSelections).toBe(2);
+    expect(cardState.pendingEffectByPlayer.black.selectedTargets).toEqual([{ row: 0, col: 0 }]);
+
+    const targetsAfterFirst = CardLogic.getBoardExpansionGodTargets(cardState, gameState, 'black');
+    expect(targetsAfterFirst).toHaveLength(3);
+    expect(targetsAfterFirst.some((t) => t.row === 0 && t.col === 0)).toBe(false);
+
+    const applied = CardLogic.applyBoardExpansionGod(cardState, gameState, 'black', 7, 7);
+    expect(applied && applied.applied).toBe(true);
+    expect(applied && applied.completed).toBe(true);
+    expect(Array.isArray(applied.added)).toBe(true);
+    expect(applied.added).toEqual(expect.arrayContaining([
+      { row: -1, col: 0 },
+      { row: -1, col: -1 },
+      { row: 0, col: -1 },
+      { row: 7, col: 8 },
+      { row: 8, col: 8 },
+      { row: 8, col: 7 }
+    ]));
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+
+    expect(Array.isArray(gameState.boardExpansion.cells)).toBe(true);
+    expect(gameState.boardExpansion.cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: 0, owner: Core.EMPTY }),
+      expect.objectContaining({ row: -1, col: -1, owner: Core.EMPTY }),
+      expect.objectContaining({ row: 0, col: -1, owner: Core.EMPTY }),
+      expect.objectContaining({ row: 7, col: 8, owner: Core.EMPTY }),
+      expect.objectContaining({ row: 8, col: 8, owner: Core.EMPTY }),
+      expect.objectContaining({ row: 8, col: 7, owner: Core.EMPTY })
+    ]));
+    expect(gameState.boardExpansion.usedByPlayer.black).toBe(true);
+
+    const targetsAfter = CardLogic.getBoardExpansionGodTargets(cardState, gameState, 'black');
+    expect(targetsAfter).toHaveLength(2);
+    expect(targetsAfter.some((t) => t.row === 0 && t.col === 0)).toBe(false);
+    expect(targetsAfter.some((t) => t.row === 7 && t.col === 7)).toBe(false);
+  });
+
+  test('BOARD_EXPANSION_GODは選択可能な角が2つ未満だと使用できない', () => {
+    const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'BOARD_EXPANSION_GOD');
+    expect(def).toBeTruthy();
+
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.charge.black = 40;
+    cardState.hands.black = [def.id];
+    gameState.boardExpansion = {
+      active: true,
+      side: 'mixed',
+      row: null,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: false, white: false },
+      cells: [
+        { side: 'top', row: -1, col: 0, owner: Core.EMPTY },
+        { side: 'top', row: -1, col: 7, owner: Core.EMPTY },
+        { side: 'bottom', row: 8, col: 0, owner: Core.EMPTY }
+      ]
+    };
+
+    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', def.id);
+    expect(used).toBe(false);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
+  test('BOARD_EXPANSION_WILL適用時に既存の神拡張セルを保持する', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+
+    cardState.pendingEffectByPlayer.black = { type: 'BOARD_EXPANSION_GOD', stage: 'selectTarget' };
+    const godFirst = CardLogic.applyBoardExpansionGod(cardState, gameState, 'black', 0, 0);
+    expect(godFirst && godFirst.applied).toBe(true);
+    expect(godFirst && godFirst.completed).toBe(false);
+
+    const god = CardLogic.applyBoardExpansionGod(cardState, gameState, 'black', 7, 7);
+    expect(god && god.applied).toBe(true);
+    expect(god && god.completed).toBe(true);
+
+    cardState.pendingEffectByPlayer.white = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
+    const will = CardLogic.applyBoardExpansionWill(cardState, gameState, 'white', 3, 7);
+    expect(will && will.applied).toBe(true);
+
+    expect(gameState.boardExpansion.cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: 0 }),
+      expect.objectContaining({ row: -1, col: -1 }),
+      expect.objectContaining({ row: 0, col: -1 }),
+      expect.objectContaining({ row: 7, col: 8 }),
+      expect.objectContaining({ row: 8, col: 8 }),
+      expect.objectContaining({ row: 8, col: 7 }),
+      expect.objectContaining({ row: 3, col: 8 })
+    ]));
+  });
+
+  test('BOARD_EXPANSION_GODはターンパイプライン上でも2段階選択で確定する', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_EXPANSION_GOD',
+      stage: 'selectTarget',
+      selectedCount: 0,
+      maxSelections: 2,
+      selectedTargets: []
+    };
+
+    const first = TurnPipeline.applyTurn(cardState, gameState, 'black', {
+      type: 'place',
+      expansionTarget: { row: 0, col: 0 }
+    });
+    expect(first.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'board_expansion_first_selected',
+        applied: true,
+        selectedCount: 1,
+        maxSelections: 2
+      })
+    ]));
+    expect(first.cardState.pendingEffectByPlayer.black.selectedTargets).toEqual([{ row: 0, col: 0 }]);
+
+    const second = TurnPipeline.applyTurn(first.cardState, first.gameState, 'black', {
+      type: 'place',
+      expansionTarget: { row: 7, col: 7 }
+    });
+    expect(second.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'board_expansion_selected',
+        applied: true,
+        completed: true
+      })
+    ]));
+    expect(second.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(second.gameState.boardExpansion.cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: 0 }),
+      expect.objectContaining({ row: 8, col: 8 })
+    ]));
+  });
+
+  test('上辺拡張セルも合法手として扱われる', () => {
+    const gameState = Core.createGameState();
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    gameState.currentPlayer = Core.BLACK;
+    gameState.board[0][0] = Core.WHITE;
+    gameState.board[1][0] = Core.BLACK;
+    gameState.boardExpansion = {
+      active: true,
+      side: 'top',
+      row: -1,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: true, white: false },
+      cells: [
+        { side: 'top', row: -1, col: 0, owner: Core.EMPTY }
+      ]
+    };
+
+    const legalMoves = Core.getLegalMoves(gameState, Core.BLACK, {});
+    const topMove = legalMoves.find((move) => move.row === -1 && move.col === 0);
+    expect(topMove).toBeTruthy();
+    expect(topMove.flips).toEqual([[0, 0]]);
+
+    const nextState = Core.applyMove(gameState, topMove);
+    const topCell = Array.isArray(nextState.boardExpansion.cells)
+      ? nextState.boardExpansion.cells.find((cell) => cell && cell.row === -1 && cell.col === 0)
+      : null;
+    expect(topCell && topCell.owner).toBe(Core.BLACK);
+    expect(nextState.board[0][0]).toBe(Core.BLACK);
+  });
+});

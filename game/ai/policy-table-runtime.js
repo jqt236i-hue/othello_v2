@@ -13,10 +13,11 @@ const MODEL_HEURISTIC_WEIGHT = 1;
 let _model = null;
 let _config = {
     enabled: true,
-    minLevel: 4
+    minLevel: 6
 };
 let _lastError = null;
 let _sourceUrl = DEFAULT_MODEL_URL;
+let _nodeZlib = null;
 
 const POSITION_WEIGHTS = [
     [120, -20, 20, 5, 5, 20, -20, 120],
@@ -330,23 +331,89 @@ function isValidModel(model) {
     return true;
 }
 
-function getStateEntry(playerKey, board, pendingType, legalMovesCount) {
-    if (!_model || !_model.states) return null;
-    const schema = _model.schemaVersion;
+function isRedirectManifest(payload) {
+    return !!(payload &&
+        typeof payload === 'object' &&
+        payload.assetType === 'policy_table.redirect.v1' &&
+        typeof payload.url === 'string' &&
+        payload.url.trim());
+}
+
+function resolveAssetUrl(baseUrl, nextUrl) {
+    const raw = typeof nextUrl === 'string' ? nextUrl.trim() : '';
+    if (!raw) return '';
+    if (/^(https?:)?\/\//i.test(raw) || raw.startsWith('/')) return raw;
+    try {
+        if (typeof URL === 'function' && typeof baseUrl === 'string' && /^(https?:)?\/\//i.test(baseUrl)) {
+            return new URL(raw, baseUrl).toString();
+        }
+    } catch (e) { /* ignore */ }
+    return raw;
+}
+
+function getNodeZlib() {
+    if (_nodeZlib !== null) return _nodeZlib;
+    try {
+        if (typeof require === 'function') {
+            _nodeZlib = require('zlib');
+            return _nodeZlib;
+        }
+    } catch (e) { /* ignore */ }
+    _nodeZlib = false;
+    return _nodeZlib;
+}
+
+async function gunzipBytes(arrayBuffer) {
+    if (typeof DecompressionStream === 'function') {
+        const stream = new Blob([arrayBuffer]).stream().pipeThrough(new DecompressionStream('gzip'));
+        return await new Response(stream).text();
+    }
+    const zlib = getNodeZlib();
+    if (zlib && typeof zlib.gunzipSync === 'function') {
+        return zlib.gunzipSync(Buffer.from(arrayBuffer)).toString('utf8');
+    }
+    throw new Error('gzip decompression is not available');
+}
+
+async function readPolicyTablePayload(response, sourceUrl, fetchImpl) {
+    const payload = await response.json();
+    if (!isRedirectManifest(payload)) return payload;
+
+    const compression = typeof payload.compression === 'string' ? payload.compression.trim().toLowerCase() : '';
+    const redirectUrl = resolveAssetUrl(sourceUrl, payload.url);
+    if (!redirectUrl) throw new Error('policy table redirect is missing url');
+    if (compression !== 'gzip') throw new Error(`unsupported policy table compression: ${compression || 'unknown'}`);
+
+    const redirectResponse = await fetchImpl(redirectUrl, { cache: 'no-store' });
+    if (!redirectResponse || !redirectResponse.ok) {
+        throw new Error(`redirect fetch failed: ${redirectResponse ? redirectResponse.status : 'no_response'}`);
+    }
+    const compressedBytes = await redirectResponse.arrayBuffer();
+    const jsonText = await gunzipBytes(compressedBytes);
+    return JSON.parse(jsonText);
+}
+
+function getStateEntryForModel(model, playerKey, board, pendingType, legalMovesCount) {
+    if (!model || !model.states) return null;
+    const schema = model.schemaVersion;
     if (schema === 'policy_table.v1') {
         const key = makeStateKey(playerKey, board, pendingType, legalMovesCount);
-        return _model.states[key] ? { entry: _model.states[key], abstract: false } : null;
+        return model.states[key] ? { entry: model.states[key], abstract: false } : null;
     }
     const canonicalKey = makeStateKey(playerKey, canonicalizeBoard(board).boardKey, pendingType, legalMovesCount);
-    if (_model.states[canonicalKey]) return { entry: _model.states[canonicalKey], abstract: false };
+    if (model.states[canonicalKey]) return { entry: model.states[canonicalKey], abstract: false };
     // Backward-compatible fallback: allow non-canonical key in v2 payloads.
     const rawKey = makeStateKey(playerKey, board, pendingType, legalMovesCount);
-    if (_model.states[rawKey]) return { entry: _model.states[rawKey], abstract: false };
-    if (_model.abstractStates && typeof _model.abstractStates === 'object') {
+    if (model.states[rawKey]) return { entry: model.states[rawKey], abstract: false };
+    if (model.abstractStates && typeof model.abstractStates === 'object') {
         const abstractKey = makeAbstractStateKey(playerKey, board, pendingType, legalMovesCount);
-        if (_model.abstractStates[abstractKey]) return { entry: _model.abstractStates[abstractKey], abstract: true };
+        if (model.abstractStates[abstractKey]) return { entry: model.abstractStates[abstractKey], abstract: true };
     }
     return null;
+}
+
+function getStateEntry(playerKey, board, pendingType, legalMovesCount) {
+    return getStateEntryForModel(_model, playerKey, board, pendingType, legalMovesCount);
 }
 
 function setModel(model, options) {
@@ -404,7 +471,7 @@ async function loadFromUrl(url, fetchImpl) {
             _lastError = new Error(`model fetch failed: ${response ? response.status : 'no_response'}`);
             return false;
         }
-        const model = await response.json();
+        const model = await readPolicyTablePayload(response, target, f);
         const ok = setModel(model, { url: target });
         if (!ok && !_lastError) _lastError = new Error('invalid model');
         return ok;
@@ -414,20 +481,16 @@ async function loadFromUrl(url, fetchImpl) {
     }
 }
 
-function chooseMove(candidateMoves, context) {
-    if (!_config.enabled) return null;
-    if (!hasModel()) return null;
+function chooseMoveFromModel(model, candidateMoves, context) {
+    if (!isValidModel(model)) return null;
     if (!Array.isArray(candidateMoves) || candidateMoves.length === 0) return null;
 
     const ctx = context || {};
-    const level = Number.isFinite(ctx.level) ? ctx.level : 1;
-    if (level < _config.minLevel) return null;
-
     const playerKey = ctx.playerKey === 'black' ? 'black' : 'white';
     const legalMovesCount = Number.isFinite(ctx.legalMovesCount) ? ctx.legalMovesCount : candidateMoves.length;
-    const schema = _model.schemaVersion;
+    const schema = model.schemaVersion;
     const canonical = schema === 'policy_table.v1' ? { boardKey: encodeBoard(ctx.board), transformId: 0 } : canonicalizeBoard(ctx.board);
-    const stateMeta = getStateEntry(playerKey, ctx.board, ctx.pendingType || null, legalMovesCount);
+    const stateMeta = getStateEntryForModel(model, playerKey, ctx.board, ctx.pendingType || null, legalMovesCount);
     if (!stateMeta || !stateMeta.entry || !stateMeta.entry.actions || typeof stateMeta.entry.actions !== 'object') return null;
     const boardSize = Array.isArray(ctx.board) ? ctx.board.length : 8;
 
@@ -463,20 +526,25 @@ function chooseMove(candidateMoves, context) {
     return bestMove;
 }
 
-function getActionScore(move, context) {
+function chooseMove(candidateMoves, context) {
     if (!_config.enabled) return null;
     if (!hasModel()) return null;
-    if (!move) return null;
-
     const ctx = context || {};
     const level = Number.isFinite(ctx.level) ? ctx.level : 1;
     if (level < _config.minLevel) return null;
+    return chooseMoveFromModel(_model, candidateMoves, ctx);
+}
 
+function getActionScoreFromModel(model, move, context) {
+    if (!isValidModel(model)) return null;
+    if (!move) return null;
+
+    const ctx = context || {};
     const playerKey = ctx.playerKey === 'black' ? 'black' : 'white';
     const legalMovesCount = Number.isFinite(ctx.legalMovesCount) ? ctx.legalMovesCount : 0;
-    const schema = _model.schemaVersion;
+    const schema = model.schemaVersion;
     const canonical = schema === 'policy_table.v1' ? { boardKey: encodeBoard(ctx.board), transformId: 0 } : canonicalizeBoard(ctx.board);
-    const stateMeta = getStateEntry(playerKey, ctx.board, ctx.pendingType || null, legalMovesCount);
+    const stateMeta = getStateEntryForModel(model, playerKey, ctx.board, ctx.pendingType || null, legalMovesCount);
     if (!stateMeta || !stateMeta.entry || !stateMeta.entry.actions || typeof stateMeta.entry.actions !== 'object') return null;
 
     const boardSize = Array.isArray(ctx.board) ? ctx.board.length : 8;
@@ -499,6 +567,15 @@ function getActionScore(move, context) {
         playerKey
     });
     return bestBonus + (Math.log1p(Math.max(0, visits)) * 15) + (avgOutcome * 80) + (heuristicScore * MODEL_HEURISTIC_WEIGHT);
+}
+
+function getActionScore(move, context) {
+    if (!_config.enabled) return null;
+    if (!hasModel()) return null;
+    const ctx = context || {};
+    const level = Number.isFinite(ctx.level) ? ctx.level : 1;
+    if (level < _config.minLevel) return null;
+    return getActionScoreFromModel(_model, move, ctx);
 }
 
 function getActionScoreForKey(actionKey, context) {
@@ -532,7 +609,9 @@ const Api = {
     hasModel,
     loadFromUrl,
     chooseMove,
+    chooseMoveFromModel,
     getActionScore,
+    getActionScoreFromModel,
     getActionScoreForKey,
     makeStateKey,
     makeActionKeyFromMove,

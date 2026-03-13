@@ -33,4 +33,26 @@ describe('cards catalog consistency', () => {
       expect(Number(jsCard.cost)).toBe(Number(jsonCard.cost));
     }
   });
+
+  test('swap/position-swap costs are reversed as specified', () => {
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
+    expect(Number(byId.get('swap_01').cost)).toBe(17);
+    expect(Number(byId.get('position_swap_01').cost)).toBe(13);
+  });
+
+  test('x bomb card is present with expected cost/type', () => {
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
+    expect(byId.has('x_bomb_01')).toBe(true);
+    expect(byId.get('x_bomb_01').type).toBe('X_BOMB');
+    expect(Number(byId.get('x_bomb_01').cost)).toBe(18);
+  });
+
+  test('regen/perma costs are swapped as specified', () => {
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
+    expect(Number(byId.get('regen_01').cost)).toBe(12);
+    expect(Number(byId.get('perma_01').cost)).toBe(15);
+  });
 });

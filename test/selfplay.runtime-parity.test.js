@@ -72,5 +72,54 @@ describe('selfplay/runtime v2 parity', () => {
     expect(runtimeSelected).toBe(candidates[1]);
     expect(headlessSelected).toBe(candidates[1]);
   });
+
+  test('headless and browser runtime share the same heuristic tie-break for equal policy stats', () => {
+    const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
+    const canonical = runtime.canonicalizeBoard(board);
+    const stateKey = runtime.makeStateKey('white', canonical.boardKey, null, 2);
+    const model = {
+      schemaVersion: 'policy_table.v2',
+      states: {
+        [stateKey]: {
+          bestAction: '',
+          actions: {
+            'place:0:0': { visits: 1, avgOutcome: 0 },
+            'place:3:3': { visits: 1, avgOutcome: 0 }
+          }
+        }
+      }
+    };
+    const candidates = [
+      { row: 0, col: 0, flips: [] },
+      { row: 3, col: 3, flips: [] }
+    ];
+
+    const runtimeSelected = runtime.chooseMoveFromModel(model, candidates, {
+      playerKey: 'white',
+      level: 6,
+      board,
+      pendingType: null,
+      legalMovesCount: candidates.length
+    });
+
+    const headlessSelected = runner.selectPlacementMove(
+      candidates,
+      { random: () => 0 },
+      {
+        gameState: { board },
+        cardState: {},
+        playerKey: 'white',
+        pendingType: null,
+        legalMovesCount: candidates.length
+      },
+      {
+        policyTableModel: model,
+        enableTacticalLookahead: false
+      }
+    );
+
+    expect(runtimeSelected).toBe(candidates[0]);
+    expect(headlessSelected).toBe(candidates[0]);
+  });
 });
 

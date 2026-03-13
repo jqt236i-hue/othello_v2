@@ -96,4 +96,162 @@ describe('policy-onnx-runtime', () => {
     });
     expect(selected).toBe('card_b');
   });
+
+  test('chooseCard returns null when no-card score is highest', async () => {
+    const placeScores = new Float32Array(64);
+    const cardScores = new Float32Array(4);
+    cardScores[0] = 3.5; // __no_card__
+    cardScores[1] = 0.9; // card_a
+    cardScores[2] = 1.8; // card_b
+    cardScores[3] = 1.2; // card_c
+
+    runtime.__setLoadedForTest({
+      run: jest.fn(async () => ({
+        place_logits: { data: placeScores },
+        card_logits: { data: cardScores }
+      }))
+    }, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      placeOutputName: 'place_logits',
+      cardOutputName: 'card_logits',
+      inputDim: 78,
+      cardActionIds: ['__no_card__', 'card_a', 'card_b', 'card_c']
+    });
+
+    const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
+    const selected = await runtime.chooseCard(['card_a', 'card_b', 'card_c'], {
+      playerKey: 'white',
+      level: 6,
+      board,
+      legalMovesCount: 4,
+      handCardIds: ['card_a', 'card_b'],
+      usableCardIds: ['card_a', 'card_b', 'card_c']
+    });
+    expect(selected).toBeNull();
+  });
+
+  test('chooseCard prefers hold when card/no-card confidence gap is too small in stable corner state', async () => {
+    const placeScores = new Float32Array(64);
+    const cardScores = new Float32Array(4);
+    cardScores[0] = 2.0;  // __no_card__
+    cardScores[1] = 2.05; // card_a (small edge)
+    cardScores[2] = 1.9;  // card_b
+    cardScores[3] = 1.7;  // card_c
+
+    runtime.__setLoadedForTest({
+      run: jest.fn(async () => ({
+        place_logits: { data: placeScores },
+        card_logits: { data: cardScores }
+      }))
+    }, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      placeOutputName: 'place_logits',
+      cardOutputName: 'card_logits',
+      inputDim: 78,
+      cardActionIds: ['__no_card__', 'card_a', 'card_b', 'card_c']
+    });
+
+    const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
+    board[0][0] = -1;
+    const selected = await runtime.chooseCard(['card_a', 'card_b', 'card_c'], {
+      playerKey: 'white',
+      level: 6,
+      board,
+      legalMovesCount: 4,
+      hasCornerMoveNow: 1,
+      handCardIds: ['card_a', 'card_b'],
+      usableCardIds: ['card_a', 'card_b', 'card_c']
+    });
+    expect(selected).toBeNull();
+  });
+
+  test('chooseCard allows small confidence edge in emergency with saturated hand', async () => {
+    const placeScores = new Float32Array(64);
+    const cardScores = new Float32Array(4);
+    cardScores[0] = 2.0;  // __no_card__
+    cardScores[1] = 2.05; // card_a (small edge)
+    cardScores[2] = 1.9;  // card_b
+    cardScores[3] = 1.7;  // card_c
+
+    runtime.__setLoadedForTest({
+      run: jest.fn(async () => ({
+        place_logits: { data: placeScores },
+        card_logits: { data: cardScores }
+      }))
+    }, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      placeOutputName: 'place_logits',
+      cardOutputName: 'card_logits',
+      inputDim: 78,
+      cardActionIds: ['__no_card__', 'card_a', 'card_b', 'card_c']
+    });
+
+    const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
+    const selected = await runtime.chooseCard(['card_a', 'card_b', 'card_c'], {
+      playerKey: 'white',
+      level: 6,
+      board,
+      legalMovesCount: 4,
+      hasCornerMoveNow: 0,
+      cornerEmergency: 1,
+      handCardIds: ['x1', 'x2', 'x3', 'x4', 'card_a'],
+      usableCardIds: ['card_a', 'card_b', 'card_c']
+    });
+    expect(selected).toBe('card_a');
+  });
+
+  test('chooseCard can use specialist card model when available', async () => {
+    const placeScores = new Float32Array(64);
+    const baseCardScores = new Float32Array(4);
+    baseCardScores[0] = 3.0; // __no_card__
+    baseCardScores[1] = 0.5; // card_a
+    baseCardScores[2] = 0.6; // card_b
+    baseCardScores[3] = 0.4; // card_c
+
+    const specialistCardScores = new Float32Array(4);
+    specialistCardScores[0] = 0.2; // __no_card__
+    specialistCardScores[1] = 0.8; // card_a
+    specialistCardScores[2] = 2.3; // card_b
+    specialistCardScores[3] = 0.7; // card_c
+
+    runtime.__setLoadedForTest({
+      run: jest.fn(async () => ({
+        place_logits: { data: placeScores },
+        card_logits: { data: baseCardScores }
+      }))
+    }, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      placeOutputName: 'place_logits',
+      cardOutputName: 'card_logits',
+      inputDim: 78,
+      cardActionIds: ['__no_card__', 'card_a', 'card_b', 'card_c']
+    });
+
+    runtime.__setCardModelForTest({
+      run: jest.fn(async () => ({
+        card_logits: { data: specialistCardScores }
+      }))
+    }, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      cardOutputName: 'card_logits',
+      inputDim: 78,
+      cardActionIds: ['__no_card__', 'card_a', 'card_b', 'card_c']
+    });
+
+    const selected = await runtime.chooseCard(['card_a', 'card_b', 'card_c'], {
+      playerKey: 'white',
+      level: 6,
+      board: Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0)),
+      legalMovesCount: 3,
+      handCardIds: ['card_a', 'card_b', 'card_c'],
+      usableCardIds: ['card_a', 'card_b', 'card_c']
+    });
+
+    expect(selected).toBe('card_b');
+  });
 });

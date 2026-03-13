@@ -1,0 +1,18 @@
+name = "card-othello-match"
+main = "workers/match-worker.mjs"
+compatibility_date = "2026-02-14"
+workers_dev = true
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "worker-public"
+binding = "ASSETS"
+
+[durable_objects]
+bindings = [
+  { name = "MATCH_ROOM", class_name = "MatchRoomDurableObject" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MatchRoomDurableObject"]

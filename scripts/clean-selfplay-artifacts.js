@@ -34,7 +34,7 @@ function printHelp() {
         '      --runs-dir <path>      Runs directory (default: data/runs)',
         '      --models-dir <path>    Models directory (default: data/models)',
         '      --apply                Delete listed files (default: dry-run)',
-        '      --keep-deployed        Keep deployed models (policy-table.json, policy-net.onnx, policy-net.onnx.meta.json)',
+        '      --keep-deployed        Keep deployed models (policy-table.json, policy-net.onnx, policy-net.onnx.meta.json, policy-card.onnx, policy-card.onnx.meta.json)',
         '  -h, --help                 Show this help'
     ].join('\n'));
 }
@@ -63,11 +63,14 @@ function shouldDeleteModelFile(fileName, keepDeployed) {
     const isCheckpoint = lower.endsWith('.checkpoint.pt');
     const isPolicyTable = lower.startsWith('policy-table') && lower.endsWith('.json');
     const isPolicyNet = lower.startsWith('policy-net') && (lower.endsWith('.onnx') || lower.endsWith('.meta.json'));
-    if (!isCheckpoint && !isPolicyTable && !isPolicyNet) return false;
+    const isPolicyCard = lower.startsWith('policy-card') && (lower.endsWith('.onnx') || lower.endsWith('.meta.json'));
+    if (!isCheckpoint && !isPolicyTable && !isPolicyNet && !isPolicyCard) return false;
     if (!keepDeployed) return true;
     if (lower === 'policy-table.json') return false;
     if (lower === 'policy-net.onnx') return false;
     if (lower === 'policy-net.onnx.meta.json') return false;
+    if (lower === 'policy-card.onnx') return false;
+    if (lower === 'policy-card.onnx.meta.json') return false;
     return true;
 }
 
@@ -176,4 +179,3 @@ module.exports = {
     summarizeTargets,
     formatBytes
 };
-

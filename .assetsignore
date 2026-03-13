@@ -1,0 +1,16 @@
+.git/
+.github/
+.venv/
+node_modules/
+data/
+ai/
+docs/
+patches/
+prompts/
+export_for_project/
+UTF8/
+test/
+tests/
+playwright-report/
+coverage/
+*.patch

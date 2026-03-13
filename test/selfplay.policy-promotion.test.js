@@ -122,6 +122,70 @@ describe('selfplay policy promotion', () => {
         fs.unlinkSync(targetOnnxMeta);
     });
 
+    test('promoteModel archives the previous champion and writes rollback manifest', () => {
+        const dir = path.resolve(__dirname, '..', 'data', 'models', 'promotion.lifecycle.test');
+        fs.rmSync(dir, { recursive: true, force: true });
+        fs.mkdirSync(dir, { recursive: true });
+
+        const adoption = path.join(dir, 'adoption.lifecycle.test.json');
+        const candidate = path.join(dir, 'candidate.lifecycle.test.json');
+        const target = path.join(dir, 'policy-table.json');
+        const candidateOnnx = path.join(dir, 'candidate.lifecycle.test.onnx');
+        const candidateOnnxMeta = path.join(dir, 'candidate.lifecycle.test.onnx.meta.json');
+        const targetOnnx = path.join(dir, 'policy-net.onnx');
+        const targetOnnxMeta = path.join(dir, 'policy-net.onnx.meta.json');
+        const promotedDir = path.join(dir, 'promoted');
+        const archiveDir = path.join(dir, 'archive');
+        const manifestPath = path.join(promotedDir, 'promotion-manifest.json');
+        const previousPayload = { schemaVersion: 'policy_table.v1', states: { old: { bestAction: 'place:0:0', actions: {} } } };
+        const candidatePayload = { schemaVersion: 'policy_table.v2', states: { next: { bestAction: 'place:1:1', actions: {} } } };
+
+        fs.writeFileSync(adoption, JSON.stringify({ decision: { passed: true } }), 'utf8');
+        fs.writeFileSync(candidate, JSON.stringify(candidatePayload), 'utf8');
+        fs.writeFileSync(target, JSON.stringify(previousPayload), 'utf8');
+        fs.writeFileSync(candidateOnnx, 'new-onnx', 'utf8');
+        fs.writeFileSync(candidateOnnxMeta, JSON.stringify({ schemaVersion: 'policy_onnx.v1', tag: 'new' }), 'utf8');
+        fs.writeFileSync(targetOnnx, 'old-onnx', 'utf8');
+        fs.writeFileSync(targetOnnxMeta, JSON.stringify({ schemaVersion: 'policy_onnx.v1', tag: 'old' }), 'utf8');
+
+        const out = promoteModel({
+            adoptionResultPath: adoption,
+            candidateModelPath: candidate,
+            candidateOnnxPath: candidateOnnx,
+            candidateOnnxMetaPath: candidateOnnxMeta,
+            targetModelPath: target,
+            targetOnnxPath: targetOnnx,
+            targetOnnxMetaPath: targetOnnxMeta,
+            promotedDir,
+            archiveDir,
+            manifestPath,
+            promotedAt: '2026-03-08T12:34:56.000Z',
+            force: false
+        });
+
+        expect(JSON.parse(fs.readFileSync(target, 'utf8'))).toEqual(candidatePayload);
+        expect(fs.readFileSync(targetOnnx, 'utf8')).toBe('new-onnx');
+        expect(out.archivedChampion.model.archived).toBe(true);
+        expect(out.archivedChampion.onnx.archived).toBe(true);
+        expect(out.rollback.modelPath).toContain(path.join('archive', '2026-03-08T12-34-56-000Z'));
+        expect(JSON.parse(fs.readFileSync(out.rollback.modelPath, 'utf8'))).toEqual(previousPayload);
+        expect(fs.readFileSync(out.rollback.onnxPath, 'utf8')).toBe('old-onnx');
+
+        const championModelPath = path.join(promotedDir, 'champion', 'policy-table.json');
+        const challengerModelPath = path.join(promotedDir, 'challenger', 'policy-table.json');
+        expect(JSON.parse(fs.readFileSync(championModelPath, 'utf8'))).toEqual(candidatePayload);
+        expect(JSON.parse(fs.readFileSync(challengerModelPath, 'utf8'))).toEqual(candidatePayload);
+
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        expect(manifest.schemaVersion).toBe('policy_promotion.v2');
+        expect(manifest.rollback.modelPath).toBe(out.rollback.modelPath);
+        expect(manifest.archive.model.archived).toBe(true);
+        expect(manifest.champion.modelPath).toBe(championModelPath);
+        expect(manifest.challenger.modelPath).toBe(challengerModelPath);
+
+        fs.rmSync(dir, { recursive: true, force: true });
+    });
+
     test('promoteModel keeps policy-table promotion even when onnx files are missing', () => {
         const dir = path.resolve(__dirname, '..', 'data', 'models');
         fs.mkdirSync(dir, { recursive: true });

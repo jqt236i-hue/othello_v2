@@ -37,4 +37,1182 @@ describe('animation-engine guard timer rendering', () => {
     expect(disc.querySelector('.bomb-timer')).toBeNull();
     expect(disc.querySelector('.stone-timer')).toBeNull();
   });
+
+  test('STATUS_TICK updates timer without crossfade replay', async () => {
+    const crossfadeSpy = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/stone-visuals', () => ({
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '0';
+    cell.dataset.col = '0';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone';
+    const timer = document.createElement('div');
+    timer.className = 'guard-timer';
+    timer.textContent = '3';
+    disc.appendChild(timer);
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    await engine.handleStatusChange({
+      type: 'status_applied',
+      rawType: 'STATUS_TICK',
+      targets: [{ r: 0, col: 0, after: { color: 1, special: 'GUARD', timer: 2, owner: 'black' } }],
+      meta: { special: 'GUARD', timer: 2, owner: 'black' }
+    });
+
+    const guardTimer = disc.querySelector('.guard-timer');
+    expect(crossfadeSpy).not.toHaveBeenCalled();
+    expect(guardTimer).not.toBeNull();
+    expect(guardTimer.textContent).toBe('2');
+    expect(disc.querySelectorAll('.guard-timer').length).toBe(1);
+  });
+
+  test('loss_will_reset の STATUS_REMOVED は crossfadeDiscToState を使う', async () => {
+    const crossfadeSpy = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/stone-visuals', () => ({
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '0';
+    cell.dataset.col = '0';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    const discCrossfadeSpy = jest.spyOn(engine, 'crossfadeDiscToState').mockResolvedValue(undefined);
+
+    await engine.handleStatusChange({
+      type: 'status_removed',
+      rawType: 'STATUS_REMOVED',
+      targets: [{ r: 0, col: 0, after: { color: 1, special: null, timer: null, owner: 'black' } }],
+      meta: { special: 'GUARD', reason: 'loss_will_reset' }
+    });
+
+    expect(discCrossfadeSpy).toHaveBeenCalledTimes(1);
+    expect(crossfadeSpy).not.toHaveBeenCalled();
+  });
+
+  test('play accepts STATUS_TICK targets with row/col keys', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '0';
+    cell.dataset.col = '0';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone';
+    const timer = document.createElement('div');
+    timer.className = 'guard-timer';
+    timer.textContent = '3';
+    disc.appendChild(timer);
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    await engine.play([
+      {
+        type: 'status_applied',
+        rawType: 'STATUS_TICK',
+        phase: 1,
+        targets: [{ row: 0, col: 0, after: { color: 1, special: 'GUARD', timer: 2, owner: 'black' } }],
+        meta: { special: 'GUARD', timer: 2, owner: 'black' }
+      }
+    ]);
+
+    const guardTimer = disc.querySelector('.guard-timer');
+    expect(guardTimer).not.toBeNull();
+    expect(guardTimer.textContent).toBe('2');
+  });
+
+  test('play accepts MOVE targets with from/to row keys', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+    window.DISABLE_ANIMATIONS = true;
+
+    const fromCell = document.createElement('div');
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '0';
+    fromCell.dataset.col = '0';
+    const toCell = document.createElement('div');
+    toCell.className = 'cell';
+    toCell.dataset.row = '0';
+    toCell.dataset.col = '1';
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+    fromCell.appendChild(disc);
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    await engine.play([
+      {
+        type: 'move',
+        phase: 1,
+        targets: [
+          {
+            from: { row: 0, col: 0 },
+            to: { row: 0, col: 1 },
+            ownerAfter: 'black',
+            after: { color: 1, special: null, timer: null }
+          }
+        ]
+      }
+    ]);
+
+    expect(fromCell.querySelector('.disc')).toBeNull();
+    expect(toCell.querySelector('.disc')).not.toBeNull();
+  });
+
+  test('move duration is fixed regardless of distance for strong wind / ultimate hyperactive / position swap', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const proto = window.Element && window.Element.prototype;
+    const originalAnimate = proto ? proto.animate : undefined;
+    const animateMock = jest.fn(() => ({
+      addEventListener: (type, cb) => {
+        if (type === 'finish') setTimeout(cb, 0);
+      },
+      removeEventListener: () => {},
+      finished: Promise.resolve()
+    }));
+    if (proto) proto.animate = animateMock;
+
+    const setRect = (el, row, col) => {
+      const left = col * 100;
+      const top = row * 100;
+      el.getBoundingClientRect = () => ({
+        left,
+        top,
+        width: 100,
+        height: 100,
+        right: left + 100,
+        bottom: top + 100
+      });
+    };
+
+    const makeCell = (row, col) => {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.row = String(row);
+      cell.dataset.col = String(col);
+      setRect(cell, row, col);
+      board.appendChild(cell);
+      return cell;
+    };
+
+    const assertFixedDuration = async (cause, reason, expectedDuration) => {
+      board.innerHTML = '';
+
+      const shortFrom = makeCell(0, 0);
+      const shortTo = makeCell(0, 1);
+      const shortDisc = document.createElement('div');
+      shortDisc.className = 'disc black';
+      shortFrom.appendChild(shortDisc);
+
+      await engine.handleMove({
+        type: 'move',
+        targets: [{
+          from: { r: 0, col: 0 },
+          to: { r: 0, col: 1 },
+          ownerAfter: 'black',
+          cause,
+          reason
+        }]
+      });
+
+      const shortDuration = animateMock.mock.calls[0][1].duration;
+      animateMock.mockClear();
+
+      const longFrom = makeCell(1, 0);
+      const longTo = makeCell(1, 5);
+      const longDisc = document.createElement('div');
+      longDisc.className = 'disc black';
+      longFrom.appendChild(longDisc);
+
+      await engine.handleMove({
+        type: 'move',
+        targets: [{
+          from: { r: 1, col: 0 },
+          to: { r: 1, col: 5 },
+          ownerAfter: 'black',
+          cause,
+          reason
+        }]
+      });
+
+      const longDuration = animateMock.mock.calls[0][1].duration;
+      animateMock.mockClear();
+
+      expect(shortDuration).toBe(longDuration);
+      expect(shortDuration).toBe(expectedDuration);
+      const shortFinalDisc = shortTo.querySelector('.disc');
+      const longFinalDisc = longTo.querySelector('.disc');
+      expect(shortFinalDisc).not.toBeNull();
+      expect(longFinalDisc).not.toBeNull();
+      expect(shortFinalDisc.style.visibility).not.toBe('hidden');
+      expect(longFinalDisc.style.visibility).not.toBe('hidden');
+      expect(shortFinalDisc.classList.contains('stone-hidden')).toBe(false);
+      expect(shortFinalDisc.classList.contains('stone-hidden-all')).toBe(false);
+      expect(longFinalDisc.classList.contains('stone-hidden')).toBe(false);
+      expect(longFinalDisc.classList.contains('stone-hidden-all')).toBe(false);
+      expect(shortFinalDisc.style.opacity).not.toBe('0');
+      expect(longFinalDisc.style.opacity).not.toBe('0');
+    };
+
+    try {
+      await assertFixedDuration('STRONG_WIND_WILL', 'strong_wind_move', 400);
+      await assertFixedDuration('SUPER_BUOYANCY_WILL', 'super_buoyancy_move', 400);
+      await assertFixedDuration('SUPER_GRAVITY_WILL', 'super_gravity_move', 400);
+      await assertFixedDuration('ULTIMATE_HYPERACTIVE_GOD', 'ultimate_hyperactive_move', 400);
+      await assertFixedDuration('POSITION_SWAP_WILL', 'position_swap', 320);
+    } finally {
+      if (proto) proto.animate = originalAnimate;
+    }
+  });
+
+  test('move fallback keeps destination white disc visible when animate API is unavailable', async () => {
+    const board = document.getElementById('board');
+    const fromCell = document.createElement('div');
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '0';
+    fromCell.dataset.col = '0';
+    const toCell = document.createElement('div');
+    toCell.className = 'cell';
+    toCell.dataset.row = '0';
+    toCell.dataset.col = '1';
+    const movedDisc = document.createElement('div');
+    movedDisc.className = 'disc white';
+    toCell.appendChild(movedDisc);
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    const proto = window.Element && window.Element.prototype;
+    const originalAnimate = proto ? proto.animate : undefined;
+    if (proto) proto.animate = undefined;
+
+    try {
+      const engine = require('../ui/animation-engine');
+      await engine.play([
+        {
+          type: 'move',
+          phase: 1,
+          targets: [
+            {
+              from: { row: 0, col: 0 },
+              to: { row: 0, col: 1 },
+              ownerAfter: 'white',
+              cause: 'STRONG_WIND_WILL',
+              reason: 'strong_wind_move'
+            }
+          ]
+        }
+      ]);
+    } finally {
+      if (proto) proto.animate = originalAnimate;
+    }
+
+    const finalDisc = toCell.querySelector('.disc');
+    expect(finalDisc).not.toBeNull();
+    expect(finalDisc.classList.contains('white')).toBe(true);
+    expect(finalDisc.style.visibility).not.toBe('hidden');
+  });
+
+  test('TELEPORT_WILL move appears instantly at destination without translate trajectory', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const fromCell = document.createElement('div');
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '1';
+    fromCell.dataset.col = '1';
+    const toCell = document.createElement('div');
+    toCell.className = 'cell';
+    toCell.dataset.row = '4';
+    toCell.dataset.col = '4';
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+    disc.animate = jest.fn(() => ({
+      addEventListener: (type, cb) => {
+        if (type === 'finish') setTimeout(cb, 0);
+      },
+      removeEventListener: () => {},
+      finished: Promise.resolve()
+    }));
+    fromCell.appendChild(disc);
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    await engine.play([
+      {
+        type: 'move',
+        phase: 1,
+        targets: [
+          {
+            from: { row: 1, col: 1 },
+            to: { row: 4, col: 4 },
+            ownerAfter: 'black',
+            cause: 'TELEPORT_WILL',
+            reason: 'teleport_move',
+            after: { color: 1, special: null, timer: null }
+          }
+        ]
+      }
+    ]);
+
+    expect(fromCell.querySelector('.disc')).toBeNull();
+    expect(toCell.querySelector('.disc')).not.toBeNull();
+    expect(disc.animate).toHaveBeenCalledTimes(1);
+
+    const keyframes = disc.animate.mock.calls[0][0];
+    expect(JSON.stringify(keyframes)).toContain('scale');
+    expect(JSON.stringify(keyframes)).not.toContain('translate(');
+  });
+
+  test('sniper expiration destroy does not trigger projectile animation when source is null', async () => {
+    global.animateFadeOutAt = jest.fn(() => Promise.resolve());
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '3';
+    targetCell.dataset.col = '3';
+    const targetDisc = document.createElement('div');
+    targetDisc.className = 'disc black';
+    targetCell.appendChild(targetDisc);
+    board.appendChild(targetCell);
+
+    const projectileSpy = jest.spyOn(engine, 'animateSniperProjectile').mockResolvedValue(undefined);
+
+    await engine.handleDestroy({
+      type: 'destroy',
+      targets: [{
+        r: 3,
+        col: 3,
+        cause: 'SNIPER_WILL',
+        reason: 'anchor_expired',
+        sourceRow: null,
+        sourceCol: null
+      }]
+    });
+
+    expect(projectileSpy).not.toHaveBeenCalled();
+    projectileSpy.mockRestore();
+    delete global.animateFadeOutAt;
+  });
+
+  test('sniper shot destroy triggers projectile animation when source exists', async () => {
+    global.animateFadeOutAt = jest.fn(() => Promise.resolve());
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const sourceCell = document.createElement('div');
+    sourceCell.className = 'cell';
+    sourceCell.dataset.row = '1';
+    sourceCell.dataset.col = '1';
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '2';
+    targetCell.dataset.col = '2';
+    const targetDisc = document.createElement('div');
+    targetDisc.className = 'disc white';
+    targetCell.appendChild(targetDisc);
+
+    board.appendChild(sourceCell);
+    board.appendChild(targetCell);
+
+    const projectileSpy = jest.spyOn(engine, 'animateSniperProjectile').mockResolvedValue(undefined);
+
+    await engine.handleDestroy({
+      type: 'destroy',
+      targets: [{
+        r: 2,
+        col: 2,
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot',
+        sourceRow: 1,
+        sourceCol: 1
+      }]
+    });
+
+    expect(projectileSpy).toHaveBeenCalledTimes(1);
+    projectileSpy.mockRestore();
+    delete global.animateFadeOutAt;
+  });
+
+  test('robot vacuum destroy triggers suction animation and skips fade-out path', async () => {
+    global.animateFadeOutAt = jest.fn(() => Promise.resolve());
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const sourceCell = document.createElement('div');
+    sourceCell.className = 'cell';
+    sourceCell.dataset.row = '1';
+    sourceCell.dataset.col = '1';
+    const sourceDisc = document.createElement('div');
+    sourceDisc.className = 'disc black special-stone';
+    sourceCell.appendChild(sourceDisc);
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '2';
+    targetCell.dataset.col = '2';
+    const targetDisc = document.createElement('div');
+    targetDisc.className = 'disc white';
+    targetCell.appendChild(targetDisc);
+
+    board.appendChild(sourceCell);
+    board.appendChild(targetCell);
+
+    const suctionSpy = jest.spyOn(engine, 'animateRobotVacuumSuction').mockImplementation(async () => {
+      const liveDisc = targetCell.querySelector('.disc');
+      expect(liveDisc).not.toBeNull();
+      expect(liveDisc.style.visibility).not.toBe('hidden');
+    });
+
+    await engine.handleDestroy({
+      type: 'destroy',
+      targets: [{
+        r: 2,
+        col: 2,
+        cause: 'ROBOT_VACUUM',
+        reason: 'robot_vacuum_suck',
+        ownerBefore: 'white',
+        sourceRow: 1,
+        sourceCol: 1
+      }]
+    });
+
+    expect(suctionSpy).toHaveBeenCalledTimes(1);
+    expect(global.animateFadeOutAt).not.toHaveBeenCalled();
+    expect(targetCell.querySelector('.disc')).toBeNull();
+
+    suctionSpy.mockRestore();
+    delete global.animateFadeOutAt;
+  });
+
+  test('gluttonous eat destroy skips fade and target is replaced by move', async () => {
+    global.animateFadeOutAt = jest.fn(() => Promise.resolve());
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+    window.DISABLE_ANIMATIONS = true;
+
+    const sourceCell = document.createElement('div');
+    sourceCell.className = 'cell';
+    sourceCell.dataset.row = '1';
+    sourceCell.dataset.col = '1';
+    const sourceDisc = document.createElement('div');
+    sourceDisc.className = 'disc black special-stone';
+    sourceCell.appendChild(sourceDisc);
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '1';
+    targetCell.dataset.col = '2';
+    const targetDisc = document.createElement('div');
+    targetDisc.className = 'disc white';
+    targetCell.appendChild(targetDisc);
+
+    board.appendChild(sourceCell);
+    board.appendChild(targetCell);
+
+    await engine.handleDestroy({
+      type: 'destroy',
+      targets: [{
+        r: 1,
+        col: 2,
+        cause: 'GLUTTONOUS_WILL',
+        reason: 'gluttonous_eat',
+        ownerBefore: 'white',
+        sourceRow: 1,
+        sourceCol: 1,
+        meta: { sourceRow: 1, sourceCol: 1, bite: true }
+      }]
+    });
+
+    expect(global.animateFadeOutAt).not.toHaveBeenCalled();
+    expect(targetCell.querySelector('.disc.white')).not.toBeNull();
+
+    await engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 1, col: 1 },
+        to: { r: 1, col: 2 },
+        cause: 'GLUTTONOUS_WILL',
+        reason: 'gluttonous_eat_move',
+        ownerAfter: 'black',
+        after: { color: 1, special: 'GLUTTONOUS', timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(sourceCell.querySelector('.disc')).toBeNull();
+    expect(targetCell.querySelector('.disc.black')).not.toBeNull();
+
+    delete global.animateFadeOutAt;
+    delete window.DISABLE_ANIMATIONS;
+  });
+
+  test('robot vacuum anchor_expired destroy does not use suction animation', async () => {
+    global.animateFadeOutAt = jest.fn(() => Promise.resolve());
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '4';
+    targetCell.dataset.col = '4';
+    const targetDisc = document.createElement('div');
+    targetDisc.className = 'disc black special-stone';
+    targetCell.appendChild(targetDisc);
+    board.appendChild(targetCell);
+
+    const suctionSpy = jest.spyOn(engine, 'animateRobotVacuumSuction').mockResolvedValue(undefined);
+
+    await engine.handleDestroy({
+      type: 'destroy',
+      targets: [{
+        r: 4,
+        col: 4,
+        cause: 'ROBOT_VACUUM',
+        reason: 'anchor_expired',
+        ownerBefore: 'black',
+        sourceRow: 4,
+        sourceCol: 4
+      }]
+    });
+
+    expect(suctionSpy).not.toHaveBeenCalled();
+    expect(global.animateFadeOutAt).toHaveBeenCalledTimes(1);
+    expect(targetCell.querySelector('.disc')).toBeNull();
+
+    suctionSpy.mockRestore();
+    delete global.animateFadeOutAt;
+  });
+
+  test('udg destroy triggers lightning animation when source exists', async () => {
+    global.animateFadeOutAt = jest.fn(() => Promise.resolve());
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const sourceCell = document.createElement('div');
+    sourceCell.className = 'cell';
+    sourceCell.dataset.row = '1';
+    sourceCell.dataset.col = '1';
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '2';
+    targetCell.dataset.col = '2';
+    const targetDisc = document.createElement('div');
+    targetDisc.className = 'disc white';
+    targetCell.appendChild(targetDisc);
+
+    board.appendChild(sourceCell);
+    board.appendChild(targetCell);
+
+    const lightningSpy = jest.spyOn(engine, 'animateUdgLightningStrike').mockResolvedValue(undefined);
+
+    await engine.handleDestroy({
+      type: 'destroy',
+      targets: [{
+        r: 2,
+        col: 2,
+        cause: 'ULTIMATE_DESTROY_GOD',
+        reason: 'udg_destroyed',
+        ownerBefore: 'white',
+        sourceRow: 1,
+        sourceCol: 1
+      }]
+    });
+
+    expect(lightningSpy).toHaveBeenCalledTimes(1);
+    expect(global.animateFadeOutAt).toHaveBeenCalledTimes(1);
+    lightningSpy.mockRestore();
+    delete global.animateFadeOutAt;
+  });
+
+  test('udg anchor_expired destroy does not trigger lightning animation', async () => {
+    global.animateFadeOutAt = jest.fn(() => Promise.resolve());
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '4';
+    targetCell.dataset.col = '4';
+    const targetDisc = document.createElement('div');
+    targetDisc.className = 'disc black special-stone';
+    targetCell.appendChild(targetDisc);
+    board.appendChild(targetCell);
+
+    const lightningSpy = jest.spyOn(engine, 'animateUdgLightningStrike').mockResolvedValue(undefined);
+
+    await engine.handleDestroy({
+      type: 'destroy',
+      targets: [{
+        r: 4,
+        col: 4,
+        cause: 'ULTIMATE_DESTROY_GOD',
+        reason: 'anchor_expired',
+        ownerBefore: 'black',
+        sourceRow: 4,
+        sourceCol: 4
+      }]
+    });
+
+    expect(lightningSpy).not.toHaveBeenCalled();
+    expect(global.animateFadeOutAt).toHaveBeenCalledTimes(1);
+    lightningSpy.mockRestore();
+    delete global.animateFadeOutAt;
+  });
+
+  test('lightning_will destroy triggers lightning animation when source exists', async () => {
+    global.animateFadeOutAt = jest.fn(() => Promise.resolve());
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const sourceCell = document.createElement('div');
+    sourceCell.className = 'cell';
+    sourceCell.dataset.row = '1';
+    sourceCell.dataset.col = '1';
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '2';
+    targetCell.dataset.col = '2';
+    const targetDisc = document.createElement('div');
+    targetDisc.className = 'disc white';
+    targetCell.appendChild(targetDisc);
+
+    board.appendChild(sourceCell);
+    board.appendChild(targetCell);
+
+    const lightningSpy = jest.spyOn(engine, 'animateUdgLightningStrike').mockResolvedValue(undefined);
+
+    await engine.handleDestroy({
+      type: 'destroy',
+      targets: [{
+        r: 2,
+        col: 2,
+        cause: 'LIGHTNING_WILL',
+        reason: 'lightning_destroyed',
+        ownerBefore: 'white',
+        sourceRow: 1,
+        sourceCol: 1
+      }]
+    });
+
+    expect(lightningSpy).toHaveBeenCalledTimes(1);
+    expect(global.animateFadeOutAt).toHaveBeenCalledTimes(1);
+    lightningSpy.mockRestore();
+    delete global.animateFadeOutAt;
+  });
+
+  test('lightning_will anchor_expired destroy does not trigger lightning animation', async () => {
+    global.animateFadeOutAt = jest.fn(() => Promise.resolve());
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '4';
+    targetCell.dataset.col = '4';
+    const targetDisc = document.createElement('div');
+    targetDisc.className = 'disc black special-stone';
+    targetCell.appendChild(targetDisc);
+    board.appendChild(targetCell);
+
+    const lightningSpy = jest.spyOn(engine, 'animateUdgLightningStrike').mockResolvedValue(undefined);
+
+    await engine.handleDestroy({
+      type: 'destroy',
+      targets: [{
+        r: 4,
+        col: 4,
+        cause: 'LIGHTNING_WILL',
+        reason: 'anchor_expired',
+        ownerBefore: 'black',
+        sourceRow: 4,
+        sourceCol: 4
+      }]
+    });
+
+    expect(lightningSpy).not.toHaveBeenCalled();
+    expect(global.animateFadeOutAt).toHaveBeenCalledTimes(1);
+    lightningSpy.mockRestore();
+    delete global.animateFadeOutAt;
+  });
+
+  test('card-effect flip applies and clears red cell highlight during animation', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '2';
+    targetCell.dataset.col = '2';
+    const targetDisc = document.createElement('div');
+    targetDisc.className = 'disc white';
+    targetCell.appendChild(targetDisc);
+    board.appendChild(targetCell);
+
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const addSpy = jest.spyOn(targetCell.classList, 'add');
+    const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+
+    await engine.handleFlip({
+      type: 'flip',
+      targets: [{
+        r: 2,
+        col: 2,
+        cause: 'TEMPT_WILL',
+        reason: 'tempt_applied',
+        ownerBefore: 'white',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(targetCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    sleepSpy.mockRestore();
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+
+  test('non-card-effect flip does not apply red cell highlight', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '3';
+    targetCell.dataset.col = '3';
+    const targetDisc = document.createElement('div');
+    targetDisc.className = 'disc white';
+    targetCell.appendChild(targetDisc);
+    board.appendChild(targetCell);
+
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const addSpy = jest.spyOn(targetCell.classList, 'add');
+
+    await engine.handleFlip({
+      type: 'flip',
+      targets: [{
+        r: 3,
+        col: 3,
+        cause: 'SYSTEM',
+        reason: 'standard_flip',
+        ownerBefore: 'white',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(targetCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    sleepSpy.mockRestore();
+    addSpy.mockRestore();
+  });
+
+  test('card-effect destroy applies and clears red cell highlight', async () => {
+    global.animateFadeOutAt = jest.fn(() => Promise.resolve());
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '5';
+    targetCell.dataset.col = '5';
+    const targetDisc = document.createElement('div');
+    targetDisc.className = 'disc white';
+    targetCell.appendChild(targetDisc);
+    board.appendChild(targetCell);
+
+    const addSpy = jest.spyOn(targetCell.classList, 'add');
+    const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+
+    await engine.handleDestroy({
+      type: 'destroy',
+      targets: [{
+        r: 5,
+        col: 5,
+        cause: 'DESTROY_ONE_STONE',
+        reason: 'destroy_one_stone',
+        ownerBefore: 'white'
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(targetCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+    delete global.animateFadeOutAt;
+  });
+
+  test('breeding spawn applies and clears red cell highlight on spawn moment', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '1';
+    targetCell.dataset.col = '6';
+    board.appendChild(targetCell);
+
+    const addSpy = jest.spyOn(targetCell.classList, 'add');
+    const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+    const fadeSpy = jest.spyOn(engine, 'getSpawnFadeInMs').mockReturnValue(0);
+
+    await engine.handleSpawn({
+      type: 'spawn',
+      targets: [{
+        r: 1,
+        col: 6,
+        cause: 'BREEDING',
+        reason: 'breeding_spawn',
+        ownerAfter: 'black',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(targetCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+    fadeSpy.mockRestore();
+  });
+
+  test('free placement spawn applies and clears red cell highlight', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '0';
+    targetCell.dataset.col = '7';
+    board.appendChild(targetCell);
+
+    const addSpy = jest.spyOn(targetCell.classList, 'add');
+    const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+
+    await engine.handleSpawn({
+      type: 'spawn',
+      targets: [{
+        r: 0,
+        col: 7,
+        cause: 'FREE_PLACEMENT',
+        reason: 'free_placement_place',
+        ownerAfter: 'black',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(targetCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+
+  test('free placement place event applies and clears red cell highlight', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '0';
+    targetCell.dataset.col = '6';
+    board.appendChild(targetCell);
+
+    const addSpy = jest.spyOn(targetCell.classList, 'add');
+    const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+
+    await engine.handlePlace({
+      type: 'place',
+      targets: [{
+        r: 0,
+        col: 6,
+        cause: 'FREE_PLACEMENT',
+        reason: 'free_placement_place',
+        ownerAfter: 'black',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(targetCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+
+  test('strong wind move applies and clears red cell highlight at destination', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const fromCell = document.createElement('div');
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '2';
+    fromCell.dataset.col = '2';
+
+    const toCell = document.createElement('div');
+    toCell.className = 'cell';
+    toCell.dataset.row = '2';
+    toCell.dataset.col = '3';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc white';
+    fromCell.appendChild(disc);
+
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    const addSpy = jest.spyOn(toCell.classList, 'add');
+    const removeSpy = jest.spyOn(toCell.classList, 'remove');
+
+    await engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 2, col: 2 },
+        to: { r: 2, col: 3 },
+        ownerAfter: 'white',
+        cause: 'STRONG_WIND_WILL',
+        reason: 'strong_wind_move'
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(toCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+
+  test('gluttonous eat move applies and clears red cell highlight at destination', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const fromCell = document.createElement('div');
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '3';
+    fromCell.dataset.col = '3';
+
+    const toCell = document.createElement('div');
+    toCell.className = 'cell';
+    toCell.dataset.row = '3';
+    toCell.dataset.col = '4';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone';
+    fromCell.appendChild(disc);
+
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    const addSpy = jest.spyOn(toCell.classList, 'add');
+    const removeSpy = jest.spyOn(toCell.classList, 'remove');
+
+    await engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 3, col: 3 },
+        to: { r: 3, col: 4 },
+        ownerAfter: 'black',
+        cause: 'GLUTTONOUS_WILL',
+        reason: 'gluttonous_eat_move',
+        after: { color: 1, special: 'GLUTTONOUS', timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(toCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+
+  test('gluttonous eat phase keeps red highlight on move target without destroy/remove race', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const fromCell = document.createElement('div');
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '6';
+    fromCell.dataset.col = '1';
+
+    const toCell = document.createElement('div');
+    toCell.className = 'cell';
+    toCell.dataset.row = '6';
+    toCell.dataset.col = '2';
+
+    const sourceDisc = document.createElement('div');
+    sourceDisc.className = 'disc black special-stone';
+    fromCell.appendChild(sourceDisc);
+
+    const targetDisc = document.createElement('div');
+    targetDisc.className = 'disc white';
+    toCell.appendChild(targetDisc);
+
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    const addSpy = jest.spyOn(toCell.classList, 'add');
+    const removeSpy = jest.spyOn(toCell.classList, 'remove');
+
+    await engine.executePhase([
+      {
+        type: 'destroy',
+        targets: [{
+          r: 6,
+          col: 2,
+          cause: 'GLUTTONOUS_WILL',
+          reason: 'gluttonous_eat',
+          ownerBefore: 'white',
+          sourceRow: 6,
+          sourceCol: 1,
+          meta: { sourceRow: 6, sourceCol: 1, bite: true }
+        }]
+      },
+      {
+        type: 'move',
+        targets: [{
+          from: { r: 6, col: 1 },
+          to: { r: 6, col: 2 },
+          ownerAfter: 'black',
+          cause: 'GLUTTONOUS_WILL',
+          reason: 'gluttonous_eat_move',
+          after: { color: 1, special: 'GLUTTONOUS', timer: null, owner: 'black' }
+        }]
+      }
+    ]);
+
+    const addCalls = addSpy.mock.calls.filter((args) => args[0] === 'effect-target-highlight').length;
+    const removeCalls = removeSpy.mock.calls.filter((args) => args[0] === 'effect-target-highlight').length;
+
+    expect(addCalls).toBe(1);
+    expect(removeCalls).toBe(1);
+    expect(toCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+
+  test('teleport move applies and clears red cell highlight at destination', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const fromCell = document.createElement('div');
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '1';
+    fromCell.dataset.col = '1';
+
+    const toCell = document.createElement('div');
+    toCell.className = 'cell';
+    toCell.dataset.row = '4';
+    toCell.dataset.col = '4';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+    fromCell.appendChild(disc);
+
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    const addSpy = jest.spyOn(toCell.classList, 'add');
+    const removeSpy = jest.spyOn(toCell.classList, 'remove');
+
+    await engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 1, col: 1 },
+        to: { r: 4, col: 4 },
+        ownerAfter: 'black',
+        cause: 'TELEPORT_WILL',
+        reason: 'teleport_move',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(toCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+
+  test('position swap move applies and clears red cell highlight on both cells', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const fromCell = document.createElement('div');
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '5';
+    fromCell.dataset.col = '1';
+
+    const toCell = document.createElement('div');
+    toCell.className = 'cell';
+    toCell.dataset.row = '5';
+    toCell.dataset.col = '2';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+    fromCell.appendChild(disc);
+
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    const addFromSpy = jest.spyOn(fromCell.classList, 'add');
+    const addToSpy = jest.spyOn(toCell.classList, 'add');
+    const removeFromSpy = jest.spyOn(fromCell.classList, 'remove');
+    const removeToSpy = jest.spyOn(toCell.classList, 'remove');
+
+    await engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 5, col: 1 },
+        to: { r: 5, col: 2 },
+        ownerAfter: 'black',
+        cause: 'POSITION_SWAP_WILL',
+        reason: 'position_swap',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addFromSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(addToSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeFromSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeToSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(fromCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(toCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    addFromSpy.mockRestore();
+    addToSpy.mockRestore();
+    removeFromSpy.mockRestore();
+    removeToSpy.mockRestore();
+  });
 });

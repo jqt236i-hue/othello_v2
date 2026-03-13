@@ -1,0 +1,304 @@
+const { JSDOM } = require('jsdom');
+
+describe('card detail effect tags', () => {
+  beforeEach(() => {
+    jest.resetModules();
+    const dom = new JSDOM(`
+      <!doctype html><html><body>
+        <div id="card-detail-panel">
+          <div id="card-detail-header"></div>
+          <div id="card-detail-name"></div>
+          <div id="card-detail-desc"></div>
+          <div id="card-detail-more" style="display:none;"></div>
+          <div id="card-detail-actions"></div>
+          <button id="destroy-card-btn">破壊</button>
+          <button id="use-card-btn">使用</button>
+          <button id="toggle-card-detail-btn">詳細</button>
+          <button id="pass-btn">パス</button>
+          <button id="sell-card-btn" style="display:none;">売却</button>
+          <button id="cancel-card-btn" style="display:none;">キャンセル</button>
+          <div id="use-card-reason"></div>
+        </div>
+      </body></html>
+    `);
+
+    global.window = dom.window;
+    global.document = dom.window.document;
+
+    global.BLACK = 1;
+    global.WHITE = -1;
+
+    global.gameState = {
+      currentPlayer: 1,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+
+    global.cardState = {
+      selectedCardId: 'udr_01',
+      selectedCardOwnerKey: 'black',
+      turnIndex: 0,
+      charge: { black: 99, white: 99 },
+      hands: { black: ['udr_01'], white: [] },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      pendingEffectByPlayer: { black: null, white: null },
+      markers: [],
+      discard: []
+    };
+
+    global.Core = { getLegalMoves: () => [] };
+    global.CardLogic = {
+      getCardDef: () => ({
+        id: 'udr_01',
+        name: '究極反転龍',
+        type: 'ULTIMATE_REVERSE_DRAGON',
+        cost: 30,
+        desc: '次に置く石を龍化。置いた時と自ターン開始時に周囲1マス（8方向）を反転。5ターン持続。反転保護を持つ特殊石。'
+      })
+    };
+
+    global.renderCardUI = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+  });
+
+  afterEach(() => {
+    delete global.window;
+    delete global.document;
+  });
+
+  test('shows effect tags separately from quick description text', () => {
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+
+    const tagsEl = document.getElementById('card-detail-effect-tags');
+    expect(tagsEl).not.toBeNull();
+    expect(tagsEl.textContent).toContain('反転保護');
+    expect(tagsEl.textContent).toContain('特殊石');
+
+    const desc = document.getElementById('card-detail-desc').textContent;
+    expect(desc).toContain('次に置く石を龍化');
+    expect(desc).not.toContain('反転保護を持つ特殊石');
+  });
+
+  test('bomb visual cards are tagged as special stone by image rule', () => {
+    require('../cards/card-interaction.js');
+
+    const bombCards = [
+      {
+        id: 'bomb_01',
+        name: '時限爆弾',
+        type: 'TIME_BOMB',
+        cost: 13,
+        desc: '盤面上の自分の石1つを時限爆弾化。3ターン後にそのマスと周囲1マス（3x3）を爆破。反転されると解除。'
+      },
+      {
+        id: 'cross_bomb_01',
+        name: '十字爆弾',
+        type: 'CROSS_BOMB',
+        cost: 18,
+        desc: '次に置く石を十字爆弾化。通常反転後に即起爆し、その石を起点に縦横2マス（中心含む十字）の石を爆破する。'
+      },
+      {
+        id: 'x_bomb_01',
+        name: 'クロス爆弾',
+        type: 'X_BOMB',
+        cost: 18,
+        desc: '次に置く石をクロス爆弾化。通常反転後に即起爆し、その石を起点に斜め2マス（中心含むX字）の石を爆破する。'
+      }
+    ];
+
+    for (const cardDef of bombCards) {
+      expect(cardDef.desc.includes('特殊石')).toBe(false);
+      global.cardState.selectedCardId = cardDef.id;
+      global.cardState.hands.black = [cardDef.id];
+      global.CardLogic.getCardDef = () => cardDef;
+
+      window.updateCardDetailPanel();
+
+      const tagsEl = document.getElementById('card-detail-effect-tags');
+      expect(tagsEl).not.toBeNull();
+      expect(tagsEl.textContent).toContain('特殊石');
+    }
+  });
+
+  test('flip-evasion cards are tagged even when text does not contain the exact term', () => {
+    require('../cards/card-interaction.js');
+
+    const flipEvadeCards = [
+      {
+        id: 'escape_01',
+        name: '逃亡の意志',
+        type: 'ESCAPE_WILL',
+        cost: 16,
+        desc: '次に置く石を逃亡石化。毎ターン1マス逃げるように移動し、反転対象時は1回回避。移動できるマスがなくなると爆発。'
+      },
+      {
+        id: 'hyperactive_inherit_01',
+        name: '多動の継承',
+        type: 'HYPERACTIVE_INHERIT_WILL',
+        cost: 11,
+        desc: '盤面上の自分の石1つに多動状態を付与する。通常石・特殊石を問わず選択でき、他の状態とも併用可能。両者ターン開始時に1マス移動し、移動後に挟めば反転。反転対象時は1回だけマス移動で回避する。持続は10ターン（所有者ターン開始時のみ減算）。'
+      }
+    ];
+
+    for (const cardDef of flipEvadeCards) {
+      expect(cardDef.desc.includes('反転回避')).toBe(false);
+      global.cardState.selectedCardId = cardDef.id;
+      global.cardState.hands.black = [cardDef.id];
+      global.CardLogic.getCardDef = () => cardDef;
+
+      window.updateCardDetailPanel();
+
+      const tagsEl = document.getElementById('card-detail-effect-tags');
+      expect(tagsEl).not.toBeNull();
+      expect(tagsEl.textContent).toContain('反転回避');
+    }
+  });
+
+  test('cards that only mention special stones as targets do not get the special-stone tag', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'cell_teleport_01',
+      name: 'マステレポート',
+      type: 'CELL_TELEPORT_WILL',
+      cost: 23,
+      desc: '盤面上の石があるマス1つを選び、盤面拡張・盤面拡張神で追加できる外側マスのどこかへランダムにテレポートさせる。移動元のマスは穴になる。対象は敵味方・通常石・特殊石を問わない。'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+
+    window.updateCardDetailPanel();
+
+    const tagsEl = document.getElementById('card-detail-effect-tags');
+    expect(tagsEl).not.toBeNull();
+    expect(tagsEl.textContent).toBe('');
+    expect(tagsEl.style.display).toBe('none');
+  });
+
+  test('clicking a tag opens a closable separate tab panel with meaning', () => {
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+
+    const tagButtons = Array.from(document.querySelectorAll('.card-detail-effect-tag-button'));
+    const specialTagButton = tagButtons.find((el) => el.textContent === '特殊石');
+    expect(specialTagButton).toBeTruthy();
+
+    specialTagButton.click();
+
+    const panelEl = document.getElementById('card-detail-tab-panel');
+    expect(panelEl).not.toBeNull();
+    expect(panelEl.classList.contains('is-open')).toBe(true);
+    expect(panelEl.getAttribute('aria-hidden')).toBe('false');
+
+    const titleEl = document.getElementById('card-detail-tab-title');
+    const bodyEl = document.getElementById('card-detail-tab-body');
+    expect(titleEl.textContent).toBe('特殊石');
+    expect(bodyEl.textContent).toContain('通常石ではないカード由来の石');
+
+    const closeBtn = document.getElementById('card-detail-tab-close-btn');
+    expect(closeBtn).not.toBeNull();
+    closeBtn.click();
+
+    expect(panelEl.classList.contains('is-open')).toBe(false);
+    expect(panelEl.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  test('tag tab closes when clicking outside of tags/panel', () => {
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+
+    const tagButtons = Array.from(document.querySelectorAll('.card-detail-effect-tag-button'));
+    const specialTagButton = tagButtons.find((el) => el.textContent === '特殊石');
+    expect(specialTagButton).toBeTruthy();
+    specialTagButton.click();
+
+    const panelEl = document.getElementById('card-detail-tab-panel');
+    expect(panelEl).not.toBeNull();
+    expect(panelEl.classList.contains('is-open')).toBe(true);
+
+    const outsideEventType = (typeof window.PointerEvent === 'function') ? 'pointerdown' : 'mousedown';
+    document.body.dispatchEvent(new window.Event(outsideEventType, { bubbles: true }));
+
+    expect(panelEl.classList.contains('is-open')).toBe(false);
+    expect(panelEl.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  test('tag tab closes when selecting another card', () => {
+    const firstCard = {
+      id: 'udr_01',
+      name: '究極反転龍',
+      type: 'ULTIMATE_REVERSE_DRAGON',
+      cost: 30,
+      desc: '次に置く石を龍化。置いた時と自ターン開始時に周囲1マス（8方向）を反転。5ターン持続。反転保護を持つ特殊石。'
+    };
+    const secondCard = {
+      id: 'meteor_01',
+      name: '隕石の意志',
+      type: 'METEOR_WILL',
+      cost: 24,
+      desc: '盤面上の任意マス1つを指定し、そのマスの石を破壊する。'
+    };
+
+    global.cardState.selectedCardId = firstCard.id;
+    global.cardState.hands.black = [firstCard.id, secondCard.id];
+    global.CardLogic.getCardDef = (cardId) => {
+      if (cardId === secondCard.id) return secondCard;
+      return firstCard;
+    };
+
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+
+    const tagButtons = Array.from(document.querySelectorAll('.card-detail-effect-tag-button'));
+    const specialTagButton = tagButtons.find((el) => el.textContent === '特殊石');
+    expect(specialTagButton).toBeTruthy();
+    specialTagButton.click();
+
+    const panelEl = document.getElementById('card-detail-tab-panel');
+    expect(panelEl).not.toBeNull();
+    expect(panelEl.classList.contains('is-open')).toBe(true);
+
+    window.onCardClick(secondCard.id, 'black');
+
+    expect(panelEl.classList.contains('is-open')).toBe(false);
+    expect(panelEl.getAttribute('aria-hidden')).toBe('true');
+    expect(global.cardState.selectedCardId).toBe(secondCard.id);
+  });
+
+  test('detail button toggles separate tab panel and keeps inline detail hidden', () => {
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+
+    const detailMoreEl = document.getElementById('card-detail-more');
+    const detailBtn = document.getElementById('toggle-card-detail-btn');
+    expect(detailMoreEl.style.display).toBe('none');
+    expect(detailBtn.textContent).toBe('詳細');
+    expect(detailBtn.getAttribute('aria-expanded')).toBe('false');
+
+    window.toggleCardDetailExpanded();
+
+    const panelEl = document.getElementById('card-detail-tab-panel');
+    const titleEl = document.getElementById('card-detail-tab-title');
+    expect(panelEl).not.toBeNull();
+    expect(panelEl.classList.contains('is-open')).toBe(true);
+    expect(titleEl.textContent).toContain('究極反転龍');
+    expect(detailMoreEl.style.display).toBe('none');
+    expect(detailBtn.textContent).toBe('閉じる');
+    expect(detailBtn.getAttribute('aria-expanded')).toBe('true');
+
+    window.toggleCardDetailExpanded();
+
+    expect(panelEl.classList.contains('is-open')).toBe(false);
+    expect(detailBtn.textContent).toBe('詳細');
+    expect(detailBtn.getAttribute('aria-expanded')).toBe('false');
+    expect(detailMoreEl.style.display).toBe('none');
+  });
+});

@@ -84,7 +84,7 @@ describe('CPU level difference E2E', () => {
 
     // Wait for a legal move and click it
     await page.waitForSelector('#board .cell.legal, #board .cell.legal-free', { timeout: 5000 });
-    await page.evaluate(() => { const c = document.querySelector('#board .cell.legal, #board .cell.legal-free'); if (c) c.click(); });
+    await page.locator('#board .cell.legal, #board .cell.legal-free').first().click();
 
     // Wait for CPU log indicating white decision and level
     let cpuLogFound = false;

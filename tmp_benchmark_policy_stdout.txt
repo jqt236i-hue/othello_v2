@@ -1,0 +1,14 @@
+PASS test/selfplay.benchmark-policy.test.js (327.873 s)
+  selfplay benchmark policy script
+    竏・parseArgs parses policy flags (4 ms)
+    竏・runBenchmark is deterministic and mirrored-fair for identical policies (125484 ms)
+    竏・runBenchmark accepts model path options (18181 ms)
+    竏・runBenchmark emits progress callbacks (57131 ms)
+    竏・runBenchmark honors card enable flags during simulation (125436 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       5 passed, 5 total
+Snapshots:   0 total
+Time:        328.128 s
+Ran all test suites matching /test\\selfplay.benchmark-policy.test.js/i.
+Test results written to: tmp_benchmark_policy_validation.json

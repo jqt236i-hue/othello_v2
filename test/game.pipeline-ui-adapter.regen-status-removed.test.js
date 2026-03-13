@@ -17,5 +17,6 @@ describe('pipeline_ui_adapter regen status-removed ordering', () => {
     expect(out[0].type).toBe('flip');
     expect(out[1].type).toBe('status_removed');
     expect(out[1].phase).toBeGreaterThan(out[0].phase);
+    expect(out[1].targets[0].after.special).toBe(null);
   });
 });

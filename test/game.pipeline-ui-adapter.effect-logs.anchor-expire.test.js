@@ -53,7 +53,31 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'black');
 
     expect(out).toEqual([
-      '黒: 十字爆弾: 3個を破壊'
+      '黒: 十字爆弾: 3個を爆破'
+    ]);
+  });
+
+  test('logs x bomb explosion count in placement_effects', () => {
+    const rawEvents = [
+      { type: 'placement_effects', effects: { xBombExploded: true, xBombDestroyed: 4 } }
+    ];
+
+    const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'white');
+
+    expect(out).toEqual([
+      '白: クロス爆弾: 4個を爆破'
+    ]);
+  });
+
+  test('normalizes actor seat keys from padded uppercase values', () => {
+    const rawEvents = [
+      { type: 'udg_expired_start', player: ' WHITE ', details: [{ row: 0, col: 0 }] }
+    ];
+
+    const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'black');
+
+    expect(out).toEqual([
+      '白: 究極破壊神: 親石1個が消滅'
     ]);
   });
 
@@ -81,6 +105,56 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
 
     expect(out).toEqual([
       '黒: 自由の意志:自由な空きマスに配置'
+    ]);
+  });
+
+  test('logs robot vacuum movement/suction/placement wording', () => {
+    const rawEvents = [
+      { type: 'robot_vacuum_moved_start', details: [{ from: { row: 3, col: 3 }, to: { row: 3, col: 4 } }] },
+      { type: 'robot_vacuum_sucked_start', details: [{ row: 3, col: 5 }, { row: 2, col: 5 }] },
+      { type: 'robot_vacuum_destroyed_start', details: [{ row: 3, col: 3 }] },
+      { type: 'placement_effects', effects: { robotVacuumPlaced: true, hyperactivePlaced: true } }
+    ];
+
+    const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'black');
+
+    expect(out).toEqual([
+      '黒: ロボット掃除機石: 1回移動',
+      '黒: ロボット掃除機石: 2個を吸い込み',
+      '黒: ロボット掃除機石: 1個が消滅',
+      '黒: ロボット掃除機石を設置'
+    ]);
+  });
+
+  test('logs observer trigger/expire/placement wording', () => {
+    const rawEvents = [
+      { type: 'observer_triggered_start', details: [{ row: 3, col: 3, owner: 'black', gained: 2 }, { row: 5, col: 5, owner: 'black', gained: 4 }] },
+      { type: 'observer_expired_start', details: [{ row: 3, col: 3 }] },
+      { type: 'placement_effects', effects: { observerPlaced: true } }
+    ];
+
+    const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'black');
+
+    expect(out).toEqual([
+      '黒: 盤理の観測者: 布石+6',
+      '黒: 盤理の観測者: 親石1個が消滅',
+      '黒: 盤理の観測者を設置'
+    ]);
+  });
+
+  test('logs lightning destroy/expire/placement wording', () => {
+    const rawEvents = [
+      { type: 'lightning_destroyed_start', details: [{ row: 3, col: 3 }] },
+      { type: 'lightning_expired_start', details: [{ row: 4, col: 4 }] },
+      { type: 'placement_effects', effects: { lightningPlaced: true } }
+    ];
+
+    const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'black');
+
+    expect(out).toEqual([
+      '黒: 落雷石: 1個を破壊',
+      '黒: 落雷石: 親石1個が消滅',
+      '黒: 落雷の意志: 落雷石を設置'
     ]);
   });
 });

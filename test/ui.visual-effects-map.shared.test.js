@@ -44,4 +44,68 @@ describe('visual-effects map shared between game/ui', () => {
     const imageVar = disc.style.getPropertyValue('--special-stone-image');
     expect(imageVar).toContain('perma_protect_next_stone-black.png');
   });
+
+  test('X_BOMB と CROSS_BOMB が別の石画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared).toBeTruthy();
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.CROSS_BOMB).toBe('crossBombStone');
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.X_BOMB).toBe('xBombStone');
+
+    const crossMap = shared.STONE_VISUAL_EFFECTS.crossBombStone;
+    const xMap = shared.STONE_VISUAL_EFFECTS.xBombStone;
+    expect(crossMap).toBeTruthy();
+    expect(xMap).toBeTruthy();
+    expect(crossMap.imagePathByOwner['1']).toContain('X_BOMB-black.png');
+    expect(crossMap.imagePathByOwner['-1']).toContain('X_BOMB-white.png');
+    expect(xMap.imagePathByOwner['1']).toContain('CROSS_BOMB-black.png');
+    expect(xMap.imagePathByOwner['-1']).toContain('CROSS_BOMB-white.png');
+  });
+
+  test('DESTROY_DRAGON_WILL と DESTROY_DRAGON が正式画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared).toBeTruthy();
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.DESTROY_DRAGON_WILL).toBe('destroyDragonStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.DESTROY_DRAGON).toBe('destroyDragonStone');
+
+    const destroyDragonMap = shared.STONE_VISUAL_EFFECTS.destroyDragonStone;
+    expect(destroyDragonMap).toBeTruthy();
+    expect(destroyDragonMap.imagePathByOwner['1']).toContain('DESTROY_DRAGON-black.png');
+    expect(destroyDragonMap.imagePathByOwner['-1']).toContain('DESTROY_DRAGON-white.png');
+  });
+
+  test('LIGHTNING_WILL と LIGHTNING が正式画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared).toBeTruthy();
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.LIGHTNING_WILL).toBe('lightningStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.LIGHTNING).toBe('lightningStone');
+
+    const lightningMap = shared.STONE_VISUAL_EFFECTS.lightningStone;
+    expect(lightningMap).toBeTruthy();
+    expect(lightningMap.imagePathByOwner['1']).toContain('rakurai-black.png');
+    expect(lightningMap.imagePathByOwner['-1']).toContain('rakurai-white.png');
+  });
+
+  test('GLUTTONOUS_WILL と GLUTTONOUS が悪食石画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared).toBeTruthy();
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.GLUTTONOUS_WILL).toBe('gluttonousStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.GLUTTONOUS).toBe('gluttonousStone');
+
+    const gluttonousMap = shared.STONE_VISUAL_EFFECTS.gluttonousStone;
+    expect(gluttonousMap).toBeTruthy();
+    expect(gluttonousMap.imagePathByOwner['1']).toContain('GLUTTONOUS_WILL-black.png');
+    expect(gluttonousMap.imagePathByOwner['-1']).toContain('GLUTTONOUS_WILL-white.png');
+  });
 });

@@ -1,0 +1,94 @@
+// ===== Card System (Phase 3) =====
+// Uses shared CardLogic for state management and core operations
+// Uses SeededPRNG for deterministic game initialization
+
+if (typeof CardLogic === 'undefined') {
+    console.error('CardLogic is not loaded. Please include game/logic/cards.js');
+}
+
+// Global card state container (reference stable)
+let cardState = {};
+
+// Animation flag
+let isCardAnimating = false;
+
+// Global PRNG for deterministic game - seeded at game start
+let gamePrng = null;
+
+/**
+ * Initialize or reset the game PRNG with a seed.
+ * @param {number} [seed] - Optional seed. If omitted, uses current time.
+ */
+function initGamePrng(seed) {
+    // For online/replay determinism, do NOT fall back to Math.random.
+    // SeededPRNG must be loaded (index.html includes game/schema/prng.js).
+    if (typeof SeededPRNG === 'undefined' || !SeededPRNG || typeof SeededPRNG.createPRNG !== 'function') {
+        throw new Error('[CardSystem] SeededPRNG is required but not available');
+    }
+
+    gamePrng = SeededPRNG.createPRNG(seed !== undefined ? seed : Date.now());
+    console.log('[CardSystem] PRNG initialized with seed:', gamePrng._seed);
+}
+
+/**
+ * Get the current game PRNG (for injection into CardLogic)
+ */
+function getGamePrng() {
+    if (!gamePrng) {
+        initGamePrng();
+    }
+    return gamePrng;
+}
+
+// ===== Card State Management =====
+
+function initCardState(seed) {
+    // Initialize PRNG if not already done
+    initGamePrng(seed);
+
+    const prng = getGamePrng();
+    const newState = CardLogic.createCardState(prng);
+
+    // Wipe and copy properties to maintain global reference
+    for (const key in cardState) delete cardState[key];
+    Object.assign(cardState, newState);
+
+    const blackDeckCount = (cardState.decks && Array.isArray(cardState.decks.black)) ? cardState.decks.black.length : (Array.isArray(cardState.deck) ? cardState.deck.length : 0);
+    const whiteDeckCount = (cardState.decks && Array.isArray(cardState.decks.white)) ? cardState.decks.white.length : (Array.isArray(cardState.deck) ? cardState.deck.length : 0);
+    console.log('🎴 Deck initialized with', `black=${blackDeckCount}, white=${whiteDeckCount}`);
+    // For browser test harness: expose cardState on global scope when available
+    if (typeof globalThis !== 'undefined') globalThis.cardState = cardState;
+}
+
+// Exports for CommonJS (tests)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        initCardState,
+        commitDraw,
+        drawCard,
+        getCardState: () => cardState
+    };
+}
+
+function commitDraw(player) {
+    const playerKey = player === BLACK ? 'black' : 'white';
+    const prng = getGamePrng();
+    const playerDeck = (cardState.decks && Array.isArray(cardState.decks[playerKey]))
+        ? cardState.decks[playerKey]
+        : (Array.isArray(cardState.deck) ? cardState.deck : []);
+
+    // Check deck state before draw for logging
+    const wasDeckEmpty = playerDeck.length === 0;
+
+    const cardId = CardLogic.commitDraw(cardState, playerKey, prng);
+
+    if (cardId === null && wasDeckEmpty) {
+        addLog(`${playerKey === 'black' ? '黒' : '白'}の山札が空のためドローなし`);
+    }
+
+    return cardId;
+}
+
+function drawCard(player) {
+    return commitDraw(player);
+}

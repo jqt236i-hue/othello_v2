@@ -30,8 +30,18 @@ describe('selfplay benchmark policy script', () => {
         expect(args.games).toBe(8);
         expect(args.seed).toBe(9);
         expect(args.maxPlies).toBe(77);
-        expect(args.policyA).toEqual({ allowCardUsage: false, cardUsageRate: 0.1 });
-        expect(args.policyB).toEqual({ allowCardUsage: true, cardUsageRate: 0.3 });
+        expect(args.policyA).toEqual({
+            allowCardUsage: false,
+            cardUsageRate: 0.1,
+            policyScoreWeight: 1,
+            heuristicWeight: 1
+        });
+        expect(args.policyB).toEqual({
+            allowCardUsage: true,
+            cardUsageRate: 0.3,
+            policyScoreWeight: 1,
+            heuristicWeight: 1
+        });
         expect(args.modelAPath).toContain(path.join('data', 'models', 'policy-table.json'));
     });
 
@@ -47,10 +57,17 @@ describe('selfplay benchmark policy script', () => {
         const b = runBenchmark(options);
 
         expect(a).toEqual(b);
-        expect(a.schemaVersion).toBe('selfplay.v1');
+        expect(a.schemaVersion).toBe('selfplay.v2');
         expect(a.result.totalGames).toBe(4);
         expect(a.result.totals.A + a.result.totals.B + a.result.totals.draw).toBe(4);
         expect(a.result.totals.A).toBe(a.result.totals.B);
+        expect(a.result.quality.A).toHaveProperty('finalCornerShare');
+        expect(a.result.quality.A).toHaveProperty('finalEdgeShare');
+        expect(a.result.quality.A).toHaveProperty('cornerRecoveryRate');
+        expect(a.result.quality.A).toHaveProperty('cornerRecaptureRate');
+        expect(a.result.quality.A).toHaveProperty('edgeHoldRate');
+        expect(a.result.quality.A).toHaveProperty('avgCornerHoldTurnsNext3Plies');
+        expect(a.result.quality.A).toHaveProperty('avgCardFutureDiscDelta3Ply');
     });
 
     test('runBenchmark accepts model path options', () => {
@@ -74,5 +91,41 @@ describe('selfplay benchmark policy script', () => {
         expect(out.config.policyB.hasModel).toBe(false);
         expect(out.result.totalGames).toBe(2);
         fs.unlinkSync(modelPath);
+    });
+
+    test('runBenchmark emits progress callbacks', () => {
+        const logs = [];
+        runBenchmark({
+            games: 2,
+            seed: 3,
+            maxPlies: 60,
+            policyA: { allowCardUsage: false, cardUsageRate: 0 },
+            policyB: { allowCardUsage: false, cardUsageRate: 0 },
+            onProgress: (one) => logs.push(one)
+        });
+
+        expect(logs.length).toBe(4);
+        expect(logs[logs.length - 1].completed).toBe(4);
+        expect(logs[logs.length - 1].total).toBe(4);
+    });
+
+    test('runBenchmark honors card enable flags during simulation', () => {
+        const withCards = runBenchmark({
+            games: 2,
+            seed: 19,
+            maxPlies: 220,
+            policyA: { allowCardUsage: true, cardUsageRate: 1 },
+            policyB: { allowCardUsage: true, cardUsageRate: 1 }
+        });
+        const noCards = runBenchmark({
+            games: 2,
+            seed: 19,
+            maxPlies: 220,
+            policyA: { allowCardUsage: false, cardUsageRate: 0 },
+            policyB: { allowCardUsage: false, cardUsageRate: 0 }
+        });
+
+        expect(withCards.result.quality.A.useCardActions + withCards.result.quality.B.useCardActions).toBeGreaterThan(0);
+        expect(noCards.result.quality.A.useCardActions + noCards.result.quality.B.useCardActions).toBe(0);
     });
 });

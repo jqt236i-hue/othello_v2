@@ -1,4 +1,7 @@
 const CardLogic = require('../game/logic/cards');
+const Core = require('../game/logic/core');
+const BoardOps = require('../game/logic/board_ops');
+const TurnPipelinePhases = require('../game/turn/turn_pipeline_phases');
 
 describe('ULTIMATE_HYPERACTIVE_GOD', () => {
   function makeState() {
@@ -33,11 +36,63 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
       m.data.type === 'ULTIMATE_HYPERACTIVE'
     );
     expect(marker).toBeTruthy();
+    expect(marker.data.remainingOwnerTurns).toBe(10);
+    expect(marker.data.flipEvadeRemaining).toBe(5);
   });
 
-  test('moves exactly two times by one cell each when spaces remain', () => {
+  test('owner turn only decrements duration, and on 10th owner turn it self-destructs', () => {
     const { cardState, gameState } = makeState();
     gameState.board[3][3] = 1;
+    cardState.markers.push({
+      id: 101,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 }
+    });
+
+    // Non-owner turn: moves may occur, but duration should not decrement.
+    let marker = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
+    CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, 'black', marker.row, marker.col, { random: () => 0.1 }, {
+      currentTurnPlayerKey: 'white'
+    });
+    marker = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
+    expect(marker).toBeTruthy();
+    expect(marker.data.remainingOwnerTurns).toBe(10);
+
+    // Owner turns: decrement each time, expire on the 10th owner turn.
+    for (let i = 0; i < 9; i++) {
+      marker = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
+      expect(marker).toBeTruthy();
+      CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, 'black', marker.row, marker.col, { random: () => 0.1 }, {
+        currentTurnPlayerKey: 'black'
+      });
+      const after = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
+      expect(after).toBeTruthy();
+      expect(after.data.remainingOwnerTurns).toBe(9 - i);
+    }
+
+    marker = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
+    expect(marker).toBeTruthy();
+    const last = CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, 'black', marker.row, marker.col, { random: () => 0.1 }, {
+      currentTurnPlayerKey: 'black'
+    });
+    expect(last.destroyed || []).toHaveLength(1);
+    const after = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
+    expect(after).toBeUndefined();
+  });
+
+  test('moves two times with straight-line jumps and can jump over occupied stones', () => {
+    const { cardState, gameState } = makeState();
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        gameState.board[r][c] = 1;
+      }
+    }
+    gameState.board[3][3] = 1;
+    gameState.board[3][6] = 0;
+
     cardState.markers.push({
       id: 1,
       kind: 'specialStone',
@@ -47,34 +102,32 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
       data: { type: 'ULTIMATE_HYPERACTIVE' }
     });
 
-    // First step: only (3,4) is empty around (3,3).
-    for (const [r, c] of [[2,2], [2,3], [2,4], [3,2], [4,2], [4,3], [4,4]]) {
-      gameState.board[r][c] = 1;
-    }
-    // Around (3,4), keep only (3,3) and (3,5) empty; choose (3,5) by PRNG.
-    for (const [r, c] of [[2,5], [4,5]]) {
-      gameState.board[r][c] = 1;
-    }
-
-    const seq = [0.0, 0.99];
-    const prng = { random: () => (seq.length ? seq.shift() : 0.5) };
-    const res = CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, 'black', 3, 3, prng);
+    const res = CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, 'black', 3, 3, { random: () => 0.1 });
 
     expect(res.destroyed).toEqual([]);
     expect(res.moved.length).toBe(2);
-    for (const m of res.moved) {
-      const manhattan = Math.abs(m.to.row - m.from.row) + Math.abs(m.to.col - m.from.col);
-      expect(manhattan).toBe(1);
-    }
+    expect(res.moved[0].from).toEqual({ row: 3, col: 3 });
+    expect(res.moved[0].to).toEqual({ row: 3, col: 6 });
+    expect(res.moved[1].from).toEqual({ row: 3, col: 6 });
+    expect(res.moved[1].to).toEqual({ row: 3, col: 3 });
+    expect(Math.max(Math.abs(res.moved[0].to.row - res.moved[0].from.row), Math.abs(res.moved[0].to.col - res.moved[0].from.col))).toBe(3);
+    expect(Math.max(Math.abs(res.moved[1].to.row - res.moved[1].from.row), Math.abs(res.moved[1].to.col - res.moved[1].from.col))).toBe(3);
+    expect(gameState.board[3][4]).toBe(1);
+    expect(gameState.board[3][5]).toBe(1);
 
     const marker = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
     expect(marker.row).toBe(3);
-    expect(marker.col).toBe(5);
-    expect(gameState.board[3][5]).toBe(1);
+    expect(marker.col).toBe(3);
+    expect(gameState.board[3][3]).toBe(1);
   });
 
-  test('self-destructs immediately when no adjacent empty cell exists', () => {
+  test('self-destructs immediately when no reachable empty cell exists in straight 1-5 range', () => {
     const { cardState, gameState } = makeState();
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        gameState.board[r][c] = 1;
+      }
+    }
     gameState.board[3][3] = 1;
     cardState.markers.push({
       id: 2,
@@ -84,13 +137,6 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
       owner: 'black',
       data: { type: 'ULTIMATE_HYPERACTIVE' }
     });
-
-    for (let dr = -1; dr <= 1; dr++) {
-      for (let dc = -1; dc <= 1; dc++) {
-        if (dr === 0 && dc === 0) continue;
-        gameState.board[3 + dr][3 + dc] = 1;
-      }
-    }
 
     const res = CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, 'black', 3, 3, { random: () => 0.1 });
     expect(res.moved).toEqual([]);
@@ -102,7 +148,15 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
 
   test('flips capturable stones after landing (same rule as hyperactive)', () => {
     const { cardState, gameState } = makeState();
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        gameState.board[r][c] = 1;
+      }
+    }
     gameState.board[3][3] = 1;
+    gameState.board[3][6] = 0;
+    gameState.board[3][5] = -1;
+
     cardState.markers.push({
       id: 3,
       kind: 'specialStone',
@@ -112,24 +166,19 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
       data: { type: 'ULTIMATE_HYPERACTIVE' }
     });
 
-    // Force first step destination to (3,4).
-    for (const [r, c] of [[2,2], [2,3], [3,2], [4,2], [4,3]]) {
-      gameState.board[r][c] = 1;
-    }
-    gameState.board[2][4] = 1;
-    gameState.board[4][4] = 1;
-    // From landing (3,4), line 3,5(enemy)-3,6(self) is capturable.
-    gameState.board[3][5] = -1;
-    gameState.board[3][6] = 1;
-
     const res = CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, 'black', 3, 3, { random: () => 0.1 });
     const flippedSet = new Set((res.flipped || []).map(p => `${p.row},${p.col}`));
     expect(flippedSet.has('3,5')).toBe(true);
     expect(gameState.board[3][5]).toBe(1);
   });
 
-  test('self-destruction destroys adjacent enemy stones in 8 directions', () => {
+  test('when surrounded with no move destination, only itself disappears', () => {
     const { cardState, gameState } = makeState();
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        gameState.board[r][c] = -1;
+      }
+    }
     gameState.board[3][3] = 1;
     cardState.markers.push({
       id: 4,
@@ -151,10 +200,183 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     const destroyedSet = new Set((res.destroyed || []).map(p => `${p.row},${p.col}`));
 
     for (const [r, c] of around) {
-      expect(gameState.board[r][c]).toBe(0);
-      expect(destroyedSet.has(`${r},${c}`)).toBe(true);
+      expect(gameState.board[r][c]).toBe(-1);
+      expect(destroyedSet.has(`${r},${c}`)).toBe(false);
     }
     expect(gameState.board[3][3]).toBe(0);
     expect(destroyedSet.has('3,3')).toBe(true);
+  });
+
+  test('active ultimate hyperactive is no longer treated as flip-protected context stone', () => {
+    const { cardState } = makeState();
+    cardState.markers.push({
+      id: 40,
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 }
+    });
+
+    const context = CardLogic.getCardContext(cardState);
+    expect(Array.isArray(context.permaProtectedStones)).toBe(true);
+    expect(context.permaProtectedStones.some((s) => s.row === 2 && s.col === 2)).toBe(false);
+  });
+
+  test('ultimate hyperactive can evade flips repeatedly during duration', () => {
+    const prng = { shuffle: (arr) => arr, random: () => 0 };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY)),
+      currentPlayer: Core.WHITE
+    };
+
+    gameState.board[3][3] = Core.WHITE;
+    gameState.board[3][4] = Core.WHITE;
+    gameState.board[3][5] = Core.BLACK;
+    gameState.board[2][3] = Core.BLACK;
+    gameState.board[2][4] = Core.BLACK;
+    gameState.board[4][2] = Core.BLACK;
+    gameState.board[4][3] = Core.BLACK;
+    gameState.board[4][4] = Core.BLACK;
+
+    cardState.markers.push({
+      id: 41,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'white',
+      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 }
+    });
+
+    const events1 = [];
+    TurnPipelinePhases.applyActionPhase(
+      CardLogic,
+      Core,
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 3, col: 2 },
+      events1,
+      prng,
+      BoardOps
+    );
+
+    let marker = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
+    expect(marker).toBeTruthy();
+    expect(marker.row).toBe(2);
+    expect(marker.col).toBe(2);
+    expect(gameState.board[3][4]).toBe(Core.BLACK);
+    expect(events1.some((ev) => ev && ev.type === 'ultimate_hyperactive_moved_immediate')).toBe(true);
+
+    gameState.board[1][2] = Core.BLACK;
+    gameState.board[1][3] = Core.BLACK;
+    gameState.board[3][1] = Core.BLACK;
+    gameState.board[3][3] = Core.BLACK;
+
+    const events2 = [];
+    TurnPipelinePhases.applyActionPhase(
+      CardLogic,
+      Core,
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 2, col: 1 },
+      events2,
+      prng,
+      BoardOps
+    );
+
+    marker = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
+    expect(marker).toBeTruthy();
+    expect(marker.row).toBe(1);
+    expect(marker.col).toBe(1);
+    expect(events2.some((ev) => ev && ev.type === 'ultimate_hyperactive_moved_immediate')).toBe(true);
+  });
+
+  test('ultimate hyperactive flip evasion is capped at 5 uses', () => {
+    const prng = { shuffle: (arr) => arr, random: () => 0 };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY)),
+      currentPlayer: Core.BLACK
+    };
+
+    gameState.board[4][4] = Core.WHITE;
+    cardState.markers.push({
+      id: 411,
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'white',
+      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 }
+    });
+
+    for (let i = 0; i < 5; i++) {
+      const markerBefore = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
+      expect(markerBefore).toBeTruthy();
+
+      const res = CardLogic.resolveHyperactiveFlipEvasion(
+        cardState,
+        gameState,
+        [[markerBefore.row, markerBefore.col]],
+        'black',
+        prng
+      );
+
+      expect(Array.isArray(res.remainingFlips)).toBe(true);
+      expect(res.remainingFlips).toHaveLength(0);
+      expect(Array.isArray(res.moved)).toBe(true);
+      expect(res.moved).toHaveLength(1);
+
+      const markerAfter = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
+      expect(markerAfter).toBeTruthy();
+      expect(markerAfter.data.flipEvadeRemaining).toBe(4 - i);
+      expect(gameState.board[markerAfter.row][markerAfter.col]).toBe(Core.WHITE);
+    }
+
+    const markerAtCap = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
+    expect(markerAtCap).toBeTruthy();
+    expect(markerAtCap.data.flipEvadeRemaining).toBe(0);
+
+    const resAtCap = CardLogic.resolveHyperactiveFlipEvasion(
+      cardState,
+      gameState,
+      [[markerAtCap.row, markerAtCap.col]],
+      'black',
+      prng
+    );
+
+    expect(Array.isArray(resAtCap.moved)).toBe(true);
+    expect(resAtCap.moved).toHaveLength(0);
+    expect(resAtCap.remainingFlips).toEqual([[markerAtCap.row, markerAtCap.col]]);
+
+    const markerAfterCap = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
+    expect(markerAfterCap).toBeTruthy();
+    expect(markerAfterCap.row).toBe(markerAtCap.row);
+    expect(markerAfterCap.col).toBe(markerAtCap.col);
+    expect(markerAfterCap.data.flipEvadeRemaining).toBe(0);
+  });
+
+  test('expired ultimate hyperactive can be swapped', () => {
+    const { cardState, gameState } = makeState();
+    gameState.board[3][3] = 1;
+    cardState.markers.push({
+      id: 5,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 0 }
+    });
+    cardState.pendingEffectByPlayer.white = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget' };
+
+    const targets = CardLogic.getSelectableTargets(cardState, gameState, 'white');
+    expect(targets.some(t => t.row === 3 && t.col === 3)).toBe(true);
+
+    const ok = CardLogic.applySwapEffect(cardState, gameState, 'white', 3, 3);
+    expect(ok).toBe(true);
+    expect(gameState.board[3][3]).toBe(-1);
+    expect(cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE')).toBeUndefined();
   });
 });

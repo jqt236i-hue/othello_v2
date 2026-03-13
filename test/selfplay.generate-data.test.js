@@ -19,4 +19,97 @@ describe('selfplay generate data script', () => {
     test('parseArgs rejects missing --policy-model path', () => {
         expect(() => parseArgs(['--policy-model', 'missing-policy-model.json'])).toThrow('--policy-model not found:');
     });
+
+    test('parseArgs accepts --policy-model-pool and normalizes paths', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-selfplay-pool-'));
+        const modelA = path.join(tempDir, 'pool-a.json');
+        const modelB = path.join(tempDir, 'pool-b.json');
+        fs.writeFileSync(modelA, JSON.stringify({ schemaVersion: 'policy_table.v2', states: {} }), 'utf8');
+        fs.writeFileSync(modelB, JSON.stringify({ schemaVersion: 'policy_table.v2', states: {} }), 'utf8');
+        try {
+            const args = parseArgs(['--policy-model-pool', `${modelA},${modelB}`]);
+            expect(args.policyModelPoolPaths).toEqual([
+                path.resolve(process.cwd(), modelA),
+                path.resolve(process.cwd(), modelB)
+            ]);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('parseArgs rejects missing --policy-model-pool paths', () => {
+        expect(() => parseArgs(['--policy-model-pool', 'missing-a.json'])).toThrow('--policy-model-pool not found:');
+    });
+
+    test('parseArgs accepts imperfect-information diversity controls', () => {
+        const args = parseArgs([
+            '--policy-mix-rate', '0.72',
+            '--card-usage-rate-jitter', '0.18',
+            '--tactical-weight-min', '0.7',
+            '--tactical-weight-max', '1.6',
+            '--tactical-depth-opening', '4',
+            '--tactical-depth-mid', '8',
+            '--tactical-depth-end', '12',
+            '--tactical-beam-width', '8'
+        ]);
+        expect(args.policyMixRate).toBeCloseTo(0.72, 6);
+        expect(args.cardUsageRateJitter).toBeCloseTo(0.18, 6);
+        expect(args.tacticalWeightMin).toBeCloseTo(0.7, 6);
+        expect(args.tacticalWeightMax).toBeCloseTo(1.6, 6);
+        expect(args.tacticalDepthOpening).toBe(4);
+        expect(args.tacticalDepthMid).toBe(8);
+        expect(args.tacticalDepthEnd).toBe(12);
+        expect(args.tacticalBeamWidth).toBe(8);
+    });
+
+    test('parseArgs validates diversity control ranges', () => {
+        expect(() => parseArgs(['--policy-mix-rate', '1.1'])).toThrow('--policy-mix-rate must be in [0,1]');
+        expect(() => parseArgs(['--card-usage-rate-jitter', '-0.1'])).toThrow('--card-usage-rate-jitter must be in [0,1]');
+        expect(() => parseArgs(['--tactical-weight-min', '-1'])).toThrow('--tactical-weight-min must be >= 0');
+        expect(() => parseArgs(['--tactical-weight-max', '-1'])).toThrow('--tactical-weight-max must be >= 0');
+        expect(() => parseArgs(['--tactical-weight-min', '1.2', '--tactical-weight-max', '0.8'])).toThrow('--tactical-weight-max must be >= --tactical-weight-min');
+        expect(() => parseArgs(['--tactical-depth-opening', '-1'])).toThrow('--tactical-depth-opening must be >= 0');
+        expect(() => parseArgs(['--tactical-depth-mid', '-1'])).toThrow('--tactical-depth-mid must be >= 0');
+        expect(() => parseArgs(['--tactical-depth-end', '-1'])).toThrow('--tactical-depth-end must be >= 0');
+        expect(() => parseArgs(['--tactical-beam-width', '-1'])).toThrow('--tactical-beam-width must be >= 0');
+    });
+
+    test('parseArgs applies resolved profile defaults and derives hardcase split output', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-selfplay-resolved-'));
+        const modelPath = path.join(tempDir, 'bootstrap-policy.json');
+        const resolvedConfigPath = path.join(tempDir, 'resolved-config.json');
+        fs.writeFileSync(modelPath, JSON.stringify({ schemaVersion: 'policy_table.v2', states: {} }), 'utf8');
+        fs.writeFileSync(resolvedConfigPath, JSON.stringify({
+            bootstrap: {
+                bootstrapPolicyModelPath: modelPath
+            },
+            command: {
+                args: [
+                    'scripts/run-selfplay-training-cycle.js',
+                    '--train-games', '321',
+                    '--selfplay-jobs', '7',
+                    '--card-usage-rate', '0.44',
+                    '--no-cards'
+                ]
+            }
+        }, null, 2), 'utf8');
+
+        try {
+            const outPath = path.join(tempDir, 'train.ndjson');
+            const args = parseArgs([
+                '--resolved-config', resolvedConfigPath,
+                '--out', outPath,
+                '--seed-family', 'train'
+            ]);
+            expect(args.games).toBe(321);
+            expect(args.jobs).toBe(7);
+            expect(args.allowCardUsage).toBe(false);
+            expect(args.cardUsageRate).toBeCloseTo(0.44, 6);
+            expect(args.policyModelPath).toBe(path.resolve(process.cwd(), modelPath));
+            expect(args.dataLane).toBe('train-main');
+            expect(args.hardcaseOut).toBe(path.join(path.dirname(outPath), 'train.hardcase.ndjson'));
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
 });

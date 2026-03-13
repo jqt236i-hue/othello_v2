@@ -13,6 +13,31 @@ from typing import Dict, Iterable, Tuple
 
 MODEL_SCHEMA_VERSION = "policy_table.v2"
 NORMALIZATION = "dihedral8_minlex"
+CORNER_RECOVERY_CARD_IDS = {
+    "free_01",
+    "strong_wind_01",
+    "destroy_01",
+    "swap_01",
+    "position_swap_01",
+    "tempt_01",
+    "udg_01",
+    "udr_01",
+    "board_expand_01",
+}
+CORNER_HOLD_CARD_IDS = {
+    "hard_01",
+    "perma_01",
+    "guard_01",
+    "regen_01",
+    "blockade_01",
+}
+CORNER_RISK_CARD_IDS = {
+    "sacrifice_01",
+    "bomb_01",
+    "cross_bomb_01",
+    "instant_hyperactive_01",
+    "hyperactive_01",
+}
 
 
 @dataclass
@@ -177,6 +202,96 @@ def _cell_type(row: int, col: int, size: int = 8) -> str:
     return "inner"
 
 
+def _clamp_signed(value: float) -> float:
+    return max(-1.0, min(1.0, float(value)))
+
+
+def _to_flag(raw: object) -> bool:
+    try:
+        return float(raw or 0) > 0.5
+    except (TypeError, ValueError):
+        return False
+
+
+def _placement_positional_immediate(rec: dict) -> float:
+    if rec.get("actionType") != "place":
+        return 0.0
+    row = rec.get("row")
+    col = rec.get("col")
+    if not isinstance(row, int) or not isinstance(col, int):
+        return 0.0
+
+    pos_kind = _cell_type(int(row), int(col))
+    corner_hold = _to_flag(rec.get("cornerHoldMode"))
+    corner_emergency = _to_flag(rec.get("cornerEmergency"))
+    has_corner_move = _to_flag(rec.get("hasCornerMoveNow"))
+    has_edge_move = _to_flag(rec.get("hasEdgeMoveNow"))
+
+    if pos_kind == "corner":
+        score = float(_TRAINING_CONTEXT["shape_corner_value"])
+    elif pos_kind == "edge":
+        score = float(_TRAINING_CONTEXT["shape_edge_value"])
+    elif pos_kind == "x":
+        score = float(_TRAINING_CONTEXT["shape_x_penalty"])
+    elif pos_kind == "c":
+        score = float(_TRAINING_CONTEXT["shape_c_penalty"])
+    else:
+        score = float(_TRAINING_CONTEXT["shape_inner_value"])
+
+    if corner_hold:
+        if pos_kind == "edge":
+            score += float(_TRAINING_CONTEXT["shape_hold_edge_bonus"])
+        elif pos_kind == "inner":
+            score += float(_TRAINING_CONTEXT["shape_hold_inner_penalty"])
+
+    if corner_emergency and has_corner_move:
+        if pos_kind == "corner":
+            score += float(_TRAINING_CONTEXT["shape_emergency_corner_bonus"])
+        elif pos_kind in ("x", "c"):
+            score += float(_TRAINING_CONTEXT["shape_emergency_x_penalty"])
+
+    if has_edge_move and pos_kind == "edge":
+        score += 0.05
+
+    return _clamp_signed(score)
+
+
+def _card_corner_immediate(rec: dict, disc_immediate: float) -> float:
+    if rec.get("actionType") != "use_card":
+        return 0.0
+
+    card_id = str(rec.get("useCardId") or "").strip()
+    if not card_id:
+        return 0.0
+
+    corner_emergency = _to_flag(rec.get("cornerEmergency"))
+    corner_hold = _to_flag(rec.get("cornerHoldMode"))
+    has_corner_move = _to_flag(rec.get("hasCornerMoveNow"))
+    try:
+        ply = int(rec.get("ply", 0) or 0)
+    except (TypeError, ValueError):
+        ply = 0
+
+    score = 0.0
+    if card_id in CORNER_RECOVERY_CARD_IDS:
+        score += 0.55 if (corner_emergency or not has_corner_move) else 0.18
+    if card_id in CORNER_HOLD_CARD_IDS:
+        score += 0.45 if corner_hold else 0.15
+    if card_id in CORNER_RISK_CARD_IDS and corner_hold and disc_immediate >= 0.0:
+        score -= 0.32
+    if card_id == "sacrifice_01":
+        if ply < 14 and not corner_emergency:
+            score -= 0.85
+        elif not corner_emergency and disc_immediate >= -0.05:
+            score -= 0.55
+        else:
+            score += 0.18
+    if card_id == "bomb_01" and not corner_emergency and disc_immediate >= 0.10:
+        score -= 0.42
+
+    return _clamp_signed(score)
+
+
 def build_abstract_action_key(rec: dict) -> str:
     action_type = rec.get("actionType") or "unknown"
     if action_type == "place":
@@ -298,6 +413,12 @@ def train(records: Iterable[dict], min_visits: int) -> dict:
             "positiveRate": (positive / max(1, lines - skipped)),
             "minVisits": min_visits,
             "shapeImmediate": _TRAINING_CONTEXT["shape_immediate"],
+            "shapeProfile": {
+                "discWeight": _TRAINING_CONTEXT["shape_disc_weight"],
+                "bonusWeight": _TRAINING_CONTEXT["shape_bonus_weight"],
+                "positionalWeight": _TRAINING_CONTEXT["shape_positional_weight"],
+                "cardWeight": _TRAINING_CONTEXT["shape_card_weight"],
+            },
         },
         "states": states,
         "abstractStates": abstract_states,
@@ -316,13 +437,58 @@ def compute_training_target(rec: dict, outcome: float, shape_immediate: float) -
         player = rec.get("player")
         before = (b_before - w_before) if player == "black" else (w_before - b_before)
         after = (b_after - w_after) if player == "black" else (w_after - b_after)
-        immediate = max(-1.0, min(1.0, (after - before) / 64.0))
+        disc_immediate = max(-1.0, min(1.0, (after - before) / 64.0))
     except (TypeError, ValueError):
-        immediate = 0.0
+        disc_immediate = 0.0
+
+    try:
+        selected_bonus = float(rec.get("selectedCellBonus", 0) or 0)
+        max_legal_bonus = float(rec.get("maxLegalMoveBonus", 0) or 0)
+        bonus_denom = max(1.0, max_legal_bonus if max_legal_bonus > 0 else 5.0)
+        bonus_immediate = max(0.0, min(1.0, selected_bonus / bonus_denom))
+    except (TypeError, ValueError):
+        bonus_immediate = 0.0
+
+    positional_immediate = _placement_positional_immediate(rec)
+    card_immediate = _card_corner_immediate(rec, disc_immediate)
+
+    disc_w = max(0.0, float(_TRAINING_CONTEXT["shape_disc_weight"]))
+    bonus_w = max(0.0, float(_TRAINING_CONTEXT["shape_bonus_weight"]))
+    pos_w = max(0.0, float(_TRAINING_CONTEXT["shape_positional_weight"]))
+    card_w = max(0.0, float(_TRAINING_CONTEXT["shape_card_weight"]))
+    total_w = disc_w + bonus_w + pos_w + card_w
+    if total_w <= 0:
+        total_w = 1.0
+        disc_w = 1.0
+        bonus_w = 0.0
+        pos_w = 0.0
+        card_w = 0.0
+
+    immediate = _clamp_signed(
+        ((disc_immediate * disc_w) +
+         (bonus_immediate * bonus_w) +
+         (positional_immediate * pos_w) +
+         (card_immediate * card_w)) / total_w
+    )
     return ((1.0 - alpha) * float(outcome)) + (alpha * immediate)
 
 
-_TRAINING_CONTEXT = {"shape_immediate": 0.0}
+_TRAINING_CONTEXT = {
+    "shape_immediate": 0.0,
+    "shape_disc_weight": 0.48,
+    "shape_bonus_weight": 0.24,
+    "shape_positional_weight": 0.20,
+    "shape_card_weight": 0.08,
+    "shape_corner_value": 1.00,
+    "shape_edge_value": 0.42,
+    "shape_x_penalty": -0.85,
+    "shape_c_penalty": -0.45,
+    "shape_inner_value": 0.00,
+    "shape_hold_edge_bonus": 0.26,
+    "shape_hold_inner_penalty": -0.28,
+    "shape_emergency_corner_bonus": 0.26,
+    "shape_emergency_x_penalty": -0.28,
+}
 
 
 def parse_args() -> argparse.Namespace:

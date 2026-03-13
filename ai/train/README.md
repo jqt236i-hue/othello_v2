@@ -101,7 +101,34 @@ Card-focused preset run (override options after `--`):
 npm run selfplay:train-preset:cards -- --max-hours 6 --seed 1
 ```
 
+## Profile-based isolated long run
+
+新しい学習環境では、既存の `data/models` を直接上書きせず、
+プロファイルごとの隔離ディレクトリで 100 時間ループを起動できる。
+
+解決済み設定だけ先に出力する:
+
+```powershell
+npm run selfplay:resolve-profile -- --profile production_v2
+```
+
+本番主線の 100 時間ループを起動する:
+
+```powershell
+npm run selfplay:train-profile:production
+```
+
+主な出力先:
+
+- 実行設定: `data/runs/production_v2/<runTag>/config.resolved.json`
+- preflight レポート: `data/runs/production_v2/<runTag>/preflight.json`
+- 学習サマリ: `data/runs/production_v2/<runTag>/training-cycle.summary.json`
+- 隔離モデル置き場: `data/models/production_v2/`
+
+必要なら末尾に `-- --max-hours 12` のような上書きを追加できる。
+
 `cards_v1` preset now includes:
+
 - multi-seed adoption checks with average/min/per-seed-pass gates
 - independent seed stream for final adoption
 - browser ONNX gate before promotion

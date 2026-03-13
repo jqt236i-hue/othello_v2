@@ -60,6 +60,46 @@ describe('SWAP_WITH_ENEMY normal-stone only policy', () => {
     expect(gameState.board[4][5]).toBe(1);
   });
 
+  test('applySwapEffect flips bracketed stones created by the swap', () => {
+    const { cardState, gameState } = makeState();
+    // row 3: B W W B  (target: [3,3])
+    gameState.board[3][2] = 1;
+    gameState.board[3][3] = -1;
+    gameState.board[3][4] = -1;
+    gameState.board[3][5] = 1;
+
+    const ok = CardLogic.applySwapEffect(cardState, gameState, 'black', 3, 3);
+    expect(ok).toBe(true);
+    expect(gameState.board[3][3]).toBe(1);
+    expect(gameState.board[3][4]).toBe(1);
+    // swap 本体1 + 挟み反転1
+    expect(cardState.charge.black).toBe(2);
+  });
+
+  test('applySwapEffect does not flip guarded stones', () => {
+    const { cardState, gameState } = makeState();
+    // row 4: B W(guard) W(target) B  -> guard があるため挟み不成立
+    gameState.board[4][2] = 1;
+    gameState.board[4][3] = -1;
+    gameState.board[4][4] = -1;
+    gameState.board[4][5] = 1;
+    cardState.markers.push({
+      id: 11,
+      kind: 'specialStone',
+      row: 4,
+      col: 3,
+      owner: 'white',
+      data: { type: 'GUARD', remainingOwnerTurns: 2 }
+    });
+
+    const ok = CardLogic.applySwapEffect(cardState, gameState, 'black', 4, 4);
+    expect(ok).toBe(true);
+    expect(gameState.board[4][4]).toBe(1);
+    expect(gameState.board[4][3]).toBe(-1);
+    // swap 本体のみ
+    expect(cardState.charge.black).toBe(1);
+  });
+
   test('SWAP treats hidden opponent trap as normal-stone target', () => {
     const { cardState, gameState } = makeState();
     cardState.pendingEffectByPlayer.black = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget', cardId: 'swap_01' };

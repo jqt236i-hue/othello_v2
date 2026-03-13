@@ -49,7 +49,7 @@ describe('STRONG_WIND_WILL', () => {
     expect(res.from).toEqual({ row: 3, col: 3 });
     expect(res.to).toEqual({ row: 3, col: 5 });
     expect(res.movedDistance).toBe(2);
-    expect(res.chargeGained).toBe(2);
+    expect(res.chargeGained).toBe(0);
 
     expect(gameState.board[3][3]).toBe(0);
     expect(gameState.board[3][5]).toBe(1);
@@ -59,7 +59,7 @@ describe('STRONG_WIND_WILL', () => {
     const movedMarker = cardState.markers.find(m => m.id === 'm1');
     expect(movedMarker.row).toBe(3);
     expect(movedMarker.col).toBe(5);
-    expect(cardState.charge.black).toBe(2);
+    expect(cardState.charge.black).toBe(0);
 
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
 
@@ -99,7 +99,7 @@ describe('STRONG_WIND_WILL', () => {
     expect(res && res.applied).toBe(true);
     expect(res.to).toEqual({ row: 7, col: 4 });
     expect(res.movedDistance).toBe(3);
-    expect(cardState.charge.black).toBe(3);
+    expect(cardState.charge.black).toBe(0);
   });
 
   test('chooses randomly among tied longest-distance directions', () => {
@@ -117,6 +117,6 @@ describe('STRONG_WIND_WILL', () => {
     // 0.9 picks second tied option in deterministic array order.
     expect(res.to).toEqual({ row: 5, col: 3 });
     expect(res.movedDistance).toBe(2);
-    expect(cardState.charge.black).toBe(2);
+    expect(cardState.charge.black).toBe(0);
   });
 });

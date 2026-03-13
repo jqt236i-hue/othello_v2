@@ -16,30 +16,7 @@ function processCpuTurn() {
     }
 
     // Fallback (minimal, side-effect free as possible)
-    const action = (typeof computeCpuAction === 'function') ? computeCpuAction('white') : null;
-    if (!action) return;
-
-    if (action.type === 'pass') {
-        // minimal pass handling without UI/timers
-        gameState = applyPass(gameState);
-        clearExpiredProtectionsSafe(gameState.currentPlayer);
-        return;
-    }
-
-    if (action.type === 'useCard') {
-        const cardId = action.cardId;
-        if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyCardUsage === 'function') {
-            CardLogic.applyCardUsage(cardState, gameState, 'white', cardId);
-        }
-        return;
-    }
-
-    if (action.type === 'move') {
-        const move = action.move;
-        // Execute move synchronously; UI orchestration should be handled by handler when available
-        executeMove(move);
-        return;
-    }
+    return runFallbackCpuAction('white');
 }
 
 /**
@@ -51,7 +28,12 @@ function processAutoBlackTurn() {
     }
 
     // Fallback minimal handling
-    const action = (typeof computeCpuAction === 'function') ? computeCpuAction('black') : null;
+    return runFallbackCpuAction('black');
+}
+
+function runFallbackCpuAction(playerKey) {
+    const safePlayerKey = playerKey === 'black' ? 'black' : 'white';
+    const action = (typeof computeCpuAction === 'function') ? computeCpuAction(safePlayerKey) : null;
     if (!action) return;
 
     if (action.type === 'pass') {
@@ -63,7 +45,7 @@ function processAutoBlackTurn() {
     if (action.type === 'useCard') {
         const cardId = action.cardId;
         if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyCardUsage === 'function') {
-            CardLogic.applyCardUsage(cardState, gameState, 'black', cardId);
+            CardLogic.applyCardUsage(cardState, gameState, safePlayerKey, cardId);
         }
         return;
     }
@@ -71,7 +53,6 @@ function processAutoBlackTurn() {
     if (action.type === 'move') {
         const move = action.move;
         executeMove(move);
-        return;
     }
 }
 

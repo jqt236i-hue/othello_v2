@@ -6,6 +6,10 @@ describe('move-executor presentation emission', () => {
         // reset globals
         delete global.BoardOps;
         delete global.PresentationHelper;
+        delete global.onTurnStart;
+        delete global.NetworkMatchClient;
+        delete global.isGameOver;
+        delete global.showResult;
     });
 
     test('executeMoveViaPipeline emits PLAYBACK_EVENTS via PresentationHelper when playbackEvents present', async () => {
@@ -41,5 +45,114 @@ describe('move-executor presentation emission', () => {
         expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalled();
         const call = global.BoardOps.emitPresentationEvent.mock.calls[0];
         expect(call[1] && call[1].type).toBe('PLAYBACK_EVENTS');
+    });
+
+    test('終局時は showResult 後にネットへ最終スナップショットを送る', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
+        global.isGameOver = jest.fn(() => true);
+        global.showResult = jest.fn();
+        global.NetworkMatchClient = {
+            isActive: jest.fn(() => true),
+            publishSnapshot: jest.fn()
+        };
+
+        const moveExecutor = require('../game/move-executor');
+
+        const fakeRes = {
+            ok: true,
+            nextGameState: global.gameState,
+            nextCardState: global.cardState,
+            playbackEvents: [{ type: 'move', phase: 1, targets: [] }],
+            phases: {},
+            placementEffects: {},
+            immediate: {}
+        };
+
+        const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
+        const move = { row: 2, col: 3, player: 1 };
+
+        await moveExecutor.executeMoveViaPipeline(move, false, 'black', adapter, {});
+
+        expect(global.showResult).toHaveBeenCalledTimes(1);
+        expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledTimes(1);
+        expect(global.NetworkMatchClient.publishSnapshot.mock.calls[0][0]).toMatchObject({
+            playerKey: 'black',
+            actionType: 'place'
+        });
+    });
+
+    test('ネット送信にonTurnStart由来の再生イベントを含める', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
+        global.onTurnStart = jest.fn(async () => ({
+            playbackEvents: [
+                {
+                    type: 'move',
+                    phase: 50,
+                    targets: [{ from: { r: 2, col: 3 }, to: { r: 2, col: 4 } }]
+                }
+            ]
+        }));
+        global.NetworkMatchClient = {
+            isActive: jest.fn(() => true),
+            publishSnapshot: jest.fn()
+        };
+
+        const moveExecutor = require('../game/move-executor');
+
+        const fakeRes = {
+            ok: true,
+            nextGameState: global.gameState,
+            nextCardState: global.cardState,
+            playbackEvents: [{ type: 'place', phase: 1, targets: [{ r: 2, col: 3 }] }],
+            phases: {},
+            placementEffects: {},
+            immediate: {}
+        };
+
+        const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
+        const move = { row: 2, col: 3, player: 1 };
+
+        await moveExecutor.executeMoveViaPipeline(move, false, 'black', adapter, {});
+
+        expect(global.onTurnStart).toHaveBeenCalledTimes(1);
+        expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledTimes(1);
+
+        const payload = global.NetworkMatchClient.publishSnapshot.mock.calls[0][0];
+        expect(Array.isArray(payload.playbackEvents)).toBe(true);
+        expect(payload.playbackEvents).toHaveLength(2);
+        expect(payload.playbackEvents[0].type).toBe('place');
+        expect(payload.playbackEvents[1].type).toBe('move');
+    });
+
+    test('hand_remove再生があるときは即時renderCardUIをスキップする', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
+        global.renderCardUI = jest.fn();
+        global.emitCardStateChange = jest.fn();
+
+        const moveExecutor = require('../game/move-executor');
+
+        const fakeRes = {
+            ok: true,
+            nextGameState: global.gameState,
+            nextCardState: global.cardState,
+            playbackEvents: [{ type: 'hand_remove', phase: 1, targets: [{ player: 'white', count: 1 }] }],
+            phases: {},
+            placementEffects: {},
+            immediate: {}
+        };
+
+        const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
+        const move = { row: 2, col: 3, player: 1 };
+
+        await moveExecutor.executeMoveViaPipeline(move, false, 'black', adapter, {});
+
+        expect(global.renderCardUI).not.toHaveBeenCalled();
+        expect(global.emitCardStateChange).not.toHaveBeenCalled();
     });
 });

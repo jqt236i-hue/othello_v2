@@ -48,4 +48,22 @@ describe('CONDEMN_WILL core behavior', () => {
     expect(used).toBe(false);
     expect(cs.pendingEffectByPlayer.black).toBeNull();
   });
+
+  test('applies by hand index even when opponent hand value is hidden token', () => {
+    const cs = createState();
+    cs.hands.black = [];
+    cs.hands.white = ['__hidden_hand__:white:0'];
+    cs.pendingEffectByPlayer.black = {
+      type: 'CONDEMN_WILL',
+      stage: 'selectTarget',
+      offers: [{ handIndex: 0, cardId: 'gold_stone' }]
+    };
+
+    const result = CardLogic.applyCondemnWill(cs, 'black', 0);
+    expect(result.applied).toBe(true);
+    expect(result.destroyedCardId).toBe('gold_stone');
+    expect(cs.pendingEffectByPlayer.black).toBeNull();
+    expect(cs.hands.white).toEqual([]);
+    expect(cs.discard).toContain('__hidden_hand__:white:0');
+  });
 });

@@ -1,4 +1,5 @@
 const path = require('path');
+const zlib = require('zlib');
 const runtime = require(path.resolve(__dirname, '..', 'game', 'ai', 'policy-table-runtime.js'));
 
 describe('policy-table-runtime', () => {
@@ -47,6 +48,74 @@ describe('policy-table-runtime', () => {
     expect(selected).toBe(candidates[0]);
   });
 
+  test('chooseMoveFromModel works without mutating loaded runtime state', () => {
+    const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
+    const canonical = runtime.canonicalizeBoard(board);
+    const stateKey = runtime.makeStateKey('white', canonical.boardKey, null, 2);
+    const model = {
+      schemaVersion: 'policy_table.v2',
+      states: {
+        [stateKey]: {
+          bestAction: '',
+          actions: {
+            'place:0:0': { visits: 1, avgOutcome: 0 },
+            'place:3:3': { visits: 1, avgOutcome: 0 }
+          }
+        }
+      }
+    };
+    const candidates = [
+      { row: 0, col: 0, flips: [] },
+      { row: 3, col: 3, flips: [] }
+    ];
+
+    const selected = runtime.chooseMoveFromModel(model, candidates, {
+      playerKey: 'white',
+      level: 6,
+      board,
+      pendingType: null,
+      legalMovesCount: 2
+    });
+
+    expect(selected).toEqual(candidates[0]);
+    expect(runtime.hasModel()).toBe(false);
+  });
+
+  test('getActionScoreFromModel applies the same heuristic tie-break used by chooseMove', () => {
+    const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
+    const canonical = runtime.canonicalizeBoard(board);
+    const stateKey = runtime.makeStateKey('white', canonical.boardKey, null, 2);
+    const model = {
+      schemaVersion: 'policy_table.v2',
+      states: {
+        [stateKey]: {
+          bestAction: '',
+          actions: {
+            'place:0:0': { visits: 1, avgOutcome: 0 },
+            'place:3:3': { visits: 1, avgOutcome: 0 }
+          }
+        }
+      }
+    };
+
+    const cornerScore = runtime.getActionScoreFromModel(model, { row: 0, col: 0, flips: [] }, {
+      playerKey: 'white',
+      level: 6,
+      board,
+      pendingType: null,
+      legalMovesCount: 2
+    });
+    const innerScore = runtime.getActionScoreFromModel(model, { row: 3, col: 3, flips: [] }, {
+      playerKey: 'white',
+      level: 6,
+      board,
+      pendingType: null,
+      legalMovesCount: 2
+    });
+
+    expect(cornerScore).toBeGreaterThan(innerScore);
+  });
+
   test('chooseMove returns null below min level', () => {
     const board = [[0]];
     const stateKey = runtime.makeStateKey('white', board, null, 1);
@@ -90,6 +159,42 @@ describe('policy-table-runtime', () => {
     const ok = await runtime.loadFromUrl('data/models/policy-table.json', fetchImpl);
     expect(ok).toBe(true);
     expect(fetchImpl).toHaveBeenCalled();
+    expect(runtime.hasModel()).toBe(true);
+  });
+
+  test('loadFromUrl follows manifest and inflates gzip payload', async () => {
+    const board = [[0]];
+    const stateKey = runtime.makeStateKey('white', board, null, 1);
+    const fakeModel = {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      states: {
+        [stateKey]: {
+          bestAction: 'place:0:0',
+          actions: { 'place:0:0': { visits: 2, avgOutcome: 0.25 } }
+        }
+      }
+    };
+    const compressed = zlib.gzipSync(Buffer.from(JSON.stringify(fakeModel), 'utf8'));
+    const fetchImpl = jest.fn(async (url) => {
+      if (String(url).endsWith('.json')) {
+        return {
+          ok: true,
+          json: async () => ({
+            assetType: 'policy_table.redirect.v1',
+            compression: 'gzip',
+            url: 'data/models/policy-table.json.gz'
+          })
+        };
+      }
+      return {
+        ok: true,
+        arrayBuffer: async () => compressed.buffer.slice(compressed.byteOffset, compressed.byteOffset + compressed.byteLength)
+      };
+    });
+
+    const ok = await runtime.loadFromUrl('data/models/policy-table.json', fetchImpl);
+    expect(ok).toBe(true);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(runtime.hasModel()).toBe(true);
   });
 

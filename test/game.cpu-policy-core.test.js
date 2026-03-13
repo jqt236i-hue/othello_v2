@@ -1,6 +1,14 @@
 const core = require('../game/ai/cpu-policy-core');
+const catalog = require('../cards/catalog.json');
 
 describe('cpu-policy-core', () => {
+    test('every catalog card type has explicit CPU usage style coverage', () => {
+        const catalogTypes = [...new Set((catalog.cards || []).map((card) => String(card.type || '').trim()).filter(Boolean))];
+        expect(catalogTypes.length).toBeGreaterThan(0);
+        const missing = catalogTypes.filter((type) => !core.hasUsageStyleForCardType(type));
+        expect(missing).toEqual([]);
+    });
+
     test('chooseHighestCostCard picks max-cost card', () => {
         const usable = ['a', 'b', 'c'];
         const costs = { a: 5, b: 12, c: 7 };
@@ -44,10 +52,233 @@ describe('cpu-policy-core', () => {
         expect(selected).toEqual(moves[1]);
     });
 
+    test('chooseMoveByLookahead prefers corner capture on valid corner line', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[0][1] = 1;
+        board[0][2] = 1;
+        board[0][3] = 1;
+        board[0][4] = -1;
+        board[3][3] = -1;
+        board[3][4] = 1;
+        board[4][3] = 1;
+        board[4][4] = -1;
+
+        const cornerMove = { row: 0, col: 0, flips: [{ row: 0, col: 1 }, { row: 0, col: 2 }, { row: 0, col: 3 }] };
+        const innerMove = { row: 2, col: 4, flips: [{ row: 3, col: 4 }] };
+
+        const selected = core.chooseMoveByLookahead([innerMove, cornerMove], {
+            board,
+            playerValue: -1,
+            level: 6
+        });
+        expect(selected).toEqual(cornerMove);
+    });
+
+    test('chooseMoveByLookahead can use prior score to break near-tie roots', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[3][3] = -1;
+        board[3][4] = 1;
+        board[4][3] = 1;
+        board[4][4] = -1;
+
+        const moveA = { row: 2, col: 4, flips: [{ row: 3, col: 4 }] };
+        const moveB = { row: 4, col: 2, flips: [{ row: 4, col: 3 }] };
+
+        const selected = core.chooseMoveByLookahead([moveA, moveB], {
+            board,
+            playerValue: -1,
+            level: 6,
+            scoreMove: (move) => (move === moveB ? 99999 : 0)
+        });
+        expect(selected).toEqual(moveB);
+    });
+
+    test('chooseMoveByLookahead avoids move that immediately opens opponent corner access', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[0][2] = 1;
+        board[2][0] = 1;
+        board[3][3] = 1;
+        board[3][4] = -1;
+        board[4][3] = -1;
+        board[4][4] = 1;
+
+        const riskyMove = {
+            row: 1,
+            col: 1,
+            flips: [{ row: 0, col: 1 }, { row: 1, col: 0 }]
+        };
+        const saferMove = {
+            row: 3,
+            col: 2,
+            flips: [{ row: 3, col: 3 }]
+        };
+
+        const selected = core.chooseMoveByLookahead([riskyMove, saferMove], {
+            board,
+            playerValue: -1,
+            level: 6,
+            depth: 1,
+            maxBranch: 2,
+            nodeBudget: 2000
+        });
+        expect(selected).toEqual(saferMove);
+    });
+
+    test('chooseMoveByLookahead applies lv6 hard guard against immediate corner donation', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[0][2] = 1;
+        board[2][0] = 1;
+        board[3][3] = 1;
+        board[3][4] = -1;
+        board[4][3] = -1;
+        board[4][4] = 1;
+
+        const riskyMove = {
+            row: 1,
+            col: 1,
+            flips: [{ row: 0, col: 1 }, { row: 1, col: 0 }]
+        };
+        const saferMove = {
+            row: 3,
+            col: 2,
+            flips: [{ row: 3, col: 3 }]
+        };
+
+        const selected = core.chooseMoveByLookahead([riskyMove, saferMove], {
+            board,
+            playerValue: -1,
+            level: 6,
+            depth: 1,
+            maxBranch: 2,
+            nodeBudget: 2000,
+            // Force prior-only ranking so the guard behavior is explicitly tested.
+            searchWeight: 0,
+            priorWeight: 400,
+            scoreMove: (move) => (move === riskyMove ? 999999 : 0)
+        });
+        expect(selected).toEqual(saferMove);
+    });
+
+    test('chooseMoveByLookahead always takes a corner when any corner candidate exists at lv6', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[3][3] = -1;
+        board[3][4] = 1;
+        board[4][3] = 1;
+        board[4][4] = -1;
+        board[0][1] = 1;
+        board[0][2] = 1;
+        board[0][3] = -1;
+
+        const cornerMove = { row: 0, col: 0, flips: [{ row: 0, col: 1 }, { row: 0, col: 2 }] };
+        const innerMove = { row: 2, col: 4, flips: [{ row: 3, col: 4 }] };
+
+        const selected = core.chooseMoveByLookahead([innerMove, cornerMove], {
+            board,
+            playerValue: -1,
+            level: 6,
+            depth: 1,
+            maxBranch: 2,
+            nodeBudget: 2000,
+            // make inner prior extremely large: lv6 hard guard should still force corner.
+            searchWeight: 0,
+            priorWeight: 500,
+            scoreMove: (move) => (move === innerMove ? 999999 : 0)
+        });
+        expect(selected).toEqual(cornerMove);
+    });
+
+    test('chooseMoveByLookahead prefers safe edge over inner move when already leading corners', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[0][0] = -1;
+        board[0][7] = -1;
+        board[3][3] = -1;
+        board[3][4] = 1;
+        board[4][3] = 1;
+        board[4][4] = -1;
+
+        const innerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+        const edgeMove = { row: 0, col: 4, flips: [{ row: 0, col: 3 }] };
+
+        const selected = core.chooseMoveByLookahead([innerMove, edgeMove], {
+            board,
+            playerValue: -1,
+            level: 6,
+            depth: 1,
+            maxBranch: 2,
+            nodeBudget: 2000,
+            // force prior to prefer inner; lv6 edge-hold guard should switch to edge.
+            searchWeight: 0,
+            priorWeight: 500,
+            scoreMove: (move) => (move === innerMove ? 999999 : 0)
+        });
+        expect(selected).toEqual(edgeMove);
+    });
+
+    test('chooseMoveByLookahead prefers safe edge over inner move when no corner exists at Lv6', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[0][0] = -1;
+        board[7][7] = 1;
+        board[3][3] = -1;
+        board[3][4] = 1;
+        board[4][3] = 1;
+        board[4][4] = -1;
+
+        const innerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+        const edgeMove = { row: 0, col: 4, flips: [{ row: 0, col: 3 }] };
+
+        const selected = core.chooseMoveByLookahead([innerMove, edgeMove], {
+            board,
+            playerValue: -1,
+            level: 6,
+            depth: 1,
+            maxBranch: 2,
+            nodeBudget: 2000,
+            searchWeight: 0,
+            priorWeight: 500,
+            scoreMove: (move) => (move === innerMove ? 999999 : 0)
+        });
+        expect(selected).toEqual(edgeMove);
+    });
+
+    test('chooseMoveByLookahead enables 30-ply endgame mode when empties are low', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(1));
+        const empties = [
+            [0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7],
+            [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7],
+            [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7],
+            [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5]
+        ];
+        for (const [r, c] of empties) board[r][c] = 0;
+        board[0][1] = -1;
+        board[1][0] = -1;
+        board[2][3] = -1;
+
+        const moveCorner = { row: 0, col: 0, flips: [{ row: 0, col: 1 }, { row: 1, col: 0 }] };
+        const moveInner = { row: 2, col: 2, flips: [{ row: 2, col: 3 }] };
+
+        let meta = null;
+        const selected = core.chooseMoveByLookahead([moveInner, moveCorner], {
+            board,
+            playerValue: 1,
+            level: 6,
+            endgameNodeBudget: 20_000,
+            endgameMaxTimeMs: 120,
+            onSearchMeta: (m) => {
+                meta = m;
+            }
+        });
+
+        expect(selected).toBeTruthy();
+        expect([moveInner, moveCorner]).toContain(selected);
+        expect(meta).toBeTruthy();
+        expect(meta.endgameMode).toBe(true);
+        expect(meta.depth).toBeGreaterThanOrEqual(30);
+    });
+
     test('chooseCardWithRiskProfile avoids high-variance expensive card while ahead', () => {
         const defs = {
             high: { id: 'high', type: 'ULTIMATE_REVERSE_DRAGON' },
-            safe: { id: 'safe', type: 'GUARD_WILL' }
+            safe: { id: 'safe', type: 'HEAVEN_BLESSING' }
         };
         const costs = { high: 30, safe: 2 };
         const selected = core.chooseCardWithRiskProfile(
@@ -81,5 +312,1403 @@ describe('cpu-policy-core', () => {
             }
         );
         expect(out.shouldUse).toBe(true);
+    });
+
+    test('scoreCardUseDecision suppresses SACRIFICE_WILL in opening non-emergency', () => {
+        const out = core.scoreCardUseDecision(
+            'sacrifice',
+            () => 5,
+            () => ({ id: 'sacrifice', type: 'SACRIFICE_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 6,
+                discDiff: 2,
+                empties: 52,
+                ownCorners: 1,
+                oppCorners: 0,
+                ownCharge: 8
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision uses REBUILD_WILL to recover from saturated low-quality hand', () => {
+        const defs = {
+            rebuild: { id: 'rebuild', type: 'REBUILD_WILL' },
+            risk_a: { id: 'risk_a', type: 'SACRIFICE_WILL' },
+            risk_b: { id: 'risk_b', type: 'TIME_BOMB' },
+            risk_c: { id: 'risk_c', type: 'CHAIN_WILL' },
+            silver: { id: 'silver', type: 'SILVER_STONE' }
+        };
+        const out = core.scoreCardUseDecision(
+            'rebuild',
+            () => 0,
+            (id) => defs[id] || null,
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: -4,
+                empties: 34,
+                ownCharge: 10,
+                handSize: 5,
+                handCardIds: ['rebuild', 'risk_a', 'risk_b', 'risk_c', 'silver'],
+                usableCardIds: ['rebuild'],
+                deckRemaining: 12,
+                ownCorners: 0,
+                oppCorners: 1
+            }
+        );
+        expect(out.shouldUse).toBe(true);
+        expect(out.score).toBeGreaterThan(out.minUseScore);
+    });
+
+    test('scoreCardUseDecision suppresses REBUILD_WILL when key cards are held or deck is too thin', () => {
+        const defs = {
+            rebuild: { id: 'rebuild', type: 'REBUILD_WILL' },
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            destroy: { id: 'destroy', type: 'DESTROY_ONE_STONE' },
+            silver: { id: 'silver', type: 'SILVER_STONE' }
+        };
+        const out = core.scoreCardUseDecision(
+            'rebuild',
+            () => 0,
+            (id) => defs[id] || null,
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: 2,
+                empties: 30,
+                ownCharge: 12,
+                handSize: 4,
+                handCardIds: ['rebuild', 'guard', 'destroy', 'silver'],
+                usableCardIds: ['rebuild', 'guard', 'destroy'],
+                deckRemaining: 1,
+                ownCorners: 1,
+                oppCorners: 0
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision uses SUPPLY_WILL to refill a shallow hand', () => {
+        const out = core.scoreCardUseDecision(
+            'supply',
+            () => 1,
+            () => ({ id: 'supply', type: 'SUPPLY_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: -2,
+                empties: 36,
+                ownCharge: 6,
+                handSize: 2,
+                handCardIds: ['supply', 'guard'],
+                usableCardIds: ['supply'],
+                deckRemaining: 10,
+                ownCorners: 0,
+                oppCorners: 1,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true
+            }
+        );
+        expect(out.shouldUse).toBe(true);
+        expect(out.score).toBeGreaterThan(out.minUseScore);
+    });
+
+    test('scoreCardUseDecision suppresses SUPPLY_WILL when hand is full', () => {
+        const out = core.scoreCardUseDecision(
+            'supply',
+            () => 1,
+            () => ({ id: 'supply', type: 'SUPPLY_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: 4,
+                empties: 30,
+                ownCharge: 10,
+                handSize: 5,
+                handCardIds: ['supply', 'guard', 'destroy', 'silver', 'work'],
+                usableCardIds: ['supply', 'guard', 'destroy'],
+                deckRemaining: 10,
+                ownCorners: 1,
+                oppCorners: 0,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision prefers stability cards while ahead with corner-edge lead', () => {
+        const defs = {
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            bomb: { id: 'bomb', type: 'TIME_BOMB' }
+        };
+        const costs = { guard: 8, bomb: 9 };
+        const guardDecision = core.scoreCardUseDecision(
+            'guard',
+            (id) => costs[id],
+            (id) => defs[id] || null,
+            {
+                level: 6,
+                legalMovesCount: 5,
+                discDiff: 10,
+                empties: 18,
+                ownCharge: 16,
+                handSize: 4,
+                ownCorners: 2,
+                oppCorners: 0,
+                ownEdges: 8,
+                oppEdges: 2,
+                hasCornerMoveNow: true,
+                hasEdgeMoveNow: true,
+                cornerEmergency: false
+            }
+        );
+        const bombDecision = core.scoreCardUseDecision(
+            'bomb',
+            (id) => costs[id],
+            (id) => defs[id] || null,
+            {
+                level: 6,
+                legalMovesCount: 5,
+                discDiff: 10,
+                empties: 18,
+                ownCharge: 16,
+                handSize: 4,
+                ownCorners: 2,
+                oppCorners: 0,
+                ownEdges: 8,
+                oppEdges: 2,
+                hasCornerMoveNow: true,
+                hasEdgeMoveNow: true,
+                cornerEmergency: false
+            }
+        );
+
+        expect(guardDecision.score).toBeGreaterThan(bombDecision.score);
+    });
+
+    test('scoreCardUseDecision prefers recovery swing cards while behind in corner-edge deficit', () => {
+        const defs = {
+            recover: { id: 'recover', type: 'DESTROY_ONE_STONE' },
+            guard: { id: 'guard', type: 'GUARD_WILL' }
+        };
+        const costs = { recover: 12, guard: 8 };
+        const recoverDecision = core.scoreCardUseDecision(
+            'recover',
+            (id) => costs[id],
+            (id) => defs[id] || null,
+            {
+                level: 6,
+                legalMovesCount: 3,
+                discDiff: -12,
+                empties: 24,
+                ownCharge: 16,
+                handSize: 4,
+                ownCorners: 0,
+                oppCorners: 2,
+                ownEdges: 2,
+                oppEdges: 7,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true,
+                cornerEmergency: true
+            }
+        );
+        const guardDecision = core.scoreCardUseDecision(
+            'guard',
+            (id) => costs[id],
+            (id) => defs[id] || null,
+            {
+                level: 6,
+                legalMovesCount: 3,
+                discDiff: -12,
+                empties: 24,
+                ownCharge: 16,
+                handSize: 4,
+                ownCorners: 0,
+                oppCorners: 2,
+                ownEdges: 2,
+                oppEdges: 7,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true,
+                cornerEmergency: true
+            }
+        );
+
+        expect(recoverDecision.score).toBeGreaterThan(guardDecision.score);
+        expect(recoverDecision.shouldUse).toBe(true);
+    });
+
+    test('scoreCardUseDecision boosts edge contest cards when edge control is collapsing', () => {
+        const defs = {
+            destroy: { id: 'destroy', type: 'DESTROY_ONE_STONE' },
+            heaven: { id: 'heaven', type: 'HEAVEN_BLESSING' }
+        };
+        const costs = { destroy: 12, heaven: 6 };
+        const destroyDecision = core.scoreCardUseDecision(
+            'destroy',
+            (id) => costs[id],
+            (id) => defs[id] || null,
+            {
+                level: 6,
+                legalMovesCount: 2,
+                discDiff: -4,
+                empties: 32,
+                ownCharge: 14,
+                handSize: 4,
+                ownCorners: 1,
+                oppCorners: 1,
+                ownEdges: 1,
+                oppEdges: 6,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        const heavenDecision = core.scoreCardUseDecision(
+            'heaven',
+            (id) => costs[id],
+            (id) => defs[id] || null,
+            {
+                level: 6,
+                legalMovesCount: 2,
+                discDiff: -4,
+                empties: 32,
+                ownCharge: 14,
+                handSize: 4,
+                ownCorners: 1,
+                oppCorners: 1,
+                ownEdges: 1,
+                oppEdges: 6,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+
+        expect(destroyDecision.score).toBeGreaterThan(heavenDecision.score);
+    });
+
+    test('scoreCardUseDecision prefers stopping SACRIFICE_WILL after first pick when stable', () => {
+        const out = core.scoreCardUseDecision(
+            'sacrifice',
+            () => 5,
+            () => ({ id: 'sacrifice', type: 'SACRIFICE_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: 4,
+                empties: 30,
+                ownCorners: 1,
+                oppCorners: 0,
+                sacrificeSelectedCount: 1,
+                ownCharge: 11
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision lowers min threshold when hand is saturated', () => {
+        const out = core.scoreCardUseDecision(
+            'chain',
+            () => 3,
+            () => ({ id: 'chain', type: 'CHAIN_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: 1,
+                empties: 36,
+                ownCharge: 10,
+                handSize: 5
+            }
+        );
+        expect(out.minUseScore).toBeLessThan(14);
+    });
+
+    test('scoreCardUseDecision suppresses HEAVEN_BLESSING when hand is saturated in endgame', () => {
+        const out = core.scoreCardUseDecision(
+            'heaven',
+            () => 3,
+            () => ({ id: 'heaven', type: 'HEAVEN_BLESSING' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                discDiff: 6,
+                empties: 10,
+                ownCharge: 20,
+                handSize: 5,
+                ownCorners: 2,
+                oppCorners: 0,
+                hasCornerMoveNow: true,
+                deckRemaining: 2
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision uses BLOCKADE_WILL more aggressively under low mobility and corner pressure', () => {
+        const out = core.scoreCardUseDecision(
+            'blockade',
+            () => 1,
+            () => ({ id: 'blockade', type: 'BLOCKADE_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 1,
+                discDiff: -6,
+                empties: 20,
+                ownCharge: 8,
+                handSize: 3,
+                ownCorners: 0,
+                oppCorners: 1,
+                ownEdges: 1,
+                oppEdges: 5,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: false,
+                cornerEmergency: true
+            }
+        );
+        expect(out.shouldUse).toBe(true);
+        expect(out.score).toBeGreaterThan(out.minUseScore);
+    });
+
+    test('scoreCardUseDecision uses GOLD_STONE when immediate charge ROI is high', () => {
+        const out = core.scoreCardUseDecision(
+            'gold',
+            () => 6,
+            () => ({ id: 'gold', type: 'GOLD_STONE' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: -3,
+                empties: 28,
+                ownCharge: 14,
+                handSize: 3,
+                ownCorners: 1,
+                oppCorners: 1,
+                hasCornerMoveNow: true,
+                maxLegalFlips: 4,
+                maxLegalGain: 5,
+                avgLegalFlips: 2.8
+            }
+        );
+        expect(out.shouldUse).toBe(true);
+    });
+
+    test('scoreCardUseDecision lowers white Lv6 threshold for safe card under hand and charge pressure', () => {
+        const out = core.scoreCardUseDecision(
+            'treasure',
+            () => 6,
+            () => ({ id: 'treasure', type: 'TREASURE_BOX' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 2,
+                discDiff: 2,
+                empties: 28,
+                ownCorners: 1,
+                oppCorners: 1,
+                ownEdges: 0,
+                oppEdges: 0,
+                ownCharge: 40,
+                handSize: 5
+            }
+        );
+        expect(out.shouldUse).toBe(true);
+        expect(out.minUseScore).toBeLessThanOrEqual(8);
+    });
+
+    test('scoreCardUseDecision suppresses GOLD_STONE when immediate charge ROI is poor', () => {
+        const out = core.scoreCardUseDecision(
+            'gold',
+            () => 6,
+            () => ({ id: 'gold', type: 'GOLD_STONE' }),
+            {
+                level: 6,
+                legalMovesCount: 5,
+                discDiff: 10,
+                empties: 20,
+                ownCharge: 14,
+                handSize: 3,
+                ownCorners: 2,
+                oppCorners: 0,
+                hasCornerMoveNow: true,
+                maxLegalFlips: 1,
+                maxLegalGain: 1,
+                avgLegalFlips: 1
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision suppresses SILVER_STONE below four flips', () => {
+        const out = core.scoreCardUseDecision(
+            'silver',
+            () => 5,
+            () => ({ id: 'silver', type: 'SILVER_STONE' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                discDiff: -2,
+                empties: 24,
+                ownCharge: 12,
+                handSize: 3,
+                ownCorners: 1,
+                oppCorners: 1,
+                maxLegalFlips: 3,
+                maxLegalGain: 4,
+                avgLegalFlips: 2.3
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision promotes GLUTTONOUS_WILL when four-plus flips are available', () => {
+        const out = core.scoreCardUseDecision(
+            'gluttonous',
+            () => 9,
+            () => ({ id: 'gluttonous', type: 'GLUTTONOUS_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 3,
+                discDiff: -7,
+                empties: 26,
+                ownCharge: 20,
+                handSize: 3,
+                ownCorners: 0,
+                oppCorners: 1,
+                hasCornerMoveNow: true,
+                maxLegalFlips: 4,
+                maxLegalGain: 4,
+                avgLegalFlips: 2.8
+            }
+        );
+        expect(out.shouldUse).toBe(true);
+    });
+
+    test('scoreCardUseDecision lowers threshold and promotes mobility rescue at four discs', () => {
+        const out = core.scoreCardUseDecision(
+            'blockade',
+            () => 8,
+            () => ({ id: 'blockade', type: 'BLOCKADE_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 1,
+                discDiff: -18,
+                ownDiscs: 4,
+                empties: 18,
+                ownCharge: 14,
+                handSize: 3,
+                ownCorners: 0,
+                oppCorners: 2,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: false,
+                cornerEmergency: true
+            }
+        );
+        expect(out.shouldUse).toBe(true);
+        expect(out.minUseScore).toBeLessThanOrEqual(2);
+    });
+
+    test('scoreCardUseDecision values LOSS_WILL when opponent has more specials', () => {
+        const strong = core.scoreCardUseDecision(
+            'loss',
+            () => 11,
+            () => ({ id: 'loss', type: 'LOSS_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: -4,
+                empties: 30,
+                ownCharge: 18,
+                ownSpecialCount: 1,
+                oppSpecialCount: 5,
+                ownGuardCount: 0,
+                oppGuardCount: 1
+            }
+        );
+        const weak = core.scoreCardUseDecision(
+            'loss',
+            () => 11,
+            () => ({ id: 'loss', type: 'LOSS_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: 6,
+                empties: 22,
+                ownCharge: 18,
+                ownSpecialCount: 3,
+                oppSpecialCount: 1,
+                ownGuardCount: 1,
+                oppGuardCount: 0
+            }
+        );
+        expect(strong.score).toBeGreaterThan(weak.score);
+    });
+
+    test('scoreCardUseDecision uses EXTREME_HYPERACTIVE_WILL as comeback card and suppresses it while ahead in endgame', () => {
+        const trailing = core.scoreCardUseDecision(
+            'extreme',
+            () => 35,
+            () => ({ id: 'extreme', type: 'EXTREME_HYPERACTIVE_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 3,
+                discDiff: -12,
+                empties: 30,
+                ownCharge: 46,
+                handSize: 3,
+                ownCorners: 0,
+                oppCorners: 2,
+                hasCornerMoveNow: true,
+                hasEdgeMoveNow: true,
+                cornerEmergency: true
+            }
+        );
+        const aheadEndgame = core.scoreCardUseDecision(
+            'extreme',
+            () => 35,
+            () => ({ id: 'extreme', type: 'EXTREME_HYPERACTIVE_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: 10,
+                empties: 10,
+                ownCharge: 46,
+                handSize: 3,
+                ownCorners: 2,
+                oppCorners: 0,
+                hasCornerMoveNow: true,
+                hasEdgeMoveNow: true,
+                cornerEmergency: false
+            }
+        );
+
+        expect(trailing.shouldUse).toBe(true);
+        expect(aheadEndgame.shouldUse).toBe(false);
+        expect(trailing.score).toBeGreaterThan(aheadEndgame.score);
+    });
+
+    test('scoreCardUseDecision suppresses METEOR_WILL while ahead and promotes it in corner emergency', () => {
+        const ahead = core.scoreCardUseDecision(
+            'meteor',
+            () => 21,
+            () => ({ id: 'meteor', type: 'METEOR_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                discDiff: 10,
+                empties: 18,
+                ownCharge: 36,
+                handSize: 3,
+                ownCorners: 2,
+                oppCorners: 0,
+                hasCornerMoveNow: true,
+                hasEdgeMoveNow: true,
+                cornerEmergency: false
+            }
+        );
+        const emergency = core.scoreCardUseDecision(
+            'meteor',
+            () => 21,
+            () => ({ id: 'meteor', type: 'METEOR_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 2,
+                discDiff: -12,
+                empties: 22,
+                ownCharge: 36,
+                handSize: 3,
+                ownCorners: 0,
+                oppCorners: 2,
+                ownEdges: 1,
+                oppEdges: 6,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: false,
+                cornerEmergency: true
+            }
+        );
+        expect(ahead.shouldUse).toBe(false);
+        expect(emergency.score).toBeGreaterThan(ahead.score);
+    });
+
+    test('chooseSellCardTargetByRetention rotates EXTREME_HYPERACTIVE_WILL first when leading in endgame', () => {
+        const defs = {
+            extreme: { id: 'extreme', type: 'EXTREME_HYPERACTIVE_WILL' },
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            silver: { id: 'silver', type: 'SILVER_STONE' }
+        };
+        const costs = { extreme: 35, guard: 2, silver: 3 };
+        const selected = core.chooseSellCardTargetByRetention(
+            ['extreme', 'guard', 'silver'],
+            (id) => costs[id],
+            (id) => defs[id] || null,
+            {
+                level: 6,
+                legalMovesCount: 4,
+                handSize: 5,
+                discDiff: 9,
+                empties: 12,
+                ownCorners: 2,
+                oppCorners: 0,
+                hasCornerMoveNow: true,
+                cornerEmergency: false,
+                ownCharge: 30
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(selected.cardId).toBe('extreme');
+    });
+
+    test('chooseSellCardTargetByRetention keeps recovery card and sells lower-impact card when hand is full', () => {
+        const defs = {
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            dragon: { id: 'dragon', type: 'ULTIMATE_REVERSE_DRAGON' },
+            silver: { id: 'silver', type: 'SILVER_STONE' }
+        };
+        const costs = { guard: 2, dragon: 30, silver: 5 };
+        const selected = core.chooseSellCardTargetByRetention(
+            ['guard', 'dragon', 'silver'],
+            (id) => costs[id],
+            (id) => defs[id],
+            {
+                level: 6,
+                legalMovesCount: 4,
+                handSize: 5,
+                discDiff: 10,
+                empties: 18,
+                ownCorners: 2,
+                oppCorners: 1,
+                hasCornerMoveNow: true
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(selected.cardId).toBe('silver');
+    });
+
+    test('chooseSellCardTargetByRetention keeps recovery card during corner emergency', () => {
+        const defs = {
+            recover: { id: 'recover', type: 'DESTROY_ONE_STONE' },
+            chain: { id: 'chain', type: 'CHAIN_WILL' },
+            wind: { id: 'wind', type: 'STRONG_WIND_WILL' }
+        };
+        const costs = { recover: 14, chain: 10, wind: 8 };
+        const selected = core.chooseSellCardTargetByRetention(
+            ['recover', 'chain', 'wind'],
+            (id) => costs[id],
+            (id) => defs[id],
+            {
+                level: 6,
+                legalMovesCount: 2,
+                handSize: 5,
+                discDiff: -10,
+                empties: 24,
+                ownCorners: 0,
+                oppCorners: 2,
+                cornerEmergency: true
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(selected.cardId).toBe('chain');
+    });
+
+    test('chooseSellCardTargetByRetention prefers selling cost>=20 card in white Lv6 mode', () => {
+        const defs = {
+            dragon: { id: 'dragon', type: 'ULTIMATE_REVERSE_DRAGON' },
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            silver: { id: 'silver', type: 'SILVER_STONE' }
+        };
+        const costs = { dragon: 30, guard: 2, silver: 3 };
+        const selected = core.chooseSellCardTargetByRetention(
+            ['dragon', 'guard', 'silver'],
+            (id) => costs[id],
+            (id) => defs[id],
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                handSize: 4,
+                discDiff: 6,
+                empties: 24,
+                ownCorners: 1,
+                oppCorners: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(selected.cardId).toBe('dragon');
+    });
+
+    test('chooseSellCardTargetByRetention rotates LAST_RESORT first when it is unusable and hand is crowded', () => {
+        const defs = {
+            last: { id: 'last', type: 'LAST_RESORT' },
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
+        };
+        const costs = { last: 20, guard: 2, recover: 14 };
+        const selected = core.chooseSellCardTargetByRetention(
+            ['last', 'guard', 'recover'],
+            (id) => costs[id],
+            (id) => defs[id],
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                handSize: 5,
+                discDiff: 6,
+                empties: 24,
+                ownCorners: 1,
+                oppCorners: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(selected.cardId).toBe('last');
+    });
+
+    test('chooseSellCardTargetByRetention keeps TELEPORT_WILL during corner emergency', () => {
+        const defs = {
+            teleport: { id: 'teleport', type: 'TELEPORT_WILL' },
+            silver: { id: 'silver', type: 'SILVER_STONE' },
+            recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
+        };
+        const costs = { teleport: 9, silver: 3, recover: 14 };
+        const selected = core.chooseSellCardTargetByRetention(
+            ['teleport', 'silver', 'recover'],
+            (id) => costs[id],
+            (id) => defs[id],
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 2,
+                handSize: 4,
+                discDiff: -10,
+                empties: 26,
+                ownCorners: 0,
+                oppCorners: 2,
+                hasCornerMoveNow: false,
+                cornerEmergency: true
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(selected.cardId).toBe('silver');
+    });
+
+    test('chooseSellCardTargetByRetention rotates CONDEMN_WILL when opponent hand is nearly empty', () => {
+        const defs = {
+            condemn: { id: 'condemn', type: 'CONDEMN_WILL' },
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
+        };
+        const costs = { condemn: 6, guard: 2, recover: 14 };
+        const selected = core.chooseSellCardTargetByRetention(
+            ['condemn', 'guard', 'recover'],
+            (id) => costs[id],
+            (id) => defs[id],
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                handSize: 4,
+                discDiff: 8,
+                empties: 22,
+                ownCorners: 1,
+                oppCorners: 0,
+                oppHandSize: 1,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(selected.cardId).toBe('condemn');
+    });
+
+    test('chooseSellCardTargetByRetention rotates TEMPT_WILL when opponent has no special stones', () => {
+        const defs = {
+            tempt: { id: 'tempt', type: 'TEMPT_WILL' },
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
+        };
+        const costs = { tempt: 6, guard: 2, recover: 14 };
+        const selected = core.chooseSellCardTargetByRetention(
+            ['tempt', 'guard', 'recover'],
+            (id) => costs[id],
+            (id) => defs[id],
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                handSize: 4,
+                discDiff: 6,
+                empties: 28,
+                ownCorners: 1,
+                oppCorners: 0,
+                oppSpecialCount: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(selected.cardId).toBe('tempt');
+    });
+
+    test('chooseHandDestroyTargetForCycle rotates sacrifice card first when missing recovery role', () => {
+        const defs = {
+            sacrifice: { id: 'sacrifice', type: 'SACRIFICE_WILL' },
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            silver: { id: 'silver', type: 'SILVER_STONE' },
+            chain: { id: 'chain', type: 'CHAIN_WILL' }
+        };
+        const costs = { sacrifice: 5, guard: 2, silver: 5, chain: 10 };
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['sacrifice', 'guard', 'silver', 'chain'],
+            [],
+            (id) => costs[id],
+            (id) => defs[id],
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: 2,
+                empties: 36,
+                ownCorners: 0,
+                oppCorners: 1,
+                hasCornerMoveNow: false,
+                cornerEmergency: true
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(selected.cardId).toBe('sacrifice');
+    });
+
+    test('chooseHandDestroyTargetForCycle keeps recovery card during emergency hand-pressure cycle', () => {
+        const defs = {
+            recover: { id: 'recover', type: 'DESTROY_ONE_STONE' },
+            chain: { id: 'chain', type: 'CHAIN_WILL' },
+            silver: { id: 'silver', type: 'SILVER_STONE' },
+            bomb: { id: 'bomb', type: 'TIME_BOMB' },
+            guard: { id: 'guard', type: 'GUARD_WILL' }
+        };
+        const costs = { recover: 14, chain: 10, silver: 5, bomb: 13, guard: 2 };
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['recover', 'chain', 'silver', 'bomb', 'guard'],
+            [],
+            (id) => costs[id],
+            (id) => defs[id],
+            {
+                level: 6,
+                legalMovesCount: 3,
+                handSize: 5,
+                discDiff: -8,
+                empties: 20,
+                ownCorners: 0,
+                oppCorners: 2,
+                hasCornerMoveNow: false,
+                cornerEmergency: true
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(selected.cardId).not.toBe('recover');
+    });
+
+    test('chooseHandDestroyTargetForCycle rotates CHAIN/DOUBLE first in white Lv6 stable lead', () => {
+        const defs = {
+            chain: { id: 'chain', type: 'CHAIN_WILL' },
+            double: { id: 'double', type: 'DOUBLE_PLACE' },
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            work: { id: 'work', type: 'WORK_WILL' }
+        };
+        const costs = { chain: 22, double: 24, guard: 2, work: 11 };
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['chain', 'double', 'guard', 'work'],
+            [],
+            (id) => costs[id],
+            (id) => defs[id],
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 3,
+                handSize: 4,
+                discDiff: 10,
+                empties: 20,
+                ownCorners: 2,
+                oppCorners: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(['chain', 'double']).toContain(selected.cardId);
+    });
+
+    test('chooseHandDestroyTargetForCycle rotates LAST_RESORT first when legal moves already exist', () => {
+        const defs = {
+            last: { id: 'last', type: 'LAST_RESORT' },
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            recover: { id: 'recover', type: 'DESTROY_ONE_STONE' },
+            silver: { id: 'silver', type: 'SILVER_STONE' }
+        };
+        const costs = { last: 20, guard: 2, recover: 14, silver: 3 };
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['last', 'guard', 'recover', 'silver'],
+            [],
+            (id) => costs[id],
+            (id) => defs[id],
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                handSize: 4,
+                discDiff: 4,
+                empties: 22,
+                ownCorners: 1,
+                oppCorners: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(selected.cardId).toBe('last');
+    });
+
+    test('chooseHandDestroyTargetForCycle rotates clone-style volatile cards in white Lv6 stable lead', () => {
+        const defs = {
+            clone: { id: 'clone', type: 'CLONE_WILL' },
+            split: { id: 'split', type: 'SPLIT_WILL' },
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            work: { id: 'work', type: 'WORK_WILL' }
+        };
+        const costs = { clone: 14, split: 16, guard: 2, work: 11 };
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['clone', 'split', 'guard', 'work'],
+            [],
+            (id) => costs[id],
+            (id) => defs[id],
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                handSize: 4,
+                discDiff: 12,
+                empties: 24,
+                ownCorners: 2,
+                oppCorners: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(['clone', 'split']).toContain(selected.cardId);
+    });
+
+    test('card type classifiers expose corner plan card groups', () => {
+        expect(core.isCornerRecoveryCardType('DESTROY_ONE_STONE')).toBe(true);
+        expect(core.isCornerRecoveryCardType('SUPER_BUOYANCY_WILL')).toBe(true);
+        expect(core.isCornerHoldCardType('GUARD_WILL')).toBe(true);
+        expect(core.isChargeRampCardType('TREASURE_BOX')).toBe(true);
+        expect(core.isCornerRecoveryCardType('HEAVEN_BLESSING')).toBe(false);
+    });
+
+    test('all catalog card types have explicit usage style profile', () => {
+        const types = Array.from(new Set((catalog.cards || []).map((c) => c && c.type).filter(Boolean)));
+        const missing = types.filter((type) => !core.hasUsageStyleForCardType(type));
+        expect(missing).toEqual([]);
+    });
+
+    test('all catalog card types have explicit move plan profile', () => {
+        const types = Array.from(new Set((catalog.cards || []).map((c) => c && c.type).filter(Boolean)));
+        const missing = types.filter((type) => !core.hasMovePlanProfileForCardType(type));
+        expect(missing).toEqual([]);
+    });
+
+    test('scoreCardUseDecision remains finite across all catalog card types', () => {
+        const types = Array.from(new Set((catalog.cards || []).map((c) => c && c.type).filter(Boolean)));
+        for (const type of types) {
+            const out = core.scoreCardUseDecision(
+                `id_${type}`,
+                () => 8,
+                () => ({ id: `id_${type}`, type }),
+                {
+                    level: 6,
+                    legalMovesCount: 4,
+                    discDiff: 0,
+                    empties: 28,
+                    ownCharge: 18,
+                    handSize: 3,
+                    ownCorners: 1,
+                    oppCorners: 1,
+                    ownEdges: 4,
+                    oppEdges: 4,
+                    hasCornerMoveNow: false,
+                    hasEdgeMoveNow: true,
+                    cornerEmergency: false
+                }
+            );
+            expect(Number.isFinite(out.score)).toBe(true);
+            expect(typeof out.shouldUse).toBe('boolean');
+        }
+    });
+
+    test('scoreCardUseDecision suppresses SUPER_BUOYANCY_WILL while safely ahead', () => {
+        const out = core.scoreCardUseDecision(
+            'super_buoyancy_01',
+            () => 14,
+            () => ({ id: 'super_buoyancy_01', type: 'SUPER_BUOYANCY_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 3,
+                discDiff: 12,
+                empties: 16,
+                ownCorners: 2,
+                oppCorners: 0,
+                ownEdges: 8,
+                oppEdges: 2,
+                hasCornerMoveNow: true,
+                ownCharge: 32
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision allows SUPER_BUOYANCY_WILL during trailing corner emergency', () => {
+        const out = core.scoreCardUseDecision(
+            'super_buoyancy_01',
+            () => 14,
+            () => ({ id: 'super_buoyancy_01', type: 'SUPER_BUOYANCY_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 1,
+                discDiff: -14,
+                empties: 24,
+                ownCorners: 0,
+                oppCorners: 2,
+                ownEdges: 2,
+                oppEdges: 9,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true,
+                cornerEmergency: true,
+                ownCharge: 28
+            }
+        );
+        expect(out.shouldUse).toBe(true);
+    });
+
+    test('scoreCardUseDecision uses LIGHTNING_WILL only when stable anchor exists', () => {
+        const anchored = core.scoreCardUseDecision(
+            'lightning_anchored',
+            () => 26,
+            () => ({ id: 'lightning_anchored', type: 'LIGHTNING_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: 2,
+                empties: 32,
+                ownCharge: 40,
+                ownCorners: 1,
+                oppCorners: 1,
+                hasCornerMoveNow: true,
+                hasEdgeMoveNow: true,
+                cornerEmergency: false
+            }
+        );
+        const unanchored = core.scoreCardUseDecision(
+            'lightning_unanchored',
+            () => 26,
+            () => ({ id: 'lightning_unanchored', type: 'LIGHTNING_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: 2,
+                empties: 32,
+                ownCharge: 40,
+                ownCorners: 1,
+                oppCorners: 1,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+
+        expect(anchored.score).toBeGreaterThan(unanchored.score);
+        expect(unanchored.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision limits TABOO_REVERSE_WILL to comeback situations', () => {
+        const trailingEmergency = core.scoreCardUseDecision(
+            'taboo_emergency',
+            () => 44,
+            () => ({ id: 'taboo_emergency', type: 'TABOO_REVERSE_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 1,
+                discDiff: -14,
+                empties: 26,
+                ownCharge: 60,
+                ownCorners: 0,
+                oppCorners: 2,
+                hasCornerMoveNow: true,
+                hasEdgeMoveNow: true,
+                cornerEmergency: true
+            }
+        );
+        const stableLead = core.scoreCardUseDecision(
+            'taboo_stable',
+            () => 44,
+            () => ({ id: 'taboo_stable', type: 'TABOO_REVERSE_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: 10,
+                empties: 20,
+                ownCharge: 60,
+                ownCorners: 2,
+                oppCorners: 0,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true,
+                cornerEmergency: false
+            }
+        );
+
+        expect(trailingEmergency.score).toBeGreaterThan(stableLead.score);
+        expect(stableLead.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision promotes STRONG_WIND_WILL in trailing edge emergency and suppresses it in stable corner window', () => {
+        const pressured = core.scoreCardUseDecision(
+            'wind_pressured',
+            () => 8,
+            () => ({ id: 'wind_pressured', type: 'STRONG_WIND_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 2,
+                discDiff: -10,
+                empties: 24,
+                ownCharge: 30,
+                handSize: 4,
+                ownCorners: 0,
+                oppCorners: 2,
+                ownEdges: 2,
+                oppEdges: 8,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true,
+                cornerEmergency: true,
+                maxLegalFlips: 4
+            }
+        );
+        const stable = core.scoreCardUseDecision(
+            'wind_stable',
+            () => 8,
+            () => ({ id: 'wind_stable', type: 'STRONG_WIND_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: 8,
+                empties: 18,
+                ownCharge: 30,
+                handSize: 2,
+                ownCorners: 2,
+                oppCorners: 0,
+                ownEdges: 8,
+                oppEdges: 2,
+                hasCornerMoveNow: true,
+                hasEdgeMoveNow: true,
+                cornerEmergency: false,
+                maxLegalFlips: 3
+            }
+        );
+
+        expect(pressured.score).toBeGreaterThan(stable.score);
+        expect(stable.shouldUse).toBe(false);
+    });
+
+    test('scoreCardUseDecision uses BREEDING_WILL earlier and suppresses it late while ahead', () => {
+        const opening = core.scoreCardUseDecision(
+            'breeding_opening',
+            () => 18,
+            () => ({ id: 'breeding_opening', type: 'BREEDING_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 3,
+                discDiff: -2,
+                empties: 40,
+                ownCharge: 24,
+                handSize: 3,
+                ownCorners: 0,
+                oppCorners: 1,
+                ownEdges: 3,
+                oppEdges: 5,
+                hasCornerMoveNow: true,
+                hasEdgeMoveNow: true,
+                cornerEmergency: false
+            }
+        );
+        const lateAhead = core.scoreCardUseDecision(
+            'breeding_late',
+            () => 18,
+            () => ({ id: 'breeding_late', type: 'BREEDING_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: 8,
+                empties: 10,
+                ownCharge: 24,
+                handSize: 3,
+                ownCorners: 2,
+                oppCorners: 0,
+                ownEdges: 7,
+                oppEdges: 3,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+
+        expect(opening.score).toBeGreaterThan(lateAhead.score);
+        expect(lateAhead.shouldUse).toBe(false);
+    });
+
+    test('chooseSellCardTargetByRetention rotates taboo card first when white Lv6 is ahead', () => {
+        const defs = {
+            taboo: { id: 'taboo', type: 'TABOO_REVERSE_WILL' },
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
+        };
+        const costs = { taboo: 44, guard: 2, recover: 14 };
+        const selected = core.chooseSellCardTargetByRetention(
+            ['taboo', 'guard', 'recover'],
+            (id) => costs[id],
+            (id) => defs[id] || null,
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                handSize: 4,
+                discDiff: 10,
+                empties: 20,
+                ownCorners: 2,
+                oppCorners: 0,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true,
+                cornerEmergency: false,
+                ownCharge: 46
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(selected.cardId).toBe('taboo');
+    });
+
+    test('chooseSellCardTargetByRetention rotates meteor before stable guard while ahead', () => {
+        const defs = {
+            meteor: { id: 'meteor', type: 'METEOR_WILL' },
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            treasure: { id: 'treasure', type: 'TREASURE_BOX' }
+        };
+        const costs = { meteor: 21, guard: 2, treasure: 0 };
+        const selected = core.chooseSellCardTargetByRetention(
+            ['meteor', 'guard', 'treasure'],
+            (id) => costs[id],
+            (id) => defs[id],
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                handSize: 5,
+                discDiff: 8,
+                empties: 18,
+                ownCorners: 2,
+                oppCorners: 0,
+                hasCornerMoveNow: true,
+                hasEdgeMoveNow: true,
+                cornerEmergency: false,
+                ownCharge: 32
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(selected.cardId).toBe('meteor');
+    });
+
+    test('scoreMoveForCornerEdgePlan strongly penalizes unsafe x-square', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[3][3] = -1;
+        board[3][4] = 1;
+        board[4][3] = 1;
+        board[4][4] = -1;
+        const xMove = { row: 1, col: 1, flips: [] };
+        const innerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+        const xScore = core.scoreMoveForCornerEdgePlan(xMove, {
+            level: 6,
+            board,
+            playerValue: -1
+        });
+        const innerScore = core.scoreMoveForCornerEdgePlan(innerMove, {
+            level: 6,
+            board,
+            playerValue: -1
+        });
+        expect(innerScore).toBeGreaterThan(xScore);
+    });
+
+    test('scoreMoveForCornerEdgePlan rewards board bonus tiles', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[0][0] = -1;
+        board[0][7] = -1;
+        board[7][0] = 1;
+        board[7][7] = 1;
+        const move = { row: 3, col: 2, flips: [{ row: 3, col: 3 }] };
+        const baseScore = core.scoreMoveForCornerEdgePlan(move, {
+            level: 6,
+            board,
+            playerValue: -1
+        });
+        const bonusScore = core.scoreMoveForCornerEdgePlan(move, {
+            level: 6,
+            board,
+            playerValue: -1,
+            boardBonusByCell: { '3,2': 5 },
+            boardBonusConsumedByCell: {}
+        });
+        expect(bonusScore).toBeGreaterThan(baseScore);
+    });
+
+    test('scoreMoveForCornerEdgePlan heavily penalizes moves that donate corner without reply in Lv6', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[0][2] = 1;
+        board[2][0] = 1;
+        board[3][3] = 1;
+        board[3][4] = -1;
+        board[4][3] = -1;
+        board[4][4] = 1;
+
+        const riskyMove = {
+            row: 1,
+            col: 1,
+            flips: [{ row: 0, col: 1 }, { row: 1, col: 0 }]
+        };
+        const saferMove = {
+            row: 3,
+            col: 2,
+            flips: [{ row: 3, col: 3 }]
+        };
+
+        const riskyScore = core.scoreMoveForCornerEdgePlan(riskyMove, {
+            level: 6,
+            board,
+            playerValue: -1
+        });
+        const saferScore = core.scoreMoveForCornerEdgePlan(saferMove, {
+            level: 6,
+            board,
+            playerValue: -1
+        });
+
+        expect(saferScore).toBeGreaterThan(riskyScore);
     });
 });

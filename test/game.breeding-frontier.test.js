@@ -79,4 +79,36 @@ describe('BREEDING_WILL frontier propagation', () => {
 
     expect(cardState.breedingSproutByOwner.black).toEqual([]);
   });
+
+  test('does not spawn breeding stone onto blockade cell', () => {
+    const { cardState, gameState } = makeState();
+    const prng = { random: () => 0.0 };
+    placeBreedingAnchor(cardState, gameState, 3, 3);
+
+    // Keep only one empty neighbor (2,2), and block it.
+    gameState.board[2][3] = 1;
+    gameState.board[2][4] = 1;
+    gameState.board[3][2] = 1;
+    gameState.board[3][4] = 1;
+    gameState.board[4][2] = 1;
+    gameState.board[4][3] = 1;
+    gameState.board[4][4] = 1;
+    cardState.markers.push({
+      id: 202,
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      data: { type: 'BLOCKADE', remainingOwnerTurns: 3 }
+    });
+
+    const immediate = CardLogic.processBreedingEffectsAtAnchor(cardState, gameState, 'black', 3, 3, prng);
+    expect(immediate.spawned).toHaveLength(0);
+    expect(gameState.board[2][2]).toBe(0);
+
+    CardLogic.onTurnStart(cardState, 'black', gameState);
+    const startRes = CardLogic.processBreedingEffectsAtTurnStartAnchor(cardState, gameState, 'black', 3, 3, prng);
+    expect(startRes.spawned).toHaveLength(0);
+    expect(gameState.board[2][2]).toBe(0);
+  });
 });

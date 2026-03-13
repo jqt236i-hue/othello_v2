@@ -1,0 +1,121 @@
+param(
+    [string]$RunTag = ""
+)
+
+$ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($RunTag)) {
+    $RunTag = "deepcfr_teacher_master_v3_{0}" -f (Get-Date -Format "yyyyMMdd_HHmmss")
+}
+
+$scriptPath = Join-Path $PSScriptRoot "run-deepcfr-training-cycle.ps1"
+
+$params = @{
+    Iterations                       = 999999
+    MaxHours                         = 100
+    Seed                             = 5001
+    TrainGames                       = 22000
+    EvalGames                        = 3500
+    SelfplayWorkers                  = 12
+    EvalWorkers                      = 12
+    AdoptionJobs                     = 6
+    CardUsageRates                   = "0.45,0.60,0.75,0.90"
+    SelfplayPolicyMixRates           = "0.80,0.88,0.78,0.92"
+    SelfplayCardUsageRateJitter      = 0.30
+    SelfplayTacticalWeightMinRates   = "1.10,1.30,1.45,1.65"
+    SelfplayTacticalWeightMaxRates   = "2.80,3.10,3.40,3.70"
+    SelfplayTacticalDepthOpeningRates = "5,6,5,7"
+    SelfplayTacticalDepthMidRates    = "9,10,11,12"
+    SelfplayTacticalDepthEndRates    = "13,14,15,17"
+    SelfplayTacticalBeamWidthRates   = "10,12,14,16"
+    NoPromotionEscalateAfter         = 2
+    NoPromotionCardUsageBoost        = 0.10
+    NoPromotionPolicyMixPenalty      = 0.10
+    NoPromotionDepthBoost            = 2
+    NoPromotionBeamBoost             = 2
+    CfrIterations                    = 56
+    MaxSamples                       = 1600000
+    Epochs                           = 9999
+    BatchSize                        = 1536
+    Lr                               = 0.00035
+    HiddenSize                       = 512
+    CardLossWeight                   = 1.8
+    CardNoActionWeight               = 0.68
+    CardClassBalancePower            = 0.50
+    EarlyStopMonitor                 = "val_loss"
+    EarlyStopPatience                = 32
+    EarlyStopMinDelta                = 0.00003
+    EarlyStopMinEpochs               = 28
+    LrPlateauPatience                = 10
+    LrPlateauFactor                  = 0.65
+    LrPlateauMinLr                   = 0.00002
+    ValSplit                         = 0.12
+    MinVisits                        = 14
+    ShapeImmediate                   = 0.60
+    EnableCardSpecialist             = $true
+    CardSpecialistEpochs             = 240
+    CardSpecialistPlaceLossWeight    = 0.35
+    CardSpecialistCardLossWeight     = 3.2
+    CardSpecialistNoActionWeight     = 0.45
+    CardSpecialistClassBalancePower  = 0.55
+    CardSpecialistEarlyStopMonitor   = "val_loss"
+    CardSpecialistEarlyStopPatience  = 20
+    CardSpecialistEarlyStopMinDelta  = 0.00005
+    CardSpecialistEarlyStopMinEpochs = 24
+    CardSpecialistLrPlateauPatience  = 8
+    CardSpecialistLrPlateauFactor    = 0.70
+    CardSpecialistLrPlateauMinLr     = 0.00001
+    AdoptionProgressEvery            = 100
+    QuickGames                       = 700
+    FinalGames                       = 3000
+    Threshold                        = 0.05
+    AdoptionRelativeThreshold        = 0.004
+    AdoptionMinSeedUplift            = -0.01
+    AdoptionMinSeedPassCount         = 2
+    AdoptionSeedCount                = 3
+    AdoptionSeedStride               = 1000
+    AdoptionFinalSeedOffset          = 500000
+    AdoptionTacticalWeight           = 0.30
+    AdoptionPolicyScoreWeight        = 4.10
+    AdoptionHeuristicWeight          = 0.90
+    AdoptionQualityWeightCorner      = 0.12
+    AdoptionQualityWeightBonus       = 0.08
+    AdoptionQualityWeightCardImmediate = 0.10
+    AdoptionQualityWeightPlaceDelta  = 0.08
+    AdoptionPoolGateEnabled          = $true
+    AdoptionPoolSize                 = 3
+    AdoptionPoolGames                = 1500
+    AdoptionPoolThreshold            = 0.01
+    AdoptionPoolMinSeedUplift        = -0.01
+    AdoptionPoolMinSeedPassCount     = 2
+    AdoptionPoolRequiredPassCount    = 2
+    OnnxGateGames                    = 16
+    OnnxGateJobs                     = 4
+    OnnxGateSeedCount                = 3
+    OnnxGateSeedStride               = 1000
+    OnnxGateSeedOffset               = 800000
+    OnnxGateThreshold                = 0.54
+    OnnxGateMinSeedScore             = 0.46
+    OnnxGateMinSeedPassCount         = 2
+    OnnxGateBlackLevel               = 6
+    OnnxGateWhiteLevel               = 6
+    OnnxGateCandidateColorMode       = "both"
+    OnnxGateTimeoutMs                = 300000
+    OnnxGateMaxTotalMs               = 2400000
+    OnnxGateRetries                  = 3
+    OnnxGateMatchRetries             = 2
+    UpliftStallWindow                = 0
+    MaxConsecutiveErrors             = 8
+    ErrorBackoffSeconds              = 15
+    BootstrapPolicyModel             = "data/models/policy-table.json"
+    BootstrapCheckpoint              = "data/models/policy-net.candidate.deepcfr_teacher_master_v2_20260227_010215.it004.checkpoint.pt"
+    AutoFindLatestCheckpoint         = $true
+    ResumeModelOnly                  = $true
+    SelfplayUsePromotedModelOnly     = $true
+    CleanupRepoPipResidue            = $true
+    PipResidueMinAgeMinutes          = 20
+    AllowRepoPipInstallRunning       = $false
+    RunTag                           = $RunTag
+}
+
+& $scriptPath @params

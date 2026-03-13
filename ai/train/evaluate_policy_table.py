@@ -20,6 +20,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Evaluate policy table against NDJSON records.")
     p.add_argument("--input", required=True, help="Path to NDJSON data.")
     p.add_argument("--model", required=True, help="Path to policy-table JSON.")
+    p.add_argument("--out", help="Optional JSON output path.")
     return p.parse_args()
 
 
@@ -74,6 +75,15 @@ def main() -> int:
         model = json.load(f)
 
     result = evaluate(iter_ndjson(args.input), model)
+    if args.out:
+        payload = {
+            "schemaVersion": "policy_table_eval.v1",
+            "input": args.input,
+            "model": args.model,
+            "result": result,
+        }
+        with open(args.out, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
     print(
         "[evaluate_policy_table] "
         f"records={result['records']} "

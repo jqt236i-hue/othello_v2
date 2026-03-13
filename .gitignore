@@ -46,6 +46,7 @@ test_*.py
 .idea/
 *.swp
 *.swo
+.venv/
 
 # OS
 .DS_Store

@@ -22,6 +22,9 @@ describe('pass-handler flows', () => {
         global.showResult = jest.fn();
         global.cardState = { turnIndex: 0, turnCountByPlayer: { black: 0, white: 0 }, hands: { black: [], white: [] } };
         global.gameState = { currentPlayer: 1 };
+        global.MATCH_MODE = 'cpu';
+        global.DEBUG_HUMAN_VS_HUMAN = false;
+        global.LOCAL_PLAYER_KEY = 'black';
         global.Core = {
             getLegalMoves: jest.fn(() => [])
         };
@@ -106,14 +109,61 @@ describe('pass-handler flows', () => {
         expect(global.TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
     });
 
-    test('ensureCurrentPlayerCanActOrPass は行動不能ならパス処理を起動する', () => {
+    test('ensureCurrentPlayerCanActOrPass は人間ターンでは自動パスしない', () => {
         delete require.cache[modPath];
+        global.TurnPipeline = makeTurnPipeline();
+        global.Core = { getLegalMoves: jest.fn(() => []) };
+        const ph = require('../game/pass-handler');
+        const handled = ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
+        expect(handled).toBe(false);
+        expect(global.TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
+    });
+
+    test('ensureCurrentPlayerCanActOrPass はCPUターンでは自動パスする', () => {
+        delete require.cache[modPath];
+        global.gameState = { currentPlayer: global.WHITE };
         global.TurnPipeline = makeTurnPipeline();
         global.Core = { getLegalMoves: jest.fn(() => []) };
         const ph = require('../game/pass-handler');
         const handled = ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
         expect(handled).toBe(true);
         expect(global.TurnPipeline.applyTurnSafe).toHaveBeenCalledTimes(1);
+    });
+
+    test('network mode では手番プレイヤーでも自動パスしない', () => {
+        delete require.cache[modPath];
+        global.MATCH_MODE = 'network';
+        global.LOCAL_PLAYER_KEY = 'white';
+        global.gameState = { currentPlayer: global.WHITE };
+        global.TurnPipeline = makeTurnPipeline();
+        global.Core = { getLegalMoves: jest.fn(() => []) };
+        const ph = require('../game/pass-handler');
+        const handled = ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
+        expect(handled).toBe(false);
+        expect(global.TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
+    });
+
+    test('processPassTurn は次手番が人間で行動不能でも即終局しない', async () => {
+        delete require.cache[modPath];
+        global.MATCH_MODE = 'network';
+        global.LOCAL_PLAYER_KEY = 'black';
+        global.cardState = { turnIndex: 0, turnCountByPlayer: { black: 0, white: 0 }, hands: { black: [], white: [] } };
+        global.gameState = { currentPlayer: global.BLACK, turnNumber: 10, consecutivePasses: 0 };
+        global.TurnPipeline = {
+            applyTurnSafe: jest.fn((cs, gs) => ({
+                ok: true,
+                gameState: Object.assign({}, gs, { currentPlayer: global.WHITE, turnNumber: 11, consecutivePasses: 1 }),
+                cardState: cs,
+                events: []
+            }))
+        };
+        global.Core = { getLegalMoves: jest.fn(() => []) };
+        const ph = require('../game/pass-handler');
+        const ok = await ph.processPassTurn('black', false);
+        expect(ok).toBe(true);
+        expect(global.showResult).not.toHaveBeenCalled();
+        expect(global.TurnPipeline.applyTurnSafe).toHaveBeenCalledTimes(1);
+        expect(global.onTurnStart).toHaveBeenCalledWith(global.WHITE);
     });
 
     test('white CPU scheduling is skipped when state changed before delay callback', async () => {
@@ -133,5 +183,18 @@ describe('pass-handler flows', () => {
 
         expect(global.processCpuTurn).not.toHaveBeenCalled();
         jest.useRealTimers();
+    });
+
+    test('network mode と手番の表記揺れを正規化して自動パスを抑止する', () => {
+        delete require.cache[modPath];
+        global.MATCH_MODE = 'network';
+        global.LOCAL_PLAYER_KEY = ' WHITE ';
+        global.gameState = { currentPlayer: ' WHITE ' };
+        global.TurnPipeline = makeTurnPipeline();
+        global.Core = { getLegalMoves: jest.fn(() => []) };
+        const ph = require('../game/pass-handler');
+        const handled = ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
+        expect(handled).toBe(false);
+        expect(global.TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
     });
 });

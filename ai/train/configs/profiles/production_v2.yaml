@@ -1,0 +1,111 @@
+schemaVersion: training_profile.v1
+name: production_v2
+description: >
+  本番主線を壊さずに隔離ディレクトリで回す、100時間の自己対戦 + ONNX 学習ループ。
+runTagPrefix: production_v2
+gateProfile: adoption_v2
+paths:
+  runsDir: data/runs/production_v2
+  modelsDir: data/models/production_v2
+bootstrap:
+  sourcePolicyTable: data/models/policy-table.json
+  sourceOnnxModel: data/models/policy-net.onnx
+  sourceOnnxMeta: data/models/policy-net.onnx.meta.json
+  copyPromotedPolicyTable: true
+  copyPromotedOnnxModel: true
+  copyPromotedOnnxMeta: true
+  useCopiedPolicyTableAsBootstrap: true
+  autoResumeLatestCheckpoint: true
+preflight:
+  enabled: true
+  strict: false
+  allowArtifacts: true
+  checkWindow: true
+trainCycleArgs:
+  - --iterations
+  - "999"
+  - --max-hours
+  - "100"
+  - --train-games
+  - "16000"
+  - --eval-games
+  - "3000"
+  - --selfplay-jobs
+  - "6"
+  - --adoption-jobs
+  - "6"
+  - --onnx-gate-jobs
+  - "6"
+  - --seed
+  - "1"
+  - --max-plies
+  - "220"
+  - --with-cards
+  - --card-usage-rate
+  - "0.55"
+  - --selfplay-policy-mix-rate
+  - "1.0"
+  - --selfplay-policy-model-pool-size
+  - "1"
+  - --selfplay-policy-pool-sampling
+  - uniform
+  - --selfplay-policy-pool-recency-decay
+  - "1.0"
+  - --selfplay-policy-current-anchor-rate
+  - "1.0"
+  - --selfplay-tactical-depth-opening
+  - "6"
+  - --selfplay-tactical-depth-mid
+  - "8"
+  - --selfplay-tactical-depth-end
+  - "10"
+  - --selfplay-tactical-beam-width
+  - "10"
+  - --selfplay-use-promoted-model-only
+  - --onnx-epochs
+  - "9999"
+  - --onnx-batch-size
+  - "2048"
+  - --onnx-lr
+  - "0.00065"
+  - --onnx-hidden-size
+  - "384"
+  - --onnx-device
+  - auto
+  - --onnx-val-split
+  - "0.15"
+  - --onnx-early-stop-patience
+  - "20"
+  - --onnx-early-stop-min-delta
+  - "0.00005"
+  - --onnx-early-stop-min-epochs
+  - "120"
+  - --onnx-early-stop-monitor
+  - val_loss
+  - --onnx-early-stop-smoothing-window
+  - "5"
+  - --onnx-card-no-action-weight
+  - "0.68"
+  - --onnx-card-class-balance-power
+  - "0.45"
+  - --onnx-winner-sample-boost
+  - "0.38"
+  - --onnx-loser-sample-weight
+  - "0.95"
+  - --onnx-draw-sample-weight
+  - "1.0"
+  - --onnx-corner-emergency-sample-boost
+  - "0.70"
+  - --onnx-negative-future-disc-sample-boost
+  - "0.60"
+  - --onnx-negative-future-disc-threshold
+  - "-1.0"
+  - --onnx-tactical-miss-sample-boost
+  - "0.55"
+  - --onnx-tactical-miss-threshold
+  - "0.06"
+  - --min-visits
+  - "4"
+  - --shape-immediate
+  - "0.45"
+  - --carry-over-checkpoint

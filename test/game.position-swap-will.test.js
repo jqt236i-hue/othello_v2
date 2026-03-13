@@ -94,4 +94,40 @@ describe('POSITION_SWAP_WILL (入替の意志)', () => {
     expect(cardState.workAnchorPosByPlayer.black).toEqual({ row: 5, col: 5 });
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
+
+  test('GLUTTONOUS石はPOSITION_SWAP_WILLの交換対象にならない', () => {
+    const { cardState, gameState } = makeState();
+    gameState.board[1][1] = 1;
+    gameState.board[2][2] = -1;
+    gameState.board[3][3] = 1;
+    cardState.markers.push({
+      id: 210,
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'white',
+      data: { type: 'GLUTTONOUS', gluttonousMissStreak: 0 }
+    });
+    cardState.pendingEffectByPlayer.black = { type: 'POSITION_SWAP_WILL', stage: 'selectTarget', cardId: 'position_swap_01' };
+
+    const targets = CardLogic.getSelectableTargets(cardState, gameState, 'black');
+    const set = new Set(targets.map((t) => `${t.row},${t.col}`));
+    expect(set.has('1,1')).toBe(true);
+    expect(set.has('3,3')).toBe(true);
+    expect(set.has('2,2')).toBe(false);
+
+    const blockedFirst = CardLogic.applyPositionSwapWill(cardState, gameState, 'black', 2, 2);
+    expect(blockedFirst).toMatchObject({ applied: false, reason: 'swap_protected' });
+    expect(cardState.pendingEffectByPlayer.black.firstTarget).toBeUndefined();
+
+    const first = CardLogic.applyPositionSwapWill(cardState, gameState, 'black', 1, 1);
+    expect(first && first.applied).toBe(true);
+    expect(first && first.completed).toBe(false);
+
+    const blockedSecond = CardLogic.applyPositionSwapWill(cardState, gameState, 'black', 2, 2);
+    expect(blockedSecond).toMatchObject({ applied: false, reason: 'swap_protected' });
+    expect(cardState.pendingEffectByPlayer.black.firstTarget).toEqual({ row: 1, col: 1 });
+    expect(gameState.board[1][1]).toBe(1);
+    expect(gameState.board[2][2]).toBe(-1);
+  });
 });

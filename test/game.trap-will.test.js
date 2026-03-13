@@ -36,7 +36,7 @@ describe('TRAP_WILL (罠の意志)', () => {
     expect(trapMarker.owner).toBe('black');
   });
 
-  test('trigger: steals charge + up to 3 cards, overflow goes to owner deck', () => {
+  test('trigger: steals all charge and destroys all victim hand cards', () => {
     const { cardState, gameState } = makeState();
 
     // Trap owned by black at C3 (2,2), currently flipped by white on white turn.
@@ -54,6 +54,7 @@ describe('TRAP_WILL (罠の意志)', () => {
     cardState.hands.black = ['b1', 'b2', 'b3', 'b4'];
     cardState.hands.white = ['w1', 'w2', 'w3', 'w4'];
     cardState.decks.black = ['d0'];
+    cardState.discard = [];
 
     const res = CardLogic.processTrapEffects(cardState, gameState, 'white', { expireOnOwnerTurnStart: false });
     expect(res.triggered.length).toBe(1);
@@ -62,9 +63,14 @@ describe('TRAP_WILL (罠の意志)', () => {
 
     expect(cardState.charge.white).toBe(0);
     expect(cardState.charge.black).toBe(17);
-    expect(cardState.hands.black).toEqual(['b1', 'b2', 'b3', 'b4', 'w1']);
-    expect(cardState.hands.white).toEqual(['w4']);
-    expect(cardState.decks.black).toEqual(['d0', 'w2', 'w3']);
+    expect(cardState.hands.black).toEqual(['b1', 'b2', 'b3', 'b4']);
+    expect(cardState.hands.white).toEqual([]);
+    expect(cardState.decks.black).toEqual(['d0']);
+    expect(cardState.discard).toEqual(['w1', 'w2', 'w3', 'w4']);
+
+    expect(res.triggered[0].destroyedHandCount).toBe(4);
+    expect(res.triggered[0].toHandCount).toBe(0);
+    expect(res.triggered[0].toDeckCount).toBe(0);
 
     const remainingTrap = (cardState.markers || []).find(m => m && m.data && m.data.type === 'TRAP');
     expect(remainingTrap).toBeUndefined();

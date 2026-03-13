@@ -3,7 +3,7 @@ const CardLogic = require('../game/logic/cards');
 const BoardOps = require('../game/logic/board_ops');
 const CardSelectors = require('../game/logic/cards/selectors');
 
-describe('GUARD_WILL (守る意志)', () => {
+describe('GUARD_WILL / GUARDIAN_GOD (守る意志/守護神)', () => {
   function makeState() {
     const prng = { shuffle: () => {}, random: () => 0.5 };
     const cardState = CardLogic.createCardState(prng);
@@ -37,6 +37,36 @@ describe('GUARD_WILL (守る意志)', () => {
     expect(guardMarker).toBeTruthy();
     expect(guardMarker.owner).toBe('black');
     expect(guardMarker.data.remainingOwnerTurns).toBe(3);
+  });
+
+  test('can apply guardian god protection with 10-turn duration', () => {
+    const guardianDef = (SharedConstants.CARD_DEFS || []).find(d => d && d.type === 'GUARDIAN_GOD');
+    expect(guardianDef).toBeTruthy();
+
+    const { cardState, gameState } = makeState();
+    gameState.board[2][3] = 1;
+    cardState.hands.black = [guardianDef.id];
+    cardState.charge.black = guardianDef.cost;
+
+    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', guardianDef.id);
+    expect(used).toBe(true);
+    expect(cardState.pendingEffectByPlayer.black && cardState.pendingEffectByPlayer.black.type).toBe('GUARDIAN_GOD');
+
+    const applied = CardLogic.applyGuardWill(cardState, gameState, 'black', 2, 3);
+    expect(applied && applied.applied).toBe(true);
+
+    let guardMarker = (cardState.markers || []).find(m => m && m.row === 2 && m.col === 3 && m.data && m.data.type === 'GUARD');
+    expect(guardMarker).toBeTruthy();
+    expect(guardMarker.owner).toBe('black');
+    expect(guardMarker.data.remainingOwnerTurns).toBe(10);
+
+    CardLogic.onTurnStart(cardState, 'white', gameState);
+    guardMarker = (cardState.markers || []).find(m => m && m.row === 2 && m.col === 3 && m.data && m.data.type === 'GUARD');
+    expect(guardMarker.data.remainingOwnerTurns).toBe(10);
+
+    CardLogic.onTurnStart(cardState, 'black', gameState);
+    guardMarker = (cardState.markers || []).find(m => m && m.row === 2 && m.col === 3 && m.data && m.data.type === 'GUARD');
+    expect(guardMarker.data.remainingOwnerTurns).toBe(9);
   });
 
   test('destroy is blocked while guarded', () => {
@@ -129,5 +159,59 @@ describe('GUARD_WILL (守る意志)', () => {
     CardLogic.onTurnStart(cardState, 'black', gameState);
     guard = (cardState.markers || []).find(m => m && m.data && m.data.type === 'GUARD');
     expect(guard).toBeUndefined();
+  });
+
+  test('guarded stone is not flipped by DRAGON immediate effect', () => {
+    const { cardState, gameState } = makeState();
+    gameState.board[3][3] = 1;   // black dragon anchor
+    gameState.board[3][4] = -1;  // white guarded stone
+    cardState.markers.push(
+      {
+        id: 201,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'DRAGON', remainingOwnerTurns: 5 }
+      },
+      {
+        id: 202,
+        kind: 'specialStone',
+        row: 3,
+        col: 4,
+        owner: 'white',
+        data: { type: 'GUARD', remainingOwnerTurns: 3 }
+      }
+    );
+
+    CardLogic.processDragonEffectsAtAnchor(cardState, gameState, 'black', 3, 3);
+    expect(gameState.board[3][4]).toBe(-1);
+  });
+
+  test('guarded stone is not flipped by DRAGON turn-start effect', () => {
+    const { cardState, gameState } = makeState();
+    gameState.board[4][4] = 1;   // black dragon anchor
+    gameState.board[4][5] = -1;  // white guarded stone
+    cardState.markers.push(
+      {
+        id: 203,
+        kind: 'specialStone',
+        row: 4,
+        col: 4,
+        owner: 'black',
+        data: { type: 'DRAGON', remainingOwnerTurns: 5 }
+      },
+      {
+        id: 204,
+        kind: 'specialStone',
+        row: 4,
+        col: 5,
+        owner: 'white',
+        data: { type: 'GUARD', remainingOwnerTurns: 3 }
+      }
+    );
+
+    CardLogic.processDragonEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4);
+    expect(gameState.board[4][5]).toBe(-1);
   });
 });

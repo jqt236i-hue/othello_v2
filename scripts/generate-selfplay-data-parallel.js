@@ -11,11 +11,31 @@ function parseArgs(argv) {
         seed: 1,
         maxPlies: 220,
         out: path.resolve(process.cwd(), 'data', 'selfplay.ndjson'),
-        workers: 4,
+        workers: 10,
         seedStride: 1000003,
         allowCardUsage: true,
         cardUsageRate: 0.2,
+        policyMixRate: 1,
+        cardUsageRateJitter: 0,
+        tacticalWeightMin: 1,
+        tacticalWeightMax: 1,
+        tacticalDepthOpening: 2,
+        tacticalDepthMid: 3,
+        tacticalDepthEnd: 4,
+        tacticalBeamWidth: 0,
+        teacherCommitteeWeightMin: 28,
+        teacherCommitteeWeightMax: 28,
+        teacherCommitteeConsensusBonusMin: 320,
+        teacherCommitteeConsensusBonusMax: 320,
+        policyScoreWeightMin: 1,
+        policyScoreWeightMax: 1,
+        heuristicWeightMin: 1,
+        heuristicWeightMax: 1,
         policyModelPath: null,
+        policyModelPoolPaths: [],
+        policyPoolSampling: 'uniform',
+        policyPoolRecencyDecay: 1.0,
+        policyCurrentAnchorRate: 0,
         keepParts: false,
         verbose: false,
         help: false
@@ -33,8 +53,39 @@ function parseArgs(argv) {
         if (a === '--with-cards') { args.allowCardUsage = true; continue; }
         if (a === '--no-cards') { args.allowCardUsage = false; continue; }
         if (a === '--card-usage-rate') { args.cardUsageRate = Number(argv[++i]); continue; }
+        if (a === '--policy-mix-rate') { args.policyMixRate = Number(argv[++i]); continue; }
+        if (a === '--card-usage-rate-jitter') { args.cardUsageRateJitter = Number(argv[++i]); continue; }
+        if (a === '--tactical-weight-min') { args.tacticalWeightMin = Number(argv[++i]); continue; }
+        if (a === '--tactical-weight-max') { args.tacticalWeightMax = Number(argv[++i]); continue; }
+        if (a === '--tactical-depth-opening') { args.tacticalDepthOpening = Number(argv[++i]); continue; }
+        if (a === '--tactical-depth-mid') { args.tacticalDepthMid = Number(argv[++i]); continue; }
+        if (a === '--tactical-depth-end') { args.tacticalDepthEnd = Number(argv[++i]); continue; }
+        if (a === '--tactical-beam-width') { args.tacticalBeamWidth = Number(argv[++i]); continue; }
+        if (a === '--teacher-committee-weight-min') { args.teacherCommitteeWeightMin = Number(argv[++i]); continue; }
+        if (a === '--teacher-committee-weight-max') { args.teacherCommitteeWeightMax = Number(argv[++i]); continue; }
+        if (a === '--teacher-committee-consensus-bonus-min') { args.teacherCommitteeConsensusBonusMin = Number(argv[++i]); continue; }
+        if (a === '--teacher-committee-consensus-bonus-max') { args.teacherCommitteeConsensusBonusMax = Number(argv[++i]); continue; }
+        if (a === '--policy-score-weight-min') { args.policyScoreWeightMin = Number(argv[++i]); continue; }
+        if (a === '--policy-score-weight-max') { args.policyScoreWeightMax = Number(argv[++i]); continue; }
+        if (a === '--heuristic-weight-min') { args.heuristicWeightMin = Number(argv[++i]); continue; }
+        if (a === '--heuristic-weight-max') { args.heuristicWeightMax = Number(argv[++i]); continue; }
         if (a === '--policy-model') { args.policyModelPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--policy-model-pool') {
+            const raw = String(argv[++i] || '').trim();
+            if (!raw) throw new Error('--policy-model-pool requires at least one path');
+            const paths = raw
+                .split(',')
+                .map((one) => one.trim())
+                .filter(Boolean)
+                .map((one) => path.resolve(process.cwd(), one));
+            if (paths.length <= 0) throw new Error('--policy-model-pool requires at least one path');
+            args.policyModelPoolPaths.push(...paths);
+            continue;
+        }
         if (a === '--keep-parts') { args.keepParts = true; continue; }
+        if (a === '--policy-pool-sampling') { args.policyPoolSampling = String(argv[++i] || '').trim().toLowerCase(); continue; }
+        if (a === '--policy-pool-recency-decay') { args.policyPoolRecencyDecay = Number(argv[++i]); continue; }
+        if (a === '--policy-current-anchor-rate') { args.policyCurrentAnchorRate = Number(argv[++i]); continue; }
         if (a === '--verbose') { args.verbose = true; continue; }
     }
 
@@ -48,8 +99,89 @@ function parseArgs(argv) {
     if (!Number.isFinite(args.cardUsageRate) || args.cardUsageRate < 0 || args.cardUsageRate > 1) {
         throw new Error('--card-usage-rate must be in [0,1]');
     }
+    if (!Number.isFinite(args.policyMixRate) || args.policyMixRate < 0 || args.policyMixRate > 1) {
+        throw new Error('--policy-mix-rate must be in [0,1]');
+    }
+    if (!Number.isFinite(args.cardUsageRateJitter) || args.cardUsageRateJitter < 0 || args.cardUsageRateJitter > 1) {
+        throw new Error('--card-usage-rate-jitter must be in [0,1]');
+    }
+    if (!Number.isFinite(args.tacticalWeightMin) || args.tacticalWeightMin < 0) {
+        throw new Error('--tactical-weight-min must be >= 0');
+    }
+    if (!Number.isFinite(args.tacticalWeightMax) || args.tacticalWeightMax < 0) {
+        throw new Error('--tactical-weight-max must be >= 0');
+    }
+    if (args.tacticalWeightMax < args.tacticalWeightMin) {
+        throw new Error('--tactical-weight-max must be >= --tactical-weight-min');
+    }
+    if (!Number.isFinite(args.tacticalDepthOpening) || args.tacticalDepthOpening < 0) {
+        throw new Error('--tactical-depth-opening must be >= 0');
+    }
+    if (!Number.isFinite(args.tacticalDepthMid) || args.tacticalDepthMid < 0) {
+        throw new Error('--tactical-depth-mid must be >= 0');
+    }
+    if (!Number.isFinite(args.tacticalDepthEnd) || args.tacticalDepthEnd < 0) {
+        throw new Error('--tactical-depth-end must be >= 0');
+    }
+    if (!Number.isFinite(args.tacticalBeamWidth) || args.tacticalBeamWidth < 0) {
+        throw new Error('--tactical-beam-width must be >= 0');
+    }
+    if (!Number.isFinite(args.teacherCommitteeWeightMin) || args.teacherCommitteeWeightMin < 0) {
+        throw new Error('--teacher-committee-weight-min must be >= 0');
+    }
+    if (!Number.isFinite(args.teacherCommitteeWeightMax) || args.teacherCommitteeWeightMax < 0) {
+        throw new Error('--teacher-committee-weight-max must be >= 0');
+    }
+    if (args.teacherCommitteeWeightMax < args.teacherCommitteeWeightMin) {
+        throw new Error('--teacher-committee-weight-max must be >= --teacher-committee-weight-min');
+    }
+    if (!Number.isFinite(args.teacherCommitteeConsensusBonusMin) || args.teacherCommitteeConsensusBonusMin < 0) {
+        throw new Error('--teacher-committee-consensus-bonus-min must be >= 0');
+    }
+    if (!Number.isFinite(args.teacherCommitteeConsensusBonusMax) || args.teacherCommitteeConsensusBonusMax < 0) {
+        throw new Error('--teacher-committee-consensus-bonus-max must be >= 0');
+    }
+    if (args.teacherCommitteeConsensusBonusMax < args.teacherCommitteeConsensusBonusMin) {
+        throw new Error('--teacher-committee-consensus-bonus-max must be >= --teacher-committee-consensus-bonus-min');
+    }
+    args.tacticalDepthOpening = Math.floor(args.tacticalDepthOpening);
+    args.tacticalDepthMid = Math.floor(args.tacticalDepthMid);
+    args.tacticalDepthEnd = Math.floor(args.tacticalDepthEnd);
+    args.tacticalBeamWidth = Math.floor(args.tacticalBeamWidth);
+    if (!Number.isFinite(args.policyScoreWeightMin) || args.policyScoreWeightMin < 0) {
+        throw new Error('--policy-score-weight-min must be >= 0');
+    }
+    if (!Number.isFinite(args.policyScoreWeightMax) || args.policyScoreWeightMax < 0) {
+        throw new Error('--policy-score-weight-max must be >= 0');
+    }
+    if (args.policyScoreWeightMax < args.policyScoreWeightMin) {
+        throw new Error('--policy-score-weight-max must be >= --policy-score-weight-min');
+    }
+    if (!Number.isFinite(args.heuristicWeightMin) || args.heuristicWeightMin < 0) {
+        throw new Error('--heuristic-weight-min must be >= 0');
+    }
+    if (!Number.isFinite(args.heuristicWeightMax) || args.heuristicWeightMax < 0) {
+        throw new Error('--heuristic-weight-max must be >= 0');
+    }
+    if (args.heuristicWeightMax < args.heuristicWeightMin) {
+        throw new Error('--heuristic-weight-max must be >= --heuristic-weight-min');
+    }
     if (args.policyModelPath && !fs.existsSync(args.policyModelPath)) {
         throw new Error(`--policy-model not found: ${args.policyModelPath}`);
+    }
+    for (const onePath of args.policyModelPoolPaths) {
+        if (!fs.existsSync(onePath)) {
+            throw new Error(`--policy-model-pool not found: ${onePath}`);
+        }
+    }
+    if (args.policyPoolSampling !== 'uniform' && args.policyPoolSampling !== 'recency') {
+        throw new Error('--policy-pool-sampling must be uniform or recency');
+    }
+    if (!Number.isFinite(args.policyPoolRecencyDecay) || args.policyPoolRecencyDecay <= 0) {
+        throw new Error('--policy-pool-recency-decay must be > 0');
+    }
+    if (!Number.isFinite(args.policyCurrentAnchorRate) || args.policyCurrentAnchorRate < 0 || args.policyCurrentAnchorRate > 1) {
+        throw new Error('--policy-current-anchor-rate must be in [0,1]');
     }
     return args;
 }
@@ -64,12 +196,32 @@ function printHelp() {
         '  -s, --seed <n>             Base seed (default: 1)',
         '      --max-plies <n>        Max plies per game (default: 220)',
         '  -o, --out <path>           Output NDJSON path (default: data/selfplay.ndjson)',
-        '  -w, --workers <n>          Parallel worker count (default: 4)',
+        '  -w, --workers <n>          Parallel worker count (default: 10)',
         '      --seed-stride <n>      Seed step per worker (default: 1000003)',
         '      --with-cards           Enable card usage in self-play (default: on)',
         '      --no-cards             Disable card usage in self-play',
         '      --card-usage-rate <r>  Probability of using card if legal (default: 0.2)',
+        '      --policy-mix-rate <r>  Per-player probability of using guide model each game [0..1] (default: 1.0)',
+        '      --card-usage-rate-jitter <r>  Per-game card usage rate jitter (+/-r) [0..1] (default: 0)',
+        '      --tactical-weight-min <r>  Min tactical lookahead weight when guide model is used (default: 1)',
+        '      --tactical-weight-max <r>  Max tactical lookahead weight when guide model is used (default: 1)',
+        '      --tactical-depth-opening <n> Tactical search depth in opening phase (default: 2)',
+        '      --tactical-depth-mid <n>  Tactical search depth in mid phase (default: 3)',
+        '      --tactical-depth-end <n>  Tactical search depth in end phase (default: 4)',
+        '      --tactical-beam-width <n> Tactical search beam width (0=auto, default: 0)',
+        '      --teacher-committee-weight-min <r> Min committee voting weight for teacher placement selection (default: 28)',
+        '      --teacher-committee-weight-max <r> Max committee voting weight for teacher placement selection (default: 28)',
+        '      --teacher-committee-consensus-bonus-min <r> Min committee consensus bonus for teacher placement selection (default: 320)',
+        '      --teacher-committee-consensus-bonus-max <r> Max committee consensus bonus for teacher placement selection (default: 320)',
+        '      --policy-score-weight-min <r>  Min model score weight when guide model is used (default: 1)',
+        '      --policy-score-weight-max <r>  Max model score weight when guide model is used (default: 1)',
+        '      --heuristic-weight-min <r>  Min heuristic score weight (default: 1)',
+        '      --heuristic-weight-max <r>  Max heuristic score weight (default: 1)',
         '      --policy-model <path>  Optional policy-table JSON used by both players',
+        '      --policy-model-pool <paths> Comma-separated model paths for league-style mixed self-play',
+        '      --policy-pool-sampling <mode> Model pool sampling mode: uniform|recency (default: uniform)',
+        '      --policy-pool-recency-decay <r> Recency decay (>0) when using recency sampling (default: 1)',
+        '      --policy-current-anchor-rate <r> Probability to anchor one side to current model [0..1] (default: 0)',
         '      --keep-parts           Keep shard files for debugging',
         '      --verbose              Keep internal game debug logs',
         '  -h, --help                 Show this help'
@@ -118,7 +270,33 @@ function runShard(index, shard, args, partDir) {
         } else {
             cmdArgs.push('--no-cards', '--card-usage-rate', '0');
         }
+        cmdArgs.push(
+            '--policy-mix-rate', String(args.policyMixRate),
+            '--card-usage-rate-jitter', String(args.cardUsageRateJitter),
+            '--tactical-weight-min', String(args.tacticalWeightMin),
+            '--tactical-weight-max', String(args.tacticalWeightMax),
+            '--tactical-depth-opening', String(args.tacticalDepthOpening),
+            '--tactical-depth-mid', String(args.tacticalDepthMid),
+            '--tactical-depth-end', String(args.tacticalDepthEnd),
+            '--tactical-beam-width', String(args.tacticalBeamWidth),
+            '--teacher-committee-weight-min', String(args.teacherCommitteeWeightMin),
+            '--teacher-committee-weight-max', String(args.teacherCommitteeWeightMax),
+            '--teacher-committee-consensus-bonus-min', String(args.teacherCommitteeConsensusBonusMin),
+            '--teacher-committee-consensus-bonus-max', String(args.teacherCommitteeConsensusBonusMax),
+            '--policy-score-weight-min', String(args.policyScoreWeightMin),
+            '--policy-score-weight-max', String(args.policyScoreWeightMax),
+            '--heuristic-weight-min', String(args.heuristicWeightMin),
+            '--heuristic-weight-max', String(args.heuristicWeightMax)
+        );
         if (args.policyModelPath) cmdArgs.push('--policy-model', args.policyModelPath);
+        if (Array.isArray(args.policyModelPoolPaths) && args.policyModelPoolPaths.length > 0) {
+            cmdArgs.push('--policy-model-pool', args.policyModelPoolPaths.join(','));
+        }
+        cmdArgs.push(
+            '--policy-pool-sampling', String(args.policyPoolSampling),
+            '--policy-pool-recency-decay', String(args.policyPoolRecencyDecay),
+            '--policy-current-anchor-rate', String(args.policyCurrentAnchorRate)
+        );
         if (args.verbose) cmdArgs.push('--verbose');
 
         const child = spawn(process.execPath, cmdArgs, { cwd: process.cwd(), stdio: ['ignore', 'pipe', 'pipe'] });
@@ -191,9 +369,30 @@ function buildMergedSummary(parts, args, elapsedMs) {
             maxPlies: args.maxPlies,
             allowCardUsage: args.allowCardUsage,
             cardUsageRate: args.allowCardUsage ? args.cardUsageRate : 0,
+            policyMixRate: args.policyMixRate,
+            cardUsageRateJitter: args.cardUsageRateJitter,
+            tacticalWeightMin: args.tacticalWeightMin,
+            tacticalWeightMax: args.tacticalWeightMax,
+            tacticalDepthOpening: args.tacticalDepthOpening,
+            tacticalDepthMid: args.tacticalDepthMid,
+            tacticalDepthEnd: args.tacticalDepthEnd,
+            tacticalBeamWidth: args.tacticalBeamWidth,
+            teacherCommitteeWeightMin: args.teacherCommitteeWeightMin,
+            teacherCommitteeWeightMax: args.teacherCommitteeWeightMax,
+            teacherCommitteeConsensusBonusMin: args.teacherCommitteeConsensusBonusMin,
+            teacherCommitteeConsensusBonusMax: args.teacherCommitteeConsensusBonusMax,
+            policyScoreWeightMin: args.policyScoreWeightMin,
+            policyScoreWeightMax: args.policyScoreWeightMax,
+            heuristicWeightMin: args.heuristicWeightMin,
+            heuristicWeightMax: args.heuristicWeightMax,
             workers: parts.length,
             hasPolicyModel: !!args.policyModelPath,
-            policyModelPath: args.policyModelPath || null
+            policyModelPath: args.policyModelPath || null,
+            policyModelPoolPaths: Array.isArray(args.policyModelPoolPaths) ? args.policyModelPoolPaths : [],
+            policyModelPoolSize: Array.isArray(args.policyModelPoolPaths) ? args.policyModelPoolPaths.length : 0,
+            policyPoolSampling: args.policyPoolSampling,
+            policyPoolRecencyDecay: args.policyPoolRecencyDecay,
+            policyCurrentAnchorRate: args.policyCurrentAnchorRate
         },
         summary: {
             totalGames,

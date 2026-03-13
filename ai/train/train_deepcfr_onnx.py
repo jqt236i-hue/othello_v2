@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import random
@@ -99,13 +100,29 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--val-split", type=float, default=0.1, help="Validation split ratio in [0,0.5). Default: 0.1")
     p.add_argument("--early-stop-patience", type=int, default=4, help="Stop if monitored metric does not improve for N epochs (default: 4).")
     p.add_argument("--early-stop-min-delta", type=float, default=0.0002, help="Minimum metric improvement to reset early-stop counter (default: 0.0002).")
-    p.add_argument("--early-stop-monitor", default="val_loss", help="Metric for early stopping: val_loss or train_loss (default: val_loss).")
+    p.add_argument(
+        "--early-stop-monitor",
+        default="val_loss",
+        help=(
+            "Metric for early stopping: "
+            "val_loss/train_loss/val_place_loss/train_place_loss/val_card_loss/train_card_loss "
+            "(default: val_loss)."
+        ),
+    )
+    p.add_argument("--early-stop-min-epochs", type=int, default=24, help="Minimum epochs to run before early-stop can trigger (default: 24).")
+    p.add_argument("--lr-plateau-patience", type=int, default=8, help="If > 0, reduce LR after N non-improving epochs (default: 8).")
+    p.add_argument("--lr-plateau-factor", type=float, default=0.6, help="LR multiply factor on plateau in (0,1) (default: 0.6).")
+    p.add_argument("--lr-plateau-min-lr", type=float, default=1e-5, help="Lower bound for LR when plateau scheduler is enabled (default: 1e-5).")
     p.add_argument("--log-interval-steps", type=int, default=0, help="If > 0, print batch loss every N steps (default: 0=off).")
     p.add_argument("--metrics-out", default="", help="Optional JSONL path for per-epoch metrics.")
     p.add_argument("--resume-checkpoint", default="", help="Optional checkpoint path to resume model/optimizer state from.")
+    p.add_argument("--resume-model-only", action="store_true", help="When resuming, load model weights only and ignore optimizer state.")
     p.add_argument("--checkpoint-out", default="", help="Optional checkpoint output path (.pt).")
     p.add_argument("--device", default="auto", help="Device: auto/cpu/cuda (default: auto).")
+    p.add_argument("--place-loss-weight", type=float, default=1.0, help="Loss weight for place action head (default: 1.0).")
     p.add_argument("--card-loss-weight", type=float, default=2.0, help="Loss weight for card action head (default: 2.0).")
+    p.add_argument("--card-no-action-weight", type=float, default=0.55, help="Weight multiplier for '__no_card__' class (>0, default: 0.55).")
+    p.add_argument("--card-class-balance-power", type=float, default=0.40, help="Card class inverse-frequency weighting power in [0,1] (default: 0.40).")
     p.add_argument("--min-visits", type=int, default=12, help="Minimum visits per state to keep in policy-table output.")
     p.add_argument("--shape-immediate", type=float, default=0.25, help="Blend ratio [0..1] of immediate disc-diff delta into utility target.")
     return p.parse_args()
@@ -383,6 +400,62 @@ def _kl_loss(logits: torch.Tensor, target_prob: torch.Tensor) -> torch.Tensor:
     return F.kl_div(logp, target_prob, reduction="batchmean")
 
 
+def _build_soft_card_class_weights(
+    card_target: torch.Tensor,
+    card_mask: torch.Tensor,
+    device: str,
+    no_action_weight: float,
+    balance_power: float,
+) -> torch.Tensor | None:
+    if onnx_base.CARD_ACTION_DIM <= 0:
+        return None
+    if int(card_mask.sum().item()) <= 0:
+        return None
+
+    valid = card_target[card_mask]
+    if valid.numel() <= 0:
+        return None
+
+    class_mass = torch.sum(valid, dim=0).detach().to("cpu")
+    if class_mass.numel() <= 0:
+        return None
+
+    weights = torch.ones((onnx_base.CARD_ACTION_DIM,), dtype=torch.float32)
+    if balance_power > 0:
+        non_zero = class_mass > 0
+        if int(non_zero.sum().item()) > 0:
+            max_mass = float(torch.max(class_mass[non_zero]).item())
+            for idx in range(onnx_base.CARD_ACTION_DIM):
+                mass = float(class_mass[idx].item())
+                if mass <= 0:
+                    continue
+                inv_freq = max_mass / max(1e-8, mass)
+                weights[idx] = float(inv_freq ** balance_power)
+
+    no_card_idx = onnx_base.NO_CARD_ACTION_INDEX if hasattr(onnx_base, "NO_CARD_ACTION_INDEX") else None
+    if isinstance(no_card_idx, int) and 0 <= no_card_idx < onnx_base.CARD_ACTION_DIM:
+        weights[int(no_card_idx)] *= float(no_action_weight)
+
+    weights = torch.clamp(weights, min=0.2, max=6.0)
+    mean_w = float(torch.mean(weights).item())
+    if mean_w > 0:
+        weights = weights / mean_w
+    return weights.to(device)
+
+
+def _reweight_soft_targets(target_prob: torch.Tensor, class_weights: torch.Tensor | None) -> torch.Tensor:
+    if class_weights is None:
+        return target_prob
+    weighted = target_prob * class_weights.unsqueeze(0)
+    mass = torch.sum(weighted, dim=1, keepdim=True)
+    safe_mass = torch.where(mass > 1e-8, mass, torch.ones_like(mass))
+    weighted = weighted / safe_mass
+    zero_rows = mass.squeeze(1) <= 1e-8
+    if int(zero_rows.sum().item()) > 0:
+        weighted[zero_rows] = target_prob[zero_rows]
+    return weighted
+
+
 def train_distillation(
     data: DistillDataset,
     epochs: int,
@@ -395,9 +468,17 @@ def train_distillation(
     early_stop_patience: int,
     early_stop_min_delta: float,
     early_stop_monitor: str,
+    early_stop_min_epochs: int,
+    lr_plateau_patience: int,
+    lr_plateau_factor: float,
+    lr_plateau_min_lr: float,
     resume_checkpoint: str,
+    resume_model_only: bool,
     log_interval_steps: int,
+    place_loss_weight: float,
     card_loss_weight: float,
+    card_no_action_weight: float,
+    card_class_balance_power: float,
 ) -> tuple[nn.Module, torch.optim.Optimizer, DistillSummary, str | None, list[dict]]:
     if epochs < 1:
         raise ValueError("--epochs must be >= 1")
@@ -411,15 +492,40 @@ def train_distillation(
         raise ValueError("--val-split must be in [0,0.5)")
     if early_stop_patience < 0:
         raise ValueError("--early-stop-patience must be >= 0")
+    if early_stop_min_epochs < 0:
+        raise ValueError("--early-stop-min-epochs must be >= 0")
     if early_stop_min_delta < 0:
         raise ValueError("--early-stop-min-delta must be >= 0")
+    if lr_plateau_patience < 0:
+        raise ValueError("--lr-plateau-patience must be >= 0")
+    if lr_plateau_patience > 0:
+        if lr_plateau_factor <= 0 or lr_plateau_factor >= 1:
+            raise ValueError("--lr-plateau-factor must be in (0,1) when plateau scheduling is enabled")
+        if lr_plateau_min_lr <= 0:
+            raise ValueError("--lr-plateau-min-lr must be > 0 when plateau scheduling is enabled")
     if log_interval_steps < 0:
         raise ValueError("--log-interval-steps must be >= 0")
+    if place_loss_weight <= 0:
+        raise ValueError("--place-loss-weight must be > 0")
     if card_loss_weight <= 0:
         raise ValueError("--card-loss-weight must be > 0")
+    if card_no_action_weight <= 0:
+        raise ValueError("--card-no-action-weight must be > 0")
+    if card_class_balance_power < 0 or card_class_balance_power > 1:
+        raise ValueError("--card-class-balance-power must be in [0,1]")
     monitor = str(early_stop_monitor or "").strip().lower()
-    if monitor not in ("val_loss", "train_loss"):
-        raise ValueError("--early-stop-monitor must be val_loss or train_loss")
+    if monitor not in (
+        "val_loss",
+        "train_loss",
+        "val_place_loss",
+        "train_place_loss",
+        "val_card_loss",
+        "train_card_loss",
+    ):
+        raise ValueError(
+            "--early-stop-monitor must be "
+            "val_loss/train_loss/val_place_loss/train_place_loss/val_card_loss/train_card_loss"
+        )
 
     torch.manual_seed(seed)
     if device == "cuda":
@@ -439,15 +545,30 @@ def train_distillation(
             state = ckpt
         if not isinstance(state, dict):
             raise ValueError(f"invalid checkpoint format: {resume_path}")
-        model.load_state_dict(state)
-        if isinstance(ckpt, dict):
+        try:
+            model.load_state_dict(state)
+        except RuntimeError as exc:
+            msg = str(exc)
+            # Be robust to feature/card-head dimension updates between runs.
+            # In training-cycle mode we prefer continuing from scratch over aborting the whole loop.
+            if "size mismatch for" in msg or "Missing key(s) in state_dict" in msg or "Unexpected key(s) in state_dict" in msg:
+                print(
+                    f"[train_deepcfr_onnx] resume checkpoint incompatible; ignored: {resume_path} ({msg})",
+                    flush=True
+                )
+                ckpt = None
+                state = None
+            else:
+                raise
+        if isinstance(ckpt, dict) and state is not None and not resume_model_only:
             optimizer_state = ckpt.get("optimizer_state")
             if optimizer_state:
                 try:
                     opt.load_state_dict(optimizer_state)
                 except Exception:
                     pass
-        resumed_from = resume_path
+        if state is not None:
+            resumed_from = resume_path
 
     x = data.x.to(device)
     place_target = data.place_target.to(device)
@@ -481,6 +602,23 @@ def train_distillation(
     pm_val = place_mask[val_idx] if val_idx.numel() > 0 else place_mask.new_zeros((0,))
     cm_val = card_mask[val_idx] if val_idx.numel() > 0 else card_mask.new_zeros((0,))
 
+    card_class_weights = _build_soft_card_class_weights(
+        card_target=c_train,
+        card_mask=cm_train,
+        device=device,
+        no_action_weight=card_no_action_weight,
+        balance_power=card_class_balance_power,
+    )
+    if card_class_weights is not None and onnx_base.NO_CARD_ACTION_INDEX is not None:
+        no_card_idx = int(onnx_base.NO_CARD_ACTION_INDEX)
+        if 0 <= no_card_idx < int(card_class_weights.shape[0]):
+            print(
+                "[train_deepcfr_onnx] "
+                f"card_class_weights enabled no_card_weight={float(card_class_weights[no_card_idx].item()):.4f} "
+                f"balance_power={card_class_balance_power:.3f}",
+                flush=True,
+            )
+
     train_n = int(x_train.shape[0])
     global_step = 0
     best_monitor = float("inf")
@@ -489,7 +627,10 @@ def train_distillation(
     stopped_early = False
     early_stop_epoch = None
     best_state: dict | None = None
+    best_optimizer_state: dict | None = None
     epoch_metrics: list[dict] = []
+    lr_drop_count = 0
+    plateau_no_improve_count = 0
 
     for epoch_index in range(epochs):
         perm = torch.randperm(train_n, device=device)
@@ -505,6 +646,10 @@ def train_distillation(
         epoch_place_samples = 0
         epoch_card_correct = 0
         epoch_card_samples = 0
+        epoch_place_loss_sum = 0.0
+        epoch_place_loss_batches = 0
+        epoch_card_loss_sum = 0.0
+        epoch_card_loss_batches = 0
 
         for start in range(0, train_n, batch_size):
             end = start + batch_size
@@ -519,13 +664,22 @@ def train_distillation(
 
             losses = []
             if int(pm_batch.sum().item()) > 0:
-                losses.append(_kl_loss(place_logits[pm_batch], p_batch[pm_batch]))
+                place_loss = _kl_loss(place_logits[pm_batch], p_batch[pm_batch]) * place_loss_weight
+                losses.append(place_loss)
+                epoch_place_loss_sum += float(place_loss.item())
+                epoch_place_loss_batches += 1
                 with torch.no_grad():
                     correct, samples = _soft_accuracy(place_logits[pm_batch], p_batch[pm_batch])
                     epoch_place_correct += correct
                     epoch_place_samples += samples
             if card_logits is not None and onnx_base.CARD_ACTION_DIM > 0 and int(cm_batch.sum().item()) > 0:
-                losses.append(_kl_loss(card_logits[cm_batch], c_batch[cm_batch]) * card_loss_weight)
+                card_target_batch = c_batch[cm_batch]
+                if card_class_weights is not None:
+                    card_target_batch = _reweight_soft_targets(card_target_batch, card_class_weights)
+                card_loss = _kl_loss(card_logits[cm_batch], card_target_batch) * card_loss_weight
+                losses.append(card_loss)
+                epoch_card_loss_sum += float(card_loss.item())
+                epoch_card_loss_batches += 1
                 with torch.no_grad():
                     correct, samples = _soft_accuracy(card_logits[cm_batch], c_batch[cm_batch])
                     epoch_card_correct += correct
@@ -557,11 +711,23 @@ def train_distillation(
         train_total_samples = epoch_place_samples + epoch_card_samples
         train_total_correct = epoch_place_correct + epoch_card_correct
         train_acc = train_total_correct / max(1, train_total_samples)
+        train_place_loss = (
+            epoch_place_loss_sum / max(1, epoch_place_loss_batches)
+            if epoch_place_loss_batches > 0
+            else None
+        )
+        train_card_loss = (
+            epoch_card_loss_sum / max(1, epoch_card_loss_batches)
+            if epoch_card_loss_batches > 0
+            else None
+        )
 
         val_loss = None
         val_acc = None
         val_place_acc = None
         val_card_acc = None
+        val_place_loss = None
+        val_card_loss = None
         if int(x_val.shape[0]) > 0:
             with torch.no_grad():
                 outputs_val = model(x_val)
@@ -573,10 +739,17 @@ def train_distillation(
                 val_card_samples = 0
 
                 if int(pm_val.sum().item()) > 0:
-                    val_losses.append(_kl_loss(place_logits_val[pm_val], p_val[pm_val]))
+                    val_place_term = _kl_loss(place_logits_val[pm_val], p_val[pm_val]) * place_loss_weight
+                    val_losses.append(val_place_term)
+                    val_place_loss = float(val_place_term.item())
                     val_place_correct, val_place_samples = _soft_accuracy(place_logits_val[pm_val], p_val[pm_val])
                 if card_logits_val is not None and onnx_base.CARD_ACTION_DIM > 0 and int(cm_val.sum().item()) > 0:
-                    val_losses.append(_kl_loss(card_logits_val[cm_val], c_val[cm_val]) * card_loss_weight)
+                    card_target_val = c_val[cm_val]
+                    if card_class_weights is not None:
+                        card_target_val = _reweight_soft_targets(card_target_val, card_class_weights)
+                    val_card_term = _kl_loss(card_logits_val[cm_val], card_target_val) * card_loss_weight
+                    val_losses.append(val_card_term)
+                    val_card_loss = float(val_card_term.item())
                     val_card_correct, val_card_samples = _soft_accuracy(card_logits_val[cm_val], c_val[cm_val])
 
                 if len(val_losses) > 0:
@@ -593,17 +766,49 @@ def train_distillation(
                     val_acc = total_val_correct / max(1, total_val_samples)
 
         monitor_value = train_loss
-        if monitor == "val_loss" and val_loss is not None:
-            monitor_value = val_loss
+        if monitor == "val_loss":
+            if val_loss is not None:
+                monitor_value = val_loss
+        elif monitor == "train_place_loss":
+            if train_place_loss is not None:
+                monitor_value = train_place_loss
+        elif monitor == "val_place_loss":
+            if val_place_loss is not None:
+                monitor_value = val_place_loss
+        elif monitor == "train_card_loss":
+            if train_card_loss is not None:
+                monitor_value = train_card_loss
+        elif monitor == "val_card_loss":
+            if val_card_loss is not None:
+                monitor_value = val_card_loss
 
         improved = (best_monitor - monitor_value) > early_stop_min_delta
         if improved:
             best_monitor = monitor_value
             best_epoch = epoch_index + 1
             no_improve_count = 0
+            plateau_no_improve_count = 0
             best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+            best_optimizer_state = copy.deepcopy(opt.state_dict())
         else:
             no_improve_count += 1
+            plateau_no_improve_count += 1
+
+        current_lr = float(opt.param_groups[0]["lr"])
+        if lr_plateau_patience > 0 and plateau_no_improve_count >= lr_plateau_patience:
+            next_lr = max(lr_plateau_min_lr, current_lr * lr_plateau_factor)
+            if next_lr + 1e-12 < current_lr:
+                for g in opt.param_groups:
+                    g["lr"] = next_lr
+                lr_drop_count += 1
+                plateau_no_improve_count = 0
+                # After lowering LR, give the optimizer a fresh patience window.
+                no_improve_count = 0
+                print(
+                    f"[train_deepcfr_onnx] lr-reduce epoch={epoch_index + 1} old_lr={current_lr:.8f} new_lr={next_lr:.8f} drops={lr_drop_count}",
+                    flush=True,
+                )
+                current_lr = next_lr
 
         epoch_metrics.append({
             "epoch": epoch_index + 1,
@@ -614,16 +819,26 @@ def train_distillation(
             "trainAcc": train_acc,
             "trainPlaceAcc": train_place_acc,
             "trainCardAcc": train_card_acc,
+            "trainPlaceLoss": train_place_loss,
+            "trainCardLoss": train_card_loss,
             "valLoss": val_loss,
             "valAcc": val_acc,
             "valPlaceAcc": val_place_acc,
             "valCardAcc": val_card_acc,
+            "valPlaceLoss": val_place_loss,
+            "valCardLoss": val_card_loss,
             "monitor": monitor,
             "monitorValue": monitor_value,
             "bestMonitor": best_monitor,
             "bestEpoch": best_epoch,
             "noImproveCount": no_improve_count,
+            "plateauNoImproveCount": plateau_no_improve_count,
+            "lr": current_lr,
+            "lrDropCount": lr_drop_count,
+            "placeLossWeight": place_loss_weight,
             "cardLossWeight": card_loss_weight,
+            "cardNoActionWeight": card_no_action_weight,
+            "cardClassBalancePower": card_class_balance_power,
         })
 
         parts = [
@@ -632,20 +847,33 @@ def train_distillation(
             f"train_acc={train_acc:.3f}",
             f"train_place_acc={train_place_acc:.3f}",
         ]
+        if train_place_loss is not None:
+            parts.append(f"train_place_loss={train_place_loss:.6f}")
         if train_card_acc is not None:
             parts.append(f"train_card_acc={train_card_acc:.3f}")
+        if train_card_loss is not None:
+            parts.append(f"train_card_loss={train_card_loss:.6f}")
         if val_loss is not None and val_acc is not None:
             parts.append(f"val_loss={val_loss:.6f}")
             parts.append(f"val_acc={val_acc:.3f}")
             if val_place_acc is not None:
                 parts.append(f"val_place_acc={val_place_acc:.3f}")
+            if val_place_loss is not None:
+                parts.append(f"val_place_loss={val_place_loss:.6f}")
             if val_card_acc is not None:
                 parts.append(f"val_card_acc={val_card_acc:.3f}")
+            if val_card_loss is not None:
+                parts.append(f"val_card_loss={val_card_loss:.6f}")
         parts.append(f"monitor={monitor}")
         parts.append(f"monitor_value={monitor_value:.6f}")
+        parts.append(f"lr={current_lr:.8f}")
         print(" ".join(parts), flush=True)
 
-        if early_stop_patience > 0 and no_improve_count >= early_stop_patience:
+        if (
+            early_stop_patience > 0 and
+            (epoch_index + 1) >= early_stop_min_epochs and
+            no_improve_count >= early_stop_patience
+        ):
             stopped_early = True
             early_stop_epoch = epoch_index + 1
             print(
@@ -656,11 +884,17 @@ def train_distillation(
 
     if best_state is not None:
         model.load_state_dict(best_state)
+    if best_optimizer_state is not None:
+        try:
+            opt.load_state_dict(best_optimizer_state)
+        except Exception:
+            pass
     if epoch_metrics:
         epoch_metrics[-1]["stoppedEarly"] = stopped_early
         epoch_metrics[-1]["earlyStopEpoch"] = early_stop_epoch
         epoch_metrics[-1]["bestEpoch"] = best_epoch
         epoch_metrics[-1]["bestMonitor"] = best_monitor
+        epoch_metrics[-1]["lrDropCount"] = lr_drop_count
 
     with torch.no_grad():
         outputs_all = model(x)
@@ -754,6 +988,16 @@ def write_meta(path: str, args: argparse.Namespace, stats: dict, summary: Distil
         "opp_charge_norm",
         "deck_count_norm",
         "pending_flag",
+        "own_corners_norm",
+        "opp_corners_norm",
+        "own_edges_norm",
+        "opp_edges_norm",
+        "has_corner_move_now_flag",
+        "has_edge_move_now_flag",
+        "corner_emergency_flag",
+        "corner_hold_mode_flag",
+        "high_bonus_move_available_flag",
+        "max_legal_move_bonus_norm",
     ]
     if onnx_base.CARD_ACTION_DIM > 0:
         feature_spec += ["hand_card_counts_norm", "usable_card_mask"]
@@ -785,7 +1029,14 @@ def write_meta(path: str, args: argparse.Namespace, stats: dict, summary: Distil
             "earlyStopPatience": int(args.early_stop_patience),
             "earlyStopMinDelta": float(args.early_stop_min_delta),
             "earlyStopMonitor": str(args.early_stop_monitor),
+            "earlyStopMinEpochs": int(args.early_stop_min_epochs),
+            "lrPlateauPatience": int(args.lr_plateau_patience),
+            "lrPlateauFactor": float(args.lr_plateau_factor),
+            "lrPlateauMinLr": float(args.lr_plateau_min_lr),
+            "placeLossWeight": float(args.place_loss_weight),
             "cardLossWeight": float(args.card_loss_weight),
+            "cardNoActionWeight": float(args.card_no_action_weight),
+            "cardClassBalancePower": float(args.card_class_balance_power),
             "resumeCheckpoint": (args.resume_checkpoint or "").strip() or None,
             "checkpointOut": (args.checkpoint_out or "").strip() or None,
             "cfrIterations": int(args.cfr_iterations),
@@ -848,7 +1099,14 @@ def maybe_write_checkpoint(
             "earlyStopPatience": int(args.early_stop_patience),
             "earlyStopMinDelta": float(args.early_stop_min_delta),
             "earlyStopMonitor": str(args.early_stop_monitor),
+            "earlyStopMinEpochs": int(args.early_stop_min_epochs),
+            "lrPlateauPatience": int(args.lr_plateau_patience),
+            "lrPlateauFactor": float(args.lr_plateau_factor),
+            "lrPlateauMinLr": float(args.lr_plateau_min_lr),
+            "placeLossWeight": float(args.place_loss_weight),
             "cardLossWeight": float(args.card_loss_weight),
+            "cardNoActionWeight": float(args.card_no_action_weight),
+            "cardClassBalancePower": float(args.card_class_balance_power),
             "resumedFrom": resumed_from,
             "cfrIterations": int(args.cfr_iterations),
             "cfrRegretFloor": float(args.cfr_regret_floor),
@@ -933,9 +1191,17 @@ def main() -> int:
         early_stop_patience=int(args.early_stop_patience),
         early_stop_min_delta=float(args.early_stop_min_delta),
         early_stop_monitor=str(args.early_stop_monitor or ""),
+        early_stop_min_epochs=int(args.early_stop_min_epochs),
+        lr_plateau_patience=int(args.lr_plateau_patience),
+        lr_plateau_factor=float(args.lr_plateau_factor),
+        lr_plateau_min_lr=float(args.lr_plateau_min_lr),
         resume_checkpoint=str(args.resume_checkpoint or ""),
+        resume_model_only=bool(args.resume_model_only),
         log_interval_steps=int(args.log_interval_steps),
+        place_loss_weight=float(args.place_loss_weight),
         card_loss_weight=float(args.card_loss_weight),
+        card_no_action_weight=float(args.card_no_action_weight),
+        card_class_balance_power=float(args.card_class_balance_power),
     )
 
     onnx_base.export_onnx(model, args.onnx_out)
@@ -999,7 +1265,14 @@ def main() -> int:
             "earlyStopPatience": int(args.early_stop_patience),
             "earlyStopMinDelta": float(args.early_stop_min_delta),
             "earlyStopMonitor": str(args.early_stop_monitor),
+            "earlyStopMinEpochs": int(args.early_stop_min_epochs),
+            "lrPlateauPatience": int(args.lr_plateau_patience),
+            "lrPlateauFactor": float(args.lr_plateau_factor),
+            "lrPlateauMinLr": float(args.lr_plateau_min_lr),
+            "placeLossWeight": float(args.place_loss_weight),
             "cardLossWeight": float(args.card_loss_weight),
+            "cardNoActionWeight": float(args.card_no_action_weight),
+            "cardClassBalancePower": float(args.card_class_balance_power),
             "resumedFrom": resumed_from,
             "cfrIterations": int(args.cfr_iterations),
             "cfrRegretFloor": float(args.cfr_regret_floor),

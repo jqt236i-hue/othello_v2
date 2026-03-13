@@ -12,43 +12,95 @@ const TurnPipelinePhases = require('../../game/turn/turn_pipeline_phases');
 const SeededPRNG = require('../../game/schema/prng');
 const deepClone = require('../../utils/deepClone');
 const CpuPolicyCore = require('../../game/ai/cpu-policy-core');
+const CpuPolicyTableRuntime = require('../../game/ai/policy-table-runtime');
+const CpuLv6LookaheadProfile = require('../../game/ai/cpu-lv6-lookahead-profile');
 
-const SELFPLAY_SCHEMA_VERSION = 'selfplay.v1';
+const SELFPLAY_SCHEMA_VERSION = 'selfplay.v2';
+const LEGACY_SELFPLAY_SCHEMA_VERSION = 'selfplay.v1';
 
 const TARGET_SELECTION_CARD_TYPES = new Set([
     'DESTROY_ONE_STONE',
+    'TRAP_WILL',
+    'CLONE_WILL',
+    'EXTEND_LIFE_WILL',
+    'CORROSION_WILL',
+    'HYPERACTIVE_INHERIT_WILL',
+    'TELEPORT_WILL',
+    'CELL_TELEPORT_WILL',
     'STRONG_WIND_WILL',
-    'SACRIFICE_WILL',
-    'SELL_CARD_WILL',
+    'SUPER_BUOYANCY_WILL',
+    'SUPER_GRAVITY_WILL',
     'SWAP_WITH_ENEMY',
     'POSITION_SWAP_WILL',
-    'TEMPT_WILL'
+    'TEMPT_WILL',
+    'SACRIFICE_WILL',
+    'SELL_CARD_WILL',
+    'HEAVEN_BLESSING',
+    'CONDEMN_WILL',
+    'TIME_BOMB',
+    'GUARD_WILL',
+    'GUARDIAN_GOD',
+    'BOARD_EXPANSION_WILL',
+    'BOARD_EXPANSION_GOD',
+    'BLOCKADE_WILL',
+    'METEOR_WILL'
 ]);
 
 const CANDIDATE_CARD_TYPES = new Set([
+    'TREASURE_BOX',
     'FREE_PLACEMENT',
+    'LAST_RESORT',
+    'SNIPER_WILL',
     'PROTECTED_NEXT_STONE',
     'PERMA_PROTECT_NEXT_STONE',
+    'EXTEND_LIFE_WILL',
+    'CORROSION_WILL',
+    'GUARD_WILL',
+    'GUARDIAN_GOD',
+    'TRAP_WILL',
+    'BOARD_EXPANSION_WILL',
+    'BOARD_EXPANSION_GOD',
+    'BLOCKADE_WILL',
+    'METEOR_WILL',
     'CHAIN_WILL',
+    'TABOO_REVERSE_WILL',
     'REGEN_WILL',
     'TIME_BOMB',
+    'CROSS_BOMB',
+    'X_BOMB',
     'ULTIMATE_REVERSE_DRAGON',
     'BREEDING_WILL',
+    'CLONE_WILL',
     'HYPERACTIVE_WILL',
+    'INSTANT_HYPERACTIVE_WILL',
+    'ESCAPE_WILL',
+    'ROBOT_VACUUM_WILL',
+    'HYPERACTIVE_INHERIT_WILL',
     'PLUNDER_WILL',
     'WORK_WILL',
     'DOUBLE_PLACE',
+    'HEAVEN_BLESSING',
+    'CONDEMN_WILL',
     'GOLD_STONE',
     'SILVER_STONE',
     'STEAL_CARD',
+    'ULTIMATE_HYPERACTIVE_GOD',
     'ULTIMATE_DESTROY_GOD',
     'DESTROY_ONE_STONE',
     'STRONG_WIND_WILL',
+    'SUPER_BUOYANCY_WILL',
+    'SUPER_GRAVITY_WILL',
     'SACRIFICE_WILL',
     'SELL_CARD_WILL',
+    'REBUILD_WILL',
     'SWAP_WITH_ENEMY',
     'POSITION_SWAP_WILL',
-    'TEMPT_WILL'
+    'TEMPT_WILL',
+    'TELEPORT_WILL',
+    'CELL_TELEPORT_WILL',
+    'LOSS_WILL',
+    'OBSERVER_WILL',
+    'DESTROY_DRAGON_WILL'
 ]);
 
 const POSITION_WEIGHTS = [
@@ -61,6 +113,30 @@ const POSITION_WEIGHTS = [
     [-20, -40, -5, -5, -5, -5, -40, -20],
     [120, -20, 20, 5, 5, 20, -20, 120]
 ];
+
+const FALLBACK_CORNER_RECOVERY_CARD_TYPES = new Set([
+    'DESTROY_ONE_STONE',
+    'SWAP_WITH_ENEMY',
+    'POSITION_SWAP_WILL',
+    'STRONG_WIND_WILL',
+    'SUPER_BUOYANCY_WILL',
+    'SUPER_GRAVITY_WILL',
+    'TEMPT_WILL',
+    'ULTIMATE_DESTROY_GOD',
+    'ULTIMATE_REVERSE_DRAGON',
+    'METEOR_WILL',
+    'BOARD_EXPANSION_WILL',
+    'BOARD_EXPANSION_GOD'
+]);
+
+const FALLBACK_CORNER_HOLD_CARD_TYPES = new Set([
+    'PROTECTED_NEXT_STONE',
+    'PERMA_PROTECT_NEXT_STONE',
+    'GUARD_WILL',
+    'GUARDIAN_GOD',
+    'REGEN_WILL',
+    'BLOCKADE_WILL'
+]);
 
 function toPlayerKey(playerValue) {
     return playerValue === Core.BLACK ? 'black' : 'white';
@@ -150,6 +226,43 @@ function isEdge(row, col) {
     return row === 0 || row === 7 || col === 0 || col === 7;
 }
 
+function resolveForcedPlacementCandidates(legalMoves, options) {
+    const safeLegalMoves = Array.isArray(legalMoves)
+        ? legalMoves.filter((move) => move && Number.isInteger(move.row) && Number.isInteger(move.col))
+        : [];
+    const defaultMoves = safeLegalMoves.length > 0
+        ? safeLegalMoves
+        : (Array.isArray(legalMoves) ? legalMoves : []);
+
+    if (options && options.forceCornerEdgePlacement === false) {
+        return {
+            category: null,
+            moves: defaultMoves
+        };
+    }
+
+    const cornerMoves = safeLegalMoves.filter((move) => isCorner(move.row, move.col));
+    if (cornerMoves.length > 0) {
+        return {
+            category: 'corner',
+            moves: cornerMoves
+        };
+    }
+
+    const edgeMoves = safeLegalMoves.filter((move) => !isCorner(move.row, move.col) && isEdge(move.row, move.col));
+    if (edgeMoves.length > 0) {
+        return {
+            category: 'edge',
+            moves: edgeMoves
+        };
+    }
+
+    return {
+        category: null,
+        moves: defaultMoves
+    };
+}
+
 function isXSquare(row, col) {
     return (row === 1 || row === 6) && (col === 1 || col === 6);
 }
@@ -197,12 +310,56 @@ function getLegalMovesBasic(board, playerValue) {
     return moves;
 }
 
-function scoreMove(move, rng) {
-    let score = move.flips.length * 100;
-    if (isCorner(move.row, move.col)) score += 10000;
-    if (isEdge(move.row, move.col)) score += 250;
-    if (isXSquare(move.row, move.col)) score -= 600;
-    if (isCSquare(move.row, move.col)) score -= 300;
+function scoreMove(move, rng, context) {
+    const row = Number.isFinite(move && move.row) ? move.row : 0;
+    const col = Number.isFinite(move && move.col) ? move.col : 0;
+    const flips = Array.isArray(move && move.flips) ? move.flips.length : 0;
+    const scoreContext = context || {};
+    const planState = scoreContext.planState || null;
+    const movePlanContext = scoreContext.movePlanContext || null;
+    const shouldUseCornerPlan = (
+        CpuPolicyCore &&
+        typeof CpuPolicyCore.scoreMoveForCornerEdgePlan === 'function' &&
+        scoreContext.gameState &&
+        isStandardBoard(scoreContext.gameState.board) &&
+        movePlanContext
+    );
+
+    let score = flips * 100;
+    if (shouldUseCornerPlan) {
+        try {
+            score = CpuPolicyCore.scoreMoveForCornerEdgePlan(move, movePlanContext);
+        } catch (e) {
+            score = flips * 100;
+        }
+    }
+    if (!shouldUseCornerPlan) {
+        if (isCorner(row, col)) score += 10000;
+        if (!isCorner(row, col) && isEdge(row, col)) score += 5200;
+        if (isXSquare(row, col)) score -= 600;
+        if (isCSquare(row, col)) score -= 300;
+    }
+
+    const moveBonus = getBoardBonusAtCell(scoreContext.cardState, row, col);
+    if (moveBonus > 0) {
+        // Keep strict priority: corner > edge > bonus cell.
+        const bonusWeight = (planState && planState.cornerHoldMode) ? 260 : 180;
+        score += moveBonus * bonusWeight;
+    }
+
+    if (planState && planState.cornerHoldMode) {
+        score += flips * 65;
+        if (!isCorner(row, col) && isEdge(row, col)) score += 850;
+        if (!isCorner(row, col) && !isEdge(row, col)) score -= 220;
+        if (isXSquare(row, col)) score -= 1000;
+        if (isCSquare(row, col)) score -= 450;
+    } else if (planState && planState.cornerSeekMode) {
+        if (isCorner(row, col)) score += 7000;
+        if (!isCorner(row, col) && isEdge(row, col)) score += 950;
+        if (isXSquare(row, col)) score -= 1200;
+        if (isCSquare(row, col)) score -= 500;
+    }
+
     // Deterministic tie-break jitter.
     score += rng.random() * 0.01;
     return score;
@@ -236,6 +393,406 @@ function countCorners(board, playerValue) {
         else if (v === -playerValue) opp += 1;
     }
     return own - opp;
+}
+
+function countCornerControl(board, playerValue) {
+    if (!Array.isArray(board) || board.length === 0) return { ownCorners: 0, oppCorners: 0 };
+    const n = board.length - 1;
+    const points = [[0, 0], [0, n], [n, 0], [n, n]];
+    let ownCorners = 0;
+    let oppCorners = 0;
+    for (const p of points) {
+        const row = board[p[0]];
+        if (!Array.isArray(row)) continue;
+        const v = row[p[1]];
+        if (v === playerValue) ownCorners += 1;
+        else if (v === -playerValue) oppCorners += 1;
+    }
+    return { ownCorners, oppCorners };
+}
+
+function countEdgeControl(board, playerValue) {
+    if (!Array.isArray(board) || board.length === 0) return { ownEdges: 0, oppEdges: 0 };
+    let ownEdges = 0;
+    let oppEdges = 0;
+    const size = board.length;
+    for (let row = 0; row < size; row++) {
+        const oneRow = board[row];
+        if (!Array.isArray(oneRow)) continue;
+        for (let col = 0; col < oneRow.length; col++) {
+            if (!isEdge(row, col) || isCorner(row, col)) continue;
+            const v = oneRow[col];
+            if (v === playerValue) ownEdges += 1;
+            else if (v === -playerValue) oppEdges += 1;
+        }
+    }
+    return { ownEdges, oppEdges };
+}
+
+function toFiniteStatNumber(value) {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : 0;
+}
+
+function getDiscCountForPlayerFromRecord(rec, playerKey, phase) {
+    if (!rec || !playerKey) return 0;
+    const useAfter = phase === 'after';
+    if (playerKey === 'black') {
+        return useAfter
+            ? toFiniteStatNumber(rec.blackCountAfter)
+            : toFiniteStatNumber(rec.blackCountBefore);
+    }
+    return useAfter
+        ? toFiniteStatNumber(rec.whiteCountAfter)
+        : toFiniteStatNumber(rec.whiteCountBefore);
+}
+
+function getCornerCountForPlayerFromRecord(rec, playerKey, phase) {
+    if (!rec || !playerKey) return 0;
+    const useAfter = phase === 'after';
+    const ownKey = useAfter ? 'ownCornersAfter' : 'ownCornersBefore';
+    const oppKey = useAfter ? 'oppCornersAfter' : 'oppCornersBefore';
+    return rec.player === playerKey
+        ? toFiniteStatNumber(rec[ownKey])
+        : toFiniteStatNumber(rec[oppKey]);
+}
+
+function annotateHorizonDecisionMetrics(gameRecords, horizonPlies) {
+    if (!Array.isArray(gameRecords) || gameRecords.length <= 0) return;
+    const horizon = Number.isFinite(horizonPlies)
+        ? Math.max(1, Math.floor(horizonPlies))
+        : 3;
+    const lastIndex = gameRecords.length - 1;
+
+    for (let i = 0; i < gameRecords.length; i++) {
+        const rec = gameRecords[i];
+        if (!rec || (rec.player !== 'black' && rec.player !== 'white')) continue;
+        const actor = rec.player;
+        const horizonIndex = Math.min(lastIndex, i + horizon);
+        const horizonRec = gameRecords[horizonIndex] || rec;
+
+        const ownDiscAfter = getDiscCountForPlayerFromRecord(rec, actor, 'after');
+        const ownDiscAfterHorizon = getDiscCountForPlayerFromRecord(horizonRec, actor, 'after');
+        const ownCornersAfterHorizon = getCornerCountForPlayerFromRecord(horizonRec, actor, 'after');
+
+        let cornerHoldTurnsNext3Plies = 0;
+        for (let j = i + 1; j <= horizonIndex; j++) {
+            const futureRec = gameRecords[j];
+            const ownCornersFuture = getCornerCountForPlayerFromRecord(futureRec, actor, 'after');
+            if (ownCornersFuture > 0) cornerHoldTurnsNext3Plies += 1;
+        }
+
+        rec.futureDiscDelta3Ply = ownDiscAfterHorizon - ownDiscAfter;
+        rec.ownCornersAfter3Ply = ownCornersAfterHorizon;
+        rec.cornerHoldTurnsNext3Plies = cornerHoldTurnsNext3Plies;
+        rec.horizonPliesUsed = horizonIndex - i;
+    }
+}
+
+function classifySelectionSeat(row, col, board) {
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return 'unknown';
+    if (isCorner(row, col, board)) return 'corner';
+    if (isEdge(row, col, board)) return 'edge';
+    return 'inner';
+}
+
+function buildSelectionTrace(record) {
+    if (!record || typeof record !== 'object') return null;
+    const actionType = String(record.actionType || '');
+    if (actionType === 'place') {
+        const topCandidates = Array.isArray(record.topPlacementCandidates)
+            ? record.topPlacementCandidates.map((one) => ({
+                row: Number.isFinite(one && one.row) ? Number(one.row) : null,
+                col: Number.isFinite(one && one.col) ? Number(one.col) : null,
+                seat: String(one && one.seat ? one.seat : 'unknown'),
+                combinedScore: Number.isFinite(one && one.combinedScore) ? Number(one.combinedScore) : null,
+                tacticalScore: Number.isFinite(one && one.tacticalScore) ? Number(one.tacticalScore) : null,
+                heuristicScore: Number.isFinite(one && one.heuristicScore) ? Number(one.heuristicScore) : null,
+                policyScore: Number.isFinite(one && one.policyScore) ? Number(one.policyScore) : null,
+                finalScore: Number.isFinite(one && one.finalScore) ? Number(one.finalScore) : null,
+                committeeVotes: Number.isFinite(one && one.committeeVotes) ? Number(one.committeeVotes) : 0
+            }))
+            : [];
+        return {
+            kind: 'place',
+            selected: {
+                row: Number.isFinite(record.row) ? Number(record.row) : null,
+                col: Number.isFinite(record.col) ? Number(record.col) : null,
+                seat: classifySelectionSeat(record.row, record.col),
+                selectedCompositeScore: Number.isFinite(record.selectedCompositeScore) ? Number(record.selectedCompositeScore) : null,
+                selectedTacticalScore: Number.isFinite(record.selectedTacticalScore) ? Number(record.selectedTacticalScore) : null,
+                selectedCellBonus: Number.isFinite(record.selectedCellBonus) ? Number(record.selectedCellBonus) : null
+            },
+            topCandidates,
+            forcedPlacementCategory: record.forcedPlacementCategory || null
+        };
+    }
+    if (actionType === 'use_card') {
+        return {
+            kind: 'card',
+            decision: 'use',
+            selectedCardId: record.useCardId || null,
+            usableCardIds: Array.isArray(record.usableCardIds) ? record.usableCardIds.slice() : []
+        };
+    }
+    if (actionType === 'destroy_hand_card') {
+        return {
+            kind: 'card',
+            decision: 'destroy',
+            selectedCardId: record.destroyCardId || null,
+            handCards: Array.isArray(record.handCards) ? record.handCards.slice() : []
+        };
+    }
+    if (actionType === 'cancel_card') {
+        return {
+            kind: 'card',
+            decision: 'keep',
+            usableCardIds: Array.isArray(record.usableCardIds) ? record.usableCardIds.slice() : []
+        };
+    }
+    return {
+        kind: 'other',
+        actionType: actionType || null
+    };
+}
+
+function buildActorViewSnapshot(record) {
+    if (!record || typeof record !== 'object') return null;
+    return {
+        board: record.board || '',
+        player: record.player || null,
+        pendingType: record.pendingType || null,
+        legalMoves: Number.isFinite(record.legalMoves) ? Number(record.legalMoves) : 0,
+        handCards: Array.isArray(record.handCards) ? record.handCards.slice() : [],
+        usableCardIds: Array.isArray(record.usableCardIds) ? record.usableCardIds.slice() : [],
+        handBlack: Number.isFinite(record.handBlack) ? Number(record.handBlack) : 0,
+        handWhite: Number.isFinite(record.handWhite) ? Number(record.handWhite) : 0,
+        chargeBlack: Number.isFinite(record.chargeBlack) ? Number(record.chargeBlack) : 0,
+        chargeWhite: Number.isFinite(record.chargeWhite) ? Number(record.chargeWhite) : 0,
+        deckCount: Number.isFinite(record.deckCount) ? Number(record.deckCount) : 0,
+        discardCount: Number.isFinite(record.discardCount) ? Number(record.discardCount) : 0,
+        blackCountBefore: Number.isFinite(record.blackCountBefore) ? Number(record.blackCountBefore) : 0,
+        whiteCountBefore: Number.isFinite(record.whiteCountBefore) ? Number(record.whiteCountBefore) : 0,
+        ownCornersBefore: Number.isFinite(record.ownCornersBefore) ? Number(record.ownCornersBefore) : 0,
+        oppCornersBefore: Number.isFinite(record.oppCornersBefore) ? Number(record.oppCornersBefore) : 0,
+        ownEdgesBefore: Number.isFinite(record.ownEdgesBefore) ? Number(record.ownEdgesBefore) : 0,
+        oppEdgesBefore: Number.isFinite(record.oppEdgesBefore) ? Number(record.oppEdgesBefore) : 0,
+        hasCornerMoveNow: record.hasCornerMoveNow ? 1 : 0,
+        hasEdgeMoveNow: record.hasEdgeMoveNow ? 1 : 0,
+        cornerEmergency: record.cornerEmergency ? 1 : 0,
+        cornerHoldMode: record.cornerHoldMode ? 1 : 0,
+        highBonusMoveAvailable: record.highBonusMoveAvailable ? 1 : 0,
+        maxLegalMoveBonus: Number.isFinite(record.maxLegalMoveBonus) ? Number(record.maxLegalMoveBonus) : 0,
+        selectedCellBonus: Number.isFinite(record.selectedCellBonus) ? Number(record.selectedCellBonus) : 0,
+        selectionTrace: buildSelectionTrace(record)
+    };
+}
+
+function computeHardcaseTags(record) {
+    if (!record || typeof record !== 'object') return [];
+    const tags = [];
+    const pushUnique = (tag) => {
+        const normalized = String(tag || '').trim();
+        if (!normalized || tags.includes(normalized)) return;
+        tags.push(normalized);
+    };
+
+    if (record.hasCornerMoveNow) pushUnique('corner_move_available');
+    if (record.cornerEmergency) pushUnique('corner_emergency');
+    if (Number(record.legalMoves || 0) <= 2) pushUnique('low_legal_moves');
+    if (Array.isArray(record.handCards) && record.handCards.length >= 4) pushUnique('hand_pressure');
+    if (record.pendingType) pushUnique('pending_target_selection');
+    if (Number(record.futureDiscDelta3Ply || 0) < 0) pushUnique('negative_future_disc');
+    if (Number(record.tacticalScoreMissRatio || 0) >= 0.08) pushUnique('tactical_miss_high');
+
+    const edgeSwing = Math.abs(
+        (Number(record.ownEdgesAfter || 0) - Number(record.ownEdgesBefore || 0)) -
+        (Number(record.oppEdgesAfter || 0) - Number(record.oppEdgesBefore || 0))
+    );
+    if (edgeSwing >= 2) pushUnique('edge_balance_swing');
+
+    const emptyCountBefore = 64 - Number(record.blackCountBefore || 0) - Number(record.whiteCountBefore || 0);
+    if (emptyCountBefore <= 40) pushUnique('endgame_mode');
+
+    return tags;
+}
+
+function annotateSelfplayV2Metadata(gameRecords, options) {
+    if (!Array.isArray(gameRecords) || gameRecords.length <= 0) return;
+    const seedFamily = options && typeof options.seedFamily === 'string' && options.seedFamily.trim()
+        ? options.seedFamily.trim()
+        : 'train';
+    const dataLane = options && typeof options.dataLane === 'string' && options.dataLane.trim()
+        ? options.dataLane.trim()
+        : 'selfplay-games';
+
+    for (const rec of gameRecords) {
+        if (!rec || typeof rec !== 'object') continue;
+        rec.visibilityScope = 'actor';
+        rec.seedFamily = seedFamily;
+        rec.dataLane = dataLane;
+        rec.actorView = buildActorViewSnapshot(rec);
+        rec.hardcaseTags = computeHardcaseTags(rec);
+        rec.isHardcase = rec.hardcaseTags.length > 0;
+        rec.hardcasePrimaryTag = rec.hardcaseTags.length > 0 ? rec.hardcaseTags[0] : null;
+    }
+}
+
+function getBoardBonusAtCell(cardState, row, col) {
+    if (!cardState || !Number.isInteger(row) || !Number.isInteger(col)) return 0;
+    const key = `${row},${col}`;
+    if (cardState.boardBonusConsumedByCell && cardState.boardBonusConsumedByCell[key] === true) return 0;
+    const raw = Number(cardState.boardBonusByCell && cardState.boardBonusByCell[key] ? cardState.boardBonusByCell[key] : 0);
+    return Number.isFinite(raw) && raw > 0 ? raw : 0;
+}
+
+function resolveCardType(cardId) {
+    if (!cardId) return '';
+    if (typeof CardLogic.getCardType === 'function') {
+        try {
+            const cardType = CardLogic.getCardType(cardId);
+            if (typeof cardType === 'string' && cardType) return cardType;
+        } catch (e) { /* ignore */ }
+    }
+    if (typeof CardLogic.getCardDef === 'function') {
+        try {
+            const cardDef = CardLogic.getCardDef(cardId);
+            if (cardDef && typeof cardDef.type === 'string') return cardDef.type;
+        } catch (e) { /* ignore */ }
+    }
+    return '';
+}
+
+function isRecoveryCardType(cardType) {
+    const type = String(cardType || '');
+    if (!type) return false;
+    if (CpuPolicyCore && typeof CpuPolicyCore.isCornerRecoveryCardType === 'function') {
+        try {
+            return CpuPolicyCore.isCornerRecoveryCardType(type) === true;
+        } catch (e) { /* ignore */ }
+    }
+    return FALLBACK_CORNER_RECOVERY_CARD_TYPES.has(type);
+}
+
+function isHoldCardType(cardType) {
+    const type = String(cardType || '');
+    if (!type) return false;
+    if (CpuPolicyCore && typeof CpuPolicyCore.isCornerHoldCardType === 'function') {
+        try {
+            return CpuPolicyCore.isCornerHoldCardType(type) === true;
+        } catch (e) { /* ignore */ }
+    }
+    return FALLBACK_CORNER_HOLD_CARD_TYPES.has(type);
+}
+
+function buildCornerPlanState(gameState, cardState, playerKey, legalMoves, usableCardIds) {
+    if (!gameState || !Array.isArray(gameState.board)) {
+        return {
+            ownCorners: 0,
+            oppCorners: 0,
+            ownEdges: 0,
+            oppEdges: 0,
+            hasCornerMoveNow: false,
+            hasEdgeMoveNow: false,
+            cornerEmergency: false,
+            cornerHoldMode: false,
+            cornerSeekMode: true,
+            recoveryReady: false,
+            holdReady: false,
+            recoveryCostGap: 0,
+            maxBoardBonusOnLegalMoves: 0,
+            highBonusMoveAvailable: false
+        };
+    }
+    const playerValue = toPlayerValue(playerKey);
+    const cornerControl = countCornerControl(gameState.board, playerValue);
+    const edgeControl = countEdgeControl(gameState.board, playerValue);
+    const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
+    const hasCornerMoveNow = safeLegalMoves.some((move) => move && isCorner(move.row, move.col));
+    const hasEdgeMoveNow = safeLegalMoves.some((move) => move && !isCorner(move.row, move.col) && isEdge(move.row, move.col));
+    let maxBoardBonusOnLegalMoves = 0;
+    for (const move of safeLegalMoves) {
+        if (!move || !Number.isInteger(move.row) || !Number.isInteger(move.col)) continue;
+        const bonus = getBoardBonusAtCell(cardState, move.row, move.col);
+        if (bonus > maxBoardBonusOnLegalMoves) maxBoardBonusOnLegalMoves = bonus;
+    }
+
+    const ownKey = playerKey === 'black' ? 'black' : 'white';
+    const ownCharge = cardState && cardState.charge && Number.isFinite(cardState.charge[ownKey]) ? Number(cardState.charge[ownKey]) : 0;
+    const safeUsableCardIds = Array.isArray(usableCardIds) ? usableCardIds : [];
+    const usableSet = new Set(safeUsableCardIds.map((cardId) => String(cardId)));
+    const handCards = cardState && cardState.hands && Array.isArray(cardState.hands[ownKey]) ? cardState.hands[ownKey] : [];
+
+    let recoveryReady = false;
+    let holdReady = false;
+    let recoveryCostGap = Number.POSITIVE_INFINITY;
+    for (const cardId of handCards) {
+        const cardType = resolveCardType(cardId);
+        if (!cardType) continue;
+        const cardCost = (typeof CardLogic.getCardCost === 'function')
+            ? Number(CardLogic.getCardCost(cardId) || 0)
+            : 0;
+        if (isRecoveryCardType(cardType)) {
+            if (usableSet.has(String(cardId)) && ownCharge >= cardCost) {
+                recoveryReady = true;
+            } else {
+                recoveryCostGap = Math.min(recoveryCostGap, Math.max(0, cardCost - ownCharge));
+            }
+        }
+        if (isHoldCardType(cardType) && usableSet.has(String(cardId)) && ownCharge >= cardCost) {
+            holdReady = true;
+        }
+    }
+    if (!Number.isFinite(recoveryCostGap)) recoveryCostGap = 0;
+
+    const cornerEmergency = cornerControl.oppCorners > cornerControl.ownCorners || (!hasCornerMoveNow && cornerControl.oppCorners > 0);
+    const edgeLead = edgeControl.ownEdges >= edgeControl.oppEdges;
+    const cornerHoldMode = !cornerEmergency && cornerControl.ownCorners > 0 && cornerControl.ownCorners >= cornerControl.oppCorners && edgeLead;
+
+    return {
+        ownCorners: cornerControl.ownCorners,
+        oppCorners: cornerControl.oppCorners,
+        ownEdges: edgeControl.ownEdges,
+        oppEdges: edgeControl.oppEdges,
+        hasCornerMoveNow,
+        hasEdgeMoveNow,
+        cornerEmergency,
+        cornerHoldMode,
+        cornerSeekMode: !cornerHoldMode,
+        recoveryReady,
+        holdReady,
+        recoveryCostGap,
+        maxBoardBonusOnLegalMoves,
+        highBonusMoveAvailable: maxBoardBonusOnLegalMoves >= 3
+    };
+}
+
+function buildMovePlanContext(gameState, cardState, playerKey, legalMoves, usableCardIds) {
+    if (!gameState || !isStandardBoard(gameState.board)) return null;
+    const ownKey = playerKey === 'black' ? 'black' : 'white';
+    const planState = buildCornerPlanState(gameState, cardState, ownKey, legalMoves, usableCardIds);
+    const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[ownKey] : null;
+    return {
+        level: 6,
+        board: gameState.board,
+        playerValue: toPlayerValue(ownKey),
+        ownCharge: cardState && cardState.charge && Number.isFinite(cardState.charge[ownKey]) ? Number(cardState.charge[ownKey]) : 0,
+        boardBonusByCell: (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
+            ? cardState.boardBonusByCell
+            : null,
+        boardBonusConsumedByCell: (cardState && cardState.boardBonusConsumedByCell && typeof cardState.boardBonusConsumedByCell === 'object')
+            ? cardState.boardBonusConsumedByCell
+            : null,
+        reserveRecoveryCardReady: planState.recoveryReady === true,
+        reserveRecoveryCardCostGap: Number(planState.recoveryCostGap || 0),
+        hasCornerHoldCardReady: planState.holdReady === true,
+        pendingType: pending && typeof pending.type === 'string' ? pending.type : null,
+        pendingPlacementsRemaining: pending && Number.isFinite(Number(pending.placementsRemaining))
+            ? Number(pending.placementsRemaining)
+            : 0,
+        preferEdgeRetention: planState.cornerHoldMode === true,
+        cornerPlanState: planState
+    };
 }
 
 function countDiscsByValue(gameState, playerValue) {
@@ -301,24 +858,155 @@ function evaluateBoardForPlayer(gameState, cardState, playerKey) {
 function applyMoveForEvaluation(gameState, move, playerValue) {
     const nextState = Core.copyGameState(gameState);
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return nextState;
-    nextState.board[move.row][move.col] = playerValue;
-    const flips = Array.isArray(move.flips) ? move.flips : [];
-    for (const f of flips) {
-        if (Array.isArray(f) && f.length >= 2 && Number.isFinite(f[0]) && Number.isFinite(f[1])) {
-            nextState.board[f[0]][f[1]] = playerValue;
-            continue;
-        }
-        if (f && Number.isFinite(f.row) && Number.isFinite(f.col)) {
-            nextState.board[f.row][f.col] = playerValue;
+    const flips = [];
+    if (Array.isArray(move.flips)) {
+        for (const f of move.flips) {
+            if (Array.isArray(f) && f.length >= 2 && Number.isFinite(f[0]) && Number.isFinite(f[1])) {
+                flips.push([f[0], f[1]]);
+            } else if (f && Number.isFinite(f.row) && Number.isFinite(f.col)) {
+                flips.push([f.row, f.col]);
+            }
         }
     }
-    nextState.currentPlayer = -playerValue;
-    nextState.consecutivePasses = 0;
-    nextState.turnNumber = (gameState.turnNumber || 0) + 1;
-    return nextState;
+    // Use Core.applyMove so expansion cells are handled consistently with production rules.
+    nextState.currentPlayer = playerValue;
+    return Core.applyMove(nextState, { row: move.row, col: move.col, flips });
 }
 
-function scoreTacticalMove(move, context) {
+function countDiscDiffOnBoard(board, playerValue) {
+    if (!Array.isArray(board)) return 0;
+    let own = 0;
+    let opp = 0;
+    for (let row = 0; row < board.length; row++) {
+        const cells = Array.isArray(board[row]) ? board[row] : [];
+        for (let col = 0; col < cells.length; col++) {
+            const v = cells[col];
+            if (v === playerValue) own += 1;
+            else if (v === -playerValue) opp += 1;
+        }
+    }
+    return own - opp;
+}
+
+function applyMoveToBoard(board, move, playerValue) {
+    if (!Array.isArray(board)) return [];
+    const next = board.map((row) => (Array.isArray(row) ? row.slice() : []));
+    if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return next;
+    if (!Array.isArray(next[move.row])) return next;
+    next[move.row][move.col] = playerValue;
+    const flips = Array.isArray(move.flips) ? move.flips : [];
+    for (const flip of flips) {
+        if (Array.isArray(flip) && flip.length >= 2 && Number.isFinite(flip[0]) && Number.isFinite(flip[1])) {
+            if (Array.isArray(next[flip[0]])) next[flip[0]][flip[1]] = playerValue;
+            continue;
+        }
+        if (flip && Number.isFinite(flip.row) && Number.isFinite(flip.col) && Array.isArray(next[flip.row])) {
+            next[flip.row][flip.col] = playerValue;
+        }
+    }
+    return next;
+}
+
+function evaluateBoardForSearch(board, playerValue) {
+    const empties = countEmpties(board);
+    const cornerDiff = countCorners(board, playerValue);
+    const positionalDiff = evaluatePositionalDiff(board, playerValue);
+    const mobilityDiff = getLegalMovesBasic(board, playerValue).length - getLegalMovesBasic(board, -playerValue).length;
+    const discDiff = countDiscDiffOnBoard(board, playerValue);
+    const discWeight = empties <= 10 ? 20 : (empties <= 24 ? 10 : 3);
+    return (
+        (cornerDiff * 420) +
+        (mobilityDiff * 30) +
+        (positionalDiff * 5) +
+        (discDiff * discWeight)
+    );
+}
+
+function scoreMoveForSearchOrder(move) {
+    const flips = Array.isArray(move && move.flips) ? move.flips.length : 0;
+    const row = Number.isFinite(move && move.row) ? move.row : 0;
+    const col = Number.isFinite(move && move.col) ? move.col : 0;
+    return (flips * 120) + (evaluatePositionValue(row, col) * 14);
+}
+
+function sortMovesForSearch(moves, beamWidth) {
+    const out = Array.isArray(moves) ? moves.slice() : [];
+    out.sort((a, b) => {
+        const sa = scoreMoveForSearchOrder(a);
+        const sb = scoreMoveForSearchOrder(b);
+        if (sb !== sa) return sb - sa;
+        if (a.row !== b.row) return a.row - b.row;
+        return a.col - b.col;
+    });
+    const bw = Number.isFinite(beamWidth) ? Math.max(1, Math.floor(beamWidth)) : 6;
+    if (out.length > bw) return out.slice(0, bw);
+    return out;
+}
+
+function resolveTacticalSearchDepth(options, empties, planState) {
+    const openingDepth = Number.isFinite(options && options.tacticalDepthOpening)
+        ? Math.max(0, Math.floor(options.tacticalDepthOpening))
+        : 2;
+    const midDepth = Number.isFinite(options && options.tacticalDepthMid)
+        ? Math.max(0, Math.floor(options.tacticalDepthMid))
+        : 3;
+    const endDepth = Number.isFinite(options && options.tacticalDepthEnd)
+        ? Math.max(0, Math.floor(options.tacticalDepthEnd))
+        : 4;
+    let depth = empties <= 14 ? endDepth : (empties <= 32 ? midDepth : openingDepth);
+    if (planState && planState.cornerEmergency) depth += 1;
+    // Keep search practical while honoring configured depths.
+    // Previous hard-cap(5) neutralized configured 7-12 depths in training presets.
+    const phaseCap = empties <= 12 ? 11 : (empties <= 28 ? 9 : 7);
+    return Math.max(0, Math.min(phaseCap, depth));
+}
+
+function resolveTacticalBeamWidth(options, empties) {
+    const configured = Number.isFinite(options && options.tacticalBeamWidth)
+        ? Math.max(1, Math.floor(options.tacticalBeamWidth))
+        : 0;
+    if (configured > 0) return Math.min(16, configured);
+    if (empties <= 12) return 12;
+    if (empties <= 28) return 10;
+    return 8;
+}
+
+function minimaxBoardSearch(board, currentPlayer, rootPlayer, depth, alpha, beta, passCount, beamWidth) {
+    if (!Array.isArray(board) || depth <= 0 || passCount >= 2) {
+        return evaluateBoardForSearch(board, rootPlayer);
+    }
+
+    const legalMoves = getLegalMovesBasic(board, currentPlayer);
+    if (!legalMoves.length) {
+        return minimaxBoardSearch(board, -currentPlayer, rootPlayer, depth - 1, alpha, beta, passCount + 1, beamWidth);
+    }
+
+    const maximizing = currentPlayer === rootPlayer;
+    const orderedMoves = sortMovesForSearch(legalMoves, beamWidth);
+    if (maximizing) {
+        let best = -Infinity;
+        for (const move of orderedMoves) {
+            const nextBoard = applyMoveToBoard(board, move, currentPlayer);
+            const score = minimaxBoardSearch(nextBoard, -currentPlayer, rootPlayer, depth - 1, alpha, beta, 0, beamWidth);
+            if (score > best) best = score;
+            if (score > alpha) alpha = score;
+            if (beta <= alpha) break;
+        }
+        return best;
+    }
+
+    let best = Infinity;
+    for (const move of orderedMoves) {
+        const nextBoard = applyMoveToBoard(board, move, currentPlayer);
+        const score = minimaxBoardSearch(nextBoard, -currentPlayer, rootPlayer, depth - 1, alpha, beta, 0, beamWidth);
+        if (score < best) best = score;
+        if (score < beta) beta = score;
+        if (beta <= alpha) break;
+    }
+    return best;
+}
+
+function scoreTacticalMove(move, context, options) {
     if (!context || !context.gameState || !context.cardState) return 0;
     const playerKey = context.playerKey === 'black' ? 'black' : 'white';
     const playerValue = toPlayerValue(playerKey);
@@ -337,17 +1025,37 @@ function scoreTacticalMove(move, context) {
     }
     const row = Number.isFinite(move && move.row) ? move.row : 0;
     const col = Number.isFinite(move && move.col) ? move.col : 0;
+    const planState = context.planState || null;
+    const moveBonus = getBoardBonusAtCell(context.cardState, row, col);
     const tie = (7 - row) * 0.001 + (7 - col) * 0.0001;
-    return (
+    const baseScore = (
         ((Array.isArray(move.flips) ? move.flips.length : 0) * 60) +
         (evaluatePositionValue(row, col) * 8) +
         (discDiff * discWeight) +
         (cornerDiff * 300) +
+        (moveBonus * (planState && planState.cornerHoldMode ? 500 : 220)) +
         (opponentMoves.length * -45) +
         (opponentThreat * -6) +
-        (givesCorner ? -1800 : 0) +
+        (givesCorner ? (planState && planState.cornerSeekMode ? -2600 : -1800) : 0) +
+        ((planState && planState.cornerHoldMode && !isCorner(row, col) && !isEdge(row, col)) ? -380 : 0) +
         tie
     );
+
+    const searchDepth = resolveTacticalSearchDepth(options, empties, planState);
+    if (searchDepth <= 0) return baseScore;
+
+    const beamWidth = resolveTacticalBeamWidth(options, empties);
+    const searchValue = minimaxBoardSearch(
+        nextState.board,
+        -playerValue,
+        playerValue,
+        searchDepth - 1,
+        -Infinity,
+        Infinity,
+        0,
+        beamWidth
+    );
+    return baseScore + (searchValue * 0.35);
 }
 
 function makePolicyStateKey(playerKey, board, pendingType, legalMovesCount) {
@@ -435,7 +1143,28 @@ function makePolicyAbstractStateKey(playerKey, board, pendingType, legalMovesCou
 function getPolicyScore(options, context, move) {
     if (!options || !options.policyTableModel || !options.policyTableModel.states) return null;
     const model = options.policyTableModel;
-    if (model.schemaVersion !== SELFPLAY_SCHEMA_VERSION && model.schemaVersion !== 'policy_table.v1' && model.schemaVersion !== 'policy_table.v2') return null;
+    if (
+        model.schemaVersion !== SELFPLAY_SCHEMA_VERSION &&
+        model.schemaVersion !== LEGACY_SELFPLAY_SCHEMA_VERSION &&
+        model.schemaVersion !== 'policy_table.v1' &&
+        model.schemaVersion !== 'policy_table.v2'
+    ) return null;
+
+    if (
+        model.schemaVersion !== SELFPLAY_SCHEMA_VERSION &&
+        model.schemaVersion !== LEGACY_SELFPLAY_SCHEMA_VERSION &&
+        CpuPolicyTableRuntime &&
+        typeof CpuPolicyTableRuntime.getActionScoreFromModel === 'function'
+    ) {
+        const score = CpuPolicyTableRuntime.getActionScoreFromModel(model, move, {
+            playerKey: context.playerKey,
+            level: 6,
+            board: context && context.gameState ? context.gameState.board : null,
+            pendingType: context.pendingType || null,
+            legalMovesCount: context.legalMovesCount
+        });
+        if (Number.isFinite(score)) return Number(score);
+    }
 
     const schema = model.schemaVersion || 'policy_table.v1';
     const canonical = schema === 'policy_table.v2'
@@ -476,7 +1205,12 @@ function getPolicyActionScoreByKey(options, context, actionKey) {
     if (!options || !options.policyTableModel || !options.policyTableModel.states) return null;
     if (!actionKey || typeof actionKey !== 'string') return null;
     const model = options.policyTableModel;
-    if (model.schemaVersion !== SELFPLAY_SCHEMA_VERSION && model.schemaVersion !== 'policy_table.v1' && model.schemaVersion !== 'policy_table.v2') return null;
+    if (
+        model.schemaVersion !== SELFPLAY_SCHEMA_VERSION &&
+        model.schemaVersion !== LEGACY_SELFPLAY_SCHEMA_VERSION &&
+        model.schemaVersion !== 'policy_table.v1' &&
+        model.schemaVersion !== 'policy_table.v2'
+    ) return null;
 
     const schema = model.schemaVersion || 'policy_table.v1';
     const canonical = schema === 'policy_table.v2'
@@ -498,24 +1232,430 @@ function getPolicyActionScoreByKey(options, context, actionKey) {
     return bestBonus + visits * 1_000 + avgOutcome;
 }
 
-function selectPlacementMove(legalMoves, rng, context, options) {
-    const enableTacticalLookahead = !!(options && (options.enableTacticalLookahead || options.policyTableModel));
-    const tacticalWeight = enableTacticalLookahead
-        ? (Number.isFinite(options && options.tacticalWeight) ? options.tacticalWeight : 1)
-        : 0;
-    let best = null;
-    let bestScore = -Infinity;
-    for (const move of legalMoves) {
-        const heuristic = scoreMove(move, rng);
-        const policy = getPolicyScore(options, context, move);
-        const tactical = enableTacticalLookahead ? scoreTacticalMove(move, context) : 0;
-        const s = heuristic + (policy !== null ? policy : 0) + (tactical * tacticalWeight);
-        if (s > bestScore) {
-            bestScore = s;
-            best = move;
+function createPolicyRuntimeContext(context, legalMovesCountOverride) {
+    return {
+        playerKey: context && context.playerKey === 'black' ? 'black' : 'white',
+        level: 6,
+        board: context && context.gameState ? context.gameState.board : null,
+        pendingType: context && context.pendingType ? context.pendingType : null,
+        legalMovesCount: Number.isFinite(legalMovesCountOverride)
+            ? Number(legalMovesCountOverride)
+            : (Number.isFinite(context && context.legalMovesCount) ? Number(context.legalMovesCount) : 0)
+    };
+}
+
+function selectPlacementMoveFromPolicyModel(options, context, candidateMoves) {
+    if (!options || !options.policyTableModel || !Array.isArray(candidateMoves) || candidateMoves.length <= 0) return null;
+    if (
+        options.policyTableModel.schemaVersion !== SELFPLAY_SCHEMA_VERSION &&
+        options.policyTableModel.schemaVersion !== LEGACY_SELFPLAY_SCHEMA_VERSION &&
+        CpuPolicyTableRuntime &&
+        typeof CpuPolicyTableRuntime.chooseMoveFromModel === 'function'
+    ) {
+        const selected = CpuPolicyTableRuntime.chooseMoveFromModel(
+            options.policyTableModel,
+            candidateMoves,
+            createPolicyRuntimeContext(context, candidateMoves.length)
+        );
+        return CpuLv6LookaheadProfile.resolveCandidateMoveByCoord(candidateMoves, selected) || selected;
+    }
+
+    let bestMove = null;
+    let bestScore = Number.NEGATIVE_INFINITY;
+    for (const move of candidateMoves) {
+        const score = getPolicyScore(options, Object.assign({}, context || {}, {
+            legalMovesCount: candidateMoves.length
+        }), move);
+        if (!Number.isFinite(score)) continue;
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove = move;
+            continue;
+        }
+        if (score === bestScore && bestMove) {
+            const bestRow = Number(bestMove.row);
+            const bestCol = Number(bestMove.col);
+            const row = Number(move.row);
+            const col = Number(move.col);
+            if (row < bestRow || (row === bestRow && col < bestCol)) {
+                bestMove = move;
+            }
         }
     }
-    return best;
+    return bestMove;
+}
+
+function chooseBestMoveByScore(candidateMoves, scoreFn) {
+    if (!Array.isArray(candidateMoves) || candidateMoves.length <= 0 || typeof scoreFn !== 'function') return null;
+    let bestMove = null;
+    let bestScore = Number.NEGATIVE_INFINITY;
+    for (const move of candidateMoves) {
+        let score = Number.NEGATIVE_INFINITY;
+        try {
+            score = Number(scoreFn(move) || 0);
+        } catch (e) {
+            score = Number.NEGATIVE_INFINITY;
+        }
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove = move;
+            continue;
+        }
+        if (score === bestScore && bestMove) {
+            const bestRow = Number(bestMove.row);
+            const bestCol = Number(bestMove.col);
+            const row = Number(move.row);
+            const col = Number(move.col);
+            if (row < bestRow || (row === bestRow && col < bestCol)) {
+                bestMove = move;
+            }
+        }
+    }
+    return bestMove;
+}
+
+function choosePlacementMoveByBrowserParity(candidateMoves, context, options, movePlanContext) {
+    if (!Array.isArray(candidateMoves) || candidateMoves.length <= 0) {
+        return {
+            move: null,
+            learnedMove: null,
+            learnedScoreFn: null,
+            movePlanScoreFn: null,
+            combinedScoreFn: null
+        };
+    }
+
+    const learnedMove = selectPlacementMoveFromPolicyModel(options, context, candidateMoves);
+    const learnedScoreFn = (move) => getPolicyScore(options, Object.assign({}, context || {}, {
+        legalMovesCount: candidateMoves.length
+    }), move);
+    const movePlanScoreFn = (
+        movePlanContext &&
+        CpuPolicyCore &&
+        typeof CpuPolicyCore.scoreMoveForCornerEdgePlan === 'function'
+    )
+        ? (move) => {
+            try {
+                return Number(CpuPolicyCore.scoreMoveForCornerEdgePlan(move, movePlanContext) || 0);
+            } catch (e) {
+                return 0;
+            }
+        }
+        : null;
+    const combinedScoreFn = (move) => {
+        let score = 0;
+        if (movePlanScoreFn) score += movePlanScoreFn(move);
+        const learnedScore = learnedScoreFn ? Number(learnedScoreFn(move) || 0) : 0;
+        if (learnedScoreFn) {
+            const learnedWeight = movePlanScoreFn ? 0.35 : 1.0;
+            score += learnedScore * learnedWeight;
+        }
+        if (learnedMove && move && Number(move.row) === Number(learnedMove.row) && Number(move.col) === Number(learnedMove.col)) {
+            score += movePlanScoreFn ? 1200 : 2500;
+        }
+        return score;
+    };
+
+    if (learnedMove && !movePlanScoreFn) {
+        return {
+            move: learnedMove,
+            learnedMove,
+            learnedScoreFn,
+            movePlanScoreFn,
+            combinedScoreFn
+        };
+    }
+
+    let selectedMove = null;
+    if (
+        !(options && options.enableTacticalLookahead === false) &&
+        CpuPolicyCore &&
+        typeof CpuPolicyCore.chooseMoveByLookahead === 'function' &&
+        context &&
+        context.gameState &&
+        Array.isArray(context.gameState.board)
+    ) {
+        const lookaheadOptions = CpuLv6LookaheadProfile.buildLv6LookaheadOptions(
+            6,
+            context.gameState.board,
+            candidateMoves.length,
+            context.playerKey,
+            'teacher'
+        );
+        const weights = CpuLv6LookaheadProfile.resolveLv6LookaheadWeights();
+        const disableLookaheadTimeBudget = options && options.disableLookaheadTimeBudget === true;
+        const resolvedMaxTimeMs = disableLookaheadTimeBudget
+            ? 0
+            : normalizeLookaheadTimeBudget(
+                options && options.lookaheadMaxTimeMs,
+                normalizeLookaheadTimeBudget(lookaheadOptions.maxTimeMs, 2200)
+            );
+        const resolvedEndgameMaxTimeMs = disableLookaheadTimeBudget
+            ? 0
+            : normalizeLookaheadTimeBudget(
+                options && options.lookaheadEndgameMaxTimeMs,
+                normalizeLookaheadTimeBudget(lookaheadOptions.endgameMaxTimeMs, 12000)
+            );
+        const looked = CpuPolicyCore.chooseMoveByLookahead(candidateMoves, {
+            board: context.gameState.board,
+            playerValue: toPlayerValue(context.playerKey),
+            level: 6,
+            depth: lookaheadOptions.depth,
+            maxBranch: lookaheadOptions.maxBranch,
+            nodeBudget: lookaheadOptions.nodeBudget,
+            scoreMove: combinedScoreFn,
+            priorWeight: Number(weights && weights.policyLookaheadPriorWeight) || 58,
+            searchWeight: Number(weights && weights.searchWeight) || 1.55,
+            endgameSolveEmpties: lookaheadOptions.endgameSolveEmpties || 40,
+            endgameDepth: lookaheadOptions.endgameDepth || 40,
+            endgameNodeBudget: lookaheadOptions.endgameNodeBudget || 2_500_000,
+            maxTimeMs: resolvedMaxTimeMs,
+            endgameMaxTimeMs: resolvedEndgameMaxTimeMs,
+            virtualTimePerNodeMs: Number.isFinite(options && options.lookaheadVirtualTimePerNodeMs)
+                ? Math.max(0, Number(options.lookaheadVirtualTimePerNodeMs))
+                : Number.NaN,
+            boardBonusByCell: (context.cardState && context.cardState.boardBonusByCell && typeof context.cardState.boardBonusByCell === 'object')
+                ? context.cardState.boardBonusByCell
+                : null,
+            boardBonusConsumedByCell: (context.cardState && context.cardState.boardBonusConsumedByCell && typeof context.cardState.boardBonusConsumedByCell === 'object')
+                ? context.cardState.boardBonusConsumedByCell
+                : null
+        });
+        if (looked) {
+            selectedMove = CpuLv6LookaheadProfile.maybeOverrideWithStrictPendingPlacement(
+                looked,
+                candidateMoves,
+                context.pendingType || null,
+                movePlanScoreFn,
+                context.gameState.board,
+                context.cardState && context.cardState.boardBonusByCell,
+                context.cardState && context.cardState.boardBonusConsumedByCell
+            );
+        }
+    }
+
+    if (!selectedMove) {
+        selectedMove = chooseBestMoveByScore(candidateMoves, combinedScoreFn) || learnedMove || candidateMoves[0];
+    }
+
+    return {
+        move: CpuLv6LookaheadProfile.resolveCandidateMoveByCoord(candidateMoves, selectedMove) || selectedMove,
+        learnedMove,
+        learnedScoreFn,
+        movePlanScoreFn,
+        combinedScoreFn
+    };
+}
+
+function selectPlacementMove(legalMoves, rng, context, options) {
+    const scored = scorePlacementCandidates(legalMoves, rng, context, options);
+    if (scored && scored.move) return scored.move;
+    if (Array.isArray(legalMoves) && legalMoves.length > 0) return legalMoves[0];
+    return null;
+}
+
+function makeMoveKey(move) {
+    if (!move) return '';
+    return `${Number(move.row)}:${Number(move.col)}`;
+}
+
+function sortScoredMovesBy(scoredMoves, scoreKey) {
+    return scoredMoves.slice().sort((a, b) => {
+        const sa = Number.isFinite(a && a[scoreKey]) ? Number(a[scoreKey]) : Number.NEGATIVE_INFINITY;
+        const sb = Number.isFinite(b && b[scoreKey]) ? Number(b[scoreKey]) : Number.NEGATIVE_INFINITY;
+        if (sb !== sa) return sb - sa;
+        const ar = Number.isFinite(a && a.move && a.move.row) ? Number(a.move.row) : 0;
+        const br = Number.isFinite(b && b.move && b.move.row) ? Number(b.move.row) : 0;
+        if (ar !== br) return ar - br;
+        const ac = Number.isFinite(a && a.move && a.move.col) ? Number(a.move.col) : 0;
+        const bc = Number.isFinite(b && b.move && b.move.col) ? Number(b.move.col) : 0;
+        return ac - bc;
+    });
+}
+
+function buildBordaMaps(scoredMoves) {
+    const keys = ['strategistScore', 'tacticianScore', 'economistScore'];
+    const points = new Map();
+    const ranksByKey = {
+        strategistScore: new Map(),
+        tacticianScore: new Map(),
+        economistScore: new Map()
+    };
+    const n = Array.isArray(scoredMoves) ? scoredMoves.length : 0;
+    if (n <= 0) return { points, ranksByKey };
+    for (const scoreKey of keys) {
+        const ordered = sortScoredMovesBy(scoredMoves, scoreKey);
+        for (let i = 0; i < ordered.length; i++) {
+            const one = ordered[i];
+            const key = makeMoveKey(one && one.move);
+            if (!key) continue;
+            ranksByKey[scoreKey].set(key, i);
+            const add = (n - 1 - i);
+            points.set(key, (points.get(key) || 0) + add);
+        }
+    }
+    return { points, ranksByKey };
+}
+
+function scorePlacementCandidates(legalMoves, rng, context, options) {
+    const forcedPlacement = resolveForcedPlacementCandidates(legalMoves, options);
+    const defaultCandidateMoves = Array.isArray(legalMoves)
+        ? legalMoves.filter((move) => move && Number.isInteger(move.row) && Number.isInteger(move.col))
+        : [];
+    const candidateMoves = (options && options.enableTacticalLookahead === false && Array.isArray(forcedPlacement.moves) && forcedPlacement.moves.length > 0)
+        ? forcedPlacement.moves
+        : defaultCandidateMoves;
+    if (candidateMoves.length <= 0) {
+        return { move: null, metrics: null };
+    }
+    const enableTacticalLookahead = !(options && options.enableTacticalLookahead === false);
+    let usableCardIds = [];
+    try {
+        usableCardIds = getDirectUsableCardIds(context && context.cardState, context && context.gameState, context && context.playerKey);
+    } catch (e) {
+        usableCardIds = [];
+    }
+    const planState = buildCornerPlanState(
+        context && context.gameState,
+        context && context.cardState,
+        context && context.playerKey,
+        legalMoves,
+        usableCardIds
+    );
+    const movePlanContext = buildMovePlanContext(
+        context && context.gameState,
+        context && context.cardState,
+        context && context.playerKey,
+        legalMoves,
+        usableCardIds
+    );
+    const scoreContext = Object.assign({}, context || {}, {
+        planState,
+        movePlanContext
+    });
+    const paritySelection = choosePlacementMoveByBrowserParity(candidateMoves, Object.assign({}, context || {}, {
+        legalMovesCount: candidateMoves.length
+    }), Object.assign({}, options || {}, {
+        enableTacticalLookahead
+    }), movePlanContext);
+    const parityCombinedScoreFn = paritySelection && typeof paritySelection.combinedScoreFn === 'function'
+        ? paritySelection.combinedScoreFn
+        : null;
+    const parityMove = paritySelection && paritySelection.move ? paritySelection.move : null;
+    const scoredMoves = [];
+    let bestCombinedScore = -Infinity;
+    let bestTacticalScore = -Infinity;
+    for (const move of candidateMoves) {
+        const heuristic = scoreMove(move, rng, scoreContext);
+        const policy = getPolicyScore(options, Object.assign({}, context || {}, {
+            legalMovesCount: candidateMoves.length
+        }), move);
+        const tactical = enableTacticalLookahead ? scoreTacticalMove(move, scoreContext, options) : 0;
+        const policyScore = policy !== null ? policy : 0;
+        const combined = parityCombinedScoreFn ? Number(parityCombinedScoreFn(move) || 0) : 0;
+        scoredMoves.push({
+            move,
+            heuristicScore: heuristic,
+            policyScore,
+            tacticalScore: tactical,
+            combinedScore: combined,
+            committeeScore: 0,
+            finalScore: combined,
+            committeeVotes: 0
+        });
+        if (combined > bestCombinedScore) bestCombinedScore = combined;
+        if (tactical > bestTacticalScore) {
+            bestTacticalScore = tactical;
+        }
+    }
+
+    let selected = parityMove
+        ? scoredMoves.find((one) => CpuLv6LookaheadProfile.isSameMoveByCoord(one.move, parityMove)) || null
+        : null;
+    if (!selected) {
+        let bestScored = null;
+        let bestScore = Number.NEGATIVE_INFINITY;
+        for (const one of scoredMoves) {
+            const score = Number(one && one.finalScore) || 0;
+            if (score > bestScore) {
+                bestScore = score;
+                bestScored = one;
+                continue;
+            }
+            if (score === bestScore && bestScored && CpuLv6LookaheadProfile.isSameMoveByCoord(bestScored.move, one.move) === false) {
+                const bestRow = Number(bestScored.move && bestScored.move.row);
+                const bestCol = Number(bestScored.move && bestScored.move.col);
+                const row = Number(one.move && one.move.row);
+                const col = Number(one.move && one.move.col);
+                if (row < bestRow || (row === bestRow && col < bestCol)) {
+                    bestScored = one;
+                }
+            }
+        }
+        selected = bestScored;
+    }
+
+    if (!selected) {
+        return { move: null, metrics: null };
+    }
+
+    const sortedByFinalScore = scoredMoves
+        .slice()
+        .sort((a, b) => {
+            const aScore = Number(a && a.finalScore) || 0;
+            const bScore = Number(b && b.finalScore) || 0;
+            if (bScore !== aScore) return bScore - aScore;
+            const aRow = Number(a && a.move && a.move.row);
+            const bRow = Number(b && b.move && b.move.row);
+            if (aRow !== bRow) return aRow - bRow;
+            const aCol = Number(a && a.move && a.move.col);
+            const bCol = Number(b && b.move && b.move.col);
+            return aCol - bCol;
+        })
+        .slice(0, 3)
+        .map((one) => ({
+            row: Number.isFinite(one && one.move && one.move.row) ? Number(one.move.row) : null,
+            col: Number.isFinite(one && one.move && one.move.col) ? Number(one.move.col) : null,
+            seat: classifySelectionSeat(
+                Number.isFinite(one && one.move && one.move.row) ? Number(one.move.row) : null,
+                Number.isFinite(one && one.move && one.move.col) ? Number(one.move.col) : null,
+                context && context.gameState ? context.gameState.board : null
+            ),
+            heuristicScore: Number(one && one.heuristicScore) || 0,
+            policyScore: Number(one && one.policyScore) || 0,
+            tacticalScore: Number(one && one.tacticalScore) || 0,
+            combinedScore: Number(one && one.combinedScore) || 0,
+            finalScore: Number(one && one.finalScore) || 0,
+            committeeVotes: Number(one && one.committeeVotes) || 0
+        }));
+
+    const selectedCombined = Number(selected.combinedScore) || 0;
+    const selectedTactical = Number(selected.tacticalScore) || 0;
+    const bestCombined = Number(bestCombinedScore) || 0;
+    const bestTactical = Number(bestTacticalScore) || 0;
+    const compositeScoreMiss = Math.max(0, bestCombined - selectedCombined);
+    const tacticalScoreMiss = Math.max(0, bestTactical - selectedTactical);
+
+    return {
+        move: selected.move,
+        metrics: {
+            selectedCompositeScore: selectedCombined,
+            bestCompositeScore: bestCombined,
+            compositeScoreMiss,
+            compositeScoreMissRatio: compositeScoreMiss / Math.max(1, Math.abs(bestCombined)),
+            selectedTacticalScore: selectedTactical,
+            bestTacticalScore: bestTactical,
+            tacticalScoreMiss,
+            tacticalScoreMissRatio: tacticalScoreMiss / Math.max(1, Math.abs(bestTactical)),
+            selectedHeuristicScore: Number(selected.heuristicScore) || 0,
+            selectedPolicyScore: Number(selected.policyScore) || 0,
+            selectedFinalScore: Number(selected.finalScore) || 0,
+            selectedCommitteeScore: Number(selected.committeeScore) || 0,
+            selectedCommitteeVotes: Number(selected.committeeVotes) || 0,
+            forcedPlacementCategory: forcedPlacement.category || null,
+            topCandidates: sortedByFinalScore
+        }
+    };
 }
 
 function evaluatePositionValue(row, col) {
@@ -527,12 +1667,35 @@ function evaluatePositionValue(row, col) {
     return score;
 }
 
+function getCellOwnerValueForSelfplay(gameState, row, col) {
+    if (!gameState) return 0;
+    if (Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < 8 && col >= 0 && col < 8) {
+        return (gameState.board && gameState.board[row]) ? Number(gameState.board[row][col]) || 0 : 0;
+    }
+    const expansion = gameState.boardExpansion && typeof gameState.boardExpansion === 'object'
+        ? gameState.boardExpansion
+        : null;
+    if (!expansion) return 0;
+    const cells = Array.isArray(expansion.cells)
+        ? expansion.cells
+        : (expansion.active ? [expansion] : []);
+    for (const cell of cells) {
+        if (!cell || cell.row !== row) continue;
+        const cellCol = Number.isInteger(cell.col)
+            ? cell.col
+            : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : null));
+        if (cellCol !== col) continue;
+        return Number(cell.owner) || 0;
+    }
+    return 0;
+}
+
 function getLegalMovesForAction(gameState, cardState, playerKey) {
     const player = toPlayerValue(playerKey);
     const context = getSafeCardContext(cardState);
     const pendingType = CardLogic.getPendingEffectType(cardState, playerKey);
 
-    if (pendingType === 'FREE_PLACEMENT') {
+    if (pendingType === 'FREE_PLACEMENT' || pendingType === 'SNIPER_WILL' || pendingType === 'LAST_RESORT') {
         return Core.getFreePlacementMoves(gameState, player, context);
     }
     return Core.getLegalMoves(gameState, player, context);
@@ -540,15 +1703,74 @@ function getLegalMovesForAction(gameState, cardState, playerKey) {
 
 function getDirectUsableCardIds(cardState, gameState, playerKey) {
     const ids = CardLogic.getUsableCardIds(cardState, gameState, playerKey);
+    if (!Array.isArray(ids)) return [];
     return ids.filter((cardId) => {
-        const t = CardLogic.getCardType(cardId);
+        let t = '';
+        try {
+            t = CardLogic.getCardType(cardId);
+        } catch (e) {
+            t = resolveCardType(cardId);
+        }
         return CANDIDATE_CARD_TYPES.has(t);
     });
 }
 
-function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCount) {
+function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCount, legalMoves, usableCardIds) {
     const ownKey = playerKey === 'black' ? 'black' : 'white';
     const oppKey = ownKey === 'black' ? 'white' : 'black';
+    const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
+    const hasDestroyedCardThisTurn = !!(
+        cardState &&
+        cardState.hasDestroyedCardThisTurnByPlayer &&
+        cardState.hasDestroyedCardThisTurnByPlayer[ownKey]
+    );
+    const pending = cardState && cardState.pendingEffectByPlayer
+        ? cardState.pendingEffectByPlayer[ownKey]
+        : null;
+    let safeUsableCardIds = Array.isArray(usableCardIds) ? usableCardIds.slice() : null;
+    if (!safeUsableCardIds) {
+        try {
+            safeUsableCardIds = getDirectUsableCardIds(cardState, gameState, ownKey);
+        } catch (e) {
+            safeUsableCardIds = [];
+        }
+    }
+    const planState = buildCornerPlanState(gameState, cardState, ownKey, safeLegalMoves, safeUsableCardIds);
+    let maxLegalFlips = 0;
+    let totalLegalFlips = 0;
+    let maxLegalGain = 0;
+    for (const move of safeLegalMoves) {
+        if (!move) continue;
+        const flips = Array.isArray(move.flips) ? move.flips.length : 0;
+        totalLegalFlips += flips;
+        if (flips > maxLegalFlips) maxLegalFlips = flips;
+        const bonus = (Number.isInteger(move.row) && Number.isInteger(move.col))
+            ? getBoardBonusAtCell(cardState, move.row, move.col)
+            : 0;
+        const gain = flips + Math.max(0, Number(bonus) || 0);
+        if (gain > maxLegalGain) maxLegalGain = gain;
+    }
+    const avgLegalFlips = safeLegalMoves.length > 0 ? (totalLegalFlips / safeLegalMoves.length) : 0;
+
+    const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
+    let ownSpecialCount = 0;
+    let oppSpecialCount = 0;
+    let ownGuardCount = 0;
+    let oppGuardCount = 0;
+    for (const marker of markers) {
+        if (!marker || marker.kind !== 'specialStone') continue;
+        const data = marker.data && typeof marker.data === 'object' ? marker.data : null;
+        const type = data && typeof data.type === 'string' ? data.type : '';
+        if (type === 'METEOR_HOLE') continue;
+        if (marker.owner === ownKey) {
+            ownSpecialCount += 1;
+            if (type === 'GUARD') ownGuardCount += 1;
+        } else if (marker.owner === oppKey) {
+            oppSpecialCount += 1;
+            if (type === 'GUARD') oppGuardCount += 1;
+        }
+    }
+
     return {
         level: 6,
         playerValue: toPlayerValue(playerKey),
@@ -557,8 +1779,32 @@ function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCou
         empties: countEmpties(gameState.board),
         ownCharge: cardState && cardState.charge && Number.isFinite(cardState.charge[ownKey]) ? cardState.charge[ownKey] : 0,
         oppCharge: cardState && cardState.charge && Number.isFinite(cardState.charge[oppKey]) ? cardState.charge[oppKey] : 0,
+        oppHandSize: cardState && cardState.hands && Array.isArray(cardState.hands[oppKey]) ? cardState.hands[oppKey].length : 0,
         handSize: cardState && cardState.hands && Array.isArray(cardState.hands[ownKey]) ? cardState.hands[ownKey].length : 0,
-        forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0
+        hasDestroyedCardThisTurn,
+        forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0,
+        ownCorners: planState.ownCorners,
+        oppCorners: planState.oppCorners,
+        ownEdges: planState.ownEdges,
+        oppEdges: planState.oppEdges,
+        hasCornerMoveNow: planState.hasCornerMoveNow,
+        hasEdgeMoveNow: planState.hasEdgeMoveNow,
+        cornerEmergency: planState.cornerEmergency,
+        cornerHoldMode: planState.cornerHoldMode,
+        recoveryCostGap: planState.recoveryCostGap,
+        highBonusMoveAvailable: planState.highBonusMoveAvailable,
+        maxLegalFlips,
+        avgLegalFlips,
+        maxLegalGain,
+        ownSpecialCount,
+        oppSpecialCount,
+        ownGuardCount,
+        oppGuardCount,
+        sacrificeSelectedCount: (pending && pending.type === 'SACRIFICE_WILL')
+            ? Number(pending.selectedCount || 0)
+            : 0,
+        usableCardIds: safeUsableCardIds.slice(),
+        cornerPlanState: planState
     };
 }
 
@@ -569,7 +1815,9 @@ function selectCardIdToUse(cardState, gameState, playerKey, options, context) {
         gameState,
         cardState,
         playerKey,
-        context && Number.isFinite(context.legalMovesCount) ? context.legalMovesCount : 0
+        context && Number.isFinite(context.legalMovesCount) ? context.legalMovesCount : 0,
+        context && Array.isArray(context.legalMoves) ? context.legalMoves : [],
+        usable
     );
 
     if (options && options.policyTableModel && context) {
@@ -617,6 +1865,31 @@ function selectCardIdToUse(cardState, gameState, playerKey, options, context) {
         if (!score || score.shouldUse) return cardId;
     }
     return null;
+}
+
+function selectDestroyHandCardId(cardState, gameState, playerKey, context) {
+    const ownKey = playerKey === 'black' ? 'black' : 'white';
+    if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[ownKey])) return null;
+    if (cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[ownKey]) return null;
+    if (!CpuPolicyCore || typeof CpuPolicyCore.chooseHandDestroyTargetForCycle !== 'function') return null;
+
+    const hand = cardState.hands[ownKey].slice();
+    if (hand.length <= 0) return null;
+
+    const legalMoves = (context && Array.isArray(context.legalMoves)) ? context.legalMoves : [];
+    const legalMovesCount = (context && Number.isFinite(context.legalMovesCount))
+        ? Number(context.legalMovesCount)
+        : legalMoves.length;
+    const usable = getDirectUsableCardIds(cardState, gameState, ownKey);
+    const riskContext = buildCardDecisionContext(gameState, cardState, ownKey, legalMovesCount, legalMoves, usable);
+    const selected = CpuPolicyCore.chooseHandDestroyTargetForCycle(
+        hand,
+        usable,
+        CardLogic.getCardCost,
+        CardLogic.getCardDef,
+        riskContext
+    );
+    return selected && selected.cardId ? selected.cardId : null;
 }
 
 function chooseSwapTarget(gameState, cardState, playerKey, rng) {
@@ -670,24 +1943,527 @@ function chooseDestroyTarget(gameState, cardState, playerKey, rng) {
     return best;
 }
 
-function chooseStrongWindTarget(gameState, cardState, playerKey, rng) {
+function chooseTargetBySimulation(gameState, cardState, playerKey, rng, applyEffectFn, fallbackScoreFn, scoreAdjustFn) {
     const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
     if (!targets.length) return null;
-    return targets[Math.floor(rng.random() * targets.length)];
+
+    let best = null;
+    let bestScore = -Infinity;
+    for (const t of targets) {
+        let score = null;
+        try {
+            const simGameState = Core.copyGameState(gameState);
+            const simCardState = (typeof CardLogic.copyCardState === 'function')
+                ? CardLogic.copyCardState(cardState)
+                : deepClone(cardState);
+            const simRng = clonePrng(rng);
+            const result = applyEffectFn(simCardState, simGameState, playerKey, t.row, t.col, simRng);
+            if (result && result.applied === true) {
+                score = evaluateBoardForPlayer(simGameState, simCardState, playerKey);
+                if (typeof scoreAdjustFn === 'function') {
+                    score += Number(scoreAdjustFn(t, result, simGameState, simCardState, gameState, cardState, playerKey) || 0);
+                }
+            }
+        } catch (e) { /* fallback score */ }
+
+        if (!Number.isFinite(score)) {
+            score = typeof fallbackScoreFn === 'function'
+                ? Number(fallbackScoreFn(t, gameState, cardState, playerKey) || 0)
+                : evaluatePositionValue(t.row, t.col);
+        }
+
+        const tie = (7 - t.row) * 0.001 + (7 - t.col) * 0.0001;
+        const finalScore = score + tie;
+        if (finalScore > bestScore) {
+            bestScore = finalScore;
+            best = t;
+        }
+    }
+    return best;
+}
+
+function chooseStrongWindTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col, simRng) =>
+            CardLogic.applyStrongWindWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
+        (target, sourceGameState, _sourceCardState, onePlayerKey) => {
+            const selfVal = toPlayerValue(onePlayerKey);
+            const occupant = sourceGameState && sourceGameState.board && sourceGameState.board[target.row]
+                ? sourceGameState.board[target.row][target.col]
+                : 0;
+            const base = evaluatePositionValue(target.row, target.col);
+            return occupant === selfVal ? (base * -0.4) : (base * -1.2);
+        },
+        (target, result, _simGameState, _simCardState, sourceGameState, sourceCardState, onePlayerKey) => {
+            const selfVal = toPlayerValue(onePlayerKey);
+            const fromVal = sourceGameState && sourceGameState.board && sourceGameState.board[target.row]
+                ? sourceGameState.board[target.row][target.col]
+                : 0;
+            const isOwnStone = fromVal === selfVal;
+            let extra = 0;
+            if (isCorner(target.row, target.col) && !isOwnStone) extra += 7000;
+            if (isCorner(target.row, target.col) && isOwnStone) extra -= 8000;
+            if (result && result.to) {
+                if (isCorner(result.to.row, result.to.col)) extra += isOwnStone ? 6500 : -5000;
+                if (isEdge(result.to.row, result.to.col) && !isCorner(result.to.row, result.to.col)) {
+                    extra += isOwnStone ? 1800 : -900;
+                }
+                extra += getBoardBonusAtCell(sourceCardState, result.to.row, result.to.col) * 800;
+            }
+            return extra;
+        }
+    );
+}
+
+function chooseSuperBuoyancyTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col) =>
+            CardLogic.applySuperBuoyancyWill(simCardState, simGameState, onePlayerKey, row, col),
+        (target, sourceGameState, _sourceCardState, onePlayerKey) => {
+            const selfVal = toPlayerValue(onePlayerKey);
+            const occupant = sourceGameState && sourceGameState.board && sourceGameState.board[target.row]
+                ? sourceGameState.board[target.row][target.col]
+                : 0;
+            const isEnemy = occupant === -selfVal;
+            const base = evaluatePositionValue(target.row, target.col);
+            return isEnemy ? (base * 1.5) + 1200 : (base * -0.35);
+        },
+        (_target, result, _simGameState, _simCardState, _sourceGameState, sourceCardState) => {
+            let extra = 0;
+            const destroyedCount = Number(result && result.destroyedCount);
+            if (Number.isFinite(destroyedCount) && destroyedCount > 0) {
+                extra += destroyedCount * 520;
+            }
+            if (result && result.to) {
+                if (isCorner(result.to.row, result.to.col)) extra += 5600;
+                if (isEdge(result.to.row, result.to.col) && !isCorner(result.to.row, result.to.col)) extra += 1400;
+                extra += getBoardBonusAtCell(sourceCardState, result.to.row, result.to.col) * 900;
+            }
+            return extra;
+        }
+    );
+}
+
+function chooseSuperGravityTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col) =>
+            CardLogic.applySuperGravityWill(simCardState, simGameState, onePlayerKey, row, col),
+        (target, sourceGameState, _sourceCardState, onePlayerKey) => {
+            const selfVal = toPlayerValue(onePlayerKey);
+            const occupant = sourceGameState && sourceGameState.board && sourceGameState.board[target.row]
+                ? sourceGameState.board[target.row][target.col]
+                : 0;
+            const isEnemy = occupant === -selfVal;
+            const base = evaluatePositionValue(target.row, target.col);
+            return isEnemy ? (base * 1.5) + 1200 : (base * -0.35);
+        },
+        (_target, result, _simGameState, _simCardState, _sourceGameState, sourceCardState) => {
+            let extra = 0;
+            const destroyedCount = Number(result && result.destroyedCount);
+            if (Number.isFinite(destroyedCount) && destroyedCount > 0) {
+                extra += destroyedCount * 520;
+            }
+            if (result && result.to) {
+                if (isCorner(result.to.row, result.to.col)) extra += 5600;
+                if (isEdge(result.to.row, result.to.col) && !isCorner(result.to.row, result.to.col)) extra += 1400;
+                extra += getBoardBonusAtCell(sourceCardState, result.to.row, result.to.col) * 900;
+            }
+            return extra;
+        }
+    );
+}
+
+function chooseGuardTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col) =>
+            CardLogic.applyGuardWill(simCardState, simGameState, onePlayerKey, row, col),
+        (target) => (evaluatePositionValue(target.row, target.col) * 1.4)
+    );
+}
+
+function chooseBoardExpansionTarget(gameState, cardState, playerKey, rng) {
+    const pending = (cardState && cardState.pendingEffectByPlayer)
+        ? cardState.pendingEffectByPlayer[playerKey]
+        : null;
+    const pendingType = pending && typeof pending.type === 'string' ? pending.type : 'BOARD_EXPANSION_WILL';
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col) => {
+            const simPending = (simCardState && simCardState.pendingEffectByPlayer)
+                ? simCardState.pendingEffectByPlayer[onePlayerKey]
+                : null;
+            const simPendingType = simPending && typeof simPending.type === 'string' ? simPending.type : pendingType;
+            if (simPendingType === 'BOARD_EXPANSION_GOD' && typeof CardLogic.applyBoardExpansionGod === 'function') {
+                return CardLogic.applyBoardExpansionGod(simCardState, simGameState, onePlayerKey, row, col);
+            }
+            return CardLogic.applyBoardExpansionWill(simCardState, simGameState, onePlayerKey, row, col);
+        },
+        (target) => {
+            if (target.row === 0 || target.row === 7) return 9000;
+            if (target.row === 1 || target.row === 6) return 2200;
+            return 600;
+        }
+    );
+}
+
+function chooseBlockadeTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col) =>
+            CardLogic.applyBlockadeWill(simCardState, simGameState, onePlayerKey, row, col),
+        (target) => (evaluatePositionValue(target.row, target.col) * 1.3)
+    );
+}
+
+function chooseMeteorTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col) =>
+            CardLogic.applyMeteorWill(simCardState, simGameState, onePlayerKey, row, col),
+        (target) => (evaluatePositionValue(target.row, target.col) * 1.35)
+    );
+}
+
+function chooseTrapTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col) =>
+            CardLogic.applyTrapWill(simCardState, simGameState, onePlayerKey, row, col),
+        (target) => (evaluatePositionValue(target.row, target.col) * 1.1)
+    );
+}
+
+function chooseCloneTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col, simRng) =>
+            CardLogic.applyCloneWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
+        (target) => (evaluatePositionValue(target.row, target.col) * 1.25)
+    );
+}
+
+function chooseHyperactiveInheritTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col) =>
+            CardLogic.applyHyperactiveInheritWill(simCardState, simGameState, onePlayerKey, row, col),
+        (target) => (evaluatePositionValue(target.row, target.col) * 1.15),
+        (target, _result, sourceGameState, _sourceCardState, _origGameState, _origCardState, onePlayerKey) => {
+            const selfVal = toPlayerValue(onePlayerKey);
+            const occupant = sourceGameState && sourceGameState.board && sourceGameState.board[target.row]
+                ? sourceGameState.board[target.row][target.col]
+                : 0;
+            let extra = 0;
+            if (occupant === selfVal && isCorner(target.row, target.col)) extra += 1200;
+            if (occupant === selfVal && !isCorner(target.row, target.col) && isEdge(target.row, target.col)) extra += 600;
+            if (isXSquare(target.row, target.col)) extra -= 350;
+            return extra;
+        }
+    );
+}
+
+function chooseTeleportTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col, simRng) =>
+            CardLogic.applyTeleportWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
+        (target, sourceGameState, _sourceCardState, onePlayerKey) => {
+            const selfVal = toPlayerValue(onePlayerKey);
+            const occupant = sourceGameState && sourceGameState.board && sourceGameState.board[target.row]
+                ? sourceGameState.board[target.row][target.col]
+                : 0;
+            const isEnemy = occupant === -selfVal;
+            const base = evaluatePositionValue(target.row, target.col);
+            if (isEnemy) return (base * 1.4) + 900;
+            return (base * -0.45);
+        }
+    );
+}
+
+function chooseCellTeleportTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col, simRng) =>
+            CardLogic.applyCellTeleportWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
+        (target, sourceGameState, _sourceCardState, onePlayerKey) => {
+            const selfVal = toPlayerValue(onePlayerKey);
+            const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
+            const isEnemy = occupant === -selfVal;
+            const base = evaluatePositionValue(target.row, target.col);
+            if (isEnemy) return (base * 1.6) + 1500;
+            return (base * -0.55) - 120;
+        },
+        (_target, result, _simGameState, _simCardState, _sourceGameState, sourceCardState) => {
+            let extra = 0;
+            if (result && result.to) {
+                const toOuter = result.to.row < 0 || result.to.row > 7 || result.to.col < 0 || result.to.col > 7;
+                const toOuterCorner = (result.to.row === -1 || result.to.row === 8) && (result.to.col === -1 || result.to.col === 8);
+                if (toOuter) extra += 1800;
+                if (toOuterCorner) extra += 1600;
+                extra += getBoardBonusAtCell(sourceCardState, result.to.row, result.to.col) * 900;
+            }
+            return extra;
+        }
+    );
+}
+
+function getExtendLifeMarkerPriority(marker) {
+    if (!marker || !marker.data || typeof marker.data.type !== 'string') return 0;
+    const type = marker.data.type;
+    if (type === 'WORK') return 3800;
+    if (type === 'GUARD') return 3200;
+    if (type === 'BLOCKADE') return 2800;
+    if (type === 'REGEN') return 2200;
+    if (type === 'ULTIMATE_DESTROY_GOD') return 2600;
+    if (type === 'ULTIMATE_HYPERACTIVE') return 2200;
+    if (type === 'SNIPER') return 1800;
+    return 800;
+}
+
+function chooseExtendLifeTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col) =>
+            CardLogic.applyExtendLifeWill(simCardState, simGameState, onePlayerKey, row, col),
+        (target) => {
+            const marker = getSpecialMarkerAt(cardState, target.row, target.col, playerKey);
+            return (evaluatePositionValue(target.row, target.col) * 0.6) + getExtendLifeMarkerPriority(marker);
+        },
+        (target, _result, _simGameState, _simCardState, sourceGameState, sourceCardState, onePlayerKey) => {
+            const marker = getSpecialMarkerAt(sourceCardState, target.row, target.col, onePlayerKey);
+            const occupant = sourceGameState && sourceGameState.board && sourceGameState.board[target.row]
+                ? sourceGameState.board[target.row][target.col]
+                : 0;
+            const selfVal = toPlayerValue(onePlayerKey);
+            let extra = getExtendLifeMarkerPriority(marker);
+            if (occupant === selfVal && isCorner(target.row, target.col)) extra += 1600;
+            if (occupant === selfVal && !isCorner(target.row, target.col) && isEdge(target.row, target.col)) extra += 700;
+            return extra;
+        }
+    );
+}
+
+function getCorrosionMarkerTypeWeight(type) {
+    if (type === 'WORK') return 2800;
+    if (type === 'GUARD') return 2400;
+    if (type === 'BLOCKADE') return 2200;
+    if (type === 'REGEN') return 1800;
+    if (type === 'ULTIMATE_DESTROY_GOD') return 2600;
+    if (type === 'ULTIMATE_HYPERACTIVE_GOD') return 2400;
+    if (type === 'HYPERACTIVE') return 1400;
+    return 900;
+}
+
+function chooseCorrosionTarget(gameState, cardState, playerKey, rng) {
+    const rawTargets = (typeof CardLogic.getCorrosionTargets === 'function')
+        ? (CardLogic.getCorrosionTargets(cardState, gameState, playerKey) || [])
+        : (CardLogic.getSelectableTargets(cardState, gameState, playerKey) || []);
+    if (!rawTargets.length) return null;
+
+    const targets = [];
+    const seen = new Set();
+    for (const one of rawTargets) {
+        if (!one || !Number.isInteger(one.row) || !Number.isInteger(one.col)) continue;
+        const key = `${one.row},${one.col}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        targets.push(one);
+    }
+    if (!targets.length) return null;
+
+    const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
+    const selfVal = toPlayerValue(playerKey);
+    let best = null;
+    let bestScore = -Infinity;
+    for (const target of targets) {
+        let score = evaluatePositionValue(target.row, target.col) * 0.15;
+
+        for (const marker of markers) {
+            if (!marker || marker.kind !== 'specialStone') continue;
+            if (marker.row !== target.row || marker.col !== target.col) continue;
+            if (!marker.data || !Number.isFinite(marker.data.remainingOwnerTurns)) continue;
+
+            const remaining = Number(marker.data.remainingOwnerTurns);
+            if (remaining <= 0) continue;
+
+            const type = typeof marker.data.type === 'string' ? marker.data.type : '';
+            const magnitude = getCorrosionMarkerTypeWeight(type) + (remaining * 280);
+            if (marker.owner === playerKey) score -= magnitude;
+            else score += magnitude;
+        }
+
+        const occupant = gameState && gameState.board && gameState.board[target.row]
+            ? gameState.board[target.row][target.col]
+            : 0;
+        if (occupant === -selfVal) score += 180;
+        else if (occupant === selfVal) score -= 160;
+
+        if (isCorner(target.row, target.col)) score += (occupant === -selfVal) ? 700 : -700;
+        else if (isEdge(target.row, target.col)) score += (occupant === -selfVal) ? 220 : -220;
+
+        score += (rng && typeof rng.random === 'function') ? (rng.random() * 0.01) : 0;
+        if (score > bestScore) {
+            bestScore = score;
+            best = target;
+        }
+    }
+
+    return best;
+}
+
+function getSpecialMarkerAt(cardState, row, col, ownerKey) {
+    const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
+    return markers.find((m) => (
+        m &&
+        m.kind === 'specialStone' &&
+        m.row === row &&
+        m.col === col &&
+        (!ownerKey || m.owner === ownerKey)
+    )) || null;
+}
+
+function getSacrificeMarkerPenalty(marker) {
+    if (!marker || !marker.data || typeof marker.data.type !== 'string') return 0;
+    const type = marker.data.type;
+    if (type === 'WORK') return 9000;
+    if (type === 'GUARD') return 7000;
+    if (type === 'BLOCKADE') return 6500;
+    if (type === 'REGEN') return 5000;
+    if (type === 'ULTIMATE_DESTROY_GOD') return 8000;
+    if (type === 'ULTIMATE_HYPERACTIVE_GOD') return 8000;
+    if (type === 'HYPERACTIVE') return 3800;
+    return 2400;
 }
 
 function chooseSacrificeTarget(gameState, cardState, playerKey, rng) {
     const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
     if (!targets.length) return null;
+    const pending = cardState && cardState.pendingEffectByPlayer
+        ? cardState.pendingEffectByPlayer[playerKey]
+        : null;
+    const selectedCount = Number.isFinite(pending && pending.selectedCount)
+        ? Math.max(0, Math.floor(Number(pending.selectedCount)))
+        : 0;
+    const maxSelections = Number.isFinite(pending && pending.maxSelections)
+        ? Math.max(1, Math.floor(Number(pending.maxSelections)))
+        : 3;
+    const playerValue = toPlayerValue(playerKey);
+    const discDiff = countDiscsByValue(gameState, playerValue);
+    const empties = countEmpties(gameState.board);
+    const cornerControl = countCornerControl(gameState.board, playerValue);
+    const cornerEmergency = cornerControl.oppCorners > cornerControl.ownCorners;
+    const beforeEval = evaluateBoardForPlayer(gameState, cardState, playerKey);
+
+    // SACRIFICE can be canceled after >=1 target. Prefer stopping unless comeback value is clear.
+    if (selectedCount >= 1 && !cornerEmergency && (discDiff >= -8 || empties >= 18)) {
+        return null;
+    }
+
     let best = null;
-    let bestScore = Infinity;
+    let bestScore = -Infinity;
     for (const t of targets) {
-        // Sacrifice low-value stones first.
-        const s = evaluatePositionValue(t.row, t.col) + rng.random() * 0.01;
-        if (s < bestScore) {
-            bestScore = s;
+        let score = 0;
+        const cellValue = evaluatePositionValue(t.row, t.col);
+        const cellBonus = getBoardBonusAtCell(cardState, t.row, t.col);
+        const marker = getSpecialMarkerAt(cardState, t.row, t.col, playerKey);
+
+        // Keep corners/edges and bonus cells whenever possible.
+        if (isCorner(t.row, t.col)) score -= 100000;
+        if (!isCorner(t.row, t.col) && isEdge(t.row, t.col)) score -= 14000;
+        score -= Math.max(0, cellValue) * 1.6;
+        score += Math.min(0, cellValue) * 0.35;
+        score -= cellBonus * 2600;
+        score -= getSacrificeMarkerPenalty(marker);
+
+        try {
+            const simGameState = Core.copyGameState(gameState);
+            const simCardState = (typeof CardLogic.copyCardState === 'function')
+                ? CardLogic.copyCardState(cardState)
+                : deepClone(cardState);
+            const simRes = CardLogic.applySacrificeWill(simCardState, simGameState, playerKey, t.row, t.col);
+            if (simRes && simRes.applied === true) {
+                const afterEval = evaluateBoardForPlayer(simGameState, simCardState, playerKey);
+                score += (afterEval - beforeEval) * 1.3;
+
+                const afterCornerControl = countCornerControl(simGameState.board, playerValue);
+                const ownCornerLoss = cornerControl.ownCorners - afterCornerControl.ownCorners;
+                if (ownCornerLoss > 0) score -= ownCornerLoss * 22000;
+
+                const oppMoves = getLegalMovesBasic(simGameState.board, -playerValue);
+                let oppCornerMoves = 0;
+                for (const one of oppMoves) {
+                    if (one && isCorner(one.row, one.col)) oppCornerMoves += 1;
+                }
+                if (oppCornerMoves > 0) {
+                    score -= oppCornerMoves * (cornerEmergency ? 6800 : 10500);
+                }
+
+                const nextSelectedCount = Number.isFinite(simRes.selectedCount)
+                    ? Math.max(0, Math.floor(Number(simRes.selectedCount)))
+                    : (selectedCount + 1);
+                const remainingSelections = Math.max(0, maxSelections - nextSelectedCount);
+                if (remainingSelections > 0 && !cornerEmergency && discDiff >= -6) {
+                    score += 180;
+                }
+            } else {
+                score -= 22000;
+            }
+        } catch (e) {
+            score -= 11000;
+        }
+
+        score += rng.random() * 0.01;
+        if (score > bestScore) {
+            bestScore = score;
             best = t;
         }
+    }
+
+    if (selectedCount >= 1 && !cornerEmergency && bestScore < -5000) {
+        return null;
     }
     return best;
 }
@@ -707,11 +2483,92 @@ function chooseTemptTarget(gameState, cardState, playerKey, rng) {
     return best;
 }
 
-function chooseSellCardTarget(cardState, playerKey) {
+function scoreTimeBombTarget(gameState, playerKey, target, rng) {
+    if (!gameState || !Array.isArray(gameState.board) || !target) return -Infinity;
+    const board = gameState.board;
+    const size = board.length;
+    if (!Number.isInteger(target.row) || !Number.isInteger(target.col)) return -Infinity;
+    if (target.row < 0 || target.col < 0 || target.row >= size || target.col >= size) return -Infinity;
+
+    const playerValue = toPlayerValue(playerKey);
+    const discDiff = countDiscsByValue(gameState, playerValue);
+    let score = 0;
+    let oppCornerHits = 0;
+    let ownCornerHits = 0;
+
+    for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+            const row = target.row + dr;
+            const col = target.col + dc;
+            if (row < 0 || col < 0 || row >= board.length || col >= board[row].length) continue;
+            const cell = board[row][col];
+            if (cell === 0) continue;
+            const corner = isCorner(row, col);
+            const edge = isEdge(row, col);
+            const weight = corner ? 12 : (edge ? 4 : 2);
+            const isOwn = cell === playerValue;
+            if (isOwn) {
+                score -= weight * 100;
+                if (corner) ownCornerHits += 1;
+            } else {
+                score += weight * 100;
+                if (corner) oppCornerHits += 1;
+            }
+        }
+    }
+
+    if (discDiff <= -8) score += 140;
+    if (discDiff <= -14) score += 80;
+    if (discDiff >= 8) score -= 140;
+    if (discDiff >= 12) score -= 70;
+    if (oppCornerHits > 0) score += 2400 * oppCornerHits;
+    if (ownCornerHits > 0) score -= 3200 * ownCornerHits;
+    if (discDiff >= 0 && oppCornerHits <= 0) score -= 220;
+
+    score += rng.random() * 0.01;
+    return score;
+}
+
+function chooseTimeBombTarget(gameState, cardState, playerKey, rng) {
+    const targets = (typeof CardLogic.getTimeBombTargets === 'function')
+        ? (CardLogic.getTimeBombTargets(cardState, gameState, playerKey) || [])
+        : (CardLogic.getSelectableTargets(cardState, gameState, playerKey) || []);
+    if (!targets.length) return null;
+    let best = null;
+    let bestScore = -Infinity;
+    for (const one of targets) {
+        const score = scoreTimeBombTarget(gameState, playerKey, one, rng);
+        if (score > bestScore) {
+            bestScore = score;
+            best = one;
+        }
+    }
+    return best;
+}
+
+function chooseSellCardTarget(gameState, cardState, playerKey) {
     const hand = cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])
         ? cardState.hands[playerKey]
         : [];
     if (!hand.length) return null;
+    if (CpuPolicyCore && typeof CpuPolicyCore.chooseSellCardTargetByRetention === 'function') {
+        const legalMoves = getLegalMovesForAction(gameState, cardState, playerKey);
+        const context = buildCardDecisionContext(
+            gameState,
+            cardState,
+            playerKey,
+            legalMoves.length,
+            legalMoves
+        );
+        const selected = CpuPolicyCore.chooseSellCardTargetByRetention(
+            hand,
+            CardLogic.getCardCost,
+            CardLogic.getCardDef,
+            context
+        );
+        if (selected && selected.cardId) return selected.cardId;
+    }
+
     let bestId = hand[0];
     let bestCost = -Infinity;
     for (const cardId of hand) {
@@ -745,13 +2602,23 @@ function buildPendingSelectionAction(gameState, cardState, playerKey, pendingTyp
         if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
         return { type: 'place', strongWindTarget: { row: t.row, col: t.col } };
     }
+    if (pendingType === 'SUPER_BUOYANCY_WILL') {
+        const t = chooseSuperBuoyancyTarget(gameState, cardState, playerKey, rng);
+        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', superBuoyancyTarget: { row: t.row, col: t.col } };
+    }
+    if (pendingType === 'SUPER_GRAVITY_WILL') {
+        const t = chooseSuperGravityTarget(gameState, cardState, playerKey, rng);
+        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', superGravityTarget: { row: t.row, col: t.col } };
+    }
     if (pendingType === 'SACRIFICE_WILL') {
         const t = chooseSacrificeTarget(gameState, cardState, playerKey, rng);
         if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
         return { type: 'place', sacrificeTarget: { row: t.row, col: t.col } };
     }
     if (pendingType === 'SELL_CARD_WILL') {
-        const cardId = chooseSellCardTarget(cardState, playerKey);
+        const cardId = chooseSellCardTarget(gameState, cardState, playerKey);
         if (!cardId) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
         return { type: 'place', sellCardId: cardId };
     }
@@ -759,6 +2626,120 @@ function buildPendingSelectionAction(gameState, cardState, playerKey, pendingTyp
         const t = chooseTemptTarget(gameState, cardState, playerKey, rng);
         if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
         return { type: 'place', temptTarget: { row: t.row, col: t.col } };
+    }
+    if (pendingType === 'TIME_BOMB') {
+        const t = chooseTimeBombTarget(gameState, cardState, playerKey, rng);
+        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', bombTarget: { row: t.row, col: t.col } };
+    }
+    if (pendingType === 'GUARD_WILL' || pendingType === 'GUARDIAN_GOD') {
+        const t = chooseGuardTarget(gameState, cardState, playerKey, rng);
+        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', guardTarget: { row: t.row, col: t.col } };
+    }
+    if (pendingType === 'BOARD_EXPANSION_WILL' || pendingType === 'BOARD_EXPANSION_GOD') {
+        const t = chooseBoardExpansionTarget(gameState, cardState, playerKey, rng);
+        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', expansionTarget: { row: t.row, col: t.col } };
+    }
+    if (pendingType === 'BLOCKADE_WILL') {
+        const t = chooseBlockadeTarget(gameState, cardState, playerKey, rng);
+        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', blockadeTarget: { row: t.row, col: t.col } };
+    }
+    if (pendingType === 'METEOR_WILL') {
+        const t = chooseMeteorTarget(gameState, cardState, playerKey, rng);
+        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', meteorTarget: { row: t.row, col: t.col } };
+    }
+    if (pendingType === 'TRAP_WILL') {
+        const t = chooseTrapTarget(gameState, cardState, playerKey, rng);
+        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', trapTarget: { row: t.row, col: t.col } };
+    }
+    if (pendingType === 'CLONE_WILL') {
+        const t = chooseCloneTarget(gameState, cardState, playerKey, rng);
+        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', cloneTarget: { row: t.row, col: t.col } };
+    }
+    if (pendingType === 'HYPERACTIVE_INHERIT_WILL') {
+        const t = chooseHyperactiveInheritTarget(gameState, cardState, playerKey, rng);
+        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', hyperactiveInheritTarget: { row: t.row, col: t.col } };
+    }
+    if (pendingType === 'TELEPORT_WILL') {
+        const t = chooseTeleportTarget(gameState, cardState, playerKey, rng);
+        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', teleportTarget: { row: t.row, col: t.col } };
+    }
+    if (pendingType === 'CELL_TELEPORT_WILL') {
+        const t = chooseCellTeleportTarget(gameState, cardState, playerKey, rng);
+        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', teleportTarget: { row: t.row, col: t.col } };
+    }
+    if (pendingType === 'EXTEND_LIFE_WILL') {
+        const t = chooseExtendLifeTarget(gameState, cardState, playerKey, rng);
+        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', extendTarget: { row: t.row, col: t.col } };
+    }
+    if (pendingType === 'CORROSION_WILL') {
+        const t = chooseCorrosionTarget(gameState, cardState, playerKey, rng);
+        if (!t) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', corrosionTarget: { row: t.row, col: t.col } };
+    }
+    if (pendingType === 'HEAVEN_BLESSING') {
+        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const offers = pending && Array.isArray(pending.offers) ? pending.offers.filter((id) => typeof id === 'string') : [];
+        if (!offers.length) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        const legalMoves = getLegalMovesForAction(gameState, cardState, playerKey);
+        const riskContext = buildCardDecisionContext(gameState, cardState, playerKey, legalMoves.length, legalMoves);
+        let bestCardId = offers[0];
+        let bestScore = -Infinity;
+        for (const cardId of offers) {
+            let score = (Number(CardLogic.getCardCost(cardId) || 0) * 2);
+            if (CpuPolicyCore && typeof CpuPolicyCore.scoreCardUseDecision === 'function') {
+                const one = CpuPolicyCore.scoreCardUseDecision(
+                    cardId,
+                    CardLogic.getCardCost,
+                    CardLogic.getCardDef,
+                    riskContext
+                );
+                if (one && Number.isFinite(one.score)) score += (one.score * 4);
+            }
+            if (score > bestScore || (score === bestScore && String(cardId) < String(bestCardId))) {
+                bestScore = score;
+                bestCardId = cardId;
+            }
+        }
+        return { type: 'place', heavenBlessingCardId: bestCardId };
+    }
+    if (pendingType === 'CONDEMN_WILL') {
+        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const offers = pending && Array.isArray(pending.offers) ? pending.offers : [];
+        if (!offers.length) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+
+        const opponentKey = playerKey === 'black' ? 'white' : 'black';
+        const oppLegalMoves = getLegalMovesForAction(gameState, cardState, opponentKey);
+        const oppRiskContext = buildCardDecisionContext(gameState, cardState, opponentKey, oppLegalMoves.length, oppLegalMoves);
+        let best = null;
+        for (const offer of offers) {
+            if (!offer || !Number.isInteger(offer.handIndex) || typeof offer.cardId !== 'string') continue;
+            let score = Number(CardLogic.getCardCost(offer.cardId) || 0) * 3;
+            if (CpuPolicyCore && typeof CpuPolicyCore.scoreCardUseDecision === 'function') {
+                const oppScore = CpuPolicyCore.scoreCardUseDecision(
+                    offer.cardId,
+                    CardLogic.getCardCost,
+                    CardLogic.getCardDef,
+                    oppRiskContext
+                );
+                if (oppScore && Number.isFinite(oppScore.score)) score += (oppScore.score * 4.5);
+            }
+            if (!best || score > best.score || (score === best.score && offer.handIndex < best.handIndex)) {
+                best = { handIndex: offer.handIndex, score };
+            }
+        }
+        if (!best) return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
+        return { type: 'place', condemnTargetIndex: best.handIndex };
     }
     return { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } };
 }
@@ -805,6 +2786,8 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
     const activeCardState = decisionState.cardState || cardState;
     const pending = activeCardState.pendingEffectByPlayer[playerKey];
     const legalMoves = getLegalMovesForAction(activeGameState, activeCardState, playerKey);
+    const forcedPlacement = resolveForcedPlacementCandidates(legalMoves, options);
+    const mustTakePriorityPlacement = !!forcedPlacement.category;
 
     if (pending && pending.stage === 'selectTarget') {
         const pendingAction = buildPendingSelectionAction(activeGameState, activeCardState, playerKey, pending.type, rng);
@@ -814,33 +2797,78 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
         return { action: { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } }, legalMoves };
     }
 
-    if (options.allowCardUsage && !activeCardState.hasUsedCardThisTurnByPlayer[playerKey]) {
+    if (
+        options.allowCardUsage &&
+        options.allowHandDestroy !== false &&
+        !mustTakePriorityPlacement &&
+        !activeCardState.hasUsedCardThisTurnByPlayer[playerKey]
+    ) {
+        const destroyCardId = selectDestroyHandCardId(
+            activeCardState,
+            activeGameState,
+            playerKey,
+            {
+                gameState: activeGameState,
+                cardState: activeCardState,
+                playerKey,
+                pendingType: pending ? pending.type : null,
+                legalMovesCount: legalMoves.length,
+                legalMoves
+            }
+        );
+        if (destroyCardId) {
+            return {
+                action: { type: 'destroy_hand_card', destroyCardId },
+                legalMoves
+            };
+        }
+    }
+
+    if (
+        options.allowCardUsage &&
+        !mustTakePriorityPlacement &&
+        !activeCardState.hasUsedCardThisTurnByPlayer[playerKey]
+    ) {
         const cardId = selectCardIdToUse(activeCardState, activeGameState, playerKey, options, {
             gameState: activeGameState,
             cardState: activeCardState,
             playerKey,
             pendingType: pending ? pending.type : null,
-            legalMovesCount: legalMoves.length
+            legalMovesCount: legalMoves.length,
+            legalMoves
         });
         const mustUseCardToCreateMove = legalMoves.length === 0;
         let adjustedRate = Number.isFinite(options.cardUsageRate) ? options.cardUsageRate : 0;
+        let forceUseByRiskScore = false;
+        let preferUseByRiskScore = false;
         if (cardId && CpuPolicyCore && typeof CpuPolicyCore.scoreCardUseDecision === 'function') {
             const risk = CpuPolicyCore.scoreCardUseDecision(
                 cardId,
                 CardLogic.getCardCost,
                 CardLogic.getCardDef,
-                buildCardDecisionContext(activeGameState, activeCardState, playerKey, legalMoves.length)
+                buildCardDecisionContext(activeGameState, activeCardState, playerKey, legalMoves.length, legalMoves)
             );
             if (risk && risk.shouldUse === false) {
                 adjustedRate = 0;
             } else if (risk && Number.isFinite(risk.score)) {
+                const minUseScore = Number.isFinite(risk.minUseScore) ? Number(risk.minUseScore) : 0;
+                const scoreMargin = Number(risk.score) - minUseScore;
+                if (scoreMargin >= 28) forceUseByRiskScore = true;
+                else if (scoreMargin >= 14) preferUseByRiskScore = true;
                 if (risk.score >= 60) adjustedRate = Math.min(1, adjustedRate * 1.8);
                 else if (risk.score >= 25) adjustedRate = Math.min(1, adjustedRate * 1.3);
                 else if (risk.score < 10) adjustedRate *= 0.35;
             }
         }
+        const handSize = activeCardState && activeCardState.hands && Array.isArray(activeCardState.hands[playerKey])
+            ? activeCardState.hands[playerKey].length
+            : 0;
+        if (handSize >= 5) adjustedRate = Math.max(adjustedRate, 0.88);
+        else if (handSize >= 4) adjustedRate = Math.max(adjustedRate, 0.58);
+        if (preferUseByRiskScore) adjustedRate = Math.max(adjustedRate, handSize >= 4 ? 0.88 : 0.76);
+        if (forceUseByRiskScore) adjustedRate = Math.max(adjustedRate, 0.98);
         const randomUse = rng.random() < adjustedRate;
-        if (cardId && (mustUseCardToCreateMove || randomUse)) {
+        if (cardId && (mustUseCardToCreateMove || forceUseByRiskScore || randomUse)) {
             return { action: { type: 'use_card', useCardId: cardId, useCardOwnerKey: playerKey }, legalMoves };
         }
     }
@@ -852,7 +2880,7 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
             getSafeCardContext(activeCardState)
         );
         if (strictLegalMoves.length > 0) {
-            const forcedMove = selectPlacementMove(
+            const forcedPlacement = scorePlacementCandidates(
                 strictLegalMoves,
                 rng,
                 {
@@ -864,15 +2892,19 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
                 },
                 options
             );
+            const forcedMove = forcedPlacement && forcedPlacement.move
+                ? forcedPlacement.move
+                : strictLegalMoves[0];
             return {
                 action: { type: 'place', row: forcedMove.row, col: forcedMove.col },
-                legalMoves: strictLegalMoves
+                legalMoves: strictLegalMoves,
+                placementMetrics: forcedPlacement ? forcedPlacement.metrics : null
             };
         }
         return { action: { type: 'pass' }, legalMoves };
     }
 
-    const chosenMove = selectPlacementMove(
+    const chosenPlacement = scorePlacementCandidates(
         legalMoves,
         rng,
         {
@@ -884,9 +2916,11 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
         },
         options
     );
+    const chosenMove = chosenPlacement && chosenPlacement.move ? chosenPlacement.move : legalMoves[0];
     return {
         action: { type: 'place', row: chosenMove.row, col: chosenMove.col },
-        legalMoves
+        legalMoves,
+        placementMetrics: chosenPlacement ? chosenPlacement.metrics : null
     };
 }
 
@@ -910,6 +2944,62 @@ function createInitialState(seed) {
 
 function normalizeOptions(options) {
     const opts = options || {};
+    const policyMixRate = Number.isFinite(opts.policyMixRate)
+        ? Math.max(0, Math.min(1, Number(opts.policyMixRate)))
+        : 1;
+    const cardUsageRateJitter = Number.isFinite(opts.cardUsageRateJitter)
+        ? Math.max(0, Math.min(1, Number(opts.cardUsageRateJitter)))
+        : 0;
+    const tacticalWeightMin = Number.isFinite(opts.tacticalWeightMin)
+        ? Math.max(0, Number(opts.tacticalWeightMin))
+        : 1;
+    const tacticalWeightMaxRaw = Number.isFinite(opts.tacticalWeightMax)
+        ? Math.max(0, Number(opts.tacticalWeightMax))
+        : tacticalWeightMin;
+    const tacticalWeightMax = Math.max(tacticalWeightMin, tacticalWeightMaxRaw);
+    const policyScoreWeightMin = Number.isFinite(opts.policyScoreWeightMin)
+        ? Math.max(0, Number(opts.policyScoreWeightMin))
+        : 1;
+    const policyScoreWeightMaxRaw = Number.isFinite(opts.policyScoreWeightMax)
+        ? Math.max(0, Number(opts.policyScoreWeightMax))
+        : policyScoreWeightMin;
+    const policyScoreWeightMax = Math.max(policyScoreWeightMin, policyScoreWeightMaxRaw);
+    const heuristicWeightMin = Number.isFinite(opts.heuristicWeightMin)
+        ? Math.max(0, Number(opts.heuristicWeightMin))
+        : 1;
+    const heuristicWeightMaxRaw = Number.isFinite(opts.heuristicWeightMax)
+        ? Math.max(0, Number(opts.heuristicWeightMax))
+        : heuristicWeightMin;
+    const heuristicWeightMax = Math.max(heuristicWeightMin, heuristicWeightMaxRaw);
+    const tacticalDepthOpening = Number.isFinite(opts.tacticalDepthOpening)
+        ? Math.max(0, Math.floor(Number(opts.tacticalDepthOpening)))
+        : 2;
+    const tacticalDepthMid = Number.isFinite(opts.tacticalDepthMid)
+        ? Math.max(0, Math.floor(Number(opts.tacticalDepthMid)))
+        : 3;
+    const tacticalDepthEnd = Number.isFinite(opts.tacticalDepthEnd)
+        ? Math.max(0, Math.floor(Number(opts.tacticalDepthEnd)))
+        : 4;
+    const tacticalBeamWidth = Number.isFinite(opts.tacticalBeamWidth)
+        ? Math.max(1, Math.floor(Number(opts.tacticalBeamWidth)))
+        : 0;
+    const teacherCommitteeWeightMin = Number.isFinite(opts.teacherCommitteeWeightMin)
+        ? Math.max(0, Number(opts.teacherCommitteeWeightMin))
+        : 28;
+    const teacherCommitteeWeightMaxRaw = Number.isFinite(opts.teacherCommitteeWeightMax)
+        ? Math.max(0, Number(opts.teacherCommitteeWeightMax))
+        : teacherCommitteeWeightMin;
+    const teacherCommitteeWeightMax = Math.max(teacherCommitteeWeightMin, teacherCommitteeWeightMaxRaw);
+    const teacherCommitteeConsensusBonusMin = Number.isFinite(opts.teacherCommitteeConsensusBonusMin)
+        ? Math.max(0, Number(opts.teacherCommitteeConsensusBonusMin))
+        : 320;
+    const teacherCommitteeConsensusBonusMaxRaw = Number.isFinite(opts.teacherCommitteeConsensusBonusMax)
+        ? Math.max(0, Number(opts.teacherCommitteeConsensusBonusMax))
+        : teacherCommitteeConsensusBonusMin;
+    const teacherCommitteeConsensusBonusMax = Math.max(
+        teacherCommitteeConsensusBonusMin,
+        teacherCommitteeConsensusBonusMaxRaw
+    );
     return {
         schemaVersion: SELFPLAY_SCHEMA_VERSION,
         games: Number.isFinite(opts.games) ? Math.max(1, Math.floor(opts.games)) : 10,
@@ -917,7 +3007,32 @@ function normalizeOptions(options) {
         maxPlies: Number.isFinite(opts.maxPlies) ? Math.max(1, Math.floor(opts.maxPlies)) : 220,
         allowCardUsage: opts.allowCardUsage !== false,
         cardUsageRate: Number.isFinite(opts.cardUsageRate) ? Math.max(0, Math.min(1, opts.cardUsageRate)) : 0.2,
+        policyMixRate,
+        cardUsageRateJitter,
+        tacticalWeightMin,
+        tacticalWeightMax,
+        policyScoreWeightMin,
+        policyScoreWeightMax,
+        heuristicWeightMin,
+        heuristicWeightMax,
+        tacticalDepthOpening,
+        tacticalDepthMid,
+        tacticalDepthEnd,
+        tacticalBeamWidth,
+        teacherCommitteeWeightMin,
+        teacherCommitteeWeightMax,
+        teacherCommitteeConsensusBonusMin,
+        teacherCommitteeConsensusBonusMax,
         playerPolicies: opts.playerPolicies || null,
+        playerPolicyResolver: typeof opts.playerPolicyResolver === 'function'
+            ? opts.playerPolicyResolver
+            : null,
+        seedFamily: typeof opts.seedFamily === 'string' && opts.seedFamily.trim()
+            ? opts.seedFamily.trim()
+            : 'train',
+        dataLane: typeof opts.dataLane === 'string' && opts.dataLane.trim()
+            ? opts.dataLane.trim()
+            : 'selfplay-games',
         onRecord: typeof opts.onRecord === 'function' ? opts.onRecord : null,
         onGameEnd: typeof opts.onGameEnd === 'function' ? opts.onGameEnd : null
     };
@@ -927,8 +3042,20 @@ function getPolicyForPlayer(options, playerKey) {
     const base = {
         allowCardUsage: options.allowCardUsage,
         cardUsageRate: options.cardUsageRate,
-        enableTacticalLookahead: false,
-        tacticalWeight: 0
+        enableTacticalLookahead: true,
+        disableLookaheadTimeBudget: false,
+        lookaheadMaxTimeMs: Number.NaN,
+        lookaheadEndgameMaxTimeMs: Number.NaN,
+        lookaheadVirtualTimePerNodeMs: Number.NaN,
+        tacticalWeight: Number.NaN,
+        policyScoreWeight: Number.NaN,
+        heuristicWeight: Number.NaN,
+        tacticalDepthOpening: Number.isFinite(options.tacticalDepthOpening) ? Math.max(0, Math.floor(options.tacticalDepthOpening)) : 2,
+        tacticalDepthMid: Number.isFinite(options.tacticalDepthMid) ? Math.max(0, Math.floor(options.tacticalDepthMid)) : 3,
+        tacticalDepthEnd: Number.isFinite(options.tacticalDepthEnd) ? Math.max(0, Math.floor(options.tacticalDepthEnd)) : 4,
+        tacticalBeamWidth: Number.isFinite(options.tacticalBeamWidth) ? Math.max(1, Math.floor(options.tacticalBeamWidth)) : 0,
+        teacherCommitteeWeight: Number.NaN,
+        teacherCommitteeConsensusBonus: Number.NaN
     };
     if (!options.playerPolicies || !options.playerPolicies[playerKey]) return base;
     const override = options.playerPolicies[playerKey];
@@ -940,10 +3067,165 @@ function getPolicyForPlayer(options, playerKey) {
         policyTableModel: override.policyTableModel || null,
         enableTacticalLookahead: override.enableTacticalLookahead !== undefined
             ? !!override.enableTacticalLookahead
-            : !!override.policyTableModel,
+            : base.enableTacticalLookahead,
+        disableLookaheadTimeBudget: override.disableLookaheadTimeBudget !== undefined
+            ? !!override.disableLookaheadTimeBudget
+            : base.disableLookaheadTimeBudget,
+        lookaheadMaxTimeMs: normalizeLookaheadTimeBudget(override.lookaheadMaxTimeMs, base.lookaheadMaxTimeMs),
+        lookaheadEndgameMaxTimeMs: normalizeLookaheadTimeBudget(
+            override.lookaheadEndgameMaxTimeMs,
+            base.lookaheadEndgameMaxTimeMs
+        ),
+        lookaheadVirtualTimePerNodeMs: normalizeLookaheadVirtualTimePerNodeMs(
+            override.lookaheadVirtualTimePerNodeMs,
+            base.lookaheadVirtualTimePerNodeMs
+        ),
         tacticalWeight: Number.isFinite(override.tacticalWeight)
             ? Math.max(0, override.tacticalWeight)
-            : (override.policyTableModel ? 1 : 0)
+            : base.tacticalWeight,
+        policyScoreWeight: Number.isFinite(override.policyScoreWeight)
+            ? Math.max(0, override.policyScoreWeight)
+            : Number.NaN,
+        heuristicWeight: Number.isFinite(override.heuristicWeight)
+            ? Math.max(0, override.heuristicWeight)
+            : Number.NaN,
+        tacticalDepthOpening: Number.isFinite(override.tacticalDepthOpening)
+            ? Math.max(0, Math.floor(override.tacticalDepthOpening))
+            : base.tacticalDepthOpening,
+        tacticalDepthMid: Number.isFinite(override.tacticalDepthMid)
+            ? Math.max(0, Math.floor(override.tacticalDepthMid))
+            : base.tacticalDepthMid,
+        tacticalDepthEnd: Number.isFinite(override.tacticalDepthEnd)
+            ? Math.max(0, Math.floor(override.tacticalDepthEnd))
+            : base.tacticalDepthEnd,
+        tacticalBeamWidth: Number.isFinite(override.tacticalBeamWidth)
+            ? Math.max(1, Math.floor(override.tacticalBeamWidth))
+            : base.tacticalBeamWidth,
+        teacherCommitteeWeight: Number.isFinite(override.teacherCommitteeWeight)
+            ? Math.max(0, Number(override.teacherCommitteeWeight))
+            : base.teacherCommitteeWeight,
+        teacherCommitteeConsensusBonus: Number.isFinite(override.teacherCommitteeConsensusBonus)
+            ? Math.max(0, Number(override.teacherCommitteeConsensusBonus))
+            : base.teacherCommitteeConsensusBonus
+    };
+}
+
+function clamp01(value, fallback) {
+    if (!Number.isFinite(value)) {
+        return Number.isFinite(fallback)
+            ? Math.max(0, Math.min(1, Number(fallback)))
+            : 0;
+    }
+    return Math.max(0, Math.min(1, Number(value)));
+}
+
+function normalizeLookaheadTimeBudget(value, fallback) {
+    if (!Number.isFinite(value)) return fallback;
+    return Math.max(0, Math.floor(Number(value)));
+}
+
+function normalizeLookaheadVirtualTimePerNodeMs(value, fallback) {
+    if (!Number.isFinite(value)) return fallback;
+    return Math.max(0, Number(value));
+}
+
+function buildPerGamePolicySet(options, seed, gameIndex) {
+    const baseBlack = getPolicyForPlayer(options, 'black');
+    const baseWhite = getPolicyForPlayer(options, 'white');
+    const mixRate = clamp01(options.policyMixRate, 1);
+    const jitter = clamp01(options.cardUsageRateJitter, 0);
+    const tacticalWeightMin = Number.isFinite(options.tacticalWeightMin)
+        ? Math.max(0, Number(options.tacticalWeightMin))
+        : 1;
+    const tacticalWeightMax = Number.isFinite(options.tacticalWeightMax)
+        ? Math.max(tacticalWeightMin, Number(options.tacticalWeightMax))
+        : tacticalWeightMin;
+    const policyScoreWeightMin = Number.isFinite(options.policyScoreWeightMin)
+        ? Math.max(0, Number(options.policyScoreWeightMin))
+        : 1;
+    const policyScoreWeightMax = Number.isFinite(options.policyScoreWeightMax)
+        ? Math.max(policyScoreWeightMin, Number(options.policyScoreWeightMax))
+        : policyScoreWeightMin;
+    const heuristicWeightMin = Number.isFinite(options.heuristicWeightMin)
+        ? Math.max(0, Number(options.heuristicWeightMin))
+        : 1;
+    const heuristicWeightMax = Number.isFinite(options.heuristicWeightMax)
+        ? Math.max(heuristicWeightMin, Number(options.heuristicWeightMax))
+        : heuristicWeightMin;
+    const teacherCommitteeWeightMin = Number.isFinite(options.teacherCommitteeWeightMin)
+        ? Math.max(0, Number(options.teacherCommitteeWeightMin))
+        : 28;
+    const teacherCommitteeWeightMax = Number.isFinite(options.teacherCommitteeWeightMax)
+        ? Math.max(teacherCommitteeWeightMin, Number(options.teacherCommitteeWeightMax))
+        : teacherCommitteeWeightMin;
+    const teacherCommitteeConsensusBonusMin = Number.isFinite(options.teacherCommitteeConsensusBonusMin)
+        ? Math.max(0, Number(options.teacherCommitteeConsensusBonusMin))
+        : 320;
+    const teacherCommitteeConsensusBonusMax = Number.isFinite(options.teacherCommitteeConsensusBonusMax)
+        ? Math.max(teacherCommitteeConsensusBonusMin, Number(options.teacherCommitteeConsensusBonusMax))
+        : teacherCommitteeConsensusBonusMin;
+    const rng = SeededPRNG.createPRNG((Number(seed) || 0) + ((Number(gameIndex) || 0) * 7919) + 97);
+
+    const buildOne = (base) => {
+        const allowCardUsage = base.allowCardUsage !== false;
+        const baseRate = clamp01(base.cardUsageRate, options.cardUsageRate);
+        const jitterDelta = jitter > 0 ? ((rng.random() * 2) - 1) * jitter : 0;
+        const cardUsageRate = clamp01(baseRate + jitterDelta, baseRate);
+        const canUseModel = !!base.policyTableModel;
+        const useModel = canUseModel && (rng.random() < mixRate);
+        const enableTacticalLookahead = base.enableTacticalLookahead !== false;
+        const tacticalWeight = enableTacticalLookahead
+            ? (
+                Number.isFinite(base.tacticalWeight)
+                    ? Math.max(0, Number(base.tacticalWeight))
+                    : (tacticalWeightMin + ((tacticalWeightMax - tacticalWeightMin) * rng.random()))
+            )
+            : 0;
+        const policyScoreWeight = Number.isFinite(base.policyScoreWeight)
+            ? Math.max(0, Number(base.policyScoreWeight))
+            : (useModel
+                ? (policyScoreWeightMin + ((policyScoreWeightMax - policyScoreWeightMin) * rng.random()))
+                : 0);
+        const heuristicWeight = Number.isFinite(base.heuristicWeight)
+            ? Math.max(0, Number(base.heuristicWeight))
+            : (heuristicWeightMin + ((heuristicWeightMax - heuristicWeightMin) * rng.random()));
+        const teacherCommitteeWeight = Number.isFinite(base.teacherCommitteeWeight)
+            ? Math.max(0, Number(base.teacherCommitteeWeight))
+            : (
+                teacherCommitteeWeightMin +
+                ((teacherCommitteeWeightMax - teacherCommitteeWeightMin) * rng.random())
+            );
+        const teacherCommitteeConsensusBonus = Number.isFinite(base.teacherCommitteeConsensusBonus)
+            ? Math.max(0, Number(base.teacherCommitteeConsensusBonus))
+            : (
+                teacherCommitteeConsensusBonusMin +
+                ((teacherCommitteeConsensusBonusMax - teacherCommitteeConsensusBonusMin) * rng.random())
+            );
+
+        return {
+            allowCardUsage,
+            cardUsageRate,
+            policyTableModel: useModel ? base.policyTableModel : null,
+            enableTacticalLookahead,
+            disableLookaheadTimeBudget: base.disableLookaheadTimeBudget === true,
+            lookaheadMaxTimeMs: normalizeLookaheadTimeBudget(base.lookaheadMaxTimeMs, Number.NaN),
+            lookaheadEndgameMaxTimeMs: normalizeLookaheadTimeBudget(base.lookaheadEndgameMaxTimeMs, Number.NaN),
+            lookaheadVirtualTimePerNodeMs: normalizeLookaheadVirtualTimePerNodeMs(base.lookaheadVirtualTimePerNodeMs, Number.NaN),
+            tacticalWeight,
+            policyScoreWeight: useModel ? policyScoreWeight : 0,
+            heuristicWeight,
+            tacticalDepthOpening: Number.isFinite(base.tacticalDepthOpening) ? Math.max(0, Math.floor(base.tacticalDepthOpening)) : 2,
+            tacticalDepthMid: Number.isFinite(base.tacticalDepthMid) ? Math.max(0, Math.floor(base.tacticalDepthMid)) : 3,
+            tacticalDepthEnd: Number.isFinite(base.tacticalDepthEnd) ? Math.max(0, Math.floor(base.tacticalDepthEnd)) : 4,
+            tacticalBeamWidth: Number.isFinite(base.tacticalBeamWidth) ? Math.max(1, Math.floor(base.tacticalBeamWidth)) : 0,
+            teacherCommitteeWeight,
+            teacherCommitteeConsensusBonus
+        };
+    };
+
+    return {
+        black: buildOne(baseBlack),
+        white: buildOne(baseWhite)
     };
 }
 
@@ -985,7 +3267,11 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
 
     const errMsg = String(result.errorMessage || '');
     const illegalPassRejected = first.actionType === 'pass' && errMsg.includes('Illegal pass');
-    const canRetry = first.actionType === 'use_card' || result.rejectedReason === 'ILLEGAL_MOVE' || illegalPassRejected;
+    const canRetry =
+        first.actionType === 'use_card' ||
+        first.actionType === 'destroy_hand_card' ||
+        result.rejectedReason === 'ILLEGAL_MOVE' ||
+        illegalPassRejected;
     if (!canRetry) {
         const msg = result.errorMessage || '';
         throw new Error(`[SELFPLAY] action rejected game=${gameIndex} ply=${ply} action=${first.actionType} reason=${result.rejectedReason || 'UNKNOWN'} ${msg}`);
@@ -993,14 +3279,44 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
 
     const retryOpts = Object.assign({}, options);
     if (first.actionType === 'use_card') retryOpts.allowCardUsage = false;
+    if (first.actionType === 'destroy_hand_card') retryOpts.allowHandDestroy = false;
     const retrySnapshot = buildDecisionSnapshot(state.gameState, state.cardState, playerKey, state.prng);
     const retryDecision = decideAction(state.gameState, state.cardState, playerKey, state.prng, retryOpts, retrySnapshot);
     actionCounterRef.value += 1;
     const retry = createAction(retryDecision, gameIndex, actionCounterRef.value, state.stateVersion);
     result = applyActionSafe(state, playerKey, retry.action);
     if (!result.ok) {
-        const msg = result.errorMessage || '';
-        throw new Error(`[SELFPLAY] action rejected game=${gameIndex} ply=${ply} action=${retry.actionType} reason=${result.rejectedReason || 'UNKNOWN'} ${msg}`);
+        // Last-resort safety net: force a deterministic legal action so long training loops do not crash.
+        state.cardState = result.cardState;
+        state.gameState = result.gameState;
+        state.stateVersion = result.nextStateVersion;
+
+        const fallbackSnapshot = buildDecisionSnapshot(state.gameState, state.cardState, playerKey, state.prng);
+        const fallbackLegalMoves = getLegalMovesForAction(fallbackSnapshot.gameState, fallbackSnapshot.cardState, playerKey);
+        const sortedFallbackMoves = Array.isArray(fallbackLegalMoves)
+            ? fallbackLegalMoves.slice().sort((a, b) => (a.row - b.row) || (a.col - b.col))
+            : [];
+        const forcedFallback = resolveForcedPlacementCandidates(sortedFallbackMoves, options);
+        const fallbackMoves = Array.isArray(forcedFallback.moves) && forcedFallback.moves.length > 0
+            ? forcedFallback.moves
+            : sortedFallbackMoves;
+        const fallbackAction = (fallbackMoves.length > 0)
+            ? { type: 'place', row: fallbackMoves[0].row, col: fallbackMoves[0].col }
+            : { type: 'pass' };
+        const fallbackDecision = {
+            action: fallbackAction,
+            legalMoves: sortedFallbackMoves
+        };
+
+        actionCounterRef.value += 1;
+        const forced = createAction(fallbackDecision, gameIndex, actionCounterRef.value, state.stateVersion);
+        const forcedResult = applyActionSafe(state, playerKey, forced.action);
+        if (forcedResult.ok) {
+            return { decision: fallbackDecision, action: forced.action, result: forcedResult, decisionContext: fallbackSnapshot };
+        }
+
+        const msg = forcedResult.errorMessage || result.errorMessage || '';
+        throw new Error(`[SELFPLAY] action rejected game=${gameIndex} ply=${ply} action=${retry.actionType} reason=${forcedResult.rejectedReason || result.rejectedReason || 'UNKNOWN'} ${msg}`);
     }
     return { decision: retryDecision, action: retry.action, result, decisionContext: retrySnapshot };
 }
@@ -1040,6 +3356,28 @@ function runSingleGame(gameIndex, seed, options) {
         const decision = execution.decision;
         const action = execution.action;
         const result = execution.result;
+        const planStateBefore = buildCornerPlanState(
+            decisionGameState,
+            decisionCardState,
+            playerKey,
+            decision.legalMoves,
+            usableCardIds
+        );
+        const selectedCellBonus = (
+            action.type === 'place' &&
+            Number.isInteger(action.row) &&
+            Number.isInteger(action.col)
+        )
+            ? getBoardBonusAtCell(decisionCardState, action.row, action.col)
+            : 0;
+        const placementMetrics = (
+            action.type === 'place' &&
+            decision &&
+            decision.placementMetrics &&
+            typeof decision.placementMetrics === 'object'
+        )
+            ? decision.placementMetrics
+            : null;
 
         const record = {
             schemaVersion: normalizedOptions.schemaVersion,
@@ -1052,6 +3390,8 @@ function runSingleGame(gameIndex, seed, options) {
             row: Number.isFinite(action.row) ? action.row : null,
             col: Number.isFinite(action.col) ? action.col : null,
             useCardId: action.useCardId || null,
+            destroyCardId: action.destroyCardId || null,
+            sellCardId: action.sellCardId || null,
             legalMoves: decision.legalMoves.length,
             pendingType: pendingType || null,
             handBlack: state.cardState.hands.black.length,
@@ -1062,24 +3402,79 @@ function runSingleGame(gameIndex, seed, options) {
             discardCount: state.cardState.discard.length,
             blackCountBefore: countsBefore.black,
             whiteCountBefore: countsBefore.white,
-            board: boardBefore
+            board: boardBefore,
+            ownCornersBefore: Number(planStateBefore.ownCorners || 0),
+            oppCornersBefore: Number(planStateBefore.oppCorners || 0),
+            ownEdgesBefore: Number(planStateBefore.ownEdges || 0),
+            oppEdgesBefore: Number(planStateBefore.oppEdges || 0),
+            hasCornerMoveNow: planStateBefore.hasCornerMoveNow ? 1 : 0,
+            hasEdgeMoveNow: planStateBefore.hasEdgeMoveNow ? 1 : 0,
+            cornerEmergency: planStateBefore.cornerEmergency ? 1 : 0,
+            cornerHoldMode: planStateBefore.cornerHoldMode ? 1 : 0,
+            highBonusMoveAvailable: planStateBefore.highBonusMoveAvailable ? 1 : 0,
+            maxLegalMoveBonus: Number(planStateBefore.maxBoardBonusOnLegalMoves || 0),
+            selectedCellBonus: Number(selectedCellBonus || 0),
+            selectedCompositeScore: placementMetrics && Number.isFinite(placementMetrics.selectedCompositeScore)
+                ? Number(placementMetrics.selectedCompositeScore)
+                : null,
+            bestCompositeScore: placementMetrics && Number.isFinite(placementMetrics.bestCompositeScore)
+                ? Number(placementMetrics.bestCompositeScore)
+                : null,
+            compositeScoreMiss: placementMetrics && Number.isFinite(placementMetrics.compositeScoreMiss)
+                ? Number(placementMetrics.compositeScoreMiss)
+                : null,
+            compositeScoreMissRatio: placementMetrics && Number.isFinite(placementMetrics.compositeScoreMissRatio)
+                ? Number(placementMetrics.compositeScoreMissRatio)
+                : null,
+            selectedTacticalScore: placementMetrics && Number.isFinite(placementMetrics.selectedTacticalScore)
+                ? Number(placementMetrics.selectedTacticalScore)
+                : null,
+            bestTacticalScore: placementMetrics && Number.isFinite(placementMetrics.bestTacticalScore)
+                ? Number(placementMetrics.bestTacticalScore)
+                : null,
+            tacticalScoreMiss: placementMetrics && Number.isFinite(placementMetrics.tacticalScoreMiss)
+                ? Number(placementMetrics.tacticalScoreMiss)
+                : null,
+            tacticalScoreMissRatio: placementMetrics && Number.isFinite(placementMetrics.tacticalScoreMissRatio)
+                ? Number(placementMetrics.tacticalScoreMissRatio)
+                : null
         };
         record.handCards = handCards;
         record.usableCardIds = usableCardIds;
+        record.topPlacementCandidates = placementMetrics && Array.isArray(placementMetrics.topCandidates)
+            ? placementMetrics.topCandidates.map((one) => Object.assign({}, one))
+            : [];
 
         state.cardState = result.cardState;
         state.gameState = result.gameState;
         state.stateVersion = result.nextStateVersion;
 
         const countsAfter = Core.countDiscs(state.gameState);
+        const planStateAfter = buildCornerPlanState(
+            state.gameState,
+            state.cardState,
+            playerKey,
+            [],
+            []
+        );
         record.blackCountAfter = countsAfter.black;
         record.whiteCountAfter = countsAfter.white;
+        record.ownCornersAfter = Number(planStateAfter.ownCorners || 0);
+        record.oppCornersAfter = Number(planStateAfter.oppCorners || 0);
+        record.ownEdgesAfter = Number(planStateAfter.ownEdges || 0);
+        record.oppEdgesAfter = Number(planStateAfter.oppEdges || 0);
 
         gameRecords.push(record);
     }
 
     const maxPlyReached = !Core.isGameOver(state.gameState) && gameRecords.length >= normalizedOptions.maxPlies;
+
+    annotateHorizonDecisionMetrics(gameRecords, 3);
+    annotateSelfplayV2Metadata(gameRecords, normalizedOptions);
+
     const resolved = resolveWinner(state.gameState);
+    const finalCornerControl = countCornerControl(state.gameState.board, Core.BLACK);
+    const finalEdgeControl = countEdgeControl(state.gameState.board, Core.BLACK);
     for (const rec of gameRecords) {
         rec.winner = resolved.winner;
         rec.outcome = resolved.winner === 'draw' ? 0 : (rec.player === resolved.winner ? 1 : -1);
@@ -1095,6 +3490,10 @@ function runSingleGame(gameIndex, seed, options) {
             winner: resolved.winner,
             blackCount: resolved.counts.black,
             whiteCount: resolved.counts.white,
+            blackCorners: Number(finalCornerControl.ownCorners || 0),
+            whiteCorners: Number(finalCornerControl.oppCorners || 0),
+            blackEdges: Number(finalEdgeControl.ownEdges || 0),
+            whiteEdges: Number(finalEdgeControl.oppEdges || 0),
             endedBy: maxPlyReached ? 'max_plies' : 'game_over'
         }
     };
@@ -1109,7 +3508,17 @@ function runSelfPlayGames(options) {
 
     for (let i = 0; i < opts.games; i++) {
         const seed = opts.baseSeed + i;
-        const one = runSingleGame(i, seed, opts);
+        const gamePlayerPolicies = opts.playerPolicyResolver
+            ? opts.playerPolicyResolver(i, seed)
+            : opts.playerPolicies;
+        const perGamePolicies = buildPerGamePolicySet(
+            Object.assign({}, opts, { playerPolicies: gamePlayerPolicies || null }),
+            seed,
+            i
+        );
+        const one = runSingleGame(i, seed, Object.assign({}, opts, {
+            playerPolicies: perGamePolicies
+        }));
         gameSummaries.push(one.summary);
         totals[one.summary.winner] += 1;
         totalPlies += one.summary.plies;
@@ -1136,6 +3545,7 @@ function runSelfPlayGames(options) {
 
 module.exports = {
     SELFPLAY_SCHEMA_VERSION,
+    LEGACY_SELFPLAY_SCHEMA_VERSION,
     runSelfPlayGames,
     runSingleGame,
     decideAction,
