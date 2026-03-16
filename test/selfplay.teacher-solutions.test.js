@@ -101,4 +101,56 @@ describe('teacher solution export script', () => {
             isSelected: true
         }));
     });
+
+    test('toTeacherSolutionRecord prefers live trace candidates and selectedActionKey when present', () => {
+        const record = {
+            schemaVersion: 'selfplay.v2',
+            actionType: 'use_card',
+            player: 'white',
+            useCardId: 'guard_01',
+            usableCardIds: ['guard_01', 'time_01'],
+            actorView: {
+                board: 'x',
+                selectionTrace: {
+                    kind: 'card',
+                    decision: 'use',
+                    selectedActionKey: 'use:guard_01',
+                    candidates: [
+                        {
+                            actionType: 'use_card',
+                            decisionKind: 'use',
+                            cardId: 'guard_01',
+                            cardType: 'GUARD_WILL',
+                            cardCost: 2,
+                            score: 48,
+                            shouldUse: true,
+                            minUseScore: 12,
+                            isSelected: true
+                        },
+                        {
+                            actionType: 'use_card',
+                            decisionKind: 'use',
+                            cardId: 'time_01',
+                            cardType: 'TIME_BOMB',
+                            cardCost: 10,
+                            score: 8,
+                            shouldUse: false,
+                            minUseScore: 12,
+                            isSelected: false
+                        }
+                    ]
+                }
+            },
+            selectedActionKey: 'use:guard_01',
+            hardcaseTags: ['hand_pressure']
+        };
+
+        const out = toTeacherSolutionRecord(record, { inputPath: 'sample.ndjson', lineNumber: 3 });
+
+        expect(out.teacherSolution.selectedActionKey).toBe('use:guard_01');
+        expect(out.teacherSolution.candidates).toEqual([
+            expect.objectContaining({ cardId: 'guard_01', isSelected: true, cardType: 'GUARD_WILL' }),
+            expect.objectContaining({ cardId: 'time_01', isSelected: false, cardType: 'TIME_BOMB' })
+        ]);
+    });
 });

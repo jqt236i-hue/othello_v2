@@ -1,7 +1,15 @@
-const { runSelfPlayGames, runSingleGame, decideAction } = require('../src/engine/selfplay-runner');
+const {
+    runSelfPlayGames,
+    runSingleGame,
+    decideAction,
+    buildActorViewSnapshot,
+    buildCardDecisionContext,
+    buildSelectionTrace
+} = require('../src/engine/selfplay-runner');
 const Core = require('../game/logic/core');
 const CardLogic = require('../game/logic/cards');
 const CpuPolicyCore = require('../game/ai/cpu-policy-core');
+const CpuDecision = require('../game/cpu-decision');
 const TurnPipeline = require('../game/turn/turn_pipeline');
 
 describe('selfplay runner', () => {
@@ -102,6 +110,114 @@ describe('selfplay runner', () => {
         expect(result.records.length).toBeGreaterThan(0);
     });
 
+    test('buildCardDecisionContext preserves the same crystal evaluation metrics as the in-game CPU context', () => {
+        const gameState = Core.createGameState();
+        gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+        gameState.board[3][3] = Core.BLACK;
+        gameState.board[3][4] = Core.WHITE;
+        gameState.board[4][3] = Core.WHITE;
+        gameState.board[4][4] = Core.BLACK;
+
+        const cardState = CardLogic.createCardState({ shuffle: (arr) => arr, random: () => 0.5 });
+        cardState.boardBonusByCell = { '2,4': 3, '5,4': 1 };
+        cardState.hands.black = ['crystal_stone'];
+        cardState.charge.black = 8;
+        cardState.charge.white = 6;
+
+        const legalMoves = [
+            { row: 2, col: 4, flips: [{ row: 3, col: 4 }] },
+            { row: 5, col: 4, flips: [{ row: 4, col: 4 }, { row: 4, col: 3 }] }
+        ];
+
+        global.gameState = gameState;
+        global.cardState = cardState;
+        global.BLACK = Core.BLACK;
+        global.WHITE = Core.WHITE;
+
+        const liveContext = CpuDecision.buildCardUseDecisionContext('black', 6, legalMoves.length, legalMoves, ['crystal_stone']);
+        const selfplayContext = buildCardDecisionContext(gameState, cardState, 'black', legalMoves.length, legalMoves, ['crystal_stone']);
+
+        expect(selfplayContext).toEqual(expect.objectContaining({
+            maxLegalFlips: liveContext.maxLegalFlips,
+            avgLegalFlips: liveContext.avgLegalFlips,
+            maxLegalGain: liveContext.maxLegalGain,
+            maxLegalBoardBonus: liveContext.maxLegalBoardBonus
+        }));
+    });
+
+    test('buildCardDecisionContext preserves hand-aware sell-card scoring parity with the in-game CPU context', () => {
+        const gameState = Core.createGameState();
+        gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+        gameState.board[3][3] = Core.BLACK;
+        gameState.board[3][4] = Core.WHITE;
+        gameState.board[4][3] = Core.WHITE;
+        gameState.board[4][4] = Core.BLACK;
+
+        const cardState = CardLogic.createCardState({ shuffle: (arr) => arr, random: () => 0.5 });
+        cardState.hands.white = ['sell', 'dragon', 'guard', 'silver'];
+        cardState.charge.white = 8;
+        cardState.charge.black = 6;
+
+        const legalMoves = [
+            { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+            { row: 2, col: 5, flips: [{ row: 3, col: 4 }] },
+            { row: 5, col: 4, flips: [{ row: 4, col: 4 }] }
+        ];
+
+        global.gameState = gameState;
+        global.cardState = cardState;
+        global.BLACK = Core.BLACK;
+        global.WHITE = Core.WHITE;
+
+        const liveContext = CpuDecision.buildCardUseDecisionContext('white', 6, legalMoves.length, legalMoves, ['sell']);
+        const selfplayContext = buildCardDecisionContext(gameState, cardState, 'white', legalMoves.length, legalMoves, ['sell']);
+        const defs = {
+            sell: { id: 'sell', type: 'SELL_CARD_WILL' },
+            dragon: { id: 'dragon', type: 'ULTIMATE_REVERSE_DRAGON' },
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            silver: { id: 'silver', type: 'SILVER_STONE' }
+        };
+        const costs = { sell: 8, dragon: 30, guard: 2, silver: 3 };
+        const getCost = (id) => costs[id] || 0;
+        const getDef = (id) => defs[id] || null;
+
+        const liveScore = CpuPolicyCore.scoreCardUseDecision('sell', getCost, getDef, liveContext);
+        const selfplayScore = CpuPolicyCore.scoreCardUseDecision('sell', getCost, getDef, selfplayContext);
+
+        expect(selfplayContext.handCardIds).toEqual(liveContext.handCardIds);
+        expect(selfplayScore.score).toBe(liveScore.score);
+        expect(selfplayScore.shouldUse).toBe(liveScore.shouldUse);
+    });
+
+    test('decideAction prioritizes expansion corner placement in forced-placement mode', () => {
+        const gameState = createGameStateWithRightExpansion([
+            { row: 0, owner: 0 },
+            { row: 7, owner: 0 }
+        ]);
+        const cardState = {
+            pendingEffectByPlayer: { black: null, white: null },
+            markers: [],
+            charge: { black: 0, white: 0 },
+            hands: { black: [], white: [] },
+            hasUsedCardThisTurnByPlayer: { black: false, white: false },
+            boardBonusByCell: {},
+            boardBonusConsumedByCell: {}
+        };
+        jest.spyOn(Core, 'getLegalMoves').mockReturnValue([
+            { row: 4, col: 4, flips: [{ row: 4, col: 5 }] },
+            { row: 0, col: 8, flips: [{ row: 0, col: 7 }] }
+        ]);
+
+        const result = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.5 },
+            { allowCardUsage: false, enableTacticalLookahead: false }
+        );
+
+        expect(result.action).toEqual(expect.objectContaining({ type: 'place', row: 0, col: 8 }));
+    });
     test('records pending target selections with structured labels', () => {
         const result = runSelfPlayGames({
             games: 1,
@@ -130,6 +246,82 @@ describe('selfplay runner', () => {
                 row: pendingRecord.pendingSelection.row,
                 col: pendingRecord.pendingSelection.col
             })
+        }));
+    });
+
+    test('buildSelectionTrace preserves live sell candidates and selectedActionKey', () => {
+        const trace = buildSelectionTrace({
+            actionType: 'place',
+            sellCardId: 'last_resort_01',
+            selectedActionKey: 'sell:last_resort_01',
+            decisionCandidates: [
+                { actionType: 'place', decisionKind: 'sell', cardId: 'last_resort_01', cardType: 'LAST_RESORT', cardCost: 8, score: 12, isSelected: true },
+                { actionType: 'place', decisionKind: 'sell', cardId: 'guard_01', cardType: 'GUARD_WILL', cardCost: 2, score: 42, isSelected: false }
+            ],
+            decisionReasonTags: ['decision:sell', 'hand_pressure'],
+            decisionScoreSummary: {
+                selectedRetentionScore: 12,
+                bestRetentionScore: 12,
+                lowerScoreIsBetter: true
+            },
+            pendingSelection: {
+                kind: 'hand_card',
+                pendingType: 'SELL_CARD_WILL',
+                sourceKey: 'sellCardId',
+                cardId: 'last_resort_01'
+            }
+        });
+
+        expect(trace).toEqual(expect.objectContaining({
+            kind: 'card',
+            decision: 'sell',
+            selectedCardId: 'last_resort_01',
+            selectedActionKey: 'sell:last_resort_01',
+            reasonTags: expect.arrayContaining(['decision:sell', 'hand_pressure']),
+            scoreSummary: expect.objectContaining({ lowerScoreIsBetter: true }),
+            candidates: expect.arrayContaining([
+                expect.objectContaining({ cardId: 'last_resort_01', isSelected: true }),
+                expect.objectContaining({ cardId: 'guard_01', isSelected: false })
+            ]),
+            pendingSelection: expect.objectContaining({
+                kind: 'hand_card',
+                cardId: 'last_resort_01'
+            })
+        }));
+    });
+
+    test('buildActorViewSnapshot keeps live use-card candidates and selectedActionKey', () => {
+        const snapshot = buildActorViewSnapshot({
+            board: '......../......../......../...WB.../...BW.../......../......../........',
+            player: 'black',
+            legalMoves: 2,
+            actionType: 'use_card',
+            useCardId: 'guard_01',
+            usableCardIds: ['guard_01', 'time_01'],
+            selectedActionKey: 'use:guard_01',
+            decisionCandidates: [
+                { actionType: 'use_card', decisionKind: 'use', cardId: 'guard_01', cardType: 'GUARD_WILL', cardCost: 2, score: 48, shouldUse: true, minUseScore: 12, isSelected: true },
+                { actionType: 'use_card', decisionKind: 'use', cardId: 'time_01', cardType: 'TIME_BOMB', cardCost: 10, score: 8, shouldUse: false, minUseScore: 12, isSelected: false }
+            ],
+            decisionReasonTags: ['decision:use', 'corner_emergency'],
+            decisionScoreSummary: {
+                selectedScore: 48,
+                bestScore: 48,
+                minUseScore: 12
+            }
+        });
+
+        expect(snapshot.selectionTrace).toEqual(expect.objectContaining({
+            kind: 'card',
+            decision: 'use',
+            selectedCardId: 'guard_01',
+            selectedActionKey: 'use:guard_01',
+            reasonTags: expect.arrayContaining(['decision:use', 'corner_emergency']),
+            scoreSummary: expect.objectContaining({ selectedScore: 48, minUseScore: 12 }),
+            candidates: expect.arrayContaining([
+                expect.objectContaining({ cardId: 'guard_01', isSelected: true, shouldUse: true }),
+                expect.objectContaining({ cardId: 'time_01', isSelected: false, shouldUse: false })
+            ])
         }));
     });
 
@@ -901,4 +1093,5 @@ describe('selfplay runner', () => {
         expect(decision.action.row).toBe(0);
         expect(decision.action.col).toBe(4);
     });
+
 });

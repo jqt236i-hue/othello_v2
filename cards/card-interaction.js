@@ -264,6 +264,17 @@ const _cardInteractionEffectsModule = (() => {
     return null;
 })();
 
+const _pendingSelectionFlowModule = (() => {
+    if (typeof PendingSelectionFlow !== 'undefined' && PendingSelectionFlow) return PendingSelectionFlow;
+    if (typeof require === 'function') {
+        try { return require('../game/card-effects/selection-flow'); } catch (e) { /* ignore */ }
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.PendingSelectionFlow) return globalThis.PendingSelectionFlow;
+    } catch (e) { /* ignore */ }
+    return null;
+})();
+
 function _normalizeCardDescText(text) {
     return String(text || '')
         .replace(/\s+/g, ' ')
@@ -661,12 +672,73 @@ function _clearSellSelection(playerKey) {
     }
 }
 
+function _setPendingSelectionBusy(active) {
+    if (_pendingSelectionFlowModule && typeof _pendingSelectionFlowModule.setSelectionBusy === 'function') {
+        _pendingSelectionFlowModule.setSelectionBusy(active);
+        return;
+    }
+    const normalized = !!active;
+    const rootRef = _getUiRootRef();
+    try { if (typeof isProcessing !== 'undefined') isProcessing = normalized; } catch (e) { /* ignore */ }
+    try { if (typeof isCardAnimating !== 'undefined') isCardAnimating = normalized; } catch (e) { /* ignore */ }
+    try {
+        if (rootRef) {
+            rootRef.isProcessing = normalized;
+            rootRef.isCardAnimating = normalized;
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function _createPendingSelectionAction(playerKey, pendingType, actionPayload) {
+    if (_pendingSelectionFlowModule && typeof _pendingSelectionFlowModule.createPendingSelectionAction === 'function') {
+        return _pendingSelectionFlowModule.createPendingSelectionAction(playerKey, pendingType, actionPayload, { cardState });
+    }
+    const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
+        ? ActionManager.ActionManager.createAction('place', playerKey, actionPayload)
+        : Object.assign({ type: 'place' }, actionPayload || {});
+    if (action && cardState && typeof cardState.turnIndex === 'number') {
+        action.turnIndex = cardState.turnIndex;
+    }
+    return action;
+}
+
+function _finalizePendingSelectionAfterRun(playerKey, pendingType, runResult) {
+    const playbackEvents = _getRunResultPlaybackEvents(runResult);
+
+    if (!_pendingSelectionFlowModule || typeof _pendingSelectionFlowModule.finalizePendingSelectionFlow !== 'function') {
+        _setPendingSelectionBusy(false);
+        if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
+            try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
+        }
+        return;
+    }
+
+    Promise.resolve(_pendingSelectionFlowModule.finalizePendingSelectionFlow({
+        playerKey,
+        pendingType,
+        playbackEvents,
+        gameStateValue: gameState,
+        cardStateValue: cardState,
+        ensureCurrentPlayerCanActOrPass: typeof ensureCurrentPlayerCanActOrPass === 'function'
+            ? ensureCurrentPlayerCanActOrPass
+            : null
+    })).catch(() => {
+        _setPendingSelectionBusy(false);
+        if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
+            try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
+        }
+    });
+}
+
 function _executeSellSelection(playerKey, sellCardId) {
     if (!sellCardId) return { ok: false, reason: 'no_sell_card' };
+    if (!_canInteractWithCardUi()) return { ok: false, reason: 'busy' };
+    _setPendingSelectionBusy(true);
+    let completed = false;
+
+    try {
     const soldCardDef = CardLogic.getCardDef(sellCardId);
-    const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-        ? ActionManager.ActionManager.createAction('place', playerKey, { sellCardId })
-        : { type: 'place', sellCardId };
+    const action = _createPendingSelectionAction(playerKey, 'SELL_CARD_WILL', { sellCardId });
     const result = _runPipelineAction(playerKey, action);
     if (!result.ok) return result;
 
@@ -677,10 +749,12 @@ function _executeSellSelection(playerKey, sellCardId) {
     _renderCardUiWithOptionalPlaybackDelay(shouldDelayPostActionHandVisual);
     if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
     else if (typeof renderBoard === 'function') renderBoard();
-    if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
-        try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
-    }
+    _finalizePendingSelectionAfterRun(playerKey, 'SELL_CARD_WILL', result);
+    completed = true;
     return { ok: true };
+    } finally {
+        if (!completed) _setPendingSelectionBusy(false);
+    }
 }
 
 function _clearHeavenSelection(playerKey) {
@@ -949,13 +1023,16 @@ function _renderHeavenOverlay(playerKey) {
 
 function _executeHeavenSelection(playerKey, selectedCardId) {
     if (!selectedCardId) return { ok: false, reason: 'no_selection' };
+    if (!_canInteractWithCardUi()) return { ok: false, reason: 'busy' };
+    _setPendingSelectionBusy(true);
+    let completed = false;
+
+    try {
     const def = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
         ? CardLogic.getCardDef(selectedCardId)
         : null;
 
-    const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-        ? ActionManager.ActionManager.createAction('place', playerKey, { heavenBlessingCardId: selectedCardId })
-        : { type: 'place', heavenBlessingCardId: selectedCardId };
+    const action = _createPendingSelectionAction(playerKey, 'HEAVEN_BLESSING', { heavenBlessingCardId: selectedCardId });
 
     const result = _runPipelineAction(playerKey, action);
     if (!result.ok) return result;
@@ -966,21 +1043,26 @@ function _executeHeavenSelection(playerKey, selectedCardId) {
     renderCardUI();
     if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
     else if (typeof renderBoard === 'function') renderBoard();
-    if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
-        try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
-    }
+    _finalizePendingSelectionAfterRun(playerKey, 'HEAVEN_BLESSING', result);
+    completed = true;
     return { ok: true };
+    } finally {
+        if (!completed) _setPendingSelectionBusy(false);
+    }
 }
 
 function _executeCondemnSelection(playerKey, targetIndex, targetCardId) {
     if (!Number.isInteger(targetIndex)) return { ok: false, reason: 'no_selection' };
+    if (!_canInteractWithCardUi()) return { ok: false, reason: 'busy' };
+    _setPendingSelectionBusy(true);
+    let completed = false;
+
+    try {
     const targetDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
         ? CardLogic.getCardDef(targetCardId)
         : null;
 
-    const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-        ? ActionManager.ActionManager.createAction('place', playerKey, { condemnTargetIndex: targetIndex })
-        : { type: 'place', condemnTargetIndex: targetIndex };
+    const action = _createPendingSelectionAction(playerKey, 'CONDEMN_WILL', { condemnTargetIndex: targetIndex });
 
     const result = _runPipelineAction(playerKey, action);
     if (!result.ok) return result;
@@ -992,10 +1074,12 @@ function _executeCondemnSelection(playerKey, targetIndex, targetCardId) {
     _renderCardUiWithOptionalPlaybackDelay(shouldDelayPostActionHandVisual);
     if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
     else if (typeof renderBoard === 'function') renderBoard();
-    if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
-        try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
-    }
+    _finalizePendingSelectionAfterRun(playerKey, 'CONDEMN_WILL', result);
+    completed = true;
     return { ok: true };
+    } finally {
+        if (!completed) _setPendingSelectionBusy(false);
+    }
 }
 
 let _boardOps = null;
@@ -1324,19 +1408,75 @@ function _hasHandRemovePlaybackEvent(runResult) {
     return _hasPlaybackEventType(runResult, 'hand_remove');
 }
 
-function _attachCardUsePlaybackSourceElement(runResult, sourceCardEl) {
-    if (!sourceCardEl || typeof sourceCardEl.cloneNode !== 'function') return;
+function _getDeferredGeneratedThrowChainHandAddMeta(runResult) {
+    const meta = runResult && runResult.result
+        ? runResult.result.deferredGeneratedThrowChainHandAdd
+        : null;
+    return (meta && typeof meta === 'object') ? meta : null;
+}
+
+function _applyDeferredGeneratedThrowChainHandReveal(runResult) {
+    const meta = _getDeferredGeneratedThrowChainHandAddMeta(runResult);
+    if (!meta || String(meta.reason || '').toLowerCase() !== 'generated_throw_chain') return false;
+
+    const rootRef = _getUiRootRef();
+    if (!rootRef) return false;
+
+    const ownerKey = meta.playerKey === 'white' ? 'white' : 'black';
+    const nextCardState = (runResult && runResult.result && runResult.result.nextCardState)
+        ? runResult.result.nextCardState
+        : cardState;
+    const hand = (nextCardState && nextCardState.hands && Array.isArray(nextCardState.hands[ownerKey]))
+        ? nextCardState.hands[ownerKey]
+        : [];
+    const hiddenCount = Number.isFinite(Number(meta.count))
+        ? Math.max(1, Math.trunc(Number(meta.count)))
+        : 1;
+
+    rootRef.__handSequentialRevealState = {
+        playerKey: ownerKey,
+        visibleCount: Math.max(0, hand.length - hiddenCount),
+        reason: 'generated_throw_chain'
+    };
+    return true;
+}
+
+function _snapshotElementRect(element) {
+    if (!element || typeof element.getBoundingClientRect !== 'function') return null;
+    try {
+        const rect = element.getBoundingClientRect();
+        const left = Number(rect && rect.left);
+        const top = Number(rect && rect.top);
+        const width = Number(rect && rect.width);
+        const height = Number(rect && rect.height);
+        const right = Number(rect && rect.right);
+        const bottom = Number(rect && rect.bottom);
+        if (![left, top, width, height, right, bottom].every(Number.isFinite)) return null;
+        return { left, top, width, height, right, bottom };
+    } catch (e) {
+        return null;
+    }
+}
+
+function _attachCardUsePlaybackSourceElement(runResult, sourceCardEl, sourceCardRect) {
+    if ((!sourceCardEl || typeof sourceCardEl.cloneNode !== 'function') && !sourceCardRect) return;
     const playbackEvents = _getRunResultPlaybackEvents(runResult);
     for (const ev of playbackEvents) {
         if (!ev || ev.type !== 'card_use_animation') continue;
         if (Array.isArray(ev.targets) && ev.targets.length > 0) {
             for (const target of ev.targets) {
-                if (!target || typeof target !== 'object' || target.sourceCardEl) continue;
-                target.sourceCardEl = sourceCardEl;
+                if (!target || typeof target !== 'object') continue;
+                if (!target.sourceCardEl && sourceCardEl && typeof sourceCardEl.cloneNode === 'function') {
+                    target.sourceCardEl = sourceCardEl;
+                }
+                if (!target.sourceCardRect && sourceCardRect) {
+                    target.sourceCardRect = sourceCardRect;
+                }
             }
             continue;
         }
-        if (!ev.sourceCardEl) ev.sourceCardEl = sourceCardEl;
+        if (!ev.sourceCardEl && sourceCardEl && typeof sourceCardEl.cloneNode === 'function') ev.sourceCardEl = sourceCardEl;
+        if (!ev.sourceCardRect && sourceCardRect) ev.sourceCardRect = sourceCardRect;
     }
 }
 
@@ -1479,17 +1619,17 @@ function updateCardDetailPanel() {
 
     let canUse = !isAutoMode && canActThisTurn && hasSelection && hasNotUsedThisTurn && canInteract && canAfford && canUseSelectedCardByRules;
     if (isDebugUnlimited) {
-        canUse = canActThisTurn && hasSelection;
+        canUse = hasSelection;
     }
     let canDestroy = !isAutoMode && canActThisTurn && hasSelection && canInteract;
     if (isDebugUnlimited) {
-        canDestroy = canActThisTurn && hasSelection;
+        canDestroy = hasSelection;
     }
     let reason = '';
 
     if (!hasSelection) {
         reason = selectedId ? '自分の手札からカードを選択してください' : '';
-    } else if (!canActThisTurn) {
+    } else if (!isDebugUnlimited && !canActThisTurn) {
         reason = '自分のターンではありません';
         canUse = false;
     } else if (isAutoMode) {
@@ -1772,7 +1912,7 @@ function destroySelectedHandCard() {
     const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
     if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return;
     if (!isDebugUnlimited && !_canInteractWithCardUi()) return;
-    if (!_canInputPlayerActNow()) return;
+    if (!isDebugUnlimited && !_canInputPlayerActNow()) return;
     if (cardState.selectedCardId === null) return;
 
     const playerKey = _resolveInputPlayerKey();
@@ -1818,7 +1958,7 @@ function useSelectedCard() {
     const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
     if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return;
     if (!isDebugUnlimited && !_canInteractWithCardUi()) return;
-    if (!_canInputPlayerActNow()) return;
+    if (!isDebugUnlimited && !_canInputPlayerActNow()) return;
     if (cardState.selectedCardId === null) return;
 
     // Determine playerKey
@@ -1851,6 +1991,7 @@ function useSelectedCard() {
     // Determine ownerKey (actual hand holding the card)
     const ownerKey = playerKey;
     const usedCardEl = _findCardElementInOwnerHand(cardId, ownerKey);
+    const usedCardRect = _snapshotElementRect(usedCardEl);
     const debugOptions = isDebugUnlimited ? { ignoreCost: true, noConsume: true } : null;
     const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
         ? ActionManager.ActionManager.createAction('use_card', playerKey, { useCardId: cardId, useCardOwnerKey: ownerKey, debugOptions })
@@ -1882,7 +2023,9 @@ function useSelectedCard() {
     // Clear selection
     _clearSelectedCardSelection();
 
-    _attachCardUsePlaybackSourceElement(result, usedCardEl);
+    _applyDeferredGeneratedThrowChainHandReveal(result);
+
+    _attachCardUsePlaybackSourceElement(result, usedCardEl, usedCardRect);
     const hasCardUsePlayback = _hasPlaybackEventType(result, 'card_use_animation');
 
     // Direct animation fallback for browser reliability.
@@ -1895,7 +2038,8 @@ function useSelectedCard() {
                     cardId,
                     cost: Number.isFinite(cost) ? cost : null,
                     name: cardDef ? cardDef.name : null,
-                    sourceCardEl: usedCardEl || null
+                    sourceCardEl: usedCardEl || null,
+                    sourceCardRect: usedCardRect || null
                 }).catch(() => {});
             }
         } catch (e) { /* ignore */ }

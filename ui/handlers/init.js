@@ -28,6 +28,64 @@ function setUiInitializedFlag(value) {
     } catch (e) { /* ignore */ }
 }
 
+const InitPlaybackStateRuntime = (() => {
+    if (typeof PlaybackStateManager !== 'undefined' && PlaybackStateManager) return PlaybackStateManager;
+    if (typeof require === 'function') {
+        try { return require('../playback-state-manager'); } catch (e) { /* ignore */ }
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) return globalThis.PlaybackStateManager;
+    } catch (e) { /* ignore */ }
+    return null;
+})();
+
+function _readCardAnimatingFlag() {
+    return (typeof isCardAnimating !== 'undefined') ? isCardAnimating : false;
+}
+
+function _readProcessingFlag() {
+    return (typeof isProcessing !== 'undefined') ? isProcessing : false;
+}
+
+function _syncPlaybackWindowFlags() {
+    if (InitPlaybackStateRuntime && typeof InitPlaybackStateRuntime.syncLegacyWindowFlags === 'function') {
+        return InitPlaybackStateRuntime.syncLegacyWindowFlags({
+            readCardAnimating: _readCardAnimatingFlag,
+            readProcessing: _readProcessingFlag
+        });
+    }
+    if (typeof window !== 'undefined') {
+        window.isCardAnimating = _readCardAnimatingFlag();
+        window.isProcessing = _readProcessingFlag();
+    }
+    return {
+        isCardAnimating: _readCardAnimatingFlag() === true,
+        isProcessing: _readProcessingFlag() === true
+    };
+}
+
+function _installPlaybackDebugRuntime() {
+    if (!InitPlaybackStateRuntime || typeof InitPlaybackStateRuntime.ensureDebugRuntime !== 'function') return null;
+    return InitPlaybackStateRuntime.ensureDebugRuntime({
+        readCardAnimating: _readCardAnimatingFlag,
+        readProcessing: _readProcessingFlag,
+        abortPlayback: () => {
+            try {
+                if (window.AnimationEngine && typeof window.AnimationEngine.abortAndSync === 'function') {
+                    window.AnimationEngine.abortAndSync();
+                }
+            } catch (e) { /* ignore */ }
+        },
+        getBoardElement: () => {
+            try {
+                return document.getElementById('board');
+            } catch (e) {
+                return null;
+            }
+        }
+    });
+}
+
 async function initializeUI() {
     setUiInitializedFlag(false);
     try {
@@ -257,19 +315,6 @@ async function initializeUI() {
         } catch (e) { /* ignore */ }
     };
 
-    const shouldPlayCardUseButtonSound = () => {
-        try {
-            if (typeof cardState === 'undefined' || !cardState) return true;
-            const selectedCardId = cardState.selectedCardId;
-            if (!selectedCardId) return true;
-            if (typeof CardLogic === 'undefined' || !CardLogic || typeof CardLogic.getCardDef !== 'function') return true;
-            const cardDef = CardLogic.getCardDef(selectedCardId);
-            return !(cardDef && cardDef.type === 'TREASURE_BOX');
-        } catch (e) {
-            return true;
-        }
-    };
-
     if (destroyBtn && typeof destroySelectedHandCard === 'function') {
         destroyBtn.addEventListener('click', () => {
             playUiEffectSound('stone_destroy');
@@ -278,9 +323,7 @@ async function initializeUI() {
     }
     if (useBtn) {
         useBtn.addEventListener('click', () => {
-            if (shouldPlayCardUseButtonSound()) {
-                playUiEffectSound('card_use_button');
-            }
+            playUiEffectSound('card_use_button');
             if (typeof useSelectedCard === 'function') useSelectedCard();
         });
     }
@@ -383,14 +426,13 @@ async function initializeUI() {
         }
 
         // Initialize monitoring flags
-        window.isCardAnimating = typeof isCardAnimating !== 'undefined' ? isCardAnimating : false;
-        window.isProcessing = typeof isProcessing !== 'undefined' ? isProcessing : false;
+        _syncPlaybackWindowFlags();
 
         // If no-anim mode is enabled, ensure flags are not stuck true
         if (window.DISABLE_ANIMATIONS === true) {
-            window.isCardAnimating = false;
             isCardAnimating = false;
             isProcessing = false;
+            _syncPlaybackWindowFlags();
         }
 
         if (debugAllowed) {
@@ -399,13 +441,7 @@ async function initializeUI() {
             window.getTelemetrySnapshot = function () { return Object.assign({}, window.__telemetry__); };
             window.resetTelemetry = function () { window.__telemetry__ = { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 }; };
 
-            // Mirror internal animation flags to window for telemetry and checks
-            window._uiMirrorIntervalId = setInterval(() => {
-                if (typeof window !== 'undefined') {
-                    window.isCardAnimating = typeof isCardAnimating !== 'undefined' ? isCardAnimating : false;
-                    window.isProcessing = typeof isProcessing !== 'undefined' ? isProcessing : false;
-                }
-            }, 100);
+            const playbackRuntime = _installPlaybackDebugRuntime();
 
             // Watchdog ping for stuck flags (game/turn-manager.js provides watchdogPing)
             if (typeof window._watchdogIntervalId === 'undefined' || window._watchdogIntervalId === null) {
@@ -416,27 +452,38 @@ async function initializeUI() {
                 }, 250);
             }
 
-            // UI-side playback watchdog: abort visuals if playback gets stuck too long
-            if (typeof window._playbackWatchdogId === 'undefined' || window._playbackWatchdogId === null) {
-                window._playbackWatchdogId = setInterval(() => {
-                    try {
-                        if (window.VisualPlaybackActive === true) {
-                            window.__playbackActiveSince = window.__playbackActiveSince || Date.now();
-                            const elapsed = Date.now() - window.__playbackActiveSince;
-                            if (elapsed > 15000) {
-                                if (window.AnimationEngine && typeof window.AnimationEngine.abortAndSync === 'function') {
-                                    window.AnimationEngine.abortAndSync();
+            if (!playbackRuntime) {
+                // Legacy fallback when the playback manager is unavailable.
+                if (typeof window._uiMirrorIntervalId === 'undefined' || window._uiMirrorIntervalId === null) {
+                    window._uiMirrorIntervalId = setInterval(() => {
+                        if (typeof window !== 'undefined') {
+                            window.isCardAnimating = _readCardAnimatingFlag();
+                            window.isProcessing = _readProcessingFlag();
+                        }
+                    }, 100);
+                }
+
+                if (typeof window._playbackWatchdogId === 'undefined' || window._playbackWatchdogId === null) {
+                    window._playbackWatchdogId = setInterval(() => {
+                        try {
+                            if (window.VisualPlaybackActive === true) {
+                                window.__playbackActiveSince = window.__playbackActiveSince || Date.now();
+                                const elapsed = Date.now() - window.__playbackActiveSince;
+                                if (elapsed > 15000) {
+                                    if (window.AnimationEngine && typeof window.AnimationEngine.abortAndSync === 'function') {
+                                        window.AnimationEngine.abortAndSync();
+                                    }
+                                    window.VisualPlaybackActive = false;
+                                    const board = document.getElementById('board');
+                                    if (board) board.classList.remove('playback-locked');
+                                    window.__playbackActiveSince = null;
                                 }
-                                window.VisualPlaybackActive = false;
-                                const board = document.getElementById('board');
-                                if (board) board.classList.remove('playback-locked');
+                            } else {
                                 window.__playbackActiveSince = null;
                             }
-                        } else {
-                            window.__playbackActiveSince = null;
-                        }
-                    } catch (e) { /* ignore */ }
-                }, 500);
+                        } catch (e) { /* ignore */ }
+                    }, 500);
+                }
             }
         }
     }

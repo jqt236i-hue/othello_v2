@@ -1,76 +1,67 @@
-# カードオセロ / Copilot instructions（強制）
+# カードオセロ / Copilot instructions
 
-最終更新: 2026-03-13
+最終更新: 2026-03-16
 
-このファイルは強制ルールです。`AGENTS.md` との「共通ルール」は同一に保ちます。
+## 0. この文書の役割
 
-## カスタマイズmdの役割分担
+- この文書は、この repo で常時有効にしたい hard rule と完了条件だけを置く場所です。
+- 仕様は `01-rulebook.md`、作業導線は `AGENTS.md`、局所差分は `.github/instructions/*.instructions.md`、定型作業は `SKILLS.md` と `.github/skills/**/SKILL.md` が担当します。
+- ここでは「必ず守ること」だけを定義し、読む順や長い実務手順は書きません。
 
-- `.github/copilot-instructions.md` と `AGENTS.md` は意味差を広げない。違いは入口と導線だけに留める。
-- `.github/copilot-instructions.md` は常時効く制約、完了条件、境界ルールを優先して書く。
-- `AGENTS.md` は読む順、調査順、編集順、確認順を優先して書く。
-- `.github/instructions/*.instructions.md` は `applyTo` で効く局所ルールだけを書く。
-- `.github/agents/*.agent.md` と `.github/skills/**/SKILL.md` は特定作業の進め方に絞り、仕様や強制ルールを重複定義しない。
+## 優先順位
 
-## 重要: 片方しか読まれない場合の共通ルール（衝突防止）
+1. `01-rulebook.md`
+2. このファイル
+3. `AGENTS.md`
+4. `.github/instructions/*.instructions.md`
+5. `SKILLS.md`, `.github/skills/**/SKILL.md`, `.github/agents/*.agent.md`, `README.ai.md`
 
-- この節は `AGENTS.md` の同名節と同じ内容を保つ。
-- エージェントがどちらか片方だけを読んだ場合でも、この節の内容を最優先で適用する。
-- 2つのファイルで文言差が出た場合は、より厳しい方を採用する。
-- 外部のコード保管先への送信、外部確認前提の提案、外部依存の追加はしない（外部依存は事前合意がある時だけ）。
-- 仕様の一次情報は `01-rulebook.md` とし、挙動が変わる実装変更では `01-rulebook.md` を更新する。
-- `game/` は `ui/` に直接依存しない。`ui/` は `game/` の公開入口だけを使う。
-- `cpu/` は読み取り専用で扱い、DOM/UI/音/タイマーを直接操作しない。
-- 値の揺れ（`owner` / `player` / 色）は入口でそろえ、内部表現を統一する。
-- 修正は根本原因を先に特定し、修正前後で同条件の確認結果を残す。
-- この節を更新したら、同じ変更を `AGENTS.md` の同名節にも反映する。
+## 最小共通ルール
 
-## 指示の優先順位（衝突時は上が勝つ）
+- 仕様の一次情報は `01-rulebook.md`。挙動や見え方を変える変更は、関連実装より先にここを更新する。
+- 外部のコード保管先への送信、外部確認前提の提案、外部依存の追加はしない。事前合意がある場合だけ例外とする。
+- `game/` は `ui/` に直接依存しない。`ui/` は `game/` の公開 API / event / DI だけを使う。
+- `cpu/` は読み取り専用で扱い、DOM / UI / 音 / タイマーを直接操作しない。
+- `owner` / `player` / 色などの揺れは入口で正規化し、内部表現を混在させない。
+- 定数は `shared-constants.js` と `constants/` を単一ソースにし、重複定義しない。
+- debug 動作は `?debug=1` などの明示条件でだけ有効化し、通常時に副作用を出さない。
+- UI は `events[]` を順番どおりに再生し、再生中の盤面 DOM の書き手は 1 つに絞る。フリップ演出は Spec B を守る。
+- root を正本にし、`worker-public/` は mirror として扱う。必要時は `npm run worker:prepare` で同期する。
+- 既定の実装戦術は差分最小とする。ただし根本原因が構造問題、契約不整合、再発不具合にある時は、master plan / phase / 完了条件 / 検証束を先に固定し、段階的な大幅改革を選んでよい。
+- 修正は根本原因を先に特定し、前後で同条件の確認結果を残す。
+- この共通節を更新する時は `AGENTS.md` と `.github/copilot-instructions.md` の両方に同じ内容を入れる。
 
-1) 仕様（一次情報）: `01-rulebook.md`（末尾の UI/演出仕様を含む）  
-2) 共通ルール（このファイルと `AGENTS.md` の同名節）  
-3) 対象別の追加指示: `.github/instructions/*.instructions.md`（`applyTo` 範囲のみ）  
-4) タスク別の導線: `.github/agents/*.agent.md`, `.github/skills/**/SKILL.md`
-5) 補助ガイド: `cards/README.ai.md` など各ディレクトリの `README.ai.md`
+## 文書の役割分担
 
-## 共通実行ルール（Codex/Copilot 同一）
+- `01-rulebook.md`: ゲーム仕様、カード仕様、UI / 演出の見た目上の仕様、外に見える契約だけを書く。
+- `.github/copilot-instructions.md`: 常時有効の hard rule と完了条件だけを書く。
+- `AGENTS.md`: 読む順、調べる順、直す順、確認順だけを書く。
+- `.github/instructions/*.instructions.md`: 対象ディレクトリ専用の差分ルールだけを書く。
+- `SKILLS.md`: skill の索引と選び方だけを書く。
+- `.github/skills/**/SKILL.md`: 個別ワークフローだけを書く。
+- `.github/agents/*.agent.md`: 役割、禁止事項、出力契約だけを書く。
+- `README.ai.md`: 局所ディレクトリの補助メモだけを書く。
 
-- ローカル完結を徹底する（外部送信・外部レビュー前提・外部同期前提の提案をしない）。
-- 変更は差分最小で行い、まず根本原因を特定してから修正する。
-- 修正前後で同条件の確認結果（ログ/テスト）を残す。
-- 挙動や見え方が変わる実装変更は `01-rulebook.md` を更新する。
-- `owner` / `player` / 色などの値は入口で正規化し、内部表現を混在させない。
-- 定数は `shared-constants.js` と `constants/` を単一ソースとし、重複定義しない。
-- デバッグ動作は `?debug=1` 等で明示的に有効化し、通常時に副作用を出さない。
-- 質問で停止するのは最小限にする（仕様矛盾 / 破壊的変更 / 外部依存 / 好みが分かれる選択のみ）。
+## 強制ルール
 
-## UI/演出の必須ルール
+- ローカル完結を徹底し、外部送信や外部レビュー前提の運用を組み込まない。
+- 症状だけではなく根本原因を直す。仕様変更があるなら `01-rulebook.md` を先に更新する。
+- 既存の共通経路、共通 helper、共通定数を再利用し、コピペ分岐を増やさない。
+- broad catch、無言 return、success-shaped fallback で不具合を隠さない。
+- `window` / `globalThis` への新規公開は最小限にする。
+- `worker-public/` を直編集で正本化しない。root を直してから mirror をそろえる。
+- 特殊 md の整理であっても、仕様変更を `01-rulebook.md` の外へ隠して書かない。
 
-- UI は `events[]` を順番通りに再生する（推測補完しない）。
-- 再生中に盤面 DOM を更新する書き手は 1 つに限定する（Playback Engine）。
-- フリップは Spec B（見た目を先に最終状態へ寄せてからモーション）を守る。
-- 演出は `ui/animation-*` と `ui/stone-visuals.js` に集約する。
+## 完了条件
 
-## フォルダ別追加指示
+- docs-only を除き、変更範囲の test / check を実行して結果を報告する。
+- docs-only でも、役割重複、参照漏れ、frontmatter / `applyTo` / file existence を確認する。
+- `01-rulebook.md` を更新したかどうかを必ず報告し、更新しない場合は不要理由を書く。
+- `worker-public/` を同期した場合は `npm run worker:prepare` を実行したことを報告する。
+- 最後に専門用語を避けた短い説明を付ける。
 
-- `.github/instructions/*.instructions.md` の `applyTo` を守る。
-- 対象: `game/`, `ui/`, `cpu/`, `cards/`, `constants/`, `debug`。
+## ここに書かないこと
 
-## 作業フロー（最短）
-
-1) 目的と影響範囲（関連ファイル/テスト）を決める。  
-2) 仕様変更が必要なら `01-rulebook.md` を先に直す。  
-3) 実装は既存の共通経路を再利用し、コピペ分岐を増やさない。  
-4) 変更範囲に応じてテスト/チェックを実行する。  
-5) 差分と確認結果を短く説明して完了する。
-
-## 完了条件（強制）
-
-- 変更範囲のテストを実行し、結果を報告する（例: `npm test`, `npm run test:jest:changed`）。
-- `01-rulebook.md` の更新有無を最終報告に必ず書く。
-- `01-rulebook.md` を更新しない場合は、不要理由を最終報告に必ず書く。
-- 上記が満たされない場合は完了扱いにしない。
-
-## 返信
-
-- 最後に、専門用語を避けた短い説明を付ける。
+- 長い調査手順や読む順
+- タスク別の詳細ワークフロー
+- 局所ディレクトリだけに効く注意事項

@@ -331,6 +331,175 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test.each([
+    ['CLONE_WILL', 'clone_spawn'],
+    ['SPLIT_WILL', 'split_spawn']
+  ])('%s after-state playback hides destination disc until move finishes', async (cause, reason) => {
+    const board = document.getElementById('board');
+    const setRect = (el, row, col) => {
+      const left = col * 100;
+      const top = row * 100;
+      el.getBoundingClientRect = () => ({
+        left,
+        top,
+        width: 100,
+        height: 100,
+        right: left + 100,
+        bottom: top + 100
+      });
+    };
+    const makeCell = (row, col) => {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.row = String(row);
+      cell.dataset.col = String(col);
+      setRect(cell, row, col);
+      board.appendChild(cell);
+      return cell;
+    };
+
+    const fromCell = makeCell(2, 2);
+    const toCell = makeCell(2, 3);
+    const sourceDisc = document.createElement('div');
+    sourceDisc.className = 'disc black';
+    fromCell.appendChild(sourceDisc);
+    const finalDisc = document.createElement('div');
+    finalDisc.className = 'disc black';
+    toCell.appendChild(finalDisc);
+
+    let finishAnimation = null;
+    const finished = new Promise((resolve) => {
+      finishAnimation = resolve;
+    });
+
+    const proto = window.Element && window.Element.prototype;
+    const originalAnimate = proto ? proto.animate : undefined;
+    if (proto) {
+      proto.animate = () => ({
+        addEventListener: (type, cb) => {
+          if (type === 'finish') {
+            finished.then(cb);
+          }
+        },
+        removeEventListener: () => {},
+        finished
+      });
+    }
+
+    try {
+      const engine = require('../ui/animation-engine');
+      const playbackPromise = engine.handleMove({
+        type: 'move',
+        targets: [{
+          from: { r: 2, col: 2 },
+          to: { r: 2, col: 3 },
+          ownerAfter: 'black',
+          cause,
+          reason,
+          clone: true,
+          after: { color: 1, special: null, timer: null, owner: 'black' }
+        }]
+      });
+
+      await Promise.resolve();
+      expect(toCell.querySelector('.disc')).toBe(finalDisc);
+      expect(finalDisc.style.visibility).toBe('hidden');
+
+      finishAnimation();
+      await playbackPromise;
+    } finally {
+      if (proto) proto.animate = originalAnimate;
+    }
+
+    expect(fromCell.querySelector('.disc')).toBe(sourceDisc);
+    expect(finalDisc.style.visibility).not.toBe('hidden');
+    expect(toCell.querySelector('.disc')).toBe(finalDisc);
+  });
+
+  test.each([
+    ['HYPERACTIVE', 'hyperactive_move'],
+    ['HYPERACTIVE_INHERIT_WILL', 'inherited_hyperactive_move'],
+    ['ULTIMATE_HYPERACTIVE_GOD', 'ultimate_hyperactive_step_move']
+  ])('%s after-state playback hides destination disc during hyperactive-family move', async (cause, reason) => {
+    const board = document.getElementById('board');
+    const setRect = (el, row, col) => {
+      const left = col * 100;
+      const top = row * 100;
+      el.getBoundingClientRect = () => ({
+        left,
+        top,
+        width: 100,
+        height: 100,
+        right: left + 100,
+        bottom: top + 100
+      });
+    };
+    const makeCell = (row, col) => {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.row = String(row);
+      cell.dataset.col = String(col);
+      setRect(cell, row, col);
+      board.appendChild(cell);
+      return cell;
+    };
+
+    const fromCell = makeCell(1, 0);
+    const toCell = makeCell(2, 0);
+    const sourceDisc = document.createElement('div');
+    sourceDisc.className = 'disc white special-stone';
+    fromCell.appendChild(sourceDisc);
+    const finalDisc = document.createElement('div');
+    finalDisc.className = 'disc white special-stone';
+    toCell.appendChild(finalDisc);
+
+    let finishAnimation = null;
+    const finished = new Promise((resolve) => {
+      finishAnimation = resolve;
+    });
+
+    const proto = window.Element && window.Element.prototype;
+    const originalAnimate = proto ? proto.animate : undefined;
+    if (proto) {
+      proto.animate = () => ({
+        addEventListener: (type, cb) => {
+          if (type === 'finish') {
+            finished.then(cb);
+          }
+        },
+        removeEventListener: () => {},
+        finished
+      });
+    }
+
+    try {
+      const engine = require('../ui/animation-engine');
+      const playbackPromise = engine.handleMove({
+        type: 'move',
+        targets: [{
+          from: { r: 1, col: 0 },
+          to: { r: 2, col: 0 },
+          ownerAfter: 'white',
+          cause,
+          reason,
+          after: { color: -1, special: 'HYPERACTIVE', timer: 1, owner: 'white' }
+        }]
+      });
+
+      await Promise.resolve();
+      expect(toCell.querySelector('.disc')).toBe(finalDisc);
+      expect(finalDisc.style.visibility).toBe('hidden');
+
+      finishAnimation();
+      await playbackPromise;
+    } finally {
+      if (proto) proto.animate = originalAnimate;
+    }
+
+    expect(finalDisc.style.visibility).not.toBe('hidden');
+    expect(toCell.querySelector('.disc')).toBeTruthy();
+  });
+
+  test.each([
     ['SUPER_BUOYANCY_WILL', 'super_buoyancy_move', 'super_buoyancy_collision'],
     ['SUPER_GRAVITY_WILL', 'super_gravity_move', 'super_gravity_collision']
   ])('%s destination collision keeps final disc visible during after-state playback', async (cause, moveReason, destroyReason) => {

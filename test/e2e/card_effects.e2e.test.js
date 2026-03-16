@@ -57,9 +57,15 @@ describe('Card effects E2E', () => {
 
     // Ensure debug helper is present
     await page.waitForFunction(() => typeof window.DebugActions === 'object' && typeof window.DebugActions.fillDebugHand === 'function', { timeout: 5000 });
+    await page.waitForFunction(
+      () => typeof window.CardLogic === 'object'
+        && typeof window.CardLogic.getUsableCardIds === 'function'
+        && typeof window.useSelectedCard === 'function',
+      { timeout: 5000 }
+    );
 
     // Ensure debug flags, fill debug hand and pick first card; ensure charge and flags allow use
-    await page.evaluate(() => {
+    const setup = await page.evaluate(() => {
       try { window.DEBUG_UNLIMITED_USAGE = true; window.DEBUG_HUMAN_VS_HUMAN = true; } catch (e) {}
       try { if (window.__uiImpl_turn_manager) { window.__uiImpl_turn_manager.DEBUG_UNLIMITED_USAGE = true; window.__uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN = true; } } catch (e) {}
       try { window.DebugActions.fillDebugHand(window.cardState, { fillWhite: false }); } catch (e) { }
@@ -67,43 +73,56 @@ describe('Card effects E2E', () => {
       try { window.cardState.charge = window.cardState.charge || {}; window.cardState.charge.black = 100; } catch (e) {}
       try { window.cardState.hasUsedCardThisTurnByPlayer = window.cardState.hasUsedCardThisTurnByPlayer || {}; window.cardState.hasUsedCardThisTurnByPlayer.black = false; } catch (e) {}
       try { window.isProcessing = false; window.isCardAnimating = false; } catch (e) {}
-      // pick first card in hand
-      if (window.cardState && window.cardState.hands && window.cardState.hands.black && window.cardState.hands.black.length) {
-        window.cardState.selectedCardId = window.cardState.hands.black[0];
+      const usableIds = (window.CardLogic && typeof window.CardLogic.getUsableCardIds === 'function')
+        ? (window.CardLogic.getUsableCardIds(window.cardState, window.gameState, 'black') || [])
+        : [];
+      const hand = (window.cardState && window.cardState.hands && Array.isArray(window.cardState.hands.black))
+        ? window.cardState.hands.black
+        : [];
+      const selectedCardId = usableIds[0] || hand[0] || null;
+      if (selectedCardId) {
+        window.cardState.selectedCardId = selectedCardId;
       }
+      return {
+        selectedCardId,
+        usableCount: usableIds.length,
+        handCount: hand.length
+      };
     });
+    expect(setup.selectedCardId).toBeTruthy();
+    expect(setup.usableCount).toBeGreaterThan(0);
 
     // wait until selectedCardId is set
     await page.waitForFunction(() => window.cardState && window.cardState.selectedCardId !== null, { timeout: 2000 });
 
     // Capture charge before using
     const beforeCharge = await page.evaluate(() => (window.cardState && window.cardState.charge) ? (window.cardState.charge.black || 0) : 0);
+    const beforeDiscard = await page.evaluate(() => Array.isArray(window.cardState && window.cardState.discard) ? window.cardState.discard.length : 0);
 
-    // Use selected card via CardLogic.applyCardUsage to ensure effect application
+    // Use the same entry point as the browser UI after selecting a currently usable card.
     const applyRes = await page.evaluate(() => {
       try {
         const id = window.cardState && window.cardState.selectedCardId;
         if (!id) return { ok: false, reason: 'no_selected' };
         try {
-          const ok = (typeof CardLogic !== 'undefined' && typeof CardLogic.applyCardUsage === 'function') ? CardLogic.applyCardUsage(window.cardState, 'black', id) : false;
-          return { ok: !!ok, id };
+          window.useSelectedCard();
+          return { ok: true, id };
         } catch (e) { return { ok: false, reason: e && e.message } }
       } catch (e) { return { ok: false, reason: 'eval_error' } }
     });
-    if (!applyRes.ok) {
-      // attempt UI path as fallback
-      await page.evaluate(() => { try { window.useSelectedCard(); } catch (e) { /* ignore */ } });
-    }
+    expect(applyRes.ok).toBeTruthy();
 
     // give async handlers a moment
     await page.waitForTimeout(1000);
 
-    // Wait until one of: lastUsedCardByPlayer populated, hasUsedCardThisTurnByPlayer set, or usage log present
+    // Wait until one of: lastUsedCardByPlayer populated, hasUsedCardThisTurnByPlayer set,
+    // discard updated, or usage log present.
     await page.waitForFunction(() => {
       try {
         const cs = window.cardState || {};
         if (cs.lastUsedCardByPlayer && cs.lastUsedCardByPlayer.black) return true;
         if (cs.hasUsedCardThisTurnByPlayer && cs.hasUsedCardThisTurnByPlayer.black) return true;
+        if (Array.isArray(cs.discard) && cs.discard.length > 0) return true;
         // logs: rely on DOM log element if present
         try {
           const logs = document.querySelectorAll('#log .logEntry');
@@ -111,15 +130,16 @@ describe('Card effects E2E', () => {
         } catch (e) {}
       } catch (e) { return false; }
       return false;
-    }, { timeout: 10000 });
+    }, { timeout: 20000 });
 
     // Evaluate results
     const used = await page.evaluate(() => (window.cardState.lastUsedCardByPlayer && window.cardState.lastUsedCardByPlayer.black) || null);
     const usedFlag = await page.evaluate(() => (window.cardState.hasUsedCardThisTurnByPlayer && window.cardState.hasUsedCardThisTurnByPlayer.black) || false);
     const afterCharge = await page.evaluate(() => (window.cardState.charge && typeof window.cardState.charge.black === 'number') ? window.cardState.charge.black : null);
+    const afterDiscard = await page.evaluate(() => Array.isArray(window.cardState && window.cardState.discard) ? window.cardState.discard.length : 0);
     const hasLog = consoles.some(c => c.text && c.text.indexOf('がカードを使用') !== -1);
 
-    expect(used || usedFlag || (typeof afterCharge === 'number' && afterCharge < beforeCharge) || hasLog).toBeTruthy();
+    expect(used || usedFlag || afterDiscard > beforeDiscard || (typeof afterCharge === 'number' && afterCharge < beforeCharge) || hasLog).toBeTruthy();
     await page.close();
   }, 60000);
 });

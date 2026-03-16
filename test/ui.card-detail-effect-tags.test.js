@@ -179,6 +179,46 @@ describe('card detail effect tags', () => {
     expect(tagsEl.style.display).toBe('none');
   });
 
+  test('throw-chain cards show formal quick descriptions instead of generated-only fallback text', () => {
+    require('../cards/card-interaction.js');
+
+    const throwChainCards = [
+      {
+        id: 'triple_01',
+        name: '三連投石',
+        type: 'TRIPLE_PLACE',
+        cost: 24,
+        desc: '使用ターンだけ石を3連続で置ける。使用後、四連投石が手札に加わる。'
+      },
+      {
+        id: 'quad_01',
+        name: '四連投石',
+        type: 'QUAD_PLACE',
+        cost: 24,
+        desc: '使用ターンだけ石を4連続で置ける。使用後、無限投石が手札に加わる。'
+      },
+      {
+        id: 'infinite_01',
+        name: '無限投石',
+        type: 'INFINITE_PLACE',
+        cost: 50,
+        desc: '使用ターンだけ合法手がなくなるまで石を連続で置ける。置けなくなった時点で終了する。'
+      }
+    ];
+
+    for (const cardDef of throwChainCards) {
+      global.cardState.selectedCardId = cardDef.id;
+      global.cardState.hands.black = [cardDef.id];
+      global.CardLogic.getCardDef = () => cardDef;
+
+      window.updateCardDetailPanel();
+
+      const desc = document.getElementById('card-detail-desc').textContent;
+      expect(desc).toBe(cardDef.desc);
+      expect(desc).not.toContain('生成専用');
+    }
+  });
+
   test('clicking a tag opens a closable separate tab panel with meaning', () => {
     require('../cards/card-interaction.js');
 

@@ -1,0 +1,160 @@
+{
+  "count": 5,
+  "avgFuture": -0.4,
+  "negatives": 1,
+  "negativeAvgFuture": -7,
+  "rows": [
+    {
+      "seed": 19,
+      "ply": 75,
+      "player": "black",
+      "future": -7,
+      "immediate": 0,
+      "cellBonus": 0,
+      "legalMovesCount": 0,
+      "handSize": 5,
+      "usableCount": 2,
+      "reasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_emergency",
+        "hand_pressure"
+      ],
+      "selectedActionKey": "use:last_resort_01",
+      "handCards": [
+        "corrosion_01",
+        "split_01",
+        "last_resort_01",
+        "strong_wind_01",
+        "supply_01"
+      ],
+      "usableCardIds": [
+        "last_resort_01",
+        "strong_wind_01"
+      ]
+    },
+    {
+      "seed": 7,
+      "ply": 69,
+      "player": "black",
+      "future": 0,
+      "immediate": 0,
+      "cellBonus": 0,
+      "legalMovesCount": 0,
+      "handSize": 5,
+      "usableCount": 3,
+      "reasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_emergency",
+        "hand_pressure"
+      ],
+      "selectedActionKey": "use:last_resort_01",
+      "handCards": [
+        "udg_01",
+        "last_resort_01",
+        "extend_life_01",
+        "sniper_01",
+        "blockade_01"
+      ],
+      "usableCardIds": [
+        "udg_01",
+        "last_resort_01",
+        "sniper_01"
+      ]
+    },
+    {
+      "seed": 16,
+      "ply": 67,
+      "player": "black",
+      "future": 1,
+      "immediate": 0,
+      "cellBonus": 0,
+      "legalMovesCount": 0,
+      "handSize": 5,
+      "usableCount": 4,
+      "reasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_emergency",
+        "hand_pressure"
+      ],
+      "selectedActionKey": "use:last_resort_01",
+      "handCards": [
+        "observer_01",
+        "last_resort_01",
+        "instant_hyperactive_01",
+        "tempt_01",
+        "rebuild_01"
+      ],
+      "usableCardIds": [
+        "observer_01",
+        "last_resort_01",
+        "instant_hyperactive_01",
+        "rebuild_01"
+      ]
+    },
+    {
+      "seed": 10,
+      "ply": 66,
+      "player": "black",
+      "future": 2,
+      "immediate": 0,
+      "cellBonus": 0,
+      "legalMovesCount": 0,
+      "handSize": 5,
+      "usableCount": 4,
+      "reasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_emergency",
+        "hand_pressure"
+      ],
+      "selectedActionKey": "use:last_resort_01",
+      "handCards": [
+        "taboo_reverse_01",
+        "super_gravity_01",
+        "last_resort_01",
+        "swap_01",
+        "supply_01"
+      ],
+      "usableCardIds": [
+        "taboo_reverse_01",
+        "super_gravity_01",
+        "last_resort_01",
+        "swap_01"
+      ]
+    },
+    {
+      "seed": 13,
+      "ply": 36,
+      "player": "black",
+      "future": 2,
+      "immediate": 0,
+      "cellBonus": 0,
+      "legalMovesCount": 0,
+      "handSize": 5,
+      "usableCount": 5,
+      "reasonTags": [
+        "decision:use",
+        "force_use_card",
+        "hand_pressure"
+      ],
+      "selectedActionKey": "use:last_resort_01",
+      "handCards": [
+        "strong_wind_01",
+        "last_resort_01",
+        "breeding_01",
+        "destroy_dragon_01",
+        "position_swap_01"
+      ],
+      "usableCardIds": [
+        "strong_wind_01",
+        "last_resort_01",
+        "breeding_01",
+        "destroy_dragon_01",
+        "position_swap_01"
+      ]
+    }
+  ]
+}

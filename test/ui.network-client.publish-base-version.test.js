@@ -30,8 +30,28 @@ function createSnapshot(stateVersion) {
   };
 }
 
+function createPlaceAction(playerKey = 'black', turnIndex = 1) {
+  return {
+    type: 'place',
+    playerKey,
+    row: 2,
+    col: 3,
+    turnIndex
+  };
+}
+
+function createUseCardAction(playerKey = 'black', useCardId = 'sample_card', turnIndex = 1) {
+  return {
+    type: 'use_card',
+    playerKey,
+    useCardId,
+    turnIndex
+  };
+}
+
 describe('NetworkMatchClient queued publish', () => {
   let dom;
+  let eventSources;
   let publishPayloads;
   let publishCount;
 
@@ -55,7 +75,11 @@ describe('NetworkMatchClient queued publish', () => {
     global.emitBoardUpdate = jest.fn();
     global.renderCardUI = jest.fn();
 
+    eventSources = [];
     global.EventSource = class MockEventSource {
+      constructor() {
+        eventSources.push(this);
+      }
       addEventListener() {}
       close() {}
     };
@@ -127,6 +151,7 @@ describe('NetworkMatchClient queued publish', () => {
     delete global.emitGameStateChange;
     delete global.emitBoardUpdate;
     delete global.renderCardUI;
+    delete global.BoardOps;
     delete global.EventSource;
     delete global.fetch;
   });
@@ -142,13 +167,15 @@ describe('NetworkMatchClient queued publish', () => {
     const firstPublish = client.publishSnapshot({
       playerKey: 'black',
       actionType: 'use_card',
-      playbackEvents: []
+      playbackEvents: [],
+      action: createUseCardAction('black', 'sample_card', 1)
     });
 
     const secondPublish = client.publishSnapshot({
       playerKey: 'black',
       actionType: 'place',
-      playbackEvents: []
+      playbackEvents: [],
+      action: createPlaceAction('black', 1)
     });
 
     const [firstResult, secondResult] = await Promise.all([firstPublish, secondPublish]);
@@ -216,7 +243,7 @@ describe('NetworkMatchClient queued publish', () => {
           roomId: 'ABC',
           stateVersion: 12,
           snapshot: {
-            ...body.snapshot,
+            ...placedSnapshot,
             stateVersion: 12
           }
         });
@@ -229,7 +256,8 @@ describe('NetworkMatchClient queued publish', () => {
       playerKey: 'black',
       actionType: 'use_card',
       playbackEvents: [],
-      snapshot: useCardSnapshot
+      snapshot: useCardSnapshot,
+      action: createUseCardAction('black', 'sample_card', useCardSnapshot.cardState.turnIndex)
     });
 
     global.gameState = JSON.parse(JSON.stringify(placedSnapshot.gameState));
@@ -238,7 +266,8 @@ describe('NetworkMatchClient queued publish', () => {
     const secondPublish = client.publishSnapshot({
       playerKey: 'black',
       actionType: 'place',
-      playbackEvents: []
+      playbackEvents: [],
+      action: createPlaceAction('black', placedSnapshot.cardState.turnIndex)
     });
 
     const [firstResult, secondResult] = await Promise.all([firstPublish, secondPublish]);
@@ -247,11 +276,325 @@ describe('NetworkMatchClient queued publish', () => {
 
     expect(publishPayloads).toHaveLength(2);
     expect(publishPayloads[1].baseVersion).toBe(11);
-    expect(publishPayloads[1].snapshot.gameState.turnNumber).toBe(3);
-    expect(publishPayloads[1].snapshot.cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(publishPayloads[1].snapshot.cardState.markers).toEqual([
-      { row: 2, col: 3, type: 'PERMA_PROTECTED', owner: 'black' }
-    ]);
+    expect(publishPayloads[1].snapshot).toBeUndefined();
+    expect(publishPayloads[1].playbackEvents).toBeUndefined();
+    expect(publishPayloads[1].params).toEqual({ row: 2, col: 3 });
+  });
+
+  test('後続publish送信後の先行操作SSEはstateVersion更新済みのため適用をスキップする', async () => {
+    let resolveSecondPublish = null;
+
+    global.BoardOps = {
+      emitPresentationEvent: jest.fn((state, ev) => {
+        if (!state || !ev) return;
+        if (!Array.isArray(state.presentationEvents)) state.presentationEvents = [];
+        state.presentationEvents.push(ev);
+      })
+    };
+
+    global.fetch = jest.fn(async (url, init = {}) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/create') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'black',
+          seatToken: 'seat-token',
+          stateVersion: 10,
+          snapshot: createSnapshot(10)
+        });
+      }
+
+      if (path === '/api/match/publish') {
+        const body = JSON.parse(init.body || '{}');
+        publishPayloads.push(body);
+        publishCount += 1;
+
+        if (publishCount === 1) {
+          return jsonResponse(200, {
+            ok: true,
+            roomId: 'ABC',
+            stateVersion: 11,
+            snapshot: createSnapshot(11)
+          });
+        }
+
+        return new Promise((resolve) => {
+          resolveSecondPublish = () => resolve(jsonResponse(200, {
+            ok: true,
+            roomId: 'ABC',
+            stateVersion: 12,
+            snapshot: createSnapshot(12)
+          }));
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+    expect(eventSources).toHaveLength(1);
+
+    const firstPublish = client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      snapshot: createSnapshot(11),
+      action: createPlaceAction('black', 1)
+    });
+
+    const secondPublish = client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      snapshot: createSnapshot(12),
+      action: createPlaceAction('black', 1)
+    });
+
+    const firstResult = await firstPublish;
+    expect(firstResult.ok).toBe(true);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(publishPayloads).toHaveLength(2);
+    const firstOperationId = publishPayloads[0].operationId;
+
+    eventSources[0].onmessage({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        operationId: firstOperationId,
+        playerKey: 'black',
+        actionType: 'place',
+        playbackEvents: [{
+          type: 'hand_remove',
+          phase: 1,
+          targets: [{ player: 'black', count: 1 }]
+        }],
+        snapshot: createSnapshot(11)
+      })
+    });
+
+    // Single Writer: POST応答でstateVersionが11に更新済みのため、
+    // 同バージョンのSSEはstaleとして拒否される (events は emit されない)
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
+
+    expect(typeof resolveSecondPublish).toBe('function');
+    resolveSecondPublish();
+
+    const secondResult = await secondPublish;
+    expect(secondResult.ok).toBe(true);
+  });
+
+  test('publish成功応答のサーバー playbackEvents が通常再生として emit される', async () => {
+    global.BoardOps = {
+      emitPresentationEvent: jest.fn((state, ev) => {
+        if (!state || !ev) return;
+        if (!Array.isArray(state.presentationEvents)) state.presentationEvents = [];
+        state.presentationEvents.push(ev);
+      })
+    };
+
+    // Mock: サーバー応答に playbackEvents を含める (Single Writer)
+    publishPayloads.length = 0;
+    publishCount = 0;
+    global.fetch = jest.fn(async (url, init = {}) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/create') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'black',
+          seatToken: 'seat-token',
+          stateVersion: 10,
+          snapshot: createSnapshot(10)
+        });
+      }
+
+      if (path === '/api/match/publish') {
+        const body = JSON.parse(init.body || '{}');
+        publishPayloads.push(body);
+        publishCount += 1;
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          stateVersion: 11,
+          snapshot: createSnapshot(11),
+          playbackEvents: [{
+            type: 'move',
+            phase: 1,
+            targets: [{ from: { r: 3, col: 3 }, to: { r: 3, col: 4 } }]
+          }]
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const result = await client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      action: createPlaceAction('black', 1)
+    });
+
+    expect(result.ok).toBe(true);
+    // Single Writer: サーバー応答の playbackEvents が通常再生として emit
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledWith(
+      global.cardState,
+      expect.objectContaining({
+        type: 'PLAYBACK_EVENTS',
+        events: [{
+          type: 'move',
+          phase: 1,
+          targets: [{ from: { r: 3, col: 3 }, to: { r: 3, col: 4 } }]
+        }],
+        meta: expect.objectContaining({
+          source: 'network_snapshot'
+        })
+      })
+    );
+  });
+
+  test('publish応答先着後のself SSEで同一 version は重複適用されない', async () => {
+    global.BoardOps = {
+      emitPresentationEvent: jest.fn((state, ev) => {
+        if (!state || !ev) return;
+        if (!Array.isArray(state.presentationEvents)) state.presentationEvents = [];
+        state.presentationEvents.push(ev);
+      })
+    };
+
+    // Mock: サーバー応答に playbackEvents を含める (Single Writer)
+    publishPayloads.length = 0;
+    publishCount = 0;
+    global.fetch = jest.fn(async (url, init = {}) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/create') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'black',
+          seatToken: 'seat-token',
+          stateVersion: 10,
+          snapshot: createSnapshot(10)
+        });
+      }
+
+      if (path === '/api/match/publish') {
+        const body = JSON.parse(init.body || '{}');
+        publishPayloads.push(body);
+        publishCount += 1;
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          stateVersion: 11,
+          snapshot: createSnapshot(11),
+          playbackEvents: [
+            {
+              type: 'move',
+              phase: 1,
+              targets: [{ from: { r: 3, col: 3 }, to: { r: 3, col: 4 } }]
+            },
+            {
+              type: 'flip',
+              phase: 2,
+              targets: [{ r: 3, col: 4, ownerBefore: -1, ownerAfter: 1 }]
+            }
+          ]
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+    expect(eventSources).toHaveLength(1);
+
+    const publishResult = await client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      action: createPlaceAction('black', 1)
+    });
+
+    expect(publishResult.ok).toBe(true);
+    expect(publishPayloads).toHaveLength(1);
+    const operationId = publishPayloads[0].operationId;
+
+    // Single Writer: POST 応答で全 playbackEvents が通常再生として emit 済み
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledWith(
+      global.cardState,
+      expect.objectContaining({
+        type: 'PLAYBACK_EVENTS',
+        events: [
+          {
+            type: 'move',
+            phase: 1,
+            targets: [{ from: { r: 3, col: 3 }, to: { r: 3, col: 4 } }]
+          },
+          {
+            type: 'flip',
+            phase: 2,
+            targets: [{ r: 3, col: 4, ownerBefore: -1, ownerAfter: 1 }]
+          }
+        ],
+        meta: expect.objectContaining({
+          source: 'network_snapshot'
+        })
+      })
+    );
+
+    // 同一 version の SSE が届いても、stale として reject される
+    eventSources[0].onmessage({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        operationId,
+        playerKey: 'black',
+        actionType: 'place',
+        playbackEvents: [
+          {
+            type: 'move',
+            phase: 1,
+            targets: [{ from: { r: 3, col: 3 }, to: { r: 3, col: 4 } }]
+          },
+          {
+            type: 'flip',
+            phase: 2,
+            targets: [{ r: 3, col: 4, ownerBefore: -1, ownerAfter: 1 }]
+          }
+        ],
+        snapshot: createSnapshot(11)
+      })
+    });
+
+    // SSE は重複適用されない (emit 回数が増えない)
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
   });
 
   test('先行publish成功応答で後続ローカル状態を巻き戻さない', async () => {
@@ -313,7 +656,7 @@ describe('NetworkMatchClient queued publish', () => {
           roomId: 'ABC',
           stateVersion: 12,
           snapshot: {
-            ...body.snapshot,
+            ...finalSnapshot,
             stateVersion: 12
           }
         });
@@ -326,7 +669,8 @@ describe('NetworkMatchClient queued publish', () => {
       playerKey: 'black',
       actionType: 'place',
       playbackEvents: [],
-      snapshot: firstSnapshot
+      snapshot: firstSnapshot,
+      action: createPlaceAction('black', firstSnapshot.cardState.turnIndex)
     });
 
     global.gameState = JSON.parse(JSON.stringify(finalSnapshot.gameState));
@@ -336,13 +680,114 @@ describe('NetworkMatchClient queued publish', () => {
       playerKey: 'black',
       actionType: 'place',
       playbackEvents: [],
-      snapshot: finalSnapshot
+      snapshot: finalSnapshot,
+      action: createPlaceAction('black', finalSnapshot.cardState.turnIndex)
     });
 
     const [firstResult, secondResult] = await Promise.all([firstPublish, secondPublish]);
     expect(firstResult.ok).toBe(true);
     expect(secondResult.ok).toBe(true);
 
+    expect(localStateSeenAtSecondPublish).toEqual({
+      gameState: finalSnapshot.gameState,
+      cardState: finalSnapshot.cardState
+    });
+  });
+
+  test('先行publish拒否応答でも後続ローカル状態を巻き戻さず baseVersion だけ更新する', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const rejectedSnapshot = createSnapshot(11);
+    rejectedSnapshot.gameState.turnNumber = 2;
+    rejectedSnapshot.cardState.pendingEffectByPlayer.black = {
+      type: 'POSITION_SWAP_WILL',
+      stage: 'selectTarget',
+      firstTarget: { row: 2, col: 3 }
+    };
+    rejectedSnapshot.cardState.turnIndex = 2;
+
+    const finalSnapshot = createSnapshot(12);
+    finalSnapshot.gameState.currentPlayer = -1;
+    finalSnapshot.gameState.turnNumber = 3;
+    finalSnapshot.cardState.pendingEffectByPlayer.black = null;
+    finalSnapshot.cardState.turnIndex = 3;
+    finalSnapshot.cardState.markers = [{ row: 4, col: 4, type: 'GUARD', owner: 'black' }];
+
+    let localStateSeenAtSecondPublish = null;
+    publishPayloads.length = 0;
+    publishCount = 0;
+    global.fetch = jest.fn(async (url, init = {}) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/publish') {
+        const body = JSON.parse(init.body || '{}');
+        publishPayloads.push(body);
+        publishCount += 1;
+
+        if (publishCount === 1) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          return jsonResponse(409, {
+            ok: false,
+            rejectedReason: 'VERSION_MISMATCH',
+            stateVersion: 11,
+            snapshot: {
+              ...rejectedSnapshot,
+              stateVersion: 11
+            }
+          });
+        }
+
+        localStateSeenAtSecondPublish = {
+          gameState: JSON.parse(JSON.stringify(global.gameState)),
+          cardState: JSON.parse(JSON.stringify(global.cardState))
+        };
+
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          stateVersion: 12,
+          snapshot: {
+            ...finalSnapshot,
+            stateVersion: 12
+          }
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    const firstPublish = client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      snapshot: rejectedSnapshot,
+      action: createPlaceAction('black', rejectedSnapshot.cardState.turnIndex)
+    });
+
+    global.gameState = JSON.parse(JSON.stringify(finalSnapshot.gameState));
+    global.cardState = JSON.parse(JSON.stringify(finalSnapshot.cardState));
+
+    const secondPublish = client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      snapshot: finalSnapshot,
+      action: createPlaceAction('black', finalSnapshot.cardState.turnIndex)
+    });
+
+    const [firstResult, secondResult] = await Promise.all([firstPublish, secondPublish]);
+    expect(firstResult.ok).toBe(false);
+    expect(firstResult.reason).toBe('VERSION_MISMATCH');
+    expect(secondResult.ok).toBe(true);
+
+    expect(publishPayloads).toHaveLength(2);
+    expect(publishPayloads[1].baseVersion).toBe(11);
     expect(localStateSeenAtSecondPublish).toEqual({
       gameState: finalSnapshot.gameState,
       cardState: finalSnapshot.cardState
@@ -560,7 +1005,8 @@ describe('NetworkMatchClient queued publish', () => {
     const result = await client.publishSnapshot({
       playerKey: 'black',
       actionType: 'place',
-      playbackEvents: []
+      playbackEvents: [],
+      action: createPlaceAction('black', 1)
     });
 
     expect(result.ok).toBe(true);

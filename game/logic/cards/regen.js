@@ -5,15 +5,31 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'));
+        let CardMarkersModule = null;
+        try {
+            CardMarkersModule = require('./markers');
+        } catch (e) { /* ignore */ }
+        module.exports = factory(require('../../../shared-constants'), CardMarkersModule);
     } else {
-        root.CardRegen = factory(root.SharedConstants);
+        root.CardRegen = factory(root.SharedConstants, root.CardMarkers || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardMarkersModule) {
     'use strict';
 
     const { BLACK, WHITE, DIRECTIONS, EMPTY } = SharedConstants || {};
     const REGEN_REVIVE_LIMIT = 3;
+
+    function getGlobalScope() {
+        return (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+    }
+
+    function getCardMarkersModule() {
+        if (CardMarkersModule) return CardMarkersModule;
+        const globalScope = getGlobalScope();
+        return globalScope.CardMarkers || null;
+    }
 
     if (BLACK === undefined || WHITE === undefined || DIRECTIONS === undefined) {
         throw new Error('SharedConstants (BLACK/WHITE/DIRECTIONS) required');
@@ -104,9 +120,21 @@
 
     function applyRegenWill(cardState, playerKey, row, col, deps = {}) {
         const addMarker = deps.addMarker || ((cs, kind, r, c, owner, data) => {
+            const cardMarkers = getCardMarkersModule();
+            if (cardMarkers && typeof cardMarkers.addMarker === 'function') {
+                cardMarkers.addMarker(cs, kind, r, c, owner, {
+                    type: data.type,
+                    regenRemaining: data.regenRemaining,
+                    remainingOwnerTurns: data.remainingOwnerTurns,
+                    ownerColor: data.ownerColor
+                });
+                return true;
+            }
             if (!cs.markers) cs.markers = [];
-            const id = (typeof cs._nextMarkerId === 'number') ? cs._nextMarkerId++ : 1;
-            const createdSeq = (typeof cs._nextCreatedSeq === 'number') ? cs._nextCreatedSeq++ : 1;
+            if (typeof cs._nextMarkerId !== 'number') cs._nextMarkerId = 1;
+            const id = cs._nextMarkerId++;
+            if (typeof cs._nextCreatedSeq !== 'number') cs._nextCreatedSeq = 1;
+            const createdSeq = cs._nextCreatedSeq++;
             cs.markers.push({
                 id,
                 row: r,
@@ -151,7 +179,14 @@
                 return !Number.isFinite(remaining) || remaining > 0;
             }).map(m => ({ row: m.row, col: m.col })) : [])
         }));
-        const clearBombAt = deps.clearBombAt || ((cs, r, c) => { if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'bomb' && m.row === r && m.col === c)); });
+        const clearBombAt = deps.clearBombAt || ((cs, r, c) => {
+            const cardMarkers = getCardMarkersModule();
+            if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
+                cardMarkers.removeMarkersAt(cs, r, c, { kind: 'bomb' });
+                return;
+            }
+            if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'bomb' && m.row === r && m.col === c));
+        });
 
         const specials = (cardState.markers || []).filter(m => m.kind === 'specialStone');
         const dirs = DIRECTIONS;
@@ -231,15 +266,24 @@
                             type: 'REGEN',
                             owner: regen.owner
                         });
-                    } else if (Array.isArray(cardState.markers)) {
-                        cardState.markers = cardState.markers.filter(m => !(
-                            m &&
-                            m.kind === 'specialStone' &&
-                            m.row === pos.row &&
-                            m.col === pos.col &&
-                            m.data &&
-                            m.data.type === 'REGEN'
-                        ));
+                    } else {
+                        const cardMarkers = getCardMarkersModule();
+                        if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
+                            cardMarkers.removeMarkersAt(cardState, pos.row, pos.col, {
+                                kind: 'specialStone',
+                                type: 'REGEN',
+                                owner: regen.owner
+                            });
+                        } else if (Array.isArray(cardState.markers)) {
+                            cardState.markers = cardState.markers.filter(m => !(
+                                m &&
+                                m.kind === 'specialStone' &&
+                                m.row === pos.row &&
+                                m.col === pos.col &&
+                                m.data &&
+                                m.data.type === 'REGEN'
+                            ));
+                        }
                     }
 
                     if (deps.BoardOps && typeof deps.BoardOps.emitPresentationEvent === 'function') {

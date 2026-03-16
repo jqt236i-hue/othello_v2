@@ -1,0 +1,487 @@
+{
+  "count": 14,
+  "negative": [
+    {
+      "use": {
+        "gameIndex": 4,
+        "seed": 5,
+        "ply": 71,
+        "turnNumber": 60,
+        "player": "black",
+        "futureDiscDelta3Ply": -11,
+        "handSize": 5,
+        "legalMovesCount": 0,
+        "ownCornersBefore": 0,
+        "oppCornersBefore": 4,
+        "ownEdgesBefore": 6,
+        "oppEdgesBefore": 17,
+        "cornerEmergency": 1,
+        "highBonusMoveAvailable": 0,
+        "reasonTags": [
+          "decision:use",
+          "force_use_card",
+          "corner_emergency",
+          "hand_pressure"
+        ]
+      },
+      "selection": {
+        "ply": 72,
+        "row": 1,
+        "col": 0,
+        "seat": "edge",
+        "rowField": null,
+        "colField": null,
+        "selectedCellBonus": 0,
+        "board": "WWWWWWWW/BBBWWB.W/BBWBBWWW/BBWBBWWW/BBBBWBWW/BBBWBBWW/.BWWWBWW/WBWWWWWW"
+      }
+    },
+    {
+      "use": {
+        "gameIndex": 8,
+        "seed": 9,
+        "ply": 14,
+        "turnNumber": 13,
+        "player": "white",
+        "futureDiscDelta3Ply": -2,
+        "handSize": 5,
+        "legalMovesCount": 4,
+        "ownCornersBefore": 0,
+        "oppCornersBefore": 0,
+        "ownEdgesBefore": 2,
+        "oppEdgesBefore": 4,
+        "cornerEmergency": 0,
+        "highBonusMoveAvailable": 0,
+        "reasonTags": [
+          "decision:use",
+          "hand_pressure",
+          "threshold_passed"
+        ]
+      },
+      "selection": {
+        "ply": 15,
+        "row": 1,
+        "col": 3,
+        "seat": "inner",
+        "rowField": null,
+        "colField": null,
+        "selectedCellBonus": 0,
+        "board": ".BBBB.../..BW..../WWWB..../.W.BB.../W..BB.../.....B../......../........"
+      }
+    },
+    {
+      "use": {
+        "gameIndex": 8,
+        "seed": 9,
+        "ply": 27,
+        "turnNumber": 18,
+        "player": "black",
+        "futureDiscDelta3Ply": -4,
+        "handSize": 4,
+        "legalMovesCount": 5,
+        "ownCornersBefore": 2,
+        "oppCornersBefore": 2,
+        "ownEdgesBefore": 4,
+        "oppEdgesBefore": 1,
+        "cornerEmergency": 1,
+        "highBonusMoveAvailable": 1,
+        "reasonTags": [
+          "decision:use",
+          "corner_emergency",
+          "high_bonus_move_available",
+          "hand_pressure",
+          "threshold_passed"
+        ]
+      },
+      "selection": {
+        "ply": 28,
+        "row": 0,
+        "col": 1,
+        "seat": "edge",
+        "rowField": null,
+        "colField": null,
+        "selectedCellBonus": 0,
+        "board": "WBBBB.../..B...../WWWWW.../.W.BB.../B..BB.../.....B../......../........"
+      }
+    },
+    {
+      "use": {
+        "gameIndex": 13,
+        "seed": 14,
+        "ply": 27,
+        "turnNumber": 21,
+        "player": "white",
+        "futureDiscDelta3Ply": -1,
+        "handSize": 4,
+        "legalMovesCount": 7,
+        "ownCornersBefore": 0,
+        "oppCornersBefore": 2,
+        "ownEdgesBefore": 0,
+        "oppEdgesBefore": 7,
+        "cornerEmergency": 1,
+        "highBonusMoveAvailable": 1,
+        "reasonTags": [
+          "decision:use",
+          "corner_emergency",
+          "high_bonus_move_available",
+          "hand_pressure",
+          "threshold_passed"
+        ]
+      },
+      "selection": {
+        "ply": 28,
+        "row": 1,
+        "col": 2,
+        "seat": "inner",
+        "rowField": null,
+        "colField": null,
+        "selectedCellBonus": 0,
+        "board": ".BBBBB../B.WB..../BBBWWW../BB.BB.../BBBBB.../.....B../......../........"
+      }
+    },
+    {
+      "use": {
+        "gameIndex": 15,
+        "seed": 16,
+        "ply": 79,
+        "turnNumber": 60,
+        "player": "black",
+        "futureDiscDelta3Ply": -4,
+        "handSize": 4,
+        "legalMovesCount": 3,
+        "ownCornersBefore": 2,
+        "oppCornersBefore": 2,
+        "ownEdgesBefore": 6,
+        "oppEdgesBefore": 18,
+        "cornerEmergency": 1,
+        "highBonusMoveAvailable": 1,
+        "reasonTags": [
+          "decision:use",
+          "corner_emergency",
+          "high_bonus_move_available",
+          "hand_pressure",
+          "threshold_passed"
+        ]
+      },
+      "selection": {
+        "ply": 80,
+        "row": 1,
+        "col": 4,
+        "seat": "inner",
+        "rowField": null,
+        "colField": null,
+        "selectedCellBonus": 0,
+        "board": "WWWWWWWW/WWWWBWWW/WWWWWWWW/WBWBBBWW/WWWWB.WW/WWBBW.WW/WBWWWW.W/BBBBBBBB"
+      }
+    },
+    {
+      "use": {
+        "gameIndex": 4,
+        "seed": 5,
+        "ply": 71,
+        "turnNumber": 60,
+        "player": "black",
+        "futureDiscDelta3Ply": -11,
+        "handSize": 5,
+        "legalMovesCount": 0,
+        "ownCornersBefore": 0,
+        "oppCornersBefore": 4,
+        "ownEdgesBefore": 6,
+        "oppEdgesBefore": 17,
+        "cornerEmergency": 1,
+        "highBonusMoveAvailable": 0,
+        "reasonTags": [
+          "decision:use",
+          "force_use_card",
+          "corner_emergency",
+          "hand_pressure"
+        ]
+      },
+      "selection": {
+        "ply": 72,
+        "row": 1,
+        "col": 0,
+        "seat": "edge",
+        "rowField": null,
+        "colField": null,
+        "selectedCellBonus": 0,
+        "board": "WWWWWWWW/BBBWWB.W/BBWBBWWW/BBWBBWWW/BBBBWBWW/BBBWBBWW/.BWWWBWW/WBWWWWWW"
+      }
+    },
+    {
+      "use": {
+        "gameIndex": 8,
+        "seed": 9,
+        "ply": 14,
+        "turnNumber": 13,
+        "player": "white",
+        "futureDiscDelta3Ply": -2,
+        "handSize": 5,
+        "legalMovesCount": 4,
+        "ownCornersBefore": 0,
+        "oppCornersBefore": 0,
+        "ownEdgesBefore": 2,
+        "oppEdgesBefore": 4,
+        "cornerEmergency": 0,
+        "highBonusMoveAvailable": 0,
+        "reasonTags": [
+          "decision:use",
+          "hand_pressure",
+          "threshold_passed"
+        ]
+      },
+      "selection": {
+        "ply": 15,
+        "row": 1,
+        "col": 3,
+        "seat": "inner",
+        "rowField": null,
+        "colField": null,
+        "selectedCellBonus": 0,
+        "board": ".BBBB.../..BW..../WWWB..../.W.BB.../W..BB.../.....B../......../........"
+      }
+    },
+    {
+      "use": {
+        "gameIndex": 8,
+        "seed": 9,
+        "ply": 27,
+        "turnNumber": 18,
+        "player": "black",
+        "futureDiscDelta3Ply": -4,
+        "handSize": 4,
+        "legalMovesCount": 5,
+        "ownCornersBefore": 2,
+        "oppCornersBefore": 2,
+        "ownEdgesBefore": 4,
+        "oppEdgesBefore": 1,
+        "cornerEmergency": 1,
+        "highBonusMoveAvailable": 1,
+        "reasonTags": [
+          "decision:use",
+          "corner_emergency",
+          "high_bonus_move_available",
+          "hand_pressure",
+          "threshold_passed"
+        ]
+      },
+      "selection": {
+        "ply": 28,
+        "row": 0,
+        "col": 1,
+        "seat": "edge",
+        "rowField": null,
+        "colField": null,
+        "selectedCellBonus": 0,
+        "board": "WBBBB.../..B...../WWWWW.../.W.BB.../B..BB.../.....B../......../........"
+      }
+    },
+    {
+      "use": {
+        "gameIndex": 13,
+        "seed": 14,
+        "ply": 27,
+        "turnNumber": 21,
+        "player": "white",
+        "futureDiscDelta3Ply": -1,
+        "handSize": 4,
+        "legalMovesCount": 7,
+        "ownCornersBefore": 0,
+        "oppCornersBefore": 2,
+        "ownEdgesBefore": 0,
+        "oppEdgesBefore": 7,
+        "cornerEmergency": 1,
+        "highBonusMoveAvailable": 1,
+        "reasonTags": [
+          "decision:use",
+          "corner_emergency",
+          "high_bonus_move_available",
+          "hand_pressure",
+          "threshold_passed"
+        ]
+      },
+      "selection": {
+        "ply": 28,
+        "row": 1,
+        "col": 2,
+        "seat": "inner",
+        "rowField": null,
+        "colField": null,
+        "selectedCellBonus": 0,
+        "board": ".BBBBB../B.WB..../BBBWWW../BB.BB.../BBBBB.../.....B../......../........"
+      }
+    },
+    {
+      "use": {
+        "gameIndex": 15,
+        "seed": 16,
+        "ply": 79,
+        "turnNumber": 60,
+        "player": "black",
+        "futureDiscDelta3Ply": -4,
+        "handSize": 4,
+        "legalMovesCount": 3,
+        "ownCornersBefore": 2,
+        "oppCornersBefore": 2,
+        "ownEdgesBefore": 6,
+        "oppEdgesBefore": 18,
+        "cornerEmergency": 1,
+        "highBonusMoveAvailable": 1,
+        "reasonTags": [
+          "decision:use",
+          "corner_emergency",
+          "high_bonus_move_available",
+          "hand_pressure",
+          "threshold_passed"
+        ]
+      },
+      "selection": {
+        "ply": 80,
+        "row": 1,
+        "col": 4,
+        "seat": "inner",
+        "rowField": null,
+        "colField": null,
+        "selectedCellBonus": 0,
+        "board": "WWWWWWWW/WWWWBWWW/WWWWWWWW/WBWBBBWW/WWWWB.WW/WWBBW.WW/WBWWWW.W/BBBBBBBB"
+      }
+    }
+  ],
+  "nonNegative": [
+    {
+      "use": {
+        "gameIndex": 16,
+        "seed": 17,
+        "ply": 37,
+        "turnNumber": 28,
+        "player": "black",
+        "futureDiscDelta3Ply": 1,
+        "handSize": 5,
+        "legalMovesCount": 3,
+        "ownCornersBefore": 0,
+        "oppCornersBefore": 1,
+        "ownEdgesBefore": 1,
+        "oppEdgesBefore": 9,
+        "cornerEmergency": 1,
+        "highBonusMoveAvailable": 0,
+        "reasonTags": [
+          "decision:use",
+          "corner_emergency",
+          "hand_pressure",
+          "threshold_passed"
+        ]
+      },
+      "selection": {
+        "ply": 38,
+        "row": 3,
+        "col": 2,
+        "seat": "inner",
+        "rowField": null,
+        "colField": null,
+        "selectedCellBonus": 0,
+        "board": "WWWWWW../W..WW.../WWWWW.../W.BW..../WBWB..../BWB...../......../........"
+      }
+    },
+    {
+      "use": {
+        "gameIndex": 17,
+        "seed": 18,
+        "ply": 21,
+        "turnNumber": 15,
+        "player": "white",
+        "futureDiscDelta3Ply": 0,
+        "handSize": 4,
+        "legalMovesCount": 6,
+        "ownCornersBefore": 0,
+        "oppCornersBefore": 0,
+        "ownEdgesBefore": 3,
+        "oppEdgesBefore": 3,
+        "cornerEmergency": 0,
+        "highBonusMoveAvailable": 1,
+        "reasonTags": [
+          "decision:use",
+          "high_bonus_move_available",
+          "hand_pressure",
+          "threshold_passed"
+        ]
+      },
+      "selection": {
+        "ply": 22,
+        "row": 3,
+        "col": 0,
+        "seat": "edge",
+        "rowField": null,
+        "colField": null,
+        "selectedCellBonus": 0,
+        "board": "...B..../...B..../.BBB..../W..BB.../WWBBW.../W.W...../..BW..../..B.B..."
+      }
+    },
+    {
+      "use": {
+        "gameIndex": 16,
+        "seed": 17,
+        "ply": 37,
+        "turnNumber": 28,
+        "player": "black",
+        "futureDiscDelta3Ply": 1,
+        "handSize": 5,
+        "legalMovesCount": 3,
+        "ownCornersBefore": 0,
+        "oppCornersBefore": 1,
+        "ownEdgesBefore": 1,
+        "oppEdgesBefore": 9,
+        "cornerEmergency": 1,
+        "highBonusMoveAvailable": 0,
+        "reasonTags": [
+          "decision:use",
+          "corner_emergency",
+          "hand_pressure",
+          "threshold_passed"
+        ]
+      },
+      "selection": {
+        "ply": 38,
+        "row": 3,
+        "col": 2,
+        "seat": "inner",
+        "rowField": null,
+        "colField": null,
+        "selectedCellBonus": 0,
+        "board": "WWWWWW../W..WW.../WWWWW.../W.BW..../WBWB..../BWB...../......../........"
+      }
+    },
+    {
+      "use": {
+        "gameIndex": 17,
+        "seed": 18,
+        "ply": 21,
+        "turnNumber": 15,
+        "player": "white",
+        "futureDiscDelta3Ply": 0,
+        "handSize": 4,
+        "legalMovesCount": 6,
+        "ownCornersBefore": 0,
+        "oppCornersBefore": 0,
+        "ownEdgesBefore": 3,
+        "oppEdgesBefore": 3,
+        "cornerEmergency": 0,
+        "highBonusMoveAvailable": 1,
+        "reasonTags": [
+          "decision:use",
+          "high_bonus_move_available",
+          "hand_pressure",
+          "threshold_passed"
+        ]
+      },
+      "selection": {
+        "ply": 22,
+        "row": 3,
+        "col": 0,
+        "seat": "edge",
+        "rowField": null,
+        "colField": null,
+        "selectedCellBonus": 0,
+        "board": "...B..../...B..../.BBB..../W..BB.../WWBBW.../W.W...../..BW..../..B.B..."
+      }
+    }
+  ]
+}

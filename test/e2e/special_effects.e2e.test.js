@@ -47,6 +47,7 @@ describe('Special effects E2E', () => {
     const page = await browser.newPage();
 
     await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
+    await page.waitForFunction(() => !!(window.gameState && Array.isArray(window.gameState.board) && window.gameState.board.length === 8), { timeout: 10000 });
 
     // Wait for debug module available
     // Ensure DebugActions is loaded (inject if missing)
@@ -85,13 +86,12 @@ describe('Special effects E2E', () => {
       while (Date.now() - start < maxMs) {
         const ok = await page.evaluate(() => {
           try {
-            const discs = Array.from(document.querySelectorAll('.disc'));
-            for (const d of discs) {
-              if (d.classList.contains('work-stone')) return true;
-              if (d.querySelector('.special-stone-img')) return true;
-              const imgVar = (d.style && d.style.getPropertyValue) ? d.style.getPropertyValue('--special-stone-image') : null;
-              if (imgVar && String(imgVar).trim().length) return true;
-            }
+            const disc = document.querySelector('.cell[data-row="4"][data-col="2"] .disc');
+            if (!disc) return false;
+            if (disc.classList.contains('work-stone')) return true;
+            if (disc.querySelector('.special-stone-img')) return true;
+            const imgVar = (disc.style && disc.style.getPropertyValue) ? disc.style.getPropertyValue('--special-stone-image') : null;
+            if (imgVar && String(imgVar).trim().length) return true;
             return false;
           } catch (e) { return false; }
         });
@@ -119,14 +119,12 @@ describe('Special effects E2E', () => {
 
     const workPresent = await page.evaluate(() => {
       try {
-        // check that at least one disc has work-stone class or special-stone-img
-        const discs = Array.from(document.querySelectorAll('.disc'));
-        for (const d of discs) {
-          if (d.classList.contains('work-stone')) return true;
-          if (d.querySelector('.special-stone-img')) return true;
-          const imgVar = (d.style && d.style.getPropertyValue) ? d.style.getPropertyValue('--special-stone-image') : null;
-          if (imgVar && String(imgVar).trim().length) return true;
-        }
+        const disc = document.querySelector('.cell[data-row="4"][data-col="2"] .disc');
+        if (!disc) return false;
+        if (disc.classList.contains('work-stone')) return true;
+        if (disc.querySelector('.special-stone-img')) return true;
+        const imgVar = (disc.style && disc.style.getPropertyValue) ? disc.style.getPropertyValue('--special-stone-image') : null;
+        if (imgVar && String(imgVar).trim().length) return true;
         return false;
       } catch (e) { return false; }
     });

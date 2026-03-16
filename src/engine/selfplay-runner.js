@@ -20,6 +20,7 @@ const PendingTargetSelector = require('../../game/turn-handlers/pending-target-s
 
 const SELFPLAY_SCHEMA_VERSION = 'selfplay.v2';
 const LEGACY_SELFPLAY_SCHEMA_VERSION = 'selfplay.v1';
+const NO_CARD_ACTION_ID = '__no_card__';
 
 const TARGET_SELECTION_CARD_TYPES = new Set([
     'DESTROY_ONE_STONE',
@@ -85,6 +86,7 @@ const CANDIDATE_CARD_TYPES = new Set([
     'HEAVEN_BLESSING',
     'CONDEMN_WILL',
     'GOLD_STONE',
+    'CRYSTAL_STONE',
     'SILVER_STONE',
     'ULTIMATE_HYPERACTIVE_GOD',
     'ULTIMATE_DESTROY_GOD',
@@ -163,6 +165,23 @@ function toPlayerValue(playerKey) {
     return playerKey === 'black' ? Core.BLACK : Core.WHITE;
 }
 
+function getShapeAwareBoard(board, gameStateLike, cardStateLike) {
+    if (
+        !Array.isArray(board) ||
+        !SharedBoardUtils ||
+        typeof SharedBoardUtils.attachBoardShape !== 'function'
+    ) {
+        return board;
+    }
+    try {
+        SharedBoardUtils.attachBoardShape(board, {
+            boardExpansion: gameStateLike && gameStateLike.boardExpansion,
+            cardState: cardStateLike || null
+        });
+    } catch (e) { /* ignore */ }
+    return board;
+}
+
 function getSafeCardContext(cardState) {
     let context = null;
     try {
@@ -184,6 +203,9 @@ function getSafeCardContext(cardState) {
 }
 
 function encodeBoard(board) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.encodeBoard === 'function') {
+        return SharedBoardUtils.encodeBoard(board);
+    }
     return board
         .map((row) => row.map((v) => (v === Core.BLACK ? 'B' : (v === Core.WHITE ? 'W' : '.'))).join(''))
         .join('/');
@@ -195,6 +217,9 @@ function decodeBoard(boardStr) {
 }
 
 function transformCoord(row, col, size, t) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.transformCoord === 'function') {
+        return SharedBoardUtils.transformCoord(row, col, size, t);
+    }
     if (t === 0) return { row, col };
     if (t === 1) return { row: col, col: size - 1 - row };
     if (t === 2) return { row: size - 1 - row, col: size - 1 - col };
@@ -220,6 +245,9 @@ function transformBoard(board, t) {
 }
 
 function canonicalizeBoard(board) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.canonicalizeBoard === 'function') {
+        return SharedBoardUtils.canonicalizeBoard(board);
+    }
     const raw = encodeBoard(board);
     if (!raw) return { boardKey: raw, transformId: 0 };
     const decoded = decodeBoard(raw);
@@ -235,21 +263,23 @@ function canonicalizeBoard(board) {
     return { boardKey: best || raw, transformId: bestT };
 }
 
-function isCorner(row, col) {
+function isCorner(row, col, boardOrRows) {
     if (SharedBoardUtils && typeof SharedBoardUtils.isCorner === 'function') {
+        if (Array.isArray(boardOrRows)) return SharedBoardUtils.isCorner(row, col, boardOrRows);
         return SharedBoardUtils.isCorner(row, col, 8, 8);
     }
     return (row === 0 || row === 7) && (col === 0 || col === 7);
 }
 
-function isEdge(row, col) {
+function isEdge(row, col, boardOrRows) {
     if (SharedBoardUtils && typeof SharedBoardUtils.isEdge === 'function') {
+        if (Array.isArray(boardOrRows)) return SharedBoardUtils.isEdge(row, col, boardOrRows);
         return SharedBoardUtils.isEdge(row, col, 8, 8);
     }
     return row === 0 || row === 7 || col === 0 || col === 7;
 }
 
-function resolveForcedPlacementCandidates(legalMoves, options) {
+function resolveForcedPlacementCandidates(legalMoves, options, board) {
     const safeLegalMoves = Array.isArray(legalMoves)
         ? legalMoves.filter((move) => move && Number.isInteger(move.row) && Number.isInteger(move.col))
         : [];
@@ -264,7 +294,7 @@ function resolveForcedPlacementCandidates(legalMoves, options) {
         };
     }
 
-    const cornerMoves = safeLegalMoves.filter((move) => isCorner(move.row, move.col));
+    const cornerMoves = safeLegalMoves.filter((move) => isCorner(move.row, move.col, board));
     if (cornerMoves.length > 0) {
         return {
             category: 'corner',
@@ -272,7 +302,7 @@ function resolveForcedPlacementCandidates(legalMoves, options) {
         };
     }
 
-    const edgeMoves = safeLegalMoves.filter((move) => !isCorner(move.row, move.col) && isEdge(move.row, move.col));
+    const edgeMoves = safeLegalMoves.filter((move) => !isCorner(move.row, move.col, board) && isEdge(move.row, move.col, board));
     if (edgeMoves.length > 0) {
         return {
             category: 'edge',
@@ -286,15 +316,17 @@ function resolveForcedPlacementCandidates(legalMoves, options) {
     };
 }
 
-function isXSquare(row, col) {
+function isXSquare(row, col, boardOrRows) {
     if (SharedBoardUtils && typeof SharedBoardUtils.isXSquare === 'function') {
+        if (Array.isArray(boardOrRows)) return SharedBoardUtils.isXSquare(row, col, boardOrRows);
         return SharedBoardUtils.isXSquare(row, col, 8, 8);
     }
     return (row === 1 || row === 6) && (col === 1 || col === 6);
 }
 
-function isCSquare(row, col) {
+function isCSquare(row, col, boardOrRows) {
     if (SharedBoardUtils && typeof SharedBoardUtils.isCSquare === 'function') {
+        if (Array.isArray(boardOrRows)) return SharedBoardUtils.isCSquare(row, col, boardOrRows);
         return SharedBoardUtils.isCSquare(row, col, 8, 8);
     }
     const nearTopBottom = (row === 0 || row === 7) && (col === 1 || col === 6);
@@ -350,6 +382,9 @@ function scoreMove(move, rng, context) {
     const col = Number.isFinite(move && move.col) ? move.col : 0;
     const flips = Array.isArray(move && move.flips) ? move.flips.length : 0;
     const scoreContext = context || {};
+    const board = scoreContext && scoreContext.gameState
+        ? getShapeAwareBoard(scoreContext.gameState.board, scoreContext.gameState, scoreContext.cardState)
+        : null;
     const planState = scoreContext.planState || null;
     const movePlanContext = scoreContext.movePlanContext || null;
     const shouldUseCornerPlan = (
@@ -369,10 +404,10 @@ function scoreMove(move, rng, context) {
         }
     }
     if (!shouldUseCornerPlan) {
-        if (isCorner(row, col)) score += 10000;
-        if (!isCorner(row, col) && isEdge(row, col)) score += 5200;
-        if (isXSquare(row, col)) score -= 600;
-        if (isCSquare(row, col)) score -= 300;
+        if (isCorner(row, col, board)) score += 10000;
+        if (!isCorner(row, col, board) && isEdge(row, col, board)) score += 5200;
+        if (isXSquare(row, col, board)) score -= 600;
+        if (isCSquare(row, col, board)) score -= 300;
     }
 
     const moveBonus = getBoardBonusAtCell(scoreContext.cardState, row, col);
@@ -384,15 +419,15 @@ function scoreMove(move, rng, context) {
 
     if (planState && planState.cornerHoldMode) {
         score += flips * 65;
-        if (!isCorner(row, col) && isEdge(row, col)) score += 850;
-        if (!isCorner(row, col) && !isEdge(row, col)) score -= 220;
-        if (isXSquare(row, col)) score -= 1000;
-        if (isCSquare(row, col)) score -= 450;
+        if (!isCorner(row, col, board) && isEdge(row, col, board)) score += 850;
+        if (!isCorner(row, col, board) && !isEdge(row, col, board)) score -= 220;
+        if (isXSquare(row, col, board)) score -= 1000;
+        if (isCSquare(row, col, board)) score -= 450;
     } else if (planState && planState.cornerSeekMode) {
-        if (isCorner(row, col)) score += 7000;
-        if (!isCorner(row, col) && isEdge(row, col)) score += 950;
-        if (isXSquare(row, col)) score -= 1200;
-        if (isCSquare(row, col)) score -= 500;
+        if (isCorner(row, col, board)) score += 7000;
+        if (!isCorner(row, col, board) && isEdge(row, col, board)) score += 950;
+        if (isXSquare(row, col, board)) score -= 1200;
+        if (isCSquare(row, col, board)) score -= 500;
     }
 
     // Deterministic tie-break jitter.
@@ -415,6 +450,10 @@ function evaluatePositionalDiff(board, playerValue) {
 }
 
 function countCorners(board, playerValue) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.countCornerControl === 'function') {
+        const control = SharedBoardUtils.countCornerControl(board, playerValue);
+        return Number(control.ownCorners || 0) - Number(control.oppCorners || 0);
+    }
     if (!Array.isArray(board) || board.length === 0) return 0;
     const n = board.length - 1;
     const points = [[0, 0], [0, n], [n, 0], [n, n]];
@@ -461,7 +500,7 @@ function countEdgeControl(board, playerValue) {
         const oneRow = board[row];
         if (!Array.isArray(oneRow)) continue;
         for (let col = 0; col < oneRow.length; col++) {
-            if (!isEdge(row, col) || isCorner(row, col)) continue;
+            if (!isEdge(row, col, board) || isCorner(row, col, board)) continue;
             const v = oneRow[col];
             if (v === playerValue) ownEdges += 1;
             else if (v === -playerValue) oppEdges += 1;
@@ -610,6 +649,251 @@ function buildPendingSelectionRecord(action, pendingType) {
     return null;
 }
 
+function pushUniqueDecisionTag(tags, tag) {
+    const normalized = String(tag || '').trim();
+    if (!normalized || tags.includes(normalized)) return;
+    tags.push(normalized);
+}
+
+function cloneDecisionCandidates(record) {
+    if (!record || !Array.isArray(record.decisionCandidates)) return [];
+    return record.decisionCandidates.map((candidate) => Object.assign({}, candidate));
+}
+
+function cloneDecisionReasonTags(record) {
+    return Array.isArray(record && record.decisionReasonTags)
+        ? record.decisionReasonTags.map((tag) => String(tag))
+        : [];
+}
+
+function cloneDecisionScoreSummary(record) {
+    if (!record || !record.decisionScoreSummary || typeof record.decisionScoreSummary !== 'object') return null;
+    return Object.assign({}, record.decisionScoreSummary);
+}
+
+function buildCardDecisionReasonTags(context, decisionKind, selectedCandidate) {
+    const tags = [];
+    const ctx = context && typeof context === 'object' ? context : null;
+    const kind = String(decisionKind || '').trim();
+    if (kind) pushUniqueDecisionTag(tags, `decision:${kind}`);
+    if (!ctx) return tags;
+
+    if (ctx.forceUseCard === true) pushUniqueDecisionTag(tags, 'force_use_card');
+    if (ctx.hasCornerMoveNow === true) pushUniqueDecisionTag(tags, 'corner_move_available');
+    if (ctx.hasEdgeMoveNow === true) pushUniqueDecisionTag(tags, 'edge_move_available');
+    if (ctx.cornerEmergency === true) pushUniqueDecisionTag(tags, 'corner_emergency');
+    if (ctx.cornerHoldMode === true) pushUniqueDecisionTag(tags, 'corner_hold_mode');
+    if (ctx.highBonusMoveAvailable === true) pushUniqueDecisionTag(tags, 'high_bonus_move_available');
+    if (ctx.lowDiscEmergency === true) pushUniqueDecisionTag(tags, 'low_disc_emergency');
+    if (ctx.criticalLowDiscEmergency === true) pushUniqueDecisionTag(tags, 'critical_low_disc_emergency');
+    if (Number.isFinite(ctx.handSize) && Number(ctx.handSize) >= 4) pushUniqueDecisionTag(tags, 'hand_pressure');
+    if (ctx.whiteLv6Mode === true) pushUniqueDecisionTag(tags, 'white_lv6_mode');
+    if (kind === 'sell') pushUniqueDecisionTag(tags, 'retention_cycle');
+    if (kind === 'destroy') pushUniqueDecisionTag(tags, 'hand_cycle');
+    if (selectedCandidate && selectedCandidate.reason) pushUniqueDecisionTag(tags, String(selectedCandidate.reason));
+    if (selectedCandidate && selectedCandidate.shouldUse === false) pushUniqueDecisionTag(tags, 'declined_by_threshold');
+    if (
+        selectedCandidate &&
+        Number.isFinite(selectedCandidate.score) &&
+        Number.isFinite(selectedCandidate.minUseScore) &&
+        Number(selectedCandidate.score) >= Number(selectedCandidate.minUseScore)
+    ) {
+        pushUniqueDecisionTag(tags, 'threshold_passed');
+    }
+
+    return tags;
+}
+
+function buildUseSelectionTraceMetadata(gameState, cardState, playerKey, legalMoves, selectedCardId, actionType) {
+    const usable = getDirectUsableCardIds(cardState, gameState, playerKey);
+    const context = buildCardDecisionContext(gameState, cardState, playerKey, legalMoves.length, legalMoves, usable);
+    let candidates = [];
+    if (CpuPolicyCore && typeof CpuPolicyCore.enumerateCardUseCandidates === 'function') {
+        candidates = CpuPolicyCore.enumerateCardUseCandidates(
+            usable,
+            CardLogic.getCardCost,
+            CardLogic.getCardDef,
+            context
+        ).map((candidate) => ({
+            actionType: 'use_card',
+            decisionKind: 'use',
+            cardId: candidate.cardId,
+            cardType: candidate.cardType || null,
+            cardCost: Number.isFinite(candidate.cardCost) ? Number(candidate.cardCost) : null,
+            score: Number.isFinite(candidate.score) ? Number(candidate.score) : null,
+            shouldUse: candidate.shouldUse === true,
+            minUseScore: Number.isFinite(candidate.minUseScore) ? Number(candidate.minUseScore) : null,
+            isSelected: candidate.cardId === selectedCardId
+        }));
+    } else {
+        candidates = usable.map((cardId) => ({
+            actionType: 'use_card',
+            decisionKind: 'use',
+            cardId,
+            isSelected: cardId === selectedCardId
+        }));
+    }
+
+    const selectedCandidate = candidates.find((candidate) => candidate && candidate.cardId === selectedCardId) || null;
+    const decision = actionType === 'use_card' ? 'use' : 'keep';
+    const normalizedCandidates = actionType === 'cancel_card'
+        ? [{
+            actionType: 'cancel_card',
+            decisionKind: 'keep',
+            cardId: NO_CARD_ACTION_ID,
+            isSelected: true
+        }].concat(candidates.map((candidate) => Object.assign({}, candidate, { isSelected: false })))
+        : candidates;
+
+    return {
+        selectedActionKey: actionType === 'use_card' && selectedCardId
+            ? `use:${selectedCardId}`
+            : 'keep',
+        decision,
+        selectedCardId: actionType === 'use_card' ? (selectedCardId || null) : null,
+        candidates: normalizedCandidates,
+        reasonTags: buildCardDecisionReasonTags(context, decision, selectedCandidate),
+        scoreSummary: {
+            bestScore: normalizedCandidates.length > 0 && Number.isFinite(normalizedCandidates[0].score)
+                ? Number(normalizedCandidates[0].score)
+                : null,
+            selectedScore: selectedCandidate && Number.isFinite(selectedCandidate.score)
+                ? Number(selectedCandidate.score)
+                : null,
+            minUseScore: selectedCandidate && Number.isFinite(selectedCandidate.minUseScore)
+                ? Number(selectedCandidate.minUseScore)
+                : (Number.isFinite(context && context.minUseScore) ? Number(context.minUseScore) : null),
+            forceUseCard: context && context.forceUseCard === true,
+            handSize: Number.isFinite(context && context.handSize) ? Number(context.handSize) : null,
+            legalMovesCount: Array.isArray(legalMoves) ? legalMoves.length : 0
+        }
+    };
+}
+
+function buildSellSelectionTraceMetadata(gameState, cardState, playerKey, legalMoves, selectedCardId) {
+    const hand = cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])
+        ? cardState.hands[playerKey].slice()
+        : [];
+    const context = buildCardDecisionContext(gameState, cardState, playerKey, legalMoves.length, legalMoves, hand);
+    let candidates = [];
+    if (CpuPolicyCore && typeof CpuPolicyCore.enumerateSellCardRetentionCandidates === 'function') {
+        candidates = CpuPolicyCore.enumerateSellCardRetentionCandidates(
+            hand,
+            CardLogic.getCardCost,
+            CardLogic.getCardDef,
+            context
+        ).map((candidate) => ({
+            actionType: 'place',
+            decisionKind: 'sell',
+            cardId: candidate.cardId,
+            cardType: candidate.cardType || null,
+            cardCost: Number.isFinite(candidate.cardCost) ? Number(candidate.cardCost) : null,
+            score: Number.isFinite(candidate.score) ? Number(candidate.score) : null,
+            retentionScore: Number.isFinite(candidate.score) ? Number(candidate.score) : null,
+            isSelected: candidate.cardId === selectedCardId
+        }));
+    } else {
+        candidates = hand.map((cardId) => ({
+            actionType: 'place',
+            decisionKind: 'sell',
+            cardId,
+            isSelected: cardId === selectedCardId
+        }));
+    }
+
+    const selectedCandidate = candidates.find((candidate) => candidate && candidate.cardId === selectedCardId) || null;
+    return {
+        selectedActionKey: selectedCardId ? `sell:${selectedCardId}` : null,
+        decision: 'sell',
+        selectedCardId: selectedCardId || null,
+        candidates,
+        reasonTags: buildCardDecisionReasonTags(context, 'sell', selectedCandidate),
+        scoreSummary: {
+            selectedRetentionScore: selectedCandidate && Number.isFinite(selectedCandidate.score)
+                ? Number(selectedCandidate.score)
+                : null,
+            bestRetentionScore: candidates.length > 0 && Number.isFinite(candidates[0].score)
+                ? Number(candidates[0].score)
+                : null,
+            lowerScoreIsBetter: true,
+            legalMovesCount: Array.isArray(legalMoves) ? legalMoves.length : 0
+        }
+    };
+}
+
+function buildDestroySelectionTraceMetadata(gameState, cardState, playerKey, legalMoves, selectedCardId) {
+    const hand = cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])
+        ? cardState.hands[playerKey].slice()
+        : [];
+    const usable = getDirectUsableCardIds(cardState, gameState, playerKey);
+    const context = buildCardDecisionContext(gameState, cardState, playerKey, legalMoves.length, legalMoves, usable);
+    let candidates = [];
+    let destroyThreshold = null;
+    let destroyReason = null;
+    if (CpuPolicyCore && typeof CpuPolicyCore.enumerateDestroyCandidatesForCycle === 'function') {
+        const enumeration = CpuPolicyCore.enumerateDestroyCandidatesForCycle(
+            hand,
+            usable,
+            CardLogic.getCardCost,
+            CardLogic.getCardDef,
+            context
+        );
+        if (enumeration && Array.isArray(enumeration.candidates)) {
+            destroyThreshold = Number.isFinite(enumeration.destroyThreshold) ? Number(enumeration.destroyThreshold) : null;
+            destroyReason = enumeration.reason || null;
+            candidates = enumeration.candidates.map((candidate) => ({
+                actionType: 'destroy_hand_card',
+                decisionKind: 'destroy',
+                cardId: candidate.cardId,
+                cardType: candidate.cardType || null,
+                cardCost: Number.isFinite(candidate.cardCost) ? Number(candidate.cardCost) : null,
+                score: Number.isFinite(candidate.destroyScore) ? Number(candidate.destroyScore) : null,
+                destroyScore: Number.isFinite(candidate.destroyScore) ? Number(candidate.destroyScore) : null,
+                retentionScore: Number.isFinite(candidate.retentionScore) ? Number(candidate.retentionScore) : null,
+                destroyable: candidate.destroyable === true,
+                isSelected: candidate.cardId === selectedCardId
+            }));
+        }
+    }
+    if (candidates.length <= 0) {
+        candidates = hand.map((cardId) => ({
+            actionType: 'destroy_hand_card',
+            decisionKind: 'destroy',
+            cardId,
+            isSelected: cardId === selectedCardId
+        }));
+    }
+
+    const selectedCandidate = candidates.find((candidate) => candidate && candidate.cardId === selectedCardId) || null;
+    const reasonTags = buildCardDecisionReasonTags(context, 'destroy', selectedCandidate);
+    if (destroyReason) pushUniqueDecisionTag(reasonTags, destroyReason);
+    return {
+        selectedActionKey: selectedCardId ? `destroy:${selectedCardId}` : null,
+        decision: 'destroy',
+        selectedCardId: selectedCardId || null,
+        candidates,
+        reasonTags,
+        scoreSummary: {
+            selectedDestroyScore: selectedCandidate && Number.isFinite(selectedCandidate.score)
+                ? Number(selectedCandidate.score)
+                : null,
+            bestDestroyScore: candidates.length > 0 && Number.isFinite(candidates[0].score)
+                ? Number(candidates[0].score)
+                : null,
+            destroyThreshold,
+            legalMovesCount: Array.isArray(legalMoves) ? legalMoves.length : 0
+        }
+    };
+}
+
+function buildPendingActionTraceMetadata(gameState, cardState, playerKey, pendingType, legalMoves, action) {
+    if (!action || typeof action !== 'object') return null;
+    if (pendingType === 'SELL_CARD_WILL' && typeof action.sellCardId === 'string' && action.sellCardId.trim()) {
+        return buildSellSelectionTraceMetadata(gameState, cardState, playerKey, legalMoves, action.sellCardId.trim());
+    }
+    return null;
+}
+
 function buildPendingSelectionTrace(record) {
     if (!record || typeof record !== 'object') return null;
     const selection = record.pendingSelection;
@@ -647,6 +931,24 @@ function buildPendingSelectionTrace(record) {
 function buildSelectionTrace(record) {
     if (!record || typeof record !== 'object') return null;
     const actionType = String(record.actionType || '');
+    const selectedActionKey = (typeof record.selectedActionKey === 'string' && record.selectedActionKey.trim())
+        ? record.selectedActionKey.trim()
+        : null;
+    const decisionCandidates = cloneDecisionCandidates(record);
+    const decisionReasonTags = cloneDecisionReasonTags(record);
+    const decisionScoreSummary = cloneDecisionScoreSummary(record);
+    if (actionType === 'place' && typeof record.sellCardId === 'string' && record.sellCardId.trim()) {
+        return {
+            kind: 'card',
+            decision: 'sell',
+            selectedCardId: record.sellCardId.trim(),
+            selectedActionKey: selectedActionKey || `sell:${record.sellCardId.trim()}`,
+            candidates: decisionCandidates,
+            reasonTags: decisionReasonTags,
+            scoreSummary: decisionScoreSummary,
+            pendingSelection: buildPendingSelectionTrace(record)
+        };
+    }
     if (actionType === 'place') {
         const topCandidates = Array.isArray(record.topPlacementCandidates)
             ? record.topPlacementCandidates.map((one) => ({
@@ -671,6 +973,11 @@ function buildSelectionTrace(record) {
                 selectedTacticalScore: Number.isFinite(record.selectedTacticalScore) ? Number(record.selectedTacticalScore) : null,
                 selectedCellBonus: Number.isFinite(record.selectedCellBonus) ? Number(record.selectedCellBonus) : null
             },
+            selectedActionKey: selectedActionKey || (
+                Number.isFinite(record.row) && Number.isFinite(record.col)
+                    ? `place:${Number(record.row)}:${Number(record.col)}`
+                    : null
+            ),
             topCandidates,
             forcedPlacementCategory: record.forcedPlacementCategory || null,
             pendingSelection: buildPendingSelectionTrace(record)
@@ -681,7 +988,11 @@ function buildSelectionTrace(record) {
             kind: 'card',
             decision: 'use',
             selectedCardId: record.useCardId || null,
-            usableCardIds: Array.isArray(record.usableCardIds) ? record.usableCardIds.slice() : []
+            selectedActionKey: selectedActionKey || (record.useCardId ? `use:${record.useCardId}` : null),
+            usableCardIds: Array.isArray(record.usableCardIds) ? record.usableCardIds.slice() : [],
+            candidates: decisionCandidates,
+            reasonTags: decisionReasonTags,
+            scoreSummary: decisionScoreSummary
         };
     }
     if (actionType === 'destroy_hand_card') {
@@ -689,14 +1000,22 @@ function buildSelectionTrace(record) {
             kind: 'card',
             decision: 'destroy',
             selectedCardId: record.destroyCardId || null,
-            handCards: Array.isArray(record.handCards) ? record.handCards.slice() : []
+            selectedActionKey: selectedActionKey || (record.destroyCardId ? `destroy:${record.destroyCardId}` : null),
+            handCards: Array.isArray(record.handCards) ? record.handCards.slice() : [],
+            candidates: decisionCandidates,
+            reasonTags: decisionReasonTags,
+            scoreSummary: decisionScoreSummary
         };
     }
     if (actionType === 'cancel_card') {
         return {
             kind: 'card',
             decision: 'keep',
-            usableCardIds: Array.isArray(record.usableCardIds) ? record.usableCardIds.slice() : []
+            selectedActionKey: selectedActionKey || 'keep',
+            usableCardIds: Array.isArray(record.usableCardIds) ? record.usableCardIds.slice() : [],
+            candidates: decisionCandidates,
+            reasonTags: decisionReasonTags,
+            scoreSummary: decisionScoreSummary
         };
     }
     return {
@@ -865,11 +1184,12 @@ function buildCornerPlanState(gameState, cardState, playerKey, legalMoves, usabl
         };
     }
     const playerValue = toPlayerValue(playerKey);
-    const cornerControl = countCornerControl(gameState.board, playerValue);
-    const edgeControl = countEdgeControl(gameState.board, playerValue);
+    const board = getShapeAwareBoard(gameState.board, gameState, cardState);
+    const cornerControl = countCornerControl(board, playerValue);
+    const edgeControl = countEdgeControl(board, playerValue);
     const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
-    const hasCornerMoveNow = safeLegalMoves.some((move) => move && isCorner(move.row, move.col));
-    const hasEdgeMoveNow = safeLegalMoves.some((move) => move && !isCorner(move.row, move.col) && isEdge(move.row, move.col));
+    const hasCornerMoveNow = safeLegalMoves.some((move) => move && isCorner(move.row, move.col, board));
+    const hasEdgeMoveNow = safeLegalMoves.some((move) => move && !isCorner(move.row, move.col, board) && isEdge(move.row, move.col, board));
     let maxBoardBonusOnLegalMoves = 0;
     for (const move of safeLegalMoves) {
         if (!move || !Number.isInteger(move.row) || !Number.isInteger(move.col)) continue;
@@ -935,7 +1255,6 @@ function buildMovePlanContext(gameState, cardState, playerKey, legalMoves, usabl
     return {
         level: 6,
         board: gameState.board,
-        playerValue: toPlayerValue(ownKey),
         ownCharge: cardState && cardState.charge && Number.isFinite(cardState.charge[ownKey]) ? Number(cardState.charge[ownKey]) : 0,
         boardBonusByCell: (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
             ? cardState.boardBonusByCell
@@ -956,7 +1275,8 @@ function buildMovePlanContext(gameState, cardState, playerKey, legalMoves, usabl
 }
 
 function countDiscsByValue(gameState, playerValue) {
-    if (isStandardBoard(gameState.board)) {
+    const board = getShapeAwareBoard(gameState.board, gameState, null);
+    if (isStandardBoard(board)) {
         const counts = Core.countDiscs(gameState);
         return playerValue === Core.BLACK
             ? (counts.black - counts.white)
@@ -964,9 +1284,17 @@ function countDiscsByValue(gameState, playerValue) {
     }
     let own = 0;
     let opp = 0;
-    for (let r = 0; r < gameState.board.length; r++) {
-        for (let c = 0; c < gameState.board[r].length; c++) {
-            const v = gameState.board[r][c];
+    if (SharedBoardUtils && typeof SharedBoardUtils.collectBoardCoordinates === 'function' && typeof SharedBoardUtils.getCellValue === 'function') {
+        for (const cell of SharedBoardUtils.collectBoardCoordinates(board)) {
+            const v = SharedBoardUtils.getCellValue(board, cell.row, cell.col);
+            if (v === playerValue) own += 1;
+            else if (v === -playerValue) opp += 1;
+        }
+        return own - opp;
+    }
+    for (let r = 0; r < board.length; r++) {
+        for (let c = 0; c < board[r].length; c++) {
+            const v = board[r][c];
             if (v === playerValue) own += 1;
             else if (v === -playerValue) opp += 1;
         }
@@ -999,18 +1327,19 @@ function isStandardBoard(board) {
 }
 
 function evaluateBoardForPlayer(gameState, cardState, playerKey) {
+    const board = getShapeAwareBoard(gameState.board, gameState, cardState);
     const playerValue = toPlayerValue(playerKey);
     const context = getSafeCardContext(cardState);
     let mobilityDiff = 0;
-    if (isStandardBoard(gameState.board)) {
+    if (isStandardBoard(board)) {
         const ownMobility = Core.getLegalMoves(gameState, playerValue, context).length;
         const oppMobility = Core.getLegalMoves(gameState, -playerValue, context).length;
         mobilityDiff = ownMobility - oppMobility;
     }
-    const cornerDiff = countCorners(gameState.board, playerValue);
-    const positionalDiff = evaluatePositionalDiff(gameState.board, playerValue);
+    const cornerDiff = countCorners(board, playerValue);
+    const positionalDiff = evaluatePositionalDiff(board, playerValue);
     const discDiff = countDiscsByValue(gameState, playerValue);
-    const empties = countEmpties(gameState.board);
+    const empties = countEmpties(board);
     const discWeight = empties <= 12 ? 22 : (empties <= 24 ? 10 : 2);
 
     return (
@@ -1056,18 +1385,32 @@ function countDiscDiffOnBoard(board, playerValue) {
 
 function applyMoveToBoard(board, move, playerValue) {
     if (!Array.isArray(board)) return [];
-    const next = board.map((row) => (Array.isArray(row) ? row.slice() : []));
+    const next = (SharedBoardUtils && typeof SharedBoardUtils.cloneBoard === 'function')
+        ? SharedBoardUtils.cloneBoard(board)
+        : board.map((row) => (Array.isArray(row) ? row.slice() : []));
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return next;
-    if (!Array.isArray(next[move.row])) return next;
-    next[move.row][move.col] = playerValue;
+    if (SharedBoardUtils && typeof SharedBoardUtils.setCellValue === 'function') {
+        if (!SharedBoardUtils.setCellValue(next, move.row, move.col, playerValue)) return next;
+    } else {
+        if (!Array.isArray(next[move.row])) return next;
+        next[move.row][move.col] = playerValue;
+    }
     const flips = Array.isArray(move.flips) ? move.flips : [];
     for (const flip of flips) {
         if (Array.isArray(flip) && flip.length >= 2 && Number.isFinite(flip[0]) && Number.isFinite(flip[1])) {
-            if (Array.isArray(next[flip[0]])) next[flip[0]][flip[1]] = playerValue;
+            if (SharedBoardUtils && typeof SharedBoardUtils.setCellValue === 'function') {
+                SharedBoardUtils.setCellValue(next, flip[0], flip[1], playerValue);
+            } else if (Array.isArray(next[flip[0]])) {
+                next[flip[0]][flip[1]] = playerValue;
+            }
             continue;
         }
-        if (flip && Number.isFinite(flip.row) && Number.isFinite(flip.col) && Array.isArray(next[flip.row])) {
-            next[flip.row][flip.col] = playerValue;
+        if (flip && Number.isFinite(flip.row) && Number.isFinite(flip.col)) {
+            if (SharedBoardUtils && typeof SharedBoardUtils.setCellValue === 'function') {
+                SharedBoardUtils.setCellValue(next, flip.row, flip.col, playerValue);
+            } else if (Array.isArray(next[flip.row])) {
+                next[flip.row][flip.col] = playerValue;
+            }
         }
     }
     return next;
@@ -1188,17 +1531,18 @@ function scoreTacticalMove(move, context, options) {
     const playerKey = context.playerKey === 'black' ? 'black' : 'white';
     const playerValue = toPlayerValue(playerKey);
     const nextState = applyMoveForEvaluation(context.gameState, move, playerValue);
-    const empties = countEmpties(nextState.board);
+    const nextBoard = getShapeAwareBoard(nextState.board, nextState, context.cardState || null);
+    const empties = countEmpties(nextBoard);
     const discWeight = empties <= 12 ? 18 : (empties <= 24 ? 8 : 2);
     const discDiff = countDiscsByValue(nextState, playerValue);
-    const cornerDiff = countCorners(nextState.board, playerValue);
-    const opponentMoves = getLegalMovesBasic(nextState.board, -playerValue);
+    const cornerDiff = countCorners(nextBoard, playerValue);
+    const opponentMoves = getLegalMovesBasic(nextBoard, -playerValue);
     let opponentThreat = 0;
     let givesCorner = false;
     for (const oppMove of opponentMoves) {
         const pressure = ((oppMove.flips ? oppMove.flips.length : 0) * 80) + (evaluatePositionValue(oppMove.row, oppMove.col) * 8);
         if (pressure > opponentThreat) opponentThreat = pressure;
-        if (isCorner(oppMove.row, oppMove.col)) givesCorner = true;
+        if (isCorner(oppMove.row, oppMove.col, nextBoard)) givesCorner = true;
     }
     const row = Number.isFinite(move && move.row) ? move.row : 0;
     const col = Number.isFinite(move && move.col) ? move.col : 0;
@@ -1214,7 +1558,7 @@ function scoreTacticalMove(move, context, options) {
         (opponentMoves.length * -45) +
         (opponentThreat * -6) +
         (givesCorner ? (planState && planState.cornerSeekMode ? -2600 : -1800) : 0) +
-        ((planState && planState.cornerHoldMode && !isCorner(row, col) && !isEdge(row, col)) ? -380 : 0) +
+        ((planState && planState.cornerHoldMode && !isCorner(row, col, nextBoard) && !isEdge(row, col, nextBoard)) ? -380 : 0) +
         tie
     );
 
@@ -1223,7 +1567,7 @@ function scoreTacticalMove(move, context, options) {
 
     const beamWidth = resolveTacticalBeamWidth(options, empties);
     const searchValue = minimaxBoardSearch(
-        nextState.board,
+        nextBoard,
         -playerValue,
         playerValue,
         searchDepth - 1,
@@ -1246,8 +1590,13 @@ function makePolicyActionKey(move) {
     return `place:${move.row}:${move.col}`;
 }
 
-function cellType(row, col, size) {
-    const n = Number.isFinite(size) && size > 0 ? size : 8;
+function cellType(row, col, boardOrSize) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.getCellType === 'function') {
+        if (Array.isArray(boardOrSize)) return SharedBoardUtils.getCellType(row, col, boardOrSize);
+        const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
+        return SharedBoardUtils.getCellType(row, col, n, n);
+    }
+    const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
     if ((row === 0 || row === n - 1) && (col === 0 || col === n - 1)) return 'corner';
     if ((row === 1 || row === n - 2) && (col === 1 || col === n - 2)) return 'x';
     const nearTB = (row === 0 || row === n - 1) && (col === 1 || col === n - 2);
@@ -1257,9 +1606,9 @@ function cellType(row, col, size) {
     return 'inner';
 }
 
-function makePolicyAbstractActionKey(move, boardSize) {
+function makePolicyAbstractActionKey(move, boardOrSize) {
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return 'place_cat:unknown';
-    return `place_cat:${cellType(move.row, move.col, boardSize)}`;
+    return `place_cat:${cellType(move.row, move.col, boardOrSize)}`;
 }
 
 function countEmptiesInBoardKey(boardKey) {
@@ -1309,11 +1658,22 @@ function makePolicyAbstractStateKey(playerKey, board, pendingType, legalMovesCou
     const boardKey = canonical.boardKey || '';
     const pending = pendingType || '-';
     const legal = Number.isFinite(legalMovesCount) ? legalMovesCount : 0;
-    const empties = countEmptiesInBoardKey(boardKey);
+    const playerValue = toPlayerValue(playerKey);
+    const empties = Array.isArray(board) ? countEmpties(board) : countEmptiesInBoardKey(boardKey);
     const phase = empties >= 44 ? 'opening' : (empties >= 16 ? 'mid' : 'end');
     const mobility = toBucket(legal, [0, 2, 4, 6, 10, 20]);
-    const disc = toBucket(discDiffFromPlayer(boardKey, playerKey), [-20, -10, -4, 0, 4, 10, 20]);
-    const corner = toBucket(cornerDiffFromPlayer(boardKey, playerKey), [-4, -2, -1, 0, 1, 2, 4]);
+    const disc = toBucket(
+        Array.isArray(board)
+            ? countDiscsByValue({ board }, playerValue)
+            : discDiffFromPlayer(boardKey, playerKey),
+        [-20, -10, -4, 0, 4, 10, 20]
+    );
+    const corner = toBucket(
+        Array.isArray(board)
+            ? countCorners(board, playerValue)
+            : cornerDiffFromPlayer(boardKey, playerKey),
+        [-4, -2, -1, 0, 1, 2, 4]
+    );
     return `${playerKey}|${pending}|${phase}|mob:${mobility}|disc:${disc}|corner:${corner}`;
 }
 
@@ -1327,6 +1687,12 @@ function getPolicyScore(options, context, move) {
         model.schemaVersion !== 'policy_table.v2'
     ) return null;
 
+    const policyBoard = getShapeAwareBoard(
+        context && context.gameState ? context.gameState.board : null,
+        context && context.gameState ? context.gameState : null,
+        context && context.cardState ? context.cardState : null
+    );
+
     if (
         model.schemaVersion !== SELFPLAY_SCHEMA_VERSION &&
         model.schemaVersion !== LEGACY_SELFPLAY_SCHEMA_VERSION &&
@@ -1336,24 +1702,25 @@ function getPolicyScore(options, context, move) {
         const score = CpuPolicyTableRuntime.getActionScoreFromModel(model, move, {
             playerKey: context.playerKey,
             level: 6,
-            board: context && context.gameState ? context.gameState.board : null,
+            board: policyBoard,
             pendingType: context.pendingType || null,
-            legalMovesCount: context.legalMovesCount
+            legalMovesCount: context.legalMovesCount,
+            preferRaw8x8Keys: true
         });
         if (Number.isFinite(score)) return Number(score);
     }
 
     const schema = model.schemaVersion || 'policy_table.v1';
     const canonical = schema === 'policy_table.v2'
-        ? canonicalizeBoard(context.gameState.board)
-        : { boardKey: encodeBoard(context.gameState.board), transformId: 0 };
+        ? canonicalizeBoard(policyBoard)
+        : { boardKey: encodeBoard(policyBoard), transformId: 0 };
     const key = `${context.playerKey}|${canonical.boardKey}|${context.pendingType || '-'}|${context.legalMovesCount}`;
     let state = model.states[key];
     let isAbstract = false;
     if ((!state || !state.actions) && model.abstractStates && typeof model.abstractStates === 'object') {
         const abstractKey = makePolicyAbstractStateKey(
             context.playerKey,
-            context.gameState.board,
+            policyBoard,
             context.pendingType || '-',
             context.legalMovesCount
         );
@@ -1363,9 +1730,12 @@ function getPolicyScore(options, context, move) {
     if (!state || !state.actions) return null;
 
     const actionKey = (() => {
-        if (isAbstract) return makePolicyAbstractActionKey(move, context.gameState.board.length);
+        if (isAbstract) return makePolicyAbstractActionKey(move, policyBoard);
         if (schema !== 'policy_table.v2') return makePolicyActionKey(move);
-        const mapped = transformCoord(move.row, move.col, context.gameState.board.length, canonical.transformId);
+        if (SharedBoardUtils && typeof SharedBoardUtils.makeCanonicalActionKey === 'function') {
+            return SharedBoardUtils.makeCanonicalActionKey(move, policyBoard, canonical.transformId);
+        }
+        const mapped = transformCoord(move.row, move.col, Array.isArray(policyBoard) ? policyBoard.length : 8, canonical.transformId);
         return `place:${mapped.row}:${mapped.col}`;
     })();
     const stat = state.actions[actionKey];
@@ -1389,14 +1759,19 @@ function getPolicyActionScoreByKey(options, context, actionKey) {
         model.schemaVersion !== 'policy_table.v2'
     ) return null;
 
+    const policyBoard = getShapeAwareBoard(
+        context && context.gameState ? context.gameState.board : null,
+        context && context.gameState ? context.gameState : null,
+        context && context.cardState ? context.cardState : null
+    );
     const schema = model.schemaVersion || 'policy_table.v1';
     const canonical = schema === 'policy_table.v2'
-        ? canonicalizeBoard(context.gameState.board)
-        : { boardKey: encodeBoard(context.gameState.board), transformId: 0 };
+        ? canonicalizeBoard(policyBoard)
+        : { boardKey: encodeBoard(policyBoard), transformId: 0 };
     const key = `${context.playerKey}|${canonical.boardKey}|${context.pendingType || '-'}|${context.legalMovesCount}`;
     let state = model.states[key];
     if ((!state || !state.actions) && model.abstractStates && typeof model.abstractStates === 'object') {
-        const abstractKey = makePolicyAbstractStateKey(context.playerKey, context.gameState.board, context.pendingType || '-', context.legalMovesCount);
+        const abstractKey = makePolicyAbstractStateKey(context.playerKey, policyBoard, context.pendingType || '-', context.legalMovesCount);
         state = model.abstractStates[abstractKey];
     }
     if (!state || !state.actions) return null;
@@ -1410,11 +1785,15 @@ function getPolicyActionScoreByKey(options, context, actionKey) {
 }
 
 function createPolicyRuntimeContext(context, legalMovesCountOverride) {
+    const runtimeBoard = context && context.gameState
+        ? getShapeAwareBoard(context.gameState.board, context.gameState, context.cardState || null)
+        : null;
     return {
         playerKey: context && context.playerKey === 'black' ? 'black' : 'white',
         level: 6,
-        board: context && context.gameState ? context.gameState.board : null,
+        board: runtimeBoard,
         pendingType: context && context.pendingType ? context.pendingType : null,
+        preferRaw8x8Keys: true,
         legalMovesCount: Number.isFinite(legalMovesCountOverride)
             ? Number(legalMovesCountOverride)
             : (Number.isFinite(context && context.legalMovesCount) ? Number(context.legalMovesCount) : 0)
@@ -1675,14 +2054,11 @@ function buildBordaMaps(scoredMoves) {
 }
 
 function scorePlacementCandidates(legalMoves, rng, context, options) {
-    const forcedPlacement = resolveForcedPlacementCandidates(legalMoves, options);
+    const forcedPlacement = resolveForcedPlacementCandidates(legalMoves, options, context && context.gameState ? context.gameState.board : null);
     const defaultCandidateMoves = Array.isArray(legalMoves)
         ? legalMoves.filter((move) => move && Number.isInteger(move.row) && Number.isInteger(move.col))
         : [];
-    const candidateMoves = (options && options.enableTacticalLookahead === false && Array.isArray(forcedPlacement.moves) && forcedPlacement.moves.length > 0)
-        ? forcedPlacement.moves
-        : defaultCandidateMoves;
-    if (candidateMoves.length <= 0) {
+    if (defaultCandidateMoves.length <= 0) {
         return { move: null, metrics: null };
     }
     const enableTacticalLookahead = !(options && options.enableTacticalLookahead === false);
@@ -1692,18 +2068,24 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
     } catch (e) {
         usableCardIds = [];
     }
+    const candidateMoves = (!enableTacticalLookahead && Array.isArray(forcedPlacement.moves) && forcedPlacement.moves.length > 0)
+        ? forcedPlacement.moves
+        : defaultCandidateMoves;
+    if (candidateMoves.length <= 0) {
+        return { move: null, metrics: null };
+    }
     const planState = buildCornerPlanState(
         context && context.gameState,
         context && context.cardState,
         context && context.playerKey,
-        legalMoves,
+        candidateMoves,
         usableCardIds
     );
     const movePlanContext = buildMovePlanContext(
         context && context.gameState,
         context && context.cardState,
         context && context.playerKey,
-        legalMoves,
+        candidateMoves,
         usableCardIds
     );
     const scoreContext = Object.assign({}, context || {}, {
@@ -1922,6 +2304,9 @@ function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCou
     const ownKey = playerKey === 'black' ? 'black' : 'white';
     const oppKey = ownKey === 'black' ? 'white' : 'black';
     const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
+    const handCardIds = cardState && cardState.hands && Array.isArray(cardState.hands[ownKey])
+        ? cardState.hands[ownKey].slice()
+        : [];
     const hasDestroyedCardThisTurn = !!(
         cardState &&
         cardState.hasDestroyedCardThisTurnByPlayer &&
@@ -1983,7 +2368,8 @@ function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCou
         ownCharge: cardState && cardState.charge && Number.isFinite(cardState.charge[ownKey]) ? cardState.charge[ownKey] : 0,
         oppCharge: cardState && cardState.charge && Number.isFinite(cardState.charge[oppKey]) ? cardState.charge[oppKey] : 0,
         oppHandSize: cardState && cardState.hands && Array.isArray(cardState.hands[oppKey]) ? cardState.hands[oppKey].length : 0,
-        handSize: cardState && cardState.hands && Array.isArray(cardState.hands[ownKey]) ? cardState.hands[ownKey].length : 0,
+        handSize: handCardIds.length,
+        handCardIds,
         hasDestroyedCardThisTurn,
         forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0,
         ownCorners: planState.ownCorners,
@@ -1996,6 +2382,7 @@ function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCou
         cornerHoldMode: planState.cornerHoldMode,
         recoveryCostGap: planState.recoveryCostGap,
         highBonusMoveAvailable: planState.highBonusMoveAvailable,
+        maxLegalBoardBonus: planState.maxBoardBonusOnLegalMoves,
         maxLegalFlips,
         avgLegalFlips,
         maxLegalGain,
@@ -2232,7 +2619,7 @@ function chooseSuperBuoyancyTarget(gameState, cardState, playerKey, rng) {
             CardLogic.applySuperBuoyancyWill(simCardState, simGameState, onePlayerKey, row, col),
         (target, sourceGameState, _sourceCardState, onePlayerKey) => {
             const selfVal = toPlayerValue(onePlayerKey);
-                const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
+            const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const isEnemy = occupant === -selfVal;
             const base = evaluatePositionValue(target.row, target.col);
             return isEnemy ? (base * 1.5) + 1200 : (base * -0.35);
@@ -2263,7 +2650,7 @@ function chooseSuperGravityTarget(gameState, cardState, playerKey, rng) {
             CardLogic.applySuperGravityWill(simCardState, simGameState, onePlayerKey, row, col),
         (target, sourceGameState, _sourceCardState, onePlayerKey) => {
             const selfVal = toPlayerValue(onePlayerKey);
-                const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
+            const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const isEnemy = occupant === -selfVal;
             const base = evaluatePositionValue(target.row, target.col);
             return isEnemy ? (base * 1.5) + 1200 : (base * -0.35);
@@ -2832,13 +3219,24 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
     const activeCardState = decisionState.cardState || cardState;
     const pending = activeCardState.pendingEffectByPlayer[playerKey];
     const legalMoves = getLegalMovesForAction(activeGameState, activeCardState, playerKey);
-    const forcedPlacement = resolveForcedPlacementCandidates(legalMoves, options);
+    const forcedPlacement = resolveForcedPlacementCandidates(legalMoves, options, gameState ? gameState.board : null);
     const mustTakePriorityPlacement = !!forcedPlacement.category;
 
     if (pending && pending.stage === 'selectTarget') {
         const pendingAction = buildPendingSelectionAction(activeGameState, activeCardState, playerKey, pending.type, rng);
         if (pendingAction) {
-            return { action: pendingAction, legalMoves };
+            return {
+                action: pendingAction,
+                legalMoves,
+                selectionTrace: buildPendingActionTraceMetadata(
+                    activeGameState,
+                    activeCardState,
+                    playerKey,
+                    pending.type,
+                    legalMoves,
+                    pendingAction
+                )
+            };
         }
         return { action: { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } }, legalMoves };
     }
@@ -2865,7 +3263,14 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
         if (destroyCardId) {
             return {
                 action: { type: 'destroy_hand_card', destroyCardId },
-                legalMoves
+                legalMoves,
+                selectionTrace: buildDestroySelectionTraceMetadata(
+                    activeGameState,
+                    activeCardState,
+                    playerKey,
+                    legalMoves,
+                    destroyCardId
+                )
             };
         }
     }
@@ -2915,7 +3320,18 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
         if (forceUseByRiskScore) adjustedRate = Math.max(adjustedRate, 0.98);
         const randomUse = rng.random() < adjustedRate;
         if (cardId && (mustUseCardToCreateMove || forceUseByRiskScore || randomUse)) {
-            return { action: { type: 'use_card', useCardId: cardId, useCardOwnerKey: playerKey }, legalMoves };
+            return {
+                action: { type: 'use_card', useCardId: cardId, useCardOwnerKey: playerKey },
+                legalMoves,
+                selectionTrace: buildUseSelectionTraceMetadata(
+                    activeGameState,
+                    activeCardState,
+                    playerKey,
+                    legalMoves,
+                    cardId,
+                    'use_card'
+                )
+            };
         }
     }
 
@@ -3325,7 +3741,7 @@ function buildRetryFallbackDecision(gameState, cardState, playerKey, rng, option
     const sortedFallbackMoves = Array.isArray(fallbackLegalMoves)
         ? fallbackLegalMoves.slice().sort((a, b) => (a.row - b.row) || (a.col - b.col))
         : [];
-    const forcedFallback = resolveForcedPlacementCandidates(sortedFallbackMoves, options);
+    const forcedFallback = resolveForcedPlacementCandidates(sortedFallbackMoves, options, gameState ? gameState.board : null);
     const fallbackMoves = Array.isArray(forcedFallback.moves) && forcedFallback.moves.length > 0
         ? forcedFallback.moves
         : sortedFallbackMoves;
@@ -3459,6 +3875,13 @@ function runSingleGame(gameIndex, seed, options) {
         )
             ? decision.placementMetrics
             : null;
+        const selectionTrace = (
+            decision &&
+            decision.selectionTrace &&
+            typeof decision.selectionTrace === 'object'
+        )
+            ? decision.selectionTrace
+            : null;
 
         const record = {
             schemaVersion: normalizedOptions.schemaVersion,
@@ -3518,6 +3941,18 @@ function runSingleGame(gameIndex, seed, options) {
                 : null,
             tacticalScoreMissRatio: placementMetrics && Number.isFinite(placementMetrics.tacticalScoreMissRatio)
                 ? Number(placementMetrics.tacticalScoreMissRatio)
+                : null,
+            selectedActionKey: selectionTrace && typeof selectionTrace.selectedActionKey === 'string'
+                ? selectionTrace.selectedActionKey
+                : null,
+            decisionCandidates: selectionTrace && Array.isArray(selectionTrace.candidates)
+                ? selectionTrace.candidates.map((candidate) => Object.assign({}, candidate))
+                : [],
+            decisionReasonTags: selectionTrace && Array.isArray(selectionTrace.reasonTags)
+                ? selectionTrace.reasonTags.map((tag) => String(tag))
+                : [],
+            decisionScoreSummary: selectionTrace && selectionTrace.scoreSummary && typeof selectionTrace.scoreSummary === 'object'
+                ? Object.assign({}, selectionTrace.scoreSummary)
                 : null,
             pendingSelection
         };
@@ -3636,8 +4071,12 @@ module.exports = {
     runSelfPlayGames,
     runSingleGame,
     decideAction,
+    buildActorViewSnapshot,
+    buildCardDecisionContext,
+    buildSelectionTrace,
     selectPlacementMove,
     getPolicyActionScoreByKey,
     encodeBoard,
     getPolicyForPlayer
 };
+

@@ -1,0 +1,13 @@
+{
+  "ok": false,
+  "reproduced": false,
+  "targetCardId": "hyperactive_01",
+  "targetCardType": "HYPERACTIVE_WILL",
+  "targetMarkerType": "HYPERACTIVE",
+  "baseUrl": "https://card-othello-match.jqt236i.workers.dev",
+  "serverUrl": "https://card-othello-match.jqt236i.workers.dev",
+  "headless": false,
+  "slowMoMs": 0,
+  "timestamp": "2026-03-16T06:47:00.358Z",
+  "fatalError": "browser.newContext: Target page, context or browser has been closed\n    at async runAttempt (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\repro-hyperactive-public.js:863:27)\n    at async main (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\repro-hyperactive-public.js:1172:29)"
+}

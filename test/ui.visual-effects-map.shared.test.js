@@ -10,6 +10,7 @@ describe('visual-effects map shared between game/ui', () => {
   });
 
   afterEach(() => {
+    delete global.Image;
     delete global.window;
     delete global.document;
     delete global.requestAnimationFrame;
@@ -43,6 +44,44 @@ describe('visual-effects map shared between game/ui', () => {
     expect(disc.classList.contains('protected-stone')).toBe(true);
     const imageVar = disc.style.getPropertyValue('--special-stone-image');
     expect(imageVar).toContain('perma_protect_next_stone-black.png');
+  });
+
+  test('preloadStoneVisualEffectKeys preloads crystal family images once', () => {
+    const created = [];
+    const FakeImage = function () {
+      this.onload = null;
+      this.onerror = null;
+      Object.defineProperty(this, 'src', {
+        set(value) {
+          created.push(value);
+          if (typeof this.onload === 'function') this.onload();
+        }
+      });
+    };
+    global.Image = FakeImage;
+
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+    window.Image = FakeImage;
+
+    const first = window.preloadStoneVisualEffectKeys([
+      'goldStone',
+      'silverStone',
+      'rainbowStone',
+      'crystalStone',
+      'crystalStone'
+    ]);
+    expect(first.started).toEqual(expect.arrayContaining([
+      'assets/images/stones/gold_stone.png',
+      'assets/images/stones/silver.stone.png',
+      'assets/images/stones/rainbow_stone.png',
+      'assets/images/stones/crystal_stone.png'
+    ]));
+    expect(created.filter((src) => src === 'assets/images/stones/crystal_stone.png')).toHaveLength(1);
+
+    const second = window.preloadStoneVisualEffectKeys(['crystalStone']);
+    expect(second.started).toHaveLength(0);
+    expect(second.skipped).toContain('assets/images/stones/crystal_stone.png');
   });
 
   test('X_BOMB と CROSS_BOMB が別の石画像へ解決される', async () => {

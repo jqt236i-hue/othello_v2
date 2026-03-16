@@ -39,6 +39,7 @@
         'GOLD_STONE',
         'RAINBOW_STONE',
         'SILVER_STONE',
+        'CRYSTAL_STONE',
         'SELL_CARD_WILL',
         'PLUNDER_WILL',
         'WORK_WILL'

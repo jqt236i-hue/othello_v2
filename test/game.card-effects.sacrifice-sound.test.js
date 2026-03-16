@@ -65,10 +65,8 @@ describe('SACRIFICE_WILL sound timing', () => {
     await handleSacrificeSelection(3, 3, 'black');
 
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
-    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
-    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('sell_sacrifice_gain');
-    const playedKeys = global.SoundEngine.playEffectByKey.mock.calls.map((args) => args[0]);
-    expect(playedKeys).not.toContain('stone_destroy');
+    expect(global.SoundEngine.init).not.toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
   });
 
   test('生贄選択が不成立なら効果音を鳴らさない', async () => {

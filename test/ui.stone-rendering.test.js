@@ -7,10 +7,20 @@ const { JSDOM } = require('jsdom');
 // Ensure DOM is available
 require('../tests/jest.setup'); // in case project has setup, otherwise DOM is global via jest
 
-const boardRenderer = require('../ui/board-renderer');
-
 describe('UI stone rendering', () => {
   beforeEach(() => {
+    jest.resetModules();
+
+    if (typeof document === 'undefined') {
+      const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+      global.window = dom.window;
+      global.document = dom.window.document;
+      global.HTMLElement = dom.window.HTMLElement;
+    } else {
+      document.body.innerHTML = '<div id="board"></div>';
+    }
+    global.boardEl = document.getElementById('board');
+
     // Minimal globals expected by helper function tests
     global.BLACK = 1;
     global.WHITE = -1;
@@ -24,16 +34,18 @@ describe('UI stone rendering', () => {
 
     // Minimal gameState placeholder
     global.gameState = { currentPlayer: BLACK, board: Array.from({ length: 8 }, () => Array(8).fill(EMPTY)) };
-    global.cardState = { markers: [] };
+    global.cardState = { markers: [], pendingEffectByPlayer: { black: null, white: null } };
   });
 
   test('setDiscStoneImage helper sets CSS var for black stone', () => {
+    const boardRenderer = require('../ui/board-renderer');
     const fakeDisc = { style: { vars: {}, setProperty(k, v) { this.vars[k] = v; }, getPropertyValue(k) { return this.vars[k] || ''; } } };
     boardRenderer.setDiscStoneImage(fakeDisc, BLACK);
     assert.strictEqual(fakeDisc.style.getPropertyValue('--stone-image'), 'var(--normal-stone-black-image)');
   });
 
   test('setDiscStoneImage helper sets CSS var for white stone', () => {
+    const boardRenderer = require('../ui/board-renderer');
     const fakeDisc = { style: { vars: {}, setProperty(k, v) { this.vars[k] = v; }, getPropertyValue(k) { return this.vars[k] || ''; } } };
     boardRenderer.setDiscStoneImage(fakeDisc, WHITE);
     assert.strictEqual(fakeDisc.style.getPropertyValue('--stone-image'), 'var(--normal-stone-white-image)');
@@ -125,12 +137,12 @@ describe('UI stone rendering', () => {
     assert.strictEqual(inheritedDisc.querySelector('.flip-evade-timer').textContent, '0');
 
     const ultimateDisc = boardEl.querySelector('.cell[data-row="0"][data-col="7"] .disc');
-    assert.strictEqual(ultimateDisc.querySelector('.flip-evade-timer').textContent, '5');
+    assert.strictEqual(ultimateDisc.querySelector('.flip-evade-timer').textContent, '3');
 
     const coexistDisc = boardEl.querySelector('.cell[data-row="1"][data-col="0"] .disc');
     const coexistEvadeTimers = coexistDisc.querySelectorAll('.flip-evade-timer');
     assert.strictEqual(coexistEvadeTimers.length, 1);
-    assert.strictEqual(coexistEvadeTimers[0].textContent, '6');
+    assert.strictEqual(coexistEvadeTimers[0].textContent, '4');
     assert.strictEqual(coexistDisc.querySelector('.inherited-hyperactive-timer').textContent, '4');
 
     const protectedDisc = boardEl.querySelector('.cell[data-row="1"][data-col="1"] .disc');
@@ -180,6 +192,50 @@ describe('UI stone rendering', () => {
     assert.strictEqual(flipEvadeTimer.textContent, '2');
     assert.ok(destroyEvadeTimer, 'expected destroy evade timer');
     assert.strictEqual(destroyEvadeTimer.textContent, '2');
+  });
+
+  test('board-renderer shows persistent trap visual to the local owner only', () => {
+    const boardRenderer = require('../ui/board-renderer');
+    if (typeof document === 'undefined') {
+      const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+      global.window = dom.window;
+      global.document = dom.window.document;
+      global.HTMLElement = dom.window.HTMLElement;
+    }
+
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    gameState.board[2][2] = BLACK;
+    cardState.markers = [
+      {
+        id: 22,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: { type: 'TRAP', remainingOwnerTurns: 1 }
+      }
+    ];
+
+    global.window.LOCAL_PLAYER_KEY = 'black';
+
+    boardRenderer.renderBoardFull();
+
+    const ownerDisc = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .disc');
+    assert.ok(ownerDisc, 'expected trap disc for owner render');
+    assert.strictEqual(ownerDisc.querySelector('.special-timer').textContent, '1');
+
+    boardEl.innerHTML = '';
+    global.window.LOCAL_PLAYER_KEY = 'white';
+
+    boardRenderer.renderBoardFull();
+
+    const opponentDisc = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .disc');
+    assert.ok(opponentDisc, 'expected trap disc for opponent render');
+    assert.strictEqual(opponentDisc.querySelector('.special-timer'), null);
   });
 
   test('diff-renderer renders freeze overlay and remaining turns on frozen cells', () => {

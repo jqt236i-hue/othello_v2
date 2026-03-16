@@ -5,6 +5,14 @@ const {
 const fs = require('fs');
 const path = require('path');
 
+function createBenchmarkPolicy(overrides) {
+    return Object.assign({
+        allowCardUsage: false,
+        cardUsageRate: 0,
+        enableTacticalLookahead: false
+    }, overrides || {});
+}
+
 describe('selfplay benchmark policy script', () => {
     beforeEach(() => {
         jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -52,8 +60,8 @@ describe('selfplay benchmark policy script', () => {
             games: 2,
             seed: 14,
             maxPlies: 80,
-            policyA: { allowCardUsage: false, cardUsageRate: 0 },
-            policyB: { allowCardUsage: false, cardUsageRate: 0 }
+            policyA: createBenchmarkPolicy(),
+            policyB: createBenchmarkPolicy()
         };
         const a = await runBenchmark(options);
         const b = await runBenchmark(options);
@@ -86,6 +94,8 @@ describe('selfplay benchmark policy script', () => {
             games: 1,
             seed: 1,
             maxPlies: 40,
+            policyA: createBenchmarkPolicy(),
+            policyB: createBenchmarkPolicy(),
             modelAPath: modelPath
         });
 
@@ -101,8 +111,8 @@ describe('selfplay benchmark policy script', () => {
             games: 2,
             seed: 3,
             maxPlies: 60,
-            policyA: { allowCardUsage: false, cardUsageRate: 0 },
-            policyB: { allowCardUsage: false, cardUsageRate: 0 },
+            policyA: createBenchmarkPolicy(),
+            policyB: createBenchmarkPolicy(),
             onProgress: (one) => logs.push(one)
         });
 
@@ -118,8 +128,8 @@ describe('selfplay benchmark policy script', () => {
             games: 4,
             seed: 3,
             maxPlies: 60,
-            policyA: { allowCardUsage: false, cardUsageRate: 0 },
-            policyB: { allowCardUsage: false, cardUsageRate: 0 },
+            policyA: createBenchmarkPolicy(),
+            policyB: createBenchmarkPolicy(),
             shouldStop: () => stopRequested,
             onProgress: (one) => {
                 if (one && one.completed >= 1) stopRequested = true;
@@ -132,15 +142,15 @@ describe('selfplay benchmark policy script', () => {
             games: 2,
             seed: 19,
             maxPlies: 220,
-            policyA: { allowCardUsage: true, cardUsageRate: 1 },
-            policyB: { allowCardUsage: true, cardUsageRate: 1 }
+            policyA: createBenchmarkPolicy({ allowCardUsage: true, cardUsageRate: 1 }),
+            policyB: createBenchmarkPolicy({ allowCardUsage: true, cardUsageRate: 1 })
         });
         const noCards = await runBenchmark({
             games: 2,
             seed: 19,
             maxPlies: 220,
-            policyA: { allowCardUsage: false, cardUsageRate: 0 },
-            policyB: { allowCardUsage: false, cardUsageRate: 0 }
+            policyA: createBenchmarkPolicy(),
+            policyB: createBenchmarkPolicy()
         });
 
         expect(withCards.result.quality.A.useCardActions + withCards.result.quality.B.useCardActions).toBeGreaterThan(0);
@@ -152,8 +162,8 @@ describe('selfplay benchmark policy script', () => {
             games: 2,
             seed: 21,
             maxPlies: 80,
-            policyA: { allowCardUsage: false, cardUsageRate: 0 },
-            policyB: { allowCardUsage: false, cardUsageRate: 0 }
+            policyA: createBenchmarkPolicy(),
+            policyB: createBenchmarkPolicy()
         };
 
         const sequential = await runBenchmark(Object.assign({}, options, { jobs: 1 }));

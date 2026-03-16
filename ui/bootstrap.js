@@ -76,6 +76,262 @@
         } catch (e) { /* no-op */ }
     }
 
+    function getTransientUIResetRoot() {
+        try {
+            if (typeof window !== 'undefined' && window) return window;
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis) return globalThis;
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function getTransientUIResetDocument() {
+        try {
+            if (typeof document !== 'undefined' && document) return document;
+        } catch (e) { /* ignore */ }
+        const root = getTransientUIResetRoot();
+        return root && root.document ? root.document : null;
+    }
+
+    function getPlaybackStateModuleForReset() {
+        const root = getTransientUIResetRoot();
+        if (root && root.PlaybackStateManager) return root.PlaybackStateManager;
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) return globalThis.PlaybackStateManager;
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof require === 'function') return require('./playback-state-manager');
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function abortAnimationPlaybackForReset() {
+        const root = getTransientUIResetRoot();
+        try {
+            if (root && root.AnimationEngine && typeof root.AnimationEngine.abortAndSync === 'function') {
+                root.AnimationEngine.abortAndSync();
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    function clearPlaybackStateForReset() {
+        const root = getTransientUIResetRoot();
+        const playbackState = getPlaybackStateModuleForReset();
+        let clearedViaManager = false;
+
+        try {
+            if (playbackState && typeof playbackState.clearPlaybackLock === 'function') {
+                playbackState.clearPlaybackLock();
+                clearedViaManager = true;
+            }
+        } catch (e) { /* ignore */ }
+
+        if (!clearedViaManager && root) {
+            try { root.isCardAnimating = false; } catch (e) { /* ignore */ }
+            try { root.VisualPlaybackActive = false; } catch (e) { /* ignore */ }
+            try { root.__playbackActiveSince = null; } catch (e) { /* ignore */ }
+            try { root.__boardUpdateContext = null; } catch (e) { /* ignore */ }
+            try { root.__suppressNextDiffFlip = false; } catch (e) { /* ignore */ }
+        }
+
+        if (!root) return;
+        try { root.__drawHandAnimActive = false; } catch (e) { /* ignore */ }
+        try { root.__handSequentialRevealState = null; } catch (e) { /* ignore */ }
+        try { delete root._currentPlaybackScope; } catch (e) { try { root._currentPlaybackScope = null; } catch (err) { /* ignore */ } }
+    }
+
+    function clearTransientTimersForReset() {
+        const root = getTransientUIResetRoot();
+        try {
+            if (root && root.TimerRegistry && typeof root.TimerRegistry.clearAll === 'function') {
+                root.TimerRegistry.clearAll();
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    function unlockBoardPlaybackForReset() {
+        const doc = getTransientUIResetDocument();
+        try {
+            const board = doc ? doc.getElementById('board') : null;
+            if (board) board.classList.remove('playback-locked');
+        } catch (e) { /* ignore */ }
+    }
+
+    function resetBoardCellTransientState(cell) {
+        if (!cell || !cell.querySelectorAll) return;
+        try {
+            const discs = Array.from(cell.querySelectorAll('.disc'));
+            discs.forEach((disc) => {
+                try {
+                    if (!disc || !disc.classList) return;
+                    const shouldRemoveDisc =
+                        disc.classList.contains('destroy-fade') ||
+                        disc.classList.contains('shatter');
+                    if (shouldRemoveDisc) {
+                        if (disc.parentElement) disc.parentElement.removeChild(disc);
+                        return;
+                    }
+                    disc.classList.remove('stone-hidden', 'stone-hidden-all', 'stone-instant');
+                    disc.style.visibility = 'visible';
+                    disc.style.opacity = '';
+                } catch (e) { /* ignore */ }
+            });
+
+            if (!cell.querySelector('.disc')) {
+                cell.classList.remove('has-disc');
+            } else {
+                cell.classList.add('has-disc');
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    function removeElementsBySelectorForReset(doc, selector) {
+        if (!doc || typeof doc.querySelectorAll !== 'function') return;
+        try {
+            doc.querySelectorAll(selector).forEach((el) => {
+                try { if (el && el.parentElement) el.parentElement.removeChild(el); } catch (e) { /* ignore */ }
+            });
+        } catch (e) { /* ignore */ }
+    }
+
+    function clearDetachedBodyDiscsForReset(doc) {
+        if (!doc || !doc.body) return;
+        try {
+            const bodyChildren = Array.from(doc.body.children);
+            bodyChildren.forEach((el) => {
+                try {
+                    if (!el || !el.classList || !el.classList.contains('disc')) return;
+                    const pos = String((el.style && el.style.position) || '').toLowerCase();
+                    if (pos === 'fixed' || pos === 'absolute') {
+                        if (el.parentElement) el.parentElement.removeChild(el);
+                    }
+                } catch (e) { /* ignore */ }
+            });
+        } catch (e) { /* ignore */ }
+    }
+
+    function clearBoardTransientDomForReset() {
+        const doc = getTransientUIResetDocument();
+        if (!doc) return;
+
+        try {
+            const board = doc.getElementById('board');
+            if (board) {
+                board.querySelectorAll('.cell').forEach((cell) => {
+                    resetBoardCellTransientState(cell);
+                });
+            }
+        } catch (e) { /* ignore */ }
+
+        try {
+            const cardFxLayer = doc.getElementById('card-fx-layer');
+            if (cardFxLayer) cardFxLayer.innerHTML = '';
+        } catch (e) { /* ignore */ }
+
+        removeElementsBySelectorForReset(doc, '.hyperactive-move-ghost');
+        clearDetachedBodyDiscsForReset(doc);
+    }
+
+    function removeElementByIdForReset(doc, elementId) {
+        if (!doc) return;
+        try {
+            const element = doc.getElementById(elementId);
+            if (element && element.parentElement) element.parentElement.removeChild(element);
+        } catch (e) { /* ignore */ }
+    }
+
+    function closeTransientPanelsForReset() {
+        const doc = getTransientUIResetDocument();
+        const root = getTransientUIResetRoot();
+        if (!doc) return;
+
+        removeElementByIdForReset(doc, 'result-overlay');
+
+        try {
+            const infoPanel = doc.getElementById('stone-info-panel');
+            if (infoPanel) infoPanel.classList.remove('visible');
+        } catch (e) { /* ignore */ }
+        try {
+            const infoTagPanel = doc.getElementById('stone-info-tag-panel');
+            if (infoTagPanel) infoTagPanel.classList.remove('is-open');
+        } catch (e) { /* ignore */ }
+
+        removeElementsBySelectorForReset(doc, '.observer-speech-bubble');
+
+        try {
+            const hideCpuSpeechBubbleFn = (typeof hideCpuSpeechBubble === 'function')
+                ? hideCpuSpeechBubble
+                : (root && typeof root.hideCpuSpeechBubble === 'function' ? root.hideCpuSpeechBubble : null);
+            if (hideCpuSpeechBubbleFn) hideCpuSpeechBubbleFn();
+        } catch (e) { /* ignore */ }
+    }
+
+    function removeNonPreservedChildren(parent, preservedChildren) {
+        if (!parent || !parent.children) return;
+        const preserved = new Set((preservedChildren || []).filter(Boolean));
+        Array.from(parent.children).forEach((child) => {
+            try {
+                if (!preserved.has(child) && child.parentElement === parent) {
+                    child.parentElement.removeChild(child);
+                }
+            } catch (e) { /* ignore */ }
+        });
+    }
+
+    function resetHandAnimationUiForReset() {
+        const doc = getTransientUIResetDocument();
+        if (!doc) return;
+
+        try {
+            const handLayerEl = doc.getElementById('handLayer');
+            const handWrapperEl = doc.getElementById('handWrapper');
+            const handSvgEl = doc.getElementById('handSvg');
+            const heldStoneEl = doc.getElementById('heldStone');
+
+            if (handLayerEl) {
+                handLayerEl.style.display = 'none';
+                removeNonPreservedChildren(handLayerEl, [handWrapperEl]);
+            }
+            if (handWrapperEl) {
+                handWrapperEl.style.transform = '';
+                handWrapperEl.style.display = 'none';
+                removeNonPreservedChildren(handWrapperEl, [handSvgEl, heldStoneEl]);
+            }
+            if (handSvgEl) handSvgEl.style.visibility = '';
+            if (heldStoneEl) {
+                heldStoneEl.innerHTML = '';
+                heldStoneEl.style.display = 'none';
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    function resetRenderStatsForReset() {
+        const root = getTransientUIResetRoot();
+        try {
+            const resetRenderStatsFn = (typeof resetRenderStats === 'function')
+                ? resetRenderStats
+                : (root && typeof root.resetRenderStats === 'function' ? root.resetRenderStats : null);
+            if (resetRenderStatsFn) resetRenderStatsFn();
+        } catch (e) { /* ignore */ }
+    }
+
+    function runResetTransientUIStateCleanup() {
+        // Keep abort first so any final sync can consume pending diff context before we clear playback state.
+        [
+            abortAnimationPlaybackForReset,
+            clearPlaybackStateForReset,
+            clearTransientTimersForReset,
+            unlockBoardPlaybackForReset,
+            clearBoardTransientDomForReset,
+            closeTransientPanelsForReset,
+            resetHandAnimationUiForReset,
+            resetRenderStatsForReset
+        ].forEach((step) => {
+            try { step(); } catch (e) { /* ignore */ }
+        });
+    }
+
     // export to global/window for non-module callers
     if (typeof window !== 'undefined') {
         try { window.addLog = addLog; } catch (e) {}
@@ -163,7 +419,23 @@
             scheduleCpuTurn: (ms, cb) => { return timers.waitMs(ms || 0).then(cb); },
             now: () => Date.now(),
             // Let game/move-executor await the UI playback lifecycle (AnimationEngine / visual writer)
-            waitForPlayback: uiMod.waitForPlaybackIdle
+            waitForPlayback: uiMod.waitForPlaybackIdle,
+            emitPresentationEvent: (ev) => {
+                try {
+                    if (typeof globalThis === 'undefined') return false;
+                    const cardStateRef = (globalThis.cardState && typeof globalThis.cardState === 'object')
+                        ? globalThis.cardState
+                        : null;
+                    const boardOps = (globalThis.BoardOps && typeof globalThis.BoardOps.emitPresentationEvent === 'function')
+                        ? globalThis.BoardOps
+                        : null;
+                    if (!cardStateRef || !boardOps) return false;
+                    boardOps.emitPresentationEvent(cardStateRef, ev);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
         }));
 
         // Visual effects map
@@ -174,11 +446,9 @@
             __setSpecialStoneScaleImpl__: uiMod.__setSpecialStoneScaleImpl__ || function(scale) { if (typeof window !== 'undefined' && window.setSpecialStoneScale) window.setSpecialStoneScale(scale); }
         }));
 
-        // Trap placement flash (game-side logic requests board element via DI)
-        connect('./diff-renderer', '../game/card-effects/trap', () => ({
-            getBoardElement: () => {
-                try { return (typeof document !== 'undefined') ? document.getElementById('board') : null; } catch (e) { return null; }
-            }
+        // Trap placement flash stays in UI and is invoked from game via DI.
+        connect('./animation-utils', '../game/card-effects/trap', (uiMod) => ({
+            playTrapPlacementFlash: uiMod.playTrapPlacementFlash
         }));
 
         // Turn manager helpers (readCpuSmartness / scheduleCpuTurn / isDocumentHidden / pulseDeckUI)
@@ -190,126 +460,7 @@
                     isDocumentHidden: () => (typeof document !== 'undefined' && document.hidden) || false,
                     pulseDeckUI: () => {},
                     scheduleCpuTurn: (ms, cb) => { timersImpl.waitMs(ms || 0).then(cb); },
-                    resetTransientUIState: () => {
-                        try {
-                            if (typeof window !== 'undefined') {
-                                if (window.AnimationEngine && typeof window.AnimationEngine.abortAndSync === 'function') {
-                                    try { window.AnimationEngine.abortAndSync(); } catch (e) { /* ignore */ }
-                                }
-                                window.VisualPlaybackActive = false;
-                                window.__playbackActiveSince = null;
-                                try { window.__drawHandAnimActive = false; } catch (e) { /* ignore */ }
-                                try { window.__handSequentialRevealState = null; } catch (e) { /* ignore */ }
-                                try {
-                                    if (window.TimerRegistry && typeof window.TimerRegistry.clearAll === 'function') {
-                                        window.TimerRegistry.clearAll();
-                                    }
-                                } catch (e) { /* ignore */ }
-                            }
-                        } catch (e) { /* ignore */ }
-
-                        try {
-                            const board = (typeof document !== 'undefined') ? document.getElementById('board') : null;
-                            if (board) board.classList.remove('playback-locked');
-                        } catch (e) { /* ignore */ }
-
-                        try {
-                            if (typeof document !== 'undefined') {
-                                const board = document.getElementById('board');
-                                if (board) {
-                                    board.querySelectorAll('.cell').forEach((cell) => {
-                                        try {
-                                            const discs = Array.from(cell.querySelectorAll('.disc'));
-                                            discs.forEach((disc) => {
-                                                try {
-                                                    if (!disc || !disc.classList) return;
-                                                    const shouldRemoveDisc =
-                                                        disc.classList.contains('destroy-fade') ||
-                                                        disc.classList.contains('shatter');
-                                                    if (shouldRemoveDisc) {
-                                                        if (disc.parentElement) disc.parentElement.removeChild(disc);
-                                                        return;
-                                                    }
-                                                    disc.classList.remove('stone-hidden', 'stone-hidden-all', 'stone-instant');
-                                                    disc.style.visibility = 'visible';
-                                                    disc.style.opacity = '';
-                                                } catch (e) { /* ignore */ }
-                                            });
-
-                                            if (!cell.querySelector('.disc')) {
-                                                cell.classList.remove('has-disc');
-                                            } else {
-                                                cell.classList.add('has-disc');
-                                            }
-                                        } catch (e) { /* ignore */ }
-                                    });
-                                }
-
-                                const cardFxLayer = document.getElementById('card-fx-layer');
-                                if (cardFxLayer) cardFxLayer.innerHTML = '';
-
-                                document.querySelectorAll('.hyperactive-move-ghost').forEach((el) => {
-                                    try { if (el && el.parentElement) el.parentElement.removeChild(el); } catch (e) { /* ignore */ }
-                                });
-
-                                const bodyChildren = document.body ? Array.from(document.body.children) : [];
-                                bodyChildren.forEach((el) => {
-                                    try {
-                                        if (!el || !el.classList || !el.classList.contains('disc')) return;
-                                        const pos = String((el.style && el.style.position) || '').toLowerCase();
-                                        if (pos === 'fixed' || pos === 'absolute') {
-                                            if (el.parentElement) el.parentElement.removeChild(el);
-                                        }
-                                    } catch (e) { /* ignore */ }
-                                });
-                            }
-                        } catch (e) { /* ignore */ }
-
-                        try {
-                            const resultOverlay = (typeof document !== 'undefined') ? document.getElementById('result-overlay') : null;
-                            if (resultOverlay && resultOverlay.parentElement) resultOverlay.parentElement.removeChild(resultOverlay);
-                        } catch (e) { /* ignore */ }
-                        try {
-                            const infoPanel = (typeof document !== 'undefined') ? document.getElementById('stone-info-panel') : null;
-                            if (infoPanel) infoPanel.classList.remove('visible');
-                        } catch (e) { /* ignore */ }
-                        try {
-                            const infoTagPanel = (typeof document !== 'undefined') ? document.getElementById('stone-info-tag-panel') : null;
-                            if (infoTagPanel) infoTagPanel.classList.remove('is-open');
-                        } catch (e) { /* ignore */ }
-                        try {
-                            if (typeof document !== 'undefined') {
-                                document.querySelectorAll('.observer-speech-bubble').forEach((el) => {
-                                    try { if (el && el.parentElement) el.parentElement.removeChild(el); } catch (e) { /* ignore */ }
-                                });
-                            }
-                        } catch (e) { /* ignore */ }
-                        try {
-                            if (typeof hideCpuSpeechBubble === 'function') hideCpuSpeechBubble();
-                        } catch (e) { /* ignore */ }
-
-                        try {
-                            const handLayerEl = (typeof document !== 'undefined') ? document.getElementById('handLayer') : null;
-                            if (handLayerEl) handLayerEl.style.display = 'none';
-                            const handWrapperEl = (typeof document !== 'undefined') ? document.getElementById('handWrapper') : null;
-                            if (handWrapperEl) {
-                                handWrapperEl.innerHTML = '';
-                                handWrapperEl.style.transform = '';
-                                handWrapperEl.style.display = 'none';
-                            }
-                            const heldStoneEl = (typeof document !== 'undefined') ? document.getElementById('heldStone') : null;
-                            if (heldStoneEl) heldStoneEl.innerHTML = '';
-                        } catch (e) { /* ignore */ }
-
-                        try {
-                            const resetRenderStatsFn = (typeof resetRenderStats === 'function')
-                                ? resetRenderStats
-                                : ((typeof window !== 'undefined' && window && typeof window.resetRenderStats === 'function')
-                                    ? window.resetRenderStats
-                                    : null);
-                            if (resetRenderStatsFn) resetRenderStatsFn();
-                        } catch (e) { /* ignore */ }
-                    },
+                    resetTransientUIState: () => { runResetTransientUIStateCleanup(); },
                     clearLogUI: () => {
                         try {
                             const el = (typeof document !== 'undefined') ? document.getElementById('log') : null;

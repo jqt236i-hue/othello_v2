@@ -1,0 +1,141 @@
+[
+  {
+    "seed": 3,
+    "ply": 78,
+    "future": 1,
+    "legalMoves": 1,
+    "highBonus": false,
+    "cornerEmergency": true,
+    "hasCornerMoveNow": false,
+    "hasEdgeMoveNow": false,
+    "reasonTags": [
+      "decision:use",
+      "corner_emergency",
+      "hand_pressure",
+      "threshold_passed"
+    ],
+    "handCards": [
+      "split_01",
+      "ribo_01",
+      "meteor_01",
+      "supply_01",
+      "freeze_01"
+    ],
+    "usableCardIds": [
+      "meteor_01"
+    ]
+  },
+  {
+    "seed": 12,
+    "ply": 37,
+    "future": 2,
+    "legalMoves": 6,
+    "highBonus": true,
+    "cornerEmergency": false,
+    "hasCornerMoveNow": false,
+    "hasEdgeMoveNow": false,
+    "reasonTags": [
+      "decision:use",
+      "high_bonus_move_available",
+      "hand_pressure",
+      "threshold_passed"
+    ],
+    "handCards": [
+      "super_buoyancy_01",
+      "will_hunter_king_01",
+      "extreme_hyperactive_01",
+      "meteor_01",
+      "sniper_01"
+    ],
+    "usableCardIds": [
+      "super_buoyancy_01",
+      "meteor_01",
+      "sniper_01"
+    ]
+  },
+  {
+    "seed": 13,
+    "ply": 54,
+    "future": 2,
+    "legalMoves": 6,
+    "highBonus": true,
+    "cornerEmergency": true,
+    "hasCornerMoveNow": false,
+    "hasEdgeMoveNow": false,
+    "reasonTags": [
+      "decision:use",
+      "corner_emergency",
+      "high_bonus_move_available",
+      "hand_pressure",
+      "threshold_passed"
+    ],
+    "handCards": [
+      "heaven_01",
+      "regen_01",
+      "gluttonous_will_01",
+      "meteor_01",
+      "silver_stone"
+    ],
+    "usableCardIds": [
+      "heaven_01",
+      "regen_01",
+      "meteor_01",
+      "silver_stone"
+    ]
+  },
+  {
+    "seed": 14,
+    "ply": 22,
+    "future": -1,
+    "legalMoves": 7,
+    "highBonus": false,
+    "cornerEmergency": true,
+    "hasCornerMoveNow": false,
+    "hasEdgeMoveNow": false,
+    "reasonTags": [
+      "decision:use",
+      "corner_emergency",
+      "hand_pressure",
+      "threshold_passed"
+    ],
+    "handCards": [
+      "work_01",
+      "escape_01",
+      "freeze_01",
+      "sniper_01",
+      "meteor_01"
+    ],
+    "usableCardIds": [
+      "work_01",
+      "escape_01",
+      "sniper_01",
+      "meteor_01"
+    ]
+  },
+  {
+    "seed": 16,
+    "ply": 99,
+    "future": -1,
+    "legalMoves": 0,
+    "highBonus": false,
+    "cornerEmergency": true,
+    "hasCornerMoveNow": false,
+    "hasEdgeMoveNow": false,
+    "reasonTags": [
+      "decision:use",
+      "force_use_card",
+      "corner_emergency",
+      "hand_pressure"
+    ],
+    "handCards": [
+      "ribo_01",
+      "meteor_01",
+      "gluttonous_will_01",
+      "corrosion_01",
+      "supply_01"
+    ],
+    "usableCardIds": [
+      "meteor_01"
+    ]
+  }
+]

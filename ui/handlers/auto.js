@@ -19,6 +19,33 @@ let _autoTickCount = 0;
 let _stallTickCount = 0;
 let _lastTurnNumber = null;
 
+function _getPlaybackStateModule() {
+    if (typeof PlaybackStateManager !== 'undefined' && PlaybackStateManager) return PlaybackStateManager;
+    if (typeof require === 'function') {
+        try { return require('../playback-state-manager'); } catch (e) { /* ignore */ }
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) return globalThis.PlaybackStateManager;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _isPlaybackActiveForAuto() {
+    const playbackState = _getPlaybackStateModule();
+    if (playbackState && typeof playbackState.getPlaybackActive === 'function') {
+        return playbackState.getPlaybackActive() === true;
+    }
+    return (typeof window !== 'undefined') && window.VisualPlaybackActive === true;
+}
+
+function _isCardAnimatingForAuto() {
+    const playbackState = _getPlaybackStateModule();
+    if (playbackState && typeof playbackState.getCardAnimating === 'function') {
+        return playbackState.getCardAnimating() === true;
+    }
+    return (typeof window !== 'undefined') && window.isCardAnimating === true;
+}
+
 function _hasPendingPresentationEvents() {
     try {
         const cs = (typeof cardState !== 'undefined') ? cardState : ((typeof window !== 'undefined') ? window.cardState : null);
@@ -68,8 +95,8 @@ function _uiAutoTick() {
 
         if (typeof gameState !== 'undefined' && gameState && gameState.currentPlayer === BLACK) {
             const winBusy = (typeof window !== 'undefined') && (
-                window.VisualPlaybackActive === true ||
-                window.isCardAnimating === true ||
+                _isPlaybackActiveForAuto() ||
+                _isCardAnimatingForAuto() ||
                 window.isProcessing === true
             );
             const hasPendingPresentation = _hasPendingPresentationEvents();

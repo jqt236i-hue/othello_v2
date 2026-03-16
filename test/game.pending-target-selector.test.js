@@ -45,4 +45,36 @@ describe('pending-target-selector', () => {
 
     expect(selected).toEqual({ row: 3, col: 2 });
   });
+
+  test('buildPendingSelectionAction for HEAVEN_BLESSING prefers retention-heavy future utility card', () => {
+    const action = PendingTargetSelector.buildPendingSelectionAction({
+      pendingType: 'HEAVEN_BLESSING',
+      playerKey: 'white',
+      gameState: {},
+      rng: () => 0.5,
+      cardState: {
+        pendingEffectByPlayer: {
+          white: { type: 'HEAVEN_BLESSING', stage: 'selectTarget', offers: ['guard_01', 'meteor_01'] }
+        }
+      },
+      cardLogic: {
+        getCardCost: (id) => id === 'meteor_01' ? 21 : 2,
+        getCardDef: (id) => ({ id, type: id === 'meteor_01' ? 'METEOR_WILL' : 'GUARD_WILL' })
+      },
+      getLegalMovesForAction: () => [{ row: 0, col: 0 }, { row: 2, col: 3 }],
+      buildCardDecisionContext: () => ({ level: 6, playerValue: -1 }),
+      cpuPolicyCore: {
+        scoreCardUseDecision: (id) => {
+          if (id === 'meteor_01') return { score: 20, shouldUse: false };
+          return { score: 42, shouldUse: true };
+        },
+        scoreCardRetentionForSell: (id) => {
+          if (id === 'meteor_01') return { score: -10 };
+          return { score: 30 };
+        }
+      }
+    });
+
+    expect(action).toEqual({ type: 'place', heavenBlessingCardId: 'guard_01' });
+  });
 });

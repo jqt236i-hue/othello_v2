@@ -1,6 +1,6 @@
 {
-  "version": "2026-03-12",
-  "generatedAt": "2026-03-12T11:20:01.159Z",
+  "version": "2026-03-16",
+  "generatedAt": "2026-03-16T07:41:01.075Z",
   "files": [
     {
       "path": "assets/images/stones/BREEDING_WILL-black.png",
@@ -17,6 +17,10 @@
     {
       "path": "assets/images/stones/CROSS_BOMB-white.png",
       "sha256": "beb80b131165dd393c2ef97400078e67e7309167db3e55c944c9818339e9e5c8"
+    },
+    {
+      "path": "assets/images/stones/crystal_stone.png",
+      "sha256": "7ae3a83d297c6ae5f245490173d417ff9cd0d09094a3335daebe138ac69df4aa"
     },
     {
       "path": "assets/images/stones/DESTROY_DRAGON-black.png",

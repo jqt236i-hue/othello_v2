@@ -2,229 +2,160 @@
 (function () {
     'use strict';
 
-    let commentaryContextHelpers = null;
-    let commentaryRuntimeHelpers = null;
-    let boardUpdateDrainInProgress = false;
-    let boardUpdateDrainPending = false;
+    let gamePresentationRuntime = null;
+    let boardUpdateDrainController = null;
+    const missingRuntimeWarnings = Object.create(null);
 
-    function resolveCommentaryContextHelpers() {
-        if (commentaryContextHelpers) return commentaryContextHelpers;
-
-        try {
-            if (typeof require === 'function') {
-                commentaryContextHelpers = require('../shared/commentary-context-helpers');
-                if (commentaryContextHelpers) return commentaryContextHelpers;
-            }
-        } catch (e) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && globalThis.CommentaryContextHelpers) {
-                commentaryContextHelpers = globalThis.CommentaryContextHelpers;
-                return commentaryContextHelpers;
-            }
-        } catch (e) { /* ignore */ }
-
-        return null;
-    }
-
-    function resolveCommentaryRuntimeHelpers() {
-        if (commentaryRuntimeHelpers) return commentaryRuntimeHelpers;
+    function resolveGamePresentationRuntime() {
+        if (gamePresentationRuntime) return gamePresentationRuntime;
 
         try {
             if (typeof require === 'function') {
-                commentaryRuntimeHelpers = require('../shared/commentary-runtime-helpers');
-                if (commentaryRuntimeHelpers) return commentaryRuntimeHelpers;
-            }
-        } catch (e) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && globalThis.CommentaryRuntimeHelpers) {
-                commentaryRuntimeHelpers = globalThis.CommentaryRuntimeHelpers;
-                return commentaryRuntimeHelpers;
-            }
-        } catch (e) { /* ignore */ }
-
-        return null;
-    }
-
-    function resolveCpuTurnFn() {
-        try {
-            if (typeof require === 'function') {
-                const bootstrap = require('./bootstrap');
-                if (bootstrap && typeof bootstrap.getRegisteredUIGlobals === 'function') {
-                    const uiGlobals = bootstrap.getRegisteredUIGlobals() || {};
-                    if (typeof uiGlobals.processCpuTurn === 'function') return uiGlobals.processCpuTurn;
+                const cpuTurnHandler = require('../game/cpu-turn-handler');
+                if (cpuTurnHandler && cpuTurnHandler.PresentationRuntime) {
+                    gamePresentationRuntime = cpuTurnHandler.PresentationRuntime;
+                    return gamePresentationRuntime;
                 }
             }
         } catch (e) { /* ignore */ }
 
         try {
-            if (typeof UIBootstrap !== 'undefined' && UIBootstrap && typeof UIBootstrap.getRegisteredUIGlobals === 'function') {
-                const uiGlobals2 = UIBootstrap.getRegisteredUIGlobals() || {};
-                if (typeof uiGlobals2.processCpuTurn === 'function') return uiGlobals2.processCpuTurn;
-            }
-        } catch (e) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && typeof globalThis.processCpuTurn === 'function') return globalThis.processCpuTurn;
-        } catch (e) { /* ignore */ }
-
-        try {
-            if (typeof window !== 'undefined' && typeof window.processCpuTurn === 'function') return window.processCpuTurn;
-        } catch (e) { /* ignore */ }
-
-        return null;
-    }
-
-    function resolveCpuCommentaryRuntime() {
-        const helpers = resolveCommentaryRuntimeHelpers();
-        if (helpers && typeof helpers.resolveCommentaryRuntimeByRequire === 'function' && typeof require === 'function') {
-            const runtime = helpers.resolveCommentaryRuntimeByRequire(['../game/ai/cpu-commentary-runtime'], require);
-            if (runtime) return runtime;
-        }
-        if (helpers && typeof helpers.resolveCommentaryRuntimeFromGlobal === 'function') {
-            const runtime = helpers.resolveCommentaryRuntimeFromGlobal(typeof globalThis !== 'undefined' ? globalThis : null);
-            if (runtime) return runtime;
-        }
-        try {
-            if (typeof require === 'function') {
-                const runtime = require('../game/ai/cpu-commentary-runtime');
-                if (runtime && typeof runtime.requestCommentary === 'function') return runtime;
-            }
-        } catch (e) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && globalThis.CpuCommentaryRuntime && typeof globalThis.CpuCommentaryRuntime.requestCommentary === 'function') {
-                return globalThis.CpuCommentaryRuntime;
+            if (typeof globalThis !== 'undefined' && globalThis.GamePresentationRuntime) {
+                gamePresentationRuntime = globalThis.GamePresentationRuntime;
+                return gamePresentationRuntime;
             }
         } catch (e) { /* ignore */ }
 
         return null;
     }
 
-    function isHumanVsHumanModeEnabled() {
-        const debugHvH = (typeof globalThis !== 'undefined' && globalThis.DEBUG_HUMAN_VS_HUMAN === true);
-        let matchMode = null;
+    function getBoardUpdateDrainController() {
+        if (boardUpdateDrainController) return boardUpdateDrainController;
+
+        const runtime = resolveGamePresentationRuntime();
+        if (runtime && typeof runtime.createBoardUpdateDrainController === 'function') {
+            boardUpdateDrainController = runtime.createBoardUpdateDrainController();
+            return boardUpdateDrainController;
+        }
+
+        let drainInProgress = false;
+        let drainPending = false;
+        boardUpdateDrainController = {
+            async requestDrain(runDrain) {
+                drainPending = true;
+                if (drainInProgress) return;
+
+                drainInProgress = true;
+                try {
+                    while (drainPending) {
+                        drainPending = false;
+                        if (typeof runDrain === 'function') {
+                            await runDrain();
+                        }
+                    }
+                } finally {
+                    drainInProgress = false;
+                }
+            }
+        };
+        return boardUpdateDrainController;
+    }
+
+    function warnMissingPresentationRuntime(methodName) {
+        const key = String(methodName || '').trim() || 'unknown';
+        if (missingRuntimeWarnings[key] === true) return;
+        missingRuntimeWarnings[key] = true;
         try {
-            matchMode = (typeof globalThis !== 'undefined' && typeof globalThis.getCurrentMatchMode === 'function')
-                ? globalThis.getCurrentMatchMode()
-                : (typeof globalThis !== 'undefined' ? globalThis.MATCH_MODE : null);
+            console.warn(`[PresentationHandler] GamePresentationRuntime.${key} not available`);
         } catch (e) { /* ignore */ }
-        return debugHvH || matchMode === 'network';
     }
 
-    function normalizePlayerKey(value) {
-        const helpers = resolveCommentaryContextHelpers();
-        if (helpers && typeof helpers.normalizePlayerKey === 'function') {
-            return helpers.normalizePlayerKey(value, 'black');
-        }
-        return 'black';
-    }
-
-    function countDiscsFromBoard(board) {
-        const helpers = resolveCommentaryContextHelpers();
-        if (helpers && typeof helpers.countDiscsFromBoard === 'function') {
-            return helpers.countDiscsFromBoard(board);
-        }
-        return { black: 0, white: 0 };
-    }
-
-    function resolvePhaseByTurn(turnNumber, occupiedCells) {
-        const helpers = resolveCommentaryContextHelpers();
-        if (helpers && typeof helpers.resolvePhaseByTurn === 'function') {
-            return helpers.resolvePhaseByTurn(turnNumber, occupiedCells);
-        }
-        return 'middle';
-    }
-
-    function resolveAdvantageLabel(playerKey, counts) {
-        const helpers = resolveCommentaryContextHelpers();
-        if (helpers && typeof helpers.resolveAdvantageLabel === 'function') {
-            return helpers.resolveAdvantageLabel(playerKey, counts);
-        }
-        return 'even';
-    }
-
-    function emitCpuReactionToEnemyCard(ev) {
-        if (isHumanVsHumanModeEnabled()) return;
-        if (typeof gameState === 'undefined' || !gameState || !Array.isArray(gameState.board)) return;
-        if (typeof addLog !== 'function') return;
-
-        const ownerKey = normalizePlayerKey((ev && ev.player) || (ev && ev.meta && ev.meta.owner));
-        if (ownerKey !== 'black') return;
-
-        const runtime = resolveCpuCommentaryRuntime();
-        if (!runtime || typeof runtime.requestCommentary !== 'function') return;
-
-        const speakerKey = 'white';
-        const counts = countDiscsFromBoard(gameState.board);
-        const turnNumber = Number.isFinite(gameState.turnNumber) ? gameState.turnNumber : null;
-        const helpers = resolveCommentaryContextHelpers();
-        const context = (helpers && typeof helpers.buildCommentaryContext === 'function')
-            ? helpers.buildCommentaryContext({
-                eventType: 'card_used_by_enemy',
-                playerKey: speakerKey,
-                turnNumber,
-                counts,
-                board: gameState.board,
-                cardId: (ev && ev.cardId) ? String(ev.cardId) : null
-            })
-            : {
-                eventType: 'card_used_by_enemy',
-                playerKey: speakerKey,
-                turnNumber,
-                counts,
-                board: gameState.board,
-                phase: resolvePhaseByTurn(turnNumber, (counts.black || 0) + (counts.white || 0)),
-                advantage: resolveAdvantageLabel(speakerKey, counts),
-                cardId: (ev && ev.cardId) ? String(ev.cardId) : null
+    function getPresentationRuntimeMethod(methodName) {
+        const runtime = resolveGamePresentationRuntime();
+        if (runtime && typeof runtime[methodName] === 'function') {
+            return {
+                runtime,
+                method: runtime[methodName]
             };
+        }
+        warnMissingPresentationRuntime(methodName);
+        return {
+            runtime: null,
+            method: null
+        };
+    }
 
-        runtime.requestCommentary(context).then((text) => {
-            const line = String(text || '').trim();
-            if (!line) return;
-            const runtimeHelpers = resolveCommentaryRuntimeHelpers();
-            const prefix = (runtimeHelpers && typeof runtimeHelpers.getCpuSpeakerPrefix === 'function')
-                ? runtimeHelpers.getCpuSpeakerPrefix(speakerKey)
-                : '白CPU';
-            addLog(`${prefix}: ${line}`);
+    function appendCpuCommentary(entry) {
+        if (!entry || typeof addLog !== 'function') return;
+        const text = (entry && entry.text)
+            ? String(entry.text)
+            : ((entry && entry.prefix && entry.line) ? `${entry.prefix}: ${entry.line}` : '');
+        if (!text) return;
+        addLog(text);
+    }
+
+    function queueEnemyCardCommentary(resultPromise) {
+        if (!resultPromise || typeof resultPromise.then !== 'function') return;
+        resultPromise.then((entry) => {
+            appendCpuCommentary(entry);
         }).catch(() => {
             // Keep presentation flow deterministic.
         });
     }
 
-    function buildEnemyCardUsedEventFromPlayback(payload) {
-        const events = Array.isArray(payload) ? payload : [];
-        for (const ev of events) {
-            if (!ev || ev.type !== 'card_use_animation') continue;
-            const targets = Array.isArray(ev.targets) ? ev.targets : [];
-            for (const one of targets) {
-                if (!one || typeof one !== 'object') continue;
-                const ownerKey = normalizePlayerKey(one.owner || one.player);
-                if (ownerKey !== 'black') continue;
-                return {
-                    player: ownerKey,
-                    cardId: one.cardId || null,
-                    meta: {
-                        owner: ownerKey,
-                        cost: Number.isFinite(one.cost) ? one.cost : null,
-                        name: one.name || null
-                    }
-                };
+    function emitCpuReactionToEnemyCard(ev) {
+        const runtime = resolveGamePresentationRuntime();
+        if (!runtime || typeof runtime.requestEnemyCardCommentary !== 'function') return;
+        queueEnemyCardCommentary(runtime.requestEnemyCardCommentary(ev));
+    }
+
+    function emitCpuReactionToEnemyCardFromPlayback(playbackEvents) {
+        const runtime = resolveGamePresentationRuntime();
+        if (!runtime || typeof runtime.requestEnemyCardCommentaryFromPlayback !== 'function') return false;
+        queueEnemyCardCommentary(runtime.requestEnemyCardCommentaryFromPlayback(playbackEvents));
+        return true;
+    }
+
+    function isRawPresentationPlaybackBatch(payload) {
+        if (!Array.isArray(payload) || payload.length === 0) return false;
+        for (let index = 0; index < payload.length; index += 1) {
+            const ev = payload[index];
+            const type = String(ev && ev.type || '').trim();
+            if (!type || !/^[A-Z_]+$/.test(type)) {
+                return false;
             }
         }
-        return null;
+        return true;
+    }
+
+    function normalizePlaybackEventsForUi(payload) {
+        if (!isRawPresentationPlaybackBatch(payload)) return payload;
+        try {
+            const adapter = (typeof require === 'function')
+                ? require('../game/turn/pipeline_ui_adapter')
+                : (typeof TurnPipelineUIAdapter !== 'undefined' ? TurnPipelineUIAdapter : null);
+            if (!adapter || typeof adapter.mapToPlaybackEvents !== 'function') return payload;
+            const mapped = adapter.mapToPlaybackEvents(
+                payload,
+                (typeof cardState !== 'undefined') ? cardState : null,
+                (typeof gameState !== 'undefined') ? gameState : null
+            );
+            return Array.isArray(mapped) && mapped.length > 0 ? mapped : payload;
+        } catch (e) {
+            return payload;
+        }
     }
 
     async function playPlaybackEvents(ev, options) {
-        const payload = Array.isArray(ev && ev.events) ? ev.events : [];
+        const payload = normalizePlaybackEventsForUi(Array.isArray(ev && ev.events) ? ev.events : []);
         if (!payload.length) return;
+        const suppressPlayback = !!(ev && ev.meta && ev.meta.suppressPlayback === true);
 
         const opts = options && typeof options === 'object' ? options : {};
-        if (opts.emitEnemyCardReaction !== false) {
-            const enemyCardEvent = buildEnemyCardUsedEventFromPlayback(payload);
-            if (enemyCardEvent) emitCpuReactionToEnemyCard(enemyCardEvent);
+        if (!suppressPlayback && opts.emitEnemyCardReaction !== false) {
+            emitCpuReactionToEnemyCardFromPlayback(payload);
         }
+        if (suppressPlayback) return;
 
         try {
             if (typeof AnimationEngine !== 'undefined' && AnimationEngine && typeof AnimationEngine.play === 'function') {
@@ -307,23 +238,10 @@
             }
 
             if (ev.type === 'SCHEDULE_CPU_TURN') {
-                const delay = Number.isFinite(ev.delayMs) ? ev.delayMs : 0;
-                setTimeout(function () {
-                    try {
-                        const currentPlayer = (typeof gameState !== 'undefined' && gameState) ? gameState.currentPlayer : null;
-                        const currentPlayerKey = (currentPlayer === 'white' || (typeof WHITE !== 'undefined' && currentPlayer === WHITE))
-                            ? 'white'
-                            : ((currentPlayer === 'black' || (typeof BLACK !== 'undefined' && currentPlayer === BLACK)) ? 'black' : null);
-                        const currentTurnNumber = (typeof gameState !== 'undefined' && gameState && Number.isFinite(gameState.turnNumber))
-                            ? gameState.turnNumber
-                            : null;
-                        if (ev.expectedPlayerKey && ev.expectedPlayerKey !== currentPlayerKey) return;
-                        if (Number.isFinite(ev.expectedTurnNumber) && ev.expectedTurnNumber !== currentTurnNumber) return;
-                    } catch (e) { /* ignore */ }
-                    const cpuFn = resolveCpuTurnFn();
-                    if (cpuFn) cpuFn();
-                    else console.warn('[PresentationHandler] processCpuTurn not available for fallback SCHEDULE_CPU_TURN');
-                }, delay);
+                const runtimeMethod = getPresentationRuntimeMethod('scheduleCpuTurn');
+                if (runtimeMethod.method) {
+                    return runtimeMethod.method.call(runtimeMethod.runtime, ev);
+                }
                 return;
             }
 
@@ -342,52 +260,29 @@
         }
     }
 
+    function flushPendingPresentationEvents() {
+        const runtimeMethod = getPresentationRuntimeMethod('flushPendingPresentationEvents');
+        if (runtimeMethod.method) {
+            return runtimeMethod.method.call(runtimeMethod.runtime);
+        }
+        return [];
+    }
+
     async function flushBoardPresentationEvents() {
         try {
-            let events = [];
-            if (typeof CardLogic !== 'undefined' && typeof CardLogic.flushPresentationEvents === 'function') {
-                try {
-                    events = CardLogic.flushPresentationEvents(cardState) || [];
-                } catch (e) {
-                    events = [];
-                }
-            }
-
-            if (events && events.length > 0 && cardState && Array.isArray(cardState._presentationEventsPersist)) {
-                // Prevent duplicate playback when BoardOps already persisted the same events.
-                cardState._presentationEventsPersist.length = 0;
-            }
-
-            if ((!events || events.length === 0) && cardState && Array.isArray(cardState._presentationEventsPersist) && cardState._presentationEventsPersist.length) {
-                events = cardState._presentationEventsPersist.slice();
-                cardState._presentationEventsPersist.length = 0;
-            }
-
+            const events = flushPendingPresentationEvents();
             for (const ev of events) {
                 await handlePresentationEvent(ev);
             }
 
-            // Ensure UI interaction locks (clickable, usable) are recalculated 
-            // after all presentation events (including animations) have finished.
             if (typeof renderCardUI === 'function') renderCardUI();
         } catch (e) {
             console.error('[PresentationHandler] onBoardUpdated error', e);
         }
     }
 
-    async function onBoardUpdated() {
-        boardUpdateDrainPending = true;
-        if (boardUpdateDrainInProgress) return;
-
-        boardUpdateDrainInProgress = true;
-        try {
-            while (boardUpdateDrainPending) {
-                boardUpdateDrainPending = false;
-                await flushBoardPresentationEvents();
-            }
-        } finally {
-            boardUpdateDrainInProgress = false;
-        }
+    function onBoardUpdated() {
+        return getBoardUpdateDrainController().requestDrain(flushBoardPresentationEvents);
     }
 
     try {
@@ -397,16 +292,12 @@
             GameEvents.gameEvents.on('BOARD_UPDATED', onBoardUpdated);
         } else {
             try { console.warn('[PresentationHandler] GameEvents not available; presentation events will not auto-play.'); } catch (e) { /* ignore */ }
-            setTimeout(function () {
-                try {
-                    const hasPending = !!(
-                        cardState &&
-                        ((Array.isArray(cardState.presentationEvents) && cardState.presentationEvents.length > 0) ||
-                         (Array.isArray(cardState._presentationEventsPersist) && cardState._presentationEventsPersist.length > 0))
-                    );
-                    if (hasPending) onBoardUpdated();
-                } catch (e) { /* ignore */ }
-            }, 60);
+            const runtimeMethod = getPresentationRuntimeMethod('flushPendingPresentationEvents');
+            if (runtimeMethod.method) {
+                setTimeout(function () {
+                    try { onBoardUpdated(); } catch (e) { /* ignore */ }
+                }, 60);
+            }
         }
     } catch (e) {
         try { console.warn('[PresentationHandler] initialization failed', e); } catch (e2) { /* ignore */ }

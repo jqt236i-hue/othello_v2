@@ -1,0 +1,272 @@
+{
+  "generatedAt": "2026-03-16T04:25:30.288Z",
+  "elapsedMs": 56015,
+  "benchmarkConfig": {
+    "games": 20,
+    "seed": 1,
+    "jobs": 1,
+    "maxPlies": 220,
+    "policyA": {
+      "allowCardUsage": true,
+      "cardUsageRate": 0.35,
+      "policyScoreWeight": 1,
+      "heuristicWeight": 1,
+      "hasModel": false,
+      "modelPath": null
+    },
+    "policyB": {
+      "allowCardUsage": true,
+      "cardUsageRate": 0.35,
+      "policyScoreWeight": 1,
+      "heuristicWeight": 1,
+      "hasModel": false,
+      "modelPath": null
+    }
+  },
+  "benchmarkResult": {
+    "totalGames": 40,
+    "totalPlies": 3646,
+    "avgPlies": 91.15,
+    "totals": {
+      "A": 20,
+      "B": 20,
+      "draw": 0
+    },
+    "bySide": {
+      "blackA_whiteB": {
+        "A": 11,
+        "B": 9,
+        "draw": 0
+      },
+      "blackB_whiteA": {
+        "A": 9,
+        "B": 11,
+        "draw": 0
+      }
+    },
+    "score": {
+      "A": 20,
+      "B": 20,
+      "APercent": 0.5,
+      "BPercent": 0.5
+    },
+    "quality": {
+      "A": {
+        "totalActions": 1823,
+        "placeActions": 1447,
+        "useCardActions": 242,
+        "usableTurns": 1275,
+        "useWhenUsableActions": 242,
+        "holdWhenUsableActions": 1033,
+        "cornerOpportunityCount": 91,
+        "cornerTakenCount": 83,
+        "edgeOpportunityCount": 903,
+        "edgeTakenCount": 525,
+        "edgeTakenWhenAvailableCount": 522,
+        "cornerRecoveryOpportunityCount": 473,
+        "cornerRecoverySuccessCount": 49,
+        "cornerRecaptureOpportunityCount": 473,
+        "cornerRecaptureSuccessCount": 42,
+        "edgeRecoveryOpportunityCount": 829,
+        "edgeRecoverySuccessCount": 299,
+        "cornerHoldOpportunityCount": 717,
+        "cornerHoldSuccessCount": 713,
+        "cornerHoldTurnsOpportunityCount": 760,
+        "cornerHoldTurnsSum": 2133,
+        "edgeHoldOpportunityCount": 1541,
+        "edgeHoldSuccessCount": 1519,
+        "cardFutureDiscDelta3PlyCount": 242,
+        "cardFutureDiscDelta3PlySum": 252,
+        "finalGameCount": 40,
+        "finalCornersOwnedSum": 106,
+        "finalCornersTotalSum": 212,
+        "finalEdgesOwnedSum": 438,
+        "finalEdgesTotalSum": 876,
+        "finalCornerDominanceCount": 17,
+        "finalEdgeDominanceCount": 19,
+        "useCardRate": 0.13274821722435545,
+        "useWhenUsableRate": 0.18980392156862744,
+        "holdWhenUsableRate": 0.8101960784313725,
+        "cornerTakeRate": 0.9120879120879121,
+        "edgeTakeRate": 0.36281962681409813,
+        "edgeTakeWhenAvailableRate": 0.5780730897009967,
+        "cornerRecoveryRate": 0.10359408033826638,
+        "cornerRecaptureRate": 0.08879492600422834,
+        "edgeRecoveryRate": 0.3606755126658625,
+        "cornerHoldRate": 0.9944211994421199,
+        "avgCornerHoldTurnsNext3Plies": 2.806578947368421,
+        "edgeHoldRate": 0.9857235561323816,
+        "avgCornerSwing": 0.08173340647284695,
+        "avgEdgeSwing": 0.7268239166209545,
+        "finalCornerShare": 0.5,
+        "finalEdgeShare": 0.5,
+        "finalCornerDominanceRate": 0.425,
+        "finalEdgeDominanceRate": 0.475,
+        "avgImmediateDiscDelta": 2.213384530992869,
+        "avgPlaceDiscDelta": 2.7864547339322736,
+        "avgCardImmediateDiscDelta": 0.012396694214876033,
+        "avgCardFutureDiscDelta3Ply": 1.0413223140495869,
+        "avgSelectedCellBonus": 1.8362128541810643
+      },
+      "B": {
+        "totalActions": 1823,
+        "placeActions": 1447,
+        "useCardActions": 242,
+        "usableTurns": 1275,
+        "useWhenUsableActions": 242,
+        "holdWhenUsableActions": 1033,
+        "cornerOpportunityCount": 91,
+        "cornerTakenCount": 83,
+        "edgeOpportunityCount": 903,
+        "edgeTakenCount": 525,
+        "edgeTakenWhenAvailableCount": 522,
+        "cornerRecoveryOpportunityCount": 473,
+        "cornerRecoverySuccessCount": 49,
+        "cornerRecaptureOpportunityCount": 473,
+        "cornerRecaptureSuccessCount": 42,
+        "edgeRecoveryOpportunityCount": 829,
+        "edgeRecoverySuccessCount": 299,
+        "cornerHoldOpportunityCount": 717,
+        "cornerHoldSuccessCount": 713,
+        "cornerHoldTurnsOpportunityCount": 760,
+        "cornerHoldTurnsSum": 2133,
+        "edgeHoldOpportunityCount": 1541,
+        "edgeHoldSuccessCount": 1519,
+        "cardFutureDiscDelta3PlyCount": 242,
+        "cardFutureDiscDelta3PlySum": 252,
+        "finalGameCount": 40,
+        "finalCornersOwnedSum": 106,
+        "finalCornersTotalSum": 212,
+        "finalEdgesOwnedSum": 438,
+        "finalEdgesTotalSum": 876,
+        "finalCornerDominanceCount": 17,
+        "finalEdgeDominanceCount": 19,
+        "useCardRate": 0.13274821722435545,
+        "useWhenUsableRate": 0.18980392156862744,
+        "holdWhenUsableRate": 0.8101960784313725,
+        "cornerTakeRate": 0.9120879120879121,
+        "edgeTakeRate": 0.36281962681409813,
+        "edgeTakeWhenAvailableRate": 0.5780730897009967,
+        "cornerRecoveryRate": 0.10359408033826638,
+        "cornerRecaptureRate": 0.08879492600422834,
+        "edgeRecoveryRate": 0.3606755126658625,
+        "cornerHoldRate": 0.9944211994421199,
+        "avgCornerHoldTurnsNext3Plies": 2.806578947368421,
+        "edgeHoldRate": 0.9857235561323816,
+        "avgCornerSwing": 0.08173340647284695,
+        "avgEdgeSwing": 0.7268239166209545,
+        "finalCornerShare": 0.5,
+        "finalEdgeShare": 0.5,
+        "finalCornerDominanceRate": 0.425,
+        "finalEdgeDominanceRate": 0.475,
+        "avgImmediateDiscDelta": 2.213384530992869,
+        "avgPlaceDiscDelta": 2.7864547339322736,
+        "avgCardImmediateDiscDelta": 0.012396694214876033,
+        "avgCardFutureDiscDelta3Ply": 1.0413223140495869,
+        "avgSelectedCellBonus": 1.8362128541810643
+      }
+    }
+  },
+  "audit": {
+    "cornerOpportunityPlaceTurns": 182,
+    "cornerTakenPlaceTurns": 156,
+    "cornerMissPlaceTurns": 26,
+    "cornerTakeRate": 0.8571428571428571,
+    "cornerOpportunityAfterPrecedingOwnCardUse": 22,
+    "cornerTakenAfterPrecedingOwnCardUse": 22,
+    "cornerMissAfterPrecedingOwnCardUse": 0,
+    "cornerTakeRateAfterPrecedingOwnCardUse": 1,
+    "cornerOpportunityAfterSameTurnCardUse": 22,
+    "cornerTakenAfterSameTurnCardUse": 22,
+    "cornerMissAfterSameTurnCardUse": 0,
+    "cornerTakeRateAfterSameTurnCardUse": 1,
+    "byPrecedingUseCardType": {
+      "FREE_PLACEMENT": {
+        "cornerOpportunityPlaceTurns": 6,
+        "cornerTakenPlaceTurns": 6,
+        "cornerMissPlaceTurns": 0
+      },
+      "GOLD_STONE": {
+        "cornerOpportunityPlaceTurns": 2,
+        "cornerTakenPlaceTurns": 2,
+        "cornerMissPlaceTurns": 0
+      },
+      "LAST_RESORT": {
+        "cornerOpportunityPlaceTurns": 8,
+        "cornerTakenPlaceTurns": 8,
+        "cornerMissPlaceTurns": 0
+      },
+      "ULTIMATE_REVERSE_DRAGON": {
+        "cornerOpportunityPlaceTurns": 2,
+        "cornerTakenPlaceTurns": 2,
+        "cornerMissPlaceTurns": 0
+      },
+      "SNIPER_WILL": {
+        "cornerOpportunityPlaceTurns": 4,
+        "cornerTakenPlaceTurns": 4,
+        "cornerMissPlaceTurns": 0
+      }
+    },
+    "byPrecedingUseReasonTag": {
+      "decision:use": {
+        "cornerOpportunityPlaceTurns": 22,
+        "cornerTakenPlaceTurns": 22,
+        "cornerMissPlaceTurns": 0
+      },
+      "corner_emergency": {
+        "cornerOpportunityPlaceTurns": 18,
+        "cornerTakenPlaceTurns": 18,
+        "cornerMissPlaceTurns": 0
+      },
+      "hand_pressure": {
+        "cornerOpportunityPlaceTurns": 22,
+        "cornerTakenPlaceTurns": 22,
+        "cornerMissPlaceTurns": 0
+      },
+      "threshold_passed": {
+        "cornerOpportunityPlaceTurns": 12,
+        "cornerTakenPlaceTurns": 12,
+        "cornerMissPlaceTurns": 0
+      },
+      "force_use_card": {
+        "cornerOpportunityPlaceTurns": 10,
+        "cornerTakenPlaceTurns": 10,
+        "cornerMissPlaceTurns": 0
+      },
+      "high_bonus_move_available": {
+        "cornerOpportunityPlaceTurns": 6,
+        "cornerTakenPlaceTurns": 6,
+        "cornerMissPlaceTurns": 0
+      }
+    },
+    "byPrecedingUseHandSize": {
+      "4": {
+        "cornerOpportunityPlaceTurns": 4,
+        "cornerTakenPlaceTurns": 4,
+        "cornerMissPlaceTurns": 0
+      },
+      "5": {
+        "cornerOpportunityPlaceTurns": 18,
+        "cornerTakenPlaceTurns": 18,
+        "cornerMissPlaceTurns": 0
+      }
+    },
+    "byPrecedingUseMinUseScore": {
+      "0": {
+        "cornerOpportunityPlaceTurns": 10,
+        "cornerTakenPlaceTurns": 10,
+        "cornerMissPlaceTurns": 0
+      },
+      "4": {
+        "cornerOpportunityPlaceTurns": 8,
+        "cornerTakenPlaceTurns": 8,
+        "cornerMissPlaceTurns": 0
+      },
+      "6": {
+        "cornerOpportunityPlaceTurns": 4,
+        "cornerTakenPlaceTurns": 4,
+        "cornerMissPlaceTurns": 0
+      }
+    }
+  }
+}

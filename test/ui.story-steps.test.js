@@ -29,7 +29,7 @@ describe('story steps data', () => {
     });
   });
 
-  test('chapter2 keeps recap, village/library scenes, and chapter3 unlock flags', () => {
+  test('chapter2 keeps recap, village support scenes, and no chapter3 unlock flags', () => {
     const chapter = StoryStepsModule.getChapter('chapter2');
 
     expect(chapter).toBeTruthy();
@@ -37,14 +37,15 @@ describe('story steps data', () => {
     expect(chapter.progressionGroup).toBe('story');
     expect(chapter.progressionId).toBe('chapter2');
     expect(chapter.entryStepId).toBe('CHAPTER2_STEP_001');
-    expect(chapter.unlocksChapterIds).toEqual(['chapter3']);
+    expect(chapter.unlocksChapterIds).toEqual([]);
     expect(chapter.lockMessage).toBe('第一章をクリアすると解放されます。');
 
     const recap = StoryStepsModule.getChapterStep('chapter2', 'CHAPTER2_STEP_001');
     const rideChoice = StoryStepsModule.getChapterStep('chapter2', 'CHAPTER2_STEP_006');
     const villageIntro = StoryStepsModule.getChapterStep('chapter2', 'CHAPTER2_STEP_008');
-    const theoryScene = StoryStepsModule.getChapterStep('chapter2', 'CHAPTER2_STEP_027');
-    const libraryScene = StoryStepsModule.getChapterStep('chapter2', 'CHAPTER2_STEP_034');
+    const villageSupportIntro = StoryStepsModule.getChapterStep('chapter2', 'CHAPTER2_STEP_027');
+    const villageSupportGrant = StoryStepsModule.getChapterStep('chapter2', 'CHAPTER2_STEP_035');
+    const theoryScene = StoryStepsModule.getChapterStep('chapter2', 'CHAPTER2_STEP_045');
     const completed = StoryStepsModule.getChapterStep('chapter2', 'CHAPTER2_STEP_054');
 
     expect(recap.sceneBackgroundSrc).toBe('assets/story/background/森背景.png');
@@ -52,12 +53,13 @@ describe('story steps data', () => {
     expect(rideChoice.choices.map((choice) => choice.label)).toEqual(['わかった', '誰がお前なんかに乗るか！']);
     expect(rideChoice.nextByChoice.reject_nigel).toBe('CHAPTER2_GAMEOVER_001');
     expect(villageIntro.sceneBackgroundSrc).toBe('assets/story/background/多動の村.png');
+    expect(villageSupportIntro.sceneBackgroundSrc).toBe('assets/story/background/多動の村.png');
+    expect(villageSupportIntro.supportImageSrc).toBe('assets/story/stones/ULTIMATE_HYPERACTIVE_GOD-black.png');
+    expect(villageSupportGrant.sceneBackgroundSrc).toBe('assets/story/background/多動の村.png');
     expect(theoryScene.sceneBackgroundSrc).toBe('assets/story/background/理論の部屋.png');
     expect(theoryScene.characterImageSrc).toBe('assets/story/cpu/level7.png');
-    expect(libraryScene.sceneBackgroundSrc).toBe('assets/story/background/古い図書館.png');
     expect(completed.result).toEqual({
-      saveStoryChapterCleared: true,
-      unlockStoryChapterIds: ['chapter3']
+      saveStoryChapterCleared: true
     });
   });
 });

@@ -1,0 +1,402 @@
+{
+  "generatedAt": "2026-03-16T07:48:17.409Z",
+  "schemaVersion": "candidate_baseline_h2h.v1",
+  "candidateRoot": "C:\\Users\\quarr\\Desktop\\othello_v2",
+  "baselineRoot": "C:\\Users\\quarr\\.copilot\\session-state\\3c276217-d882-458a-a93d-ebe1a781a4b1\\files\\lv6-plan-execution\\baseline-head",
+  "config": {
+    "seed": 1,
+    "seedCount": 3,
+    "seedStride": 100,
+    "gamesPerSide": 4,
+    "maxPlies": 220,
+    "allowCardUsage": true,
+    "allowHandDestroy": true,
+    "cardUsageRate": 0.35
+  },
+  "totals": {
+    "A": 14,
+    "B": 10,
+    "draw": 0
+  },
+  "avgPlies": 63.416666666666664,
+  "perSeed": [
+    {
+      "seed": 1,
+      "totals": {
+        "A": 4,
+        "B": 4,
+        "draw": 0
+      },
+      "totalGames": 8,
+      "score": {
+        "A": 4,
+        "B": 4,
+        "APercent": 0.5,
+        "BPercent": 0.5
+      },
+      "avgPlies": 62.5
+    },
+    {
+      "seed": 101,
+      "totals": {
+        "A": 4,
+        "B": 4,
+        "draw": 0
+      },
+      "totalGames": 8,
+      "score": {
+        "A": 4,
+        "B": 4,
+        "APercent": 0.5,
+        "BPercent": 0.5
+      },
+      "avgPlies": 62
+    },
+    {
+      "seed": 201,
+      "totals": {
+        "A": 6,
+        "B": 2,
+        "draw": 0
+      },
+      "totalGames": 8,
+      "score": {
+        "A": 6,
+        "B": 2,
+        "APercent": 0.75,
+        "BPercent": 0.25
+      },
+      "avgPlies": 65.75
+    }
+  ],
+  "decision": {
+    "uplift": 0.08333333333333337,
+    "upliftLowerBound": -0.1116566235061136,
+    "seedPassCount": 1,
+    "completedSeedCount": 3,
+    "scheduledSeedCount": 3,
+    "earlyStopReason": null,
+    "totalGames": 24,
+    "retriesUsed": 8,
+    "score": {
+      "A": 14,
+      "B": 10,
+      "APercent": 0.5833333333333334,
+      "BPercent": 0.4166666666666667
+    }
+  },
+  "games": [
+    {
+      "gameIndex": 0,
+      "seed": 1,
+      "seedFamily": 1,
+      "candidateBlack": true,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "B",
+      "winnerColor": "white",
+      "plies": 66,
+      "blackCount": 14,
+      "whiteCount": 50
+    },
+    {
+      "gameIndex": 1,
+      "seed": 2,
+      "seedFamily": 1,
+      "candidateBlack": true,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "B",
+      "winnerColor": "white",
+      "plies": 74,
+      "blackCount": 14,
+      "whiteCount": 49
+    },
+    {
+      "gameIndex": 2,
+      "seed": 3,
+      "seedFamily": 1,
+      "candidateBlack": true,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "A",
+      "winnerColor": "black",
+      "plies": 63,
+      "blackCount": 42,
+      "whiteCount": 23
+    },
+    {
+      "gameIndex": 3,
+      "seed": 4,
+      "seedFamily": 1,
+      "candidateBlack": true,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "B",
+      "winnerColor": "white",
+      "plies": 23,
+      "blackCount": 1,
+      "whiteCount": 10
+    },
+    {
+      "gameIndex": 4,
+      "seed": 5,
+      "seedFamily": 1,
+      "candidateBlack": false,
+      "retriesUsed": 2,
+      "endedBy": "game_over",
+      "outcome": "A",
+      "winnerColor": "white",
+      "plies": 63,
+      "blackCount": 19,
+      "whiteCount": 45
+    },
+    {
+      "gameIndex": 5,
+      "seed": 6,
+      "seedFamily": 1,
+      "candidateBlack": false,
+      "retriesUsed": 3,
+      "endedBy": "game_over",
+      "outcome": "A",
+      "winnerColor": "white",
+      "plies": 79,
+      "blackCount": 31,
+      "whiteCount": 33
+    },
+    {
+      "gameIndex": 6,
+      "seed": 7,
+      "seedFamily": 1,
+      "candidateBlack": false,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "B",
+      "winnerColor": "black",
+      "plies": 61,
+      "blackCount": 38,
+      "whiteCount": 26
+    },
+    {
+      "gameIndex": 7,
+      "seed": 8,
+      "seedFamily": 1,
+      "candidateBlack": false,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "A",
+      "winnerColor": "white",
+      "plies": 71,
+      "blackCount": 23,
+      "whiteCount": 42
+    },
+    {
+      "gameIndex": 8,
+      "seed": 101,
+      "seedFamily": 101,
+      "candidateBlack": true,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "A",
+      "winnerColor": "black",
+      "plies": 67,
+      "blackCount": 42,
+      "whiteCount": 21
+    },
+    {
+      "gameIndex": 9,
+      "seed": 102,
+      "seedFamily": 101,
+      "candidateBlack": true,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "B",
+      "winnerColor": "white",
+      "plies": 62,
+      "blackCount": 30,
+      "whiteCount": 34
+    },
+    {
+      "gameIndex": 10,
+      "seed": 103,
+      "seedFamily": 101,
+      "candidateBlack": true,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "A",
+      "winnerColor": "black",
+      "plies": 77,
+      "blackCount": 46,
+      "whiteCount": 18
+    },
+    {
+      "gameIndex": 11,
+      "seed": 104,
+      "seedFamily": 101,
+      "candidateBlack": true,
+      "retriesUsed": 1,
+      "endedBy": "game_over",
+      "outcome": "A",
+      "winnerColor": "black",
+      "plies": 89,
+      "blackCount": 47,
+      "whiteCount": 23
+    },
+    {
+      "gameIndex": 12,
+      "seed": 105,
+      "seedFamily": 101,
+      "candidateBlack": false,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "B",
+      "winnerColor": "black",
+      "plies": 63,
+      "blackCount": 40,
+      "whiteCount": 24
+    },
+    {
+      "gameIndex": 13,
+      "seed": 106,
+      "seedFamily": 101,
+      "candidateBlack": false,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "A",
+      "winnerColor": "white",
+      "plies": 72,
+      "blackCount": 24,
+      "whiteCount": 45
+    },
+    {
+      "gameIndex": 14,
+      "seed": 107,
+      "seedFamily": 101,
+      "candidateBlack": false,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "B",
+      "winnerColor": "black",
+      "plies": 5,
+      "blackCount": 8,
+      "whiteCount": 0
+    },
+    {
+      "gameIndex": 15,
+      "seed": 108,
+      "seedFamily": 101,
+      "candidateBlack": false,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "B",
+      "winnerColor": "black",
+      "plies": 61,
+      "blackCount": 42,
+      "whiteCount": 22
+    },
+    {
+      "gameIndex": 16,
+      "seed": 201,
+      "seedFamily": 201,
+      "candidateBlack": true,
+      "retriesUsed": 2,
+      "endedBy": "game_over",
+      "outcome": "A",
+      "winnerColor": "black",
+      "plies": 85,
+      "blackCount": 50,
+      "whiteCount": 21
+    },
+    {
+      "gameIndex": 17,
+      "seed": 202,
+      "seedFamily": 201,
+      "candidateBlack": true,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "A",
+      "winnerColor": "black",
+      "plies": 62,
+      "blackCount": 35,
+      "whiteCount": 28
+    },
+    {
+      "gameIndex": 18,
+      "seed": 203,
+      "seedFamily": 201,
+      "candidateBlack": true,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "B",
+      "winnerColor": "white",
+      "plies": 61,
+      "blackCount": 23,
+      "whiteCount": 41
+    },
+    {
+      "gameIndex": 19,
+      "seed": 204,
+      "seedFamily": 201,
+      "candidateBlack": true,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "A",
+      "winnerColor": "black",
+      "plies": 63,
+      "blackCount": 41,
+      "whiteCount": 22
+    },
+    {
+      "gameIndex": 20,
+      "seed": 205,
+      "seedFamily": 201,
+      "candidateBlack": false,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "A",
+      "winnerColor": "white",
+      "plies": 23,
+      "blackCount": 0,
+      "whiteCount": 14
+    },
+    {
+      "gameIndex": 21,
+      "seed": 206,
+      "seedFamily": 201,
+      "candidateBlack": false,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "A",
+      "winnerColor": "white",
+      "plies": 104,
+      "blackCount": 24,
+      "whiteCount": 38
+    },
+    {
+      "gameIndex": 22,
+      "seed": 207,
+      "seedFamily": 201,
+      "candidateBlack": false,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "A",
+      "winnerColor": "white",
+      "plies": 61,
+      "blackCount": 21,
+      "whiteCount": 43
+    },
+    {
+      "gameIndex": 23,
+      "seed": 208,
+      "seedFamily": 201,
+      "candidateBlack": false,
+      "retriesUsed": 0,
+      "endedBy": "game_over",
+      "outcome": "B",
+      "winnerColor": "black",
+      "plies": 67,
+      "blackCount": 40,
+      "whiteCount": 24
+    }
+  ]
+}

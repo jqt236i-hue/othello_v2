@@ -6,7 +6,7 @@ const ROOT = path.resolve(__dirname, '..');
 const OUT_DIR = path.join(ROOT, 'worker-public');
 const WORKER_ASSET_MAX_BYTES = 25 * 1024 * 1024;
 
-const ROOT_FILES = [
+const ROOT_FILES = Object.freeze([
     'index.html',
     'story-deck-lab.html',
     'is-env-capable.js',
@@ -24,9 +24,9 @@ const ROOT_FILES = [
     'styles-story-deck-lab.css',
     'styles-stone-shadows.css',
     'styles-variables.css'
-];
+]);
 
-const DIRS = [
+const DIRS = Object.freeze([
     'assets',
     'cards',
     'constants',
@@ -34,20 +34,21 @@ const DIRS = [
     'shared',
     'ui',
     'utils'
-];
+]);
 
-const VERIFY_DIRS = [
+const VERIFY_DIRS = Object.freeze([
+    'assets',
     'cards',
     'constants',
     'game',
     'shared',
     'ui',
     'utils'
-];
+]);
 
-const VERIFY_ROOT_FILES = ROOT_FILES.filter((one) => one !== 'index.html');
+const VERIFY_ROOT_FILES = Object.freeze(ROOT_FILES.slice());
 
-const OPTIONAL_FILES = [
+const OPTIONAL_FILES = Object.freeze([
     'data/dialogue/fixed-commentary-data.js',
     'data/models/policy-net.onnx',
     'data/models/policy-net.onnx.meta.json',
@@ -62,16 +63,38 @@ const OPTIONAL_FILES = [
     'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm',
     'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs',
     'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm'
-];
+]);
 
-const GENERATED_OPTIONAL_ASSETS = [
+const GENERATED_OPTIONAL_ASSETS = Object.freeze([
     {
         sourceRelativePath: 'data/models/policy-table.json',
         manifestRelativePath: 'data/models/policy-table.json',
         compressedRelativePath: 'data/models/policy-table.json.gz',
         compression: 'gzip'
     }
-];
+]);
+
+function cloneList(list) {
+    return Array.isArray(list) ? list.slice() : [];
+}
+
+function createPrepareConfig(options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const rootDir = path.resolve(String(opts.rootDir || ROOT));
+    const outDir = path.resolve(String(opts.outDir || path.join(rootDir, 'worker-public')));
+    const rootFiles = cloneList(opts.rootFiles || ROOT_FILES);
+    const dirs = cloneList(opts.dirs || DIRS);
+    return {
+        rootDir,
+        outDir,
+        rootFiles,
+        dirs,
+        verifyDirs: cloneList(opts.verifyDirs || (opts.dirs ? dirs : VERIFY_DIRS)),
+        verifyRootFiles: cloneList(opts.verifyRootFiles || (opts.rootFiles ? rootFiles : VERIFY_ROOT_FILES)),
+        optionalFiles: cloneList(opts.optionalFiles || OPTIONAL_FILES),
+        generatedOptionalAssets: cloneList(opts.generatedOptionalAssets || GENERATED_OPTIONAL_ASSETS)
+    };
+}
 
 function toMiBString(bytes) {
     return (Number(bytes) / (1024 * 1024)).toFixed(1);
@@ -99,18 +122,20 @@ function ensureDir(dirPath) {
     fs.mkdirSync(dirPath, { recursive: true });
 }
 
-function copyFileByRelative(relativePath) {
-    const src = path.join(ROOT, relativePath);
+function copyFileByRelative(relativePath, config) {
+    const settings = createPrepareConfig(config);
+    const src = path.join(settings.rootDir, relativePath);
     if (!fs.existsSync(src)) return;
-    const dst = path.join(OUT_DIR, relativePath);
+    const dst = path.join(settings.outDir, relativePath);
     ensureDir(path.dirname(dst));
     fs.copyFileSync(src, dst);
 }
 
-function resolveCopyableOptionalFiles() {
+function resolveCopyableOptionalFiles(config) {
+    const settings = createPrepareConfig(config);
     const out = [];
-    for (const relativePath of OPTIONAL_FILES) {
-        const src = path.join(ROOT, relativePath);
+    for (const relativePath of settings.optionalFiles) {
+        const src = path.join(settings.rootDir, relativePath);
         if (!fs.existsSync(src)) continue;
 
         const stat = fs.statSync(src);
@@ -136,10 +161,11 @@ function buildCompressedAssetManifest(task, compressedBytes, sourceBytes) {
     }), 'utf8');
 }
 
-function resolveGeneratedOptionalAssets() {
+function resolveGeneratedOptionalAssets(config) {
+    const settings = createPrepareConfig(config);
     const out = [];
-    for (const task of GENERATED_OPTIONAL_ASSETS) {
-        const src = path.join(ROOT, task.sourceRelativePath);
+    for (const task of settings.generatedOptionalAssets) {
+        const src = path.join(settings.rootDir, task.sourceRelativePath);
         if (!fs.existsSync(src)) continue;
 
         const raw = fs.readFileSync(src);
@@ -174,9 +200,10 @@ function resolveGeneratedOptionalAssets() {
     return out;
 }
 
-function writeGeneratedOptionalAssets(generatedAssets) {
+function writeGeneratedOptionalAssets(generatedAssets, config) {
+    const settings = createPrepareConfig(config);
     for (const asset of Array.isArray(generatedAssets) ? generatedAssets : []) {
-        const dst = path.join(OUT_DIR, asset.relativePath);
+        const dst = path.join(settings.outDir, asset.relativePath);
         ensureDir(path.dirname(dst));
         fs.writeFileSync(dst, asset.content);
     }
@@ -217,9 +244,10 @@ function listFilesRecursive(baseDir, relativePrefix) {
     return out;
 }
 
-function verifyMirroredFile(relativePath, issues) {
-    const src = path.join(ROOT, relativePath);
-    const dst = path.join(OUT_DIR, relativePath);
+function verifyMirroredFile(relativePath, issues, config) {
+    const settings = createPrepareConfig(config);
+    const src = path.join(settings.rootDir, relativePath);
+    const dst = path.join(settings.outDir, relativePath);
 
     if (!fs.existsSync(src)) {
         issues.push(`source missing: ${relativePath}`);
@@ -244,17 +272,18 @@ function verifyMirroredFile(relativePath, issues) {
     }
 }
 
-function verifyMirrors(optionalFiles, generatedAssets) {
+function verifyMirrors(optionalFiles, generatedAssets, config) {
+    const settings = createPrepareConfig(config);
     const issues = [];
     const verifyFiles = new Set();
     const optionals = Array.isArray(optionalFiles) ? optionalFiles : [];
     const generated = Array.isArray(generatedAssets) ? generatedAssets : [];
 
-    VERIFY_ROOT_FILES.forEach((one) => verifyFiles.add(one));
+    settings.verifyRootFiles.forEach((one) => verifyFiles.add(one));
     optionals.forEach((one) => verifyFiles.add(one));
 
-    for (const dir of VERIFY_DIRS) {
-        const srcDir = path.join(ROOT, dir);
+    for (const dir of settings.verifyDirs) {
+        const srcDir = path.join(settings.rootDir, dir);
         const files = listFilesRecursive(srcDir, dir);
         for (const relativePath of files) {
             verifyFiles.add(relativePath);
@@ -263,11 +292,11 @@ function verifyMirrors(optionalFiles, generatedAssets) {
 
     const sorted = Array.from(verifyFiles).sort();
     for (const relativePath of sorted) {
-        verifyMirroredFile(relativePath, issues);
+        verifyMirroredFile(relativePath, issues, settings);
     }
 
     for (const asset of generated) {
-        const dst = path.join(OUT_DIR, asset.relativePath);
+        const dst = path.join(settings.outDir, asset.relativePath);
         if (!fs.existsSync(dst)) {
             issues.push(`generated missing: ${asset.relativePath}`);
             continue;
@@ -286,26 +315,44 @@ function verifyMirrors(optionalFiles, generatedAssets) {
     console.log(`[worker-prepare] mirror-verified files=${sorted.length}`);
 }
 
-function main() {
-    rmDirSafe(OUT_DIR);
-    ensureDir(OUT_DIR);
-    const copyableOptionalFiles = resolveCopyableOptionalFiles();
-    const generatedOptionalAssets = resolveGeneratedOptionalAssets();
+function prepareWorkerAssets(options) {
+    const settings = createPrepareConfig(options);
+    rmDirSafe(settings.outDir);
+    ensureDir(settings.outDir);
+    const copyableOptionalFiles = resolveCopyableOptionalFiles(settings);
+    const generatedOptionalAssets = resolveGeneratedOptionalAssets(settings);
 
-    ROOT_FILES.forEach(copyFileByRelative);
+    settings.rootFiles.forEach((relativePath) => copyFileByRelative(relativePath, settings));
 
-    for (const dir of DIRS) {
-        const srcDir = path.join(ROOT, dir);
-        const dstDir = path.join(OUT_DIR, dir);
+    for (const dir of settings.dirs) {
+        const srcDir = path.join(settings.rootDir, dir);
+        const dstDir = path.join(settings.outDir, dir);
         copyDirectoryRecursive(srcDir, dstDir);
     }
 
-    copyableOptionalFiles.forEach(copyFileByRelative);
-    writeGeneratedOptionalAssets(generatedOptionalAssets);
+    copyableOptionalFiles.forEach((relativePath) => copyFileByRelative(relativePath, settings));
+    writeGeneratedOptionalAssets(generatedOptionalAssets, settings);
 
-    verifyMirrors(copyableOptionalFiles, generatedOptionalAssets);
+    verifyMirrors(copyableOptionalFiles, generatedOptionalAssets, settings);
 
-    console.log(`[worker-prepare] output=${OUT_DIR}`);
+    console.log(`[worker-prepare] output=${settings.outDir}`);
+    return settings;
 }
 
-main();
+if (require.main === module) {
+    prepareWorkerAssets();
+}
+
+module.exports = {
+    ROOT_FILES,
+    DIRS,
+    VERIFY_DIRS,
+    VERIFY_ROOT_FILES,
+    OPTIONAL_FILES,
+    GENERATED_OPTIONAL_ASSETS,
+    createPrepareConfig,
+    prepareWorkerAssets,
+    verifyMirrors,
+    verifyMirroredFile,
+    listFilesRecursive
+};

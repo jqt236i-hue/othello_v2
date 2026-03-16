@@ -1,12 +1,15 @@
 import deepClone from '../utils/deepClone.js';
+import matchAuthority from '../utils/match-authority.js';
+import networkActionSchemaModule from '../shared/network-action-schema.js';
 
 const ROOM_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ROOM_ID_LENGTH = 3;
 const SEAT_TOKEN_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const SEAT_TOKEN_LENGTH = 24;
 const ROOM_STORAGE_KEY = 'match_room_state_v1';
-const PLAYER_KEYS = Object.freeze(['black', 'white']);
-const HIDDEN_HAND_TOKEN_RE = /^__hidden_hand__:(black|white):(\d+)$/;
+const MatchAuthority = matchAuthority || {};
+const NetworkActionSchema = networkActionSchemaModule || {};
+const PLAYER_KEYS = Array.isArray(MatchAuthority.PLAYER_KEYS) ? MatchAuthority.PLAYER_KEYS : Object.freeze(['black', 'white']);
 const CHAT_MAX_LENGTH = 20;
 const CHAT_HISTORY_LIMIT = 40;
 const NETWORK_PLAYER_NAME_MAX = 7;
@@ -22,11 +25,14 @@ const NETWORK_TURN_LIMIT_SECONDS = 120;
 const NETWORK_TURN_LIMIT_MS = NETWORK_TURN_LIMIT_SECONDS * 1000;
 const SSE_HEARTBEAT_INTERVAL_MS = 20000;
 const SSE_WRITE_TIMEOUT_MS = 2500;
-const OPERATION_ID_MAX_LENGTH = 128;
+const OPERATION_ID_MAX_LENGTH = Number.isFinite(Number(MatchAuthority.OPERATION_ID_MAX_LENGTH))
+    ? Number(MatchAuthority.OPERATION_ID_MAX_LENGTH)
+    : 128;
 
 let coreLogicModulePromise = null;
 let deckModulesPromise = null;
 let turnStartModulesPromise = null;
+let turnPipelineModulesPromise = null;
 
 const CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -55,87 +61,69 @@ function jsonResponse(statusCode, payload) {
 }
 
 function normalizePlayerKey(value) {
+    if (MatchAuthority && typeof MatchAuthority.normalizePlayerKey === 'function') {
+        return MatchAuthority.normalizePlayerKey(value, 'black');
+    }
     const parsed = parseSeatKeyOptional(value);
     return parsed || 'black';
 }
 
 function parseSeatKeyOptional(value) {
-    if (value === 1 || value === '1') return 'black';
-    if (value === -1 || value === '-1') return 'white';
-
-    const normalized = (value === null || typeof value === 'undefined')
-        ? ''
-        : String(value).trim().toLowerCase();
-
-    if (normalized === 'black' || normalized === '1' || normalized === '+1') return 'black';
-    if (normalized === 'white' || normalized === '-1') return 'white';
+    if (MatchAuthority && typeof MatchAuthority.parseSeatKeyOptional === 'function') {
+        return MatchAuthority.parseSeatKeyOptional(value);
+    }
     return null;
 }
 
 function getCurrentPlayerKey(gameState) {
+    if (MatchAuthority && typeof MatchAuthority.getCurrentPlayerKey === 'function') {
+        return MatchAuthority.getCurrentPlayerKey(gameState);
+    }
     if (!gameState) return 'black';
     return normalizePlayerKey(gameState.currentPlayer);
 }
 
 function getOpponentKey(playerKey) {
+    if (MatchAuthority && typeof MatchAuthority.getOpponentKey === 'function') {
+        return MatchAuthority.getOpponentKey(playerKey);
+    }
     return normalizePlayerKey(playerKey) === 'white' ? 'black' : 'white';
 }
 
 function makeHiddenHandToken(ownerKey, handIndex) {
+    if (MatchAuthority && typeof MatchAuthority.makeHiddenHandToken === 'function') {
+        return MatchAuthority.makeHiddenHandToken(ownerKey, handIndex);
+    }
     const normalizedOwner = normalizePlayerKey(ownerKey);
     const idx = Number.isFinite(Number(handIndex)) ? Math.max(0, Math.trunc(Number(handIndex))) : 0;
     return `__hidden_hand__:${normalizedOwner}:${idx}`;
 }
 
 function parseHiddenHandToken(value) {
-    const match = String(value || '').match(HIDDEN_HAND_TOKEN_RE);
-    if (!match) return null;
-    const ownerKey = normalizePlayerKey(match[1]);
-    const handIndex = Number(match[2]);
-    if (!Number.isInteger(handIndex) || handIndex < 0) return null;
-    return { ownerKey, handIndex };
+    if (MatchAuthority && typeof MatchAuthority.parseHiddenHandToken === 'function') {
+        return MatchAuthority.parseHiddenHandToken(value);
+    }
+    return null;
 }
 
 function resolveCardIdFromHiddenToken(value, previousHands) {
-    const parsed = parseHiddenHandToken(value);
-    if (!parsed) return null;
-    const ownerHand = (previousHands && Array.isArray(previousHands[parsed.ownerKey]))
-        ? previousHands[parsed.ownerKey]
-        : null;
-    if (!ownerHand) return null;
-    if (parsed.handIndex < 0 || parsed.handIndex >= ownerHand.length) return null;
-    return ownerHand[parsed.handIndex];
+    if (MatchAuthority && typeof MatchAuthority.resolveCardIdFromHiddenToken === 'function') {
+        return MatchAuthority.resolveCardIdFromHiddenToken(value, previousHands);
+    }
+    return null;
 }
 
 function rehydrateHiddenTokensInPlace(value, previousHands, visited = new WeakSet()) {
-    const resolved = resolveCardIdFromHiddenToken(value, previousHands);
-    if (resolved) return resolved;
-    if (!value || typeof value !== 'object') return value;
-    if (visited.has(value)) return value;
-    visited.add(value);
-    if (Array.isArray(value)) {
-        for (let i = 0; i < value.length; i += 1) {
-            value[i] = rehydrateHiddenTokensInPlace(value[i], previousHands, visited);
-        }
-        return value;
-    }
-    for (const key of Object.keys(value)) {
-        value[key] = rehydrateHiddenTokensInPlace(value[key], previousHands, visited);
+    if (MatchAuthority && typeof MatchAuthority.rehydrateHiddenTokensInPlace === 'function') {
+        return MatchAuthority.rehydrateHiddenTokensInPlace(value, previousHands, visited);
     }
     return value;
 }
 
 function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
-    if (!room || !room.seatTokens) return null;
-    const seatToken = String(seatTokenValue || '').trim();
-    if (!seatToken) return null;
-
-    const requestedSeat = parseSeatKeyOptional(seatKeyValue);
-    if (requestedSeat) {
-        return room.seatTokens[requestedSeat] === seatToken ? requestedSeat : null;
+    if (MatchAuthority && typeof MatchAuthority.resolveAuthenticatedSeatKey === 'function') {
+        return MatchAuthority.resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue);
     }
-    if (room.seatTokens.black === seatToken) return 'black';
-    if (room.seatTokens.white === seatToken) return 'white';
     return null;
 }
 
@@ -191,6 +179,21 @@ function loadTurnStartModules() {
     return turnStartModulesPromise;
 }
 
+function loadTurnPipelineModules() {
+    if (!turnPipelineModulesPromise) {
+        turnPipelineModulesPromise = Promise.all([
+            import('../game/turn/turn_pipeline.js').then((mod) => mod.default || mod),
+            import('../game/schema/prng.js').then((mod) => mod.default || mod),
+            import('../game/turn/pipeline_ui_adapter.js').then((mod) => mod.default || mod)
+        ]).then(([TurnPipeline, SeededPRNG, TurnPipelineUIAdapter]) => ({
+            TurnPipeline,
+            SeededPRNG,
+            TurnPipelineUIAdapter
+        }));
+    }
+    return turnPipelineModulesPromise;
+}
+
 function parseJsonBody(raw) {
     if (!raw) return {};
     try {
@@ -211,26 +214,19 @@ function normalizeNetworkPlayerName(value) {
 }
 
 function normalizeOperationId(value) {
+    if (MatchAuthority && typeof MatchAuthority.normalizeOperationId === 'function') {
+        return MatchAuthority.normalizeOperationId(value);
+    }
     const normalized = String(value || '').trim();
     if (!normalized) return '';
     return Array.from(normalized).slice(0, OPERATION_ID_MAX_LENGTH).join('');
 }
 
 function ensureAcceptedOperationsBySeat(room) {
-    const source = (room && room.lastAcceptedOperationBySeat && typeof room.lastAcceptedOperationBySeat === 'object')
-        ? room.lastAcceptedOperationBySeat
-        : {};
-
-    const normalized = {
-        black: (source.black && typeof source.black === 'object') ? source.black : null,
-        white: (source.white && typeof source.white === 'object') ? source.white : null
-    };
-
-    if (room && typeof room === 'object') {
-        room.lastAcceptedOperationBySeat = normalized;
+    if (MatchAuthority && typeof MatchAuthority.ensureAcceptedOperationsBySeat === 'function') {
+        return MatchAuthority.ensureAcceptedOperationsBySeat(room);
     }
-
-    return normalized;
+    return { black: null, white: null };
 }
 
 function normalizeLeaderboardPlayerId(value) {
@@ -415,48 +411,263 @@ function normalizeCardStateForWorkerTurnStart(room, snapshot, CardLogic, SeededP
     return snapshot.cardState;
 }
 
-function validatePublishedHands(snapshot, publishingSeatKey) {
-    const seatKey = parseSeatKeyOptional(publishingSeatKey);
+function createCommandActionPrng(room, snapshot, SeededPRNG) {
+    const savedState = snapshot && snapshot.cardState && snapshot.cardState.prngState;
+    if (
+        savedState
+        && typeof savedState === 'object'
+        && Number.isFinite(Number(savedState.seed))
+        && Number.isFinite(Number(savedState.calls))
+        && typeof SeededPRNG.fromState === 'function'
+    ) {
+        try {
+            return SeededPRNG.fromState({
+                seed: Math.trunc(Number(savedState.seed)),
+                calls: Math.max(0, Math.trunc(Number(savedState.calls)))
+            });
+        } catch (e) {
+            // Fall through to derived seed.
+        }
+    }
+    return SeededPRNG.createPRNG(createWorkerTurnStartSeed(room, snapshot, getCurrentPlayerKey(snapshot && snapshot.gameState)));
+}
+
+function mapServerPresentationToPlaybackEvents(presentationEvents, rawEvents, snapshot, playbackAdapter) {
+    const events = Array.isArray(presentationEvents) ? presentationEvents : [];
+    if (events.length === 0) return [];
+
+    const adapter = (playbackAdapter && typeof playbackAdapter.mapToPlaybackEvents === 'function')
+        ? playbackAdapter
+        : null;
+    if (!adapter) {
+        return deepClone(events);
+    }
+
+    let playbackEvents = [];
+    try {
+        playbackEvents = adapter.mapToPlaybackEvents(
+            events,
+            snapshot && snapshot.cardState,
+            snapshot && snapshot.gameState
+        ) || [];
+    } catch (e) {
+        playbackEvents = [];
+    }
+
+    if (typeof adapter.appendSoundEffectPlaybackEvents === 'function') {
+        try {
+            playbackEvents = adapter.appendSoundEffectPlaybackEvents(
+                playbackEvents,
+                Array.isArray(rawEvents) ? rawEvents : [],
+                events
+            ) || playbackEvents;
+        } catch (e) { /* ignore */ }
+    }
+
+    return Array.isArray(playbackEvents) ? deepClone(playbackEvents) : [];
+}
+
+function collectServerPlaybackEvents(snapshot, rawEvents, playbackAdapter) {
     const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object')
         ? snapshot.cardState
         : null;
-    const hands = (cardState && cardState.hands && typeof cardState.hands === 'object')
-        ? cardState.hands
-        : null;
+    if (!cardState) return [];
 
-    if (!seatKey || !hands) {
-        return { ok: false, reason: 'INVALID_HAND_STATE' };
-    }
-
-    for (const ownerKey of PLAYER_KEYS) {
-        if (!Array.isArray(hands[ownerKey])) {
-            return { ok: false, reason: 'INVALID_HAND_STATE' };
+    let presentationEvents = [];
+    if (Array.isArray(cardState.presentationEvents) && cardState.presentationEvents.length > 0) {
+        presentationEvents = deepClone(cardState.presentationEvents);
+        if (Array.isArray(cardState._presentationEventsPersist)) {
+            cardState._presentationEventsPersist.length = 0;
         }
+    } else if (Array.isArray(cardState._presentationEventsPersist) && cardState._presentationEventsPersist.length > 0) {
+        presentationEvents = deepClone(cardState._presentationEventsPersist);
     }
-
-    const opponentKey = getOpponentKey(seatKey);
-    for (const cardId of hands[opponentKey]) {
-        const parsed = parseHiddenHandToken(cardId);
-        if (!parsed || parsed.ownerKey !== opponentKey) {
-            return { ok: false, reason: 'INVALID_OPPONENT_HAND_STATE' };
-        }
-    }
-
-    return { ok: true };
+    cardState.presentationEvents = [];
+    cardState._presentationEventsPersist = [];
+    delete cardState._currentActionMeta;
+    return mapServerPresentationToPlaybackEvents(presentationEvents, rawEvents, snapshot, playbackAdapter);
 }
 
-async function reconcileTurnStartIfNeeded(room, snapshot) {
-    if (!snapshot || !snapshot.gameState || !snapshot.cardState) return snapshot;
+function captureTurnStartHandState(snapshot) {
+    const playerKey = getCurrentPlayerKey(snapshot && snapshot.gameState);
+    const hands = (snapshot && snapshot.cardState && snapshot.cardState.hands && typeof snapshot.cardState.hands === 'object')
+        ? snapshot.cardState.hands
+        : {};
+    return {
+        playerKey,
+        hand: playerKey && Array.isArray(hands[playerKey]) ? hands[playerKey].slice() : []
+    };
+}
+
+function appendTurnStartDrawPlaybackEvents(playbackEvents, snapshot, handState, playbackAdapter) {
+    const baseEvents = Array.isArray(playbackEvents) ? playbackEvents.slice() : [];
+    const playerKey = normalizePlayerKey(handState && handState.playerKey);
+    if (!playerKey) return baseEvents;
+
+    const adapter = (playbackAdapter && typeof playbackAdapter.mapToPlaybackEvents === 'function')
+        ? playbackAdapter
+        : null;
+    if (!adapter) return baseEvents;
+
+    const hands = (snapshot && snapshot.cardState && snapshot.cardState.hands && typeof snapshot.cardState.hands === 'object')
+        ? snapshot.cardState.hands
+        : {};
+    const beforeHand = Array.isArray(handState && handState.hand) ? handState.hand : [];
+    const afterHand = Array.isArray(hands[playerKey]) ? hands[playerKey] : [];
+    if (afterHand.length <= beforeHand.length) return baseEvents;
+
+    const drawPresentationEvents = afterHand
+        .slice(beforeHand.length)
+        .filter((cardId) => cardId !== null && typeof cardId !== 'undefined')
+        .map((cardId) => ({
+            type: 'DRAW_CARD',
+            player: playerKey,
+            cardId,
+            count: 1
+        }));
+    if (drawPresentationEvents.length === 0) return baseEvents;
+
+    let drawPlaybackEvents = [];
+    try {
+        drawPlaybackEvents = adapter.mapToPlaybackEvents(
+            drawPresentationEvents,
+            snapshot && snapshot.cardState,
+            snapshot && snapshot.gameState
+        ) || [];
+    } catch (e) {
+        drawPlaybackEvents = [];
+    }
+    if (!Array.isArray(drawPlaybackEvents) || drawPlaybackEvents.length === 0) return baseEvents;
+
+    const basePhase = baseEvents.reduce((maxPhase, event) => {
+        const phase = Number(event && event.phase);
+        return Number.isFinite(phase) && phase > maxPhase ? phase : maxPhase;
+    }, 0);
+
+    const normalizedDrawEvents = drawPlaybackEvents.map((event) => {
+        const cloned = deepClone(event);
+        const srcPhase = Number(cloned && cloned.phase);
+        cloned.phase = basePhase + (Number.isFinite(srcPhase) ? srcPhase : 1);
+        return cloned;
+    });
+
+    return baseEvents.concat(normalizedDrawEvents);
+}
+
+async function reconcileTurnStartAndCollectPlayback(room, snapshot, playbackAdapter) {
+    const handState = captureTurnStartHandState(snapshot);
+    const rawEvents = await reconcileTurnStartIfNeeded(room, snapshot, { includeRawEvents: true });
+    const modules = (playbackAdapter && typeof playbackAdapter.mapToPlaybackEvents === 'function')
+        ? { TurnPipelineUIAdapter: playbackAdapter }
+        : await loadTurnPipelineModules();
+    const adapter = modules && modules.TurnPipelineUIAdapter ? modules.TurnPipelineUIAdapter : null;
+    const playbackEvents = collectServerPlaybackEvents(snapshot, rawEvents, adapter);
+    return appendTurnStartDrawPlaybackEvents(playbackEvents, snapshot, handState, adapter);
+}
+
+async function applyCommandPublishToSnapshot(room, body, playerKey) {
+    if (!NetworkActionSchema || typeof NetworkActionSchema.buildAction !== 'function') {
+        return { ok: false, rejectedReason: 'COMMAND_SCHEMA_UNAVAILABLE' };
+    }
+
+    const currentSnapshot = (room && room.snapshot && room.snapshot.gameState && room.snapshot.cardState)
+        ? deepClone(room.snapshot)
+        : null;
+    if (!currentSnapshot) {
+        return { ok: false, rejectedReason: 'INVALID_SNAPSHOT' };
+    }
+
+    const currentTurnIndex = Number.isFinite(Number(currentSnapshot.cardState && currentSnapshot.cardState.turnIndex))
+        ? Number(currentSnapshot.cardState.turnIndex)
+        : 0;
+    const builtAction = NetworkActionSchema.buildAction({
+        actionType: body.actionType,
+        actor: body.actor,
+        params: body.params,
+        actionId: body.actionId,
+        turnIndex: body.turnIndex,
+        action: body.action
+    }, playerKey, currentTurnIndex);
+
+    if (!builtAction || !builtAction.action) {
+        return { ok: false, rejectedReason: 'COMMAND_REQUIRED' };
+    }
+    if (normalizePlayerKey(builtAction.actor) !== playerKey) {
+        return { ok: false, rejectedReason: 'SEAT_MISMATCH' };
+    }
+
+    const { TurnPipeline, SeededPRNG, TurnPipelineUIAdapter } = await loadTurnPipelineModules();
+    if (!TurnPipeline || typeof TurnPipeline.applyTurnSafe !== 'function') {
+        return { ok: false, rejectedReason: 'COMMAND_PIPELINE_UNAVAILABLE' };
+    }
+
+    const prng = createCommandActionPrng(room, currentSnapshot, SeededPRNG);
+    const result = TurnPipeline.applyTurnSafe(
+        currentSnapshot.cardState,
+        currentSnapshot.gameState,
+        playerKey,
+        builtAction.action,
+        prng,
+        {
+            currentStateVersion: currentTurnIndex,
+            prngState: currentSnapshot.cardState && currentSnapshot.cardState.prngState
+        }
+    );
+
+    if (!result || result.ok !== true) {
+        return {
+            ok: false,
+            rejectedReason: (result && result.rejectedReason) || 'COMMAND_REJECTED',
+            errorMessage: result && result.errorMessage ? String(result.errorMessage) : null,
+            events: result && Array.isArray(result.events) ? result.events : []
+        };
+    }
+
+    const nextSnapshot = {
+        gameState: result.gameState,
+        cardState: result.cardState
+    };
+    const playbackEvents = mapServerPresentationToPlaybackEvents(
+        result.presentationEvents,
+        result.events,
+        nextSnapshot,
+        TurnPipelineUIAdapter
+    );
+
+    playbackEvents.push(...await reconcileTurnStartAndCollectPlayback(room, nextSnapshot, TurnPipelineUIAdapter));
+
+    if (MatchAuthority && typeof MatchAuthority.stripTransientPresentationState === 'function') {
+        MatchAuthority.stripTransientPresentationState(nextSnapshot);
+    }
+
+    return {
+        ok: true,
+        snapshot: nextSnapshot,
+        playbackEvents,
+        action: builtAction.action
+    };
+}
+
+function validatePublishedHands(snapshot, publishingSeatKey) {
+    if (MatchAuthority && typeof MatchAuthority.validatePublishedHands === 'function') {
+        return MatchAuthority.validatePublishedHands(snapshot, publishingSeatKey);
+    }
+    return { ok: false, reason: 'INVALID_HAND_STATE' };
+}
+
+async function reconcileTurnStartIfNeeded(room, snapshot, options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    if (!snapshot || !snapshot.gameState || !snapshot.cardState) return opts.includeRawEvents ? [] : snapshot;
 
     const currentPlayerKey = getCurrentPlayerKey(snapshot.gameState);
     const lastTurnStartedFor = parseSeatKeyOptional(snapshot.cardState.lastTurnStartedFor);
     if (lastTurnStartedFor === currentPlayerKey) {
-        return snapshot;
+        return opts.includeRawEvents ? [] : snapshot;
     }
 
     const { Core, CardLogic, TurnPipelinePhases, SeededPRNG } = await loadTurnStartModules();
     if (typeof Core.isGameOver === 'function' && Core.isGameOver(snapshot.gameState)) {
-        return snapshot;
+        return opts.includeRawEvents ? [] : snapshot;
     }
 
     normalizeCardStateForWorkerTurnStart(room, snapshot, CardLogic, SeededPRNG);
@@ -471,7 +682,7 @@ async function reconcileTurnStartIfNeeded(room, snapshot) {
         turnStartEvents,
         prng
     );
-    return snapshot;
+    return opts.includeRawEvents ? turnStartEvents : snapshot;
 }
 
 function cloneSnapshotWithVersion(room) {
@@ -541,51 +752,16 @@ function projectSnapshotForViewer(room, viewerSeatKey) {
 }
 
 function rehydrateSnapshotForPublish(previousSnapshot, incomingSnapshot) {
-    const nextSnapshot = deepClone(incomingSnapshot || {});
-    if (!nextSnapshot.cardState || typeof nextSnapshot.cardState !== 'object') {
-        nextSnapshot.cardState = {};
+    if (MatchAuthority && typeof MatchAuthority.rehydrateSnapshotForPublish === 'function') {
+        return MatchAuthority.rehydrateSnapshotForPublish(previousSnapshot, incomingSnapshot);
     }
-    const nextCardState = nextSnapshot.cardState;
-    const previousCardState = (previousSnapshot && previousSnapshot.cardState && typeof previousSnapshot.cardState === 'object')
-        ? previousSnapshot.cardState
-        : {};
-    const previousHands = (previousCardState.hands && typeof previousCardState.hands === 'object')
-        ? previousCardState.hands
-        : {};
-
-    if (!nextCardState.hands || typeof nextCardState.hands !== 'object') {
-        nextCardState.hands = {};
-    }
-
-    for (const ownerKey of PLAYER_KEYS) {
-        const incomingHand = Array.isArray(nextCardState.hands[ownerKey]) ? nextCardState.hands[ownerKey] : [];
-        nextCardState.hands[ownerKey] = incomingHand.map((cardId) => {
-            const resolved = resolveCardIdFromHiddenToken(cardId, previousHands);
-            return resolved || cardId;
-        });
-    }
-
-    if (Array.isArray(nextCardState.discard)) {
-        nextCardState.discard = nextCardState.discard.map((cardId) => {
-            const resolved = resolveCardIdFromHiddenToken(cardId, previousHands);
-            return resolved || cardId;
-        });
-    }
-
-    rehydrateHiddenTokensInPlace(nextCardState, previousHands);
-
-    nextCardState.presentationEvents = [];
-    nextCardState._presentationEventsPersist = [];
-    delete nextCardState._currentActionMeta;
-
-    if (nextSnapshot.gameState && typeof nextSnapshot.gameState === 'object') {
-        delete nextSnapshot.gameState.__resultShown;
-    }
-
-    return nextSnapshot;
+    return deepClone(incomingSnapshot || {});
 }
 
 function toPublicSnapshot(room, viewerSeatKey) {
+    if (MatchAuthority && typeof MatchAuthority.buildPublicSnapshot === 'function') {
+        return MatchAuthority.buildPublicSnapshot(room, viewerSeatKey || null);
+    }
     return projectSnapshotForViewer(room, viewerSeatKey || null);
 }
 
@@ -1479,7 +1655,7 @@ export class MatchRoomDurableObject {
         if (nextSnapshot.cardState && nextSnapshot.cardState.pendingEffectByPlayer && typeof nextSnapshot.cardState.pendingEffectByPlayer === 'object') {
             nextSnapshot.cardState.pendingEffectByPlayer[timedOutSeatKey] = null;
         }
-        await reconcileTurnStartIfNeeded(room, nextSnapshot);
+        const serverPlaybackEvents = await reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
 
         room.stateVersion = Number.isFinite(Number(room.stateVersion))
             ? Math.max(0, Math.trunc(Number(room.stateVersion))) + 1
@@ -1496,7 +1672,7 @@ export class MatchRoomDurableObject {
         await this.broadcastSnapshot({
             playerKey: timedOutSeatKey,
             actionType: 'timeout_pass',
-            playbackEvents: [],
+            playbackEvents: serverPlaybackEvents,
             operationId: `timeout_${room.stateVersion}_${nowMs}`
         });
 
@@ -1727,7 +1903,6 @@ export class MatchRoomDurableObject {
         const playerKey = normalizePlayerKey(body.playerKey);
         const seatToken = String(body.seatToken || '').trim();
         const baseVersion = Number.isFinite(Number(body.baseVersion)) ? Number(body.baseVersion) : null;
-        const snapshot = body.snapshot;
         const actionType = String(body.actionType || '').trim().toLowerCase();
         const operationId = normalizeOperationId(body.operationId);
         const isRematchResetAction = actionType === 'reset_game' || actionType === 'rematch' || actionType === 'restart';
@@ -1824,7 +1999,19 @@ export class MatchRoomDurableObject {
             }
         }
 
+        const hasCommandPayload = !!(
+            !isRematchResetAction
+            && body
+            && typeof body === 'object'
+            && (
+                (body.params && typeof body.params === 'object')
+                || (body.actor && String(body.actor).trim())
+                || (body.action && typeof body.action === 'object')
+            )
+        );
+
         let nextSnapshot;
+        let serverPlaybackEvents = [];
         if (isRematchResetAction) {
             const rematchSeed = Date.now();
             try {
@@ -1842,34 +2029,34 @@ export class MatchRoomDurableObject {
                     serverTime: Date.now()
                 });
             }
-        } else {
-            if (!snapshot || typeof snapshot !== 'object' || !snapshot.gameState || !snapshot.cardState) {
-                return jsonResponse(400, {
-                    ok: false,
-                    rejectedReason: 'INVALID_SNAPSHOT',
-                    snapshot: toPublicSnapshot(room, seatKey),
-                    seats: toPublicSeats(room),
-                    seatNames: toPublicSeatNames(room),
-                    stateVersion: room.stateVersion,
-                    turnTimer: toPublicTurnTimer(room),
-                    serverTime: Date.now()
-                });
-            }
-            const handsValidation = validatePublishedHands(snapshot, seatKey);
-            if (!handsValidation.ok) {
+        } else if (hasCommandPayload) {
+            const commandResult = await applyCommandPublishToSnapshot(room, body, playerKey);
+            if (!commandResult.ok) {
                 return jsonResponse(409, {
                     ok: false,
-                    rejectedReason: handsValidation.reason,
+                    rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED',
                     snapshot: toPublicSnapshot(room, seatKey),
                     seats: toPublicSeats(room),
                     seatNames: toPublicSeatNames(room),
                     stateVersion: room.stateVersion,
                     turnTimer: toPublicTurnTimer(room),
-                    serverTime: Date.now()
+                    serverTime: Date.now(),
+                    errorMessage: commandResult.errorMessage || null
                 });
             }
-            nextSnapshot = rehydrateSnapshotForPublish(room.snapshot, snapshot);
-            await reconcileTurnStartIfNeeded(room, nextSnapshot);
+            nextSnapshot = commandResult.snapshot;
+            serverPlaybackEvents = Array.isArray(commandResult.playbackEvents) ? commandResult.playbackEvents : [];
+        } else {
+            return jsonResponse(409, {
+                ok: false,
+                rejectedReason: 'COMMAND_REQUIRED',
+                snapshot: toPublicSnapshot(room, seatKey),
+                seats: toPublicSeats(room),
+                seatNames: toPublicSeatNames(room),
+                stateVersion: room.stateVersion,
+                turnTimer: toPublicTurnTimer(room),
+                serverTime: Date.now()
+            });
         }
 
         room.stateVersion += 1;
@@ -1892,7 +2079,7 @@ export class MatchRoomDurableObject {
         const meta = {
             playerKey,
             actionType: body.actionType ? String(body.actionType) : null,
-            playbackEvents: Array.isArray(body.playbackEvents) ? body.playbackEvents : [],
+            playbackEvents: serverPlaybackEvents,
             operationId: operationId || null
         };
 

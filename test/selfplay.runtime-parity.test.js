@@ -1,6 +1,7 @@
 const path = require('path');
 const runner = require(path.resolve(__dirname, '..', 'src', 'engine', 'selfplay-runner.js'));
 const runtime = require(path.resolve(__dirname, '..', 'game', 'ai', 'policy-table-runtime.js'));
+const SharedBoardUtils = require(path.resolve(__dirname, '..', 'shared', 'shared-board-utils.js'));
 
 function transformCoord(row, col, size, t) {
   if (t === 0) return { row, col };
@@ -121,5 +122,57 @@ describe('selfplay/runtime v2 parity', () => {
     expect(runtimeSelected).toBe(candidates[0]);
     expect(headlessSelected).toBe(candidates[0]);
   });
-});
 
+  test('headless parity keeps raw 8x8 policy keys on shaped boards', () => {
+    const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
+    const rawCanonical = runtime.canonicalizeBoard(board);
+    SharedBoardUtils.attachBoardShape(board, {
+      boardExpansion: {
+        cells: [{ row: 8, col: 0, owner: 'black' }]
+      }
+    });
+    const candidates = [
+      { row: 0, col: 0, flips: [] },
+      { row: 3, col: 3, flips: [] }
+    ];
+    const stateKey = runtime.makeStateKey('white', rawCanonical.boardKey, null, candidates.length);
+    const model = {
+      schemaVersion: 'policy_table.v2',
+      states: {
+        [stateKey]: {
+          bestAction: 'place:0:0',
+          actions: {
+            'place:0:0': { visits: 12, avgOutcome: 0.6 }
+          }
+        }
+      }
+    };
+
+    const runtimeSelected = runtime.chooseMoveFromModel(model, candidates, {
+      playerKey: 'white',
+      level: 6,
+      board,
+      pendingType: null,
+      legalMovesCount: candidates.length,
+      preferRaw8x8Keys: true
+    });
+    const headlessSelected = runner.selectPlacementMove(
+      candidates,
+      { random: () => 0 },
+      {
+        gameState: { board },
+        cardState: {},
+        playerKey: 'white',
+        pendingType: null,
+        legalMovesCount: candidates.length
+      },
+      {
+        policyTableModel: model,
+        enableTacticalLookahead: false
+      }
+    );
+
+    expect(runtimeSelected).toBe(candidates[0]);
+    expect(headlessSelected).toBe(candidates[0]);
+  });
+});

@@ -1,0 +1,7 @@
+{
+  "target": "trap",
+  "timestamp": "2026-03-16T06:37:58.522Z",
+  "phase": "attempt_error",
+  "attemptIndex": 8,
+  "error": "page.evaluate: Target page, context or browser has been closed\n    at waitForPlaybackIdle (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-selection-card-flow.js:205:16)\n    at runAttempt (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-selection-card-flow.js:789:64)\n    at async main (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-selection-card-flow.js:845:29)"
+}

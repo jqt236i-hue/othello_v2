@@ -401,6 +401,233 @@ function emitCpuCommentary(eventType, playerKey, extra) {
     });
 }
 
+function normalizePresentationPlayerKey(value, fallbackKey) {
+    const helpers = resolveCommentaryContextHelpers();
+    if (helpers && typeof helpers.normalizePlayerKey === 'function') {
+        return helpers.normalizePlayerKey(value, fallbackKey);
+    }
+    if (value === 'white' || value === CONST_WHITE || value === -1 || value === '-1') return 'white';
+    if (value === 'black' || value === CONST_BLACK || value === 1 || value === '1') return 'black';
+    return fallbackKey === 'white' ? 'white' : 'black';
+}
+
+function resolvePresentationGameState(options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    if (opts.gameState && typeof opts.gameState === 'object') return opts.gameState;
+    try {
+        return gameState || null;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function resolvePresentationCardState(cardStateRef) {
+    if (cardStateRef && typeof cardStateRef === 'object') return cardStateRef;
+    try {
+        return cardState || null;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function getCurrentPlayerKeyFromState(state) {
+    try {
+        const current = state ? state.currentPlayer : null;
+        if (current === CONST_BLACK || current === 'black') return 'black';
+        if (current === CONST_WHITE || current === 'white') return 'white';
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function getTurnNumberFromState(state) {
+    try {
+        const turnNumber = state ? state.turnNumber : null;
+        return Number.isFinite(turnNumber) ? turnNumber : null;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function buildEnemyCardUsedEventFromPlayback(playbackEvents) {
+    const events = Array.isArray(playbackEvents) ? playbackEvents : [];
+    for (const ev of events) {
+        if (!ev || ev.type !== 'card_use_animation') continue;
+        const targets = Array.isArray(ev.targets) ? ev.targets : [];
+        for (const one of targets) {
+            if (!one || typeof one !== 'object') continue;
+            const ownerKey = normalizePresentationPlayerKey(one.owner || one.player, 'black');
+            if (ownerKey !== 'black') continue;
+            return {
+                player: ownerKey,
+                cardId: one.cardId || null,
+                meta: {
+                    owner: ownerKey,
+                    cost: Number.isFinite(one.cost) ? one.cost : null,
+                    name: one.name || null
+                }
+            };
+        }
+    }
+    return null;
+}
+
+function buildEnemyCardCommentaryContext(ev, options) {
+    const state = resolvePresentationGameState(options);
+    if (!state || !Array.isArray(state.board)) return null;
+
+    const ownerKey = normalizePresentationPlayerKey((ev && ev.player) || (ev && ev.meta && ev.meta.owner), 'black');
+    if (ownerKey !== 'black') return null;
+
+    const speakerKey = 'white';
+    const counts = countDiscsSafe(state);
+    const turnNumber = getTurnNumberFromState(state);
+    const helpers = resolveCommentaryContextHelpers();
+    if (helpers && typeof helpers.buildCommentaryContext === 'function') {
+        return helpers.buildCommentaryContext({
+            eventType: 'card_used_by_enemy',
+            playerKey: speakerKey,
+            turnNumber,
+            counts,
+            board: state.board,
+            cardId: (ev && ev.cardId) ? String(ev.cardId) : null
+        });
+    }
+
+    return {
+        eventType: 'card_used_by_enemy',
+        playerKey: speakerKey,
+        turnNumber,
+        counts,
+        board: state.board,
+        phase: resolvePhaseByTurn(turnNumber, (counts.black || 0) + (counts.white || 0)),
+        advantage: resolveAdvantageLabel(speakerKey, counts),
+        cardId: (ev && ev.cardId) ? String(ev.cardId) : null
+    };
+}
+
+function formatPresentationCommentaryResult(playerKey, text) {
+    const line = String(text || '').trim();
+    if (!line) return null;
+    const runtimeHelpers = resolveCommentaryRuntimeHelpers();
+    const prefix = (runtimeHelpers && typeof runtimeHelpers.getCpuSpeakerPrefix === 'function')
+        ? runtimeHelpers.getCpuSpeakerPrefix(playerKey)
+        : (playerKey === 'black' ? '黒CPU' : '白CPU');
+    return {
+        playerKey,
+        prefix,
+        line,
+        text: `${prefix}: ${line}`
+    };
+}
+
+function requestEnemyCardCommentary(ev, options) {
+    if (isHumanVsHumanModeEnabled()) return Promise.resolve(null);
+
+    const opts = (options && typeof options === 'object') ? options : {};
+    const runtime = (opts.runtime && typeof opts.runtime.requestCommentary === 'function')
+        ? opts.runtime
+        : resolveCpuCommentaryRuntime();
+    if (!runtime || typeof runtime.requestCommentary !== 'function') return Promise.resolve(null);
+
+    const context = buildEnemyCardCommentaryContext(ev, opts);
+    if (!context) return Promise.resolve(null);
+
+    return Promise.resolve(runtime.requestCommentary(context))
+        .then((text) => formatPresentationCommentaryResult('white', text))
+        .catch(() => null);
+}
+
+function requestEnemyCardCommentaryFromPlayback(playbackEvents, options) {
+    const enemyCardEvent = buildEnemyCardUsedEventFromPlayback(playbackEvents);
+    if (!enemyCardEvent) return Promise.resolve(null);
+    return requestEnemyCardCommentary(enemyCardEvent, options);
+}
+
+function flushPendingPresentationEvents(cardStateRef, options) {
+    const state = resolvePresentationCardState(cardStateRef);
+    if (!state) return [];
+
+    const opts = (options && typeof options === 'object') ? options : {};
+    let events = [];
+    const flushLiveEvents = (typeof opts.flushLiveEvents === 'function')
+        ? opts.flushLiveEvents
+        : ((typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.flushPresentationEvents === 'function')
+            ? CardLogic.flushPresentationEvents
+            : null);
+    if (typeof flushLiveEvents === 'function') {
+        try {
+            events = flushLiveEvents(state) || [];
+        } catch (e) {
+            events = [];
+        }
+    }
+
+    if (events && events.length > 0 && Array.isArray(state._presentationEventsPersist)) {
+        state._presentationEventsPersist.length = 0;
+    }
+
+    if ((!events || events.length === 0) && Array.isArray(state._presentationEventsPersist) && state._presentationEventsPersist.length) {
+        events = state._presentationEventsPersist.slice();
+        state._presentationEventsPersist.length = 0;
+    }
+
+    return Array.isArray(events) ? events : [];
+}
+
+function createBoardUpdateDrainController() {
+    let drainInProgress = false;
+    let drainPending = false;
+
+    return {
+        async requestDrain(runDrain) {
+            drainPending = true;
+            if (drainInProgress) return;
+
+            drainInProgress = true;
+            try {
+                while (drainPending) {
+                    drainPending = false;
+                    if (typeof runDrain === 'function') {
+                        await runDrain();
+                    }
+                }
+            } finally {
+                drainInProgress = false;
+            }
+        }
+    };
+}
+
+function schedulePresentationCpuTurn(ev, options) {
+    const payload = (ev && typeof ev === 'object') ? ev : {};
+    const opts = (options && typeof options === 'object') ? options : {};
+    const delay = Number.isFinite(payload.delayMs) ? payload.delayMs : 0;
+    const scheduleFn = (typeof opts.setTimeout === 'function') ? opts.setTimeout : setTimeout;
+    const cpuTurnFn = (typeof opts.processCpuTurn === 'function') ? opts.processCpuTurn : processCpuTurn;
+
+    return scheduleFn(function () {
+        try {
+            const state = resolvePresentationGameState(opts);
+            const currentPlayerKey = getCurrentPlayerKeyFromState(state);
+            const currentTurnNumber = getTurnNumberFromState(state);
+            if (payload.expectedPlayerKey && payload.expectedPlayerKey !== currentPlayerKey) return;
+            if (Number.isFinite(payload.expectedTurnNumber) && payload.expectedTurnNumber !== currentTurnNumber) return;
+        } catch (e) { /* ignore */ }
+
+        if (typeof cpuTurnFn === 'function') {
+            cpuTurnFn();
+        } else {
+            console.warn('[GamePresentationRuntime] processCpuTurn not available for SCHEDULE_CPU_TURN');
+        }
+    }, delay);
+}
+
+const presentationRuntime = {
+    buildEnemyCardUsedEventFromPlayback,
+    requestEnemyCardCommentary,
+    requestEnemyCardCommentaryFromPlayback,
+    flushPendingPresentationEvents,
+    createBoardUpdateDrainController,
+    scheduleCpuTurn: schedulePresentationCpuTurn
+};
+
 async function maybeUseCardFromOnnx(playerKey, level, legalMovesCount, legalMoves) {
     const none = { attempted: false, applied: false, hold: false };
     if (!shouldUseOnnxCardDecision(level)) return none;
@@ -1024,20 +1251,29 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
 
 // Expose for browser globals and module systems (single source of truth)
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { processCpuTurn, processAutoBlackTurn, setTimers, getTimers, scheduleRetry, getPendingTypeHandlers, runCpuTurn };
+    module.exports = {
+        processCpuTurn,
+        processAutoBlackTurn,
+        setTimers,
+        getTimers,
+        scheduleRetry,
+        getPendingTypeHandlers,
+        runCpuTurn,
+        PresentationRuntime: presentationRuntime
+    };
 }
 
 // Prefer registering these functions with UIBootstrap so UI can access them via a canonical API
 try {
     const uiBootstrap = require('../shared/ui-bootstrap-shared');
     if (uiBootstrap && typeof uiBootstrap.registerUIGlobals === 'function') {
-        uiBootstrap.registerUIGlobals({ processCpuTurn, processAutoBlackTurn });
+        uiBootstrap.registerUIGlobals({ processCpuTurn, processAutoBlackTurn, GamePresentationRuntime: presentationRuntime });
     }
 } catch (e) { /* ignore in headless contexts */ }
 // Browser fallback: if UI is loaded via globals, register into globalThis.UIBootstrap
 try {
     if (typeof globalThis !== 'undefined' && globalThis.UIBootstrap && typeof globalThis.UIBootstrap.registerUIGlobals === 'function') {
-        globalThis.UIBootstrap.registerUIGlobals({ processCpuTurn, processAutoBlackTurn });
+        globalThis.UIBootstrap.registerUIGlobals({ processCpuTurn, processAutoBlackTurn, GamePresentationRuntime: presentationRuntime });
     } else if (typeof globalThis !== 'undefined') {
         // Wait for bootstrap to become available (IDed by globalThis.UIBootstrap) and register when ready.
         // Avoid polling during tests (Jest) to prevent keeping the event loop open.
@@ -1050,7 +1286,7 @@ try {
                 tries += 1;
                 try {
                     if (globalThis.UIBootstrap && typeof globalThis.UIBootstrap.registerUIGlobals === 'function') {
-                        globalThis.UIBootstrap.registerUIGlobals({ processCpuTurn, processAutoBlackTurn });
+                        globalThis.UIBootstrap.registerUIGlobals({ processCpuTurn, processAutoBlackTurn, GamePresentationRuntime: presentationRuntime });
                         clearInterval(tid);
                         return;
                     }
@@ -1066,6 +1302,7 @@ try {
     if (typeof globalThis !== 'undefined') {
         try { globalThis.processCpuTurn = processCpuTurn; } catch (e) {}
         try { globalThis.processAutoBlackTurn = processAutoBlackTurn; } catch (e) {}
+        try { globalThis.GamePresentationRuntime = presentationRuntime; } catch (e) {}
     }
 } catch (e) { /* ignore */ }
 })();

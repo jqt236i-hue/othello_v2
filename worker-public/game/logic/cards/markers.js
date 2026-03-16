@@ -394,6 +394,92 @@
         return true;
     }
 
+    function applyExtendLifeWill(cardState, gameState, playerKey, row, col, deps) {
+        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        if (!pending || pending.type !== 'EXTEND_LIFE_WILL' || pending.stage !== 'selectTarget') {
+            return { applied: false, reason: 'not_pending' };
+        }
+
+        const getTargets = deps && typeof deps.getExtendLifeTargets === 'function'
+            ? deps.getExtendLifeTargets
+            : (() => []);
+        const targets = getTargets(cardState, gameState, playerKey);
+        const allowed = Array.isArray(targets) && targets.some((target) => target && target.row === row && target.col === col);
+        if (!allowed) return { applied: false, reason: 'invalid_target' };
+
+        const specialsAtCell = getSpecialMarkers(cardState).filter((marker) => (
+            marker &&
+            marker.row === row &&
+            marker.col === col &&
+            marker.owner === playerKey &&
+            marker.data &&
+            Number.isFinite(marker.data.remainingOwnerTurns) &&
+            Number(marker.data.remainingOwnerTurns) > 0
+        ));
+        if (!specialsAtCell.length) {
+            return { applied: false, reason: 'no_duration' };
+        }
+
+        const primaryMarker = specialsAtCell.find((marker) => {
+            const type = marker && marker.data ? marker.data.type : null;
+            return type !== 'GUARD';
+        }) || specialsAtCell[0];
+
+        let previousRemainingOwnerTurns = 0;
+        let newRemainingOwnerTurns = 0;
+        for (const marker of specialsAtCell) {
+            const before = Number(marker.data.remainingOwnerTurns || 0);
+            const after = Math.max(1, Math.trunc(before * 2));
+            marker.data.remainingOwnerTurns = after;
+            if (marker === primaryMarker) {
+                previousRemainingOwnerTurns = before;
+                newRemainingOwnerTurns = after;
+            }
+        }
+
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return { applied: true, row, col, previousRemainingOwnerTurns, newRemainingOwnerTurns };
+    }
+
+    function applyCorrosionWill(cardState, gameState, playerKey, row, col, deps) {
+        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        if (!pending || pending.type !== 'CORROSION_WILL' || pending.stage !== 'selectTarget') {
+            return { applied: false, reason: 'not_pending', affectedCount: 0, details: [] };
+        }
+
+        const getTargets = deps && typeof deps.getCorrosionTargets === 'function'
+            ? deps.getCorrosionTargets
+            : (() => []);
+        const targets = getTargets(cardState, gameState, playerKey);
+        const allowed = Array.isArray(targets) && targets.some((target) => target && target.row === row && target.col === col);
+        if (!allowed) {
+            return { applied: false, reason: 'invalid_target', affectedCount: 0, details: [] };
+        }
+
+        const details = [];
+        for (const marker of getSpecialMarkers(cardState)) {
+            if (!marker || marker.row !== row || marker.col !== col) continue;
+            if (!marker.data || !Number.isFinite(marker.data.remainingOwnerTurns)) continue;
+
+            const before = Number(marker.data.remainingOwnerTurns);
+            if (before <= 0) continue;
+
+            const after = Math.max(1, Math.trunc(before / 2));
+            marker.data.remainingOwnerTurns = after;
+            details.push({
+                row: marker.row,
+                col: marker.col,
+                owner: marker.owner || null,
+                special: marker.data && marker.data.type ? marker.data.type : null,
+                previousRemainingOwnerTurns: before,
+                newRemainingOwnerTurns: after
+            });
+        }
+
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return { applied: true, affectedCount: details.length, details };
+    }
+
     return {
         MARKER_KINDS,
         ensureMarkers,
@@ -416,6 +502,8 @@
         setStoneIdAtForCard,
         swapCellCoordinates,
         addMarker,
-        removeMarkerById
+        removeMarkerById,
+        applyExtendLifeWill,
+        applyCorrosionWill
     };
 }));

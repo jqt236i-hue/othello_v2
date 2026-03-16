@@ -1,0 +1,347 @@
+{
+  "total": {
+    "count": 14,
+    "avgFuture": 0.8571,
+    "avgPlacementFuture": -1.5,
+    "avgLegalMoves": 1.5714,
+    "avgDiscDiff": 4.9286,
+    "thresholdPassedRate": 0.7143,
+    "handPressureRate": 1,
+    "forceUseRate": 0.2857,
+    "seatCounts": {
+      "edge": 2,
+      "corner": 6,
+      "x": 3,
+      "unpaired": 2,
+      "inner": 1
+    }
+  },
+  "negative": {
+    "count": 4,
+    "avgFuture": -2.5,
+    "avgPlacementFuture": -3.5,
+    "avgLegalMoves": 2.5,
+    "avgDiscDiff": 8.5,
+    "thresholdPassedRate": 0.75,
+    "handPressureRate": 1,
+    "forceUseRate": 0.25,
+    "seatCounts": {
+      "corner": 3,
+      "edge": 1
+    }
+  },
+  "nonNegative": {
+    "count": 10,
+    "avgFuture": 2.2,
+    "avgPlacementFuture": -0.7,
+    "avgLegalMoves": 1.2,
+    "avgDiscDiff": 3.5,
+    "thresholdPassedRate": 0.7,
+    "handPressureRate": 1,
+    "forceUseRate": 0.3,
+    "seatCounts": {
+      "edge": 1,
+      "x": 3,
+      "unpaired": 2,
+      "corner": 3,
+      "inner": 1
+    }
+  },
+  "pairs": [
+    {
+      "seed": 1,
+      "ply": 78,
+      "future": 1,
+      "legalMoves": 1,
+      "discDiff": 29,
+      "useScore": 265,
+      "reasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "placement": {
+        "ply": 79,
+        "row": 1,
+        "col": 7,
+        "seat": "edge",
+        "future": 0,
+        "selectedCellBonus": 1
+      }
+    },
+    {
+      "seed": 2,
+      "ply": 64,
+      "future": -6,
+      "legalMoves": 1,
+      "discDiff": 19,
+      "useScore": 241,
+      "reasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "placement": {
+        "ply": 65,
+        "row": 0,
+        "col": 0,
+        "seat": "corner",
+        "future": -7,
+        "selectedCellBonus": 3
+      }
+    },
+    {
+      "seed": 3,
+      "ply": 66,
+      "future": -2,
+      "legalMoves": 0,
+      "discDiff": 25,
+      "useScore": 1208,
+      "reasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_emergency",
+        "hand_pressure"
+      ],
+      "placement": {
+        "ply": 67,
+        "row": 0,
+        "col": 7,
+        "seat": "corner",
+        "future": -3,
+        "selectedCellBonus": 6
+      }
+    },
+    {
+      "seed": 10,
+      "ply": 69,
+      "future": 3,
+      "legalMoves": 1,
+      "discDiff": -7,
+      "useScore": 560,
+      "reasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "placement": {
+        "ply": 70,
+        "row": 6,
+        "col": 1,
+        "seat": "x",
+        "future": 0,
+        "selectedCellBonus": 4
+      }
+    },
+    {
+      "seed": 14,
+      "ply": 106,
+      "future": 0,
+      "legalMoves": 0,
+      "discDiff": 21,
+      "useScore": 1082,
+      "reasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_hold_mode",
+        "hand_pressure"
+      ],
+      "placement": null
+    },
+    {
+      "seed": 16,
+      "ply": 119,
+      "future": 1,
+      "legalMoves": 0,
+      "discDiff": -10,
+      "useScore": 1302,
+      "reasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_emergency",
+        "hand_pressure"
+      ],
+      "placement": {
+        "ply": 120,
+        "row": 6,
+        "col": 6,
+        "seat": "x",
+        "future": 0,
+        "selectedCellBonus": 3
+      }
+    },
+    {
+      "seed": 22,
+      "ply": 93,
+      "future": -1,
+      "legalMoves": 5,
+      "discDiff": -10,
+      "useScore": 314,
+      "reasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "placement": {
+        "ply": 94,
+        "row": 7,
+        "col": 6,
+        "seat": "edge",
+        "future": -2,
+        "selectedCellBonus": 0
+      }
+    },
+    {
+      "seed": 23,
+      "ply": 96,
+      "future": -1,
+      "legalMoves": 4,
+      "discDiff": 0,
+      "useScore": 196,
+      "reasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "placement": {
+        "ply": 97,
+        "row": 0,
+        "col": 7,
+        "seat": "corner",
+        "future": -2,
+        "selectedCellBonus": 3
+      }
+    },
+    {
+      "seed": 23,
+      "ply": 107,
+      "future": 3,
+      "legalMoves": 1,
+      "discDiff": -3,
+      "useScore": 452,
+      "reasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "placement": {
+        "ply": 108,
+        "row": 7,
+        "col": 0,
+        "seat": "corner",
+        "future": -4,
+        "selectedCellBonus": 3
+      }
+    },
+    {
+      "seed": 25,
+      "ply": 54,
+      "future": 0,
+      "legalMoves": 3,
+      "discDiff": -24,
+      "useScore": 416,
+      "reasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "placement": {
+        "ply": 55,
+        "row": 0,
+        "col": 0,
+        "seat": "corner",
+        "future": -1,
+        "selectedCellBonus": 0
+      }
+    },
+    {
+      "seed": 28,
+      "ply": 163,
+      "future": 5,
+      "legalMoves": 1,
+      "discDiff": 50,
+      "useScore": 265,
+      "reasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "placement": {
+        "ply": 164,
+        "row": 5,
+        "col": 3,
+        "seat": "inner",
+        "future": 0,
+        "selectedCellBonus": 0
+      }
+    },
+    {
+      "seed": 29,
+      "ply": 72,
+      "future": 2,
+      "legalMoves": 4,
+      "discDiff": -9,
+      "useScore": 304,
+      "reasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "placement": {
+        "ply": 73,
+        "row": 0,
+        "col": 0,
+        "seat": "corner",
+        "future": -2,
+        "selectedCellBonus": 2
+      }
+    },
+    {
+      "seed": 30,
+      "ply": 73,
+      "future": 7,
+      "legalMoves": 1,
+      "discDiff": -1,
+      "useScore": 452,
+      "reasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "placement": {
+        "ply": 74,
+        "row": 1,
+        "col": 6,
+        "seat": "x",
+        "future": 0,
+        "selectedCellBonus": 0
+      }
+    },
+    {
+      "seed": 32,
+      "ply": 87,
+      "future": 0,
+      "legalMoves": 0,
+      "discDiff": -11,
+      "useScore": 1318,
+      "reasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_emergency",
+        "hand_pressure"
+      ],
+      "placement": null
+    }
+  ]
+}

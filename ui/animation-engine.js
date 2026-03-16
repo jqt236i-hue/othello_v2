@@ -301,26 +301,12 @@
             return playerKey === 'white' ? whiteVal : blackVal;
         }
 
-        _shouldPlayCardUseButtonCue(target) {
-            const t = (target && typeof target === 'object') ? target : {};
-            const cardId = (t.cardId !== null && typeof t.cardId !== 'undefined') ? String(t.cardId) : '';
-            if (!cardId) return true;
-            try {
-                if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function') {
-                    const cardDef = CardLogic.getCardDef(cardId);
-                    if (cardDef && cardDef.type === 'TREASURE_BOX') return false;
-                }
-            } catch (e) { /* ignore */ }
-            return true;
-        }
-
         _playCardUseButtonCueForOpponent(target) {
             const ownerKey = this._resolveCardUseOwnerKey(target);
             if (!ownerKey) return;
 
             const localSeatKey = this._resolveLocalSeatKey();
             if (ownerKey === localSeatKey) return;
-            if (!this._shouldPlayCardUseButtonCue(target)) return;
 
             try {
                 if (typeof SoundEngine !== 'undefined' && SoundEngine && typeof SoundEngine.playEffectByKey === 'function') {
@@ -1117,13 +1103,19 @@
                 this.isPlaying = false;
                 this.setGlobalInteractionLock(false);
 
-                 // One-shot flag for DiffRenderer:
+                 // One-shot board update context for DiffRenderer:
                  // After playback, AnimationEngine triggers `emitBoardUpdate()` to sync any non-animated UI (timers, hints).
                  // DiffRenderer has a fallback "owner changed => add .flip" animation which would otherwise replay flips,
-                 // making stones appear to flip twice. This flag is consumed/cleared by ui/diff-renderer.js.
+                 // making stones appear to flip twice. This context is consumed/cleared by ui/diff-renderer.js.
                  if (shouldSuppressNextDiffFlip && !abortedDuringPlay && !this._watchdogFired && !this.isAborted) {
                      try {
-                         if (PlaybackState && typeof PlaybackState.setSuppressNextDiffFlip === 'function') {
+                         if (PlaybackState && typeof PlaybackState.armBoardUpdateContext === 'function') {
+                             PlaybackState.armBoardUpdateContext({
+                                 suppressFallbackFlip: true,
+                                 source: 'animation-engine',
+                                 reason: 'post_playback_sync'
+                             });
+                         } else if (PlaybackState && typeof PlaybackState.setSuppressNextDiffFlip === 'function') {
                              PlaybackState.setSuppressNextDiffFlip(true);
                          } else {
                              window.__suppressNextDiffFlip = true;
@@ -1280,7 +1272,11 @@
             } catch (e) { console.error('[AnimationEngine] watchdog emitBoardUpdate failed', e); }
             // Ensure flags cleared
             this.setGlobalInteractionLock(false);
-            window.VisualPlaybackActive = false;
+            if (PlaybackState && typeof PlaybackState.setPlaybackActive === 'function') {
+                PlaybackState.setPlaybackActive(false);
+            } else if (typeof window !== 'undefined') {
+                window.VisualPlaybackActive = false;
+            }
         }
 
         // Abort externally and apply final state (used by Single Visual Writer fallback)
@@ -1312,13 +1308,28 @@
                 case EVENT_TYPES.STATUS_REMOVED:
                     return this.handleStatusChange(ev);
                 case EVENT_TYPES.HAND_ADD:
-                    if (typeof window !== 'undefined' && typeof window.playDrawCardHandAnimation === 'function') {
+                    if (typeof window !== 'undefined') {
                         const t = (ev.targets && ev.targets[0]) ? ev.targets[0] : ev;
-                        return window.playDrawCardHandAnimation({
-                            player: t.player,
-                            cardId: t.cardId,
-                            count: t.count
-                        });
+                        if (t.reason === 'generated_throw_chain' && typeof window.playDirectHandAddAnimation === 'function') {
+                            return window.playDirectHandAddAnimation({
+                                player: t.player,
+                                cardId: t.cardId,
+                                count: t.count,
+                                reason: t.reason,
+                                sourceType: t.sourceType,
+                                generatedName: t.generatedName
+                            });
+                        }
+                        if (typeof window.playDrawCardHandAnimation === 'function') {
+                            return window.playDrawCardHandAnimation({
+                                player: t.player,
+                                cardId: t.cardId,
+                                count: t.count,
+                                reason: t.reason,
+                                sourceType: t.sourceType,
+                                generatedName: t.generatedName
+                            });
+                        }
                     }
                     return Promise.resolve();
                 case EVENT_TYPES.PLACE_HAND_ANIMATION:
@@ -1364,7 +1375,8 @@
                                 cardId: t2.cardId,
                                 cost: t2.cost,
                                 name: t2.name,
-                                sourceCardEl: t2.sourceCardEl || null
+                                sourceCardEl: t2.sourceCardEl || null,
+                                sourceCardRect: t2.sourceCardRect || ev.sourceCardRect || null
                             });
                         }
                     }
@@ -1900,6 +1912,19 @@
                 const isTeleportMove =
                     moveCause === 'TELEPORT_WILL' || moveReason === 'teleport_move';
                 const isCloneMove = !!(t && t.clone === true);
+                const isHyperactiveLikeMove = (
+                    moveCause === 'HYPERACTIVE' ||
+                    moveCause === 'ESCAPE_HYPERACTIVE' ||
+                    moveCause === 'EXTREME_HYPERACTIVE_WILL' ||
+                    moveCause === 'HYPERACTIVE_INHERIT_WILL' ||
+                    moveCause === 'ROBOT_VACUUM' ||
+                    moveCause === 'GLUTTONOUS_WILL' ||
+                    moveCause === 'ULTIMATE_HYPERACTIVE' ||
+                    moveCause === 'ULTIMATE_HYPERACTIVE_GOD' ||
+                    moveReason.indexOf('hyperactive') >= 0 ||
+                    moveReason.indexOf('gluttonous') >= 0 ||
+                    moveReason.indexOf('robot_vacuum_move') === 0
+                );
                 let disc = fromCell.querySelector('.disc');
                 let sourceCell = fromCell;
                 let useGhostOnly = isCloneMove;
@@ -2005,6 +2030,15 @@
                         // best-effort
                     }
                     return;
+                }
+
+                let hiddenTargetDisc = null;
+                if (isCloneMove || isHyperactiveLikeMove) {
+                    const liveTargetDisc = toCell.querySelector('.disc');
+                    if (liveTargetDisc && liveTargetDisc !== disc) {
+                        liveTargetDisc.style.visibility = 'hidden';
+                        hiddenTargetDisc = liveTargetDisc;
+                    }
                 }
 
                 const ghost = disc.cloneNode(true);
@@ -2122,6 +2156,9 @@
                         }
                     }
                 } finally {
+                    if (hiddenTargetDisc) {
+                        try { ensureDiscVisibleForMove(hiddenTargetDisc); } catch (e) { /* ignore */ }
+                    }
                     if (discHidden) {
                         try { ensureDiscVisibleForMove(disc); } catch (e) { /* ignore */ }
                     }
@@ -2428,10 +2465,10 @@
         }
 
         setGlobalInteractionLock(locked) {
-            window.isProcessing = locked;
             if (PlaybackState && typeof PlaybackState.setInteractionLock === 'function') {
                 PlaybackState.setInteractionLock(locked);
             } else {
+                window.isProcessing = locked;
                 window.isCardAnimating = locked; // legacy flag
                 window.VisualPlaybackActive = locked;
                 window.__playbackActiveSince = locked ? Date.now() : null;

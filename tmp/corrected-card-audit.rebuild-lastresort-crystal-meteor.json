@@ -1,0 +1,263 @@
+{
+  "LAST_RESORT": {
+    "count": 5,
+    "avgFuture": -0.4,
+    "negatives": 1,
+    "negativeAvgFuture": -7,
+    "avgLegalMoves": 0,
+    "negativeAvgLegalMoves": 0,
+    "cornerEmergencyRate": 0.8,
+    "highBonusRate": 0,
+    "cornerMoveRate": 0,
+    "edgeMoveRate": 0,
+    "negativesSample": [
+      {
+        "seed": 19,
+        "ply": 75,
+        "cardId": "last_resort_01",
+        "cardType": "LAST_RESORT",
+        "future": -7,
+        "legalMovesCount": 0,
+        "hasCornerMoveNow": false,
+        "hasEdgeMoveNow": false,
+        "highBonusMoveAvailable": false,
+        "cornerEmergency": true,
+        "reasonTags": [
+          "decision:use",
+          "force_use_card",
+          "corner_emergency",
+          "hand_pressure"
+        ],
+        "handCards": [
+          "corrosion_01",
+          "split_01",
+          "last_resort_01",
+          "strong_wind_01",
+          "supply_01"
+        ],
+        "usableCardIds": [
+          "last_resort_01",
+          "strong_wind_01"
+        ]
+      }
+    ]
+  },
+  "REBUILD_WILL": {
+    "count": 6,
+    "avgFuture": 1.5,
+    "negatives": 2,
+    "negativeAvgFuture": -2.5,
+    "avgLegalMoves": 3,
+    "negativeAvgLegalMoves": 2,
+    "cornerEmergencyRate": 0.6666666666666666,
+    "highBonusRate": 0.16666666666666666,
+    "cornerMoveRate": 0,
+    "edgeMoveRate": 0,
+    "negativesSample": [
+      {
+        "seed": 2,
+        "ply": 61,
+        "cardId": "rebuild_01",
+        "cardType": "REBUILD_WILL",
+        "future": -2,
+        "legalMovesCount": 0,
+        "hasCornerMoveNow": false,
+        "hasEdgeMoveNow": false,
+        "highBonusMoveAvailable": false,
+        "cornerEmergency": true,
+        "reasonTags": [
+          "decision:use",
+          "force_use_card",
+          "corner_emergency",
+          "hand_pressure"
+        ],
+        "handCards": [
+          "sacrifice_01",
+          "rebuild_01",
+          "taboo_reverse_01",
+          "hyperactive_01",
+          "freeze_01"
+        ],
+        "usableCardIds": [
+          "sacrifice_01",
+          "rebuild_01",
+          "taboo_reverse_01",
+          "hyperactive_01"
+        ]
+      },
+      {
+        "seed": 12,
+        "ply": 45,
+        "cardId": "rebuild_01",
+        "cardType": "REBUILD_WILL",
+        "future": -3,
+        "legalMovesCount": 4,
+        "hasCornerMoveNow": false,
+        "hasEdgeMoveNow": false,
+        "highBonusMoveAvailable": false,
+        "cornerEmergency": true,
+        "reasonTags": [
+          "decision:use",
+          "corner_emergency",
+          "hand_pressure",
+          "threshold_passed"
+        ],
+        "handCards": [
+          "last_resort_01",
+          "split_01",
+          "extreme_hyperactive_01",
+          "rebuild_01",
+          "instant_hyperactive_01"
+        ],
+        "usableCardIds": [
+          "rebuild_01",
+          "instant_hyperactive_01"
+        ]
+      }
+    ]
+  },
+  "CRYSTAL_STONE": {
+    "count": 7,
+    "avgFuture": 1.1428571428571428,
+    "negatives": 2,
+    "negativeAvgFuture": -1,
+    "avgLegalMoves": 7,
+    "negativeAvgLegalMoves": 6,
+    "cornerEmergencyRate": 0,
+    "highBonusRate": 1,
+    "cornerMoveRate": 0,
+    "edgeMoveRate": 0,
+    "negativesSample": [
+      {
+        "seed": 4,
+        "ply": 9,
+        "cardId": "crystal_stone",
+        "cardType": "CRYSTAL_STONE",
+        "future": -1,
+        "legalMovesCount": 7,
+        "hasCornerMoveNow": false,
+        "hasEdgeMoveNow": false,
+        "highBonusMoveAvailable": true,
+        "cornerEmergency": false,
+        "reasonTags": [
+          "decision:use",
+          "high_bonus_move_available",
+          "hand_pressure",
+          "threshold_passed"
+        ],
+        "handCards": [
+          "taboo_reverse_01",
+          "work_01",
+          "instant_hyperactive_01",
+          "crystal_stone",
+          "last_resort_01"
+        ],
+        "usableCardIds": [
+          "work_01",
+          "instant_hyperactive_01",
+          "crystal_stone"
+        ]
+      },
+      {
+        "seed": 20,
+        "ply": 11,
+        "cardId": "crystal_stone",
+        "cardType": "CRYSTAL_STONE",
+        "future": -1,
+        "legalMovesCount": 5,
+        "hasCornerMoveNow": false,
+        "hasEdgeMoveNow": false,
+        "highBonusMoveAvailable": true,
+        "cornerEmergency": false,
+        "reasonTags": [
+          "decision:use",
+          "high_bonus_move_available",
+          "threshold_passed"
+        ],
+        "handCards": [
+          "sell_01",
+          "hyperactive_01",
+          "crystal_stone"
+        ],
+        "usableCardIds": [
+          "sell_01",
+          "hyperactive_01",
+          "crystal_stone"
+        ]
+      }
+    ]
+  },
+  "METEOR_WILL": {
+    "count": 5,
+    "avgFuture": 0.6,
+    "negatives": 2,
+    "negativeAvgFuture": -1,
+    "avgLegalMoves": 4,
+    "negativeAvgLegalMoves": 3.5,
+    "cornerEmergencyRate": 0.8,
+    "highBonusRate": 0.4,
+    "cornerMoveRate": 0,
+    "edgeMoveRate": 0,
+    "negativesSample": [
+      {
+        "seed": 14,
+        "ply": 22,
+        "cardId": "meteor_01",
+        "cardType": "METEOR_WILL",
+        "future": -1,
+        "legalMovesCount": 7,
+        "hasCornerMoveNow": false,
+        "hasEdgeMoveNow": false,
+        "highBonusMoveAvailable": false,
+        "cornerEmergency": true,
+        "reasonTags": [
+          "decision:use",
+          "corner_emergency",
+          "hand_pressure",
+          "threshold_passed"
+        ],
+        "handCards": [
+          "work_01",
+          "escape_01",
+          "freeze_01",
+          "sniper_01",
+          "meteor_01"
+        ],
+        "usableCardIds": [
+          "work_01",
+          "escape_01",
+          "sniper_01",
+          "meteor_01"
+        ]
+      },
+      {
+        "seed": 16,
+        "ply": 99,
+        "cardId": "meteor_01",
+        "cardType": "METEOR_WILL",
+        "future": -1,
+        "legalMovesCount": 0,
+        "hasCornerMoveNow": false,
+        "hasEdgeMoveNow": false,
+        "highBonusMoveAvailable": false,
+        "cornerEmergency": true,
+        "reasonTags": [
+          "decision:use",
+          "force_use_card",
+          "corner_emergency",
+          "hand_pressure"
+        ],
+        "handCards": [
+          "ribo_01",
+          "meteor_01",
+          "gluttonous_will_01",
+          "corrosion_01",
+          "supply_01"
+        ],
+        "usableCardIds": [
+          "meteor_01"
+        ]
+      }
+    ]
+  }
+}

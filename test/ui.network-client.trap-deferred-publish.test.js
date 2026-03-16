@@ -9,6 +9,18 @@ function jsonResponse(status, data) {
   };
 }
 
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function createLiveResponseSnapshot(stateVersion) {
+  return {
+    stateVersion,
+    gameState: cloneJson(global.gameState),
+    cardState: cloneJson(global.cardState)
+  };
+}
+
 function createSnapshot(stateVersion) {
   return {
     stateVersion,
@@ -137,10 +149,12 @@ describe('NetworkMatchClient trap deferred publish', () => {
           ok: true,
           roomId: 'TRP',
           stateVersion: 21,
-          snapshot: {
-            ...body.snapshot,
-            stateVersion: 21
-          }
+          snapshot: body.snapshot
+            ? {
+              ...body.snapshot,
+              stateVersion: 21
+            }
+            : createLiveResponseSnapshot(21)
         });
       }
 
@@ -207,9 +221,12 @@ describe('NetworkMatchClient trap deferred publish', () => {
 
     expect(publishBodies).toHaveLength(1);
     expect(publishBodies[0].actionType).toBe('place');
-    expect(publishBodies[0].playbackEvents).toEqual(expect.arrayContaining([
-      expect.objectContaining({ type: 'status_applied', phase: 1 }),
-      expect.objectContaining({ type: 'draw', phase: 2 })
-    ]));
+    expect(publishBodies[0].actor).toBe('black');
+    expect(publishBodies[0].params).toEqual({
+      player: 'black',
+      trapTarget: { row: 2, col: 2 }
+    });
+    expect(publishBodies[0].snapshot).toBeUndefined();
+    expect(publishBodies[0].playbackEvents).toBeUndefined();
   });
 });

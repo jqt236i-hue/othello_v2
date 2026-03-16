@@ -519,6 +519,22 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCue).toBeUndefined();
   });
 
+  test('水晶の意志の自己破壊は stone_destroy ではなく sell_sacrifice_gain を再生する', () => {
+    const base = [{
+      type: 'destroy',
+      phase: 13,
+      targets: [{ r: 1, col: 6, cause: 'SYSTEM', reason: 'crystal_stone_sacrifice' }]
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const gainCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'sell_sacrifice_gain');
+    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+
+    expect(gainCue).toBeTruthy();
+    expect(gainCue.phase).toBe(13);
+    expect(stoneCue).toBeUndefined();
+  });
+
   test('generic destroy は爆弾由来を除外し、通常破壊のみ stone_destroy を追加する', () => {
     const bombDestroy = [{
       type: 'destroy',

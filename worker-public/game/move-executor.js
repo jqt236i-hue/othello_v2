@@ -8,6 +8,14 @@ function setUIImpl(obj) {
     __uiImpl_move_executor = Object.assign({}, prev, obj || {});
 }
 
+let moveExecutorNetworkTurnHandoff = null;
+if (typeof require === 'function') {
+    try { moveExecutorNetworkTurnHandoff = require('./network-turn-handoff'); } catch (e) { /* ignore */ }
+}
+if (!moveExecutorNetworkTurnHandoff && typeof globalThis !== 'undefined' && globalThis.NetworkTurnHandoff) {
+    moveExecutorNetworkTurnHandoff = globalThis.NetworkTurnHandoff;
+}
+
 function isMoveExecutorDebugEnabled() {
     try {
         if (__uiImpl_move_executor && __uiImpl_move_executor.DEBUG_MOVE_EXEC_LOG === true) return true;
@@ -67,33 +75,15 @@ function isHumanVsHumanModeEnabled() {
 }
 
 function publishNetworkSnapshot(meta) {
+    if (moveExecutorNetworkTurnHandoff && typeof moveExecutorNetworkTurnHandoff.publishNetworkSnapshot === 'function') {
+        return moveExecutorNetworkTurnHandoff.publishNetworkSnapshot(meta);
+    }
     try {
         if (typeof globalThis === 'undefined' || !globalThis.NetworkMatchClient) return;
         if (typeof globalThis.NetworkMatchClient.publishSnapshot !== 'function') return;
         if (typeof globalThis.NetworkMatchClient.isActive === 'function' && !globalThis.NetworkMatchClient.isActive()) return;
         globalThis.NetworkMatchClient.publishSnapshot(meta || {});
     } catch (e) { /* ignore */ }
-}
-
-function captureNetworkPublishSnapshot(gameStateValue, cardStateValue) {
-    if (!gameStateValue || !cardStateValue) return null;
-    try {
-        if (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') {
-            return {
-                gameState: globalThis.structuredClone(gameStateValue),
-                cardState: globalThis.structuredClone(cardStateValue)
-            };
-        }
-    } catch (e) { /* ignore */ }
-
-    try {
-        return {
-            gameState: JSON.parse(JSON.stringify(gameStateValue)),
-            cardState: JSON.parse(JSON.stringify(cardStateValue))
-        };
-    } catch (e) {
-        return null;
-    }
 }
 // Centralized presentation helper
 var BoardPresentation = null;
@@ -104,6 +94,12 @@ if (!BoardPresentation && typeof globalThis !== 'undefined' && globalThis.Presen
     BoardPresentation = globalThis.PresentationHelper;
 }
 function emitPresentationEventViaBoardOps(ev) {
+    try {
+        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.emitPresentationEvent === 'function') {
+            const handled = __uiImpl_move_executor.emitPresentationEvent(ev);
+            if (handled === true) return true;
+        }
+    } catch (e) { /* ignore */ }
     try {
         const pres = (typeof require === 'function') ? require('./logic/presentation') : (typeof globalThis !== 'undefined' ? globalThis.PresentationHelper : null);
         if (pres && typeof pres.emitPresentationEvent === 'function') return pres.emitPresentationEvent(cardState, ev);
@@ -182,6 +178,13 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
 
     const res = adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline);
 
+    // Single Writer: network mode ではローカル実行がスキップされている
+    if (res.skippedLocalExecution === true) {
+        // サーバー応答の applySnapshot が state 更新と playback を担当する
+        isProcessing = false;
+        return;
+    }
+
     // Check if action was rejected (explicit false check, not truthy check)
     if (res.ok === false) {
         console.warn('[MoveExecutor] Action rejected:', res.rejectedReason, 'events:', JSON.stringify(res.events || res, null, 2));
@@ -251,8 +254,6 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
         }
     }
 
-    const publishSnapshotOverride = captureNetworkPublishSnapshot(gameState, cardState);
-
     const safeIsProcessing = (typeof isProcessing !== 'undefined') ? isProcessing : undefined;
     const safeIsCardAnimating = (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined;
     debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] after apply', { gameStateCurrentPlayer: gameState.currentPlayer, playerKey, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, pendingEffect: cardState.pendingEffectByPlayer });
@@ -271,119 +272,97 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
         // No playback events produced; nothing for the UI to play
     }
 
-    // Finalize turn: pipeline handles the turn-end logic (do NOT call the CardLogic turn-end writer from UI)
-    if (typeof isGameOver === 'function' && isGameOver(gameState)) {
-        if (typeof showResult === 'function') { showResult(); }
-        const publishMeta = {
+    const humanMode = isHumanVsHumanModeEnabled();
+    const safeCpuDelay = (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 600;
+    const finalizeTurn = (moveExecutorNetworkTurnHandoff && typeof moveExecutorNetworkTurnHandoff.finalizeNetworkTurnHandoff === 'function')
+        ? moveExecutorNetworkTurnHandoff.finalizeNetworkTurnHandoff
+        : null;
+
+    if (typeof finalizeTurn === 'function') {
+        await finalizeTurn({
             playerKey,
             actionType: (action && action.type) ? action.type : 'place',
-            playbackEvents: Array.isArray(res.playbackEvents) ? res.playbackEvents : []
-        };
-        if (publishSnapshotOverride) publishMeta.snapshot = publishSnapshotOverride;
-        publishNetworkSnapshot(publishMeta);
-        isProcessing = false;
+            action,
+            playbackEvents: Array.isArray(res.playbackEvents) ? res.playbackEvents : [],
+            humanMode,
+            cpuDelayMs: safeCpuDelay,
+            resultOrder: 'beforePublish',
+            setProcessing: (nextValue) => { isProcessing = !!nextValue; },
+            afterTurnStart: () => {
+                try {
+                    const now = getTimeNow();
+                    if (typeof now === 'number') global.__lastMoveCompletedAt = now;
+                } catch (e) { /* ignore environments without global */ }
+                debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] after onTurnStart', { gameStateCurrentPlayer: gameState.currentPlayer, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, pendingEffect: cardState.pendingEffectByPlayer });
+            },
+            publishSnapshot: publishNetworkSnapshot,
+            onTurnStart: onTurnStartLogic,
+            scheduleCpuTurn: ({ delayMs, expectedTurnNumber }) => {
+                const expectedCpuSchedule = {
+                    playerKey: 'white',
+                    turnNumber: expectedTurnNumber
+                };
+                debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduling CPU', { CPU_DELAY: delayMs });
+                if (__uiImpl_move_executor && typeof __uiImpl_move_executor.scheduleCpuTurn === 'function') {
+                    __uiImpl_move_executor.scheduleCpuTurn(delayMs, () => {
+                        if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
+                            debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale scheduled CPU callback', expectedCpuSchedule);
+                            return;
+                        }
+                        debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduled CPU callback firing, isProcessing, isCardAnimating', { isProcessing: (typeof isProcessing !== 'undefined') ? isProcessing : undefined, isCardAnimating: (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined });
+                        try { processCpuTurn(); } catch (e) { debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] processCpuTurn threw', e); }
+                    });
+                    return;
+                }
+
+                try {
+                    const globalCpu = (typeof globalThis !== 'undefined' && typeof globalThis.processCpuTurn === 'function') ? globalThis.processCpuTurn : null;
+                    if (globalCpu) {
+                        debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] global processCpuTurn available; scheduling via setTimeout', { delay: delayMs });
+                        setTimeout(() => {
+                            if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
+                                debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale global CPU callback', expectedCpuSchedule);
+                                return;
+                            }
+                            try { globalCpu(); } catch (err) { debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] global processCpuTurn threw', err); }
+                        }, delayMs);
+                        return;
+                    }
+
+                        debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduleCpuTurn/processCpuTurn unavailable; retrying late global lookup');
+                        setTimeout(() => {
+                            if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
+                                debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale late CPU callback', expectedCpuSchedule);
+                                return;
+                            }
+                            const lateGlobalCpu = (typeof globalThis !== 'undefined' && typeof globalThis.processCpuTurn === 'function')
+                                ? globalThis.processCpuTurn
+                                : null;
+                            if (!lateGlobalCpu) {
+                                debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] processCpuTurn unavailable in late fallback');
+                                return;
+                            }
+                            try { lateGlobalCpu(); } catch (err) { debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] late global processCpuTurn threw', err); }
+                        }, delayMs);
+                } catch (e) {
+                    debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] error while trying CPU fallback', e);
+                }
+            },
+            onHumanTurnReady: ({ nextPlayerKey }) => {
+                if (nextPlayerKey === 'white' && humanMode) {
+                    debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] human-vs-human mode: skip CPU scheduling');
+                }
+                try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+            }
+        });
         return;
     }
 
-    // Wait for move playback to finish before advancing the turn.
-    // In some browser builds, DI bootstrap may not be active; fall back to the global helper if present.
-    if (res.playbackEvents && res.playbackEvents.length) {
-        const waitForPlaybackFn = (__uiImpl_move_executor && typeof __uiImpl_move_executor.waitForPlayback === 'function')
-            ? __uiImpl_move_executor.waitForPlayback
-            : ((typeof globalThis !== 'undefined' && typeof globalThis.waitForPlaybackIdle === 'function') ? globalThis.waitForPlaybackIdle : null);
-        if (typeof waitForPlaybackFn === 'function') {
-            await waitForPlaybackFn();
-        }
+    if (typeof WHITE !== 'undefined' && gameState.currentPlayer === WHITE && humanMode) {
+        debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] human-vs-human mode: skip CPU scheduling');
     }
-
-    const turnStartResult = await onTurnStartLogic(gameState.currentPlayer);
-    const turnStartPlaybackEvents = (turnStartResult && Array.isArray(turnStartResult.playbackEvents))
-        ? turnStartResult.playbackEvents
-        : [];
-    // Record completion timestamp so CPU turns invoked immediately after can be deferred by CPU handler if necessary
-    try {
-        const now = getTimeNow();
-        if (typeof now === 'number') global.__lastMoveCompletedAt = now;
-    } catch (e) { /* ignore environments without global */ }
-    debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] after onTurnStart', { gameStateCurrentPlayer: gameState.currentPlayer, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, pendingEffect: cardState.pendingEffectByPlayer });
-    const publishPlaybackEvents = [];
-    if (Array.isArray(res.playbackEvents) && res.playbackEvents.length) {
-        publishPlaybackEvents.push(...res.playbackEvents);
-    }
-    if (turnStartPlaybackEvents.length) {
-        publishPlaybackEvents.push(...turnStartPlaybackEvents);
-    }
-
-    const publishMeta = {
-        playerKey,
-        actionType: (action && action.type) ? action.type : 'place',
-        playbackEvents: publishPlaybackEvents
-    };
-    if (publishSnapshotOverride) publishMeta.snapshot = publishSnapshotOverride;
-    publishNetworkSnapshot(publishMeta);
-    const humanMode = isHumanVsHumanModeEnabled();
-    const safeCpuDelay = (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 600;
-    if (typeof WHITE !== 'undefined' && gameState.currentPlayer === WHITE && !humanMode) {
-        isProcessing = true;
-        const expectedCpuSchedule = {
-            playerKey: 'white',
-            turnNumber: (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null
-        };
-        debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduling CPU', { CPU_DELAY: safeCpuDelay });
-        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.scheduleCpuTurn === 'function') {
-            __uiImpl_move_executor.scheduleCpuTurn(safeCpuDelay, () => {
-                if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
-                    debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale scheduled CPU callback', expectedCpuSchedule);
-                    return;
-                }
-                debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduled CPU callback firing, isProcessing, isCardAnimating', { isProcessing: (typeof isProcessing !== 'undefined') ? isProcessing : undefined, isCardAnimating: (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined });
-                try { processCpuTurn(); } catch (e) { debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] processCpuTurn threw', e); }
-            });
-        } else {
-            // Try a direct global fallback first: if the CPU handler registered itself as a global
-            // (via cpu-turn-handler setting globalThis.processCpuTurn) we can schedule it directly
-            // instead of relying on the UI to consume a presentation event. This makes the game
-            // robust to boot-order issues where UI registration happens after a move completes.
-            try {
-                const globalCpu = (typeof globalThis !== 'undefined' && typeof globalThis.processCpuTurn === 'function') ? globalThis.processCpuTurn : null;
-                if (globalCpu) {
-                    debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] global processCpuTurn available; scheduling via setTimeout', { delay: safeCpuDelay });
-                    setTimeout(() => {
-                        if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
-                            debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale global CPU callback', expectedCpuSchedule);
-                            return;
-                        }
-                        try { globalCpu(); } catch (err) { debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] global processCpuTurn threw', err); }
-                    }, safeCpuDelay);
-                } else {
-                    // Fallback: do not call time APIs in game layer. Emit a presentation event so UI can schedule the CPU turn.
-                    debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduleCpuTurn not available; emitting SCHEDULE_CPU_TURN presentation event');
-                    try {
-                        emitPresentationEventViaBoardOps({
-                            type: 'SCHEDULE_CPU_TURN',
-                            delayMs: safeCpuDelay,
-                            reason: 'CPU_TURN',
-                            expectedPlayerKey: expectedCpuSchedule.playerKey,
-                            expectedTurnNumber: expectedCpuSchedule.turnNumber
-                        });
-                        // Ensure UI gets a chance to consume the scheduling request.
-                        // In some browser flows, the last BOARD_UPDATED may have fired before this event is appended.
-                        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
-                    } catch (e) {
-                        debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] failed to emit SCHEDULE_CPU_TURN event', e);
-                    }
-                }
-            } catch (e) {
-                debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] error while trying CPU fallback', e);
-            }
-        }
-    } else {
-        if (typeof WHITE !== 'undefined' && gameState.currentPlayer === WHITE && humanMode) {
-            debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] human-vs-human mode: skip CPU scheduling');
-        }
-        isProcessing = false;
-        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
-    }
+    isProcessing = false;
+    try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
 }
 
 let deepClone = (obj) => (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') ? globalThis.structuredClone(obj) : JSON.parse(JSON.stringify(obj));

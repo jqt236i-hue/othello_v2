@@ -3,47 +3,42 @@
  * @description Destroy card handlers
  */
 
-// Use centralized presentation helper
-var BoardPresentation = null;
+var PendingSelectionFlow;
 if (typeof require === 'function') {
-    try { BoardPresentation = require('../logic/presentation'); } catch (e) { /* ignore */ }
+    try { PendingSelectionFlow = require('./selection-flow'); } catch (e) { /* ignore */ }
 }
-if (!BoardPresentation && typeof globalThis !== 'undefined' && globalThis.PresentationHelper) {
-    BoardPresentation = globalThis.PresentationHelper;
+if (!PendingSelectionFlow && typeof globalThis !== 'undefined' && globalThis.PendingSelectionFlow) {
+    PendingSelectionFlow = globalThis.PendingSelectionFlow;
 }
-function emitPresentationEventViaBoardOps(ev) {
-    try {
-        const pres = (typeof require === 'function') ? require('../logic/presentation') : (typeof globalThis !== 'undefined' ? globalThis.PresentationHelper : null);
-        if (pres && typeof pres.emitPresentationEvent === 'function') return pres.emitPresentationEvent(cardState, ev);
-    } catch (e) { /* ignore */ }
-    try { console.warn('[destroy] Presentation helper not available'); } catch (e) { }
-    return false;
-} 
 
-function applyPipelineStateResult(result) {
-    if (result && result.nextCardState) {
-        if (cardState && typeof cardState === 'object') {
-            for (const key in cardState) delete cardState[key];
-            Object.assign(cardState, result.nextCardState);
-        } else {
-            cardState = result.nextCardState;
-        }
-        try {
-            if (typeof globalThis !== 'undefined') globalThis.cardState = cardState;
-        } catch (e) { /* ignore */ }
+function getDestroySelectPrompt() {
+    if (typeof LOG_MESSAGES !== 'undefined' && LOG_MESSAGES && typeof LOG_MESSAGES.destroySelectPrompt === 'function') {
+        return LOG_MESSAGES.destroySelectPrompt();
     }
+    return '破壊する石を選んでください';
+}
 
-    if (result && result.nextGameState) {
-        if (gameState && typeof gameState === 'object') {
-            for (const key in gameState) delete gameState[key];
-            Object.assign(gameState, result.nextGameState);
-        } else {
-            gameState = result.nextGameState;
-        }
-        try {
-            if (typeof globalThis !== 'undefined') globalThis.gameState = gameState;
-        } catch (e) { /* ignore */ }
+function getDestroyRejectedMessage(context) {
+    if (context && context.result && context.result.ok === false && typeof LOG_MESSAGES !== 'undefined' && LOG_MESSAGES && typeof LOG_MESSAGES.destroyFailed === 'function') {
+        return LOG_MESSAGES.destroyFailed();
     }
+    return getDestroySelectPrompt();
+}
+
+function wasDestroySelectionApplied(result) {
+    const selected = result && Array.isArray(result.rawEvents)
+        ? result.rawEvents.find((event) => event && event.type === 'destroy_selected')
+        : null;
+    return !!(selected && selected.destroyed === true);
+}
+
+function emitDestroyAppliedLog(playerKey, row, col) {
+    if (typeof emitLogAdded !== 'function') return;
+    if (typeof LOG_MESSAGES !== 'undefined' && LOG_MESSAGES && typeof LOG_MESSAGES.destroyApplied === 'function') {
+        emitLogAdded(LOG_MESSAGES.destroyApplied(playerKey === 'black' ? '黒' : '白', posToNotation(row, col)));
+        return;
+    }
+    emitLogAdded(`${playerKey === 'black' ? '黒' : '白'}が${posToNotation(row, col)}を破壊`);
 }
 
 async function handleDestroySelection(row, col, playerKey) {
@@ -51,68 +46,30 @@ async function handleDestroySelection(row, col, playerKey) {
         const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
         const allowed = targets.some((target) => target && target.row === row && target.col === col);
         if (!allowed) {
-            if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.destroySelectPrompt());
+            if (typeof emitLogAdded === 'function') emitLogAdded(getDestroySelectPrompt());
             return;
         }
     }
-    await executeDestroy(row, col, playerKey);
+    return executeDestroy(row, col, playerKey);
 }
 
 async function executeDestroy(row, col, playerKey) {
-    if (isProcessing || isCardAnimating) return;
-    isProcessing = true;
-    isCardAnimating = true;
-    let shouldCheckAutoPass = false;
-
-    try {
-        // Run destroy as an action through the TurnPipeline to ensure single writer
-        const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-            ? ActionManager.ActionManager.createAction('place', playerKey, { destroyTarget: { row, col } })
-            : { type: 'place', destroyTarget: { row, col } };
-
-        if (action && cardState && typeof cardState.turnIndex === 'number') {
-            action.turnIndex = cardState.turnIndex;
+    if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
+    return PendingSelectionFlow.executePendingSelection({
+        row,
+        col,
+        playerKey,
+        pendingType: 'DESTROY_ONE_STONE',
+        actionPayload: { destroyTarget: { row, col } },
+        invalidMessage: getDestroyRejectedMessage,
+        validateResult: ({ result }) => wasDestroySelectionApplied(result),
+        buildPlaybackMeta: () => ({ row, col, cause: 'DESTROY' }),
+        afterStateChange: () => {
+            emitDestroyAppliedLog(playerKey, row, col);
         }
-
-        const res = (typeof TurnPipelineUIAdapter !== 'undefined' && typeof TurnPipeline !== 'undefined')
-            ? TurnPipelineUIAdapter.runTurnWithAdapter(cardState, gameState, playerKey, action, TurnPipeline)
-            : null;
-
-        if (!res) {
-            // Pipeline not available: cannot apply rule-side destroy from UI. Reject action.
-            console.error('[DESTROY] TurnPipeline not available; destroy aborted');
-            if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.destroyFailed());
-            return;
-        }
-
-        if (res.ok === false) {
-            if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.destroyFailed());
-            return;
-        }
-
-        applyPipelineStateResult(res);
-
-        // Emit playback request to UI via presentationEvents (UI/PlaybackEngine should consume and play)
-        if (res.playbackEvents && res.playbackEvents.length) {
-            emitPresentationEventViaBoardOps({ type: 'PLAYBACK_EVENTS', events: res.playbackEvents, meta: { row, col, cause: 'DESTROY' } });
-        }
-
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.destroyApplied(playerKey === 'black' ? '黒' : '白', posToNotation(row, col)));
-        if (typeof emitCardStateChange === 'function') emitCardStateChange();
-        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-        if (typeof emitGameStateChange === 'function') emitGameStateChange();
-        shouldCheckAutoPass = true;
-
-    } finally {
-        isProcessing = false;
-        isCardAnimating = false;
-        if (shouldCheckAutoPass && typeof ensureCurrentPlayerCanActOrPass === 'function') {
-            try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
-        }
-    }
+    });
 }
 
-// UI attachments are now the responsibility of the UI layer (ui/handlers/*). Export functions for import by UI.
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { handleDestroySelection, executeDestroy };
 }

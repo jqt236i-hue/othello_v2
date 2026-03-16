@@ -1,0 +1,107 @@
+PLACEMENT DECISION ANALYSIS: SELFPLAY vs PRODUCTION (Lv6 CPU)
+==============================================================
+
+## 1. EXACT CONTROL-FLOW DIFFERENCES
+
+SELFPLAY (src/engine/selfplay-runner.js):
+  - Line 2062: candidateMoves = enableTacticalLookahead ? ALL_MOVES : forced_moves
+  - Line 2093: choosePlacementMoveByBrowserParity(candidateMoves=ALL, movePlanContext)
+  - Line 1956: CpuPolicyCore.chooseMoveByLookahead(candidateMoves=ALL, ...)
+  - Line 1982: maybeOverrideWithStrictPendingPlacement(looked, ...) 
+              NO corner/edge validation of lookahead result
+  
+  → Lookahead explores FULL move space, can pick non-forced if tree value dominates
+
+PRODUCTION (game/cpu-decision.js):
+  - Line 3137: prioritizedCandidateMoves = filterMovesByLv6PlacementPriority(...)
+              HARD FILTER: returns corners|edges|all (never mixed)
+  - Line 3156: buildMovePlanContext(..., prioritizedCandidateMoves)
+  - Line 3204: CpuPolicyCore.chooseMoveByLookahead(prioritizedCandidateMoves=FILTERED, ...)
+  - Line 3228: maybeOverrideWithStrictPendingPlacement(looked, prioritizedCandidateMoves)
+              Lookahead already bounded to forced moves
+  
+  → Lookahead explores CONSTRAINED move space, cannot escape forced placement
+
+**KEY ASYMMETRY**: SELFPLAY treats forced placement as hint; PRODUCTION as hard constraint.
+
+---
+
+## 2. BENCHMARK-SAFE FIX DIRECTION
+
+RECOMMENDED: Apply hard-filter at src/engine/selfplay-runner.js line 2062-2064
+
+Current (buggy):
+  const candidateMoves = (options && options.enableTacticalLookahead === false 
+      && Array.isArray(forcedPlacement.moves) && forcedPlacement.moves.length > 0)
+      ? forcedPlacement.moves
+      : defaultCandidateMoves;  // ← ALLOWS lookahead escape when enabled
+
+Fixed:
+  const candidateMoves = (Array.isArray(forcedPlacement.moves) 
+      && forcedPlacement.moves.length > 0
+      && !(options && options.disableCornerEdgeHardFilter === true))
+      ? forcedPlacement.moves   // ← HARD FILTER matches production
+      : defaultCandidateMoves;
+
+This ensures:
+✓ Lookahead receives only forced moves (corners/edges) when they exist
+✓ Aligns training (selfplay) with production behavior
+✓ Prevents scorer from rewarding non-forced moves via tree value
+✓ Maintains lookahead agency within forced set (choosing best corner vs best edge)
+✓ Benchmark-safe: constrained candidate space won't regress if forced placement
+  strategies are well-valued by movePlanContext/scoreMoveForCornerEdgePlan
+
+---
+
+## 3. MISSING REGRESSION TESTS
+
+Add to test/selfplay.runner.test.js:
+
+Test A: Forced corner with strong non-corner lookahead value
+  - Setup board with corner available + interior move with high tree value
+  - Mock CpuPolicyCore.chooseMoveByLookahead to prefer interior (row:3, col:4)
+  - Call decideAction with enableTacticalLookahead: true
+  - Assert: decision.action picks corner (0,0), NOT interior
+  - Status: FAILS with current code, PASSES with fix
+
+Test B: Forced edge with strong non-edge lookahead value
+  - Setup board with edge available + interior move with high tree value
+  - Mock lookahead to prefer interior
+  - Assert: decision picks edge, NOT interior
+  - Status: FAILS with current code, PASSES with fix
+
+Test C: Lookahead can choose between multiple forced moves
+  - Setup board with TWO corners available
+  - Mock lookahead to prefer one corner over another
+  - Assert: decision picks one of the corners (as lookahead selected)
+  - Status: PASSES with both (validates lookahead agency within forced set)
+
+Test D: No forced placement allows full lookahead freedom
+  - Setup board with NO corners/edges (all interior moves)
+  - Mock lookahead to pick specific interior move
+  - Assert: decision picks that interior move
+  - Status: PASSES with both (validates unconstrained case works)
+
+Tests A & B are **critical regression guards** against lookahead escape.
+Tests C & D validate that fix doesn't over-constrain.
+
+---
+
+## SUMMARY
+
+Problem: Lookahead in SELFPLAY can override forced corner/edge intuition by exploring
+         full move space and returning highest-tree-value move. PRODUCTION constrains
+         lookahead to forced moves via hard filter (filterMovesByLv6PlacementPriority).
+
+Root Cause: Line 2062 in src/engine/selfplay-runner.js allows candidateMoves=ALL when
+            enableTacticalLookahead=true, instead of hard-filtering to forced moves.
+
+Solution: Replace conditional filter with unconditional hard-filter that respects
+          forced placement (line 2062), matching production's filterMovesByLv6PlacementPriority.
+
+Validation: Add 4 regression tests (especially A & B) to test/selfplay.runner.test.js
+            to ensure lookahead no longer escapes forced placement constraints.
+
+Impact: Training alignment, reduced Lv6 CPU non-intuitive moves, potential small Elo
+        adjustment. Tests will clarify if trade-off is balanced.
+

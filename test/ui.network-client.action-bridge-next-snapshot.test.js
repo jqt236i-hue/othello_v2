@@ -33,6 +33,15 @@ function createSnapshot(stateVersion) {
   };
 }
 
+function createUseCardAction(playerKey = 'black', useCardId = 'sample_card', turnIndex = 1) {
+  return {
+    type: 'use_card',
+    playerKey,
+    useCardId,
+    turnIndex
+  };
+}
+
 describe('NetworkMatchClient action bridge snapshot', () => {
   let dom;
   let publishPayloads;
@@ -159,7 +168,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     delete global.fetch;
   });
 
-  test('use_card送信でTurnPipelineの次状態をスナップショットに使う', async () => {
+  test('use_card送信でcommand payloadを使いclient snapshotを送らない', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
     expect(client).toBeTruthy();
@@ -176,13 +185,13 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     expect(publishPayloads).toHaveLength(1);
     const payload = publishPayloads[0];
     expect(payload.actionType).toBe('use_card');
-    expect(payload.snapshot.gameState.turnNumber).toBe(2);
-    expect(payload.snapshot.cardState.charge.black).toBe(7);
-    expect(payload.snapshot.cardState.boardBonusByCell['2,3']).toBe(5);
-    expect(payload.snapshot.cardState.hasUsedCardThisTurnByPlayer.black).toBe(true);
+    expect(payload.actor).toBe('black');
+    expect(payload.params).toEqual({ useCardId: 'sample_card' });
+    expect(payload.snapshot).toBeUndefined();
+    expect(payload.playbackEvents).toBeUndefined();
   });
 
-  test('destroy_hand_card送信で次スナップショットが公開される', async () => {
+  test('destroy_hand_card送信でcommand payloadを使いclient snapshotを送らない', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
     expect(client).toBeTruthy();
@@ -199,8 +208,49 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     expect(publishPayloads).toHaveLength(1);
     const payload = publishPayloads[0];
     expect(payload.actionType).toBe('destroy_hand_card');
-    expect(payload.snapshot.cardState.hands.black).toHaveLength(0);
-    expect(payload.snapshot.cardState.hasDestroyedCardThisTurnByPlayer.black).toBe(true);
+    expect(payload.actor).toBe('black');
+    expect(payload.params).toEqual({ destroyCardId: 'sample_card' });
+    expect(payload.snapshot).toBeUndefined();
+    expect(payload.playbackEvents).toBeUndefined();
+  });
+
+  test('nextCardState で deferred pending が生まれた use_card は即 publish しない', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextGameState: {
+          currentPlayer: 1,
+          turnNumber: 2
+        },
+        nextCardState: {
+          ...createSnapshot(20).cardState,
+          charge: { black: 7, white: 10 },
+          hasUsedCardThisTurnByPlayer: { black: true, white: false },
+          pendingEffectByPlayer: {
+            black: { type: 'TRAP_WILL', stage: 'selectTarget' },
+            white: null
+          },
+          discard: ['sample_card']
+        },
+        playbackEvents: []
+      }))
+    };
+    window.TurnPipelineUIAdapter = global.TurnPipelineUIAdapter;
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const action = { type: 'use_card', useCardId: 'sample_card' };
+    const result = window.TurnPipelineUIAdapter.runTurnWithAdapter(global.cardState, global.gameState, 'black', action, {});
+    expect(result.ok).toBe(true);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(publishPayloads).toHaveLength(0);
   });
 
   test('publish成功レスポンスのsnapshotを即反映し断罪候補の不明カードを解消する', async () => {
@@ -221,18 +271,18 @@ describe('NetworkMatchClient action bridge snapshot', () => {
       const parsedUrl = new URL(String(url));
       const path = parsedUrl.pathname;
       if (path === '/api/match/publish') {
-        const body = JSON.parse(init.body || '{}');
+        JSON.parse(init.body || '{}');
+        const responseSnapshot = createSnapshot(21);
         return jsonResponse(200, {
           ok: true,
           roomId: 'ROOM1234',
           stateVersion: 21,
           snapshot: {
-            ...body.snapshot,
-            stateVersion: 21,
+            ...responseSnapshot,
             cardState: {
-              ...body.snapshot.cardState,
+              ...responseSnapshot.cardState,
               pendingEffectByPlayer: {
-                ...body.snapshot.cardState.pendingEffectByPlayer,
+                ...responseSnapshot.cardState.pendingEffectByPlayer,
                 black: {
                   type: 'CONDEMN_WILL',
                   stage: 'selectTarget',
@@ -246,8 +296,116 @@ describe('NetworkMatchClient action bridge snapshot', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    const result = await client.publishSnapshot({ actionType: 'use_card', playerKey: 'black' });
+    const result = await client.publishSnapshot({
+      actionType: 'use_card',
+      playerKey: 'black',
+      action: createUseCardAction()
+    });
     expect(result.ok).toBe(true);
     expect(global.cardState.pendingEffectByPlayer.black.offers[0].cardId).toBe('gold_stone');
+  });
+
+  test('place action は Single Writer で action bridge 内から publishSnapshot を呼ぶ', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const action = { type: 'place', row: 2, col: 3, playerKey: 'black' };
+    const result = window.TurnPipelineUIAdapter.runTurnWithAdapter(global.cardState, global.gameState, 'black', action, {});
+    expect(result.ok).toBe(true);
+    expect(result.skippedLocalExecution).toBe(true);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Single Writer: place は action bridge 内で command publish する
+    expect(publishPayloads).toHaveLength(1);
+    expect(publishPayloads[0].actionType).toBe('place');
+    expect(publishPayloads[0].actor).toBe('black');
+    expect(publishPayloads[0].params).toEqual({ row: 2, col: 3 });
+    expect(publishPayloads[0].snapshot).toBeUndefined();
+    expect(publishPayloads[0].playbackEvents).toBeUndefined();
+  });
+
+  test('pass action は Single Writer でローカル実行をスキップし publishSnapshot を呼ぶ', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    // pass では originalRunTurnWithAdapter が呼ばれないことを検証
+    const originalMock = jest.fn(() => ({
+      ok: true,
+      nextGameState: { currentPlayer: -1, turnNumber: 2 },
+      nextCardState: createSnapshot(20).cardState,
+      playbackEvents: []
+    }));
+    global.TurnPipelineUIAdapter = { runTurnWithAdapter: originalMock };
+    window.TurnPipelineUIAdapter = global.TurnPipelineUIAdapter;
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const action = { type: 'pass', playerKey: 'black' };
+    const result = window.TurnPipelineUIAdapter.runTurnWithAdapter(global.cardState, global.gameState, 'black', action, {});
+    expect(result.ok).toBe(true);
+    expect(result.skippedLocalExecution).toBe(true);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Single Writer: pass は action bridge 内で command publish する
+    expect(publishPayloads).toHaveLength(1);
+    expect(publishPayloads[0].actionType).toBe('pass');
+    // originalRunTurnWithAdapter は呼ばれない
+    expect(originalMock).not.toHaveBeenCalled();
+  });
+
+  test('publishSnapshot は local hand animation source を shadow playback 用に保持しつつ network payload へ送らない', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const playbackEvents = [{
+      type: 'card_use_animation',
+      phase: 1,
+      targets: [{
+        player: 'black',
+        owner: 'black',
+        cardId: 'sample_card',
+        name: 'Sample Card',
+        sourceCardEl: { localOnly: true, id: 'card-dom-node' },
+        sourceCardRect: {
+          left: 220,
+          top: 500,
+          width: 90,
+          height: 120,
+          right: 310,
+          bottom: 620
+        }
+      }]
+    }];
+
+    const result = await client.publishSnapshot({
+      actionType: 'use_card',
+      playerKey: 'black',
+      playbackEvents,
+      action: createUseCardAction()
+    });
+
+    expect(result.ok).toBe(true);
+    expect(publishPayloads).toHaveLength(1);
+    expect(publishPayloads[0].playbackEvents).toBeUndefined();
+    expect(publishPayloads[0].snapshot).toBeUndefined();
+    expect(playbackEvents[0].targets[0].sourceCardEl).toEqual({ localOnly: true, id: 'card-dom-node' });
+    expect(playbackEvents[0].targets[0].sourceCardRect).toEqual({
+      left: 220,
+      top: 500,
+      width: 90,
+      height: 120,
+      right: 310,
+      bottom: 620
+    });
   });
 });

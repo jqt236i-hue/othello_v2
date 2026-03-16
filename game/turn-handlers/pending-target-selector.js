@@ -94,8 +94,10 @@ function buildHeavenBlessingAction(context) {
 
     let bestCardId = offers[0];
     let bestScore = Number.NEGATIVE_INFINITY;
+    let bestCost = Number.NEGATIVE_INFINITY;
     for (const cardId of offers) {
-        let score = Number(context.cardLogic.getCardCost(cardId) || 0) * 2;
+        const cost = Number(context.cardLogic.getCardCost(cardId) || 0);
+        let score = cost * 0.35;
         if (context.cpuPolicyCore && typeof context.cpuPolicyCore.scoreCardUseDecision === 'function') {
             const decision = context.cpuPolicyCore.scoreCardUseDecision(
                 cardId,
@@ -103,10 +105,23 @@ function buildHeavenBlessingAction(context) {
                 context.cardLogic.getCardDef,
                 riskContext
             );
-            if (decision && Number.isFinite(decision.score)) score += (decision.score * 4);
+            if (decision && Number.isFinite(decision.score)) {
+                score += (decision.score * 0.95);
+                if (decision.shouldUse === true) score += 18;
+            }
+            if (typeof context.cpuPolicyCore.scoreCardRetentionForSell === 'function') {
+                const retention = context.cpuPolicyCore.scoreCardRetentionForSell(
+                    cardId,
+                    context.cardLogic.getCardCost,
+                    context.cardLogic.getCardDef,
+                    riskContext
+                );
+                if (retention && Number.isFinite(retention.score)) score += (retention.score * 0.8);
+            }
         }
-        if (score > bestScore || (score === bestScore && String(cardId) < String(bestCardId))) {
+        if (score > bestScore || (score === bestScore && cost > bestCost)) {
             bestScore = score;
+            bestCost = cost;
             bestCardId = cardId;
         }
     }

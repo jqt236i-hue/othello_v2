@@ -34,6 +34,44 @@ let previousBoardState = null;
 let cellCache = [];
 let cellCacheMap = new Map();
 let boardDomSignature = null;
+let lastBoardExpansionRevealSoundKey = null;
+
+function _playBoardExpansionRevealSoundForDiff() {
+    try {
+        if (typeof SoundEngine === 'undefined' || !SoundEngine || typeof SoundEngine.playEffectByKey !== 'function') {
+            return;
+        }
+        if (typeof SoundEngine.init === 'function') {
+            SoundEngine.init();
+        }
+        SoundEngine.playEffectByKey('board_expansion_reveal');
+    } catch (e) { /* ignore */ }
+}
+
+function _scheduleBoardExpansionRevealSoundForDiff(revealExpansionKeys, boardSignature) {
+    const keys = Array.isArray(revealExpansionKeys)
+        ? revealExpansionKeys.slice()
+        : Array.from(revealExpansionKeys || []);
+    if (!keys.length) return;
+
+    const soundKey = `${String(boardSignature || '')}:${keys.sort().join('|')}`;
+    if (soundKey === lastBoardExpansionRevealSoundKey) return;
+    lastBoardExpansionRevealSoundKey = soundKey;
+
+    try {
+        const root = (typeof window !== 'undefined' && window)
+            ? window
+            : ((typeof globalThis !== 'undefined' && globalThis) ? globalThis : null);
+        if (root && typeof root.requestAnimationFrame === 'function') {
+            root.requestAnimationFrame(() => {
+                _playBoardExpansionRevealSoundForDiff();
+            });
+            return;
+        }
+    } catch (e) { /* ignore */ }
+
+    _playBoardExpansionRevealSoundForDiff();
+}
 
 function _isMainBoardCellForDiff(row, col) {
     return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < 8 && col >= 0 && col < 8;
@@ -222,20 +260,35 @@ function _isVisualPlaybackActiveForDiff() {
     return (typeof window !== 'undefined' && window.VisualPlaybackActive === true);
 }
 
-function _consumeSuppressNextDiffFlipForDiff() {
+function _consumeBoardUpdateContextForDiff() {
+    if (PlaybackStateModule && typeof PlaybackStateModule.consumeBoardUpdateContext === 'function') {
+        const context = PlaybackStateModule.consumeBoardUpdateContext();
+        if (context && typeof context === 'object') return context;
+    }
     if (PlaybackStateModule && typeof PlaybackStateModule.consumeSuppressNextDiffFlip === 'function') {
-        return PlaybackStateModule.consumeSuppressNextDiffFlip() === true;
+        if (PlaybackStateModule.consumeSuppressNextDiffFlip() === true) {
+            return {
+                suppressFallbackFlip: true,
+                reason: 'legacy_suppress_next_diff_flip',
+                source: 'legacy_playback_state_api'
+            };
+        }
     }
     const active = (typeof window !== 'undefined' && window.__suppressNextDiffFlip === true);
     if (active) {
         try { window.__suppressNextDiffFlip = false; } catch (e) { /* ignore */ }
     }
-    return active;
+    return active ? {
+        suppressFallbackFlip: true,
+        reason: 'legacy_suppress_next_diff_flip',
+        source: 'legacy_window_flag'
+    } : null;
 }
 
 // Internal (per-render) flag to suppress fallback flip animation.
 // AnimationEngine already animates flip events; DiffRenderer is used to sync final DOM state after playback.
 let suppressFallbackFlipThisRender = false;
+let pendingMoveSourceKeysThisRender = null;
 
 function _hasPendingPlaybackEvents() {
     try {
@@ -247,6 +300,64 @@ function _hasPendingPlaybackEvents() {
     } catch (e) {
         return false;
     }
+}
+
+function _getPendingPlaybackQueueEntriesForDiff() {
+    const state = _resolveCardStateForDiffRender();
+    const pending = [];
+    if (state && Array.isArray(state.presentationEvents)) pending.push(...state.presentationEvents);
+    if (state && Array.isArray(state._presentationEventsPersist)) pending.push(...state._presentationEventsPersist);
+    return pending;
+}
+
+function _getPlaybackEventsFromQueueEntryForDiff(entry) {
+    if (!entry || typeof entry !== 'object') return [];
+    if (entry.type === 'PLAYBACK_EVENTS' && Array.isArray(entry.events)) {
+        return entry.events;
+    }
+    return [entry];
+}
+
+function _extractMoveSourceKeyFromPlaybackTargetForDiff(target) {
+    if (!target || typeof target !== 'object') return null;
+
+    const from = (target.from && typeof target.from === 'object') ? target.from : null;
+    let row = _normalizeBoardCoord(from && (Object.prototype.hasOwnProperty.call(from, 'r') ? from.r : from.row));
+    let col = _normalizeBoardCoord(
+        from && (
+            Object.prototype.hasOwnProperty.call(from, 'col')
+                ? from.col
+                : (Object.prototype.hasOwnProperty.call(from, 'c') ? from.c : from.column)
+        )
+    );
+
+    if (row === null) row = _normalizeBoardCoord(Object.prototype.hasOwnProperty.call(target, 'prevRow') ? target.prevRow : target.fromRow);
+    if (col === null) col = _normalizeBoardCoord(Object.prototype.hasOwnProperty.call(target, 'prevCol') ? target.prevCol : target.fromCol);
+
+    return row !== null && col !== null ? `${row},${col}` : null;
+}
+
+function _collectPendingMoveSourceKeysForDiff() {
+    const keys = new Set();
+    const pendingEntries = _getPendingPlaybackQueueEntriesForDiff();
+    for (const entry of pendingEntries) {
+        const playbackEvents = _getPlaybackEventsFromQueueEntryForDiff(entry);
+        for (const playbackEvent of playbackEvents) {
+            if (String(playbackEvent && playbackEvent.type || '').toLowerCase() !== 'move') continue;
+            const targets = Array.isArray(playbackEvent.targets) ? playbackEvent.targets : [];
+            for (const target of targets) {
+                const key = _extractMoveSourceKeyFromPlaybackTargetForDiff(target);
+                if (key) keys.add(key);
+            }
+        }
+    }
+    return keys;
+}
+
+function _hasPendingMoveSourceAtForDiff(row, col) {
+    const key = `${row},${col}`;
+    const keys = pendingMoveSourceKeysThisRender || _collectPendingMoveSourceKeysForDiff();
+    return keys.has(key);
 }
 
 function _resolveGameStateForDiffRender() {
@@ -353,9 +464,17 @@ let _stoneInfoTagAutoDismissBound = false;
 
 function _isBoardHiddenTrap(marker) {
     if (!marker || !marker.data || marker.data.type !== 'TRAP') return false;
-    // TRAP is hidden information on board after placement.
-    // It should not be shown as a persistent special-stone visual to either side.
-    return true;
+    // Persistent trap visuals are owner-only information on board.
+    // In local debug human-vs-human, the shared screen may see both sides.
+    try {
+        if (typeof window !== 'undefined' && window && window.DEBUG_HUMAN_VS_HUMAN === true) {
+            return false;
+        }
+    } catch (e) { /* ignore */ }
+    const viewerKey = _resolveNetworkLocalPlayerKeyForDiff();
+    const ownerKey = marker.owner === 'white' ? 'white' : (marker.owner === 'black' ? 'black' : null);
+    if (!ownerKey) return true;
+    return viewerKey !== ownerKey;
 }
 
 function _resolveNetworkLocalPlayerKeyForDiff() {
@@ -418,7 +537,7 @@ const SPECIAL_STONE_INFO = {
     },
     EXTREME_HYPERACTIVE: {
         name: '極悪多動魔',
-        desc: '両者ターン開始時に周囲8マス（空き・占有）からランダム1マス移動。占有マスを選んだ場合はその石を1マス退避させてから進入。移動後に挟めば反転し、隣接1マス（周囲8マス）の石を敵味方問わず遠ざかるように1マス退避させる。退避先が無い石はその場に残る。反転対象時は1回だけマス移動で回避する。'
+        desc: '両者ターン開始時に周囲8マス（空き・占有）からランダム1マス移動。占有マスを選んだ場合はその石を1マス退避させてから進入。移動後に挟めば反転し、隣接1マス（周囲8マス）の石を敵味方問わず遠ざかるように1マス退避させる。退避先が無い石はその場に残る。反転対象時はマス移動で回避し、最大3回まで。'
     },
     ESCAPE_HYPERACTIVE: {
         name: '逃亡石',
@@ -434,7 +553,7 @@ const SPECIAL_STONE_INFO = {
     },
     ULTIMATE_HYPERACTIVE: {
         name: '究極多動神',
-        desc: '両者ターン開始時に直線1〜5マス移動を2回行い、2マス以上は途中の石を飛び越える。移動後に挟めば反転。反転対象時はマス移動で回避（最大5回）。移動先が無いと消滅。10ターン後は自己消滅する。'
+        desc: '両者ターン開始時に直線1〜5マス移動を2回行い、2マス以上は途中の石を飛び越える。移動後に挟めば反転。反転対象時はマス移動で回避（最大3回）。移動先が無いと消滅。10ターン後は自己消滅する。'
     },
     INHERITED_HYPERACTIVE: {
         name: '継承多動石',
@@ -762,6 +881,16 @@ const STONE_INFO_MOBILITY_TYPES = new Set([
     'ULTIMATE_HYPERACTIVE'
 ]);
 
+function _isHyperactiveLikeTypeForDiff(type) {
+    return STONE_INFO_MOBILITY_TYPES.has(String(type || '').toUpperCase());
+}
+
+function _hasHyperactiveLikeStateForDiff(state) {
+    if (!state || typeof state !== 'object') return false;
+    if (_isHyperactiveLikeTypeForDiff(state.special && state.special.type)) return true;
+    return !!state.inherited;
+}
+
 const STONE_INFO_FLIP_EVADE_TYPES = new Set([
     'HYPERACTIVE',
     'ESCAPE_HYPERACTIVE',
@@ -784,7 +913,7 @@ function _hasActiveFlipEvadeForEntry(type, entry) {
     }
 
     const rawRemaining = Number(data ? data.flipEvadeRemaining : NaN);
-    const defaultRemaining = type === 'ULTIMATE_HYPERACTIVE' ? 5 : 1;
+    const defaultRemaining = (type === 'ULTIMATE_HYPERACTIVE' || type === 'EXTREME_HYPERACTIVE') ? 3 : 1;
     const normalizedRemaining = Number.isFinite(rawRemaining)
         ? Math.max(0, Math.trunc(rawRemaining))
         : defaultRemaining;
@@ -1228,7 +1357,7 @@ function buildCurrentCellState() {
                     ? (
                         Number.isFinite(Number(m.data.flipEvadeRemaining))
                             ? Math.max(0, Math.trunc(Number(m.data.flipEvadeRemaining)))
-                            : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ? 5 : null)
+                            : ((markerTypeUpper === 'ULTIMATE_HYPERACTIVE' || markerTypeUpper === 'EXTREME_HYPERACTIVE') ? 3 : null)
                     )
                     : 0
             });
@@ -1515,14 +1644,10 @@ function updateCellDOM(cell, state, row, col, prevState) {
     }
 
     // If a stone is being removed and playback didn't handle it, apply a fallback destroy-fade.
-    // Exception: HYPERACTIVE source cells become EMPTY due to MOVE, not DESTROY.
-    // Do not show destroy fade there.
+    // Source cells for queued move playback become EMPTY before the motion starts, so they must
+    // sync directly to empty instead of being misclassified as destroy-fades.
     if (prevState && prevState.value !== EMPTY && state.value === EMPTY && currentDisc) {
-        const wasHyperactiveStone = !!(
-            prevState.special &&
-            (prevState.special.type === 'HYPERACTIVE' || prevState.special.type === 'EXTREME_HYPERACTIVE' || prevState.special.type === 'ESCAPE_HYPERACTIVE')
-        );
-        if (wasHyperactiveStone) {
+        if (_hasPendingMoveSourceAtForDiff(row, col) || _hasHyperactiveLikeStateForDiff(prevState)) {
             cell.classList.remove('has-disc');
             cell.innerHTML = '';
             return;
@@ -1833,7 +1958,9 @@ function renderBoardDiff(boardEl) {
 
     // One-shot suppression set by AnimationEngine at the end of playback.
     // This prevents DiffRenderer from replaying the fallback ".flip" when syncing the final board state.
-    suppressFallbackFlipThisRender = _consumeSuppressNextDiffFlipForDiff() || _hasPendingPlaybackEvents();
+    const boardUpdateContext = _consumeBoardUpdateContextForDiff();
+    suppressFallbackFlipThisRender = !!(boardUpdateContext && boardUpdateContext.suppressFallbackFlip === true) || _hasPendingPlaybackEvents();
+    pendingMoveSourceKeysThisRender = _collectPendingMoveSourceKeysForDiff();
 
     try {
         const gameState = _resolveGameStateForDiffRender();
@@ -1867,6 +1994,7 @@ function renderBoardDiff(boardEl) {
                 }
             }
             reconcileCellHasDiscClasses(boardEl);
+            _scheduleBoardExpansionRevealSoundForDiff(revealExpansionKeys, nextSignature);
             console.log('[DiffRenderer] Initial full render complete');
             return cellCacheMap.size;
         }
@@ -1919,6 +2047,7 @@ function renderBoardDiff(boardEl) {
         return updatedCount;
     } finally {
         suppressFallbackFlipThisRender = false;
+        pendingMoveSourceKeysThisRender = null;
     }
 }
 
@@ -1944,6 +2073,7 @@ function forceFullRender(boardEl) {
 function resetRenderStats() {
     previousBoardState = null;
     boardDomSignature = null;
+    lastBoardExpansionRevealSoundKey = null;
 }
 
 // Export helpers for Node/Jest test harness

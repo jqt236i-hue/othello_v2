@@ -27,6 +27,11 @@
     const THEORY_IMAGE_SRC = 'assets/story/cpu/level7.png';
     const UDG_NAME = '究極破壊神';
     const UDG_IMAGE_SRC = 'assets/story/stones/ULTIMATE_DESTROY_GOD-white.png';
+    const TARDU_WILL_NAME = '多動の意志';
+    const TARDU_NAME = 'タードゥ';
+    const TARDU_IMAGE_SRC = 'assets/story/stones/HYPERACTIVE_WILL-black.png';
+    const TADOON_NAME = 'タドゥーン';
+    const TADOON_IMAGE_SRC = 'assets/story/stones/ULTIMATE_HYPERACTIVE_GOD-black.png';
     const NIGEL_NAME = 'ニーゲル';
     const ESCAPE_WILL_NAME = '逃げる意志';
     const ESCAPE_WILL_IMAGE_SRC = 'assets/story/stones/ESCAPE_WILL-black.png';
@@ -130,7 +135,7 @@
             emotion: 'serious',
             text: [
                 '気づいたか、では大事なことを話さねばならぬな。',
-                'この世界のモンスターは元々は人間だったんだ。だがこのカードオセロの沼にハマるほど人間から見た目が遠ざかって変貌してしまうんだ。',
+                'この世界のモンスターは元々は人間だったんだ。だがこのカードオセロの沼にハマるほど人の見た目が遠ざかって変貌してしまうんだ。',
                 'だからこの世界に人の形をした生命はいない。皮肉なことにこの私もだ。'
             ],
             next: 'CHAPTER1_STEP_003'
@@ -158,7 +163,7 @@
             emotion: 'smile',
             text: [
                 '可能性はあるが、我は変貌しないと信じておる。お主は我が選んだ勇者だからな！ガハハハッ！',
-                'ただ変貌を抑えるコツは、強い心、強い意志だ！己の意志を貫けば変貌にも抗える！'
+                'ただ変貌を抑えるコツは、強い意志を持つことだ！己の意志を貫けば変貌にも抗える！'
             ],
             next: 'CHAPTER1_STEP_005'
         }),
@@ -229,7 +234,7 @@
             characterImageAlt: OBSERVER_NAME,
             emotion: 'serious',
             text: [
-                'あいつは盤喰いの小鬼、我の観測データにある。カードオセロに浸かりすぎるとあんな感じで化け物みたいな姿になってしまうんぞよｗ'
+                '奴は盤喰いの小鬼、我の観測データにある。カードオセロに浸かりすぎるとあんな感じで化け物みたいな姿になってしまうんぞよw'
             ],
             next: 'CHAPTER1_STEP_010'
         }),
@@ -295,7 +300,7 @@
             characterImageAlt: OBSERVER_NAME,
             emotion: 'smile',
             text: [
-                'よくやった勇者、前世でボードゲーム最強だっただけあって飲み込みが早いぞ！'
+                'よくやった勇者、前世でボードゲーム最強なだけあって飲み込みが早いぞ！'
             ],
             next: 'CHAPTER1_STEP_021'
         }),
@@ -325,7 +330,7 @@
             characterImageAlt: OBSERVER_NAME,
             emotion: 'serious',
             text: [
-                'また強い気配を感じる、気をつけろ！'
+                '強い気配を感じる、気をつけろ！'
             ],
             next: 'CHAPTER1_STEP_023'
         }),
@@ -368,13 +373,28 @@
             supportStage: 'right',
             emotion: 'serious',
             text: [
-                '私の名前は盤界の執行者、お前を断罪しに来た。観測した罪、命で償ってもらおう。',
+                '私の名は盤界の執行者、お前を断罪しに来た。観測した罪、命で償ってもらおう。',
                 'いでよ、究極破壊神'
             ],
             next: 'CHAPTER1_STEP_026'
         }),
         forestStep({
             id: 'CHAPTER1_STEP_026',
+            type: 'dialogue',
+            speaker: UDG_NAME,
+            characterVisible: false,
+            supportVisible: true,
+            supportImageSrc: UDG_IMAGE_SRC,
+            supportImageAlt: UDG_NAME,
+            supportStage: 'right',
+            emotion: 'serious',
+            text: [
+                '破壊を開始する。'
+            ],
+            next: 'CHAPTER1_STEP_027'
+        }),
+        forestStep({
+            id: 'CHAPTER1_STEP_027',
             type: 'dialogue',
             speaker: OBSERVER_NAME,
             characterVisible: true,
@@ -388,12 +408,13 @@
             text: [
                 'あれは、究極破壊神。',
                 '置かれた瞬間と持ち主のターン開始時に周囲8マスの敵石を破壊する最悪の特殊石だ！',
-                'やつの範囲内にいると破壊されてしまう！'
+                'やつの範囲内にいると破壊されてしまう！',
+                'あれほど強力な特殊石を使役させる者がいたとは…'
             ],
-            next: 'CHAPTER1_STEP_027'
+            next: 'CHAPTER1_STEP_028'
         }),
         forestStep({
-            id: 'CHAPTER1_STEP_027',
+            id: 'CHAPTER1_STEP_028',
             type: 'choice',
             prompt: 'どう返す？',
             characterVisible: true,
@@ -407,23 +428,63 @@
                 { id: 'fix_this_now', label: '説明はいいから何とかしろ！' },
                 { id: 'just_win_again', label: '要するに勝てばいいんだろ？' }
             ],
-            next: 'CHAPTER1_STEP_028'
+            next: 'CHAPTER1_STEP_029'
         }),
-        {
-            id: 'CHAPTER1_STEP_028',
-            chapterLabel: CHAPTER1_LABEL,
+        forestStep({
+            id: 'CHAPTER1_STEP_029',
             type: 'dialogue',
             sceneTransition: 'fade_black',
             speaker: OBSERVER_NAME,
-            characterVisible: false,
+            characterVisible: true,
+            characterImageSrc: OBSERVER_IMAGE_SRC,
+            characterImageAlt: OBSERVER_NAME,
             emotion: 'serious',
             text: [
-                'ここは引くぞ！近づけなければ対局することすら叶わないぞ'
+                'ここは引くぞ！近づけなければ対局することすら叶わぬ'
             ],
-            next: 'CHAPTER1_STEP_029'
-        },
+            next: 'CHAPTER1_STEP_029A'
+        }),
+        forestStep({
+            id: 'CHAPTER1_STEP_029A',
+            type: 'dialogue',
+            speaker: HERO_NAME,
+            characterVisible: true,
+            characterImageSrc: HERO_IMAGE_SRC,
+            characterImageAlt: HERO_NAME,
+            emotion: 'surprised',
+            text: [
+                '対抗手段はないのか！？'
+            ],
+            next: 'CHAPTER1_STEP_029B'
+        }),
+        forestStep({
+            id: 'CHAPTER1_STEP_029B',
+            type: 'dialogue',
+            speaker: OBSERVER_NAME,
+            characterVisible: true,
+            characterImageSrc: OBSERVER_IMAGE_SRC,
+            characterImageAlt: OBSERVER_NAME,
+            emotion: 'serious',
+            text: [
+                '今の我には力が残っておらぬ。お主を召喚するために使い果たしてしまったのでな！'
+            ],
+            next: 'CHAPTER1_STEP_029C'
+        }),
+        forestStep({
+            id: 'CHAPTER1_STEP_029C',
+            type: 'choice',
+            prompt: 'どう返す？',
+            characterVisible: true,
+            characterImageSrc: HERO_IMAGE_SRC,
+            characterImageAlt: HERO_NAME,
+            choices: [
+                { id: 'understand_ambush', label: 'その隙を狙われたってわけか' },
+                { id: 'forced_to_flee', label: '逃げるしかないようだな…' }
+            ],
+            next: 'CHAPTER1_STEP_029D'
+        }),
         {
-            id: 'CHAPTER1_STEP_029',
+            id: 'CHAPTER1_STEP_029D',
             chapterLabel: CHAPTER1_LABEL,
             type: 'dialogue',
             speaker: 'ナレーション',
@@ -463,7 +524,8 @@
             text: [
                 'あれは、究極破壊神。',
                 '置かれた瞬間と持ち主のターン開始時に周囲8マスの敵石を破壊する最悪の特殊石だ！',
-                'やつの範囲内にいると破壊されてしまう！'
+                'やつの範囲内にいると破壊されてしまう！',
+                'あれほど強力な特殊石を使役させる者がいたとは…'
             ],
             next: 'CHAPTER2_STEP_002'
         }),
@@ -493,7 +555,7 @@
             characterImageAlt: OBSERVER_NAME,
             emotion: 'serious',
             text: [
-                'ここは引くぞ！近づけなければ対局することすら叶わないぞ'
+                'ここは引くぞ！近づけなければ対局することすら叶わぬ'
             ],
             next: 'CHAPTER2_STEP_004'
         }),
@@ -507,7 +569,7 @@
             characterImageAlt: ESCAPE_WILL_NAME,
             emotion: 'normal',
             text: [
-                '僕に乗ってください！観測者さんと連れの人！逃げましょう！'
+                '私に乗ってください！観測者さんとお連れの方、逃げましょう！'
             ],
             next: 'CHAPTER2_STEP_005'
         }),
@@ -598,7 +660,8 @@
             characterImageAlt: ESCAPE_WILL_NAME,
             emotion: 'smile',
             text: [
-                '僕は逃げる意志のニーゲル！数日前盤理の観測者に空腹の僕に木の実を分けてくれたんです。その恩返しをしたいなと思っていたら偶然ピンチの観測者さんを見つけて救うことができました！'
+                '私は逃げる意志のニーゲル！先日観測者さんに空腹で倒れていた私に果物を分けてくれたんです！',
+                'その恩返しをしたいなと思って跡をつけていたんです！'
             ],
             next: 'CHAPTER2_STEP_011'
         }),
@@ -610,13 +673,11 @@
             characterImageSrc: HERO_IMAGE_SRC,
             characterImageAlt: HERO_NAME,
             choices: [
-                { id: 'observer_helped', label: 'お前そんなことまでしてたのかよｗ' },
-                { id: 'observer_no_counter', label: '観測者強そうな見た目して対抗手段なかったんだなｗ' },
+                { id: 'observer_kind', label: '意外と優しいんだな！観測者' },
                 { id: 'thank_nigel', label: '助かったよニーゲル！' }
             ],
             responses: [
-                { choiceId: 'observer_helped', speaker: OBSERVER_NAME, characterImageSrc: OBSERVER_IMAGE_SRC, characterImageAlt: OBSERVER_NAME, emotion: 'amused', text: 'うむ、腹を空かせた者を放っておけなかっただけだ。' },
-                { choiceId: 'observer_no_counter', speaker: OBSERVER_NAME, characterImageSrc: OBSERVER_IMAGE_SRC, characterImageAlt: OBSERVER_NAME, emotion: 'amused', text: '笑うでない。あれに正面から挑むのは無謀というものだ。' },
+                { choiceId: 'observer_kind', speaker: OBSERVER_NAME, characterImageSrc: OBSERVER_IMAGE_SRC, characterImageAlt: OBSERVER_NAME, emotion: 'smile', text: '当然のことをしたまでぞよ' },
                 { choiceId: 'thank_nigel', speaker: NIGEL_NAME, characterImageSrc: ESCAPE_WILL_IMAGE_SRC, characterImageAlt: ESCAPE_WILL_NAME, emotion: 'smile', text: 'えへへ、間に合って本当によかったです！' }
             ],
             next: 'CHAPTER2_STEP_012'
@@ -656,7 +717,7 @@
             characterImageAlt: ESCAPE_WILL_NAME,
             emotion: 'normal',
             text: [
-                '僕たちは特殊石っていう種族で、主人に仕えるのが役目なんだ！でも僕は今主人がいないんだ'
+                '私たちは特殊石といって、主人に仕えるのが役目なの！でも今の私には主人がいないの...'
             ],
             next: 'CHAPTER2_STEP_015'
         }),
@@ -720,7 +781,7 @@
             emotion: 'serious',
             text: [
                 '特殊石とは、特殊な力が秘められている石。私が観測した書物にはこの世を去った未練の強い生命の魂が特殊石として再臨すると書いてあった',
-                '特殊石はオセロに強く干渉できる特殊能力を1つ持っている。仕えた主人には忠実で良いパートナーになる。'
+                '特殊石はオセロに強く干渉できる特殊能力を持っていて、カードとして使うことができる。仕えた主人には忠実で良いパートナーになるぞよ'
             ],
             next: 'CHAPTER2_STEP_020'
         }),
@@ -746,9 +807,9 @@
             characterImageAlt: OBSERVER_NAME,
             emotion: 'serious',
             text: [
-                'そうだ。しかし奴が使っていた特殊石はかなり位が高い',
-                '今の状況ではとても太刀打ちできぬ。だから我らも力をつけねばならぬ',
-                '相手の特殊石を封じた状態ではないと対局はできぬ。対局さえできればお主の圧倒的力で薙ぎ倒すだけなのだがな！'
+                'そうだ。しかも奴が使っていた特殊石はかなり手強い。よく使役できたものだ',
+                '今の状況ではとても太刀打ちできぬ。我らも力をつけねばならぬぞよ',
+                '相手の特殊石を封じた状態ではないと対局はできぬ。対局さえできればお主の圧倒的パワーで薙ぎ倒すだけなのだがな！'
             ],
             next: 'CHAPTER2_STEP_022'
         }),
@@ -774,7 +835,7 @@
             characterImageAlt: ESCAPE_WILL_NAME,
             emotion: 'smile',
             text: [
-                '折角僕の村に来てくれたんですから、今夜はご馳走を用意します！待っててくださいね！'
+                'せっかく私たちの村に来てくれたんですから、今夜は村でご馳走を用意します！'
             ],
             next: 'CHAPTER2_STEP_024'
         }),
@@ -787,7 +848,7 @@
             characterImageAlt: HERO_NAME,
             emotion: 'smile',
             text: [
-                'まじか！丁度腹減ってたんだ！ありがとな！'
+                '丁度腹減ってたんだ！ありがとな！'
             ],
             next: 'CHAPTER2_STEP_025'
         }),
@@ -801,24 +862,261 @@
             emotion: 'serious',
             text: [
                 'あの盤界の執行者...何者なんだ？狙いは私..?なぜ私の観測から逃れていた？不可解な点が多い...',
-                'まぁいい。今日はいっぱい食べて気持ち良く寝るぞよ！明日のことは明日考えるぞよ！'
+                'まぁいい。今日はいっぱい食べて気持ち良くなろうではないか'
             ],
             next: 'CHAPTER2_STEP_026'
         }),
         chapter2VillageStep({
             id: 'CHAPTER2_STEP_026',
             type: 'dialogue',
+            speaker: TARDU_WILL_NAME,
+            characterVisible: true,
+            characterImageSrc: TARDU_IMAGE_SRC,
+            characterImageAlt: TARDU_WILL_NAME,
+            emotion: 'smile',
+            text: [
+                'あんたらがニーゲルを助けてくれた恩人か！今日は食べてけよっ！'
+            ],
+            next: 'CHAPTER2_STEP_027'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_027',
+            type: 'dialogue',
+            speaker: TARDU_NAME,
+            characterVisible: true,
+            characterImageSrc: TARDU_IMAGE_SRC,
+            characterImageAlt: TARDU_WILL_NAME,
+            supportVisible: true,
+            supportImageSrc: TADOON_IMAGE_SRC,
+            supportImageAlt: TADOON_NAME,
+            supportStage: 'right',
+            emotion: 'smile',
+            text: [
+                '俺は多動の意志のタードゥ、ニーゲルのお兄ちゃんだ、よろしくな！',
+                'そしてこのお方が村の長、究極多動神のタドゥーン様だ！'
+            ],
+            next: 'CHAPTER2_STEP_028'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_028',
+            type: 'dialogue',
+            speaker: TADOON_NAME,
+            characterVisible: true,
+            characterImageSrc: TADOON_IMAGE_SRC,
+            characterImageAlt: TADOON_NAME,
+            emotion: 'soft',
+            text: [
+                '多動村へようこそ。恩人達よ'
+            ],
+            next: 'CHAPTER2_STEP_029'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_029',
+            type: 'dialogue',
+            speaker: HERO_NAME,
+            characterVisible: true,
+            characterImageSrc: HERO_IMAGE_SRC,
+            characterImageAlt: HERO_NAME,
+            emotion: 'smile',
+            text: [
+                'まぁ俺らも助けてくれたんだけどな！ニーゲルに！'
+            ],
+            next: 'CHAPTER2_STEP_030'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_030',
+            type: 'dialogue',
+            speaker: OBSERVER_NAME,
+            characterVisible: true,
+            characterImageSrc: OBSERVER_IMAGE_SRC,
+            characterImageAlt: OBSERVER_NAME,
+            emotion: 'soft',
+            text: [
+                '本当に危ない状況だった、我らも彼女に救われたんぞよ'
+            ],
+            next: 'CHAPTER2_STEP_031'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_031',
+            type: 'dialogue',
+            speaker: TADOON_NAME,
+            characterVisible: true,
+            characterImageSrc: TADOON_IMAGE_SRC,
+            characterImageAlt: TADOON_NAME,
+            emotion: 'serious',
+            text: [
+                'なにがあったか話してくれぬか？'
+            ],
+            next: 'CHAPTER2_STEP_032'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_032',
+            type: 'dialogue',
+            sceneTransition: 'fade_black',
             speaker: 'ナレーション',
             characterVisible: false,
             emotion: 'normal',
             text: [
-                '勇者と観測者はニーゲルの家でお腹いっぱい食べて寝てしまった。',
-                '一方その頃...'
+                '（観測者達はあった出来事をそのまま話した）'
             ],
-            next: 'CHAPTER2_STEP_027'
+            next: 'CHAPTER2_STEP_033'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_033',
+            type: 'dialogue',
+            speaker: TADOON_NAME,
+            characterVisible: true,
+            characterImageSrc: TADOON_IMAGE_SRC,
+            characterImageAlt: TADOON_NAME,
+            emotion: 'soft',
+            text: [
+                'それは大変であったな、では我らも黒幕退治に手を貸そう'
+            ],
+            next: 'CHAPTER2_STEP_034'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_034',
+            type: 'choice',
+            prompt: 'どう返す？',
+            characterVisible: true,
+            characterImageSrc: HERO_IMAGE_SRC,
+            characterImageAlt: HERO_NAME,
+            choices: [
+                { id: 'really_sure', label: '本当にいいのか！' },
+                { id: 'reliable_allies', label: 'それは頼もしいぜ' }
+            ],
+            next: 'CHAPTER2_STEP_035'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_035',
+            type: 'dialogue',
+            speaker: TADOON_NAME,
+            characterVisible: true,
+            characterImageSrc: TADOON_IMAGE_SRC,
+            characterImageAlt: TADOON_NAME,
+            emotion: 'serious',
+            text: [
+                '旅についていくことはできんが、我らをカードとしてお主らに授ける、対局に役立ててくれ'
+            ],
+            next: 'CHAPTER2_STEP_036'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_036',
+            type: 'dialogue',
+            speaker: OBSERVER_NAME,
+            characterVisible: true,
+            characterImageSrc: OBSERVER_IMAGE_SRC,
+            characterImageAlt: OBSERVER_NAME,
+            emotion: 'smile',
+            text: [
+                'これほどまでに強力なカードを…感謝する！'
+            ],
+            next: 'CHAPTER2_STEP_037'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_037',
+            type: 'dialogue',
+            speaker: '',
+            characterVisible: false,
+            emotion: 'normal',
+            text: [
+                '【多動の意志、瞬間多動、多動の継承、究極多動神のカードをゲットした！】'
+            ],
+            next: 'CHAPTER2_STEP_038'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_038',
+            type: 'dialogue',
+            speaker: NIGEL_NAME,
+            characterVisible: true,
+            characterImageSrc: ESCAPE_WILL_IMAGE_SRC,
+            characterImageAlt: ESCAPE_WILL_NAME,
+            emotion: 'serious',
+            text: [
+                '私は旅についていきたいです！いいでしょう？タドゥーン様！'
+            ],
+            next: 'CHAPTER2_STEP_039'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_039',
+            type: 'dialogue',
+            speaker: TADOON_NAME,
+            characterVisible: true,
+            characterImageSrc: TADOON_IMAGE_SRC,
+            characterImageAlt: TADOON_NAME,
+            emotion: 'serious',
+            text: [
+                'しかしお前にはまだ早いのではないか？前も空腹で倒れかけてたではないか？'
+            ],
+            next: 'CHAPTER2_STEP_040'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_040',
+            type: 'dialogue',
+            speaker: NIGEL_NAME,
+            characterVisible: true,
+            characterImageSrc: ESCAPE_WILL_IMAGE_SRC,
+            characterImageAlt: ESCAPE_WILL_NAME,
+            emotion: 'serious',
+            text: [
+                'いつまでも子供扱いしないでください！あのような失敗はもうしませんから！'
+            ],
+            next: 'CHAPTER2_STEP_041'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_041',
+            type: 'dialogue',
+            speaker: OBSERVER_NAME,
+            characterVisible: true,
+            characterImageSrc: OBSERVER_IMAGE_SRC,
+            characterImageAlt: OBSERVER_NAME,
+            emotion: 'smile',
+            text: [
+                '本人もそう言ってるぞよ、食べ物ならいくらでも取ってくるぞよ！'
+            ],
+            next: 'CHAPTER2_STEP_042'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_042',
+            type: 'choice',
+            prompt: 'どう返す？',
+            characterVisible: true,
+            characterImageSrc: HERO_IMAGE_SRC,
+            characterImageAlt: HERO_NAME,
+            choices: [
+                { id: 'never_lose_again', label: '俺がいればここから負けなしだぜ' },
+                { id: 'just_keep_winning', label: '要するに勝てばいいんだろ？' }
+            ],
+            next: 'CHAPTER2_STEP_043'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_043',
+            type: 'dialogue',
+            speaker: TADOON_NAME,
+            characterVisible: true,
+            characterImageSrc: TADOON_IMAGE_SRC,
+            characterImageAlt: TADOON_NAME,
+            emotion: 'serious',
+            text: [
+                '...そこまで言うなら認めざるを得ないな'
+            ],
+            next: 'CHAPTER2_STEP_044'
+        }),
+        chapter2VillageStep({
+            id: 'CHAPTER2_STEP_044',
+            type: 'dialogue',
+            speaker: HERO_NAME,
+            characterVisible: true,
+            characterImageSrc: HERO_IMAGE_SRC,
+            characterImageAlt: HERO_NAME,
+            emotion: 'smile',
+            text: [
+                '決まりだな！'
+            ],
+            next: 'CHAPTER2_STEP_045'
         }),
         chapter2TheoryStep({
-            id: 'CHAPTER2_STEP_027',
+            id: 'CHAPTER2_STEP_045',
             type: 'dialogue',
             sceneTransition: 'fade_black',
             speaker: THEORY_NAME,
@@ -827,12 +1125,12 @@
             characterImageAlt: THEORY_NAME,
             emotion: 'serious',
             text: [
-                '盤理の観測者は仕留めたか？'
+                '盤理の観測者は仕留め損ねたようだな'
             ],
-            next: 'CHAPTER2_STEP_028'
+            next: 'CHAPTER2_STEP_046'
         }),
         chapter2TheoryStep({
-            id: 'CHAPTER2_STEP_028',
+            id: 'CHAPTER2_STEP_046',
             type: 'dialogue',
             speaker: EXECUTIONER_NAME,
             characterVisible: true,
@@ -840,12 +1138,12 @@
             characterImageAlt: EXECUTIONER_NAME,
             emotion: 'serious',
             text: [
-                '申し訳ございません、逃してしまいました。逃げる意志の邪魔が入ってしまい。。'
+                '申し訳ございません、逃してしまいました。逃げる意志の邪魔が入ってしまい...'
             ],
-            next: 'CHAPTER2_STEP_029'
+            next: 'CHAPTER2_STEP_047'
         }),
         chapter2TheoryStep({
-            id: 'CHAPTER2_STEP_029',
+            id: 'CHAPTER2_STEP_047',
             type: 'dialogue',
             speaker: THEORY_NAME,
             characterVisible: true,
@@ -853,12 +1151,12 @@
             characterImageAlt: THEORY_NAME,
             emotion: 'serious',
             text: [
-                '使えぬな。執行者の名前負けだ。まぁいい、収穫もあった。あのオセロの勇者とかいう小僧。どこから現れた？召喚か？'
+                '使えぬな。執行者の名前負けだぞ。まぁいい、収穫もあった。あのオセロの勇者とかいう小僧。どこから現れた？召喚か？'
             ],
-            next: 'CHAPTER2_STEP_030'
+            next: 'CHAPTER2_STEP_048'
         }),
         chapter2TheoryStep({
-            id: 'CHAPTER2_STEP_030',
+            id: 'CHAPTER2_STEP_048',
             type: 'dialogue',
             speaker: EXECUTIONER_NAME,
             characterVisible: true,
@@ -866,12 +1164,12 @@
             characterImageAlt: EXECUTIONER_NAME,
             emotion: 'serious',
             text: [
-                'はい、人型を保っているということは最近召喚されたものだと思われます。'
+                'はい、人型を保っていることから最近召喚されたものだと思われます。'
             ],
-            next: 'CHAPTER2_STEP_031'
+            next: 'CHAPTER2_STEP_049'
         }),
         chapter2TheoryStep({
-            id: 'CHAPTER2_STEP_031',
+            id: 'CHAPTER2_STEP_049',
             type: 'dialogue',
             speaker: THEORY_NAME,
             characterVisible: true,
@@ -879,12 +1177,12 @@
             characterImageAlt: THEORY_NAME,
             emotion: 'serious',
             text: [
-                '野放しにすると危険だな。観測者とかいう観測することしか取り柄のない小物は後回しで、勇者から先に執行していいぞ。'
+                '野放しにすると危険だな。観測者とかいう観測することしか取り柄のない小物は後回しで、勇者から先に執行しろ'
             ],
-            next: 'CHAPTER2_STEP_032'
+            next: 'CHAPTER2_STEP_050'
         }),
         chapter2TheoryStep({
-            id: 'CHAPTER2_STEP_032',
+            id: 'CHAPTER2_STEP_050',
             type: 'dialogue',
             speaker: EXECUTIONER_NAME,
             characterVisible: true,
@@ -894,10 +1192,10 @@
             text: [
                 '承知しました。'
             ],
-            next: 'CHAPTER2_STEP_033'
+            next: 'CHAPTER2_STEP_051'
         }),
         chapter2TheoryStep({
-            id: 'CHAPTER2_STEP_033',
+            id: 'CHAPTER2_STEP_051',
             type: 'dialogue',
             speaker: THEORY_NAME,
             characterVisible: true,
@@ -905,288 +1203,15 @@
             characterImageAlt: THEORY_NAME,
             emotion: 'serious',
             text: [
-                'オセロとかいう不完全なゲームは絶対に許さない。このまま書き換えを続けてオセロの定義を破壊する。そして誰にでも平等な世界を、必ず'
-            ],
-            next: 'CHAPTER2_STEP_034'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_034',
-            type: 'dialogue',
-            sceneTransition: 'fade_black',
-            speaker: OBSERVER_NAME,
-            characterVisible: true,
-            characterImageSrc: OBSERVER_IMAGE_SRC,
-            characterImageAlt: OBSERVER_NAME,
-            emotion: 'serious',
-            text: [
-                'やはりこの村、見覚えがある。この村の図書館に確か私の観測データでは重要な書物があったはずなのだが...記憶が曖昧だ。',
-                '手当たり次第探してみよう'
-            ],
-            next: 'CHAPTER2_STEP_035'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_035',
-            type: 'dialogue',
-            speaker: 'ナレーション',
-            characterVisible: false,
-            emotion: 'normal',
-            text: [
-                '観測者は徹夜で本探しに没頭してしまい、朝になることには寝てしまった。',
-                '翌朝...'
-            ],
-            next: 'CHAPTER2_STEP_036'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_036',
-            type: 'dialogue',
-            speaker: HERO_NAME,
-            characterVisible: true,
-            characterImageSrc: HERO_IMAGE_SRC,
-            characterImageAlt: HERO_NAME,
-            emotion: 'normal',
-            text: [
-                '見つけた！随分探したんだぞ！？観測者！',
-                'こんなところでなに寝てんだよ！ｗ'
-            ],
-            next: 'CHAPTER2_STEP_037'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_037',
-            type: 'dialogue',
-            speaker: HERO_NAME,
-            characterVisible: true,
-            characterImageSrc: HERO_IMAGE_SRC,
-            characterImageAlt: HERO_NAME,
-            emotion: 'amused',
-            text: [
-                '起きないなこりゃ、何か探し物でもしてたのか？'
-            ],
-            next: 'CHAPTER2_STEP_038'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_038',
-            type: 'dialogue',
-            speaker: NIGEL_NAME,
-            characterVisible: true,
-            characterImageSrc: ESCAPE_WILL_IMAGE_SRC,
-            characterImageAlt: ESCAPE_WILL_NAME,
-            emotion: 'smile',
-            text: [
-                'きっと書物を探していたのではないでしょうか！',
-                'この図書館はこの世界でもっとも古いんです！貴重な書物がいっぱいありますよ！'
-            ],
-            next: 'CHAPTER2_STEP_039'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_039',
-            type: 'dialogue',
-            speaker: HERO_NAME,
-            characterVisible: true,
-            characterImageSrc: HERO_IMAGE_SRC,
-            characterImageAlt: HERO_NAME,
-            emotion: 'amused',
-            text: [
-                'そんで探し回って寝てたのか、情けねえ観測者だぜ...'
-            ],
-            next: 'CHAPTER2_STEP_040'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_040',
-            type: 'dialogue',
-            speaker: OBSERVER_NAME,
-            characterVisible: true,
-            characterImageSrc: OBSERVER_IMAGE_SRC,
-            characterImageAlt: OBSERVER_NAME,
-            emotion: 'sleepy',
-            text: [
-                'ふにゃふにゃ...いま我になにかいったのか...？'
-            ],
-            next: 'CHAPTER2_STEP_041'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_041',
-            type: 'dialogue',
-            speaker: HERO_NAME,
-            characterVisible: true,
-            characterImageSrc: HERO_IMAGE_SRC,
-            characterImageAlt: HERO_NAME,
-            emotion: 'normal',
-            text: [
-                'おはよー！観測者、何か探し物してたのか？'
-            ],
-            next: 'CHAPTER2_STEP_042'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_042',
-            type: 'dialogue',
-            speaker: OBSERVER_NAME,
-            characterVisible: true,
-            characterImageSrc: OBSERVER_IMAGE_SRC,
-            characterImageAlt: OBSERVER_NAME,
-            emotion: 'serious',
-            text: [
-                'ちょっと確認したい本があってだな、、意志狩りの王についての、、'
-            ],
-            next: 'CHAPTER2_STEP_043'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_043',
-            type: 'choice',
-            prompt: 'どう返す？',
-            characterVisible: true,
-            characterImageSrc: HERO_IMAGE_SRC,
-            characterImageAlt: HERO_NAME,
-            choices: [
-                { id: 'rely_on_me', label: 'なら最初から俺を頼ってくれよ！' },
-                { id: 'overworked_observer', label: 'こんなになるまで探し回ってたなんてなｗ' },
-                { id: 'help_search', label: '俺も手伝うぞ！' }
-            ],
-            responses: [
-                { choiceId: 'rely_on_me', speaker: OBSERVER_NAME, characterImageSrc: OBSERVER_IMAGE_SRC, characterImageAlt: OBSERVER_NAME, emotion: 'soft', text: 'うむ、次からは遠慮なく頼らせてもらうぞ。' },
-                { choiceId: 'overworked_observer', speaker: OBSERVER_NAME, characterImageSrc: OBSERVER_IMAGE_SRC, characterImageAlt: OBSERVER_NAME, emotion: 'amused', text: '笑うでない。観測のためなら徹夜もやむなしなのだ。' },
-                { choiceId: 'help_search', speaker: OBSERVER_NAME, characterImageSrc: OBSERVER_IMAGE_SRC, characterImageAlt: OBSERVER_NAME, emotion: 'smile', text: '助かる。お主の目はこういう時こそ頼りになる。' }
-            ],
-            next: 'CHAPTER2_STEP_044'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_044',
-            type: 'dialogue',
-            speaker: HERO_NAME,
-            characterVisible: true,
-            characterImageSrc: HERO_IMAGE_SRC,
-            characterImageAlt: HERO_NAME,
-            emotion: 'surprised',
-            text: [
-                'これのことか？意志狩り黙示録？'
-            ],
-            next: 'CHAPTER2_STEP_045'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_045',
-            type: 'dialogue',
-            speaker: OBSERVER_NAME,
-            characterVisible: true,
-            characterImageSrc: OBSERVER_IMAGE_SRC,
-            characterImageAlt: OBSERVER_NAME,
-            emotion: 'smile',
-            text: [
-                'それだそれだ！よくやったぞ我が勇者よ！',
-                'この本に意志狩りの王の記録が残っているはず、、今も存在していれば仲間にしたいと考えておってなあ'
-            ],
-            next: 'CHAPTER2_STEP_046'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_046',
-            type: 'dialogue',
-            speaker: NIGEL_NAME,
-            characterVisible: true,
-            characterImageSrc: ESCAPE_WILL_IMAGE_SRC,
-            characterImageAlt: ESCAPE_WILL_NAME,
-            emotion: 'surprised',
-            text: [
-                'あの伝説の意志狩りの王！？無謀ですよ！観測者さん！'
-            ],
-            next: 'CHAPTER2_STEP_047'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_047',
-            type: 'choice',
-            prompt: 'どう返す？',
-            characterVisible: true,
-            characterImageSrc: HERO_IMAGE_SRC,
-            characterImageAlt: HERO_NAME,
-            choices: [
-                { id: 'is_it_that_strong', label: 'そんなに強いのか？' },
-                { id: 'cant_wait_to_fight', label: '早く戦いたいぜ！' }
-            ],
-            responses: [
-                { choiceId: 'is_it_that_strong', speaker: OBSERVER_NAME, characterImageSrc: OBSERVER_IMAGE_SRC, characterImageAlt: OBSERVER_NAME, emotion: 'serious', text: '伝説になるだけの力を持つ。軽く見る相手ではないぞ。' },
-                { choiceId: 'cant_wait_to_fight', speaker: OBSERVER_NAME, characterImageSrc: OBSERVER_IMAGE_SRC, characterImageAlt: OBSERVER_NAME, emotion: 'amused', text: '気が早いな。だがその闘志は頼もしい。' }
-            ],
-            next: 'CHAPTER2_STEP_048'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_048',
-            type: 'dialogue',
-            speaker: OBSERVER_NAME,
-            characterVisible: true,
-            characterImageSrc: OBSERVER_IMAGE_SRC,
-            characterImageAlt: OBSERVER_NAME,
-            emotion: 'serious',
-            text: [
-                'リスクは承知の上だ。危険を冒さずして未来は切り開けぬ。'
-            ],
-            next: 'CHAPTER2_STEP_049'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_049',
-            type: 'dialogue',
-            speaker: NIGEL_NAME,
-            characterVisible: true,
-            characterImageSrc: ESCAPE_WILL_IMAGE_SRC,
-            characterImageAlt: ESCAPE_WILL_NAME,
-            emotion: 'soft',
-            text: [
-                '観測者さんが言うなら、、ついていくしかないですね！'
-            ],
-            next: 'CHAPTER2_STEP_050'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_050',
-            type: 'dialogue',
-            speaker: OBSERVER_NAME,
-            characterVisible: true,
-            characterImageSrc: OBSERVER_IMAGE_SRC,
-            characterImageAlt: OBSERVER_NAME,
-            emotion: 'normal',
-            text: [
-                '書物によるとこの地点から北東方向の位置に意志狩りの里があるらしい。そこが最後の目撃情報だ。'
-            ],
-            next: 'CHAPTER2_STEP_051'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_051',
-            type: 'choice',
-            prompt: 'どう返す？',
-            characterVisible: true,
-            characterImageSrc: HERO_IMAGE_SRC,
-            characterImageAlt: HERO_NAME,
-            choices: [
-                { id: 'have_to_go', label: '行ってみるしかないな！' },
-                { id: 'only_forward', label: '前進のみだぜ' }
-            ],
-            next: 'CHAPTER2_STEP_052'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_052',
-            type: 'dialogue',
-            speaker: OBSERVER_NAME,
-            characterVisible: true,
-            characterImageSrc: OBSERVER_IMAGE_SRC,
-            characterImageAlt: OBSERVER_NAME,
-            emotion: 'smile',
-            text: [
-                'よし決まりだ！次の目的地点は意志狩りの里だ！'
-            ],
-            next: 'CHAPTER2_STEP_053'
-        }),
-        chapter2LibraryStep({
-            id: 'CHAPTER2_STEP_053',
-            type: 'dialogue',
-            speaker: 'ナレーション',
-            characterVisible: false,
-            emotion: 'normal',
-            text: [
-                'そして荷物をまとめて新たな目的地へ出発する勇者たちであった。旅の行方は...'
+                'オセロとかいう不完全なゲームは絶対に許さない。このまま書き換えを続けてオセロの定義を完全に破壊する。そして平等な世界を、必ず...'
             ],
             next: 'CHAPTER2_STEP_054'
         }),
-        chapter2LibraryStep({
+        chapter2TheoryStep({
             id: 'CHAPTER2_STEP_054',
             type: 'completed',
             result: {
-                saveStoryChapterCleared: true,
-                unlockStoryChapterIds: ['chapter3']
+                saveStoryChapterCleared: true
             }
         })
     ];
@@ -1209,10 +1234,10 @@
             id: CHAPTER2_ID,
             title: '第二章',
             menuLabel: '第二章',
-            menuDescription: '逃げる意志のニーゲルと出会い、特殊石と次の目的地を知る章。',
+            menuDescription: '逃げる意志のニーゲルと多動の村の支援を得て、黒幕側の狙いが勇者へ向く章。',
             entryStepId: 'CHAPTER2_STEP_001',
             lockMessage: '第一章をクリアすると解放されます。',
-            unlocksChapterIds: ['chapter3'],
+            unlocksChapterIds: [],
             steps: chapter2Steps.steps,
             stepsById: chapter2Steps.stepsById
         })
@@ -1252,6 +1277,11 @@
         THEORY_IMAGE_SRC,
         UDG_NAME,
         UDG_IMAGE_SRC,
+        TARDU_WILL_NAME,
+        TARDU_NAME,
+        TARDU_IMAGE_SRC,
+        TADOON_NAME,
+        TADOON_IMAGE_SRC,
         NIGEL_NAME,
         ESCAPE_WILL_NAME,
         ESCAPE_WILL_IMAGE_SRC,

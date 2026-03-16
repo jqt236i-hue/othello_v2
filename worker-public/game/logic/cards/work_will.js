@@ -20,15 +20,34 @@
                 } catch (e) {
                     return null;
                 }
+            })(),
+            (function () {
+                try {
+                    return require('./markers');
+                } catch (e) {
+                    return null;
+                }
             })()
         );
     } else {
-        root.CardWork = factory(root.SharedConstants, root.CardUtils || null, root.BoardOps || null);
+        root.CardWork = factory(root.SharedConstants, root.CardUtils || null, root.BoardOps || null, root.CardMarkers || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardUtils, BoardOps) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardUtils, BoardOps, CardMarkersModule) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY, CHARGE_MAX } = SharedConstants || {};
+
+    function getGlobalScope() {
+        return (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+    }
+
+    function getCardMarkersModule() {
+        if (CardMarkersModule) return CardMarkersModule;
+        const globalScope = getGlobalScope();
+        return globalScope.CardMarkers || null;
+    }
 
     function isWorkDebugEnabled(cardState) {
         if (cardState && cardState.debugWorkLog === true) return true;
@@ -42,32 +61,101 @@
         return !!(CardUtils && typeof CardUtils.isFrozenCell === 'function' && CardUtils.isFrozenCell(cardState, row, col));
     }
 
+    function normalizeExpansionOwner(owner) {
+        return (owner === BLACK || owner === WHITE) ? owner : EMPTY;
+    }
+
+    function isMainBoardCell(row, col) {
+        return Number.isInteger(row) && row >= 0 && row < 8 && Number.isInteger(col) && col >= 0 && col < 8;
+    }
+
+    function resolveExpansionSide(side, row, col) {
+        if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
+        if (col === -1) return 'left';
+        if (col === 8) return 'right';
+        if (row === -1) return 'top';
+        if (row === 8) return 'bottom';
+        return null;
+    }
+
+    function isExpansionCoordinate(row, col) {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+        if (row < -1 || row > 8 || col < -1 || col > 8) return false;
+        if (isMainBoardCell(row, col)) return false;
+        return true;
+    }
+
+    function getExpansionCells(gameState) {
+        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
+            ? gameState.boardExpansion
+            : null;
+        if (!expansion) return [];
+
+        const cells = [];
+        const pushCell = (source, legacyRow, legacyOwner) => {
+            let side = null;
+            let row = null;
+            let col = null;
+            let owner = legacyOwner;
+
+            if (source && typeof source === 'object') {
+                side = source.side;
+                row = source.row;
+                col = source.col;
+                owner = source.owner;
+                if (!Number.isInteger(col) && side === 'left') col = -1;
+                if (!Number.isInteger(col) && side === 'right') col = 8;
+            } else {
+                side = source;
+                row = legacyRow;
+                if (side === 'left') col = -1;
+                if (side === 'right') col = 8;
+            }
+
+            if (!isExpansionCoordinate(row, col)) return;
+            if (cells.some((cell) => cell && cell.row === row && cell.col === col)) return;
+            cells.push({
+                side: resolveExpansionSide(side, row, col),
+                row,
+                col,
+                owner: normalizeExpansionOwner(owner)
+            });
+        };
+
+        if (Array.isArray(expansion.cells)) {
+            for (const cell of expansion.cells) {
+                if (!cell || typeof cell !== 'object') continue;
+                pushCell(cell);
+            }
+        }
+
+        if (cells.length === 0 && expansion.active === true) {
+            pushCell(expansion);
+        }
+
+        return cells;
+    }
+
+    function syncLegacyExpansionFields(expansion) {
+        if (!expansion || typeof expansion !== 'object') return;
+        if (!Array.isArray(expansion.cells)) expansion.cells = [];
+        const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
+        expansion.active = !!latest;
+        expansion.side = latest ? resolveExpansionSide(latest.side, latest.row, latest.col) : null;
+        expansion.row = latest ? latest.row : null;
+        expansion.owner = latest ? normalizeExpansionOwner(latest.owner) : EMPTY;
+    }
+
     function getCellValue(gameState, row, col) {
         if (BoardOps && typeof BoardOps.getCellValue === 'function') {
             return BoardOps.getCellValue(gameState, row, col);
         }
-        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-            ? gameState.boardExpansion
-            : null;
-        if (expansion) {
-            const cells = Array.isArray(expansion.cells) ? expansion.cells : [];
-            for (const cell of cells) {
-                if (!cell || typeof cell !== 'object') continue;
-                const cellCol = Number.isInteger(cell.col)
-                    ? cell.col
-                    : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : null));
-                if (!Number.isInteger(cellCol)) continue;
-                if (cell.row === row && cellCol === col) {
-                    return (cell.owner === BLACK || cell.owner === WHITE) ? cell.owner : EMPTY;
-                }
-            }
-            if (expansion.active === true) {
-                const legacyCol = expansion.side === 'left' ? -1 : (expansion.side === 'right' ? 8 : null);
-                if (Number.isInteger(legacyCol) && expansion.row === row && legacyCol === col) {
-                    return (expansion.owner === BLACK || expansion.owner === WHITE) ? expansion.owner : EMPTY;
-                }
-            }
+        const expansionCells = getExpansionCells(gameState);
+        for (const cell of expansionCells) {
+            if (!cell) continue;
+            if (cell.row === row && cell.col === col) return normalizeExpansionOwner(cell.owner);
         }
+        if (isMainBoardCell(row, col)) return gameState.board[row][col];
         if (!Array.isArray(gameState && gameState.board)) return null;
         if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
         if (row < 0 || row >= gameState.board.length) return null;
@@ -103,19 +191,39 @@
         }
         // Ensure only one per player: remove old work stone if exists
         const prev = (cardState.workAnchorPosByPlayer && cardState.workAnchorPosByPlayer[playerKey]) || null;
-        if (prev && (prev.row !== row || prev.col !== col)) {
-            // remove existing specialStone of type WORK at prev
-            if (cardState.markers) {
-                cardState.markers = cardState.markers.filter(m => !(m.kind === 'specialStone' && m.data && m.data.type === 'WORK' && m.owner === playerKey && m.row === prev.row && m.col === prev.col));
+        const removeMarkersAt = deps.removeMarkersAt || ((cs, r, c, options) => {
+            const cardMarkers = getCardMarkersModule();
+            if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
+                cardMarkers.removeMarkersAt(cs, r, c, options);
+                return;
             }
+            if (!cs || !Array.isArray(cs.markers)) return;
+            const opts = options || {};
+            cs.markers = cs.markers.filter((marker) => {
+                if (!marker || marker.row !== r || marker.col !== c) return true;
+                if (opts.kind && marker.kind !== opts.kind) return true;
+                if (opts.type && (!marker.data || marker.data.type !== opts.type)) return true;
+                if (opts.owner && marker.owner !== opts.owner) return true;
+                return false;
+            });
+        });
+        if (prev && (prev.row !== row || prev.col !== col)) {
+            removeMarkersAt(cardState, prev.row, prev.col, { kind: 'specialStone', type: 'WORK', owner: playerKey });
             cardState.workAnchorPosByPlayer[playerKey] = null;
         }
 
         // Add marker
         const addMarker = deps.addMarker || ((cs, kind, r, c, owner, data) => {
+            const cardMarkers = getCardMarkersModule();
+            if (cardMarkers && typeof cardMarkers.addMarker === 'function') {
+                cardMarkers.addMarker(cs, kind, r, c, owner, Object.assign({ type: 'WORK', ownerColor: owner, workStage: 0, remainingOwnerTurns: 5 }, data || {}));
+                return { placed: true };
+            }
             if (!cs.markers) cs.markers = [];
-            const id = (typeof cs._nextMarkerId === 'number') ? cs._nextMarkerId++ : 1;
-            const createdSeq = (typeof cs._nextCreatedSeq === 'number') ? cs._nextCreatedSeq++ : 1;
+            if (typeof cs._nextMarkerId !== 'number') cs._nextMarkerId = 1;
+            const id = cs._nextMarkerId++;
+            if (typeof cs._nextCreatedSeq !== 'number') cs._nextCreatedSeq = 1;
+            const createdSeq = cs._nextCreatedSeq++;
             cs.markers.push({
                 id,
                 row: r,
@@ -156,25 +264,7 @@
                 ? gameState.boardExpansion
                 : null;
             if (expansion) {
-                const cells = [];
-                const pushCell = (side, rowValue, ownerValue) => {
-                    if (side !== 'left' && side !== 'right') return;
-                    if (!Number.isInteger(rowValue) || rowValue < 0 || rowValue >= 8) return;
-                    const colValue = side === 'left' ? -1 : 8;
-                    if (cells.some((cell) => cell && cell.row === rowValue && cell.col === colValue)) return;
-                    const normalizedOwner = (ownerValue === BLACK || ownerValue === WHITE) ? ownerValue : EMPTY;
-                    cells.push({ side, row: rowValue, col: colValue, owner: normalizedOwner });
-                };
-
-                if (Array.isArray(expansion.cells)) {
-                    for (const cell of expansion.cells) {
-                        if (!cell || typeof cell !== 'object') continue;
-                        pushCell(cell.side, cell.row, cell.owner);
-                    }
-                }
-                if (cells.length === 0 && expansion.active === true) {
-                    pushCell(expansion.side, expansion.row, expansion.owner);
-                }
+                const cells = getExpansionCells(gameState).map((cell) => ({ ...cell }));
 
                 let cleared = false;
                 for (let i = 0; i < cells.length; i++) {
@@ -187,13 +277,10 @@
                     expansion.cells = cells.map((cell) => ({
                         side: cell.side,
                         row: cell.row,
-                        owner: (cell.owner === BLACK || cell.owner === WHITE) ? cell.owner : EMPTY
+                        col: cell.col,
+                        owner: normalizeExpansionOwner(cell.owner)
                     }));
-                    const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
-                    expansion.active = !!latest;
-                    expansion.side = latest ? latest.side : null;
-                    expansion.row = latest ? latest.row : null;
-                    expansion.owner = latest ? ((latest.owner === BLACK || latest.owner === WHITE) ? latest.owner : EMPTY) : EMPTY;
+                    syncLegacyExpansionFields(expansion);
                     return true;
                 }
             }

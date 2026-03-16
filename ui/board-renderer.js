@@ -37,9 +37,29 @@ function _isVisualPlaybackActiveForBoardRenderer() {
     return (typeof window !== 'undefined' && window.VisualPlaybackActive === true);
 }
 
+function _hasPendingPlaybackEventsForBoardRenderer() {
+    try {
+        const state = (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object')
+            ? cardState
+            : ((typeof window !== 'undefined' && window.cardState && typeof window.cardState === 'object') ? window.cardState : null);
+        if (!state) return false;
+
+        const pending = [];
+        if (Array.isArray(state.presentationEvents)) pending.push(...state.presentationEvents);
+        if (Array.isArray(state._presentationEventsPersist)) pending.push(...state._presentationEventsPersist);
+        return pending.some((ev) => ev && ev.type === 'PLAYBACK_EVENTS');
+    } catch (e) {
+        return false;
+    }
+}
+
+function _shouldSkipBoardRenderForPlayback() {
+    return _isVisualPlaybackActiveForBoardRenderer() || _hasPendingPlaybackEventsForBoardRenderer();
+}
+
 function renderBoard() {
-    // Single Visual Writer: skip renders during active playback
-    if (_isVisualPlaybackActiveForBoardRenderer()) {
+    // Single Visual Writer: skip renders while playback is active or already queued.
+    if (_shouldSkipBoardRenderForPlayback()) {
         return;
     }
     // Determine whether we are in a "target selection" card mode.
@@ -88,9 +108,17 @@ function renderBoard() {
  */
 function _isBoardHiddenTrapForBoardRenderer(marker) {
     if (!marker || !marker.data || marker.data.type !== 'TRAP') return false;
-    // TRAP is hidden information on board after placement.
-    // It should not be shown as a persistent special-stone visual to either side.
-    return true;
+    // Persistent trap visuals are owner-only information on board.
+    // In local debug human-vs-human, the shared screen may see both sides.
+    try {
+        if (typeof window !== 'undefined' && window && window.DEBUG_HUMAN_VS_HUMAN === true) {
+            return false;
+        }
+    } catch (e) { /* ignore */ }
+    const viewerKey = _resolveNetworkLocalPlayerKeyForBoard();
+    const ownerKey = marker.owner === 'white' ? 'white' : (marker.owner === 'black' ? 'black' : null);
+    if (!ownerKey) return true;
+    return viewerKey !== ownerKey;
 }
 
 function _isFlipEvadeSpecialTypeForBoard(type) {
@@ -168,8 +196,8 @@ function _canLocalPlayerControlCurrentTurnForBoard() {
 }
 
 function renderBoardFull() {
-    // Single Visual Writer: skip renders during active playback
-    if (_isVisualPlaybackActiveForBoardRenderer()) {
+    // Single Visual Writer: skip renders while playback is active or already queued.
+    if (_shouldSkipBoardRenderForPlayback()) {
         return;
     }
     boardEl.innerHTML = '';
@@ -282,7 +310,7 @@ function renderBoardFull() {
                     ? (
                         Number.isFinite(Number(m.data.flipEvadeRemaining))
                             ? Math.max(0, Math.trunc(Number(m.data.flipEvadeRemaining)))
-                            : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ? 5 : null)
+                            : ((markerTypeUpper === 'ULTIMATE_HYPERACTIVE' || markerTypeUpper === 'EXTREME_HYPERACTIVE') ? 3 : null)
                     )
                     : 0
             });

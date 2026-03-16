@@ -97,6 +97,24 @@ function buildPlaceTeacherCandidates(record) {
     }];
 }
 
+function resolveSelectionTrace(record) {
+    return record && record.actorView && record.actorView.selectionTrace && typeof record.actorView.selectionTrace === 'object'
+        ? record.actorView.selectionTrace
+        : null;
+}
+
+function buildTeacherCandidatesFromSelectionTrace(record, decisionKind) {
+    if (decisionKind === 'place') return [];
+    const selectionTrace = resolveSelectionTrace(record);
+    if (!selectionTrace || !Array.isArray(selectionTrace.candidates) || selectionTrace.candidates.length <= 0) return [];
+    return selectionTrace.candidates
+        .map((one) => cloneJsonRecord(one))
+        .filter((candidate) => {
+            if (!candidate || typeof candidate !== 'object') return false;
+            return typeof candidate.cardId === 'string' && candidate.cardId.trim().length > 0;
+        });
+}
+
 function buildCardTeacherCandidates(record, decisionKind, selectedCardId) {
     const baseIds = (decisionKind === 'destroy' || decisionKind === 'sell')
         ? (Array.isArray(record && record.handCards) ? record.handCards : [])
@@ -140,12 +158,17 @@ function buildTeacherCandidates(record, decisionKind, selectedCardId) {
         return buildPlaceTeacherCandidates(record);
     }
     if (decisionKind === 'use' || decisionKind === 'destroy' || decisionKind === 'sell' || decisionKind === 'keep') {
+        const traceCandidates = buildTeacherCandidatesFromSelectionTrace(record, decisionKind);
+        if (traceCandidates.length > 0) return traceCandidates;
         return buildCardTeacherCandidates(record, decisionKind, selectedCardId);
     }
     return [];
 }
 
 function buildSelectedActionKey(record, decisionKind, selectedCardId) {
+    const traceSelectedActionKey = normalizeCardId(record && record.selectedActionKey)
+        || normalizeCardId(resolveSelectionTrace(record) && resolveSelectionTrace(record).selectedActionKey);
+    if (traceSelectedActionKey) return traceSelectedActionKey;
     if (decisionKind === 'place') {
         if (!Number.isInteger(record && record.row) || !Number.isInteger(record && record.col)) return null;
         return `place:${Number(record.row)}:${Number(record.col)}`;

@@ -1,0 +1,68 @@
+Card_ID,Coverage_Type,Test_File,Description
+trap_01,Direct Network,ui.network-client.trap-deferred-publish.test.js,TRAP_WILL deferred publish contract
+sacrifice_01,Direct Network,ui.network-client.sacrifice-deferred-publish.test.js,SACRIFICE_WILL deferred publish with playback sync
+swap_01,Direct Network,ui.network-client.swap-deferred-publish.test.js,SWAP_WITH_ENEMY network snapshot publish
+position_swap_01,Direct Network,ui.network-client.multi-stage-selection.test.js,POSITION_SWAP_WILL multi-stage selection
+board_expand_god_01,Direct Network,ui.network-client.multi-stage-selection.test.js,BOARD_EXPANSION_GOD multi-stage with immediate publish
+condemn_01,Direct Network,ui.card-condemn-selection-deferred-publish.test.js,CONDEMN_WILL deferred publish from overlay
+sell_01,Direct Network,ui.card-sell-selection-deferred-publish.test.js,SELL_CARD_WILL deferred publish from interaction
+strong_wind_01,Direct Network,ui.network-client.movement-deferred-publish.test.js,STRONG_WIND_WILL movement network contract
+super_buoyancy_01,Direct Network,ui.network-client.movement-deferred-publish.test.js,SUPER_BUOYANCY_WILL movement network contract
+super_gravity_01,Direct Network,ui.network-client.movement-deferred-publish.test.js,SUPER_GRAVITY_WILL movement network contract
+blockade_01,Indirect/Shared,game.blockade-will.test.js,Game logic only - no network test
+board_expand_01,Indirect/Shared,game.board-expansion-will.test.js,Game logic only - no network test
+bomb_01,Indirect/Shared,game.logic.time-bomb-single.test.js,Game logic only - no network test
+breeding_01,Indirect/Shared,game.breeding-frontier.test.js,Game logic only - no network test
+cell_teleport_01,Indirect/Shared,game.cell-teleport-will.test.js,Game logic only - no network test
+chain_01,Indirect/Shared,game.chain-will-*.test.js,Game logic only - no network test
+chest_01,Indirect/Shared,game.treasure-box.test.js,Game logic only - no network test
+clone_01,Indirect/Shared,game.clone-will.test.js,Game logic only - no network test
+corner_tribute_01,Indirect/Shared,game.corner-tribute-will.test.js,Game logic only - no network test
+corrosion_01,Indirect/Shared,game.corrosion-will.test.js,Game logic only - no network test
+cross_bomb_01,Indirect/Shared,game.cross-bomb.test.js,Game logic only - no network test
+crystal_stone,Indirect/Shared,game.gold-silver-pipeline.test.js,Game logic only - no network test
+destroy_01,Indirect/Shared,game.special-effects.ui-boundary.test.js,Game logic only - no network test
+destroy_dragon_01,Indirect/Shared,game.destroy-dragon-will.test.js,Game logic only - no network test
+double_01,Indirect/Shared,game.double-place-pipeline.test.js,Game logic only - no network test
+escape_01,Indirect/Shared,game.escape-will.test.js,Game logic only - no network test
+extend_life_01,Indirect/Shared,game.extend-life-work-will.test.js,Game logic only - no network test
+extreme_hyperactive_01,Indirect/Shared,game.extreme-hyperactive-will.test.js,Game logic only - no network test
+free_01,Indirect/Shared,game.free-placement-*.test.js,Game logic only - no network test
+freeze_01,Indirect/Shared,game.freeze-will.test.js,Game logic only - no network test
+gluttonous_will_01,Indirect/Shared,game.gluttonous-will.test.js,Game logic only - no network test
+gold_stone,Indirect/Shared,game.gold-silver-*.test.js,Game logic only - no network test
+guard_01,Indirect/Shared,game.guard-will.test.js,Game logic only - no network test
+hard_01,Indirect/Shared,game.protected-next-stone.test.js,Game logic only - no network test
+heaven_01,Indirect/Shared,game.heaven-blessing.test.js,Game logic only - no network test
+hyperactive_01,Indirect/Shared,game.hyperactive.playback.test.js,Game logic only - no network test
+hyperactive_inherit_01,Indirect/Shared,game.hyperactive-inherit-will.test.js,Game logic only - no network test
+instant_hyperactive_01,Indirect/Shared,game.instant-hyperactive-will.test.js,Game logic only - no network test
+last_resort_01,Indirect/Shared,game.last-resort.test.js,Game logic only - no network test
+lightning_01,Indirect/Shared,game.lightning-will.test.js,Game logic only - no network test
+loss_will_01,Indirect/Shared,game.loss-will.test.js,Game logic only - no network test
+meteor_01,Indirect/Shared,game.logic.meteor-module.test.js,Game logic only - no network test
+observer_01,Indirect/Shared,game.observer-will.test.js,Game logic only - no network test
+perma_01,Indirect/Shared,game.perma-protected-next-stone.test.js,Game logic only - no network test
+rebuild_01,Indirect/Shared,game.rebuild-will.test.js,Game logic only - no network test
+regen_01,Indirect/Shared,game.regen.consume-visual.test.js,Game logic only - no network test
+ribo_01,Indirect/Shared,game.ribo-will.test.js,Game logic only - no network test
+robot_vacuum_01,Indirect/Shared,game.robot-vacuum-will.test.js,Game logic only - no network test
+silver_stone,Indirect/Shared,game.gold-silver-*.test.js,Game logic only - no network test
+sniper_01,Indirect/Shared,game.sniper-will.test.js,Game logic only - no network test
+split_01,Indirect/Shared,game.split-will.test.js,Game logic only - no network test
+supply_01,Indirect/Shared,game.supply-will.test.js,Game logic only - no network test
+taboo_reverse_01,Indirect/Shared,game.taboo-reverse-will.test.js,Game logic only - no network test
+teleport_01,Indirect/Shared,game.logic.teleport-module.test.js,Game logic only - no network test
+udg_01,Indirect/Shared,game.udg-duration.test.js,Game logic only - no network test
+udr_01,Indirect/Shared,game.regression-udr-crystal-fixes.test.js,Game logic only - no network test
+ultimate_hyperactive_01,Indirect/Shared,game.ultimate-hyperactive.turn-start.test.js,Game logic only - no network test
+will_hunter_king_01,Indirect/Shared,game.will-hunter-king.test.js,Game logic only - no network test
+work_01,Indirect/Shared,game.work-will.expansion.test.js,Game logic only - no network test
+x_bomb_01,Indirect/Shared,game.x-bomb.test.js,Game logic only - no network test
+guardian_god_01,No Coverage,N/A,No dedicated test found (mirror of guard_01 with 10-turn duration)
+infinite_01,No Coverage,N/A,Disabled card (enabled: false in catalog.json)
+plunder_will,No Coverage,N/A,No dedicated test file found - NEEDS ATTENTION
+quad_01,No Coverage,N/A,Disabled card (enabled: false in catalog.json)
+rainbow_stone,No Coverage,N/A,Only referenced in gold-silver tests as side effect
+tempt_01,No Coverage,N/A,No dedicated test file found - NEEDS ATTENTION
+triple_01,No Coverage,N/A,Disabled card (enabled: false in catalog.json)

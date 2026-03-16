@@ -19,6 +19,18 @@ describe('regen consume visual event', () => {
     ]);
   });
 
+  test('allocates stable marker ids across repeated direct placements', () => {
+    const cardState = { markers: [] };
+
+    CardRegen.applyRegenWill(cardState, 'black', 2, 4);
+    CardRegen.applyRegenWill(cardState, 'white', 3, 4);
+
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 1, createdSeq: 1, row: 2, col: 4, owner: 'black' }),
+      expect.objectContaining({ id: 2, createdSeq: 2, row: 3, col: 4, owner: 'white' })
+    ]));
+  });
+
   test('removes consumed regen marker immediately and emits STATUS_REMOVED', () => {
     const board = Array(8).fill(null).map(() => Array(8).fill(0));
     board[3][3] = -1; // flipped against black owner

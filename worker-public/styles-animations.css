@@ -13,7 +13,7 @@
 }
 
 .card-fade-in {
-    animation: card-fade-in 0.5s ease-out forwards;
+    animation: card-fade-in var(--card-fade-in-duration, 0.5s) ease-out forwards;
 }
 
 /* Prevent "flash then fade" by allowing new cards to be rendered hidden before 

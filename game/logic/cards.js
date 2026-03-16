@@ -43,7 +43,8 @@
     const ULTIMATE_DRAGON_TURNS = 5;
     const ULTIMATE_DESTROY_GOD_TURNS = 5;
     const ULTIMATE_HYPERACTIVE_TURNS = 10;
-    const ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT = 5;
+    const EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
+    const ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
     const SNIPER_WILL_TURNS = 5;
     const DESTROY_DRAGON_TURNS = 3;
     const LIGHTNING_WILL_TURNS = 5;
@@ -66,6 +67,78 @@
         RAINBOW_STONE: { multiplier: 6, effectFlag: 'rainbowStoneUsed', destroyReason: 'rainbow_stone_sacrifice' },
         SILVER_STONE: { multiplier: 3, effectFlag: 'silverStoneUsed', destroyReason: 'silver_stone_sacrifice' }
     });
+    const ENABLED_CARD_ID_SET = new Set((CARD_DEFS || []).reduce((out, cardDef) => {
+        if (cardDef && cardDef.id && cardDef.enabled !== false) {
+            out.push(cardDef.id);
+        }
+        return out;
+    }, []));
+    const NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS = Object.freeze({
+        CRYSTAL_STONE: {
+            multiplier: 4,
+            effectFlag: 'crystalStoneUsed',
+            gainField: 'crystalStoneGain',
+            destroyReason: 'crystal_stone_sacrifice'
+        }
+    });
+    const THROW_CHAIN_SEQUENCE = Object.freeze([
+        Object.freeze({ type: 'DOUBLE_PLACE', totalPlacements: 2, nextType: 'TRIPLE_PLACE' }),
+        Object.freeze({ type: 'TRIPLE_PLACE', totalPlacements: 3, nextType: 'QUAD_PLACE' }),
+        Object.freeze({ type: 'QUAD_PLACE', totalPlacements: 4, nextType: 'INFINITE_PLACE' }),
+        Object.freeze({ type: 'INFINITE_PLACE', totalPlacements: Infinity, nextType: null })
+    ]);
+    const THROW_CHAIN_CONFIG_BY_TYPE = Object.freeze(THROW_CHAIN_SEQUENCE.reduce((map, entry) => {
+        const cardDef = (CARD_DEFS || []).find((one) => one && one.type === entry.type) || null;
+        const nextDef = entry.nextType
+            ? ((CARD_DEFS || []).find((one) => one && one.type === entry.nextType) || null)
+            : null;
+        map[entry.type] = Object.freeze({
+            type: entry.type,
+            totalPlacements: entry.totalPlacements,
+            extraPlacements: Number.isFinite(entry.totalPlacements) ? Math.max(0, entry.totalPlacements - 1) : 0,
+            infinite: entry.totalPlacements === Infinity,
+            cardId: cardDef && cardDef.id ? cardDef.id : null,
+            name: cardDef && cardDef.name ? cardDef.name : entry.type,
+            nextType: entry.nextType || null,
+            nextCardId: nextDef && nextDef.id ? nextDef.id : null,
+            nextName: nextDef && nextDef.name ? nextDef.name : null
+        });
+        return map;
+    }, {}));
+
+    function getThrowChainConfig(cardType) {
+        const type = String(cardType || '');
+        return type ? (THROW_CHAIN_CONFIG_BY_TYPE[type] || null) : null;
+    }
+
+    function addGeneratedThrowChainCard(cardState, playerKey, sourceCardId, sourceCardType) {
+        const config = getThrowChainConfig(sourceCardType);
+        if (!config || !config.nextCardId) return null;
+        if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return null;
+        if (cardState.hands[playerKey].length >= MAX_HAND_SIZE) return null;
+
+        cardState.hands[playerKey].push(config.nextCardId);
+        const nextConfig = getThrowChainConfig(config.nextType);
+        try {
+            emitPresentationEvent(cardState, {
+                type: 'HAND_ADD',
+                player: playerKey,
+                cardId: config.nextCardId,
+                count: 1,
+                reason: 'generated_throw_chain',
+                meta: {
+                    owner: playerKey,
+                    reason: 'generated_throw_chain',
+                    sourceCardId: sourceCardId || null,
+                    sourceType: sourceCardType || null,
+                    sourceName: config.name || null,
+                    generatedType: config.nextType || null,
+                    generatedName: nextConfig && nextConfig.name ? nextConfig.name : null
+                }
+            });
+        } catch (e) { /* ignore presentation emission failures */ }
+        return config.nextCardId;
+    }
 
     function isWorkDebugEnabled(cardState) {
         if (cardState && cardState.debugWorkLog === true) return true;
@@ -151,8 +224,30 @@
         return DeckSpecHelpers.expandDeckSpec(deckSpec);
     }
 
+    function normalizeInitialDeckCardIds(deckCardIds) {
+        if (!Array.isArray(deckCardIds)) return null;
+        return deckCardIds.map((cardId, index) => {
+            const normalizedCardId = String(cardId || '').trim();
+            if (!normalizedCardId || !ENABLED_CARD_ID_SET.has(normalizedCardId)) {
+                throw new Error(`Invalid initial deck card id at index ${index}: ${normalizedCardId || '(empty)'}`);
+            }
+            return normalizedCardId;
+        });
+    }
+
     function resolveInitialDeckCardIds(options, playerKey) {
         const opts = (options && typeof options === 'object') ? options : {};
+        const deckCardIdsByPlayer = (opts.initialDeckCardIdsByPlayer && typeof opts.initialDeckCardIdsByPlayer === 'object')
+            ? opts.initialDeckCardIdsByPlayer
+            : null;
+        const playerDeckCardIds = deckCardIdsByPlayer && Array.isArray(deckCardIdsByPlayer[playerKey])
+            ? deckCardIdsByPlayer[playerKey]
+            : null;
+        const deckCardIds = playerDeckCardIds || (Array.isArray(opts.initialDeckCardIds) ? opts.initialDeckCardIds : null);
+        if (deckCardIds) {
+            return normalizeInitialDeckCardIds(deckCardIds);
+        }
+
         const byPlayer = (opts.initialDeckSpecByPlayer && typeof opts.initialDeckSpecByPlayer === 'object')
             ? opts.initialDeckSpecByPlayer
             : null;
@@ -204,7 +299,24 @@
         return globalScope.CardUtils || null;
     })();
 
+    function getChargeLedgerContext() {
+        return {
+            helpers: {
+                chargeMax: CHARGE_MAX || 99,
+                setChargeWithDelta: CardUtilsModule && typeof CardUtilsModule.setChargeWithDelta === 'function'
+                    ? CardUtilsModule.setChargeWithDelta
+                    : null,
+                addChargeWithDelta: CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function'
+                    ? CardUtilsModule.addChargeWithDelta
+                    : null
+            }
+        };
+    }
+
     function setChargeValue(cardState, playerKey, nextValue, reason) {
+        if (CardChargeLedgerModule && typeof CardChargeLedgerModule.setChargeValue === 'function') {
+            return CardChargeLedgerModule.setChargeValue(cardState, playerKey, nextValue, reason, getChargeLedgerContext());
+        }
         if (CardUtilsModule && typeof CardUtilsModule.setChargeWithDelta === 'function') {
             return CardUtilsModule.setChargeWithDelta(cardState, playerKey, nextValue, reason);
         }
@@ -247,7 +359,66 @@
         return globalScope.CardMarkers || null;
     })();
 
+    const CardMovementModule = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('./cards/movement');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.CardMovement || null;
+    })();
+
+    const CardTeleportModule = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('./cards/teleport');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.CardTeleport || null;
+    })();
+
+    const CardCloneModule = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('./cards/clone');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.CardClone || null;
+    })();
+
+    const CardMeteorModule = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('./cards/meteor');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.CardMeteor || null;
+    })();
+
     function addChargeValue(cardState, playerKey, amount, reason) {
+        if (CardChargeLedgerModule && typeof CardChargeLedgerModule.addChargeValue === 'function') {
+            return CardChargeLedgerModule.addChargeValue(cardState, playerKey, amount, reason, getChargeLedgerContext());
+        }
         if (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function') {
             return CardUtilsModule.addChargeWithDelta(cardState, playerKey, amount, reason);
         }
@@ -545,6 +716,34 @@
             ? globalThis
             : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
         return globalScope.CardEffectTiming || null;
+    })();
+
+    const CardPendingStateManagerModule = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('./cards-internal/pending-state-manager');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.CardPendingStateManager || null;
+    })();
+
+    const CardChargeLedgerModule = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('./cards-internal/charge-ledger');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.CardChargeLedger || null;
     })();
 
     const BoardOpsModule = (() => {
@@ -1194,6 +1393,8 @@
 
             // Extra actions
             extraPlaceRemainingByPlayer: { black: 0, white: 0 },
+            infinitePlaceActiveByPlayer: { black: false, white: false },
+            multiPlaceSourceTypeByPlayer: { black: null, white: null },
 
             // Board bonus tiles (generated once at game start)
             boardBonusByCell,
@@ -1321,6 +1522,14 @@
                     : []
             },
             extraPlaceRemainingByPlayer: { ...cs.extraPlaceRemainingByPlayer },
+            infinitePlaceActiveByPlayer: {
+                black: !!(cs.infinitePlaceActiveByPlayer && cs.infinitePlaceActiveByPlayer.black),
+                white: !!(cs.infinitePlaceActiveByPlayer && cs.infinitePlaceActiveByPlayer.white)
+            },
+            multiPlaceSourceTypeByPlayer: {
+                black: (cs.multiPlaceSourceTypeByPlayer && typeof cs.multiPlaceSourceTypeByPlayer.black === 'string') ? cs.multiPlaceSourceTypeByPlayer.black : null,
+                white: (cs.multiPlaceSourceTypeByPlayer && typeof cs.multiPlaceSourceTypeByPlayer.white === 'string') ? cs.multiPlaceSourceTypeByPlayer.white : null
+            },
             boardBonusByCell: (cs.boardBonusByCell && typeof cs.boardBonusByCell === 'object')
                 ? { ...cs.boardBonusByCell }
                 : {},
@@ -1835,44 +2044,57 @@
         }
         cardState.lastUsedCardByPlayer[chargeOwnerKey] = cardId;
 
+        const pendingOffers = heavenOffers || condemnOffers || undefined;
         const needsSelection =
-            cardType === 'DESTROY_ONE_STONE' ||
-            cardType === 'STRONG_WIND_WILL' ||
-            cardType === 'SUPER_BUOYANCY_WILL' ||
-            cardType === 'SUPER_GRAVITY_WILL' ||
-            cardType === 'SACRIFICE_WILL' ||
-            cardType === 'SELL_CARD_WILL' ||
-            cardType === 'HEAVEN_BLESSING' ||
-            cardType === 'CONDEMN_WILL' ||
-            cardType === 'SWAP_WITH_ENEMY' ||
-            cardType === 'POSITION_SWAP_WILL' ||
-            cardType === 'TRAP_WILL' ||
-            cardType === 'TEMPT_WILL' ||
-            cardType === 'GUARD_WILL' ||
-            cardType === 'GUARDIAN_GOD' ||
-            cardType === 'HYPERACTIVE_INHERIT_WILL' ||
-            cardType === 'EXTEND_LIFE_WILL' ||
-            cardType === 'CORROSION_WILL' ||
-            cardType === 'TIME_BOMB' ||
-            cardType === 'TELEPORT_WILL' ||
-            cardType === 'CELL_TELEPORT_WILL' ||
-            cardType === 'CLONE_WILL' ||
-            cardType === 'SPLIT_WILL' ||
-            cardType === 'BOARD_EXPANSION_WILL' ||
-            cardType === 'BOARD_EXPANSION_GOD' ||
-            cardType === 'BLOCKADE_WILL' ||
-            cardType === 'METEOR_WILL' ||
-            cardType === 'FREEZE_WILL';
-        cardState.pendingEffectByPlayer[chargeOwnerKey] = {
-            type: cardType,
-            cardId,
-            stage: needsSelection ? 'selectTarget' : null,
-            offers: heavenOffers || condemnOffers || undefined,
-            selectedCount: cardType === 'SACRIFICE_WILL' ? 0 : (cardType === 'BOARD_EXPANSION_GOD' ? 0 : undefined),
-            maxSelections: cardType === 'SACRIFICE_WILL' ? 3 : (cardType === 'BOARD_EXPANSION_GOD' ? 2 : undefined),
-            selectedTargets: cardType === 'BOARD_EXPANSION_GOD' ? [] : undefined,
-            placementsRemaining: cardType === 'LAST_RESORT' ? 2 : undefined
-        };
+            CardPendingStateManagerModule && typeof CardPendingStateManagerModule.requiresTargetSelection === 'function'
+                ? CardPendingStateManagerModule.requiresTargetSelection(cardType)
+                : (
+                    cardType === 'DESTROY_ONE_STONE' ||
+                    cardType === 'STRONG_WIND_WILL' ||
+                    cardType === 'SUPER_BUOYANCY_WILL' ||
+                    cardType === 'SUPER_GRAVITY_WILL' ||
+                    cardType === 'SACRIFICE_WILL' ||
+                    cardType === 'SELL_CARD_WILL' ||
+                    cardType === 'HEAVEN_BLESSING' ||
+                    cardType === 'CONDEMN_WILL' ||
+                    cardType === 'SWAP_WITH_ENEMY' ||
+                    cardType === 'POSITION_SWAP_WILL' ||
+                    cardType === 'TRAP_WILL' ||
+                    cardType === 'TEMPT_WILL' ||
+                    cardType === 'GUARD_WILL' ||
+                    cardType === 'GUARDIAN_GOD' ||
+                    cardType === 'HYPERACTIVE_INHERIT_WILL' ||
+                    cardType === 'EXTEND_LIFE_WILL' ||
+                    cardType === 'CORROSION_WILL' ||
+                    cardType === 'TIME_BOMB' ||
+                    cardType === 'TELEPORT_WILL' ||
+                    cardType === 'CELL_TELEPORT_WILL' ||
+                    cardType === 'CLONE_WILL' ||
+                    cardType === 'SPLIT_WILL' ||
+                    cardType === 'BOARD_EXPANSION_WILL' ||
+                    cardType === 'BOARD_EXPANSION_GOD' ||
+                    cardType === 'BLOCKADE_WILL' ||
+                    cardType === 'METEOR_WILL' ||
+                    cardType === 'FREEZE_WILL'
+                );
+        cardState.pendingEffectByPlayer[chargeOwnerKey] =
+            CardPendingStateManagerModule && typeof CardPendingStateManagerModule.createPendingEffectState === 'function'
+                ? CardPendingStateManagerModule.createPendingEffectState({
+                    cardType,
+                    cardId,
+                    needsSelection,
+                    offers: pendingOffers
+                })
+                : {
+                    type: cardType,
+                    cardId,
+                    stage: needsSelection ? 'selectTarget' : null,
+                    offers: pendingOffers,
+                    selectedCount: cardType === 'SACRIFICE_WILL' ? 0 : (cardType === 'BOARD_EXPANSION_GOD' ? 0 : undefined),
+                    maxSelections: cardType === 'SACRIFICE_WILL' ? 3 : (cardType === 'BOARD_EXPANSION_GOD' ? 2 : undefined),
+                    selectedTargets: cardType === 'BOARD_EXPANSION_GOD' ? [] : undefined,
+                    placementsRemaining: cardType === 'LAST_RESORT' ? 2 : undefined
+                };
 
         // Special handling for WORK_WILL: arm next placement for this player
         if (cardType === 'WORK_WILL') {
@@ -1897,6 +2119,8 @@
             });
         } catch (e) { /* ignore presentation emission failures */ }
 
+        addGeneratedThrowChainCard(cardState, handKey, cardId, cardType);
+
         return true;
     }
 
@@ -1908,6 +2132,14 @@
      * @returns {{canceled: boolean, reason?: string, cardId?: string}}
      */
     function cancelPendingSelection(cardState, playerKey, opts) {
+        if (CardPendingStateManagerModule && typeof CardPendingStateManagerModule.cancelPendingSelection === 'function') {
+            return CardPendingStateManagerModule.cancelPendingSelection(cardState, playerKey, opts, {
+                helpers: {
+                    getCardDef,
+                    addChargeValue
+                }
+            });
+        }
         if (!cardState || !cardState.pendingEffectByPlayer) return { canceled: false, reason: 'no_state' };
         const pending = cardState.pendingEffectByPlayer[playerKey];
         if (!pending || pending.stage !== 'selectTarget') return { canceled: false, reason: 'not_pending' };
@@ -2713,6 +2945,11 @@
 
     // Apply EXTEND_LIFE_WILL: double remainingOwnerTurns on chosen cell's own special markers (numeric remainingOwnerTurns only)
     function applyExtendLifeWill(cardState, gameState, playerKey, row, col) {
+        if (CardMarkersModule && typeof CardMarkersModule.applyExtendLifeWill === 'function') {
+            return CardMarkersModule.applyExtendLifeWill(cardState, gameState, playerKey, row, col, {
+                getExtendLifeTargets
+            });
+        }
         const pending = cardState.pendingEffectByPlayer[playerKey];
         if (!pending || pending.type !== 'EXTEND_LIFE_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
@@ -2756,6 +2993,11 @@
     }
 
     function applyCorrosionWill(cardState, gameState, playerKey, row, col) {
+        if (CardMarkersModule && typeof CardMarkersModule.applyCorrosionWill === 'function') {
+            return CardMarkersModule.applyCorrosionWill(cardState, gameState, playerKey, row, col, {
+                getCorrosionTargets
+            });
+        }
         const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
         if (!pending || pending.type !== 'CORROSION_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending', affectedCount: 0, details: [] };
@@ -2794,6 +3036,29 @@
     }
 
     function applyTimeBombWill(cardState, gameState, playerKey, row, col) {
+        if (typeof module === 'object' && module.exports) {
+            try {
+                const mod = require('./cards/time_bomb');
+                if (mod && typeof mod.applyTimeBombWill === 'function') {
+                    return mod.applyTimeBombWill(cardState, gameState, playerKey, row, col, {
+                        getTimeBombTargets,
+                        removeMarkersAt,
+                        addMarker,
+                        specialStoneKind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'
+                    });
+                }
+            } catch (e) {
+                // ignore and fall back to inline implementation
+            }
+        }
+        if (typeof CardTimeBomb !== 'undefined' && typeof CardTimeBomb.applyTimeBombWill === 'function') {
+            return CardTimeBomb.applyTimeBombWill(cardState, gameState, playerKey, row, col, {
+                getTimeBombTargets,
+                removeMarkersAt,
+                addMarker,
+                specialStoneKind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'
+            });
+        }
         const pending = cardState.pendingEffectByPlayer[playerKey];
         if (!pending || pending.type !== 'TIME_BOMB' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
@@ -2826,6 +3091,20 @@
     }
 
     function applyCloneWill(cardState, gameState, playerKey, row, col, prng) {
+        if (CardCloneModule && typeof CardCloneModule.applyCloneWill === 'function') {
+            return CardCloneModule.applyCloneWill(cardState, gameState, playerKey, row, col, prng, {
+                getCloneTargets,
+                getCellValueForCard,
+                getSpecialMarkers,
+                getBombMarkers,
+                collectEmptyNeighborCellsForCard,
+                spawnAt: BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function'
+                    ? BoardOpsModule.spawnAt
+                    : null,
+                setCellValueForCard,
+                addMarker
+            });
+        }
         const pending = cardState.pendingEffectByPlayer[playerKey];
         if (!pending || pending.type !== 'CLONE_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
@@ -2913,6 +3192,20 @@
     }
 
     function applySplitWill(cardState, gameState, playerKey, row, col, prng) {
+        if (CardCloneModule && typeof CardCloneModule.applySplitWill === 'function') {
+            return CardCloneModule.applySplitWill(cardState, gameState, playerKey, row, col, prng, {
+                getSplitTargets,
+                getCellValueForCard,
+                getSpecialMarkers,
+                getBombMarkers,
+                collectEmptyNeighborCellsForCard,
+                spawnAt: BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function'
+                    ? BoardOpsModule.spawnAt
+                    : null,
+                setCellValueForCard,
+                addMarker
+            });
+        }
         const pending = cardState.pendingEffectByPlayer[playerKey];
         if (!pending || pending.type !== 'SPLIT_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
@@ -3133,6 +3426,20 @@
     }
 
     function applyMeteorWill(cardState, gameState, playerKey, row, col) {
+        if (CardMeteorModule && typeof CardMeteorModule.applyMeteorWill === 'function') {
+            return CardMeteorModule.applyMeteorWill(cardState, gameState, playerKey, row, col, {
+                getMeteorTargets,
+                getCellValueForCard,
+                destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
+                    ? BoardOpsModule.destroyAt
+                    : null,
+                isDestroyResolved,
+                clearStoneIdAtForCard,
+                setCellValueForCard,
+                removeMarkersAt,
+                addMarker
+            });
+        }
         const pending = cardState.pendingEffectByPlayer[playerKey];
         if (!pending || pending.type !== 'METEOR_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
@@ -3427,6 +3734,18 @@
     }
 
     function applyTeleportWill(cardState, gameState, playerKey, row, col, prng) {
+        if (CardTeleportModule && typeof CardTeleportModule.applyTeleportWill === 'function') {
+            return CardTeleportModule.applyTeleportWill(cardState, gameState, playerKey, row, col, prng, {
+                getTeleportTargets,
+                getTeleportDestinations: _getTeleportDestinations,
+                getCellValueForCard,
+                setCellValueForCard,
+                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                    ? BoardOpsModule.moveAt
+                    : null,
+                getMarkers
+            });
+        }
         const pending = cardState.pendingEffectByPlayer[playerKey];
         if (!pending || pending.type !== 'TELEPORT_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
@@ -3469,6 +3788,24 @@
     }
 
     function applyCellTeleportWill(cardState, gameState, playerKey, row, col, prng) {
+        if (CardTeleportModule && typeof CardTeleportModule.applyCellTeleportWill === 'function') {
+            return CardTeleportModule.applyCellTeleportWill(cardState, gameState, playerKey, row, col, prng, {
+                getCellTeleportTargets,
+                getCellTeleportDestinations,
+                getCellValueForCard,
+                ensureExpansionCellForCard,
+                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                    ? BoardOpsModule.moveAt
+                    : null,
+                setCellValueForCard,
+                getStoneIdAtForCard,
+                clearStoneIdAtForCard,
+                setStoneIdAtForCard,
+                removeMarkersAt,
+                addMarker,
+                getMarkers
+            });
+        }
         const pending = cardState.pendingEffectByPlayer[playerKey];
         if (!pending || pending.type !== 'CELL_TELEPORT_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
@@ -3531,6 +3868,18 @@
     }
 
     function applyStrongWindWill(cardState, gameState, playerKey, row, col, prng) {
+        if (CardMovementModule && typeof CardMovementModule.applyStrongWindWill === 'function') {
+            return CardMovementModule.applyStrongWindWill(cardState, gameState, playerKey, row, col, prng, {
+                getCellValueForCard,
+                hasBoardShapeCellForCard,
+                isBlockedCell,
+                setCellValueForCard,
+                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                    ? BoardOpsModule.moveAt
+                    : null,
+                getMarkers
+            });
+        }
         const pending = cardState.pendingEffectByPlayer[playerKey];
         if (!pending || pending.type !== 'STRONG_WIND_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
@@ -3673,6 +4022,25 @@
     }
 
     function applySuperBuoyancyWill(cardState, gameState, playerKey, row, col) {
+        if (CardMovementModule && typeof CardMovementModule.applySuperBuoyancyWill === 'function') {
+            return CardMovementModule.applySuperBuoyancyWill(cardState, gameState, playerKey, row, col, {
+                getSuperBuoyancyTargets,
+                getCellValueForCard,
+                hasBoardShapeCellForCard,
+                isBlockedCell,
+                findSpecialMarkerAt,
+                destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
+                    ? BoardOpsModule.destroyAt
+                    : null,
+                isDestroyResolved,
+                destroyAtLegacy: destroyAt,
+                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                    ? BoardOpsModule.moveAt
+                    : null,
+                setCellValueForCard,
+                getMarkers
+            });
+        }
         return _applyVerticalCrushWill(cardState, gameState, playerKey, row, col, {
             pendingType: 'SUPER_BUOYANCY_WILL',
             direction: -1,
@@ -3683,6 +4051,25 @@
     }
 
     function applySuperGravityWill(cardState, gameState, playerKey, row, col) {
+        if (CardMovementModule && typeof CardMovementModule.applySuperGravityWill === 'function') {
+            return CardMovementModule.applySuperGravityWill(cardState, gameState, playerKey, row, col, {
+                getSuperGravityTargets,
+                getCellValueForCard,
+                hasBoardShapeCellForCard,
+                isBlockedCell,
+                findSpecialMarkerAt,
+                destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
+                    ? BoardOpsModule.destroyAt
+                    : null,
+                isDestroyResolved,
+                destroyAtLegacy: destroyAt,
+                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                    ? BoardOpsModule.moveAt
+                    : null,
+                setCellValueForCard,
+                getMarkers
+            });
+        }
         return _applyVerticalCrushWill(cardState, gameState, playerKey, row, col, {
             pendingType: 'SUPER_GRAVITY_WILL',
             direction: 1,
@@ -3741,9 +4128,11 @@
                 EMPTY,
                 DRAW_INTERVAL,
                 FLIP_CHARGE_MULTIPLIER_EFFECTS,
+                NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS,
                 ULTIMATE_DRAGON_TURNS,
                 ULTIMATE_DESTROY_GOD_TURNS,
                 ULTIMATE_HYPERACTIVE_TURNS,
+                EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT,
                 ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT,
                 SNIPER_WILL_TURNS,
                 DESTROY_DRAGON_TURNS,
@@ -3752,6 +4141,7 @@
                 WILL_HUNTER_KING_TURNS,
                 ROBOT_VACUUM_TURNS,
                 DOUBLE_PLACE_EXTRA,
+                THROW_CHAIN_CONFIG_BY_TYPE,
                 MARKER_KINDS
             },
             helpers: {
@@ -3759,6 +4149,7 @@
                 processRiboWillTurnStartEffects,
                 commitDraw,
                 getSpecialMarkers,
+                getCardContext,
                 removeMarkersAt,
                 isFrozenCellForCard,
                 emitPresentationEvent,
@@ -3810,6 +4201,9 @@
      * @returns {Object} Applied effects info
      */
     function addChargeWithTotal(cardState, playerKey, amount) {
+        if (CardChargeLedgerModule && typeof CardChargeLedgerModule.addChargeWithTotal === 'function') {
+            return CardChargeLedgerModule.addChargeWithTotal(cardState, playerKey, amount, getChargeLedgerContext());
+        }
         if (!cardState || !amount) return 0;
         if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
         if (!cardState.chargeGainedTotal) cardState.chargeGainedTotal = { black: 0, white: 0 };
@@ -4066,24 +4460,6 @@
             return { applied: false, reason: 'invalid_target' };
         }
         const handCardId = opponentHand[targetIndex];
-        if (handCardId !== offer.cardId) {
-            const handToken = parseHiddenHandToken(handCardId);
-            const offerToken = parseHiddenHandToken(offer.cardId);
-            const handMatchesIndex = !!(
-                handToken &&
-                handToken.owner === opponentKey &&
-                handToken.handIndex === targetIndex
-            );
-            const offerMatchesIndex = !!(
-                offerToken &&
-                offerToken.owner === opponentKey &&
-                offerToken.handIndex === targetIndex
-            );
-            if (!handMatchesIndex && !offerMatchesIndex) {
-                return { applied: false, reason: 'target_mismatch' };
-            }
-        }
-
         const handToken = parseHiddenHandToken(handCardId);
         const offerToken = parseHiddenHandToken(offer.cardId);
         const destroyedCardId = handToken && !offerToken ? offer.cardId : handCardId;
@@ -5624,6 +6000,8 @@
         LIGHTNING_WILL_TURNS,
         OBSERVER_WILL_TURNS,
         WILL_HUNTER_KING_TURNS,
+        NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS,
+        THROW_CHAIN_CONFIG_BY_TYPE,
 
         // State factories
         createCardState,

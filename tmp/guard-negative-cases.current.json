@@ -1,0 +1,619 @@
+{
+  "summary": {
+    "count": 12,
+    "avgFuture": 0.5833,
+    "negatives": 3,
+    "negativeAvgFuture": -2.3333
+  },
+  "cases": [
+    {
+      "seed": 2,
+      "ply": 67,
+      "player": "white",
+      "futureDiscDelta3Ply": -3,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 27,
+      "whiteCountBefore": 32,
+      "ownCornersBefore": 2,
+      "oppCornersBefore": 1,
+      "ownEdgesBefore": 10,
+      "oppEdgesBefore": 12,
+      "legalMoves": 2,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guard_01",
+          "cardType": "GUARD_WILL",
+          "cardCost": 2,
+          "score": 56,
+          "shouldUse": true,
+          "minUseScore": 6,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "instant_hyperactive_01",
+          "cardType": "INSTANT_HYPERACTIVE_WILL",
+          "cardCost": 2,
+          "score": -161,
+          "shouldUse": false,
+          "minUseScore": 6,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 28,
+      "ply": 150,
+      "player": "black",
+      "futureDiscDelta3Ply": -3,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 9,
+      "whiteCountBefore": 52,
+      "ownCornersBefore": 1,
+      "oppCornersBefore": 5,
+      "ownEdgesBefore": 1,
+      "oppEdgesBefore": 21,
+      "legalMoves": 1,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guard_01",
+          "cardType": "GUARD_WILL",
+          "cardCost": 2,
+          "score": 42,
+          "shouldUse": true,
+          "minUseScore": 8,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "hard_01",
+          "cardType": "PROTECTED_NEXT_STONE",
+          "cardCost": 1,
+          "score": 38,
+          "shouldUse": true,
+          "minUseScore": 8,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 35,
+      "ply": 3,
+      "player": "white",
+      "futureDiscDelta3Ply": -1,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 5,
+      "whiteCountBefore": 2,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 0,
+      "oppEdgesBefore": 0,
+      "legalMoves": 6,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guard_01",
+          "cardType": "GUARD_WILL",
+          "cardCost": 2,
+          "score": 134,
+          "shouldUse": true,
+          "minUseScore": 2,
+          "isSelected": true
+        }
+      ]
+    },
+    {
+      "seed": 4,
+      "ply": 33,
+      "player": "white",
+      "futureDiscDelta3Ply": 0,
+      "decisionReasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_emergency",
+        "hand_pressure"
+      ],
+      "blackCountBefore": 1,
+      "whiteCountBefore": 11,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 1,
+      "ownEdgesBefore": 5,
+      "oppEdgesBefore": 0,
+      "legalMoves": 0,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guard_01",
+          "cardType": "GUARD_WILL",
+          "cardCost": 2,
+          "score": 1075,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "hyperactive_01",
+          "cardType": "HYPERACTIVE_WILL",
+          "cardCost": 8,
+          "score": 1037,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 22,
+      "ply": 120,
+      "player": "black",
+      "futureDiscDelta3Ply": 1,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 14,
+      "whiteCountBefore": 44,
+      "ownCornersBefore": 1,
+      "oppCornersBefore": 3,
+      "ownEdgesBefore": 2,
+      "oppEdgesBefore": 22,
+      "legalMoves": 3,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guard_01",
+          "cardType": "GUARD_WILL",
+          "cardCost": 2,
+          "score": 32,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        }
+      ]
+    },
+    {
+      "seed": 28,
+      "ply": 18,
+      "player": "white",
+      "futureDiscDelta3Ply": 1,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 8,
+      "whiteCountBefore": 7,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 1,
+      "oppEdgesBefore": 0,
+      "legalMoves": 4,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guard_01",
+          "cardType": "GUARD_WILL",
+          "cardCost": 2,
+          "score": 48,
+          "shouldUse": true,
+          "minUseScore": 6,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "plunder_will",
+          "cardType": "PLUNDER_WILL",
+          "cardCost": 4,
+          "score": -364,
+          "shouldUse": false,
+          "minUseScore": 6,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 33,
+      "ply": 33,
+      "player": "white",
+      "futureDiscDelta3Ply": 1,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 14,
+      "whiteCountBefore": 12,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 1,
+      "ownEdgesBefore": 4,
+      "oppEdgesBefore": 4,
+      "legalMoves": 7,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guard_01",
+          "cardType": "GUARD_WILL",
+          "cardCost": 2,
+          "score": 60,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "heaven_01",
+          "cardType": "HEAVEN_BLESSING",
+          "cardCost": 3,
+          "score": -78,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 5,
+      "ply": 18,
+      "player": "black",
+      "futureDiscDelta3Ply": 2,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 8,
+      "whiteCountBefore": 10,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 3,
+      "oppEdgesBefore": 3,
+      "legalMoves": 11,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guard_01",
+          "cardType": "GUARD_WILL",
+          "cardCost": 2,
+          "score": 36,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "gold_stone",
+          "cardType": "GOLD_STONE",
+          "cardCost": 6,
+          "score": -8,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "loss_will_01",
+          "cardType": "LOSS_WILL",
+          "cardCost": 11,
+          "score": -9,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "observer_01",
+          "cardType": "OBSERVER_WILL",
+          "cardCost": 1,
+          "score": -80,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 16,
+      "ply": 73,
+      "player": "white",
+      "futureDiscDelta3Ply": 2,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 16,
+      "whiteCountBefore": 43,
+      "ownCornersBefore": 3,
+      "oppCornersBefore": 1,
+      "ownEdgesBefore": 22,
+      "oppEdgesBefore": 2,
+      "legalMoves": 4,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guard_01",
+          "cardType": "GUARD_WILL",
+          "cardCost": 2,
+          "score": 78,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "meteor_01",
+          "cardType": "METEOR_WILL",
+          "cardCost": 21,
+          "score": -160,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "hyperactive_inherit_01",
+          "cardType": "HYPERACTIVE_INHERIT_WILL",
+          "cardCost": 11,
+          "score": -277,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 18,
+      "ply": 38,
+      "player": "white",
+      "futureDiscDelta3Ply": 2,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 15,
+      "whiteCountBefore": 12,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 4,
+      "oppEdgesBefore": 4,
+      "legalMoves": 4,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guard_01",
+          "cardType": "GUARD_WILL",
+          "cardCost": 2,
+          "score": 20,
+          "shouldUse": true,
+          "minUseScore": 6,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "rebuild_01",
+          "cardType": "REBUILD_WILL",
+          "cardCost": 0,
+          "score": -59,
+          "shouldUse": false,
+          "minUseScore": 6,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "perma_01",
+          "cardType": "PERMA_PROTECT_NEXT_STONE",
+          "cardCost": 15,
+          "score": -322.4,
+          "shouldUse": false,
+          "minUseScore": 6,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 29,
+      "ply": 110,
+      "player": "black",
+      "futureDiscDelta3Ply": 2,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 38,
+      "whiteCountBefore": 23,
+      "ownCornersBefore": 5,
+      "oppCornersBefore": 3,
+      "ownEdgesBefore": 16,
+      "oppEdgesBefore": 5,
+      "legalMoves": 2,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guard_01",
+          "cardType": "GUARD_WILL",
+          "cardCost": 2,
+          "score": 26,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "regen_01",
+          "cardType": "REGEN_WILL",
+          "cardCost": 12,
+          "score": 25,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "taboo_reverse_01",
+          "cardType": "TABOO_REVERSE_WILL",
+          "cardCost": 44,
+          "score": -182,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "gold_stone",
+          "cardType": "GOLD_STONE",
+          "cardCost": 6,
+          "score": -627,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 25,
+      "ply": 33,
+      "player": "white",
+      "futureDiscDelta3Ply": 3,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_hold_mode",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 12,
+      "whiteCountBefore": 21,
+      "ownCornersBefore": 1,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 13,
+      "oppEdgesBefore": 0,
+      "legalMoves": 9,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guard_01",
+          "cardType": "GUARD_WILL",
+          "cardCost": 2,
+          "score": 180,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "sacrifice_01",
+          "cardType": "SACRIFICE_WILL",
+          "cardCost": 5,
+          "score": -454,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "loss_will_01",
+          "cardType": "LOSS_WILL",
+          "cardCost": 11,
+          "score": -476,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    }
+  ]
+}

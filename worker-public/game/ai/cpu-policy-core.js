@@ -177,6 +177,14 @@ const REBUILD_KEEP_PRIORITY_CARD_TYPES = new Set([
     'CONDEMN_WILL'
 ]);
 
+const REBUILD_CORNER_EMERGENCY_ALT_CARD_TYPES = new Set([
+    'SACRIFICE_WILL',
+    'TABOO_REVERSE_WILL',
+    'HYPERACTIVE_WILL',
+    'INSTANT_HYPERACTIVE_WILL',
+    'EXTREME_HYPERACTIVE_WILL'
+]);
+
 const STABILITY_CARD_TYPES = new Set([
     'PROTECTED_NEXT_STONE',
     'PERMA_PROTECT_NEXT_STONE',
@@ -345,6 +353,9 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     DESTROY_DRAGON_WILL: 7,
     DESTROY_ONE_STONE: 5,
     DOUBLE_PLACE: 8,
+    TRIPLE_PLACE: 10,
+    QUAD_PLACE: 12,
+    INFINITE_PLACE: 6,
     ESCAPE_WILL: -1,
     EXTEND_LIFE_WILL: 8,
     EXTREME_HYPERACTIVE_WILL: -8,
@@ -412,6 +423,9 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'DESTROY_DRAGON_WILL',
     'DESTROY_ONE_STONE',
     'DOUBLE_PLACE',
+    'TRIPLE_PLACE',
+    'QUAD_PLACE',
+    'INFINITE_PLACE',
     'ESCAPE_WILL',
     'EXTEND_LIFE_WILL',
     'EXTREME_HYPERACTIVE_WILL',
@@ -419,6 +433,7 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'FREEZE_WILL',
     'GLUTTONOUS_WILL',
     'GOLD_STONE',
+    'CRYSTAL_STONE',
     'RAINBOW_STONE',
     'GUARDIAN_GOD',
     'GUARD_WILL',
@@ -479,6 +494,9 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     DESTROY_DRAGON_WILL: { cornerNowBias: 6, edgeEmergencyBias: 4, midLateBias: 2 },
     DESTROY_ONE_STONE: { cornerEmergencyBias: 4, lowMobilityBias: 4, cornerNowBias: -2 },
     DOUBLE_PLACE: { trailingBias: 6, handPressureBias: 4, cornerNowBias: -6, endgameBias: -4 },
+    TRIPLE_PLACE: { trailingBias: 8, handPressureBias: 6, cornerNowBias: -8, endgameBias: -2 },
+    QUAD_PLACE: { trailingBias: 10, handPressureBias: 8, cornerNowBias: -10, endgameBias: 0 },
+    INFINITE_PLACE: { trailingBias: 12, handPressureBias: 6, cornerNowBias: -12, endgameBias: 2, lowMobilityBias: 8 },
     ESCAPE_WILL: { trailingBias: 4, edgeEmergencyBias: 4, handPressureBias: 2 },
     EXTEND_LIFE_WILL: { midLateBias: 4, leadBias: 4, endgameBias: -4 },
     EXTREME_HYPERACTIVE_WILL: { trailingBias: 8, leadBias: -6, cornerEmergencyBias: 4 },
@@ -653,6 +671,9 @@ function buildCardTypeUsageStyle() {
         'HYPERACTIVE_INHERIT_WILL',
         'CHAIN_WILL',
         'DOUBLE_PLACE',
+        'TRIPLE_PLACE',
+        'QUAD_PLACE',
+        'INFINITE_PLACE',
         'CLONE_WILL',
         'TELEPORT_WILL',
         'CELL_TELEPORT_WILL',
@@ -852,6 +873,9 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     DESTROY_DRAGON_WILL: { archetype: 'anchorEngine', placementWeight: 3, edgeBias: 3, oppAdjBias: 3 },
     DESTROY_ONE_STONE: { archetype: 'recoveryReposition', placementWeight: 0, cornerBias: 4, edgeBias: 3, ownAdjBias: -2 },
     DOUBLE_PLACE: { archetype: 'explosiveComeback', placementWeight: 2, cornerBias: 2, bonusBias: 3, stabilityBias: 1 },
+    TRIPLE_PLACE: { archetype: 'explosiveComeback', placementWeight: 2, cornerBias: 3, bonusBias: 4, stabilityBias: 0 },
+    QUAD_PLACE: { archetype: 'explosiveComeback', placementWeight: 2, cornerBias: 4, bonusBias: 5, stabilityBias: -1 },
+    INFINITE_PLACE: { archetype: 'explosiveComeback', placementWeight: 2, cornerBias: 5, bonusBias: 6, stabilityBias: -2 },
     ESCAPE_WILL: { archetype: 'spawnMobile', placementWeight: 3, cornerBias: -2, edgeBias: -1, oppAdjBias: -1, emptyAdjBias: 4 },
     EXTEND_LIFE_WILL: { archetype: 'anchorProtect', placementWeight: 0, stabilityBias: 5, ownAdjBias: 3 },
     EXTREME_HYPERACTIVE_WILL: { archetype: 'spawnMobile', placementWeight: 3, cornerBias: -2, oppAdjBias: 2, stabilityBias: -2 },
@@ -1012,6 +1036,22 @@ function getMovePlanProfileForCardType(cardType) {
 
 function countBoardDiscsForPlayer(board, playerValue) {
     if (!Array.isArray(board)) return { own: 0, opp: 0, empties: 0 };
+    if (
+        SharedBoardUtils &&
+        typeof SharedBoardUtils.collectBoardCoordinates === 'function' &&
+        typeof SharedBoardUtils.getCellValue === 'function'
+    ) {
+        let own = 0;
+        let opp = 0;
+        let empties = 0;
+        for (const cell of SharedBoardUtils.collectBoardCoordinates(board)) {
+            const v = SharedBoardUtils.getCellValue(board, cell.row, cell.col);
+            if (v === playerValue) own += 1;
+            else if (v === -playerValue) opp += 1;
+            else if (v === 0) empties += 1;
+        }
+        return { own, opp, empties };
+    }
     let own = 0;
     let opp = 0;
     let empties = 0;
@@ -1029,6 +1069,9 @@ function countBoardDiscsForPlayer(board, playerValue) {
 
 function countBoardEdgeDiscsForPlayer(board, playerValue) {
     if (!Array.isArray(board) || board.length <= 0) return { ownEdges: 0, oppEdges: 0 };
+    if (SharedBoardUtils && typeof SharedBoardUtils.countEdgeControl === 'function') {
+        return SharedBoardUtils.countEdgeControl(board, playerValue);
+    }
     const maxRow = board.length - 1;
     let ownEdges = 0;
     let oppEdges = 0;
@@ -1129,6 +1172,9 @@ function buildCardDecisionContext(context) {
     const maxLegalGain = Number.isFinite(ctx.maxLegalGain)
         ? Math.max(0, Number(ctx.maxLegalGain))
         : maxLegalFlips;
+    const maxLegalBoardBonus = Number.isFinite(ctx.maxLegalBoardBonus)
+        ? Math.max(0, Number(ctx.maxLegalBoardBonus))
+        : 0;
     const cloneSplitEligibleSourceCount = Number.isFinite(ctx.cloneSplitEligibleSourceCount)
         ? Math.max(0, Math.floor(ctx.cloneSplitEligibleSourceCount))
         : null;
@@ -1213,6 +1259,7 @@ function buildCardDecisionContext(context) {
         maxLegalFlips,
         avgLegalFlips,
         maxLegalGain,
+        maxLegalBoardBonus,
         cloneSplitEligibleSourceCount,
         ownSpecialCount,
         oppSpecialCount,
@@ -1254,6 +1301,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const isRebuildWill = cardType === 'REBUILD_WILL';
     const isSupplyWill = cardType === 'SUPPLY_WILL';
     const isGoldStone = cardType === 'GOLD_STONE';
+    const isCrystalStone = cardType === 'CRYSTAL_STONE';
     const isRainbowStone = cardType === 'RAINBOW_STONE';
     const isSilverStone = cardType === 'SILVER_STONE';
     const isPlunderWill = cardType === 'PLUNDER_WILL';
@@ -1321,6 +1369,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const maxLegalFlips = Number.isFinite(ctx.maxLegalFlips) ? Math.max(0, Math.floor(ctx.maxLegalFlips)) : 0;
     const avgLegalFlips = Number.isFinite(ctx.avgLegalFlips) ? Math.max(0, Number(ctx.avgLegalFlips)) : 0;
     const maxLegalGain = Number.isFinite(ctx.maxLegalGain) ? Math.max(0, Number(ctx.maxLegalGain)) : maxLegalFlips;
+    const maxLegalBoardBonus = Number.isFinite(ctx.maxLegalBoardBonus) ? Math.max(0, Number(ctx.maxLegalBoardBonus)) : 0;
     const cloneSplitEligibleSourceCount = Number.isFinite(ctx.cloneSplitEligibleSourceCount)
         ? Math.max(0, Math.floor(ctx.cloneSplitEligibleSourceCount))
         : null;
@@ -1694,6 +1743,34 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (criticalLowDiscEmergency && maxLegalFlips >= 3) score += 48;
     }
 
+    if (isCrystalStone) {
+        const multiplier = 4;
+        const gross = maxLegalBoardBonus * multiplier;
+        const net = gross - cardCost;
+        score -= 18;
+        score += net * 7;
+        if (maxLegalBoardBonus <= 0 && !ctx.forceUseCard) {
+            score -= 360;
+            if (whiteLv6Mode) score -= 160;
+            if (setupBudgetTight) score -= 72;
+        } else if (maxLegalBoardBonus === 1) {
+            score -= 180;
+            if (whiteLv6Mode && setupBudgetTight) score -= 48;
+        } else if (maxLegalBoardBonus === 2) {
+            score -= 180;
+            if (whiteLv6Mode) score -= 60;
+            if (setupBudgetTight) score -= 48;
+        } else if (maxLegalBoardBonus >= 3) {
+            score += 132;
+        } else {
+            score += 72;
+        }
+        if (highBonusMoveAvailable) score += 24;
+        if (cornerEmergency && maxLegalBoardBonus <= 1) score -= 55;
+        if (endgamePhase && maxLegalBoardBonus <= 1) score -= 45;
+        if (criticalLowDiscEmergency && maxLegalBoardBonus >= 2) score += 42;
+    }
+
     if (isPlunderWill) {
         const siphon = Math.min(Math.max(0, Math.floor(ctx.oppCharge || 0)), maxLegalFlips);
         score -= 8;
@@ -1781,6 +1858,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (trailingHard) score += 68;
         else if (trailing) score += 30;
         if (edgeEmergency) score += 26;
+        if (!cornerEmergency && !leadStable && hasEdgeMoveNow && edgeDiff <= -1 && mobilityPressureLevel >= 2) score += 24;
         if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 46;
         if (leadStable && !ctx.forceUseCard) score -= 78;
         if (endgamePhase && leadStable) score -= 28;
@@ -2124,6 +2202,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (cornerEmergency || trailingHard) score += 96;
         else if (trailing) score += 34;
         if (edgeEmergency) score += 26;
+        if (openingPhase && !cornerEmergency && !ctx.forceUseCard) score -= 72;
         if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 48;
         if (leadStable && !ctx.forceUseCard) score -= 108;
         if (endgamePhase) score -= 78;
@@ -2164,6 +2243,9 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 42;
         if (endgamePhase && leadStable) score -= 60;
         if (ctx.ownCharge <= (cardCost + 6) && !ctx.forceUseCard) score -= 70;
+        if (cornerEmergency && !hasCornerMoveNow && !hasEdgeMoveNow && !highBonusMoveAvailable) score -= 96;
+        if (!highBonusMoveAvailable && !hasCornerMoveNow && !hasEdgeMoveNow && ctx.legalMovesCount <= 2) score -= 180;
+        if (ctx.forceUseCard && cornerEmergency && !hasCornerMoveNow && !hasEdgeMoveNow && !highBonusMoveAvailable) score -= 560;
     }
 
     // In stable lead, avoid spending swing/high-variance cards unless emergency.
@@ -2204,6 +2286,8 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     if (isRebuildWill) {
         let keepPriorityCount = 0;
         let highVarianceInHandCount = 0;
+        let cornerEmergencyAltCount = 0;
+        const usableSet = new Set(usableCardIds);
         for (const handId of handCardIds) {
             if (!handId || handId === cardId) continue;
             const handDef = typeof getCardDef === 'function' ? (getCardDef(handId) || null) : null;
@@ -2212,6 +2296,9 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
             if (REBUILD_KEEP_PRIORITY_CARD_TYPES.has(handType)) keepPriorityCount += 1;
             if (HIGH_VARIANCE_CARD_TYPES.has(handType) || handType === 'SACRIFICE_WILL' || handType === 'TIME_BOMB') {
                 highVarianceInHandCount += 1;
+            }
+            if (usableSet.has(handId) && REBUILD_CORNER_EMERGENCY_ALT_CARD_TYPES.has(handType)) {
+                cornerEmergencyAltCount += 1;
             }
         }
 
@@ -2232,6 +2319,18 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
 
         if (ctx.discDiff >= 8 && !ctx.forceUseCard) score -= 45;
         if (ctx.discDiff <= -10 && ctx.handSize >= 4 && keepPriorityCount === 0) score += 24;
+        if (
+            cornerEmergency &&
+            ctx.legalMovesCount <= 0 &&
+            !hasCornerMoveNow &&
+            !hasEdgeMoveNow &&
+            !highBonusMoveAvailable &&
+            usableCount >= 2 &&
+            cornerEmergencyAltCount >= 1
+        ) {
+            score -= 90;
+            if (cornerEmergencyAltCount >= 2) score -= 36;
+        }
 
         if (Number.isFinite(deckRemaining)) {
             if (deckRemaining <= 1) score -= 180;
@@ -2288,6 +2387,14 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (ctx.legalMovesCount <= 1 && ctx.discDiff <= -8) score += 40;
         if (whiteLv6Mode && openingPhase && !cornerEmergency) score -= 80;
         if (whiteLv6Mode && lowDiscEmergency) score += 30;
+        if (
+            !ctx.forceUseCard &&
+            ownCorners < oppCorners &&
+            !hasCornerMoveNow &&
+            !hasEdgeMoveNow &&
+            Number(ctx.discDiff || 0) <= -10 &&
+            ctx.handSize >= 4
+        ) score -= 220;
     }
 
     if (whiteLv6Mode && isLastResort && !ctx.forceUseCard) {
@@ -2307,27 +2414,30 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     };
 }
 
-function chooseCardWithRiskProfile(usableCardIds, getCardCost, getCardDef, context) {
-    if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
-    let best = null;
+function sortCardUseCandidates(candidates) {
+    return (Array.isArray(candidates) ? candidates.slice() : []).sort((left, right) => {
+        const leftScore = Number.isFinite(left && left.score) ? Number(left.score) : Number.NEGATIVE_INFINITY;
+        const rightScore = Number.isFinite(right && right.score) ? Number(right.score) : Number.NEGATIVE_INFINITY;
+        if (rightScore !== leftScore) return rightScore - leftScore;
+        const leftCost = Number.isFinite(left && left.cardCost) ? Number(left.cardCost) : 0;
+        const rightCost = Number.isFinite(right && right.cardCost) ? Number(right.cardCost) : 0;
+        if (rightCost !== leftCost) return rightCost - leftCost;
+        return String(left && left.cardId ? left.cardId : '').localeCompare(String(right && right.cardId ? right.cardId : ''));
+    });
+}
+
+function enumerateCardUseCandidates(usableCardIds, getCardCost, getCardDef, context) {
+    if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return [];
+    const scored = [];
     for (const cardId of usableCardIds) {
-        const decision = scoreCardUseDecision(cardId, getCardCost, getCardDef, context);
-        if (!best) {
-            best = decision;
-            continue;
-        }
-        if (decision.score > best.score) {
-            best = decision;
-            continue;
-        }
-        if (decision.score === best.score && decision.cardCost > best.cardCost) {
-            best = decision;
-            continue;
-        }
-        if (decision.score === best.score && decision.cardCost === best.cardCost && String(decision.cardId) < String(best.cardId)) {
-            best = decision;
-        }
+        scored.push(scoreCardUseDecision(cardId, getCardCost, getCardDef, context));
     }
+    return sortCardUseCandidates(scored);
+}
+
+function chooseCardWithRiskProfile(usableCardIds, getCardCost, getCardDef, context) {
+    const candidates = enumerateCardUseCandidates(usableCardIds, getCardCost, getCardDef, context);
+    const best = candidates[0];
     if (!best || !best.shouldUse) return null;
     return {
         cardId: best.cardId,
@@ -2366,6 +2476,7 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
     const isDoublePlace = cardType === 'DOUBLE_PLACE';
     const isChainWill = cardType === 'CHAIN_WILL';
     const isGoldStone = cardType === 'GOLD_STONE';
+    const isCrystalStone = cardType === 'CRYSTAL_STONE';
     const isRainbowStone = cardType === 'RAINBOW_STONE';
     const isSilverStone = cardType === 'SILVER_STONE';
     const isPlunderWill = cardType === 'PLUNDER_WILL';
@@ -2394,6 +2505,7 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
     const recoveryCostGap = Number.isFinite(ctx.recoveryCostGap) ? Math.max(0, Number(ctx.recoveryCostGap)) : 0;
     const maxLegalFlips = Number.isFinite(ctx.maxLegalFlips) ? Math.max(0, Math.floor(ctx.maxLegalFlips)) : 0;
     const maxLegalGain = Number.isFinite(ctx.maxLegalGain) ? Math.max(0, Number(ctx.maxLegalGain)) : maxLegalFlips;
+    const maxLegalBoardBonus = Number.isFinite(ctx.maxLegalBoardBonus) ? Math.max(0, Number(ctx.maxLegalBoardBonus)) : 0;
     const oppHandSize = Number.isFinite(ctx.oppHandSize) ? Math.max(0, Math.floor(ctx.oppHandSize)) : 0;
     const ownSpecialCount = Number.isFinite(ctx.ownSpecialCount) ? Math.max(0, Math.floor(ctx.ownSpecialCount)) : 0;
     const oppSpecialCount = Number.isFinite(ctx.oppSpecialCount) ? Math.max(0, Math.floor(ctx.oppSpecialCount)) : 0;
@@ -2604,6 +2716,9 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
         else score -= 96;
         if (oppCorners > ownCorners) score += 26;
         if (hasCornerMoveNow && ctx.discDiff >= 0 && !cornerEmergency) score -= 52;
+        if (!hasCornerMoveNow && !hasEdgeMoveNow && !cornerEmergency) {
+            score -= 180;
+        }
         if (ctx.empties <= 12) score -= 82;
     }
     if (isTeleportWill) {
@@ -2633,33 +2748,33 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
     };
 }
 
-function chooseSellCardTargetByRetention(handCardIds, getCardCost, getCardDef, context) {
-    if (!Array.isArray(handCardIds) || handCardIds.length === 0) return null;
-    let best = null;
-    for (const cardId of handCardIds) {
-        const scored = scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context);
-        if (!best) {
-            best = scored;
-            continue;
-        }
-        // Lower retention score means better sell candidate.
-        if (scored.score < best.score) {
-            best = scored;
-            continue;
-        }
-        // Tie-break: sell higher-cost expendable card first (more immediate resource gain).
-        if (scored.score === best.score && scored.cardCost > best.cardCost) {
-            best = scored;
-            continue;
-        }
-        if (scored.score === best.score && scored.cardCost === best.cardCost && String(scored.cardId) < String(best.cardId)) {
-            best = scored;
-        }
-    }
-    return best;
+function sortSellRetentionCandidates(candidates) {
+    return (Array.isArray(candidates) ? candidates.slice() : []).sort((left, right) => {
+        const leftScore = Number.isFinite(left && left.score) ? Number(left.score) : Number.POSITIVE_INFINITY;
+        const rightScore = Number.isFinite(right && right.score) ? Number(right.score) : Number.POSITIVE_INFINITY;
+        if (leftScore !== rightScore) return leftScore - rightScore;
+        const leftCost = Number.isFinite(left && left.cardCost) ? Number(left.cardCost) : 0;
+        const rightCost = Number.isFinite(right && right.cardCost) ? Number(right.cardCost) : 0;
+        if (rightCost !== leftCost) return rightCost - leftCost;
+        return String(left && left.cardId ? left.cardId : '').localeCompare(String(right && right.cardId ? right.cardId : ''));
+    });
 }
 
-function chooseHandDestroyTargetForCycle(handCardIds, usableCardIds, getCardCost, getCardDef, context) {
+function enumerateSellCardRetentionCandidates(handCardIds, getCardCost, getCardDef, context) {
+    if (!Array.isArray(handCardIds) || handCardIds.length === 0) return [];
+    const scored = [];
+    for (const cardId of handCardIds) {
+        scored.push(scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context));
+    }
+    return sortSellRetentionCandidates(scored);
+}
+
+function chooseSellCardTargetByRetention(handCardIds, getCardCost, getCardDef, context) {
+    const candidates = enumerateSellCardRetentionCandidates(handCardIds, getCardCost, getCardDef, context);
+    return candidates[0] || null;
+}
+
+function enumerateDestroyCandidatesForCycle(handCardIds, usableCardIds, getCardCost, getCardDef, context) {
     if (!Array.isArray(handCardIds) || handCardIds.length === 0) return null;
     const hand = handCardIds
         .map((id) => String(id || '').trim())
@@ -2669,7 +2784,13 @@ function chooseHandDestroyTargetForCycle(handCardIds, usableCardIds, getCardCost
     const ctx = buildCardDecisionContext(Object.assign({}, context || {}, {
         handSize: hand.length
     }));
-    if (ctx.forceUseCard) return null;
+    if (ctx.forceUseCard) {
+        return {
+            candidates: [],
+            destroyThreshold: null,
+            reason: null
+        };
+    }
 
     const usable = Array.isArray(usableCardIds)
         ? usableCardIds.map((id) => String(id || '').trim()).filter((id) => id.length > 0)
@@ -2711,7 +2832,13 @@ function chooseHandDestroyTargetForCycle(handCardIds, usableCardIds, getCardCost
         !ctx.forceUseCard
     );
     const handPressure = ctx.handSize >= 5 ? 2 : (ctx.handSize >= 4 ? 1 : (lv6FastCycleMode ? 1 : 0));
-    if (handPressure <= 0) return null;
+    if (handPressure <= 0) {
+        return {
+            candidates: [],
+            destroyThreshold: null,
+            reason: null
+        };
+    }
 
     let strongUseReady = false;
     if (usable.length > 0) {
@@ -2730,11 +2857,29 @@ function chooseHandDestroyTargetForCycle(handCardIds, usableCardIds, getCardCost
         (handPressure >= 2 && (shouldCycleForNeededCards || usable.length <= 0)) ||
         (handPressure === 1 && shouldCycleForNeededCards && usable.length <= 0)
     );
-    if (!allowDestroyByPressure && !lv6FastCycleMode) return null;
-    if (strongUseReady && handPressure <= 1) return null;
-    if (strongUseReady && handPressure >= 2 && !shouldCycleForNeededCards && !cornerEmergency) return null;
+    if (!allowDestroyByPressure && !lv6FastCycleMode) {
+        return {
+            candidates: [],
+            destroyThreshold: null,
+            reason: null
+        };
+    }
+    if (strongUseReady && handPressure <= 1) {
+        return {
+            candidates: [],
+            destroyThreshold: null,
+            reason: null
+        };
+    }
+    if (strongUseReady && handPressure >= 2 && !shouldCycleForNeededCards && !cornerEmergency) {
+        return {
+            candidates: [],
+            destroyThreshold: null,
+            reason: null
+        };
+    }
 
-    let best = null;
+    const candidates = [];
     for (const cardId of hand) {
         const retention = scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context);
         let destroyScore = Number.isFinite(retention.score) ? Number(retention.score) : 0;
@@ -2779,41 +2924,59 @@ function chooseHandDestroyTargetForCycle(handCardIds, usableCardIds, getCardCost
             if (isSacrificeWill && ctx.empties >= 28 && !cornerEmergency) destroyScore -= 220;
         }
 
-        if (!best || destroyScore < best.destroyScore) {
-            best = {
-                cardId,
-                cardDef: retention.cardDef,
-                cardCost: retention.cardCost,
-                cardType,
-                destroyScore
-            };
-        } else if (best && destroyScore === best.destroyScore && retention.cardCost > best.cardCost) {
-            best = {
-                cardId,
-                cardDef: retention.cardDef,
-                cardCost: retention.cardCost,
-                cardType,
-                destroyScore
-            };
-        }
+        candidates.push({
+            cardId,
+            cardDef: retention.cardDef,
+            cardCost: retention.cardCost,
+            cardType,
+            score: destroyScore,
+            destroyScore,
+            retentionScore: Number.isFinite(retention.score) ? Number(retention.score) : null,
+            isUsable: usableSet.has(cardId)
+        });
     }
-    if (!best) return null;
 
     const destroyThreshold = lv6FastCycleMode
         ? (shouldCycleForNeededCards ? 260 : 115)
         : (shouldCycleForNeededCards
             ? (handPressure >= 2 ? 360 : 220)
             : (handPressure >= 2 ? 150 : 80));
-    if (best.destroyScore > destroyThreshold) return null;
+    const sortedCandidates = candidates.sort((left, right) => {
+        const leftScore = Number.isFinite(left && left.destroyScore) ? Number(left.destroyScore) : Number.POSITIVE_INFINITY;
+        const rightScore = Number.isFinite(right && right.destroyScore) ? Number(right.destroyScore) : Number.POSITIVE_INFINITY;
+        if (leftScore !== rightScore) return leftScore - rightScore;
+        const leftCost = Number.isFinite(left && left.cardCost) ? Number(left.cardCost) : 0;
+        const rightCost = Number.isFinite(right && right.cardCost) ? Number(right.cardCost) : 0;
+        if (rightCost !== leftCost) return rightCost - leftCost;
+        return String(left && left.cardId ? left.cardId : '').localeCompare(String(right && right.cardId ? right.cardId : ''));
+    }).map((candidate) => Object.assign({}, candidate, {
+        destroyThreshold,
+        destroyable: Number.isFinite(candidate && candidate.destroyScore)
+            ? Number(candidate.destroyScore) <= destroyThreshold
+            : false
+    }));
+
+    return {
+        candidates: sortedCandidates,
+        destroyThreshold,
+        reason: lv6FastCycleMode
+            ? 'lv6_fast_cycle'
+            : (shouldCycleForNeededCards ? 'missing_role_card' : 'hand_pressure')
+    };
+}
+
+function chooseHandDestroyTargetForCycle(handCardIds, usableCardIds, getCardCost, getCardDef, context) {
+    const enumeration = enumerateDestroyCandidatesForCycle(handCardIds, usableCardIds, getCardCost, getCardDef, context);
+    if (!enumeration || !Array.isArray(enumeration.candidates) || enumeration.candidates.length <= 0) return null;
+    const best = enumeration.candidates[0];
+    if (!best || best.destroyable !== true) return null;
 
     return {
         cardId: best.cardId,
         cardDef: best.cardDef,
         cardType: best.cardType,
         score: best.destroyScore,
-        reason: lv6FastCycleMode
-            ? 'lv6_fast_cycle'
-            : (shouldCycleForNeededCards ? 'missing_role_card' : 'hand_pressure')
+        reason: enumeration.reason || null
     };
 }
 
@@ -2894,11 +3057,17 @@ function scoreMoveHeuristic(move, level, boardOrRows, colsMaybe) {
 }
 
 function cloneBoard(board) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.cloneBoard === 'function') {
+        return SharedBoardUtils.cloneBoard(board);
+    }
     if (!Array.isArray(board)) return [];
     return board.map((row) => Array.isArray(row) ? row.slice() : []);
 }
 
 function inBoard(board, row, col) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.hasPlayableCell === 'function') {
+        return SharedBoardUtils.hasPlayableCell(board, row, col);
+    }
     return (
         Array.isArray(board) &&
         Number.isInteger(row) &&
@@ -2958,13 +3127,21 @@ function getLegalMovesBasic(board, playerValue) {
 function applyMoveToBoard(board, move, playerValue) {
     const out = cloneBoard(board);
     if (!move || !inBoard(out, move.row, move.col)) return out;
-    out[move.row][move.col] = playerValue;
+    if (SharedBoardUtils && typeof SharedBoardUtils.setCellValue === 'function') {
+        SharedBoardUtils.setCellValue(out, move.row, move.col, playerValue);
+    } else {
+        out[move.row][move.col] = playerValue;
+    }
     const flips = Array.isArray(move.flips) && move.flips.length > 0
         ? move.flips
         : getFlipsBasic(out, move.row, move.col, playerValue);
     for (const one of flips) {
         if (!one || !inBoard(out, one.row, one.col)) continue;
-        out[one.row][one.col] = playerValue;
+        if (SharedBoardUtils && typeof SharedBoardUtils.setCellValue === 'function') {
+            SharedBoardUtils.setCellValue(out, one.row, one.col, playerValue);
+        } else {
+            out[one.row][one.col] = playerValue;
+        }
     }
     return out;
 }
@@ -3508,6 +3685,36 @@ function countFrontierDiscsFor(board, playerValue) {
         [1, -1],  [1, 0],  [1, 1]
     ];
     let count = 0;
+    const cells = (
+        SharedBoardUtils &&
+        typeof SharedBoardUtils.collectBoardCoordinates === 'function'
+    )
+        ? SharedBoardUtils.collectBoardCoordinates(board)
+        : null;
+    if (Array.isArray(cells)) {
+        for (const cell of cells) {
+            if (!cell) continue;
+            const value = SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function'
+                ? SharedBoardUtils.getCellValue(board, cell.row, cell.col)
+                : (Array.isArray(board[cell.row]) ? board[cell.row][cell.col] : null);
+            if (value !== playerValue) continue;
+            let frontier = false;
+            for (const d of dirs) {
+                const nr = cell.row + d[0];
+                const nc = cell.col + d[1];
+                if (!inBoard(board, nr, nc)) continue;
+                const neighborValue = SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function'
+                    ? SharedBoardUtils.getCellValue(board, nr, nc)
+                    : board[nr][nc];
+                if (neighborValue === 0) {
+                    frontier = true;
+                    break;
+                }
+            }
+            if (frontier) count += 1;
+        }
+        return count;
+    }
     for (let r = 0; r < board.length; r++) {
         const row = Array.isArray(board[r]) ? board[r] : [];
         for (let c = 0; c < row.length; c++) {
@@ -3530,44 +3737,57 @@ function countFrontierDiscsFor(board, playerValue) {
 
 function countAnchoredEdgeDiscsFromCorners(board, playerValue) {
     if (!Array.isArray(board) || board.length <= 0) return 0;
-    const maxR = board.length - 1;
-    const maxC = Array.isArray(board[0]) ? (board[0].length - 1) : maxR;
-    if (!inBoard(board, 0, 0) || !inBoard(board, maxR, maxC)) return 0;
-
     const anchored = new Set();
+    const corners = (
+        SharedBoardUtils &&
+        typeof SharedBoardUtils.getCornerCells === 'function'
+    )
+        ? SharedBoardUtils.getCornerCells(board)
+        : [
+            { row: 0, col: 0 },
+            { row: 0, col: Array.isArray(board[0]) ? (board[0].length - 1) : 0 },
+            { row: board.length - 1, col: 0 },
+            { row: board.length - 1, col: Array.isArray(board[0]) ? (board[0].length - 1) : 0 }
+        ];
+    const directions = [
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1]
+    ];
     const pushIfOwn = (r, c) => {
-        if (inBoard(board, r, c) && board[r][c] === playerValue) anchored.add(`${r},${c}`);
+        const value = SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function'
+            ? SharedBoardUtils.getCellValue(board, r, c)
+            : (Array.isArray(board[r]) ? board[r][c] : null);
+        if (inBoard(board, r, c) && value === playerValue) anchored.add(`${r},${c}`);
     };
     const walkLine = (startR, startC, dr, dc) => {
         let r = startR;
         let c = startC;
-        while (inBoard(board, r, c) && board[r][c] === playerValue) {
+        while (inBoard(board, r, c)) {
+            const value = SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function'
+                ? SharedBoardUtils.getCellValue(board, r, c)
+                : board[r][c];
+            if (value !== playerValue) break;
             anchored.add(`${r},${c}`);
             r += dr;
             c += dc;
         }
     };
 
-    pushIfOwn(0, 0);
-    pushIfOwn(0, maxC);
-    pushIfOwn(maxR, 0);
-    pushIfOwn(maxR, maxC);
-
-    if (board[0][0] === playerValue) {
-        walkLine(0, 0, 0, 1);
-        walkLine(0, 0, 1, 0);
-    }
-    if (board[0][maxC] === playerValue) {
-        walkLine(0, maxC, 0, -1);
-        walkLine(0, maxC, 1, 0);
-    }
-    if (board[maxR][0] === playerValue) {
-        walkLine(maxR, 0, 0, 1);
-        walkLine(maxR, 0, -1, 0);
-    }
-    if (board[maxR][maxC] === playerValue) {
-        walkLine(maxR, maxC, 0, -1);
-        walkLine(maxR, maxC, -1, 0);
+    for (const corner of corners) {
+        if (!corner || !inBoard(board, corner.row, corner.col)) continue;
+        pushIfOwn(corner.row, corner.col);
+        const cornerValue = SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function'
+            ? SharedBoardUtils.getCellValue(board, corner.row, corner.col)
+            : board[corner.row][corner.col];
+        if (cornerValue !== playerValue) continue;
+        for (const dir of directions) {
+            const nr = corner.row + dir[0];
+            const nc = corner.col + dir[1];
+            if (!inBoard(board, nr, nc) || !isEdge(nr, nc, board)) continue;
+            walkLine(corner.row, corner.col, dir[0], dir[1]);
+        }
     }
     return anchored.size;
 }
@@ -3657,44 +3877,81 @@ function collectEmptyRegionParity(board) {
         [0, -1],
         [0, 1]
     ];
+    const cells = (
+        SharedBoardUtils &&
+        typeof SharedBoardUtils.collectBoardCoordinates === 'function'
+    )
+        ? SharedBoardUtils.collectBoardCoordinates(board)
+        : null;
 
-    for (let r = 0; r < board.length; r++) {
-        const row = Array.isArray(board[r]) ? board[r] : [];
-        for (let c = 0; c < row.length; c++) {
-            if (row[c] !== 0) continue;
-            const rootKey = `${r},${c}`;
-            if (visited.has(rootKey)) continue;
+    const iter = Array.isArray(cells)
+        ? cells
+        : board.flatMap((row, r) => (Array.isArray(row) ? row.map((_, c) => ({ row: r, col: c })) : []));
 
-            let size = 0;
-            const stack = [[r, c]];
-            visited.add(rootKey);
-            while (stack.length > 0) {
-                const cell = stack.pop();
-                const cr = cell[0];
-                const cc = cell[1];
-                size += 1;
-                for (const d of dirs) {
-                    const nr = cr + d[0];
-                    const nc = cc + d[1];
-                    if (!inBoard(board, nr, nc) || board[nr][nc] !== 0) continue;
-                    const nextKey = `${nr},${nc}`;
-                    if (visited.has(nextKey)) continue;
-                    visited.add(nextKey);
-                    stack.push([nr, nc]);
-                }
+    for (const cell of iter) {
+        const r = Number(cell && cell.row);
+        const c = Number(cell && cell.col);
+        const value = SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function'
+            ? SharedBoardUtils.getCellValue(board, r, c)
+            : (Array.isArray(board[r]) ? board[r][c] : null);
+        if (value !== 0) continue;
+        const rootKey = `${r},${c}`;
+        if (visited.has(rootKey)) continue;
+
+        let size = 0;
+        const stack = [[r, c]];
+        visited.add(rootKey);
+        while (stack.length > 0) {
+            const current = stack.pop();
+            const cr = current[0];
+            const cc = current[1];
+            size += 1;
+            for (const d of dirs) {
+                const nr = cr + d[0];
+                const nc = cc + d[1];
+                const nextValue = SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function'
+                    ? SharedBoardUtils.getCellValue(board, nr, nc)
+                    : (inBoard(board, nr, nc) ? board[nr][nc] : null);
+                if (!inBoard(board, nr, nc) || nextValue !== 0) continue;
+                const nextKey = `${nr},${nc}`;
+                if (visited.has(nextKey)) continue;
+                visited.add(nextKey);
+                stack.push([nr, nc]);
             }
+        }
 
-            out.regionCount += 1;
-            if ((size % 2) === 1) {
-                out.oddRegionCount += 1;
-                out.oddEmptyCount += size;
-            } else {
-                out.evenRegionCount += 1;
-                out.evenEmptyCount += size;
-            }
+        out.regionCount += 1;
+        if ((size % 2) === 1) {
+            out.oddRegionCount += 1;
+            out.oddEmptyCount += size;
+        } else {
+            out.evenRegionCount += 1;
+            out.evenEmptyCount += size;
         }
     }
 
+    return out;
+}
+
+function buildBoardSearchKey(board, currentPlayer, depthLeft, passed, consumedMap) {
+    let out = currentPlayer > 0 ? '1' : '2';
+    out += `:${depthLeft}:${passed ? 1 : 0}:`;
+    if (SharedBoardUtils && typeof SharedBoardUtils.encodeBoard === 'function') {
+        out += SharedBoardUtils.encodeBoard(board);
+    } else {
+        for (let r = 0; r < board.length; r++) {
+            const row = Array.isArray(board[r]) ? board[r] : [];
+            for (let c = 0; c < row.length; c++) {
+                const v = row[c];
+                if (v === 1) out += '1';
+                else if (v === -1) out += '2';
+                else out += '0';
+            }
+        }
+    }
+    const consumedHash = Number(consumedMap && consumedMap.__bonusHash) >>> 0;
+    const consumedCount = Math.max(0, Number(consumedMap && consumedMap.__bonusCount) || 0);
+    out += `:${consumedHash.toString(36)}:${consumedCount}`;
     return out;
 }
 
@@ -3860,24 +4117,6 @@ function evaluateTerminalBoardForLookahead(board, playerValue) {
     if (diff === 0) return 0;
     const score = 1_000_000 + (Math.abs(diff) * 10_000);
     return diff > 0 ? score : -score;
-}
-
-function buildBoardSearchKey(board, currentPlayer, depthLeft, passed, consumedMap) {
-    let out = currentPlayer > 0 ? '1' : '2';
-    out += `:${depthLeft}:${passed ? 1 : 0}:`;
-    for (let r = 0; r < board.length; r++) {
-        const row = Array.isArray(board[r]) ? board[r] : [];
-        for (let c = 0; c < row.length; c++) {
-            const v = row[c];
-            if (v === 1) out += '1';
-            else if (v === -1) out += '2';
-            else out += '0';
-        }
-    }
-    const consumedHash = Number(consumedMap && consumedMap.__bonusHash) >>> 0;
-    const consumedCount = Math.max(0, Number(consumedMap && consumedMap.__bonusCount) || 0);
-    out += `:${consumedHash.toString(36)}:${consumedCount}`;
-    return out;
 }
 
 function buildSearchMoveOrder(moves, params) {
@@ -4265,6 +4504,9 @@ function chooseMoveByLookahead(candidateMoves, options) {
 module.exports = {
     chooseHandDestroyTargetForCycle,
     chooseCardWithRiskProfile,
+    enumerateCardUseCandidates,
+    enumerateDestroyCandidatesForCycle,
+    enumerateSellCardRetentionCandidates,
     chooseHighestCostCard,
     chooseSellCardTargetByRetention,
     chooseMoveByLookahead,

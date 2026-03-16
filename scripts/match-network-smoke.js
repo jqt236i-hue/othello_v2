@@ -43,6 +43,97 @@ function isHiddenHandToken(value, ownerKey, handIndex) {
     return true;
 }
 
+function decodeTextChunk(value) {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    if (typeof Buffer !== 'undefined') return Buffer.from(value).toString('utf8');
+    return new TextDecoder().decode(value);
+}
+
+async function openSseStream(baseUrl, roomId, seatKey, seatToken) {
+    const response = await fetch(
+        `${baseUrl}/api/match/stream?roomId=${encodeURIComponent(roomId)}&seatKey=${encodeURIComponent(seatKey)}&seatToken=${encodeURIComponent(seatToken)}`
+    );
+    assertTrue(response && response.ok, `stream(${seatKey}) 接続に失敗しました`);
+    assertTrue(response.body && typeof response.body.getReader === 'function', `stream(${seatKey}) reader が取得できません`);
+    return {
+        response,
+        reader: response.body.getReader(),
+        buffer: ''
+    };
+}
+
+function takeNextSseEvent(stream) {
+    if (!stream || typeof stream.buffer !== 'string') return null;
+    const sepIndex = stream.buffer.indexOf('\n\n');
+    if (sepIndex < 0) return null;
+    const block = stream.buffer.slice(0, sepIndex);
+    stream.buffer = stream.buffer.slice(sepIndex + 2);
+    const lines = block.split('\n');
+    const dataLines = [];
+    let eventName = 'message';
+    let eventId = '';
+    for (const rawLine of lines) {
+        const line = String(rawLine || '');
+        if (!line) continue;
+        if (line.startsWith('event:')) {
+            eventName = line.slice(6).trim();
+            continue;
+        }
+        if (line.startsWith('id:')) {
+            eventId = line.slice(3).trim();
+            continue;
+        }
+        if (line.startsWith('data:')) {
+            dataLines.push(line.slice(5).trim());
+        }
+    }
+    let data = {};
+    const rawData = dataLines.join('\n');
+    if (rawData) {
+        try {
+            data = JSON.parse(rawData);
+        } catch (error) {
+            throw new Error(`SSE data JSON parse failed: ${error && error.message ? error.message : String(error)}`);
+        }
+    }
+    return { eventName, eventId, data };
+}
+
+async function readSseEvent(stream, timeoutMs, predicate) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+        const queued = takeNextSseEvent(stream);
+        if (queued && (!predicate || predicate(queued))) {
+            return queued;
+        }
+        const remaining = Math.max(1, timeoutMs - (Date.now() - startedAt));
+        let readResult = null;
+        try {
+            readResult = await Promise.race([
+                stream.reader.read(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('SSE_READ_TIMEOUT')), remaining))
+            ]);
+        } catch (error) {
+            if (error && error.message === 'SSE_READ_TIMEOUT') break;
+            throw error;
+        }
+        if (!readResult || readResult.done) break;
+        stream.buffer += decodeTextChunk(readResult.value).replace(/\r\n/g, '\n');
+    }
+    throw new Error('SSE event がタイムアウトしました');
+}
+
+async function closeSseStream(stream) {
+    try {
+        if (stream && stream.reader && typeof stream.reader.cancel === 'function') {
+            await stream.reader.cancel();
+        }
+    } catch (error) {
+        // ignore
+    }
+}
+
 function assertSeatProjection(snapshot, seatKey) {
     assertTrue(snapshot && typeof snapshot === 'object', 'snapshot がありません');
     assertTrue(snapshot.cardState && snapshot.cardState.hands, 'snapshot.cardState.hands がありません');
@@ -63,7 +154,7 @@ async function main() {
 
     console.log(`[match-check] base=${baseUrl}`);
 
-    const created = await requestJson(baseUrl, 'POST', '/api/match/create', {});
+    const created = await requestJson(baseUrl, 'POST', '/api/match/create', { playerName: 'くろ' });
     assertTrue(created.ok && created.data && created.data.ok === true, '部屋作成に失敗しました');
     const roomId = String(created.data.roomId || '').trim().toUpperCase();
     const seatKey = String(created.data.seatKey || '').trim();
@@ -75,7 +166,7 @@ async function main() {
     assertSeatProjection(created.data.snapshot, 'black');
     console.log(`[match-check] create ok room=${roomId}`);
 
-    const joined = await requestJson(baseUrl, 'POST', '/api/match/join', { roomId });
+    const joined = await requestJson(baseUrl, 'POST', '/api/match/join', { roomId, playerName: 'しろ' });
     assertTrue(joined.ok && joined.data && joined.data.ok === true, '参加に失敗しました');
     assertTrue(joined.data.seatKey === 'white', '参加側の席が白ではありません');
     assertSeatProjection(joined.data.snapshot, 'white');
@@ -83,38 +174,43 @@ async function main() {
     assertTrue(!!joinedSeatToken, '参加側の合言葉がありません');
     console.log('[match-check] join ok seat=white');
 
-    const rejoined = await requestJson(baseUrl, 'POST', '/api/match/join', { roomId, seatKey, seatToken });
+    const rejoined = await requestJson(baseUrl, 'POST', '/api/match/join', { roomId, seatKey, seatToken, playerName: 'くろ' });
     assertTrue(rejoined.ok && rejoined.data && rejoined.data.ok === true, '再参加に失敗しました');
     assertTrue(rejoined.data.seatKey === 'black', '再参加で元の席を復元できませんでした');
     assertTrue(rejoined.data.rejoined === true, '再参加判定がtrueになっていません');
     assertSeatProjection(rejoined.data.snapshot, 'black');
     console.log('[match-check] rejoin ok seat=black');
 
-    const publishSnapshot = JSON.parse(JSON.stringify(rejoined.data.snapshot || {}));
-    if (!publishSnapshot.cardState || typeof publishSnapshot.cardState !== 'object') {
-        throw new Error('publish snapshot cardState がありません');
-    }
-    publishSnapshot.cardState.pendingEffectByPlayer = publishSnapshot.cardState.pendingEffectByPlayer || {};
-    publishSnapshot.cardState.pendingEffectByPlayer.black = {
-        type: 'CONDEMN_WILL',
-        stage: 'selectTarget',
-        offers: [
-            { handIndex: 0, cardId: 'gold_stone' },
-            { handIndex: 1, cardId: 'silver_stone' }
-        ]
-    };
+    const blackStream = await openSseStream(baseUrl, roomId, 'black', seatToken);
+    const initialSnapshotEvent = await readSseEvent(blackStream, 1500, (event) => event && event.eventName === 'snapshot');
+    assertTrue(!!initialSnapshotEvent.eventId, '初回 stream snapshot に SSE event id がありません');
+    assertSeatProjection(initialSnapshotEvent.data && initialSnapshotEvent.data.snapshot, 'black');
+    const historyEvent = await readSseEvent(blackStream, 1500, (event) => event && event.eventName === 'chat');
+    assertTrue(historyEvent.data && historyEvent.data.type === 'history', '初回 stream chat history が取得できませんでした');
+    console.log('[match-check] stream bootstrap ok');
+
     const published = await requestJson(baseUrl, 'POST', '/api/match/publish', {
         roomId,
         seatKey: 'black',
         seatToken,
         playerKey: 'black',
-        actionType: 'smoke_condemn_projection',
+        actionType: 'place',
         operationId: `smoke_${Date.now()}`,
         baseVersion: Number(rejoined.data.stateVersion || 0),
-        playbackEvents: [],
-        snapshot: publishSnapshot
+        actor: 'black',
+        params: { row: 2, col: 3 },
+        turnIndex: 1,
+        action: { type: 'place', playerKey: 'black', row: 2, col: 3, turnIndex: 1 }
     });
     assertTrue(published.ok && published.data && published.data.ok === true, 'publish に失敗しました');
+    const streamedPublishSnapshot = await readSseEvent(
+        blackStream,
+        1500,
+        (event) => event && event.eventName === 'snapshot' && event.data && event.data.playerKey === 'black' && event.data.actionType === 'place'
+    );
+    assertTrue(streamedPublishSnapshot.data.snapshot.gameState.board[2][3] === 1, 'stream snapshot に配置結果が反映されていません');
+    assertTrue(streamedPublishSnapshot.data.snapshot.gameState.currentPlayer === -1, 'stream snapshot の次手番が白になっていません');
+    console.log('[match-check] stream publish ok');
 
     const blackState = await requestJson(
         baseUrl,
@@ -123,14 +219,8 @@ async function main() {
     );
     assertTrue(blackState.ok && blackState.data && blackState.data.ok === true, 'state(black) 取得に失敗しました');
     assertSeatProjection(blackState.data.snapshot, 'black');
-    const blackCondemn = blackState.data.snapshot.cardState
-        && blackState.data.snapshot.cardState.pendingEffectByPlayer
-        ? blackState.data.snapshot.cardState.pendingEffectByPlayer.black
-        : null;
-    assertTrue(blackCondemn && blackCondemn.type === 'CONDEMN_WILL', 'state(black) に断罪選択状態がありません');
-    assertTrue(Array.isArray(blackCondemn.offers) && blackCondemn.offers.length >= 2, 'state(black) の断罪候補が不足しています');
-    assertTrue(blackCondemn.offers[0].cardId === 'gold_stone', 'state(black) 断罪候補[0] が表示されていません');
-    assertTrue(blackCondemn.offers[1].cardId === 'silver_stone', 'state(black) 断罪候補[1] が表示されていません');
+    assertTrue(blackState.data.snapshot.gameState.board[2][3] === 1, 'state(black) に配置結果が反映されていません');
+    assertTrue(blackState.data.snapshot.gameState.currentPlayer === -1, 'state(black) の次手番が白になっていません');
 
     const whiteState = await requestJson(
         baseUrl,
@@ -139,20 +229,15 @@ async function main() {
     );
     assertTrue(whiteState.ok && whiteState.data && whiteState.data.ok === true, 'state(white) 取得に失敗しました');
     assertSeatProjection(whiteState.data.snapshot, 'white');
-    const whiteViewCondemn = whiteState.data.snapshot.cardState
-        && whiteState.data.snapshot.cardState.pendingEffectByPlayer
-        ? whiteState.data.snapshot.cardState.pendingEffectByPlayer.black
-        : null;
-    assertTrue(whiteViewCondemn && whiteViewCondemn.type === 'CONDEMN_WILL', 'state(white) から断罪状態が確認できません');
-    assertTrue(Array.isArray(whiteViewCondemn.offers) && whiteViewCondemn.offers.length >= 2, 'state(white) の断罪候補が不足しています');
-    assertTrue(isHiddenHandToken(whiteViewCondemn.offers[0].cardId, 'white', 0), 'state(white) 断罪候補[0] が秘匿されていません');
-    assertTrue(isHiddenHandToken(whiteViewCondemn.offers[1].cardId, 'white', 1), 'state(white) 断罪候補[1] が秘匿されていません');
+    assertTrue(whiteState.data.snapshot.gameState.board[2][3] === 1, 'state(white) に配置結果が反映されていません');
+    assertTrue(whiteState.data.snapshot.gameState.currentPlayer === -1, 'state(white) の次手番が白になっていません');
 
     const deniedState = await requestJson(baseUrl, 'GET', `/api/match/state?roomId=${encodeURIComponent(roomId)}`);
     assertTrue(!deniedState.ok && deniedState.status === 403, 'seatTokenなしstateが拒否されませんでした');
 
     const left = await requestJson(baseUrl, 'POST', '/api/match/leave', { roomId, seatKey, seatToken });
     assertTrue(left.ok && left.data && left.data.ok === true, '退出に失敗しました');
+    await closeSseStream(blackStream);
     console.log('[match-check] leave ok');
 
     console.log('[match-check] success');

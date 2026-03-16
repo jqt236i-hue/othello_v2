@@ -1,0 +1,7 @@
+{
+  "target": "trap",
+  "timestamp": "2026-03-16T06:02:12.894Z",
+  "phase": "attempt_error",
+  "attemptIndex": 1,
+  "error": "Error: Timeout: wait for TRAP_WILL pending selection\n    at waitForCondition (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-selection-card-flow.js:435:19)\n    at async resolvePendingSelection (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-selection-card-flow.js:511:21)\n    at async runAttempt (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-selection-card-flow.js:656:17)\n    at async main (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-selection-card-flow.js:721:29)"
+}

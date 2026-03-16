@@ -16,6 +16,9 @@ function logPlacementEffects(effects, player) {
     if (effects.goldStoneUsed) {
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.goldCharge(effects.chargeGained));
     }
+    if (effects.crystalStoneUsed) {
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.crystalCharge(effects.crystalStoneGain || 0));
+    }
     if (effects.plunderAmount > 0) {
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.plunderPoints(effects.plunderAmount));
     }
@@ -57,7 +60,13 @@ function logPlacementEffects(effects, player) {
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.hyperactivePlaced(ownerName));
     }
     if (effects.doublePlaceActivated) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.doublePlaceActivated());
+        if (typeof emitLogAdded === 'function') {
+            emitLogAdded(LOG_MESSAGES.doublePlaceActivated(
+                effects.multiPlaceActivatedName,
+                effects.multiPlaceRemaining,
+                effects.multiPlaceInfinite
+            ));
+        }
     }
 }
 

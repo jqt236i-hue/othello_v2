@@ -1,0 +1,118 @@
+{
+  "action": {
+    "type": "place",
+    "row": 1,
+    "col": 6,
+    "actionId": "sp-11-64",
+    "turnIndex": 63
+  },
+  "placementMetrics": {
+    "selectedCompositeScore": 0,
+    "bestCompositeScore": 0,
+    "compositeScoreMiss": 0,
+    "compositeScoreMissRatio": 0,
+    "selectedTacticalScore": -1792.9939,
+    "bestTacticalScore": 0,
+    "tacticalScoreMiss": 1792.9939,
+    "tacticalScoreMissRatio": 1792.9939,
+    "selectedHeuristicScore": -79.99817141131032,
+    "selectedPolicyScore": 0,
+    "selectedFinalScore": 0,
+    "selectedCommitteeScore": 0,
+    "selectedCommitteeVotes": 0,
+    "forcedPlacementCategory": "edge",
+    "topCandidates": [
+      {
+        "row": 1,
+        "col": 0,
+        "seat": "edge",
+        "heuristicScore": 5450.001852653427,
+        "policyScore": 0,
+        "tacticalScore": -483232.4933,
+        "combinedScore": 0,
+        "finalScore": 0,
+        "committeeVotes": 0
+      },
+      {
+        "row": 1,
+        "col": 1,
+        "seat": "inner",
+        "heuristicScore": -1419.9996936606733,
+        "policyScore": 0,
+        "tacticalScore": -487907.9934,
+        "combinedScore": 0,
+        "finalScore": 0,
+        "committeeVotes": 0
+      },
+      {
+        "row": 1,
+        "col": 6,
+        "seat": "inner",
+        "heuristicScore": -79.99817141131032,
+        "policyScore": 0,
+        "tacticalScore": -1792.9939,
+        "combinedScore": 0,
+        "finalScore": 0,
+        "committeeVotes": 0
+      }
+    ]
+  },
+  "legalMoves": [
+    {
+      "row": 1,
+      "col": 0,
+      "flips": [
+        [
+          2,
+          1
+        ]
+      ]
+    },
+    {
+      "row": 1,
+      "col": 1,
+      "flips": [
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ]
+    },
+    {
+      "row": 1,
+      "col": 6,
+      "flips": [
+        [
+          1,
+          5
+        ]
+      ]
+    },
+    {
+      "row": 6,
+      "col": 6,
+      "flips": [
+        [
+          5,
+          5
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          3,
+          3
+        ],
+        [
+          5,
+          6
+        ]
+      ]
+    }
+  ]
+}

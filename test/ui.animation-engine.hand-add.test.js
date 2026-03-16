@@ -6,6 +6,7 @@ describe('animation-engine hand_add', () => {
       MATCH_MODE: 'cpu',
       playClearHandAnimation: jest.fn(() => Promise.resolve()),
       playDrawCardHandAnimation: jest.fn(() => Promise.resolve()),
+      playDirectHandAddAnimation: jest.fn(() => Promise.resolve()),
       playCardUseHandAnimation: jest.fn(() => Promise.resolve()),
       playHandAnimation: jest.fn((player, row, col, onComplete) => {
         if (typeof onComplete === 'function') onComplete();
@@ -34,7 +35,7 @@ describe('animation-engine hand_add', () => {
     delete global.WHITE;
   });
 
-  test('delegates hand_add to draw-hand animation helper', async () => {
+  test('delegates draw-style hand_add to draw-hand animation helper', async () => {
     const engine = require('../ui/animation-engine');
     await engine.executeEvent({
       type: 'hand_add',
@@ -47,17 +48,34 @@ describe('animation-engine hand_add', () => {
     );
   });
 
+  test('delegates generated throw-chain hand_add to direct hand animation helper', async () => {
+    const engine = require('../ui/animation-engine');
+    await engine.executeEvent({
+      type: 'hand_add',
+      targets: [{ player: 'black', cardId: 'triple_01', count: 1, reason: 'generated_throw_chain', sourceType: 'DOUBLE_PLACE' }]
+    });
+
+    expect(global.window.playDirectHandAddAnimation).toHaveBeenCalledTimes(1);
+    expect(global.window.playDirectHandAddAnimation).toHaveBeenCalledWith(
+      expect.objectContaining({ player: 'black', cardId: 'triple_01', count: 1, reason: 'generated_throw_chain', sourceType: 'DOUBLE_PLACE' })
+    );
+    expect(global.window.playDrawCardHandAnimation).not.toHaveBeenCalledWith(
+      expect.objectContaining({ cardId: 'triple_01', reason: 'generated_throw_chain' })
+    );
+  });
+
   test('delegates card_use_animation to card-use hand animation helper', async () => {
     const engine = require('../ui/animation-engine');
     const sourceCardEl = { nodeType: 1 };
+    const sourceCardRect = { left: 220, top: 500, width: 90, height: 120, right: 310, bottom: 620 };
     await engine.executeEvent({
       type: 'card_use_animation',
-      targets: [{ player: 'black', owner: 'black', cardId: 'card_2', cost: 5, name: 'X', sourceCardEl }]
+      targets: [{ player: 'black', owner: 'black', cardId: 'card_2', cost: 5, name: 'X', sourceCardEl, sourceCardRect }]
     });
 
     expect(global.window.playCardUseHandAnimation).toHaveBeenCalledTimes(1);
     expect(global.window.playCardUseHandAnimation).toHaveBeenCalledWith(
-      expect.objectContaining({ player: 'black', owner: 'black', cardId: 'card_2', cost: 5, name: 'X', sourceCardEl })
+      expect.objectContaining({ player: 'black', owner: 'black', cardId: 'card_2', cost: 5, name: 'X', sourceCardEl, sourceCardRect })
     );
   });
 
@@ -123,10 +141,7 @@ describe('animation-engine hand_add', () => {
     expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalledWith('card_use_button');
   });
 
-  test('does not play card_use_button cue for opponent treasure box card_use_animation', async () => {
-    global.CardLogic = {
-      getCardDef: () => ({ type: 'TREASURE_BOX' })
-    };
+  test('plays card_use_button cue for opponent treasure box card_use_animation', async () => {
     const engine = require('../ui/animation-engine');
 
     await engine.executeEvent({
@@ -134,6 +149,7 @@ describe('animation-engine hand_add', () => {
       targets: [{ player: 'white', owner: 'white', cardId: 'TREASURE_BOX_001', cost: 8, name: '宝箱' }]
     });
 
-    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalledWith('card_use_button');
+    expect(global.SoundEngine.init).toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('card_use_button');
   });
 });

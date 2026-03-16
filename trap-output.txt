@@ -1,0 +1,5402 @@
+[presentation] BoardOps.emitPresentationEvent not available (events will be persisted)
+[TurnPipeline] hyperactivePlaced detected on placement 窶・immediate activation suppressed by spec
+[HYPERACTIVE] moveHyperactiveOnce candidates 7 at { row: 5, col: 5, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 5, col: 6, occupied: false },
+  candidatesLen: 7,
+  markerType: 'HYPERACTIVE'
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 8 at { row: 5, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 6, col: 6, occupied: false },
+  candidatesLen: 8,
+  markerType: 'HYPERACTIVE'
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 8 at { row: 6, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 5, col: 7, occupied: false },
+  candidatesLen: 8,
+  markerType: 'HYPERACTIVE'
+}
+[TurnPipeline] hyperactivePlaced detected on placement 窶・immediate activation suppressed by spec
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 4,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 4, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 5, col: 1, occupied: false },
+  candidatesLen: 5,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 4,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 4,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 4, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 5, col: 1, occupied: false },
+  candidatesLen: 5,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 4,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 5,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 7 at { row: 5, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 6, col: 0, occupied: false },
+  candidatesLen: 7,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 5,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 5,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 7 at { row: 5, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 6, col: 0, occupied: false },
+  candidatesLen: 7,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 5,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 6,
+  col: 0,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 6, col: 0, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 7, col: 0, occupied: false },
+  candidatesLen: 5,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 6,
+  col: 0,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 6,
+  col: 0,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 6, col: 0, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 7, col: 0, occupied: false },
+  candidatesLen: 5,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 6,
+  col: 0,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 7,
+  col: 0,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 7, col: 0, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 7, col: 1, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 7,
+  col: 0,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 7,
+  col: 0,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 7, col: 0, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 7, col: 1, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 7,
+  col: 0,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 7,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 7, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 7, col: 0, occupied: false },
+  candidatesLen: 5,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 7,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 7,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 7, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 7, col: 0, occupied: false },
+  candidatesLen: 5,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 7,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 7,
+  col: 0,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 7, col: 0, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 7, col: 1, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 7,
+  col: 0,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 7,
+  col: 0,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 7, col: 0, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 7, col: 1, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 7,
+  col: 0,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 7,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 7, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 7, col: 0, occupied: false },
+  candidatesLen: 5,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 7,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 7,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 7, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 7, col: 0, occupied: false },
+  candidatesLen: 5,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 7,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 2,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 2, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 2, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 2,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object] ],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 2,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 2, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 1, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 2,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 0, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 0, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 0, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 0, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 0, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 0, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 0, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 1, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 2,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 2, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 2, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 2,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 2,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 2, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 1, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 2,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 0, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 0, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 0, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 0, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 1, col: 0, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 1, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 1, col: 0, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 1, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 0, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 1, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 0, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 0, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 0, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 0, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 0, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 0, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 1, col: 0, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 2, col: 1, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object] ],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 1, col: 0, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 2, col: 1, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object] ],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 2,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 2, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 1, occupied: false },
+  candidatesLen: 4,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 2,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 2,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 2, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 1, occupied: false },
+  candidatesLen: 4,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 2,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 6 at { row: 1, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 1, occupied: false },
+  candidatesLen: 6,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object] ],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 6 at { row: 1, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 0, occupied: false },
+  candidatesLen: 6,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 0, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 0, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 0, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 1, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object] ],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 0, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 1, occupied: false },
+  candidatesLen: 4,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 0, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 1, occupied: false },
+  candidatesLen: 4,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] hyperactivePlaced detected on placement 窶・immediate activation suppressed by spec
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 7,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 3
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 0 at { row: 7, col: 0, owner: 'white' }
+[TurnPipeline] hyperactive result {
+  row: 7,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [],
+    destroyed: [ [Object] ],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 7,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 3
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 0 at { row: 7, col: 0, owner: 'white' }
+[TurnPipeline] hyperactive result {
+  row: 7,
+  col: 0,
+  owner: 'white',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [],
+    destroyed: [ [Object] ],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] hyperactivePlaced detected on placement 窶・immediate activation suppressed by spec
+[TurnPipeline] hyperactivePlaced detected on placement 窶・immediate activation suppressed by spec
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 4,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 4, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 5, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 4,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 4,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 4, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 5, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 4,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 5,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 0, col: 5, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 4,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 5,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 5,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 0, col: 5, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 4,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 5,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 0, col: 6, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 5,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 0, col: 6, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 5,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 0, col: 6, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 5,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 0, col: 6, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 5,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'white',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 0 at { row: 1, col: 7, owner: 'black' }
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [],
+    destroyed: [ [Object], [Object], [Object], [Object], [Object], [Object] ],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 2
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 0 at { row: 1, col: 7, owner: 'black' }
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [],
+    destroyed: [ [Object], [Object], [Object], [Object], [Object], [Object] ],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 3,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 0, col: 3, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 4, occupied: false },
+  candidatesLen: 4,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 3,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 3,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 0, col: 3, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 4, occupied: false },
+  candidatesLen: 4,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 3,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 4,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 4, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 4, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 4,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object] ],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 4,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 4, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 4, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 4,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object] ],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 4,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 1, col: 4, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 2, col: 5, occupied: false },
+  candidatesLen: 4,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 4,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 4,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 1, col: 4, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 5, occupied: false },
+  candidatesLen: 4,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 4,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 5,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 6 at { row: 1, col: 5, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 2, col: 6, occupied: false },
+  candidatesLen: 6,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 5,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 5,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 6 at { row: 1, col: 5, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 6,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 5,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] hyperactivePlaced detected on placement 窶・immediate activation suppressed by spec
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 7 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 5, occupied: false },
+  candidatesLen: 7,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 7 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 5, occupied: false },
+  candidatesLen: 7,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 4,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 4,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 2, col: 6, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 2,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 8 at { row: 2, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 5, occupied: false },
+  candidatesLen: 8,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 2,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 2,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 8 at { row: 2, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 6, occupied: false },
+  candidatesLen: 8,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 2,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] ultimateHyperactivePlaced detected on placement 窶・immediate activation suppressed by spec
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 7 at { row: 3, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 5, occupied: false },
+  candidatesLen: 7,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object], [Object] ],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 7 at { row: 3, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 2, col: 6, occupied: false },
+  candidatesLen: 7,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 6,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] hyperactivePlaced detected on placement 窶・immediate activation suppressed by spec
+[TurnPipeline] processing HYPERACTIVE anchor { row: 1, col: 2, owner: 'white', type: 'HYPERACTIVE', createdSeq: 1 }
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 2, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 1, occupied: false },
+  candidatesLen: 3,
+  markerType: 'HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 2,
+  owner: 'white',
+  type: 'HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor { row: 1, col: 2, owner: 'white', type: 'HYPERACTIVE', createdSeq: 1 }
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 2, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 2, occupied: false },
+  candidatesLen: 3,
+  markerType: 'HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 2,
+  owner: 'white',
+  type: 'HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor { row: 0, col: 2, owner: 'white', type: 'HYPERACTIVE', createdSeq: 1 }
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 2, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 1, occupied: false },
+  candidatesLen: 3,
+  markerType: 'HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 2,
+  owner: 'white',
+  type: 'HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor { row: 0, col: 2, owner: 'white', type: 'HYPERACTIVE', createdSeq: 1 }
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 2, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 1, occupied: false },
+  candidatesLen: 3,
+  markerType: 'HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 2,
+  owner: 'white',
+  type: 'HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor { row: 0, col: 1, owner: 'white', type: 'HYPERACTIVE', createdSeq: 1 }
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 0, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 2, occupied: false },
+  candidatesLen: 5,
+  markerType: 'HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor { row: 0, col: 1, owner: 'white', type: 'HYPERACTIVE', createdSeq: 1 }
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 0, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 1, occupied: false },
+  candidatesLen: 5,
+  markerType: 'HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 1,
+  owner: 'white',
+  type: 'HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor { row: 1, col: 0, owner: 'white', type: 'HYPERACTIVE', createdSeq: 1 }
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 0, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 1, occupied: false },
+  candidatesLen: 2,
+  markerType: 'HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 0,
+  owner: 'white',
+  type: 'HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor { row: 1, col: 0, owner: 'white', type: 'HYPERACTIVE', createdSeq: 1 }
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 0, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 1, occupied: false },
+  candidatesLen: 2,
+  markerType: 'HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 0,
+  owner: 'white',
+  type: 'HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor { row: 1, col: 1, owner: 'white', type: 'HYPERACTIVE', createdSeq: 1 }
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 0, occupied: false },
+  candidatesLen: 3,
+  markerType: 'HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 1,
+  owner: 'white',
+  type: 'HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor { row: 1, col: 1, owner: 'white', type: 'HYPERACTIVE', createdSeq: 1 }
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 1, owner: 'white' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 2, occupied: false },
+  candidatesLen: 3,
+  markerType: 'HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 1,
+  owner: 'white',
+  type: 'HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'white'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 2,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 1, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 2, col: 1, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 2,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 2,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 1, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 2, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 2,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 2,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 0, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 2, occupied: false },
+  candidatesLen: 4,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 2,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object] ],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 2,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 0, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 1, occupied: false },
+  candidatesLen: 4,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 2,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 6 at { row: 1, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 1, occupied: false },
+  candidatesLen: 6,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 6 at { row: 1, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 1, occupied: false },
+  candidatesLen: 6,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] hyperactivePlaced detected on placement 窶・immediate activation suppressed by spec
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 0, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 2, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object] ],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 0, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 1, occupied: false },
+  candidatesLen: 5,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 6 at { row: 1, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 0, occupied: false },
+  candidatesLen: 6,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 6 at { row: 1, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 0, occupied: false },
+  candidatesLen: 6,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 2,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 2, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 0, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 2,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 2,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 2, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 2, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 2,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object] ],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 2,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 1, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 2,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 2,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 2, col: 1, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 2,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 2,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 2, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 0, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 2,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 2,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 2, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 1, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 2,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 2, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 2, col: 1, occupied: false },
+  candidatesLen: 3,
+  markerType: 'INHERITED_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 1,
+  owner: 'black',
+  type: 'INHERITED_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object] ],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] hyperactivePlaced detected on placement 窶・immediate activation suppressed by spec
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 1, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 1, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 2, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 2, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 1, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 1, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 2, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 2, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 1, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 1, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 2, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object], [Object] ],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 2, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object], [Object] ],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 1, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 1, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 2, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object], [Object] ],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 2, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object], [Object] ],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 1, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 1, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 2, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 1, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 2, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 1,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 1, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 5
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 3, col: 2, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 3, col: 1, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 3,
+  col: 2,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] hyperactivePlaced detected on placement 窶・immediate activation suppressed by spec
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 2,
+  col: 5,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 6 at { row: 2, col: 5, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 6,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 2,
+  col: 5,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 2,
+  col: 5,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 6 at { row: 2, col: 5, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 6,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 2,
+  col: 5,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 7 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 7,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 7 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 7,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 5,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 5 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 5,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 4,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 4 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 7, occupied: false },
+  candidatesLen: 4,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 3 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 7, occupied: false },
+  candidatesLen: 3,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 7, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 7,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object], [Object] ],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object], [Object] ],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object] ],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [ [Object] ],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 2 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 2,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 0, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 1, col: 6, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 1 at { row: 1, col: 6, owner: 'black' }
+[HYPERACTIVE] selected target {
+  target: { row: 0, col: 6, occupied: false },
+  candidatesLen: 1,
+  markerType: 'ESCAPE_HYPERACTIVE'
+}
+[TurnPipeline] hyperactive result {
+  row: 1,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [ [Object] ],
+    destroyed: [],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 0 at { row: 0, col: 6, owner: 'black' }
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [],
+    destroyed: [ [Object], [Object], [Object], [Object], [Object], [Object] ],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] processing HYPERACTIVE anchor {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  createdSeq: 1
+}
+[HYPERACTIVE] moveHyperactiveOnce candidates 0 at { row: 0, col: 6, owner: 'black' }
+[TurnPipeline] hyperactive result {
+  row: 0,
+  col: 6,
+  owner: 'black',
+  type: 'ESCAPE_HYPERACTIVE',
+  res: {
+    moved: [],
+    destroyed: [ [Object], [Object], [Object], [Object], [Object], [Object] ],
+    flipped: [],
+    repelled: [],
+    ownerKey: 'black'
+  }
+}
+[TurnPipeline] ultimateHyperactivePlaced detected on placement 窶・immediate activation suppressed by spec
+{"count":6,"avgFutureDiscDelta3Ply":-2,"negativeRate":0.6667,"worstThree":[{"seed":12,"ply":96,"future":-6},{"seed":9,"ply":27,"future":-4},{"seed":9,"ply":14,"future":-2}]}

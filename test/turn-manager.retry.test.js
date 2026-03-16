@@ -2,6 +2,11 @@ require('../game/turn-manager');
 
 describe('turn-manager scheduling', () => {
   beforeEach(() => {
+    const adapter = require('../game/turn/pipeline_ui_adapter');
+    if (adapter && typeof adapter.clearDeferredGeneratedThrowChainPlayback === 'function') {
+      adapter.clearDeferredGeneratedThrowChainPlayback();
+    }
+
     // minimal state
     global.timers = null;
     global.isCardAnimating = false;
@@ -18,6 +23,11 @@ describe('turn-manager scheduling', () => {
   });
 
   afterEach(() => {
+    const adapter = require('../game/turn/pipeline_ui_adapter');
+    if (adapter && typeof adapter.clearDeferredGeneratedThrowChainPlayback === 'function') {
+      adapter.clearDeferredGeneratedThrowChainPlayback();
+    }
+
     delete global.timers;
     delete global.findMoveForCell;
     delete global.playHandAnimation;
@@ -30,6 +40,9 @@ describe('turn-manager scheduling', () => {
     delete global.emitGameStateChange;
     delete global.dealInitialCards;
     delete global.updateCpuCharacter;
+    delete global.AnimationEngine;
+    delete global.VisualPlaybackActive;
+    delete global.PlaybackStateManager;
     delete global.__uiImpl_turn_manager;
     delete global.NetworkMatchClient;
     delete global.MATCH_MODE;
@@ -71,6 +84,32 @@ describe('turn-manager scheduling', () => {
 
     expect(global.findMoveForCell).not.toHaveBeenCalled();
     expect(global.executeMove).not.toHaveBeenCalled();
+  });
+
+  test('stale visual playback flag with idle engine no longer blocks board clicks', () => {
+    global.VisualPlaybackActive = true;
+    global.isCardAnimating = true;
+    global.AnimationEngine = { isPlaying: false };
+
+    const rm = require('../game/turn-manager');
+    rm.handleCellClick(0, 0);
+
+    expect(global.findMoveForCell).toHaveBeenCalled();
+    expect(global.executeMove).toHaveBeenCalledTimes(1);
+    expect(global.VisualPlaybackActive).toBe(false);
+  });
+
+  test('active visual playback still blocks board clicks', () => {
+    global.VisualPlaybackActive = true;
+    global.isCardAnimating = true;
+    global.AnimationEngine = { isPlaying: true };
+
+    const rm = require('../game/turn-manager');
+    rm.handleCellClick(0, 0);
+
+    expect(global.findMoveForCell).not.toHaveBeenCalled();
+    expect(global.executeMove).not.toHaveBeenCalled();
+    expect(global.VisualPlaybackActive).toBe(true);
   });
 
   test('network modeでcurrentPlayerが"white"文字列でも白手番を操作できる', () => {
@@ -139,7 +178,93 @@ describe('turn-manager scheduling', () => {
     expect(uiResetSpy).toHaveBeenCalledTimes(1);
   });
 
-  test('network mode の resetGame は reset_game snapshot を publish する', async () => {
+  test('resetGame は遅延 generated throw chain hand_add queue をクリアする', () => {
+    const adapter = require('../game/turn/pipeline_ui_adapter');
+    const queuedBoard = Array.from({ length: 8 }, () => Array(8).fill(0));
+    const queuedPipeline = {
+      applyTurnSafe: jest.fn(() => ({
+        ok: true,
+        cardState: { markers: [], turnIndex: 1 },
+        gameState: { board: queuedBoard },
+        events: [],
+        presentationEvents: [
+          { type: 'CARD_USED', player: 'black', cardId: 'double_01', meta: { owner: 'black', cost: 24, name: '二連投石' } },
+          {
+            type: 'HAND_ADD',
+            player: 'black',
+            cardId: 'triple_01',
+            count: 1,
+            reason: 'generated_throw_chain',
+            meta: { sourceType: 'DOUBLE_PLACE', generatedName: '三連投石' }
+          }
+        ]
+      }))
+    };
+
+    const queuedUseResult = adapter.runTurnWithAdapter(
+      { markers: [], turnIndex: 1 },
+      { board: queuedBoard },
+      'black',
+      { type: 'use_card', useCardId: 'double_01' },
+      queuedPipeline
+    );
+
+    expect(queuedUseResult.deferredGeneratedThrowChainHandAdd).toMatchObject({
+      playerKey: 'black',
+      count: 1,
+      reason: 'generated_throw_chain'
+    });
+
+    global.cpuSmartness = { black: 2, white: 3 };
+    global.createGameState = jest.fn(() => ({
+      currentPlayer: global.BLACK,
+      turnNumber: 0,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    }));
+    global.initCardState = jest.fn(() => {});
+    global.emitLogAdded = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+    global.emitGameStateChange = jest.fn();
+    global.updateCpuCharacter = jest.fn();
+    global.dealInitialCards = jest.fn(() => new Promise(() => {}));
+    global.cardState = {
+      pendingEffectByPlayer: {},
+      presentationEvents: [],
+      _presentationEventsPersist: []
+    };
+
+    const rm = require('../game/turn-manager');
+    rm.setUIImpl({
+      resetTransientUIState: jest.fn(),
+      readCpuSmartness: () => ({ black: 2, white: 3 }),
+      clearLogUI: jest.fn()
+    });
+
+    rm.resetGame();
+
+    const nextBoard = Array.from({ length: 8 }, () => Array(8).fill(0));
+    const nextPipeline = {
+      applyTurnSafe: jest.fn(() => ({
+        ok: true,
+        cardState: { markers: [], turnIndex: 99 },
+        gameState: { board: nextBoard },
+        events: [{ type: 'place', row: 0, col: 0, player: 'black', turnIndex: 99 }],
+        presentationEvents: []
+      }))
+    };
+
+    const nextPlaceResult = adapter.runTurnWithAdapter(
+      { markers: [], turnIndex: 99 },
+      { board: nextBoard },
+      'black',
+      { type: 'place', row: 0, col: 0 },
+      nextPipeline
+    );
+
+    expect(nextPlaceResult.playbackEvents.map((ev) => ev.type)).toEqual(['place_hand_animation']);
+  });
+
+  test('network mode の resetGame は reset_game command publish を送る', async () => {
     const publishSnapshot = jest.fn(() => Promise.resolve({ ok: true }));
     global.MATCH_MODE = 'network';
     global.NetworkMatchClient = {
@@ -187,6 +312,10 @@ describe('turn-manager scheduling', () => {
     expect(publishSnapshot.mock.calls[0][0]).toMatchObject({
       playerKey: 'white',
       actionType: 'reset_game',
+      action: {
+        type: 'reset_game',
+        playerKey: 'white'
+      },
       playbackEvents: []
     });
   });

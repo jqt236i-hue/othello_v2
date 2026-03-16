@@ -33,7 +33,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
       m.owner === 'black' &&
       m.data &&
       m.data.type === 'EXTREME_HYPERACTIVE' &&
-      m.data.flipEvadeRemaining === 1
+      m.data.flipEvadeRemaining === 3
     ));
     expect(marker).toBeTruthy();
   });
@@ -61,7 +61,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 1 }
+      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3 }
     });
 
     const events = [];
@@ -122,7 +122,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 1 }
+      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3 }
     });
 
     const events = [];
@@ -147,7 +147,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
     expect(movedTarget.to).not.toEqual({ row: 1, col: 4 });
   });
 
-  test('反転回避は1回だけ発動する', () => {
+  test('反転回避は3回まで発動する', () => {
     const prng = makePrng();
     const cardState = CardLogic.createCardState(prng);
     const gameState = {
@@ -165,41 +165,44 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 1 }
+      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3 }
     });
 
-    const first = CardLogic.resolveHyperactiveFlipEvasion(
+    let currentCell = [3, 3];
+    for (const remaining of [2, 1, 0]) {
+      const res = CardLogic.resolveHyperactiveFlipEvasion(
+        cardState,
+        gameState,
+        [currentCell],
+        'white',
+        { random: () => 0 }
+      );
+
+      expect(res && res.moved && res.moved.length).toBe(1);
+      expect(res && res.remainingFlips && res.remainingFlips.length).toBe(0);
+
+      const marker = cardState.markers.find((m) => m && m.kind === 'specialStone' && m.data && m.data.type === 'EXTREME_HYPERACTIVE');
+      expect(marker).toBeTruthy();
+      expect(marker.data.flipEvadeRemaining).toBe(remaining);
+      currentCell = [marker.row, marker.col];
+    }
+
+    const exhausted = CardLogic.resolveHyperactiveFlipEvasion(
       cardState,
       gameState,
-      [[3, 3]],
+      [currentCell],
       'white',
       { random: () => 0 }
     );
 
-    expect(first && first.moved && first.moved.length).toBe(1);
-    expect(first && first.remainingFlips && first.remainingFlips.length).toBe(0);
+    expect(exhausted && exhausted.moved && exhausted.moved.length).toBe(0);
+    expect(exhausted && exhausted.remainingFlips).toEqual([currentCell]);
 
-    const markerAfterFirst = cardState.markers.find((m) => m && m.kind === 'specialStone' && m.data && m.data.type === 'EXTREME_HYPERACTIVE');
-    expect(markerAfterFirst).toBeTruthy();
-    expect(markerAfterFirst.row).toBe(3);
-    expect(markerAfterFirst.col).toBe(4);
-    expect(markerAfterFirst.data.flipEvadeRemaining).toBe(0);
-
-    const second = CardLogic.resolveHyperactiveFlipEvasion(
-      cardState,
-      gameState,
-      [[3, 4]],
-      'white',
-      { random: () => 0 }
-    );
-
-    expect(second && second.moved && second.moved.length).toBe(0);
-    expect(second && second.remainingFlips).toEqual([[3, 4]]);
-
-    const markerAfterSecond = cardState.markers.find((m) => m && m.kind === 'specialStone' && m.data && m.data.type === 'EXTREME_HYPERACTIVE');
-    expect(markerAfterSecond).toBeTruthy();
-    expect(markerAfterSecond.row).toBe(3);
-    expect(markerAfterSecond.col).toBe(4);
+    const markerAfterExhausted = cardState.markers.find((m) => m && m.kind === 'specialStone' && m.data && m.data.type === 'EXTREME_HYPERACTIVE');
+    expect(markerAfterExhausted).toBeTruthy();
+    expect(markerAfterExhausted.row).toBe(currentCell[0]);
+    expect(markerAfterExhausted.col).toBe(currentCell[1]);
+    expect(markerAfterExhausted.data.flipEvadeRemaining).toBe(0);
   });
 
   test('移動先が占有マスでも石を退避させて進入する', () => {
@@ -220,7 +223,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 1 }
+      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3 }
     });
 
     const events = [];

@@ -59,13 +59,11 @@ describe('BOARD_EXPANSION sound timing', () => {
     delete global.ensureCurrentPlayerCanActOrPass;
   });
 
-  test('盤面拡張の確定後に効果音を鳴らす', async () => {
+  test('盤面拡張の確定後も selection handler は効果音を直接鳴らさない', async () => {
     await handleBoardExpansionSelection(3, 0, 'black');
 
-    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
-    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('board_expansion_reveal');
-    expect(global.emitBoardUpdate.mock.invocationCallOrder[0]).toBeLessThan(global.SoundEngine.playEffectByKey.mock.invocationCallOrder[0]);
-    expect(global.emitGameStateChange.mock.invocationCallOrder[0]).toBeLessThan(global.SoundEngine.playEffectByKey.mock.invocationCallOrder[0]);
+    expect(global.SoundEngine.init).not.toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
   });
 
   test('盤面拡張神の1つ目選択では効果音を鳴らさない', async () => {
@@ -82,10 +80,10 @@ describe('BOARD_EXPANSION sound timing', () => {
     expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
   });
 
-  test('盤面拡張神の2つ目選択で効果音を鳴らす', async () => {
+  test('盤面拡張神の2つ目選択でも selection handler は効果音を直接鳴らさない', async () => {
     await handleBoardExpansionSelection(7, 7, 'white');
 
-    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
-    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('board_expansion_reveal');
+    expect(global.SoundEngine.init).not.toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
   });
 });

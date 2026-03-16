@@ -97,6 +97,27 @@ async function processBombs(precomputedEvents = null) {
 async function explodeBombUI(row, col) {
     if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.bombExploded(posToNotation(row, col)));
 
+    const hasCellAt = (targetRow, targetCol) => {
+        if (targetRow >= 0 && targetRow < 8 && targetCol >= 0 && targetCol < 8) return true;
+
+        const expansion = (typeof gameState !== 'undefined' && gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
+            ? gameState.boardExpansion
+            : null;
+        if (!expansion) return false;
+
+        const cells = Array.isArray(expansion.cells)
+            ? expansion.cells
+            : (expansion.active ? [expansion] : []);
+        return cells.some((cell) => {
+            if (!cell || typeof cell !== 'object') return false;
+            const cellRow = Number(cell.row);
+            const cellCol = Number.isInteger(cell.col)
+                ? cell.col
+                : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : null));
+            return cellRow === targetRow && cellCol === targetCol;
+        });
+    };
+
     // Animate 3x3 destruction using canonical presentation path when available
     // Note: Logical stones are already removed by CardLogic, but UI is stale so we can animate
     const targets = [];
@@ -104,7 +125,7 @@ async function explodeBombUI(row, col) {
         for (let dc = -1; dc <= 1; dc++) {
             const r = row + dr;
             const c = col + dc;
-            if (r >= 0 && r < 8 && c >= 0 && c < 8) {
+            if (hasCellAt(r, c)) {
                 // Build a destroy target payload so AnimationEngine can handle fade-out
                 targets.push({ r, col: c, after: { color: 0, special: null, timer: null } });
             }

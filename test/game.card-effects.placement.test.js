@@ -29,6 +29,8 @@ describe('applyProtectionAfterMove', () => {
             silverStoneUsed: true,
             chargeGained: 3,
             goldStoneUsed: true,
+            crystalStoneUsed: true,
+            crystalStoneGain: 12,
             plunderAmount: 5,
             protected: true,
             permaProtected: true,
@@ -48,9 +50,22 @@ describe('applyProtectionAfterMove', () => {
         // Check a couple of expected messages
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.rainbowCharge(3));
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.silverCharge(3));
+        expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.crystalCharge(12));
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.plunderPoints(5));
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.protectNext('黒'));
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.ultimateHyperactivePlaced('黒'));
         expect(res.pendingType).toBe('FREE_PLACEMENT');
+    });
+
+    test('logs crystal zero-gain wording without implying a bonus was gained', () => {
+        const move = { row: 2, col: 3, player: 1 };
+        const effects = {
+            crystalStoneUsed: true,
+            crystalStoneGain: 0
+        };
+
+        applyProtectionAfterMove(move, effects);
+
+        expect(global.emitLogAdded).toHaveBeenCalledWith('水晶の意志：数字マスなしで増加なし');
     });
 });

@@ -1,0 +1,70 @@
+  console.warn
+    [presentation] BoardOps.emitPresentationEvent not available (events will be persisted)
+
+    [0m [90m 54 |[39m     [36mtry[39m {
+     [90m 55 |[39m         [36mif[39m ([33m![39m__presentation_warned_no_boardops) {
+    [31m[1m>[22m[39m[90m 56 |[39m             console[33m.[39mwarn([32m'[presentation] BoardOps.emitPresentationEvent not available (events will be persisted)'[39m)[33m;[39m
+     [90m    |[39m                     [31m[1m^[22m[39m
+     [90m 57 |[39m             __presentation_warned_no_boardops [33m=[39m [36mtrue[39m[33m;[39m
+     [90m 58 |[39m         }
+     [90m 59 |[39m     } [36mcatch[39m (e) { [90m/* ignore */[39m }[0m
+
+      at Object.warn [as emitPresentationEvent] (game/logic/presentation.js:56:21)
+      at Object.emitPresentationEvent [as addMarker] (game/logic/cards/markers.js:364:36)
+      at Object.addMarker (game/logic/cards.js:1623:38)
+      at Object.addMarker [as applyPlacementEffects] (game/logic/cards-internal/effect-timing.js:487:21)
+      at Object.applyPlacementEffects (game/logic/cards.js:4224:39)
+      at Object.applyPlacementEffects (test/game.ultimate-hyperactive-god.test.js:26:31)
+
+FAIL test/game.ultimate-hyperactive-god.test.js
+  ULTIMATE_HYPERACTIVE_GOD
+    ﾃ・applyPlacementEffects places ultimate hyperactive marker (51 ms)
+    竏・owner turn only decrements duration, and on 10th owner turn it self-destructs (11 ms)
+    竏・moves two times with straight-line jumps and can jump over occupied stones (1 ms)
+    竏・self-destructs immediately when no reachable empty cell exists in straight 1-5 range (1 ms)
+    竏・flips capturable stones after landing (same rule as hyperactive) (1 ms)
+    竏・when surrounded with no move destination, only itself disappears (1 ms)
+    竏・active ultimate hyperactive is no longer treated as flip-protected context stone
+    竏・ultimate hyperactive can evade flips repeatedly during duration (6 ms)
+    ﾃ・ultimate hyperactive flip evasion is capped at 5 uses
+    竏・expired ultimate hyperactive can be swapped (3 ms)
+
+  笳・ULTIMATE_HYPERACTIVE_GOD 窶ｺ applyPlacementEffects places ultimate hyperactive marker
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 5
+    Received: 3
+
+      38 |     expect(marker).toBeTruthy();
+      39 |     expect(marker.data.remainingOwnerTurns).toBe(10);
+    > 40 |     expect(marker.data.flipEvadeRemaining).toBe(5);
+         |                                            ^
+      41 |   });
+      42 |
+      43 |   test('owner turn only decrements duration, and on 10th owner turn it self-destructs', () => {
+
+      at Object.toBe (test/game.ultimate-hyperactive-god.test.js:40:44)
+
+  笳・ULTIMATE_HYPERACTIVE_GOD 窶ｺ ultimate hyperactive flip evasion is capped at 5 uses
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 4
+    Received: 2
+
+      332 |       const markerAfter = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
+      333 |       expect(markerAfter).toBeTruthy();
+    > 334 |       expect(markerAfter.data.flipEvadeRemaining).toBe(4 - i);
+          |                                                   ^
+      335 |       expect(gameState.board[markerAfter.row][markerAfter.col]).toBe(Core.WHITE);
+      336 |     }
+      337 |
+
+      at Object.toBe (test/game.ultimate-hyperactive-god.test.js:334:51)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 8 passed, 10 total
+Snapshots:   0 total
+Time:        0.451 s, estimated 1 s
+Ran all test suites matching /test\\game.ultimate-hyperactive-god.test.js/i.

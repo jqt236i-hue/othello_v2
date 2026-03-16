@@ -37,7 +37,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     );
     expect(marker).toBeTruthy();
     expect(marker.data.remainingOwnerTurns).toBe(10);
-    expect(marker.data.flipEvadeRemaining).toBe(5);
+    expect(marker.data.flipEvadeRemaining).toBe(3);
   });
 
   test('owner turn only decrements duration, and on 10th owner turn it self-destructs', () => {
@@ -294,7 +294,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     expect(events2.some((ev) => ev && ev.type === 'ultimate_hyperactive_moved_immediate')).toBe(true);
   });
 
-  test('ultimate hyperactive flip evasion is capped at 5 uses', () => {
+  test('ultimate hyperactive flip evasion is capped at 3 uses', () => {
     const prng = { shuffle: (arr) => arr, random: () => 0 };
     const cardState = CardLogic.createCardState(prng);
     const gameState = {
@@ -312,7 +312,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
       data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 }
     });
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 3; i++) {
       const markerBefore = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
       expect(markerBefore).toBeTruthy();
 
@@ -331,7 +331,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
 
       const markerAfter = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
       expect(markerAfter).toBeTruthy();
-      expect(markerAfter.data.flipEvadeRemaining).toBe(4 - i);
+      expect(markerAfter.data.flipEvadeRemaining).toBe(2 - i);
       expect(gameState.board[markerAfter.row][markerAfter.col]).toBe(Core.WHITE);
     }
 

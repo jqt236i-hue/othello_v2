@@ -337,6 +337,21 @@ function preloadWorkStoneImages() {
     }
 }
 
+function preloadImmediateSpecialStoneImages() {
+    if (window._immediateSpecialStoneImagesPreloaded) return;
+    window._immediateSpecialStoneImagesPreloaded = true;
+    try {
+        if (typeof window.preloadStoneVisualEffectKeys === 'function') {
+            window.preloadStoneVisualEffectKeys([
+                'goldStone',
+                'silverStone',
+                'rainbowStone',
+                'crystalStone'
+            ]);
+        }
+    } catch (e) { /* defensive */ }
+}
+
 // MutationObserver fallback: watches board DOM changes and reapplies missing WORK visuals
 function setupWorkVisualsObserver() {
     if (window._workVisualsObserver) return; // already set
@@ -359,6 +374,7 @@ function setupWorkVisualsObserver() {
 function initWorkVisualsHelpers() {
     try {
         preloadWorkStoneImages();
+        preloadImmediateSpecialStoneImages();
         setupWorkVisualsObserver();
         // ensure visuals once at init time
         setTimeout(() => ensureWorkVisualsApplied(), 60);
@@ -494,6 +510,7 @@ function initWorkVisualDiagnosticsAuto() {
 
 // Expose helper in UI global for the single entrypoint to call
 window.initWorkVisualsHelpers = initWorkVisualsHelpers;
+window.preloadImmediateSpecialStoneImages = preloadImmediateSpecialStoneImages;
 window.initWorkVisualDiagnosticsAuto = initWorkVisualDiagnosticsAuto;
 window.clearEffectLivePanel = clearEffectLivePanel;
 

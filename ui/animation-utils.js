@@ -30,6 +30,15 @@ function _setCardAnimatingState(locked) {
     if (typeof window !== 'undefined') window.isCardAnimating = !!locked;
 }
 
+function _setProcessingState(locked) {
+    if (__playback_state_utils && typeof __playback_state_utils.setProcessing === 'function') {
+        __playback_state_utils.setProcessing(locked);
+        return;
+    }
+    if (typeof isProcessing !== 'undefined') isProcessing = !!locked;
+    if (typeof window !== 'undefined') window.isProcessing = !!locked;
+}
+
 function _normalizeHandOwnerKey(value) {
     if (value === 'white' || value === -1 || value === '-1') return 'white';
     return 'black';
@@ -106,6 +115,31 @@ function _resolveCardStateForHandAnimations() {
     return null;
 }
 
+function _normalizeCardSourceRect(rectLike) {
+    if (!rectLike || typeof rectLike !== 'object') return null;
+    const left = Number(rectLike.left);
+    const top = Number(rectLike.top);
+    const width = Number(rectLike.width);
+    const height = Number(rectLike.height);
+    const right = Number(rectLike.right);
+    const bottom = Number(rectLike.bottom);
+    if (![left, top, width, height, right, bottom].every(Number.isFinite)) return null;
+    return { left, top, width, height, right, bottom };
+}
+
+function _resolveCardUseSourceRect(sourceCardEl, sourceCardRect) {
+    let liveRect = null;
+    if (sourceCardEl && typeof sourceCardEl.getBoundingClientRect === 'function') {
+        try {
+            liveRect = _normalizeCardSourceRect(sourceCardEl.getBoundingClientRect());
+        } catch (e) { /* ignore */ }
+    }
+    if (liveRect && liveRect.width > 0 && liveRect.height > 0) return liveRect;
+    const snapshotRect = _normalizeCardSourceRect(sourceCardRect);
+    if (snapshotRect) return snapshotRect;
+    return liveRect;
+}
+
 function _getHandRevealState() {
     try {
         if (typeof window === 'undefined') return null;
@@ -127,6 +161,69 @@ function _setHandRevealCount(playerKey, visibleCount, reason) {
     const ownerKey = _normalizeHandOwnerKey(playerKey);
     const safeCount = Math.max(0, Math.trunc(Number(visibleCount) || 0));
     _setHandRevealState({ playerKey: ownerKey, visibleCount: safeCount, reason: reason || null });
+}
+
+const THROW_CHAIN_HAND_FADE_DURATION = '1s';
+
+function _clearHandFadeInState(token) {
+    try {
+        if (typeof window === 'undefined') return;
+        const activeState = (window.__handFadeInState && typeof window.__handFadeInState === 'object')
+            ? window.__handFadeInState
+            : null;
+        const activeHint = (window.__handFadeInHint && typeof window.__handFadeInHint === 'object')
+            ? window.__handFadeInHint
+            : null;
+        if (!token || (activeState && activeState.token === token)) {
+            window.__handFadeInState = null;
+        }
+        if (!token || (activeHint && activeHint.token === token)) {
+            window.__handFadeInHint = null;
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function _applyQueuedHandFadeIn(fadeState, payload) {
+    if (!fadeState || !fadeState.token) return;
+    try {
+        if (typeof window !== 'undefined') {
+            const activeState = (window.__handFadeInState && typeof window.__handFadeInState === 'object')
+                ? window.__handFadeInState
+                : null;
+            if (!activeState || activeState.token !== fadeState.token) return;
+        }
+
+        const handSelector = _resolveHandSelectorByOwner(fadeState.playerKey);
+        const latestCard = document.querySelector(`${handSelector} .card-item:last-child`);
+        if (latestCard) {
+            latestCard.classList.remove('card-fade-prep');
+            if (payload && payload.reason === 'generated_throw_chain') {
+                latestCard.style.setProperty('--card-fade-in-duration', THROW_CHAIN_HAND_FADE_DURATION);
+            } else {
+                latestCard.style.removeProperty('--card-fade-in-duration');
+            }
+            latestCard.classList.add('card-fade-in');
+        }
+    } catch (e) { /* ignore */ }
+    _clearHandFadeInState(fadeState.token);
+}
+
+function _scheduleQueuedHandFadeIn(fadeState, payload) {
+    if (!fadeState || !fadeState.token) return;
+
+    const run = () => _applyQueuedHandFadeIn(fadeState, payload || null);
+    try {
+        const raf = (typeof requestAnimationFrame === 'function')
+            ? requestAnimationFrame
+            : ((typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function')
+                ? window.requestAnimationFrame.bind(window)
+                : null);
+        if (typeof raf === 'function') {
+            raf(run);
+            return;
+        }
+    } catch (e) { /* ignore */ }
+    run();
 }
 
 function _installAnimationResolveFallback(done, timeoutMs) {
@@ -377,9 +474,9 @@ function playHandAnimation(player, row, col, onComplete) {
         } catch (e) { /* ignore */ }
     };
     const unlockProcessing = () => {
-        if (typeof window !== 'undefined') window.isProcessing = false; else isProcessing = false;
+        _setProcessingState(false);
     };
-    if (typeof window !== 'undefined') window.isProcessing = true; else isProcessing = true; // Lock interactions
+    _setProcessingState(true);
 
     const boardRoot = (typeof boardEl !== 'undefined' && boardEl) ? boardEl : document.getElementById('board');
     const targetCell = boardRoot ? boardRoot.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`) : null;
@@ -665,6 +762,57 @@ function playClearHandAnimation(payload) {
     });
 }
 
+function _finalizeHandAddAnimation(payload, options) {
+    const data = payload || {};
+    const opts = options || {};
+    const toPlayerKey = _normalizeHandOwnerKey(data.player);
+    const fadeState = {
+        playerKey: toPlayerKey,
+        count: Number.isFinite(data.count) ? data.count : 1,
+        token: `hand-fade-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    };
+
+    let revealState = _getHandRevealState();
+    if (revealState && revealState.playerKey === toPlayerKey && Number.isFinite(revealState.visibleCount)) {
+        const drawCount = Number.isFinite(data.count) ? Math.max(1, Math.trunc(data.count)) : 1;
+        _setHandRevealCount(toPlayerKey, Number(revealState.visibleCount) + drawCount, revealState.reason || null);
+    }
+
+    try {
+        if (typeof window !== 'undefined') {
+            window.__handFadeInState = fadeState;
+            window.__handFadeInHint = fadeState;
+        }
+    } catch (e) { /* ignore */ }
+
+    try {
+        if (typeof renderCardUI === 'function') renderCardUI();
+        _scheduleQueuedHandFadeIn(fadeState, data);
+    } catch (e) {
+        _clearHandFadeInState(fadeState.token);
+    }
+
+    revealState = _getHandRevealState();
+    if (revealState && revealState.playerKey === toPlayerKey && Number.isFinite(revealState.visibleCount)) {
+        const resolvedCardState = _resolveCardStateForHandAnimations();
+        const hand = (resolvedCardState && resolvedCardState.hands && Array.isArray(resolvedCardState.hands[toPlayerKey]))
+            ? resolvedCardState.hands[toPlayerKey]
+            : null;
+        const handLen = hand ? hand.length : null;
+        if (Number.isFinite(handLen) && Number(revealState.visibleCount) >= handLen) {
+            _setHandRevealState(null);
+        }
+    }
+
+    if (opts.pulseDeck === false) return;
+
+    try {
+        if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.pulseDeckUI === 'function') {
+            __uiImpl.pulseDeckUI();
+        }
+    } catch (e) { /* ignore */ }
+}
+
 /**
  * ドロー時のハンド演出
  * Hand carries a card from deck to hand area.
@@ -683,48 +831,7 @@ function playDrawCardHandAnimation(payload) {
                 if (typeof window !== 'undefined') window.__drawHandAnimActive = false;
             } catch (e) { /* ignore */ }
 
-            let revealState = _getHandRevealState();
-            if (revealState && revealState.playerKey === toPlayerKey && Number.isFinite(revealState.visibleCount)) {
-                const drawCount = Number.isFinite(data.count) ? Math.max(1, Math.trunc(data.count)) : 1;
-                _setHandRevealCount(toPlayerKey, Number(revealState.visibleCount) + drawCount, revealState.reason || null);
-            }
-
-            try {
-                if (typeof window !== 'undefined') {
-                    window.__handFadeInHint = { playerKey: toPlayerKey, count: Number.isFinite(data.count) ? data.count : 1 };
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (typeof renderCardUI === 'function') renderCardUI();
-                const handSelector = _resolveHandSelectorByOwner(toPlayerKey);
-                const latestCard = document.querySelector(`${handSelector} .card-item:last-child`);
-                if (latestCard) {
-                    latestCard.classList.remove('card-fade-prep');
-                    latestCard.classList.add('card-fade-in');
-                }
-                if (typeof window !== 'undefined') {
-                    window.__handFadeInHint = null;
-                }
-            } catch (e) { /* ignore */ }
-
-            revealState = _getHandRevealState();
-            if (revealState && revealState.playerKey === toPlayerKey && Number.isFinite(revealState.visibleCount)) {
-                const resolvedCardState = _resolveCardStateForHandAnimations();
-                const hand = (resolvedCardState && resolvedCardState.hands && Array.isArray(resolvedCardState.hands[toPlayerKey]))
-                    ? resolvedCardState.hands[toPlayerKey]
-                    : null;
-                const handLen = hand ? hand.length : null;
-                if (Number.isFinite(handLen) && Number(revealState.visibleCount) >= handLen) {
-                    _setHandRevealState(null);
-                }
-            }
-
-            try {
-                if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.pulseDeckUI === 'function') {
-                    __uiImpl.pulseDeckUI();
-                }
-            } catch (e) { /* ignore */ }
+            _finalizeHandAddAnimation(data, { pulseDeck: true });
 
             resolve();
         };
@@ -850,6 +957,99 @@ function playDrawCardHandAnimation(payload) {
     });
 }
 
+function playDirectHandAddAnimation(payload) {
+    const data = payload || {};
+    return new Promise((resolve) => {
+        _finalizeHandAddAnimation(data, { pulseDeck: false });
+        resolve();
+    });
+}
+
+function _canViewerSeeTrapPlacement(playerKey) {
+    try {
+        const root = (typeof window !== 'undefined' && window)
+            ? window
+            : ((typeof globalThis !== 'undefined' && globalThis) ? globalThis : null);
+        if (!root) return true;
+        if (root.BOARD_VIEWER_KEY === 'black' || root.BOARD_VIEWER_KEY === 'white') {
+            return root.BOARD_VIEWER_KEY === playerKey;
+        }
+        if (root.LOCAL_PLAYER_KEY === 'black' || root.LOCAL_PLAYER_KEY === 'white') {
+            return root.LOCAL_PLAYER_KEY === playerKey;
+        }
+        if (root.DEBUG_HUMAN_VS_HUMAN === true) return true;
+    } catch (e) { /* ignore */ }
+    return true;
+}
+
+function _resolveTrapPlacementBoardElement() {
+    try {
+        if (typeof boardEl !== 'undefined' && boardEl && typeof boardEl.querySelector === 'function') {
+            return boardEl;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+            return document.getElementById('board');
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function playTrapPlacementFlash(row, col, playerKey) {
+    if (!_canViewerSeeTrapPlacement(playerKey)) return;
+
+    const board = _resolveTrapPlacementBoardElement();
+    if (!board || typeof board.querySelector !== 'function') return;
+
+    const imagePath = playerKey === 'black'
+        ? 'assets/images/stones/trap_stone-black.png'
+        : 'assets/images/stones/trap_stone-white.png';
+    const flashId = `trapflash-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const durationMs = 760;
+    const stepMs = 90;
+    const endAt = Date.now() + durationMs;
+
+    function ensureOverlay() {
+        const cell = board.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+        if (!cell) return null;
+        const baseDisc = cell.querySelector('.disc');
+        if (!baseDisc) return null;
+        const domDoc = cell.ownerDocument;
+        if (!domDoc || typeof domDoc.createElement !== 'function') return null;
+
+        let overlay = cell.querySelector(`.trap-place-overlay[data-trap-flash-id="${flashId}"]`);
+        if (!overlay) {
+            overlay = domDoc.createElement('div');
+            overlay.className = 'disc special-stone trap-stone trap-place-flash trap-place-overlay';
+            overlay.dataset.trapFlashId = flashId;
+            cell.appendChild(overlay);
+        }
+        try {
+            overlay.style.setProperty('--special-stone-image', `url('${imagePath}')`);
+        } catch (e) { /* ignore */ }
+        return overlay;
+    }
+
+    function clearOverlay() {
+        const cell = board.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+        if (!cell) return;
+        const target = cell.querySelector(`.trap-place-overlay[data-trap-flash-id="${flashId}"]`);
+        if (target && target.parentNode) {
+            target.parentNode.removeChild(target);
+        }
+    }
+
+    (function tick() {
+        ensureOverlay();
+        if (Date.now() >= endAt) {
+            clearOverlay();
+            return;
+        }
+        setTimeout(tick, stepMs);
+    })();
+}
+
 /**
  * カード使用時のハンド搬送演出
  * Hand carries a used card from hand side to charge UI.
@@ -957,7 +1157,7 @@ function playCardUseHandAnimation(payload) {
         movingCard.style.zIndex = '1300';
         movingCard.style.transform = 'translate(0px, 0px)';
         movingCard.style.margin = '0';
-        const srcRect = sourceCardEl ? sourceCardEl.getBoundingClientRect() : null;
+        const srcRect = _resolveCardUseSourceRect(sourceCardEl, data.sourceCardRect);
         const cardWidth = srcRect ? srcRect.width : 91;
         const cardHeight = srcRect ? srcRect.height : 124;
         const startX = srcRect ? srcRect.left : (handRect.left + handRect.width / 2 - cardWidth / 2);
@@ -972,6 +1172,7 @@ function playCardUseHandAnimation(payload) {
 
         const dx = targetX - startX;
         const dy = targetY - startY;
+        const liftY = fromBottom ? -14 : 14;
         const waitHold = () => new Promise((r) => _Timer().setTimeout(r, HOLD_MS, sc));
         const cleanup = () => {
             try {
@@ -992,6 +1193,15 @@ function playCardUseHandAnimation(payload) {
         (async () => {
             await _animateCompat(movingCard, [
                 { transform: 'translate(0px, 0px)' },
+                { transform: `translate(0px, ${liftY}px)` }
+            ], {
+                duration: 140,
+                easing: 'ease-out',
+                fill: 'forwards'
+            }, sc);
+
+            await _animateCompat(movingCard, [
+                { transform: `translate(0px, ${liftY}px)` },
                 { transform: `translate(${dx}px, ${dy}px)` }
             ], {
                 duration: 320,
@@ -1156,6 +1366,8 @@ if (typeof module !== 'undefined' && module.exports) {
         playHandAnimation,
         playClearHandAnimation,
         playDrawCardHandAnimation,
+        playDirectHandAddAnimation,
+        playTrapPlacementFlash,
         playCardUseHandAnimation,
         animateHyperactiveMove,
         animateStrongWillApply
@@ -1165,5 +1377,7 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof window !== 'undefined') {
     window.playClearHandAnimation = playClearHandAnimation;
     window.playDrawCardHandAnimation = playDrawCardHandAnimation;
+    window.playDirectHandAddAnimation = playDirectHandAddAnimation;
+    window.playTrapPlacementFlash = playTrapPlacementFlash;
     window.playCardUseHandAnimation = playCardUseHandAnimation;
 }

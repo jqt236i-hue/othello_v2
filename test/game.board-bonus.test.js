@@ -107,4 +107,47 @@ describe('数字マス（初期配置・配置報酬）', () => {
       expect(Number(bonus[key] || 0)).toBe(0);
     }
   });
+
+  test('CRYSTAL_STONE は次の数字マス布石だけを4倍にして配置石が消滅する', () => {
+    const prng = createDeterministicPrng();
+    const cardState = CardLogic.createCardState(prng);
+    const targetKey = Object.keys(cardState.boardBonusByCell || {}).find((key) => {
+      const parts = String(key).split(',').map(Number);
+      return parts.length === 2 && Number.isInteger(parts[0]) && Number.isInteger(parts[1]) && parts[1] <= 5;
+    });
+
+    expect(targetKey).toBeTruthy();
+    const [row, col] = String(targetKey).split(',').map(Number);
+    const targetBonus = Number(cardState.boardBonusByCell[targetKey] || 0);
+    expect(targetBonus).toBeGreaterThan(0);
+
+    const gameState = {
+      board: Array(8).fill(null).map(() => Array(8).fill(Shared.EMPTY)),
+      currentPlayer: Shared.BLACK,
+      turnNumber: 1,
+      consecutivePasses: 0
+    };
+    gameState.board[row][col + 1] = Shared.WHITE;
+    gameState.board[row][col + 2] = Shared.BLACK;
+
+    cardState.pendingEffectByPlayer.black = { type: 'CRYSTAL_STONE', stage: 'awaitPlace' };
+    const blackChargeBefore = Number(cardState.charge.black || 0);
+
+    const result = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row, col },
+      prng
+    );
+
+    const placementEffects = result.events.find((ev) => ev && ev.type === 'placement_effects');
+    const bonusEvent = result.events.find((ev) => ev && ev.type === 'board_bonus_gain');
+
+    expect(Number(cardState.charge.black || 0) - blackChargeBefore).toBe(1 + (targetBonus * 4));
+    expect(bonusEvent).toMatchObject({ bonus: targetBonus, gained: targetBonus * 4, multiplier: 4, boostedBy: 'CRYSTAL_STONE' });
+    expect(placementEffects && placementEffects.effects).toMatchObject({ crystalStoneUsed: true, crystalStoneGain: targetBonus * 4, chargeGained: 1 });
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(gameState.board[row][col]).toBe(Shared.EMPTY);
+  });
 });

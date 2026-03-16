@@ -169,7 +169,7 @@
         { id: 'hyperactive_inherit_01', name: '多動の継承', type: 'HYPERACTIVE_INHERIT_WILL', cost: 11, desc: '盤面上の自分の石1つに多動状態を付与する。通常石・特殊石を問わず選択でき、他の状態とも併用可能。両者ターン開始時に1マス移動し、移動後に挟めば反転。反転対象時は1回だけマス移動で回避する。持続は10ターン（所有者ターン開始時のみ減算）。' },
 
         // EXTREME_HYPERACTIVE_WILL (極悪多動魔) - 1 card, cost: 35
-        { id: 'extreme_hyperactive_01', name: '極悪多動魔', type: 'EXTREME_HYPERACTIVE_WILL', cost: 35, desc: '次に置く石を極悪多動魔化。ターン制限なしの多動状態となり、両者ターン開始時に周囲8マス（空き・占有）からランダム1マス移動。占有マスを選んだ場合はその石を1マス退避させてから進入する。移動後に挟めば反転し、隣接1マス（周囲8マス）の石を敵味方問わず遠ざかるように1マス退避させる。退避先が無い石はその場に残る。反転対象時は1回だけマス移動で回避する。' },
+        { id: 'extreme_hyperactive_01', name: '極悪多動魔', type: 'EXTREME_HYPERACTIVE_WILL', cost: 35, desc: '次に置く石を極悪多動魔化。ターン制限なしの多動状態となり、両者ターン開始時に周囲8マス（空き・占有）からランダム1マス移動。占有マスを選んだ場合はその石を1マス退避させてから進入する。移動後に挟めば反転し、隣接1マス（周囲8マス）の石を敵味方問わず遠ざかるように1マス退避させる。退避先が無い石はその場に残る。反転対象時はマス移動で回避し、最大3回まで。' },
 
         // ESCAPE_WILL (逃げる意志) - 1 card, cost: 12
         { id: 'escape_01', name: '逃げる意志', type: 'ESCAPE_WILL', cost: 12, desc: '次に置く石を逃亡石化。両者ターン開始時に近くの石から逃げるように1マス移動し、移動先で挟める場合は反転。反転対象時は1回だけマス移動で回避し、移動先が無いと周囲8マスを爆破して消滅。' },
@@ -205,7 +205,10 @@
         { id: 'loss_will_01', name: '意志の喪失', type: 'LOSS_WILL', cost: 11, desc: '盤面上の特殊石をすべて通常石に戻す。敵味方を問わず、色は変わらない。' },
 
         // DOUBLE_PLACE (二連投石) - 1 card, cost: 24
-        { id: 'double_01', name: '二連投石', type: 'DOUBLE_PLACE', cost: 24, desc: 'このターン、石を2回置ける。' },
+        { id: 'double_01', name: '二連投石', type: 'DOUBLE_PLACE', cost: 24, desc: 'このターン、石を2回置ける。使用後、三連投石が手札に加わる。' },
+        { id: 'triple_01', name: '三連投石', type: 'TRIPLE_PLACE', cost: 24, desc: '生成専用。 このターン、石を3回置ける。使用後、四連投石が手札に加わる。', enabled: false },
+        { id: 'quad_01', name: '四連投石', type: 'QUAD_PLACE', cost: 24, desc: '生成専用。 このターン、石を4回置ける。使用後、無限投石が手札に加わる。', enabled: false },
+        { id: 'infinite_01', name: '無限投石', type: 'INFINITE_PLACE', cost: 50, desc: '生成専用。合法手が尽きるまで同じ手番で置き続け、置けなくなった時点で終了する。', enabled: false },
         // HEAVEN_BLESSING (天の恵み) - 1 card, cost: 3
         { id: 'heaven_01', name: '天の恵み', type: 'HEAVEN_BLESSING', cost: 3, desc: 'ランダムな候補5枚から1枚を選んで獲得する。' },
         // CONDEMN_WILL (断罪の意志) - 1 card, cost: 6
@@ -216,6 +219,12 @@
 
         // RAINBOW_STONE (虹の意志) - 1 card, cost: 10
         { id: 'rainbow_stone', name: '虹の意志', type: 'RAINBOW_STONE', cost: 10, desc: '次の反転で得る布石が6倍。使用後その石は消滅する。' },
+
+        // SILVER_STONE (銀の意志) - 1 card, cost: 3
+        { id: 'silver_stone', name: '銀の意志', type: 'SILVER_STONE', cost: 3, desc: '次の反転で得る布石が3倍。使用後その石は消滅する。' },
+
+        // CRYSTAL_STONE（水晶の意志） - 1 card, cost: 7
+        { id: 'crystal_stone', name: '水晶の意志', type: 'CRYSTAL_STONE', cost: 7, desc: '次に得る数字マスの布石が4倍。使用後その石は消滅する。' },
 
         // EXTEND_LIFE_WILL (延命の意志) - 1 card, cost: 2
         { id: 'extend_life_01', name: '延命の意志', type: 'EXTEND_LIFE_WILL', cost: 2, desc: '盤面上の自分の特殊石1つを選び、その持続ターン(remainingOwnerTurns)を2倍にする。' },
@@ -239,7 +248,7 @@
         { id: 'udg_01', name: '究極破壊神', type: 'ULTIMATE_DESTROY_GOD', cost: 25, desc: '反転0でも空きマスに配置可能。次に置く石を究極破壊神化。配置ターン即時＋自ターン開始時、周囲8マスの敵石を破壊。持続5ターン（配置ターン含め最大6回）。' },
 
         // ULTIMATE_HYPERACTIVE_GOD (究極多動神) - 1 card, cost: 28
-        { id: 'ultimate_hyperactive_01', name: '究極多動神', type: 'ULTIMATE_HYPERACTIVE_GOD', cost: 28, desc: '次に置く石を究極多動神化。両者ターン開始時に直線1〜5マス移動を2回行い、2マス以上は途中の石を飛び越える。移動後に挟めば反転。反転対象時はマス移動で回避し、最大5回まで。移動先が無いと消滅。特殊石として扱われ、10ターン後は自己消滅する。' },
+        { id: 'ultimate_hyperactive_01', name: '究極多動神', type: 'ULTIMATE_HYPERACTIVE_GOD', cost: 28, desc: '次に置く石を究極多動神化。両者ターン開始時に直線1〜5マス移動を2回行い、2マス以上は途中の石を飛び越える。移動後に挟めば反転。反転対象時はマス移動で回避し、最大3回まで。移動先が無いと消滅。特殊石として扱われ、10ターン後は自己消滅する。' },
 
         // BOARD_EXPANSION_WILL (盤面拡張) - 1 card, cost: 19
         { id: 'board_expand_01', name: '盤面拡張', type: 'BOARD_EXPANSION_WILL', cost: 19, desc: '盤面の左右どちらか外側に1マスを追加する。追加位置は左右端マスから選ぶ。1対局で1回のみ使用可能。' },
@@ -296,6 +305,9 @@
         'CROSS_BOMB',
         'X_BOMB',
         'DOUBLE_PLACE',
+        'TRIPLE_PLACE',
+        'QUAD_PLACE',
+        'INFINITE_PLACE',
         'HEAVEN_BLESSING',
         'CONDEMN_WILL',
         'PLUNDER_WILL',
@@ -306,6 +318,7 @@
         'GOLD_STONE',
         'RAINBOW_STONE',
         'SILVER_STONE',
+        'CRYSTAL_STONE',
         'EXTEND_LIFE_WILL',
         'CORROSION_WILL',
         'GUARD_WILL',

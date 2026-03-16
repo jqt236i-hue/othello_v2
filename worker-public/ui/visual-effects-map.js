@@ -57,6 +57,80 @@ function normalizeOwnerValue(owner) {
     return 1;
 }
 
+function getStoneVisualPathsForEffectKey(effectKey) {
+    const visualMap = getUiStoneVisualEffects();
+    const effect = visualMap[effectKey];
+    if (!effect || typeof effect !== 'object') return [];
+
+    const paths = [];
+    if (typeof effect.imagePath === 'string' && effect.imagePath) {
+        paths.push(effect.imagePath);
+    }
+    if (effect.imagePathByOwner && typeof effect.imagePathByOwner === 'object') {
+        for (const value of Object.values(effect.imagePathByOwner)) {
+            if (typeof value === 'string' && value) paths.push(value);
+        }
+    }
+    if (effect.imagePathByPlayer && typeof effect.imagePathByPlayer === 'object') {
+        for (const value of Object.values(effect.imagePathByPlayer)) {
+            if (typeof value === 'string' && value) paths.push(value);
+        }
+    }
+
+    return Array.from(new Set(paths));
+}
+
+function preloadStoneVisualEffectKeys(effectKeys) {
+    const root = (typeof window !== 'undefined' && window)
+        ? window
+        : ((typeof globalThis !== 'undefined' && globalThis) ? globalThis : null);
+    const ImageCtor = root && typeof root.Image === 'function'
+        ? root.Image
+        : ((typeof Image === 'function') ? Image : null);
+    const keys = Array.isArray(effectKeys) ? effectKeys : [effectKeys];
+    const paths = Array.from(new Set(
+        keys
+            .map((key) => String(key || '').trim())
+            .filter((key) => !!key)
+            .flatMap((key) => getStoneVisualPathsForEffectKey(key))
+    ));
+
+    if (!paths.length || !ImageCtor || !root) {
+        return { started: [], skipped: paths };
+    }
+
+    const cache = root.__preloadedStoneVisualPaths || (root.__preloadedStoneVisualPaths = Object.create(null));
+    const started = [];
+    const skipped = [];
+
+    for (const src of paths) {
+        const cacheKey = String(src);
+        if (cache[cacheKey] === 'started' || cache[cacheKey] === 'loaded') {
+            skipped.push(src);
+            continue;
+        }
+
+        cache[cacheKey] = 'started';
+        started.push(src);
+
+        try {
+            const img = new ImageCtor();
+            img.onload = function () {
+                cache[cacheKey] = 'loaded';
+            };
+            img.onerror = function () {
+                cache[cacheKey] = 'error';
+            };
+            try { img.decoding = 'async'; } catch (e) { /* ignore */ }
+            img.src = src;
+        } catch (e) {
+            cache[cacheKey] = 'error';
+        }
+    }
+
+    return { started, skipped };
+}
+
 /**
  * Robust fallback for trap reveal visuals.
  * Used when normal map application/DI timing fails and we still need the trap icon visible.
@@ -339,6 +413,8 @@ if (typeof module === 'object' && module.exports) {
         getEffectKeyForPendingType,
         SPECIAL_TYPE_TO_EFFECT_KEY: getUiSpecialTypeToEffectKey(),
         getEffectKeyForSpecialType,
+        getStoneVisualPathsForEffectKey,
+        preloadStoneVisualEffectKeys,
         normalizeOwnerValue,
         applyTrapStoneFallbackVisual,
         applyStoneVisualEffect,
@@ -366,6 +442,8 @@ if (typeof window !== 'undefined') {
         window.getEffectKeyForSpecialType = window.getEffectKeyForSpecialType || getEffectKeyForSpecialType;
     }
     window.normalizeOwnerValue = window.normalizeOwnerValue || normalizeOwnerValue;
+    window.getStoneVisualPathsForEffectKey = window.getStoneVisualPathsForEffectKey || getStoneVisualPathsForEffectKey;
+    window.preloadStoneVisualEffectKeys = window.preloadStoneVisualEffectKeys || preloadStoneVisualEffectKeys;
     window.applyTrapStoneFallbackVisual = window.applyTrapStoneFallbackVisual || applyTrapStoneFallbackVisual;
     window.applyStoneVisualEffect = applyStoneVisualEffect;
     window.removeStoneVisualEffect = removeStoneVisualEffect;

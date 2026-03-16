@@ -211,4 +211,27 @@ describe('SWAP_WITH_ENEMY normal-stone only policy', () => {
     expect(res && res.applied).toBe(true);
     expect(gameState.board[5][5]).toBe(1);
   });
+
+  test('TEMPT_WILL steals WORK anchor but converts it to a normal stone', () => {
+    const { cardState, gameState } = makeState();
+    cardState.pendingEffectByPlayer.black = { type: 'TEMPT_WILL', stage: 'selectTarget', cardId: 'tempt_01' };
+
+    gameState.board[5][5] = -1;
+    cardState.workAnchorPosByPlayer.white = { row: 5, col: 5 };
+    cardState.markers.push({
+      id: 4,
+      kind: 'specialStone',
+      row: 5,
+      col: 5,
+      owner: 'white',
+      data: { type: 'WORK', ownerColor: 'white', workStage: 2, remainingOwnerTurns: 3 }
+    });
+
+    const res = CardLogic.applyTemptWill(cardState, gameState, 'black', 5, 5);
+    expect(res && res.applied).toBe(true);
+    expect(gameState.board[5][5]).toBe(1);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(cardState.workAnchorPosByPlayer.white).toBeNull();
+    expect((cardState.markers || []).some((m) => m && m.row === 5 && m.col === 5 && m.data && m.data.type === 'WORK')).toBe(false);
+  });
 });

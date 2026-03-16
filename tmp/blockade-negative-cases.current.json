@@ -1,0 +1,1140 @@
+{
+  "summary": {
+    "count": 21,
+    "avgFuture": 0.381,
+    "negatives": 7,
+    "negativeAvgFuture": -2.4286
+  },
+  "cases": [
+    {
+      "seed": 19,
+      "ply": 83,
+      "player": "black",
+      "futureDiscDelta3Ply": -5,
+      "decisionReasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_emergency",
+        "hand_pressure"
+      ],
+      "blackCountBefore": 33,
+      "whiteCountBefore": 34,
+      "ownCornersBefore": 3,
+      "oppCornersBefore": 5,
+      "ownEdgesBefore": 10,
+      "oppEdgesBefore": 12,
+      "legalMoves": 0,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 1245,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": true
+        }
+      ]
+    },
+    {
+      "seed": 32,
+      "ply": 64,
+      "player": "white",
+      "futureDiscDelta3Ply": -5,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 31,
+      "whiteCountBefore": 27,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 3,
+      "ownEdgesBefore": 4,
+      "oppEdgesBefore": 19,
+      "legalMoves": 1,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 482,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "meteor_01",
+          "cardType": "METEOR_WILL",
+          "cardCost": 21,
+          "score": 351,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "clone_01",
+          "cardType": "CLONE_WILL",
+          "cardCost": 16,
+          "score": 11,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "instant_hyperactive_01",
+          "cardType": "INSTANT_HYPERACTIVE_WILL",
+          "cardCost": 2,
+          "score": -34,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "breeding_01",
+          "cardType": "BREEDING_WILL",
+          "cardCost": 16,
+          "score": -132,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 2,
+      "ply": 57,
+      "player": "white",
+      "futureDiscDelta3Ply": -2,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_hold_mode",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 12,
+      "whiteCountBefore": 42,
+      "ownCornersBefore": 1,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 15,
+      "oppEdgesBefore": 5,
+      "legalMoves": 1,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 318,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "rebuild_01",
+          "cardType": "REBUILD_WILL",
+          "cardCost": 0,
+          "score": 127,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "hyperactive_01",
+          "cardType": "HYPERACTIVE_WILL",
+          "cardCost": 8,
+          "score": -302,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "sacrifice_01",
+          "cardType": "SACRIFICE_WILL",
+          "cardCost": 5,
+          "score": -477,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "taboo_reverse_01",
+          "cardType": "TABOO_REVERSE_WILL",
+          "cardCost": 44,
+          "score": -499,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 9,
+      "ply": 30,
+      "player": "black",
+      "futureDiscDelta3Ply": -2,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 8,
+      "whiteCountBefore": 12,
+      "ownCornersBefore": 2,
+      "oppCornersBefore": 2,
+      "ownEdgesBefore": 0,
+      "oppEdgesBefore": 6,
+      "legalMoves": 5,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 206,
+          "shouldUse": true,
+          "minUseScore": 8,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "breeding_01",
+          "cardType": "BREEDING_WILL",
+          "cardCost": 16,
+          "score": -76,
+          "shouldUse": false,
+          "minUseScore": 8,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 10,
+      "ply": 11,
+      "player": "black",
+      "futureDiscDelta3Ply": -1,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 8,
+      "whiteCountBefore": 4,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 1,
+      "oppEdgesBefore": 0,
+      "legalMoves": 3,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 90,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "super_gravity_01",
+          "cardType": "SUPER_GRAVITY_WILL",
+          "cardCost": 14,
+          "score": -215.3,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 23,
+      "ply": 11,
+      "player": "white",
+      "futureDiscDelta3Ply": -1,
+      "decisionReasonTags": [
+        "decision:use",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 8,
+      "whiteCountBefore": 5,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 1,
+      "oppEdgesBefore": 1,
+      "legalMoves": 3,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 142,
+          "shouldUse": true,
+          "minUseScore": 6,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "hard_01",
+          "cardType": "PROTECTED_NEXT_STONE",
+          "cardCost": 1,
+          "score": 70,
+          "shouldUse": true,
+          "minUseScore": 6,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 31,
+      "ply": 42,
+      "player": "white",
+      "futureDiscDelta3Ply": -1,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 17,
+      "whiteCountBefore": 9,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 5,
+      "oppEdgesBefore": 5,
+      "legalMoves": 5,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 148,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "rebuild_01",
+          "cardType": "REBUILD_WILL",
+          "cardCost": 0,
+          "score": 137,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guardian_god_01",
+          "cardType": "GUARDIAN_GOD",
+          "cardCost": 10,
+          "score": -250.4,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 15,
+      "ply": 69,
+      "player": "white",
+      "futureDiscDelta3Ply": 0,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 29,
+      "whiteCountBefore": 34,
+      "ownCornersBefore": 1,
+      "oppCornersBefore": 3,
+      "ownEdgesBefore": 13,
+      "oppEdgesBefore": 11,
+      "legalMoves": 1,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 345,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "super_gravity_01",
+          "cardType": "SUPER_GRAVITY_WILL",
+          "cardCost": 14,
+          "score": 206,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "chain_01",
+          "cardType": "CHAIN_WILL",
+          "cardCost": 22,
+          "score": 43,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "silver_stone",
+          "cardType": "SILVER_STONE",
+          "cardCost": 3,
+          "score": -550,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 37,
+      "ply": 9,
+      "player": "black",
+      "futureDiscDelta3Ply": 0,
+      "decisionReasonTags": [
+        "decision:use",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 5,
+      "whiteCountBefore": 7,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 0,
+      "oppEdgesBefore": 3,
+      "legalMoves": 7,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 48,
+          "shouldUse": true,
+          "minUseScore": 8,
+          "isSelected": true
+        }
+      ]
+    },
+    {
+      "seed": 11,
+      "ply": 23,
+      "player": "black",
+      "futureDiscDelta3Ply": 1,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 9,
+      "whiteCountBefore": 10,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 4,
+      "oppEdgesBefore": 1,
+      "legalMoves": 9,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 48,
+          "shouldUse": true,
+          "minUseScore": 8,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "destroy_01",
+          "cardType": "DESTROY_ONE_STONE",
+          "cardCost": 19,
+          "score": 4,
+          "shouldUse": false,
+          "minUseScore": 8,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "loss_will_01",
+          "cardType": "LOSS_WILL",
+          "cardCost": 11,
+          "score": -25,
+          "shouldUse": false,
+          "minUseScore": 8,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 16,
+      "ply": 3,
+      "player": "white",
+      "futureDiscDelta3Ply": 1,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 5,
+      "whiteCountBefore": 2,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 0,
+      "oppEdgesBefore": 0,
+      "legalMoves": 6,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 90.30000000000001,
+          "shouldUse": true,
+          "minUseScore": 2,
+          "isSelected": true
+        }
+      ]
+    },
+    {
+      "seed": 24,
+      "ply": 22,
+      "player": "black",
+      "futureDiscDelta3Ply": 1,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 12,
+      "whiteCountBefore": 9,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 0,
+      "oppEdgesBefore": 6,
+      "legalMoves": 4,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 86,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "observer_01",
+          "cardType": "OBSERVER_WILL",
+          "cardCost": 1,
+          "score": -109,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 24,
+      "ply": 75,
+      "player": "white",
+      "futureDiscDelta3Ply": 1,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 23,
+      "whiteCountBefore": 28,
+      "ownCornersBefore": 1,
+      "oppCornersBefore": 2,
+      "ownEdgesBefore": 11,
+      "oppEdgesBefore": 8,
+      "legalMoves": 2,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 311,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "breeding_01",
+          "cardType": "BREEDING_WILL",
+          "cardCost": 16,
+          "score": -262,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "loss_will_01",
+          "cardType": "LOSS_WILL",
+          "cardCost": 11,
+          "score": -406,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 34,
+      "ply": 11,
+      "player": "white",
+      "futureDiscDelta3Ply": 1,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 7,
+      "whiteCountBefore": 6,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 0,
+      "oppEdgesBefore": 0,
+      "legalMoves": 6,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 76,
+          "shouldUse": true,
+          "minUseScore": 6,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "sell_01",
+          "cardType": "SELL_CARD_WILL",
+          "cardCost": 8,
+          "score": 14,
+          "shouldUse": true,
+          "minUseScore": 6,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "work_01",
+          "cardType": "WORK_WILL",
+          "cardCost": 11,
+          "score": -551,
+          "shouldUse": false,
+          "minUseScore": 6,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 36,
+      "ply": 11,
+      "player": "white",
+      "futureDiscDelta3Ply": 1,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 7,
+      "whiteCountBefore": 6,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 3,
+      "oppEdgesBefore": 0,
+      "legalMoves": 6,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 118,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "strong_wind_01",
+          "cardType": "STRONG_WIND_WILL",
+          "cardCost": 9,
+          "score": -25.200000000000003,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "observer_01",
+          "cardType": "OBSERVER_WILL",
+          "cardCost": 1,
+          "score": -88,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "hyperactive_01",
+          "cardType": "HYPERACTIVE_WILL",
+          "cardCost": 8,
+          "score": -212,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 20,
+      "ply": 3,
+      "player": "white",
+      "futureDiscDelta3Ply": 2,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 5,
+      "whiteCountBefore": 2,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 0,
+      "oppEdgesBefore": 0,
+      "legalMoves": 6,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 90.30000000000001,
+          "shouldUse": true,
+          "minUseScore": 2,
+          "isSelected": true
+        }
+      ]
+    },
+    {
+      "seed": 28,
+      "ply": 40,
+      "player": "white",
+      "futureDiscDelta3Ply": 2,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 13,
+      "whiteCountBefore": 18,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 7,
+      "oppEdgesBefore": 5,
+      "legalMoves": 7,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 150,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guardian_god_01",
+          "cardType": "GUARDIAN_GOD",
+          "cardCost": 10,
+          "score": 122,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "regen_01",
+          "cardType": "REGEN_WILL",
+          "cardCost": 12,
+          "score": 103,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "super_buoyancy_01",
+          "cardType": "SUPER_BUOYANCY_WILL",
+          "cardCost": 14,
+          "score": -30,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 28,
+      "ply": 69,
+      "player": "black",
+      "futureDiscDelta3Ply": 2,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 22,
+      "whiteCountBefore": 19,
+      "ownCornersBefore": 2,
+      "oppCornersBefore": 3,
+      "ownEdgesBefore": 4,
+      "oppEdgesBefore": 11,
+      "legalMoves": 3,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 242,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "hyperactive_01",
+          "cardType": "HYPERACTIVE_WILL",
+          "cardCost": 8,
+          "score": 88,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "regen_01",
+          "cardType": "REGEN_WILL",
+          "cardCost": 12,
+          "score": 23,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 23,
+      "ply": 87,
+      "player": "black",
+      "futureDiscDelta3Ply": 3,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 22,
+      "whiteCountBefore": 28,
+      "ownCornersBefore": 1,
+      "oppCornersBefore": 1,
+      "ownEdgesBefore": 14,
+      "oppEdgesBefore": 8,
+      "legalMoves": 6,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 124,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "hard_01",
+          "cardType": "PROTECTED_NEXT_STONE",
+          "cardCost": 1,
+          "score": 2,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "work_01",
+          "cardType": "WORK_WILL",
+          "cardCost": 11,
+          "score": -381,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 30,
+      "ply": 70,
+      "player": "black",
+      "futureDiscDelta3Ply": 3,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 28,
+      "whiteCountBefore": 32,
+      "ownCornersBefore": 1,
+      "oppCornersBefore": 2,
+      "ownEdgesBefore": 12,
+      "oppEdgesBefore": 16,
+      "legalMoves": 1,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 356,
+          "shouldUse": true,
+          "minUseScore": 8,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "sniper_01",
+          "cardType": "SNIPER_WILL",
+          "cardCost": 23,
+          "score": 39,
+          "shouldUse": true,
+          "minUseScore": 8,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guardian_god_01",
+          "cardType": "GUARDIAN_GOD",
+          "cardCost": 10,
+          "score": 24,
+          "shouldUse": true,
+          "minUseScore": 8,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 25,
+      "ply": 88,
+      "player": "black",
+      "futureDiscDelta3Ply": 7,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 21,
+      "whiteCountBefore": 36,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 3,
+      "ownEdgesBefore": 16,
+      "oppEdgesBefore": 6,
+      "legalMoves": 4,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "blockade_01",
+          "cardType": "BLOCKADE_WILL",
+          "cardCost": 1,
+          "score": 224,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "sacrifice_01",
+          "cardType": "SACRIFICE_WILL",
+          "cardCost": 5,
+          "score": 37,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    }
+  ]
+}

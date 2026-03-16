@@ -7,8 +7,235 @@
 }(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function () {
     'use strict';
 
+    const BOARD_SHAPE_META_KEY = '__sharedBoardShapeMeta';
+    const EMPTY = 0;
+    const MAIN_BOARD_SIZE = 8;
+    const OUTER_MIN = -1;
+    const OUTER_MAX = 8;
+
+    function toBoardCellKey(row, col) {
+        return `${row},${col}`;
+    }
+
+    function normalizeOwner(value) {
+        if (value === 1 || value === -1) return value;
+        return EMPTY;
+    }
+
+    function isRawCellInBounds(board, row, col) {
+        return (
+            Array.isArray(board) &&
+            Number.isInteger(row) &&
+            Number.isInteger(col) &&
+            row >= 0 &&
+            row < board.length &&
+            Array.isArray(board[row]) &&
+            col >= 0 &&
+            col < board[row].length
+        );
+    }
+
+    function isExpansionCoordinate(row, col) {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+        if (row < OUTER_MIN || row > OUTER_MAX || col < OUTER_MIN || col > OUTER_MAX) return false;
+        if (row >= 0 && row < MAIN_BOARD_SIZE && col >= 0 && col < MAIN_BOARD_SIZE) return false;
+        return true;
+    }
+
+    function resolveExpansionSide(side, row, col) {
+        if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
+        if (col === -1) return 'left';
+        if (col === 8) return 'right';
+        if (row === -1) return 'top';
+        if (row === 8) return 'bottom';
+        return null;
+    }
+
+    function normalizeExpansionCell(cell) {
+        if (!cell || typeof cell !== 'object') return null;
+        const row = Number(cell.row);
+        let col = Number(cell.col);
+        const side = resolveExpansionSide(cell.side, row, col);
+        if (!Number.isInteger(row)) return null;
+        if (!Number.isInteger(col)) {
+            if (side === 'left') col = -1;
+            else if (side === 'right') col = 8;
+        }
+        if (!Number.isInteger(col) || !isExpansionCoordinate(row, col)) return null;
+        return {
+            side: resolveExpansionSide(side, row, col),
+            row,
+            col,
+            owner: normalizeOwner(cell.owner)
+        };
+    }
+
+    function collectExpansionDescriptors(boardExpansion) {
+        if (!boardExpansion || typeof boardExpansion !== 'object') return [];
+        const out = [];
+        const push = (raw) => {
+            const normalized = normalizeExpansionCell(raw);
+            if (!normalized) return;
+            if (out.some((one) => one.row === normalized.row && one.col === normalized.col)) return;
+            out.push(normalized);
+        };
+        if (Array.isArray(boardExpansion.cells)) {
+            for (const cell of boardExpansion.cells) push(cell);
+        } else if (boardExpansion.active === true) {
+            push(boardExpansion);
+        }
+        return out;
+    }
+
+    function collectMeteorHoleKeys(cardState) {
+        const out = new Set();
+        const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
+        for (const marker of markers) {
+            if (!marker || marker.kind !== 'specialStone') continue;
+            if (!marker.data || String(marker.data.type || '').toUpperCase() !== 'METEOR_HOLE') continue;
+            const row = Number(marker.row);
+            const col = Number(marker.col);
+            if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+            out.add(toBoardCellKey(row, col));
+        }
+        return out;
+    }
+
+    function cloneMeta(meta) {
+        if (!meta || typeof meta !== 'object') return null;
+        return {
+            minRow: Number.isInteger(meta.minRow) ? meta.minRow : 0,
+            maxRow: Number.isInteger(meta.maxRow) ? meta.maxRow : -1,
+            minCol: Number.isInteger(meta.minCol) ? meta.minCol : 0,
+            maxCol: Number.isInteger(meta.maxCol) ? meta.maxCol : -1,
+            playableKeys: new Set(meta.playableKeys instanceof Set ? Array.from(meta.playableKeys) : []),
+            meteorHoleKeys: new Set(meta.meteorHoleKeys instanceof Set ? Array.from(meta.meteorHoleKeys) : []),
+            expansionCells: Array.isArray(meta.expansionCells)
+                ? meta.expansionCells.map((cell) => ({
+                    side: cell.side,
+                    row: cell.row,
+                    col: cell.col,
+                    owner: normalizeOwner(cell.owner)
+                }))
+                : [],
+            expansionOwnerByKey: Object.assign(Object.create(null), meta.expansionOwnerByKey || null),
+            standard8x8: meta.standard8x8 === true,
+            coordinateCache: null,
+            cornerKeyCache: null,
+            xKeyCache: null,
+            cKeyCache: null
+        };
+    }
+
+    function setBoardShapeMeta(board, meta) {
+        if (!Array.isArray(board)) return board;
+        Object.defineProperty(board, BOARD_SHAPE_META_KEY, {
+            value: meta,
+            writable: true,
+            configurable: true
+        });
+        return board;
+    }
+
+    function getBoardShapeMeta(board) {
+        if (!Array.isArray(board)) return null;
+        const meta = board[BOARD_SHAPE_META_KEY];
+        return meta && typeof meta === 'object' ? meta : null;
+    }
+
+    function buildShapeMeta(board, options) {
+        if (!Array.isArray(board)) return null;
+        const expansionCells = collectExpansionDescriptors(options && options.boardExpansion);
+        const meteorHoleKeys = collectMeteorHoleKeys(options && options.cardState);
+        const playableKeys = new Set();
+        let minRow = Infinity;
+        let maxRow = -Infinity;
+        let minCol = Infinity;
+        let maxCol = -Infinity;
+
+        const addCoord = (row, col) => {
+            const key = toBoardCellKey(row, col);
+            if (meteorHoleKeys.has(key)) return;
+            playableKeys.add(key);
+            if (row < minRow) minRow = row;
+            if (row > maxRow) maxRow = row;
+            if (col < minCol) minCol = col;
+            if (col > maxCol) maxCol = col;
+        };
+
+        for (let row = 0; row < board.length; row++) {
+            const line = Array.isArray(board[row]) ? board[row] : [];
+            for (let col = 0; col < line.length; col++) {
+                addCoord(row, col);
+            }
+        }
+        for (const cell of expansionCells) addCoord(cell.row, cell.col);
+
+        if (!Number.isFinite(minRow) || !Number.isFinite(maxRow) || !Number.isFinite(minCol) || !Number.isFinite(maxCol)) {
+            minRow = 0;
+            maxRow = -1;
+            minCol = 0;
+            maxCol = -1;
+        }
+
+        const expansionOwnerByKey = Object.create(null);
+        for (const cell of expansionCells) {
+            expansionOwnerByKey[toBoardCellKey(cell.row, cell.col)] = normalizeOwner(cell.owner);
+        }
+
+        const standard8x8 =
+            board.length === MAIN_BOARD_SIZE &&
+            board.every((row) => Array.isArray(row) && row.length === MAIN_BOARD_SIZE) &&
+            expansionCells.length === 0 &&
+            meteorHoleKeys.size === 0;
+
+        return {
+            minRow,
+            maxRow,
+            minCol,
+            maxCol,
+            playableKeys,
+            meteorHoleKeys,
+            expansionCells,
+            expansionOwnerByKey,
+            standard8x8,
+            coordinateCache: null,
+            cornerKeyCache: null,
+            xKeyCache: null,
+            cKeyCache: null
+        };
+    }
+
+    function attachBoardShape(board, options) {
+        if (!Array.isArray(board)) return board;
+        if (!options && getBoardShapeMeta(board)) return board;
+        return setBoardShapeMeta(board, buildShapeMeta(board, options || null));
+    }
+
+    function copyBoardShape(fromBoard, toBoard) {
+        if (!Array.isArray(toBoard)) return toBoard;
+        const meta = getBoardShapeMeta(fromBoard);
+        if (!meta) return toBoard;
+        return setBoardShapeMeta(toBoard, cloneMeta(meta));
+    }
+
+    function cloneBoard(board) {
+        if (!Array.isArray(board)) return [];
+        const cloned = board.map((row) => Array.isArray(row) ? row.slice() : []);
+        return copyBoardShape(board, cloned);
+    }
+
     function resolveBoardBounds(boardOrRows, maybeCols) {
         if (Array.isArray(boardOrRows)) {
+            const meta = getBoardShapeMeta(boardOrRows);
+            if (meta) {
+                return {
+                    minRow: meta.minRow,
+                    maxRow: meta.maxRow,
+                    minCol: meta.minCol,
+                    maxCol: meta.maxCol
+                };
+            }
             if (boardOrRows.length <= 0) return null;
             let maxCol = -1;
             for (const row of boardOrRows) {
@@ -17,17 +244,86 @@
                 }
             }
             if (maxCol < 0) return null;
-            return { maxRow: boardOrRows.length - 1, maxCol };
+            return { minRow: 0, maxRow: boardOrRows.length - 1, minCol: 0, maxCol };
         }
-        const rows = Number.isFinite(boardOrRows) ? Math.max(1, Math.floor(boardOrRows)) : 8;
+        const rows = Number.isFinite(boardOrRows) ? Math.max(1, Math.floor(boardOrRows)) : MAIN_BOARD_SIZE;
         const cols = Number.isFinite(maybeCols) ? Math.max(1, Math.floor(maybeCols)) : rows;
-        return { maxRow: rows - 1, maxCol: cols - 1 };
+        return { minRow: 0, maxRow: rows - 1, minCol: 0, maxCol: cols - 1 };
     }
 
     function isStandardBoard8x8(board) {
-        if (!Array.isArray(board) || board.length !== 8) return false;
+        const meta = getBoardShapeMeta(board);
+        if (meta) return meta.standard8x8 === true;
+        if (!Array.isArray(board) || board.length !== MAIN_BOARD_SIZE) return false;
         for (const row of board) {
-            if (!Array.isArray(row) || row.length !== 8) return false;
+            if (!Array.isArray(row) || row.length !== MAIN_BOARD_SIZE) return false;
+        }
+        return true;
+    }
+
+    function hasPlayableCell(board, row, col) {
+        if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return false;
+        const meta = getBoardShapeMeta(board);
+        if (!meta) return isRawCellInBounds(board, row, col);
+        return meta.playableKeys.has(toBoardCellKey(row, col));
+    }
+
+    function collectBoardCoordinates(board) {
+        if (!Array.isArray(board)) return [];
+        const meta = getBoardShapeMeta(board);
+        if (!meta) {
+            const coords = [];
+            for (let row = 0; row < board.length; row++) {
+                const line = Array.isArray(board[row]) ? board[row] : [];
+                for (let col = 0; col < line.length; col++) {
+                    coords.push({ row, col });
+                }
+            }
+            return coords;
+        }
+        if (Array.isArray(meta.coordinateCache)) {
+            return meta.coordinateCache.map((cell) => ({ row: cell.row, col: cell.col }));
+        }
+        const coords = Array.from(meta.playableKeys)
+            .map((key) => {
+                const parts = key.split(',');
+                return { row: Number(parts[0]), col: Number(parts[1]) };
+            })
+            .filter((cell) => Number.isInteger(cell.row) && Number.isInteger(cell.col))
+            .sort((a, b) => (a.row - b.row) || (a.col - b.col));
+        meta.coordinateCache = coords.map((cell) => ({ row: cell.row, col: cell.col }));
+        return coords;
+    }
+
+    function getCellValue(board, row, col) {
+        if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return null;
+        const meta = getBoardShapeMeta(board);
+        if (meta && !meta.playableKeys.has(toBoardCellKey(row, col))) return null;
+        if (isRawCellInBounds(board, row, col)) return board[row][col];
+        if (!meta) return null;
+        const key = toBoardCellKey(row, col);
+        if (!Object.prototype.hasOwnProperty.call(meta.expansionOwnerByKey, key)) return null;
+        return normalizeOwner(meta.expansionOwnerByKey[key]);
+    }
+
+    function setCellValue(board, row, col, value) {
+        if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return false;
+        if (isRawCellInBounds(board, row, col)) {
+            const meta = getBoardShapeMeta(board);
+            if (meta && !meta.playableKeys.has(toBoardCellKey(row, col))) return false;
+            board[row][col] = normalizeOwner(value);
+            return true;
+        }
+        const meta = getBoardShapeMeta(board);
+        if (!meta || !meta.playableKeys.has(toBoardCellKey(row, col))) return false;
+        const owner = normalizeOwner(value);
+        const key = toBoardCellKey(row, col);
+        meta.expansionOwnerByKey[key] = owner;
+        for (const cell of meta.expansionCells) {
+            if (cell.row === row && cell.col === col) {
+                cell.owner = owner;
+                break;
+            }
         }
         return true;
     }
@@ -35,34 +331,136 @@
     function countBoardEmpties(board) {
         if (!Array.isArray(board)) return 0;
         let empties = 0;
-        for (let row = 0; row < board.length; row++) {
-            const oneRow = Array.isArray(board[row]) ? board[row] : [];
-            for (let col = 0; col < oneRow.length; col++) {
-                if (oneRow[col] === 0) empties += 1;
-            }
+        for (const cell of collectBoardCoordinates(board)) {
+            if (getCellValue(board, cell.row, cell.col) === EMPTY) empties += 1;
         }
         return empties;
     }
 
+    function buildCornerKeySet(board) {
+        const meta = getBoardShapeMeta(board);
+        if (meta && meta.cornerKeyCache instanceof Set) return meta.cornerKeyCache;
+        const coords = collectBoardCoordinates(board);
+        const coordKeys = new Set(coords.map((cell) => toBoardCellKey(cell.row, cell.col)));
+        const quadrants = [
+            { vertical: -1, horizontal: -1 },
+            { vertical: -1, horizontal: 1 },
+            { vertical: 1, horizontal: -1 },
+            { vertical: 1, horizontal: 1 }
+        ];
+        const corners = new Set();
+        for (const cell of coords) {
+            for (const quadrant of quadrants) {
+                const verticalKey = toBoardCellKey(cell.row + quadrant.vertical, cell.col);
+                const horizontalKey = toBoardCellKey(cell.row, cell.col + quadrant.horizontal);
+                if (!coordKeys.has(verticalKey) && !coordKeys.has(horizontalKey)) {
+                    corners.add(toBoardCellKey(cell.row, cell.col));
+                }
+            }
+        }
+        if (meta) meta.cornerKeyCache = corners;
+        return corners;
+    }
+
+    function getCornerCells(board) {
+        return collectBoardCoordinates(board).filter((cell) => buildCornerKeySet(board).has(toBoardCellKey(cell.row, cell.col)));
+    }
+
     function isCornerCell(row, col, boardOrRows, maybeCols) {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+        if (Array.isArray(boardOrRows)) {
+            if (!hasPlayableCell(boardOrRows, row, col)) return false;
+            const meta = getBoardShapeMeta(boardOrRows);
+            if (!meta) {
+                const bounds = resolveBoardBounds(boardOrRows);
+                if (!bounds) return false;
+                return (
+                    (row === bounds.minRow || row === bounds.maxRow) &&
+                    (col === bounds.minCol || col === bounds.maxCol)
+                );
+            }
+            return buildCornerKeySet(boardOrRows).has(toBoardCellKey(row, col));
+        }
         const bounds = resolveBoardBounds(boardOrRows, maybeCols);
         if (!bounds) return false;
         return (
-            Number.isInteger(row) &&
-            Number.isInteger(col) &&
-            (row === 0 || row === bounds.maxRow) &&
-            (col === 0 || col === bounds.maxCol)
+            (row === bounds.minRow || row === bounds.maxRow) &&
+            (col === bounds.minCol || col === bounds.maxCol)
         );
     }
 
     function isEdgeCell(row, col, boardOrRows, maybeCols) {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+        if (Array.isArray(boardOrRows)) {
+            if (!hasPlayableCell(boardOrRows, row, col)) return false;
+            const meta = getBoardShapeMeta(boardOrRows);
+            if (!meta) {
+                const bounds = resolveBoardBounds(boardOrRows);
+                if (!bounds) return false;
+                return (
+                    row === bounds.minRow ||
+                    row === bounds.maxRow ||
+                    col === bounds.minCol ||
+                    col === bounds.maxCol
+                );
+            }
+            const orthogonal = [
+                [row - 1, col],
+                [row + 1, col],
+                [row, col - 1],
+                [row, col + 1]
+            ];
+            return orthogonal.some((pos) => !hasPlayableCell(boardOrRows, pos[0], pos[1]));
+        }
         const bounds = resolveBoardBounds(boardOrRows, maybeCols);
         if (!bounds) return false;
         return (
-            Number.isInteger(row) &&
-            Number.isInteger(col) &&
-            (row === 0 || row === bounds.maxRow || col === 0 || col === bounds.maxCol)
+            row === bounds.minRow ||
+            row === bounds.maxRow ||
+            col === bounds.minCol ||
+            col === bounds.maxCol
         );
+    }
+
+    function buildRiskCellSets(board) {
+        const meta = getBoardShapeMeta(board);
+        if (meta && meta.xKeyCache instanceof Set && meta.cKeyCache instanceof Set) {
+            return { xKeys: meta.xKeyCache, cKeys: meta.cKeyCache };
+        }
+        const coords = collectBoardCoordinates(board);
+        const coordKeys = new Set(coords.map((cell) => toBoardCellKey(cell.row, cell.col)));
+        const quadrants = [
+            { vertical: -1, horizontal: -1 },
+            { vertical: -1, horizontal: 1 },
+            { vertical: 1, horizontal: -1 },
+            { vertical: 1, horizontal: 1 }
+        ];
+        const xKeys = new Set();
+        const cKeys = new Set();
+
+        for (const cell of coords) {
+            for (const quadrant of quadrants) {
+                const verticalKey = toBoardCellKey(cell.row + quadrant.vertical, cell.col);
+                const horizontalKey = toBoardCellKey(cell.row, cell.col + quadrant.horizontal);
+                if (coordKeys.has(verticalKey) || coordKeys.has(horizontalKey)) continue;
+
+                const inwardRow = cell.row - quadrant.vertical;
+                const inwardCol = cell.col - quadrant.horizontal;
+                const xKey = toBoardCellKey(inwardRow, inwardCol);
+                const c1Key = toBoardCellKey(inwardRow, cell.col);
+                const c2Key = toBoardCellKey(cell.row, inwardCol);
+
+                if (coordKeys.has(xKey)) xKeys.add(xKey);
+                if (coordKeys.has(c1Key)) cKeys.add(c1Key);
+                if (coordKeys.has(c2Key)) cKeys.add(c2Key);
+            }
+        }
+
+        if (meta) {
+            meta.xKeyCache = xKeys;
+            meta.cKeyCache = cKeys;
+        }
+        return { xKeys, cKeys };
     }
 
     function isCorner(row, col, boardOrRows, maybeCols) {
@@ -74,38 +472,46 @@
     }
 
     function isXSquare(row, col, boardOrRows, maybeCols) {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+        if (Array.isArray(boardOrRows)) {
+            if (!hasPlayableCell(boardOrRows, row, col)) return false;
+            return buildRiskCellSets(boardOrRows).xKeys.has(toBoardCellKey(row, col));
+        }
         const bounds = resolveBoardBounds(boardOrRows, maybeCols);
         if (!bounds) return false;
         return (
-            Number.isInteger(row) &&
-            Number.isInteger(col) &&
-            (row === 1 || row === (bounds.maxRow - 1)) &&
-            (col === 1 || col === (bounds.maxCol - 1))
+            (row === (bounds.minRow + 1) || row === (bounds.maxRow - 1)) &&
+            (col === (bounds.minCol + 1) || col === (bounds.maxCol - 1))
         );
     }
 
     function isCSquare(row, col, boardOrRows, maybeCols) {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+        if (Array.isArray(boardOrRows)) {
+            if (!hasPlayableCell(boardOrRows, row, col)) return false;
+            return buildRiskCellSets(boardOrRows).cKeys.has(toBoardCellKey(row, col));
+        }
         const bounds = resolveBoardBounds(boardOrRows, maybeCols);
         if (!bounds) return false;
-        const nearTopBottom = (row === 0 || row === bounds.maxRow) && (col === 1 || col === (bounds.maxCol - 1));
-        const nearLeftRight = (col === 0 || col === bounds.maxCol) && (row === 1 || row === (bounds.maxRow - 1));
+        const nearTopBottom = (row === bounds.minRow || row === bounds.maxRow) &&
+            (col === (bounds.minCol + 1) || col === (bounds.maxCol - 1));
+        const nearLeftRight = (col === bounds.minCol || col === bounds.maxCol) &&
+            (row === (bounds.minRow + 1) || row === (bounds.maxRow - 1));
         return nearTopBottom || nearLeftRight;
     }
 
-    function isInBounds(board, row, col) {
-        return (
-            Array.isArray(board) &&
-            row >= 0 &&
-            row < board.length &&
-            Array.isArray(board[row]) &&
-            col >= 0 &&
-            col < board[row].length
-        );
+    function getCellType(row, col, boardOrRows, maybeCols) {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return 'unknown';
+        if (isCorner(row, col, boardOrRows, maybeCols)) return 'corner';
+        if (isXSquare(row, col, boardOrRows, maybeCols)) return 'x';
+        if (isCSquare(row, col, boardOrRows, maybeCols)) return 'c';
+        if (isEdge(row, col, boardOrRows, maybeCols)) return 'edge';
+        return 'inner';
     }
 
     function getFlipsBasic(board, row, col, playerValue) {
-        if (!isInBounds(board, row, col)) return [];
-        if (board[row][col] !== 0) return [];
+        if (!hasPlayableCell(board, row, col)) return [];
+        if (getCellValue(board, row, col) !== EMPTY) return [];
         const dirs = [
             [-1, -1], [-1, 0], [-1, 1],
             [0, -1],           [0, 1],
@@ -116,13 +522,17 @@
             const temp = [];
             let currentRow = row + dir[0];
             let currentCol = col + dir[1];
-            while (isInBounds(board, currentRow, currentCol) && board[currentRow][currentCol] === -playerValue) {
+            while (hasPlayableCell(board, currentRow, currentCol) && getCellValue(board, currentRow, currentCol) === -playerValue) {
                 temp.push({ row: currentRow, col: currentCol });
                 currentRow += dir[0];
                 currentCol += dir[1];
             }
-            if (temp.length > 0 && isInBounds(board, currentRow, currentCol) && board[currentRow][currentCol] === playerValue) {
-                out.push(...temp);
+            if (
+                temp.length > 0 &&
+                hasPlayableCell(board, currentRow, currentCol) &&
+                getCellValue(board, currentRow, currentCol) === playerValue
+            ) {
+                out.push.apply(out, temp);
             }
         }
         return out;
@@ -131,31 +541,21 @@
     function getLegalMovesBasic(board, playerValue) {
         if (!Array.isArray(board)) return [];
         const moves = [];
-        for (let row = 0; row < board.length; row++) {
-            const oneRow = Array.isArray(board[row]) ? board[row] : [];
-            for (let col = 0; col < oneRow.length; col++) {
-                const flips = getFlipsBasic(board, row, col, playerValue);
-                if (flips.length > 0) moves.push({ row, col, flips });
+        for (const cell of collectBoardCoordinates(board)) {
+            const flips = getFlipsBasic(board, cell.row, cell.col, playerValue);
+            if (flips.length > 0) {
+                moves.push({ row: cell.row, col: cell.col, flips });
             }
         }
         return moves;
     }
 
     function countCornerControl(board, playerValue) {
-        if (!Array.isArray(board) || board.length <= 0) return { ownCorners: 0, oppCorners: 0 };
-        const bounds = resolveBoardBounds(board);
-        if (!bounds) return { ownCorners: 0, oppCorners: 0 };
-        const corners = [
-            [0, 0],
-            [0, bounds.maxCol],
-            [bounds.maxRow, 0],
-            [bounds.maxRow, bounds.maxCol]
-        ];
+        if (!Array.isArray(board)) return { ownCorners: 0, oppCorners: 0 };
         let ownCorners = 0;
         let oppCorners = 0;
-        for (const point of corners) {
-            if (!isInBounds(board, point[0], point[1])) continue;
-            const value = board[point[0]][point[1]];
+        for (const cell of getCornerCells(board)) {
+            const value = getCellValue(board, cell.row, cell.col);
             if (value === playerValue) ownCorners += 1;
             else if (value === -playerValue) oppCorners += 1;
         }
@@ -163,34 +563,226 @@
     }
 
     function countEdgeControl(board, playerValue) {
-        if (!Array.isArray(board) || board.length <= 0) return { ownEdges: 0, oppEdges: 0 };
+        if (!Array.isArray(board)) return { ownEdges: 0, oppEdges: 0 };
         let ownEdges = 0;
         let oppEdges = 0;
-        for (let row = 0; row < board.length; row++) {
-            const oneRow = Array.isArray(board[row]) ? board[row] : [];
-            for (let col = 0; col < oneRow.length; col++) {
-                if (!isEdgeCell(row, col, board) || isCornerCell(row, col, board)) continue;
-                const value = oneRow[col];
-                if (value === playerValue) ownEdges += 1;
-                else if (value === -playerValue) oppEdges += 1;
-            }
+        for (const cell of collectBoardCoordinates(board)) {
+            if (!isEdgeCell(cell.row, cell.col, board) || isCornerCell(cell.row, cell.col, board)) continue;
+            const value = getCellValue(board, cell.row, cell.col);
+            if (value === playerValue) ownEdges += 1;
+            else if (value === -playerValue) oppEdges += 1;
         }
         return { ownEdges, oppEdges };
     }
 
+    function toCellChar(value) {
+        if (value === 1) return 'B';
+        if (value === -1) return 'W';
+        if (value === 0) return '.';
+        return '#';
+    }
+
+    function transformCoord(row, col, size, transformId) {
+        if (transformId === 0) return { row, col };
+        if (transformId === 1) return { row: col, col: size - 1 - row };
+        if (transformId === 2) return { row: size - 1 - row, col: size - 1 - col };
+        if (transformId === 3) return { row: size - 1 - col, col: row };
+        if (transformId === 4) return { row, col: size - 1 - col };
+        if (transformId === 5) return { row: size - 1 - col, col: size - 1 - row };
+        if (transformId === 6) return { row: size - 1 - row, col };
+        if (transformId === 7) return { row: col, col: row };
+        return { row, col };
+    }
+
+    function buildEnvelopeMatrix(board) {
+        const bounds = resolveBoardBounds(board);
+        if (!bounds || bounds.maxRow < bounds.minRow || bounds.maxCol < bounds.minCol) {
+            return { matrix: [], size: 0, minRow: 0, minCol: 0 };
+        }
+        const rowSpan = (bounds.maxRow - bounds.minRow) + 1;
+        const colSpan = (bounds.maxCol - bounds.minCol) + 1;
+        const size = Math.max(rowSpan, colSpan);
+        const matrix = Array.from({ length: size }, () => Array.from({ length: size }, () => '#'));
+        for (const cell of collectBoardCoordinates(board)) {
+            const envelopeRow = cell.row - bounds.minRow;
+            const envelopeCol = cell.col - bounds.minCol;
+            matrix[envelopeRow][envelopeCol] = toCellChar(getCellValue(board, cell.row, cell.col));
+        }
+        return {
+            matrix,
+            size,
+            minRow: bounds.minRow,
+            minCol: bounds.minCol
+        };
+    }
+
+    function encodeEnvelopeMatrix(matrix) {
+        if (!Array.isArray(matrix) || matrix.length <= 0) return '';
+        return matrix.map((row) => Array.isArray(row) ? row.join('') : '').join('/');
+    }
+
+    function transformMatrix(matrix, transformId) {
+        if (!Array.isArray(matrix) || matrix.length <= 0) return [];
+        const size = matrix.length;
+        const out = Array.from({ length: size }, () => Array.from({ length: size }, () => '#'));
+        for (let row = 0; row < size; row++) {
+            for (let col = 0; col < size; col++) {
+                const mapped = transformCoord(row, col, size, transformId);
+                out[mapped.row][mapped.col] = matrix[row][col];
+            }
+        }
+        return out;
+    }
+
+    function encodeBoard(board) {
+        return encodeEnvelopeMatrix(buildEnvelopeMatrix(board).matrix);
+    }
+
+    function canonicalizeBoard(board) {
+        const envelope = buildEnvelopeMatrix(board);
+        const raw = encodeEnvelopeMatrix(envelope.matrix);
+        if (!raw) {
+            return {
+                boardKey: raw,
+                transformId: 0,
+                size: envelope.size,
+                minRow: envelope.minRow,
+                minCol: envelope.minCol
+            };
+        }
+        let best = null;
+        let bestTransform = 0;
+        for (let transformId = 0; transformId < 8; transformId++) {
+            const encoded = encodeEnvelopeMatrix(transformMatrix(envelope.matrix, transformId));
+            if (best === null || encoded < best) {
+                best = encoded;
+                bestTransform = transformId;
+            }
+        }
+        return {
+            boardKey: best || raw,
+            transformId: bestTransform,
+            size: envelope.size,
+            minRow: envelope.minRow,
+            minCol: envelope.minCol
+        };
+    }
+
+    function mapCoordToCanonical(row, col, board, transformId) {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+        const envelope = buildEnvelopeMatrix(board);
+        if (envelope.size <= 0) return null;
+        const relativeRow = row - envelope.minRow;
+        const relativeCol = col - envelope.minCol;
+        if (
+            relativeRow < 0 ||
+            relativeCol < 0 ||
+            relativeRow >= envelope.size ||
+            relativeCol >= envelope.size
+        ) {
+            return null;
+        }
+        return transformCoord(relativeRow, relativeCol, envelope.size, transformId);
+    }
+
+    function makeCanonicalActionKey(move, board, transformId) {
+        if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return '';
+        const mapped = mapCoordToCanonical(Number(move.row), Number(move.col), board, Number(transformId) || 0);
+        if (!mapped) return '';
+        return `place:${mapped.row}:${mapped.col}`;
+    }
+
+    function normalizePosArgs(posOrRow, maybeCol) {
+        if (posOrRow && typeof posOrRow === 'object') {
+            return {
+                row: Number(posOrRow.row),
+                col: Number(posOrRow.col)
+            };
+        }
+        return {
+            row: Number(posOrRow),
+            col: Number(maybeCol)
+        };
+    }
+
+    function formatPosTextJa(posOrRow, maybeCol) {
+        const pos = normalizePosArgs(posOrRow, maybeCol);
+        const row = pos.row;
+        const col = pos.col;
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return '';
+        if (row === -1 && col === -1) return '左上外';
+        if (row === -1 && col === 8) return '右上外';
+        if (row === 8 && col === -1) return '左下外';
+        if (row === 8 && col === 8) return '右下外';
+        if (row === -1 && col >= 0 && col < MAIN_BOARD_SIZE) {
+            return `上外${String.fromCharCode(65 + col)}`;
+        }
+        if (row === 8 && col >= 0 && col < MAIN_BOARD_SIZE) {
+            return `下外${String.fromCharCode(65 + col)}`;
+        }
+        if (col === -1 && row >= 0 && row < MAIN_BOARD_SIZE) return `左外${row + 1}`;
+        if (col === 8 && row >= 0 && row < MAIN_BOARD_SIZE) return `右外${row + 1}`;
+        if (row >= 0 && row < MAIN_BOARD_SIZE && col >= 0 && col < MAIN_BOARD_SIZE) {
+            return `${String.fromCharCode(65 + col)}${row + 1}`;
+        }
+        return `(${row},${col})`;
+    }
+
+    function posToNotation(posOrRow, maybeCol) {
+        const pos = normalizePosArgs(posOrRow, maybeCol);
+        const row = pos.row;
+        const col = pos.col;
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return '';
+        if (row === -1 && col === -1) return 'top-left';
+        if (row === -1 && col === 8) return 'top-right';
+        if (row === 8 && col === -1) return 'bottom-left';
+        if (row === 8 && col === 8) return 'bottom-right';
+        if (row === -1 && col >= 0 && col < MAIN_BOARD_SIZE) {
+            return `top-${String.fromCharCode(97 + col)}`;
+        }
+        if (row === 8 && col >= 0 && col < MAIN_BOARD_SIZE) {
+            return `bottom-${String.fromCharCode(97 + col)}`;
+        }
+        if (col === -1 && row >= 0 && row < MAIN_BOARD_SIZE) return `left${row + 1}`;
+        if (col === 8 && row >= 0 && row < MAIN_BOARD_SIZE) return `right${row + 1}`;
+        if (row >= 0 && row < MAIN_BOARD_SIZE && col >= 0 && col < MAIN_BOARD_SIZE) {
+            return `${String.fromCharCode(97 + col)}${row + 1}`;
+        }
+        return `r${row}c${col}`;
+    }
+
     return {
+        BOARD_SHAPE_META_KEY,
+        attachBoardShape,
+        copyBoardShape,
+        cloneBoard,
+        getBoardShapeMeta,
         resolveBoardBounds,
         isStandardBoard8x8,
+        hasPlayableCell,
+        collectBoardCoordinates,
+        getCellValue,
+        setCellValue,
         countBoardEmpties,
+        getCornerCells,
         isCornerCell,
         isEdgeCell,
         isCorner,
         isEdge,
         isXSquare,
         isCSquare,
+        getCellType,
         getFlipsBasic,
         getLegalMovesBasic,
         countCornerControl,
-        countEdgeControl
+        countEdgeControl,
+        transformCoord,
+        encodeBoard,
+        canonicalizeBoard,
+        mapCoordToCanonical,
+        makeCanonicalActionKey,
+        formatPosTextJa,
+        posToNotation,
+        toBoardCellKey
     };
 }));

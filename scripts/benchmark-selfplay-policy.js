@@ -788,8 +788,33 @@ function runBenchmarkWorkerTask() {
     });
 }
 
+function getBenchmarkWorkerExecArgv() {
+    const parentExecArgv = Array.isArray(process.execArgv) ? process.execArgv : [];
+    const safeExecArgv = [];
+
+    for (let i = 0; i < parentExecArgv.length; i++) {
+        const arg = String(parentExecArgv[i] || '');
+        if (arg === '-e' || arg === '--eval' || arg === '-p' || arg === '--print') {
+            i += 1;
+            continue;
+        }
+        if (
+            arg.startsWith('--eval=') ||
+            arg.startsWith('--print=') ||
+            arg.startsWith('--inspect') ||
+            arg.startsWith('--debug')
+        ) {
+            continue;
+        }
+        safeExecArgv.push(arg);
+    }
+
+    return safeExecArgv;
+}
+
 function startBenchmarkChunkInChild(task, onProgress) {
     const child = fork(__filename, [], {
+        execArgv: getBenchmarkWorkerExecArgv(),
         env: Object.assign({}, process.env, {
             BENCHMARK_SELFPLAY_POLICY_WORKER: '1',
             BENCHMARK_SELFPLAY_POLICY_WORKER_TASK: JSON.stringify(task)

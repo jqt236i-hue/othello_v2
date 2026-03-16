@@ -35,6 +35,20 @@ if (typeof require === 'function') {
 if (!TurnPipelineUIAdapter && typeof globalThis !== 'undefined' && globalThis.TurnPipelineUIAdapter) {
     TurnPipelineUIAdapter = globalThis.TurnPipelineUIAdapter;
 }
+
+function getTurnPipelineUIAdapter() {
+    if (TurnPipelineUIAdapter) {
+        return TurnPipelineUIAdapter;
+    }
+    if (typeof require === 'function') {
+        try { TurnPipelineUIAdapter = require('./turn/pipeline_ui_adapter'); } catch (e) { /* ignore */ }
+    }
+    if (!TurnPipelineUIAdapter && typeof globalThis !== 'undefined' && globalThis.TurnPipelineUIAdapter) {
+        TurnPipelineUIAdapter = globalThis.TurnPipelineUIAdapter;
+    }
+    return TurnPipelineUIAdapter;
+}
+
 var OwnerHelpersModule = null;
 if (typeof require === 'function') {
     try { OwnerHelpersModule = require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
@@ -75,6 +89,66 @@ function clearPlaybackLockForTurnManager() {
     } catch (e) { /* ignore */ }
 }
 
+function getPlaybackStartedAtForTurnManager() {
+    const playbackState = getPlaybackStateForTurnManager();
+    if (playbackState && typeof playbackState.getPlaybackStartedAt === 'function') {
+        const startedAt = Number(playbackState.getPlaybackStartedAt());
+        return Number.isFinite(startedAt) ? startedAt : null;
+    }
+    try {
+        if (typeof globalThis !== 'undefined') {
+            const startedAt = Number(globalThis.__playbackActiveSince);
+            return Number.isFinite(startedAt) ? startedAt : null;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function isPlaybackRunningForTurnManager() {
+    try {
+        if (
+            typeof globalThis !== 'undefined' &&
+            globalThis.AnimationEngine &&
+            typeof globalThis.AnimationEngine.isPlaying === 'boolean'
+        ) {
+            return globalThis.AnimationEngine.isPlaying === true;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function getStalePlaybackTimeoutMsForTurnManager() {
+    try {
+        if (typeof globalThis !== 'undefined') {
+            const timeoutMs = Number(globalThis.PASS_STALE_PLAYBACK_MS);
+            if (Number.isFinite(timeoutMs) && timeoutMs > 0) return timeoutMs;
+        }
+    } catch (e) { /* ignore */ }
+    return 3500;
+}
+
+function isStalePlaybackLockForTurnManager(options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const visualPlayback = opts.visualPlayback === true ? true : isVisualPlaybackActiveForTurnManager();
+    if (!visualPlayback) return false;
+    if (opts.processingActive === true) return false;
+    if (opts.queuedPresentation === true) return false;
+
+    const playbackRunning = isPlaybackRunningForTurnManager();
+    if (playbackRunning === true) return false;
+    if (playbackRunning === false) return true;
+
+    const startedAt = getPlaybackStartedAtForTurnManager();
+    if (startedAt === null) return false;
+    return (Date.now() - startedAt) > getStalePlaybackTimeoutMsForTurnManager();
+}
+
+function releaseStalePlaybackLockForTurnManager(options) {
+    if (!isStalePlaybackLockForTurnManager(options)) return false;
+    clearPlaybackLockForTurnManager();
+    return true;
+}
+
 function emitPresentationEventViaBoardOps(ev) {
     try {
         const pres = (typeof require === 'function') ? require('./logic/presentation') : (typeof globalThis !== 'undefined' ? globalThis.PresentationHelper : null);
@@ -108,6 +182,7 @@ function setUIImpl(obj) {
 // Module-scoped UI locks (local state; UI may mirror these via UI bootstrap if desired)
 if (typeof isProcessing === 'undefined') { try { globalThis.isProcessing = false; } catch (e) { this.isProcessing = false; } }
 if (typeof isCardAnimating === 'undefined') { try { globalThis.isCardAnimating = false; } catch (e) { this.isCardAnimating = false; } }
+if (typeof cpuSmartness === 'undefined') { try { globalThis.cpuSmartness = { black: 1, white: 1 }; } catch (e) { this.cpuSmartness = { black: 1, white: 1 }; } }
 
 // Timers abstraction (injected by UI if desired)
 if (typeof timers === 'undefined') { try { globalThis.timers = globalThis.timers || null; } catch (e) { this.timers = this.timers || null; } }
@@ -345,16 +420,24 @@ function handleCellClick(row, col) {
 
 function isAnimationInProgress() {
     const proc = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isProcessing !== 'undefined') ? __uiImpl.isProcessing : (typeof isProcessing !== 'undefined' ? isProcessing : false);
-    const card = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isCardAnimating !== 'undefined') ? __uiImpl.isCardAnimating : (typeof isCardAnimating !== 'undefined' ? isCardAnimating : false);
     const winProc = (typeof globalThis !== 'undefined') ? !!globalThis.isProcessing : false;
+    const processingActive = proc || winProc;
+    // UI render is deferred while presentation events are queued, so board clicks must
+    // remain locked until the queue is consumed to avoid stale legal-hint clicks.
+    const queuedPresentation = hasQueuedPresentationEventsForTurnManager();
+    let visualPlayback = isVisualPlaybackActiveForTurnManager();
+    if (visualPlayback) {
+        visualPlayback = !releaseStalePlaybackLockForTurnManager({
+            processingActive,
+            queuedPresentation,
+            visualPlayback
+        });
+    }
+    const card = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isCardAnimating !== 'undefined') ? __uiImpl.isCardAnimating : (typeof isCardAnimating !== 'undefined' ? isCardAnimating : false);
     const playbackState = getPlaybackStateForTurnManager();
     const winCard = playbackState && typeof playbackState.getCardAnimating === 'function'
         ? (playbackState.getCardAnimating() === true)
         : ((typeof globalThis !== 'undefined') ? !!globalThis.isCardAnimating : false);
-    const visualPlayback = isVisualPlaybackActiveForTurnManager();
-    // UI render is deferred while presentation events are queued, so board clicks must
-    // remain locked until the queue is consumed to avoid stale legal-hint clicks.
-    const queuedPresentation = hasQueuedPresentationEventsForTurnManager();
     return proc || card || winProc || winCard || visualPlayback || queuedPresentation;
 }
 
@@ -413,6 +496,14 @@ function canLocalUserOperateCurrentTurn() {
     return currentPlayerKey === localPlayerKey;
 }
 
+function createNetworkResetAction(playerKey) {
+    const normalizedPlayerKey = playerKey === 'white' ? 'white' : 'black';
+    return {
+        type: 'reset_game',
+        playerKey: normalizedPlayerKey
+    };
+}
+
 function publishNetworkResetSnapshot() {
     try {
         if (!isNetworkModeForTurnManager()) return;
@@ -425,6 +516,7 @@ function publishNetworkResetSnapshot() {
         globalThis.NetworkMatchClient.publishSnapshot({
             playerKey,
             actionType: 'reset_game',
+            action: createNetworkResetAction(playerKey),
             playbackEvents: []
         });
     } catch (e) { /* ignore */ }
@@ -475,6 +567,12 @@ function resetGame() {
         if (cardState && typeof cardState === 'object') {
             if (Array.isArray(cardState.presentationEvents)) cardState.presentationEvents.length = 0;
             if (Array.isArray(cardState._presentationEventsPersist)) cardState._presentationEventsPersist.length = 0;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        const adapter = getTurnPipelineUIAdapter();
+        if (adapter && typeof adapter.clearDeferredGeneratedThrowChainPlayback === 'function') {
+            adapter.clearDeferredGeneratedThrowChainPlayback();
         }
     } catch (e) { /* ignore */ }
     try {
@@ -642,15 +740,16 @@ async function onTurnStart(player) {
             if (typeof console !== 'undefined' && console.log) console.log('[onTurnStart] runtimePrng available:', !!runtimePrng);
             TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, playerKey, _startEvents, runtimePrng);
             // Convert any presentation events emitted during turn-start into PlaybackEvents
-            if (TurnPipelineUIAdapter && typeof TurnPipelineUIAdapter.mapToPlaybackEvents === 'function'
+            const adapter = getTurnPipelineUIAdapter();
+            if (adapter && typeof adapter.mapToPlaybackEvents === 'function'
                 && typeof CardLogic !== 'undefined' && typeof CardLogic.flushPresentationEvents === 'function') {
                 const pres = CardLogic.flushPresentationEvents(cardState) || [];
-                turnStartPlaybackEvents = TurnPipelineUIAdapter.mapToPlaybackEvents(pres, cardState, gameState) || [];
-                if (typeof TurnPipelineUIAdapter.appendSoundEffectPlaybackEvents === 'function') {
-                    turnStartPlaybackEvents = TurnPipelineUIAdapter.appendSoundEffectPlaybackEvents(turnStartPlaybackEvents, _startEvents, pres) || turnStartPlaybackEvents;
+                turnStartPlaybackEvents = adapter.mapToPlaybackEvents(pres, cardState, gameState) || [];
+                if (typeof adapter.appendSoundEffectPlaybackEvents === 'function') {
+                    turnStartPlaybackEvents = adapter.appendSoundEffectPlaybackEvents(turnStartPlaybackEvents, _startEvents, pres) || turnStartPlaybackEvents;
                 }
-                if (typeof TurnPipelineUIAdapter.mapEffectLogsFromPipeline === 'function' && typeof emitEffectLog === 'function') {
-                    const effectMsgs = TurnPipelineUIAdapter.mapEffectLogsFromPipeline(_startEvents, pres, playerKey) || [];
+                if (typeof adapter.mapEffectLogsFromPipeline === 'function' && typeof emitEffectLog === 'function') {
+                    const effectMsgs = adapter.mapEffectLogsFromPipeline(_startEvents, pres, playerKey) || [];
                     for (const m of effectMsgs) {
                         if (m) emitEffectLog(m);
                     }
@@ -688,8 +787,9 @@ async function onTurnStart(player) {
             if (drawnCardId !== null && drawnCardId !== undefined) {
                 if (typeof emitLogAdded === 'function') emitLogAdded(`${getPlayerName(player)}がドローしました`, 'normal');
                 const drawPresentation = { type: 'DRAW_CARD', player: playerKey, cardId: drawnCardId, count: 1 };
-                if (TurnPipelineUIAdapter && typeof TurnPipelineUIAdapter.mapToPlaybackEvents === 'function') {
-                    const drawPlayback = TurnPipelineUIAdapter.mapToPlaybackEvents([drawPresentation], cardState, gameState) || [];
+                const adapter = getTurnPipelineUIAdapter();
+                if (adapter && typeof adapter.mapToPlaybackEvents === 'function') {
+                    const drawPlayback = adapter.mapToPlaybackEvents([drawPresentation], cardState, gameState) || [];
                     if (drawPlayback.length > 0) {
                         const basePhase = turnStartPlaybackEvents.reduce((maxP, ev) => {
                             const p = Number(ev && ev.phase || 0);

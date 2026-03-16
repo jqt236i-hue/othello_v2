@@ -7,12 +7,17 @@ const PASS_HANDLER_VERSION = '2.0'; // TurnPipeline-only version
 // Timers abstraction (injected by UI)
 let timers = null;
 let OwnerHelpersModule = null;
+let passHandlerNetworkTurnHandoff = null;
 if (typeof require === 'function') {
     try { timers = require('./timers'); } catch (e) { /* ignore */ }
     try { OwnerHelpersModule = require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
+    try { passHandlerNetworkTurnHandoff = require('./network-turn-handoff'); } catch (e) { /* ignore */ }
 }
 if (!OwnerHelpersModule && typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) {
     OwnerHelpersModule = globalThis.OwnerHelpers;
+}
+if (!passHandlerNetworkTurnHandoff && typeof globalThis !== 'undefined' && globalThis.NetworkTurnHandoff) {
+    passHandlerNetworkTurnHandoff = globalThis.NetworkTurnHandoff;
 }
 
 function normalizePlayerKeyOptional(value) {
@@ -154,30 +159,26 @@ function publishNetworkSnapshot(meta) {
     } catch (e) { /* ignore */ }
 }
 
-function captureNetworkPublishSnapshot(gameStateValue, cardStateValue) {
-    if (!gameStateValue || !cardStateValue) return null;
-    try {
-        if (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') {
-            return {
-                gameState: globalThis.structuredClone(gameStateValue),
-                cardState: globalThis.structuredClone(cardStateValue)
-            };
-        }
-    } catch (e) { /* ignore */ }
-
-    try {
-        return {
-            gameState: JSON.parse(JSON.stringify(gameStateValue)),
-            cardState: JSON.parse(JSON.stringify(cardStateValue))
-        };
-    } catch (e) {
-        return null;
+function createPassNetworkAction(playerKey, cardStateValue) {
+    const normalizedPlayerKey = normalizePlayerKey(playerKey, 'black');
+    const action = { type: 'pass', playerKey: normalizedPlayerKey };
+    if (cardStateValue && Number.isFinite(Number(cardStateValue.turnIndex))) {
+        action.turnIndex = Math.trunc(Number(cardStateValue.turnIndex));
     }
+    return action;
 }
 
-function publishPassSnapshot(playerKey, snapshotOverride) {
-    const meta = { playerKey: playerKey, actionType: 'pass', playbackEvents: [] };
-    if (snapshotOverride) meta.snapshot = snapshotOverride;
+function publishPassSnapshot(playerKey, actionOverride) {
+    const normalizedPlayerKey = normalizePlayerKey(playerKey, 'black');
+    const action = (actionOverride && typeof actionOverride === 'object')
+        ? actionOverride
+        : createPassNetworkAction(normalizedPlayerKey, cardState);
+    const meta = {
+        playerKey: normalizedPlayerKey,
+        actionType: 'pass',
+        action,
+        playbackEvents: []
+    };
     publishNetworkSnapshot(meta);
 }
 
@@ -358,12 +359,18 @@ async function _postApplyPassCommon(lastPlayerKey) {
     try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
     try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
 
-    const publishSnapshotOverride = captureNetworkPublishSnapshot(gameState, cardState);
+    const publishAction = createPassNetworkAction(lastPlayerKey || 'black', cardState);
+
+    return finalizePassTurnHandoff(lastPlayerKey || 'black', publishAction);
+}
+
+async function legacyFinalizePassTurnHandoff(lastPlayerKey, publishAction) {
+    const safeLastPlayerKey = normalizePlayerKey(lastPlayerKey, 'black');
 
     if (typeof isGameOver === 'function' && isGameOver(gameState)) {
         if (typeof showResult === 'function') showResult();
         isProcessing = false;
-        publishPassSnapshot(lastPlayerKey || 'black', publishSnapshotOverride);
+        publishPassSnapshot(safeLastPlayerKey, publishAction);
         return true;
     }
 
@@ -387,7 +394,7 @@ async function _postApplyPassCommon(lastPlayerKey) {
         if (typeof isGameOver === 'function' && isGameOver(gameState)) {
             if (typeof showResult === 'function') showResult();
             isProcessing = false;
-            publishPassSnapshot(lastPlayerKey || 'black', publishSnapshotOverride);
+            publishPassSnapshot(safeLastPlayerKey, publishAction);
             return true;
         }
 
@@ -404,7 +411,7 @@ async function _postApplyPassCommon(lastPlayerKey) {
             // Delegate to black-pass handler for additional delays/flows
             handleBlackPassWhenNoMoves();
         }
-        publishPassSnapshot(lastPlayerKey || 'black', publishSnapshotOverride);
+        publishPassSnapshot(safeLastPlayerKey, publishAction);
         return true;
     }
 
@@ -419,14 +426,52 @@ async function _postApplyPassCommon(lastPlayerKey) {
         if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue('black', nextPlayer));
         try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
     }
-    publishPassSnapshot(lastPlayerKey || 'black', publishSnapshotOverride);
+    publishPassSnapshot(safeLastPlayerKey, publishAction);
+    return true;
+}
+
+async function finalizePassTurnHandoff(lastPlayerKey, publishAction) {
+    const safeLastPlayerKey = normalizePlayerKey(lastPlayerKey, 'black');
+    const finalizeTurn = (passHandlerNetworkTurnHandoff && typeof passHandlerNetworkTurnHandoff.finalizeNetworkTurnHandoff === 'function')
+        ? passHandlerNetworkTurnHandoff.finalizeNetworkTurnHandoff
+        : null;
+
+    if (typeof finalizeTurn !== 'function') {
+        return legacyFinalizePassTurnHandoff(safeLastPlayerKey, publishAction);
+    }
+
+    const humanMode = isHumanVsHumanModeEnabled();
+    const safeCpuDelay = (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 600;
+
+    await finalizeTurn({
+        playerKey: safeLastPlayerKey,
+        actionType: 'pass',
+        action: publishAction,
+        playbackEvents: [],
+        humanMode,
+        cpuDelayMs: safeCpuDelay,
+        resultOrder: 'beforePublish',
+        setProcessing: (nextValue) => { isProcessing = !!nextValue; },
+        publishSnapshot: publishNetworkSnapshot,
+        onTurnStart: (player) => {
+            if (typeof onTurnStart === 'function') return onTurnStart(player);
+            return null;
+        },
+        scheduleCpuTurn: ({ delayMs, expectedTurnNumber }) => {
+            scheduleWhiteCpuTurnGuarded(delayMs, { expectedTurnNumber });
+        },
+        onHumanTurnReady: () => {
+            try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+        }
+    });
+
     return true;
 }
 
 async function handleDoublePlaceNoSecondMove(move, passedPlayer) {
     const playerName = getPlayerName(passedPlayer);
     scheduleWithDelay(DOUBLE_PLACE_PASS_DELAY_MS, async () => {
-        if (typeof emitLogAdded === 'function') emitLogAdded(`${playerName}: 二連投石 追加手なし → パス`);
+        if (typeof emitLogAdded === 'function') emitLogAdded(`${playerName}: 追加配置の続きが無いため終了`);
         const playerKey = normalizePlayerKey(passedPlayer, 'black');
 
         const result = applyPassViaPipeline(playerKey);
@@ -470,76 +515,7 @@ async function processPassTurn(playerKey, autoMode) {
     }
     syncPassPipelineState(result);
 
-    try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
-    try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
-
-    const publishSnapshotOverride = captureNetworkPublishSnapshot(gameState, cardState);
-
-    if (typeof isGameOver === 'function' && isGameOver(gameState)) {
-        if (typeof showResult === 'function') showResult();
-        isProcessing = false;
-        publishPassSnapshot(passedPlayerKey, publishSnapshotOverride);
-        return true;
-    }
-
-    const nextPlayer = gameState.currentPlayer;
-    const safeGetLegalMoves = (typeof getLegalMoves === 'function')
-        ? getLegalMoves
-        : null;
-
-    const nextProtection = (typeof getActiveProtectionForPlayer === 'function')
-        ? getActiveProtectionForPlayer(nextPlayer)
-        : [];
-
-    const nextPerma = (typeof getFlipBlockers === 'function')
-        ? getFlipBlockers()
-        : [];
-
-    const nextMoves = safeGetLegalMoves
-        ? safeGetLegalMoves(gameState, nextProtection, nextPerma)
-        : [];
-    const nextPlayerKey = normalizePlayerKey(nextPlayer, 'black');
-    const nextHasCard = hasUsableCardFor(nextPlayerKey);
-    const nextIsWhite = nextPlayerKey === 'white';
-    const humanMode = isHumanVsHumanModeEnabled();
-
-    if (!nextMoves.length && !nextHasCard) {
-        if (typeof isGameOver === 'function' && isGameOver(gameState)) {
-            if (typeof showResult === 'function') showResult();
-            isProcessing = false;
-            publishPassSnapshot(passedPlayerKey, publishSnapshotOverride);
-            return true;
-        }
-
-        if (!isCpuControlledPlayer(nextPlayerKey)) {
-            isProcessing = false;
-            if (typeof onTurnStart === 'function') onTurnStart(nextPlayer);
-        } else if (nextIsWhite) {
-            isProcessing = !humanMode;
-            if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue('white', nextPlayer));
-            if (!humanMode) {
-                scheduleWhiteCpuTurnGuarded((typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600));
-            }
-        } else {
-            handleBlackPassWhenNoMoves();
-        }
-        publishPassSnapshot(passedPlayerKey, publishSnapshotOverride);
-        return true;
-    }
-
-    if (nextIsWhite) {
-        isProcessing = !humanMode;
-        if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue('white', nextPlayer));
-        if (!humanMode) {
-            scheduleWhiteCpuTurnGuarded((typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600));
-        }
-    } else {
-        isProcessing = false;
-        if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue('black', nextPlayer));
-        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
-    }
-    publishPassSnapshot(passedPlayerKey, publishSnapshotOverride);
-    return true;
+    return _postApplyPassCommon(passedPlayerKey);
 }
 
 if (typeof module !== 'undefined' && module.exports) {

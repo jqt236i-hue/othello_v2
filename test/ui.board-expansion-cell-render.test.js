@@ -6,6 +6,7 @@ describe('DiffRenderer board expansion cell rendering', () => {
     global.window = dom.window;
     global.document = dom.window.document;
     global.boardEl = document.getElementById('board');
+    global.window.requestAnimationFrame = (cb) => cb();
 
     global.BLACK = 1;
     global.WHITE = -1;
@@ -19,6 +20,10 @@ describe('DiffRenderer board expansion cell rendering', () => {
     };
 
     global.cardState = { markers: [], pendingEffectByPlayer: { black: null, white: null } };
+    global.SoundEngine = {
+      init: jest.fn(),
+      playEffectByKey: jest.fn()
+    };
     global.gameState = {
       currentPlayer: global.BLACK,
       board: Array.from({ length: 8 }, () => Array(8).fill(global.EMPTY)),
@@ -45,6 +50,7 @@ describe('DiffRenderer board expansion cell rendering', () => {
     delete global.CardLogic;
     delete global.cardState;
     delete global.gameState;
+    delete global.SoundEngine;
   });
 
   test('keeps expansion classes after render updates', () => {
@@ -167,5 +173,35 @@ describe('DiffRenderer board expansion cell rendering', () => {
     expect(addedCell).toBeTruthy();
     expect(oldCell.classList.contains('cell-expanded-reveal')).toBe(false);
     expect(addedCell.classList.contains('cell-expanded-reveal')).toBe(true);
+  });
+
+  test('plays board_expansion_reveal only when a new expansion cell appears', () => {
+    const diff = require('../ui/diff-renderer');
+    diff.resetRenderStats();
+
+    global.gameState.boardExpansion = null;
+    diff.renderBoardDiff(boardEl);
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
+
+    global.gameState.boardExpansion = {
+      active: true,
+      side: 'left',
+      row: 2,
+      owner: global.EMPTY,
+      usedByPlayer: { black: true, white: false }
+    };
+    diff.renderBoardDiff(boardEl);
+
+    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('board_expansion_reveal');
+
+    global.SoundEngine.init.mockClear();
+    global.SoundEngine.playEffectByKey.mockClear();
+
+    diff.renderBoardDiff(boardEl);
+
+    expect(global.SoundEngine.init).not.toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
   });
 });

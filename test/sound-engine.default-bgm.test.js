@@ -16,6 +16,63 @@ function loadSoundEngine() {
   return context.module.exports;
 }
 
+function createMockAudioContext() {
+  const gains = [];
+  return {
+    gains,
+    context: {
+      state: 'running',
+      currentTime: 1,
+      sampleRate: 10,
+      destination: {},
+      resume: jest.fn(),
+      createOscillator() {
+        return {
+          frequency: {
+            setValueAtTime: jest.fn(),
+            exponentialRampToValueAtTime: jest.fn()
+          },
+          connect: jest.fn(),
+          start: jest.fn(),
+          stop: jest.fn()
+        };
+      },
+      createGain() {
+        const gainNode = {
+          gain: {
+            setValueAtTime: jest.fn(),
+            linearRampToValueAtTime: jest.fn(),
+            exponentialRampToValueAtTime: jest.fn()
+          },
+          connect: jest.fn()
+        };
+        gains.push(gainNode);
+        return gainNode;
+      },
+      createBuffer() {
+        return {
+          getChannelData() {
+            return new Float32Array(2);
+          }
+        };
+      },
+      createBufferSource() {
+        return {
+          connect: jest.fn(),
+          start: jest.fn()
+        };
+      },
+      createBiquadFilter() {
+        return {
+          type: '',
+          frequency: { value: 0 },
+          connect: jest.fn()
+        };
+      }
+    }
+  };
+}
+
 describe('SoundEngine default BGM', () => {
   test('startup default sound effect master volume is 0.7', () => {
     const soundEngine = loadSoundEngine();
@@ -47,5 +104,22 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.getEffectFilePath('tutorial_story_effect', {
       filePath: 'assets/story/sound-ef/テキストをクリックするとき.mp3'
     })).toBe('assets/story/sound-ef/テキストをクリックするとき.mp3');
+  });
+
+  test('stone placement sound applies its own 0.8 volume scale on top of the SE master volume', () => {
+    const soundEngine = loadSoundEngine();
+    const { context, gains } = createMockAudioContext();
+    soundEngine.ctx = context;
+    soundEngine.volume = 0.7;
+    soundEngine.currentType = '2';
+
+    expect(soundEngine.resolveStoneClackVolume()).toBeCloseTo(0.56, 6);
+
+    soundEngine.playStoneClack();
+
+    expect(gains).toHaveLength(3);
+    expect(gains[0].gain.linearRampToValueAtTime.mock.calls[0][0]).toBeCloseTo(0.224, 6);
+    expect(gains[1].gain.linearRampToValueAtTime.mock.calls[0][0]).toBeCloseTo(0.112, 6);
+    expect(gains[2].gain.setValueAtTime.mock.calls[0][0]).toBeCloseTo(0.084, 6);
   });
 });

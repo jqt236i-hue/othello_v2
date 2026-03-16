@@ -17,20 +17,79 @@
     const PUBLISH_RETRY_MAX_ATTEMPTS = 3;
     const PUBLISH_RETRY_BASE_DELAY_MS = 400;
     const PUBLISH_RETRY_MAX_DELAY_MS = 4000;
+    const PUBLISH_TRACKER_MAX_OPERATIONS = 32;
+    const PUBLISH_TRACKER_RETENTION_MS = 60000;
     const PlaybackStateModule = (typeof require === 'function')
         ? (() => {
             try { return require('./playback-state-manager'); } catch (e) { return root.PlaybackStateManager || null; }
         })()
         : (root.PlaybackStateManager || null);
+    const PendingSelectionFlow = (typeof require === 'function')
+        ? (() => {
+            try { return require('../game/card-effects/selection-flow'); } catch (e) { return root.PendingSelectionFlow || null; }
+        })()
+        : (root.PendingSelectionFlow || null);
 
-    function setSuppressNextDiffFlip() {
+    function resolveCardLogicModule() {
+        if (root && root.CardLogic) return root.CardLogic;
+        if (typeof require === 'function') {
+            try { return require('../game/logic/cards'); } catch (e) { return null; }
+        }
+        return null;
+    }
+
+    function resolveCardTypeForId(cardId) {
+        if (!cardId) return null;
+        const cl = resolveCardLogicModule();
+        if (!cl || typeof cl.getCardDef !== 'function') return null;
+        const def = cl.getCardDef(cardId);
+        return (def && def.type) ? String(def.type) : null;
+    }
+
+    function getPlaybackActive() {
         try {
-            if (PlaybackStateModule && typeof PlaybackStateModule.setSuppressNextDiffFlip === 'function') {
+            if (PlaybackStateModule && typeof PlaybackStateModule.getPlaybackActive === 'function') {
+                return PlaybackStateModule.getPlaybackActive() === true;
+            }
+        } catch (e) { /* ignore */ }
+        return root.VisualPlaybackActive === true;
+    }
+
+    function clearBoardUpdateContext() {
+        try {
+            if (PlaybackStateModule && typeof PlaybackStateModule.clearBoardUpdateContext === 'function') {
+                PlaybackStateModule.clearBoardUpdateContext();
+            } else if (PlaybackStateModule && typeof PlaybackStateModule.setSuppressNextDiffFlip === 'function') {
+                PlaybackStateModule.setSuppressNextDiffFlip(false);
+            } else {
+                root.__suppressNextDiffFlip = false;
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    function armSuppressDiffBoardUpdateContext(reason) {
+        try {
+            if (PlaybackStateModule && typeof PlaybackStateModule.armBoardUpdateContext === 'function') {
+                PlaybackStateModule.armBoardUpdateContext({
+                    suppressFallbackFlip: true,
+                    source: 'network-client',
+                    reason: reason || 'self_snapshot_sync'
+                });
+            } else if (PlaybackStateModule && typeof PlaybackStateModule.setSuppressNextDiffFlip === 'function') {
                 PlaybackStateModule.setSuppressNextDiffFlip(true);
             } else {
                 root.__suppressNextDiffFlip = true;
             }
         } catch (e) { /* ignore */ }
+    }
+
+    function shouldClearStaleBoardUpdateContext(options) {
+        const opts = options || {};
+        if (opts.force !== true) return false;
+        if (opts.boardUpdateContext && typeof opts.boardUpdateContext === 'object') return false;
+        if (Array.isArray(opts.playbackEvents) && opts.playbackEvents.length > 0) return false;
+        if (Array.isArray(opts.shadowPlaybackEvents) && opts.shadowPlaybackEvents.length > 0) return false;
+        return getPlaybackActive() !== true;
     }
 
     function normalizeRoomId(value) {
@@ -111,8 +170,10 @@
         originalRunTurnWithAdapter: null,
         actionBridgeInstalled: false,
         publishChain: Promise.resolve(),
-        queuedPublishSequence: 0,
-        lastPublishedOperationId: null,
+        publishTracker: {
+            nextSequence: 0,
+            operations: []
+        },
         lastResultVersionShown: null,
         resultShownForUnversioned: false,
         reconnectTimerId: null,
@@ -129,11 +190,24 @@
         turnTimerSyncRequestedDeadline: null,
         serverTimeOffsetMs: 0,
         heartbeatResyncInFlight: false
+        ,
+        authoritativeMatchState: {
+            gameState: null,
+            cardState: null,
+            stateVersion: null
+        },
+        localPresentationState: {
+            preservedQueues: null,
+            lastPlaybackEvents: [],
+            busy: false,
+            playbackSuppressed: false
+        }
     };
 
     let networkCommentaryModule = null;
     let networkSnapshotModule = null;
     let networkSessionSeatModule = null;
+    let networkActionSchemaModule = null;
     let networkCommentaryController = null;
     let networkSnapshotController = null;
     let networkSessionSeatController = null;
@@ -143,6 +217,7 @@
         try { networkCommentaryModule = require('./network/commentary'); } catch (e) { /* ignore */ }
         try { networkSnapshotModule = require('./network/snapshot'); } catch (e) { /* ignore */ }
         try { networkSessionSeatModule = require('./network/session-seat'); } catch (e) { /* ignore */ }
+        try { networkActionSchemaModule = require('../shared/network-action-schema'); } catch (e) { /* ignore */ }
     }
 
     function resolveNetworkCommentaryModule() {
@@ -205,6 +280,26 @@
         return null;
     }
 
+    function resolveNetworkActionSchemaModule() {
+        if (networkActionSchemaModule) return networkActionSchemaModule;
+
+        try {
+            if (root && root.NetworkActionSchema) {
+                networkActionSchemaModule = root.NetworkActionSchema;
+                return networkActionSchemaModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.NetworkActionSchema) {
+                networkActionSchemaModule = globalThis.NetworkActionSchema;
+                return networkActionSchemaModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        return null;
+    }
+
     function getNetworkCommentaryController() {
         if (networkCommentaryController) return networkCommentaryController;
         const mod = resolveNetworkCommentaryModule();
@@ -223,7 +318,10 @@
         if (!mod || typeof mod.createNetworkSnapshotController !== 'function') return null;
         networkSnapshotController = mod.createNetworkSnapshotController({
             root,
-            getState: () => state
+            getState: () => state,
+            syncPendingSelectionActionCache: PendingSelectionFlow && typeof PendingSelectionFlow.syncPendingSelectionActionCache === 'function'
+                ? (pendingEffectByPlayer) => PendingSelectionFlow.syncPendingSelectionActionCache(pendingEffectByPlayer)
+                : null
         });
         return networkSnapshotController;
     }
@@ -299,6 +397,73 @@
         if (value === -1 || normalized === 'white' || normalized === '-1') return 'white';
         if (value === 1 || normalized === 'black' || normalized === '1' || normalized === '+1') return 'black';
         return 'black';
+    }
+
+    function cloneDataForCommandPayload(value) {
+        try {
+            if (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') {
+                return globalThis.structuredClone(value);
+            }
+        } catch (e) { /* ignore */ }
+        return JSON.parse(JSON.stringify(value));
+    }
+
+    function serializeActionForCommandPayload(action, fallbackPlayerKey) {
+        if (!action || typeof action !== 'object') return null;
+
+        const schema = resolveNetworkActionSchemaModule();
+        if (schema && typeof schema.serializeAction === 'function') {
+            const serialized = schema.serializeAction(action, fallbackPlayerKey);
+            if (serialized) return serialized;
+        }
+
+        const actionType = String(action.type || action.actionType || '').trim().toLowerCase();
+        if (!actionType) return null;
+
+        const payload = {
+            actionType,
+            actor: normalizePlayerKey(action.actor || action.playerKey || fallbackPlayerKey),
+            params: {}
+        };
+        if (action.actionId) payload.actionId = String(action.actionId);
+        if (Number.isFinite(Number(action.turnIndex))) payload.turnIndex = Math.trunc(Number(action.turnIndex));
+
+        const keys = Object.keys(action);
+        for (let index = 0; index < keys.length; index += 1) {
+            const key = keys[index];
+            if (key === 'type' || key === 'actionType' || key === 'actor' || key === 'playerKey' || key === 'actionId' || key === 'turnIndex' || key === 'deferNetworkPublish' || key === 'snapshot' || key === 'playbackEvents') {
+                continue;
+            }
+            if (typeof action[key] === 'undefined') continue;
+            payload.params[key] = cloneDataForCommandPayload(action[key]);
+        }
+        return payload;
+    }
+
+    function buildPublishCommandPayload(info, playerKey) {
+        const source = (info && typeof info === 'object') ? info : {};
+        const action = (source.action && typeof source.action === 'object') ? source.action : null;
+        const schema = resolveNetworkActionSchemaModule();
+        const actionType = String(source.actionType || (action && (action.type || action.actionType)) || '').trim().toLowerCase();
+
+        if (action) {
+            const serialized = serializeActionForCommandPayload(action, playerKey);
+            if (serialized) {
+                if (!schema || typeof schema.shouldUseCommandPayload !== 'function' || schema.shouldUseCommandPayload(serialized)) {
+                    return serialized;
+                }
+            }
+        }
+
+        if (actionType === 'reset_game' || actionType === 'rematch' || actionType === 'restart') {
+            return {
+                actionType,
+                actor: normalizePlayerKey(playerKey),
+                params: {}
+            };
+        }
+
+        return null;
     }
 
     function withTrailingSlashRemoved(url) {
@@ -476,6 +641,258 @@
         return new Promise((resolve) => {
             setTimeout(resolve, waitMs);
         });
+    }
+
+    function ensurePublishTracker() {
+        const tracker = (state.publishTracker && typeof state.publishTracker === 'object')
+            ? state.publishTracker
+            : null;
+        if (tracker && Array.isArray(tracker.operations) && Number.isFinite(Number(tracker.nextSequence))) {
+            return tracker;
+        }
+
+        state.publishTracker = {
+            nextSequence: 0,
+            operations: []
+        };
+        return state.publishTracker;
+    }
+
+    function pruneTrackedPublishes() {
+        const tracker = ensurePublishTracker();
+        const now = Date.now();
+        tracker.operations = tracker.operations.filter((entry) => {
+            if (!entry || !entry.operationId) return false;
+            if (entry.phase === 'settled') return false;
+            if (entry.responseSettled === true && entry.selfSnapshotReceived === true) return false;
+            if (entry.responseSettled === true && Number.isFinite(Number(entry.completedAt)) && (now - Number(entry.completedAt)) > PUBLISH_TRACKER_RETENTION_MS) {
+                return false;
+            }
+            return true;
+        });
+
+        if (tracker.operations.length > PUBLISH_TRACKER_MAX_OPERATIONS) {
+            tracker.operations = tracker.operations.slice(tracker.operations.length - PUBLISH_TRACKER_MAX_OPERATIONS);
+        }
+
+        return tracker.operations;
+    }
+
+    function resetPublishTracker() {
+        state.publishTracker = {
+            nextSequence: 0,
+            operations: []
+        };
+    }
+
+    function createTrackedPublish(operationId, requestMeta) {
+        const tracker = ensurePublishTracker();
+        const sequence = Number.isFinite(Number(tracker.nextSequence))
+            ? Number(tracker.nextSequence) + 1
+            : 1;
+        tracker.nextSequence = sequence;
+
+        const entry = {
+            operationId: String(operationId || ''),
+            sequence,
+            phase: 'queued',
+            responseSettled: false,
+            responseVersion: null,
+            selfSnapshotReceived: false,
+            selfSnapshotVersion: null,
+            shadowPlaybackEvents: [],
+            shadowPlaybackEventStrings: [],
+            completedAt: null,
+            requestMeta: (requestMeta && typeof requestMeta === 'object') ? {
+                actionType: requestMeta.actionType || null,
+                actor: requestMeta.actor || null,
+                params: (requestMeta.params && typeof requestMeta.params === 'object') ? cloneDataForCommandPayload(requestMeta.params) : null,
+                playbackEvents: Array.isArray(requestMeta.playbackEvents) ? cloneDataForCommandPayload(requestMeta.playbackEvents) : [],
+                usedSnapshotFallback: requestMeta.usedSnapshotFallback === true
+            } : null
+        };
+        tracker.operations.push(entry);
+        pruneTrackedPublishes();
+        return entry;
+    }
+
+    function getTrackedPublishRequestedPlaybackEvents(entry) {
+        const playbackEvents = entry && entry.requestMeta && Array.isArray(entry.requestMeta.playbackEvents)
+            ? entry.requestMeta.playbackEvents
+            : [];
+        return playbackEvents;
+    }
+
+    function getTrackedPublishQueuedShadowPlaybackEvents(entry) {
+        const playbackEvents = entry && Array.isArray(entry.shadowPlaybackEvents)
+            ? entry.shadowPlaybackEvents
+            : [];
+        return playbackEvents;
+    }
+
+    function stringifyPlaybackEvent(eventValue) {
+        try {
+            return JSON.stringify(eventValue);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function stringifyPlaybackEventList(playbackEvents) {
+        if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return [];
+        const eventStrings = [];
+        for (let index = 0; index < playbackEvents.length; index += 1) {
+            const eventString = stringifyPlaybackEvent(playbackEvents[index]);
+            if (eventString === null) {
+                return null;
+            }
+            eventStrings.push(eventString);
+        }
+        return eventStrings;
+    }
+
+    function hasPlaybackEventPrefix(prefixEvents, allEvents, prefixEventStrings) {
+        if (!Array.isArray(prefixEvents) || !Array.isArray(allEvents)) return false;
+        if (prefixEvents.length > allEvents.length) return false;
+        const cachedPrefixStrings = Array.isArray(prefixEventStrings) && prefixEventStrings.length === prefixEvents.length
+            ? prefixEventStrings
+            : stringifyPlaybackEventList(prefixEvents);
+        if (!Array.isArray(cachedPrefixStrings) || cachedPrefixStrings.length !== prefixEvents.length) return false;
+        for (let index = 0; index < prefixEvents.length; index += 1) {
+            const candidateString = stringifyPlaybackEvent(allEvents[index]);
+            if (candidateString === null || cachedPrefixStrings[index] !== candidateString) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function resolveSelfSnapshotShadowPlaybackEvents(entry, streamPlaybackEvents) {
+        const payloadPlaybackEvents = Array.isArray(streamPlaybackEvents) ? streamPlaybackEvents : [];
+        const queuedShadowPlaybackEvents = getTrackedPublishQueuedShadowPlaybackEvents(entry);
+        const queuedShadowPlaybackEventStrings = entry && Array.isArray(entry.shadowPlaybackEventStrings)
+            ? entry.shadowPlaybackEventStrings
+            : [];
+        if (!payloadPlaybackEvents.length) {
+            return queuedShadowPlaybackEvents.length > 0
+                ? []
+                : cloneDataForCommandPayload(getTrackedPublishRequestedPlaybackEvents(entry));
+        }
+        if (!queuedShadowPlaybackEvents.length) {
+            return cloneDataForCommandPayload(payloadPlaybackEvents);
+        }
+        if (hasPlaybackEventPrefix(queuedShadowPlaybackEvents, payloadPlaybackEvents, queuedShadowPlaybackEventStrings)) {
+            return cloneDataForCommandPayload(payloadPlaybackEvents.slice(queuedShadowPlaybackEvents.length));
+        }
+        return cloneDataForCommandPayload(payloadPlaybackEvents);
+    }
+
+    function findTrackedPublish(operationId) {
+        if (!operationId) return null;
+        const operations = pruneTrackedPublishes();
+        for (let index = 0; index < operations.length; index += 1) {
+            const entry = operations[index];
+            if (entry && entry.operationId === operationId) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
+    function settleTrackedPublish(entry) {
+        if (!entry || typeof entry !== 'object') return;
+        entry.phase = 'settled';
+        entry.completedAt = Date.now();
+        pruneTrackedPublishes();
+    }
+
+    function markTrackedPublishInFlight(entry) {
+        if (!entry || typeof entry !== 'object') return;
+        entry.phase = 'inflight';
+    }
+
+    function markTrackedPublishResponse(entry, stateVersionValue) {
+        if (!entry || typeof entry !== 'object') return;
+        entry.phase = 'acknowledged';
+        entry.responseSettled = true;
+        entry.responseVersion = Number.isFinite(Number(stateVersionValue))
+            ? Number(stateVersionValue)
+            : null;
+        entry.completedAt = Date.now();
+        if (entry.selfSnapshotReceived === true) {
+            settleTrackedPublish(entry);
+        } else {
+            pruneTrackedPublishes();
+        }
+    }
+
+    function markTrackedPublishSelfSnapshot(entry, snapshot) {
+        if (!entry || typeof entry !== 'object') return;
+        entry.selfSnapshotReceived = true;
+        entry.selfSnapshotVersion = Number.isFinite(Number(snapshot && snapshot.stateVersion))
+            ? Number(snapshot.stateVersion)
+            : null;
+        if (entry.responseSettled === true) {
+            settleTrackedPublish(entry);
+        }
+    }
+
+    function markTrackedPublishShadowPlaybackQueued(entry, playbackEvents) {
+        if (!entry || typeof entry !== 'object') return;
+        const normalizedEvents = Array.isArray(playbackEvents)
+            ? cloneDataForCommandPayload(playbackEvents)
+            : [];
+        entry.shadowPlaybackEvents = normalizedEvents;
+        entry.shadowPlaybackEventStrings = stringifyPlaybackEventList(normalizedEvents) || [];
+    }
+
+    function hasPendingLocalPublishes() {
+        const operations = pruneTrackedPublishes();
+        return operations.some((entry) => entry && (entry.phase === 'queued' || entry.phase === 'inflight'));
+    }
+
+    function hasNewerQueuedPublish(sequence) {
+        const currentSequence = Number.isFinite(Number(sequence)) ? Number(sequence) : 0;
+        const operations = pruneTrackedPublishes();
+        return operations.some((entry) => entry && entry.phase !== 'settled' && Number(entry.sequence) > currentSequence);
+    }
+
+    function shouldApplyPublishResponseSnapshot(entry, snapshot) {
+        if (!entry || !snapshot) return false;
+        if (hasNewerQueuedPublish(entry.sequence)) return false;
+        if (entry.selfSnapshotReceived !== true) return true;
+
+        const responseVersion = Number.isFinite(Number(snapshot && snapshot.stateVersion))
+            ? Number(snapshot.stateVersion)
+            : null;
+        const selfSnapshotVersion = Number.isFinite(Number(entry.selfSnapshotVersion))
+            ? Number(entry.selfSnapshotVersion)
+            : null;
+
+        if (responseVersion === null) return false;
+        if (selfSnapshotVersion === null) return false;
+        return responseVersion > selfSnapshotVersion;
+    }
+
+    function shouldSkipForceSyncSnapshot(snapshot) {
+        if (!hasPendingLocalPublishes()) return false;
+
+        const remoteVersion = Number.isFinite(Number(snapshot && snapshot.stateVersion))
+            ? Number(snapshot.stateVersion)
+            : null;
+        const localVersion = Number.isFinite(Number(state.stateVersion))
+            ? Number(state.stateVersion)
+            : null;
+
+        if (remoteVersion === null) return true;
+        if (localVersion === null) return false;
+        return remoteVersion <= localVersion;
+    }
+
+    function shouldSkipRejectedPublishSnapshot(entry, snapshot) {
+        if (!snapshot || typeof snapshot !== 'object') return true;
+        if (entry && hasNewerQueuedPublish(entry.sequence)) return true;
+        return shouldSkipForceSyncSnapshot(snapshot);
     }
 
     function computeRetryDelayMs(baseDelayMs, maxDelayMs, attempt) {
@@ -720,6 +1137,9 @@
     }
 
     function applySnapshot(snapshot, options) {
+        if (shouldClearStaleBoardUpdateContext(options)) {
+            clearBoardUpdateContext();
+        }
         return invokeControllerMethod(getNetworkSnapshotController, 'applySnapshot', arguments, false);
     }
 
@@ -781,6 +1201,27 @@
         }
     }
 
+    function sanitizePlaybackValueForPublish(value) {
+        if (Array.isArray(value)) {
+            return value.map((item) => sanitizePlaybackValueForPublish(item));
+        }
+        if (!value || typeof value !== 'object') return value;
+
+        const sanitized = {};
+        const keys = Object.keys(value);
+        for (let index = 0; index < keys.length; index += 1) {
+            const key = keys[index];
+            if (key === 'sourceCardEl' || key === 'sourceCardRect') continue;
+            sanitized[key] = sanitizePlaybackValueForPublish(value[key]);
+        }
+        return sanitized;
+    }
+
+    function sanitizePlaybackEventsForPublish(playbackEvents) {
+        if (!Array.isArray(playbackEvents) || playbackEvents.length <= 0) return [];
+        return playbackEvents.map((event) => sanitizePlaybackValueForPublish(event));
+    }
+
     function isMatchApiMissing(res) {
         return !!(res && Number(res.status) === 404);
     }
@@ -797,23 +1238,94 @@
         state.originalRunTurnWithAdapter = root.TurnPipelineUIAdapter.runTurnWithAdapter;
 
         root.TurnPipelineUIAdapter.runTurnWithAdapter = function wrappedRunTurnWithAdapter(cardStateArg, gameStateArg, playerKey, action, turnPipeline) {
+            // --- Single Writer: network active 時はローカル実行をスキップ ---
+            if (state.active) {
+                const actionType = action && (action.type || action.actionType) ? String(action.type || action.actionType) : '';
+                const isBoardPlacement = action && Number.isFinite(action.row) && Number.isFinite(action.col);
+                const isPass = actionType === 'pass';
+                if (isBoardPlacement || isPass) {
+                    publishSnapshot({
+                        playerKey: normalizePlayerKey(playerKey),
+                        actionType: isBoardPlacement ? 'place' : 'pass',
+                        playbackEvents: [],
+                        action
+                    });
+                    return { ok: true, skippedLocalExecution: true, playbackEvents: [] };
+                }
+
+                // Phase 2: cancel_card / destroy_hand_card — skip local, publish directly
+                if (actionType === 'cancel_card' || actionType === 'destroy_hand_card') {
+                    publishSnapshot({
+                        playerKey: normalizePlayerKey(playerKey),
+                        actionType,
+                        playbackEvents: [],
+                        action
+                    });
+                    return { ok: true, skippedLocalExecution: true, playbackEvents: [] };
+                }
+
+                // Phase 2: use_card
+                if (actionType === 'use_card') {
+                    const cardId = action && (action.useCardId || action.cardId);
+                    const cardType = resolveCardTypeForId(cardId);
+                    const needsPending = !!(cardType
+                        && PendingSelectionFlow
+                        && typeof PendingSelectionFlow.shouldDeferNetworkPublishForPendingType === 'function'
+                        && PendingSelectionFlow.shouldDeferNetworkPublishForPendingType(cardType));
+
+                    if (!needsPending) {
+                        // No-target card: skip local, publish directly
+                        publishSnapshot({
+                            playerKey: normalizePlayerKey(playerKey),
+                            actionType: 'use_card',
+                            playbackEvents: [],
+                            action
+                        });
+                        return { ok: true, skippedLocalExecution: true, playbackEvents: [] };
+                    }
+
+                    // Target card: run CardLogic.applyCardUsage() locally for pending state
+                    const resolvedCardLogic = resolveCardLogicModule();
+                    if (resolvedCardLogic && typeof resolvedCardLogic.applyCardUsage === 'function') {
+                        resolvedCardLogic.applyCardUsage(cardStateArg, normalizePlayerKey(playerKey), cardId);
+                    }
+                    return {
+                        ok: true,
+                        pendingSelectionActive: true,
+                        playbackEvents: [],
+                        nextCardState: cardStateArg,
+                        nextGameState: gameStateArg
+                    };
+                }
+            }
+
             const result = state.originalRunTurnWithAdapter.call(root.TurnPipelineUIAdapter, cardStateArg, gameStateArg, playerKey, action, turnPipeline);
 
             if (state.active && result && result.ok !== false) {
-                const isBoardPlacement = action && Number.isFinite(action.row) && Number.isFinite(action.col);
                 const shouldDeferNetworkPublish = !!(action && action.deferNetworkPublish === true);
-                if (!isBoardPlacement && !shouldDeferNetworkPublish) {
-                    const nextSnapshot = (result.nextGameState && result.nextCardState)
-                        ? {
-                            gameState: result.nextGameState,
-                            cardState: result.nextCardState
-                        }
-                        : null;
+                const pendingType = (() => {
+                    try {
+                        const normalizedPlayerKey = normalizePlayerKey(playerKey);
+                        const pendingByPlayer = (result.nextCardState && result.nextCardState.pendingEffectByPlayer)
+                            ? result.nextCardState.pendingEffectByPlayer
+                            : (cardStateArg && cardStateArg.pendingEffectByPlayer);
+                        const pending = pendingByPlayer && pendingByPlayer[normalizedPlayerKey];
+                        return pending && pending.type ? String(pending.type) : null;
+                    } catch (e) {
+                        return null;
+                    }
+                })();
+                const shouldDeferPendingSelection = !!(
+                    PendingSelectionFlow
+                    && typeof PendingSelectionFlow.shouldDeferNetworkPublishForPendingType === 'function'
+                    && PendingSelectionFlow.shouldDeferNetworkPublishForPendingType(pendingType)
+                );
+                if (!shouldDeferNetworkPublish && !shouldDeferPendingSelection) {
                     publishSnapshot({
                         playerKey: normalizePlayerKey(playerKey),
-                        actionType: action && action.type ? String(action.type) : 'action',
+                        actionType: action && (action.type || action.actionType) ? String(action.type || action.actionType) : 'action',
                         playbackEvents: Array.isArray(result.playbackEvents) ? result.playbackEvents : [],
-                        snapshot: nextSnapshot
+                        action
                     });
                 }
             }
@@ -958,20 +1470,27 @@
             const snapshot = payload.snapshot;
             const playbackEvents = Array.isArray(payload.playbackEvents) ? payload.playbackEvents : [];
             const operationId = payload && payload.operationId ? String(payload.operationId) : '';
-            let acceptedPlaybackEvents = playbackEvents;
-            const isSelfOperation = !!(operationId && state.lastPublishedOperationId && operationId === state.lastPublishedOperationId);
+            const trackedPublish = findTrackedPublish(operationId);
+            const isSelfOperation = !!trackedPublish;
+
+            // Single Writer: self-op でもサーバーの playbackEvents をそのまま使う
+            const acceptedPlaybackEvents = playbackEvents;
+            const shadowPlaybackEvents = [];
+
             if (isSelfOperation) {
-                acceptedPlaybackEvents = [];
-                if (playbackEvents.length > 0) {
-                    setSuppressNextDiffFlip();
-                }
-                state.lastPublishedOperationId = null;
+                markTrackedPublishSelfSnapshot(trackedPublish, snapshot);
             }
-            const applied = applySnapshot(snapshot, { playbackEvents: acceptedPlaybackEvents, force: false, skipResultOverlay: isSelfOperation });
+            const applied = applySnapshot(snapshot, {
+                playbackEvents: acceptedPlaybackEvents,
+                shadowPlaybackEvents: shadowPlaybackEvents,
+                force: false,
+                skipResultOverlay: isSelfOperation
+            });
             if (applied) {
                 emitSnapshotCommentary(payload, snapshot, isSelfOperation, acceptedPlaybackEvents);
             }
             handleTimeoutPassPayload(payload);
+            pruneTrackedPublishes();
         };
 
         const handleStreamEvent = createStreamPayloadHandler(onSnapshot);
@@ -1146,10 +1665,13 @@
             return { ok: false, reason: (res.data && res.data.reason) || 'STATE_FETCH_FAILED' };
         }
         applyPayloadSessionState(res.data);
+        let appliedSnapshot = false;
         if (res.data.snapshot) {
-            applySnapshot(res.data.snapshot, { force: true });
+            if (!shouldSkipForceSyncSnapshot(res.data.snapshot)) {
+                appliedSnapshot = applySnapshot(res.data.snapshot, { force: true });
+            }
         }
-        return { ok: true };
+        return { ok: true, appliedSnapshot };
     }
 
     function getCurrentAppliedGameState() {
@@ -1181,6 +1703,7 @@
     }
 
     async function leaveRoom() {
+        clearBoardUpdateContext();
         if (!state.roomId) {
             const controller = getNetworkSessionSeatController();
             if (controller && typeof controller.resetSessionState === 'function') {
@@ -1189,6 +1712,7 @@
                 state.active = false;
                 state.seatNames = { black: '', white: '' };
             }
+            resetPublishTracker();
             resetTurnTimerState();
             closeStream();
             teardownActionBridge();
@@ -1215,10 +1739,11 @@
             state.seatNames = { black: '', white: '' };
             state.chatHistory = [];
             state.stateVersion = null;
-            state.queuedPublishSequence = 0;
+            resetPublishTracker();
             state.lastResultVersionShown = null;
             state.resultShownForUnversioned = false;
         }
+        resetPublishTracker();
         resetTurnTimerState();
         closeStream();
         teardownActionBridge();
@@ -1234,16 +1759,6 @@
         return invokeControllerMethod(getNetworkSnapshotController, 'getCurrentSnapshotForPublish', arguments, null);
     }
 
-    function hasNewerQueuedPublish(sequence) {
-        const queuedSequence = Number.isFinite(Number(state.queuedPublishSequence))
-            ? Number(state.queuedPublishSequence)
-            : 0;
-        const currentSequence = Number.isFinite(Number(sequence))
-            ? Number(sequence)
-            : 0;
-        return queuedSequence > currentSequence;
-    }
-
     function publishSnapshot(meta) {
         if (!isActive()) return Promise.resolve({ ok: false, reason: 'INACTIVE' });
         if (!state.seatToken) return Promise.resolve({ ok: false, reason: 'SEAT_TOKEN_REQUIRED' });
@@ -1254,25 +1769,31 @@
             emitStatus(`ネット対戦: 操作主体が座席と不一致です (${playerKey} != ${state.seatKey})`, true);
             return Promise.resolve({ ok: false, reason: 'SEAT_MISMATCH_LOCAL' });
         }
-        const queuedSnapshot = getCurrentSnapshotForPublish(info);
-        if (!queuedSnapshot) {
-            return Promise.resolve({ ok: false, reason: 'SNAPSHOT_FAILED' });
+        const commandPayload = buildPublishCommandPayload(info, playerKey);
+        if (!commandPayload) {
+            return Promise.resolve({ ok: false, reason: 'COMMAND_REQUIRED' });
         }
-        const queuedPlaybackEvents = Array.isArray(info.playbackEvents) ? info.playbackEvents.slice() : [];
-        const queuedActionType = info.actionType || null;
-        const queuedPublishSequence = (Number.isFinite(Number(state.queuedPublishSequence))
-            ? Number(state.queuedPublishSequence)
-            : 0) + 1;
-        state.queuedPublishSequence = queuedPublishSequence;
-
+        const queuedPlaybackEvents = sanitizePlaybackEventsForPublish(info.playbackEvents);
+        const queuedActionType = (commandPayload && commandPayload.actionType)
+            ? commandPayload.actionType
+            : (info.actionType || null);
         const operationId = createOperationId();
+        const trackedPublish = createTrackedPublish(operationId, {
+            actionType: queuedActionType,
+            actor: commandPayload ? (commandPayload.actor || playerKey) : playerKey,
+            params: commandPayload ? (commandPayload.params || {}) : null,
+            playbackEvents: queuedPlaybackEvents,
+            usedSnapshotFallback: false
+        });
 
         state.publishChain = state.publishChain
             .then(async () => {
                 if (!isActive()) {
+                    settleTrackedPublish(trackedPublish);
                     return { ok: false, reason: 'INACTIVE' };
                 }
                 if (!state.seatToken) {
+                    settleTrackedPublish(trackedPublish);
                     return { ok: false, reason: 'SEAT_TOKEN_REQUIRED' };
                 }
 
@@ -1282,42 +1803,77 @@
                     seatToken: state.seatToken,
                     playerKey,
                     actionType: queuedActionType,
-                    playbackEvents: queuedPlaybackEvents,
                     operationId,
-                    baseVersion: state.stateVersion,
-                    snapshot: queuedSnapshot
+                    baseVersion: state.stateVersion
                 };
 
-                state.lastPublishedOperationId = operationId;
+                if (commandPayload) {
+                    payload.actor = commandPayload.actor || playerKey;
+                    payload.params = commandPayload.params || {};
+                    if (commandPayload.actionId) {
+                        payload.actionId = commandPayload.actionId;
+                    }
+                    if (Number.isFinite(Number(commandPayload.turnIndex))) {
+                        payload.turnIndex = Math.trunc(Number(commandPayload.turnIndex));
+                    }
+                }
+                if (info.action && typeof info.action === 'object') {
+                    payload.action = cloneDataForCommandPayload(info.action);
+                }
+
+                markTrackedPublishInFlight(trackedPublish);
                 const res = await publishRequestWithRetry(payload);
                 if (!res.ok || !res.data || res.data.ok !== true) {
                     const reason = (res.data && res.data.rejectedReason) || 'PUBLISH_REJECTED';
                     applyPayloadSessionState(res.data);
-                    if (state.lastPublishedOperationId === operationId) {
-                        state.lastPublishedOperationId = null;
+                    const rejectionStateVersion = Number.isFinite(Number(res && res.data && res.data.stateVersion))
+                        ? Number(res.data.stateVersion)
+                        : null;
+                    if (rejectionStateVersion !== null) {
+                        const currentStateVersion = Number.isFinite(Number(state.stateVersion))
+                            ? Number(state.stateVersion)
+                            : null;
+                        if (currentStateVersion === null || rejectionStateVersion > currentStateVersion) {
+                            state.stateVersion = rejectionStateVersion;
+                        }
                     }
-                    if (res.data && res.data.snapshot) {
+                    if (res.data && res.data.snapshot && !shouldSkipRejectedPublishSnapshot(trackedPublish, res.data.snapshot)) {
                         applySnapshot(res.data.snapshot, { force: true });
                     }
+                    settleTrackedPublish(trackedPublish);
                     emitStatus(`ネット対戦: 操作が拒否されました (${reason})`, true);
                     return { ok: false, reason };
                 }
                 applyPayloadSessionState(res.data);
-                if (Number.isFinite(Number(res.data.stateVersion))) {
-                    state.stateVersion = Number(res.data.stateVersion);
+                const responseStateVersion = Number.isFinite(Number(res.data.stateVersion))
+                    ? Number(res.data.stateVersion)
+                    : null;
+                if (responseStateVersion !== null) {
+                    state.stateVersion = responseStateVersion;
                 }
-                if (res.data && res.data.snapshot && !hasNewerQueuedPublish(queuedPublishSequence)) {
-                    applySnapshot(res.data.snapshot, { force: true });
+                markTrackedPublishResponse(trackedPublish, responseStateVersion);
+                if (res.data && res.data.snapshot && shouldApplyPublishResponseSnapshot(trackedPublish, res.data.snapshot)) {
+                    // Single Writer: サーバーの playbackEvents をそのまま渡す (shadow 不要)
+                    const serverPlaybackEvents = Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : [];
+                    const applied = applySnapshot(res.data.snapshot, {
+                        force: true,
+                        playbackEvents: serverPlaybackEvents
+                    });
+                    if (applied) {
+                        // no shadow playback tracking needed
+                    }
                 }
+                pruneTrackedPublishes();
                 return { ok: true };
             })
             .catch((error) => {
                 const message = error && error.message ? error.message : 'PUBLISH_ERROR';
-                if (state.lastPublishedOperationId === operationId) {
-                    state.lastPublishedOperationId = null;
-                }
+                settleTrackedPublish(trackedPublish);
                 emitStatus(`ネット対戦: 通信失敗 (${message})`, true);
                 return { ok: false, reason: 'PUBLISH_ERROR' };
+            })
+            .finally(() => {
+                pruneTrackedPublishes();
             });
 
         return state.publishChain;
@@ -1325,10 +1881,15 @@
 
     async function requestRematch() {
         if (!isActive()) return { ok: false, reason: 'INACTIVE' };
+        clearBoardUpdateContext();
 
         const makeRequest = () => publishSnapshot({
             playerKey: state.seatKey,
             actionType: 'reset_game',
+            action: {
+                type: 'reset_game',
+                playerKey: state.seatKey
+            },
             playbackEvents: []
         });
 

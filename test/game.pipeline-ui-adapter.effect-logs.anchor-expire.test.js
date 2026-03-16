@@ -95,6 +95,18 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     ]);
   });
 
+  test('logs crystal zero-gain wording without implying a number-cell bonus was gained', () => {
+    const rawEvents = [
+      { type: 'placement_effects', effects: { crystalStoneUsed: true, crystalStoneGain: 0 } }
+    ];
+
+    const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'black');
+
+    expect(out).toEqual([
+      '黒: 水晶石: 数字マスなしで増加なし'
+    ]);
+  });
+
 
   test('logs free placement wording', () => {
     const rawEvents = [

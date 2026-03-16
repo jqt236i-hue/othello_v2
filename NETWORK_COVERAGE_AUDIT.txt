@@ -1,0 +1,110 @@
+================================================================================
+                 NETWORK COVERAGE AUDIT - EXECUTIVE SUMMARY
+================================================================================
+
+INVENTORY TOTALS
+─────────────────────────────────────────────────────────────────────────────
+Total Cards:                67 cards
+  • Enabled:               61 cards
+  • Disabled:               3 cards (triple_01, quad_01, infinite_01)
+  • Status unclear:         3 cards (plunder_will, tempt_01, guardian_god_01)
+
+NETWORK COVERAGE CLASSIFICATION
+─────────────────────────────────────────────────────────────────────────────
+
+✓ DIRECT NETWORK COVERAGE (10 cards - 14.9%)
+  These test actual network paths (publish, reconnect, snapshot contracts):
+  
+  trap_01
+  sacrifice_01
+  swap_01
+  position_swap_01
+  board_expand_god_01
+  condemn_01
+  sell_01
+  strong_wind_01
+  super_buoyancy_01
+  super_gravity_01
+
+◐ INDIRECT/SHARED-PATH COVERAGE (50 cards - 74.6%)
+  Game logic tests exist but NO explicit network-mode tests.
+  These cards test game rules but not network contracts:
+  
+  blockade_01, board_expand_01, bomb_01, breeding_01, cell_teleport_01,
+  chain_01, chest_01, clone_01, corner_tribute_01, corrosion_01,
+  cross_bomb_01, crystal_stone, destroy_01, destroy_dragon_01, double_01,
+  escape_01, extend_life_01, extreme_hyperactive_01, free_01, freeze_01,
+  gluttonous_will_01, gold_stone, guard_01, hard_01, heaven_01,
+  hyperactive_01, hyperactive_inherit_01, instant_hyperactive_01,
+  last_resort_01, lightning_01, loss_will_01, meteor_01, observer_01,
+  perma_01, rebuild_01, regen_01, ribo_01, robot_vacuum_01, silver_stone,
+  sniper_01, split_01, supply_01, taboo_reverse_01, teleport_01, udg_01,
+  udr_01, ultimate_hyperactive_01, will_hunter_king_01, work_01, x_bomb_01
+
+✗ NO COVERAGE (7 cards - 10.4%)
+  
+  guardian_god_01      (mirror of guard_01; no dedicated test)
+  infinite_01          (disabled card; expected)
+  plunder_will         (no test file; NEEDS ATTENTION)
+  quad_01              (disabled card; expected)
+  tempt_01             (no test file; NEEDS ATTENTION)
+  triple_01            (disabled card; expected)
+  rainbow_stone        (referenced in gold-silver tests only; partial coverage)
+
+STRONGEST NETWORK COVERAGE EXAMPLES
+─────────────────────────────────────────────────────────────────────────────
+
+1. trap_01 - test/ui.network-client.trap-deferred-publish.test.js (lines 193-214)
+   Network Contract: Tests publish endpoint, snapshot deferral, playback combining
+   Key Test: 'TRAP_WILL selection publishes only the deferred combined snapshot once'
+   Validation: Checks publishBodies.length, actionType, playbackEvents structure
+
+2. sacrifice_01 - test/ui.network-client.sacrifice-deferred-publish.test.js (196-234)
+   Network Contract: Tests deferNetworkPublish flag, async publish synchronization
+   Key Test: 'selection waits for playback before publishing the updated snapshot'
+   Validation: Verifies deferNetworkPublish=true, checks pending state in snapshot
+
+3. position_swap_01 & board_expand_god_01
+   File: test/ui.network-client.multi-stage-selection.test.js (lines 238-284)
+   Network Contract: Tests multi-stage selection, intermediate snapshots, deferral flags
+   Key Cases:
+     - position_swap_01: Two-stage without immediate publish (expectImmediatePublish=false)
+     - board_expand_god_01: Two-stage WITH immediate publish (expectImmediatePublish=true)
+
+4. strong_wind_01, super_buoyancy_01, super_gravity_01
+   File: test/ui.network-client.movement-deferred-publish.test.js (lines 61-128)
+   Network Contract: Parametrized test validating identical network behavior across 3 cards
+   Key Pattern: Tests rawEventType, playbackEvents, snapshot state for each movement card
+
+KEY INSIGHTS
+─────────────────────────────────────────────────────────────────────────────
+
+✓ Strengths:
+  • 10/61 enabled cards (16%) have explicit network regression tests
+  • Selection-based cards (trap, sacrifice, swap, condemn, sell) well-covered
+  • Movement cards tested parametrically across all three types
+  • Multi-stage selection handled with intermediate snapshot testing
+  • Deferred publish contract thoroughly validated
+
+⚠ Gaps:
+  • 50 cards (82%) only have game logic tests, not network tests
+  • No network tests for:
+    - direct placement cards (chest, free, sniper, etc.)
+    - passive cards (hard, perma, guard, extend_life, etc.)
+    - stone multipliers (gold_stone, silver_stone, etc.)
+    - logic modules (meteor, clone, chain, teleport, etc.)
+  • Plunder_will & tempt_01 completely untested
+  • Guardian_god_01 (upgrade of guard_01) has no dedicated tests
+  • Rainbow_stone only tested as side effect, not as primary subject
+
+RECOMMENDATIONS
+─────────────────────────────────────────────────────────────────────────────
+
+1. CRITICAL: Add test files for untested cards (plunder_will, tempt_01)
+2. HIGH: Add network tests for guardian_god_01 (mirror of guard_01 with longer duration)
+3. MEDIUM: Expand network tests to sample of indirect-coverage cards to validate that
+   game rules work correctly in network mode (currently assumed but not verified)
+4. MEDIUM: Add dedicated test for rainbow_stone (currently only tested as side effect)
+5. LOW: Consider sampling smoke tests for network mode with various card combinations
+
+================================================================================

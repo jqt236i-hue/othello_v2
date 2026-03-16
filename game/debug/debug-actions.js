@@ -60,13 +60,15 @@
         if (!defs || !defs.length) return false;
 
         const shouldFillWhite = !!(opts && opts.fillWhite);
-        const typeMap = {};
+        const cardIds = [];
+        const seenCardIds = new Set();
         for (const card of defs) {
-            if (!typeMap[card.type]) {
-                typeMap[card.type] = card.id;
-            }
+            const cardId = card && card.id ? String(card.id) : '';
+            if (!cardId || seenCardIds.has(cardId)) continue;
+            seenCardIds.add(cardId);
+            cardIds.push(cardId);
         }
-        for (const cardId of Object.values(typeMap)) {
+        for (const cardId of cardIds) {
             if (!cardState.hands.black.includes(cardId)) {
                 cardState.hands.black.push(cardId);
             }
@@ -119,11 +121,17 @@
         addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', 3, 0, 'black', { type: 'DRAGON', remainingOwnerTurns: 5 });
         addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', 3, 1, 'white', { type: 'DRAGON', remainingOwnerTurns: 5 });
 
-        // Row 4: Gold stone
+        // Row 4: Gold stone + work stone for visual checks
         gameState.board[4][0] = black;
         gameState.board[4][1] = white;
+        gameState.board[4][2] = black;
         addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', 4, 0, 'black', { type: 'GOLD' });
         addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', 4, 1, 'white', { type: 'GOLD' });
+        addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', 4, 2, 'black', { type: 'WORK', workStage: 2, remainingOwnerTurns: 3 });
+        cardState.workAnchorPosByPlayer = {
+            black: { row: 4, col: 2 },
+            white: null
+        };
 
         // Row 5: Breeding stone
         gameState.board[5][0] = black;

@@ -1,41 +1,74 @@
 jest.useFakeTimers();
 
+function mockPresentationRuntime(overrides) {
+  jest.doMock('../game/cpu-turn-handler', () => {
+    const actual = jest.requireActual('../game/cpu-turn-handler');
+    return {
+      ...actual,
+      PresentationRuntime: {
+        ...actual.PresentationRuntime,
+        ...(overrides || {})
+      }
+    };
+  });
+}
+
 describe('presentation handler CPU scheduling', () => {
-  test('SCHEDULE_CPU_TURN uses UIBootstrap registered processCpuTurn when available', async () => {
-    // Mock bootstrap to expose processCpuTurn
-    const mockProc = jest.fn();
+  afterEach(() => {
+    jest.clearAllTimers();
     jest.resetModules();
-    jest.doMock('../ui/bootstrap', () => ({ getRegisteredUIGlobals: () => ({ processCpuTurn: mockProc }) }));
-
-    const ph = require('../ui/presentation-handler');
-
-    ph.handlePresentationEvent({ type: 'SCHEDULE_CPU_TURN', delayMs: 0 });
-
-    // Fast-forward timers
-    jest.runAllTimers();
-
-    expect(mockProc).toHaveBeenCalled();
+    jest.unmock('../game/cpu-turn-handler');
+    delete global.BLACK;
+    delete global.WHITE;
+    delete global.addLog;
+    delete global.gameState;
+    delete global.GamePresentationRuntime;
   });
 
-  test('SCHEDULE_CPU_TURN skips stale callback when expected player/turn mismatch', async () => {
-    const mockProc = jest.fn();
-    jest.resetModules();
-    jest.doMock('../ui/bootstrap', () => ({ getRegisteredUIGlobals: () => ({ processCpuTurn: mockProc }) }));
-
-    global.WHITE = -1;
-    global.BLACK = 1;
-    global.gameState = { currentPlayer: 1, turnNumber: 10 };
+  test('SCHEDULE_CPU_TURN delegates to game presentation runtime', () => {
+    const scheduleCpuTurn = jest.fn();
+    mockPresentationRuntime({ scheduleCpuTurn });
 
     const ph = require('../ui/presentation-handler');
-    ph.handlePresentationEvent({
+    const payload = { type: 'SCHEDULE_CPU_TURN', delayMs: 0 };
+
+    ph.handlePresentationEvent(payload);
+
+    expect(scheduleCpuTurn).toHaveBeenCalledWith(payload);
+  });
+
+  test('SCHEDULE_CPU_TURN host preserves stale-check payload for the runtime', () => {
+    const scheduleCpuTurn = jest.fn();
+    mockPresentationRuntime({ scheduleCpuTurn });
+
+    const ph = require('../ui/presentation-handler');
+    const payload = {
       type: 'SCHEDULE_CPU_TURN',
       delayMs: 0,
       expectedPlayerKey: 'white',
       expectedTurnNumber: 9
-    });
+    };
 
-    jest.runAllTimers();
-    expect(mockProc).not.toHaveBeenCalled();
+    ph.handlePresentationEvent(payload);
+
+    expect(scheduleCpuTurn).toHaveBeenCalledWith(payload);
+  });
+
+  test('SCHEDULE_CPU_TURN does not touch global CPU handlers when presentation runtime is unavailable', () => {
+    jest.doMock('../game/cpu-turn-handler', () => ({}));
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    global.processCpuTurn = jest.fn();
+    global.GamePresentationRuntime = null;
+
+    try {
+      const ph = require('../ui/presentation-handler');
+      ph.handlePresentationEvent({ type: 'SCHEDULE_CPU_TURN', delayMs: 0 });
+
+      expect(global.processCpuTurn).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith('[PresentationHandler] GamePresentationRuntime.scheduleCpuTurn not available');
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   test('PLAYBACK_EVENTS card_use_animation triggers enemy-card commentary', async () => {

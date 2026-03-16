@@ -160,6 +160,33 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     expect(cardState.expansionStoneIdByCell['5,-1']).toBeUndefined();
   });
 
+  test('BoardOps.moveAt は main から expansion へ stoneId を保ったまま移動できる', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    gameState.boardExpansion = {
+      active: true,
+      side: 'top',
+      row: -1,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: true, white: false },
+      cells: [{ side: 'top', row: -1, col: 0, owner: Core.EMPTY }]
+    };
+
+    const spawned = BoardOps.spawnAt(cardState, gameState, 0, 0, 'black', 'SYSTEM', 'test_spawn_main');
+    expect(spawned.spawned).toBe(true);
+    expect(cardState.stoneIdMap[0][0]).toBe(spawned.stoneId);
+
+    const moved = BoardOps.moveAt(cardState, gameState, 0, 0, -1, 0, 'SYSTEM', 'test_move_to_expansion');
+    expect(moved.moved).toBe(true);
+    expect(gameState.board[0][0]).toBe(Core.EMPTY);
+    expect(gameState.boardExpansion.cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: 0, owner: Core.BLACK })
+    ]));
+    expect(cardState.stoneIdMap[0][0]).toBeNull();
+    expect(cardState.expansionStoneIdByCell['-1,0']).toBe(spawned.stoneId);
+  });
+
   test('DESTROY_ONE_STONEは拡張マス上の復活石も対象にできる', () => {
     const destroyDef = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'DESTROY_ONE_STONE');
     expect(destroyDef).toBeTruthy();

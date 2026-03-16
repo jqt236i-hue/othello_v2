@@ -20,10 +20,16 @@
             EMPTY: Number.isFinite(Number(constants.EMPTY)) ? Number(constants.EMPTY) : 0,
             DRAW_INTERVAL: Number.isFinite(Number(constants.DRAW_INTERVAL)) ? Number(constants.DRAW_INTERVAL) : 1,
             FLIP_CHARGE_MULTIPLIER_EFFECTS: constants.FLIP_CHARGE_MULTIPLIER_EFFECTS || {},
+            NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS: constants.NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS || {},
             ULTIMATE_DRAGON_TURNS: constants.ULTIMATE_DRAGON_TURNS,
             ULTIMATE_DESTROY_GOD_TURNS: constants.ULTIMATE_DESTROY_GOD_TURNS,
             ULTIMATE_HYPERACTIVE_TURNS: constants.ULTIMATE_HYPERACTIVE_TURNS,
-            ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT: constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT,
+            EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT: Number.isFinite(Number(constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT))
+                ? Number(constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT)
+                : 3,
+            ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT: Number.isFinite(Number(constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT))
+                ? Number(constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT)
+                : 3,
             SNIPER_WILL_TURNS: constants.SNIPER_WILL_TURNS,
             DESTROY_DRAGON_TURNS: constants.DESTROY_DRAGON_TURNS,
             LIGHTNING_WILL_TURNS: constants.LIGHTNING_WILL_TURNS,
@@ -31,8 +37,14 @@
             WILL_HUNTER_KING_TURNS: constants.WILL_HUNTER_KING_TURNS,
             ROBOT_VACUUM_TURNS: constants.ROBOT_VACUUM_TURNS,
             DOUBLE_PLACE_EXTRA: constants.DOUBLE_PLACE_EXTRA,
+            THROW_CHAIN_CONFIG_BY_TYPE: constants.THROW_CHAIN_CONFIG_BY_TYPE || {},
             MARKER_KINDS: constants.MARKER_KINDS || null
         };
+    }
+
+    function getThrowChainConfig(constants, type) {
+        const key = String(type || '');
+        return key ? (constants.THROW_CHAIN_CONFIG_BY_TYPE[key] || null) : null;
     }
 
     function getHelpers(context) {
@@ -101,6 +113,10 @@
         }
         cardState.hasDestroyedCardThisTurnByPlayer[playerKey] = false;
         cardState.extraPlaceRemainingByPlayer[playerKey] = 0;
+        if (!cardState.infinitePlaceActiveByPlayer) cardState.infinitePlaceActiveByPlayer = { black: false, white: false };
+        if (!cardState.multiPlaceSourceTypeByPlayer) cardState.multiPlaceSourceTypeByPlayer = { black: null, white: null };
+        cardState.infinitePlaceActiveByPlayer[playerKey] = false;
+        cardState.multiPlaceSourceTypeByPlayer[playerKey] = null;
 
         if (typeof helpers.processRiboWillTurnStartEffects === 'function') {
             summary.ribo = helpers.processRiboWillTurnStartEffects(cardState, gameState, playerKey, p);
@@ -229,12 +245,21 @@
 
         let chargeGain = flipCount;
 
-        const multiplierConfig = pending ? constants.FLIP_CHARGE_MULTIPLIER_EFFECTS[pending.type] : null;
-        if (multiplierConfig) {
-            chargeGain = flipCount * multiplierConfig.multiplier;
-            effects[multiplierConfig.effectFlag] = true;
+        const flipMultiplierConfig = pending ? constants.FLIP_CHARGE_MULTIPLIER_EFFECTS[pending.type] : null;
+        const numberCellMultiplierConfig = pending ? constants.NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS[pending.type] : null;
+        const chargeMultiplierConfig = flipMultiplierConfig || numberCellMultiplierConfig;
+        if (flipMultiplierConfig) {
+            chargeGain = flipCount * flipMultiplierConfig.multiplier;
+            effects[flipMultiplierConfig.effectFlag] = true;
             if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
-                BoardOpsModule.destroyAt(cardState, gameState, row, col, 'SYSTEM', multiplierConfig.destroyReason);
+                BoardOpsModule.destroyAt(cardState, gameState, row, col, 'SYSTEM', flipMultiplierConfig.destroyReason);
+            } else {
+                gameState.board[row][col] = constants.EMPTY;
+            }
+        } else if (numberCellMultiplierConfig) {
+            effects[numberCellMultiplierConfig.effectFlag] = true;
+            if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
+                BoardOpsModule.destroyAt(cardState, gameState, row, col, 'SYSTEM', numberCellMultiplierConfig.destroyReason);
             } else {
                 gameState.board[row][col] = constants.EMPTY;
             }
@@ -261,6 +286,9 @@
             helpers.addChargeWithTotal(cardState, playerKey, chargeGain);
         }
         effects.chargeGained = chargeGain;
+        if (chargeMultiplierConfig && chargeMultiplierConfig.gainField && effects[chargeMultiplierConfig.gainField] == null) {
+            effects[chargeMultiplierConfig.gainField] = 0;
+        }
 
         if (pending && pending.type === 'PROTECTED_NEXT_STONE') {
             const mod = resolveNodeModule('../effects/protected_next_stone');
@@ -323,11 +351,7 @@
         } catch (e) { /* defensive */ }
 
         if (pending && pending.type === 'ULTIMATE_REVERSE_DRAGON') {
-            const mod = resolveNodeModule('../effects/ultimate_reverse_dragon');
-            if (mod && typeof mod.applyUltimateDragon === 'function') {
-                const res = mod.applyUltimateDragon(cardState, playerKey, row, col);
-                if (res.placed) effects.dragonPlaced = true;
-            } else if (typeof helpers.addMarker === 'function') {
+            if (typeof helpers.addMarker === 'function') {
                 helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
                     type: 'DRAGON',
                     remainingOwnerTurns: constants.ULTIMATE_DRAGON_TURNS
@@ -408,7 +432,7 @@
             cardState.hyperactiveSeqCounter = (cardState.hyperactiveSeqCounter || 0) + 1;
             helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
                 type: 'EXTREME_HYPERACTIVE',
-                flipEvadeRemaining: 1,
+                flipEvadeRemaining: constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT,
                 hyperactiveSeq: cardState.hyperactiveSeqCounter
             });
             effects.hyperactivePlaced = true;
@@ -538,17 +562,21 @@
             }
         }
 
-        if (pending && pending.type === 'DOUBLE_PLACE') {
-            const mod = resolveNodeModule('../effects/double_place');
-            const applyDoublePlace = mod && mod.applyDoublePlace;
-            if (typeof applyDoublePlace === 'function') {
-                const res = applyDoublePlace(cardState, playerKey);
-                if (res.activated) effects.doublePlaceActivated = true;
-            } else {
-                if (!cardState.extraPlaceRemainingByPlayer) cardState.extraPlaceRemainingByPlayer = {};
-                cardState.extraPlaceRemainingByPlayer[playerKey] = constants.DOUBLE_PLACE_EXTRA;
-                effects.doublePlaceActivated = true;
-            }
+        const throwChainConfig = pending ? getThrowChainConfig(constants, pending.type) : null;
+        if (pending && throwChainConfig) {
+            if (!cardState.extraPlaceRemainingByPlayer) cardState.extraPlaceRemainingByPlayer = {};
+            if (!cardState.infinitePlaceActiveByPlayer) cardState.infinitePlaceActiveByPlayer = { black: false, white: false };
+            if (!cardState.multiPlaceSourceTypeByPlayer) cardState.multiPlaceSourceTypeByPlayer = { black: null, white: null };
+
+            cardState.extraPlaceRemainingByPlayer[playerKey] = throwChainConfig.extraPlacements;
+            cardState.infinitePlaceActiveByPlayer[playerKey] = throwChainConfig.infinite === true;
+            cardState.multiPlaceSourceTypeByPlayer[playerKey] = pending.type;
+
+            effects.doublePlaceActivated = true;
+            effects.multiPlaceActivatedType = pending.type;
+            effects.multiPlaceActivatedName = throwChainConfig.name || pending.type;
+            effects.multiPlaceRemaining = throwChainConfig.infinite === true ? null : throwChainConfig.extraPlacements;
+            effects.multiPlaceInfinite = throwChainConfig.infinite === true;
         }
 
         if (pending && pending.type === 'LAST_RESORT') {
@@ -580,3 +608,4 @@
         applyPlacementEffects
     };
 }));
+

@@ -16,7 +16,15 @@ function startServer(port = 0) {
         return;
       }
       const ext = path.extname(filePath).toLowerCase();
-      const mime = ext === '.html' ? 'text/html' : ext === '.js' ? 'application/javascript' : ext === '.css' ? 'text/css' : 'application/octet-stream';
+      const mime = ext === '.html'
+        ? 'text/html'
+        : (ext === '.js' || ext === '.mjs')
+          ? 'application/javascript'
+          : ext === '.css'
+            ? 'text/css'
+            : ext === '.json'
+              ? 'application/json'
+              : 'application/octet-stream';
       res.setHeader('Content-Type', mime);
       res.end(data);
     });
@@ -47,10 +55,11 @@ describe('UI Reset & Click E2E', () => {
     const page = await browser.newPage();
     const logs = [];
     page.on('console', msg => logs.push({ type: msg.type(), text: msg.text() }));
-    await page.goto(`http://127.0.0.1:${serverPort}/`);
+    await page.goto(`http://127.0.0.1:${serverPort}/`, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
-    // Wait for board to be present and cells created
+    // Wait for board and game state to be ready
     await page.waitForSelector('#board .cell');
+    await page.waitForFunction(() => !!(window.gameState && Array.isArray(window.gameState.board) && window.gameState.board.length === 8), { timeout: 10000 });
 
     // Click the Reset button and wait a little for init
     await page.click('button:has-text("リセット")');
@@ -68,20 +77,28 @@ describe('UI Reset & Click E2E', () => {
     const legalExists = await page.$('#board .cell.legal, #board .cell.legal-free');
     expect(legalExists).toBeTruthy();
 
-    // Record discs count before
+    // Record board progress signals before the click
     const before = await page.$$eval('#board .disc.black, #board .disc.white', els => els.length);
+    const beforeTurnNumber = await page.evaluate(() => (window.gameState && window.gameState.turnNumber) || 0);
 
-    await page.evaluate(() => {
-      const cell = document.querySelector('#board .cell.legal, #board .cell.legal-free');
-      if (cell) cell.click();
-    });
+    await page.locator('#board .cell.legal, #board .cell.legal-free').first().click();
 
-    // wait for move to process
-    await page.waitForTimeout(500);
+    await page.waitForFunction(({ beforeDiscCount, beforeTurn }) => {
+      try {
+        const currentDiscCount = document.querySelectorAll('#board .disc.black, #board .disc.white').length;
+        const currentTurn = (window.gameState && window.gameState.turnNumber) || 0;
+        return currentDiscCount > beforeDiscCount || currentTurn > beforeTurn;
+      } catch (e) {
+        return false;
+      }
+    }, { beforeDiscCount: before, beforeTurn: beforeTurnNumber }, { timeout: 6000 });
 
     const after = await page.$$eval('#board .disc.black, #board .disc.white', els => els.length);
-    expect(after).toBeGreaterThanOrEqual(before);
+    const afterTurnNumber = await page.evaluate(() => (window.gameState && window.gameState.turnNumber) || 0);
+
+    expect(after).toBeGreaterThan(before);
+    expect(afterTurnNumber).toBeGreaterThan(beforeTurnNumber);
 
     await page.close();
-  }, 20000);
+  }, 30000);
 });

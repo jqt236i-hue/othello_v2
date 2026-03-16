@@ -1,13 +1,39 @@
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../shared-constants'));
+        let CardExpansionModule = null;
+        let CardMarkersModule = null;
+        try {
+            CardExpansionModule = require('./cards/expansion');
+        } catch (e) { /* ignore */ }
+        try {
+            CardMarkersModule = require('./cards/markers');
+        } catch (e) { /* ignore */ }
+        module.exports = factory(require('../../shared-constants'), CardExpansionModule, CardMarkersModule);
     } else {
-        root.BoardOps = factory(root.SharedConstants);
+        root.BoardOps = factory(root.SharedConstants, root.CardExpansion || null, root.CardMarkers || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardExpansionModule, CardMarkersModule) {
     'use strict';
 
     const { EMPTY } = SharedConstants || {};
+    function getGlobalScope() {
+        return (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+    }
+
+    function getCardExpansionModule() {
+        if (CardExpansionModule) return CardExpansionModule;
+        const globalScope = getGlobalScope();
+        return globalScope.CardExpansion || null;
+    }
+
+    function getCardMarkersModule() {
+        if (CardMarkersModule) return CardMarkersModule;
+        const globalScope = getGlobalScope();
+        return globalScope.CardMarkers || null;
+    }
+
     const MarkersAdapter = (() => {
         if (typeof require === 'function') {
             try {
@@ -16,12 +42,11 @@
                 return null;
             }
         }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        const globalScope = getGlobalScope();
         return globalScope.MarkersAdapter || null;
     })();
-    const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
+    const MARKER_KINDS = (CardMarkersModule && CardMarkersModule.MARKER_KINDS)
+        || (MarkersAdapter && MarkersAdapter.MARKER_KINDS);
 
     function isBoardOpsDebugEnabled(cardState) {
         if (cardState && cardState.debugBoardOpsLog === true) return true;
@@ -35,7 +60,10 @@
         if (!cardState.presentationEvents) cardState.presentationEvents = [];
         if (cardState._nextStoneId === undefined || cardState._nextStoneId === null) cardState._nextStoneId = 1;
         if (!cardState.expansionStoneIdByCell || typeof cardState.expansionStoneIdByCell !== 'object') cardState.expansionStoneIdByCell = {};
-        if (MarkersAdapter && typeof MarkersAdapter.ensureMarkers === 'function') {
+        const cardMarkers = getCardMarkersModule();
+        if (cardMarkers && typeof cardMarkers.ensureMarkers === 'function') {
+            cardMarkers.ensureMarkers(cardState);
+        } else if (MarkersAdapter && typeof MarkersAdapter.ensureMarkers === 'function') {
             MarkersAdapter.ensureMarkers(cardState);
         } else if (!Array.isArray(cardState.markers)) {
             cardState.markers = [];
@@ -48,10 +76,18 @@
     }
 
     function isMainBoardCell(row, col) {
+        const cardExpansion = getCardExpansionModule();
+        if (cardExpansion && typeof cardExpansion.isMainBoardCellForCard === 'function') {
+            return cardExpansion.isMainBoardCellForCard(row, col);
+        }
         return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < 8 && col >= 0 && col < 8;
     }
 
     function resolveExpansionSide(side, row, col) {
+        const cardExpansion = getCardExpansionModule();
+        if (cardExpansion && typeof cardExpansion.resolveExpansionSideForCard === 'function') {
+            return cardExpansion.resolveExpansionSideForCard(side, row, col);
+        }
         if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
         if (col === -1) return 'left';
         if (col === 8) return 'right';
@@ -90,10 +126,18 @@
     }
 
     function normalizeExpansionOwner(owner) {
+        const cardExpansion = getCardExpansionModule();
+        if (cardExpansion && typeof cardExpansion.normalizeExpansionOwnerForCard === 'function') {
+            return cardExpansion.normalizeExpansionOwnerForCard(owner);
+        }
         return (owner === SharedConstants.BLACK || owner === SharedConstants.WHITE) ? owner : EMPTY;
     }
 
     function getExpansionDescriptors(gameState) {
+        const cardExpansion = getCardExpansionModule();
+        if (cardExpansion && typeof cardExpansion.getExpansionDescriptorsForCard === 'function') {
+            return cardExpansion.getExpansionDescriptorsForCard(gameState);
+        }
         const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
             ? gameState.boardExpansion
             : null;
@@ -145,6 +189,11 @@
     }
 
     function syncLegacyExpansionFields(expansion) {
+        const cardExpansion = getCardExpansionModule();
+        if (cardExpansion && typeof cardExpansion.syncLegacyExpansionFieldsForCard === 'function') {
+            cardExpansion.syncLegacyExpansionFieldsForCard(expansion);
+            return;
+        }
         if (!expansion || typeof expansion !== 'object') return;
         if (!Array.isArray(expansion.cells)) expansion.cells = [];
         const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
@@ -155,6 +204,10 @@
     }
 
     function ensureExpansionStateMutable(gameState) {
+        const cardExpansion = getCardExpansionModule();
+        if (cardExpansion && typeof cardExpansion.ensureMutableBoardExpansionForCard === 'function') {
+            return cardExpansion.ensureMutableBoardExpansionForCard(gameState);
+        }
         if (!gameState.boardExpansion || typeof gameState.boardExpansion !== 'object') {
             gameState.boardExpansion = {
                 active: false,
@@ -195,6 +248,10 @@
     }
 
     function getCellValue(gameState, row, col) {
+        const cardExpansion = getCardExpansionModule();
+        if (cardExpansion && typeof cardExpansion.getCellValueForCard === 'function') {
+            return cardExpansion.getCellValueForCard(gameState, row, col);
+        }
         if (isMainBoardCell(row, col)) return gameState.board[row][col];
         const descriptors = getExpansionDescriptors(gameState);
         for (const descriptor of descriptors) {
@@ -207,6 +264,10 @@
     }
 
     function setCellValue(gameState, row, col, value) {
+        const cardExpansion = getCardExpansionModule();
+        if (cardExpansion && typeof cardExpansion.setCellValueForCard === 'function') {
+            return cardExpansion.setCellValueForCard(gameState, row, col, value);
+        }
         if (isMainBoardCell(row, col)) {
             gameState.board[row][col] = value;
             return true;
@@ -236,6 +297,10 @@
     }
 
     function getStoneIdAt(cardState, gameState, row, col) {
+        const cardMarkers = getCardMarkersModule();
+        if (cardMarkers && typeof cardMarkers.getStoneIdAtForCard === 'function') {
+            return cardMarkers.getStoneIdAtForCard(cardState, gameState, row, col);
+        }
         if (isMainBoardCell(row, col)) {
             return cardState.stoneIdMap ? cardState.stoneIdMap[row][col] : null;
         }
@@ -246,6 +311,10 @@
     }
 
     function setStoneIdAt(cardState, gameState, row, col, stoneId) {
+        const cardMarkers = getCardMarkersModule();
+        if (cardMarkers && typeof cardMarkers.setStoneIdAtForCard === 'function') {
+            return cardMarkers.setStoneIdAtForCard(cardState, gameState, row, col, stoneId);
+        }
         if (isMainBoardCell(row, col)) {
             if (!cardState.stoneIdMap) cardState.stoneIdMap = Array(8).fill(null).map(() => Array(8).fill(null));
             cardState.stoneIdMap[row][col] = stoneId;
@@ -290,10 +359,17 @@
     function _getSpecialMarkersAt(cardState, row, col) {
         const pos = _normalizeCellPosition(row, col);
         if (!pos) return [];
-        if (!cardState || !Array.isArray(cardState.markers)) return [];
-        return cardState.markers.filter((m) => (
+        const cardMarkers = getCardMarkersModule();
+        const markers = (cardMarkers && typeof cardMarkers.getSpecialMarkers === 'function')
+            ? cardMarkers.getSpecialMarkers(cardState)
+            : ((!cardState || !Array.isArray(cardState.markers))
+                ? []
+                : cardState.markers.filter((m) => (
+                    m &&
+                    m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')
+                )));
+        return markers.filter((m) => (
             m &&
-            m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
             _normalizeBoardIndex(m.row) === pos.row &&
             _normalizeBoardIndex(m.col) === pos.col
         ));
@@ -305,11 +381,23 @@
     }
 
     function _isFrozenCell(cardState, row, col) {
+        const cardMarkers = getCardMarkersModule();
+        if (cardMarkers && typeof cardMarkers.isFrozenCellForCard === 'function') {
+            return !!cardMarkers.isFrozenCellForCard(cardState, row, col);
+        }
         const markers = _getSpecialMarkersAt(cardState, row, col);
         return markers.some((marker) => String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase() === 'FREEZE');
     }
 
     function _isBlockedDestinationCell(cardState, row, col) {
+        const cardMarkers = getCardMarkersModule();
+        if (cardMarkers && typeof cardMarkers.getBlockingMarkers === 'function') {
+            return cardMarkers.getBlockingMarkers(cardState).some((marker) => (
+                marker &&
+                _normalizeBoardIndex(marker.row) === row &&
+                _normalizeBoardIndex(marker.col) === col
+            ));
+        }
         const markers = _getSpecialMarkersAt(cardState, row, col);
         return markers.some((marker) => _isBlockingMarkerType(marker && marker.data && marker.data.type));
     }
@@ -479,9 +567,13 @@
                 };
             }
 
-            const b = MarkersAdapter && typeof MarkersAdapter.findBombMarkerAt === 'function'
-                ? MarkersAdapter.findBombMarkerAt(cardState, row, col)
-                : cardState.markers.find(m => m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb') && m.row === row && m.col === col);
+            const cardMarkers = getCardMarkersModule();
+            const b = cardMarkers && typeof cardMarkers.findBombMarkerAt === 'function'
+                ? cardMarkers.findBombMarkerAt(cardState, row, col)
+                : (MarkersAdapter && typeof MarkersAdapter.findBombMarkerAt === 'function'
+                    ? MarkersAdapter.findBombMarkerAt(cardState, row, col)
+                    : cardState.markers.find(m => m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb') && m.row === row && m.col === col))
+                ;
             if (b) {
                 special = 'TIME_BOMB';
                 timer = (b.data && typeof b.data.remainingTurns === 'number') ? b.data.remainingTurns : null;
@@ -586,17 +678,21 @@
         if (prev === EMPTY) return { destroyed: false };
         if (prev === null) return { destroyed: false, reason: 'out_of_board' };
         const ignoreGuard = !!(meta && meta.ignoreGuard === true);
+        const cardMarkers = getCardMarkersModule();
 
-        const guardMarker = Array.isArray(cardState.markers)
-            ? cardState.markers.find(m => (
-                m &&
-                m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
-                m.row === row &&
-                m.col === col &&
-                m.data &&
-                m.data.type === 'GUARD'
-            ))
-            : null;
+        const guardMarker = cardMarkers && typeof cardMarkers.findSpecialMarkerAt === 'function'
+            ? cardMarkers.findSpecialMarkerAt(cardState, row, col, 'GUARD')
+            : (Array.isArray(cardState.markers)
+                ? cardState.markers.find(m => (
+                    m &&
+                    m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+                    m.row === row &&
+                    m.col === col &&
+                    m.data &&
+                    m.data.type === 'GUARD'
+                ))
+                : null)
+            ;
         if (guardMarker && !ignoreGuard) return { destroyed: false, reason: 'guard_protected' };
         if (_isFrozenCell(cardState, row, col)) return { destroyed: false, reason: 'frozen_protected' };
 
@@ -656,7 +752,9 @@
         // clear board
         setCellValue(gameState, row, col, EMPTY);
         // remove markers/specials referring to this cell
-        if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
+        if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
+            cardMarkers.removeMarkersAt(cardState, row, col);
+        } else if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
             MarkersAdapter.removeMarkersAt(cardState, row, col);
         } else if (Array.isArray(cardState.markers)) {
             cardState.markers = cardState.markers.filter(m => !(m.row === row && m.col === col));

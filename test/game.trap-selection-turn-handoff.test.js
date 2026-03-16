@@ -115,6 +115,7 @@ describe('TRAP_WILL selection turn handoff', () => {
       playerKey: 'black',
       actionType: 'place'
     }));
+    expect(snapshot.snapshot).toBeUndefined();
     expect(snapshot.playbackEvents).toEqual(expect.arrayContaining([
       expect.objectContaining({ type: 'status_applied', phase: 1 }),
       expect.objectContaining({ type: 'draw', phase: 2 })
@@ -122,5 +123,29 @@ describe('TRAP_WILL selection turn handoff', () => {
 
     jest.runAllTimers();
     expect(global.processCpuTurn).toHaveBeenCalledTimes(1);
+  });
+
+  test('keeps busy flags through playback wait before trap handoff completes', async () => {
+    let releasePlayback = null;
+    global.waitForPlaybackIdle = jest.fn(() => new Promise((resolve) => {
+      releasePlayback = resolve;
+    }));
+    globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
+
+    const { handleTrapSelection } = require('../game/card-effects/trap');
+
+    const pendingPromise = handleTrapSelection(2, 2, 'black');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(typeof releasePlayback).toBe('function');
+    expect(global.isProcessing).toBe(true);
+    expect(global.isCardAnimating).toBe(true);
+    expect(global.onTurnStart).not.toHaveBeenCalled();
+
+    releasePlayback();
+    await pendingPromise;
+
+    expect(global.isCardAnimating).toBe(false);
   });
 });

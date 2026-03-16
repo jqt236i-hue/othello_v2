@@ -45,6 +45,13 @@ const GAME_STONE_VISUAL_EFFECTS = {
         imagePath: 'assets/images/stones/rainbow_stone.png',
         dataAttributes: {}
     },
+
+    crystalStone: {
+        cssClass: 'crystal-stone',
+        cssMethod: 'background',
+        imagePath: 'assets/images/stones/crystal_stone.png',
+        dataAttributes: {}
+    },
     // 永久保護（強い意志）
     protectedStone: {
         cssClass: 'protected-stone',
@@ -280,6 +287,7 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'GOLD_STONE': 'goldStone',
     'RAINBOW_STONE': 'rainbowStone',
     'SILVER_STONE': 'silverStone',
+    'CRYSTAL_STONE': 'crystalStone',
     // Ensure WORK pending visuals are applied at placement-time as well
     'WORK_WILL': 'workStone'
     ,
@@ -316,6 +324,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'GOLD': 'goldStone',
     'RAINBOW': 'rainbowStone',
     'SILVER': 'silverStone',
+    'CRYSTAL': 'crystalStone',
     'WORK': 'workStone'
     ,
     'TIME_BOMB': 'timeBombStone',

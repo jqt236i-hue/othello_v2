@@ -63,6 +63,55 @@
             } catch (e) { /* ignore */ }
         }
 
+        function resolvePlaybackStateModule() {
+            if (cfg.playbackState && typeof cfg.playbackState === 'object') {
+                return cfg.playbackState;
+            }
+
+            try {
+                if (rootRef && rootRef.PlaybackStateManager && typeof rootRef.PlaybackStateManager === 'object') {
+                    return rootRef.PlaybackStateManager;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager && typeof globalThis.PlaybackStateManager === 'object') {
+                    return globalThis.PlaybackStateManager;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof require === 'function') {
+                    return require('../playback-state-manager');
+                }
+            } catch (e) { /* ignore */ }
+
+            return null;
+        }
+
+        function setBusyState(active) {
+            const playbackState = resolvePlaybackStateModule();
+            if (playbackState && typeof playbackState.setBusyState === 'function') {
+                playbackState.setBusyState({
+                    processing: active === true,
+                    cardAnimating: active === true
+                });
+                return;
+            }
+
+            if (playbackState && typeof playbackState.setProcessing === 'function') {
+                playbackState.setProcessing(active === true);
+            } else {
+                setGlobalFlag('isProcessing', active === true);
+            }
+
+            if (playbackState && typeof playbackState.setCardAnimating === 'function') {
+                playbackState.setCardAnimating(active === true);
+            } else {
+                setGlobalFlag('isCardAnimating', active === true);
+            }
+        }
+
         function cloneData(value) {
             try {
                 if (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') {
@@ -97,8 +146,9 @@
             } catch (e) { /* ignore */ }
         }
 
-        function emitPlaybackEvents(playbackEvents) {
+        function emitPlaybackEvents(playbackEvents, options) {
             if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return;
+            const opts = (options && typeof options === 'object') ? options : {};
             const boardOps = resolveGlobalObject('BoardOps') || {};
             const cardStateRef = resolveGlobalObject('cardState');
             try {
@@ -106,7 +156,10 @@
                     boardOps.emitPresentationEvent(cardStateRef, {
                         type: 'PLAYBACK_EVENTS',
                         events: playbackEvents,
-                        meta: { source: 'network_snapshot' }
+                        meta: {
+                            source: opts.source || 'network_snapshot',
+                            suppressPlayback: opts.suppressPlayback === true
+                        }
                     });
                 }
             } catch (e) { /* ignore */ }
@@ -152,6 +205,35 @@
             cardStateRef._presentationEventsPersist = Array.isArray(source.persistentEvents)
                 ? source.persistentEvents.slice()
                 : [];
+        }
+
+        function reconcilePresentationQueues(cardStateRef, options) {
+            const opts = (options && typeof options === 'object') ? options : {};
+            const preservedQueues = opts.preservedQueues || {
+                presentationEvents: [],
+                persistentEvents: [],
+                hasPending: false
+            };
+            const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
+            const shadowPlaybackEvents = Array.isArray(opts.shadowPlaybackEvents) ? opts.shadowPlaybackEvents : [];
+            const hasPlaybackEvents = playbackEvents.length > 0;
+            const shouldEmitShadowPlayback = !hasPlaybackEvents && !preservedQueues.hasPending && shadowPlaybackEvents.length > 0;
+
+            if (hasPlaybackEvents || shouldEmitShadowPlayback) {
+                clearTransientPresentationQueues(cardStateRef);
+            } else if (preservedQueues.hasPending) {
+                restoreTransientPresentationQueues(cardStateRef, preservedQueues);
+            } else {
+                clearTransientPresentationQueues(cardStateRef);
+            }
+
+            return {
+                hasPlaybackEvents,
+                shouldEmitShadowPlayback,
+                // Shadow playback with suppressPlayback=true returns immediately
+                // without running AnimationEngine, so it should not keep busy.
+                shouldKeepBusy: hasPlaybackEvents || preservedQueues.hasPending
+            };
         }
 
         function hasPendingPlaybackOrPresentation() {
@@ -275,6 +357,7 @@
         function applySnapshot(snapshot, options) {
             const opts = options || {};
             const state = resolveState();
+            const shadowPlaybackEvents = Array.isArray(opts.shadowPlaybackEvents) ? opts.shadowPlaybackEvents : [];
 
             if (!snapshot || typeof snapshot !== 'object') return false;
 
@@ -283,15 +366,22 @@
                 : null;
 
             if (!opts.force && nextVersion !== null && state.stateVersion !== null && nextVersion <= state.stateVersion) {
+                if (opts.allowStaleShadowPlayback === true && shadowPlaybackEvents.length > 0) {
+                    emitPlaybackEvents(shadowPlaybackEvents, {
+                        source: opts.shadowPlaybackSource || 'self_snapshot_sync',
+                        suppressPlayback: true
+                    });
+                    setBusyState(true);
+                    refreshUi();
+                    return true;
+                }
                 return false;
             }
 
             if (!snapshot.gameState || !snapshot.cardState) return false;
 
-            const hadPendingPlaybackOrPresentation = hasPendingPlaybackOrPresentation();
             const preservedQueues = captureTransientPresentationQueues(resolveGlobalObject('cardState'));
             const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
-            const hasPlaybackEvents = playbackEvents.length > 0;
 
             replaceObjectState('gameState', snapshot.gameState);
             replaceObjectState('cardState', snapshot.cardState);
@@ -302,27 +392,47 @@
             } catch (e) { /* ignore */ }
 
             const cardStateRef = resolveGlobalObject('cardState');
-            if (hasPlaybackEvents) {
-                clearTransientPresentationQueues(cardStateRef);
-            } else if (preservedQueues.hasPending) {
-                restoreTransientPresentationQueues(cardStateRef, preservedQueues);
-            } else {
-                clearTransientPresentationQueues(cardStateRef);
+            const syncPendingSelectionActionCache = resolveGlobalFunction('syncPendingSelectionActionCache', cfg.syncPendingSelectionActionCache);
+            if (syncPendingSelectionActionCache && cardStateRef) {
+                try {
+                    syncPendingSelectionActionCache(cardStateRef.pendingEffectByPlayer || null);
+                } catch (e) { /* ignore */ }
             }
+
+            const presentationState = reconcilePresentationQueues(cardStateRef, {
+                preservedQueues,
+                playbackEvents,
+                shadowPlaybackEvents
+            });
+            const shouldEmitShadowPlayback = presentationState.shouldEmitShadowPlayback;
 
             if (nextVersion !== null) {
                 state.stateVersion = nextVersion;
             }
 
-            const shouldKeepBusy = hasPlaybackEvents || hadPendingPlaybackOrPresentation;
-            setGlobalFlag('isProcessing', shouldKeepBusy);
-            setGlobalFlag('isCardAnimating', shouldKeepBusy);
+            setBusyState(presentationState.shouldKeepBusy);
             if (playbackEvents.length > 0) {
-                emitPlaybackEvents(playbackEvents);
+                emitPlaybackEvents(playbackEvents, { source: 'network_snapshot' });
+            } else if (shouldEmitShadowPlayback) {
+                emitPlaybackEvents(shadowPlaybackEvents, {
+                    source: opts.shadowPlaybackSource || 'self_snapshot_sync',
+                    suppressPlayback: true
+                });
+                // suppressPlayback causes playPlaybackEvents to return immediately
+                // without running AnimationEngine, so busy flags are never released.
+                setBusyState(false);
             }
 
             maybeShowResultFromSnapshot(nextVersion, opts);
             refreshUi();
+
+            // After refreshUi consumed the suppressed shadow events for
+            // diff-renderer's move-source detection, clear them so
+            // _hasPendingPlaybackEventsForBoardRenderer() does not
+            // permanently block future renderBoard() calls.
+            if (shouldEmitShadowPlayback) {
+                clearTransientPresentationQueues(cardStateRef);
+            }
             return true;
         }
 

@@ -13,7 +13,8 @@
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
-    const ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT = 5;
+    const EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
+    const ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
     function isMainBoardCell(row, col) {
         return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < 8 && col >= 0 && col < 8;
     }
@@ -537,7 +538,9 @@
         if (entry.data && entry.data.instantPlacementOnly === true) return false;
 
         const remaining = Number(entry.data && entry.data.flipEvadeRemaining);
-        const normalized = Number.isFinite(remaining) ? remaining : 1;
+        const normalized = Number.isFinite(remaining)
+            ? remaining
+            : (markerTypeUpper === 'EXTREME_HYPERACTIVE' ? EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT : 1);
         return normalized > 0;
     }
 
@@ -547,7 +550,9 @@
         const remaining = Number(entry.data.flipEvadeRemaining);
         const normalized = Number.isFinite(remaining)
             ? remaining
-            : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ? ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT : 1);
+            : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE'
+                ? ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT
+                : (markerTypeUpper === 'EXTREME_HYPERACTIVE' ? EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT : 1));
         entry.data.flipEvadeRemaining = Math.max(0, normalized - 1);
     }
 

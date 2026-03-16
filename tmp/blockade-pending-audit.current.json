@@ -1,0 +1,183 @@
+{
+  "summary": {
+    "count": 21,
+    "negatives": 8,
+    "negativeAvgFuture": -2.375,
+    "seatCounts": {
+      "unknown": 21
+    },
+    "negativeSeatCounts": {
+      "unknown": 8
+    }
+  },
+  "negatives": [
+    {
+      "seed": 2,
+      "ply": 58,
+      "player": "white",
+      "futureDiscDelta3Ply": -2,
+      "pendingSelection": {
+        "kind": "board_cell",
+        "pendingType": "BLOCKADE_WILL",
+        "sourceKey": "blockadeTarget",
+        "row": 1,
+        "col": 1
+      },
+      "ownCornersBefore": 1,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 15,
+      "oppEdgesBefore": 5,
+      "legalMoves": 1,
+      "highBonusMoveAvailable": 0,
+      "decisionReasonTags": [],
+      "selectedActionKey": null
+    },
+    {
+      "seed": 9,
+      "ply": 31,
+      "player": "black",
+      "futureDiscDelta3Ply": -2,
+      "pendingSelection": {
+        "kind": "board_cell",
+        "pendingType": "BLOCKADE_WILL",
+        "sourceKey": "blockadeTarget",
+        "row": 0,
+        "col": 6
+      },
+      "ownCornersBefore": 2,
+      "oppCornersBefore": 2,
+      "ownEdgesBefore": 0,
+      "oppEdgesBefore": 6,
+      "legalMoves": 5,
+      "highBonusMoveAvailable": 1,
+      "decisionReasonTags": [],
+      "selectedActionKey": null
+    },
+    {
+      "seed": 19,
+      "ply": 84,
+      "player": "black",
+      "futureDiscDelta3Ply": -3,
+      "pendingSelection": {
+        "kind": "board_cell",
+        "pendingType": "BLOCKADE_WILL",
+        "sourceKey": "blockadeTarget",
+        "row": 6,
+        "col": 0
+      },
+      "ownCornersBefore": 3,
+      "oppCornersBefore": 5,
+      "ownEdgesBefore": 10,
+      "oppEdgesBefore": 12,
+      "legalMoves": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionReasonTags": [],
+      "selectedActionKey": null
+    },
+    {
+      "seed": 23,
+      "ply": 12,
+      "player": "white",
+      "futureDiscDelta3Ply": -1,
+      "pendingSelection": {
+        "kind": "board_cell",
+        "pendingType": "BLOCKADE_WILL",
+        "sourceKey": "blockadeTarget",
+        "row": 0,
+        "col": 1
+      },
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 1,
+      "oppEdgesBefore": 1,
+      "legalMoves": 3,
+      "highBonusMoveAvailable": 0,
+      "decisionReasonTags": [],
+      "selectedActionKey": null
+    },
+    {
+      "seed": 28,
+      "ply": 70,
+      "player": "black",
+      "futureDiscDelta3Ply": -2,
+      "pendingSelection": {
+        "kind": "board_cell",
+        "pendingType": "BLOCKADE_WILL",
+        "sourceKey": "blockadeTarget",
+        "row": 1,
+        "col": 1
+      },
+      "ownCornersBefore": 2,
+      "oppCornersBefore": 3,
+      "ownEdgesBefore": 4,
+      "oppEdgesBefore": 11,
+      "legalMoves": 3,
+      "highBonusMoveAvailable": 1,
+      "decisionReasonTags": [],
+      "selectedActionKey": null
+    },
+    {
+      "seed": 30,
+      "ply": 71,
+      "player": "black",
+      "futureDiscDelta3Ply": -3,
+      "pendingSelection": {
+        "kind": "board_cell",
+        "pendingType": "BLOCKADE_WILL",
+        "sourceKey": "blockadeTarget",
+        "row": 0,
+        "col": 7
+      },
+      "ownCornersBefore": 1,
+      "oppCornersBefore": 2,
+      "ownEdgesBefore": 12,
+      "oppEdgesBefore": 16,
+      "legalMoves": 1,
+      "highBonusMoveAvailable": 0,
+      "decisionReasonTags": [],
+      "selectedActionKey": null
+    },
+    {
+      "seed": 31,
+      "ply": 43,
+      "player": "white",
+      "futureDiscDelta3Ply": -1,
+      "pendingSelection": {
+        "kind": "board_cell",
+        "pendingType": "BLOCKADE_WILL",
+        "sourceKey": "blockadeTarget",
+        "row": 4,
+        "col": 1
+      },
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 5,
+      "oppEdgesBefore": 5,
+      "legalMoves": 5,
+      "highBonusMoveAvailable": 1,
+      "decisionReasonTags": [],
+      "selectedActionKey": null
+    },
+    {
+      "seed": 32,
+      "ply": 65,
+      "player": "white",
+      "futureDiscDelta3Ply": -5,
+      "pendingSelection": {
+        "kind": "board_cell",
+        "pendingType": "BLOCKADE_WILL",
+        "sourceKey": "blockadeTarget",
+        "row": 1,
+        "col": 6
+      },
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 3,
+      "ownEdgesBefore": 4,
+      "oppEdgesBefore": 19,
+      "legalMoves": 1,
+      "highBonusMoveAvailable": 0,
+      "decisionReasonTags": [],
+      "selectedActionKey": null
+    }
+  ]
+}

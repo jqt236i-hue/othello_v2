@@ -1,18 +1,26 @@
 ---
-applyTo: "ui/**/*.js"
+applyTo: 'ui/**/*.js'
 ---
 
-# ui/ 追加指示（差分のみ）
+# ui/ instruction
 
-共通ガードレールは `AGENTS.md` と `.github/copilot-instructions.md` を適用する。
+この文書は `ui/` 向けの局所ルールだけを置きます。repo-wide rule は上位文書を参照します。
 
-- `ui/` は `game/` の公開 API / イベント / DI だけを使い、内部実装に依存しない。
-- UI実装の注入は `ui/bootstrap.js` に集約し、`__uiImpl_*` の出口をむやみに増やさない。
-- 演出は `ui/animation-*` と `ui/stone-visuals.js` に寄せ、同種処理を分散させない。
-- デバッグ処理は `?debug=1` 等で明示的に有効化し、通常時に動かさない。
-- `window` / `globalThis` への新規公開は最小限にする。
+## この領域で守ること
 
-変更時チェック:
-- `game/` の内部実装へ直接依存していない
-- debug が通常時に有効化されない
-- 同じ演出ロジックを別ファイルに複製していない
+- `ui/` は表示、入力、再生管理、DI を担当し、`game/` の公開 API / event / DI だけを使う。
+- 注入や公開入口は `ui/bootstrap.js` に寄せ、`__uiImpl_*` の出口は必要最小限にする。
+- 演出と見た目の差分は `ui/animation-*`, `ui/stone-visuals.js`, `ui/presentation-handler.js`, `ui/playback-state-manager.js` に集約する。
+- debug 専用処理は明示フラグでだけ有効化する。
+
+## 禁止
+
+- `game/` の内部実装に直接依存しない。
+- 同じ演出や playback 書き込み経路を別ファイルへ複製しない。
+- 通常時に動く debug 副作用や広い `window` 公開を増やさない。
+
+## 変更時チェック
+
+- `game/` への依存が公開入口だけに収まっている。
+- `events[]` 順と Single Visual Writer を壊していない。
+- debug が通常プレイ時に有効化されていない。

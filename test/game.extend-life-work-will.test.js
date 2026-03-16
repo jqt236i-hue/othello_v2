@@ -188,4 +188,52 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     expect(work).toBeUndefined();
     expect(gameState.board[4][4]).toBe(SharedConstants.EMPTY);
   });
+
+  test('WORK stone does not grant charge after anchor is lost before owner turn start', () => {
+    const { cardState, gameState } = createStates();
+    gameState.board[4][4] = SharedConstants.WHITE;
+    cardState.workAnchorPosByPlayer.black = { row: 4, col: 4 };
+    cardState.markers.push({
+      id: 9006,
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: { type: 'WORK', ownerColor: 'black', workStage: 2, remainingOwnerTurns: 3 }
+    });
+
+    const res = CardWork.processWorkEffects(cardState, gameState, 'black');
+    expect(res).toMatchObject({
+      gained: 0,
+      removed: true,
+      row: 4,
+      col: 4,
+      removedReason: 'anchor_lost'
+    });
+    expect(cardState.charge.black).toBe(0);
+    expect(cardState.workAnchorPosByPlayer.black).toBeNull();
+    expect((cardState.markers || []).find((m) => m && m.row === 4 && m.col === 4 && m.data && m.data.type === 'WORK')).toBeUndefined();
+    expect(gameState.board[4][4]).toBe(SharedConstants.WHITE);
+  });
+
+  test('placeWorkStone updates marker ownership through the default canonical helpers', () => {
+    const { cardState, gameState } = createStates();
+
+    const first = CardWork.placeWorkStone(cardState, gameState, 'black', 1, 1);
+    const second = CardWork.placeWorkStone(cardState, gameState, 'black', 2, 2);
+
+    expect(first).toEqual({ placed: true });
+    expect(second).toEqual({ placed: true });
+    expect(cardState.markers).toHaveLength(1);
+    expect(cardState.markers[0]).toMatchObject({
+      id: 2,
+      createdSeq: 2,
+      row: 2,
+      col: 2,
+      kind: 'specialStone',
+      owner: 'black',
+      data: expect.objectContaining({ type: 'WORK' })
+    });
+    expect(cardState.workAnchorPosByPlayer.black).toEqual({ row: 2, col: 2 });
+  });
 });

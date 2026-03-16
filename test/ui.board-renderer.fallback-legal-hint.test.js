@@ -19,6 +19,9 @@ describe('board-renderer fallback legal hints', () => {
     global.getLegalMoves = jest.fn(() => [{ row: 0, col: 0 }]);
     global.handleCellClick = jest.fn();
     global.applyStoneVisualEffect = jest.fn();
+    global.renderBoardDiff = jest.fn();
+    global.updateOccupancyUI = jest.fn();
+    global.renderCardUI = jest.fn();
 
     global.CardLogic = {
       getCardContext: () => ({
@@ -59,6 +62,9 @@ describe('board-renderer fallback legal hints', () => {
     delete global.getLegalMoves;
     delete global.handleCellClick;
     delete global.applyStoneVisualEffect;
+    delete global.renderBoardDiff;
+    delete global.updateOccupancyUI;
+    delete global.renderCardUI;
     delete global.CardLogic;
     delete global.gameState;
     delete global.cardState;
@@ -96,5 +102,31 @@ describe('board-renderer fallback legal hints', () => {
     const normalLegalCells = global.boardEl.querySelectorAll('.cell.legal');
     expect(legalFreeCells).toHaveLength(64);
     expect(normalLegalCells).toHaveLength(0);
+  });
+
+  test('renderBoard skips diff render while PLAYBACK_EVENTS are pending', () => {
+    global.cardState.presentationEvents = [
+      { type: 'PLAYBACK_EVENTS', events: [{ type: 'hyperactive_move', phase: 1 }] }
+    ];
+
+    const boardRenderer = require('../ui/board-renderer');
+    boardRenderer.renderBoard();
+
+    expect(global.renderBoardDiff).not.toHaveBeenCalled();
+    expect(global.updateOccupancyUI).not.toHaveBeenCalled();
+    expect(global.renderCardUI).not.toHaveBeenCalled();
+  });
+
+  test('renderBoardFull skips full redraw while persisted PLAYBACK_EVENTS are pending', () => {
+    global.boardEl.innerHTML = '<div class="sentinel"></div>';
+    global.cardState._presentationEventsPersist = [
+      { type: 'PLAYBACK_EVENTS', events: [{ type: 'hyperactive_move', phase: 1 }] }
+    ];
+
+    const boardRenderer = require('../ui/board-renderer');
+    boardRenderer.renderBoardFull();
+
+    expect(global.getLegalMoves).not.toHaveBeenCalled();
+    expect(global.boardEl.querySelector('.sentinel')).toBeTruthy();
   });
 });

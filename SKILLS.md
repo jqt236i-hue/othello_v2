@@ -1,118 +1,71 @@
-# SKILLS.md
+# カードオセロ / SKILLS.md
 
-このファイルは「このカードオセロでよくやる作業」を素早く安全に実行するための、短いレシピ集です。
-目的は **AIエージェント/人間が迷わず編集できる状態** を保つことです。
+最終更新: 2026-03-16
 
-## 0.1) 特殊mdの見分け方
+## 0. この文書の役割
 
-- 強制ルール: `.github/copilot-instructions.md`
-- 作業導線: `AGENTS.md`
-- 対象別の局所ルール: `.github/instructions/*.instructions.md`
-- タスク専用の進め方: `.github/agents/*.agent.md`, `.github/skills/**/SKILL.md`
-- 同じ主張を複数の md に書く時は、書き分けても判断結果は同じにする
+- この文書は、利用可能な skill の索引と選び方だけを置く場所です。
+- repo-wide rule は `01-rulebook.md`, `.github/copilot-instructions.md`, `AGENTS.md`, `.github/instructions/*.instructions.md` が担当します。
+- 各 skill の手順本文は `.github/skills/**/SKILL.md` を読みます。
 
-## 0) 迷ったら最初に見る場所
+## 1. どの文書を見るか
 
-- 仕様（一次情報）: 01-rulebook.md
-- 起動順（唯一の入口）: index.html
-- UIのDI（依存注入）: ui/bootstrap.js
+| 欲しい情報 | 見る場所 |
+| --- | --- |
+| ゲーム仕様 | `01-rulebook.md` |
+| 常時有効の hard rule | `.github/copilot-instructions.md` |
+| 調査順 / 編集順 / 確認順 | `AGENTS.md` |
+| フォルダ別の差分ルール | `.github/instructions/*.instructions.md` |
+| 反復タスクの手順 | `.github/skills/**/SKILL.md` |
+| 局所メモ | `README.ai.md` |
+| 精査専用 agent 契約 | `.github/agents/*.agent.md` |
 
-## 1) 調査の型（読む順番）
+## 2. skill を使う場面
 
-1. index.html の `<script>` 順（何がいつロードされるか）
-2. ui/bootstrap.js（ゲーム側に何を注入しているか）
-3. game/turn/turn_pipeline.js（ターン進行の入口）
-4. game/…（ロジック）→ ui/…（描画）
+- 同じ種類の作業が繰り返し出る時
+- 複数ファイルにまたがる定型調査と検証束がある時
+- 既知の罠があり、読む順と確認順を固定したほうが安全な時
+- 一度きりの局所ルールなら、skill より instruction や `README.ai.md` を優先する
+- 構造問題や再発不具合で大きく直す時は、`safe-rational-refactor` に押し込まず `design-plan-runbook-authoring-workflow` を先に使って phase を切る
 
-## 2) 変更の型（テンプレ）
+## 3. skill index
 
-### 2.1 ルール変更
+| Skill | 使う時 | 主対象 |
+| --- | --- | --- |
+| `animation-visual-playback-workflow` | 演出順、board render、playback lock、visual regression を直す時 | `ui/animation-*`, `ui/presentation-handler.js`, `ui/playback-state-manager.js` |
+| `card-effect-integration-workflow` | カード追加、削除、仕様変更を end-to-end で通す時 | `cards/catalog.json`, `game/card-effects/*`, pending target, CPU, presentation |
+| `cpu-onnx-gate-workflow` | browser ONNX gate と benchmark / fallback をそろえる時 | `ui/handlers/cpu-policy.js`, `game/ai/policy-onnx-runtime.js`, benchmark scripts |
+| `deck-builder-authoring-workflow` | deck builder と story-deck-lab の authoring UI を直す時 | `shared/deck-spec.js`, `shared/deck-codec.js`, `ui/deck-builder-*`, `ui/story-deck-lab/*` |
+| `design-plan-runbook-authoring-workflow` | design / plan / runbook 文書を作る時 | `docs/*-plan*.md`, `docs/*-runbook*.md` |
+| `network-backend-worker-workflow` | local match server と worker authority を直す時 | `scripts/local-match-server.js`, `workers/match-worker.mjs`, `scripts/match-network-smoke.js` |
+| `network-selfmatch-bug-hunt-workflow` | Playwright で headed の 2 ブラウザを同室接続し、終局と UI / animation の崩れまで含めて network 特有の不具合を探す時 | `tmp/playwright-network-verify/*.js`, `ui/network-client.js`, `ui/network/snapshot.js`, `workers/match-worker.mjs` |
+| `network-playback-workflow` | snapshot / reconnect / publish / playback queue を直す時 | `ui/network-client.js`, `ui/network/snapshot.js` |
+| `repo-skill-authoring-workflow` | 新しい skill を作る、既存 skill を整理する時 | `.github/skills/**/SKILL.md`, `SKILLS.md` |
+| `safe-rational-refactor` | 局所整理を最小差分で安全に進める時 | 既存コード全般 |
+| `selfplay-training-pipeline-workflow` | selfplay 学習 profile、gate、promotion を回す時 | `scripts/run-selfplay-training-*.js`, `ai/train/*` |
+| `story-tutorial-workflow` | tutorial / story の進行や overlay を直す時 | `ui/tutorial/*`, `ui/story/*`, handlers |
+| `ui-bootstrap-load-order-workflow` | classic script の load order と DI を直す時 | `index.html`, `ui/bootstrap.js`, `ui/handlers/init.js` |
+| `worker-public-sync-workflow` | root と worker-public mirror を同期する時 | `scripts/prepare-worker-assets.js`, `worker-public/*` |
 
-- 01-rulebook.md を先に変更
-- 影響箇所を全文検索（例: カード type 名 / イベント名）
-- 実装を最小差分で更新
-- 「代表例 + 境界条件」で動作確認（例: カードが不発のケース）
+## 4. 選び方の近道
 
-### 2.2 カード効果（ロジック/演出）変更
+- 演出や再生の崩れ: `animation-visual-playback-workflow`
+- カードの追加 / 削除 / 表示や効果の一貫性: `card-effect-integration-workflow`
+- CPU の ONNX 利用条件や fallback: `cpu-onnx-gate-workflow`
+- deck builder / story-deck-lab: `deck-builder-authoring-workflow`
+- 設計書や実行手順書: `design-plan-runbook-authoring-workflow`
+- network authority / worker / smoke: `network-backend-worker-workflow`
+- Playwright で実ブラウザを開いて別クライアント同士を最後まで対戦させ、network と見た目崩れを探す: `network-selfmatch-bug-hunt-workflow`
+- network client 側の snapshot / reconnect / playback: `network-playback-workflow`
+- repo 向け skill 自体の追加 / 更新: `repo-skill-authoring-workflow`
+- 局所的な最小差分リファクタ: `safe-rational-refactor`
+- 段階的な大幅改革の設計: `design-plan-runbook-authoring-workflow`
+- selfplay / training / promotion: `selfplay-training-pipeline-workflow`
+- story / tutorial / overlay: `story-tutorial-workflow`
+- script 順と UI bootstrap: `ui-bootstrap-load-order-workflow`
+- root から worker-public への同期: `worker-public-sync-workflow`
 
-- ロジック: game/card-effects/ と game/special-effects/ を優先
-- UI演出: ui/animation-* と ui/stone-visuals.js を優先
-- UIは game の内部実装に依存しない（公開API/イベント/DIのみ）
+## 5. 補足
 
-### 2.3 UI演出（アニメーション）変更
-
-- まず「単一の描画経路（Single Visual Writer）」があるか確認
-- 強制リフロー（`offsetWidth` / `getBoundingClientRect`）は最小化
-- 常駐タイマー（setInterval）は極力増やさない（必要なら `?debug=1` 限定）
-
-### 2.4 不要物削除
-
-- 参照検索（ファイル名/シンボル名）
-- index.html のロード有無確認
-- 削除 → 再検索（参照ゼロ）
-- 起動できるか確認
-
-### 2.5 チュートリアル / ストーリー変更
-
-- 専用ワークフロー: `.github/skills/story-tutorial-workflow/SKILL.md`
-- まず root 側か worker-public 側かの正本を決めてから触る
-- story と tutorial は overlay / storage / handler の共有影響を前提に見る
-- 閉じた overlay がクリックを奪わないかを毎回確認する
-
-### 2.6 network / playback 変更
-
-- 専用ワークフロー: `.github/skills/network-playback-workflow/SKILL.md`
-- snapshot apply と local presentation queue を分けて考える
-- reconnect / stale rollback / trap defer は別原因として切り分ける
-
-### 2.7 CPU ONNX gate 変更
-
-- 専用ワークフロー: `.github/skills/cpu-onnx-gate-workflow/SKILL.md`
-- query 注入、shared profile、runtime latency を一体で見る
-- loop 回数と seed は整数化前提で扱う
-
-### 2.8 deck builder / story-deck-lab 変更
-
-- 専用ワークフロー: `.github/skills/deck-builder-authoring-workflow/SKILL.md`
-- spec / codec → state → renderer → controller → handler の順で見る
-- scroll は body ではなく clicked card の位置基準で保持する
-
-### 2.9 カードの追加 / 削除 / 改修
-
-- 専用ワークフロー: `.github/skills/card-effect-integration-workflow/SKILL.md`
-- catalog 生成から pending target / CPU / presentation までを 1 本の流れで確認する
-- 削除時は cardId / type / 表示名の残り参照を deck / rules help / docs / test まで確認する
-- destroy 系は marker 消去順、pending target 系は selector の共通入口を崩さない
-
-### 2.10 worker-public 同期 / deploy
-
-- 専用ワークフロー: `.github/skills/worker-public-sync-workflow/SKILL.md`
-- root を正本にし、`worker-public/` は prepare で揃える
-- path/order 変更時は verify を省かない
-
-### 2.11 repo 向け skill 作成 / 更新
-
-- 専用ワークフロー: `.github/skills/repo-skill-authoring-workflow/SKILL.md`
-- まず skill 化すべきか、instruction / agent / prompt の方が適切かを切り分ける
-- 広い対象をまとめて増やす時は、先に計画書を書いてから実装する
-
-## 3) よく使う検索キーワード
-
-- DI/境界: `__uiImpl_`, `setUIImpl`, `connect(`
-- 描画イベント: `emitBoardUpdate`, `PLAYBACK_EVENTS`, `AnimationEngine`
-- カード: `CARD_DEFS`, `CARD_TYPE_BY_ID`, `CARD_TYPES`, `CardLogic`
-- ターン: `turn_pipeline`, `turn-manager`, `isProcessing`, `isCardAnimating`
-
-## 4) パフォーマンス最適化の当たり所
-
-- index.html の同期スクリプト直列ロード削減（debug系は条件付きロードに）
-- UI/ゲームで重複しているマップ・定義の統合（単一ソース化）
-- 反転/破壊など多発イベントでの DOM 触り回数削減（バッチ化/イベント駆動）
-- ログ出力はホットパスで控えめに（debug時のみ詳細）
-
-## 5) “壊さない”ためのチェック
-
-- `game/` が `ui/` を直接参照していないか
-- `window` 公開が増えていないか（必要なら一覧に追記）
-- `?debug=1` なしで debug 機能が混ざっていないか
-- `ui/` は game/ の表に出た入口だけを使っているか
+- skill は repo-wide rule を再定義しません。まず上位文書の境界を守ります。
+- `worker-public/` を直接正本扱いせず、必要な時だけ mirror として同期します。

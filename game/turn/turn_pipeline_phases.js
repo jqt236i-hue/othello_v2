@@ -1024,6 +1024,27 @@
         return ctx;
     }
 
+    function hasContinuationMovesForPendingType(Core, CardLogic, cardState, gameState, playerKey, pendingType) {
+        const ctx = resolveSafeCardContext(CardLogic, cardState);
+        const player = playerKey === 'black' ? Core.BLACK : Core.WHITE;
+        if (pendingType === 'LAST_RESORT' && typeof Core.getFreePlacementMoves === 'function') {
+            const moves = Core.getFreePlacementMoves(gameState, player, ctx);
+            return Array.isArray(moves) && moves.length > 0;
+        }
+        const moves = Core.getLegalMoves(gameState, player, ctx);
+        return Array.isArray(moves) && moves.length > 0;
+    }
+
+    function clearMultiPlaceStateForPlayer(cardState, playerKey) {
+        if (!cardState) return;
+        if (!cardState.extraPlaceRemainingByPlayer) cardState.extraPlaceRemainingByPlayer = { black: 0, white: 0 };
+        if (!cardState.infinitePlaceActiveByPlayer) cardState.infinitePlaceActiveByPlayer = { black: false, white: false };
+        if (!cardState.multiPlaceSourceTypeByPlayer) cardState.multiPlaceSourceTypeByPlayer = { black: null, white: null };
+        cardState.extraPlaceRemainingByPlayer[playerKey] = 0;
+        cardState.infinitePlaceActiveByPlayer[playerKey] = false;
+        cardState.multiPlaceSourceTypeByPlayer[playerKey] = null;
+    }
+
     function getActionCellOwner(gameState, row, col) {
         if (!gameState) return null;
 
@@ -1657,6 +1678,9 @@
                 } else if (pendingType === 'SILVER_STONE') {
                     spawnMeta.special = 'SILVER';
                     spawnMeta.owner = playerKey;
+                } else if (pendingType === 'CRYSTAL_STONE') {
+                    spawnMeta.special = 'CRYSTAL';
+                    spawnMeta.owner = playerKey;
                 } else if (pendingType === 'CROSS_BOMB') {
                     // Show bomb-like special visual briefly before immediate cross explosion.
                     spawnMeta.special = 'CROSS_BOMB';
@@ -1720,6 +1744,18 @@
             const bonusMap = (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
                 ? cardState.boardBonusByCell
                 : null;
+            const pendingPlacementType = (typeof CardLogic.getPendingEffectType === 'function')
+                ? CardLogic.getPendingEffectType(cardState, playerKey)
+                : (cardState && cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[playerKey]
+                    ? cardState.pendingEffectByPlayer[playerKey].type
+                    : null);
+            const numberCellMultiplierConfig = (
+                pendingPlacementType &&
+                CardLogic &&
+                CardLogic.NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS &&
+                CardLogic.NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS[pendingPlacementType]
+            ) || null;
+            let boardBonusGained = 0;
             if (!cardState.boardBonusConsumedByCell || typeof cardState.boardBonusConsumedByCell !== 'object') {
                 cardState.boardBonusConsumedByCell = {};
             }
@@ -1727,14 +1763,20 @@
             const bonusValue = bonusMap ? Number(bonusMap[bonusKey] || 0) : 0;
             if (bonusValue > 0 && consumedMap[bonusKey] !== true) {
                 consumedMap[bonusKey] = true;
-                const gained = addChargeWithTotal(cardState, playerKey, bonusValue);
+                const appliedBonus = numberCellMultiplierConfig
+                    ? bonusValue * Number(numberCellMultiplierConfig.multiplier || 1)
+                    : bonusValue;
+                const gained = addChargeWithTotal(cardState, playerKey, appliedBonus);
+                boardBonusGained = gained;
                 events.push({
                     type: 'board_bonus_gain',
                     player: playerKey,
                     row: action.row,
                     col: action.col,
                     bonus: bonusValue,
-                    gained
+                    gained,
+                    multiplier: numberCellMultiplierConfig ? Number(numberCellMultiplierConfig.multiplier || 1) : 1,
+                    boostedBy: numberCellMultiplierConfig ? pendingPlacementType : null
                 });
             }
 
@@ -1786,6 +1828,9 @@
 
             // 4) Apply placement effects (charge, special stones, etc.)
             const effects = CardLogic.applyPlacementEffects(cardState, gameState, playerKey, action.row, action.col, flipCount);
+            if (numberCellMultiplierConfig && effects && numberCellMultiplierConfig.gainField) {
+                effects[numberCellMultiplierConfig.gainField] = boardBonusGained;
+            }
             events.push({ type: 'placement_effects', player: playerKey, effects });
 
             // GOLD/SILVER: the placed stone disappears on the opponent's next turn start.
@@ -1932,20 +1977,53 @@
                 emitTrapHandRemoveEvents(CardLogic, cardState, trapRes);
             }
 
-            // If preExtra > 0 then this placement consumes one extra place
+            const continuationSourceType = (cardState.multiPlaceSourceTypeByPlayer && typeof cardState.multiPlaceSourceTypeByPlayer[playerKey] === 'string')
+                ? cardState.multiPlaceSourceTypeByPlayer[playerKey]
+                : null;
+            const infinitePlaceActive = !!(cardState.infinitePlaceActiveByPlayer && cardState.infinitePlaceActiveByPlayer[playerKey]);
+
+            // If preExtra > 0 then this placement consumes one extra place.
             if (preExtra > 0) {
                 cardState.extraPlaceRemainingByPlayer[playerKey] = Math.max(0, (cardState.extraPlaceRemainingByPlayer[playerKey] || 0) - 1);
-                events.push({ type: 'extra_place_consumed', player: playerKey });
+                events.push({
+                    type: 'extra_place_consumed',
+                    player: playerKey,
+                    sourceType: continuationSourceType || (pendingType === 'LAST_RESORT' ? 'LAST_RESORT' : null),
+                    remaining: cardState.extraPlaceRemainingByPlayer[playerKey] || 0
+                });
             }
 
-            // Turn transition policy:
-            // - If this move consumed a previously granted extra placement, switch to opponent.
-            // - If this move newly granted an extra placement, keep the same player for the next placement.
-            // - Otherwise behave as a normal move (switch to opponent).
-            const postExtra = cardState.extraPlaceRemainingByPlayer[playerKey] || 0;
-            const keepTurnForExtra = preExtra <= 0 && postExtra > 0;
+            let postExtra = cardState.extraPlaceRemainingByPlayer[playerKey] || 0;
+            const pendingAfterPlacement = (cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[playerKey])
+                ? cardState.pendingEffectByPlayer[playerKey]
+                : null;
+            const hasLastResortContinuation = !!(
+                pendingAfterPlacement &&
+                pendingAfterPlacement.type === 'LAST_RESORT' &&
+                Number(pendingAfterPlacement.placementsRemaining || 0) > 0
+            );
 
-            if (keepTurnForExtra) {
+            let keepTurnForContinuation = false;
+            if (infinitePlaceActive) {
+                keepTurnForContinuation = hasContinuationMovesForPendingType(Core, CardLogic, cardState, gameState, playerKey, continuationSourceType);
+                if (!keepTurnForContinuation) {
+                    clearMultiPlaceStateForPlayer(cardState, playerKey);
+                }
+            } else if (postExtra > 0) {
+                const continuationPendingType = hasLastResortContinuation ? 'LAST_RESORT' : continuationSourceType;
+                keepTurnForContinuation = hasContinuationMovesForPendingType(Core, CardLogic, cardState, gameState, playerKey, continuationPendingType);
+                if (!keepTurnForContinuation) {
+                    if (hasLastResortContinuation) {
+                        cardState.pendingEffectByPlayer[playerKey] = null;
+                    }
+                    clearMultiPlaceStateForPlayer(cardState, playerKey);
+                    postExtra = 0;
+                }
+            } else {
+                clearMultiPlaceStateForPlayer(cardState, playerKey);
+            }
+
+            if (keepTurnForContinuation) {
                 gameState.currentPlayer = player;
                 gameState.consecutivePasses = 0;
                 gameState.turnNumber = turnNumberBeforePlace;

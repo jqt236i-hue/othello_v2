@@ -1,3 +1,4 @@
+const path = require('path');
 const { JSDOM } = require('jsdom');
 
 describe('initializeUI action button sound', () => {
@@ -24,6 +25,12 @@ describe('initializeUI action button sound', () => {
       init: jest.fn(),
       playEffectByKey: jest.fn()
     };
+    global.resetGame = jest.fn();
+
+    const bootstrapPath = path.resolve(__dirname, '..', 'ui', 'bootstrap.js');
+    jest.doMock(bootstrapPath, () => ({
+      installGameDI: jest.fn()
+    }), { virtual: false });
   });
 
   afterEach(() => {
@@ -35,6 +42,7 @@ describe('initializeUI action button sound', () => {
     delete global.cardState;
     delete global.CardLogic;
     delete global.SoundEngine;
+    delete global.resetGame;
   });
 
   test('破壊ボタン押下で効果音を鳴らして既存処理を呼ぶ', () => {
@@ -72,7 +80,7 @@ describe('initializeUI action button sound', () => {
     expect(global.useSelectedCard).toHaveBeenCalledTimes(1);
   });
 
-  test('宝箱カードの使用ボタン押下では card_use_button を鳴らさず既存処理のみ呼ぶ', () => {
+  test('宝箱カードの使用ボタン押下でも card_use_button を鳴らして既存処理を呼ぶ', () => {
     global.cardState.selectedCardId = 'TREASURE_BOX_001';
     global.CardLogic.getCardDef.mockReturnValue({ id: 'TREASURE_BOX_001', type: 'TREASURE_BOX' });
     const initModule = require('../ui/handlers/init.js');
@@ -80,7 +88,8 @@ describe('initializeUI action button sound', () => {
 
     document.getElementById('use-card-btn').click();
 
-    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalledWith('card_use_button');
+    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('card_use_button');
     expect(global.useSelectedCard).toHaveBeenCalledTimes(1);
   });
 });

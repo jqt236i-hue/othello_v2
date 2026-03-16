@@ -1,0 +1,408 @@
+{
+  "summary": {
+    "count": 6,
+    "avgFuture": -0.5,
+    "negatives": 3,
+    "negativeAvgFuture": -2
+  },
+  "cases": [
+    {
+      "seed": 6,
+      "ply": 105,
+      "player": "black",
+      "futureDiscDelta3Ply": -4,
+      "decisionReasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_emergency",
+        "hand_pressure"
+      ],
+      "blackCountBefore": 29,
+      "whiteCountBefore": 29,
+      "ownCornersBefore": 1,
+      "oppCornersBefore": 2,
+      "ownEdgesBefore": 9,
+      "oppEdgesBefore": 12,
+      "legalMoves": 0,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "cell_teleport_01",
+          "cardType": "CELL_TELEPORT_WILL",
+          "cardCost": 23,
+          "score": 1098,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "escape_01",
+          "cardType": "ESCAPE_WILL",
+          "cardCost": 7,
+          "score": 1062,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "destroy_dragon_01",
+          "cardType": "DESTROY_DRAGON_WILL",
+          "cardCost": 15,
+          "score": 1011,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "heaven_01",
+          "cardType": "HEAVEN_BLESSING",
+          "cardCost": 3,
+          "score": 807,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "observer_01",
+          "cardType": "OBSERVER_WILL",
+          "cardCost": 1,
+          "score": 685,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 7,
+      "ply": 63,
+      "player": "white",
+      "futureDiscDelta3Ply": -1,
+      "decisionReasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_emergency",
+        "hand_pressure"
+      ],
+      "blackCountBefore": 35,
+      "whiteCountBefore": 27,
+      "ownCornersBefore": 1,
+      "oppCornersBefore": 3,
+      "ownEdgesBefore": 10,
+      "oppEdgesBefore": 13,
+      "legalMoves": 0,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "cell_teleport_01",
+          "cardType": "CELL_TELEPORT_WILL",
+          "cardCost": 23,
+          "score": 1152,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "destroy_dragon_01",
+          "cardType": "DESTROY_DRAGON_WILL",
+          "cardCost": 15,
+          "score": 1065,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "instant_hyperactive_01",
+          "cardType": "INSTANT_HYPERACTIVE_WILL",
+          "cardCost": 2,
+          "score": 1032,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "silver_stone",
+          "cardType": "SILVER_STONE",
+          "cardCost": 3,
+          "score": 825,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 26,
+      "ply": 72,
+      "player": "white",
+      "futureDiscDelta3Ply": -1,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 25,
+      "whiteCountBefore": 25,
+      "ownCornersBefore": 1,
+      "oppCornersBefore": 1,
+      "ownEdgesBefore": 11,
+      "oppEdgesBefore": 8,
+      "legalMoves": 6,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "cell_teleport_01",
+          "cardType": "CELL_TELEPORT_WILL",
+          "cardCost": 23,
+          "score": 98,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "x_bomb_01",
+          "cardType": "X_BOMB",
+          "cardCost": 18,
+          "score": -25,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "board_expand_01",
+          "cardType": "BOARD_EXPANSION_WILL",
+          "cardCost": 19,
+          "score": -47,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 15,
+      "ply": 72,
+      "player": "black",
+      "futureDiscDelta3Ply": 0,
+      "decisionReasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_emergency",
+        "hand_pressure"
+      ],
+      "blackCountBefore": 29,
+      "whiteCountBefore": 34,
+      "ownCornersBefore": 3,
+      "oppCornersBefore": 1,
+      "ownEdgesBefore": 11,
+      "oppEdgesBefore": 13,
+      "legalMoves": 0,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "cell_teleport_01",
+          "cardType": "CELL_TELEPORT_WILL",
+          "cardCost": 23,
+          "score": 1132,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "sacrifice_01",
+          "cardType": "SACRIFICE_WILL",
+          "cardCost": 5,
+          "score": 1013,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "gold_stone",
+          "cardType": "GOLD_STONE",
+          "cardCost": 6,
+          "score": 795,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "work_01",
+          "cardType": "WORK_WILL",
+          "cardCost": 11,
+          "score": 755,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 29,
+      "ply": 90,
+      "player": "black",
+      "futureDiscDelta3Ply": 1,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 28,
+      "whiteCountBefore": 24,
+      "ownCornersBefore": 1,
+      "oppCornersBefore": 4,
+      "ownEdgesBefore": 9,
+      "oppEdgesBefore": 10,
+      "legalMoves": 4,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "cell_teleport_01",
+          "cardType": "CELL_TELEPORT_WILL",
+          "cardCost": 23,
+          "score": 107,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "taboo_reverse_01",
+          "cardType": "TABOO_REVERSE_WILL",
+          "cardCost": 44,
+          "score": -4,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "guard_01",
+          "cardType": "GUARD_WILL",
+          "cardCost": 2,
+          "score": -31,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "regen_01",
+          "cardType": "REGEN_WILL",
+          "cardCost": 12,
+          "score": -36,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 9,
+      "ply": 17,
+      "player": "white",
+      "futureDiscDelta3Ply": 2,
+      "decisionReasonTags": [
+        "decision:use",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 13,
+      "whiteCountBefore": 4,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 2,
+      "oppEdgesBefore": 5,
+      "legalMoves": 3,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "cell_teleport_01",
+          "cardType": "CELL_TELEPORT_WILL",
+          "cardCost": 23,
+          "score": 440,
+          "shouldUse": true,
+          "minUseScore": 2,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "super_buoyancy_01",
+          "cardType": "SUPER_BUOYANCY_WILL",
+          "cardCost": 14,
+          "score": 406,
+          "shouldUse": true,
+          "minUseScore": 2,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "destroy_dragon_01",
+          "cardType": "DESTROY_DRAGON_WILL",
+          "cardCost": 15,
+          "score": 350,
+          "shouldUse": true,
+          "minUseScore": 2,
+          "isSelected": false
+        }
+      ]
+    }
+  ]
+}

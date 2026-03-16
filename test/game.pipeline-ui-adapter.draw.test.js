@@ -11,6 +11,123 @@ describe('pipeline_ui_adapter draw mapping', () => {
     expect(out[0].targets[0]).toMatchObject({ player: 'black', cardId: 'x1', count: 1 });
   });
 
+  test('maps HAND_ADD presentation event to hand_add playback event with reason metadata', () => {
+    const pres = [{
+      type: 'HAND_ADD',
+      player: 'black',
+      cardId: 'triple_01',
+      count: 1,
+      reason: 'generated_throw_chain',
+      meta: { sourceType: 'DOUBLE_PLACE', generatedName: '三連投石' }
+    }];
+    const out = adapter.mapToPlaybackEvents(pres, { markers: [] }, { board: Array(8).fill(null).map(() => Array(8).fill(0)) });
+
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('hand_add');
+    expect(out[0].targets[0]).toMatchObject({
+      player: 'black',
+      cardId: 'triple_01',
+      count: 1,
+      reason: 'generated_throw_chain',
+      sourceType: 'DOUBLE_PLACE',
+      generatedName: '三連投石'
+    });
+  });
+
+  test('keeps generated throw-chain hand_add after placement phases when card use and placement share one action', () => {
+    const pres = [
+      { type: 'CARD_USED', player: 'black', cardId: 'double_01', meta: { owner: 'black', cost: 24, name: '二連投石' } },
+      {
+        type: 'HAND_ADD',
+        player: 'black',
+        cardId: 'triple_01',
+        count: 1,
+        reason: 'generated_throw_chain',
+        meta: { sourceType: 'DOUBLE_PLACE', generatedName: '三連投石' }
+      },
+      { type: 'CHANGE', row: 2, col: 3, ownerBefore: 'white', ownerAfter: 'black' }
+    ];
+    const out = adapter.mapToPlaybackEvents(pres, { markers: [] }, { board: Array(8).fill(null).map(() => Array(8).fill(0)) });
+
+    const flipEvent = out.find((ev) => ev && ev.type === 'flip');
+    const handAddEvent = out.find((ev) => ev && ev.type === 'hand_add');
+
+    expect(flipEvent).toBeTruthy();
+    expect(handAddEvent).toBeTruthy();
+    expect(handAddEvent.phase).toBeGreaterThan(flipEvent.phase);
+  });
+
+  test('runTurnWithAdapter defers generated throw-chain hand_add from use_card until the next placement playback', () => {
+    const board = Array(8).fill(null).map(() => Array(8).fill(0));
+    const turnPipeline = {
+      applyTurnSafe: jest.fn()
+        .mockReturnValueOnce({
+          ok: true,
+          cardState: { markers: [], turnIndex: 9 },
+          gameState: { board },
+          events: [],
+          presentationEvents: [
+            { type: 'CARD_USED', player: 'black', cardId: 'double_01', meta: { owner: 'black', cost: 24, name: '二連投石' } },
+            {
+              type: 'HAND_ADD',
+              player: 'black',
+              cardId: 'triple_01',
+              count: 1,
+              reason: 'generated_throw_chain',
+              meta: { sourceType: 'DOUBLE_PLACE', generatedName: '三連投石' }
+            }
+          ]
+        })
+        .mockReturnValueOnce({
+          ok: true,
+          cardState: { markers: [], turnIndex: 9 },
+          gameState: { board },
+          events: [],
+          presentationEvents: [
+            { type: 'CHANGE', row: 2, col: 3, ownerBefore: 'white', ownerAfter: 'black' }
+          ]
+        })
+    };
+
+    const useResult = adapter.runTurnWithAdapter(
+      { markers: [], turnIndex: 9 },
+      { board },
+      'black',
+      { type: 'use_card', useCardId: 'double_01' },
+      turnPipeline
+    );
+
+    expect(useResult.ok).toBe(true);
+    expect(useResult.playbackEvents.map((ev) => ev.type)).toEqual(['card_use_animation']);
+    expect(useResult.deferredGeneratedThrowChainHandAdd).toMatchObject({
+      playerKey: 'black',
+      count: 1,
+      reason: 'generated_throw_chain'
+    });
+
+    const placeResult = adapter.runTurnWithAdapter(
+      { markers: [], turnIndex: 9 },
+      { board },
+      'black',
+      { type: 'place', row: 2, col: 3 },
+      turnPipeline
+    );
+
+    const flipEvent = placeResult.playbackEvents.find((ev) => ev && ev.type === 'flip');
+    const handAddEvent = placeResult.playbackEvents.find((ev) => ev && ev.type === 'hand_add');
+
+    expect(flipEvent).toBeTruthy();
+    expect(handAddEvent).toBeTruthy();
+    expect(handAddEvent.phase).toBeGreaterThan(flipEvent.phase);
+    expect(handAddEvent.targets[0]).toMatchObject({
+      player: 'black',
+      cardId: 'triple_01',
+      reason: 'generated_throw_chain',
+      sourceType: 'DOUBLE_PLACE',
+      generatedName: '三連投石'
+    });
+  });
+
   test('maps CARD_USED presentation event to card_use_animation playback event', () => {
     const pres = [{ type: 'CARD_USED', player: 'black', cardId: 'c1', meta: { owner: 'black', cost: 7, name: 'Test' } }];
     const out = adapter.mapToPlaybackEvents(pres, { markers: [] }, { board: Array(8).fill(null).map(() => Array(8).fill(0)) });

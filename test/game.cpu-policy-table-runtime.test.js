@@ -1,6 +1,7 @@
 const path = require('path');
 const zlib = require('zlib');
 const runtime = require(path.resolve(__dirname, '..', 'game', 'ai', 'policy-table-runtime.js'));
+const SharedBoardUtils = require(path.resolve(__dirname, '..', 'shared', 'shared-board-utils.js'));
 
 describe('policy-table-runtime', () => {
   beforeEach(() => {
@@ -114,6 +115,60 @@ describe('policy-table-runtime', () => {
     });
 
     expect(cornerScore).toBeGreaterThan(innerScore);
+  });
+
+  test('preferRaw8x8Keys can resolve raw v2 state keys on shaped 8x8 boards', () => {
+    const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
+    const rawCanonical = runtime.canonicalizeBoard(board);
+    SharedBoardUtils.attachBoardShape(board, {
+      boardExpansion: {
+        cells: [{ row: 8, col: 0, owner: 'black' }]
+      }
+    });
+    const stateKey = runtime.makeStateKey('white', rawCanonical.boardKey, null, 2);
+    const model = {
+      schemaVersion: 'policy_table.v2',
+      states: {
+        [stateKey]: {
+          bestAction: 'place:0:0',
+          actions: {
+            'place:0:0': { visits: 6, avgOutcome: 0.4 }
+          }
+        }
+      }
+    };
+    const candidates = [
+      { row: 0, col: 0, flips: [] },
+      { row: 3, col: 3, flips: [] }
+    ];
+
+    const scoreWithoutRaw = runtime.getActionScoreFromModel(model, candidates[0], {
+      playerKey: 'white',
+      level: 6,
+      board,
+      pendingType: null,
+      legalMovesCount: 2
+    });
+    const scoreWithRaw = runtime.getActionScoreFromModel(model, candidates[0], {
+      playerKey: 'white',
+      level: 6,
+      board,
+      pendingType: null,
+      legalMovesCount: 2,
+      preferRaw8x8Keys: true
+    });
+    const selected = runtime.chooseMoveFromModel(model, candidates, {
+      playerKey: 'white',
+      level: 6,
+      board,
+      pendingType: null,
+      legalMovesCount: 2,
+      preferRaw8x8Keys: true
+    });
+
+    expect(scoreWithoutRaw).toBeNull();
+    expect(scoreWithRaw).not.toBeNull();
+    expect(selected).toEqual(candidates[0]);
   });
 
   test('chooseMove returns null below min level', () => {
@@ -325,5 +380,46 @@ describe('policy-table-runtime', () => {
       legalMovesCount: 2
     });
     expect(selected).toEqual({ row: 0, col: 0, flips: [] });
+  });
+
+  test('chooseMove uses abstract state fallback for expansion corner placement', () => {
+    const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
+    board[3][3] = 1;
+    board[3][4] = -1;
+    board[4][3] = -1;
+    board[4][4] = 1;
+    SharedBoardUtils.attachBoardShape(board, {
+      boardExpansion: {
+        cells: [
+          { row: 0, col: 8, owner: 0 },
+          { row: 7, col: 8, owner: 0 }
+        ]
+      }
+    });
+
+    expect(runtime.setModel({
+      schemaVersion: 'policy_table.v2',
+      states: {},
+      abstractStates: {
+        'white|-|opening|mob:2|disc:0|corner:0': {
+          bestAction: 'place_cat:corner',
+          actions: {
+            'place_cat:corner': { visits: 20, avgOutcome: 0.9 },
+            'place_cat:inner': { visits: 8, avgOutcome: 0.1 }
+          }
+        }
+      }
+    })).toBe(true);
+
+    const expansionMove = { row: 0, col: 8, flips: [] };
+    const selected = runtime.chooseMove([expansionMove, { row: 1, col: 1, flips: [] }], {
+      playerKey: 'white',
+      level: 5,
+      board,
+      pendingType: null,
+      legalMovesCount: 2
+    });
+
+    expect(selected).toEqual(expansionMove);
   });
 });

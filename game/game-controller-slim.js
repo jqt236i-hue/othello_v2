@@ -12,6 +12,19 @@ const CARD_TYPE_BY_ID = CARD_DEFS.reduce((acc, c) => {
     acc[c.id] = c.type;
     return acc;
 }, {});
+const GameControllerSharedBoardUtils = (() => {
+    try {
+        if (typeof require === 'function') {
+            return require('../shared/shared-board-utils');
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.SharedBoardUtils) {
+            return globalThis.SharedBoardUtils;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+})();
 
 // ===== Utility Functions =====
 
@@ -23,6 +36,9 @@ const CARD_TYPE_BY_ID = CARD_DEFS.reduce((acc, c) => {
  * @returns {string} 表記 (例: 'a1', 'h8')
  */
 function posToNotation(row, col) {
+    if (GameControllerSharedBoardUtils && typeof GameControllerSharedBoardUtils.posToNotation === 'function') {
+        return GameControllerSharedBoardUtils.posToNotation(row, col);
+    }
     const cols = 'abcdefgh';
     return cols[col] + (row + 1);
 }

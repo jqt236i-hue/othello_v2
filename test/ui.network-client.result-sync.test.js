@@ -44,6 +44,9 @@ describe('NetworkMatchClient result sync', () => {
     delete global.emitGameStateChange;
     delete global.emitBoardUpdate;
     delete global.renderCardUI;
+    delete global.BoardOps;
+    delete global.isProcessing;
+    delete global.isCardAnimating;
     delete global.ensureLegacyMarkers;
     delete global.isGameOver;
     delete global.showResult;
@@ -182,6 +185,65 @@ describe('NetworkMatchClient result sync', () => {
     expect(global.cardState.presentationEvents).toEqual([{ type: 'local_live' }]);
     expect(global.cardState._presentationEventsPersist).toEqual([{ type: 'local_persist' }]);
     expect(global.renderCardUI).not.toHaveBeenCalled();
+  });
+
+  test('visual playback only does not rearm busy lock on force sync when local queues are empty', () => {
+    global.isProcessing = false;
+    global.isCardAnimating = false;
+    global.cardState = {
+      markers: [],
+      presentationEvents: [],
+      _presentationEventsPersist: []
+    };
+    window.VisualPlaybackActive = true;
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    client.applySnapshot({
+      stateVersion: 12,
+      gameState: { currentPlayer: 1, turnNumber: 45, __resultShown: false },
+      cardState: {
+        markers: [],
+        presentationEvents: [{ type: 'stale_from_snapshot' }],
+        _presentationEventsPersist: [{ type: 'stale_persist_from_snapshot' }]
+      }
+    }, {
+      force: true,
+      skipResultOverlay: true
+    });
+
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
+    expect(global.cardState.presentationEvents).toEqual([]);
+    expect(global.cardState._presentationEventsPersist).toEqual([]);
+    expect(global.renderCardUI).not.toHaveBeenCalled();
+  });
+
+  test('force snapshot without playback clears stale board update context', () => {
+    const playbackState = require('../ui/playback-state-manager');
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    playbackState.armBoardUpdateContext({
+      suppressFallbackFlip: true,
+      source: 'network-client',
+      reason: 'stale_self_snapshot_sync'
+    });
+    expect(playbackState.getSuppressNextDiffFlip()).toBe(true);
+
+    client.applySnapshot({
+      stateVersion: 13,
+      gameState: { currentPlayer: 1, turnNumber: 46, __resultShown: false },
+      cardState: { markers: [] }
+    }, {
+      force: true,
+      skipResultOverlay: true
+    });
+
+    expect(playbackState.getBoardUpdateContext()).toBeNull();
+    expect(playbackState.getSuppressNextDiffFlip()).toBe(false);
+    expect(window.__suppressNextDiffFlip).toBe(false);
   });
 
   test('snapshot apply rehydrates legacy marker fields for fallback UI paths', () => {

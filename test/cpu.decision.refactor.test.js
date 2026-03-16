@@ -288,6 +288,47 @@ describe('cpu decision refactor helpers', () => {
     expect(res.cardId).toBe('gold_01');
   });
 
+  test('selectCardToUse allows high-yield CRYSTAL_STONE when number cell gain is large', () => {
+    global.AISystem = null;
+    global.CpuPolicyTableRuntime = null;
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: ['crystal_01'], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
+      boardBonusByCell: { '2,4': 3 },
+      charge: { white: 8, black: 8 },
+      turnIndex: 10
+    };
+    global.cpuSmartness.white = 6;
+    global.getLegalMoves = () => [
+      { row: 2, col: 4, flips: [{ row: 3, col: 4 }] }
+    ];
+    global.CardLogic = {
+      canUseCard: () => true,
+      getUsableCardIds: () => ['crystal_01'],
+      getCardDef: () => ({ id: 'crystal_01', name: 'crystal_01', type: 'CRYSTAL_STONE' }),
+      getCardCost: () => 7
+    };
+
+    const res = cpuDecision.selectCardToUse('white');
+    expect(res).toBeDefined();
+    expect(res.cardId).toBe('crystal_01');
+  });
+
   test('selectCardToUse suppresses SACRIFICE_WILL for Lv6 before turn 25', () => {
     global.gameState = { turnNumber: 23 };
     global.cpuSmartness.white = 6;
@@ -1746,6 +1787,7 @@ describe('cpu decision refactor helpers', () => {
       actionType: 'place',
       playbackEvents: [{ type: 'dummy' }, { type: 'turn_start_dummy' }]
     }));
+    expect(global.NetworkMatchClient.publishSnapshot.mock.calls[0][0].snapshot).toBeUndefined();
   });
 
   test('cpuSelectGuardWillWithPolicy prefers guarding valuable timed special stone over corner', async () => {
@@ -1909,6 +1951,51 @@ describe('cpu decision refactor helpers', () => {
     expect(global.CpuPolicyOnnxRuntime.evaluatePosition).toHaveBeenCalled();
     const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
     expect(action.destroyTarget).toEqual({ row: 3, col: 2 });
+  });
+
+  test('cpuSelectDestroyWithPolicy includes occupied expansion cells in fallback targets', async () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      boardExpansion: {
+        active: true,
+        side: 'right',
+        row: 0,
+        owner: 0,
+        usedByPlayer: { black: false, white: false },
+        cells: [
+          { side: 'right', row: 0, col: 8, owner: 1 },
+          { side: 'right', row: 7, col: 8, owner: 0 }
+        ]
+      },
+      currentPlayer: -1
+    };
+    global.gameState.board[3][2] = 1;
+    global.cardState.pendingEffectByPlayer.white = { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' };
+    global.CpuPolicyOnnxRuntime = {
+      choosePendingTarget: jest.fn(async (targets) => targets.find((one) => one && one.row === 0 && one.col === 8) || targets[0])
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectDestroyWithPolicy('white');
+
+    expect(global.CpuPolicyOnnxRuntime.choosePendingTarget).toHaveBeenCalled();
+    expect(global.CpuPolicyOnnxRuntime.choosePendingTarget.mock.calls[0][0]).toEqual(
+      expect.arrayContaining([{ row: 0, col: 8 }])
+    );
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.destroyTarget).toEqual({ row: 0, col: 8 });
   });
 
   test('cpuSelectTeleportWillWithPolicy prefers enemy corner target', async () => {

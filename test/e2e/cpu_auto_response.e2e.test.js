@@ -65,10 +65,7 @@ describe('CPU auto-response E2E', () => {
     // Record disc counts before move
     const before = await page.$$eval('#board .disc.black, #board .disc.white', els => els.length);
 
-    await page.evaluate(() => {
-      const cell = document.querySelector('#board .cell.legal, #board .cell.legal-free');
-      if (cell) cell.click();
-    });
+    await page.locator('#board .cell.legal, #board .cell.legal-free').first().click();
 
     // Wait for human move to be applied (disc count increases or currentPlayer flips to white)
     await page.waitForFunction((beforeCount) => {

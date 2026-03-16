@@ -22,6 +22,36 @@
         return (owner === BLACK || owner === WHITE) ? owner : EMPTY;
     }
 
+    function isMainBoardCell(row, col) {
+        return Number.isInteger(row) && row >= 0 && row < 8 && Number.isInteger(col) && col >= 0 && col < 8;
+    }
+
+    function resolveExpansionSide(side, row, col) {
+        if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
+        if (col === -1) return 'left';
+        if (col === 8) return 'right';
+        if (row === -1) return 'top';
+        if (row === 8) return 'bottom';
+        return null;
+    }
+
+    function isExpansionCoordinate(row, col) {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+        if (row < -1 || row > 8 || col < -1 || col > 8) return false;
+        if (isMainBoardCell(row, col)) return false;
+        return true;
+    }
+
+    function syncLegacyExpansionFields(expansion) {
+        if (!expansion || typeof expansion !== 'object') return;
+        if (!Array.isArray(expansion.cells)) expansion.cells = [];
+        const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
+        expansion.active = !!latest;
+        expansion.side = latest ? resolveExpansionSide(latest.side, latest.row, latest.col) : null;
+        expansion.row = latest ? latest.row : null;
+        expansion.owner = latest ? normalizeExpansionOwner(latest.owner) : EMPTY;
+    }
+
     function getExpansionCells(gameState) {
         if (BoardOpsModule && typeof BoardOpsModule.getExpansionDescriptors === 'function') {
             return BoardOpsModule.getExpansionDescriptors(gameState);
@@ -32,23 +62,45 @@
         if (!expansion) return [];
 
         const cells = [];
-        const pushCell = (side, row, owner) => {
-            if (side !== 'left' && side !== 'right') return;
-            if (!Number.isInteger(row) || row < 0 || row >= 8) return;
-            const col = side === 'left' ? -1 : 8;
+        const pushCell = (source, legacyRow, legacyOwner) => {
+            let side = null;
+            let row = null;
+            let col = null;
+            let owner = legacyOwner;
+
+            if (source && typeof source === 'object') {
+                side = source.side;
+                row = source.row;
+                col = source.col;
+                owner = source.owner;
+                if (!Number.isInteger(col) && side === 'left') col = -1;
+                if (!Number.isInteger(col) && side === 'right') col = 8;
+            } else {
+                side = source;
+                row = legacyRow;
+                if (side === 'left') col = -1;
+                if (side === 'right') col = 8;
+            }
+
+            if (!isExpansionCoordinate(row, col)) return;
             if (cells.some((cell) => cell && cell.row === row && cell.col === col)) return;
-            cells.push({ side, row, col, owner: normalizeExpansionOwner(owner) });
+            cells.push({
+                side: resolveExpansionSide(side, row, col),
+                row,
+                col,
+                owner: normalizeExpansionOwner(owner)
+            });
         };
 
         if (Array.isArray(expansion.cells)) {
             for (const cell of expansion.cells) {
                 if (!cell || typeof cell !== 'object') continue;
-                pushCell(cell.side, cell.row, cell.owner);
+                pushCell(cell);
             }
         }
 
         if (cells.length === 0 && expansion.active === true) {
-            pushCell(expansion.side, expansion.row, expansion.owner);
+            pushCell(expansion);
         }
 
         return cells;
@@ -71,13 +123,10 @@
         expansion.cells = cells.map((cell) => ({
             side: cell.side,
             row: cell.row,
+            col: cell.col,
             owner: normalizeExpansionOwner(cell.owner)
         }));
-        const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
-        expansion.active = !!latest;
-        expansion.side = latest ? latest.side : null;
-        expansion.row = latest ? latest.row : null;
-        expansion.owner = latest ? normalizeExpansionOwner(latest.owner) : EMPTY;
+        syncLegacyExpansionFields(expansion);
         return expansion;
     }
 
@@ -85,7 +134,7 @@
         if (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function') {
             return BoardOpsModule.getCellValue(gameState, row, col);
         }
-        if (row >= 0 && row < 8 && col >= 0 && col < 8) return gameState.board[row][col];
+        if (isMainBoardCell(row, col)) return gameState.board[row][col];
         const expansionCells = getExpansionCells(gameState);
         for (const expansion of expansionCells) {
             if (!expansion) continue;
@@ -108,15 +157,18 @@
         for (let i = 0; i < expansionState.cells.length; i++) {
             const cell = expansionState.cells[i];
             if (!cell) continue;
-            const cellCol = cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : null);
+            const cellCol = Number.isInteger(cell.col)
+                ? cell.col
+                : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : null));
             if (cellCol === null) continue;
             if (cell.row === row && cellCol === col) {
-                expansionState.cells[i] = { side: cell.side, row: cell.row, owner: normalizedOwner };
-                const latest = expansionState.cells.length > 0 ? expansionState.cells[expansionState.cells.length - 1] : null;
-                expansionState.active = !!latest;
-                expansionState.side = latest ? latest.side : null;
-                expansionState.row = latest ? latest.row : null;
-                expansionState.owner = latest ? normalizeExpansionOwner(latest.owner) : EMPTY;
+                expansionState.cells[i] = {
+                    side: resolveExpansionSide(cell.side, cell.row, cellCol),
+                    row: cell.row,
+                    col: cellCol,
+                    owner: normalizedOwner
+                };
+                syncLegacyExpansionFields(expansionState);
                 return true;
             }
         }

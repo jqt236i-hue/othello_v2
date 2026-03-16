@@ -403,12 +403,13 @@ function renderCardUI() {
     const isBlackTurn = gameState.currentPlayer === BLACK;
     const isAnimating = _isCardAnimatingForRender();
     const staleVisualPlaybackLock = _isStaleVisualPlaybackLockForRender();
+    const isDebugUnlimited = (typeof window !== 'undefined' && window.DEBUG_UNLIMITED_USAGE === true);
     const inputPlayerKey = isNetworkMode
         ? localPlayerKey
         : (isDebugHvH ? (isBlackTurn ? 'black' : 'white') : 'black');
     const pending = cardState.pendingEffectByPlayer[inputPlayerKey];
     const allowDuringAnimForSell = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
-    const canInteract = !isAnimating || allowDuringAnimForSell || staleVisualPlaybackLock;
+    const canInteract = !isAnimating || allowDuringAnimForSell || staleVisualPlaybackLock || isDebugUnlimited;
 
     const fadeState = (typeof window !== 'undefined')
         ? (window.__handFadeInState || window.__handFadeInHint || null)
@@ -458,7 +459,6 @@ function renderCardUI() {
 
                 const cost = cardDef ? (cardDef.cost || 0) : 0;
 
-                const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
                 const hasNotUsedThisTurn = isDebugUnlimited ? true : !cardState.hasUsedCardThisTurnByPlayer[ownerKey];
                 const canAfford = isDebugUnlimited ? true : ((cardState.charge[ownerKey] || 0) >= cost);
                 const isOwnerTurn = ownerKey === 'black' ? isBlackTurn : !isBlackTurn;

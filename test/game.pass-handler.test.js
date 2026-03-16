@@ -234,7 +234,7 @@ describe('pass-handler flows', () => {
         expect(global.TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
     });
 
-    test('network pass publish は onTurnStart 前の snapshot を送る', async () => {
+    test('network pass publish は command payload を送り snapshot を含めない', async () => {
         delete require.cache[modPath];
         global.MATCH_MODE = 'network';
         global.cardState = {
@@ -271,11 +271,8 @@ describe('pass-handler flows', () => {
         expect(ok).toBe(true);
         expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledTimes(1);
         const payload = global.NetworkMatchClient.publishSnapshot.mock.calls[0][0];
-        expect(payload.snapshot.gameState.currentPlayer).toBe(global.WHITE);
-        expect(payload.snapshot.gameState.turnNumber).toBe(8);
-        expect(payload.snapshot.cardState.hands.white).toEqual([]);
-        expect(payload.snapshot.cardState.turnIndex).toBe(4);
-        expect(payload.snapshot.cardState.lastTurnStartedFor).toBe('black');
+        expect(payload.snapshot).toBeUndefined();
+        expect(payload.action).toEqual({ type: 'pass', playerKey: 'black', turnIndex: 4 });
         expect(global.cardState.hands.white).toEqual(['white_draw']);
     });
 });

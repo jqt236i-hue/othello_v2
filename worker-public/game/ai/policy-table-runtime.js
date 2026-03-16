@@ -9,6 +9,19 @@
 const POLICY_TABLE_MODEL_SCHEMA_VERSION = 'policy_table.v2';
 const DEFAULT_MODEL_URL = 'data/models/policy-table.json';
 const MODEL_HEURISTIC_WEIGHT = 1;
+let SharedBoardUtils = null;
+try {
+    if (typeof require === 'function') {
+        SharedBoardUtils = require('../../shared/shared-board-utils');
+    }
+} catch (e) { /* ignore */ }
+if (!SharedBoardUtils) {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.SharedBoardUtils) {
+            SharedBoardUtils = globalThis.SharedBoardUtils;
+        }
+    } catch (e) { /* ignore */ }
+}
 
 let _model = null;
 let _config = {
@@ -37,6 +50,16 @@ function toCellChar(v) {
 }
 
 function encodeBoard(board) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.encodeBoard === 'function') {
+        return SharedBoardUtils.encodeBoard(board);
+    }
+    if (!Array.isArray(board)) return '';
+    return board
+        .map((row) => Array.isArray(row) ? row.map((v) => toCellChar(v)).join('') : '')
+        .join('/');
+}
+
+function encodeBoardRaw(board) {
     if (!Array.isArray(board)) return '';
     return board
         .map((row) => Array.isArray(row) ? row.map((v) => toCellChar(v)).join('') : '')
@@ -44,6 +67,9 @@ function encodeBoard(board) {
 }
 
 function transformCoord(row, col, size, t) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.transformCoord === 'function') {
+        return SharedBoardUtils.transformCoord(row, col, size, t);
+    }
     if (t === 0) return { row, col };
     if (t === 1) return { row: col, col: size - 1 - row };
     if (t === 2) return { row: size - 1 - row, col: size - 1 - col };
@@ -74,6 +100,9 @@ function transformBoard(board, t) {
 }
 
 function canonicalizeBoard(board) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.canonicalizeBoard === 'function') {
+        return SharedBoardUtils.canonicalizeBoard(board);
+    }
     const raw = encodeBoard(board);
     if (!raw) return { boardKey: raw, transformId: 0 };
     const decoded = decodeBoard(raw);
@@ -89,6 +118,34 @@ function canonicalizeBoard(board) {
     return { boardKey: best || raw, transformId: bestT };
 }
 
+function canonicalizeBoardRaw(board) {
+    const raw = encodeBoardRaw(board);
+    if (!raw) return { boardKey: raw, transformId: 0 };
+    const decoded = decodeBoard(raw);
+    let best = null;
+    let bestT = 0;
+    for (let t = 0; t < 8; t++) {
+        const encoded = encodeBoardRaw(transformBoard(decoded, t));
+        if (best === null || encoded < best) {
+            best = encoded;
+            bestT = t;
+        }
+    }
+    return { boardKey: best || raw, transformId: bestT };
+}
+
+function isRawStandard8x8(board) {
+    if (!Array.isArray(board) || board.length !== 8) return false;
+    for (const row of board) {
+        if (!Array.isArray(row) || row.length !== 8) return false;
+    }
+    return true;
+}
+
+function shouldPreferRaw8x8Keys(context, board) {
+    return !!(context && context.preferRaw8x8Keys) && isRawStandard8x8(board);
+}
+
 function makeStateKey(playerKey, board, pendingType, legalMovesCount) {
     const pending = pendingType || '-';
     const legalMoves = Number.isFinite(legalMovesCount) ? legalMovesCount : 0;
@@ -101,8 +158,13 @@ function makeActionKeyFromMove(move) {
     return `place:${move.row}:${move.col}`;
 }
 
-function cellType(row, col, size) {
-    const n = Number.isFinite(size) && size > 0 ? size : 8;
+function cellType(row, col, boardOrSize) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.getCellType === 'function') {
+        if (Array.isArray(boardOrSize)) return SharedBoardUtils.getCellType(row, col, boardOrSize);
+        const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
+        return SharedBoardUtils.getCellType(row, col, n, n);
+    }
+    const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
     if ((row === 0 || row === n - 1) && (col === 0 || col === n - 1)) return 'corner';
     if ((row === 1 || row === n - 2) && (col === 1 || col === n - 2)) return 'x';
     const nearTB = (row === 0 || row === n - 1) && (col === 1 || col === n - 2);
@@ -112,9 +174,9 @@ function cellType(row, col, size) {
     return 'inner';
 }
 
-function makeAbstractActionKeyFromMove(move, boardSize) {
+function makeAbstractActionKeyFromMove(move, boardShapeOrSize) {
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return 'place_cat:unknown';
-    return `place_cat:${cellType(move.row, move.col, boardSize)}`;
+    return `place_cat:${cellType(move.row, move.col, boardShapeOrSize)}`;
 }
 
 function countEmptiesInBoardKey(boardKey) {
@@ -165,10 +227,23 @@ function toBucket(value, steps) {
 }
 
 function makeAbstractStateKey(playerKey, board, pendingType, legalMovesCount) {
-    const canonical = canonicalizeBoard(board);
-    const boardKey = canonical.boardKey || '';
     const pending = pendingType || '-';
     const legalMoves = Number.isFinite(legalMovesCount) ? legalMovesCount : 0;
+    const boardKey = typeof board === 'string' ? board : '';
+    const empties = Array.isArray(board) ? countEmpties(board) : countEmptiesInBoardKey(boardKey);
+    const phase = empties >= 44 ? 'opening' : (empties >= 16 ? 'mid' : 'end');
+    const mobilityBucket = toBucket(legalMoves, [0, 2, 4, 6, 10, 20]);
+    const discDiff = Array.isArray(board) ? countDiscsFor(board, playerKey) : discDiffFromPlayer(boardKey, playerKey);
+    const cornerDiff = Array.isArray(board) ? countCornersFor(board, playerKey) : cornerDiffFromPlayer(boardKey, playerKey);
+    const discBucket = toBucket(discDiff, [-20, -10, -4, 0, 4, 10, 20]);
+    const cornerBucket = toBucket(cornerDiff, [-4, -2, -1, 0, 1, 2, 4]);
+    return `${playerKey}|${pending}|${phase}|mob:${mobilityBucket}|disc:${discBucket}|corner:${cornerBucket}`;
+}
+
+function makeAbstractStateKeyRaw(playerKey, board, pendingType, legalMovesCount) {
+    const pending = pendingType || '-';
+    const legalMoves = Number.isFinite(legalMovesCount) ? legalMovesCount : 0;
+    const boardKey = typeof board === 'string' ? board : encodeBoardRaw(board);
     const empties = countEmptiesInBoardKey(boardKey);
     const phase = empties >= 44 ? 'opening' : (empties >= 16 ? 'mid' : 'end');
     const mobilityBucket = toBucket(legalMoves, [0, 2, 4, 6, 10, 20]);
@@ -177,14 +252,20 @@ function makeAbstractStateKey(playerKey, board, pendingType, legalMovesCount) {
     return `${playerKey}|${pending}|${phase}|mob:${mobilityBucket}|disc:${discBucket}|corner:${cornerBucket}`;
 }
 
-function makeActionKeyFromMoveWithTransform(move, transformId, boardSize) {
+function makeActionKeyFromMoveWithTransform(move, transformId, boardOrSize) {
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return '';
-    const size = Number.isFinite(boardSize) ? boardSize : 8;
+    if (Array.isArray(boardOrSize) && SharedBoardUtils && typeof SharedBoardUtils.makeCanonicalActionKey === 'function') {
+        return SharedBoardUtils.makeCanonicalActionKey(move, boardOrSize, transformId);
+    }
+    const size = Number.isFinite(boardOrSize) ? boardOrSize : 8;
     const p = transformCoord(move.row, move.col, size, transformId);
     return `place:${p.row}:${p.col}`;
 }
 
 function cloneBoard(board) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.cloneBoard === 'function') {
+        return SharedBoardUtils.cloneBoard(board);
+    }
     if (!Array.isArray(board)) return [];
     return board.map((row) => Array.isArray(row) ? row.slice() : []);
 }
@@ -193,16 +274,27 @@ function applyMoveToBoard(board, move, playerKey) {
     const out = cloneBoard(board);
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return out;
     const own = playerKey === 'black' ? 1 : -1;
-    if (Array.isArray(out[move.row])) out[move.row][move.col] = own;
+    if (SharedBoardUtils && typeof SharedBoardUtils.setCellValue === 'function') {
+        SharedBoardUtils.setCellValue(out, move.row, move.col, own);
+    } else if (Array.isArray(out[move.row])) {
+        out[move.row][move.col] = own;
+    }
     const flips = Array.isArray(move.flips) ? move.flips : [];
     for (const f of flips) {
         if (!f || !Number.isFinite(f.row) || !Number.isFinite(f.col)) continue;
-        if (Array.isArray(out[f.row])) out[f.row][f.col] = own;
+        if (SharedBoardUtils && typeof SharedBoardUtils.setCellValue === 'function') {
+            SharedBoardUtils.setCellValue(out, f.row, f.col, own);
+        } else if (Array.isArray(out[f.row])) {
+            out[f.row][f.col] = own;
+        }
     }
     return out;
 }
 
 function getFlipsBasic(board, row, col, playerValue) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.getFlipsBasic === 'function') {
+        return SharedBoardUtils.getFlipsBasic(board, row, col, playerValue);
+    }
     if (!Array.isArray(board) || !Array.isArray(board[row])) return [];
     if (board[row][col] !== 0) return [];
     const dirs = [
@@ -228,6 +320,9 @@ function getFlipsBasic(board, row, col, playerValue) {
 }
 
 function getLegalMovesBasic(board, playerValue) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.getLegalMovesBasic === 'function') {
+        return SharedBoardUtils.getLegalMovesBasic(board, playerValue);
+    }
     if (!Array.isArray(board)) return [];
     const moves = [];
     for (let r = 0; r < board.length; r++) {
@@ -244,6 +339,14 @@ function countDiscsFor(board, playerKey) {
     const opp = -own;
     let ownCount = 0;
     let oppCount = 0;
+    if (SharedBoardUtils && typeof SharedBoardUtils.collectBoardCoordinates === 'function' && typeof SharedBoardUtils.getCellValue === 'function') {
+        for (const cell of SharedBoardUtils.collectBoardCoordinates(board)) {
+            const v = SharedBoardUtils.getCellValue(board, cell.row, cell.col);
+            if (v === own) ownCount++;
+            else if (v === opp) oppCount++;
+        }
+        return ownCount - oppCount;
+    }
     for (let r = 0; r < board.length; r++) {
         for (let c = 0; c < board[r].length; c++) {
             const v = board[r][c];
@@ -255,6 +358,11 @@ function countDiscsFor(board, playerKey) {
 }
 
 function countCornersFor(board, playerKey) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.countCornerControl === 'function') {
+        const playerValue = playerKey === 'black' ? 1 : -1;
+        const control = SharedBoardUtils.countCornerControl(board, playerValue);
+        return Number(control.ownCorners || 0) - Number(control.oppCorners || 0);
+    }
     if (!Array.isArray(board) || !board.length) return 0;
     const own = playerKey === 'black' ? 1 : -1;
     const opp = -own;
@@ -271,6 +379,9 @@ function countCornersFor(board, playerKey) {
 }
 
 function countEmpties(board) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.countBoardEmpties === 'function') {
+        return SharedBoardUtils.countBoardEmpties(board);
+    }
     if (!Array.isArray(board)) return 0;
     let empties = 0;
     for (let r = 0; r < board.length; r++) {
@@ -306,8 +417,12 @@ function estimateMoveHeuristic(move, context) {
         if (pressure > opponentThreat) opponentThreat = pressure;
         const rr = Number.isFinite(oppMove.row) ? oppMove.row : -1;
         const cc = Number.isFinite(oppMove.col) ? oppMove.col : -1;
-        const n = Array.isArray(after) ? after.length : 8;
-        if ((rr === 0 || rr === n - 1) && (cc === 0 || cc === n - 1)) givesCorner = true;
+        if (SharedBoardUtils && typeof SharedBoardUtils.isCorner === 'function') {
+            if (SharedBoardUtils.isCorner(rr, cc, after)) givesCorner = true;
+        } else {
+            const n = Array.isArray(after) ? after.length : 8;
+            if ((rr === 0 || rr === n - 1) && (cc === 0 || cc === n - 1)) givesCorner = true;
+        }
     }
     const row = Number.isFinite(move && move.row) ? move.row : 0;
     const col = Number.isFinite(move && move.col) ? move.col : 0;
@@ -393,27 +508,32 @@ async function readPolicyTablePayload(response, sourceUrl, fetchImpl) {
     return JSON.parse(jsonText);
 }
 
-function getStateEntryForModel(model, playerKey, board, pendingType, legalMovesCount) {
+function getStateEntryForModel(model, playerKey, board, pendingType, legalMovesCount, context) {
     if (!model || !model.states) return null;
     const schema = model.schemaVersion;
+    const preferRaw8x8Keys = shouldPreferRaw8x8Keys(context, board);
+    const canonical = preferRaw8x8Keys ? canonicalizeBoardRaw(board) : canonicalizeBoard(board);
+    const rawBoardKey = preferRaw8x8Keys ? encodeBoardRaw(board) : encodeBoard(board);
     if (schema === 'policy_table.v1') {
-        const key = makeStateKey(playerKey, board, pendingType, legalMovesCount);
-        return model.states[key] ? { entry: model.states[key], abstract: false } : null;
+        const key = makeStateKey(playerKey, preferRaw8x8Keys ? rawBoardKey : board, pendingType, legalMovesCount);
+        return model.states[key] ? { entry: model.states[key], abstract: false, keyMode: 'raw' } : null;
     }
-    const canonicalKey = makeStateKey(playerKey, canonicalizeBoard(board).boardKey, pendingType, legalMovesCount);
-    if (model.states[canonicalKey]) return { entry: model.states[canonicalKey], abstract: false };
+    const canonicalKey = makeStateKey(playerKey, canonical.boardKey, pendingType, legalMovesCount);
+    if (model.states[canonicalKey]) return { entry: model.states[canonicalKey], abstract: false, keyMode: 'canonical' };
     // Backward-compatible fallback: allow non-canonical key in v2 payloads.
-    const rawKey = makeStateKey(playerKey, board, pendingType, legalMovesCount);
-    if (model.states[rawKey]) return { entry: model.states[rawKey], abstract: false };
+    const rawKey = makeStateKey(playerKey, preferRaw8x8Keys ? rawBoardKey : board, pendingType, legalMovesCount);
+    if (model.states[rawKey]) return { entry: model.states[rawKey], abstract: false, keyMode: 'raw' };
     if (model.abstractStates && typeof model.abstractStates === 'object') {
-        const abstractKey = makeAbstractStateKey(playerKey, board, pendingType, legalMovesCount);
-        if (model.abstractStates[abstractKey]) return { entry: model.abstractStates[abstractKey], abstract: true };
+        const abstractKey = preferRaw8x8Keys
+            ? makeAbstractStateKeyRaw(playerKey, rawBoardKey, pendingType, legalMovesCount)
+            : makeAbstractStateKey(playerKey, board, pendingType, legalMovesCount);
+        if (model.abstractStates[abstractKey]) return { entry: model.abstractStates[abstractKey], abstract: true, keyMode: 'abstract' };
     }
     return null;
 }
 
-function getStateEntry(playerKey, board, pendingType, legalMovesCount) {
-    return getStateEntryForModel(_model, playerKey, board, pendingType, legalMovesCount);
+function getStateEntry(playerKey, board, pendingType, legalMovesCount, context) {
+    return getStateEntryForModel(_model, playerKey, board, pendingType, legalMovesCount, context);
 }
 
 function setModel(model, options) {
@@ -489,20 +609,23 @@ function chooseMoveFromModel(model, candidateMoves, context) {
     const playerKey = ctx.playerKey === 'black' ? 'black' : 'white';
     const legalMovesCount = Number.isFinite(ctx.legalMovesCount) ? ctx.legalMovesCount : candidateMoves.length;
     const schema = model.schemaVersion;
-    const canonical = schema === 'policy_table.v1' ? { boardKey: encodeBoard(ctx.board), transformId: 0 } : canonicalizeBoard(ctx.board);
-    const stateMeta = getStateEntryForModel(model, playerKey, ctx.board, ctx.pendingType || null, legalMovesCount);
+    const preferRaw8x8Keys = shouldPreferRaw8x8Keys(ctx, ctx.board);
+    const canonical = schema === 'policy_table.v1'
+        ? { boardKey: preferRaw8x8Keys ? encodeBoardRaw(ctx.board) : encodeBoard(ctx.board), transformId: 0 }
+        : (preferRaw8x8Keys ? canonicalizeBoardRaw(ctx.board) : canonicalizeBoard(ctx.board));
+    const stateMeta = getStateEntryForModel(model, playerKey, ctx.board, ctx.pendingType || null, legalMovesCount, ctx);
     if (!stateMeta || !stateMeta.entry || !stateMeta.entry.actions || typeof stateMeta.entry.actions !== 'object') return null;
-    const boardSize = Array.isArray(ctx.board) ? ctx.board.length : 8;
+    const boardSize = Array.isArray(ctx.board) ? ctx.board : 8;
 
     let bestMove = null;
     let bestScore = -Infinity;
 
     for (const move of candidateMoves) {
-        let actionKey = schema === 'policy_table.v1'
+        let actionKey = (schema === 'policy_table.v1' || stateMeta.keyMode === 'raw')
             ? makeActionKeyFromMove(move)
-            : makeActionKeyFromMoveWithTransform(move, canonical.transformId, boardSize);
+            : makeActionKeyFromMoveWithTransform(move, canonical.transformId, preferRaw8x8Keys ? 8 : boardSize);
         if (stateMeta.abstract) {
-            actionKey = makeAbstractActionKeyFromMove(move, boardSize);
+            actionKey = makeAbstractActionKeyFromMove(move, preferRaw8x8Keys ? 8 : boardSize);
         }
         const stat = stateMeta.entry.actions[actionKey];
         if (!stat) continue;
@@ -543,16 +666,19 @@ function getActionScoreFromModel(model, move, context) {
     const playerKey = ctx.playerKey === 'black' ? 'black' : 'white';
     const legalMovesCount = Number.isFinite(ctx.legalMovesCount) ? ctx.legalMovesCount : 0;
     const schema = model.schemaVersion;
-    const canonical = schema === 'policy_table.v1' ? { boardKey: encodeBoard(ctx.board), transformId: 0 } : canonicalizeBoard(ctx.board);
-    const stateMeta = getStateEntryForModel(model, playerKey, ctx.board, ctx.pendingType || null, legalMovesCount);
+    const preferRaw8x8Keys = shouldPreferRaw8x8Keys(ctx, ctx.board);
+    const canonical = schema === 'policy_table.v1'
+        ? { boardKey: preferRaw8x8Keys ? encodeBoardRaw(ctx.board) : encodeBoard(ctx.board), transformId: 0 }
+        : (preferRaw8x8Keys ? canonicalizeBoardRaw(ctx.board) : canonicalizeBoard(ctx.board));
+    const stateMeta = getStateEntryForModel(model, playerKey, ctx.board, ctx.pendingType || null, legalMovesCount, ctx);
     if (!stateMeta || !stateMeta.entry || !stateMeta.entry.actions || typeof stateMeta.entry.actions !== 'object') return null;
 
-    const boardSize = Array.isArray(ctx.board) ? ctx.board.length : 8;
-    let actionKey = schema === 'policy_table.v1'
+    const boardSize = Array.isArray(ctx.board) ? ctx.board : 8;
+    let actionKey = (schema === 'policy_table.v1' || stateMeta.keyMode === 'raw')
         ? makeActionKeyFromMove(move)
-        : makeActionKeyFromMoveWithTransform(move, canonical.transformId, boardSize);
+        : makeActionKeyFromMoveWithTransform(move, canonical.transformId, preferRaw8x8Keys ? 8 : boardSize);
     if (stateMeta.abstract) {
-        actionKey = makeAbstractActionKeyFromMove(move, boardSize);
+        actionKey = makeAbstractActionKeyFromMove(move, preferRaw8x8Keys ? 8 : boardSize);
     }
     const stat = stateMeta.entry.actions[actionKey];
     if (!stat) return null;
@@ -589,7 +715,7 @@ function getActionScoreForKey(actionKey, context) {
 
     const playerKey = ctx.playerKey === 'black' ? 'black' : 'white';
     const legalMovesCount = Number.isFinite(ctx.legalMovesCount) ? ctx.legalMovesCount : 0;
-    const stateMeta = getStateEntry(playerKey, ctx.board, ctx.pendingType || null, legalMovesCount);
+    const stateMeta = getStateEntry(playerKey, ctx.board, ctx.pendingType || null, legalMovesCount, ctx);
     if (!stateMeta || !stateMeta.entry || !stateMeta.entry.actions || typeof stateMeta.entry.actions !== 'object') return null;
     const stat = stateMeta.entry.actions[actionKey];
     if (!stat) return null;

@@ -1,0 +1,186 @@
+{
+  "missedCornerCount": 4,
+  "missedEdgeCount": 333,
+  "worstMissedCorners": [
+    {
+      "seed": 13,
+      "ply": 107,
+      "player": "white",
+      "actionType": "place",
+      "row": 0,
+      "col": 1,
+      "useCardId": null,
+      "destroyCardId": null,
+      "sellCardId": null,
+      "future": -1,
+      "handCards": [
+        "x_bomb_01",
+        "board_expand_god_01",
+        "work_01",
+        "extreme_hyperactive_01",
+        "board_expand_01"
+      ],
+      "decisionCandidates": []
+    },
+    {
+      "seed": 12,
+      "ply": 89,
+      "player": "white",
+      "actionType": "place",
+      "row": 0,
+      "col": 2,
+      "useCardId": null,
+      "destroyCardId": null,
+      "sellCardId": null,
+      "future": 0,
+      "handCards": [
+        "super_buoyancy_01",
+        "will_hunter_king_01",
+        "extreme_hyperactive_01",
+        "sniper_01",
+        "taboo_reverse_01"
+      ],
+      "decisionCandidates": []
+    },
+    {
+      "seed": 16,
+      "ply": 70,
+      "player": "black",
+      "actionType": "place",
+      "row": 6,
+      "col": 0,
+      "useCardId": null,
+      "destroyCardId": null,
+      "sellCardId": null,
+      "future": 0,
+      "handCards": [
+        "observer_01",
+        "last_resort_01",
+        "instant_hyperactive_01",
+        "tempt_01",
+        "rebuild_01"
+      ],
+      "decisionCandidates": []
+    },
+    {
+      "seed": 9,
+      "ply": 26,
+      "player": "white",
+      "actionType": "place",
+      "row": 2,
+      "col": 0,
+      "useCardId": null,
+      "destroyCardId": null,
+      "sellCardId": null,
+      "future": 5,
+      "handCards": [
+        "destroy_dragon_01",
+        "extend_life_01",
+        "super_buoyancy_01"
+      ],
+      "decisionCandidates": []
+    }
+  ],
+  "worstMissedEdges": [
+    {
+      "seed": 15,
+      "ply": 40,
+      "player": "white",
+      "actionType": "place",
+      "row": 2,
+      "col": 4,
+      "useCardId": null,
+      "destroyCardId": null,
+      "sellCardId": null,
+      "future": -9,
+      "handCards": [
+        "extend_life_01",
+        "strong_wind_01",
+        "super_gravity_01",
+        "chain_01",
+        "silver_stone"
+      ],
+      "decisionCandidates": []
+    },
+    {
+      "seed": 16,
+      "ply": 37,
+      "player": "white",
+      "actionType": "place",
+      "row": 2,
+      "col": 6,
+      "useCardId": null,
+      "destroyCardId": null,
+      "sellCardId": null,
+      "future": -9,
+      "handCards": [
+        "ribo_01",
+        "lightning_01",
+        "hyperactive_inherit_01",
+        "sell_01",
+        "meteor_01"
+      ],
+      "decisionCandidates": []
+    },
+    {
+      "seed": 3,
+      "ply": 69,
+      "player": "black",
+      "actionType": "place",
+      "row": 6,
+      "col": 1,
+      "useCardId": null,
+      "destroyCardId": null,
+      "sellCardId": null,
+      "future": -8,
+      "handCards": [
+        "split_01",
+        "ribo_01",
+        "meteor_01",
+        "hyperactive_inherit_01",
+        "supply_01"
+      ],
+      "decisionCandidates": []
+    },
+    {
+      "seed": 7,
+      "ply": 41,
+      "player": "white",
+      "actionType": "place",
+      "row": 2,
+      "col": 4,
+      "useCardId": null,
+      "destroyCardId": null,
+      "sellCardId": null,
+      "future": -8,
+      "handCards": [
+        "instant_hyperactive_01",
+        "destroy_dragon_01",
+        "cell_teleport_01",
+        "supply_01",
+        "silver_stone"
+      ],
+      "decisionCandidates": []
+    },
+    {
+      "seed": 16,
+      "ply": 61,
+      "player": "white",
+      "actionType": "place",
+      "row": 4,
+      "col": 5,
+      "useCardId": null,
+      "destroyCardId": null,
+      "sellCardId": null,
+      "future": -8,
+      "handCards": [
+        "ribo_01",
+        "lightning_01",
+        "hyperactive_inherit_01",
+        "sell_01",
+        "meteor_01"
+      ],
+      "decisionCandidates": []
+    }
+  ]
+}

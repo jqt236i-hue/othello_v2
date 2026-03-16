@@ -297,7 +297,7 @@ describe('HYPERACTIVE_INHERIT_WILL (多動の継承)', () => {
     expect(gameState.board[2][2]).toBe(Core.WHITE);
   });
 
-  test('究極多動神と継承多動が共存する場合、反転回避回数は 5+1 で合計6回になる', () => {
+  test('究極多動神と継承多動が共存する場合、反転回避回数は 3+1 で合計4回になる', () => {
     const { cardState, gameState } = createStates();
     const prng = { random: () => 0, shuffle: (arr) => arr };
 
@@ -336,7 +336,7 @@ describe('HYPERACTIVE_INHERIT_WILL (多動の継承)', () => {
         ? (
           Number.isFinite(Number(ultimateMarker.data && ultimateMarker.data.flipEvadeRemaining))
             ? Math.max(0, Math.trunc(Number(ultimateMarker.data.flipEvadeRemaining)))
-            : 5
+            : 3
         )
         : 0;
       const inheritedRemaining = inheritedMarker
@@ -349,9 +349,9 @@ describe('HYPERACTIVE_INHERIT_WILL (多動の継承)', () => {
       return ultimateRemaining + inheritedRemaining;
     };
 
-    expect(getTotalFlipEvadeRemaining()).toBe(6);
+    expect(getTotalFlipEvadeRemaining()).toBe(4);
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 4; i++) {
       const markerBefore = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
       expect(markerBefore).toBeTruthy();
 
@@ -367,7 +367,7 @@ describe('HYPERACTIVE_INHERIT_WILL (多動の継承)', () => {
       expect(res.remainingFlips).toHaveLength(0);
       expect(Array.isArray(res.moved)).toBe(true);
       expect(res.moved).toHaveLength(1);
-      expect(getTotalFlipEvadeRemaining()).toBe(5 - i);
+      expect(getTotalFlipEvadeRemaining()).toBe(3 - i);
     }
 
     const markerAtCap = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');

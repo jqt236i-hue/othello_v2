@@ -34,6 +34,9 @@
     const controllerCache = typeof WeakMap === 'function' ? new WeakMap() : null;
     const STORY_TEXT_CLICK_SOUND = 'assets/story/sound-ef/テキストをクリックするとき.mp3';
     const STORY_CHOICE_SELECT_SOUND = 'assets/story/sound-ef/自分視点選択肢を選ぶとき.mp3';
+    const CHAPTER1_GOBLIN_PLAYER_DECK_CARD_IDS = Object.freeze(
+        Array(15).fill('perma_01').concat(Array(15).fill('observer_01'))
+    );
 
     function composeText(textValue) {
         if (Array.isArray(textValue)) return textValue.join('\n');
@@ -283,6 +286,9 @@
                 enemyName: StoryStepsModule.GOBLIN_NAME,
                 enemyImageSrc: StoryStepsModule.GOBLIN_IMAGE_SRC,
                 cpuLevel: 1,
+                initialDeckCardIdsByPlayer: {
+                    black: CHAPTER1_GOBLIN_PLAYER_DECK_CARD_IDS
+                },
                 winDialogueLines: ['ぐっ……！ こんなやつに負けるなんて聞いてねえぞ！'],
                 loseDialogueLines: ['へへへっ！ その程度でこの森を生き残れると思うなよ！'],
                 drawDialogueLines: ['まだだ……まだ決着はついてねえ！'],

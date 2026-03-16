@@ -3,77 +3,47 @@
  * @description Position Swap Will card handlers
  */
 
-function emitPresentationEventViaBoardOps(ev) {
-    try {
-        const pres = (typeof require === 'function') ? require('../logic/presentation') : (typeof globalThis !== 'undefined' ? globalThis.PresentationHelper : null);
-        if (pres && typeof pres.emitPresentationEvent === 'function') return pres.emitPresentationEvent(cardState, ev);
-    } catch (e) { /* ignore */ }
-    return false;
+var PendingSelectionFlow;
+if (typeof require === 'function') {
+    try { PendingSelectionFlow = require('./selection-flow'); } catch (e) { /* ignore */ }
+}
+if (!PendingSelectionFlow && typeof globalThis !== 'undefined' && globalThis.PendingSelectionFlow) {
+    PendingSelectionFlow = globalThis.PendingSelectionFlow;
+}
+
+function getPositionSwapFirstSelectedEvent(result) {
+    return result && Array.isArray(result.rawEvents)
+        ? result.rawEvents.find((event) => event && event.type === 'position_swap_first_selected')
+        : null;
+}
+
+function getPositionSwapCompletedEvent(result) {
+    return result && Array.isArray(result.rawEvents)
+        ? result.rawEvents.find((event) => event && event.type === 'position_swap_selected' && event.applied && event.completed)
+        : null;
 }
 
 async function handlePositionSwapSelection(row, col, playerKey) {
-    if (isProcessing || isCardAnimating) return;
-    isProcessing = true;
-    isCardAnimating = true;
-    let shouldCheckAutoPass = false;
-
-    try {
-        const pending = cardState.pendingEffectByPlayer[playerKey];
-        if (!pending || pending.type !== 'POSITION_SWAP_WILL' || pending.stage !== 'selectTarget') return;
-
-        const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-            ? ActionManager.ActionManager.createAction('place', playerKey, { positionSwapTarget: { row, col } })
-            : { type: 'place', positionSwapTarget: { row, col } };
-        if (action && cardState && typeof cardState.turnIndex === 'number') {
-            action.turnIndex = cardState.turnIndex;
-        }
-
-        const res = (typeof TurnPipelineUIAdapter !== 'undefined' && typeof TurnPipeline !== 'undefined')
-            ? TurnPipelineUIAdapter.runTurnWithAdapter(cardState, gameState, playerKey, action, TurnPipeline)
-            : null;
-
-        if (!res || res.ok === false) {
-            if (typeof emitLogAdded === 'function') emitLogAdded('入替対象の石を選んでください');
-            return;
-        }
-
-        const firstSelected = (res.rawEvents || []).find(e => e && e.type === 'position_swap_first_selected');
-        const swapped = (res.rawEvents || []).find(e => e && e.type === 'position_swap_selected' && e.applied && e.completed);
-        if (!firstSelected && !swapped) {
-            if (typeof emitLogAdded === 'function') emitLogAdded('入替対象の石を選んでください');
-            return;
-        }
-
-        if (res.nextCardState) cardState = res.nextCardState;
-        if (res.nextGameState) gameState = res.nextGameState;
-
-        if (res.playbackEvents && res.playbackEvents.length) {
-            emitPresentationEventViaBoardOps({
-                type: 'PLAYBACK_EVENTS',
-                events: res.playbackEvents,
-                meta: { cause: 'POSITION_SWAP_WILL', target: { row, col } }
-            });
-        }
-
-        if (typeof emitLogAdded === 'function') {
+    if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
+    return PendingSelectionFlow.executePendingSelection({
+        row,
+        col,
+        playerKey,
+        pendingType: 'POSITION_SWAP_WILL',
+        actionPayload: { positionSwapTarget: { row, col } },
+        invalidMessage: '入替対象の石を選んでください',
+        validateResult: ({ result }) => !!(getPositionSwapFirstSelectedEvent(result) || getPositionSwapCompletedEvent(result)),
+        buildPlaybackMeta: () => ({ cause: 'POSITION_SWAP_WILL', target: { row, col } }),
+        afterStateChange: ({ result }) => {
+            if (typeof emitLogAdded !== 'function') return;
+            const swapped = getPositionSwapCompletedEvent(result);
             if (swapped) {
                 emitLogAdded(`${playerKey === 'black' ? '黒' : '白'}が入替の意志で${posToNotation(swapped.from.row, swapped.from.col)}と${posToNotation(swapped.to.row, swapped.to.col)}を入替`);
-            } else {
-                emitLogAdded('入替の意志: 2つ目の石を選んでください');
+                return;
             }
+            emitLogAdded('入替の意志: 2つ目の石を選んでください');
         }
-
-        if (typeof emitCardStateChange === 'function') emitCardStateChange();
-        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-        if (typeof emitGameStateChange === 'function') emitGameStateChange();
-        shouldCheckAutoPass = true;
-    } finally {
-        isProcessing = false;
-        isCardAnimating = false;
-        if (shouldCheckAutoPass && typeof ensureCurrentPlayerCanActOrPass === 'function') {
-            try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
-        }
-    }
+    });
 }
 
 if (typeof module !== 'undefined' && module.exports) {

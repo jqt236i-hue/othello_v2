@@ -1,0 +1,18 @@
+const fs = require('fs');
+const path = require('path');
+const Module = require('module');
+const root = process.cwd();
+const filename = path.join(root, 'src', 'engine', 'selfplay-runner.js');
+let code = fs.readFileSync(filename, 'utf8');
+code += `\nmodule.exports.__internal = { buildMovePlanContext, getDirectUsableCardIds };`;
+const m = new Module(filename, module);
+m.filename = filename;
+m.paths = Module._nodeModulePaths(path.dirname(filename));
+m._compile(code, filename);
+const internal = m.exports.__internal;
+const legalMoves=[{row:1,col:0,flips:[[2,1]]},{row:1,col:1,flips:[[1,2],[1,3]]},{row:1,col:6,flips:[[1,5]]},{row:6,col:6,flips:[[5,5],[4,4],[3,3],[5,6]]}];
+const gameState={board:[[0,-1,-1,0,-1,-1,-1,1],[0,0,-1,-1,1,-1,0,0],[-1,-1,1,-1,-1,1,1,1],[-1,-1,1,-1,-1,1,1,1],[-1,-1,-1,1,-1,-1,1,1],[-1,-1,1,-1,-1,-1,-1,1],[0,0,1,1,1,1,0,0],[0,0,1,1,1,1,0,0]],currentPlayer:1,consecutivePasses:0,turnNumber:48,boardExpansion:{active:false,side:null,row:null,owner:0,usedByPlayer:{black:false,white:false},cells:[]}};
+const cardState={hands:{black:['instant_hyperactive_01','extend_life_01','destroy_01','observer_01','supply_01'],white:['super_buoyancy_01']},charge:{black:71,white:72},pendingEffectByPlayer:{black:null,white:null},hasUsedCardThisTurnByPlayer:{black:false,white:false},hasDestroyedCardThisTurnByPlayer:{black:false,white:false},markers:[{id:1,row:0,col:3,kind:'specialStone',owner:'white',createdSeq:1,data:{type:'METEOR_HOLE'}},{id:2,row:0,col:7,kind:'specialStone',owner:'black',createdSeq:2,data:{type:'ESCAPE_HYPERACTIVE',flipEvadeRemaining:1,hyperactiveSeq:1}}],boardBonusByCell:{'7,7':5,'5,0':4,'3,1':3,'4,0':8,'0,5':3,'1,1':1,'2,5':4,'2,1':5,'3,7':3,'7,5':10,'7,1':3,'4,7':1,'0,0':1,'6,3':7,'5,5':1,'2,7':2,'0,6':2,'6,6':4,'0,1':4,'2,6':6,'1,4':2,'3,0':7,'6,7':1,'1,3':2,'1,6':9,'3,6':4,'0,3':5,'5,7':3,'1,2':1,'4,6':2,'7,0':6,'6,1':2,'7,6':3,'2,2':5,'7,4':2,'6,0':6,'1,7':1,'5,2':2,'6,5':1,'0,4':1},boardBonusConsumedByCell:{'2,2':true,'2,1':true,'1,3':true,'0,3':true,'5,2':true,'5,5':true,'2,5':true,'2,6':true,'3,6':true,'4,7':true,'3,7':true,'2,7':true,'0,4':true,'0,5':true,'5,7':true,'3,1':true,'3,0':true,'4,0':true,'5,0':true,'6,3':true,'7,4':true,'1,4':true,'7,5':true,'6,5':true,'1,2':true,'0,1':true,'0,6':true}};
+const usable = internal.getDirectUsableCardIds(cardState, gameState, 'black');
+const ctx = internal.buildMovePlanContext(gameState, cardState, 'black', legalMoves, usable);
+console.log(JSON.stringify({usable, hasCtx: !!ctx, ctx}, null, 2));

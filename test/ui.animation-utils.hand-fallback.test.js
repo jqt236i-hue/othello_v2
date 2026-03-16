@@ -80,6 +80,9 @@ describe('animation-utils hand fallback', () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
+    delete global.requestAnimationFrame;
+    delete global.cancelAnimationFrame;
     delete global.window;
     delete global.document;
     delete global.boardEl;
@@ -241,6 +244,85 @@ describe('animation-utils hand fallback', () => {
     expect(window.__handSequentialRevealState).toBeNull();
   });
 
+  test('playDirectHandAddAnimation uses 1 second fade for generated throw-chain hand adds', async () => {
+    global.renderCardUI.mockImplementation(() => {
+      document.getElementById('hand-black').innerHTML = '<div class="card-item card-fade-prep"></div>';
+    });
+
+    const mod = require('../ui/animation-utils');
+
+    await expect(mod.playDirectHandAddAnimation({
+      player: 'black',
+      cardId: 'triple_01',
+      count: 1,
+      reason: 'generated_throw_chain'
+    })).resolves.toBeUndefined();
+
+    const latestCard = document.querySelector('#hand-black .card-item:last-child');
+    expect(latestCard).toBeTruthy();
+    expect(latestCard.classList.contains('card-fade-prep')).toBe(false);
+    expect(latestCard.classList.contains('card-fade-in')).toBe(true);
+    expect(latestCard.style.getPropertyValue('--card-fade-in-duration')).toBe('1s');
+  });
+
+  test('playDirectHandAddAnimation keeps default fade duration for non throw-chain hand adds', async () => {
+    global.renderCardUI.mockImplementation(() => {
+      document.getElementById('hand-black').innerHTML = '<div class="card-item card-fade-prep" style="--card-fade-in-duration: 1s;"></div>';
+    });
+
+    const mod = require('../ui/animation-utils');
+
+    await expect(mod.playDirectHandAddAnimation({
+      player: 'black',
+      cardId: 'other_card',
+      count: 1,
+      reason: 'other_reason'
+    })).resolves.toBeUndefined();
+
+    const latestCard = document.querySelector('#hand-black .card-item:last-child');
+    expect(latestCard).toBeTruthy();
+    expect(latestCard.classList.contains('card-fade-in')).toBe(true);
+    expect(latestCard.style.getPropertyValue('--card-fade-in-duration')).toBe('');
+  });
+
+  test('playDirectHandAddAnimation keeps fade hint until next frame so sync rerender still fades generated throw-chain cards', async () => {
+    const frameQueue = [];
+    global.requestAnimationFrame = jest.fn((callback) => {
+      frameQueue.push(callback);
+      return frameQueue.length;
+    });
+    global.window.requestAnimationFrame = global.requestAnimationFrame;
+
+    global.renderCardUI.mockImplementation(() => {
+      document.getElementById('hand-black').innerHTML = '<div class="card-item card-fade-prep" data-render="initial"></div>';
+    });
+
+    const mod = require('../ui/animation-utils');
+
+    await expect(mod.playDirectHandAddAnimation({
+      player: 'black',
+      cardId: 'triple_01',
+      count: 1,
+      reason: 'generated_throw_chain'
+    })).resolves.toBeUndefined();
+
+    expect(frameQueue).toHaveLength(1);
+    expect(window.__handFadeInHint).toMatchObject({ playerKey: 'black', count: 1 });
+    expect(window.__handFadeInState).toMatchObject({ playerKey: 'black', count: 1 });
+
+    document.getElementById('hand-black').innerHTML = '<div class="card-item card-fade-prep" data-render="sync"></div>';
+    frameQueue[0]();
+
+    const latestCard = document.querySelector('#hand-black .card-item:last-child');
+    expect(latestCard).toBeTruthy();
+    expect(latestCard.dataset.render).toBe('sync');
+    expect(latestCard.classList.contains('card-fade-prep')).toBe(false);
+    expect(latestCard.classList.contains('card-fade-in')).toBe(true);
+    expect(latestCard.style.getPropertyValue('--card-fade-in-duration')).toBe('1s');
+    expect(window.__handFadeInHint).toBeNull();
+    expect(window.__handFadeInState).toBeNull();
+  });
+
   test('playDrawCardHandAnimation resolves after playback scope timers are cleared', async () => {
     jest.useFakeTimers();
     const timerApi = createScopedTimerMock();
@@ -279,5 +361,148 @@ describe('animation-utils hand fallback', () => {
 
     await expect(promise).resolves.toBeUndefined();
     expect(document.getElementById('handLayer').style.display).toBe('none');
+  });
+
+  test('playCardUseHandAnimation lifts vertically before traveling to the charge UI', async () => {
+    jest.useFakeTimers();
+
+    const animateMock = jest.fn(() => ({
+      addEventListener: () => {},
+      finished: Promise.resolve()
+    }));
+    window.Element.prototype.animate = animateMock;
+
+    const handEl = document.getElementById('hand-black');
+    const chargeEl = document.getElementById('charge-black');
+    const sourceCardEl = document.createElement('div');
+    sourceCardEl.className = 'card-item visible selected usable';
+    sourceCardEl.getBoundingClientRect = () => ({
+      left: 220,
+      top: 500,
+      width: 90,
+      height: 120,
+      right: 310,
+      bottom: 620
+    });
+
+    handEl.appendChild(sourceCardEl);
+    handEl.getBoundingClientRect = () => ({
+      left: 180,
+      top: 480,
+      width: 260,
+      height: 140,
+      right: 440,
+      bottom: 620
+    });
+    chargeEl.getBoundingClientRect = () => ({
+      left: 430,
+      top: 410,
+      width: 100,
+      height: 40,
+      right: 530,
+      bottom: 450
+    });
+
+    const mod = require('../ui/animation-utils');
+    const promise = mod.playCardUseHandAnimation({
+      player: 'black',
+      owner: 'black',
+      cardId: 'card_1',
+      cost: 5,
+      name: 'Test',
+      sourceCardEl
+    });
+
+    await Promise.resolve();
+    jest.advanceTimersByTime(4000);
+    await Promise.resolve();
+
+    await expect(promise).resolves.toBeUndefined();
+
+    const transformCalls = animateMock.mock.calls
+      .map((call) => call[0])
+      .filter((frames) => Array.isArray(frames) && frames.every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')));
+
+    expect(transformCalls[0]).toEqual([
+      { transform: 'translate(0px, 0px)' },
+      { transform: 'translate(0px, -14px)' }
+    ]);
+    expect(transformCalls[1]).toEqual([
+      { transform: 'translate(0px, -14px)' },
+      { transform: 'translate(215px, -220px)' }
+    ]);
+  });
+
+  test('playCardUseHandAnimation uses sourceCardRect snapshot when source element is already detached', async () => {
+    jest.useFakeTimers();
+
+    const animateMock = jest.fn(() => ({
+      addEventListener: () => {},
+      finished: Promise.resolve()
+    }));
+    window.Element.prototype.animate = animateMock;
+
+    const handEl = document.getElementById('hand-black');
+    const chargeEl = document.getElementById('charge-black');
+    handEl.getBoundingClientRect = () => ({
+      left: 180,
+      top: 480,
+      width: 260,
+      height: 140,
+      right: 440,
+      bottom: 620
+    });
+    chargeEl.getBoundingClientRect = () => ({
+      left: 430,
+      top: 410,
+      width: 100,
+      height: 40,
+      right: 530,
+      bottom: 450
+    });
+
+    const sourceCardEl = document.createElement('div');
+    sourceCardEl.className = 'card-item visible';
+    sourceCardEl.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 0,
+      height: 0,
+      right: 0,
+      bottom: 0
+    });
+
+    const mod = require('../ui/animation-utils');
+    const promise = mod.playCardUseHandAnimation({
+      player: 'black',
+      owner: 'black',
+      cardId: 'card_1',
+      cost: 5,
+      name: 'Test',
+      sourceCardEl,
+      sourceCardRect: {
+        left: 220,
+        top: 500,
+        width: 90,
+        height: 120,
+        right: 310,
+        bottom: 620
+      }
+    });
+
+    await Promise.resolve();
+    jest.advanceTimersByTime(4000);
+    await Promise.resolve();
+
+    await expect(promise).resolves.toBeUndefined();
+
+    const transformCalls = animateMock.mock.calls
+      .map((call) => call[0])
+      .filter((frames) => Array.isArray(frames) && frames.every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')));
+
+    expect(transformCalls[1]).toEqual([
+      { transform: 'translate(0px, -14px)' },
+      { transform: 'translate(215px, -220px)' }
+    ]);
   });
 });

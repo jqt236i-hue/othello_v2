@@ -1,0 +1,183 @@
+{
+  "count": 7,
+  "avgFuture": 1.1428571428571428,
+  "negatives": 2,
+  "negativeAvgFuture": -1,
+  "rows": [
+    {
+      "seed": 4,
+      "ply": 9,
+      "player": "black",
+      "future": -1,
+      "legalMovesCount": 0,
+      "handSize": 5,
+      "maxLegalBoardBonus": 3,
+      "highBonusMoveAvailable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "handCards": [
+        "taboo_reverse_01",
+        "work_01",
+        "instant_hyperactive_01",
+        "crystal_stone",
+        "last_resort_01"
+      ]
+    },
+    {
+      "seed": 20,
+      "ply": 11,
+      "player": "white",
+      "future": -1,
+      "legalMovesCount": 0,
+      "handSize": 3,
+      "maxLegalBoardBonus": 6,
+      "highBonusMoveAvailable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "threshold_passed"
+      ],
+      "handCards": [
+        "sell_01",
+        "hyperactive_01",
+        "crystal_stone"
+      ]
+    },
+    {
+      "seed": 13,
+      "ply": 34,
+      "player": "white",
+      "future": 0,
+      "legalMovesCount": 0,
+      "handSize": 4,
+      "maxLegalBoardBonus": 4,
+      "highBonusMoveAvailable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "handCards": [
+        "corrosion_01",
+        "heaven_01",
+        "regen_01",
+        "crystal_stone"
+      ]
+    },
+    {
+      "seed": 2,
+      "ply": 15,
+      "player": "white",
+      "future": 2,
+      "legalMovesCount": 0,
+      "handSize": 5,
+      "maxLegalBoardBonus": 4,
+      "highBonusMoveAvailable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "handCards": [
+        "crystal_stone",
+        "sacrifice_01",
+        "rebuild_01",
+        "condemn_01",
+        "taboo_reverse_01"
+      ]
+    },
+    {
+      "seed": 11,
+      "ply": 13,
+      "player": "black",
+      "future": 2,
+      "legalMovesCount": 0,
+      "handSize": 5,
+      "maxLegalBoardBonus": 5,
+      "highBonusMoveAvailable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "handCards": [
+        "taboo_reverse_01",
+        "destroy_01",
+        "clone_01",
+        "loss_will_01",
+        "crystal_stone"
+      ]
+    },
+    {
+      "seed": 12,
+      "ply": 26,
+      "player": "white",
+      "future": 2,
+      "legalMovesCount": 0,
+      "handSize": 5,
+      "maxLegalBoardBonus": 9,
+      "highBonusMoveAvailable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "handCards": [
+        "super_buoyancy_01",
+        "will_hunter_king_01",
+        "extreme_hyperactive_01",
+        "meteor_01",
+        "crystal_stone"
+      ]
+    },
+    {
+      "seed": 15,
+      "ply": 14,
+      "player": "black",
+      "future": 4,
+      "legalMovesCount": 0,
+      "handSize": 3,
+      "maxLegalBoardBonus": 10,
+      "highBonusMoveAvailable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "threshold_passed"
+      ],
+      "handCards": [
+        "work_01",
+        "swap_01",
+        "crystal_stone"
+      ]
+    }
+  ]
+}

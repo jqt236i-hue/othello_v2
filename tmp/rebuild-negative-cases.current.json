@@ -1,0 +1,205 @@
+{
+  "count": 6,
+  "avgFuture": 1.5,
+  "negatives": 2,
+  "negativeAvgFuture": -2.5,
+  "rows": [
+    {
+      "seed": 12,
+      "ply": 45,
+      "player": "black",
+      "future": -3,
+      "immediate": 0,
+      "legalMovesCount": 0,
+      "handSize": 5,
+      "usableCount": 2,
+      "highBonusMoveAvailable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": true,
+      "selectedCellBonus": 0,
+      "reasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "handCards": [
+        "last_resort_01",
+        "split_01",
+        "extreme_hyperactive_01",
+        "rebuild_01",
+        "instant_hyperactive_01"
+      ],
+      "usableCardIds": [
+        "rebuild_01",
+        "instant_hyperactive_01"
+      ]
+    },
+    {
+      "seed": 2,
+      "ply": 61,
+      "player": "white",
+      "future": -2,
+      "immediate": 0,
+      "legalMovesCount": 0,
+      "handSize": 5,
+      "usableCount": 4,
+      "highBonusMoveAvailable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": true,
+      "selectedCellBonus": 0,
+      "reasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_emergency",
+        "hand_pressure"
+      ],
+      "handCards": [
+        "sacrifice_01",
+        "rebuild_01",
+        "taboo_reverse_01",
+        "hyperactive_01",
+        "freeze_01"
+      ],
+      "usableCardIds": [
+        "sacrifice_01",
+        "rebuild_01",
+        "taboo_reverse_01",
+        "hyperactive_01"
+      ]
+    },
+    {
+      "seed": 16,
+      "ply": 71,
+      "player": "black",
+      "future": 0,
+      "immediate": 0,
+      "legalMovesCount": 0,
+      "handSize": 5,
+      "usableCount": 4,
+      "highBonusMoveAvailable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": true,
+      "selectedCellBonus": 0,
+      "reasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_emergency",
+        "hand_pressure"
+      ],
+      "handCards": [
+        "observer_01",
+        "instant_hyperactive_01",
+        "tempt_01",
+        "rebuild_01",
+        "hyperactive_01"
+      ],
+      "usableCardIds": [
+        "observer_01",
+        "instant_hyperactive_01",
+        "rebuild_01",
+        "hyperactive_01"
+      ]
+    },
+    {
+      "seed": 1,
+      "ply": 82,
+      "player": "white",
+      "future": 3,
+      "immediate": 0,
+      "legalMovesCount": 0,
+      "handSize": 5,
+      "usableCount": 3,
+      "highBonusMoveAvailable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": true,
+      "selectedCellBonus": 0,
+      "reasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "handCards": [
+        "corner_tribute_01",
+        "extend_life_01",
+        "cross_bomb_01",
+        "clone_01",
+        "rebuild_01"
+      ],
+      "usableCardIds": [
+        "cross_bomb_01",
+        "clone_01",
+        "rebuild_01"
+      ]
+    },
+    {
+      "seed": 3,
+      "ply": 21,
+      "player": "black",
+      "future": 5,
+      "immediate": 0,
+      "legalMovesCount": 0,
+      "handSize": 5,
+      "usableCount": 2,
+      "highBonusMoveAvailable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "selectedCellBonus": 0,
+      "reasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "handCards": [
+        "taboo_reverse_01",
+        "destroy_dragon_01",
+        "rainbow_stone",
+        "corrosion_01",
+        "rebuild_01"
+      ],
+      "usableCardIds": [
+        "destroy_dragon_01",
+        "rebuild_01"
+      ]
+    },
+    {
+      "seed": 4,
+      "ply": 13,
+      "player": "black",
+      "future": 6,
+      "immediate": 0,
+      "legalMovesCount": 0,
+      "handSize": 5,
+      "usableCount": 3,
+      "highBonusMoveAvailable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "selectedCellBonus": 0,
+      "reasonTags": [
+        "decision:use",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "handCards": [
+        "taboo_reverse_01",
+        "work_01",
+        "instant_hyperactive_01",
+        "last_resort_01",
+        "rebuild_01"
+      ],
+      "usableCardIds": [
+        "work_01",
+        "instant_hyperactive_01",
+        "rebuild_01"
+      ]
+    }
+  ]
+}

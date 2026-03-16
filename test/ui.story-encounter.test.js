@@ -81,4 +81,60 @@ describe('story encounter result overrides', () => {
     expect(onAbort).toHaveBeenCalled();
     expect(root.resetGame).not.toHaveBeenCalled();
   });
+
+  test('story encounter deck override is applied only during the encounter reset', async () => {
+    const stateStore = {
+      setEncounterState: jest.fn()
+    };
+    const runtime = {
+      restoreCpuTurns: jest.fn(),
+      waitForResetReady: jest.fn(() => Promise.resolve(true)),
+      updateCpuLabel: jest.fn()
+    };
+    const fallbackDeckInitOptions = { initialDeckSpec: { cards: ['perma_01', 'observer_01', 'destroy_01'] } };
+    const originalBuildCardInitOptions = jest.fn(() => fallbackDeckInitOptions);
+    const resetSnapshots = [];
+    const root = {
+      cpuSmartness: { black: 1, white: 1 },
+      __uiImpl_turn_manager: {
+        buildCardInitOptions: originalBuildCardInitOptions
+      },
+      resetGame: jest.fn(function () {
+        resetSnapshots.push(this.__uiImpl_turn_manager.buildCardInitOptions());
+      }),
+      emitLogAdded: jest.fn()
+    };
+
+    const encounter = StoryEncounterModule.createStoryEncounter({
+      root,
+      stateStore,
+      runtime
+    });
+    const storyDeckIds = Array(15).fill('perma_01').concat(Array(15).fill('observer_01'));
+
+    await encounter.startEncounter({
+      encounterId: 'chapter1_goblin',
+      enemyName: '盤喰いの小鬼',
+      enemyImageSrc: 'assets/story/cpu/level1.png',
+      cpuLevel: 1,
+      initialDeckCardIdsByPlayer: {
+        black: storyDeckIds
+      }
+    });
+
+    expect(resetSnapshots).toEqual([
+      {
+        initialDeckCardIdsByPlayer: {
+          black: storyDeckIds
+        }
+      }
+    ]);
+    expect(root.__uiImpl_turn_manager.buildCardInitOptions).not.toBe(originalBuildCardInitOptions);
+
+    const override = encounter.resolveStoryEncounterResult({ black: 40, white: 24 }, 'black');
+    await override.onSecondary();
+
+    expect(root.__uiImpl_turn_manager.buildCardInitOptions).toBe(originalBuildCardInitOptions);
+    expect(root.__uiImpl_turn_manager.buildCardInitOptions()).toEqual(fallbackDeckInitOptions);
+  });
 });

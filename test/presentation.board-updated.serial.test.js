@@ -6,16 +6,34 @@ function createDeferred() {
   return { promise, resolve };
 }
 
+function mockPresentationRuntime(overridesFactory) {
+  jest.doMock('../game/cpu-turn-handler', () => {
+    const actual = jest.requireActual('../game/cpu-turn-handler');
+    const overrides = typeof overridesFactory === 'function'
+      ? overridesFactory(actual)
+      : (overridesFactory || {});
+    return {
+      ...actual,
+      PresentationRuntime: {
+        ...actual.PresentationRuntime,
+        ...overrides
+      }
+    };
+  });
+}
+
 describe('presentation handler boardUpdated draining', () => {
   afterEach(() => {
     jest.useRealTimers();
     jest.resetModules();
+    jest.unmock('../game/cpu-turn-handler');
     delete global.CardLogic;
     delete global.cardState;
     delete global.AnimationEngine;
     delete global.renderCardUI;
     delete global.gameState;
     delete global.GameEvents;
+    delete global.GamePresentationRuntime;
     delete global.BLACK;
     delete global.WHITE;
   });
@@ -56,7 +74,7 @@ describe('presentation handler boardUpdated draining', () => {
     expect(global.AnimationEngine.play).toHaveBeenCalledTimes(1);
 
     firstPlayback.resolve();
-  await secondPlaybackStarted.promise;
+    await secondPlaybackStarted.promise;
     expect(global.AnimationEngine.play).toHaveBeenCalledTimes(2);
 
     secondPlayback.resolve();
@@ -72,9 +90,8 @@ describe('presentation handler boardUpdated draining', () => {
 
     const firstPlayback = createDeferred();
     const processCpuTurn = jest.fn();
-
-    jest.doMock('../ui/bootstrap', () => ({
-      getRegisteredUIGlobals: () => ({ processCpuTurn })
+    mockPresentationRuntime((actual) => ({
+      scheduleCpuTurn: (ev) => actual.PresentationRuntime.scheduleCpuTurn(ev, { processCpuTurn })
     }));
 
     global.GameEvents = { gameEvents: { on: jest.fn() } };
@@ -107,9 +124,89 @@ describe('presentation handler boardUpdated draining', () => {
     firstPlayback.resolve();
     await firstDrain;
 
-  jest.runOnlyPendingTimers();
+    jest.runOnlyPendingTimers();
 
     expect(processCpuTurn).toHaveBeenCalledTimes(1);
     expect(global.CardLogic.flushPresentationEvents).toHaveBeenCalledTimes(2);
+  });
+
+  test('onBoardUpdated does not flush CardLogic directly when presentation runtime is unavailable', async () => {
+    jest.doMock('../game/cpu-turn-handler', () => ({}));
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    global.GameEvents = { gameEvents: { on: jest.fn() } };
+    global.cardState = { _presentationEventsPersist: [{ type: 'STALE' }] };
+    global.CardLogic = {
+      flushPresentationEvents: jest.fn(() => [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'flip', phase: 1 }] }])
+    };
+    global.AnimationEngine = { play: jest.fn() };
+    global.renderCardUI = jest.fn();
+
+    try {
+      const ph = require('../ui/presentation-handler');
+      await ph.onBoardUpdated();
+
+      expect(global.CardLogic.flushPresentationEvents).not.toHaveBeenCalled();
+      expect(global.AnimationEngine.play).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith('[PresentationHandler] GamePresentationRuntime.flushPendingPresentationEvents not available');
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test('suppressed shadow playback updates board timing without replaying animation', async () => {
+    global.GameEvents = { gameEvents: { on: jest.fn() } };
+    global.cardState = { _presentationEventsPersist: [] };
+    global.CardLogic = {
+      flushPresentationEvents: jest
+        .fn()
+        .mockReturnValueOnce([{
+          type: 'PLAYBACK_EVENTS',
+          events: [{ type: 'move', phase: 1, targets: [{ from: { r: 2, col: 2 }, to: { r: 2, col: 3 } }] }],
+          meta: { source: 'self_snapshot_sync', suppressPlayback: true }
+        }])
+        .mockReturnValue([])
+    };
+    global.AnimationEngine = {
+      play: jest.fn()
+    };
+    global.renderCardUI = jest.fn();
+
+    const ph = require('../ui/presentation-handler');
+    await ph.onBoardUpdated();
+
+    expect(global.AnimationEngine.play).not.toHaveBeenCalled();
+    expect(global.renderCardUI).toHaveBeenCalledTimes(1);
+  });
+
+  test('raw presentation batches are normalized before animation playback', async () => {
+    global.GameEvents = { gameEvents: { on: jest.fn() } };
+    global.BLACK = 1;
+    global.WHITE = -1;
+    global.gameState = { currentPlayer: 1, turnNumber: 12 };
+    global.cardState = { _presentationEventsPersist: [] };
+    global.CardLogic = {
+      flushPresentationEvents: jest
+        .fn()
+        .mockReturnValueOnce([{
+          type: 'PLAYBACK_EVENTS',
+          events: [{ type: 'SPAWN', row: 3, col: 4, ownerAfter: 'black', cause: 'CLONE_WILL', reason: 'clone_spawn' }]
+        }])
+        .mockReturnValue([])
+    };
+    global.AnimationEngine = {
+      play: jest.fn().mockResolvedValue(undefined)
+    };
+    global.renderCardUI = jest.fn();
+
+    const ph = require('../ui/presentation-handler');
+    await ph.onBoardUpdated();
+
+    expect(global.AnimationEngine.play).toHaveBeenCalledWith([
+      expect.objectContaining({
+        type: 'spawn',
+        targets: [expect.objectContaining({ r: 3, col: 4, ownerAfter: 'black' })]
+      })
+    ]);
   });
 });

@@ -41,5 +41,37 @@ describe('special-effects bombs fallback animation batching', () => {
     expect(calls).toEqual(expect.arrayContaining([[3, 3], [3, 4], [4, 3]]));
     expect(maxConcurrent).toBe(3);
   });
+
+  test('explodeBombUI includes expansion cells in fallback destroy payload', async () => {
+    global.gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: 0,
+      usedByPlayer: { black: true, white: true },
+      cells: [
+        { side: 'left', row: -1, col: -1, owner: 0 },
+        { side: 'top', row: -1, col: 0, owner: 0 },
+        { side: 'left', row: 0, col: -1, owner: 0 }
+      ]
+    };
+    global.AnimationEngine = { play: jest.fn(() => Promise.resolve()) };
+
+    const { explodeBombUI } = require('../game/special-effects/bombs');
+    await explodeBombUI(0, 0);
+
+    expect(global.AnimationEngine.play).toHaveBeenCalledWith([
+      expect.objectContaining({
+        type: 'destroy',
+        phase: 3,
+        targets: expect.arrayContaining([
+          expect.objectContaining({ r: -1, col: -1 }),
+          expect.objectContaining({ r: -1, col: 0 }),
+          expect.objectContaining({ r: 0, col: -1 }),
+          expect.objectContaining({ r: 0, col: 0 })
+        ])
+      })
+    ]);
+  });
 });
 

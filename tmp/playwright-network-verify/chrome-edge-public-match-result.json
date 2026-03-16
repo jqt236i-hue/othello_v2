@@ -1,0 +1,931 @@
+{
+  "ok": false,
+  "baseUrl": "https://card-othello-match.jqt236i.workers.dev",
+  "timestamp": "2026-03-16T05:55:21.923Z",
+  "browsers": {
+    "black": "chrome",
+    "white": "msedge"
+  },
+  "headless": false,
+  "slowMoMs": 120,
+  "roomId": "GS7",
+  "actions": [
+    {
+      "index": 1,
+      "browser": "chrome",
+      "playerKey": "black",
+      "type": "place",
+      "row": 2,
+      "col": 3,
+      "notation": "d3",
+      "before": {
+        "seatKey": "black",
+        "currentPlayerKey": "black",
+        "canAct": true,
+        "turnNumber": 0,
+        "turnIndex": 1,
+        "legalMoves": 4,
+        "pending": null,
+        "consecutivePasses": 0,
+        "counts": {
+          "black": 2,
+          "white": 2
+        },
+        "overlayVisible": false,
+        "resultTitle": "",
+        "gameOver": false
+      },
+      "after": {
+        "chrome": {
+          "seatKey": "black",
+          "currentPlayerKey": "white",
+          "canAct": false,
+          "turnNumber": 1,
+          "turnIndex": 2,
+          "legalMoves": 3,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 4,
+            "white": 1
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "edge": {
+          "seatKey": "white",
+          "currentPlayerKey": "white",
+          "canAct": true,
+          "turnNumber": 1,
+          "turnIndex": 2,
+          "legalMoves": 3,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 4,
+            "white": 1
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      }
+    },
+    {
+      "index": 2,
+      "browser": "msedge",
+      "playerKey": "white",
+      "type": "place",
+      "row": 2,
+      "col": 4,
+      "notation": "e3",
+      "before": {
+        "seatKey": "white",
+        "currentPlayerKey": "white",
+        "canAct": true,
+        "turnNumber": 1,
+        "turnIndex": 2,
+        "legalMoves": 3,
+        "pending": null,
+        "consecutivePasses": 0,
+        "counts": {
+          "black": 4,
+          "white": 1
+        },
+        "overlayVisible": false,
+        "resultTitle": "",
+        "gameOver": false
+      },
+      "after": {
+        "chrome": {
+          "seatKey": "black",
+          "currentPlayerKey": "black",
+          "canAct": true,
+          "turnNumber": 2,
+          "turnIndex": 3,
+          "legalMoves": 5,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 3,
+            "white": 3
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "edge": {
+          "seatKey": "white",
+          "currentPlayerKey": "black",
+          "canAct": false,
+          "turnNumber": 2,
+          "turnIndex": 3,
+          "legalMoves": 5,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 3,
+            "white": 3
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      }
+    },
+    {
+      "index": 3,
+      "browser": "chrome",
+      "playerKey": "black",
+      "type": "place",
+      "row": 4,
+      "col": 5,
+      "notation": "f5",
+      "before": {
+        "seatKey": "black",
+        "currentPlayerKey": "black",
+        "canAct": true,
+        "turnNumber": 2,
+        "turnIndex": 3,
+        "legalMoves": 5,
+        "pending": null,
+        "consecutivePasses": 0,
+        "counts": {
+          "black": 3,
+          "white": 3
+        },
+        "overlayVisible": false,
+        "resultTitle": "",
+        "gameOver": false
+      },
+      "after": {
+        "chrome": {
+          "seatKey": "black",
+          "currentPlayerKey": "white",
+          "canAct": false,
+          "turnNumber": 3,
+          "turnIndex": 4,
+          "legalMoves": 3,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 6,
+            "white": 1
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "edge": {
+          "seatKey": "white",
+          "currentPlayerKey": "white",
+          "canAct": true,
+          "turnNumber": 3,
+          "turnIndex": 4,
+          "legalMoves": 3,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 6,
+            "white": 1
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      }
+    },
+    {
+      "index": 4,
+      "browser": "msedge",
+      "playerKey": "white",
+      "type": "place",
+      "row": 5,
+      "col": 4,
+      "notation": "e6",
+      "before": {
+        "seatKey": "white",
+        "currentPlayerKey": "white",
+        "canAct": true,
+        "turnNumber": 3,
+        "turnIndex": 4,
+        "legalMoves": 3,
+        "pending": null,
+        "consecutivePasses": 0,
+        "counts": {
+          "black": 6,
+          "white": 1
+        },
+        "overlayVisible": false,
+        "resultTitle": "",
+        "gameOver": false
+      },
+      "after": {
+        "chrome": {
+          "seatKey": "black",
+          "currentPlayerKey": "black",
+          "canAct": true,
+          "turnNumber": 4,
+          "turnIndex": 5,
+          "legalMoves": 6,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 4,
+            "white": 4
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "edge": {
+          "seatKey": "white",
+          "currentPlayerKey": "black",
+          "canAct": false,
+          "turnNumber": 4,
+          "turnIndex": 5,
+          "legalMoves": 6,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 4,
+            "white": 4
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      }
+    },
+    {
+      "index": 5,
+      "browser": "chrome",
+      "playerKey": "black",
+      "type": "place",
+      "row": 2,
+      "col": 5,
+      "notation": "f3",
+      "before": {
+        "seatKey": "black",
+        "currentPlayerKey": "black",
+        "canAct": true,
+        "turnNumber": 4,
+        "turnIndex": 5,
+        "legalMoves": 6,
+        "pending": null,
+        "consecutivePasses": 0,
+        "counts": {
+          "black": 4,
+          "white": 4
+        },
+        "overlayVisible": false,
+        "resultTitle": "",
+        "gameOver": false
+      },
+      "after": {
+        "chrome": {
+          "seatKey": "black",
+          "currentPlayerKey": "white",
+          "canAct": false,
+          "turnNumber": 5,
+          "turnIndex": 6,
+          "legalMoves": 6,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 7,
+            "white": 2
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "edge": {
+          "seatKey": "white",
+          "currentPlayerKey": "white",
+          "canAct": true,
+          "turnNumber": 5,
+          "turnIndex": 6,
+          "legalMoves": 6,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 7,
+            "white": 2
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      }
+    },
+    {
+      "index": 6,
+      "browser": "msedge",
+      "playerKey": "white",
+      "type": "place",
+      "row": 1,
+      "col": 4,
+      "notation": "e2",
+      "before": {
+        "seatKey": "white",
+        "currentPlayerKey": "white",
+        "canAct": true,
+        "turnNumber": 5,
+        "turnIndex": 6,
+        "legalMoves": 6,
+        "pending": null,
+        "consecutivePasses": 0,
+        "counts": {
+          "black": 7,
+          "white": 2
+        },
+        "overlayVisible": false,
+        "resultTitle": "",
+        "gameOver": false
+      },
+      "after": {
+        "chrome": {
+          "seatKey": "black",
+          "currentPlayerKey": "black",
+          "canAct": true,
+          "turnNumber": 6,
+          "turnIndex": 7,
+          "legalMoves": 7,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 5,
+            "white": 5
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "edge": {
+          "seatKey": "white",
+          "currentPlayerKey": "black",
+          "canAct": false,
+          "turnNumber": 6,
+          "turnIndex": 7,
+          "legalMoves": 7,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 5,
+            "white": 5
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      }
+    },
+    {
+      "index": 7,
+      "browser": "chrome",
+      "playerKey": "black",
+      "type": "place",
+      "row": 0,
+      "col": 3,
+      "notation": "d1",
+      "before": {
+        "seatKey": "black",
+        "currentPlayerKey": "black",
+        "canAct": true,
+        "turnNumber": 6,
+        "turnIndex": 7,
+        "legalMoves": 7,
+        "pending": null,
+        "consecutivePasses": 0,
+        "counts": {
+          "black": 5,
+          "white": 5
+        },
+        "overlayVisible": false,
+        "resultTitle": "",
+        "gameOver": false
+      },
+      "after": {
+        "chrome": {
+          "seatKey": "black",
+          "currentPlayerKey": "white",
+          "canAct": false,
+          "turnNumber": 7,
+          "turnIndex": 8,
+          "legalMoves": 11,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 7,
+            "white": 4
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "edge": {
+          "seatKey": "white",
+          "currentPlayerKey": "white",
+          "canAct": true,
+          "turnNumber": 7,
+          "turnIndex": 8,
+          "legalMoves": 11,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 7,
+            "white": 4
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      }
+    },
+    {
+      "index": 8,
+      "browser": "msedge",
+      "playerKey": "white",
+      "type": "place",
+      "row": 0,
+      "col": 4,
+      "notation": "e1",
+      "before": {
+        "seatKey": "white",
+        "currentPlayerKey": "white",
+        "canAct": true,
+        "turnNumber": 7,
+        "turnIndex": 8,
+        "legalMoves": 11,
+        "pending": null,
+        "consecutivePasses": 0,
+        "counts": {
+          "black": 7,
+          "white": 4
+        },
+        "overlayVisible": false,
+        "resultTitle": "",
+        "gameOver": false
+      },
+      "after": {
+        "chrome": {
+          "seatKey": "black",
+          "currentPlayerKey": "black",
+          "canAct": true,
+          "turnNumber": 8,
+          "turnIndex": 9,
+          "legalMoves": 6,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 6,
+            "white": 6
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "edge": {
+          "seatKey": "white",
+          "currentPlayerKey": "black",
+          "canAct": false,
+          "turnNumber": 8,
+          "turnIndex": 9,
+          "legalMoves": 6,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 6,
+            "white": 6
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      }
+    },
+    {
+      "index": 9,
+      "browser": "chrome",
+      "playerKey": "black",
+      "type": "place",
+      "row": 0,
+      "col": 5,
+      "notation": "f1",
+      "before": {
+        "seatKey": "black",
+        "currentPlayerKey": "black",
+        "canAct": true,
+        "turnNumber": 8,
+        "turnIndex": 9,
+        "legalMoves": 6,
+        "pending": null,
+        "consecutivePasses": 0,
+        "counts": {
+          "black": 6,
+          "white": 6
+        },
+        "overlayVisible": false,
+        "resultTitle": "",
+        "gameOver": false
+      },
+      "after": {
+        "chrome": {
+          "seatKey": "black",
+          "currentPlayerKey": "white",
+          "canAct": false,
+          "turnNumber": 9,
+          "turnIndex": 10,
+          "legalMoves": 10,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 9,
+            "white": 4
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "edge": {
+          "seatKey": "white",
+          "currentPlayerKey": "white",
+          "canAct": true,
+          "turnNumber": 9,
+          "turnIndex": 10,
+          "legalMoves": 10,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 9,
+            "white": 4
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      }
+    },
+    {
+      "index": 10,
+      "browser": "msedge",
+      "playerKey": "white",
+      "type": "place",
+      "row": 3,
+      "col": 2,
+      "notation": "c4",
+      "before": {
+        "seatKey": "white",
+        "currentPlayerKey": "white",
+        "canAct": true,
+        "turnNumber": 9,
+        "turnIndex": 10,
+        "legalMoves": 10,
+        "pending": null,
+        "consecutivePasses": 0,
+        "counts": {
+          "black": 9,
+          "white": 4
+        },
+        "overlayVisible": false,
+        "resultTitle": "",
+        "gameOver": false
+      },
+      "after": {
+        "chrome": {
+          "seatKey": "black",
+          "currentPlayerKey": "black",
+          "canAct": true,
+          "turnNumber": 10,
+          "turnIndex": 11,
+          "legalMoves": 6,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 7,
+            "white": 7
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "edge": {
+          "seatKey": "white",
+          "currentPlayerKey": "black",
+          "canAct": false,
+          "turnNumber": 10,
+          "turnIndex": 11,
+          "legalMoves": 6,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 7,
+            "white": 7
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      }
+    },
+    {
+      "index": 11,
+      "browser": "chrome",
+      "playerKey": "black",
+      "type": "place",
+      "row": 6,
+      "col": 4,
+      "notation": "e7",
+      "before": {
+        "seatKey": "black",
+        "currentPlayerKey": "black",
+        "canAct": true,
+        "turnNumber": 10,
+        "turnIndex": 11,
+        "legalMoves": 6,
+        "pending": null,
+        "consecutivePasses": 0,
+        "counts": {
+          "black": 7,
+          "white": 7
+        },
+        "overlayVisible": false,
+        "resultTitle": "",
+        "gameOver": false
+      },
+      "after": {
+        "chrome": {
+          "seatKey": "black",
+          "currentPlayerKey": "white",
+          "canAct": false,
+          "turnNumber": 11,
+          "turnIndex": 12,
+          "legalMoves": 7,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 12,
+            "white": 3
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "edge": {
+          "seatKey": "white",
+          "currentPlayerKey": "white",
+          "canAct": true,
+          "turnNumber": 11,
+          "turnIndex": 12,
+          "legalMoves": 7,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 12,
+            "white": 3
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      }
+    },
+    {
+      "index": 12,
+      "browser": "msedge",
+      "playerKey": "white",
+      "type": "place",
+      "row": 4,
+      "col": 6,
+      "notation": "g5",
+      "before": {
+        "seatKey": "white",
+        "currentPlayerKey": "white",
+        "canAct": true,
+        "turnNumber": 11,
+        "turnIndex": 12,
+        "legalMoves": 7,
+        "pending": null,
+        "consecutivePasses": 0,
+        "counts": {
+          "black": 12,
+          "white": 3
+        },
+        "overlayVisible": false,
+        "resultTitle": "",
+        "gameOver": false
+      },
+      "after": {
+        "chrome": {
+          "seatKey": "black",
+          "currentPlayerKey": "black",
+          "canAct": true,
+          "turnNumber": 12,
+          "turnIndex": 13,
+          "legalMoves": 8,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 10,
+            "white": 6
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "edge": {
+          "seatKey": "white",
+          "currentPlayerKey": "black",
+          "canAct": false,
+          "turnNumber": 12,
+          "turnIndex": 13,
+          "legalMoves": 8,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 10,
+            "white": 6
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      }
+    },
+    {
+      "index": 13,
+      "browser": "chrome",
+      "playerKey": "black",
+      "type": "place",
+      "row": 5,
+      "col": 3,
+      "notation": "d6",
+      "before": {
+        "seatKey": "black",
+        "currentPlayerKey": "black",
+        "canAct": true,
+        "turnNumber": 12,
+        "turnIndex": 13,
+        "legalMoves": 8,
+        "pending": null,
+        "consecutivePasses": 0,
+        "counts": {
+          "black": 10,
+          "white": 6
+        },
+        "overlayVisible": false,
+        "resultTitle": "",
+        "gameOver": false
+      },
+      "after": {
+        "chrome": {
+          "seatKey": "black",
+          "currentPlayerKey": "white",
+          "canAct": false,
+          "turnNumber": 13,
+          "turnIndex": 14,
+          "legalMoves": 8,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 13,
+            "white": 4
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "edge": {
+          "seatKey": "white",
+          "currentPlayerKey": "white",
+          "canAct": true,
+          "turnNumber": 13,
+          "turnIndex": 14,
+          "legalMoves": 8,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 13,
+            "white": 4
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      }
+    }
+  ],
+  "stallEvents": [],
+  "pageEvents": [
+    {
+      "time": "2026-03-16T05:55:25.242Z",
+      "browser": "chrome",
+      "kind": "console",
+      "type": "error",
+      "text": "\u001b[0;93m2026-03-16 14:55:25.240300 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 0\u001b[m"
+    },
+    {
+      "time": "2026-03-16T05:55:25.277Z",
+      "browser": "msedge",
+      "kind": "console",
+      "type": "error",
+      "text": "\u001b[0;93m2026-03-16 14:55:25.275300 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 0\u001b[m"
+    },
+    {
+      "time": "2026-03-16T05:55:26.327Z",
+      "browser": "chrome",
+      "kind": "console",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "time": "2026-03-16T05:55:26.327Z",
+      "browser": "msedge",
+      "kind": "console",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "time": "2026-03-16T05:55:26.350Z",
+      "browser": "chrome",
+      "kind": "console",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "time": "2026-03-16T05:55:26.361Z",
+      "browser": "msedge",
+      "kind": "console",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "time": "2026-03-16T05:55:26.375Z",
+      "browser": "chrome",
+      "kind": "console",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "time": "2026-03-16T05:55:26.388Z",
+      "browser": "msedge",
+      "kind": "console",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "time": "2026-03-16T05:55:26.404Z",
+      "browser": "chrome",
+      "kind": "console",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "time": "2026-03-16T05:55:26.405Z",
+      "browser": "chrome",
+      "kind": "console",
+      "type": "error",
+      "text": "[CPU] table model unavailable: missing policy-table asset; Lv6 loses table guidance. ONNX may still load if policy-net assets are reachable. {sourceUrl: , triedRoots: Array(4)}"
+    },
+    {
+      "time": "2026-03-16T05:55:26.415Z",
+      "browser": "msedge",
+      "kind": "console",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "time": "2026-03-16T05:55:26.415Z",
+      "browser": "msedge",
+      "kind": "console",
+      "type": "error",
+      "text": "[CPU] table model unavailable: missing policy-table asset; Lv6 loses table guidance. ONNX may still load if policy-net assets are reachable. {sourceUrl: , triedRoots: Array(4)}"
+    },
+    {
+      "time": "2026-03-16T05:55:31.467Z",
+      "browser": "chrome",
+      "kind": "console",
+      "type": "warning",
+      "text": "[init] asset preloading incomplete, falling back to CSS-only visuals [Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object]"
+    },
+    {
+      "time": "2026-03-16T05:55:31.494Z",
+      "browser": "msedge",
+      "kind": "console",
+      "type": "warning",
+      "text": "[init] asset preloading incomplete, falling back to CSS-only visuals [Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object]"
+    }
+  ],
+  "final": {
+    "actionsExecuted": 13,
+    "chrome": {
+      "error": "page.evaluate: Target page, context or browser has been closed"
+    },
+    "edge": {
+      "error": "page.evaluate: Target page, context or browser has been closed"
+    }
+  },
+  "error": "page.evaluate: Target page, context or browser has been closed\n    at getLiveState (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\run-public-network-chrome-edge.js:237:17)\n    at waitForSynchronizedState (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\run-public-network-chrome-edge.js:342:13)\n    at main (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\run-public-network-chrome-edge.js:545:54)"
+}

@@ -4,6 +4,7 @@ const SoundEngine = {
     isMuted: false,
     volume: 0.7,
     currentType: '2',
+    stoneClackVolumeScale: 0.8,
     bgm: null,
     bgmVolume: 0.07,
     currentTrackIndex: 1,
@@ -165,6 +166,12 @@ const SoundEngine = {
         return Math.max(0, Math.min(1, Number(value) || 0));
     },
 
+    resolveStoneClackVolume() {
+        const masterVolume = this._toNonNegativeNumber(this.volume, 0);
+        const clackScale = this._toNonNegativeNumber(this.stoneClackVolumeScale, 1);
+        return this._clamp01(masterVolume * clackScale);
+    },
+
     resolveEffectVolumeScale(effectKey, options = {}) {
         const key = String(effectKey || '').trim();
         const opts = options && typeof options === 'object' ? options : {};
@@ -264,7 +271,7 @@ const SoundEngine = {
         if (this.ctx.state === 'suspended') this.ctx.resume();
 
         const t = this.ctx.currentTime;
-        const vol = this.volume;
+        const vol = this.resolveStoneClackVolume();
         const type = this.currentType;
 
         // Special Case: Real Sound (External)

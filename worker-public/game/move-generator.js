@@ -10,6 +10,29 @@ if (typeof CoreLogic === 'undefined') {
     console.error('CoreLogic is not loaded.');
 }
 
+const MoveGeneratorBoardOps = (() => {
+    if (typeof require === 'function') {
+        try {
+            return require('./logic/board_ops');
+        } catch (e) {
+            return null;
+        }
+    }
+    if (typeof globalThis !== 'undefined' && globalThis.BoardOps) return globalThis.BoardOps;
+    return null;
+})();
+const MoveGeneratorSharedBoardUtils = (() => {
+    if (typeof require === 'function') {
+        try {
+            return require('../shared/shared-board-utils');
+        } catch (e) {
+            return null;
+        }
+    }
+    if (typeof globalThis !== 'undefined' && globalThis.SharedBoardUtils) return globalThis.SharedBoardUtils;
+    return null;
+})();
+
 // ===== Move Generation & Legal Move Lookup =====
 
 /**
@@ -76,30 +99,75 @@ function createProtectedCellSet(protection, perma) {
 }
 
 function getExpansionCellsForMoveGeneration(state) {
+    if (MoveGeneratorBoardOps && typeof MoveGeneratorBoardOps.getExpansionDescriptors === 'function') {
+        return MoveGeneratorBoardOps.getExpansionDescriptors(state);
+    }
+
     const expansion = (state && state.boardExpansion && typeof state.boardExpansion === 'object')
         ? state.boardExpansion
         : null;
     if (!expansion) return [];
 
     const cells = [];
-    const pushCell = (side, row, owner) => {
-        if (side !== 'left' && side !== 'right') return;
-        if (!Number.isInteger(row) || row < 0 || row >= 8) return;
-        const col = side === 'left' ? -1 : 8;
+    const pushCell = (cellLike) => {
+        if (!cellLike || typeof cellLike !== 'object') return;
+        const side = cellLike.side;
+        const row = Number(cellLike.row);
+        let col = Number.isInteger(cellLike.col) ? cellLike.col : null;
+        if (!Number.isInteger(col)) {
+            if (side === 'left') col = -1;
+            else if (side === 'right') col = 8;
+        }
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+        if (row < -1 || row > 8 || col < -1 || col > 8) return;
+        if (row >= 0 && row < 8 && col >= 0 && col < 8) return;
         if (cells.some((cell) => cell && cell.row === row && cell.col === col)) return;
-        cells.push({ row, col, side, owner: Number(owner) });
+        cells.push({ row, col, side, owner: Number(cellLike.owner) });
     };
 
     if (Array.isArray(expansion.cells)) {
         for (const cell of expansion.cells) {
             if (!cell || typeof cell !== 'object') continue;
-            pushCell(cell.side, cell.row, cell.owner);
+            pushCell(cell);
         }
     }
     if (cells.length === 0 && expansion.active === true) {
-        pushCell(expansion.side, expansion.row, expansion.owner);
+        pushCell(expansion);
     }
     return cells;
+}
+
+function setCellValueForMoveGeneration(state, row, col, value) {
+    if (!state || !Array.isArray(state.board)) return false;
+    if (Number.isInteger(row) && row >= 0 && row < 8 && Number.isInteger(col) && col >= 0 && col < 8) {
+        state.board[row][col] = value;
+        return true;
+    }
+    if (MoveGeneratorBoardOps && typeof MoveGeneratorBoardOps.setCellValue === 'function') {
+        return !!MoveGeneratorBoardOps.setCellValue(state, row, col, value);
+    }
+
+    const expansion = (state.boardExpansion && typeof state.boardExpansion === 'object')
+        ? state.boardExpansion
+        : null;
+    if (!expansion) return false;
+
+    const cells = Array.isArray(expansion.cells)
+        ? expansion.cells
+        : [];
+    for (let i = 0; i < cells.length; i++) {
+        const cell = cells[i];
+        if (!cell || typeof cell !== 'object') continue;
+        const cellRow = Number(cell.row);
+        const cellCol = Number.isInteger(cell.col)
+            ? cell.col
+            : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : null));
+        if (!Number.isInteger(cellRow) || !Number.isInteger(cellCol)) continue;
+        if (cellRow !== row || cellCol !== col) continue;
+        cells[i] = { ...cell, owner: Number(value) };
+        return true;
+    }
+    return false;
 }
 
 function isFreePlacementPendingTypeForMoveGeneration(pendingType) {
@@ -257,12 +325,33 @@ function generateSwapMoves(player, legal, protection, perma) {
                 if (hasSpecialOrBomb) continue;
                 // Avoid mutating the real game state: work on a shallow clone when computing hypothetical flips
                 const clonedState = deepCloneState(gameState);
-                clonedState.board[r][c] = EMPTY;
+                setCellValueForMoveGeneration(clonedState, r, c, EMPTY);
                 const swapFlips = getFlips(clonedState, r, c, player, protection, perma);
                 moves.push({ row: r, col: c, flips: swapFlips, effectUsed: 'SWAP_WITH_ENEMY', player });
             }
         }
     }
+
+    const expansionCells = getExpansionCellsForMoveGeneration(gameState);
+    for (const expansion of expansionCells) {
+        if (!expansion) continue;
+        const key = expansion.row + ',' + expansion.col;
+        if (Number(expansion.owner) !== -player || protectedCells.has(key)) continue;
+
+        const hasSpecialOrBomb = markers.some((marker) => (
+            marker &&
+            marker.row === expansion.row &&
+            marker.col === expansion.col &&
+            (marker.kind === 'specialStone' || marker.kind === 'bomb')
+        ));
+        if (hasSpecialOrBomb) continue;
+
+        const clonedState = deepCloneState(gameState);
+        if (!setCellValueForMoveGeneration(clonedState, expansion.row, expansion.col, EMPTY)) continue;
+        const swapFlips = getFlips(clonedState, expansion.row, expansion.col, player, protection, perma);
+        moves.push({ row: expansion.row, col: expansion.col, flips: swapFlips, effectUsed: 'SWAP_WITH_ENEMY', player });
+    }
+
     return moves;
 }
 
@@ -280,6 +369,9 @@ function findMoveForCell(player, row, col, pending, protection, perma) {
  * 座標を表記法に変換
  */
 function posToNotation(row, col) {
+    if (MoveGeneratorSharedBoardUtils && typeof MoveGeneratorSharedBoardUtils.posToNotation === 'function') {
+        return MoveGeneratorSharedBoardUtils.posToNotation(row, col);
+    }
     const cols = 'abcdefgh';
     return cols[col] + (row + 1);
 }
@@ -287,14 +379,22 @@ function posToNotation(row, col) {
 /**
  * 角かどうか判定
  */
-function isCorner(row, col) {
+function isCorner(row, col, boardOrRows) {
+    if (MoveGeneratorSharedBoardUtils && typeof MoveGeneratorSharedBoardUtils.isCorner === 'function') {
+        if (Array.isArray(boardOrRows)) return MoveGeneratorSharedBoardUtils.isCorner(row, col, boardOrRows);
+        return MoveGeneratorSharedBoardUtils.isCorner(row, col, 8, 8);
+    }
     return (row === 0 || row === 7) && (col === 0 || col === 7);
 }
 
 /**
  * 辺かどうか判定
  */
-function isEdge(row, col) {
+function isEdge(row, col, boardOrRows) {
+    if (MoveGeneratorSharedBoardUtils && typeof MoveGeneratorSharedBoardUtils.isEdge === 'function') {
+        if (Array.isArray(boardOrRows)) return MoveGeneratorSharedBoardUtils.isEdge(row, col, boardOrRows);
+        return MoveGeneratorSharedBoardUtils.isEdge(row, col, 8, 8);
+    }
     return row === 0 || row === 7 || col === 0 || col === 7;
 }
 

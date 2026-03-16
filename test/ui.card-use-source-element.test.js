@@ -77,6 +77,16 @@ describe('card use source element selection', () => {
   });
 
   test('prefers owner hand element when same card id exists in both hands', () => {
+    const ownCardEl = document.querySelector('#hand-black .card-item[data-card-id="dup_card"]');
+    ownCardEl.getBoundingClientRect = () => ({
+      left: 220,
+      top: 500,
+      width: 90,
+      height: 120,
+      right: 310,
+      bottom: 620
+    });
+
     require('../cards/card-interaction.js');
     window.useSelectedCard();
 
@@ -86,9 +96,26 @@ describe('card use source element selection', () => {
     expect(payload.sourceCardEl).toBeTruthy();
     expect(payload.sourceCardEl.closest('#hand-black')).not.toBeNull();
     expect(payload.sourceCardEl.closest('#hand-white')).toBeNull();
+    expect(payload.sourceCardRect).toEqual({
+      left: 220,
+      top: 500,
+      width: 90,
+      height: 120,
+      right: 310,
+      bottom: 620
+    });
   });
 
   test('useSelectedCard skips direct fallback when playback already contains card_use_animation', () => {
+    const ownCardEl = document.querySelector('#hand-black .card-item[data-card-id="dup_card"]');
+    ownCardEl.getBoundingClientRect = () => ({
+      left: 220,
+      top: 500,
+      width: 90,
+      height: 120,
+      right: 310,
+      bottom: 620
+    });
     const playbackEvents = [{
       type: 'card_use_animation',
       targets: [{ player: 'black', owner: 'black', cardId: 'dup_card' }]
@@ -106,6 +133,14 @@ describe('card use source element selection', () => {
     expect(global.playCardUseHandAnimation).not.toHaveBeenCalled();
     expect(playbackEvents[0].targets[0].sourceCardEl).toBeTruthy();
     expect(playbackEvents[0].targets[0].sourceCardEl.closest('#hand-black')).not.toBeNull();
+    expect(playbackEvents[0].targets[0].sourceCardRect).toEqual({
+      left: 220,
+      top: 500,
+      width: 90,
+      height: 120,
+      right: 310,
+      bottom: 620
+    });
   });
 
   test('network mode blocks selecting and using opponent hand card', () => {
@@ -301,6 +336,44 @@ describe('card use source element selection', () => {
       id: 'dup_card',
       name: 'Duplicate Card',
       desc: 'd'
+    });
+  });
+
+  test('useSelectedCard hides deferred generated throw-chain card until later placement playback reveals it', () => {
+    const nextCardState = {
+      ...global.cardState,
+      hands: { black: ['triple_01'], white: ['dup_card'] },
+      lastUsedCardByPlayer: {
+        black: { id: 'dup_card', name: '二連投石', desc: 'd' },
+        white: null
+      }
+    };
+    global.CardLogic = {
+      getCardDef: (id) => ({ id, type: 'DOUBLE_PLACE', name: '二連投石', desc: 'd', cost: 1 })
+    };
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      nextCardState,
+      nextGameState: global.gameState,
+      playbackEvents: [{
+        type: 'card_use_animation',
+        targets: [{ player: 'black', owner: 'black', cardId: 'dup_card' }]
+      }],
+      deferredGeneratedThrowChainHandAdd: {
+        playerKey: 'black',
+        count: 1,
+        reason: 'generated_throw_chain'
+      }
+    }));
+
+    require('../cards/card-interaction.js');
+    window.useSelectedCard();
+
+    expect(global.renderCardUI).toHaveBeenCalledTimes(1);
+    expect(global.window.__handSequentialRevealState).toMatchObject({
+      playerKey: 'black',
+      visibleCount: 0,
+      reason: 'generated_throw_chain'
     });
   });
 

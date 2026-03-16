@@ -1,0 +1,63 @@
+{
+  "ok": true,
+  "baseUrl": "https://card-othello-match.jqt236i.workers.dev",
+  "timestamp": "2026-03-15T04:48:46.429Z",
+  "roomId": "L8B",
+  "seats": {
+    "blackPage": {
+      "seatKey": "black",
+      "matchMode": "network"
+    },
+    "whitePage": {
+      "seatKey": "white",
+      "matchMode": "network"
+    }
+  },
+  "cardUse": {
+    "bogusRect": {
+      "left": 1200,
+      "top": 1000,
+      "width": 90,
+      "height": 120,
+      "right": 1290,
+      "bottom": 1120
+    },
+    "publishResult": {
+      "ok": true
+    },
+    "observed": {
+      "count": 1,
+      "left": 715.046875,
+      "top": 87.484375,
+      "right": 806.046875,
+      "bottom": 211.484375,
+      "width": 91,
+      "height": 124,
+      "text": "Sample Cardコスト5",
+      "innerWidth": 1440,
+      "innerHeight": 1200
+    },
+    "screenshotPath": "C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\remote-card-use.png",
+    "passed": true
+  },
+  "handAdd": {
+    "publishResult": {
+      "ok": true
+    },
+    "observed": {
+      "count": 1,
+      "left": 648.709716796875,
+      "top": 311.5731201171875,
+      "right": 692.73095703125,
+      "bottom": 370.7706298828125,
+      "width": 44.021240234375,
+      "height": 59.197509765625,
+      "className": "held-draw-card face-down",
+      "innerWidth": 1440,
+      "innerHeight": 1200
+    },
+    "screenshotPath": "C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\remote-hand-add.png",
+    "passed": true
+  },
+  "error": null
+}

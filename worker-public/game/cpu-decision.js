@@ -58,9 +58,87 @@ let CpuPolicyOnnxRuntime = null;
 if (typeof require === 'function') {
     try { CpuPolicyOnnxRuntime = require('./ai/policy-onnx-runtime'); } catch (e) { /* ignore */ }
 }
+let SharedBoardUtilsModule = null;
+if (typeof require === 'function') {
+    try { SharedBoardUtilsModule = require('../shared/shared-board-utils'); } catch (e) { /* ignore */ }
+}
+if (!SharedBoardUtilsModule) {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.SharedBoardUtils) {
+            SharedBoardUtilsModule = globalThis.SharedBoardUtils;
+        }
+    } catch (e) { /* ignore */ }
+}
 let PendingTargetSelector = null;
 if (typeof require === 'function') {
     try { PendingTargetSelector = require('./turn-handlers/pending-target-selector'); } catch (e) { /* ignore */ }
+}
+var PendingSelectionFlow = null;
+if (typeof require === 'function') {
+    try { PendingSelectionFlow = require('./card-effects/selection-flow'); } catch (e) { /* ignore */ }
+}
+let cpuDecisionNetworkTurnHandoff = null;
+if (typeof require === 'function') {
+    try { cpuDecisionNetworkTurnHandoff = require('./network-turn-handoff'); } catch (e) { /* ignore */ }
+}
+if (!cpuDecisionNetworkTurnHandoff && typeof globalThis !== 'undefined' && globalThis.NetworkTurnHandoff) {
+    cpuDecisionNetworkTurnHandoff = globalThis.NetworkTurnHandoff;
+}
+if (!PendingSelectionFlow && typeof globalThis !== 'undefined' && globalThis.PendingSelectionFlow) {
+    PendingSelectionFlow = globalThis.PendingSelectionFlow;
+}
+
+function hasPendingSelectionFlowContract(moduleRef) {
+    return !!(
+        moduleRef
+        && typeof moduleRef === 'object'
+        && (
+            typeof moduleRef.createPendingSelectionAction === 'function'
+            || typeof moduleRef.finalizePendingSelectionFlow === 'function'
+            || typeof moduleRef.isSelectionOnlyEndTurnPendingType === 'function'
+        )
+    );
+}
+
+function hasPendingSelectionFlowFunction(moduleRef, functionName) {
+    return !!(
+        moduleRef
+        && typeof moduleRef === 'object'
+        && typeof moduleRef[functionName] === 'function'
+    );
+}
+
+function resolvePendingSelectionFlow(requiredFunctionName) {
+    const requiredName = typeof requiredFunctionName === 'string' ? requiredFunctionName : '';
+
+    if (!requiredName && hasPendingSelectionFlowContract(PendingSelectionFlow)) {
+        return PendingSelectionFlow;
+    }
+    if (requiredName && hasPendingSelectionFlowFunction(PendingSelectionFlow, requiredName)) {
+        return PendingSelectionFlow;
+    }
+    let resolvedModule = null;
+    if (typeof require === 'function') {
+        try { resolvedModule = require('./card-effects/selection-flow'); } catch (e) { /* ignore */ }
+    }
+    if (
+        ((requiredName && !hasPendingSelectionFlowFunction(resolvedModule, requiredName))
+            || (!requiredName && !hasPendingSelectionFlowContract(resolvedModule)))
+        && typeof globalThis !== 'undefined'
+        && globalThis.PendingSelectionFlow
+    ) {
+        resolvedModule = globalThis.PendingSelectionFlow;
+    }
+    if (
+        (requiredName && hasPendingSelectionFlowFunction(resolvedModule, requiredName))
+        || (!requiredName && hasPendingSelectionFlowContract(resolvedModule))
+    ) {
+        PendingSelectionFlow = resolvedModule;
+    }
+    if (requiredName) {
+        return hasPendingSelectionFlowFunction(PendingSelectionFlow, requiredName) ? PendingSelectionFlow : null;
+    }
+    return hasPendingSelectionFlowContract(PendingSelectionFlow) ? PendingSelectionFlow : null;
 }
 
 const CpuDecisionBoardUtilsModule = (() => {
@@ -116,6 +194,72 @@ function isPlayableBoard(board) {
     for (const row of board) {
         if (!Array.isArray(row) || row.length <= 0) return false;
     }
+    return true;
+}
+
+function hasActiveBoardExpansion(gameStateOverride) {
+    const expansion = gameStateOverride && gameStateOverride.boardExpansion;
+    if (!expansion || typeof expansion !== 'object') return false;
+    if (Array.isArray(expansion.cells) && expansion.cells.length > 0) return true;
+    return expansion.active === true;
+}
+
+function shouldUseShapeAwareCpuBoard(board, gameStateOverride) {
+    if (!Array.isArray(board)) return false;
+    if (!isStandardBoard8x8(board)) return true;
+    return hasActiveBoardExpansion(gameStateOverride);
+}
+
+function getShapeAwareBoard(board, gameStateOverride, cardStateOverride) {
+    if (
+        !Array.isArray(board) ||
+        !shouldUseShapeAwareCpuBoard(board, gameStateOverride) ||
+        !SharedBoardUtilsModule ||
+        typeof SharedBoardUtilsModule.attachBoardShape !== 'function'
+    ) {
+        return board;
+    }
+    try {
+        SharedBoardUtilsModule.attachBoardShape(board, {
+            boardExpansion: gameStateOverride && gameStateOverride.boardExpansion,
+            cardState: cardStateOverride || null
+        });
+    } catch (e) { /* ignore */ }
+    return board;
+}
+
+function getCurrentCpuBoard() {
+    const gs = (typeof gameState !== 'undefined') ? gameState : null;
+    const cs = (typeof cardState !== 'undefined') ? cardState : null;
+    return (gs && Array.isArray(gs.board))
+        ? getShapeAwareBoard(gs.board, gs, cs)
+        : null;
+}
+
+function countPlayableCells(board) {
+    if (!Array.isArray(board)) return 0;
+    if (SharedBoardUtilsModule && typeof SharedBoardUtilsModule.collectBoardCoordinates === 'function') {
+        return SharedBoardUtilsModule.collectBoardCoordinates(board).length;
+    }
+    let total = 0;
+    for (const row of board) total += Array.isArray(row) ? row.length : 0;
+    return total;
+}
+
+function getBoardCellValue(board, row, col) {
+    if (SharedBoardUtilsModule && typeof SharedBoardUtilsModule.getCellValue === 'function') {
+        return SharedBoardUtilsModule.getCellValue(board, row, col);
+    }
+    if (!Array.isArray(board) || !Array.isArray(board[row])) return null;
+    return board[row][col];
+}
+
+function setBoardCellValue(board, row, col, value) {
+    if (SharedBoardUtilsModule && typeof SharedBoardUtilsModule.setCellValue === 'function') {
+        return SharedBoardUtilsModule.setCellValue(board, row, col, value);
+    }
+    if (!Array.isArray(board) || !Array.isArray(board[row]) || col < 0 || col >= board[row].length) return false;
+    board[row][col] = value;
     return true;
 }
 
@@ -322,7 +466,9 @@ function buildOnnxContext(playerKey, level, legalMovesCount, handCardIds, usable
     let hasCornerMoveNow = false;
     let hasEdgeMoveNow = false;
     let maxLegalMoveBonus = 0;
-    const boardRef = gameState && Array.isArray(gameState.board) ? gameState.board : null;
+    const gs = (typeof gameState !== 'undefined') ? gameState : null;
+    const cs = (typeof cardState !== 'undefined') ? cardState : null;
+    const boardRef = getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
     for (const move of moves) {
         if (!hasCornerMoveNow && isCornerCell(move.row, move.col, boardRef)) hasCornerMoveNow = true;
         if (!hasEdgeMoveNow && isEdgeCell(move.row, move.col, boardRef) && !isCornerCell(move.row, move.col, boardRef)) hasEdgeMoveNow = true;
@@ -332,7 +478,7 @@ function buildOnnxContext(playerKey, level, legalMovesCount, handCardIds, usable
     return {
         playerKey,
         level,
-        board: gameState && gameState.board,
+        board: boardRef,
         pendingType: resolvePendingType(playerKey),
         legalMovesCount: Number.isFinite(legalMovesCount) ? legalMovesCount : 0,
         ownCharge: (cardState && cardState.charge && Number.isFinite(cardState.charge[playerKey])) ? cardState.charge[playerKey] : 0,
@@ -358,10 +504,11 @@ function selectMoveFromLearnedPolicy(candidateMoves, playerKey, level) {
     const runtime = resolvePolicyTableRuntime();
     if (!runtime || typeof runtime.chooseMove !== 'function') return null;
     try {
+        const boardRef = getCurrentCpuBoard();
         return runtime.chooseMove(candidateMoves, {
             playerKey,
             level,
-            board: gameState && gameState.board,
+            board: boardRef,
             pendingType: resolvePendingType(playerKey),
             legalMovesCount: candidateMoves.length
         });
@@ -376,10 +523,11 @@ function createLearnedScoreFn(playerKey, level, legalMovesCount) {
     if (!runtime || typeof runtime.getActionScore !== 'function') return null;
     return function scoreMove(move) {
         try {
+            const boardRef = getCurrentCpuBoard();
             const s = runtime.getActionScore(move, {
                 playerKey,
                 level,
-                board: gameState && gameState.board,
+                board: boardRef,
                 pendingType: resolvePendingType(playerKey),
                 legalMovesCount
             });
@@ -738,13 +886,13 @@ function selectMoveByLookahead(candidateMoves, playerKey, level, onnxSelectedMov
     if (!Array.isArray(candidateMoves) || candidateMoves.length <= 0) return null;
     if (!CpuPolicyCore || typeof CpuPolicyCore.chooseMoveByLookahead !== 'function') return null;
     const gs = (typeof gameState !== 'undefined') ? gameState : null;
-    const board = gs && Array.isArray(gs.board) ? gs.board : null;
+    const cs = (typeof cardState !== 'undefined') ? cardState : null;
+    const board = getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
     if (!isPlayableBoard(board)) return null;
 
     const playerValue = playerKey === 'black'
         ? (typeof BLACK !== 'undefined' ? BLACK : 1)
         : (typeof WHITE !== 'undefined' ? WHITE : -1);
-    const cs = (typeof cardState !== 'undefined') ? cardState : null;
     const priorScore = createLookaheadPriorScoreFn(playerKey, level, candidateMoves.length, onnxSelectedMove);
     const lv6Lookahead = buildLv6LookaheadOptions(level, board, candidateMoves.length, playerKey);
     const onSearchMeta = createLookaheadMetaLogger(playerKey, level, 'onnx-lookahead');
@@ -1080,6 +1228,7 @@ function selectCardFromLearnedPolicy(playerKey, level, legalMovesCount, usableCa
     const runtime = resolvePolicyTableRuntime();
     if (!runtime || typeof runtime.getActionScoreForKey !== 'function') return null;
     if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
+    const boardRef = getCurrentCpuBoard();
 
     let bestCardId = null;
     let bestScore = -Infinity;
@@ -1090,7 +1239,7 @@ function selectCardFromLearnedPolicy(playerKey, level, legalMovesCount, usableCa
             score = runtime.getActionScoreForKey(actionKey, {
                 playerKey,
                 level,
-                board: gameState && gameState.board,
+                board: boardRef,
                 pendingType: resolvePendingType(playerKey),
                 legalMovesCount
             });
@@ -1174,10 +1323,11 @@ function getLearnedCardActionScore(cardId, playerKey, level, legalMovesCount) {
     const runtime = resolvePolicyTableRuntime();
     if (!runtime || typeof runtime.getActionScoreForKey !== 'function') return null;
     try {
+        const boardRef = getCurrentCpuBoard();
         const score = runtime.getActionScoreForKey(`use_card:${cardId}`, {
             playerKey,
             level,
-            board: gameState && gameState.board,
+            board: boardRef,
             pendingType: resolvePendingType(playerKey),
             legalMovesCount
         });
@@ -1288,10 +1438,13 @@ function emitCpuSelectionStateChange() {
     if (typeof emitGameStateChange === 'function') emitGameStateChange();
 }
 
-const SELECTION_ONLY_END_TURN_PENDING_TYPES = new Set(['SWAP_WITH_ENEMY', 'TRAP_WILL']);
-
 function isSelectionOnlyEndTurnPendingType(pendingType) {
-    return SELECTION_ONLY_END_TURN_PENDING_TYPES.has(String(pendingType || ''));
+    const pendingSelectionFlow = resolvePendingSelectionFlow('isSelectionOnlyEndTurnPendingType');
+    return !!(
+        pendingSelectionFlow
+        && typeof pendingSelectionFlow.isSelectionOnlyEndTurnPendingType === 'function'
+        && pendingSelectionFlow.isSelectionOnlyEndTurnPendingType(pendingType)
+    );
 }
 
 function resolvePlayerKeyFromTurnValue(value) {
@@ -1320,6 +1473,9 @@ function handOffSelectionTurnInGameState(playerKey) {
 }
 
 function captureNetworkPublishSnapshot(gameStateValue, cardStateValue) {
+    if (cpuDecisionNetworkTurnHandoff && typeof cpuDecisionNetworkTurnHandoff.captureNetworkPublishSnapshot === 'function') {
+        return cpuDecisionNetworkTurnHandoff.captureNetworkPublishSnapshot(gameStateValue, cardStateValue);
+    }
     if (!gameStateValue || !cardStateValue) return null;
     try {
         if (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') {
@@ -1341,6 +1497,14 @@ function captureNetworkPublishSnapshot(gameStateValue, cardStateValue) {
 }
 
 function publishCpuSelectionNetworkSnapshot(playerKey, playbackEvents, snapshotOverride) {
+    if (cpuDecisionNetworkTurnHandoff && typeof cpuDecisionNetworkTurnHandoff.publishNetworkSnapshot === 'function') {
+        return cpuDecisionNetworkTurnHandoff.publishNetworkSnapshot({
+            playerKey: playerKey || 'black',
+            actionType: 'place',
+            playbackEvents: Array.isArray(playbackEvents) ? playbackEvents : [],
+            snapshot: snapshotOverride || undefined
+        });
+    }
     try {
         if (typeof globalThis === 'undefined' || !globalThis.NetworkMatchClient) return;
         if (typeof globalThis.NetworkMatchClient.publishSnapshot !== 'function') return;
@@ -1367,6 +1531,9 @@ function isCpuSelectionHumanVsHumanModeEnabled() {
 }
 
 async function waitForCpuSelectionPlaybackIdle(playbackEvents) {
+    if (cpuDecisionNetworkTurnHandoff && typeof cpuDecisionNetworkTurnHandoff.waitForPlaybackIdleIfNeeded === 'function') {
+        return cpuDecisionNetworkTurnHandoff.waitForPlaybackIdleIfNeeded(playbackEvents);
+    }
     if (!Array.isArray(playbackEvents) || !playbackEvents.length) return;
 
     const waitForPlaybackFn = (typeof waitForPlaybackIdle === 'function')
@@ -1395,48 +1562,42 @@ function scheduleCpuSelectionWhiteTurn(delayMs, expectedTurnNumber) {
 }
 
 async function continueCpuSelectionTurnHandoff(playerKey, playbackEvents) {
-    const basePlaybackEvents = Array.isArray(playbackEvents) ? playbackEvents : [];
-    const publishSnapshotOverride = captureNetworkPublishSnapshot(gameState, cardState);
+    const finalizeTurn = (cpuDecisionNetworkTurnHandoff && typeof cpuDecisionNetworkTurnHandoff.finalizeNetworkTurnHandoff === 'function')
+        ? cpuDecisionNetworkTurnHandoff.finalizeNetworkTurnHandoff
+        : null;
+    if (!finalizeTurn) return;
 
-    if (typeof isGameOver === 'function' && isGameOver(gameState)) {
-        publishCpuSelectionNetworkSnapshot(playerKey, basePlaybackEvents, publishSnapshotOverride);
-        if (typeof showResult === 'function') showResult();
-        return;
+    await finalizeTurn({
+        playerKey,
+        actionType: 'place',
+        playbackEvents,
+        snapshot: captureNetworkPublishSnapshot(gameState, cardState),
+        humanMode: isCpuSelectionHumanVsHumanModeEnabled(),
+        publishSnapshot: ({ playerKey: publishPlayerKey, playbackEvents: publishPlaybackEvents, snapshot }) => {
+            publishCpuSelectionNetworkSnapshot(publishPlayerKey, publishPlaybackEvents, snapshot);
+        },
+        resolveCurrentPlayerKey: () => resolvePlayerKeyFromTurnValue(gameState ? gameState.currentPlayer : null),
+        scheduleCpuTurn: ({ delayMs, expectedTurnNumber }) => {
+            scheduleCpuSelectionWhiteTurn(delayMs, expectedTurnNumber);
+        },
+        onHumanTurnReady: () => {
+            try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+        }
+    });
+}
+
+function finalizeCpuPendingSelectionFlow(playerKey, pendingType, playbackEvents) {
+    const pendingSelectionFlow = resolvePendingSelectionFlow('finalizePendingSelectionFlow');
+    if (pendingSelectionFlow && typeof pendingSelectionFlow.finalizePendingSelectionFlow === 'function') {
+        return Promise.resolve(pendingSelectionFlow.finalizePendingSelectionFlow({
+            playerKey,
+            pendingType,
+            playbackEvents,
+            gameStateValue: gameState,
+            cardStateValue: cardState
+        }));
     }
-
-    await waitForCpuSelectionPlaybackIdle(basePlaybackEvents);
-
-    let turnStartPlaybackEvents = [];
-    if (typeof onTurnStart === 'function') {
-        try {
-            const turnStartResult = await onTurnStart(gameState.currentPlayer);
-            if (turnStartResult && Array.isArray(turnStartResult.playbackEvents)) {
-                turnStartPlaybackEvents = turnStartResult.playbackEvents;
-            }
-        } catch (e) { /* ignore */ }
-    }
-
-    const combinedPlaybackEvents = basePlaybackEvents.slice();
-    if (turnStartPlaybackEvents.length) {
-        combinedPlaybackEvents.push(...turnStartPlaybackEvents);
-    }
-    publishCpuSelectionNetworkSnapshot(playerKey, combinedPlaybackEvents, publishSnapshotOverride);
-
-    if (typeof isGameOver === 'function' && isGameOver(gameState)) {
-        if (typeof showResult === 'function') showResult();
-        return;
-    }
-
-    const activePlayerKey = resolvePlayerKeyFromTurnValue(gameState ? gameState.currentPlayer : null);
-    const humanMode = isCpuSelectionHumanVsHumanModeEnabled();
-    if (activePlayerKey === 'white' && !humanMode) {
-        const expectedTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
-        const safeCpuDelay = (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 600;
-        scheduleCpuSelectionWhiteTurn(safeCpuDelay, expectedTurnNumber);
-        return;
-    }
-
-    try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+    return null;
 }
 
 function maybeContinueCpuSelectionTurnHandoff(playerKey, pendingType, playbackEvents) {
@@ -1478,17 +1639,24 @@ function runCpuPendingSelectionViaPipeline(playerKey, actionPayload, pendingType
     const adapter = resolveTurnPipelineAdapter();
     const pipeline = resolveTurnPipeline();
     if (!adapter || !pipeline || typeof adapter.runTurnWithAdapter !== 'function') return null;
-
-    const shouldDeferNetworkPublish = isSelectionOnlyEndTurnPendingType(pendingType);
+    const pendingSelectionFlow = resolvePendingSelectionFlow('createPendingSelectionAction');
+    const shouldDeferNetworkPublish = (
+        pendingSelectionFlow
+        && typeof pendingSelectionFlow.shouldDeferNetworkPublishForPendingType === 'function'
+    )
+        ? pendingSelectionFlow.shouldDeferNetworkPublishForPendingType(pendingType)
+        : isSelectionOnlyEndTurnPendingType(pendingType);
     const normalizedActionPayload = Object.assign({}, actionPayload || {});
     if (shouldDeferNetworkPublish) {
         normalizedActionPayload.deferNetworkPublish = true;
     }
 
-    const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-        ? ActionManager.ActionManager.createAction('place', playerKey, normalizedActionPayload)
-        : Object.assign({ type: 'place' }, normalizedActionPayload);
-    if (action && cardState && typeof cardState.turnIndex === 'number') {
+    const action = (pendingSelectionFlow && typeof pendingSelectionFlow.createPendingSelectionAction === 'function')
+        ? pendingSelectionFlow.createPendingSelectionAction(playerKey, pendingType, normalizedActionPayload, { cardState })
+        : ((typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
+            ? ActionManager.ActionManager.createAction('place', playerKey, normalizedActionPayload)
+            : Object.assign({ type: 'place' }, normalizedActionPayload));
+    if ((!pendingSelectionFlow || typeof pendingSelectionFlow.createPendingSelectionAction !== 'function') && action && cardState && typeof cardState.turnIndex === 'number') {
         action.turnIndex = cardState.turnIndex;
     }
 
@@ -1507,7 +1675,14 @@ function runCpuPendingSelectionViaPipeline(playerKey, actionPayload, pendingType
         });
     }
     emitCpuSelectionStateChange();
-    maybeContinueCpuSelectionTurnHandoff(playerKey, pendingType, res.playbackEvents);
+    const finalizePromise = finalizeCpuPendingSelectionFlow(playerKey, pendingType, res.playbackEvents);
+    if (finalizePromise) {
+        Promise.resolve(finalizePromise).catch(() => {
+            maybeContinueCpuSelectionTurnHandoff(playerKey, pendingType, res.playbackEvents);
+        });
+    } else {
+        maybeContinueCpuSelectionTurnHandoff(playerKey, pendingType, res.playbackEvents);
+    }
     return { ok: true, res };
 }
 
@@ -1694,6 +1869,13 @@ function makePlanPressureProfile(basePressure, cornerWindowPressure, recoveryGap
     });
 }
 
+const GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE = Object.freeze({
+    DOUBLE_PLACE: makePlanPressureProfile(2, 4, 2, 3),
+    TRIPLE_PLACE: makePlanPressureProfile(3, 5, 3, 4),
+    QUAD_PLACE: makePlanPressureProfile(4, 6, 4, 5),
+    INFINITE_PLACE: makePlanPressureProfile(5, 7, 5, 6)
+});
+
 const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     BLOCKADE_WILL: makePlanPressureProfile(1, 2, 1, 1),
     BOARD_EXPANSION_GOD: makePlanPressureProfile(3, 4, 3, 4),
@@ -1707,7 +1889,10 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     CROSS_BOMB: makePlanPressureProfile(3, 4, 3, 3),
     DESTROY_DRAGON_WILL: makePlanPressureProfile(1, 2, 1, 2),
     DESTROY_ONE_STONE: makePlanPressureProfile(4, 5, 4, 0),
-    DOUBLE_PLACE: makePlanPressureProfile(2, 4, 2, 3),
+    DOUBLE_PLACE: GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE.DOUBLE_PLACE,
+    TRIPLE_PLACE: GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE.TRIPLE_PLACE,
+    QUAD_PLACE: GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE.QUAD_PLACE,
+    INFINITE_PLACE: GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE.INFINITE_PLACE,
     ESCAPE_WILL: makePlanPressureProfile(2, 3, 2, 2),
     EXTEND_LIFE_WILL: makePlanPressureProfile(1, 1, 1, 2),
     EXTREME_HYPERACTIVE_WILL: makePlanPressureProfile(3, 4, 3, 3),
@@ -1715,6 +1900,7 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     FREEZE_WILL: makePlanPressureProfile(1, 2, 1, 1),
     GLUTTONOUS_WILL: makePlanPressureProfile(3, 4, 3, 3),
     GOLD_STONE: makePlanPressureProfile(1, 2, 0, 2),
+    CRYSTAL_STONE: makePlanPressureProfile(1, 2, 1, 2),
     RAINBOW_STONE: makePlanPressureProfile(1, 3, 0, 3),
     GUARDIAN_GOD: makePlanPressureProfile(0, 0, 0, 0),
     GUARD_WILL: makePlanPressureProfile(0, 0, 0, 0),
@@ -1760,18 +1946,26 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     X_BOMB: makePlanPressureProfile(3, 4, 3, 3)
 });
 
+function getGeneratedThrowChainPlanPressureProfile(cardType) {
+    const type = String(cardType || '');
+    return Object.prototype.hasOwnProperty.call(GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE, type)
+        ? GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE[type]
+        : null;
+}
+
 function hasPlanPressureProfileForCardType(cardType) {
+    const type = String(cardType || '');
     return Object.prototype.hasOwnProperty.call(
         CARD_TYPE_PLAN_PRESSURE_PROFILE,
-        String(cardType || '')
-    );
+        type
+    ) || !!getGeneratedThrowChainPlanPressureProfile(type);
 }
 
 function getCardPlanPressureProfile(cardType) {
     const type = String(cardType || '');
     return Object.prototype.hasOwnProperty.call(CARD_TYPE_PLAN_PRESSURE_PROFILE, type)
         ? CARD_TYPE_PLAN_PRESSURE_PROFILE[type]
-        : null;
+        : getGeneratedThrowChainPlanPressureProfile(type);
 }
 
 function computeCardPlanPressure(level, legalMovesCount, planState, decisionContext) {
@@ -1826,7 +2020,7 @@ function resolveCardPlanPressureThreshold(legalMovesCount, planState, profile) {
 function buildCornerPlanState(playerKey, legalMoves, usableCardIds) {
     const gs = (typeof gameState !== 'undefined') ? gameState : null;
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
-    const board = gs && Array.isArray(gs.board) ? gs.board : null;
+    const board = getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
     const playerValue = playerKey === 'black'
         ? (typeof BLACK !== 'undefined' ? BLACK : 1)
         : (typeof WHITE !== 'undefined' ? WHITE : -1);
@@ -1914,6 +2108,9 @@ function isCardChoiceAllowedByPlan(playerKey, level, legalMovesCount, cardId, ca
     const maxLegalGain = Number.isFinite(decisionContext && decisionContext.maxLegalGain)
         ? Math.max(0, Number(decisionContext.maxLegalGain))
         : maxLegalFlips;
+    const maxLegalBoardBonus = Number.isFinite(decisionContext && decisionContext.maxLegalBoardBonus)
+        ? Math.max(0, Number(decisionContext.maxLegalBoardBonus))
+        : 0;
     const oppHandSize = Number.isFinite(decisionContext && decisionContext.oppHandSize)
         ? Math.max(0, Math.floor(Number(decisionContext.oppHandSize)))
         : 0;
@@ -1924,6 +2121,8 @@ function isCardChoiceAllowedByPlan(playerKey, level, legalMovesCount, cardId, ca
         ((cardType === 'GOLD_STONE' || cardType === 'SILVER_STONE' || cardType === 'RAINBOW_STONE') &&
             maxLegalFlips >= 3 &&
             maxLegalGain >= 3) ||
+        (cardType === 'CRYSTAL_STONE' &&
+            maxLegalBoardBonus >= 2) ||
         (cardType === 'PLUNDER_WILL' &&
             maxLegalFlips >= 3 &&
             maxLegalGain >= 3 &&
@@ -1966,7 +2165,7 @@ function isCardChoiceAllowedByPlan(playerKey, level, legalMovesCount, cardId, ca
 function buildMovePlanContext(playerKey, level, candidateMoves) {
     const gs = (typeof gameState !== 'undefined') ? gameState : null;
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
-    const board = gs && Array.isArray(gs.board) ? gs.board : null;
+    const board = getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
     if (!isPlayableBoard(board)) return null;
     const pending = cs && cs.pendingEffectByPlayer ? cs.pendingEffectByPlayer[playerKey] : null;
     const pendingType = resolvePendingType(playerKey);
@@ -1977,9 +2176,7 @@ function buildMovePlanContext(playerKey, level, candidateMoves) {
         ? Number(cs.charge[playerKey])
         : 0;
     const boardStats = countBoardStatsForPlayer(playerValue);
-    const boardRows = Array.isArray(board) ? board.length : 0;
-    const boardCols = boardRows > 0 && Array.isArray(board[0]) ? board[0].length : 0;
-    const totalCells = Math.max(1, boardRows * boardCols);
+    const totalCells = Math.max(1, countPlayableCells(board));
     const occupied = Math.max(0, totalCells - Math.max(0, Number(boardStats.empties) || 0));
     const ownDiscs = Math.max(0, Math.min(
         occupied,
@@ -2082,21 +2279,21 @@ function maybeOverrideWithStrictPendingPlacement(selectedMove, candidateMoves, p
 }
 
 function countBoardStatsForPlayer(playerValue) {
-    const gs = (typeof gameState !== 'undefined') ? gameState : null;
-    if (!gs || !Array.isArray(gs.board)) {
+    const board = getCurrentCpuBoard();
+    if (!Array.isArray(board)) {
         return { discDiff: 0, empties: 0 };
     }
     let own = 0;
     let opp = 0;
     let empties = 0;
-    for (let r = 0; r < gs.board.length; r++) {
-        const row = Array.isArray(gs.board[r]) ? gs.board[r] : [];
-        for (let c = 0; c < row.length; c++) {
-            const v = row[c];
-            if (v === playerValue) own += 1;
-            else if (v === -playerValue) opp += 1;
-            else if (v === 0) empties += 1;
-        }
+    const cells = (SharedBoardUtilsModule && typeof SharedBoardUtilsModule.collectBoardCoordinates === 'function')
+        ? SharedBoardUtilsModule.collectBoardCoordinates(board)
+        : board.flatMap((row, r) => (Array.isArray(row) ? row.map((_, c) => ({ row: r, col: c })) : []));
+    for (const cell of cells) {
+        const v = getBoardCellValue(board, cell.row, cell.col);
+        if (v === playerValue) own += 1;
+        else if (v === -playerValue) opp += 1;
+        else if (v === 0) empties += 1;
     }
     return { discDiff: own - opp, empties };
 }
@@ -2104,7 +2301,7 @@ function countBoardStatsForPlayer(playerValue) {
 function buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds) {
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
     const gs = (typeof gameState !== 'undefined') ? gameState : null;
-    const board = gs && Array.isArray(gs.board) ? gs.board : null;
+    const board = getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
     const playerValue = playerKey === 'black'
         ? (typeof BLACK !== 'undefined' ? BLACK : 1)
         : (typeof WHITE !== 'undefined' ? WHITE : -1);
@@ -2133,6 +2330,7 @@ function buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMov
     let maxLegalFlips = 0;
     let totalLegalFlips = 0;
     let maxLegalGain = 0;
+    let maxLegalBoardBonus = 0;
     for (const move of safeLegalMoves) {
         if (!move) continue;
         const flips = Array.isArray(move.flips) ? move.flips.length : 0;
@@ -2141,6 +2339,7 @@ function buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMov
         const bonus = (Number.isInteger(move.row) && Number.isInteger(move.col))
             ? getBoardBonusValueAt(move.row, move.col)
             : 0;
+        if (bonus > maxLegalBoardBonus) maxLegalBoardBonus = bonus;
         const gain = flips + Math.max(0, Number(bonus) || 0);
         if (gain > maxLegalGain) maxLegalGain = gain;
     }
@@ -2206,6 +2405,7 @@ function buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMov
         maxLegalFlips,
         avgLegalFlips,
         maxLegalGain,
+        maxLegalBoardBonus,
         cloneSplitEligibleSourceCount,
         ownSpecialCount,
         oppSpecialCount,
@@ -2230,6 +2430,9 @@ const HIGH_VARIANCE_CARD_TYPES_FOR_QUIESCENCE = new Set([
 ]);
 
 function cloneBoardForCpu(board) {
+    if (SharedBoardUtilsModule && typeof SharedBoardUtilsModule.cloneBoard === 'function') {
+        return SharedBoardUtilsModule.cloneBoard(board);
+    }
     if (!Array.isArray(board)) return [];
     return board.map((row) => (Array.isArray(row) ? row.slice() : []));
 }
@@ -2240,21 +2443,28 @@ function applyMoveByFlipsForCpu(board, move, playerValue) {
     const col = Number(move.col);
     if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
     const next = cloneBoardForCpu(board);
-    if (!Array.isArray(next[row]) || col < 0 || col >= next[row].length) return null;
-    next[row][col] = playerValue;
+    if (!setBoardCellValue(next, row, col, playerValue)) return null;
     const flips = Array.isArray(move.flips) ? move.flips : [];
     for (const one of flips) {
         const fr = Number(one && one.row);
         const fc = Number(one && one.col);
         if (!Number.isInteger(fr) || !Number.isInteger(fc)) continue;
-        if (!Array.isArray(next[fr]) || fc < 0 || fc >= next[fr].length) continue;
-        next[fr][fc] = playerValue;
+        setBoardCellValue(next, fr, fc, playerValue);
     }
     return next;
 }
 
 function hasCornerMoveOnBoardForPlayer(board, playerValue) {
-    if (!Array.isArray(board) || typeof getLegalMoves !== 'function') return false;
+    if (!Array.isArray(board)) return false;
+    if (SharedBoardUtilsModule && typeof SharedBoardUtilsModule.getLegalMovesBasic === 'function') {
+        try {
+            const legal = SharedBoardUtilsModule.getLegalMovesBasic(board, playerValue) || [];
+            return legal.some((m) => m && isCornerCell(Number(m.row), Number(m.col), board));
+        } catch (e) {
+            return false;
+        }
+    }
+    if (typeof getLegalMoves !== 'function') return false;
     try {
         const protection = (typeof getActiveProtectionForPlayer === 'function')
             ? getActiveProtectionForPlayer(playerValue)
@@ -2274,7 +2484,7 @@ function buildCardQuiescenceSnapshot(playerKey, level, legalMoves, context) {
     if (!CpuPolicyCore || typeof CpuPolicyCore.chooseMoveByLookahead !== 'function') return null;
     if (!isPlayableBoard(gameState && gameState.board)) return null;
 
-    const board = gameState.board;
+    const board = getCurrentCpuBoard();
     const playerValue = Number.isFinite(context && context.playerValue)
         ? (Number(context.playerValue) >= 0 ? 1 : -1)
         : (playerKey === 'black' ? 1 : -1);
@@ -3055,10 +3265,7 @@ function selectCpuMoveWithPolicy(candidateMoves, playerKey) {
 function getBoardCellValueSafe(board, row, col) {
     if (!Array.isArray(board)) return null;
     if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
-    if (row < 0 || row >= board.length) return null;
-    const line = Array.isArray(board[row]) ? board[row] : null;
-    if (!line || col < 0 || col >= line.length) return null;
-    return line[col];
+    return getBoardCellValue(board, row, col);
 }
 
 function countAdjacentCellsByValue(board, row, col, value) {
@@ -3131,7 +3338,7 @@ function isCpuBlockedCell(row, col) {
 }
 
 function getStrongWindLandingProfile(row, col) {
-    const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
+    const board = getCurrentCpuBoard();
     if (!board) return null;
 
     const dirs = [
@@ -3182,7 +3389,7 @@ function getStrongWindLandingProfile(row, col) {
         else if (isEdgeCell(tr, tc, board)) longestEdgeCount += 1;
         longestBonusTotal += getBoardBonusValueAt(tr, tc);
 
-        const landingCornerHint = getCornerProximity(tr, tc);
+        const landingCornerHint = getCornerProximity(tr, tc, board);
         if (landingCornerHint) {
             const cornerCell = getBoardCellValueSafe(
                 board,
@@ -3205,7 +3412,7 @@ function getStrongWindLandingProfile(row, col) {
 }
 
 function scoreSeatStrategicValue(playerKey, row, col, markerProfile) {
-    const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
+    const board = getCurrentCpuBoard();
     if (!board) return 0;
     const cell = getBoardCellValueSafe(board, row, col);
     if (cell === null) return 0;
@@ -3219,7 +3426,7 @@ function scoreSeatStrategicValue(playerKey, row, col, markerProfile) {
     const bonus = getBoardBonusValueAt(row, col);
     const ownAdj = countAdjacentCellsByValue(board, row, col, playerValue);
     const oppAdj = countAdjacentCellsByValue(board, row, col, -playerValue);
-    const cornerHint = getCornerProximity(row, col);
+    const cornerHint = getCornerProximity(row, col, board);
 
     let score = 0;
     if (corner) score += 3200;
@@ -3376,7 +3583,7 @@ function filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves) {
     if (!Array.isArray(candidateMoves) || candidateMoves.length <= 0) return [];
     if (!Number.isFinite(level) || level < 6) return candidateMoves;
 
-    const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
+    const board = getCurrentCpuBoard();
     if (board) {
         const cornerMoves = candidateMoves.filter((move) => {
             if (!move) return false;
@@ -3421,7 +3628,7 @@ function filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves) {
 }
 
 function isCloneSplitEligibleSource(playerKey, row, col, markerProfile) {
-    const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
+    const board = getCurrentCpuBoard();
     const playerValue = playerKey === 'black'
         ? (typeof BLACK !== 'undefined' ? BLACK : 1)
         : (typeof WHITE !== 'undefined' ? WHITE : -1);
@@ -3449,26 +3656,40 @@ function filterCloneSplitTargetsForLv6(playerKey, targets) {
     });
 }
 
-function getCornerProximity(row, col) {
-    const key = `${row},${col}`;
-    const xMap = {
-        '1,1': [0, 0],
-        '1,6': [0, 7],
-        '6,1': [7, 0],
-        '6,6': [7, 7]
-    };
-    const cMap = {
-        '0,1': [0, 0],
-        '1,0': [0, 0],
-        '0,6': [0, 7],
-        '1,7': [0, 7],
-        '6,0': [7, 0],
-        '7,1': [7, 0],
-        '6,7': [7, 7],
-        '7,6': [7, 7]
-    };
-    if (xMap[key]) return { kind: 'X', corner: xMap[key] };
-    if (cMap[key]) return { kind: 'C', corner: cMap[key] };
+function getCornerProximity(row, col, boardOverride) {
+    const board = Array.isArray(boardOverride) ? boardOverride : getCurrentCpuBoard();
+    if (!board || !SharedBoardUtilsModule || typeof SharedBoardUtilsModule.getCornerCells !== 'function') return null;
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+    const isX = typeof SharedBoardUtilsModule.isXSquare === 'function'
+        ? SharedBoardUtilsModule.isXSquare(row, col, board)
+        : false;
+    const isC = !isX && typeof SharedBoardUtilsModule.isCSquare === 'function'
+        ? SharedBoardUtilsModule.isCSquare(row, col, board)
+        : false;
+    if (!isX && !isC) return null;
+
+    const corners = SharedBoardUtilsModule.getCornerCells(board);
+    for (const corner of corners) {
+        if (!corner || !Number.isInteger(corner.row) || !Number.isInteger(corner.col)) continue;
+        for (const vertical of [-1, 1]) {
+            for (const horizontal of [-1, 1]) {
+                const verticalCell = getBoardCellValueSafe(board, corner.row + vertical, corner.col);
+                const horizontalCell = getBoardCellValueSafe(board, corner.row, corner.col + horizontal);
+                if (verticalCell !== null || horizontalCell !== null) continue;
+                const inwardRow = corner.row - vertical;
+                const inwardCol = corner.col - horizontal;
+                if (isX && inwardRow === row && inwardCol === col) {
+                    return { kind: 'X', corner: [corner.row, corner.col] };
+                }
+                if (isC && (
+                    (inwardRow === row && corner.col === col) ||
+                    (corner.row === row && inwardCol === col)
+                )) {
+                    return { kind: 'C', corner: [corner.row, corner.col] };
+                }
+            }
+        }
+    }
     return null;
 }
 
@@ -3523,29 +3744,12 @@ function getForcedCornerLaneAntiPatternPenalty(pendingType, row, col, board, pla
 function simulatePendingPlacementBoard(board, playerValue, target) {
     if (!Array.isArray(board)) return null;
     if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
-    const next = board.map((row) => (Array.isArray(row) ? row.slice() : []));
-    if (
-        target.row < 0 ||
-        target.row >= next.length ||
-        !Array.isArray(next[target.row]) ||
-        target.col < 0 ||
-        target.col >= next[target.row].length
-    ) {
-        return next;
-    }
-    next[target.row][target.col] = playerValue;
+    const next = cloneBoardForCpu(board);
+    if (!setBoardCellValue(next, target.row, target.col, playerValue)) return next;
     const flips = Array.isArray(target.flips) ? target.flips : [];
     for (const one of flips) {
         if (!one || !Number.isInteger(one.row) || !Number.isInteger(one.col)) continue;
-        if (
-            one.row >= 0 &&
-            one.row < next.length &&
-            Array.isArray(next[one.row]) &&
-            one.col >= 0 &&
-            one.col < next[one.row].length
-        ) {
-            next[one.row][one.col] = playerValue;
-        }
+        setBoardCellValue(next, one.row, one.col, playerValue);
     }
     return next;
 }
@@ -3577,7 +3781,7 @@ function scorePendingTargetByType(playerKey, pendingType, target, pending) {
     const seatValue = onBoard ? scoreSeatStrategicValue(playerKey, row, col, markerProfile) : 0;
     const stats = countBoardStatsForPlayer(playerValue);
     const discDiff = Number.isFinite(stats.discDiff) ? Number(stats.discDiff) : 0;
-    const cornerHint = getCornerProximity(row, col);
+    const cornerHint = getCornerProximity(row, col, board);
     const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
         ? Number(cpuSmartness[playerKey])
         : 1;
@@ -4105,7 +4309,7 @@ function buildPendingTargetOnnxContext(playerKey, level, pendingType, targets) {
 }
 
 function simulateBoardForPendingTarget(playerKey, pendingType, target) {
-    const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
+    const board = getCurrentCpuBoard();
     if (!isPlayableBoard(board) || !target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
     const type = String(pendingType || '');
     const playerValue = playerKey === 'black'
@@ -4118,16 +4322,7 @@ function simulateBoardForPendingTarget(playerKey, pendingType, target) {
 
     if (type === 'DESTROY_ONE_STONE' || type === 'SACRIFICE_WILL') {
         const next = cloneBoardForCpu(board);
-        if (
-            target.row < 0 ||
-            target.row >= next.length ||
-            !Array.isArray(next[target.row]) ||
-            target.col < 0 ||
-            target.col >= next[target.row].length
-        ) {
-            return next;
-        }
-        next[target.row][target.col] = 0;
+        setBoardCellValue(next, target.row, target.col, 0);
         return next;
     }
 
@@ -4174,33 +4369,79 @@ function resolvePendingTargetOverrideThreshold(pendingType) {
 
 async function rerankOnnxPendingTargetChoice(runtime, selectedTarget, playerKey, level, pendingType, targets, pending, baseContext, budgetMs) {
     const selected = resolveCandidateMoveByCoord(targets, selectedTarget) || selectedTarget;
-    const fallback = choosePendingTargetWithPolicy(playerKey, pendingType, targets, pending);
-    if (!selected || !fallback || isSameMoveByCoord(selected, fallback)) {
-        return { target: selected || fallback || targets[0], changed: false, gap: 0, selectedValue: null, fallbackValue: null };
+    const scoredCandidates = Array.isArray(targets)
+        ? targets
+            .map((target) => ({
+                target,
+                heuristic: scorePendingTargetByType(playerKey, pendingType, target, pending)
+            }))
+            .filter((entry) => entry && entry.target)
+            .sort((a, b) => {
+                const aScore = Number.isFinite(a.heuristic) ? Number(a.heuristic) : Number.NEGATIVE_INFINITY;
+                const bScore = Number.isFinite(b.heuristic) ? Number(b.heuristic) : Number.NEGATIVE_INFINITY;
+                if (bScore !== aScore) return bScore - aScore;
+                const ar = Number(a.target && a.target.row);
+                const br = Number(b.target && b.target.row);
+                if (ar !== br) return ar - br;
+                return Number(a.target && a.target.col) - Number(b.target && b.target.col);
+            })
+        : [];
+    const shortlist = [];
+    const pushUniqueTarget = (target) => {
+        if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return;
+        if (shortlist.some((one) => isSameMoveByCoord(one, target))) return;
+        shortlist.push(target);
+    };
+    pushUniqueTarget(selected);
+    for (const entry of scoredCandidates) {
+        pushUniqueTarget(entry.target);
+        if (shortlist.length >= 3) break;
+    }
+    if (shortlist.length <= 1) {
+        return { target: selected || shortlist[0] || targets[0], changed: false, gap: 0, selectedValue: null, fallbackValue: null };
+    }
+    const evaluated = [];
+    for (const candidate of shortlist) {
+        const heuristic = scorePendingTargetByType(playerKey, pendingType, candidate, pending);
+        let composite = Number.isFinite(heuristic) ? Number(heuristic) : Number.NEGATIVE_INFINITY;
+        const value = await evaluatePendingTargetValue(runtime, baseContext, playerKey, level, pendingType, candidate, budgetMs);
+        if (Number.isFinite(value)) composite += value * PENDING_SELECTION_VALUE_WEIGHT;
+        evaluated.push({
+            target: candidate,
+            value,
+            composite
+        });
+    }
+    const selectedEval = evaluated.find((entry) => isSameMoveByCoord(entry.target, selected)) || evaluated[0] || null;
+    let bestAlternative = null;
+    for (const entry of evaluated) {
+        if (!selectedEval || isSameMoveByCoord(entry.target, selectedEval.target)) continue;
+        if (!bestAlternative || entry.composite > bestAlternative.composite) {
+            bestAlternative = entry;
+        }
+    }
+    if (!selectedEval || !bestAlternative) {
+        return {
+            target: selected || targets[0],
+            changed: false,
+            gap: 0,
+            selectedValue: selectedEval ? selectedEval.value : null,
+            fallbackValue: bestAlternative ? bestAlternative.value : null
+        };
     }
 
-    const selectedHeuristic = scorePendingTargetByType(playerKey, pendingType, selected, pending);
-    const fallbackHeuristic = scorePendingTargetByType(playerKey, pendingType, fallback, pending);
-    let selectedComposite = Number.isFinite(selectedHeuristic) ? Number(selectedHeuristic) : Number.NEGATIVE_INFINITY;
-    let fallbackComposite = Number.isFinite(fallbackHeuristic) ? Number(fallbackHeuristic) : Number.NEGATIVE_INFINITY;
-
-    const selectedValue = await evaluatePendingTargetValue(runtime, baseContext, playerKey, level, pendingType, selected, budgetMs);
-    const fallbackValue = await evaluatePendingTargetValue(runtime, baseContext, playerKey, level, pendingType, fallback, budgetMs);
-    if (Number.isFinite(selectedValue)) selectedComposite += selectedValue * PENDING_SELECTION_VALUE_WEIGHT;
-    if (Number.isFinite(fallbackValue)) fallbackComposite += fallbackValue * PENDING_SELECTION_VALUE_WEIGHT;
-
-    const gap = fallbackComposite - selectedComposite;
+    const gap = bestAlternative.composite - selectedEval.composite;
     const shouldOverride = (
-        (!Number.isFinite(selectedComposite) && Number.isFinite(fallbackComposite)) ||
+        (!Number.isFinite(selectedEval.composite) && Number.isFinite(bestAlternative.composite)) ||
         gap >= resolvePendingTargetOverrideThreshold(pendingType)
     );
 
     return {
-        target: shouldOverride ? fallback : selected,
+        target: shouldOverride ? bestAlternative.target : selectedEval.target,
         changed: shouldOverride,
         gap,
-        selectedValue,
-        fallbackValue
+        selectedValue: selectedEval.value,
+        fallbackValue: bestAlternative.value
     };
 }
 
@@ -4276,19 +4517,28 @@ async function choosePendingTargetWithPolicyAsync(playerKey, pendingType, target
  */
 async function cpuSelectDestroyWithPolicy(playerKey) {
     const level = cpuSmartness[playerKey] || 1;
-    const opponent = playerKey === 'black' ? WHITE : BLACK;
-    const targets = [];
-
-    // 破壊可能な敵の石を収集
-    for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-            if (gameState.board[r][c] === opponent) {
-                const flipBlockers = (typeof getFlipBlockers === 'function') ? getFlipBlockers() : [];
-                const isPermaProtected = flipBlockers.some(
-                    p => p.row === r && p.col === c
-                );
-                if (!isPermaProtected) {
-                    targets.push({ row: r, col: c });
+    const board = getCurrentCpuBoard();
+    const selectorTargets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
+        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+        : [];
+    let targets = Array.isArray(selectorTargets)
+        ? selectorTargets.filter((target) => {
+            if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return false;
+            const value = getBoardCellValueSafe(board, target.row, target.col);
+            return value !== null && value !== 0;
+        })
+        : [];
+    if (targets.length <= 0 && Array.isArray(board)) {
+        if (SharedBoardUtilsModule && typeof SharedBoardUtilsModule.collectBoardCoordinates === 'function') {
+            targets = SharedBoardUtilsModule.collectBoardCoordinates(board)
+                .filter((cell) => getBoardCellValueSafe(board, cell.row, cell.col) !== 0);
+        } else {
+            targets = [];
+            for (let row = 0; row < board.length; row++) {
+                const line = Array.isArray(board[row]) ? board[row] : [];
+                for (let col = 0; col < line.length; col++) {
+                    if (line[col] === 0) continue;
+                    targets.push({ row, col });
                 }
             }
         }
@@ -4346,7 +4596,7 @@ async function cpuSelectStrongWindWillWithPolicy(playerKey) {
 
     const pipelineResult = runCpuPendingSelectionViaPipeline(
         playerKey,
-        { strongWindTarget: { row: target.row, col: target.col } },
+        { strongWindTarget: { row: target.row, col: target.col }, deferNetworkPublish: true },
         'STRONG_WIND_WILL'
     );
     if (pipelineResult) return;
@@ -4377,7 +4627,7 @@ async function cpuSelectSuperBuoyancyWillWithPolicy(playerKey) {
 
     const pipelineResult = runCpuPendingSelectionViaPipeline(
         playerKey,
-        { superBuoyancyTarget: { row: target.row, col: target.col } },
+        { superBuoyancyTarget: { row: target.row, col: target.col }, deferNetworkPublish: true },
         'SUPER_BUOYANCY_WILL'
     );
     if (pipelineResult) return;
@@ -4408,7 +4658,7 @@ async function cpuSelectSuperGravityWillWithPolicy(playerKey) {
 
     const pipelineResult = runCpuPendingSelectionViaPipeline(
         playerKey,
-        { superGravityTarget: { row: target.row, col: target.col } },
+        { superGravityTarget: { row: target.row, col: target.col }, deferNetworkPublish: true },
         'SUPER_GRAVITY_WILL'
     );
     if (pipelineResult) return;
@@ -5020,9 +5270,9 @@ async function cpuSelectCorrosionWillWithPolicy(playerKey) {
 function scoreTimeBombTarget(playerKey, target) {
     if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return -Infinity;
     if (!gameState || !Array.isArray(gameState.board)) return -Infinity;
-    const board = gameState.board;
-    const size = board.length;
-    if (target.row < 0 || target.col < 0 || target.row >= size || target.col >= size) return -Infinity;
+    const board = getCurrentCpuBoard();
+    if (!board) return -Infinity;
+    if (getBoardCellValueSafe(board, target.row, target.col) === null) return -Infinity;
 
     const playerValue = playerKey === 'black'
         ? (typeof BLACK !== 'undefined' ? BLACK : 1)
@@ -5036,9 +5286,8 @@ function scoreTimeBombTarget(playerKey, target) {
         for (let dc = -1; dc <= 1; dc++) {
             const r = target.row + dr;
             const c = target.col + dc;
-            if (r < 0 || c < 0 || r >= size || c >= (Array.isArray(board[r]) ? board[r].length : size)) continue;
-            const cell = board[r][c];
-            if (cell === 0) continue;
+            const cell = getBoardCellValueSafe(board, r, c);
+            if (cell === null || cell === 0) continue;
 
             const corner = isCornerCell(r, c, board);
             const edge = isEdgeCell(r, c, board);
@@ -5550,4 +5799,5 @@ try {
     if (uiBootstrap && typeof uiBootstrap.registerUIGlobals === 'function') uiBootstrap.registerUIGlobals({ computeCpuAction });
 } catch (e) { /* ignore */ }
 try { if (typeof globalThis !== 'undefined') globalThis.computeCpuAction = computeCpuAction; } catch (e) {}
+
 

@@ -1,5 +1,6 @@
 const Shared = require('../shared-constants');
 const CardLogic = require('../game/logic/cards');
+const TurnPipeline = require('../game/turn/turn_pipeline');
 
 function createState() {
   const cardState = CardLogic.createCardState({ shuffle: (arr) => arr });
@@ -65,5 +66,81 @@ describe('CONDEMN_WILL core behavior', () => {
     expect(cs.pendingEffectByPlayer.black).toBeNull();
     expect(cs.hands.white).toEqual([]);
     expect(cs.discard).toContain('__hidden_hand__:white:0');
+  });
+
+  test('applies by hand index even when stored offer card id is stale', () => {
+    const cs = createState();
+    cs.hands.black = [];
+    cs.hands.white = ['meteor_will'];
+    cs.pendingEffectByPlayer.black = {
+      type: 'CONDEMN_WILL',
+      stage: 'selectTarget',
+      offers: [{ handIndex: 0, cardId: 'silver_stone' }]
+    };
+
+    const result = CardLogic.applyCondemnWill(cs, 'black', 0);
+    expect(result.applied).toBe(true);
+    expect(result.destroyedCardId).toBe('meteor_will');
+    expect(cs.pendingEffectByPlayer.black).toBeNull();
+    expect(cs.hands.white).toEqual([]);
+    expect(cs.discard).toContain('meteor_will');
+  });
+
+  test('turn pipeline resolves condemn selection action and emits opponent hand removal', () => {
+    const condemn = Shared.CARD_DEFS.find((c) => c && c.type === 'CONDEMN_WILL');
+    expect(condemn).toBeTruthy();
+
+    const prng = { shuffle: (arr) => arr, random: () => 0.5 };
+    const cs = CardLogic.createCardState(prng);
+    const gs = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: Shared.BLACK,
+      turnNumber: 1,
+      consecutivePasses: 0
+    };
+    cs.debugNoDraw = true;
+    cs.charge.black = 30;
+    cs.hands.black = [condemn.id];
+    cs.hands.white = ['silver_stone', 'gold_stone'];
+
+    TurnPipeline.applyTurn(
+      cs,
+      gs,
+      'black',
+      { type: 'use_card', useCardId: condemn.id, useCardOwnerKey: 'black' },
+      prng,
+      { skipTurnStart: true }
+    );
+
+    const selectRes = TurnPipeline.applyTurn(
+      cs,
+      gs,
+      'black',
+      { type: 'place', condemnTargetIndex: 1 },
+      prng,
+      { skipTurnStart: true }
+    );
+
+    expect(selectRes.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'condemn_selected',
+        player: 'black',
+        condemnTargetIndex: 1,
+        applied: true,
+        destroyedCardId: 'gold_stone'
+      })
+    ]));
+    expect(selectRes.presentationEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'HAND_REMOVE',
+        player: 'white',
+        count: 1,
+        reason: 'condemn_will',
+        cardId: 'gold_stone'
+      })
+    ]));
+    expect(cs.pendingEffectByPlayer.black).toBeNull();
+    expect(cs.hands.white).toEqual(['silver_stone']);
+    expect(gs.board.flat().every((cell) => cell === 0)).toBe(true);
   });
 });

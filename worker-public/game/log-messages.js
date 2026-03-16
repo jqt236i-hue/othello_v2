@@ -8,6 +8,7 @@ const LOG_MESSAGES = {
     silverCharge: (gain) => `銀の意志：布石 +${gain}（3倍）`,
     goldCharge: (gain) => `金の意志：布石 +${gain}（4倍）`,
     rainbowCharge: (gain) => `虹の意志：布石 +${gain}（6倍）`,
+    crystalCharge: (gain) => gain > 0 ? `水晶の意志：数字マス布石 +${gain}（4倍）` : '水晶の意志：数字マスなしで増加なし',
     plunderPoints: (amount) => `吸収：${amount}ポイントを吸収`,
 
     protectNext: (ownerName) => `${ownerName}: 次の石を保護`,
@@ -64,3 +65,4 @@ const LOG_MESSAGES = {
 if (typeof module === 'object' && module.exports) {
     module.exports = LOG_MESSAGES;
 }
+

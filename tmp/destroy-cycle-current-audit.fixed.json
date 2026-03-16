@@ -1,0 +1,735 @@
+{
+  "count": 78,
+  "escapeRows": [
+    {
+      "seed": 11,
+      "ply": 87,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "escape_01",
+      "destroyCardType": "ESCAPE_WILL",
+      "future": -1,
+      "legalMovesCount": 1,
+      "handSize": 5,
+      "usableCount": 4,
+      "destroyedWasUsable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": true,
+      "reasonTags": [
+        "decision:destroy",
+        "corner_emergency",
+        "hand_pressure",
+        "hand_cycle",
+        "missing_role_card"
+      ],
+      "handCards": [
+        "escape_01",
+        "observer_01",
+        "will_hunter_king_01",
+        "breeding_01",
+        "sacrifice_01"
+      ],
+      "usableCardIds": [
+        "escape_01",
+        "observer_01",
+        "breeding_01",
+        "sacrifice_01"
+      ]
+    },
+    {
+      "seed": 13,
+      "ply": 18,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "escape_01",
+      "destroyCardType": "ESCAPE_WILL",
+      "future": 0,
+      "legalMovesCount": 5,
+      "handSize": 5,
+      "usableCount": 4,
+      "destroyedWasUsable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "hand_cycle",
+        "missing_role_card"
+      ],
+      "handCards": [
+        "escape_01",
+        "corrosion_01",
+        "heaven_01",
+        "gold_stone",
+        "regen_01"
+      ],
+      "usableCardIds": [
+        "escape_01",
+        "heaven_01",
+        "gold_stone",
+        "regen_01"
+      ]
+    },
+    {
+      "seed": 14,
+      "ply": 26,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "escape_01",
+      "destroyCardType": "ESCAPE_WILL",
+      "future": 0,
+      "legalMovesCount": 7,
+      "handSize": 5,
+      "usableCount": 3,
+      "destroyedWasUsable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": true,
+      "reasonTags": [
+        "decision:destroy",
+        "corner_emergency",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "hand_cycle",
+        "missing_role_card"
+      ],
+      "handCards": [
+        "work_01",
+        "escape_01",
+        "freeze_01",
+        "sniper_01",
+        "trap_01"
+      ],
+      "usableCardIds": [
+        "work_01",
+        "escape_01",
+        "trap_01"
+      ]
+    }
+  ],
+  "worst": [
+    {
+      "seed": 8,
+      "ply": 22,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "hyperactive_inherit_01",
+      "destroyCardType": "HYPERACTIVE_INHERIT_WILL",
+      "future": -1,
+      "legalMovesCount": 6,
+      "handSize": 5,
+      "usableCount": 3,
+      "destroyedWasUsable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "hand_pressure",
+        "hand_cycle",
+        "missing_role_card"
+      ],
+      "handCards": [
+        "will_hunter_king_01",
+        "swap_01",
+        "cell_teleport_01",
+        "hyperactive_inherit_01",
+        "super_buoyancy_01"
+      ],
+      "usableCardIds": [
+        "swap_01",
+        "hyperactive_inherit_01",
+        "super_buoyancy_01"
+      ]
+    },
+    {
+      "seed": 11,
+      "ply": 87,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "escape_01",
+      "destroyCardType": "ESCAPE_WILL",
+      "future": -1,
+      "legalMovesCount": 1,
+      "handSize": 5,
+      "usableCount": 4,
+      "destroyedWasUsable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": true,
+      "reasonTags": [
+        "decision:destroy",
+        "corner_emergency",
+        "hand_pressure",
+        "hand_cycle",
+        "missing_role_card"
+      ],
+      "handCards": [
+        "escape_01",
+        "observer_01",
+        "will_hunter_king_01",
+        "breeding_01",
+        "sacrifice_01"
+      ],
+      "usableCardIds": [
+        "escape_01",
+        "observer_01",
+        "breeding_01",
+        "sacrifice_01"
+      ]
+    },
+    {
+      "seed": 14,
+      "ply": 33,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "cross_bomb_01",
+      "destroyCardType": "CROSS_BOMB",
+      "future": -1,
+      "legalMovesCount": 5,
+      "handSize": 5,
+      "usableCount": 5,
+      "destroyedWasUsable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "corner_hold_mode",
+        "hand_pressure",
+        "hand_cycle",
+        "missing_role_card"
+      ],
+      "handCards": [
+        "cross_bomb_01",
+        "super_gravity_01",
+        "loss_will_01",
+        "swap_01",
+        "clone_01"
+      ],
+      "usableCardIds": [
+        "cross_bomb_01",
+        "super_gravity_01",
+        "loss_will_01",
+        "swap_01",
+        "clone_01"
+      ]
+    },
+    {
+      "seed": 15,
+      "ply": 8,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "tempt_01",
+      "destroyCardType": "TEMPT_WILL",
+      "future": -1,
+      "legalMovesCount": 6,
+      "handSize": 3,
+      "usableCount": 0,
+      "destroyedWasUsable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "high_bonus_move_available",
+        "hand_cycle",
+        "lv6_fast_cycle"
+      ],
+      "handCards": [
+        "work_01",
+        "swap_01",
+        "tempt_01"
+      ],
+      "usableCardIds": []
+    },
+    {
+      "seed": 11,
+      "ply": 34,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "extreme_hyperactive_01",
+      "destroyCardType": "EXTREME_HYPERACTIVE_WILL",
+      "future": 0,
+      "legalMovesCount": 7,
+      "handSize": 5,
+      "usableCount": 3,
+      "destroyedWasUsable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "hand_cycle",
+        "missing_role_card"
+      ],
+      "handCards": [
+        "super_buoyancy_01",
+        "udr_01",
+        "extreme_hyperactive_01",
+        "super_gravity_01",
+        "escape_01"
+      ],
+      "usableCardIds": [
+        "super_buoyancy_01",
+        "super_gravity_01",
+        "escape_01"
+      ]
+    },
+    {
+      "seed": 13,
+      "ply": 18,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "escape_01",
+      "destroyCardType": "ESCAPE_WILL",
+      "future": 0,
+      "legalMovesCount": 5,
+      "handSize": 5,
+      "usableCount": 4,
+      "destroyedWasUsable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "hand_cycle",
+        "missing_role_card"
+      ],
+      "handCards": [
+        "escape_01",
+        "corrosion_01",
+        "heaven_01",
+        "gold_stone",
+        "regen_01"
+      ],
+      "usableCardIds": [
+        "escape_01",
+        "heaven_01",
+        "gold_stone",
+        "regen_01"
+      ]
+    },
+    {
+      "seed": 13,
+      "ply": 33,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "robot_vacuum_01",
+      "destroyCardType": "ROBOT_VACUUM_WILL",
+      "future": 0,
+      "legalMovesCount": 6,
+      "handSize": 5,
+      "usableCount": 5,
+      "destroyedWasUsable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "hand_cycle",
+        "missing_role_card"
+      ],
+      "handCards": [
+        "corrosion_01",
+        "heaven_01",
+        "regen_01",
+        "crystal_stone",
+        "robot_vacuum_01"
+      ],
+      "usableCardIds": [
+        "corrosion_01",
+        "heaven_01",
+        "regen_01",
+        "crystal_stone",
+        "robot_vacuum_01"
+      ]
+    },
+    {
+      "seed": 14,
+      "ply": 26,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "escape_01",
+      "destroyCardType": "ESCAPE_WILL",
+      "future": 0,
+      "legalMovesCount": 7,
+      "handSize": 5,
+      "usableCount": 3,
+      "destroyedWasUsable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": true,
+      "reasonTags": [
+        "decision:destroy",
+        "corner_emergency",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "hand_cycle",
+        "missing_role_card"
+      ],
+      "handCards": [
+        "work_01",
+        "escape_01",
+        "freeze_01",
+        "sniper_01",
+        "trap_01"
+      ],
+      "usableCardIds": [
+        "work_01",
+        "escape_01",
+        "trap_01"
+      ]
+    },
+    {
+      "seed": 14,
+      "ply": 29,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "instant_hyperactive_01",
+      "destroyCardType": "INSTANT_HYPERACTIVE_WILL",
+      "future": 0,
+      "legalMovesCount": 6,
+      "handSize": 5,
+      "usableCount": 5,
+      "destroyedWasUsable": true,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "corner_hold_mode",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "hand_cycle",
+        "missing_role_card"
+      ],
+      "handCards": [
+        "instant_hyperactive_01",
+        "cross_bomb_01",
+        "super_gravity_01",
+        "loss_will_01",
+        "swap_01"
+      ],
+      "usableCardIds": [
+        "instant_hyperactive_01",
+        "cross_bomb_01",
+        "super_gravity_01",
+        "loss_will_01",
+        "swap_01"
+      ]
+    },
+    {
+      "seed": 17,
+      "ply": 4,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "corrosion_01",
+      "destroyCardType": "CORROSION_WILL",
+      "future": 0,
+      "legalMovesCount": 9,
+      "handSize": 3,
+      "usableCount": 0,
+      "destroyedWasUsable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "high_bonus_move_available",
+        "hand_cycle",
+        "lv6_fast_cycle"
+      ],
+      "handCards": [
+        "taboo_reverse_01",
+        "corrosion_01",
+        "hyperactive_inherit_01"
+      ],
+      "usableCardIds": []
+    },
+    {
+      "seed": 18,
+      "ply": 20,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "split_01",
+      "destroyCardType": "SPLIT_WILL",
+      "future": 0,
+      "legalMovesCount": 6,
+      "handSize": 5,
+      "usableCount": 2,
+      "destroyedWasUsable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "hand_cycle",
+        "missing_role_card"
+      ],
+      "handCards": [
+        "udr_01",
+        "split_01",
+        "lightning_01",
+        "perma_01",
+        "trap_01"
+      ],
+      "usableCardIds": [
+        "perma_01",
+        "trap_01"
+      ]
+    },
+    {
+      "seed": 1,
+      "ply": 5,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "ultimate_hyperactive_01",
+      "destroyCardType": "ULTIMATE_HYPERACTIVE_GOD",
+      "future": 1,
+      "legalMovesCount": 3,
+      "handSize": 3,
+      "usableCount": 0,
+      "destroyedWasUsable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "hand_cycle",
+        "lv6_fast_cycle"
+      ],
+      "handCards": [
+        "corner_tribute_01",
+        "extend_life_01",
+        "ultimate_hyperactive_01"
+      ],
+      "usableCardIds": []
+    },
+    {
+      "seed": 1,
+      "ply": 10,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "taboo_reverse_01",
+      "destroyCardType": "TABOO_REVERSE_WILL",
+      "future": 1,
+      "legalMovesCount": 6,
+      "handSize": 5,
+      "usableCount": 3,
+      "destroyedWasUsable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "hand_cycle",
+        "missing_role_card"
+      ],
+      "handCards": [
+        "taboo_reverse_01",
+        "teleport_01",
+        "robot_vacuum_01",
+        "loss_will_01",
+        "sniper_01"
+      ],
+      "usableCardIds": [
+        "teleport_01",
+        "robot_vacuum_01",
+        "loss_will_01"
+      ]
+    },
+    {
+      "seed": 6,
+      "ply": 8,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "ultimate_hyperactive_01",
+      "destroyCardType": "ULTIMATE_HYPERACTIVE_GOD",
+      "future": 1,
+      "legalMovesCount": 5,
+      "handSize": 3,
+      "usableCount": 0,
+      "destroyedWasUsable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "high_bonus_move_available",
+        "hand_cycle",
+        "lv6_fast_cycle"
+      ],
+      "handCards": [
+        "taboo_reverse_01",
+        "ultimate_hyperactive_01",
+        "destroy_dragon_01"
+      ],
+      "usableCardIds": []
+    },
+    {
+      "seed": 6,
+      "ply": 10,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "cell_teleport_01",
+      "destroyCardType": "CELL_TELEPORT_WILL",
+      "future": 1,
+      "legalMovesCount": 3,
+      "handSize": 3,
+      "usableCount": 0,
+      "destroyedWasUsable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "hand_cycle",
+        "lv6_fast_cycle"
+      ],
+      "handCards": [
+        "cell_teleport_01",
+        "x_bomb_01",
+        "corner_tribute_01"
+      ],
+      "usableCardIds": []
+    },
+    {
+      "seed": 7,
+      "ply": 4,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "ultimate_hyperactive_01",
+      "destroyCardType": "ULTIMATE_HYPERACTIVE_GOD",
+      "future": 1,
+      "legalMovesCount": 3,
+      "handSize": 3,
+      "usableCount": 0,
+      "destroyedWasUsable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "high_bonus_move_available",
+        "hand_cycle",
+        "lv6_fast_cycle"
+      ],
+      "handCards": [
+        "taboo_reverse_01",
+        "ultimate_hyperactive_01",
+        "supply_01"
+      ],
+      "usableCardIds": []
+    },
+    {
+      "seed": 7,
+      "ply": 7,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "taboo_reverse_01",
+      "destroyCardType": "TABOO_REVERSE_WILL",
+      "future": 1,
+      "legalMovesCount": 6,
+      "handSize": 3,
+      "usableCount": 0,
+      "destroyedWasUsable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "high_bonus_move_available",
+        "hand_cycle",
+        "lv6_fast_cycle"
+      ],
+      "handCards": [
+        "taboo_reverse_01",
+        "supply_01",
+        "udg_01"
+      ],
+      "usableCardIds": []
+    },
+    {
+      "seed": 9,
+      "ply": 20,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "split_01",
+      "destroyCardType": "SPLIT_WILL",
+      "future": 1,
+      "legalMovesCount": 7,
+      "handSize": 5,
+      "usableCount": 3,
+      "destroyedWasUsable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": true,
+      "reasonTags": [
+        "decision:destroy",
+        "corner_emergency",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "hand_cycle",
+        "missing_role_card"
+      ],
+      "handCards": [
+        "taboo_reverse_01",
+        "swap_01",
+        "blockade_01",
+        "split_01",
+        "breeding_01"
+      ],
+      "usableCardIds": [
+        "swap_01",
+        "blockade_01",
+        "breeding_01"
+      ]
+    },
+    {
+      "seed": 11,
+      "ply": 5,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "last_resort_01",
+      "destroyCardType": "LAST_RESORT",
+      "future": 1,
+      "legalMovesCount": 3,
+      "handSize": 3,
+      "usableCount": 0,
+      "destroyedWasUsable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "high_bonus_move_available",
+        "hand_cycle",
+        "lv6_fast_cycle"
+      ],
+      "handCards": [
+        "super_buoyancy_01",
+        "last_resort_01",
+        "robot_vacuum_01"
+      ],
+      "usableCardIds": []
+    },
+    {
+      "seed": 12,
+      "ply": 5,
+      "actionType": "destroy_hand_card",
+      "destroyCardId": "breeding_01",
+      "destroyCardType": "BREEDING_WILL",
+      "future": 1,
+      "legalMovesCount": 3,
+      "handSize": 3,
+      "usableCount": 0,
+      "destroyedWasUsable": false,
+      "hasCornerMoveNow": false,
+      "hasEdgeMoveNow": false,
+      "cornerEmergency": false,
+      "reasonTags": [
+        "decision:destroy",
+        "hand_cycle",
+        "lv6_fast_cycle"
+      ],
+      "handCards": [
+        "breeding_01",
+        "split_01",
+        "super_buoyancy_01"
+      ],
+      "usableCardIds": []
+    }
+  ]
+}

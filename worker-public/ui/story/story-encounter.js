@@ -14,6 +14,82 @@
         const runtime = opts.runtime || null;
 
         let activeEncounter = null;
+        let previousBuildCardInitOptions = null;
+        let hasEncounterDeckInitOverride = false;
+
+        function cloneDeckCardIds(deckCardIds) {
+            return Array.isArray(deckCardIds) ? deckCardIds.slice() : null;
+        }
+
+        function cloneDeckCardIdsByPlayer(deckCardIdsByPlayer) {
+            if (!deckCardIdsByPlayer || typeof deckCardIdsByPlayer !== 'object') return null;
+            const cloned = {};
+            if (Array.isArray(deckCardIdsByPlayer.black)) {
+                cloned.black = deckCardIdsByPlayer.black.slice();
+            }
+            if (Array.isArray(deckCardIdsByPlayer.white)) {
+                cloned.white = deckCardIdsByPlayer.white.slice();
+            }
+            return Object.keys(cloned).length > 0 ? cloned : null;
+        }
+
+        function getTurnManagerUiImpl() {
+            return (rootRef && rootRef.__uiImpl_turn_manager && typeof rootRef.__uiImpl_turn_manager === 'object')
+                ? rootRef.__uiImpl_turn_manager
+                : {};
+        }
+
+        function resolveEncounterDeckInitOptions(encounter) {
+            if (!encounter || typeof encounter !== 'object') return null;
+            const deckCardIdsByPlayer = cloneDeckCardIdsByPlayer(encounter.initialDeckCardIdsByPlayer);
+            if (deckCardIdsByPlayer) {
+                return { initialDeckCardIdsByPlayer: deckCardIdsByPlayer };
+            }
+            const deckCardIds = cloneDeckCardIds(encounter.initialDeckCardIds);
+            return deckCardIds ? { initialDeckCardIds: deckCardIds } : null;
+        }
+
+        function installEncounterDeckInitOverride(encounter) {
+            const encounterDeckInitOptions = resolveEncounterDeckInitOptions(encounter);
+            if (!encounterDeckInitOptions) {
+                clearEncounterDeckInitOverride();
+                return;
+            }
+
+            const turnManagerUiImpl = getTurnManagerUiImpl();
+            if (!hasEncounterDeckInitOverride) {
+                previousBuildCardInitOptions = typeof turnManagerUiImpl.buildCardInitOptions === 'function'
+                    ? turnManagerUiImpl.buildCardInitOptions
+                    : null;
+                hasEncounterDeckInitOverride = true;
+            }
+
+            rootRef.__uiImpl_turn_manager = Object.assign({}, turnManagerUiImpl, {
+                buildCardInitOptions: function () {
+                    const liveDeckInitOptions = resolveEncounterDeckInitOptions(activeEncounter);
+                    if (liveDeckInitOptions) {
+                        return liveDeckInitOptions;
+                    }
+                    return previousBuildCardInitOptions
+                        ? previousBuildCardInitOptions.apply(this, arguments)
+                        : {};
+                }
+            });
+        }
+
+        function clearEncounterDeckInitOverride() {
+            if (!hasEncounterDeckInitOverride) return;
+            const turnManagerUiImpl = getTurnManagerUiImpl();
+            const restoredTurnManagerUiImpl = Object.assign({}, turnManagerUiImpl);
+            if (previousBuildCardInitOptions) {
+                restoredTurnManagerUiImpl.buildCardInitOptions = previousBuildCardInitOptions;
+            } else {
+                delete restoredTurnManagerUiImpl.buildCardInitOptions;
+            }
+            rootRef.__uiImpl_turn_manager = restoredTurnManagerUiImpl;
+            previousBuildCardInitOptions = null;
+            hasEncounterDeckInitOverride = false;
+        }
 
         function getCpuSmartness() {
             if (rootRef && rootRef.cpuSmartness && typeof rootRef.cpuSmartness === 'object') {
@@ -73,6 +149,7 @@
                 encounter.previousCpuSmartness = snapshotCpuSmartness();
             }
             activeEncounter = encounter;
+            installEncounterDeckInitOverride(encounter);
             applyEncounterPresentation(encounter);
 
             if (typeof rootRef.resetGame === 'function') {
@@ -107,6 +184,7 @@
 
             restoreCpuSmartness(encounter.previousCpuSmartness);
             activeEncounter = null;
+            clearEncounterDeckInitOverride();
             applyEncounterPresentation(null);
 
             if (typeof runtime.updateCpuLabel === 'function') {
@@ -206,7 +284,9 @@
                 onAbort: typeof source.onAbort === 'function' ? source.onAbort : null,
                 winDialogueLines: Array.isArray(source.winDialogueLines) ? source.winDialogueLines.slice() : [],
                 loseDialogueLines: Array.isArray(source.loseDialogueLines) ? source.loseDialogueLines.slice() : [],
-                drawDialogueLines: Array.isArray(source.drawDialogueLines) ? source.drawDialogueLines.slice() : []
+                drawDialogueLines: Array.isArray(source.drawDialogueLines) ? source.drawDialogueLines.slice() : [],
+                initialDeckCardIds: cloneDeckCardIds(source.initialDeckCardIds),
+                initialDeckCardIdsByPlayer: cloneDeckCardIdsByPlayer(source.initialDeckCardIdsByPlayer)
             };
             return launchEncounter(encounter, false);
         }

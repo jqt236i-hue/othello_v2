@@ -1,0 +1,1643 @@
+{
+  "generatedAt": "2026-03-16T05:36:40.283Z",
+  "schemaVersion": "card-use-future-delta-audit.v2",
+  "benchmark": {
+    "totalGames": 40,
+    "avgPlies": 87.7
+  },
+  "summary": [
+    {
+      "type": "SUPER_BUOYANCY_WILL",
+      "count": 8,
+      "avgFutureDiscDelta3Ply": -5,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.75,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          8
+        ],
+        [
+          "hand_pressure",
+          8
+        ],
+        [
+          "threshold_passed",
+          6
+        ],
+        [
+          "corner_emergency",
+          4
+        ],
+        [
+          "high_bonus_move_available",
+          4
+        ],
+        [
+          "force_use_card",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "TRAP_WILL",
+      "count": 14,
+      "avgFutureDiscDelta3Ply": -3,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.429,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          14
+        ],
+        [
+          "hand_pressure",
+          14
+        ],
+        [
+          "threshold_passed",
+          12
+        ],
+        [
+          "corner_emergency",
+          10
+        ],
+        [
+          "high_bonus_move_available",
+          8
+        ],
+        [
+          "force_use_card",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "SACRIFICE_WILL",
+      "count": 4,
+      "avgFutureDiscDelta3Ply": -3,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          4
+        ],
+        [
+          "corner_emergency",
+          4
+        ],
+        [
+          "hand_pressure",
+          4
+        ],
+        [
+          "threshold_passed",
+          4
+        ],
+        [
+          "high_bonus_move_available",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "INSTANT_HYPERACTIVE_WILL",
+      "count": 4,
+      "avgFutureDiscDelta3Ply": -1.5,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          4
+        ],
+        [
+          "hand_pressure",
+          4
+        ],
+        [
+          "high_bonus_move_available",
+          2
+        ],
+        [
+          "threshold_passed",
+          2
+        ],
+        [
+          "force_use_card",
+          2
+        ],
+        [
+          "corner_emergency",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "TIME_BOMB",
+      "count": 8,
+      "avgFutureDiscDelta3Ply": -1.5,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          8
+        ],
+        [
+          "hand_pressure",
+          8
+        ],
+        [
+          "threshold_passed",
+          6
+        ],
+        [
+          "corner_emergency",
+          6
+        ],
+        [
+          "force_use_card",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "METEOR_WILL",
+      "count": 14,
+      "avgFutureDiscDelta3Ply": -1.1429,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          14
+        ],
+        [
+          "hand_pressure",
+          14
+        ],
+        [
+          "corner_emergency",
+          12
+        ],
+        [
+          "force_use_card",
+          8
+        ],
+        [
+          "threshold_passed",
+          6
+        ],
+        [
+          "high_bonus_move_available",
+          4
+        ]
+      ]
+    },
+    {
+      "type": "BLOCKADE_WILL",
+      "count": 16,
+      "avgFutureDiscDelta3Ply": -0.75,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          16
+        ],
+        [
+          "threshold_passed",
+          14
+        ],
+        [
+          "hand_pressure",
+          12
+        ],
+        [
+          "high_bonus_move_available",
+          10
+        ],
+        [
+          "corner_emergency",
+          6
+        ],
+        [
+          "corner_hold_mode",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "TABOO_REVERSE_WILL",
+      "count": 16,
+      "avgFutureDiscDelta3Ply": -0.75,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          16
+        ],
+        [
+          "corner_emergency",
+          16
+        ],
+        [
+          "hand_pressure",
+          16
+        ],
+        [
+          "threshold_passed",
+          12
+        ],
+        [
+          "high_bonus_move_available",
+          4
+        ],
+        [
+          "force_use_card",
+          4
+        ]
+      ]
+    },
+    {
+      "type": "CELL_TELEPORT_WILL",
+      "count": 8,
+      "avgFutureDiscDelta3Ply": -0.75,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          8
+        ],
+        [
+          "hand_pressure",
+          8
+        ],
+        [
+          "force_use_card",
+          6
+        ],
+        [
+          "corner_emergency",
+          6
+        ],
+        [
+          "threshold_passed",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "HYPERACTIVE_INHERIT_WILL",
+      "count": 12,
+      "avgFutureDiscDelta3Ply": -0.6667,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          12
+        ],
+        [
+          "hand_pressure",
+          12
+        ],
+        [
+          "force_use_card",
+          8
+        ],
+        [
+          "corner_emergency",
+          4
+        ],
+        [
+          "threshold_passed",
+          4
+        ]
+      ]
+    },
+    {
+      "type": "FREE_PLACEMENT",
+      "count": 12,
+      "avgFutureDiscDelta3Ply": -0.5,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.667,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          12
+        ],
+        [
+          "hand_pressure",
+          12
+        ],
+        [
+          "corner_emergency",
+          10
+        ],
+        [
+          "threshold_passed",
+          6
+        ],
+        [
+          "force_use_card",
+          6
+        ],
+        [
+          "high_bonus_move_available",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "HYPERACTIVE_WILL",
+      "count": 4,
+      "avgFutureDiscDelta3Ply": -0.5,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          4
+        ],
+        [
+          "hand_pressure",
+          4
+        ],
+        [
+          "force_use_card",
+          2
+        ],
+        [
+          "corner_emergency",
+          2
+        ],
+        [
+          "high_bonus_move_available",
+          2
+        ],
+        [
+          "threshold_passed",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "LAST_RESORT",
+      "count": 10,
+      "avgFutureDiscDelta3Ply": -0.4,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          10
+        ],
+        [
+          "force_use_card",
+          10
+        ],
+        [
+          "hand_pressure",
+          10
+        ],
+        [
+          "corner_emergency",
+          8
+        ]
+      ]
+    },
+    {
+      "type": "CROSS_BOMB",
+      "count": 2,
+      "avgFutureDiscDelta3Ply": 0,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          2
+        ],
+        [
+          "force_use_card",
+          2
+        ],
+        [
+          "hand_pressure",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "CHAIN_WILL",
+      "count": 2,
+      "avgFutureDiscDelta3Ply": 0,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          2
+        ],
+        [
+          "force_use_card",
+          2
+        ],
+        [
+          "corner_emergency",
+          2
+        ],
+        [
+          "hand_pressure",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "WORK_WILL",
+      "count": 2,
+      "avgFutureDiscDelta3Ply": 0,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          2
+        ],
+        [
+          "force_use_card",
+          2
+        ],
+        [
+          "corner_emergency",
+          2
+        ],
+        [
+          "hand_pressure",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "BOARD_EXPANSION_WILL",
+      "count": 8,
+      "avgFutureDiscDelta3Ply": 0.5,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          8
+        ],
+        [
+          "hand_pressure",
+          8
+        ],
+        [
+          "threshold_passed",
+          8
+        ],
+        [
+          "high_bonus_move_available",
+          4
+        ],
+        [
+          "corner_emergency",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "GUARD_WILL",
+      "count": 12,
+      "avgFutureDiscDelta3Ply": 0.5,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          12
+        ],
+        [
+          "hand_pressure",
+          12
+        ],
+        [
+          "corner_emergency",
+          8
+        ],
+        [
+          "high_bonus_move_available",
+          8
+        ],
+        [
+          "threshold_passed",
+          8
+        ],
+        [
+          "force_use_card",
+          4
+        ]
+      ]
+    },
+    {
+      "type": "DESTROY_DRAGON_WILL",
+      "count": 4,
+      "avgFutureDiscDelta3Ply": 0.5,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          4
+        ],
+        [
+          "hand_pressure",
+          4
+        ],
+        [
+          "threshold_passed",
+          2
+        ],
+        [
+          "force_use_card",
+          2
+        ],
+        [
+          "corner_emergency",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "CORROSION_WILL",
+      "count": 6,
+      "avgFutureDiscDelta3Ply": 0.6667,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.667,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          6
+        ],
+        [
+          "hand_pressure",
+          6
+        ],
+        [
+          "threshold_passed",
+          4
+        ],
+        [
+          "corner_emergency",
+          4
+        ],
+        [
+          "force_use_card",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "SUPER_GRAVITY_WILL",
+      "count": 8,
+      "avgFutureDiscDelta3Ply": 0.75,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          8
+        ],
+        [
+          "hand_pressure",
+          8
+        ],
+        [
+          "corner_emergency",
+          6
+        ],
+        [
+          "threshold_passed",
+          6
+        ],
+        [
+          "high_bonus_move_available",
+          2
+        ],
+        [
+          "force_use_card",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "HEAVEN_BLESSING",
+      "count": 8,
+      "avgFutureDiscDelta3Ply": 0.75,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          8
+        ],
+        [
+          "hand_pressure",
+          8
+        ],
+        [
+          "corner_emergency",
+          6
+        ],
+        [
+          "force_use_card",
+          4
+        ],
+        [
+          "high_bonus_move_available",
+          4
+        ],
+        [
+          "threshold_passed",
+          4
+        ]
+      ]
+    },
+    {
+      "type": "SELL_CARD_WILL",
+      "count": 18,
+      "avgFutureDiscDelta3Ply": 1,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.444,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          18
+        ],
+        [
+          "hand_pressure",
+          16
+        ],
+        [
+          "threshold_passed",
+          16
+        ],
+        [
+          "high_bonus_move_available",
+          10
+        ],
+        [
+          "corner_emergency",
+          4
+        ],
+        [
+          "corner_hold_mode",
+          4
+        ]
+      ]
+    },
+    {
+      "type": "REBUILD_WILL",
+      "count": 12,
+      "avgFutureDiscDelta3Ply": 1,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          12
+        ],
+        [
+          "hand_pressure",
+          12
+        ],
+        [
+          "corner_emergency",
+          8
+        ],
+        [
+          "threshold_passed",
+          8
+        ],
+        [
+          "force_use_card",
+          4
+        ],
+        [
+          "high_bonus_move_available",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "SNIPER_WILL",
+      "count": 10,
+      "avgFutureDiscDelta3Ply": 1,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.6,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          10
+        ],
+        [
+          "corner_emergency",
+          10
+        ],
+        [
+          "hand_pressure",
+          10
+        ],
+        [
+          "threshold_passed",
+          6
+        ],
+        [
+          "force_use_card",
+          4
+        ],
+        [
+          "high_bonus_move_available",
+          4
+        ]
+      ]
+    },
+    {
+      "type": "CLONE_WILL",
+      "count": 4,
+      "avgFutureDiscDelta3Ply": 1,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          4
+        ],
+        [
+          "corner_emergency",
+          4
+        ],
+        [
+          "hand_pressure",
+          4
+        ],
+        [
+          "threshold_passed",
+          4
+        ],
+        [
+          "high_bonus_move_available",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "CRYSTAL_STONE",
+      "count": 14,
+      "avgFutureDiscDelta3Ply": 1.1429,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.286,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          14
+        ],
+        [
+          "high_bonus_move_available",
+          14
+        ],
+        [
+          "threshold_passed",
+          14
+        ],
+        [
+          "hand_pressure",
+          10
+        ]
+      ]
+    },
+    {
+      "type": "STRONG_WIND_WILL",
+      "count": 10,
+      "avgFutureDiscDelta3Ply": 1.2,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.8,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          10
+        ],
+        [
+          "hand_pressure",
+          10
+        ],
+        [
+          "threshold_passed",
+          10
+        ],
+        [
+          "corner_emergency",
+          8
+        ],
+        [
+          "high_bonus_move_available",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "DESTROY_ONE_STONE",
+      "count": 8,
+      "avgFutureDiscDelta3Ply": 1.25,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          8
+        ],
+        [
+          "hand_pressure",
+          8
+        ],
+        [
+          "threshold_passed",
+          8
+        ],
+        [
+          "high_bonus_move_available",
+          6
+        ],
+        [
+          "corner_emergency",
+          6
+        ]
+      ]
+    },
+    {
+      "type": "EXTEND_LIFE_WILL",
+      "count": 8,
+      "avgFutureDiscDelta3Ply": 1.5,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.25,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          8
+        ],
+        [
+          "corner_emergency",
+          8
+        ],
+        [
+          "hand_pressure",
+          8
+        ],
+        [
+          "threshold_passed",
+          8
+        ],
+        [
+          "high_bonus_move_available",
+          4
+        ]
+      ]
+    },
+    {
+      "type": "TREASURE_BOX",
+      "count": 18,
+      "avgFutureDiscDelta3Ply": 1.6667,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 3.333,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          18
+        ],
+        [
+          "threshold_passed",
+          16
+        ],
+        [
+          "high_bonus_move_available",
+          12
+        ],
+        [
+          "hand_pressure",
+          8
+        ],
+        [
+          "corner_emergency",
+          4
+        ],
+        [
+          "force_use_card",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "CONDEMN_WILL",
+      "count": 10,
+      "avgFutureDiscDelta3Ply": 1.8,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.4,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          10
+        ],
+        [
+          "hand_pressure",
+          10
+        ],
+        [
+          "threshold_passed",
+          10
+        ],
+        [
+          "high_bonus_move_available",
+          6
+        ],
+        [
+          "corner_emergency",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "SILVER_STONE",
+      "count": 8,
+      "avgFutureDiscDelta3Ply": 2,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.75,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          8
+        ],
+        [
+          "hand_pressure",
+          8
+        ],
+        [
+          "threshold_passed",
+          8
+        ],
+        [
+          "high_bonus_move_available",
+          6
+        ],
+        [
+          "corner_emergency",
+          4
+        ]
+      ]
+    },
+    {
+      "type": "ULTIMATE_HYPERACTIVE_GOD",
+      "count": 4,
+      "avgFutureDiscDelta3Ply": 2,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          4
+        ],
+        [
+          "corner_emergency",
+          4
+        ],
+        [
+          "hand_pressure",
+          4
+        ],
+        [
+          "high_bonus_move_available",
+          2
+        ],
+        [
+          "threshold_passed",
+          2
+        ],
+        [
+          "force_use_card",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "BOARD_EXPANSION_GOD",
+      "count": 2,
+      "avgFutureDiscDelta3Ply": 2,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          2
+        ],
+        [
+          "high_bonus_move_available",
+          2
+        ],
+        [
+          "hand_pressure",
+          2
+        ],
+        [
+          "threshold_passed",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "GUARDIAN_GOD",
+      "count": 8,
+      "avgFutureDiscDelta3Ply": 2.25,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 3.75,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          8
+        ],
+        [
+          "hand_pressure",
+          6
+        ],
+        [
+          "high_bonus_move_available",
+          6
+        ],
+        [
+          "threshold_passed",
+          6
+        ],
+        [
+          "corner_emergency",
+          4
+        ],
+        [
+          "force_use_card",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "REGEN_WILL",
+      "count": 8,
+      "avgFutureDiscDelta3Ply": 2.25,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          8
+        ],
+        [
+          "hand_pressure",
+          8
+        ],
+        [
+          "threshold_passed",
+          8
+        ],
+        [
+          "corner_emergency",
+          2
+        ],
+        [
+          "corner_hold_mode",
+          2
+        ],
+        [
+          "high_bonus_move_available",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "PERMA_PROTECT_NEXT_STONE",
+      "count": 10,
+      "avgFutureDiscDelta3Ply": 2.4,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.8,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          10
+        ],
+        [
+          "hand_pressure",
+          10
+        ],
+        [
+          "threshold_passed",
+          6
+        ],
+        [
+          "high_bonus_move_available",
+          4
+        ],
+        [
+          "force_use_card",
+          4
+        ],
+        [
+          "corner_hold_mode",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "PROTECTED_NEXT_STONE",
+      "count": 12,
+      "avgFutureDiscDelta3Ply": 2.5,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 3.667,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          12
+        ],
+        [
+          "threshold_passed",
+          12
+        ],
+        [
+          "hand_pressure",
+          8
+        ],
+        [
+          "high_bonus_move_available",
+          6
+        ],
+        [
+          "corner_emergency",
+          4
+        ]
+      ]
+    },
+    {
+      "type": "X_BOMB",
+      "count": 4,
+      "avgFutureDiscDelta3Ply": 2.5,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          4
+        ],
+        [
+          "corner_emergency",
+          4
+        ],
+        [
+          "hand_pressure",
+          4
+        ],
+        [
+          "high_bonus_move_available",
+          2
+        ],
+        [
+          "threshold_passed",
+          2
+        ],
+        [
+          "force_use_card",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "POSITION_SWAP_WILL",
+      "count": 10,
+      "avgFutureDiscDelta3Ply": 2.6,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.8,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          10
+        ],
+        [
+          "hand_pressure",
+          10
+        ],
+        [
+          "corner_emergency",
+          8
+        ],
+        [
+          "threshold_passed",
+          8
+        ],
+        [
+          "high_bonus_move_available",
+          6
+        ],
+        [
+          "force_use_card",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "ESCAPE_WILL",
+      "count": 12,
+      "avgFutureDiscDelta3Ply": 2.6667,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          12
+        ],
+        [
+          "hand_pressure",
+          12
+        ],
+        [
+          "threshold_passed",
+          8
+        ],
+        [
+          "corner_emergency",
+          6
+        ],
+        [
+          "force_use_card",
+          4
+        ],
+        [
+          "corner_hold_mode",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "TELEPORT_WILL",
+      "count": 20,
+      "avgFutureDiscDelta3Ply": 2.7,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.4,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          20
+        ],
+        [
+          "threshold_passed",
+          20
+        ],
+        [
+          "hand_pressure",
+          16
+        ],
+        [
+          "high_bonus_move_available",
+          12
+        ],
+        [
+          "corner_emergency",
+          10
+        ]
+      ]
+    },
+    {
+      "type": "GOLD_STONE",
+      "count": 10,
+      "avgFutureDiscDelta3Ply": 2.8,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.8,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          10
+        ],
+        [
+          "hand_pressure",
+          10
+        ],
+        [
+          "threshold_passed",
+          10
+        ],
+        [
+          "high_bonus_move_available",
+          8
+        ],
+        [
+          "corner_emergency",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "LOSS_WILL",
+      "count": 6,
+      "avgFutureDiscDelta3Ply": 3,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          6
+        ],
+        [
+          "corner_emergency",
+          6
+        ],
+        [
+          "hand_pressure",
+          6
+        ],
+        [
+          "threshold_passed",
+          6
+        ],
+        [
+          "high_bonus_move_available",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "ULTIMATE_REVERSE_DRAGON",
+      "count": 2,
+      "avgFutureDiscDelta3Ply": 3,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          2
+        ],
+        [
+          "corner_emergency",
+          2
+        ],
+        [
+          "high_bonus_move_available",
+          2
+        ],
+        [
+          "hand_pressure",
+          2
+        ],
+        [
+          "threshold_passed",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "TEMPT_WILL",
+      "count": 2,
+      "avgFutureDiscDelta3Ply": 3,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          2
+        ],
+        [
+          "corner_emergency",
+          2
+        ],
+        [
+          "hand_pressure",
+          2
+        ],
+        [
+          "threshold_passed",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "ROBOT_VACUUM_WILL",
+      "count": 10,
+      "avgFutureDiscDelta3Ply": 3.4,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.8,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          10
+        ],
+        [
+          "hand_pressure",
+          10
+        ],
+        [
+          "threshold_passed",
+          10
+        ],
+        [
+          "high_bonus_move_available",
+          4
+        ],
+        [
+          "corner_hold_mode",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "PLUNDER_WILL",
+      "count": 4,
+      "avgFutureDiscDelta3Ply": 3.5,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.5,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          4
+        ],
+        [
+          "hand_pressure",
+          4
+        ],
+        [
+          "threshold_passed",
+          4
+        ]
+      ]
+    },
+    {
+      "type": "SWAP_WITH_ENEMY",
+      "count": 22,
+      "avgFutureDiscDelta3Ply": 4.5455,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.727,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          22
+        ],
+        [
+          "hand_pressure",
+          22
+        ],
+        [
+          "corner_emergency",
+          18
+        ],
+        [
+          "threshold_passed",
+          16
+        ],
+        [
+          "high_bonus_move_available",
+          8
+        ],
+        [
+          "force_use_card",
+          6
+        ]
+      ]
+    },
+    {
+      "type": "BREEDING_WILL",
+      "count": 6,
+      "avgFutureDiscDelta3Ply": 6.3333,
+      "avgImmediateDiscDelta": null,
+      "avgHandSize": 4.667,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "decision:use",
+          6
+        ],
+        [
+          "hand_pressure",
+          6
+        ],
+        [
+          "threshold_passed",
+          6
+        ],
+        [
+          "corner_emergency",
+          4
+        ],
+        [
+          "high_bonus_move_available",
+          4
+        ]
+      ]
+    }
+  ]
+}

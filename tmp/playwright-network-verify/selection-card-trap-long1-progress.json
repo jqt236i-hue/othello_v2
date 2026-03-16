@@ -1,0 +1,7 @@
+{
+  "target": "trap",
+  "timestamp": "2026-03-16T06:13:56.836Z",
+  "phase": "attempt_error",
+  "attemptIndex": 1,
+  "error": "Error: Target flow for trap_01 was not exercised within 25 actions\n    at runAttempt (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-selection-card-flow.js:793:19)\n    at runNextTicks (node:internal/process/task_queues:64:5)\n    at process.processImmediate (node:internal/timers:472:9)\n    at async main (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-selection-card-flow.js:845:29)"
+}

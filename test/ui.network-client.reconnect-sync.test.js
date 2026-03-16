@@ -32,6 +32,16 @@ function createSnapshot(stateVersion, gameStateOverrides = {}) {
   };
 }
 
+function createPlaceAction(playerKey = 'black', turnIndex = 1) {
+  return {
+    type: 'place',
+    playerKey,
+    row: 2,
+    col: 3,
+    turnIndex
+  };
+}
+
 describe('NetworkMatchClient reconnect and resync', () => {
   let dom;
   let eventSources;
@@ -328,6 +338,94 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(stateFetchCount).toBe(1);
   });
 
+  test('pending publish中のforce syncは同版snapshotでローカル局面を巻き戻さない', async () => {
+    let resolvePublishResponse = null;
+    const optimisticSnapshot = createSnapshot(1, {
+      currentPlayer: 1,
+      turnNumber: 2,
+      consecutivePasses: 0
+    });
+    optimisticSnapshot.cardState.turnIndex = 2;
+    optimisticSnapshot.cardState.markers = [{ row: 2, col: 3, type: 'GUARD', owner: 'white' }];
+
+    global.fetch = jest.fn(async (url) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/join') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'white',
+          seatToken: 'token_white',
+          seats: { black: true, white: true },
+          stateVersion: 1,
+          snapshot: createSnapshot(1)
+        });
+      }
+
+      if (path === '/api/match/state') {
+        stateFetchCount += 1;
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seats: { black: true, white: true },
+          stateVersion: 1,
+          snapshot: createSnapshot(1)
+        });
+      }
+
+      if (path === '/api/match/publish') {
+        return new Promise((resolve) => {
+          resolvePublishResponse = () => resolve(jsonResponse(200, {
+            ok: true,
+            roomId: 'ABC',
+            seats: { black: true, white: true },
+            stateVersion: 2,
+            snapshot: {
+              ...optimisticSnapshot,
+              stateVersion: 2
+            }
+          }));
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
+    expect(joined.ok).toBe(true);
+
+    global.gameState = JSON.parse(JSON.stringify(optimisticSnapshot.gameState));
+    global.cardState = JSON.parse(JSON.stringify(optimisticSnapshot.cardState));
+
+    const publishPromise = client.publishSnapshot({
+      playerKey: 'white',
+      actionType: 'place',
+      playbackEvents: [],
+      snapshot: optimisticSnapshot,
+      action: createPlaceAction('white', optimisticSnapshot.cardState.turnIndex)
+    });
+
+    await Promise.resolve();
+
+    const syncResult = await client.syncLatestState();
+    expect(syncResult).toEqual({ ok: true, appliedSnapshot: false });
+    expect(stateFetchCount).toBe(1);
+    expect(global.gameState.turnNumber).toBe(2);
+    expect(global.cardState.markers).toEqual([{ row: 2, col: 3, type: 'GUARD', owner: 'white' }]);
+
+    expect(typeof resolvePublishResponse).toBe('function');
+    resolvePublishResponse();
+    const publishResult = await publishPromise;
+    expect(publishResult.ok).toBe(true);
+    expect(client.getStateVersion()).toBe(2);
+  });
+
   test('requestRematch は reset_game publish を送る', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
@@ -341,6 +439,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(publishBodies).toHaveLength(1);
     expect(publishBodies[0].actionType).toBe('reset_game');
     expect(publishBodies[0].playerKey).toBe('white');
+    expect(publishBodies[0].action).toEqual({ type: 'reset_game', playerKey: 'white' });
   });
 
   test('requestRematch は VERSION_MISMATCH 後に再戦済みの最新局面へ同期したら再送しない', async () => {
@@ -410,6 +509,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(stateFetchCount).toBe(1);
     expect(publishBodies).toHaveLength(1);
     expect(publishBodies[0].actionType).toBe('reset_game');
+    expect(publishBodies[0].action).toEqual({ type: 'reset_game', playerKey: 'white' });
   });
 
   test('非終局スナップショットの適用時に result overlay を自動で閉じる', async () => {

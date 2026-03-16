@@ -41,8 +41,9 @@ function _setDebugModeAllowed(debugAllowed) {
     } catch (e) { /* ignore */ }
 }
 
-const DEBUG_HAND_SCROLL_LONG_PRESS_MS = 80;
+const DEBUG_HAND_SCROLL_LONG_PRESS_MS = 300;
 const DEBUG_HAND_SCROLL_MOVE_THRESHOLD_PX = 10;
+const DEBUG_HAND_SCROLL_DRAG_START_PX = 18;
 const DEBUG_HAND_SCROLL_SUPPRESS_CLICK_MS = 280;
 const DEBUG_HAND_FLING_FRICTION = 0.92;
 const DEBUG_HAND_FLING_STOP_VELOCITY = 0.65;
@@ -132,22 +133,13 @@ function _getDebugHandOffsetLimit(containerEl) {
     return trackWidth - containerWidth;
 }
 
-function _wrapDebugHandOffset(containerEl, nextOffsetX) {
+function _clampDebugHandOffset(containerEl, nextOffsetX) {
     const limit = _getDebugHandOffsetLimit(containerEl);
     if (!Number.isFinite(limit) || limit <= 0) return 0;
     const safeOffset = Number(nextOffsetX) || 0;
-    const minOffset = -limit;
-    const maxOffset = 0;
-    const span = maxOffset - minOffset;
-    if (span <= 0) return 0;
-    if (safeOffset >= minOffset && safeOffset <= maxOffset) return safeOffset;
-    const normalized = ((safeOffset - minOffset) % span + span) % span;
-    const wrapped = minOffset + normalized;
-    return Math.abs(wrapped) < 0.001 ? 0 : wrapped;
-}
-
-function _clampDebugHandOffset(containerEl, nextOffsetX) {
-    return _wrapDebugHandOffset(containerEl, nextOffsetX);
+    if (safeOffset >= 0) return 0;
+    if (safeOffset <= -limit) return -limit;
+    return safeOffset;
 }
 
 function _applyDebugHandTrackTransform(containerEl, offsetX) {
@@ -170,7 +162,12 @@ function _startDebugHandFling(containerEl, state, initialVelocityX) {
         const nextOffset = _clampDebugHandOffset(containerEl, state.currentOffsetX + velocityX);
         const hitBound = Math.abs(nextOffset - (state.currentOffsetX + velocityX)) > 0.5;
         _applyDebugHandTrackTransform(containerEl, nextOffset);
-        if (hitBound) velocityX *= 0.52;
+        if (hitBound) {
+            // Hard stop at boundary edges
+            state.velocityX = 0;
+            state.flingRafId = null;
+            return;
+        }
         if (Math.abs(velocityX) < DEBUG_HAND_FLING_STOP_VELOCITY) {
             state.velocityX = 0;
             state.flingRafId = null;
@@ -228,6 +225,11 @@ function _installDebugHandScroll(containerEl) {
         _cancelDebugHandFling(state);
         _applyDebugHandTrackTransform(containerEl, state.currentOffsetX);
         state.activePointerId = typeof event.pointerId === 'number' ? event.pointerId : 1;
+        try {
+            if (typeof containerEl.setPointerCapture === 'function') {
+                containerEl.setPointerCapture(state.activePointerId);
+            }
+        } catch (_e) { /* ignore – JSDOM / old browsers */ }
         state.startX = Number(event.clientX) || 0;
         state.startY = Number(event.clientY) || 0;
         state.startOffsetX = Number(state.currentOffsetX) || 0;
@@ -251,6 +253,11 @@ function _installDebugHandScroll(containerEl) {
         if (!_isDebugLayoutEnabled()) return;
         if (state.activePointerId == null) return;
         if (typeof event.pointerId === 'number' && event.pointerId !== state.activePointerId) return;
+        // Safety: detect orphaned drag state (button released outside container)
+        if (typeof event.buttons === 'number' && event.buttons === 0) {
+            _finishDebugHandScroll(containerEl, state, event);
+            return;
+        }
         const clientX = Number(event.clientX) || 0;
         const clientY = Number(event.clientY) || 0;
         const deltaX = clientX - state.startX;
@@ -270,7 +277,7 @@ function _installDebugHandScroll(containerEl) {
                 return;
             }
         }
-        if (!state.dragging && Math.abs(deltaX) < DEBUG_HAND_SCROLL_MOVE_THRESHOLD_PX) {
+        if (!state.dragging && Math.abs(deltaX) < DEBUG_HAND_SCROLL_DRAG_START_PX) {
             return;
         }
         if (!state.dragging) {

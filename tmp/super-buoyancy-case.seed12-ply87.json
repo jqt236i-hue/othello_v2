@@ -1,0 +1,61 @@
+{
+  "seed": 12,
+  "ply": 87,
+  "player": "white",
+  "actionType": "use_card",
+  "useCardId": "super_buoyancy_01",
+  "futureDiscDelta3Ply": -8,
+  "decisionReasonTags": [
+    "decision:use",
+    "corner_emergency",
+    "hand_pressure",
+    "threshold_passed"
+  ],
+  "selectedActionKey": "use:super_buoyancy_01",
+  "legalMoves": 1,
+  "blackCountBefore": 26,
+  "whiteCountBefore": 35,
+  "ownCornersBefore": 3,
+  "oppCornersBefore": 2,
+  "ownEdgesBefore": 11,
+  "oppEdgesBefore": 11,
+  "hasCornerMoveNow": 0,
+  "hasEdgeMoveNow": 0,
+  "highBonusMoveAvailable": 0,
+  "cornerEmergency": 1,
+  "decisionCandidates": [
+    {
+      "actionType": "use_card",
+      "decisionKind": "use",
+      "cardId": "super_buoyancy_01",
+      "cardType": "SUPER_BUOYANCY_WILL",
+      "cardCost": 14,
+      "score": 56,
+      "shouldUse": true,
+      "minUseScore": 4,
+      "isSelected": true
+    },
+    {
+      "actionType": "use_card",
+      "decisionKind": "use",
+      "cardId": "taboo_reverse_01",
+      "cardType": "TABOO_REVERSE_WILL",
+      "cardCost": 44,
+      "score": 10,
+      "shouldUse": true,
+      "minUseScore": 4,
+      "isSelected": false
+    },
+    {
+      "actionType": "use_card",
+      "decisionKind": "use",
+      "cardId": "sniper_01",
+      "cardType": "SNIPER_WILL",
+      "cardCost": 23,
+      "score": -106,
+      "shouldUse": false,
+      "minUseScore": 4,
+      "isSelected": false
+    }
+  ]
+}

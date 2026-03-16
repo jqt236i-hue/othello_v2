@@ -126,9 +126,10 @@ describe('move-executor presentation emission', () => {
         expect(payload.playbackEvents).toHaveLength(2);
         expect(payload.playbackEvents[0].type).toBe('place');
         expect(payload.playbackEvents[1].type).toBe('move');
+        expect(payload.snapshot).toBeUndefined();
     });
 
-    test('ネット送信のsnapshotはonTurnStart前の状態を維持する', async () => {
+    test('ネット送信は command payload を優先し snapshot を含めない', async () => {
         global.BoardOps = { emitPresentationEvent: jest.fn() };
         global.cardState = {
             pendingEffectByPlayer: { black: null, white: null },
@@ -188,11 +189,13 @@ describe('move-executor presentation emission', () => {
         await moveExecutor.executeMoveViaPipeline(move, false, 'black', adapter, {});
 
         const payload = global.NetworkMatchClient.publishSnapshot.mock.calls[0][0];
-        expect(payload.snapshot.gameState.currentPlayer).toBe(-1);
-        expect(payload.snapshot.gameState.turnNumber).toBe(1);
-        expect(payload.snapshot.cardState.hands.white).toEqual([]);
-        expect(payload.snapshot.cardState.turnIndex).toBe(1);
-        expect(payload.snapshot.cardState.lastTurnStartedFor).toBe('black');
+        expect(payload.action).toEqual(expect.objectContaining({
+            type: 'place',
+            row: 2,
+            col: 3,
+            turnIndex: 0
+        }));
+        expect(payload.snapshot).toBeUndefined();
         expect(payload.playbackEvents).toHaveLength(2);
         expect(global.cardState.hands.white).toEqual(['white_draw']);
     });

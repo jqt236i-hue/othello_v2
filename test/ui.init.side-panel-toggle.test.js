@@ -1,6 +1,9 @@
+const path = require('path');
 const { JSDOM } = require('jsdom');
 
 describe('initializeUI side panel toggle', () => {
+  let consoleErrorSpy;
+
   beforeEach(() => {
     jest.resetModules();
 
@@ -15,12 +18,30 @@ describe('initializeUI side panel toggle', () => {
 
     global.window = dom.window;
     global.document = dom.window.document;
+    global.resetGame = jest.fn();
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const bootstrapPath = path.resolve(__dirname, '..', 'ui', 'bootstrap.js');
+    jest.doMock(bootstrapPath, () => ({
+      installGameDI: jest.fn()
+    }), { virtual: false });
   });
 
   afterEach(() => {
+    if (consoleErrorSpy) {
+      consoleErrorSpy.mockRestore();
+      consoleErrorSpy = null;
+    }
     delete global.window;
     delete global.document;
+    delete global.resetGame;
   });
+
+  function sawResetGameThrowLog() {
+    return consoleErrorSpy.mock.calls.some((args) =>
+      args.some((value) => String(value || '').includes('[init] resetGame threw'))
+    );
+  }
 
   test('初期表示は展開状態で、ボタン押下で折りたたみ/再展開できる', () => {
     const initModule = require('../ui/handlers/init.js');
@@ -44,6 +65,7 @@ describe('initializeUI side panel toggle', () => {
     expect(sidePanel.classList.contains('side-panel-collapsed')).toBe(false);
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
     expect(toggleBtn.textContent).toBe('−');
+    expect(sawResetGameThrowLog()).toBe(false);
   });
 
   test('iPhone縦プロファイルでは初期表示を折りたたみ状態にする', () => {
@@ -65,5 +87,6 @@ describe('initializeUI side panel toggle', () => {
     expect(sidePanel.classList.contains('side-panel-collapsed')).toBe(false);
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
     expect(toggleBtn.textContent).toBe('−');
+    expect(sawResetGameThrowLog()).toBe(false);
   });
 });

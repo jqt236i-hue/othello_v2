@@ -1,0 +1,8 @@
+{
+  "triple": false,
+  "quad": false,
+  "infinite": false,
+  "exportedKeys": [
+    "hasPlanPressureProfileForCardType"
+  ]
+}

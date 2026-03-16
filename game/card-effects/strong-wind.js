@@ -3,190 +3,76 @@
  * @description Strong Wind Will card handlers
  */
 
-function emitPresentationEventViaBoardOps(ev) {
-    try {
-        const pres = (typeof require === 'function') ? require('../logic/presentation') : (typeof globalThis !== 'undefined' ? globalThis.PresentationHelper : null);
-        if (pres && typeof pres.emitPresentationEvent === 'function') return pres.emitPresentationEvent(cardState, ev);
-    } catch (e) { /* ignore */ }
-    try { console.warn('[strong-wind] Presentation helper not available'); } catch (e) { /* ignore */ }
-    return false;
+var PendingSelectionFlow;
+
+if (typeof require === 'function') {
+    try { PendingSelectionFlow = require('./selection-flow'); } catch (e) { /* ignore */ }
+}
+if (!PendingSelectionFlow && typeof globalThis !== 'undefined' && globalThis.PendingSelectionFlow) {
+    PendingSelectionFlow = globalThis.PendingSelectionFlow;
+}
+
+function getPlayerLabel(playerKey) {
+    return playerKey === 'black' ? '黒' : '白';
+}
+
+async function handleMovementSelection(row, col, playerKey, options) {
+    if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
+
+    const opts = options || {};
+    return PendingSelectionFlow.executePendingSelection({
+        row,
+        col,
+        playerKey,
+        pendingType: opts.pendingType,
+        actionPayload: { [opts.actionField]: { row, col } },
+        invalidMessage: opts.invalidMessage,
+        validateResult: ({ result }) => {
+            const selected = result && Array.isArray(result.rawEvents)
+                ? result.rawEvents.find((event) => event && event.type === opts.rawEventType && event.applied)
+                : null;
+            return !!selected;
+        },
+        buildPlaybackMeta: () => ({ cause: opts.cause, target: { row, col } }),
+        afterStateChange: () => {
+            if (typeof emitLogAdded === 'function') {
+                emitLogAdded(`${getPlayerLabel(playerKey)}が${opts.activationName}を発動`);
+            }
+        }
+    });
 }
 
 async function handleStrongWindSelection(row, col, playerKey) {
-    if (isProcessing || isCardAnimating) return;
-    isProcessing = true;
-    isCardAnimating = true;
-    let shouldCheckAutoPass = false;
-
-    try {
-        const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-            ? ActionManager.ActionManager.createAction('place', playerKey, { strongWindTarget: { row, col } })
-            : { type: 'place', strongWindTarget: { row, col } };
-
-        if (action && cardState && typeof cardState.turnIndex === 'number') {
-            action.turnIndex = cardState.turnIndex;
-        }
-
-        const result = (typeof TurnPipelineUIAdapter !== 'undefined' && typeof TurnPipeline !== 'undefined')
-            ? TurnPipelineUIAdapter.runTurnWithAdapter(cardState, gameState, playerKey, action, TurnPipeline)
-            : null;
-
-        if (!result || result.ok === false) {
-            if (typeof emitLogAdded === 'function') emitLogAdded('移動可能な石を選んでください');
-            return;
-        }
-
-        if (result.nextCardState) cardState = result.nextCardState;
-        if (result.nextGameState) gameState = result.nextGameState;
-
-        if (result.playbackEvents && result.playbackEvents.length) {
-            emitPresentationEventViaBoardOps({
-                type: 'PLAYBACK_EVENTS',
-                events: result.playbackEvents,
-                meta: { cause: 'STRONG_WIND_WILL', target: { row, col } }
-            });
-        }
-
-        const playerLabel = playerKey === 'black' ? '黒' : '白';
-        if (typeof emitLogAdded === 'function') {
-            emitLogAdded(`${playerLabel}が強風の意志を発動`);
-        }
-
-        if (typeof emitCardStateChange === 'function') emitCardStateChange();
-        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-        if (typeof emitGameStateChange === 'function') emitGameStateChange();
-        shouldCheckAutoPass = true;
-    } finally {
-        isProcessing = false;
-        isCardAnimating = false;
-        if (shouldCheckAutoPass && typeof ensureCurrentPlayerCanActOrPass === 'function') {
-            try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
-        }
-    }
+    return handleMovementSelection(row, col, playerKey, {
+        pendingType: 'STRONG_WIND_WILL',
+        actionField: 'strongWindTarget',
+        rawEventType: 'strong_wind_selected',
+        invalidMessage: '移動可能な石を選んでください',
+        activationName: '強風の意志',
+        cause: 'STRONG_WIND_WILL'
+    });
 }
 
 async function handleSuperBuoyancySelection(row, col, playerKey) {
-    if (isProcessing || isCardAnimating) return;
-    isProcessing = true;
-    isCardAnimating = true;
-    let shouldCheckAutoPass = false;
-
-    try {
-        const pending = cardState.pendingEffectByPlayer[playerKey];
-        if (!pending || pending.type !== 'SUPER_BUOYANCY_WILL' || pending.stage !== 'selectTarget') return;
-
-        const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-            ? ActionManager.ActionManager.createAction('place', playerKey, { superBuoyancyTarget: { row, col } })
-            : { type: 'place', superBuoyancyTarget: { row, col } };
-
-        if (action && cardState && typeof cardState.turnIndex === 'number') {
-            action.turnIndex = cardState.turnIndex;
-        }
-
-        const result = (typeof TurnPipelineUIAdapter !== 'undefined' && typeof TurnPipeline !== 'undefined')
-            ? TurnPipelineUIAdapter.runTurnWithAdapter(cardState, gameState, playerKey, action, TurnPipeline)
-            : null;
-
-        if (!result || result.ok === false) {
-            if (typeof emitLogAdded === 'function') emitLogAdded('上へ移動させる石を選んでください');
-            return;
-        }
-
-        const selected = (result.rawEvents || []).find(e => e && e.type === 'super_buoyancy_selected');
-        if (!selected || !selected.applied) {
-            if (typeof emitLogAdded === 'function') emitLogAdded('上へ移動させる石を選んでください');
-            return;
-        }
-
-        if (result.nextCardState) cardState = result.nextCardState;
-        if (result.nextGameState) gameState = result.nextGameState;
-
-        if (result.playbackEvents && result.playbackEvents.length) {
-            emitPresentationEventViaBoardOps({
-                type: 'PLAYBACK_EVENTS',
-                events: result.playbackEvents,
-                meta: { cause: 'SUPER_BUOYANCY_WILL', target: { row, col } }
-            });
-        }
-
-        const playerLabel = playerKey === 'black' ? '黒' : '白';
-        if (typeof emitLogAdded === 'function') {
-            emitLogAdded(`${playerLabel}が超浮力を発動`);
-        }
-
-        if (typeof emitCardStateChange === 'function') emitCardStateChange();
-        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-        if (typeof emitGameStateChange === 'function') emitGameStateChange();
-        shouldCheckAutoPass = true;
-    } finally {
-        isProcessing = false;
-        isCardAnimating = false;
-        if (shouldCheckAutoPass && typeof ensureCurrentPlayerCanActOrPass === 'function') {
-            try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
-        }
-    }
+    return handleMovementSelection(row, col, playerKey, {
+        pendingType: 'SUPER_BUOYANCY_WILL',
+        actionField: 'superBuoyancyTarget',
+        rawEventType: 'super_buoyancy_selected',
+        invalidMessage: '上へ移動させる石を選んでください',
+        activationName: '超浮力',
+        cause: 'SUPER_BUOYANCY_WILL'
+    });
 }
 
 async function handleSuperGravitySelection(row, col, playerKey) {
-    if (isProcessing || isCardAnimating) return;
-    isProcessing = true;
-    isCardAnimating = true;
-    let shouldCheckAutoPass = false;
-
-    try {
-        const pending = cardState.pendingEffectByPlayer[playerKey];
-        if (!pending || pending.type !== 'SUPER_GRAVITY_WILL' || pending.stage !== 'selectTarget') return;
-
-        const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-            ? ActionManager.ActionManager.createAction('place', playerKey, { superGravityTarget: { row, col } })
-            : { type: 'place', superGravityTarget: { row, col } };
-
-        if (action && cardState && typeof cardState.turnIndex === 'number') {
-            action.turnIndex = cardState.turnIndex;
-        }
-
-        const result = (typeof TurnPipelineUIAdapter !== 'undefined' && typeof TurnPipeline !== 'undefined')
-            ? TurnPipelineUIAdapter.runTurnWithAdapter(cardState, gameState, playerKey, action, TurnPipeline)
-            : null;
-
-        if (!result || result.ok === false) {
-            if (typeof emitLogAdded === 'function') emitLogAdded('下へ移動させる石を選んでください');
-            return;
-        }
-
-        const selected = (result.rawEvents || []).find(e => e && e.type === 'super_gravity_selected');
-        if (!selected || !selected.applied) {
-            if (typeof emitLogAdded === 'function') emitLogAdded('下へ移動させる石を選んでください');
-            return;
-        }
-
-        if (result.nextCardState) cardState = result.nextCardState;
-        if (result.nextGameState) gameState = result.nextGameState;
-
-        if (result.playbackEvents && result.playbackEvents.length) {
-            emitPresentationEventViaBoardOps({
-                type: 'PLAYBACK_EVENTS',
-                events: result.playbackEvents,
-                meta: { cause: 'SUPER_GRAVITY_WILL', target: { row, col } }
-            });
-        }
-
-        const playerLabel = playerKey === 'black' ? '黒' : '白';
-        if (typeof emitLogAdded === 'function') {
-            emitLogAdded(`${playerLabel}が超重力を発動`);
-        }
-
-        if (typeof emitCardStateChange === 'function') emitCardStateChange();
-        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-        if (typeof emitGameStateChange === 'function') emitGameStateChange();
-        shouldCheckAutoPass = true;
-    } finally {
-        isProcessing = false;
-        isCardAnimating = false;
-        if (shouldCheckAutoPass && typeof ensureCurrentPlayerCanActOrPass === 'function') {
-            try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
-        }
-    }
+    return handleMovementSelection(row, col, playerKey, {
+        pendingType: 'SUPER_GRAVITY_WILL',
+        actionField: 'superGravityTarget',
+        rawEventType: 'super_gravity_selected',
+        invalidMessage: '下へ移動させる石を選んでください',
+        activationName: '超重力',
+        cause: 'SUPER_GRAVITY_WILL'
+    });
 }
 
 if (typeof module !== 'undefined' && module.exports) {

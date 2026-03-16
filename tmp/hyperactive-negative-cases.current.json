@@ -1,0 +1,284 @@
+{
+  "summary": {
+    "count": 5,
+    "avgFuture": 1.6,
+    "negatives": 2,
+    "negativeAvgFuture": -4
+  },
+  "cases": [
+    {
+      "seed": 12,
+      "ply": 99,
+      "player": "white",
+      "futureDiscDelta3Ply": -6,
+      "decisionReasonTags": [
+        "decision:use",
+        "force_use_card",
+        "corner_emergency",
+        "hand_pressure"
+      ],
+      "blackCountBefore": 37,
+      "whiteCountBefore": 25,
+      "ownCornersBefore": 4,
+      "oppCornersBefore": 2,
+      "ownEdgesBefore": 7,
+      "oppEdgesBefore": 14,
+      "legalMoves": 0,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "hyperactive_01",
+          "cardType": "HYPERACTIVE_WILL",
+          "cardCost": 8,
+          "score": 1079,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "sniper_01",
+          "cardType": "SNIPER_WILL",
+          "cardCost": 23,
+          "score": 989,
+          "shouldUse": true,
+          "minUseScore": null,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 29,
+      "ply": 104,
+      "player": "white",
+      "futureDiscDelta3Ply": -2,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 38,
+      "whiteCountBefore": 20,
+      "ownCornersBefore": 3,
+      "oppCornersBefore": 5,
+      "ownEdgesBefore": 3,
+      "oppEdgesBefore": 17,
+      "legalMoves": 3,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "hyperactive_01",
+          "cardType": "HYPERACTIVE_WILL",
+          "cardCost": 8,
+          "score": 44,
+          "shouldUse": true,
+          "minUseScore": 6,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "hard_01",
+          "cardType": "PROTECTED_NEXT_STONE",
+          "cardCost": 1,
+          "score": 42,
+          "shouldUse": true,
+          "minUseScore": 6,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "heaven_01",
+          "cardType": "HEAVEN_BLESSING",
+          "cardCost": 3,
+          "score": -58,
+          "shouldUse": false,
+          "minUseScore": 6,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "observer_01",
+          "cardType": "OBSERVER_WILL",
+          "cardCost": 1,
+          "score": -351,
+          "shouldUse": false,
+          "minUseScore": 6,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 21,
+      "ply": 13,
+      "player": "black",
+      "futureDiscDelta3Ply": 3,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 5,
+      "whiteCountBefore": 9,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 0,
+      "oppEdgesBefore": 3,
+      "legalMoves": 11,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "hyperactive_01",
+          "cardType": "HYPERACTIVE_WILL",
+          "cardCost": 8,
+          "score": 17,
+          "shouldUse": true,
+          "minUseScore": 8,
+          "isSelected": true
+        }
+      ]
+    },
+    {
+      "seed": 14,
+      "ply": 11,
+      "player": "white",
+      "futureDiscDelta3Ply": 5,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 11,
+      "whiteCountBefore": 2,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 0,
+      "oppEdgesBefore": 1,
+      "legalMoves": 4,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "hyperactive_01",
+          "cardType": "HYPERACTIVE_WILL",
+          "cardCost": 8,
+          "score": 8,
+          "shouldUse": true,
+          "minUseScore": 2,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "escape_01",
+          "cardType": "ESCAPE_WILL",
+          "cardCost": 7,
+          "score": -23,
+          "shouldUse": false,
+          "minUseScore": 2,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "work_01",
+          "cardType": "WORK_WILL",
+          "cardCost": 11,
+          "score": -143,
+          "shouldUse": false,
+          "minUseScore": 2,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 36,
+      "ply": 29,
+      "player": "white",
+      "futureDiscDelta3Ply": 8,
+      "decisionReasonTags": [
+        "decision:use",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 11,
+      "whiteCountBefore": 10,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 0,
+      "ownEdgesBefore": 4,
+      "oppEdgesBefore": 3,
+      "legalMoves": 8,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "hyperactive_01",
+          "cardType": "HYPERACTIVE_WILL",
+          "cardCost": 8,
+          "score": 4,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "strong_wind_01",
+          "cardType": "STRONG_WIND_WILL",
+          "cardCost": 9,
+          "score": -35,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "observer_01",
+          "cardType": "OBSERVER_WILL",
+          "cardCost": 1,
+          "score": -50,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "board_expand_01",
+          "cardType": "BOARD_EXPANSION_WILL",
+          "cardCost": 19,
+          "score": -70,
+          "shouldUse": false,
+          "minUseScore": 4,
+          "isSelected": false
+        }
+      ]
+    }
+  ]
+}

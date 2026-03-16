@@ -1,0 +1,22 @@
+{
+  "count": 21,
+  "grouped": {
+    "total": {
+      "x": 8,
+      "edge": 7,
+      "inner": 5,
+      "corner": 1
+    },
+    "negatives": {
+      "x": 3,
+      "edge": 3,
+      "corner": 1,
+      "inner": 1
+    },
+    "nonNegatives": {
+      "x": 5,
+      "inner": 4,
+      "edge": 4
+    }
+  }
+}

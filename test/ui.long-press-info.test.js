@@ -150,7 +150,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-name').textContent).toBe('究極多動神');
     expect(document.getElementById('stone-info-desc').textContent).toContain('直線1〜5マス移動を2回行い');
     expect(document.getElementById('stone-info-desc').textContent).toContain('2マス以上は途中の石を飛び越える');
-    expect(document.getElementById('stone-info-desc').textContent).toContain('最大5回');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('最大3回');
     expect(document.getElementById('stone-info-desc').textContent).toContain('10ターン後は自己消滅する');
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
@@ -243,6 +243,45 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
     expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避');
     expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避');
+  });
+
+  test('showSpecialStoneInfoAt shows trap info to the owner seat', () => {
+    global.window.LOCAL_PLAYER_KEY = 'black';
+    global.gameState.board[4][4] = global.BLACK;
+    global.cardState.markers = [{
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: { type: 'TRAP', remainingOwnerTurns: 1 }
+    }];
+
+    const mod = require('../ui/diff-renderer.js');
+    const shown = mod.showSpecialStoneInfoAt(4, 4);
+
+    expect(shown).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('罠石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
+  });
+
+  test('showSpecialStoneInfoAt hides trap info from the non-owner seat', () => {
+    global.window.LOCAL_PLAYER_KEY = 'white';
+    global.gameState.board[4][4] = global.BLACK;
+    global.cardState.markers = [{
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: { type: 'TRAP', remainingOwnerTurns: 1 }
+    }];
+
+    const mod = require('../ui/diff-renderer.js');
+    const shown = mod.showSpecialStoneInfoAt(4, 4);
+
+    expect(shown).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('通常石');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('特殊石');
   });
 
   test('long press keeps inherited-hyperactive tags when base special stone coexists', () => {

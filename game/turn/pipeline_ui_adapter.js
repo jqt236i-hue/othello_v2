@@ -38,6 +38,19 @@
             : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
         return globalScope.OwnerHelpers || null;
     })();
+    const SharedBoardUtils = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('../../shared/shared-board-utils');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.SharedBoardUtils || null;
+    })();
 
     const REGEN_CAUSE = 'REGEN';
     const REGEN_TRIGGER_REASON = 'regen_triggered';
@@ -57,6 +70,7 @@
         'TRAP_WILL'
     ]);
     const SOUND_EVENT_TYPE = 'sound_effect';
+    const GENERATED_THROW_CHAIN_REASON = 'generated_throw_chain';
     const WORK_LOST_BUBBLE_TEXT = 'あああああああああああああ';
     const WORK_INCOME_BUBBLE_TEXT_BY_STEP = Object.freeze({
         1: '布石＋1 初儲けや！',
@@ -65,6 +79,25 @@
         4: '布石＋8 ぼろ儲けや！',
         5: '布石＋16 これで家族が養える...！'
     });
+    const deferredGeneratedThrowChainPlaybackByPlayer = {
+        black: [],
+        white: []
+    };
+
+    function _clearDeferredGeneratedThrowChainPlaybackForPlayer(ownerKey) {
+        if (ownerKey !== 'black' && ownerKey !== 'white') return;
+        deferredGeneratedThrowChainPlaybackByPlayer[ownerKey] = [];
+    }
+
+    function clearDeferredGeneratedThrowChainPlayback(playerKey) {
+        const ownerKey = _normalizePlayerKey(playerKey);
+        if (ownerKey) {
+            _clearDeferredGeneratedThrowChainPlaybackForPlayer(ownerKey);
+            return;
+        }
+        _clearDeferredGeneratedThrowChainPlaybackForPlayer('black');
+        _clearDeferredGeneratedThrowChainPlaybackForPlayer('white');
+    }
 
     function _inferWorkIncomeStepByGain(gained) {
         const g = Number(gained) || 0;
@@ -99,6 +132,15 @@
         const metaText = String(ev && ev.meta && ev.meta.text ? ev.meta.text : '').trim();
         if (metaText) return metaText;
         return WORK_LOST_BUBBLE_TEXT;
+    }
+
+    function _formatCrystalStonePlacementLog(effects) {
+        const gain = Number.isFinite(Number(effects && effects.crystalStoneGain))
+            ? Math.max(0, Number(effects.crystalStoneGain))
+            : 0;
+        return gain > 0
+            ? '水晶石: 数字マス布石+' + gain + '（4倍）'
+            : '水晶石: 数字マスなしで増加なし';
     }
 
     function isRegenTriggeredChange(ev) {
@@ -601,6 +643,7 @@
                     pEvent.phase = currentPhase;
                     break;
                 case 'DRAW_CARD':
+                case 'HAND_ADD':
                     prevWasChainFlip = false;
                     prevChainFlipLink = null;
                     prevDestroyCause = null;
@@ -609,7 +652,10 @@
                     pEvent.targets = [{
                         player: ev.player || null,
                         cardId: ev.cardId || null,
-                        count: Number.isFinite(ev.count) ? ev.count : 1
+                        count: Number.isFinite(ev.count) ? ev.count : 1,
+                        reason: ev.reason || (ev.meta && ev.meta.reason) || null,
+                        sourceType: ev.meta && ev.meta.sourceType ? ev.meta.sourceType : null,
+                        generatedName: ev.meta && ev.meta.generatedName ? ev.meta.generatedName : null
                     }];
                     // Draw animation should run as its own readable step.
                     currentPhase++;
@@ -862,17 +908,142 @@
                         };
                     }
                 }
-            }
-
-            if (pEvent.type) playbackEvents.push(pEvent);
+            }            if (pEvent.type) playbackEvents.push(pEvent);
         }
 
-        return playbackEvents;
+        const generatedThrowChainSplit = _extractGeneratedThrowChainPlayback(playbackEvents);
+        return _appendGeneratedThrowChainPlayback(generatedThrowChainSplit.immediateEvents, generatedThrowChainSplit.deferredEvents);
     }
 
     function _phaseNum(v) {
         const n = Number(v);
         return Number.isFinite(n) ? n : 0;
+    }
+
+    function _getPrimaryPlaybackTarget(ev) {
+        if (ev && Array.isArray(ev.targets) && ev.targets.length > 0) {
+            return ev.targets[0];
+        }
+        return ev || null;
+    }
+
+    function _hasGeneratedThrowChainReason(reason) {
+        return String(reason || '').trim().toLowerCase() === GENERATED_THROW_CHAIN_REASON;
+    }
+
+    function _isGeneratedThrowChainHandAddPlaybackEvent(ev) {
+        if (!ev || ev.type !== 'hand_add') return false;
+        if (String(ev.rawType || '').toUpperCase() !== 'HAND_ADD') return false;
+        if (_hasGeneratedThrowChainReason(ev.reason)) return true;
+        if (_hasGeneratedThrowChainReason(ev.meta && ev.meta.reason)) return true;
+        const candidates = Array.isArray(ev.targets) && ev.targets.length > 0
+            ? ev.targets
+            : [ev];
+        return candidates.some((target) => !!target && _hasGeneratedThrowChainReason(target.reason));
+    }
+
+    function _countPlaybackCards(ev) {
+        const target = _getPrimaryPlaybackTarget(ev);
+        const count = Number(target && target.count);
+        return Number.isFinite(count) ? Math.max(1, Math.trunc(count)) : 1;
+    }
+
+    function _clonePlaybackTarget(target) {
+        if (!target || typeof target !== 'object') return target;
+        const clonedTarget = Object.assign({}, target);
+        if (target.from && typeof target.from === 'object') clonedTarget.from = Object.assign({}, target.from);
+        if (target.to && typeof target.to === 'object') clonedTarget.to = Object.assign({}, target.to);
+        if (target.after && typeof target.after === 'object') clonedTarget.after = Object.assign({}, target.after);
+        if (target.meta && typeof target.meta === 'object') clonedTarget.meta = Object.assign({}, target.meta);
+        return clonedTarget;
+    }
+
+    function _clonePlaybackEventWithPhase(ev, phase) {
+        const clonedEvent = Object.assign({}, ev, { phase });
+        if (clonedEvent.meta && typeof clonedEvent.meta === 'object') {
+            clonedEvent.meta = Object.assign({}, clonedEvent.meta);
+        }
+        if (Array.isArray(ev && ev.targets)) {
+            clonedEvent.targets = ev.targets.map((target) => _clonePlaybackTarget(target));
+        }
+        return clonedEvent;
+    }
+
+    function _setDeferredGeneratedThrowChainPlayback(playerKey, events) {
+        const ownerKey = _normalizePlayerKey(playerKey) || 'black';
+        deferredGeneratedThrowChainPlaybackByPlayer[ownerKey] = Array.isArray(events)
+            ? events.map((ev) => _clonePlaybackEventWithPhase(ev, _phaseNum(ev && ev.phase)))
+            : [];
+    }
+
+    function _takeDeferredGeneratedThrowChainPlayback(playerKey) {
+        const ownerKey = _normalizePlayerKey(playerKey) || 'black';
+        const queued = Array.isArray(deferredGeneratedThrowChainPlaybackByPlayer[ownerKey])
+            ? deferredGeneratedThrowChainPlaybackByPlayer[ownerKey].slice()
+            : [];
+        _clearDeferredGeneratedThrowChainPlaybackForPlayer(ownerKey);
+        return queued;
+    }
+
+    function _extractGeneratedThrowChainPlayback(playbackEvents) {
+        const immediateEvents = [];
+        const deferredEvents = [];
+        for (const ev of Array.isArray(playbackEvents) ? playbackEvents : []) {
+            if (_isGeneratedThrowChainHandAddPlaybackEvent(ev)) {
+                deferredEvents.push(ev);
+            } else {
+                immediateEvents.push(ev);
+            }
+        }
+        return { immediateEvents, deferredEvents };
+    }
+
+    function _appendGeneratedThrowChainPlayback(playbackEvents, deferredEvents) {
+        const baseEvents = Array.isArray(playbackEvents) ? playbackEvents.slice() : [];
+        const pendingEvents = Array.isArray(deferredEvents) ? deferredEvents : [];
+        if (pendingEvents.length <= 0) return baseEvents;
+
+        const startPhase = Math.max(1, _maxPhase(baseEvents) + 1);
+        for (let index = 0; index < pendingEvents.length; index += 1) {
+            baseEvents.push(_clonePlaybackEventWithPhase(pendingEvents[index], startPhase + index));
+        }
+        return baseEvents;
+    }
+
+    function _processGeneratedThrowChainPlayback(playbackEvents, action, playerKey) {
+        const split = _extractGeneratedThrowChainPlayback(playbackEvents);
+        const actionType = String(action && action.type ? action.type : '').toLowerCase();
+        const ownerKey = _normalizePlayerKey(playerKey) || 'black';
+
+        if (actionType === 'use_card') {
+            if (split.deferredEvents.length > 0) {
+                _setDeferredGeneratedThrowChainPlayback(ownerKey, split.deferredEvents);
+                return {
+                    playbackEvents: split.immediateEvents,
+                    deferredGeneratedThrowChainHandAdd: {
+                        playerKey: ownerKey,
+                        count: split.deferredEvents.reduce((sum, ev) => sum + _countPlaybackCards(ev), 0),
+                        reason: GENERATED_THROW_CHAIN_REASON
+                    }
+                };
+            }
+            return { playbackEvents: split.immediateEvents, deferredGeneratedThrowChainHandAdd: null };
+        }
+
+        if (actionType === 'place') {
+            const queuedDeferredEvents = _takeDeferredGeneratedThrowChainPlayback(ownerKey);
+            const allDeferredEvents = queuedDeferredEvents.concat(split.deferredEvents);
+            return {
+                playbackEvents: _appendGeneratedThrowChainPlayback(split.immediateEvents, allDeferredEvents),
+                deferredGeneratedThrowChainHandAdd: null
+            };
+        }
+
+        if (split.deferredEvents.length > 0) {
+            _setDeferredGeneratedThrowChainPlayback(ownerKey, split.deferredEvents);
+        }
+
+        return { playbackEvents: split.immediateEvents, deferredGeneratedThrowChainHandAdd: null };
     }
 
     function _maxPhase(playbackEvents) {
@@ -968,7 +1139,7 @@
 
     function _isGoldSilverSelfDestroyTarget(target) {
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
-        return reason === 'gold_stone_sacrifice' || reason === 'rainbow_stone_sacrifice' || reason === 'silver_stone_sacrifice';
+        return reason === 'gold_stone_sacrifice' || reason === 'rainbow_stone_sacrifice' || reason === 'silver_stone_sacrifice' || reason === 'crystal_stone_sacrifice';
     }
 
     function _isGoldSilverSelfDestroyEvent(ev) {
@@ -1421,6 +1592,9 @@
 
     function _toPosText(pos) {
         if (!pos || !Number.isInteger(pos.row) || !Number.isInteger(pos.col)) return '';
+        if (SharedBoardUtils && typeof SharedBoardUtils.formatPosTextJa === 'function') {
+            return SharedBoardUtils.formatPosTextJa(pos);
+        }
         if (pos.col === -1) return `左外${pos.row + 1}`;
         if (pos.col === 8) return `右外${pos.row + 1}`;
         const file = String.fromCharCode('A'.charCodeAt(0) + pos.col);
@@ -1769,7 +1943,7 @@
                     push(`宝箱: 布石+${Number(ev.gained) || 0}`);
                     break;
                 case 'board_bonus_gain':
-                    push(`数字マス${_toPosText(ev)}: 布石+${Number(ev.bonus) || 0}`);
+                    push(`数字マス${_toPosText(ev)}: 布石+${Number(ev.gained) || Number(ev.bonus) || 0}${Number(ev.multiplier) > 1 ? `（${Number(ev.multiplier)}倍）` : ''}`);
                     break;
                 case 'trap_triggered': {
                     const details = Array.isArray(ev.details) ? ev.details : [];
@@ -1797,6 +1971,7 @@
                         if (e.silverStoneUsed) push('銀石: 獲得布石3倍');
                         if (e.goldStoneUsed) push('金石: 獲得布石4倍');
                         if (e.rainbowStoneUsed) push('虹石: 獲得布石6倍');
+                        if (e.crystalStoneUsed) push(_formatCrystalStonePlacementLog(e));
                         if (e.protected) push('反転保護を付与');
                         if (e.permaProtected) push('永続反転保護を付与');
                         if (e.bombPlaced) push('時限爆弾を設置');
@@ -1917,9 +2092,26 @@
 
         // Prefer pipeline-produced presentationEvents when available
         const pres = result.presentationEvents || result.cardState && result.cardState.presentationEvents || [];
-        const playbackEvents = mapToPlaybackEvents(pres, result.cardState, result.gameState);
+        const rawPlacePlaybackEvents = [];
+        for (const ev of Array.isArray(result.events) ? result.events : []) {
+            if (!ev || ev.type !== 'place') continue;
+            if (!Number.isInteger(ev.row) || !Number.isInteger(ev.col)) continue;
+            const ownerKey = _normalizePlayerKey(ev.owner || ev.player || playerKey) || _normalizePlayerKey(playerKey) || 'black';
+            rawPlacePlaybackEvents.push({
+                type: 'place_hand_animation',
+                phase: 0,
+                rawType: ev.type,
+                actionId: ev.actionId || null,
+                turnIndex: (typeof ev.turnIndex === 'number')
+                    ? ev.turnIndex
+                    : (result.cardState && typeof result.cardState.turnIndex === 'number' ? result.cardState.turnIndex : 0),
+                targets: [{ r: ev.row, col: ev.col, player: ownerKey, owner: ownerKey }]
+            });
+        }
+        const playbackEvents = rawPlacePlaybackEvents.concat(mapToPlaybackEvents(pres, result.cardState, result.gameState));
         let playbackWithSound = appendSoundEffectPlaybackEvents(playbackEvents, result.events, pres);
-
+        const deferredGeneratedThrowChainPlayback = _processGeneratedThrowChainPlayback(playbackWithSound, action, playerKey);
+        playbackWithSound = deferredGeneratedThrowChainPlayback.playbackEvents;
         const effectLogMessages = mapEffectLogsFromPipeline(result.events, pres, playerKey);
         const normalLogMessages = mapNormalLogsFromPipeline(result.events, playerKey);
         try {
@@ -1940,7 +2132,7 @@
             nextCardState: result.cardState,
             nextGameState: result.gameState,
             playbackEvents: playbackWithSound,
-            rawEvents: result.events,
+            deferredGeneratedThrowChainHandAdd: deferredGeneratedThrowChainPlayback.deferredGeneratedThrowChainHandAdd,            rawEvents: result.events,
             presentationEvents: pres,
             effectLogMessages
         };
@@ -1951,6 +2143,9 @@
         appendSoundEffectPlaybackEvents,
         mapEffectLogsFromPipeline,
         mapNormalLogsFromPipeline,
+        clearDeferredGeneratedThrowChainPlayback,
         runTurnWithAdapter
     };
 }));
+
+

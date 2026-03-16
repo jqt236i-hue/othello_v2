@@ -17,6 +17,19 @@ const DEFAULT_VALUE_MODEL_URL = 'data/models/policy-value.onnx';
 const DEFAULT_VALUE_META_URL = 'data/models/policy-value.onnx.meta.json';
 const BASE_INPUT_DIM = 80;
 const MAX_HAND_SIZE = 5;
+let SharedBoardUtils = null;
+try {
+    if (typeof require === 'function') {
+        SharedBoardUtils = require('../../shared/shared-board-utils');
+    }
+} catch (e) { /* ignore */ }
+if (!SharedBoardUtils) {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.SharedBoardUtils) {
+            SharedBoardUtils = globalThis.SharedBoardUtils;
+        }
+    } catch (e) { /* ignore */ }
+}
 const CHARGE_MAX_NORMALIZER = (() => {
     try {
         if (typeof require === 'function') {
@@ -776,6 +789,34 @@ function indexFromMove(move) {
     return (move.row * 8) + move.col;
 }
 
+function isStandardOnnxBoard(board) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.isStandardBoard8x8 === 'function') {
+        return SharedBoardUtils.isStandardBoard8x8(board);
+    }
+    if (!Array.isArray(board) || board.length !== 8) return false;
+    for (const row of board) {
+        if (!Array.isArray(row) || row.length !== 8) return false;
+    }
+    return true;
+}
+
+function hasOnlyStandardMoveIndexes(moves) {
+    if (!Array.isArray(moves)) return true;
+    for (const move of moves) {
+        if (indexFromMove(move) < 0) return false;
+    }
+    return true;
+}
+
+function isSupportedOnnxContext(context, candidateMoves) {
+    const board = Array.isArray(context && context.board) ? context.board : null;
+    if (!isStandardOnnxBoard(board)) return false;
+    if (!hasOnlyStandardMoveIndexes(candidateMoves)) return false;
+    const pendingTarget = context && context.pendingTarget;
+    if (pendingTarget && indexFromMove(pendingTarget) < 0) return false;
+    return true;
+}
+
 async function runInferenceForSession(session, inputName, context, metaOverride, actionIdsOverride) {
     if (!session) return null;
     const ortApi = resolveOrtApi(false);
@@ -794,6 +835,7 @@ async function chooseMove(candidateMoves, context) {
     if (!_config.enabled) return null;
     if (!hasModel()) return null;
     if (!Array.isArray(candidateMoves) || candidateMoves.length === 0) return null;
+    if (!isSupportedOnnxContext(context, candidateMoves)) return null;
 
     const level = Number.isFinite(context && context.level) ? context.level : 1;
     if (level < _config.minLevel) return null;
@@ -838,6 +880,7 @@ async function chooseCard(usableCardIds, context) {
     if (!hasModel() && !hasCardSpecialistModel()) return null;
     if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
     if (!hasCardHead()) return null;
+    if (!isSupportedOnnxContext(context, null)) return null;
 
     const level = Number.isFinite(context && context.level) ? context.level : 1;
     if (level < _config.minLevel) return null;
@@ -903,6 +946,7 @@ async function choosePendingTarget(candidateTargets, context) {
     if (!_config.enabled) return null;
     if (!hasTargetModel()) return null;
     if (!Array.isArray(candidateTargets) || candidateTargets.length === 0) return null;
+    if (!isSupportedOnnxContext(context, candidateTargets)) return null;
 
     const level = Number.isFinite(context && context.level) ? context.level : 1;
     if (level < _config.minLevel) return null;
@@ -944,6 +988,7 @@ async function choosePendingTarget(candidateTargets, context) {
 async function evaluatePosition(context) {
     if (!_config.enabled) return null;
     if (!hasValueModel()) return null;
+    if (!isSupportedOnnxContext(context, null)) return null;
 
     const level = Number.isFinite(context && context.level) ? context.level : 1;
     if (level < _config.minLevel) return null;

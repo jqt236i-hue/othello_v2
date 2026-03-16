@@ -1,0 +1,209 @@
+{
+  "summary": {
+    "count": 5,
+    "avgFuture": -3,
+    "negatives": 5,
+    "negativeAvgFuture": -3
+  },
+  "cases": [
+    {
+      "seed": 11,
+      "ply": 88,
+      "player": "white",
+      "futureDiscDelta3Ply": -3,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 36,
+      "whiteCountBefore": 25,
+      "ownCornersBefore": 1,
+      "oppCornersBefore": 2,
+      "ownEdgesBefore": 6,
+      "oppEdgesBefore": 17,
+      "legalMoves": 1,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "sacrifice_01",
+          "cardType": "SACRIFICE_WILL",
+          "cardCost": 5,
+          "score": 166,
+          "shouldUse": true,
+          "minUseScore": 6,
+          "isSelected": true
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "breeding_01",
+          "cardType": "BREEDING_WILL",
+          "cardCost": 16,
+          "score": -128,
+          "shouldUse": false,
+          "minUseScore": 6,
+          "isSelected": false
+        },
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "observer_01",
+          "cardType": "OBSERVER_WILL",
+          "cardCost": 1,
+          "score": -286,
+          "shouldUse": false,
+          "minUseScore": 6,
+          "isSelected": false
+        }
+      ]
+    },
+    {
+      "seed": 16,
+      "ply": 85,
+      "player": "black",
+      "futureDiscDelta3Ply": -3,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 16,
+      "whiteCountBefore": 46,
+      "ownCornersBefore": 2,
+      "oppCornersBefore": 2,
+      "ownEdgesBefore": 6,
+      "oppEdgesBefore": 18,
+      "legalMoves": 2,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "sacrifice_01",
+          "cardType": "SACRIFICE_WILL",
+          "cardCost": 5,
+          "score": 230,
+          "shouldUse": true,
+          "minUseScore": 8,
+          "isSelected": true
+        }
+      ]
+    },
+    {
+      "seed": 25,
+      "ply": 74,
+      "player": "black",
+      "futureDiscDelta3Ply": -3,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 9,
+      "whiteCountBefore": 34,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 3,
+      "ownEdgesBefore": 3,
+      "oppEdgesBefore": 12,
+      "legalMoves": 3,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "sacrifice_01",
+          "cardType": "SACRIFICE_WILL",
+          "cardCost": 5,
+          "score": 144,
+          "shouldUse": true,
+          "minUseScore": 8,
+          "isSelected": true
+        }
+      ]
+    },
+    {
+      "seed": 27,
+      "ply": 63,
+      "player": "black",
+      "futureDiscDelta3Ply": -3,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 12,
+      "whiteCountBefore": 41,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 3,
+      "ownEdgesBefore": 2,
+      "oppEdgesBefore": 18,
+      "legalMoves": 2,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 0,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "sacrifice_01",
+          "cardType": "SACRIFICE_WILL",
+          "cardCost": 5,
+          "score": 178,
+          "shouldUse": true,
+          "minUseScore": 4,
+          "isSelected": true
+        }
+      ]
+    },
+    {
+      "seed": 28,
+      "ply": 119,
+      "player": "black",
+      "futureDiscDelta3Ply": -3,
+      "decisionReasonTags": [
+        "decision:use",
+        "corner_emergency",
+        "high_bonus_move_available",
+        "hand_pressure",
+        "threshold_passed"
+      ],
+      "blackCountBefore": 9,
+      "whiteCountBefore": 43,
+      "ownCornersBefore": 0,
+      "oppCornersBefore": 6,
+      "ownEdgesBefore": 0,
+      "oppEdgesBefore": 21,
+      "legalMoves": 4,
+      "hasCornerMoveNow": 0,
+      "hasEdgeMoveNow": 0,
+      "highBonusMoveAvailable": 1,
+      "decisionCandidates": [
+        {
+          "actionType": "use_card",
+          "decisionKind": "use",
+          "cardId": "sacrifice_01",
+          "cardType": "SACRIFICE_WILL",
+          "cardCost": 5,
+          "score": 74,
+          "shouldUse": true,
+          "minUseScore": 8,
+          "isSelected": true
+        }
+      ]
+    }
+  ]
+}

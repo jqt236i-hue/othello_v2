@@ -116,4 +116,66 @@ describe('free-placement-like pending cards', () => {
       marker.data.type === markerType
     ))).toBe(true);
   });
+
+  test('ULTIMATE_REVERSE_DRAGON converts adjacent enemy stones immediately on placement while respecting protected cells', () => {
+    const { cardState, gameState } = createStates();
+    cardState.pendingEffectByPlayer.black = {
+      type: 'ULTIMATE_REVERSE_DRAGON',
+      stage: null,
+      cardId: 'ultimate_reverse_dragon_01'
+    };
+
+    gameState.board[3][3] = Core.WHITE;
+    gameState.board[4][5] = Core.WHITE;
+    gameState.board[5][4] = Core.WHITE;
+    gameState.board[5][5] = Core.WHITE;
+    cardState.markers.push({
+      id: 901,
+      kind: 'specialStone',
+      row: 5,
+      col: 5,
+      owner: 'white',
+      data: { type: 'FREEZE', remainingOwnerTurns: 2 }
+    });
+
+    const events = [];
+    TurnPipelinePhases.applyActionPhase(
+      CardLogic,
+      Core,
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 4, col: 4 },
+      events,
+      createPrng(),
+      BoardOps
+    );
+
+    expect(gameState.board[4][4]).toBe(Core.BLACK);
+    expect(gameState.board[3][3]).toBe(Core.BLACK);
+    expect(gameState.board[4][5]).toBe(Core.BLACK);
+    expect(gameState.board[5][4]).toBe(Core.BLACK);
+    expect(gameState.board[5][5]).toBe(Core.WHITE);
+    expect(cardState.charge.black).toBe(3);
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'dragon_converted_immediate',
+        details: expect.arrayContaining([
+          expect.objectContaining({ row: 3, col: 3 }),
+          expect.objectContaining({ row: 4, col: 5 }),
+          expect.objectContaining({ row: 5, col: 4 })
+        ])
+      })
+    ]));
+    expect((cardState.markers || []).some((marker) => (
+      marker &&
+      marker.kind === 'specialStone' &&
+      marker.row === 4 &&
+      marker.col === 4 &&
+      marker.owner === 'black' &&
+      marker.data &&
+      marker.data.type === 'DRAGON' &&
+      marker.data.remainingOwnerTurns === CardLogic.ULTIMATE_DRAGON_TURNS
+    ))).toBe(true);
+  });
 });

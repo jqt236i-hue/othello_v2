@@ -3,15 +3,23 @@
  * @description Clone Will card handlers
  */
 
-function emitPresentationEventViaBoardOps(ev) {
-    try {
-        const pres = (typeof require === 'function') ? require('../logic/presentation') : (typeof globalThis !== 'undefined' ? globalThis.PresentationHelper : null);
-        if (pres && typeof pres.emitPresentationEvent === 'function') return pres.emitPresentationEvent(cardState, ev);
-    } catch (e) { /* ignore */ }
-    return false;
+var PendingSelectionFlow;
+if (typeof require === 'function') {
+    try { PendingSelectionFlow = require('./selection-flow'); } catch (e) { /* ignore */ }
+}
+if (!PendingSelectionFlow && typeof globalThis !== 'undefined' && globalThis.PendingSelectionFlow) {
+    PendingSelectionFlow = globalThis.PendingSelectionFlow;
+}
+
+function getCloneSelectedEvent(result, rawEventType) {
+    return result && Array.isArray(result.rawEvents)
+        ? result.rawEvents.find((event) => event && event.type === rawEventType)
+        : null;
 }
 
 async function handleCloneLikeSelection(row, col, playerKey, config) {
+    if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
+
     const cfg = config || {};
     const pendingType = String(cfg.pendingType || 'CLONE_WILL');
     const actionTargetKey = String(cfg.actionTargetKey || 'cloneTarget');
@@ -22,68 +30,27 @@ async function handleCloneLikeSelection(row, col, playerKey, config) {
         ? cfg.successLogBuilder
         : ((spawnedCount) => `複製の意志: ${spawnedCount}個を生成`);
 
-    if (isProcessing || isCardAnimating) return;
-    isProcessing = true;
-    isCardAnimating = true;
-    let shouldCheckAutoPass = false;
-
-    try {
-        const pending = cardState.pendingEffectByPlayer[playerKey];
-        if (!pending || pending.type !== pendingType || pending.stage !== 'selectTarget') return;
-
-        const actionPayload = {
+    return PendingSelectionFlow.executePendingSelection({
+        row,
+        col,
+        playerKey,
+        pendingType,
+        actionPayload: {
             [actionTargetKey]: { row, col }
-        };
-
-        const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-            ? ActionManager.ActionManager.createAction('place', playerKey, actionPayload)
-            : { type: 'place', ...actionPayload };
-        if (action && cardState && typeof cardState.turnIndex === 'number') {
-            action.turnIndex = cardState.turnIndex;
-        }
-
-        const res = (typeof TurnPipelineUIAdapter !== 'undefined' && typeof TurnPipeline !== 'undefined')
-            ? TurnPipelineUIAdapter.runTurnWithAdapter(cardState, gameState, playerKey, action, TurnPipeline)
-            : null;
-
-        if (!res || res.ok === false) {
-            if (typeof emitLogAdded === 'function') emitLogAdded(selectionFailLog);
-            return;
-        }
-
-        const selected = (res.rawEvents || []).find(e => e && e.type === selectedEventType);
-        if (!selected || !selected.applied) {
-            if (typeof emitLogAdded === 'function') emitLogAdded(selectionFailLog);
-            return;
-        }
-
-        if (res.nextCardState) cardState = res.nextCardState;
-        if (res.nextGameState) gameState = res.nextGameState;
-
-        if (res.playbackEvents && res.playbackEvents.length) {
-            emitPresentationEventViaBoardOps({
-                type: 'PLAYBACK_EVENTS',
-                events: res.playbackEvents,
-                meta: { cause: playbackCause, target: { row, col } }
-            });
-        }
-
-        if (typeof emitLogAdded === 'function') {
+        },
+        invalidMessage: selectionFailLog,
+        validateResult: ({ result }) => {
+            const selected = getCloneSelectedEvent(result, selectedEventType);
+            return !!(selected && selected.applied);
+        },
+        buildPlaybackMeta: () => ({ cause: playbackCause, target: { row, col } }),
+        afterStateChange: ({ result }) => {
+            const selected = getCloneSelectedEvent(result, selectedEventType);
+            if (!selected || typeof emitLogAdded !== 'function') return;
             const spawnedCount = Array.isArray(selected.spawned) ? selected.spawned.length : 0;
             emitLogAdded(successLogBuilder(spawnedCount, selected));
         }
-
-        if (typeof emitCardStateChange === 'function') emitCardStateChange();
-        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-        if (typeof emitGameStateChange === 'function') emitGameStateChange();
-        shouldCheckAutoPass = true;
-    } finally {
-        isProcessing = false;
-        isCardAnimating = false;
-        if (shouldCheckAutoPass && typeof ensureCurrentPlayerCanActOrPass === 'function') {
-            try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
-        }
-    }
+    });
 }
 
 async function handleCloneSelection(row, col, playerKey) {

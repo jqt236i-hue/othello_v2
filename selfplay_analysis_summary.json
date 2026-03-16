@@ -1,0 +1,309 @@
+{
+    "aggregate":  [
+                      {
+                          "cardType":  "SUPER_BUOYANCY_WILL",
+                          "count":  6,
+                          "avgFutureDiscDelta3Ply":  0,
+                          "negativeRate":  0
+                      },
+                      {
+                          "cardType":  "SUPER_GRAVITY_WILL",
+                          "count":  3,
+                          "avgFutureDiscDelta3Ply":  0,
+                          "negativeRate":  0
+                      }
+                  ],
+    "worstFive":  [
+                      {
+                          "seed":  12,
+                          "ply":  98,
+                          "player":  "white",
+                          "cardType":  "SUPER_BUOYANCY_WILL",
+                          "future":  0,
+                          "hasCornerMoveNow":  0,
+                          "hasEdgeMoveNow":  0,
+                          "cornerEmergency":  1,
+                          "handCards":  [
+                                            "super_buoyancy_01",
+                                            "will_hunter_king_01",
+                                            "extreme_hyperactive_01",
+                                            "sniper_01",
+                                            "taboo_reverse_01"
+                                        ],
+                          "decisionCandidates":  [
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "super_buoyancy_01",
+                                                         "cardType":  "SUPER_BUOYANCY_WILL",
+                                                         "cardCost":  14,
+                                                         "score":  21,
+                                                         "shouldUse":  true,
+                                                         "minUseScore":  4,
+                                                         "isSelected":  true
+                                                     },
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "taboo_reverse_01",
+                                                         "cardType":  "TABOO_REVERSE_WILL",
+                                                         "cardCost":  44,
+                                                         "score":  -25,
+                                                         "shouldUse":  false,
+                                                         "minUseScore":  4,
+                                                         "isSelected":  false
+                                                     },
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "sniper_01",
+                                                         "cardType":  "SNIPER_WILL",
+                                                         "cardCost":  23,
+                                                         "score":  -141,
+                                                         "shouldUse":  false,
+                                                         "minUseScore":  4,
+                                                         "isSelected":  false
+                                                     }
+                                                 ]
+                      },
+                      {
+                          "seed":  11,
+                          "ply":  76,
+                          "player":  "white",
+                          "cardType":  "SUPER_GRAVITY_WILL",
+                          "future":  0,
+                          "hasCornerMoveNow":  0,
+                          "hasEdgeMoveNow":  0,
+                          "cornerEmergency":  1,
+                          "handCards":  [
+                                            "udr_01",
+                                            "super_gravity_01",
+                                            "escape_01",
+                                            "observer_01",
+                                            "will_hunter_king_01"
+                                        ],
+                          "decisionCandidates":  [
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "super_gravity_01",
+                                                         "cardType":  "SUPER_GRAVITY_WILL",
+                                                         "cardCost":  14,
+                                                         "score":  468,
+                                                         "shouldUse":  true,
+                                                         "minUseScore":  4,
+                                                         "isSelected":  true
+                                                     },
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "udr_01",
+                                                         "cardType":  "ULTIMATE_REVERSE_DRAGON",
+                                                         "cardCost":  30,
+                                                         "score":  226,
+                                                         "shouldUse":  true,
+                                                         "minUseScore":  4,
+                                                         "isSelected":  false
+                                                     },
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "escape_01",
+                                                         "cardType":  "ESCAPE_WILL",
+                                                         "cardCost":  7,
+                                                         "score":  39,
+                                                         "shouldUse":  true,
+                                                         "minUseScore":  4,
+                                                         "isSelected":  false
+                                                     },
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "observer_01",
+                                                         "cardType":  "OBSERVER_WILL",
+                                                         "cardCost":  1,
+                                                         "score":  -247,
+                                                         "shouldUse":  false,
+                                                         "minUseScore":  4,
+                                                         "isSelected":  false
+                                                     }
+                                                 ]
+                      },
+                      {
+                          "seed":  14,
+                          "ply":  98,
+                          "player":  "black",
+                          "cardType":  "SUPER_BUOYANCY_WILL",
+                          "future":  0,
+                          "hasCornerMoveNow":  0,
+                          "hasEdgeMoveNow":  0,
+                          "cornerEmergency":  0,
+                          "handCards":  [
+                                            "super_gravity_01",
+                                            "ultimate_hyperactive_01",
+                                            "observer_01",
+                                            "super_buoyancy_01",
+                                            "extend_life_01"
+                                        ],
+                          "decisionCandidates":  [
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "super_buoyancy_01",
+                                                         "cardType":  "SUPER_BUOYANCY_WILL",
+                                                         "cardCost":  14,
+                                                         "score":  878,
+                                                         "shouldUse":  true,
+                                                         "minUseScore":  null,
+                                                         "isSelected":  true
+                                                     },
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "super_gravity_01",
+                                                         "cardType":  "SUPER_GRAVITY_WILL",
+                                                         "cardCost":  14,
+                                                         "score":  878,
+                                                         "shouldUse":  true,
+                                                         "minUseScore":  null,
+                                                         "isSelected":  false
+                                                     },
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "ultimate_hyperactive_01",
+                                                         "cardType":  "ULTIMATE_HYPERACTIVE_GOD",
+                                                         "cardCost":  28,
+                                                         "score":  739,
+                                                         "shouldUse":  true,
+                                                         "minUseScore":  null,
+                                                         "isSelected":  false
+                                                     },
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "observer_01",
+                                                         "cardType":  "OBSERVER_WILL",
+                                                         "cardCost":  1,
+                                                         "score":  721,
+                                                         "shouldUse":  true,
+                                                         "minUseScore":  null,
+                                                         "isSelected":  false
+                                                     }
+                                                 ]
+                      },
+                      {
+                          "seed":  13,
+                          "ply":  114,
+                          "player":  "white",
+                          "cardType":  "SUPER_BUOYANCY_WILL",
+                          "future":  0,
+                          "hasCornerMoveNow":  0,
+                          "hasEdgeMoveNow":  0,
+                          "cornerEmergency":  1,
+                          "handCards":  [
+                                            "x_bomb_01",
+                                            "board_expand_god_01",
+                                            "work_01",
+                                            "super_buoyancy_01"
+                                        ],
+                          "decisionCandidates":  [
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "super_buoyancy_01",
+                                                         "cardType":  "SUPER_BUOYANCY_WILL",
+                                                         "cardCost":  14,
+                                                         "score":  237,
+                                                         "shouldUse":  true,
+                                                         "minUseScore":  6,
+                                                         "isSelected":  true
+                                                     },
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "board_expand_god_01",
+                                                         "cardType":  "BOARD_EXPANSION_GOD",
+                                                         "cardCost":  27,
+                                                         "score":  125,
+                                                         "shouldUse":  true,
+                                                         "minUseScore":  6,
+                                                         "isSelected":  false
+                                                     },
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "x_bomb_01",
+                                                         "cardType":  "X_BOMB",
+                                                         "cardCost":  18,
+                                                         "score":  -30,
+                                                         "shouldUse":  false,
+                                                         "minUseScore":  6,
+                                                         "isSelected":  false
+                                                     },
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "work_01",
+                                                         "cardType":  "WORK_WILL",
+                                                         "cardCost":  11,
+                                                         "score":  -444,
+                                                         "shouldUse":  false,
+                                                         "minUseScore":  6,
+                                                         "isSelected":  false
+                                                     }
+                                                 ]
+                      },
+                      {
+                          "seed":  11,
+                          "ply":  35,
+                          "player":  "white",
+                          "cardType":  "SUPER_BUOYANCY_WILL",
+                          "future":  0,
+                          "hasCornerMoveNow":  0,
+                          "hasEdgeMoveNow":  0,
+                          "cornerEmergency":  0,
+                          "handCards":  [
+                                            "super_buoyancy_01",
+                                            "udr_01",
+                                            "super_gravity_01",
+                                            "escape_01"
+                                        ],
+                          "decisionCandidates":  [
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "super_buoyancy_01",
+                                                         "cardType":  "SUPER_BUOYANCY_WILL",
+                                                         "cardCost":  14,
+                                                         "score":  42,
+                                                         "shouldUse":  true,
+                                                         "minUseScore":  6,
+                                                         "isSelected":  true
+                                                     },
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "super_gravity_01",
+                                                         "cardType":  "SUPER_GRAVITY_WILL",
+                                                         "cardCost":  14,
+                                                         "score":  42,
+                                                         "shouldUse":  true,
+                                                         "minUseScore":  6,
+                                                         "isSelected":  false
+                                                     },
+                                                     {
+                                                         "actionType":  "use_card",
+                                                         "decisionKind":  "use",
+                                                         "cardId":  "escape_01",
+                                                         "cardType":  "ESCAPE_WILL",
+                                                         "cardCost":  7,
+                                                         "score":  -21,
+                                                         "shouldUse":  false,
+                                                         "minUseScore":  6,
+                                                         "isSelected":  false
+                                                     }
+                                                 ]
+                      }
+                  ]
+}

@@ -1,0 +1,159 @@
+{
+  "ok": true,
+  "roomId": "F48",
+  "before": {
+    "black": {
+      "seatKey": "black",
+      "currentPlayer": 1,
+      "currentPlayerKey": "black",
+      "turnIndex": 1,
+      "turnNumber": 0,
+      "d3": 0,
+      "busy": {
+        "VisualPlaybackActive": false,
+        "isProcessing": false,
+        "isCardAnimating": false
+      },
+      "pending": null
+    },
+    "white": {
+      "seatKey": "white",
+      "currentPlayer": 1,
+      "currentPlayerKey": "black",
+      "turnIndex": 1,
+      "turnNumber": 0,
+      "d3": 0,
+      "busy": {
+        "VisualPlaybackActive": false,
+        "isProcessing": false,
+        "isCardAnimating": false
+      },
+      "pending": null
+    }
+  },
+  "after": {
+    "black": {
+      "seatKey": "black",
+      "currentPlayer": -1,
+      "currentPlayerKey": "white",
+      "turnIndex": 2,
+      "turnNumber": 1,
+      "d3": 1,
+      "busy": {
+        "VisualPlaybackActive": true,
+        "isProcessing": true,
+        "isCardAnimating": true
+      },
+      "pending": null
+    },
+    "white": {
+      "seatKey": "white",
+      "currentPlayer": -1,
+      "currentPlayerKey": "white",
+      "turnIndex": 2,
+      "turnNumber": 1,
+      "d3": 1,
+      "busy": {
+        "VisualPlaybackActive": true,
+        "isProcessing": true,
+        "isCardAnimating": true
+      },
+      "pending": null
+    }
+  },
+  "samples": [
+    {
+      "t": 503,
+      "black": {
+        "seatKey": "black",
+        "currentPlayer": -1,
+        "currentPlayerKey": "white",
+        "turnIndex": 1,
+        "turnNumber": 1,
+        "d3": 1,
+        "busy": {
+          "VisualPlaybackActive": true,
+          "isProcessing": true,
+          "isCardAnimating": true
+        },
+        "pending": null
+      },
+      "white": {
+        "seatKey": "white",
+        "currentPlayer": 1,
+        "currentPlayerKey": "black",
+        "turnIndex": 1,
+        "turnNumber": 0,
+        "d3": 0,
+        "busy": {
+          "VisualPlaybackActive": false,
+          "isProcessing": false,
+          "isCardAnimating": false
+        },
+        "pending": null
+      }
+    },
+    {
+      "t": 1006,
+      "black": {
+        "seatKey": "black",
+        "currentPlayer": -1,
+        "currentPlayerKey": "white",
+        "turnIndex": 1,
+        "turnNumber": 1,
+        "d3": 1,
+        "busy": {
+          "VisualPlaybackActive": true,
+          "isProcessing": false,
+          "isCardAnimating": false
+        },
+        "pending": null
+      },
+      "white": {
+        "seatKey": "white",
+        "currentPlayer": 1,
+        "currentPlayerKey": "black",
+        "turnIndex": 1,
+        "turnNumber": 0,
+        "d3": 0,
+        "busy": {
+          "VisualPlaybackActive": false,
+          "isProcessing": false,
+          "isCardAnimating": false
+        },
+        "pending": null
+      }
+    },
+    {
+      "t": 1508,
+      "black": {
+        "seatKey": "black",
+        "currentPlayer": -1,
+        "currentPlayerKey": "white",
+        "turnIndex": 2,
+        "turnNumber": 1,
+        "d3": 1,
+        "busy": {
+          "VisualPlaybackActive": true,
+          "isProcessing": true,
+          "isCardAnimating": true
+        },
+        "pending": null
+      },
+      "white": {
+        "seatKey": "white",
+        "currentPlayer": -1,
+        "currentPlayerKey": "white",
+        "turnIndex": 2,
+        "turnNumber": 1,
+        "d3": 1,
+        "busy": {
+          "VisualPlaybackActive": true,
+          "isProcessing": true,
+          "isCardAnimating": true
+        },
+        "pending": null
+      }
+    }
+  ]
+}

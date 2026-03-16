@@ -1,0 +1,361 @@
+{
+  "summary": [
+    {
+      "type": "SUPER_BUOYANCY_WILL",
+      "count": 4,
+      "avgFuture": -5,
+      "negativeCount": 4,
+      "negativeRate": 1
+    },
+    {
+      "type": "TRAP_WILL",
+      "count": 7,
+      "avgFuture": -3,
+      "negativeCount": 5,
+      "negativeRate": 0.7142857142857143
+    },
+    {
+      "type": "SACRIFICE_WILL",
+      "count": 1,
+      "avgFuture": -3,
+      "negativeCount": 1,
+      "negativeRate": 1
+    },
+    {
+      "type": "TIME_BOMB",
+      "count": 4,
+      "avgFuture": -1.5,
+      "negativeCount": 2,
+      "negativeRate": 0.5
+    },
+    {
+      "type": "INSTANT_HYPERACTIVE_WILL",
+      "count": 2,
+      "avgFuture": -1.5,
+      "negativeCount": 1,
+      "negativeRate": 0.5
+    },
+    {
+      "type": "BLOCKADE_WILL",
+      "count": 8,
+      "avgFuture": -0.75,
+      "negativeCount": 4,
+      "negativeRate": 0.5
+    },
+    {
+      "type": "TABOO_REVERSE_WILL",
+      "count": 8,
+      "avgFuture": -0.75,
+      "negativeCount": 3,
+      "negativeRate": 0.375
+    },
+    {
+      "type": "CELL_TELEPORT_WILL",
+      "count": 4,
+      "avgFuture": -0.75,
+      "negativeCount": 2,
+      "negativeRate": 0.5
+    },
+    {
+      "type": "HYPERACTIVE_INHERIT_WILL",
+      "count": 6,
+      "avgFuture": -0.6666666666666666,
+      "negativeCount": 3,
+      "negativeRate": 0.5
+    },
+    {
+      "type": "FREE_PLACEMENT",
+      "count": 6,
+      "avgFuture": -0.5,
+      "negativeCount": 2,
+      "negativeRate": 0.3333333333333333
+    },
+    {
+      "type": "HYPERACTIVE_WILL",
+      "count": 2,
+      "avgFuture": -0.5,
+      "negativeCount": 1,
+      "negativeRate": 0.5
+    },
+    {
+      "type": "LAST_RESORT",
+      "count": 5,
+      "avgFuture": -0.4,
+      "negativeCount": 1,
+      "negativeRate": 0.2
+    },
+    {
+      "type": "CROSS_BOMB",
+      "count": 1,
+      "avgFuture": 0,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "CHAIN_WILL",
+      "count": 1,
+      "avgFuture": 0,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "WORK_WILL",
+      "count": 1,
+      "avgFuture": 0,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "BOARD_EXPANSION_WILL",
+      "count": 4,
+      "avgFuture": 0.5,
+      "negativeCount": 1,
+      "negativeRate": 0.25
+    },
+    {
+      "type": "DESTROY_DRAGON_WILL",
+      "count": 2,
+      "avgFuture": 0.5,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "GUARD_WILL",
+      "count": 5,
+      "avgFuture": 0.6,
+      "negativeCount": 1,
+      "negativeRate": 0.2
+    },
+    {
+      "type": "METEOR_WILL",
+      "count": 5,
+      "avgFuture": 0.6,
+      "negativeCount": 2,
+      "negativeRate": 0.4
+    },
+    {
+      "type": "HEAVEN_BLESSING",
+      "count": 5,
+      "avgFuture": 0.6,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "CORROSION_WILL",
+      "count": 3,
+      "avgFuture": 0.6666666666666666,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "SUPER_GRAVITY_WILL",
+      "count": 4,
+      "avgFuture": 0.75,
+      "negativeCount": 1,
+      "negativeRate": 0.25
+    },
+    {
+      "type": "SELL_CARD_WILL",
+      "count": 9,
+      "avgFuture": 1,
+      "negativeCount": 1,
+      "negativeRate": 0.1111111111111111
+    },
+    {
+      "type": "CLONE_WILL",
+      "count": 3,
+      "avgFuture": 1,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "CRYSTAL_STONE",
+      "count": 7,
+      "avgFuture": 1.1428571428571428,
+      "negativeCount": 2,
+      "negativeRate": 0.2857142857142857
+    },
+    {
+      "type": "STRONG_WIND_WILL",
+      "count": 5,
+      "avgFuture": 1.2,
+      "negativeCount": 1,
+      "negativeRate": 0.2
+    },
+    {
+      "type": "DESTROY_ONE_STONE",
+      "count": 4,
+      "avgFuture": 1.25,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "TREASURE_BOX",
+      "count": 9,
+      "avgFuture": 1.3333333333333333,
+      "negativeCount": 1,
+      "negativeRate": 0.1111111111111111
+    },
+    {
+      "type": "REBUILD_WILL",
+      "count": 6,
+      "avgFuture": 1.5,
+      "negativeCount": 2,
+      "negativeRate": 0.3333333333333333
+    },
+    {
+      "type": "EXTEND_LIFE_WILL",
+      "count": 4,
+      "avgFuture": 1.5,
+      "negativeCount": 1,
+      "negativeRate": 0.25
+    },
+    {
+      "type": "SNIPER_WILL",
+      "count": 3,
+      "avgFuture": 1.6666666666666667,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "CONDEMN_WILL",
+      "count": 6,
+      "avgFuture": 1.8333333333333333,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "PERMA_PROTECT_NEXT_STONE",
+      "count": 6,
+      "avgFuture": 2,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "SILVER_STONE",
+      "count": 4,
+      "avgFuture": 2,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "ULTIMATE_HYPERACTIVE_GOD",
+      "count": 2,
+      "avgFuture": 2,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "BOARD_EXPANSION_GOD",
+      "count": 1,
+      "avgFuture": 2,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "REGEN_WILL",
+      "count": 4,
+      "avgFuture": 2.25,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "PROTECTED_NEXT_STONE",
+      "count": 6,
+      "avgFuture": 2.5,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "X_BOMB",
+      "count": 2,
+      "avgFuture": 2.5,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "POSITION_SWAP_WILL",
+      "count": 5,
+      "avgFuture": 2.6,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "ESCAPE_WILL",
+      "count": 6,
+      "avgFuture": 2.6666666666666665,
+      "negativeCount": 1,
+      "negativeRate": 0.16666666666666666
+    },
+    {
+      "type": "GOLD_STONE",
+      "count": 5,
+      "avgFuture": 2.8,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "GUARDIAN_GOD",
+      "count": 3,
+      "avgFuture": 3,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "ULTIMATE_REVERSE_DRAGON",
+      "count": 1,
+      "avgFuture": 3,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "TEMPT_WILL",
+      "count": 1,
+      "avgFuture": 3,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "TELEPORT_WILL",
+      "count": 10,
+      "avgFuture": 3.4,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "ROBOT_VACUUM_WILL",
+      "count": 5,
+      "avgFuture": 3.4,
+      "negativeCount": 1,
+      "negativeRate": 0.2
+    },
+    {
+      "type": "LOSS_WILL",
+      "count": 2,
+      "avgFuture": 3.5,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "PLUNDER_WILL",
+      "count": 2,
+      "avgFuture": 3.5,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "SWAP_WITH_ENEMY",
+      "count": 11,
+      "avgFuture": 4.545454545454546,
+      "negativeCount": 0,
+      "negativeRate": 0
+    },
+    {
+      "type": "BREEDING_WILL",
+      "count": 3,
+      "avgFuture": 6.333333333333333,
+      "negativeCount": 0,
+      "negativeRate": 0
+    }
+  ]
+}
