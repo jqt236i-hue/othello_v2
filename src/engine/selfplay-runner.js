@@ -5,6 +5,7 @@
 
 'use strict';
 
+const path = require('path');
 const Core = require('../../game/logic/core');
 const CardLogic = require('../../game/logic/cards');
 const TurnPipeline = require('../../game/turn/turn_pipeline');
@@ -14,13 +15,12 @@ const deepClone = require('../../utils/deepClone');
 const CpuPolicyCore = require('../../game/ai/cpu-policy-core');
 const CpuPolicyTableRuntime = require('../../game/ai/policy-table-runtime');
 const CpuLv6LookaheadProfile = require('../../game/ai/cpu-lv6-lookahead-profile');
-const SharedBoardUtils = require('../../shared/shared-board-utils');
-const SharedCardHeuristics = require('../../shared/shared-card-heuristics');
+const SharedBoardUtils = require(path.resolve(__dirname, '..', '..', 'shared', 'shared-board-utils.js'));
+const SharedCardHeuristics = require(path.resolve(__dirname, '..', '..', 'shared', 'shared-card-heuristics.js'));
 const PendingTargetSelector = require('../../game/turn-handlers/pending-target-selector');
 
 const SELFPLAY_SCHEMA_VERSION = 'selfplay.v2';
 const LEGACY_SELFPLAY_SCHEMA_VERSION = 'selfplay.v1';
-const NO_CARD_ACTION_ID = '__no_card__';
 
 const TARGET_SELECTION_CARD_TYPES = new Set([
     'DESTROY_ONE_STONE',
@@ -83,6 +83,9 @@ const CANDIDATE_CARD_TYPES = new Set([
     'PLUNDER_WILL',
     'WORK_WILL',
     'DOUBLE_PLACE',
+    'TRIPLE_PLACE',
+    'QUAD_PLACE',
+    'INFINITE_PLACE',
     'HEAVEN_BLESSING',
     'CONDEMN_WILL',
     'GOLD_STONE',
@@ -165,23 +168,6 @@ function toPlayerValue(playerKey) {
     return playerKey === 'black' ? Core.BLACK : Core.WHITE;
 }
 
-function getShapeAwareBoard(board, gameStateLike, cardStateLike) {
-    if (
-        !Array.isArray(board) ||
-        !SharedBoardUtils ||
-        typeof SharedBoardUtils.attachBoardShape !== 'function'
-    ) {
-        return board;
-    }
-    try {
-        SharedBoardUtils.attachBoardShape(board, {
-            boardExpansion: gameStateLike && gameStateLike.boardExpansion,
-            cardState: cardStateLike || null
-        });
-    } catch (e) { /* ignore */ }
-    return board;
-}
-
 function getSafeCardContext(cardState) {
     let context = null;
     try {
@@ -202,10 +188,43 @@ function getSafeCardContext(cardState) {
     }
 }
 
+function getShapeAwareBoard(board, options) {
+    if (!Array.isArray(board)) return [];
+    if (SharedBoardUtils && typeof SharedBoardUtils.attachBoardShape === 'function') {
+        return SharedBoardUtils.attachBoardShape(board, options || null);
+    }
+    return board;
+}
+
+function getSelfplayBoard(gameState, cardState) {
+    if (!gameState || !Array.isArray(gameState.board)) return [];
+    return getShapeAwareBoard(gameState.board, {
+        boardExpansion: gameState.boardExpansion,
+        cardState
+    });
+}
+
+function getBoardCellValue(board, row, col) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function') {
+        return SharedBoardUtils.getCellValue(board, row, col);
+    }
+    return Array.isArray(board) && Array.isArray(board[row]) ? board[row][col] : null;
+}
+
+function setBoardCellValue(board, row, col, value) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.setCellValue === 'function') {
+        return SharedBoardUtils.setCellValue(board, row, col, value);
+    }
+    if (!Array.isArray(board) || !Array.isArray(board[row])) return false;
+    board[row][col] = value;
+    return true;
+}
+
 function encodeBoard(board) {
     if (SharedBoardUtils && typeof SharedBoardUtils.encodeBoard === 'function') {
         return SharedBoardUtils.encodeBoard(board);
     }
+    if (!Array.isArray(board)) return '';
     return board
         .map((row) => row.map((v) => (v === Core.BLACK ? 'B' : (v === Core.WHITE ? 'W' : '.'))).join(''))
         .join('/');
@@ -263,20 +282,24 @@ function canonicalizeBoard(board) {
     return { boardKey: best || raw, transformId: bestT };
 }
 
-function isCorner(row, col, boardOrRows) {
+function isCorner(row, col, boardOrSize) {
     if (SharedBoardUtils && typeof SharedBoardUtils.isCorner === 'function') {
-        if (Array.isArray(boardOrRows)) return SharedBoardUtils.isCorner(row, col, boardOrRows);
-        return SharedBoardUtils.isCorner(row, col, 8, 8);
+        if (Array.isArray(boardOrSize)) return SharedBoardUtils.isCorner(row, col, boardOrSize);
+        const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
+        return SharedBoardUtils.isCorner(row, col, n, n);
     }
-    return (row === 0 || row === 7) && (col === 0 || col === 7);
+    const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
+    return (row === 0 || row === n - 1) && (col === 0 || col === n - 1);
 }
 
-function isEdge(row, col, boardOrRows) {
+function isEdge(row, col, boardOrSize) {
     if (SharedBoardUtils && typeof SharedBoardUtils.isEdge === 'function') {
-        if (Array.isArray(boardOrRows)) return SharedBoardUtils.isEdge(row, col, boardOrRows);
-        return SharedBoardUtils.isEdge(row, col, 8, 8);
+        if (Array.isArray(boardOrSize)) return SharedBoardUtils.isEdge(row, col, boardOrSize);
+        const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
+        return SharedBoardUtils.isEdge(row, col, n, n);
     }
-    return row === 0 || row === 7 || col === 0 || col === 7;
+    const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
+    return row === 0 || row === n - 1 || col === 0 || col === n - 1;
 }
 
 function resolveForcedPlacementCandidates(legalMoves, options, board) {
@@ -316,21 +339,25 @@ function resolveForcedPlacementCandidates(legalMoves, options, board) {
     };
 }
 
-function isXSquare(row, col, boardOrRows) {
+function isXSquare(row, col, boardOrSize) {
     if (SharedBoardUtils && typeof SharedBoardUtils.isXSquare === 'function') {
-        if (Array.isArray(boardOrRows)) return SharedBoardUtils.isXSquare(row, col, boardOrRows);
-        return SharedBoardUtils.isXSquare(row, col, 8, 8);
+        if (Array.isArray(boardOrSize)) return SharedBoardUtils.isXSquare(row, col, boardOrSize);
+        const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
+        return SharedBoardUtils.isXSquare(row, col, n, n);
     }
-    return (row === 1 || row === 6) && (col === 1 || col === 6);
+    const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
+    return (row === 1 || row === n - 2) && (col === 1 || col === n - 2);
 }
 
-function isCSquare(row, col, boardOrRows) {
+function isCSquare(row, col, boardOrSize) {
     if (SharedBoardUtils && typeof SharedBoardUtils.isCSquare === 'function') {
-        if (Array.isArray(boardOrRows)) return SharedBoardUtils.isCSquare(row, col, boardOrRows);
-        return SharedBoardUtils.isCSquare(row, col, 8, 8);
+        if (Array.isArray(boardOrSize)) return SharedBoardUtils.isCSquare(row, col, boardOrSize);
+        const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
+        return SharedBoardUtils.isCSquare(row, col, n, n);
     }
-    const nearTopBottom = (row === 0 || row === 7) && (col === 1 || col === 6);
-    const nearLeftRight = (col === 0 || col === 7) && (row === 1 || row === 6);
+    const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
+    const nearTopBottom = (row === 0 || row === n - 1) && (col === 1 || col === n - 2);
+    const nearLeftRight = (col === 0 || col === n - 1) && (row === 1 || row === n - 2);
     return nearTopBottom || nearLeftRight;
 }
 
@@ -382,16 +409,15 @@ function scoreMove(move, rng, context) {
     const col = Number.isFinite(move && move.col) ? move.col : 0;
     const flips = Array.isArray(move && move.flips) ? move.flips.length : 0;
     const scoreContext = context || {};
-    const board = scoreContext && scoreContext.gameState
-        ? getShapeAwareBoard(scoreContext.gameState.board, scoreContext.gameState, scoreContext.cardState)
-        : null;
     const planState = scoreContext.planState || null;
     const movePlanContext = scoreContext.movePlanContext || null;
+    const board = Array.isArray(scoreContext.board)
+        ? scoreContext.board
+        : getSelfplayBoard(scoreContext.gameState, scoreContext.cardState);
     const shouldUseCornerPlan = (
         CpuPolicyCore &&
         typeof CpuPolicyCore.scoreMoveForCornerEdgePlan === 'function' &&
         scoreContext.gameState &&
-        isStandardBoard(scoreContext.gameState.board) &&
         movePlanContext
     );
 
@@ -436,15 +462,21 @@ function scoreMove(move, rng, context) {
 }
 
 function evaluatePositionalDiff(board, playerValue) {
+    const boardRef = getShapeAwareBoard(board);
     let own = 0;
     let opp = 0;
-    for (let row = 0; row < board.length; row++) {
-        for (let col = 0; col < board[row].length; col++) {
-            const cell = board[row][col];
+    const cells = (SharedBoardUtils && typeof SharedBoardUtils.collectBoardCoordinates === 'function')
+        ? SharedBoardUtils.collectBoardCoordinates(boardRef)
+        : boardRef.flatMap((row, rowIndex) => (Array.isArray(row) ? row.map((_, colIndex) => ({ row: rowIndex, col: colIndex })) : []));
+    for (const pos of cells) {
+        if (!pos) continue;
+        const row = pos.row;
+        const col = pos.col;
+        const cell = getBoardCellValue(boardRef, row, col);
+        if (cell === null) continue;
             const w = POSITION_WEIGHTS[row] && Number.isFinite(POSITION_WEIGHTS[row][col]) ? POSITION_WEIGHTS[row][col] : 0;
             if (cell === playerValue) own += w;
             else if (cell === -playerValue) opp += w;
-        }
     }
     return own - opp;
 }
@@ -649,251 +681,6 @@ function buildPendingSelectionRecord(action, pendingType) {
     return null;
 }
 
-function pushUniqueDecisionTag(tags, tag) {
-    const normalized = String(tag || '').trim();
-    if (!normalized || tags.includes(normalized)) return;
-    tags.push(normalized);
-}
-
-function cloneDecisionCandidates(record) {
-    if (!record || !Array.isArray(record.decisionCandidates)) return [];
-    return record.decisionCandidates.map((candidate) => Object.assign({}, candidate));
-}
-
-function cloneDecisionReasonTags(record) {
-    return Array.isArray(record && record.decisionReasonTags)
-        ? record.decisionReasonTags.map((tag) => String(tag))
-        : [];
-}
-
-function cloneDecisionScoreSummary(record) {
-    if (!record || !record.decisionScoreSummary || typeof record.decisionScoreSummary !== 'object') return null;
-    return Object.assign({}, record.decisionScoreSummary);
-}
-
-function buildCardDecisionReasonTags(context, decisionKind, selectedCandidate) {
-    const tags = [];
-    const ctx = context && typeof context === 'object' ? context : null;
-    const kind = String(decisionKind || '').trim();
-    if (kind) pushUniqueDecisionTag(tags, `decision:${kind}`);
-    if (!ctx) return tags;
-
-    if (ctx.forceUseCard === true) pushUniqueDecisionTag(tags, 'force_use_card');
-    if (ctx.hasCornerMoveNow === true) pushUniqueDecisionTag(tags, 'corner_move_available');
-    if (ctx.hasEdgeMoveNow === true) pushUniqueDecisionTag(tags, 'edge_move_available');
-    if (ctx.cornerEmergency === true) pushUniqueDecisionTag(tags, 'corner_emergency');
-    if (ctx.cornerHoldMode === true) pushUniqueDecisionTag(tags, 'corner_hold_mode');
-    if (ctx.highBonusMoveAvailable === true) pushUniqueDecisionTag(tags, 'high_bonus_move_available');
-    if (ctx.lowDiscEmergency === true) pushUniqueDecisionTag(tags, 'low_disc_emergency');
-    if (ctx.criticalLowDiscEmergency === true) pushUniqueDecisionTag(tags, 'critical_low_disc_emergency');
-    if (Number.isFinite(ctx.handSize) && Number(ctx.handSize) >= 4) pushUniqueDecisionTag(tags, 'hand_pressure');
-    if (ctx.whiteLv6Mode === true) pushUniqueDecisionTag(tags, 'white_lv6_mode');
-    if (kind === 'sell') pushUniqueDecisionTag(tags, 'retention_cycle');
-    if (kind === 'destroy') pushUniqueDecisionTag(tags, 'hand_cycle');
-    if (selectedCandidate && selectedCandidate.reason) pushUniqueDecisionTag(tags, String(selectedCandidate.reason));
-    if (selectedCandidate && selectedCandidate.shouldUse === false) pushUniqueDecisionTag(tags, 'declined_by_threshold');
-    if (
-        selectedCandidate &&
-        Number.isFinite(selectedCandidate.score) &&
-        Number.isFinite(selectedCandidate.minUseScore) &&
-        Number(selectedCandidate.score) >= Number(selectedCandidate.minUseScore)
-    ) {
-        pushUniqueDecisionTag(tags, 'threshold_passed');
-    }
-
-    return tags;
-}
-
-function buildUseSelectionTraceMetadata(gameState, cardState, playerKey, legalMoves, selectedCardId, actionType) {
-    const usable = getDirectUsableCardIds(cardState, gameState, playerKey);
-    const context = buildCardDecisionContext(gameState, cardState, playerKey, legalMoves.length, legalMoves, usable);
-    let candidates = [];
-    if (CpuPolicyCore && typeof CpuPolicyCore.enumerateCardUseCandidates === 'function') {
-        candidates = CpuPolicyCore.enumerateCardUseCandidates(
-            usable,
-            CardLogic.getCardCost,
-            CardLogic.getCardDef,
-            context
-        ).map((candidate) => ({
-            actionType: 'use_card',
-            decisionKind: 'use',
-            cardId: candidate.cardId,
-            cardType: candidate.cardType || null,
-            cardCost: Number.isFinite(candidate.cardCost) ? Number(candidate.cardCost) : null,
-            score: Number.isFinite(candidate.score) ? Number(candidate.score) : null,
-            shouldUse: candidate.shouldUse === true,
-            minUseScore: Number.isFinite(candidate.minUseScore) ? Number(candidate.minUseScore) : null,
-            isSelected: candidate.cardId === selectedCardId
-        }));
-    } else {
-        candidates = usable.map((cardId) => ({
-            actionType: 'use_card',
-            decisionKind: 'use',
-            cardId,
-            isSelected: cardId === selectedCardId
-        }));
-    }
-
-    const selectedCandidate = candidates.find((candidate) => candidate && candidate.cardId === selectedCardId) || null;
-    const decision = actionType === 'use_card' ? 'use' : 'keep';
-    const normalizedCandidates = actionType === 'cancel_card'
-        ? [{
-            actionType: 'cancel_card',
-            decisionKind: 'keep',
-            cardId: NO_CARD_ACTION_ID,
-            isSelected: true
-        }].concat(candidates.map((candidate) => Object.assign({}, candidate, { isSelected: false })))
-        : candidates;
-
-    return {
-        selectedActionKey: actionType === 'use_card' && selectedCardId
-            ? `use:${selectedCardId}`
-            : 'keep',
-        decision,
-        selectedCardId: actionType === 'use_card' ? (selectedCardId || null) : null,
-        candidates: normalizedCandidates,
-        reasonTags: buildCardDecisionReasonTags(context, decision, selectedCandidate),
-        scoreSummary: {
-            bestScore: normalizedCandidates.length > 0 && Number.isFinite(normalizedCandidates[0].score)
-                ? Number(normalizedCandidates[0].score)
-                : null,
-            selectedScore: selectedCandidate && Number.isFinite(selectedCandidate.score)
-                ? Number(selectedCandidate.score)
-                : null,
-            minUseScore: selectedCandidate && Number.isFinite(selectedCandidate.minUseScore)
-                ? Number(selectedCandidate.minUseScore)
-                : (Number.isFinite(context && context.minUseScore) ? Number(context.minUseScore) : null),
-            forceUseCard: context && context.forceUseCard === true,
-            handSize: Number.isFinite(context && context.handSize) ? Number(context.handSize) : null,
-            legalMovesCount: Array.isArray(legalMoves) ? legalMoves.length : 0
-        }
-    };
-}
-
-function buildSellSelectionTraceMetadata(gameState, cardState, playerKey, legalMoves, selectedCardId) {
-    const hand = cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])
-        ? cardState.hands[playerKey].slice()
-        : [];
-    const context = buildCardDecisionContext(gameState, cardState, playerKey, legalMoves.length, legalMoves, hand);
-    let candidates = [];
-    if (CpuPolicyCore && typeof CpuPolicyCore.enumerateSellCardRetentionCandidates === 'function') {
-        candidates = CpuPolicyCore.enumerateSellCardRetentionCandidates(
-            hand,
-            CardLogic.getCardCost,
-            CardLogic.getCardDef,
-            context
-        ).map((candidate) => ({
-            actionType: 'place',
-            decisionKind: 'sell',
-            cardId: candidate.cardId,
-            cardType: candidate.cardType || null,
-            cardCost: Number.isFinite(candidate.cardCost) ? Number(candidate.cardCost) : null,
-            score: Number.isFinite(candidate.score) ? Number(candidate.score) : null,
-            retentionScore: Number.isFinite(candidate.score) ? Number(candidate.score) : null,
-            isSelected: candidate.cardId === selectedCardId
-        }));
-    } else {
-        candidates = hand.map((cardId) => ({
-            actionType: 'place',
-            decisionKind: 'sell',
-            cardId,
-            isSelected: cardId === selectedCardId
-        }));
-    }
-
-    const selectedCandidate = candidates.find((candidate) => candidate && candidate.cardId === selectedCardId) || null;
-    return {
-        selectedActionKey: selectedCardId ? `sell:${selectedCardId}` : null,
-        decision: 'sell',
-        selectedCardId: selectedCardId || null,
-        candidates,
-        reasonTags: buildCardDecisionReasonTags(context, 'sell', selectedCandidate),
-        scoreSummary: {
-            selectedRetentionScore: selectedCandidate && Number.isFinite(selectedCandidate.score)
-                ? Number(selectedCandidate.score)
-                : null,
-            bestRetentionScore: candidates.length > 0 && Number.isFinite(candidates[0].score)
-                ? Number(candidates[0].score)
-                : null,
-            lowerScoreIsBetter: true,
-            legalMovesCount: Array.isArray(legalMoves) ? legalMoves.length : 0
-        }
-    };
-}
-
-function buildDestroySelectionTraceMetadata(gameState, cardState, playerKey, legalMoves, selectedCardId) {
-    const hand = cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])
-        ? cardState.hands[playerKey].slice()
-        : [];
-    const usable = getDirectUsableCardIds(cardState, gameState, playerKey);
-    const context = buildCardDecisionContext(gameState, cardState, playerKey, legalMoves.length, legalMoves, usable);
-    let candidates = [];
-    let destroyThreshold = null;
-    let destroyReason = null;
-    if (CpuPolicyCore && typeof CpuPolicyCore.enumerateDestroyCandidatesForCycle === 'function') {
-        const enumeration = CpuPolicyCore.enumerateDestroyCandidatesForCycle(
-            hand,
-            usable,
-            CardLogic.getCardCost,
-            CardLogic.getCardDef,
-            context
-        );
-        if (enumeration && Array.isArray(enumeration.candidates)) {
-            destroyThreshold = Number.isFinite(enumeration.destroyThreshold) ? Number(enumeration.destroyThreshold) : null;
-            destroyReason = enumeration.reason || null;
-            candidates = enumeration.candidates.map((candidate) => ({
-                actionType: 'destroy_hand_card',
-                decisionKind: 'destroy',
-                cardId: candidate.cardId,
-                cardType: candidate.cardType || null,
-                cardCost: Number.isFinite(candidate.cardCost) ? Number(candidate.cardCost) : null,
-                score: Number.isFinite(candidate.destroyScore) ? Number(candidate.destroyScore) : null,
-                destroyScore: Number.isFinite(candidate.destroyScore) ? Number(candidate.destroyScore) : null,
-                retentionScore: Number.isFinite(candidate.retentionScore) ? Number(candidate.retentionScore) : null,
-                destroyable: candidate.destroyable === true,
-                isSelected: candidate.cardId === selectedCardId
-            }));
-        }
-    }
-    if (candidates.length <= 0) {
-        candidates = hand.map((cardId) => ({
-            actionType: 'destroy_hand_card',
-            decisionKind: 'destroy',
-            cardId,
-            isSelected: cardId === selectedCardId
-        }));
-    }
-
-    const selectedCandidate = candidates.find((candidate) => candidate && candidate.cardId === selectedCardId) || null;
-    const reasonTags = buildCardDecisionReasonTags(context, 'destroy', selectedCandidate);
-    if (destroyReason) pushUniqueDecisionTag(reasonTags, destroyReason);
-    return {
-        selectedActionKey: selectedCardId ? `destroy:${selectedCardId}` : null,
-        decision: 'destroy',
-        selectedCardId: selectedCardId || null,
-        candidates,
-        reasonTags,
-        scoreSummary: {
-            selectedDestroyScore: selectedCandidate && Number.isFinite(selectedCandidate.score)
-                ? Number(selectedCandidate.score)
-                : null,
-            bestDestroyScore: candidates.length > 0 && Number.isFinite(candidates[0].score)
-                ? Number(candidates[0].score)
-                : null,
-            destroyThreshold,
-            legalMovesCount: Array.isArray(legalMoves) ? legalMoves.length : 0
-        }
-    };
-}
-
-function buildPendingActionTraceMetadata(gameState, cardState, playerKey, pendingType, legalMoves, action) {
-    if (!action || typeof action !== 'object') return null;
-    if (pendingType === 'SELL_CARD_WILL' && typeof action.sellCardId === 'string' && action.sellCardId.trim()) {
-        return buildSellSelectionTraceMetadata(gameState, cardState, playerKey, legalMoves, action.sellCardId.trim());
-    }
-    return null;
-}
-
 function buildPendingSelectionTrace(record) {
     if (!record || typeof record !== 'object') return null;
     const selection = record.pendingSelection;
@@ -931,24 +718,6 @@ function buildPendingSelectionTrace(record) {
 function buildSelectionTrace(record) {
     if (!record || typeof record !== 'object') return null;
     const actionType = String(record.actionType || '');
-    const selectedActionKey = (typeof record.selectedActionKey === 'string' && record.selectedActionKey.trim())
-        ? record.selectedActionKey.trim()
-        : null;
-    const decisionCandidates = cloneDecisionCandidates(record);
-    const decisionReasonTags = cloneDecisionReasonTags(record);
-    const decisionScoreSummary = cloneDecisionScoreSummary(record);
-    if (actionType === 'place' && typeof record.sellCardId === 'string' && record.sellCardId.trim()) {
-        return {
-            kind: 'card',
-            decision: 'sell',
-            selectedCardId: record.sellCardId.trim(),
-            selectedActionKey: selectedActionKey || `sell:${record.sellCardId.trim()}`,
-            candidates: decisionCandidates,
-            reasonTags: decisionReasonTags,
-            scoreSummary: decisionScoreSummary,
-            pendingSelection: buildPendingSelectionTrace(record)
-        };
-    }
     if (actionType === 'place') {
         const topCandidates = Array.isArray(record.topPlacementCandidates)
             ? record.topPlacementCandidates.map((one) => ({
@@ -973,11 +742,6 @@ function buildSelectionTrace(record) {
                 selectedTacticalScore: Number.isFinite(record.selectedTacticalScore) ? Number(record.selectedTacticalScore) : null,
                 selectedCellBonus: Number.isFinite(record.selectedCellBonus) ? Number(record.selectedCellBonus) : null
             },
-            selectedActionKey: selectedActionKey || (
-                Number.isFinite(record.row) && Number.isFinite(record.col)
-                    ? `place:${Number(record.row)}:${Number(record.col)}`
-                    : null
-            ),
             topCandidates,
             forcedPlacementCategory: record.forcedPlacementCategory || null,
             pendingSelection: buildPendingSelectionTrace(record)
@@ -988,11 +752,7 @@ function buildSelectionTrace(record) {
             kind: 'card',
             decision: 'use',
             selectedCardId: record.useCardId || null,
-            selectedActionKey: selectedActionKey || (record.useCardId ? `use:${record.useCardId}` : null),
-            usableCardIds: Array.isArray(record.usableCardIds) ? record.usableCardIds.slice() : [],
-            candidates: decisionCandidates,
-            reasonTags: decisionReasonTags,
-            scoreSummary: decisionScoreSummary
+            usableCardIds: Array.isArray(record.usableCardIds) ? record.usableCardIds.slice() : []
         };
     }
     if (actionType === 'destroy_hand_card') {
@@ -1000,22 +760,14 @@ function buildSelectionTrace(record) {
             kind: 'card',
             decision: 'destroy',
             selectedCardId: record.destroyCardId || null,
-            selectedActionKey: selectedActionKey || (record.destroyCardId ? `destroy:${record.destroyCardId}` : null),
-            handCards: Array.isArray(record.handCards) ? record.handCards.slice() : [],
-            candidates: decisionCandidates,
-            reasonTags: decisionReasonTags,
-            scoreSummary: decisionScoreSummary
+            handCards: Array.isArray(record.handCards) ? record.handCards.slice() : []
         };
     }
     if (actionType === 'cancel_card') {
         return {
             kind: 'card',
             decision: 'keep',
-            selectedActionKey: selectedActionKey || 'keep',
-            usableCardIds: Array.isArray(record.usableCardIds) ? record.usableCardIds.slice() : [],
-            candidates: decisionCandidates,
-            reasonTags: decisionReasonTags,
-            scoreSummary: decisionScoreSummary
+            usableCardIds: Array.isArray(record.usableCardIds) ? record.usableCardIds.slice() : []
         };
     }
     return {
@@ -1080,7 +832,9 @@ function computeHardcaseTags(record) {
     );
     if (edgeSwing >= 2) pushUnique('edge_balance_swing');
 
-    const emptyCountBefore = 64 - Number(record.blackCountBefore || 0) - Number(record.whiteCountBefore || 0);
+    const emptyCountBefore = (typeof record.board === 'string' && record.board)
+        ? countEmptiesInBoardKey(record.board)
+        : (64 - Number(record.blackCountBefore || 0) - Number(record.whiteCountBefore || 0));
     if (emptyCountBefore <= 40) pushUnique('endgame_mode');
 
     return tags;
@@ -1183,8 +937,8 @@ function buildCornerPlanState(gameState, cardState, playerKey, legalMoves, usabl
             highBonusMoveAvailable: false
         };
     }
+    const board = getSelfplayBoard(gameState, cardState);
     const playerValue = toPlayerValue(playerKey);
-    const board = getShapeAwareBoard(gameState.board, gameState, cardState);
     const cornerControl = countCornerControl(board, playerValue);
     const edgeControl = countEdgeControl(board, playerValue);
     const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
@@ -1248,13 +1002,15 @@ function buildCornerPlanState(gameState, cardState, playerKey, legalMoves, usabl
 }
 
 function buildMovePlanContext(gameState, cardState, playerKey, legalMoves, usableCardIds) {
-    if (!gameState || !isStandardBoard(gameState.board)) return null;
+    if (!gameState || !Array.isArray(gameState.board)) return null;
+    const board = getSelfplayBoard(gameState, cardState);
     const ownKey = playerKey === 'black' ? 'black' : 'white';
     const planState = buildCornerPlanState(gameState, cardState, ownKey, legalMoves, usableCardIds);
     const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[ownKey] : null;
     return {
         level: 6,
-        board: gameState.board,
+        board,
+        playerValue: toPlayerValue(ownKey),
         ownCharge: cardState && cardState.charge && Number.isFinite(cardState.charge[ownKey]) ? Number(cardState.charge[ownKey]) : 0,
         boardBonusByCell: (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
             ? cardState.boardBonusByCell
@@ -1275,7 +1031,7 @@ function buildMovePlanContext(gameState, cardState, playerKey, legalMoves, usabl
 }
 
 function countDiscsByValue(gameState, playerValue) {
-    const board = getShapeAwareBoard(gameState.board, gameState, null);
+    const board = getSelfplayBoard(gameState);
     if (isStandardBoard(board)) {
         const counts = Core.countDiscs(gameState);
         return playerValue === Core.BLACK
@@ -1284,19 +1040,19 @@ function countDiscsByValue(gameState, playerValue) {
     }
     let own = 0;
     let opp = 0;
-    if (SharedBoardUtils && typeof SharedBoardUtils.collectBoardCoordinates === 'function' && typeof SharedBoardUtils.getCellValue === 'function') {
+    if (SharedBoardUtils && typeof SharedBoardUtils.collectBoardCoordinates === 'function') {
         for (const cell of SharedBoardUtils.collectBoardCoordinates(board)) {
-            const v = SharedBoardUtils.getCellValue(board, cell.row, cell.col);
+            const v = getBoardCellValue(board, cell.row, cell.col);
             if (v === playerValue) own += 1;
             else if (v === -playerValue) opp += 1;
         }
-        return own - opp;
-    }
-    for (let r = 0; r < board.length; r++) {
-        for (let c = 0; c < board[r].length; c++) {
-            const v = board[r][c];
-            if (v === playerValue) own += 1;
-            else if (v === -playerValue) opp += 1;
+    } else {
+        for (let r = 0; r < board.length; r++) {
+            for (let c = 0; c < board[r].length; c++) {
+                const v = board[r][c];
+                if (v === playerValue) own += 1;
+                else if (v === -playerValue) opp += 1;
+            }
         }
     }
     return own - opp;
@@ -1327,15 +1083,12 @@ function isStandardBoard(board) {
 }
 
 function evaluateBoardForPlayer(gameState, cardState, playerKey) {
-    const board = getShapeAwareBoard(gameState.board, gameState, cardState);
     const playerValue = toPlayerValue(playerKey);
     const context = getSafeCardContext(cardState);
-    let mobilityDiff = 0;
-    if (isStandardBoard(board)) {
-        const ownMobility = Core.getLegalMoves(gameState, playerValue, context).length;
-        const oppMobility = Core.getLegalMoves(gameState, -playerValue, context).length;
-        mobilityDiff = ownMobility - oppMobility;
-    }
+    const board = getSelfplayBoard(gameState, cardState);
+    const ownMobility = Core.getLegalMoves(gameState, playerValue, context).length;
+    const oppMobility = Core.getLegalMoves(gameState, -playerValue, context).length;
+    const mobilityDiff = ownMobility - oppMobility;
     const cornerDiff = countCorners(board, playerValue);
     const positionalDiff = evaluatePositionalDiff(board, playerValue);
     const discDiff = countDiscsByValue(gameState, playerValue);
@@ -1372,12 +1125,20 @@ function countDiscDiffOnBoard(board, playerValue) {
     if (!Array.isArray(board)) return 0;
     let own = 0;
     let opp = 0;
-    for (let row = 0; row < board.length; row++) {
-        const cells = Array.isArray(board[row]) ? board[row] : [];
-        for (let col = 0; col < cells.length; col++) {
-            const v = cells[col];
+    if (SharedBoardUtils && typeof SharedBoardUtils.collectBoardCoordinates === 'function') {
+        for (const cell of SharedBoardUtils.collectBoardCoordinates(board)) {
+            const v = getBoardCellValue(board, cell.row, cell.col);
             if (v === playerValue) own += 1;
             else if (v === -playerValue) opp += 1;
+        }
+    } else {
+        for (let row = 0; row < board.length; row++) {
+            const cells = Array.isArray(board[row]) ? board[row] : [];
+            for (let col = 0; col < cells.length; col++) {
+                const v = cells[col];
+                if (v === playerValue) own += 1;
+                else if (v === -playerValue) opp += 1;
+            }
         }
     }
     return own - opp;
@@ -1389,28 +1150,15 @@ function applyMoveToBoard(board, move, playerValue) {
         ? SharedBoardUtils.cloneBoard(board)
         : board.map((row) => (Array.isArray(row) ? row.slice() : []));
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return next;
-    if (SharedBoardUtils && typeof SharedBoardUtils.setCellValue === 'function') {
-        if (!SharedBoardUtils.setCellValue(next, move.row, move.col, playerValue)) return next;
-    } else {
-        if (!Array.isArray(next[move.row])) return next;
-        next[move.row][move.col] = playerValue;
-    }
+    if (!setBoardCellValue(next, move.row, move.col, playerValue)) return next;
     const flips = Array.isArray(move.flips) ? move.flips : [];
     for (const flip of flips) {
         if (Array.isArray(flip) && flip.length >= 2 && Number.isFinite(flip[0]) && Number.isFinite(flip[1])) {
-            if (SharedBoardUtils && typeof SharedBoardUtils.setCellValue === 'function') {
-                SharedBoardUtils.setCellValue(next, flip[0], flip[1], playerValue);
-            } else if (Array.isArray(next[flip[0]])) {
-                next[flip[0]][flip[1]] = playerValue;
-            }
+            setBoardCellValue(next, flip[0], flip[1], playerValue);
             continue;
         }
         if (flip && Number.isFinite(flip.row) && Number.isFinite(flip.col)) {
-            if (SharedBoardUtils && typeof SharedBoardUtils.setCellValue === 'function') {
-                SharedBoardUtils.setCellValue(next, flip.row, flip.col, playerValue);
-            } else if (Array.isArray(next[flip.row])) {
-                next[flip.row][flip.col] = playerValue;
-            }
+            setBoardCellValue(next, flip.row, flip.col, playerValue);
         }
     }
     return next;
@@ -1431,18 +1179,18 @@ function evaluateBoardForSearch(board, playerValue) {
     );
 }
 
-function scoreMoveForSearchOrder(move) {
+function scoreMoveForSearchOrder(move, board) {
     const flips = Array.isArray(move && move.flips) ? move.flips.length : 0;
     const row = Number.isFinite(move && move.row) ? move.row : 0;
     const col = Number.isFinite(move && move.col) ? move.col : 0;
-    return (flips * 120) + (evaluatePositionValue(row, col) * 14);
+    return (flips * 120) + (evaluatePositionValue(row, col, board) * 14);
 }
 
-function sortMovesForSearch(moves, beamWidth) {
+function sortMovesForSearch(moves, beamWidth, board) {
     const out = Array.isArray(moves) ? moves.slice() : [];
     out.sort((a, b) => {
-        const sa = scoreMoveForSearchOrder(a);
-        const sb = scoreMoveForSearchOrder(b);
+        const sa = scoreMoveForSearchOrder(a, board);
+        const sb = scoreMoveForSearchOrder(b, board);
         if (sb !== sa) return sb - sa;
         if (a.row !== b.row) return a.row - b.row;
         return a.col - b.col;
@@ -1502,7 +1250,7 @@ function minimaxBoardSearch(board, currentPlayer, rootPlayer, depth, alpha, beta
     }
 
     const maximizing = currentPlayer === rootPlayer;
-    const orderedMoves = sortMovesForSearch(legalMoves, beamWidth);
+    const orderedMoves = sortMovesForSearch(legalMoves, beamWidth, board);
     if (maximizing) {
         let best = -Infinity;
         for (const move of orderedMoves) {
@@ -1531,18 +1279,17 @@ function scoreTacticalMove(move, context, options) {
     const playerKey = context.playerKey === 'black' ? 'black' : 'white';
     const playerValue = toPlayerValue(playerKey);
     const nextState = applyMoveForEvaluation(context.gameState, move, playerValue);
-    const nextBoard = getShapeAwareBoard(nextState.board, nextState, context.cardState || null);
-    const empties = countEmpties(nextBoard);
+    const empties = countEmpties(nextState.board);
     const discWeight = empties <= 12 ? 18 : (empties <= 24 ? 8 : 2);
     const discDiff = countDiscsByValue(nextState, playerValue);
-    const cornerDiff = countCorners(nextBoard, playerValue);
-    const opponentMoves = getLegalMovesBasic(nextBoard, -playerValue);
+    const cornerDiff = countCorners(nextState.board, playerValue);
+    const opponentMoves = getLegalMovesBasic(nextState.board, -playerValue);
     let opponentThreat = 0;
     let givesCorner = false;
     for (const oppMove of opponentMoves) {
-        const pressure = ((oppMove.flips ? oppMove.flips.length : 0) * 80) + (evaluatePositionValue(oppMove.row, oppMove.col) * 8);
+        const pressure = ((oppMove.flips ? oppMove.flips.length : 0) * 80) + (evaluatePositionValue(oppMove.row, oppMove.col, nextState.board) * 8);
         if (pressure > opponentThreat) opponentThreat = pressure;
-        if (isCorner(oppMove.row, oppMove.col, nextBoard)) givesCorner = true;
+        if (isCorner(oppMove.row, oppMove.col, nextState.board)) givesCorner = true;
     }
     const row = Number.isFinite(move && move.row) ? move.row : 0;
     const col = Number.isFinite(move && move.col) ? move.col : 0;
@@ -1551,14 +1298,14 @@ function scoreTacticalMove(move, context, options) {
     const tie = (7 - row) * 0.001 + (7 - col) * 0.0001;
     const baseScore = (
         ((Array.isArray(move.flips) ? move.flips.length : 0) * 60) +
-        (evaluatePositionValue(row, col) * 8) +
+        (evaluatePositionValue(row, col, nextState.board) * 8) +
         (discDiff * discWeight) +
         (cornerDiff * 300) +
         (moveBonus * (planState && planState.cornerHoldMode ? 500 : 220)) +
         (opponentMoves.length * -45) +
         (opponentThreat * -6) +
         (givesCorner ? (planState && planState.cornerSeekMode ? -2600 : -1800) : 0) +
-        ((planState && planState.cornerHoldMode && !isCorner(row, col, nextBoard) && !isEdge(row, col, nextBoard)) ? -380 : 0) +
+        ((planState && planState.cornerHoldMode && !isCorner(row, col, nextState.board) && !isEdge(row, col, nextState.board)) ? -380 : 0) +
         tie
     );
 
@@ -1567,7 +1314,7 @@ function scoreTacticalMove(move, context, options) {
 
     const beamWidth = resolveTacticalBeamWidth(options, empties);
     const searchValue = minimaxBoardSearch(
-        nextBoard,
+        nextState.board,
         -playerValue,
         playerValue,
         searchDepth - 1,
@@ -1606,9 +1353,9 @@ function cellType(row, col, boardOrSize) {
     return 'inner';
 }
 
-function makePolicyAbstractActionKey(move, boardOrSize) {
+function makePolicyAbstractActionKey(move, boardShapeOrSize) {
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return 'place_cat:unknown';
-    return `place_cat:${cellType(move.row, move.col, boardOrSize)}`;
+    return `place_cat:${cellType(move.row, move.col, boardShapeOrSize)}`;
 }
 
 function countEmptiesInBoardKey(boardKey) {
@@ -1654,44 +1401,27 @@ function toBucket(value, steps) {
 }
 
 function makePolicyAbstractStateKey(playerKey, board, pendingType, legalMovesCount) {
-    const canonical = canonicalizeBoard(board);
-    const boardKey = canonical.boardKey || '';
     const pending = pendingType || '-';
     const legal = Number.isFinite(legalMovesCount) ? legalMovesCount : 0;
-    const playerValue = toPlayerValue(playerKey);
+    const boardKey = typeof board === 'string' ? board : '';
     const empties = Array.isArray(board) ? countEmpties(board) : countEmptiesInBoardKey(boardKey);
     const phase = empties >= 44 ? 'opening' : (empties >= 16 ? 'mid' : 'end');
     const mobility = toBucket(legal, [0, 2, 4, 6, 10, 20]);
-    const disc = toBucket(
-        Array.isArray(board)
-            ? countDiscsByValue({ board }, playerValue)
-            : discDiffFromPlayer(boardKey, playerKey),
-        [-20, -10, -4, 0, 4, 10, 20]
-    );
-    const corner = toBucket(
-        Array.isArray(board)
-            ? countCorners(board, playerValue)
-            : cornerDiffFromPlayer(boardKey, playerKey),
-        [-4, -2, -1, 0, 1, 2, 4]
-    );
+    const disc = toBucket(Array.isArray(board) ? countDiscDiffOnBoard(board, toPlayerValue(playerKey)) : discDiffFromPlayer(boardKey, playerKey), [-20, -10, -4, 0, 4, 10, 20]);
+    const corner = toBucket(Array.isArray(board) ? countCorners(board, toPlayerValue(playerKey)) : cornerDiffFromPlayer(boardKey, playerKey), [-4, -2, -1, 0, 1, 2, 4]);
     return `${playerKey}|${pending}|${phase}|mob:${mobility}|disc:${disc}|corner:${corner}`;
 }
 
 function getPolicyScore(options, context, move) {
     if (!options || !options.policyTableModel || !options.policyTableModel.states) return null;
     const model = options.policyTableModel;
+    const runtimeBoard = getSelfplayBoard(context && context.gameState, context && context.cardState);
     if (
         model.schemaVersion !== SELFPLAY_SCHEMA_VERSION &&
         model.schemaVersion !== LEGACY_SELFPLAY_SCHEMA_VERSION &&
         model.schemaVersion !== 'policy_table.v1' &&
         model.schemaVersion !== 'policy_table.v2'
     ) return null;
-
-    const policyBoard = getShapeAwareBoard(
-        context && context.gameState ? context.gameState.board : null,
-        context && context.gameState ? context.gameState : null,
-        context && context.cardState ? context.cardState : null
-    );
 
     if (
         model.schemaVersion !== SELFPLAY_SCHEMA_VERSION &&
@@ -1702,25 +1432,24 @@ function getPolicyScore(options, context, move) {
         const score = CpuPolicyTableRuntime.getActionScoreFromModel(model, move, {
             playerKey: context.playerKey,
             level: 6,
-            board: policyBoard,
+            board: runtimeBoard,
             pendingType: context.pendingType || null,
-            legalMovesCount: context.legalMovesCount,
-            preferRaw8x8Keys: true
+            legalMovesCount: context.legalMovesCount
         });
         if (Number.isFinite(score)) return Number(score);
     }
 
     const schema = model.schemaVersion || 'policy_table.v1';
     const canonical = schema === 'policy_table.v2'
-        ? canonicalizeBoard(policyBoard)
-        : { boardKey: encodeBoard(policyBoard), transformId: 0 };
+        ? canonicalizeBoard(runtimeBoard)
+        : { boardKey: encodeBoard(runtimeBoard), transformId: 0 };
     const key = `${context.playerKey}|${canonical.boardKey}|${context.pendingType || '-'}|${context.legalMovesCount}`;
     let state = model.states[key];
     let isAbstract = false;
     if ((!state || !state.actions) && model.abstractStates && typeof model.abstractStates === 'object') {
         const abstractKey = makePolicyAbstractStateKey(
             context.playerKey,
-            policyBoard,
+            runtimeBoard,
             context.pendingType || '-',
             context.legalMovesCount
         );
@@ -1730,12 +1459,12 @@ function getPolicyScore(options, context, move) {
     if (!state || !state.actions) return null;
 
     const actionKey = (() => {
-        if (isAbstract) return makePolicyAbstractActionKey(move, policyBoard);
+        if (isAbstract) return makePolicyAbstractActionKey(move, runtimeBoard);
         if (schema !== 'policy_table.v2') return makePolicyActionKey(move);
         if (SharedBoardUtils && typeof SharedBoardUtils.makeCanonicalActionKey === 'function') {
-            return SharedBoardUtils.makeCanonicalActionKey(move, policyBoard, canonical.transformId);
+            return SharedBoardUtils.makeCanonicalActionKey(move, runtimeBoard, canonical.transformId);
         }
-        const mapped = transformCoord(move.row, move.col, Array.isArray(policyBoard) ? policyBoard.length : 8, canonical.transformId);
+        const mapped = transformCoord(move.row, move.col, context.gameState.board.length, canonical.transformId);
         return `place:${mapped.row}:${mapped.col}`;
     })();
     const stat = state.actions[actionKey];
@@ -1759,19 +1488,15 @@ function getPolicyActionScoreByKey(options, context, actionKey) {
         model.schemaVersion !== 'policy_table.v2'
     ) return null;
 
-    const policyBoard = getShapeAwareBoard(
-        context && context.gameState ? context.gameState.board : null,
-        context && context.gameState ? context.gameState : null,
-        context && context.cardState ? context.cardState : null
-    );
     const schema = model.schemaVersion || 'policy_table.v1';
+    const runtimeBoard = getSelfplayBoard(context && context.gameState, context && context.cardState);
     const canonical = schema === 'policy_table.v2'
-        ? canonicalizeBoard(policyBoard)
-        : { boardKey: encodeBoard(policyBoard), transformId: 0 };
+        ? canonicalizeBoard(runtimeBoard)
+        : { boardKey: encodeBoard(runtimeBoard), transformId: 0 };
     const key = `${context.playerKey}|${canonical.boardKey}|${context.pendingType || '-'}|${context.legalMovesCount}`;
     let state = model.states[key];
     if ((!state || !state.actions) && model.abstractStates && typeof model.abstractStates === 'object') {
-        const abstractKey = makePolicyAbstractStateKey(context.playerKey, policyBoard, context.pendingType || '-', context.legalMovesCount);
+        const abstractKey = makePolicyAbstractStateKey(context.playerKey, runtimeBoard, context.pendingType || '-', context.legalMovesCount);
         state = model.abstractStates[abstractKey];
     }
     if (!state || !state.actions) return null;
@@ -1785,15 +1510,11 @@ function getPolicyActionScoreByKey(options, context, actionKey) {
 }
 
 function createPolicyRuntimeContext(context, legalMovesCountOverride) {
-    const runtimeBoard = context && context.gameState
-        ? getShapeAwareBoard(context.gameState.board, context.gameState, context.cardState || null)
-        : null;
     return {
         playerKey: context && context.playerKey === 'black' ? 'black' : 'white',
         level: 6,
-        board: runtimeBoard,
+        board: getSelfplayBoard(context && context.gameState, context && context.cardState),
         pendingType: context && context.pendingType ? context.pendingType : null,
-        preferRaw8x8Keys: true,
         legalMovesCount: Number.isFinite(legalMovesCountOverride)
             ? Number(legalMovesCountOverride)
             : (Number.isFinite(context && context.legalMovesCount) ? Number(context.legalMovesCount) : 0)
@@ -2054,11 +1775,18 @@ function buildBordaMaps(scoredMoves) {
 }
 
 function scorePlacementCandidates(legalMoves, rng, context, options) {
-    const forcedPlacement = resolveForcedPlacementCandidates(legalMoves, options, context && context.gameState ? context.gameState.board : null);
+    const forcedPlacement = resolveForcedPlacementCandidates(
+        legalMoves,
+        options,
+        getSelfplayBoard(context && context.gameState, context && context.cardState)
+    );
     const defaultCandidateMoves = Array.isArray(legalMoves)
         ? legalMoves.filter((move) => move && Number.isInteger(move.row) && Number.isInteger(move.col))
         : [];
-    if (defaultCandidateMoves.length <= 0) {
+    const candidateMoves = (options && options.enableTacticalLookahead === false && Array.isArray(forcedPlacement.moves) && forcedPlacement.moves.length > 0)
+        ? forcedPlacement.moves
+        : defaultCandidateMoves;
+    if (candidateMoves.length <= 0) {
         return { move: null, metrics: null };
     }
     const enableTacticalLookahead = !(options && options.enableTacticalLookahead === false);
@@ -2068,24 +1796,18 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
     } catch (e) {
         usableCardIds = [];
     }
-    const candidateMoves = (!enableTacticalLookahead && Array.isArray(forcedPlacement.moves) && forcedPlacement.moves.length > 0)
-        ? forcedPlacement.moves
-        : defaultCandidateMoves;
-    if (candidateMoves.length <= 0) {
-        return { move: null, metrics: null };
-    }
     const planState = buildCornerPlanState(
         context && context.gameState,
         context && context.cardState,
         context && context.playerKey,
-        candidateMoves,
+        legalMoves,
         usableCardIds
     );
     const movePlanContext = buildMovePlanContext(
         context && context.gameState,
         context && context.cardState,
         context && context.playerKey,
-        candidateMoves,
+        legalMoves,
         usableCardIds
     );
     const scoreContext = Object.assign({}, context || {}, {
@@ -2243,36 +1965,20 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
     };
 }
 
-function evaluatePositionValue(row, col) {
+function evaluatePositionValue(row, col, boardOrSize) {
     let score = 0;
-    if (isCorner(row, col)) score += 10000;
-    else if (isEdge(row, col)) score += 250;
-    if (isXSquare(row, col)) score -= 600;
-    if (isCSquare(row, col)) score -= 300;
+    if (isCorner(row, col, boardOrSize)) score += 10000;
+    else if (isEdge(row, col, boardOrSize)) score += 250;
+    if (isXSquare(row, col, boardOrSize)) score -= 600;
+    if (isCSquare(row, col, boardOrSize)) score -= 300;
     return score;
 }
 
 function getCellOwnerValueForSelfplay(gameState, row, col) {
     if (!gameState) return 0;
-    if (Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < 8 && col >= 0 && col < 8) {
-        return (gameState.board && gameState.board[row]) ? Number(gameState.board[row][col]) || 0 : 0;
-    }
-    const expansion = gameState.boardExpansion && typeof gameState.boardExpansion === 'object'
-        ? gameState.boardExpansion
-        : null;
-    if (!expansion) return 0;
-    const cells = Array.isArray(expansion.cells)
-        ? expansion.cells
-        : (expansion.active ? [expansion] : []);
-    for (const cell of cells) {
-        if (!cell || cell.row !== row) continue;
-        const cellCol = Number.isInteger(cell.col)
-            ? cell.col
-            : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : null));
-        if (cellCol !== col) continue;
-        return Number(cell.owner) || 0;
-    }
-    return 0;
+    const board = getSelfplayBoard(gameState);
+    const value = getBoardCellValue(board, row, col);
+    return Number(value) || 0;
 }
 
 function getLegalMovesForAction(gameState, cardState, playerKey) {
@@ -2304,9 +2010,6 @@ function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCou
     const ownKey = playerKey === 'black' ? 'black' : 'white';
     const oppKey = ownKey === 'black' ? 'white' : 'black';
     const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
-    const handCardIds = cardState && cardState.hands && Array.isArray(cardState.hands[ownKey])
-        ? cardState.hands[ownKey].slice()
-        : [];
     const hasDestroyedCardThisTurn = !!(
         cardState &&
         cardState.hasDestroyedCardThisTurnByPlayer &&
@@ -2324,21 +2027,14 @@ function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCou
         }
     }
     const planState = buildCornerPlanState(gameState, cardState, ownKey, safeLegalMoves, safeUsableCardIds);
-    let maxLegalFlips = 0;
-    let totalLegalFlips = 0;
-    let maxLegalGain = 0;
-    for (const move of safeLegalMoves) {
-        if (!move) continue;
-        const flips = Array.isArray(move.flips) ? move.flips.length : 0;
-        totalLegalFlips += flips;
-        if (flips > maxLegalFlips) maxLegalFlips = flips;
-        const bonus = (Number.isInteger(move.row) && Number.isInteger(move.col))
-            ? getBoardBonusAtCell(cardState, move.row, move.col)
-            : 0;
-        const gain = flips + Math.max(0, Number(bonus) || 0);
-        if (gain > maxLegalGain) maxLegalGain = gain;
-    }
-    const avgLegalFlips = safeLegalMoves.length > 0 ? (totalLegalFlips / safeLegalMoves.length) : 0;
+    const legalMoveMetrics = (CpuPolicyCore && typeof CpuPolicyCore.computeLegalMoveMetrics === 'function')
+        ? CpuPolicyCore.computeLegalMoveMetrics(safeLegalMoves, (row, col) => getBoardBonusAtCell(cardState, row, col))
+        : {
+            maxLegalFlips: 0,
+            avgLegalFlips: 0,
+            maxLegalGain: 0,
+            maxLegalBoardBonus: 0
+        };
 
     const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
     let ownSpecialCount = 0;
@@ -2368,8 +2064,7 @@ function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCou
         ownCharge: cardState && cardState.charge && Number.isFinite(cardState.charge[ownKey]) ? cardState.charge[ownKey] : 0,
         oppCharge: cardState && cardState.charge && Number.isFinite(cardState.charge[oppKey]) ? cardState.charge[oppKey] : 0,
         oppHandSize: cardState && cardState.hands && Array.isArray(cardState.hands[oppKey]) ? cardState.hands[oppKey].length : 0,
-        handSize: handCardIds.length,
-        handCardIds,
+        handSize: cardState && cardState.hands && Array.isArray(cardState.hands[ownKey]) ? cardState.hands[ownKey].length : 0,
         hasDestroyedCardThisTurn,
         forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0,
         ownCorners: planState.ownCorners,
@@ -2382,10 +2077,10 @@ function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCou
         cornerHoldMode: planState.cornerHoldMode,
         recoveryCostGap: planState.recoveryCostGap,
         highBonusMoveAvailable: planState.highBonusMoveAvailable,
-        maxLegalBoardBonus: planState.maxBoardBonusOnLegalMoves,
-        maxLegalFlips,
-        avgLegalFlips,
-        maxLegalGain,
+        maxLegalFlips: legalMoveMetrics.maxLegalFlips,
+        avgLegalFlips: legalMoveMetrics.avgLegalFlips,
+        maxLegalGain: legalMoveMetrics.maxLegalGain,
+        maxLegalBoardBonus: legalMoveMetrics.maxLegalBoardBonus,
         ownSpecialCount,
         oppSpecialCount,
         ownGuardCount,
@@ -2619,7 +2314,7 @@ function chooseSuperBuoyancyTarget(gameState, cardState, playerKey, rng) {
             CardLogic.applySuperBuoyancyWill(simCardState, simGameState, onePlayerKey, row, col),
         (target, sourceGameState, _sourceCardState, onePlayerKey) => {
             const selfVal = toPlayerValue(onePlayerKey);
-            const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
+                const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const isEnemy = occupant === -selfVal;
             const base = evaluatePositionValue(target.row, target.col);
             return isEnemy ? (base * 1.5) + 1200 : (base * -0.35);
@@ -2650,7 +2345,7 @@ function chooseSuperGravityTarget(gameState, cardState, playerKey, rng) {
             CardLogic.applySuperGravityWill(simCardState, simGameState, onePlayerKey, row, col),
         (target, sourceGameState, _sourceCardState, onePlayerKey) => {
             const selfVal = toPlayerValue(onePlayerKey);
-            const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
+                const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const isEnemy = occupant === -selfVal;
             const base = evaluatePositionValue(target.row, target.col);
             return isEnemy ? (base * 1.5) + 1200 : (base * -0.35);
@@ -3219,24 +2914,13 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
     const activeCardState = decisionState.cardState || cardState;
     const pending = activeCardState.pendingEffectByPlayer[playerKey];
     const legalMoves = getLegalMovesForAction(activeGameState, activeCardState, playerKey);
-    const forcedPlacement = resolveForcedPlacementCandidates(legalMoves, options, gameState ? gameState.board : null);
+    const forcedPlacement = resolveForcedPlacementCandidates(legalMoves, options, getSelfplayBoard(activeGameState, activeCardState));
     const mustTakePriorityPlacement = !!forcedPlacement.category;
 
     if (pending && pending.stage === 'selectTarget') {
         const pendingAction = buildPendingSelectionAction(activeGameState, activeCardState, playerKey, pending.type, rng);
         if (pendingAction) {
-            return {
-                action: pendingAction,
-                legalMoves,
-                selectionTrace: buildPendingActionTraceMetadata(
-                    activeGameState,
-                    activeCardState,
-                    playerKey,
-                    pending.type,
-                    legalMoves,
-                    pendingAction
-                )
-            };
+            return { action: pendingAction, legalMoves };
         }
         return { action: { type: 'cancel_card', cancelOptions: { refundCost: false, resetUsage: true } }, legalMoves };
     }
@@ -3263,14 +2947,7 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
         if (destroyCardId) {
             return {
                 action: { type: 'destroy_hand_card', destroyCardId },
-                legalMoves,
-                selectionTrace: buildDestroySelectionTraceMetadata(
-                    activeGameState,
-                    activeCardState,
-                    playerKey,
-                    legalMoves,
-                    destroyCardId
-                )
+                legalMoves
             };
         }
     }
@@ -3320,18 +2997,7 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
         if (forceUseByRiskScore) adjustedRate = Math.max(adjustedRate, 0.98);
         const randomUse = rng.random() < adjustedRate;
         if (cardId && (mustUseCardToCreateMove || forceUseByRiskScore || randomUse)) {
-            return {
-                action: { type: 'use_card', useCardId: cardId, useCardOwnerKey: playerKey },
-                legalMoves,
-                selectionTrace: buildUseSelectionTraceMetadata(
-                    activeGameState,
-                    activeCardState,
-                    playerKey,
-                    legalMoves,
-                    cardId,
-                    'use_card'
-                )
-            };
+            return { action: { type: 'use_card', useCardId: cardId, useCardOwnerKey: playerKey }, legalMoves };
         }
     }
 
@@ -3741,7 +3407,7 @@ function buildRetryFallbackDecision(gameState, cardState, playerKey, rng, option
     const sortedFallbackMoves = Array.isArray(fallbackLegalMoves)
         ? fallbackLegalMoves.slice().sort((a, b) => (a.row - b.row) || (a.col - b.col))
         : [];
-    const forcedFallback = resolveForcedPlacementCandidates(sortedFallbackMoves, options, gameState ? gameState.board : null);
+    const forcedFallback = resolveForcedPlacementCandidates(sortedFallbackMoves, options, getSelfplayBoard(gameState, cardState));
     const fallbackMoves = Array.isArray(forcedFallback.moves) && forcedFallback.moves.length > 0
         ? forcedFallback.moves
         : sortedFallbackMoves;
@@ -3875,13 +3541,6 @@ function runSingleGame(gameIndex, seed, options) {
         )
             ? decision.placementMetrics
             : null;
-        const selectionTrace = (
-            decision &&
-            decision.selectionTrace &&
-            typeof decision.selectionTrace === 'object'
-        )
-            ? decision.selectionTrace
-            : null;
 
         const record = {
             schemaVersion: normalizedOptions.schemaVersion,
@@ -3941,18 +3600,6 @@ function runSingleGame(gameIndex, seed, options) {
                 : null,
             tacticalScoreMissRatio: placementMetrics && Number.isFinite(placementMetrics.tacticalScoreMissRatio)
                 ? Number(placementMetrics.tacticalScoreMissRatio)
-                : null,
-            selectedActionKey: selectionTrace && typeof selectionTrace.selectedActionKey === 'string'
-                ? selectionTrace.selectedActionKey
-                : null,
-            decisionCandidates: selectionTrace && Array.isArray(selectionTrace.candidates)
-                ? selectionTrace.candidates.map((candidate) => Object.assign({}, candidate))
-                : [],
-            decisionReasonTags: selectionTrace && Array.isArray(selectionTrace.reasonTags)
-                ? selectionTrace.reasonTags.map((tag) => String(tag))
-                : [],
-            decisionScoreSummary: selectionTrace && selectionTrace.scoreSummary && typeof selectionTrace.scoreSummary === 'object'
-                ? Object.assign({}, selectionTrace.scoreSummary)
                 : null,
             pendingSelection
         };
@@ -4071,12 +3718,9 @@ module.exports = {
     runSelfPlayGames,
     runSingleGame,
     decideAction,
-    buildActorViewSnapshot,
     buildCardDecisionContext,
-    buildSelectionTrace,
     selectPlacementMove,
     getPolicyActionScoreByKey,
     encodeBoard,
     getPolicyForPlayer
 };
-

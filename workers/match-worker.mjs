@@ -1,6 +1,7 @@
 import deepClone from '../utils/deepClone.js';
 import matchAuthority from '../utils/match-authority.js';
 import networkActionSchemaModule from '../shared/network-action-schema.js';
+import playbackEventHelpersModule from '../shared/playback-event-helpers.js';
 
 const ROOM_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ROOM_ID_LENGTH = 3;
@@ -9,6 +10,7 @@ const SEAT_TOKEN_LENGTH = 24;
 const ROOM_STORAGE_KEY = 'match_room_state_v1';
 const MatchAuthority = matchAuthority || {};
 const NetworkActionSchema = networkActionSchemaModule || {};
+const PlaybackEventHelpers = playbackEventHelpersModule || {};
 const PLAYER_KEYS = Array.isArray(MatchAuthority.PLAYER_KEYS) ? MatchAuthority.PLAYER_KEYS : Object.freeze(['black', 'white']);
 const CHAT_MAX_LENGTH = 20;
 const CHAT_HISTORY_LIMIT = 40;
@@ -23,6 +25,7 @@ const LEADERBOARD_MAX_STORED_PLAYERS = 200;
 const LEADERBOARD_PLAYER_ID_RE = /^[A-Za-z0-9_-]{8,80}$/;
 const NETWORK_TURN_LIMIT_SECONDS = 120;
 const NETWORK_TURN_LIMIT_MS = NETWORK_TURN_LIMIT_SECONDS * 1000;
+const NETWORK_DEBUG_FILL_HAND_ACTION = 'debug_fill_hand';
 const SSE_HEARTBEAT_INTERVAL_MS = 20000;
 const SSE_WRITE_TIMEOUT_MS = 2500;
 const OPERATION_ID_MAX_LENGTH = Number.isFinite(Number(MatchAuthority.OPERATION_ID_MAX_LENGTH))
@@ -31,6 +34,7 @@ const OPERATION_ID_MAX_LENGTH = Number.isFinite(Number(MatchAuthority.OPERATION_
 
 let coreLogicModulePromise = null;
 let deckModulesPromise = null;
+let debugActionsModulePromise = null;
 let turnStartModulesPromise = null;
 let turnPipelineModulesPromise = null;
 
@@ -145,6 +149,20 @@ function makeSeatToken() {
     return randomFromChars(SEAT_TOKEN_CHARS, SEAT_TOKEN_LENGTH);
 }
 
+function isNetworkDebugFillHandAction(value) {
+    return String(value || '').trim().toLowerCase() === NETWORK_DEBUG_FILL_HAND_ACTION;
+}
+
+function isNetworkDebugFillHandPayload(value) {
+    if (!value || typeof value !== 'object') return false;
+    if (isNetworkDebugFillHandAction(value.actionType)) return true;
+    return isNetworkDebugFillHandAction(value.action && value.action.type);
+}
+
+function toPublicNetworkDebugEnabled(room) {
+    return !!(room && room.networkDebugEnabled === true);
+}
+
 function loadCoreLogicModule() {
     if (!coreLogicModulePromise) {
         coreLogicModulePromise = import('../game/logic/core.js').then((mod) => mod.default || mod);
@@ -160,6 +178,13 @@ function loadDeckModules() {
         ]).then(([deckSpecHelpers, deckCodecModule]) => ({ deckSpecHelpers, deckCodecModule }));
     }
     return deckModulesPromise;
+}
+
+function loadDebugActionsModule() {
+    if (!debugActionsModulePromise) {
+        debugActionsModulePromise = import('../game/debug/debug-actions.js').then((mod) => mod.default || mod);
+    }
+    return debugActionsModulePromise;
 }
 
 function loadTurnStartModules() {
@@ -432,26 +457,35 @@ function createCommandActionPrng(room, snapshot, SeededPRNG) {
     return SeededPRNG.createPRNG(createWorkerTurnStartSeed(room, snapshot, getCurrentPlayerKey(snapshot && snapshot.gameState)));
 }
 
-function mapServerPresentationToPlaybackEvents(presentationEvents, rawEvents, snapshot, playbackAdapter) {
+function mapServerPresentationToPlaybackEvents(presentationEvents, rawEvents, snapshot, playbackAdapter, fallbackPlayerKey) {
     const events = Array.isArray(presentationEvents) ? presentationEvents : [];
-    if (events.length === 0) return [];
+    let playbackEvents = (typeof PlaybackEventHelpers.mapRawPlaceEventsToPlayback === 'function')
+        ? PlaybackEventHelpers.mapRawPlaceEventsToPlayback(rawEvents, {
+            fallbackPlayerKey,
+            fallbackTurnIndex: Number.isFinite(Number(snapshot && snapshot.cardState && snapshot.cardState.turnIndex))
+                ? Number(snapshot.cardState.turnIndex)
+                : 0,
+            normalizePlayerKey
+        })
+        : [];
 
     const adapter = (playbackAdapter && typeof playbackAdapter.mapToPlaybackEvents === 'function')
         ? playbackAdapter
         : null;
     if (!adapter) {
-        return deepClone(events);
+        return playbackEvents.concat(deepClone(events));
     }
 
-    let playbackEvents = [];
-    try {
-        playbackEvents = adapter.mapToPlaybackEvents(
-            events,
-            snapshot && snapshot.cardState,
-            snapshot && snapshot.gameState
-        ) || [];
-    } catch (e) {
-        playbackEvents = [];
+    if (events.length > 0) {
+        try {
+            playbackEvents = playbackEvents.concat(adapter.mapToPlaybackEvents(
+                events,
+                snapshot && snapshot.cardState,
+                snapshot && snapshot.gameState
+            ) || []);
+        } catch (e) {
+            // Keep any raw place playback already derived from raw events.
+        }
     }
 
     if (typeof adapter.appendSoundEffectPlaybackEvents === 'function') {
@@ -596,6 +630,31 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
         return { ok: false, rejectedReason: 'SEAT_MISMATCH' };
     }
 
+    if (isNetworkDebugFillHandAction(builtAction.action.type)) {
+        if (!toPublicNetworkDebugEnabled(room)) {
+            return { ok: false, rejectedReason: 'NETWORK_DEBUG_DISABLED' };
+        }
+        const DebugActions = await loadDebugActionsModule();
+        if (!DebugActions || typeof DebugActions.fillDebugHand !== 'function') {
+            return { ok: false, rejectedReason: 'DEBUG_ACTIONS_UNAVAILABLE' };
+        }
+
+        const applied = DebugActions.fillDebugHand(currentSnapshot.cardState, { playerKey });
+        if (!applied) {
+            return { ok: false, rejectedReason: 'DEBUG_FILL_HAND_FAILED' };
+        }
+
+        if (MatchAuthority && typeof MatchAuthority.stripTransientPresentationState === 'function') {
+            MatchAuthority.stripTransientPresentationState(currentSnapshot);
+        }
+        return {
+            ok: true,
+            snapshot: currentSnapshot,
+            playbackEvents: [],
+            action: builtAction.action
+        };
+    }
+
     const { TurnPipeline, SeededPRNG, TurnPipelineUIAdapter } = await loadTurnPipelineModules();
     if (!TurnPipeline || typeof TurnPipeline.applyTurnSafe !== 'function') {
         return { ok: false, rejectedReason: 'COMMAND_PIPELINE_UNAVAILABLE' };
@@ -631,7 +690,8 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
         result.presentationEvents,
         result.events,
         nextSnapshot,
-        TurnPipelineUIAdapter
+        TurnPipelineUIAdapter,
+        playerKey
     );
 
     playbackEvents.push(...await reconcileTurnStartAndCollectPlayback(room, nextSnapshot, TurnPipelineUIAdapter));
@@ -1081,6 +1141,7 @@ function buildSnapshotPayload(room, meta, viewerSeatKey) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
         operationId: meta && meta.operationId ? String(meta.operationId) : null,
@@ -1104,6 +1165,7 @@ function buildPresencePayload(room, meta) {
         seats: toPublicSeats(room),
         seatNames,
         roomDeck: toPublicRoomDeck(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
     };
@@ -1268,15 +1330,16 @@ async function handleCreate(env, options) {
         const req = new Request('https://room/internal/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                roomId,
-                seed,
-                snapshot,
-                playerName: opts.playerName,
-                initialDeckSpecByPlayer,
-                roomDeck
-            })
-        });
+                body: JSON.stringify({
+                    roomId,
+                    seed,
+                    snapshot,
+                    playerName: opts.playerName,
+                    networkDebugEnabled: opts.networkDebugEnabled === true,
+                    initialDeckSpecByPlayer,
+                    roomDeck
+                })
+            });
         const response = await stub.fetch(req);
         if (response.status === 409) {
             continue;
@@ -1435,6 +1498,7 @@ export class MatchRoomDurableObject {
             seats: toPublicSeats(this.room),
             seatNames: toPublicSeatNames(this.room),
             roomDeck: toPublicRoomDeck(this.room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(this.room),
             turnTimer: toPublicTurnTimer(this.room, serverTime),
             serverTime
         };
@@ -1531,6 +1595,7 @@ export class MatchRoomDurableObject {
             ? cloneInitialDeckSpecByPlayer(opts.initialDeckSpecByPlayer)
             : null;
         const roomDeck = (opts.roomDeck && typeof opts.roomDeck === 'object') ? deepClone(opts.roomDeck) : null;
+        const networkDebugEnabled = opts.networkDebugEnabled === true;
         const nowMs = Date.now();
         return {
             roomId,
@@ -1539,6 +1604,7 @@ export class MatchRoomDurableObject {
             initialDeckSpec,
             initialDeckSpecByPlayer,
             roomDeck,
+            networkDebugEnabled,
             stateVersion: 0,
             seats: { black: false, white: false },
             seatNames: { black: '', white: '' },
@@ -1702,6 +1768,7 @@ export class MatchRoomDurableObject {
         const roomDeck = (payload.roomDeck && typeof payload.roomDeck === 'object')
             ? deepClone(payload.roomDeck)
             : null;
+        const networkDebugEnabled = payload.networkDebugEnabled === true;
 
         if (!roomId) {
             return jsonResponse(400, { ok: false, reason: 'ROOM_ID_REQUIRED' });
@@ -1716,6 +1783,7 @@ export class MatchRoomDurableObject {
         this.room = this.createRoomState(roomId, {
             seed,
             snapshot,
+            networkDebugEnabled,
             initialDeckSpec,
             initialDeckSpecByPlayer,
             roomDeck
@@ -1737,6 +1805,7 @@ export class MatchRoomDurableObject {
             seats: toPublicSeats(this.room),
             seatNames: toPublicSeatNames(this.room),
             roomDeck: toPublicRoomDeck(this.room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(this.room),
             stateVersion: this.room.stateVersion,
             snapshot: toPublicSnapshot(this.room, 'black'),
             turnTimer: toPublicTurnTimer(this.room, serverTime),
@@ -1838,6 +1907,7 @@ export class MatchRoomDurableObject {
             seats: toPublicSeats(room),
             seatNames: toPublicSeatNames(room),
             roomDeck: toPublicRoomDeck(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
             stateVersion: room.stateVersion,
             snapshot: toPublicSnapshot(room, seatKey),
             turnTimer: toPublicTurnTimer(room, serverTime),
@@ -1884,6 +1954,7 @@ export class MatchRoomDurableObject {
             ok: true,
             seats: toPublicSeats(room),
             seatNames: toPublicSeatNames(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
         });
@@ -1906,6 +1977,7 @@ export class MatchRoomDurableObject {
         const actionType = String(body.actionType || '').trim().toLowerCase();
         const operationId = normalizeOperationId(body.operationId);
         const isRematchResetAction = actionType === 'reset_game' || actionType === 'rematch' || actionType === 'restart';
+        const isNetworkDebugAction = isNetworkDebugFillHandPayload(body);
         const viewerSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
         const acceptedOperationsBySeat = ensureAcceptedOperationsBySeat(room);
 
@@ -1916,6 +1988,7 @@ export class MatchRoomDurableObject {
                 snapshot: toPublicSnapshot(room, viewerSeatKey),
                 seats: toPublicSeats(room),
                 seatNames: toPublicSeatNames(room),
+                networkDebugEnabled: toPublicNetworkDebugEnabled(room),
                 stateVersion: room.stateVersion,
                 turnTimer: toPublicTurnTimer(room),
                 serverTime: Date.now()
@@ -1929,6 +2002,7 @@ export class MatchRoomDurableObject {
                 snapshot: toPublicSnapshot(room, viewerSeatKey),
                 seats: toPublicSeats(room),
                 seatNames: toPublicSeatNames(room),
+                networkDebugEnabled: toPublicNetworkDebugEnabled(room),
                 stateVersion: room.stateVersion,
                 turnTimer: toPublicTurnTimer(room),
                 serverTime: Date.now()
@@ -1942,6 +2016,7 @@ export class MatchRoomDurableObject {
                 snapshot: toPublicSnapshot(room, null),
                 seats: toPublicSeats(room),
                 seatNames: toPublicSeatNames(room),
+                networkDebugEnabled: toPublicNetworkDebugEnabled(room),
                 stateVersion: room.stateVersion,
                 turnTimer: toPublicTurnTimer(room),
                 serverTime: Date.now()
@@ -1962,6 +2037,7 @@ export class MatchRoomDurableObject {
                 stateVersion: room.stateVersion,
                 seats: toPublicSeats(room),
                 seatNames: toPublicSeatNames(room),
+                networkDebugEnabled: toPublicNetworkDebugEnabled(room),
                 snapshot: toPublicSnapshot(room, seatKey),
                 turnTimer: toPublicTurnTimer(room, serverTime),
                 serverTime,
@@ -1976,6 +2052,7 @@ export class MatchRoomDurableObject {
                 snapshot: toPublicSnapshot(room, seatKey),
                 seats: toPublicSeats(room),
                 seatNames: toPublicSeatNames(room),
+                networkDebugEnabled: toPublicNetworkDebugEnabled(room),
                 stateVersion: room.stateVersion,
                 turnTimer: toPublicTurnTimer(room),
                 serverTime: Date.now()
@@ -1985,13 +2062,15 @@ export class MatchRoomDurableObject {
         const expectedPlayerKey = getCurrentPlayerKey(room.snapshot && room.snapshot.gameState);
         if (playerKey !== expectedPlayerKey) {
             const allowOutOfTurnRematch = isRematchResetAction && await this.isSnapshotGameOver(room.snapshot);
-            if (!allowOutOfTurnRematch) {
+            const allowOutOfTurnNetworkDebug = isNetworkDebugAction && toPublicNetworkDebugEnabled(room);
+            if (!allowOutOfTurnRematch && !allowOutOfTurnNetworkDebug) {
                 return jsonResponse(409, {
                     ok: false,
                     rejectedReason: 'OUT_OF_TURN',
                     snapshot: toPublicSnapshot(room, seatKey),
                     seats: toPublicSeats(room),
                     seatNames: toPublicSeatNames(room),
+                    networkDebugEnabled: toPublicNetworkDebugEnabled(room),
                     stateVersion: room.stateVersion,
                     turnTimer: toPublicTurnTimer(room),
                     serverTime: Date.now()
@@ -2038,6 +2117,7 @@ export class MatchRoomDurableObject {
                     snapshot: toPublicSnapshot(room, seatKey),
                     seats: toPublicSeats(room),
                     seatNames: toPublicSeatNames(room),
+                    networkDebugEnabled: toPublicNetworkDebugEnabled(room),
                     stateVersion: room.stateVersion,
                     turnTimer: toPublicTurnTimer(room),
                     serverTime: Date.now(),
@@ -2053,6 +2133,7 @@ export class MatchRoomDurableObject {
                 snapshot: toPublicSnapshot(room, seatKey),
                 seats: toPublicSeats(room),
                 seatNames: toPublicSeatNames(room),
+                networkDebugEnabled: toPublicNetworkDebugEnabled(room),
                 stateVersion: room.stateVersion,
                 turnTimer: toPublicTurnTimer(room),
                 serverTime: Date.now()
@@ -2072,7 +2153,7 @@ export class MatchRoomDurableObject {
                 updatedAt: room.updatedAt
             };
         }
-        await this.refreshTurnTimer({ nowMs: room.updatedAt, forceRestart: true });
+        await this.refreshTurnTimer({ nowMs: room.updatedAt, forceRestart: !isNetworkDebugAction });
 
         await this.saveRoom();
 
@@ -2093,6 +2174,7 @@ export class MatchRoomDurableObject {
             seats: toPublicSeats(room),
             seatNames: toPublicSeatNames(room),
             roomDeck: toPublicRoomDeck(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
             snapshot: toPublicSnapshot(room, seatKey),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
@@ -2124,6 +2206,7 @@ export class MatchRoomDurableObject {
             seats: toPublicSeats(room),
             seatNames: toPublicSeatNames(room),
             roomDeck: toPublicRoomDeck(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
             snapshot: toPublicSnapshot(room, viewerSeatKey),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
@@ -2178,6 +2261,7 @@ export class MatchRoomDurableObject {
                         seats: toPublicSeats(room),
                         seatNames: toPublicSeatNames(room),
                         roomDeck: toPublicRoomDeck(room),
+                        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
                         messages: toPublicChatMessages(room)
                     });
                 } catch (e) {

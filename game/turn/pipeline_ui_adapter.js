@@ -79,6 +79,13 @@
         4: '布石＋8 ぼろ儲けや！',
         5: '布石＋16 これで家族が養える...！'
     });
+    const MULTI_PLACE_LABEL_BY_TYPE = Object.freeze({
+        DOUBLE_PLACE: '二連投石',
+        TRIPLE_PLACE: '三連投石',
+        QUAD_PLACE: '四連投石',
+        INFINITE_PLACE: '無限投石',
+        LAST_RESORT: '最後の切り札'
+    });
     const deferredGeneratedThrowChainPlaybackByPlayer = {
         black: [],
         white: []
@@ -97,6 +104,35 @@
         }
         _clearDeferredGeneratedThrowChainPlaybackForPlayer('black');
         _clearDeferredGeneratedThrowChainPlaybackForPlayer('white');
+    }
+
+    function _getMultiPlaceLabel(type, fallbackLabel) {
+        const fallback = String(fallbackLabel || '').trim();
+        if (fallback) return fallback;
+        const key = String(type || '').toUpperCase();
+        return MULTI_PLACE_LABEL_BY_TYPE[key] || '追加配置';
+    }
+
+    function _formatMultiPlaceActivationLog(effects) {
+        const label = _getMultiPlaceLabel(effects && effects.multiPlaceActivatedType, effects && effects.multiPlaceActivatedName);
+        if (effects && effects.multiPlaceInfinite) {
+            return `${label}: 合法手が尽きるまで連続配置`;
+        }
+        const remaining = Number.isFinite(Number(effects && effects.multiPlaceRemaining))
+            ? Math.max(0, Math.trunc(Number(effects.multiPlaceRemaining)))
+            : 1;
+        return `${label}: あと${remaining}回置ける`;
+    }
+
+    function _formatMultiPlaceConsumedLog(ev) {
+        const label = _getMultiPlaceLabel(ev && ev.sourceType, null);
+        const remaining = Number.isFinite(Number(ev && ev.remaining))
+            ? Math.max(0, Math.trunc(Number(ev.remaining)))
+            : null;
+        if (remaining !== null && remaining > 0) {
+            return `${label}: 追加手を消費（あと${remaining}回）`;
+        }
+        return `${label}: 追加手を消費`;
     }
 
     function _inferWorkIncomeStepByGain(gained) {
@@ -132,15 +168,6 @@
         const metaText = String(ev && ev.meta && ev.meta.text ? ev.meta.text : '').trim();
         if (metaText) return metaText;
         return WORK_LOST_BUBBLE_TEXT;
-    }
-
-    function _formatCrystalStonePlacementLog(effects) {
-        const gain = Number.isFinite(Number(effects && effects.crystalStoneGain))
-            ? Math.max(0, Number(effects.crystalStoneGain))
-            : 0;
-        return gain > 0
-            ? '水晶石: 数字マス布石+' + gain + '（4倍）'
-            : '水晶石: 数字マスなしで増加なし';
     }
 
     function isRegenTriggeredChange(ev) {
@@ -331,8 +358,11 @@
                 owner = (visualSpecial.owner !== undefined && visualSpecial.owner !== null) ? visualSpecial.owner : null;
                 flipEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.flipEvadeRemaining);
                 destroyEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.destroyEvadeRemaining);
-                if (flipEvadeRemaining === null && String(special || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE') {
-                    flipEvadeRemaining = 5;
+                if (flipEvadeRemaining === null) {
+                    const specialType = String(special || '').toUpperCase();
+                    if (specialType === 'ULTIMATE_HYPERACTIVE' || specialType === 'EXTREME_HYPERACTIVE') {
+                        flipEvadeRemaining = 3;
+                    }
                 }
             }
         }
@@ -908,7 +938,9 @@
                         };
                     }
                 }
-            }            if (pEvent.type) playbackEvents.push(pEvent);
+            }
+
+            if (pEvent.type) playbackEvents.push(pEvent);
         }
 
         const generatedThrowChainSplit = _extractGeneratedThrowChainPlayback(playbackEvents);
@@ -1651,6 +1683,15 @@
         logs.push(`${label}${_detailCount(ev)}${suffix}`);
     }
 
+    function _formatCrystalStonePlacementLog(effects) {
+        const gain = Number.isFinite(Number(effects && effects.crystalStoneGain))
+            ? Math.max(0, Number(effects.crystalStoneGain))
+            : 0;
+        return gain > 0
+            ? `水晶石: 数字マス布石 +${gain}（4倍）`
+            : '水晶石: 数字マスなしで増加なし';
+    }
+
     function _normalizePlayerKey(v) {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKeyOptional === 'function') {
             const normalized = OwnerHelpersModule.normalizePlayerKeyOptional(v);
@@ -1962,7 +2003,7 @@
                 case 'placement_effects':
                     if (ev.effects) {
                         const e = ev.effects;
-                        if (e.doublePlaceActivated) push('二連投石: 追加手を獲得');
+                        if (e.doublePlaceActivated) push(_formatMultiPlaceActivationLog(e));
                         if (e.freePlacementUsed && !e.sniperPlaced) push('自由の意志:自由な空きマスに配置');
                         if (e.sniperPlaced) push('狙撃の意志: 狙撃石を設置');
                         if (e.lightningPlaced) push('落雷の意志: 落雷石を設置');
@@ -1990,7 +2031,7 @@
                     }
                     break;
                 case 'extra_place_consumed':
-                    push('二連投石: 追加手を消費');
+                    push(_formatMultiPlaceConsumedLog(ev));
                     break;
                 default:
                     break;
@@ -2092,26 +2133,11 @@
 
         // Prefer pipeline-produced presentationEvents when available
         const pres = result.presentationEvents || result.cardState && result.cardState.presentationEvents || [];
-        const rawPlacePlaybackEvents = [];
-        for (const ev of Array.isArray(result.events) ? result.events : []) {
-            if (!ev || ev.type !== 'place') continue;
-            if (!Number.isInteger(ev.row) || !Number.isInteger(ev.col)) continue;
-            const ownerKey = _normalizePlayerKey(ev.owner || ev.player || playerKey) || _normalizePlayerKey(playerKey) || 'black';
-            rawPlacePlaybackEvents.push({
-                type: 'place_hand_animation',
-                phase: 0,
-                rawType: ev.type,
-                actionId: ev.actionId || null,
-                turnIndex: (typeof ev.turnIndex === 'number')
-                    ? ev.turnIndex
-                    : (result.cardState && typeof result.cardState.turnIndex === 'number' ? result.cardState.turnIndex : 0),
-                targets: [{ r: ev.row, col: ev.col, player: ownerKey, owner: ownerKey }]
-            });
-        }
-        const playbackEvents = rawPlacePlaybackEvents.concat(mapToPlaybackEvents(pres, result.cardState, result.gameState));
+        const playbackEvents = mapToPlaybackEvents(pres, result.cardState, result.gameState);
         let playbackWithSound = appendSoundEffectPlaybackEvents(playbackEvents, result.events, pres);
         const deferredGeneratedThrowChainPlayback = _processGeneratedThrowChainPlayback(playbackWithSound, action, playerKey);
         playbackWithSound = deferredGeneratedThrowChainPlayback.playbackEvents;
+
         const effectLogMessages = mapEffectLogsFromPipeline(result.events, pres, playerKey);
         const normalLogMessages = mapNormalLogsFromPipeline(result.events, playerKey);
         try {
@@ -2132,7 +2158,8 @@
             nextCardState: result.cardState,
             nextGameState: result.gameState,
             playbackEvents: playbackWithSound,
-            deferredGeneratedThrowChainHandAdd: deferredGeneratedThrowChainPlayback.deferredGeneratedThrowChainHandAdd,            rawEvents: result.events,
+            deferredGeneratedThrowChainHandAdd: deferredGeneratedThrowChainPlayback.deferredGeneratedThrowChainHandAdd,
+            rawEvents: result.events,
             presentationEvents: pres,
             effectLogMessages
         };
@@ -2147,5 +2174,3 @@
         runTurnWithAdapter
     };
 }));
-
-
