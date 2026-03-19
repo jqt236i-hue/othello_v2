@@ -572,7 +572,7 @@
                 ? cardMarkers.findBombMarkerAt(cardState, row, col)
                 : (MarkersAdapter && typeof MarkersAdapter.findBombMarkerAt === 'function'
                     ? MarkersAdapter.findBombMarkerAt(cardState, row, col)
-                    : cardState.markers.find(m => m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb') && m.row === row && m.col === col))
+                    : cardState.markers.find(m => m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') && m.data && m.data.category === 'bomb' && m.row === row && m.col === col))
                 ;
             if (b) {
                 special = 'TIME_BOMB';

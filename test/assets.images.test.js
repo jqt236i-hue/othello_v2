@@ -10,6 +10,11 @@ describe('stone image assets', () => {
     assert.ok(fs.existsSync(path.join(stonesDir, 'normal_stone-white.png')));
   });
 
+  it('includes the TIME_STOP stone PNGs', () => {
+    assert.ok(fs.existsSync(path.join(stonesDir, 'TIME_STOP-black.png')));
+    assert.ok(fs.existsSync(path.join(stonesDir, 'TIME_STOP-white.png')));
+  });
+
   it('declares CSS variables for the normal stone images', () => {
     const variablesCss = fs.readFileSync(path.join(__dirname, '..', 'styles-variables.css'), 'utf8');
     assert.ok(variablesCss.includes('--normal-stone-black-image'));

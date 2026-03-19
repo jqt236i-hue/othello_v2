@@ -228,6 +228,15 @@
         return protectedSet;
     }
 
+    function isBombCategoryMarker(marker) {
+        return !!(
+            marker &&
+            marker.kind === 'specialStone' &&
+            marker.data &&
+            marker.data.category === 'bomb'
+        );
+    }
+
     function processDragonEffects(cardState, gameState, playerKey, deps = {}) {
         const BoardOps = deps.BoardOps;
         const converted = [];
@@ -241,11 +250,18 @@
         const protectedSet = buildDragonFlipProtectedSet(cardState, deps);
         const dragons = (cardState.markers || []).filter(s => s.kind === 'specialStone' && s.data && s.data.type === 'DRAGON');
 
+        const isBombCategoryMarker = (marker) => !!(
+            marker &&
+            marker.kind === 'specialStone' &&
+            marker.data &&
+            (marker.data.category === 'bomb' || marker.data.type === 'TIME_BOMB')
+        );
+
         const clearBombAt = (row, col) => {
             if (!cardState.markers || !cardState.markers.length) return;
-            const b = cardState.markers.find(x => x.kind === 'bomb' && x.row === row && x.col === col);
+            const b = cardState.markers.find(x => isBombCategoryMarker(x) && x.row === row && x.col === col);
             if (!b) return;
-            cardState.markers = cardState.markers.filter(x => !(x.kind === 'bomb' && x.row === row && x.col === col));
+            cardState.markers = cardState.markers.filter(x => !(isBombCategoryMarker(x) && x.row === row && x.col === col));
         };
 
         for (const dragon of dragons) {
@@ -332,9 +348,9 @@
         const protectedSet = buildDragonFlipProtectedSet(cardState, deps);
         const clearBombAt = (r, c) => {
             if (!cardState.markers || !cardState.markers.length) return;
-            const b = cardState.markers.find(x => x.kind === 'bomb' && x.row === r && x.col === c);
+            const b = cardState.markers.find(x => isBombCategoryMarker(x) && x.row === r && x.col === c);
             if (!b) return;
-            cardState.markers = cardState.markers.filter(x => !(x.kind === 'bomb' && x.row === r && x.col === c));
+            cardState.markers = cardState.markers.filter(x => !(isBombCategoryMarker(x) && x.row === r && x.col === c));
         };
 
         forEachNeighborCell(gameState, row, col, (r, c, value) => {
@@ -395,9 +411,9 @@
         const protectedSet = buildDragonFlipProtectedSet(cardState, deps);
         const clearBombAt = (r, c) => {
             if (!cardState.markers || !cardState.markers.length) return;
-            const b = cardState.markers.find(x => x.kind === 'bomb' && x.row === r && x.col === c);
+            const b = cardState.markers.find(x => isBombCategoryMarker(x) && x.row === r && x.col === c);
             if (!b) return;
-            cardState.markers = cardState.markers.filter(x => !(x.kind === 'bomb' && x.row === r && x.col === c));
+            cardState.markers = cardState.markers.filter(x => !(isBombCategoryMarker(x) && x.row === r && x.col === c));
         };
 
         forEachNeighborCell(gameState, row, col, (r, c, value) => {

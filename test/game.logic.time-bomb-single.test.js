@@ -6,7 +6,7 @@ describe('CardTimeBomb.tickBombAt', () => {
     const cardState = {
       turnIndex: 10,
       markers: [
-        { id: 1, kind: 'bomb', row: 3, col: 3, owner: 'black', createdSeq: 1, data: { remainingTurns: 1, placedTurn: 5 } }
+        { id: 1, kind: 'specialStone', row: 3, col: 3, owner: 'black', createdSeq: 1, data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 1, placedTurn: 5 } }
       ]
     };
     const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(1)) };
@@ -32,7 +32,7 @@ describe('CardTimeBomb.tickBombAt', () => {
     const cardState = {
       turnIndex: 10,
       markers: [
-        { id: 1, kind: 'bomb', row: 3, col: 0, owner: 'black', createdSeq: 1, data: { remainingTurns: 1, placedTurn: 5 } }
+        { id: 1, kind: 'specialStone', row: 3, col: 0, owner: 'black', createdSeq: 1, data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 1, placedTurn: 5 } }
       ]
     };
     const gameState = {
@@ -65,7 +65,7 @@ describe('CardTimeBomb.tickBombAt', () => {
     const cardState = {
       turnIndex: 10,
       markers: [
-        { id: 1, kind: 'bomb', row: 0, col: 0, owner: 'black', createdSeq: 1, data: { remainingTurns: 1, placedTurn: 5 } }
+        { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', createdSeq: 1, data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 1, placedTurn: 5 } }
       ]
     };
     const gameState = {
@@ -102,7 +102,7 @@ describe('CardTimeBomb.tickBombAt', () => {
     const cardState = {
       turnIndex: 10,
       markers: [
-        { id: 1, kind: 'bomb', row: 3, col: 3, owner: 'black', createdSeq: 1, data: { remainingTurns: 1, placedTurn: 5 } },
+        { id: 1, kind: 'specialStone', row: 3, col: 3, owner: 'black', createdSeq: 1, data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 1, placedTurn: 5 } },
         {
           id: 2,
           kind: 'specialStone',

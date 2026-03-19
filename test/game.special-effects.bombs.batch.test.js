@@ -5,7 +5,7 @@ describe('special-effects bombs fallback animation batching', () => {
     global.WHITE = -1;
     global.cardState = {
       markers: [
-        { kind: 'bomb', row: 3, col: 3, owner: 'black', data: { remainingTurns: 0 } }
+        { kind: 'specialStone', row: 3, col: 3, owner: 'black', data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 0 } }
       ]
     };
     global.gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
@@ -74,4 +74,3 @@ describe('special-effects bombs fallback animation batching', () => {
     ]);
   });
 });
-

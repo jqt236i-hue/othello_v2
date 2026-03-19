@@ -104,6 +104,60 @@ describe('CardEffectTiming module', () => {
     }));
   });
 
+  test('onTurnStart emits STATUS_REMOVED when FREEZE duration ends', () => {
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing');
+    const removeMarkersAt = jest.fn();
+    const emitPresentationEvent = jest.fn();
+    const markers = [
+      { row: 5, col: 5, owner: 'black', data: { type: 'FREEZE', remainingOwnerTurns: 1 } }
+    ];
+    const cardState = {
+      turnCountByPlayer: { black: 0, white: 0 },
+      turnIndex: 0,
+      lastTurnStartedFor: null,
+      breedingSproutByOwner: { black: [], white: [] },
+      _breedingSproutClearedTokenByOwner: { black: null, white: null },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 },
+      presentationEvents: [],
+      debugNoDraw: true
+    };
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
+
+    CardEffectTiming.onTurnStart(cardState, 'black', gameState, null, {
+      defaultPrng: { next: () => 0.5 },
+      constants: {
+        EMPTY: 0,
+        DRAW_INTERVAL: 1,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone' }
+      },
+      helpers: {
+        ensureHandDestroyFlags: jest.fn(),
+        processRiboWillTurnStartEffects: jest.fn(() => null),
+        commitDraw: jest.fn(),
+        getSpecialMarkers: jest.fn(() => markers),
+        removeMarkersAt,
+        isFrozenCellForCard: jest.fn(() => false),
+        emitPresentationEvent
+      },
+      modules: {}
+    });
+
+    expect(emitPresentationEvent).toHaveBeenCalledWith(cardState, expect.objectContaining({
+      type: 'STATUS_REMOVED',
+      row: 5,
+      col: 5,
+      reason: 'duration_end',
+      meta: expect.objectContaining({ special: 'FREEZE', reason: 'duration_end' })
+    }));
+    expect(removeMarkersAt).toHaveBeenCalledWith(cardState, 5, 5, {
+      kind: 'specialStone',
+      type: 'FREEZE',
+      owner: 'black'
+    });
+  });
+
   test('applyPlacementEffects handles last resort continuation without clearing pending effect', () => {
     const CardEffectTiming = require('../game/logic/cards-internal/effect-timing');
     const addChargeWithTotal = jest.fn();

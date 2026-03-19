@@ -100,6 +100,10 @@
             };
         }
 
+        function normalizeNetworkDebugEnabled(value) {
+            return value === true;
+        }
+
         function getSeatDisplayName(seatKey) {
             return normalizePlayerKey(seatKey) === 'white' ? '白' : '黒';
         }
@@ -120,6 +124,7 @@
                     seats: normalizeRoomSeats(state.roomSeats),
                     seatNames: normalizeSeatNames(state.seatNames),
                     roomDeck: normalizeRoomDeck(state.roomDeck),
+                    networkDebugEnabled: normalizeNetworkDebugEnabled(state.networkDebugEnabled),
                     hasTwoPlayers: hasTwoPlayers()
                 });
             } catch (e) { /* ignore */ }
@@ -140,6 +145,10 @@
             }
             if (Object.prototype.hasOwnProperty.call(payload, 'roomDeck')) {
                 state.roomDeck = normalizeRoomDeck(payload.roomDeck);
+                changed = true;
+            }
+            if (Object.prototype.hasOwnProperty.call(payload, 'networkDebugEnabled')) {
+                state.networkDebugEnabled = normalizeNetworkDebugEnabled(payload.networkDebugEnabled);
                 changed = true;
             }
 
@@ -226,6 +235,7 @@
             state.roomSeats = normalizeRoomSeats(payload.seats);
             state.seatNames = normalizeSeatNames(payload.seatNames);
             state.roomDeck = normalizeRoomDeck(payload.roomDeck);
+            state.networkDebugEnabled = normalizeNetworkDebugEnabled(payload.networkDebugEnabled);
 
             const ownName = normalizePlayerName(payload.playerName);
             if (ownName) {
@@ -258,6 +268,7 @@
             state.roomSeats = { black: false, white: false };
             state.seatNames = { black: '', white: '' };
             state.roomDeck = null;
+            state.networkDebugEnabled = false;
             state.chatHistory = [];
             state.stateVersion = null;
             state.lastResultVersionShown = null;

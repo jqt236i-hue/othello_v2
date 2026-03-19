@@ -142,4 +142,54 @@ describe('Card effects E2E', () => {
     expect(used || usedFlag || afterDiscard > beforeDiscard || (typeof afterCharge === 'number' && afterCharge < beforeCharge) || hasLog).toBeTruthy();
     await page.close();
   }, 60000);
+
+  test('debug mode keeps hand cards physically clickable for selection and use', async () => {
+    const page = await browser.newPage();
+
+    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
+    await page.waitForFunction(() => !!(window.gameState && window.cardState && typeof window.renderCardUI === 'function'), { timeout: 10000 });
+    await page.waitForTimeout(1200);
+
+    await page.click('#debugModeBtn');
+    await page.waitForTimeout(600);
+
+    const beforeClick = await page.evaluate(() => {
+      const target = document.querySelector('#hand-black .card-item.clickable');
+      const rect = target ? target.getBoundingClientRect() : null;
+      return {
+        selectedCardId: window.cardState && window.cardState.selectedCardId,
+        targetWidth: rect ? rect.width : 0,
+        clickableCount: document.querySelectorAll('#hand-black .card-item.clickable').length
+      };
+    });
+
+    expect(beforeClick.clickableCount).toBeGreaterThan(0);
+    expect(beforeClick.targetWidth).toBeGreaterThan(0);
+
+    await page.locator('#hand-black .card-item.clickable').first().click();
+    await page.waitForTimeout(250);
+
+    const afterSelect = await page.evaluate(() => ({
+      selectedCardId: window.cardState && window.cardState.selectedCardId,
+      selectedCardOwnerKey: window.cardState && window.cardState.selectedCardOwnerKey,
+      useDisabled: document.getElementById('use-card-btn') && document.getElementById('use-card-btn').disabled
+    }));
+
+    expect(afterSelect.selectedCardId).toBeTruthy();
+    expect(afterSelect.selectedCardOwnerKey).toBe('black');
+    expect(afterSelect.useDisabled).toBe(false);
+
+    await page.click('#use-card-btn');
+    await page.waitForTimeout(800);
+
+    const afterUse = await page.evaluate(() => ({
+      lastUsedBlack: window.cardState && window.cardState.lastUsedCardByPlayer && window.cardState.lastUsedCardByPlayer.black,
+      recentLogs: Array.from(document.querySelectorAll('#log .logEntry')).slice(-5).map((el) => el.textContent)
+    }));
+
+    expect(afterUse.lastUsedBlack).toBeTruthy();
+    expect(afterUse.recentLogs.some((entry) => entry.indexOf('黒がカードを使用') !== -1)).toBe(true);
+
+    await page.close();
+  }, 60000);
 });

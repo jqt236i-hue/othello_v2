@@ -33,6 +33,26 @@ const MoveGeneratorSharedBoardUtils = (() => {
     return null;
 })();
 
+const MoveGeneratorMarkersAdapter = (() => {
+    if (typeof require === 'function') {
+        try {
+            return require('./logic/markers_adapter');
+        } catch (e) {
+            return null;
+        }
+    }
+    if (typeof globalThis !== 'undefined' && globalThis.MarkersAdapter) return globalThis.MarkersAdapter;
+    return null;
+})();
+
+function isSpecialOrBombMarkerForMoveGeneration(marker) {
+    if (!marker) return false;
+    if (MoveGeneratorMarkersAdapter && typeof MoveGeneratorMarkersAdapter.isBombCategoryMarker === 'function') {
+        if (MoveGeneratorMarkersAdapter.isBombCategoryMarker(marker)) return true;
+    }
+    return marker.kind === 'specialStone';
+}
+
 // ===== Move Generation & Legal Move Lookup =====
 
 /**
@@ -321,7 +341,7 @@ function generateSwapMoves(player, legal, protection, perma) {
             const key = r + ',' + c;
 
             if (cellVal === -player && !protectedCells.has(key)) {
-                const hasSpecialOrBomb = markers.some(m => (m.row === r && m.col === c) && (m.kind === 'specialStone' || m.kind === 'bomb'));
+                const hasSpecialOrBomb = markers.some(m => (m.row === r && m.col === c) && isSpecialOrBombMarkerForMoveGeneration(m));
                 if (hasSpecialOrBomb) continue;
                 // Avoid mutating the real game state: work on a shallow clone when computing hypothetical flips
                 const clonedState = deepCloneState(gameState);
@@ -342,7 +362,7 @@ function generateSwapMoves(player, legal, protection, perma) {
             marker &&
             marker.row === expansion.row &&
             marker.col === expansion.col &&
-            (marker.kind === 'specialStone' || marker.kind === 'bomb')
+            isSpecialOrBombMarkerForMoveGeneration(marker)
         ));
         if (hasSpecialOrBomb) continue;
 

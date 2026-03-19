@@ -19,6 +19,7 @@
     'use strict';
 
     let cachedNetworkTurnHandoff = null;
+    let cachedPlaybackStateManager = null;
     const pendingSelectionActionByPlayer = {
         black: null,
         white: null
@@ -69,6 +70,19 @@
             cachedNetworkTurnHandoff = root.NetworkTurnHandoff;
         }
         return cachedNetworkTurnHandoff;
+    }
+
+    function getPlaybackStateManager() {
+        if (cachedPlaybackStateManager && typeof cachedPlaybackStateManager === 'object') {
+            return cachedPlaybackStateManager;
+        }
+        if (!cachedPlaybackStateManager && root && root.PlaybackStateManager) {
+            cachedPlaybackStateManager = root.PlaybackStateManager;
+        }
+        if (typeof require === 'function') {
+            try { cachedPlaybackStateManager = require('../../ui/playback-state-manager'); } catch (e) { /* ignore */ }
+        }
+        return cachedPlaybackStateManager;
     }
 
     function resolvePendingSelectionContract(pendingType) {
@@ -249,6 +263,24 @@
             return root ? root.MATCH_MODE : null;
         } catch (e) { /* ignore */ }
         return null;
+    }
+
+    function hasActiveNetworkPublishClient() {
+        try {
+            if (!root || !root.NetworkMatchClient) return false;
+            if (typeof root.NetworkMatchClient.publishSnapshot !== 'function') return false;
+            if (typeof root.NetworkMatchClient.isActive === 'function' && root.NetworkMatchClient.isActive() !== true) return false;
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function shouldUseNetworkPublishOnlyPendingSelection(pendingType) {
+        if (readMatchMode() !== 'network') return false;
+        if (!shouldDeferNetworkPublishForPendingType(pendingType)) return false;
+        if (!isSelectionOnlyEndTurnPendingType(pendingType)) return false;
+        return hasActiveNetworkPublishClient();
     }
 
     function isHumanVsHumanModeEnabled() {
@@ -498,7 +530,37 @@
         }
     }
 
-    function emitSelectionStateChangeSignals() {
+    function shouldSuppressBoardExpansionRevealSound(playbackEvents) {
+        if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
+        return playbackEvents.some((event) => {
+            if (!event || event.type !== 'move' || !Array.isArray(event.targets)) return false;
+            return event.targets.some((target) => normalizePendingType(target && target.cause) === 'CELL_TELEPORT_WILL');
+        });
+    }
+
+    function armSelectionBoardUpdateContext(playbackEvents) {
+        if (!shouldSuppressBoardExpansionRevealSound(playbackEvents)) return false;
+
+        const context = {
+            source: 'selection-flow',
+            reason: 'pre_playback_state_sync',
+            suppressBoardExpansionRevealSound: true
+        };
+
+        const playbackState = getPlaybackStateManager();
+        if (playbackState && typeof playbackState.armBoardUpdateContext === 'function') {
+            try {
+                playbackState.armBoardUpdateContext(context);
+                return true;
+            } catch (e) { /* ignore */ }
+        }
+
+        setRootFlag('__suppressNextBoardExpansionRevealSound', true);
+        return true;
+    }
+
+    function emitSelectionStateChangeSignals(playbackEvents) {
+        armSelectionBoardUpdateContext(playbackEvents);
         const signalNames = ['emitCardStateChange', 'emitBoardUpdate', 'emitGameStateChange'];
         for (let index = 0; index < signalNames.length; index += 1) {
             const signalFn = resolveRootFunction(signalNames[index]);
@@ -605,18 +667,29 @@
                 actionType
             });
 
-            // Network Single Writer: publish command directly, skip local pipeline
-            if (root && root.NetworkMatchClient
-                && typeof root.NetworkMatchClient.isActive === 'function'
-                && root.NetworkMatchClient.isActive()) {
-                publishPendingSelectionSnapshot({
+            if (shouldUseNetworkPublishOnlyPendingSelection(resolvedPendingType)) {
+                const publishResult = await Promise.resolve(publishPendingSelectionSnapshot({
                     playerKey,
                     actionType,
                     action: pendingAction,
                     playbackEvents: []
-                });
-                shouldFinalize = false;
-                return { ok: true, skippedLocalExecution: true, playbackEvents: [] };
+                }));
+                if (!publishResult || publishResult.ok !== true) {
+                    return {
+                        ok: false,
+                        reason: 'network_publish_failed',
+                        result: publishResult || { ok: false, reason: 'NETWORK_PUBLISH_FAILED' }
+                    };
+                }
+                return {
+                    ok: true,
+                    pendingType: resolvedPendingType,
+                    action: pendingAction,
+                    result: publishResult,
+                    appliedSelection: true,
+                    playbackEvents: [],
+                    publishedByNetwork: true
+                };
             }
 
             const adapter = resolveTurnPipelineUIAdapter();
@@ -676,7 +749,7 @@
             emitSelectionPlaybackEvents(playbackEvents, playbackMeta, appliedState.cardState);
 
             if (opts.emitStateChanges !== false) {
-                emitSelectionStateChangeSignals();
+            emitSelectionStateChangeSignals(playbackEvents);
             }
 
             if (typeof opts.afterStateChange === 'function') {

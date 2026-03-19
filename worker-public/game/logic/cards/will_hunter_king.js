@@ -78,9 +78,15 @@
         return { random: Math.random };
     }
 
-    function hasVisibleSpecialMarkerAt(cardState, row, col) {
-        if (!CardUtilsModule || typeof CardUtilsModule.isSpecialStoneAt !== 'function') return false;
-        return CardUtilsModule.isSpecialStoneAt(cardState, row, col);
+    function hasVisibleNonNormalStoneAt(cardState, row, col) {
+        if (!CardUtilsModule) return false;
+        if (typeof CardUtilsModule.isNonNormalStoneVisualAt === 'function') {
+            return CardUtilsModule.isNonNormalStoneVisualAt(cardState, row, col);
+        }
+        if (typeof CardUtilsModule.isSpecialStoneAt === 'function') {
+            return CardUtilsModule.isSpecialStoneAt(cardState, row, col);
+        }
+        return false;
     }
 
     function collectEnemyTargets(cardState, gameState, enemyValue) {
@@ -90,7 +96,7 @@
             for (let col = 0; col < 8; col++) {
                 if (gameState.board[row][col] !== enemyValue) continue;
                 const target = { row, col };
-                if (hasVisibleSpecialMarkerAt(cardState, row, col)) specialTargets.push(target);
+                if (hasVisibleNonNormalStoneAt(cardState, row, col)) specialTargets.push(target);
                 else normalTargets.push(target);
             }
         }
@@ -99,7 +105,7 @@
         for (const cell of expansionCells) {
             if (!cell || cell.owner !== enemyValue) continue;
             const target = { row: cell.row, col: cell.col };
-            if (hasVisibleSpecialMarkerAt(cardState, cell.row, cell.col)) specialTargets.push(target);
+            if (hasVisibleNonNormalStoneAt(cardState, cell.row, cell.col)) specialTargets.push(target);
             else normalTargets.push(target);
         }
 

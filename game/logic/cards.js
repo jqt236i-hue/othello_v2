@@ -24,7 +24,10 @@
         DIRECTIONS,
         BOARD_SIZE,
         CHARGE_MAX,
-        INITIAL_BOARD_BONUS_DISTRIBUTION
+        INITIAL_BOARD_BONUS_DISTRIBUTION,
+        TIME_STOP_GOD_TURNS: SHARED_TIME_STOP_GOD_TURNS,
+        TIME_STOP_GOD_CONSECUTIVE_TURNS: SHARED_TIME_STOP_GOD_CONSECUTIVE_TURNS,
+        TIME_STOP_GOD_SELF_DESTROY_COUNT: SHARED_TIME_STOP_GOD_SELF_DESTROY_COUNT
     } = SharedConstants || {};
 
     if (!CARD_DEFS) {
@@ -37,9 +40,18 @@
     const MAX_HAND_SIZE = 5;
     const DRAW_INTERVAL = 1; // Draw every turn (turn 1, 2, 3, ...)
     const DOUBLE_PLACE_EXTRA = 1;
-    const CHAIN_WILL_MAX_LINKS = 2;
+    const CHAIN_WILL_EVENT_CAUSE = 'CHAIN_WILL';
     const HEAVEN_BLESSING_OFFER_COUNT = 5;
     const TIME_BOMB_TURNS = 3;
+    const TIME_STOP_GOD_TURNS = Number.isFinite(Number(SHARED_TIME_STOP_GOD_TURNS))
+        ? Math.max(1, Math.floor(Number(SHARED_TIME_STOP_GOD_TURNS)))
+        : 3;
+    const TIME_STOP_GOD_CONSECUTIVE_TURNS = Number.isFinite(Number(SHARED_TIME_STOP_GOD_CONSECUTIVE_TURNS))
+        ? Math.max(1, Math.floor(Number(SHARED_TIME_STOP_GOD_CONSECUTIVE_TURNS)))
+        : 2;
+    const TIME_STOP_GOD_SELF_DESTROY_COUNT = Number.isFinite(Number(SHARED_TIME_STOP_GOD_SELF_DESTROY_COUNT))
+        ? Math.max(1, Math.floor(Number(SHARED_TIME_STOP_GOD_SELF_DESTROY_COUNT)))
+        : 3;
     const ULTIMATE_DRAGON_TURNS = 5;
     const ULTIMATE_DESTROY_GOD_TURNS = 5;
     const ULTIMATE_HYPERACTIVE_TURNS = 10;
@@ -87,38 +99,59 @@
         Object.freeze({ type: 'QUAD_PLACE', totalPlacements: 4, nextType: 'INFINITE_PLACE' }),
         Object.freeze({ type: 'INFINITE_PLACE', totalPlacements: Infinity, nextType: null })
     ]);
-    const THROW_CHAIN_CONFIG_BY_TYPE = Object.freeze(THROW_CHAIN_SEQUENCE.reduce((map, entry) => {
-        const cardDef = (CARD_DEFS || []).find((one) => one && one.type === entry.type) || null;
-        const nextDef = entry.nextType
-            ? ((CARD_DEFS || []).find((one) => one && one.type === entry.nextType) || null)
-            : null;
-        map[entry.type] = Object.freeze({
-            type: entry.type,
-            totalPlacements: entry.totalPlacements,
-            extraPlacements: Number.isFinite(entry.totalPlacements) ? Math.max(0, entry.totalPlacements - 1) : 0,
-            infinite: entry.totalPlacements === Infinity,
-            cardId: cardDef && cardDef.id ? cardDef.id : null,
-            name: cardDef && cardDef.name ? cardDef.name : entry.type,
-            nextType: entry.nextType || null,
-            nextCardId: nextDef && nextDef.id ? nextDef.id : null,
-            nextName: nextDef && nextDef.name ? nextDef.name : null
-        });
-        return map;
-    }, {}));
+    const CHAIN_WILL_SEQUENCE = Object.freeze([
+        Object.freeze({ type: 'DOUBLE_CHAIN_WILL', totalChains: 2, extraLinks: 1, nextType: 'TRIPLE_CHAIN_WILL' }),
+        Object.freeze({ type: 'TRIPLE_CHAIN_WILL', totalChains: 3, extraLinks: 2, nextType: 'QUAD_CHAIN_WILL' }),
+        Object.freeze({ type: 'QUAD_CHAIN_WILL', totalChains: 4, extraLinks: 3, nextType: 'INFINITE_CHAIN_WILL' }),
+        Object.freeze({ type: 'INFINITE_CHAIN_WILL', totalChains: Infinity, extraLinks: Infinity, nextType: null })
+    ]);
+
+    function buildCardProgressionConfigByType(sequence) {
+        return Object.freeze((Array.isArray(sequence) ? sequence : []).reduce((map, entry) => {
+            const cardDef = (CARD_DEFS || []).find((one) => one && one.type === entry.type) || null;
+            const nextDef = entry.nextType
+                ? ((CARD_DEFS || []).find((one) => one && one.type === entry.nextType) || null)
+                : null;
+            map[entry.type] = Object.freeze(Object.assign({}, entry, {
+                infinite: entry.totalPlacements === Infinity || entry.totalChains === Infinity || entry.extraLinks === Infinity,
+                extraPlacements: Number.isFinite(entry.totalPlacements) ? Math.max(0, entry.totalPlacements - 1) : 0,
+                cardId: cardDef && cardDef.id ? cardDef.id : null,
+                name: cardDef && cardDef.name ? cardDef.name : entry.type,
+                nextType: entry.nextType || null,
+                nextCardId: nextDef && nextDef.id ? nextDef.id : null,
+                nextName: nextDef && nextDef.name ? nextDef.name : null
+            }));
+            return map;
+        }, {}));
+    }
+
+    const THROW_CHAIN_CONFIG_BY_TYPE = buildCardProgressionConfigByType(THROW_CHAIN_SEQUENCE);
+    const CHAIN_WILL_CONFIG_BY_TYPE = buildCardProgressionConfigByType(CHAIN_WILL_SEQUENCE);
+    const CHAIN_WILL_CARD_TYPES = Object.freeze(CHAIN_WILL_SEQUENCE.map((entry) => entry.type));
+    const CHAIN_WILL_CARD_TYPE_SET = new Set(CHAIN_WILL_CARD_TYPES);
 
     function getThrowChainConfig(cardType) {
         const type = String(cardType || '');
         return type ? (THROW_CHAIN_CONFIG_BY_TYPE[type] || null) : null;
     }
 
-    function addGeneratedThrowChainCard(cardState, playerKey, sourceCardId, sourceCardType) {
-        const config = getThrowChainConfig(sourceCardType);
+    function getChainWillConfig(cardType) {
+        const type = String(cardType || '');
+        return type ? (CHAIN_WILL_CONFIG_BY_TYPE[type] || null) : null;
+    }
+
+    function isChainWillCardType(cardType) {
+        return CHAIN_WILL_CARD_TYPE_SET.has(String(cardType || ''));
+    }
+
+    function addGeneratedProgressionCard(cardState, playerKey, sourceCardId, sourceCardType, configByType) {
+        const type = String(sourceCardType || '');
+        const config = type ? (configByType[type] || null) : null;
         if (!config || !config.nextCardId) return null;
         if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return null;
         if (cardState.hands[playerKey].length >= MAX_HAND_SIZE) return null;
 
         cardState.hands[playerKey].push(config.nextCardId);
-        const nextConfig = getThrowChainConfig(config.nextType);
         try {
             emitPresentationEvent(cardState, {
                 type: 'HAND_ADD',
@@ -133,11 +166,31 @@
                     sourceType: sourceCardType || null,
                     sourceName: config.name || null,
                     generatedType: config.nextType || null,
-                    generatedName: nextConfig && nextConfig.name ? nextConfig.name : null
+                    generatedName: config.nextName || null
                 }
             });
         } catch (e) { /* ignore presentation emission failures */ }
         return config.nextCardId;
+    }
+
+    function addGeneratedThrowChainCard(cardState, playerKey, sourceCardId, sourceCardType) {
+        return addGeneratedProgressionCard(cardState, playerKey, sourceCardId, sourceCardType, THROW_CHAIN_CONFIG_BY_TYPE);
+    }
+
+    function addGeneratedChainWillCard(cardState, playerKey, sourceCardId, sourceCardType) {
+        return addGeneratedProgressionCard(cardState, playerKey, sourceCardId, sourceCardType, CHAIN_WILL_CONFIG_BY_TYPE);
+    }
+
+    function resolveChainWillMaxLinks(gameState, config) {
+        if (!config) return 0;
+        if (!config.infinite) {
+            const extraLinks = Number(config.extraLinks);
+            return Number.isFinite(extraLinks) && extraLinks > 0 ? Math.floor(extraLinks) : 0;
+        }
+        const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
+        if (!board || !board.length) return BOARD_SIZE * BOARD_SIZE;
+        const totalCells = board.reduce((sum, row) => sum + (Array.isArray(row) ? row.length : 0), 0);
+        return Math.max(1, totalCells);
     }
 
     function isWorkDebugEnabled(cardState) {
@@ -186,7 +239,7 @@
     function clearBombAt(cardState, row, col) {
         if (!cardState) return false;
         const beforeLen = getBombMarkers(cardState).length;
-        removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb' });
+        removeMarkersAt(cardState, row, col, { category: MARKER_CATEGORIES.BOMB });
         return getBombMarkers(cardState).length !== beforeLen;
     }
 
@@ -533,6 +586,168 @@
         return out;
     }
 
+    function collectTimeStopGodDestroyableOwnStonePositions(cardState, gameState, playerKey) {
+        return collectRiboDestroyableOwnStonePositions(cardState, gameState, playerKey).filter((pos) => {
+            if (!pos) return false;
+            if (isFrozenCellForCard(cardState, pos.row, pos.col)) return false;
+            const marker = findSpecialMarkerAt(cardState, pos.row, pos.col);
+            const destroyEvadeRemaining = Number(marker && marker.data && marker.data.destroyEvadeRemaining);
+            return !(Number.isFinite(destroyEvadeRemaining) && destroyEvadeRemaining > 0);
+        });
+    }
+
+    function destroyCellWithPresentation(cardState, gameState, row, col, cause, reason, meta) {
+        if (isMainBoardCellForCard(row, col) && BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
+            return BoardOpsModule.destroyAt(
+                cardState,
+                gameState,
+                row,
+                col,
+                cause || 'SYSTEM',
+                reason || 'legacy_fallback',
+                (meta && typeof meta === 'object') ? meta : {}
+            );
+        }
+
+        const prev = getCellValueForCard(gameState, row, col);
+        if (prev === EMPTY) return { destroyed: false };
+        if (prev === null) return { destroyed: false, reason: 'out_of_board' };
+
+        const stoneId = getStoneIdAtForCard(cardState, gameState, row, col);
+        clearStoneIdAtForCard(cardState, gameState, row, col);
+        removeMarkersAt(cardState, row, col);
+        setCellValueForCard(gameState, row, col, EMPTY);
+        emitPresentationEvent(cardState, {
+            type: 'DESTROY',
+            stoneId,
+            row,
+            col,
+            ownerBefore: prev === BLACK ? 'black' : 'white',
+            cause: cause || null,
+            reason: reason || null,
+            meta: (meta && typeof meta === 'object') ? meta : {}
+        });
+        return { destroyed: true, evaded: false };
+    }
+
+    function ensureTimeStopConsecutiveTurnsRemainingByPlayer(cardState) {
+        if (!cardState.timeStopConsecutiveTurnsRemainingByPlayer || typeof cardState.timeStopConsecutiveTurnsRemainingByPlayer !== 'object') {
+            cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 0, white: 0 };
+        }
+        if (!Number.isFinite(Number(cardState.timeStopConsecutiveTurnsRemainingByPlayer.black))) {
+            cardState.timeStopConsecutiveTurnsRemainingByPlayer.black = 0;
+        }
+        if (!Number.isFinite(Number(cardState.timeStopConsecutiveTurnsRemainingByPlayer.white))) {
+            cardState.timeStopConsecutiveTurnsRemainingByPlayer.white = 0;
+        }
+        cardState.timeStopConsecutiveTurnsRemainingByPlayer.black = Math.max(0, Math.floor(Number(cardState.timeStopConsecutiveTurnsRemainingByPlayer.black)));
+        cardState.timeStopConsecutiveTurnsRemainingByPlayer.white = Math.max(0, Math.floor(Number(cardState.timeStopConsecutiveTurnsRemainingByPlayer.white)));
+        return cardState.timeStopConsecutiveTurnsRemainingByPlayer;
+    }
+
+    function getTimeStopGodDestroyableCount(cardState, gameState, playerKey) {
+        return collectTimeStopGodDestroyableOwnStonePositions(cardState, gameState, playerKey).length;
+    }
+
+    function resolveTimeStopGodUsage(cardState, gameState, playerKey, prng) {
+        const targets = sampleRandomPositions(
+            collectTimeStopGodDestroyableOwnStonePositions(cardState, gameState, playerKey),
+            TIME_STOP_GOD_SELF_DESTROY_COUNT,
+            prng
+        );
+        const destroyed = [];
+
+        for (const target of targets) {
+            if (!target) continue;
+            const destroyRes = destroyCellWithPresentation(
+                cardState,
+                gameState,
+                target.row,
+                target.col,
+                'TIME_STOP_GOD',
+                'time_stop_god_cost',
+                { owner: playerKey }
+            );
+            if (destroyRes && destroyRes.destroyed) {
+                destroyed.push({ row: target.row, col: target.col });
+            }
+        }
+
+        return {
+            applied: true,
+            requestedCount: TIME_STOP_GOD_SELF_DESTROY_COUNT,
+            destroyedCount: destroyed.length,
+            destroyed
+        };
+    }
+
+    function reserveTimeStopConsecutiveTurns(cardState, playerKey, totalTurns) {
+        const byPlayer = ensureTimeStopConsecutiveTurnsRemainingByPlayer(cardState);
+        const requestedTurns = Number.isFinite(Number(totalTurns))
+            ? Math.max(1, Math.floor(Number(totalTurns)))
+            : TIME_STOP_GOD_CONSECUTIVE_TURNS;
+        const current = Math.max(0, Number(byPlayer[playerKey]) || 0);
+        const increment = current > 0 ? Math.max(0, requestedTurns - 1) : requestedTurns;
+        byPlayer[playerKey] = current + increment;
+        return byPlayer[playerKey];
+    }
+
+    function consumeTimeStopConsecutiveTurn(cardState, playerKey) {
+        const byPlayer = ensureTimeStopConsecutiveTurnsRemainingByPlayer(cardState);
+        const current = Math.max(0, Number(byPlayer[playerKey]) || 0);
+        if (current <= 0) {
+            return { consumed: false, remaining: 0, continueTurn: false };
+        }
+        byPlayer[playerKey] = current - 1;
+        return {
+            consumed: true,
+            remaining: byPlayer[playerKey],
+            continueTurn: byPlayer[playerKey] > 0
+        };
+    }
+
+    function processTimeStopEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col) {
+        const marker = findSpecialMarkerAt(cardState, row, col, 'TIME_STOP', playerKey);
+        if (!marker) {
+            return { triggered: [], fizzled: [] };
+        }
+
+        const ownerValue = playerKey === 'black' ? BLACK : WHITE;
+        const cellValue = getCellValueForCard(gameState, row, col);
+        if (cellValue !== ownerValue) {
+            if (marker.id !== undefined && marker.id !== null) {
+                removeMarkerById(cardState, marker.id);
+            } else {
+                removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS.SPECIAL_STONE, type: 'TIME_STOP', owner: playerKey });
+            }
+            return {
+                triggered: [],
+                fizzled: [{ row, col, owner: playerKey, reason: 'anchor_lost' }]
+            };
+        }
+
+        if (!marker.data) marker.data = {};
+        const remainingOwnerTurns = Number.isFinite(Number(marker.data.remainingOwnerTurns))
+            ? Math.max(0, Math.floor(Number(marker.data.remainingOwnerTurns)))
+            : TIME_STOP_GOD_TURNS;
+        const remainingAfter = Math.max(0, remainingOwnerTurns - 1);
+        marker.data.remainingOwnerTurns = remainingAfter;
+        if (remainingAfter > 0) {
+            return { triggered: [], fizzled: [] };
+        }
+
+        destroyCellWithPresentation(cardState, gameState, row, col, 'TIME_STOP', 'time_stop_trigger_expire', {
+            owner: playerKey,
+            ignoreGuard: true,
+            ignoreDestroyEvade: true
+        });
+        const totalReservedTurns = reserveTimeStopConsecutiveTurns(cardState, playerKey, TIME_STOP_GOD_CONSECUTIVE_TURNS);
+        return {
+            triggered: [{ row, col, owner: playerKey, totalReservedTurns }],
+            fizzled: []
+        };
+    }
+
     function armRiboWillEffect(cardState, playerKey) {
         const riboByPlayer = ensureRiboRepaymentsByPlayer(cardState);
         const entry = {
@@ -774,6 +989,9 @@
         return globalScope.MarkersAdapter || null;
     })();
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
+    const MARKER_CATEGORIES = (MarkersAdapter && MarkersAdapter.MARKER_CATEGORIES)
+        ? MarkersAdapter.MARKER_CATEGORIES
+        : { BOMB: 'bomb' };
 
     function ensureMarkers(cardState) {
         if (CardMarkersModule && typeof CardMarkersModule.ensureMarkers === 'function') {
@@ -799,13 +1017,81 @@
             : (cardState && Array.isArray(cardState.markers) ? cardState.markers : []);
     }
 
+    function getMarkerCategory(marker) {
+        if (CardMarkersModule && typeof CardMarkersModule.getMarkerCategory === 'function') {
+            return CardMarkersModule.getMarkerCategory(marker);
+        }
+        if (MarkersAdapter && typeof MarkersAdapter.getMarkerCategory === 'function') {
+            return MarkersAdapter.getMarkerCategory(marker);
+        }
+        if (!marker || !marker.data) return null;
+        if (marker.kind === MARKER_CATEGORIES.BOMB) return MARKER_CATEGORIES.BOMB;
+        return (typeof marker.data.category === 'string' && marker.data.category)
+            ? marker.data.category
+            : null;
+    }
+
+    function isBombCategoryMarker(marker) {
+        if (CardMarkersModule && typeof CardMarkersModule.isBombCategoryMarker === 'function') {
+            return CardMarkersModule.isBombCategoryMarker(marker);
+        }
+        if (MarkersAdapter && typeof MarkersAdapter.isBombCategoryMarker === 'function') {
+            return MarkersAdapter.isBombCategoryMarker(marker);
+        }
+        return getMarkerCategory(marker) === MARKER_CATEGORIES.BOMB;
+    }
+
+    function getBombMarkerType(marker) {
+        if (CardMarkersModule && typeof CardMarkersModule.getBombMarkerType === 'function') {
+            return CardMarkersModule.getBombMarkerType(marker);
+        }
+        if (MarkersAdapter && typeof MarkersAdapter.getBombMarkerType === 'function') {
+            return MarkersAdapter.getBombMarkerType(marker);
+        }
+        if (!isBombCategoryMarker(marker)) return null;
+        return marker && marker.data && marker.data.type ? marker.data.type : 'TIME_BOMB';
+    }
+
+    function normalizeMarkerInput(kind, data) {
+        if (CardMarkersModule && typeof CardMarkersModule.normalizeMarkerInput === 'function') {
+            return CardMarkersModule.normalizeMarkerInput(kind, data);
+        }
+        if (MarkersAdapter && typeof MarkersAdapter.normalizeMarkerInput === 'function') {
+            return MarkersAdapter.normalizeMarkerInput(kind, data);
+        }
+        const normalizedData = (data && typeof data === 'object') ? { ...data } : {};
+        const requestedKind = (typeof kind === 'string' && kind)
+            ? kind
+            : (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone');
+        const isBombInput =
+            requestedKind === MARKER_CATEGORIES.BOMB ||
+            normalizedData.category === MARKER_CATEGORIES.BOMB ||
+            normalizedData.type === 'TIME_BOMB';
+        if (isBombInput) {
+            normalizedData.category = MARKER_CATEGORIES.BOMB;
+            if (!normalizedData.type) normalizedData.type = 'TIME_BOMB';
+            return {
+                kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
+                data: normalizedData
+            };
+        }
+        return {
+            kind: requestedKind,
+            data: normalizedData
+        };
+    }
+
     function getSpecialMarkers(cardState) {
         if (CardMarkersModule && typeof CardMarkersModule.getSpecialMarkers === 'function') {
             return CardMarkersModule.getSpecialMarkers(cardState);
         }
         return (MarkersAdapter && typeof MarkersAdapter.getSpecialMarkers === 'function')
             ? MarkersAdapter.getSpecialMarkers(cardState)
-            : getMarkers(cardState).filter(m => m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'));
+            : getMarkers(cardState).filter(m => (
+                m &&
+                m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+                !isBombCategoryMarker(m)
+            ));
     }
 
     function getBombMarkers(cardState) {
@@ -814,7 +1100,7 @@
         }
         return (MarkersAdapter && typeof MarkersAdapter.getBombMarkers === 'function')
             ? MarkersAdapter.getBombMarkers(cardState)
-            : getMarkers(cardState).filter(m => m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb'));
+            : getMarkers(cardState).filter(m => isBombCategoryMarker(m));
     }
 
     function getBlockadeMarkers(cardState) {
@@ -1155,7 +1441,7 @@
         if (MarkersAdapter && typeof MarkersAdapter.findBombMarkerAt === 'function') {
             return MarkersAdapter.findBombMarkerAt(cardState, row, col);
         }
-        return getMarkers(cardState).find(m => m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb') && m.row === row && m.col === col);
+        return getMarkers(cardState).find(m => isBombCategoryMarker(m) && m.row === row && m.col === col);
     }
 
     function isPositionSwapProtectedCell(cardState, row, col) {
@@ -1176,7 +1462,10 @@
         const opts = options || {};
         cardState.markers = cardState.markers.filter(m => {
             if (m.row !== row || m.col !== col) return true;
-            if (opts.kind && m.kind !== opts.kind) return true;
+            if (opts.kind === MARKER_CATEGORIES.BOMB && !isBombCategoryMarker(m)) return true;
+            if (opts.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') && (m.kind !== opts.kind || isBombCategoryMarker(m))) return true;
+            if (opts.kind && opts.kind !== MARKER_CATEGORIES.BOMB && opts.kind !== (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') && m.kind !== opts.kind) return true;
+            if (opts.category && getMarkerCategory(m) !== opts.category) return true;
             if (opts.type && (!m.data || m.data.type !== opts.type)) return true;
             if (opts.owner && m.owner !== opts.owner) return true;
             return false;
@@ -1351,6 +1640,7 @@
             turnIndex: 0,
             lastTurnStartedFor: null,
             turnCountByPlayer: { black: 0, white: 0 },
+            timeStopConsecutiveTurnsRemainingByPlayer: { black: 0, white: 0 },
             observerTriviaBaseByPlayer: { black: null, white: null },
             observerTriviaCursorByPlayer: { black: null, white: null },
 
@@ -1447,6 +1737,14 @@
             turnIndex: cs.turnIndex,
             lastTurnStartedFor: cs.lastTurnStartedFor,
             turnCountByPlayer: { ...cs.turnCountByPlayer },
+            timeStopConsecutiveTurnsRemainingByPlayer: {
+                black: Number.isFinite(Number(cs && cs.timeStopConsecutiveTurnsRemainingByPlayer && cs.timeStopConsecutiveTurnsRemainingByPlayer.black))
+                    ? Math.max(0, Math.floor(Number(cs.timeStopConsecutiveTurnsRemainingByPlayer.black)))
+                    : 0,
+                white: Number.isFinite(Number(cs && cs.timeStopConsecutiveTurnsRemainingByPlayer && cs.timeStopConsecutiveTurnsRemainingByPlayer.white))
+                    ? Math.max(0, Math.floor(Number(cs.timeStopConsecutiveTurnsRemainingByPlayer.white)))
+                    : 0
+            },
             observerTriviaBaseByPlayer: (cs.observerTriviaBaseByPlayer && typeof cs.observerTriviaBaseByPlayer === 'object')
                 ? {
                     black: Number.isFinite(Number(cs.observerTriviaBaseByPlayer.black)) ? Number(cs.observerTriviaBaseByPlayer.black) : null,
@@ -1630,14 +1928,15 @@
         if (typeof cardState._nextCreatedSeq === 'undefined') cardState._nextCreatedSeq = 1;
         const createdSeq = cardState._nextCreatedSeq++;
 
+        const normalized = normalizeMarkerInput(kind, data);
         const marker = {
             id,
             row,
             col,
-            kind,
+            kind: normalized.kind,
             owner,
             createdSeq,
-            data: data || {}
+            data: normalized.data
         };
 
         cardState.markers.push(marker);
@@ -1650,18 +1949,18 @@
             let timer = null;
             let flipEvadeRemaining = null;
             let destroyEvadeRemaining = null;
-            if (kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) {
-                special = data && data.type ? data.type : null;
-                timer = (data && typeof data.remainingOwnerTurns === 'number') ? data.remainingOwnerTurns : null;
-                flipEvadeRemaining = Number.isFinite(Number(data && data.flipEvadeRemaining))
-                    ? Math.max(0, Math.trunc(Number(data.flipEvadeRemaining)))
+            if (isBombCategoryMarker(marker)) {
+                special = getBombMarkerType(marker) || 'TIME_BOMB';
+                timer = (marker.data && typeof marker.data.remainingTurns === 'number') ? marker.data.remainingTurns : null;
+            } else if (marker.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) {
+                special = marker.data && marker.data.type ? marker.data.type : null;
+                timer = (marker.data && typeof marker.data.remainingOwnerTurns === 'number') ? marker.data.remainingOwnerTurns : null;
+                flipEvadeRemaining = Number.isFinite(Number(marker.data && marker.data.flipEvadeRemaining))
+                    ? Math.max(0, Math.trunc(Number(marker.data.flipEvadeRemaining)))
                     : null;
-                destroyEvadeRemaining = Number.isFinite(Number(data && data.destroyEvadeRemaining))
-                    ? Math.max(0, Math.trunc(Number(data.destroyEvadeRemaining)))
+                destroyEvadeRemaining = Number.isFinite(Number(marker.data && marker.data.destroyEvadeRemaining))
+                    ? Math.max(0, Math.trunc(Number(marker.data.destroyEvadeRemaining)))
                     : null;
-            } else if (kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb')) {
-                special = 'TIME_BOMB';
-                timer = (data && typeof data.remainingTurns === 'number') ? data.remainingTurns : null;
             }
             const markerMeta = { special, timer, owner };
             if (flipEvadeRemaining !== null) markerMeta.flipEvadeRemaining = flipEvadeRemaining;
@@ -1886,11 +2185,11 @@
      * @param {string} playerKey
      * @returns {string[]}
      */
-    function getUsableCardIds(cardState, gameState, playerKey) {
+    function getUsableCardIds(cardState, gameState, playerKey, opts) {
         if (!CardHandManagerModule || typeof CardHandManagerModule.getUsableCardIds !== 'function') {
             throw new Error('[cards.js] CardHandManager.getUsableCardIds not available');
         }
-        return CardHandManagerModule.getUsableCardIds(cardState, gameState, playerKey, getCardHandManagerContext());
+        return CardHandManagerModule.getUsableCardIds(cardState, gameState, playerKey, getCardHandManagerContext(), opts);
     }
 
     /**
@@ -2023,7 +2322,9 @@
                 getBoardExpansionGodTargets,
                 getBlockadeTargets,
                 getMeteorTargets,
-                getFreezeTargets
+                getFreezeTargets,
+                getTimeStopGodDestroyableCount,
+                getLossWillRemovableCount
             })
             : null;
         if (!usagePrecheck || usagePrecheck.ok !== true) return false;
@@ -2120,6 +2421,7 @@
         } catch (e) { /* ignore presentation emission failures */ }
 
         addGeneratedThrowChainCard(cardState, handKey, cardId, cardType);
+        addGeneratedChainWillCard(cardState, handKey, cardId, cardType);
 
         return true;
     }
@@ -2197,7 +2499,7 @@
         const special = findSpecialMarkerAt(cardState, row, col);
         if (special) return { kind: 'specialStone', marker: special };
         const bomb = findBombMarkerAt(cardState, row, col);
-        if (bomb) return { kind: 'bomb', marker: bomb };
+        if (bomb) return { kind: 'specialStone', category: MARKER_CATEGORIES.BOMB, marker: bomb };
         return null;
     }
 
@@ -2269,7 +2571,7 @@
             const row = cell.row;
             const col = cell.col;
             if (getCellValueForCard(gameState, row, col) !== playerVal) continue;
-            const hasBomb = markers.some(m => m && m.row === row && m.col === col && m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb'));
+            const hasBomb = markers.some(m => m && m.row === row && m.col === col && isBombCategoryMarker(m));
             if (hasBomb) continue;
             const hasOwnTrap = markers.some(m => (
                 m &&
@@ -2306,7 +2608,7 @@
             const row = cell.row;
             const col = cell.col;
             if (getCellValueForCard(gameState, row, col) !== playerVal) continue;
-            const hasBomb = markers.some(m => m && m.row === row && m.col === col && m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb'));
+            const hasBomb = markers.some(m => m && m.row === row && m.col === col && isBombCategoryMarker(m));
             if (hasBomb) continue;
             res.push({ row, col });
         }
@@ -3072,7 +3374,9 @@
         const existingBomb = findBombMarkerAt(cardState, row, col);
         if (existingBomb) return { applied: false, reason: 'exists' };
 
-        addMarker(cardState, 'bomb', row, col, playerKey, {
+        addMarker(cardState, 'specialStone', row, col, playerKey, {
+            type: 'TIME_BOMB',
+            category: MARKER_CATEGORIES.BOMB,
             remainingTurns: TIME_BOMB_TURNS,
             placedTurn: cardState.turnIndex
         });
@@ -3150,7 +3454,11 @@
         }
         for (const bm of sourceBombs) {
             const owner = bm.owner === 'white' ? 'white' : 'black';
-            addMarker(cardState, 'bomb', target.row, target.col, owner, cloneMarkerData(bm.data || {}));
+            addMarker(cardState, 'specialStone', target.row, target.col, owner, Object.assign(
+                {},
+                cloneMarkerData(bm.data || {}),
+                { category: MARKER_CATEGORIES.BOMB, type: (bm.data && bm.data.type) || 'TIME_BOMB' }
+            ));
         }
         spawned.push({ row: target.row, col: target.col });
 
@@ -3164,9 +3472,9 @@
         return Math.max(1, Math.trunc(current / 2));
     }
 
-    function halveDurationOnMarkerDataForSplit(data, kind) {
+    function halveDurationOnMarkerDataForSplit(data, markerCategory) {
         if (!data || typeof data !== 'object') return null;
-        if (kind === 'specialStone') {
+        if (markerCategory === 'specialStone') {
             if (!Number.isFinite(Number(data.remainingOwnerTurns)) || Number(data.remainingOwnerTurns) <= 0) return null;
             const previous = Number(data.remainingOwnerTurns);
             const next = halveDurationValueForSplit(previous);
@@ -3177,7 +3485,7 @@
                 nextDuration: next
             };
         }
-        if (kind === 'bomb') {
+        if (markerCategory === MARKER_CATEGORIES.BOMB) {
             if (!Number.isFinite(Number(data.remainingTurns)) || Number(data.remainingTurns) <= 0) return null;
             const previous = Number(data.remainingTurns);
             const next = halveDurationValueForSplit(previous);
@@ -3267,9 +3575,13 @@
         for (const bm of sourceBombs) {
             const owner = bm.owner === 'white' ? 'white' : 'black';
             const sourceData = cloneMarkerData(bm.data || {});
-            const duration = halveDurationOnMarkerDataForSplit(sourceData, 'bomb');
+            const duration = halveDurationOnMarkerDataForSplit(sourceData, MARKER_CATEGORIES.BOMB);
             bm.data = sourceData;
-            addMarker(cardState, 'bomb', target.row, target.col, owner, cloneMarkerData(sourceData));
+            addMarker(cardState, 'specialStone', target.row, target.col, owner, Object.assign(
+                {},
+                cloneMarkerData(sourceData),
+                { category: MARKER_CATEGORIES.BOMB, type: (sourceData && sourceData.type) || 'TIME_BOMB' }
+            ));
             if (duration) {
                 durationChanges.push({
                     row,
@@ -3512,6 +3824,35 @@
         return { applied: true, row, col };
     }
 
+    function getLossWillRemovableCount(cardState) {
+        ensureMarkers(cardState);
+        const specials = getSpecialMarkers(cardState);
+        const guardedCells = new Set(
+            specials
+                .filter((marker) => (
+                    marker &&
+                    marker.data &&
+                    marker.data.type === 'GUARD' &&
+                    Number.isInteger(marker.row) &&
+                    Number.isInteger(marker.col)
+                ))
+                .map((marker) => `${marker.row},${marker.col}`)
+        );
+        const removableSpecials = specials.filter((marker) => {
+            if (!marker) return false;
+            if (marker.data && marker.data.type === 'METEOR_HOLE') return false;
+            if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return true;
+            return !guardedCells.has(`${marker.row},${marker.col}`);
+        });
+        const bombs = getBombMarkers(cardState);
+        const removableBombs = bombs.filter((marker) => {
+            if (!marker) return false;
+            if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return true;
+            return !guardedCells.has(`${marker.row},${marker.col}`);
+        });
+        return removableSpecials.length + removableBombs.length;
+    }
+
     function applyLossWill(cardState, gameState, playerKey) {
         const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
         if (!pending || pending.type !== 'LOSS_WILL') {
@@ -3559,10 +3900,9 @@
         })));
 
         const specialKind = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
-        const bombKind = MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb';
         cardState.markers = cardState.markers.filter((marker) => {
-            if (!(marker && (marker.kind === specialKind || marker.kind === bombKind))) return true;
-            if (marker.kind === specialKind) {
+            if (!(marker && (marker.kind === specialKind || isBombCategoryMarker(marker)))) return true;
+            if (!isBombCategoryMarker(marker)) {
                 if (marker.data && marker.data.type === 'METEOR_HOLE') return true;
                 if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return false;
                 return guardedCells.has(`${marker.row},${marker.col}`);
@@ -4140,6 +4480,7 @@
                 OBSERVER_WILL_TURNS,
                 WILL_HUNTER_KING_TURNS,
                 ROBOT_VACUUM_TURNS,
+                TIME_STOP_GOD_TURNS,
                 DOUBLE_PLACE_EXTRA,
                 THROW_CHAIN_CONFIG_BY_TYPE,
                 MARKER_KINDS
@@ -4586,7 +4927,8 @@
 
     function applyChainWillAfterMove(cardState, gameState, playerKey, primaryFlips, prng) {
         const pending = cardState.pendingEffectByPlayer[playerKey];
-        if (!pending || pending.type !== 'CHAIN_WILL') {
+        const chainConfig = pending ? getChainWillConfig(pending.type) : null;
+        if (!pending || !chainConfig) {
             return { applied: false, flips: [], chosen: null };
         }
 
@@ -4598,13 +4940,14 @@
             const appliedFlips = [];
             const chosenSteps = [];
             let sourceFlips = Array.isArray(primaryFlips) ? primaryFlips.slice() : [];
-            for (let i = 0; i < CHAIN_WILL_MAX_LINKS; i++) {
+            const maxLinks = resolveChainWillMaxLinks(gameState, chainConfig);
+            for (let i = 0; i < maxLinks; i++) {
                 const res = findChainChoiceFn(gameState, sourceFlips, ownerVal, context, p);
                 if (!res || !res.applied || !Array.isArray(res.flips) || res.flips.length === 0) break;
                 const chainLink = i + 1;
                 for (const pos of res.flips) {
                     if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
-                        BoardOpsModule.changeAt(cardState, gameState, pos.row, pos.col, playerKey, 'CHAIN_WILL', 'chain_flip', { chainLink });
+                        BoardOpsModule.changeAt(cardState, gameState, pos.row, pos.col, playerKey, CHAIN_WILL_EVENT_CAUSE, 'chain_flip', { chainLink });
                     } else {
                         gameState.board[pos.row][pos.col] = ownerVal;
                     }
@@ -4708,7 +5051,7 @@
             if (typeof removeMarkerById === 'function' && b.id !== undefined) {
                 removeMarkerById(cardState, b.id);
             } else {
-                removeMarkersAt(cardState, b.row, b.col, { kind: MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb', owner: b.owner });
+                removeMarkersAt(cardState, b.row, b.col, { category: MARKER_CATEGORIES.BOMB, owner: b.owner });
             }
             return { exploded, destroyed, removed: true };
         }
@@ -5868,7 +6211,7 @@
         // Protection expiration is now handled exclusively in onTurnStart
         // to ensure it lasts until the start of the owner's next turn.
         const pending = cardState.pendingEffectByPlayer[playerKey];
-        if (pending && pending.type === 'CHAIN_WILL') {
+        if (pending && isChainWillCardType(pending.type)) {
             cardState.pendingEffectByPlayer[playerKey] = null;
         }
     }
@@ -6002,6 +6345,7 @@
         WILL_HUNTER_KING_TURNS,
         NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS,
         THROW_CHAIN_CONFIG_BY_TYPE,
+        CHAIN_WILL_CONFIG_BY_TYPE,
 
         // State factories
         createCardState,
@@ -6018,6 +6362,8 @@
         getCardDisplayName,
         getCardCodeName,
         getCardCost,
+        getThrowChainConfig,
+        getChainWillConfig,
         canUseCard,
         destroyHandCard,
         getUsableCardIds,
@@ -6063,14 +6409,19 @@
         applyBlockadeWill,
         applyMeteorWill,
         applyFreezeWill,
+        getLossWillRemovableCount,
         applyLossWill,
         applyStrongWindWill,
         applySuperBuoyancyWill,
         applySuperGravityWill,
         armRiboWillEffect,
+        getTimeStopGodDestroyableCount,
+        resolveTimeStopGodUsage,
+        consumeTimeStopConsecutiveTurn,
         applyRegenWill,
         applyRegenAfterFlips,
         applyChainWillAfterMove,
+        processTimeStopEffectsAtTurnStartAnchor,
         processBreedingEffectsAtTurnStartAnchor,
         processBreedingEffectsAtAnchor,
         processUltimateDestroyGodEffectsAtTurnStartAnchor,

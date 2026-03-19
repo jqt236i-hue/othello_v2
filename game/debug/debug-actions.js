@@ -59,7 +59,13 @@
         const defs = CARD_DEFS || (typeof globalThis !== 'undefined' ? globalThis.CARD_DEFS : null);
         if (!defs || !defs.length) return false;
 
-        const shouldFillWhite = !!(opts && opts.fillWhite);
+        const requestedPlayerKey = opts && typeof opts.playerKey === 'string'
+            ? String(opts.playerKey).trim().toLowerCase()
+            : '';
+        const fillBlack = requestedPlayerKey === 'white' ? false : true;
+        const shouldFillWhite = requestedPlayerKey === 'white'
+            ? true
+            : !!(opts && opts.fillWhite);
         const cardIds = [];
         const seenCardIds = new Set();
         for (const card of defs) {
@@ -69,7 +75,7 @@
             cardIds.push(cardId);
         }
         for (const cardId of cardIds) {
-            if (!cardState.hands.black.includes(cardId)) {
+            if (fillBlack && !cardState.hands.black.includes(cardId)) {
                 cardState.hands.black.push(cardId);
             }
             if (shouldFillWhite && cardState.hands.white && !cardState.hands.white.includes(cardId)) {
@@ -142,8 +148,8 @@
         // Row 6: Time bomb
         gameState.board[6][0] = black;
         gameState.board[6][1] = white;
-        addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb', 6, 0, 'black', { remainingTurns: 5 });
-        addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb', 6, 1, 'white', { remainingTurns: 8 });
+        addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', 6, 0, 'black', { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 5 });
+        addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', 6, 1, 'white', { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 8 });
 
         // Row 7: Ultimate destroy god
         gameState.board[7][0] = black;

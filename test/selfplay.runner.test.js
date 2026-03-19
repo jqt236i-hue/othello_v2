@@ -2,6 +2,7 @@ const {
     runSelfPlayGames,
     runSingleGame,
     decideAction,
+    selectPlacementMove,
     buildActorViewSnapshot,
     buildCardDecisionContext,
     buildSelectionTrace
@@ -9,6 +10,7 @@ const {
 const Core = require('../game/logic/core');
 const CardLogic = require('../game/logic/cards');
 const CpuPolicyCore = require('../game/ai/cpu-policy-core');
+const CpuLv6LookaheadProfile = require('../game/ai/cpu-lv6-lookahead-profile');
 const CpuDecision = require('../game/cpu-decision');
 const TurnPipeline = require('../game/turn/turn_pipeline');
 
@@ -108,6 +110,62 @@ describe('selfplay runner', () => {
         });
         expect(result.summary.totalGames).toBe(1);
         expect(result.records.length).toBeGreaterThan(0);
+    });
+
+    test('teacher lookahead uses per-policy tactical depth and beam overrides', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+        board[3][3] = Core.BLACK;
+        board[3][4] = Core.WHITE;
+        board[4][3] = Core.WHITE;
+        board[4][4] = Core.BLACK;
+        const candidateMoves = [
+            { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+            { row: 2, col: 5, flips: [{ row: 3, col: 4 }] }
+        ];
+        const buildSpy = jest.spyOn(CpuLv6LookaheadProfile, 'buildLv6LookaheadOptions').mockReturnValue({
+            depth: 5,
+            maxBranch: 4,
+            nodeBudget: 1000,
+            maxTimeMs: 0,
+            endgameSolveEmpties: 24,
+            endgameDepth: 24,
+            endgameNodeBudget: 4000,
+            endgameMaxTimeMs: 0
+        });
+        jest.spyOn(CpuPolicyCore, 'chooseMoveByLookahead').mockReturnValue(candidateMoves[0]);
+
+        const selected = selectPlacementMove(
+            candidateMoves,
+            { random: () => 0.5 },
+            {
+                gameState: { board },
+                cardState: {},
+                playerKey: 'black',
+                pendingType: null,
+                legalMovesCount: candidateMoves.length
+            },
+            {
+                tacticalDepthOpening: 4,
+                tacticalDepthMid: 5,
+                tacticalDepthEnd: 6,
+                tacticalBeamWidth: 4
+            }
+        );
+
+        expect(buildSpy).toHaveBeenCalledWith(
+            6,
+            board,
+            candidateMoves.length,
+            'black',
+            'teacher',
+            expect.objectContaining({
+                tacticalDepthOpening: 4,
+                tacticalDepthMid: 5,
+                tacticalDepthEnd: 6,
+                tacticalBeamWidth: 4
+            })
+        );
+        expect(selected).toBe(candidateMoves[0]);
     });
 
     test('buildCardDecisionContext preserves the same crystal evaluation metrics as the in-game CPU context', () => {
@@ -1092,6 +1150,24 @@ describe('selfplay runner', () => {
         expect(decision.action.type).toBe('place');
         expect(decision.action.row).toBe(0);
         expect(decision.action.col).toBe(4);
+    });
+
+    test('buildCardDecisionContext keeps staged chain-will cards in teacher candidates', () => {
+        const gameState = Core.createGameState();
+        const cardState = {
+            pendingEffectByPlayer: { black: null, white: null },
+            markers: [],
+            charge: { black: 30, white: 0 },
+            hands: { black: ['double_chain_01', 'silver_stone'], white: [] },
+            hasUsedCardThisTurnByPlayer: { black: false, white: false },
+            hasDestroyedCardThisTurnByPlayer: { black: false, white: false }
+        };
+
+        jest.spyOn(CardLogic, 'getUsableCardIds').mockReturnValue(['double_chain_01', 'silver_stone']);
+
+        const context = buildCardDecisionContext(gameState, cardState, 'black', 0, []);
+
+        expect(context.usableCardIds).toEqual(['double_chain_01', 'silver_stone']);
     });
 
 });

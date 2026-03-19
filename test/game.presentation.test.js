@@ -18,8 +18,9 @@ describe('game/logic/presentation', () => {
         expect(typeof pres.emitPresentationEvent).toBe('function');
 
         // ensure global registration happened
-        expect(global.PresentationHelper).toBeDefined();
-        expect(typeof global.PresentationHelper.emitPresentationEvent).toBe('function');
+        const registeredHelper = globalThis.PresentationHelper || global.PresentationHelper;
+        expect(registeredHelper).toBeDefined();
+        expect(typeof registeredHelper.emitPresentationEvent).toBe('function');
 
         const cardState = { foo: 'bar' };
         const ev = { type: 'TEST_EVENT' };
@@ -35,6 +36,5 @@ describe('game/logic/presentation', () => {
         const pres = require(modPath);
         const res = pres.emitPresentationEvent({}, { type: 'NOOP' });
         expect(res).toBe(false);
-        expect(global.PresentationHelper).toBeDefined();
     });
 });

@@ -1,4 +1,7 @@
 const adapter = require('../game/turn/pipeline_ui_adapter');
+const SharedConstants = require('../shared-constants');
+const CardLogic = require('../game/logic/cards');
+const TurnPipeline = require('../game/turn/turn_pipeline');
 
 describe('pipeline_ui_adapter sound cue mapping', () => {
   test('trap_selected から trap_select の sound_effect を追加する', () => {
@@ -265,6 +268,28 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
+  test('マステレポート成功時も teleport move の phase で teleport_select を再生する', () => {
+    const base = [{
+      type: 'move',
+      phase: 11,
+      targets: [{ from: { r: 4, col: 4 }, to: { r: 2, col: 8 }, cause: 'CELL_TELEPORT_WILL', reason: 'teleport_move' }]
+    }];
+    const raw = [{
+      type: 'teleport_selected',
+      applied: true,
+      cardType: 'CELL_TELEPORT_WILL',
+      from: { row: 4, col: 4 },
+      to: { row: 2, col: 8 },
+      createdDestination: true
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'teleport_select');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(11);
+  });
+
   test('super_buoyancy_selected 成功時は super move の phase で super_buoyancy_move を再生する', () => {
     const base = [{
       type: 'move',
@@ -295,7 +320,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue.phase).toBe(13);
   });
 
-  test('tempt_selected 成功時は tempt_applied の flip phase で誘惑音を再生する', () => {
+  test('tempt_selected 成功時は tempt_applied の flip phase で誘惑音と card_effect_flip を再生する', () => {
     const base = [{
       type: 'flip',
       phase: 8,
@@ -304,13 +329,16 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     const raw = [{ type: 'tempt_selected', applied: true, target: { row: 4, col: 5 } }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
-    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'tempt_select');
+    const temptCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'tempt_select');
+    const flipCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_effect_flip');
 
-    expect(cue).toBeTruthy();
-    expect(cue.phase).toBe(8);
+    expect(temptCue).toBeTruthy();
+    expect(temptCue.phase).toBe(8);
+    expect(flipCue).toBeTruthy();
+    expect(flipCue.phase).toBe(8);
   });
 
-  test('tempt_selected が不成立なら誘惑音を再生しない', () => {
+  test('tempt_selected が不成立なら誘惑音も card_effect_flip も再生しない', () => {
     const base = [{
       type: 'flip',
       phase: 4,
@@ -319,12 +347,14 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     const raw = [{ type: 'tempt_selected', applied: false, target: { row: 2, col: 2 } }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
-    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'tempt_select');
+    const temptCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'tempt_select');
+    const flipCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_effect_flip');
 
-    expect(cue).toBeUndefined();
+    expect(temptCue).toBeUndefined();
+    expect(flipCue).toBeUndefined();
   });
 
-  test('dragon_converted_start は DRAGON 反転の flip phase で dragon_flip を再生する', () => {
+  test('dragon_converted_start は DRAGON 反転の flip phase で card_effect_flip を再生する', () => {
     const base = [{
       type: 'flip',
       phase: 12,
@@ -333,13 +363,13 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     const raw = [{ type: 'dragon_converted_start', details: [{ row: 4, col: 4, ownerBefore: 'white', ownerAfter: 'black' }] }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
-    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'dragon_flip');
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_effect_flip');
 
     expect(cue).toBeTruthy();
     expect(cue.phase).toBe(12);
   });
 
-  test('dragon_converted 系で対応 flip が無い場合は fallback phase で dragon_flip を再生する', () => {
+  test('dragon_converted 系で対応 flip が無い場合は fallback phase で card_effect_flip を再生する', () => {
     const base = [{
       type: 'log',
       phase: 4,
@@ -353,10 +383,107 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
     const cues = out
-      .filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'dragon_flip')
+      .filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_effect_flip')
       .map((ev) => ev.phase);
 
     expect(cues).toEqual([5, 6]);
+  });
+
+  test('chain_flipped は各連鎖リンクの flip phase で card_effect_flip を再生する', () => {
+    const base = [
+      {
+        type: 'flip',
+        phase: 7,
+        targets: [{ r: 4, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'CHAIN_WILL', reason: 'chain_flip', meta: { chainLink: 1 } }]
+      },
+      {
+        type: 'flip',
+        phase: 8,
+        targets: [{ r: 5, col: 5, ownerBefore: 'white', ownerAfter: 'black', cause: 'CHAIN_WILL', reason: 'chain_flip', meta: { chainLink: 2 } }]
+      }
+    ];
+    const raw = [{ type: 'chain_flipped', details: [{ row: 4, col: 4 }, { row: 5, col: 5 }] }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cues = out
+      .filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_effect_flip')
+      .map((ev) => ev.phase);
+
+    expect(cues).toEqual([7, 8]);
+  });
+
+  test('chain_flipped で対応 flip が無い場合は fallback phase で card_effect_flip を再生する', () => {
+    const base = [{
+      type: 'log',
+      phase: 3,
+      rawType: 'TURN_INFO',
+      message: 'TURN_INFO black'
+    }];
+    const raw = [{ type: 'chain_flipped', details: [{ row: 2, col: 2 }] }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_effect_flip');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(4);
+  });
+
+  test('card effect driven flip phases は taboo/regen/swap/breeding/hyperactive 系でも card_effect_flip を再生する', () => {
+    const base = [
+      {
+        type: 'flip',
+        phase: 5,
+        targets: [{ r: 1, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'TABOO_REVERSE_WILL', reason: 'taboo_reverse_flip' }]
+      },
+      {
+        type: 'flip',
+        phase: 6,
+        targets: [{ r: 2, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'REGEN', reason: 'regen_triggered' }]
+      },
+      {
+        type: 'flip',
+        phase: 7,
+        targets: [{ r: 3, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'REGEN', reason: 'regen_capture_flip' }]
+      },
+      {
+        type: 'flip',
+        phase: 8,
+        targets: [{ r: 4, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'SWAP', reason: 'swap_with_enemy_capture' }]
+      },
+      {
+        type: 'flip',
+        phase: 9,
+        targets: [{ r: 5, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'BREEDING', reason: 'breeding_flip' }]
+      },
+      {
+        type: 'flip',
+        phase: 10,
+        targets: [{ r: 6, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'HYPERACTIVE', reason: 'hyperactive_flip' }]
+      },
+      {
+        type: 'flip',
+        phase: 11,
+        targets: [{ r: 6, col: 5, ownerBefore: 'white', ownerAfter: 'black', cause: 'ULTIMATE_HYPERACTIVE_GOD', reason: 'ultimate_hyperactive_flip' }]
+      },
+      {
+        type: 'flip',
+        phase: 12,
+        targets: [{ r: 6, col: 6, ownerBefore: 'white', ownerAfter: 'black', cause: 'ROBOT_VACUUM', reason: 'robot_vacuum_flip' }]
+      }
+    ];
+    const raw = [
+      { type: 'taboo_reverse_flipped', details: [{ row: 1, col: 4 }] },
+      { type: 'regen_triggered', details: [{ row: 2, col: 4 }] },
+      { type: 'regen_capture_flipped', details: [{ row: 3, col: 4 }] },
+      { type: 'swap_selected', swapped: true, row: 4, col: 4 }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cues = out
+      .filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_effect_flip')
+      .map((ev) => ev.phase);
+
+    expect(cues).toEqual([5, 6, 7, 8, 9, 10, 11, 12]);
   });
 
   test('condemn_selected 成功時は card_use_animation の phase で stone_destroy を再生する', () => {
@@ -429,7 +556,40 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(sellCue).toBeUndefined();
   });
 
-  test('sacrifice_selected 成功時の自石破壊は sell_sacrifice_gain を優先し stone_destroy を追加しない', () => {
+  test('loss_will_resolved は card_use_animation に消失時 sound key を付与する', () => {
+    const base = [
+      {
+        type: 'card_use_animation',
+        phase: 5,
+        targets: [{ cardId: 'loss_will_01', owner: 'black' }]
+      },
+      {
+        type: 'status_removed',
+        phase: 5,
+        targets: [{ r: 3, col: 3 }],
+        meta: { reason: 'loss_will_reset' }
+      }
+    ];
+    const raw = [{ type: 'loss_will_resolved', player: 'black', removedCount: 3 }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw, []);
+    const cardUseEv = out.find((ev) => ev && ev.type === 'card_use_animation');
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'loss_will_reset');
+    const resetStatus = out.find((ev) => ev && ev.type === 'status_removed' && ev.meta && ev.meta.reason === 'loss_will_reset');
+
+    expect(cardUseEv).toBeTruthy();
+    expect(cardUseEv.targets[0].disappearSoundKey).toBe('loss_will_reset');
+    expect(cardUseEv.targets[0].disappearPlaybackEvents).toEqual([
+      expect.objectContaining({
+        type: 'status_removed',
+        meta: expect.objectContaining({ reason: 'loss_will_reset' })
+      })
+    ]);
+    expect(cue).toBeUndefined();
+    expect(resetStatus).toBeUndefined();
+  });
+
+  test('sacrifice_selected 成功時の自石破壊は sell_sacrifice_gain と stone_destroy を同じ phase で追加する', () => {
     const base = [{
       type: 'destroy',
       phase: 7,
@@ -438,12 +598,16 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     const raw = [{ type: 'sacrifice_selected', applied: true, gained: 5, completed: false, target: { row: 3, col: 3 } }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, raw, []);
+    const gainCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'sell_sacrifice_gain');
     const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
 
-    expect(stoneCue).toBeUndefined();
+    expect(gainCue).toBeTruthy();
+    expect(gainCue.phase).toBe(7);
+    expect(stoneCue).toBeTruthy();
+    expect(stoneCue.phase).toBe(7);
   });
 
-  test('sacrifice_selected 成功時は reason が sacrifice_selected の destroy でも stone_destroy を追加しない', () => {
+  test('sacrifice_selected 成功時は reason が sacrifice_selected の destroy でも stone_destroy を追加する', () => {
     const base = [{
       type: 'destroy',
       phase: 8,
@@ -454,10 +618,11 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     const out = adapter.appendSoundEffectPlaybackEvents(base, raw, []);
     const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
 
-    expect(stoneCue).toBeUndefined();
+    expect(stoneCue).toBeTruthy();
+    expect(stoneCue.phase).toBe(8);
   });
 
-  test('sacrifice_selected 成功時は legacy_fallback の destroy でも stone_destroy を追加しない', () => {
+  test('sacrifice_selected 成功時は legacy_fallback の destroy でも stone_destroy を追加する', () => {
     const base = [{
       type: 'destroy',
       phase: 9,
@@ -468,7 +633,46 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     const out = adapter.appendSoundEffectPlaybackEvents(base, raw, []);
     const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
 
-    expect(stoneCue).toBeUndefined();
+    expect(stoneCue).toBeTruthy();
+    expect(stoneCue.phase).toBe(9);
+  });
+
+  test('runTurnWithAdapter の生贄成功は destroy cause を backfill して gain 音を同 phase に載せる', () => {
+    const defs = Array.isArray(SharedConstants.CARD_DEFS) ? SharedConstants.CARD_DEFS : [];
+    const def = defs.find((d) => d && d.id && d.type === 'SACRIFICE_WILL');
+    expect(def).toBeTruthy();
+
+    const prng = { shuffle: () => {}, random: () => 0.5 };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: 1,
+      turnNumber: 1,
+      consecutivePasses: 0
+    };
+    gameState.board[3][3] = 1;
+    cardState.hands.black = [def.id];
+    cardState.charge.black = Number.isFinite(def.cost) ? def.cost : 0;
+
+    CardLogic.applyCardUsage(cardState, gameState, 'black', def.id);
+
+    const result = adapter.runTurnWithAdapter(cardState, gameState, 'black', {
+      type: 'place',
+      sacrificeTarget: { row: 3, col: 3 }
+    }, TurnPipeline);
+
+    const destroyEv = result.playbackEvents.find((ev) => ev && ev.type === 'destroy');
+    const destroyTarget = destroyEv && Array.isArray(destroyEv.targets) ? destroyEv.targets[0] : null;
+    const stoneCue = result.playbackEvents.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+    const gainCue = result.playbackEvents.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'sell_sacrifice_gain');
+
+    expect(destroyTarget).toBeTruthy();
+    expect(destroyTarget.cause).toBe('SACRIFICE_WILL');
+    expect(destroyTarget.reason).toBe('sacrifice_selected');
+    expect(stoneCue).toBeTruthy();
+    expect(gainCue).toBeTruthy();
+    expect(gainCue.phase).toBe(destroyEv.phase);
+    expect(stoneCue.phase).toBe(destroyEv.phase);
   });
 
   test('金の意志の自己破壊は stone_destroy ではなく sell_sacrifice_gain を再生する', () => {

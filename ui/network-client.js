@@ -19,6 +19,7 @@
     const PUBLISH_RETRY_MAX_DELAY_MS = 4000;
     const PUBLISH_TRACKER_MAX_OPERATIONS = 32;
     const PUBLISH_TRACKER_RETENTION_MS = 60000;
+    const NETWORK_TELEMETRY_RECENT_LIMIT = 40;
     const PlaybackStateModule = (typeof require === 'function')
         ? (() => {
             try { return require('./playback-state-manager'); } catch (e) { return root.PlaybackStateManager || null; }
@@ -158,6 +159,7 @@
         roomSeats: { black: false, white: false },
         seatNames: { black: '', white: '' },
         roomDeck: null,
+        networkDebugEnabled: false,
         serverUrl: deriveInitialServerUrl(),
         stateVersion: null,
         eventSource: null,
@@ -201,6 +203,10 @@
             lastPlaybackEvents: [],
             busy: false,
             playbackSuppressed: false
+        },
+        networkTelemetry: {
+            counts: {},
+            recentEvents: []
         }
     };
 
@@ -319,6 +325,7 @@
         networkSnapshotController = mod.createNetworkSnapshotController({
             root,
             getState: () => state,
+            onTelemetry: (type, details) => recordNetworkTelemetry(type, details),
             syncPendingSelectionActionCache: PendingSelectionFlow && typeof PendingSelectionFlow.syncPendingSelectionActionCache === 'function'
                 ? (pendingEffectByPlayer) => PendingSelectionFlow.syncPendingSelectionActionCache(pendingEffectByPlayer)
                 : null
@@ -406,6 +413,116 @@
             }
         } catch (e) { /* ignore */ }
         return JSON.parse(JSON.stringify(value));
+    }
+
+    function createNetworkTelemetryState() {
+        return {
+            counts: {},
+            recentEvents: []
+        };
+    }
+
+    function resetNetworkTelemetry() {
+        state.networkTelemetry = createNetworkTelemetryState();
+    }
+
+    function recordNetworkTelemetry(type, details) {
+        const eventType = String(type || '').trim();
+        if (!eventType) return;
+
+        const telemetry = (state.networkTelemetry && typeof state.networkTelemetry === 'object')
+            ? state.networkTelemetry
+            : createNetworkTelemetryState();
+        state.networkTelemetry = telemetry;
+        telemetry.counts = (telemetry.counts && typeof telemetry.counts === 'object')
+            ? telemetry.counts
+            : {};
+        telemetry.recentEvents = Array.isArray(telemetry.recentEvents)
+            ? telemetry.recentEvents
+            : [];
+
+        telemetry.counts[eventType] = Number.isFinite(Number(telemetry.counts[eventType]))
+            ? Number(telemetry.counts[eventType]) + 1
+            : 1;
+
+        let safeDetails = null;
+        if (details && typeof details === 'object') {
+            try {
+                safeDetails = cloneDataForCommandPayload(details);
+            } catch (e) {
+                safeDetails = { cloneFailed: true };
+            }
+        }
+
+        telemetry.recentEvents.push({
+            type: eventType,
+            at: Date.now(),
+            details: safeDetails
+        });
+        if (telemetry.recentEvents.length > NETWORK_TELEMETRY_RECENT_LIMIT) {
+            telemetry.recentEvents.splice(0, telemetry.recentEvents.length - NETWORK_TELEMETRY_RECENT_LIMIT);
+        }
+
+        if (state.networkDebugEnabled === true) {
+            let suffix = '';
+            try {
+                const encoded = safeDetails ? JSON.stringify(safeDetails) : '';
+                if (encoded) suffix = ` ${encoded}`;
+            } catch (e) { /* ignore */ }
+            emitEffectLog(`[network-debug] ${eventType}${suffix}`);
+        }
+    }
+
+    function getNetworkTelemetry() {
+        try {
+            return cloneDataForCommandPayload(state.networkTelemetry || createNetworkTelemetryState());
+        } catch (e) {
+            return createNetworkTelemetryState();
+        }
+    }
+
+    function getSnapshotStateVersion(snapshot) {
+        return Number.isFinite(Number(snapshot && snapshot.stateVersion))
+            ? Number(snapshot.stateVersion)
+            : null;
+    }
+
+    function resolveRejectedPublishSnapshotHandling(entry, payload, rejectedReason) {
+        const reason = String(rejectedReason || '').trim() || 'PUBLISH_REJECTED';
+        const snapshot = (payload && payload.snapshot && typeof payload.snapshot === 'object')
+            ? payload.snapshot
+            : null;
+        const localStateVersionBefore = Number.isFinite(Number(state.stateVersion))
+            ? Number(state.stateVersion)
+            : null;
+        const rejectionStateVersion = Number.isFinite(Number(payload && payload.stateVersion))
+            ? Number(payload.stateVersion)
+            : null;
+
+        if (rejectionStateVersion !== null && (localStateVersionBefore === null || rejectionStateVersion > localStateVersionBefore)) {
+            state.stateVersion = rejectionStateVersion;
+        }
+
+        const snapshotVersion = getSnapshotStateVersion(snapshot);
+        if (!snapshot) {
+            return { shouldApplySnapshot: false, skipReason: 'missing_snapshot', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
+        }
+        if (entry && hasNewerQueuedPublish(entry.sequence)) {
+            return { shouldApplySnapshot: false, skipReason: 'newer_local_publish', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
+        }
+        if (snapshotVersion === null) {
+            return { shouldApplySnapshot: false, skipReason: 'missing_snapshot_version', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
+        }
+        if (localStateVersionBefore !== null && snapshotVersion < localStateVersionBefore) {
+            return { shouldApplySnapshot: false, skipReason: 'stale_snapshot_version', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
+        }
+        if (reason === 'VERSION_MISMATCH' && localStateVersionBefore !== null && snapshotVersion === localStateVersionBefore) {
+            return { shouldApplySnapshot: false, skipReason: 'same_version_version_mismatch', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
+        }
+        if (shouldSkipForceSyncSnapshot(snapshot)) {
+            return { shouldApplySnapshot: false, skipReason: 'skip_force_sync_guard', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
+        }
+        return { shouldApplySnapshot: true, skipReason: null, snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
     }
 
     function serializeActionForCommandPayload(action, fallbackPlayerKey) {
@@ -578,6 +695,15 @@
         if (!payload || typeof payload !== 'object') return;
         updateTurnTimerFromPayload(payload);
         updateRoomSeatsFromPayload(payload);
+        const warnings = (payload.playbackDiagnostics && Array.isArray(payload.playbackDiagnostics.warnings))
+            ? payload.playbackDiagnostics.warnings.filter((warning) => String(warning || '').trim())
+            : [];
+        if (warnings.length > 0) {
+            recordNetworkTelemetry('playback_diagnostics_warning', {
+                source: payload.type || payload.actionType || 'network_payload',
+                warnings
+            });
+        }
     }
 
     function normalizeTurnTimerPayload(value) {
@@ -622,10 +748,24 @@
         if (localVersion !== null && remoteVersion <= localVersion) return;
         if (state.heartbeatResyncInFlight) return;
 
+        recordNetworkTelemetry('heartbeat_resync_requested', {
+            remoteVersion,
+            localVersion
+        });
         state.heartbeatResyncInFlight = true;
         syncLatestStateWithRetry({ maxAttempts: 2, baseDelayMs: 300 })
+            .then(() => {
+                recordNetworkTelemetry('heartbeat_resync_succeeded', {
+                    remoteVersion,
+                    localVersionBefore: localVersion,
+                    localVersionAfter: Number.isFinite(Number(state.stateVersion)) ? Number(state.stateVersion) : null
+                });
+            })
             .catch(() => {
-                // Keep heartbeat path non-blocking even if sync fails.
+                recordNetworkTelemetry('heartbeat_resync_failed', {
+                    remoteVersion,
+                    localVersion
+                });
             })
             .finally(() => {
                 state.heartbeatResyncInFlight = false;
@@ -889,12 +1029,6 @@
         return remoteVersion <= localVersion;
     }
 
-    function shouldSkipRejectedPublishSnapshot(entry, snapshot) {
-        if (!snapshot || typeof snapshot !== 'object') return true;
-        if (entry && hasNewerQueuedPublish(entry.sequence)) return true;
-        return shouldSkipForceSyncSnapshot(snapshot);
-    }
-
     function computeRetryDelayMs(baseDelayMs, maxDelayMs, attempt) {
         const base = Number.isFinite(Number(baseDelayMs))
             ? Math.max(100, Math.trunc(Number(baseDelayMs)))
@@ -1139,6 +1273,11 @@
     function applySnapshot(snapshot, options) {
         if (shouldClearStaleBoardUpdateContext(options)) {
             clearBoardUpdateContext();
+            recordNetworkTelemetry('force_snapshot_cleared_stale_board_update_context', {
+                force: true,
+                hasPlaybackEvents: !!(options && Array.isArray(options.playbackEvents) && options.playbackEvents.length > 0),
+                hasShadowPlaybackEvents: !!(options && Array.isArray(options.shadowPlaybackEvents) && options.shadowPlaybackEvents.length > 0)
+            });
         }
         return invokeControllerMethod(getNetworkSnapshotController, 'applySnapshot', arguments, false);
     }
@@ -1268,12 +1407,13 @@
                 if (actionType === 'use_card') {
                     const cardId = action && (action.useCardId || action.cardId);
                     const cardType = resolveCardTypeForId(cardId);
-                    const needsPending = !!(cardType
+                    const canResolvePendingType = !!cardType;
+                    const needsPending = !!(canResolvePendingType
                         && PendingSelectionFlow
                         && typeof PendingSelectionFlow.shouldDeferNetworkPublishForPendingType === 'function'
                         && PendingSelectionFlow.shouldDeferNetworkPublishForPendingType(cardType));
 
-                    if (!needsPending) {
+                    if (canResolvePendingType && !needsPending) {
                         // No-target card: skip local, publish directly
                         publishSnapshot({
                             playerKey: normalizePlayerKey(playerKey),
@@ -1570,6 +1710,9 @@
         }
 
         const requestPayload = { playerName };
+        if (opts.networkDebugEnabled === true) {
+            requestPayload.networkDebugEnabled = true;
+        }
         if (opts.deckCode) {
             requestPayload.deckCode = String(opts.deckCode).trim();
         }
@@ -1589,11 +1732,18 @@
         }
 
         activateSessionFromResponse(Object.assign({}, res.data, { playerName }), '');
+        resetNetworkTelemetry();
 
         openStream();
         emitStatus(`ネット対戦: 部屋 ${state.roomId} を作成（${state.seatKey === 'black' ? '黒' : '白'}）`);
 
-        return { ok: true, roomId: state.roomId, seatKey: state.seatKey, playerName };
+        return {
+            ok: true,
+            roomId: state.roomId,
+            seatKey: state.seatKey,
+            playerName,
+            networkDebugEnabled: state.networkDebugEnabled === true
+        };
     }
 
     async function joinRoom(roomId, options) {
@@ -1650,11 +1800,18 @@
         }
 
         activateSessionFromResponse(Object.assign({}, res.data, { playerName }), normalizedRoomId);
+        resetNetworkTelemetry();
 
         openStream();
         emitStatus(`ネット対戦: 部屋 ${state.roomId} ${res.data.rejoined ? 'へ再参加' : 'に参加'}（${state.seatKey === 'black' ? '黒' : '白'}）`);
 
-        return { ok: true, roomId: state.roomId, seatKey: state.seatKey, playerName };
+        return {
+            ok: true,
+            roomId: state.roomId,
+            seatKey: state.seatKey,
+            playerName,
+            networkDebugEnabled: state.networkDebugEnabled === true
+        };
     }
 
     async function syncLatestState() {
@@ -1669,6 +1826,15 @@
         if (res.data.snapshot) {
             if (!shouldSkipForceSyncSnapshot(res.data.snapshot)) {
                 appliedSnapshot = applySnapshot(res.data.snapshot, { force: true });
+                recordNetworkTelemetry('state_sync_snapshot_applied', {
+                    snapshotVersion: getSnapshotStateVersion(res.data.snapshot),
+                    force: true
+                });
+            } else {
+                recordNetworkTelemetry('state_sync_snapshot_skipped', {
+                    snapshotVersion: getSnapshotStateVersion(res.data.snapshot),
+                    localVersion: Number.isFinite(Number(state.stateVersion)) ? Number(state.stateVersion) : null
+                });
             }
         }
         return { ok: true, appliedSnapshot };
@@ -1713,6 +1879,7 @@
                 state.seatNames = { black: '', white: '' };
             }
             resetPublishTracker();
+            resetNetworkTelemetry();
             resetTurnTimerState();
             closeStream();
             teardownActionBridge();
@@ -1737,6 +1904,7 @@
             state.seatToken = '';
             state.roomSeats = { black: false, white: false };
             state.seatNames = { black: '', white: '' };
+            state.networkDebugEnabled = false;
             state.chatHistory = [];
             state.stateVersion = null;
             resetPublishTracker();
@@ -1744,6 +1912,7 @@
             state.resultShownForUnversioned = false;
         }
         resetPublishTracker();
+        resetNetworkTelemetry();
         resetTurnTimerState();
         closeStream();
         teardownActionBridge();
@@ -1826,19 +1995,30 @@
                 if (!res.ok || !res.data || res.data.ok !== true) {
                     const reason = (res.data && res.data.rejectedReason) || 'PUBLISH_REJECTED';
                     applyPayloadSessionState(res.data);
-                    const rejectionStateVersion = Number.isFinite(Number(res && res.data && res.data.stateVersion))
-                        ? Number(res.data.stateVersion)
-                        : null;
-                    if (rejectionStateVersion !== null) {
-                        const currentStateVersion = Number.isFinite(Number(state.stateVersion))
-                            ? Number(state.stateVersion)
-                            : null;
-                        if (currentStateVersion === null || rejectionStateVersion > currentStateVersion) {
-                            state.stateVersion = rejectionStateVersion;
-                        }
-                    }
-                    if (res.data && res.data.snapshot && !shouldSkipRejectedPublishSnapshot(trackedPublish, res.data.snapshot)) {
-                        applySnapshot(res.data.snapshot, { force: true });
+                    const rejectionHandling = resolveRejectedPublishSnapshotHandling(trackedPublish, res.data, reason);
+                    recordNetworkTelemetry(reason === 'VERSION_MISMATCH' ? 'publish_version_mismatch' : 'publish_rejected', {
+                        reason,
+                        operationId,
+                        sequence: trackedPublish.sequence,
+                        snapshotVersion: rejectionHandling.snapshotVersion,
+                        rejectionStateVersion: rejectionHandling.rejectionStateVersion,
+                        localStateVersionBefore: rejectionHandling.localStateVersionBefore
+                    });
+                    if (rejectionHandling.shouldApplySnapshot) {
+                        const applied = applySnapshot(res.data.snapshot, { force: true });
+                        recordNetworkTelemetry('publish_rejection_snapshot_applied', {
+                            reason,
+                            operationId,
+                            applied,
+                            snapshotVersion: rejectionHandling.snapshotVersion
+                        });
+                    } else {
+                        recordNetworkTelemetry('publish_rejection_snapshot_skipped', {
+                            reason,
+                            operationId,
+                            skipReason: rejectionHandling.skipReason,
+                            snapshotVersion: rejectionHandling.snapshotVersion
+                        });
                     }
                     settleTrackedPublish(trackedPublish);
                     emitStatus(`ネット対戦: 操作が拒否されました (${reason})`, true);
@@ -1852,6 +2032,12 @@
                     state.stateVersion = responseStateVersion;
                 }
                 markTrackedPublishResponse(trackedPublish, responseStateVersion);
+                if (res.data && res.data.idempotentReplay === true) {
+                    recordNetworkTelemetry('publish_idempotent_replay_ack', {
+                        operationId,
+                        responseStateVersion
+                    });
+                }
                 if (res.data && res.data.snapshot && shouldApplyPublishResponseSnapshot(trackedPublish, res.data.snapshot)) {
                     // Single Writer: サーバーの playbackEvents をそのまま渡す (shadow 不要)
                     const serverPlaybackEvents = Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : [];
@@ -1859,9 +2045,18 @@
                         force: true,
                         playbackEvents: serverPlaybackEvents
                     });
-                    if (applied) {
-                        // no shadow playback tracking needed
-                    }
+                    recordNetworkTelemetry('publish_response_snapshot_applied', {
+                        operationId,
+                        applied,
+                        responseStateVersion,
+                        playbackEventCount: serverPlaybackEvents.length
+                    });
+                } else if (res.data && res.data.snapshot) {
+                    recordNetworkTelemetry('publish_response_snapshot_skipped', {
+                        operationId,
+                        responseStateVersion,
+                        snapshotVersion: getSnapshotStateVersion(res.data.snapshot)
+                    });
                 }
                 pruneTrackedPublishes();
                 return { ok: true };
@@ -2047,7 +2242,8 @@
         getSeatKey,
         getRoomId,
         getStateVersion,
-        getRoomDeck
+        getRoomDeck,
+        getNetworkTelemetry
     };
 
     root.NetworkMatchClient = api;

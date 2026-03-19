@@ -75,6 +75,10 @@ function parseArgs(argv) {
         selfplayTeacherCommitteeWeightMax: 28,
         selfplayTeacherCommitteeConsensusBonusMin: 320,
         selfplayTeacherCommitteeConsensusBonusMax: 320,
+        selfplayPolicyScoreWeightMin: 1,
+        selfplayPolicyScoreWeightMax: 1,
+        selfplayHeuristicWeightMin: 1,
+        selfplayHeuristicWeightMax: 1,
         pythonPath: path.resolve(process.cwd(), '.venv', 'Scripts', 'python.exe'),
         onnxEpochs: 9999,
         onnxBatchSize: 2048,
@@ -101,6 +105,13 @@ function parseArgs(argv) {
         onnxTacticalMissThreshold: 0.08,
         onnxHandPressureSampleBoost: 0.0,
         onnxPendingTargetSampleBoost: 0.0,
+        onnxCornerBalanceSampleBoost: 0.0,
+        onnxEdgeBalanceSampleBoost: 0.0,
+        onnxEconomyBalanceSampleBoost: 0.0,
+        onnxValueTargetCornerWeight: 0.0,
+        onnxValueTargetEdgeWeight: 0.0,
+        onnxValueTargetEconomyWeight: 0.0,
+        onnxValueTargetCornerEmergencyWeight: 0.0,
         minVisits: 12,
         shapeImmediate: 0.4,
         quickGames: 500,
@@ -160,6 +171,7 @@ function parseArgs(argv) {
         adoptionQualityWeightCardFuture: 0.02,
         adoptionQualityWeightPlaceDelta: 0.015,
         adoptionUseGuideBaseline: false,
+        adoptionUseAnchorBaseline: false,
         onnxGateEnabled: false,
         onnxGateGames: 8,
         onnxGateSeedCount: 1,
@@ -186,6 +198,7 @@ function parseArgs(argv) {
         onnxPrimaryMinQuickLowerBound: -1.0,
         onnxPrimaryMinOnnxGateAvg: 0.0,
         onnxPrimaryMinOnnxGateMinSeed: 0.0,
+        gateFinalIterationOnly: false,
         promoteOnPass: true,
         selfplayUsePromotedModelOnly: true,
         bootstrapPolicyModelPath: null,
@@ -234,6 +247,10 @@ function parseArgs(argv) {
         if (a === '--selfplay-teacher-committee-weight-max') { args.selfplayTeacherCommitteeWeightMax = Number(argv[++i]); continue; }
         if (a === '--selfplay-teacher-committee-consensus-bonus-min') { args.selfplayTeacherCommitteeConsensusBonusMin = Number(argv[++i]); continue; }
         if (a === '--selfplay-teacher-committee-consensus-bonus-max') { args.selfplayTeacherCommitteeConsensusBonusMax = Number(argv[++i]); continue; }
+        if (a === '--selfplay-policy-score-weight-min') { args.selfplayPolicyScoreWeightMin = Number(argv[++i]); continue; }
+        if (a === '--selfplay-policy-score-weight-max') { args.selfplayPolicyScoreWeightMax = Number(argv[++i]); continue; }
+        if (a === '--selfplay-heuristic-weight-min') { args.selfplayHeuristicWeightMin = Number(argv[++i]); continue; }
+        if (a === '--selfplay-heuristic-weight-max') { args.selfplayHeuristicWeightMax = Number(argv[++i]); continue; }
         if (a === '--python') { args.pythonPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--onnx-epochs') { args.onnxEpochs = Number(argv[++i]); continue; }
         if (a === '--onnx-batch-size') { args.onnxBatchSize = Number(argv[++i]); continue; }
@@ -261,6 +278,13 @@ function parseArgs(argv) {
         if (a === '--onnx-tactical-miss-threshold') { args.onnxTacticalMissThreshold = Number(argv[++i]); continue; }
         if (a === '--onnx-hand-pressure-sample-boost') { args.onnxHandPressureSampleBoost = Number(argv[++i]); continue; }
         if (a === '--onnx-pending-target-sample-boost') { args.onnxPendingTargetSampleBoost = Number(argv[++i]); continue; }
+        if (a === '--onnx-corner-balance-sample-boost') { args.onnxCornerBalanceSampleBoost = Number(argv[++i]); continue; }
+        if (a === '--onnx-edge-balance-sample-boost') { args.onnxEdgeBalanceSampleBoost = Number(argv[++i]); continue; }
+        if (a === '--onnx-economy-balance-sample-boost') { args.onnxEconomyBalanceSampleBoost = Number(argv[++i]); continue; }
+        if (a === '--onnx-value-target-corner-weight') { args.onnxValueTargetCornerWeight = Number(argv[++i]); continue; }
+        if (a === '--onnx-value-target-edge-weight') { args.onnxValueTargetEdgeWeight = Number(argv[++i]); continue; }
+        if (a === '--onnx-value-target-economy-weight') { args.onnxValueTargetEconomyWeight = Number(argv[++i]); continue; }
+        if (a === '--onnx-value-target-corner-emergency-weight') { args.onnxValueTargetCornerEmergencyWeight = Number(argv[++i]); continue; }
         if (a === '--min-visits') { args.minVisits = Number(argv[++i]); continue; }
         if (a === '--shape-immediate') { args.shapeImmediate = Number(argv[++i]); continue; }
         if (a === '--quick-games') { args.quickGames = Number(argv[++i]); continue; }
@@ -322,6 +346,8 @@ function parseArgs(argv) {
         if (a === '--adoption-quality-weight-place-delta') { args.adoptionQualityWeightPlaceDelta = Number(argv[++i]); continue; }
         if (a === '--adoption-use-guide-baseline') { args.adoptionUseGuideBaseline = true; continue; }
         if (a === '--no-adoption-use-guide-baseline') { args.adoptionUseGuideBaseline = false; continue; }
+        if (a === '--adoption-use-anchor-baseline') { args.adoptionUseAnchorBaseline = true; continue; }
+        if (a === '--no-adoption-use-anchor-baseline') { args.adoptionUseAnchorBaseline = false; continue; }
         if (a === '--onnx-gate') { args.onnxGateEnabled = true; continue; }
         if (a === '--no-onnx-gate') { args.onnxGateEnabled = false; continue; }
         if (a === '--onnx-gate-games') { args.onnxGateGames = Number(argv[++i]); continue; }
@@ -351,6 +377,8 @@ function parseArgs(argv) {
         if (a === '--onnx-primary-min-quick-lower-bound') { args.onnxPrimaryMinQuickLowerBound = Number(argv[++i]); continue; }
         if (a === '--onnx-primary-min-onnx-gate-avg') { args.onnxPrimaryMinOnnxGateAvg = Number(argv[++i]); continue; }
         if (a === '--onnx-primary-min-onnx-gate-min-seed') { args.onnxPrimaryMinOnnxGateMinSeed = Number(argv[++i]); continue; }
+        if (a === '--gate-final-iteration-only') { args.gateFinalIterationOnly = true; continue; }
+        if (a === '--no-gate-final-iteration-only') { args.gateFinalIterationOnly = false; continue; }
         if (a === '--promote') { args.promoteOnPass = true; continue; }
         if (a === '--no-promote') { args.promoteOnPass = false; continue; }
         if (a === '--selfplay-use-promoted-model-only') { args.selfplayUsePromotedModelOnly = true; continue; }
@@ -445,6 +473,24 @@ function parseArgs(argv) {
     if (args.selfplayTeacherCommitteeConsensusBonusMax < args.selfplayTeacherCommitteeConsensusBonusMin) {
         throw new Error('--selfplay-teacher-committee-consensus-bonus-max must be >= --selfplay-teacher-committee-consensus-bonus-min');
     }
+    if (!Number.isFinite(args.selfplayPolicyScoreWeightMin) || args.selfplayPolicyScoreWeightMin < 0) {
+        throw new Error('--selfplay-policy-score-weight-min must be >= 0');
+    }
+    if (!Number.isFinite(args.selfplayPolicyScoreWeightMax) || args.selfplayPolicyScoreWeightMax < 0) {
+        throw new Error('--selfplay-policy-score-weight-max must be >= 0');
+    }
+    if (args.selfplayPolicyScoreWeightMax < args.selfplayPolicyScoreWeightMin) {
+        throw new Error('--selfplay-policy-score-weight-max must be >= --selfplay-policy-score-weight-min');
+    }
+    if (!Number.isFinite(args.selfplayHeuristicWeightMin) || args.selfplayHeuristicWeightMin < 0) {
+        throw new Error('--selfplay-heuristic-weight-min must be >= 0');
+    }
+    if (!Number.isFinite(args.selfplayHeuristicWeightMax) || args.selfplayHeuristicWeightMax < 0) {
+        throw new Error('--selfplay-heuristic-weight-max must be >= 0');
+    }
+    if (args.selfplayHeuristicWeightMax < args.selfplayHeuristicWeightMin) {
+        throw new Error('--selfplay-heuristic-weight-max must be >= --selfplay-heuristic-weight-min');
+    }
     args.selfplayTacticalDepthOpening = Math.floor(args.selfplayTacticalDepthOpening);
     args.selfplayTacticalDepthMid = Math.floor(args.selfplayTacticalDepthMid);
     args.selfplayTacticalDepthEnd = Math.floor(args.selfplayTacticalDepthEnd);
@@ -519,6 +565,35 @@ function parseArgs(argv) {
     }
     if (!Number.isFinite(args.onnxPendingTargetSampleBoost) || args.onnxPendingTargetSampleBoost < 0) {
         throw new Error('--onnx-pending-target-sample-boost must be >= 0');
+    }
+    if (!Number.isFinite(args.onnxCornerBalanceSampleBoost) || args.onnxCornerBalanceSampleBoost < 0) {
+        throw new Error('--onnx-corner-balance-sample-boost must be >= 0');
+    }
+    if (!Number.isFinite(args.onnxEdgeBalanceSampleBoost) || args.onnxEdgeBalanceSampleBoost < 0) {
+        throw new Error('--onnx-edge-balance-sample-boost must be >= 0');
+    }
+    if (!Number.isFinite(args.onnxEconomyBalanceSampleBoost) || args.onnxEconomyBalanceSampleBoost < 0) {
+        throw new Error('--onnx-economy-balance-sample-boost must be >= 0');
+    }
+    if (!Number.isFinite(args.onnxValueTargetCornerWeight) || args.onnxValueTargetCornerWeight < 0 || args.onnxValueTargetCornerWeight > 1) {
+        throw new Error('--onnx-value-target-corner-weight must be in [0,1]');
+    }
+    if (!Number.isFinite(args.onnxValueTargetEdgeWeight) || args.onnxValueTargetEdgeWeight < 0 || args.onnxValueTargetEdgeWeight > 1) {
+        throw new Error('--onnx-value-target-edge-weight must be in [0,1]');
+    }
+    if (!Number.isFinite(args.onnxValueTargetEconomyWeight) || args.onnxValueTargetEconomyWeight < 0 || args.onnxValueTargetEconomyWeight > 1) {
+        throw new Error('--onnx-value-target-economy-weight must be in [0,1]');
+    }
+    if (!Number.isFinite(args.onnxValueTargetCornerEmergencyWeight) || args.onnxValueTargetCornerEmergencyWeight < 0 || args.onnxValueTargetCornerEmergencyWeight > 1) {
+        throw new Error('--onnx-value-target-corner-emergency-weight must be in [0,1]');
+    }
+    if (
+        args.onnxValueTargetCornerWeight +
+        args.onnxValueTargetEdgeWeight +
+        args.onnxValueTargetEconomyWeight +
+        args.onnxValueTargetCornerEmergencyWeight > 0.5
+    ) {
+        throw new Error('onnx value-target auxiliary weights must sum to <= 0.5');
     }
     if (!Number.isFinite(args.minVisits) || args.minVisits < 1) throw new Error('--min-visits must be >= 1');
     if (!Number.isFinite(args.shapeImmediate) || args.shapeImmediate < 0 || args.shapeImmediate > 1) {
@@ -713,6 +788,9 @@ function parseArgs(argv) {
     if (!Number.isFinite(args.adoptionQualityWeightPlaceDelta) || args.adoptionQualityWeightPlaceDelta < 0 || args.adoptionQualityWeightPlaceDelta > 1) {
         throw new Error('--adoption-quality-weight-place-delta must be in [0,1]');
     }
+    if (args.adoptionUseGuideBaseline && args.adoptionUseAnchorBaseline) {
+        throw new Error('--adoption-use-guide-baseline and --adoption-use-anchor-baseline cannot be combined');
+    }
     if (!Number.isFinite(args.onnxGateGames) || args.onnxGateGames < 1) {
         throw new Error('--onnx-gate-games must be >= 1');
     }
@@ -759,8 +837,8 @@ function parseArgs(argv) {
     if (args.onnxGateCandidateColorMode !== 'both' && args.onnxGateCandidateColorMode !== 'white') {
         throw new Error('--onnx-gate-candidate-color-mode must be one of: both, white');
     }
-    if (args.promotionMode !== 'strict' && args.promotionMode !== 'onnx-primary') {
-        throw new Error('--promotion-mode must be strict or onnx-primary');
+    if (args.promotionMode !== 'strict' && args.promotionMode !== 'onnx-primary' && args.promotionMode !== 'quick-only') {
+        throw new Error('--promotion-mode must be strict, onnx-primary, or quick-only');
     }
     if (!Number.isFinite(args.onnxPrimaryMaxQuickRegression) || args.onnxPrimaryMaxQuickRegression < 0 || args.onnxPrimaryMaxQuickRegression > 1) {
         throw new Error('--onnx-primary-max-quick-regression must be in [0,1]');
@@ -844,6 +922,10 @@ function printHelp() {
         '      --selfplay-teacher-committee-weight-max <r> Max committee voting weight in teacher self-play (default: 28)',
         '      --selfplay-teacher-committee-consensus-bonus-min <r> Min committee consensus bonus in teacher self-play (default: 320)',
         '      --selfplay-teacher-committee-consensus-bonus-max <r> Max committee consensus bonus in teacher self-play (default: 320)',
+        '      --selfplay-policy-score-weight-min <r> Min model score weight in teacher hybrid scoring (default: 1)',
+        '      --selfplay-policy-score-weight-max <r> Max model score weight in teacher hybrid scoring (default: 1)',
+        '      --selfplay-heuristic-weight-min <r> Min heuristic score weight in teacher hybrid scoring (default: 1)',
+        '      --selfplay-heuristic-weight-max <r> Max heuristic score weight in teacher hybrid scoring (default: 1)',
         '      --python <path>         Python executable path (default: .venv/Scripts/python.exe)',
         '      --onnx-epochs <n>       train_policy_onnx --epochs (default: 9999)',
         '      --onnx-batch-size <n>   train_policy_onnx --batch-size (default: 2048)',
@@ -871,6 +953,13 @@ function printHelp() {
         '      --onnx-tactical-miss-threshold <r> Threshold for tacticalScoreMissRatio boost (>=0, default: 0.08)',
         '      --onnx-hand-pressure-sample-boost <r> Extra sample boost when handCards length is >= 4 (>=0, default: 0.0)',
         '      --onnx-pending-target-sample-boost <r> Extra sample boost when pendingType is active (>=0, default: 0.0)',
+        '      --onnx-corner-balance-sample-boost <r> Extra policy/value sample boost scaled by corner pressure (>=0, default: 0.0)',
+        '      --onnx-edge-balance-sample-boost <r> Extra policy/value sample boost scaled by edge pressure (>=0, default: 0.0)',
+        '      --onnx-economy-balance-sample-boost <r> Extra policy/value sample boost scaled by charge/bonus pressure (>=0, default: 0.0)',
+        '      --onnx-value-target-corner-weight <r> Value-target corner blend weight [0..1] (default: 0.0)',
+        '      --onnx-value-target-edge-weight <r> Value-target edge blend weight [0..1] (default: 0.0)',
+        '      --onnx-value-target-economy-weight <r> Value-target economy blend weight [0..1] (default: 0.0)',
+        '      --onnx-value-target-corner-emergency-weight <r> Value-target corner-emergency penalty weight [0..1] (default: 0.0)',
         '      --min-visits <n>        compatibility policy-table --min-visits (default: 12)',
         '      --shape-immediate <r>   compatibility policy-table --shape-immediate (default: 0.4)',
         '      --quick-games <n>       Adoption quick check games (default: 500)',
@@ -932,6 +1021,8 @@ function printHelp() {
         '      --adoption-quality-weight-place-delta <r> Adoption quality place-delta weight [0..1] (default: 0.015)',
         '      --adoption-use-guide-baseline  Compare candidate against current guide model in adoption benchmark',
         '      --no-adoption-use-guide-baseline Disable guide-model baseline compare (default)',
+        '      --adoption-use-anchor-baseline Compare candidate against a fixed loop-start anchor model in adoption benchmark',
+        '      --no-adoption-use-anchor-baseline Disable fixed-anchor baseline compare (default)',
         '      --onnx-gate             Enable browser ONNX gate before promotion (default: off)',
         '      --no-onnx-gate          Disable browser ONNX gate',
         '      --onnx-gate-games <n>   ONNX gate games per side/seed (default: 8)',
@@ -948,7 +1039,7 @@ function printHelp() {
         '      --onnx-gate-black-level <n> ONNX gate black CPU level [1..6] (default: 6)',
         '      --onnx-gate-white-level <n> ONNX gate white CPU level [1..6] (default: 6)',
         '      --onnx-gate-candidate-color-mode <m> ONNX gate candidate side mode both|white (default: both)',
-        '      --promotion-mode <mode> Promotion gate strategy: strict | onnx-primary (default: strict)',
+        '      --promotion-mode <mode> Promotion gate strategy: strict | onnx-primary | quick-only (default: strict)',
         '      --onnx-primary-max-quick-regression <r> Max allowed quick uplift regression in onnx-primary [0..1] (default: 0.05)',
         '      --onnx-primary-require-quick-regression    Require quick uplift regression guard in onnx-primary (default: off)',
         '      --no-onnx-primary-require-quick-regression Disable quick uplift regression guard in onnx-primary',
@@ -961,6 +1052,8 @@ function printHelp() {
         '      --onnx-primary-min-quick-lower-bound <r> Min quick uplift lower-bound required in onnx-primary [-1..1] (default: -1)',
         '      --onnx-primary-min-onnx-gate-avg <r> Min ONNX gate average score required in onnx-primary [0..1] (default: 0)',
         '      --onnx-primary-min-onnx-gate-min-seed <r> Min ONNX gate min-seed score required in onnx-primary [0..1] (default: 0)',
+        '      --gate-final-iteration-only  Run quick/quality/final/onnx/promotion only on the last iteration',
+        '      --no-gate-final-iteration-only Disable last-iteration-only gate mode (default)',
         '      --promote               Promote model when selected promotion mode passes (default: on)',
         '      --no-promote            Skip promotion even when final check passes',
         '      --selfplay-use-promoted-model-only        Update next self-play guide only when promotion succeeds (default: on)',
@@ -1174,8 +1267,71 @@ function resolveQuickComponentDelta(quickPayload, quickDecision, baselineKey, ca
     return count > 0 ? (sum / count) : -Infinity;
 }
 
-function buildInitialGuideModelPoolPaths(modelsDir, guideModelPath, maxSize) {
+function resolvePromotionEligibility(args, gateState) {
+    const quickPassed = !!(gateState && gateState.quickPassed);
+    const qualityGatePassed = !!(gateState && gateState.qualityGatePassed);
+    const finalPassed = !!(gateState && gateState.finalPassed);
+    const onnxGatePassed = !!(gateState && gateState.onnxGatePassed);
+    const quickRegressionWithinOnnxPrimaryLimit = !!(gateState && gateState.quickRegressionWithinOnnxPrimaryLimit);
+    const quickNonRegressionWithinOnnxPrimaryLimit = !!(gateState && gateState.quickNonRegressionWithinOnnxPrimaryLimit);
+    const quickUplift = gateState && Number.isFinite(gateState.quickUplift)
+        ? Number(gateState.quickUplift)
+        : Number.NEGATIVE_INFINITY;
+    const quickUpliftLowerBound = gateState && Number.isFinite(gateState.quickUpliftLowerBound)
+        ? Number(gateState.quickUpliftLowerBound)
+        : Number.NEGATIVE_INFINITY;
+    const onnxGateDecision = gateState && gateState.onnxGateDecision ? gateState.onnxGateDecision : null;
+
+    const strictPromoteEligible = finalPassed && qualityGatePassed && onnxGatePassed;
+    const onnxPrimaryQuickGuardPassed = !args.onnxPrimaryRequireQuickRegression || quickRegressionWithinOnnxPrimaryLimit;
+    const onnxPrimaryQuickNonRegressionGuardPassed = !args.onnxPrimaryRequireQuickNonRegression || quickNonRegressionWithinOnnxPrimaryLimit;
+    const onnxGateAverageScore = onnxGateDecision && Number.isFinite(onnxGateDecision.averageScore)
+        ? Number(onnxGateDecision.averageScore)
+        : -Infinity;
+    const onnxGateMinSeedScore = onnxGateDecision && Number.isFinite(onnxGateDecision.minSeedScore)
+        ? Number(onnxGateDecision.minSeedScore)
+        : -Infinity;
+    const onnxPrimaryQuickUpliftGuardPassed = quickUplift >= args.onnxPrimaryMinQuickUplift;
+    const onnxPrimaryQuickLowerBoundGuardPassed = quickUpliftLowerBound >= args.onnxPrimaryMinQuickLowerBound;
+    const onnxPrimaryOnnxGateAvgGuardPassed = onnxGateAverageScore >= args.onnxPrimaryMinOnnxGateAvg;
+    const onnxPrimaryOnnxGateMinSeedGuardPassed = onnxGateMinSeedScore >= args.onnxPrimaryMinOnnxGateMinSeed;
+    const onnxPrimaryPromoteEligible =
+        qualityGatePassed &&
+        onnxGatePassed &&
+        onnxPrimaryQuickGuardPassed &&
+        onnxPrimaryQuickNonRegressionGuardPassed &&
+        onnxPrimaryQuickUpliftGuardPassed &&
+        onnxPrimaryQuickLowerBoundGuardPassed &&
+        onnxPrimaryOnnxGateAvgGuardPassed &&
+        onnxPrimaryOnnxGateMinSeedGuardPassed;
+    const quickOnlyPromoteEligible = quickPassed && qualityGatePassed;
+
+    let promoteEligible = strictPromoteEligible;
+    if (args.promotionMode === 'onnx-primary') {
+        promoteEligible = onnxPrimaryPromoteEligible;
+    } else if (args.promotionMode === 'quick-only') {
+        promoteEligible = quickOnlyPromoteEligible;
+    }
+
+    return {
+        promoteEligible,
+        strictPromoteEligible,
+        onnxPrimaryPromoteEligible,
+        quickOnlyPromoteEligible,
+        onnxPrimaryQuickGuardPassed,
+        onnxPrimaryQuickNonRegressionGuardPassed,
+        onnxPrimaryQuickUpliftGuardPassed,
+        onnxPrimaryQuickLowerBoundGuardPassed,
+        onnxPrimaryOnnxGateAvgGuardPassed,
+        onnxPrimaryOnnxGateMinSeedGuardPassed,
+        onnxGateAverageScore,
+        onnxGateMinSeedScore
+    };
+}
+
+function buildInitialGuideModelPoolPaths(modelsDir, guideModelPath, maxSize, options) {
     const limit = Number.isFinite(maxSize) ? Math.max(1, Math.floor(maxSize)) : 1;
+    const includeCandidateFiles = !options || options.includeCandidateFiles !== false;
     const dedup = new Set();
     const out = [];
 
@@ -1189,7 +1345,7 @@ function buildInitialGuideModelPoolPaths(modelsDir, guideModelPath, maxSize) {
     };
 
     addPath(guideModelPath);
-    if (!modelsDir || !fs.existsSync(modelsDir)) {
+    if (!includeCandidateFiles || !modelsDir || !fs.existsSync(modelsDir)) {
         return out.slice(0, limit);
     }
 
@@ -1221,9 +1377,72 @@ function buildInitialGuideModelPoolPaths(modelsDir, guideModelPath, maxSize) {
     return out.slice(0, limit);
 }
 
+function resolveAdoptionBaselineMode(args) {
+    if (args && args.adoptionUseAnchorBaseline === true) return 'anchor';
+    if (args && args.adoptionUseGuideBaseline === true) return 'guide';
+    return 'none';
+}
+
+function shouldRunGateForIteration(args, iterationIndex) {
+    if (!args || args.gateFinalIterationOnly !== true) return true;
+    const totalIterations = Number.isFinite(Number(args.iterations))
+        ? Math.max(1, Math.floor(Number(args.iterations)))
+        : 1;
+    return iterationIndex >= totalIterations;
+}
+
+function resolveIterationGateControl(args, iterationIndex, guideModelPath, anchorModelPath) {
+    const baselineMode = resolveAdoptionBaselineMode(args);
+    let baselineModelPath = null;
+    if (baselineMode === 'anchor' && anchorModelPath) {
+        baselineModelPath = path.resolve(anchorModelPath);
+    } else if (baselineMode === 'guide' && guideModelPath) {
+        baselineModelPath = path.resolve(guideModelPath);
+    }
+    return {
+        gateIterationAllowed: shouldRunGateForIteration(args, iterationIndex),
+        baselineMode,
+        baselineModelPath
+    };
+}
+
 function getRemainingMs(deadlineMs) {
     if (!Number.isFinite(deadlineMs)) return null;
     return Math.max(0, deadlineMs - Date.now());
+}
+
+function resolveNextCarryOverState(args, carryOver, result) {
+    const nextState = {
+        guideModelPath: carryOver && carryOver.guideModelPath ? carryOver.guideModelPath : null,
+        guideModelPoolPaths: carryOver && Array.isArray(carryOver.guideModelPoolPaths)
+            ? carryOver.guideModelPoolPaths.slice()
+            : [],
+        resumeCheckpointPath: carryOver && carryOver.resumeCheckpointPath ? carryOver.resumeCheckpointPath : null,
+        checkpointCarryOverSkipped: false
+    };
+    if (!result || !result.paths) return nextState;
+
+    const shouldAdvanceGuide = !args.selfplayUsePromotedModelOnly || !!result.promoted;
+    if (result.paths.candidateModelPath && fs.existsSync(result.paths.candidateModelPath) && shouldAdvanceGuide) {
+        const promotedModelPath = path.resolve(args.modelsDir, 'policy-table.json');
+        nextState.guideModelPath = (result.promoted && fs.existsSync(promotedModelPath))
+            ? promotedModelPath
+            : result.paths.candidateModelPath;
+        if (nextState.guideModelPath) {
+            const deduped = [nextState.guideModelPath]
+                .concat(nextState.guideModelPoolPaths.filter((one) => path.resolve(one) !== path.resolve(nextState.guideModelPath)));
+            nextState.guideModelPoolPaths = deduped.slice(0, args.selfplayPolicyModelPoolSize);
+        }
+    }
+
+    const shouldCarryOverCheckpoint = args.carryOverCheckpoint && shouldAdvanceGuide;
+    if (shouldCarryOverCheckpoint && result.paths.checkpointPath && fs.existsSync(result.paths.checkpointPath)) {
+        nextState.resumeCheckpointPath = result.paths.checkpointPath;
+    } else if (args.carryOverCheckpoint && args.selfplayUsePromotedModelOnly && !result.promoted) {
+        nextState.checkpointCarryOverSkipped = true;
+    }
+
+    return nextState;
 }
 
 function runIteration(args, iterationIndex, deadlineMs, carryOver) {
@@ -1237,6 +1456,8 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         ? carryOver.guideModelPoolPaths.filter((one) => !!one)
         : [];
     const resumeCheckpointPath = carryOver && carryOver.resumeCheckpointPath ? carryOver.resumeCheckpointPath : null;
+    const anchorModelPath = carryOver && carryOver.anchorModelPath ? carryOver.anchorModelPath : null;
+    const gateControl = resolveIterationGateControl(args, iterationIndex, guideModelPath, anchorModelPath);
     const generateCardArgs = args.allowCardUsage
         ? ['--with-cards', '--card-usage-rate', String(args.cardUsageRate)]
         : ['--no-cards', '--card-usage-rate', '0'];
@@ -1255,7 +1476,11 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         '--teacher-committee-weight-min', String(args.selfplayTeacherCommitteeWeightMin),
         '--teacher-committee-weight-max', String(args.selfplayTeacherCommitteeWeightMax),
         '--teacher-committee-consensus-bonus-min', String(args.selfplayTeacherCommitteeConsensusBonusMin),
-        '--teacher-committee-consensus-bonus-max', String(args.selfplayTeacherCommitteeConsensusBonusMax)
+        '--teacher-committee-consensus-bonus-max', String(args.selfplayTeacherCommitteeConsensusBonusMax),
+        '--policy-score-weight-min', String(args.selfplayPolicyScoreWeightMin),
+        '--policy-score-weight-max', String(args.selfplayPolicyScoreWeightMax),
+        '--heuristic-weight-min', String(args.selfplayHeuristicWeightMin),
+        '--heuristic-weight-max', String(args.selfplayHeuristicWeightMax)
     ];
     const guideModelArgs = [];
     if (guideModelPath) {
@@ -1264,8 +1489,8 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     if (guideModelPoolPaths.length > 0) {
         guideModelArgs.push('--policy-model-pool', guideModelPoolPaths.join(','));
     }
-    const adoptionBaselineArgs = (args.adoptionUseGuideBaseline && guideModelPath)
-        ? ['--baseline-model', guideModelPath]
+    const adoptionBaselineArgs = gateControl.baselineModelPath
+        ? ['--baseline-model', gateControl.baselineModelPath]
         : [];
     const verboseArgs = args.verbose ? ['--verbose'] : [];
     const adoptionCardRate = args.allowCardUsage ? args.cardUsageRate : 0;
@@ -1384,6 +1609,9 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
         '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
         '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
+        '--corner-balance-sample-boost', String(args.onnxCornerBalanceSampleBoost),
+        '--edge-balance-sample-boost', String(args.onnxEdgeBalanceSampleBoost),
+        '--economy-balance-sample-boost', String(args.onnxEconomyBalanceSampleBoost),
         '--metrics-out', p.onnxMetricsPath,
         '--min-visits', String(args.minVisits),
         '--shape-immediate', String(args.shapeImmediate),
@@ -1504,155 +1732,50 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
         '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
         '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
+        '--corner-balance-sample-boost', String(args.onnxCornerBalanceSampleBoost),
+        '--edge-balance-sample-boost', String(args.onnxEdgeBalanceSampleBoost),
+        '--economy-balance-sample-boost', String(args.onnxEconomyBalanceSampleBoost),
         '--metrics-out', p.valueMetricsPath,
+        '--value-target-corner-weight', String(args.onnxValueTargetCornerWeight),
+        '--value-target-edge-weight', String(args.onnxValueTargetEdgeWeight),
+        '--value-target-economy-weight', String(args.onnxValueTargetEconomyWeight),
+        '--value-target-corner-emergency-weight', String(args.onnxValueTargetCornerEmergencyWeight),
         '--checkpoint-out', p.valueCheckpointPath
     ].concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
         reuseOutputs: [p.valueOnnxModelPath, p.valueOnnxMetaPath]
     });
 
-    runManagedStep('adoption-quick', process.execPath, [
-        path.resolve('scripts', 'benchmark-policy-adoption.js'),
-        '--games', String(args.quickGames),
-        '--seed', String(seed),
-        '--seed-count', String(quickAdoptionSeedCount),
-        '--seed-stride', String(quickAdoptionSeedStride),
-        '--jobs', String(args.adoptionJobs),
-        '--max-plies', String(args.maxPlies),
-        '--threshold', String(quickAdoptionThreshold),
-        '--confidence-level', String(quickAdoptionConfidenceLevel),
-        '--min-lower-bound', String(quickAdoptionMinLowerBound),
-        '--min-seed-uplift', String(quickAdoptionMinSeedUplift),
-        '--min-seed-pass-count', String(quickAdoptionMinSeedPassCount),
-        '--a-rate', String(adoptionCardRate),
-        '--b-rate', String(adoptionCardRate),
-        '--tactical-weight', String(args.adoptionTacticalWeight),
-        '--tactical-depth-opening', String(args.adoptionTacticalDepthOpening),
-        '--tactical-depth-mid', String(args.adoptionTacticalDepthMid),
-        '--tactical-depth-end', String(args.adoptionTacticalDepthEnd),
-        '--tactical-beam-width', String(args.adoptionTacticalBeamWidth),
-        '--policy-score-weight', String(args.adoptionPolicyScoreWeight),
-        '--heuristic-weight', String(args.adoptionHeuristicWeight),
-        '--white-priority', String(args.adoptionWhitePriority),
-        '--quality-weight-corner', String(args.adoptionQualityWeightCorner),
-        '--quality-weight-edge', String(args.adoptionQualityWeightEdge),
-        '--quality-weight-corner-recovery', String(args.adoptionQualityWeightCornerRecovery),
-        '--quality-weight-corner-recapture', String(args.adoptionQualityWeightCornerRecapture),
-        '--quality-weight-edge-recovery', String(args.adoptionQualityWeightEdgeRecovery),
-        '--quality-weight-corner-hold', String(args.adoptionQualityWeightCornerHold),
-        '--quality-weight-corner-hold-turns', String(args.adoptionQualityWeightCornerHoldTurns),
-        '--quality-weight-edge-hold', String(args.adoptionQualityWeightEdgeHold),
-        '--quality-weight-final-corner-share', String(args.adoptionQualityWeightFinalCornerShare),
-        '--quality-weight-final-edge-share', String(args.adoptionQualityWeightFinalEdgeShare),
-        '--quality-weight-bonus', String(args.adoptionQualityWeightBonus),
-        '--quality-weight-card-immediate', String(args.adoptionQualityWeightCardImmediate),
-        '--quality-weight-card-future', String(args.adoptionQualityWeightCardFuture),
-        '--quality-weight-place-delta', String(args.adoptionQualityWeightPlaceDelta),
-        '--candidate-model', p.candidateModelPath,
-        '--out', p.quickAdoptionPath
-    ].concat(adoptionBaselineArgs, verboseArgs), {
-        allowExitCodes: [0, 2],
-        reuseOutputs: [p.quickAdoptionPath]
-    });
-    const quickPayload = readJsonSafe(p.quickAdoptionPath);
-    const quickPassed = !!(quickPayload && quickPayload.decision && quickPayload.decision.passed);
-    const quickDecision = quickPayload && quickPayload.decision ? quickPayload.decision : null;
-    const quickUplift = quickDecision && Number.isFinite(quickDecision.uplift)
-        ? Number(quickDecision.uplift)
-        : -Infinity;
-    const quickUpliftLowerBound = quickDecision && Number.isFinite(quickDecision.upliftLowerBound)
-        ? Number(quickDecision.upliftLowerBound)
-        : -Infinity;
-    const quickRegressionWithinOnnxPrimaryLimit = quickUplift >= (-args.onnxPrimaryMaxQuickRegression);
-    const quickCoreDelta = resolveQuickComponentDelta(
-        quickPayload,
-        quickDecision,
-        'baselineCoreScore',
-        'candidateCoreScore'
-    );
-    const quickWhiteDelta = resolveQuickComponentDelta(
-        quickPayload,
-        quickDecision,
-        'baselineWhiteScore',
-        'candidateWhiteScore'
-    );
-    const quickQualityDelta = resolveQuickComponentDelta(
-        quickPayload,
-        quickDecision,
-        'baselineQualityScore',
-        'candidateQualityScore'
-    );
-    const quickNonRegressionWithinOnnxPrimaryLimit =
-        quickCoreDelta >= args.onnxPrimaryMinQuickCoreDelta &&
-        quickWhiteDelta >= args.onnxPrimaryMinQuickWhiteDelta &&
-        quickQualityDelta >= args.onnxPrimaryMinQuickQualityDelta;
-
+    let quickPayload = null;
+    let quickPassed = false;
+    let quickDecision = null;
+    let quickUplift = Number.NEGATIVE_INFINITY;
+    let quickUpliftLowerBound = Number.NEGATIVE_INFINITY;
+    let quickRegressionWithinOnnxPrimaryLimit = false;
+    let quickCoreDelta = Number.NEGATIVE_INFINITY;
+    let quickWhiteDelta = Number.NEGATIVE_INFINITY;
+    let quickQualityDelta = Number.NEGATIVE_INFINITY;
+    let quickNonRegressionWithinOnnxPrimaryLimit = false;
     let qualityGatePayload = null;
     let qualityGatePassed = !args.qualityGateEnabled;
-    if (quickPassed && args.qualityGateEnabled) {
-        runManagedStep('adoption-quality-gate', process.execPath, [
-            path.resolve('scripts', 'benchmark-policy-quality-gate.js'),
-            '--games', String(args.qualityGateGames),
-            '--seed', String(qualityGateSeed),
-            '--seed-count', String(args.qualityGateSeedCount),
-            '--seed-stride', String(args.qualityGateSeedStride),
-            '--jobs', String(args.adoptionJobs),
-            '--max-plies', String(args.maxPlies),
-            '--threshold', String(args.qualityGateThreshold),
-            '--confidence-level', String(args.qualityGateConfidenceLevel),
-            '--min-lower-bound', String(args.qualityGateMinLowerBound),
-            '--min-seed-uplift', String(args.qualityGateMinSeedUplift),
-            '--min-seed-pass-count', String(args.qualityGateMinSeedPassCount),
-            '--a-rate', String(adoptionCardRate),
-            '--b-rate', String(adoptionCardRate),
-            '--tactical-weight', String(args.adoptionTacticalWeight),
-            '--tactical-depth-opening', String(args.adoptionTacticalDepthOpening),
-            '--tactical-depth-mid', String(args.adoptionTacticalDepthMid),
-            '--tactical-depth-end', String(args.adoptionTacticalDepthEnd),
-            '--tactical-beam-width', String(args.adoptionTacticalBeamWidth),
-            '--policy-score-weight', String(args.adoptionPolicyScoreWeight),
-            '--heuristic-weight', String(args.adoptionHeuristicWeight),
-            '--white-priority', String(args.adoptionWhitePriority),
-            '--quality-weight-corner', String(args.adoptionQualityWeightCorner),
-            '--quality-weight-edge', String(args.adoptionQualityWeightEdge),
-            '--quality-weight-corner-recovery', String(args.adoptionQualityWeightCornerRecovery),
-            '--quality-weight-corner-recapture', String(args.adoptionQualityWeightCornerRecapture),
-            '--quality-weight-edge-recovery', String(args.adoptionQualityWeightEdgeRecovery),
-            '--quality-weight-corner-hold', String(args.adoptionQualityWeightCornerHold),
-            '--quality-weight-corner-hold-turns', String(args.adoptionQualityWeightCornerHoldTurns),
-            '--quality-weight-edge-hold', String(args.adoptionQualityWeightEdgeHold),
-            '--quality-weight-final-corner-share', String(args.adoptionQualityWeightFinalCornerShare),
-            '--quality-weight-final-edge-share', String(args.adoptionQualityWeightFinalEdgeShare),
-            '--quality-weight-bonus', String(args.adoptionQualityWeightBonus),
-            '--quality-weight-card-immediate', String(args.adoptionQualityWeightCardImmediate),
-            '--quality-weight-card-future', String(args.adoptionQualityWeightCardFuture),
-            '--quality-weight-place-delta', String(args.adoptionQualityWeightPlaceDelta),
-            '--candidate-model', p.candidateModelPath,
-            '--out', p.qualityGatePath
-        ].concat(adoptionBaselineArgs, verboseArgs), {
-            allowExitCodes: [0, 2],
-            reuseOutputs: [p.qualityGatePath]
-        });
-        qualityGatePayload = readJsonSafe(p.qualityGatePath);
-        qualityGatePassed = !!(qualityGatePayload && qualityGatePayload.decision && qualityGatePayload.decision.passed);
-    }
-
     let finalPayload = null;
     let finalPassed = false;
-    const shouldRunFinalAdoption = quickPassed && qualityGatePassed && args.promotionMode !== 'onnx-primary';
-    if (shouldRunFinalAdoption) {
-        runManagedStep('adoption-final', process.execPath, [
+    let onnxGatePayload = null;
+    let onnxGatePassed = !args.onnxGateEnabled;
+
+    if (gateControl.gateIterationAllowed) {
+        runManagedStep('adoption-quick', process.execPath, [
             path.resolve('scripts', 'benchmark-policy-adoption.js'),
-            '--games', String(args.finalGames),
-            '--seed', String(finalAdoptionSeed),
-            '--seed-count', String(finalAdoptionSeedCount),
-            '--seed-stride', String(finalAdoptionSeedStride),
+            '--games', String(args.quickGames),
+            '--seed', String(seed),
+            '--seed-count', String(quickAdoptionSeedCount),
+            '--seed-stride', String(quickAdoptionSeedStride),
             '--jobs', String(args.adoptionJobs),
             '--max-plies', String(args.maxPlies),
-            '--threshold', String(finalAdoptionThreshold),
-            '--confidence-level', String(finalAdoptionConfidenceLevel),
-            '--min-lower-bound', String(finalAdoptionMinLowerBound),
-            '--min-seed-uplift', String(finalAdoptionMinSeedUplift),
-            '--min-seed-pass-count', String(finalAdoptionMinSeedPassCount),
+            '--threshold', String(quickAdoptionThreshold),
+            '--confidence-level', String(quickAdoptionConfidenceLevel),
+            '--min-lower-bound', String(quickAdoptionMinLowerBound),
+            '--min-seed-uplift', String(quickAdoptionMinSeedUplift),
+            '--min-seed-pass-count', String(quickAdoptionMinSeedPassCount),
             '--a-rate', String(adoptionCardRate),
             '--b-rate', String(adoptionCardRate),
             '--tactical-weight', String(args.adoptionTacticalWeight),
@@ -1678,81 +1801,206 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             '--quality-weight-card-future', String(args.adoptionQualityWeightCardFuture),
             '--quality-weight-place-delta', String(args.adoptionQualityWeightPlaceDelta),
             '--candidate-model', p.candidateModelPath,
-            '--out', p.finalAdoptionPath
+            '--out', p.quickAdoptionPath
         ].concat(adoptionBaselineArgs, verboseArgs), {
             allowExitCodes: [0, 2],
-            reuseOutputs: [p.finalAdoptionPath]
+            reuseOutputs: [p.quickAdoptionPath]
         });
-        finalPayload = readJsonSafe(p.finalAdoptionPath);
-        finalPassed = !!(finalPayload && finalPayload.decision && finalPayload.decision.passed);
+        quickPayload = readJsonSafe(p.quickAdoptionPath);
+        quickPassed = !!(quickPayload && quickPayload.decision && quickPayload.decision.passed);
+        quickDecision = quickPayload && quickPayload.decision ? quickPayload.decision : null;
+        quickUplift = quickDecision && Number.isFinite(quickDecision.uplift)
+            ? Number(quickDecision.uplift)
+            : Number.NEGATIVE_INFINITY;
+        quickUpliftLowerBound = quickDecision && Number.isFinite(quickDecision.upliftLowerBound)
+            ? Number(quickDecision.upliftLowerBound)
+            : Number.NEGATIVE_INFINITY;
+        quickRegressionWithinOnnxPrimaryLimit = quickUplift >= (-args.onnxPrimaryMaxQuickRegression);
+        quickCoreDelta = resolveQuickComponentDelta(
+            quickPayload,
+            quickDecision,
+            'baselineCoreScore',
+            'candidateCoreScore'
+        );
+        quickWhiteDelta = resolveQuickComponentDelta(
+            quickPayload,
+            quickDecision,
+            'baselineWhiteScore',
+            'candidateWhiteScore'
+        );
+        quickQualityDelta = resolveQuickComponentDelta(
+            quickPayload,
+            quickDecision,
+            'baselineQualityScore',
+            'candidateQualityScore'
+        );
+        quickNonRegressionWithinOnnxPrimaryLimit =
+            quickCoreDelta >= args.onnxPrimaryMinQuickCoreDelta &&
+            quickWhiteDelta >= args.onnxPrimaryMinQuickWhiteDelta &&
+            quickQualityDelta >= args.onnxPrimaryMinQuickQualityDelta;
+
+        qualityGatePassed = !args.qualityGateEnabled;
+        if (quickPassed && args.qualityGateEnabled) {
+            runManagedStep('adoption-quality-gate', process.execPath, [
+                path.resolve('scripts', 'benchmark-policy-quality-gate.js'),
+                '--games', String(args.qualityGateGames),
+                '--seed', String(qualityGateSeed),
+                '--seed-count', String(args.qualityGateSeedCount),
+                '--seed-stride', String(args.qualityGateSeedStride),
+                '--jobs', String(args.adoptionJobs),
+                '--max-plies', String(args.maxPlies),
+                '--threshold', String(args.qualityGateThreshold),
+                '--confidence-level', String(args.qualityGateConfidenceLevel),
+                '--min-lower-bound', String(args.qualityGateMinLowerBound),
+                '--min-seed-uplift', String(args.qualityGateMinSeedUplift),
+                '--min-seed-pass-count', String(args.qualityGateMinSeedPassCount),
+                '--a-rate', String(adoptionCardRate),
+                '--b-rate', String(adoptionCardRate),
+                '--tactical-weight', String(args.adoptionTacticalWeight),
+                '--tactical-depth-opening', String(args.adoptionTacticalDepthOpening),
+                '--tactical-depth-mid', String(args.adoptionTacticalDepthMid),
+                '--tactical-depth-end', String(args.adoptionTacticalDepthEnd),
+                '--tactical-beam-width', String(args.adoptionTacticalBeamWidth),
+                '--policy-score-weight', String(args.adoptionPolicyScoreWeight),
+                '--heuristic-weight', String(args.adoptionHeuristicWeight),
+                '--white-priority', String(args.adoptionWhitePriority),
+                '--quality-weight-corner', String(args.adoptionQualityWeightCorner),
+                '--quality-weight-edge', String(args.adoptionQualityWeightEdge),
+                '--quality-weight-corner-recovery', String(args.adoptionQualityWeightCornerRecovery),
+                '--quality-weight-corner-recapture', String(args.adoptionQualityWeightCornerRecapture),
+                '--quality-weight-edge-recovery', String(args.adoptionQualityWeightEdgeRecovery),
+                '--quality-weight-corner-hold', String(args.adoptionQualityWeightCornerHold),
+                '--quality-weight-corner-hold-turns', String(args.adoptionQualityWeightCornerHoldTurns),
+                '--quality-weight-edge-hold', String(args.adoptionQualityWeightEdgeHold),
+                '--quality-weight-final-corner-share', String(args.adoptionQualityWeightFinalCornerShare),
+                '--quality-weight-final-edge-share', String(args.adoptionQualityWeightFinalEdgeShare),
+                '--quality-weight-bonus', String(args.adoptionQualityWeightBonus),
+                '--quality-weight-card-immediate', String(args.adoptionQualityWeightCardImmediate),
+                '--quality-weight-card-future', String(args.adoptionQualityWeightCardFuture),
+                '--quality-weight-place-delta', String(args.adoptionQualityWeightPlaceDelta),
+                '--candidate-model', p.candidateModelPath,
+                '--out', p.qualityGatePath
+            ].concat(adoptionBaselineArgs, verboseArgs), {
+                allowExitCodes: [0, 2],
+                reuseOutputs: [p.qualityGatePath]
+            });
+            qualityGatePayload = readJsonSafe(p.qualityGatePath);
+            qualityGatePassed = !!(qualityGatePayload && qualityGatePayload.decision && qualityGatePayload.decision.passed);
+        }
+
+        const shouldRunFinalAdoption = quickPassed && qualityGatePassed && args.promotionMode === 'strict';
+        if (shouldRunFinalAdoption) {
+            runManagedStep('adoption-final', process.execPath, [
+                path.resolve('scripts', 'benchmark-policy-adoption.js'),
+                '--games', String(args.finalGames),
+                '--seed', String(finalAdoptionSeed),
+                '--seed-count', String(finalAdoptionSeedCount),
+                '--seed-stride', String(finalAdoptionSeedStride),
+                '--jobs', String(args.adoptionJobs),
+                '--max-plies', String(args.maxPlies),
+                '--threshold', String(finalAdoptionThreshold),
+                '--confidence-level', String(finalAdoptionConfidenceLevel),
+                '--min-lower-bound', String(finalAdoptionMinLowerBound),
+                '--min-seed-uplift', String(finalAdoptionMinSeedUplift),
+                '--min-seed-pass-count', String(finalAdoptionMinSeedPassCount),
+                '--a-rate', String(adoptionCardRate),
+                '--b-rate', String(adoptionCardRate),
+                '--tactical-weight', String(args.adoptionTacticalWeight),
+                '--tactical-depth-opening', String(args.adoptionTacticalDepthOpening),
+                '--tactical-depth-mid', String(args.adoptionTacticalDepthMid),
+                '--tactical-depth-end', String(args.adoptionTacticalDepthEnd),
+                '--tactical-beam-width', String(args.adoptionTacticalBeamWidth),
+                '--policy-score-weight', String(args.adoptionPolicyScoreWeight),
+                '--heuristic-weight', String(args.adoptionHeuristicWeight),
+                '--white-priority', String(args.adoptionWhitePriority),
+                '--quality-weight-corner', String(args.adoptionQualityWeightCorner),
+                '--quality-weight-edge', String(args.adoptionQualityWeightEdge),
+                '--quality-weight-corner-recovery', String(args.adoptionQualityWeightCornerRecovery),
+                '--quality-weight-corner-recapture', String(args.adoptionQualityWeightCornerRecapture),
+                '--quality-weight-edge-recovery', String(args.adoptionQualityWeightEdgeRecovery),
+                '--quality-weight-corner-hold', String(args.adoptionQualityWeightCornerHold),
+                '--quality-weight-corner-hold-turns', String(args.adoptionQualityWeightCornerHoldTurns),
+                '--quality-weight-edge-hold', String(args.adoptionQualityWeightEdgeHold),
+                '--quality-weight-final-corner-share', String(args.adoptionQualityWeightFinalCornerShare),
+                '--quality-weight-final-edge-share', String(args.adoptionQualityWeightFinalEdgeShare),
+                '--quality-weight-bonus', String(args.adoptionQualityWeightBonus),
+                '--quality-weight-card-immediate', String(args.adoptionQualityWeightCardImmediate),
+                '--quality-weight-card-future', String(args.adoptionQualityWeightCardFuture),
+                '--quality-weight-place-delta', String(args.adoptionQualityWeightPlaceDelta),
+                '--candidate-model', p.candidateModelPath,
+                '--out', p.finalAdoptionPath
+            ].concat(adoptionBaselineArgs, verboseArgs), {
+                allowExitCodes: [0, 2],
+                reuseOutputs: [p.finalAdoptionPath]
+            });
+            finalPayload = readJsonSafe(p.finalAdoptionPath);
+            finalPassed = !!(finalPayload && finalPayload.decision && finalPayload.decision.passed);
+        }
+
+        onnxGatePassed = !args.onnxGateEnabled;
+        const shouldRunOnnxGate = args.onnxGateEnabled && qualityGatePassed && (finalPassed || args.promotionMode === 'onnx-primary');
+        if (shouldRunOnnxGate) {
+            runManagedStep('adoption-onnx-gate', process.execPath, [
+                path.resolve('scripts', 'benchmark-policy-onnx-gate.js'),
+                '--games', String(args.onnxGateGames),
+                '--seed', String(seed + args.onnxGateSeedOffset),
+                '--seed-count', String(args.onnxGateSeedCount),
+                '--seed-stride', String(args.onnxGateSeedStride),
+                '--jobs', String(args.onnxGateJobs),
+                '--threshold', String(args.onnxGateThreshold),
+                '--min-seed-score', String(args.onnxGateMinSeedScore),
+                '--min-seed-pass-count', String(args.onnxGateMinSeedPassCount),
+                '--max-average-latency-ms', String(args.onnxGateMaxAverageLatencyMs),
+                '--max-p95-latency-ms', String(args.onnxGateMaxP95LatencyMs),
+                '--max-max-latency-ms', String(args.onnxGateMaxMaxLatencyMs),
+                '--timeout-ms', String(args.onnxGateTimeoutMs),
+                '--black-level', String(args.onnxGateBlackLevel),
+                '--white-level', String(args.onnxGateWhiteLevel),
+                '--candidate-color-mode', String(args.onnxGateCandidateColorMode),
+                '--candidate-onnx', p.onnxModelPath,
+                '--candidate-onnx-meta', p.onnxMetaPath,
+                ...(args.allowCardUsage ? ['--candidate-card-onnx', p.cardOnnxModelPath, '--candidate-card-onnx-meta', p.cardOnnxMetaPath] : []),
+                ...(hasTargetTrainingData ? ['--candidate-target-onnx', p.targetOnnxModelPath, '--candidate-target-onnx-meta', p.targetOnnxMetaPath] : []),
+                '--candidate-value-onnx', p.valueOnnxModelPath,
+                '--candidate-value-onnx-meta', p.valueOnnxMetaPath,
+                '--out', p.onnxGatePath
+            ], {
+                allowExitCodes: [0, 2],
+                reuseOutputs: [p.onnxGatePath]
+            });
+            onnxGatePayload = readJsonSafe(p.onnxGatePath);
+            onnxGatePassed = !!(onnxGatePayload && onnxGatePayload.decision && onnxGatePayload.decision.passed);
+        }
     }
 
-    let onnxGatePayload = null;
-    let onnxGatePassed = !args.onnxGateEnabled;
-    const shouldRunOnnxGate = args.onnxGateEnabled && qualityGatePassed && (finalPassed || args.promotionMode === 'onnx-primary');
-    if (shouldRunOnnxGate) {
-        runManagedStep('adoption-onnx-gate', process.execPath, [
-            path.resolve('scripts', 'benchmark-policy-onnx-gate.js'),
-            '--games', String(args.onnxGateGames),
-            '--seed', String(seed + args.onnxGateSeedOffset),
-            '--seed-count', String(args.onnxGateSeedCount),
-            '--seed-stride', String(args.onnxGateSeedStride),
-            '--jobs', String(args.onnxGateJobs),
-            '--threshold', String(args.onnxGateThreshold),
-            '--min-seed-score', String(args.onnxGateMinSeedScore),
-            '--min-seed-pass-count', String(args.onnxGateMinSeedPassCount),
-            '--max-average-latency-ms', String(args.onnxGateMaxAverageLatencyMs),
-            '--max-p95-latency-ms', String(args.onnxGateMaxP95LatencyMs),
-            '--max-max-latency-ms', String(args.onnxGateMaxMaxLatencyMs),
-            '--timeout-ms', String(args.onnxGateTimeoutMs),
-            '--black-level', String(args.onnxGateBlackLevel),
-            '--white-level', String(args.onnxGateWhiteLevel),
-            '--candidate-color-mode', String(args.onnxGateCandidateColorMode),
-            '--candidate-onnx', p.onnxModelPath,
-            '--candidate-onnx-meta', p.onnxMetaPath,
-            ...(args.allowCardUsage ? ['--candidate-card-onnx', p.cardOnnxModelPath, '--candidate-card-onnx-meta', p.cardOnnxMetaPath] : []),
-            ...(hasTargetTrainingData ? ['--candidate-target-onnx', p.targetOnnxModelPath, '--candidate-target-onnx-meta', p.targetOnnxMetaPath] : []),
-            '--candidate-value-onnx', p.valueOnnxModelPath,
-            '--candidate-value-onnx-meta', p.valueOnnxMetaPath,
-            '--out', p.onnxGatePath
-        ], {
-            allowExitCodes: [0, 2],
-            reuseOutputs: [p.onnxGatePath]
-        });
-        onnxGatePayload = readJsonSafe(p.onnxGatePath);
-        onnxGatePassed = !!(onnxGatePayload && onnxGatePayload.decision && onnxGatePayload.decision.passed);
-    }
-
-    const strictPromoteEligible = finalPassed && qualityGatePassed && onnxGatePassed;
-    const onnxPrimaryQuickGuardPassed = !args.onnxPrimaryRequireQuickRegression || quickRegressionWithinOnnxPrimaryLimit;
-    const onnxPrimaryQuickNonRegressionGuardPassed = !args.onnxPrimaryRequireQuickNonRegression || quickNonRegressionWithinOnnxPrimaryLimit;
     const onnxGateDecision = onnxGatePayload && onnxGatePayload.decision ? onnxGatePayload.decision : null;
-    const onnxGateAverageScore = onnxGateDecision && Number.isFinite(onnxGateDecision.averageScore)
-        ? Number(onnxGateDecision.averageScore)
-        : -Infinity;
-    const onnxGateMinSeedScore = onnxGateDecision && Number.isFinite(onnxGateDecision.minSeedScore)
-        ? Number(onnxGateDecision.minSeedScore)
-        : -Infinity;
-    const onnxPrimaryQuickUpliftGuardPassed = quickUplift >= args.onnxPrimaryMinQuickUplift;
-    const onnxPrimaryQuickLowerBoundGuardPassed = quickUpliftLowerBound >= args.onnxPrimaryMinQuickLowerBound;
-    const onnxPrimaryOnnxGateAvgGuardPassed = onnxGateAverageScore >= args.onnxPrimaryMinOnnxGateAvg;
-    const onnxPrimaryOnnxGateMinSeedGuardPassed = onnxGateMinSeedScore >= args.onnxPrimaryMinOnnxGateMinSeed;
-    const onnxPrimaryPromoteEligible =
-        qualityGatePassed &&
-        onnxGatePassed &&
-        onnxPrimaryQuickGuardPassed &&
-        onnxPrimaryQuickNonRegressionGuardPassed &&
-        onnxPrimaryQuickUpliftGuardPassed &&
-        onnxPrimaryQuickLowerBoundGuardPassed &&
-        onnxPrimaryOnnxGateAvgGuardPassed &&
-        onnxPrimaryOnnxGateMinSeedGuardPassed;
-    const promoteEligible = args.promotionMode === 'onnx-primary'
-        ? onnxPrimaryPromoteEligible
-        : strictPromoteEligible;
+    const promotionEligibility = resolvePromotionEligibility(args, {
+        quickPassed,
+        qualityGatePassed,
+        finalPassed,
+        onnxGatePassed,
+        quickRegressionWithinOnnxPrimaryLimit,
+        quickNonRegressionWithinOnnxPrimaryLimit,
+        quickUplift,
+        quickUpliftLowerBound,
+        onnxGateDecision
+    });
+    const promoteEligible = promotionEligibility.promoteEligible;
+    const strictPromoteEligible = promotionEligibility.strictPromoteEligible;
+    const onnxPrimaryPromoteEligible = promotionEligibility.onnxPrimaryPromoteEligible;
+    const quickOnlyPromoteEligible = promotionEligibility.quickOnlyPromoteEligible;
+    const onnxPrimaryQuickGuardPassed = promotionEligibility.onnxPrimaryQuickGuardPassed;
+    const onnxPrimaryQuickNonRegressionGuardPassed = promotionEligibility.onnxPrimaryQuickNonRegressionGuardPassed;
+    const onnxPrimaryQuickUpliftGuardPassed = promotionEligibility.onnxPrimaryQuickUpliftGuardPassed;
+    const onnxPrimaryQuickLowerBoundGuardPassed = promotionEligibility.onnxPrimaryQuickLowerBoundGuardPassed;
+    const onnxPrimaryOnnxGateAvgGuardPassed = promotionEligibility.onnxPrimaryOnnxGateAvgGuardPassed;
+    const onnxPrimaryOnnxGateMinSeedGuardPassed = promotionEligibility.onnxPrimaryOnnxGateMinSeedGuardPassed;
+    const onnxGateAverageScore = promotionEligibility.onnxGateAverageScore;
+    const onnxGateMinSeedScore = promotionEligibility.onnxGateMinSeedScore;
 
     let promoted = false;
     if (promoteEligible && args.promoteOnPass) {
-        const adoptionResultPath = (args.promotionMode === 'onnx-primary' && !finalPassed)
+        const adoptionResultPath = (args.promotionMode !== 'strict' && !finalPassed)
             ? p.quickAdoptionPath
             : p.finalAdoptionPath;
         const promoteArgs = [
@@ -1781,6 +2029,8 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         usedGuideModelPath: guideModelPath,
         usedGuideModelPoolPaths: guideModelPoolPaths,
         usedResumeCheckpointPath: resumeCheckpointPath,
+        usedAnchorModelPath: anchorModelPath,
+        gateControl,
         paths: p,
         quickAdoptionConfig: {
             threshold: quickAdoptionThreshold,
@@ -1821,6 +2071,8 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             promoteEligible,
             strictPromoteEligible,
             onnxPrimaryPromoteEligible,
+            quickOnlyPromoteEligible,
+            gateIterationAllowed: gateControl.gateIterationAllowed,
             qualityGateEnabled: args.qualityGateEnabled,
             qualityGatePassed,
             quickUplift,
@@ -1854,7 +2106,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     };
 }
 
-function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guideModelPoolPaths, resumeCheckpointPath, stoppedByTimeBudget, stopReason, failureDetail) {
+function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guideModelPoolPaths, resumeCheckpointPath, anchorModelPath, stoppedByTimeBudget, stopReason, failureDetail) {
     const payload = {
         generatedAt: new Date().toISOString(),
         elapsedMs: Date.now() - startedAt,
@@ -1888,6 +2140,10 @@ function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guide
             selfplayTeacherCommitteeWeightMax: args.selfplayTeacherCommitteeWeightMax,
             selfplayTeacherCommitteeConsensusBonusMin: args.selfplayTeacherCommitteeConsensusBonusMin,
             selfplayTeacherCommitteeConsensusBonusMax: args.selfplayTeacherCommitteeConsensusBonusMax,
+            selfplayPolicyScoreWeightMin: args.selfplayPolicyScoreWeightMin,
+            selfplayPolicyScoreWeightMax: args.selfplayPolicyScoreWeightMax,
+            selfplayHeuristicWeightMin: args.selfplayHeuristicWeightMin,
+            selfplayHeuristicWeightMax: args.selfplayHeuristicWeightMax,
             pythonPath: args.pythonPath,
             onnxEpochs: args.onnxEpochs,
             onnxBatchSize: args.onnxBatchSize,
@@ -1983,6 +2239,7 @@ function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guide
             adoptionQualityWeightCardFuture: args.adoptionQualityWeightCardFuture,
             adoptionQualityWeightPlaceDelta: args.adoptionQualityWeightPlaceDelta,
             adoptionUseGuideBaseline: args.adoptionUseGuideBaseline,
+            adoptionUseAnchorBaseline: args.adoptionUseAnchorBaseline,
             onnxGateEnabled: args.onnxGateEnabled,
             onnxGateGames: args.onnxGateGames,
             onnxGateSeedCount: args.onnxGateSeedCount,
@@ -2009,6 +2266,7 @@ function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guide
             onnxPrimaryMinQuickLowerBound: args.onnxPrimaryMinQuickLowerBound,
             onnxPrimaryMinOnnxGateAvg: args.onnxPrimaryMinOnnxGateAvg,
             onnxPrimaryMinOnnxGateMinSeed: args.onnxPrimaryMinOnnxGateMinSeed,
+            gateFinalIterationOnly: args.gateFinalIterationOnly,
             promoteOnPass: args.promoteOnPass,
             selfplayUsePromotedModelOnly: args.selfplayUsePromotedModelOnly,
             bootstrapPolicyModelPath: args.bootstrapPolicyModelPath,
@@ -2021,6 +2279,7 @@ function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guide
         latestGuideModelPath: guideModelPath,
         latestGuideModelPoolPaths: guideModelPoolPaths,
         latestResumeCheckpointPath: resumeCheckpointPath,
+        latestAnchorModelPath: anchorModelPath,
         stoppedByTimeBudget,
         stopReason,
         failure: failureDetail || null,
@@ -2034,6 +2293,7 @@ function main() {
     const args = parseArgs(process.argv.slice(2));
     if (args.help) { printHelp(); return; }
     console.log(`[training-cycle] selfplay guide update mode=${args.selfplayUsePromotedModelOnly ? 'promoted-only' : 'candidate-every-iteration'}`);
+    console.log(`[training-cycle] adoption baseline mode=${resolveAdoptionBaselineMode(args)} gate_final_iteration_only=${args.gateFinalIterationOnly ? 'on' : 'off'}`);
     console.log(`[training-cycle] reuse existing artifacts=${args.reuseExistingArtifacts ? 'on' : 'off'}`);
     if (args.restartFromStep) {
         console.log(`[training-cycle] restart from step=${args.restartFromStep}`);
@@ -2059,9 +2319,14 @@ function main() {
     let guideModelPoolPaths = buildInitialGuideModelPoolPaths(
         args.modelsDir,
         guideModelPath,
-        args.selfplayPolicyModelPoolSize
+        args.selfplayPolicyModelPoolSize,
+        { includeCandidateFiles: !args.selfplayUsePromotedModelOnly }
     );
     let resumeCheckpointPath = args.resumeCheckpointPath || null;
+    let anchorModelPath = guideModelPath || null;
+    if (resolveAdoptionBaselineMode(args) === 'anchor' && !anchorModelPath) {
+        throw new Error('--adoption-use-anchor-baseline requires an initial bootstrap policy model');
+    }
     let stoppedByTimeBudget = false;
     let stopReason = null;
     let failureDetail = null;
@@ -2077,7 +2342,8 @@ function main() {
             result = runIteration(args, i, deadlineMs, {
                 guideModelPath,
                 guideModelPoolPaths,
-                resumeCheckpointPath
+                resumeCheckpointPath,
+                anchorModelPath
             });
         } catch (err) {
             if (err && (err.code === 'TIME_BUDGET_EXCEEDED' || err.code === 'COMMAND_TIMEOUT')) {
@@ -2097,6 +2363,7 @@ function main() {
                 guideModelPath,
                 guideModelPoolPaths,
                 resumeCheckpointPath,
+                anchorModelPath,
                 stoppedByTimeBudget,
                 stopReason,
                 failureDetail
@@ -2141,24 +2408,15 @@ function main() {
             result.promotionDetail.onnxPrimaryOnnxGateMinSeedGuardPassed
         );
         if (result && result.paths) {
-            const shouldAdvanceGuide = !args.selfplayUsePromotedModelOnly || !!result.promoted;
-            if (result.paths.candidateModelPath && fs.existsSync(result.paths.candidateModelPath)) {
-                if (shouldAdvanceGuide) {
-                    const promotedModelPath = path.resolve(args.modelsDir, 'policy-table.json');
-                    guideModelPath = (result.promoted && fs.existsSync(promotedModelPath))
-                        ? promotedModelPath
-                        : result.paths.candidateModelPath;
-                    if (guideModelPath) {
-                        const deduped = [guideModelPath]
-                            .concat(guideModelPoolPaths.filter((one) => path.resolve(one) !== path.resolve(guideModelPath)));
-                        guideModelPoolPaths = deduped.slice(0, args.selfplayPolicyModelPoolSize);
-                    }
-                }
-            }
-            const shouldCarryOverCheckpoint = args.carryOverCheckpoint && shouldAdvanceGuide;
-            if (shouldCarryOverCheckpoint && result.paths.checkpointPath && fs.existsSync(result.paths.checkpointPath)) {
-                resumeCheckpointPath = result.paths.checkpointPath;
-            } else if (args.carryOverCheckpoint && args.selfplayUsePromotedModelOnly && !result.promoted) {
+            const nextCarryOverState = resolveNextCarryOverState(args, {
+                guideModelPath,
+                guideModelPoolPaths,
+                resumeCheckpointPath
+            }, result);
+            guideModelPath = nextCarryOverState.guideModelPath;
+            guideModelPoolPaths = nextCarryOverState.guideModelPoolPaths;
+            resumeCheckpointPath = nextCarryOverState.resumeCheckpointPath;
+            if (nextCarryOverState.checkpointCarryOverSkipped) {
                 console.log(`[training-cycle] iteration ${i} checkpoint carry-over skipped (promoted-only mode, promoted=false)`);
             }
         }
@@ -2166,7 +2424,7 @@ function main() {
         const quickCoreDeltaLabel = Number.isFinite(quickCoreDelta) ? quickCoreDelta.toFixed(3) : 'n/a';
         const quickWhiteDeltaLabel = Number.isFinite(quickWhiteDelta) ? quickWhiteDelta.toFixed(3) : 'n/a';
         const quickQualityDeltaLabel = Number.isFinite(quickQualityDelta) ? quickQualityDelta.toFixed(3) : 'n/a';
-        console.log(`[training-cycle] iteration ${i} done quick_pass=${!!(result.quickDecision && result.quickDecision.passed)} quality_pass=${qualityGatePassed} final_pass=${finalPassed} onnx_gate_pass=${onnxGatePassed} promote_eligible=${promoteEligible} quick_uplift=${quickUpliftLabel} quick_core_delta=${quickCoreDeltaLabel} quick_white_delta=${quickWhiteDeltaLabel} quick_quality_delta=${quickQualityDeltaLabel} quick_non_regression_guard=${quickNonRegressionGuard} quick_uplift_guard=${quickUpliftGuard} quick_lb_guard=${quickLowerBoundGuard} gate_avg_guard=${gateAvgGuard} gate_min_seed_guard=${gateMinSeedGuard} promoted=${result.promoted}`);
+        console.log(`[training-cycle] iteration ${i} done gate_run=${!!(result.gateControl && result.gateControl.gateIterationAllowed)} quick_pass=${!!(result.quickDecision && result.quickDecision.passed)} quality_pass=${qualityGatePassed} final_pass=${finalPassed} onnx_gate_pass=${onnxGatePassed} promote_eligible=${promoteEligible} quick_uplift=${quickUpliftLabel} quick_core_delta=${quickCoreDeltaLabel} quick_white_delta=${quickWhiteDeltaLabel} quick_quality_delta=${quickQualityDeltaLabel} quick_non_regression_guard=${quickNonRegressionGuard} quick_uplift_guard=${quickUpliftGuard} quick_lb_guard=${quickLowerBoundGuard} gate_avg_guard=${gateAvgGuard} gate_min_seed_guard=${gateMinSeedGuard} promoted=${result.promoted}`);
         writeSummarySnapshot(
             args,
             startedAt,
@@ -2174,6 +2432,7 @@ function main() {
             guideModelPath,
             guideModelPoolPaths,
             resumeCheckpointPath,
+            anchorModelPath,
             stoppedByTimeBudget,
             stopReason,
             failureDetail
@@ -2189,6 +2448,7 @@ function main() {
         guideModelPath,
         guideModelPoolPaths,
         resumeCheckpointPath,
+        anchorModelPath,
         stoppedByTimeBudget,
         stopReason,
         failureDetail
@@ -2210,11 +2470,17 @@ module.exports = {
     TRAINING_CYCLE_STEP_ORDER,
     normalizeRestartFromStep,
     shouldReuseStepArtifacts,
+    buildInitialGuideModelPoolPaths,
     buildIterationPaths,
     hasCoordinatePendingSelectionRecords,
     iterationTag,
     makeRunTag,
+    resolveAdoptionBaselineMode,
+    shouldRunGateForIteration,
+    resolveIterationGateControl,
+    resolveNextCarryOverState,
     resolveQuickComponentDelta,
+    resolvePromotionEligibility,
     extractTrainingCycleFailureDetail,
     annotateTrainingCycleError
 };

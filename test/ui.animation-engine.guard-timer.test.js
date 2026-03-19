@@ -105,6 +105,50 @@ describe('animation-engine guard timer rendering', () => {
     expect(crossfadeSpy).not.toHaveBeenCalled();
   });
 
+  test('freeze duration_end の STATUS_REMOVED は freeze overlay fade を使う', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell frozen-cell';
+    cell.dataset.row = '0';
+    cell.dataset.col = '0';
+
+    const freezeMark = document.createElement('div');
+    freezeMark.className = 'freeze-mark';
+    cell.appendChild(freezeMark);
+    board.appendChild(cell);
+
+    const freezeFadeSpy = jest.spyOn(engine, 'fadeOutFreezeOverlay').mockResolvedValue(undefined);
+
+    await engine.handleStatusChange({
+      type: 'status_removed',
+      rawType: 'STATUS_REMOVED',
+      targets: [{ r: 0, col: 0, after: { color: 0, special: null, timer: null, owner: null } }],
+      meta: { special: 'FREEZE', reason: 'duration_end' }
+    });
+
+    expect(freezeFadeSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('fadeOutFreezeOverlay removes frozen-cell visuals after fade', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell frozen-cell';
+    cell.dataset.row = '1';
+    cell.dataset.col = '1';
+
+    const freezeMark = document.createElement('div');
+    freezeMark.className = 'freeze-mark';
+    cell.appendChild(freezeMark);
+    board.appendChild(cell);
+
+    await engine.fadeOutFreezeOverlay(cell, 1);
+
+    expect(cell.classList.contains('frozen-cell')).toBe(false);
+    expect(cell.querySelector('.freeze-mark')).toBeNull();
+  });
+
   test('play accepts STATUS_TICK targets with row/col keys', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board');
@@ -1108,6 +1152,40 @@ describe('animation-engine guard timer rendering', () => {
         cause: 'DESTROY_ONE_STONE',
         reason: 'destroy_one_stone',
         ownerBefore: 'white'
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(targetCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+    delete global.animateFadeOutAt;
+  });
+
+  test('sacrifice destroy still applies red cell highlight when disc was already removed', async () => {
+    global.animateFadeOutAt = jest.fn(() => Promise.resolve());
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '3';
+    targetCell.dataset.col = '3';
+    board.appendChild(targetCell);
+
+    const addSpy = jest.spyOn(targetCell.classList, 'add');
+    const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+
+    await engine.handleDestroy({
+      type: 'destroy',
+      targets: [{
+        r: 3,
+        col: 3,
+        cause: 'SACRIFICE_WILL',
+        reason: 'sacrifice_selected',
+        ownerBefore: 'black'
       }]
     });
 

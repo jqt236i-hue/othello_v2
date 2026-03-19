@@ -17,10 +17,10 @@ function makeInitialLikeState() {
   return { cardState, gameState };
 }
 
-describe('CHAIN_WILL consumption', () => {
+describe('DOUBLE_CHAIN_WILL consumption', () => {
   test('is cleared after placement and does not persist across turns', () => {
     const { cardState, gameState } = makeInitialLikeState();
-    cardState.pendingEffectByPlayer.black = { type: 'CHAIN_WILL', cardId: 'chain_01', stage: null };
+    cardState.pendingEffectByPlayer.black = { type: 'DOUBLE_CHAIN_WILL', cardId: 'double_chain_01', stage: null };
 
     const res = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 2, col: 3 });
 

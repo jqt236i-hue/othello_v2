@@ -460,6 +460,12 @@ html.stone-images-loaded .disc.white::after {
     box-shadow: none !important;
 }
 
+.disc.time-stop-stone {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
 .bomb-icon {
     position: absolute;
     top: calc(2px * var(--layout-stage-scale));

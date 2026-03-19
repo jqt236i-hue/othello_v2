@@ -9,17 +9,16 @@ const SoundEngine = {
     bgmVolume: 0.07,
     currentTrackIndex: 1,
     allowBgmPlay: true, // Default to true requested by user
+    _bgmBufferedState: null,
+    _bgmBufferCache: {},
 
     // BGM Playlist
     playlist: [
-        { name: 'SCARLET ZONE', file: 'assets/audio/bgm/SCARLET_ZONE.mp3' },
-        { name: 'c-othello-2', file: 'assets/audio/bgm/c-othello-2.mp3' },
         { name: 'c-othello', file: 'assets/audio/bgm/c-othello.mp3' },
-        { name: '砕月', file: 'assets/audio/bgm/砕月.mp3' },
-        { name: 'U.N.オーエンは彼女なのか？', file: 'assets/audio/bgm/U.N.オーエンは彼女なのか？.mp3' },
-        { name: 'ナイト・オブ・ナイツ', file: 'assets/audio/bgm/ナイト・オブ・ナイツ.mp3' },
-        { name: 'フラワリングナイト', file: 'assets/audio/bgm/フラワリングナイト.mp3' },
-        { name: '亡き王女の為のセプテット', file: 'assets/audio/bgm/亡き王女の為のセプテット.mp3' }
+        { name: 'c-othello-2', file: 'assets/audio/bgm/c-othello-2.mp3' },
+        { name: '盤喰いの小鬼戦', file: 'assets/audio/bgm/盤喰いの小鬼戦.mp3', loopStart: 1.5 },
+        { name: '幻想即興曲', file: 'assets/audio/bgm/幻想即興曲.mp3' },
+        { name: 'ノクターン', file: 'assets/audio/bgm/ノクターン.mp3' }
     ],
     externalBuffers: {},
     effectBasePath: 'assets/audio/sound-effect/',
@@ -39,12 +38,13 @@ const SoundEngine = {
         teleport_select: 'テレポートを使って石を選択するタイミング.mp3',
         tempt_select: '誘惑の意志で相手特殊石を誘惑したタイミング.mp3',
         treasure_gain: '宝箱で布石取得したタイミング.mp3',
+        loss_will_reset: '意志の喪失.mp3',
         extend_life: '延命の意志で特殊石の持続ターンを増やすタイミング.mp3',
         corrosion_tick: '腐食の意志で特殊石の持続ターンを減らすタイミング.mp3',
         hyperactive_move: '多動系カードの石がマス移動するタイミング.mp3',
         robot_vacuum_suck: 'ロボット掃除機が敵石を吸い込むタイミング.mp3',
         breeding_spawn: '繁殖の意志の石生成で石が生成されたタイミング.mp3',
-        dragon_flip: '究極反転龍が石を反転させるタイミング.mp3',
+        card_effect_flip: 'カード効果で石が反転するタイミング.mp3',
         bomb_explode: '爆弾系の石が起爆するタイミング.mp3',
         stone_destroy: '破壊ロジック＿石が破壊されるとき.mp3',
         special_expired: '持続ターン切れで石が自己破壊で消滅するタイミング.mp3',
@@ -60,16 +60,7 @@ const SoundEngine = {
     _missingEffectWarned: {},
 
     init() {
-        if (!this.ctx) {
-            const AudioContext = (typeof globalThis !== 'undefined' && (globalThis.AudioContext || globalThis.webkitAudioContext)) || null;
-            if (AudioContext) {
-                this.ctx = new AudioContext();
-            }
-        }
-        // Resume logic for browsers that block autoplay
-        if (this.ctx && this.ctx.state === 'suspended') {
-            this.ctx.resume();
-        }
+        this._ensureAudioContext(true);
 
         // Init BGM on first interaction
         if (!this.bgm) {
@@ -79,15 +70,317 @@ const SoundEngine = {
         }
     },
 
-    loadBgm(index) {
-        if (this.bgm) {
-            this.bgm.pause();
-            this.bgm.currentTime = 0;
+    _ensureAudioContext(resumeIfSuspended = false) {
+        if (!this.ctx) {
+            const AudioContext = (typeof globalThis !== 'undefined' && (globalThis.AudioContext || globalThis.webkitAudioContext)) || null;
+            if (AudioContext) {
+                this.ctx = new AudioContext();
+            }
         }
-        this.currentTrackIndex = index;
-        const track = this.playlist[index];
+        if (resumeIfSuspended && this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+        return this.ctx;
+    },
+
+    _resolveBgmTrack(index) {
+        const numericIndex = Number(index);
+        const fallbackIndex = Math.max(0, Math.min(this.playlist.length - 1, Number(this.currentTrackIndex) || 0));
+        const normalizedIndex = Number.isInteger(numericIndex)
+            ? Math.max(0, Math.min(this.playlist.length - 1, numericIndex))
+            : fallbackIndex;
+        return {
+            index: normalizedIndex,
+            track: this.playlist[normalizedIndex] || null
+        };
+    },
+
+    _resolveBgmLoopStart(track) {
+        const loopStart = Number(track && track.loopStart);
+        return Number.isFinite(loopStart) ? Math.max(0, loopStart) : 0;
+    },
+
+    _resolveBgmLoopEnd(track, duration, loopStart) {
+        const loopEnd = Number(track && track.loopEnd);
+        if (Number.isFinite(loopEnd) && loopEnd > loopStart && loopEnd <= duration) {
+            return loopEnd;
+        }
+        return Number.isFinite(duration) ? Math.max(loopStart, duration) : loopStart;
+    },
+
+    _canUseBufferedBgmLoop(track) {
+        if (this._resolveBgmLoopStart(track) <= 0) return false;
+        if (typeof fetch !== 'function') return false;
+        const ctx = this.ctx || this._ensureAudioContext(false);
+        return !!(
+            ctx &&
+            typeof ctx.createBufferSource === 'function' &&
+            typeof ctx.createGain === 'function' &&
+            typeof ctx.decodeAudioData === 'function'
+        );
+    },
+
+    _isBufferedBgmController(audio) {
+        return !!(audio && audio.__bufferedLoop === true);
+    },
+
+    _getBgmOutputVolume() {
+        return this._clamp01(this._toNonNegativeNumber(this.bgmVolume, 0) * (this.isMuted ? 0 : 1));
+    },
+
+    _updateBufferedBgmVolume(state = this._bgmBufferedState) {
+        if (!state) return;
+        const volume = this._getBgmOutputVolume();
+        if (state.controller) {
+            state.controller.volume = volume;
+        }
+        if (state.gainNode && state.gainNode.gain) {
+            if (typeof state.gainNode.gain.setValueAtTime === 'function' && this.ctx && Number.isFinite(Number(this.ctx.currentTime))) {
+                state.gainNode.gain.setValueAtTime(volume, Number(this.ctx.currentTime));
+            } else if ('value' in state.gainNode.gain) {
+                state.gainNode.gain.value = volume;
+            }
+        }
+    },
+
+    _normalizeBufferedBgmOffset(offset, state) {
+        const numericOffset = Math.max(0, Number(offset) || 0);
+        if (!state) return numericOffset;
+        const loopStart = Number(state.loopStart) || 0;
+        const loopEnd = Number(state.loopEnd) || 0;
+        if (!(loopStart > 0) || !(loopEnd > loopStart)) {
+            return numericOffset;
+        }
+        if (numericOffset < loopStart) return numericOffset;
+        const loopLength = loopEnd - loopStart;
+        return loopStart + ((numericOffset - loopStart) % loopLength);
+    },
+
+    _getBufferedBgmOffsetNow(state = this._bgmBufferedState) {
+        if (!state) return 0;
+        if (!state.source || !this.ctx || !Number.isFinite(Number(this.ctx.currentTime))) {
+            return this._normalizeBufferedBgmOffset(state.pauseOffset || 0, state);
+        }
+        const elapsed = Math.max(0, Number(this.ctx.currentTime) - Number(state.startedAt || 0));
+        return this._normalizeBufferedBgmOffset(Number(state.startedOffset || 0) + elapsed, state);
+    },
+
+    _teardownBufferedBgmState(resetController = true) {
+        const state = this._bgmBufferedState;
+        if (!state) return;
+        if (state.source) {
+            const source = state.source;
+            state.source = null;
+            source.onended = null;
+            try { source.stop(); } catch (e) { /* ignore */ }
+            if (typeof source.disconnect === 'function') {
+                try { source.disconnect(); } catch (e) { /* ignore */ }
+            }
+        }
+        if (resetController && state.gainNode && typeof state.gainNode.disconnect === 'function') {
+            try { state.gainNode.disconnect(); } catch (e) { /* ignore */ }
+            state.gainNode = null;
+        }
+        if (state.controller) {
+            state.controller.paused = true;
+            if (resetController) {
+                state.controller.currentTime = 0;
+            }
+        }
+        if (resetController) {
+            state.pauseOffset = 0;
+            this._bgmBufferedState = null;
+        }
+    },
+
+    async _loadBufferedBgmBuffer(track) {
+        const file = String(track && track.file ? track.file : '').trim();
+        if (!file) throw new Error('Missing BGM file path');
+        if (!this.ctx || typeof this.ctx.decodeAudioData !== 'function') {
+            throw new Error('AudioContext decodeAudioData unavailable');
+        }
+        const cached = this._bgmBufferCache[file];
+        if (cached) {
+            return (typeof cached.then === 'function') ? await cached : cached;
+        }
+
+        const tryLoad = async (url) => {
+            const response = await fetch(url);
+            if (!response || response.ok !== true) {
+                throw new Error(`BGM fetch failed: ${url}`);
+            }
+            const arrayBuffer = await response.arrayBuffer();
+            const decodeInput = (arrayBuffer && typeof arrayBuffer.slice === 'function')
+                ? arrayBuffer.slice(0)
+                : arrayBuffer;
+            return await this.ctx.decodeAudioData(decodeInput);
+        };
+
+        const legacy = file.replace('assets/audio/bgm/', 'assets/');
+        const loadPromise = (async () => {
+            try {
+                return await tryLoad(file);
+            } catch (primaryError) {
+                if (legacy !== file) {
+                    return await tryLoad(legacy);
+                }
+                throw primaryError;
+            }
+        })();
+
+        this._bgmBufferCache[file] = loadPromise;
+        try {
+            const buffer = await loadPromise;
+            this._bgmBufferCache[file] = buffer;
+            return buffer;
+        } catch (e) {
+            delete this._bgmBufferCache[file];
+            throw e;
+        }
+    },
+
+    async _playBufferedBgmState(state = this._bgmBufferedState) {
+        if (!state || this._bgmBufferedState !== state) return false;
+        this.allowBgmPlay = true;
+        try {
+            this._ensureAudioContext(true);
+        } catch (e) { /* ignore */ }
+        if (!this.ctx) return false;
+
+        if (!state.buffer) {
+            try {
+                state.loadingPromise = state.loadingPromise || this._loadBufferedBgmBuffer(state.track);
+                state.buffer = await state.loadingPromise;
+                state.duration = Number(state.buffer && state.buffer.duration) || 0;
+                state.loopEnd = this._resolveBgmLoopEnd(state.track, state.duration, state.loopStart);
+            } catch (e) {
+                state.loadingPromise = null;
+                if (this._bgmBufferedState === state) {
+                    console.warn(`Buffered BGM loop unavailable for ${state.track && state.track.file ? state.track.file : 'unknown'}: ${e && e.message ? e.message : e}`);
+                    this._teardownBufferedBgmState(true);
+                    this._loadHtmlBgmTrack(state.track);
+                }
+                return false;
+            }
+            state.loadingPromise = null;
+        }
+
+        if (!state.buffer || !(state.loopEnd > state.loopStart) || state.source) {
+            updateBgmButtons();
+            return !!state.source;
+        }
+
+        const source = this.ctx.createBufferSource();
+        source.buffer = state.buffer;
+        source.loop = true;
+        source.loopStart = state.loopStart;
+        source.loopEnd = state.loopEnd;
+
+        const gainNode = state.gainNode || this.ctx.createGain();
+        if (!state.gainNode) {
+            state.gainNode = gainNode;
+            gainNode.connect(this.ctx.destination);
+        }
+        this._updateBufferedBgmVolume(state);
+
+        source.connect(gainNode);
+        state.source = source;
+
+        const startOffset = this._normalizeBufferedBgmOffset(state.pauseOffset || 0, state);
+        state.startedAt = Number(this.ctx.currentTime) || 0;
+        state.startedOffset = startOffset;
+        state.controller.currentTime = startOffset;
+        state.controller.paused = false;
+        source.onended = () => {
+            if (state.source !== source) return;
+            state.source = null;
+            if (state.controller) {
+                state.controller.paused = true;
+            }
+        };
+        source.start(0, startOffset);
+        updateBgmButtons();
+        return true;
+    },
+
+    _pauseBufferedBgmState(state = this._bgmBufferedState) {
+        if (!state || this._bgmBufferedState !== state) return;
+        state.pauseOffset = this._getBufferedBgmOffsetNow(state);
+        if (state.controller) {
+            state.controller.currentTime = state.pauseOffset;
+            state.controller.paused = true;
+        }
+        if (state.source) {
+            const source = state.source;
+            state.source = null;
+            source.onended = null;
+            try { source.stop(); } catch (e) { /* ignore */ }
+            if (typeof source.disconnect === 'function') {
+                try { source.disconnect(); } catch (e) { /* ignore */ }
+            }
+        }
+    },
+
+    _createBufferedBgmController(state) {
+        return {
+            __bufferedLoop: true,
+            paused: true,
+            currentTime: 0,
+            volume: this._getBgmOutputVolume(),
+            play: () => this._playBufferedBgmState(state),
+            pause: () => {
+                this._pauseBufferedBgmState(state);
+            },
+            load: () => Promise.resolve()
+        };
+    },
+
+    _playBgmElement(audio) {
+        if (!audio || typeof audio.play !== 'function') return;
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(e => console.warn("BGM play failed:", e));
+        }
+    },
+
+    _restartBgmFromLoopStart(audio, loopStart) {
+        if (!audio || audio !== this.bgm) return;
+        if (!this.allowBgmPlay) return;
+        try {
+            audio.currentTime = loopStart;
+        } catch (e) { /* ignore */ }
+        this._playBgmElement(audio);
+    },
+
+    _configureBgmLoop(audio, track) {
+        if (!audio) return;
+        const loopStart = this._resolveBgmLoopStart(track);
+        audio.ontimeupdate = null;
+        audio.onended = null;
+        if (loopStart <= 0) {
+            audio.loop = true;
+            return;
+        }
+
+        audio.loop = false;
+        audio.ontimeupdate = () => {
+            if (audio !== this.bgm) return;
+            const duration = Number(audio.duration);
+            if (!Number.isFinite(duration) || duration <= loopStart) return;
+            if (Number(audio.currentTime) >= duration - 0.15) {
+                try {
+                    audio.currentTime = loopStart;
+                } catch (e) { /* ignore */ }
+            }
+        };
+        audio.onended = () => {
+            this._restartBgmFromLoopStart(audio, loopStart);
+        };
+    },
+
+    _loadHtmlBgmTrack(track) {
         this.bgm = new Audio(track.file);
-        // 互換フォールバック: 新パスが失敗したら旧パスに切替
+        this.bgm.preload = 'auto';
         this.bgm.onerror = () => {
             const legacy = track.file.replace('assets/audio/bgm/', 'assets/');
             if (this.bgm && this.bgm.src && this.bgm.src.endsWith(track.file)) {
@@ -96,13 +389,61 @@ const SoundEngine = {
                 if (this.allowBgmPlay) this.playBgm();
             }
         };
-        this.bgm.loop = true;
-        this.bgm.volume = this.bgmVolume * (this.isMuted ? 0 : 1);
+        this._configureBgmLoop(this.bgm, track);
+        this.bgm.volume = this._getBgmOutputVolume();
 
-        // Auto-play if previously playing or allowed
         if (this.allowBgmPlay) {
             this.playBgm();
+        } else {
+            updateBgmButtons();
         }
+    },
+
+    loadBgm(index) {
+        if (this._bgmBufferedState) {
+            this._teardownBufferedBgmState(true);
+        }
+        if (this.bgm && !this._isBufferedBgmController(this.bgm)) {
+            this.bgm.pause();
+            this.bgm.currentTime = 0;
+            this.bgm.onerror = null;
+            this.bgm.ontimeupdate = null;
+            this.bgm.onended = null;
+        }
+        const resolvedTrack = this._resolveBgmTrack(index);
+        this.currentTrackIndex = resolvedTrack.index;
+        const track = resolvedTrack.track;
+        if (!track) {
+            this.bgm = null;
+            updateBgmButtons();
+            return;
+        }
+        if (this._canUseBufferedBgmLoop(track)) {
+            const state = {
+                track,
+                loopStart: this._resolveBgmLoopStart(track),
+                loopEnd: 0,
+                duration: 0,
+                pauseOffset: 0,
+                startedAt: 0,
+                startedOffset: 0,
+                loadingPromise: null,
+                buffer: null,
+                gainNode: null,
+                source: null,
+                controller: null
+            };
+            state.controller = this._createBufferedBgmController(state);
+            this._bgmBufferedState = state;
+            this.bgm = state.controller;
+            if (this.allowBgmPlay) {
+                this._playBgmElement(this.bgm);
+            } else {
+                updateBgmButtons();
+            }
+            return;
+        }
+        this._loadHtmlBgmTrack(track);
     },
 
     async loadExternalSound(name, url) {
@@ -226,8 +567,9 @@ const SoundEngine = {
     toggleMute() {
         this.isMuted = !this.isMuted;
         if (this.bgm) {
-            this.bgm.volume = this.bgmVolume * (this.isMuted ? 0 : 1);
+            this.bgm.volume = this._getBgmOutputVolume();
         }
+        this._updateBufferedBgmVolume();
         return this.isMuted;
     },
 
@@ -237,15 +579,16 @@ const SoundEngine = {
 
     setBgmVolume(val) {
         this.bgmVolume = parseFloat(val);
-        if (this.bgm && !this.isMuted) {
-            this.bgm.volume = this.bgmVolume;
+        if (this.bgm) {
+            this.bgm.volume = this._getBgmOutputVolume();
         }
+        this._updateBufferedBgmVolume();
     },
 
     playBgm() {
         if (this.bgm) {
             this.allowBgmPlay = true;
-            this.bgm.play().catch(e => console.warn("BGM play failed:", e));
+            this._playBgmElement(this.bgm);
             updateBgmButtons();
         }
     },
@@ -261,7 +604,7 @@ const SoundEngine = {
     },
 
     setBgmTrack(index) {
-        this.loadBgm(parseInt(index));
+        this.loadBgm(parseInt(index, 10));
     },
 
     playStoneClack() {

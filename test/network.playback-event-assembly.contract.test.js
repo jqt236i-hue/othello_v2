@@ -1,0 +1,482 @@
+const http = require('http');
+const path = require('path');
+const { pathToFileURL } = require('url');
+const { spawnSync } = require('child_process');
+const helpers = require('../shared/playback-event-helpers');
+const adapter = require('../game/turn/pipeline_ui_adapter');
+const TurnPipeline = require('../game/turn/turn_pipeline');
+const MatchAuthority = require('../utils/match-authority');
+const { createLocalMatchServer, resetRoomsForTests } = require('../scripts/local-match-server');
+
+const WORKER_RESULT_MARKER = '__WORKER_PLAYBACK_CONTRACT__';
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function normalizePlayerKey(value) {
+  return MatchAuthority.normalizePlayerKey(value, 'black');
+}
+
+function requestJson(port, method, path, payload) {
+  return new Promise((resolve, reject) => {
+    const req = http.request({
+      hostname: '127.0.0.1',
+      port,
+      path,
+      method,
+      headers: { 'Content-Type': 'application/json' }
+    }, (res) => {
+      let raw = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { raw += chunk; });
+      res.on('end', () => {
+        try {
+          resolve({
+            status: res.statusCode || 0,
+            data: raw ? JSON.parse(raw) : {}
+          });
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+    req.on('error', reject);
+    if (payload !== undefined) {
+      req.write(JSON.stringify(payload));
+    }
+    req.end();
+  });
+}
+
+async function listen(server) {
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      server.removeListener('error', reject);
+      resolve();
+    });
+  });
+  return server.address().port;
+}
+
+async function closeServer(server) {
+  await new Promise((resolve) => server.close(() => resolve()));
+}
+
+async function openSseStream(port, path) {
+  const controller = new AbortController();
+  const response = await fetch(`http://127.0.0.1:${port}${path}`, {
+    headers: { Accept: 'text/event-stream' },
+    signal: controller.signal
+  });
+  if (!response.ok || !response.body) {
+    throw new Error(`SSE_OPEN_FAILED:${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const queue = [];
+  let buffer = '';
+  let pendingResolve = null;
+  let pendingReject = null;
+
+  function pushEvent(event) {
+    if (pendingResolve) {
+      const resolve = pendingResolve;
+      pendingResolve = null;
+      pendingReject = null;
+      resolve(event);
+      return;
+    }
+    queue.push(event);
+  }
+
+  function parseBlock(block) {
+    const lines = block.split(/\r?\n/);
+    let eventName = 'message';
+    const dataLines = [];
+    for (const line of lines) {
+      if (!line) continue;
+      if (line.startsWith('event:')) {
+        eventName = line.slice(6).trim();
+        continue;
+      }
+      if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trim());
+      }
+    }
+    const rawData = dataLines.join('\n');
+    return {
+      event: eventName,
+      data: rawData ? JSON.parse(rawData) : null
+    };
+  }
+
+  const readLoop = (async () => {
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        while (true) {
+          const separatorIndex = buffer.search(/\r?\n\r?\n/);
+          if (separatorIndex < 0) break;
+          const separatorLength = buffer[separatorIndex] === '\r' ? 4 : 2;
+          const block = buffer.slice(0, separatorIndex);
+          buffer = buffer.slice(separatorIndex + separatorLength);
+          if (!block.trim()) continue;
+          pushEvent(parseBlock(block));
+        }
+      }
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      if (pendingReject) {
+        const reject = pendingReject;
+        pendingResolve = null;
+        pendingReject = null;
+        reject(error);
+      }
+    }
+  })();
+
+  return {
+    async nextEvent(expectedEventName, timeoutMs = 5000) {
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline) {
+        while (queue.length > 0) {
+          const event = queue.shift();
+          if (event && event.event === expectedEventName) return event.data;
+        }
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) break;
+        const event = await new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            if (pendingResolve === resolve) {
+              pendingResolve = null;
+              pendingReject = null;
+            }
+            reject(new Error(`SSE_TIMEOUT:${expectedEventName}`));
+          }, remaining);
+          pendingResolve = (value) => {
+            clearTimeout(timeoutId);
+            resolve(value);
+          };
+          pendingReject = (error) => {
+            clearTimeout(timeoutId);
+            reject(error);
+          };
+        });
+        if (event && event.event === expectedEventName) return event.data;
+        queue.push(event);
+      }
+      throw new Error(`SSE_TIMEOUT:${expectedEventName}`);
+    },
+    async close() {
+      controller.abort();
+      try {
+        await readLoop;
+      } catch (error) {
+        if (!controller.signal.aborted) throw error;
+      }
+    }
+  };
+}
+
+function runWorkerCommandPlace(snapshot, action, stateVersion) {
+  const modulePath = pathToFileURL(path.resolve(__dirname, '../workers/match-worker.mjs')).href;
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const snapshot = JSON.parse(process.argv[2]);",
+    "  const action = JSON.parse(process.argv[3]);",
+    "  const stateVersion = Number(process.argv[4]);",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const room = {",
+    "    roomId: 'ROOMC',",
+    "    seed: 7,",
+    "    stateVersion,",
+    "    updatedAt: Date.now(),",
+    "    seats: { black: true, white: true },",
+    "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    seatNames: { black: 'black', white: 'white' },",
+    "    turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black', turnStartedAt: null, turnDeadlineAt: null },",
+    "    lastAcceptedOperationBySeat: { black: null, white: null },",
+    "    snapshot",
+    "  };",
+    "  const storage = new Map();",
+    "  storage.set('match_room_state_v1', room);",
+    "  const state = {",
+    "    storage: {",
+    "      get: async (key) => storage.get(key),",
+    "      put: async (key, value) => storage.set(key, value),",
+    "      delete: async (key) => storage.delete(key)",
+    "    }",
+    "  };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  let broadcastMeta = null;",
+    "  durableObject.broadcastSnapshot = async (meta) => { broadcastMeta = meta; };",
+    "  const response = await durableObject.handlePublish({",
+    "    roomId: room.roomId,",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: 'token_black',",
+    "    baseVersion: stateVersion,",
+    "    operationId: 'op_contract_place_1',",
+    "    actionType: 'place',",
+    "    actor: 'black',",
+    "    params: { row: action.row, col: action.col },",
+    "    turnIndex: action.turnIndex,",
+    "    action",
+    "  });",
+    "  const payload = await response.json();",
+    `  process.stdout.write('${WORKER_RESULT_MARKER}' + JSON.stringify({ status: response.status, payload, broadcastMeta }));`,
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  const result = spawnSync(process.execPath, [
+    '-e',
+    runner,
+    modulePath,
+    JSON.stringify(snapshot),
+    JSON.stringify(action),
+    String(stateVersion)
+  ], {
+    encoding: 'utf8'
+  });
+  if (result.status !== 0) {
+    throw new Error(result.stderr || result.stdout || 'worker playback contract runner failed');
+  }
+  const output = String(result.stdout || '');
+  const markerIndex = output.lastIndexOf(WORKER_RESULT_MARKER);
+  if (markerIndex < 0) {
+    throw new Error(output || 'worker playback contract runner did not emit result marker');
+  }
+  return JSON.parse(output.slice(markerIndex + WORKER_RESULT_MARKER.length));
+}
+
+function buildCommandAction(turnIndex) {
+  return {
+    type: 'place',
+    playerKey: 'black',
+    row: 2,
+    col: 3,
+    turnIndex
+  };
+}
+
+function buildExpectedAssembly(snapshot, action) {
+  const cardState = clone(snapshot.cardState);
+  const gameState = clone(snapshot.gameState);
+  const result = TurnPipeline.applyTurnSafe(cardState, gameState, 'black', action);
+  if (!result || result.ok !== true) {
+    throw new Error(`TURN_PIPELINE_FAILED:${result && result.rejectedReason ? result.rejectedReason : 'unknown'}`);
+  }
+  return helpers.assemblePlaybackEvents({
+    rawEvents: result.events,
+    presentationEvents: result.presentationEvents || (result.cardState && result.cardState.presentationEvents) || [],
+    snapshot: {
+      cardState: result.cardState,
+      gameState: result.gameState
+    },
+    fallbackPlayerKey: 'black',
+    adapter,
+    normalizePlayerKey
+  });
+}
+
+function expectPrefix(actualEvents, expectedEvents) {
+  expect(Array.isArray(actualEvents)).toBe(true);
+  expect(actualEvents.slice(0, expectedEvents.length)).toEqual(expectedEvents);
+}
+
+function collectFlipEvents(events) {
+  return (Array.isArray(events) ? events : [])
+    .filter((event) => event && event.type === 'flip')
+    .map((event) => ({
+      phase: Number(event.phase),
+      targets: (Array.isArray(event.targets) ? event.targets : []).map((target) => ({
+        r: target.r,
+        col: target.col,
+        ownerBefore: target.ownerBefore,
+        ownerAfter: target.ownerAfter
+      }))
+    }));
+}
+
+async function createJoinedLocalRoom() {
+  const server = createLocalMatchServer();
+  const port = await listen(server);
+  const createResponse = await requestJson(port, 'POST', '/api/match/create', { playerName: 'black' });
+  const roomId = createResponse.data.roomId;
+  const blackToken = createResponse.data.seatToken;
+  const joinResponse = await requestJson(port, 'POST', '/api/match/join', {
+    roomId,
+    playerName: 'white'
+  });
+  const whiteToken = joinResponse.data.seatToken;
+  const stateResponse = await requestJson(
+    port,
+    'GET',
+    `/api/match/state?roomId=${encodeURIComponent(roomId)}&seatKey=black&seatToken=${encodeURIComponent(blackToken)}`
+  );
+  return {
+    server,
+    port,
+    roomId,
+    blackToken,
+    whiteToken,
+    stateResponse
+  };
+}
+
+describe('network playback event assembly contract', () => {
+  afterEach(() => {
+    resetRoomsForTests();
+  });
+
+  test('assemblePlaybackEvents builds final playback with diagnostics', () => {
+    const result = helpers.assemblePlaybackEvents({
+      rawEvents: [
+        { type: 'place', row: 2, col: 3, player: 'white', actionId: 'place-1', turnIndex: 9 }
+      ],
+      presentationEvents: [
+        { type: 'DRAW_CARD', player: 'white', cardId: 'draw-1', count: 1, turnIndex: 9 }
+      ],
+      snapshot: {
+        cardState: { turnIndex: 9 },
+        gameState: { board: Array.from({ length: 8 }, () => Array(8).fill(0)) }
+      },
+      fallbackPlayerKey: 'white',
+      adapter: {
+        mapToPlaybackEvents: jest.fn(() => [{ type: 'hand_add', phase: 1, targets: [{ player: 'white', cardId: 'draw-1' }] }]),
+        appendSoundEffectPlaybackEvents: jest.fn((playbackEvents) => playbackEvents.concat([
+          { type: 'sound_effect', phase: 1, targets: [{ soundKey: 'draw_card' }] }
+        ]))
+      },
+      normalizePlayerKey
+    });
+
+    expect(result.playbackEvents).toEqual([
+      {
+        type: 'place_hand_animation',
+        phase: 0,
+        rawType: 'place',
+        actionId: 'place-1',
+        turnIndex: 9,
+        targets: [{ r: 2, col: 3, player: 'white', owner: 'white' }]
+      },
+      { type: 'hand_add', phase: 1, targets: [{ player: 'white', cardId: 'draw-1' }] },
+      { type: 'sound_effect', phase: 1, targets: [{ soundKey: 'draw_card' }] }
+    ]);
+    expect(result.diagnostics).toMatchObject({
+      rawPlaceCount: 1,
+      placeHandAnimationCount: 1,
+      warnings: []
+    });
+  });
+
+  test('assemblePlaybackEvents reports mismatch warnings when final playback loses place hand events', () => {
+    const result = helpers.assemblePlaybackEvents({
+      rawEvents: [
+        { type: 'place', row: 2, col: 3, player: 'black', actionId: 'place-1', turnIndex: 1 }
+      ],
+      presentationEvents: [],
+      snapshot: {
+        cardState: { turnIndex: 1 },
+        gameState: { board: Array.from({ length: 8 }, () => Array(8).fill(0)) }
+      },
+      fallbackPlayerKey: 'black',
+      adapter: {
+        normalizePlaybackEvents: jest.fn(() => [])
+      },
+      normalizePlayerKey
+    });
+
+    expect(result.playbackEvents).toEqual([]);
+    expect(result.diagnostics.rawPlaceCount).toBe(1);
+    expect(result.diagnostics.placeHandAnimationCount).toBe(0);
+    expect(result.diagnostics.warnings).toEqual([
+      expect.stringContaining('raw place count')
+    ]);
+  });
+
+  test('shared helper contract stays aligned across UI adapter, worker, and local match server', async () => {
+    let room = null;
+    let stream = null;
+    try {
+      room = await createJoinedLocalRoom();
+      expect(room.stateResponse.status).toBe(200);
+      expect(room.stateResponse.data.ok).toBe(true);
+
+      const snapshot = room.stateResponse.data.snapshot;
+      const stateVersion = room.stateResponse.data.stateVersion;
+      const turnIndex = Number(snapshot && snapshot.cardState && snapshot.cardState.turnIndex) || 1;
+      const action = buildCommandAction(turnIndex);
+      const expected = buildExpectedAssembly(snapshot, action);
+
+      const uiResult = adapter.runTurnWithAdapter(
+        clone(snapshot.cardState),
+        clone(snapshot.gameState),
+        'black',
+        action,
+        TurnPipeline
+      );
+      expect(uiResult.ok).toBe(true);
+      expect(uiResult.playbackEvents).toEqual(expected.playbackEvents);
+
+      const workerResult = runWorkerCommandPlace(snapshot, action, stateVersion);
+      expect(workerResult.status).toBe(200);
+      expect(workerResult.payload.ok).toBe(true);
+      expectPrefix(workerResult.broadcastMeta && workerResult.broadcastMeta.playbackEvents, expected.playbackEvents);
+      expect(collectFlipEvents(workerResult.broadcastMeta && workerResult.broadcastMeta.playbackEvents))
+        .toEqual(collectFlipEvents(expected.playbackEvents));
+
+      stream = await openSseStream(
+        room.port,
+        `/api/match/stream?roomId=${encodeURIComponent(room.roomId)}&seatKey=black&seatToken=${encodeURIComponent(room.blackToken)}`
+      );
+      const initialSnapshot = await stream.nextEvent('snapshot');
+      expect(initialSnapshot).toMatchObject({
+        ok: true,
+        roomId: room.roomId,
+        playbackEvents: []
+      });
+
+      const publishResponse = await requestJson(room.port, 'POST', '/api/match/publish', {
+        roomId: room.roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken: room.blackToken,
+        baseVersion: stateVersion,
+        operationId: 'op_contract_place_1',
+        actionType: 'place',
+        actor: 'black',
+        params: { row: action.row, col: action.col },
+        turnIndex: action.turnIndex,
+        action
+      });
+      expect(publishResponse.status).toBe(200);
+      expect(publishResponse.data.ok).toBe(true);
+
+      const publishedSnapshot = await stream.nextEvent('snapshot');
+      expect(publishedSnapshot).toMatchObject({
+        ok: true,
+        roomId: room.roomId
+      });
+      expectPrefix(publishedSnapshot.playbackEvents, expected.playbackEvents);
+      expect(collectFlipEvents(publishedSnapshot.playbackEvents))
+        .toEqual(collectFlipEvents(expected.playbackEvents));
+    } finally {
+      if (stream) {
+        await stream.close();
+      }
+      if (room && room.server) {
+        await closeServer(room.server);
+      }
+    }
+  });
+});

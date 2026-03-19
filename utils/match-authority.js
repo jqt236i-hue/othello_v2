@@ -55,6 +55,78 @@ function ensureAcceptedOperationsBySeat(room) {
     return normalized;
 }
 
+function normalizeStateVersion(value) {
+    return Number.isFinite(Number(value))
+        ? Number(value)
+        : null;
+}
+
+function normalizePublishActionType(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized || null;
+}
+
+function normalizePublishMeta(value) {
+    const source = (value && typeof value === 'object') ? value : {};
+    const normalizedKind = String(source.kind || '').trim().toLowerCase();
+    const normalized = {
+        kind: normalizedKind || null,
+        operationId: normalizeOperationId(source.operationId),
+        actionType: normalizePublishActionType(source.actionType),
+        receivedBaseVersion: normalizeStateVersion(source.receivedBaseVersion),
+        authoritativeStateVersion: normalizeStateVersion(source.authoritativeStateVersion),
+        replayedStateVersion: normalizeStateVersion(source.replayedStateVersion),
+        rejectedReason: source.rejectedReason ? String(source.rejectedReason).trim() : null
+    };
+
+    if (!normalized.operationId) normalized.operationId = '';
+    return normalized;
+}
+
+function buildPublishResponsePayload(options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const payload = {
+        ok: opts.ok === true,
+        roomId: opts.roomId ? String(opts.roomId).trim().toUpperCase() : null,
+        stateVersion: normalizeStateVersion(opts.stateVersion),
+        snapshot: (opts.snapshot && typeof opts.snapshot === 'object') ? opts.snapshot : null,
+        seats: (opts.seats && typeof opts.seats === 'object') ? opts.seats : null,
+        seatNames: (opts.seatNames && typeof opts.seatNames === 'object') ? opts.seatNames : null,
+        roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
+        networkDebugEnabled: opts.networkDebugEnabled === true,
+        turnTimer: (opts.turnTimer && typeof opts.turnTimer === 'object') ? opts.turnTimer : null,
+        serverTime: Number.isFinite(Number(opts.serverTime)) ? Number(opts.serverTime) : Date.now()
+    };
+
+    if (payload.ok !== true) {
+        payload.rejectedReason = opts.rejectedReason ? String(opts.rejectedReason).trim() : null;
+    }
+    if (opts.idempotentReplay === true) {
+        payload.idempotentReplay = true;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'errorMessage')) {
+        payload.errorMessage = opts.errorMessage || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'playbackDiagnostics')) {
+        payload.playbackDiagnostics = opts.playbackDiagnostics || null;
+    }
+
+    const publishMeta = normalizePublishMeta(opts.publishMeta);
+    if (
+        publishMeta.kind
+        || publishMeta.operationId
+        || publishMeta.actionType
+        || publishMeta.receivedBaseVersion !== null
+        || publishMeta.authoritativeStateVersion !== null
+        || publishMeta.replayedStateVersion !== null
+        || publishMeta.rejectedReason
+    ) {
+        payload.publishMeta = publishMeta;
+    }
+
+    return payload;
+}
+
 function makeHiddenHandToken(ownerKey, handIndex) {
     const normalizedOwner = normalizePlayerKey(ownerKey);
     const idx = Number.isFinite(Number(handIndex)) ? Math.max(0, Math.trunc(Number(handIndex))) : 0;
@@ -158,6 +230,34 @@ function stripTransientPresentationState(nextSnapshot) {
     return nextSnapshot;
 }
 
+function isTrapStoneLike(entry) {
+    if (!entry || typeof entry !== 'object') return false;
+    if (entry.data && entry.data.type === 'TRAP') return true;
+    return entry.type === 'TRAP';
+}
+
+function isTrapVisibleToViewer(entry, viewerSeatKey) {
+    if (!isTrapStoneLike(entry)) return true;
+    const ownerKey = parseSeatKeyOptional(entry.owner);
+    if (!ownerKey) return false;
+    return ownerKey === viewerSeatKey;
+}
+
+function sanitizeOwnerOnlyTrapState(cardState, viewerSeatKey) {
+    if (!cardState || typeof cardState !== 'object') return cardState;
+    const viewer = parseSeatKeyOptional(viewerSeatKey);
+
+    if (Array.isArray(cardState.markers)) {
+        cardState.markers = cardState.markers.filter((marker) => isTrapVisibleToViewer(marker, viewer));
+    }
+
+    if (Array.isArray(cardState.specialStones)) {
+        cardState.specialStones = cardState.specialStones.filter((stone) => isTrapVisibleToViewer(stone, viewer));
+    }
+
+    return cardState;
+}
+
 function rehydrateSnapshotForPublish(previousSnapshot, incomingSnapshot) {
     const nextSnapshot = deepClone(incomingSnapshot || {});
     if (!nextSnapshot.cardState || typeof nextSnapshot.cardState !== 'object') {
@@ -209,6 +309,7 @@ function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
     if (!cardState) return shot;
 
     const viewer = parseSeatKeyOptional(viewerSeatKey);
+    sanitizeOwnerOnlyTrapState(cardState, viewer);
     const hands = (cardState.hands && typeof cardState.hands === 'object') ? cardState.hands : {};
     const sourceHands = {};
     cardState.hands = cardState.hands && typeof cardState.hands === 'object' ? cardState.hands : {};
@@ -282,6 +383,8 @@ module.exports = {
     rehydrateHiddenTokensInPlace,
     resolveAuthenticatedSeatKey,
     validatePublishedHands,
+    normalizePublishMeta,
+    buildPublishResponsePayload,
     stripTransientPresentationState,
     rehydrateSnapshotForPublish,
     projectSnapshotForViewer,

@@ -20,6 +20,7 @@ html.stone-shadow-enabled .disc.protected,
 html.stone-shadow-enabled .disc.perma-protected,
 html.stone-shadow-enabled .disc.bomb,
 html.stone-shadow-enabled .disc.time-bomb-stone,
+html.stone-shadow-enabled .disc.time-stop-stone,
 html.stone-shadow-enabled .disc.gold,
 html.stone-shadow-enabled .disc.silver {
     box-shadow: 0 var(--stone-shadow-offset-y) var(--stone-shadow-blur) var(--stone-shadow-color) !important;

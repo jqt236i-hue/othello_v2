@@ -98,6 +98,76 @@
             return null;
         }
 
+        function resolveSoundEngine() {
+            return (rootRef && rootRef.SoundEngine)
+                || (typeof SoundEngine !== 'undefined' ? SoundEngine : null)
+                || (typeof globalThis !== 'undefined' ? globalThis.SoundEngine : null);
+        }
+
+        function snapshotBgmTrackIndex() {
+            const soundEngine = resolveSoundEngine();
+            if (!soundEngine) return null;
+            const currentTrackIndex = Number(soundEngine.currentTrackIndex);
+            return Number.isInteger(currentTrackIndex) ? currentTrackIndex : null;
+        }
+
+        function resolveEncounterBgmTrackIndex(encounter) {
+            if (!encounter || typeof encounter !== 'object') return null;
+            const explicitTrackIndexValue = encounter.bgmTrackIndex;
+            if (
+                explicitTrackIndexValue !== null
+                && explicitTrackIndexValue !== undefined
+                && String(explicitTrackIndexValue).trim() !== ''
+            ) {
+                const explicitTrackIndex = Number(explicitTrackIndexValue);
+                if (Number.isInteger(explicitTrackIndex) && explicitTrackIndex >= 0) {
+                    return explicitTrackIndex;
+                }
+            }
+
+            const soundEngine = resolveSoundEngine();
+            const playlist = Array.isArray(soundEngine && soundEngine.playlist) ? soundEngine.playlist : [];
+            if (!playlist.length) return null;
+
+            const bgmTrackFile = String(encounter.bgmTrackFile || '').trim();
+            if (bgmTrackFile) {
+                const fileIndex = playlist.findIndex((track) => track && String(track.file || '').trim() === bgmTrackFile);
+                if (fileIndex >= 0) return fileIndex;
+            }
+
+            const bgmTrackName = String(encounter.bgmTrackName || '').trim();
+            if (bgmTrackName) {
+                const nameIndex = playlist.findIndex((track) => track && String(track.name || '').trim() === bgmTrackName);
+                if (nameIndex >= 0) return nameIndex;
+            }
+
+            return null;
+        }
+
+        function applyEncounterBgm(encounter) {
+            const soundEngine = resolveSoundEngine();
+            if (!soundEngine || typeof soundEngine.setBgmTrack !== 'function') return;
+            const nextTrackIndex = resolveEncounterBgmTrackIndex(encounter);
+            if (!Number.isInteger(nextTrackIndex)) return;
+            if (!Number.isInteger(encounter.previousBgmTrackIndex)) {
+                encounter.previousBgmTrackIndex = snapshotBgmTrackIndex();
+            }
+            if (Number(soundEngine.currentTrackIndex) === nextTrackIndex) return;
+            if (typeof soundEngine.init === 'function') soundEngine.init();
+            soundEngine.setBgmTrack(nextTrackIndex);
+        }
+
+        function restoreEncounterBgm(encounter) {
+            if (!encounter || !Number.isInteger(encounter.previousBgmTrackIndex)) return;
+            const soundEngine = resolveSoundEngine();
+            if (!soundEngine || typeof soundEngine.setBgmTrack !== 'function') return;
+            const previousTrackIndex = encounter.previousBgmTrackIndex;
+            encounter.previousBgmTrackIndex = null;
+            if (Number(soundEngine.currentTrackIndex) === previousTrackIndex) return;
+            if (typeof soundEngine.init === 'function') soundEngine.init();
+            soundEngine.setBgmTrack(previousTrackIndex);
+        }
+
         function snapshotCpuSmartness() {
             const cpuSmartness = getCpuSmartness();
             if (!cpuSmartness) return null;
@@ -151,6 +221,7 @@
             activeEncounter = encounter;
             installEncounterDeckInitOverride(encounter);
             applyEncounterPresentation(encounter);
+            applyEncounterBgm(encounter);
 
             if (typeof rootRef.resetGame === 'function') {
                 rootRef.resetGame();
@@ -182,6 +253,7 @@
             const encounter = activeEncounter;
             if (!encounter) return false;
 
+            restoreEncounterBgm(encounter);
             restoreCpuSmartness(encounter.previousCpuSmartness);
             activeEncounter = null;
             clearEncounterDeckInitOverride();
@@ -280,6 +352,10 @@
                 enemyImageSrc: source.enemyImageSrc || '',
                 cpuLevel: Number.isFinite(Number(source.cpuLevel)) ? Number(source.cpuLevel) : 1,
                 previousCpuSmartness: null,
+                previousBgmTrackIndex: null,
+                bgmTrackIndex: Number.isInteger(Number(source.bgmTrackIndex)) ? Number(source.bgmTrackIndex) : null,
+                bgmTrackFile: source.bgmTrackFile || null,
+                bgmTrackName: source.bgmTrackName || null,
                 onWinContinue: typeof source.onWinContinue === 'function' ? source.onWinContinue : null,
                 onAbort: typeof source.onAbort === 'function' ? source.onAbort : null,
                 winDialogueLines: Array.isArray(source.winDialogueLines) ? source.winDialogueLines.slice() : [],

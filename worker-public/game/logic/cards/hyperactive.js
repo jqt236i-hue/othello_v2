@@ -805,7 +805,7 @@
                 positions.some(p => p.row === m.row && p.col === m.col)
             ));
         });
-        const clearBombAt = deps.clearBombAt || ((cs, r, c) => { if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'bomb' && m.row === r && m.col === c)); });
+        const clearBombAt = deps.clearBombAt || ((cs, r, c) => { if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'specialStone' && m.data && m.data.category === 'bomb' && m.row === r && m.col === c)); });
         const isBlockedCell = typeof deps.isBlockedCell === 'function'
             ? deps.isBlockedCell
             : (() => false);

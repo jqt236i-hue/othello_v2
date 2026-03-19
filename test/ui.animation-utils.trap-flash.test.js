@@ -24,14 +24,10 @@ describe('animation-utils trap placement flash', () => {
     delete global.window;
   });
 
-  test('shows and then removes the temporary trap overlay for the local viewer', () => {
+  test('does not show a trap overlay for the local viewer on selection', () => {
     const mod = require('../ui/animation-utils');
 
     mod.playTrapPlacementFlash(2, 2, 'black');
-
-    expect(document.querySelector('.trap-place-overlay')).toBeTruthy();
-
-    jest.advanceTimersByTime(900);
 
     expect(document.querySelector('.trap-place-overlay')).toBeFalsy();
   });

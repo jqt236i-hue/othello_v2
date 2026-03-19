@@ -27,7 +27,7 @@ describe('LOSS_WILL（意志の喪失）', () => {
       { id: 1, row: 2, col: 2, kind: 'specialStone', owner: 'black', createdSeq: 1, data: { type: 'GUARD', remainingOwnerTurns: 2 } },
       { id: 2, row: 2, col: 2, kind: 'specialStone', owner: 'black', createdSeq: 2, data: { type: 'WORK', remainingOwnerTurns: 4 } },
       { id: 3, row: 3, col: 3, kind: 'specialStone', owner: 'white', createdSeq: 3, data: { type: 'WORK', remainingOwnerTurns: 4 } },
-      { id: 4, row: 4, col: 4, kind: 'bomb', owner: 'black', createdSeq: 4, data: { remainingTurns: 2 } }
+      { id: 4, row: 4, col: 4, kind: 'specialStone', owner: 'black', createdSeq: 4, data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } }
     ];
     cardState._nextMarkerId = 5;
     cardState._nextCreatedSeq = 5;
@@ -40,8 +40,8 @@ describe('LOSS_WILL（意志の喪失）', () => {
     expect(res.events.some((e) => e && e.type === 'loss_will_resolved' && e.removedCount === 2)).toBe(true);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
 
-    const specials = (cardState.markers || []).filter((m) => m && m.kind === 'specialStone');
-    const bombs = (cardState.markers || []).filter((m) => m && m.kind === 'bomb');
+    const specials = (cardState.markers || []).filter((m) => m && m.kind === 'specialStone' && (!m.data || m.data.category !== 'bomb'));
+    const bombs = (cardState.markers || []).filter((m) => m && m.kind === 'specialStone' && m.data && m.data.category === 'bomb');
     expect(specials).toHaveLength(2);
     expect(specials.some((m) => m.row === 2 && m.col === 2 && m.data && m.data.type === 'GUARD')).toBe(true);
     expect(specials.some((m) => m.row === 2 && m.col === 2 && m.data && m.data.type === 'WORK')).toBe(true);
@@ -66,7 +66,7 @@ describe('LOSS_WILL（意志の喪失）', () => {
 
     gameState.board[4][4] = 1;
     cardState.markers = [
-      { id: 1, row: 4, col: 4, kind: 'bomb', owner: 'black', createdSeq: 1, data: { remainingTurns: 2 } }
+      { id: 1, row: 4, col: 4, kind: 'specialStone', owner: 'black', createdSeq: 1, data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } }
     ];
     cardState._nextMarkerId = 2;
     cardState._nextCreatedSeq = 2;
@@ -77,6 +77,44 @@ describe('LOSS_WILL（意志の喪失）', () => {
     expect(res.events.some((e) => e && e.type === 'loss_will_resolved' && e.removedCount === 1)).toBe(true);
     const removedEvents = (res.presentationEvents || []).filter((e) => e && e.type === 'STATUS_REMOVED' && e.reason === 'loss_will_reset');
     expect(removedEvents).toHaveLength(1);
-    expect((cardState.markers || []).filter((m) => m && m.kind === 'bomb')).toHaveLength(0);
+    expect((cardState.markers || []).filter((m) => m && m.kind === 'specialStone' && m.data && m.data.category === 'bomb')).toHaveLength(0);
+  });
+
+  test('特殊石も爆弾もない場合は使用できない', () => {
+    const { cardState, gameState } = makeState();
+    cardState.hands.black = ['loss_will_01'];
+    cardState.charge.black = 11;
+    cardState.markers = [];
+
+    const action = { type: 'use_card', useCardId: 'loss_will_01' };
+    expect(() => {
+      TurnPipeline.applyTurn(cardState, gameState, 'black', action, { shuffle: () => {}, random: () => 0.5 });
+    }).toThrow('applyCardUsage failed');
+
+    // Card was not consumed
+    expect(cardState.hands.black).toContain('loss_will_01');
+    expect(cardState.charge.black).toBe(11);
+  });
+
+  test('全特殊石がGUARD保護下で除去対象ゼロの場合は使用できない', () => {
+    const { cardState, gameState } = makeState();
+    cardState.hands.black = ['loss_will_01'];
+    cardState.charge.black = 11;
+    gameState.board[2][2] = 1;
+
+    // GUARD on (2,2) protects the WORK on the same cell
+    cardState.markers = [
+      { id: 1, row: 2, col: 2, kind: 'specialStone', owner: 'black', createdSeq: 1, data: { type: 'GUARD', remainingOwnerTurns: 2 } },
+      { id: 2, row: 2, col: 2, kind: 'specialStone', owner: 'black', createdSeq: 2, data: { type: 'WORK', remainingOwnerTurns: 4 } }
+    ];
+    cardState._nextMarkerId = 3;
+    cardState._nextCreatedSeq = 3;
+
+    const action = { type: 'use_card', useCardId: 'loss_will_01' };
+    expect(() => {
+      TurnPipeline.applyTurn(cardState, gameState, 'black', action, { shuffle: () => {}, random: () => 0.5 });
+    }).toThrow('applyCardUsage failed');
+
+    expect(cardState.hands.black).toContain('loss_will_01');
   });
 });

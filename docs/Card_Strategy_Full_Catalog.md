@@ -25,7 +25,10 @@
 | strong_wind_01 | 強風の意志 | STRONG_WIND_WILL | 9 | 最長方向へ石を移動（同距離ランダム） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 上下左右いずれかへ移動可能な石が必要 | あり | 移動可能対象なし・対象不正 | 最長方向へ石を移動（同距離ランダム） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:62<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | trap_01 | 罠の意志 | TRAP_WILL | 4 | 自分石1つを罠化してターン終了。発動時: 相手布石最大20奪取 + 相手手札全破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 自分石の有効対象が1個以上必要 | あり | 対象不足・次相手ターンで未発動のまま消滅・このターンの配置価値が高い | 自分石1つを罠化してターン終了。発動時: 相手布石最大20奪取 + 相手手札全破壊 | 条件未充足で使用不可/低効率 | 中盤劣勢〜拮抗 | cards/catalog.json:69<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | tempt_01 | 誘惑の意志 | TEMPT_WILL | 20 | 相手特殊石の所有権奪取 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 相手特殊石（GUARD以外）が1個以上必要 | あり | 対象が相手特殊石でない/対象不足/GUARD保護 | 相手特殊石の所有権奪取 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:76<br>game/logic/cards.js:942<br>game/logic/cards.js:1114 |
-| chain_01 | 連鎖の意志 | CHAIN_WILL | 22 | 追加反転 最大2リンク | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 一次反転を起点に候補が無い場合は追加連鎖なし | 追加反転 最大2リンク | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:83<br>game/logic/cards.js:2786<br>game/logic/cards.js:2804 |
+| double_chain_01 | 二連鎖の意志 | DOUBLE_CHAIN_WILL | 22 | 通常反転後に追加反転1回 + 三連鎖生成 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 一次反転を起点に候補が無い場合は追加連鎖なし | 追加反転1回 + 使用後に三連鎖の意志が手札追加 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json<br>game/logic/cards.js |
+| triple_chain_01 | 三連鎖の意志 | TRIPLE_CHAIN_WILL | 22 | 通常反転後に追加反転2回 + 四連鎖生成 | generated-only（使用後生成で入手） | なし | 一次反転起点から候補が不足すると途中終了 | 追加反転2回 + 使用後に四連鎖の意志が手札追加 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json<br>game/logic/cards.js |
+| quad_chain_01 | 四連鎖の意志 | QUAD_CHAIN_WILL | 22 | 通常反転後に追加反転3回 + 無限連鎖生成 | generated-only（使用後生成で入手） | なし | 一次反転起点から候補が不足すると途中終了 | 追加反転3回 + 使用後に無限連鎖の意志が手札追加 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json<br>game/logic/cards.js |
+| infinite_chain_01 | 無限連鎖の意志 | INFINITE_CHAIN_WILL | 50 | 通常反転後に追加反転を可能な限り継続 | generated-only（使用後生成で入手） | なし | 追加反転できなくなった時点で終了 | 追加反転を可能な限り継続 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json<br>game/logic/cards.js |
 | regen_01 | 復活の意志 | REGEN_WILL | 12 | 1回だけ再生 + 再生起点反転 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 反転されないままなら再生効果未発動 | 1回だけ再生 + 再生起点反転 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:90<br>game/logic/cards.js:2308<br>shared-constants.js:136 |
 | destroy_01 | 破壊神 | DESTROY_ONE_STONE | 14 | 任意1石破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + GUARDで守られていない石が1個以上必要 | あり | GUARD保護対象は破壊失敗 | 任意1石破壊 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:97<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | bomb_01 | 時限爆弾 | TIME_BOMB | 13 | 3ターン後に3x3破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 自分石の有効対象が1個以上必要 | あり | 対象不足・既存爆弾重複不可・反転で解除 | 3ターン後に3x3破壊 | 高分散札（優勢時はCPU減点） | 中盤〜終盤劣勢 | cards/catalog.json:104<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
@@ -304,11 +307,16 @@
   - shared-constants.js:224
   - game/ai/cpu-policy-core.js:29
 
-### chain_01 / 連鎖の意志（CHAIN_WILL）
-- 効果詳細（処理順含む）: 追加反転 最大2リンク
+### chain-will 系 / 連鎖の意志系
+- 対象カード: `double_chain_01` / `triple_chain_01` / `quad_chain_01` / `infinite_chain_01`
+- 効果詳細（処理順含む）:
+  - `DOUBLE_CHAIN_WILL`: 通常反転のあと追加反転1回。使用後に `TRIPLE_CHAIN_WILL` を手札追加
+  - `TRIPLE_CHAIN_WILL`: 通常反転のあと追加反転2回。使用後に `QUAD_CHAIN_WILL` を手札追加
+  - `QUAD_CHAIN_WILL`: 通常反転のあと追加反転3回。使用後に `INFINITE_CHAIN_WILL` を手札追加
+  - `INFINITE_CHAIN_WILL`: 通常反転のあと追加反転を可能な限り継続
 - 合理的な使い方
   - 発動条件「手札所持・布石コスト充足・このターン未使用（`applyCardUsage`）」を満たす局面で使う。
-  - 期待リターン「追加反転 最大2リンク」を満たす見込みがある手で使う。
+  - 期待リターン「追加反転 + 次段生成」を満たす見込みがある手で使う。
   - CPU方針で明示がないため、対象条件を満たす時だけ選択する。
 - 利敵行為になる使い方
   - 失敗条件「一次反転を起点に候補が無い場合は追加連鎖なし」に該当する状態で切る。
@@ -318,11 +326,9 @@
 - 特殊石や保護状態との相互作用: 未確認（当該カード固有の追加条件は明示コードを確認できず）
 - 布石収支観点（定性的）: 0（直接の布石式は未確認）
 - 根拠コード参照
-  - cards/catalog.json:83
-  - game/logic/cards.js:2786
-  - game/logic/cards.js:2804
-  - game/logic/cards.js:3589
-  - shared-constants.js:134
+  - cards/catalog.json
+  - game/logic/cards.js
+  - game/ai/cpu-policy-core.js
   - game/ai/cpu-policy-core.js:28
   - 01-rulebook.md:290
   - 01-rulebook.md:586
@@ -988,7 +994,10 @@
 - strong_wind_01 (STRONG_WIND_WILL) / 優先度: C / use_if: 上下左右いずれかへ移動可能な石が必要 を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
 - trap_01 (TRAP_WILL) / 優先度: A / use_if: 自分石の有効対象が1個以上必要 を満たす / avoid_if: 対象不足・次相手ターンで未発動のまま消滅・このターンの配置価値が高い
 - tempt_01 (TEMPT_WILL) / 優先度: C / use_if: 相手特殊石（GUARD以外）が1個以上必要 を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
-- chain_01 (CHAIN_WILL) / 優先度: C / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
+- double_chain_01 (DOUBLE_CHAIN_WILL) / 優先度: C / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
+- triple_chain_01 (TRIPLE_CHAIN_WILL) / 優先度: C / use_if: generated-only で手札に入っており、基本条件を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
+- quad_chain_01 (QUAD_CHAIN_WILL) / 優先度: C / use_if: generated-only で手札に入っており、基本条件を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
+- infinite_chain_01 (INFINITE_CHAIN_WILL) / 優先度: C / use_if: generated-only で手札に入っており、基本条件を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
 - regen_01 (REGEN_WILL) / 優先度: A / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 反転されないままなら再生効果未発動
 - destroy_01 (DESTROY_ONE_STONE) / 優先度: A / use_if: GUARDで守られていない石が1個以上必要 を満たす / avoid_if: GUARD保護対象は破壊失敗
 - bomb_01 (TIME_BOMB) / 優先度: C / use_if: 自分石の有効対象が1個以上必要 を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
@@ -1053,4 +1062,3 @@
   - 根拠: game/logic/cards.js:2217 / game/logic/cards.js:2235
 - 個別カードの盤面評価（どの座標が最善か）は、`cpu-policy-core.js` で明示されるカードと未記述カードが混在する。未記述カードは追加調査が必要。
   - 追加調査候補: game/ai/cpu-policy-core.js の `scoreCardUseDecision` 対象外カード
-

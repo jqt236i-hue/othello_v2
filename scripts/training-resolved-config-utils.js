@@ -101,6 +101,10 @@ function applySelfplayArgsFromResolvedConfig(target, specified, resolved) {
     setNumberFromFlag(target, specified, 'teacherCommitteeWeightMax', argMap, '--selfplay-teacher-committee-weight-max');
     setNumberFromFlag(target, specified, 'teacherCommitteeConsensusBonusMin', argMap, '--selfplay-teacher-committee-consensus-bonus-min');
     setNumberFromFlag(target, specified, 'teacherCommitteeConsensusBonusMax', argMap, '--selfplay-teacher-committee-consensus-bonus-max');
+    setNumberFromFlag(target, specified, 'policyScoreWeightMin', argMap, '--selfplay-policy-score-weight-min');
+    setNumberFromFlag(target, specified, 'policyScoreWeightMax', argMap, '--selfplay-policy-score-weight-max');
+    setNumberFromFlag(target, specified, 'heuristicWeightMin', argMap, '--selfplay-heuristic-weight-min');
+    setNumberFromFlag(target, specified, 'heuristicWeightMax', argMap, '--selfplay-heuristic-weight-max');
 
     if (!specified || !specified.has('allowCardUsage')) {
         if (hasFlag(argMap, '--with-cards')) target.allowCardUsage = true;

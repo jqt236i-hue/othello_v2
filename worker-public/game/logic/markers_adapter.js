@@ -17,9 +17,70 @@
      * Marker kinds
      */
     const MARKER_KINDS = {
-        SPECIAL_STONE: 'specialStone',
+        SPECIAL_STONE: 'specialStone'
+    };
+    const MARKER_CATEGORIES = {
         BOMB: 'bomb'
     };
+    const DEFAULT_BOMB_TYPE = 'TIME_BOMB';
+    const LEGACY_BOMB_KIND = 'bomb';
+
+    function getMarkerData(marker) {
+        return (marker && marker.data && typeof marker.data === 'object') ? marker.data : null;
+    }
+
+    function isLegacyBombMarker(marker) {
+        return !!(marker && marker.kind === LEGACY_BOMB_KIND);
+    }
+
+    function getMarkerCategory(marker) {
+        const data = getMarkerData(marker);
+        const category = data && typeof data.category === 'string'
+            ? String(data.category).trim()
+            : '';
+        if (category) return category;
+        return isLegacyBombMarker(marker) ? MARKER_CATEGORIES.BOMB : null;
+    }
+
+    function isBombCategoryMarker(marker) {
+        return getMarkerCategory(marker) === MARKER_CATEGORIES.BOMB;
+    }
+
+    function isSpecialStoneMarker(marker) {
+        return !!(
+            marker &&
+            marker.kind === MARKER_KINDS.SPECIAL_STONE &&
+            !isBombCategoryMarker(marker)
+        );
+    }
+
+    function getBombMarkerType(marker) {
+        if (!isBombCategoryMarker(marker)) return null;
+        const data = getMarkerData(marker);
+        return (data && data.type) ? String(data.type) : DEFAULT_BOMB_TYPE;
+    }
+
+    function normalizeMarkerInput(kind, data) {
+        const requestedKind = (typeof kind === 'string' && kind) ? kind : MARKER_KINDS.SPECIAL_STONE;
+        const normalizedData = (data && typeof data === 'object') ? { ...data } : {};
+        const type = normalizedData && normalizedData.type ? String(normalizedData.type) : '';
+        const isBombInput =
+            requestedKind === LEGACY_BOMB_KIND ||
+            getMarkerCategory({ kind: requestedKind, data: normalizedData }) === MARKER_CATEGORIES.BOMB ||
+            type === DEFAULT_BOMB_TYPE;
+        if (isBombInput) {
+            normalizedData.category = MARKER_CATEGORIES.BOMB;
+            if (!normalizedData.type) normalizedData.type = DEFAULT_BOMB_TYPE;
+            return {
+                kind: MARKER_KINDS.SPECIAL_STONE,
+                data: normalizedData
+            };
+        }
+        return {
+            kind: requestedKind,
+            data: normalizedData
+        };
+    }
 
     /**
      * Create a marker from a special stone
@@ -28,23 +89,25 @@
      * @returns {Object} Marker object
      */
     function fromSpecialStone(stone, id) {
+        const normalized = normalizeMarkerInput(MARKER_KINDS.SPECIAL_STONE, {
+            type: stone.type,
+            category: stone.category,
+            remainingOwnerTurns: stone.remainingOwnerTurns,
+            expiresForPlayer: stone.expiresForPlayer,
+            autoRemove: stone.autoRemove,
+            hyperactiveSeq: stone.hyperactiveSeq,
+            regenRemaining: stone.regenRemaining,
+            ownerColor: stone.ownerColor,
+            chainPriority: stone.chainPriority
+        });
         return {
             id,
             row: stone.row,
             col: stone.col,
-            kind: MARKER_KINDS.SPECIAL_STONE,
+            kind: normalized.kind,
             owner: stone.owner,
             createdSeq: (typeof stone.createdSeq === 'number') ? stone.createdSeq : id,
-            data: {
-                type: stone.type,
-                remainingOwnerTurns: stone.remainingOwnerTurns,
-                expiresForPlayer: stone.expiresForPlayer,
-                autoRemove: stone.autoRemove,
-                hyperactiveSeq: stone.hyperactiveSeq,
-                regenRemaining: stone.regenRemaining,
-                ownerColor: stone.ownerColor,
-                chainPriority: stone.chainPriority
-            }
+            data: normalized.data
         };
     }
 
@@ -55,17 +118,20 @@
      * @returns {Object} Marker object
      */
     function fromBomb(bomb, id) {
+        const normalized = normalizeMarkerInput(LEGACY_BOMB_KIND, {
+            type: bomb.type,
+            category: bomb.category,
+            remainingTurns: bomb.remainingTurns,
+            placedTurn: bomb.placedTurn
+        });
         return {
             id,
             row: bomb.row,
             col: bomb.col,
-            kind: MARKER_KINDS.BOMB,
+            kind: normalized.kind,
             owner: bomb.owner,
             createdSeq: (typeof bomb.createdSeq === 'number') ? bomb.createdSeq : id,
-            data: {
-                remainingTurns: bomb.remainingTurns,
-                placedTurn: bomb.placedTurn
-            }
+            data: normalized.data
         };
     }
 
@@ -75,20 +141,21 @@
      * @returns {Object|null} Special stone or null if not a special stone marker
      */
     function toSpecialStone(marker) {
-        if (marker.kind !== MARKER_KINDS.SPECIAL_STONE) return null;
+        if (!isSpecialStoneMarker(marker)) return null;
+        const data = getMarkerData(marker) || {};
 
         return {
             row: marker.row,
             col: marker.col,
-            type: marker.data.type,
+            type: data.type,
             owner: marker.owner,
-            remainingOwnerTurns: marker.data.remainingOwnerTurns,
-            expiresForPlayer: marker.data.expiresForPlayer,
-            autoRemove: marker.data.autoRemove,
-            hyperactiveSeq: marker.data.hyperactiveSeq,
-            regenRemaining: marker.data.regenRemaining,
-            ownerColor: marker.data.ownerColor,
-            chainPriority: marker.data.chainPriority,
+            remainingOwnerTurns: data.remainingOwnerTurns,
+            expiresForPlayer: data.expiresForPlayer,
+            autoRemove: data.autoRemove,
+            hyperactiveSeq: data.hyperactiveSeq,
+            regenRemaining: data.regenRemaining,
+            ownerColor: data.ownerColor,
+            chainPriority: data.chainPriority,
             createdSeq: marker.createdSeq
         };
     }
@@ -99,14 +166,15 @@
      * @returns {Object|null} Bomb or null if not a bomb marker
      */
     function toBomb(marker) {
-        if (marker.kind !== MARKER_KINDS.BOMB) return null;
+        if (!isBombCategoryMarker(marker)) return null;
+        const data = getMarkerData(marker) || {};
 
         return {
             row: marker.row,
             col: marker.col,
-            remainingTurns: marker.data.remainingTurns,
+            remainingTurns: data.remainingTurns,
             owner: marker.owner,
-            placedTurn: marker.data.placedTurn,
+            placedTurn: data.placedTurn,
             createdSeq: marker.createdSeq
         };
     }
@@ -118,7 +186,7 @@
      */
     function markersToSpecialStones(markers) {
         return markers
-            .filter(m => m.kind === MARKER_KINDS.SPECIAL_STONE)
+            .filter(isSpecialStoneMarker)
             .map(toSpecialStone);
     }
 
@@ -129,7 +197,7 @@
      */
     function markersToBombs(markers) {
         return markers
-            .filter(m => m.kind === MARKER_KINDS.BOMB)
+            .filter(isBombCategoryMarker)
             .map(toBomb);
     }
 
@@ -195,16 +263,16 @@
     }
 
     function getSpecialMarkers(cardState) {
-        return getMarkers(cardState).filter(m => m.kind === MARKER_KINDS.SPECIAL_STONE);
+        return getMarkers(cardState).filter(isSpecialStoneMarker);
     }
 
     function getBombMarkers(cardState) {
-        return getMarkers(cardState).filter(m => m.kind === MARKER_KINDS.BOMB);
+        return getMarkers(cardState).filter(isBombCategoryMarker);
     }
 
     function findSpecialMarkerAt(cardState, row, col, type, owner) {
         return getMarkers(cardState).find(m => (
-            m.kind === MARKER_KINDS.SPECIAL_STONE &&
+            isSpecialStoneMarker(m) &&
             m.row === row &&
             m.col === col &&
             (type ? (m.data && m.data.type === type) : true) &&
@@ -213,7 +281,7 @@
     }
 
     function findBombMarkerAt(cardState, row, col) {
-        return getMarkers(cardState).find(m => m.kind === MARKER_KINDS.BOMB && m.row === row && m.col === col);
+        return getMarkers(cardState).find(m => isBombCategoryMarker(m) && m.row === row && m.col === col);
     }
 
     function removeMarkers(cardState, predicate) {
@@ -225,7 +293,10 @@
         const opts = options || {};
         removeMarkers(cardState, (m) => {
             if (m.row !== row || m.col !== col) return false;
-            if (opts.kind && m.kind !== opts.kind) return false;
+            if (opts.kind === LEGACY_BOMB_KIND && !isBombCategoryMarker(m)) return false;
+            if (opts.kind === MARKER_KINDS.SPECIAL_STONE && !isSpecialStoneMarker(m)) return false;
+            if (opts.kind && opts.kind !== LEGACY_BOMB_KIND && opts.kind !== MARKER_KINDS.SPECIAL_STONE && m.kind !== opts.kind) return false;
+            if (opts.category && getMarkerCategory(m) !== opts.category) return false;
             if (opts.type && (!m.data || m.data.type !== opts.type)) return false;
             if (opts.owner && m.owner !== opts.owner) return false;
             return true;
@@ -234,6 +305,7 @@
 
     return {
         MARKER_KINDS,
+        MARKER_CATEGORIES,
         fromSpecialStone,
         fromBomb,
         toSpecialStone,
@@ -245,6 +317,11 @@
         syncLegacyToMarkers,
         ensureMarkers,
         getMarkers,
+        getMarkerCategory,
+        getBombMarkerType,
+        isBombCategoryMarker,
+        isSpecialStoneMarker,
+        normalizeMarkerInput,
         getSpecialMarkers,
         getBombMarkers,
         findSpecialMarkerAt,

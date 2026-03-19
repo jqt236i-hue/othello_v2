@@ -20,13 +20,13 @@ describe('network-turn-handoff', () => {
     delete global.CPU_TURN_DELAY_MS;
   });
 
-  test('turn start の playbackEvents を publish 前に連結する', async () => {
+  test('turn start の playbackEvents を publish 前に後続 phase へずらして連結する', async () => {
     const handoff = require('../game/network-turn-handoff');
     const publishSnapshot = jest.fn();
     const onTurnStart = jest.fn(async (currentPlayer) => {
       expect(currentPlayer).toBe('black');
       return {
-        playbackEvents: [{ type: 'turn_start_draw', phase: 2 }]
+        playbackEvents: [{ type: 'turn_start_draw', phase: 1 }]
       };
     });
     const afterTurnStart = jest.fn();
@@ -35,7 +35,7 @@ describe('network-turn-handoff', () => {
       playerKey: 'black',
       actionType: 'place',
       action: { type: 'place', row: 2, col: 3, turnIndex: 4 },
-      playbackEvents: [{ type: 'flip', phase: 1 }],
+      playbackEvents: [{ type: 'flip', phase: 1 }, { type: 'sound_effect', phase: 2 }],
       onTurnStart,
       publishSnapshot,
       afterTurnStart,
@@ -45,13 +45,13 @@ describe('network-turn-handoff', () => {
     expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
     expect(onTurnStart).toHaveBeenCalledTimes(1);
     expect(afterTurnStart).toHaveBeenCalledWith(expect.objectContaining({
-      playbackEvents: [{ type: 'flip', phase: 1 }, { type: 'turn_start_draw', phase: 2 }],
-      turnStartPlaybackEvents: [{ type: 'turn_start_draw', phase: 2 }]
+      playbackEvents: [{ type: 'flip', phase: 1 }, { type: 'sound_effect', phase: 2 }, { type: 'turn_start_draw', phase: 3 }],
+      turnStartPlaybackEvents: [{ type: 'turn_start_draw', phase: 1 }]
     }));
     expect(publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
       playerKey: 'black',
       actionType: 'place',
-      playbackEvents: [{ type: 'flip', phase: 1 }, { type: 'turn_start_draw', phase: 2 }]
+      playbackEvents: [{ type: 'flip', phase: 1 }, { type: 'sound_effect', phase: 2 }, { type: 'turn_start_draw', phase: 3 }]
     }));
     expect(publishSnapshot.mock.calls[0][0].snapshot).toBeUndefined();
     expect(result).toMatchObject({ scheduledCpu: false, gameOver: false, nextPlayerKey: 'black' });

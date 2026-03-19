@@ -57,7 +57,38 @@ function _shouldSkipBoardRenderForPlayback() {
     return _isVisualPlaybackActiveForBoardRenderer() || _hasPendingPlaybackEventsForBoardRenderer();
 }
 
+function _isTimeStopActiveForBoardRenderer() {
+    try {
+        const state = (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object')
+            ? cardState
+            : ((typeof window !== 'undefined' && window.cardState && typeof window.cardState === 'object') ? window.cardState : null);
+        const remainingByPlayer = state && state.timeStopConsecutiveTurnsRemainingByPlayer;
+        if (!remainingByPlayer || typeof remainingByPlayer !== 'object') return false;
+        const blackRemaining = Number(remainingByPlayer.black);
+        const whiteRemaining = Number(remainingByPlayer.white);
+        return (Number.isFinite(blackRemaining) && blackRemaining > 0) || (Number.isFinite(whiteRemaining) && whiteRemaining > 0);
+    } catch (e) {
+        return false;
+    }
+}
+
+function _syncTimeStopClassForBoardRenderer() {
+    if (typeof document === 'undefined') return;
+    const active = _isTimeStopActiveForBoardRenderer();
+    try {
+        if (document.documentElement && document.documentElement.classList) {
+            document.documentElement.classList.toggle('time-stop-active', active);
+        }
+        if (document.body && document.body.classList) {
+            document.body.classList.toggle('time-stop-active', active);
+        }
+    } catch (e) {
+        // UI only
+    }
+}
+
 function renderBoard() {
+    _syncTimeStopClassForBoardRenderer();
     // Single Visual Writer: skip renders while playback is active or already queued.
     if (_shouldSkipBoardRenderForPlayback()) {
         return;
@@ -108,17 +139,8 @@ function renderBoard() {
  */
 function _isBoardHiddenTrapForBoardRenderer(marker) {
     if (!marker || !marker.data || marker.data.type !== 'TRAP') return false;
-    // Persistent trap visuals are owner-only information on board.
-    // In local debug human-vs-human, the shared screen may see both sides.
-    try {
-        if (typeof window !== 'undefined' && window && window.DEBUG_HUMAN_VS_HUMAN === true) {
-            return false;
-        }
-    } catch (e) { /* ignore */ }
-    const viewerKey = _resolveNetworkLocalPlayerKeyForBoard();
-    const ownerKey = marker.owner === 'white' ? 'white' : (marker.owner === 'black' ? 'black' : null);
-    if (!ownerKey) return true;
-    return viewerKey !== ownerKey;
+    // Hidden traps stay visually normal for both seats until reveal timing events.
+    return true;
 }
 
 function _isFlipEvadeSpecialTypeForBoard(type) {
@@ -177,9 +199,10 @@ function _resolveNetworkLocalPlayerKeyForBoard() {
 }
 
 function _canLocalPlayerControlCurrentTurnForBoard() {
+    let isNetworkMode = false;
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function') {
-            if (!OwnerHelpersModule.isNetworkMode(typeof window !== 'undefined' ? window : null)) return true;
+            isNetworkMode = OwnerHelpersModule.isNetworkMode(typeof window !== 'undefined' ? window : null);
         } else {
             let matchMode = null;
             try {
@@ -187,15 +210,17 @@ function _canLocalPlayerControlCurrentTurnForBoard() {
                     ? window.getCurrentMatchMode()
                     : (typeof window !== 'undefined' ? window.MATCH_MODE : null);
             } catch (e) { /* ignore */ }
-            if (matchMode !== 'network') return true;
+            isNetworkMode = matchMode === 'network';
         }
     } catch (e) { /* ignore */ }
+    if (!isNetworkMode) return true;
     const currentPlayerKey = gameState.currentPlayer === WHITE ? 'white' : 'black';
     const localPlayerKey = _resolveNetworkLocalPlayerKeyForBoard();
     return currentPlayerKey === localPlayerKey;
 }
 
 function renderBoardFull() {
+    _syncTimeStopClassForBoardRenderer();
     // Single Visual Writer: skip renders while playback is active or already queued.
     if (_shouldSkipBoardRenderForPlayback()) {
         return;
@@ -235,8 +260,15 @@ function renderBoardFull() {
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
     const selectableTargetSet = new Set(selectableTargets.map(p => p.row + ',' + p.col));
-    const isHumanTurn = (gameState.currentPlayer === BLACK) ||
-        (window.DEBUG_HUMAN_VS_HUMAN && gameState.currentPlayer === WHITE);
+    const isNetworkMode = !!(OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function'
+        ? OwnerHelpersModule.isNetworkMode(typeof window !== 'undefined' ? window : null)
+        : ((typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function')
+            ? window.getCurrentMatchMode() === 'network'
+            : ((typeof window !== 'undefined' ? window.MATCH_MODE : null) === 'network')));
+    const isHumanTurn = isNetworkMode
+        ? _canLocalPlayerControlCurrentTurnForBoard()
+        : ((gameState.currentPlayer === BLACK) ||
+            (window.DEBUG_HUMAN_VS_HUMAN && gameState.currentPlayer === WHITE));
     const showLegalHints = isHumanTurn && !isSelectingTarget && _canLocalPlayerControlCurrentTurnForBoard();
 
     let normalLegalSet = new Set();

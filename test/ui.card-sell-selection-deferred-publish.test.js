@@ -20,6 +20,21 @@ function createLiveResponseSnapshot(stateVersion) {
   };
 }
 
+function createSellResolvedSnapshot(stateVersion) {
+  return {
+    stateVersion,
+    gameState: cloneJson(global.gameState),
+    cardState: {
+      ...cloneJson(global.cardState),
+      selectedCardId: null,
+      selectedCardOwnerKey: null,
+      hands: { black: [], white: [] },
+      pendingEffectByPlayer: { black: null, white: null },
+      discard: ['sell_card']
+    }
+  };
+}
+
 function createSnapshot(stateVersion) {
   return {
     stateVersion,
@@ -163,16 +178,23 @@ describe('SELL_CARD_WILL deferred publish from card interaction', () => {
       if (pathName === '/api/match/publish') {
         const body = JSON.parse(init.body || '{}');
         publishBodies.push(body);
+        const isSellSelectionPublish = body
+          && body.actionType === 'place'
+          && body.params
+          && body.params.sellCardId === 'sell_card';
         return jsonResponse(200, {
           ok: true,
           roomId: 'SEL',
           stateVersion: 41,
+          playbackEvents: isSellSelectionPublish
+            ? [{ type: 'hand_remove', phase: 1 }]
+            : [],
           snapshot: body.snapshot
             ? {
               ...body.snapshot,
               stateVersion: 41
             }
-            : createLiveResponseSnapshot(41)
+            : (isSellSelectionPublish ? createSellResolvedSnapshot(41) : createLiveResponseSnapshot(41))
         });
       }
 
@@ -218,7 +240,7 @@ describe('SELL_CARD_WILL deferred publish from card interaction', () => {
     delete globalThis.waitForPlaybackIdle;
   });
 
-  test('sell selection defers publish until playback settles', async () => {
+  test('sell selection publishes directly without local sell playback replay', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
     global.NetworkMatchClient = client;
@@ -233,19 +255,10 @@ describe('SELL_CARD_WILL deferred publish from card interaction', () => {
 
     await Promise.resolve();
     await Promise.resolve();
-
-    const action = runTurnMock.mock.calls[0][3];
-    expect(action.sellCardId).toBe('sell_card');
-    expect(action.deferNetworkPublish).toBe(true);
-    expect(publishBodies).toHaveLength(0);
-    expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
-    expect(global.isProcessing).toBe(true);
-    expect(global.isCardAnimating).toBe(true);
-
-    releasePlayback();
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
+    expect(runTurnMock).not.toHaveBeenCalled();
     expect(publishBodies).toHaveLength(1);
     expect(publishBodies[0].actionType).toBe('place');
     expect(publishBodies[0].actor).toBe('black');
@@ -257,6 +270,7 @@ describe('SELL_CARD_WILL deferred publish from card interaction', () => {
     expect(publishBodies[0].playbackEvents).toBeUndefined();
     expect(global.cardState.hands.black).toEqual([]);
     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(global.ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
+    expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
   });
 });

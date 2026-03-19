@@ -69,4 +69,118 @@ describe('animation-engine _sleep', () => {
     delete global.emitBoardUpdate;
     delete global.window;
   });
+
+  test('opponent の宝箱 card_use_animation では card_use_button を鳴らさない', async () => {
+    const cellEl = { classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) };
+    global.document = { getElementById: () => cellEl };
+    global.window = {
+      LOCAL_PLAYER_KEY: 'black',
+      playCardUseHandAnimation: jest.fn(() => Promise.resolve())
+    };
+    const playEffectByKey = jest.fn();
+    global.SoundEngine = {
+      init: jest.fn(),
+      playEffectByKey
+    };
+    global.CardLogic = {
+      getCardDef: jest.fn(() => ({ id: 'TREASURE_BOX_001', type: 'TREASURE_BOX' }))
+    };
+
+    const engine = require('../ui/animation-engine');
+
+    await engine.executePhase([
+      { type: 'card_use_animation', phase: 1, targets: [{ player: 'white', owner: 'white', cardId: 'TREASURE_BOX_001' }] }
+    ]);
+
+    expect(global.window.playCardUseHandAnimation).toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalledWith('card_use_button');
+
+    delete global.CardLogic;
+    delete global.SoundEngine;
+    delete global.window;
+  });
+
+  test('opponent の通常カード card_use_animation では card_use_button を鳴らす', async () => {
+    const cellEl = { classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) };
+    global.document = { getElementById: () => cellEl };
+    global.window = {
+      LOCAL_PLAYER_KEY: 'black',
+      playCardUseHandAnimation: jest.fn(() => Promise.resolve())
+    };
+    const playEffectByKey = jest.fn();
+    global.SoundEngine = {
+      init: jest.fn(),
+      playEffectByKey
+    };
+    global.CardLogic = {
+      getCardDef: jest.fn(() => ({ id: 'WORK_WILL_001', type: 'WORK_WILL' }))
+    };
+
+    const engine = require('../ui/animation-engine');
+
+    await engine.executePhase([
+      { type: 'card_use_animation', phase: 1, targets: [{ player: 'white', owner: 'white', cardId: 'WORK_WILL_001' }] }
+    ]);
+
+    expect(global.window.playCardUseHandAnimation).toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('card_use_button');
+
+    delete global.CardLogic;
+    delete global.SoundEngine;
+    delete global.window;
+  });
+
+  test('local skip registry がある matching playback sound は 1 回だけ抑止する', async () => {
+    global.document = { getElementById: () => ({ classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) }) };
+    global.window = {
+      __skipNextPlaybackSoundUntilByKey: {
+        stone_destroy: Date.now() + 1000
+      }
+    };
+    const playEffectByKey = jest.fn();
+    global.SoundEngine = {
+      init: jest.fn(),
+      playEffectByKey
+    };
+    const engine = require('../ui/animation-engine');
+
+    await engine.executePhase([
+      { type: 'sound_effect', phase: 5, targets: [{ soundKey: 'stone_destroy' }] }
+    ]);
+
+    expect(playEffectByKey).not.toHaveBeenCalledWith('stone_destroy');
+    expect(global.window.__skipNextPlaybackSoundUntilByKey).toBeUndefined();
+
+    delete global.SoundEngine;
+    delete global.window;
+  });
+
+  test('local skip registry は対象 key だけ消して他 key は残す', async () => {
+    global.document = { getElementById: () => ({ classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) }) };
+    global.window = {
+      __skipNextPlaybackSoundUntilByKey: {
+        sell_sacrifice_gain: Date.now() + 1000,
+        stone_destroy: Date.now() + 2000
+      }
+    };
+    const playEffectByKey = jest.fn();
+    global.SoundEngine = {
+      init: jest.fn(),
+      playEffectByKey
+    };
+    const engine = require('../ui/animation-engine');
+
+    await engine.executePhase([
+      { type: 'sound_effect', phase: 5, targets: [{ soundKey: 'sell_sacrifice_gain' }] }
+    ]);
+
+    expect(playEffectByKey).not.toHaveBeenCalledWith('sell_sacrifice_gain');
+    expect(global.window.__skipNextPlaybackSoundUntilByKey).toMatchObject({
+      stone_destroy: expect.any(Number)
+    });
+    expect(global.window.__skipNextPlaybackSoundUntilByKey.sell_sacrifice_gain).toBeUndefined();
+
+    delete global.SoundEngine;
+    delete global.window;
+  });
 });

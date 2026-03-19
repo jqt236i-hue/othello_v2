@@ -183,6 +183,40 @@ describe('applySnapshot single-writer baseline', () => {
     expect(lastSync.black).toEqual({ type: 'CONDEMN_WILL', stage: 'selectTarget' });
   });
 
+  test('snapshot 適用で時間停止の永続状態を保持しつつ transient queue を落とす', () => {
+    const stateObj = { stateVersion: 10 };
+    const ctrl = createController(stateObj);
+    const snap = createSnapshot(11);
+
+    snap.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 2, white: 0 };
+    snap.cardState.markers = [
+      {
+        id: 41,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: { type: 'TIME_STOP', remainingOwnerTurns: 1 }
+      }
+    ];
+    snap.cardState.presentationEvents = [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'flip', phase: 1 }] }];
+    snap.cardState._presentationEventsPersist = [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'flip', phase: 2 }] }];
+
+    ctrl.applySnapshot(snap, { playbackEvents: [] });
+
+    expect(global.cardState.timeStopConsecutiveTurnsRemainingByPlayer).toEqual({ black: 2, white: 0 });
+    expect(global.cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'TIME_STOP', remainingOwnerTurns: 1 })
+      })
+    ]));
+    expect(global.cardState.presentationEvents).toEqual([]);
+    expect(global.cardState._presentationEventsPersist).toEqual([]);
+  });
+
   test('stale version の snapshot は適用されない', () => {
     const stateObj = { stateVersion: 15 };
     const ctrl = createController(stateObj);

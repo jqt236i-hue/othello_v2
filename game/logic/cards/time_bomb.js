@@ -17,6 +17,7 @@
     'use strict';
 
     const { TIME_BOMB_TURNS } = SharedConstants || {};
+    const BOMB_CATEGORY = 'bomb';
 
     function getGlobalScope() {
         return (typeof globalThis !== 'undefined')
@@ -28,6 +29,35 @@
         if (CardMarkersModule) return CardMarkersModule;
         const globalScope = getGlobalScope();
         return globalScope.CardMarkers || null;
+    }
+
+    function getBombMarkers(cardState) {
+        const cardMarkers = getCardMarkersModule();
+        if (cardMarkers && typeof cardMarkers.getBombMarkers === 'function') {
+            return cardMarkers.getBombMarkers(cardState);
+        }
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        return markers.filter((marker) => !!(
+            marker &&
+            (
+                marker.kind === BOMB_CATEGORY ||
+                (marker.kind === 'specialStone' && marker.data && (marker.data.category === BOMB_CATEGORY || marker.data.type === 'TIME_BOMB'))
+            )
+        ));
+    }
+
+    function isBombCategoryMarker(marker) {
+        const cardMarkers = getCardMarkersModule();
+        if (cardMarkers && typeof cardMarkers.isBombCategoryMarker === 'function') {
+            return cardMarkers.isBombCategoryMarker(marker);
+        }
+        return !!(
+            marker &&
+            (
+                marker.kind === BOMB_CATEGORY ||
+                (marker.kind === 'specialStone' && marker.data && (marker.data.category === BOMB_CATEGORY || marker.data.type === 'TIME_BOMB'))
+            )
+        );
     }
 
     function normalizeExpansionOwner(owner) {
@@ -212,10 +242,7 @@
         const addMarker = deps.addMarker || ((cs, kind, r, c, owner, data) => {
             const cardMarkers = getCardMarkersModule();
             if (cardMarkers && typeof cardMarkers.addMarker === 'function') {
-                cardMarkers.addMarker(cs, kind, r, c, owner, {
-                    remainingTurns: data.remainingTurns,
-                    placedTurn: data.placedTurn
-                });
+                cardMarkers.addMarker(cs, kind, r, c, owner, { ...data });
                 return { placed: true };
             }
             if (!cs.markers) cs.markers = [];
@@ -227,18 +254,25 @@
                 id,
                 row: r,
                 col: c,
-                kind: kind,
+                kind: 'specialStone',
                 owner,
                 createdSeq,
-                data: { remainingTurns: data.remainingTurns, placedTurn: data.placedTurn }
+                data: {
+                    type: 'TIME_BOMB',
+                    category: 'bomb',
+                    remainingTurns: data.remainingTurns,
+                    placedTurn: data.placedTurn
+                }
             });
             return { placed: true };
         });
 
-        const bombs = (cardState.markers || []).filter(m => m.kind === 'bomb');
+        const bombs = getBombMarkers(cardState);
         if (bombs.some(b => b.row === row && b.col === col)) return { placed: false, reason: 'exists' };
 
-        addMarker(cardState, 'bomb', row, col, playerKey, {
+        addMarker(cardState, 'specialStone', row, col, playerKey, {
+            type: 'TIME_BOMB',
+            category: 'bomb',
             remainingTurns: TIME_BOMB_TURNS,
             placedTurn: cardState.turnIndex
         });
@@ -291,7 +325,7 @@
         const exploded = [];
         const destroyed = [];
         const activeKey = playerKey || cardState.lastTurnStartedFor;
-        const bombs = (cardState.markers || []).filter(m => m.kind === 'bomb');
+        const bombs = getBombMarkers(cardState);
         const removeIds = new Set();
 
         for (const bomb of bombs) {
@@ -336,7 +370,7 @@
 
         if (removeIds.size > 0) {
             cardState.markers = (cardState.markers || []).filter(m => {
-                if (m.kind !== 'bomb') return true;
+                if (!isBombCategoryMarker(m)) return true;
                 if (removeIds.has(m.id)) return false;
                 return !removeIds.has(`${m.row},${m.col},${m.owner}`);
             });
@@ -363,7 +397,7 @@
             return true;
         });
 
-        const bombs = (cardState.markers || []).filter(m => m.kind === 'bomb');
+        const bombs = getBombMarkers(cardState);
         const idx = bombs.findIndex(b =>
             (bomb.id !== undefined && b.id === bomb.id) ||
             (b.row === bomb.row && b.col === bomb.col && b.owner === bomb.owner && b.createdSeq === bomb.createdSeq)
@@ -406,7 +440,7 @@
         } else if (b.id !== undefined) {
             cardState.markers = (cardState.markers || []).filter(m => m.id !== b.id);
         } else {
-            removeMarkersAt(cardState, b.row, b.col, { kind: 'bomb', owner: b.owner });
+            removeMarkersAt(cardState, b.row, b.col, { category: 'bomb', owner: b.owner });
         }
         return { exploded, destroyed, removed: true };
     }

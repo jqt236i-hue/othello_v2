@@ -313,9 +313,14 @@
                         />
                     <input id="networkRoomIdInput" type="text" placeholder="部屋番号（3桁）" maxlength="3" autocomplete="off" spellcheck="false"
                         />
+                    <label id="networkDebugOptionRow" for="networkEnableDebugCheckbox">
+                        <input id="networkEnableDebugCheckbox" type="checkbox" />
+                        部屋作成時にデバッグモードを有効化
+                    </label>
                     <button id="networkCreateBtn" class="btn-small">部屋作成</button>
                     <button id="networkJoinBtn" class="btn-small">参加</button>
                     <button id="networkLeaveBtn" class="btn-small">退出</button>
+                    <button id="networkCopyRoomBtn" class="btn-small" type="button">部屋番号コピー</button>
                     <div id="networkStatusText"></div>
                     <div id="networkDeckInfo"></div>
                 </div>
@@ -456,6 +461,7 @@
     <script src="game/logic/cards-internal/pending-state-manager.js"></script>
     <script src="game/logic/cards-internal/charge-ledger.js"></script>
     <script src="game/logic/cards.js"></script>
+    <script src="game/logic/presentation.js"></script>
     <script>
         (function() {
             try {
@@ -483,6 +489,7 @@
     <script src="ui/storage/action-log.js"></script>
     <script src="shared/commentary-context-helpers.js"></script>
     <script src="shared/commentary-runtime-helpers.js"></script>
+    <script src="shared/playback-event-helpers.js"></script>
 
     <!-- UI Bootstrap (small, always-available helpers required during init) -->
     <script src="ui/bootstrap.js"></script>

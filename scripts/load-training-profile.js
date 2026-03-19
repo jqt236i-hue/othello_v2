@@ -25,10 +25,16 @@ const SHARED_TEACHER_ARG_SPECS = Object.freeze([
     { flag: '--selfplay-policy-pool-sampling', key: 'policyPoolSampling', type: 'string' },
     { flag: '--selfplay-policy-pool-recency-decay', key: 'policyPoolRecencyDecay', type: 'number' },
     { flag: '--selfplay-policy-current-anchor-rate', key: 'policyCurrentAnchorRate', type: 'number' },
+    { flag: '--selfplay-tactical-weight-min', key: 'tacticalWeightMin', type: 'number' },
+    { flag: '--selfplay-tactical-weight-max', key: 'tacticalWeightMax', type: 'number' },
     { flag: '--selfplay-tactical-depth-opening', key: 'tacticalDepthOpening', type: 'integer' },
     { flag: '--selfplay-tactical-depth-mid', key: 'tacticalDepthMid', type: 'integer' },
     { flag: '--selfplay-tactical-depth-end', key: 'tacticalDepthEnd', type: 'integer' },
     { flag: '--selfplay-tactical-beam-width', key: 'tacticalBeamWidth', type: 'integer' },
+    { flag: '--selfplay-policy-score-weight-min', key: 'policyScoreWeightMin', type: 'number' },
+    { flag: '--selfplay-policy-score-weight-max', key: 'policyScoreWeightMax', type: 'number' },
+    { flag: '--selfplay-heuristic-weight-min', key: 'heuristicWeightMin', type: 'number' },
+    { flag: '--selfplay-heuristic-weight-max', key: 'heuristicWeightMax', type: 'number' },
     { flag: '--selfplay-teacher-committee-weight-min', key: 'teacherCommitteeWeightMin', type: 'number' },
     { flag: '--selfplay-teacher-committee-weight-max', key: 'teacherCommitteeWeightMax', type: 'number' },
     { flag: '--selfplay-teacher-committee-consensus-bonus-min', key: 'teacherCommitteeConsensusBonusMin', type: 'number' },
@@ -271,6 +277,10 @@ function findLatestCheckpoint(modelsDir) {
     return candidates.length > 0 ? candidates[0].fullPath : null;
 }
 
+function usesPromotedOnlyGuideMode(trainCycleArgs) {
+    return Array.isArray(trainCycleArgs) && trainCycleArgs.includes('--selfplay-use-promoted-model-only');
+}
+
 function assertNoReservedArgs(passThrough) {
     for (let i = 0; i < passThrough.length; i++) {
         const token = String(passThrough[i] || '').trim();
@@ -428,8 +438,21 @@ function resolveTrainingProfile(profileRef, options) {
     fs.mkdirSync(modelsDir, { recursive: true });
     fs.mkdirSync(runDir, { recursive: true });
 
+    let profileTrainCycleArgs = ensureArrayOfStrings(profile.trainCycleArgs, 'profile.trainCycleArgs');
+    if (profile.syncCpuLv6SharedTeacher === true) {
+        const sharedTeacherProfile = loadCpuLv6SharedTeacherProfile(cwd);
+        if (sharedTeacherProfile) {
+            profileTrainCycleArgs = applySharedTeacherProfileArgs(profileTrainCycleArgs, sharedTeacherProfile);
+        }
+    }
+    const gateTrainCycleArgs = gate ? ensureArrayOfStrings(gate.trainCycleArgs, 'gate.trainCycleArgs') : [];
+    const promotedOnlyGuideMode = usesPromotedOnlyGuideMode(profileTrainCycleArgs)
+        || usesPromotedOnlyGuideMode(gateTrainCycleArgs);
+
     const bootstrapPlans = planBootstrapCopies(cwd, modelsDir, bootstrap);
-    const bootstrapActions = executeBootstrapPlans(bootstrapPlans, options || {});
+    const bootstrapActions = executeBootstrapPlans(bootstrapPlans, Object.assign({}, options || {}, {
+        refreshBootstrap: !!((options && options.refreshBootstrap) || promotedOnlyGuideMode)
+    }));
 
     const copiedPolicyTablePath = path.resolve(modelsDir, 'policy-table.json');
     let bootstrapPolicyModelPath = null;
@@ -442,6 +465,9 @@ function resolveTrainingProfile(profileRef, options) {
         }
     }
 
+    const autoResumeLatestCheckpointEnabled = bootstrap.autoResumeLatestCheckpoint === true
+        && !promotedOnlyGuideMode;
+
     let resumeCheckpointPath = null;
     if (bootstrap.resumeCheckpointPath) {
         const explicitCheckpoint = resolveMaybePath(cwd, bootstrap.resumeCheckpointPath);
@@ -449,18 +475,9 @@ function resolveTrainingProfile(profileRef, options) {
             resumeCheckpointPath = explicitCheckpoint;
         }
     }
-    if (!resumeCheckpointPath && bootstrap.autoResumeLatestCheckpoint === true) {
+    if (!resumeCheckpointPath && autoResumeLatestCheckpointEnabled) {
         resumeCheckpointPath = findLatestCheckpoint(modelsDir);
     }
-
-    let profileTrainCycleArgs = ensureArrayOfStrings(profile.trainCycleArgs, 'profile.trainCycleArgs');
-    if (profile.syncCpuLv6SharedTeacher === true) {
-        const sharedTeacherProfile = loadCpuLv6SharedTeacherProfile(cwd);
-        if (sharedTeacherProfile) {
-            profileTrainCycleArgs = applySharedTeacherProfileArgs(profileTrainCycleArgs, sharedTeacherProfile);
-        }
-    }
-    const gateTrainCycleArgs = gate ? ensureArrayOfStrings(gate.trainCycleArgs, 'gate.trainCycleArgs') : [];
 
     const generatedArgs = [
         '--python', docs.pythonPath,
@@ -522,7 +539,7 @@ function resolveTrainingProfile(profileRef, options) {
             actions: bootstrapActions,
             bootstrapPolicyModelPath,
             resumeCheckpointPath,
-            autoResumeLatestCheckpoint: bootstrap.autoResumeLatestCheckpoint === true
+            autoResumeLatestCheckpoint: autoResumeLatestCheckpointEnabled
         },
         preflight,
         command: {

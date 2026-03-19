@@ -41,6 +41,7 @@ function runStreamScenario() {
     "    roomId: 'SSE1',",
     "    playerName: 'くろ',",
     "    seed: 1,",
+    "    networkDebugEnabled: true,",
     "    roomDeck: { mode: 'shared', deckCode: 'D1C1:test_card*3', deckSize: 30, source: 'room' },",
     "    snapshot: {",
     "      gameState: {",
@@ -90,6 +91,7 @@ describe('match worker stream SSE', () => {
     expect(result.firstChunk).toContain('event: snapshot');
     expect(result.firstChunk).toContain('id: ');
     expect(result.firstChunk).toContain('data: ');
+    expect(result.firstChunk).toContain('"networkDebugEnabled":true');
     expect(result.firstChunk).toContain('"roomDeck":{"mode":"shared"');
   });
 });

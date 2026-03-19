@@ -121,6 +121,48 @@
             return JSON.parse(JSON.stringify(value));
         }
 
+        function emitTelemetry(type, details) {
+            if (typeof cfg.onTelemetry !== 'function') return;
+            try {
+                cfg.onTelemetry(type, details || {});
+            } catch (e) { /* ignore */ }
+        }
+
+        function sanitizeIncomingSnapshot(snapshot) {
+            if (!snapshot || typeof snapshot !== 'object') {
+                return { ok: false, reason: 'invalid_snapshot' };
+            }
+            if (!snapshot.gameState || typeof snapshot.gameState !== 'object') {
+                return { ok: false, reason: 'invalid_game_state' };
+            }
+            if (!snapshot.cardState || typeof snapshot.cardState !== 'object') {
+                return { ok: false, reason: 'invalid_card_state' };
+            }
+
+            const gameState = snapshot.gameState;
+            const cardState = snapshot.cardState;
+            const liveQueueCount = Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents.length : 0;
+            const persistentQueueCount = Array.isArray(cardState._presentationEventsPersist) ? cardState._presentationEventsPersist.length : 0;
+            const hadCurrentActionMeta = Object.prototype.hasOwnProperty.call(cardState, '_currentActionMeta');
+            const hadResultShown = Object.prototype.hasOwnProperty.call(gameState, '__resultShown');
+
+            if (liveQueueCount > 0 || persistentQueueCount > 0 || hadCurrentActionMeta || hadResultShown) {
+                emitTelemetry('snapshot_transient_state_stripped', {
+                    liveQueueCount,
+                    persistentQueueCount,
+                    hadCurrentActionMeta,
+                    hadResultShown
+                });
+            }
+
+            cardState.presentationEvents = [];
+            cardState._presentationEventsPersist = [];
+            delete cardState._currentActionMeta;
+            delete gameState.__resultShown;
+
+            return { ok: true, snapshot };
+        }
+
         function replaceObjectState(targetName, nextValue) {
             const source = cloneData(nextValue || {});
             const current = resolveGlobalObject(targetName);
@@ -359,14 +401,29 @@
             const state = resolveState();
             const shadowPlaybackEvents = Array.isArray(opts.shadowPlaybackEvents) ? opts.shadowPlaybackEvents : [];
 
-            if (!snapshot || typeof snapshot !== 'object') return false;
+            if (!snapshot || typeof snapshot !== 'object') {
+                emitTelemetry('snapshot_invalid_shape_rejected', { reason: 'invalid_snapshot' });
+                return false;
+            }
 
             const nextVersion = Number.isFinite(Number(snapshot.stateVersion))
                 ? Number(snapshot.stateVersion)
                 : null;
 
+            if (!opts.force && nextVersion === null) {
+                emitTelemetry('snapshot_missing_state_version_rejected', {
+                    force: false
+                });
+                return false;
+            }
+
             if (!opts.force && nextVersion !== null && state.stateVersion !== null && nextVersion <= state.stateVersion) {
                 if (opts.allowStaleShadowPlayback === true && shadowPlaybackEvents.length > 0) {
+                    emitTelemetry('snapshot_shadow_playback_emitted', {
+                        nextVersion,
+                        currentVersion: state.stateVersion,
+                        shadowPlaybackCount: shadowPlaybackEvents.length
+                    });
                     emitPlaybackEvents(shadowPlaybackEvents, {
                         source: opts.shadowPlaybackSource || 'self_snapshot_sync',
                         suppressPlayback: true
@@ -375,10 +432,21 @@
                     refreshUi();
                     return true;
                 }
+                emitTelemetry('snapshot_stale_rejected', {
+                    nextVersion,
+                    currentVersion: state.stateVersion,
+                    force: false
+                });
                 return false;
             }
 
-            if (!snapshot.gameState || !snapshot.cardState) return false;
+            const sanitizedSnapshot = sanitizeIncomingSnapshot(snapshot);
+            if (!sanitizedSnapshot.ok) {
+                emitTelemetry('snapshot_invalid_shape_rejected', {
+                    reason: sanitizedSnapshot.reason || 'invalid_snapshot'
+                });
+                return false;
+            }
 
             const preservedQueues = captureTransientPresentationQueues(resolveGlobalObject('cardState'));
             const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];

@@ -1,0 +1,292 @@
+{
+  "generatedAt": "2026-03-16T12:52:51.145Z",
+  "config": {
+    "games": 20,
+    "baseSeed": 1,
+    "maxPlies": 220,
+    "allowCardUsage": true,
+    "cardUsageRate": 0.35
+  },
+  "summary": {
+    "available": 428,
+    "miss": 16,
+    "standardAvailable": 310,
+    "standardMiss": 0,
+    "nonstandardAvailable": 118,
+    "nonstandardMiss": 16
+  },
+  "worst": [
+    {
+      "seed": 1,
+      "ply": 53,
+      "playerKey": "white",
+      "row": 1,
+      "col": 2,
+      "future": null,
+      "standard": false,
+      "board": "..B.B.W../#.B.BBB../#BBBW.B.W/#B.WWBBWW/#BBBBBB.W/#B.BBBBBW/#..WB.WWW/#..WWWWWW/#########",
+      "safeEdges": [
+        {
+          "row": 1,
+          "col": 0,
+          "flips": 1
+        }
+      ]
+    },
+    {
+      "seed": 1,
+      "ply": 55,
+      "playerKey": "white",
+      "row": 6,
+      "col": 4,
+      "future": null,
+      "standard": false,
+      "board": "..BBB.W../#.BBBBB../#BBBW.B.W/#B.BWBBWW/#BBBBBB.W/#B.BBBBBW/#..WB.WWW/#..WWWWWW/#########",
+      "safeEdges": [
+        {
+          "row": 1,
+          "col": 0,
+          "flips": 4
+        }
+      ]
+    },
+    {
+      "seed": 1,
+      "ply": 59,
+      "playerKey": "white",
+      "row": 3,
+      "col": 1,
+      "future": null,
+      "standard": false,
+      "board": "..BBBBBB./#.BBBWB../#BBBBWB.W/#B.BBWBWW/#BBBBWB.W/#B.BBWBBW/#..WWWWWW/#..WWWWWW/#########",
+      "safeEdges": [
+        {
+          "row": 1,
+          "col": 0,
+          "flips": 6
+        }
+      ]
+    },
+    {
+      "seed": 1,
+      "ply": 61,
+      "playerKey": "white",
+      "row": 4,
+      "col": 6,
+      "future": null,
+      "standard": false,
+      "board": "..BBBBBB./#.BBBWB../#BBBBBB.W/#BWWBWBWW/#BBBBWB.W/#BBBWWBBW/#..WWWWWW/#..WWWWWW/#########",
+      "safeEdges": [
+        {
+          "row": 1,
+          "col": 0,
+          "flips": 4
+        }
+      ]
+    },
+    {
+      "seed": 1,
+      "ply": 67,
+      "playerKey": "white",
+      "row": 6,
+      "col": 1,
+      "future": null,
+      "standard": false,
+      "board": "..BB#BBB./#.BBBWB../#BBBBBB.W/#BWWBWBWW/#BBBBBWWW/#BBBBWWWW/#..BWWWWW/#WWWWWWWW/#########",
+      "safeEdges": [
+        {
+          "row": 1,
+          "col": 0,
+          "flips": 4
+        }
+      ]
+    },
+    {
+      "seed": 1,
+      "ply": 69,
+      "playerKey": "white",
+      "row": 2,
+      "col": 6,
+      "future": null,
+      "standard": false,
+      "board": "..BB#BBB./#.BBBWB../#BBBBBB.W/#BWWBWBWW/#BWBWBWWW/#BBWBWWWW/#BWWWWWWW/#WWWWWWWW/#########",
+      "safeEdges": [
+        {
+          "row": 1,
+          "col": 0,
+          "flips": 9
+        }
+      ]
+    },
+    {
+      "seed": 1,
+      "ply": 73,
+      "playerKey": "white",
+      "row": 0,
+      "col": 0,
+      "future": null,
+      "standard": false,
+      "board": "..BB#BBB./#.BBBWB../#BBBBBBWW/#BWWBWWWW/#BWBWWWWW/#BBWWWWWW/#BWWWWWWW/#WWWWWWWW/#########",
+      "safeEdges": [
+        {
+          "row": 1,
+          "col": 0,
+          "flips": 9
+        }
+      ]
+    },
+    {
+      "seed": 8,
+      "ply": 71,
+      "playerKey": "white",
+      "row": 2,
+      "col": 5,
+      "future": null,
+      "standard": false,
+      "board": "#WWWWWWW./B.W.WWW../#BBBWB.WB/#BBBBB.BB/#BBB...../#...W..../#W.W...../#.W.....W/#########",
+      "safeEdges": [
+        {
+          "row": 5,
+          "col": 0,
+          "flips": 2
+        }
+      ]
+    },
+    {
+      "seed": 8,
+      "ply": 75,
+      "playerKey": "white",
+      "row": 5,
+      "col": 1,
+      "future": null,
+      "standard": false,
+      "board": "#WWWWWWW./B.W.WWW../#BBBWWWWB/#BBBBB.WB/#BBB....B/#...B...B/#W.W.B.../#.W.....W/#########",
+      "safeEdges": [
+        {
+          "row": 5,
+          "col": 0,
+          "flips": 2
+        }
+      ]
+    },
+    {
+      "seed": 18,
+      "ply": 42,
+      "playerKey": "black",
+      "row": 3,
+      "col": 1,
+      "future": null,
+      "standard": false,
+      "board": "..BWB..../#.WWB..../#WWWB.W../#W..WB.../#WWWWWBBB/#W.B...B./#..BWB.../#..B.B.../#########",
+      "safeEdges": [
+        {
+          "row": 1,
+          "col": 0,
+          "flips": 2
+        }
+      ]
+    },
+    {
+      "seed": 18,
+      "ply": 45,
+      "playerKey": "white",
+      "row": 6,
+      "col": 7,
+      "future": null,
+      "standard": false,
+      "board": "..BBBBB../#.BWW..../#WBWB.W../#WW.WB.../#WWWWWBBB/#W.B...B./#..BWB.../#..B.B.../#########",
+      "safeEdges": [
+        {
+          "row": 1,
+          "col": 0,
+          "flips": 1
+        }
+      ]
+    },
+    {
+      "seed": 18,
+      "ply": 55,
+      "playerKey": "white",
+      "row": 2,
+      "col": 4,
+      "future": null,
+      "standard": false,
+      "board": "..BBBBB../#.BBBB.../#WBBB.W../#WWWBW.W./#WWWBBWWB/#WWWB.BB./#..WWBB.W/#..BWWW../#########",
+      "safeEdges": [
+        {
+          "row": 1,
+          "col": 0,
+          "flips": 1
+        }
+      ]
+    },
+    {
+      "seed": 18,
+      "ply": 58,
+      "playerKey": "black",
+      "row": 1,
+      "col": 5,
+      "future": null,
+      "standard": false,
+      "board": "..BBBBB../#.BBBB.../#WWWWWW../#WWWWWWWB/#WWWBWWBB/#WWWW.BB./#..WWBB.W/#..BWWW../#########",
+      "safeEdges": [
+        {
+          "row": 1,
+          "col": 0,
+          "flips": 2
+        }
+      ]
+    },
+    {
+      "seed": 18,
+      "ply": 59,
+      "playerKey": "white",
+      "row": 5,
+      "col": 4,
+      "future": null,
+      "standard": false,
+      "board": "..BBBBB../#.BBBBB../#WWWWWB../#WWWWWBWB/#WWWBWBBB/#WWWW.BB./#..WWBB.W/#..BWWW../#########",
+      "safeEdges": [
+        {
+          "row": 5,
+          "col": 7,
+          "flips": 2
+        }
+      ]
+    },
+    {
+      "seed": 18,
+      "ply": 61,
+      "playerKey": "white",
+      "row": 2,
+      "col": 6,
+      "future": null,
+      "standard": false,
+      "board": "..BBBBB../#.BBBBB../#WWWWWB.B/#WWWWWBBB/#WWWWWBBB/#WWWWBBB./#..WBBB.W/#..BWWW../#########",
+      "safeEdges": [
+        {
+          "row": 5,
+          "col": 7,
+          "flips": 5
+        }
+      ]
+    },
+    {
+      "seed": 18,
+      "ply": 62,
+      "playerKey": "black",
+      "row": 7,
+      "col": 6,
+      "future": null,
+      "standard": false,
+      "board": "..BBBBB../#.BBBBB../#WWWWWWWB/#WWWWWWBB/#WWWWWBBB/#WWWWBBB./#..WBBB.W/#..BWWW../#########",
+      "safeEdges": [
+        {
+          "row": 1,
+          "col": 0,
+          "flips": 3
+        }
+      ]
+    }
+  ]
+}

@@ -20,6 +20,8 @@ const SharedCardHeuristics = (() => {
         return null;
     }
 })();
+const THROW_CHAIN_CARD_TYPES = Object.freeze(['DOUBLE_PLACE', 'TRIPLE_PLACE', 'QUAD_PLACE', 'INFINITE_PLACE']);
+const CHAIN_WILL_CARD_TYPES = Object.freeze(['DOUBLE_CHAIN_WILL', 'TRIPLE_CHAIN_WILL', 'QUAD_CHAIN_WILL', 'INFINITE_CHAIN_WILL']);
 
 const DEFENSIVE_CARD_TYPES = new Set([
     'PROTECTED_NEXT_STONE',
@@ -42,12 +44,13 @@ const HIGH_VARIANCE_CARD_TYPES = new Set([
     'ULTIMATE_REVERSE_DRAGON',
     'ULTIMATE_DESTROY_GOD',
     'ULTIMATE_HYPERACTIVE_GOD',
-    'DOUBLE_PLACE',
-    'CHAIN_WILL',
+    ...THROW_CHAIN_CARD_TYPES,
+    ...CHAIN_WILL_CARD_TYPES,
     'TEMPT_WILL',
     'POSITION_SWAP_WILL',
     'SWAP_WITH_ENEMY',
     'TIME_BOMB',
+    'TIME_STOP_GOD',
     'CROSS_BOMB',
     'X_BOMB',
     'BREEDING_WILL',
@@ -151,6 +154,7 @@ const CHARGE_RAMP_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeurist
         'GOLD_STONE',
         'RAINBOW_STONE',
         'SILVER_STONE',
+        'CRYSTAL_STONE',
         'SELL_CARD_WILL',
         'PLUNDER_WILL',
         'CORNER_TRIBUTE',
@@ -175,14 +179,6 @@ const REBUILD_KEEP_PRIORITY_CARD_TYPES = new Set([
     'LAST_RESORT',
     'HEAVEN_BLESSING',
     'CONDEMN_WILL'
-]);
-
-const REBUILD_CORNER_EMERGENCY_ALT_CARD_TYPES = new Set([
-    'SACRIFICE_WILL',
-    'TABOO_REVERSE_WILL',
-    'HYPERACTIVE_WILL',
-    'INSTANT_HYPERACTIVE_WILL',
-    'EXTREME_HYPERACTIVE_WILL'
 ]);
 
 const STABILITY_CARD_TYPES = new Set([
@@ -222,7 +218,7 @@ const SWING_CARD_TYPES = new Set([
     'BOARD_EXPANSION_GOD',
     'CLONE_WILL',
     'SACRIFICE_WILL',
-    'CHAIN_WILL',
+    ...CHAIN_WILL_CARD_TYPES,
     'TELEPORT_WILL',
     'CELL_TELEPORT_WILL',
     'HYPERACTIVE_INHERIT_WILL',
@@ -269,6 +265,7 @@ const LONG_HORIZON_CARD_TYPES = new Set([
     'ULTIMATE_DESTROY_GOD',
     'ULTIMATE_REVERSE_DRAGON',
     'ULTIMATE_HYPERACTIVE_GOD',
+    'TIME_STOP_GOD',
     'OBSERVER_WILL',
     'RIBO_WILL',
     'ROBOT_VACUUM_WILL',
@@ -294,7 +291,7 @@ const WHITE_LV6_CORNER_SWING_KEEP_TYPES = new Set([
 ]);
 
 const WHITE_LV6_FAST_ROTATE_TYPES = new Set([
-    'CHAIN_WILL',
+    ...CHAIN_WILL_CARD_TYPES,
     'DOUBLE_PLACE',
     'BREEDING_WILL',
     'CLONE_WILL',
@@ -307,10 +304,14 @@ const WHITE_LV6_FAST_ROTATE_TYPES = new Set([
 
 const WHITE_LV6_DESTROY_WHEN_AHEAD_TYPES = new Set([
     'TIME_BOMB',
+    'TIME_STOP_GOD',
     'LAST_RESORT',
     'SACRIFICE_WILL',
     'DOUBLE_PLACE',
-    'CHAIN_WILL',
+    'TRIPLE_PLACE',
+    'QUAD_PLACE',
+    'INFINITE_PLACE',
+    ...CHAIN_WILL_CARD_TYPES,
     'CROSS_BOMB',
     'X_BOMB',
     'HYPERACTIVE_WILL',
@@ -344,7 +345,10 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     BOARD_EXPANSION_GOD: -3,
     BOARD_EXPANSION_WILL: -2,
     BREEDING_WILL: 0,
-    CHAIN_WILL: 4,
+    DOUBLE_CHAIN_WILL: 4,
+    TRIPLE_CHAIN_WILL: 6,
+    QUAD_CHAIN_WILL: 8,
+    INFINITE_CHAIN_WILL: 6,
     CLONE_WILL: -1,
     CELL_TELEPORT_WILL: -4,
     CONDEMN_WILL: 4,
@@ -362,6 +366,7 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     FREE_PLACEMENT: 2,
     GLUTTONOUS_WILL: 3,
     GOLD_STONE: 12,
+    CRYSTAL_STONE: 10,
     RAINBOW_STONE: 16,
     GUARD_WILL: 12,
     GUARDIAN_GOD: 14,
@@ -397,6 +402,7 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     TELEPORT_WILL: -1,
     TEMPT_WILL: 5,
     TIME_BOMB: -2,
+    TIME_STOP_GOD: -4,
     TRAP_WILL: 2,
     TREASURE_BOX: 14,
     ULTIMATE_DESTROY_GOD: 3,
@@ -413,7 +419,10 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'BOARD_EXPANSION_GOD',
     'BOARD_EXPANSION_WILL',
     'BREEDING_WILL',
-    'CHAIN_WILL',
+    'DOUBLE_CHAIN_WILL',
+    'TRIPLE_CHAIN_WILL',
+    'QUAD_CHAIN_WILL',
+    'INFINITE_CHAIN_WILL',
     'CELL_TELEPORT_WILL',
     'CLONE_WILL',
     'CONDEMN_WILL',
@@ -468,6 +477,7 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'TELEPORT_WILL',
     'TEMPT_WILL',
     'TIME_BOMB',
+    'TIME_STOP_GOD',
     'TRAP_WILL',
     'TREASURE_BOX',
     'ULTIMATE_DESTROY_GOD',
@@ -485,7 +495,10 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     BOARD_EXPANSION_GOD: { trailingBias: 6, handPressureBias: 6, cornerNowBias: -6 },
     BOARD_EXPANSION_WILL: { trailingBias: 4, handPressureBias: 4, cornerNowBias: -6 },
     BREEDING_WILL: { openingBias: 6, midLateBias: 4, endgameBias: -6, handPressureBias: 3 },
-    CHAIN_WILL: { trailingBias: 6, lowMobilityBias: 6, leadBias: -4, cornerNowBias: -4 },
+    DOUBLE_CHAIN_WILL: { trailingBias: 6, lowMobilityBias: 6, leadBias: -4, cornerNowBias: -4 },
+    TRIPLE_CHAIN_WILL: { trailingBias: 8, lowMobilityBias: 8, leadBias: -6, cornerNowBias: -6 },
+    QUAD_CHAIN_WILL: { trailingBias: 10, lowMobilityBias: 10, leadBias: -8, cornerNowBias: -8, handPressureBias: 2 },
+    INFINITE_CHAIN_WILL: { trailingBias: 12, lowMobilityBias: 12, leadBias: -10, cornerNowBias: -10, handPressureBias: 4, endgameBias: 2 },
     CLONE_WILL: { midLateBias: 4, cornerNowBias: 4, endgameBias: -4 },
     CONDEMN_WILL: { trailingBias: 2, handPressureBias: 4, cornerNowBias: -2 },
     CORNER_TRIBUTE: { trailingBias: 8, cornerEmergencyBias: 8, leadBias: -6, handPressureBias: 2 },
@@ -504,6 +517,7 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     FREEZE_WILL: { leadBias: 4, cornerNowBias: 2, edgeEmergencyBias: 2, endgameBias: -2 },
     GLUTTONOUS_WILL: { trailingBias: 4, cornerNowBias: 4, leadBias: -4 },
     GOLD_STONE: { openingBias: 4, handPressureBias: 2, cornerNowBias: 2 },
+    CRYSTAL_STONE: { openingBias: 4, handPressureBias: 2, cornerNowBias: 1 },
     RAINBOW_STONE: { openingBias: 6, handPressureBias: 4, cornerNowBias: 4 },
     GUARDIAN_GOD: { leadBias: 4, cornerNowBias: 4, cornerEmergencyBias: 2 },
     GUARD_WILL: { leadBias: 4, cornerNowBias: 4 },
@@ -539,6 +553,7 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     CELL_TELEPORT_WILL: { trailingBias: 6, edgeEmergencyBias: 4, cornerNowBias: -6, leadBias: -4 },
     TEMPT_WILL: { trailingBias: 4, edgeEmergencyBias: 4, cornerNowBias: -4 },
     TIME_BOMB: { trailingBias: 4, cornerEmergencyBias: 4, leadBias: -4 },
+    TIME_STOP_GOD: { leadBias: -8, trailingBias: 8, midLateBias: 6, endgameBias: -8, cornerNowBias: 2, cornerEmergencyBias: 6, lowMobilityBias: 4, handPressureBias: 2 },
     TRAP_WILL: { edgeEmergencyBias: 4, cornerEmergencyBias: 2, cornerNowBias: -2 },
     TREASURE_BOX: { openingBias: 4, handPressureBias: 4, cornerNowBias: -4 },
     ULTIMATE_DESTROY_GOD: { trailingBias: 6, cornerNowBias: 4, leadBias: -4 },
@@ -638,6 +653,7 @@ function buildCardTypeUsageStyle() {
 
     patch([
         'GOLD_STONE',
+        'CRYSTAL_STONE',
         'RAINBOW_STONE',
         'SILVER_STONE',
         'PLUNDER_WILL',
@@ -669,7 +685,7 @@ function buildCardTypeUsageStyle() {
         'INSTANT_HYPERACTIVE_WILL',
         'EXTREME_HYPERACTIVE_WILL',
         'HYPERACTIVE_INHERIT_WILL',
-        'CHAIN_WILL',
+        ...CHAIN_WILL_CARD_TYPES,
         'DOUBLE_PLACE',
         'TRIPLE_PLACE',
         'QUAD_PLACE',
@@ -865,7 +881,10 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     BOARD_EXPANSION_GOD: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 4, edgeBias: 3, emptyAdjBias: 3 },
     BOARD_EXPANSION_WILL: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 2, edgeBias: 4, emptyAdjBias: 3 },
     BREEDING_WILL: { archetype: 'spawnMobile', placementWeight: 3, cornerBias: -1, oppAdjBias: 2 },
-    CHAIN_WILL: { archetype: 'explosiveComeback', placementWeight: 2, flipBias: 4, oppAdjBias: 3 },
+    DOUBLE_CHAIN_WILL: { archetype: 'explosiveComeback', placementWeight: 2, flipBias: 4, oppAdjBias: 3 },
+    TRIPLE_CHAIN_WILL: { archetype: 'explosiveComeback', placementWeight: 2, flipBias: 5, oppAdjBias: 4, bonusBias: 1 },
+    QUAD_CHAIN_WILL: { archetype: 'explosiveComeback', placementWeight: 2, flipBias: 6, oppAdjBias: 5, bonusBias: 2 },
+    INFINITE_CHAIN_WILL: { archetype: 'explosiveComeback', placementWeight: 2, flipBias: 7, oppAdjBias: 6, bonusBias: 3, stabilityBias: -1 },
     CLONE_WILL: { archetype: 'spawnMobile', placementWeight: 0, ownAdjBias: 1, edgeBias: 2 },
     CONDEMN_WILL: { archetype: 'economyCycle', placementWeight: 0 },
     CORROSION_WILL: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 3, oppAdjBias: 2 },
@@ -883,6 +902,7 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     FREEZE_WILL: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 2, edgeBias: 2, stabilityBias: 3, oppAdjBias: 1 },
     GLUTTONOUS_WILL: { archetype: 'spawnMobile', placementWeight: 3, cornerBias: 2, edgeBias: 2, oppAdjBias: 3, stabilityBias: 2 },
     GOLD_STONE: { archetype: 'economyCycle', placementWeight: 2, bonusBias: 4, flipBias: 4, stabilityBias: -1 },
+    CRYSTAL_STONE: { archetype: 'economyCycle', placementWeight: 2, bonusBias: 8, flipBias: 0, stabilityBias: -1 },
     RAINBOW_STONE: { archetype: 'economyCycle', placementWeight: 2, bonusBias: 6, flipBias: 6, stabilityBias: -2 },
     GUARDIAN_GOD: { archetype: 'anchorProtect', placementWeight: 0, cornerBias: 4, stabilityBias: 4 },
     GUARD_WILL: { archetype: 'anchorProtect', placementWeight: 0, edgeBias: 3, ownAdjBias: 3 },
@@ -918,6 +938,7 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     TELEPORT_WILL: { archetype: 'recoveryReposition', placementWeight: 0, mobilityBias: 3, emptyAdjBias: 3, xPenalty: 1 },
     TEMPT_WILL: { archetype: 'recoveryReposition', placementWeight: 0, cornerBias: 4, edgeBias: 3, stabilityBias: 0 },
     TIME_BOMB: { archetype: 'explosiveComeback', placementWeight: 0, cornerBias: -2, oppAdjBias: 3, stabilityBias: -1 },
+    TIME_STOP_GOD: { archetype: 'anchorEngine', placementWeight: 3, cornerBias: 5, edgeBias: 4, innerBias: -2, emptyAdjBias: -1, ownAdjBias: 3, oppAdjBias: -1, stabilityBias: 6 },
     TRAP_WILL: { archetype: 'controlBoard', placementWeight: 0, cornerBias: -2, oppAdjBias: 3, ownAdjBias: -2, stabilityBias: -2 },
     TREASURE_BOX: { archetype: 'economyCycle', placementWeight: 0, bonusBias: 1, flipBias: 1 },
     ULTIMATE_DESTROY_GOD: { archetype: 'anchorEngine', placementWeight: 3, oppAdjBias: 3, flipBias: 2, stabilityBias: -1 },
@@ -1182,6 +1203,14 @@ function buildCardDecisionContext(context) {
     const oppSpecialCount = Number.isFinite(ctx.oppSpecialCount) ? Math.max(0, Math.floor(ctx.oppSpecialCount)) : 0;
     const ownGuardCount = Number.isFinite(ctx.ownGuardCount) ? Math.max(0, Math.floor(ctx.ownGuardCount)) : 0;
     const oppGuardCount = Number.isFinite(ctx.oppGuardCount) ? Math.max(0, Math.floor(ctx.oppGuardCount)) : 0;
+    const ownCornerResetCount = Number.isFinite(ctx.ownCornerResetCount) ? Math.max(0, Math.floor(ctx.ownCornerResetCount)) : 0;
+    const oppCornerResetCount = Number.isFinite(ctx.oppCornerResetCount) ? Math.max(0, Math.floor(ctx.oppCornerResetCount)) : 0;
+    const ownEdgeResetCount = Number.isFinite(ctx.ownEdgeResetCount) ? Math.max(0, Math.floor(ctx.ownEdgeResetCount)) : 0;
+    const oppEdgeResetCount = Number.isFinite(ctx.oppEdgeResetCount) ? Math.max(0, Math.floor(ctx.oppEdgeResetCount)) : 0;
+    const meteorBestCornerSwing = Number.isFinite(ctx.meteorBestCornerSwing) ? Number(ctx.meteorBestCornerSwing) : 0;
+    const meteorBestDestroyValue = Number.isFinite(ctx.meteorBestDestroyValue) ? Number(ctx.meteorBestDestroyValue) : 0;
+    const meteorHasCornerPromotion = ctx.meteorHasCornerPromotion === true;
+    const meteorHasHighValueDestroy = ctx.meteorHasHighValueDestroy === true;
     const sacrificeSelectedCount = Number.isFinite(ctx.sacrificeSelectedCount)
         ? Math.max(0, Math.floor(ctx.sacrificeSelectedCount))
         : 0;
@@ -1265,6 +1294,14 @@ function buildCardDecisionContext(context) {
         oppSpecialCount,
         ownGuardCount,
         oppGuardCount,
+        ownCornerResetCount,
+        oppCornerResetCount,
+        ownEdgeResetCount,
+        oppEdgeResetCount,
+        meteorBestCornerSwing,
+        meteorBestDestroyValue,
+        meteorHasCornerPromotion,
+        meteorHasHighValueDestroy,
         sacrificeSelectedCount,
         whiteLv6Mode,
         lowDiscEmergency,
@@ -1282,9 +1319,10 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const isChargeRampCard = isChargeRampCardType(cardType);
     const isWorkWill = cardType === 'WORK_WILL';
     const isTimeBomb = cardType === 'TIME_BOMB';
+    const isTimeStopGod = cardType === 'TIME_STOP_GOD';
     const isSacrificeWill = cardType === 'SACRIFICE_WILL';
-    const isDoublePlace = cardType === 'DOUBLE_PLACE';
-    const isChainWill = cardType === 'CHAIN_WILL';
+    const isThrowChainCard = THROW_CHAIN_CARD_TYPES.includes(cardType);
+    const isChainWill = CHAIN_WILL_CARD_TYPES.includes(cardType);
     const isLastResort = cardType === 'LAST_RESORT';
     const isFreePlacement = (cardType === 'FREE_PLACEMENT' || cardType === 'LAST_RESORT');
     const isSniperWill = cardType === 'SNIPER_WILL';
@@ -1350,6 +1388,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         cardType === 'SELL_CARD_WILL' ||
         cardType === 'PLUNDER_WILL' ||
         cardType === 'GOLD_STONE' ||
+        cardType === 'CRYSTAL_STONE' ||
         cardType === 'RAINBOW_STONE' ||
         cardType === 'SILVER_STONE'
     );
@@ -1378,6 +1417,10 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const oppSpecialCount = Number.isFinite(ctx.oppSpecialCount) ? Math.max(0, Math.floor(ctx.oppSpecialCount)) : 0;
     const ownGuardCount = Number.isFinite(ctx.ownGuardCount) ? Math.max(0, Math.floor(ctx.ownGuardCount)) : 0;
     const oppGuardCount = Number.isFinite(ctx.oppGuardCount) ? Math.max(0, Math.floor(ctx.oppGuardCount)) : 0;
+    const ownCornerResetCount = Number.isFinite(ctx.ownCornerResetCount) ? Math.max(0, Math.floor(ctx.ownCornerResetCount)) : 0;
+    const oppCornerResetCount = Number.isFinite(ctx.oppCornerResetCount) ? Math.max(0, Math.floor(ctx.oppCornerResetCount)) : 0;
+    const ownEdgeResetCount = Number.isFinite(ctx.ownEdgeResetCount) ? Math.max(0, Math.floor(ctx.ownEdgeResetCount)) : 0;
+    const oppEdgeResetCount = Number.isFinite(ctx.oppEdgeResetCount) ? Math.max(0, Math.floor(ctx.oppEdgeResetCount)) : 0;
     const handCardIds = Array.isArray(ctx.handCardIds) ? ctx.handCardIds : [];
     const usableCardIds = Array.isArray(ctx.usableCardIds) ? ctx.usableCardIds : [];
     const deckRemaining = Number.isFinite(ctx.deckRemaining) ? Math.max(0, Math.floor(ctx.deckRemaining)) : null;
@@ -1397,6 +1440,8 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     }
     const edgeDiff = ownEdges - oppEdges;
     const cornerDiff = ownCorners - oppCorners;
+    const ownAnchorResetWeight = (ownCornerResetCount * 2) + ownEdgeResetCount;
+    const oppAnchorResetWeight = (oppCornerResetCount * 2) + oppEdgeResetCount;
     const strategicDiff = Number(ctx.discDiff || 0) + (cornerDiff * 4) + edgeDiff;
     const handPressureLevel = Math.max(0, ctx.handSize - 2);
     const chargePressureLevel = ctx.ownCharge >= 40 ? 2 : (ctx.ownCharge >= 28 ? 1 : 0);
@@ -1469,6 +1514,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         ((isGoldStone || isRainbowStone || isSilverStone) &&
             maxLegalFlips >= 3 &&
             maxLegalGain >= 3) ||
+        (isCrystalStone && maxLegalBoardBonus >= 2) ||
         (isPlunderWill &&
             maxLegalFlips >= 3 &&
             maxLegalGain >= 3 &&
@@ -1482,7 +1528,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (isChargeRampCard && !isWorkWill) reservePenalty *= 0.45;
         if (highYieldChargeRecovery) reservePenalty *= 0.25;
         if (isHoldCard || isRecoveryCard) reservePenalty *= 0.35;
-        if (cornerEmergency && (isHoldCard || isRecoveryCard || isTimeBomb)) reservePenalty *= 0.25;
+        if (cornerEmergency && (isHoldCard || isRecoveryCard || isTimeBomb || isTimeStopGod)) reservePenalty *= 0.25;
         score -= reservePenalty;
     }
 
@@ -1557,7 +1603,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
                 isWorkWill
             )
         ) score += 138;
-        if ((isDoublePlace || isChainWill) && !cornerEmergency) score -= 180;
+        if ((isThrowChainCard || isChainWill) && !cornerEmergency) score -= 180;
         if (cardCyclePressure > 0 && (isStabilityCard || isChargeRampCard || isSellLikeCard || isEdgeContestCard || isWorkWill || isObserverWill || isDestroyDragonWill || isRebuildWill)) {
             score += cardCyclePressure * 8;
         }
@@ -1575,8 +1621,9 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         }
         if (
             mobilityPressureLevel >= 2 &&
-            maxLegalFlips >= 4 &&
-            (isGoldStone || isRainbowStone || isSilverStone || isGluttonousWill)
+            ((maxLegalFlips >= 4 && (isGoldStone || isRainbowStone || isSilverStone)) ||
+                (maxLegalBoardBonus >= 2 && isCrystalStone) ||
+                isGluttonousWill)
         ) {
             score += 84;
         }
@@ -1756,10 +1803,6 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         } else if (maxLegalBoardBonus === 1) {
             score -= 180;
             if (whiteLv6Mode && setupBudgetTight) score -= 48;
-        } else if (maxLegalBoardBonus === 2) {
-            score -= 180;
-            if (whiteLv6Mode) score -= 60;
-            if (setupBudgetTight) score -= 48;
         } else if (maxLegalBoardBonus >= 3) {
             score += 132;
         } else {
@@ -1858,7 +1901,6 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (trailingHard) score += 68;
         else if (trailing) score += 30;
         if (edgeEmergency) score += 26;
-        if (!cornerEmergency && !leadStable && hasEdgeMoveNow && edgeDiff <= -1 && mobilityPressureLevel >= 2) score += 24;
         if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 46;
         if (leadStable && !ctx.forceUseCard) score -= 78;
         if (endgamePhase && leadStable) score -= 28;
@@ -1901,7 +1943,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (leadStable && !cornerEmergency && !ctx.forceUseCard && lowFlipMargin) score -= 36;
     }
 
-    if (isDoublePlace) {
+    if (isThrowChainCard) {
         score -= 26;
         if (trailingHard || cornerEmergency) score += 84;
         else if (trailing) score += 32;
@@ -2202,7 +2244,6 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (cornerEmergency || trailingHard) score += 96;
         else if (trailing) score += 34;
         if (edgeEmergency) score += 26;
-        if (openingPhase && !cornerEmergency && !ctx.forceUseCard) score -= 72;
         if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 48;
         if (leadStable && !ctx.forceUseCard) score -= 108;
         if (endgamePhase) score -= 78;
@@ -2243,9 +2284,21 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 42;
         if (endgamePhase && leadStable) score -= 60;
         if (ctx.ownCharge <= (cardCost + 6) && !ctx.forceUseCard) score -= 70;
-        if (cornerEmergency && !hasCornerMoveNow && !hasEdgeMoveNow && !highBonusMoveAvailable) score -= 96;
-        if (!highBonusMoveAvailable && !hasCornerMoveNow && !hasEdgeMoveNow && ctx.legalMovesCount <= 2) score -= 180;
-        if (ctx.forceUseCard && cornerEmergency && !hasCornerMoveNow && !hasEdgeMoveNow && !highBonusMoveAvailable) score -= 560;
+        if (ctx.meteorBestCornerSwing > 0) score += Math.min(180, ctx.meteorBestCornerSwing * 75);
+        if (ctx.meteorBestDestroyValue > 0) score += Math.min(220, ctx.meteorBestDestroyValue * 0.22);
+        const meteorHasGoodTarget = (
+            ctx.meteorHasCornerPromotion === true ||
+            ctx.meteorHasHighValueDestroy === true ||
+            ctx.meteorBestCornerSwing > 0 ||
+            ctx.meteorBestDestroyValue >= 320
+        );
+        if (!highBonusMoveAvailable && !meteorHasGoodTarget) {
+            if (cornerEmergency && !hasCornerMoveNow && !hasEdgeMoveNow) {
+                score -= ctx.forceUseCard ? 920 : 220;
+            } else if (!ctx.forceUseCard) {
+                score -= 90;
+            }
+        }
     }
 
     // In stable lead, avoid spending swing/high-variance cards unless emergency.
@@ -2257,13 +2310,28 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
 
     if (isLossWill) {
         const specialDiff = oppSpecialCount - ownSpecialCount;
+        const anchorResetDiff = oppAnchorResetWeight - ownAnchorResetWeight;
         score -= 38;
         score += specialDiff * 52;
+        score += anchorResetDiff * 44;
         if (oppSpecialCount <= 0 && ownSpecialCount <= 0) score -= 180;
         if (oppSpecialCount <= 0) score -= 90;
         if (specialDiff >= 2) score += 70;
         if (specialDiff <= -1) score -= 210;
+        if (oppCornerResetCount > 0) score += (oppCornerResetCount * 56);
+        if (ownCornerResetCount > 0) score -= (ownCornerResetCount * 150);
+        if (ownEdgeResetCount > 0) score -= (ownEdgeResetCount * 48);
         if (cornerEmergency && oppSpecialCount > 0) score += 28;
+        if (!ctx.forceUseCard && !cornerEmergency && ownAnchorResetWeight > 0 && anchorResetDiff <= 0) score -= 180;
+        if (!ctx.forceUseCard && ownCornerResetCount > 0 && oppCornerResetCount < ownCornerResetCount) score -= 220;
+        if (
+            !ctx.forceUseCard &&
+            ownAnchorResetWeight > 0 &&
+            specialDiff <= 2 &&
+            oppAnchorResetWeight <= ownAnchorResetWeight
+        ) {
+            score -= 110;
+        }
         if (leadStable && specialDiff <= 0) score -= 45;
         if (endgamePhase && specialDiff <= 1) score -= 30;
         if (ownGuardCount > 0 && oppGuardCount <= ownGuardCount) score -= 20;
@@ -2286,8 +2354,6 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     if (isRebuildWill) {
         let keepPriorityCount = 0;
         let highVarianceInHandCount = 0;
-        let cornerEmergencyAltCount = 0;
-        const usableSet = new Set(usableCardIds);
         for (const handId of handCardIds) {
             if (!handId || handId === cardId) continue;
             const handDef = typeof getCardDef === 'function' ? (getCardDef(handId) || null) : null;
@@ -2296,9 +2362,6 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
             if (REBUILD_KEEP_PRIORITY_CARD_TYPES.has(handType)) keepPriorityCount += 1;
             if (HIGH_VARIANCE_CARD_TYPES.has(handType) || handType === 'SACRIFICE_WILL' || handType === 'TIME_BOMB') {
                 highVarianceInHandCount += 1;
-            }
-            if (usableSet.has(handId) && REBUILD_CORNER_EMERGENCY_ALT_CARD_TYPES.has(handType)) {
-                cornerEmergencyAltCount += 1;
             }
         }
 
@@ -2319,18 +2382,6 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
 
         if (ctx.discDiff >= 8 && !ctx.forceUseCard) score -= 45;
         if (ctx.discDiff <= -10 && ctx.handSize >= 4 && keepPriorityCount === 0) score += 24;
-        if (
-            cornerEmergency &&
-            ctx.legalMovesCount <= 0 &&
-            !hasCornerMoveNow &&
-            !hasEdgeMoveNow &&
-            !highBonusMoveAvailable &&
-            usableCount >= 2 &&
-            cornerEmergencyAltCount >= 1
-        ) {
-            score -= 90;
-            if (cornerEmergencyAltCount >= 2) score -= 36;
-        }
 
         if (Number.isFinite(deckRemaining)) {
             if (deckRemaining <= 1) score -= 180;
@@ -2370,9 +2421,33 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (whiteLv6Mode && leadStable && !cornerEmergency) score -= 120;
     }
 
+    if (isTimeStopGod) {
+        score -= 55;
+        if (cornerEmergency || ctx.discDiff <= -8) score += 105;
+        if (ctx.discDiff <= -14) score += 35;
+        if (ctx.discDiff >= 6 && !cornerEmergency && !ctx.forceUseCard) score -= 150;
+        if (ctx.discDiff >= 10 && !ctx.forceUseCard) score -= 80;
+        if (hasCornerMoveNow && ctx.discDiff >= 0 && !ctx.forceUseCard) score -= 65;
+        if (ownCorners > oppCorners && !cornerEmergency && !ctx.forceUseCard) score -= 80;
+        if (ctx.empties <= 12 && !ctx.forceUseCard) score -= 110;
+        if (ownDiscs <= 6 && !ctx.forceUseCard) score -= 220;
+        if (whiteLv6Mode && leadStable && !cornerEmergency) score -= 160;
+    }
+
     // SACRIFICE_WILL is a high-risk resource card in imperfect-information play.
     // In non-emergency phases, suppress early usage and multiple sacrifices.
     if (isSacrificeWill) {
+        const deepNoAnchorEmergencyTail = (
+            cornerEmergency &&
+            !ctx.forceUseCard &&
+            ctx.discDiff <= -18 &&
+            ctx.empties <= 28 &&
+            cornerDiff <= -3 &&
+            edgeDiff <= -6 &&
+            !hasCornerMoveNow &&
+            !hasEdgeMoveNow &&
+            !highBonusMoveAvailable
+        );
         score -= 70;
         if (ctx.discDiff >= 0 && !ctx.forceUseCard) score -= 140;
         if (ctx.empties >= 40 && !ctx.forceUseCard) score -= 180;
@@ -2385,16 +2460,9 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (cornerEmergency && ctx.discDiff <= -8) score += 95;
         if (cornerEmergency && ctx.discDiff <= -14) score += 55;
         if (ctx.legalMovesCount <= 1 && ctx.discDiff <= -8) score += 40;
+        if (deepNoAnchorEmergencyTail) score -= 180;
         if (whiteLv6Mode && openingPhase && !cornerEmergency) score -= 80;
         if (whiteLv6Mode && lowDiscEmergency) score += 30;
-        if (
-            !ctx.forceUseCard &&
-            ownCorners < oppCorners &&
-            !hasCornerMoveNow &&
-            !hasEdgeMoveNow &&
-            Number(ctx.discDiff || 0) <= -10 &&
-            ctx.handSize >= 4
-        ) score -= 220;
     }
 
     if (whiteLv6Mode && isLastResort && !ctx.forceUseCard) {
@@ -2414,30 +2482,27 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     };
 }
 
-function sortCardUseCandidates(candidates) {
-    return (Array.isArray(candidates) ? candidates.slice() : []).sort((left, right) => {
-        const leftScore = Number.isFinite(left && left.score) ? Number(left.score) : Number.NEGATIVE_INFINITY;
-        const rightScore = Number.isFinite(right && right.score) ? Number(right.score) : Number.NEGATIVE_INFINITY;
-        if (rightScore !== leftScore) return rightScore - leftScore;
-        const leftCost = Number.isFinite(left && left.cardCost) ? Number(left.cardCost) : 0;
-        const rightCost = Number.isFinite(right && right.cardCost) ? Number(right.cardCost) : 0;
-        if (rightCost !== leftCost) return rightCost - leftCost;
-        return String(left && left.cardId ? left.cardId : '').localeCompare(String(right && right.cardId ? right.cardId : ''));
-    });
-}
-
-function enumerateCardUseCandidates(usableCardIds, getCardCost, getCardDef, context) {
-    if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return [];
-    const scored = [];
-    for (const cardId of usableCardIds) {
-        scored.push(scoreCardUseDecision(cardId, getCardCost, getCardDef, context));
-    }
-    return sortCardUseCandidates(scored);
-}
-
 function chooseCardWithRiskProfile(usableCardIds, getCardCost, getCardDef, context) {
-    const candidates = enumerateCardUseCandidates(usableCardIds, getCardCost, getCardDef, context);
-    const best = candidates[0];
+    if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
+    let best = null;
+    for (const cardId of usableCardIds) {
+        const decision = scoreCardUseDecision(cardId, getCardCost, getCardDef, context);
+        if (!best) {
+            best = decision;
+            continue;
+        }
+        if (decision.score > best.score) {
+            best = decision;
+            continue;
+        }
+        if (decision.score === best.score && decision.cardCost > best.cardCost) {
+            best = decision;
+            continue;
+        }
+        if (decision.score === best.score && decision.cardCost === best.cardCost && String(decision.cardId) < String(best.cardId)) {
+            best = decision;
+        }
+    }
     if (!best || !best.shouldUse) return null;
     return {
         cardId: best.cardId,
@@ -2456,6 +2521,7 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
     const isChargeRampCard = isChargeRampCardType(cardType);
     const isWorkWill = cardType === 'WORK_WILL';
     const isTimeBomb = cardType === 'TIME_BOMB';
+    const isTimeStopGod = cardType === 'TIME_STOP_GOD';
     const isSacrificeWill = cardType === 'SACRIFICE_WILL';
     const isLastResort = cardType === 'LAST_RESORT';
     const isHeavenBlessing = cardType === 'HEAVEN_BLESSING';
@@ -2473,8 +2539,8 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
     const isXBomb = cardType === 'X_BOMB';
     const isUltimateDestroyGod = cardType === 'ULTIMATE_DESTROY_GOD';
     const isUltimateHyperactiveGod = cardType === 'ULTIMATE_HYPERACTIVE_GOD';
-    const isDoublePlace = cardType === 'DOUBLE_PLACE';
-    const isChainWill = cardType === 'CHAIN_WILL';
+    const isThrowChainCard = THROW_CHAIN_CARD_TYPES.includes(cardType);
+    const isChainWill = CHAIN_WILL_CARD_TYPES.includes(cardType);
     const isGoldStone = cardType === 'GOLD_STONE';
     const isCrystalStone = cardType === 'CRYSTAL_STONE';
     const isRainbowStone = cardType === 'RAINBOW_STONE';
@@ -2506,9 +2572,16 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
     const maxLegalFlips = Number.isFinite(ctx.maxLegalFlips) ? Math.max(0, Math.floor(ctx.maxLegalFlips)) : 0;
     const maxLegalGain = Number.isFinite(ctx.maxLegalGain) ? Math.max(0, Number(ctx.maxLegalGain)) : maxLegalFlips;
     const maxLegalBoardBonus = Number.isFinite(ctx.maxLegalBoardBonus) ? Math.max(0, Number(ctx.maxLegalBoardBonus)) : 0;
+    const highBonusMoveAvailable = ctx.highBonusMoveAvailable === true || false;
     const oppHandSize = Number.isFinite(ctx.oppHandSize) ? Math.max(0, Math.floor(ctx.oppHandSize)) : 0;
     const ownSpecialCount = Number.isFinite(ctx.ownSpecialCount) ? Math.max(0, Math.floor(ctx.ownSpecialCount)) : 0;
     const oppSpecialCount = Number.isFinite(ctx.oppSpecialCount) ? Math.max(0, Math.floor(ctx.oppSpecialCount)) : 0;
+    const ownCornerResetCount = Number.isFinite(ctx.ownCornerResetCount) ? Math.max(0, Math.floor(ctx.ownCornerResetCount)) : 0;
+    const oppCornerResetCount = Number.isFinite(ctx.oppCornerResetCount) ? Math.max(0, Math.floor(ctx.oppCornerResetCount)) : 0;
+    const ownEdgeResetCount = Number.isFinite(ctx.ownEdgeResetCount) ? Math.max(0, Math.floor(ctx.ownEdgeResetCount)) : 0;
+    const oppEdgeResetCount = Number.isFinite(ctx.oppEdgeResetCount) ? Math.max(0, Math.floor(ctx.oppEdgeResetCount)) : 0;
+    const ownAnchorResetWeight = (ownCornerResetCount * 2) + ownEdgeResetCount;
+    const oppAnchorResetWeight = (oppCornerResetCount * 2) + oppEdgeResetCount;
 
     let score = cardCost * 3;
     if (whiteLv6Mode && cardCost >= 20) {
@@ -2530,6 +2603,13 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
         if (ctx.discDiff >= 8 && !cornerEmergency) score -= 130;
     }
 
+    if (isTimeStopGod) {
+        if (cornerEmergency || ctx.discDiff <= -8) score += 80;
+        if (ctx.discDiff >= 6 && !cornerEmergency) score -= 150;
+        if (ctx.empties <= 12 && !cornerEmergency) score -= 70;
+        if (Number.isFinite(ctx.ownDiscs) && Number(ctx.ownDiscs) <= 6) score -= 120;
+    }
+
     if (isSacrificeWill) {
         if (!cornerEmergency && (ctx.empties >= 28 || ctx.discDiff >= -4)) {
             score -= 210;
@@ -2540,13 +2620,14 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
         }
     }
 
-    if (whiteLv6Mode && (isDoublePlace || isChainWill)) score -= 260;
+    if (whiteLv6Mode && (isThrowChainCard || isChainWill)) score -= 260;
     if (whiteLv6Mode && isLastResort && ctx.discDiff >= 4 && !cornerEmergency) score -= 220;
     if (whiteLv6Mode && isLastResort && ctx.legalMovesCount > 0) score -= 520;
     if (whiteLv6Mode && isLastResort && ctx.legalMovesCount > 0 && ctx.handSize >= 4) score -= 220;
     if (whiteLv6Mode && isTimeBomb && ctx.discDiff >= 2 && !cornerEmergency) score -= 240;
-    if (whiteLv6Mode && (isDoublePlace || isChainWill) && ctx.ownCharge < 70 && !cornerEmergency) score -= 180;
-    if (whiteLv6Mode && (isDoublePlace || isChainWill) && ctx.ownCharge >= 70 && ctx.empties <= 20) score += 64;
+    if (whiteLv6Mode && isTimeStopGod && ctx.discDiff >= 2 && !cornerEmergency) score -= 260;
+    if (whiteLv6Mode && (isThrowChainCard || isChainWill) && ctx.ownCharge < 70 && !cornerEmergency) score -= 180;
+    if (whiteLv6Mode && (isThrowChainCard || isChainWill) && ctx.ownCharge >= 70 && ctx.empties <= 20) score += 64;
 
     if (isProtectedNextStone || isPermaProtectNextStone || isGuardWill || isGuardianGod || isRegenWill) {
         if (hasCornerMoveNow) score += 180;
@@ -2609,6 +2690,12 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
         else if (maxLegalGain <= 2) score -= 30;
         else score += Math.min(isRainbowStone ? 110 : 80, maxLegalGain * (isRainbowStone ? 12 : 10));
     }
+    if (isCrystalStone) {
+        if (maxLegalBoardBonus <= 0) score -= 150;
+        else if (maxLegalBoardBonus === 1) score -= 40;
+        else score += Math.min(104, maxLegalBoardBonus * 30);
+        if (ctx.highBonusMoveAvailable === true) score += 20;
+    }
     if (isHeavenBlessing) {
         score += 30;
         if (ctx.handSize >= 4) score -= 120;
@@ -2645,8 +2732,14 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
     }
     if (isLossWill) {
         const specialDiff = oppSpecialCount - ownSpecialCount;
+        const anchorResetDiff = oppAnchorResetWeight - ownAnchorResetWeight;
         if (specialDiff <= 0) score -= 300;
         else score += Math.min(200, specialDiff * 70);
+        score += anchorResetDiff * 60;
+        if (oppCornerResetCount > 0) score += (oppCornerResetCount * 90);
+        if (ownCornerResetCount > 0) score -= (ownCornerResetCount * 260);
+        if (ownEdgeResetCount > 0) score -= (ownEdgeResetCount * 84);
+        if (ownAnchorResetWeight > 0 && anchorResetDiff <= 0) score -= 140;
     }
     if (isCorrosionWill) {
         const specialDiff = oppSpecialCount - ownSpecialCount;
@@ -2716,9 +2809,6 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
         else score -= 96;
         if (oppCorners > ownCorners) score += 26;
         if (hasCornerMoveNow && ctx.discDiff >= 0 && !cornerEmergency) score -= 52;
-        if (!hasCornerMoveNow && !hasEdgeMoveNow && !cornerEmergency) {
-            score -= 180;
-        }
         if (ctx.empties <= 12) score -= 82;
     }
     if (isTeleportWill) {
@@ -2748,33 +2838,33 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
     };
 }
 
-function sortSellRetentionCandidates(candidates) {
-    return (Array.isArray(candidates) ? candidates.slice() : []).sort((left, right) => {
-        const leftScore = Number.isFinite(left && left.score) ? Number(left.score) : Number.POSITIVE_INFINITY;
-        const rightScore = Number.isFinite(right && right.score) ? Number(right.score) : Number.POSITIVE_INFINITY;
-        if (leftScore !== rightScore) return leftScore - rightScore;
-        const leftCost = Number.isFinite(left && left.cardCost) ? Number(left.cardCost) : 0;
-        const rightCost = Number.isFinite(right && right.cardCost) ? Number(right.cardCost) : 0;
-        if (rightCost !== leftCost) return rightCost - leftCost;
-        return String(left && left.cardId ? left.cardId : '').localeCompare(String(right && right.cardId ? right.cardId : ''));
-    });
-}
-
-function enumerateSellCardRetentionCandidates(handCardIds, getCardCost, getCardDef, context) {
-    if (!Array.isArray(handCardIds) || handCardIds.length === 0) return [];
-    const scored = [];
-    for (const cardId of handCardIds) {
-        scored.push(scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context));
-    }
-    return sortSellRetentionCandidates(scored);
-}
-
 function chooseSellCardTargetByRetention(handCardIds, getCardCost, getCardDef, context) {
-    const candidates = enumerateSellCardRetentionCandidates(handCardIds, getCardCost, getCardDef, context);
-    return candidates[0] || null;
+    if (!Array.isArray(handCardIds) || handCardIds.length === 0) return null;
+    let best = null;
+    for (const cardId of handCardIds) {
+        const scored = scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context);
+        if (!best) {
+            best = scored;
+            continue;
+        }
+        // Lower retention score means better sell candidate.
+        if (scored.score < best.score) {
+            best = scored;
+            continue;
+        }
+        // Tie-break: sell higher-cost expendable card first (more immediate resource gain).
+        if (scored.score === best.score && scored.cardCost > best.cardCost) {
+            best = scored;
+            continue;
+        }
+        if (scored.score === best.score && scored.cardCost === best.cardCost && String(scored.cardId) < String(best.cardId)) {
+            best = scored;
+        }
+    }
+    return best;
 }
 
-function enumerateDestroyCandidatesForCycle(handCardIds, usableCardIds, getCardCost, getCardDef, context) {
+function chooseHandDestroyTargetForCycle(handCardIds, usableCardIds, getCardCost, getCardDef, context) {
     if (!Array.isArray(handCardIds) || handCardIds.length === 0) return null;
     const hand = handCardIds
         .map((id) => String(id || '').trim())
@@ -2784,13 +2874,7 @@ function enumerateDestroyCandidatesForCycle(handCardIds, usableCardIds, getCardC
     const ctx = buildCardDecisionContext(Object.assign({}, context || {}, {
         handSize: hand.length
     }));
-    if (ctx.forceUseCard) {
-        return {
-            candidates: [],
-            destroyThreshold: null,
-            reason: null
-        };
-    }
+    if (ctx.forceUseCard) return null;
 
     const usable = Array.isArray(usableCardIds)
         ? usableCardIds.map((id) => String(id || '').trim()).filter((id) => id.length > 0)
@@ -2832,13 +2916,7 @@ function enumerateDestroyCandidatesForCycle(handCardIds, usableCardIds, getCardC
         !ctx.forceUseCard
     );
     const handPressure = ctx.handSize >= 5 ? 2 : (ctx.handSize >= 4 ? 1 : (lv6FastCycleMode ? 1 : 0));
-    if (handPressure <= 0) {
-        return {
-            candidates: [],
-            destroyThreshold: null,
-            reason: null
-        };
-    }
+    if (handPressure <= 0) return null;
 
     let strongUseReady = false;
     if (usable.length > 0) {
@@ -2857,29 +2935,11 @@ function enumerateDestroyCandidatesForCycle(handCardIds, usableCardIds, getCardC
         (handPressure >= 2 && (shouldCycleForNeededCards || usable.length <= 0)) ||
         (handPressure === 1 && shouldCycleForNeededCards && usable.length <= 0)
     );
-    if (!allowDestroyByPressure && !lv6FastCycleMode) {
-        return {
-            candidates: [],
-            destroyThreshold: null,
-            reason: null
-        };
-    }
-    if (strongUseReady && handPressure <= 1) {
-        return {
-            candidates: [],
-            destroyThreshold: null,
-            reason: null
-        };
-    }
-    if (strongUseReady && handPressure >= 2 && !shouldCycleForNeededCards && !cornerEmergency) {
-        return {
-            candidates: [],
-            destroyThreshold: null,
-            reason: null
-        };
-    }
+    if (!allowDestroyByPressure && !lv6FastCycleMode) return null;
+    if (strongUseReady && handPressure <= 1) return null;
+    if (strongUseReady && handPressure >= 2 && !shouldCycleForNeededCards && !cornerEmergency) return null;
 
-    const candidates = [];
+    let best = null;
     for (const cardId of hand) {
         const retention = scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context);
         let destroyScore = Number.isFinite(retention.score) ? Number(retention.score) : 0;
@@ -2889,6 +2949,7 @@ function enumerateDestroyCandidatesForCycle(handCardIds, usableCardIds, getCardC
         const isRampCard = isChargeRampCardType(cardType);
         const isSacrificeWill = cardType === 'SACRIFICE_WILL';
         const isTimeBomb = cardType === 'TIME_BOMB';
+        const isTimeStopGod = cardType === 'TIME_STOP_GOD';
         const isLastResort = cardType === 'LAST_RESORT';
         const isFastRotate = WHITE_LV6_FAST_ROTATE_TYPES.has(cardType);
         const isWhiteCornerKeep = WHITE_LV6_CORNER_SWING_KEEP_TYPES.has(cardType);
@@ -2901,6 +2962,7 @@ function enumerateDestroyCandidatesForCycle(handCardIds, usableCardIds, getCardC
         // Prefer rotating risky cards while stable, especially in hand-saturated states.
         if (isSacrificeWill && !cornerEmergency) destroyScore -= 260;
         if (isTimeBomb && !cornerEmergency && ctx.discDiff >= 0) destroyScore -= 210;
+        if (isTimeStopGod && !cornerEmergency && ctx.discDiff >= 0) destroyScore -= 240;
         if (HIGH_VARIANCE_CARD_TYPES.has(cardType) && ctx.discDiff >= 0) destroyScore -= 70;
 
         // Keep immediately usable cards unless the hand is fully saturated.
@@ -2924,59 +2986,41 @@ function enumerateDestroyCandidatesForCycle(handCardIds, usableCardIds, getCardC
             if (isSacrificeWill && ctx.empties >= 28 && !cornerEmergency) destroyScore -= 220;
         }
 
-        candidates.push({
-            cardId,
-            cardDef: retention.cardDef,
-            cardCost: retention.cardCost,
-            cardType,
-            score: destroyScore,
-            destroyScore,
-            retentionScore: Number.isFinite(retention.score) ? Number(retention.score) : null,
-            isUsable: usableSet.has(cardId)
-        });
+        if (!best || destroyScore < best.destroyScore) {
+            best = {
+                cardId,
+                cardDef: retention.cardDef,
+                cardCost: retention.cardCost,
+                cardType,
+                destroyScore
+            };
+        } else if (best && destroyScore === best.destroyScore && retention.cardCost > best.cardCost) {
+            best = {
+                cardId,
+                cardDef: retention.cardDef,
+                cardCost: retention.cardCost,
+                cardType,
+                destroyScore
+            };
+        }
     }
+    if (!best) return null;
 
     const destroyThreshold = lv6FastCycleMode
         ? (shouldCycleForNeededCards ? 260 : 115)
         : (shouldCycleForNeededCards
             ? (handPressure >= 2 ? 360 : 220)
             : (handPressure >= 2 ? 150 : 80));
-    const sortedCandidates = candidates.sort((left, right) => {
-        const leftScore = Number.isFinite(left && left.destroyScore) ? Number(left.destroyScore) : Number.POSITIVE_INFINITY;
-        const rightScore = Number.isFinite(right && right.destroyScore) ? Number(right.destroyScore) : Number.POSITIVE_INFINITY;
-        if (leftScore !== rightScore) return leftScore - rightScore;
-        const leftCost = Number.isFinite(left && left.cardCost) ? Number(left.cardCost) : 0;
-        const rightCost = Number.isFinite(right && right.cardCost) ? Number(right.cardCost) : 0;
-        if (rightCost !== leftCost) return rightCost - leftCost;
-        return String(left && left.cardId ? left.cardId : '').localeCompare(String(right && right.cardId ? right.cardId : ''));
-    }).map((candidate) => Object.assign({}, candidate, {
-        destroyThreshold,
-        destroyable: Number.isFinite(candidate && candidate.destroyScore)
-            ? Number(candidate.destroyScore) <= destroyThreshold
-            : false
-    }));
-
-    return {
-        candidates: sortedCandidates,
-        destroyThreshold,
-        reason: lv6FastCycleMode
-            ? 'lv6_fast_cycle'
-            : (shouldCycleForNeededCards ? 'missing_role_card' : 'hand_pressure')
-    };
-}
-
-function chooseHandDestroyTargetForCycle(handCardIds, usableCardIds, getCardCost, getCardDef, context) {
-    const enumeration = enumerateDestroyCandidatesForCycle(handCardIds, usableCardIds, getCardCost, getCardDef, context);
-    if (!enumeration || !Array.isArray(enumeration.candidates) || enumeration.candidates.length <= 0) return null;
-    const best = enumeration.candidates[0];
-    if (!best || best.destroyable !== true) return null;
+    if (best.destroyScore > destroyThreshold) return null;
 
     return {
         cardId: best.cardId,
         cardDef: best.cardDef,
         cardType: best.cardType,
         score: best.destroyScore,
-        reason: enumeration.reason || null
+        reason: lv6FastCycleMode
+            ? 'lv6_fast_cycle'
+            : (shouldCycleForNeededCards ? 'missing_role_card' : 'hand_pressure')
     };
 }
 
@@ -3208,6 +3252,33 @@ function getBoardBonusAtCell(boardBonusByCell, boardBonusConsumedByCell, row, co
     return Number.isFinite(raw) && raw > 0 ? raw : 0;
 }
 
+function computeLegalMoveMetrics(legalMoves, getBoardBonus) {
+    const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
+    let maxLegalFlips = 0;
+    let totalLegalFlips = 0;
+    let maxLegalGain = 0;
+    let maxLegalBoardBonus = 0;
+    for (const move of safeLegalMoves) {
+        if (!move) continue;
+        const flips = Array.isArray(move.flips) ? move.flips.length : 0;
+        totalLegalFlips += flips;
+        if (flips > maxLegalFlips) maxLegalFlips = flips;
+        const rawBonus = (typeof getBoardBonus === 'function' && Number.isInteger(move.row) && Number.isInteger(move.col))
+            ? Number(getBoardBonus(move.row, move.col, move) || 0)
+            : 0;
+        const bonus = Number.isFinite(rawBonus) && rawBonus > 0 ? rawBonus : 0;
+        if (bonus > maxLegalBoardBonus) maxLegalBoardBonus = bonus;
+        const gain = flips + bonus;
+        if (gain > maxLegalGain) maxLegalGain = gain;
+    }
+    return {
+        maxLegalFlips,
+        avgLegalFlips: safeLegalMoves.length > 0 ? (totalLegalFlips / safeLegalMoves.length) : 0,
+        maxLegalGain,
+        maxLegalBoardBonus
+    };
+}
+
 function countAdjacentCellsByValue(board, row, col, value) {
     if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return 0;
     let count = 0;
@@ -3258,6 +3329,62 @@ function resolveMovePlanProfile(context) {
     if (!cardType) return null;
     if (!Object.prototype.hasOwnProperty.call(CARD_TYPE_MOVE_PLAN_PROFILE, cardType)) return null;
     return CARD_TYPE_MOVE_PLAN_PROFILE[cardType];
+}
+
+function countAdjacentOpponentStrikeProfile(board, row, col, playerValue) {
+    const out = {
+        oppAdjCount: 0,
+        oppCornerCount: 0,
+        oppEdgeCount: 0
+    };
+    if (!Array.isArray(board) || !inBoard(board, row, col)) return out;
+    const opponentValue = -playerValue;
+    for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const targetRow = row + dr;
+            const targetCol = col + dc;
+            if (!inBoard(board, targetRow, targetCol)) continue;
+            if (board[targetRow][targetCol] !== opponentValue) continue;
+            out.oppAdjCount += 1;
+            if (isCorner(targetRow, targetCol, board)) out.oppCornerCount += 1;
+            else if (isEdge(targetRow, targetCol, board)) out.oppEdgeCount += 1;
+        }
+    }
+    return out;
+}
+
+function collectUltimateHyperactiveLandingProfile(board, row, col, playerValue, maxDistance) {
+    const out = {
+        count: 0,
+        maxDistance: 0,
+        longRangeCount: 0,
+        enemyAdjSum: 0,
+        cornerPressureCount: 0,
+        edgeLandingCount: 0
+    };
+    if (!Array.isArray(board) || !inBoard(board, row, col)) return out;
+    const opponentValue = -playerValue;
+    const maxRange = Number.isInteger(maxDistance) && maxDistance > 0 ? maxDistance : 5;
+    for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            for (let distance = 1; distance <= maxRange; distance++) {
+                const targetRow = row + (dr * distance);
+                const targetCol = col + (dc * distance);
+                if (!inBoard(board, targetRow, targetCol)) break;
+                if (board[targetRow][targetCol] !== 0) continue;
+                out.count += 1;
+                if (distance > out.maxDistance) out.maxDistance = distance;
+                if (distance >= 3) out.longRangeCount += 1;
+                out.enemyAdjSum += countAdjacentCellsByValue(board, targetRow, targetCol, opponentValue);
+                if (isEdge(targetRow, targetCol, board)) out.edgeLandingCount += 1;
+                const strike = countAdjacentOpponentStrikeProfile(board, targetRow, targetCol, playerValue);
+                if (strike.oppCornerCount > 0) out.cornerPressureCount += 1;
+            }
+        }
+    }
+    return out;
 }
 
 function scoreMoveForCornerEdgePlan(move, context) {
@@ -3877,6 +4004,7 @@ function collectEmptyRegionParity(board) {
         [0, -1],
         [0, 1]
     ];
+
     const cells = (
         SharedBoardUtils &&
         typeof SharedBoardUtils.collectBoardCoordinates === 'function'
@@ -3930,28 +4058,6 @@ function collectEmptyRegionParity(board) {
         }
     }
 
-    return out;
-}
-
-function buildBoardSearchKey(board, currentPlayer, depthLeft, passed, consumedMap) {
-    let out = currentPlayer > 0 ? '1' : '2';
-    out += `:${depthLeft}:${passed ? 1 : 0}:`;
-    if (SharedBoardUtils && typeof SharedBoardUtils.encodeBoard === 'function') {
-        out += SharedBoardUtils.encodeBoard(board);
-    } else {
-        for (let r = 0; r < board.length; r++) {
-            const row = Array.isArray(board[r]) ? board[r] : [];
-            for (let c = 0; c < row.length; c++) {
-                const v = row[c];
-                if (v === 1) out += '1';
-                else if (v === -1) out += '2';
-                else out += '0';
-            }
-        }
-    }
-    const consumedHash = Number(consumedMap && consumedMap.__bonusHash) >>> 0;
-    const consumedCount = Math.max(0, Number(consumedMap && consumedMap.__bonusCount) || 0);
-    out += `:${consumedHash.toString(36)}:${consumedCount}`;
     return out;
 }
 
@@ -4117,6 +4223,28 @@ function evaluateTerminalBoardForLookahead(board, playerValue) {
     if (diff === 0) return 0;
     const score = 1_000_000 + (Math.abs(diff) * 10_000);
     return diff > 0 ? score : -score;
+}
+
+function buildBoardSearchKey(board, currentPlayer, depthLeft, passed, consumedMap) {
+    let out = currentPlayer > 0 ? '1' : '2';
+    out += `:${depthLeft}:${passed ? 1 : 0}:`;
+    if (SharedBoardUtils && typeof SharedBoardUtils.encodeBoard === 'function') {
+        out += SharedBoardUtils.encodeBoard(board);
+    } else {
+        for (let r = 0; r < board.length; r++) {
+            const row = Array.isArray(board[r]) ? board[r] : [];
+            for (let c = 0; c < row.length; c++) {
+                const v = row[c];
+                if (v === 1) out += '1';
+                else if (v === -1) out += '2';
+                else out += '0';
+            }
+        }
+    }
+    const consumedHash = Number(consumedMap && consumedMap.__bonusHash) >>> 0;
+    const consumedCount = Math.max(0, Number(consumedMap && consumedMap.__bonusCount) || 0);
+    out += `:${consumedHash.toString(36)}:${consumedCount}`;
+    return out;
 }
 
 function buildSearchMoveOrder(moves, params) {
@@ -4504,13 +4632,11 @@ function chooseMoveByLookahead(candidateMoves, options) {
 module.exports = {
     chooseHandDestroyTargetForCycle,
     chooseCardWithRiskProfile,
-    enumerateCardUseCandidates,
-    enumerateDestroyCandidatesForCycle,
-    enumerateSellCardRetentionCandidates,
     chooseHighestCostCard,
     chooseSellCardTargetByRetention,
     chooseMoveByLookahead,
     chooseMove,
+    computeLegalMoveMetrics,
     getMovePlanProfileForCardType,
     isChargeRampCardType,
     isCornerHoldCardType,

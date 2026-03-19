@@ -37,6 +37,10 @@ describe('HEAVEN_BLESSING overlay flow', () => {
     global.CardLogic = {
       getCardDef: (id) => ({ id, name: `name_${id}`, desc: `desc_${id}`, cost: 2 })
     };
+    global.SoundEngine = {
+      init: jest.fn(),
+      playEffectByKey: jest.fn()
+    };
     global.Core = { getLegalMoves: () => [] };
     global.renderCardUI = jest.fn();
     global.emitBoardUpdate = jest.fn();
@@ -61,6 +65,7 @@ describe('HEAVEN_BLESSING overlay flow', () => {
   });
 
   afterEach(() => {
+    delete global.SoundEngine;
     delete global.window;
     delete global.document;
   });
@@ -127,5 +132,27 @@ describe('HEAVEN_BLESSING overlay flow', () => {
     const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
     expect(action.condemnTargetIndex).toBe(3);
     expect(action.heavenBlessingCardId).toBeUndefined();
+  });
+
+  test('CONDEMN_WILL enemy hand click keeps hand_card_select until destroy button press', () => {
+    global.window.DEBUG_HUMAN_VS_HUMAN = true;
+    global.gameState.currentPlayer = global.BLACK;
+    global.cardState.hands.white = ['offer_1', 'offer_2'];
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'CONDEMN_WILL',
+      stage: 'selectTarget',
+      offers: [
+        { handIndex: 0, cardId: 'offer_1' },
+        { handIndex: 1, cardId: 'offer_2' }
+      ]
+    };
+    require('../cards/card-interaction.js');
+
+    window.onCardClick('offer_2', 'white');
+
+    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('hand_card_select');
+    expect(global.cardState.selectedCardId).toBe('offer_2');
+    expect(global.cardState.selectedCardOwnerKey).toBe('white');
   });
 });

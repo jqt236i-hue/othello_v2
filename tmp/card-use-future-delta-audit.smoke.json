@@ -1,0 +1,85 @@
+{
+  "generatedAt": "2026-03-16T13:21:41.061Z",
+  "elapsedMs": 5934,
+  "schemaVersion": "card-use-future-delta-audit.v1",
+  "benchmark": {
+    "totalGames": 2,
+    "avgPlies": 78
+  },
+  "summary": [
+    {
+      "type": "SELL_CARD_WILL",
+      "count": 2,
+      "avgFutureDiscDelta3Ply": -3,
+      "avgHandSize": 5,
+      "avgLegalMoves": 0,
+      "negativeCount": 2,
+      "negativeRate": 1,
+      "zeroLegalRate": 1,
+      "cornerEmergencyRate": 1,
+      "forceUseRate": 1,
+      "highBonusRate": 0,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "corner_emergency",
+          2
+        ],
+        [
+          "decision:use",
+          2
+        ],
+        [
+          "force_use_card",
+          2
+        ],
+        [
+          "hand_pressure",
+          2
+        ],
+        [
+          "low_legal_moves",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "REBUILD_WILL",
+      "count": 2,
+      "avgFutureDiscDelta3Ply": -2,
+      "avgHandSize": 5,
+      "avgLegalMoves": 0,
+      "negativeCount": 2,
+      "negativeRate": 1,
+      "zeroLegalRate": 1,
+      "cornerEmergencyRate": 1,
+      "forceUseRate": 1,
+      "highBonusRate": 0,
+      "cornerNowRate": 0,
+      "edgeNowRate": 0,
+      "topReasonTags": [
+        [
+          "corner_emergency",
+          2
+        ],
+        [
+          "decision:use",
+          2
+        ],
+        [
+          "force_use_card",
+          2
+        ],
+        [
+          "hand_pressure",
+          2
+        ],
+        [
+          "low_legal_moves",
+          2
+        ]
+      ]
+    }
+  ]
+}

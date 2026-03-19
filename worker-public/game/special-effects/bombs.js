@@ -11,10 +11,10 @@
 async function processBombs(precomputedEvents = null) {
     const bombMarkers = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.getBombMarkers === 'function')
         ? MarkersAdapter.getBombMarkers(cardState)
-        : (cardState && cardState.markers ? cardState.markers.filter(m => m.kind === 'bomb') : []);
+        : (cardState && cardState.markers ? cardState.markers.filter(m => m.kind === 'specialStone' && m.data && m.data.category === 'bomb') : []);
     if (!bombMarkers || bombMarkers.length === 0) return;
 
-    // Snapshot bomb owners BEFORE ticking, because tickBombs removes exploded bombs from cardState.bombs.
+    // Snapshot bomb owners BEFORE ticking, because tickBombs removes exploded bomb markers before playback.
     const bombOwnerValByPos = new Map();
     for (const b of bombMarkers) {
         const ownerVal = b.owner === 'black' ? BLACK : WHITE;

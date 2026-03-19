@@ -3,7 +3,7 @@ const cpuLv6SharedProfile = require('../constants/cpu-lv6-shared-profile');
 describe('cpu lv6 shared profile', () => {
     test('exports browser and teacher parity settings', () => {
         expect(cpuLv6SharedProfile).toBeTruthy();
-        expect(cpuLv6SharedProfile.version).toBe('teacher_lv6_parity_v4');
+        expect(cpuLv6SharedProfile.version).toBe('teacher_lv6_parity_v5');
         expect(cpuLv6SharedProfile.browser).toBeTruthy();
         expect(cpuLv6SharedProfile.teacher).toBeTruthy();
         expect(cpuLv6SharedProfile.browser.minThinkMsWhite).toBe(250);
@@ -29,5 +29,11 @@ describe('cpu lv6 shared profile', () => {
         expect(cpuLv6SharedProfile.teacher.tacticalDepthMid).toBe(6);
         expect(cpuLv6SharedProfile.teacher.tacticalDepthEnd).toBe(7);
         expect(cpuLv6SharedProfile.teacher.tacticalBeamWidth).toBe(6);
+        expect(cpuLv6SharedProfile.teacher.tacticalWeightMin).toBeCloseTo(0.95, 6);
+        expect(cpuLv6SharedProfile.teacher.tacticalWeightMax).toBeCloseTo(1.2, 6);
+        expect(cpuLv6SharedProfile.teacher.policyScoreWeightMin).toBeCloseTo(1.6, 6);
+        expect(cpuLv6SharedProfile.teacher.policyScoreWeightMax).toBeCloseTo(2.2, 6);
+        expect(cpuLv6SharedProfile.teacher.heuristicWeightMin).toBeCloseTo(0.75, 6);
+        expect(cpuLv6SharedProfile.teacher.heuristicWeightMax).toBeCloseTo(1.0, 6);
     });
 });

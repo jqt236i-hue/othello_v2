@@ -53,11 +53,11 @@ describe('TELEPORT_WILL（テレポート）', () => {
 
     cardState.markers.push({
       id: 'bomb_1',
-      kind: 'bomb',
+      kind: 'specialStone',
       row: 4,
       col: 4,
       owner: 'black',
-      data: { remainingTurns: 2 }
+      data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 }
     });
 
     cardState.stoneIdMap[4][4] = 'tp1';

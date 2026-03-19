@@ -81,11 +81,11 @@ describe('CELL_TELEPORT_WILL（マステレポート）', () => {
     gameState.board[4][4] = Core.BLACK;
     cardState.markers.push({
       id: 'bomb_1',
-      kind: 'bomb',
+      kind: 'specialStone',
       row: 4,
       col: 4,
       owner: 'black',
-      data: { remainingTurns: 2 }
+      data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 }
     });
     cardState.stoneIdMap[4][4] = 'ctp1';
     cardState.pendingEffectByPlayer.black = {

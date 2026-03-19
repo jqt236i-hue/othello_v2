@@ -135,6 +135,8 @@ async function initializeUI() {
     const networkServerInput = document.getElementById('networkServerInput');
     const networkPlayerNameInput = document.getElementById('networkPlayerNameInput');
     const networkRoomIdInput = document.getElementById('networkRoomIdInput');
+    const networkEnableDebugCheckbox = document.getElementById('networkEnableDebugCheckbox');
+    const networkCopyRoomBtn = document.getElementById('networkCopyRoomBtn');
     const networkCreateBtn = document.getElementById('networkCreateBtn');
     const networkJoinBtn = document.getElementById('networkJoinBtn');
     const networkLeaveBtn = document.getElementById('networkLeaveBtn');
@@ -198,6 +200,8 @@ async function initializeUI() {
             networkRoomInput: networkRoomIdInput,
             networkServerInput,
             networkPlayerNameInput,
+            networkEnableDebugCheckbox,
+            networkCopyRoomBtn,
             networkCreateBtn,
             networkJoinBtn,
             networkLeaveBtn,
@@ -305,6 +309,8 @@ async function initializeUI() {
     const detailBtn = document.getElementById('toggle-card-detail-btn');
     const passBtn = document.getElementById('pass-btn');
     const sellBtn = document.getElementById('sell-card-btn');
+    const LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY = '__skipNextPlaybackSoundUntilByKey';
+    const LOCAL_PLAYBACK_SOUND_SKIP_MS = 5000;
 
     const playUiEffectSound = (effectKey) => {
         try {
@@ -315,6 +321,47 @@ async function initializeUI() {
         } catch (e) { /* ignore */ }
     };
 
+    const armLocalPlaybackSoundSkip = (effectKey) => {
+        const key = String(effectKey || '').trim();
+        if (!key || typeof window === 'undefined' || !window) return false;
+        const registry = (window[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY] && typeof window[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY] === 'object')
+            ? window[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY]
+            : {};
+        registry[key] = Date.now() + LOCAL_PLAYBACK_SOUND_SKIP_MS;
+        window[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY] = registry;
+        return true;
+    };
+
+    const clearLocalPlaybackSoundSkip = (effectKey) => {
+        const key = String(effectKey || '').trim();
+        if (!key || typeof window === 'undefined' || !window) return false;
+        const registry = window[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY];
+        if (!registry || typeof registry !== 'object') return false;
+        if (!Object.prototype.hasOwnProperty.call(registry, key)) return false;
+        try {
+            delete registry[key];
+            if (Object.keys(registry).length === 0) {
+                delete window[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY];
+            }
+        } catch (e) {
+            registry[key] = 0;
+        }
+        return true;
+    };
+
+    const getSelectedCardDefForUseSound = () => {
+        if (!cardState || !cardState.selectedCardId) return null;
+        if (typeof CardLogic === 'undefined' || !CardLogic || typeof CardLogic.getCardDef !== 'function') {
+            return null;
+        }
+        return CardLogic.getCardDef(cardState.selectedCardId) || null;
+    };
+
+    const shouldPlayImmediateUseCardSound = () => {
+        const selectedDef = getSelectedCardDefForUseSound();
+        return !(selectedDef && selectedDef.type === 'TREASURE_BOX');
+    };
+
     if (destroyBtn && typeof destroySelectedHandCard === 'function') {
         destroyBtn.addEventListener('click', () => {
             playUiEffectSound('stone_destroy');
@@ -323,7 +370,9 @@ async function initializeUI() {
     }
     if (useBtn) {
         useBtn.addEventListener('click', () => {
-            playUiEffectSound('card_use_button');
+            if (shouldPlayImmediateUseCardSound()) {
+                playUiEffectSound('card_use_button');
+            }
             if (typeof useSelectedCard === 'function') useSelectedCard();
         });
     }
@@ -332,8 +381,10 @@ async function initializeUI() {
     }
     if (sellBtn && typeof confirmSellCardSelection === 'function') {
         sellBtn.addEventListener('click', () => {
+            const armedSkip = armLocalPlaybackSoundSkip('sell_sacrifice_gain');
             playUiEffectSound('sell_sacrifice_gain');
-            confirmSellCardSelection();
+            const confirmed = confirmSellCardSelection() === true;
+            if (!confirmed && armedSkip) clearLocalPlaybackSoundSkip('sell_sacrifice_gain');
         });
     }
     if (passBtn && typeof passCurrentTurn === 'function') {

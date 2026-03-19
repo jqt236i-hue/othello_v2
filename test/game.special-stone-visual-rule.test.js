@@ -38,19 +38,22 @@ describe('special stone visual rule', () => {
       },
       {
         id: 3,
-        kind: 'bomb',
+        kind: 'specialStone',
         row: 1,
         col: 3,
         owner: 'white',
-        data: { type: 'TIME_BOMB', remainingTurns: 3 }
+        data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 3 }
       }
     );
 
     expect(CardUtils.isSpecialStoneAt(cardState, 1, 1)).toBe(true);
+    expect(CardUtils.isNonNormalStoneVisualAt(cardState, 1, 1)).toBe(true);
     expect(CardUtils.getSpecialOwnerAt(cardState, 1, 1)).toBe('white');
     expect(CardUtils.isSpecialStoneAt(cardState, 1, 2)).toBe(true);
+    expect(CardUtils.isNonNormalStoneVisualAt(cardState, 1, 2)).toBe(true);
     expect(CardUtils.getSpecialOwnerAt(cardState, 1, 2)).toBe('white');
     expect(CardUtils.isSpecialStoneAt(cardState, 1, 3)).toBe(true);
+    expect(CardUtils.isNonNormalStoneVisualAt(cardState, 1, 3)).toBe(true);
     expect(CardUtils.getSpecialOwnerAt(cardState, 1, 3)).toBe('white');
   });
 
@@ -66,6 +69,7 @@ describe('special stone visual rule', () => {
     });
 
     expect(CardUtils.isSpecialStoneAt(cardState, 2, 2)).toBe(false);
+    expect(CardUtils.isNonNormalStoneVisualAt(cardState, 2, 2)).toBe(false);
     expect(CardUtils.getSpecialOwnerAt(cardState, 2, 2)).toBe(null);
   });
 

@@ -51,6 +51,19 @@
             : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
         return globalScope.SharedBoardUtils || null;
     })();
+    const PlaybackEventHelpers = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('../../shared/playback-event-helpers');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.PlaybackEventHelpers || null;
+    })();
 
     const REGEN_CAUSE = 'REGEN';
     const REGEN_TRIGGER_REASON = 'regen_triggered';
@@ -70,6 +83,25 @@
         'TRAP_WILL'
     ]);
     const SOUND_EVENT_TYPE = 'sound_effect';
+    const CARD_EFFECT_FLIP_SOUND_KEY = 'card_effect_flip';
+    const CARD_EFFECT_FLIP_RAW_EVENT_TYPES = new Set([
+        'dragon_converted_start',
+        'dragon_converted_immediate',
+        'chain_flipped',
+        'taboo_reverse_flipped',
+        'regen_triggered_start',
+        'regen_triggered',
+        'regen_capture_flipped_start',
+        'regen_capture_flipped',
+        'breeding_flipped_start',
+        'breeding_flipped_immediate',
+        'hyperactive_flipped_start',
+        'hyperactive_flipped_immediate',
+        'robot_vacuum_flipped_start',
+        'robot_vacuum_flipped_immediate',
+        'ultimate_hyperactive_flipped_start',
+        'ultimate_hyperactive_flipped_immediate'
+    ]);
     const GENERATED_THROW_CHAIN_REASON = 'generated_throw_chain';
     const WORK_LOST_BUBBLE_TEXT = 'あああああああああああああ';
     const WORK_INCOME_BUBBLE_TEXT_BY_STEP = Object.freeze({
@@ -78,6 +110,13 @@
         3: '布石＋4 順調やな！',
         4: '布石＋8 ぼろ儲けや！',
         5: '布石＋16 これで家族が養える...！'
+    });
+    const MULTI_PLACE_LABEL_BY_TYPE = Object.freeze({
+        DOUBLE_PLACE: '二連投石',
+        TRIPLE_PLACE: '三連投石',
+        QUAD_PLACE: '四連投石',
+        INFINITE_PLACE: '無限投石',
+        LAST_RESORT: '最後の切り札'
     });
     const deferredGeneratedThrowChainPlaybackByPlayer = {
         black: [],
@@ -97,6 +136,35 @@
         }
         _clearDeferredGeneratedThrowChainPlaybackForPlayer('black');
         _clearDeferredGeneratedThrowChainPlaybackForPlayer('white');
+    }
+
+    function _getMultiPlaceLabel(type, fallbackLabel) {
+        const fallback = String(fallbackLabel || '').trim();
+        if (fallback) return fallback;
+        const key = String(type || '').toUpperCase();
+        return MULTI_PLACE_LABEL_BY_TYPE[key] || '追加配置';
+    }
+
+    function _formatMultiPlaceActivationLog(effects) {
+        const label = _getMultiPlaceLabel(effects && effects.multiPlaceActivatedType, effects && effects.multiPlaceActivatedName);
+        if (effects && effects.multiPlaceInfinite) {
+            return `${label}: 合法手が尽きるまで連続配置`;
+        }
+        const remaining = Number.isFinite(Number(effects && effects.multiPlaceRemaining))
+            ? Math.max(0, Math.trunc(Number(effects.multiPlaceRemaining)))
+            : 1;
+        return `${label}: あと${remaining}回置ける`;
+    }
+
+    function _formatMultiPlaceConsumedLog(ev) {
+        const label = _getMultiPlaceLabel(ev && ev.sourceType, null);
+        const remaining = Number.isFinite(Number(ev && ev.remaining))
+            ? Math.max(0, Math.trunc(Number(ev.remaining)))
+            : null;
+        if (remaining !== null && remaining > 0) {
+            return `${label}: 追加手を消費（あと${remaining}回）`;
+        }
+        return `${label}: 追加手を消費`;
     }
 
     function _inferWorkIncomeStepByGain(gained) {
@@ -134,15 +202,6 @@
         return WORK_LOST_BUBBLE_TEXT;
     }
 
-    function _formatCrystalStonePlacementLog(effects) {
-        const gain = Number.isFinite(Number(effects && effects.crystalStoneGain))
-            ? Math.max(0, Number(effects.crystalStoneGain))
-            : 0;
-        return gain > 0
-            ? '水晶石: 数字マス布石+' + gain + '（4倍）'
-            : '水晶石: 数字マスなしで増加なし';
-    }
-
     function isRegenTriggeredChange(ev) {
         return !!(ev && ev.cause === REGEN_CAUSE && ev.reason === REGEN_TRIGGER_REASON);
     }
@@ -156,6 +215,42 @@
         const reason = String(ev.reason || '').toLowerCase();
         const cause = String(ev.cause || '').toUpperCase();
         return reason === 'chain_flip' || cause === 'CHAIN_WILL';
+    }
+
+    function isCardEffectFlipPresentationEvent(ev) {
+        if (!ev) return false;
+        const reason = String(ev.reason || '').toLowerCase();
+        return isChainFlipPresentationEvent(ev) ||
+            reason.indexOf('dragon_convert') === 0 ||
+            reason.indexOf('taboo_reverse_flip') === 0 ||
+            reason.indexOf('regen_triggered') === 0 ||
+            reason.indexOf('regen_capture_flip') === 0 ||
+            reason.indexOf('breeding_flip') === 0 ||
+            reason.indexOf('hyperactive_flip') === 0 ||
+            reason.indexOf('escape_hyperactive_flip') === 0 ||
+            reason.indexOf('inherited_hyperactive_flip') === 0 ||
+            reason.indexOf('extreme_hyperactive_flip') === 0 ||
+            reason.indexOf('ultimate_hyperactive_flip') === 0 ||
+            reason.indexOf('robot_vacuum_flip') === 0 ||
+            reason.indexOf('swap_with_enemy') === 0 ||
+            reason.indexOf('tempt_applied') === 0;
+    }
+
+    function _countCardEffectFlipFallbackEvents(rawEvents) {
+        const events = Array.isArray(rawEvents) ? rawEvents : [];
+        return events.reduce((sum, ev) => {
+            if (!ev || !ev.type) return sum;
+            if (CARD_EFFECT_FLIP_RAW_EVENT_TYPES.has(ev.type)) {
+                return sum + (_rawDetailCount(ev) > 0 ? 1 : 0);
+            }
+            if (ev.type === 'swap_selected') {
+                return sum + (ev.swapped === true ? 1 : 0);
+            }
+            if (ev.type === 'tempt_selected') {
+                return sum + (ev.applied === true ? 1 : 0);
+            }
+            return sum;
+        }, 0);
     }
 
     function getChainFlipLink(ev) {
@@ -331,8 +426,11 @@
                 owner = (visualSpecial.owner !== undefined && visualSpecial.owner !== null) ? visualSpecial.owner : null;
                 flipEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.flipEvadeRemaining);
                 destroyEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.destroyEvadeRemaining);
-                if (flipEvadeRemaining === null && String(special || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE') {
-                    flipEvadeRemaining = 5;
+                if (flipEvadeRemaining === null) {
+                    const specialType = String(special || '').toUpperCase();
+                    if (specialType === 'ULTIMATE_HYPERACTIVE' || specialType === 'EXTREME_HYPERACTIVE') {
+                        flipEvadeRemaining = 3;
+                    }
                 }
             }
         }
@@ -341,7 +439,7 @@
         if (!special && cardState && cardState.markers) {
             const b = MarkersAdapter && typeof MarkersAdapter.findBombMarkerAt === 'function'
                 ? MarkersAdapter.findBombMarkerAt(cardState, r, c)
-                : cardState.markers.find(m => m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb') && m.row === r && m.col === c);
+                : cardState.markers.find(m => m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') && m.data && m.data.category === 'bomb' && m.row === r && m.col === c);
             if (b) {
                 special = 'TIME_BOMB';
                 timer = (b.data && b.data.remainingTurns) || null;
@@ -534,7 +632,7 @@
                     const isChainFlip = isChainFlipPresentationEvent(ev);
                     const chainFlipLink = isChainFlip ? getChainFlipLink(ev) : null;
                     if (isChainFlip && (!prevWasChainFlip || prevChainFlipLink !== chainFlipLink)) {
-                        // CHAIN_WILL: primary flips -> chain link 1 -> chain link 2 ...
+                        // Chain-will family: primary flips -> chain link 1 -> chain link 2 ...
                         currentPhase++;
                         pEvent.phase = currentPhase;
                     }
@@ -908,7 +1006,9 @@
                         };
                     }
                 }
-            }            if (pEvent.type) playbackEvents.push(pEvent);
+            }
+
+            if (pEvent.type) playbackEvents.push(pEvent);
         }
 
         const generatedThrowChainSplit = _extractGeneratedThrowChainPlayback(playbackEvents);
@@ -1076,6 +1176,57 @@
         return false;
     }
 
+    function _collectAppliedSacrificeSelections(rawEvents) {
+        const events = Array.isArray(rawEvents) ? rawEvents : [];
+        const out = [];
+        for (const ev of events) {
+            if (!ev || ev.type !== 'sacrifice_selected' || ev.applied !== true) continue;
+            const target = ev.target && typeof ev.target === 'object' ? ev.target : null;
+            const row = Number(target && target.row);
+            const col = Number(target && target.col);
+            if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+            out.push({ row, col });
+        }
+        return out;
+    }
+
+    function _backfillSacrificeDestroyPlaybackEvents(playbackEvents, rawEvents) {
+        const selections = _collectAppliedSacrificeSelections(rawEvents);
+        if (!selections.length || !Array.isArray(playbackEvents) || !playbackEvents.length) {
+            return Array.isArray(playbackEvents) ? playbackEvents : [];
+        }
+
+        let changed = false;
+        const nextEvents = playbackEvents.map((ev) => {
+            if (!ev || ev.type !== 'destroy' || !Array.isArray(ev.targets) || !ev.targets.length) return ev;
+            let eventChanged = false;
+            const nextTargets = ev.targets.map((target) => {
+                if (!target || typeof target !== 'object') return target;
+                const cause = String(target.cause || '').toUpperCase();
+                const reason = String(target.reason || '').toLowerCase();
+                if (cause !== 'SYSTEM' || reason !== 'legacy_fallback') return target;
+                const row = Number(target.r);
+                const col = Number(target.col);
+                if (!Number.isInteger(row) || !Number.isInteger(col)) return target;
+                const matchedSelection = selections.some((selection) => selection.row === row && selection.col === col);
+                if (!matchedSelection) return target;
+                eventChanged = true;
+                changed = true;
+                return Object.assign({}, target, {
+                    cause: 'SACRIFICE_WILL',
+                    reason: 'sacrifice_selected'
+                });
+            });
+            return eventChanged ? Object.assign({}, ev, { targets: nextTargets }) : ev;
+        });
+
+        return changed ? nextEvents : playbackEvents;
+    }
+
+    function normalizePlaybackEvents(playbackEvents, rawEvents) {
+        return _backfillSacrificeDestroyPlaybackEvents(playbackEvents, rawEvents);
+    }
+
     function _isDestroyWithCause(target, causes) {
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         return causes.has(cause);
@@ -1196,6 +1347,31 @@
             });
         };
 
+        const tagCardUseAnimationTarget = (patch) => {
+            const anchorIndex = base.findIndex((ev) => ev && ev.type === 'card_use_animation');
+            if (anchorIndex < 0) return false;
+            const anchor = base[anchorIndex];
+            const targets = Array.isArray(anchor.targets) ? anchor.targets.slice() : [];
+            const firstTarget = targets[0] ? Object.assign({}, targets[0]) : {};
+            targets[0] = Object.assign(firstTarget, patch || {});
+            anchor.targets = targets;
+            return true;
+        };
+
+        const movePlaybackEventsToCardUseAnimationTarget = (predicate, propertyName) => {
+            const deferredEvents = base
+                .filter((ev) => !!ev && predicate(ev))
+                .map((ev) => _clonePlaybackEventWithPhase(ev, _phaseNum(ev && ev.phase)));
+            if (!deferredEvents.length) return false;
+            const patch = {};
+            patch[propertyName] = deferredEvents;
+            if (!tagCardUseAnimationTarget(patch)) return false;
+            for (let i = base.length - 1; i >= 0; i--) {
+                if (base[i] && predicate(base[i])) base.splice(i, 1);
+            }
+            return true;
+        };
+
         const bombDestroyPhases = Array.from(new Set(
             base
                 .filter((ev) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t) => _isDestroyWithCause(t, BOMB_DESTROY_CAUSES)))
@@ -1226,28 +1402,37 @@
             pushCue('breeding_spawn', breedingPhase, 'breeding_spawned');
         }
 
-        const dragonFlipPhases = Array.from(new Set(
+        const hasAppliedTemptSelection = _hasRawEvent(raw, 'tempt_selected', (ev) => !!(ev && ev.applied));
+        const hasTemptSelectionEvent = _hasRawEvent(raw, 'tempt_selected');
+        const hasAppliedSwapSelection = _hasRawEvent(raw, 'swap_selected', (ev) => !!(ev && ev.swapped));
+        const hasSwapSelectionEvent = _hasRawEvent(raw, 'swap_selected');
+        const shouldIncludeCardEffectFlipTarget = (target) => {
+            if (!isCardEffectFlipPresentationEvent(target)) return false;
+            const reason = String(target && target.reason ? target.reason : '').toLowerCase();
+            if (reason.indexOf('tempt_applied') === 0) {
+                return hasAppliedTemptSelection || !hasTemptSelectionEvent;
+            }
+            if (reason.indexOf('swap_with_enemy') === 0) {
+                return hasAppliedSwapSelection || !hasSwapSelectionEvent;
+            }
+            return true;
+        };
+        const cardEffectFlipPhases = Array.from(new Set(
             base
                 .filter((ev) => ev && ev.type === 'flip' && Array.isArray(ev.targets) && ev.targets.some((t) => {
-                    const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-                    const reason = String(t && t.reason ? t.reason : '').toLowerCase();
-                    return cause === 'DRAGON' && reason.indexOf('dragon_convert') === 0;
+                    return shouldIncludeCardEffectFlipTarget(t);
                 }))
                 .map((ev) => _phaseNum(ev && ev.phase))
                 .filter((phase) => phase > 0)
         )).sort((a, b) => a - b);
-        if (dragonFlipPhases.length > 0) {
-            for (const phase of dragonFlipPhases) {
-                pushCue('dragon_flip', phase, 'dragon_converted', { allowRepeat: true });
+        if (cardEffectFlipPhases.length > 0) {
+            for (const phase of cardEffectFlipPhases) {
+                pushCue(CARD_EFFECT_FLIP_SOUND_KEY, phase, 'card_effect_flip', { allowRepeat: true });
             }
         } else {
-            const dragonFallbackCount = raw.reduce((sum, ev) => {
-                if (!ev || !ev.type) return sum;
-                if (ev.type !== 'dragon_converted_start' && ev.type !== 'dragon_converted_immediate') return sum;
-                return sum + (_rawDetailCount(ev) > 0 ? 1 : 0);
-            }, 0);
-            for (let i = 0; i < dragonFallbackCount; i++) {
-                pushCue('dragon_flip', fallbackPhase + i, 'dragon_converted', { allowRepeat: true });
+            const cardEffectFlipFallbackCount = _countCardEffectFlipFallbackEvents(raw);
+            for (let i = 0; i < cardEffectFlipFallbackCount; i++) {
+                pushCue(CARD_EFFECT_FLIP_SOUND_KEY, fallbackPhase + i, 'card_effect_flip', { allowRepeat: true });
             }
         }
 
@@ -1447,15 +1632,23 @@
             pushCue('tempt_select', temptPhase, 'tempt_selected');
         }
 
-        const treasureUsePhase = _findPhase(
+        const cardUseAnimationPhase = _findPhase(
             base,
             (ev) => ev && ev.type === 'card_use_animation',
             0
         );
-        const treasurePhase = treasureUsePhase > 0 ? (treasureUsePhase + 1) : fallbackPhase;
+        const postCardUsePhase = cardUseAnimationPhase > 0 ? (cardUseAnimationPhase + 1) : fallbackPhase;
         const hasTreasureGain = _hasRawEvent(raw, 'treasure_box_gain', (ev) => Number(ev && ev.gained) > 0);
         if (hasTreasureGain) {
-            pushCue('treasure_gain', treasurePhase, 'treasure_box_gain');
+            pushCue('treasure_gain', postCardUsePhase, 'treasure_box_gain');
+        }
+
+        if (_hasRawEvent(raw, 'loss_will_resolved', (ev) => Number(ev && ev.removedCount) > 0)) {
+            tagCardUseAnimationTarget({ disappearSoundKey: 'loss_will_reset' });
+            movePlaybackEventsToCardUseAnimationTarget(
+                (ev) => ev && ev.type === 'status_removed' && ev.meta && ev.meta.reason === 'loss_will_reset',
+                'disappearPlaybackEvents'
+            );
         }
 
         const condemnPhase = _findPhase(
@@ -1499,7 +1692,19 @@
             }
         }
 
-        const hasAppliedSacrificeSelection = _hasRawEvent(raw, 'sacrifice_selected', (ev) => !!(ev && ev.applied));
+        const hasSacrificeGain = _hasRawEvent(raw, 'sacrifice_selected', (ev) => !!(ev && ev.applied && Number(ev.gained) > 0));
+        if (hasSacrificeGain) {
+            const sacrificePhase = _findPhase(
+                base,
+                (ev) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t) => {
+                    const cause = String(t && t.cause ? t.cause : '').toUpperCase();
+                    const reason = String(t && t.reason ? t.reason : '').toLowerCase();
+                    return cause === 'SACRIFICE_WILL' || reason.indexOf('sacrifice_selected') === 0;
+                }),
+                fallbackPhase
+            );
+            pushCue('sell_sacrifice_gain', sacrificePhase, 'sacrifice_selected');
+        }
 
         const sniperDestroyEvents = base.filter((ev) => (
             ev &&
@@ -1566,7 +1771,6 @@
             return ev.targets.some((t) => {
             const cause = String(t && t.cause ? t.cause : '').toUpperCase();
             const reason = String(t && t.reason ? t.reason : '').toLowerCase();
-            if (hasAppliedSacrificeSelection) return false;
             if (BOMB_DESTROY_CAUSES.has(cause)) return false;
             if (_isSniperShotDestroyTarget(t)) return false;
             if (_isLightningDestroyTarget(t)) return false;
@@ -1605,6 +1809,7 @@
         const s = String(rawSpecial || '').toUpperCase();
         if (s === 'BREEDING') return '繁殖石';
         if (s === 'TIME_BOMB') return '時限爆弾';
+        if (s === 'TIME_STOP') return '時間停石';
         if (s === 'DRAGON') return '究極反転龍';
         if (s === 'DESTROY_DRAGON') return '破壊龍';
         if (s === 'ULTIMATE_DESTROY_GOD') return '究極破壊神';
@@ -1649,6 +1854,15 @@
 
     function _pushCountLog(logs, ev, label, suffix) {
         logs.push(`${label}${_detailCount(ev)}${suffix}`);
+    }
+
+    function _formatCrystalStonePlacementLog(effects) {
+        const gain = Number.isFinite(Number(effects && effects.crystalStoneGain))
+            ? Math.max(0, Number(effects.crystalStoneGain))
+            : 0;
+        return gain > 0
+            ? `水晶石: 数字マス布石 +${gain}（4倍）`
+            : '水晶石: 数字マスなしで増加なし';
     }
 
     function _normalizePlayerKey(v) {
@@ -1910,6 +2124,15 @@
                 case 'time_bomb_selected':
                     if (ev.applied) push(`時限爆弾を${_toPosText(ev.target)}に設置`);
                     break;
+                case 'time_stop_god_cost_resolved':
+                    if (Number(ev.destroyedCount) > 0) push(`時間停神: 自石${Number(ev.destroyedCount) || 0}個を破壊`);
+                    break;
+                case 'time_stop_triggered':
+                    push('時間停神: 時間停止が発動し、2連続で行動');
+                    break;
+                case 'time_stop_fizzled':
+                    push('時間停神: 親石消失で不発');
+                    break;
                 case 'clone_selected':
                     if (ev.applied) push(`複製の意志: ${_toPosText(ev.target)}から${_detailCount(ev)}個を生成`);
                     break;
@@ -1962,7 +2185,7 @@
                 case 'placement_effects':
                     if (ev.effects) {
                         const e = ev.effects;
-                        if (e.doublePlaceActivated) push('二連投石: 追加手を獲得');
+                        if (e.doublePlaceActivated) push(_formatMultiPlaceActivationLog(e));
                         if (e.freePlacementUsed && !e.sniperPlaced) push('自由の意志:自由な空きマスに配置');
                         if (e.sniperPlaced) push('狙撃の意志: 狙撃石を設置');
                         if (e.lightningPlaced) push('落雷の意志: 落雷石を設置');
@@ -1975,6 +2198,7 @@
                         if (e.protected) push('反転保護を付与');
                         if (e.permaProtected) push('永続反転保護を付与');
                         if (e.bombPlaced) push('時限爆弾を設置');
+                        if (e.timeStopPlaced) push('時間停石を設置');
                         if (e.dragonPlaced) push('究極反転龍を設置');
                         if (e.ultimateDestroyGodPlaced) push('究極破壊神を設置');
                         if (e.ultimateHyperactivePlaced) push('究極多動神を設置');
@@ -1990,7 +2214,7 @@
                     }
                     break;
                 case 'extra_place_consumed':
-                    push('二連投石: 追加手を消費');
+                    push(_formatMultiPlaceConsumedLog(ev));
                     break;
                 default:
                     break;
@@ -2092,26 +2316,43 @@
 
         // Prefer pipeline-produced presentationEvents when available
         const pres = result.presentationEvents || result.cardState && result.cardState.presentationEvents || [];
-        const rawPlacePlaybackEvents = [];
-        for (const ev of Array.isArray(result.events) ? result.events : []) {
-            if (!ev || ev.type !== 'place') continue;
-            if (!Number.isInteger(ev.row) || !Number.isInteger(ev.col)) continue;
-            const ownerKey = _normalizePlayerKey(ev.owner || ev.player || playerKey) || _normalizePlayerKey(playerKey) || 'black';
-            rawPlacePlaybackEvents.push({
-                type: 'place_hand_animation',
-                phase: 0,
-                rawType: ev.type,
-                actionId: ev.actionId || null,
-                turnIndex: (typeof ev.turnIndex === 'number')
-                    ? ev.turnIndex
-                    : (result.cardState && typeof result.cardState.turnIndex === 'number' ? result.cardState.turnIndex : 0),
-                targets: [{ r: ev.row, col: ev.col, player: ownerKey, owner: ownerKey }]
-            });
-        }
-        const playbackEvents = rawPlacePlaybackEvents.concat(mapToPlaybackEvents(pres, result.cardState, result.gameState));
-        let playbackWithSound = appendSoundEffectPlaybackEvents(playbackEvents, result.events, pres);
+        const assembledPlayback = (PlaybackEventHelpers && typeof PlaybackEventHelpers.assemblePlaybackEvents === 'function')
+            ? PlaybackEventHelpers.assemblePlaybackEvents({
+                rawEvents: result.events,
+                presentationEvents: pres,
+                snapshot: {
+                    cardState: result.cardState,
+                    gameState: result.gameState
+                },
+                fallbackPlayerKey: playerKey,
+                adapter: {
+                    mapToPlaybackEvents,
+                    normalizePlaybackEvents,
+                    appendSoundEffectPlaybackEvents
+                },
+                normalizePlayerKey: _normalizePlayerKey
+            })
+            : {
+                playbackEvents: appendSoundEffectPlaybackEvents(
+                    normalizePlaybackEvents(
+                        ((PlaybackEventHelpers && typeof PlaybackEventHelpers.mapRawPlaceEventsToPlayback === 'function')
+                            ? PlaybackEventHelpers.mapRawPlaceEventsToPlayback(result.events, {
+                                fallbackPlayerKey: playerKey,
+                                fallbackTurnIndex: result.cardState && typeof result.cardState.turnIndex === 'number' ? result.cardState.turnIndex : 0,
+                                normalizePlayerKey: _normalizePlayerKey
+                            })
+                            : []).concat(mapToPlaybackEvents(pres, result.cardState, result.gameState)),
+                        result.events
+                    ),
+                    result.events,
+                    pres
+                ),
+                diagnostics: null
+            };
+        let playbackWithSound = assembledPlayback.playbackEvents;
         const deferredGeneratedThrowChainPlayback = _processGeneratedThrowChainPlayback(playbackWithSound, action, playerKey);
         playbackWithSound = deferredGeneratedThrowChainPlayback.playbackEvents;
+
         const effectLogMessages = mapEffectLogsFromPipeline(result.events, pres, playerKey);
         const normalLogMessages = mapNormalLogsFromPipeline(result.events, playerKey);
         try {
@@ -2132,7 +2373,9 @@
             nextCardState: result.cardState,
             nextGameState: result.gameState,
             playbackEvents: playbackWithSound,
-            deferredGeneratedThrowChainHandAdd: deferredGeneratedThrowChainPlayback.deferredGeneratedThrowChainHandAdd,            rawEvents: result.events,
+            playbackDiagnostics: assembledPlayback.diagnostics,
+            deferredGeneratedThrowChainHandAdd: deferredGeneratedThrowChainPlayback.deferredGeneratedThrowChainHandAdd,
+            rawEvents: result.events,
             presentationEvents: pres,
             effectLogMessages
         };
@@ -2140,6 +2383,7 @@
 
     return {
         mapToPlaybackEvents,
+        normalizePlaybackEvents,
         appendSoundEffectPlaybackEvents,
         mapEffectLogsFromPipeline,
         mapNormalLogsFromPipeline,
@@ -2147,5 +2391,3 @@
         runTurnWithAdapter
     };
 }));
-
-

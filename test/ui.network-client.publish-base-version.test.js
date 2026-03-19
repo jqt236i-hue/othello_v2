@@ -620,6 +620,10 @@ describe('NetworkMatchClient queued publish', () => {
     finalSnapshot.cardState.pendingEffectByPlayer.black = null;
     finalSnapshot.cardState.turnIndex = 3;
     finalSnapshot.cardState.markers = [{ row: 4, col: 4, type: 'GUARD', owner: 'black' }];
+    const expectedFinalState = {
+      gameState: JSON.parse(JSON.stringify(finalSnapshot.gameState)),
+      cardState: JSON.parse(JSON.stringify(finalSnapshot.cardState))
+    };
 
     let localStateSeenAtSecondPublish = null;
     publishPayloads.length = 0;
@@ -688,10 +692,7 @@ describe('NetworkMatchClient queued publish', () => {
     expect(firstResult.ok).toBe(true);
     expect(secondResult.ok).toBe(true);
 
-    expect(localStateSeenAtSecondPublish).toEqual({
-      gameState: finalSnapshot.gameState,
-      cardState: finalSnapshot.cardState
-    });
+    expect(localStateSeenAtSecondPublish).toEqual(expectedFinalState);
   });
 
   test('先行publish拒否応答でも後続ローカル状態を巻き戻さず baseVersion だけ更新する', async () => {
@@ -717,6 +718,10 @@ describe('NetworkMatchClient queued publish', () => {
     finalSnapshot.cardState.pendingEffectByPlayer.black = null;
     finalSnapshot.cardState.turnIndex = 3;
     finalSnapshot.cardState.markers = [{ row: 4, col: 4, type: 'GUARD', owner: 'black' }];
+    const expectedFinalState = {
+      gameState: JSON.parse(JSON.stringify(finalSnapshot.gameState)),
+      cardState: JSON.parse(JSON.stringify(finalSnapshot.cardState))
+    };
 
     let localStateSeenAtSecondPublish = null;
     publishPayloads.length = 0;
@@ -788,10 +793,128 @@ describe('NetworkMatchClient queued publish', () => {
 
     expect(publishPayloads).toHaveLength(2);
     expect(publishPayloads[1].baseVersion).toBe(11);
-    expect(localStateSeenAtSecondPublish).toEqual({
-      gameState: finalSnapshot.gameState,
-      cardState: finalSnapshot.cardState
+    expect(localStateSeenAtSecondPublish).toEqual(expectedFinalState);
+  });
+
+  test('同版 VERSION_MISMATCH 拒否は rejection snapshot を force apply せず telemetry に残す', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const rejectedSnapshot = createSnapshot(10);
+    rejectedSnapshot.gameState.turnNumber = 99;
+    rejectedSnapshot.cardState.markers = [{ row: 7, col: 7, type: 'FORCED_REJECT_MARKER' }];
+
+    global.fetch = jest.fn(async (url, init = {}) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/publish') {
+        const body = JSON.parse(init.body || '{}');
+        publishPayloads.push(body);
+        return jsonResponse(409, {
+          ok: false,
+          roomId: 'ABC',
+          rejectedReason: 'VERSION_MISMATCH',
+          stateVersion: 10,
+          snapshot: rejectedSnapshot,
+          publishMeta: {
+            kind: 'rejected',
+            operationId: body.operationId,
+            actionType: body.actionType,
+            receivedBaseVersion: body.baseVersion,
+            authoritativeStateVersion: 10,
+            rejectedReason: 'VERSION_MISMATCH'
+          }
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
+
+    const result = await client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      action: createPlaceAction('black', 1)
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe('VERSION_MISMATCH');
+    expect(global.gameState.turnNumber).toBe(1);
+    expect(global.cardState.markers).toEqual([]);
+
+    const telemetry = client.getNetworkTelemetry();
+    expect(telemetry.counts.publish_version_mismatch).toBe(1);
+    expect(telemetry.counts.publish_rejection_snapshot_skipped).toBe(1);
+    expect(telemetry.recentEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'publish_rejection_snapshot_skipped',
+        details: expect.objectContaining({
+          skipReason: 'same_version_version_mismatch'
+        })
+      })
+    ]));
+  });
+
+  test('idempotent replay 応答を telemetry に残す', async () => {
+    global.fetch = jest.fn(async (url, init = {}) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/create') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'black',
+          seatToken: 'seat-token',
+          stateVersion: 10,
+          snapshot: createSnapshot(10)
+        });
+      }
+
+      if (path === '/api/match/publish') {
+        const body = JSON.parse(init.body || '{}');
+        publishPayloads.push(body);
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          stateVersion: 11,
+          snapshot: createSnapshot(11),
+          idempotentReplay: true,
+          publishMeta: {
+            kind: 'idempotent_replay',
+            operationId: body.operationId,
+            actionType: body.actionType,
+            receivedBaseVersion: body.baseVersion,
+            authoritativeStateVersion: 11,
+            replayedStateVersion: 11
+          }
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const result = await client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      action: createPlaceAction('black', 1)
+    });
+
+    expect(result.ok).toBe(true);
+    expect(client.getNetworkTelemetry().counts.publish_idempotent_replay_ack).toBe(1);
   });
 
   test('部屋番号が3文字でない場合は参加を事前に拒否する', async () => {

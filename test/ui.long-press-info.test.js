@@ -245,7 +245,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避');
   });
 
-  test('showSpecialStoneInfoAt shows trap info to the owner seat', () => {
+  test('showSpecialStoneInfoAt hides trap info from the owner seat while hidden', () => {
     global.window.LOCAL_PLAYER_KEY = 'black';
     global.gameState.board[4][4] = global.BLACK;
     global.cardState.markers = [{
@@ -260,8 +260,9 @@ describe('board cell long press info', () => {
     const shown = mod.showSpecialStoneInfoAt(4, 4);
 
     expect(shown).toBe(true);
-    expect(document.getElementById('stone-info-name').textContent).toBe('罠石');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
+    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('通常石');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('特殊石');
   });
 
   test('showSpecialStoneInfoAt hides trap info from the non-owner seat', () => {

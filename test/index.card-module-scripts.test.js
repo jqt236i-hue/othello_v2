@@ -37,6 +37,16 @@ function expectPendingSelectionConsumersLoadAfterSelectionFlow(html, rootPath) {
   }
 }
 
+function expectPresentationHelperLoadsBeforePendingSelection(html, rootPath) {
+  const presentationTag = '<script src="game/logic/presentation.js"></script>';
+  const selectionFlowTag = '<script src="game/card-effects/selection-flow.js"></script>';
+
+  expect(html.includes(presentationTag)).toBe(true);
+  expect(html.includes(selectionFlowTag)).toBe(true);
+  expect(html.indexOf(selectionFlowTag)).toBeGreaterThan(html.indexOf(presentationTag));
+  expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/presentation.js'))).toBe(true);
+}
+
 function expectPendingSelectionExportSurvivesConsumerScriptLoads(rootPath) {
   const context = vm.createContext({
     console,
@@ -55,6 +65,26 @@ function expectPendingSelectionExportSurvivesConsumerScriptLoads(rootPath) {
     expect(context.PendingSelectionFlow).toBeTruthy();
     expect(typeof context.PendingSelectionFlow.executePendingSelection).toBe('function');
   }
+}
+
+function expectPresentationHelperClassicExportSurvivesLaterScriptLoads(rootPath) {
+  const context = vm.createContext({
+    console,
+    setTimeout,
+    clearTimeout,
+    Promise
+  });
+  context.globalThis = context;
+
+  runClassicScriptInContext(path.resolve(__dirname, rootPath, 'game/logic/presentation.js'), context);
+  expect(context.PresentationHelper).toBeTruthy();
+  expect(typeof context.PresentationHelper.emitPresentationEvent).toBe('function');
+
+  runClassicScriptInContext(path.resolve(__dirname, rootPath, 'game/card-effects/selection-flow.js'), context);
+  runClassicScriptInContext(path.resolve(__dirname, rootPath, 'game/card-effects/trap.js'), context);
+
+  expect(context.PresentationHelper).toBeTruthy();
+  expect(typeof context.PresentationHelper.emitPresentationEvent).toBe('function');
 }
 
 function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
@@ -198,8 +228,17 @@ describe('card module script includes', () => {
     expectPendingSelectionConsumersLoadAfterSelectionFlow(html, '../');
   });
 
+  test('index.html loads presentation helper before pending selection flow', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    expectPresentationHelperLoadsBeforePendingSelection(html, '../');
+  });
+
   test('classic pending selection export survives later card effect script loads', () => {
     expectPendingSelectionExportSurvivesConsumerScriptLoads('../');
+  });
+
+  test('classic presentation helper export survives later game script loads', () => {
+    expectPresentationHelperClassicExportSurvivesLaterScriptLoads('../');
   });
 
   test('worker-public/index.html loads will_hunter_king card module before cards.js', () => {
@@ -261,6 +300,15 @@ describe('card module script includes', () => {
   test('worker-public/index.html loads pending selection consumer scripts after selection-flow', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../worker-public/index.html'), 'utf8');
     expectPendingSelectionConsumersLoadAfterSelectionFlow(html, '../worker-public');
+  });
+
+  test('worker-public/index.html loads presentation helper before pending selection flow', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../worker-public/index.html'), 'utf8');
+    expectPresentationHelperLoadsBeforePendingSelection(html, '../worker-public');
+  });
+
+  test('worker-public classic presentation helper export survives later game script loads', () => {
+    expectPresentationHelperClassicExportSurvivesLaterScriptLoads('../worker-public');
   });
 
   test('worker-public classic pending selection export survives later card effect script loads', () => {

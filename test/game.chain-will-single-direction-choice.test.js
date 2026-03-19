@@ -3,10 +3,10 @@ const CardLogic = require('../game/logic/cards');
 const TurnPipeline = require('../game/turn/turn_pipeline');
 const { makeState, placeStones } = require('./helpers/chain-test-helpers');
 
-describe('CHAIN_WILL single-direction selection per link', () => {
+describe('DOUBLE_CHAIN_WILL single-direction selection per link', () => {
   test('when multiple chain directions are available, only one direction is applied for the link', () => {
     const { cardState, gameState } = makeState(CardLogic, Shared);
-    cardState.pendingEffectByPlayer.black = { type: 'CHAIN_WILL', cardId: 'chain_01', stage: null };
+    cardState.pendingEffectByPlayer.black = { type: 'DOUBLE_CHAIN_WILL', cardId: 'double_chain_01', stage: null };
 
     placeStones(gameState, [
       // Place at (2,2) to create one primary flip at (3,3).

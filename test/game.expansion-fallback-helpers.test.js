@@ -162,12 +162,12 @@ describe('expansion fallback helpers', () => {
 
   test('time bomb fallback includes top expansion cells in blast range without BoardOps', () => {
     const CardTimeBomb = loadWithoutBoardOps('../game/logic/cards/time_bomb');
-    const cardState = {
-      turnIndex: 3,
-      markers: [
-        { id: 12, kind: 'bomb', row: 0, col: 0, owner: 'black', createdSeq: 1, data: { remainingTurns: 1, placedTurn: 0 } }
-      ]
-    };
+      const cardState = {
+        turnIndex: 3,
+        markers: [
+        { id: 12, kind: 'specialStone', row: 0, col: 0, owner: 'black', createdSeq: 1, data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 1, placedTurn: 0 } }
+        ]
+      };
     const gameState = {
       board: createBoard(),
       boardExpansion: createExpansionState([

@@ -332,11 +332,19 @@ function runCommandPublishPlaceScenario() {
   return runPublishScenario(runner);
 }
 
-function runCommandPublishPendingPlaceScenario(pendingType) {
+function runCommandPublishPendingPlaceScenario(pendingType, options = {}) {
+  const row = Number.isInteger(options.row) ? options.row : 2;
+  const col = Number.isInteger(options.col) ? options.col : 3;
+  const roomId = typeof options.roomId === 'string' && options.roomId ? options.roomId : 'ROOMP';
+  const operationId = typeof options.operationId === 'string' && options.operationId ? options.operationId : `op_${String(pendingType).toLowerCase()}_1`;
   const runner = [
     "(async () => {",
     "  const modulePath = process.argv[1];",
     `  const pendingType = ${JSON.stringify(pendingType)};`,
+    `  const row = ${JSON.stringify(row)};`,
+    `  const col = ${JSON.stringify(col)};`,
+    `  const roomId = ${JSON.stringify(roomId)};`,
+    `  const operationId = ${JSON.stringify(operationId)};`,
     "  const { MatchRoomDurableObject } = await import(modulePath);",
     "  const path = require('path');",
     "  const fromRoot = (relativePath) => require(path.resolve(process.cwd(), relativePath));",
@@ -353,7 +361,7 @@ function runCommandPublishPendingPlaceScenario(pendingType) {
     "  cardState.hasUsedCardThisTurnByPlayer.black = true;",
     "  const turnIndex = typeof cardState.turnIndex === 'number' ? cardState.turnIndex : 1;",
     "  const room = {",
-    "    roomId: 'ROOMP',",
+    "    roomId,",
     "    seed: 7,",
     "    stateVersion: 0,",
     "    updatedAt: Date.now(),",
@@ -377,17 +385,17 @@ function runCommandPublishPendingPlaceScenario(pendingType) {
     "  let broadcastMeta = null;",
     "  durableObject.broadcastSnapshot = async (meta) => { broadcastMeta = meta; };",
     "  const response = await durableObject.handlePublish({",
-    "    roomId: 'ROOMP',",
+    "    roomId,",
     "    seatKey: 'black',",
     "    playerKey: 'black',",
     "    seatToken: 'token_black',",
     "    baseVersion: 0,",
-    "    operationId: `op_${pendingType.toLowerCase()}_1`,",
+    "    operationId,",
     "    actionType: 'place',",
     "    actor: 'black',",
-    "    params: { row: 2, col: 3 },",
+    "    params: { row, col },",
     "    turnIndex,",
-    "    action: { type: 'place', playerKey: 'black', row: 2, col: 3, turnIndex }",
+    "    action: { type: 'place', playerKey: 'black', row, col, turnIndex }",
     "  });",
     "  const payload = await response.json();",
     "  await durableObject.loadRoom();",
@@ -399,6 +407,371 @@ function runCommandPublishPendingPlaceScenario(pendingType) {
     "    internalCardState: durableObject.room.snapshot.cardState,",
     "    internalGameState: durableObject.room.snapshot.gameState",
     "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runPublishScenario(runner);
+}
+
+function runCommandPublishSniperTurnStartScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const path = require('path');",
+    "  const fromRoot = (relativePath) => require(path.resolve(process.cwd(), relativePath));",
+    "  const Core = fromRoot('game/logic/core.js');",
+    "  const CardLogic = fromRoot('game/logic/cards.js');",
+    "  const SeededPRNG = fromRoot('game/schema/prng.js');",
+    "  const gameState = Core.createGameState();",
+    "  const prng = SeededPRNG.createPRNG(17);",
+    "  const cardState = CardLogic.createCardState(prng);",
+    "  gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));",
+    "  gameState.board[0][0] = Core.BLACK;",
+    "  gameState.board[0][2] = Core.WHITE;",
+    "  gameState.board[3][3] = Core.BLACK;",
+    "  gameState.board[3][4] = Core.WHITE;",
+    "  gameState.currentPlayer = Core.WHITE;",
+    "  gameState.turnNumber = 12;",
+    "  gameState.consecutivePasses = 0;",
+    "  cardState.turnIndex = 12;",
+    "  cardState.pendingEffectByPlayer = { black: null, white: null };",
+    "  cardState.hasUsedCardThisTurnByPlayer = { black: false, white: false };",
+    "  cardState.lastUsedCardByPlayer = { black: null, white: null };",
+    "  cardState.markers = [{",
+    "    id: 9001,",
+    "    kind: 'specialStone',",
+    "    row: 0,",
+    "    col: 0,",
+    "    owner: 'black',",
+    "    data: { type: 'SNIPER', remainingOwnerTurns: 5 }",
+    "  }];",
+    "  const room = {",
+    "    roomId: 'ROOMS',",
+    "    seed: 17,",
+    "    stateVersion: 12,",
+    "    updatedAt: Date.now(),",
+    "    seats: { black: true, white: true },",
+    "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    seatNames: { black: 'black', white: 'white' },",
+    "    turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'white', turnStartedAt: null, turnDeadlineAt: null },",
+    "    lastAcceptedOperationBySeat: { black: null, white: null },",
+    "    snapshot: { gameState, cardState, stateVersion: 12, updatedAt: Date.now() }",
+    "  };",
+    "  const storage = new Map();",
+    "  storage.set('match_room_state_v1', room);",
+    "  const state = {",
+    "    storage: {",
+    "      get: async (key) => storage.get(key),",
+    "      put: async (key, value) => storage.set(key, value),",
+    "      delete: async (key) => storage.delete(key)",
+    "    }",
+    "  };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  let broadcastMeta = null;",
+    "  durableObject.broadcastSnapshot = async (meta) => { broadcastMeta = meta; };",
+    "  const response = await durableObject.handlePublish({",
+    "    roomId: 'ROOMS',",
+    "    seatKey: 'white',",
+    "    playerKey: 'white',",
+    "    seatToken: 'token_white',",
+    "    baseVersion: 12,",
+    "    operationId: 'op_sniper_turn_start_1',",
+    "    actionType: 'place',",
+    "    actor: 'white',",
+    "    params: { row: 3, col: 2 },",
+    "    turnIndex: 12,",
+    "    action: { type: 'place', playerKey: 'white', row: 3, col: 2, turnIndex: 12 }",
+    "  });",
+    "  const payload = await response.json();",
+    "  await durableObject.loadRoom();",
+    `  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({`,
+    "    status: response.status,",
+    "    payload,",
+    "    broadcastMeta,",
+    "    internalCardState: durableObject.room.snapshot.cardState,",
+    "    internalGameState: durableObject.room.snapshot.gameState",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runPublishScenario(runner);
+}
+
+function runCommandPublishDebugFillScenario(networkDebugEnabled, seatKey) {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    `  const networkDebugEnabled = ${networkDebugEnabled ? 'true' : 'false'};`,
+    `  const seatKey = ${JSON.stringify(seatKey || 'white')};`,
+    "  const nowMs = Date.now();",
+    "  const initialTurnStartedAt = nowMs - 1000;",
+    "  const initialTurnDeadlineAt = nowMs + 120000;",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const path = require('path');",
+    "  const fromRoot = (relativePath) => require(path.resolve(process.cwd(), relativePath));",
+    "  const Core = fromRoot('game/logic/core.js');",
+    "  const CardLogic = fromRoot('game/logic/cards.js');",
+    "  const TurnPipelinePhases = fromRoot('game/turn/turn_pipeline_phases.js');",
+    "  const SeededPRNG = fromRoot('game/schema/prng.js');",
+    "  const gameState = Core.createGameState();",
+    "  const prng = SeededPRNG.createPRNG(17);",
+    "  const cardState = CardLogic.createCardState(prng);",
+    "  TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', [], prng);",
+    "  cardState.hands = { black: [], white: [] };",
+    "  cardState.discard = [];",
+    "  cardState.presentationEvents = [];",
+    "  cardState._presentationEventsPersist = [];",
+    "  cardState.debugHandFilled = false;",
+    "  cardState.debugNoDraw = false;",
+    "  const room = {",
+    "    roomId: 'ROOMD',",
+    "    seed: 17,",
+    "    stateVersion: 0,",
+    "    updatedAt: Date.now(),",
+    "    seats: { black: true, white: true },",
+    "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    seatNames: { black: 'black', white: 'white' },",
+    "    networkDebugEnabled,",
+    "    turnTimer: { limitSeconds: 120, active: true, turnSeatKey: 'black', turnStartedAt: initialTurnStartedAt, turnDeadlineAt: initialTurnDeadlineAt },",
+    "    acceptedOperationsBySeat: {},",
+    "    snapshot: { gameState, cardState, stateVersion: 0, updatedAt: Date.now() }",
+    "  };",
+    "  const storage = new Map();",
+    "  storage.set('match_room_state_v1', room);",
+    "  const state = {",
+    "    storage: {",
+    "      get: async (key) => storage.get(key),",
+    "      put: async (key, value) => storage.set(key, value),",
+    "      delete: async (key) => storage.delete(key)",
+    "    }",
+    "  };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  let broadcastMeta = null;",
+    "  durableObject.broadcastSnapshot = async (meta) => { broadcastMeta = meta; };",
+    "  const response = await durableObject.handlePublish({",
+    "    roomId: 'ROOMD',",
+    "    seatKey,",
+    "    playerKey: seatKey,",
+    "    seatToken: seatKey === 'white' ? 'token_white' : 'token_black',",
+    "    baseVersion: 0,",
+    "    operationId: `op_debug_fill_${seatKey}` ,",
+    "    actionType: 'debug_fill_hand',",
+    "    actor: seatKey,",
+    "    params: {},",
+    "    action: { type: 'debug_fill_hand', playerKey: seatKey }",
+    "  });",
+    "  const payload = await response.json();",
+    "  await durableObject.loadRoom();",
+    `  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({`,
+    "    status: response.status,",
+    "    payload,",
+    "    broadcastMeta,",
+    "    internalCardState: durableObject.room.snapshot.cardState,",
+    "    internalTurnTimer: durableObject.room.turnTimer,",
+    "    expectedTurnTimer: { active: true, turnSeatKey: 'black', turnStartedAt: initialTurnStartedAt, turnDeadlineAt: initialTurnDeadlineAt }",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runPublishScenario(runner);
+}
+
+function runPublishVersionMismatchScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const room = {",
+    "    roomId: 'ROOMM',",
+    "    stateVersion: 4,",
+    "    updatedAt: Date.now(),",
+    "    seats: { black: true, white: true },",
+    "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    seatNames: { black: 'black', white: 'white' },",
+    "    roomDeck: null,",
+    "    networkDebugEnabled: false,",
+    "    turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black', turnStartedAt: null, turnDeadlineAt: null },",
+    "    lastAcceptedOperationBySeat: { black: null, white: null },",
+    "    snapshot: {",
+    "      stateVersion: 4,",
+    "      updatedAt: Date.now(),",
+    "      gameState: { currentPlayer: 1, turnNumber: 8, board: Array.from({ length: 8 }, () => Array(8).fill(0)) },",
+    "      cardState: { hands: { black: [], white: [] }, discard: [], pendingEffectByPlayer: { black: null, white: null }, presentationEvents: [], _presentationEventsPersist: [] }",
+    "    }",
+    "  };",
+    "  const storage = new Map();",
+    "  storage.set('match_room_state_v1', room);",
+    "  const state = { storage: { get: async (key) => storage.get(key), put: async (key, value) => storage.set(key, value), delete: async (key) => storage.delete(key) } };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  const response = await durableObject.handlePublish({",
+    "    roomId: 'ROOMM',",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: 'token_black',",
+    "    baseVersion: 3,",
+    "    operationId: 'op_vm_1',",
+    "    actionType: 'place'",
+    "  });",
+    "  const payload = await response.json();",
+    `  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({ status: response.status, payload }));`,
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runPublishScenario(runner);
+}
+
+function runPublishIdempotentReplayScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const room = {",
+    "    roomId: 'ROOMR',",
+    "    stateVersion: 5,",
+    "    updatedAt: Date.now(),",
+    "    seats: { black: true, white: true },",
+    "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    seatNames: { black: 'black', white: 'white' },",
+    "    roomDeck: null,",
+    "    networkDebugEnabled: false,",
+    "    turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'white', turnStartedAt: null, turnDeadlineAt: null },",
+    "    lastAcceptedOperationBySeat: { black: { operationId: 'op_replay_1', stateVersion: 5, updatedAt: Date.now() }, white: null },",
+    "    snapshot: {",
+    "      stateVersion: 5,",
+    "      updatedAt: Date.now(),",
+    "      gameState: { currentPlayer: -1, turnNumber: 9, board: Array.from({ length: 8 }, () => Array(8).fill(0)) },",
+    "      cardState: { hands: { black: [], white: [] }, discard: [], pendingEffectByPlayer: { black: null, white: null }, presentationEvents: [], _presentationEventsPersist: [] }",
+    "    }",
+    "  };",
+    "  const storage = new Map();",
+    "  storage.set('match_room_state_v1', room);",
+    "  const state = { storage: { get: async (key) => storage.get(key), put: async (key, value) => storage.set(key, value), delete: async (key) => storage.delete(key) } };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  const response = await durableObject.handlePublish({",
+    "    roomId: 'ROOMR',",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: 'token_black',",
+    "    baseVersion: 4,",
+    "    operationId: 'op_replay_1',",
+    "    actionType: 'place'",
+    "  });",
+    "  const payload = await response.json();",
+    `  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({ status: response.status, payload }));`,
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runPublishScenario(runner);
+}
+
+function runTimeStopGuardianCommandChainScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const path = require('path');",
+    "  const fromRoot = (relativePath) => require(path.resolve(process.cwd(), relativePath));",
+    "  const Core = fromRoot('game/logic/core.js');",
+    "  const CardLogic = fromRoot('game/logic/cards.js');",
+    "  const TurnPipelinePhases = fromRoot('game/turn/turn_pipeline_phases.js');",
+    "  const SeededPRNG = fromRoot('game/schema/prng.js');",
+    "  const gameState = Core.createGameState();",
+    "  const prng = SeededPRNG.createPRNG(13);",
+    "  const cardState = CardLogic.createCardState(prng);",
+    "  TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', [], prng);",
+    "  cardState.pendingEffectByPlayer.black = { type: 'GUARDIAN_GOD', stage: 'selectTarget', cardId: 'guardian_card' };",
+    "  cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 1, white: 0 };",
+    "  cardState.hasUsedCardThisTurnByPlayer.black = true;",
+    "  const initialTurnIndex = typeof cardState.turnIndex === 'number' ? cardState.turnIndex : 1;",
+    "  const room = {",
+    "    roomId: 'ROOMTG',",
+    "    seed: 13,",
+    "    stateVersion: 8,",
+    "    updatedAt: Date.now(),",
+    "    seats: { black: true, white: true },",
+    "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    seatNames: { black: 'black', white: 'white' },",
+    "    turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black', turnStartedAt: null, turnDeadlineAt: null },",
+    "    lastAcceptedOperationBySeat: { black: null, white: null },",
+    "    snapshot: { gameState, cardState, stateVersion: 8, updatedAt: Date.now() }",
+    "  };",
+    "  const storage = new Map();",
+    "  storage.set('match_room_state_v1', room);",
+    "  const state = {",
+    "    storage: {",
+    "      get: async (key) => storage.get(key),",
+    "      put: async (key, value) => storage.set(key, value),",
+    "      delete: async (key) => storage.delete(key)",
+    "    }",
+    "  };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  let broadcastMeta = null;",
+    "  durableObject.broadcastSnapshot = async (meta) => { broadcastMeta = meta; };",
+    "  const guardResponse = await durableObject.handlePublish({",
+    "    roomId: 'ROOMTG',",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: 'token_black',",
+    "    baseVersion: 8,",
+    "    operationId: 'op_guard_select',",
+    "    actionType: 'place',",
+    "    actor: 'black',",
+    "    params: { player: 'black', guardTarget: { row: 3, col: 4 } },",
+    "    turnIndex: initialTurnIndex,",
+    "    action: { type: 'place', playerKey: 'black', guardTarget: { row: 3, col: 4 }, turnIndex: initialTurnIndex }",
+    "  });",
+    "  const guardPayload = await guardResponse.json();",
+    "  const afterGuard = JSON.parse(JSON.stringify({",
+    "    status: guardResponse.status,",
+    "    payload: guardPayload,",
+    "    gameState: durableObject.room.snapshot.gameState,",
+    "    cardState: durableObject.room.snapshot.cardState,",
+    "    turnTimer: durableObject.room.turnTimer,",
+    "    broadcastMeta",
+    "  }));",
+    "  broadcastMeta = null;",
+    "  const placeTurnIndex = (durableObject.room.snapshot.cardState && typeof durableObject.room.snapshot.cardState.turnIndex === 'number')",
+    "    ? durableObject.room.snapshot.cardState.turnIndex",
+    "    : initialTurnIndex;",
+    "  const placeResponse = await durableObject.handlePublish({",
+    "    roomId: 'ROOMTG',",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: 'token_black',",
+    "    baseVersion: durableObject.room.stateVersion,",
+    "    operationId: 'op_final_place',",
+    "    actionType: 'place',",
+    "    actor: 'black',",
+    "    params: { row: 2, col: 3 },",
+    "    turnIndex: placeTurnIndex,",
+    "    action: { type: 'place', playerKey: 'black', row: 2, col: 3, turnIndex: placeTurnIndex }",
+    "  });",
+    "  const placePayload = await placeResponse.json();",
+    "  const afterPlace = JSON.parse(JSON.stringify({",
+    "    status: placeResponse.status,",
+    "    payload: placePayload,",
+    "    gameState: durableObject.room.snapshot.gameState,",
+    "    cardState: durableObject.room.snapshot.cardState,",
+    "    turnTimer: durableObject.room.turnTimer,",
+    "    broadcastMeta",
+    "  }));",
+    `  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({ afterGuard, afterPlace }));`,
     "})().catch((error) => {",
     "  console.error(error && error.stack ? error.stack : String(error));",
     "  process.exit(1);",
@@ -437,6 +810,15 @@ describe('match worker publish sanitize', () => {
   test('command publishでも missed turn-start bookkeeping を補完して永続化する', () => {
     const result = runPublishTurnStartReconcileScenario();
     const cardState = result.internalCardState;
+    const playbackEvents = Array.isArray(result.broadcastMeta && result.broadcastMeta.playbackEvents)
+      ? result.broadcastMeta.playbackEvents
+      : [];
+    const handAddEvents = playbackEvents.filter((event) => event && event.type === 'hand_add');
+    const otherEvents = playbackEvents.filter((event) => event && event.type !== 'hand_add');
+    const maxOtherPhase = otherEvents.reduce((maxPhase, event) => {
+      const phase = Number(event && event.phase);
+      return Number.isFinite(phase) && phase > maxPhase ? phase : maxPhase;
+    }, 0);
 
     expect(result.status).toBe(200);
     expect(result.payload.ok).toBe(true);
@@ -449,10 +831,12 @@ describe('match worker publish sanitize', () => {
     expect(cardState.lastTurnStartedFor).toBe('white');
     expect(cardState.turnCountByPlayer.white).toBeGreaterThanOrEqual(3);
     expect(Array.isArray(result.broadcastMeta && result.broadcastMeta.playbackEvents)).toBe(true);
-    expect(result.broadcastMeta.playbackEvents).toEqual(expect.arrayContaining([
+    expect(playbackEvents).toEqual(expect.arrayContaining([
       expect.objectContaining({ type: 'hand_add' })
     ]));
-    expect(result.broadcastMeta.playbackEvents).toEqual(expect.not.arrayContaining([
+    expect(handAddEvents.length).toBeGreaterThan(0);
+    expect(handAddEvents.every((event) => Number(event && event.phase) > maxOtherPhase)).toBe(true);
+    expect(playbackEvents).toEqual(expect.not.arrayContaining([
       expect.objectContaining({ type: 'HAND_ADD' }),
       expect.objectContaining({ type: 'CHANGE' }),
       expect.objectContaining({ type: 'DESTROY' })
@@ -476,6 +860,27 @@ describe('match worker publish sanitize', () => {
       expect.objectContaining({ type: 'HAND_REMOVE' }),
       expect.objectContaining({ type: 'DESTROY' })
     ]));
+  });
+
+  test('time stop extra turn survives guardian selection and hands off to white after the follow-up place', () => {
+    const result = runTimeStopGuardianCommandChainScenario();
+
+    expect(result.afterGuard.status).toBe(200);
+    expect(result.afterGuard.payload.ok).toBe(true);
+    expect(result.afterGuard.gameState.currentPlayer).toBe(1);
+    expect(result.afterGuard.gameState.turnNumber).toBe(0);
+    expect(result.afterGuard.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.afterGuard.cardState.timeStopConsecutiveTurnsRemainingByPlayer).toEqual({ black: 1, white: 0 });
+    expect(result.afterGuard.cardState.lastTurnStartedFor).toBe('black');
+    expect(result.afterGuard.turnTimer.turnSeatKey).toBe('black');
+
+    expect(result.afterPlace.status).toBe(200);
+    expect(result.afterPlace.payload.ok).toBe(true);
+    expect(result.afterPlace.gameState.currentPlayer).toBe(-1);
+    expect(result.afterPlace.gameState.turnNumber).toBe(1);
+    expect(result.afterPlace.cardState.timeStopConsecutiveTurnsRemainingByPlayer).toEqual({ black: 0, white: 0 });
+    expect(result.afterPlace.cardState.lastTurnStartedFor).toBe('white');
+    expect(result.afterPlace.turnTimer.turnSeatKey).toBe('white');
   });
 
   test('command publish with PLUNDER_WILL preserves stolen charge and clears pending effect', () => {
@@ -517,6 +922,33 @@ describe('match worker publish sanitize', () => {
     ]));
     expect(result.broadcastMeta.playbackEvents).toEqual(expect.not.arrayContaining([
       expect.objectContaining({ type: 'DESTROY' })
+    ]));
+  });
+
+  test('command publish with FREE_PLACEMENT accepts zero-flip placement in authority stream', () => {
+    const result = runCommandPublishPendingPlaceScenario('FREE_PLACEMENT', {
+      row: 0,
+      col: 0,
+      roomId: 'ROOMF',
+      operationId: 'op_free_placement_1'
+    });
+    const cardState = result.internalCardState;
+
+    expect(result.status).toBe(200);
+    expect(result.payload.ok).toBe(true);
+    expect(result.internalGameState.board[0][0]).toBe(1);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(Array.isArray(result.broadcastMeta && result.broadcastMeta.playbackEvents)).toBe(true);
+    expect(result.broadcastMeta.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'place_hand_animation',
+        targets: expect.arrayContaining([
+          expect.objectContaining({ r: 0, col: 0, player: 'black', owner: 'black' })
+        ])
+      })
+    ]));
+    expect(result.broadcastMeta.playbackEvents).toEqual(expect.not.arrayContaining([
+      expect.objectContaining({ type: 'destroy' })
     ]));
   });
 
@@ -579,7 +1011,105 @@ describe('match worker publish sanitize', () => {
             reason: 'sniper_shot'
           })
         ])
+        })
+      ]));
+  });
+
+  test('sniper marker survives into next owner turn and decrements in network authority flow', () => {
+    const result = runCommandPublishSniperTurnStartScenario();
+    const cardState = result.internalCardState;
+    const sniperMarker = cardState.markers.find((marker) => marker && marker.id === 9001);
+
+    expect(result.status).toBe(200);
+    expect(result.payload.ok).toBe(true);
+    expect(result.internalGameState.currentPlayer).toBe(1);
+    expect(result.internalGameState.board[3][2]).toBe(-1);
+    expect(result.internalGameState.board[0][2]).toBe(0);
+    expect(sniperMarker).toBeTruthy();
+    expect(sniperMarker.data).toMatchObject({ type: 'SNIPER', remainingOwnerTurns: 4 });
+    expect(Array.isArray(result.broadcastMeta && result.broadcastMeta.playbackEvents)).toBe(true);
+    expect(result.broadcastMeta.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'destroy',
+        targets: expect.arrayContaining([
+          expect.objectContaining({ r: 0, col: 2, reason: 'sniper_shot' })
+        ])
       })
     ]));
+  });
+
+  test('network debug room では手番外の debug fill hand command を許可し自席だけ補充する', () => {
+    const result = runCommandPublishDebugFillScenario(true, 'white');
+
+    expect(result.status).toBe(200);
+    expect(result.payload.ok).toBe(true);
+    expect(result.internalCardState.hands.black).toEqual([]);
+    expect(result.internalCardState.hands.white.length).toBeGreaterThan(20);
+    expect(result.internalCardState.debugHandFilled).toBe(true);
+    expect(result.internalCardState.debugNoDraw).toBe(true);
+    expect(Array.isArray(result.broadcastMeta && result.broadcastMeta.playbackEvents)).toBe(true);
+    expect(result.broadcastMeta.playbackEvents).toEqual([]);
+    expect(result.internalTurnTimer).toMatchObject(result.expectedTurnTimer);
+  });
+
+  test('network debug room でない場合は debug fill hand command を拒否する', () => {
+    const result = runCommandPublishDebugFillScenario(false, 'black');
+
+    expect(result.status).toBe(409);
+    expect(result.payload.ok).toBe(false);
+    expect(result.payload.rejectedReason).toBe('NETWORK_DEBUG_DISABLED');
+    expect(result.internalCardState.hands.black).toEqual([]);
+    expect(result.internalCardState.hands.white).toEqual([]);
+    expect(result.broadcastMeta).toBeNull();
+  });
+
+  test('VERSION_MISMATCH response keeps room context and shared publishMeta shape', () => {
+    const result = runPublishVersionMismatchScenario();
+
+    expect(result.status).toBe(409);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: false,
+      roomId: 'ROOMM',
+      rejectedReason: 'VERSION_MISMATCH',
+      roomDeck: null,
+      networkDebugEnabled: false,
+      snapshot: expect.any(Object),
+      seats: expect.any(Object),
+      seatNames: expect.any(Object),
+      turnTimer: expect.any(Object),
+      publishMeta: expect.objectContaining({
+        kind: 'rejected',
+        operationId: 'op_vm_1',
+        actionType: 'place',
+        receivedBaseVersion: 3,
+        authoritativeStateVersion: 4,
+        rejectedReason: 'VERSION_MISMATCH'
+      })
+    }));
+  });
+
+  test('idempotent replay response keeps shared publishMeta shape', () => {
+    const result = runPublishIdempotentReplayScenario();
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      roomId: 'ROOMR',
+      idempotentReplay: true,
+      roomDeck: null,
+      networkDebugEnabled: false,
+      snapshot: expect.any(Object),
+      seats: expect.any(Object),
+      seatNames: expect.any(Object),
+      turnTimer: expect.any(Object),
+      publishMeta: expect.objectContaining({
+        kind: 'idempotent_replay',
+        operationId: 'op_replay_1',
+        actionType: 'place',
+        receivedBaseVersion: 4,
+        authoritativeStateVersion: 5,
+        replayedStateVersion: 5
+      })
+    }));
   });
 });

@@ -455,6 +455,20 @@ body.auto-mode-active #cancel-card-btn {
     text-transform: uppercase;
 }
 
+#networkDebugOptionRow {
+    display: flex;
+    align-items: center;
+    gap: calc(6px * var(--layout-stage-scale));
+    margin-bottom: calc(6px * var(--layout-stage-scale));
+    font-size: var(--layout-size-control-font);
+    color: #d7ccc8;
+    user-select: none;
+}
+
+#networkEnableDebugCheckbox {
+    margin: 0;
+}
+
 #networkPanel .btn-small {
     margin-right: calc(4px * var(--layout-stage-scale));
     margin-bottom: calc(4px * var(--layout-stage-scale));
@@ -872,6 +886,12 @@ body.auto-mode-active #cancel-card-btn {
     font-size: calc(10px * var(--layout-stage-scale));
     line-height: 1.2;
     text-align: center;
+}
+
+html.time-stop-active body,
+body.time-stop-active {
+    filter: grayscale(1);
+    transition: filter 160ms ease-out;
 }
 
 .deck-builder-empty {

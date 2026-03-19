@@ -2,6 +2,8 @@ const SharedConstants = require('../shared-constants');
 const CardLogic = require('../game/logic/cards');
 const Core = require('../game/logic/core');
 const TurnPipeline = require('../game/turn/turn_pipeline');
+const TurnPipelinePhases = require('../game/turn/turn_pipeline_phases');
+const BoardOps = require('../game/logic/board_ops');
 
 describe('TRAP_WILL (罠の意志)', () => {
   function makeState() {
@@ -69,6 +71,44 @@ describe('TRAP_WILL (罠の意志)', () => {
     expect((selectResult.cardState.markers || [])).toEqual(expect.arrayContaining([
       expect.objectContaining({ row: 3, col: 4, owner: 'black', data: expect.objectContaining({ type: 'TRAP' }) })
     ]));
+
+    const allPresentationEvents = [
+      ...((selectResult.cardState && selectResult.cardState.presentationEvents) || []),
+      ...((selectResult.cardState && selectResult.cardState._presentationEventsPersist) || [])
+    ];
+    const leakedStatus = allPresentationEvents.find((ev) => (
+      ev &&
+      ev.type === 'STATUS_APPLIED' &&
+      ev.meta &&
+      ev.meta.special === 'TRAP'
+    ));
+    expect(leakedStatus).toBeUndefined();
+  });
+
+  test('trap_selected raw event omits target coordinates', () => {
+    const { cardState, gameState } = makeState();
+    gameState.currentPlayer = Core.BLACK;
+    gameState.board[3][4] = Core.BLACK;
+    cardState.pendingEffectByPlayer.black = { type: 'TRAP_WILL', stage: 'selectTarget', cardId: 'trap_01' };
+
+    const events = [];
+    TurnPipelinePhases.applyActionPhase(
+      CardLogic,
+      Core,
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', trapTarget: { row: 3, col: 4 } },
+      events,
+      { shuffle: (arr) => arr, random: () => 0.5 },
+      BoardOps
+    );
+
+    const trapSelected = events.find((ev) => ev && ev.type === 'trap_selected');
+    expect(trapSelected).toBeTruthy();
+    expect(trapSelected).toMatchObject({ type: 'trap_selected', player: 'black', applied: true });
+    expect(trapSelected && trapSelected.target).toBeUndefined();
+    expect(gameState.currentPlayer).toBe(Core.WHITE);
   });
 
   test('trigger: steals up to 20 charge and destroys all victim hand cards', () => {

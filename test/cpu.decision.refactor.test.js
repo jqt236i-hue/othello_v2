@@ -1081,6 +1081,150 @@ describe('cpu decision refactor helpers', () => {
     expect(move).toBe(highValueSpecialKillMove);
   });
 
+  test('selectCpuMoveWithPolicy does not hard-force special-flip move that immediately donates a corner when safe edge exists', () => {
+    const riskySpecialKillMove = { row: 1, col: 1, flips: [{ row: 0, col: 1 }, { row: 1, col: 0 }] };
+    const safeEdgeMove = { row: 0, col: 4, flips: [{ row: 0, col: 3 }] };
+    const candidates = [riskySpecialKillMove, safeEdgeMove];
+    global.gameState = {
+      board: [
+        [0, 0, 1, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [1, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: [
+        { kind: 'specialStone', row: 0, col: 1, owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 4 } }
+      ]
+    };
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
+      expect(moves).toEqual([safeEdgeMove]);
+      return moves[0];
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+    expect(move).toBe(safeEdgeMove);
+  });
+
+  test('selectCpuMoveWithPolicy keeps preferEdgeRetention off outside corner-hold mode when breaking special-flip ties', () => {
+    const innerSpecialKillMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+    const edgeSpecialKillMove = { row: 0, col: 4, flips: [{ row: 1, col: 4 }] };
+    const candidates = [innerSpecialKillMove, edgeSpecialKillMove];
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: [
+        { kind: 'specialStone', row: 3, col: 3, owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 2 } },
+        { kind: 'specialStone', row: 1, col: 4, owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 2 } }
+      ]
+    };
+    jest.spyOn(cpuPolicyCore, 'scoreMoveForCornerEdgePlan').mockImplementation((move, context) => {
+      if (move && move.row === edgeSpecialKillMove.row && move.col === edgeSpecialKillMove.col) {
+        return context && context.preferEdgeRetention === true ? 1000 : 0;
+      }
+      if (move && move.row === innerSpecialKillMove.row && move.col === innerSpecialKillMove.col) {
+        return context && context.preferEdgeRetention === true ? 0 : 1000;
+      }
+      return 0;
+    });
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
+      expect(moves).toEqual([innerSpecialKillMove]);
+      return moves[0];
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+    expect(move).toBe(innerSpecialKillMove);
+    const planCall = cpuPolicyCore.scoreMoveForCornerEdgePlan.mock.calls.find(
+      ([one]) => one && one.row === innerSpecialKillMove.row && one.col === innerSpecialKillMove.col
+    );
+    expect(planCall).toBeTruthy();
+    expect(planCall[1]).toEqual(expect.objectContaining({ preferEdgeRetention: false }));
+  });
+
+  test('selectCpuMoveWithPolicy keeps preferEdgeRetention on during corner-hold special-flip tie-break', () => {
+    const innerSpecialKillMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+    const edgeSpecialKillMove = { row: 0, col: 4, flips: [{ row: 1, col: 4 }] };
+    const candidates = [innerSpecialKillMove, edgeSpecialKillMove];
+    global.gameState = {
+      board: [
+        [-1, -1, -1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [1, 0, 0, -1, 1, 0, 0, 0],
+        [1, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, -1, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: [
+        { kind: 'specialStone', row: 3, col: 3, owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 2 } },
+        { kind: 'specialStone', row: 1, col: 4, owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 2 } }
+      ]
+    };
+    jest.spyOn(cpuPolicyCore, 'scoreMoveForCornerEdgePlan').mockImplementation((move, context) => {
+      if (move && move.row === edgeSpecialKillMove.row && move.col === edgeSpecialKillMove.col) {
+        return context && context.preferEdgeRetention === true ? 1000 : 0;
+      }
+      if (move && move.row === innerSpecialKillMove.row && move.col === innerSpecialKillMove.col) {
+        return context && context.preferEdgeRetention === true ? 0 : 1000;
+      }
+      return 0;
+    });
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
+      expect(moves).toEqual([edgeSpecialKillMove]);
+      return moves[0];
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+    expect(move).toBe(edgeSpecialKillMove);
+    const planCall = cpuPolicyCore.scoreMoveForCornerEdgePlan.mock.calls.find(
+      ([one]) => one && one.row === edgeSpecialKillMove.row && one.col === edgeSpecialKillMove.col
+    );
+    expect(planCall).toBeTruthy();
+    expect(planCall[1]).toEqual(expect.objectContaining({ preferEdgeRetention: true }));
+  });
+
   test('selectCpuMoveWithPolicy drops risky open-corner edge when safer Lv6 edge exists', () => {
     const riskyEdgeMove = { row: 0, col: 1, flips: [{ row: 1, col: 1 }] };
     const safeEdgeMove = { row: 0, col: 4, flips: [{ row: 1, col: 4 }] };
@@ -1115,6 +1259,155 @@ describe('cpu decision refactor helpers', () => {
 
     const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
     expect(move).toBe(safeEdgeMove);
+  });
+
+  test('selectCpuMoveWithPolicy excludes risky open-corner C-square when safer inner move exists', () => {
+    const riskyCornerAdjacentMove = { row: 0, col: 1, flips: [{ row: 1, col: 1 }] };
+    const safeInnerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+    const candidates = [riskyCornerAdjacentMove, safeInnerMove];
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 1, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: []
+    };
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
+      expect(moves).toEqual([safeInnerMove]);
+      return moves[0];
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+    expect(move).toBe(safeInnerMove);
+  });
+
+  test('selectCpuMoveWithPolicy does not hard-force edge in early no-marker board state', () => {
+    const safeEdgeMove = { row: 0, col: 4, flips: [{ row: 1, col: 4 }] };
+    const safeInnerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+    const candidates = [safeEdgeMove, safeInnerMove];
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 0, 0, 0],
+        [0, 0, 0, 0, -1, 0, 0, 0],
+        [0, 0, 0, 1, 1, 0, 0, 0],
+        [0, 0, 0, -1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: []
+    };
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
+      expect(moves).toEqual([safeEdgeMove, safeInnerMove]);
+      return safeInnerMove;
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+    expect(move).toBe(safeInnerMove);
+  });
+
+  test('selectCpuMoveWithPolicy treats corner-neighbor as new corner when METEOR_HOLE blocks original corner', () => {
+    const promotedCornerMove = { row: 0, col: 1, flips: [{ row: 1, col: 1 }] };
+    const safeInnerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+    const candidates = [promotedCornerMove, safeInnerMove];
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, -1, 0, 0, 0],
+        [0, 0, 0, 1, 1, 0, 0, 0],
+        [0, 0, 0, -1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: [
+        { kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'METEOR_HOLE' } }
+      ]
+    };
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
+      expect(moves).toEqual([promotedCornerMove]);
+      return moves[0];
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+    expect(move).toBe(promotedCornerMove);
+  });
+
+  test('selectCpuMoveWithPolicy prioritizes expansion corner as corner move', () => {
+    const expansionCornerMove = { row: -1, col: -1, flips: [{ row: 0, col: 0 }] };
+    const safeInnerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+    const candidates = [expansionCornerMove, safeInnerMove];
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, -1, 0, 0, 0],
+        [0, 0, 0, 1, 1, 0, 0, 0],
+        [0, 0, 0, -1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      boardExpansion: {
+        cells: [{ row: -1, col: -1, owner: 0 }]
+      },
+      currentPlayer: -1
+    };
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: []
+    };
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
+      expect(moves).toEqual([expansionCornerMove]);
+      return moves[0];
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+    expect(move).toBe(expansionCornerMove);
   });
 
   test('selectCpuMoveWithPolicy prioritizes corner during LAST_RESORT pending placement', () => {
@@ -1386,7 +1679,7 @@ describe('cpu decision refactor helpers', () => {
       currentPlayer: -1
     };
     global.cardState = {
-      hands: { white: ['sacrifice_01', 'silver_stone', 'chain_01', 'gold_stone'], black: [] },
+      hands: { white: ['sacrifice_01', 'silver_stone', 'double_chain_01', 'gold_stone'], black: [] },
       pendingEffectByPlayer: { white: null, black: null },
       hasUsedCardThisTurnByPlayer: { white: false, black: false },
       hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
@@ -1402,9 +1695,9 @@ describe('cpu decision refactor helpers', () => {
         name: id,
         type: id === 'sacrifice_01'
           ? 'SACRIFICE_WILL'
-          : (id === 'chain_01' ? 'CHAIN_WILL' : (id === 'gold_stone' ? 'GOLD_STONE' : 'SILVER_STONE'))
+          : (id === 'double_chain_01' ? 'DOUBLE_CHAIN_WILL' : (id === 'gold_stone' ? 'GOLD_STONE' : 'SILVER_STONE'))
       }),
-      getCardCost: (id) => (id === 'chain_01' ? 10 : (id === 'gold_stone' ? 6 : 5)),
+      getCardCost: (id) => (id === 'double_chain_01' ? 10 : (id === 'gold_stone' ? 6 : 5)),
       destroyHandCard: jest.fn()
     };
     global.TurnPipeline = {};
@@ -1415,7 +1708,7 @@ describe('cpu decision refactor helpers', () => {
           ok: true,
           nextCardState: {
             ...global.cardState,
-            hands: { ...global.cardState.hands, white: ['silver_stone', 'chain_01', 'gold_stone'] },
+            hands: { ...global.cardState.hands, white: ['silver_stone', 'double_chain_01', 'gold_stone'] },
             hasDestroyedCardThisTurnByPlayer: { ...global.cardState.hasDestroyedCardThisTurnByPlayer, white: true }
           },
           nextGameState: global.gameState,
@@ -1996,6 +2289,163 @@ describe('cpu decision refactor helpers', () => {
     );
     const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
     expect(action.destroyTarget).toEqual({ row: 0, col: 8 });
+  });
+
+  test('cpuSelectMeteorWillWithPolicy prefers corner target that promotes adjacent own edge into pseudo-corner', async () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: [
+        [0, -1, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: { type: 'METEOR_WILL', stage: 'selectTarget' }, black: null },
+      hasUsedCardThisTurnByPlayer: { white: true, black: false },
+      charge: { white: 24, black: 18 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: []
+    };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 3, col: 3 }, { row: 0, col: 0 }],
+      applyMeteorWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectMeteorWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.meteorTarget).toEqual({ row: 0, col: 0 });
+  });
+
+  test('cpuSelectMeteorWillWithPolicy prefers removing opponent corner special stone', async () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: [
+        [1, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: { type: 'METEOR_WILL', stage: 'selectTarget' }, black: null },
+      hasUsedCardThisTurnByPlayer: { white: true, black: false },
+      charge: { white: 24, black: 18 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: [
+        {
+          kind: 'specialStone',
+          owner: 'black',
+          row: 0,
+          col: 0,
+          data: { type: 'WORK', remainingOwnerTurns: 6 }
+        }
+      ]
+    };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 3, col: 3 }, { row: 0, col: 0 }],
+      applyMeteorWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectMeteorWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.meteorTarget).toEqual({ row: 0, col: 0 });
+  });
+
+  test('cpuSelectMeteorWillWithPolicy avoids plain corner hole when inner strong special is better', async () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: [
+        [1, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: { type: 'METEOR_WILL', stage: 'selectTarget' }, black: null },
+      hasUsedCardThisTurnByPlayer: { white: true, black: false },
+      charge: { white: 24, black: 18 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: [
+        {
+          kind: 'specialStone',
+          owner: 'black',
+          row: 3,
+          col: 3,
+          data: { type: 'WORK', remainingOwnerTurns: 6 }
+        }
+      ]
+    };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 0, col: 0 }, { row: 3, col: 3 }],
+      applyMeteorWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectMeteorWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.meteorTarget).toEqual({ row: 3, col: 3 });
   });
 
   test('cpuSelectTeleportWillWithPolicy prefers enemy corner target', async () => {

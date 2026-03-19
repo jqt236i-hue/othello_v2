@@ -62,6 +62,22 @@
             return result;
         }
 
+        if (cardType === 'TIME_STOP_GOD') {
+            if (typeof context.getTimeStopGodDestroyableCount !== 'function') {
+                return buildFailureResult();
+            }
+            return context.getTimeStopGodDestroyableCount(context.cardState, context.gameState, context.playerKey) >= 3
+                ? result
+                : buildFailureResult();
+        }
+
+        if (cardType === 'LOSS_WILL') {
+            if (typeof context.getLossWillRemovableCount !== 'function') return buildFailureResult();
+            return context.getLossWillRemovableCount(context.cardState, context.gameState) > 0
+                ? result
+                : buildFailureResult();
+        }
+
         if (cardType === 'HEAVEN_BLESSING') {
             if (typeof context.buildHeavenBlessingOffers !== 'function') return buildFailureResult();
             const offers = context.buildHeavenBlessingOffers(context.cardId, context.prng, context.heavenSeedHint);

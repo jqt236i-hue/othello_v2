@@ -176,7 +176,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
     expect(created.ok).toBe(true);
 
-    const action = { type: 'use_card', useCardId: 'sample_card' };
+    const action = { type: 'use_card', useCardId: 'hard_01' };
     const result = window.TurnPipelineUIAdapter.runTurnWithAdapter(global.cardState, global.gameState, 'black', action, {});
     expect(result.ok).toBe(true);
 
@@ -186,7 +186,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     const payload = publishPayloads[0];
     expect(payload.actionType).toBe('use_card');
     expect(payload.actor).toBe('black');
-    expect(payload.params).toEqual({ useCardId: 'sample_card' });
+    expect(payload.params).toEqual({ useCardId: 'hard_01' });
     expect(payload.snapshot).toBeUndefined();
     expect(payload.playbackEvents).toBeUndefined();
   });
@@ -244,7 +244,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
     expect(created.ok).toBe(true);
 
-    const action = { type: 'use_card', useCardId: 'sample_card' };
+    const action = { type: 'use_card', useCardId: 'trap_01' };
     const result = window.TurnPipelineUIAdapter.runTurnWithAdapter(global.cardState, global.gameState, 'black', action, {});
     expect(result.ok).toBe(true);
 

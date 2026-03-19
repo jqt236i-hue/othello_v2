@@ -105,6 +105,17 @@ function _resolveHandSelectorByOwner(playerKey) {
     return ownerKey === 'white' ? '#hand-white' : '#hand-black';
 }
 
+function _playEffectByKeySafe(soundKey) {
+    const key = String(soundKey || '').trim();
+    if (!key) return;
+    try {
+        if (typeof SoundEngine !== 'undefined' && SoundEngine && typeof SoundEngine.playEffectByKey === 'function') {
+            if (typeof SoundEngine.init === 'function') SoundEngine.init();
+            SoundEngine.playEffectByKey(key);
+        }
+    } catch (e) { /* ignore */ }
+}
+
 function _resolveCardStateForHandAnimations() {
     try {
         if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
@@ -245,6 +256,60 @@ function _installAnimationResolveFallback(done, timeoutMs) {
         try { clearTimeout(fallbackId); } catch (e) { /* ignore */ }
         fallbackId = null;
     };
+}
+
+function _getHandLayerAnimationRoot() {
+    if (typeof window !== 'undefined' && window) return window;
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis) return globalThis;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _getHandLayerAnimationQueueTail(rootRef) {
+    if (!rootRef) return Promise.resolve();
+    const tail = rootRef.__handLayerAnimationQueueTail;
+    return (tail && typeof tail.then === 'function')
+        ? tail.catch(() => {})
+        : Promise.resolve();
+}
+
+function _setHandLayerAnimationQueueTail(rootRef, nextTail) {
+    if (!rootRef) return;
+    try {
+        rootRef.__handLayerAnimationQueueTail = nextTail || null;
+    } catch (e) { /* ignore */ }
+}
+
+function _enqueueHandLayerAnimation(task) {
+    const runTask = (typeof task === 'function') ? task : function () { return Promise.resolve(); };
+    const rootRef = _getHandLayerAnimationRoot();
+    if (!rootRef) {
+        return Promise.resolve().then(runTask);
+    }
+
+    const previousTail = _getHandLayerAnimationQueueTail(rootRef);
+    let releaseQueue = function () {};
+    const gate = new Promise((resolve) => {
+        releaseQueue = resolve;
+    });
+    const nextTail = previousTail.then(() => gate);
+    _setHandLayerAnimationQueueTail(rootRef, nextTail);
+
+    const clearTailIfCurrent = () => {
+        try {
+            if (rootRef.__handLayerAnimationQueueTail === nextTail) {
+                rootRef.__handLayerAnimationQueueTail = null;
+            }
+        } catch (e) { /* ignore */ }
+    };
+
+    return previousTail.then(() => {
+        return Promise.resolve(runTask()).finally(() => {
+            releaseQueue();
+            void nextTail.finally(clearTailIfCurrent);
+        });
+    });
 }
 
 function _animateCompat(el, keyframes, options, scope) {
@@ -465,161 +530,165 @@ function animateStrongWillApply(row, col) {
  * @param {Function} onComplete - 完了コールバック
  */
 function playHandAnimation(player, row, col, onComplete) {
-    const syncCardAnimating = (locked) => {
-        _setCardAnimatingState(locked);
-    };
-    const refreshCardUi = () => {
-        try {
-            if (typeof renderCardUI === 'function') renderCardUI();
-        } catch (e) { /* ignore */ }
-    };
-    const unlockProcessing = () => {
-        _setProcessingState(false);
-    };
-    _setProcessingState(true);
+    return _enqueueHandLayerAnimation(() => new Promise((resolveQueue) => {
+        const syncCardAnimating = (locked) => {
+            _setCardAnimatingState(locked);
+        };
+        const refreshCardUi = () => {
+            try {
+                if (typeof renderCardUI === 'function') renderCardUI();
+            } catch (e) { /* ignore */ }
+        };
+        const unlockProcessing = () => {
+            _setProcessingState(false);
+        };
+        const releaseQueue = () => {
+            try { resolveQueue(); } catch (e) { /* ignore */ }
+        };
+        const completeImmediately = () => {
+            unlockProcessing();
+            syncCardAnimating(false);
+            refreshCardUi();
+            try { if (typeof onComplete === 'function') onComplete(); } catch (e) { /* ignore */ }
+            releaseQueue();
+        };
 
-    const boardRoot = (typeof boardEl !== 'undefined' && boardEl) ? boardEl : document.getElementById('board');
-    const targetCell = boardRoot ? boardRoot.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`) : null;
-    if (!targetCell) {
-        unlockProcessing();
-        syncCardAnimating(false);
-        refreshCardUi();
-        onComplete();
-        return;
-    }
+        _setProcessingState(true);
 
-    // No-Animation: short-circuit to immediate completion without toggling isCardAnimating
-    if (_isNoAnim()) {
-        // Ensure processing isn't left locked and call onComplete synchronously
-        unlockProcessing();
-        syncCardAnimating(false);
-        refreshCardUi();
-        onComplete();
-        return;
-    }
-
-    const layerEl = (typeof handLayer !== 'undefined' && handLayer) ? handLayer : document.getElementById('handLayer');
-    const wrapperEl = (typeof handWrapper !== 'undefined' && handWrapper) ? handWrapper : document.getElementById('handWrapper');
-    const heldStoneEl = (typeof heldStone !== 'undefined' && heldStone) ? heldStone : document.getElementById('heldStone');
-    if (!layerEl || !wrapperEl || !heldStoneEl || !boardRoot) {
-        unlockProcessing();
-        syncCardAnimating(false);
-        refreshCardUi();
-        onComplete();
-        return;
-    }
-
-    // Mark that a UI card animation is in progress so Auto loop waits for visual completion
-    syncCardAnimating(true);
-    // Safety: clear the flag after a maximum duration in case animationend doesn't fire
-    const sc = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
-    let handAnimationTimeout = _Timer().setTimeout(() => {
-        syncCardAnimating(false);
-        refreshCardUi();
-    }, 3000, sc);
-
-    const boardRect = boardRoot.getBoundingClientRect();
-    const cellRect = targetCell.getBoundingClientRect();
-
-    // Setup Hand
-    layerEl.style.display = 'block';
-    heldStoneEl.style.display = 'block';
-    heldStoneEl.className = 'held-stone ' + (player === BLACK ? 'black' : 'white');
-
-    // Calculate Position
-    const cellCenterX = cellRect.left + (cellRect.width / 2);
-    const cellCenterY = cellRect.top + (cellRect.height / 2);
-    const wrapW = 120; // Matches CSS
-
-    const playerKey = _normalizeHandOwnerKey(player);
-    const fromBottom = _isOwnerOnBottomSlot(playerKey);
-    let startY;
-    let dropY;
-    let rotation;
-    let scale;
-
-    if (fromBottom) {
-        // Bottom seat: from below board
-        rotation = 0;
-        scale = 0.8;
-        dropY = cellCenterY - 55;
-        startY = boardRect.bottom + 50;
-    } else {
-        // Top seat: from above board
-        rotation = 180;
-        scale = 0.7;
-        dropY = cellCenterY - 290;
-        startY = boardRect.top - 250;
-    }
-
-    const dropX = cellCenterX - (wrapW / 2);
-
-    // Set initial state
-    wrapperEl.style.transform = `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`;
-    let completed = false;
-    const completeMove = () => {
-        if (completed) return;
-        completed = true;
-        try { onComplete(); } catch (e) { /* ignore */ }
-    };
-    const cleanup = () => {
-        layerEl.style.display = 'none';
-        if (handAnimationTimeout) {
-            _Timer().clearTimeout(handAnimationTimeout);
-            handAnimationTimeout = null;
+        const boardRoot = (typeof boardEl !== 'undefined' && boardEl) ? boardEl : document.getElementById('board');
+        const targetCell = boardRoot ? boardRoot.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`) : null;
+        if (!targetCell) {
+            completeImmediately();
+            return;
         }
-        syncCardAnimating(false);
-        unlockProcessing();
-        refreshCardUi();
-    };
 
-    (async () => {
-        // 1. Approach
-        await _animateCompat(wrapperEl, [
-            { transform: `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` },
-            { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` }
-        ], {
-            duration: 400,
-            easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
-            fill: 'forwards'
-        }, sc);
+        // No-Animation: short-circuit to immediate completion without toggling isCardAnimating
+        if (_isNoAnim()) {
+            completeImmediately();
+            return;
+        }
 
-        // 2. Place (Bobbing effect)
-        const bobOffset = (player === BLACK) ? 10 : -10;
-        const placeAnim = _animateCompat(wrapperEl, [
-            { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` },
-            { transform: `translate(${dropX}px, ${dropY + bobOffset}px) rotate(${rotation}deg) scale(${scale * 0.95})` },
-            { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` }
-        ], {
-            duration: 150,
-            easing: 'ease-in-out'
-        }, sc);
+        const layerEl = (typeof handLayer !== 'undefined' && handLayer) ? handLayer : document.getElementById('handLayer');
+        const wrapperEl = (typeof handWrapper !== 'undefined' && handWrapper) ? handWrapper : document.getElementById('handWrapper');
+        const heldStoneEl = (typeof heldStone !== 'undefined' && heldStone) ? heldStone : document.getElementById('heldStone');
+        if (!layerEl || !wrapperEl || !heldStoneEl || !boardRoot) {
+            completeImmediately();
+            return;
+        }
 
-        // Reflect placement immediately when the hand starts the place motion.
-        heldStoneEl.style.display = 'none';
-        try {
-            if (typeof SoundEngine !== 'undefined' && SoundEngine) {
-                SoundEngine.init();
-                SoundEngine.playStoneClack();
+        // Mark that a UI card animation is in progress so Auto loop waits for visual completion
+        syncCardAnimating(true);
+        // Safety: clear the flag after a maximum duration in case animationend doesn't fire
+        const sc = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
+        let handAnimationTimeout = _Timer().setTimeout(() => {
+            syncCardAnimating(false);
+            refreshCardUi();
+        }, 3000, sc);
+
+        const boardRect = boardRoot.getBoundingClientRect();
+        const cellRect = targetCell.getBoundingClientRect();
+
+        // Setup Hand
+        layerEl.style.display = 'block';
+        heldStoneEl.style.display = 'block';
+        heldStoneEl.className = 'held-stone ' + (player === BLACK ? 'black' : 'white');
+
+        // Calculate Position
+        const cellCenterX = cellRect.left + (cellRect.width / 2);
+        const cellCenterY = cellRect.top + (cellRect.height / 2);
+        const wrapW = 120; // Matches CSS
+
+        const playerKey = _normalizeHandOwnerKey(player);
+        const fromBottom = _isOwnerOnBottomSlot(playerKey);
+        let startY;
+        let dropY;
+        let rotation;
+        let scale;
+
+        if (fromBottom) {
+            // Bottom seat: from below board
+            rotation = 0;
+            scale = 0.8;
+            dropY = cellCenterY - 55;
+            startY = boardRect.bottom + 50;
+        } else {
+            // Top seat: from above board
+            rotation = 180;
+            scale = 0.7;
+            dropY = cellCenterY - 290;
+            startY = boardRect.top - 250;
+        }
+
+        const dropX = cellCenterX - (wrapW / 2);
+
+        // Set initial state
+        wrapperEl.style.transform = `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`;
+        let completed = false;
+        const completeMove = () => {
+            if (completed) return;
+            completed = true;
+            try { if (typeof onComplete === 'function') onComplete(); } catch (e) { /* ignore */ }
+        };
+        const cleanup = () => {
+            layerEl.style.display = 'none';
+            if (handAnimationTimeout) {
+                _Timer().clearTimeout(handAnimationTimeout);
+                handAnimationTimeout = null;
             }
-        } catch (e) { /* ignore */ }
-        completeMove();
-        await placeAnim;
+            syncCardAnimating(false);
+            unlockProcessing();
+            refreshCardUi();
+            releaseQueue();
+        };
 
-        // 3. Retreat
-        await _animateCompat(wrapperEl, [
-            { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` },
-            { transform: `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` }
-        ], {
-            duration: 300,
-            easing: 'ease-in',
-            fill: 'forwards'
-        }, sc);
-    })().catch(() => {
-        completeMove();
-    }).finally(() => {
-        cleanup();
-    });
+        (async () => {
+            // 1. Approach
+            await _animateCompat(wrapperEl, [
+                { transform: `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` },
+                { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` }
+            ], {
+                duration: 400,
+                easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+                fill: 'forwards'
+            }, sc);
+
+            // 2. Place (Bobbing effect)
+            const bobOffset = (player === BLACK) ? 10 : -10;
+            const placeAnim = _animateCompat(wrapperEl, [
+                { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` },
+                { transform: `translate(${dropX}px, ${dropY + bobOffset}px) rotate(${rotation}deg) scale(${scale * 0.95})` },
+                { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` }
+            ], {
+                duration: 150,
+                easing: 'ease-in-out'
+            }, sc);
+
+            // Reflect placement immediately when the hand starts the place motion.
+            heldStoneEl.style.display = 'none';
+            try {
+                if (typeof SoundEngine !== 'undefined' && SoundEngine) {
+                    SoundEngine.init();
+                    SoundEngine.playStoneClack();
+                }
+            } catch (e) { /* ignore */ }
+            completeMove();
+            await placeAnim;
+
+            // 3. Retreat
+            await _animateCompat(wrapperEl, [
+                { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` },
+                { transform: `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` }
+            ], {
+                duration: 300,
+                easing: 'ease-in',
+                fill: 'forwards'
+            }, sc);
+        })().catch(() => {
+            completeMove();
+        }).finally(() => {
+            cleanup();
+        });
+    }));
 }
 
 /**
@@ -823,7 +892,23 @@ function playDrawCardHandAnimation(payload) {
     const data = payload || {};
     const toPlayerKey = _normalizeHandOwnerKey(data.player);
 
-    return new Promise(resolve => {
+    try {
+        if (typeof window !== 'undefined') {
+            if (window.__drawHandAnimActive) {
+                _finalizeHandAddAnimation(data, { pulseDeck: true });
+                return Promise.resolve();
+            }
+            const now = Date.now();
+            const last = Number(window.__lastDrawAnimAt || 0);
+            if (now - last < 80) {
+                _finalizeHandAddAnimation(data, { pulseDeck: true });
+                return Promise.resolve();
+            }
+            window.__lastDrawAnimAt = now;
+        }
+    } catch (e) { /* ignore */ }
+
+    return _enqueueHandLayerAnimation(() => new Promise(resolve => {
         let clearResolveFallback = function () {};
         const done = () => {
             clearResolveFallback();
@@ -838,17 +923,6 @@ function playDrawCardHandAnimation(payload) {
 
         try {
             if (typeof window !== 'undefined') {
-                if (window.__drawHandAnimActive) {
-                    done();
-                    return;
-                }
-                const now = Date.now();
-                const last = Number(window.__lastDrawAnimAt || 0);
-                if (now - last < 80) {
-                    done();
-                    return;
-                }
-                window.__lastDrawAnimAt = now;
                 window.__drawHandAnimActive = true;
             }
         } catch (e) { /* ignore */ }
@@ -954,7 +1028,7 @@ function playDrawCardHandAnimation(payload) {
         }).finally(() => {
             cleanup();
         });
-    });
+    }));
 }
 
 function playDirectHandAddAnimation(payload) {
@@ -997,57 +1071,10 @@ function _resolveTrapPlacementBoardElement() {
 }
 
 function playTrapPlacementFlash(row, col, playerKey) {
-    if (!_canViewerSeeTrapPlacement(playerKey)) return;
-
-    const board = _resolveTrapPlacementBoardElement();
-    if (!board || typeof board.querySelector !== 'function') return;
-
-    const imagePath = playerKey === 'black'
-        ? 'assets/images/stones/trap_stone-black.png'
-        : 'assets/images/stones/trap_stone-white.png';
-    const flashId = `trapflash-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const durationMs = 760;
-    const stepMs = 90;
-    const endAt = Date.now() + durationMs;
-
-    function ensureOverlay() {
-        const cell = board.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-        if (!cell) return null;
-        const baseDisc = cell.querySelector('.disc');
-        if (!baseDisc) return null;
-        const domDoc = cell.ownerDocument;
-        if (!domDoc || typeof domDoc.createElement !== 'function') return null;
-
-        let overlay = cell.querySelector(`.trap-place-overlay[data-trap-flash-id="${flashId}"]`);
-        if (!overlay) {
-            overlay = domDoc.createElement('div');
-            overlay.className = 'disc special-stone trap-stone trap-place-flash trap-place-overlay';
-            overlay.dataset.trapFlashId = flashId;
-            cell.appendChild(overlay);
-        }
-        try {
-            overlay.style.setProperty('--special-stone-image', `url('${imagePath}')`);
-        } catch (e) { /* ignore */ }
-        return overlay;
-    }
-
-    function clearOverlay() {
-        const cell = board.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-        if (!cell) return;
-        const target = cell.querySelector(`.trap-place-overlay[data-trap-flash-id="${flashId}"]`);
-        if (target && target.parentNode) {
-            target.parentNode.removeChild(target);
-        }
-    }
-
-    (function tick() {
-        ensureOverlay();
-        if (Date.now() >= endAt) {
-            clearOverlay();
-            return;
-        }
-        setTimeout(tick, stepMs);
-    })();
+    // Trap visuals are revealed only by explicit TRAP_REVEAL playback timing.
+    void row;
+    void col;
+    void playerKey;
 }
 
 /**
@@ -1063,29 +1090,54 @@ function playCardUseHandAnimation(payload) {
     const ownerKey = (owner === 'black' || owner === blackVal || owner === 1) ? 'black' : 'white';
     const fromBottom = _isOwnerOnBottomSlot(ownerKey);
 
-    return new Promise(resolve => {
-        let clearResolveFallback = function () {};
-        try {
-            if (typeof window !== 'undefined') {
-                const now = Date.now();
-                const last = Number(window.__lastCardUseAnimAt || 0);
-                if (now - last < 80) {
-                    resolve();
-                    return;
-                }
-                window.__lastCardUseAnimAt = now;
+    try {
+        if (typeof window !== 'undefined') {
+            const now = Date.now();
+            const last = Number(window.__lastCardUseAnimAt || 0);
+            if (now - last < 80) {
+                return Promise.resolve();
             }
-        } catch (e) { /* ignore */ }
+            window.__lastCardUseAnimAt = now;
+        }
+    } catch (e) { /* ignore */ }
+
+    return _enqueueHandLayerAnimation(() => new Promise((resolve, reject) => {
+        let clearResolveFallback = function () {};
+        let disappearSoundPlayed = false;
+        let disappearHookStarted = false;
+        let cleanupStarted = false;
+        let settled = false;
         const done = () => {
+            if (settled) return;
+            settled = true;
             clearResolveFallback();
             resolve();
+        };
+        const fail = (error) => {
+            if (settled) return;
+            settled = true;
+            clearResolveFallback();
+            reject(error);
+        };
+        const playDisappearSoundOnce = () => {
+            if (disappearSoundPlayed) return;
+            disappearSoundPlayed = true;
+            _playEffectByKeySafe(data.disappearSoundKey);
+        };
+        const runDisappearEffectsOnce = async () => {
+            if (disappearHookStarted) return;
+            disappearHookStarted = true;
+            playDisappearSoundOnce();
+            if (typeof data.onDisappear === 'function') {
+                await data.onDisappear();
+            }
         };
         const setCardAnimating = (locked) => {
             _setCardAnimatingState(locked);
         };
 
         if (_isNoAnim()) {
-            done();
+            Promise.resolve(runDisappearEffectsOnce()).then(done, fail);
             return;
         }
 
@@ -1095,7 +1147,7 @@ function playCardUseHandAnimation(payload) {
         const handSvgEl = document.getElementById('handSvg');
         const heldStoneEl = (typeof heldStone !== 'undefined' && heldStone) ? heldStone : document.getElementById('heldStone');
         if (!chargeEl || !handEl || !layerEl) {
-            done();
+            Promise.resolve(runDisappearEffectsOnce()).then(done, fail);
             return;
         }
 
@@ -1108,14 +1160,7 @@ function playCardUseHandAnimation(payload) {
         const sc = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
         let movingCard = null;
         let timeoutId = _Timer().setTimeout(() => {
-            if (movingCard && movingCard.parentElement) {
-                try { movingCard.parentElement.removeChild(movingCard); } catch (e) { /* ignore */ }
-            }
-            if (handSvgEl) handSvgEl.style.visibility = prevHandSvgVisibility;
-            if (heldStoneEl) heldStoneEl.style.display = prevHeldStoneDisplay;
-            layerEl.style.display = 'none';
-            setCardAnimating(false);
-            done();
+            void cleanup();
         }, 3200, sc);
 
         const handRect = handEl.getBoundingClientRect();
@@ -1174,7 +1219,9 @@ function playCardUseHandAnimation(payload) {
         const dy = targetY - startY;
         const liftY = fromBottom ? -14 : 14;
         const waitHold = () => new Promise((r) => _Timer().setTimeout(r, HOLD_MS, sc));
-        const cleanup = () => {
+        const cleanup = async () => {
+            if (cleanupStarted) return;
+            cleanupStarted = true;
             try {
                 if (movingCard && movingCard.parentElement) movingCard.parentElement.removeChild(movingCard);
             } catch (e) { /* ignore */ }
@@ -1185,10 +1232,18 @@ function playCardUseHandAnimation(payload) {
                 _Timer().clearTimeout(timeoutId);
                 timeoutId = null;
             }
-            setCardAnimating(false);
-            done();
+            try {
+                await runDisappearEffectsOnce();
+                setCardAnimating(false);
+                done();
+            } catch (error) {
+                setCardAnimating(false);
+                fail(error);
+            }
         };
-        clearResolveFallback = _installAnimationResolveFallback(cleanup, 3600);
+        clearResolveFallback = _installAnimationResolveFallback(() => {
+            void cleanup();
+        }, 3600);
 
         (async () => {
             await _animateCompat(movingCard, [
@@ -1233,9 +1288,9 @@ function playCardUseHandAnimation(payload) {
         })().catch(() => {
             // no-op
         }).finally(() => {
-            cleanup();
+            void cleanup();
         });
-    });
+    }));
 }
 
 

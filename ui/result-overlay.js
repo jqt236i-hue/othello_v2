@@ -4,7 +4,7 @@
  */
 
 const SCORE_CONFIG = Object.freeze({
-    version: 3,
+    version: 5,
     winBase: 5000,
     drawBase: 2000,
     loseBase: 0,
@@ -12,11 +12,12 @@ const SCORE_CONFIG = Object.freeze({
     speedStartTurn: 0,
     speedZeroTurn: 100,
     monoBonus: 1500,
-    supportMax: 2000,
-    supportFlipPerStone: 6,
-    supportChargePerGain: 1,
-    supportOwnDiscPerStone: 2,
-    theoreticalMax: 10000
+    supportMax: 3000,
+    supportFlipMax: 1500,
+    supportFlipTargetCount: 150,
+    supportOwnDiscMax: 1500,
+    supportOwnDiscTargetCount: 76,
+    theoreticalMax: 11000
 });
 
 const SCORE_LEADERBOARD_STORAGE_KEY = `othello_cpu_leaderboard_v${SCORE_CONFIG.version}`;
@@ -321,19 +322,33 @@ function computeSpeedBonus(turnCount) {
     return Math.max(0, scaled);
 }
 
-function computeSupportBreakdown(localDiscCount, localFlipCount, localChargeGainCount) {
+function computeSupportComponentBonus(rawCount, targetCount, maxBonus) {
+    const count = Math.max(0, toFiniteInteger(rawCount, 0));
+    const target = Math.max(1, toFiniteInteger(targetCount, 1));
+    const cap = Math.max(0, toFiniteInteger(maxBonus, 0));
+    if (cap === 0) return 0;
+    const scaled = Math.floor((count * cap) / target);
+    return Math.min(cap, scaled);
+}
+
+function computeSupportBreakdown(localDiscCount, localFlipCount) {
     const discCount = Math.max(0, toFiniteInteger(localDiscCount, 0));
     const flipCount = Math.max(0, toFiniteInteger(localFlipCount, 0));
-    const chargeGainCount = Math.max(0, toFiniteInteger(localChargeGainCount, 0));
 
-    const flipBonus = flipCount * SCORE_CONFIG.supportFlipPerStone;
-    const chargeBonus = chargeGainCount * SCORE_CONFIG.supportChargePerGain;
-    const ownDiscBonus = discCount * SCORE_CONFIG.supportOwnDiscPerStone;
+    const flipBonus = computeSupportComponentBonus(
+        flipCount,
+        SCORE_CONFIG.supportFlipTargetCount,
+        SCORE_CONFIG.supportFlipMax
+    );
+    const ownDiscBonus = computeSupportComponentBonus(
+        discCount,
+        SCORE_CONFIG.supportOwnDiscTargetCount,
+        SCORE_CONFIG.supportOwnDiscMax
+    );
 
-    const sum = flipBonus + chargeBonus + ownDiscBonus;
+    const sum = flipBonus + ownDiscBonus;
     return {
         flipBonus,
-        chargeBonus,
         ownDiscBonus,
         total: Math.min(SCORE_CONFIG.supportMax, sum)
     };
@@ -353,15 +368,14 @@ function computeScoreSummaryForViewer(options) {
     let speedBonus = 0;
     let monoBonus = 0;
     let supportBonus = 0;
-    let supportBreakdown = { flipBonus: 0, chargeBonus: 0, ownDiscBonus: 0, total: 0 };
+    let supportBreakdown = { flipBonus: 0, ownDiscBonus: 0, total: 0 };
 
     if (localOutcomeKey === 'win') {
         speedBonus = computeSpeedBonus(turnCount);
         monoBonus = localCounts.opponentCount === 0 ? SCORE_CONFIG.monoBonus : 0;
 
         const localFlipCount = Math.max(0, toFiniteInteger(opts.flipTotals && opts.flipTotals[localCounts.localKey], 0));
-        const localChargeGainCount = Math.max(0, toFiniteInteger(opts.chargeTotals && opts.chargeTotals[localCounts.localKey], 0));
-        supportBreakdown = computeSupportBreakdown(localCounts.localCount, localFlipCount, localChargeGainCount);
+        supportBreakdown = computeSupportBreakdown(localCounts.localCount, localFlipCount);
         supportBonus = supportBreakdown.total;
     }
 
@@ -841,7 +855,7 @@ function showResultOverlay() {
 
     const supportDetail = document.createElement('div');
     supportDetail.className = 'result-support-breakdown';
-    supportDetail.textContent = `補助内訳: 反転${scoreSummary.supportBreakdown.flipBonus} / 布石${scoreSummary.supportBreakdown.chargeBonus} / 自石${scoreSummary.supportBreakdown.ownDiscBonus}`;
+    supportDetail.textContent = `補助内訳: 反転${scoreSummary.supportBreakdown.flipBonus} / 自石${scoreSummary.supportBreakdown.ownDiscBonus}`;
     panel.appendChild(supportDetail);
 
     const detailSection = createDetailStatsSection(counts, chargeTotals, cardUseTotals, flipTotals, cornerCaptureTotals);

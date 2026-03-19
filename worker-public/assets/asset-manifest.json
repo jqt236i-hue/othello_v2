@@ -1,6 +1,6 @@
 {
-  "version": "2026-03-16",
-  "generatedAt": "2026-03-16T07:41:01.075Z",
+  "version": "2026-03-18",
+  "generatedAt": "2026-03-18T22:24:08.697Z",
   "files": [
     {
       "path": "assets/images/stones/BREEDING_WILL-black.png",
@@ -149,6 +149,14 @@
     {
       "path": "assets/images/stones/TIME_BOMB-white.png",
       "sha256": "48fb5bf577bed96ca27fcafdd4bb674abb86e2d2c4d51da91532965ed8f4cc7d"
+    },
+    {
+      "path": "assets/images/stones/TIME_STOP-black.png",
+      "sha256": "bacd7440fd2d4dae3b76a6baf83ec5b5b3ea96ee67d8dfc0f74c0a05218b51d4"
+    },
+    {
+      "path": "assets/images/stones/TIME_STOP-white.png",
+      "sha256": "fb563ee42beedfcdc6fd3bf3f106cd6a8dc889847ef7af6e2218e591ebfadd61"
     },
     {
       "path": "assets/images/stones/trap_stone-black.png",

@@ -1,5 +1,6 @@
 const { JSDOM } = require('jsdom');
 const path = require('path');
+const animationSharedPath = path.resolve(__dirname, '..', 'ui', 'animation-shared.js');
 
 function createScopedTimerMock() {
   const scopeMap = new Map();
@@ -47,6 +48,7 @@ function createScopedTimerMock() {
 describe('animation-utils hand fallback', () => {
   beforeEach(() => {
     jest.resetModules();
+    jest.dontMock(animationSharedPath);
     const dom = new JSDOM(`
       <!doctype html><html><body>
         <div id="board">
@@ -70,7 +72,7 @@ describe('animation-utils hand fallback', () => {
     global.BLACK = 1;
     global.WHITE = -1;
     global.boardEl = document.getElementById('board');
-    global.SoundEngine = { init: jest.fn(), playStoneClack: jest.fn() };
+    global.SoundEngine = { init: jest.fn(), playStoneClack: jest.fn(), playEffectByKey: jest.fn() };
     global.renderCardUI = jest.fn();
     global.isProcessing = false;
     global.isCardAnimating = false;
@@ -125,6 +127,7 @@ describe('animation-utils hand fallback', () => {
 
     const mod = require('../ui/animation-utils');
     const promise = mod.playDrawCardHandAnimation({ player: 'white', count: 1 });
+    await Promise.resolve();
     const held = wrapper.querySelector('.held-draw-card');
     expect(held).toBeTruthy();
     expect(held.classList.contains('face-up')).toBe(true);
@@ -152,6 +155,7 @@ describe('animation-utils hand fallback', () => {
 
     const mod = require('../ui/animation-utils');
     const promise = mod.playDrawCardHandAnimation({ player: 'white', count: 1 });
+    await Promise.resolve();
 
     expect(wrapper.style.transform).toContain('translate(240px, 300px)');
     expect(wrapper.style.transform).not.toContain('translate(40px, -40px)');
@@ -242,6 +246,43 @@ describe('animation-utils hand fallback', () => {
 
     await expect(mod.playDrawCardHandAnimation({ player: '1', cardId: 'deck_a', count: 1 })).resolves.toBeUndefined();
     expect(window.__handSequentialRevealState).toBeNull();
+  });
+
+  test('playDrawCardHandAnimation waits until place-hand retreat releases the shared hand layer', async () => {
+    jest.useFakeTimers();
+    const board = document.getElementById('board');
+    const cell = board.querySelector('.cell[data-row="0"][data-col="0"]');
+    const deck = document.getElementById('deck-black');
+    const hand = document.getElementById('hand-black');
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.animate = undefined;
+    board.getBoundingClientRect = () => ({ left: 0, top: 0, width: 480, height: 480, right: 480, bottom: 480 });
+    cell.getBoundingClientRect = () => ({ left: 180, top: 180, width: 60, height: 60, right: 240, bottom: 240 });
+    deck.getBoundingClientRect = () => ({ left: 300, top: 520, width: 120, height: 160, right: 420, bottom: 680 });
+    hand.getBoundingClientRect = () => ({ left: 180, top: 560, width: 180, height: 120, right: 360, bottom: 680 });
+
+    const mod = require('../ui/animation-utils');
+    let drawPromise = Promise.resolve();
+
+    mod.playHandAnimation(global.BLACK, 0, 0, () => {
+      drawPromise = mod.playDrawCardHandAnimation({ player: 'black', count: 1 });
+    });
+
+    await jest.advanceTimersByTimeAsync(550);
+    expect(document.querySelector('.held-draw-card')).toBeNull();
+
+    await jest.advanceTimersByTimeAsync(1000);
+    let queuedDrawCard = null;
+    for (let i = 0; i < 5; i++) {
+      await Promise.resolve();
+      queuedDrawCard = document.querySelector('.held-draw-card');
+      if (queuedDrawCard) break;
+    }
+    expect(queuedDrawCard).toBeTruthy();
+
+    await jest.runAllTimersAsync();
+    await expect(drawPromise).resolves.toBeUndefined();
+    expect(document.getElementById('handLayer').style.display).toBe('none');
   });
 
   test('playDirectHandAddAnimation uses 1 second fade for generated throw-chain hand adds', async () => {
@@ -337,7 +378,7 @@ describe('animation-utils hand fallback', () => {
 
     const promise = mod.playDrawCardHandAnimation({ player: 'black', count: 1 });
     timerApi.clearScope('draw-scope');
-    jest.advanceTimersByTime(3000);
+    await jest.advanceTimersByTimeAsync(3000);
 
     await expect(promise).resolves.toBeUndefined();
     expect(document.getElementById('handLayer').style.display).toBe('none');
@@ -357,7 +398,7 @@ describe('animation-utils hand fallback', () => {
 
     const promise = mod.playCardUseHandAnimation({ player: 'black', owner: 'black', cardId: 'card_1', cost: 5, name: 'Test' });
     timerApi.clearScope('card-use-scope');
-    jest.advanceTimersByTime(4000);
+    await jest.advanceTimersByTimeAsync(4000);
 
     await expect(promise).resolves.toBeUndefined();
     expect(document.getElementById('handLayer').style.display).toBe('none');
@@ -504,5 +545,54 @@ describe('animation-utils hand fallback', () => {
       { transform: 'translate(0px, -14px)' },
       { transform: 'translate(215px, -220px)' }
     ]);
+  });
+
+  test('playCardUseHandAnimation plays disappearSoundKey when the moving card is cleaned up', async () => {
+    jest.useFakeTimers();
+
+    const animateMock = jest.fn(() => ({
+      addEventListener: () => {},
+      finished: Promise.resolve()
+    }));
+    window.Element.prototype.animate = animateMock;
+
+    const handEl = document.getElementById('hand-black');
+    const chargeEl = document.getElementById('charge-black');
+    handEl.getBoundingClientRect = () => ({
+      left: 180,
+      top: 480,
+      width: 260,
+      height: 140,
+      right: 440,
+      bottom: 620
+    });
+    chargeEl.getBoundingClientRect = () => ({
+      left: 430,
+      top: 410,
+      width: 100,
+      height: 40,
+      right: 530,
+      bottom: 450
+    });
+
+    const mod = require('../ui/animation-utils');
+    const onDisappear = jest.fn(() => Promise.resolve());
+    const promise = mod.playCardUseHandAnimation({
+      player: 'black',
+      owner: 'black',
+      cardId: 'loss_will_01',
+      cost: 11,
+      name: '意志の喪失',
+      disappearSoundKey: 'loss_will_reset',
+      onDisappear
+    });
+
+    await Promise.resolve();
+    jest.advanceTimersByTime(4000);
+    await Promise.resolve();
+
+    await expect(promise).resolves.toBeUndefined();
+    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('loss_will_reset');
+    expect(onDisappear).toHaveBeenCalledTimes(1);
   });
 });

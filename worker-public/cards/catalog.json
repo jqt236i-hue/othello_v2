@@ -101,11 +101,35 @@
       "desc_ja": "相手の特殊石1つを自分の石にする（残りターン等は維持）。対象が無いと使えない。"
     },
     {
-      "id": "chain_01",
-      "name_ja": "連鎖の意志",
-      "type": "CHAIN_WILL",
+      "id": "double_chain_01",
+      "name_ja": "二連鎖の意志",
+      "type": "DOUBLE_CHAIN_WILL",
       "cost": 22,
-      "desc_ja": "この手で起きた通常反転を起点に、追加反転を最大2回まで行う。"
+      "desc_ja": "この手で起きた通常反転のあと、追加反転を1回行う。使用後、三連鎖の意志が手札に加わる。"
+    },
+    {
+      "id": "triple_chain_01",
+      "name_ja": "三連鎖の意志",
+      "type": "TRIPLE_CHAIN_WILL",
+      "cost": 22,
+      "desc_ja": "この手で起きた通常反転のあと、追加反転を2回行う。使用後、四連鎖の意志が手札に加わる。",
+      "enabled": false
+    },
+    {
+      "id": "quad_chain_01",
+      "name_ja": "四連鎖の意志",
+      "type": "QUAD_CHAIN_WILL",
+      "cost": 22,
+      "desc_ja": "この手で起きた通常反転のあと、追加反転を3回行う。使用後、無限連鎖の意志が手札に加わる。",
+      "enabled": false
+    },
+    {
+      "id": "infinite_chain_01",
+      "name_ja": "無限連鎖の意志",
+      "type": "INFINITE_CHAIN_WILL",
+      "cost": 50,
+      "desc_ja": "この手で起きた通常反転のあと、追加反転を可能な限り続ける。追加反転できなくなった時点で終了する。",
+      "enabled": false
     },
     {
       "id": "taboo_reverse_01",
@@ -134,6 +158,13 @@
       "type": "TIME_BOMB",
       "cost": 13,
       "desc_ja": "盤面上の自分の石1つを時限爆弾化。3ターン後にそのマスと周囲1マス（3x3）を爆破。反転されると解除。"
+    },
+    {
+      "id": "time_stop_god_01",
+      "name_ja": "時間停神",
+      "type": "TIME_STOP_GOD",
+      "cost": 0,
+      "desc_ja": "使用時にランダムで自分の石3つを破壊し、次に置く石を時間停石化する。3回目の自ターン開始時に時間停止し、そのターンと次のターンを連続で行動する。発動時に時間停石は消滅し、先に消えた場合は不発。"
     },
     {
       "id": "udr_01",

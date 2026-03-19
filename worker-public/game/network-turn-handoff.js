@@ -8,6 +8,7 @@
     'use strict';
 
     let networkActionSchema = null;
+    let playbackEventHelpers = null;
 
     function cloneData(value) {
         try {
@@ -30,6 +31,20 @@
             networkActionSchema = root.NetworkActionSchema;
         }
         return networkActionSchema;
+    }
+
+    function resolvePlaybackEventHelpers() {
+        if (playbackEventHelpers && typeof playbackEventHelpers === 'object') {
+            return playbackEventHelpers;
+        }
+
+        if (typeof require === 'function') {
+            try { playbackEventHelpers = require('../shared/playback-event-helpers'); } catch (e) { /* ignore */ }
+        }
+        if (!playbackEventHelpers && root && root.PlaybackEventHelpers) {
+            playbackEventHelpers = root.PlaybackEventHelpers;
+        }
+        return playbackEventHelpers;
     }
 
     function normalizeActionType(value, fallback) {
@@ -211,10 +226,10 @@
             }
         }
 
-        const combinedPlaybackEvents = basePlaybackEvents.slice();
-        if (turnStartPlaybackEvents.length > 0) {
-            combinedPlaybackEvents.push(...turnStartPlaybackEvents);
-        }
+        const playbackHelpers = resolvePlaybackEventHelpers();
+        const combinedPlaybackEvents = (playbackHelpers && typeof playbackHelpers.appendPlaybackEventsAfter === 'function')
+            ? playbackHelpers.appendPlaybackEventsAfter(basePlaybackEvents, turnStartPlaybackEvents)
+            : basePlaybackEvents.concat(turnStartPlaybackEvents);
 
         if (typeof opts.afterTurnStart === 'function') {
             await opts.afterTurnStart({

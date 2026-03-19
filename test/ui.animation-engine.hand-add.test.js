@@ -68,14 +68,20 @@ describe('animation-engine hand_add', () => {
     const engine = require('../ui/animation-engine');
     const sourceCardEl = { nodeType: 1 };
     const sourceCardRect = { left: 220, top: 500, width: 90, height: 120, right: 310, bottom: 620 };
+    const disappearPlaybackEvents = [{
+      type: 'status_removed',
+      rawType: 'STATUS_REMOVED',
+      targets: [{ r: 3, col: 3, after: { color: 1, special: null, timer: null, owner: 'black' } }],
+      meta: { special: 'GUARD', reason: 'loss_will_reset' }
+    }];
     await engine.executeEvent({
       type: 'card_use_animation',
-      targets: [{ player: 'black', owner: 'black', cardId: 'card_2', cost: 5, name: 'X', sourceCardEl, sourceCardRect }]
+      targets: [{ player: 'black', owner: 'black', cardId: 'card_2', cost: 5, name: 'X', disappearSoundKey: 'loss_will_reset', disappearPlaybackEvents, sourceCardEl, sourceCardRect }]
     });
 
     expect(global.window.playCardUseHandAnimation).toHaveBeenCalledTimes(1);
     expect(global.window.playCardUseHandAnimation).toHaveBeenCalledWith(
-      expect.objectContaining({ player: 'black', owner: 'black', cardId: 'card_2', cost: 5, name: 'X', sourceCardEl, sourceCardRect })
+      expect.objectContaining({ player: 'black', owner: 'black', cardId: 'card_2', cost: 5, name: 'X', disappearSoundKey: 'loss_will_reset', sourceCardEl, sourceCardRect, onDisappear: expect.any(Function) })
     );
   });
 

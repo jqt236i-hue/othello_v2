@@ -194,7 +194,7 @@ describe('UI stone rendering', () => {
     assert.strictEqual(destroyEvadeTimer.textContent, '2');
   });
 
-  test('board-renderer shows persistent trap visual to the local owner only', () => {
+  test('board-renderer keeps hidden trap as normal stone for both seats', () => {
     const boardRenderer = require('../ui/board-renderer');
     if (typeof document === 'undefined') {
       const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
@@ -226,7 +226,8 @@ describe('UI stone rendering', () => {
 
     const ownerDisc = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .disc');
     assert.ok(ownerDisc, 'expected trap disc for owner render');
-    assert.strictEqual(ownerDisc.querySelector('.special-timer').textContent, '1');
+    assert.strictEqual(ownerDisc.querySelector('.special-timer'), null);
+    assert.strictEqual(ownerDisc.classList.contains('trap-stone'), false);
 
     boardEl.innerHTML = '';
     global.window.LOCAL_PLAYER_KEY = 'white';
@@ -236,6 +237,7 @@ describe('UI stone rendering', () => {
     const opponentDisc = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .disc');
     assert.ok(opponentDisc, 'expected trap disc for opponent render');
     assert.strictEqual(opponentDisc.querySelector('.special-timer'), null);
+    assert.strictEqual(opponentDisc.classList.contains('trap-stone'), false);
   });
 
   test('diff-renderer renders freeze overlay and remaining turns on frozen cells', () => {
@@ -271,6 +273,43 @@ describe('UI stone rendering', () => {
     const freezeMark = cell.querySelector('.freeze-mark');
     assert.ok(freezeMark, 'expected freeze overlay');
     assert.strictEqual(freezeMark.querySelector('.freeze-turn').textContent, '5');
+  });
+
+  test('showSpecialStoneInfoAt renders TIME_STOP name and timer', () => {
+    if (typeof document === 'undefined') {
+      const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+      global.window = dom.window;
+      global.document = dom.window.document;
+      global.HTMLElement = dom.window.HTMLElement;
+    }
+
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    gameState.board[2][2] = BLACK;
+    cardState.markers = [
+      {
+        id: 32,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: { type: 'TIME_STOP', remainingOwnerTurns: 3 }
+      }
+    ];
+
+    const diffRenderer = require('../ui/diff-renderer');
+    diffRenderer.renderBoardDiff(boardEl);
+
+    const timer = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .special-timer');
+    assert.ok(timer, 'expected time stop timer');
+    assert.strictEqual(timer.textContent, '3');
+
+    assert.strictEqual(diffRenderer.showSpecialStoneInfoAt(2, 2), true);
+    assert.strictEqual(document.getElementById('stone-info-name').textContent, '時間停石');
+    assert.ok(document.getElementById('stone-info-desc').textContent.includes('時間停止'));
   });
 
   test('board stylesheet references ICE overlay asset for frozen cells', () => {

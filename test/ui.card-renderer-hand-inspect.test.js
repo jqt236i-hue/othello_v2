@@ -155,6 +155,34 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
+  test('debug HvH keeps both visible hands clickable while only current turn hand stays usable', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['own_card'], white: ['opp_card'] }
+    });
+    const { window } = dom;
+
+    window.DEBUG_HUMAN_VS_HUMAN = true;
+    window.DEBUG_UNLIMITED_USAGE = true;
+    window.renderCardUI();
+
+    const blackCardEl = window.document.querySelector('#hand-black .card-item.visible');
+    const whiteCardEl = window.document.querySelector('#hand-white .card-item.visible');
+    expect(blackCardEl).not.toBeNull();
+    expect(whiteCardEl).not.toBeNull();
+    expect(blackCardEl.classList.contains('clickable')).toBe(true);
+    expect(blackCardEl.classList.contains('usable')).toBe(true);
+    expect(whiteCardEl.classList.contains('clickable')).toBe(true);
+    expect(whiteCardEl.classList.contains('usable')).toBe(false);
+
+    whiteCardEl.click();
+
+    expect(window.onCardClick).toHaveBeenCalledWith('opp_card', 'white');
+
+    dom.window.close();
+  });
+
   test('network mode infers white local hand from projected hidden black hand when seat client is unavailable', () => {
     const dom = createRendererContext({
       matchMode: 'network',

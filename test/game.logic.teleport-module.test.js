@@ -4,7 +4,7 @@ describe('CardTeleport module', () => {
   test('applyTeleportWill moves marker and clears pending on success', () => {
     const cardState = {
       pendingEffectByPlayer: { black: { type: 'TELEPORT_WILL', stage: 'selectTarget', cardId: 'teleport_01' } },
-      markers: [{ id: 'bomb_1', kind: 'bomb', row: 4, col: 4, owner: 'black', data: { remainingTurns: 2 } }]
+      markers: [{ id: 'bomb_1', kind: 'specialStone', row: 4, col: 4, owner: 'black', data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } }]
     };
     const result = CardTeleport.applyTeleportWill(cardState, {}, 'black', 4, 4, { random: () => 0 }, {
       getTeleportTargets: () => [{ row: 4, col: 4 }],
@@ -22,7 +22,7 @@ describe('CardTeleport module', () => {
   test('applyCellTeleportWill creates a hole and moves stone ids on fallback move', () => {
     const cardState = {
       pendingEffectByPlayer: { black: { type: 'CELL_TELEPORT_WILL', stage: 'selectTarget', cardId: 'cell_tp_01' } },
-      markers: [{ id: 'bomb_2', kind: 'bomb', row: 4, col: 4, owner: 'black', data: { remainingTurns: 2 } }]
+      markers: [{ id: 'bomb_2', kind: 'specialStone', row: 4, col: 4, owner: 'black', data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } }]
     };
     const setCalls = [];
     const added = [];

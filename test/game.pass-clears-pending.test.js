@@ -17,7 +17,7 @@ function makeNoMoveState() {
 describe('pass clears pending card effect', () => {
   test('clears placement-wait pending on pass', () => {
     const { cardState, gameState } = makeNoMoveState();
-    cardState.pendingEffectByPlayer.black = { type: 'CHAIN_WILL', cardId: 'chain_01', stage: null };
+    cardState.pendingEffectByPlayer.black = { type: 'DOUBLE_CHAIN_WILL', cardId: 'double_chain_01', stage: null };
 
     const res = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'pass' });
     expect(res.cardState.pendingEffectByPlayer.black).toBeNull();

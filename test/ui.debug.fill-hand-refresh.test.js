@@ -25,6 +25,7 @@ describe('debug hand refresh', () => {
     global.DebugActions = { fillDebugHand: jest.fn() };
     global.addLog = jest.fn();
     global.renderCardUI = jest.fn();
+    global.NetworkMatchClient = undefined;
   });
 
   afterEach(() => {
@@ -37,6 +38,7 @@ describe('debug hand refresh', () => {
     delete global.DebugActions;
     delete global.addLog;
     delete global.renderCardUI;
+    delete global.NetworkMatchClient;
   });
 
   test('fillDebugHand still backfills missing cards after debug hand was already marked filled', () => {
@@ -46,5 +48,23 @@ describe('debug hand refresh', () => {
 
     expect(global.DebugActions.fillDebugHand).toHaveBeenCalledWith(global.cardState, { fillWhite: false });
     expect(global.renderCardUI).toHaveBeenCalled();
+  });
+
+  test('network match中は debug fill hand を authority publish へ切り替える', async () => {
+    global.NetworkMatchClient = {
+      isActive: jest.fn(() => true),
+      publishSnapshot: jest.fn(async () => ({ ok: true }))
+    };
+
+    require('../cards/card-interaction.js');
+
+    window.fillDebugHand();
+    await Promise.resolve();
+
+    expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      actionType: 'debug_fill_hand',
+      action: expect.objectContaining({ type: 'debug_fill_hand' })
+    }));
+    expect(global.DebugActions.fillDebugHand).not.toHaveBeenCalled();
   });
 });

@@ -75,6 +75,26 @@ function resolveCpuLv6TeacherProfile() {
         : null;
 }
 
+function normalizeTeacherLookaheadOverrides(runtimeOverrides) {
+    if (!runtimeOverrides || typeof runtimeOverrides !== 'object') return null;
+
+    const normalized = {};
+    if (Number.isFinite(runtimeOverrides.tacticalDepthOpening)) {
+        normalized.tacticalDepthOpening = Math.max(1, Math.floor(Number(runtimeOverrides.tacticalDepthOpening)));
+    }
+    if (Number.isFinite(runtimeOverrides.tacticalDepthMid)) {
+        normalized.tacticalDepthMid = Math.max(1, Math.floor(Number(runtimeOverrides.tacticalDepthMid)));
+    }
+    if (Number.isFinite(runtimeOverrides.tacticalDepthEnd)) {
+        normalized.tacticalDepthEnd = Math.max(1, Math.floor(Number(runtimeOverrides.tacticalDepthEnd)));
+    }
+    if (Number.isFinite(runtimeOverrides.tacticalBeamWidth)) {
+        normalized.tacticalBeamWidth = Math.max(1, Math.floor(Number(runtimeOverrides.tacticalBeamWidth)));
+    }
+
+    return Object.keys(normalized).length > 0 ? normalized : null;
+}
+
 function resolveLv6LookaheadTimeCaps(playerKey, runtimeMode) {
     const isWhite = String(playerKey || '') === 'white';
     const mode = String(runtimeMode || '').trim().toLowerCase();
@@ -130,10 +150,13 @@ function resolveLv6LookaheadTimeCaps(playerKey, runtimeMode) {
     };
 }
 
-function buildLv6LookaheadOptions(level, board, legalMovesCount, playerKey, runtimeMode) {
+function buildLv6LookaheadOptions(level, board, legalMovesCount, playerKey, runtimeMode, runtimeOverrides) {
     if (!Number.isFinite(level) || level < 6) return {};
     const mode = String(runtimeMode || '').trim().toLowerCase();
     const teacherProfile = mode === 'teacher' ? resolveCpuLv6TeacherProfile() : null;
+    const teacherLookaheadOverrides = mode === 'teacher'
+        ? normalizeTeacherLookaheadOverrides(runtimeOverrides)
+        : null;
     const empties = countBoardEmpties(board);
     const moves = Math.max(1, Number(legalMovesCount) || 1);
     const totalCells = Array.isArray(board)
@@ -146,28 +169,64 @@ function buildLv6LookaheadOptions(level, board, legalMovesCount, playerKey, runt
     const browserProfile = resolveCpuLv6BrowserProfile();
     const teacherStageConfig = (
         teacherProfile &&
-        Number.isFinite(teacherProfile.tacticalDepthOpening) &&
-        Number.isFinite(teacherProfile.tacticalDepthMid) &&
-        Number.isFinite(teacherProfile.tacticalDepthEnd)
+        Number.isFinite(
+            teacherLookaheadOverrides && Number.isFinite(teacherLookaheadOverrides.tacticalDepthOpening)
+                ? teacherLookaheadOverrides.tacticalDepthOpening
+                : teacherProfile.tacticalDepthOpening
+        ) &&
+        Number.isFinite(
+            teacherLookaheadOverrides && Number.isFinite(teacherLookaheadOverrides.tacticalDepthMid)
+                ? teacherLookaheadOverrides.tacticalDepthMid
+                : teacherProfile.tacticalDepthMid
+        ) &&
+        Number.isFinite(
+            teacherLookaheadOverrides && Number.isFinite(teacherLookaheadOverrides.tacticalDepthEnd)
+                ? teacherLookaheadOverrides.tacticalDepthEnd
+                : teacherProfile.tacticalDepthEnd
+        )
     )
         ? {
             opening: {
                 maxOccupiedRatio: 0.28,
-                depth: Math.max(1, Math.floor(Number(teacherProfile.tacticalDepthOpening) || 4)),
-                maxBranch: Math.max(1, Math.floor(Number(teacherProfile.tacticalBeamWidth) || 6)),
+                depth: Math.max(1, Math.floor(Number(
+                    teacherLookaheadOverrides && Number.isFinite(teacherLookaheadOverrides.tacticalDepthOpening)
+                        ? teacherLookaheadOverrides.tacticalDepthOpening
+                        : teacherProfile.tacticalDepthOpening
+                ) || 4)),
+                maxBranch: Math.max(1, Math.floor(Number(
+                    teacherLookaheadOverrides && Number.isFinite(teacherLookaheadOverrides.tacticalBeamWidth)
+                        ? teacherLookaheadOverrides.tacticalBeamWidth
+                        : teacherProfile.tacticalBeamWidth
+                ) || 6)),
                 nodeBudgetBase: 1_000_000,
                 maxTimeBaseMs: 90
             },
             mid: {
                 maxOccupiedRatio: 0.62,
-                depth: Math.max(1, Math.floor(Number(teacherProfile.tacticalDepthMid) || 6)),
-                maxBranch: Math.max(1, Math.floor(Number(teacherProfile.tacticalBeamWidth) || 6)),
+                depth: Math.max(1, Math.floor(Number(
+                    teacherLookaheadOverrides && Number.isFinite(teacherLookaheadOverrides.tacticalDepthMid)
+                        ? teacherLookaheadOverrides.tacticalDepthMid
+                        : teacherProfile.tacticalDepthMid
+                ) || 6)),
+                maxBranch: Math.max(1, Math.floor(Number(
+                    teacherLookaheadOverrides && Number.isFinite(teacherLookaheadOverrides.tacticalBeamWidth)
+                        ? teacherLookaheadOverrides.tacticalBeamWidth
+                        : teacherProfile.tacticalBeamWidth
+                ) || 6)),
                 nodeBudgetBase: 1_600_000,
                 maxTimeBaseMs: 120
             },
             end: {
-                depth: Math.max(1, Math.floor(Number(teacherProfile.tacticalDepthEnd) || 7)),
-                maxBranch: Math.max(1, Math.floor(Number(teacherProfile.tacticalBeamWidth) || 6)),
+                depth: Math.max(1, Math.floor(Number(
+                    teacherLookaheadOverrides && Number.isFinite(teacherLookaheadOverrides.tacticalDepthEnd)
+                        ? teacherLookaheadOverrides.tacticalDepthEnd
+                        : teacherProfile.tacticalDepthEnd
+                ) || 7)),
+                maxBranch: Math.max(1, Math.floor(Number(
+                    teacherLookaheadOverrides && Number.isFinite(teacherLookaheadOverrides.tacticalBeamWidth)
+                        ? teacherLookaheadOverrides.tacticalBeamWidth
+                        : teacherProfile.tacticalBeamWidth
+                ) || 6)),
                 nodeBudgetBase: 2_400_000,
                 maxTimeBaseMs: 180
             }

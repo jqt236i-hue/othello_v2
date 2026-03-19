@@ -182,10 +182,10 @@
         const clearBombAt = deps.clearBombAt || ((cs, r, c) => {
             const cardMarkers = getCardMarkersModule();
             if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
-                cardMarkers.removeMarkersAt(cs, r, c, { kind: 'bomb' });
+                cardMarkers.removeMarkersAt(cs, r, c, { category: 'bomb' });
                 return;
             }
-            if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'bomb' && m.row === r && m.col === c));
+            if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'specialStone' && m.data && m.data.category === 'bomb' && m.row === r && m.col === c));
         });
 
         const specials = (cardState.markers || []).filter(m => m.kind === 'specialStone');

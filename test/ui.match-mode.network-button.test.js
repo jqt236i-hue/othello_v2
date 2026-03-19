@@ -2,6 +2,8 @@ const { JSDOM } = require('jsdom');
 
 describe('match-mode network button behavior', () => {
   let dom;
+  let createRoom;
+  let joinRoom;
   let leaveRoom;
 
   function buildUiRefs() {
@@ -10,6 +12,14 @@ describe('match-mode network button behavior', () => {
       modeNetworkBtn: document.getElementById('modeNetworkBtn'),
       controlPanel: document.getElementById('control-panel'),
       networkPanel: document.getElementById('networkPanel'),
+      networkServerInput: document.getElementById('networkServerInput'),
+      networkPlayerNameInput: document.getElementById('networkPlayerNameInput'),
+      networkRoomInput: document.getElementById('networkRoomIdInput'),
+      networkEnableDebugCheckbox: document.getElementById('networkEnableDebugCheckbox'),
+      networkCopyRoomBtn: document.getElementById('networkCopyRoomBtn'),
+      networkCreateBtn: document.getElementById('networkCreateBtn'),
+      networkJoinBtn: document.getElementById('networkJoinBtn'),
+      networkLeaveBtn: document.getElementById('networkLeaveBtn'),
       networkOverlay: document.getElementById('networkOverlay'),
       networkCloseBtn: document.getElementById('networkCloseBtn'),
       networkStatus: document.getElementById('networkStatusText'),
@@ -28,6 +38,14 @@ describe('match-mode network button behavior', () => {
       '<button id="autoToggleBtn">AUTO: OFF</button>' +
       '<div id="control-panel"></div>' +
       '<div id="networkPanel"></div>' +
+      '<input id="networkServerInput" type="text" />' +
+      '<input id="networkPlayerNameInput" type="text" />' +
+      '<input id="networkRoomIdInput" type="text" />' +
+      '<input id="networkEnableDebugCheckbox" type="checkbox" />' +
+      '<button id="networkCopyRoomBtn">部屋番号コピー</button>' +
+      '<button id="networkCreateBtn">部屋作成</button>' +
+      '<button id="networkJoinBtn">参加</button>' +
+      '<button id="networkLeaveBtn">退出</button>' +
       '<div id="networkOverlay"></div>' +
       '<button id="networkCloseBtn">閉じる</button>' +
       '<div id="networkStatusText"></div>' +
@@ -41,9 +59,14 @@ describe('match-mode network button behavior', () => {
     global.location = dom.window.location;
     global.addLog = jest.fn();
     global.updateCpuCharacter = jest.fn();
+    window.setNetworkDebugModeAccess = jest.fn();
 
+    createRoom = jest.fn(async () => ({ ok: true, roomId: 'A1B', networkDebugEnabled: true }));
+    joinRoom = jest.fn(async () => ({ ok: true, roomId: 'A1B', networkDebugEnabled: false }));
     leaveRoom = jest.fn(async () => ({ ok: true }));
     window.NetworkMatchClient = {
+      createRoom,
+      joinRoom,
       leaveRoom,
       setStatusWriter: jest.fn(),
       setRoomStateListener: jest.fn(),
@@ -120,5 +143,104 @@ describe('match-mode network button behavior', () => {
 
     expect(window.MatchMode.getCurrentMode()).toBe('cpu');
     expect(leaveRoom).toHaveBeenCalledTimes(1);
+  });
+
+  test('部屋番号コピーボタンで入力値をコピーできる', async () => {
+    const roomInput = document.getElementById('networkRoomIdInput');
+    const copyBtn = document.getElementById('networkCopyRoomBtn');
+    const status = document.getElementById('networkStatusText');
+    const writeText = jest.fn(async () => undefined);
+
+    Object.defineProperty(window.navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true
+    });
+
+    roomInput.value = 'a a!1';
+    copyBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(writeText).toHaveBeenCalledWith('AA1');
+    expect(roomInput.value).toBe('AA1');
+    expect(status.textContent).toContain('AA1');
+  });
+
+  test('部屋番号が空ならコピーせずエラーを表示する', async () => {
+    const roomInput = document.getElementById('networkRoomIdInput');
+    const copyBtn = document.getElementById('networkCopyRoomBtn');
+    const status = document.getElementById('networkStatusText');
+    const writeText = jest.fn(async () => undefined);
+
+    Object.defineProperty(window.navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true
+    });
+
+    roomInput.value = '';
+    copyBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(writeText).not.toHaveBeenCalled();
+    expect(status.textContent).toBe('コピーする部屋番号がありません');
+  });
+
+  test('部屋作成時にデバッグ有効チェックを付けるとcreate payloadへ反映される', async () => {
+    const networkBtn = document.getElementById('modeNetworkBtn');
+    const playerInput = document.getElementById('networkPlayerNameInput');
+    const debugCheckbox = document.getElementById('networkEnableDebugCheckbox');
+    const createBtn = document.getElementById('networkCreateBtn');
+    window.setDebugModeEnabled = jest.fn(() => true);
+
+    networkBtn.click();
+    await Promise.resolve();
+
+    playerInput.value = 'くろ';
+    debugCheckbox.checked = true;
+    createBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(createRoom).toHaveBeenCalledTimes(1);
+    expect(createRoom).toHaveBeenCalledWith(expect.objectContaining({
+      playerName: 'くろ',
+      networkDebugEnabled: true
+    }));
+    expect(window.setNetworkDebugModeAccess).toHaveBeenCalledWith(expect.objectContaining({
+      networkMode: true,
+      roomDebugEnabled: true
+    }));
+    expect(window.setDebugModeEnabled).toHaveBeenCalledWith(true);
+  });
+
+  test('デバッグチェック未選択では create payload に networkDebugEnabled を載せない', async () => {
+    const networkBtn = document.getElementById('modeNetworkBtn');
+    const playerInput = document.getElementById('networkPlayerNameInput');
+    const debugCheckbox = document.getElementById('networkEnableDebugCheckbox');
+    const createBtn = document.getElementById('networkCreateBtn');
+    window.setDebugModeEnabled = jest.fn(() => true);
+    createRoom.mockResolvedValueOnce({ ok: true, roomId: 'A1B', networkDebugEnabled: false });
+
+    networkBtn.click();
+    await Promise.resolve();
+
+    playerInput.value = 'くろ';
+    debugCheckbox.checked = false;
+    createBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(createRoom).toHaveBeenCalledWith(expect.objectContaining({
+      playerName: 'くろ'
+    }));
+    expect(createRoom).not.toHaveBeenCalledWith(expect.objectContaining({
+      networkDebugEnabled: true
+    }));
+    expect(window.setNetworkDebugModeAccess).toHaveBeenCalledWith(expect.objectContaining({
+      networkMode: true,
+      roomDebugEnabled: false
+    }));
+    expect(window.setDebugModeEnabled).not.toHaveBeenCalled();
   });
 });

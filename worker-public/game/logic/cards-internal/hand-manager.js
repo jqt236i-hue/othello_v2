@@ -158,14 +158,17 @@
         return def ? def.cost : 0;
     }
 
-    function canUseCard(cardState, playerKey, cardId, context) {
+    function canUseCard(cardState, playerKey, cardId, context, opts) {
         const { RIBO_WILL_UNLOCK_TURN_INDEX } = getConstants(context);
         const hands = cardState && cardState.hands;
         if (!hands || !Array.isArray(hands[playerKey])) return false;
-        if (cardState.hasUsedCardThisTurnByPlayer[playerKey]) return false;
+        const skipCostAndTurnLimit = opts && opts.skipCostAndTurnLimit;
+        if (!skipCostAndTurnLimit && cardState.hasUsedCardThisTurnByPlayer[playerKey]) return false;
         if (!hands[playerKey].includes(cardId)) return false;
-        const cost = getCardCost(cardId, context);
-        if (!cardState.charge || Number(cardState.charge[playerKey] || 0) < cost) return false;
+        if (!skipCostAndTurnLimit) {
+            const cost = getCardCost(cardId, context);
+            if (!cardState.charge || Number(cardState.charge[playerKey] || 0) < cost) return false;
+        }
         const cardType = getCardType(cardId, context);
         if (cardType === 'RIBO_WILL' && Number(cardState.turnIndex || 0) < RIBO_WILL_UNLOCK_TURN_INDEX) {
             return false;
@@ -209,14 +212,14 @@
         return { applied: true, destroyedCardId };
     }
 
-    function getUsableCardIds(cardState, gameState, playerKey, context) {
+    function getUsableCardIds(cardState, gameState, playerKey, context, opts) {
         if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return [];
         const helpers = getHelpers(context);
         const hand = cardState.hands[playerKey];
         const res = [];
 
         for (const cardId of hand) {
-            if (!canUseCard(cardState, playerKey, cardId, context)) continue;
+            if (!canUseCard(cardState, playerKey, cardId, context, opts)) continue;
             const def = getCardDef(cardId, context);
             if (!def) continue;
             const type = def.type;

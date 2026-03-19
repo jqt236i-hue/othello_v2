@@ -12,6 +12,7 @@
     let networkStatusBaseText = '';
     let networkStatusBaseIsError = false;
     let networkTurnTimerInfo = null;
+    let networkRoomDebugEnabled = false;
 
     const uiRefs = {
         modeCpuBtn: null,
@@ -22,6 +23,8 @@
         networkRoomInput: null,
         networkServerInput: null,
         networkPlayerNameInput: null,
+        networkEnableDebugCheckbox: null,
+        networkCopyRoomBtn: null,
         networkCreateBtn: null,
         networkJoinBtn: null,
         networkLeaveBtn: null,
@@ -186,6 +189,66 @@
         el.textContent = formatRoomDeckText(roomDeck);
         el.style.color = hasCustomRoomDeck(roomDeck) ? '#ffecb3' : '#d7ccc8';
         scheduleControlPanelLayoutSync();
+    }
+
+    function resolveNetworkDebugModeAccessSetter() {
+        if (typeof root.setNetworkDebugModeAccess === 'function') {
+            return root.setNetworkDebugModeAccess;
+        }
+        try {
+            if (root.UIBootstrap && typeof root.UIBootstrap.getRegisteredUIGlobals === 'function') {
+                const globals = root.UIBootstrap.getRegisteredUIGlobals() || {};
+                if (typeof globals.setNetworkDebugModeAccess === 'function') {
+                    return globals.setNetworkDebugModeAccess;
+                }
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function applyNetworkDebugModeAccess() {
+        const setter = resolveNetworkDebugModeAccessSetter();
+        if (typeof setter !== 'function') return;
+        setter({
+            networkMode: currentMode === MODE_NETWORK,
+            roomDebugEnabled: networkRoomDebugEnabled === true
+        });
+    }
+
+    function updateNetworkDebugEnabledFromRoomState(roomState) {
+        if (!roomState || typeof roomState !== 'object') return;
+        if (!Object.prototype.hasOwnProperty.call(roomState, 'networkDebugEnabled')) return;
+        networkRoomDebugEnabled = roomState.networkDebugEnabled === true;
+    }
+
+    function tryAutoEnableDebugModeForNetworkRoom() {
+        if (currentMode !== MODE_NETWORK) return;
+        if (networkRoomDebugEnabled !== true) return;
+
+        try {
+            if (typeof root.setDebugModeEnabled === 'function') {
+                if (root.setDebugModeEnabled(true) === true) return;
+            }
+        } catch (e) { /* ignore */ }
+
+        try {
+            if (root.UIBootstrap && typeof root.UIBootstrap.getRegisteredUIGlobals === 'function') {
+                const globals = root.UIBootstrap.getRegisteredUIGlobals() || {};
+                if (typeof globals.setDebugModeEnabled === 'function') {
+                    if (globals.setDebugModeEnabled(true) === true) return;
+                }
+            }
+        } catch (e) { /* ignore */ }
+
+        if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
+
+        const debugModeBtn = document.getElementById('debugModeBtn');
+        if (!debugModeBtn) return;
+        if (debugModeBtn.dataset && debugModeBtn.dataset.active === 'true') return;
+
+        try {
+            debugModeBtn.click();
+        } catch (e) { /* ignore */ }
     }
 
     function setSharedPlayerName(value) {
@@ -925,6 +988,8 @@
             setNetworkOverlayVisible(false);
         }
 
+        applyNetworkDebugModeAccess();
+
         refreshModeButtons();
         refreshBoardUi();
         try {
@@ -946,6 +1011,42 @@
                 .toUpperCase()
                 .replace(/[^A-Z0-9]/g, '')
                 .slice(0, 3);
+        };
+
+        const copyTextToClipboard = async (value) => {
+            const text = String(value || '');
+            if (!text) return false;
+
+            try {
+                if (root.navigator && root.navigator.clipboard && typeof root.navigator.clipboard.writeText === 'function') {
+                    await root.navigator.clipboard.writeText(text);
+                    return true;
+                }
+            } catch (e) { /* ignore and fall back */ }
+
+            try {
+                if (!document || !document.body || typeof document.createElement !== 'function') {
+                    return false;
+                }
+                const hidden = document.createElement('textarea');
+                hidden.value = text;
+                hidden.setAttribute('readonly', 'readonly');
+                hidden.style.position = 'fixed';
+                hidden.style.left = '-9999px';
+                hidden.style.top = '0';
+                hidden.style.opacity = '0';
+                document.body.appendChild(hidden);
+                hidden.focus();
+                hidden.select();
+                if (typeof hidden.setSelectionRange === 'function') {
+                    hidden.setSelectionRange(0, hidden.value.length);
+                }
+                const copied = (typeof document.execCommand === 'function') ? document.execCommand('copy') : false;
+                document.body.removeChild(hidden);
+                return copied === true;
+            } catch (e) {
+                return false;
+            }
         };
 
         const sendChatMessage = async () => {
@@ -976,6 +1077,8 @@
 
         if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setRoomStateListener === 'function') {
             root.NetworkMatchClient.setRoomStateListener((roomState) => {
+                updateNetworkDebugEnabledFromRoomState(roomState);
+                applyNetworkDebugModeAccess();
                 refreshNetworkChatVisibility();
                 renderNetworkDeckInfo(roomState);
                 try {
@@ -1077,20 +1180,54 @@
             });
         }
 
+        if (uiRefs.networkCopyRoomBtn) {
+            uiRefs.networkCopyRoomBtn.addEventListener('click', async () => {
+                const roomId = uiRefs.networkRoomInput ? formatRoomIdInput(uiRefs.networkRoomInput.value) : '';
+                if (uiRefs.networkRoomInput) {
+                    uiRefs.networkRoomInput.value = roomId;
+                }
+                if (!roomId) {
+                    writeNetworkStatus('コピーする部屋番号がありません', true);
+                    return;
+                }
+
+                const copied = await copyTextToClipboard(roomId);
+                if (copied) {
+                    writeNetworkStatus(`部屋番号 ${roomId} をコピーしました`, false);
+                    return;
+                }
+                writeNetworkStatus('部屋番号のコピーに失敗しました', true);
+            });
+        }
+
         if (uiRefs.networkCreateBtn) {
             uiRefs.networkCreateBtn.addEventListener('click', async () => {
                 await setMode(MODE_NETWORK, { silentLog: true });
                 const serverUrl = uiRefs.networkServerInput ? uiRefs.networkServerInput.value.trim() : '';
                 const playerName = resolveRequiredNetworkPlayerName();
                 const deckCode = getActiveLocalDeckCode();
+                const requestedNetworkDebugEnabled = !!(
+                    uiRefs.networkEnableDebugCheckbox
+                    && uiRefs.networkEnableDebugCheckbox.checked
+                );
                 if (!playerName) return;
                 try {
                     if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
                         root.NetworkMatchClient.setServerUrl(serverUrl);
                     }
-                    const result = await root.NetworkMatchClient.createRoom({ serverUrl, playerName, deckCode });
+                    const result = await root.NetworkMatchClient.createRoom({
+                        serverUrl,
+                        playerName,
+                        deckCode,
+                        networkDebugEnabled: requestedNetworkDebugEnabled
+                    });
                     if (result && result.ok && uiRefs.networkRoomInput) {
                         uiRefs.networkRoomInput.value = result.roomId || '';
+                    }
+                    if (result && result.ok) {
+                        networkRoomDebugEnabled = result.networkDebugEnabled === true;
+                        applyNetworkDebugModeAccess();
+                        tryAutoEnableDebugModeForNetworkRoom();
                     }
                     refreshNetworkChatVisibility();
                     renderNetworkDeckInfo();
@@ -1113,7 +1250,12 @@
                     if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
                         root.NetworkMatchClient.setServerUrl(serverUrl);
                     }
-                    await root.NetworkMatchClient.joinRoom(roomId, { serverUrl, playerName, deckCode });
+                    const result = await root.NetworkMatchClient.joinRoom(roomId, { serverUrl, playerName, deckCode });
+                    if (result && result.ok) {
+                        networkRoomDebugEnabled = result.networkDebugEnabled === true;
+                        applyNetworkDebugModeAccess();
+                        tryAutoEnableDebugModeForNetworkRoom();
+                    }
                     refreshNetworkChatVisibility();
                     renderNetworkDeckInfo();
                     refreshBoardUi();
@@ -1130,6 +1272,11 @@
                         await root.NetworkMatchClient.leaveRoom();
                     }
                 } catch (e) { /* ignore */ }
+                networkRoomDebugEnabled = false;
+                if (uiRefs.networkEnableDebugCheckbox) {
+                    uiRefs.networkEnableDebugCheckbox.checked = false;
+                }
+                applyNetworkDebugModeAccess();
                 await setMode(MODE_CPU, { silentLog: true });
                 renderNetworkDeckInfo(null);
                 refreshBoardUi();
@@ -1139,6 +1286,7 @@
         setNetworkChatExpanded(false);
         refreshNetworkChatVisibility();
         renderNetworkDeckInfo();
+        applyNetworkDebugModeAccess();
     }
 
     function setupMatchModeControls(options) {
@@ -1151,6 +1299,8 @@
         uiRefs.networkRoomInput = opts.networkRoomInput || null;
         uiRefs.networkServerInput = opts.networkServerInput || null;
         uiRefs.networkPlayerNameInput = opts.networkPlayerNameInput || null;
+        uiRefs.networkEnableDebugCheckbox = opts.networkEnableDebugCheckbox || null;
+        uiRefs.networkCopyRoomBtn = opts.networkCopyRoomBtn || null;
         uiRefs.networkCreateBtn = opts.networkCreateBtn || null;
         uiRefs.networkJoinBtn = opts.networkJoinBtn || null;
         uiRefs.networkLeaveBtn = opts.networkLeaveBtn || null;
@@ -1173,6 +1323,9 @@
         uiRefs.networkChatInput = opts.networkChatInput || null;
         uiRefs.networkChatSendBtn = opts.networkChatSendBtn || null;
         uiRefs.autoToggleBtn = opts.autoToggleBtn || null;
+        if (uiRefs.networkEnableDebugCheckbox) {
+            uiRefs.networkEnableDebugCheckbox.checked = false;
+        }
 
         if (uiRefs.modeCpuBtn) {
             uiRefs.modeCpuBtn.addEventListener('click', () => {

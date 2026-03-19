@@ -35,6 +35,7 @@ let cellCache = [];
 let cellCacheMap = new Map();
 let boardDomSignature = null;
 let lastBoardExpansionRevealSoundKey = null;
+let suppressBoardExpansionRevealSoundThisRender = false;
 
 function _playBoardExpansionRevealSoundForDiff() {
     try {
@@ -53,6 +54,7 @@ function _scheduleBoardExpansionRevealSoundForDiff(revealExpansionKeys, boardSig
         ? revealExpansionKeys.slice()
         : Array.from(revealExpansionKeys || []);
     if (!keys.length) return;
+    if (suppressBoardExpansionRevealSoundThisRender) return;
 
     const soundKey = `${String(boardSignature || '')}:${keys.sort().join('|')}`;
     if (soundKey === lastBoardExpansionRevealSoundKey) return;
@@ -278,11 +280,19 @@ function _consumeBoardUpdateContextForDiff() {
     if (active) {
         try { window.__suppressNextDiffFlip = false; } catch (e) { /* ignore */ }
     }
-    return active ? {
-        suppressFallbackFlip: true,
-        reason: 'legacy_suppress_next_diff_flip',
-        source: 'legacy_window_flag'
-    } : null;
+    const suppressBoardExpansionRevealSound = (typeof window !== 'undefined' && window.__suppressNextBoardExpansionRevealSound === true);
+    if (suppressBoardExpansionRevealSound) {
+        try { window.__suppressNextBoardExpansionRevealSound = false; } catch (e) { /* ignore */ }
+    }
+    if (!active && !suppressBoardExpansionRevealSound) return null;
+    return Object.assign(
+        {
+            reason: 'legacy_board_update_context',
+            source: 'legacy_window_flag'
+        },
+        active ? { suppressFallbackFlip: true } : null,
+        suppressBoardExpansionRevealSound ? { suppressBoardExpansionRevealSound: true } : null
+    );
 }
 
 // Internal (per-render) flag to suppress fallback flip animation.
@@ -464,17 +474,8 @@ let _stoneInfoTagAutoDismissBound = false;
 
 function _isBoardHiddenTrap(marker) {
     if (!marker || !marker.data || marker.data.type !== 'TRAP') return false;
-    // Persistent trap visuals are owner-only information on board.
-    // In local debug human-vs-human, the shared screen may see both sides.
-    try {
-        if (typeof window !== 'undefined' && window && window.DEBUG_HUMAN_VS_HUMAN === true) {
-            return false;
-        }
-    } catch (e) { /* ignore */ }
-    const viewerKey = _resolveNetworkLocalPlayerKeyForDiff();
-    const ownerKey = marker.owner === 'white' ? 'white' : (marker.owner === 'black' ? 'black' : null);
-    if (!ownerKey) return true;
-    return viewerKey !== ownerKey;
+    // Hidden traps stay visually normal for both seats until reveal timing events.
+    return true;
 }
 
 function _resolveNetworkLocalPlayerKeyForDiff() {
@@ -582,6 +583,10 @@ const SPECIAL_STONE_INFO = {
     TIME_BOMB: {
         name: '時限爆弾',
         desc: '3ターン後に周囲9マスを爆破。反転されると解除。'
+    },
+    TIME_STOP: {
+        name: '時間停石',
+        desc: '所有者ターン開始ごとに減算し、3回目で時間停止を発動する。発動したターンと次のターンを連続で行動し、その後この石は消滅する。'
     },
     CROSS_BOMB: {
         name: '十字爆弾',
@@ -1204,9 +1209,10 @@ function buildCurrentCellState() {
         pending.type === 'LAST_RESORT'
     ));
     const isTabooReversePending = !!(pending && pending.type === 'TABOO_REVERSE_WILL');
+    let isNetworkMode = false;
     let canControlCurrentTurn = true;
     try {
-        const isNetworkMode = (OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function')
+        isNetworkMode = (OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function')
             ? OwnerHelpersModule.isNetworkMode(typeof window !== 'undefined' ? window : null)
             : ((typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function')
                 ? window.getCurrentMatchMode() === 'network'
@@ -1216,8 +1222,10 @@ function buildCurrentCellState() {
             canControlCurrentTurn = playerKey === localPlayerKey;
         }
     } catch (e) { /* ignore */ }
-    const isHumanTurn = (gameState.currentPlayer === BLACK) ||
-        (window.DEBUG_HUMAN_VS_HUMAN && gameState.currentPlayer === WHITE);
+    const isHumanTurn = isNetworkMode
+        ? canControlCurrentTurn
+        : ((gameState.currentPlayer === BLACK) ||
+            (window.DEBUG_HUMAN_VS_HUMAN && gameState.currentPlayer === WHITE));
     const isSelectingTarget = !!(
         pending && (
             pending.stage === 'selectTarget' ||
@@ -1960,6 +1968,7 @@ function renderBoardDiff(boardEl) {
     // This prevents DiffRenderer from replaying the fallback ".flip" when syncing the final board state.
     const boardUpdateContext = _consumeBoardUpdateContextForDiff();
     suppressFallbackFlipThisRender = !!(boardUpdateContext && boardUpdateContext.suppressFallbackFlip === true) || _hasPendingPlaybackEvents();
+    suppressBoardExpansionRevealSoundThisRender = !!(boardUpdateContext && boardUpdateContext.suppressBoardExpansionRevealSound === true);
     pendingMoveSourceKeysThisRender = _collectPendingMoveSourceKeysForDiff();
 
     try {
@@ -2047,6 +2056,7 @@ function renderBoardDiff(boardEl) {
         return updatedCount;
     } finally {
         suppressFallbackFlipThisRender = false;
+        suppressBoardExpansionRevealSoundThisRender = false;
         pendingMoveSourceKeysThisRender = null;
     }
 }

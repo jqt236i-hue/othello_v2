@@ -39,7 +39,13 @@ describe('CardTimeBomb.applyTimeBombWill', () => {
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
     expect(removed).toEqual([[cardState, 2, 3, { kind: 'specialStone' }]]);
     expect(added).toHaveLength(1);
-    expect(cardState.markers[0]).toMatchObject({ kind: 'bomb', row: 2, col: 3, owner: 'black' });
+    expect(cardState.markers[0]).toMatchObject({
+      kind: 'specialStone',
+      row: 2,
+      col: 3,
+      owner: 'black',
+      data: expect.objectContaining({ type: 'TIME_BOMB', category: 'bomb' })
+    });
   });
 
   test('returns exists when a bomb marker is already present', () => {
@@ -48,7 +54,7 @@ describe('CardTimeBomb.applyTimeBombWill', () => {
       pendingEffectByPlayer: {
         white: { type: 'TIME_BOMB', stage: 'selectTarget', cardId: 'bomb_02' }
       },
-      markers: [{ kind: 'bomb', row: 1, col: 1, owner: 'white', data: { remainingTurns: 2 } }]
+      markers: [{ kind: 'specialStone', row: 1, col: 1, owner: 'white', data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } }]
     };
     const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
 
@@ -84,8 +90,8 @@ describe('CardTimeBomb.applyTimeBombWill', () => {
     expect(first).toEqual({ applied: true, row: 2, col: 3 });
     expect(second).toEqual({ applied: true, row: 2, col: 4 });
     expect(cardState.markers).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 1, createdSeq: 1, kind: 'bomb', row: 2, col: 3 }),
-      expect.objectContaining({ id: 2, createdSeq: 2, kind: 'bomb', row: 2, col: 4 })
+      expect.objectContaining({ id: 1, createdSeq: 1, kind: 'specialStone', row: 2, col: 3, data: expect.objectContaining({ type: 'TIME_BOMB', category: 'bomb' }) }),
+      expect.objectContaining({ id: 2, createdSeq: 2, kind: 'specialStone', row: 2, col: 4, data: expect.objectContaining({ type: 'TIME_BOMB', category: 'bomb' }) })
     ]));
   });
 });

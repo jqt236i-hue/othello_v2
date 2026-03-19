@@ -148,6 +148,23 @@ describe('visual-effects map shared between game/ui', () => {
     expect(gluttonousMap.imagePathByOwner['-1']).toContain('GLUTTONOUS_WILL-white.png');
   });
 
+  test('TIME_STOP_GOD と TIME_STOP が専用 PNG 画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared).toBeTruthy();
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.TIME_STOP_GOD).toBe('timeStopStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.TIME_STOP).toBe('timeStopStone');
+
+    const timeStopMap = shared.STONE_VISUAL_EFFECTS.timeStopStone;
+    expect(timeStopMap).toBeTruthy();
+    expect(timeStopMap.imagePathByOwner['1']).toContain('TIME_STOP-black.png');
+    expect(timeStopMap.imagePathByOwner['-1']).toContain('TIME_STOP-white.png');
+    expect(timeStopMap.imagePathByOwner['1']).not.toContain('data:image/svg+xml');
+    expect(timeStopMap.imagePathByOwner['-1']).not.toContain('data:image/svg+xml');
+  });
+
   test('WILL_HUNTER_KING が正式画像へ解決される', async () => {
     require('../ui/visual-effects-map');
     require('../game/visual-effects-map');

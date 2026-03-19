@@ -18,6 +18,7 @@
     const WHITE = Number.isFinite(Number(SharedConstants && SharedConstants.WHITE))
         ? Number(SharedConstants.WHITE)
         : -1;
+    const BOMB_CATEGORY = 'bomb';
 
     function resolveRandomSource(prng) {
         return (prng && typeof prng.random === 'function')
@@ -47,9 +48,9 @@
         return Math.max(1, Math.trunc(current / 2));
     }
 
-    function halveDurationOnMarkerDataForSplit(data, kind) {
+    function halveDurationOnMarkerDataForSplit(data, markerCategory) {
         if (!data || typeof data !== 'object') return null;
-        if (kind === 'specialStone') {
+        if (markerCategory === 'specialStone') {
             if (!Number.isFinite(Number(data.remainingOwnerTurns)) || Number(data.remainingOwnerTurns) <= 0) return null;
             const previous = Number(data.remainingOwnerTurns);
             const next = halveDurationValueForSplit(previous);
@@ -60,7 +61,7 @@
                 nextDuration: next
             };
         }
-        if (kind === 'bomb') {
+        if (markerCategory === BOMB_CATEGORY) {
             if (!Number.isFinite(Number(data.remainingTurns)) || Number(data.remainingTurns) <= 0) return null;
             const previous = Number(data.remainingTurns);
             const next = halveDurationValueForSplit(previous);
@@ -126,7 +127,11 @@
         }
         for (const bomb of sourceBombs) {
             const owner = bomb.owner === 'white' ? 'white' : 'black';
-            addMarker(cardState, 'bomb', target.row, target.col, owner, cloneMarkerData(bomb.data || {}));
+            addMarker(cardState, 'specialStone', target.row, target.col, owner, Object.assign(
+                {},
+                cloneMarkerData(bomb.data || {}),
+                { category: BOMB_CATEGORY, type: (bomb.data && bomb.data.type) || 'TIME_BOMB' }
+            ));
         }
 
         spawned.push({ row: target.row, col: target.col });
@@ -198,9 +203,13 @@
         for (const bomb of sourceBombs) {
             const owner = bomb.owner === 'white' ? 'white' : 'black';
             const sourceData = cloneMarkerData(bomb.data || {});
-            const duration = halveDurationOnMarkerDataForSplit(sourceData, 'bomb');
+            const duration = halveDurationOnMarkerDataForSplit(sourceData, BOMB_CATEGORY);
             bomb.data = sourceData;
-            addMarker(cardState, 'bomb', target.row, target.col, owner, cloneMarkerData(sourceData));
+            addMarker(cardState, 'specialStone', target.row, target.col, owner, Object.assign(
+                {},
+                cloneMarkerData(sourceData),
+                { category: BOMB_CATEGORY, type: (sourceData && sourceData.type) || 'TIME_BOMB' }
+            ));
             if (duration) {
                 durationChanges.push({
                     row,

@@ -75,6 +75,47 @@ describe('CardMarkers module', () => {
     });
   });
 
+  test('addMarker does not emit status or backfill spawn meta for hidden trap', () => {
+    const cardState = {
+      markers: [],
+      _nextMarkerId: 1,
+      _nextCreatedSeq: 1,
+      _currentActionMeta: { actionId: 'action-trap' },
+      _presentationEventsPersist: [
+        { type: 'SPAWN', row: 5, col: 5, actionId: 'action-trap', meta: { existing: true } }
+      ],
+      presentationEvents: []
+    };
+
+    const marker = CardMarkers.addMarker(
+      cardState,
+      CardMarkers.MARKER_KINDS.SPECIAL_STONE,
+      5,
+      5,
+      'black',
+      { type: 'TRAP', hidden: true, armedForPlayer: 'white' }
+    );
+
+    expect(marker).toMatchObject({
+      id: 1,
+      row: 5,
+      col: 5,
+      kind: CardMarkers.MARKER_KINDS.SPECIAL_STONE,
+      owner: 'black',
+      data: { type: 'TRAP', hidden: true, armedForPlayer: 'white' }
+    });
+    expect(globalThis.BoardOps.emitPresentationEvent).not.toHaveBeenCalledWith(
+      cardState,
+      expect.objectContaining({
+        type: 'STATUS_APPLIED',
+        row: 5,
+        col: 5
+      })
+    );
+    expect(cardState._presentationEventsPersist[0].meta).toMatchObject({ existing: true });
+    expect(cardState._presentationEventsPersist[0].meta.special).toBeUndefined();
+  });
+
   test('swapCellCoordinates swaps main and expansion stone ids and marker-linked positions', () => {
     const gameState = Core.createGameState();
     CardExpansion.ensureExpansionCellForCard(gameState, -1, 0, Core.EMPTY);
@@ -84,7 +125,7 @@ describe('CardMarkers module', () => {
       expansionStoneIdByCell: {},
       markers: [
         { id: 1, row: 0, col: 0, kind: CardMarkers.MARKER_KINDS.SPECIAL_STONE, owner: 'black', createdSeq: 1, data: { type: 'WORK' } },
-        { id: 2, row: -1, col: 0, kind: CardMarkers.MARKER_KINDS.BOMB, owner: 'white', createdSeq: 2, data: { remainingTurns: 2 } }
+        { id: 2, row: -1, col: 0, kind: CardMarkers.MARKER_KINDS.SPECIAL_STONE, owner: 'white', createdSeq: 2, data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } }
       ],
       workAnchorPosByPlayer: { black: { row: 0, col: 0 }, white: null },
       breedingSproutByOwner: { black: [{ row: -1, col: 0 }], white: [] },

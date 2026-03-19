@@ -43,6 +43,7 @@
 | `repo-skill-authoring-workflow` | 新しい skill を作る、既存 skill を整理する時 | `.github/skills/**/SKILL.md`, `SKILLS.md` |
 | `safe-rational-refactor` | 局所整理を最小差分で安全に進める時 | 既存コード全般 |
 | `selfplay-training-pipeline-workflow` | selfplay 学習 profile、gate、promotion を回す時 | `scripts/run-selfplay-training-*.js`, `ai/train/*` |
+| `selfplay-training-run-ops-workflow` | selfplay 学習 run の停止、再起動、run-tag 管理、監視コマンド提示を安全に回す時 | `scripts/run-selfplay-training-profile.js`, `scripts/monitor-selfplay-training-run.js`, `data/runs/*` |
 | `story-tutorial-workflow` | tutorial / story の進行や overlay を直す時 | `ui/tutorial/*`, `ui/story/*`, handlers |
 | `ui-bootstrap-load-order-workflow` | classic script の load order と DI を直す時 | `index.html`, `ui/bootstrap.js`, `ui/handlers/init.js` |
 | `worker-public-sync-workflow` | root と worker-public mirror を同期する時 | `scripts/prepare-worker-assets.js`, `worker-public/*` |
@@ -61,6 +62,7 @@
 - 局所的な最小差分リファクタ: `safe-rational-refactor`
 - 段階的な大幅改革の設計: `design-plan-runbook-authoring-workflow`
 - selfplay / training / promotion: `selfplay-training-pipeline-workflow`
+- selfplay 学習 run の再起動 / log / monitor / stop: `selfplay-training-run-ops-workflow`
 - story / tutorial / overlay: `story-tutorial-workflow`
 - script 順と UI bootstrap: `ui-bootstrap-load-order-workflow`
 - root から worker-public への同期: `worker-public-sync-workflow`

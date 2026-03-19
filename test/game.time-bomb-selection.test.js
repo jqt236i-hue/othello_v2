@@ -1,6 +1,15 @@
 const SharedConstants = require('../shared-constants');
 const CardLogic = require('../game/logic/cards');
 
+function isBombMarker(marker) {
+  return !!(
+    marker &&
+    marker.kind === 'specialStone' &&
+    marker.data &&
+    marker.data.category === 'bomb'
+  );
+}
+
 function createStates() {
   const prng = { shuffle: (arr) => arr, random: () => 0.5 };
   const cardState = CardLogic.createCardState(prng);
@@ -41,9 +50,10 @@ describe('TIME_BOMB selection behavior', () => {
     expect(applied && applied.applied).toBe(true);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
 
-    const bomb = (cardState.markers || []).find((m) => m.kind === 'bomb' && m.row === 2 && m.col === 2 && m.owner === 'black');
+    const bomb = (cardState.markers || []).find((m) => isBombMarker(m) && m.row === 2 && m.col === 2 && m.owner === 'black');
     expect(bomb).toBeTruthy();
     expect(bomb.data && typeof bomb.data.remainingTurns).toBe('number');
+    expect(bomb.data && bomb.data.type).toBe('TIME_BOMB');
   });
 
   test('placement effects no longer place bomb from TIME_BOMB pending', () => {
@@ -53,7 +63,7 @@ describe('TIME_BOMB selection behavior', () => {
 
     const effects = CardLogic.applyPlacementEffects(cardState, gameState, 'black', 4, 4, 1);
     expect(effects.bombPlaced).toBeFalsy();
-    const bomb = (cardState.markers || []).find((m) => m.kind === 'bomb' && m.row === 4 && m.col === 4);
+    const bomb = (cardState.markers || []).find((m) => isBombMarker(m) && m.row === 4 && m.col === 4);
     expect(bomb).toBeFalsy();
   });
 });

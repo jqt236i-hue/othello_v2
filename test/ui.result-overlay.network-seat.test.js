@@ -199,10 +199,10 @@ describe('result overlay seat perspective', () => {
     expect(title && title.textContent).toBe('完全敗北...');
   });
 
-  test('理論値条件で最終スコア10000を表示する', () => {
-    global.countDiscs.mockReturnValue({ black: 64, white: 0 });
+  test('理論値条件で最終スコア11000を表示する', () => {
+    global.countDiscs.mockReturnValue({ black: 76, white: 0 });
     global.cardState.chargeGainedTotal = { black: 800, white: 0 };
-    global.cardState.totalFlipCountByPlayer = { black: 200, white: 0 };
+    global.cardState.totalFlipCountByPlayer = { black: 150, white: 0 };
     global.cardState.cornerCaptureCountByPlayer = { black: 4, white: 0 };
     global.cardState.turnCountByPlayer = { black: 0, white: 0 };
     global.cardState.turnIndex = 0;
@@ -215,12 +215,14 @@ describe('result overlay seat perspective', () => {
     const breakdownText = (document.querySelector('.result-score-breakdown') || {}).textContent || '';
     const supportDetailText = (document.querySelector('.result-support-breakdown') || {}).textContent || '';
 
-    expect(totalScore && totalScore.textContent).toBe('10000');
+    expect(totalScore && totalScore.textContent).toBe('11000');
     expect(breakdownText).toContain('勝敗ボーナス5000');
     expect(breakdownText).toContain('速攻ボーナス1500');
     expect(breakdownText).toContain('黒一色ボーナス1500');
-    expect(breakdownText).toContain('補助ボーナス2000');
-    expect(supportDetailText).toContain('布石');
+    expect(breakdownText).toContain('補助ボーナス3000');
+    expect(supportDetailText).toContain('反転1500');
+    expect(supportDetailText).toContain('自石1500');
+    expect(supportDetailText).not.toContain('布石');
     expect(supportDetailText).not.toContain('/ 角');
   });
 
@@ -250,10 +252,9 @@ describe('result overlay seat perspective', () => {
     const breakdownText = (document.querySelector('.result-score-breakdown') || {}).textContent || '';
     const supportDetailText = (document.querySelector('.result-support-breakdown') || {}).textContent || '';
 
-    expect(breakdownText).toContain('補助ボーナス867');
-    expect(supportDetailText).toContain('反転594');
-    expect(supportDetailText).toContain('布石175');
-    expect(supportDetailText).toContain('自石98');
+    expect(breakdownText).toContain('補助ボーナス1957');
+    expect(supportDetailText).toContain('反転990');
+    expect(supportDetailText).toContain('自石967');
   });
 
   test('詳細統計は初期非表示でボタン押下で展開される', () => {
@@ -276,9 +277,9 @@ describe('result overlay seat perspective', () => {
   test('CPU対戦時のみレベル別に最高点を更新する', () => {
     window.MATCH_MODE = 'cpu';
     global.cpuSmartness.white = 4;
-    global.countDiscs.mockReturnValue({ black: 64, white: 0 });
+    global.countDiscs.mockReturnValue({ black: 76, white: 0 });
     global.cardState.chargeGainedTotal = { black: 800, white: 0 };
-    global.cardState.totalFlipCountByPlayer = { black: 200, white: 0 };
+    global.cardState.totalFlipCountByPlayer = { black: 150, white: 0 };
     global.cardState.cornerCaptureCountByPlayer = { black: 4, white: 0 };
     global.cardState.turnCountByPlayer = { black: 0, white: 0 };
     global.cardState.turnIndex = 0;
@@ -287,11 +288,11 @@ describe('result overlay seat perspective', () => {
     const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
-    const key = 'othello_cpu_leaderboard_v3';
+    const key = 'othello_cpu_leaderboard_v5';
     const saved = JSON.parse(localStorage.getItem(key) || '{}');
     expect(saved.cpu).toBeTruthy();
     expect(saved.cpu['4']).toBeTruthy();
-    expect(saved.cpu['4'].bestScore).toBe(10000);
+    expect(saved.cpu['4'].bestScore).toBe(11000);
   });
 
   test('ネット対戦時はスコア表示してもランキングへ保存しない', () => {
@@ -304,7 +305,7 @@ describe('result overlay seat perspective', () => {
     mod.showResultOverlay();
 
     const metaText = (document.querySelector('.result-score-meta') || {}).textContent || '';
-    const key = 'othello_cpu_leaderboard_v3';
+    const key = 'othello_cpu_leaderboard_v5';
 
     expect(metaText).toContain('共有ランキング');
     expect(localStorage.getItem(key)).toBeNull();

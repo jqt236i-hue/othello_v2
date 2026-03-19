@@ -24,6 +24,17 @@
         return globalScope.MarkersAdapter || null;
     })();
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
+    function isBombCategoryMarker(marker) {
+        if (MarkersAdapter && typeof MarkersAdapter.isBombCategoryMarker === 'function') {
+            return MarkersAdapter.isBombCategoryMarker(marker);
+        }
+        return !!(
+            marker &&
+            marker.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+            marker.data &&
+            marker.data.category === 'bomb'
+        );
+    }
     const CardUtilsModule = (() => {
         if (typeof require === 'function') {
             try {
@@ -362,13 +373,39 @@
         return gained;
     }
 
-    function handOffTurnAfterSelection(Core, gameState, playerKey) {
-        if (!Core || !gameState) return;
+    function consumeTimeStopCompletedTurn(CardLogic, cardState, playerKey) {
+        if (!CardLogic || typeof CardLogic.consumeTimeStopConsecutiveTurn !== 'function') {
+            return { consumed: false, remaining: 0, continueTurn: false };
+        }
+        return CardLogic.consumeTimeStopConsecutiveTurn(cardState, playerKey) || { consumed: false, remaining: 0, continueTurn: false };
+    }
+
+    function handOffCompletedTurn(Core, CardLogic, cardState, gameState, playerKey, turnNumberAfterCompletion) {
+        if (!Core || !gameState) return { continued: false, remaining: 0 };
         const player = playerKey === 'black' ? Core.BLACK : Core.WHITE;
-        const turnNumberBeforeAction = Number(gameState.turnNumber || 0);
+        const turnNumber = Number.isFinite(Number(turnNumberAfterCompletion))
+            ? Number(turnNumberAfterCompletion)
+            : (Number(gameState.turnNumber || 0) + 1);
+        const timeStopRes = consumeTimeStopCompletedTurn(CardLogic, cardState, playerKey);
+        if (timeStopRes.continueTurn === true) {
+            gameState.currentPlayer = player;
+            gameState.consecutivePasses = 0;
+            gameState.turnNumber = turnNumber;
+            if (cardState) {
+                cardState.lastTurnStartedFor = null;
+            }
+            return { continued: true, remaining: Number(timeStopRes.remaining) || 0 };
+        }
         gameState.currentPlayer = -player;
         gameState.consecutivePasses = 0;
-        gameState.turnNumber = turnNumberBeforeAction + 1;
+        gameState.turnNumber = turnNumber;
+        return { continued: false, remaining: 0 };
+    }
+
+    function handOffTurnAfterSelection(Core, CardLogic, cardState, gameState, playerKey) {
+        if (!Core || !gameState) return;
+        const turnNumberBeforeAction = Number(gameState.turnNumber || 0);
+        handOffCompletedTurn(Core, CardLogic, cardState, gameState, playerKey, turnNumberBeforeAction + 1);
     }
 
     function pushTrapEvents(events, trapRes) {
@@ -465,7 +502,7 @@
                     const key = (m.id !== undefined && m.id !== null)
                         ? `${m.kind}:${m.id}`
                         : `${m.kind}:${m.row},${m.col}:${m.owner}:${m.createdSeq || 0}`;
-                    if (m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb')) {
+                    if (isBombCategoryMarker(m)) {
                         if (typeof m.data.remainingTurns === 'number') {
                             timerSnapshot.set(key, { timer: m.data.remainingTurns, special: 'TIME_BOMB', owner: m.owner, row: m.row, col: m.col, kind: m.kind });
                         }
@@ -509,7 +546,7 @@
                 : (cardState.markers || []);
             const markers = sourceMarkers
                 .map(m => ({
-                    kind: m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb') ? 'bomb' : 'special',
+                    isBomb: isBombCategoryMarker(m),
                     marker: m,
                     createdSeq: (m.createdSeq || 0)
                 }))
@@ -520,13 +557,13 @@
             const observerStartSummary = { triggered: [], lost: [], durationEnd: [] };
 
             for (const m of markers) {
-                if (m.kind === 'bomb') {
+                if (m.isBomb) {
                     if (isFrozenCell(cardState, m.marker && m.marker.row, m.marker && m.marker.col)) continue;
                     const res = CardLogic.tickBombAt(cardState, gameState, m.marker, playerKey);
                     if (res && res.exploded && res.exploded.length) {
                         events.push({ type: 'bombs_exploded', details: res });
                     }
-                } else if (m.kind === 'special') {
+                } else {
                     const t = (m.marker.data && m.marker.data.type ? m.marker.data.type : '').toUpperCase();
                     const owner = m.marker.owner;
                     const row = m.marker.row;
@@ -569,6 +606,30 @@
                             if (lost.length) observerStartSummary.lost.push(...lost);
                             const durationEnd = res.expired.filter((item) => item && item.reason === 'duration_end');
                             if (durationEnd.length) observerStartSummary.durationEnd.push(...durationEnd);
+                        }
+                    } else if (t === 'TIME_STOP' && owner === playerKey && typeof CardLogic.processTimeStopEffectsAtTurnStartAnchor === 'function') {
+                        const res = CardLogic.processTimeStopEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col);
+                        if (res && Array.isArray(res.triggered) && res.triggered.length) {
+                            for (const detail of res.triggered) {
+                                events.push({
+                                    type: 'time_stop_triggered',
+                                    player: playerKey,
+                                    row: detail && Number.isInteger(detail.row) ? detail.row : row,
+                                    col: detail && Number.isInteger(detail.col) ? detail.col : col,
+                                    remainingBonusTurns: Number(detail && detail.totalReservedTurns) || 0
+                                });
+                            }
+                        }
+                        if (res && Array.isArray(res.fizzled) && res.fizzled.length) {
+                            for (const detail of res.fizzled) {
+                                events.push({
+                                    type: 'time_stop_fizzled',
+                                    player: playerKey,
+                                    row: detail && Number.isInteger(detail.row) ? detail.row : row,
+                                    col: detail && Number.isInteger(detail.col) ? detail.col : col,
+                                    reason: detail && detail.reason ? detail.reason : 'anchor_lost'
+                                });
+                            }
                         }
                     } else if (t === 'DRAGON' && owner === playerKey) {
                         const res = CardLogic.processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col);
@@ -777,7 +838,7 @@
                         ? `${m.kind}:${m.id}`
                         : `${m.kind}:${m.row},${m.col}:${m.owner}:${m.createdSeq || 0}`;
                     const before = timerSnapshot.get(key);
-                    if (m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb')) {
+                    if (isBombCategoryMarker(m)) {
                         if (typeof m.data.remainingTurns !== 'number') continue;
                         if (!before || before.timer !== m.data.remainingTurns) {
                             if (typeof CardLogic.emitPresentationEvent === 'function') {
@@ -889,6 +950,19 @@
                         gained: Number(res.gained) || 0,
                         repaymentAmount: Number(res.repaymentAmount) || 0,
                         remainingOwnerTurns: Number(res.remainingOwnerTurns) || 0
+                    });
+                }
+
+                if (pendingType === 'TIME_STOP_GOD') {
+                    const res = (typeof CardLogic.resolveTimeStopGodUsage === 'function')
+                        ? CardLogic.resolveTimeStopGodUsage(cardState, gameState, playerKey, p)
+                        : { applied: false, destroyed: [], destroyedCount: 0, requestedCount: 3 };
+                    events.push({
+                        type: 'time_stop_god_cost_resolved',
+                        player: playerKey,
+                        destroyed: Array.isArray(res && res.destroyed) ? res.destroyed.slice() : [],
+                        destroyedCount: Number(res && res.destroyedCount) || 0,
+                        requestedCount: Number(res && res.requestedCount) || 0
                     });
                 }
 
@@ -1091,20 +1165,28 @@
             : 0;
         try {
             if (action.type === 'pass') {
-            const player = playerKey === 'black' ? Core.BLACK : Core.WHITE;
-            const ctx = resolveSafeCardContext(CardLogic, cardState);
-            const legalMoves = Core.getLegalMoves(gameState, player, ctx);
-            if (legalMoves.length > 0) {
-                throw new Error('Illegal pass: legal moves available');
-            }
-            // Pass policy: abandon any unresolved card effect for this turn.
-            if (cardState && cardState.pendingEffectByPlayer) {
-                cardState.pendingEffectByPlayer[playerKey] = null;
-            }
-            const newState = Core.applyPass(gameState);
-            Object.assign(gameState, newState);
-            events.push({ type: 'pass', player: playerKey });
-        } else if (action.type === 'use_card') {
+                const player = playerKey === 'black' ? Core.BLACK : Core.WHITE;
+                const ctx = resolveSafeCardContext(CardLogic, cardState);
+                const legalMoves = Core.getLegalMoves(gameState, player, ctx);
+                if (legalMoves.length > 0) {
+                    throw new Error('Illegal pass: legal moves available');
+                }
+                // Pass policy: abandon any unresolved card effect for this turn.
+                if (cardState && cardState.pendingEffectByPlayer) {
+                    cardState.pendingEffectByPlayer[playerKey] = null;
+                }
+                const newState = Core.applyPass(gameState);
+                Object.assign(gameState, newState);
+                const timeStopPassRes = consumeTimeStopCompletedTurn(CardLogic, cardState, playerKey);
+                if (timeStopPassRes.continueTurn === true) {
+                    gameState.currentPlayer = player;
+                    gameState.consecutivePasses = 0;
+                    if (cardState) {
+                        cardState.lastTurnStartedFor = null;
+                    }
+                }
+                events.push({ type: 'pass', player: playerKey });
+            } else if (action.type === 'use_card') {
             events.push({ type: 'card_used_only', player: playerKey, cardId: action.useCardId || null });
             return;
         } else if (action.type === 'cancel_card') {
@@ -1347,7 +1429,7 @@
                     throw new Error('SWAP_WITH_ENEMY: invalid target (protected/bomb?)');
                 }
                 applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
-                handOffTurnAfterSelection(Core, gameState, playerKey);
+                handOffTurnAfterSelection(Core, CardLogic, cardState, gameState, playerKey);
                 // Selection-only pre-placement effect: stop after handling selection
                 return;
             } else if (pending && pending.type === 'SWAP_WITH_ENEMY' && action.swapTarget == null) {
@@ -1387,9 +1469,9 @@
                     action.trapTarget.row,
                     action.trapTarget.col
                 );
-                events.push({ type: 'trap_selected', player: playerKey, target: action.trapTarget, applied: !!(res && res.applied) });
+                events.push({ type: 'trap_selected', player: playerKey, applied: !!(res && res.applied) });
                 if (res && res.applied) {
-                    handOffTurnAfterSelection(Core, gameState, playerKey);
+                    handOffTurnAfterSelection(Core, CardLogic, cardState, gameState, playerKey);
                 }
                 return;
             } else if (pending && pending.type === 'TRAP_WILL' && action.trapTarget == null) {
@@ -1622,7 +1704,7 @@
                         throw new Error('SWAP_WITH_ENEMY: invalid target (protected/bomb?)');
                     }
                     applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
-                    handOffTurnAfterSelection(Core, gameState, playerKey);
+                    handOffTurnAfterSelection(Core, CardLogic, cardState, gameState, playerKey);
                     return;
                 } else {
                     throw new Error('SWAP_WITH_ENEMY requires selecting an enemy stone before placement');
@@ -1803,7 +1885,7 @@
                 }
             }
 
-            // CHAIN_WILL: apply extra flips after normal flips, before placement effects
+            // Chain-will family: apply extra flips after normal flips, before placement effects
             if (typeof CardLogic.applyChainWillAfterMove === 'function') {
                 const chainRes = CardLogic.applyChainWillAfterMove(cardState, gameState, playerKey, flips, p);
                 if (chainRes && chainRes.flips && chainRes.flips.length) {
@@ -2028,9 +2110,7 @@
                 gameState.consecutivePasses = 0;
                 gameState.turnNumber = turnNumberBeforePlace;
             } else {
-                gameState.currentPlayer = -player;
-                gameState.consecutivePasses = 0;
-                gameState.turnNumber = turnNumberBeforePlace + 1;
+                handOffCompletedTurn(Core, CardLogic, cardState, gameState, playerKey, turnNumberBeforePlace + 1);
             }
         } else {
             throw new Error('Unknown action.type');

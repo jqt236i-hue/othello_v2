@@ -9,19 +9,19 @@ const CASES = [
     label: 'STRONG_WIND_WILL',
     handlerName: 'handleStrongWindSelection',
     pendingType: 'STRONG_WIND_WILL',
-    rawEventType: 'strong_wind_selected'
+    actionField: 'strongWindTarget'
   },
   {
     label: 'SUPER_BUOYANCY_WILL',
     handlerName: 'handleSuperBuoyancySelection',
     pendingType: 'SUPER_BUOYANCY_WILL',
-    rawEventType: 'super_buoyancy_selected'
+    actionField: 'superBuoyancyTarget'
   },
   {
     label: 'SUPER_GRAVITY_WILL',
     handlerName: 'handleSuperGravitySelection',
     pendingType: 'SUPER_GRAVITY_WILL',
-    rawEventType: 'super_gravity_selected'
+    actionField: 'superGravityTarget'
   }
 ];
 
@@ -70,7 +70,7 @@ function createSnapshot(stateVersion, pendingType) {
   };
 }
 
-describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerName, pendingType, rawEventType }) => {
+describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerName, pendingType, actionField }) => {
   let dom;
   let publishBodies;
   let runTurnMock;
@@ -125,19 +125,19 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerNam
     };
     global.TurnPipeline = {};
     runTurnMock = jest.fn(() => ({
-        ok: true,
-        rawEvents: [{ type: rawEventType, applied: true }],
-        nextCardState: {
-          ...global.cardState,
-          pendingEffectByPlayer: { black: null, white: null }
-        },
-        nextGameState: {
-          ...global.gameState,
-          currentPlayer: global.WHITE,
-          turnNumber: 12
-        },
-        playbackEvents: [{ type: 'status_applied', phase: 1 }]
-      }));
+      ok: true,
+      rawEvents: [],
+      nextCardState: {
+        ...global.cardState,
+        pendingEffectByPlayer: { black: null, white: null }
+      },
+      nextGameState: {
+        ...global.gameState,
+        currentPlayer: global.WHITE,
+        turnNumber: 12
+      },
+      playbackEvents: [{ type: 'status_applied', phase: 1 }]
+    }));
     global.TurnPipelineUIAdapter = {
       runTurnWithAdapter: runTurnMock
     };
@@ -176,7 +176,18 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerNam
               ...body.snapshot,
               stateVersion: 21
             }
-            : createLiveResponseSnapshot(21)
+            : {
+              stateVersion: 21,
+              gameState: {
+                ...cloneJson(global.gameState),
+                currentPlayer: global.WHITE,
+                turnNumber: 12
+              },
+              cardState: {
+                ...cloneJson(global.cardState),
+                pendingEffectByPlayer: { black: null, white: null }
+              }
+            }
         });
       }
 
@@ -235,26 +246,24 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerNam
     expect(created.ok).toBe(true);
 
     const handlers = require('../game/card-effects/strong-wind');
-    await handlers[handlerName](2, 2, 'black');
+    const result = await handlers[handlerName](2, 2, 'black');
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const action = runTurnMock.mock.calls[0][3];
-    expect(action.deferNetworkPublish).toBe(true);
-    const actionParamKey = Object.keys(action).find((key) => (
-      key !== 'type'
-      && key !== 'player'
-      && key !== 'turnIndex'
-      && key !== 'deferNetworkPublish'
-    ));
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      pendingType,
+      publishedByNetwork: true
+    }));
+    expect(runTurnMock).not.toHaveBeenCalled();
 
     expect(publishBodies).toHaveLength(1);
     expect(publishBodies[0].actionType).toBe('place');
     expect(publishBodies[0].actor).toBe('black');
     expect(publishBodies[0].params).toEqual({
       player: 'black',
-      [actionParamKey]: action[actionParamKey]
+      [actionField]: { row: 2, col: 2 }
     });
     expect(publishBodies[0].snapshot).toBeUndefined();
     expect(publishBodies[0].playbackEvents).toBeUndefined();

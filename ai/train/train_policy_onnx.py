@@ -258,6 +258,24 @@ def parse_args() -> argparse.Namespace:
         default=0.0,
         help="Extra sample weight boost when pendingType is active (default: 0.0).",
     )
+    p.add_argument(
+        "--corner-balance-sample-boost",
+        type=float,
+        default=0.0,
+        help="Extra sample boost scaled by corner-control pressure in [0,1] (default: 0.0).",
+    )
+    p.add_argument(
+        "--edge-balance-sample-boost",
+        type=float,
+        default=0.0,
+        help="Extra sample boost scaled by edge-control pressure in [0,1] (default: 0.0).",
+    )
+    p.add_argument(
+        "--economy-balance-sample-boost",
+        type=float,
+        default=0.0,
+        help="Extra sample boost scaled by charge/bonus economy pressure in [0,1] (default: 0.0).",
+    )
     p.add_argument("--min-visits", type=int, default=12, help="Compat policy-table --min-visits.")
     p.add_argument(
         "--shape-immediate",
@@ -282,6 +300,102 @@ def cell_value_for_player(ch: str, player: str) -> float:
     if ch == opp:
         return -1.0
     return 0.0
+
+
+def safe_float(value: object, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float(default)
+
+
+def clamp_float(value: float, lower: float, upper: float) -> float:
+    return max(float(lower), min(float(upper), float(value)))
+
+
+def normalized_flag(value: object) -> float:
+    return clamp_float(safe_float(value, 0.0), 0.0, 1.0)
+
+
+def normalized_player(value: object) -> str:
+    if isinstance(value, str):
+        candidate = value.strip().lower()
+        if candidate in ("black", "white"):
+            return candidate
+    return "white"
+
+
+def resolve_perspective_charge_values(rec: dict) -> tuple[float, float]:
+    player = normalized_player(rec.get("player"))
+    charge_black = safe_float(rec.get("chargeBlack", 0), 0.0)
+    charge_white = safe_float(rec.get("chargeWhite", 0), 0.0)
+    if player == "black":
+        return charge_black, charge_white
+    return charge_white, charge_black
+
+
+def normalized_corner_balance(rec: dict) -> float:
+    own_corners = safe_float(rec.get("ownCornersBefore", 0), 0.0)
+    opp_corners = safe_float(rec.get("oppCornersBefore", 0), 0.0)
+    return clamp_float((own_corners - opp_corners) / 4.0, -1.0, 1.0)
+
+
+def normalized_edge_balance(rec: dict) -> float:
+    own_edges = safe_float(rec.get("ownEdgesBefore", 0), 0.0)
+    opp_edges = safe_float(rec.get("oppEdgesBefore", 0), 0.0)
+    return clamp_float((own_edges - opp_edges) / 24.0, -1.0, 1.0)
+
+
+def normalized_charge_balance(rec: dict) -> float:
+    own_charge, opp_charge = resolve_perspective_charge_values(rec)
+    return clamp_float((own_charge - opp_charge) / 12.0, -1.0, 1.0)
+
+
+def normalized_bonus_access(rec: dict) -> float:
+    max_legal_bonus = clamp_float(safe_float(rec.get("maxLegalMoveBonus", 0), 0.0) / 5.0, 0.0, 1.0)
+    if normalized_flag(rec.get("highBonusMoveAvailable", 0)) > 0.5:
+        return max(max_legal_bonus, 0.6)
+    return max_legal_bonus
+
+
+def normalized_economy_balance(rec: dict) -> float:
+    charge_component = normalized_charge_balance(rec)
+    bonus_component = normalized_bonus_access(rec)
+    return clamp_float((charge_component * 0.8) + (bonus_component * 0.2), -1.0, 1.0)
+
+
+def corner_sample_intensity(rec: dict) -> float:
+    return clamp_float(
+        max(
+            abs(normalized_corner_balance(rec)),
+            normalized_flag(rec.get("hasCornerMoveNow", 0)),
+            normalized_flag(rec.get("cornerEmergency", 0)),
+        ),
+        0.0,
+        1.0,
+    )
+
+
+def edge_sample_intensity(rec: dict) -> float:
+    return clamp_float(
+        max(
+            abs(normalized_edge_balance(rec)),
+            normalized_flag(rec.get("hasEdgeMoveNow", 0)),
+        ),
+        0.0,
+        1.0,
+    )
+
+
+def economy_sample_intensity(rec: dict) -> float:
+    return clamp_float(
+        max(
+            abs(normalized_charge_balance(rec)),
+            normalized_bonus_access(rec),
+        ),
+        0.0,
+        1.0,
+    )
 
 
 def build_card_counts(card_ids: list[str] | None) -> Counter[str]:
@@ -454,6 +568,9 @@ def sample_weight_for_record(
     tactical_miss_threshold: float,
     hand_pressure_sample_boost: float,
     pending_target_sample_boost: float,
+    corner_balance_sample_boost: float = 0.0,
+    edge_balance_sample_boost: float = 0.0,
+    economy_balance_sample_boost: float = 0.0,
 ) -> tuple[float, str]:
     danger_multiplier = 1.0
     try:
@@ -482,6 +599,10 @@ def sample_weight_for_record(
     pending_type = rec.get("pendingType")
     if isinstance(pending_type, str) and pending_type.strip():
         danger_multiplier += pending_target_sample_boost
+
+    danger_multiplier += corner_sample_intensity(rec) * max(0.0, float(corner_balance_sample_boost))
+    danger_multiplier += edge_sample_intensity(rec) * max(0.0, float(edge_balance_sample_boost))
+    danger_multiplier += economy_sample_intensity(rec) * max(0.0, float(economy_balance_sample_boost))
 
     outcome = rec.get("outcome")
     if isinstance(outcome, (int, float)):
@@ -526,6 +647,9 @@ def load_dataset(
     tactical_miss_threshold: float = 0.08,
     hand_pressure_sample_boost: float = 0.0,
     pending_target_sample_boost: float = 0.0,
+    corner_balance_sample_boost: float = 0.0,
+    edge_balance_sample_boost: float = 0.0,
+    economy_balance_sample_boost: float = 0.0,
 ) -> DatasetBundle:
     xs: list[list[float]] = []
     y_place: list[int] = []
@@ -567,6 +691,9 @@ def load_dataset(
                 tactical_miss_threshold=tactical_miss_threshold,
                 hand_pressure_sample_boost=hand_pressure_sample_boost,
                 pending_target_sample_boost=pending_target_sample_boost,
+                corner_balance_sample_boost=corner_balance_sample_boost,
+                edge_balance_sample_boost=edge_balance_sample_boost,
+                economy_balance_sample_boost=economy_balance_sample_boost,
             )
             sample_weight.append(float(weight_value))
             train_records += 1
@@ -724,6 +851,9 @@ def train_model(
     tactical_miss_threshold: float = 0.08,
     hand_pressure_sample_boost: float = 0.0,
     pending_target_sample_boost: float = 0.0,
+    corner_balance_sample_boost: float = 0.0,
+    edge_balance_sample_boost: float = 0.0,
+    economy_balance_sample_boost: float = 0.0,
 ) -> tuple[nn.Module, torch.optim.Optimizer, TrainSummary, str | None, list[dict]]:
     if epochs < 1:
         raise ValueError("--epochs must be >= 1")
@@ -767,6 +897,16 @@ def train_model(
         raise ValueError("--tactical-miss-sample-boost must be >= 0")
     if not isinstance(tactical_miss_threshold, (int, float)) or tactical_miss_threshold < 0:
         raise ValueError("--tactical-miss-threshold must be >= 0")
+    if hand_pressure_sample_boost < 0:
+        raise ValueError("--hand-pressure-sample-boost must be >= 0")
+    if pending_target_sample_boost < 0:
+        raise ValueError("--pending-target-sample-boost must be >= 0")
+    if corner_balance_sample_boost < 0:
+        raise ValueError("--corner-balance-sample-boost must be >= 0")
+    if edge_balance_sample_boost < 0:
+        raise ValueError("--edge-balance-sample-boost must be >= 0")
+    if economy_balance_sample_boost < 0:
+        raise ValueError("--economy-balance-sample-boost must be >= 0")
     monitor = str(early_stop_monitor or "").strip().lower()
     if monitor not in ("val_loss", "train_loss", "val_place_loss", "train_place_loss"):
         raise ValueError("--early-stop-monitor must be val_loss/train_loss/val_place_loss/train_place_loss")
@@ -1228,6 +1368,9 @@ def write_meta(
             "tacticalMissThreshold": args.tactical_miss_threshold,
             "handPressureSampleBoost": args.hand_pressure_sample_boost,
             "pendingTargetSampleBoost": args.pending_target_sample_boost,
+            "cornerBalanceSampleBoost": args.corner_balance_sample_boost,
+            "edgeBalanceSampleBoost": args.edge_balance_sample_boost,
+            "economyBalanceSampleBoost": args.economy_balance_sample_boost,
             "resumeCheckpoint": (args.resume_checkpoint or "").strip() or None,
             "resumeOptimizer": bool(args.resume_optimizer),
             "checkpointOut": (args.checkpoint_out or "").strip() or None,
@@ -1305,6 +1448,9 @@ def maybe_write_checkpoint(
             "tacticalMissThreshold": float(args.tactical_miss_threshold),
             "handPressureSampleBoost": float(args.hand_pressure_sample_boost),
             "pendingTargetSampleBoost": float(args.pending_target_sample_boost),
+            "cornerBalanceSampleBoost": float(args.corner_balance_sample_boost),
+            "edgeBalanceSampleBoost": float(args.edge_balance_sample_boost),
+            "economyBalanceSampleBoost": float(args.economy_balance_sample_boost),
             "resumedFrom": resumed_from,
             "resumeOptimizer": bool(args.resume_optimizer),
         },
@@ -1375,6 +1521,9 @@ def main() -> int:
         tactical_miss_threshold=float(args.tactical_miss_threshold),
         hand_pressure_sample_boost=float(args.hand_pressure_sample_boost),
         pending_target_sample_boost=float(args.pending_target_sample_boost),
+        corner_balance_sample_boost=float(args.corner_balance_sample_boost),
+        edge_balance_sample_boost=float(args.edge_balance_sample_boost),
+        economy_balance_sample_boost=float(args.economy_balance_sample_boost),
     )
     model, optimizer, train_summary, resumed_from, epoch_metrics = train_model(
         data=data,
@@ -1406,6 +1555,9 @@ def main() -> int:
         tactical_miss_threshold=float(args.tactical_miss_threshold),
         hand_pressure_sample_boost=float(args.hand_pressure_sample_boost),
         pending_target_sample_boost=float(args.pending_target_sample_boost),
+        corner_balance_sample_boost=float(args.corner_balance_sample_boost),
+        edge_balance_sample_boost=float(args.edge_balance_sample_boost),
+        economy_balance_sample_boost=float(args.economy_balance_sample_boost),
     )
     export_onnx(model, args.onnx_out)
     write_meta(meta_out, args, data, train_summary, device)

@@ -22,6 +22,15 @@
         return type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE';
     }
 
+    function isBombCategoryMarker(marker) {
+        return !!(
+            marker &&
+            marker.kind === 'specialStone' &&
+            marker.data &&
+            marker.data.category === 'bomb'
+        );
+    }
+
     function isFrozenCell(cardState, row, col) {
         if (CardUtils && typeof CardUtils.isFrozenCell === 'function') {
             return !!CardUtils.isFrozenCell(cardState, row, col);
@@ -172,7 +181,6 @@
             if (ownerValue !== opVal) return;
             const hasSpecialOrBomb = markers.some(m => {
                 if (!m || m.row !== row || m.col !== col) return false;
-                if (m.kind === 'bomb') return true;
                 if (m.kind !== 'specialStone') return false;
                 if (isHiddenTrapForPlayer(m)) return false;
                 const isExpiredUltimateHyperactive = !!(
@@ -335,7 +343,7 @@
 
         forEachBoardShapeCell(gameState, (r, c, owner) => {
             if (owner !== playerVal) return;
-            const hasBomb = markers.some(m => m && m.row === r && m.col === c && m.kind === 'bomb');
+            const hasBomb = markers.some(m => m && m.row === r && m.col === c && isBombCategoryMarker(m));
             if (hasBomb) return;
             const hasOwnTrap = markers.some(m => (
                 m &&
@@ -359,7 +367,7 @@
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
         forEachBoardShapeCell(gameState, (r, c, owner) => {
             if (owner !== playerVal) return;
-            const hasBomb = markers.some(m => m && m.row === r && m.col === c && m.kind === 'bomb');
+            const hasBomb = markers.some(m => m && m.row === r && m.col === c && isBombCategoryMarker(m));
             if (hasBomb) return;
             res.push({ row: r, col: c });
         });

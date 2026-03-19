@@ -110,11 +110,11 @@ describe('CROSS_BOMB (十字爆弾)', () => {
         });
         cs.markers.push({
             id: 'm2',
-            kind: 'bomb',
+            kind: 'specialStone',
             row: 3,
             col: 4,
             owner: 'black',
-            data: { remainingTurns: 2 }
+            data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 }
         });
 
         const effects = CardLogic.applyPlacementEffects(cs, gs, 'black', 3, 3, 2);

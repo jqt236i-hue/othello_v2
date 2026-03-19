@@ -155,6 +155,9 @@
         if (context.suppressFallbackFlip === true || context.suppressNextDiffFlip === true) {
             next.suppressFallbackFlip = true;
         }
+        if (context.suppressBoardExpansionRevealSound === true || context.suppressNextBoardExpansionRevealSound === true) {
+            next.suppressBoardExpansionRevealSound = true;
+        }
         if (typeof context.reason === 'string' && context.reason.trim()) {
             next.reason = context.reason.trim();
         }
@@ -167,12 +170,17 @@
     function getBoardUpdateContext() {
         const explicit = normalizeBoardUpdateContext(readMirroredValue('__boardUpdateContext'));
         if (explicit) return cloneBoardUpdateContext(explicit);
-        if (readMirroredValue('__suppressNextDiffFlip') === true) {
-            return {
-                suppressFallbackFlip: true,
-                reason: 'legacy_suppress_next_diff_flip',
-                source: 'legacy_window_flag'
-            };
+        const suppressFallbackFlip = readMirroredValue('__suppressNextDiffFlip') === true;
+        const suppressBoardExpansionRevealSound = readMirroredValue('__suppressNextBoardExpansionRevealSound') === true;
+        if (suppressFallbackFlip || suppressBoardExpansionRevealSound) {
+            return Object.assign(
+                {
+                    reason: 'legacy_board_update_context',
+                    source: 'legacy_window_flag'
+                },
+                suppressFallbackFlip ? { suppressFallbackFlip: true } : null,
+                suppressBoardExpansionRevealSound ? { suppressBoardExpansionRevealSound: true } : null
+            );
         }
         return null;
     }
@@ -181,6 +189,7 @@
         const next = normalizeBoardUpdateContext(context);
         setMirroredValue('__boardUpdateContext', next ? cloneBoardUpdateContext(next) : null);
         setMirroredValue('__suppressNextDiffFlip', !!(next && next.suppressFallbackFlip === true));
+        setMirroredValue('__suppressNextBoardExpansionRevealSound', !!(next && next.suppressBoardExpansionRevealSound === true));
         return getBoardUpdateContext();
     }
 
@@ -206,6 +215,7 @@
     function clearBoardUpdateContext() {
         setMirroredValue('__boardUpdateContext', null);
         setMirroredValue('__suppressNextDiffFlip', false);
+        setMirroredValue('__suppressNextBoardExpansionRevealSound', false);
         return true;
     }
 

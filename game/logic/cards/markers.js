@@ -34,9 +34,11 @@
     const MARKER_KINDS = (MarkersAdapter && MarkersAdapter.MARKER_KINDS)
         ? MarkersAdapter.MARKER_KINDS
         : {
-            SPECIAL_STONE: 'specialStone',
-            BOMB: 'bomb'
+            SPECIAL_STONE: 'specialStone'
         };
+    const MARKER_CATEGORIES = (MarkersAdapter && MarkersAdapter.MARKER_CATEGORIES)
+        ? MarkersAdapter.MARKER_CATEGORIES
+        : { BOMB: 'bomb' };
 
     function getBoardSize() {
         return Number.isInteger(BOARD_SIZE) ? BOARD_SIZE : 8;
@@ -91,18 +93,77 @@
         return (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     }
 
+    function getMarkerCategory(marker) {
+        if (MarkersAdapter && typeof MarkersAdapter.getMarkerCategory === 'function') {
+            return MarkersAdapter.getMarkerCategory(marker);
+        }
+        if (!marker) return null;
+        if (marker.data && typeof marker.data.category === 'string' && marker.data.category) {
+            return marker.data.category;
+        }
+        if (marker.kind === MARKER_CATEGORIES.BOMB) return MARKER_CATEGORIES.BOMB;
+        return (
+            marker.kind === MARKER_KINDS.SPECIAL_STONE &&
+            marker.data &&
+            marker.data.category === MARKER_CATEGORIES.BOMB
+        ) ? MARKER_CATEGORIES.BOMB : null;
+    }
+
+    function isBombCategoryMarker(marker) {
+        if (MarkersAdapter && typeof MarkersAdapter.isBombCategoryMarker === 'function') {
+            return MarkersAdapter.isBombCategoryMarker(marker);
+        }
+        return getMarkerCategory(marker) === MARKER_CATEGORIES.BOMB;
+    }
+
+    function isSpecialStoneMarker(marker) {
+        if (MarkersAdapter && typeof MarkersAdapter.isSpecialStoneMarker === 'function') {
+            return MarkersAdapter.isSpecialStoneMarker(marker);
+        }
+        return !!(
+            marker &&
+            marker.kind === MARKER_KINDS.SPECIAL_STONE &&
+            !isBombCategoryMarker(marker)
+        );
+    }
+
+    function getBombMarkerType(marker) {
+        if (MarkersAdapter && typeof MarkersAdapter.getBombMarkerType === 'function') {
+            return MarkersAdapter.getBombMarkerType(marker);
+        }
+        if (!isBombCategoryMarker(marker)) return null;
+        return marker && marker.data && marker.data.type ? marker.data.type : 'TIME_BOMB';
+    }
+
+    function normalizeMarkerInput(kind, data) {
+        if (MarkersAdapter && typeof MarkersAdapter.normalizeMarkerInput === 'function') {
+            return MarkersAdapter.normalizeMarkerInput(kind, data);
+        }
+        const normalizedData = (data && typeof data === 'object') ? { ...data } : {};
+        const isBombInput =
+            kind === MARKER_CATEGORIES.BOMB ||
+            normalizedData.category === MARKER_CATEGORIES.BOMB ||
+            normalizedData.type === 'TIME_BOMB';
+        if (isBombInput) {
+            normalizedData.category = MARKER_CATEGORIES.BOMB;
+            if (!normalizedData.type) normalizedData.type = 'TIME_BOMB';
+            return { kind: MARKER_KINDS.SPECIAL_STONE, data: normalizedData };
+        }
+        return { kind, data: normalizedData };
+    }
+
     function getSpecialMarkers(cardState) {
         if (MarkersAdapter && typeof MarkersAdapter.getSpecialMarkers === 'function') {
             return MarkersAdapter.getSpecialMarkers(cardState);
         }
-        return getMarkers(cardState).filter((marker) => marker && marker.kind === MARKER_KINDS.SPECIAL_STONE);
+        return getMarkers(cardState).filter(isSpecialStoneMarker);
     }
 
     function getBombMarkers(cardState) {
         if (MarkersAdapter && typeof MarkersAdapter.getBombMarkers === 'function') {
             return MarkersAdapter.getBombMarkers(cardState);
         }
-        return getMarkers(cardState).filter((marker) => marker && marker.kind === MARKER_KINDS.BOMB);
+        return getMarkers(cardState).filter(isBombCategoryMarker);
     }
 
     function getBlockadeMarkers(cardState) {
@@ -153,7 +214,7 @@
         }
         return getMarkers(cardState).find((marker) => (
             marker &&
-            marker.kind === MARKER_KINDS.SPECIAL_STONE &&
+            isSpecialStoneMarker(marker) &&
             marker.row === row &&
             marker.col === col &&
             (type ? (marker.data && marker.data.type === type) : true) &&
@@ -166,7 +227,7 @@
             return MarkersAdapter.findBombMarkerAt(cardState, row, col);
         }
         return getMarkers(cardState).find((marker) => (
-            marker && marker.kind === MARKER_KINDS.BOMB && marker.row === row && marker.col === col
+            marker && isBombCategoryMarker(marker) && marker.row === row && marker.col === col
         ));
     }
 
@@ -179,7 +240,10 @@
         const opts = options || {};
         cardState.markers = cardState.markers.filter((marker) => {
             if (!marker || marker.row !== row || marker.col !== col) return true;
-            if (opts.kind && marker.kind !== opts.kind) return true;
+            if (opts.kind === MARKER_CATEGORIES.BOMB && !isBombCategoryMarker(marker)) return true;
+            if (opts.kind === MARKER_KINDS.SPECIAL_STONE && !isSpecialStoneMarker(marker)) return true;
+            if (opts.kind && opts.kind !== MARKER_CATEGORIES.BOMB && opts.kind !== MARKER_KINDS.SPECIAL_STONE && marker.kind !== opts.kind) return true;
+            if (opts.category && getMarkerCategory(marker) !== opts.category) return true;
             if (opts.type && (!marker.data || marker.data.type !== opts.type)) return true;
             if (opts.owner && marker.owner !== opts.owner) return true;
             return false;
@@ -191,9 +255,9 @@
             return CardUtilsModule.getSpecialMarkerAt(cardState, row, col);
         }
         const special = findSpecialMarkerAt(cardState, row, col);
-        if (special) return { kind: 'specialStone', marker: special };
+        if (special) return { kind: 'specialStone', category: getMarkerCategory(special), marker: special };
         const bomb = findBombMarkerAt(cardState, row, col);
-        if (bomb) return { kind: 'bomb', marker: bomb };
+        if (bomb) return { kind: 'specialStone', category: MARKER_CATEGORIES.BOMB, marker: bomb };
         return null;
     }
 
@@ -323,14 +387,15 @@
         if (typeof cardState._nextCreatedSeq === 'undefined') cardState._nextCreatedSeq = 1;
         const createdSeq = cardState._nextCreatedSeq++;
 
+        const normalized = normalizeMarkerInput(kind, data);
         const marker = {
             id,
             row,
             col,
-            kind,
+            kind: normalized.kind,
             owner,
             createdSeq,
-            data: data || {}
+            data: normalized.data
         };
 
         cardState.markers.push(marker);
@@ -342,29 +407,34 @@
             let flipEvadeRemaining = null;
             let destroyEvadeRemaining = null;
 
-            if (kind === MARKER_KINDS.SPECIAL_STONE) {
-                special = data && data.type ? data.type : null;
-                timer = (data && typeof data.remainingOwnerTurns === 'number') ? data.remainingOwnerTurns : null;
-                flipEvadeRemaining = Number.isFinite(Number(data && data.flipEvadeRemaining))
-                    ? Math.max(0, Math.trunc(Number(data.flipEvadeRemaining)))
+            if (isBombCategoryMarker(marker)) {
+                special = getBombMarkerType(marker);
+                timer = (marker.data && typeof marker.data.remainingTurns === 'number') ? marker.data.remainingTurns : null;
+            } else if (isSpecialStoneMarker(marker)) {
+                special = marker.data && marker.data.type ? marker.data.type : null;
+                timer = (marker.data && typeof marker.data.remainingOwnerTurns === 'number') ? marker.data.remainingOwnerTurns : null;
+                flipEvadeRemaining = Number.isFinite(Number(marker.data && marker.data.flipEvadeRemaining))
+                    ? Math.max(0, Math.trunc(Number(marker.data.flipEvadeRemaining)))
                     : null;
-                destroyEvadeRemaining = Number.isFinite(Number(data && data.destroyEvadeRemaining))
-                    ? Math.max(0, Math.trunc(Number(data.destroyEvadeRemaining)))
+                destroyEvadeRemaining = Number.isFinite(Number(marker.data && marker.data.destroyEvadeRemaining))
+                    ? Math.max(0, Math.trunc(Number(marker.data.destroyEvadeRemaining)))
                     : null;
-            } else if (kind === MARKER_KINDS.BOMB) {
-                special = 'TIME_BOMB';
-                timer = (data && typeof data.remainingTurns === 'number') ? data.remainingTurns : null;
             }
+
+            const isHiddenTrap =
+                isSpecialStoneMarker(marker) &&
+                special === 'TRAP' &&
+                !!(marker.data && marker.data.hidden);
 
             const markerMeta = { special, timer, owner };
             if (flipEvadeRemaining !== null) markerMeta.flipEvadeRemaining = flipEvadeRemaining;
             if (destroyEvadeRemaining !== null) markerMeta.destroyEvadeRemaining = destroyEvadeRemaining;
 
-            if (special && presentationHelper) {
+            if (special && presentationHelper && !isHiddenTrap) {
                 presentationHelper.emitPresentationEvent(cardState, { type: 'STATUS_APPLIED', row, col, meta: markerMeta });
             }
 
-            if (special && cardState) {
+            if (special && cardState && !isHiddenTrap) {
                 const currentActionId = (cardState._currentActionMeta && cardState._currentActionMeta.actionId) || null;
                 const persist = Array.isArray(cardState._presentationEventsPersist) ? cardState._presentationEventsPersist : [];
                 const live = Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents : [];
@@ -482,8 +552,13 @@
 
     return {
         MARKER_KINDS,
+        MARKER_CATEGORIES,
         ensureMarkers,
         getMarkers,
+        getMarkerCategory,
+        getBombMarkerType,
+        isBombCategoryMarker,
+        isSpecialStoneMarker,
         getSpecialMarkers,
         getBombMarkers,
         getBlockadeMarkers,

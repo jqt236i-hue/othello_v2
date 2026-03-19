@@ -8,7 +8,7 @@
     }
 }(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     return {
-        version: 'teacher_lv6_parity_v4',
+        version: 'teacher_lv6_parity_v5',
         browser: {
             minThinkMsWhite: 250,
             moveDecisionMode: 'policy-table-lookahead',
@@ -99,6 +99,12 @@
             tacticalDepthMid: 6,
             tacticalDepthEnd: 7,
             tacticalBeamWidth: 6,
+            tacticalWeightMin: 0.95,
+            tacticalWeightMax: 1.2,
+            policyScoreWeightMin: 1.6,
+            policyScoreWeightMax: 2.2,
+            heuristicWeightMin: 0.75,
+            heuristicWeightMax: 1.0,
             teacherCommitteeWeightMin: 48,
             teacherCommitteeWeightMax: 72,
             teacherCommitteeConsensusBonusMin: 620,

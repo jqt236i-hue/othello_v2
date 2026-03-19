@@ -1,0 +1,48 @@
+{
+  "ok": false,
+  "baseUrl": "http://127.0.0.1:8004",
+  "serverUrl": "http://127.0.0.1:8787",
+  "headless": false,
+  "slowMoMs": 80,
+  "roomId": "P8L",
+  "actionLog": [
+    {
+      "type": "room_created",
+      "roomId": "P8L",
+      "networkDebugEnabled": true
+    },
+    {
+      "type": "room_joined",
+      "networkDebugEnabled": true
+    }
+  ],
+  "pageEvents": [
+    {
+      "time": "2026-03-19T11:06:45.738Z",
+      "browser": "black",
+      "kind": "console",
+      "type": "error",
+      "text": "\u001b[0;93m2026-03-19 20:06:45.731499 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 0\u001b[m"
+    },
+    {
+      "time": "2026-03-19T11:06:45.747Z",
+      "browser": "white",
+      "kind": "console",
+      "type": "error",
+      "text": "\u001b[0;93m2026-03-19 20:06:45.743599 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 0\u001b[m"
+    },
+    {
+      "time": "2026-03-19T11:06:48.787Z",
+      "browser": "black",
+      "kind": "debug",
+      "detail": "setDebugModeEnabled(true)"
+    }
+  ],
+  "snapshots": {},
+  "error": {
+    "message": "page.waitForFunction: Timeout 30000ms exceeded.",
+    "stack": "page.waitForFunction: Timeout 30000ms exceeded.\n    at waitForNetworkIdle (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\repro-time-stop-guardian-local.js:440:16)\n    at ensureBlackDebugHand (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\repro-time-stop-guardian-local.js:567:11)\n    at async main (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\repro-time-stop-guardian-local.js:662:9)",
+    "lastStates": null
+  },
+  "durationMs": 36877
+}

@@ -3,10 +3,10 @@ const CardLogic = require('../game/logic/cards');
 const TurnPipeline = require('../game/turn/turn_pipeline');
 const { makeState, placeStones } = require('./helpers/chain-test-helpers');
 
-describe('CHAIN_WILL two-link chaining', () => {
+describe('TRIPLE_CHAIN_WILL two-link chaining', () => {
   test('chains up to 2 times and stops even if a 3rd chain is available', () => {
     const { cardState, gameState } = makeState(CardLogic, Shared);
-    cardState.pendingEffectByPlayer.black = { type: 'CHAIN_WILL', cardId: 'chain_01', stage: null };
+    cardState.pendingEffectByPlayer.black = { type: 'TRIPLE_CHAIN_WILL', cardId: 'triple_chain_01', stage: null };
 
     placeStones(gameState, [
       // Primary flip for placement at (0,0): only (0,1) flips to black.

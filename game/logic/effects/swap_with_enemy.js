@@ -148,7 +148,6 @@
         // Hidden trap stones owned by opponent are treated as normal for the acting player.
         const hasSpecialOrBomb = (cardState.markers || []).some(m => {
             if (!m || m.row !== row || m.col !== col) return false;
-            if (m.kind === 'bomb') return true;
             if (m.kind !== 'specialStone') return false;
             const isHiddenTrapForPlayer = !!(m.data && m.data.type === 'TRAP' && m.owner && m.owner !== playerKey);
             if (isHiddenTrapForPlayer) return false;

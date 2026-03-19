@@ -92,6 +92,8 @@ let _cardDetailLandscapeAnchorResizeObserver = null;
 let _cardDetailLandscapeAnchorRafId = null;
 let _cardDetailTagAutoDismissBound = false;
 const _hiddenHandTokenPattern = /^__hidden_hand__:(black|white):(\d+)$/;
+const LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY = '__skipNextPlaybackSoundUntilByKey';
+const LOCAL_PLAYBACK_SOUND_SKIP_MS = 5000;
 
 const CARD_DETAIL_TAG_MEANINGS = Object.freeze({
     '多動状態': '両者ターン開始時マス移動する、基本ランダム移動。',
@@ -737,21 +739,42 @@ function _executeSellSelection(playerKey, sellCardId) {
     let completed = false;
 
     try {
-    const soldCardDef = CardLogic.getCardDef(sellCardId);
-    const action = _createPendingSelectionAction(playerKey, 'SELL_CARD_WILL', { sellCardId });
-    const result = _runPipelineAction(playerKey, action);
-    if (!result.ok) return result;
+        const soldCardDef = CardLogic.getCardDef(sellCardId);
+        const action = _createPendingSelectionAction(playerKey, 'SELL_CARD_WILL', { sellCardId });
+        const gain = soldCardDef ? (soldCardDef.cost || 0) : 0;
 
-    const gain = soldCardDef ? (soldCardDef.cost || 0) : 0;
-    addLog(`${playerKey === 'black' ? '黒' : '白'}が${soldCardDef ? soldCardDef.name : sellCardId}を売却（+${gain}）`);
-    _clearSellSelection(playerKey);
-    const shouldDelayPostActionHandVisual = _hasHandRemovePlaybackEvent(result);
-    _renderCardUiWithOptionalPlaybackDelay(shouldDelayPostActionHandVisual);
-    if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-    else if (typeof renderBoard === 'function') renderBoard();
-    _finalizePendingSelectionAfterRun(playerKey, 'SELL_CARD_WILL', result);
-    completed = true;
-    return { ok: true };
+        if (_startNetworkOnlyPendingSelectionPublish({
+            playerKey,
+            action,
+            onSuccess: () => {
+                addLog(`${playerKey === 'black' ? '黒' : '白'}が${soldCardDef ? soldCardDef.name : sellCardId}を売却（+${gain}）`);
+                _clearSellSelection(playerKey);
+                if (typeof renderCardUI === 'function') renderCardUI();
+                _setPendingSelectionBusy(false);
+            },
+            onFailure: () => {
+                _clearLocalPlaybackSoundSkip('sell_sacrifice_gain');
+                if (typeof renderCardUI === 'function') renderCardUI();
+                addLog('売却に失敗しました');
+                _setPendingSelectionBusy(false);
+            }
+        })) {
+            completed = true;
+            return { ok: true, publishedByNetwork: true };
+        }
+
+        const result = _runPipelineAction(playerKey, action);
+        if (!result.ok) return result;
+
+        addLog(`${playerKey === 'black' ? '黒' : '白'}が${soldCardDef ? soldCardDef.name : sellCardId}を売却（+${gain}）`);
+        _clearSellSelection(playerKey);
+        const shouldDelayPostActionHandVisual = _hasHandRemovePlaybackEvent(result);
+        _renderCardUiWithOptionalPlaybackDelay(shouldDelayPostActionHandVisual);
+        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+        else if (typeof renderBoard === 'function') renderBoard();
+        _finalizePendingSelectionAfterRun(playerKey, 'SELL_CARD_WILL', result);
+        completed = true;
+        return { ok: true };
     } finally {
         if (!completed) _setPendingSelectionBusy(false);
     }
@@ -782,13 +805,13 @@ function _ensureHandDestroyFlags() {
     }
 }
 
-function _isSelectedCardUsableNow(playerKey, cardId) {
+function _isSelectedCardUsableNow(playerKey, cardId, opts) {
     if (!playerKey || !cardId || !cardState || !gameState) return false;
     if (!_doesPlayerOwnCard(playerKey, cardId)) return false;
 
     try {
         if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getUsableCardIds === 'function') {
-            const usableIds = CardLogic.getUsableCardIds(cardState, gameState, playerKey) || [];
+            const usableIds = CardLogic.getUsableCardIds(cardState, gameState, playerKey, opts) || [];
             return usableIds.includes(cardId);
         }
     } catch (e) { /* ignore */ }
@@ -1028,24 +1051,44 @@ function _executeHeavenSelection(playerKey, selectedCardId) {
     let completed = false;
 
     try {
-    const def = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
-        ? CardLogic.getCardDef(selectedCardId)
-        : null;
+        const def = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
+            ? CardLogic.getCardDef(selectedCardId)
+            : null;
 
-    const action = _createPendingSelectionAction(playerKey, 'HEAVEN_BLESSING', { heavenBlessingCardId: selectedCardId });
+        const action = _createPendingSelectionAction(playerKey, 'HEAVEN_BLESSING', { heavenBlessingCardId: selectedCardId });
 
-    const result = _runPipelineAction(playerKey, action);
-    if (!result.ok) return result;
+        if (_startNetworkOnlyPendingSelectionPublish({
+            playerKey,
+            action,
+            onSuccess: () => {
+                addLog(`${playerKey === 'black' ? '黒' : '白'}が天の恵みで${def ? def.name : selectedCardId}を獲得`);
+                _clearHeavenSelection(playerKey);
+                _hideHeavenOverlay();
+                if (typeof renderCardUI === 'function') renderCardUI();
+                _setPendingSelectionBusy(false);
+            },
+            onFailure: () => {
+                if (typeof renderCardUI === 'function') renderCardUI();
+                addLog('天の恵みの選択送信に失敗しました');
+                _setPendingSelectionBusy(false);
+            }
+        })) {
+            completed = true;
+            return { ok: true, publishedByNetwork: true };
+        }
 
-    addLog(`${playerKey === 'black' ? '黒' : '白'}が天の恵みで${def ? def.name : selectedCardId}を獲得`);
-    _clearHeavenSelection(playerKey);
-    _hideHeavenOverlay();
-    renderCardUI();
-    if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-    else if (typeof renderBoard === 'function') renderBoard();
-    _finalizePendingSelectionAfterRun(playerKey, 'HEAVEN_BLESSING', result);
-    completed = true;
-    return { ok: true };
+        const result = _runPipelineAction(playerKey, action);
+        if (!result.ok) return result;
+
+        addLog(`${playerKey === 'black' ? '黒' : '白'}が天の恵みで${def ? def.name : selectedCardId}を獲得`);
+        _clearHeavenSelection(playerKey);
+        _hideHeavenOverlay();
+        renderCardUI();
+        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+        else if (typeof renderBoard === 'function') renderBoard();
+        _finalizePendingSelectionAfterRun(playerKey, 'HEAVEN_BLESSING', result);
+        completed = true;
+        return { ok: true };
     } finally {
         if (!completed) _setPendingSelectionBusy(false);
     }
@@ -1054,29 +1097,55 @@ function _executeHeavenSelection(playerKey, selectedCardId) {
 function _executeCondemnSelection(playerKey, targetIndex, targetCardId) {
     if (!Number.isInteger(targetIndex)) return { ok: false, reason: 'no_selection' };
     if (!_canInteractWithCardUi()) return { ok: false, reason: 'busy' };
+    const armedDestroySkip = _armLocalPlaybackSoundSkip('stone_destroy');
+    playUiEffectSound('stone_destroy');
     _setPendingSelectionBusy(true);
     let completed = false;
 
     try {
-    const targetDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
-        ? CardLogic.getCardDef(targetCardId)
-        : null;
+        const targetDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
+            ? CardLogic.getCardDef(targetCardId)
+            : null;
 
-    const action = _createPendingSelectionAction(playerKey, 'CONDEMN_WILL', { condemnTargetIndex: targetIndex });
+        const action = _createPendingSelectionAction(playerKey, 'CONDEMN_WILL', { condemnTargetIndex: targetIndex });
 
-    const result = _runPipelineAction(playerKey, action);
-    if (!result.ok) return result;
+        if (_startNetworkOnlyPendingSelectionPublish({
+            playerKey,
+            action,
+            onSuccess: () => {
+                addLog(`${playerKey === 'black' ? '黒' : '白'}が断罪の意志で${_getCardDisplayLabel(targetCardId, targetDef)}を破壊`);
+                _clearHeavenSelection(playerKey);
+                _hideHeavenOverlay();
+                if (typeof renderCardUI === 'function') renderCardUI();
+                _setPendingSelectionBusy(false);
+            },
+            onFailure: () => {
+                if (armedDestroySkip) _clearLocalPlaybackSoundSkip('stone_destroy');
+                if (typeof renderCardUI === 'function') renderCardUI();
+                addLog('断罪の意志の選択送信に失敗しました');
+                _setPendingSelectionBusy(false);
+            }
+        })) {
+            completed = true;
+            return { ok: true, publishedByNetwork: true };
+        }
 
-    addLog(`${playerKey === 'black' ? '黒' : '白'}が断罪の意志で${_getCardDisplayLabel(targetCardId, targetDef)}を破壊`);
-    _clearHeavenSelection(playerKey);
-    _hideHeavenOverlay();
-    const shouldDelayPostActionHandVisual = _hasHandRemovePlaybackEvent(result);
-    _renderCardUiWithOptionalPlaybackDelay(shouldDelayPostActionHandVisual);
-    if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-    else if (typeof renderBoard === 'function') renderBoard();
-    _finalizePendingSelectionAfterRun(playerKey, 'CONDEMN_WILL', result);
-    completed = true;
-    return { ok: true };
+        const result = _runPipelineAction(playerKey, action);
+        if (!result.ok) {
+            if (armedDestroySkip) _clearLocalPlaybackSoundSkip('stone_destroy');
+            return result;
+        }
+
+        addLog(`${playerKey === 'black' ? '黒' : '白'}が断罪の意志で${_getCardDisplayLabel(targetCardId, targetDef)}を破壊`);
+        _clearHeavenSelection(playerKey);
+        _hideHeavenOverlay();
+        const shouldDelayPostActionHandVisual = _hasHandRemovePlaybackEvent(result);
+        _renderCardUiWithOptionalPlaybackDelay(shouldDelayPostActionHandVisual);
+        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+        else if (typeof renderBoard === 'function') renderBoard();
+        _finalizePendingSelectionAfterRun(playerKey, 'CONDEMN_WILL', result);
+        completed = true;
+        return { ok: true };
     } finally {
         if (!completed) _setPendingSelectionBusy(false);
     }
@@ -1219,6 +1288,38 @@ function _releaseStaleVisualPlaybackLock() {
 
     _clearCardUiBusyFlags({ clearProcessing: false, clearPlayback: true });
 
+    return true;
+}
+
+function _armLocalPlaybackSoundSkip(soundKey) {
+    const key = String(soundKey || '').trim();
+    if (!key) return false;
+    const rootRef = _getUiRootRef();
+    if (!rootRef) return false;
+    const registry = (rootRef[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY] && typeof rootRef[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY] === 'object')
+        ? rootRef[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY]
+        : {};
+    registry[key] = Date.now() + LOCAL_PLAYBACK_SOUND_SKIP_MS;
+    rootRef[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY] = registry;
+    return true;
+}
+
+function _clearLocalPlaybackSoundSkip(soundKey) {
+    const key = String(soundKey || '').trim();
+    if (!key) return false;
+    const rootRef = _getUiRootRef();
+    if (!rootRef) return false;
+    const registry = rootRef[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY];
+    if (!registry || typeof registry !== 'object') return false;
+    if (!Object.prototype.hasOwnProperty.call(registry, key)) return false;
+    try {
+        delete registry[key];
+        if (Object.keys(registry).length === 0) {
+            delete rootRef[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY];
+        }
+    } catch (e) {
+        registry[key] = 0;
+    }
     return true;
 }
 
@@ -1502,10 +1603,81 @@ function _renderCardUiWithOptionalPlaybackDelay(shouldDelay) {
     renderCardUI();
 }
 
+function _getActiveNetworkMatchClient() {
+    const networkRoot = (typeof window !== 'undefined' && window && window.NetworkMatchClient)
+        ? window
+        : ((typeof globalThis !== 'undefined' && globalThis && globalThis.NetworkMatchClient) ? globalThis : null);
+    const networkClient = networkRoot ? networkRoot.NetworkMatchClient : null;
+    if (!networkClient) return null;
+    if (typeof networkClient.publishSnapshot !== 'function') return null;
+    if (typeof networkClient.isActive !== 'function' || networkClient.isActive() !== true) return null;
+    return networkClient;
+}
+
+function _startNetworkOnlyPendingSelectionPublish(options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const networkClient = _getActiveNetworkMatchClient();
+    if (!networkClient) return false;
+
+    Promise.resolve()
+        .then(() => networkClient.publishSnapshot({
+            playerKey: opts.playerKey,
+            actionType: 'place',
+            playbackEvents: [],
+            action: opts.action
+        }))
+        .then((publishResult) => {
+            if (!publishResult || publishResult.ok !== true) {
+                if (typeof opts.onFailure === 'function') {
+                    opts.onFailure(publishResult || { ok: false, reason: 'NETWORK_PUBLISH_FAILED' });
+                }
+                return;
+            }
+            if (typeof opts.onSuccess === 'function') {
+                opts.onSuccess(publishResult);
+            }
+        })
+        .catch(() => {
+            if (typeof opts.onFailure === 'function') {
+                opts.onFailure({ ok: false, reason: 'NETWORK_PUBLISH_FAILED' });
+            }
+        });
+
+    return true;
+}
+
 // Fill hand with all card types for debug testing
 function fillDebugHand() {
     if (!_isDebugAllowed()) return;
     if (!window.DEBUG_HUMAN_VS_HUMAN && !window.DEBUG_UNLIMITED_USAGE) return;
+    const networkRoot = (typeof window !== 'undefined' && window && window.NetworkMatchClient)
+        ? window
+        : ((typeof globalThis !== 'undefined' && globalThis && globalThis.NetworkMatchClient) ? globalThis : null);
+    const networkClient = networkRoot
+        ? networkRoot.NetworkMatchClient
+        : null;
+    if (
+        networkClient
+        && typeof networkClient.publishSnapshot === 'function'
+        && typeof networkClient.isActive === 'function'
+        && networkClient.isActive()
+    ) {
+        Promise.resolve(networkClient.publishSnapshot({
+            actionType: 'debug_fill_hand',
+            playbackEvents: [],
+            action: { type: 'debug_fill_hand' }
+        })).then((result) => {
+            if (result && result.ok === false) {
+                addLog('🐛 デバッグ: 自席手札の補充に失敗');
+                return;
+            }
+            addLog('🐛 デバッグ: 自席の手札を全種類で補充');
+        }).catch(() => {
+            addLog('🐛 デバッグ: 自席手札の補充に失敗');
+        });
+        return;
+    }
+
     const shouldFillWhite = window.DEBUG_HUMAN_VS_HUMAN === true;
     const dbg = _getDebugActions();
     if (!dbg || typeof dbg.fillDebugHand !== 'function') {
@@ -1544,10 +1716,14 @@ function updateCardDetailPanel() {
     if (!nameEl || !descEl || !useBtn || !reasonEl) return;
 
     const playerKey = _resolveInputPlayerKey();
+    const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
     const selectedId = cardState.selectedCardId;
     const selectedOwnerKey = _getSelectedCardOwnerKey(playerKey);
-    const hasSelection = !!selectedId && selectedOwnerKey === playerKey && _doesPlayerOwnCard(playerKey, selectedId);
-    const normalizedSelectedId = hasSelection ? selectedId : null;
+    const hasInspectableSelection = !!selectedId
+        && _doesPlayerOwnCard(selectedOwnerKey, selectedId)
+        && (selectedOwnerKey === playerKey || isDebugHvH);
+    const hasSelection = hasInspectableSelection && selectedOwnerKey === playerKey;
+    const normalizedSelectedId = hasInspectableSelection ? selectedId : null;
 
     if (!normalizedSelectedId || _cardDetailExpandedForCardId !== normalizedSelectedId) {
         _cardDetailExpanded = false;
@@ -1600,9 +1776,8 @@ function updateCardDetailPanel() {
     const cardDef = hasSelection ? CardLogic.getCardDef(selectedId) : null;
     const cost = cardDef ? (cardDef.cost || 0) : 0;
     const canAfford = isDebugUnlimited ? true : (cardState.charge[playerKey] || 0) >= cost;
-    const canUseSelectedCardByRules = (!_isNetworkMode() || isDebugUnlimited)
-        ? true
-        : (hasSelection && _isSelectedCardUsableNow(playerKey, selectedId));
+    const canUseSelectedCardByRules = hasSelection && _isSelectedCardUsableNow(
+        playerKey, selectedId, isDebugUnlimited ? { skipCostAndTurnLimit: true } : undefined);
     const legalMoves = _getLegalMovesForCurrentPlayer();
     const noLegalMoves = legalMoves.length === 0;
     const pending = cardState.pendingEffectByPlayer[playerKey];
@@ -1846,6 +2021,7 @@ function playUiEffectSound(effectKey) {
 
 function onCardClick(cardId, ownerKey) {
     const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
+    const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
     if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return;
     const playerKey = _resolveInputPlayerKey();
     const clickedOwnerKey = (ownerKey === 'white' || ownerKey === 'black')
@@ -1857,7 +2033,20 @@ function onCardClick(cardId, ownerKey) {
 
     _closeCardDetailTagTabIfOpen();
 
-    if (clickedOwnerKey && clickedOwnerKey !== playerKey) return;
+    if (clickedOwnerKey && clickedOwnerKey !== playerKey) {
+        if (!isDebugHvH || !_doesPlayerOwnCard(clickedOwnerKey, cardId)) return;
+
+        playUiEffectSound('hand_card_select');
+
+        if (cardState.selectedCardId === cardId && _getSelectedCardOwnerKey(playerKey) === clickedOwnerKey) {
+            _clearSelectedCardSelection();
+        } else {
+            _setSelectedCardSelection(cardId, clickedOwnerKey);
+        }
+
+        renderCardUI();
+        return;
+    }
     if (pending && (pending.type === 'HEAVEN_BLESSING' || pending.type === 'CONDEMN_WILL') && pending.stage === 'selectTarget') {
         return;
     }
@@ -1890,22 +2079,24 @@ function onCardClick(cardId, ownerKey) {
 }
 
 function confirmSellCardSelection() {
-    if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return;
+    if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return false;
     const playerKey = _resolveInputPlayerKey();
     const pending = cardState.pendingEffectByPlayer[playerKey];
-    if (!pending || pending.type !== 'SELL_CARD_WILL' || pending.stage !== 'selectTarget') return;
+    if (!pending || pending.type !== 'SELL_CARD_WILL' || pending.stage !== 'selectTarget') return false;
 
     const sellCardId = _sellSelectionByPlayer[playerKey];
     if (!sellCardId) {
         addLog('売却するカードを先に選んでください');
         renderCardUI();
-        return;
+        return false;
     }
 
     const result = _executeSellSelection(playerKey, sellCardId);
     if (!result.ok) {
         addLog('売却に失敗しました');
+        return false;
     }
+    return true;
 }
 
 function destroySelectedHandCard() {
@@ -1983,7 +2174,7 @@ function useSelectedCard() {
         addLog(`布石不足: ${cardDef ? cardDef.name : cardId} (必要: ${cost}, 所持: ${cardState.charge[playerKey] || 0})`);
         return;
     }
-    if (_isNetworkMode() && !isDebugUnlimited && !_isSelectedCardUsableNow(playerKey, cardId)) {
+    if (!_isSelectedCardUsableNow(playerKey, cardId, isDebugUnlimited ? { skipCostAndTurnLimit: true } : undefined)) {
         addLog('このカードは現在使用できません（対象不足など）');
         renderCardUI();
         return;

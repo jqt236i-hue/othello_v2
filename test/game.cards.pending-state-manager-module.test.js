@@ -4,7 +4,7 @@ describe('CardPendingStateManager', () => {
   test('requiresTargetSelection distinguishes pending selector cards', () => {
     expect(PendingStateManager.requiresTargetSelection('DESTROY_ONE_STONE')).toBe(true);
     expect(PendingStateManager.requiresTargetSelection('BOARD_EXPANSION_GOD')).toBe(true);
-    expect(PendingStateManager.requiresTargetSelection('CHAIN_WILL')).toBe(false);
+    expect(PendingStateManager.requiresTargetSelection('DOUBLE_CHAIN_WILL')).toBe(false);
     expect(PendingStateManager.requiresTargetSelection('')).toBe(false);
   });
 

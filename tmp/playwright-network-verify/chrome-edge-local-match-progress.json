@@ -1,0 +1,25 @@
+{
+  "ok": false,
+  "baseUrl": "http://127.0.0.1:8000/?matchServer=http%3A%2F%2F127.0.0.1%3A8788",
+  "timestamp": "2026-03-19T11:04:07.435Z",
+  "browsers": {
+    "black": "chromium-a",
+    "white": "chromium-b"
+  },
+  "headless": false,
+  "slowMoMs": 30,
+  "roomId": null,
+  "actions": [],
+  "stallEvents": [],
+  "pageEvents": [],
+  "final": {
+    "actionsExecuted": 0,
+    "chrome": {
+      "error": "page.evaluate: Target page, context or browser has been closed"
+    },
+    "edge": {
+      "error": "page.evaluate: Target page, context or browser has been closed"
+    }
+  },
+  "error": "page.goto: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/?matchServer=http%3A%2F%2F127.0.0.1%3A8788\", waiting until \"domcontentloaded\"\u001b[22m\n\n    at main (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\run-local-network-chromium.js:524:24)"
+}

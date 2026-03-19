@@ -39,6 +39,9 @@
         return globalScope.MarkersAdapter || null;
     })();
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
+    const MARKER_CATEGORIES = (MarkersAdapter && MarkersAdapter.MARKER_CATEGORIES)
+        ? MarkersAdapter.MARKER_CATEGORIES
+        : { BOMB: 'bomb' };
 
     if (BLACK === undefined || WHITE === undefined || EMPTY === undefined) {
         throw new Error('SharedConstants not loaded');
@@ -51,25 +54,58 @@
         return Math.trunc(numeric);
     }
 
+    function getMarkerCategory(marker) {
+        if (MarkersAdapter && typeof MarkersAdapter.getMarkerCategory === 'function') {
+            return MarkersAdapter.getMarkerCategory(marker);
+        }
+        if (!marker) return null;
+        if (marker.data && typeof marker.data.category === 'string' && marker.data.category) {
+            return marker.data.category;
+        }
+        if (marker.kind === MARKER_CATEGORIES.BOMB) return MARKER_CATEGORIES.BOMB;
+        return (
+            marker.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+            marker.data &&
+            marker.data.category === MARKER_CATEGORIES.BOMB
+        ) ? MARKER_CATEGORIES.BOMB : null;
+    }
+
+    function isBombCategoryMarker(marker) {
+        if (MarkersAdapter && typeof MarkersAdapter.isBombCategoryMarker === 'function') {
+            return MarkersAdapter.isBombCategoryMarker(marker);
+        }
+        return getMarkerCategory(marker) === MARKER_CATEGORIES.BOMB;
+    }
+
+    function isSpecialStoneMarker(marker) {
+        if (MarkersAdapter && typeof MarkersAdapter.isSpecialStoneMarker === 'function') {
+            return MarkersAdapter.isSpecialStoneMarker(marker);
+        }
+        return !!(
+            marker &&
+            marker.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+            !isBombCategoryMarker(marker)
+        );
+    }
+
     function getSpecialMarkerAt(cardState, row, col) {
         const targetRow = normalizeBoardIndex(row);
         const targetCol = normalizeBoardIndex(col);
         if (targetRow === null || targetCol === null) return null;
         const markers = (cardState && cardState.markers) ? cardState.markers : [];
-        const special = markers.find(m => (
+        const marker = markers.find(m => (
             m &&
-            m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+            (isSpecialStoneMarker(m) || isBombCategoryMarker(m)) &&
             normalizeBoardIndex(m.row) === targetRow &&
             normalizeBoardIndex(m.col) === targetCol
         ));
-        if (special) return { kind: 'specialStone', marker: special };
-        const bomb = markers.find(m => (
-            m &&
-            m.kind === (MARKER_KINDS ? MARKER_KINDS.BOMB : 'bomb') &&
-            normalizeBoardIndex(m.row) === targetRow &&
-            normalizeBoardIndex(m.col) === targetCol
-        ));
-        if (bomb) return { kind: 'bomb', marker: bomb };
+        if (marker) {
+            return {
+                kind: 'specialStone',
+                category: getMarkerCategory(marker),
+                marker
+            };
+        }
         return null;
     }
 
@@ -96,7 +132,7 @@
     function isBoardHiddenTrapMarker(marker) {
         return !!(
             marker &&
-            marker.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+            isSpecialStoneMarker(marker) &&
             marker.data &&
             String(marker.data.type || '').toUpperCase() === 'TRAP'
         );
@@ -122,7 +158,7 @@
             }
         }
         const entry = getSpecialMarkerAt(cardState, row, col);
-        const marker = (entry && entry.kind === 'specialStone') ? entry.marker : null;
+        const marker = entry ? entry.marker : null;
         return !!(
             marker &&
             marker.data &&
@@ -132,15 +168,11 @@
 
     function isMarkerRenderedAsSpecialStone(entry) {
         if (!entry || !entry.marker) return false;
-        if (entry.kind === 'specialStone') {
-            if (isBoardHiddenTrapMarker(entry.marker)) return false;
-            if (isBoardCellModifierMarker(entry.marker)) return false;
-            return true;
-        }
-        if (entry.kind === 'bomb') {
-            return true;
-        }
-        return false;
+        if (isBombCategoryMarker(entry.marker) || entry.category === MARKER_CATEGORIES.BOMB) return true;
+        if (!isSpecialStoneMarker(entry.marker)) return false;
+        if (isBoardHiddenTrapMarker(entry.marker)) return false;
+        if (isBoardCellModifierMarker(entry.marker)) return false;
+        return true;
     }
 
     function getRenderedSpecialMarkerAt(cardState, row, col) {
@@ -148,12 +180,20 @@
         return isMarkerRenderedAsSpecialStone(entry) ? entry : null;
     }
 
+    function getRenderedNonNormalStoneMarkerAt(cardState, row, col) {
+        return getRenderedSpecialMarkerAt(cardState, row, col);
+    }
+
+    function isNonNormalStoneVisualAt(cardState, row, col) {
+        return !!getRenderedNonNormalStoneMarkerAt(cardState, row, col);
+    }
+
     function isSpecialStoneAt(cardState, row, col) {
-        return !!getRenderedSpecialMarkerAt(cardState, row, col);
+        return isNonNormalStoneVisualAt(cardState, row, col);
     }
 
     function getSpecialOwnerAt(cardState, row, col) {
-        const entry = getRenderedSpecialMarkerAt(cardState, row, col);
+        const entry = getRenderedNonNormalStoneMarkerAt(cardState, row, col);
         if (!entry) return null;
         return entry.marker && entry.marker.owner ? entry.marker.owner : null;
     }
@@ -243,13 +283,15 @@
         return setChargeWithDelta(cardState, normalized, safeBefore + safeAdd, reason);
     }
 
-    return {
-        getSpecialMarkerAt,
-        getRenderedSpecialMarkerAt,
-        isFrozenCell,
-        isSpecialStoneAt,
-        getSpecialOwnerAt,
-        getGameVisualEffectsMap,
+        return {
+            getSpecialMarkerAt,
+            getRenderedSpecialMarkerAt,
+            getRenderedNonNormalStoneMarkerAt,
+            isFrozenCell,
+            isNonNormalStoneVisualAt,
+            isSpecialStoneAt,
+            getSpecialOwnerAt,
+            getGameVisualEffectsMap,
         resolveSpecialEffectKey,
         isBoardHiddenTrapMarker,
         isBoardCellModifierMarker,

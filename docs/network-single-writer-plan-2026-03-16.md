@@ -440,3 +440,316 @@ npm run worker:prepare
 
 - Phase 5 の検証束が全て pass し、worker-public が同期された時点で本計画は完了とする。
 - その後の改善事項（optimistic visual hint、RTT 最適化等）は別文書に切り出す。
+
+---
+
+## 14. 追補計画（2026-03-17）: PlaybackEvent 生成の単一ソース化
+
+### 14.1 位置づけ
+
+- この追補は、Single Writer 化を進めた後にも再発しうる「playbackEvents 組み立て経路の分岐」を構造的に除去するための実装計画である。
+- 対象は「イベント生成の責務整理」であり、外向き仕様の変更は含まない。
+- 仕様一次情報は `01-rulebook.md`、本追補は内部実装契約のみを扱う。
+
+### 14.2 現状コード再調査で確認した事実
+
+- `shared/playback-event-helpers.js` には既に `mapRawPlaceEventsToPlayback()` と `appendPlaybackEventsAfter()` が存在する。
+- `game/turn/pipeline_ui_adapter.js` と `workers/match-worker.mjs` は、どちらも `mapRawPlaceEventsToPlayback()` で `raw place` を `place_hand_animation` へ変換してから presentation 変換結果へ前置している。
+- `workers/match-worker.mjs`、`scripts/local-match-server.js`、`game/network-turn-handoff.js` は、独立した playback 束の連結時に `appendPlaybackEventsAfter()` を使って phase 衝突を避けている。
+- 一方で `scripts/local-match-server.js` の `mapServerPresentationToPlaybackEvents()` は依然として旧来の inline 組み立てで、`raw place` 由来の `place_hand_animation` 前置を共有 helper に委譲していない。
+- `test/shared.playback-event-helpers.test.js`、`test/game.pipeline-ui-adapter.draw.test.js`、`test/game.network-turn-handoff.test.js`、`test/workers.match-publish-sanitize.test.js` は契約の一部を固定しているが、まだ「同一入力なら同一 final playbackEvents」を全面的に固定する同値性テストと、`raw place count === place_hand_animation count` の不変条件テストが不足している。
+
+### 14.3 なぜまだ追補が必要か
+
+- `place_hand_animation` の raw mapping 自体は shared helper に寄ったが、**最終 playbackEvents の組み立て責務**は依然として call site ごとに分散している。
+- 現在も `raw place → hand animation`、`presentation → playback`、`sound cue 付与`、`独立束の phase-safe append` が別々の場所に散っており、local-match-server には古い経路が残っている。
+- 直近の究極反転龍の network-only バグは、`appendPlaybackEventsAfter()` で phase-safe append を共通化するまで「独立束の結合規則」が caller 依存だったことを示した。再発防止には raw place だけでなく **final assembly と bundle append の責務境界**まで固定する必要がある。
+
+### 14.4 達成目標
+
+1. `shared/playback-event-helpers.js` を Playback 生成 SSOT の正本として明文化する。
+2. `raw place → place_hand_animation`、`presentation → playback`、`sound cue 付与` を 1 つの高水準 shared API に寄せる。
+3. `appendPlaybackEventsAfter()` を「独立した playback 束の連結専用 helper」として境界固定する。
+4. UI adapter / Worker / local-match-server の出力同値性をテストで恒久固定する。
+5. `raw place count === place_hand_animation count` の不変条件を diagnostics とテストで検知できるようにする。
+6. 既存の Single Writer 境界（server authority / client applySnapshot）を壊さない。
+
+### 14.5 非目標
+
+- サーバープロトコルの変更。
+- UI 演出仕様（時間・見た目）の変更。
+- カード効果ロジック自体の再設計。
+- `01-rulebook.md` の仕様改定。
+- `appendPlaybackEventsAfter()` を turn 結果の単一束組み立て器へ吸収すること。
+
+### 14.6 新しい設計契約（SSOT）
+
+#### 14.6.1 SSOT アンカー
+
+- 正本は `shared/playback-event-helpers.js` とする。
+- 新規ファイル `shared/playback-event-assembler.js` を前提にしない。まず既存 helper 面を正本化し、helper 面が過大化した時だけ後続文書で split を検討する。
+- 追加する高水準 API の第一候補は次とする。
+  - `assemblePlaybackEvents({ rawEvents, presentationEvents, snapshot, fallbackPlayerKey, adapter, normalizePlayerKey })`
+
+#### 14.6.2 入力契約
+
+- `rawEvents`: TurnPipeline の生イベント列（`place` を含む）。
+- `presentationEvents`: BoardOps 由来の presentation イベント列。
+- `snapshot`: `{ cardState, gameState }`。
+- `fallbackPlayerKey`: owner / player 正規化に使う席キー。
+- `adapter`: `mapToPlaybackEvents` / `appendSoundEffectPlaybackEvents` を提供する体。
+- `normalizePlayerKey`: browser / worker / local server で共用できる player 正規化関数。
+
+#### 14.6.3 出力契約
+
+- 高水準 API は `{ playbackEvents, diagnostics }` を返す。
+- `playbackEvents` は deep clone 済みの最終列である。
+- `diagnostics` は少なくとも `rawPlaceCount`、`placeHandAnimationCount`、`warnings` を持つ。
+- `raw place` が 1 件以上あれば `place_hand_animation` を対応件数分含む。
+- 演出順序は `place_hand_animation` を presentation 変換結果の先頭側に置く。
+- owner / player は入口で正規化し、内部へ混在を持ち込まない。
+
+#### 14.6.4 責務境界
+
+- `assemblePlaybackEvents()` が担当するのは **1 回の turn result から 1 本の playback 束を作る責務**である。
+  1. raw place → canonical `place_hand_animation`
+  2. presentation → playback 変換
+  3. hand animation の前置 merge
+  4. sound cue 付与
+  5. diagnostics 作成と clone
+- `appendPlaybackEventsAfter(baseEvents, appendedEvents)` は **既に組み立て済みの独立束を phase-safe に後続連結する責務**だけを持つ。
+  - 例: action playback + turn-start playback
+  - 例: turn-start playback + draw playback
+- これにより、「単一束の組み立て」と「複数束の連結」の責務を混ぜない。
+
+#### 14.6.5 移行対象
+
+- 単一束組み立て: `game/turn/pipeline_ui_adapter.js`、`workers/match-worker.mjs`、`scripts/local-match-server.js`
+- 独立束連結: `workers/match-worker.mjs`、`scripts/local-match-server.js`、`game/network-turn-handoff.js`
+
+### 14.7 現在の到達点（2026-03-17 再調査時点）
+
+#### 完了済み
+
+- `raw place` を canonical `place_hand_animation` へ変換する shared helper は実装済み。
+- `game/turn/pipeline_ui_adapter.js` と `workers/match-worker.mjs` は既にその helper を利用している。
+- `appendPlaybackEventsAfter()` は実装済みで、worker / local-match-server / network handoff で使われている。
+- helper mapping と phase append については既存 Jest で部分的に固定済み。
+
+#### 未完了
+
+- final playbackEvents を 1 つの高水準 shared API で返す仕組みはまだない。
+- `scripts/local-match-server.js` に旧来の inline 組み立てが残っている。
+- `raw place count === place_hand_animation count` の diagnostics と runtime guard が未実装。
+- UI adapter / Worker / local-match-server の同値性を 1 本の契約テストで固定できていない。
+
+### 14.8 マスタープラン
+
+## Phase A: 契約の欠けを先に固定する
+
+### 目的
+
+- 既に共有化された部分と、まだ分岐が残る部分をテストで見える化し、移行中の drift を即座に止める。
+
+### 作業
+
+1. 新規契約テストを追加する。
+   - 同一入力に対し、shared helper 契約・UI adapter 経路・Worker 経路の出力が一致することを検証する。
+2. 不変条件テストを追加する。
+   - `raw place count === place_hand_animation count`
+   - place が 0 件のとき `place_hand_animation` は 0 件
+3. 既存の phase append 契約を固定し直す。
+   - action playback と turn-start playback が phase 衝突しないことを `game.network-turn-handoff` と worker publish 側で固定する。
+4. local-match-server を移行前に観測する。
+   - 現状の差分を fixture または focused test として残す。
+
+### 主対象
+
+- `test/shared.playback-event-helpers.test.js`
+- `test/game.pipeline-ui-adapter.draw.test.js`
+- `test/game.network-turn-handoff.test.js`
+- `test/workers.match-publish-sanitize.test.js`
+- `test/network.playback-event-assembly.contract.test.js`（新規）
+
+### 完了条件
+
+- 新規契約テストが fail-first を経て pass する。
+- 既存関連テストが全て pass する。
+- local-match-server との差分が「既知の残課題」として明示化される。
+
+### 検証束
+
+```bash
+npx jest --runInBand --runTestsByPath test/network.playback-event-assembly.contract.test.js test/shared.playback-event-helpers.test.js test/game.pipeline-ui-adapter.draw.test.js test/game.network-turn-handoff.test.js test/workers.match-publish-sanitize.test.js
+```
+
+---
+
+## Phase B: shared helper 面を高水準 assembler へ昇格する
+
+### 目的
+
+- `shared/playback-event-helpers.js` を final playback 組み立ての実装正本として成立させる。
+
+### 作業
+
+1. `shared/playback-event-helpers.js` に `assemblePlaybackEvents()` を追加する。
+2. 内部処理順を固定する。
+   - raw place → place hand 化
+   - presentation → playback 変換
+   - hand animation の前置
+   - sound cue 付与
+   - diagnostics 作成
+   - deepClone 返却
+3. 新しい shared API は DOM / `window` 非依存の pure helper とする。
+4. `appendPlaybackEventsAfter()` はこの phase では残し、単一束組み立て器へ吸収しない。
+
+### 主対象
+
+- `shared/playback-event-helpers.js`
+- `test/shared.playback-event-helpers.test.js`
+- `test/network.playback-event-assembly.contract.test.js`
+
+### 完了条件
+
+- 高水準 shared API が pure helper として動作する。
+- player 正規化、fallback turnIndex、actionId 維持が既存互換である。
+- diagnostics で raw/place hand 件数差を検知できる。
+
+---
+
+## Phase C: 呼び出し側を 1 本化する（UI adapter / Worker / local-match-server）
+
+### 目的
+
+- 実運用とローカル検証の両経路を、同じ shared assembly 契約で揃える。
+
+### 作業
+
+1. `game/turn/pipeline_ui_adapter.js`
+   - `runTurnWithAdapter()` 内の inline 組み立てを `assemblePlaybackEvents()` 呼び出しへ置換。
+2. `workers/match-worker.mjs`
+   - `mapServerPresentationToPlaybackEvents()` の実装本体を shared helper へ委譲する。
+3. `scripts/local-match-server.js`
+   - 旧来の inline 組み立てを廃止し、worker と同じ shared helper 経由へ揃える。
+4. duplicate ロジックを削除する。
+   - `raw place` から `place_hand_animation` を作る code path が shared helper の外に残らないことを `rg` で確認する。
+
+### 主対象
+
+- `game/turn/pipeline_ui_adapter.js`
+- `workers/match-worker.mjs`
+- `scripts/local-match-server.js`
+
+### 完了条件
+
+- UI adapter / Worker / local-match-server が同一 shared assembly API を使っている。
+- `appendPlaybackEventsAfter()` は独立束の連結専用のまま維持される。
+- 既存の外向き API 名（`runTurnWithAdapter` / worker publish response / local server publish response）は維持される。
+
+### 検証束
+
+```bash
+npx jest --runInBand --runTestsByPath test/network.playback-event-assembly.contract.test.js test/shared.playback-event-helpers.test.js test/game.pipeline-ui-adapter.draw.test.js test/game.pipeline-ui-adapter.sound-cue.test.js test/game.network-turn-handoff.test.js test/workers.match-publish-sanitize.test.js
+```
+
+---
+
+## Phase D: diagnostics と再発防止ガードを入れる
+
+### 目的
+
+- 将来 drift が起きても、症状が UI に出る前に検知できるようにする。
+
+### 作業
+
+1. Worker / local-match-server で shared diagnostics を受け取り、mismatch を明示的に扱う。
+   - test 環境では失敗
+   - debug 条件では詳細可視化
+   - 通常時は無言成功にしない
+2. `?debug=1` または既存 debug gate で mismatch 情報を観測できるようにする。
+3. CI では契約テスト群を常時実行し、helper drift を merge 前に止める。
+
+### 主対象
+
+- `workers/match-worker.mjs`
+- `scripts/local-match-server.js`
+- `ui/network-client.js`（debug 表示が必要な場合）
+- `test/network.playback-event-assembly.contract.test.js`
+
+### 完了条件
+
+- mismatch が test / debug 環境で必ず検知される。
+- 通常プレイ時に余計な副作用ログが出ない。
+- local-match-server でも production と同じ mismatch 条件が観測できる。
+
+---
+
+## Phase E: 最終検証と運用移行
+
+### 目的
+
+- network 対戦の体験が退行していないことと、local server / worker / browser handoff の責務境界が揃っていることを確認する。
+
+### 作業
+
+1. network 系 Jest を実行する。
+2. local match server を起動して既存 smoke を実行する。
+3. headed 2 ブラウザ self-match で hand animation と phase 順を目視確認する。
+4. `worker-public` を同期し、mirror 差分がゼロであることを確認する。
+
+### 完了条件
+
+- 相手配石の hand animation が安定して再生される。
+- 究極反転龍のような独立束の後続演出が phase 衝突せず順番どおり再生される。
+- busy lock / playback queue / pending selection に副作用がない。
+- `npm run worker:prepare` 成功。
+
+### 検証束
+
+```bash
+npx jest --runInBand --runTestsByPath test/ui.network-client.*.test.js test/ui.network-snapshot.*.test.js test/network.playback-event-assembly.contract.test.js test/shared.playback-event-helpers.test.js test/game.network-turn-handoff.test.js test/workers.match-publish-sanitize.test.js
+npm run worker:prepare
+```
+
+### 実機検証束（手動）
+
+1. 同室 2 クライアント接続。
+2. 片側で通常配石を 5 回。
+3. 相手側で hand animation が毎回表示されることを確認。
+4. 究極反転龍のような「独立束の後続演出」が順番どおり見えることを確認。
+5. pending selection カード 3 種（trap / swap / board expansion）で選択完了まで確認。
+6. `npm run match:check -- --base http://127.0.0.1:8787` を実行し、local server smoke が通ることを確認。
+
+### 14.9 リスク管理
+
+| リスク | 影響 | 対策 |
+|---|---|---|
+| 共有化時に順序差が出る | 演出順序の崩れ | Phase A の同値性テストで順序まで固定 |
+| 単一束組み立てと独立束連結の責務が混ざる | 再度 phase 衝突が混入する | `assemblePlaybackEvents()` と `appendPlaybackEventsAfter()` の境界を文書とテストで固定 |
+| local-match-server だけ旧経路のまま残る | テストサーバーと本番 worker の齟齬 | Phase C で local-match-server も移行対象に含める |
+| helper 面が肥大化する | 可読性低下 | まず 1 面に寄せ、必要になった時だけ別文書で split を計画する |
+| 不要な diagnostics 出力 | 本番ノイズ | debug gate と test 環境でのみ詳細化する |
+
+### 14.10 ロールバック手順
+
+1. shared helper の高水準 API 追加を先に独立差分で入れる。
+2. 問題が出た場合は caller migration を file 単位で戻す。
+   - 先に `scripts/local-match-server.js`
+   - 次に `workers/match-worker.mjs`
+   - 最後に `game/turn/pipeline_ui_adapter.js`
+3. 失敗ケースを契約テストへ固定してから再度 forward する。
+
+### 14.11 受け入れ基準（最終）
+
+1. `shared/playback-event-helpers.js` に final playback 組み立ての高水準 shared API が存在する。
+2. UI adapter / Worker / local-match-server がその shared API を使っている。
+3. `appendPlaybackEventsAfter()` は worker / local-match-server / network handoff の phase-safe append にだけ使われている。
+4. `raw place` → `place_hand_animation` の実装が shared helper の外へ重複していない。
+5. Worker / UI adapter / local-match-server の同値性テストと不変条件テストが常時実行される。
+6. `01-rulebook.md` 更新不要のまま、見た目仕様の退行がない。
+
+### 14.12 01-rulebook.md 方針（追補）
+
+- 本追補は内部責務整理であり仕様変更を伴わないため、`01-rulebook.md` 更新は不要。
+- もし将来「ネット対戦のみ演出順を変える」判断を行う場合は、この追補とは別に `01-rulebook.md` を先に更新する。

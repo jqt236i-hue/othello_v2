@@ -74,7 +74,7 @@ function runRoomDeckScenario(action) {
     "  const createResponse = await worker.fetch(new Request('https://worker/api/match/create', {",
     "    method: 'POST',",
     "    headers: { 'Content-Type': 'application/json' },",
-    "    body: JSON.stringify({ playerName: 'くろ', deckCode: blackDeckCode })",
+    "    body: JSON.stringify({ playerName: 'くろ', deckCode: blackDeckCode, networkDebugEnabled: true })",
     "  }), env);",
     "  const createPayload = await createResponse.json();",
     "",
@@ -180,11 +180,14 @@ describe('match worker room deck', () => {
     expect(result.joinStatus).toBe(200);
     expect(result.stateStatus).toBe(200);
     expect(result.createPayload.ok).toBe(true);
+    expect(result.createPayload.networkDebugEnabled).toBe(true);
     expect(result.createPayload.roomDeck.mode).toBe('perPlayer');
     expect(result.createPayload.roomDeck.deckCodeByPlayer.black).toBe(result.blackDeckCode);
     expect(result.createPayload.roomDeck.deckCodeByPlayer.white).toBe('');
+    expect(result.joinPayload.networkDebugEnabled).toBe(true);
     expect(result.joinPayload.roomDeck.deckCodeByPlayer.black).toBe(result.blackDeckCode);
     expect(result.joinPayload.roomDeck.deckCodeByPlayer.white).toBe(result.whiteDeckCode);
+    expect(result.statePayload.networkDebugEnabled).toBe(true);
     expect(result.statePayload.roomDeck.deckCodeByPlayer.black).toBe(result.blackDeckCode);
     expect(result.statePayload.roomDeck.deckCodeByPlayer.white).toBe(result.whiteDeckCode);
     expect(result.statePayload.snapshot.cardState.initialDeckSizeByPlayer.black).toBe(30);

@@ -92,6 +92,10 @@ describe('selfplay generate data script', () => {
                     '--train-games', '321',
                     '--selfplay-jobs', '7',
                     '--card-usage-rate', '0.44',
+                    '--selfplay-policy-score-weight-min', '1.6',
+                    '--selfplay-policy-score-weight-max', '2.2',
+                    '--selfplay-heuristic-weight-min', '0.75',
+                    '--selfplay-heuristic-weight-max', '1.0',
                     '--no-cards'
                 ]
             }
@@ -108,6 +112,10 @@ describe('selfplay generate data script', () => {
             expect(args.jobs).toBe(7);
             expect(args.allowCardUsage).toBe(false);
             expect(args.cardUsageRate).toBeCloseTo(0.44, 6);
+            expect(args.policyScoreWeightMin).toBeCloseTo(1.6, 6);
+            expect(args.policyScoreWeightMax).toBeCloseTo(2.2, 6);
+            expect(args.heuristicWeightMin).toBeCloseTo(0.75, 6);
+            expect(args.heuristicWeightMax).toBeCloseTo(1.0, 6);
             expect(args.policyModelPath).toBe(path.resolve(process.cwd(), modelPath));
             expect(args.dataLane).toBe('train-main');
             expect(args.hardcaseOut).toBe(path.join(path.dirname(outPath), 'train.hardcase.ndjson'));

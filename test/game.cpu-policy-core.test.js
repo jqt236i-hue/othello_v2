@@ -586,7 +586,7 @@ describe('cpu-policy-core', () => {
             rebuild: { id: 'rebuild', type: 'REBUILD_WILL' },
             risk_a: { id: 'risk_a', type: 'SACRIFICE_WILL' },
             risk_b: { id: 'risk_b', type: 'TIME_BOMB' },
-            risk_c: { id: 'risk_c', type: 'CHAIN_WILL' },
+            risk_c: { id: 'risk_c', type: 'DOUBLE_CHAIN_WILL' },
             silver: { id: 'silver', type: 'SILVER_STONE' }
         };
         const out = core.scoreCardUseDecision(
@@ -862,7 +862,7 @@ describe('cpu-policy-core', () => {
         const out = core.scoreCardUseDecision(
             'chain',
             () => 3,
-            () => ({ id: 'chain', type: 'CHAIN_WILL' }),
+            () => ({ id: 'chain', type: 'DOUBLE_CHAIN_WILL' }),
             {
                 level: 6,
                 legalMovesCount: 4,
@@ -1255,6 +1255,57 @@ describe('cpu-policy-core', () => {
         expect(strong.score).toBeGreaterThan(weak.score);
     });
 
+    test('scoreCardUseDecision suppresses LOSS_WILL when it would reset own corner special without bigger enemy anchor payoff', () => {
+        const out = core.scoreCardUseDecision(
+            'loss',
+            () => 11,
+            () => ({ id: 'loss', type: 'LOSS_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: -4,
+                empties: 26,
+                ownCharge: 18,
+                ownSpecialCount: 1,
+                oppSpecialCount: 3,
+                ownGuardCount: 0,
+                oppGuardCount: 0,
+                ownCornerResetCount: 1,
+                oppCornerResetCount: 0,
+                ownEdgeResetCount: 0,
+                oppEdgeResetCount: 0
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+        expect(out.score).toBeLessThan(out.minUseScore);
+    });
+
+    test('scoreCardUseDecision keeps LOSS_WILL available when enemy anchor resets clearly outweigh own', () => {
+        const out = core.scoreCardUseDecision(
+            'loss',
+            () => 11,
+            () => ({ id: 'loss', type: 'LOSS_WILL' }),
+            {
+                level: 6,
+                legalMovesCount: 2,
+                discDiff: -8,
+                empties: 20,
+                ownCharge: 18,
+                ownSpecialCount: 1,
+                oppSpecialCount: 5,
+                ownGuardCount: 0,
+                oppGuardCount: 0,
+                ownCornerResetCount: 1,
+                oppCornerResetCount: 2,
+                ownEdgeResetCount: 0,
+                oppEdgeResetCount: 1,
+                cornerEmergency: true
+            }
+        );
+        expect(out.shouldUse).toBe(true);
+        expect(out.score).toBeGreaterThanOrEqual(out.minUseScore);
+    });
+
     test('scoreCardUseDecision uses EXTREME_HYPERACTIVE_WILL as comeback card and suppresses it while ahead in endgame', () => {
         const trailing = core.scoreCardUseDecision(
             'extreme',
@@ -1450,7 +1501,7 @@ describe('cpu-policy-core', () => {
     test('chooseSellCardTargetByRetention keeps recovery card during corner emergency', () => {
         const defs = {
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' },
-            chain: { id: 'chain', type: 'CHAIN_WILL' },
+            chain: { id: 'chain', type: 'DOUBLE_CHAIN_WILL' },
             wind: { id: 'wind', type: 'STRONG_WIND_WILL' }
         };
         const costs = { recover: 14, chain: 10, wind: 8 };
@@ -1652,7 +1703,7 @@ describe('cpu-policy-core', () => {
             sacrifice: { id: 'sacrifice', type: 'SACRIFICE_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             silver: { id: 'silver', type: 'SILVER_STONE' },
-            chain: { id: 'chain', type: 'CHAIN_WILL' }
+            chain: { id: 'chain', type: 'DOUBLE_CHAIN_WILL' }
         };
         const costs = { sacrifice: 5, guard: 2, silver: 5, chain: 10 };
         const selected = core.chooseHandDestroyTargetForCycle(
@@ -1678,7 +1729,7 @@ describe('cpu-policy-core', () => {
     test('chooseHandDestroyTargetForCycle keeps recovery card during emergency hand-pressure cycle', () => {
         const defs = {
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' },
-            chain: { id: 'chain', type: 'CHAIN_WILL' },
+            chain: { id: 'chain', type: 'DOUBLE_CHAIN_WILL' },
             silver: { id: 'silver', type: 'SILVER_STONE' },
             bomb: { id: 'bomb', type: 'TIME_BOMB' },
             guard: { id: 'guard', type: 'GUARD_WILL' }
@@ -1740,7 +1791,7 @@ describe('cpu-policy-core', () => {
 
     test('chooseHandDestroyTargetForCycle rotates CHAIN/DOUBLE first in white Lv6 stable lead', () => {
         const defs = {
-            chain: { id: 'chain', type: 'CHAIN_WILL' },
+            chain: { id: 'chain', type: 'DOUBLE_CHAIN_WILL' },
             double: { id: 'double', type: 'DOUBLE_PLACE' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             work: { id: 'work', type: 'WORK_WILL' }

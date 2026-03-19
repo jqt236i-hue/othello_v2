@@ -464,7 +464,7 @@ function renderCardUI() {
                 const isOwnerTurn = ownerKey === 'black' ? isBlackTurn : !isBlackTurn;
                 const canInspectOwnerHand = isNetworkMode
                     ? (ownerKey === localPlayerKey)
-                    : (isDebugHvH ? isOwnerTurn : (ownerKey === 'black'));
+                    : (isDebugHvH ? true : (ownerKey === 'black'));
                 const canControlOwnerHand = isNetworkMode
                     ? (ownerKey === localPlayerKey && isOwnerTurn)
                     : (isDebugHvH ? isOwnerTurn : (ownerKey === 'black' && isOwnerTurn));
@@ -477,7 +477,7 @@ function renderCardUI() {
                 if (usable) {
                     cardEl.classList.add('usable');
                 }
-                if (cardState.selectedCardId === cardId && ownerKey === inputPlayerKey && selectedOwnerKey === ownerKey) {
+                if (cardState.selectedCardId === cardId && selectedOwnerKey === ownerKey) {
                     cardEl.classList.add('selected');
                 }
 

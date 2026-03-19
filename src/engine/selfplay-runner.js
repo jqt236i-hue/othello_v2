@@ -67,6 +67,10 @@ const CANDIDATE_CARD_TYPES = new Set([
     'BLOCKADE_WILL',
     'METEOR_WILL',
     'CHAIN_WILL',
+    'DOUBLE_CHAIN_WILL',
+    'TRIPLE_CHAIN_WILL',
+    'QUAD_CHAIN_WILL',
+    'INFINITE_CHAIN_WILL',
     'TABOO_REVERSE_WILL',
     'REGEN_WILL',
     'TIME_BOMB',
@@ -1619,45 +1623,54 @@ function choosePlacementMoveByBrowserParity(candidateMoves, context, options, mo
             }
         }
         : null;
+    const policyScoreWeight = Number.isFinite(options && options.policyScoreWeight)
+        ? Math.max(0, Number(options.policyScoreWeight))
+        : (movePlanScoreFn ? 0.35 : 1.0);
+    const heuristicWeight = Number.isFinite(options && options.heuristicWeight)
+        ? Math.max(0, Number(options.heuristicWeight))
+        : 1.0;
+    const tacticalWeight = Number.isFinite(options && options.tacticalWeight)
+        ? Math.max(0, Number(options.tacticalWeight))
+        : 1.0;
     const combinedScoreFn = (move) => {
         let score = 0;
-        if (movePlanScoreFn) score += movePlanScoreFn(move);
+        if (movePlanScoreFn) score += movePlanScoreFn(move) * heuristicWeight;
         const learnedScore = learnedScoreFn ? Number(learnedScoreFn(move) || 0) : 0;
         if (learnedScoreFn) {
-            const learnedWeight = movePlanScoreFn ? 0.35 : 1.0;
-            score += learnedScore * learnedWeight;
+            score += learnedScore * policyScoreWeight;
         }
         if (learnedMove && move && Number(move.row) === Number(learnedMove.row) && Number(move.col) === Number(learnedMove.col)) {
-            score += movePlanScoreFn ? 1200 : 2500;
+            const learnedBonusScale = Math.max(0, Math.min(1, policyScoreWeight));
+            score += (movePlanScoreFn ? 1200 : 2500) * learnedBonusScale;
         }
         return score;
     };
 
-    if (learnedMove && !movePlanScoreFn) {
-        return {
-            move: learnedMove,
-            learnedMove,
-            learnedScoreFn,
-            movePlanScoreFn,
-            combinedScoreFn
-        };
-    }
-
     let selectedMove = null;
-    if (
+    const tacticalLookaheadEnabled =
         !(options && options.enableTacticalLookahead === false) &&
+        tacticalWeight > 0;
+    if (
+        tacticalLookaheadEnabled &&
         CpuPolicyCore &&
         typeof CpuPolicyCore.chooseMoveByLookahead === 'function' &&
         context &&
         context.gameState &&
         Array.isArray(context.gameState.board)
     ) {
+        const teacherLookaheadOverride = {
+            tacticalDepthOpening: options && options.tacticalDepthOpening,
+            tacticalDepthMid: options && options.tacticalDepthMid,
+            tacticalDepthEnd: options && options.tacticalDepthEnd,
+            tacticalBeamWidth: options && options.tacticalBeamWidth
+        };
         const lookaheadOptions = CpuLv6LookaheadProfile.buildLv6LookaheadOptions(
             6,
             context.gameState.board,
             candidateMoves.length,
             context.playerKey,
-            'teacher'
+            'teacher',
+            teacherLookaheadOverride
         );
         const weights = CpuLv6LookaheadProfile.resolveLv6LookaheadWeights();
         const disableLookaheadTimeBudget = options && options.disableLookaheadTimeBudget === true;
@@ -1682,7 +1695,7 @@ function choosePlacementMoveByBrowserParity(candidateMoves, context, options, mo
             nodeBudget: lookaheadOptions.nodeBudget,
             scoreMove: combinedScoreFn,
             priorWeight: Number(weights && weights.policyLookaheadPriorWeight) || 58,
-            searchWeight: Number(weights && weights.searchWeight) || 1.55,
+            searchWeight: (Number(weights && weights.searchWeight) || 1.55) * tacticalWeight,
             endgameSolveEmpties: lookaheadOptions.endgameSolveEmpties || 40,
             endgameDepth: lookaheadOptions.endgameDepth || 40,
             endgameNodeBudget: lookaheadOptions.endgameNodeBudget || 2_500_000,

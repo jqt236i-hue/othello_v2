@@ -2,6 +2,26 @@ const CardLogic = require('../game/logic/cards');
 const Core = require('../game/logic/core');
 const SharedConstants = require('../shared-constants');
 
+function createBombMarker(id, row, col, owner, remainingTurns) {
+  return {
+    id,
+    kind: 'specialStone',
+    row,
+    col,
+    owner,
+    data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns }
+  };
+}
+
+function isBombMarker(marker) {
+  return !!(
+    marker &&
+    marker.kind === 'specialStone' &&
+    marker.data &&
+    marker.data.category === 'bomb'
+  );
+}
+
 function createPrng(randomValue = 0.5) {
   return {
     shuffle: (arr) => arr,
@@ -47,12 +67,7 @@ describe('SPLIT_WILL（分裂の意志）', () => {
       data: { type: 'DRAGON', remainingOwnerTurns: 5 }
     });
     cardState.markers.push({
-      id: 2000,
-      kind: 'bomb',
-      row: 3,
-      col: 3,
-      owner: 'black',
-      data: { remainingTurns: 3 }
+      ...createBombMarker(2000, 3, 3, 'black', 3)
     });
 
     cardState.pendingEffectByPlayer.black = {
@@ -94,7 +109,7 @@ describe('SPLIT_WILL（分裂の意志）', () => {
 
     const sourceBomb = (cardState.markers || []).find((marker) => (
       marker &&
-      marker.kind === 'bomb' &&
+      isBombMarker(marker) &&
       marker.row === 3 &&
       marker.col === 3
     ));
@@ -103,7 +118,7 @@ describe('SPLIT_WILL（分裂の意志）', () => {
 
     const spawnedBomb = (cardState.markers || []).find((marker) => (
       marker &&
-      marker.kind === 'bomb' &&
+      isBombMarker(marker) &&
       marker.row === 3 &&
       marker.col === 4
     ));
@@ -136,12 +151,7 @@ describe('SPLIT_WILL（分裂の意志）', () => {
       data: { type: 'DRAGON', remainingOwnerTurns: 5 }
     });
     cardState.markers.push({
-      id: 3000,
-      kind: 'bomb',
-      row: 3,
-      col: -1,
-      owner: 'black',
-      data: { remainingTurns: 3 }
+      ...createBombMarker(3000, 3, -1, 'black', 3)
     });
 
     cardState.pendingEffectByPlayer.black = {
@@ -161,8 +171,8 @@ describe('SPLIT_WILL（分裂の意志）', () => {
 
     const sourceDragon = cardState.markers.find((marker) => marker && marker.kind === 'specialStone' && marker.row === 3 && marker.col === -1 && marker.data && marker.data.type === 'DRAGON');
     const spawnedDragon = cardState.markers.find((marker) => marker && marker.kind === 'specialStone' && marker.row === 3 && marker.col === 0 && marker.data && marker.data.type === 'DRAGON');
-    const sourceBomb = cardState.markers.find((marker) => marker && marker.kind === 'bomb' && marker.row === 3 && marker.col === -1);
-    const spawnedBomb = cardState.markers.find((marker) => marker && marker.kind === 'bomb' && marker.row === 3 && marker.col === 0);
+    const sourceBomb = cardState.markers.find((marker) => marker && isBombMarker(marker) && marker.row === 3 && marker.col === -1);
+    const spawnedBomb = cardState.markers.find((marker) => marker && isBombMarker(marker) && marker.row === 3 && marker.col === 0);
 
     expect(sourceDragon.data.remainingOwnerTurns).toBe(2);
     expect(spawnedDragon.data.remainingOwnerTurns).toBe(2);

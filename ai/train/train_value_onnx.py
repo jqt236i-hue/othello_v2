@@ -97,25 +97,68 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tactical-miss-threshold", type=float, default=0.08, help="Threshold for tacticalScoreMissRatio danger boost.")
     parser.add_argument("--hand-pressure-sample-boost", type=float, default=0.0, help="Extra weight boost when handCards length is >= 4.")
     parser.add_argument("--pending-target-sample-boost", type=float, default=0.0, help="Extra weight boost when pendingType is active.")
+    parser.add_argument("--corner-balance-sample-boost", type=float, default=0.0, help="Extra sample boost scaled by corner-control pressure in [0,1].")
+    parser.add_argument("--edge-balance-sample-boost", type=float, default=0.0, help="Extra sample boost scaled by edge-control pressure in [0,1].")
+    parser.add_argument("--economy-balance-sample-boost", type=float, default=0.0, help="Extra sample boost scaled by charge/bonus economy pressure in [0,1].")
+    parser.add_argument("--value-target-corner-weight", type=float, default=0.0, help="Corner-control auxiliary weight blended into the value target.")
+    parser.add_argument("--value-target-edge-weight", type=float, default=0.0, help="Edge-control auxiliary weight blended into the value target.")
+    parser.add_argument("--value-target-economy-weight", type=float, default=0.0, help="Charge/bonus economy auxiliary weight blended into the value target.")
+    parser.add_argument("--value-target-corner-emergency-weight", type=float, default=0.0, help="Corner-emergency penalty weight blended into the value target.")
     return parser.parse_args()
 
 
-def value_target(rec: dict) -> float | None:
+def validate_value_target_blend_args(args: argparse.Namespace) -> None:
+    weighted_args = [
+        ("--value-target-corner-weight", float(args.value_target_corner_weight)),
+        ("--value-target-edge-weight", float(args.value_target_edge_weight)),
+        ("--value-target-economy-weight", float(args.value_target_economy_weight)),
+        ("--value-target-corner-emergency-weight", float(args.value_target_corner_emergency_weight)),
+    ]
+    for flag_name, value in weighted_args:
+        if value < 0 or value > 1:
+            raise ValueError(f"{flag_name} must be in [0,1]")
+    aux_total = sum(value for _, value in weighted_args)
+    if aux_total > 0.5:
+        raise ValueError("value-target auxiliary weights must sum to <= 0.5")
+
+
+def value_target(
+    rec: dict,
+    *,
+    corner_weight: float = 0.0,
+    edge_weight: float = 0.0,
+    economy_weight: float = 0.0,
+    corner_emergency_weight: float = 0.0,
+) -> float | None:
     outcome = rec.get("outcome")
     if isinstance(outcome, (int, float)):
-        return max(-1.0, min(1.0, float(outcome)))
+        base_target = base.clamp_float(float(outcome), -1.0, 1.0)
+    else:
+        winner = rec.get("winner")
+        player = rec.get("player")
+        if not isinstance(winner, str) or not isinstance(player, str):
+            return None
+        winner_norm = winner.strip().lower()
+        player_norm = player.strip().lower()
+        if winner_norm == "draw":
+            base_target = 0.0
+        elif winner_norm in ("black", "white") and player_norm in ("black", "white"):
+            base_target = 1.0 if winner_norm == player_norm else -1.0
+        else:
+            return None
 
-    winner = rec.get("winner")
-    player = rec.get("player")
-    if not isinstance(winner, str) or not isinstance(player, str):
-        return None
-    winner_norm = winner.strip().lower()
-    player_norm = player.strip().lower()
-    if winner_norm == "draw":
-        return 0.0
-    if winner_norm in ("black", "white") and player_norm in ("black", "white"):
-        return 1.0 if winner_norm == player_norm else -1.0
-    return None
+    aux_total = float(corner_weight) + float(edge_weight) + float(economy_weight) + float(corner_emergency_weight)
+    if aux_total <= 0:
+        return base_target
+
+    blended = (
+        (max(0.0, 1.0 - aux_total) * float(base_target)) +
+        (float(corner_weight) * base.normalized_corner_balance(rec)) +
+        (float(edge_weight) * base.normalized_edge_balance(rec)) +
+        (float(economy_weight) * base.normalized_economy_balance(rec)) +
+        (float(corner_emergency_weight) * (-base.normalized_flag(rec.get("cornerEmergency", 0))))
+    )
+    return base.clamp_float(blended, -1.0, 1.0)
 
 
 def load_value_dataset(args: argparse.Namespace) -> ValueDatasetBundle:
@@ -129,6 +172,8 @@ def load_value_dataset(args: argparse.Namespace) -> ValueDatasetBundle:
     draw_records = 0
     tactical_miss_records = 0
 
+    validate_value_target_blend_args(args)
+
     with open(args.input, "r", encoding="utf-8") as handle:
         for line in handle:
             line = line.strip()
@@ -136,7 +181,13 @@ def load_value_dataset(args: argparse.Namespace) -> ValueDatasetBundle:
                 continue
             records_read += 1
             rec = json.loads(line)
-            target = value_target(rec)
+            target = value_target(
+                rec,
+                corner_weight=float(args.value_target_corner_weight),
+                edge_weight=float(args.value_target_edge_weight),
+                economy_weight=float(args.value_target_economy_weight),
+                corner_emergency_weight=float(args.value_target_corner_emergency_weight),
+            )
             if target is None:
                 continue
 
@@ -154,6 +205,9 @@ def load_value_dataset(args: argparse.Namespace) -> ValueDatasetBundle:
                 tactical_miss_threshold=float(args.tactical_miss_threshold),
                 hand_pressure_sample_boost=float(args.hand_pressure_sample_boost),
                 pending_target_sample_boost=float(args.pending_target_sample_boost),
+                corner_balance_sample_boost=float(args.corner_balance_sample_boost),
+                edge_balance_sample_boost=float(args.edge_balance_sample_boost),
+                economy_balance_sample_boost=float(args.economy_balance_sample_boost),
             )
             sample_weight.append(float(weight_value))
             train_records += 1
@@ -463,6 +517,13 @@ def write_meta(
             "tacticalMissThreshold": args.tactical_miss_threshold,
             "handPressureSampleBoost": args.hand_pressure_sample_boost,
             "pendingTargetSampleBoost": args.pending_target_sample_boost,
+            "cornerBalanceSampleBoost": args.corner_balance_sample_boost,
+            "edgeBalanceSampleBoost": args.edge_balance_sample_boost,
+            "economyBalanceSampleBoost": args.economy_balance_sample_boost,
+            "valueTargetCornerWeight": args.value_target_corner_weight,
+            "valueTargetEdgeWeight": args.value_target_edge_weight,
+            "valueTargetEconomyWeight": args.value_target_economy_weight,
+            "valueTargetCornerEmergencyWeight": args.value_target_corner_emergency_weight,
             "resumeCheckpoint": (args.resume_checkpoint or "").strip() or None,
             "resumeOptimizer": bool(args.resume_optimizer),
             "checkpointOut": (args.checkpoint_out or "").strip() or None,
@@ -533,6 +594,13 @@ def maybe_write_checkpoint(
             "tacticalMissThreshold": float(args.tactical_miss_threshold),
             "handPressureSampleBoost": float(args.hand_pressure_sample_boost),
             "pendingTargetSampleBoost": float(args.pending_target_sample_boost),
+            "cornerBalanceSampleBoost": float(args.corner_balance_sample_boost),
+            "edgeBalanceSampleBoost": float(args.edge_balance_sample_boost),
+            "economyBalanceSampleBoost": float(args.economy_balance_sample_boost),
+            "valueTargetCornerWeight": float(args.value_target_corner_weight),
+            "valueTargetEdgeWeight": float(args.value_target_edge_weight),
+            "valueTargetEconomyWeight": float(args.value_target_economy_weight),
+            "valueTargetCornerEmergencyWeight": float(args.value_target_corner_emergency_weight),
             "resumedFrom": resumed_from,
             "resumeOptimizer": bool(args.resume_optimizer),
         },

@@ -86,11 +86,11 @@ describe('POSITION_SWAP_WILL (入替の意志)', () => {
     });
     cardState.markers.push({
       id: 102,
-      kind: 'bomb',
+      kind: 'specialStone',
       row: 5,
       col: 5,
       owner: 'white',
-      data: { remainingTurns: 2 }
+      data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 }
     });
     cardState.workAnchorPosByPlayer.black = { row: 2, col: 2 };
     cardState.pendingEffectByPlayer.black = { type: 'POSITION_SWAP_WILL', stage: 'selectTarget', cardId: 'position_swap_01' };
@@ -168,11 +168,11 @@ describe('POSITION_SWAP_WILL (入替の意志)', () => {
     cardState.expansionStoneIdByCell = { '2,-1': 'exp-stone' };
     cardState.markers.push({
       id: 301,
-      kind: 'bomb',
+      kind: 'specialStone',
       row: 2,
       col: -1,
       owner: 'white',
-      data: { remainingTurns: 2 }
+      data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 }
     });
     cardState.pendingEffectByPlayer.black = { type: 'POSITION_SWAP_WILL', stage: 'selectTarget', cardId: 'position_swap_01' };
 

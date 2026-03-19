@@ -117,6 +117,22 @@ describe('board-renderer fallback legal hints', () => {
     expect(global.renderCardUI).not.toHaveBeenCalled();
   });
 
+  test('renderBoard toggles time-stop-active class from card state', () => {
+    const boardRenderer = require('../ui/board-renderer');
+
+    global.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 1, white: 0 };
+    boardRenderer.renderBoard();
+
+    expect(document.documentElement.classList.contains('time-stop-active')).toBe(true);
+    expect(document.body.classList.contains('time-stop-active')).toBe(true);
+
+    global.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 0, white: 0 };
+    boardRenderer.renderBoard();
+
+    expect(document.documentElement.classList.contains('time-stop-active')).toBe(false);
+    expect(document.body.classList.contains('time-stop-active')).toBe(false);
+  });
+
   test('renderBoardFull skips full redraw while persisted PLAYBACK_EVENTS are pending', () => {
     global.boardEl.innerHTML = '<div class="sentinel"></div>';
     global.cardState._presentationEventsPersist = [

@@ -20,6 +20,7 @@
     const REGEN_CAUSE = 'REGEN';
     const REGEN_TRIGGER_REASON = 'regen_triggered';
     const EFFECT_TARGET_HIGHLIGHT_CLASS = 'effect-target-highlight';
+    const LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY = '__skipNextPlaybackSoundUntilByKey';
 
     function hasRegenBackFlip(events) {
         return (events || []).some(e =>
@@ -72,6 +73,34 @@
     }
 
     // use the _Timer from AnimationShared (declared above) to avoid duplication
+
+    function _getUiRootRef() {
+        if (typeof window !== 'undefined' && window) return window;
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis) return globalThis;
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function _consumeLocalPlaybackSoundSkip(soundKey) {
+        const normalizedKey = String(soundKey || '').trim();
+        if (!normalizedKey) return false;
+        const rootRef = _getUiRootRef();
+        if (!rootRef) return false;
+        const registry = rootRef[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY];
+        if (!registry || typeof registry !== 'object') return false;
+        const expiresAt = Number(registry[normalizedKey]);
+        if (!Number.isFinite(expiresAt)) return false;
+        try {
+            delete registry[normalizedKey];
+            if (Object.keys(registry).length === 0) {
+                delete rootRef[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY];
+            }
+        } catch (e) {
+            registry[normalizedKey] = 0;
+        }
+        return expiresAt >= Date.now();
+    }
 
     class PlaybackEngine {
         constructor() {
@@ -274,6 +303,15 @@
             return null;
         }
 
+        _resolveCardType(cardId) {
+            if (!cardId) return null;
+            if (typeof CardLogic === 'undefined' || !CardLogic || typeof CardLogic.getCardDef !== 'function') {
+                return null;
+            }
+            const def = CardLogic.getCardDef(cardId);
+            return def && typeof def.type === 'string' ? def.type : null;
+        }
+
         _resolvePlaceHandDescriptor(target) {
             const normalizedTarget = this._normalizeTarget(target, EVENT_TYPES.PLACE_HAND_ANIMATION);
             const playerKey = this._normalizePlayerKeyOptional(
@@ -307,6 +345,7 @@
 
             const localSeatKey = this._resolveLocalSeatKey();
             if (ownerKey === localSeatKey) return;
+            if (this._resolveCardType(target && target.cardId) === 'TREASURE_BOX') return;
 
             try {
                 if (typeof SoundEngine !== 'undefined' && SoundEngine && typeof SoundEngine.playEffectByKey === 'function') {
@@ -1019,6 +1058,12 @@
             // Otherwise, if flip events were dropped (e.g., missing BoardOps CHANGE events), suppressing would remove
             // the last-resort visual cue and make flips appear instantaneous.
             const shouldSuppressNextDiffFlip = normalizedEvents.some(e => e && e.type === EVENT_TYPES.FLIP);
+            const shouldSuppressBoardExpansionRevealSound = normalizedEvents.some((event) => (
+                event &&
+                event.type === EVENT_TYPES.MOVE &&
+                Array.isArray(event.targets) &&
+                event.targets.some((target) => String(target && target.cause ? target.cause : '').toUpperCase() === 'CELL_TELEPORT_WILL')
+            ));
 
             if (this.isPlaying) {
                 console.warn('[AnimationEngine] Already playing. Aborting previous...');
@@ -1107,21 +1152,37 @@
                  // After playback, AnimationEngine triggers `emitBoardUpdate()` to sync any non-animated UI (timers, hints).
                  // DiffRenderer has a fallback "owner changed => add .flip" animation which would otherwise replay flips,
                  // making stones appear to flip twice. This context is consumed/cleared by ui/diff-renderer.js.
-                 if (shouldSuppressNextDiffFlip && !abortedDuringPlay && !this._watchdogFired && !this.isAborted) {
-                     try {
-                         if (PlaybackState && typeof PlaybackState.armBoardUpdateContext === 'function') {
-                             PlaybackState.armBoardUpdateContext({
-                                 suppressFallbackFlip: true,
+                 if ((shouldSuppressNextDiffFlip || shouldSuppressBoardExpansionRevealSound) && !abortedDuringPlay && !this._watchdogFired && !this.isAborted) {
+                      try {
+                          if (PlaybackState && typeof PlaybackState.armBoardUpdateContext === 'function') {
+                             const boardUpdateContext = {
                                  source: 'animation-engine',
                                  reason: 'post_playback_sync'
-                             });
-                         } else if (PlaybackState && typeof PlaybackState.setSuppressNextDiffFlip === 'function') {
-                             PlaybackState.setSuppressNextDiffFlip(true);
-                         } else {
-                             window.__suppressNextDiffFlip = true;
-                         }
-                     } catch (e) { /* ignore */ }
-                 }
+                             };
+                             if (shouldSuppressNextDiffFlip) {
+                                 boardUpdateContext.suppressFallbackFlip = true;
+                             }
+                             if (shouldSuppressBoardExpansionRevealSound) {
+                                 boardUpdateContext.suppressBoardExpansionRevealSound = true;
+                             }
+                             PlaybackState.armBoardUpdateContext(boardUpdateContext);
+                          } else if (PlaybackState && typeof PlaybackState.setSuppressNextDiffFlip === 'function') {
+                             if (shouldSuppressNextDiffFlip) {
+                                 PlaybackState.setSuppressNextDiffFlip(true);
+                             }
+                             if (shouldSuppressBoardExpansionRevealSound && typeof window !== 'undefined' && window) {
+                                 window.__suppressNextBoardExpansionRevealSound = true;
+                             }
+                          } else {
+                             if (shouldSuppressNextDiffFlip) {
+                                 window.__suppressNextDiffFlip = true;
+                             }
+                             if (shouldSuppressBoardExpansionRevealSound) {
+                                 window.__suppressNextBoardExpansionRevealSound = true;
+                             }
+                          }
+                      } catch (e) { /* ignore */ }
+                  }
                  // Avoid leaking abort state into the next playback run.
                  this.isAborted = false;
                  // After playback completes, request a final board diff render to ensure DOM matches state.
@@ -1368,6 +1429,9 @@
                     {
                         const t2 = (ev.targets && ev.targets[0]) ? ev.targets[0] : ev;
                         this._playCardUseButtonCueForOpponent(t2);
+                        const disappearPlaybackEvents = Array.isArray(t2.disappearPlaybackEvents)
+                            ? t2.disappearPlaybackEvents.filter((one) => !!one)
+                            : [];
                         if (typeof window !== 'undefined' && typeof window.playCardUseHandAnimation === 'function') {
                             return window.playCardUseHandAnimation({
                                 player: t2.player,
@@ -1375,6 +1439,10 @@
                                 cardId: t2.cardId,
                                 cost: t2.cost,
                                 name: t2.name,
+                                disappearSoundKey: t2.disappearSoundKey || null,
+                                onDisappear: disappearPlaybackEvents.length > 0
+                                    ? () => Promise.all(disappearPlaybackEvents.map((one) => this.executeEvent(one)))
+                                    : null,
                                 sourceCardEl: t2.sourceCardEl || null,
                                 sourceCardRect: t2.sourceCardRect || ev.sourceCardRect || null
                             });
@@ -1424,6 +1492,7 @@
                 const trimmed = String(key || '').trim();
                 if (!trimmed || seen.has(trimmed)) continue;
                 seen.add(trimmed);
+                if (_consumeLocalPlaybackSoundSkip(trimmed)) continue;
                 try {
                     if (typeof SoundEngine !== 'undefined' && SoundEngine && typeof SoundEngine.playEffectByKey === 'function') {
                         SoundEngine.init();
@@ -1665,15 +1734,22 @@
                     : null;
                 const ownerColor = this._resolveOwnerColorFromBefore(t && t.ownerBefore);
                 const disc = cell.querySelector('.disc');
-                if (!disc && !isSuperCrushCollision) return;
+                const shouldPreserveDestroyPlaybackWithoutDisc =
+                    isSuperCrushCollision ||
+                    this._shouldHighlightEffectTarget(EVENT_TYPES.DESTROY, t);
+                if (!disc && !shouldPreserveDestroyPlaybackWithoutDisc) return;
 
                 await this._runWithEffectTargetHighlight(cell, EVENT_TYPES.DESTROY, t, async () => {
-                    const useGhostOnlySuperCrushDestroy = isSuperCrushCollision && (
-                        !disc ||
+                    const useGhostOnlyDestroy = !disc || (
+                        isSuperCrushCollision &&
                         (superCrushDestinationContext && superCrushDestinationContext.sourceHadDisc === false)
                     );
-                    if (useGhostOnlySuperCrushDestroy) {
-                        await this._animateDestroyGhostAtCell(cell, ownerColor);
+                    if (useGhostOnlyDestroy) {
+                        if (ownerColor === null && !isSuperCrushCollision) {
+                            await this._sleep(FADE_OUT_MS);
+                        } else {
+                            await this._animateDestroyGhostAtCell(cell, ownerColor);
+                        }
                         return;
                     }
 
@@ -1725,8 +1801,14 @@
                         } catch (e) { /* ignore */ }
                     } else {
                         // Fallback: apply class and sleep
-                        disc.classList.add('destroy-fade');
-                        await this._sleep(FADE_OUT_MS);
+                        if (disc) {
+                            disc.classList.add('destroy-fade');
+                            await this._sleep(FADE_OUT_MS);
+                        } else if (ownerColor !== null) {
+                            await this._animateDestroyGhostAtCell(cell, ownerColor);
+                        } else {
+                            await this._sleep(FADE_OUT_MS);
+                        }
                     }
                     this._removeDiscFromCell(cell, disc);
                 });
@@ -1877,6 +1959,75 @@
                 try { discEl.style.visibility = 'visible'; } catch (e) { /* ignore */ }
                 try { discEl.style.opacity = ''; } catch (e) { /* ignore */ }
             };
+            const buildMoveGhostAnimationSpec = (moveCause, moveReason, deltaX, deltaY) => {
+                const normalizedCause = String(moveCause || '').toUpperCase();
+                const normalizedReason = String(moveReason || '').toLowerCase();
+                const defaultSpec = {
+                    keyframes: [
+                        { transform: 'translate(0, 0)' },
+                        { transform: `translate(${deltaX}px, ${deltaY}px)` }
+                    ],
+                    easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)'
+                };
+                const absX = Math.abs(deltaX);
+                const absY = Math.abs(deltaY);
+                const dominantTravel = Math.max(absX, absY);
+                if (dominantTravel <= 0) return defaultSpec;
+
+                const isStrongWindMove =
+                    normalizedCause === 'STRONG_WIND_WILL' ||
+                    normalizedReason.indexOf('strong_wind_move') === 0;
+                const isSuperBuoyancyMove =
+                    normalizedCause === 'SUPER_BUOYANCY_WILL' ||
+                    normalizedReason.indexOf('super_buoyancy_move') === 0;
+                const isSuperGravityMove =
+                    normalizedCause === 'SUPER_GRAVITY_WILL' ||
+                    normalizedReason.indexOf('super_gravity_move') === 0;
+
+                if (isStrongWindMove) {
+                    const gustOffset = Math.max(10, Math.round(dominantTravel * 0.14));
+                    const gustX = absX >= absY
+                        ? Math.round(deltaX * 0.58)
+                        : Math.round(deltaX * 0.54) + (deltaX >= 0 ? gustOffset : -gustOffset);
+                    const gustY = absX >= absY
+                        ? Math.round(deltaY * 0.54) - gustOffset
+                        : Math.round(deltaY * 0.58);
+                    return {
+                        keyframes: [
+                            { transform: 'translate(0, 0) scale(1)' },
+                            { transform: `translate(${gustX}px, ${gustY}px) scale(1.08)` },
+                            { transform: `translate(${deltaX}px, ${deltaY}px) scale(1)` }
+                        ],
+                        easing: 'cubic-bezier(0.14, 0.92, 0.24, 1)'
+                    };
+                }
+
+                if (isSuperBuoyancyMove) {
+                    const lift = Math.max(18, Math.round(dominantTravel * 0.2));
+                    return {
+                        keyframes: [
+                            { transform: 'translate(0, 0) scale(1)' },
+                            { transform: `translate(${Math.round(deltaX * 0.45)}px, ${Math.round(deltaY * 0.45) - lift}px) scale(1.06)` },
+                            { transform: `translate(${deltaX}px, ${deltaY}px) scale(1)` }
+                        ],
+                        easing: 'cubic-bezier(0.12, 0.88, 0.28, 1)'
+                    };
+                }
+
+                if (isSuperGravityMove) {
+                    const drop = Math.max(20, Math.round(dominantTravel * 0.22));
+                    return {
+                        keyframes: [
+                            { transform: 'translate(0, 0) scale(1)' },
+                            { transform: `translate(${Math.round(deltaX * 0.7)}px, ${Math.round(deltaY * 0.7) + drop}px) scale(1.05)` },
+                            { transform: `translate(${deltaX}px, ${deltaY}px) scale(1)` }
+                        ],
+                        easing: 'cubic-bezier(0.36, 0.08, 0.74, 0.98)'
+                    };
+                }
+
+                return defaultSpec;
+            };
 
             const promises = ev.targets.map(async t => {
                 const fromCell = this.getCellEl(t.from.r, t.from.col);
@@ -1959,6 +2110,8 @@
                 // Section 5.5: Straight-line interpolation via ghost
                 const fromRect = fromCell.getBoundingClientRect();
                 const toRect = toCell.getBoundingClientRect();
+                const deltaX = toRect.left - fromRect.left;
+                const deltaY = toRect.top - fromRect.top;
                 const noAnim = _isNoAnim();
 
                 // If no-animations mode, skip animation and perform immediate DOM move
@@ -2069,12 +2222,10 @@
                     let anim = null;
                     if (typeof ghost.animate === 'function') {
                         try {
-                            anim = ghost.animate([
-                                { transform: 'translate(0, 0)' },
-                                { transform: `translate(${toRect.left - fromRect.left}px, ${toRect.top - fromRect.top}px)` }
-                            ], {
+                            const animationSpec = buildMoveGhostAnimationSpec(moveCause, moveReason, deltaX, deltaY);
+                            anim = ghost.animate(animationSpec.keyframes, {
                                 duration: durationMs,
-                                easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)'
+                                easing: animationSpec.easing
                             });
                         } catch (e) {
                             anim = null;
@@ -2177,17 +2328,38 @@
 
         async handleStatusChange(ev) {
             const promises = ev.targets.map(async t => {
-                const disc = await this.waitForDisc(t.r, t.col, 4);
-                if (!disc) return;
+                const cell = this.getCellEl(t.r, t.col);
 
                 const after = t.after || {};
                 const rawType = String(ev && ev.rawType ? ev.rawType : '').toUpperCase();
                 const isStatusTick = rawType === 'STATUS_TICK';
+                const statusRemoveReason = String(
+                    (ev && ev.meta && ev.meta.reason) ||
+                    (ev && ev.reason) ||
+                    ''
+                ).toLowerCase();
+                const removedSpecialUpper = String(ev && ev.meta && ev.meta.special ? ev.meta.special : '').toUpperCase();
+                const isFreezeDurationEnd =
+                    ev &&
+                    ev.type === EVENT_TYPES.STATUS_REMOVED &&
+                    removedSpecialUpper === 'FREEZE' &&
+                    statusRemoveReason === 'duration_end' &&
+                    !after.special;
 
                 if (isStatusTick) {
+                    const disc = await this.waitForDisc(t.r, t.col, 4);
+                    if (!disc) return;
                     this.syncDiscTimerOnly(disc, after);
                     return;
                 }
+
+                if (isFreezeDurationEnd) {
+                    await this.fadeOutFreezeOverlay(cell, OVERLAY_CROSSFADE_MS);
+                    return;
+                }
+
+                const disc = await this.waitForDisc(t.r, t.col, 4);
+                if (!disc) return;
 
                 const isRegenConsumed =
                     ev &&
@@ -2234,6 +2406,56 @@
                 }
             });
             await Promise.all(promises);
+        }
+
+        async fadeOutFreezeOverlay(cell, durationMs) {
+            if (!cell) return;
+            const freezeMark = cell.querySelector('.freeze-mark');
+            cell.classList.remove('frozen-cell');
+            if (!freezeMark) return;
+            if (_isNoAnim() || !Number.isFinite(durationMs) || durationMs <= 0) {
+                try { if (freezeMark.parentElement) freezeMark.parentElement.removeChild(freezeMark); } catch (e) { /* ignore */ }
+                return;
+            }
+
+            const ghost = freezeMark.cloneNode(true);
+            ghost.style.position = 'absolute';
+            ghost.style.inset = '0';
+            ghost.style.pointerEvents = 'none';
+            ghost.style.zIndex = '85';
+            ghost.style.opacity = '1';
+
+            try { if (freezeMark.parentElement) freezeMark.parentElement.removeChild(freezeMark); } catch (e) { /* ignore */ }
+            cell.appendChild(ghost);
+            ghost.style.transition = `opacity ${durationMs}ms ease`;
+
+            await new Promise((resolve) => {
+                let timeoutId = null;
+                let done = false;
+                const finish = () => {
+                    if (done) return;
+                    done = true;
+                    if (timeoutId !== null) {
+                        try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
+                        timeoutId = null;
+                    }
+                    try { ghost.removeEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
+                    try { if (ghost.parentElement) ghost.parentElement.removeChild(ghost); } catch (e) { /* ignore */ }
+                    resolve();
+                };
+                const onEnd = (e) => {
+                    if (!e || e.propertyName === 'opacity') finish();
+                };
+                try { ghost.addEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
+                try { timeoutId = _Timer().setTimeout(finish, durationMs + 120, this.playbackScope); } catch (e) { timeoutId = setTimeout(finish, durationMs + 120); }
+                try {
+                    requestAnimationFrame(() => {
+                        ghost.style.opacity = '0';
+                    });
+                } catch (e) {
+                    ghost.style.opacity = '0';
+                }
+            });
         }
 
         async crossfadeDiscToState(disc, after, durationMs) {

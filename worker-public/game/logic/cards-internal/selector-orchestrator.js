@@ -236,7 +236,6 @@
             if (ownerValue !== opponentVal) return;
             const hasSpecialOrBomb = markers.some((marker) => {
                 if (!marker || marker.row !== targetRow || marker.col !== targetCol) return false;
-                if (marker.kind === 'bomb') return true;
                 if (marker.kind !== 'specialStone') return false;
                 if (isHiddenTrapForPlayer(marker)) return false;
                 const isExpiredUltimateHyperactive = !!(

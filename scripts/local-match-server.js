@@ -10,6 +10,7 @@ const SeededPRNG = require('../game/schema/prng');
 const deepClone = require('../utils/deepClone');
 const MatchAuthority = require('../utils/match-authority');
 const NetworkActionSchema = require('../shared/network-action-schema');
+const PlaybackEventHelpers = require('../shared/playback-event-helpers');
 const DeckCodecModule = require('../shared/deck-codec');
 const DeckSpecHelpers = require('../shared/deck-spec');
 
@@ -39,6 +40,7 @@ const NETWORK_PLAYER_NAME_MAX = 7;
 const NETWORK_TURN_LIMIT_SECONDS = 120;
 const NETWORK_TURN_LIMIT_MS = NETWORK_TURN_LIMIT_SECONDS * 1000;
 const SSE_HEARTBEAT_INTERVAL_MS = 20000;
+const NETWORK_DEBUG_FILL_HAND_ACTION = 'debug_fill_hand';
 
 const rooms = new Map();
 let heartbeatIntervalId = 0;
@@ -98,6 +100,16 @@ function makeSeatToken() {
 function normalizeNetworkPlayerName(value) {
     const normalized = String(value || '').replace(/\s+/g, ' ').trim();
     return Array.from(normalized).slice(0, NETWORK_PLAYER_NAME_MAX).join('');
+}
+
+function isNetworkDebugFillHandAction(value) {
+    return String(value || '').trim().toLowerCase() === NETWORK_DEBUG_FILL_HAND_ACTION;
+}
+
+function isNetworkDebugFillHandPayload(value) {
+    if (!value || typeof value !== 'object') return false;
+    if (isNetworkDebugFillHandAction(value.actionType)) return true;
+    return isNetworkDebugFillHandAction(value.action && value.action.type);
 }
 
 function makeInitialSnapshot(seed, options) {
@@ -289,34 +301,33 @@ function reconcileTurnStartIfNeeded(room, snapshot, options) {
 
 function mapServerPresentationToPlaybackEvents(presentationEvents, rawEvents, snapshot) {
     const events = Array.isArray(presentationEvents) ? presentationEvents : [];
-    if (events.length === 0) return [];
-
-    if (!TurnPipelineUIAdapter || typeof TurnPipelineUIAdapter.mapToPlaybackEvents !== 'function') {
-        return deepClone(events);
+    if (PlaybackEventHelpers && typeof PlaybackEventHelpers.assemblePlaybackEvents === 'function') {
+        return PlaybackEventHelpers.assemblePlaybackEvents({
+            rawEvents: Array.isArray(rawEvents) ? rawEvents : [],
+            presentationEvents: events,
+            snapshot,
+            fallbackPlayerKey: getCurrentPlayerKey(snapshot && snapshot.gameState),
+            adapter: TurnPipelineUIAdapter,
+            normalizePlayerKey
+        });
     }
 
-    let playbackEvents = [];
-    try {
-        playbackEvents = TurnPipelineUIAdapter.mapToPlaybackEvents(
+    if (events.length === 0) {
+        return { playbackEvents: [], diagnostics: null };
+    }
+
+    if (!TurnPipelineUIAdapter || typeof TurnPipelineUIAdapter.mapToPlaybackEvents !== 'function') {
+        return { playbackEvents: deepClone(events), diagnostics: null };
+    }
+
+    return {
+        playbackEvents: TurnPipelineUIAdapter.mapToPlaybackEvents(
             events,
             snapshot && snapshot.cardState,
             snapshot && snapshot.gameState
-        ) || [];
-    } catch (e) {
-        playbackEvents = [];
-    }
-
-    if (typeof TurnPipelineUIAdapter.appendSoundEffectPlaybackEvents === 'function') {
-        try {
-            playbackEvents = TurnPipelineUIAdapter.appendSoundEffectPlaybackEvents(
-                playbackEvents,
-                Array.isArray(rawEvents) ? rawEvents : [],
-                events
-            ) || playbackEvents;
-        } catch (e) { /* ignore */ }
-    }
-
-    return Array.isArray(playbackEvents) ? deepClone(playbackEvents) : [];
+        ) || [],
+        diagnostics: null
+    };
 }
 
 function collectServerPlaybackEvents(snapshot, rawEvents) {
@@ -340,6 +351,67 @@ function collectServerPlaybackEvents(snapshot, rawEvents) {
     return mapServerPresentationToPlaybackEvents(presentationEvents, rawEvents, snapshot);
 }
 
+function getPlaybackAssemblyWarnings(diagnostics) {
+    const list = (diagnostics && Array.isArray(diagnostics.warnings)) ? diagnostics.warnings : [];
+    return list.filter((warning) => String(warning || '').trim());
+}
+
+function toDebugPlaybackDiagnostics(diagnostics, networkDebugEnabled) {
+    const warnings = getPlaybackAssemblyWarnings(diagnostics);
+    if (!warnings.length || networkDebugEnabled !== true) return null;
+    return deepClone(diagnostics);
+}
+
+function reportPlaybackAssemblyDiagnostics(context, diagnostics, options = {}) {
+    const warnings = getPlaybackAssemblyWarnings(diagnostics);
+    if (!warnings.length) return;
+
+    const message = `[playback-assembly:${context}] ${warnings.join('; ')}`;
+    const isTestEnv = typeof process !== 'undefined' && process && process.env && process.env.NODE_ENV === 'test';
+    if (isTestEnv) {
+        throw new Error(message);
+    }
+    if (options.networkDebugEnabled === true) {
+        console.warn(message, diagnostics);
+        return;
+    }
+    console.error(message);
+}
+
+function buildPublishPayload(room, viewerSeatKey, options = {}) {
+    const serverTime = Number.isFinite(Number(options.serverTime)) ? Number(options.serverTime) : Date.now();
+    const networkDebugEnabled = toPublicNetworkDebugEnabled(room);
+    const payloadOptions = {
+        ok: options.ok === true,
+        roomId: room && room.roomId,
+        stateVersion: room ? room.stateVersion : null,
+        snapshot: Object.prototype.hasOwnProperty.call(options, 'snapshot')
+            ? options.snapshot
+            : toPublicSnapshot(room, viewerSeatKey),
+        seats: toPublicSeats(room),
+        seatNames: toPublicSeatNames(room),
+        roomDeck: toPublicRoomDeck(room),
+        networkDebugEnabled,
+        turnTimer: toPublicTurnTimer(room, serverTime),
+        serverTime,
+        idempotentReplay: options.idempotentReplay === true,
+        publishMeta: options.publishMeta || null
+    };
+    if (Object.prototype.hasOwnProperty.call(options, 'rejectedReason')) {
+        payloadOptions.rejectedReason = options.rejectedReason || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(options, 'errorMessage')) {
+        payloadOptions.errorMessage = options.errorMessage || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(options, 'playbackDiagnostics')) {
+        payloadOptions.playbackDiagnostics = toDebugPlaybackDiagnostics(options.playbackDiagnostics, networkDebugEnabled);
+    }
+    if (MatchAuthority && typeof MatchAuthority.buildPublishResponsePayload === 'function') {
+        return MatchAuthority.buildPublishResponsePayload(payloadOptions);
+    }
+    return payloadOptions;
+}
+
 function captureTurnStartHandState(snapshot) {
     const playerKey = getCurrentPlayerKey(snapshot && snapshot.gameState);
     const hands = (snapshot && snapshot.cardState && snapshot.cardState.hands && typeof snapshot.cardState.hands === 'object')
@@ -351,17 +423,20 @@ function captureTurnStartHandState(snapshot) {
     };
 }
 
-function appendTurnStartDrawPlaybackEvents(playbackEvents, snapshot, handState) {
-    const baseEvents = Array.isArray(playbackEvents) ? playbackEvents.slice() : [];
+function appendTurnStartDrawPlaybackEvents(playbackAssembly, snapshot, handState) {
+    const assembly = (playbackAssembly && typeof playbackAssembly === 'object')
+        ? playbackAssembly
+        : { playbackEvents: Array.isArray(playbackAssembly) ? playbackAssembly : [], diagnostics: null };
+    const baseEvents = Array.isArray(assembly.playbackEvents) ? assembly.playbackEvents.slice() : [];
     const playerKey = normalizePlayerKey(handState && handState.playerKey);
-    if (!playerKey) return baseEvents;
+    if (!playerKey) return assembly;
 
     const hands = (snapshot && snapshot.cardState && snapshot.cardState.hands && typeof snapshot.cardState.hands === 'object')
         ? snapshot.cardState.hands
         : {};
     const beforeHand = Array.isArray(handState && handState.hand) ? handState.hand : [];
     const afterHand = Array.isArray(hands[playerKey]) ? hands[playerKey] : [];
-    if (afterHand.length <= beforeHand.length) return baseEvents;
+    if (afterHand.length <= beforeHand.length) return assembly;
 
     const drawPresentationEvents = afterHand
         .slice(beforeHand.length)
@@ -372,40 +447,35 @@ function appendTurnStartDrawPlaybackEvents(playbackEvents, snapshot, handState) 
             cardId,
             count: 1
         }));
-    if (drawPresentationEvents.length === 0) return baseEvents;
+    if (drawPresentationEvents.length === 0) return assembly;
 
-    let drawPlaybackEvents = [];
-    try {
-        drawPlaybackEvents = TurnPipelineUIAdapter.mapToPlaybackEvents(
-            drawPresentationEvents,
-            snapshot && snapshot.cardState,
-            snapshot && snapshot.gameState
-        ) || [];
-    } catch (e) {
-        drawPlaybackEvents = [];
-    }
-    if (!Array.isArray(drawPlaybackEvents) || drawPlaybackEvents.length === 0) return baseEvents;
-
-    const basePhase = baseEvents.reduce((maxPhase, event) => {
-        const phase = Number(event && event.phase);
-        return Number.isFinite(phase) && phase > maxPhase ? phase : maxPhase;
-    }, 0);
-
-    const normalizedDrawEvents = drawPlaybackEvents.map((event) => {
-        const cloned = deepClone(event);
-        const srcPhase = Number(cloned && cloned.phase);
-        cloned.phase = basePhase + (Number.isFinite(srcPhase) ? srcPhase : 1);
-        return cloned;
-    });
-
-    return baseEvents.concat(normalizedDrawEvents);
+    const drawPlaybackEvents = TurnPipelineUIAdapter.mapToPlaybackEvents(
+        drawPresentationEvents,
+        snapshot && snapshot.cardState,
+        snapshot && snapshot.gameState
+    ) || [];
+    if (!Array.isArray(drawPlaybackEvents) || drawPlaybackEvents.length === 0) return assembly;
+    const playbackEvents = (PlaybackEventHelpers && typeof PlaybackEventHelpers.appendPlaybackEventsAfter === 'function')
+        ? PlaybackEventHelpers.appendPlaybackEventsAfter(baseEvents, drawPlaybackEvents)
+        : baseEvents.concat(deepClone(drawPlaybackEvents));
+    return {
+        playbackEvents,
+        diagnostics: assembly.diagnostics
+    };
 }
 
 function reconcileTurnStartAndCollectPlayback(room, snapshot) {
     const handState = captureTurnStartHandState(snapshot);
+    if (MatchAuthority && typeof MatchAuthority.stripTransientPresentationState === 'function') {
+        MatchAuthority.stripTransientPresentationState(snapshot);
+    } else if (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object') {
+        snapshot.cardState.presentationEvents = [];
+        snapshot.cardState._presentationEventsPersist = [];
+        delete snapshot.cardState._currentActionMeta;
+    }
     const rawEvents = reconcileTurnStartIfNeeded(room, snapshot, { includeRawEvents: true });
-    const playbackEvents = collectServerPlaybackEvents(snapshot, rawEvents);
-    return appendTurnStartDrawPlaybackEvents(playbackEvents, snapshot, handState);
+    const playbackAssembly = collectServerPlaybackEvents(snapshot, rawEvents);
+    return appendTurnStartDrawPlaybackEvents(playbackAssembly, snapshot, handState);
 }
 
 function createCommandActionPrng(room, snapshot) {
@@ -447,6 +517,29 @@ function applyCommandPublishToSnapshot(room, body, playerKey) {
     const currentTurnIndex = Number.isFinite(Number(currentSnapshot.cardState && currentSnapshot.cardState.turnIndex))
         ? Number(currentSnapshot.cardState.turnIndex)
         : 0;
+    if (isNetworkDebugFillHandPayload(body)) {
+        if (!toPublicNetworkDebugEnabled(room)) {
+            return { ok: false, rejectedReason: 'NETWORK_DEBUG_DISABLED' };
+        }
+        const DebugActions = require('../game/debug/debug-actions');
+        if (!DebugActions || typeof DebugActions.fillDebugHand !== 'function') {
+            return { ok: false, rejectedReason: 'DEBUG_ACTIONS_UNAVAILABLE' };
+        }
+
+        const applied = DebugActions.fillDebugHand(currentSnapshot.cardState, { playerKey });
+        if (!applied) {
+            return { ok: false, rejectedReason: 'DEBUG_FILL_HAND_FAILED' };
+        }
+
+        MatchAuthority.stripTransientPresentationState(currentSnapshot);
+        return {
+            ok: true,
+            snapshot: currentSnapshot,
+            playbackEvents: [],
+            playbackDiagnostics: null
+        };
+    }
+
     const builtAction = NetworkActionSchema.buildAction({
         actionType: body.actionType,
         actor: body.actor,
@@ -488,19 +581,35 @@ function applyCommandPublishToSnapshot(room, body, playerKey) {
         gameState: result.gameState,
         cardState: result.cardState
     };
-    const playbackEvents = mapServerPresentationToPlaybackEvents(
+    const playbackAssembly = mapServerPresentationToPlaybackEvents(
         result.presentationEvents,
         result.events,
         nextSnapshot
     );
+    reportPlaybackAssemblyDiagnostics('local-server-action', playbackAssembly && playbackAssembly.diagnostics, {
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room)
+    });
+    const playbackEvents = (playbackAssembly && Array.isArray(playbackAssembly.playbackEvents))
+        ? playbackAssembly.playbackEvents
+        : [];
 
-    playbackEvents.push(...reconcileTurnStartAndCollectPlayback(room, nextSnapshot));
+    const turnStartPlaybackAssembly = reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
+    reportPlaybackAssemblyDiagnostics('local-server-turn-start', turnStartPlaybackAssembly && turnStartPlaybackAssembly.diagnostics, {
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room)
+    });
+    const turnStartPlaybackEvents = (turnStartPlaybackAssembly && Array.isArray(turnStartPlaybackAssembly.playbackEvents))
+        ? turnStartPlaybackAssembly.playbackEvents
+        : [];
+    const combinedPlaybackEvents = (PlaybackEventHelpers && typeof PlaybackEventHelpers.appendPlaybackEventsAfter === 'function')
+        ? PlaybackEventHelpers.appendPlaybackEventsAfter(playbackEvents, turnStartPlaybackEvents)
+        : playbackEvents.concat(deepClone(turnStartPlaybackEvents));
     MatchAuthority.stripTransientPresentationState(nextSnapshot);
 
     return {
         ok: true,
         snapshot: nextSnapshot,
-        playbackEvents
+        playbackEvents: combinedPlaybackEvents,
+        playbackDiagnostics: toDebugPlaybackDiagnostics(playbackAssembly && playbackAssembly.diagnostics, toPublicNetworkDebugEnabled(room))
     };
 }
 
@@ -616,6 +725,10 @@ function toPublicSeatNames(room) {
 
 function toPublicRoomDeck(room) {
     return (room && room.roomDeck) ? deepClone(room.roomDeck) : null;
+}
+
+function toPublicNetworkDebugEnabled(room) {
+    return !!(room && room.networkDebugEnabled === true);
 }
 
 function toPublicChatMessages(room) {
@@ -750,6 +863,7 @@ function ensureHeartbeatLoop() {
                 seats: toPublicSeats(room),
                 seatNames: toPublicSeatNames(room),
                 roomDeck: toPublicRoomDeck(room),
+                networkDebugEnabled: toPublicNetworkDebugEnabled(room),
                 turnTimer: toPublicTurnTimer(room, serverTime),
                 serverTime
             };
@@ -775,8 +889,10 @@ function buildSnapshotPayload(room, meta, viewerSeatKey) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
+        playbackDiagnostics: toDebugPlaybackDiagnostics(meta && meta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
         operationId: meta && meta.operationId ? String(meta.operationId) : null,
         playerKey: meta && meta.playerKey ? normalizePlayerKey(meta.playerKey) : null,
         actionType: meta && meta.actionType ? String(meta.actionType) : null,
@@ -798,6 +914,7 @@ function buildPresencePayload(room, meta) {
         seats: toPublicSeats(room),
         seatNames,
         roomDeck: toPublicRoomDeck(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
     };
@@ -849,7 +966,8 @@ function resolveSeatForJoin(room, requestedSeatKey, providedToken) {
     return null;
 }
 
-function makeRoom() {
+function makeRoom(options) {
+    const opts = (options && typeof options === 'object') ? options : {};
     let roomId = makeRoomId();
     while (rooms.has(roomId)) {
         roomId = makeRoomId();
@@ -866,6 +984,7 @@ function makeRoom() {
         seatNames: { black: '', white: '' },
         seatTokens: { black: makeSeatToken(), white: makeSeatToken() },
         roomDeck: null,
+        networkDebugEnabled: opts.networkDebugEnabled === true,
         turnTimer: createPausedTurnTimer({ snapshot }),
         lastAcceptedOperationBySeat: { black: null, white: null },
         eventSeq: 0,
@@ -913,7 +1032,13 @@ function applyExpiredTurnTimeoutIfNeeded(room) {
     if (nextSnapshot.cardState && nextSnapshot.cardState.pendingEffectByPlayer && typeof nextSnapshot.cardState.pendingEffectByPlayer === 'object') {
         nextSnapshot.cardState.pendingEffectByPlayer[timedOutSeatKey] = null;
     }
-    const serverPlaybackEvents = reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
+    const serverPlaybackAssembly = reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
+    reportPlaybackAssemblyDiagnostics('local-server-timeout-pass', serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, {
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room)
+    });
+    const serverPlaybackEvents = (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.playbackEvents))
+        ? serverPlaybackAssembly.playbackEvents
+        : [];
 
     room.stateVersion = Number.isFinite(Number(room.stateVersion))
         ? Math.max(0, Math.trunc(Number(room.stateVersion))) + 1
@@ -927,6 +1052,7 @@ function applyExpiredTurnTimeoutIfNeeded(room) {
         playerKey: timedOutSeatKey,
         actionType: 'timeout_pass',
         playbackEvents: serverPlaybackEvents,
+        playbackDiagnostics: toDebugPlaybackDiagnostics(serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
         operationId: `timeout_${room.stateVersion}_${nowMs}`
     });
     return { applied: true, stateVersion: room.stateVersion };
@@ -935,6 +1061,7 @@ function applyExpiredTurnTimeoutIfNeeded(room) {
 async function handleCreate(req, res) {
     const body = await parseBody(req);
     const playerName = normalizeNetworkPlayerName(body.playerName);
+    const networkDebugEnabled = body.networkDebugEnabled === true;
     if (!playerName) {
         writeJson(res, 400, { ok: false, reason: 'PLAYER_NAME_REQUIRED' });
         return;
@@ -946,7 +1073,7 @@ async function handleCreate(req, res) {
         return;
     }
 
-    const room = makeRoom();
+    const room = makeRoom({ networkDebugEnabled });
     room.seats.black = true;
     room.seatNames.black = playerName;
     if (deckSelection.hasCustomDeck) {
@@ -965,6 +1092,7 @@ async function handleCreate(req, res) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         stateVersion: room.stateVersion,
         snapshot: toPublicSnapshot(room, 'black'),
         turnTimer: toPublicTurnTimer(room, serverTime),
@@ -1060,6 +1188,7 @@ async function handleJoin(req, res) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         stateVersion: room.stateVersion,
         snapshot: toPublicSnapshot(room, seatKey),
         turnTimer: toPublicTurnTimer(room, serverTime),
@@ -1119,6 +1248,7 @@ async function handlePublish(req, res) {
     const actionType = String(body.actionType || '').trim().toLowerCase();
     const operationId = normalizeOperationId(body.operationId);
     const isRematchResetAction = actionType === 'reset_game' || actionType === 'rematch' || actionType === 'restart';
+    const isNetworkDebugAction = isNetworkDebugFillHandPayload(body);
 
     const room = rooms.get(roomId);
     if (!room) {
@@ -1132,47 +1262,50 @@ async function handlePublish(req, res) {
     const acceptedOperationsBySeat = ensureAcceptedOperationsBySeat(room);
 
     if (!room.seats[seatKey]) {
-        writeJson(res, 403, {
+        writeJson(res, 403, buildPublishPayload(room, viewerSeatKey, {
             ok: false,
             rejectedReason: 'SEAT_NOT_JOINED',
-            snapshot: toPublicSnapshot(room, viewerSeatKey),
-            seats: toPublicSeats(room),
-            seatNames: toPublicSeatNames(room),
-            roomDeck: toPublicRoomDeck(room),
-            stateVersion: room.stateVersion,
-            turnTimer: toPublicTurnTimer(room),
-            serverTime: Date.now()
-        });
+            publishMeta: {
+                kind: 'rejected',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion,
+                rejectedReason: 'SEAT_NOT_JOINED'
+            }
+        }));
         return;
     }
 
     if (seatKey !== playerKey) {
-        writeJson(res, 403, {
+        writeJson(res, 403, buildPublishPayload(room, viewerSeatKey, {
             ok: false,
             rejectedReason: 'SEAT_MISMATCH',
-            snapshot: toPublicSnapshot(room, viewerSeatKey),
-            seats: toPublicSeats(room),
-            seatNames: toPublicSeatNames(room),
-            roomDeck: toPublicRoomDeck(room),
-            stateVersion: room.stateVersion,
-            turnTimer: toPublicTurnTimer(room),
-            serverTime: Date.now()
-        });
+            publishMeta: {
+                kind: 'rejected',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion,
+                rejectedReason: 'SEAT_MISMATCH'
+            }
+        }));
         return;
     }
 
     if (!seatToken || !room.seatTokens || room.seatTokens[seatKey] !== seatToken) {
-        writeJson(res, 403, {
+        writeJson(res, 403, buildPublishPayload(room, null, {
             ok: false,
             rejectedReason: 'SEAT_TOKEN_MISMATCH',
-            snapshot: toPublicSnapshot(room, null),
-            seats: toPublicSeats(room),
-            seatNames: toPublicSeatNames(room),
-            roomDeck: toPublicRoomDeck(room),
-            stateVersion: room.stateVersion,
-            turnTimer: toPublicTurnTimer(room),
-            serverTime: Date.now()
-        });
+            publishMeta: {
+                kind: 'rejected',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion,
+                rejectedReason: 'SEAT_TOKEN_MISMATCH'
+            }
+        }));
         return;
     }
 
@@ -1184,51 +1317,55 @@ async function handlePublish(req, res) {
         && String(lastAcceptedOperation.operationId || '') === operationId
     ) {
         const serverTime = Date.now();
-        writeJson(res, 200, {
+        writeJson(res, 200, buildPublishPayload(room, seatKey, {
             ok: true,
-            roomId: room.roomId,
-            stateVersion: room.stateVersion,
-            seats: toPublicSeats(room),
-            seatNames: toPublicSeatNames(room),
-            roomDeck: toPublicRoomDeck(room),
-            snapshot: toPublicSnapshot(room, seatKey),
-            turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime,
-            idempotentReplay: true
-        });
+            idempotentReplay: true,
+            publishMeta: {
+                kind: 'idempotent_replay',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion,
+                replayedStateVersion: lastAcceptedOperation.stateVersion
+            }
+        }));
         return;
     }
 
     if (baseVersion === null || baseVersion !== room.stateVersion) {
-        writeJson(res, 409, {
+        writeJson(res, 409, buildPublishPayload(room, seatKey, {
             ok: false,
             rejectedReason: 'VERSION_MISMATCH',
-            snapshot: toPublicSnapshot(room, seatKey),
-            seats: toPublicSeats(room),
-            seatNames: toPublicSeatNames(room),
-            roomDeck: toPublicRoomDeck(room),
-            stateVersion: room.stateVersion,
-            turnTimer: toPublicTurnTimer(room),
-            serverTime: Date.now()
-        });
+            publishMeta: {
+                kind: 'rejected',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion,
+                rejectedReason: 'VERSION_MISMATCH'
+            }
+        }));
         return;
     }
 
     const expectedPlayerKey = getCurrentPlayerKey(room.snapshot && room.snapshot.gameState);
     if (playerKey !== expectedPlayerKey) {
         const allowOutOfTurnRematch = isRematchResetAction && typeof Core.isGameOver === 'function' && Core.isGameOver(room.snapshot && room.snapshot.gameState);
-        if (!allowOutOfTurnRematch) {
-            writeJson(res, 409, {
+        const allowOutOfTurnNetworkDebug = isNetworkDebugAction && toPublicNetworkDebugEnabled(room);
+        if (!allowOutOfTurnRematch && !allowOutOfTurnNetworkDebug) {
+            writeJson(res, 409, buildPublishPayload(room, seatKey, {
                 ok: false,
                 rejectedReason: 'OUT_OF_TURN',
-                snapshot: toPublicSnapshot(room, seatKey),
-                seats: toPublicSeats(room),
-                seatNames: toPublicSeatNames(room),
-                roomDeck: toPublicRoomDeck(room),
-                stateVersion: room.stateVersion,
-                turnTimer: toPublicTurnTimer(room),
-                serverTime: Date.now()
-            });
+                publishMeta: {
+                    kind: 'rejected',
+                    operationId,
+                    actionType,
+                    receivedBaseVersion: baseVersion,
+                    authoritativeStateVersion: room.stateVersion,
+                    rejectedReason: 'OUT_OF_TURN'
+                }
+            }));
             return;
         }
     }
@@ -1246,6 +1383,7 @@ async function handlePublish(req, res) {
 
     let nextSnapshot;
     let serverPlaybackEvents = [];
+    let serverPlaybackDiagnostics = null;
     if (isRematchResetAction) {
         const rematchSeed = Date.now();
         nextSnapshot = makeInitialSnapshot(rematchSeed, buildInitialDeckOptions(room));
@@ -1253,34 +1391,37 @@ async function handlePublish(req, res) {
     } else if (hasCommandPayload) {
         const commandResult = applyCommandPublishToSnapshot(room, body, playerKey);
         if (!commandResult.ok) {
-            writeJson(res, 409, {
+            writeJson(res, 409, buildPublishPayload(room, seatKey, {
                 ok: false,
                 rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED',
-                snapshot: toPublicSnapshot(room, seatKey),
-                seats: toPublicSeats(room),
-                seatNames: toPublicSeatNames(room),
-                roomDeck: toPublicRoomDeck(room),
-                stateVersion: room.stateVersion,
-                turnTimer: toPublicTurnTimer(room),
-                serverTime: Date.now(),
-                errorMessage: commandResult.errorMessage || null
-            });
+                errorMessage: commandResult.errorMessage || null,
+                publishMeta: {
+                    kind: 'rejected',
+                    operationId,
+                    actionType,
+                    receivedBaseVersion: baseVersion,
+                    authoritativeStateVersion: room.stateVersion,
+                    rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED'
+                }
+            }));
             return;
         }
         nextSnapshot = commandResult.snapshot;
         serverPlaybackEvents = Array.isArray(commandResult.playbackEvents) ? commandResult.playbackEvents : [];
+        serverPlaybackDiagnostics = commandResult.playbackDiagnostics || null;
     } else {
-        writeJson(res, 409, {
+        writeJson(res, 409, buildPublishPayload(room, seatKey, {
             ok: false,
             rejectedReason: 'COMMAND_REQUIRED',
-            snapshot: toPublicSnapshot(room, seatKey),
-            seats: toPublicSeats(room),
-            seatNames: toPublicSeatNames(room),
-            roomDeck: toPublicRoomDeck(room),
-            stateVersion: room.stateVersion,
-            turnTimer: toPublicTurnTimer(room),
-            serverTime: Date.now()
-        });
+            publishMeta: {
+                kind: 'rejected',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion,
+                rejectedReason: 'COMMAND_REQUIRED'
+            }
+        }));
         return;
     }
 
@@ -1298,29 +1439,31 @@ async function handlePublish(req, res) {
         };
     }
 
-    refreshTurnTimer(room, { nowMs: room.updatedAt, forceRestart: true });
+    refreshTurnTimer(room, { nowMs: room.updatedAt, forceRestart: !isNetworkDebugAction });
 
     const meta = {
         playerKey,
         actionType: body.actionType ? String(body.actionType) : null,
         playbackEvents: serverPlaybackEvents,
+        playbackDiagnostics: serverPlaybackDiagnostics,
         operationId: operationId || null
     };
 
     broadcastSnapshot(room, meta);
 
     const serverTime = Date.now();
-    writeJson(res, 200, {
+    writeJson(res, 200, buildPublishPayload(room, seatKey, {
         ok: true,
-        roomId,
-        stateVersion: room.stateVersion,
-        seats: toPublicSeats(room),
-        seatNames: toPublicSeatNames(room),
-        roomDeck: toPublicRoomDeck(room),
-        snapshot: toPublicSnapshot(room, seatKey),
-        turnTimer: toPublicTurnTimer(room, serverTime),
-        serverTime
-    });
+        serverTime,
+        playbackDiagnostics: serverPlaybackDiagnostics,
+        publishMeta: {
+            kind: 'accepted',
+            operationId,
+            actionType,
+            receivedBaseVersion: baseVersion,
+            authoritativeStateVersion: room.stateVersion
+        }
+    }));
 }
 
 async function handleChat(req, res) {
@@ -1376,7 +1519,8 @@ async function handleChat(req, res) {
         message,
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
-        roomDeck: toPublicRoomDeck(room)
+        roomDeck: toPublicRoomDeck(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room)
     };
 
     broadcastChat(room, payload);
@@ -1388,6 +1532,7 @@ async function handleChat(req, res) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         serverTime: Date.now()
     });
 }
@@ -1417,6 +1562,7 @@ function handleState(req, res, urlObj) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         snapshot: toPublicSnapshot(room, viewerSeatKey),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
@@ -1466,6 +1612,7 @@ function handleStream(req, res, urlObj) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         messages: toPublicChatMessages(room)
     }, nextSseEventId(room));
 

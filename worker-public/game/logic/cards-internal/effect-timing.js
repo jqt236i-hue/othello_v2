@@ -139,6 +139,21 @@
         cardState._frozenCellsActiveAtTurnStart = frozenCellsActiveAtTurnStart;
 
         const specialStoneKind = getSpecialStoneKind(constants);
+        const emitFreezeDurationEndStatusRemoved = (marker) => {
+            if (!marker || typeof helpers.emitPresentationEvent !== 'function') return;
+            helpers.emitPresentationEvent(cardState, {
+                type: 'STATUS_REMOVED',
+                row: marker.row,
+                col: marker.col,
+                cause: 'FREEZE_WILL',
+                reason: 'duration_end',
+                meta: {
+                    special: 'FREEZE',
+                    owner: marker.owner,
+                    reason: 'duration_end'
+                }
+            });
+        };
         for (const marker of specialMarkers) {
             const data = marker.data || {};
             if (data.expiresForPlayer === playerKey) {
@@ -158,6 +173,7 @@
             }
             if (typeof data.remainingOwnerTurns === 'number' && data.remainingOwnerTurns <= 0) {
                 if (typeof helpers.removeMarkersAt === 'function') {
+                    if (data.type === 'FREEZE') emitFreezeDurationEndStatusRemoved(marker);
                     helpers.removeMarkersAt(cardState, marker.row, marker.col, { kind: specialStoneKind, type: data.type, owner: marker.owner });
                 }
                 continue;
@@ -173,6 +189,7 @@
             if ((data.type === 'GUARD' || data.type === 'BLOCKADE' || data.type === 'FREEZE') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
                 data.remainingOwnerTurns -= 1;
                 if (data.remainingOwnerTurns <= 0 && typeof helpers.removeMarkersAt === 'function') {
+                    if (data.type === 'FREEZE') emitFreezeDurationEndStatusRemoved(marker);
                     helpers.removeMarkersAt(cardState, marker.row, marker.col, {
                         kind: specialStoneKind,
                         type: data.type,
@@ -241,7 +258,6 @@
         const ownerVal = playerKey === 'black' ? constants.BLACK : constants.WHITE;
         const opponentVal = -ownerVal;
         const specialStoneKind = getSpecialStoneKind(constants);
-        const bombKind = constants.MARKER_KINDS ? constants.MARKER_KINDS.BOMB : 'bomb';
 
         let chargeGain = flipCount;
 
@@ -390,6 +406,16 @@
                 remainingOwnerTurns: constants.OBSERVER_WILL_TURNS
             });
             effects.observerPlaced = true;
+        }
+        if (pending && pending.type === 'TIME_STOP_GOD' && typeof helpers.addMarker === 'function') {
+            const remainingOwnerTurns = Number.isFinite(Number(constants.TIME_STOP_GOD_TURNS))
+                ? Math.max(1, Math.trunc(Number(constants.TIME_STOP_GOD_TURNS)))
+                : 3;
+            helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
+                type: 'TIME_STOP',
+                remainingOwnerTurns
+            });
+            effects.timeStopPlaced = true;
         }
 
         if (pending && pending.type === 'WILL_HUNTER_KING' && typeof helpers.addMarker === 'function') {

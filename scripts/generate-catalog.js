@@ -10,6 +10,19 @@ function generate() {
   return json;
 }
 
+function toBrowserCatalog(source) {
+  return {
+    ...source,
+    cards: Array.isArray(source.cards)
+      ? source.cards.map((card) => ({
+          ...card,
+          name: card.name_ja || card.name || '',
+          desc: card.desc_ja || card.desc || ''
+        }))
+      : []
+  };
+}
+
 function generateFile(outPath) {
   const obj = generate();
   const content = '// Auto-generated from cards/catalog.json - do not edit directly.\n' +
@@ -18,10 +31,21 @@ function generateFile(outPath) {
   fs.writeFileSync(outPath, content, 'utf8');
 }
 
-if (require.main === module) {
-  const outPath = path.resolve(__dirname, '..', 'cards', 'catalog.generated.js');
-  generateFile(outPath);
-  console.log('Generated', outPath);
+function generateBrowserFile(outPath) {
+  const obj = toBrowserCatalog(generate());
+  const content = '// Auto-generated from cards/catalog.json - do not edit directly.\n' +
+    '// Use: node scripts/generate-catalog.js to regenerate.\n' +
+    'window.CardCatalog = ' + JSON.stringify(obj, null, 2) + ';\n';
+  fs.writeFileSync(outPath, content, 'utf8');
 }
 
-module.exports = { generate, generateFile };
+if (require.main === module) {
+  const generatedPath = path.resolve(__dirname, '..', 'cards', 'catalog.generated.js');
+  const browserPath = path.resolve(__dirname, '..', 'cards', 'catalog.js');
+  generateFile(generatedPath);
+  generateBrowserFile(browserPath);
+  console.log('Generated', generatedPath);
+  console.log('Generated', browserPath);
+}
+
+module.exports = { generate, generateFile, toBrowserCatalog, generateBrowserFile };

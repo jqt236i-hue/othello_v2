@@ -150,6 +150,9 @@
         // TIME_BOMB (時限爆弾) - 1 card, cost: 13
         { id: 'bomb_01', name: '時限爆弾', type: 'TIME_BOMB', cost: 13, desc: '盤面上の自分の石1つを時限爆弾化。3ターン後に周囲9マスを破壊。反転されると解除。' },
 
+        // TIME_STOP_GOD (時間停神) - 1 card, cost: 0
+        { id: 'time_stop_god_01', name: '時間停神', type: 'TIME_STOP_GOD', cost: 0, desc: '使用時にランダムで自分の石3つを破壊し、次に置く石を時間停石化する。3回目の自ターン開始時に時間停止し、そのターンと次のターンを連続で行動する。発動時に時間停石は消滅し、先に消えた場合は不発。' },
+
         // ULTIMATE_REVERSE_DRAGON (究極反転龍) - 1 card, cost: 30
         { id: 'udr_01', name: '究極反転龍', type: 'ULTIMATE_REVERSE_DRAGON', cost: 30, desc: '反転0でも空きマスに配置可能。次に置く石を龍化。配置ターン即時＋自ターン開始時、周囲8マスの相手石を自分色に反転（反転数はチャージ対象）。持続5ターン（配置ターン含め最大6回発動）で消滅。反転保護を持つ特殊石。' },
 
@@ -296,6 +299,7 @@
         'REGEN_WILL',
         'DESTROY_ONE_STONE',
         'TIME_BOMB',
+        'TIME_STOP_GOD',
         'ULTIMATE_REVERSE_DRAGON',
         'BREEDING_WILL',
         'CLONE_WILL',
@@ -355,6 +359,9 @@
 
     // TIME BOMB default turns
     const TIME_BOMB_TURNS = 3;
+    const TIME_STOP_GOD_TURNS = 3;
+    const TIME_STOP_GOD_CONSECUTIVE_TURNS = 2;
+    const TIME_STOP_GOD_SELF_DESTROY_COUNT = 3;
 
     // Destroy fade duration (ms)
     // Used by UI animation utilities to align JS waiting with CSS animation time
@@ -384,6 +391,9 @@
         MAX_SWAP_TARGETS: 6,
         MAX_DESTROY_TARGETS: 8,
         TIME_BOMB_TURNS: TIME_BOMB_TURNS,
+        TIME_STOP_GOD_TURNS: TIME_STOP_GOD_TURNS,
+        TIME_STOP_GOD_CONSECUTIVE_TURNS: TIME_STOP_GOD_CONSECUTIVE_TURNS,
+        TIME_STOP_GOD_SELF_DESTROY_COUNT: TIME_STOP_GOD_SELF_DESTROY_COUNT,
         DESTROY_FADE_MS: DESTROY_FADE_MS,
     };
 
@@ -398,6 +408,9 @@
         window.CARD_TYPES = CARD_TYPES;
         window.DEBUG_MODE = DEBUG_MODE;
         window.TIME_BOMB_TURNS = TIME_BOMB_TURNS;
+        window.TIME_STOP_GOD_TURNS = TIME_STOP_GOD_TURNS;
+        window.TIME_STOP_GOD_CONSECUTIVE_TURNS = TIME_STOP_GOD_CONSECUTIVE_TURNS;
+        window.TIME_STOP_GOD_SELF_DESTROY_COUNT = TIME_STOP_GOD_SELF_DESTROY_COUNT;
         window.DESTROY_FADE_MS = DESTROY_FADE_MS;
         // Expose new canonical game constants for browser usage
         window.BOARD_SIZE = BOARD_SIZE;

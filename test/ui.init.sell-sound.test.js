@@ -16,7 +16,7 @@ describe('initializeUI action button sound', () => {
 
     global.destroySelectedHandCard = jest.fn();
     global.useSelectedCard = jest.fn();
-    global.confirmSellCardSelection = jest.fn();
+    global.confirmSellCardSelection = jest.fn(() => true);
     global.cardState = { selectedCardId: null };
     global.CardLogic = {
       getCardDef: jest.fn(() => ({ type: 'WORK_WILL' }))
@@ -67,6 +67,27 @@ describe('initializeUI action button sound', () => {
     expect(global.confirmSellCardSelection).toHaveBeenCalledTimes(1);
   });
 
+  test('売却成功時は次の playback gain sound を 1 回だけ抑止する', () => {
+    const initModule = require('../ui/handlers/init.js');
+    initModule.initializeUI();
+
+    document.getElementById('sell-card-btn').click();
+
+    expect(global.window.__skipNextPlaybackSoundUntilByKey).toMatchObject({
+      sell_sacrifice_gain: expect.any(Number)
+    });
+  });
+
+  test('売却失敗時は local playback skip を残さない', () => {
+    global.confirmSellCardSelection.mockReturnValue(false);
+    const initModule = require('../ui/handlers/init.js');
+    initModule.initializeUI();
+
+    document.getElementById('sell-card-btn').click();
+
+    expect(global.window.__skipNextPlaybackSoundUntilByKey).toBeUndefined();
+  });
+
   test('通常カードの使用ボタン押下では card_use_button を鳴らして既存処理を呼ぶ', () => {
     global.cardState.selectedCardId = 'WORK_WILL_001';
     global.CardLogic.getCardDef.mockReturnValue({ id: 'WORK_WILL_001', type: 'WORK_WILL' });
@@ -80,7 +101,7 @@ describe('initializeUI action button sound', () => {
     expect(global.useSelectedCard).toHaveBeenCalledTimes(1);
   });
 
-  test('宝箱カードの使用ボタン押下でも card_use_button を鳴らして既存処理を呼ぶ', () => {
+  test('宝箱カードの使用ボタン押下では treasure_gain 側に寄せるため card_use_button を鳴らさない', () => {
     global.cardState.selectedCardId = 'TREASURE_BOX_001';
     global.CardLogic.getCardDef.mockReturnValue({ id: 'TREASURE_BOX_001', type: 'TREASURE_BOX' });
     const initModule = require('../ui/handlers/init.js');
@@ -88,8 +109,8 @@ describe('initializeUI action button sound', () => {
 
     document.getElementById('use-card-btn').click();
 
-    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
-    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('card_use_button');
+    expect(global.SoundEngine.init).not.toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalledWith('card_use_button');
     expect(global.useSelectedCard).toHaveBeenCalledTimes(1);
   });
 });

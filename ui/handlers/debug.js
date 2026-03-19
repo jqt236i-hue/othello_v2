@@ -49,6 +49,17 @@ const DEBUG_HAND_FLING_FRICTION = 0.92;
 const DEBUG_HAND_FLING_STOP_VELOCITY = 0.65;
 const DEBUG_HAND_WHEEL_SCALE = 0.9;
 
+let _debugControlRefs = {
+    debugModeBtn: null,
+    humanVsHumanBtn: null,
+    visualTestBtn: null
+};
+
+let _networkDebugModeAccessState = {
+    networkMode: false,
+    roomDebugEnabled: false
+};
+
 function _isDebugLayoutEnabled() {
     try {
         const seed = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {}));
@@ -122,6 +133,37 @@ function _cancelDebugHandFling(state) {
 function _getDebugHandTrackEl(containerEl) {
     if (!containerEl || typeof containerEl.querySelector !== 'function') return null;
     return containerEl.querySelector('.hand-track');
+}
+
+function _findDebugHandClickableCardAtPoint(containerEl, clientX, clientY) {
+    if (!containerEl || typeof document === 'undefined') return null;
+    if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
+
+    if (typeof document.elementsFromPoint === 'function') {
+        const stack = document.elementsFromPoint(clientX, clientY);
+        for (const entry of stack) {
+            if (!entry || !containerEl.contains(entry) || typeof entry.closest !== 'function') continue;
+            const cardEl = entry.closest('.card-item.clickable');
+            if (cardEl && containerEl.contains(cardEl)) {
+                return cardEl;
+            }
+        }
+    }
+
+    const cards = typeof containerEl.querySelectorAll === 'function'
+        ? Array.from(containerEl.querySelectorAll('.card-item.clickable'))
+        : [];
+    for (const cardEl of cards) {
+        const rect = typeof cardEl.getBoundingClientRect === 'function'
+            ? cardEl.getBoundingClientRect()
+            : null;
+        if (!rect) continue;
+        if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+            return cardEl;
+        }
+    }
+
+    return null;
 }
 
 function _getDebugHandOffsetLimit(containerEl) {
@@ -308,11 +350,34 @@ function _installDebugHandScroll(containerEl) {
 
     containerEl.addEventListener('click', (event) => {
         if (!_isDebugLayoutEnabled()) return;
-        if (state.suppressClickUntil <= Date.now()) return;
-        state.suppressClickUntil = 0;
+        if (state.suppressClickUntil > Date.now()) {
+            state.suppressClickUntil = 0;
+            if (event && typeof event.preventDefault === 'function') event.preventDefault();
+            if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+            if (event && typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+            return;
+        }
+
+        const directCardEl = event && event.target && typeof event.target.closest === 'function'
+            ? event.target.closest('.card-item.clickable')
+            : null;
+        if (directCardEl && containerEl.contains(directCardEl)) return;
+
+        const fallbackCardEl = _findDebugHandClickableCardAtPoint(
+            containerEl,
+            Number(event && event.clientX),
+            Number(event && event.clientY)
+        );
+        if (!fallbackCardEl || !fallbackCardEl.dataset) return;
+
+        const cardId = fallbackCardEl.dataset.cardId || null;
+        const ownerKey = fallbackCardEl.dataset.ownerKey || containerEl.dataset.ownerKey || null;
+        if (!cardId || typeof window === 'undefined' || typeof window.onCardClick !== 'function') return;
+
         if (event && typeof event.preventDefault === 'function') event.preventDefault();
         if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
         if (event && typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+        window.onCardClick(cardId, ownerKey);
     }, true);
 
     containerEl.addEventListener('wheel', (event) => {
@@ -340,6 +405,9 @@ function _applyDebugButtonState(debugModeBtn, debugEnabled) {
     debugModeBtn.textContent = debugEnabled ? 'DEBUG: ON' : 'DEBUG: OFF';
     if (debugModeBtn.style) {
         debugModeBtn.style.color = debugEnabled ? '#6bff6b' : '#ff6b6b';
+    }
+    if (debugModeBtn.dataset) {
+        debugModeBtn.dataset.active = debugEnabled ? 'true' : 'false';
     }
 
     const ariaPressed = debugEnabled ? 'true' : 'false';
@@ -430,7 +498,98 @@ function _syncDebugFlags(debugEnabled, humanVsHuman) {
     } catch (e) { /* ignore */ }
 }
 
+function _applyNetworkDebugModeAccessState() {
+    const refs = _debugControlRefs || {};
+    const debugModeBtn = refs.debugModeBtn;
+    const humanVsHumanBtn = refs.humanVsHumanBtn;
+    const visualTestBtn = refs.visualTestBtn;
+    if (!debugModeBtn) return;
+
+    const networkMode = _networkDebugModeAccessState.networkMode === true;
+    const roomDebugEnabled = _networkDebugModeAccessState.roomDebugEnabled === true;
+    if (networkMode && !roomDebugEnabled) {
+        _syncDebugFlags(false, false);
+        _applyDebugLayoutState(false);
+        _applyDebugButtonState(debugModeBtn, false);
+        _applyDebugSubButtonVisibility(humanVsHumanBtn, visualTestBtn, false);
+        debugModeBtn.style.display = 'none';
+        return;
+    }
+
+    debugModeBtn.style.display = 'block';
+    const seed = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {}));
+    const isDebug = seed.DEBUG_UNLIMITED_USAGE === true;
+    _applyDebugButtonState(debugModeBtn, isDebug);
+    _applyDebugSubButtonVisibility(humanVsHumanBtn, visualTestBtn, isDebug);
+}
+
+function setNetworkDebugModeAccess(options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    _networkDebugModeAccessState.networkMode = opts.networkMode === true;
+    _networkDebugModeAccessState.roomDebugEnabled = opts.roomDebugEnabled === true;
+    _applyNetworkDebugModeAccessState();
+}
+
+function setDebugModeEnabled(debugEnabled) {
+    const refs = _debugControlRefs || {};
+    const debugModeBtn = refs.debugModeBtn;
+    const humanVsHumanBtn = refs.humanVsHumanBtn;
+    const visualTestBtn = refs.visualTestBtn;
+    const nextDebugEnabled = debugEnabled === true;
+
+    if (nextDebugEnabled && _networkDebugModeAccessState.networkMode === true && _networkDebugModeAccessState.roomDebugEnabled !== true) {
+        return false;
+    }
+
+    if (nextDebugEnabled) _setDebugModeAllowed(true);
+    _applyDebugButtonState(debugModeBtn, nextDebugEnabled);
+    _applyDebugLayoutState(nextDebugEnabled);
+    _applyDebugSubButtonVisibility(humanVsHumanBtn, visualTestBtn, nextDebugEnabled);
+
+    if (nextDebugEnabled) {
+        addLog('🐛 デバッグモード: ON （制限なしでカード使用可能）');
+        _syncDebugFlags(true, true);
+        try {
+            const g = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {}));
+            if (typeof g.disableAutoMode === 'function') {
+                g.disableAutoMode();
+                const autoBtn = document.getElementById('autoToggleBtn');
+                if (autoBtn) autoBtn.textContent = 'AUTO: OFF';
+            }
+        } catch (e) { /* ignore */ }
+
+        const g2 = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {}));
+        if (typeof g2.ensureDebugActionsLoaded === 'function') {
+            g2.ensureDebugActionsLoaded(() => {
+                fillDebugHand();
+            });
+        } else {
+            fillDebugHand();
+        }
+        if (humanVsHumanBtn) {
+            humanVsHumanBtn.textContent = '人間vs人間: ON';
+            humanVsHumanBtn.style.color = '#90ee90';
+        }
+        addLog('🎮 人間vs人間モード: ON （黒白両方操作可能、手札は黒のみ使用）');
+    } else {
+        addLog('デバッグモード: OFF');
+        _syncDebugFlags(false, false);
+        if (humanVsHumanBtn) {
+            humanVsHumanBtn.textContent = '人間vs人間: OFF';
+            humanVsHumanBtn.style.color = '#ffb366';
+        }
+    }
+    if (typeof renderCardUI === 'function') renderCardUI();
+    return true;
+}
+
 function setupDebugControls(debugModeBtn, humanVsHumanBtn, visualTestBtn) {
+    _debugControlRefs = {
+        debugModeBtn: debugModeBtn || null,
+        humanVsHumanBtn: humanVsHumanBtn || null,
+        visualTestBtn: visualTestBtn || null
+    };
+
     const debugAllowed = _isDebugAllowed();
     if (!debugAllowed) {
         if (humanVsHumanBtn) humanVsHumanBtn.style.display = 'none';
@@ -450,50 +609,7 @@ function setupDebugControls(debugModeBtn, humanVsHumanBtn, visualTestBtn) {
         _applyDebugSubButtonVisibility(humanVsHumanBtn, visualTestBtn, isDebug);
         debugModeBtn.addEventListener('click', () => {
             const updatedDebug = !(_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug().DEBUG_UNLIMITED_USAGE === true) : (typeof window !== 'undefined' && window.DEBUG_UNLIMITED_USAGE === true));
-            if (updatedDebug) _setDebugModeAllowed(true);
-            _applyDebugButtonState(debugModeBtn, updatedDebug);
-            _applyDebugLayoutState(updatedDebug);
-
-            // Show/hide debug buttons
-            _applyDebugSubButtonVisibility(humanVsHumanBtn, visualTestBtn, updatedDebug);
-
-            if (updatedDebug) {
-                addLog('🐛 デバッグモード: ON （制限なしでカード使用可能）');
-                // Enable human vs human mode by default
-                _syncDebugFlags(true, true);
-                // Disable AUTO while DEBUG is ON to avoid interference
-                try {
-                    const g = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {}));
-                    if (typeof g.disableAutoMode === 'function') {
-                        g.disableAutoMode();
-                        const autoBtn = document.getElementById('autoToggleBtn');
-                        if (autoBtn) autoBtn.textContent = 'AUTO: OFF';
-                    }
-                } catch (e) { /* ignore */ }
-
-                const g2 = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {}));
-                if (typeof g2.ensureDebugActionsLoaded === 'function') {
-                    g2.ensureDebugActionsLoaded(() => {
-                        fillDebugHand();
-                    });
-                } else {
-                    fillDebugHand();
-                }
-                if (humanVsHumanBtn) {
-                    humanVsHumanBtn.textContent = '人間vs人間: ON';
-                    humanVsHumanBtn.style.color = '#90ee90';
-                }
-                addLog('🎮 人間vs人間モード: ON （黒白両方操作可能、手札は黒のみ使用）');
-            } else {
-                addLog('デバッグモード: OFF');
-                // Disable human vs human mode when debug is turned off
-                _syncDebugFlags(false, false);
-                if (humanVsHumanBtn) {
-                    humanVsHumanBtn.textContent = '人間vs人間: OFF';
-                    humanVsHumanBtn.style.color = '#ffb366';
-                }
-            }
-            if (typeof renderCardUI === 'function') renderCardUI();
+            setDebugModeEnabled(updatedDebug);
         });
     }
 
@@ -544,14 +660,23 @@ function setupDebugControls(debugModeBtn, humanVsHumanBtn, visualTestBtn) {
             run(null);
         });
     }
+
+    _applyNetworkDebugModeAccessState();
 }
 
 // Register setupDebugControls with UIBootstrap for canonical access, fall back to attaching to window for legacy consumers
 try {
     if (_registerUIGlobals_debug) {
-        _registerUIGlobals_debug({ setupDebugControls, refreshDebugHandLayout: _ensureDebugHandScrollBindings });
+        _registerUIGlobals_debug({
+            setupDebugControls,
+            refreshDebugHandLayout: _ensureDebugHandScrollBindings,
+            setNetworkDebugModeAccess,
+            setDebugModeEnabled
+        });
     } else if (typeof window !== 'undefined') {
         window.setupDebugControls = setupDebugControls;
         window.refreshDebugHandLayout = _ensureDebugHandScrollBindings;
+        window.setNetworkDebugModeAccess = setNetworkDebugModeAccess;
+        window.setDebugModeEnabled = setDebugModeEnabled;
     }
 } catch (e) { /* ignore */ }

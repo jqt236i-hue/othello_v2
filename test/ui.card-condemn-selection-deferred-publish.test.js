@@ -20,6 +20,21 @@ function createLiveResponseSnapshot(stateVersion) {
   };
 }
 
+function createCondemnResolvedSnapshot(stateVersion) {
+  return {
+    stateVersion,
+    gameState: cloneJson(global.gameState),
+    cardState: {
+      ...cloneJson(global.cardState),
+      selectedCardId: null,
+      selectedCardOwnerKey: null,
+      hands: { black: [], white: [] },
+      pendingEffectByPlayer: { black: null, white: null },
+      discard: ['enemy_card']
+    }
+  };
+}
+
 function createSnapshot(stateVersion) {
   return {
     stateVersion,
@@ -103,6 +118,10 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     global.Core = {
       getLegalMoves: () => []
     };
+    global.SoundEngine = {
+      init: jest.fn(),
+      playEffectByKey: jest.fn()
+    };
     global.renderCardUI = jest.fn();
     global.emitBoardUpdate = jest.fn();
     global.emitCardStateChange = jest.fn();
@@ -171,16 +190,23 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
       if (pathName === '/api/match/publish') {
         const body = JSON.parse(init.body || '{}');
         publishBodies.push(body);
+        const isCondemnSelectionPublish = body
+          && body.actionType === 'place'
+          && body.params
+          && Number.isInteger(Number(body.params.condemnTargetIndex));
         return jsonResponse(200, {
           ok: true,
           roomId: 'CDM',
           stateVersion: 51,
+          playbackEvents: isCondemnSelectionPublish
+            ? [{ type: 'hand_remove', phase: 1 }, { type: 'sound_effect', phase: 1, targets: [{ soundKey: 'stone_destroy' }] }]
+            : [],
           snapshot: body.snapshot
             ? {
               ...body.snapshot,
               stateVersion: 51
             }
-            : createLiveResponseSnapshot(51)
+            : (isCondemnSelectionPublish ? createCondemnResolvedSnapshot(51) : createLiveResponseSnapshot(51))
         });
       }
 
@@ -210,6 +236,7 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     delete global.CardLogic;
     delete global.getCardCostTier;
     delete global.Core;
+    delete global.SoundEngine;
     delete global.renderCardUI;
     delete global.emitBoardUpdate;
     delete global.emitCardStateChange;
@@ -227,7 +254,7 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     delete globalThis.waitForPlaybackIdle;
   });
 
-  test('overlay selection defers publish until playback settles', async () => {
+  test('network overlay selection publishes directly without local condemn playback replay', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
     global.NetworkMatchClient = client;
@@ -246,19 +273,10 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
 
     await Promise.resolve();
     await Promise.resolve();
-
-    const action = runTurnMock.mock.calls[0][3];
-    expect(action.condemnTargetIndex).toBe(0);
-    expect(action.deferNetworkPublish).toBe(true);
-    expect(publishBodies).toHaveLength(0);
-    expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
-    expect(global.isProcessing).toBe(true);
-    expect(global.isCardAnimating).toBe(true);
-
-    releasePlayback();
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
+    expect(runTurnMock).not.toHaveBeenCalled();
     expect(publishBodies).toHaveLength(1);
     expect(publishBodies[0].actionType).toBe('place');
     expect(publishBodies[0].actor).toBe('black');
@@ -270,7 +288,28 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     expect(publishBodies[0].playbackEvents).toBeUndefined();
     expect(global.cardState.hands.white).toEqual([]);
     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(2);
-    expect(global.ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
+    expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+    expect(document.getElementById('heaven-blessing-overlay').classList.contains('active')).toBe(false);
+    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('stone_destroy');
+  });
+
+  test('overlay destroy button plays stone_destroy for condemn selection', async () => {
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+    const offerCard = document.querySelector('.heaven-offer-card');
+    expect(offerCard).toBeTruthy();
+
+    offerCard.click();
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
+
+    const selectBtn = document.getElementById('heaven-blessing-select-btn');
+    expect(selectBtn).toBeTruthy();
+    selectBtn.click();
+
+    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('stone_destroy');
   });
 });

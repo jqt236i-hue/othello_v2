@@ -228,7 +228,7 @@
         const flippedSet = new Set();
         const getCardContext = deps.getCardContext || (() => ({ protectedStones: [], permaProtectedStones: [] }));
         const getFlipsWithContext = deps.getFlipsWithContext || ((gs, r, c, playerVal, ctx) => []);
-        const clearBombAt = deps.clearBombAt || ((cs, r, c) => { if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'bomb' && m.row === r && m.col === c)); });
+        const clearBombAt = deps.clearBombAt || ((cs, r, c) => { if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'specialStone' && m.data && m.data.category === 'bomb' && m.row === r && m.col === c)); });
         const clearHyperactiveAtPositions = deps.clearHyperactiveAtPositions;
 
         for (const target of targets) {

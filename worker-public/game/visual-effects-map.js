@@ -10,6 +10,10 @@
 // To avoid polluting the global scope (and colliding with ui/visual-effects-map.js),
 // wrap everything in an IIFE and only export via module.exports (CommonJS).
 (function () {
+const TIME_STOP_STONE_IMAGE_BY_OWNER = {
+    '1': 'assets/images/stones/TIME_STOP-black.png',
+    '-1': 'assets/images/stones/TIME_STOP-white.png'
+};
 
 /**
  * カード種別 → ビジュアル効果定義
@@ -234,6 +238,12 @@ const GAME_STONE_VISUAL_EFFECTS = {
         },
         dataAttributes: {}
     },
+    timeStopStone: {
+        cssClass: 'time-stop-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: TIME_STOP_STONE_IMAGE_BY_OWNER,
+        dataAttributes: {}
+    },
     crossBombStone: {
         cssClass: 'cross-bomb-stone',
         cssMethod: 'pseudoElement',
@@ -292,6 +302,7 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'WORK_WILL': 'workStone'
     ,
     'TIME_BOMB': 'timeBombStone',
+    'TIME_STOP_GOD': 'timeStopStone',
     'CROSS_BOMB': 'crossBombStone',
     'X_BOMB': 'xBombStone',
     'TRAP_WILL': 'trapStone'
@@ -328,6 +339,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'WORK': 'workStone'
     ,
     'TIME_BOMB': 'timeBombStone',
+    'TIME_STOP': 'timeStopStone',
     'CROSS_BOMB': 'crossBombStone',
     'X_BOMB': 'xBombStone',
     'TRAP': 'trapStone',

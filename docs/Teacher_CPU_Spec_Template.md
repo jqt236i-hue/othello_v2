@@ -81,7 +81,7 @@
 - 展開/手数系:
   - `FREE_PLACEMENT`, `DOUBLE_PLACE`, `SNIPER_WILL`, `HYPERACTIVE_WILL`, `ULTIMATE_HYPERACTIVE_GOD`, `CLONE_WILL`, `BREEDING_WILL`, `BOARD_EXPANSION_WILL`
 - 布石・手札経済系:
-  - `TREASURE_BOX`, `WORK_WILL`, `GOLD_STONE`, `SILVER_STONE`, `PLUNDER_WILL`, `SELL_CARD_WILL`, `HEAVEN_BLESSING`, `CONDEMN_WILL`, `SACRIFICE_WILL`, `TRAP_WILL`, `CHAIN_WILL`, `ULTIMATE_REVERSE_DRAGON`
+  - `TREASURE_BOX`, `WORK_WILL`, `GOLD_STONE`, `SILVER_STONE`, `PLUNDER_WILL`, `SELL_CARD_WILL`, `HEAVEN_BLESSING`, `CONDEMN_WILL`, `SACRIFICE_WILL`, `TRAP_WILL`, `DOUBLE_CHAIN_WILL`, `TRIPLE_CHAIN_WILL`, `QUAD_CHAIN_WILL`, `INFINITE_CHAIN_WILL`, `ULTIMATE_REVERSE_DRAGON`
 
 ### 6.2 使用禁止条件（利敵回避）
 - 条件1: 使用後1手以内に相手の角確定率が上がるなら禁止。
@@ -109,7 +109,7 @@
   - 最低防衛布石を常に `>=8` 残す。
   - 相手の高コストカード圏（20以上）入りを阻止できるなら吸収/売却を優先。
 
-### 6.5 全カード一覧（現行38種）
+### 6.5 全カード一覧（現行41種）
 | type | 名称 | cost | 主用途 |
 |---|---|---:|---|
 | TREASURE_BOX | 宝箱 | 0 | 経済 |
@@ -123,7 +123,10 @@
 | STRONG_WIND_WILL | 強風の意志 | 9 | 攻撃/盤面操作 |
 | TRAP_WILL | 罠の意志 | 4 | 牽制 |
 | TEMPT_WILL | 誘惑の意志 | 20 | 攻撃 |
-| CHAIN_WILL | 連鎖の意志 | 22 | 攻撃 |
+| DOUBLE_CHAIN_WILL | 二連鎖の意志 | 22 | 攻撃 |
+| TRIPLE_CHAIN_WILL | 三連鎖の意志 | 22 | 攻撃 |
+| QUAD_CHAIN_WILL | 四連鎖の意志 | 22 | 攻撃 |
+| INFINITE_CHAIN_WILL | 無限連鎖の意志 | 50 | 攻撃 |
 | REGEN_WILL | 復活の意志 | 12 | 防御 |
 | DESTROY_ONE_STONE | 破壊神 | 14 | 攻撃 |
 | TIME_BOMB | 時限爆弾 | 13 | 攻撃 |

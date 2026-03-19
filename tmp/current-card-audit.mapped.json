@@ -1,0 +1,492 @@
+[
+  {
+    "type": "SACRIFICE_WILL",
+    "count": 4,
+    "avgFutureDiscDelta3Ply": -3,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 1,
+    "highBonusRate": 0,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "X_BOMB",
+    "count": 6,
+    "avgFutureDiscDelta3Ply": -2.6666666666666665,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 1,
+    "highBonusRate": 0,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "TRAP_WILL",
+    "count": 12,
+    "avgFutureDiscDelta3Ply": -2.1666666666666665,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.6666666666666666,
+    "highBonusRate": 0.3333333333333333,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "SUPER_BUOYANCY_WILL",
+    "count": 12,
+    "avgFutureDiscDelta3Ply": -1.5,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.16666666666666666,
+    "highBonusRate": 0.16666666666666666,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "DOUBLE_PLACE",
+    "count": 4,
+    "avgFutureDiscDelta3Ply": -1,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.5,
+    "highBonusRate": 0,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "METEOR_WILL",
+    "count": 12,
+    "avgFutureDiscDelta3Ply": -0.6666666666666666,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 1,
+    "highBonusRate": 0.3333333333333333,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "CELL_TELEPORT_WILL",
+    "count": 6,
+    "avgFutureDiscDelta3Ply": -0.6666666666666666,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 1,
+    "highBonusRate": 0,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "FREE_PLACEMENT",
+    "count": 12,
+    "avgFutureDiscDelta3Ply": -0.3333333333333333,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.8333333333333334,
+    "highBonusRate": 0.16666666666666666,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "CRYSTAL_STONE",
+    "count": 20,
+    "avgFutureDiscDelta3Ply": -0.3,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.4,
+    "highBonusRate": 0.9,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "SELL_CARD_WILL",
+    "count": 16,
+    "avgFutureDiscDelta3Ply": -0.25,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.375,
+    "highBonusRate": 0.375,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "TIME_BOMB",
+    "count": 8,
+    "avgFutureDiscDelta3Ply": 0,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.75,
+    "highBonusRate": 0,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "SUPER_GRAVITY_WILL",
+    "count": 10,
+    "avgFutureDiscDelta3Ply": 0,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 1,
+    "highBonusRate": 0.4,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "ULTIMATE_HYPERACTIVE_GOD",
+    "count": 4,
+    "avgFutureDiscDelta3Ply": 0,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 1,
+    "highBonusRate": 0.5,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "WORK_WILL",
+    "count": 2,
+    "avgFutureDiscDelta3Ply": 0,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 1,
+    "highBonusRate": 0,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "TABOO_REVERSE_WILL",
+    "count": 12,
+    "avgFutureDiscDelta3Ply": 0.16666666666666666,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 1,
+    "highBonusRate": 0.5,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "CORROSION_WILL",
+    "count": 6,
+    "avgFutureDiscDelta3Ply": 0.3333333333333333,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.6666666666666666,
+    "highBonusRate": 0.3333333333333333,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "CROSS_BOMB",
+    "count": 4,
+    "avgFutureDiscDelta3Ply": 0.5,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.5,
+    "highBonusRate": 0.5,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "EXTEND_LIFE_WILL",
+    "count": 10,
+    "avgFutureDiscDelta3Ply": 0.6,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 1,
+    "highBonusRate": 0.2,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "HYPERACTIVE_INHERIT_WILL",
+    "count": 10,
+    "avgFutureDiscDelta3Ply": 0.6,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.4,
+    "highBonusRate": 0,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "SNIPER_WILL",
+    "count": 6,
+    "avgFutureDiscDelta3Ply": 0.6666666666666666,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 1,
+    "highBonusRate": 0.3333333333333333,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "BLOCKADE_WILL",
+    "count": 18,
+    "avgFutureDiscDelta3Ply": 0.6666666666666666,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.4444444444444444,
+    "highBonusRate": 0.6666666666666666,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "STRONG_WIND_WILL",
+    "count": 12,
+    "avgFutureDiscDelta3Ply": 0.6666666666666666,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.8333333333333334,
+    "highBonusRate": 0,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "ESCAPE_WILL",
+    "count": 8,
+    "avgFutureDiscDelta3Ply": 0.75,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.5,
+    "highBonusRate": 0,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "GUARDIAN_GOD",
+    "count": 6,
+    "avgFutureDiscDelta3Ply": 1,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.3333333333333333,
+    "highBonusRate": 0.6666666666666666,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "HEAVEN_BLESSING",
+    "count": 6,
+    "avgFutureDiscDelta3Ply": 1,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.6666666666666666,
+    "highBonusRate": 0.6666666666666666,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "HYPERACTIVE_WILL",
+    "count": 4,
+    "avgFutureDiscDelta3Ply": 1,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.5,
+    "highBonusRate": 0.5,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "GUARD_WILL",
+    "count": 10,
+    "avgFutureDiscDelta3Ply": 1.2,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.8,
+    "highBonusRate": 0.4,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "INSTANT_HYPERACTIVE_WILL",
+    "count": 6,
+    "avgFutureDiscDelta3Ply": 1.3333333333333333,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.6666666666666666,
+    "highBonusRate": 0.3333333333333333,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "TELEPORT_WILL",
+    "count": 16,
+    "avgFutureDiscDelta3Ply": 1.375,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.5,
+    "highBonusRate": 0.375,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "LOSS_WILL",
+    "count": 10,
+    "avgFutureDiscDelta3Ply": 1.4,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 1,
+    "highBonusRate": 0.4,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "DESTROY_DRAGON_WILL",
+    "count": 4,
+    "avgFutureDiscDelta3Ply": 1.5,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 1,
+    "highBonusRate": 0,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "LAST_RESORT",
+    "count": 4,
+    "avgFutureDiscDelta3Ply": 1.5,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.5,
+    "highBonusRate": 0,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "BOARD_EXPANSION_WILL",
+    "count": 8,
+    "avgFutureDiscDelta3Ply": 1.75,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0,
+    "highBonusRate": 0.5,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "PROTECTED_NEXT_STONE",
+    "count": 12,
+    "avgFutureDiscDelta3Ply": 1.8333333333333333,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.3333333333333333,
+    "highBonusRate": 0.5,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "CONDEMN_WILL",
+    "count": 14,
+    "avgFutureDiscDelta3Ply": 1.8571428571428572,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.42857142857142855,
+    "highBonusRate": 0.42857142857142855,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "POSITION_SWAP_WILL",
+    "count": 8,
+    "avgFutureDiscDelta3Ply": 2,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 1,
+    "highBonusRate": 0.25,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "DESTROY_ONE_STONE",
+    "count": 8,
+    "avgFutureDiscDelta3Ply": 2,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.75,
+    "highBonusRate": 0.25,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "ULTIMATE_REVERSE_DRAGON",
+    "count": 4,
+    "avgFutureDiscDelta3Ply": 2,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 1,
+    "highBonusRate": 0.5,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "TREASURE_BOX",
+    "count": 22,
+    "avgFutureDiscDelta3Ply": 2.090909090909091,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.36363636363636365,
+    "highBonusRate": 0.6363636363636364,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "SILVER_STONE",
+    "count": 14,
+    "avgFutureDiscDelta3Ply": 2.2857142857142856,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.5714285714285714,
+    "highBonusRate": 0.7142857142857143,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "REBUILD_WILL",
+    "count": 14,
+    "avgFutureDiscDelta3Ply": 2.7142857142857144,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.42857142857142855,
+    "highBonusRate": 0.2857142857142857,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "ROBOT_VACUUM_WILL",
+    "count": 8,
+    "avgFutureDiscDelta3Ply": 3,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0,
+    "highBonusRate": 0.25,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "GOLD_STONE",
+    "count": 12,
+    "avgFutureDiscDelta3Ply": 3,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.3333333333333333,
+    "highBonusRate": 0.8333333333333334,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "PERMA_PROTECT_NEXT_STONE",
+    "count": 8,
+    "avgFutureDiscDelta3Ply": 3,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0,
+    "highBonusRate": 0.5,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "PLUNDER_WILL",
+    "count": 4,
+    "avgFutureDiscDelta3Ply": 3.5,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0,
+    "highBonusRate": 0,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "CHAIN_WILL",
+    "count": 2,
+    "avgFutureDiscDelta3Ply": 4,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 1,
+    "highBonusRate": 0,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "SWAP_WITH_ENEMY",
+    "count": 22,
+    "avgFutureDiscDelta3Ply": 4.636363636363637,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0.7272727272727273,
+    "highBonusRate": 0.36363636363636365,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "REGEN_WILL",
+    "count": 6,
+    "avgFutureDiscDelta3Ply": 5.333333333333333,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0,
+    "highBonusRate": 0.3333333333333333,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  },
+  {
+    "type": "BREEDING_WILL",
+    "count": 2,
+    "avgFutureDiscDelta3Ply": 8,
+    "forceUseRate": 0,
+    "cornerEmergencyRate": 0,
+    "highBonusRate": 1,
+    "cornerNowRate": 0,
+    "edgeNowRate": 0
+  }
+]

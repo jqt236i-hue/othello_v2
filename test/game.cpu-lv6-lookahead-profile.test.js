@@ -63,4 +63,25 @@ describe('cpu lv6 lookahead profile', () => {
     expect(options.endgameDepth).toBe(16);
     expect(options.endgameMaxTimeMs).toBeLessThanOrEqual(1800);
   });
+
+  test('teacher lookahead accepts runtime depth and beam overrides without changing teacher caps', () => {
+    const options = CpuLv6LookaheadProfile.buildLv6LookaheadOptions(
+      6,
+      makeMidBoard(),
+      7,
+      'black',
+      'teacher',
+      {
+        tacticalDepthOpening: 4,
+        tacticalDepthMid: 5,
+        tacticalDepthEnd: 6,
+        tacticalBeamWidth: 4
+      }
+    );
+
+    expect(options.depth).toBe(5);
+    expect(options.maxBranch).toBe(4);
+    expect(options.maxTimeMs).toBeLessThanOrEqual(80);
+    expect(options.endgameMaxTimeMs).toBeLessThanOrEqual(160);
+  });
 });

@@ -246,6 +246,48 @@ describe('NetworkMatchClient result sync', () => {
     expect(window.__suppressNextDiffFlip).toBe(false);
   });
 
+  test('incoming snapshot transient state is stripped and telemetry records it', () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    const applied = client.applySnapshot({
+      stateVersion: 14,
+      gameState: { currentPlayer: 1, turnNumber: 47, __resultShown: true },
+      cardState: {
+        markers: [],
+        presentationEvents: [{ type: 'snapshot_live' }],
+        _presentationEventsPersist: [{ type: 'snapshot_persist' }],
+        _currentActionMeta: { type: 'PLACE' }
+      }
+    }, {
+      force: true,
+      skipResultOverlay: true
+    });
+
+    expect(applied).toBe(true);
+    expect(global.cardState.presentationEvents).toEqual([]);
+    expect(global.cardState._presentationEventsPersist).toEqual([]);
+    expect(global.cardState._currentActionMeta).toBeUndefined();
+    expect(global.gameState.__resultShown).toBeUndefined();
+    expect(client.getNetworkTelemetry().counts.snapshot_transient_state_stripped).toBe(1);
+  });
+
+  test('non-force snapshot without stateVersion is rejected and telemetry records it', () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    const applied = client.applySnapshot({
+      gameState: { currentPlayer: 1, turnNumber: 48 },
+      cardState: { markers: [] }
+    }, {
+      force: false,
+      skipResultOverlay: true
+    });
+
+    expect(applied).toBe(false);
+    expect(client.getNetworkTelemetry().counts.snapshot_missing_state_version_rejected).toBe(1);
+  });
+
   test('snapshot apply rehydrates legacy marker fields for fallback UI paths', () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
@@ -256,7 +298,7 @@ describe('NetworkMatchClient result sync', () => {
       cardState: {
         markers: [
           { id: 1, kind: 'specialStone', row: 1, col: 2, owner: 'black', data: { type: 'WORK' } },
-          { id: 2, kind: 'bomb', row: 3, col: 4, owner: 'white', data: { remainingTurns: 2 } }
+          { id: 2, kind: 'specialStone', row: 3, col: 4, owner: 'white', data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } }
         ]
       }
     };
