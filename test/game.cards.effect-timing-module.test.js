@@ -163,7 +163,7 @@ describe('CardEffectTiming module', () => {
     const addChargeWithTotal = jest.fn();
     const cardState = {
       pendingEffectByPlayer: {
-        black: { type: 'LAST_RESORT', placementsRemaining: 2 },
+        black: { type: 'LAST_RESORT', placementsRemaining: 3 },
         white: null
       },
       extraPlaceRemainingByPlayer: { black: 0, white: 0 },
@@ -194,7 +194,7 @@ describe('CardEffectTiming module', () => {
       freePlacementUsed: true,
       lastResortContinues: true
     });
-    expect(cardState.pendingEffectByPlayer.black).toEqual({ type: 'LAST_RESORT', placementsRemaining: 1 });
+    expect(cardState.pendingEffectByPlayer.black).toEqual({ type: 'LAST_RESORT', placementsRemaining: 2 });
     expect(cardState.extraPlaceRemainingByPlayer.black).toBe(1);
   });
 });

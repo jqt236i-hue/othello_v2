@@ -56,6 +56,35 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     expect(targets).toEqual([{ row: 2, col: 2 }]);
   });
 
+  test('getSelectableTargets returns own timed special stones while EXTEND_LIFE_GOD is pending', () => {
+    const { cardState, gameState } = createStates();
+
+    gameState.board[2][2] = SharedConstants.BLACK;
+    gameState.board[3][3] = SharedConstants.BLACK;
+
+    cardState.markers.push({
+      id: 9201,
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      data: { type: 'WORK', ownerColor: 'black', workStage: 3, remainingOwnerTurns: 2 }
+    });
+    cardState.markers.push({
+      id: 9202,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'WORK', ownerColor: 'black', workStage: 3, remainingOwnerTurns: 0 }
+    });
+
+    cardState.pendingEffectByPlayer.black = { type: 'EXTEND_LIFE_GOD', stage: 'selectTarget' };
+
+    const targets = CardLogic.getSelectableTargets(cardState, gameState, 'black');
+    expect(targets).toEqual([{ row: 2, col: 2 }]);
+  });
+
   test('applyExtendLifeWill doubles remainingOwnerTurns on own WORK stone', () => {
     const def = (SharedConstants.CARD_DEFS || []).find((d) => d && d.type === 'EXTEND_LIFE_WILL');
     expect(def).toBeTruthy();
@@ -127,6 +156,72 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     expect(guard).toBeTruthy();
     expect(work.data.remainingOwnerTurns).toBe(4);
     expect(guard.data.remainingOwnerTurns).toBe(6);
+  });
+
+  test('applyExtendLifeGod quadruples remainingOwnerTurns on own WORK stone', () => {
+    const def = (SharedConstants.CARD_DEFS || []).find((d) => d && d.type === 'EXTEND_LIFE_GOD');
+    expect(def).toBeTruthy();
+
+    const { cardState, gameState } = createStates();
+    gameState.board[2][2] = SharedConstants.BLACK;
+    cardState.hands.black = [def.id];
+    cardState.charge.black = def.cost;
+    cardState.markers.push({
+      id: 9011,
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      data: { type: 'WORK', ownerColor: 'black', workStage: 4, remainingOwnerTurns: 2 }
+    });
+
+    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', def.id);
+    expect(used).toBe(true);
+
+    const res = CardLogic.applyExtendLifeGod(cardState, gameState, 'black', 2, 2);
+    expect(res && res.applied).toBe(true);
+    expect(res.previousRemainingOwnerTurns).toBe(2);
+    expect(res.newRemainingOwnerTurns).toBe(8);
+    expect(res.multiplier).toBe(4);
+
+    const work = (cardState.markers || []).find((m) => m && m.row === 2 && m.col === 2 && m.data && m.data.type === 'WORK');
+    expect(work).toBeTruthy();
+    expect(work.data.remainingOwnerTurns).toBe(8);
+  });
+
+  test('EXTEND_LIFE_GOD で持続5超になった WORK stone は 1→2→4→8→16 を繰り返す', () => {
+    const def = (SharedConstants.CARD_DEFS || []).find((d) => d && d.type === 'EXTEND_LIFE_GOD');
+    expect(def).toBeTruthy();
+
+    const { cardState, gameState } = createStates();
+    gameState.board[3][3] = SharedConstants.BLACK;
+    cardState.hands.black = [def.id];
+    cardState.charge.black = def.cost;
+    cardState.workAnchorPosByPlayer.black = { row: 3, col: 3 };
+    cardState.markers.push({
+      id: 9012,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'WORK', ownerColor: 'black', workStage: 0, remainingOwnerTurns: 5 }
+    });
+
+    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', def.id);
+    expect(used).toBe(true);
+
+    const extended = CardLogic.applyExtendLifeGod(cardState, gameState, 'black', 3, 3);
+    expect(extended && extended.applied).toBe(true);
+    expect(extended.previousRemainingOwnerTurns).toBe(5);
+    expect(extended.newRemainingOwnerTurns).toBe(20);
+
+    const gains = [];
+    for (let i = 0; i < 20; i += 1) {
+      const one = CardWork.processWorkEffects(cardState, gameState, 'black');
+      gains.push(one.gained);
+      expect(one.removed).toBe(i === 19);
+    }
+    expect(gains).toEqual([1, 2, 4, 8, 16, 1, 2, 4, 8, 16, 1, 2, 4, 8, 16, 1, 2, 4, 8, 16]);
   });
 
   test('EXTEND_LIFE_WILL で持続5超になった WORK stone は 1→2→4→8→16 を繰り返す', () => {

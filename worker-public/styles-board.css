@@ -98,21 +98,25 @@
 }
 
 .cell.has-disc::before,
-.cell.has-disc::before,
 .cell:has(> .disc)::before {
     content: "";
     position: absolute;
-    left: 14%;
-    right: 14%;
-    bottom: 13%;
-    height: 16%;
+    left: 11%;
+    right: 7%;
+    bottom: 11%;
+    height: 24%;
     border-radius: 50%;
     background: radial-gradient(
-        ellipse at center,
-        var(--cell-contact-shadow-color) 0%,
-        transparent 72%
+        ellipse at 42% 46%,
+        color-mix(in srgb, var(--cell-contact-shadow-color) 100%, transparent) 0%,
+        color-mix(in srgb, var(--cell-contact-shadow-color) 72%, transparent) 42%,
+        color-mix(in srgb, var(--cell-contact-shadow-color) 28%, transparent) 72%,
+        transparent 88%
     );
-    box-shadow: 0 calc(var(--cell-contact-shadow-offset-y) * -0.2) calc(var(--cell-contact-shadow-blur) * 0.7) var(--cell-contact-shadow-highlight);
+    filter: blur(var(--cell-contact-shadow-blur));
+    transform: translate(var(--cell-contact-shadow-offset-x), var(--cell-contact-shadow-offset-y)) scale(1.06, 0.92);
+    box-shadow: 0 -1px 2px var(--cell-contact-shadow-highlight);
+    opacity: 0;
     pointer-events: none;
     z-index: 2;
 }
@@ -292,16 +296,31 @@
     position: absolute;
     top: 7%;
     left: 7%;
-    box-shadow: none; /* visual decoration moved to image assets */
-    overflow: hidden; /* clip images to circle */
+    overflow: visible;
     transform-style: preserve-3d;
     will-change: transform;
     z-index: 10;
-    background-size: 100% 100%;
-    background-position: center center;
-    background-repeat: no-repeat;
-    /* Smooth cross-fade for all stone state changes */
-    transition: background var(--stone-crossfade-ms) ease-in-out;
+}
+
+.disc::before {
+    content: "";
+    position: absolute;
+    inset: 38% -8% -18% 34%;
+    border-radius: 50%;
+    background:
+        radial-gradient(
+            ellipse at 36% 34%,
+            color-mix(in srgb, var(--stone-shadow-color) 100%, transparent) 0%,
+            color-mix(in srgb, var(--stone-shadow-color) 76%, transparent) 36%,
+            color-mix(in srgb, var(--stone-shadow-color) 32%, transparent) 70%,
+            transparent 88%
+        );
+    filter: blur(var(--stone-shadow-blur));
+    transform: translate(var(--stone-shadow-offset-x), var(--stone-shadow-offset-y)) scale(1.18, 0.82);
+    transform-origin: center;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 0;
 }
 
 /* Board stones: enlarge all discs by +10% while keeping them centered in each cell. */
@@ -312,39 +331,85 @@
     left: 5.05%;
 }
 
-/* Overlay image used to ensure image covers the disc fully (hides transparent canvas margins) */
-.disc::after {
+.disc__face {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    background-color: var(--disc-base-fallback-color, transparent);
+    box-shadow: none;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.disc__face::after {
     content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow:
+        inset 0 0 0 var(--stone-keyline-width) var(--stone-keyline-color),
+        inset 0 calc(-1 * var(--stone-keyline-width)) calc(var(--stone-keyline-width) * 2) var(--stone-keyline-inner-shade);
+    pointer-events: none;
+    z-index: 3;
+}
+
+.disc__base-image,
+.disc__overlay-image {
     position: absolute;
     inset: 0;
     border-radius: 50%;
     background-repeat: no-repeat;
     background-position: center center;
-    background-size: cover; /* ensure coverage to hide transparent edges */
+    background-size: cover;
     pointer-events: none;
-    z-index: 15;
-    /* Uses element-level CSS var --stone-image which may reference --normal-stone-*-image */
-    background-image: var(--stone-image, none);
+    transition: opacity var(--stone-crossfade-ms) ease-in-out, transform var(--stone-crossfade-ms) ease-in-out;
 }
 
-/* Ensure special-stone overlay appears above normal disc overlay */
-.disc.special-stone::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    background-image: var(--special-stone-image);
-    background-size: 100% 100% !important;
-    background-position: center center;
-    background-repeat: no-repeat;
-    transform: scale(var(--special-stone-scale, 1));
+.disc__base-image {
+    z-index: 1;
+    opacity: 1;
+    background-image: var(--disc-base-image, var(--stone-image, none));
+}
+
+.disc__overlay-image {
+    z-index: 2;
+    opacity: 0;
+    background-image: var(--disc-overlay-image, var(--special-stone-image, none));
+    transform: scale(var(--disc-overlay-scale, var(--special-stone-scale, 1)));
     transform-origin: center;
-    filter: drop-shadow(0 var(--stone-shadow-offset-y) var(--stone-shadow-blur) var(--stone-shadow-color));
+}
+
+.disc__hud {
+    position: absolute;
+    inset: 0;
     pointer-events: none;
-    z-index: 25; /* keep above .disc::after (z-index:15) */
+    z-index: 40;
+}
+
+.disc[data-render-mode="replace"] .disc__base-image {
+    opacity: 0;
+}
+
+.disc[data-render-mode="overlay"] .disc__overlay-image,
+.disc[data-render-mode="replace"] .disc__overlay-image {
+    opacity: 1;
+}
+
+html.stone-shadow-enabled .disc::before {
+    opacity: 1;
+}
+
+.disc[data-image-state="loaded"] .disc__face {
+    background-color: transparent;
+}
+
+.disc[data-image-state="fallback"].black {
+    --disc-base-fallback-color: #050505;
+}
+
+.disc[data-image-state="fallback"].white {
+    --disc-base-fallback-color: #ffffff;
 }
 
 
@@ -355,7 +420,8 @@
 
 /* Instant state change (disable transitions temporarily) */
 .disc.stone-instant,
-.disc.stone-instant::before {
+.disc.stone-instant .disc__base-image,
+.disc.stone-instant .disc__overlay-image {
     transition: none !important;
 }
 
@@ -369,32 +435,12 @@
     display: none; /* overlays are disabled */
 }
 
-.disc.black {
-    background: var(--normal-stone-black-image) center/100% 100% no-repeat;
-    background-color: #050505; /* 画像の透明領域を埋める */
-    /* border removed: visual rim is now provided by image assets */
-}
- 
-.disc.white {
-    background: var(--normal-stone-white-image) center/100% 100% no-repeat;
-    background-color: #ffffff; /* 画像の透明領域を埋める */
-}
-
-/* When stone images are loaded we prefer the overlay pseudo-element and hide the base backgrounds
-   This enables image-only rendering while preserving colored fallback for older/failed loads */
+/* The shared skeleton renders stone images regardless of preload timing.
+   The root class remains for compatibility with bootstrap/tests. */
 html.stone-images-loaded .disc.black,
 html.stone-images-loaded .disc.white {
     background: none !important;
     background-color: transparent !important;
-}
-
-/* Fallback overlay assignment: if per-disc --stone-image isn't set, assign based on owner class so stones remain visible
-   This makes the transition resilient to timing/order differences between preload and rendering. */
-html.stone-images-loaded .disc.black::after {
-    background-image: var(--normal-stone-black-image);
-}
-html.stone-images-loaded .disc.white::after {
-    background-image: var(--normal-stone-white-image);
 }
 
 .disc.protected {
@@ -413,29 +459,12 @@ html.stone-images-loaded .disc.white::after {
     box-shadow: none;
 }
 
-.disc.perma-protected.perma-black::after {
-    display: none; /* remove CSS aura; image should include it if needed */
-}
-
-.disc.perma-protected.perma-black::before {
-    display: none;
-}
-
-
 .disc.perma-protected.perma-white {
     box-sizing: border-box;
     /* Perma-protected uses image-based visuals; let JS set the image */
     background: none !important;
     /* visual border/shine removed: image supplies the rim */
     box-shadow: none;
-}
-
-.disc.perma-protected.perma-white::after {
-    display: none; /* remove CSS aura; image should include it if needed */
-}
-
-.disc.perma-protected.perma-white::before {
-    display: none;
 }
 
 
@@ -631,21 +660,6 @@ html.stone-images-loaded .disc.white::after {
     clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
 }
 
-/* Fallback inline image inside .disc used only when pseudo-element or CSS vars fail */
-.disc .special-stone-img {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover; /* ensure images fill the disc */
-    filter: drop-shadow(0 var(--stone-shadow-offset-y) var(--stone-shadow-blur) var(--stone-shadow-color));
-    pointer-events: none;
-    z-index: 60;
-    border-radius: inherit; /* match disc rounding */
-}
-
-
 /**
  * Protected Stone (硬い意志)
  * - 効果継続ターン中のみブルー画像を表示
@@ -656,10 +670,10 @@ html.stone-images-loaded .disc.white::after {
     background: none !important;
 }
 
-/* 強い石/弱い石は通常石の下地オーバーレイを隠し、黒縁の見え方を防ぐ */
-.disc.protected-stone::after,
-.disc.protected-gray::after {
-    display: none !important;
+/* 強い石/弱い石は通常石の下地を隠し、黒縁の見え方を防ぐ */
+.disc.protected-stone .disc__base-image,
+.disc.protected-gray .disc__base-image {
+    opacity: 0 !important;
 }
 
 .disc.protected-stone.fade-out {
@@ -906,7 +920,8 @@ html.stone-images-loaded .disc.white::after {
 /* NOANIM safety: disable transitions/animations under a global marker */
 .no-anim #board .disc,
 .no-anim .board .disc,
-.no-anim #board .disc::before,
+.no-anim #board .disc__base-image,
+.no-anim #board .disc__overlay-image,
 .no-anim .stone-fade-overlay,
 .no-anim #board .cell-expanded-reveal {
     transition: none !important;
@@ -1022,7 +1037,7 @@ html.stone-images-loaded .disc.white::after {
     border: none !important;
 }
 
-.disc.trap-place-flash::before {
+.disc.trap-place-flash .disc__overlay-image {
     animation: trapPlaceFlash 0.72s ease-out forwards;
 }
 
@@ -1046,12 +1061,12 @@ html.stone-images-loaded .disc.white::after {
 /* Regen stone base style (Ensure background is NOT none) */
 
 /* Universal cross-fade system for all special stone icons */
-.disc.special-stone::before {
+.disc.special-stone .disc__overlay-image {
     transition: opacity var(--stone-crossfade-ms) ease-in-out;
 }
 
 /* Hidden state for cross-fade */
-.disc.special-stone.stone-hidden::before {
+.disc.special-stone.stone-hidden .disc__overlay-image {
     opacity: 0;
 }
 

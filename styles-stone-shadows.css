@@ -1,27 +1,11 @@
 /* Stone shadows — enabled via html.stone-shadow-enabled */
-/* Keep one unified shadow profile so all stone types look consistent. */
+/* Projected shadow lives on occupied cells; disc root keeps only the local auxiliary layer. */
 
-html.stone-shadow-enabled .disc {
-    box-shadow: 0 var(--stone-shadow-offset-y) var(--stone-shadow-blur) var(--stone-shadow-color) !important;
+html.stone-shadow-enabled .cell.has-disc::before,
+html.stone-shadow-enabled .cell:has(> .disc)::before {
+    opacity: 0.96;
 }
 
-html.stone-shadow-enabled .disc::after,
-html.stone-shadow-enabled .disc.special-stone::before,
-html.stone-shadow-enabled .disc.special-stone::after,
-html.stone-shadow-enabled .disc .special-stone-img {
-    filter: drop-shadow(0 var(--stone-shadow-offset-y) var(--stone-shadow-blur) var(--stone-shadow-color));
-    transition: none !important; /* Spec B: no transition latency */
-    will-change: filter;
-    pointer-events: none;
-}
-
-/* Keep explicit selectors for variants that previously disabled shadows. */
-html.stone-shadow-enabled .disc.protected,
-html.stone-shadow-enabled .disc.perma-protected,
-html.stone-shadow-enabled .disc.bomb,
-html.stone-shadow-enabled .disc.time-bomb-stone,
-html.stone-shadow-enabled .disc.time-stop-stone,
-html.stone-shadow-enabled .disc.gold,
-html.stone-shadow-enabled .disc.silver {
-    box-shadow: 0 var(--stone-shadow-offset-y) var(--stone-shadow-blur) var(--stone-shadow-color) !important;
+html.stone-shadow-enabled .disc::before {
+    opacity: 1;
 }

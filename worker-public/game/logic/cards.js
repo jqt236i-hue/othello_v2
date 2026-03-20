@@ -649,6 +649,11 @@
         return collectTimeStopGodDestroyableOwnStonePositions(cardState, gameState, playerKey).length;
     }
 
+    function canUseTimeStopGodForPlayer(cardState, gameState, playerKey) {
+        if (!gameState || !Array.isArray(gameState.board)) return false;
+        return getTimeStopGodDestroyableCount(cardState, gameState, playerKey) >= TIME_STOP_GOD_SELF_DESTROY_COUNT;
+    }
+
     function resolveTimeStopGodUsage(cardState, gameState, playerKey, prng) {
         const targets = sampleRandomPositions(
             collectTimeStopGodDestroyableOwnStonePositions(cardState, gameState, playerKey),
@@ -2164,6 +2169,61 @@
         return false;
     }
 
+    function countDiscsForCardComparison(gameState) {
+        const fallback = { black: 0, white: 0 };
+        if (!gameState || !Array.isArray(gameState.board)) return fallback;
+
+        const core = resolveCoreLogicForCards();
+        if (core && typeof core.countDiscs === 'function') {
+            try {
+                const counted = core.countDiscs(gameState);
+                if (
+                    counted &&
+                    Number.isFinite(Number(counted.black)) &&
+                    Number.isFinite(Number(counted.white))
+                ) {
+                    return {
+                        black: Number(counted.black),
+                        white: Number(counted.white)
+                    };
+                }
+            } catch (e) {
+                // fall through
+            }
+        }
+
+        let black = 0;
+        let white = 0;
+        for (let row = 0; row < gameState.board.length; row++) {
+            const line = Array.isArray(gameState.board[row]) ? gameState.board[row] : [];
+            for (let col = 0; col < line.length; col++) {
+                if (line[col] === BLACK) black += 1;
+                else if (line[col] === WHITE) white += 1;
+            }
+        }
+
+        const expansions = getExpansionDescriptorsForCard(gameState);
+        for (const expansion of expansions) {
+            if (!expansion) continue;
+            if (expansion.owner === BLACK) black += 1;
+            else if (expansion.owner === WHITE) white += 1;
+        }
+
+        return { black, white };
+    }
+
+    function hasFewerDiscsThanOpponentForPlayer(gameState, playerKey) {
+        const counts = countDiscsForCardComparison(gameState);
+        if (playerKey === 'white') return counts.white < counts.black;
+        return counts.black < counts.white;
+    }
+
+    function canUseLastResortForPlayer(cardState, gameState, playerKey) {
+        if (!gameState || !Array.isArray(gameState.board)) return false;
+        if (hasStandardLegalMoveForPlayer(cardState, gameState, playerKey)) return false;
+        return hasFewerDiscsThanOpponentForPlayer(gameState, playerKey);
+    }
+
     function _ensureHandDestroyFlags(cardState) {
         if (!CardHandManagerModule || typeof CardHandManagerModule.ensureHandDestroyFlags !== 'function') {
             throw new Error('[cards.js] CardHandManager.ensureHandDestroyFlags not available');
@@ -2294,6 +2354,8 @@
                 prng: opts && opts.prng,
                 heavenSeedHint,
                 hasStandardLegalMoveForPlayer,
+                canUseLastResortForPlayer,
+                canUseTimeStopGodForPlayer,
                 countOpponentOccupiedCornersForPlayer,
                 buildHeavenBlessingOffers,
                 buildCondemnOffers,
@@ -2324,6 +2386,7 @@
                 getMeteorTargets,
                 getFreezeTargets,
                 getTimeStopGodDestroyableCount,
+                timeStopGodSelfDestroyCount: TIME_STOP_GOD_SELF_DESTROY_COUNT,
                 getLossWillRemovableCount
             })
             : null;
@@ -2366,6 +2429,7 @@
                     cardType === 'GUARDIAN_GOD' ||
                     cardType === 'HYPERACTIVE_INHERIT_WILL' ||
                     cardType === 'EXTEND_LIFE_WILL' ||
+                    cardType === 'EXTEND_LIFE_GOD' ||
                     cardType === 'CORROSION_WILL' ||
                     cardType === 'TIME_BOMB' ||
                     cardType === 'TELEPORT_WILL' ||
@@ -2394,7 +2458,7 @@
                     selectedCount: cardType === 'SACRIFICE_WILL' ? 0 : (cardType === 'BOARD_EXPANSION_GOD' ? 0 : undefined),
                     maxSelections: cardType === 'SACRIFICE_WILL' ? 3 : (cardType === 'BOARD_EXPANSION_GOD' ? 2 : undefined),
                     selectedTargets: cardType === 'BOARD_EXPANSION_GOD' ? [] : undefined,
-                    placementsRemaining: cardType === 'LAST_RESORT' ? 2 : undefined
+                    placementsRemaining: cardType === 'LAST_RESORT' ? 3 : undefined
                 };
 
         // Special handling for WORK_WILL: arm next placement for this player
@@ -3245,18 +3309,16 @@
         return { applied: true, row, col, remainingOwnerTurns: INHERITED_HYPERACTIVE_TURNS };
     }
 
-    // Apply EXTEND_LIFE_WILL: double remainingOwnerTurns on chosen cell's own special markers (numeric remainingOwnerTurns only)
-    function applyExtendLifeWill(cardState, gameState, playerKey, row, col) {
-        if (CardMarkersModule && typeof CardMarkersModule.applyExtendLifeWill === 'function') {
-            return CardMarkersModule.applyExtendLifeWill(cardState, gameState, playerKey, row, col, {
-                getExtendLifeTargets
-            });
-        }
+    function applyExtendLifeSelection(cardState, gameState, playerKey, row, col, options) {
+        const settings = options && typeof options === 'object' ? options : {};
+        const pendingType = settings.pendingType || 'EXTEND_LIFE_WILL';
+        const multiplier = Number.isFinite(settings.multiplier) ? Number(settings.multiplier) : 2;
+        const getTargets = typeof settings.getTargets === 'function' ? settings.getTargets : getExtendLifeTargets;
         const pending = cardState.pendingEffectByPlayer[playerKey];
-        if (!pending || pending.type !== 'EXTEND_LIFE_WILL' || pending.stage !== 'selectTarget') {
+        if (!pending || pending.type !== pendingType || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
-        const targets = getExtendLifeTargets(cardState, gameState, playerKey);
+        const targets = getTargets(cardState, gameState, playerKey);
         const allowed = targets.some(t => t.row === row && t.col === col);
         if (!allowed) return { applied: false, reason: 'invalid_target' };
 
@@ -3279,19 +3341,54 @@
         }) || specialsAtCell[0];
 
         let prev = 0;
-        let doubled = 0;
+        let next = 0;
         for (const special of specialsAtCell) {
             const onePrev = Number(special.data.remainingOwnerTurns || 0);
-            const oneDoubled = Math.max(1, Math.trunc(onePrev * 2));
-            special.data.remainingOwnerTurns = oneDoubled;
+            const oneNext = Math.max(1, Math.trunc(onePrev * multiplier));
+            special.data.remainingOwnerTurns = oneNext;
             if (special === primaryMarker) {
                 prev = onePrev;
-                doubled = oneDoubled;
+                next = oneNext;
             }
         }
 
         cardState.pendingEffectByPlayer[playerKey] = null;
-        return { applied: true, row, col, previousRemainingOwnerTurns: prev, newRemainingOwnerTurns: doubled };
+        return {
+            applied: true,
+            row,
+            col,
+            previousRemainingOwnerTurns: prev,
+            newRemainingOwnerTurns: next,
+            multiplier,
+            cardType: pendingType
+        };
+    }
+
+    // Apply EXTEND_LIFE_WILL: double remainingOwnerTurns on chosen cell's own special markers (numeric remainingOwnerTurns only)
+    function applyExtendLifeWill(cardState, gameState, playerKey, row, col) {
+        if (CardMarkersModule && typeof CardMarkersModule.applyExtendLifeWill === 'function') {
+            return CardMarkersModule.applyExtendLifeWill(cardState, gameState, playerKey, row, col, {
+                getExtendLifeTargets
+            });
+        }
+        return applyExtendLifeSelection(cardState, gameState, playerKey, row, col, {
+            pendingType: 'EXTEND_LIFE_WILL',
+            multiplier: 2,
+            getTargets: getExtendLifeTargets
+        });
+    }
+
+    function applyExtendLifeGod(cardState, gameState, playerKey, row, col) {
+        if (CardMarkersModule && typeof CardMarkersModule.applyExtendLifeGod === 'function') {
+            return CardMarkersModule.applyExtendLifeGod(cardState, gameState, playerKey, row, col, {
+                getExtendLifeTargets
+            });
+        }
+        return applyExtendLifeSelection(cardState, gameState, playerKey, row, col, {
+            pendingType: 'EXTEND_LIFE_GOD',
+            multiplier: 4,
+            getTargets: getExtendLifeTargets
+        });
     }
 
     function applyCorrosionWill(cardState, gameState, playerKey, row, col) {
@@ -4429,6 +4526,8 @@
             },
             helpers: {
                 hasStandardLegalMoveForPlayer,
+                canUseLastResortForPlayer,
+                canUseTimeStopGodForPlayer,
                 countOpponentOccupiedCornersForPlayer,
                 getTemptWillTargets,
                 getStrongWindTargets,
@@ -6396,6 +6495,7 @@
         applyCondemnWill,
         applyTemptWill,
         applyExtendLifeWill,
+        applyExtendLifeGod,
         applyCorrosionWill,
         applyGuardWill,
         applyHyperactiveInheritWill,

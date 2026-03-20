@@ -236,8 +236,13 @@
 
             if (gameState) {
                 if (type === 'LAST_RESORT') {
-                    if (typeof helpers.hasStandardLegalMoveForPlayer !== 'function') continue;
-                    if (helpers.hasStandardLegalMoveForPlayer(cardState, gameState, playerKey)) continue;
+                    if (typeof helpers.canUseLastResortForPlayer !== 'function') continue;
+                    if (!helpers.canUseLastResortForPlayer(cardState, gameState, playerKey)) continue;
+                }
+
+                if (type === 'TIME_STOP_GOD') {
+                    if (typeof helpers.canUseTimeStopGodForPlayer !== 'function') continue;
+                    if (!helpers.canUseTimeStopGodForPlayer(cardState, gameState, playerKey)) continue;
                 }
 
                 if (type === 'CORNER_TRIBUTE') {
@@ -249,7 +254,7 @@
                 if (type === 'TRAP_WILL' && !requireLocalTargets(context, 'getTrapTargets', [cardState, gameState, playerKey], 1)) continue;
                 if ((type === 'GUARD_WILL' || type === 'GUARDIAN_GOD') && !requireLocalTargets(context, 'getGuardTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'HYPERACTIVE_INHERIT_WILL' && !requireLocalTargets(context, 'getHyperactiveInheritTargets', [cardState, gameState, playerKey], 1)) continue;
-                if (type === 'EXTEND_LIFE_WILL' && !requireLocalTargets(context, 'getExtendLifeTargets', [cardState, gameState, playerKey], 1)) continue;
+                if ((type === 'EXTEND_LIFE_WILL' || type === 'EXTEND_LIFE_GOD') && !requireLocalTargets(context, 'getExtendLifeTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'CORROSION_WILL' && !requireLocalTargets(context, 'getCorrosionTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'TIME_BOMB' && !requireLocalTargets(context, 'getTimeBombTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'TELEPORT_WILL' && !requireLocalTargets(context, 'getTeleportTargets', [cardState, gameState], 1)) continue;
@@ -283,7 +288,7 @@
                 if (type === 'TRAP_WILL' && !requireModuleTargets(context, 'getTrapTargets', [cardState, gameState, playerKey], 1)) continue;
                 if ((type === 'GUARD_WILL' || type === 'GUARDIAN_GOD') && !requireModuleTargets(context, 'getGuardTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'HYPERACTIVE_INHERIT_WILL' && !requireModuleTargets(context, 'getHyperactiveInheritTargets', [cardState, gameState, playerKey], 1)) continue;
-                if (type === 'EXTEND_LIFE_WILL' && !requireModuleTargets(context, 'getExtendLifeTargets', [cardState, gameState, playerKey], 1)) continue;
+                if ((type === 'EXTEND_LIFE_WILL' || type === 'EXTEND_LIFE_GOD') && !requireModuleTargets(context, 'getExtendLifeTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'TIME_BOMB' && !requireModuleTargets(context, 'getTimeBombTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'TELEPORT_WILL' && !requireModuleTargets(context, 'getTeleportTargets', [cardState, gameState], 1)) continue;
                 if (type === 'CELL_TELEPORT_WILL' && !requireModuleTargets(context, 'getCellTeleportTargets', [cardState, gameState], 1)) continue;

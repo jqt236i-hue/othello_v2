@@ -279,7 +279,9 @@ function ensureWorkVisualsApplied() {
             const sel = `.cell[data-row="${w.row}"][data-col="${w.col}"] .disc`;
             const disc = document.querySelector(sel);
             if (!disc) continue;
-            const imgVar = (disc.style && disc.style.getPropertyValue) ? disc.style.getPropertyValue('--special-stone-image') : null;
+            const imgVar = (disc.style && disc.style.getPropertyValue)
+                ? (disc.style.getPropertyValue('--disc-overlay-image') || disc.style.getPropertyValue('--special-stone-image'))
+                : null;
             const hasImage = imgVar && String(imgVar).trim().length > 0;
             const hasClass = disc.classList && disc.classList.contains('work-stone');
             if (!hasImage || !hasClass) {
@@ -416,10 +418,11 @@ function collectWorkVisualDiagnostics() {
             } else {
                 item.discPresent = true;
                 item.classes = [...disc.classList];
-                item.inlineVar = disc.style.getPropertyValue('--special-stone-image') || null;
-                item.inlineBg = disc.style.backgroundImage || null;
-                item.computedBefore = getComputedStyle(disc, '::before').getPropertyValue('background-image') || null;
-                item.injectImg = !!disc.querySelector('.special-stone-img');
+                item.inlineVar = disc.style.getPropertyValue('--disc-overlay-image') || disc.style.getPropertyValue('--special-stone-image') || null;
+                item.renderMode = disc.dataset.renderMode || null;
+                const overlayEl = disc.querySelector('.disc__overlay-image');
+                item.overlayBg = overlayEl ? (getComputedStyle(overlayEl).getPropertyValue('background-image') || null) : null;
+                item.shadowVisible = !!(getComputedStyle(disc, '::before').getPropertyValue('opacity') || '').trim();
             }
             res.perSpecial.push(item);
         }

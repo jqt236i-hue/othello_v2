@@ -30,10 +30,10 @@ const pathModule = require('path');
   });
 
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1024 } });
   await page.route('**/assets/images/stones/*', route => route.abort());
 
-  const localUrl = `http://127.0.0.1:${server.address().port}/?debug=1`;
+  const localUrl = `http://127.0.0.1:${server.address().port}/?debug=1&noanim=1`;
   console.log('[viz] navigating to', localUrl);
   await page.goto(localUrl, { waitUntil: 'load' });
   await page.waitForTimeout(2000);

@@ -171,6 +171,25 @@ describe('cpu turn handler pending selection', () => {
     expect(cardState.pendingEffectByPlayer.white).toBeNull();
   });
 
+  test('EXTEND_LIFE_GOD invokes cpuSelectExtendLifeWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectExtendLifeWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'EXTEND_LIFE_GOD', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('EXTEND_LIFE_GOD clears pending when function absent', async () => {
+    delete global.cpuSelectExtendLifeWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'EXTEND_LIFE_GOD', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
   test('CORROSION_WILL invokes cpuSelectCorrosionWillWithPolicy when available', async () => {
     const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
     global.cpuSelectCorrosionWillWithPolicy = mock;

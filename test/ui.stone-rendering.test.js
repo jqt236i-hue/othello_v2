@@ -19,6 +19,7 @@ describe('UI stone rendering', () => {
     } else {
       document.body.innerHTML = '<div id="board"></div>';
     }
+    document.documentElement.className = '';
     global.boardEl = document.getElementById('board');
 
     // Minimal globals expected by helper function tests
@@ -37,21 +38,50 @@ describe('UI stone rendering', () => {
     global.cardState = { markers: [], pendingEffectByPlayer: { black: null, white: null } };
   });
 
-  test('setDiscStoneImage helper sets CSS var for black stone', () => {
+  test('setDiscStoneImage helper creates the disc skeleton and sets black base render state', () => {
     const boardRenderer = require('../ui/board-renderer');
-    const fakeDisc = { style: { vars: {}, setProperty(k, v) { this.vars[k] = v; }, getPropertyValue(k) { return this.vars[k] || ''; } } };
-    boardRenderer.setDiscStoneImage(fakeDisc, BLACK);
-    assert.strictEqual(fakeDisc.style.getPropertyValue('--stone-image'), 'var(--normal-stone-black-image)');
+    document.documentElement.classList.add('stone-base-images-ready');
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+    boardRenderer.setDiscStoneImage(disc, BLACK);
+    assert.strictEqual(disc.style.getPropertyValue('--stone-image'), 'var(--normal-stone-black-image)');
+    assert.strictEqual(disc.style.getPropertyValue('--disc-base-image'), 'var(--normal-stone-black-image)');
+    assert.strictEqual(disc.style.getPropertyValue('--disc-base-fallback-color'), 'transparent');
+    assert.strictEqual(disc.dataset.renderMode, 'base-only');
+    assert.strictEqual(disc.dataset.imageState, 'loaded');
+    assert.ok(disc.querySelector('.disc__face'));
+    assert.ok(disc.querySelector('.disc__base-image'));
+    assert.ok(disc.querySelector('.disc__overlay-image'));
+    assert.ok(disc.querySelector('.disc__hud'));
   });
 
-  test('setDiscStoneImage helper sets CSS var for white stone', () => {
+  test('setDiscStoneImage helper creates the disc skeleton and sets white base render state', () => {
     const boardRenderer = require('../ui/board-renderer');
-    const fakeDisc = { style: { vars: {}, setProperty(k, v) { this.vars[k] = v; }, getPropertyValue(k) { return this.vars[k] || ''; } } };
-    boardRenderer.setDiscStoneImage(fakeDisc, WHITE);
-    assert.strictEqual(fakeDisc.style.getPropertyValue('--stone-image'), 'var(--normal-stone-white-image)');
+    document.documentElement.classList.add('stone-base-images-ready');
+    const disc = document.createElement('div');
+    disc.className = 'disc white';
+    boardRenderer.setDiscStoneImage(disc, WHITE);
+    assert.strictEqual(disc.style.getPropertyValue('--stone-image'), 'var(--normal-stone-white-image)');
+    assert.strictEqual(disc.style.getPropertyValue('--disc-base-image'), 'var(--normal-stone-white-image)');
+    assert.strictEqual(disc.style.getPropertyValue('--disc-base-fallback-color'), 'transparent');
+    assert.strictEqual(disc.dataset.renderMode, 'base-only');
+    assert.strictEqual(disc.dataset.imageState, 'loaded');
+    assert.ok(disc.querySelector('.disc__face'));
+    assert.ok(disc.querySelector('.disc__base-image'));
+    assert.ok(disc.querySelector('.disc__overlay-image'));
+    assert.ok(disc.querySelector('.disc__hud'));
   });
 
-  test('diff-renderer sets per-disc --stone-image during initial render when images-loaded class present', () => {
+  test('setDiscStoneImage keeps owner-color fallback only while base stone images are not ready', () => {
+    const boardRenderer = require('../ui/board-renderer');
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+    boardRenderer.setDiscStoneImage(disc, BLACK);
+    assert.strictEqual(disc.dataset.imageState, 'fallback');
+    assert.strictEqual(disc.style.getPropertyValue('--disc-base-fallback-color'), '#050505');
+  });
+
+  test('diff-renderer renders the shared disc skeleton during initial render', () => {
     // Ensure jsdom is available and create a minimal document
     if (typeof document === 'undefined') {
       const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
@@ -59,8 +89,9 @@ describe('UI stone rendering', () => {
       global.document = dom.window.document;
       global.HTMLElement = dom.window.HTMLElement;
     }
-    // Ensure the page-level class is active (this hides base backgrounds)
+    // Ensure the base stone assets are considered ready for this render path.
     document.documentElement.classList.add('stone-images-loaded');
+    document.documentElement.classList.add('stone-base-images-ready');
 
     // Prepare board element and a couple of stones
     const boardEl = document.getElementById('board') || document.createElement('div');
@@ -79,6 +110,14 @@ describe('UI stone rendering', () => {
     const first = discs[0];
     const expected = first.classList.contains('black') ? 'var(--normal-stone-black-image)' : 'var(--normal-stone-white-image)';
     assert.strictEqual(first.style.getPropertyValue('--stone-image'), expected);
+    assert.strictEqual(first.style.getPropertyValue('--disc-base-image'), expected);
+    assert.strictEqual(first.style.getPropertyValue('--disc-base-fallback-color'), 'transparent');
+    assert.strictEqual(first.dataset.renderMode, 'base-only');
+    assert.strictEqual(first.dataset.imageState, 'loaded');
+    assert.ok(first.querySelector('.disc__face'));
+    assert.ok(first.querySelector('.disc__base-image'));
+    assert.ok(first.querySelector('.disc__overlay-image'));
+    assert.ok(first.querySelector('.disc__hud'));
   });
 
   test('diff-renderer shows actual remainingOwnerTurns for timed special stones', () => {
@@ -128,6 +167,7 @@ describe('UI stone rendering', () => {
     assert.strictEqual(boardEl.querySelector('.breeding-timer').textContent, '7');
     assert.strictEqual(boardEl.querySelector('.udg-timer').textContent, '8');
     assert.strictEqual(boardEl.querySelector('.work-timer').textContent, '12');
+    assert.ok(boardEl.querySelector('.dragon-timer').closest('.disc__hud'));
 
     const hyperDisc = boardEl.querySelector('.cell[data-row="0"][data-col="5"] .disc');
     assert.strictEqual(hyperDisc.querySelector('.flip-evade-timer').textContent, '1');

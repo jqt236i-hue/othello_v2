@@ -1503,18 +1503,29 @@
             } else if (pending && pending.type === 'HYPERACTIVE_INHERIT_WILL' && action.hyperactiveInheritTarget == null) {
                 throw new Error('HYPERACTIVE_INHERIT_WILL requires hyperactiveInheritTarget before placement');
             }
-            if (pending && pending.type === 'EXTEND_LIFE_WILL' && action.extendTarget) {
-                const res = CardLogic.applyExtendLifeWill(
+            if (pending && (pending.type === 'EXTEND_LIFE_WILL' || pending.type === 'EXTEND_LIFE_GOD') && action.extendTarget) {
+                const applyExtendLife = pending.type === 'EXTEND_LIFE_GOD'
+                    ? CardLogic.applyExtendLifeGod
+                    : CardLogic.applyExtendLifeWill;
+                const res = applyExtendLife(
                     cardState,
                     gameState,
                     playerKey,
                     action.extendTarget.row,
                     action.extendTarget.col
                 );
-                events.push({ type: 'extend_life_selected', player: playerKey, target: action.extendTarget, applied: !!(res && res.applied), details: res ? { previous: res.previousRemainingOwnerTurns, current: res.newRemainingOwnerTurns } : null });
+                events.push({
+                    type: 'extend_life_selected',
+                    player: playerKey,
+                    target: action.extendTarget,
+                    applied: !!(res && res.applied),
+                    cardType: pending.type,
+                    multiplier: res && Number.isFinite(res.multiplier) ? Number(res.multiplier) : (pending.type === 'EXTEND_LIFE_GOD' ? 4 : 2),
+                    details: res ? { previous: res.previousRemainingOwnerTurns, current: res.newRemainingOwnerTurns } : null
+                });
                 return;
-            } else if (pending && pending.type === 'EXTEND_LIFE_WILL' && action.extendTarget == null) {
-                throw new Error('EXTEND_LIFE_WILL requires extendTarget before placement');
+            } else if (pending && (pending.type === 'EXTEND_LIFE_WILL' || pending.type === 'EXTEND_LIFE_GOD') && action.extendTarget == null) {
+                throw new Error(`${pending.type} requires extendTarget before placement`);
             }
             if (pending && pending.type === 'CORROSION_WILL' && action.corrosionTarget) {
                 const res = CardLogic.applyCorrosionWill(

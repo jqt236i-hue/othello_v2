@@ -261,6 +261,35 @@
         linear-gradient(135deg, rgba(255, 104, 135, 0.98) 0%, rgba(255, 193, 92, 0.96) 32%, rgba(96, 208, 255, 0.96) 66%, rgba(115, 91, 255, 0.96) 100%);
 }
 
+.card-item.visible[data-card-id="crystal_stone"] {
+    --card-tier-bg-a: #83ecff;
+    --card-tier-bg-b: #9dcfff;
+    --card-tier-bg-c: #8a86ff;
+    --card-tier-hi: rgba(255, 255, 255, 0.42);
+    --card-tier-border: #e8fbff;
+    --card-tier-text: #fbffff;
+    --card-tier-badge-bg-a: rgba(192, 247, 255, 0.98);
+    --card-tier-badge-bg-b: rgba(139, 172, 255, 0.97);
+    --card-tier-badge-hi: rgba(255, 255, 255, 0.48);
+    --card-tier-badge-text: #f9feff;
+    --card-tier-badge-border: rgba(232, 251, 255, 0.96);
+    background:
+        radial-gradient(128% 112% at 16% 8%, rgba(255, 255, 255, 0.48) 0%, transparent 40%),
+        linear-gradient(148deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 22%, transparent 22%, transparent 38%, rgba(255, 255, 255, 0.16) 38%, rgba(255, 255, 255, 0.06) 54%, transparent 54%, transparent 71%, rgba(255, 255, 255, 0.18) 71%, rgba(255, 255, 255, 0.04) 100%),
+        linear-gradient(135deg, #7fefff 0%, #b7f7ff 18%, #9fdaff 42%, #7db7ff 64%, #a79cff 84%, #8be7ff 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.4),
+        inset 0 -2px 0 rgba(40, 69, 118, 0.24),
+        0 0 14px rgba(116, 220, 255, 0.28),
+        0 3px 10px rgba(0, 0, 0, 0.42);
+}
+
+.card-item.visible[data-card-id="crystal_stone"] .card-cost-badge {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.48) 0%, transparent 44%),
+        linear-gradient(135deg, rgba(197, 248, 255, 0.99) 0%, rgba(123, 214, 255, 0.97) 45%, rgba(150, 157, 255, 0.96) 100%);
+}
+
 .card-item.hidden {
     background: linear-gradient(135deg, #3d2e20, #1a0f08);
     border: var(--layout-size-border-thin) solid #4a3828;

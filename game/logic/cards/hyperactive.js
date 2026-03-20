@@ -775,6 +775,62 @@
         return { remainingFlips, moved, destroyed, evaded };
     }
 
+    function applyFlipCellsWithEvasion(cardState, gameState, flipCells, ownerKey, ownerVal, prng, deps = {}, options = {}) {
+        const parsedFlips = (Array.isArray(flipCells) ? flipCells : [])
+            .map((cell) => normalizeFlipCell(cell))
+            .filter((cell) => !!cell);
+        if (parsedFlips.length === 0) {
+            return { flipped: [], moved: [], destroyed: [] };
+        }
+
+        const clearSpecialAtPositions = typeof deps.clearHyperactiveAtPositions === 'function'
+            ? deps.clearHyperactiveAtPositions
+            : (() => {});
+        const evasionResult = resolveHyperactiveFlipEvasion(
+            cardState,
+            gameState,
+            parsedFlips,
+            ownerKey,
+            prng,
+            {
+                defaultPrng: deps.defaultPrng,
+                clearHyperactiveAtPositions: clearSpecialAtPositions,
+                isBlockedCell: deps.isBlockedCell,
+                BoardOps: deps.BoardOps,
+                destroyAt: deps.destroyAt
+            }
+        );
+
+        const remainingFlips = (Array.isArray(evasionResult && evasionResult.remainingFlips)
+            ? evasionResult.remainingFlips
+            : [])
+            .map((cell) => normalizeFlipCell(cell))
+            .filter((cell) => !!cell);
+        const flipped = [];
+
+        for (const cell of remainingFlips) {
+            if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
+                deps.BoardOps.changeAt(cardState, gameState, cell.row, cell.col, ownerKey, options.flipCause, options.flipReason);
+            } else {
+                setBoardCell(gameState, cell.row, cell.col, ownerVal);
+            }
+
+            flipped.push(typeof options.buildFlippedDetail === 'function'
+                ? options.buildFlippedDetail(cell)
+                : { row: cell.row, col: cell.col });
+        }
+
+        if (flipped.length > 0) {
+            clearSpecialAtPositions(cardState, flipped.map((detail) => ({ row: detail.row, col: detail.col })));
+        }
+
+        return {
+            flipped,
+            moved: Array.isArray(evasionResult && evasionResult.moved) ? evasionResult.moved.slice() : [],
+            destroyed: Array.isArray(evasionResult && evasionResult.destroyed) ? evasionResult.destroyed.slice() : []
+        };
+    }
+
     function destroyUltimateAnchor(cardState, gameState, entry, deps, destroyAt, reason) {
         let anchorDestroyed = false;
         if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
@@ -1020,17 +1076,27 @@
         }
 
         if (flipCells.length > 0) {
-            const flipPositions = flipCells.map(([r, c]) => ({ row: r, col: c, specialType: markerType }));
-            for (const [r, c] of flipCells) {
-                if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
-                    deps.BoardOps.changeAt(cardState, gameState, r, c, ownerKey, moveCause, flipReason);
-                } else {
-                    setBoardCell(gameState, r, c, ownerVal);
+            const flipResult = applyFlipCellsWithEvasion(
+                cardState,
+                gameState,
+                flipCells,
+                ownerKey,
+                ownerVal,
+                p,
+                Object.assign({}, deps, {
+                    clearHyperactiveAtPositions,
+                    isBlockedCell,
+                    destroyAt
+                }),
+                {
+                    flipCause: moveCause,
+                    flipReason,
+                    buildFlippedDetail: (cell) => ({ row: cell.row, col: cell.col, specialType: markerType })
                 }
-            }
-            // If a hyperactive stone flips/gets converted, it loses hyperactive status.
-            clearHyperactiveAtPositions(cardState, flipPositions);
-            flipped.push(...flipPositions);
+            );
+            if (flipResult.moved.length) moved.push(...flipResult.moved);
+            if (flipResult.destroyed.length) destroyed.push(...flipResult.destroyed);
+            if (flipResult.flipped.length) flipped.push(...flipResult.flipped);
         }
 
         return { moved, destroyed, flipped, repelled, ownerKey };
@@ -1209,6 +1275,9 @@
             ? deps.ultimateHyperactiveMaxDistance
             : 5;
         const clearUltimateAtPositions = deps.clearUltimateAtPositions || clearUltimateHyperactiveAtPositions;
+        const clearHyperactiveAtPositions = typeof deps.clearHyperactiveAtPositions === 'function'
+            ? deps.clearHyperactiveAtPositions
+            : (() => {});
         const getFlipsWithContext = deps.getFlipsWithContext || (() => []);
         const destroyAt = deps.destroyAt || ((cs, gs, r, c) => {
             const cell = getBoardCell(gs, r, c);
@@ -1276,19 +1345,25 @@
             moved.push({ from, to: { row: target.row, col: target.col }, step, distance: target.distance });
 
             if (flipCells.length > 0) {
-                const flipPositions = flipCells.map(([r, c]) => ({ row: r, col: c }));
-                for (const [r, c] of flipCells) {
-                    if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
-                        deps.BoardOps.changeAt(cardState, gameState, r, c, ownerKey, 'ULTIMATE_HYPERACTIVE_GOD', 'ultimate_hyperactive_flip');
-                    } else {
-                        setBoardCell(gameState, r, c, ownerVal);
+                const flipResult = applyFlipCellsWithEvasion(
+                    cardState,
+                    gameState,
+                    flipCells,
+                    ownerKey,
+                    ownerVal,
+                    p,
+                    Object.assign({}, deps, {
+                        clearHyperactiveAtPositions,
+                        destroyAt
+                    }),
+                    {
+                        flipCause: 'ULTIMATE_HYPERACTIVE_GOD',
+                        flipReason: 'ultimate_hyperactive_flip'
                     }
-                }
-                // Flipped hyperactive/ultimate stones lose their special status.
-                if (deps.clearHyperactiveAtPositions) {
-                    deps.clearHyperactiveAtPositions(cardState, flipPositions);
-                }
-                flipped.push(...flipPositions);
+                );
+                if (flipResult.moved.length) moved.push(...flipResult.moved);
+                if (flipResult.destroyed.length) destroyed.push(...flipResult.destroyed);
+                if (flipResult.flipped.length) flipped.push(...flipResult.flipped);
             }
         }
 

@@ -1299,6 +1299,35 @@ describe('animation-engine guard timer rendering', () => {
     removeSpy.mockRestore();
   });
 
+  test('normal place event inserts the disc immediately without fade setup', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '1';
+    targetCell.dataset.col = '1';
+    board.appendChild(targetCell);
+
+    await engine.handlePlace({
+      type: 'place',
+      targets: [{
+        r: 1,
+        col: 1,
+        ownerAfter: 'black',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    const disc = targetCell.querySelector('.disc');
+    expect(disc).not.toBeNull();
+    expect(disc.classList.contains('stone-hidden')).toBe(false);
+    expect(disc.classList.contains('stone-hidden-all')).toBe(false);
+    expect(disc.classList.contains('stone-instant')).toBe(false);
+    expect(disc.style.opacity).toBe('');
+    expect(disc.style.transition).toBe('');
+  });
+
   test('strong wind move applies and clears red cell highlight at destination', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board');

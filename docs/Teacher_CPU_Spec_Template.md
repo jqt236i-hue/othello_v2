@@ -77,7 +77,7 @@
 - 攻撃系:
   - `DESTROY_ONE_STONE`, `ULTIMATE_DESTROY_GOD`, `TIME_BOMB`, `CROSS_BOMB`, `X_BOMB`, `STRONG_WIND_WILL`, `SWAP_WITH_ENEMY`, `POSITION_SWAP_WILL`, `TEMPT_WILL`, `ROBOT_VACUUM_WILL`, `ESCAPE_WILL`, `INSTANT_HYPERACTIVE_WILL`
 - 防御/維持系:
-  - `PROTECTED_NEXT_STONE`, `PERMA_PROTECT_NEXT_STONE`, `GUARD_WILL`, `REGEN_WILL`, `EXTEND_LIFE_WILL`, `BLOCKADE_WILL`
+  - `PROTECTED_NEXT_STONE`, `PERMA_PROTECT_NEXT_STONE`, `GUARD_WILL`, `REGEN_WILL`, `EXTEND_LIFE_WILL`, `EXTEND_LIFE_GOD`, `BLOCKADE_WILL`
 - 展開/手数系:
   - `FREE_PLACEMENT`, `DOUBLE_PLACE`, `SNIPER_WILL`, `HYPERACTIVE_WILL`, `ULTIMATE_HYPERACTIVE_GOD`, `CLONE_WILL`, `BREEDING_WILL`, `BOARD_EXPANSION_WILL`
 - 布石・手札経済系:
@@ -109,7 +109,7 @@
   - 最低防衛布石を常に `>=8` 残す。
   - 相手の高コストカード圏（20以上）入りを阻止できるなら吸収/売却を優先。
 
-### 6.5 全カード一覧（現行41種）
+### 6.5 全カード一覧（現行42種）
 | type | 名称 | cost | 主用途 |
 |---|---|---:|---|
 | TREASURE_BOX | 宝箱 | 0 | 経済 |
@@ -147,7 +147,8 @@
 | CONDEMN_WILL | 断罪の意志 | 6 | 手札干渉 |
 | GOLD_STONE | 金の意志 | 6 | 経済 |
 | SILVER_STONE | 銀の意志 | 3 | 経済 |
-| EXTEND_LIFE_WILL | 延命の意志 | 2 | 防御 |
+| EXTEND_LIFE_WILL | 延命の意志 | 4 | 防御 |
+| EXTEND_LIFE_GOD | 延命神 | 10 | 防御 |
 | GUARD_WILL | 守る意志 | 2 | 防御 |
 | ULTIMATE_DESTROY_GOD | 究極破壊神 | 25 | 攻撃 |
 | ULTIMATE_HYPERACTIVE_GOD | 究極多動神 | 28 | 展開/攪乱 |

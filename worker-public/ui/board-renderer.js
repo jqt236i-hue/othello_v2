@@ -112,6 +112,7 @@ function renderBoard() {
                 pending.type === 'BOARD_EXPANSION_WILL' ||
                 pending.type === 'BOARD_EXPANSION_GOD' ||
                 pending.type === 'EXTEND_LIFE_WILL' ||
+                pending.type === 'EXTEND_LIFE_GOD' ||
                 pending.type === 'CORROSION_WILL'
             )
         );
@@ -253,6 +254,7 @@ function renderBoardFull() {
             pending.type === 'BOARD_EXPANSION_WILL' ||
             pending.type === 'BOARD_EXPANSION_GOD' ||
             pending.type === 'EXTEND_LIFE_WILL' ||
+            pending.type === 'EXTEND_LIFE_GOD' ||
             pending.type === 'CORROSION_WILL'
         )
     );
@@ -423,8 +425,9 @@ function renderBoardFull() {
                 cell.classList.add('has-disc');
                 const disc = document.createElement('div');
                 disc.className = 'disc ' + (val === BLACK ? 'black' : 'white');
-                // Set element-level CSS var for the overlay image (used by .disc::after)
+                ensureDiscSkeleton(disc);
                 setDiscStoneImage(disc, val);
+                const discHud = getDiscHudRoot(disc);
 
                 // Unified special stone visual effect
                 const special = specialMap.get(key);
@@ -476,7 +479,7 @@ function renderBoardFull() {
                         const remaining = Math.max(0, Math.trunc(Number(special.remainingOwnerTurns)));
                         timer.textContent = String(remaining);
                         _applyDoubleDigitTimerClassForBoard(timer, remaining);
-                        disc.appendChild(timer);
+                        discHud.appendChild(timer);
                     }
 
                     if (specialCanShowFlipEvade && Number.isFinite(specialFlipEvadeForDisplay)) {
@@ -485,7 +488,7 @@ function renderBoardFull() {
                         const evadeRemaining = Math.max(0, Math.trunc(specialFlipEvadeForDisplay));
                         evadeTimer.textContent = String(evadeRemaining);
                         _applyDoubleDigitTimerClassForBoard(evadeTimer, evadeRemaining);
-                        disc.appendChild(evadeTimer);
+                        discHud.appendChild(evadeTimer);
                     }
 
                     if (specialCanShowDestroyEvade) {
@@ -494,7 +497,7 @@ function renderBoardFull() {
                         const destroyEvadeRemaining = Math.max(0, Math.trunc(Number(special.destroyEvadeRemaining)));
                         destroyEvadeTimer.textContent = String(destroyEvadeRemaining);
                         _applyDoubleDigitTimerClassForBoard(destroyEvadeTimer, destroyEvadeRemaining);
-                        disc.appendChild(destroyEvadeTimer);
+                        discHud.appendChild(destroyEvadeTimer);
                     }
                 }
 
@@ -502,13 +505,16 @@ function renderBoardFull() {
                 const bomb = bombMap.get(key);
                 if (bomb) {
                     const bombOwner = getOwnerVal(bomb.owner);
+                    if (typeof applyStoneVisualEffect === 'function') {
+                        applyStoneVisualEffect(disc, 'timeBombStone', { owner: bombOwner });
+                    }
                     disc.classList.add('bomb', 'special-stone', bombOwner === BLACK ? 'bomb-black' : 'bomb-white');
                     const timeLabel = document.createElement('div');
                     timeLabel.className = 'bomb-timer';
                     const bombRemaining = Math.max(0, Math.trunc(Number(bomb.remainingTurns)));
                     timeLabel.textContent = String(bombRemaining);
                     _applyDoubleDigitTimerClassForBoard(timeLabel, bombRemaining);
-                    disc.appendChild(timeLabel);
+                    discHud.appendChild(timeLabel);
                 }
 
                 const guardData = guardMap.get(key);
@@ -518,7 +524,7 @@ function renderBoardFull() {
                     const guardRemaining = Math.max(0, Math.trunc(guardData.remainingOwnerTurns));
                     guardTimer.textContent = String(guardRemaining);
                     _applyDoubleDigitTimerClassForBoard(guardTimer, guardRemaining);
-                    disc.appendChild(guardTimer);
+                    discHud.appendChild(guardTimer);
                 }
 
                 if (inheritedData && typeof inheritedData.remainingOwnerTurns === 'number') {
@@ -527,7 +533,7 @@ function renderBoardFull() {
                     const inheritedRemaining = Math.max(0, Math.trunc(inheritedData.remainingOwnerTurns));
                     inheritedTimer.textContent = String(inheritedRemaining);
                     _applyDoubleDigitTimerClassForBoard(inheritedTimer, inheritedRemaining);
-                    disc.appendChild(inheritedTimer);
+                    discHud.appendChild(inheritedTimer);
                 }
                 if (Number.isFinite(inheritedFlipEvadeForDisplay)) {
                     const evadeTimer = document.createElement('div');
@@ -535,13 +541,13 @@ function renderBoardFull() {
                     const inheritedEvadeRemaining = Math.max(0, Math.trunc(inheritedFlipEvadeForDisplay));
                     evadeTimer.textContent = String(inheritedEvadeRemaining);
                     _applyDoubleDigitTimerClassForBoard(evadeTimer, inheritedEvadeRemaining);
-                    disc.appendChild(evadeTimer);
+                    discHud.appendChild(evadeTimer);
                 }
                 if (sproutMap.has(key)) {
                     disc.classList.add('breeding-sprout');
                     const sproutIcon = document.createElement('div');
                     sproutIcon.className = 'breeding-sprout-icon';
-                    disc.appendChild(sproutIcon);
+                    discHud.appendChild(sproutIcon);
                 }
 
                 cell.appendChild(disc);
@@ -578,9 +584,167 @@ function updateOccupancyUI() {
     if (whiteEl) whiteEl.innerHTML = `<div class="occ-dot"></div>白 ${whitePct}%`;
 }
 
+function _findDirectDiscChildByClass(disc, className) {
+    if (!disc || !disc.children) return null;
+    for (const child of disc.children) {
+        if (child && child.classList && child.classList.contains(className)) return child;
+    }
+    return null;
+}
+
+function _resolveDiscOwnerDescriptor(owner) {
+    const blackValue = (typeof BLACK !== 'undefined') ? BLACK : 1;
+    const whiteValue = (typeof WHITE !== 'undefined') ? WHITE : -1;
+    const normalized = (owner === whiteValue || owner === -1 || owner === 'white' || owner === '-1')
+        ? 'white'
+        : 'black';
+    return normalized === 'white'
+        ? {
+            key: 'white',
+            value: whiteValue,
+            className: 'white',
+            baseImage: 'var(--normal-stone-white-image)',
+            fallbackColor: '#ffffff'
+        }
+        : {
+            key: 'black',
+            value: blackValue,
+            className: 'black',
+            baseImage: 'var(--normal-stone-black-image)',
+            fallbackColor: '#050505'
+        };
+}
+
+function _areStoneBaseImagesReady() {
+    try {
+        return !!(
+            typeof document !== 'undefined' &&
+            document &&
+            document.documentElement &&
+            document.documentElement.classList &&
+            document.documentElement.classList.contains('stone-base-images-ready')
+        );
+    } catch (e) {
+        return false;
+    }
+}
+
+function _resolveDiscImageState(renderState, baseImage) {
+    if (renderState && typeof renderState.imageState === 'string' && renderState.imageState) {
+        return renderState.imageState;
+    }
+    const hasBaseImage = typeof baseImage === 'string' && baseImage.trim() && baseImage !== 'none';
+    return (hasBaseImage && _areStoneBaseImagesReady()) ? 'loaded' : 'fallback';
+}
+
+function ensureDiscSkeleton(disc) {
+    if (!disc || typeof document === 'undefined' || typeof disc.appendChild !== 'function') {
+        return { face: null, base: null, overlay: null, hud: null };
+    }
+
+    let face = _findDirectDiscChildByClass(disc, 'disc__face');
+    let hud = _findDirectDiscChildByClass(disc, 'disc__hud');
+
+    if (!face) {
+        face = document.createElement('div');
+        face.className = 'disc__face';
+        if (disc.firstChild) disc.insertBefore(face, disc.firstChild);
+        else disc.appendChild(face);
+    }
+    if (!hud) {
+        hud = document.createElement('div');
+        hud.className = 'disc__hud';
+        disc.appendChild(hud);
+    }
+
+    let base = _findDirectDiscChildByClass(face, 'disc__base-image');
+    if (!base) {
+        base = document.createElement('div');
+        base.className = 'disc__base-image';
+        face.appendChild(base);
+    }
+
+    let overlay = _findDirectDiscChildByClass(face, 'disc__overlay-image');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'disc__overlay-image';
+        face.appendChild(overlay);
+    }
+
+    const childrenToMove = [];
+    for (const child of Array.from(disc.childNodes)) {
+        if (child === face || child === hud) continue;
+        childrenToMove.push(child);
+    }
+    for (const child of childrenToMove) {
+        hud.appendChild(child);
+    }
+
+    return { face, base, overlay, hud };
+}
+
+function getDiscHudRoot(disc) {
+    const skeleton = ensureDiscSkeleton(disc);
+    return (skeleton && skeleton.hud) ? skeleton.hud : disc;
+}
+
+function applyDiscRenderState(disc, renderState = {}) {
+    if (!disc || !disc.style || typeof disc.style.setProperty !== 'function') return;
+
+    const blackValue = (typeof BLACK !== 'undefined') ? BLACK : 1;
+    const whiteValue = (typeof WHITE !== 'undefined') ? WHITE : -1;
+    const owner = (renderState.owner !== undefined && renderState.owner !== null)
+        ? renderState.owner
+        : (disc.classList && disc.classList.contains('white') ? whiteValue : blackValue);
+    const ownerDescriptor = _resolveDiscOwnerDescriptor(owner);
+    const requestedRenderMode = renderState.renderMode || 'base-only';
+    const baseImage = renderState.baseImage || ownerDescriptor.baseImage;
+    const overlayImage = renderState.overlayImage || null;
+    const overlayScale = Number(renderState.scale);
+    const imageState = _resolveDiscImageState(renderState, baseImage);
+    const renderMode = ((requestedRenderMode === 'replace' || requestedRenderMode === 'overlay') && !overlayImage)
+        ? 'base-only'
+        : requestedRenderMode;
+    const fallbackColor = imageState === 'fallback'
+        ? (
+            Object.prototype.hasOwnProperty.call(renderState, 'baseFallbackColor')
+                ? renderState.baseFallbackColor
+                : ownerDescriptor.fallbackColor
+        )
+        : 'transparent';
+
+    ensureDiscSkeleton(disc);
+
+    try { disc.dataset.renderMode = renderMode; } catch (e) { /* ignore */ }
+    try { disc.dataset.effect = renderState.effectKey || 'normal'; } catch (e) { /* ignore */ }
+    try { disc.dataset.imageState = imageState; } catch (e) { /* ignore */ }
+    try { disc.style.setProperty('--disc-base-image', baseImage); } catch (e) { /* ignore */ }
+    try { disc.style.setProperty('--stone-image', baseImage); } catch (e) { /* ignore */ }
+    try { disc.style.setProperty('--disc-base-fallback-color', fallbackColor || 'transparent'); } catch (e) { /* ignore */ }
+    try { disc.style.removeProperty('--disc-base-color'); } catch (e) { /* ignore */ }
+
+    if (overlayImage) {
+        try { disc.style.setProperty('--disc-overlay-image', overlayImage); } catch (e) { /* ignore */ }
+        try { disc.style.setProperty('--special-stone-image', overlayImage); } catch (e) { /* ignore */ }
+    } else {
+        try { disc.style.removeProperty('--disc-overlay-image'); } catch (e) { /* ignore */ }
+        try { disc.style.removeProperty('--special-stone-image'); } catch (e) { /* ignore */ }
+    }
+
+    if (Number.isFinite(overlayScale) && overlayScale > 0 && overlayScale !== 1) {
+        try { disc.style.setProperty('--disc-overlay-scale', String(overlayScale)); } catch (e) { /* ignore */ }
+    } else {
+        try { disc.style.removeProperty('--disc-overlay-scale'); } catch (e) { /* ignore */ }
+    }
+}
+
 // Expose in CommonJS for tests and in browser globals for legacy callers
 function setDiscStoneImage(disc, val) {
-    try { disc.style.setProperty('--stone-image', (val === BLACK ? 'var(--normal-stone-black-image)' : 'var(--normal-stone-white-image)')); } catch (e) {}
+    applyDiscRenderState(disc, {
+        owner: val,
+        renderMode: 'base-only',
+        effectKey: 'normal'
+    });
 }
 
 // Expose in CommonJS for tests and in browser globals for legacy callers
@@ -589,6 +753,9 @@ if (typeof module !== 'undefined' && module.exports) {
         renderBoard,
         renderBoardFull,
         updateOccupancyUI,
+        ensureDiscSkeleton,
+        getDiscHudRoot,
+        applyDiscRenderState,
         setDiscStoneImage
     };
 }
@@ -596,4 +763,8 @@ if (typeof window !== 'undefined') {
     // Prefer board-renderer as the canonical renderBoard implementation.
     window.renderBoard = renderBoard;
     window.updateOccupancyUI = window.updateOccupancyUI || updateOccupancyUI;
+    window.ensureDiscSkeleton = window.ensureDiscSkeleton || ensureDiscSkeleton;
+    window.getDiscHudRoot = window.getDiscHudRoot || getDiscHudRoot;
+    window.applyDiscRenderState = window.applyDiscRenderState || applyDiscRenderState;
+    window.setDiscStoneImage = window.setDiscStoneImage || setDiscStoneImage;
 }

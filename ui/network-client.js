@@ -481,6 +481,72 @@
         }
     }
 
+    function cloneReadableNetworkStateValue(value, fallbackValue) {
+        if (typeof value === 'undefined') return fallbackValue;
+        try {
+            return cloneDataForCommandPayload(value);
+        } catch (e) {
+            return fallbackValue;
+        }
+    }
+
+    function cloneTrackedPublishRequestMeta(requestMeta) {
+        if (!requestMeta || typeof requestMeta !== 'object') return null;
+        return {
+            actionType: requestMeta.actionType || null,
+            actor: requestMeta.actor || null,
+            params: (requestMeta.params && typeof requestMeta.params === 'object')
+                ? cloneReadableNetworkStateValue(requestMeta.params, null)
+                : null,
+            playbackEvents: Array.isArray(requestMeta.playbackEvents)
+                ? cloneReadableNetworkStateValue(requestMeta.playbackEvents, [])
+                : [],
+            usedSnapshotFallback: requestMeta.usedSnapshotFallback === true
+        };
+    }
+
+    function cloneTrackedPublishEntry(entry) {
+        if (!entry || typeof entry !== 'object' || !entry.operationId) return null;
+        return {
+            operationId: String(entry.operationId || ''),
+            sequence: Number.isFinite(Number(entry.sequence)) ? Number(entry.sequence) : null,
+            phase: String(entry.phase || ''),
+            responseSettled: entry.responseSettled === true,
+            responseVersion: Number.isFinite(Number(entry.responseVersion)) ? Number(entry.responseVersion) : null,
+            selfSnapshotReceived: entry.selfSnapshotReceived === true,
+            selfSnapshotVersion: Number.isFinite(Number(entry.selfSnapshotVersion)) ? Number(entry.selfSnapshotVersion) : null,
+            shadowPlaybackEvents: Array.isArray(entry.shadowPlaybackEvents)
+                ? cloneReadableNetworkStateValue(entry.shadowPlaybackEvents, [])
+                : [],
+            shadowPlaybackEventStrings: Array.isArray(entry.shadowPlaybackEventStrings)
+                ? entry.shadowPlaybackEventStrings.slice()
+                : [],
+            completedAt: Number.isFinite(Number(entry.completedAt)) ? Number(entry.completedAt) : null,
+            requestMeta: cloneTrackedPublishRequestMeta(entry.requestMeta)
+        };
+    }
+
+    function getState() {
+        const tracker = ensurePublishTracker();
+        const operations = Array.isArray(tracker.operations)
+            ? tracker.operations.map((entry) => cloneTrackedPublishEntry(entry)).filter((entry) => !!entry)
+            : [];
+        return {
+            active: state.active === true,
+            roomId: String(state.roomId || ''),
+            seatKey: normalizePlayerKey(state.seatKey),
+            roomSeats: cloneReadableNetworkStateValue(state.roomSeats || { black: false, white: false }, { black: false, white: false }),
+            seatNames: cloneReadableNetworkStateValue(state.seatNames || { black: '', white: '' }, { black: '', white: '' }),
+            roomDeck: cloneReadableNetworkStateValue(state.roomDeck, null),
+            networkDebugEnabled: state.networkDebugEnabled === true,
+            stateVersion: Number.isFinite(Number(state.stateVersion)) ? Number(state.stateVersion) : null,
+            publishTracker: {
+                nextSequence: Number.isFinite(Number(tracker.nextSequence)) ? Number(tracker.nextSequence) : 0,
+                operations
+            }
+        };
+    }
+
     function getSnapshotStateVersion(snapshot) {
         return Number.isFinite(Number(snapshot && snapshot.stateVersion))
             ? Number(snapshot.stateVersion)
@@ -2241,6 +2307,7 @@
         applySnapshot,
         getSeatKey,
         getRoomId,
+        getState,
         getStateVersion,
         getRoomDeck,
         getNetworkTelemetry

@@ -464,9 +464,12 @@
         return true;
     }
 
-    function applyExtendLifeWill(cardState, gameState, playerKey, row, col, deps) {
+    function applyExtendLifeSelection(cardState, gameState, playerKey, row, col, deps, options) {
+        const settings = options && typeof options === 'object' ? options : {};
+        const pendingType = settings.pendingType || 'EXTEND_LIFE_WILL';
+        const multiplier = Number.isFinite(settings.multiplier) ? Number(settings.multiplier) : 2;
         const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
-        if (!pending || pending.type !== 'EXTEND_LIFE_WILL' || pending.stage !== 'selectTarget') {
+        if (!pending || pending.type !== pendingType || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
 
@@ -499,7 +502,7 @@
         let newRemainingOwnerTurns = 0;
         for (const marker of specialsAtCell) {
             const before = Number(marker.data.remainingOwnerTurns || 0);
-            const after = Math.max(1, Math.trunc(before * 2));
+            const after = Math.max(1, Math.trunc(before * multiplier));
             marker.data.remainingOwnerTurns = after;
             if (marker === primaryMarker) {
                 previousRemainingOwnerTurns = before;
@@ -508,7 +511,21 @@
         }
 
         cardState.pendingEffectByPlayer[playerKey] = null;
-        return { applied: true, row, col, previousRemainingOwnerTurns, newRemainingOwnerTurns };
+        return { applied: true, row, col, previousRemainingOwnerTurns, newRemainingOwnerTurns, multiplier, cardType: pendingType };
+    }
+
+    function applyExtendLifeWill(cardState, gameState, playerKey, row, col, deps) {
+        return applyExtendLifeSelection(cardState, gameState, playerKey, row, col, deps, {
+            pendingType: 'EXTEND_LIFE_WILL',
+            multiplier: 2
+        });
+    }
+
+    function applyExtendLifeGod(cardState, gameState, playerKey, row, col, deps) {
+        return applyExtendLifeSelection(cardState, gameState, playerKey, row, col, deps, {
+            pendingType: 'EXTEND_LIFE_GOD',
+            multiplier: 4
+        });
     }
 
     function applyCorrosionWill(cardState, gameState, playerKey, row, col, deps) {
@@ -579,6 +596,7 @@
         addMarker,
         removeMarkerById,
         applyExtendLifeWill,
+        applyExtendLifeGod,
         applyCorrosionWill
     };
 }));

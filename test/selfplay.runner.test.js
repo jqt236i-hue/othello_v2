@@ -986,6 +986,27 @@ describe('selfplay runner', () => {
         expect(decision.action.extendTarget).toEqual({ row: 2, col: 8 });
     });
 
+    test('decideAction resolves EXTEND_LIFE_GOD on right expansion targets without crashing', () => {
+        const gameState = createGameStateWithRightExpansion([
+            { row: 2, owner: 1 }
+        ]);
+        const cardState = createPendingCardState('EXTEND_LIFE_GOD', [
+            { kind: 'specialStone', row: 2, col: 8, owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 3 } }
+        ]);
+
+        const decision = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.6 },
+            { allowCardUsage: true, cardUsageRate: 0.25 },
+            { gameState, cardState }
+        );
+
+        expect(decision.action.type).toBe('place');
+        expect(decision.action.extendTarget).toEqual({ row: 2, col: 8 });
+    });
+
     test('decideAction resolves CORROSION_WILL on right expansion targets without crashing', () => {
         const gameState = createGameStateWithRightExpansion([
             { row: 2, owner: -1 }

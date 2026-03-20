@@ -115,6 +115,34 @@ describe('load-training-profile shared teacher sync', () => {
         expect(getFlagValue(args, '--models-dir')).toBe(modelsDir);
     });
 
+    test('browser_lv6_growth_v1 resolves isolated cumulative growth lane', () => {
+        const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-training-profile-'));
+        const runsDir = path.join(tempRoot, 'runs');
+        const modelsDir = path.join(tempRoot, 'models');
+        const resolved = resolveTrainingProfile('browser_lv6_growth_v1', {
+            cwd: process.cwd(),
+            runTag: 'test_browser_lv6_growth_v1',
+            runsDir,
+            modelsDir
+        });
+        const args = resolved.command.args;
+
+        expect(resolved.gate && resolved.gate.name).toBe('browser_lv6_growth_v1');
+        expect(args).toContain('--selfplay-use-candidate-every-iteration');
+        expect(args).not.toContain('--selfplay-use-promoted-model-only');
+        expect(args).toContain('--carry-over-checkpoint');
+        expect(args).toContain('--adoption-use-anchor-baseline');
+        expect(args).not.toContain('--adoption-use-guide-baseline');
+        expect(args).not.toContain('--no-promote');
+        expect(getFlagValue(args, '--promotion-mode')).toBe('strict');
+        expect(getFlagValue(args, '--selfplay-policy-model-pool-size')).toBe('4');
+        expect(getFlagValue(args, '--selfplay-policy-pool-sampling')).toBe('recency');
+        expect(getFlagValue(args, '--selfplay-policy-current-anchor-rate')).toBe('0.35');
+        expect(getFlagValue(args, '--runs-dir')).toBe(runsDir);
+        expect(getFlagValue(args, '--models-dir')).toBe(modelsDir);
+        expect(resolved.bootstrap.autoResumeLatestCheckpoint).toBe(true);
+    });
+
     test('browser_lv6_deploy_v1 resolves strict promoted-only deploy lane', () => {
         const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-training-profile-'));
         const runsDir = path.join(tempRoot, 'runs');
@@ -132,6 +160,9 @@ describe('load-training-profile shared teacher sync', () => {
         expect(args).not.toContain('--selfplay-use-candidate-every-iteration');
         expect(args).toContain('--quality-gate');
         expect(args).not.toContain('--onnx-gate');
+        expect(args).toContain('--adoption-use-guide-baseline');
+        expect(args).not.toContain('--adoption-use-anchor-baseline');
+        expect(args).not.toContain('--no-promote');
         expect(resolved.bootstrap.autoResumeLatestCheckpoint).toBe(false);
         expect(getFlagValue(args, '--adoption-jobs')).toBe('16');
         expect(getFlagValue(args, '--quick-games')).toBe('120');
@@ -224,6 +255,25 @@ describe('load-training-profile shared teacher sync', () => {
         expect(resolved.bootstrap.autoResumeLatestCheckpoint).toBe(true);
         expect(resolved.bootstrap.resumeCheckpointPath).toBe(checkpointPath);
         expect(getFlagValue(args, '--resume-checkpoint')).toBe(checkpointPath);
+    });
+
+    test('browser_lv6_growth_v1 keeps auto-resume checkpoint in cumulative lane', () => {
+        const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-training-profile-'));
+        const runsDir = path.join(tempRoot, 'runs');
+        const modelsDir = path.join(tempRoot, 'models');
+        const checkpointPath = createFakeCheckpoint(modelsDir, 'policy-value.candidate.browser_lv6_growth.restart.checkpoint.pt');
+        const resolved = resolveTrainingProfile('browser_lv6_growth_v1', {
+            cwd: process.cwd(),
+            runTag: 'test_browser_lv6_growth_auto_resume',
+            runsDir,
+            modelsDir
+        });
+        const args = resolved.command.args;
+
+        expect(resolved.bootstrap.autoResumeLatestCheckpoint).toBe(true);
+        expect(resolved.bootstrap.resumeCheckpointPath).toBe(checkpointPath);
+        expect(getFlagValue(args, '--resume-checkpoint')).toBe(checkpointPath);
+        expect(args).toContain('--carry-over-checkpoint');
     });
 
     test('foundation_bootstrap_v1 resolves custom launcher and isolated paths', () => {

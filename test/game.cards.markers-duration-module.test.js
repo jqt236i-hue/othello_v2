@@ -21,10 +21,41 @@ describe('CardMarkers duration effects', () => {
       row: 2,
       col: 2,
       previousRemainingOwnerTurns: 5,
-      newRemainingOwnerTurns: 10
+      newRemainingOwnerTurns: 10,
+      multiplier: 2,
+      cardType: 'EXTEND_LIFE_WILL'
     });
     expect(cardState.markers[0].data.remainingOwnerTurns).toBe(10);
     expect(cardState.markers[1].data.remainingOwnerTurns).toBe(6);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
+  test('applyExtendLifeGod quadruples timed markers on the selected cell and clears pending', () => {
+    const cardState = {
+      pendingEffectByPlayer: {
+        black: { type: 'EXTEND_LIFE_GOD', stage: 'selectTarget', cardId: 'extend_life_god_01' }
+      },
+      markers: [
+        { id: 1, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 5 } },
+        { id: 2, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'GUARD', remainingOwnerTurns: 3 } }
+      ]
+    };
+
+    const result = CardMarkers.applyExtendLifeGod(cardState, {}, 'black', 2, 2, {
+      getExtendLifeTargets: () => [{ row: 2, col: 2 }]
+    });
+
+    expect(result).toEqual({
+      applied: true,
+      row: 2,
+      col: 2,
+      previousRemainingOwnerTurns: 5,
+      newRemainingOwnerTurns: 20,
+      multiplier: 4,
+      cardType: 'EXTEND_LIFE_GOD'
+    });
+    expect(cardState.markers[0].data.remainingOwnerTurns).toBe(20);
+    expect(cardState.markers[1].data.remainingOwnerTurns).toBe(12);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 

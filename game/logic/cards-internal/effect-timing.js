@@ -36,6 +36,9 @@
             OBSERVER_WILL_TURNS: constants.OBSERVER_WILL_TURNS,
             WILL_HUNTER_KING_TURNS: constants.WILL_HUNTER_KING_TURNS,
             ROBOT_VACUUM_TURNS: constants.ROBOT_VACUUM_TURNS,
+            TIME_STOP_GOD_TURNS: Number.isFinite(Number(constants.TIME_STOP_GOD_TURNS))
+                ? Number(constants.TIME_STOP_GOD_TURNS)
+                : 3,
             DOUBLE_PLACE_EXTRA: constants.DOUBLE_PLACE_EXTRA,
             THROW_CHAIN_CONFIG_BY_TYPE: constants.THROW_CHAIN_CONFIG_BY_TYPE || {},
             MARKER_KINDS: constants.MARKER_KINDS || null
@@ -139,21 +142,6 @@
         cardState._frozenCellsActiveAtTurnStart = frozenCellsActiveAtTurnStart;
 
         const specialStoneKind = getSpecialStoneKind(constants);
-        const emitFreezeDurationEndStatusRemoved = (marker) => {
-            if (!marker || typeof helpers.emitPresentationEvent !== 'function') return;
-            helpers.emitPresentationEvent(cardState, {
-                type: 'STATUS_REMOVED',
-                row: marker.row,
-                col: marker.col,
-                cause: 'FREEZE_WILL',
-                reason: 'duration_end',
-                meta: {
-                    special: 'FREEZE',
-                    owner: marker.owner,
-                    reason: 'duration_end'
-                }
-            });
-        };
         for (const marker of specialMarkers) {
             const data = marker.data || {};
             if (data.expiresForPlayer === playerKey) {
@@ -173,7 +161,6 @@
             }
             if (typeof data.remainingOwnerTurns === 'number' && data.remainingOwnerTurns <= 0) {
                 if (typeof helpers.removeMarkersAt === 'function') {
-                    if (data.type === 'FREEZE') emitFreezeDurationEndStatusRemoved(marker);
                     helpers.removeMarkersAt(cardState, marker.row, marker.col, { kind: specialStoneKind, type: data.type, owner: marker.owner });
                 }
                 continue;
@@ -189,7 +176,6 @@
             if ((data.type === 'GUARD' || data.type === 'BLOCKADE' || data.type === 'FREEZE') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
                 data.remainingOwnerTurns -= 1;
                 if (data.remainingOwnerTurns <= 0 && typeof helpers.removeMarkersAt === 'function') {
-                    if (data.type === 'FREEZE') emitFreezeDurationEndStatusRemoved(marker);
                     helpers.removeMarkersAt(cardState, marker.row, marker.col, {
                         kind: specialStoneKind,
                         type: data.type,
@@ -258,6 +244,7 @@
         const ownerVal = playerKey === 'black' ? constants.BLACK : constants.WHITE;
         const opponentVal = -ownerVal;
         const specialStoneKind = getSpecialStoneKind(constants);
+        const bombKind = constants.MARKER_KINDS ? constants.MARKER_KINDS.BOMB : 'bomb';
 
         let chargeGain = flipCount;
 
@@ -379,7 +366,7 @@
         if (pending && pending.type === 'BREEDING_WILL' && typeof helpers.addMarker === 'function') {
             helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
                 type: 'BREEDING',
-                remainingOwnerTurns: 3
+                remainingOwnerTurns: 5
             });
             effects.breedingPlaced = true;
         }
@@ -407,6 +394,7 @@
             });
             effects.observerPlaced = true;
         }
+
         if (pending && pending.type === 'TIME_STOP_GOD' && typeof helpers.addMarker === 'function') {
             const remainingOwnerTurns = Number.isFinite(Number(constants.TIME_STOP_GOD_TURNS))
                 ? Math.max(1, Math.trunc(Number(constants.TIME_STOP_GOD_TURNS)))
@@ -608,14 +596,17 @@
         if (pending && pending.type === 'LAST_RESORT') {
             const remainingBefore = Number.isFinite(Number(pending.placementsRemaining))
                 ? Math.max(0, Math.floor(Number(pending.placementsRemaining)))
-                : 2;
+                : 3;
             const remainingAfter = Math.max(0, remainingBefore - 1);
             pending.placementsRemaining = remainingAfter;
 
             if (remainingBefore > 1) {
                 if (!cardState.extraPlaceRemainingByPlayer) cardState.extraPlaceRemainingByPlayer = {};
-                const currentExtra = Number(cardState.extraPlaceRemainingByPlayer[playerKey] || 0);
-                cardState.extraPlaceRemainingByPlayer[playerKey] = Math.max(currentExtra, constants.DOUBLE_PLACE_EXTRA);
+                const currentExtra = Math.max(0, Number(cardState.extraPlaceRemainingByPlayer[playerKey] || 0));
+                const extraGrant = Number.isFinite(Number(constants.DOUBLE_PLACE_EXTRA))
+                    ? Math.max(1, Math.floor(Number(constants.DOUBLE_PLACE_EXTRA)))
+                    : 1;
+                cardState.extraPlaceRemainingByPlayer[playerKey] = currentExtra + extraGrant;
                 effects.lastResortContinues = true;
             } else {
                 effects.lastResortCompleted = true;
@@ -634,4 +625,3 @@
         applyPlacementEffects
     };
 }));
-

@@ -16,7 +16,7 @@ const SoundEngine = {
     playlist: [
         { name: 'c-othello', file: 'assets/audio/bgm/c-othello.mp3' },
         { name: 'c-othello-2', file: 'assets/audio/bgm/c-othello-2.mp3' },
-        { name: '盤喰いの小鬼戦', file: 'assets/audio/bgm/盤喰いの小鬼戦.mp3', loopStart: 1.5 },
+        { name: '盤喰いの小鬼戦', file: 'assets/audio/bgm/盤喰いの小鬼戦.mp3', loopStart: 1.655 },
         { name: '幻想即興曲', file: 'assets/audio/bgm/幻想即興曲.mp3' },
         { name: 'ノクターン', file: 'assets/audio/bgm/ノクターン.mp3' }
     ],

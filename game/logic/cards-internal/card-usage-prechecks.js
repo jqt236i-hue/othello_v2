@@ -36,12 +36,12 @@
         }
 
         if (cardType === 'LAST_RESORT') {
-            if (!context || !context.gameState || typeof context.hasStandardLegalMoveForPlayer !== 'function') {
+            if (!context || !context.gameState || typeof context.canUseLastResortForPlayer !== 'function') {
                 return buildFailureResult();
             }
-            return context.hasStandardLegalMoveForPlayer(context.cardState, context.gameState, context.playerKey)
-                ? buildFailureResult()
-                : result;
+            return context.canUseLastResortForPlayer(context.cardState, context.gameState, context.playerKey)
+                ? result
+                : buildFailureResult();
         }
 
         if (cardType === 'CORNER_TRIBUTE') {
@@ -63,10 +63,10 @@
         }
 
         if (cardType === 'TIME_STOP_GOD') {
-            if (typeof context.getTimeStopGodDestroyableCount !== 'function') {
+            if (typeof context.canUseTimeStopGodForPlayer !== 'function') {
                 return buildFailureResult();
             }
-            return context.getTimeStopGodDestroyableCount(context.cardState, context.gameState, context.playerKey) >= 3
+            return context.canUseTimeStopGodForPlayer(context.cardState, context.gameState, context.playerKey)
                 ? result
                 : buildFailureResult();
         }
@@ -111,6 +111,7 @@
         case 'HYPERACTIVE_INHERIT_WILL':
             return validateSelectionTargets(context, 'getHyperactiveInheritTargets', 1) ? result : buildFailureResult();
         case 'EXTEND_LIFE_WILL':
+        case 'EXTEND_LIFE_GOD':
             return validateSelectionTargets(context, 'getExtendLifeTargets', 1) ? result : buildFailureResult();
         case 'CORROSION_WILL':
             return validateSelectionTargets(context, 'getCorrosionTargets', 1) ? result : buildFailureResult();

@@ -70,6 +70,40 @@ describe('animation-engine _sleep', () => {
     delete global.window;
   });
 
+  test('place_hand_animation の直後 phase に spawn だけがある特殊石配置でも追加ギャップなしで再生する', async () => {
+    const cellEl = { classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) };
+    global.document = { getElementById: () => cellEl };
+    global.window = {};
+    global.emitBoardUpdate = jest.fn();
+
+    const engine = require('../ui/animation-engine');
+    engine._sleep = jest.fn(() => Promise.resolve());
+    const executePhaseSpy = jest.spyOn(engine, 'executePhase').mockResolvedValue(undefined);
+
+    await engine.play([
+      { type: 'place_hand_animation', phase: 0, targets: [{ r: 4, col: 4, player: 'black', owner: 'black' }] },
+      {
+        type: 'spawn',
+        phase: 1,
+        targets: [{
+          r: 4,
+          col: 4,
+          ownerAfter: 'black',
+          cause: 'SYSTEM',
+          reason: 'standard_place',
+          after: { color: 1, special: 'ULTIMATE_DESTROY_GOD', timer: 5, owner: 'black' }
+        }]
+      }
+    ]);
+
+    expect(executePhaseSpy).toHaveBeenCalledTimes(2);
+    expect(engine._sleep).not.toHaveBeenCalled();
+
+    executePhaseSpy.mockRestore();
+    delete global.emitBoardUpdate;
+    delete global.window;
+  });
+
   test('opponent の宝箱 card_use_animation では card_use_button を鳴らさない', async () => {
     const cellEl = { classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) };
     global.document = { getElementById: () => cellEl };

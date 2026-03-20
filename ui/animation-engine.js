@@ -1110,13 +1110,20 @@
 
                     // Gap between readable phases (Section 3)
                     if (phase !== sortedPhases[sortedPhases.length - 1]) {
-                        // Avoid a noticeable delay between "place/spawn" and immediate flips.
-                        // Visually, flips should start as soon as possible after the move is applied.
+                        // Avoid a noticeable delay between hand placement and the stone appearing / flipping.
+                        // Free-placement specials often materialize as "place_hand_animation -> spawn only",
+                        // so treat the first spawn the same as an immediate follow-up flip.
                         const nextPhaseKey = sortedPhases[sortedPhases.indexOf(phase) + 1];
                         const nextEvents = phases[nextPhaseKey] || [];
                         const hasPlaceOrSpawn = phaseEvents.some(e => e && (e.type === EVENT_TYPES.PLACE || e.type === EVENT_TYPES.SPAWN || e.type === EVENT_TYPES.PLACE_HAND_ANIMATION));
+                        const hasPlaceHandAnimation = phaseEvents.some(e => e && e.type === EVENT_TYPES.PLACE_HAND_ANIMATION);
+                        const nextHasSpawn = nextEvents.some(e => e && e.type === EVENT_TYPES.SPAWN);
                         const nextHasFlip = nextEvents.some(e => e && e.type === EVENT_TYPES.FLIP);
                         const nextHasRegenBackFlip = hasRegenBackFlip(nextEvents);
+                        const skipPlaceGap = hasPlaceOrSpawn && (
+                            (nextHasFlip && !nextHasRegenBackFlip) ||
+                            (hasPlaceHandAnimation && nextHasSpawn)
+                        );
                         const hasCardUseAnimation = phaseEvents.some(e => e && e.type === EVENT_TYPES.CARD_USE_ANIMATION);
                         const nextHasTreasureGainCue = nextEvents.some((ev) => {
                             if (!ev || ev.type !== EVENT_TYPES.SOUND_EFFECT) return false;
@@ -1125,7 +1132,7 @@
                             return targets.some((t) => String((t && t.soundKey) || '').trim() === 'treasure_gain');
                         });
                         const skipCardUseTreasureGap = hasCardUseAnimation && nextHasTreasureGainCue;
-                        if (!(hasPlaceOrSpawn && nextHasFlip && !nextHasRegenBackFlip) && !skipCardUseTreasureGap) {
+                        if (!skipPlaceGap && !skipCardUseTreasureGap) {
                             await this._sleep(PHASE_GAP_MS);
                         }
                     }
@@ -1629,19 +1636,13 @@
                     const after = t.after || {};
                     const disc = this.createDisc(after);
 
-                    // Section 5.1: Disc appears with final color/visuals immediately.
-                    // Optional fade-in.
+                    // Section 5.1: normal placement appears in its final state immediately.
+                    // Fade-in is reserved for explicit spawn/crossfade paths only.
                     cell.innerHTML = '';
                     cell.appendChild(disc);
-
-                    disc.classList.add('stone-instant', 'stone-hidden-all');
-                    disc.offsetHeight; // force reflow
-                    disc.classList.remove('stone-instant');
-                    disc.classList.remove('stone-hidden-all');
-                    // FADE_IN_MS is handled by CSS transition on .disc
                 });
             }
-            // Do not block subsequent phases (e.g., immediate flips) on fade-in.
+            // Do not block subsequent phases (e.g., immediate flips) after placement.
             return Promise.resolve();
         }
 
@@ -2557,6 +2558,9 @@
             disc.classList.remove('black', 'white');
             if (state.color === 1) disc.classList.add('black');
             else if (state.color === -1) disc.classList.add('white');
+            if (typeof window !== 'undefined' && typeof window.setDiscStoneImage === 'function') {
+                window.setDiscStoneImage(disc, state.color);
+            }
 
             const specialTypeUpper = String(state.special || '').toUpperCase();
             const visualSpecialType = (specialTypeUpper === 'INHERITED_HYPERACTIVE') ? null : state.special;
@@ -2568,9 +2572,14 @@
                     window.applyStoneVisualEffect(disc, effectKey, { owner: ownerVal });
                 }
             } else {
-                // Clear all special icons
-                disc.classList.remove('special-stone');
-                disc.style.removeProperty('--special-stone-image');
+                if (typeof window !== 'undefined' && typeof window.clearStoneVisualEffectState === 'function') {
+                    window.clearStoneVisualEffectState(disc);
+                } else {
+                    disc.classList.remove('special-stone');
+                    disc.style.removeProperty('--special-stone-image');
+                    disc.style.removeProperty('--disc-overlay-image');
+                    disc.style.removeProperty('--disc-overlay-scale');
+                }
             }
 
             this.syncDiscTimerOnly(disc, state);

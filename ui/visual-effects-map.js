@@ -57,6 +57,88 @@ function normalizeOwnerValue(owner) {
     return 1;
 }
 
+var DiscRenderHelpersModule = null;
+if (typeof require === 'function') {
+    try { DiscRenderHelpersModule = require('./board-renderer'); } catch (e) { /* ignore */ }
+}
+
+function getDiscRenderHelper(name) {
+    if (DiscRenderHelpersModule && typeof DiscRenderHelpersModule[name] === 'function') {
+        return DiscRenderHelpersModule[name];
+    }
+    try {
+        if (typeof window !== 'undefined' && typeof window[name] === 'function') {
+            return window[name];
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function normalizeOwnerKey(owner) {
+    if (owner === undefined || owner === null) return null;
+    if (owner === 1 || owner === '1' || owner === 'black') return '1';
+    if (owner === -1 || owner === '-1' || owner === 'white') return '-1';
+    const s = String(owner).trim().toLowerCase();
+    if (s === 'black') return '1';
+    if (s === 'white') return '-1';
+    if (s === '1') return '1';
+    if (s === '-1') return '-1';
+    return String(owner);
+}
+
+function resolveStoneEffectImagePath(effect, options = {}) {
+    if (!effect || typeof effect !== 'object') return null;
+    if (effect.imagePathByOwner) {
+        const ownerKey = normalizeOwnerKey(options.owner);
+        return ownerKey ? (effect.imagePathByOwner[ownerKey] || null) : null;
+    }
+    if (effect.imagePathByPlayer) {
+        const playerKey = normalizeOwnerKey(options.player);
+        return playerKey ? (effect.imagePathByPlayer[playerKey] || null) : null;
+    }
+    return effect.imagePath || null;
+}
+
+function resolveRenderMode(effect) {
+    return (effect && typeof effect.renderMode === 'string' && effect.renderMode)
+        ? effect.renderMode
+        : 'replace';
+}
+
+function resolveOverlayScale(effect) {
+    const n = Number(effect && effect.scale);
+    return (Number.isFinite(n) && n > 0) ? n : 1;
+}
+
+function resolveOwnerClassSuffix(owner) {
+    return normalizeOwnerValue(owner) === -1 ? 'white' : 'black';
+}
+
+function applyOwnerMetadataForEffect(discElement, effectKey, effect, options = {}) {
+    if (!discElement || !effect || !effect.imagePathByOwner || options.owner === undefined) return;
+    const ownerSuffix = resolveOwnerClassSuffix(options.owner);
+    if (effectKey === 'breedingStone') {
+        discElement.classList.remove('breeding-black', 'breeding-white');
+        discElement.classList.add(`breeding-${ownerSuffix}`);
+        discElement.dataset.breeding = ownerSuffix;
+        return;
+    }
+    discElement.classList.remove('ud-black', 'ud-white');
+    discElement.classList.add(`ud-${ownerSuffix}`);
+    discElement.dataset.ud = ownerSuffix;
+}
+
+function clearOwnerMetadataForEffect(discElement, effectKey) {
+    if (!discElement) return;
+    if (effectKey === 'breedingStone') {
+        discElement.classList.remove('breeding-black', 'breeding-white');
+        delete discElement.dataset.breeding;
+        return;
+    }
+    discElement.classList.remove('ud-black', 'ud-white');
+    delete discElement.dataset.ud;
+}
+
 function getStoneVisualPathsForEffectKey(effectKey) {
     const visualMap = getUiStoneVisualEffects();
     const effect = visualMap[effectKey];
@@ -100,6 +182,7 @@ function preloadStoneVisualEffectKeys(effectKeys) {
     }
 
     const cache = root.__preloadedStoneVisualPaths || (root.__preloadedStoneVisualPaths = Object.create(null));
+    const imageRefs = root.__preloadedStoneVisualImages || (root.__preloadedStoneVisualImages = Object.create(null));
     const started = [];
     const skipped = [];
 
@@ -115,11 +198,13 @@ function preloadStoneVisualEffectKeys(effectKeys) {
 
         try {
             const img = new ImageCtor();
+            imageRefs[cacheKey] = img;
             img.onload = function () {
                 cache[cacheKey] = 'loaded';
             };
             img.onerror = function () {
                 cache[cacheKey] = 'error';
+                try { delete imageRefs[cacheKey]; } catch (e) { /* ignore */ }
             };
             try { img.decoding = 'async'; } catch (e) { /* ignore */ }
             img.src = src;
@@ -136,18 +221,53 @@ function preloadStoneVisualEffectKeys(effectKeys) {
  * Used when normal map application/DI timing fails and we still need the trap icon visible.
  */
 function applyTrapStoneFallbackVisual(discElement, owner) {
-    if (!discElement || !discElement.classList) return false;
-    const ownerVal = normalizeOwnerValue(owner);
-    const trapImagePath = ownerVal === 1
-        ? 'assets/images/stones/trap_stone-black.png'
-        : 'assets/images/stones/trap_stone-white.png';
     try {
-        discElement.classList.add('special-stone', 'trap-stone');
-        discElement.style.setProperty('--special-stone-image', `url('${trapImagePath}')`);
-        return true;
+        return applyStoneVisualEffect(discElement, 'trapStone', { owner });
     } catch (e) {
         return false;
     }
+}
+
+function clearStoneVisualEffectState(discElement, options = {}) {
+    if (!discElement) return;
+
+    const visualMap = getUiStoneVisualEffects();
+    discElement.classList.remove('special-stone', 'ud-black', 'ud-white', 'breeding-black', 'breeding-white');
+    delete discElement.dataset.ud;
+    delete discElement.dataset.breeding;
+
+    for (const effect of Object.values(visualMap)) {
+        if (!effect || !effect.cssClass) continue;
+        discElement.classList.remove(effect.cssClass);
+        Object.keys(effect.dataAttributes || {}).forEach((key) => {
+            delete discElement.dataset[key];
+        });
+        Object.keys(effect.clearStyles || {}).forEach((property) => {
+            try { discElement.style.removeProperty(property); } catch (e) { /* ignore */ }
+        });
+    }
+
+    try { discElement.style.removeProperty('--special-stone-image'); } catch (e) { /* ignore */ }
+    try { discElement.style.removeProperty('--disc-overlay-image'); } catch (e) { /* ignore */ }
+    try { discElement.style.removeProperty('--disc-overlay-scale'); } catch (e) { /* ignore */ }
+    try { discElement.style.removeProperty('--dragon-image-path'); } catch (e) { /* ignore */ }
+    try { discElement.style.removeProperty('--breeding-image-path'); } catch (e) { /* ignore */ }
+    if (options.skipRenderReset) return;
+
+    const applyDiscRenderState = getDiscRenderHelper('applyDiscRenderState');
+    const owner = discElement.classList && discElement.classList.contains('white') ? -1 : 1;
+    if (applyDiscRenderState) {
+        applyDiscRenderState(discElement, {
+            owner,
+            renderMode: 'base-only',
+            effectKey: 'normal'
+        });
+        return;
+    }
+    try {
+        discElement.dataset.renderMode = 'base-only';
+        discElement.dataset.effect = 'normal';
+    } catch (e) { /* ignore */ }
 }
 
 async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
@@ -167,203 +287,50 @@ async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
         try { window._lastApplyWorkTs = Date.now(); } catch (e) {}
     }
 
+    const ensureDiscSkeleton = getDiscRenderHelper('ensureDiscSkeleton');
+    const applyDiscRenderState = getDiscRenderHelper('applyDiscRenderState');
+    if (ensureDiscSkeleton) ensureDiscSkeleton(discElement);
+
     discElement.classList.add('special-stone');
     discElement.classList.add(effect.cssClass);
+    applyOwnerMetadataForEffect(discElement, effectKey, effect, options);
 
     try { if (debugVisual) console.log('[VISUAL_DEBUG] after apply classes:', discElement.className, 'cssVar:', discElement.style.getPropertyValue('--special-stone-image')); } catch(e){}
-
-    // Helper: wait for paint using rAF + short timeout
-    async function waitForNextPaint() {
-        return new Promise(resolve => {
-            try {
-                requestAnimationFrame(() => setTimeout(resolve, 20));
-            } catch (e) { setTimeout(resolve, 20); }
-        });
-    }
-
-    // detect function for current painting state
-    function hasVisibleBackground(discEl) {
+    const imagePath = resolveStoneEffectImagePath(effect, options);
+    let overlayImage = null;
+    if (imagePath) {
+        let resolvedPath = imagePath;
         try {
-            const beforeBg = getComputedStyle(discEl, '::before').getPropertyValue('background-image');
-            const inlineBg = discEl.style.backgroundImage || '';
-            const hasBefore = beforeBg && beforeBg !== 'none' && beforeBg.trim().length > 0;
-            const hasInline = inlineBg && inlineBg !== 'none' && inlineBg.trim().length > 0;
-            return { hasBefore, hasInline };
-        } catch (e) { return { hasBefore: false, hasInline: false }; }
-    }
-
-    function normalizeOwnerKey(owner) {
-        if (owner === undefined || owner === null) return null;
-        if (owner === 1 || owner === '1' || owner === 'black') return '1';
-        if (owner === -1 || owner === '-1' || owner === 'white') return '-1';
-        const s = String(owner).trim().toLowerCase();
-        if (s === 'black') return '1';
-        if (s === 'white') return '-1';
-        if (s === '1') return '1';
-        if (s === '-1') return '-1';
-        return String(owner);
-    }
-
-    // Background-based effects
-    if (effect.cssMethod === 'background') {
-        let imagePath = effect.imagePath;
-        if (effect.imagePathByOwner && options.owner !== undefined) {
-            const ownerKey = normalizeOwnerKey(options.owner);
-            imagePath = effect.imagePathByOwner[ownerKey];
-            if (debugVisual) console.log(`[VISUAL_EFFECTS] PermaProtected stone - owner: ${options.owner}, ownerKey: "${ownerKey}", imagePath: "${imagePath}"`);
-        } else if (effect.imagePathByPlayer && options.player !== undefined) {
-            imagePath = effect.imagePathByPlayer[options.player];
+            if (typeof document !== 'undefined' && document.baseURI) {
+                resolvedPath = new URL(imagePath, document.baseURI).href;
+            }
+        } catch (e) { /* ignore */ }
+        overlayImage = `url('${resolvedPath}')`;
+        try { discElement.style.setProperty('--special-stone-image', overlayImage); } catch (e) { /* ignore */ }
+        try { discElement.style.setProperty('--disc-overlay-image', overlayImage); } catch (e) { /* ignore */ }
+        if (effectKey === 'ultimateDragon' || effectKey === 'destroyDragonStone' || effectKey === 'ultimateDestroyGod') {
+            try { discElement.style.setProperty('--dragon-image-path', overlayImage); } catch (e) { /* ignore */ }
         }
-        if (imagePath) {
-            // Resolve relative paths against document.baseURI to avoid file:// / server mismatches
-            let resolvedPath = imagePath;
-            try {
-                if (typeof document !== 'undefined' && document.baseURI) {
-                    resolvedPath = new URL(imagePath, document.baseURI).href;
-                }
-            } catch (e) { /* ignore: fallback to original imagePath */ }
-
-            discElement.style.setProperty('--special-stone-image', `url('${resolvedPath}')`);
-            try { discElement.style.backgroundImage = `url('${resolvedPath}')`; } catch (e) { }
-
-            // Fast-path for protection stones: apply immediately and skip multi-frame paint probing.
-            // This avoids visible one-beat lag when strong/weak protection is applied.
-            if (effectKey === 'protectedStone' || effectKey === 'protectedStoneTemporary') {
-                Object.entries(effect.dataAttributes || {}).forEach(([key, value]) => {
-                    discElement.dataset[key] = value;
-                });
-                if (effect.clearStyles) {
-                    Object.entries(effect.clearStyles).forEach(([property, value]) => {
-                        discElement.style.setProperty(property, value, 'important');
-                    });
-                }
-                return true;
-            }
-
-            // Poll a few frames to allow browser to paint pseudo/inline bg. If not painted, inject fallback <img>.
-            let success = false;
-            const maxAttempts = 6;
-            for (let i = 0; i < maxAttempts; i++) {
-                const { hasBefore, hasInline } = hasVisibleBackground(discElement);
-                if (hasBefore || hasInline) { success = true; break; }
-                await waitForNextPaint();
-            }
-
-            const existing = discElement.querySelector('.special-stone-img');
-            if (!success) {
-                if (!existing) {
-                    const img = document.createElement('img');
-                    img.className = 'special-stone-img';
-                    img.src = resolvedPath;
-                    img.alt = effectKey;
-                    img.setAttribute('aria-hidden', 'true');
-                    img.style.position = 'absolute';
-                    img.style.top = '0';
-                    img.style.left = '0';
-                    img.style.width = '100%';
-                    img.style.height = '100%';
-                    img.style.objectFit = 'contain';
-                    img.style.pointerEvents = 'none';
-                    img.style.zIndex = '60';
-                    discElement.appendChild(img);
-                    if (debugVisual) console.warn('[VISUAL_EFFECTS] Injected fallback image for', effectKey, resolvedPath);
-                    try { window._lastWorkInjected = { key: effectKey, imgPath: resolvedPath, ts: Date.now() }; } catch (e) {}
-                }
-                return true;
-            }
-            // If inline or before background applied, ensure existing fallback is removed
-            if (existing) existing.remove();
-            return true;
-        } else {
-            console.warn(`[VISUAL_EFFECTS] No imagePath found for effect: ${effectKey}, options:`, options);
-            return false;
-        }
-    } else if (effect.cssMethod === 'pseudoElement') {
-        if (effect.imagePathByOwner && options.owner !== undefined) {
-            let ownerKey;
-            let ownerNum;
-            if (options.owner === 'black' || options.owner === '1' || options.owner === 1) {
-                ownerKey = '1';
-                ownerNum = 1;
-            } else if (options.owner === 'white' || options.owner === '-1' || options.owner === -1) {
-                ownerKey = '-1';
-                ownerNum = -1;
-            } else {
-                const s = String(options.owner);
-                ownerKey = (s === '-1') ? '-1' : '1';
-                ownerNum = (ownerKey === '1') ? 1 : -1;
-            }
-            const ownerClass = ownerNum === 1 ? 'ud-black' : 'ud-white';
-            const dataUdValue = ownerNum === 1 ? 'black' : 'white';
-
-            discElement.classList.add(ownerClass);
-            discElement.dataset.ud = dataUdValue;
-
-            let imagePath = effect.imagePathByOwner[ownerKey];
-            if (imagePath) {
-                // Resolve path
-                let resolvedPath = imagePath;
-                try {
-                    if (typeof document !== 'undefined' && document.baseURI) {
-                        resolvedPath = new URL(imagePath, document.baseURI).href;
-                    }
-                } catch (e) {}
-
-                discElement.style.setProperty('--dragon-image-path', `url('${resolvedPath}')`);
-                discElement.style.setProperty('--special-stone-image', `url('${resolvedPath}')`);
-                try { discElement.style.backgroundImage = `url('${resolvedPath}')`; } catch (e) { }
-
-                // Wait for paint similar to background
-                let success = false;
-                const maxAttempts = 6;
-                for (let i = 0; i < maxAttempts; i++) {
-                    const { hasBefore, hasInline } = hasVisibleBackground(discElement);
-                    if (hasBefore || hasInline) { success = true; break; }
-                    await waitForNextPaint();
-                }
-
-                const existing = discElement.querySelector('.special-stone-img');
-                if (!success) {
-                    if (!existing) {
-                        const img = document.createElement('img');
-                        img.className = 'special-stone-img';
-                        img.src = resolvedPath;
-                        img.alt = effectKey;
-                        img.setAttribute('aria-hidden', 'true');
-                        img.style.position = 'absolute';
-                        img.style.top = '0';
-                        img.style.left = '0';
-                        img.style.width = '100%';
-                        img.style.height = '100%';
-                        img.style.objectFit = 'contain';
-                        img.style.pointerEvents = 'none';
-                        img.style.zIndex = '60';
-                        discElement.appendChild(img);
-                        if (debugVisual) console.warn('[VISUAL_EFFECTS] Injected fallback image for', effectKey, resolvedPath);
-                        try { window._lastWorkInjected = { key: effectKey, imgPath: resolvedPath, ts: Date.now() }; } catch (e) {}
-                    }
-                    return true;
-                }
-
-                if (existing) existing.remove();
-                return true;
-            } else {
-                console.warn(`[VISUAL_EFFECTS] No imagePath found for ownerKey=${ownerKey}`);
-                return false;
-            }
+        if (effectKey === 'breedingStone') {
+            try { discElement.style.setProperty('--breeding-image-path', overlayImage); } catch (e) { /* ignore */ }
         }
     }
 
-    if (effectKey === 'breedingStone' && effect.imagePathByOwner && options.owner !== undefined) {
-        const breedingClass = options.owner === 1 ? 'breeding-black' : 'breeding-white';
-        const dataBreedingValue = options.owner === 1 ? 'black' : 'white';
-        discElement.classList.add(breedingClass);
-        discElement.dataset.breeding = dataBreedingValue;
-        const imagePath = effect.imagePathByOwner[options.owner.toString()];
-        if (imagePath) {
-            discElement.style.setProperty('--breeding-image-path', `url('${imagePath}')`);
-            discElement.style.setProperty('--special-stone-image', `url('${imagePath}')`);
-        }
+    if (applyDiscRenderState) {
+        applyDiscRenderState(discElement, {
+            owner: options.owner,
+            renderMode: resolveRenderMode(effect),
+            overlayImage,
+            scale: resolveOverlayScale(effect),
+            imageState: overlayImage ? 'loaded' : undefined,
+            effectKey
+        });
+    } else {
+        try {
+            discElement.dataset.renderMode = resolveRenderMode(effect);
+            discElement.dataset.effect = effectKey;
+            if (overlayImage) discElement.style.setProperty('--disc-overlay-image', overlayImage);
+        } catch (e) { /* ignore */ }
     }
 
     Object.entries(effect.dataAttributes || {}).forEach(([key, value]) => {
@@ -376,8 +343,7 @@ async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
         });
     }
 
-    // Default success if we reached here (some effects are purely class-based)
-    return true;
+    return !!(overlayImage || !effect.imagePath && !effect.imagePathByOwner && !effect.imagePathByPlayer);
 }
 
 function removeStoneVisualEffect(discElement, effectKey) {
@@ -385,21 +351,37 @@ function removeStoneVisualEffect(discElement, effectKey) {
     const effect = visualMap[effectKey];
     if (!effect) return;
 
+    discElement.classList.remove('special-stone');
     discElement.classList.remove(effect.cssClass);
-
-    if (effect.cssMethod === 'background') {
-        discElement.style.backgroundImage = '';
-        discElement.style.backgroundSize = '';
-        discElement.style.backgroundPosition = '';
-        discElement.style.backgroundRepeat = '';
-    } else if (effect.cssMethod === 'pseudoElement') {
-        discElement.classList.remove('ud-black', 'ud-white');
-        delete discElement.dataset.ud;
-    }
+    clearOwnerMetadataForEffect(discElement, effectKey);
 
     Object.keys(effect.dataAttributes || {}).forEach(key => {
         delete discElement.dataset[key];
     });
+
+    Object.keys(effect.clearStyles || {}).forEach((property) => {
+        try { discElement.style.removeProperty(property); } catch (e) { /* ignore */ }
+    });
+
+    try { discElement.style.removeProperty('--special-stone-image'); } catch (e) { /* ignore */ }
+    try { discElement.style.removeProperty('--disc-overlay-image'); } catch (e) { /* ignore */ }
+    try { discElement.style.removeProperty('--disc-overlay-scale'); } catch (e) { /* ignore */ }
+    try { discElement.style.removeProperty('--dragon-image-path'); } catch (e) { /* ignore */ }
+    try { discElement.style.removeProperty('--breeding-image-path'); } catch (e) { /* ignore */ }
+    const applyDiscRenderState = getDiscRenderHelper('applyDiscRenderState');
+    const owner = discElement.classList && discElement.classList.contains('white') ? -1 : 1;
+    if (applyDiscRenderState) {
+        applyDiscRenderState(discElement, {
+            owner,
+            renderMode: 'base-only',
+            effectKey: 'normal'
+        });
+    } else {
+        try {
+            discElement.dataset.renderMode = 'base-only';
+            discElement.dataset.effect = 'normal';
+        } catch (e) { /* ignore */ }
+    }
 }
 
 function getSupportedEffectKeys() {
@@ -417,6 +399,7 @@ if (typeof module === 'object' && module.exports) {
         preloadStoneVisualEffectKeys,
         normalizeOwnerValue,
         applyTrapStoneFallbackVisual,
+        clearStoneVisualEffectState,
         applyStoneVisualEffect,
         removeStoneVisualEffect,
         getSupportedEffectKeys
@@ -445,6 +428,7 @@ if (typeof window !== 'undefined') {
     window.getStoneVisualPathsForEffectKey = window.getStoneVisualPathsForEffectKey || getStoneVisualPathsForEffectKey;
     window.preloadStoneVisualEffectKeys = window.preloadStoneVisualEffectKeys || preloadStoneVisualEffectKeys;
     window.applyTrapStoneFallbackVisual = window.applyTrapStoneFallbackVisual || applyTrapStoneFallbackVisual;
+    window.clearStoneVisualEffectState = window.clearStoneVisualEffectState || clearStoneVisualEffectState;
     window.applyStoneVisualEffect = applyStoneVisualEffect;
     window.removeStoneVisualEffect = removeStoneVisualEffect;
     window.getSupportedEffectKeys = getSupportedEffectKeys;

@@ -108,8 +108,8 @@
         // FREE_PLACEMENT (自由の意志) - 1 card, cost: 16
         { id: 'free_01', name: '自由の意志', type: 'FREE_PLACEMENT', cost: 16, desc: '反転できなくても、空いているマスならどこにでも石を置ける' },
 
-        // LAST_RESORT (最後の切り札) - 1 card, cost: 12
-        { id: 'last_resort_01', name: '最後の切り札', type: 'LAST_RESORT', cost: 12, desc: '通常の合法手がない時だけ使用可能。空きマスに自由配置で2回置ける（固定2回）。' },
+        // LAST_RESORT (最後の切り札) - 1 card, cost: 9
+        { id: 'last_resort_01', name: '最後の切り札', type: 'LAST_RESORT', cost: 9, desc: '相手より石数が少なく、通常の合法手がない時だけ使用可能。空きマスに自由配置で3回置ける（固定3回）。' },
 
         // SNIPER_WILL (狙撃の意志) - 1 card, cost: 23
         { id: 'sniper_01', name: '狙撃の意志', type: 'SNIPER_WILL', cost: 23, desc: '次に置く石は空きマスならどこでも配置でき、狙撃石化。狙撃石は自ターン開始時に最も近い敵石を1つ破壊する（同距離はランダム）。5ターン持続。' },
@@ -150,14 +150,14 @@
         // TIME_BOMB (時限爆弾) - 1 card, cost: 13
         { id: 'bomb_01', name: '時限爆弾', type: 'TIME_BOMB', cost: 13, desc: '盤面上の自分の石1つを時限爆弾化。3ターン後に周囲9マスを破壊。反転されると解除。' },
 
-        // TIME_STOP_GOD (時間停神) - 1 card, cost: 0
-        { id: 'time_stop_god_01', name: '時間停神', type: 'TIME_STOP_GOD', cost: 0, desc: '使用時にランダムで自分の石3つを破壊し、次に置く石を時間停石化する。3回目の自ターン開始時に時間停止し、そのターンと次のターンを連続で行動する。発動時に時間停石は消滅し、先に消えた場合は不発。' },
+        // TIME_STOP_GOD (時間停石) - 1 card, cost: 0
+        { id: 'time_stop_god_01', name: '時間停石', type: 'TIME_STOP_GOD', cost: 0, desc: '使用時にランダムで自分の石5つを破壊し、次に置く石を時間停石化する。5回目の自ターン開始時に時間停止し、そのターンと次のターンを連続で行動する。発動時に時間停石は消滅し、先に消えた場合は不発。' },
 
         // ULTIMATE_REVERSE_DRAGON (究極反転龍) - 1 card, cost: 30
         { id: 'udr_01', name: '究極反転龍', type: 'ULTIMATE_REVERSE_DRAGON', cost: 30, desc: '反転0でも空きマスに配置可能。次に置く石を龍化。配置ターン即時＋自ターン開始時、周囲8マスの相手石を自分色に反転（反転数はチャージ対象）。持続5ターン（配置ターン含め最大6回発動）で消滅。反転保護を持つ特殊石。' },
 
         // BREEDING_WILL (繁殖の意志) - 1 card, cost: 16
-        { id: 'breeding_01', name: '繁殖の意志', type: 'BREEDING_WILL', cost: 16, desc: '次に置く石を繁殖石化。配置時と自ターン開始時に周囲8マスへランダム1個生成。以後は前回生成石の周囲へ拡散。生成石が反転/消滅した場合は親石起点に戻る。持続3ターン。' },
+        { id: 'breeding_01', name: '繁殖の意志', type: 'BREEDING_WILL', cost: 16, desc: '次に置く石を繁殖石化。配置時と自ターン開始時に周囲8マスへランダム1個生成。以後は前回生成石の周囲へ拡散。生成石が反転/消滅した場合は親石起点に戻る。持続5ターン。' },
         { id: 'clone_01', name: '複製の意志', type: 'CLONE_WILL', cost: 16, desc: '盤面上の自分の石1つを選び、周囲8マスの空きからランダム1マスへ同じ石を複製する。生成では反転しない。特殊石は残り持続ターンなどを引き継ぐ。周囲に空きがない石は対象外。' },
         { id: 'split_01', name: '分裂の意志', type: 'SPLIT_WILL', cost: 12, desc: '盤面上の自分の石1つを選び、周囲8マスの空きからランダム1マスへ同じ石を分裂生成する。生成では反転しない。特殊石の残り持続ターンは元石・生成石とも半分になる。周囲に空きがない石は対象外。' },
         { id: 'teleport_01', name: 'テレポート', type: 'TELEPORT_WILL', cost: 10, desc: '盤面上の石1つを選び、ランダムな空きマスへテレポートさせる。対象は敵味方・通常石・特殊石を問わない。' },
@@ -226,11 +226,13 @@
         // SILVER_STONE (銀の意志) - 1 card, cost: 3
         { id: 'silver_stone', name: '銀の意志', type: 'SILVER_STONE', cost: 3, desc: '次の反転で得る布石が3倍。使用後その石は消滅する。' },
 
-        // CRYSTAL_STONE（水晶の意志） - 1 card, cost: 7
-        { id: 'crystal_stone', name: '水晶の意志', type: 'CRYSTAL_STONE', cost: 7, desc: '次に得る数字マスの布石が4倍。使用後その石は消滅する。' },
+        // CRYSTAL_STONE（水晶の意志） - 1 card, cost: 8
+        { id: 'crystal_stone', name: '水晶の意志', type: 'CRYSTAL_STONE', cost: 8, desc: '次に得る数字マスの布石が4倍。使用後その石は消滅する。' },
 
-        // EXTEND_LIFE_WILL (延命の意志) - 1 card, cost: 2
-        { id: 'extend_life_01', name: '延命の意志', type: 'EXTEND_LIFE_WILL', cost: 2, desc: '盤面上の自分の特殊石1つを選び、その持続ターン(remainingOwnerTurns)を2倍にする。' },
+        // EXTEND_LIFE_WILL (延命の意志) - 1 card, cost: 4
+        { id: 'extend_life_01', name: '延命の意志', type: 'EXTEND_LIFE_WILL', cost: 4, desc: '盤面上の自分の特殊石1つを選び、その持続ターン(remainingOwnerTurns)を2倍にする。' },
+        // EXTEND_LIFE_GOD (延命神) - 1 card, cost: 10
+        { id: 'extend_life_god_01', name: '延命神', type: 'EXTEND_LIFE_GOD', cost: 10, desc: '盤面上の自分の特殊石1つを選び、その持続ターン(remainingOwnerTurns)を4倍にする。' },
 
         // CORROSION_WILL (腐食の意志) - 1 card, cost: 2
         { id: 'corrosion_01', name: '腐食の意志', type: 'CORROSION_WILL', cost: 2, desc: '盤面上の特殊石1つを選び、その持続ターン(remainingOwnerTurns)を半減させる。対象がない場合は使用不可。' },
@@ -324,6 +326,7 @@
         'SILVER_STONE',
         'CRYSTAL_STONE',
         'EXTEND_LIFE_WILL',
+        'EXTEND_LIFE_GOD',
         'CORROSION_WILL',
         'GUARD_WILL',
         'GUARDIAN_GOD',
@@ -359,9 +362,9 @@
 
     // TIME BOMB default turns
     const TIME_BOMB_TURNS = 3;
-    const TIME_STOP_GOD_TURNS = 3;
+    const TIME_STOP_GOD_TURNS = 5;
     const TIME_STOP_GOD_CONSECUTIVE_TURNS = 2;
-    const TIME_STOP_GOD_SELF_DESTROY_COUNT = 3;
+    const TIME_STOP_GOD_SELF_DESTROY_COUNT = 5;
 
     // Destroy fade duration (ms)
     // Used by UI animation utilities to align JS waiting with CSS animation time

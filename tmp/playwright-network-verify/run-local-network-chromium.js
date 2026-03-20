@@ -2,7 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const BASE_URL = 'http://127.0.0.1:8000/?matchServer=http%3A%2F%2F127.0.0.1%3A8788';
+const DEFAULT_BASE_URL = 'http://127.0.0.1:8000/';
+const DEFAULT_SERVER_URL = 'http://127.0.0.1:8788';
 const VIEWPORT = { width: 1440, height: 1200 };
 const OUT_DIR = path.join(process.cwd(), 'tmp', 'playwright-network-verify');
 const RESULT_PATH = path.join(OUT_DIR, 'chrome-edge-local-match-result.json');
@@ -17,6 +18,45 @@ const ERROR_SCREENSHOT_WHITE_PATH = path.join(OUT_DIR, 'local-white-error.png');
 const MAX_EVENT_LOG = 80;
 const HEADLESS = !/^(0|false)$/i.test(String(process.env.HEADLESS || '1'));
 const SLOW_MO_MS = Math.max(0, Number(process.env.SLOW_MO_MS || 0) || 0);
+
+function readFirstEnv(names) {
+    for (const name of names) {
+        const raw = String(process.env[name] || '').trim();
+        if (raw) return raw;
+    }
+    return '';
+}
+
+function normalizeAbsoluteUrl(value, label) {
+    const raw = String(value || '').trim();
+    if (!raw) {
+        throw new Error(`${label} must be a non-empty URL`);
+    }
+    const withProtocol = /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
+    return new URL(withProtocol).toString();
+}
+
+function trimTrailingSlash(value) {
+    return String(value || '').replace(/\/+$/, '');
+}
+
+function resolveRunnerUrls() {
+    const baseUrl = normalizeAbsoluteUrl(readFirstEnv(['BASE_URL']) || DEFAULT_BASE_URL, 'BASE_URL');
+    const baseUrlObject = new URL(baseUrl);
+    const serverUrl = trimTrailingSlash(normalizeAbsoluteUrl(
+        readFirstEnv(['MATCH_SERVER_URL', 'MATCH_SERVER', 'SERVER_URL'])
+            || baseUrlObject.searchParams.get('matchServer')
+            || DEFAULT_SERVER_URL,
+        'SERVER_URL'
+    ));
+    baseUrlObject.searchParams.set('matchServer', serverUrl);
+    return {
+        baseUrl: baseUrlObject.toString(),
+        serverUrl
+    };
+}
+
+const { baseUrl: BASE_URL, serverUrl: SERVER_URL } = resolveRunnerUrls();
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
@@ -501,6 +541,7 @@ async function main() {
     const result = {
         ok: false,
         baseUrl: BASE_URL,
+        serverUrl: SERVER_URL,
         timestamp: new Date().toISOString(),
         browsers: {
             black: 'chromium-a',
@@ -519,7 +560,7 @@ async function main() {
     try {
         installPageObservers(chromePage, 'chromium-a', result);
         installPageObservers(edgePage, 'chromium-b', result);
-        logLine(`[selfmatch] base=${BASE_URL} headless=${HEADLESS} slowMo=${SLOW_MO_MS}`);
+        logLine(`[selfmatch] base=${BASE_URL} server=${SERVER_URL} headless=${HEADLESS} slowMo=${SLOW_MO_MS}`);
         await Promise.all([
             chromePage.goto(BASE_URL, { waitUntil: 'domcontentloaded' }),
             edgePage.goto(BASE_URL, { waitUntil: 'domcontentloaded' })
@@ -691,5 +732,12 @@ async function main() {
     process.exit(1);
 }
 
-main();
+if (require.main === module) {
+    main();
+}
+
+module.exports = {
+    normalizeAbsoluteUrl,
+    resolveRunnerUrls
+};
 

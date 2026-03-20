@@ -1,4 +1,5 @@
 const CardLogic = require('../game/logic/cards');
+const BREEDING_OWNER_TURNS = 5;
 
 describe('BREEDING_WILL frontier propagation', () => {
   function makeState() {
@@ -19,9 +20,27 @@ describe('BREEDING_WILL frontier propagation', () => {
       row,
       col,
       owner: 'black',
-      data: { type: 'BREEDING', remainingOwnerTurns: 3 }
+      data: { type: 'BREEDING', remainingOwnerTurns: BREEDING_OWNER_TURNS }
     });
   }
+
+  test('places breeding marker with five owner turns', () => {
+    const { cardState, gameState } = makeState();
+    cardState.pendingEffectByPlayer.black = { type: 'BREEDING_WILL', stage: 'awaitPlace' };
+    gameState.board[3][3] = 1;
+
+    const effects = CardLogic.applyPlacementEffects(cardState, gameState, 'black', 3, 3, 0);
+
+    expect(effects.breedingPlaced).toBe(true);
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'BREEDING', remainingOwnerTurns: BREEDING_OWNER_TURNS })
+      })
+    ]));
+  });
 
   test('propagates from previously spawned stones on next owner turn', () => {
     const { cardState, gameState } = makeState();
@@ -131,7 +150,7 @@ describe('BREEDING_WILL frontier propagation', () => {
       row: 3,
       col: -1,
       owner: 'black',
-      data: { type: 'BREEDING', remainingOwnerTurns: 3 }
+      data: { type: 'BREEDING', remainingOwnerTurns: BREEDING_OWNER_TURNS }
     });
 
     const immediate = CardLogic.processBreedingEffectsAtAnchor(cardState, gameState, 'black', 3, -1, prng);

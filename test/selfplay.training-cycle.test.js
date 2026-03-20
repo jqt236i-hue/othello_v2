@@ -12,6 +12,7 @@ const {
     resolveAdoptionBaselineMode,
     resolveIterationGateControl,
     resolveNextCarryOverState,
+    buildPromotionCommandArgs,
     shouldReuseStepArtifacts,
     shouldRunGateForIteration,
     resolveQuickComponentDelta,
@@ -361,6 +362,47 @@ describe('selfplay training cycle script', () => {
             baselineMode: 'guide',
             baselineModelPath: path.resolve('guide.json')
         });
+    });
+
+    test('buildPromotionCommandArgs scopes promotion outputs under modelsDir', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-promotion-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--with-cards'
+            ]);
+            const promoteArgs = buildPromotionCommandArgs(args, {
+                candidateModelPath: path.join(modelsDir, 'policy-table.candidate.test.it01.json'),
+                onnxModelPath: path.join(modelsDir, 'policy-net.candidate.test.it01.onnx'),
+                onnxMetaPath: path.join(modelsDir, 'policy-net.candidate.test.it01.onnx.meta.json'),
+                cardOnnxModelPath: path.join(modelsDir, 'policy-card.candidate.test.it01.onnx'),
+                cardOnnxMetaPath: path.join(modelsDir, 'policy-card.candidate.test.it01.onnx.meta.json'),
+                targetOnnxModelPath: path.join(modelsDir, 'policy-target.candidate.test.it01.onnx'),
+                targetOnnxMetaPath: path.join(modelsDir, 'policy-target.candidate.test.it01.onnx.meta.json'),
+                valueOnnxModelPath: path.join(modelsDir, 'policy-value.candidate.test.it01.onnx'),
+                valueOnnxMetaPath: path.join(modelsDir, 'policy-value.candidate.test.it01.onnx.meta.json')
+            }, path.join(tempDir, 'adoption.quick.test.it01.json'), true);
+
+            expect(promoteArgs).toEqual(expect.arrayContaining([
+                '--target-model', path.join(modelsDir, 'policy-table.json'),
+                '--target-onnx', path.join(modelsDir, 'policy-net.onnx'),
+                '--target-onnx-meta', path.join(modelsDir, 'policy-net.onnx.meta.json'),
+                '--target-card-onnx', path.join(modelsDir, 'policy-card.onnx'),
+                '--target-card-onnx-meta', path.join(modelsDir, 'policy-card.onnx.meta.json'),
+                '--target-target-onnx', path.join(modelsDir, 'policy-target.onnx'),
+                '--target-target-onnx-meta', path.join(modelsDir, 'policy-target.onnx.meta.json'),
+                '--target-value-onnx', path.join(modelsDir, 'policy-value.onnx'),
+                '--target-value-onnx-meta', path.join(modelsDir, 'policy-value.onnx.meta.json'),
+                '--promoted-dir', path.join(modelsDir, 'promoted'),
+                '--archive-dir', path.join(modelsDir, 'archive'),
+                '--manifest', path.join(modelsDir, 'promoted', 'promotion-manifest.json')
+            ]));
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
     });
 
     test('resolveNextCarryOverState keeps promoted-only guide when candidate is not promoted', () => {

@@ -34,8 +34,8 @@ const fs = require('fs');
   });
 
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-  const localUrl = `http://127.0.0.1:${server.address().port}/?debug=1`;
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1024 } });
+  const localUrl = `http://127.0.0.1:${server.address().port}/?debug=1&noanim=1`;
   console.log('[viz] navigating to', localUrl);
   await page.goto(localUrl, { waitUntil: 'load' });
 
@@ -66,6 +66,9 @@ const fs = require('fs');
 
   // Force render and wait for animations
   try { await page.evaluate(() => { if (typeof window.forceFullRender === 'function' && window.boardEl) window.forceFullRender(window.boardEl); }); } catch (e) {}
+  try {
+    await page.waitForFunction(() => document.documentElement.classList.contains('stone-images-loaded'), { timeout: 5000 });
+  } catch (e) {}
   await page.waitForTimeout(500);
 
   // take screenshot of board element

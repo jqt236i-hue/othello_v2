@@ -38,7 +38,7 @@ describe('CardPendingStateManager', () => {
     })).toEqual(expect.objectContaining({
       type: 'LAST_RESORT',
       stage: null,
-      placementsRemaining: 2
+      placementsRemaining: 3
     }));
   });
 

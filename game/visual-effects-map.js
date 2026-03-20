@@ -20,12 +20,12 @@ const TIME_STOP_STONE_IMAGE_BY_OWNER = {
  * 
  * 各エントリ：
  * - cssClass: DOM に付与する CSS クラス
- * - cssMethod: 'background' | 'pseudoElement'
- *   - 'background': 直接背景画像設定（金の意志など）
- *   - 'pseudoElement': ::before 擬似要素で重ね合わせ（ドラゴンなど）
- * - imagePath: 単一画像パス（cssMethod='background' の場合）
- * - imagePathByOwner: オーナー別画像パス（cssMethod='pseudoElement' + owner分岐の場合）
- * - imagePathByPlayer: プレイヤー別画像パス（cssMethod='background' + player分岐の場合）
+ * - renderMode: 'replace' | 'overlay'
+ *   - 'replace': 通常石 base を隠して特殊石画像へ置換
+ *   - 'overlay': 通常石 base を残したまま上に重ねる
+ * - imagePath: 単一画像パス
+ * - imagePathByOwner: オーナー別画像パス
+ * - imagePathByPlayer: プレイヤー別画像パス
  * - dataAttributes: 追加で付与するデータ属性（例: {'data-ud': 'black'}）
  */
 const GAME_STONE_VISUAL_EFFECTS = {
@@ -345,6 +345,22 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'TRAP': 'trapStone',
     'TRAP_REVEAL': 'trapStone'
 };
+
+function normalizeStoneVisualDefinitions(map) {
+    for (const effect of Object.values(map)) {
+        if (!effect || typeof effect !== 'object') continue;
+        if (typeof effect.renderMode !== 'string' || !effect.renderMode) {
+            effect.renderMode = 'replace';
+        }
+        const scale = Number(effect.scale);
+        effect.scale = (Number.isFinite(scale) && scale > 0) ? scale : 1;
+        if (typeof effect.shadowProfile !== 'string' || !effect.shadowProfile) {
+            effect.shadowProfile = 'default';
+        }
+    }
+}
+
+normalizeStoneVisualDefinitions(GAME_STONE_VISUAL_EFFECTS);
 
 function getEffectKeyForSpecialType(type) {
     return SPECIAL_TYPE_TO_EFFECT_KEY[type] || null;

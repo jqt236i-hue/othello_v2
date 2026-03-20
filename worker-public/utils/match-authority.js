@@ -3,8 +3,10 @@
 const deepClone = require('./deepClone');
 
 const PLAYER_KEYS = Object.freeze(['black', 'white']);
+const HIDDEN_HAND_TOKEN_PREFIX = '__hidden_hand__:';
 const HIDDEN_HAND_TOKEN_RE = /^__hidden_hand__:(black|white):(\d+)$/;
 const OPERATION_ID_MAX_LENGTH = 128;
+const DROP_HIDDEN_TOKEN = Symbol('drop_hidden_token');
 
 function parseSeatKeyOptional(value) {
     if (value === 1 || value === '1') return 'black';
@@ -133,6 +135,21 @@ function makeHiddenHandToken(ownerKey, handIndex) {
     return `__hidden_hand__:${normalizedOwner}:${idx}`;
 }
 
+function isHiddenHandTokenLike(value) {
+    return typeof value === 'string' && value.startsWith(HIDDEN_HAND_TOKEN_PREFIX);
+}
+
+function getAuthoritativeHandCardId(previousHands, ownerKey, handIndex) {
+    if (!Number.isInteger(handIndex) || handIndex < 0) return null;
+    const ownerHand = (previousHands && Array.isArray(previousHands[ownerKey]))
+        ? previousHands[ownerKey]
+        : null;
+    if (!ownerHand || handIndex >= ownerHand.length) return null;
+    const cardId = ownerHand[handIndex];
+    if (typeof cardId !== 'string' || !cardId || isHiddenHandTokenLike(cardId)) return null;
+    return cardId;
+}
+
 function parseHiddenHandToken(value) {
     const match = String(value || '').match(HIDDEN_HAND_TOKEN_RE);
     if (!match) return null;
@@ -145,17 +162,83 @@ function parseHiddenHandToken(value) {
 function resolveCardIdFromHiddenToken(value, previousHands) {
     const parsed = parseHiddenHandToken(value);
     if (!parsed) return null;
-    const ownerHand = (previousHands && Array.isArray(previousHands[parsed.ownerKey]))
-        ? previousHands[parsed.ownerKey]
+    return getAuthoritativeHandCardId(previousHands, parsed.ownerKey, parsed.handIndex);
+}
+
+function sanitizeHiddenTokenReference(value, previousHands, options) {
+    const resolved = resolveCardIdFromHiddenToken(value, previousHands);
+    if (resolved) return resolved;
+    if (!isHiddenHandTokenLike(value)) return value;
+
+    const opts = (options && typeof options === 'object') ? options : {};
+    const fallbackOwnerKey = parseSeatKeyOptional(opts.fallbackOwnerKey);
+    if (fallbackOwnerKey && Number.isInteger(opts.fallbackIndex)) {
+        const fallbackCardId = getAuthoritativeHandCardId(previousHands, fallbackOwnerKey, opts.fallbackIndex);
+        if (fallbackCardId) return fallbackCardId;
+    }
+
+    return opts.dropUnresolved === true ? DROP_HIDDEN_TOKEN : null;
+}
+
+function sanitizeHiddenCardIdArrayForPublish(entries, previousHands, ownerKey) {
+    const source = Array.isArray(entries) ? entries : [];
+    const hasOwnerFallback = !!parseSeatKeyOptional(ownerKey);
+    return source
+        .map((cardId, index) => sanitizeHiddenTokenReference(cardId, previousHands, hasOwnerFallback
+            ? { fallbackOwnerKey: ownerKey, fallbackIndex: index, dropUnresolved: true }
+            : { dropUnresolved: true }))
+        .filter((cardId) => cardId !== DROP_HIDDEN_TOKEN);
+}
+
+function normalizeProjectedHandIndex(value, fallbackIndex, handLength) {
+    if (!Number.isInteger(handLength) || handLength <= 0) return null;
+    if (Number.isInteger(value) && value >= 0 && value < handLength) return value;
+    if (Number.isInteger(fallbackIndex) && fallbackIndex >= 0 && fallbackIndex < handLength) return fallbackIndex;
+    return null;
+}
+
+function sanitizeCondemnWillOffersForPublish(cardState, previousHands) {
+    if (!cardState || typeof cardState !== 'object') return cardState;
+    const pendingByPlayer = (cardState.pendingEffectByPlayer && typeof cardState.pendingEffectByPlayer === 'object')
+        ? cardState.pendingEffectByPlayer
         : null;
-    if (!ownerHand) return null;
-    if (parsed.handIndex < 0 || parsed.handIndex >= ownerHand.length) return null;
-    return ownerHand[parsed.handIndex];
+    if (!pendingByPlayer) return cardState;
+
+    for (const ownerKey of PLAYER_KEYS) {
+        const pending = pendingByPlayer[ownerKey];
+        if (!pending || pending.type !== 'CONDEMN_WILL' || !Array.isArray(pending.offers)) continue;
+        const opponentKey = getOpponentKey(ownerKey);
+        const opponentHand = (previousHands && Array.isArray(previousHands[opponentKey]))
+            ? previousHands[opponentKey]
+            : [];
+
+        pending.offers = pending.offers
+            .map((offer, index) => {
+                const nextOffer = (offer && typeof offer === 'object') ? { ...offer } : {};
+                const handIndex = normalizeProjectedHandIndex(nextOffer.handIndex, index, opponentHand.length);
+                if (handIndex === null) return null;
+
+                const fallbackCardId = getAuthoritativeHandCardId(previousHands, opponentKey, handIndex);
+                const nextCardId = sanitizeHiddenTokenReference(nextOffer.cardId, previousHands, {
+                    fallbackOwnerKey: opponentKey,
+                    fallbackIndex: handIndex
+                });
+
+                nextOffer.handIndex = handIndex;
+                nextOffer.cardId = (typeof nextCardId === 'string' && nextCardId)
+                    ? nextCardId
+                    : (fallbackCardId || null);
+                return nextOffer;
+            })
+            .filter(Boolean);
+    }
+
+    return cardState;
 }
 
 function rehydrateHiddenTokensInPlace(value, previousHands, visited = new WeakSet()) {
-    const resolved = resolveCardIdFromHiddenToken(value, previousHands);
-    if (resolved) return resolved;
+    const sanitized = sanitizeHiddenTokenReference(value, previousHands);
+    if (sanitized !== value) return sanitized;
     if (!value || typeof value !== 'object') return value;
     if (visited.has(value)) return value;
     visited.add(value);
@@ -277,21 +360,23 @@ function rehydrateSnapshotForPublish(previousSnapshot, incomingSnapshot) {
     }
 
     for (const ownerKey of PLAYER_KEYS) {
-        const incomingHand = Array.isArray(nextCardState.hands[ownerKey]) ? nextCardState.hands[ownerKey] : [];
-        nextCardState.hands[ownerKey] = incomingHand.map((cardId) => {
-            const resolved = resolveCardIdFromHiddenToken(cardId, previousHands);
-            return resolved || cardId;
-        });
+        nextCardState.hands[ownerKey] = sanitizeHiddenCardIdArrayForPublish(
+            nextCardState.hands[ownerKey],
+            previousHands,
+            ownerKey
+        );
     }
 
     if (Array.isArray(nextCardState.discard)) {
-        nextCardState.discard = nextCardState.discard.map((cardId) => {
-            const resolved = resolveCardIdFromHiddenToken(cardId, previousHands);
-            return resolved || cardId;
-        });
+        nextCardState.discard = sanitizeHiddenCardIdArrayForPublish(nextCardState.discard, previousHands);
     }
 
     rehydrateHiddenTokensInPlace(nextCardState, previousHands);
+    if (nextCardState.selectedCardId === null || typeof nextCardState.selectedCardId === 'undefined') {
+        nextCardState.selectedCardId = null;
+        nextCardState.selectedCardOwnerKey = null;
+    }
+    sanitizeCondemnWillOffersForPublish(nextCardState, previousHands);
     return stripTransientPresentationState(nextSnapshot);
 }
 
@@ -315,7 +400,13 @@ function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
     cardState.hands = cardState.hands && typeof cardState.hands === 'object' ? cardState.hands : {};
 
     for (const ownerKey of PLAYER_KEYS) {
-        const ownerHand = Array.isArray(hands[ownerKey]) ? hands[ownerKey].slice() : [];
+        const ownerHand = Array.isArray(hands[ownerKey])
+            ? hands[ownerKey].map((cardId, handIndex) => (
+                isHiddenHandTokenLike(cardId)
+                    ? makeHiddenHandToken(ownerKey, handIndex)
+                    : cardId
+            ))
+            : [];
         sourceHands[ownerKey] = ownerHand;
         if (viewer && ownerKey === viewer) {
             cardState.hands[ownerKey] = ownerHand.slice();
@@ -324,7 +415,19 @@ function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
         cardState.hands[ownerKey] = ownerHand.map((_, handIndex) => makeHiddenHandToken(ownerKey, handIndex));
     }
 
+    if (Array.isArray(cardState.discard)) {
+        cardState.discard = cardState.discard.filter((cardId) => !isHiddenHandTokenLike(cardId));
+    }
+
     const selectedOwnerKey = parseSeatKeyOptional(cardState.selectedCardOwnerKey);
+    if (!cardState.selectedCardId) {
+        cardState.selectedCardId = null;
+        cardState.selectedCardOwnerKey = null;
+    }
+    if (viewer && selectedOwnerKey === viewer && isHiddenHandTokenLike(cardState.selectedCardId)) {
+        cardState.selectedCardId = null;
+        cardState.selectedCardOwnerKey = null;
+    }
     if (!viewer || !selectedOwnerKey || selectedOwnerKey !== viewer) {
         cardState.selectedCardId = null;
         cardState.selectedCardOwnerKey = null;
@@ -340,19 +443,21 @@ function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
             pending.offers = pending.offers.map((offer, idx) => {
                 const parsedToken = offer && offer.cardId ? parseHiddenHandToken(offer.cardId) : null;
                 const fallbackIndex = parsedToken && Number.isInteger(parsedToken.handIndex) ? parsedToken.handIndex : idx;
-                const handIndex = (offer && Number.isInteger(offer.handIndex)) ? offer.handIndex : fallbackIndex;
+                const handIndex = normalizeProjectedHandIndex(
+                    offer && Number.isInteger(offer.handIndex) ? offer.handIndex : fallbackIndex,
+                    idx,
+                    opponentHand.length
+                );
                 if (revealToViewer) {
-                    const visibleCardId = (Number.isInteger(handIndex) && handIndex >= 0 && handIndex < opponentHand.length)
-                        ? opponentHand[handIndex]
-                        : null;
+                    const visibleCardId = handIndex === null ? null : opponentHand[handIndex];
                     return {
                         handIndex,
-                        cardId: visibleCardId || makeHiddenHandToken(opponentKey, handIndex)
+                        cardId: visibleCardId || (handIndex === null ? null : makeHiddenHandToken(opponentKey, handIndex))
                     };
                 }
                 return {
                     handIndex,
-                    cardId: makeHiddenHandToken(opponentKey, handIndex)
+                    cardId: handIndex === null ? null : makeHiddenHandToken(opponentKey, handIndex)
                 };
             });
         }

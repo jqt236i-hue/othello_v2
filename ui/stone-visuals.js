@@ -36,6 +36,10 @@
 
 // Shared animation helpers (normalized)
 var AnimationShared = (typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null);
+var BoardRendererDiscHelpers = (typeof require === 'function') ? require('./board-renderer') : (typeof window !== 'undefined' ? window : null);
+var VisualEffectsHelpers = (typeof require === 'function')
+    ? (function () { try { return require('./visual-effects-map'); } catch (e) { return null; } })()
+    : (typeof window !== 'undefined' ? window : null);
 var _isNoAnim = (AnimationShared && AnimationShared.isNoAnim) ? AnimationShared.isNoAnim : function () { return false; };
 var _Timer = (AnimationShared && AnimationShared.getTimer) ? AnimationShared.getTimer : function () {
     if (typeof TimerRegistry !== 'undefined') return TimerRegistry;
@@ -55,6 +59,18 @@ try {
         document.documentElement.classList.add('no-anim');
     }
 } catch (e) { }
+
+function _getDiscRenderHelperForStoneVisuals(name) {
+    if (BoardRendererDiscHelpers && typeof BoardRendererDiscHelpers[name] === 'function') return BoardRendererDiscHelpers[name];
+    if (typeof window !== 'undefined' && typeof window[name] === 'function') return window[name];
+    return null;
+}
+
+function _getVisualEffectsHelperForStoneVisuals(name) {
+    if (VisualEffectsHelpers && typeof VisualEffectsHelpers[name] === 'function') return VisualEffectsHelpers[name];
+    if (typeof window !== 'undefined' && typeof window[name] === 'function') return window[name];
+    return null;
+}
 
 async function crossfadeStoneVisual(disc, options = {}) {
     console.log('[VISUAL_DEBUG] crossfadeStoneVisual invoked', options && options.effectKey);
@@ -112,6 +128,10 @@ function setDiscColorAt(row, col, color) {
     if (!disc) return;
     disc.classList.remove('black', 'white');
     disc.classList.add(color === (typeof BLACK !== 'undefined' ? BLACK : 1) ? 'black' : 'white');
+    const setDiscStoneImage = _getDiscRenderHelperForStoneVisuals('setDiscStoneImage');
+    if (setDiscStoneImage) {
+        setDiscStoneImage(disc, color);
+    }
 }
 
 function removeBombOverlayAt(row, col) {
@@ -132,6 +152,12 @@ function clearAllStoneVisualEffectsAt(row, col) {
     const disc = cell ? cell.querySelector('.disc') : null;
     if (!disc) return;
 
+    const clearStoneVisualEffectState = _getVisualEffectsHelperForStoneVisuals('clearStoneVisualEffectState');
+    if (clearStoneVisualEffectState) {
+        clearStoneVisualEffectState(disc);
+        return;
+    }
+
     disc.classList.remove('special-stone', 'ud-black', 'ud-white', 'breeding-black', 'breeding-white');
     delete disc.dataset.ud;
     delete disc.dataset.breeding;
@@ -150,8 +176,15 @@ function clearAllStoneVisualEffectsAt(row, col) {
 
     // Clear CSS vars used by overlay visuals.
     disc.style.removeProperty('--special-stone-image');
+    disc.style.removeProperty('--disc-overlay-image');
+    disc.style.removeProperty('--disc-overlay-scale');
     disc.style.removeProperty('--dragon-image-path');
     disc.style.removeProperty('--breeding-image-path');
+
+    const setDiscStoneImage = _getDiscRenderHelperForStoneVisuals('setDiscStoneImage');
+    if (setDiscStoneImage) {
+        setDiscStoneImage(disc, disc.classList.contains('white') ? WHITE : BLACK);
+    }
 }
 
 function syncDiscVisualToCurrentState(row, col) {
@@ -187,6 +220,14 @@ function syncDiscVisualToCurrentState(row, col) {
     }
 
     clearAllStoneVisualEffectsAt(row, col);
+
+    if (bomb) {
+        const bombOwner = (bomb.owner === 'black' || bomb.owner === BLACK || bomb.owner === 1) ? BLACK : WHITE;
+        if (typeof applyStoneVisualEffect === 'function') {
+            applyStoneVisualEffect(disc, 'timeBombStone', { owner: bombOwner });
+        }
+        disc.classList.add('bomb', 'special-stone', bombOwner === BLACK ? 'bomb-black' : 'bomb-white');
+    }
 
     let special = null;
     if (cardState && Array.isArray(cardState.markers)) {

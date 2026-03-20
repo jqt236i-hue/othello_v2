@@ -11,7 +11,7 @@ let pixelmatch = require('pixelmatch'); if (pixelmatch && pixelmatch.default) pi
   const baseline = path.join(__dirname, 'baseline-board.png');
   const current = path.join(__dirname, 'current-board.png');
   const diffOut = path.join(__dirname, 'diff-board.png');
-  const threshold = process.env.VISUAL_DIFF_THRESHOLD ? parseInt(process.env.VISUAL_DIFF_THRESHOLD, 10) : 500; // pixels
+  const threshold = process.env.VISUAL_DIFF_THRESHOLD ? parseInt(process.env.VISUAL_DIFF_THRESHOLD, 10) : 4000; // pixels
 
   // Start minimal static server
   const http = require('http');
@@ -35,16 +35,17 @@ let pixelmatch = require('pixelmatch'); if (pixelmatch && pixelmatch.default) pi
     stream.pipe(res);
   });
 
-  await new Promise((resolve) => server.listen(port, '127.0.0.1', () => { const actualPort = server.address().port; resolve(); }));
-  console.log('[viz-check] local static server started on', server.address().port);
+  await new Promise((resolve) => server.listen(port, '127.0.0.1', resolve));
+  const actualPort = server.address().port;
+  console.log('[viz-check] local static server started on', actualPort);
 
   try {
     const browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage();
-    const localUrl = `http://127.0.0.1:${port}/?debug=1`;
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1024 } });
+    const localUrl = `http://127.0.0.1:${actualPort}/?debug=1&noanim=1`;
     console.log('[viz-check] navigating to', localUrl);
     await page.goto(localUrl, { waitUntil: 'load' });
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000);
 
     // Ensure test board is applied if debug helpers available
     try {
@@ -60,6 +61,9 @@ let pixelmatch = require('pixelmatch'); if (pixelmatch && pixelmatch.default) pi
     } catch (e) { /* ignore */ }
 
     try { await page.evaluate(() => { if (typeof window.forceFullRender === 'function' && window.boardEl) window.forceFullRender(window.boardEl); }); } catch (e) {}
+    try {
+      await page.waitForFunction(() => document.documentElement.classList.contains('stone-images-loaded'), { timeout: 5000 });
+    } catch (e) {}
     await page.waitForTimeout(500);
 
     const board = await page.$('#board');

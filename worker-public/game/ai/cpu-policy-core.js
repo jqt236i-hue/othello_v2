@@ -36,6 +36,7 @@ const DEFENSIVE_CARD_TYPES = new Set([
     'SACRIFICE_WILL',
     'TRAP_WILL',
     'EXTEND_LIFE_WILL',
+    'EXTEND_LIFE_GOD',
     'SNIPER_WILL',
     'LIGHTNING_WILL'
 ]);
@@ -171,6 +172,7 @@ const REBUILD_KEEP_PRIORITY_CARD_TYPES = new Set([
     'REGEN_WILL',
     'BLOCKADE_WILL',
     'EXTEND_LIFE_WILL',
+    'EXTEND_LIFE_GOD',
     'DESTROY_ONE_STONE',
     'SWAP_WITH_ENEMY',
     'POSITION_SWAP_WILL',
@@ -190,6 +192,7 @@ const STABILITY_CARD_TYPES = new Set([
     'BLOCKADE_WILL',
     'TRAP_WILL',
     'EXTEND_LIFE_WILL',
+    'EXTEND_LIFE_GOD',
     'HEAVEN_BLESSING',
     'SNIPER_WILL',
     'LIGHTNING_WILL',
@@ -362,6 +365,7 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     INFINITE_PLACE: 6,
     ESCAPE_WILL: -1,
     EXTEND_LIFE_WILL: 8,
+    EXTEND_LIFE_GOD: 10,
     EXTREME_HYPERACTIVE_WILL: -8,
     FREE_PLACEMENT: 2,
     GLUTTONOUS_WILL: 3,
@@ -437,6 +441,7 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'INFINITE_PLACE',
     'ESCAPE_WILL',
     'EXTEND_LIFE_WILL',
+    'EXTEND_LIFE_GOD',
     'EXTREME_HYPERACTIVE_WILL',
     'FREE_PLACEMENT',
     'FREEZE_WILL',
@@ -512,6 +517,7 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     INFINITE_PLACE: { trailingBias: 12, handPressureBias: 6, cornerNowBias: -12, endgameBias: 2, lowMobilityBias: 8 },
     ESCAPE_WILL: { trailingBias: 4, edgeEmergencyBias: 4, handPressureBias: 2 },
     EXTEND_LIFE_WILL: { midLateBias: 4, leadBias: 4, endgameBias: -4 },
+    EXTEND_LIFE_GOD: { midLateBias: 6, leadBias: 6, endgameBias: -6 },
     EXTREME_HYPERACTIVE_WILL: { trailingBias: 8, leadBias: -6, cornerEmergencyBias: 4 },
     FREE_PLACEMENT: { cornerEmergencyBias: 6, lowMobilityBias: 6, cornerNowBias: -10 },
     FREEZE_WILL: { leadBias: 4, cornerNowBias: 2, edgeEmergencyBias: 2, endgameBias: -2 },
@@ -612,7 +618,8 @@ function buildCardTypeUsageStyle() {
         'REGEN_WILL',
         'HEAVEN_BLESSING',
         'BLOCKADE_WILL',
-        'EXTEND_LIFE_WILL'
+        'EXTEND_LIFE_WILL',
+        'EXTEND_LIFE_GOD'
     ], {
         leadBias: 10,
         trailingBias: -6,
@@ -897,6 +904,7 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     INFINITE_PLACE: { archetype: 'explosiveComeback', placementWeight: 2, cornerBias: 5, bonusBias: 6, stabilityBias: -2 },
     ESCAPE_WILL: { archetype: 'spawnMobile', placementWeight: 3, cornerBias: -2, edgeBias: -1, oppAdjBias: -1, emptyAdjBias: 4 },
     EXTEND_LIFE_WILL: { archetype: 'anchorProtect', placementWeight: 0, stabilityBias: 5, ownAdjBias: 3 },
+    EXTEND_LIFE_GOD: { archetype: 'anchorProtect', placementWeight: 0, stabilityBias: 6, ownAdjBias: 4 },
     EXTREME_HYPERACTIVE_WILL: { archetype: 'spawnMobile', placementWeight: 3, cornerBias: -2, oppAdjBias: 2, stabilityBias: -2 },
     FREE_PLACEMENT: { archetype: 'recoveryReposition', placementWeight: 3, cornerBias: 4, edgeBias: 3, innerBias: -2, bonusBias: 2, xPenalty: 3, cPenalty: 2 },
     FREEZE_WILL: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 2, edgeBias: 2, stabilityBias: 3, oppAdjBias: 1 },
@@ -1336,6 +1344,8 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const isHeavenBlessing = cardType === 'HEAVEN_BLESSING';
     const isCondemnWill = cardType === 'CONDEMN_WILL';
     const isExtendLifeWill = cardType === 'EXTEND_LIFE_WILL';
+    const isExtendLifeGod = cardType === 'EXTEND_LIFE_GOD';
+    const isExtendLifeCard = isExtendLifeWill || isExtendLifeGod;
     const isRebuildWill = cardType === 'REBUILD_WILL';
     const isSupplyWill = cardType === 'SUPPLY_WILL';
     const isGoldStone = cardType === 'GOLD_STONE';
@@ -2023,7 +2033,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (endgamePhase && oppHandSize <= 1) score -= 30;
     }
 
-    if (isExtendLifeWill) {
+    if (isExtendLifeCard) {
         score += 16 + (ownSpecialCount * 12);
         if (ctx.empties >= 22 && ctx.empties <= 42) score += 12;
         if (midLatePhase) score += 8;
@@ -2033,6 +2043,12 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (leadStable) score += 18;
         if (cornerEmergency && !hasCornerMoveNow) score -= 34;
         if (ownSpecialCount <= 1 && endgamePhase) score -= 28;
+        if (isExtendLifeGod) {
+            score += 28 + (ownSpecialCount * 10);
+            if (midLatePhase) score += 8;
+            if (endgamePhase) score -= 36;
+            if (leadStable) score += 12;
+        }
     }
 
     if (isProtectedNextStone || isPermaProtectNextStone || isGuardWill || isGuardianGod || isRegenWill) {
@@ -2468,6 +2484,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     if (whiteLv6Mode && isLastResort && !ctx.forceUseCard) {
         if (ctx.legalMovesCount > 0) score -= 420;
         if (ctx.legalMovesCount > 0 && ctx.handSize >= 4) score -= 180;
+        if (ctx.discDiff >= 0) score -= 420;
         if (leadStable && !cornerEmergency) score -= 110;
     }
 
@@ -2551,6 +2568,8 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
     const isTrapWill = cardType === 'TRAP_WILL';
     const isTemptWill = cardType === 'TEMPT_WILL';
     const isExtendLifeWill = cardType === 'EXTEND_LIFE_WILL';
+    const isExtendLifeGod = cardType === 'EXTEND_LIFE_GOD';
+    const isExtendLifeCard = isExtendLifeWill || isExtendLifeGod;
     const isBlockadeWill = cardType === 'BLOCKADE_WILL';
     const isMeteorWill = cardType === 'METEOR_WILL';
     const isObserverWill = cardType === 'OBSERVER_WILL';
@@ -2620,8 +2639,14 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
         }
     }
 
+    if (isLastResort) {
+        if (ctx.legalMovesCount > 0) score -= 220;
+        if (ctx.discDiff >= 0) score -= 260;
+        if (ctx.legalMovesCount <= 0 && ctx.discDiff < 0) score += 40;
+    }
+
     if (whiteLv6Mode && (isThrowChainCard || isChainWill)) score -= 260;
-    if (whiteLv6Mode && isLastResort && ctx.discDiff >= 4 && !cornerEmergency) score -= 220;
+    if (whiteLv6Mode && isLastResort && ctx.discDiff >= 0 && !cornerEmergency) score -= 220;
     if (whiteLv6Mode && isLastResort && ctx.legalMovesCount > 0) score -= 520;
     if (whiteLv6Mode && isLastResort && ctx.legalMovesCount > 0 && ctx.handSize >= 4) score -= 220;
     if (whiteLv6Mode && isTimeBomb && ctx.discDiff >= 2 && !cornerEmergency) score -= 240;
@@ -2746,12 +2771,17 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
         if (specialDiff <= 0) score -= 240;
         else score += Math.min(150, specialDiff * 52);
     }
-    if (isExtendLifeWill) {
+    if (isExtendLifeCard) {
         score += (ownSpecialCount * 24);
         if (ownSpecialCount <= 0) score -= 200;
         if (ctx.empties <= 14) score -= 70;
         if (ctx.discDiff >= 4) score += 18;
         if (cornerEmergency && !hasCornerMoveNow) score -= 24;
+        if (isExtendLifeGod) {
+            score += (ownSpecialCount * 20);
+            if (ctx.empties <= 18) score -= 30;
+            if (ctx.discDiff >= 4) score += 24;
+        }
     }
     if (isBlockadeWill) {
         score += (ctx.legalMovesCount <= 2 ? 90 : (ctx.legalMovesCount <= 3 ? 42 : 10));
@@ -2982,7 +3012,7 @@ function chooseHandDestroyTargetForCycle(handCardIds, usableCardIds, getCardCost
             if (ctx.legalMovesCount <= 1 && HIGH_VARIANCE_CARD_TYPES.has(cardType) && !isWhiteCornerKeep) {
                 destroyScore -= 180;
             }
-            if (isLastResort && !ctx.forceUseCard && ctx.discDiff >= 4) destroyScore -= 220;
+            if (isLastResort && !ctx.forceUseCard && ctx.discDiff >= 0) destroyScore -= 220;
             if (isSacrificeWill && ctx.empties >= 28 && !cornerEmergency) destroyScore -= 220;
         }
 

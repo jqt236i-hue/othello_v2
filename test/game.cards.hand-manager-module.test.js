@@ -70,6 +70,7 @@ describe('CardHandManager module', () => {
       },
       helpers: {
         hasStandardLegalMoveForPlayer: jest.fn(() => false),
+        canUseLastResortForPlayer: jest.fn(() => true),
         countOpponentOccupiedCornersForPlayer: jest.fn(() => 0),
         getOccupiedBoardShapeCellsForCard: jest.fn(() => [])
       }
@@ -86,6 +87,7 @@ describe('CardHandManager module', () => {
 
     cardState.turnIndex = 19;
     context.helpers.hasStandardLegalMoveForPlayer = jest.fn(() => true);
+    context.helpers.canUseLastResortForPlayer = jest.fn(() => false);
     selectorsModule.getDestroyTargets.mockReturnValue([{ row: 2, col: 3 }]);
 
     expect(CardHandManager.getUsableCardIds(cardState, gameState, 'black', context)).toEqual(['ribo_card', 'destroy_card']);

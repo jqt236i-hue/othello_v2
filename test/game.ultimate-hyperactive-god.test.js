@@ -358,6 +358,180 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     expect(markerAfterCap.data.flipEvadeRemaining).toBe(0);
   });
 
+  test('tempted hyperactive move still lets target ultimate hyperactive evade', () => {
+    const prng = { shuffle: (arr) => arr, random: () => 0 };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(Core.BLACK)),
+      currentPlayer: Core.BLACK
+    };
+
+    gameState.board[3][3] = Core.WHITE;
+    gameState.board[3][4] = Core.EMPTY;
+    gameState.board[3][5] = Core.WHITE;
+    gameState.board[2][6] = Core.EMPTY;
+
+    cardState.markers.push(
+      {
+        id: 500,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'white',
+        data: { type: 'HYPERACTIVE', flipEvadeRemaining: 1 }
+      },
+      {
+        id: 501,
+        kind: 'specialStone',
+        row: 3,
+        col: 5,
+        owner: 'white',
+        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 3 }
+      }
+    );
+    cardState.pendingEffectByPlayer.black = {
+      type: 'TEMPT_WILL',
+      stage: 'selectTarget',
+      cardId: 'tempt_will_01'
+    };
+
+    const temptResult = CardLogic.applyTemptWill(cardState, gameState, 'black', 3, 3);
+    expect(temptResult && temptResult.applied).toBe(true);
+
+    const res = CardLogic.processHyperactiveMoveAtAnchor(
+      cardState,
+      gameState,
+      'black',
+      3,
+      3,
+      prng,
+      { currentTurnPlayerKey: 'black' }
+    );
+
+    expect(res.moved).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        from: { row: 3, col: 3 },
+        to: { row: 3, col: 4 },
+        specialType: 'HYPERACTIVE'
+      }),
+      expect.objectContaining({
+        from: { row: 3, col: 5 },
+        to: { row: 2, col: 6 },
+        specialType: 'ULTIMATE_HYPERACTIVE'
+      })
+    ]));
+    expect(res.flipped).toEqual([]);
+
+    const hyperactiveMarker = (cardState.markers || []).find((m) => (
+      m &&
+      m.kind === 'specialStone' &&
+      m.owner === 'black' &&
+      m.row === 3 &&
+      m.col === 4 &&
+      m.data &&
+      m.data.type === 'HYPERACTIVE'
+    ));
+    const ultimateMarker = (cardState.markers || []).find((m) => (
+      m &&
+      m.kind === 'specialStone' &&
+      m.owner === 'white' &&
+      m.row === 2 &&
+      m.col === 6 &&
+      m.data &&
+      m.data.type === 'ULTIMATE_HYPERACTIVE'
+    ));
+
+    expect(hyperactiveMarker).toBeTruthy();
+    expect(ultimateMarker).toBeTruthy();
+    expect(ultimateMarker.data.flipEvadeRemaining).toBe(2);
+    expect(gameState.board[3][4]).toBe(Core.BLACK);
+    expect(gameState.board[3][5]).toBe(Core.EMPTY);
+    expect(gameState.board[2][6]).toBe(Core.WHITE);
+  });
+
+  test('ultimate hyperactive move lets target ultimate hyperactive evade before flipping', () => {
+    const prng = { shuffle: (arr) => arr, random: () => 0 };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(Core.BLACK)),
+      currentPlayer: Core.BLACK
+    };
+
+    gameState.board[3][4] = Core.EMPTY;
+    gameState.board[3][5] = Core.WHITE;
+    gameState.board[2][6] = Core.EMPTY;
+
+    cardState.markers.push(
+      {
+        id: 600,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 3 }
+      },
+      {
+        id: 601,
+        kind: 'specialStone',
+        row: 3,
+        col: 5,
+        owner: 'white',
+        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 3 }
+      }
+    );
+
+    const res = CardLogic.processUltimateHyperactiveMoveAtAnchor(
+      cardState,
+      gameState,
+      'black',
+      3,
+      3,
+      prng,
+      { currentTurnPlayerKey: 'black' }
+    );
+
+    expect(res.moved).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        from: { row: 3, col: 3 },
+        to: { row: 3, col: 4 },
+        step: 1
+      }),
+      expect.objectContaining({
+        from: { row: 3, col: 5 },
+        to: { row: 2, col: 6 },
+        specialType: 'ULTIMATE_HYPERACTIVE'
+      })
+    ]));
+    expect(res.flipped).toEqual([]);
+
+    const blackUltimate = (cardState.markers || []).find((m) => (
+      m &&
+      m.kind === 'specialStone' &&
+      m.owner === 'black' &&
+      m.row === 3 &&
+      m.col === 3 &&
+      m.data &&
+      m.data.type === 'ULTIMATE_HYPERACTIVE'
+    ));
+    const whiteUltimate = (cardState.markers || []).find((m) => (
+      m &&
+      m.kind === 'specialStone' &&
+      m.owner === 'white' &&
+      m.row === 2 &&
+      m.col === 6 &&
+      m.data &&
+      m.data.type === 'ULTIMATE_HYPERACTIVE'
+    ));
+
+    expect(blackUltimate).toBeTruthy();
+    expect(blackUltimate.data.remainingOwnerTurns).toBe(9);
+    expect(whiteUltimate).toBeTruthy();
+    expect(whiteUltimate.data.flipEvadeRemaining).toBe(2);
+    expect(gameState.board[3][3]).toBe(Core.BLACK);
+    expect(gameState.board[3][5]).toBe(Core.EMPTY);
+    expect(gameState.board[2][6]).toBe(Core.WHITE);
+  });
+
   test('expired ultimate hyperactive can be swapped', () => {
     const { cardState, gameState } = makeState();
     gameState.board[3][3] = 1;

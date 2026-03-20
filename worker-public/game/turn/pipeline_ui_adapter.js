@@ -2119,19 +2119,19 @@
                     if (ev.applied) push('守る意志で完全保護を付与');
                     break;
                 case 'extend_life_selected':
-                    if (ev.applied) push('延命の意志で持続を延長');
+                    if (ev.applied) push(ev && ev.cardType === 'EXTEND_LIFE_GOD' ? '延命神で持続を4倍化' : '延命の意志で持続を延長');
                     break;
                 case 'time_bomb_selected':
                     if (ev.applied) push(`時限爆弾を${_toPosText(ev.target)}に設置`);
                     break;
                 case 'time_stop_god_cost_resolved':
-                    if (Number(ev.destroyedCount) > 0) push(`時間停神: 自石${Number(ev.destroyedCount) || 0}個を破壊`);
+                    if (Number(ev.destroyedCount) > 0) push(`時間停石: 自石${Number(ev.destroyedCount) || 0}個を破壊`);
                     break;
                 case 'time_stop_triggered':
-                    push('時間停神: 時間停止が発動し、2連続で行動');
+                    push('時間停石: 時間停止が発動し、2連続で行動');
                     break;
                 case 'time_stop_fizzled':
-                    push('時間停神: 親石消失で不発');
+                    push('時間停石: 親石消失で不発');
                     break;
                 case 'clone_selected':
                     if (ev.applied) push(`複製の意志: ${_toPosText(ev.target)}から${_detailCount(ev)}個を生成`);

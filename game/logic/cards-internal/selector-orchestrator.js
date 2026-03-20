@@ -89,6 +89,10 @@
             method: 'getExtendLifeTargets',
             args: (context) => [context.cardState, context.gameState, context.playerKey]
         },
+        EXTEND_LIFE_GOD: {
+            method: 'getExtendLifeTargets',
+            args: (context) => [context.cardState, context.gameState, context.playerKey]
+        },
         CORROSION_WILL: {
             method: 'getCorrosionTargets',
             args: (context) => [context.cardState, context.gameState, context.playerKey]
@@ -124,6 +128,7 @@
         BOARD_EXPANSION_WILL: (context) => invokeLocal(context, 'getBoardExpansionTargets', [context.cardState, context.gameState, context.playerKey]),
         BOARD_EXPANSION_GOD: (context) => invokeLocal(context, 'getBoardExpansionGodTargets', [context.cardState, context.gameState, context.playerKey]),
         EXTEND_LIFE_WILL: (context) => invokeLocal(context, 'getExtendLifeTargets', [context.cardState, context.gameState, context.playerKey]),
+        EXTEND_LIFE_GOD: (context) => invokeLocal(context, 'getExtendLifeTargets', [context.cardState, context.gameState, context.playerKey]),
         CORROSION_WILL: (context) => invokeLocal(context, 'getCorrosionTargets', [context.cardState, context.gameState, context.playerKey]),
         BLOCKADE_WILL: (context) => invokeLocal(context, 'getBlockadeTargets', [context.cardState, context.gameState, context.playerKey]),
         METEOR_WILL: (context) => invokeLocal(context, 'getMeteorTargets', [context.cardState, context.gameState, context.playerKey]),

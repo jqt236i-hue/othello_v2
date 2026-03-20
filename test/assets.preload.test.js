@@ -5,10 +5,10 @@ describe('asset preloader', () => {
   test('preloadAssets resolves and sets class when images load', async () => {
     // Mock document and Image
     // Provide a minimal document with a couple of .disc elements to validate per-disc assignment
-    const fakeBlackDisc = { classList: { contains: (k) => k === 'black' }, style: { props: {}, setProperty(k, v) { this.props[k] = v; }, getPropertyValue(k) { return this.props[k] || ''; } } };
-    const fakeWhiteDisc = { classList: { contains: (k) => k === 'white' }, style: { props: {}, setProperty(k, v) { this.props[k] = v; }, getPropertyValue(k) { return this.props[k] || ''; } } };
+    const fakeBlackDisc = { classList: { contains: (k) => k === 'black' }, style: { props: {}, setProperty(k, v) { this.props[k] = v; }, getPropertyValue(k) { return this.props[k] || ''; } }, dataset: {} };
+    const fakeWhiteDisc = { classList: { contains: (k) => k === 'white' }, style: { props: {}, setProperty(k, v) { this.props[k] = v; }, getPropertyValue(k) { return this.props[k] || ''; } }, dataset: {} };
     global.document = {
-      documentElement: { classList: { added: {}, add(k) { this.added[k] = true; } } },
+      documentElement: { classList: { added: {}, add(k) { this.added[k] = true; }, remove(k) { delete this.added[k]; }, contains(k) { return !!this.added[k]; } } },
       querySelectorAll: (sel) => {
         // return both discs when asked for .disc.black, .disc.white
         return [fakeBlackDisc, fakeWhiteDisc];
@@ -32,6 +32,7 @@ describe('asset preloader', () => {
     const res = await bootstrap.preloadAssets(manifest, { timeoutMs: 1000 });
     assert.ok(res.success, 'preload should succeed');
     assert.ok(document.documentElement.classList.added['stone-images-loaded'], 'class should be set');
+    assert.ok(document.documentElement.classList.added['stone-base-images-ready'], 'base stone images ready class should be set');
     // default shadows enabled via toggleStoneShadows
     // toggleStoneShadows is attached to global root (window/globalThis) and should enable the class
     assert.ok(document.documentElement.classList.added['stone-shadow-enabled'], 'shadow-enabled class should be set');
@@ -46,11 +47,17 @@ describe('asset preloader', () => {
     // validate per-disc var assignment
     assert.strictEqual(fakeBlackDisc.style.getPropertyValue('--stone-image'), 'var(--normal-stone-black-image)');
     assert.strictEqual(fakeWhiteDisc.style.getPropertyValue('--stone-image'), 'var(--normal-stone-white-image)');
+    assert.strictEqual(fakeBlackDisc.style.getPropertyValue('--disc-base-image'), 'var(--normal-stone-black-image)');
+    assert.strictEqual(fakeWhiteDisc.style.getPropertyValue('--disc-base-image'), 'var(--normal-stone-white-image)');
+    assert.strictEqual(fakeBlackDisc.style.getPropertyValue('--disc-base-fallback-color'), 'transparent');
+    assert.strictEqual(fakeWhiteDisc.style.getPropertyValue('--disc-base-fallback-color'), 'transparent');
+    assert.strictEqual(fakeBlackDisc.dataset.imageState, 'loaded');
+    assert.strictEqual(fakeWhiteDisc.dataset.imageState, 'loaded');
   });
 
   test('preloadAssets returns failed list on error', async () => {
     // Error simulation
-    global.document = { documentElement: { classList: { added: {}, add(k) { this.added[k] = true; } } } };
+    global.document = { documentElement: { classList: { added: {}, add(k) { this.added[k] = true; }, remove(k) { delete this.added[k]; }, contains(k) { return !!this.added[k]; } } } };
     global.Image = function() {
       this.onload = null;
       this.onerror = null;

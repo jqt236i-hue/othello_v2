@@ -249,6 +249,76 @@
                 : [];
         }
 
+        function getTransientPresentationQueueSignature(source) {
+            const ref = (source && typeof source === 'object') ? source : {};
+            const presentationEvents = Array.isArray(ref.presentationEvents)
+                ? ref.presentationEvents
+                : [];
+            const persistentEvents = Array.isArray(ref.persistentEvents)
+                ? ref.persistentEvents
+                : (Array.isArray(ref._presentationEventsPersist) ? ref._presentationEventsPersist : []);
+
+            try {
+                return JSON.stringify({
+                    presentationEvents,
+                    persistentEvents
+                });
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function isVisualPlaybackActive() {
+            const playbackState = resolvePlaybackStateModule();
+            try {
+                if (playbackState && typeof playbackState.getPlaybackActive === 'function') {
+                    return playbackState.getPlaybackActive() === true;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (rootRef && rootRef.VisualPlaybackActive === true) return true;
+            } catch (e) { /* ignore */ }
+
+            try {
+                return !!(typeof globalThis !== 'undefined' && globalThis.VisualPlaybackActive === true);
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function readBusyStateSnapshot() {
+            const playbackState = resolvePlaybackStateModule();
+            let processing = false;
+            let cardAnimating = false;
+
+            try {
+                if (playbackState && typeof playbackState.getProcessing === 'function') {
+                    processing = playbackState.getProcessing() === true;
+                } else if (rootRef && rootRef.isProcessing === true) {
+                    processing = true;
+                } else if (typeof globalThis !== 'undefined' && globalThis.isProcessing === true) {
+                    processing = true;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (playbackState && typeof playbackState.getCardAnimating === 'function') {
+                    cardAnimating = playbackState.getCardAnimating() === true;
+                } else if (rootRef && rootRef.isCardAnimating === true) {
+                    cardAnimating = true;
+                } else if (typeof globalThis !== 'undefined' && globalThis.isCardAnimating === true) {
+                    cardAnimating = true;
+                }
+            } catch (e) { /* ignore */ }
+
+            return {
+                processing,
+                cardAnimating,
+                playbackActive: isVisualPlaybackActive()
+            };
+        }
+
         function reconcilePresentationQueues(cardStateRef, options) {
             const opts = (options && typeof options === 'object') ? options : {};
             const preservedQueues = opts.preservedQueues || {
@@ -260,10 +330,11 @@
             const shadowPlaybackEvents = Array.isArray(opts.shadowPlaybackEvents) ? opts.shadowPlaybackEvents : [];
             const hasPlaybackEvents = playbackEvents.length > 0;
             const shouldEmitShadowPlayback = !hasPlaybackEvents && !preservedQueues.hasPending && shadowPlaybackEvents.length > 0;
+            const restoredPreservedQueues = !hasPlaybackEvents && !shouldEmitShadowPlayback && preservedQueues.hasPending;
 
             if (hasPlaybackEvents || shouldEmitShadowPlayback) {
                 clearTransientPresentationQueues(cardStateRef);
-            } else if (preservedQueues.hasPending) {
+            } else if (restoredPreservedQueues) {
                 restoreTransientPresentationQueues(cardStateRef, preservedQueues);
             } else {
                 clearTransientPresentationQueues(cardStateRef);
@@ -274,8 +345,33 @@
                 shouldEmitShadowPlayback,
                 // Shadow playback with suppressPlayback=true returns immediately
                 // without running AnimationEngine, so it should not keep busy.
-                shouldKeepBusy: hasPlaybackEvents || preservedQueues.hasPending
+                shouldKeepBusy: hasPlaybackEvents || preservedQueues.hasPending,
+                restoredPreservedQueues,
+                restoredQueueSignature: restoredPreservedQueues
+                    ? getTransientPresentationQueueSignature(preservedQueues)
+                    : null
             };
+        }
+
+        function shouldReleaseRestoredQueueBusyState(cardStateRef, presentationState, busyStateBeforeSnapshot) {
+            if (!presentationState || presentationState.restoredPreservedQueues !== true) return false;
+            const hadBusyBeforeSnapshot = !!(
+                busyStateBeforeSnapshot
+                && (
+                    busyStateBeforeSnapshot.processing === true
+                    || busyStateBeforeSnapshot.cardAnimating === true
+                    || busyStateBeforeSnapshot.playbackActive === true
+                )
+            );
+            if (hadBusyBeforeSnapshot) return false;
+            if (isVisualPlaybackActive()) return false;
+
+            const currentQueues = captureTransientPresentationQueues(cardStateRef);
+            if (!currentQueues.hasPending) return true;
+
+            const currentSignature = getTransientPresentationQueueSignature(currentQueues);
+            return !!presentationState.restoredQueueSignature
+                && currentSignature === presentationState.restoredQueueSignature;
         }
 
         function hasPendingPlaybackOrPresentation() {
@@ -449,6 +545,7 @@
             }
 
             const preservedQueues = captureTransientPresentationQueues(resolveGlobalObject('cardState'));
+            const busyStateBeforeSnapshot = readBusyStateSnapshot();
             const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
 
             replaceObjectState('gameState', snapshot.gameState);
@@ -500,6 +597,9 @@
             // permanently block future renderBoard() calls.
             if (shouldEmitShadowPlayback) {
                 clearTransientPresentationQueues(cardStateRef);
+            } else if (shouldReleaseRestoredQueueBusyState(cardStateRef, presentationState, busyStateBeforeSnapshot)) {
+                clearTransientPresentationQueues(cardStateRef);
+                setBusyState(false);
             }
             return true;
         }

@@ -1891,6 +1891,7 @@ function updateCardDetailPanel() {
             pending.type === 'CLONE_WILL' ||
             pending.type === 'SPLIT_WILL' ||
             pending.type === 'EXTEND_LIFE_WILL' ||
+            pending.type === 'EXTEND_LIFE_GOD' ||
             pending.type === 'METEOR_WILL' ||
             pending.type === 'SACRIFICE_WILL' ||
             pending.type === 'SELL_CARD_WILL'
@@ -1944,8 +1945,10 @@ function updateCardDetailPanel() {
             reasonEl.textContent = '周囲に空きがある自分の石を選んでください';
         } else if (pending.type === 'SPLIT_WILL') {
             reasonEl.textContent = '分裂させる自分の石を選んでください（持続ターンは半減）';
-        } else if (pending.type === 'EXTEND_LIFE_WILL') {
-            reasonEl.textContent = '延命する自分の特殊石を選んでください';
+        } else if (pending.type === 'EXTEND_LIFE_WILL' || pending.type === 'EXTEND_LIFE_GOD') {
+            reasonEl.textContent = pending.type === 'EXTEND_LIFE_GOD'
+                ? '4倍延命する自分の特殊石を選んでください'
+                : '延命する自分の特殊石を選んでください';
         } else if (pending.type === 'METEOR_WILL') {
             reasonEl.textContent = '隕石で破壊するマスを選んでください';
         } else if (pending.type === 'SELL_CARD_WILL') {

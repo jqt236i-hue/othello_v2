@@ -1,6 +1,6 @@
 /**
  * @file rules-help.js
- * @description Help modal handlers (catalog / glossary / rules)
+ * @description Help modal handlers (catalog / glossary / rules / updates)
  */
 
 const EFFECT_GLOSSARY_TERMS = Object.freeze([
@@ -14,6 +14,36 @@ const EFFECT_GLOSSARY_TERMS = Object.freeze([
     '反転回避',
     '破壊回避',
     '多動状態'
+]);
+
+const HELP_UPDATE_HISTORY = Object.freeze([
+    Object.freeze({
+        version: 'v1.0',
+        sections: Object.freeze([
+            Object.freeze({
+                title: 'バランス調整',
+                items: Object.freeze([
+                    '繁殖の意志の持続ターンを3から5ターンに変更',
+                    '延命の意志のコストを2から4に変更',
+                    '水晶の意志コスト7から8に変更、カードビジュアルのカラーリングを変更',
+                    '最後の切り札を仕様変更\nコスト12→9に減少\n使用条件を石数負け＋合法手なしのときに変更\n自由配置を2回から3回に増加'
+                ])
+            }),
+            Object.freeze({
+                title: '新カード',
+                items: Object.freeze([
+                    '時間停石を実装\nコスト0\n使用時にランダムで自石5個を破壊\n5ターン後に時間停止を発動し、2ターン連続で行動できる。',
+                    '延命神を実装\nコスト10\n自分の特殊石1つの持続ターンを4倍にする。'
+                ])
+            }),
+            Object.freeze({
+                title: 'ネット対戦',
+                items: Object.freeze([
+                    'ネット対戦関連の問題を修正'
+                ])
+            })
+        ])
+    })
 ]);
 
 function _safeText(value, fallback) {
@@ -249,6 +279,62 @@ function _readCatalogCards() {
     return _sortCatalogCards(cards);
 }
 
+function createHelpUpdateSection(title, items) {
+    const section = document.createElement('section');
+    section.className = 'rules-help-update-section';
+
+    if (title) {
+        const titleEl = document.createElement('div');
+        titleEl.className = 'rules-help-update-section-title';
+        titleEl.textContent = title;
+        section.appendChild(titleEl);
+    }
+
+    const listEl = document.createElement('ul');
+    listEl.className = 'rules-help-update-items';
+    for (const itemText of Array.isArray(items) ? items : []) {
+        const itemEl = document.createElement('li');
+        itemEl.className = 'rules-help-update-item';
+        itemEl.innerHTML = _formatHelpText(itemText);
+        listEl.appendChild(itemEl);
+    }
+    section.appendChild(listEl);
+    return section;
+}
+
+function renderHelpUpdates(updateListEl) {
+    if (!updateListEl) return;
+    updateListEl.innerHTML = '';
+
+    if (!HELP_UPDATE_HISTORY.length) {
+        const emptyEl = document.createElement('div');
+        emptyEl.className = 'rules-help-update-empty';
+        emptyEl.textContent = 'アップデート情報はまだありません。';
+        updateListEl.appendChild(emptyEl);
+        return;
+    }
+
+    for (const release of HELP_UPDATE_HISTORY) {
+        const article = document.createElement('article');
+        article.className = 'rules-help-update-version';
+
+        const versionEl = document.createElement('div');
+        versionEl.className = 'rules-help-update-version-title';
+        versionEl.textContent = _safeText(release && release.version, 'version');
+        article.appendChild(versionEl);
+
+        const sections = Array.isArray(release && release.sections) ? release.sections : [];
+        for (const section of sections) {
+            article.appendChild(createHelpUpdateSection(
+                _safeText(section && section.title, ''),
+                Array.isArray(section && section.items) ? section.items : []
+            ));
+        }
+
+        updateListEl.appendChild(article);
+    }
+}
+
 function setupRulesHelp(rulesHelpBtn, rulesHelpPanel) {
     if (!rulesHelpBtn || !rulesHelpPanel) return;
     const closeBtn = rulesHelpPanel.querySelector('#rules-help-close-btn');
@@ -257,6 +343,7 @@ function setupRulesHelp(rulesHelpBtn, rulesHelpPanel) {
     const cardListEl = rulesHelpPanel.querySelector('#rules-help-card-list');
     const cardNameEl = rulesHelpPanel.querySelector('#rules-help-card-name');
     const cardDescEl = rulesHelpPanel.querySelector('#rules-help-card-desc');
+    const updatesListEl = rulesHelpPanel.querySelector('#rules-help-updates-list');
     const catalogCards = _readCatalogCards();
 
     let isOpen = false;
@@ -441,6 +528,7 @@ function setupRulesHelp(rulesHelpBtn, rulesHelpPanel) {
     });
 
     renderCatalogCards();
+    renderHelpUpdates(updatesListEl);
     if (tabButtons.length > 0) {
         const activeTab = tabButtons.find((button) => button.classList.contains('is-active'));
         activateTab(activeTab ? activeTab.getAttribute('data-help-tab') : tabButtons[0].getAttribute('data-help-tab'));

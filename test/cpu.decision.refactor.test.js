@@ -1431,7 +1431,7 @@ describe('cpu decision refactor helpers', () => {
     global.cpuSmartness.white = 6;
     global.cardState = {
       hands: { white: [], black: [] },
-      pendingEffectByPlayer: { white: { type: 'LAST_RESORT', stage: 'awaitPlace', placementsRemaining: 2 }, black: null },
+      pendingEffectByPlayer: { white: { type: 'LAST_RESORT', stage: 'awaitPlace', placementsRemaining: 3 }, black: null },
       hasUsedCardThisTurnByPlayer: { white: true, black: false },
       charge: { white: 40, black: 12 },
       boardBonusByCell: { '3,3': 7 },
@@ -2664,6 +2664,37 @@ describe('cpu decision refactor helpers', () => {
     const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
     expect(action.extendTarget).toEqual({ row: 3, col: 4 });
     expect(global.CardLogic.applyExtendLifeWill).not.toHaveBeenCalled();
+    expect(global.emitCardStateChange).toHaveBeenCalled();
+    expect(global.emitBoardUpdate).toHaveBeenCalled();
+    expect(global.emitGameStateChange).toHaveBeenCalled();
+  });
+
+  test('cpuSelectExtendLifeWillWithPolicy routes EXTEND_LIFE_GOD through pipeline adapter path', async () => {
+    global.cardState.pendingEffectByPlayer.white = { type: 'EXTEND_LIFE_GOD', stage: 'selectTarget' };
+    global.CardLogic = {
+      getExtendLifeTargets: () => [{ row: 4, col: 4 }],
+      applyExtendLifeGod: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: [{ type: 'dummy' }]
+      }))
+    };
+    global.emitGameStateChange = jest.fn();
+
+    await cpuDecision.cpuSelectExtendLifeWillWithPolicy('white');
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.extendTarget).toEqual({ row: 4, col: 4 });
+    expect(global.CardLogic.applyExtendLifeGod).not.toHaveBeenCalled();
     expect(global.emitCardStateChange).toHaveBeenCalled();
     expect(global.emitBoardUpdate).toHaveBeenCalled();
     expect(global.emitGameStateChange).toHaveBeenCalled();

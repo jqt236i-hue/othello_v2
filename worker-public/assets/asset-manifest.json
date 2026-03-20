@@ -1,7 +1,15 @@
 {
-  "version": "2026-03-18",
-  "generatedAt": "2026-03-18T22:24:08.697Z",
+  "version": "2026-02-25",
+  "generatedAt": "2026-02-25T15:15:25.222Z",
   "files": [
+    {
+      "path": "assets/images/stones/banri-black.png",
+      "sha256": "7d0e603275ccaab579d128a489cbd9348418a7e99dcc9d06a6f0438d987979d7"
+    },
+    {
+      "path": "assets/images/stones/banri-white.png",
+      "sha256": "8248d0e5f6fef0c14cb73dfdcc1771e511b8948307a910d8d46f1028e003172d"
+    },
     {
       "path": "assets/images/stones/BREEDING_WILL-black.png",
       "sha256": "f4093988a550e156fd93b4d17d25bfcfb85e59d275914cb119134da42f6b7c98"
@@ -17,10 +25,6 @@
     {
       "path": "assets/images/stones/CROSS_BOMB-white.png",
       "sha256": "beb80b131165dd393c2ef97400078e67e7309167db3e55c944c9818339e9e5c8"
-    },
-    {
-      "path": "assets/images/stones/crystal_stone.png",
-      "sha256": "7ae3a83d297c6ae5f245490173d417ff9cd0d09094a3335daebe138ac69df4aa"
     },
     {
       "path": "assets/images/stones/DESTROY_DRAGON-black.png",
@@ -47,24 +51,12 @@
       "sha256": "91afb424f0ce0820b55f6c8b0e300320d8de406d3f79987715e3fc907387ea8d"
     },
     {
-      "path": "assets/images/stones/EXTREME_HYPERACTIVE_WILL-black.png",
-      "sha256": "a24ca07c320642339ca3d432d8218487de088eb2c59f76c92c00089781758b02"
-    },
-    {
-      "path": "assets/images/stones/EXTREME_HYPERACTIVE_WILL-white.png",
-      "sha256": "d978e7b19bd3fb3f393cf3977879a8e07b3685511214adf60feef03aea5e22c8"
-    },
-    {
-      "path": "assets/images/stones/GLUTTONOUS_WILL-black.png",
-      "sha256": "f0007f07277d08e509c87909784a2599b8be87d52c978cf0b8d344902fba05b8"
-    },
-    {
-      "path": "assets/images/stones/GLUTTONOUS_WILL-white.png",
-      "sha256": "ce4be0dc2079837aab949a3a5fa52c32198b5465c89141784797a74af12f656b"
-    },
-    {
       "path": "assets/images/stones/gold_stone.png",
       "sha256": "93cbe22366eb790f20c313d89519848d457f30462a206cee30d9f4f538ef8923"
+    },
+    {
+      "path": "assets/images/stones/crystal_stone.png",
+      "sha256": "7ae3a83d297c6ae5f245490173d417ff9cd0d09094a3335daebe138ac69df4aa"
     },
     {
       "path": "assets/images/stones/HYPERACTIVE_WILL-black.png",
@@ -83,14 +75,6 @@
       "sha256": "79ef47c29a8707cf5f1f50aa7b7587dfa5ec270866725708b103419535c48509"
     },
     {
-      "path": "assets/images/stones/OBSERVER_WILL-black.png",
-      "sha256": "7ab2eb56159cc8545b4576c161e26c59feadf98cc5916a3c031694f43cad4c99"
-    },
-    {
-      "path": "assets/images/stones/OBSERVER_WILL-white.png",
-      "sha256": "d38dbff6bce968e18565312bfdc05261cece4dc358842a113605d86fe8f5299d"
-    },
-    {
       "path": "assets/images/stones/perma_protect_next_stone-black.png",
       "sha256": "4b9ee0c7c41042fb308809262bec346cbad4babf5d3cb50956060002b0a0a877"
     },
@@ -101,18 +85,6 @@
     {
       "path": "assets/images/stones/protected_next_stone.png",
       "sha256": "80991c995b35769eadb407afcd287d03bed5401932826a5dbe36f8b4e05b1145"
-    },
-    {
-      "path": "assets/images/stones/rainbow_stone.png",
-      "sha256": "e098264f24c16a8ff7263d1b3be12414845ef47c5c7e68f58abc4f93a5d417d3"
-    },
-    {
-      "path": "assets/images/stones/rakurai-black.png",
-      "sha256": "986c998ed3b829cfc161f6bd968792534e73b366954b4cbf82fd87b1928ad00f"
-    },
-    {
-      "path": "assets/images/stones/rakurai-white.png",
-      "sha256": "9360176c33ea4856602fda0260e126c8e2f7820be64b4e453f2fc366ae2522af"
     },
     {
       "path": "assets/images/stones/regen_stone-black.png",
@@ -151,14 +123,6 @@
       "sha256": "48fb5bf577bed96ca27fcafdd4bb674abb86e2d2c4d51da91532965ed8f4cc7d"
     },
     {
-      "path": "assets/images/stones/TIME_STOP-black.png",
-      "sha256": "bacd7440fd2d4dae3b76a6baf83ec5b5b3ea96ee67d8dfc0f74c0a05218b51d4"
-    },
-    {
-      "path": "assets/images/stones/TIME_STOP-white.png",
-      "sha256": "fb563ee42beedfcdc6fd3bf3f106cd6a8dc889847ef7af6e2218e591ebfadd61"
-    },
-    {
       "path": "assets/images/stones/trap_stone-black.png",
       "sha256": "1fd54d9b01807bdb7599f8648bca69d7acb7084aedb6b7cdce937f0488ec3ab0"
     },
@@ -189,14 +153,6 @@
     {
       "path": "assets/images/stones/ultimate_reverse_dragon-white.png",
       "sha256": "929c14b12bcbd7d389a1c5a804458c9d344a640713d99dca14d24919eaad264d"
-    },
-    {
-      "path": "assets/images/stones/WILL_HUNTER_KING-black.png",
-      "sha256": "bc89c269590ab222b6cb0760143e9522dfea13901e6705a21bd42d7d92aba703"
-    },
-    {
-      "path": "assets/images/stones/WILL_HUNTER_KING-white.png",
-      "sha256": "2959376041799edc39415890f29d46557d6a1fbe7c6abbd7b9bd13a8ff554e91"
     },
     {
       "path": "assets/images/stones/work_stone-black.png",

@@ -147,6 +147,59 @@ describe('match authority public snapshot trap visibility', () => {
     expect(rehydrated.gameState.__resultShown).toBeUndefined();
   });
 
+  test('rehydrateSnapshotForPublish sanitizes malformed or out-of-range hidden tokens before they reach authority state', () => {
+    const previousSnapshot = createSnapshot();
+    previousSnapshot.cardState.hands.white = ['w1', 'w2'];
+    const incomingSnapshot = {
+      stateVersion: 8,
+      gameState: {
+        currentPlayer: 1,
+        turnNumber: 13
+      },
+      cardState: {
+        hands: {
+          black: ['b1'],
+          white: ['__hidden_hand__:white:99', '__hidden_hand__:white:-1', '__hidden_hand__:white:999']
+        },
+        discard: ['__hidden_hand__:white:1', '__hidden_hand__:white:999', '__hidden_hand__:white:-1'],
+        selectedCardId: '__hidden_hand__:white:999',
+        selectedCardOwnerKey: 'white',
+        pendingEffectByPlayer: {
+          black: {
+            type: 'CONDEMN_WILL',
+            stage: 'selectTarget',
+            offers: [
+              { handIndex: 99, cardId: '__hidden_hand__:white:999' },
+              { handIndex: 1, cardId: '__hidden_hand__:white:-1' },
+              { handIndex: 99, cardId: '__hidden_hand__:white:999' }
+            ]
+          },
+          white: null
+        },
+        presentationEvents: [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'flip', phase: 1 }] }],
+        _presentationEventsPersist: [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'flip', phase: 2 }] }]
+      }
+    };
+
+    const rehydrated = MatchAuthority.rehydrateSnapshotForPublish(previousSnapshot, incomingSnapshot);
+
+    expect(rehydrated.cardState.hands.white).toEqual(['w1', 'w2']);
+    expect(rehydrated.cardState.discard).toEqual(['w2']);
+    expect(rehydrated.cardState.selectedCardId).toBeNull();
+    expect(rehydrated.cardState.selectedCardOwnerKey).toBeNull();
+    expect(rehydrated.cardState.pendingEffectByPlayer.black.offers).toEqual([
+      { handIndex: 0, cardId: 'w1' },
+      { handIndex: 1, cardId: 'w2' }
+    ]);
+
+    const hiddenStrings = [
+      ...rehydrated.cardState.hands.white,
+      ...rehydrated.cardState.discard,
+      ...rehydrated.cardState.pendingEffectByPlayer.black.offers.map((offer) => offer.cardId)
+    ].filter((value) => typeof value === 'string' && value.startsWith('__hidden_hand__:'));
+    expect(hiddenStrings).toEqual([]);
+  });
+
   test('time stop marker details stay visible in opponent public snapshots', () => {
     const snapshot = createSnapshot();
     snapshot.cardState.markers.push({
@@ -186,5 +239,35 @@ describe('match authority public snapshot trap visibility', () => {
       })
     ]));
     expect(projected.cardState.timeStopConsecutiveTurnsRemainingByPlayer).toEqual({ black: 1, white: 0 });
+  });
+
+  test('projectSnapshotForViewer reconnect sanitizes malformed hidden tokens instead of leaking raw token ids', () => {
+    const snapshot = createSnapshot();
+    snapshot.cardState.hands.white = ['__hidden_hand__:white:99', 'w2'];
+    snapshot.cardState.discard = ['w_discard', '__hidden_hand__:white:99'];
+    snapshot.cardState.selectedCardId = '__hidden_hand__:white:77';
+    snapshot.cardState.selectedCardOwnerKey = 'white';
+    snapshot.cardState.pendingEffectByPlayer = {
+      black: null,
+      white: {
+        type: 'CONDEMN_WILL',
+        stage: 'selectTarget',
+        offers: [
+          { handIndex: 99, cardId: '__hidden_hand__:black:99' },
+          { handIndex: 99, cardId: '__hidden_hand__:black:199' }
+        ]
+      }
+    };
+
+    const projected = MatchAuthority.projectSnapshotForViewer(snapshot, 'white');
+
+    expect(projected.cardState.hands.white).toEqual(['__hidden_hand__:white:0', 'w2']);
+    expect(projected.cardState.discard).toEqual(['w_discard']);
+    expect(projected.cardState.selectedCardId).toBeNull();
+    expect(projected.cardState.selectedCardOwnerKey).toBeNull();
+    expect(projected.cardState.pendingEffectByPlayer.white.offers).toEqual([
+      { handIndex: 0, cardId: 'b1' },
+      { handIndex: null, cardId: null }
+    ]);
   });
 });

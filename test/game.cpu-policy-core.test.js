@@ -1580,6 +1580,34 @@ describe('cpu-policy-core', () => {
         expect(selected.cardId).toBe('last');
     });
 
+    test('chooseSellCardTargetByRetention rotates LAST_RESORT first when no legal moves remain but discDiff is non-negative', () => {
+        const defs = {
+            last: { id: 'last', type: 'LAST_RESORT' },
+            guard: { id: 'guard', type: 'GUARD_WILL' },
+            recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
+        };
+        const costs = { last: 20, guard: 2, recover: 14 };
+        const selected = core.chooseSellCardTargetByRetention(
+            ['last', 'guard', 'recover'],
+            (id) => costs[id],
+            (id) => defs[id],
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 0,
+                handSize: 5,
+                discDiff: 0,
+                empties: 24,
+                ownCorners: 1,
+                oppCorners: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toBeTruthy();
+        expect(selected.cardId).toBe('last');
+    });
+
     test('chooseSellCardTargetByRetention rotates SUPER_BUOYANCY_WILL when no corner or edge conversion exists', () => {
         const defs = {
             super: { id: 'super', type: 'SUPER_BUOYANCY_WILL' },

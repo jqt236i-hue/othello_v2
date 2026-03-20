@@ -212,6 +212,7 @@ function buildPendingSelectionAction(context) {
     case 'CELL_TELEPORT_WILL':
         return buildBoardCellAction(context, 'chooseCellTeleportTarget', 'teleportTarget');
     case 'EXTEND_LIFE_WILL':
+    case 'EXTEND_LIFE_GOD':
         return buildBoardCellAction(context, 'chooseExtendLifeTarget', 'extendTarget');
     case 'CORROSION_WILL':
         return buildBoardCellAction(context, 'chooseCorrosionTarget', 'corrosionTarget');

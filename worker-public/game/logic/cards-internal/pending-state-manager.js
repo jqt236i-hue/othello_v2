@@ -24,6 +24,7 @@
         'GUARDIAN_GOD',
         'HYPERACTIVE_INHERIT_WILL',
         'EXTEND_LIFE_WILL',
+        'EXTEND_LIFE_GOD',
         'CORROSION_WILL',
         'TIME_BOMB',
         'TELEPORT_WILL',
@@ -147,7 +148,7 @@
             selectedCount: cardType === 'SACRIFICE_WILL' ? 0 : (cardType === 'BOARD_EXPANSION_GOD' ? 0 : undefined),
             maxSelections: cardType === 'SACRIFICE_WILL' ? 3 : (cardType === 'BOARD_EXPANSION_GOD' ? 2 : undefined),
             selectedTargets: cardType === 'BOARD_EXPANSION_GOD' ? [] : undefined,
-            placementsRemaining: cardType === 'LAST_RESORT' ? 2 : undefined
+            placementsRemaining: cardType === 'LAST_RESORT' ? 3 : undefined
         };
     }
 

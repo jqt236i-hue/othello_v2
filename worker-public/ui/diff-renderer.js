@@ -37,6 +37,21 @@ let boardDomSignature = null;
 let lastBoardExpansionRevealSoundKey = null;
 let suppressBoardExpansionRevealSoundThisRender = false;
 
+var BoardRendererStoneHelpersModule = null;
+if (typeof require === 'function') {
+    try { BoardRendererStoneHelpersModule = require('./board-renderer'); } catch (e) { /* ignore */ }
+}
+
+function _getDiscStoneHelperForDiff(name) {
+    if (BoardRendererStoneHelpersModule && typeof BoardRendererStoneHelpersModule[name] === 'function') {
+        return BoardRendererStoneHelpersModule[name];
+    }
+    if (typeof window !== 'undefined' && typeof window[name] === 'function') {
+        return window[name];
+    }
+    return null;
+}
+
 function _playBoardExpansionRevealSoundForDiff() {
     try {
         if (typeof SoundEngine === 'undefined' || !SoundEngine || typeof SoundEngine.playEffectByKey !== 'function') {
@@ -514,7 +529,7 @@ const SPECIAL_STONE_INFO = {
     },
     BREEDING: {
         name: '繁殖石',
-        desc: '配置時と自ターン開始時に周囲へ石を1つ生成。前回生成石起点で拡散し、3ターン持続。'
+        desc: '配置時と自ターン開始時に周囲へ石を1つ生成。前回生成石起点で拡散し、5ターン持続。'
     },
     ULTIMATE_DESTROY_GOD: {
         name: '究極破壊神',
@@ -1238,12 +1253,13 @@ function buildCurrentCellState() {
             pending.type === 'BOARD_EXPANSION_WILL' ||
             pending.type === 'BOARD_EXPANSION_GOD' ||
             pending.type === 'EXTEND_LIFE_WILL' ||
+            pending.type === 'EXTEND_LIFE_GOD' ||
             pending.type === 'CORROSION_WILL'
         )
     );
     const isExtendLifeSelection = !!(
         pending &&
-        pending.type === 'EXTEND_LIFE_WILL' &&
+        (pending.type === 'EXTEND_LIFE_WILL' || pending.type === 'EXTEND_LIFE_GOD') &&
         (pending.stage === 'selectTarget' || pending.stage == null)
     );
     const showLegalHints = isHumanTurn && !isSelectingTarget && canControlCurrentTurn;
@@ -1745,16 +1761,23 @@ function updateCellDOM(cell, state, row, col, prevState) {
         cell.classList.add('has-disc');
         const disc = document.createElement('div');
         disc.className = 'disc ' + (state.value === BLACK ? 'black' : 'white');
+        const ensureDiscSkeletonForDiff = _getDiscStoneHelperForDiff('ensureDiscSkeleton');
+        const setDiscStoneImageForDiff = _getDiscStoneHelperForDiff('setDiscStoneImage');
+        const getDiscHudRootForDiff = _getDiscStoneHelperForDiff('getDiscHudRoot');
+        if (ensureDiscSkeletonForDiff) ensureDiscSkeletonForDiff(disc);
+        const discHud = getDiscHudRootForDiff ? getDiscHudRootForDiff(disc) : disc;
 
-        // Ensure per-disc overlay image var is set (used by .disc::after)
+        // Ensure the canonical render state for a normal stone is present before special overlays apply.
         try {
-            if (typeof setDiscStoneImage === 'function') {
-                setDiscStoneImage(disc, state.value);
-            } else if (typeof window !== 'undefined' && typeof window.setDiscStoneImage === 'function') {
-                window.setDiscStoneImage(disc, state.value);
+            if (setDiscStoneImageForDiff) {
+                setDiscStoneImageForDiff(disc, state.value);
             } else {
-                // Fallback: set CSS var directly
-                try { disc.style.setProperty('--stone-image', (state.value === BLACK ? 'var(--normal-stone-black-image)' : 'var(--normal-stone-white-image)')); } catch (e) { }
+                try {
+                    disc.style.setProperty('--stone-image', (state.value === BLACK ? 'var(--normal-stone-black-image)' : 'var(--normal-stone-white-image)'));
+                    disc.style.setProperty('--disc-base-image', (state.value === BLACK ? 'var(--normal-stone-black-image)' : 'var(--normal-stone-white-image)'));
+                    disc.dataset.renderMode = 'base-only';
+                    disc.dataset.effect = 'normal';
+                } catch (e) { /* ignore */ }
             }
         } catch (e) { /* ignore */ }
 
@@ -1806,7 +1829,7 @@ function updateCellDOM(cell, state, row, col, prevState) {
                 const remaining = Math.max(0, Math.trunc(Number(state.special.remainingOwnerTurns)));
                 timer.textContent = String(remaining);
                 _applyDoubleDigitTimerClassForDiff(timer, remaining);
-                disc.appendChild(timer);
+                discHud.appendChild(timer);
             }
 
             if (canShowSpecialFlipEvade) {
@@ -1815,7 +1838,7 @@ function updateCellDOM(cell, state, row, col, prevState) {
                 const specialEvadeRemaining = Math.max(0, Math.trunc(state.special.flipEvadeRemaining));
                 evadeTimer.textContent = String(specialEvadeRemaining);
                 _applyDoubleDigitTimerClassForDiff(evadeTimer, specialEvadeRemaining);
-                disc.appendChild(evadeTimer);
+                discHud.appendChild(evadeTimer);
             }
 
             if (canShowDestroyEvade) {
@@ -1824,20 +1847,23 @@ function updateCellDOM(cell, state, row, col, prevState) {
                 const destroyEvadeRemaining = Math.max(0, Math.trunc(state.special.destroyEvadeRemaining));
                 destroyEvadeTimer.textContent = String(destroyEvadeRemaining);
                 _applyDoubleDigitTimerClassForDiff(destroyEvadeTimer, destroyEvadeRemaining);
-                disc.appendChild(destroyEvadeTimer);
+                discHud.appendChild(destroyEvadeTimer);
             }
         }
 
         // Add bomb UI (independent of special effects)
         if (state.bomb) {
             const bombOwnerClass = state.bomb.owner === BLACK ? 'bomb-black' : 'bomb-white';
+            if (typeof applyStoneVisualEffect === 'function') {
+                applyStoneVisualEffect(disc, 'timeBombStone', { owner: state.bomb.owner });
+            }
             disc.classList.add('bomb', 'special-stone', bombOwnerClass);
             const timeLabel = document.createElement('div');
             timeLabel.className = 'bomb-timer';
             const bombRemaining = Math.max(0, Math.trunc(Number(state.bomb.remainingTurns)));
             timeLabel.textContent = String(bombRemaining);
             _applyDoubleDigitTimerClassForDiff(timeLabel, bombRemaining);
-            disc.appendChild(timeLabel);
+            discHud.appendChild(timeLabel);
         }
 
         if (state.guard && typeof state.guard.remainingOwnerTurns === 'number') {
@@ -1846,7 +1872,7 @@ function updateCellDOM(cell, state, row, col, prevState) {
             const guardRemaining = Math.max(0, Math.trunc(state.guard.remainingOwnerTurns));
             guardTimer.textContent = String(guardRemaining);
             _applyDoubleDigitTimerClassForDiff(guardTimer, guardRemaining);
-            disc.appendChild(guardTimer);
+            discHud.appendChild(guardTimer);
         }
 
         if (state.inherited && typeof state.inherited.remainingOwnerTurns === 'number') {
@@ -1855,7 +1881,7 @@ function updateCellDOM(cell, state, row, col, prevState) {
             const inheritedRemaining = Math.max(0, Math.trunc(state.inherited.remainingOwnerTurns));
             inheritedTimer.textContent = String(inheritedRemaining);
             _applyDoubleDigitTimerClassForDiff(inheritedTimer, inheritedRemaining);
-            disc.appendChild(inheritedTimer);
+            discHud.appendChild(inheritedTimer);
         }
 
         if (
@@ -1868,14 +1894,14 @@ function updateCellDOM(cell, state, row, col, prevState) {
             const inheritedEvadeRemaining = Math.max(0, Math.trunc(state.inherited.flipEvadeRemaining));
             evadeTimer.textContent = String(inheritedEvadeRemaining);
             _applyDoubleDigitTimerClassForDiff(evadeTimer, inheritedEvadeRemaining);
-            disc.appendChild(evadeTimer);
+            discHud.appendChild(evadeTimer);
         }
 
         if (state.breedingSprout) {
             disc.classList.add('breeding-sprout');
             const sproutIcon = document.createElement('div');
             sproutIcon.className = 'breeding-sprout-icon';
-            disc.appendChild(sproutIcon);
+            discHud.appendChild(sproutIcon);
         }
 
         cell.appendChild(disc);

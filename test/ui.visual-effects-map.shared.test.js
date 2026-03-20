@@ -29,6 +29,10 @@ describe('visual-effects map shared between game/ui', () => {
     const ok = await window.applyStoneVisualEffect(disc, 'protectedStoneTemporary', { owner: 1 });
     expect(ok).toBe(true);
     expect(disc.classList.contains('protected-gray')).toBe(true);
+    expect(disc.dataset.renderMode).toBe('replace');
+    expect(disc.dataset.imageState).toBe('loaded');
+    expect(disc.style.getPropertyValue('--disc-base-fallback-color')).toBe('transparent');
+    expect(disc.querySelector('.disc__overlay-image')).toBeTruthy();
   });
 
   test('protectedStone accepts owner as black/white string', async () => {
@@ -42,8 +46,10 @@ describe('visual-effects map shared between game/ui', () => {
     const ok = await window.applyStoneVisualEffect(disc, 'protectedStone', { owner: 'black' });
     expect(ok).toBe(true);
     expect(disc.classList.contains('protected-stone')).toBe(true);
-    const imageVar = disc.style.getPropertyValue('--special-stone-image');
+    expect(disc.dataset.imageState).toBe('loaded');
+    const imageVar = disc.style.getPropertyValue('--disc-overlay-image') || disc.style.getPropertyValue('--special-stone-image');
     expect(imageVar).toContain('perma_protect_next_stone-black.png');
+    expect(disc.querySelector('.special-stone-img')).toBeNull();
   });
 
   test('preloadStoneVisualEffectKeys preloads crystal family images once', () => {
@@ -114,6 +120,7 @@ describe('visual-effects map shared between game/ui', () => {
 
     const destroyDragonMap = shared.STONE_VISUAL_EFFECTS.destroyDragonStone;
     expect(destroyDragonMap).toBeTruthy();
+    expect(destroyDragonMap.renderMode).toBe('replace');
     expect(destroyDragonMap.imagePathByOwner['1']).toContain('DESTROY_DRAGON-black.png');
     expect(destroyDragonMap.imagePathByOwner['-1']).toContain('DESTROY_DRAGON-white.png');
   });

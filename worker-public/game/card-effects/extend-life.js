@@ -1,6 +1,6 @@
 /**
  * @file extend-life.js
- * @description 延命の意志 (EXTEND_LIFE_WILL) UI handler — selection -> pipeline adapter
+ * @description 延命系カード UI handler — selection -> pipeline adapter
  */
 
 var PendingSelectionFlow;
@@ -29,14 +29,16 @@ async function handleExtendLifeSelection(row, col, playerKey) {
         row,
         col,
         playerKey,
-        pendingType: 'EXTEND_LIFE_WILL',
+        pendingTypes: ['EXTEND_LIFE_WILL', 'EXTEND_LIFE_GOD'],
         actionPayload: { extendTarget: { row, col } },
-        invalidMessage: '延命の対象となる自分の特殊石を選んでください',
+        invalidMessage: ({ pendingType }) => pendingType === 'EXTEND_LIFE_GOD'
+            ? '延命神の対象となる自分の特殊石を選んでください'
+            : '延命の対象となる自分の特殊石を選んでください',
         validateResult: ({ result }) => {
             const selected = getExtendLifeSelectedEvent(result);
             return !!(selected && selected.applied);
         },
-        buildPlaybackMeta: () => ({ cause: 'EXTEND_LIFE_WILL', target: { row, col } })
+        buildPlaybackMeta: ({ pendingType }) => ({ cause: pendingType, target: { row, col } })
     });
 }
 

@@ -76,6 +76,9 @@ function setDiscColorAt(row, col, color) {
     if (!disc) return;
     disc.classList.remove('black', 'white');
     disc.classList.add(color === BLACK ? 'black' : 'white');
+    if (typeof window !== 'undefined' && typeof window.setDiscStoneImage === 'function') {
+        window.setDiscStoneImage(disc, color);
+    }
 }
 
 function removeBombOverlayAt(row, col) {
@@ -116,8 +119,13 @@ function clearAllStoneVisualEffectsAt(row, col) {
 
     // Clear CSS vars used by overlay visuals.
     disc.style.removeProperty('--special-stone-image');
+    disc.style.removeProperty('--disc-overlay-image');
+    disc.style.removeProperty('--disc-overlay-scale');
     disc.style.removeProperty('--dragon-image-path');
     disc.style.removeProperty('--breeding-image-path');
+    if (typeof window !== 'undefined' && typeof window.setDiscStoneImage === 'function') {
+        window.setDiscStoneImage(disc, disc.classList.contains('white') ? WHITE : BLACK);
+    }
 }
 
 function syncDiscVisualToCurrentState(row, col) {

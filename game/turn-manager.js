@@ -317,7 +317,7 @@ function handleCellClick(row, col) {
         }
         return;
     }
-    if (pending && pending.type === 'EXTEND_LIFE_WILL' && pending.stage === 'selectTarget') {
+    if (pending && (pending.type === 'EXTEND_LIFE_WILL' || pending.type === 'EXTEND_LIFE_GOD') && pending.stage === 'selectTarget') {
         if (typeof handleExtendLifeSelection === 'function') {
             handleExtendLifeSelection(row, col, playerKey);
         }

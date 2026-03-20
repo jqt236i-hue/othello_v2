@@ -164,7 +164,7 @@ describe('SoundEngine default BGM', () => {
         {
           name: '盤喰いの小鬼戦',
           file: 'assets/audio/bgm/盤喰いの小鬼戦.mp3',
-          loopStart: 1.5
+          loopStart: 1.655
         }
       ])
     );
@@ -187,14 +187,14 @@ describe('SoundEngine default BGM', () => {
     bgm.currentTime = 11.9;
     bgm.ontimeupdate();
 
-    expect(bgm.currentTime).toBeCloseTo(1.5, 6);
+    expect(bgm.currentTime).toBeCloseTo(1.655, 6);
 
     soundEngine.allowBgmPlay = true;
     bgm.paused = true;
     bgm.currentTime = 12;
     bgm.onended();
 
-    expect(bgm.currentTime).toBeCloseTo(1.5, 6);
+    expect(bgm.currentTime).toBeCloseTo(1.655, 6);
     expect(bgm.play).toHaveBeenCalledTimes(1);
   });
 
@@ -218,7 +218,7 @@ describe('SoundEngine default BGM', () => {
     expect(context.decodeAudioData).toHaveBeenCalledTimes(1);
     expect(sources).toHaveLength(1);
     expect(sources[0].loop).toBe(true);
-    expect(sources[0].loopStart).toBeCloseTo(1.5, 6);
+    expect(sources[0].loopStart).toBeCloseTo(1.655, 6);
     expect(sources[0].loopEnd).toBeCloseTo(12, 6);
     expect(sources[0].start).toHaveBeenCalledWith(0, 0);
   });

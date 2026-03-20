@@ -69,6 +69,78 @@ function _isDebugLayoutEnabled() {
     }
 }
 
+function _getCurrentMatchModeForDebug() {
+    try {
+        const seed = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {}));
+        if (seed && typeof seed.getCurrentMatchMode === 'function') {
+            const mode = seed.getCurrentMatchMode();
+            if (mode) return String(mode).toLowerCase();
+        }
+        if (seed && seed.MATCH_MODE) return String(seed.MATCH_MODE).toLowerCase();
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function') {
+            const mode = window.getCurrentMatchMode();
+            if (mode) return String(mode).toLowerCase();
+        }
+        if (typeof window !== 'undefined' && window.MATCH_MODE) {
+            return String(window.MATCH_MODE).toLowerCase();
+        }
+    } catch (e) { /* ignore */ }
+    return 'cpu';
+}
+
+function _getCardStateForDebug() {
+    try {
+        if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && window.cardState && typeof window.cardState === 'object') return window.cardState;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.cardState && typeof globalThis.cardState === 'object') return globalThis.cardState;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _hasMutatedDebugSessionState() {
+    const state = _getCardStateForDebug();
+    if (!state) return false;
+    return state.debugHandFilled === true || state.debugNoDraw === true;
+}
+
+function _clearMutatedDebugSessionStateFlags() {
+    const state = _getCardStateForDebug();
+    if (!state || typeof state !== 'object') return false;
+    let changed = false;
+    if (state.debugHandFilled === true) {
+        state.debugHandFilled = false;
+        changed = true;
+    }
+    if (state.debugNoDraw === true) {
+        state.debugNoDraw = false;
+        changed = true;
+    }
+    return changed;
+}
+
+function _resolveResetGameForDebug() {
+    try {
+        const seed = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {}));
+        if (seed && typeof seed.resetGame === 'function') return seed.resetGame;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof resetGame === 'function') return resetGame;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && typeof window.resetGame === 'function') return window.resetGame;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && typeof globalThis.resetGame === 'function') return globalThis.resetGame;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
 function _applyDebugLayoutState(debugEnabled) {
     if (typeof document === 'undefined') return;
     const normalized = !!debugEnabled;
@@ -536,6 +608,12 @@ function setDebugModeEnabled(debugEnabled) {
     const humanVsHumanBtn = refs.humanVsHumanBtn;
     const visualTestBtn = refs.visualTestBtn;
     const nextDebugEnabled = debugEnabled === true;
+    const currentGlobals = (_getUIBootstrapGlobals_debug
+        ? (_getUIBootstrapGlobals_debug() || {})
+        : (typeof window !== 'undefined' ? window : {}));
+    const wasDebugEnabled = currentGlobals.DEBUG_UNLIMITED_USAGE === true;
+    const hadMutatedDebugState = !nextDebugEnabled && wasDebugEnabled && _hasMutatedDebugSessionState();
+    let requestedLocalReset = false;
 
     if (nextDebugEnabled && _networkDebugModeAccessState.networkMode === true && _networkDebugModeAccessState.roomDebugEnabled !== true) {
         return false;
@@ -547,7 +625,9 @@ function setDebugModeEnabled(debugEnabled) {
     _applyDebugSubButtonVisibility(humanVsHumanBtn, visualTestBtn, nextDebugEnabled);
 
     if (nextDebugEnabled) {
-        addLog('🐛 デバッグモード: ON （制限なしでカード使用可能）');
+        if (!wasDebugEnabled) {
+            addLog('🐛 デバッグモード: ON （制限なしでカード使用可能）');
+        }
         _syncDebugFlags(true, true);
         try {
             const g = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {}));
@@ -558,28 +638,46 @@ function setDebugModeEnabled(debugEnabled) {
             }
         } catch (e) { /* ignore */ }
 
-        const g2 = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {}));
-        if (typeof g2.ensureDebugActionsLoaded === 'function') {
-            g2.ensureDebugActionsLoaded(() => {
+        if (!wasDebugEnabled) {
+            const g2 = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {}));
+            if (typeof g2.ensureDebugActionsLoaded === 'function') {
+                g2.ensureDebugActionsLoaded(() => {
+                    fillDebugHand();
+                });
+            } else {
                 fillDebugHand();
-            });
-        } else {
-            fillDebugHand();
+            }
         }
         if (humanVsHumanBtn) {
             humanVsHumanBtn.textContent = '人間vs人間: ON';
             humanVsHumanBtn.style.color = '#90ee90';
         }
-        addLog('🎮 人間vs人間モード: ON （黒白両方操作可能、手札は黒のみ使用）');
+        if (!wasDebugEnabled) {
+            addLog('🎮 人間vs人間モード: ON （黒白両方操作可能、手札は黒のみ使用）');
+        }
     } else {
         addLog('デバッグモード: OFF');
         _syncDebugFlags(false, false);
+        _clearMutatedDebugSessionStateFlags();
+        if (hadMutatedDebugState && _getCurrentMatchModeForDebug() !== 'network') {
+            const resetGameFn = _resolveResetGameForDebug();
+            if (typeof resetGameFn === 'function') {
+                requestedLocalReset = true;
+                addLog('デバッグ由来の手札状態を解除するため対局をリセット');
+                try {
+                    resetGameFn();
+                } catch (e) {
+                    requestedLocalReset = false;
+                    console.warn('[debug] resetGame after disabling debug mode failed:', e && e.message ? e.message : e);
+                }
+            }
+        }
         if (humanVsHumanBtn) {
             humanVsHumanBtn.textContent = '人間vs人間: OFF';
             humanVsHumanBtn.style.color = '#ffb366';
         }
     }
-    if (typeof renderCardUI === 'function') renderCardUI();
+    if (!requestedLocalReset && typeof renderCardUI === 'function') renderCardUI();
     return true;
 }
 

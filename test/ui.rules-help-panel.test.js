@@ -94,6 +94,7 @@ describe('rules help panel', () => {
         <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
         <button data-help-tab="rules" class="rules-help-tab" type="button"></button>
         <button data-help-tab="controls" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="updates" class="rules-help-tab" type="button"></button>
         <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page is-active">
           <div id="rules-help-card-list"></div>
           <div id="rules-help-card-name"></div>
@@ -102,6 +103,7 @@ describe('rules help panel', () => {
         <section data-help-page="effects" id="rules-help-page-effects" class="rules-help-page"></section>
         <section data-help-page="rules" id="rules-help-page-rules" class="rules-help-page"></section>
         <section data-help-page="controls" id="rules-help-page-controls" class="rules-help-page"></section>
+        <section data-help-page="updates" id="rules-help-page-updates" class="rules-help-page"><div id="rules-help-updates-list"></div></section>
       </div>
     </body></html>`);
     window.CardInteractionEffects = {
@@ -157,6 +159,13 @@ describe('rules help panel', () => {
 
     document.querySelector('[data-help-tab="controls"]').click();
     expect(document.getElementById('rules-help-page-controls').classList.contains('is-active')).toBe(true);
+
+    document.querySelector('[data-help-tab="updates"]').click();
+    expect(document.getElementById('rules-help-page-updates').classList.contains('is-active')).toBe(true);
+    const updatesText = document.getElementById('rules-help-updates-list').textContent;
+    expect(updatesText).toContain('v1.0');
+    expect(updatesText).toContain('時間停石を実装');
+    expect(updatesText).toContain('ネット対戦関連の問題を修正');
   });
 
   test('hides fully duplicated detail and keeps only non-duplicate detail sentences', () => {
@@ -168,6 +177,7 @@ describe('rules help panel', () => {
         <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
         <button data-help-tab="rules" class="rules-help-tab" type="button"></button>
         <button data-help-tab="controls" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="updates" class="rules-help-tab" type="button"></button>
         <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page is-active">
           <div id="rules-help-card-list"></div>
           <div id="rules-help-card-name"></div>
@@ -176,6 +186,7 @@ describe('rules help panel', () => {
         <section data-help-page="effects" id="rules-help-page-effects" class="rules-help-page"></section>
         <section data-help-page="rules" id="rules-help-page-rules" class="rules-help-page"></section>
         <section data-help-page="controls" id="rules-help-page-controls" class="rules-help-page"></section>
+        <section data-help-page="updates" id="rules-help-page-updates" class="rules-help-page"><div id="rules-help-updates-list"></div></section>
       </div>
     </body></html>`);
 
@@ -223,6 +234,12 @@ describe('rules help panel', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     expect(html).toMatch(/<dt>\s*反転回避\s*<\/dt>/);
     expect(html).toMatch(/<dt>\s*破壊回避\s*<\/dt>/);
+  });
+
+  test('index html includes update info help tab', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    expect(html).toMatch(/data-help-tab="updates">アップデート情報<\/button>/);
+    expect(html).toMatch(/id="rules-help-updates-list"/);
   });
 
 });

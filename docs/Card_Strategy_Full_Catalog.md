@@ -33,7 +33,7 @@
 | destroy_01 | 破壊神 | DESTROY_ONE_STONE | 14 | 任意1石破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + GUARDで守られていない石が1個以上必要 | あり | GUARD保護対象は破壊失敗 | 任意1石破壊 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:97<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | bomb_01 | 時限爆弾 | TIME_BOMB | 13 | 3ターン後に3x3破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 自分石の有効対象が1個以上必要 | あり | 対象不足・既存爆弾重複不可・反転で解除 | 3ターン後に3x3破壊 | 高分散札（優勢時はCPU減点） | 中盤〜終盤劣勢 | cards/catalog.json:104<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | udr_01 | 究極反転龍 | ULTIMATE_REVERSE_DRAGON | 30 | 自由配置で配置時/ターン開始に周囲8反転（5ターン） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | アンカー喪失で終了 | 自由配置で配置時/ターン開始に周囲8反転（5ターン） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:111<br>game/logic/cards.js:2341<br>shared-constants.js:144 |
-| breeding_01 | 繁殖の意志 | BREEDING_WILL | 16 | 配置時/ターン開始に生成拡散（3ターン） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 周囲空きなし時は生成なし・アンカー喪失で終了 | 配置時/ターン開始に生成拡散（3ターン） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:118<br>game/logic/cards.js:2359<br>shared-constants.js:147 |
+| breeding_01 | 繁殖の意志 | BREEDING_WILL | 16 | 配置時/ターン開始に生成拡散（5ターン） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 周囲空きなし時は生成なし・アンカー喪失で終了 | 配置時/ターン開始に生成拡散（5ターン） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:118<br>game/logic/cards.js:2359<br>shared-constants.js:147 |
 | clone_01 | 複製の意志 | CLONE_WILL | 16 | 隣接1マスへ同種石を1つ複製 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 周囲に空きがある自分石が1個以上必要 | あり | 周囲空きなし/対象不正で失敗 | 隣接1マスへ同種石を1つ複製 | 高分散札（優勢時はCPU減点） | 中盤（優勢維持局面） | cards/catalog.json:125<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | cross_bomb_01 | 十字爆弾 | CROSS_BOMB | 18 | 配置直後に十字範囲爆破 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 中心/十字範囲に石が無い場合は破壊効果が薄い | 配置直後に十字範囲爆破 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:132<br>game/logic/cards.js:2457<br>game/logic/cards.js:2460 |
 | x_bomb_01 | クロス爆弾 | X_BOMB | 18 | 配置直後にX範囲爆破 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 中心/X範囲に石が無い場合は破壊効果が薄い | 配置直後にX範囲爆破 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:139<br>game/logic/cards.js:2457<br>game/logic/cards.js:2482 |
@@ -50,7 +50,8 @@
 | condemn_01 | 断罪の意志 | CONDEMN_WILL | 6 | 相手手札1枚破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 相手手札が1枚以上必要 | あり | 対象index不正/target_mismatch | 相手手札1枚破壊 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:216<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | gold_stone | 金の意志 | GOLD_STONE | 6 | 反転布石×4、配置石は即時消滅 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 反転0〜1枚だと費用回収しにくい | 反転布石×4、配置石は即時消滅 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:223<br>game/logic/cards.js:2191<br>shared-constants.js:180 |
 | silver_stone | 銀の意志 | SILVER_STONE | 3 | 反転布石×3、配置石は即時消滅 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 反転0〜1枚だと費用回収しにくい | 反転布石×3、配置石は即時消滅 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:230<br>game/logic/cards.js:2204<br>shared-constants.js:240 |
-| extend_life_01 | 延命の意志 | EXTEND_LIFE_WILL | 2 | remainingOwnerTurns を2倍 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + remainingOwnerTurns>0 の自分特殊石が必要 | あり | 対象が特殊石でない/remainingOwnerTurns無効 | remainingOwnerTurns を2倍 | 条件未充足で使用不可/低効率 | 中盤〜終盤（寿命付き特殊石が残る局面） | cards/catalog.json:244<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
+| extend_life_01 | 延命の意志 | EXTEND_LIFE_WILL | 4 | remainingOwnerTurns を2倍 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + remainingOwnerTurns>0 の自分特殊石が必要 | あり | 対象が特殊石でない/remainingOwnerTurns無効 | remainingOwnerTurns を2倍 | 条件未充足で使用不可/低効率 | 中盤〜終盤（寿命付き特殊石が残る局面） | cards/catalog.json:244<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
+| extend_life_god_01 | 延命神 | EXTEND_LIFE_GOD | 10 | remainingOwnerTurns を4倍 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + remainingOwnerTurns>0 の自分特殊石が必要 | あり | 対象が特殊石でない/remainingOwnerTurns無効 | remainingOwnerTurns を4倍 | 条件未充足で使用不可/低効率 | 中盤〜終盤（寿命付き特殊石を長く残したい局面） | cards/catalog.json<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | guard_01 | 守る意志 | GUARD_WILL | 2 | 3ターン完全保護（反転/交換/破壊/誘惑を遮断） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 自分石の有効対象が1個以上必要 | あり | 対象不足 | 3ターン完全保護（反転/交換/破壊/誘惑を遮断） | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:251<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | udg_01 | 究極破壊神 | ULTIMATE_DESTROY_GOD | 25 | 自由配置で配置時/ターン開始に周囲8破壊（5ターン） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | アンカー喪失で終了 | 自由配置で配置時/ターン開始に周囲8破壊（5ターン） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:258<br>game/logic/cards.js:2369<br>game/logic/cards.js:2371 |
 | ultimate_hyperactive_01 | 究極多動神 | ULTIMATE_HYPERACTIVE_GOD | 28 | 両者ターン開始に直線1〜5マス移動×2+反転（10ターン） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 移動先なしで消滅、残り0で自己消滅 | 両者ターン開始に直線1〜5マス移動×2+反転（10ターン） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:265<br>game/logic/cards.js:2432<br>game/logic/cards/hyperactive.js:105 |
@@ -423,10 +424,10 @@
   - 01-rulebook.md:314
 
 ### breeding_01 / 繁殖の意志（BREEDING_WILL）
-- 効果詳細（処理順含む）: 配置時/ターン開始に生成拡散（3ターン）
+- 効果詳細（処理順含む）: 配置時/ターン開始に生成拡散（5ターン）
 - 合理的な使い方
   - 発動条件「手札所持・布石コスト充足・このターン未使用（`applyCardUsage`）」を満たす局面で使う。
-  - 期待リターン「配置時/ターン開始に生成拡散（3ターン）」を満たす見込みがある手で使う。
+  - 期待リターン「配置時/ターン開始に生成拡散（5ターン）」を満たす見込みがある手で使う。
   - CPU方針で明示がないため、対象条件を満たす時だけ選択する。
 - 利敵行為になる使い方
   - 失敗条件「周囲空きなし時は生成なし・アンカー喪失で終了」に該当する状態で切る。
@@ -806,6 +807,19 @@
   - 対象不足を見落とし、使用不可/不発でテンポを失う。
 - 相性の良い盤面/悪い盤面: 未確認（盤面相性の明示ロジックなし）
 - 特殊石や保護状態との相互作用: remainingOwnerTurns を持つ自分特殊石のみ対象。
+
+### extend_life_god_01 / 延命神（EXTEND_LIFE_GOD）
+- 効果詳細（処理順含む）: remainingOwnerTurns を4倍
+- 合理的な使い方
+  - 発動条件「手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + remainingOwnerTurns>0 の自分特殊石が必要」を満たす局面で使う。
+  - 期待リターン「remainingOwnerTurns を4倍」を満たす見込みがある手で使う。
+  - 推奨フェーズ「中盤〜終盤（寿命付き特殊石を長く残したい局面）」に寄せて使用する。
+- 利敵行為になる使い方
+  - 失敗条件「対象が特殊石でない/remainingOwnerTurns無効」に該当する状態で切る。
+  - このターンのカード使用枠と高めの布石コストを、直接価値が薄い局面で消費する。
+  - 対象不足を見落とし、使用不可/不発でテンポを失う。
+- 相性の良い盤面/悪い盤面: 未確認（個別の明示ロジックなし）
+- 特殊石や保護状態との相互作用: remainingOwnerTurns を持つ自分特殊石のみ対象。同一マスのGUARDは同時に延長される。
 - 布石収支観点（定性的）: 0（直接の布石式は未確認）
 - 根拠コード参照
   - cards/catalog.json:244
@@ -1020,6 +1034,7 @@
 - gold_stone (GOLD_STONE) / 優先度: A / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 反転0〜1枚だと費用回収しにくい
 - silver_stone (SILVER_STONE) / 優先度: A / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 反転0〜1枚だと費用回収しにくい
 - extend_life_01 (EXTEND_LIFE_WILL) / 優先度: B / use_if: remainingOwnerTurns>0 の自分特殊石が必要 を満たす / avoid_if: 対象が特殊石でない/remainingOwnerTurns無効
+- extend_life_god_01 (EXTEND_LIFE_GOD) / 優先度: B / use_if: remainingOwnerTurns>0 の自分特殊石が必要 を満たす / avoid_if: 対象が特殊石でない/remainingOwnerTurns無効
 - guard_01 (GUARD_WILL) / 優先度: A / use_if: 自分石の有効対象が1個以上必要 を満たす / avoid_if: 対象不足
 - udg_01 (ULTIMATE_DESTROY_GOD) / 優先度: C / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
 - ultimate_hyperactive_01 (ULTIMATE_HYPERACTIVE_GOD) / 優先度: C / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時

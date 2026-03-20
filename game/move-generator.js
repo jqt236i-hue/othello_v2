@@ -224,6 +224,7 @@ function generateMovesForPlayer(player, pending, protection, perma) {
         pendingType === 'GUARD_WILL' ||
         pendingType === 'GUARDIAN_GOD' ||
         pendingType === 'EXTEND_LIFE_WILL' ||
+        pendingType === 'EXTEND_LIFE_GOD' ||
         pendingType === 'CORROSION_WILL' ||
         pendingType === 'TELEPORT_WILL' ||
         pendingType === 'CELL_TELEPORT_WILL' ||

@@ -193,10 +193,14 @@
     /* 1.0 = no scale (uniform diameter for all special stones) */
     --special-stone-scale: 1.00;
     /* Stone shadow variables */
-    --stone-shadow-color: rgba(0, 0, 0, 0.45);
-    --stone-shadow-offset-y: 6px;
-    --stone-shadow-blur: 6px;
+    --stone-shadow-color: rgba(0, 0, 0, 0.52);
+    --stone-shadow-offset-x: 5px;
+    --stone-shadow-offset-y: 8px;
+    --stone-shadow-blur: 8px;
     --stone-shadow-spread: 0px;
+    --stone-keyline-width: 0.5px;
+    --stone-keyline-color: rgba(66, 126, 86, 0.34);
+    --stone-keyline-inner-shade: rgba(28, 74, 42, 0.12);
 
     /* Board depth shadow variables */
     --board-shadow-outer: 0 0 10px rgba(0, 0, 0, 0.8);
@@ -204,9 +208,10 @@
     --board-shadow-rim: inset 0 2px 1px rgba(255, 255, 255, 0.08);
 
     /* Per-cell contact shadow for occupied cells */
-    --cell-contact-shadow-offset-y: 7%;
-    --cell-contact-shadow-blur: 9%;
-    --cell-contact-shadow-color: rgba(0, 0, 0, 0.28);
+    --cell-contact-shadow-offset-x: 4px;
+    --cell-contact-shadow-offset-y: 5px;
+    --cell-contact-shadow-blur: 8px;
+    --cell-contact-shadow-color: rgba(0, 0, 0, 0.42);
     --cell-contact-shadow-highlight: rgba(255, 255, 255, 0.06);
 }
 

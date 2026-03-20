@@ -104,6 +104,10 @@
             cardState.markers = [];
         }
         cardState.markers = [];
+        cardState.boardBonusByCell = {};
+        cardState.boardBonusConsumedByCell = {};
+        cardState.turnToPlaceBoardBonus = null;
+        cardState.turnToPlaceBoardBonusByPlayer = { black: null, white: null };
 
         // Row 0: Normal stones
         gameState.board[0][0] = black;
@@ -142,8 +146,8 @@
         // Row 5: Breeding stone
         gameState.board[5][0] = black;
         gameState.board[5][1] = white;
-        addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', 5, 0, 'black', { type: 'BREEDING', remainingOwnerTurns: 3 });
-        addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', 5, 1, 'white', { type: 'BREEDING', remainingOwnerTurns: 3 });
+        addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', 5, 0, 'black', { type: 'BREEDING', remainingOwnerTurns: 5 });
+        addMarker(cardState, MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', 5, 1, 'white', { type: 'BREEDING', remainingOwnerTurns: 5 });
 
         // Row 6: Time bomb
         gameState.board[6][0] = black;

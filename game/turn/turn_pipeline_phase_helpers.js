@@ -38,7 +38,7 @@
     const OBSERVER_CARD_ONE_LINERS = Object.freeze({
         TREASURE_BOX: '宝箱は即布石化',
         FREE_PLACEMENT: '挟めず置ける',
-        LAST_RESORT: 'パス時に2連続自由配置',
+        LAST_RESORT: '石数劣勢かつパス時に3連続自由配置',
         SNIPER_WILL: '狙撃は毎開幕判定',
         PROTECTED_NEXT_STONE: '次の被弾だけ守る',
         SWAP_WITH_ENEMY: '敵石1個を奪取',
@@ -80,6 +80,7 @@
         SILVER_STONE: '反転布石3倍',
         CRYSTAL_STONE: '数字マス布石4倍',
         EXTEND_LIFE_WILL: '特殊石寿命2倍',
+        EXTEND_LIFE_GOD: '特殊石寿命4倍',
         CORROSION_WILL: '特殊石寿命を半減',
         GUARD_WILL: '完全保護3ターン',
         DESTROY_DRAGON_WILL: '周囲敵1体破壊',

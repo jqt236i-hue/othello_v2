@@ -856,6 +856,7 @@ function getPendingTypeHandlers(playerKey) {
         'GUARDIAN_GOD': async () => { if (typeof cpuSelectGuardWillWithPolicy === 'function') await cpuSelectGuardWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'HYPERACTIVE_INHERIT_WILL': async () => { if (typeof cpuSelectHyperactiveInheritWillWithPolicy === 'function') await cpuSelectHyperactiveInheritWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'EXTEND_LIFE_WILL': async () => { if (typeof cpuSelectExtendLifeWillWithPolicy === 'function') await cpuSelectExtendLifeWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
+        'EXTEND_LIFE_GOD': async () => { if (typeof cpuSelectExtendLifeWillWithPolicy === 'function') await cpuSelectExtendLifeWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'CORROSION_WILL': async () => { if (typeof cpuSelectCorrosionWillWithPolicy === 'function') await cpuSelectCorrosionWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'TELEPORT_WILL': async () => { if (typeof cpuSelectTeleportWillWithPolicy === 'function') await cpuSelectTeleportWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'CELL_TELEPORT_WILL': async () => { if (typeof cpuSelectCellTeleportWillWithPolicy === 'function') await cpuSelectCellTeleportWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },

@@ -1,4 +1,4 @@
-# 時間停神 実装完遂計画書
+# 時間停石 実装完遂計画書
 
 作成日: 2026-03-18
 更新日: 2026-03-19
@@ -9,13 +9,13 @@
 
 - この文書は、`TIME_STOP_GOD` を **新規実装するための plan ではなく、既に root に入っている実装を repo の完了条件まで持っていく差分計画** である。
 - 一次仕様は `01-rulebook.md` とし、この文書は「既実装」「未完」「未検証」を分け、次の実行者が残課題だけに着手できる状態を作る。
-- 目的は、root だけ先行している `時間停神` を generated 面、worker-public mirror、専用 test、snapshot / sanitize 回帰まで揃えることにある。
+- 目的は、root だけ先行している `時間停石` を generated 面、worker-public mirror、専用 test、snapshot / sanitize 回帰まで揃えることにある。
 
 ## 0.1 現状スナップショット
 
 ### root で既に入っているもの
 
-- `01-rulebook.md` に `TIME_STOP_GOD（時間停神）` の仕様が追加済み。
+- `01-rulebook.md` に `TIME_STOP_GOD（時間停石）` の仕様が追加済み。
 - `cards/catalog.json`、`shared-constants.js`、`cards/card-interaction-effects.js` にカード定義と説明が追加済み。
 - `game/logic/cards.js` に以下が追加済み。
   - 自石 3 個破壊の候補収集と使用解決
@@ -68,7 +68,7 @@
 
 - `cards/catalog.js` / `cards/catalog.generated.js` が stale なままでも root runtime がどこまで問題なく動くかは未検証。
 - `ui/network/snapshot.js`、`utils/match-authority.js`、`scripts/local-match-server.js` は generic 経路で通る可能性が高いが、time stop 固有 state / event の保持は専用 test でまだ固定されていない。
-- `worker-public/` mirror は未追随のため、public / network 実行面で時間停神が本当に使えるかは未検証。
+- `worker-public/` mirror は未追随のため、public / network 実行面で時間停石が本当に使えるかは未検証。
 
 ## 2. 非目標
 
@@ -155,7 +155,7 @@ rg -n "zi-black|zi-white|time-stop-stone" cards game ui styles*.css docs
 
 ### 目的
 
-- 近縁カードの借用 test ではなく、`時間停神` 固有の契約を専用 test で固定する。
+- 近縁カードの借用 test ではなく、`時間停石` 固有の契約を専用 test で固定する。
 
 ### 作業
 
@@ -180,7 +180,7 @@ rg -n "zi-black|zi-white|time-stop-stone" cards game ui styles*.css docs
 
 ### 完了条件
 
-- `時間停神` 固有の gameplay 契約が専用 test で表現されている。
+- `時間停石` 固有の gameplay 契約が専用 test で表現されている。
 - borrowed test 名だけに依存していない。
 - cost / trigger / fizzle event の契約が固定されている。
 

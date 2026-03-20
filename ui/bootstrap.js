@@ -9,6 +9,230 @@
 
     let _uiGlobals = {};
     let _gameDIInstallResult = null;
+    let _stoneBaseImagesReadyPromise = null;
+    const STONE_BASE_IMAGE_PATHS = [
+        'assets/images/stones/normal_stone-black.png',
+        'assets/images/stones/normal_stone-white.png'
+    ];
+
+    function getDocumentClassList() {
+        try {
+            if (typeof document !== 'undefined' && document && document.documentElement && document.documentElement.classList) {
+                return document.documentElement.classList;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function classListAddSafe(className) {
+        const classList = getDocumentClassList();
+        if (!classList || typeof classList.add !== 'function') return false;
+        try {
+            classList.add(className);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function classListRemoveSafe(className) {
+        const classList = getDocumentClassList();
+        if (!classList) return false;
+        try {
+            if (typeof classList.remove === 'function') {
+                classList.remove(className);
+                return true;
+            }
+            if (classList.added && Object.prototype.hasOwnProperty.call(classList.added, className)) {
+                delete classList.added[className];
+                return true;
+            }
+        } catch (e) { /* ignore */ }
+        return false;
+    }
+
+    function classListContainsSafe(className) {
+        const classList = getDocumentClassList();
+        if (!classList) return false;
+        try {
+            if (typeof classList.contains === 'function') return !!classList.contains(className);
+            if (classList.added) return !!classList.added[className];
+        } catch (e) { /* ignore */ }
+        return false;
+    }
+
+    function getDiscOwnerDescriptor(disc) {
+        const isWhite = !!(disc && disc.classList && typeof disc.classList.contains === 'function' && disc.classList.contains('white'));
+        return isWhite
+            ? {
+                imageVar: 'var(--normal-stone-white-image)',
+                fallbackColor: '#ffffff'
+            }
+            : {
+                imageVar: 'var(--normal-stone-black-image)',
+                fallbackColor: '#050505'
+            };
+    }
+
+    function syncDiscBaseImageAssignment(disc) {
+        if (!disc || !disc.style || typeof disc.style.setProperty !== 'function') return;
+        const owner = getDiscOwnerDescriptor(disc);
+        try { disc.style.setProperty('--stone-image', owner.imageVar); } catch (e) { /* ignore */ }
+        try { disc.style.setProperty('--disc-base-image', owner.imageVar); } catch (e) { /* ignore */ }
+        try {
+            if (!disc.dataset.renderMode) disc.dataset.renderMode = 'base-only';
+            if (!disc.dataset.effect) disc.dataset.effect = 'normal';
+        } catch (e) { /* ignore */ }
+    }
+
+    function syncDiscImageFallbackState(disc, options = {}) {
+        if (!disc || !disc.style || typeof disc.style.setProperty !== 'function') return;
+        const owner = getDiscOwnerDescriptor(disc);
+        const baseImagesReady = Object.prototype.hasOwnProperty.call(options, 'baseImagesReady')
+            ? !!options.baseImagesReady
+            : classListContainsSafe('stone-base-images-ready');
+        try { disc.dataset.imageState = baseImagesReady ? 'loaded' : 'fallback'; } catch (e) { /* ignore */ }
+        try {
+            disc.style.setProperty('--disc-base-fallback-color', baseImagesReady ? 'transparent' : owner.fallbackColor);
+        } catch (e) { /* ignore */ }
+    }
+
+    function refreshExistingDiscImagePresentation(options = {}) {
+        if (typeof document === 'undefined' || !document || typeof document.querySelectorAll !== 'function') return;
+        const discs = Array.from(document.querySelectorAll('.disc.black, .disc.white')) || [];
+        discs.forEach((disc) => {
+            try {
+                if (options.assignBaseImage) syncDiscBaseImageAssignment(disc);
+                syncDiscImageFallbackState(disc, options);
+            } catch (e) { /* ignore per-disc errors */ }
+        });
+    }
+
+    function preloadImageList(paths, opts = {}) {
+        const required = Array.isArray(paths) ? paths.filter(Boolean) : [];
+        const timeoutMs = Number(opts.timeoutMs) > 0 ? Number(opts.timeoutMs) : 5000;
+        if (!required.length) return Promise.resolve({ success: true, loaded: [], failed: [] });
+        const loaded = [];
+        const failed = [];
+
+        return new Promise((resolve) => {
+            let remaining = required.length;
+            const checkDone = () => {
+                if (remaining <= 0) {
+                    resolve({ success: failed.length === 0, loaded, failed });
+                }
+            };
+
+            required.forEach((src) => {
+                try {
+                    const img = new Image();
+                    let timedOut = false;
+                    const to = setTimeout(() => {
+                        timedOut = true;
+                        failed.push({ src, reason: 'timeout' });
+                        remaining -= 1;
+                        checkDone();
+                    }, timeoutMs);
+                    img.onload = () => {
+                        if (timedOut) return;
+                        clearTimeout(to);
+                        loaded.push(src);
+                        remaining -= 1;
+                        checkDone();
+                    };
+                    img.onerror = () => {
+                        if (timedOut) return;
+                        clearTimeout(to);
+                        failed.push({ src, reason: 'error' });
+                        remaining -= 1;
+                        checkDone();
+                    };
+                    img.src = src;
+                } catch (e) {
+                    failed.push({ src, reason: String(e) });
+                    remaining -= 1;
+                    checkDone();
+                }
+            });
+        });
+    }
+
+    function preloadSpecialStoneVisuals() {
+        const rootScope = (typeof globalThis !== 'undefined' && globalThis)
+            ? globalThis
+            : ((typeof window !== 'undefined' && window) ? window : null);
+        if (!rootScope) {
+            return { attempted: false, reason: 'no_root', effectKeys: [], started: [], skipped: [] };
+        }
+
+        const preloadFn = (typeof rootScope.preloadStoneVisualEffectKeys === 'function')
+            ? rootScope.preloadStoneVisualEffectKeys
+            : null;
+        const getSupportedEffectKeysFn = (typeof rootScope.getSupportedEffectKeys === 'function')
+            ? rootScope.getSupportedEffectKeys
+            : null;
+        if (!preloadFn || !getSupportedEffectKeysFn) {
+            return { attempted: false, reason: 'api_unavailable', effectKeys: [], started: [], skipped: [] };
+        }
+
+        let effectKeys = [];
+        try {
+            const supportedEffectKeys = getSupportedEffectKeysFn();
+            effectKeys = Array.from(new Set(
+                (Array.isArray(supportedEffectKeys) ? supportedEffectKeys : [])
+                    .map((key) => String(key || '').trim())
+                    .filter((key) => !!key && key !== 'normal')
+            ));
+        } catch (e) {
+            return { attempted: false, reason: 'effect_keys_failed', error: String(e), effectKeys: [], started: [], skipped: [] };
+        }
+        if (!effectKeys.length) {
+            return { attempted: false, reason: 'no_effect_keys', effectKeys: [], started: [], skipped: [] };
+        }
+
+        try {
+            const result = preloadFn(effectKeys) || {};
+            return {
+                attempted: true,
+                effectKeys,
+                started: Array.isArray(result.started) ? result.started : [],
+                skipped: Array.isArray(result.skipped) ? result.skipped : []
+            };
+        } catch (e) {
+            return {
+                attempted: false,
+                reason: 'preload_failed',
+                error: String(e),
+                effectKeys,
+                started: [],
+                skipped: []
+            };
+        }
+    }
+
+    function ensureStoneBaseImagesReady(opts = {}) {
+        if (classListContainsSafe('stone-base-images-ready')) {
+            return Promise.resolve({ success: true, loaded: STONE_BASE_IMAGE_PATHS.slice(), failed: [] });
+        }
+        if (_stoneBaseImagesReadyPromise) return _stoneBaseImagesReadyPromise;
+        _stoneBaseImagesReadyPromise = preloadImageList(STONE_BASE_IMAGE_PATHS, opts).then((res) => {
+            if (res && res.success) {
+                classListAddSafe('stone-base-images-ready');
+                refreshExistingDiscImagePresentation({ assignBaseImage: true, baseImagesReady: true });
+                return res;
+            }
+            classListRemoveSafe('stone-base-images-ready');
+            refreshExistingDiscImagePresentation({ baseImagesReady: false });
+            _stoneBaseImagesReadyPromise = null;
+            return res;
+        }).catch((e) => {
+            classListRemoveSafe('stone-base-images-ready');
+            refreshExistingDiscImagePresentation({ baseImagesReady: false });
+            _stoneBaseImagesReadyPromise = null;
+            return { success: false, loaded: [], failed: [{ reason: String(e) }] };
+        });
+        return _stoneBaseImagesReadyPromise;
+    }
 
     function parseCpuCommentaryLog(text) {
         const raw = String(text || '').trim();
@@ -343,10 +567,10 @@
     function installGameDI() {
         if (_gameDIInstallResult) return _gameDIInstallResult;
         try {
-            if (typeof document !== 'undefined' && document.documentElement && document.documentElement.classList) {
-                document.documentElement.classList.add('stone-shadow-enabled');
-            }
+            classListAddSafe('stone-shadow-enabled');
         } catch (e) { /* ignore */ }
+        try { ensureStoneBaseImagesReady({ timeoutMs: 5000 }); } catch (e) { /* ignore */ }
+        try { preloadSpecialStoneVisuals(); } catch (e) { /* ignore */ }
 
         // Ensure BoardOps is available globally for presentation/event wiring
         try {
@@ -522,74 +746,20 @@
             opts = Object.assign({ timeoutMs: 5000 }, opts || {});
             const required = (manifest && manifest.files) ? manifest.files.map(f => f.path) : [];
             if (!required.length) return Promise.resolve({ success: true, loaded: [], failed: [] });
-            const loaded = [];
-            const failed = [];
+            const stoneBaseReadyPromise = ensureStoneBaseImagesReady({ timeoutMs: opts.timeoutMs });
 
-            return new Promise((resolve) => {
-                let remaining = required.length;
-                const checkDone = () => {
-                    if (remaining <= 0) {
-                        if (failed.length === 0) {
-                            try {
-                                if (typeof document !== 'undefined' && document.documentElement && document.documentElement.classList) {
-                                    document.documentElement.classList.add('stone-images-loaded');
-                                    document.documentElement.classList.add('stone-shadow-enabled');
-                                    // After declaring images as loaded, ensure existing discs have per-disc overlay var set
-                                    try {
-                                        const discs = Array.from(document.querySelectorAll('.disc.black, .disc.white')) || [];
-                                        for (const d of discs) {
-                                            try {
-                                                if (typeof window !== 'undefined' && typeof window.setDiscStoneImage === 'function') {
-                                                    // Attempt to use canonical helper
-                                                    window.setDiscStoneImage(d, d.classList && d.classList.contains('black') ? BLACK : WHITE);
-                                                } else {
-                                                    // Best-effort fallback
-                                                    const val = (d.classList && d.classList.contains('black')) ? 'var(--normal-stone-black-image)' : 'var(--normal-stone-white-image)';
-                                                    try { d.style.setProperty('--stone-image', val); } catch (e) { }
-                                                }
-                                            } catch (e) { /* ignore per-disc errors */ }
-                                        }
-                                    } catch (e) { /* ignore */ }
-                                }
-                            } catch (e) {}
-                            resolve({ success: true, loaded, failed });
-                        } else {
-                            resolve({ success: false, loaded, failed });
-                        }
+            return preloadImageList(required, opts).then((res) => {
+                return Promise.resolve(stoneBaseReadyPromise).catch(() => ({ success: false, loaded: [], failed: [] })).then(() => {
+                    if (res && res.success) {
+                        try {
+                            classListAddSafe('stone-images-loaded');
+                            classListAddSafe('stone-shadow-enabled');
+                            refreshExistingDiscImagePresentation({ assignBaseImage: true });
+                        } catch (e) { /* ignore */ }
+                        return { success: true, loaded: res.loaded || [], failed: res.failed || [] };
                     }
-                };
-
-                for (const src of required) {
-                    try {
-                        const img = new Image();
-                        let timedOut = false;
-                        const to = setTimeout(() => {
-                            timedOut = true;
-                            failed.push({ src, reason: 'timeout' });
-                            remaining -= 1;
-                            checkDone();
-                        }, opts.timeoutMs);
-                        img.onload = () => {
-                            if (timedOut) return;
-                            clearTimeout(to);
-                            loaded.push(src);
-                            remaining -= 1;
-                            checkDone();
-                        };
-                        img.onerror = () => {
-                            if (timedOut) return;
-                            clearTimeout(to);
-                            failed.push({ src, reason: 'error' });
-                            remaining -= 1;
-                            checkDone();
-                        };
-                        img.src = src;
-                    } catch (e) {
-                        failed.push({ src, reason: String(e) });
-                        remaining -= 1;
-                        checkDone();
-                    }
-                }
+                    return { success: false, loaded: res && res.loaded ? res.loaded : [], failed: res && res.failed ? res.failed : [] };
+                });
             });
         }
 
@@ -598,7 +768,7 @@
          * policy = { mode: 'compat'|'strict' } - compat allows fallback, strict rejects on failure
          * Returns an object: { status: 'ok'|'fallback'|'error', details }
          */
-        _gameDIInstallResult = { timersImpl, registerUIGlobals, preloadAssets };
+        _gameDIInstallResult = { timersImpl, registerUIGlobals, preloadAssets, preloadSpecialStoneVisuals };
         return _gameDIInstallResult;
     }
 
@@ -663,10 +833,10 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        return { addLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, applyAssetManifest, handleGameInit };
+        return { addLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady };
     }
 
-    return { addLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, applyAssetManifest, handleGameInit };
+    return { addLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady };
 }));
 
 

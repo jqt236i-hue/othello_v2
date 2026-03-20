@@ -53,8 +53,16 @@ function createPlacementState() {
   gameState.board[0][0] = Core.BLACK;
   gameState.board[0][1] = Core.BLACK;
   gameState.board[0][2] = Core.BLACK;
+  gameState.board[0][3] = Core.BLACK;
+  gameState.board[0][4] = Core.BLACK;
   gameState.board[2][4] = Core.WHITE;
   gameState.board[2][5] = Core.BLACK;
+  for (let row = 5; row <= 6; row += 1) {
+    for (let col = 0; col < 8; col += 1) {
+      if (row === 6 && col >= 7) break;
+      gameState.board[row][col] = Core.BLACK;
+    }
+  }
 
   cardState.markers.push(createProtectedAnchorMarker(9001, 2, 5));
   return { def, prng, cardState, gameState };
@@ -76,8 +84,8 @@ function createChainBoardState() {
   return { prng, cardState, gameState };
 }
 
-describe('TIME_STOP_GOD（時間停神）', () => {
-  test('3個未満しか自石を破壊できない盤面では使用できない', () => {
+describe('TIME_STOP_GOD（時間停石）', () => {
+  test('5個未満しか自石を破壊できない盤面では使用できない', () => {
     const prng = createPrng(0.25);
     const cardState = CardLogic.createCardState(prng);
     const gameState = createEmptyGameState();
@@ -99,10 +107,37 @@ describe('TIME_STOP_GOD（時間停神）', () => {
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 
-  test('使用後の次配置で3個の自石を破壊し、時間停石を配置する', () => {
+  test('自石が21個未満でも破壊可能自石が5個あれば使用できる', () => {
+    const prng = createPrng(0.4);
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = createEmptyGameState();
+    const def = getTimeStopGodDef();
+
+    cardState.debugNoDraw = true;
+    cardState.hands.black = [def.id];
+    cardState.charge.black = def.cost;
+
+    let placed = 0;
+    for (let row = 0; row < 8 && placed < 20; row += 1) {
+      for (let col = 0; col < 8 && placed < 20; col += 1) {
+        gameState.board[row][col] = Core.BLACK;
+        placed += 1;
+      }
+    }
+
+    expect(CardLogic.getTimeStopGodDestroyableCount(cardState, gameState, 'black')).toBeGreaterThanOrEqual(Shared.TIME_STOP_GOD_SELF_DESTROY_COUNT);
+    expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).toContain(def.id);
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', def.id)).toBe(true);
+    expect(cardState.hands.black).toEqual([]);
+    expect(cardState.discard).toEqual([def.id]);
+    expect(cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({ type: 'TIME_STOP_GOD' }));
+  });
+
+  test('使用後の次配置で5個の自石を破壊し、時間停石を配置する', () => {
     const { def, prng, cardState, gameState } = createPlacementState();
 
-    expect(CardLogic.getTimeStopGodDestroyableCount(cardState, gameState, 'black')).toBe(3);
+    expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).toContain(def.id);
+    expect(CardLogic.getTimeStopGodDestroyableCount(cardState, gameState, 'black')).toBeGreaterThan(Shared.TIME_STOP_GOD_SELF_DESTROY_COUNT);
     const useRes = TurnPipeline.applyTurn(
       cardState,
       gameState,
@@ -115,16 +150,20 @@ describe('TIME_STOP_GOD（時間停神）', () => {
     expect(gameState.board[0][0]).toBe(Core.EMPTY);
     expect(gameState.board[0][1]).toBe(Core.EMPTY);
     expect(gameState.board[0][2]).toBe(Core.EMPTY);
+    expect(gameState.board[0][3]).toBe(Core.EMPTY);
+    expect(gameState.board[0][4]).toBe(Core.EMPTY);
     expect(useRes.events).toEqual(expect.arrayContaining([
       expect.objectContaining({ type: 'card_used', player: 'black', cardId: def.id }),
       expect.objectContaining({
         type: 'time_stop_god_cost_resolved',
-        destroyedCount: 3,
-        destroyed: [
+        destroyedCount: 5,
+        destroyed: expect.arrayContaining([
           { row: 0, col: 0 },
           { row: 0, col: 1 },
-          { row: 0, col: 2 }
-        ]
+          { row: 0, col: 2 },
+          { row: 0, col: 3 },
+          { row: 0, col: 4 }
+        ])
       })
     ]));
     expect(cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({ type: 'TIME_STOP_GOD' }));
@@ -164,7 +203,7 @@ describe('TIME_STOP_GOD（時間停神）', () => {
     expect(gameState.turnNumber).toBe(2);
   });
 
-  test('所有者ターンでのみ減算し、3回目の所有者ターン開始で発動する', () => {
+  test('所有者ターンでのみ減算し、5回目の所有者ターン開始で発動する', () => {
     const prng = createPrng(0.2);
     const cardState = CardLogic.createCardState(prng);
     const gameState = createEmptyGameState();
@@ -183,29 +222,48 @@ describe('TIME_STOP_GOD（時間停神）', () => {
     const whiteEvents = [];
     TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'white', whiteEvents, prng);
     expect(whiteEvents.some((event) => event && String(event.type).indexOf('time_stop') >= 0)).toBe(false);
-    expect(cardState.markers[0].data.remainingOwnerTurns).toBe(3);
+    expect(cardState.markers[0].data.remainingOwnerTurns).toBe(5);
 
     const blackEvents1 = [];
     TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', blackEvents1, prng);
-    expect(cardState.markers[0].data.remainingOwnerTurns).toBe(2);
+    expect(cardState.markers[0].data.remainingOwnerTurns).toBe(4);
     expect(blackEvents1.some((event) => event && event.type === 'time_stop_triggered')).toBe(false);
 
     const whiteEvents2 = [];
     TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'white', whiteEvents2, prng);
-    expect(cardState.markers[0].data.remainingOwnerTurns).toBe(2);
+    expect(cardState.markers[0].data.remainingOwnerTurns).toBe(4);
 
     const blackEvents2 = [];
     TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', blackEvents2, prng);
-    expect(cardState.markers[0].data.remainingOwnerTurns).toBe(1);
+    expect(cardState.markers[0].data.remainingOwnerTurns).toBe(3);
+    expect(blackEvents2.some((event) => event && event.type === 'time_stop_triggered')).toBe(false);
 
     const whiteEvents3 = [];
     TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'white', whiteEvents3, prng);
-    expect(cardState.markers[0].data.remainingOwnerTurns).toBe(1);
+    expect(cardState.markers[0].data.remainingOwnerTurns).toBe(3);
 
     const blackEvents3 = [];
     TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', blackEvents3, prng);
+    expect(cardState.markers[0].data.remainingOwnerTurns).toBe(2);
+    expect(blackEvents3.some((event) => event && event.type === 'time_stop_triggered')).toBe(false);
 
-    expect(blackEvents3).toEqual(expect.arrayContaining([
+    const whiteEvents4 = [];
+    TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'white', whiteEvents4, prng);
+    expect(cardState.markers[0].data.remainingOwnerTurns).toBe(2);
+
+    const blackEvents4 = [];
+    TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', blackEvents4, prng);
+    expect(cardState.markers[0].data.remainingOwnerTurns).toBe(1);
+    expect(blackEvents4.some((event) => event && event.type === 'time_stop_triggered')).toBe(false);
+
+    const whiteEvents5 = [];
+    TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'white', whiteEvents5, prng);
+    expect(cardState.markers[0].data.remainingOwnerTurns).toBe(1);
+
+    const blackEvents5 = [];
+    TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', blackEvents5, prng);
+
+    expect(blackEvents5).toEqual(expect.arrayContaining([
       expect.objectContaining({
         type: 'time_stop_triggered',
         player: 'black',

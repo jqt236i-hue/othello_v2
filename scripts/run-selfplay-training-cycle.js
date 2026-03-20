@@ -1445,6 +1445,43 @@ function resolveNextCarryOverState(args, carryOver, result) {
     return nextState;
 }
 
+function buildPromotionCommandArgs(args, iterationPaths, adoptionResultPath, hasTargetTrainingData) {
+    const modelsDir = path.resolve(args.modelsDir);
+    return [
+        path.resolve('scripts', 'promote-policy-model.js'),
+        '--adoption-result', adoptionResultPath,
+        '--candidate-model', iterationPaths.candidateModelPath,
+        '--candidate-onnx', iterationPaths.onnxModelPath,
+        '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
+        ...(args.allowCardUsage ? [
+            '--candidate-card-onnx', iterationPaths.cardOnnxModelPath,
+            '--candidate-card-onnx-meta', iterationPaths.cardOnnxMetaPath
+        ] : []),
+        ...(hasTargetTrainingData ? [
+            '--candidate-target-onnx', iterationPaths.targetOnnxModelPath,
+            '--candidate-target-onnx-meta', iterationPaths.targetOnnxMetaPath
+        ] : []),
+        '--candidate-value-onnx', iterationPaths.valueOnnxModelPath,
+        '--candidate-value-onnx-meta', iterationPaths.valueOnnxMetaPath,
+        '--target-model', path.join(modelsDir, 'policy-table.json'),
+        '--target-onnx', path.join(modelsDir, 'policy-net.onnx'),
+        '--target-onnx-meta', path.join(modelsDir, 'policy-net.onnx.meta.json'),
+        ...(args.allowCardUsage ? [
+            '--target-card-onnx', path.join(modelsDir, 'policy-card.onnx'),
+            '--target-card-onnx-meta', path.join(modelsDir, 'policy-card.onnx.meta.json')
+        ] : []),
+        ...(hasTargetTrainingData ? [
+            '--target-target-onnx', path.join(modelsDir, 'policy-target.onnx'),
+            '--target-target-onnx-meta', path.join(modelsDir, 'policy-target.onnx.meta.json')
+        ] : []),
+        '--target-value-onnx', path.join(modelsDir, 'policy-value.onnx'),
+        '--target-value-onnx-meta', path.join(modelsDir, 'policy-value.onnx.meta.json'),
+        '--promoted-dir', path.join(modelsDir, 'promoted'),
+        '--archive-dir', path.join(modelsDir, 'archive'),
+        '--manifest', path.join(modelsDir, 'promoted', 'promotion-manifest.json')
+    ];
+}
+
 function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const seed = args.seed + ((iterationIndex - 1) * args.seedStride);
     const finalAdoptionSeed = seed + args.adoptionFinalSeedOffset;
@@ -2003,17 +2040,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         const adoptionResultPath = (args.promotionMode !== 'strict' && !finalPassed)
             ? p.quickAdoptionPath
             : p.finalAdoptionPath;
-        const promoteArgs = [
-            path.resolve('scripts', 'promote-policy-model.js'),
-            '--adoption-result', adoptionResultPath,
-            '--candidate-model', p.candidateModelPath,
-            '--candidate-onnx', p.onnxModelPath,
-            '--candidate-onnx-meta', p.onnxMetaPath,
-            ...(args.allowCardUsage ? ['--candidate-card-onnx', p.cardOnnxModelPath, '--candidate-card-onnx-meta', p.cardOnnxMetaPath] : []),
-            ...(hasTargetTrainingData ? ['--candidate-target-onnx', p.targetOnnxModelPath, '--candidate-target-onnx-meta', p.targetOnnxMetaPath] : []),
-            '--candidate-value-onnx', p.valueOnnxModelPath,
-            '--candidate-value-onnx-meta', p.valueOnnxMetaPath
-        ];
+        const promoteArgs = buildPromotionCommandArgs(args, p, adoptionResultPath, hasTargetTrainingData);
         if (args.promotionMode === 'onnx-primary' && !finalPassed) {
             promoteArgs.push('--force');
         }
@@ -2479,6 +2506,7 @@ module.exports = {
     shouldRunGateForIteration,
     resolveIterationGateControl,
     resolveNextCarryOverState,
+    buildPromotionCommandArgs,
     resolveQuickComponentDelta,
     resolvePromotionEligibility,
     extractTrainingCycleFailureDetail,

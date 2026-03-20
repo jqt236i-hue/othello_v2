@@ -968,7 +968,7 @@ describe('match worker publish sanitize', () => {
         row: 2,
         col: 3,
         owner: 'black',
-        data: expect.objectContaining({ type: 'BREEDING' })
+        data: expect.objectContaining({ type: 'BREEDING', remainingOwnerTurns: 5 })
       })
     ]));
     expect(Array.isArray(result.broadcastMeta && result.broadcastMeta.playbackEvents)).toBe(true);

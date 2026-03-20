@@ -54,7 +54,7 @@ describe('move-generator expansion pending regression', () => {
     const moves = MoveGenerator.generateMovesForPlayer(Core.BLACK, {
       type: pendingType,
       stage: 'awaitPlace',
-      placementsRemaining: pendingType === 'LAST_RESORT' ? 2 : undefined
+      placementsRemaining: pendingType === 'LAST_RESORT' ? 3 : undefined
     }, [], []);
 
     expect(moves).toEqual(expect.arrayContaining([

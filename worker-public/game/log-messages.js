@@ -22,7 +22,12 @@ const LOG_MESSAGES = {
     extremeHyperactivePlaced: (ownerName) => `${ownerName}: 極悪多動魔を配置`,
     escapeHyperactivePlaced: (ownerName) => `${ownerName}: 逃げる意志を配置`,
 
-    doublePlaceActivated: () => '二連投石発動：このターンもう1回置ける',
+    doublePlaceActivated: (label, remaining, infinite) => {
+        const safeLabel = (typeof label === 'string' && label.trim()) ? label.trim() : '二連投石';
+        if (infinite === true) return `${safeLabel}発動：合法手が尽きるまで置ける`;
+        const safeRemaining = Number.isFinite(Number(remaining)) ? Math.max(0, Math.trunc(Number(remaining))) : 1;
+        return `${safeLabel}発動：このターンあと${safeRemaining}回置ける`;
+    },
     destroySelectPrompt: () => '破壊対象を選んでください (石のあるマスのみ)',
     swapSelectPrompt: () => '交換対象（相手の石）を選んでください',
     normalStoneSelectPrompt: () => '通常石を選んでください',
@@ -32,12 +37,12 @@ const LOG_MESSAGES = {
     swapApplied: (playerLabel, posText) => `${playerLabel}が交換の意志で ${posText} を自分の石に変換`,
     destroyFailed: () => '破壊できませんでした（保護されている可能性があります）',
     swapFailed: () => '交換できません（保護/爆弾の可能性）',
-    chainExtraFlips: (count) => `連鎖反転: 追加反転 ${count}枚`,
+    chainExtraFlips: (count) => `連鎖の意志: 追加反転 ${count}枚`,
     placedWithFlips: (playerLabel, posText, count) => `${playerLabel}: ${posText} に置き、${count}枚反転`,
     regenTriggered: (count) => `復活の意志: ${count}個が再生`,
     regenCapture: (count) => `再生後の挟み反転: ${count}枚`,
 
-    doublePlaceRemaining: (playerLabel, remaining) => `>> ${playerLabel}の連続手番（残り${remaining}回）`,
+    doublePlaceRemaining: (playerLabel, remaining, label) => `>> ${playerLabel}の${label || '連続手番'}（残り${remaining}回）`,
     fatalErrorContinue: () => 'エラーが発生しました。手動で続行するかリセットしてください。',
     bombExploded: (posText) => `💥 時限爆弾が爆発！ ${posText} を中心に破壊`,
     dragonConverted: (playerName, count) => `🐉 ${playerName}の究極反転龍が周囲${count}個の石を変化！`,
@@ -65,4 +70,3 @@ const LOG_MESSAGES = {
 if (typeof module === 'object' && module.exports) {
     module.exports = LOG_MESSAGES;
 }
-
