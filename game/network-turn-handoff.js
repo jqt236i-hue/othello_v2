@@ -9,6 +9,20 @@
 
     let networkActionSchema = null;
     let playbackEventHelpers = null;
+    const BOARD_CHANGING_TURN_START_MARKER_TYPES = new Set([
+        'ULTIMATE_DESTROY_GOD',
+        'DESTROY_DRAGON',
+        'SNIPER',
+        'LIGHTNING',
+        'DRAGON',
+        'HYPERACTIVE',
+        'ESCAPE_HYPERACTIVE',
+        'INHERITED_HYPERACTIVE',
+        'EXTREME_HYPERACTIVE',
+        'ROBOT_VACUUM',
+        'GLUTTONOUS',
+        'ULTIMATE_HYPERACTIVE'
+    ]);
 
     function cloneData(value) {
         try {
@@ -136,6 +150,10 @@
         return (root && root.gameState && typeof root.gameState === 'object') ? root.gameState : null;
     }
 
+    function readCurrentCardState() {
+        return (root && root.cardState && typeof root.cardState === 'object') ? root.cardState : null;
+    }
+
     function readCurrentTurnNumber() {
         const gameStateRef = readCurrentGameState();
         return (gameStateRef && Number.isFinite(Number(gameStateRef.turnNumber)))
@@ -143,14 +161,106 @@
             : null;
     }
 
-    function isGameOverNow(customIsGameOver) {
-        const gameStateRef = readCurrentGameState();
+    function isEmptyOwner(value) {
+        return value === 0 || value === '0' || value === null || typeof value === 'undefined';
+    }
+
+    function getBoardOwnerAt(gameStateRef, row, col) {
+        if (!gameStateRef || !Number.isInteger(row) || !Number.isInteger(col)) return null;
+        if (Array.isArray(gameStateRef.board) && row >= 0 && row < gameStateRef.board.length) {
+            const rowData = gameStateRef.board[row];
+            if (Array.isArray(rowData) && col >= 0 && col < rowData.length) {
+                return rowData[col];
+            }
+        }
+        const expansionCells = gameStateRef.boardExpansion && Array.isArray(gameStateRef.boardExpansion.cells)
+            ? gameStateRef.boardExpansion.cells
+            : [];
+        const expansion = expansionCells.find((cell) => cell && cell.row === row && cell.col === col);
+        return expansion ? expansion.owner : null;
+    }
+
+    function countBoardEmpties(gameStateRef) {
+        if (!gameStateRef || !Array.isArray(gameStateRef.board)) return 0;
+        let emptyCount = 0;
+        for (const row of gameStateRef.board) {
+            if (!Array.isArray(row)) continue;
+            for (const cell of row) {
+                if (isEmptyOwner(cell)) emptyCount += 1;
+            }
+        }
+        const expansionCells = gameStateRef.boardExpansion && Array.isArray(gameStateRef.boardExpansion.cells)
+            ? gameStateRef.boardExpansion.cells
+            : [];
+        for (const cell of expansionCells) {
+            if (cell && isEmptyOwner(cell.owner)) emptyCount += 1;
+        }
+        return emptyCount;
+    }
+
+    function countDiscs(gameStateRef) {
+        if (!gameStateRef || !Array.isArray(gameStateRef.board)) {
+            return { black: 0, white: 0 };
+        }
+        let black = 0;
+        let white = 0;
+        for (const row of gameStateRef.board) {
+            if (!Array.isArray(row)) continue;
+            for (const cell of row) {
+                if (cell === 1 || cell === '1') black += 1;
+                else if (cell === -1 || cell === '-1') white += 1;
+            }
+        }
+        const expansionCells = gameStateRef.boardExpansion && Array.isArray(gameStateRef.boardExpansion.cells)
+            ? gameStateRef.boardExpansion.cells
+            : [];
+        for (const cell of expansionCells) {
+            if (!cell) continue;
+            if (cell.owner === 1 || cell.owner === '1') black += 1;
+            else if (cell.owner === -1 || cell.owner === '-1') white += 1;
+        }
+        return { black, white };
+    }
+
+    function markerMayResolveBoardChangeAtTurnStart(marker, gameStateRef) {
+        if (!marker || typeof marker !== 'object') return false;
+        const data = marker.data && typeof marker.data === 'object' ? marker.data : null;
+        if (!data) return false;
+
+        if (data.category === 'bomb') {
+            const remainingTurns = Number(data.remainingTurns);
+            const ownerAtCell = getBoardOwnerAt(gameStateRef, marker.row, marker.col);
+            return Number.isFinite(remainingTurns) && remainingTurns <= 1 && !isEmptyOwner(ownerAtCell);
+        }
+
+        const type = String(data.type || '').trim().toUpperCase();
+        if (!BOARD_CHANGING_TURN_START_MARKER_TYPES.has(type)) return false;
+        const ownerAtCell = getBoardOwnerAt(gameStateRef, marker.row, marker.col);
+        return !isEmptyOwner(ownerAtCell);
+    }
+
+    function shouldDeferGameOverUntilTurnStart(gameStateRef, cardStateRef) {
+        if (!gameStateRef || !cardStateRef) return false;
+        if (Number(gameStateRef.consecutivePasses) >= 2) return false;
+        const discs = countDiscs(gameStateRef);
+        if ((discs.black + discs.white) > 0 && (discs.black === 0 || discs.white === 0)) return false;
+        if (countBoardEmpties(gameStateRef) !== 0) return false;
+        const markers = Array.isArray(cardStateRef.markers) ? cardStateRef.markers : [];
+        return markers.some((marker) => markerMayResolveBoardChangeAtTurnStart(marker, gameStateRef));
+    }
+
+    function isGameOverNow(customIsGameOver, snapshotOverride) {
+        const gameStateRef = snapshotOverride && snapshotOverride.gameState ? snapshotOverride.gameState : readCurrentGameState();
+        const cardStateRef = snapshotOverride && snapshotOverride.cardState ? snapshotOverride.cardState : readCurrentCardState();
         const isGameOverFn = (typeof customIsGameOver === 'function')
             ? customIsGameOver
             : ((root && typeof root.isGameOver === 'function') ? root.isGameOver : null);
         if (!gameStateRef || typeof isGameOverFn !== 'function') return false;
         try {
-            return !!isGameOverFn(gameStateRef);
+            const gameOver = !!isGameOverFn(gameStateRef);
+            if (!gameOver) return false;
+            if (shouldDeferGameOverUntilTurnStart(gameStateRef, cardStateRef)) return false;
+            return true;
         } catch (e) {
             return false;
         }
@@ -191,7 +301,7 @@
             ? Math.max(0, Math.trunc(Number(opts.cpuDelayMs)))
             : ((root && Number.isFinite(Number(root.CPU_TURN_DELAY_MS))) ? Math.max(0, Math.trunc(Number(root.CPU_TURN_DELAY_MS))) : 600);
 
-        if (isGameOverNow(opts.isGameOver)) {
+        if (isGameOverNow(opts.isGameOver, snapshotOverride)) {
             if (resultOrder === 'beforePublish') showResultIfAvailable(opts.showResult);
             publishSnapshotFn(buildPublishMeta({
                 playerKey,
@@ -247,7 +357,7 @@
             snapshot: snapshotOverride
         }));
 
-        if (opts.checkGameOverAfterTurnStart !== false && isGameOverNow(opts.isGameOver)) {
+        if (opts.checkGameOverAfterTurnStart !== false && isGameOverNow(opts.isGameOver, snapshotOverride)) {
             showResultIfAvailable(opts.showResult);
             if (setProcessing) setProcessing(false);
             return {

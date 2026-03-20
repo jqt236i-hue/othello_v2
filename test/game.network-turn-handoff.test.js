@@ -140,4 +140,53 @@ describe('network-turn-handoff', () => {
     expect(setProcessing).toHaveBeenCalledWith(false);
     expect(result).toMatchObject({ gameOver: true, scheduledCpu: false, nextPlayerKey: 'black' });
   });
+
+  test('full board with pending escape explosion defers result until turn start', async () => {
+    const rowA = [1, -1, 1, -1, 1, -1, 1, -1];
+    const rowB = rowA.slice().reverse();
+    global.gameState = {
+      currentPlayer: 'white',
+      turnNumber: 20,
+      consecutivePasses: 0,
+      board: [rowA.slice(), rowB.slice(), rowA.slice(), rowB.slice(), rowA.slice(), rowB.slice(), rowA.slice(), rowB.slice()]
+    };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      markers: [
+        {
+          kind: 'specialStone',
+          row: 3,
+          col: 3,
+          owner: 'black',
+          data: { type: 'ESCAPE_HYPERACTIVE', remainingOwnerTurns: 5 }
+        }
+      ]
+    };
+    global.isGameOver = jest.fn()
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(false);
+
+    const handoff = require('../game/network-turn-handoff');
+    const publishSnapshot = jest.fn();
+    const onTurnStart = jest.fn(async () => ({
+      playbackEvents: [{ type: 'escape_explosion', phase: 1 }]
+    }));
+
+    const result = await handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'black',
+      actionType: 'place',
+      action: { type: 'place', row: 7, col: 7, turnIndex: 20 },
+      playbackEvents: [{ type: 'flip', phase: 1 }],
+      publishSnapshot,
+      onTurnStart,
+      humanMode: true
+    });
+
+    expect(onTurnStart).toHaveBeenCalledTimes(1);
+    expect(global.showResult).not.toHaveBeenCalled();
+    expect(publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      playbackEvents: [{ type: 'flip', phase: 1 }, { type: 'escape_explosion', phase: 2 }]
+    }));
+    expect(result).toMatchObject({ gameOver: false, scheduledCpu: false, nextPlayerKey: 'white' });
+  });
 });

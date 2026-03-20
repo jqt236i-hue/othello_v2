@@ -15,6 +15,7 @@
     const { BLACK, WHITE } = SharedConstants || {};
     const P_BLACK = BLACK || 1;
     const P_WHITE = WHITE || -1;
+    const P_EMPTY = 0;
 
     function normalizeExpansionOwner(owner) {
         return (owner === P_BLACK || owner === P_WHITE) ? owner : 0;
@@ -162,6 +163,64 @@
             }
         }
         return false;
+    }
+
+    function isBlockedDestinationCell(cardState, row, col) {
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        return markers.some((marker) => {
+            if (!marker || marker.row !== row || marker.col !== col) return false;
+            if (marker.kind !== 'specialStone') return false;
+            const markerType = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+            return markerType === 'BLOCKADE' || markerType === 'METEOR_HOLE' || markerType === 'FREEZE';
+        });
+    }
+
+    function getRandomTurnStartMoveDestination(cardState, gameState, fromRow, fromCol, deps = {}) {
+        if (deps && typeof deps.selectRandomEmptyBoardShapeDestination === 'function') {
+            return deps.selectRandomEmptyBoardShapeDestination(cardState, gameState, fromRow, fromCol, deps.randomSource);
+        }
+        const candidates = [];
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                if (row === fromRow && col === fromCol) continue;
+                if (getCellValue(gameState, row, col) !== P_EMPTY) continue;
+                if (isBlockedDestinationCell(cardState, row, col)) continue;
+                candidates.push({ row, col });
+            }
+        }
+        const expansionCells = getExpansionCells(gameState);
+        for (const cell of expansionCells) {
+            if (!cell || !Number.isInteger(cell.row) || !Number.isInteger(cell.col)) continue;
+            if (cell.row === fromRow && cell.col === fromCol) continue;
+            if (getCellValue(gameState, cell.row, cell.col) !== P_EMPTY) continue;
+            if (isBlockedDestinationCell(cardState, cell.row, cell.col)) continue;
+            candidates.push({ row: cell.row, col: cell.col });
+        }
+        if (!candidates.length) return null;
+        const randomSource = deps && deps.randomSource && typeof deps.randomSource.random === 'function'
+            ? deps.randomSource
+            : { random: () => 0 };
+        const rawIndex = Math.floor(randomSource.random() * candidates.length);
+        const index = Math.max(0, Math.min(candidates.length - 1, rawIndex));
+        return candidates[index] || candidates[0] || null;
+    }
+
+    function moveCoexistingMarkers(cardState, anchorEntry, fromRow, fromCol, toRow, toCol, deps = {}) {
+        if (deps && typeof deps.moveCoexistingSpecialMarkers === 'function') {
+            deps.moveCoexistingSpecialMarkers(cardState, anchorEntry, fromRow, fromCol, toRow, toCol);
+            return;
+        }
+        if (!Array.isArray(cardState && cardState.markers)) return;
+        for (const marker of cardState.markers) {
+            if (!marker || marker === anchorEntry) continue;
+            if (marker.row !== fromRow || marker.col !== fromCol) continue;
+            if (marker.kind === 'specialStone') {
+                const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+                if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE') continue;
+            }
+            marker.row = toRow;
+            marker.col = toCol;
+        }
     }
 
     function forEachNeighborCell(gameState, row, col, handler) {
@@ -382,6 +441,7 @@
     function processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps = {}) {
         // Process a single dragon anchor at turn start: decrement counter and apply conversions/expiration
         const BoardOps = deps.BoardOps;
+        const moved = [];
         const converted = [];
         const destroyed = [];
         const anchors = [];
@@ -392,12 +452,45 @@
         const dragon = (cardState.markers || []).find(s =>
             s.kind === 'specialStone' && s.data && s.data.type === 'DRAGON' && s.owner === playerKey && s.row === row && s.col === col
         );
-        if (!dragon) return { converted, destroyed, anchors };
+        if (!dragon) return { moved, converted, destroyed, anchors };
 
         // Anchor must still be owner's stone
         if (getCellValue(gameState, row, col) !== player) {
             if (dragon.data) dragon.data.remainingOwnerTurns = -1;
-            return { converted, destroyed, anchors };
+            return { moved, converted, destroyed, anchors };
+        }
+
+        let anchorRow = row;
+        let anchorCol = col;
+        const moveTarget = getRandomTurnStartMoveDestination(cardState, gameState, row, col, deps);
+        if (moveTarget) {
+            let movedRes = false;
+            if (BoardOps && typeof BoardOps.moveAt === 'function') {
+                const res = BoardOps.moveAt(
+                    cardState,
+                    gameState,
+                    row,
+                    col,
+                    moveTarget.row,
+                    moveTarget.col,
+                    'ULTIMATE_REVERSE_DRAGON',
+                    'ultimate_reverse_dragon_move'
+                );
+                movedRes = !!(res && res.moved);
+            } else {
+                movedRes = setCellValue(gameState, row, col, P_EMPTY) && setCellValue(gameState, moveTarget.row, moveTarget.col, player);
+            }
+            if (movedRes) {
+                moveCoexistingMarkers(cardState, dragon, row, col, moveTarget.row, moveTarget.col, deps);
+                dragon.row = moveTarget.row;
+                dragon.col = moveTarget.col;
+                anchorRow = moveTarget.row;
+                anchorCol = moveTarget.col;
+                moved.push({
+                    from: { row, col },
+                    to: { row: moveTarget.row, col: moveTarget.col }
+                });
+            }
         }
 
         const before = (dragon.data && (dragon.data.remainingOwnerTurns !== undefined && dragon.data.remainingOwnerTurns !== null))
@@ -405,8 +498,8 @@
             : 0;
         const afterDec = before - 1;
         if (dragon.data) dragon.data.remainingOwnerTurns = afterDec;
-        if (afterDec < 0) return { converted, destroyed, anchors };
-        anchors.push({ row, col, remainingNow: afterDec });
+        if (afterDec < 0) return { moved, converted, destroyed, anchors };
+        anchors.push({ row: anchorRow, col: anchorCol, remainingNow: afterDec });
 
         const protectedSet = buildDragonFlipProtectedSet(cardState, deps);
         const clearBombAt = (r, c) => {
@@ -416,7 +509,7 @@
             cardState.markers = cardState.markers.filter(x => !(isBombCategoryMarker(x) && x.row === r && x.col === c));
         };
 
-        forEachNeighborCell(gameState, row, col, (r, c, value) => {
+        forEachNeighborCell(gameState, anchorRow, anchorCol, (r, c, value) => {
                 if (value === opponent) {
                     const key = `${r},${c}`;
                     if (protectedSet.has(key)) return;
@@ -431,11 +524,11 @@
         });
 
         if (afterDec === 0) {
-            destroyed.push({ row, col });
+            destroyed.push({ row: anchorRow, col: anchorCol });
             if (BoardOps && typeof BoardOps.destroyAt === 'function') {
-                BoardOps.destroyAt(cardState, gameState, row, col, 'DRAGON', 'anchor_expired');
+                BoardOps.destroyAt(cardState, gameState, anchorRow, anchorCol, 'DRAGON', 'anchor_expired');
             } else {
-                setCellValue(gameState, row, col, 0);
+                setCellValue(gameState, anchorRow, anchorCol, P_EMPTY);
             }
             if (dragon.data) dragon.data.remainingOwnerTurns = -1;
         }
@@ -460,7 +553,7 @@
             );
         }
 
-        return { converted, destroyed, anchors };
+        return { moved, converted, destroyed, anchors };
     }
 
     return {

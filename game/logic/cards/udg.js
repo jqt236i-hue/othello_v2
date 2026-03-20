@@ -175,6 +175,63 @@
         return false;
     }
 
+    function isBlockedDestinationCell(cardState, row, col) {
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        return markers.some((marker) => {
+            if (!marker || marker.row !== row || marker.col !== col) return false;
+            if (marker.kind !== 'specialStone') return false;
+            const markerType = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+            return markerType === 'BLOCKADE' || markerType === 'METEOR_HOLE' || markerType === 'FREEZE';
+        });
+    }
+
+    function getRandomTurnStartMoveDestination(cardState, gameState, fromRow, fromCol, deps = {}) {
+        if (deps && typeof deps.selectRandomEmptyBoardShapeDestination === 'function') {
+            return deps.selectRandomEmptyBoardShapeDestination(cardState, gameState, fromRow, fromCol, deps.randomSource);
+        }
+        const candidates = [];
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                if (row === fromRow && col === fromCol) continue;
+                if (getCellValue(gameState, row, col) !== EMPTY) continue;
+                if (isBlockedDestinationCell(cardState, row, col)) continue;
+                candidates.push({ row, col });
+            }
+        }
+        for (const cell of getExpansionCells(gameState)) {
+            if (!cell || !Number.isInteger(cell.row) || !Number.isInteger(cell.col)) continue;
+            if (cell.row === fromRow && cell.col === fromCol) continue;
+            if (getCellValue(gameState, cell.row, cell.col) !== EMPTY) continue;
+            if (isBlockedDestinationCell(cardState, cell.row, cell.col)) continue;
+            candidates.push({ row: cell.row, col: cell.col });
+        }
+        if (!candidates.length) return null;
+        const randomSource = deps && deps.randomSource && typeof deps.randomSource.random === 'function'
+            ? deps.randomSource
+            : { random: () => 0 };
+        const rawIndex = Math.floor(randomSource.random() * candidates.length);
+        const index = Math.max(0, Math.min(candidates.length - 1, rawIndex));
+        return candidates[index] || candidates[0] || null;
+    }
+
+    function moveCoexistingMarkers(cardState, anchorEntry, fromRow, fromCol, toRow, toCol, deps = {}) {
+        if (deps && typeof deps.moveCoexistingSpecialMarkers === 'function') {
+            deps.moveCoexistingSpecialMarkers(cardState, anchorEntry, fromRow, fromCol, toRow, toCol);
+            return;
+        }
+        if (!Array.isArray(cardState && cardState.markers)) return;
+        for (const marker of cardState.markers) {
+            if (!marker || marker === anchorEntry) continue;
+            if (marker.row !== fromRow || marker.col !== fromCol) continue;
+            if (marker.kind === 'specialStone') {
+                const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+                if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE') continue;
+            }
+            marker.row = toRow;
+            marker.col = toCol;
+        }
+    }
+
     function forEachNeighborCell(gameState, row, col, handler) {
         for (let dr = -1; dr <= 1; dr++) {
             for (let dc = -1; dc <= 1; dc++) {
@@ -196,7 +253,123 @@
         return cells;
     }
 
+    function collectDestroyedNeighbors(cardState, gameState, playerKey, opponent, sourceRow, sourceCol, deps = {}) {
+        const destroyed = [];
+        const destroyAt = deps.destroyAt || ((cs, gs, r, c) => {
+            const current = getCellValue(gs, r, c);
+            if (current === null || current === EMPTY) return false;
+            if (cs.markers) cs.markers = cs.markers.filter(m => !(m.row === r && m.col === c));
+            setCellValue(gs, r, c, EMPTY);
+            return true;
+        });
+
+        const neighborCells = getNeighborCellsSnapshot(gameState, sourceRow, sourceCol);
+        const targets = neighborCells.filter((cell) => cell && cell.value === opponent);
+        const forbiddenEvadeCells = neighborCells.map((cell) => ({ row: cell.row, col: cell.col }));
+        for (const target of targets) {
+            if (!target) continue;
+            let destroyedRes = false;
+            if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
+                const res = deps.BoardOps.destroyAt(cardState, gameState, target.row, target.col, 'ULTIMATE_DESTROY_GOD', 'udg_destroyed', {
+                    sourceRow,
+                    sourceCol,
+                    projectileOwner: playerKey,
+                    projectileStone: 'udg_lightning',
+                    forbiddenEvadeCells
+                });
+                destroyedRes = !!(res && res.destroyed);
+            } else {
+                destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
+            }
+            if (destroyedRes) {
+                destroyed.push({ row: target.row, col: target.col });
+            }
+        }
+
+        return destroyed;
+    }
+
+    function processUltimateDestroyGodTurnStartAnchorCore(cardState, gameState, udg, playerKey, player, opponent, deps = {}) {
+        const moved = [];
+        const destroyed = [];
+        const anchors = [];
+        const expired = [];
+        const destroyAt = deps.destroyAt || ((cs, gs, r, c) => {
+            const current = getCellValue(gs, r, c);
+            if (current === null || current === EMPTY) return false;
+            if (cs.markers) cs.markers = cs.markers.filter(m => !(m.row === r && m.col === c));
+            setCellValue(gs, r, c, EMPTY);
+            return true;
+        });
+
+        if (!udg) return { moved, destroyed, anchors, expired };
+        if (getCellValue(gameState, udg.row, udg.col) !== player) {
+            if (udg.data) udg.data.remainingOwnerTurns = -1;
+            return { moved, destroyed, anchors, expired };
+        }
+
+        let anchorRow = udg.row;
+        let anchorCol = udg.col;
+        const moveTarget = getRandomTurnStartMoveDestination(cardState, gameState, udg.row, udg.col, deps);
+        if (moveTarget) {
+            let movedRes = false;
+            if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
+                const res = deps.BoardOps.moveAt(
+                    cardState,
+                    gameState,
+                    udg.row,
+                    udg.col,
+                    moveTarget.row,
+                    moveTarget.col,
+                    'ULTIMATE_DESTROY_GOD',
+                    'ultimate_destroy_god_move'
+                );
+                movedRes = !!(res && res.moved);
+            } else {
+                movedRes = setCellValue(gameState, udg.row, udg.col, EMPTY) && setCellValue(gameState, moveTarget.row, moveTarget.col, player);
+            }
+            if (movedRes) {
+                moveCoexistingMarkers(cardState, udg, udg.row, udg.col, moveTarget.row, moveTarget.col, deps);
+                moved.push({
+                    from: { row: udg.row, col: udg.col },
+                    to: { row: moveTarget.row, col: moveTarget.col }
+                });
+                udg.row = moveTarget.row;
+                udg.col = moveTarget.col;
+                anchorRow = moveTarget.row;
+                anchorCol = moveTarget.col;
+            }
+        }
+
+        destroyed.push(...collectDestroyedNeighbors(cardState, gameState, playerKey, opponent, anchorRow, anchorCol, deps));
+
+        const before = (udg.data && (udg.data.remainingOwnerTurns !== undefined && udg.data.remainingOwnerTurns !== null))
+            ? udg.data.remainingOwnerTurns
+            : 0;
+        const afterDec = before - 1;
+        if (udg.data) udg.data.remainingOwnerTurns = afterDec;
+        if (afterDec < 0) return { moved, destroyed, anchors, expired };
+        anchors.push({ row: anchorRow, col: anchorCol, remainingNow: afterDec });
+
+        if (afterDec === 0) {
+            let destroyedRes = false;
+            if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
+                const res = deps.BoardOps.destroyAt(cardState, gameState, anchorRow, anchorCol, 'ULTIMATE_DESTROY_GOD', 'anchor_expired');
+                destroyedRes = !!(res && res.destroyed);
+            } else {
+                destroyedRes = destroyAt(cardState, gameState, anchorRow, anchorCol);
+            }
+            if (destroyedRes) {
+                expired.push({ row: anchorRow, col: anchorCol });
+            }
+            if (udg.data) udg.data.remainingOwnerTurns = -1;
+        }
+
+        return { moved, destroyed, anchors, expired };
+    }
+
     function processUltimateDestroyGodEffects(cardState, gameState, playerKey, deps = {}) {
+        const moved = [];
         const destroyed = [];
         const anchors = [];
         const expired = [];
@@ -215,62 +388,14 @@
         });
 
         const udgs = (cardState.markers || []).filter(s => s.kind === 'specialStone' && s.data && s.data.type === 'ULTIMATE_DESTROY_GOD' && s.owner === playerKey);
-        if (!udgs.length) return { destroyed, anchors, expired };
+        if (!udgs.length) return { moved, destroyed, anchors, expired };
 
         for (const udg of udgs) {
-            // Anchor must still be the owner's stone
-            if (getCellValue(gameState, udg.row, udg.col) !== player) {
-                if (udg.data) udg.data.remainingOwnerTurns = -1;
-                continue;
-            }
-
-            // 1) Destroy surrounding enemy stones (Destroy)
-            const neighborCells = getNeighborCellsSnapshot(gameState, udg.row, udg.col);
-            const targets = neighborCells.filter((cell) => cell && cell.value === opponent);
-            const forbiddenEvadeCells = neighborCells.map((cell) => ({ row: cell.row, col: cell.col }));
-            for (const target of targets) {
-                if (!target) continue;
-                let destroyedRes = false;
-                if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                    const res = deps.BoardOps.destroyAt(cardState, gameState, target.row, target.col, 'ULTIMATE_DESTROY_GOD', 'udg_destroyed', {
-                        sourceRow: udg.row,
-                        sourceCol: udg.col,
-                        projectileOwner: playerKey,
-                        projectileStone: 'udg_lightning',
-                        forbiddenEvadeCells
-                    });
-                    destroyedRes = !!(res && res.destroyed);
-                } else {
-                    destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
-                }
-                if (destroyedRes) {
-                    destroyed.push({ row: target.row, col: target.col });
-                }
-            }
-
-            // 2) Decrement remaining turns
-            const before = (udg.data && (udg.data.remainingOwnerTurns !== undefined && udg.data.remainingOwnerTurns !== null))
-                ? udg.data.remainingOwnerTurns
-                : 0;
-            const afterDec = before - 1;
-            if (udg.data) udg.data.remainingOwnerTurns = afterDec;
-            if (afterDec < 0) continue;
-            anchors.push({ row: udg.row, col: udg.col, remainingNow: afterDec });
-
-            // 3) Expire at 0: destroy anchor
-            if (afterDec === 0) {
-                let destroyedRes = false;
-                if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                    const res = deps.BoardOps.destroyAt(cardState, gameState, udg.row, udg.col, 'ULTIMATE_DESTROY_GOD', 'anchor_expired');
-                    destroyedRes = !!res.destroyed;
-                } else {
-                    destroyedRes = destroyAt(cardState, gameState, udg.row, udg.col);
-                }
-                if (destroyedRes) {
-                    expired.push({ row: udg.row, col: udg.col });
-                }
-                if (udg.data) udg.data.remainingOwnerTurns = -1;
-            }
+            const result = processUltimateDestroyGodTurnStartAnchorCore(cardState, gameState, udg, playerKey, player, opponent, deps);
+            moved.push(...result.moved);
+            destroyed.push(...result.destroyed);
+            anchors.push(...result.anchors);
+            expired.push(...result.expired);
         }
 
         if (cardState.markers) {
@@ -282,7 +407,7 @@
             );
         }
 
-        return { destroyed, anchors, expired };
+        return { moved, destroyed, anchors, expired };
     }
 
     function processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps = {}) {
@@ -374,10 +499,34 @@
     }
 
     function processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps = {}) {
-        // Single-anchor turn-start processing for UDG: destroy surrounding, decrement, expire
-        // This re-uses the anchor-level processor with the default behavior (which decrements remainingOwnerTurns).
-        const result = processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps);
-        return result;
+        const moved = [];
+        const destroyed = [];
+        const anchors = [];
+        const expired = [];
+        const P_BLACK = BLACK || 1;
+        const P_WHITE = WHITE || -1;
+        const player = playerKey === 'black' ? P_BLACK : P_WHITE;
+        const opponent = -player;
+
+        const udg = (cardState.markers || []).find(s =>
+            s.kind === 'specialStone' && s.data && s.data.type === 'ULTIMATE_DESTROY_GOD' && s.owner === playerKey && s.row === row && s.col === col
+        );
+        const result = processUltimateDestroyGodTurnStartAnchorCore(cardState, gameState, udg, playerKey, player, opponent, deps);
+        moved.push(...result.moved);
+        destroyed.push(...result.destroyed);
+        anchors.push(...result.anchors);
+        expired.push(...result.expired);
+
+        if (cardState.markers) {
+            cardState.markers = cardState.markers.filter(m =>
+                m.kind !== 'specialStone' ||
+                !m.data ||
+                m.data.type !== 'ULTIMATE_DESTROY_GOD' ||
+                (m.data.remainingOwnerTurns !== undefined && m.data.remainingOwnerTurns !== null && m.data.remainingOwnerTurns >= 0)
+            );
+        }
+
+        return { moved, destroyed, anchors, expired };
     }
 
     return {

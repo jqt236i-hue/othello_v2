@@ -10,9 +10,14 @@ describe('stone image assets', () => {
     assert.ok(fs.existsSync(path.join(stonesDir, 'normal_stone-white.png')));
   });
 
-  it('includes the TIME_STOP stone PNGs', () => {
+  test('includes the TIME_STOP stone PNGs', () => {
     assert.ok(fs.existsSync(path.join(stonesDir, 'TIME_STOP-black.png')));
     assert.ok(fs.existsSync(path.join(stonesDir, 'TIME_STOP-white.png')));
+  });
+
+  it('includes the ABSOLUTE_PROTECT_NEXT_STONE PNGs (最強の意志)', () => {
+    assert.ok(fs.existsSync(path.join(stonesDir, 'absolute_protect_next_stone-black.png')));
+    assert.ok(fs.existsSync(path.join(stonesDir, 'absolute_protect_next_stone-white.png')));
   });
 
   it('declares CSS variables for the normal stone images', () => {

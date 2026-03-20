@@ -57,6 +57,7 @@
     const ULTIMATE_HYPERACTIVE_TURNS = 10;
     const EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
     const ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
+    const ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT = 1;
     const SNIPER_WILL_TURNS = 5;
     const DESTROY_DRAGON_TURNS = 3;
     const LIGHTNING_WILL_TURNS = 5;
@@ -1372,6 +1373,36 @@
             .filter((cell) => getCellValueForCard(gameState, cell.row, cell.col) === EMPTY);
     }
 
+    function selectRandomEmptyBoardShapeDestination(cardState, gameState, fromRow, fromCol, randomSource) {
+        const candidates = getEmptyBoardShapeCellsForCard(cardState, gameState)
+            .filter((cell) => {
+                if (!cell) return false;
+                if (cell.row === fromRow && cell.col === fromCol) return false;
+                return !isBlockedCell(cardState, cell.row, cell.col, gameState);
+            });
+        if (!candidates.length) return null;
+        const rng = randomSource && typeof randomSource.random === 'function'
+            ? randomSource
+            : { random: () => 0 };
+        const rawIndex = Math.floor(rng.random() * candidates.length);
+        const index = Math.max(0, Math.min(candidates.length - 1, rawIndex));
+        return candidates[index] || candidates[0] || null;
+    }
+
+    function moveCoexistingSpecialMarkers(cardState, anchorEntry, fromRow, fromCol, toRow, toCol) {
+        if (!Array.isArray(cardState && cardState.markers)) return;
+        for (const marker of cardState.markers) {
+            if (!marker || marker === anchorEntry) continue;
+            if (marker.row !== fromRow || marker.col !== fromCol) continue;
+            if (marker.kind === 'specialStone') {
+                const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+                if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE') continue;
+            }
+            marker.row = toRow;
+            marker.col = toCol;
+        }
+    }
+
     function collectEmptyNeighborCellsForCard(cardState, gameState, row, col) {
         const neighbors = [];
         const seen = new Set();
@@ -1450,8 +1481,14 @@
     }
 
     function isPositionSwapProtectedCell(cardState, row, col) {
-        const special = findSpecialMarkerAt(cardState, row, col);
-        return !!(special && special.data && special.data.type === 'GLUTTONOUS');
+        return !!(
+            findSpecialMarkerAt(cardState, row, col, 'GLUTTONOUS') ||
+            findSpecialMarkerAt(cardState, row, col, 'ABSOLUTE_PROTECTED')
+        );
+    }
+
+    function isAbsoluteProtectedCell(cardState, row, col) {
+        return !!findSpecialMarkerAt(cardState, row, col, 'ABSOLUTE_PROTECTED');
     }
 
     function removeMarkersAt(cardState, row, col, options) {
@@ -2637,6 +2674,7 @@
             if (getCellValueForCard(gameState, row, col) !== playerVal) continue;
             const hasBomb = markers.some(m => m && m.row === row && m.col === col && isBombCategoryMarker(m));
             if (hasBomb) continue;
+            if (isAbsoluteProtectedCell(cardState, row, col)) continue;
             const hasOwnTrap = markers.some(m => (
                 m &&
                 m.row === row &&
@@ -2674,6 +2712,7 @@
             if (getCellValueForCard(gameState, row, col) !== playerVal) continue;
             const hasBomb = markers.some(m => m && m.row === row && m.col === col && isBombCategoryMarker(m));
             if (hasBomb) continue;
+            if (isAbsoluteProtectedCell(cardState, row, col)) continue;
             res.push({ row, col });
         }
         return res;
@@ -2761,7 +2800,8 @@
         const hasDestination = destinations.length > 0;
         if (!hasDestination) return [];
 
-        return getOccupiedBoardShapeCellsForCard(cardState, gameState);
+        return getOccupiedBoardShapeCellsForCard(cardState, gameState)
+            .filter((cell) => !isAbsoluteProtectedCell(cardState, cell.row, cell.col));
     }
 
     function getCloneTargets(cardState, gameState, playerKey) {
@@ -3038,6 +3078,7 @@
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
                 if (isMeteorHoleCell(cardState, r, c)) continue;
+                if (isAbsoluteProtectedCell(cardState, r, c)) continue;
                 res.push({ row: r, col: c });
             }
         }
@@ -3045,6 +3086,7 @@
         for (const cell of expansionCells) {
             if (!cell) continue;
             if (isMeteorHoleCell(cardState, cell.row, cell.col)) continue;
+            if (isAbsoluteProtectedCell(cardState, cell.row, cell.col)) continue;
             res.push({ row: cell.row, col: cell.col });
         }
         return res;
@@ -3087,6 +3129,7 @@
         const targets = getTrapTargets(cardState, gameState, playerKey);
         const allowed = targets.some(t => t.row === row && t.col === col);
         if (!allowed) return { applied: false, reason: 'invalid_target' };
+        if (isAbsoluteProtectedCell(cardState, row, col)) return { applied: false, reason: 'absolute_protected' };
 
         // Trap replaces any existing special marker at the target cell.
         removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone' });
@@ -3206,6 +3249,7 @@
             m.data.type === 'GUARD'
         ));
         if (guarded) return { applied: false, reason: 'guarded' };
+        if (isAbsoluteProtectedCell(cardState, row, col)) return { applied: false, reason: 'absolute_protected' };
 
         // Use BoardOps.changeAt if available
         if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
@@ -3465,8 +3509,7 @@
         const targets = getTimeBombTargets(cardState, gameState, playerKey);
         const allowed = targets.some(t => t.row === row && t.col === col);
         if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        // Convert selected stone into a bomb marker.
+        if (isAbsoluteProtectedCell(cardState, row, col)) return { applied: false, reason: 'absolute_protected' };
         removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone' });
         const existingBomb = findBombMarkerAt(cardState, row, col);
         if (existingBomb) return { applied: false, reason: 'exists' };
@@ -3857,6 +3900,8 @@
         const allowed = targets.some(t => t.row === row && t.col === col);
         if (!allowed) return { applied: false, reason: 'invalid_target' };
 
+        if (isAbsoluteProtectedCell(cardState, row, col)) return { applied: false, reason: 'absolute_protected' };
+
         const cellValue = getCellValueForCard(gameState, row, col);
         if (cellValue === null) return { applied: false, reason: 'out_of_board' };
 
@@ -3938,6 +3983,7 @@
         const removableSpecials = specials.filter((marker) => {
             if (!marker) return false;
             if (marker.data && marker.data.type === 'METEOR_HOLE') return false;
+            if (marker.data && marker.data.type === 'ABSOLUTE_PROTECTED') return false;
             if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return true;
             return !guardedCells.has(`${marker.row},${marker.col}`);
         });
@@ -3945,6 +3991,7 @@
         const removableBombs = bombs.filter((marker) => {
             if (!marker) return false;
             if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return true;
+            if (isAbsoluteProtectedCell(cardState, marker.row, marker.col)) return false;
             return !guardedCells.has(`${marker.row},${marker.col}`);
         });
         return removableSpecials.length + removableBombs.length;
@@ -3973,6 +4020,7 @@
         const removableSpecials = specials.filter((marker) => {
             if (!marker) return false;
             if (marker.data && marker.data.type === 'METEOR_HOLE') return false;
+            if (marker.data && marker.data.type === 'ABSOLUTE_PROTECTED') return false;
             if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return true;
             return !guardedCells.has(`${marker.row},${marker.col}`);
         });
@@ -3981,6 +4029,7 @@
         const removableBombs = bombs.filter((marker) => {
             if (!marker) return false;
             if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return true;
+            if (isAbsoluteProtectedCell(cardState, marker.row, marker.col)) return false;
             return !guardedCells.has(`${marker.row},${marker.col}`);
         });
 
@@ -4001,10 +4050,12 @@
             if (!(marker && (marker.kind === specialKind || isBombCategoryMarker(marker)))) return true;
             if (!isBombCategoryMarker(marker)) {
                 if (marker.data && marker.data.type === 'METEOR_HOLE') return true;
+                if (marker.data && marker.data.type === 'ABSOLUTE_PROTECTED') return true;
                 if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return false;
                 return guardedCells.has(`${marker.row},${marker.col}`);
             }
             if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return false;
+            if (isAbsoluteProtectedCell(cardState, marker.row, marker.col)) return true;
             return guardedCells.has(`${marker.row},${marker.col}`);
         });
 
@@ -4573,6 +4624,7 @@
                 ULTIMATE_HYPERACTIVE_TURNS,
                 EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT,
                 ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT,
+                ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT,
                 SNIPER_WILL_TURNS,
                 DESTROY_DRAGON_TURNS,
                 LIGHTNING_WILL_TURNS,
@@ -4597,6 +4649,7 @@
                 addChargeWithTotal,
                 addMarker,
                 applyStrongWill,
+                applyAbsoluteProtect,
                 applyRegenWill,
                 workDebugLog,
                 workDebugError,
@@ -4698,6 +4751,18 @@
         if (!already) {
             addMarker(cardState, 'specialStone', row, col, playerKey, {
                 type: 'PERMA_PROTECTED'
+            });
+        }
+        return { applied: true };
+    }
+
+    function applyAbsoluteProtect(cardState, playerKey, row, col) {
+        const already = getSpecialMarkers(cardState).some(s =>
+            s.row === row && s.col === col && s.data && s.data.type === 'ABSOLUTE_PROTECTED'
+        );
+        if (!already) {
+            addMarker(cardState, 'specialStone', row, col, playerKey, {
+                type: 'ABSOLUTE_PROTECTED'
             });
         }
         return { applied: true };
@@ -5166,7 +5231,12 @@
      * @returns {Object} { converted: [...], destroyed: [...] }
      */
     function processDragonEffects(cardState, gameState, playerKey) {
-        const dragonDeps = { BoardOps: BoardOpsModule, getCardContext };
+        const dragonDeps = {
+            BoardOps: BoardOpsModule,
+            getCardContext,
+            selectRandomEmptyBoardShapeDestination,
+            moveCoexistingSpecialMarkers
+        };
         // Delegate to effects module
         if (typeof module === 'object' && module.exports) {
             const mod = require('./effects/dragon');
@@ -5188,7 +5258,12 @@
      * @returns {Object} { converted: [...], destroyed: [...] }
      */
     function processDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col) {
-        const dragonDeps = { BoardOps: BoardOpsModule, getCardContext };
+        const dragonDeps = {
+            BoardOps: BoardOpsModule,
+            getCardContext,
+            selectRandomEmptyBoardShapeDestination,
+            moveCoexistingSpecialMarkers
+        };
         // Delegate to effects module
         if (typeof module === 'object' && module.exports) {
             const mod = require('./effects/dragon');
@@ -5203,8 +5278,13 @@
         return { converted: [], destroyed: [] };
     }
 
-    function processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col) {
-        const dragonDeps = { BoardOps: BoardOpsModule, getCardContext };
+    function processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, opts = {}) {
+        const dragonDeps = Object.assign({
+            BoardOps: BoardOpsModule,
+            getCardContext,
+            selectRandomEmptyBoardShapeDestination,
+            moveCoexistingSpecialMarkers
+        }, opts);
         if (typeof module === 'object' && module.exports) {
             try {
                 const mod = require('./effects/dragon');
@@ -5217,7 +5297,7 @@
             return DragonEffects.processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, dragonDeps);
         }
         console.warn('[cards.js] DragonEffects turn-start anchor processor not available');
-        return { converted: [], destroyed: [], anchors: [] };
+        return { moved: [], converted: [], destroyed: [], anchors: [] };
     }
 
 
@@ -5226,14 +5306,20 @@
      * Delegates to cards/udg.js module.
      */
     function processUltimateDestroyGodEffects(cardState, gameState, playerKey) {
+        const deps = {
+            destroyAt,
+            BoardOps: BoardOpsModule,
+            selectRandomEmptyBoardShapeDestination,
+            moveCoexistingSpecialMarkers
+        };
         // Delegate to module
         if (typeof module === 'object' && module.exports) {
             const mod = require('./cards/udg');
-            return mod.processUltimateDestroyGodEffects(cardState, gameState, playerKey, { destroyAt, BoardOps: BoardOpsModule });
+            return mod.processUltimateDestroyGodEffects(cardState, gameState, playerKey, deps);
         }
         // Browser: use global
         if (typeof CardUdG !== 'undefined' && typeof CardUdG.processUltimateDestroyGodEffects === 'function') {
-            return CardUdG.processUltimateDestroyGodEffects(cardState, gameState, playerKey, { destroyAt, BoardOps: BoardOpsModule });
+            return CardUdG.processUltimateDestroyGodEffects(cardState, gameState, playerKey, deps);
         }
         console.warn('[cards.js] CardUdG module not available');
         return { destroyed: [], anchors: [], expired: [] };
@@ -5246,7 +5332,12 @@
      */
     function processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, opts = {}) {
         // Delegate to module
-        const deps = Object.assign({ destroyAt, BoardOps: BoardOpsModule }, opts);
+        const deps = Object.assign({
+            destroyAt,
+            BoardOps: BoardOpsModule,
+            selectRandomEmptyBoardShapeDestination,
+            moveCoexistingSpecialMarkers
+        }, opts);
         if (typeof module === 'object' && module.exports) {
             const mod = require('./cards/udg');
             return mod.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps);
@@ -5259,20 +5350,26 @@
         return { destroyed: [] };
     }
 
-    function processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col) {
+    function processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, opts = {}) {
+        const deps = Object.assign({
+            destroyAt,
+            BoardOps: BoardOpsModule,
+            selectRandomEmptyBoardShapeDestination,
+            moveCoexistingSpecialMarkers
+        }, opts);
         if (typeof module === 'object' && module.exports) {
             try {
                 const mod = require('./cards/udg');
                 if (mod && typeof mod.processUltimateDestroyGodEffectsAtTurnStartAnchor === 'function') {
-                    return mod.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, { destroyAt, BoardOps: BoardOpsModule });
+                    return mod.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
                 }
             } catch (e) { /* ignore */ }
         }
         if (typeof CardUdG !== 'undefined' && typeof CardUdG.processUltimateDestroyGodEffectsAtTurnStartAnchor === 'function') {
-            return CardUdG.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, { destroyAt, BoardOps: BoardOpsModule });
+            return CardUdG.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
         }
         console.warn('[cards.js] CardUdG turn-start anchor processor not available');
-        return { destroyed: [] };
+        return { moved: [], destroyed: [], anchors: [], expired: [] };
     }
 
     let cachedSniperModule = undefined;
@@ -6249,11 +6346,12 @@
             .filter(s => s.data && s.data.type === 'PROTECTED')
             .map(s => ({ row: s.row, col: s.col, owner: s.owner }));
 
-        // PERMA_PROTECTED, DRAGON, BREEDING, UDG, LIGHTNING, GLUTTONOUS, and GUARD stones are immune to flipping.
+        // PERMA_PROTECTED, ABSOLUTE_PROTECTED, DRAGON, BREEDING, UDG, LIGHTNING, GLUTTONOUS, and GUARD stones are immune to flipping.
         const permaProtectedStones = specials
             .filter(s => {
                 if (!s.data) return false;
                 if (
+                    s.data.type === 'ABSOLUTE_PROTECTED' ||
                     s.data.type === 'PERMA_PROTECTED' ||
                     s.data.type === 'DRAGON' ||
                     s.data.type === 'BREEDING' ||
@@ -6489,6 +6587,7 @@
         applySwapEffect,
         applyPositionSwapWill,
         applyStrongWill,
+        applyAbsoluteProtect,
         applySacrificeWill,
         applySellCardWill,
         applyHeavenBlessingChoice,
@@ -6564,6 +6663,7 @@
         getCurrentCornerCellsForCard,
         countOccupiedCornersForPlayer,
         isBlockedCell,
+        isAbsoluteProtectedCell,
         getTrapTargets,
         applyTrapWill,
         processTrapEffects,

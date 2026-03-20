@@ -30,6 +30,9 @@
             ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT: Number.isFinite(Number(constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT))
                 ? Number(constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT)
                 : 3,
+            ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT: Number.isFinite(Number(constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT))
+                ? Number(constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT)
+                : 1,
             SNIPER_WILL_TURNS: constants.SNIPER_WILL_TURNS,
             DESTROY_DRAGON_TURNS: constants.DESTROY_DRAGON_TURNS,
             LIGHTNING_WILL_TURNS: constants.LIGHTNING_WILL_TURNS,
@@ -318,6 +321,18 @@
             }
         }
 
+        if (pending && pending.type === 'ABSOLUTE_PROTECT_NEXT_STONE') {
+            if (typeof helpers.applyAbsoluteProtect === 'function') {
+                const res = helpers.applyAbsoluteProtect(cardState, playerKey, row, col);
+                if (res && res.applied) effects.absoluteProtected = true;
+            } else if (typeof helpers.addMarker === 'function') {
+                helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
+                    type: 'ABSOLUTE_PROTECTED'
+                });
+                effects.absoluteProtected = true;
+            }
+        }
+
         if (pending && pending.type === 'REGEN_WILL' && typeof helpers.applyRegenWill === 'function') {
             helpers.applyRegenWill(cardState, playerKey, row, col);
             effects.regenPlaced = true;
@@ -501,7 +516,8 @@
             helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
                 type: 'ULTIMATE_HYPERACTIVE',
                 remainingOwnerTurns: constants.ULTIMATE_HYPERACTIVE_TURNS,
-                flipEvadeRemaining: constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT
+                flipEvadeRemaining: constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT,
+                destroyEvadeRemaining: constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT
             });
             effects.ultimateHyperactivePlaced = true;
         }

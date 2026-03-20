@@ -44,6 +44,20 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     ]);
   });
 
+  test('logs dragon_moved_start and udg_moved_start as 移動', () => {
+    const rawEvents = [
+      { type: 'dragon_moved_start', details: [{ from: { row: 4, col: 4 }, to: { row: 0, col: 0 } }] },
+      { type: 'udg_moved_start', details: [{ from: { row: 3, col: 3 }, to: { row: 7, col: 7 } }, { from: { row: 1, col: 1 }, to: { row: 2, col: 2 } }] }
+    ];
+
+    const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'black');
+
+    expect(out).toEqual([
+      '黒: 究極反転龍: 1回移動',
+      '黒: 究極破壊神: 2回移動'
+    ]);
+  });
+
 
   test('logs cross bomb explosion count in placement_effects', () => {
     const rawEvents = [

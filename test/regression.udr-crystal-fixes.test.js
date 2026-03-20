@@ -122,6 +122,78 @@ describe('UDR and Crystal regressions', () => {
         ]);
     });
 
+    test('ULTIMATE_REVERSE_DRAGON owner turn start moves first and flips around the new anchor', () => {
+        const { cardState, gameState } = createStates(0);
+        const events = [];
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                gameState.board[row][col] = Core.WHITE;
+            }
+        }
+        gameState.board[4][4] = Core.BLACK;
+        gameState.board[0][0] = Core.EMPTY;
+        cardState.markers.push({
+            id: 902,
+            kind: 'specialStone',
+            row: 4,
+            col: 4,
+            owner: 'black',
+            data: { type: 'DRAGON', remainingOwnerTurns: 5 }
+        });
+
+        TurnPipelinePhases.applyTurnStartPhase(
+            CardLogic,
+            Core,
+            cardState,
+            gameState,
+            'black',
+            events,
+            createPrng(0),
+            BoardOps
+        );
+
+        expect(gameState.board[4][4]).toBe(Core.EMPTY);
+        expect(gameState.board[0][0]).toBe(Core.BLACK);
+        expect(gameState.board[0][1]).toBe(Core.BLACK);
+        expect(gameState.board[1][0]).toBe(Core.BLACK);
+        expect(gameState.board[1][1]).toBe(Core.BLACK);
+        expect(gameState.board[4][5]).toBe(Core.WHITE);
+        const marker = cardState.markers.find((m) => m && m.id === 902);
+        expect(marker).toBeTruthy();
+        expect(marker.row).toBe(0);
+        expect(marker.col).toBe(0);
+        expect(marker.data.remainingOwnerTurns).toBe(4);
+
+        const moveEvent = events.find((ev) => ev && ev.type === 'dragon_moved_start');
+        expect(moveEvent).toBeTruthy();
+        expect(moveEvent.details).toEqual([
+            {
+                from: { row: 4, col: 4 },
+                to: { row: 0, col: 0 }
+            }
+        ]);
+        const convertEvent = events.find((ev) => ev && ev.type === 'dragon_converted_start');
+        expect(convertEvent).toBeTruthy();
+        expect(convertEvent.details.map((detail) => `${detail.row},${detail.col}`).sort()).toEqual([
+            '0,1',
+            '1,0',
+            '1,1'
+        ]);
+
+        const presentationEvents = CardLogic.flushPresentationEvents(cardState) || [];
+        const movePresentation = presentationEvents.find((ev) => (
+            ev &&
+            ev.type === 'MOVE' &&
+            ev.prevRow === 4 &&
+            ev.prevCol === 4 &&
+            ev.row === 0 &&
+            ev.col === 0 &&
+            ev.cause === 'ULTIMATE_REVERSE_DRAGON' &&
+            ev.reason === 'ultimate_reverse_dragon_move'
+        ));
+        expect(movePresentation).toBeTruthy();
+    });
+
     test('selfplay runner passes the same Crystal evaluation metrics as the in-game CPU context', () => {
         const gameState = Core.createGameState();
         gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));

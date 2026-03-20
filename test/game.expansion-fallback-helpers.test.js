@@ -91,6 +91,11 @@ describe('expansion fallback helpers', () => {
         { side: 'right', row: 7, col: 8, owner: Shared.WHITE }
       ])
     };
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        gameState.board[row][col] = Shared.WHITE;
+      }
+    }
     gameState.board[7][7] = Shared.WHITE;
 
     const out = DragonEffects.processDragonEffectsAtTurnStartAnchor(cardState, gameState, 'black', 8, 7);
@@ -228,6 +233,11 @@ describe('expansion fallback helpers', () => {
         { side: 'left', row: -1, col: -1, owner: Shared.WHITE }
       ])
     };
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        gameState.board[row][col] = Shared.WHITE;
+      }
+    }
     gameState.board[0][0] = Shared.BLACK;
 
     const destroyAt = jest.fn(() => true);

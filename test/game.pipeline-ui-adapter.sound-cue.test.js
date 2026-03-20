@@ -1079,4 +1079,27 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cues).toHaveLength(3);
     expect(cues.map((ev) => ev.phase)).toEqual([2, 3, 4]);
   });
+
+  test('究極反転龍 / 究極破壊神の owner-turn move には専用 SE を追加する', () => {
+    const base = [
+      {
+        type: 'move',
+        phase: 2,
+        targets: [{ from: { r: 4, col: 4 }, to: { r: 0, col: 0 }, cause: 'ULTIMATE_REVERSE_DRAGON', reason: 'ultimate_reverse_dragon_move' }]
+      },
+      {
+        type: 'move',
+        phase: 5,
+        targets: [{ from: { r: 3, col: 3 }, to: { r: 7, col: 7 }, cause: 'ULTIMATE_DESTROY_GOD', reason: 'ultimate_destroy_god_move' }]
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const anchorCues = out.filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'ultimate_anchor_move');
+    const hyperactiveCues = out.filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'hyperactive_move');
+
+    expect(anchorCues).toHaveLength(2);
+    expect(anchorCues.map((ev) => ev.phase)).toEqual([2, 5]);
+    expect(hyperactiveCues).toHaveLength(0);
+  });
 });

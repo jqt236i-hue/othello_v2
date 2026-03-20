@@ -570,7 +570,8 @@
                     const col = m.marker.col;
                     if (t !== 'FREEZE' && isFrozenCell(cardState, row, col)) continue;
                     if (t === 'ULTIMATE_DESTROY_GOD' && owner === playerKey) {
-                        const res = CardLogic.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col);
+                        const res = CardLogic.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, { randomSource: p });
+                        if (res && res.moved && res.moved.length) events.push({ type: 'udg_moved_start', details: res.moved });
                         if (res && res.destroyed && res.destroyed.length) events.push({ type: 'udg_destroyed_start', details: res.destroyed });
                         if (res && res.expired && res.expired.length) events.push({ type: 'udg_expired_start', details: res.expired });
                     } else if (t === 'DESTROY_DRAGON' && owner === playerKey) {
@@ -632,7 +633,8 @@
                             }
                         }
                     } else if (t === 'DRAGON' && owner === playerKey) {
-                        const res = CardLogic.processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col);
+                        const res = CardLogic.processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, { randomSource: p });
+                        if (res && res.moved && res.moved.length) events.push({ type: 'dragon_moved_start', details: res.moved });
                         if (res && res.converted && res.converted.length) {
                             addChargeWithTotal(cardState, playerKey, res.converted.length);
                             events.push({ type: 'dragon_converted_start', details: res.converted });

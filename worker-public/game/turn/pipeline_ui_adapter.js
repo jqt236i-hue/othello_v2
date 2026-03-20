@@ -84,6 +84,7 @@
     ]);
     const SOUND_EVENT_TYPE = 'sound_effect';
     const CARD_EFFECT_FLIP_SOUND_KEY = 'card_effect_flip';
+    const ULTIMATE_ANCHOR_MOVE_SOUND_KEY = 'ultimate_anchor_move';
     const CARD_EFFECT_FLIP_RAW_EVENT_TYPES = new Set([
         'dragon_converted_start',
         'dragon_converted_immediate',
@@ -1247,6 +1248,17 @@
         );
     }
 
+    function _isUltimateAnchorMoveTarget(target) {
+        const cause = String(target && target.cause ? target.cause : '').toUpperCase();
+        const reason = String(target && target.reason ? target.reason : '').toLowerCase();
+        return (
+            cause === 'ULTIMATE_REVERSE_DRAGON' ||
+            cause === 'ULTIMATE_DESTROY_GOD' ||
+            reason.indexOf('ultimate_reverse_dragon_move') === 0 ||
+            reason.indexOf('ultimate_destroy_god_move') === 0
+        );
+    }
+
     function _isSuperCrushMoveTarget(target) {
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
@@ -1433,6 +1445,34 @@
             const cardEffectFlipFallbackCount = _countCardEffectFlipFallbackEvents(raw);
             for (let i = 0; i < cardEffectFlipFallbackCount; i++) {
                 pushCue(CARD_EFFECT_FLIP_SOUND_KEY, fallbackPhase + i, 'card_effect_flip', { allowRepeat: true });
+            }
+        }
+
+        const ultimateAnchorMoveEvents = base.filter((ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => _isUltimateAnchorMoveTarget(t)));
+        if (ultimateAnchorMoveEvents.length > 0) {
+            for (const moveEv of ultimateAnchorMoveEvents) {
+                const phase = _phaseNum(moveEv && moveEv.phase);
+                const targets = Array.isArray(moveEv.targets) ? moveEv.targets : [];
+                const moveCount = targets.filter((t) => _isUltimateAnchorMoveTarget(t)).length;
+                for (let i = 0; i < moveCount; i++) {
+                    pushCue(ULTIMATE_ANCHOR_MOVE_SOUND_KEY, phase, 'ultimate_anchor_moved', { allowRepeat: true });
+                }
+            }
+        } else {
+            const fallbackMoveCount = raw.reduce((sum, ev) => {
+                if (!ev || !ev.type) return sum;
+                if (
+                    ev.type !== 'dragon_moved_start' &&
+                    ev.type !== 'dragon_moved_immediate' &&
+                    ev.type !== 'udg_moved_start' &&
+                    ev.type !== 'udg_moved_immediate'
+                ) {
+                    return sum;
+                }
+                return sum + _rawDetailCount(ev);
+            }, 0);
+            for (let i = 0; i < fallbackMoveCount; i++) {
+                pushCue(ULTIMATE_ANCHOR_MOVE_SOUND_KEY, fallbackPhase + i, 'ultimate_anchor_moved', { allowRepeat: true });
             }
         }
 
@@ -1921,6 +1961,10 @@
                 case 'dragon_converted_immediate':
                     push(`究極反転龍: ${_detailCount(ev)}枚を反転`);
                     break;
+                case 'dragon_moved_start':
+                case 'dragon_moved_immediate':
+                    push(`究極反転龍: ${_detailCount(ev)}回移動`);
+                    break;
                 case 'dragon_destroyed_anchor_start':
                 case 'dragon_destroyed_anchor_immediate':
                     push(`究極反転龍: 親石${_detailCount(ev)}個が消滅`);
@@ -1991,6 +2035,10 @@
                 case 'udg_destroyed_start':
                 case 'udg_destroyed_immediate':
                     push(`究極破壊神: ${_detailCount(ev)}個を破壊`);
+                    break;
+                case 'udg_moved_start':
+                case 'udg_moved_immediate':
+                    push(`究極破壊神: ${_detailCount(ev)}回移動`);
                     break;
                 case 'udg_expired_start':
                 case 'udg_expired_immediate':

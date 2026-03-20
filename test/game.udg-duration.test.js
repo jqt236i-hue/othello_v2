@@ -68,6 +68,61 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
     expect(marker).toBeUndefined();
   });
 
+  test('owner turn start moves to a random empty cell before destroying around the new anchor', () => {
+    const { cardState, gameState } = makeStates();
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        gameState.board[row][col] = -1;
+      }
+    }
+    gameState.board[4][4] = 1;
+    gameState.board[0][0] = 0;
+    cardState.markers.push({
+      id: 9401,
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 }
+    });
+
+    const res = CardLogic.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4, {
+      randomSource: { random: () => 0 }
+    });
+
+    expect(res.moved).toEqual([
+      {
+        from: { row: 4, col: 4 },
+        to: { row: 0, col: 0 }
+      }
+    ]);
+    expect((res.destroyed || []).map((item) => `${item.row},${item.col}`).sort()).toEqual(['0,1', '1,0', '1,1']);
+    expect(gameState.board[4][4]).toBe(0);
+    expect(gameState.board[0][0]).toBe(1);
+    expect(gameState.board[0][1]).toBe(0);
+    expect(gameState.board[1][0]).toBe(0);
+    expect(gameState.board[1][1]).toBe(0);
+    expect(gameState.board[4][5]).toBe(-1);
+    const marker = cardState.markers.find((m) => m && m.id === 9401);
+    expect(marker).toBeTruthy();
+    expect(marker.row).toBe(0);
+    expect(marker.col).toBe(0);
+    expect(marker.data.remainingOwnerTurns).toBe(4);
+
+    const presentationEvents = CardLogic.flushPresentationEvents(cardState) || [];
+    const moveEvent = presentationEvents.find((ev) => (
+      ev &&
+      ev.type === 'MOVE' &&
+      ev.prevRow === 4 &&
+      ev.prevCol === 4 &&
+      ev.row === 0 &&
+      ev.col === 0 &&
+      ev.cause === 'ULTIMATE_DESTROY_GOD' &&
+      ev.reason === 'ultimate_destroy_god_move'
+    ));
+    expect(moveEvent).toBeTruthy();
+  });
+
   test('destroys adjacent enemy stone on expansion cell', () => {
     const { cardState, gameState } = makeStates();
     gameState.board[3][0] = 1;

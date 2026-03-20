@@ -389,6 +389,15 @@
         return markers.some((marker) => String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase() === 'FREEZE');
     }
 
+    function _isAbsoluteProtectedCell(cardState, row, col) {
+        const cardMarkers = getCardMarkersModule();
+        if (cardMarkers && typeof cardMarkers.isAbsoluteProtectedCell === 'function') {
+            return !!cardMarkers.isAbsoluteProtectedCell(cardState, row, col);
+        }
+        const markers = _getSpecialMarkersAt(cardState, row, col);
+        return markers.some((marker) => String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase() === 'ABSOLUTE_PROTECTED');
+    }
+
     function _isBlockedDestinationCell(cardState, row, col) {
         const cardMarkers = getCardMarkersModule();
         if (cardMarkers && typeof cardMarkers.getBlockingMarkers === 'function') {
@@ -677,6 +686,7 @@
         const prev = getCellValue(gameState, row, col);
         if (prev === EMPTY) return { destroyed: false };
         if (prev === null) return { destroyed: false, reason: 'out_of_board' };
+        if (_isAbsoluteProtectedCell(cardState, row, col)) return { destroyed: false, reason: 'absolute_protected' };
         const ignoreGuard = !!(meta && meta.ignoreGuard === true);
         const cardMarkers = getCardMarkersModule();
 
@@ -783,6 +793,7 @@
         const ownerAfterVal = ownerAfterKey === 'black' ? (SharedConstants.BLACK || 1) : (SharedConstants.WHITE || -1);
         if (prev === ownerAfterVal) return { changed: false };
         if (_isFrozenCell(cardState, row, col)) return { changed: false, reason: 'frozen_protected' };
+        if (_isAbsoluteProtectedCell(cardState, row, col)) return { changed: false, reason: 'absolute_protected' };
         const ownerBeforeKey = (prev === (SharedConstants.BLACK || 1))
             ? 'black'
             : ((prev === (SharedConstants.WHITE || -1)) ? 'white' : null);
@@ -838,6 +849,7 @@
         if (prev === EMPTY) return { moved: false };
         if (prev === null) return { moved: false, reason: 'from_out_of_board' };
         if (_isFrozenCell(cardState, fromRow, fromCol)) return { moved: false, reason: 'frozen_source' };
+        if (_isAbsoluteProtectedCell(cardState, fromRow, fromCol)) return { moved: false, reason: 'absolute_protected_source' };
         // If dest occupied, we consider it invalid for now
         const destVal = getCellValue(gameState, toRow, toCol);
         if (destVal === null) return { moved: false, reason: 'to_out_of_board' };

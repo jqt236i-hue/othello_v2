@@ -236,6 +236,14 @@ describe('rules help panel', () => {
     expect(html).toMatch(/<dt>\s*破壊回避\s*<\/dt>/);
   });
 
+  test('rules-help.js EFFECT_GLOSSARY_TERMS includes 絶対保護', () => {
+    // Load the module and check the exported or internal glossary terms list.
+    // The module uses EFFECT_GLOSSARY_TERMS to highlight card descriptions.
+    // This test verifies the term is registered so 絶対保護 in card descriptions gets highlighted.
+    const source = fs.readFileSync(path.resolve(__dirname, '../ui/handlers/rules-help.js'), 'utf8');
+    expect(source).toContain('絶対保護');
+  });
+
   test('index html includes update info help tab', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     expect(html).toMatch(/data-help-tab="updates">アップデート情報<\/button>/);

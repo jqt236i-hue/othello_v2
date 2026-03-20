@@ -113,7 +113,7 @@
 | type | 名称 | cost | 主用途 |
 |---|---|---:|---|
 | TREASURE_BOX | 宝箱 | 0 | 経済 |
-| FREE_PLACEMENT | 自由の意志 | 10 | 展開 |
+| FREE_PLACEMENT | 自由の意志 | 14 | 展開 |
 | SNIPER_WILL | 狙撃の意志 | 23 | 攻撃 |
 | PROTECTED_NEXT_STONE | 弱い意志 | 1 | 防御 |
 | SWAP_WITH_ENEMY | 交換の意志 | 17 | 攻撃 |

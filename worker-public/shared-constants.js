@@ -105,8 +105,8 @@
         // TREASURE_BOX (宝箱) - 1 card, cost: 0
         { id: 'chest_01', name: '宝箱', type: 'TREASURE_BOX', cost: 0, desc: '使用時に布石を1〜3ランダムで獲得する。' },
 
-        // FREE_PLACEMENT (自由の意志) - 1 card, cost: 16
-        { id: 'free_01', name: '自由の意志', type: 'FREE_PLACEMENT', cost: 16, desc: '反転できなくても、空いているマスならどこにでも石を置ける' },
+        // FREE_PLACEMENT (自由の意志) - 1 card, cost: 14
+        { id: 'free_01', name: '自由の意志', type: 'FREE_PLACEMENT', cost: 14, desc: '反転できなくても、空いているマスならどこにでも石を置ける' },
 
         // LAST_RESORT (最後の切り札) - 1 card, cost: 9
         { id: 'last_resort_01', name: '最後の切り札', type: 'LAST_RESORT', cost: 9, desc: '相手より石数が少なく、通常の合法手がない時だけ使用可能。空きマスに自由配置で3回置ける（固定3回）。' },
@@ -129,12 +129,15 @@
 
         // PERMA_PROTECT_NEXT_STONE (強い意志) - 1 card, cost: 15
         { id: 'perma_01', name: '強い意志', type: 'PERMA_PROTECT_NEXT_STONE', cost: 15, desc: '次に置いた石は、ずっと反転されない。' },
+
+        // ABSOLUTE_PROTECT_NEXT_STONE (最強の意志) - 1 card, cost: 30
+        { id: 'absolute_protect_01', name: '最強の意志', type: 'ABSOLUTE_PROTECT_NEXT_STONE', cost: 30, desc: '次に置いた石に絶対保護を付与する。絶対保護は永続し、反転・交換・破壊・テレポート・位置交換・マス破壊・意志の喪失を含む全効果を無効化する。強い意志の上位。' },
         // STRONG_WIND_WILL (強風の意志) - 1 card, cost: 9
         { id: 'strong_wind_01', name: '強風の意志', type: 'STRONG_WIND_WILL', cost: 9, desc: '盤面の石1つを選び、最も長く進める上下左右方向へ飛ばす（同距離はランダム）。' },
-        // SUPER_BUOYANCY_WILL (超浮力) - 1 card, cost: 14
-        { id: 'super_buoyancy_01', name: '超浮力', type: 'SUPER_BUOYANCY_WILL', cost: 14, desc: '盤面の石1つを選び、上方向へ限界まで移動させる。進行方向上の石は衝突時にすべて破壊して進む。' },
-        // SUPER_GRAVITY_WILL (超重力) - 1 card, cost: 14
-        { id: 'super_gravity_01', name: '超重力', type: 'SUPER_GRAVITY_WILL', cost: 14, desc: '盤面の石1つを選び、下方向へ限界まで移動させる。進行方向上の石は衝突時にすべて破壊して進む。' },
+        // SUPER_BUOYANCY_WILL (超浮力) - 1 card, cost: 16
+        { id: 'super_buoyancy_01', name: '超浮力', type: 'SUPER_BUOYANCY_WILL', cost: 16, desc: '盤面の石1つを選び、上方向へ限界まで移動させる。進行方向上の石は衝突時にすべて破壊して進む。' },
+        // SUPER_GRAVITY_WILL (超重力) - 1 card, cost: 16
+        { id: 'super_gravity_01', name: '超重力', type: 'SUPER_GRAVITY_WILL', cost: 16, desc: '盤面の石1つを選び、下方向へ限界まで移動させる。進行方向上の石は衝突時にすべて破壊して進む。' },
 
         { id: 'trap_01', name: '罠の意志', type: 'TRAP_WILL', cost: 4, desc: '自分の石を1つ罠石にしてターン終了。次の相手ターン中に反転されると、相手の布石を最大20奪う＋手札全破壊。' },
 
@@ -154,7 +157,7 @@
         { id: 'time_stop_god_01', name: '時間停石', type: 'TIME_STOP_GOD', cost: 0, desc: '使用時にランダムで自分の石5つを破壊し、次に置く石を時間停石化する。5回目の自ターン開始時に時間停止し、そのターンと次のターンを連続で行動する。発動時に時間停石は消滅し、先に消えた場合は不発。' },
 
         // ULTIMATE_REVERSE_DRAGON (究極反転龍) - 1 card, cost: 30
-        { id: 'udr_01', name: '究極反転龍', type: 'ULTIMATE_REVERSE_DRAGON', cost: 30, desc: '反転0でも空きマスに配置可能。次に置く石を龍化。配置ターン即時＋自ターン開始時、周囲8マスの相手石を自分色に反転（反転数はチャージ対象）。持続5ターン（配置ターン含め最大6回発動）で消滅。反転保護を持つ特殊石。' },
+        { id: 'udr_01', name: '究極反転龍', type: 'ULTIMATE_REVERSE_DRAGON', cost: 30, desc: '反転0でも空きマスに配置可能。次に置く石を龍化。置いた時に周囲1マス（8方向）を反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転し、移動先が無いときはその場で反転する。5ターン持続。反転保護を持つ特殊石。' },
 
         // BREEDING_WILL (繁殖の意志) - 1 card, cost: 16
         { id: 'breeding_01', name: '繁殖の意志', type: 'BREEDING_WILL', cost: 16, desc: '次に置く石を繁殖石化。配置時と自ターン開始時に周囲8マスへランダム1個生成。以後は前回生成石の周囲へ拡散。生成石が反転/消滅した場合は親石起点に戻る。持続5ターン。' },
@@ -250,10 +253,10 @@
         { id: 'lightning_01', name: '落雷', type: 'LIGHTNING_WILL', cost: 26, desc: '次に置く石を落雷石化。配置ターン即時と自ターン開始時に盤面上のランダムな敵石を1個破壊する。5ターン持続。反転保護を持つ特殊石。' },
 
         // ULTIMATE_DESTROY_GOD (究極破壊神) - 1 card, cost: 25
-        { id: 'udg_01', name: '究極破壊神', type: 'ULTIMATE_DESTROY_GOD', cost: 25, desc: '反転0でも空きマスに配置可能。次に置く石を究極破壊神化。配置ターン即時＋自ターン開始時、周囲8マスの敵石を破壊。持続5ターン（配置ターン含め最大6回）。' },
+        { id: 'udg_01', name: '究極破壊神', type: 'ULTIMATE_DESTROY_GOD', cost: 25, desc: '反転0でも空きマスに配置可能。次に置く石を究極破壊神化。置いた時に周囲1マス（8方向）の敵石を破壊。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）の敵石を破壊し、移動先が無いときはその場で破壊する。5ターン持続。' },
 
         // ULTIMATE_HYPERACTIVE_GOD (究極多動神) - 1 card, cost: 28
-        { id: 'ultimate_hyperactive_01', name: '究極多動神', type: 'ULTIMATE_HYPERACTIVE_GOD', cost: 28, desc: '次に置く石を究極多動神化。両者ターン開始時に直線1〜5マス移動を2回行い、2マス以上は途中の石を飛び越える。移動後に挟めば反転。反転対象時はマス移動で回避し、最大3回まで。移動先が無いと消滅。特殊石として扱われ、10ターン後は自己消滅する。' },
+        { id: 'ultimate_hyperactive_01', name: '究極多動神', type: 'ULTIMATE_HYPERACTIVE_GOD', cost: 28, desc: '次に置く石を究極多動神化。両者ターン開始時に直線1〜5マス移動を2回行い、2マス以上は途中の石を飛び越える。移動後に挟めば反転。反転対象時はマス移動で回避し、最大3回まで。破壊対象時も1回だけマス移動で回避する。移動先が無いと消滅。特殊石として扱われ、10ターン後は自己消滅する。' },
 
         // BOARD_EXPANSION_WILL (盤面拡張) - 1 card, cost: 19
         { id: 'board_expand_01', name: '盤面拡張', type: 'BOARD_EXPANSION_WILL', cost: 19, desc: '盤面の左右どちらか外側に1マスを追加する。追加位置は左右端マスから選ぶ。1対局で1回のみ使用可能。' },
@@ -292,6 +295,7 @@
         'POSITION_SWAP_WILL',
         'SACRIFICE_WILL',
         'PERMA_PROTECT_NEXT_STONE',
+        'ABSOLUTE_PROTECT_NEXT_STONE',
         'STRONG_WIND_WILL',
         'SUPER_BUOYANCY_WILL',
         'SUPER_GRAVITY_WILL',

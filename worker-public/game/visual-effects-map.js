@@ -71,6 +71,20 @@ const GAME_STONE_VISUAL_EFFECTS = {
             'background-color': 'transparent'
         }
     },
+    // 絶対保護（最強の意志）
+    absoluteProtectedStone: {
+        cssClass: 'absolute-protected-stone',
+        cssMethod: 'background',
+        imagePathByOwner: {
+            '1': 'assets/images/stones/absolute_protect_next_stone-black.png',   // BLACK owner
+            '-1': 'assets/images/stones/absolute_protect_next_stone-white.png'   // WHITE owner
+        },
+        backgroundSize: '100% 100%',
+        dataAttributes: {},
+        clearStyles: {
+            'background-color': 'transparent'
+        }
+    },
     // 短期保護（弱い意志）
     protectedStoneTemporary: {
         cssClass: 'protected-gray',
@@ -305,7 +319,8 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'TIME_STOP_GOD': 'timeStopStone',
     'CROSS_BOMB': 'crossBombStone',
     'X_BOMB': 'xBombStone',
-    'TRAP_WILL': 'trapStone'
+    'TRAP_WILL': 'trapStone',
+    'ABSOLUTE_PROTECT_NEXT_STONE': 'absoluteProtectedStone'
 };
 
 function getEffectKeyForPendingType(pendingType) {
@@ -343,7 +358,8 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'CROSS_BOMB': 'crossBombStone',
     'X_BOMB': 'xBombStone',
     'TRAP': 'trapStone',
-    'TRAP_REVEAL': 'trapStone'
+    'TRAP_REVEAL': 'trapStone',
+    'ABSOLUTE_PROTECTED': 'absoluteProtectedStone'
 };
 
 function normalizeStoneVisualDefinitions(map) {

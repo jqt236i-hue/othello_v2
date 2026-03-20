@@ -42,6 +42,7 @@ const SoundEngine = {
         extend_life: '延命の意志で特殊石の持続ターンを増やすタイミング.mp3',
         corrosion_tick: '腐食の意志で特殊石の持続ターンを減らすタイミング.mp3',
         hyperactive_move: '多動系カードの石がマス移動するタイミング.mp3',
+        ultimate_anchor_move: '究極反転龍と究極破壊神が移動するタイミング.mp3',
         robot_vacuum_suck: 'ロボット掃除機が敵石を吸い込むタイミング.mp3',
         breeding_spawn: '繁殖の意志の石生成で石が生成されたタイミング.mp3',
         card_effect_flip: 'カード効果で石が反転するタイミング.mp3',

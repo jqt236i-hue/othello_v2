@@ -151,9 +151,11 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-desc').textContent).toContain('直線1〜5マス移動を2回行い');
     expect(document.getElementById('stone-info-desc').textContent).toContain('2マス以上は途中の石を飛び越える');
     expect(document.getElementById('stone-info-desc').textContent).toContain('最大3回');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('破壊対象時も1回だけ');
     expect(document.getElementById('stone-info-desc').textContent).toContain('10ターン後は自己消滅する');
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避');
   });
 
   test('long press renders effect tags as buttons and toggles tag detail panel', () => {
@@ -430,5 +432,52 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-desc').textContent).toContain('反転・破壊・移動されない');
     expect(document.getElementById('stone-info-desc').textContent).toContain('反転経路も遮断');
     expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
+  });
+
+  test('long press on ABSOLUTE_PROTECTED shows registered info with flip and destroy protection tags', () => {
+    global.cardState.markers.push({
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'ABSOLUTE_PROTECTED' }
+    });
+
+    const mod = require('../ui/diff-renderer.js');
+    const cell = document.createElement('div');
+    document.getElementById('board').appendChild(cell);
+    mod.attachBoardCellInteraction(cell, 3, 3);
+
+    dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 100, clientY: 100 });
+    jest.advanceTimersByTime(430);
+
+    const panel = document.getElementById('stone-info-panel');
+    expect(panel).not.toBeNull();
+    expect(panel.classList.contains('visible')).toBe(true);
+
+    expect(document.getElementById('stone-info-name').textContent).toBe('絶対保護石');
+    expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('全ての効果を無効化');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('反転保護');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('破壊保護');
+  });
+
+  test('showSpecialStoneInfoAt ABSOLUTE_PROTECTED does not show fallback text', () => {
+    global.cardState.markers = [{
+      kind: 'specialStone',
+      row: 5,
+      col: 2,
+      owner: 'white',
+      data: { type: 'ABSOLUTE_PROTECTED' }
+    }];
+
+    const mod = require('../ui/diff-renderer.js');
+    const shown = mod.showSpecialStoneInfoAt(5, 2);
+    expect(shown).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('絶対保護石');
+    expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('反転保護');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('破壊保護');
   });
 });

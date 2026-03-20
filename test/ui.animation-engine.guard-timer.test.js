@@ -320,6 +320,8 @@ describe('animation-engine guard timer rendering', () => {
       await assertFixedDuration('STRONG_WIND_WILL', 'strong_wind_move', 400);
       await assertFixedDuration('SUPER_BUOYANCY_WILL', 'super_buoyancy_move', 400);
       await assertFixedDuration('SUPER_GRAVITY_WILL', 'super_gravity_move', 400);
+      await assertFixedDuration('ULTIMATE_REVERSE_DRAGON', 'ultimate_reverse_dragon_move', 400);
+      await assertFixedDuration('ULTIMATE_DESTROY_GOD', 'ultimate_destroy_god_move', 400);
       await assertFixedDuration('ULTIMATE_HYPERACTIVE_GOD', 'ultimate_hyperactive_move', 400);
       await assertFixedDuration('POSITION_SWAP_WILL', 'position_swap', 320);
     } finally {
@@ -462,7 +464,9 @@ describe('animation-engine guard timer rendering', () => {
   test.each([
     ['HYPERACTIVE', 'hyperactive_move'],
     ['HYPERACTIVE_INHERIT_WILL', 'inherited_hyperactive_move'],
-    ['ULTIMATE_HYPERACTIVE_GOD', 'ultimate_hyperactive_step_move']
+    ['ULTIMATE_HYPERACTIVE_GOD', 'ultimate_hyperactive_step_move'],
+    ['ULTIMATE_REVERSE_DRAGON', 'ultimate_reverse_dragon_move'],
+    ['ULTIMATE_DESTROY_GOD', 'ultimate_destroy_god_move']
   ])('%s after-state playback hides destination disc during hyperactive-family move', async (cause, reason) => {
     const board = document.getElementById('board');
     const setRect = (el, row, col) => {

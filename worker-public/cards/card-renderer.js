@@ -260,11 +260,38 @@ function _normalizeCardStateForRender(state) {
     return state;
 }
 
-function consumeChargeDeltaEvents(cardState, chargeDeltaHandler) {
-    if (!cardState || !Array.isArray(cardState.chargeDeltaEvents) || cardState.chargeDeltaEvents.length === 0) {
+function _resolveTransientNetworkChargeDeltaEvents() {
+    try {
+        if (typeof globalThis !== 'undefined' && Array.isArray(globalThis.__networkTransientChargeDeltaEvents)) {
+            return globalThis.__networkTransientChargeDeltaEvents;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && Array.isArray(window.__networkTransientChargeDeltaEvents)) {
+            return window.__networkTransientChargeDeltaEvents;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _clearTransientNetworkChargeDeltaEvents() {
+    try {
+        if (typeof globalThis !== 'undefined') {
+            globalThis.__networkTransientChargeDeltaEvents = [];
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined') {
+            window.__networkTransientChargeDeltaEvents = [];
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function consumeChargeDeltaEventList(eventsSource, chargeDeltaHandler) {
+    if (!Array.isArray(eventsSource) || eventsSource.length === 0) {
         return false;
     }
-    const events = cardState.chargeDeltaEvents
+    const events = eventsSource
         .filter((ev) => ev && Number.isFinite(Number(ev.delta)) && Number(ev.delta) !== 0)
         .sort((a, b) => {
             const sa = Number(a.seq || 0);
@@ -272,7 +299,7 @@ function consumeChargeDeltaEvents(cardState, chargeDeltaHandler) {
             return sa - sb;
         });
 
-    cardState.chargeDeltaEvents.length = 0;
+    eventsSource.length = 0;
     if (!chargeDeltaHandler || events.length === 0) return events.length > 0;
 
     const totalsByPlayer = { black: 0, white: 0 };
@@ -289,6 +316,17 @@ function consumeChargeDeltaEvents(cardState, chargeDeltaHandler) {
         }
     }
     return true;
+}
+
+function consumeChargeDeltaEvents(cardState, chargeDeltaHandler) {
+    const events = (cardState && Array.isArray(cardState.chargeDeltaEvents))
+        ? cardState.chargeDeltaEvents
+        : null;
+    return consumeChargeDeltaEventList(events, chargeDeltaHandler);
+}
+
+function consumeTransientNetworkChargeDeltaEvents(chargeDeltaHandler) {
+    return consumeChargeDeltaEventList(_resolveTransientNetworkChargeDeltaEvents(), chargeDeltaHandler);
 }
 
 function renderCardUI() {
@@ -352,8 +390,11 @@ function renderCardUI() {
     }
 
     const consumedQueue = consumeChargeDeltaEvents(cardState, chargeDeltaHandler);
+    const consumedTransientQueue = consumedQueue
+        ? (_clearTransientNetworkChargeDeltaEvents(), false)
+        : consumeTransientNetworkChargeDeltaEvents(chargeDeltaHandler);
 
-    if (!consumedQueue) {
+    if (!consumedQueue && !consumedTransientQueue) {
         if (_lastChargeForDelta.black !== null) {
             const deltaBlack = currentBlackCharge - _lastChargeForDelta.black;
             if (deltaBlack !== 0 && chargeDeltaHandler) chargeDeltaHandler('black', deltaBlack);

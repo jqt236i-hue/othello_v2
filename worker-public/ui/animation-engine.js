@@ -2069,10 +2069,14 @@
                     moveCause === 'ESCAPE_HYPERACTIVE' ||
                     moveCause === 'EXTREME_HYPERACTIVE_WILL' ||
                     moveCause === 'HYPERACTIVE_INHERIT_WILL' ||
+                    moveCause === 'ULTIMATE_REVERSE_DRAGON' ||
+                    moveCause === 'ULTIMATE_DESTROY_GOD' ||
                     moveCause === 'ROBOT_VACUUM' ||
                     moveCause === 'GLUTTONOUS_WILL' ||
                     moveCause === 'ULTIMATE_HYPERACTIVE' ||
                     moveCause === 'ULTIMATE_HYPERACTIVE_GOD' ||
+                    moveReason.indexOf('ultimate_reverse_dragon_move') === 0 ||
+                    moveReason.indexOf('ultimate_destroy_god_move') === 0 ||
                     moveReason.indexOf('hyperactive') >= 0 ||
                     moveReason.indexOf('gluttonous') >= 0 ||
                     moveReason.indexOf('robot_vacuum_move') === 0

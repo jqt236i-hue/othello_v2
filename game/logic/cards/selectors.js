@@ -82,6 +82,18 @@
         ));
     }
 
+    function isAbsoluteProtectedCell(cardState, row, col) {
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        return markers.some(m => (
+            m &&
+            m.kind === 'specialStone' &&
+            m.row === row &&
+            m.col === col &&
+            m.data &&
+            m.data.type === 'ABSOLUTE_PROTECTED'
+        ));
+    }
+
     function isPositionSwapProtectedCell(cardState, row, col) {
         if (!CardUtils || typeof CardUtils.getSpecialMarkerAt !== 'function') return false;
         const entry = CardUtils.getSpecialMarkerAt(cardState, row, col);
@@ -335,7 +347,7 @@
         return _getVerticalCrushTargets(cardState, gameState, 1);
     }
 
-    // Return trap targets: own stones (including special stones), excluding bombs/own existing trap.
+    // Return trap targets: own stones (including special stones), excluding bombs/own existing trap/absolute-protected.
     function getTrapTargets(cardState, gameState, playerKey) {
         const res = [];
         const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
@@ -345,6 +357,7 @@
             if (owner !== playerVal) return;
             const hasBomb = markers.some(m => m && m.row === r && m.col === c && isBombCategoryMarker(m));
             if (hasBomb) return;
+            if (isAbsoluteProtectedCell(cardState, r, c)) return;
             const hasOwnTrap = markers.some(m => (
                 m &&
                 m.row === r &&
@@ -360,7 +373,7 @@
         return res;
     }
 
-    // Return guard targets: own stones (normal/special both allowed), excluding bombs.
+    // Return guard targets: own stones (normal/special both allowed), excluding bombs/absolute-protected.
     function getGuardTargets(cardState, gameState, playerKey) {
         const res = [];
         const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
@@ -369,6 +382,7 @@
             if (owner !== playerVal) return;
             const hasBomb = markers.some(m => m && m.row === r && m.col === c && isBombCategoryMarker(m));
             if (hasBomb) return;
+            if (isAbsoluteProtectedCell(cardState, r, c)) return;
             res.push({ row: r, col: c });
         });
         return res;

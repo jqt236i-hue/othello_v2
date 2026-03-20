@@ -133,6 +133,22 @@ describe('network charge seat layout', () => {
     dom.window.close();
   });
 
+  test('maps transient network charge delta popup to bottom slot for local seat owner', () => {
+    const dom = createRendererContext({ seatKey: 'white' });
+    const { window } = dom;
+
+    window.__networkTransientChargeDeltaEvents = [
+      { seq: 1, player: 'white', delta: 2 }
+    ];
+    window.renderCardUI();
+
+    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledTimes(1);
+    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledWith('black', 2);
+    expect(window.__networkTransientChargeDeltaEvents).toEqual([]);
+
+    dom.window.close();
+  });
+
   test('infers white seat from projected hidden black hand when seat globals are unavailable', () => {
     const dom = createRendererContext({
       includeNetworkClient: false,

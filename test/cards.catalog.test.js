@@ -55,4 +55,22 @@ describe('cards catalog consistency', () => {
     expect(Number(byId.get('regen_01').cost)).toBe(12);
     expect(Number(byId.get('perma_01').cost)).toBe(15);
   });
+
+  test('free placement and super buoyancy/gravity costs reflect latest balance', () => {
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
+    expect(Number(byId.get('free_01').cost)).toBe(14);
+    expect(Number(byId.get('super_buoyancy_01').cost)).toBe(16);
+    expect(Number(byId.get('super_gravity_01').cost)).toBe(16);
+  });
+
+  test('absolute_protect_01 (最強の意志) exists in catalog.json with correct spec', () => {
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
+    expect(byId.has('absolute_protect_01')).toBe(true);
+    const card = byId.get('absolute_protect_01');
+    expect(card.type).toBe('ABSOLUTE_PROTECT_NEXT_STONE');
+    expect(Number(card.cost)).toBe(30);
+    expect(card.name_ja).toBe('最強の意志');
+  });
 });

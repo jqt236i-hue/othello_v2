@@ -63,6 +63,20 @@
             } catch (e) { /* ignore */ }
         }
 
+        function setGlobalValue(name, value) {
+            try {
+                if (typeof globalThis !== 'undefined') {
+                    globalThis[name] = value;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (rootRef) {
+                    rootRef[name] = value;
+                }
+            } catch (e) { /* ignore */ }
+        }
+
         function resolvePlaybackStateModule() {
             if (cfg.playbackState && typeof cfg.playbackState === 'object') {
                 return cfg.playbackState;
@@ -119,6 +133,55 @@
                 }
             } catch (e) { /* ignore */ }
             return JSON.parse(JSON.stringify(value));
+        }
+
+        function normalizeChargeValue(value) {
+            return Number.isFinite(Number(value))
+                ? Math.trunc(Number(value))
+                : 0;
+        }
+
+        function buildMissingChargeDeltaEvents(previousCardState, nextCardState, options) {
+            const opts = (options && typeof options === 'object') ? options : {};
+            if (opts.force === true) return [];
+            if (!nextCardState || typeof nextCardState !== 'object') return [];
+            if (Array.isArray(nextCardState.chargeDeltaEvents) && nextCardState.chargeDeltaEvents.length > 0) return [];
+
+            const previousCharge = (previousCardState && previousCardState.charge && typeof previousCardState.charge === 'object')
+                ? previousCardState.charge
+                : null;
+            const nextCharge = (nextCardState.charge && typeof nextCardState.charge === 'object')
+                ? nextCardState.charge
+                : null;
+            if (!previousCharge || !nextCharge) return [];
+
+            const events = [];
+            let seq = 1;
+            const playerKeys = ['black', 'white'];
+            for (let index = 0; index < playerKeys.length; index += 1) {
+                const playerKey = playerKeys[index];
+                const before = normalizeChargeValue(previousCharge[playerKey]);
+                const after = normalizeChargeValue(nextCharge[playerKey]);
+                const delta = after - before;
+                if (delta === 0) continue;
+                events.push({
+                    seq,
+                    player: playerKey,
+                    before,
+                    after,
+                    delta,
+                    reason: 'network_snapshot_charge_sync'
+                });
+                seq += 1;
+            }
+            return events;
+        }
+
+        function setTransientChargeDeltaEvents(events) {
+            const nextEvents = Array.isArray(events)
+                ? cloneData(events)
+                : [];
+            setGlobalValue('__networkTransientChargeDeltaEvents', nextEvents);
         }
 
         function emitTelemetry(type, details) {
@@ -544,6 +607,7 @@
                 return false;
             }
 
+            const previousCardState = cloneData(resolveGlobalObject('cardState'));
             const preservedQueues = captureTransientPresentationQueues(resolveGlobalObject('cardState'));
             const busyStateBeforeSnapshot = readBusyStateSnapshot();
             const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
@@ -557,6 +621,8 @@
             } catch (e) { /* ignore */ }
 
             const cardStateRef = resolveGlobalObject('cardState');
+            const synthesizedChargeDeltaEvents = buildMissingChargeDeltaEvents(previousCardState, cardStateRef, opts);
+            setTransientChargeDeltaEvents(synthesizedChargeDeltaEvents);
             const syncPendingSelectionActionCache = resolveGlobalFunction('syncPendingSelectionActionCache', cfg.syncPendingSelectionActionCache);
             if (syncPendingSelectionActionCache && cardStateRef) {
                 try {

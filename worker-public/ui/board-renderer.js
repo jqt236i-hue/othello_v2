@@ -156,7 +156,8 @@ function _isFlipEvadeSpecialTypeForBoard(type) {
 }
 
 function _isDestroyEvadeSpecialTypeForBoard(type) {
-    return String(type || '').toUpperCase() === 'WILL_HUNTER_KING';
+    const typeUpper = String(type || '').toUpperCase();
+    return typeUpper === 'WILL_HUNTER_KING' || typeUpper === 'ULTIMATE_HYPERACTIVE';
 }
 
 function _resolveSpecialDisplayTurnsForBoard(data) {
@@ -337,7 +338,7 @@ function renderBoardFull() {
                     ? (
                         Number.isFinite(Number(m.data.destroyEvadeRemaining))
                             ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))
-                            : null
+                            : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ? 1 : null)
                     )
                     : null,
                 flipEvadeRemaining: _isFlipEvadeSpecialTypeForBoard(markerTypeUpper)

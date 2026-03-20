@@ -178,6 +178,7 @@ describe('UI stone rendering', () => {
 
     const ultimateDisc = boardEl.querySelector('.cell[data-row="0"][data-col="7"] .disc');
     assert.strictEqual(ultimateDisc.querySelector('.flip-evade-timer').textContent, '3');
+    assert.strictEqual(ultimateDisc.querySelector('.destroy-evade-timer').textContent, '1');
 
     const coexistDisc = boardEl.querySelector('.cell[data-row="1"][data-col="0"] .disc');
     const coexistEvadeTimers = coexistDisc.querySelectorAll('.flip-evade-timer');

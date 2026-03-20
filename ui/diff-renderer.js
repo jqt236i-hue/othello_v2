@@ -525,7 +525,7 @@ const SPECIAL_STONE_INFO = {
     },
     DRAGON: {
         name: '究極反転龍',
-        desc: '配置ターン即時＋自ターン開始時に周囲8マスの敵石を反転。5ターンで消滅。'
+        desc: '配置時に周囲8マスを反転。自ターン開始時はランダムな空きマスへ移動してから周囲8マスを反転。5ターンで消滅。'
     },
     BREEDING: {
         name: '繁殖石',
@@ -533,7 +533,7 @@ const SPECIAL_STONE_INFO = {
     },
     ULTIMATE_DESTROY_GOD: {
         name: '究極破壊神',
-        desc: '配置ターン即時＋自ターン開始時に周囲8マスの敵石を破壊。5ターンで消滅。'
+        desc: '配置時に周囲8マスの敵石を破壊。自ターン開始時はランダムな空きマスへ移動してから周囲8マスの敵石を破壊。5ターンで消滅。'
     },
     DESTROY_DRAGON: {
         name: '破壊龍',
@@ -569,7 +569,7 @@ const SPECIAL_STONE_INFO = {
     },
     ULTIMATE_HYPERACTIVE: {
         name: '究極多動神',
-        desc: '両者ターン開始時に直線1〜5マス移動を2回行い、2マス以上は途中の石を飛び越える。移動後に挟めば反転。反転対象時はマス移動で回避（最大3回）。移動先が無いと消滅。10ターン後は自己消滅する。'
+        desc: '両者ターン開始時に直線1〜5マス移動を2回行い、2マス以上は途中の石を飛び越える。移動後に挟めば反転。反転対象時はマス移動で回避（最大3回）。破壊対象時も1回だけマス移動で回避する。移動先が無いと消滅。10ターン後は自己消滅する。'
     },
     INHERITED_HYPERACTIVE: {
         name: '継承多動石',
@@ -638,6 +638,10 @@ const SPECIAL_STONE_INFO = {
     METEOR_HOLE: {
         name: '流星穴',
         desc: '隕石で破壊された永続穴。このマスには配置・移動で入れず、反転経路も遮断する。'
+    },
+    ABSOLUTE_PROTECTED: {
+        name: '絶対保護石',
+        desc: '反転・交換・破壊・誘惑・テレポート・隕石・意志の喪失を含む全ての効果を無効化する。解除なし（永続）。'
     }
 };
 
@@ -870,6 +874,7 @@ function _getProtectionInfo(type, entry, hasGuard) {
     const flipProtectedTypes = new Set([
         'PROTECTED',
         'PERMA_PROTECTED',
+        'ABSOLUTE_PROTECTED',
         'DRAGON',
         'BREEDING',
         'LIGHTNING',
@@ -886,7 +891,7 @@ function _getProtectionInfo(type, entry, hasGuard) {
         remaining <= 0
     );
     const flipProtected = hasGuard ? true : (isBomb ? false : (flipProtectedTypes.has(type) && ultimateProtectionActive));
-    const destroyProtected = hasGuard || type === 'GUARD';
+    const destroyProtected = hasGuard || type === 'GUARD' || type === 'ABSOLUTE_PROTECTED';
     return {
         flipProtected,
         destroyProtected
@@ -921,6 +926,7 @@ const STONE_INFO_FLIP_EVADE_TYPES = new Set([
 ]);
 
 const STONE_INFO_DESTROY_EVADE_TYPES = new Set([
+    'ULTIMATE_HYPERACTIVE',
     'WILL_HUNTER_KING'
 ]);
 
@@ -934,6 +940,22 @@ function _hasActiveFlipEvadeForEntry(type, entry) {
 
     const rawRemaining = Number(data ? data.flipEvadeRemaining : NaN);
     const defaultRemaining = (type === 'ULTIMATE_HYPERACTIVE' || type === 'EXTREME_HYPERACTIVE') ? 3 : 1;
+    const normalizedRemaining = Number.isFinite(rawRemaining)
+        ? Math.max(0, Math.trunc(rawRemaining))
+        : defaultRemaining;
+    return normalizedRemaining > 0;
+}
+
+function _hasActiveDestroyEvadeForEntry(type, entry) {
+    if (!type || !entry || !STONE_INFO_DESTROY_EVADE_TYPES.has(type)) return false;
+    const data = entry && entry.marker && entry.marker.data ? entry.marker.data : null;
+    const remainingOwnerTurns = Number(data ? data.remainingOwnerTurns : NaN);
+    if (type === 'ULTIMATE_HYPERACTIVE' && Number.isFinite(remainingOwnerTurns) && remainingOwnerTurns <= 0) {
+        return false;
+    }
+
+    const rawRemaining = Number(data ? data.destroyEvadeRemaining : NaN);
+    const defaultRemaining = type === 'ULTIMATE_HYPERACTIVE' ? 1 : 0;
     const normalizedRemaining = Number.isFinite(rawRemaining)
         ? Math.max(0, Math.trunc(rawRemaining))
         : defaultRemaining;
@@ -956,12 +978,7 @@ function _buildSpecialStoneBadges(entries, hasGuard, protection) {
     if (contexts.some((ctx) => _hasActiveFlipEvadeForEntry(ctx.type, ctx.entry))) {
         badges.push('反転回避');
     }
-    if (contexts.some((ctx) => {
-        if (!ctx || !ctx.type || !STONE_INFO_DESTROY_EVADE_TYPES.has(ctx.type)) return false;
-        const data = ctx.entry && ctx.entry.marker && ctx.entry.marker.data ? ctx.entry.marker.data : null;
-        const remaining = Number(data ? data.destroyEvadeRemaining : NaN);
-        return Number.isFinite(remaining) && Math.max(0, Math.trunc(remaining)) > 0;
-    })) {
+    if (contexts.some((ctx) => _hasActiveDestroyEvadeForEntry(ctx.type, ctx.entry))) {
         badges.push('破壊回避');
     }
 
@@ -1376,7 +1393,7 @@ function buildCurrentCellState() {
                 remainingOwnerTurns: _resolveSpecialDisplayTurnsForDiff(m.data),
                 destroyEvadeRemaining: Number.isFinite(Number(m.data.destroyEvadeRemaining))
                     ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))
-                    : null,
+                    : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ? 1 : null),
                 flipEvadeRemaining: markerSupportsFlipEvade
                     ? (
                         Number.isFinite(Number(m.data.flipEvadeRemaining))
@@ -1798,7 +1815,10 @@ function updateCellDOM(cell, state, row, col, prevState) {
         );
         const canShowDestroyEvade = !!(
             state.special &&
-            String(state.special.type || '').toUpperCase() === 'WILL_HUNTER_KING' &&
+            (
+                String(state.special.type || '').toUpperCase() === 'WILL_HUNTER_KING' ||
+                String(state.special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE'
+            ) &&
             Number.isFinite(state.special.destroyEvadeRemaining)
         );
 

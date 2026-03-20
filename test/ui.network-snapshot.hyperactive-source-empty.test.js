@@ -253,7 +253,23 @@ describe('Network snapshot hyperactive source-empty handling', () => {
     );
   });
 
-  test('network snapshot keeps ultimate hyperactive move source from destroy-fading when source is already empty', () => {
+  test.each([
+    {
+      name: 'ultimate hyperactive',
+      markerType: 'ULTIMATE_HYPERACTIVE',
+      reason: 'ultimate_hyperactive_step_move'
+    },
+    {
+      name: 'ultimate reverse dragon',
+      markerType: 'DRAGON',
+      reason: 'ultimate_reverse_dragon_move'
+    },
+    {
+      name: 'ultimate destroy god',
+      markerType: 'ULTIMATE_DESTROY_GOD',
+      reason: 'ultimate_destroy_god_move'
+    }
+  ])('network snapshot keeps $name move source from destroy-fading when source is already empty', ({ markerType, reason }) => {
     const beforeBoard = createBoard();
     beforeBoard[2][2] = global.BLACK;
     global.gameState.board = beforeBoard;
@@ -263,7 +279,7 @@ describe('Network snapshot hyperactive source-empty handling', () => {
         row: 2,
         col: 2,
         owner: 'black',
-        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 3 }
+        data: { type: markerType, remainingOwnerTurns: 10, flipEvadeRemaining: 3 }
       }
     ]);
     diff.renderBoardDiff(global.boardEl);
@@ -287,11 +303,11 @@ describe('Network snapshot hyperactive source-empty handling', () => {
           row: 2,
           col: 5,
           owner: 'black',
-          data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 3 }
+          data: { type: markerType, remainingOwnerTurns: 10, flipEvadeRemaining: 3 }
         }
       ]),
       {
-        playbackEvents: createPlaybackMove(2, 2, 2, 5, 'ultimate_hyperactive_step_move')
+        playbackEvents: createPlaybackMove(2, 2, 2, 5, reason)
       }
     );
 

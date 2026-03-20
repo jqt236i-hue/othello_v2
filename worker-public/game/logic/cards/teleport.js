@@ -149,6 +149,9 @@
             if (result && result.reason === 'out_of_board') {
                 return { applied: false, reason: 'move_failed' };
             }
+            if (result && result.reason === 'absolute_protected_source') {
+                return { applied: false, reason: 'absolute_protected' };
+            }
             moved = !!(result && result.moved);
         }
 

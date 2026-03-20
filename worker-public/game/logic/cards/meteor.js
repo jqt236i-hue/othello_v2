@@ -54,6 +54,9 @@
                 if (result && result.reason === 'out_of_board') {
                     return { applied: false, reason: 'out_of_board' };
                 }
+                if (result && result.reason === 'absolute_protected') {
+                    return { applied: false, reason: 'absolute_protected' };
+                }
             }
             if (!destroyed) {
                 clearStoneIdAtForCard(cardState, gameState, row, col);

@@ -38,6 +38,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     expect(marker).toBeTruthy();
     expect(marker.data.remainingOwnerTurns).toBe(10);
     expect(marker.data.flipEvadeRemaining).toBe(3);
+    expect(marker.data.destroyEvadeRemaining).toBe(1);
   });
 
   test('owner turn only decrements duration, and on 10th owner turn it self-destructs', () => {
@@ -356,6 +357,58 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     expect(markerAfterCap.row).toBe(markerAtCap.row);
     expect(markerAfterCap.col).toBe(markerAtCap.col);
     expect(markerAfterCap.data.flipEvadeRemaining).toBe(0);
+  });
+
+  test('ultimate hyperactive can evade destroy once and the next destroy removes it', () => {
+    const { cardState, gameState } = makeState();
+
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        gameState.board[row][col] = Core.BLACK;
+      }
+    }
+    gameState.board[4][4] = Core.BLACK;
+    gameState.board[7][7] = Core.EMPTY;
+
+    cardState.markers.push({
+      id: 412,
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: {
+        type: 'ULTIMATE_HYPERACTIVE',
+        remainingOwnerTurns: 10,
+        flipEvadeRemaining: 3,
+        destroyEvadeRemaining: 1
+      }
+    });
+
+    const first = BoardOps.destroyAt(cardState, gameState, 4, 4, 'SYSTEM', 'test_destroy');
+
+    expect(first).toMatchObject({
+      destroyed: false,
+      evaded: true,
+      reason: 'destroy_evaded',
+      from: { row: 4, col: 4 },
+      to: { row: 7, col: 7 }
+    });
+    expect(gameState.board[4][4]).toBe(Core.EMPTY);
+    expect(gameState.board[7][7]).toBe(Core.BLACK);
+
+    let marker = (cardState.markers || []).find((m) => m && m.id === 412);
+    expect(marker).toBeTruthy();
+    expect(marker.row).toBe(7);
+    expect(marker.col).toBe(7);
+    expect(marker.data.destroyEvadeRemaining).toBe(0);
+
+    const second = BoardOps.destroyAt(cardState, gameState, 7, 7, 'SYSTEM', 'test_destroy_again');
+
+    expect(second && second.destroyed).toBe(true);
+    expect(second && second.evaded).toBe(false);
+    expect(gameState.board[7][7]).toBe(Core.EMPTY);
+    marker = (cardState.markers || []).find((m) => m && m.id === 412);
+    expect(marker).toBeUndefined();
   });
 
   test('tempted hyperactive move still lets target ultimate hyperactive evade', () => {

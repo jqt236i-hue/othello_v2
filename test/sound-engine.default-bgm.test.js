@@ -275,6 +275,14 @@ describe('SoundEngine default BGM', () => {
     );
   });
 
+  test('ultimate anchor move sound key resolves to the new filename', () => {
+    const soundEngine = loadSoundEngine();
+
+    expect(soundEngine.getEffectFilePath('ultimate_anchor_move')).toBe(
+      'assets/audio/sound-effect/究極反転龍と究極破壊神が移動するタイミング.mp3'
+    );
+  });
+
   test('stone placement sound applies its own 0.8 volume scale on top of the SE master volume', () => {
     const soundEngine = loadSoundEngine();
     const { context, gains } = createMockAudioContext();
