@@ -26,7 +26,7 @@ describe('DESTROY_DRAGON_WILL（破壊龍）', () => {
   test('カード定義と持続定数が正しい', () => {
     const def = (Shared.CARD_DEFS || []).find((card) => card && card.type === 'DESTROY_DRAGON_WILL');
     expect(def).toBeTruthy();
-    expect(Number(def.cost)).toBe(15);
+    expect(Number(def.cost)).toBe(7);
     expect(CardLogic.DESTROY_DRAGON_TURNS).toBe(3);
   });
 

@@ -181,8 +181,6 @@ function buildPendingSelectionAction(context) {
         return buildBoardCellAction(context, 'chooseSuperBuoyancyTarget', 'superBuoyancyTarget');
     case 'SUPER_GRAVITY_WILL':
         return buildBoardCellAction(context, 'chooseSuperGravityTarget', 'superGravityTarget');
-    case 'SACRIFICE_WILL':
-        return buildBoardCellAction(context, 'chooseSacrificeTarget', 'sacrificeTarget');
     case 'SELL_CARD_WILL':
         return buildSellCardAction(context);
     case 'TEMPT_WILL':

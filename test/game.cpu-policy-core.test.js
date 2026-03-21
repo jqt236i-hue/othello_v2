@@ -511,80 +511,13 @@ describe('cpu-policy-core', () => {
         expect(out.shouldUse).toBe(true);
     });
 
-    test('scoreCardUseDecision suppresses SACRIFICE_WILL in opening non-emergency', () => {
-        const out = core.scoreCardUseDecision(
-            'sacrifice',
-            () => 5,
-            () => ({ id: 'sacrifice', type: 'SACRIFICE_WILL' }),
-            {
-                level: 6,
-                legalMovesCount: 6,
-                discDiff: 2,
-                empties: 52,
-                ownCorners: 1,
-                oppCorners: 0,
-                ownCharge: 8
-            }
-        );
-        expect(out.shouldUse).toBe(false);
-    });
 
-    test('scoreCardUseDecision suppresses SACRIFICE_WILL in deep no-anchor corner emergency despite hand pressure', () => {
-        const out = core.scoreCardUseDecision(
-            'sacrifice',
-            () => 5,
-            () => ({ id: 'sacrifice', type: 'SACRIFICE_WILL' }),
-            {
-                level: 6,
-                playerValue: -1,
-                legalMovesCount: 3,
-                discDiff: -25,
-                empties: 26,
-                ownCharge: 14,
-                handSize: 5,
-                ownCorners: 0,
-                oppCorners: 3,
-                ownEdges: 3,
-                oppEdges: 12,
-                hasCornerMoveNow: false,
-                hasEdgeMoveNow: false,
-                cornerEmergency: true,
-                highBonusMoveAvailable: false
-            }
-        );
-        expect(out.shouldUse).toBe(false);
-    });
 
-    test('scoreCardUseDecision still allows forced SACRIFICE_WILL when no legal move exists', () => {
-        const out = core.scoreCardUseDecision(
-            'sacrifice',
-            () => 5,
-            () => ({ id: 'sacrifice', type: 'SACRIFICE_WILL' }),
-            {
-                level: 6,
-                playerValue: -1,
-                legalMovesCount: 0,
-                discDiff: -18,
-                empties: 18,
-                ownCharge: 14,
-                handSize: 5,
-                ownCorners: 0,
-                oppCorners: 2,
-                ownEdges: 1,
-                oppEdges: 10,
-                hasCornerMoveNow: false,
-                hasEdgeMoveNow: false,
-                cornerEmergency: true,
-                forceUseCard: true
-            }
-        );
-        expect(out.shouldUse).toBe(true);
-    });
 
     test('scoreCardUseDecision uses REBUILD_WILL to recover from saturated low-quality hand', () => {
         const defs = {
             rebuild: { id: 'rebuild', type: 'REBUILD_WILL' },
-            risk_a: { id: 'risk_a', type: 'SACRIFICE_WILL' },
+            risk_a: { id: 'risk_a', type: 'TIME_STOP_GOD' },
             risk_b: { id: 'risk_b', type: 'TIME_BOMB' },
             risk_c: { id: 'risk_c', type: 'DOUBLE_CHAIN_WILL' },
             silver: { id: 'silver', type: 'SILVER_STONE' }
@@ -839,24 +772,6 @@ describe('cpu-policy-core', () => {
         expect(destroyDecision.score).toBeGreaterThan(heavenDecision.score);
     });
 
-    test('scoreCardUseDecision prefers stopping SACRIFICE_WILL after first pick when stable', () => {
-        const out = core.scoreCardUseDecision(
-            'sacrifice',
-            () => 5,
-            () => ({ id: 'sacrifice', type: 'SACRIFICE_WILL' }),
-            {
-                level: 6,
-                legalMovesCount: 4,
-                discDiff: 4,
-                empties: 30,
-                ownCorners: 1,
-                oppCorners: 0,
-                sacrificeSelectedCount: 1,
-                ownCharge: 11
-            }
-        );
-        expect(out.shouldUse).toBe(false);
-    });
 
     test('scoreCardUseDecision lowers min threshold when hand is saturated', () => {
         const out = core.scoreCardUseDecision(
@@ -1726,16 +1641,16 @@ describe('cpu-policy-core', () => {
         expect(selected.cardId).toBe('tempt');
     });
 
-    test('chooseHandDestroyTargetForCycle rotates sacrifice card first when missing recovery role', () => {
+    test('chooseHandDestroyTargetForCycle rotates time bomb first when missing recovery role', () => {
         const defs = {
-            sacrifice: { id: 'sacrifice', type: 'SACRIFICE_WILL' },
+            bomb: { id: 'bomb', type: 'TIME_BOMB' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             silver: { id: 'silver', type: 'SILVER_STONE' },
             chain: { id: 'chain', type: 'DOUBLE_CHAIN_WILL' }
         };
-        const costs = { sacrifice: 5, guard: 2, silver: 5, chain: 10 };
+        const costs = { bomb: 13, guard: 2, silver: 5, chain: 10 };
         const selected = core.chooseHandDestroyTargetForCycle(
-            ['sacrifice', 'guard', 'silver', 'chain'],
+            ['bomb', 'guard', 'silver', 'chain'],
             [],
             (id) => costs[id],
             (id) => defs[id],
@@ -1751,7 +1666,7 @@ describe('cpu-policy-core', () => {
             }
         );
         expect(selected).toBeTruthy();
-        expect(selected.cardId).toBe('sacrifice');
+        expect(selected.cardId).toBe('bomb');
     });
 
     test('chooseHandDestroyTargetForCycle keeps recovery card during emergency hand-pressure cycle', () => {

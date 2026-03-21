@@ -15,7 +15,7 @@ describe('stone image assets', () => {
     assert.ok(fs.existsSync(path.join(stonesDir, 'TIME_STOP-white.png')));
   });
 
-  it('includes the ABSOLUTE_PROTECT_NEXT_STONE PNGs (最強の意志)', () => {
+  it('includes the promoted strongest-stone PNGs used after 強い意志 evolves', () => {
     assert.ok(fs.existsSync(path.join(stonesDir, 'absolute_protect_next_stone-black.png')));
     assert.ok(fs.existsSync(path.join(stonesDir, 'absolute_protect_next_stone-white.png')));
   });
@@ -26,10 +26,10 @@ describe('stone image assets', () => {
     assert.ok(variablesCss.includes('--normal-stone-white-image'));
   });
 
-  it('applies the normal stone image variables in board styles', () => {
+  it('uses the shared render skeleton hooks in board styles', () => {
     const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
-    assert.ok(boardCss.includes('var(--normal-stone-black-image)'));
-    assert.ok(boardCss.includes('var(--normal-stone-white-image)'));
+    assert.ok(boardCss.includes('.disc[data-render-mode="overlay"] .disc__overlay-image'));
+    assert.ok(boardCss.includes('.disc[data-render-mode="replace"] .disc__overlay-image'));
   });
 
   it('includes a rule to hide base backgrounds when stone images are loaded', () => {
@@ -38,15 +38,17 @@ describe('stone image assets', () => {
     assert.ok(boardCss.includes('html.stone-images-loaded .disc.white'));
   });
 
-  it('provides fallback overlay images for black/white discs when stone-images-loaded is active', () => {
+  it('keeps the stone-images-loaded compatibility selectors for black/white discs', () => {
     const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
-    assert.ok(boardCss.includes('html.stone-images-loaded .disc.black::after'));
-    assert.ok(boardCss.includes('html.stone-images-loaded .disc.white::after'));
+    assert.ok(boardCss.includes('html.stone-images-loaded .disc.black'));
+    assert.ok(boardCss.includes('html.stone-images-loaded .disc.white'));
   });
 
-  it('ensures special stone overlay (::before) has higher z-index than normal overlay', () => {
+  it('keeps HUD layers above image overlays in the shared skeleton', () => {
     const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
-    // Ensure special stone ::before z-index is set to 25 (above .disc::after z-index:15)
-    assert.ok(boardCss.includes('.disc.special-stone::before') && boardCss.includes('z-index: 25'));
+    assert.ok(boardCss.includes('.disc__hud'));
+    assert.ok(boardCss.includes('z-index: 40'));
+    assert.ok(boardCss.includes('.disc.stone-fade-overlay'));
+    assert.ok(boardCss.includes('z-index: 20'));
   });
 });

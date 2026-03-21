@@ -21,7 +21,7 @@ describe('animation-engine _sleep', () => {
     expect(engine.getSpawnFadeInMs({ cause: 'SYSTEM', reason: 'standard_place' })).toBe(0);
   });
 
-  test('同じphaseに treasure_gain がある場合は sell_sacrifice_gain を再生しない', async () => {
+  test('同じphaseに treasure_gain がある場合は charge_gain_common を再生しない', async () => {
     global.document = { getElementById: () => ({ classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) }) };
     const playEffectByKey = jest.fn();
     global.SoundEngine = {
@@ -31,12 +31,12 @@ describe('animation-engine _sleep', () => {
     const engine = require('../ui/animation-engine');
 
     await engine.executePhase([
-      { type: 'sound_effect', phase: 5, targets: [{ soundKey: 'sell_sacrifice_gain' }] },
+      { type: 'sound_effect', phase: 5, targets: [{ soundKey: 'charge_gain_common' }] },
       { type: 'sound_effect', phase: 5, targets: [{ soundKey: 'treasure_gain' }] }
     ]);
 
     expect(playEffectByKey).toHaveBeenCalledWith('treasure_gain');
-    expect(playEffectByKey).not.toHaveBeenCalledWith('sell_sacrifice_gain');
+    expect(playEffectByKey).not.toHaveBeenCalledWith('charge_gain_common');
     delete global.SoundEngine;
   });
 
@@ -193,7 +193,7 @@ describe('animation-engine _sleep', () => {
     global.document = { getElementById: () => ({ classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) }) };
     global.window = {
       __skipNextPlaybackSoundUntilByKey: {
-        sell_sacrifice_gain: Date.now() + 1000,
+        charge_gain_common: Date.now() + 1000,
         stone_destroy: Date.now() + 2000
       }
     };
@@ -205,14 +205,14 @@ describe('animation-engine _sleep', () => {
     const engine = require('../ui/animation-engine');
 
     await engine.executePhase([
-      { type: 'sound_effect', phase: 5, targets: [{ soundKey: 'sell_sacrifice_gain' }] }
+      { type: 'sound_effect', phase: 5, targets: [{ soundKey: 'charge_gain_common' }] }
     ]);
 
-    expect(playEffectByKey).not.toHaveBeenCalledWith('sell_sacrifice_gain');
+    expect(playEffectByKey).not.toHaveBeenCalledWith('charge_gain_common');
     expect(global.window.__skipNextPlaybackSoundUntilByKey).toMatchObject({
       stone_destroy: expect.any(Number)
     });
-    expect(global.window.__skipNextPlaybackSoundUntilByKey.sell_sacrifice_gain).toBeUndefined();
+    expect(global.window.__skipNextPlaybackSoundUntilByKey.charge_gain_common).toBeUndefined();
 
     delete global.SoundEngine;
     delete global.window;

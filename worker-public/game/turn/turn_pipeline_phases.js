@@ -1324,21 +1324,6 @@
             } else if (pending && (pending.type === 'TELEPORT_WILL' || pending.type === 'CELL_TELEPORT_WILL') && action.teleportTarget == null) {
                 throw new Error(`${pending.type} requires teleportTarget before placement`);
             }
-            if (pending && pending.type === 'SACRIFICE_WILL' && action.sacrificeTarget) {
-                const res = CardLogic.applySacrificeWill(
-                    cardState,
-                    gameState,
-                    playerKey,
-                    action.sacrificeTarget.row,
-                    action.sacrificeTarget.col
-                );
-                events.push({ type: 'sacrifice_selected', player: playerKey, target: action.sacrificeTarget, applied: !!(res && res.applied), gained: res && res.gained ? res.gained : 0, completed: !!(res && res.completed) });
-                applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
-                // Selection-only pre-placement effect: stop after handling selection
-                return;
-            } else if (pending && pending.type === 'SACRIFICE_WILL' && action.sacrificeTarget == null) {
-                throw new Error('SACRIFICE_WILL requires sacrificeTarget before placement');
-            }
             if (pending && pending.type === 'SELL_CARD_WILL' && action.sellCardId) {
                 const res = CardLogic.applySellCardWill(
                     cardState,

@@ -250,6 +250,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ modulePath
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const action = runTurnMock.mock.calls[0][3];
+    const presentation = require(PRESENTATION_PATH);
     expect(action.deferNetworkPublish).toBe(true);
     const actionParamKey = Object.keys(action).find((key) => (
       key !== 'type'
@@ -269,5 +270,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ modulePath
     expect(publishBodies[0].playbackEvents).toBeUndefined();
     expect(global.gameState.turnNumber).toBe(12);
     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(presentation.emitPresentationEvent).not.toHaveBeenCalled();
   });
 });

@@ -38,7 +38,6 @@ const TARGET_SELECTION_CARD_TYPES = new Set([
     'SWAP_WITH_ENEMY',
     'POSITION_SWAP_WILL',
     'TEMPT_WILL',
-    'SACRIFICE_WILL',
     'SELL_CARD_WILL',
     'HEAVEN_BLESSING',
     'CONDEMN_WILL',
@@ -103,7 +102,6 @@ const CANDIDATE_CARD_TYPES = new Set([
     'STRONG_WIND_WILL',
     'SUPER_BUOYANCY_WILL',
     'SUPER_GRAVITY_WILL',
-    'SACRIFICE_WILL',
     'SELL_CARD_WILL',
     'REBUILD_WILL',
     'SWAP_WITH_ENEMY',
@@ -2100,9 +2098,6 @@ function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCou
         oppSpecialCount,
         ownGuardCount,
         oppGuardCount,
-        sacrificeSelectedCount: (pending && pending.type === 'SACRIFICE_WILL')
-            ? Number(pending.selectedCount || 0)
-            : 0,
         usableCardIds: safeUsableCardIds.slice(),
         cornerPlanState: planState
     };
@@ -2646,108 +2641,6 @@ function getSpecialMarkerAt(cardState, row, col, ownerKey) {
     )) || null;
 }
 
-function getSacrificeMarkerPenalty(marker) {
-    if (!marker || !marker.data || typeof marker.data.type !== 'string') return 0;
-    const type = marker.data.type;
-    if (type === 'WORK') return 9000;
-    if (type === 'GUARD') return 7000;
-    if (type === 'BLOCKADE') return 6500;
-    if (type === 'REGEN') return 5000;
-    if (type === 'ULTIMATE_DESTROY_GOD') return 8000;
-    if (type === 'ULTIMATE_HYPERACTIVE_GOD') return 8000;
-    if (type === 'HYPERACTIVE') return 3800;
-    return 2400;
-}
-
-function chooseSacrificeTarget(gameState, cardState, playerKey, rng) {
-    const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
-    if (!targets.length) return null;
-    const pending = cardState && cardState.pendingEffectByPlayer
-        ? cardState.pendingEffectByPlayer[playerKey]
-        : null;
-    const selectedCount = Number.isFinite(pending && pending.selectedCount)
-        ? Math.max(0, Math.floor(Number(pending.selectedCount)))
-        : 0;
-    const maxSelections = Number.isFinite(pending && pending.maxSelections)
-        ? Math.max(1, Math.floor(Number(pending.maxSelections)))
-        : 3;
-    const playerValue = toPlayerValue(playerKey);
-    const discDiff = countDiscsByValue(gameState, playerValue);
-    const empties = countEmpties(gameState.board);
-    const cornerControl = countCornerControl(gameState.board, playerValue);
-    const cornerEmergency = cornerControl.oppCorners > cornerControl.ownCorners;
-    const beforeEval = evaluateBoardForPlayer(gameState, cardState, playerKey);
-
-    // SACRIFICE can be canceled after >=1 target. Prefer stopping unless comeback value is clear.
-    if (selectedCount >= 1 && !cornerEmergency && (discDiff >= -8 || empties >= 18)) {
-        return null;
-    }
-
-    let best = null;
-    let bestScore = -Infinity;
-    for (const t of targets) {
-        let score = 0;
-        const cellValue = evaluatePositionValue(t.row, t.col);
-        const cellBonus = getBoardBonusAtCell(cardState, t.row, t.col);
-        const marker = getSpecialMarkerAt(cardState, t.row, t.col, playerKey);
-
-        // Keep corners/edges and bonus cells whenever possible.
-        if (isCorner(t.row, t.col)) score -= 100000;
-        if (!isCorner(t.row, t.col) && isEdge(t.row, t.col)) score -= 14000;
-        score -= Math.max(0, cellValue) * 1.6;
-        score += Math.min(0, cellValue) * 0.35;
-        score -= cellBonus * 2600;
-        score -= getSacrificeMarkerPenalty(marker);
-
-        try {
-            const simGameState = Core.copyGameState(gameState);
-            const simCardState = (typeof CardLogic.copyCardState === 'function')
-                ? CardLogic.copyCardState(cardState)
-                : deepClone(cardState);
-            const simRes = CardLogic.applySacrificeWill(simCardState, simGameState, playerKey, t.row, t.col);
-            if (simRes && simRes.applied === true) {
-                const afterEval = evaluateBoardForPlayer(simGameState, simCardState, playerKey);
-                score += (afterEval - beforeEval) * 1.3;
-
-                const afterCornerControl = countCornerControl(simGameState.board, playerValue);
-                const ownCornerLoss = cornerControl.ownCorners - afterCornerControl.ownCorners;
-                if (ownCornerLoss > 0) score -= ownCornerLoss * 22000;
-
-                const oppMoves = getLegalMovesBasic(simGameState.board, -playerValue);
-                let oppCornerMoves = 0;
-                for (const one of oppMoves) {
-                    if (one && isCorner(one.row, one.col)) oppCornerMoves += 1;
-                }
-                if (oppCornerMoves > 0) {
-                    score -= oppCornerMoves * (cornerEmergency ? 6800 : 10500);
-                }
-
-                const nextSelectedCount = Number.isFinite(simRes.selectedCount)
-                    ? Math.max(0, Math.floor(Number(simRes.selectedCount)))
-                    : (selectedCount + 1);
-                const remainingSelections = Math.max(0, maxSelections - nextSelectedCount);
-                if (remainingSelections > 0 && !cornerEmergency && discDiff >= -6) {
-                    score += 180;
-                }
-            } else {
-                score -= 22000;
-            }
-        } catch (e) {
-            score -= 11000;
-        }
-
-        score += rng.random() * 0.01;
-        if (score > bestScore) {
-            bestScore = score;
-            best = t;
-        }
-    }
-
-    if (selectedCount >= 1 && !cornerEmergency && bestScore < -5000) {
-        return null;
-    }
-    return best;
-}
 
 function chooseTemptTarget(gameState, cardState, playerKey, rng) {
     const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
@@ -2864,7 +2757,6 @@ function buildPendingSelectionAction(gameState, cardState, playerKey, pendingTyp
             chooseStrongWindTarget,
             chooseSuperBuoyancyTarget,
             chooseSuperGravityTarget,
-            chooseSacrificeTarget,
             chooseSellCardTarget,
             chooseTemptTarget,
             chooseTimeBombTarget,

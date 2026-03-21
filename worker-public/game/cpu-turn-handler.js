@@ -845,7 +845,6 @@ function getPendingTypeHandlers(playerKey) {
         'STRONG_WIND_WILL': async () => { if (typeof cpuSelectStrongWindWillWithPolicy === 'function') await cpuSelectStrongWindWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'SUPER_BUOYANCY_WILL': async () => { if (typeof cpuSelectSuperBuoyancyWillWithPolicy === 'function') await cpuSelectSuperBuoyancyWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'SUPER_GRAVITY_WILL': async () => { if (typeof cpuSelectSuperGravityWillWithPolicy === 'function') await cpuSelectSuperGravityWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'SACRIFICE_WILL': async () => { if (typeof cpuSelectSacrificeWillWithPolicy === 'function') await cpuSelectSacrificeWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'SELL_CARD_WILL': async () => { if (typeof cpuSelectSellCardWillWithPolicy === 'function') await cpuSelectSellCardWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'HEAVEN_BLESSING': async () => { if (typeof cpuSelectHeavenBlessingWithPolicy === 'function') await cpuSelectHeavenBlessingWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'CONDEMN_WILL': async () => { if (typeof cpuSelectCondemnWillWithPolicy === 'function') await cpuSelectCondemnWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
@@ -1068,7 +1067,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                     isProcessing = false;
                     return;
                 }
-                // Multi-step selection cards (e.g. SACRIFICE_WILL) may keep pending selectTarget
+                // Continue-turn selection cards may keep pending selectTarget
                 // after one application. Do not proceed to normal move generation/pass until
                 // selection flow is finished.
                 if (pending && pending.stage === 'selectTarget') {

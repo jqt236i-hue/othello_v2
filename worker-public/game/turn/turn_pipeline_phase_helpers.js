@@ -43,7 +43,6 @@
         PROTECTED_NEXT_STONE: '次の被弾だけ守る',
         SWAP_WITH_ENEMY: '敵石1個を奪取',
         POSITION_SWAP_WILL: '石2つの位置交換',
-        SACRIFICE_WILL: '自石破壊で布石',
         PERMA_PROTECT_NEXT_STONE: '次石を永続保護',
         STRONG_WIND_WILL: '石を最長直線移動',
         SUPER_BUOYANCY_WILL: '石を上方向へ貫通移動',

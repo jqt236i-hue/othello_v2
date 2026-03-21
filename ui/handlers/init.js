@@ -381,10 +381,10 @@ async function initializeUI() {
     }
     if (sellBtn && typeof confirmSellCardSelection === 'function') {
         sellBtn.addEventListener('click', () => {
-            const armedSkip = armLocalPlaybackSoundSkip('sell_sacrifice_gain');
-            playUiEffectSound('sell_sacrifice_gain');
+            const armedSkip = armLocalPlaybackSoundSkip('charge_gain_common');
+            playUiEffectSound('charge_gain_common');
             const confirmed = confirmSellCardSelection() === true;
-            if (!confirmed && armedSkip) clearLocalPlaybackSoundSkip('sell_sacrifice_gain');
+            if (!confirmed && armedSkip) clearLocalPlaybackSoundSkip('charge_gain_common');
         });
     }
     if (passBtn && typeof passCurrentTurn === 'function') {

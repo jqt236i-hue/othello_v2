@@ -26,15 +26,6 @@ describe('cpu turn handler pending selection', () => {
     expect(mock).toHaveBeenCalledWith('white');
   });
 
-  test('SACRIFICE_WILL invokes cpuSelectSacrificeWillWithPolicy when available', async () => {
-    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
-    global.cpuSelectSacrificeWillWithPolicy = mock;
-    cardState.pendingEffectByPlayer.white = { type: 'SACRIFICE_WILL', stage: 'selectTarget' };
-
-    cpuHandler.processCpuTurn();
-    await waitTick();
-    expect(mock).toHaveBeenCalledWith('white');
-  });
 
   test('STRONG_WIND_WILL invokes cpuSelectStrongWindWillWithPolicy when available', async () => {
     const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
@@ -399,22 +390,6 @@ describe('cpu turn handler pending selection', () => {
     expect(cardState.pendingEffectByPlayer.white).toBeNull();
   });
 
-  test('SACRIFICE_WILL with remaining pending does not attempt pass/move immediately', async () => {
-    const mock = jest.fn(async () => {
-      // Keep pending as selectTarget to emulate multi-step selection flow.
-    });
-    global.cpuSelectSacrificeWillWithPolicy = mock;
-    cardState.pendingEffectByPlayer.white = { type: 'SACRIFICE_WILL', stage: 'selectTarget', selectedCount: 1, maxSelections: 3 };
-    global.processPassTurn = jest.fn();
-    global.generateMovesForPlayer = jest.fn(() => []);
-
-    cpuHandler.processCpuTurn();
-    await waitTick();
-
-    expect(mock).toHaveBeenCalledWith('white');
-    expect(global.processPassTurn).not.toHaveBeenCalled();
-    expect(global.generateMovesForPlayer).not.toHaveBeenCalled();
-  });
 
   test('unknown selectTarget pending does not immediately force pass', async () => {
     global.processPassTurn = jest.fn();

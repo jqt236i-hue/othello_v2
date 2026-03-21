@@ -578,17 +578,6 @@ function resolveCpuLv6BrowserProfile() {
     return null;
 }
 
-const DEFAULT_LV6_SACRIFICE_WILL_MIN_TURN_NUMBER = 25;
-
-function resolveCpuLv6SacrificeWillMinTurnNumber() {
-    const browserProfile = resolveCpuLv6BrowserProfile();
-    const configured = Number(browserProfile && browserProfile.sacrificeWillMinTurnNumber);
-    if (Number.isFinite(configured) && configured >= 1) {
-        return Math.max(1, Math.floor(configured));
-    }
-    return DEFAULT_LV6_SACRIFICE_WILL_MIN_TURN_NUMBER;
-}
-
 function resolveCpuCurrentTurnNumber() {
     const turnNumber = Number(gameState && gameState.turnNumber);
     if (Number.isFinite(turnNumber)) return Math.max(1, Math.floor(turnNumber) + 1);
@@ -597,28 +586,6 @@ function resolveCpuCurrentTurnNumber() {
     if (Number.isFinite(turnIndex)) return Math.max(1, Math.floor(turnIndex) + 1);
 
     return null;
-}
-
-function isLv6SacrificeWillLocked(level, cardId, cardDef) {
-    if (!Number.isFinite(level) || level < 6) return false;
-    if (resolveCardType(cardId, cardDef) !== 'SACRIFICE_WILL') return false;
-
-    const currentTurnNumber = resolveCpuCurrentTurnNumber();
-    if (!Number.isFinite(currentTurnNumber)) return false;
-
-    return currentTurnNumber < resolveCpuLv6SacrificeWillMinTurnNumber();
-}
-
-function filterLv6LockedCardIds(level, cardIds) {
-    if (!Array.isArray(cardIds) || cardIds.length <= 0) return [];
-    if (!Number.isFinite(level) || level < 6) return cardIds.slice();
-
-    const currentTurnNumber = resolveCpuCurrentTurnNumber();
-    if (!Number.isFinite(currentTurnNumber) || currentTurnNumber >= resolveCpuLv6SacrificeWillMinTurnNumber()) {
-        return cardIds.slice();
-    }
-
-    return cardIds.filter((cardId) => resolveCardType(cardId, null) !== 'SACRIFICE_WILL');
 }
 
 function resolveCpuLv6OnnxRuntimeGuardOverrides() {
@@ -1169,7 +1136,7 @@ async function selectCardFromOnnxPolicyAsync(playerKey, level, legalMovesCount, 
     const runtime = resolvePolicyOnnxRuntime();
     if (!runtime || typeof runtime.chooseCard !== 'function') return null;
     if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
-    const filteredUsableCardIds = filterLv6LockedCardIds(level, usableCardIds);
+    const filteredUsableCardIds = usableCardIds.slice();
     if (filteredUsableCardIds.length === 0) return null;
     const preGate = evaluateCpuOnnxLatencyGate(runtime, 'chooseCard', level);
     if (preGate.shouldDegrade) {
@@ -1963,7 +1930,6 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     METEOR_WILL: makePlanPressureProfile(3, 4, 3, 2),
     OBSERVER_WILL: makePlanPressureProfile(1, 1, 1, 2),
     PERMA_PROTECT_NEXT_STONE: makePlanPressureProfile(0, 0, 0, 1),
-    ABSOLUTE_PROTECT_NEXT_STONE: makePlanPressureProfile(0, 0, 0, 1),
     PLUNDER_WILL: makePlanPressureProfile(1, 2, 0, 2),
     POSITION_SWAP_WILL: makePlanPressureProfile(2, 3, 2, 2),
     PROTECTED_NEXT_STONE: makePlanPressureProfile(0, 0, 0, 1),
@@ -1971,7 +1937,6 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     REGEN_WILL: makePlanPressureProfile(0, 0, 0, 1),
     RIBO_WILL: makePlanPressureProfile(1, 2, 0, 2),
     ROBOT_VACUUM_WILL: makePlanPressureProfile(2, 2, 2, 3),
-    SACRIFICE_WILL: makePlanPressureProfile(3, 4, 3, 4),
     SELL_CARD_WILL: makePlanPressureProfile(1, 2, 0, 2),
     SUPPLY_WILL: makePlanPressureProfile(1, 2, 0, 2),
     SILVER_STONE: makePlanPressureProfile(1, 2, 0, 2),
@@ -2465,7 +2430,6 @@ function buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMov
 
 const HIGH_VARIANCE_CARD_TYPES_FOR_QUIESCENCE = new Set([
     'TIME_BOMB',
-    'SACRIFICE_WILL',
     'METEOR_WILL',
     'SWAP_WITH_ENEMY',
     'POSITION_SWAP_WILL',
@@ -2790,7 +2754,7 @@ function selectCardToUse(playerKey) {
     const legalMoves = (typeof getLegalMoves === 'function') ? getLegalMoves(safeGameState, protection, perma) : [];
     const legalMovesCount = Array.isArray(legalMoves) ? legalMoves.length : 0;
     const usableNow = (typeof CardLogic !== 'undefined' && CardLogic)
-        ? filterLv6LockedCardIds(level, getTargetAwareUsableCardIds(playerKey))
+        ? getTargetAwareUsableCardIds(playerKey)
         : [];
     const decisionContext = buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableNow);
     if (
@@ -2806,7 +2770,6 @@ function selectCardToUse(playerKey) {
     const cornerPlanState = decisionContext.cornerPlanState || buildCornerPlanState(playerKey, legalMoves, usableNow);
     const isAllowedChoice = (choice) => {
         if (!choice || !choice.cardId) return false;
-        if (isLv6SacrificeWillLocked(level, choice.cardId, choice.cardDef)) return false;
         if (!isCardChoiceAllowedByPlan(playerKey, level, legalMovesCount, choice.cardId, choice.cardDef, cornerPlanState, decisionContext)) {
             return false;
         }
@@ -3025,10 +2988,6 @@ function applyCardChoice(playerKey, cardChoice) {
     const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
         ? Number(cpuSmartness[playerKey])
         : 1;
-    if (isLv6SacrificeWillLocked(level, cardId, cardDef)) {
-        cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 生贄の意志を25手目まで保留`);
-        return false;
-    }
     const fallbackCardCost = (cardDef && Number.isFinite(cardDef.cost)) ? cardDef.cost : null;
     const fallbackCardName = (cardDef && cardDef.name) ? cardDef.name : null;
     const pipelineResult = runCpuCardUseViaPipeline(playerKey, cardId, cardDef);
@@ -3156,7 +3115,7 @@ function cpuMaybeUseCardWithPolicy(playerKey) {
 
     // Try other usable cards as fallback (preserve original retry behavior)
     if (typeof CardLogic !== 'undefined') {
-        const usable = filterLv6LockedCardIds(level, getTargetAwareUsableCardIds(playerKey));
+        const usable = getTargetAwareUsableCardIds(playerKey);
         for (const id of usable) {
             if (id === (cardChoice && cardChoice.cardId)) continue;
             const def = CardLogic.getCardDef ? CardLogic.getCardDef(id) : null;
@@ -4107,33 +4066,6 @@ function scorePendingTargetByType(playerKey, pendingType, target, pending) {
         score += (oppAdj - ownAdj) * 80;
         if (discDiff >= 6 && own) score -= 260;
         return score;
-    case 'SACRIFICE_WILL':
-        if (!own) return -3000;
-        if (corner) score -= 3200;
-        else if (edge) score -= 900;
-        score += (oppAdj * 150) - (ownAdj * 80) + (emptyAdj * 45);
-        score -= bonus * 120;
-        score -= seatValue * 0.4;
-        score += markerProfile.oppSpecialScore * 0.8;
-        score += markerProfile.oppBombCount * 260;
-        score -= markerProfile.ownSpecialScore * 2.6;
-        score -= markerProfile.ownBombCount * 420;
-        if (timedProfile) {
-            score -= timedProfile.ownTimedScore * 1.9;
-            score -= timedProfile.ownRemainingSum * 60;
-            score -= timedProfile.ownTimedCount * 180;
-            if (
-                timedProfile.ownTimedCount <= 0 &&
-                markerProfile.ownSpecialScore <= 0 &&
-                markerProfile.ownBombCount <= 0
-            ) score += 220;
-        } else if (markerProfile.ownSpecialScore <= 0 && markerProfile.ownBombCount <= 0) {
-            score += 180;
-        }
-        if (emptyAdj <= 0) score -= 140;
-        if (discDiff <= -8) score += 160;
-        if (discDiff >= 6) score -= 160;
-        return score;
     case 'SWAP_WITH_ENEMY':
         score += opp ? 260 : -600;
         if (corner) score += opp ? 3600 : -2600;
@@ -4498,7 +4430,7 @@ function simulateBoardForPendingTarget(playerKey, pendingType, target) {
         return simulatePendingPlacementBoard(board, playerValue, target);
     }
 
-    if (type === 'DESTROY_ONE_STONE' || type === 'SACRIFICE_WILL') {
+    if (type === 'DESTROY_ONE_STONE') {
         const next = cloneBoardForCpu(board);
         setBoardCellValue(next, target.row, target.col, 0);
         return next;
@@ -4806,56 +4738,6 @@ async function cpuSelectSuperGravityWillWithPolicy(playerKey) {
     }
 }
 
-/**
- * 生贄の意志 対象選択
- * @param {string} playerKey - 'black' または 'white'
- */
-async function cpuSelectSacrificeWillWithPolicy(playerKey) {
-    const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-        ? Number(cpuSmartness[playerKey])
-        : 1;
-    if (isLv6SacrificeWillLocked(level, null, { type: 'SACRIFICE_WILL' })) {
-        cpuDebugLog(`[CPU] ${playerKey}: 生贄の意志を24手以内のため取消`);
-        if (cardState && cardState.pendingEffectByPlayer) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
-        }
-        emitCpuSelectionStateChange();
-        return;
-    }
-
-    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
-        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
-        : [];
-
-    if (!targets.length) {
-        cpuDebugLog(`[CPU] ${playerKey}: 生贄対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
-        return;
-    }
-
-    const target = await choosePendingTargetWithPolicyAsync(playerKey, 'SACRIFICE_WILL', targets, null) || targets[0];
-    cpuDebugLog(`[CPU] ${playerKey}: 生贄ターゲット (${target.row}, ${target.col})`);
-
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
-        playerKey,
-        { sacrificeTarget: { row: target.row, col: target.col } },
-        'SACRIFICE_WILL'
-    );
-    if (pipelineResult) return;
-
-    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySacrificeWill === 'function') {
-        const res = CardLogic.applySacrificeWill(cardState, gameState, playerKey, target.row, target.col);
-        if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
-        }
-        emitCpuSelectionStateChange();
-        return;
-    }
-
-    if (typeof handleSacrificeSelection === 'function') {
-        await handleSacrificeSelection(target.row, target.col, playerKey);
-    }
-}
 
 /**
  * 売却の意志 対象選択
@@ -5900,7 +5782,6 @@ if (typeof module !== 'undefined' && module.exports) {
         hasPlanPressureProfileForCardType,
         buildCardUseDecisionContext,
         cpuSelectDestroyWithPolicy,
-        cpuSelectSacrificeWillWithPolicy,
         cpuSelectSellCardWillWithPolicy,
         cpuSelectHeavenBlessingWithPolicy,
         cpuSelectCondemnWillWithPolicy,
@@ -5936,4 +5817,3 @@ try {
     if (uiBootstrap && typeof uiBootstrap.registerUIGlobals === 'function') uiBootstrap.registerUIGlobals({ computeCpuAction });
 } catch (e) { /* ignore */ }
 try { if (typeof globalThis !== 'undefined') globalThis.computeCpuAction = computeCpuAction; } catch (e) {}
-

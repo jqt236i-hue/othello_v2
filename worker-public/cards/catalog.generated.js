@@ -54,25 +54,11 @@ window.CardCatalog = {
       "desc_ja": "盤面上の石2つを選び、位置を入れ替える。通常石・特殊石・爆弾を問わず対象にできる。"
     },
     {
-      "id": "sacrifice_01",
-      "name_ja": "生贄の意志",
-      "type": "SACRIFICE_WILL",
-      "cost": 5,
-      "desc_ja": "自分の石を最大3個まで破壊し、1個につき布石+5。"
-    },
-    {
       "id": "perma_01",
       "name_ja": "強い意志",
       "type": "PERMA_PROTECT_NEXT_STONE",
       "cost": 15,
-      "desc_ja": "次に置く石は以後ずっと反転されない。"
-    },
-    {
-      "id": "absolute_protect_01",
-      "name_ja": "最強の意志",
-      "type": "ABSOLUTE_PROTECT_NEXT_STONE",
-      "cost": 30,
-      "desc_ja": "次に置く石に絶対保護を付与する。絶対保護は永続し、反転・交換・破壊・テレポート・位置交換・マス破壊・意志の喪失を含む全効果を無効化する。強い意志の上位。"
+      "desc_ja": "次に置く石は以後ずっと反転されない。所有者ターン開始10回で最強の意志に昇格し、絶対保護になる。"
     },
     {
       "id": "strong_wind_01",
@@ -455,7 +441,7 @@ window.CardCatalog = {
       "id": "destroy_dragon_01",
       "name_ja": "破壊龍",
       "type": "DESTROY_DRAGON_WILL",
-      "cost": 15,
+      "cost": 7,
       "desc_ja": "次に置く石を破壊龍化。配置時と自ターン開始時に周囲1マス（8方向）の敵石をランダム1個だけ破壊する。3ターン持続。反転保護を持つ特殊石。"
     },
     {

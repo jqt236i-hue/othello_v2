@@ -530,7 +530,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
-  test('treasure_box_gain があるターンは treasure_gain を優先し sell_sacrifice_gain を同時再生しない', () => {
+  test('treasure_box_gain があるターンは treasure_gain を優先し charge_gain_common を同時再生しない', () => {
     const base = [
       {
         type: 'card_use_animation',
@@ -549,7 +549,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, raw, pres);
     const treasureCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'treasure_gain');
-    const sellCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'sell_sacrifice_gain');
+    const sellCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'charge_gain_common');
 
     expect(treasureCue).toBeTruthy();
     expect(treasureCue.phase).toBe(6);
@@ -589,93 +589,11 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(resetStatus).toBeUndefined();
   });
 
-  test('sacrifice_selected 成功時の自石破壊は sell_sacrifice_gain と stone_destroy を同じ phase で追加する', () => {
-    const base = [{
-      type: 'destroy',
-      phase: 7,
-      targets: [{ r: 3, col: 3, cause: 'SACRIFICE_WILL', reason: 'sacrifice_selected' }]
-    }];
-    const raw = [{ type: 'sacrifice_selected', applied: true, gained: 5, completed: false, target: { row: 3, col: 3 } }];
 
-    const out = adapter.appendSoundEffectPlaybackEvents(base, raw, []);
-    const gainCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'sell_sacrifice_gain');
-    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
 
-    expect(gainCue).toBeTruthy();
-    expect(gainCue.phase).toBe(7);
-    expect(stoneCue).toBeTruthy();
-    expect(stoneCue.phase).toBe(7);
-  });
 
-  test('sacrifice_selected 成功時は reason が sacrifice_selected の destroy でも stone_destroy を追加する', () => {
-    const base = [{
-      type: 'destroy',
-      phase: 8,
-      targets: [{ r: 5, col: 5, cause: 'DESTROY_ONE_STONE', reason: 'sacrifice_selected' }]
-    }];
-    const raw = [{ type: 'sacrifice_selected', applied: true, gained: 5, completed: false, target: { row: 5, col: 5 } }];
 
-    const out = adapter.appendSoundEffectPlaybackEvents(base, raw, []);
-    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
-
-    expect(stoneCue).toBeTruthy();
-    expect(stoneCue.phase).toBe(8);
-  });
-
-  test('sacrifice_selected 成功時は legacy_fallback の destroy でも stone_destroy を追加する', () => {
-    const base = [{
-      type: 'destroy',
-      phase: 9,
-      targets: [{ r: 6, col: 6, cause: 'SYSTEM', reason: 'legacy_fallback' }]
-    }];
-    const raw = [{ type: 'sacrifice_selected', applied: true, gained: 5, completed: false, target: { row: 6, col: 6 } }];
-
-    const out = adapter.appendSoundEffectPlaybackEvents(base, raw, []);
-    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
-
-    expect(stoneCue).toBeTruthy();
-    expect(stoneCue.phase).toBe(9);
-  });
-
-  test('runTurnWithAdapter の生贄成功は destroy cause を backfill して gain 音を同 phase に載せる', () => {
-    const defs = Array.isArray(SharedConstants.CARD_DEFS) ? SharedConstants.CARD_DEFS : [];
-    const def = defs.find((d) => d && d.id && d.type === 'SACRIFICE_WILL');
-    expect(def).toBeTruthy();
-
-    const prng = { shuffle: () => {}, random: () => 0.5 };
-    const cardState = CardLogic.createCardState(prng);
-    const gameState = {
-      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
-      currentPlayer: 1,
-      turnNumber: 1,
-      consecutivePasses: 0
-    };
-    gameState.board[3][3] = 1;
-    cardState.hands.black = [def.id];
-    cardState.charge.black = Number.isFinite(def.cost) ? def.cost : 0;
-
-    CardLogic.applyCardUsage(cardState, gameState, 'black', def.id);
-
-    const result = adapter.runTurnWithAdapter(cardState, gameState, 'black', {
-      type: 'place',
-      sacrificeTarget: { row: 3, col: 3 }
-    }, TurnPipeline);
-
-    const destroyEv = result.playbackEvents.find((ev) => ev && ev.type === 'destroy');
-    const destroyTarget = destroyEv && Array.isArray(destroyEv.targets) ? destroyEv.targets[0] : null;
-    const stoneCue = result.playbackEvents.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
-    const gainCue = result.playbackEvents.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'sell_sacrifice_gain');
-
-    expect(destroyTarget).toBeTruthy();
-    expect(destroyTarget.cause).toBe('SACRIFICE_WILL');
-    expect(destroyTarget.reason).toBe('sacrifice_selected');
-    expect(stoneCue).toBeTruthy();
-    expect(gainCue).toBeTruthy();
-    expect(gainCue.phase).toBe(destroyEv.phase);
-    expect(stoneCue.phase).toBe(destroyEv.phase);
-  });
-
-  test('金の意志の自己破壊は stone_destroy ではなく sell_sacrifice_gain を再生する', () => {
+  test('金の意志の自己破壊は stone_destroy ではなく charge_gain_common を再生する', () => {
     const base = [{
       type: 'destroy',
       phase: 10,
@@ -683,7 +601,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, []);
-    const gainCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'sell_sacrifice_gain');
+    const gainCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'charge_gain_common');
     const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
 
     expect(gainCue).toBeTruthy();
@@ -691,7 +609,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCue).toBeUndefined();
   });
 
-  test('銀の意志の自己破壊は stone_destroy ではなく sell_sacrifice_gain を再生する', () => {
+  test('銀の意志の自己破壊は stone_destroy ではなく charge_gain_common を再生する', () => {
     const base = [{
       type: 'destroy',
       phase: 11,
@@ -699,7 +617,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, []);
-    const gainCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'sell_sacrifice_gain');
+    const gainCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'charge_gain_common');
     const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
 
     expect(gainCue).toBeTruthy();
@@ -707,7 +625,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCue).toBeUndefined();
   });
 
-  test('虹の意志の自己破壊は stone_destroy ではなく sell_sacrifice_gain を再生する', () => {
+  test('虹の意志の自己破壊は stone_destroy ではなく charge_gain_common を再生する', () => {
     const base = [{
       type: 'destroy',
       phase: 12,
@@ -715,7 +633,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, []);
-    const gainCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'sell_sacrifice_gain');
+    const gainCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'charge_gain_common');
     const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
 
     expect(gainCue).toBeTruthy();
@@ -723,7 +641,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCue).toBeUndefined();
   });
 
-  test('水晶の意志の自己破壊は stone_destroy ではなく sell_sacrifice_gain を再生する', () => {
+  test('水晶の意志の自己破壊は stone_destroy ではなく charge_gain_common を再生する', () => {
     const base = [{
       type: 'destroy',
       phase: 13,
@@ -731,7 +649,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, []);
-    const gainCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'sell_sacrifice_gain');
+    const gainCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'charge_gain_common');
     const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
 
     expect(gainCue).toBeTruthy();
@@ -956,7 +874,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(bombCues).toEqual([2, 5]);
   });
 
-  test('WORK_INCOME は sell_sacrifice_gain を同じ phase で再生する', () => {
+  test('WORK_INCOME は charge_gain_common を同じ phase で再生する', () => {
     const pres = [
       { type: 'WORK_INCOME', player: 'black', gained: 4, meta: {} },
       { type: 'STATUS_TICK', row: 2, col: 2, meta: { special: 'WORK', timer: 3, owner: 'black' } }
@@ -969,7 +887,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
     const workIncomeLog = out.find((ev) => ev && ev.type === 'log' && ev.rawType === 'WORK_INCOME');
-    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'sell_sacrifice_gain');
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'charge_gain_common');
 
     expect(workIncomeLog).toBeTruthy();
     expect(cue).toBeTruthy();
@@ -990,7 +908,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
     const workIncomeLog = out.find((ev) => ev && ev.type === 'log' && ev.rawType === 'WORK_INCOME');
     const specialCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'work_income_16');
-    const normalCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'sell_sacrifice_gain');
+    const normalCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'charge_gain_common');
 
     expect(workIncomeLog).toBeTruthy();
     expect(specialCue).toBeTruthy();
@@ -1040,7 +958,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(incomeCue).toBeTruthy();
   });
 
-  test('WORK_INCOME の gained が0以下なら sell_sacrifice_gain を再生しない', () => {
+  test('WORK_INCOME の gained が0以下なら charge_gain_common を再生しない', () => {
     const pres = [{ type: 'WORK_INCOME', player: 'black', gained: 0, meta: {} }];
     const base = adapter.mapToPlaybackEvents(
       pres,
@@ -1049,7 +967,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     );
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
-    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'sell_sacrifice_gain');
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'charge_gain_common');
 
     expect(cue).toBeUndefined();
   });

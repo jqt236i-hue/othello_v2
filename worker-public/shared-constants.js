@@ -124,14 +124,8 @@
         // POSITION_SWAP_WILL (入替の意志) - 1 card, cost: 13
         { id: 'position_swap_01', name: '入替の意志', type: 'POSITION_SWAP_WILL', cost: 13, desc: '盤面上の石2つを選び、位置を入れ替える。通常石・特殊石・爆弾を問わず対象にできる。' },
 
-        // SACRIFICE_WILL (生贄の意志) - 1 card, cost: 5
-        { id: 'sacrifice_01', name: '生贄の意志', type: 'SACRIFICE_WILL', cost: 5, desc: '盤面上の自分の石を最大3つまで選んで破壊し、1つにつき布石を5獲得する。' },
-
         // PERMA_PROTECT_NEXT_STONE (強い意志) - 1 card, cost: 15
-        { id: 'perma_01', name: '強い意志', type: 'PERMA_PROTECT_NEXT_STONE', cost: 15, desc: '次に置いた石は、ずっと反転されない。' },
-
-        // ABSOLUTE_PROTECT_NEXT_STONE (最強の意志) - 1 card, cost: 30
-        { id: 'absolute_protect_01', name: '最強の意志', type: 'ABSOLUTE_PROTECT_NEXT_STONE', cost: 30, desc: '次に置いた石に絶対保護を付与する。絶対保護は永続し、反転・交換・破壊・テレポート・位置交換・マス破壊・意志の喪失を含む全効果を無効化する。強い意志の上位。' },
+        { id: 'perma_01', name: '強い意志', type: 'PERMA_PROTECT_NEXT_STONE', cost: 15, desc: '次に置いた石は、ずっと反転されない。所有者ターン開始10回で最強の意志に昇格し、絶対保護になる。' },
         // STRONG_WIND_WILL (強風の意志) - 1 card, cost: 9
         { id: 'strong_wind_01', name: '強風の意志', type: 'STRONG_WIND_WILL', cost: 9, desc: '盤面の石1つを選び、最も長く進める上下左右方向へ飛ばす（同距離はランダム）。' },
         // SUPER_BUOYANCY_WILL (超浮力) - 1 card, cost: 16
@@ -246,8 +240,8 @@
         // GUARDIAN_GOD (守護神) - 1 card, cost: 10
         { id: 'guardian_god_01', name: '守護神', type: 'GUARDIAN_GOD', cost: 10, desc: '自分の石1つに完全保護を付与する。10ターン持続。' },
 
-        // DESTROY_DRAGON_WILL (破壊龍) - 1 card, cost: 15
-        { id: 'destroy_dragon_01', name: '破壊龍', type: 'DESTROY_DRAGON_WILL', cost: 15, desc: '次に置く石を破壊龍化。配置時と自ターン開始時に周囲1マス（8方向）の敵石をランダム1個だけ破壊する。3ターン持続。反転保護を持つ特殊石。' },
+        // DESTROY_DRAGON_WILL (破壊龍) - 1 card, cost: 7
+        { id: 'destroy_dragon_01', name: '破壊龍', type: 'DESTROY_DRAGON_WILL', cost: 7, desc: '次に置く石を破壊龍化。配置時と自ターン開始時に周囲1マス（8方向）の敵石をランダム1個だけ破壊する。3ターン持続。反転保護を持つ特殊石。' },
 
         // LIGHTNING_WILL (落雷) - 1 card, cost: 26
         { id: 'lightning_01', name: '落雷', type: 'LIGHTNING_WILL', cost: 26, desc: '次に置く石を落雷石化。配置ターン即時と自ターン開始時に盤面上のランダムな敵石を1個破壊する。5ターン持続。反転保護を持つ特殊石。' },
@@ -293,9 +287,7 @@
         'PROTECTED_NEXT_STONE',
         'SWAP_WITH_ENEMY',
         'POSITION_SWAP_WILL',
-        'SACRIFICE_WILL',
         'PERMA_PROTECT_NEXT_STONE',
-        'ABSOLUTE_PROTECT_NEXT_STONE',
         'STRONG_WIND_WILL',
         'SUPER_BUOYANCY_WILL',
         'SUPER_GRAVITY_WILL',
@@ -369,6 +361,7 @@
     const TIME_STOP_GOD_TURNS = 5;
     const TIME_STOP_GOD_CONSECUTIVE_TURNS = 2;
     const TIME_STOP_GOD_SELF_DESTROY_COUNT = 5;
+    const STRONG_WILL_PROMOTION_OWNER_TURNS = 10;
 
     // Destroy fade duration (ms)
     // Used by UI animation utilities to align JS waiting with CSS animation time
@@ -401,6 +394,7 @@
         TIME_STOP_GOD_TURNS: TIME_STOP_GOD_TURNS,
         TIME_STOP_GOD_CONSECUTIVE_TURNS: TIME_STOP_GOD_CONSECUTIVE_TURNS,
         TIME_STOP_GOD_SELF_DESTROY_COUNT: TIME_STOP_GOD_SELF_DESTROY_COUNT,
+        STRONG_WILL_PROMOTION_OWNER_TURNS: STRONG_WILL_PROMOTION_OWNER_TURNS,
         DESTROY_FADE_MS: DESTROY_FADE_MS,
     };
 
@@ -418,6 +412,7 @@
         window.TIME_STOP_GOD_TURNS = TIME_STOP_GOD_TURNS;
         window.TIME_STOP_GOD_CONSECUTIVE_TURNS = TIME_STOP_GOD_CONSECUTIVE_TURNS;
         window.TIME_STOP_GOD_SELF_DESTROY_COUNT = TIME_STOP_GOD_SELF_DESTROY_COUNT;
+        window.STRONG_WILL_PROMOTION_OWNER_TURNS = STRONG_WILL_PROMOTION_OWNER_TURNS;
         window.DESTROY_FADE_MS = DESTROY_FADE_MS;
         // Expose new canonical game constants for browser usage
         window.BOARD_SIZE = BOARD_SIZE;
@@ -431,4 +426,3 @@
 
     return exports;
 });
-

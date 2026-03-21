@@ -32,15 +32,13 @@ describe('card context parity audit script', () => {
             },
             {
                 handCardIds: ['a', 'b'],
-                sacrificeSelectedCount: 1
             },
-            ['deckRemaining', 'cloneSplitEligibleSourceCount', 'handCardIds', 'sacrificeSelectedCount']
+            ['deckRemaining', 'cloneSplitEligibleSourceCount', 'handCardIds']
         );
 
         expect(diff).toEqual({
             deckRemaining: { live: 10 },
-            cloneSplitEligibleSourceCount: { live: 0 },
-            sacrificeSelectedCount: { selfplay: 1 }
+            cloneSplitEligibleSourceCount: { live: 0 }
         });
     });
 

@@ -753,7 +753,7 @@ function _executeSellSelection(playerKey, sellCardId) {
                 _setPendingSelectionBusy(false);
             },
             onFailure: () => {
-                _clearLocalPlaybackSoundSkip('sell_sacrifice_gain');
+                _clearLocalPlaybackSoundSkip('charge_gain_common');
                 if (typeof renderCardUI === 'function') renderCardUI();
                 addLog('売却に失敗しました');
                 _setPendingSelectionBusy(false);
@@ -1893,18 +1893,13 @@ function updateCardDetailPanel() {
             pending.type === 'EXTEND_LIFE_WILL' ||
             pending.type === 'EXTEND_LIFE_GOD' ||
             pending.type === 'METEOR_WILL' ||
-            pending.type === 'SACRIFICE_WILL' ||
             pending.type === 'SELL_CARD_WILL'
         );
     const cancellableSelecting = selecting &&
-        (pending.type === 'DESTROY_ONE_STONE' || pending.type === 'SACRIFICE_WILL' || pending.type === 'POSITION_SWAP_WILL' || pending.type === 'METEOR_WILL');
+        (pending.type === 'DESTROY_ONE_STONE' || pending.type === 'POSITION_SWAP_WILL' || pending.type === 'METEOR_WILL');
     if (cancelBtn) {
         cancelBtn.style.display = cancellableSelecting ? 'block' : 'none';
-        if (cancellableSelecting && pending.type === 'SACRIFICE_WILL' && Number(pending.selectedCount || 0) > 0) {
-            cancelBtn.textContent = '終了';
-        } else {
-            cancelBtn.textContent = 'キャンセル';
-        }
+        cancelBtn.textContent = 'キャンセル';
         // Add specific listener for HvH mode to ensure it uses the correct context
         cancelBtn.onclick = () => cancelPendingSelection(playerKey);
     }
@@ -1924,13 +1919,6 @@ function updateCardDetailPanel() {
             reasonEl.textContent = first
                 ? `2つ目の石を選んでください（1つ目: ${posToNotation(first.row, first.col)}）`
                 : '1つ目の石を選んでください（全ての石が対象）';
-        } else if (pending.type === 'SACRIFICE_WILL') {
-            const selectedCount = Number(pending.selectedCount || 0);
-            const maxSelections = Number(pending.maxSelections || 3);
-            const remain = Math.max(0, maxSelections - selectedCount);
-            reasonEl.textContent = selectedCount > 0
-                ? `自分の石を選択（残り${remain}回）/ 終了も可`
-                : '自分の石を選択してください（最大3回・キャンセル可）';
         } else if (pending.type === 'TRAP_WILL') {
             reasonEl.textContent = '罠を設置する自分の石を選んでください（選択後にターン終了）';
         } else if (pending.type === 'GUARD_WILL') {
@@ -2284,7 +2272,7 @@ function cancelPendingSelection(specificPlayerKey) {
 
     const pending = cardState.pendingEffectByPlayer[playerKey];
     if (!pending || pending.stage !== 'selectTarget') return;
-    if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'SACRIFICE_WILL' && pending.type !== 'POSITION_SWAP_WILL') return;
+    if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'POSITION_SWAP_WILL') return;
 
     const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
     const cancelOptions = isDebugUnlimited ? { refundCost: false, resetUsage: false, noConsume: true } : null;
@@ -2300,12 +2288,6 @@ function cancelPendingSelection(specificPlayerKey) {
 
     if (pending.type === 'POSITION_SWAP_WILL') {
         addLog(`${playerKey === 'black' ? '黒' : '白'}の入替の意志をキャンセルしました`);
-    } else if (pending.type === 'SACRIFICE_WILL') {
-        if (Number(pending.selectedCount || 0) > 0) {
-            addLog(`${playerKey === 'black' ? '黒' : '白'}の生贄の意志を終了しました`);
-        } else {
-            addLog(`${playerKey === 'black' ? '黒' : '白'}の生贄の意志をキャンセルしました`);
-        }
     } else {
         addLog(`${playerKey === 'black' ? '黒' : '白'}の破壊神をキャンセルしました`);
     }

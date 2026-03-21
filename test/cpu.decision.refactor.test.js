@@ -329,26 +329,6 @@ describe('cpu decision refactor helpers', () => {
     expect(res.cardId).toBe('crystal_01');
   });
 
-  test('selectCardToUse suppresses SACRIFICE_WILL for Lv6 before turn 25', () => {
-    global.gameState = { turnNumber: 23 };
-    global.cpuSmartness.white = 6;
-    global.cardState.hands.white = ['sacrifice_01'];
-    global.CardLogic = {
-      getUsableCardIds: () => ['sacrifice_01'],
-      canUseCard: () => true,
-      getCardDef: () => ({ id: 'sacrifice_01', name: '生贄の意志', type: 'SACRIFICE_WILL' }),
-      getCardCost: () => 5
-    };
-    global.AISystem = {
-      selectCardToUse: () => ({
-        cardId: 'sacrifice_01',
-        cardDef: { id: 'sacrifice_01', name: '生贄の意志', type: 'SACRIFICE_WILL' }
-      })
-    };
-
-    const res = cpuDecision.selectCardToUse('white');
-    expect(res).toBeNull();
-  });
 
   test('cpuSelectHeavenBlessingWithPolicy prefers future-utility card over merely expensive volatile card', async () => {
     global.gameState = {
@@ -1626,20 +1606,6 @@ describe('cpu decision refactor helpers', () => {
     expect(emitLogAdded).toHaveBeenCalled();
   });
 
-  test('applyCardChoice rejects SACRIFICE_WILL for Lv6 before turn 25', () => {
-    global.gameState = { turnNumber: 23 };
-    global.cpuSmartness.white = 6;
-    global.cardState.hands.white = ['sacrifice_01'];
-    global.CardLogic = { applyCardUsage: jest.fn(() => true) };
-
-    const ok = cpuDecision.applyCardChoice('white', {
-      cardId: 'sacrifice_01',
-      cardDef: { id: 'sacrifice_01', name: '生贄の意志', type: 'SACRIFICE_WILL' }
-    });
-
-    expect(ok).toBe(false);
-    expect(global.CardLogic.applyCardUsage).not.toHaveBeenCalled();
-  });
 
   test('cpuMaybeUseCardWithPolicy returns true when a card applied', () => {
     global.CardLogic = { applyCardUsage: jest.fn(() => true), canUseCard: () => true, getCardDef: (id) => ({ name: id }) };
@@ -1679,7 +1645,7 @@ describe('cpu decision refactor helpers', () => {
       currentPlayer: -1
     };
     global.cardState = {
-      hands: { white: ['sacrifice_01', 'silver_stone', 'double_chain_01', 'gold_stone'], black: [] },
+      hands: { white: ['bomb_01', 'silver_stone', 'double_chain_01', 'gold_stone'], black: [] },
       pendingEffectByPlayer: { white: null, black: null },
       hasUsedCardThisTurnByPlayer: { white: false, black: false },
       hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
@@ -1693,8 +1659,8 @@ describe('cpu decision refactor helpers', () => {
       getCardDef: (id) => ({
         id,
         name: id,
-        type: id === 'sacrifice_01'
-          ? 'SACRIFICE_WILL'
+        type: id === 'bomb_01'
+          ? 'TIME_BOMB'
           : (id === 'double_chain_01' ? 'DOUBLE_CHAIN_WILL' : (id === 'gold_stone' ? 'GOLD_STONE' : 'SILVER_STONE'))
       }),
       getCardCost: (id) => (id === 'double_chain_01' ? 10 : (id === 'gold_stone' ? 6 : 5)),
@@ -1766,69 +1732,7 @@ describe('cpu decision refactor helpers', () => {
     expect(applied).toBe(false);
   });
 
-  test('cpuSelectSacrificeWillWithPolicy cancels early Lv6 pending sacrifice immediately', async () => {
-    global.gameState = { turnNumber: 23 };
-    global.cpuSmartness.white = 6;
-    global.cardState.pendingEffectByPlayer.white = { type: 'SACRIFICE_WILL', stage: 'selectTarget' };
-    global.CardLogic = {
-      getSelectableTargets: jest.fn(() => [{ row: 2, col: 3 }]),
-      applySacrificeWill: jest.fn(() => ({ applied: true }))
-    };
 
-    await cpuDecision.cpuSelectSacrificeWillWithPolicy('white');
-
-    expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
-    expect(global.CardLogic.getSelectableTargets).not.toHaveBeenCalled();
-    expect(global.CardLogic.applySacrificeWill).not.toHaveBeenCalled();
-  });
-
-  test('cpuSelectSacrificeWillWithPolicy avoids sacrificing valuable timed own special stone', async () => {
-    global.gameState = {
-      turnNumber: 29,
-      board: [
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 1, 0, 0, 0, 0],
-        [0, 0, 1, -1, 0, 0, 0, 0],
-        [0, 0, -1, 1, 0, 0, 0, 0],
-        [0, 0, 1, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0]
-      ],
-      currentPlayer: -1
-    };
-    global.cardState.markers = [
-      {
-        kind: 'specialStone',
-        owner: 'white',
-        row: 3,
-        col: 3,
-        data: { type: 'GUARD', remainingOwnerTurns: 5 }
-      }
-    ];
-    global.cardState.pendingEffectByPlayer.white = { type: 'SACRIFICE_WILL', stage: 'selectTarget' };
-    global.CardLogic = {
-      getSelectableTargets: () => [{ row: 3, col: 3 }, { row: 4, col: 2 }],
-      applySacrificeWill: jest.fn(() => ({ applied: true }))
-    };
-    global.TurnPipeline = {};
-    global.TurnPipelineUIAdapter = {
-      runTurnWithAdapter: jest.fn(() => ({
-        ok: true,
-        nextCardState: {
-          ...global.cardState,
-          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
-        },
-        nextGameState: global.gameState,
-        playbackEvents: []
-      }))
-    };
-
-    await cpuDecision.cpuSelectSacrificeWillWithPolicy('white');
-
-    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
-    expect(action.sacrificeTarget).toEqual({ row: 4, col: 2 });
-  });
 
   test('cpuSelectCloneWillWithPolicy prefers cloning valuable own timed stone over plain source', async () => {
     global.cpuSmartness.white = 6;

@@ -1177,55 +1177,8 @@
         return false;
     }
 
-    function _collectAppliedSacrificeSelections(rawEvents) {
-        const events = Array.isArray(rawEvents) ? rawEvents : [];
-        const out = [];
-        for (const ev of events) {
-            if (!ev || ev.type !== 'sacrifice_selected' || ev.applied !== true) continue;
-            const target = ev.target && typeof ev.target === 'object' ? ev.target : null;
-            const row = Number(target && target.row);
-            const col = Number(target && target.col);
-            if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
-            out.push({ row, col });
-        }
-        return out;
-    }
-
-    function _backfillSacrificeDestroyPlaybackEvents(playbackEvents, rawEvents) {
-        const selections = _collectAppliedSacrificeSelections(rawEvents);
-        if (!selections.length || !Array.isArray(playbackEvents) || !playbackEvents.length) {
-            return Array.isArray(playbackEvents) ? playbackEvents : [];
-        }
-
-        let changed = false;
-        const nextEvents = playbackEvents.map((ev) => {
-            if (!ev || ev.type !== 'destroy' || !Array.isArray(ev.targets) || !ev.targets.length) return ev;
-            let eventChanged = false;
-            const nextTargets = ev.targets.map((target) => {
-                if (!target || typeof target !== 'object') return target;
-                const cause = String(target.cause || '').toUpperCase();
-                const reason = String(target.reason || '').toLowerCase();
-                if (cause !== 'SYSTEM' || reason !== 'legacy_fallback') return target;
-                const row = Number(target.r);
-                const col = Number(target.col);
-                if (!Number.isInteger(row) || !Number.isInteger(col)) return target;
-                const matchedSelection = selections.some((selection) => selection.row === row && selection.col === col);
-                if (!matchedSelection) return target;
-                eventChanged = true;
-                changed = true;
-                return Object.assign({}, target, {
-                    cause: 'SACRIFICE_WILL',
-                    reason: 'sacrifice_selected'
-                });
-            });
-            return eventChanged ? Object.assign({}, ev, { targets: nextTargets }) : ev;
-        });
-
-        return changed ? nextEvents : playbackEvents;
-    }
-
-    function normalizePlaybackEvents(playbackEvents, rawEvents) {
-        return _backfillSacrificeDestroyPlaybackEvents(playbackEvents, rawEvents);
+    function normalizePlaybackEvents(playbackEvents) {
+        return Array.isArray(playbackEvents) ? playbackEvents : [];
     }
 
     function _isDestroyWithCause(target, causes) {
@@ -1714,7 +1667,7 @@
         if (hasWorkIncome16) {
             pushCue('work_income_16', workIncomePhase, 'work_income');
         } else if (hasWorkIncome && !hasTreasureGain) {
-            pushCue('sell_sacrifice_gain', workIncomePhase, 'work_income');
+            pushCue('charge_gain_common', workIncomePhase, 'work_income');
         }
 
         const workRemovedEvents = pres.filter((ev) => _isWorkFlipOrDestroyRemovedPresentationEvent(ev));
@@ -1730,20 +1683,6 @@
                 const phase = playbackEv ? _phaseNum(playbackEv.phase) : workRemovedFallbackPhase;
                 pushCue('work_removed', phase, 'work_removed', { allowRepeat: true });
             }
-        }
-
-        const hasSacrificeGain = _hasRawEvent(raw, 'sacrifice_selected', (ev) => !!(ev && ev.applied && Number(ev.gained) > 0));
-        if (hasSacrificeGain) {
-            const sacrificePhase = _findPhase(
-                base,
-                (ev) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t) => {
-                    const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-                    const reason = String(t && t.reason ? t.reason : '').toLowerCase();
-                    return cause === 'SACRIFICE_WILL' || reason.indexOf('sacrifice_selected') === 0;
-                }),
-                fallbackPhase
-            );
-            pushCue('sell_sacrifice_gain', sacrificePhase, 'sacrifice_selected');
         }
 
         const sniperDestroyEvents = base.filter((ev) => (
@@ -1802,7 +1741,7 @@
                 .filter((phase) => phase > 0)
         )).sort((a, b) => a - b);
         for (const phase of goldSilverSelfDestroyPhases) {
-            pushCue('sell_sacrifice_gain', phase, 'gold_silver_self_destroy', { allowRepeat: true });
+            pushCue('charge_gain_common', phase, 'gold_silver_self_destroy', { allowRepeat: true });
         }
 
         const isGenericDestroyEvent = (ev) => {
@@ -1867,6 +1806,7 @@
         if (s === 'X_BOMB') return 'クロス爆弾';
         if (s === 'PROTECTED') return '反転保護';
         if (s === 'PERMA_PROTECTED') return '永続反転保護';
+        if (s === 'ABSOLUTE_PROTECTED') return '絶対保護';
         if (s === 'GUARD') return '守る石';
         if (s === 'TRAP' || s === 'TRAP_REVEAL') return '罠石';
         if (s === 'BLOCKADE') return '封鎖マス';
@@ -2108,9 +2048,6 @@
                             push(`テレポートで${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動`);
                         }
                     }
-                    break;
-                case 'sacrifice_selected':
-                    if (ev.applied) push(`生贄で${_toPosText(ev.target)}を破壊（布石+${ev.gained || 0}）`);
                     break;
                 case 'sell_selected':
                     if (ev.applied) push(`売却で+${ev.gained || 0}`);

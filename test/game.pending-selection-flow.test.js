@@ -19,9 +19,9 @@ describe('pending selection flow contracts', () => {
   });
 
   test('shared contract distinguishes end-turn and continue-turn selections', () => {
-    expect(flow.shouldDeferNetworkPublishForPendingType('SACRIFICE_WILL')).toBe(true);
+    expect(flow.shouldDeferNetworkPublishForPendingType('GUARD_WILL')).toBe(true);
     expect(flow.shouldDeferNetworkPublishForPendingType('SELL_CARD_WILL')).toBe(true);
-    expect(flow.isSelectionOnlyEndTurnPendingType('SACRIFICE_WILL')).toBe(false);
+    expect(flow.isSelectionOnlyEndTurnPendingType('GUARD_WILL')).toBe(false);
     expect(flow.isSelectionOnlyEndTurnPendingType('TRAP_WILL')).toBe(true);
   });
 
@@ -260,6 +260,79 @@ describe('pending selection flow contracts', () => {
     }));
     expect(global.isProcessing).toBe(false);
     expect(global.isCardAnimating).toBe(false);
+  });
+
+  test('network continue-turn deferred selection skips local playback wait and publishes immediately', async () => {
+    global.MATCH_MODE = 'network';
+    global.cardState = {
+      turnIndex: 5,
+      pendingEffectByPlayer: {
+        black: { type: 'GUARD_WILL', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    global.gameState = {
+      currentPlayer: 1,
+      turnNumber: 9,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    global.NetworkMatchClient = {
+      isActive: jest.fn(() => true),
+      publishSnapshot: jest.fn(() => Promise.resolve({ ok: true }))
+    };
+    global.waitForPlaybackIdle = jest.fn(() => new Promise(() => {}));
+    global.emitCardStateChange = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+    global.emitGameStateChange = jest.fn();
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { black: null, white: null }
+        },
+        nextGameState: { ...global.gameState },
+        playbackEvents: [{ type: 'hand_remove', phase: 1 }]
+      }))
+    };
+    global.isProcessing = false;
+    global.isCardAnimating = false;
+
+    const result = await flow.executePendingSelection({
+      row: 3,
+      col: 3,
+      playerKey: 'black',
+      pendingType: 'GUARD_WILL',
+      actionPayload: {
+        guardTarget: { row: 3, col: 3 }
+      }
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      pendingType: 'GUARD_WILL',
+      playbackEvents: []
+    }));
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+    expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      action: expect.objectContaining({
+        type: 'place',
+        player: 'black',
+        guardTarget: { row: 3, col: 3 },
+        deferNetworkPublish: true,
+        turnIndex: 5
+      })
+    }));
   });
 
   test('syncPendingSelectionActionCache prunes stale cache while keeping matching multi-stage pending type', () => {

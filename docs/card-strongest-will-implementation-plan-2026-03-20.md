@@ -1,84 +1,85 @@
-# 最強の意志 実装計画書
+# 最強の意志 / 強い意志昇格 仕様変更計画書
 
 作成日: 2026-03-20
-対象: docs / 01-rulebook.md / cards / game / ui / assets / test / worker-public
-状態: Draft
+更新日: 2026-03-20
+対象: docs / 01-rulebook.md / cards / game / ui / shared / assets / test / worker-public
+状態: Draft（独立カード案を破棄し、強い意志の昇格仕様へ差し替え）
 
 ## 0. この文書の位置づけ
 
-- この文書は、新カード `最強の意志` を **安全に実装するための事前計画** である。
-- 一次仕様は `01-rulebook.md` とし、この文書は「どこを、どの順で、どの完了条件で直すか」を固定する。
-- 今回の要求は、既存の `完全保護` より強い「本当の意味での無敵石」を新設するものであり、外から見える挙動が変わるため、**実装前に `01-rulebook.md` の更新が必須** である。
-- root を正本とし、`worker-public/` は最後に `npm run worker:prepare` で mirror 同期する。
+- この文書は、**独立カード `最強の意志` を実装する計画ではなく、既存の `強い意志` を 10 ターン経過で `最強の意志` 相当へ昇格させる仕様変更計画**である。
+- 既存の `docs/card-strongest-will-implementation-plan-2026-03-20.md` が想定していた「手札から直接使う `最強の意志`」案は、この文書内容で置き換える。
+- 一次仕様は `01-rulebook.md` とし、この文書は「何を消し、何を残し、どの順で揃えるか」を固定する。
+- root を正本とし、`worker-public/` は最後に `npm run worker:prepare` で同期する。
 
 ## 0.1 現状スナップショット
 
-- `01-rulebook.md` にはすでに `Protected` / `PermaProtected` / `完全保護` の段階が存在する。
-- ただし現行の `完全保護` は絶対防御ではない。`01-rulebook.md` 6.4 節では反転・交換・破壊・誘惑・意志の喪失を無効化すると定義される一方、12 章の用語集では「マス破壊以外の全ての効果を無効化」とされ、さらに `METEOR_WILL` 系では完全保護を貫通する記述もある。
-- `cards/catalog.json` には `PROTECTED_NEXT_STONE`（弱い意志）と `PERMA_PROTECT_NEXT_STONE`（強い意志）があり、次配置石に段階的な保護を付与する先行パターンが存在する。
-- `game/logic/cards-internal/effect-timing.js` には `PROTECTED_NEXT_STONE` と `PERMA_PROTECT_NEXT_STONE` の placement-time hook があり、次配置石系カードの追加先が明確である。
-- `game/visual-effects-map.js` は pending type と special stone type を stone visual effect key に変換し、`ui/board-renderer.js` / `ui/diff-renderer.js` はその key で特殊石の見た目を決めている。
-- `ui/handlers/rules-help.js` は `cards/card-interaction-effects.js` の quick/detail テキストと `PENDING_TYPE_TO_EFFECT_KEY` / `STONE_VISUAL_EFFECTS` を使ってカード図鑑の詳細説明と特殊石画像を表示している。
-- `assets/images/stones/` には既存の特殊石画像に加え、今回提供された `sa-white.png` と `si-black.png` が存在する。現状の名前は意味が分からないため、実装時に正式名へリネームする必要がある。
+- `01-rulebook.md` 6.5 節と 10.6.1 節は、現時点では `最強の意志` を**独立カード**として定義している。
+- `cards/catalog.json` と `shared-constants.js` には、`強い意志`（`PERMA_PROTECT_NEXT_STONE`）と `最強の意志`（`ABSOLUTE_PROTECT_NEXT_STONE`）の両方が登録されている。
+- `cards/card-interaction-effects.js`、`game/ai/cpu-policy-core.js`、generated catalog 面も同様に 2 枚の別カード前提で追随している。
+- `game/logic/cards-internal/effect-timing.js` には、`PERMA_PROTECT_NEXT_STONE` で `PERMA_PROTECTED` を付ける処理と、`ABSOLUTE_PROTECT_NEXT_STONE` で `ABSOLUTE_PROTECTED` を付ける処理が両方存在する。
+- `game/logic/cards.js` と `game/logic/board_ops.js` には、`ABSOLUTE_PROTECTED` を対象外にする helper / guard がすでに存在し、絶対保護そのもののゲーム内契約は土台がある。
+- `game/visual-effects-map.js` には `protectedStone` と `absoluteProtectedStone` の両方が定義済みで、`assets/images/stones/perma_protect_next_stone-*.png` と `assets/images/stones/absolute_protect_next_stone-*.png` もすでに存在する。
+- したがって今回の画像要件は、新規 asset 追加ではなく、**昇格時に `ABSOLUTE_PROTECTED` 側の既存画像へ切り替わる経路を保証する作業**として扱える。
 
 ## 0.2 採用する設計判断
 
-- 既存の `完全保護` を拡張して無理に流用しない。**新しい protection tier / special stone type を追加** し、`完全保護` と `絶対保護` を分ける。
-- 作業用の内部名は、次の 4 つを起点に固定する。
-  - カード type: `ABSOLUTE_PROTECT_NEXT_STONE`
-  - 特殊石 marker type: `ABSOLUTE_PROTECTED`
-  - visual effect key: `absoluteProtectedStone`
-  - 画像ファイル: `assets/images/stones/absolute_protect_next_stone-black.png` / `assets/images/stones/absolute_protect_next_stone-white.png`
-- `最強の意志` が生成する石は、時間制限を持たない恒久 marker として扱い、`remainingOwnerTurns` / `expiresForPlayer` のような期限フィールドは持たせない。
-- 無敵判定は 1 箇所の helper / predicate に寄せ、反転、破壊、移動、入替、テレポート、マス破壊、特殊状態解除などの書き込み経路に **同じ判定** を通す。カードごとの個別 if の散在は避ける。
-- ユーザー要件の「一度置けば二度と消えない」を優先し、**相手効果だけでなく自分起因の破壊・生贄・状態解除でも除外対象にする** 方針で設計する。
+- プレイアブルなカードとしての `ABSOLUTE_PROTECT_NEXT_STONE` は削除し、`ABSOLUTE_PROTECTED` は**昇格後の内部状態 / 特殊石 marker / visual key**としてだけ残す。
+- `強い意志` は現在の「次に置く石へ永続保護を付与」という即時効果を維持したうえで、**その石が 10 回の所有者ターン開始を生き延びると自動昇格**する仕様へ変更する。
+- 「10ターン」の基準は、repo 既存の `remainingOwnerTurns` 系と揃えて**所有者ターン開始カウント**に寄せる。
+- 昇格進捗は通常の持続ターンではなく**昇格専用 progress** として `PERMA_PROTECTED` marker data に保持し、`remainingOwnerTurns` と混ぜない。
+- この progress は「持続ターン」ではないため、**凍結による通常の特殊石タイマー停止対象には含めない**方針で進める。つまり凍結中でも石が盤上に残っていれば昇格カウントは進む。
+- 時間停止などで追加手番が発生した場合は、実際に所有者ターン開始が増えるならその回数ぶん昇格カウントも進む。
+- 昇格時は marker type を `PERMA_PROTECTED` から `ABSOLUTE_PROTECTED` へ置き換え、必要なら専用 presentation event（仮: `strong_will_promoted`）を出す。
+- 石ビジュアルは新規画像を増やさず、**昇格後に `absoluteProtectedStone` の既存画像 (`absolute_protect_next_stone-black.png` / `absolute_protect_next_stone-white.png`) へ切り替える**。
+- `ABSOLUTE_PROTECTED` の防御契約は既存 helper を再利用し、昇格専用の別無敵状態を増やさない。
 
 ## 1. 検証済みの事実
 
 ### 1.1 仕様・文書面
 
-- `01-rulebook.md` 6.1 / 6.2 / 6.4 は保護段階を定義しているが、現時点では「絶対に消えない石」の段階は存在しない。
-- `01-rulebook.md` 742 行付近では `METEOR_WILL` が `GUARD_WILL` / `GUARDIAN_GOD` の完全保護を貫通すると明記されている。
-- `01-rulebook.md` 1225-1233 行付近では、カード図鑑の効果一覧強調語と「特殊石画像を表示する」仕様が定義されている。
+- `01-rulebook.md` 6.2 節は `強い意志` 相当の永続保護を、6.5 節は `最強の意志` 相当の絶対保護を定義している。
+- `01-rulebook.md` 10.6 節は `PERMA_PROTECT_NEXT_STONE（強い意志）`、10.6.1 節は `ABSOLUTE_PROTECT_NEXT_STONE（最強の意志）` を別カードとして定義している。
+- `cards/catalog.json` の説明文も同じく 2 枚別カード前提である。
 
-### 1.2 カタログ・説明文・生成面
+### 1.2 カタログ・説明文・CPU 面
 
-- `cards/catalog.json` がカード定義の正本で、`scripts/generate-catalog.js` が `cards/catalog.generated.js` と `cards/catalog.js` を生成する。
-- `cards/card-interaction-effects.js` は quick/detail 効果説明の辞書であり、`cards/card-interaction.js` と `ui/handlers/rules-help.js` の両方から参照されている。
-- deck 選択面は catalog / shared constants ベースで動いているため、新カードの enable 状態やソート順は既存のカード追加パターンを踏襲できる可能性が高いが、確認は必要である。
+- `shared-constants.js` の `CARD_DEFS` と card type 一覧には `ABSOLUTE_PROTECT_NEXT_STONE` が残っている。
+- `cards/card-interaction-effects.js` は quick/detail ともに `ABSOLUTE_PROTECT_NEXT_STONE` を持っている。
+- `game/ai/cpu-policy-core.js` は `PERMA_PROTECT_NEXT_STONE` と `ABSOLUTE_PROTECT_NEXT_STONE` を別カードとして評価している。
 
-### 1.3 placement / visual / CPU の入口
+### 1.3 ゲームロジック・ビジュアル面
 
-- `game/logic/cards-internal/effect-timing.js` 296 行付近に `PROTECTED_NEXT_STONE`、310 行付近に `PERMA_PROTECT_NEXT_STONE` の placement-time 処理がある。
-- `game/visual-effects-map.js` は `PENDING_TYPE_TO_EFFECT_KEY` と `SPECIAL_TYPE_TO_EFFECT_KEY` の 2 面を持ち、pending state と特殊石 marker の両方に対して見た目を割り当てている。
-- `ui/handlers/rules-help.js` の `_resolveSpecialStoneImagePath(card.type)` は上記 pending map と visual definitions を使ってカード図鑑用の特殊石画像を解決する。
-- `game/ai/cpu-policy-core.js` には `PROTECTED_NEXT_STONE` と `PERMA_PROTECT_NEXT_STONE` が defensive / stability / keep-priority 系の集合と score table に入っている。
+- `game/logic/cards-internal/effect-timing.js` は placement-time hook の既存入口であり、`強い意志` と `最強の意志` の両方をここで特殊石化している。
+- `game/logic/cards.js` の `isAbsoluteProtectedCell(...)` と `game/logic/board_ops.js` の `_isAbsoluteProtectedCell(...)` は、絶対保護石への破壊・移動・状態変更を拒否する既存経路を持っている。
+- `game/visual-effects-map.js` は pending type と marker type の両面で `absoluteProtectedStone` を解決できる。
+- `assets/images/stones/absolute_protect_next_stone-black.png` / `absolute_protect_next_stone-white.png` はすでに存在する。
 
-### 1.4 実装リスク
+### 1.4 追随確認が必要な面
 
-- 既存の protection は 1 箇所だけで守られておらず、反転、破壊、移動、入替、ターゲット選別、特殊状態解除、爆発連鎖など複数経路に散っている。
-- そのため、marker を 1 つ足すだけでは「真の無敵」にならない。**state mutation の入口監査** が必要である。
+- `cards/catalog.js` と `cards/catalog.generated.js` は `cards/catalog.json` から再生成されるため、独立カード削除後は再生成が必要。
+- `ui/handlers/rules-help.js` はカード図鑑・特殊石画像表示の入口なので、`最強の意志` をカードとして消しても `絶対保護` の用語や画像経路が崩れないか確認が必要。
+- 進捗 field を marker data に足す場合、snapshot / sanitize / public state で generic に保持されるかは test で確認した方が安全。
 
 ## 2. 目的
 
-- `最強の意志`（コスト 30）を追加する。
-- 使用後、次に置いた石を custom visual 付きの特殊石へ変換する。
-- その特殊石は、反転、交換、破壊、マス破壊、マステレポート、テレポート、入替、意志の喪失、その他の状態変更を受けない。
-- 一度生成されたら、所有者・相手を問わず、通常のゲーム効果では消えない契約を実現する。
-- 仕様、catalog、CPU、rules help、test、mirror を同時に揃える。
+- `最強の意志` を手札から直接使う独立カードとしては廃止する。
+- `強い意志` を「永続保護 + 10 所有者ターン後に絶対保護へ昇格するカード」へ変更する。
+- 昇格後の石ビジュアルを、従来 `最強の意志` が使っていた既存画像へ切り替える。
+- `絶対保護` そのもののゲーム内契約は維持しつつ、到達経路だけを `強い意志` の昇格へ寄せる。
+- 仕様、catalog、説明文、CPU、描画、test、mirror を同時に揃える。
 
 ## 3. 非目標
 
-- この文書の時点で実装まで完了させること
-- 既存の `Protected` / `PermaProtected` / `完全保護` の仕様を全面再設計すること
-- 盤面特殊石の schema を大規模に刷新すること
+- 保護 tier 全体をゼロから再設計すること
+- `絶対保護` 概念自体をゲームから削除すること
+- 新しい石画像を描き起こすこと
 - `worker-public/` を直編集すること
-- 提供された画像の絵柄や配色自体を作り直すこと
-- 既存カード全体のバランスを一括で調整すること
+- 既存カード全体の大規模なバランス再調整を行うこと
 
 ## 4. 主対象ファイル
 
-### 4.1 仕様と文書
+### 4.1 仕様・計画書
 
 - `01-rulebook.md`
 - `docs/card-strongest-will-implementation-plan-2026-03-20.md`
@@ -91,226 +92,207 @@
 - `game/logic/cards.js`
 - `game/logic/cards-internal/effect-timing.js`
 - `game/logic/board_ops.js`
+- `game/turn/turn_pipeline_phases.js`
+- `game/turn/pipeline_ui_adapter.js`
 - `game/visual-effects-map.js`
 - `ui/board-renderer.js`
 - `ui/diff-renderer.js`
 - `ui/handlers/rules-help.js`
 - `game/ai/cpu-policy-core.js`
-- `assets/images/stones/*`
+- `test/*` の昇格専用回帰
 
-### 4.3 生成・mirror・確認面
+### 4.3 再生成・mirror 同期面
 
 - `cards/catalog.js`
 - `cards/catalog.generated.js`
 - `worker-public/*`
+
+### 4.4 直編集前に確認する面
+
 - `shared/deck-spec.js`
 - `shared/story-deck-spec.js`
-- network snapshot / sanitize 関連 test（marker 伝播確認が必要な場合）
+- snapshot / sanitize / public snapshot 関連 test
 
 ## 5. フェーズ計画
 
-## Phase 0: 仕様確定と命名凍結
+## Phase 0: 仕様差し替えと文言凍結
 
 ### 目的
 
-- 実装前に「既存の完全保護との差」を仕様として固定し、後続のコード判断をぶらさない。
+- 「独立カードの最強の意志」から「強い意志の昇格先」へ仕様の正本を切り替え、後続のコード判断をぶらさない。
 
 ### 作業
 
-1. `01-rulebook.md` の保護ルールへ新しい段階を追加する。
-   - 仮称: `絶対保護`
-   - `完全保護` との差分を明文化する。
-2. `01-rulebook.md` のカード効果節へ `最強の意志` を追加する。
-   - コスト 30
-   - 次に置く石を絶対保護の特殊石にする
-   - 一度置かれた後は通常効果で除去されない
-3. `01-rulebook.md` のカード図鑑 / 効果一覧面に、必要なら `絶対保護` の用語を追加する。
-4. 内部名と asset 名を凍結する。
-   - `ABSOLUTE_PROTECT_NEXT_STONE`
-   - `ABSOLUTE_PROTECTED`
-   - `absoluteProtectedStone`
-   - `absolute_protect_next_stone-black.png`
-   - `absolute_protect_next_stone-white.png`
-5. マス破壊・マステレポート・位置入替のような「石ではなくセルに作用する効果」と衝突した場合の挙動を先に決める。
-   - 推奨: 対象にできない / 対象になってもそのセル変更は不発扱い
+1. `01-rulebook.md` 10.6 節を書き換える。
+   - コスト 15 は維持
+   - 次配置石へ永続保護を付与
+   - 所有者ターン開始 10 回で `絶対保護` に昇格
+2. `01-rulebook.md` 10.6.1 節は「独立カード定義」としては削除し、必要なら 6.5 節や用語説明で**昇格先としての最強の意志**を説明する形へ整理する。
+3. `01-rulebook.md` 6.5 節に、到達経路が `強い意志` の昇格であることと、ビジュアル切替を含む外から見える契約を追記する。
+4. `cards/catalog.json` と `cards/card-interaction-effects.js` の `強い意志` 文言も同じ仕様へ合わせる。
+5. 昇格カウントの定義を文書で先に固定する。
+   - 所有者ターン開始基準
+   - 凍結では止まらない
+   - 追加手番は開始回数として数える
 
 ### 完了条件
 
-- `最強の意志` の仕様が `01-rulebook.md` だけで説明できる。
-- `完全保護` と `絶対保護` の違いが曖昧でない。
-- 実装で使う内部名・visual key・asset 名が固定されている。
+- `01-rulebook.md` 単体で、新しい `強い意志` と `最強の意志` の関係を説明できる。
+- `最強の意志` が「カード名」なのか「昇格状態名」なのか曖昧さがない。
+- 昇格カウントの基準がコード実装前に固定されている。
 
 ### 検証束
 
 ```powershell
-rg -n "完全保護|絶対保護|最強の意志|ABSOLUTE_PROTECT_NEXT_STONE" 01-rulebook.md docs
+rg -n "強い意志|最強の意志|PERMA_PROTECT_NEXT_STONE|ABSOLUTE_PROTECT_NEXT_STONE|絶対保護" 01-rulebook.md docs cards
 ```
 
 ---
 
-## Phase 1: カタログ・説明文・asset 面の追加
+## Phase 1: 独立カード面の撤去
 
 ### 目的
 
-- 新カードを UI と説明文の入口から認識できる状態にする。
+- プレイヤーが手札・図鑑・CPU で `最強の意志` を独立カードとして扱わない状態へ揃える。
 
 ### 作業
 
-1. `cards/catalog.json` に `最強の意志` を追加する。
-2. `cards/card-interaction-effects.js` に quick/detail 説明を追加する。
-3. 提供済み画像を正式名へリネームする。
-   - `sa-white.png` -> `absolute_protect_next_stone-white.png`
-   - `si-black.png` -> `absolute_protect_next_stone-black.png`
-4. `game/visual-effects-map.js` に pending / special stone 用の visual key と画像パス定義を追加する。
-5. `ui/handlers/rules-help.js` で、必要なら glossary 強調語へ `絶対保護` を追加する。
-6. `npm run generate:catalog` を実行し、generated 2 面を同期する。
+1. `cards/catalog.json` から `absolute_protect_01` を削除する。
+2. `shared-constants.js` の `CARD_DEFS` と type 一覧から `ABSOLUTE_PROTECT_NEXT_STONE` を削除する。
+3. `cards/card-interaction-effects.js` から `ABSOLUTE_PROTECT_NEXT_STONE` の quick/detail を削除する。
+4. `game/ai/cpu-policy-core.js` から `ABSOLUTE_PROTECT_NEXT_STONE` をカード評価対象として扱う分岐を削除する。
+5. `cards/catalog.js` と `cards/catalog.generated.js` を再生成する。
+6. `absolute_protect_01` / `ABSOLUTE_PROTECT_NEXT_STONE` の残り参照を検索し、**残してよいのは internal marker / visual 由来だけ**に絞る。
+7. `shared/deck-spec.js` / `shared/story-deck-spec.js` / rules help で独立カード前提が残っていないか確認する。
 
 ### 完了条件
 
-- カード図鑑とカード詳細で `最強の意志` の名称・簡易説明・詳細説明が表示される。
-- カード図鑑で特殊石ビジュアル画像が表示される。
-- asset 名が repo 内で一貫している。
-- `cards/catalog.json` / `cards/catalog.js` / `cards/catalog.generated.js` が一致している。
+- 手札・図鑑・CPU が `最強の意志` をプレイアブルカードとして扱わない。
+- generated catalog 面が root catalog と一致している。
+- `ABSOLUTE_PROTECT_NEXT_STONE` の参照が残る場合、その理由を説明できる。
 
 ### 検証束
 
 ```powershell
-npm run generate:catalog
-rg -n "最強の意志|ABSOLUTE_PROTECT_NEXT_STONE|absolute_protect_next_stone" cards ui game shared-constants.js assets
+node scripts/generate-catalog.js
+rg -n "absolute_protect_01|ABSOLUTE_PROTECT_NEXT_STONE" cards shared-constants.js game ui shared test
 ```
 
 ---
 
-## Phase 2: placement-time special stone 化
+## Phase 2: 強い意志の昇格状態を実装する
 
 ### 目的
 
-- カード使用後の「次配置 1 回」を、新しい特殊石生成に正しく接続する。
+- `強い意志` の placement-time 特殊石化と、10 所有者ターン後の自動昇格を同じ状態遷移でつなぐ。
 
 ### 作業
 
-1. `game/logic/cards.js` の card use / pending effect 流れに新しい type を通す。
-2. `game/logic/cards-internal/effect-timing.js` に `ABSOLUTE_PROTECT_NEXT_STONE` の hook を追加する。
-3. 既存の marker system を再利用し、`kind: 'specialStone'` + `data.type: 'ABSOLUTE_PROTECTED'` で恒久 marker を作る。
-4. 期限切れ処理の対象に入らないよう、期限フィールドは持たせない。
-5. pending が 1 回の配置で消費されること、対象選択が不要なことを既存 next-stone cards と同じ契約で確認する。
+1. `game/logic/cards-internal/effect-timing.js` の `PERMA_PROTECT_NEXT_STONE` 経路で、`PERMA_PROTECTED` marker に昇格 progress を初期化する。
+2. 進捗 field は `remainingOwnerTurns` とは別名にする。
+   - 例: `promotionOwnerTurnStarts`
+   - 例: `promotionThreshold`
+3. 所有者ターン開始処理で progress を進める既存入口を決める。
+   - 候補: `game/logic/cards.js`
+   - 候補: `game/turn/turn_pipeline_phases.js`
+4. progress が 10 に達したら、対象 marker を `ABSOLUTE_PROTECTED` へ置き換える。
+5. 既存の `applyAbsoluteProtect` / `isAbsoluteProtectedCell` / visual mapping を再利用し、昇格後だけ強い防御契約へ切り替える。
+6. 独立カード由来でしか使われない `ABSOLUTE_PROTECT_NEXT_STONE` の pending branch が不要なら削除する。
+7. 必要なら昇格専用 presentation event（仮: `strong_will_promoted`）を追加し、UI / ログ面で昇格が分かるようにする。
 
 ### 完了条件
 
-- カード使用後、次に置いた石だけが `ABSOLUTE_PROTECTED` 化する。
-- 2 個目以降の配置へ effect が漏れない。
-- ターン経過で勝手に消えない。
+- `強い意志` を付けた石が、所有者ターン開始 10 回後に `ABSOLUTE_PROTECTED` へ昇格する。
+- 昇格 progress が通常の寿命タイマーと混ざっていない。
+- 既存の絶対保護 helper を流用し、別系統の最強状態を増やしていない。
 
 ### 検証束
 
 ```powershell
-rg -n "PROTECTED_NEXT_STONE|PERMA_PROTECT_NEXT_STONE|ABSOLUTE_PROTECT_NEXT_STONE" game/logic/cards.js game/logic/cards-internal/effect-timing.js
+rg -n "PERMA_PROTECT_NEXT_STONE|PERMA_PROTECTED|ABSOLUTE_PROTECTED|strong_will_promoted" game/logic/cards.js game/logic/cards-internal/effect-timing.js game/turn
 ```
 
 ---
 
-## Phase 3: 絶対無敵判定の共通化と mutation 経路監査
+## Phase 3: ビジュアル切替と説明面の同期
 
 ### 目的
 
-- 「真の無敵」を marker 名だけで終わらせず、実際にあらゆる書き込み経路から守る。
+- 昇格した瞬間に、盤面見た目とカード説明が新仕様と一致する状態にする。
 
 ### 作業
 
-1. `ABSOLUTE_PROTECTED` 判定 helper を追加する。
-   - 例: `isAbsoluteProtectedStone(cardState, row, col)`
-2. 少なくとも次の mutation 入口を監査し、共通 helper を通す。
-   - 通常反転 / 連鎖反転 / 禁忌反転 / 効果由来反転
-   - 破壊 / 爆発 / 吸い込み / 自己破壊 / 生贄
-   - 交換 / 入替 / テレポート / マステレポート / 強風 / 超浮力 / 超重力などの位置変更
-   - マス破壊 / 穴化 / セル上書き
-   - 特殊状態解除 / 意志の喪失 / 特殊石除去
-3. 影響が大きい処理では、失敗時を silent skip にせず、既存契約に沿った invalid target / no-op event / exclusion として表現する。
-4. 「自分でも消せない」要件に合わせ、所有者起因の破壊系カードからも除外する。
+1. `game/visual-effects-map.js` の `PERMA_PROTECTED` / `ABSOLUTE_PROTECTED` マッピングを確認し、昇格時に marker type 変更だけで画像が切り替わるかを確かめる。
+2. 必要時のみ `ui/board-renderer.js` / `ui/diff-renderer.js` を最小差分で追随する。
+3. `cards/card-interaction-effects.js` と rules help 側の `強い意志` 詳細文を、昇格仕様に更新する。
+4. `最強の意志` をカード図鑑から消しても、`絶対保護` の説明や既存 absolute 画像経路が壊れないことを確認する。
+5. 昇格 event を入れた場合は `game/turn/pipeline_ui_adapter.js` の文言も同期する。
 
 ### 完了条件
 
-- `ABSOLUTE_PROTECTED` 石が通常のカード効果で消えない、動かない、状態解除されない。
-- 影響を受けなかったときの処理結果が曖昧でない。
-- 無敵判定が複数のファイルにコピペされていない。
+- 昇格前は `perma_protect_next_stone-*.png`、昇格後は `absolute_protect_next_stone-*.png` が表示される。
+- `強い意志` の説明文だけで、昇格仕様が理解できる。
+- `最強の意志` を独立カードとして参照する UI が残っていない。
 
 ### 検証束
 
 ```powershell
-rg -n "destroy|swap|teleport|meteor|sacrifice|remove|loss|flip" game/logic game/turn game/card-effects
+rg -n "perma_protect_next_stone|absolute_protect_next_stone|強い意志|最強の意志" cards game ui assets/images/stones
 ```
 
 ---
 
-## Phase 4: presentation / CPU / help 同期
+## Phase 4: 回帰 test / generated / mirror の完了
 
 ### 目的
 
-- 盤面見た目、カード図鑑、CPU 評価を新しい石種に追随させる。
+- 仕様変更が root だけ先行して崩れないように、昇格契約を test と mirror まで固定する。
 
 ### 作業
 
-1. `game/visual-effects-map.js` に `absoluteProtectedStone` を追加する。
-2. `ui/board-renderer.js` / `ui/diff-renderer.js` が新しい `specialStone` type を正しく描画できることを確認し、必要時のみ最小差分で追随する。
-3. `ui/handlers/rules-help.js` の glossary 強調と特殊石画像表示を確認する。
-4. `game/ai/cpu-policy-core.js` に defensive / keep-priority / stability / score table の必要追随を追加する。
-5. 必要ならカード使用コメントやラベル表示面を確認する。
+1. gameplay 専用 test を追加する。
+   - 例: `test/game.strong-will-promotion.test.js`
+2. 少なくとも次の契約を固定する。
+   - `最強の意志` カードが catalog に存在しない
+   - `強い意志` 付与直後は `PERMA_PROTECTED`
+   - 所有者ターン開始 9 回では未昇格
+   - 所有者ターン開始 10 回で `ABSOLUTE_PROTECTED` へ昇格
+   - 昇格後は `METEOR_WILL` / `LOSS_WILL` / `TELEPORT_WILL` / `POSITION_SWAP_WILL` などで守られる
+   - 昇格後は absolute 画像 key が使われる
+3. 進捗 field を marker data に足したことで snapshot / sanitize が壊れないか、既存 test へ必要最小限の追加確認を入れる。
+4. `node scripts/generate-catalog.js` を実行する。
+5. root 変更が確定したら `npm run worker:prepare` で `worker-public/` mirror を更新する。
 
 ### 完了条件
 
-- 盤面で最強石の見た目が黒白ともに崩れない。
-- カード図鑑で詳細説明と特殊石画像が見える。
-- CPU が新カードを未知カード扱いしない。
+- 昇格仕様が test で再現できる。
+- generated catalog と worker-public mirror が root と一致する。
+- 画像切替と防御契約の両方が回帰で守られる。
 
 ### 検証束
 
 ```powershell
-rg -n "PENDING_TYPE_TO_EFFECT_KEY|SPECIAL_TYPE_TO_EFFECT_KEY|absoluteProtectedStone|ABSOLUTE_PROTECT_NEXT_STONE" game ui
-rg -n "DEFENSIVE_CARD_TYPES|KEEP_PRIORITY|STABILITY|ABSOLUTE_PROTECT_NEXT_STONE" game/ai/cpu-policy-core.js
-```
-
----
-
-## Phase 5: 回帰 test・network 伝播・mirror 同期
-
-### 目的
-
-- root 実装をテストで固定し、generated / network / mirror まで完了条件を満たす。
-
-### 作業
-
-1. 専用 test を追加する。
-   - カード使用 -> 次配置 1 回だけ特殊石化
-   - ターン経過で消えない
-   - 反転・破壊・入替・テレポート・マス破壊・特殊状態解除で無効化されない
-   - rules help / visual mapping / CPU 分類の回帰
-2. marker が snapshot / sanitize / reconnect で落ちないかを確認し、必要なら network 系 test へ追加する。
-3. `npm run worker:prepare` を実行し、`worker-public/` を同期する。
-
-### 完了条件
-
-- 専用回帰があるため、今後の修正で最強石の無敵契約が壊れても検出できる。
-- public / network 面で marker が欠落しない。
-- `worker-public/` が root と同期している。
-
-### 検証束
-
-```powershell
-npm run test:jest -- test/cards.catalog.test.js
-npm run test:network:parity
+node scripts/generate-catalog.js
+npm run test:jest -- test/game.strong-will-promotion.test.js test/ui.stone-rendering.test.js test/utils.match-authority.public-snapshot.test.js
 npm run worker:prepare
 ```
 
-## 6. 追加で先に決めるべき論点
+---
 
-- `絶対保護` をカード図鑑の強調語に追加するか、それとも `完全保護` を流用せず説明文だけで区別するか
-- `マス破壊` や `マステレポート` が最強石のセルを対象にしたとき、カード使用自体を不発にするのか、対象候補から除外するのか
-- 最強石を「通常石ではない特殊石」と明示した場合、既存の「交換の意志の対象外」契約へ自動で乗せるか、別途明文化するか
-- 最強石の色変更不可を「反転不可」に含めるのか、それとも swap / owner change / special takeover を個別列挙するか
+## 6. 最終完了条件
 
-## 7. 全体完了条件
+- `01-rulebook.md` が「強い意志の昇格仕様」を正本として説明している。
+- `最強の意志` はプレイアブルカードとしては消え、`絶対保護` の昇格状態としてだけ残っている。
+- `強い意志` を置いた石が 10 所有者ターン後に昇格し、盤面画像も absolute 画像へ切り替わる。
+- `ABSOLUTE_PROTECTED` の既存防御契約を壊していない。
+- `cards/catalog.js` / `cards/catalog.generated.js` / `worker-public/*` が同期している。
+- 変更範囲の test / check を実行し、結果を完了報告へ残せる。
 
-- `01-rulebook.md` が新カードと新 protection tier の一次情報になっている。
-- root 正本の card / logic / visual / CPU / test が揃っている。
-- generated 2 面と `worker-public/` が同期している。
-- 専用 test により「一度置いたら通常効果では二度と消えない」が固定されている。
+## 7. この計画の実行順メモ
+
+1. まず `01-rulebook.md` と `cards/catalog.json` の仕様差し替えを行う。
+2. 次に独立カードの撤去面（shared constants / CPU / generated / rules help）を片付ける。
+3. その後に `PERMA_PROTECTED -> ABSOLUTE_PROTECTED` の昇格ロジックを入れる。
+4. 最後に見た目、test、mirror を揃える。
+
+この順にすることで、「カードは消えたが昇格ロジックがまだ無い」「昇格したが図鑑と CPU が古い」といった中途半端な状態を最小化できる。

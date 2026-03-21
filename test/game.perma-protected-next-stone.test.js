@@ -23,8 +23,17 @@ function getPermaProtectNextStoneDef() {
   return (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'PERMA_PROTECT_NEXT_STONE');
 }
 
+function findSpecialMarker(cardState, row, col) {
+  return (cardState.markers || []).find((marker) => (
+    marker &&
+    marker.kind === 'specialStone' &&
+    marker.row === row &&
+    marker.col === col
+  ));
+}
+
 describe('PERMA_PROTECT_NEXT_STONE（強い意志）', () => {
-  test('use card -> place -> next turns keep permanent flip protection active', () => {
+  test('use card -> place creates PERMA_PROTECTED marker with promotion metadata', () => {
     const def = getPermaProtectNextStoneDef();
     expect(def).toBeTruthy();
 
@@ -66,21 +75,19 @@ describe('PERMA_PROTECT_NEXT_STONE（強い意志）', () => {
       expect.objectContaining({
         type: 'placement_effects',
         player: 'black',
-        effects: expect.objectContaining({ permaProtected: true, chargeGained: 1 })
+        effects: expect.objectContaining({ permaProtected: true })
       })
     ]));
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
 
-    const protectedMarker = (cardState.markers || []).find((marker) => (
-      marker &&
-      marker.kind === 'specialStone' &&
-      marker.row === 2 &&
-      marker.col === 3 &&
-      marker.owner === 'black' &&
-      marker.data &&
-      marker.data.type === 'PERMA_PROTECTED'
-    ));
-    expect(protectedMarker).toBeTruthy();
+    const marker = findSpecialMarker(cardState, 2, 3);
+    expect(marker).toBeTruthy();
+    expect(marker.owner).toBe('black');
+    expect(marker.data).toEqual(expect.objectContaining({
+      type: 'PERMA_PROTECTED',
+      strongWillPromotionOwnerTurnStarts: 0,
+      strongWillPromotionThreshold: SharedConstants.STRONG_WILL_PROMOTION_OWNER_TURNS
+    }));
 
     const withoutProtectionContext = {
       ...CardLogic.getCardContext(cardState),
@@ -93,18 +100,90 @@ describe('PERMA_PROTECT_NEXT_STONE（強い意志）', () => {
       [2, 5]
     ]);
     expect(Core.getFlipsWithContext(gameState, 2, 2, Core.WHITE, CardLogic.getCardContext(cardState))).toEqual([]);
+  });
+
+  test('owner turn starts promote PERMA_PROTECTED into ABSOLUTE_PROTECTED on the 10th owner start', () => {
+    const def = getPermaProtectNextStoneDef();
+    expect(def).toBeTruthy();
+
+    const promotionTurns = SharedConstants.STRONG_WILL_PROMOTION_OWNER_TURNS;
+    const prng = createPrng(0);
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = createEmptyGameState();
+    cardState.debugNoDraw = true;
+    cardState.hands.black = [def.id];
+    cardState.charge.black = def.cost;
+
+    gameState.board[2][4] = Core.WHITE;
+    gameState.board[2][5] = Core.BLACK;
+    gameState.board[2][6] = Core.WHITE;
+
+    TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'use_card', useCardId: def.id, useCardOwnerKey: 'black' },
+      prng,
+      { skipTurnStart: true }
+    );
+    TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 2, col: 3 },
+      prng,
+      { skipTurnStart: true }
+    );
+
+    cardState.presentationEvents = [];
+
+    for (let i = 0; i < promotionTurns - 1; i += 1) {
+      CardLogic.onTurnStart(cardState, 'white', gameState, prng);
+      let marker = findSpecialMarker(cardState, 2, 3);
+      expect(marker.data.type).toBe('PERMA_PROTECTED');
+      expect(marker.data.strongWillPromotionOwnerTurnStarts).toBe(i);
+
+      CardLogic.onTurnStart(cardState, 'black', gameState, prng);
+      marker = findSpecialMarker(cardState, 2, 3);
+      expect(marker.data.type).toBe('PERMA_PROTECTED');
+      expect(marker.data.strongWillPromotionOwnerTurnStarts).toBe(i + 1);
+    }
 
     CardLogic.onTurnStart(cardState, 'white', gameState, prng);
-    CardLogic.onTurnStart(cardState, 'black', gameState, prng);
+    let marker = findSpecialMarker(cardState, 2, 3);
+    expect(marker.data.type).toBe('PERMA_PROTECTED');
+    expect(marker.data.strongWillPromotionOwnerTurnStarts).toBe(promotionTurns - 1);
 
-    expect((cardState.markers || []).some((marker) => (
-      marker &&
-      marker.kind === 'specialStone' &&
-      marker.row === 2 &&
-      marker.col === 3 &&
-      marker.data &&
-      marker.data.type === 'PERMA_PROTECTED'
-    ))).toBe(true);
-    expect(Core.getFlipsWithContext(gameState, 2, 2, Core.WHITE, CardLogic.getCardContext(cardState))).toEqual([]);
+    CardLogic.onTurnStart(cardState, 'black', gameState, prng);
+    marker = findSpecialMarker(cardState, 2, 3);
+    expect(marker).toBeTruthy();
+    expect(marker.data.type).toBe('ABSOLUTE_PROTECTED');
+    expect(marker.data.strongWillPromotionOwnerTurnStarts).toBeUndefined();
+    expect(marker.data.strongWillPromotionThreshold).toBeUndefined();
+
+    const markerCount = (cardState.markers || []).filter((entry) => (
+      entry &&
+      entry.kind === 'specialStone' &&
+      entry.row === 2 &&
+      entry.col === 3
+    )).length;
+    expect(markerCount).toBe(1);
+    expect(CardLogic.isAbsoluteProtectedCell(cardState, 2, 3)).toBe(true);
+
+    const promotionEvent = (cardState.presentationEvents || []).find((event) => (
+      event &&
+      event.type === 'STATUS_APPLIED' &&
+      event.reason === 'strong_will_promoted'
+    ));
+    expect(promotionEvent).toEqual(expect.objectContaining({
+      type: 'STATUS_APPLIED',
+      row: 2,
+      col: 3,
+      reason: 'strong_will_promoted',
+      meta: expect.objectContaining({
+        special: 'ABSOLUTE_PROTECTED',
+        promotedFrom: 'PERMA_PROTECTED'
+      })
+    }));
   });
 });

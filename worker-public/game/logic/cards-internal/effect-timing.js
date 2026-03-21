@@ -39,6 +39,7 @@
             OBSERVER_WILL_TURNS: constants.OBSERVER_WILL_TURNS,
             WILL_HUNTER_KING_TURNS: constants.WILL_HUNTER_KING_TURNS,
             ROBOT_VACUUM_TURNS: constants.ROBOT_VACUUM_TURNS,
+            STRONG_WILL_PROMOTION_OWNER_TURNS: constants.STRONG_WILL_PROMOTION_OWNER_TURNS,
             TIME_STOP_GOD_TURNS: Number.isFinite(Number(constants.TIME_STOP_GOD_TURNS))
                 ? Number(constants.TIME_STOP_GOD_TURNS)
                 : 3,
@@ -79,6 +80,53 @@
 
     function getSpecialStoneKind(constants) {
         return constants.MARKER_KINDS ? constants.MARKER_KINDS.SPECIAL_STONE : 'specialStone';
+    }
+
+    function getStrongWillPromotionOwnerTurns(constants) {
+        const raw = Number(constants && constants.STRONG_WILL_PROMOTION_OWNER_TURNS);
+        return Number.isFinite(raw) ? Math.max(1, Math.trunc(raw)) : 10;
+    }
+
+    function processStrongWillPromotionOnTurnStart(cardState, playerKey, specialMarkers, helpers, constants) {
+        const markers = Array.isArray(cardState && cardState.markers)
+            ? cardState.markers
+            : (Array.isArray(specialMarkers) ? specialMarkers : []);
+        if (!markers.length) return;
+
+        const threshold = getStrongWillPromotionOwnerTurns(constants);
+        for (const marker of markers) {
+            if (!marker || !marker.data || marker.data.type !== 'PERMA_PROTECTED') continue;
+            if (marker.owner !== playerKey) continue;
+            if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) continue;
+
+            const progress = Number.isFinite(Number(marker.data.strongWillPromotionOwnerTurnStarts))
+                ? Math.max(0, Math.trunc(Number(marker.data.strongWillPromotionOwnerTurnStarts)))
+                : 0;
+            const nextProgress = progress + 1;
+            marker.data.strongWillPromotionOwnerTurnStarts = nextProgress;
+            marker.data.strongWillPromotionThreshold = threshold;
+
+            if (nextProgress < threshold) continue;
+
+            marker.data.type = 'ABSOLUTE_PROTECTED';
+            delete marker.data.strongWillPromotionOwnerTurnStarts;
+            delete marker.data.strongWillPromotionThreshold;
+
+            if (typeof helpers.emitPresentationEvent === 'function') {
+                helpers.emitPresentationEvent(cardState, {
+                    type: 'STATUS_APPLIED',
+                    row: marker.row,
+                    col: marker.col,
+                    reason: 'strong_will_promoted',
+                    meta: {
+                        special: 'ABSOLUTE_PROTECTED',
+                        owner: marker.owner || playerKey,
+                        reason: 'strong_will_promoted',
+                        promotedFrom: 'PERMA_PROTECTED'
+                    }
+                });
+            }
+        }
     }
 
     function onTurnStart(cardState, playerKey, gameState, prng, context) {
@@ -144,6 +192,8 @@
         );
         cardState._frozenCellsActiveAtTurnStart = frozenCellsActiveAtTurnStart;
 
+        processStrongWillPromotionOnTurnStart(cardState, playerKey, specialMarkers, helpers, constants);
+
         const specialStoneKind = getSpecialStoneKind(constants);
         for (const marker of specialMarkers) {
             const data = marker.data || {};
@@ -179,6 +229,19 @@
             if ((data.type === 'GUARD' || data.type === 'BLOCKADE' || data.type === 'FREEZE') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
                 data.remainingOwnerTurns -= 1;
                 if (data.remainingOwnerTurns <= 0 && typeof helpers.removeMarkersAt === 'function') {
+                    if (typeof helpers.emitPresentationEvent === 'function') {
+                        helpers.emitPresentationEvent(cardState, {
+                            type: 'STATUS_REMOVED',
+                            row: marker.row,
+                            col: marker.col,
+                            reason: 'duration_end',
+                            meta: {
+                                special: data.type,
+                                owner: marker.owner,
+                                reason: 'duration_end'
+                            }
+                        });
+                    }
                     helpers.removeMarkersAt(cardState, marker.row, marker.col, {
                         kind: specialStoneKind,
                         type: data.type,
@@ -318,18 +381,6 @@
             } else if (typeof helpers.applyStrongWill === 'function') {
                 const res = helpers.applyStrongWill(cardState, playerKey, row, col);
                 if (res && res.applied) effects.permaProtected = true;
-            }
-        }
-
-        if (pending && pending.type === 'ABSOLUTE_PROTECT_NEXT_STONE') {
-            if (typeof helpers.applyAbsoluteProtect === 'function') {
-                const res = helpers.applyAbsoluteProtect(cardState, playerKey, row, col);
-                if (res && res.applied) effects.absoluteProtected = true;
-            } else if (typeof helpers.addMarker === 'function') {
-                helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
-                    type: 'ABSOLUTE_PROTECTED'
-                });
-                effects.absoluteProtected = true;
             }
         }
 

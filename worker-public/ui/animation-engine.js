@@ -1294,7 +1294,7 @@
                         for (const t of targets) {
                             if (t && t.soundKey) keys.push(String(t.soundKey).trim());
                         }
-                        const filtered = keys.filter((k) => k && k !== 'sell_sacrifice_gain');
+                        const filtered = keys.filter((k) => k && k !== 'charge_gain_common');
                         if (!filtered.length) return null;
                         const nextEv = Object.assign({}, ev);
                         delete nextEv.soundKey;

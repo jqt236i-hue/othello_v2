@@ -469,70 +469,6 @@ describe('selfplay runner', () => {
         expect(result.records[0].col).toBe(2);
     });
 
-    test('preserves SACRIFICE_WILL target selection in retry fallback', () => {
-        const forcedRetryState = Core.createGameState();
-        forcedRetryState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
-        forcedRetryState.board[3][3] = 1;
-        forcedRetryState.board[3][4] = 1;
-        forcedRetryState.board[4][4] = -1;
-        forcedRetryState.currentPlayer = 1;
-
-        const forcedRetryCardState = {
-            pendingEffectByPlayer: {
-                black: { type: 'SACRIFICE_WILL', stage: 'selectTarget', selectedCount: 0, maxSelections: 3 },
-                white: null
-            },
-            markers: [],
-            charge: { black: 0, white: 0 },
-            hands: { black: [], white: [] },
-            hasUsedCardThisTurnByPlayer: { black: true, white: false },
-            deck: [],
-            discard: []
-        };
-
-        const applyTurnSafeSpy = jest.spyOn(TurnPipeline, 'applyTurnSafe')
-            .mockImplementationOnce(() => ({
-                ok: false,
-                rejectedReason: 'UNKNOWN',
-                errorMessage: 'mock invalid action',
-                cardState: forcedRetryCardState,
-                gameState: forcedRetryState,
-                nextStateVersion: 1
-            }))
-            .mockImplementationOnce(() => ({
-                ok: false,
-                rejectedReason: 'UNKNOWN',
-                errorMessage: 'mock invalid action',
-                cardState: forcedRetryCardState,
-                gameState: forcedRetryState,
-                nextStateVersion: 1
-            }))
-            .mockImplementationOnce((cardState, gameState, playerKey, action) => ({
-                ok: true,
-                cardState,
-                gameState,
-                nextStateVersion: 2,
-                action
-            }));
-
-        const result = runSingleGame(0, 1, {
-            maxPlies: 1,
-            allowCardUsage: false
-        });
-
-        expect(applyTurnSafeSpy).toHaveBeenCalledTimes(3);
-        const fallbackAction = applyTurnSafeSpy.mock.calls[2][3];
-        expect(fallbackAction.type).toBe('place');
-        expect(fallbackAction.sacrificeTarget).toBeTruthy();
-        expect(result.records).toHaveLength(1);
-        expect(result.records[0].pendingSelection).toEqual({
-            kind: 'board_cell',
-            pendingType: 'SACRIFICE_WILL',
-            sourceKey: 'sacrificeTarget',
-            row: fallbackAction.sacrificeTarget.row,
-            col: fallbackAction.sacrificeTarget.col
-        });
-    });
 
     test('mixed guide-policy selfplay remains deterministic', () => {
         const model = { schemaVersion: 'policy_table.v2', states: {} };
@@ -571,36 +507,6 @@ describe('selfplay runner', () => {
         expect(a.records).toEqual(b.records);
     });
 
-    test('decideAction can stop SACRIFICE_WILL follow-up selection in non-emergency', () => {
-        const gameState = Core.createGameState();
-        gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
-        gameState.board[0][0] = 1;
-        gameState.board[3][3] = 1;
-        gameState.board[3][4] = 1;
-        gameState.board[4][4] = -1;
-        gameState.currentPlayer = 1;
-
-        const cardState = {
-            pendingEffectByPlayer: {
-                black: { type: 'SACRIFICE_WILL', stage: 'selectTarget', selectedCount: 1, maxSelections: 3 },
-                white: null
-            },
-            markers: [],
-            charge: { black: 0, white: 0 },
-            hands: { black: [], white: [] },
-            hasUsedCardThisTurnByPlayer: { black: true, white: false }
-        };
-
-        const decision = decideAction(
-            gameState,
-            cardState,
-            'black',
-            { random: () => 0.5 },
-            { allowCardUsage: true, cardUsageRate: 0.25 },
-            { gameState, cardState }
-        );
-        expect(decision.action.type).toBe('cancel_card');
-    });
 
     test('decideAction resolves TELEPORT_WILL pending target instead of canceling', () => {
         const gameState = Core.createGameState();
@@ -1042,7 +948,7 @@ describe('selfplay runner', () => {
             pendingEffectByPlayer: { black: null, white: null },
             markers: [],
             charge: { black: 0, white: 12 },
-            hands: { black: [], white: ['sacrifice_01', 'silver_stone'] },
+            hands: { black: [], white: ['bomb_01', 'silver_stone'] },
             hasUsedCardThisTurnByPlayer: { black: false, white: false },
             hasDestroyedCardThisTurnByPlayer: { black: false, white: false }
         };
@@ -1072,7 +978,7 @@ describe('selfplay runner', () => {
             pendingEffectByPlayer: { black: null, white: null },
             markers: [],
             charge: { black: 0, white: 12 },
-            hands: { black: [], white: ['sacrifice_01', 'silver_stone'] },
+            hands: { black: [], white: ['bomb_01', 'silver_stone'] },
             hasUsedCardThisTurnByPlayer: { black: false, white: false },
             hasDestroyedCardThisTurnByPlayer: { black: false, white: false }
         };

@@ -4,7 +4,6 @@ const vm = require('vm');
 
 const PENDING_SELECTION_CONSUMER_SCRIPTS = [
   'game/card-effects/destroy.js',
-  'game/card-effects/sacrifice.js',
   'game/card-effects/strong-wind.js',
   'game/card-effects/teleport.js',
   'game/card-effects/tempt.js',

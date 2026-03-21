@@ -29,10 +29,6 @@
             method: 'getSuperGravityTargets',
             args: (context) => [context.cardState, context.gameState]
         },
-        SACRIFICE_WILL: {
-            method: 'getSacrificeTargets',
-            args: (context) => [context.cardState, context.gameState, context.playerKey]
-        },
         SWAP_WITH_ENEMY: {
             method: 'getSwapTargets',
             args: (context) => [context.cardState, context.gameState, context.playerKey]
@@ -197,25 +193,6 @@
         return res;
     }
 
-    function getSacrificeTargetsFallback(context) {
-        const { blackValue, whiteValue } = getConstants(context);
-        const helpers = (context && context.helpers) || {};
-        const getCurrentBoardShapeCellsForCard = helpers.getCurrentBoardShapeCellsForCard;
-        const getCellValueForCard = helpers.getCellValueForCard;
-        const res = [];
-        if (typeof getCurrentBoardShapeCellsForCard !== 'function' || typeof getCellValueForCard !== 'function') {
-            return res;
-        }
-
-        const playerVal = context.playerKey === 'black' ? blackValue : whiteValue;
-        for (const cell of getCurrentBoardShapeCellsForCard(context.cardState, context.gameState)) {
-            if (!cell) continue;
-            if (getCellValueForCard(context.gameState, cell.row, cell.col) === playerVal) {
-                res.push({ row: cell.row, col: cell.col });
-            }
-        }
-        return res;
-    }
 
     function getSwapTargetsFallback(context) {
         const { blackValue, whiteValue } = getConstants(context);
@@ -312,7 +289,6 @@
         if (Array.isArray(moduleTargets)) return moduleTargets;
 
         if (type === 'DESTROY_ONE_STONE') return getDestroyTargetsFallback(context);
-        if (type === 'SACRIFICE_WILL') return getSacrificeTargetsFallback(context);
         if (type === 'SWAP_WITH_ENEMY') return getSwapTargetsFallback(context);
         if (type === 'POSITION_SWAP_WILL') return getPositionSwapTargetsFallback(context);
 

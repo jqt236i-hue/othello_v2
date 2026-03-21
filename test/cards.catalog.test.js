@@ -64,13 +64,21 @@ describe('cards catalog consistency', () => {
     expect(Number(byId.get('super_gravity_01').cost)).toBe(16);
   });
 
-  test('absolute_protect_01 (最強の意志) exists in catalog.json with correct spec', () => {
+  test('perma_01 (強い意志) describes promotion into 最強の意志 after 10 owner turn starts', () => {
     const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
-    expect(byId.has('absolute_protect_01')).toBe(true);
-    const card = byId.get('absolute_protect_01');
-    expect(card.type).toBe('ABSOLUTE_PROTECT_NEXT_STONE');
-    expect(Number(card.cost)).toBe(30);
-    expect(card.name_ja).toBe('最強の意志');
+    const card = byId.get('perma_01');
+    expect(card).toBeTruthy();
+    expect(card.type).toBe('PERMA_PROTECT_NEXT_STONE');
+    expect(Number(card.cost)).toBe(15);
+    expect(card.name_ja).toBe('強い意志');
+    expect(card.desc_ja).toContain('10回');
+    expect(card.desc_ja).toContain('最強の意志');
+  });
+
+  test('absolute_protect_01 (最強の意志) is no longer a playable catalog card', () => {
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
+    expect(byId.has('absolute_protect_01')).toBe(false);
   });
 });

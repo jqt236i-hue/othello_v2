@@ -251,12 +251,6 @@ function handleCellClick(row, col) {
         handleDestroySelection(row, col, playerKey);
         return;
     }
-    if (pending && pending.type === 'SACRIFICE_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handleSacrificeSelection === 'function') {
-            handleSacrificeSelection(row, col, playerKey);
-        }
-        return;
-    }
     if (pending && pending.type === 'STRONG_WIND_WILL' && pending.stage === 'selectTarget') {
         if (typeof handleStrongWindSelection === 'function') {
             handleStrongWindSelection(row, col, playerKey);

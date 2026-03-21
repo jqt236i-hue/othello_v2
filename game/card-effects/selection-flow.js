@@ -27,7 +27,6 @@
 
     const PENDING_SELECTION_CONTRACTS = Object.freeze({
         DESTROY_ONE_STONE: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        SACRIFICE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
         STRONG_WIND_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
         SUPER_BUOYANCY_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
         SUPER_GRAVITY_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
@@ -281,6 +280,13 @@
         if (readMatchMode() !== 'network') return false;
         if (!shouldDeferNetworkPublishForPendingType(pendingType)) return false;
         if (!isSelectionOnlyEndTurnPendingType(pendingType)) return false;
+        return hasActiveNetworkPublishClient();
+    }
+
+    function shouldSuppressLocalPlaybackForDeferredNetworkSelection(pendingType) {
+        if (readMatchMode() !== 'network') return false;
+        if (!shouldDeferNetworkPublishForPendingType(pendingType)) return false;
+        if (isSelectionOnlyEndTurnPendingType(pendingType)) return false;
         return hasActiveNetworkPublishClient();
     }
 
@@ -734,6 +740,10 @@
             playbackEvents = Array.isArray(executionResult.playbackEvents)
                 ? executionResult.playbackEvents
                 : [];
+            const suppressLocalPlayback = shouldSuppressLocalPlaybackForDeferredNetworkSelection(resolvedPendingType);
+            if (suppressLocalPlayback) {
+                playbackEvents = [];
+            }
 
             const liveContext = Object.assign({}, baseContext, {
                 action: pendingAction,
@@ -744,13 +754,15 @@
                 playbackEvents
             });
 
-            const playbackMeta = (typeof opts.buildPlaybackMeta === 'function')
-                ? opts.buildPlaybackMeta(liveContext)
-                : { cause: resolvedPendingType, target: { row, col } };
-            emitSelectionPlaybackEvents(playbackEvents, playbackMeta, appliedState.cardState);
+            if (!suppressLocalPlayback) {
+                const playbackMeta = (typeof opts.buildPlaybackMeta === 'function')
+                    ? opts.buildPlaybackMeta(liveContext)
+                    : { cause: resolvedPendingType, target: { row, col } };
+                emitSelectionPlaybackEvents(playbackEvents, playbackMeta, appliedState.cardState);
+            }
 
             if (opts.emitStateChanges !== false) {
-            emitSelectionStateChangeSignals(playbackEvents);
+                emitSelectionStateChangeSignals(playbackEvents);
             }
 
             if (typeof opts.afterStateChange === 'function') {

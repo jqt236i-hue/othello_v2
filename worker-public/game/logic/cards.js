@@ -25,6 +25,7 @@
         BOARD_SIZE,
         CHARGE_MAX,
         INITIAL_BOARD_BONUS_DISTRIBUTION,
+        STRONG_WILL_PROMOTION_OWNER_TURNS: SHARED_STRONG_WILL_PROMOTION_OWNER_TURNS,
         TIME_STOP_GOD_TURNS: SHARED_TIME_STOP_GOD_TURNS,
         TIME_STOP_GOD_CONSECUTIVE_TURNS: SHARED_TIME_STOP_GOD_CONSECUTIVE_TURNS,
         TIME_STOP_GOD_SELF_DESTROY_COUNT: SHARED_TIME_STOP_GOD_SELF_DESTROY_COUNT
@@ -52,6 +53,9 @@
     const TIME_STOP_GOD_SELF_DESTROY_COUNT = Number.isFinite(Number(SHARED_TIME_STOP_GOD_SELF_DESTROY_COUNT))
         ? Math.max(1, Math.floor(Number(SHARED_TIME_STOP_GOD_SELF_DESTROY_COUNT)))
         : 3;
+    const STRONG_WILL_PROMOTION_OWNER_TURNS = Number.isFinite(Number(SHARED_STRONG_WILL_PROMOTION_OWNER_TURNS))
+        ? Math.max(1, Math.floor(Number(SHARED_STRONG_WILL_PROMOTION_OWNER_TURNS)))
+        : 10;
     const ULTIMATE_DRAGON_TURNS = 5;
     const ULTIMATE_DESTROY_GOD_TURNS = 5;
     const ULTIMATE_HYPERACTIVE_TURNS = 10;
@@ -2454,7 +2458,6 @@
                     cardType === 'STRONG_WIND_WILL' ||
                     cardType === 'SUPER_BUOYANCY_WILL' ||
                     cardType === 'SUPER_GRAVITY_WILL' ||
-                    cardType === 'SACRIFICE_WILL' ||
                     cardType === 'SELL_CARD_WILL' ||
                     cardType === 'HEAVEN_BLESSING' ||
                     cardType === 'CONDEMN_WILL' ||
@@ -2492,8 +2495,8 @@
                     cardId,
                     stage: needsSelection ? 'selectTarget' : null,
                     offers: pendingOffers,
-                    selectedCount: cardType === 'SACRIFICE_WILL' ? 0 : (cardType === 'BOARD_EXPANSION_GOD' ? 0 : undefined),
-                    maxSelections: cardType === 'SACRIFICE_WILL' ? 3 : (cardType === 'BOARD_EXPANSION_GOD' ? 2 : undefined),
+                    selectedCount: cardType === 'BOARD_EXPANSION_GOD' ? 0 : undefined,
+                    maxSelections: cardType === 'BOARD_EXPANSION_GOD' ? 2 : undefined,
                     selectedTargets: cardType === 'BOARD_EXPANSION_GOD' ? [] : undefined,
                     placementsRemaining: cardType === 'LAST_RESORT' ? 3 : undefined
                 };
@@ -2546,15 +2549,8 @@
         if (!cardState || !cardState.pendingEffectByPlayer) return { canceled: false, reason: 'no_state' };
         const pending = cardState.pendingEffectByPlayer[playerKey];
         if (!pending || pending.stage !== 'selectTarget') return { canceled: false, reason: 'not_pending' };
-        if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'SACRIFICE_WILL' && pending.type !== 'POSITION_SWAP_WILL' && pending.type !== 'BOARD_EXPANSION_WILL' && pending.type !== 'BOARD_EXPANSION_GOD' && pending.type !== 'BLOCKADE_WILL' && pending.type !== 'METEOR_WILL' && pending.type !== 'FREEZE_WILL') {
+        if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'POSITION_SWAP_WILL' && pending.type !== 'BOARD_EXPANSION_WILL' && pending.type !== 'BOARD_EXPANSION_GOD' && pending.type !== 'BLOCKADE_WILL' && pending.type !== 'METEOR_WILL' && pending.type !== 'FREEZE_WILL') {
             return { canceled: false, reason: 'not_cancellable' };
-        }
-
-        // SACRIFICE_WILL can be "finished" after at least one selection.
-        // In that case this is not a refund-cancel, just end the selection mode.
-        if (pending.type === 'SACRIFICE_WILL' && Number(pending.selectedCount || 0) > 0) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
-            return { canceled: true, cardId: pending.cardId, finished: true };
         }
 
         const cardId = pending.cardId;
@@ -4745,22 +4741,50 @@
     }
 
     function applyStrongWill(cardState, playerKey, row, col) {
-        const already = getSpecialMarkers(cardState).some(s =>
-            s.row === row && s.col === col && s.data && s.data.type === 'PERMA_PROTECTED'
-        );
-        if (!already) {
-            addMarker(cardState, 'specialStone', row, col, playerKey, {
-                type: 'PERMA_PROTECTED'
-            });
+        const existingMarker = getSpecialMarkers(cardState).find((marker) => (
+            marker &&
+            marker.row === row &&
+            marker.col === col &&
+            marker.data &&
+            (marker.data.type === 'PERMA_PROTECTED' || marker.data.type === 'ABSOLUTE_PROTECTED')
+        ));
+        if (existingMarker && existingMarker.data && existingMarker.data.type === 'ABSOLUTE_PROTECTED') {
+            return { applied: true, alreadyAbsolute: true };
         }
+
+        const markerData = existingMarker && existingMarker.data ? { ...existingMarker.data } : {};
+        markerData.type = 'PERMA_PROTECTED';
+        markerData.strongWillPromotionOwnerTurnStarts = Number.isFinite(Number(markerData.strongWillPromotionOwnerTurnStarts))
+            ? Math.max(0, Math.trunc(Number(markerData.strongWillPromotionOwnerTurnStarts)))
+            : 0;
+        markerData.strongWillPromotionThreshold = STRONG_WILL_PROMOTION_OWNER_TURNS;
+
+        if (existingMarker) {
+            existingMarker.owner = playerKey;
+            existingMarker.data = markerData;
+            return { applied: true };
+        }
+
+        addMarker(cardState, 'specialStone', row, col, playerKey, markerData);
         return { applied: true };
     }
 
     function applyAbsoluteProtect(cardState, playerKey, row, col) {
-        const already = getSpecialMarkers(cardState).some(s =>
-            s.row === row && s.col === col && s.data && s.data.type === 'ABSOLUTE_PROTECTED'
-        );
-        if (!already) {
+        const existingMarker = getSpecialMarkers(cardState).find((marker) => (
+            marker &&
+            marker.row === row &&
+            marker.col === col &&
+            marker.data &&
+            (marker.data.type === 'ABSOLUTE_PROTECTED' || marker.data.type === 'PERMA_PROTECTED')
+        ));
+        if (existingMarker) {
+            const markerData = existingMarker.data ? { ...existingMarker.data } : {};
+            markerData.type = 'ABSOLUTE_PROTECTED';
+            delete markerData.strongWillPromotionOwnerTurnStarts;
+            delete markerData.strongWillPromotionThreshold;
+            existingMarker.owner = playerKey;
+            existingMarker.data = markerData;
+        } else {
             addMarker(cardState, 'specialStone', row, col, playerKey, {
                 type: 'ABSOLUTE_PROTECTED'
             });
@@ -4816,53 +4840,12 @@
 
 
     /**
-     * Apply SACRIFICE_WILL (生贄の意志)
-     * Destroy own stone and gain +5 charge, up to 3 selections.
-     * @param {Object} cardState
-     * @param {Object} gameState
-     * @param {string} playerKey
-     * @param {number} row
-     * @param {number} col
-     * @returns {{applied:boolean, reason?:string, gained?:number, selectedCount?:number, maxSelections?:number, completed?:boolean}}
-     */
-    function applySacrificeWill(cardState, gameState, playerKey, row, col) {
-        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
-        if (!pending || pending.type !== 'SACRIFICE_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'pending_not_found' };
-        }
-
-        const ownerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        if (getCellValueForCard(gameState, row, col) !== ownerVal) {
-            return { applied: false, reason: '自分の石のみ選択できます' };
-        }
-
-        const destroyed = destroyAt(cardState, gameState, row, col);
-        if (!destroyed) {
-            return { applied: false, reason: '破壊に失敗しました' };
-        }
-
-        const gained = addChargeWithTotal(cardState, playerKey, 5);
-        const selectedCount = Number(pending.selectedCount || 0) + 1;
-        const maxSelections = Number(pending.maxSelections || 3);
-        pending.selectedCount = selectedCount;
-        pending.maxSelections = maxSelections;
-
-        const remainTargets = getSelectableTargets(cardState, gameState, playerKey);
-        const completed = selectedCount >= maxSelections || remainTargets.length === 0;
-        if (completed) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
-        }
-
-        return { applied: true, gained, selectedCount, maxSelections, completed };
-    }
-
-    /**
      * Apply SELL_CARD_WILL (売却の意志)
      * Sell exactly one card from own hand and gain charge equal to its cost.
      * @param {Object} cardState
      * @param {string} playerKey
      * @param {string} soldCardId
-     * @returns {{applied:boolean, reason?:string, soldCardId?:string, gained?:number}}
+     * @returns {{applied:boolean, reason?:string, gained?:number}}
      */
     function applySellCardWill(cardState, playerKey, soldCardId) {
         const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
@@ -6588,7 +6571,6 @@
         applyPositionSwapWill,
         applyStrongWill,
         applyAbsoluteProtect,
-        applySacrificeWill,
         applySellCardWill,
         applyHeavenBlessingChoice,
         applyCondemnWill,

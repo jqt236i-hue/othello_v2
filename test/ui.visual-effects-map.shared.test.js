@@ -187,14 +187,14 @@ describe('visual-effects map shared between game/ui', () => {
     expect(willHunterKingMap.imagePathByOwner['-1']).toContain('WILL_HUNTER_KING-white.png');
   });
 
-  test('ABSOLUTE_PROTECT_NEXT_STONE と ABSOLUTE_PROTECTED が絶対保護石画像へ解決される', () => {
+  test('ABSOLUTE_PROTECTED が昇格後の絶対保護石画像へ解決される', () => {
     require('../ui/visual-effects-map');
     require('../game/visual-effects-map');
 
     const shared = window.GameVisualEffectsMap;
     expect(shared).toBeTruthy();
 
-    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.ABSOLUTE_PROTECT_NEXT_STONE).toBe('absoluteProtectedStone');
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.ABSOLUTE_PROTECT_NEXT_STONE).toBeUndefined();
     expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.ABSOLUTE_PROTECTED).toBe('absoluteProtectedStone');
 
     const map = shared.STONE_VISUAL_EFFECTS.absoluteProtectedStone;

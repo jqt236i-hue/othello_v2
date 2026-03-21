@@ -63,7 +63,7 @@ describe('initializeUI action button sound', () => {
     document.getElementById('sell-card-btn').click();
 
     expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
-    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('sell_sacrifice_gain');
+    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('charge_gain_common');
     expect(global.confirmSellCardSelection).toHaveBeenCalledTimes(1);
   });
 
@@ -74,7 +74,7 @@ describe('initializeUI action button sound', () => {
     document.getElementById('sell-card-btn').click();
 
     expect(global.window.__skipNextPlaybackSoundUntilByKey).toMatchObject({
-      sell_sacrifice_gain: expect.any(Number)
+      charge_gain_common: expect.any(Number)
     });
   });
 

@@ -10,17 +10,6 @@ describe('CardPendingStateManager', () => {
 
   test('createPendingEffectState seeds selection metadata by card type', () => {
     expect(PendingStateManager.createPendingEffectState({
-      cardType: 'SACRIFICE_WILL',
-      cardId: 'sacrifice_01'
-    })).toEqual(expect.objectContaining({
-      type: 'SACRIFICE_WILL',
-      cardId: 'sacrifice_01',
-      stage: 'selectTarget',
-      selectedCount: 0,
-      maxSelections: 3
-    }));
-
-    expect(PendingStateManager.createPendingEffectState({
       cardType: 'BOARD_EXPANSION_GOD',
       cardId: 'expansion_god_01'
     })).toEqual(expect.objectContaining({
@@ -73,31 +62,4 @@ describe('CardPendingStateManager', () => {
     expect(cardState.cardUseCountByPlayer.black).toBe(0);
   });
 
-  test('cancelPendingSelection finishes sacrifice without refund after a prior selection', () => {
-    const cardState = {
-      pendingEffectByPlayer: {
-        black: { type: 'SACRIFICE_WILL', cardId: 'sacrifice_01', stage: 'selectTarget', selectedCount: 1 },
-        white: null
-      },
-      hands: { black: [], white: [] },
-      discard: ['sacrifice_01'],
-      charge: { black: 5, white: 0 },
-      hasUsedCardThisTurnByPlayer: { black: true, white: false },
-      cardUseCountByPlayer: { black: 1, white: 0 }
-    };
-
-    const res = PendingStateManager.cancelPendingSelection(cardState, 'black', null, {
-      helpers: {
-        getCardDef: () => ({ id: 'sacrifice_01', cost: 5 }),
-        addChargeValue: jest.fn()
-      }
-    });
-
-    expect(res).toEqual({ canceled: true, cardId: 'sacrifice_01', finished: true });
-    expect(cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(cardState.hands.black).toEqual([]);
-    expect(cardState.discard).toEqual(['sacrifice_01']);
-    expect(cardState.charge.black).toBe(5);
-    expect(cardState.cardUseCountByPlayer.black).toBe(1);
-  });
 });

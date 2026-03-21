@@ -521,7 +521,7 @@ const SPECIAL_STONE_INFO = {
     },
     PERMA_PROTECTED: {
         name: '強い石',
-        desc: '反転されない。'
+        desc: '反転されない。所有者ターン開始10回で絶対保護石へ昇格する。'
     },
     DRAGON: {
         name: '究極反転龍',

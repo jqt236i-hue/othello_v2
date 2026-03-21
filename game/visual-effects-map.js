@@ -319,8 +319,7 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'TIME_STOP_GOD': 'timeStopStone',
     'CROSS_BOMB': 'crossBombStone',
     'X_BOMB': 'xBombStone',
-    'TRAP_WILL': 'trapStone',
-    'ABSOLUTE_PROTECT_NEXT_STONE': 'absoluteProtectedStone'
+    'TRAP_WILL': 'trapStone'
 };
 
 function getEffectKeyForPendingType(pendingType) {

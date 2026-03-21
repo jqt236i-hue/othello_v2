@@ -20,7 +20,6 @@
 | hard_01 | 弱い意志 | PROTECTED_NEXT_STONE | 1 | 次配置石の短期保護 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | コスト不足/使用済み | 次配置石の短期保護 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:27<br>game/logic/cards.js:2275<br>shared-constants.js:57 |
 | swap_01 | 交換の意志 | SWAP_WITH_ENEMY | 17 | 交換1枚 + 交換起点反転枚数ぶん布石 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 相手の通常石（特殊石/爆弾以外）が必要 | あり | 対象が通常石でない・対象不足 | 交換1枚 + 交換起点反転枚数ぶん布石 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:34<br>game/logic/cards.js:992<br>game/logic/cards.js:1207 |
 | position_swap_01 | 入替の意志 | POSITION_SWAP_WILL | 13 | 位置入替のみ（直接布石増減なし） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 盤面に石が2個以上必要 | あり | 同一マス選択・空マス選択・対象不足 | 位置入替のみ（直接布石増減なし） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:41<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
-| sacrifice_01 | 生贄の意志 | SACRIFICE_WILL | 5 | 1回 +5（最大3回で +15） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + GUARDで守られていない自分石が必要 | あり | 自分石以外を選択・対象不足 | 1回 +5（最大3回で +15） | 高分散札（優勢時はCPU減点） | 終盤劣勢（巻き返し専用） | cards/catalog.json:48<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | perma_01 | 強い意志 | PERMA_PROTECT_NEXT_STONE | 15 | 次配置石の永続反転耐性 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | コスト不足/使用済み | 次配置石の永続反転耐性 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:55<br>game/logic/cards.js:2293<br>shared-constants.js:102 |
 | strong_wind_01 | 強風の意志 | STRONG_WIND_WILL | 9 | 最長方向へ石を移動（同距離ランダム） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 上下左右いずれかへ移動可能な石が必要 | あり | 移動可能対象なし・対象不正 | 最長方向へ石を移動（同距離ランダム） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:62<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | trap_01 | 罠の意志 | TRAP_WILL | 4 | 自分石1つを罠化してターン終了。発動時: 相手布石最大20奪取 + 相手手札全破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 自分石の有効対象が1個以上必要 | あり | 対象不足・次相手ターンで未発動のまま消滅・このターンの配置価値が高い | 自分石1つを罠化してターン終了。発動時: 相手布石最大20奪取 + 相手手札全破壊 | 条件未充足で使用不可/低効率 | 中盤劣勢〜拮抗 | cards/catalog.json:69<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
@@ -193,29 +192,6 @@
   - game/logic/cards.js:1164
   - game/logic/cards.js:1170
   - game/card-effects/position-swap.js:22
-
-### sacrifice_01 / 生贄の意志（SACRIFICE_WILL）
-- 効果詳細（処理順含む）: 1回 +5（最大3回で +15）
-- 合理的な使い方
-  - 発動条件「手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + GUARDで守られていない自分石が必要」を満たす局面で使う。
-  - 期待リターン「1回 +5（最大3回で +15）」を満たす見込みがある手で使う。
-  - 推奨フェーズ「終盤劣勢（巻き返し専用）」に寄せて使用する。
-- 利敵行為になる使い方
-  - 失敗条件「自分石以外を選択・対象不足」に該当する状態で切る。
-  - CPU方針で高分散札として減点される局面（優勢・角確保局面）で先打ちする。
-  - 優勢時に自石を削って盤面優位を手放す。
-- 相性の良い盤面/悪い盤面: 未確認（盤面相性の明示ロジックなし）
-- 特殊石や保護状態との相互作用: GUARD石は選択対象から除外される。
-- 布石収支観点（定性的）: +（+5固定、最大3回）
-- 根拠コード参照
-  - cards/catalog.json:48
-  - cards/card-interaction.js / cards/card-interaction-effects.js
-  - cards/card-interaction.js / cards/card-interaction-effects.js
-  - game/logic/cards.js:988
-  - game/logic/cards.js:1203
-  - game/logic/cards.js:1222
-  - game/logic/cards.js:1223
-  - game/card-effects/sacrifice.js:57
 
 ### perma_01 / 強い意志（PERMA_PROTECT_NEXT_STONE）
 - 効果詳細（処理順含む）: 次配置石の永続反転耐性
@@ -1003,7 +979,6 @@
 - hard_01 (PROTECTED_NEXT_STONE) / 優先度: A / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: コスト不足/使用済み
 - swap_01 (SWAP_WITH_ENEMY) / 優先度: C / use_if: 相手の通常石（特殊石/爆弾以外）が必要 を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
 - position_swap_01 (POSITION_SWAP_WILL) / 優先度: C / use_if: 盤面に石が2個以上必要 を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
-- sacrifice_01 (SACRIFICE_WILL) / 優先度: C / use_if: GUARDで守られていない自分石が必要 を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
 - perma_01 (PERMA_PROTECT_NEXT_STONE) / 優先度: A / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: コスト不足/使用済み
 - strong_wind_01 (STRONG_WIND_WILL) / 優先度: C / use_if: 上下左右いずれかへ移動可能な石が必要 を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
 - trap_01 (TRAP_WILL) / 優先度: A / use_if: 自分石の有効対象が1個以上必要 を満たす / avoid_if: 対象不足・次相手ターンで未発動のまま消滅・このターンの配置価値が高い
@@ -1049,7 +1024,7 @@
 
 ### 5.3 緊急時のみ許可する高リスク運用ルール
 - `FREE_PLACEMENT`: 合法手<=1 または角劣勢時の緊急脱出に限定。
-- `TIME_BOMB` / `SACRIFICE_WILL` / `BOARD_EXPANSION_WILL`: 劣勢巻き返し（cornerEmergency相当）時に限定。
+- `TIME_BOMB` / `BOARD_EXPANSION_WILL`: 劣勢巻き返し（cornerEmergency相当）時に限定。
 - `HIGH_VARIANCE` 群: 優勢時は原則封印し、終盤逆転が必要な局面でのみ解禁。
 
 ### 5.4 CPU判断コンテキスト（固定キー）

@@ -269,7 +269,6 @@ npx jest test/game.charge-delta-events.test.js test/game.ribo-will.test.js test/
 ### この runbook で扱わないもの
 
 - POSITION_SWAP_WILL
-- SACRIFICE_WILL
 - DESTROY_ONE_STONE 系
 - GUARD / TRAP のように selector / apply-time / presentation / turn handoff が密結合なもの
 - cards/card-interaction.js の game 内部参照整理

@@ -12,7 +12,6 @@
         'STRONG_WIND_WILL',
         'SUPER_BUOYANCY_WILL',
         'SUPER_GRAVITY_WILL',
-        'SACRIFICE_WILL',
         'SELL_CARD_WILL',
         'HEAVEN_BLESSING',
         'CONDEMN_WILL',
@@ -40,7 +39,6 @@
 
     const CANCELLABLE_PENDING_TYPES = new Set([
         'DESTROY_ONE_STONE',
-        'SACRIFICE_WILL',
         'POSITION_SWAP_WILL',
         'BOARD_EXPANSION_WILL',
         'BOARD_EXPANSION_GOD',
@@ -145,8 +143,8 @@
             cardId: opts.cardId,
             stage: needsSelection ? 'selectTarget' : null,
             offers: opts.offers || undefined,
-            selectedCount: cardType === 'SACRIFICE_WILL' ? 0 : (cardType === 'BOARD_EXPANSION_GOD' ? 0 : undefined),
-            maxSelections: cardType === 'SACRIFICE_WILL' ? 3 : (cardType === 'BOARD_EXPANSION_GOD' ? 2 : undefined),
+            selectedCount: cardType === 'BOARD_EXPANSION_GOD' ? 0 : undefined,
+            maxSelections: cardType === 'BOARD_EXPANSION_GOD' ? 2 : undefined,
             selectedTargets: cardType === 'BOARD_EXPANSION_GOD' ? [] : undefined,
             placementsRemaining: cardType === 'LAST_RESORT' ? 3 : undefined
         };
@@ -157,11 +155,6 @@
         const pending = cardState.pendingEffectByPlayer[playerKey];
         if (!pending || pending.stage !== 'selectTarget') return { canceled: false, reason: 'not_pending' };
         if (!isCancellablePendingType(pending.type)) return { canceled: false, reason: 'not_cancellable' };
-
-        if (pending.type === 'SACRIFICE_WILL' && Number(pending.selectedCount || 0) > 0) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
-            return { canceled: true, cardId: pending.cardId, finished: true };
-        }
 
         const helpers = getHelpers(context);
         const getCardDef = helpers.getCardDef;

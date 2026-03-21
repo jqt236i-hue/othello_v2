@@ -49,7 +49,7 @@ const SoundEngine = {
         bomb_explode: '爆弾系の石が起爆するタイミング.mp3',
         stone_destroy: '破壊ロジック＿石が破壊されるとき.mp3',
         special_expired: '持続ターン切れで石が自己破壊で消滅するタイミング.mp3',
-        sell_sacrifice_gain: '売却の意志、生贄の意志、出稼ぎの意志でカード効果で布石獲得するタイミング.mp3',
+        charge_gain_common: '売却の意志、出稼ぎの意志でカード効果で布石獲得するタイミング.mp3',
         work_income_16: '出稼ぎの意志が布石16獲得するタイミング.mp3',
         work_removed: '出稼ぎの意志が反転または破壊されて消えるタイミング.mp3'
     },

@@ -213,7 +213,6 @@ function generateMovesForPlayer(player, pending, protection, perma) {
         pendingType === 'STRONG_WIND_WILL' ||
         pendingType === 'SUPER_BUOYANCY_WILL' ||
         pendingType === 'SUPER_GRAVITY_WILL' ||
-        pendingType === 'SACRIFICE_WILL' ||
         pendingType === 'SELL_CARD_WILL' ||
         pendingType === 'HEAVEN_BLESSING' ||
         pendingType === 'CONDEMN_WILL' ||

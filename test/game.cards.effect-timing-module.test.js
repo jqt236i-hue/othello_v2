@@ -158,6 +158,69 @@ describe('CardEffectTiming module', () => {
     });
   });
 
+  test('onTurnStart promotes owner PERMA_PROTECTED into ABSOLUTE_PROTECTED on threshold', () => {
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing');
+    const emitPresentationEvent = jest.fn();
+    const markers = [
+      {
+        row: 2,
+        col: 3,
+        owner: 'black',
+        data: {
+          type: 'PERMA_PROTECTED',
+          strongWillPromotionOwnerTurnStarts: 9,
+          strongWillPromotionThreshold: 10
+        }
+      }
+    ];
+    const cardState = {
+      markers,
+      turnCountByPlayer: { black: 0, white: 0 },
+      turnIndex: 0,
+      lastTurnStartedFor: null,
+      breedingSproutByOwner: { black: [], white: [] },
+      _breedingSproutClearedTokenByOwner: { black: null, white: null },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 },
+      presentationEvents: [],
+      debugNoDraw: true
+    };
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
+
+    CardEffectTiming.onTurnStart(cardState, 'black', gameState, null, {
+      defaultPrng: { next: () => 0.5 },
+      constants: {
+        EMPTY: 0,
+        DRAW_INTERVAL: 1,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone' },
+        STRONG_WILL_PROMOTION_OWNER_TURNS: 10
+      },
+      helpers: {
+        ensureHandDestroyFlags: jest.fn(),
+        processRiboWillTurnStartEffects: jest.fn(() => null),
+        commitDraw: jest.fn(),
+        getSpecialMarkers: jest.fn(() => markers),
+        removeMarkersAt: jest.fn(),
+        isFrozenCellForCard: jest.fn(() => false),
+        emitPresentationEvent
+      },
+      modules: {}
+    });
+
+    expect(markers[0].data).toEqual({ type: 'ABSOLUTE_PROTECTED' });
+    expect(emitPresentationEvent).toHaveBeenCalledWith(cardState, expect.objectContaining({
+      type: 'STATUS_APPLIED',
+      row: 2,
+      col: 3,
+      reason: 'strong_will_promoted',
+      meta: expect.objectContaining({
+        special: 'ABSOLUTE_PROTECTED',
+        promotedFrom: 'PERMA_PROTECTED'
+      })
+    }));
+  });
+
   test('applyPlacementEffects handles last resort continuation without clearing pending effect', () => {
     const CardEffectTiming = require('../game/logic/cards-internal/effect-timing');
     const addChargeWithTotal = jest.fn();

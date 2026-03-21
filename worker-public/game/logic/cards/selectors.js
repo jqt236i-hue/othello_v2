@@ -246,26 +246,6 @@
         return res;
     }
 
-    // Return sacrifice targets: own stones (normal/special both allowed)
-    function getSacrificeTargets(cardState, gameState, playerKey) {
-        const res = [];
-        const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
-        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        forEachBoardShapeCell(gameState, (r, c, owner) => {
-            if (owner !== playerVal) return;
-            const guarded = markers.some(m =>
-                m &&
-                m.kind === 'specialStone' &&
-                m.row === r &&
-                m.col === c &&
-                m.data &&
-                m.data.type === 'GUARD'
-            );
-            if (guarded) return;
-            res.push({ row: r, col: c });
-        });
-        return res;
-    }
 
     function _getStrongWindDirectionDestination(cardState, gameState, row, col, dr, dc) {
         const nr = row + dr;
@@ -764,7 +744,6 @@
         getDestroyTargets,
         getSwapTargets,
         getPositionSwapTargets,
-        getSacrificeTargets,
         getStrongWindTargets,
         getSuperBuoyancyTargets,
         getSuperGravityTargets,

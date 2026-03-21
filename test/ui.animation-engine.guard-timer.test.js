@@ -1168,7 +1168,7 @@ describe('animation-engine guard timer rendering', () => {
     delete global.animateFadeOutAt;
   });
 
-  test('sacrifice destroy still applies red cell highlight when disc was already removed', async () => {
+  test('destroy highlight still applies red cell highlight when disc was already removed', async () => {
     global.animateFadeOutAt = jest.fn(() => Promise.resolve());
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board');
@@ -1187,8 +1187,8 @@ describe('animation-engine guard timer rendering', () => {
       targets: [{
         r: 3,
         col: 3,
-        cause: 'SACRIFICE_WILL',
-        reason: 'sacrifice_selected',
+        cause: 'DESTROY_ONE_STONE',
+        reason: 'destroy_selected',
         ownerBefore: 'black'
       }]
     });
