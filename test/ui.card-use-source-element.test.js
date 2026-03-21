@@ -249,6 +249,18 @@ describe('card use source element selection', () => {
     expect(global.playCardUseHandAnimation).not.toHaveBeenCalled();
   });
 
+  test('network mode does not emit a duplicate effect log for card use', () => {
+    window.MATCH_MODE = 'network';
+    window.LOCAL_PLAYER_KEY = 'black';
+    global.emitEffectLog = jest.fn();
+
+    require('../cards/card-interaction.js');
+    window.useSelectedCard();
+
+    expect(global.addLog).not.toHaveBeenCalledWith(expect.stringContaining('黒がカードを使用'));
+    expect(global.emitEffectLog).not.toHaveBeenCalled();
+  });
+
   test('network mode prioritizes NetworkMatchClient seat over stale LOCAL_PLAYER_KEY', () => {
     require('../cards/card-interaction.js');
 

@@ -331,3 +331,11 @@ npm run match:check -- --base http://127.0.0.1:8788
 - 現時点では **不要**。
 - 本計画は network internal contract と再生責務の整理であり、外に見えるルール変更を前提にしていない。
 - ただし phase 実装で visible timing や操作感を intentional に変える場合は、その phase 着手前に `01-rulebook.md` を更新する。
+> Status Update (2026-03-21)
+>
+> この改革計画で扱っていた network playback / UI stability 修正は完了。
+> 実装は [network-presentation-authority-rebuild-master-plan-2026-03-21.md](./network-presentation-authority-rebuild-master-plan-2026-03-21.md) に統合して完遂済み。
+>
+> この文書の扱い:
+> - 歴史的な中間計画として保持
+> - 以後の正本 status は master plan 側を参照

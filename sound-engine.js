@@ -39,6 +39,7 @@ const SoundEngine = {
         tempt_select: '誘惑の意志で相手特殊石を誘惑したタイミング.mp3',
         treasure_gain: '宝箱で布石取得したタイミング.mp3',
         loss_will_reset: '意志の喪失.mp3',
+        strong_will_promoted: '石が進化するタイミング.mp3',
         extend_life: '延命の意志で特殊石の持続ターンを増やすタイミング.mp3',
         corrosion_tick: '腐食の意志で特殊石の持続ターンを減らすタイミング.mp3',
         hyperactive_move: '多動系カードの石がマス移動するタイミング.mp3',

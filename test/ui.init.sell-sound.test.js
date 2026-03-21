@@ -1,7 +1,7 @@
 const path = require('path');
 const { JSDOM } = require('jsdom');
 
-describe('initializeUI action button sound', () => {
+describe('initializeUI action button binding', () => {
   beforeEach(() => {
     jest.resetModules();
 
@@ -45,40 +45,38 @@ describe('initializeUI action button sound', () => {
     delete global.resetGame;
   });
 
-  test('破壊ボタン押下で効果音を鳴らして既存処理を呼ぶ', () => {
+  test('破壊ボタン押下で既存処理を呼ぶ', () => {
     const initModule = require('../ui/handlers/init.js');
     initModule.initializeUI();
 
     document.getElementById('destroy-card-btn').click();
 
-    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
-    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('stone_destroy');
+    expect(global.SoundEngine.init).not.toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
     expect(global.destroySelectedHandCard).toHaveBeenCalledTimes(1);
   });
 
-  test('売却ボタン押下で効果音を鳴らして既存処理を呼ぶ', () => {
+  test('売却ボタン押下で既存処理を呼ぶ', () => {
     const initModule = require('../ui/handlers/init.js');
     initModule.initializeUI();
 
     document.getElementById('sell-card-btn').click();
 
-    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
-    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('charge_gain_common');
+    expect(global.SoundEngine.init).not.toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
     expect(global.confirmSellCardSelection).toHaveBeenCalledTimes(1);
   });
 
-  test('売却成功時は次の playback gain sound を 1 回だけ抑止する', () => {
+  test('売却ボタン押下では local playback skip registry を触らない', () => {
     const initModule = require('../ui/handlers/init.js');
     initModule.initializeUI();
 
     document.getElementById('sell-card-btn').click();
 
-    expect(global.window.__skipNextPlaybackSoundUntilByKey).toMatchObject({
-      charge_gain_common: expect.any(Number)
-    });
+    expect(global.window.__skipNextPlaybackSoundUntilByKey).toBeUndefined();
   });
 
-  test('売却失敗時は local playback skip を残さない', () => {
+  test('売却失敗時も local playback skip を作らない', () => {
     global.confirmSellCardSelection.mockReturnValue(false);
     const initModule = require('../ui/handlers/init.js');
     initModule.initializeUI();
@@ -88,7 +86,7 @@ describe('initializeUI action button sound', () => {
     expect(global.window.__skipNextPlaybackSoundUntilByKey).toBeUndefined();
   });
 
-  test('通常カードの使用ボタン押下では card_use_button を鳴らして既存処理を呼ぶ', () => {
+  test('通常カードの使用ボタン押下では既存処理だけを呼ぶ', () => {
     global.cardState.selectedCardId = 'WORK_WILL_001';
     global.CardLogic.getCardDef.mockReturnValue({ id: 'WORK_WILL_001', type: 'WORK_WILL' });
     const initModule = require('../ui/handlers/init.js');
@@ -96,12 +94,12 @@ describe('initializeUI action button sound', () => {
 
     document.getElementById('use-card-btn').click();
 
-    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
-    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('card_use_button');
+    expect(global.SoundEngine.init).not.toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
     expect(global.useSelectedCard).toHaveBeenCalledTimes(1);
   });
 
-  test('宝箱カードの使用ボタン押下では treasure_gain 側に寄せるため card_use_button を鳴らさない', () => {
+  test('宝箱カードの使用ボタン押下でも既存処理だけを呼ぶ', () => {
     global.cardState.selectedCardId = 'TREASURE_BOX_001';
     global.CardLogic.getCardDef.mockReturnValue({ id: 'TREASURE_BOX_001', type: 'TREASURE_BOX' });
     const initModule = require('../ui/handlers/init.js');

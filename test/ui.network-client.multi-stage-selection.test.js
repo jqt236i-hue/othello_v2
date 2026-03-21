@@ -12,14 +12,6 @@ function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function createLiveResponseSnapshot(stateVersion) {
-  return {
-    stateVersion,
-    gameState: cloneJson(global.gameState),
-    cardState: cloneJson(global.cardState)
-  };
-}
-
 function createSnapshot(stateVersion, pendingState) {
   return {
     stateVersion,
@@ -31,7 +23,7 @@ function createSnapshot(stateVersion, pendingState) {
     cardState: {
       turnIndex: 5,
       pendingEffectByPlayer: {
-        black: pendingState,
+        black: pendingState ? cloneJson(pendingState) : null,
         white: null
       },
       hands: { black: [], white: [] },
@@ -46,30 +38,76 @@ function createSnapshot(stateVersion, pendingState) {
 
 const CASES = [
   {
-    label: 'POSITION_SWAP_WILL first selection',
+    label: 'POSITION_SWAP_WILL',
+    pendingType: 'POSITION_SWAP_WILL',
     modulePath: '../game/card-effects/position-swap',
     handlerName: 'handlePositionSwapSelection',
-    pendingType: 'POSITION_SWAP_WILL',
     actionField: 'positionSwapTarget',
-    target: { row: 2, col: 3 },
+    firstTarget: { row: 2, col: 3 },
+    secondTarget: { row: 5, col: 4 },
     initialPending: { type: 'POSITION_SWAP_WILL', stage: 'selectTarget', cardId: 'position_swap_01' },
-    nextPending: {
+    intermediatePending: {
       type: 'POSITION_SWAP_WILL',
       stage: 'selectTarget',
       cardId: 'position_swap_01',
       firstTarget: { row: 2, col: 3 }
     },
-    rawEvent: { type: 'position_swap_first_selected', applied: true, completed: false, firstTarget: { row: 2, col: 3 } },
-    playbackEvents: [{ type: 'selection_marker', phase: 1 }],
-    expectImmediatePublish: false
+    buildFirstResult: (currentSnapshot) => ({
+      ok: true,
+      rawEvents: [{
+        type: 'position_swap_first_selected',
+        applied: true,
+        completed: false,
+        firstTarget: { row: 2, col: 3 }
+      }],
+      nextCardState: {
+        ...cloneJson(currentSnapshot.cardState),
+        pendingEffectByPlayer: {
+          black: {
+            type: 'POSITION_SWAP_WILL',
+            stage: 'selectTarget',
+            cardId: 'position_swap_01',
+            firstTarget: { row: 2, col: 3 }
+          },
+          white: null
+        }
+      },
+      nextGameState: cloneJson(currentSnapshot.gameState),
+      playbackEvents: [{ type: 'selection_marker', phase: 1 }]
+    }),
+    buildFinalResult: (currentSnapshot) => ({
+      ok: true,
+      rawEvents: [{
+        type: 'position_swap_selected',
+        applied: true,
+        completed: true,
+        from: { row: 2, col: 3 },
+        to: { row: 5, col: 4 }
+      }],
+      nextCardState: {
+        ...cloneJson(currentSnapshot.cardState),
+        pendingEffectByPlayer: { black: null, white: null }
+      },
+      nextGameState: {
+        ...cloneJson(currentSnapshot.gameState),
+        turnNumber: 13
+      },
+      playbackEvents: [{ type: 'move', phase: 1 }]
+    }),
+    expectedTransportState: {
+      type: 'POSITION_SWAP_WILL',
+      stage: 'selectTarget',
+      firstTarget: { row: 2, col: 3 }
+    }
   },
   {
-    label: 'BOARD_EXPANSION_GOD first selection',
+    label: 'BOARD_EXPANSION_GOD',
+    pendingType: 'BOARD_EXPANSION_GOD',
     modulePath: '../game/card-effects/board-expansion',
     handlerName: 'handleBoardExpansionSelection',
-    pendingType: 'BOARD_EXPANSION_GOD',
     actionField: 'expansionTarget',
-    target: { row: 0, col: 0 },
+    firstTarget: { row: 0, col: 0 },
+    secondTarget: { row: 7, col: 7 },
     initialPending: {
       type: 'BOARD_EXPANSION_GOD',
       stage: 'selectTarget',
@@ -77,35 +115,95 @@ const CASES = [
       maxSelections: 2,
       selectedTargets: []
     },
-    nextPending: {
+    intermediatePending: {
       type: 'BOARD_EXPANSION_GOD',
       stage: 'selectTarget',
       selectedCount: 1,
       maxSelections: 2,
       selectedTargets: [{ row: 0, col: 0 }]
     },
-    rawEvent: { type: 'board_expansion_first_selected', applied: true, completed: false, selectedCount: 1, maxSelections: 2 },
-    playbackEvents: [],
-    expectImmediatePublish: true
+    buildFirstResult: (currentSnapshot) => ({
+      ok: true,
+      rawEvents: [{
+        type: 'board_expansion_first_selected',
+        applied: true,
+        completed: false,
+        selectedCount: 1,
+        maxSelections: 2,
+        selectedTargets: [{ row: 0, col: 0 }]
+      }],
+      nextCardState: {
+        ...cloneJson(currentSnapshot.cardState),
+        pendingEffectByPlayer: {
+          black: {
+            type: 'BOARD_EXPANSION_GOD',
+            stage: 'selectTarget',
+            selectedCount: 1,
+            maxSelections: 2,
+            selectedTargets: [{ row: 0, col: 0 }]
+          },
+          white: null
+        }
+      },
+      nextGameState: cloneJson(currentSnapshot.gameState),
+      playbackEvents: []
+    }),
+    buildFinalResult: (currentSnapshot) => ({
+      ok: true,
+      rawEvents: [{
+        type: 'board_expansion_selected',
+        applied: true,
+        completed: true,
+        target: { row: 7, col: 7 },
+        selectedTargets: [{ row: 0, col: 0 }, { row: 7, col: 7 }],
+        sources: [{ row: 0, col: 0 }, { row: 7, col: 7 }],
+        added: [
+          { row: -1, col: 0 },
+          { row: -1, col: -1 },
+          { row: 0, col: -1 },
+          { row: 7, col: 8 },
+          { row: 8, col: 8 },
+          { row: 8, col: 7 }
+        ]
+      }],
+      nextCardState: {
+        ...cloneJson(currentSnapshot.cardState),
+        pendingEffectByPlayer: { black: null, white: null }
+      },
+      nextGameState: {
+        ...cloneJson(currentSnapshot.gameState),
+        turnNumber: 13
+      },
+      playbackEvents: [{ type: 'board_expand', phase: 1 }]
+    }),
+    expectedTransportState: {
+      type: 'BOARD_EXPANSION_GOD',
+      stage: 'selectTarget',
+      selectedTargets: [{ row: 0, col: 0 }],
+      selectedCount: 1,
+      maxSelections: 2
+    }
   }
 ];
 
-describe.each(CASES)('$label deferred publish contract', ({
+describe.each(CASES)('$label authoritative multi-stage contract', ({
+  pendingType,
   modulePath,
   handlerName,
-  pendingType,
   actionField,
-  target,
+  firstTarget,
+  secondTarget,
   initialPending,
-  nextPending,
-  rawEvent,
-  playbackEvents,
-  expectImmediatePublish
+  intermediatePending,
+  buildFirstResult,
+  buildFinalResult,
+  expectedTransportState
 }) => {
   let dom;
   let publishBodies;
+  let roomCreateSnapshot;
   let runTurnMock;
-  let releasePlayback;
+  let authoritativeSnapshotFactory;
 
   beforeEach(() => {
     jest.resetModules();
@@ -123,10 +221,6 @@ describe.each(CASES)('$label deferred publish contract', ({
     global.isProcessing = false;
     global.isCardAnimating = false;
 
-    const initial = createSnapshot(60, initialPending);
-    global.gameState = initial.gameState;
-    global.cardState = initial.cardState;
-
     global.emitLogAdded = jest.fn();
     global.emitCardStateChange = jest.fn();
     global.emitGameStateChange = jest.fn();
@@ -137,9 +231,7 @@ describe.each(CASES)('$label deferred publish contract', ({
       init: jest.fn(),
       playEffectByKey: jest.fn()
     };
-    global.waitForPlaybackIdle = jest.fn(() => new Promise((resolve) => {
-      releasePlayback = resolve;
-    }));
+    global.waitForPlaybackIdle = jest.fn(async () => {});
     globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
     global.isGameOver = jest.fn(() => false);
 
@@ -149,25 +241,9 @@ describe.each(CASES)('$label deferred publish contract', ({
       }
     };
     global.TurnPipeline = {};
-    runTurnMock = jest.fn(() => ({
-      ok: true,
-      rawEvents: [rawEvent],
-      nextCardState: {
-        ...global.cardState,
-        pendingEffectByPlayer: {
-          black: nextPending,
-          white: null
-        }
-      },
-      nextGameState: {
-        ...global.gameState,
-        currentPlayer: global.BLACK,
-        turnNumber: 12
-      },
-      playbackEvents: playbackEvents.slice()
-    }));
+    runTurnMock = jest.fn();
     global.TurnPipelineUIAdapter = {
-      runTurnWithAdapter: runTurnMock
+      runTurnWithAdapter: (...args) => runTurnMock(...args)
     };
     window.TurnPipelineUIAdapter = global.TurnPipelineUIAdapter;
 
@@ -176,7 +252,17 @@ describe.each(CASES)('$label deferred publish contract', ({
       close() {}
     };
 
+    roomCreateSnapshot = createSnapshot(60, initialPending);
+    global.gameState = roomCreateSnapshot.gameState;
+    global.cardState = roomCreateSnapshot.cardState;
+
     publishBodies = [];
+    authoritativeSnapshotFactory = () => ({
+      stateVersion: 61,
+      gameState: cloneJson(global.gameState),
+      cardState: cloneJson(global.cardState)
+    });
+
     global.fetch = jest.fn(async (url, init = {}) => {
       const parsedUrl = new URL(String(url));
       const pathName = parsedUrl.pathname;
@@ -187,8 +273,8 @@ describe.each(CASES)('$label deferred publish contract', ({
           roomId: 'MUL',
           seatKey: 'black',
           seatToken: 'seat-token',
-          stateVersion: 60,
-          snapshot: createSnapshot(60, initialPending)
+          stateVersion: roomCreateSnapshot.stateVersion,
+          snapshot: cloneJson(roomCreateSnapshot)
         });
       }
 
@@ -199,12 +285,8 @@ describe.each(CASES)('$label deferred publish contract', ({
           ok: true,
           roomId: 'MUL',
           stateVersion: 61,
-          snapshot: body.snapshot
-            ? {
-              ...body.snapshot,
-              stateVersion: 61
-            }
-            : createLiveResponseSnapshot(61)
+          snapshot: authoritativeSnapshotFactory(),
+          playbackEvents: []
         });
       }
 
@@ -249,7 +331,9 @@ describe.each(CASES)('$label deferred publish contract', ({
     delete global.fetch;
   });
 
-  test('intermediate command publish keeps pending state and same turn', async () => {
+  test('first selection stays local and does not publish', async () => {
+    runTurnMock.mockImplementation(() => buildFirstResult(roomCreateSnapshot));
+
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
     global.NetworkMatchClient = client;
@@ -258,44 +342,72 @@ describe.each(CASES)('$label deferred publish contract', ({
     expect(created.ok).toBe(true);
 
     const handlers = require(modulePath);
-    const pendingPromise = handlers[handlerName](target.row, target.col, 'black');
+    const result = await handlers[handlerName](firstTarget.row, firstTarget.col, 'black');
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const action = runTurnMock.mock.calls[0][3];
-    expect(action[actionField]).toEqual(target);
-    expect(action.deferNetworkPublish).toBe(true);
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      pendingType,
+      intermediatePreviewApplied: true
+    }));
+    expect(runTurnMock).toHaveBeenCalledTimes(1);
+    expect(publishBodies).toHaveLength(0);
+    expect(global.gameState.currentPlayer).toBe(global.BLACK);
+    expect(global.gameState.turnNumber).toBe(12);
+    expect(global.cardState.pendingEffectByPlayer.black).toEqual(intermediatePending);
+    expect(global.ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
+  });
 
-    if (expectImmediatePublish) {
-      await Promise.resolve();
-      await Promise.resolve();
-      expect(publishBodies).toHaveLength(1);
-    } else {
-      expect(publishBodies).toHaveLength(0);
-      expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
-      expect(global.isProcessing).toBe(true);
-      expect(global.isCardAnimating).toBe(true);
-      releasePlayback();
-    }
+  test('final selection publishes once with carried pendingSelectionState', async () => {
+    roomCreateSnapshot = createSnapshot(60, intermediatePending);
+    global.gameState = roomCreateSnapshot.gameState;
+    global.cardState = roomCreateSnapshot.cardState;
 
-    await pendingPromise;
+    runTurnMock.mockImplementation(() => buildFinalResult(roomCreateSnapshot));
+    authoritativeSnapshotFactory = () => {
+      const previewResult = runTurnMock.mock.results[0] && runTurnMock.mock.results[0].value;
+      return {
+        stateVersion: 61,
+        gameState: cloneJson(previewResult.nextGameState),
+        cardState: cloneJson(previewResult.nextCardState)
+      };
+    };
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    global.NetworkMatchClient = client;
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const handlers = require(modulePath);
+    const result = await handlers[handlerName](secondTarget.row, secondTarget.col, 'black');
+
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      pendingType,
+      publishedByNetwork: true,
+      playbackEvents: []
+    }));
+    expect(runTurnMock).toHaveBeenCalledTimes(1);
     expect(publishBodies).toHaveLength(1);
     expect(publishBodies[0].actionType).toBe('place');
     expect(publishBodies[0].actor).toBe('black');
-    expect(publishBodies[0].params).toEqual(expect.objectContaining({ [actionField]: target }));
-    expect(publishBodies[0].snapshot).toBeUndefined();
-    expect(publishBodies[0].playbackEvents).toBeUndefined();
-    expect(global.gameState.currentPlayer).toBe(global.BLACK);
-    expect(global.gameState.turnNumber).toBe(12);
-    expect(global.cardState.pendingEffectByPlayer.black).toEqual(nextPending);
-    expect(global.ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
-    if (playbackEvents.length === 0) {
-      expect(global.isProcessing).toBe(false);
-      expect(global.isCardAnimating).toBe(false);
-    }
+    expect(publishBodies[0].params).toEqual(expect.objectContaining({
+      player: 'black',
+      [actionField]: secondTarget,
+      pendingSelectionState: expectedTransportState
+    }));
+    expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(global.gameState.turnNumber).toBe(13);
+    expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
   });
 });

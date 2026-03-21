@@ -85,6 +85,8 @@ describe('network snapshot pending presentation reconcile', () => {
           global.isProcessing = !!(flags && flags.processing === true);
           global.isCardAnimating = !!(flags && flags.cardAnimating === true);
         }),
+        getProcessing: jest.fn(() => global.isProcessing === true),
+        getCardAnimating: jest.fn(() => global.isCardAnimating === true),
         getPlaybackActive: jest.fn(() => playbackActive === true)
       }
     });

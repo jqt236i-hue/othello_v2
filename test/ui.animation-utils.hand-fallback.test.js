@@ -547,6 +547,120 @@ describe('animation-utils hand fallback', () => {
     ]);
   });
 
+  test('playCardUseHandAnimation fallback builds a styled card face when source element is unavailable', async () => {
+    jest.useFakeTimers();
+
+    const animateMock = jest.fn(() => ({
+      addEventListener: () => {},
+      finished: Promise.resolve()
+    }));
+    window.Element.prototype.animate = animateMock;
+    global.CardLogic = {
+      getCardDef: jest.fn(() => ({ id: 'card_1', name: 'Blue Test', cost: 11 }))
+    };
+
+    const handEl = document.getElementById('hand-black');
+    const chargeEl = document.getElementById('charge-black');
+    handEl.getBoundingClientRect = () => ({
+      left: 180,
+      top: 480,
+      width: 260,
+      height: 140,
+      right: 440,
+      bottom: 620
+    });
+    chargeEl.getBoundingClientRect = () => ({
+      left: 430,
+      top: 410,
+      width: 100,
+      height: 40,
+      right: 530,
+      bottom: 450
+    });
+
+    const mod = require('../ui/animation-utils');
+    const promise = mod.playCardUseHandAnimation({
+      player: 'black',
+      owner: 'black',
+      cardId: 'card_1',
+      cost: 11,
+      name: 'Blue Test'
+    });
+
+    await Promise.resolve();
+
+    const movingCard = document.querySelector('#handLayer .card-item');
+    expect(movingCard).toBeTruthy();
+    expect(movingCard.classList.contains('cost-tier-blue')).toBe(true);
+    expect(movingCard.dataset.cardId).toBe('card_1');
+    const badge = movingCard.querySelector('.card-cost-badge');
+    expect(badge).toBeTruthy();
+    expect(badge.classList.contains('cost-tier-blue')).toBe(true);
+    expect(badge.textContent).toBe('コスト11');
+
+    jest.advanceTimersByTime(4000);
+    await Promise.resolve();
+
+    await expect(promise).resolves.toBeUndefined();
+  });
+
+  test('playCardUseHandAnimation fallback uses visualDescriptor when card catalog lookup is unavailable', async () => {
+    jest.useFakeTimers();
+
+    const animateMock = jest.fn(() => ({
+      addEventListener: () => {},
+      finished: Promise.resolve()
+    }));
+    window.Element.prototype.animate = animateMock;
+    global.CardLogic = {
+      getCardDef: jest.fn(() => null)
+    };
+
+    const handEl = document.getElementById('hand-black');
+    const chargeEl = document.getElementById('charge-black');
+    handEl.getBoundingClientRect = () => ({
+      left: 180,
+      top: 480,
+      width: 260,
+      height: 140,
+      right: 440,
+      bottom: 620
+    });
+    chargeEl.getBoundingClientRect = () => ({
+      left: 430,
+      top: 410,
+      width: 100,
+      height: 40,
+      right: 530,
+      bottom: 450
+    });
+
+    const mod = require('../ui/animation-utils');
+    const promise = mod.playCardUseHandAnimation({
+      player: 'black',
+      owner: 'black',
+      visualDescriptor: {
+        name: 'Descriptor Card',
+        cost: 21,
+        costTier: 'gold'
+      }
+    });
+
+    await Promise.resolve();
+
+    const movingCard = document.querySelector('#handLayer .card-item');
+    expect(movingCard).toBeTruthy();
+    expect(movingCard.classList.contains('cost-tier-gold')).toBe(true);
+    expect(movingCard.dataset.cardId).toBeUndefined();
+    expect(movingCard.querySelector('.card-name').textContent).toBe('Descriptor Card');
+    expect(movingCard.querySelector('.card-cost-badge').textContent).toBe('コスト21');
+
+    jest.advanceTimersByTime(4000);
+    await Promise.resolve();
+
+    await expect(promise).resolves.toBeUndefined();
+  });
+
   test('playCardUseHandAnimation plays disappearSoundKey when the moving card is cleaned up', async () => {
     jest.useFakeTimers();
 

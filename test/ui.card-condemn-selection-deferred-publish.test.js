@@ -291,11 +291,10 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
     expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
     expect(document.getElementById('heaven-blessing-overlay').classList.contains('active')).toBe(false);
-    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledTimes(1);
-    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('stone_destroy');
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
   });
 
-  test('overlay destroy button plays stone_destroy for condemn selection', async () => {
+  test('overlay destroy button does not play stone_destroy locally for condemn selection', async () => {
     require('../cards/card-interaction.js');
 
     window.updateCardDetailPanel();
@@ -309,7 +308,7 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     expect(selectBtn).toBeTruthy();
     selectBtn.click();
 
-    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
-    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('stone_destroy');
+    expect(global.SoundEngine.init).not.toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
   });
 });

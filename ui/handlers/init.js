@@ -309,70 +309,13 @@ async function initializeUI() {
     const detailBtn = document.getElementById('toggle-card-detail-btn');
     const passBtn = document.getElementById('pass-btn');
     const sellBtn = document.getElementById('sell-card-btn');
-    const LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY = '__skipNextPlaybackSoundUntilByKey';
-    const LOCAL_PLAYBACK_SOUND_SKIP_MS = 5000;
-
-    const playUiEffectSound = (effectKey) => {
-        try {
-            if (typeof SoundEngine === 'undefined' || !SoundEngine) return;
-            if (typeof SoundEngine.playEffectByKey !== 'function') return;
-            SoundEngine.init();
-            SoundEngine.playEffectByKey(effectKey);
-        } catch (e) { /* ignore */ }
-    };
-
-    const armLocalPlaybackSoundSkip = (effectKey) => {
-        const key = String(effectKey || '').trim();
-        if (!key || typeof window === 'undefined' || !window) return false;
-        const registry = (window[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY] && typeof window[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY] === 'object')
-            ? window[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY]
-            : {};
-        registry[key] = Date.now() + LOCAL_PLAYBACK_SOUND_SKIP_MS;
-        window[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY] = registry;
-        return true;
-    };
-
-    const clearLocalPlaybackSoundSkip = (effectKey) => {
-        const key = String(effectKey || '').trim();
-        if (!key || typeof window === 'undefined' || !window) return false;
-        const registry = window[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY];
-        if (!registry || typeof registry !== 'object') return false;
-        if (!Object.prototype.hasOwnProperty.call(registry, key)) return false;
-        try {
-            delete registry[key];
-            if (Object.keys(registry).length === 0) {
-                delete window[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY];
-            }
-        } catch (e) {
-            registry[key] = 0;
-        }
-        return true;
-    };
-
-    const getSelectedCardDefForUseSound = () => {
-        if (!cardState || !cardState.selectedCardId) return null;
-        if (typeof CardLogic === 'undefined' || !CardLogic || typeof CardLogic.getCardDef !== 'function') {
-            return null;
-        }
-        return CardLogic.getCardDef(cardState.selectedCardId) || null;
-    };
-
-    const shouldPlayImmediateUseCardSound = () => {
-        const selectedDef = getSelectedCardDefForUseSound();
-        return !(selectedDef && selectedDef.type === 'TREASURE_BOX');
-    };
-
     if (destroyBtn && typeof destroySelectedHandCard === 'function') {
         destroyBtn.addEventListener('click', () => {
-            playUiEffectSound('stone_destroy');
             destroySelectedHandCard();
         });
     }
     if (useBtn) {
         useBtn.addEventListener('click', () => {
-            if (shouldPlayImmediateUseCardSound()) {
-                playUiEffectSound('card_use_button');
-            }
             if (typeof useSelectedCard === 'function') useSelectedCard();
         });
     }
@@ -381,10 +324,7 @@ async function initializeUI() {
     }
     if (sellBtn && typeof confirmSellCardSelection === 'function') {
         sellBtn.addEventListener('click', () => {
-            const armedSkip = armLocalPlaybackSoundSkip('charge_gain_common');
-            playUiEffectSound('charge_gain_common');
-            const confirmed = confirmSellCardSelection() === true;
-            if (!confirmed && armedSkip) clearLocalPlaybackSoundSkip('charge_gain_common');
+            confirmSellCardSelection();
         });
     }
     if (passBtn && typeof passCurrentTurn === 'function') {
@@ -562,5 +502,3 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof window !== 'undefined') {
     window.initializeUI = initializeUI;
 }
-
-

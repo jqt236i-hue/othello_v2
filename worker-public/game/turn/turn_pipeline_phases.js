@@ -116,6 +116,61 @@
         typeof PhaseHelpersModule.OBSERVER_CARD_ONE_LINERS === 'object'
     ) ? PhaseHelpersModule.OBSERVER_CARD_ONE_LINERS : Object.freeze({});
 
+    function resolveStrongWillDisplayTimer(markerData) {
+        if (!markerData || String(markerData.type || '').toUpperCase() !== 'PERMA_PROTECTED') return undefined;
+        const rawThreshold = Number(markerData.strongWillPromotionThreshold);
+        const thresholdFallback = Number(SharedConstantsModule && SharedConstantsModule.STRONG_WILL_PROMOTION_OWNER_TURNS);
+        const threshold = Number.isFinite(rawThreshold)
+            ? Math.max(1, Math.trunc(rawThreshold))
+            : (Number.isFinite(thresholdFallback) ? Math.max(1, Math.trunc(thresholdFallback)) : 10);
+        const rawProgress = Number(markerData.strongWillPromotionOwnerTurnStarts);
+        const progress = Number.isFinite(rawProgress) ? Math.max(0, Math.trunc(rawProgress)) : 0;
+        return Math.max(0, threshold - progress);
+    }
+
+    function resolveSpecialStatusTimer(markerData) {
+        const remainingOwnerTurns = Number(markerData && markerData.remainingOwnerTurns);
+        if (Number.isFinite(remainingOwnerTurns)) return Math.max(0, Math.trunc(remainingOwnerTurns));
+        return resolveStrongWillDisplayTimer(markerData);
+    }
+
+    function cloneDeferredPendingSelectionValue(value) {
+        if (Array.isArray(value)) {
+            return value.map((item) => cloneDeferredPendingSelectionValue(item));
+        }
+        if (!value || typeof value !== 'object') return value;
+        const cloned = {};
+        const keys = Object.keys(value);
+        for (let index = 0; index < keys.length; index += 1) {
+            const key = keys[index];
+            cloned[key] = cloneDeferredPendingSelectionValue(value[key]);
+        }
+        return cloned;
+    }
+
+    function hydrateDeferredPendingSelectionState(pending, action) {
+        if (!pending || !action || !action.pendingSelectionState || typeof action.pendingSelectionState !== 'object') {
+            return false;
+        }
+        const transportState = action.pendingSelectionState;
+        if (String(transportState.type || '').trim().toUpperCase() !== String(pending.type || '').trim().toUpperCase()) {
+            return false;
+        }
+
+        const keys = Object.keys(transportState);
+        let hydrated = false;
+        for (let index = 0; index < keys.length; index += 1) {
+            const key = keys[index];
+            if (key === 'type' || key === 'stage') continue;
+            pending[key] = cloneDeferredPendingSelectionValue(transportState[key]);
+            hydrated = true;
+        }
+        if (typeof transportState.stage === 'string' && transportState.stage) {
+            pending.stage = transportState.stage;
+        }
+        return hydrated;
+    }
+
     const pickRandomLine = (
         PhaseHelpersModule &&
         typeof PhaseHelpersModule.pickRandomLine === 'function'
@@ -507,8 +562,9 @@
                             timerSnapshot.set(key, { timer: m.data.remainingTurns, special: 'TIME_BOMB', owner: m.owner, row: m.row, col: m.col, kind: m.kind });
                         }
                     } else if (m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) {
-                        if (typeof m.data.remainingOwnerTurns === 'number') {
-                            timerSnapshot.set(key, { timer: m.data.remainingOwnerTurns, special: m.data.type || null, owner: m.owner, row: m.row, col: m.col, kind: m.kind });
+                        const timerValue = resolveSpecialStatusTimer(m.data);
+                        if (timerValue !== undefined) {
+                            timerSnapshot.set(key, { timer: timerValue, special: m.data.type || null, owner: m.owner, row: m.row, col: m.col, kind: m.kind });
                         }
                     }
                 }
@@ -853,14 +909,15 @@
                             }
                         }
                     } else if (m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) {
-                        if (typeof m.data.remainingOwnerTurns !== 'number') continue;
-                        if (!before || before.timer !== m.data.remainingOwnerTurns) {
+                        const timerValue = resolveSpecialStatusTimer(m.data);
+                        if (timerValue === undefined) continue;
+                        if (!before || before.timer !== timerValue) {
                             if (typeof CardLogic.emitPresentationEvent === 'function') {
                                 CardLogic.emitPresentationEvent(cardState, {
                                     type: 'STATUS_TICK',
                                     row: m.row,
                                     col: m.col,
-                                    meta: { special: m.data.type || null, timer: m.data.remainingOwnerTurns, owner: m.owner }
+                                    meta: { special: m.data.type || null, timer: timerValue, owner: m.owner }
                                 });
                             }
                         }
@@ -1215,6 +1272,7 @@
         } else if (action.type === 'place') {
             // 3.5) Optional pre-placement selection effects (for cards that require a target)
             const pending = cardState.pendingEffectByPlayer[playerKey];
+            hydrateDeferredPendingSelectionState(pending, action);
             if (pending && pending.type === 'DESTROY_ONE_STONE' && action.destroyTarget) {
                 const destroyed = CardLogic.applyDestroyEffect(
                     cardState,

@@ -229,9 +229,20 @@ function _applyDoubleDigitTimerClassForDiff(timerElement, rawValue) {
     }
 }
 
+function _resolveStrongWillDisplayTurnsForDiff(data) {
+    if (String(data && data.type ? data.type : '').toUpperCase() !== 'PERMA_PROTECTED') return undefined;
+    const rawThreshold = Number(data && data.strongWillPromotionThreshold);
+    const threshold = Number.isFinite(rawThreshold) ? Math.max(1, Math.trunc(rawThreshold)) : 10;
+    const rawProgress = Number(data && data.strongWillPromotionOwnerTurnStarts);
+    const progress = Number.isFinite(rawProgress) ? Math.max(0, Math.trunc(rawProgress)) : 0;
+    return Math.max(0, threshold - progress);
+}
+
 function _resolveSpecialDisplayTurnsForDiff(data) {
     const primary = Number(data && data.remainingOwnerTurns);
     if (Number.isFinite(primary)) return Math.max(0, Math.trunc(primary));
+    const strongWillRemaining = _resolveStrongWillDisplayTurnsForDiff(data);
+    if (strongWillRemaining !== undefined) return strongWillRemaining;
     if (String(data && data.type ? data.type : '').toUpperCase() === 'REGEN') {
         const regenRemaining = Number(data && data.regenRemaining);
         if (Number.isFinite(regenRemaining)) return Math.max(0, Math.trunc(regenRemaining));
@@ -274,7 +285,7 @@ function _isVisualPlaybackActiveForDiff() {
     if (PlaybackStateModule && typeof PlaybackStateModule.getPlaybackActive === 'function') {
         return PlaybackStateModule.getPlaybackActive() === true;
     }
-    return (typeof window !== 'undefined' && window.VisualPlaybackActive === true);
+    return false;
 }
 
 function _consumeBoardUpdateContextForDiff() {
@@ -282,32 +293,7 @@ function _consumeBoardUpdateContextForDiff() {
         const context = PlaybackStateModule.consumeBoardUpdateContext();
         if (context && typeof context === 'object') return context;
     }
-    if (PlaybackStateModule && typeof PlaybackStateModule.consumeSuppressNextDiffFlip === 'function') {
-        if (PlaybackStateModule.consumeSuppressNextDiffFlip() === true) {
-            return {
-                suppressFallbackFlip: true,
-                reason: 'legacy_suppress_next_diff_flip',
-                source: 'legacy_playback_state_api'
-            };
-        }
-    }
-    const active = (typeof window !== 'undefined' && window.__suppressNextDiffFlip === true);
-    if (active) {
-        try { window.__suppressNextDiffFlip = false; } catch (e) { /* ignore */ }
-    }
-    const suppressBoardExpansionRevealSound = (typeof window !== 'undefined' && window.__suppressNextBoardExpansionRevealSound === true);
-    if (suppressBoardExpansionRevealSound) {
-        try { window.__suppressNextBoardExpansionRevealSound = false; } catch (e) { /* ignore */ }
-    }
-    if (!active && !suppressBoardExpansionRevealSound) return null;
-    return Object.assign(
-        {
-            reason: 'legacy_board_update_context',
-            source: 'legacy_window_flag'
-        },
-        active ? { suppressFallbackFlip: true } : null,
-        suppressBoardExpansionRevealSound ? { suppressBoardExpansionRevealSound: true } : null
-    );
+    return null;
 }
 
 // Internal (per-render) flag to suppress fallback flip animation.
@@ -1845,7 +1831,8 @@ function updateCellDOM(cell, state, row, col, prevState) {
                     (state.special.type === 'DRAGON' || state.special.type === 'DESTROY_DRAGON' || state.special.type === 'LIGHTNING') ? 'dragon-timer'
                         : (state.special.type === 'ULTIMATE_DESTROY_GOD' ? 'udg-timer'
                             : (state.special.type === 'BREEDING' ? 'breeding-timer'
-                                : (state.special.type === 'WORK' ? 'work-timer' : 'special-timer')));
+                                : (state.special.type === 'WORK' ? 'work-timer'
+                                    : ((state.special.type === 'TIME_STOP' || state.special.type === 'PERMA_PROTECTED') ? 'countdown-timer' : 'special-timer'))));
                 const remaining = Math.max(0, Math.trunc(Number(state.special.remainingOwnerTurns)));
                 timer.textContent = String(remaining);
                 _applyDoubleDigitTimerClassForDiff(timer, remaining);
@@ -1879,7 +1866,7 @@ function updateCellDOM(cell, state, row, col, prevState) {
             }
             disc.classList.add('bomb', 'special-stone', bombOwnerClass);
             const timeLabel = document.createElement('div');
-            timeLabel.className = 'bomb-timer';
+            timeLabel.className = 'bomb-timer countdown-timer';
             const bombRemaining = Math.max(0, Math.trunc(Number(state.bomb.remainingTurns)));
             timeLabel.textContent = String(bombRemaining);
             _applyDoubleDigitTimerClassForDiff(timeLabel, bombRemaining);

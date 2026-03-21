@@ -98,7 +98,7 @@ describe('pipeline_ui_adapter draw mapping', () => {
     );
 
     expect(useResult.ok).toBe(true);
-    expect(useResult.playbackEvents.map((ev) => ev.type)).toEqual(['card_use_animation']);
+    expect(useResult.playbackEvents.map((ev) => ev.type)).toEqual(['card_use_animation', 'sound_effect']);
     expect(useResult.deferredGeneratedThrowChainHandAdd).toMatchObject({
       playerKey: 'black',
       count: 1,
@@ -135,7 +135,19 @@ describe('pipeline_ui_adapter draw mapping', () => {
     expect(Array.isArray(out)).toBe(true);
     expect(out).toHaveLength(1);
     expect(out[0].type).toBe('card_use_animation');
-    expect(out[0].targets[0]).toMatchObject({ player: 'black', owner: 'black', cardId: 'c1', cost: 7, name: 'Test' });
+    expect(out[0].targets[0]).toMatchObject({
+      player: 'black',
+      owner: 'black',
+      cardId: 'c1',
+      cost: 7,
+      name: 'Test',
+      visualDescriptor: {
+        cardId: 'c1',
+        name: 'Test',
+        cost: 7,
+        costTier: 'red'
+      }
+    });
   });
 
   test('runTurnWithAdapter prepends place_hand_animation from raw place events', () => {

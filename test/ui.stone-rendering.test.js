@@ -143,6 +143,7 @@ describe('UI stone rendering', () => {
     gameState.board[1][0] = BLACK;
     gameState.board[1][1] = BLACK;
     gameState.board[1][2] = BLACK;
+    gameState.board[1][3] = BLACK;
 
     cardState.markers = [
       { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'DRAGON', remainingOwnerTurns: 10 } },
@@ -156,7 +157,8 @@ describe('UI stone rendering', () => {
       { id: 9, kind: 'specialStone', row: 1, col: 0, owner: 'black', data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 } },
       { id: 10, kind: 'specialStone', row: 1, col: 0, owner: 'black', data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 4, flipEvadeRemaining: 1 } },
       { id: 11, kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'PROTECTED', remainingOwnerTurns: 2, flipEvadeRemaining: 0 } },
-      { id: 12, kind: 'specialStone', row: 1, col: 2, owner: 'black', data: { type: 'REGEN', regenRemaining: 3 } }
+      { id: 12, kind: 'specialStone', row: 1, col: 2, owner: 'black', data: { type: 'REGEN', regenRemaining: 3 } },
+      { id: 13, kind: 'specialStone', row: 1, col: 3, owner: 'black', data: { type: 'PERMA_PROTECTED', strongWillPromotionOwnerTurnStarts: 4, strongWillPromotionThreshold: 10 } }
     ];
 
     const diffRenderer = require('../ui/diff-renderer');
@@ -191,6 +193,10 @@ describe('UI stone rendering', () => {
 
     const regenDisc = boardEl.querySelector('.cell[data-row="1"][data-col="2"] .disc');
     assert.strictEqual(regenDisc.querySelector('.special-timer').textContent, '3');
+
+    const strongWillDisc = boardEl.querySelector('.cell[data-row="1"][data-col="3"] .disc');
+    assert.strictEqual(strongWillDisc.querySelector('.countdown-timer').textContent, '6');
+    assert.strictEqual(strongWillDisc.querySelector('.special-timer'), null);
   });
 
   test('diff-renderer shows destroy evade remaining for will hunter king', () => {
@@ -344,7 +350,7 @@ describe('UI stone rendering', () => {
     const diffRenderer = require('../ui/diff-renderer');
     diffRenderer.renderBoardDiff(boardEl);
 
-    const timer = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .special-timer');
+    const timer = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .countdown-timer');
     assert.ok(timer, 'expected time stop timer');
     assert.strictEqual(timer.textContent, '3');
 

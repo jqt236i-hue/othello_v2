@@ -289,6 +289,7 @@ describe('pending selection flow contracts', () => {
     global.emitCardStateChange = jest.fn();
     global.emitBoardUpdate = jest.fn();
     global.emitGameStateChange = jest.fn();
+    global.emitLogAdded = jest.fn();
     global.TurnPipeline = {};
     global.TurnPipelineUIAdapter = {
       runTurnWithAdapter: jest.fn(() => ({
@@ -321,6 +322,9 @@ describe('pending selection flow contracts', () => {
     }));
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
     expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(global.emitCardStateChange).not.toHaveBeenCalled();
+    expect(global.emitBoardUpdate).not.toHaveBeenCalled();
+    expect(global.emitGameStateChange).not.toHaveBeenCalled();
     expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
       playerKey: 'black',
       actionType: 'place',
@@ -333,6 +337,8 @@ describe('pending selection flow contracts', () => {
         turnIndex: 5
       })
     }));
+    const previewAction = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(previewAction.__suppressUiLogs).toBe(true);
   });
 
   test('syncPendingSelectionActionCache prunes stale cache while keeping matching multi-stage pending type', () => {

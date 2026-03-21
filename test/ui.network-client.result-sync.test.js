@@ -188,6 +188,7 @@ describe('NetworkMatchClient result sync', () => {
   });
 
   test('visual playback only does not rearm busy lock on force sync when local queues are empty', () => {
+    const playbackState = require('../ui/playback-state-manager');
     global.isProcessing = false;
     global.isCardAnimating = false;
     global.cardState = {
@@ -195,7 +196,7 @@ describe('NetworkMatchClient result sync', () => {
       presentationEvents: [],
       _presentationEventsPersist: []
     };
-    window.VisualPlaybackActive = true;
+    playbackState.setPlaybackActive(true);
 
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
@@ -218,6 +219,7 @@ describe('NetworkMatchClient result sync', () => {
     expect(global.cardState.presentationEvents).toEqual([]);
     expect(global.cardState._presentationEventsPersist).toEqual([]);
     expect(global.renderCardUI).not.toHaveBeenCalled();
+    playbackState.setPlaybackActive(false);
   });
 
   test('force snapshot without playback clears stale board update context', () => {

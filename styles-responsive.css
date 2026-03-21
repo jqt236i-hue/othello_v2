@@ -48,9 +48,32 @@
 
     #rules-help-card-list,
     #rules-help-effects-list,
-    #rules-help-rules-list,
-    #rules-help-controls-list {
+    #rules-help-guide-layout,
+    #rules-help-counters-layout {
         max-height: min(34dvh, calc(260px * var(--layout-stage-scale)));
+    }
+
+    #rules-help-guide-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .rules-help-counter-summary,
+    .rules-help-counter-row {
+        grid-template-columns: 1fr;
+    }
+
+    .rules-help-counter-row-header {
+        display: none;
+    }
+
+    .rules-help-counter-cell--demo {
+        justify-content: flex-start;
+    }
+
+    .rules-help-counter-demo,
+    .rules-help-counter-summary .rules-help-counter-demo {
+        width: calc(88px * var(--layout-stage-scale));
+        height: calc(88px * var(--layout-stage-scale));
     }
 
     #card-detail-panel {

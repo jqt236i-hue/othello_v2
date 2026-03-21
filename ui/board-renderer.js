@@ -34,7 +34,7 @@ function _isVisualPlaybackActiveForBoardRenderer() {
     if (PlaybackStateModule && typeof PlaybackStateModule.getPlaybackActive === 'function') {
         return PlaybackStateModule.getPlaybackActive() === true;
     }
-    return (typeof window !== 'undefined' && window.VisualPlaybackActive === true);
+    return false;
 }
 
 function _hasPendingPlaybackEventsForBoardRenderer() {
@@ -160,9 +160,20 @@ function _isDestroyEvadeSpecialTypeForBoard(type) {
     return typeUpper === 'WILL_HUNTER_KING' || typeUpper === 'ULTIMATE_HYPERACTIVE';
 }
 
+function _resolveStrongWillDisplayTurnsForBoard(data) {
+    if (String(data && data.type ? data.type : '').toUpperCase() !== 'PERMA_PROTECTED') return undefined;
+    const rawThreshold = Number(data && data.strongWillPromotionThreshold);
+    const threshold = Number.isFinite(rawThreshold) ? Math.max(1, Math.trunc(rawThreshold)) : 10;
+    const rawProgress = Number(data && data.strongWillPromotionOwnerTurnStarts);
+    const progress = Number.isFinite(rawProgress) ? Math.max(0, Math.trunc(rawProgress)) : 0;
+    return Math.max(0, threshold - progress);
+}
+
 function _resolveSpecialDisplayTurnsForBoard(data) {
     const primary = Number(data && data.remainingOwnerTurns);
     if (Number.isFinite(primary)) return Math.max(0, Math.trunc(primary));
+    const strongWillRemaining = _resolveStrongWillDisplayTurnsForBoard(data);
+    if (strongWillRemaining !== undefined) return strongWillRemaining;
     if (String(data && data.type ? data.type : '').toUpperCase() === 'REGEN') {
         const regenRemaining = Number(data && data.regenRemaining);
         if (Number.isFinite(regenRemaining)) return Math.max(0, Math.trunc(regenRemaining));
@@ -476,7 +487,8 @@ function renderBoardFull() {
                             (special.type === 'DRAGON' || special.type === 'DESTROY_DRAGON') ? 'dragon-timer'
                                 : (special.type === 'ULTIMATE_DESTROY_GOD' ? 'udg-timer'
                                     : (special.type === 'BREEDING' ? 'breeding-timer'
-                                        : (special.type === 'WORK' ? 'work-timer' : 'special-timer')));
+                                        : (special.type === 'WORK' ? 'work-timer'
+                                            : ((special.type === 'TIME_STOP' || special.type === 'PERMA_PROTECTED') ? 'countdown-timer' : 'special-timer'))));
                         const remaining = Math.max(0, Math.trunc(Number(special.remainingOwnerTurns)));
                         timer.textContent = String(remaining);
                         _applyDoubleDigitTimerClassForBoard(timer, remaining);
@@ -511,7 +523,7 @@ function renderBoardFull() {
                     }
                     disc.classList.add('bomb', 'special-stone', bombOwner === BLACK ? 'bomb-black' : 'bomb-white');
                     const timeLabel = document.createElement('div');
-                    timeLabel.className = 'bomb-timer';
+                    timeLabel.className = 'bomb-timer countdown-timer';
                     const bombRemaining = Math.max(0, Math.trunc(Number(bomb.remainingTurns)));
                     timeLabel.textContent = String(bombRemaining);
                     _applyDoubleDigitTimerClassForBoard(timeLabel, bombRemaining);

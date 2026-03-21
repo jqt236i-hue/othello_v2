@@ -507,18 +507,28 @@ html.stone-images-loaded .disc.white {
     pointer-events: none;
 }
 
-.bomb-timer {
+.bomb-timer,
+.countdown-timer {
     position: absolute;
     bottom: calc(3px * var(--layout-stage-scale));
     left: 50%;
     transform: translateX(-50%);
-    font-size: calc(11px * var(--layout-stage-scale));
+    line-height: 1;
+    min-width: calc(18px * var(--layout-stage-scale));
+    height: calc(18px * var(--layout-stage-scale));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(10px * var(--layout-stage-scale));
     font-weight: bold;
     color: #ffffff;
-    background: rgba(0, 0, 0, 0.55);
-    padding: calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
-    border-radius: calc(4px * var(--layout-stage-scale));
-    min-width: calc(14px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 44%),
+        rgba(109, 86, 30, 0.76);
+    padding: 0 calc(4px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(255, 227, 176, 0.72);
+    box-shadow: 0 0 calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
     text-align: center;
     z-index: 70;
     pointer-events: none;
@@ -578,7 +588,8 @@ html.stone-images-loaded .disc.white {
 
 .stone-timer.timer-double-digit,
 .special-timer.timer-double-digit,
-.bomb-timer.timer-double-digit {
+.bomb-timer.timer-double-digit,
+.countdown-timer.timer-double-digit {
     z-index: 73;
 }
 

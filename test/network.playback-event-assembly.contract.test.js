@@ -478,5 +478,5 @@ describe('network playback event assembly contract', () => {
         await closeServer(room.server);
       }
     }
-  });
+  }, 20000);
 });

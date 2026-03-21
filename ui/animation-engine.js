@@ -339,22 +339,6 @@
             return playerKey === 'white' ? whiteVal : blackVal;
         }
 
-        _playCardUseButtonCueForOpponent(target) {
-            const ownerKey = this._resolveCardUseOwnerKey(target);
-            if (!ownerKey) return;
-
-            const localSeatKey = this._resolveLocalSeatKey();
-            if (ownerKey === localSeatKey) return;
-            if (this._resolveCardType(target && target.cardId) === 'TREASURE_BOX') return;
-
-            try {
-                if (typeof SoundEngine !== 'undefined' && SoundEngine && typeof SoundEngine.playEffectByKey === 'function') {
-                    SoundEngine.init();
-                    SoundEngine.playEffectByKey('card_use_button');
-                }
-            } catch (e) { /* ignore */ }
-        }
-
         _isCardEffectCause(cause) {
             return !!cause && cause !== 'SYSTEM';
         }
@@ -409,11 +393,31 @@
             if (!cell || typeof runner !== 'function') return undefined;
 
             const shouldHighlight = this._shouldHighlightEffectTarget(eventType, target);
+            return this._runWithTransientCellHighlight(cell, shouldHighlight, runner);
+        }
+
+        _shouldHighlightStatusChange(ev, target) {
+            if (!ev || ev.type !== EVENT_TYPES.STATUS_APPLIED) return false;
+            const reason = String(
+                (ev && ev.meta && ev.meta.reason) ||
+                (ev && ev.reason) ||
+                (target && target.reason) ||
+                ''
+            ).toLowerCase();
+            return reason === 'strong_will_promoted';
+        }
+
+        async _runWithTransientCellHighlight(cell, shouldHighlight, runner, minimumVisibleMs) {
+            if (!cell || typeof runner !== 'function') return undefined;
             if (!shouldHighlight) {
                 return runner();
             }
 
             let highlighted = false;
+            const minVisible = Number.isFinite(Number(minimumVisibleMs))
+                ? Math.max(0, Math.trunc(Number(minimumVisibleMs)))
+                : 0;
+            const startedAt = Date.now();
             try {
                 cell.classList.add(EFFECT_TARGET_HIGHLIGHT_CLASS);
                 highlighted = true;
@@ -422,6 +426,13 @@
             try {
                 return await runner();
             } finally {
+                if (highlighted && minVisible > 0) {
+                    const elapsed = Date.now() - startedAt;
+                    const remaining = minVisible - elapsed;
+                    if (remaining > 0) {
+                        await this._sleep(remaining);
+                    }
+                }
                 if (highlighted) {
                     try { cell.classList.remove(EFFECT_TARGET_HIGHLIGHT_CLASS); } catch (e) { /* ignore */ }
                 }
@@ -1173,20 +1184,6 @@
                                  boardUpdateContext.suppressBoardExpansionRevealSound = true;
                              }
                              PlaybackState.armBoardUpdateContext(boardUpdateContext);
-                          } else if (PlaybackState && typeof PlaybackState.setSuppressNextDiffFlip === 'function') {
-                             if (shouldSuppressNextDiffFlip) {
-                                 PlaybackState.setSuppressNextDiffFlip(true);
-                             }
-                             if (shouldSuppressBoardExpansionRevealSound && typeof window !== 'undefined' && window) {
-                                 window.__suppressNextBoardExpansionRevealSound = true;
-                             }
-                          } else {
-                             if (shouldSuppressNextDiffFlip) {
-                                 window.__suppressNextDiffFlip = true;
-                             }
-                             if (shouldSuppressBoardExpansionRevealSound) {
-                                 window.__suppressNextBoardExpansionRevealSound = true;
-                             }
                           }
                       } catch (e) { /* ignore */ }
                   }
@@ -1435,7 +1432,6 @@
                 case EVENT_TYPES.CARD_USE_ANIMATION:
                     {
                         const t2 = (ev.targets && ev.targets[0]) ? ev.targets[0] : ev;
-                        this._playCardUseButtonCueForOpponent(t2);
                         const disappearPlaybackEvents = Array.isArray(t2.disappearPlaybackEvents)
                             ? t2.disappearPlaybackEvents.filter((one) => !!one)
                             : [];
@@ -1444,6 +1440,7 @@
                                 player: t2.player,
                                 owner: t2.owner,
                                 cardId: t2.cardId,
+                                visualDescriptor: t2.visualDescriptor || null,
                                 cost: t2.cost,
                                 name: t2.name,
                                 disappearSoundKey: t2.disappearSoundKey || null,
@@ -2334,81 +2331,90 @@
         async handleStatusChange(ev) {
             const promises = ev.targets.map(async t => {
                 const cell = this.getCellEl(t.r, t.col);
+                if (!cell) return;
 
-                const after = t.after || {};
-                const rawType = String(ev && ev.rawType ? ev.rawType : '').toUpperCase();
-                const isStatusTick = rawType === 'STATUS_TICK';
-                const statusRemoveReason = String(
-                    (ev && ev.meta && ev.meta.reason) ||
-                    (ev && ev.reason) ||
-                    ''
-                ).toLowerCase();
-                const removedSpecialUpper = String(ev && ev.meta && ev.meta.special ? ev.meta.special : '').toUpperCase();
-                const isFreezeDurationEnd =
-                    ev &&
-                    ev.type === EVENT_TYPES.STATUS_REMOVED &&
-                    removedSpecialUpper === 'FREEZE' &&
-                    statusRemoveReason === 'duration_end' &&
-                    !after.special;
+                const shouldHighlightStatusChange = this._shouldHighlightStatusChange(ev, t);
+                await this._runWithTransientCellHighlight(
+                    cell,
+                    shouldHighlightStatusChange,
+                    async () => {
+                        const after = t.after || {};
+                        const rawType = String(ev && ev.rawType ? ev.rawType : '').toUpperCase();
+                        const isStatusTick = rawType === 'STATUS_TICK';
+                        const statusRemoveReason = String(
+                            (ev && ev.meta && ev.meta.reason) ||
+                            (ev && ev.reason) ||
+                            ''
+                        ).toLowerCase();
+                        const removedSpecialUpper = String(ev && ev.meta && ev.meta.special ? ev.meta.special : '').toUpperCase();
+                        const isFreezeDurationEnd =
+                            ev &&
+                            ev.type === EVENT_TYPES.STATUS_REMOVED &&
+                            removedSpecialUpper === 'FREEZE' &&
+                            statusRemoveReason === 'duration_end' &&
+                            !after.special;
 
-                if (isStatusTick) {
-                    const disc = await this.waitForDisc(t.r, t.col, 4);
-                    if (!disc) return;
-                    this.syncDiscTimerOnly(disc, after);
-                    return;
-                }
+                        if (isStatusTick) {
+                            const disc = await this.waitForDisc(t.r, t.col, 4);
+                            if (!disc) return;
+                            this.syncDiscTimerOnly(disc, after);
+                            return;
+                        }
 
-                if (isFreezeDurationEnd) {
-                    await this.fadeOutFreezeOverlay(cell, OVERLAY_CROSSFADE_MS);
-                    return;
-                }
+                        if (isFreezeDurationEnd) {
+                            await this.fadeOutFreezeOverlay(cell, OVERLAY_CROSSFADE_MS);
+                            return;
+                        }
 
-                const disc = await this.waitForDisc(t.r, t.col, 4);
-                if (!disc) return;
+                        const disc = await this.waitForDisc(t.r, t.col, 4);
+                        if (!disc) return;
 
-                const isRegenConsumed =
-                    ev &&
-                    ev.type === EVENT_TYPES.STATUS_REMOVED &&
-                    ev.meta &&
-                    ev.meta.special === 'REGEN' &&
-                    ev.meta.reason === 'regen_consumed' &&
-                    !after.special;
+                        const isRegenConsumed =
+                            ev &&
+                            ev.type === EVENT_TYPES.STATUS_REMOVED &&
+                            ev.meta &&
+                            ev.meta.special === 'REGEN' &&
+                            ev.meta.reason === 'regen_consumed' &&
+                            !after.special;
 
-                const isLossWillReset =
-                    ev &&
-                    ev.type === EVENT_TYPES.STATUS_REMOVED &&
-                    ev.meta &&
-                    ev.meta.reason === 'loss_will_reset' &&
-                    !after.special;
+                        const isLossWillReset =
+                            ev &&
+                            ev.type === EVENT_TYPES.STATUS_REMOVED &&
+                            ev.meta &&
+                            ev.meta.reason === 'loss_will_reset' &&
+                            !after.special;
 
-                if (isRegenConsumed) {
-                    await this.crossfadeDiscToState(disc, after, REGEN_CONSUME_FADE_MS);
-                    return;
-                }
+                        if (isRegenConsumed) {
+                            await this.crossfadeDiscToState(disc, after, REGEN_CONSUME_FADE_MS);
+                            return;
+                        }
 
-                if (isLossWillReset) {
-                    await this.crossfadeDiscToState(disc, after, OVERLAY_CROSSFADE_MS);
-                    return;
-                }
+                        if (isLossWillReset) {
+                            await this.crossfadeDiscToState(disc, after, OVERLAY_CROSSFADE_MS);
+                            return;
+                        }
 
-                const specialTypeUpper = String(after && after.special ? after.special : '').toUpperCase();
-                const visualSpecialType = (specialTypeUpper === 'INHERITED_HYPERACTIVE') ? null : after.special;
-                const effectKey = window.getEffectKeyForSpecialType(visualSpecialType);
+                        const specialTypeUpper = String(after && after.special ? after.special : '').toUpperCase();
+                        const visualSpecialType = (specialTypeUpper === 'INHERITED_HYPERACTIVE') ? null : after.special;
+                        const effectKey = window.getEffectKeyForSpecialType(visualSpecialType);
 
-                // Section 1.5: True Cross-Fade via overlay
-                if (Visuals.crossfadeStoneVisual) {
-                    await Visuals.crossfadeStoneVisual(disc, {
-                        effectKey: effectKey,
-                        owner: after.color, // Usually owner is same as color for these
-                        durationMs: OVERLAY_CROSSFADE_MS,
-                        newColor: after.color,
-                        fadeIn: !!visualSpecialType
-                    });
-                    // Ensure timer UI is updated immediately after status changes.
-                    this.syncDiscVisual(disc, after);
-                } else {
-                    this.syncDiscVisual(disc, after);
-                }
+                        // Section 1.5: True Cross-Fade via overlay
+                        if (Visuals.crossfadeStoneVisual) {
+                            await Visuals.crossfadeStoneVisual(disc, {
+                                effectKey: effectKey,
+                                owner: after.color, // Usually owner is same as color for these
+                                durationMs: OVERLAY_CROSSFADE_MS,
+                                newColor: after.color,
+                                fadeIn: !!visualSpecialType
+                            });
+                            // Ensure timer UI is updated immediately after status changes.
+                            this.syncDiscVisual(disc, after);
+                        } else {
+                            this.syncDiscVisual(disc, after);
+                        }
+                    },
+                    shouldHighlightStatusChange ? PHASE_GAP_MS : 0
+                );
             });
             await Promise.all(promises);
         }
@@ -2592,7 +2598,7 @@
         syncDiscTimerOnly(disc, state) {
             if (!disc || !state) return;
 
-            const allTimerSelector = '.stone-timer, .bomb-timer, .special-timer, .inherited-hyperactive-timer, .dragon-timer, .udg-timer, .breeding-timer, .work-timer, .guard-timer, .flip-evade-timer, .destroy-evade-timer';
+            const allTimerSelector = '.stone-timer, .bomb-timer, .special-timer, .countdown-timer, .inherited-hyperactive-timer, .dragon-timer, .udg-timer, .breeding-timer, .work-timer, .guard-timer, .flip-evade-timer, .destroy-evade-timer';
             const existingTimers = Array.from(disc.querySelectorAll(allTimerSelector));
             existingTimers.forEach((el) => el.remove());
 
@@ -2635,12 +2641,13 @@
 
             if (Number.isFinite(primaryTimerValue) && primaryTimerValue > 0) {
                 let primaryClass = 'stone-timer special-timer';
-                if (specialType === 'TIME_BOMB') primaryClass = 'stone-timer bomb-timer';
+                if (specialType === 'TIME_BOMB') primaryClass = 'bomb-timer countdown-timer';
                 else if (specialType === 'GUARD') primaryClass = 'guard-timer';
                 else if (specialType === 'DRAGON' || specialType === 'DESTROY_DRAGON') primaryClass = 'stone-timer dragon-timer';
                 else if (specialType === 'ULTIMATE_DESTROY_GOD') primaryClass = 'stone-timer udg-timer';
                 else if (specialType === 'BREEDING') primaryClass = 'stone-timer breeding-timer';
                 else if (specialType === 'WORK') primaryClass = 'stone-timer work-timer';
+                else if (specialType === 'TIME_STOP' || specialType === 'PERMA_PROTECTED') primaryClass = 'countdown-timer';
                 appendTimer(primaryClass, primaryTimerValue);
             }
 

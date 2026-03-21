@@ -389,3 +389,11 @@ npx jest --runInBand test/index.card-module-scripts.test.js test/index.local-scr
 - human / CPU / selfplay / network-client / worker-public の 5 層で契約がずれていない。
 - 実行テストと結果を最終報告に記載できる。
 - 最終報告で [01-rulebook.md](../01-rulebook.md) の更新有無と、その理由を明記できる。
+> Status Update (2026-03-21)
+>
+> この selection card stabilization plan で対象にしていた network selection 系の不安定化は完了。
+> 単段 selection だけでなく multi-stage / hand-overlay / authority / sound / effect log / busy owner / race hardening まで含めて、[network-presentation-authority-rebuild-master-plan-2026-03-21.md](./network-presentation-authority-rebuild-master-plan-2026-03-21.md) に統合済み。
+>
+> この文書の扱い:
+> - 局所改善フェーズの記録として保持
+> - 現在の完了状態と検証結果は master plan 側が正本

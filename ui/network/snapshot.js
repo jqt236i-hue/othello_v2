@@ -105,25 +105,22 @@
 
         function setBusyState(active) {
             const playbackState = resolvePlaybackStateModule();
-            if (playbackState && typeof playbackState.setBusyState === 'function') {
+            if (!playbackState || typeof playbackState !== 'object') return false;
+            if (typeof playbackState.setBusyState === 'function') {
                 playbackState.setBusyState({
                     processing: active === true,
                     cardAnimating: active === true
                 });
-                return;
+                return true;
             }
 
-            if (playbackState && typeof playbackState.setProcessing === 'function') {
+            if (typeof playbackState.setProcessing === 'function') {
                 playbackState.setProcessing(active === true);
-            } else {
-                setGlobalFlag('isProcessing', active === true);
             }
-
-            if (playbackState && typeof playbackState.setCardAnimating === 'function') {
+            if (typeof playbackState.setCardAnimating === 'function') {
                 playbackState.setCardAnimating(active === true);
-            } else {
-                setGlobalFlag('isCardAnimating', active === true);
             }
+            return true;
         }
 
         function cloneData(value) {
@@ -338,16 +335,7 @@
                     return playbackState.getPlaybackActive() === true;
                 }
             } catch (e) { /* ignore */ }
-
-            try {
-                if (rootRef && rootRef.VisualPlaybackActive === true) return true;
-            } catch (e) { /* ignore */ }
-
-            try {
-                return !!(typeof globalThis !== 'undefined' && globalThis.VisualPlaybackActive === true);
-            } catch (e) {
-                return false;
-            }
+            return false;
         }
 
         function readBusyStateSnapshot() {
@@ -358,20 +346,12 @@
             try {
                 if (playbackState && typeof playbackState.getProcessing === 'function') {
                     processing = playbackState.getProcessing() === true;
-                } else if (rootRef && rootRef.isProcessing === true) {
-                    processing = true;
-                } else if (typeof globalThis !== 'undefined' && globalThis.isProcessing === true) {
-                    processing = true;
                 }
             } catch (e) { /* ignore */ }
 
             try {
                 if (playbackState && typeof playbackState.getCardAnimating === 'function') {
                     cardAnimating = playbackState.getCardAnimating() === true;
-                } else if (rootRef && rootRef.isCardAnimating === true) {
-                    cardAnimating = true;
-                } else if (typeof globalThis !== 'undefined' && globalThis.isCardAnimating === true) {
-                    cardAnimating = true;
                 }
             } catch (e) { /* ignore */ }
 
@@ -440,12 +420,12 @@
         function hasPendingPlaybackOrPresentation() {
             const cardStateRef = resolveGlobalObject('cardState');
             try {
-                const visualPlayback = !!(rootRef && rootRef.VisualPlaybackActive === true);
+                const visualPlayback = isVisualPlaybackActive();
                 const pendingPersist = !!(cardStateRef && Array.isArray(cardStateRef._presentationEventsPersist) && cardStateRef._presentationEventsPersist.length > 0);
                 const pendingLive = !!(cardStateRef && Array.isArray(cardStateRef.presentationEvents) && cardStateRef.presentationEvents.length > 0);
                 return visualPlayback || pendingPersist || pendingLive;
             } catch (e) {
-                return !!(rootRef && rootRef.VisualPlaybackActive === true);
+                return isVisualPlaybackActive();
             }
         }
 

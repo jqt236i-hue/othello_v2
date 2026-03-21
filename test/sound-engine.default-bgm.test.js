@@ -283,6 +283,14 @@ describe('SoundEngine default BGM', () => {
     );
   });
 
+  test('strong will promotion sound key resolves to the shipped filename', () => {
+    const soundEngine = loadSoundEngine();
+
+    expect(soundEngine.getEffectFilePath('strong_will_promoted')).toBe(
+      'assets/audio/sound-effect/石が進化するタイミング.mp3'
+    );
+  });
+
   test('stone placement sound applies its own 0.8 volume scale on top of the SE master volume', () => {
     const soundEngine = loadSoundEngine();
     const { context, gains } = createMockAudioContext();

@@ -17,6 +17,7 @@ describe('board-renderer fallback legal hints', () => {
 
     global.getPlayerKey = (player) => (player === global.BLACK ? 'black' : 'white');
     global.getLegalMoves = jest.fn(() => [{ row: 0, col: 0 }]);
+    global.countDiscs = jest.fn(() => ({ black: 0, white: 0 }));
     global.handleCellClick = jest.fn();
     global.applyStoneVisualEffect = jest.fn();
     global.renderBoardDiff = jest.fn();
@@ -60,6 +61,7 @@ describe('board-renderer fallback legal hints', () => {
     delete global.EMPTY;
     delete global.getPlayerKey;
     delete global.getLegalMoves;
+    delete global.countDiscs;
     delete global.handleCellClick;
     delete global.applyStoneVisualEffect;
     delete global.renderBoardDiff;

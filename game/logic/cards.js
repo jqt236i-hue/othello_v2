@@ -2519,7 +2519,8 @@
                 meta: {
                     owner: handKey,
                     cost: Number.isFinite(cost) ? cost : null,
-                    name: (usedCardDef && usedCardDef.name) ? usedCardDef.name : null
+                    name: (usedCardDef && usedCardDef.name) ? usedCardDef.name : null,
+                    cardType: (usedCardDef && usedCardDef.type) ? usedCardDef.type : null
                 }
             });
         } catch (e) { /* ignore presentation emission failures */ }

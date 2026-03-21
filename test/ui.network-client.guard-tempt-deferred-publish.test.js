@@ -174,6 +174,14 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ modulePath
       if (pathName === '/api/match/publish') {
         const body = JSON.parse(init.body || '{}');
         publishBodies.push(body);
+        const previewResult = runTurnMock.mock.results[0] && runTurnMock.mock.results[0].value;
+        const authoritativeSnapshot = (previewResult && previewResult.nextGameState && previewResult.nextCardState)
+          ? {
+            stateVersion: 21,
+            gameState: cloneJson(previewResult.nextGameState),
+            cardState: cloneJson(previewResult.nextCardState)
+          }
+          : createLiveResponseSnapshot(21);
         return jsonResponse(200, {
           ok: true,
           roomId: 'GTD',
@@ -183,7 +191,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ modulePath
               ...body.snapshot,
               stateVersion: 21
             }
-            : createLiveResponseSnapshot(21)
+            : authoritativeSnapshot
         });
       }
 

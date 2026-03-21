@@ -104,7 +104,7 @@ describe('animation-engine _sleep', () => {
     delete global.window;
   });
 
-  test('opponent の宝箱 card_use_animation では card_use_button を鳴らさない', async () => {
+  test('宝箱 card_use_animation では direct sound を鳴らさない', async () => {
     const cellEl = { classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) };
     global.document = { getElementById: () => cellEl };
     global.window = {
@@ -127,14 +127,14 @@ describe('animation-engine _sleep', () => {
     ]);
 
     expect(global.window.playCardUseHandAnimation).toHaveBeenCalled();
-    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalledWith('card_use_button');
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
 
     delete global.CardLogic;
     delete global.SoundEngine;
     delete global.window;
   });
 
-  test('opponent の通常カード card_use_animation では card_use_button を鳴らす', async () => {
+  test('通常カード card_use_animation でも direct sound を鳴らさない', async () => {
     const cellEl = { classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) };
     global.document = { getElementById: () => cellEl };
     global.window = {
@@ -157,7 +157,7 @@ describe('animation-engine _sleep', () => {
     ]);
 
     expect(global.window.playCardUseHandAnimation).toHaveBeenCalled();
-    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('card_use_button');
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
 
     delete global.CardLogic;
     delete global.SoundEngine;

@@ -64,7 +64,7 @@ describe('cards catalog consistency', () => {
     expect(Number(byId.get('super_gravity_01').cost)).toBe(16);
   });
 
-  test('perma_01 (強い意志) describes promotion into 最強の意志 after 10 owner turn starts', () => {
+  test('perma_01 (強い意志) describes evolution into 最強の意志 after 10 turns', () => {
     const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
     const card = byId.get('perma_01');
@@ -72,8 +72,9 @@ describe('cards catalog consistency', () => {
     expect(card.type).toBe('PERMA_PROTECT_NEXT_STONE');
     expect(Number(card.cost)).toBe(15);
     expect(card.name_ja).toBe('強い意志');
-    expect(card.desc_ja).toContain('10回');
+    expect(card.desc_ja).toContain('10ターン');
     expect(card.desc_ja).toContain('最強の意志');
+    expect(card.desc_ja).toContain('絶対保護');
   });
 
   test('absolute_protect_01 (最強の意志) is no longer a playable catalog card', () => {

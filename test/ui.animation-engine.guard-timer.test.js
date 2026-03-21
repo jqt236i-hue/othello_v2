@@ -38,6 +38,20 @@ describe('animation-engine guard timer rendering', () => {
     expect(disc.querySelector('.stone-timer')).toBeNull();
   });
 
+  test('uses countdown timer for Strong Will countdown updates', () => {
+    const engine = require('../ui/animation-engine');
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+
+    engine.syncDiscVisual(disc, { color: 1, special: 'PERMA_PROTECTED', timer: 9, owner: 'black' });
+
+    const countdownTimers = disc.querySelectorAll('.countdown-timer');
+    expect(countdownTimers.length).toBe(1);
+    expect(countdownTimers[0].textContent).toBe('9');
+    expect(disc.querySelector('.guard-timer')).toBeNull();
+    expect(disc.querySelector('.special-timer')).toBeNull();
+  });
+
   test('STATUS_TICK updates timer without crossfade replay', async () => {
     const crossfadeSpy = jest.fn(() => Promise.resolve());
     jest.doMock('../ui/stone-visuals', () => ({
@@ -72,6 +86,88 @@ describe('animation-engine guard timer rendering', () => {
     expect(guardTimer).not.toBeNull();
     expect(guardTimer.textContent).toBe('2');
     expect(disc.querySelectorAll('.guard-timer').length).toBe(1);
+  });
+
+  test('strong_will_promoted の STATUS_APPLIED は赤セルハイライトを一瞬出す', async () => {
+    const crossfadeSpy = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/stone-visuals', () => ({
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+
+    const engine = require('../ui/animation-engine');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '1';
+    cell.dataset.col = '1';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
+
+    await engine.handleStatusChange({
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      targets: [{ r: 1, col: 1, after: { color: 1, special: 'ABSOLUTE_PROTECTED', timer: null, owner: 'black' } }],
+      meta: {
+        special: 'ABSOLUTE_PROTECTED',
+        owner: 'black',
+        reason: 'strong_will_promoted',
+        promotedFrom: 'PERMA_PROTECTED'
+      }
+    });
+
+    expect(crossfadeSpy).toHaveBeenCalledTimes(1);
+    expect(sleepSpy).toHaveBeenCalled();
+    expect(sleepSpy.mock.calls[0][0]).toBeGreaterThan(0);
+    expect(sleepSpy.mock.calls[0][0]).toBeLessThanOrEqual(200);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(cell.classList.contains('effect-target-highlight')).toBe(false);
+  });
+
+  test('通常の STATUS_APPLIED は赤セルハイライトを出さない', async () => {
+    const crossfadeSpy = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/stone-visuals', () => ({
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '2';
+    cell.dataset.col = '2';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
+
+    await engine.handleStatusChange({
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      targets: [{ r: 2, col: 2, after: { color: 1, special: 'GUARD', timer: 2, owner: 'black' } }],
+      meta: {
+        special: 'GUARD',
+        owner: 'black',
+        timer: 2,
+        reason: 'guard_applied'
+      }
+    });
+
+    expect(crossfadeSpy).toHaveBeenCalledTimes(1);
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(cell.classList.contains('effect-target-highlight')).toBe(false);
   });
 
   test('loss_will_reset の STATUS_REMOVED は crossfadeDiscToState を使う', async () => {

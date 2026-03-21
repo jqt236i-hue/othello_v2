@@ -356,7 +356,6 @@
             try { root.VisualPlaybackActive = false; } catch (e) { /* ignore */ }
             try { root.__playbackActiveSince = null; } catch (e) { /* ignore */ }
             try { root.__boardUpdateContext = null; } catch (e) { /* ignore */ }
-            try { root.__suppressNextDiffFlip = false; } catch (e) { /* ignore */ }
         }
 
         if (!root) return;

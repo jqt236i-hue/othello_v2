@@ -151,6 +151,96 @@ function _resolveCardUseSourceRect(sourceCardEl, sourceCardRect) {
     return liveRect;
 }
 
+function _resolveCreateCardFaceElement() {
+    try {
+        if (typeof createCardFaceElement === 'function') return createCardFaceElement;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && window && typeof window.createCardFaceElement === 'function') {
+            return window.createCardFaceElement;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis && typeof globalThis.createCardFaceElement === 'function') {
+            return globalThis.createCardFaceElement;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _getFallbackCardCostTier(cost) {
+    const safeCost = Number.isFinite(Number(cost)) ? Number(cost) : null;
+    if (safeCost === null) return null;
+    if (safeCost === 0) return 'white';
+    if (safeCost >= 31) return 'special';
+    if (safeCost >= 21) return 'gold';
+    if (safeCost >= 16) return 'purple';
+    if (safeCost >= 11) return 'blue';
+    if (safeCost >= 6) return 'red';
+    return 'gray';
+}
+
+function _normalizeCardUseVisualDescriptor(descriptor, fallbackCardId, fallbackCardName, fallbackCardCost) {
+    const resolved = (descriptor && typeof descriptor === 'object') ? Object.assign({}, descriptor) : {};
+    if (!resolved.cardId && fallbackCardId) {
+        resolved.cardId = fallbackCardId;
+    }
+    if (!resolved.name && fallbackCardName) {
+        resolved.name = fallbackCardName;
+    }
+    if (!Number.isFinite(Number(resolved.cost)) && Number.isFinite(Number(fallbackCardCost))) {
+        resolved.cost = Number(fallbackCardCost);
+    }
+    if (!resolved.costTier) {
+        resolved.costTier = _getFallbackCardCostTier(resolved.cost);
+    }
+    return resolved;
+}
+
+function _buildFallbackCardUseElement(cardId, cardName, cardCost, descriptor) {
+    const visualDescriptor = _normalizeCardUseVisualDescriptor(descriptor, cardId, cardName, cardCost);
+    const resolvedCardId = visualDescriptor.cardId || null;
+    const resolvedCardName = visualDescriptor.name || null;
+    const resolvedCardCost = Number.isFinite(Number(visualDescriptor.cost)) ? Number(visualDescriptor.cost) : null;
+    const resolvedCostTier = visualDescriptor.costTier || _getFallbackCardCostTier(resolvedCardCost);
+    const createCardFaceElement = _resolveCreateCardFaceElement();
+    if (createCardFaceElement && resolvedCardId) {
+        try {
+            const rendered = createCardFaceElement(resolvedCardId);
+            if (rendered && rendered.nodeType === 1) {
+                return rendered;
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    const cardEl = document.createElement('div');
+    cardEl.className = 'card-item visible';
+    if (resolvedCardId) {
+        try { cardEl.dataset.cardId = String(resolvedCardId); } catch (e) { /* ignore */ }
+    }
+    if (resolvedCostTier) {
+        const tierClass = `cost-tier-${resolvedCostTier}`;
+        cardEl.classList.add(tierClass);
+    }
+
+    if (resolvedCardName) {
+        const label = document.createElement('span');
+        label.className = 'card-name';
+        label.textContent = resolvedCardName;
+        cardEl.appendChild(label);
+    }
+    if (resolvedCardCost !== null) {
+        const badge = document.createElement('div');
+        badge.className = 'card-cost-badge';
+        if (resolvedCostTier) {
+            badge.classList.add(`cost-tier-${resolvedCostTier}`);
+        }
+        badge.textContent = `コスト${resolvedCardCost}`;
+        cardEl.appendChild(badge);
+    }
+    return cardEl;
+}
+
 function _getHandRevealState() {
     try {
         if (typeof window === 'undefined') return null;
@@ -1174,28 +1264,21 @@ function playCardUseHandAnimation(payload) {
         const HOLD_MS = 850;
         const FADE_MS = 420;
 
-        const cardDef = (typeof CardLogic !== 'undefined' && typeof CardLogic.getCardDef === 'function' && data.cardId)
-            ? CardLogic.getCardDef(data.cardId)
+        const visualDescriptor = _normalizeCardUseVisualDescriptor(data.visualDescriptor, data.cardId, data.name, data.cost);
+        const cardDef = (typeof CardLogic !== 'undefined' && typeof CardLogic.getCardDef === 'function' && visualDescriptor.cardId)
+            ? CardLogic.getCardDef(visualDescriptor.cardId)
             : null;
-        const cardName = data.name || (cardDef && cardDef.name) || '';
-        const cardCost = Number.isFinite(data.cost) ? data.cost : ((cardDef && Number.isFinite(cardDef.cost)) ? cardDef.cost : null);
+        const cardName = visualDescriptor.name || (cardDef && cardDef.name) || '';
+        const cardCost = Number.isFinite(Number(visualDescriptor.cost))
+            ? Number(visualDescriptor.cost)
+            : ((cardDef && Number.isFinite(Number(cardDef.cost))) ? Number(cardDef.cost) : null);
 
         layerEl.style.display = 'block';
-        movingCard = sourceCardEl ? sourceCardEl.cloneNode(true) : document.createElement('div');
+        movingCard = sourceCardEl
+            ? sourceCardEl.cloneNode(true)
+            : _buildFallbackCardUseElement(visualDescriptor.cardId || null, cardName, cardCost, visualDescriptor);
         if (!sourceCardEl) {
-            movingCard.className = 'card-item visible';
-            if (cardName) {
-                const label = document.createElement('span');
-                label.className = 'card-name';
-                label.textContent = cardName;
-                movingCard.appendChild(label);
-                if (cardCost !== null) {
-                    const badge = document.createElement('div');
-                    badge.className = 'card-cost-badge';
-                    badge.textContent = `コスト${cardCost}`;
-                    movingCard.appendChild(badge);
-                }
-            }
+            movingCard.classList.add('visible');
         }
         movingCard.style.position = 'fixed';
         movingCard.style.pointerEvents = 'none';

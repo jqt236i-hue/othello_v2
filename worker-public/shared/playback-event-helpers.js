@@ -45,6 +45,50 @@
         return parseSeatKeyOptional(value) || parseSeatKeyOptional(fallbackPlayerKey) || 'black';
     }
 
+    function getCardCostTier(cost) {
+        const safeCost = Number.isFinite(Number(cost)) ? Number(cost) : null;
+        if (safeCost === null) return null;
+        if (safeCost === 0) return 'white';
+        if (safeCost >= 31) return 'special';
+        if (safeCost >= 21) return 'gold';
+        if (safeCost >= 16) return 'purple';
+        if (safeCost >= 11) return 'blue';
+        if (safeCost >= 6) return 'red';
+        return 'gray';
+    }
+
+    function normalizeCardVisualDescriptor(value) {
+        if (!value || typeof value !== 'object') return null;
+
+        const descriptor = {};
+        if (value.cardId) {
+            descriptor.cardId = String(value.cardId);
+        }
+        if (value.name) {
+            descriptor.name = String(value.name);
+        }
+        if (Number.isFinite(Number(value.cost))) {
+            descriptor.cost = Number(value.cost);
+        }
+
+        const costTier = value.costTier || getCardCostTier(descriptor.cost);
+        if (costTier) {
+            descriptor.costTier = String(costTier);
+        }
+
+        return Object.keys(descriptor).length > 0 ? descriptor : null;
+    }
+
+    function createCardVisualDescriptor(cardId, meta) {
+        const descriptor = normalizeCardVisualDescriptor({
+            cardId,
+            name: meta && meta.name ? meta.name : null,
+            cost: meta && Number.isFinite(Number(meta.cost)) ? Number(meta.cost) : null,
+            costTier: meta && meta.costTier ? meta.costTier : null
+        });
+        return descriptor ? cloneJsonSafe(descriptor) : null;
+    }
+
     function mapRawPlaceEventsToPlayback(rawEvents, options) {
         const events = Array.isArray(rawEvents) ? rawEvents : [];
         if (events.length === 0) return [];
@@ -222,10 +266,13 @@
 
     return {
         assemblePlaybackEvents,
+        createCardVisualDescriptor,
         countRawPlaceEvents,
         countPlaceHandAnimationEvents,
         createAssemblyDiagnostics,
+        getCardCostTier,
         mapRawPlaceEventsToPlayback,
+        normalizeCardVisualDescriptor,
         appendPlaybackEventsAfter
     };
 }));

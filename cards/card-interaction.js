@@ -747,10 +747,8 @@ function _executeSellSelection(playerKey, sellCardId) {
             playerKey,
             action,
             onSuccess: () => {
-                addLog(`${playerKey === 'black' ? '黒' : '白'}が${soldCardDef ? soldCardDef.name : sellCardId}を売却（+${gain}）`);
                 _clearSellSelection(playerKey);
                 if (typeof renderCardUI === 'function') renderCardUI();
-                _setPendingSelectionBusy(false);
             },
             onFailure: () => {
                 _clearLocalPlaybackSoundSkip('charge_gain_common');
@@ -1061,11 +1059,8 @@ function _executeHeavenSelection(playerKey, selectedCardId) {
             playerKey,
             action,
             onSuccess: () => {
-                addLog(`${playerKey === 'black' ? '黒' : '白'}が天の恵みで${def ? def.name : selectedCardId}を獲得`);
                 _clearHeavenSelection(playerKey);
                 _hideHeavenOverlay();
-                if (typeof renderCardUI === 'function') renderCardUI();
-                _setPendingSelectionBusy(false);
             },
             onFailure: () => {
                 if (typeof renderCardUI === 'function') renderCardUI();
@@ -1097,8 +1092,6 @@ function _executeHeavenSelection(playerKey, selectedCardId) {
 function _executeCondemnSelection(playerKey, targetIndex, targetCardId) {
     if (!Number.isInteger(targetIndex)) return { ok: false, reason: 'no_selection' };
     if (!_canInteractWithCardUi()) return { ok: false, reason: 'busy' };
-    const armedDestroySkip = _armLocalPlaybackSoundSkip('stone_destroy');
-    playUiEffectSound('stone_destroy');
     _setPendingSelectionBusy(true);
     let completed = false;
 
@@ -1113,14 +1106,10 @@ function _executeCondemnSelection(playerKey, targetIndex, targetCardId) {
             playerKey,
             action,
             onSuccess: () => {
-                addLog(`${playerKey === 'black' ? '黒' : '白'}が断罪の意志で${_getCardDisplayLabel(targetCardId, targetDef)}を破壊`);
                 _clearHeavenSelection(playerKey);
                 _hideHeavenOverlay();
-                if (typeof renderCardUI === 'function') renderCardUI();
-                _setPendingSelectionBusy(false);
             },
             onFailure: () => {
-                if (armedDestroySkip) _clearLocalPlaybackSoundSkip('stone_destroy');
                 if (typeof renderCardUI === 'function') renderCardUI();
                 addLog('断罪の意志の選択送信に失敗しました');
                 _setPendingSelectionBusy(false);
@@ -1132,7 +1121,6 @@ function _executeCondemnSelection(playerKey, targetIndex, targetCardId) {
 
         const result = _runPipelineAction(playerKey, action);
         if (!result.ok) {
-            if (armedDestroySkip) _clearLocalPlaybackSoundSkip('stone_destroy');
             return result;
         }
 
@@ -2197,9 +2185,8 @@ function useSelectedCard() {
 
     // Log
     const playerName = playerKey === 'black' ? '黒' : '白';
-    addLog(`${playerName}がカードを使用: ${cardDef ? cardDef.name : cardId} (布石 -${isDebugUnlimited ? 0 : cost})`);
-    if (_isNetworkMode() && typeof emitEffectLog === 'function') {
-        emitEffectLog(`${playerName}がカードを使用: ${cardDef ? cardDef.name : cardId}`);
+    if (!_isNetworkMode()) {
+        addLog(`${playerName}がカードを使用: ${cardDef ? cardDef.name : cardId} (布石 -${isDebugUnlimited ? 0 : cost})`);
     }
 
     // Clear selection
@@ -2314,4 +2301,3 @@ window.cancelPendingSelection = cancelPendingSelection;
 
 _initCardDetailLandscapeAnchorSync();
 _bindCardDetailTagAutoDismiss();
-

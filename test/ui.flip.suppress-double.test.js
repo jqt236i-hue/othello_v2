@@ -33,6 +33,7 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
   });
 
   test('does not apply fallback .flip when __suppressNextDiffFlip is set', () => {
+    const playbackState = require('../ui/playback-state-manager');
     const diff = require('../ui/diff-renderer');
 
     // Initial state: black stone at (0,0)
@@ -42,7 +43,11 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
     // Simulate a post-playback sync: state already flipped to WHITE, and AnimationEngine
     // requested a final emitBoardUpdate() which triggers DiffRenderer.
     gameState.board[0][0] = WHITE;
-    window.__suppressNextDiffFlip = true;
+    playbackState.armBoardUpdateContext({
+      suppressFallbackFlip: true,
+      source: 'unit-test',
+      reason: 'post_playback_sync'
+    });
 
     diff.renderBoardDiff(boardEl);
 
@@ -52,7 +57,7 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
     expect(disc).toBeTruthy();
     expect(disc.classList.contains('white')).toBe(true);
     expect(disc.classList.contains('flip')).toBe(false);
-    expect(window.__suppressNextDiffFlip).not.toBe(true);
+    expect(playbackState.getBoardUpdateContext()).toBeNull();
   });
 
   test('does not apply fallback .flip while PLAYBACK_EVENTS are pending', () => {

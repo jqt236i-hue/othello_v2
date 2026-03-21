@@ -92,8 +92,8 @@ describe('rules help panel', () => {
         <button id="rules-help-close-btn" type="button"></button>
         <button data-help-tab="catalog" class="rules-help-tab is-active" type="button"></button>
         <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
-        <button data-help-tab="rules" class="rules-help-tab" type="button"></button>
-        <button data-help-tab="controls" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="guide" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="counters" class="rules-help-tab" type="button"></button>
         <button data-help-tab="updates" class="rules-help-tab" type="button"></button>
         <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page is-active">
           <div id="rules-help-card-list"></div>
@@ -101,8 +101,8 @@ describe('rules help panel', () => {
           <div id="rules-help-card-desc"></div>
         </section>
         <section data-help-page="effects" id="rules-help-page-effects" class="rules-help-page"></section>
-        <section data-help-page="rules" id="rules-help-page-rules" class="rules-help-page"></section>
-        <section data-help-page="controls" id="rules-help-page-controls" class="rules-help-page"></section>
+        <section data-help-page="guide" id="rules-help-page-guide" class="rules-help-page"></section>
+        <section data-help-page="counters" id="rules-help-page-counters" class="rules-help-page"></section>
         <section data-help-page="updates" id="rules-help-page-updates" class="rules-help-page"><div id="rules-help-updates-list"></div></section>
       </div>
     </body></html>`);
@@ -154,11 +154,11 @@ describe('rules help panel', () => {
     expect(document.getElementById('rules-help-page-effects').classList.contains('is-active')).toBe(true);
     expect(document.getElementById('rules-help-page-catalog').classList.contains('is-active')).toBe(false);
 
-    document.querySelector('[data-help-tab="rules"]').click();
-    expect(document.getElementById('rules-help-page-rules').classList.contains('is-active')).toBe(true);
+    document.querySelector('[data-help-tab="guide"]').click();
+    expect(document.getElementById('rules-help-page-guide').classList.contains('is-active')).toBe(true);
 
-    document.querySelector('[data-help-tab="controls"]').click();
-    expect(document.getElementById('rules-help-page-controls').classList.contains('is-active')).toBe(true);
+    document.querySelector('[data-help-tab="counters"]').click();
+    expect(document.getElementById('rules-help-page-counters').classList.contains('is-active')).toBe(true);
 
     document.querySelector('[data-help-tab="updates"]').click();
     expect(document.getElementById('rules-help-page-updates').classList.contains('is-active')).toBe(true);
@@ -175,8 +175,8 @@ describe('rules help panel', () => {
         <button id="rules-help-close-btn" type="button"></button>
         <button data-help-tab="catalog" class="rules-help-tab is-active" type="button"></button>
         <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
-        <button data-help-tab="rules" class="rules-help-tab" type="button"></button>
-        <button data-help-tab="controls" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="guide" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="counters" class="rules-help-tab" type="button"></button>
         <button data-help-tab="updates" class="rules-help-tab" type="button"></button>
         <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page is-active">
           <div id="rules-help-card-list"></div>
@@ -184,8 +184,8 @@ describe('rules help panel', () => {
           <div id="rules-help-card-desc"></div>
         </section>
         <section data-help-page="effects" id="rules-help-page-effects" class="rules-help-page"></section>
-        <section data-help-page="rules" id="rules-help-page-rules" class="rules-help-page"></section>
-        <section data-help-page="controls" id="rules-help-page-controls" class="rules-help-page"></section>
+        <section data-help-page="guide" id="rules-help-page-guide" class="rules-help-page"></section>
+        <section data-help-page="counters" id="rules-help-page-counters" class="rules-help-page"></section>
         <section data-help-page="updates" id="rules-help-page-updates" class="rules-help-page"><div id="rules-help-updates-list"></div></section>
       </div>
     </body></html>`);
@@ -236,18 +236,39 @@ describe('rules help panel', () => {
     expect(html).toMatch(/<dt>\s*破壊回避\s*<\/dt>/);
   });
 
-  test('rules-help.js EFFECT_GLOSSARY_TERMS includes 絶対保護', () => {
+  test('effect glossary list includes 封鎖 and 凍結 and 時間停止 entries', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    expect(html).toMatch(/<dt>\s*封鎖\s*<\/dt>/);
+    expect(html).toMatch(/<dt>\s*凍結\s*<\/dt>/);
+    expect(html).toMatch(/<dt>\s*時間停止\s*<\/dt>/);
+  });
+
+  test('rules-help.js EFFECT_GLOSSARY_TERMS includes glossary highlight additions', () => {
     // Load the module and check the exported or internal glossary terms list.
     // The module uses EFFECT_GLOSSARY_TERMS to highlight card descriptions.
-    // This test verifies the term is registered so 絶対保護 in card descriptions gets highlighted.
+    // This test verifies newly documented terms are registered for highlight.
     const source = fs.readFileSync(path.resolve(__dirname, '../ui/handlers/rules-help.js'), 'utf8');
     expect(source).toContain('絶対保護');
+    expect(source).toContain('封鎖');
+    expect(source).toContain('凍結');
+    expect(source).toContain('時間停止');
   });
 
   test('index html includes update info help tab', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     expect(html).toMatch(/data-help-tab="updates">アップデート情報<\/button>/);
     expect(html).toMatch(/id="rules-help-updates-list"/);
+  });
+
+  test('index html includes counter ui help tab and key legend texts', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    expect(html).toMatch(/data-help-tab="guide">ルールと操作<\/button>/);
+    expect(html).toMatch(/data-help-tab="counters">数字UI<\/button>/);
+    expect(html).toMatch(/完全保護の残りターン/);
+    expect(html).toMatch(/特殊石本体の持続ターン/);
+    expect(html).toMatch(/カウントダウン専用の残り回数/);
+    expect(html).toMatch(/継承多動の残りターン/);
+    expect(html).toMatch(/破壊回避の残り回数/);
   });
 
 });

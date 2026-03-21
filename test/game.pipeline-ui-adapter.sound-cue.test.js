@@ -501,6 +501,66 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue.phase).toBe(6);
   });
 
+  test('通常カードの CARD_USED は card_use_animation の phase で card_use_button を再生する', () => {
+    const base = [{
+      type: 'card_use_animation',
+      phase: 4,
+      targets: [{ cardId: 'WORK_WILL_001', owner: 'black', cardType: 'WORK_WILL' }]
+    }];
+    const pres = [{
+      type: 'CARD_USED',
+      player: 'black',
+      cardId: 'WORK_WILL_001',
+      meta: { owner: 'black', cost: 5, name: '労働', cardType: 'WORK_WILL' }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_use_button');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(4);
+  });
+
+  test('宝箱の CARD_USED も card_use_animation の phase で card_use_button を再生する', () => {
+    const base = [{
+      type: 'card_use_animation',
+      phase: 4,
+      targets: [{ cardId: 'TREASURE_BOX_001', owner: 'black', cardType: 'TREASURE_BOX' }]
+    }];
+    const pres = [{
+      type: 'CARD_USED',
+      player: 'black',
+      cardId: 'TREASURE_BOX_001',
+      meta: { owner: 'black', cost: 8, name: '宝箱', cardType: 'TREASURE_BOX' }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_use_button');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(4);
+  });
+
+  test('sell_selected 成功時は hand_remove の phase で charge_gain_common を再生する', () => {
+    const base = [{
+      type: 'hand_remove',
+      phase: 9,
+      targets: [{ player: 'black', count: 1, reason: 'sell_card_will', cardId: 'WORK_WILL_001' }]
+    }];
+    const raw = [{
+      type: 'sell_selected',
+      applied: true,
+      soldCardId: 'WORK_WILL_001',
+      gained: 6
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'charge_gain_common');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(9);
+  });
+
   test('corrosion_will_resolved は card_use_animation の phase で corrosion_tick を再生する', () => {
     const base = [{
       type: 'card_use_animation',
@@ -556,6 +616,30 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(sellCue).toBeUndefined();
   });
 
+  test('宝箱使用時は card_use_button と treasure_gain を順に再生する', () => {
+    const base = [{
+      type: 'card_use_animation',
+      phase: 5,
+      targets: [{ cardId: 'TREASURE_BOX_001', owner: 'black', cardType: 'TREASURE_BOX' }]
+    }];
+    const raw = [{ type: 'treasure_box_gain', player: 'black', gained: 2 }];
+    const pres = [{
+      type: 'CARD_USED',
+      player: 'black',
+      cardId: 'TREASURE_BOX_001',
+      meta: { owner: 'black', cost: 8, name: '宝箱', cardType: 'TREASURE_BOX' }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw, pres);
+    const cardUseCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_use_button');
+    const treasureCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'treasure_gain');
+
+    expect(cardUseCue).toBeTruthy();
+    expect(cardUseCue.phase).toBe(5);
+    expect(treasureCue).toBeTruthy();
+    expect(treasureCue.phase).toBe(6);
+  });
+
   test('loss_will_resolved は card_use_animation に消失時 sound key を付与する', () => {
     const base = [
       {
@@ -587,6 +671,33 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     ]);
     expect(cue).toBeUndefined();
     expect(resetStatus).toBeUndefined();
+  });
+
+  test('strong_will_promoted は status_applied の phase で進化音を再生する', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 7,
+      targets: [{ r: 2, col: 3 }],
+      meta: { special: 'ABSOLUTE_PROTECTED', reason: 'strong_will_promoted', promotedFrom: 'PERMA_PROTECTED' }
+    }];
+    const pres = [{
+      type: 'STATUS_APPLIED',
+      row: 2,
+      col: 3,
+      reason: 'strong_will_promoted',
+      meta: {
+        special: 'ABSOLUTE_PROTECTED',
+        owner: 'black',
+        reason: 'strong_will_promoted',
+        promotedFrom: 'PERMA_PROTECTED'
+      }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'strong_will_promoted');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(7);
   });
 
 

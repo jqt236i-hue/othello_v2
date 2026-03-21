@@ -765,13 +765,18 @@
                     prevChainFlipLink = null;
                     prevDestroyCause = null;
                     willHunterKingSlashPhase = null;
+                    const visualDescriptor = (PlaybackEventHelpers && typeof PlaybackEventHelpers.createCardVisualDescriptor === 'function')
+                        ? PlaybackEventHelpers.createCardVisualDescriptor(ev.cardId || null, ev.meta || null)
+                        : null;
                     pEvent.type = 'card_use_animation';
                     pEvent.targets = [{
                         player: ev.player || null,
                         owner: (ev.meta && ev.meta.owner) ? ev.meta.owner : (ev.player || null),
                         cardId: ev.cardId || null,
+                        cardType: (ev.meta && ev.meta.cardType) ? ev.meta.cardType : null,
                         cost: (ev.meta && Number.isFinite(ev.meta.cost)) ? ev.meta.cost : null,
-                        name: (ev.meta && ev.meta.name) ? ev.meta.name : null
+                        name: (ev.meta && ev.meta.name) ? ev.meta.name : null,
+                        visualDescriptor
                     }];
                     // Card-use transport is also a readable step.
                     currentPhase++;
@@ -1631,6 +1636,13 @@
             0
         );
         const postCardUsePhase = cardUseAnimationPhase > 0 ? (cardUseAnimationPhase + 1) : fallbackPhase;
+        const hasCardUse = pres.some((ev) => {
+            if (!ev || ev.type !== 'CARD_USED') return false;
+            return true;
+        });
+        if (hasCardUse && cardUseAnimationPhase > 0) {
+            pushCue('card_use_button', cardUseAnimationPhase, 'card_used');
+        }
         const hasTreasureGain = _hasRawEvent(raw, 'treasure_box_gain', (ev) => Number(ev && ev.gained) > 0);
         if (hasTreasureGain) {
             pushCue('treasure_gain', postCardUsePhase, 'treasure_box_gain');
@@ -1644,6 +1656,20 @@
             );
         }
 
+        const strongWillPromotedPhase = _findPhase(
+            base,
+            (ev) => ev && ev.type === 'status_applied' && ev.meta && ev.meta.reason === 'strong_will_promoted',
+            fallbackPhase
+        );
+        const hasStrongWillPromotion = pres.some((ev) => (
+            ev &&
+            ev.type === 'STATUS_APPLIED' &&
+            String(ev.reason || (ev.meta && ev.meta.reason) || '').toLowerCase() === 'strong_will_promoted'
+        ));
+        if (hasStrongWillPromotion) {
+            pushCue('strong_will_promoted', strongWillPromotedPhase, 'strong_will_promoted');
+        }
+
         const condemnPhase = _findPhase(
             base,
             (ev) => ev && ev.type === 'card_use_animation',
@@ -1651,6 +1677,15 @@
         );
         if (_hasRawEvent(raw, 'condemn_selected', (ev) => !!(ev && ev.applied && ev.destroyedCardId))) {
             pushCue('stone_destroy', condemnPhase, 'condemn_selected');
+        }
+
+        const sellPhase = _findPhase(
+            base,
+            (ev) => ev && (ev.type === 'hand_remove' || ev.type === 'card_use_animation'),
+            fallbackPhase
+        );
+        if (_hasRawEvent(raw, 'sell_selected', (ev) => !!(ev && ev.applied && Number(ev.gained) > 0))) {
+            pushCue('charge_gain_common', sellPhase, 'sell_selected');
         }
 
         const workIncomePhase = _findPhase(
@@ -2273,6 +2308,7 @@
      */
     function runTurnWithAdapter(cardState, gameState, playerKey, action, turnPipeline) {
         if (!turnPipeline) throw new Error('TurnPipeline not available');
+        const suppressUiLogs = !!(action && action.__suppressUiLogs === true);
 
         // Build options for applyTurnSafe: include current state version and previous action ids if ActionManager is available
         const options = { skipTurnStart: true };
@@ -2340,18 +2376,20 @@
 
         const effectLogMessages = mapEffectLogsFromPipeline(result.events, pres, playerKey);
         const normalLogMessages = mapNormalLogsFromPipeline(result.events, playerKey);
-        try {
-            if (typeof emitEffectLog === 'function') {
-                for (const msg of effectLogMessages) emitEffectLog(msg);
-            } else if (typeof emitLogAdded === 'function') {
-                for (const msg of effectLogMessages) emitLogAdded(msg, 'effect');
-            }
-            if (typeof emitNormalLog === 'function') {
-                for (const msg of normalLogMessages) emitNormalLog(msg);
-            } else if (typeof emitLogAdded === 'function') {
-                for (const msg of normalLogMessages) emitLogAdded(msg, 'normal');
-            }
-        } catch (e) { /* ignore */ }
+        if (!suppressUiLogs) {
+            try {
+                if (typeof emitEffectLog === 'function') {
+                    for (const msg of effectLogMessages) emitEffectLog(msg);
+                } else if (typeof emitLogAdded === 'function') {
+                    for (const msg of effectLogMessages) emitLogAdded(msg, 'effect');
+                }
+                if (typeof emitNormalLog === 'function') {
+                    for (const msg of normalLogMessages) emitNormalLog(msg);
+                } else if (typeof emitLogAdded === 'function') {
+                    for (const msg of normalLogMessages) emitLogAdded(msg, 'normal');
+                }
+            } catch (e) { /* ignore */ }
+        }
 
         return {
             ok: true,

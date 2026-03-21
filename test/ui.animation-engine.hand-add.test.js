@@ -76,12 +76,34 @@ describe('animation-engine hand_add', () => {
     }];
     await engine.executeEvent({
       type: 'card_use_animation',
-      targets: [{ player: 'black', owner: 'black', cardId: 'card_2', cost: 5, name: 'X', disappearSoundKey: 'loss_will_reset', disappearPlaybackEvents, sourceCardEl, sourceCardRect }]
+      targets: [{
+        player: 'black',
+        owner: 'black',
+        cardId: 'card_2',
+        cost: 5,
+        name: 'X',
+        visualDescriptor: { cardId: 'card_2', name: 'X', cost: 5, costTier: 'gray' },
+        disappearSoundKey: 'loss_will_reset',
+        disappearPlaybackEvents,
+        sourceCardEl,
+        sourceCardRect
+      }]
     });
 
     expect(global.window.playCardUseHandAnimation).toHaveBeenCalledTimes(1);
     expect(global.window.playCardUseHandAnimation).toHaveBeenCalledWith(
-      expect.objectContaining({ player: 'black', owner: 'black', cardId: 'card_2', cost: 5, name: 'X', disappearSoundKey: 'loss_will_reset', sourceCardEl, sourceCardRect, onDisappear: expect.any(Function) })
+      expect.objectContaining({
+        player: 'black',
+        owner: 'black',
+        cardId: 'card_2',
+        cost: 5,
+        name: 'X',
+        visualDescriptor: { cardId: 'card_2', name: 'X', cost: 5, costTier: 'gray' },
+        disappearSoundKey: 'loss_will_reset',
+        sourceCardEl,
+        sourceCardRect,
+        onDisappear: expect.any(Function)
+      })
     );
   });
 
@@ -125,7 +147,7 @@ describe('animation-engine hand_add', () => {
     );
   });
 
-  test('plays card_use_button cue for opponent card_use_animation only', async () => {
+  test('card_use_animation 自体では card_use_button を直接再生しない', async () => {
     const engine = require('../ui/animation-engine');
 
     await engine.executeEvent({
@@ -133,21 +155,11 @@ describe('animation-engine hand_add', () => {
       targets: [{ player: 'white', owner: 'white', cardId: 'enemy_card_1', cost: 5, name: 'Enemy Card' }]
     });
 
-    expect(global.SoundEngine.init).toHaveBeenCalled();
-    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('card_use_button');
-
-    global.SoundEngine.init.mockClear();
-    global.SoundEngine.playEffectByKey.mockClear();
-
-    await engine.executeEvent({
-      type: 'card_use_animation',
-      targets: [{ player: 'black', owner: 'black', cardId: 'self_card_1', cost: 5, name: 'Self Card' }]
-    });
-
-    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalledWith('card_use_button');
+    expect(global.SoundEngine.init).not.toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
   });
 
-  test('plays card_use_button cue for opponent treasure box card_use_animation', async () => {
+  test('treasure box の card_use_animation でも直接 sound を鳴らさない', async () => {
     const engine = require('../ui/animation-engine');
 
     await engine.executeEvent({
@@ -155,7 +167,7 @@ describe('animation-engine hand_add', () => {
       targets: [{ player: 'white', owner: 'white', cardId: 'TREASURE_BOX_001', cost: 8, name: '宝箱' }]
     });
 
-    expect(global.SoundEngine.init).toHaveBeenCalled();
-    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('card_use_button');
+    expect(global.SoundEngine.init).not.toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
   });
 });

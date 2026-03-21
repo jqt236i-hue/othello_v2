@@ -14,7 +14,7 @@ function _isPlaybackActiveForLegacyVisuals() {
     if (PlaybackStateModule && typeof PlaybackStateModule.getPlaybackActive === 'function') {
         return PlaybackStateModule.getPlaybackActive() === true;
     }
-    return typeof window !== 'undefined' && window.VisualPlaybackActive === true;
+    return false;
 }
 
 function _assertNotDuringPlayback() {
