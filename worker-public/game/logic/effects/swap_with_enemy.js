@@ -185,18 +185,23 @@
 
         const swapFlips = resolveSwapFlips(gameState, row, col, player, cardContext, core);
         if (swapFlips.length > 0) {
+            const appliedSwapFlips = [];
             for (const [fr, fc] of swapFlips) {
+                let changed = true;
                 if (boardOpsInstance && typeof boardOpsInstance.changeAt === 'function') {
-                    boardOpsInstance.changeAt(cardState, gameState, fr, fc, playerKey, 'SWAP', 'swap_with_enemy_capture');
+                    const changeRes = boardOpsInstance.changeAt(cardState, gameState, fr, fc, playerKey, 'SWAP', 'swap_with_enemy_capture');
+                    changed = !!(changeRes && changeRes.changed);
                 } else {
                     gameState.board[fr][fc] = player;
                 }
+                if (!changed) continue;
                 if (typeof clearBombAt === 'function') {
                     clearBombAt(cardState, fr, fc);
                 }
+                appliedSwapFlips.push({ row: fr, col: fc });
             }
-            if (typeof clearHyperactiveAtPositions === 'function') {
-                clearHyperactiveAtPositions(cardState, swapFlips.map(([fr, fc]) => ({ row: fr, col: fc })));
+            if (appliedSwapFlips.length > 0 && typeof clearHyperactiveAtPositions === 'function') {
+                clearHyperactiveAtPositions(cardState, appliedSwapFlips);
             }
         }
 
@@ -206,10 +211,32 @@
         // Rule 10.4: SWAP 本体1枚 + 交換起点の挟み反転ぶんを加算
         cardState.charge = cardState.charge || { black: 0, white: 0 };
         const chargeGain = 1 + swapFlips.length;
+        let added = 0;
         if (CardUtils && typeof CardUtils.addChargeWithDelta === 'function') {
-            CardUtils.addChargeWithDelta(cardState, playerKey, chargeGain, 'swap_flip_gain');
+            const deltaRes = CardUtils.addChargeWithDelta(cardState, playerKey, chargeGain, 'swap_flip_gain', {
+                popupKind: 'board',
+                sourceType: 'swap_flip_gain',
+                anchorRow: row,
+                anchorCol: col
+            });
+            added = deltaRes ? (Number(deltaRes.delta) || 0) : 0;
         } else {
+            const before = Number(cardState.charge[playerKey] || 0);
             cardState.charge[playerKey] = Math.min(CHARGE_MAX || 99, (cardState.charge[playerKey] || 0) + chargeGain);
+            added = Number(cardState.charge[playerKey] || 0) - before;
+        }
+        if (added > 0 && typeof deps.emitPresentationEvent === 'function') {
+            deps.emitPresentationEvent(cardState, {
+                type: 'CHARGE_BUBBLE',
+                player: playerKey,
+                row,
+                col,
+                gained: added,
+                meta: {
+                    owner: playerKey,
+                    sourceType: 'swap_flip_gain'
+                }
+            });
         }
 
         result.swapped = true;

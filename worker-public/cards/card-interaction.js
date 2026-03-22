@@ -100,6 +100,7 @@ const CARD_DETAIL_TAG_MEANINGS = Object.freeze({
     '反転回避': '相手に石を置かれて反転されるとき、マス移動でその石だけ回避する。',
     '破壊回避': '破壊対象になったとき、空きマスへ移動してその石だけ回避する。',
     '特殊石': '通常石画像を使わない石。normal_stone-black.png / normal_stone-white.png 以外の見た目の石を指す。交換の意志の対象外。',
+    '幽体': '反転・石破壊の対象にはなるが、その石自身は受けない。反転列の成立は無効化せず、交換以外の効果は通常どおり受ける。',
     '反転保護': '反転されない。挟める列ごと無効できる。',
     '完全保護': 'マス破壊以外の全ての効果を無効化。',
     'マス破壊': 'マスごと穴にして永続封鎖。誰も置けず、反転経路も遮断する。',
@@ -415,6 +416,7 @@ function _hasDestroyEvasionTagSignal(sourceText) {
 }
 
 const CARD_DETAIL_EFFECT_TAG_TERMS = Object.freeze([
+    '幽体',
     '反転保護',
     '特殊石',
     '完全保護',
@@ -1607,6 +1609,21 @@ function _startNetworkOnlyPendingSelectionPublish(options) {
     const networkClient = _getActiveNetworkMatchClient();
     if (!networkClient) return false;
 
+    const settleSuccessAfterPlayback = () => {
+        const waitForPlaybackFn = (typeof waitForPlaybackIdle === 'function')
+            ? waitForPlaybackIdle
+            : ((typeof window !== 'undefined' && typeof window.waitForPlaybackIdle === 'function') ? window.waitForPlaybackIdle : null);
+
+        Promise.resolve(typeof waitForPlaybackFn === 'function' ? waitForPlaybackFn() : undefined)
+            .catch(() => {})
+            .then(() => {
+                _setPendingSelectionBusy(false);
+                if (typeof renderCardUI === 'function') {
+                    try { renderCardUI(); } catch (e) { /* ignore */ }
+                }
+            });
+    };
+
     Promise.resolve()
         .then(() => networkClient.publishSnapshot({
             playerKey: opts.playerKey,
@@ -1624,6 +1641,7 @@ function _startNetworkOnlyPendingSelectionPublish(options) {
             if (typeof opts.onSuccess === 'function') {
                 opts.onSuccess(publishResult);
             }
+            settleSuccessAfterPlayback();
         })
         .catch(() => {
             if (typeof opts.onFailure === 'function') {

@@ -154,6 +154,36 @@ describe('pipeline_ui_adapter destroy phase mapping', () => {
     expect(destroys[1].targets[0].meta.collisionProgress).toBe(0.5);
   });
 
+  test('CHANGE meta is preserved on flip targets for ghost-block playback', () => {
+    const pres = [
+      {
+        type: 'CHANGE',
+        row: 2,
+        col: 3,
+        stoneId: 's1',
+        ownerBefore: 'black',
+        ownerAfter: 'white',
+        cause: 'SYSTEM',
+        reason: 'standard_flip',
+        meta: { blockedByGhost: true, special: 'GHOST', timer: 5, owner: 'black' }
+      }
+    ];
+
+    const out = adapter.mapToPlaybackEvents(
+      pres,
+      { markers: [] },
+      { board: Array(8).fill(null).map(() => Array(8).fill(0)) }
+    );
+
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('flip');
+    expect(out[0].targets[0].meta).toEqual(expect.objectContaining({
+      blockedByGhost: true,
+      special: 'GHOST',
+      timer: 5
+    }));
+  });
+
   test('non-area destroys still advance phase (regression guard)', () => {
     const pres = [
       { type: 'SPAWN', row: 1, col: 1, stoneId: 's1', ownerAfter: 'black' },

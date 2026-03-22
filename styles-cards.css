@@ -922,14 +922,14 @@
 #handSvg #handPath,
 #handSvg .finger {
     stroke: #c08858;
-    stroke-width: 0.42;
+    stroke-width: 0.6;
     stroke-linejoin: round;
     stroke-linecap: round;
 }
 
 #handSvg #thumbPath {
     stroke: #b07848;
-    stroke-width: 0.42;
+    stroke-width: 0.6;
     stroke-linejoin: round;
     stroke-linecap: round;
 }

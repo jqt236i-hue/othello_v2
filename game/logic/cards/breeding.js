@@ -250,11 +250,14 @@
             });
 
             for (const [fr, fc] of flips) {
+                let changed = true;
                 if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
-                    deps.BoardOps.changeAt(cardState, gameState, fr, fc, playerKey, 'BREEDING', 'breeding_flip');
+                    const changeRes = deps.BoardOps.changeAt(cardState, gameState, fr, fc, playerKey, 'BREEDING', 'breeding_flip');
+                    changed = !!(changeRes && changeRes.changed);
                 } else {
                     _setBoardCell(gameState, fr, fc, player);
                 }
+                if (!changed) continue;
                 clearBombAt(cardState, fr, fc);
                 const key = _posKey(fr, fc);
                 if (!flippedSet.has(key)) {

@@ -9,21 +9,93 @@ const CASES = [
     modulePath: path.resolve(__dirname, '..', 'game', 'card-effects', 'tempt.js'),
     handlerName: 'handleTemptSelection',
     pendingType: 'TEMPT_WILL',
-    rawEventType: 'tempt_selected'
+    rawEventType: 'tempt_selected',
+    buildNextCardState: (cardState) => ({
+      ...cloneJson(cardState),
+      pendingEffectByPlayer: { black: null, white: null },
+      markers: [
+        {
+          id: 21,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'WORK', remainingOwnerTurns: 2 }
+        }
+      ]
+    }),
+    assertAppliedState: ({ cardState }) => {
+      expect(cardState.markers).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: expect.objectContaining({ type: 'WORK', remainingOwnerTurns: 2 })
+        })
+      ]));
+    }
   },
   {
     label: 'GUARD_WILL',
     modulePath: path.resolve(__dirname, '..', 'game', 'card-effects', 'guard.js'),
     handlerName: 'handleGuardSelection',
     pendingType: 'GUARD_WILL',
-    rawEventType: 'guard_selected'
+    rawEventType: 'guard_selected',
+    buildNextCardState: (cardState) => ({
+      ...cloneJson(cardState),
+      pendingEffectByPlayer: { black: null, white: null },
+      markers: [
+        {
+          id: 31,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'GUARD', remainingOwnerTurns: 3 }
+        }
+      ]
+    }),
+    assertAppliedState: ({ cardState }) => {
+      expect(cardState.markers).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 3 })
+        })
+      ]));
+    }
   },
   {
     label: 'GUARDIAN_GOD',
     modulePath: path.resolve(__dirname, '..', 'game', 'card-effects', 'guard.js'),
     handlerName: 'handleGuardSelection',
     pendingType: 'GUARDIAN_GOD',
-    rawEventType: 'guard_selected'
+    rawEventType: 'guard_selected',
+    buildNextCardState: (cardState) => ({
+      ...cloneJson(cardState),
+      pendingEffectByPlayer: { black: null, white: null },
+      markers: [
+        {
+          id: 41,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'GUARD', remainingOwnerTurns: 10 }
+        }
+      ]
+    }),
+    assertAppliedState: ({ cardState }) => {
+      expect(cardState.markers).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 10 })
+        })
+      ]));
+    }
   }
 ];
 
@@ -72,7 +144,7 @@ function createSnapshot(stateVersion, pendingType) {
   };
 }
 
-describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ modulePath, handlerName, pendingType, rawEventType }) => {
+describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ modulePath, handlerName, pendingType, rawEventType, buildNextCardState, assertAppliedState }) => {
   let dom;
   let publishBodies;
   let runTurnMock;
@@ -131,13 +203,11 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ modulePath
       }
     };
     global.TurnPipeline = {};
+    const nextCardState = buildNextCardState(global.cardState);
     runTurnMock = jest.fn(() => ({
       ok: true,
       rawEvents: [{ type: rawEventType, applied: true }],
-      nextCardState: {
-        ...global.cardState,
-        pendingEffectByPlayer: { black: null, white: null }
-      },
+      nextCardState,
       nextGameState: {
         ...global.gameState,
         currentPlayer: global.WHITE,
@@ -280,5 +350,9 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ modulePath
     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
     expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
     expect(presentation.emitPresentationEvent).not.toHaveBeenCalled();
+    assertAppliedState({
+      cardState: global.cardState,
+      emitLogAdded: global.emitLogAdded
+    });
   });
 });

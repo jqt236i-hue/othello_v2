@@ -270,7 +270,13 @@ describe('SELL_CARD_WILL deferred publish from card interaction', () => {
     expect(publishBodies[0].playbackEvents).toBeUndefined();
     expect(global.cardState.hands.black).toEqual([]);
     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
     expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+
+    releasePlayback();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
   });
 });

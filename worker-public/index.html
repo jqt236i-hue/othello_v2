@@ -65,10 +65,10 @@
                 aria-selected="true" aria-controls="rules-help-page-catalog" data-help-tab="catalog">カード図鑑</button>
             <button id="rules-help-tab-effects" class="rules-help-tab" type="button" role="tab"
                 aria-selected="false" aria-controls="rules-help-page-effects" data-help-tab="effects">効果一覧</button>
-            <button id="rules-help-tab-guide" class="rules-help-tab" type="button" role="tab"
-                aria-selected="false" aria-controls="rules-help-page-guide" data-help-tab="guide">ルールと操作</button>
-            <button id="rules-help-tab-counters" class="rules-help-tab" type="button" role="tab"
-                aria-selected="false" aria-controls="rules-help-page-counters" data-help-tab="counters">数字UI</button>
+            <button id="rules-help-tab-rules" class="rules-help-tab" type="button" role="tab"
+                aria-selected="false" aria-controls="rules-help-page-rules" data-help-tab="rules">ルール説明</button>
+            <button id="rules-help-tab-controls" class="rules-help-tab" type="button" role="tab"
+                aria-selected="false" aria-controls="rules-help-page-controls" data-help-tab="controls">操作方法</button>
             <button id="rules-help-tab-updates" class="rules-help-tab" type="button" role="tab"
                 aria-selected="false" aria-controls="rules-help-page-updates" data-help-tab="updates">アップデート情報</button>
         </div>
@@ -143,203 +143,27 @@
                     </div>
                 </dl>
             </section>
-            <section id="rules-help-page-guide" class="rules-help-page" data-help-page="guide" aria-hidden="true">
-                <div id="rules-help-guide-layout">
-                    <section class="rules-help-guide-section">
-                        <div class="rules-help-guide-title">ルール説明</div>
-                        <ul id="rules-help-rules-list">
-                            <li>このゲームは、通常のオセロにカード効果を加えた対戦です。</li>
-                            <li>自分の手番開始時に1枚ドローし、必要ならカードを1枚使ってから石を置きます。</li>
-                            <li>石を反転させると布石を得られ、数字マスに置いたときも追加で布石を獲得します。</li>
-                            <li>カードは布石を消費して使います。手札上限は5枚です。</li>
-                            <li>置ける場所がないときは、カードを使うかパスを選びます。</li>
-                            <li>盤面が埋まるか、両者が連続でパスすると終局です。</li>
-                            <li>最終的に石の数が多い側が勝利です。</li>
-                        </ul>
-                    </section>
-                    <section class="rules-help-guide-section">
-                        <div class="rules-help-guide-title">操作方法</div>
-                        <ol id="rules-help-controls-list">
-                            <li>手札からカードを押すと、右のカード詳細で効果を確認できます。</li>
-                            <li>カードを使うときは「使用」、不要なカードを捨てるときは「破壊」を押します。</li>
-                            <li>盤面の緑マーカーが置ける場所です。マスを押すと石を置きます。</li>
-                            <li>置ける場所がないときは「パス」を押して手番を渡せます。</li>
-                            <li>右下パネルで「CPU / ネット対戦」、音量、BGMを調整できます。</li>
-                            <li>石や特殊石を長押しすると、その石の効果を確認できます。</li>
-                        </ol>
-                    </section>
-                </div>
+            <section id="rules-help-page-rules" class="rules-help-page" data-help-page="rules" aria-hidden="true">
+                <ul id="rules-help-rules-list">
+                    <li>このゲームは、通常のオセロにカード効果を加えた対戦です。</li>
+                    <li>自分の手番開始時に1枚ドローし、必要ならカードを1枚使ってから石を置きます。</li>
+                    <li>石を反転させると布石を得られ、数字マスに置いたときも追加で布石を獲得します。</li>
+                    <li>カードは布石を消費して使います。手札上限は5枚です。</li>
+                    <li>置ける場所がないときは、カードを使うかパスを選びます。</li>
+                    <li>盤面が埋まるか、両者が連続でパスすると終局です。</li>
+                    <li>最終的に石の数が多い側が勝利です。</li>
+                </ul>
             </section>
-            <section id="rules-help-page-counters" class="rules-help-page" data-help-page="counters"
+            <section id="rules-help-page-controls" class="rules-help-page" data-help-page="controls"
                 aria-hidden="true">
-                <div id="rules-help-counters-layout">
-                    <section class="rules-help-counter-summary">
-                        <div class="rules-help-counter-summary-copy">
-                            <div class="rules-help-counter-summary-title">石の数字UI早見表</div>
-                            <div class="rules-help-counter-summary-text">
-                                石の周りの数字は、位置と形で意味が変わります。特に <strong>下</strong> の持続ターンと
-                                <strong>下中央</strong> のカウントダウンは別表示です。
-                            </div>
-                            <div class="rules-help-counter-summary-note">
-                                画像のように複数の数字が同時に重なることがあります。左の三角だけは「継承多動」専用です。
-                            </div>
-                        </div>
-                        <div class="rules-help-counter-demo" aria-hidden="true">
-                            <div class="disc black" data-image-state="fallback" data-render-mode="base-only">
-                                <div class="disc__face">
-                                    <div class="disc__base-image"></div>
-                                    <div class="disc__overlay-image"></div>
-                                </div>
-                                <div class="disc__hud">
-                                    <div class="guard-timer timer-double-digit">10</div>
-                                    <div class="stone-timer special-timer">5</div>
-                                    <div class="stone-timer special-timer inherited-hyperactive-timer">2</div>
-                                    <div class="stone-timer flip-evade-timer">2</div>
-                                    <div class="stone-timer destroy-evade-timer">8</div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                    <div id="rules-help-counters-list" aria-label="石の数字UI一覧">
-                        <div class="rules-help-counter-row rules-help-counter-row-header" aria-hidden="true">
-                            <div class="rules-help-counter-cell">見た目</div>
-                            <div class="rules-help-counter-cell">意味</div>
-                            <div class="rules-help-counter-cell">補足</div>
-                        </div>
-                        <article class="rules-help-counter-row">
-                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
-                                <div class="rules-help-counter-demo" aria-hidden="true">
-                                    <div class="disc black" data-image-state="fallback" data-render-mode="base-only">
-                                        <div class="disc__face">
-                                            <div class="disc__base-image"></div>
-                                            <div class="disc__overlay-image"></div>
-                                        </div>
-                                        <div class="disc__hud">
-                                            <div class="guard-timer timer-double-digit">10</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="rules-help-counter-cell rules-help-counter-cell--main">
-                                <div class="rules-help-counter-label">上 / 青い五角形</div>
-                                <div class="rules-help-counter-meaning">完全保護の残りターン</div>
-                            </div>
-                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
-                                守る意志 / 守護神の保護が何ターン残っているかを示します。
-                            </div>
-                        </article>
-                        <article class="rules-help-counter-row">
-                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
-                                <div class="rules-help-counter-demo" aria-hidden="true">
-                                    <div class="disc black" data-image-state="fallback" data-render-mode="base-only">
-                                        <div class="disc__face">
-                                            <div class="disc__base-image"></div>
-                                            <div class="disc__overlay-image"></div>
-                                        </div>
-                                        <div class="disc__hud">
-                                            <div class="stone-timer special-timer">5</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="rules-help-counter-cell rules-help-counter-cell--main">
-                                <div class="rules-help-counter-label">下 / 四角</div>
-                                <div class="rules-help-counter-meaning">特殊石本体の持続ターン</div>
-                            </div>
-                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
-                                その特殊石自体の残りターンです。通常の持続表示はここに出ます。
-                            </div>
-                        </article>
-                        <article class="rules-help-counter-row">
-                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
-                                <div class="rules-help-counter-demo" aria-hidden="true">
-                                    <div class="disc black" data-image-state="fallback" data-render-mode="base-only">
-                                        <div class="disc__face">
-                                            <div class="disc__base-image"></div>
-                                            <div class="disc__overlay-image"></div>
-                                        </div>
-                                        <div class="disc__hud">
-                                            <div class="bomb-timer countdown-timer">6</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="rules-help-counter-cell rules-help-counter-cell--main">
-                                <div class="rules-help-counter-label">下中央 / ひし形</div>
-                                <div class="rules-help-counter-meaning">カウントダウン専用の残り回数</div>
-                            </div>
-                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
-                                爆発まで / 発動まで / 昇格までなどで使います。下の持続ターンとは別物です。
-                            </div>
-                        </article>
-                        <article class="rules-help-counter-row">
-                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
-                                <div class="rules-help-counter-demo" aria-hidden="true">
-                                    <div class="disc black" data-image-state="fallback" data-render-mode="base-only">
-                                        <div class="disc__face">
-                                            <div class="disc__base-image"></div>
-                                            <div class="disc__overlay-image"></div>
-                                        </div>
-                                        <div class="disc__hud">
-                                            <div class="stone-timer flip-evade-timer">2</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="rules-help-counter-cell rules-help-counter-cell--main">
-                                <div class="rules-help-counter-label">右 / 丸</div>
-                                <div class="rules-help-counter-meaning">反転回避の残り回数</div>
-                            </div>
-                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
-                                多動系などの反転回避回数です。継承多動と重なる場合は合算して1つだけ表示します。
-                            </div>
-                        </article>
-                        <article class="rules-help-counter-row">
-                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
-                                <div class="rules-help-counter-demo" aria-hidden="true">
-                                    <div class="disc black" data-image-state="fallback" data-render-mode="base-only">
-                                        <div class="disc__face">
-                                            <div class="disc__base-image"></div>
-                                            <div class="disc__overlay-image"></div>
-                                        </div>
-                                        <div class="disc__hud">
-                                            <div class="stone-timer special-timer inherited-hyperactive-timer">2</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="rules-help-counter-cell rules-help-counter-cell--main">
-                                <div class="rules-help-counter-label">左 / 三角</div>
-                                <div class="rules-help-counter-meaning">継承多動の残りターン</div>
-                            </div>
-                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
-                                ここは「多動全般」ではなく、継承多動が付いているときだけ使う専用表示です。
-                            </div>
-                        </article>
-                        <article class="rules-help-counter-row">
-                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
-                                <div class="rules-help-counter-demo" aria-hidden="true">
-                                    <div class="disc black" data-image-state="fallback" data-render-mode="base-only">
-                                        <div class="disc__face">
-                                            <div class="disc__base-image"></div>
-                                            <div class="disc__overlay-image"></div>
-                                        </div>
-                                        <div class="disc__hud">
-                                            <div class="stone-timer destroy-evade-timer">8</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="rules-help-counter-cell rules-help-counter-cell--main">
-                                <div class="rules-help-counter-label">左下 / 斜めひし形</div>
-                                <div class="rules-help-counter-meaning">破壊回避の残り回数</div>
-                            </div>
-                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
-                                破壊対象になったときに何回まで回避できるかを示します。
-                            </div>
-                        </article>
-                    </div>
-                </div>
+                <ol id="rules-help-controls-list">
+                    <li>手札からカードを押すと、右のカード詳細で効果を確認できます。</li>
+                    <li>カードを使うときは「使用」、不要なカードを捨てるときは「破壊」を押します。</li>
+                    <li>盤面の緑マーカーが置ける場所です。マスを押すと石を置きます。</li>
+                    <li>置ける場所がないときは「パス」を押して手番を渡せます。</li>
+                    <li>右下パネルで「CPU / ネット対戦」、音量、BGMを調整できます。</li>
+                    <li>石や特殊石を長押しすると、その石の効果を確認できます。</li>
+                </ol>
             </section>
             <section id="rules-help-page-updates" class="rules-help-page" data-help-page="updates"
                 aria-hidden="true">
@@ -574,188 +398,146 @@
         <div id="handWrapper">
             <svg id="handSvg" viewBox="0 0 200 300" preserveAspectRatio="xMidYMax meet">
                 <defs>
-                    <!-- Warm skin - 3-stop diagonal -->
-                    <linearGradient id="skinGradient" x1="20%" y1="0%" x2="80%" y2="100%">
-                        <stop offset="0%"   stop-color="#f2caa8"/>
-                        <stop offset="50%"  stop-color="#dfa87a"/>
-                        <stop offset="100%" stop-color="#c4885a"/>
+                    <linearGradient id="skinGradient" x1="22%" y1="4%" x2="80%" y2="100%">
+                        <stop offset="0%" stop-color="#f1cfb3"/>
+                        <stop offset="52%" stop-color="#dfab82"/>
+                        <stop offset="100%" stop-color="#c98758"/>
                     </linearGradient>
-                    <!-- Palm shadow overlay -->
-                    <linearGradient id="palmShadow" x1="30%" y1="0%" x2="70%" y2="100%">
-                        <stop offset="0%"   stop-color="#c49060" stop-opacity="0.30"/>
-                        <stop offset="100%" stop-color="#a06838" stop-opacity="0.22"/>
+                    <linearGradient id="palmShadow" x1="30%" y1="0%" x2="72%" y2="100%">
+                        <stop offset="0%" stop-color="#b67445" stop-opacity="0.22"/>
+                        <stop offset="100%" stop-color="#93552f" stop-opacity="0.18"/>
                     </linearGradient>
-                    <!-- Top-light highlight for finger dorsal -->
                     <linearGradient id="fingerHL" x1="50%" y1="0%" x2="50%" y2="100%">
-                        <stop offset="0%"   stop-color="#ffe8d0" stop-opacity="0.55"/>
-                        <stop offset="100%" stop-color="#f0c4a0" stop-opacity="0"/>
+                        <stop offset="0%" stop-color="#fff0e0" stop-opacity="0.42"/>
+                        <stop offset="100%" stop-color="#efc7a5" stop-opacity="0"/>
                     </linearGradient>
-                    <!-- Fingernail -->
-                    <linearGradient id="nailGrad" x1="50%" y1="0%" x2="50%" y2="100%">
-                        <stop offset="0%"   stop-color="#fce4d4" stop-opacity="0.95"/>
-                        <stop offset="55%"  stop-color="#f0cdb8" stop-opacity="0.90"/>
-                        <stop offset="100%" stop-color="#d8a890" stop-opacity="0.80"/>
+                    <linearGradient id="thumbGrad" x1="8%" y1="18%" x2="92%" y2="86%">
+                        <stop offset="0%" stop-color="#efc39b"/>
+                        <stop offset="100%" stop-color="#bc7e4d"/>
                     </linearGradient>
-                    <!-- Thumb (slightly cooler) -->
-                    <linearGradient id="thumbGrad" x1="0%" y1="20%" x2="100%" y2="80%">
-                        <stop offset="0%"   stop-color="#e8b888"/>
-                        <stop offset="100%" stop-color="#ba7e4e"/>
-                    </linearGradient>
-                    <!-- Knuckle dimple -->
-                    <radialGradient id="knuckle" cx="50%" cy="50%" r="50%">
-                        <stop offset="0%"   stop-color="#9e6838" stop-opacity="0.30"/>
-                        <stop offset="100%" stop-color="#c49060" stop-opacity="0"/>
-                    </radialGradient>
-
-                    <!-- Drop shadow -->
                     <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur in="SourceAlpha" stdDeviation="3.5"/>
-                        <feOffset dx="2" dy="3" result="offsetblur"/>
-                        <feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="2.8"/>
+                        <feOffset dx="1.6" dy="2.4" result="offsetblur"/>
+                        <feComponentTransfer><feFuncA type="linear" slope="0.28"/></feComponentTransfer>
                         <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
-                    </filter>
-                    <!-- Soft inner shadow for depth -->
-                    <filter id="innerGlow" x="-10%" y="-10%" width="120%" height="120%">
-                        <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="blur"/>
-                        <feComposite in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1"/>
-                        <feColorMatrix type="matrix" values="0 0 0 0 0.60  0 0 0 0 0.38  0 0 0 0 0.18  0 0 0 0.35 0"/>
-                        <feBlend in2="SourceGraphic" mode="multiply"/>
                     </filter>
                 </defs>
 
-                <!-- palm -->
                 <path id="handPath"
-                    d="M78,300
-                       C74,286 72,267 69,245
-                       C66,223 62,205 57,187
-                       C53,173 52,163 56,156
-                       C60,149 69,146 80,145
-                       C92,144 101,141 110,137
-                       C120,133 131,132 141,136
-                       C151,140 158,147 162,159
-                       C166,172 167,188 166,206
-                       C164,229 159,255 154,300 Z"
+                    d="M71,300
+                       C65,279 61,254 58,228
+                       C56,204 56,181 58,160
+                       C60,143 69,131 83,125
+                       C95,120 109,121 121,126
+                       C132,130 145,130 157,126
+                       C167,123 176,127 182,136
+                       C188,146 190,160 188,178
+                       C186,199 181,221 175,244
+                       C169,266 163,286 160,300 Z"
                     fill="url(#skinGradient)" filter="url(#dropShadow)"/>
-                <path d="M78,300
-                       C74,286 72,267 69,245
-                       C66,223 62,205 57,187
-                       C53,173 52,163 56,156
-                       C60,149 69,146 80,145
-                       C92,144 101,141 110,137
-                       C120,133 131,132 141,136
-                       C151,140 158,147 162,159
-                       C166,172 167,188 166,206
-                       C164,229 159,255 154,300 Z"
-                    fill="url(#palmShadow)" filter="url(#innerGlow)"/>
-                <path d="M73,184 Q106,172 147,179" fill="none" stroke="#a87048" stroke-width="0.62" opacity="0.16" stroke-linecap="round"/>
-                <path d="M73,204 Q108,193 150,199" fill="none" stroke="#a87048" stroke-width="0.55" opacity="0.13" stroke-linecap="round"/>
-                <path d="M77,224 Q110,214 149,220" fill="none" stroke="#a87048" stroke-width="0.5" opacity="0.11" stroke-linecap="round"/>
-                <path d="M83,244 Q112,236 145,241" fill="none" stroke="#a87048" stroke-width="0.45" opacity="0.09" stroke-linecap="round"/>
+                <path d="M81,300
+                       C76,279 73,255 71,230
+                       C69,205 69,182 70,162
+                       C72,149 78,139 88,134
+                       C97,130 108,131 118,135
+                       C129,139 141,139 151,136
+                       C160,133 167,136 172,144
+                       C177,153 179,165 178,181
+                       C176,201 172,223 167,246
+                       C162,267 158,285 155,300 Z"
+                    fill="url(#palmShadow)" opacity="0.9"/>
+                <path d="M95,249 C96,220 98,192 102,157" fill="none" stroke="#a16439" stroke-width="0.9" opacity="0.14" stroke-linecap="round"/>
+                <path d="M119,247 C123,219 127,191 132,157" fill="none" stroke="#a16439" stroke-width="0.85" opacity="0.12" stroke-linecap="round"/>
 
-                <!-- pinky -->
                 <path class="finger"
-                    d="M61,188
-                       C56,173 53,154 51,132
-                       C49,111 50,92 55,76
-                       C59,64 66,59 72,63
-                       C77,68 78,81 77,99
-                       C76,122 74,150 72,171
-                       C71,178 68,184 61,188 Z"
+                    d="M61,165
+                       C54,151 49,133 46,112
+                       C43,92 45,73 51,58
+                       C56,47 64,43 71,48
+                       C77,54 79,68 78,88
+                       C76,109 72,133 67,156
+                       C66,162 64,166 61,165 Z"
                     fill="url(#skinGradient)" filter="url(#dropShadow)"/>
-                <path d="M61,188
-                       C57,173 55,153 54,133
-                       C53,115 55,96 59,82
-                       C63,69 68,66 72,69"
-                    fill="none" stroke="#f4dcc7" stroke-width="1.1" opacity="0.22" stroke-linecap="round"/>
-                <line x1="55" y1="142" x2="73" y2="139" stroke="#b07848" stroke-width="0.45" opacity="0.16" stroke-linecap="round"/>
-                <line x1="56" y1="116" x2="73" y2="113" stroke="#b07848" stroke-width="0.4" opacity="0.13" stroke-linecap="round"/>
-                <ellipse cx="64" cy="69" rx="5.4" ry="4.2" fill="url(#nailGrad)" stroke="#d4aa8d" stroke-width="0.28" opacity="0.82" transform="rotate(-20,64,69)"/>
-                <path d="M59,70 Q64,64 69,69" fill="none" stroke="#f4e4d7" stroke-width="0.32" opacity="0.45" transform="rotate(-20,64,69)"/>
+                <path d="M61,165
+                       C54,151 49,133 46,112
+                       C43,92 45,73 51,58
+                       C56,47 64,43 71,48
+                       C77,54 79,68 78,88
+                       C76,109 72,133 67,156
+                       C66,162 64,166 61,165 Z"
+                    fill="url(#fingerHL)" opacity="0.18"/>
+                <path d="M50,115 C57,113 64,112 71,113" fill="none" stroke="#ab7347" stroke-width="0.6" opacity="0.15" stroke-linecap="round"/>
 
-                <!-- ring -->
                 <path class="finger"
-                    d="M82,183
-                       C78,166 75,142 74,113
-                       C73,86 76,61 83,42
-                       C88,29 96,24 102,29
-                       C107,35 108,51 107,73
-                       C105,100 102,128 99,154
-                       C97,166 93,176 82,183 Z"
+                    d="M84,159
+                       C77,142 73,115 73,84
+                       C73,58 77,37 84,22
+                       C89,12 97,9 103,16
+                       C109,25 110,44 108,71
+                       C105,101 99,129 94,153
+                       C92,159 88,161 84,159 Z"
                     fill="url(#skinGradient)" filter="url(#dropShadow)"/>
-                <path d="M82,183
-                       C79,166 78,143 78,117
-                       C78,92 81,69 87,50
-                       C91,38 96,34 101,37"
-                    fill="none" stroke="#f4dcc7" stroke-width="1.12" opacity="0.22" stroke-linecap="round"/>
-                <line x1="77" y1="126" x2="98" y2="124" stroke="#b07848" stroke-width="0.46" opacity="0.17" stroke-linecap="round"/>
-                <line x1="79" y1="95" x2="99" y2="92" stroke="#b07848" stroke-width="0.42" opacity="0.13" stroke-linecap="round"/>
-                <ellipse cx="91" cy="34" rx="6.2" ry="4.7" fill="url(#nailGrad)" stroke="#d4aa8d" stroke-width="0.3" opacity="0.82" transform="rotate(-10,91,34)"/>
-                <path d="M85,35 Q91,29 97,34" fill="none" stroke="#f4e4d7" stroke-width="0.34" opacity="0.45" transform="rotate(-10,91,34)"/>
+                <path d="M84,159
+                       C77,142 73,115 73,84
+                       C73,58 77,37 84,22
+                       C89,12 97,9 103,16
+                       C109,25 110,44 108,71
+                       C105,101 99,129 94,153
+                       C92,159 88,161 84,159 Z"
+                    fill="url(#fingerHL)" opacity="0.17"/>
+                <path d="M75,97 C83,95 91,94 99,95" fill="none" stroke="#ab7347" stroke-width="0.6" opacity="0.14" stroke-linecap="round"/>
 
-                <!-- middle -->
                 <path class="finger"
-                    d="M104,181
-                       C100,161 98,133 98,101
-                       C99,68 103,39 109,17
-                       C114,6 122,1 128,7
-                       C133,14 134,31 132,57
-                       C130,89 127,121 123,150
-                       C121,164 117,175 104,181 Z"
+                    d="M110,157
+                       C102,138 99,106 101,69
+                       C103,40 109,19 118,12
+                       C126,6 135,9 141,20
+                       C146,31 147,52 143,82
+                       C139,114 132,139 124,154
+                       C120,159 114,160 110,157 Z"
                     fill="url(#skinGradient)" filter="url(#dropShadow)"/>
-                <path d="M104,181
-                       C101,162 101,135 102,105
-                       C103,76 106,48 112,25
-                       C116,13 121,10 126,14"
-                    fill="none" stroke="#f4dcc7" stroke-width="1.16" opacity="0.21" stroke-linecap="round"/>
-                <line x1="101" y1="115" x2="123" y2="113" stroke="#b07848" stroke-width="0.47" opacity="0.18" stroke-linecap="round"/>
-                <line x1="103" y1="80" x2="124" y2="78" stroke="#b07848" stroke-width="0.42" opacity="0.13" stroke-linecap="round"/>
-                <ellipse cx="118" cy="11" rx="6.6" ry="5" fill="url(#nailGrad)" stroke="#d4aa8d" stroke-width="0.3" opacity="0.82"/>
-                <path d="M111,11 Q118,4 125,11" fill="none" stroke="#f4e4d7" stroke-width="0.34" opacity="0.45"/>
+                <path d="M110,157
+                       C102,138 99,106 101,69
+                       C103,40 109,19 118,12
+                       C126,6 135,9 141,20
+                       C146,31 147,52 143,82
+                       C139,114 132,139 124,154
+                       C120,159 114,160 110,157 Z"
+                    fill="url(#fingerHL)" opacity="0.17"/>
+                <path d="M103,92 C112,90 121,89 130,90" fill="none" stroke="#ab7347" stroke-width="0.6" opacity="0.14" stroke-linecap="round"/>
 
-                <!-- index -->
                 <path class="finger"
-                    d="M127,184
-                       C123,167 123,143 126,116
-                       C129,91 135,69 143,53
-                       C149,43 157,40 162,45
-                       C167,51 167,64 164,84
-                       C161,111 156,137 150,161
-                       C146,172 140,180 127,184 Z"
+                    d="M136,163
+                       C129,149 128,124 132,95
+                       C136,69 143,49 153,35
+                       C161,25 170,24 176,33
+                       C181,42 182,59 178,83
+                       C173,111 165,136 153,157
+                       C148,163 141,165 136,163 Z"
                     fill="url(#skinGradient)" filter="url(#dropShadow)"/>
-                <path d="M127,184
-                       C124,168 126,145 130,121
-                       C134,97 139,76 146,59
-                       C151,49 156,47 160,51"
-                    fill="none" stroke="#f4dcc7" stroke-width="1.1" opacity="0.2" stroke-linecap="round"/>
-                <line x1="129" y1="124" x2="150" y2="121" stroke="#b07848" stroke-width="0.45" opacity="0.16" stroke-linecap="round"/>
-                <line x1="134" y1="94" x2="153" y2="91" stroke="#b07848" stroke-width="0.4" opacity="0.12" stroke-linecap="round"/>
-                <ellipse cx="153" cy="48" rx="6.1" ry="4.7" fill="url(#nailGrad)" stroke="#d4aa8d" stroke-width="0.28" opacity="0.82" transform="rotate(13,153,48)"/>
-                <path d="M147,48 Q153,42 159,47" fill="none" stroke="#f4e4d7" stroke-width="0.32" opacity="0.45" transform="rotate(13,153,48)"/>
+                <path d="M136,163
+                       C129,149 128,124 132,95
+                       C136,69 143,49 153,35
+                       C161,25 170,24 176,33
+                       C181,42 182,59 178,83
+                       C173,111 165,136 153,157
+                       C148,163 141,165 136,163 Z"
+                    fill="url(#fingerHL)" opacity="0.16"/>
+                <path d="M132,100 C141,97 150,96 159,97" fill="none" stroke="#ab7347" stroke-width="0.6" opacity="0.14" stroke-linecap="round"/>
 
-                <!-- knuckles -->
-                <ellipse cx="71" cy="184" rx="6.2" ry="4.3" fill="url(#knuckle)" opacity="0.75"/>
-                <ellipse cx="93" cy="178" rx="7" ry="4.7" fill="url(#knuckle)" opacity="0.78"/>
-                <ellipse cx="118" cy="174" rx="7.4" ry="4.9" fill="url(#knuckle)" opacity="0.8"/>
-                <ellipse cx="144" cy="178" rx="7.2" ry="4.8" fill="url(#knuckle)" opacity="0.77"/>
-
-                <!-- thumb -->
                 <path id="thumbPath"
-                    d="M137,183
-                       C144,171 156,162 168,156
-                       C181,149 192,145 199,148
-                       C205,151 206,158 202,166
-                       C196,178 186,189 174,198
-                       C163,206 152,211 144,209
-                       C137,206 132,198 137,183 Z"
+                    d="M129,188
+                       C140,179 154,168 169,156
+                       C181,146 189,145 193,151
+                       C196,158 193,168 185,179
+                       C176,190 164,200 151,207
+                       C140,212 131,210 125,201
+                       C122,196 123,191 129,188 Z"
                     fill="url(#thumbGrad)" filter="url(#dropShadow)"/>
-                <path d="M143,180 C151,171 162,164 175,158 C184,154 191,152 196,154"
-                    fill="none" stroke="#f0d8c0" stroke-width="1" opacity="0.2" stroke-linecap="round"/>
-                <path d="M174,166 Q179,174 171,181" fill="none" stroke="#a06838" stroke-width="0.46" opacity="0.2" stroke-linecap="round"/>
-                <ellipse cx="194" cy="151" rx="5.6" ry="4.6" fill="url(#nailGrad)" stroke="#d4aa8d" stroke-width="0.28" opacity="0.8" transform="rotate(-26,194,151)"/>
-                <path d="M189,150 Q194,145 199,149" fill="none" stroke="#f4e4d7" stroke-width="0.32" opacity="0.42" transform="rotate(-26,194,151)"/>
+                <path d="M133,189 C144,181 157,170 171,159" fill="none" stroke="#f6e3d1" stroke-width="0.9" opacity="0.18" stroke-linecap="round"/>
+                <path d="M163,163 C168,169 166,177 160,183" fill="none" stroke="#9d6538" stroke-width="0.55" opacity="0.16" stroke-linecap="round"/>
 
-                <!-- thumb web / thenar -->
-                <path d="M131,173 C139,168 147,170 151,177 C148,185 142,188 134,186 C129,183 128,178 131,173 Z"
+                <path d="M122,162 C130,165 136,173 136,183 C129,176 122,169 116,163 Z"
                     fill="url(#skinGradient)" opacity="0.78"/>
             </svg>
             <div id="heldStone" class="held-stone black"></div>

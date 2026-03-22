@@ -26,9 +26,23 @@ function createBaseCardState() {
   };
 }
 
-function createSnapshot(stateVersion) {
+function createSnapshot(stateVersion, options = {}) {
+  const topLevelStateVersion = Number.isFinite(Number(options.topLevelStateVersion))
+    ? Number(options.topLevelStateVersion)
+    : stateVersion;
+  const metaVersion = Number.isFinite(Number(options.metaVersion))
+    ? Number(options.metaVersion)
+    : stateVersion;
   return {
-    stateVersion,
+    stateVersion: topLevelStateVersion,
+    _meta: {
+      authority: 'server',
+      version: metaVersion,
+      projectedForSeat: Object.prototype.hasOwnProperty.call(options, 'projectedForSeat')
+        ? options.projectedForSeat
+        : null,
+      turnStartReconciled: options.turnStartReconciled !== false
+    },
     gameState: {
       currentPlayer: 1,
       turnNumber: stateVersion,
@@ -225,6 +239,23 @@ describe('applySnapshot single-writer baseline', () => {
     const applied = ctrl.applySnapshot(snap, { playbackEvents: [] });
     expect(applied).toBe(false);
     expect(emittedEvents).toHaveLength(0);
+  });
+
+  test('_meta.version が top-level stateVersion より優先される', () => {
+    const stateObj = { stateVersion: 10, authoritativeMatchState: {} };
+    const ctrl = createController(stateObj);
+    const snap = createSnapshot(11, { topLevelStateVersion: 3, metaVersion: 11 });
+
+    const applied = ctrl.applySnapshot(snap, { playbackEvents: [] });
+
+    expect(applied).toBe(true);
+    expect(stateObj.stateVersion).toBe(11);
+    expect(stateObj.authoritativeMatchState).toEqual(expect.objectContaining({
+      stateVersion: 11,
+      authority: 'server',
+      projectedForSeat: null,
+      turnStartReconciled: true
+    }));
   });
 
   test('force:true なら stale version でも適用される', () => {

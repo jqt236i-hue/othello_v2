@@ -30,6 +30,8 @@ function createArgs(tempDir, overrides) {
         heuristicWeightMax: 1,
         jobs: 2,
         workerRetries: 1,
+        resumeChunkSize: 0,
+        reuseCompletedChunks: false,
         policyModelPath: null,
         policyModelPoolPaths: [],
         policyPoolSampling: 'uniform',
@@ -143,6 +145,78 @@ describe('selfplay generate data worker retries', () => {
             }))).rejects.toThrow('deterministic shard failure');
             expect(forkMock).toHaveBeenCalledTimes(1);
             expect(warnSpy).not.toHaveBeenCalled();
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('reuses completed chunks without rerunning shard workers', async () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-selfplay-chunk-reuse-'));
+        jest.spyOn(console, 'log').mockImplementation(() => {});
+        const forkMock = jest.fn(() => {
+            throw new Error('chunk reuse should not spawn workers');
+        });
+
+        try {
+            const {
+                createChunkPlan,
+                buildChunkArtifactDir,
+                buildChunkArtifactPaths,
+                runSelfPlayWithResumeChunks
+            } = loadModuleWithForkMock(forkMock);
+            const args = createArgs(tempDir, {
+                games: 4,
+                jobs: 2,
+                resumeChunkSize: 2,
+                reuseCompletedChunks: true,
+                hardcaseOut: path.join(tempDir, 'selfplay.hardcase.ndjson')
+            });
+            const chunkPlan = createChunkPlan(args.games, args.seed, args.resumeChunkSize, 0);
+            const chunkDir = buildChunkArtifactDir(args.out);
+            fs.mkdirSync(chunkDir, { recursive: true });
+            chunkPlan.forEach((chunk) => {
+                const chunkPaths = buildChunkArtifactPaths(chunkDir, chunk.chunkIndex, true);
+                fs.writeFileSync(
+                    chunkPaths.outPath,
+                    JSON.stringify({ chunk: chunk.chunkIndex, kind: 'all' }) + '\n',
+                    'utf8'
+                );
+                fs.writeFileSync(
+                    chunkPaths.hardcaseOutPath,
+                    JSON.stringify({ chunk: chunk.chunkIndex, kind: 'hardcase' }) + '\n',
+                    'utf8'
+                );
+                fs.writeFileSync(chunkPaths.summaryPath, JSON.stringify({
+                    schemaVersion: 'selfplay.v2',
+                    chunk: {
+                        chunkIndex: chunk.chunkIndex,
+                        chunkCount: chunkPlan.length,
+                        games: chunk.games,
+                        seed: chunk.seed,
+                        gameIndexOffset: chunk.gameIndexOffset
+                    },
+                    summary: {
+                        totalGames: chunk.games,
+                        totalPlies: chunk.games * 3,
+                        hardcaseRecords: 1,
+                        wins: { black: chunk.games, white: 0, draw: 0 }
+                    }
+                }, null, 2), 'utf8');
+            });
+
+            const result = await runSelfPlayWithResumeChunks(args);
+            expect(result.summary.totalGames).toBe(4);
+            expect(result.summary.totalPlies).toBe(12);
+            expect(result.summary.hardcaseRecords).toBe(2);
+            expect(result.summary.wins).toEqual({ black: 4, white: 0, draw: 0 });
+            expect(fs.readFileSync(args.out, 'utf8')).toBe(
+                '{"chunk":0,"kind":"all"}\n{"chunk":1,"kind":"all"}\n'
+            );
+            expect(fs.readFileSync(args.hardcaseOut, 'utf8')).toBe(
+                '{"chunk":0,"kind":"hardcase"}\n{"chunk":1,"kind":"hardcase"}\n'
+            );
+            expect(fs.existsSync(chunkDir)).toBe(false);
+            expect(forkMock).not.toHaveBeenCalled();
         } finally {
             fs.rmSync(tempDir, { recursive: true, force: true });
         }

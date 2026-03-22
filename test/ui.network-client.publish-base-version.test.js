@@ -739,7 +739,7 @@ describe('NetworkMatchClient queued publish', () => {
           await new Promise((resolve) => setTimeout(resolve, 0));
           return jsonResponse(409, {
             ok: false,
-            rejectedReason: 'VERSION_MISMATCH',
+            rejectedReason: 'VERSION_AHEAD',
             stateVersion: 11,
             snapshot: {
               ...rejectedSnapshot,
@@ -788,12 +788,15 @@ describe('NetworkMatchClient queued publish', () => {
 
     const [firstResult, secondResult] = await Promise.all([firstPublish, secondPublish]);
     expect(firstResult.ok).toBe(false);
-    expect(firstResult.reason).toBe('VERSION_MISMATCH');
+    expect(firstResult.reason).toBe('VERSION_AHEAD');
     expect(secondResult.ok).toBe(true);
 
     expect(publishPayloads).toHaveLength(2);
     expect(publishPayloads[1].baseVersion).toBe(11);
     expect(localStateSeenAtSecondPublish).toEqual(expectedFinalState);
+    const telemetry = client.getNetworkTelemetry();
+    expect(telemetry.counts.publish_version_ahead).toBe(1);
+    expect(telemetry.counts.publish_version_mismatch).toBe(1);
   });
 
   test('同版 VERSION_MISMATCH 拒否は rejection snapshot を force apply せず telemetry に残す', async () => {

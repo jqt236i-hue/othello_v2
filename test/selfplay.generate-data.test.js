@@ -51,7 +51,9 @@ describe('selfplay generate data script', () => {
             '--tactical-depth-mid', '8',
             '--tactical-depth-end', '12',
             '--tactical-beam-width', '8',
-            '--worker-retries', '2.9'
+            '--worker-retries', '2.9',
+            '--resume-chunk-size', '1000.9',
+            '--reuse-completed-chunks'
         ]);
         expect(args.policyMixRate).toBeCloseTo(0.72, 6);
         expect(args.cardUsageRateJitter).toBeCloseTo(0.18, 6);
@@ -62,6 +64,8 @@ describe('selfplay generate data script', () => {
         expect(args.tacticalDepthEnd).toBe(12);
         expect(args.tacticalBeamWidth).toBe(8);
         expect(args.workerRetries).toBe(2);
+        expect(args.resumeChunkSize).toBe(1000);
+        expect(args.reuseCompletedChunks).toBe(true);
     });
 
     test('parseArgs validates diversity control ranges', () => {
@@ -75,6 +79,7 @@ describe('selfplay generate data script', () => {
         expect(() => parseArgs(['--tactical-depth-end', '-1'])).toThrow('--tactical-depth-end must be >= 0');
         expect(() => parseArgs(['--tactical-beam-width', '-1'])).toThrow('--tactical-beam-width must be >= 0');
         expect(() => parseArgs(['--worker-retries', '-1'])).toThrow('--worker-retries must be >= 0');
+        expect(() => parseArgs(['--resume-chunk-size', '-1'])).toThrow('--resume-chunk-size must be >= 0');
     });
 
     test('parseArgs applies resolved profile defaults and derives hardcase split output', () => {
@@ -91,6 +96,7 @@ describe('selfplay generate data script', () => {
                     'scripts/run-selfplay-training-cycle.js',
                     '--train-games', '321',
                     '--selfplay-jobs', '7',
+                    '--selfplay-resume-chunk-size', '1000',
                     '--card-usage-rate', '0.44',
                     '--selfplay-policy-score-weight-min', '1.6',
                     '--selfplay-policy-score-weight-max', '2.2',
@@ -110,6 +116,7 @@ describe('selfplay generate data script', () => {
             ]);
             expect(args.games).toBe(321);
             expect(args.jobs).toBe(7);
+            expect(args.resumeChunkSize).toBe(1000);
             expect(args.allowCardUsage).toBe(false);
             expect(args.cardUsageRate).toBeCloseTo(0.44, 6);
             expect(args.policyScoreWeightMin).toBeCloseTo(1.6, 6);

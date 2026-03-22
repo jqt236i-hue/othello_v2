@@ -143,4 +143,43 @@ describe('pipeline_ui_adapter move metadata', () => {
       destroyEvadeRemaining: 1
     });
   });
+
+  test('afterimage destroy-evade move keeps both evade counters in move metadata', () => {
+    const pres = [
+      {
+        type: 'MOVE',
+        prevRow: 4,
+        prevCol: 4,
+        row: 7,
+        col: 7,
+        stoneId: 'after1',
+        ownerBefore: 'black',
+        ownerAfter: 'black',
+        cause: 'DESTROY_EVADE',
+        reason: 'destroy_evade_move',
+        meta: {
+          special: 'AFTERIMAGE_WILL',
+          owner: 'black',
+          flipEvadeRemaining: 3,
+          destroyEvadeRemaining: 2
+        }
+      }
+    ];
+
+    const out = adapter.mapToPlaybackEvents(
+      pres,
+      { markers: [] },
+      { board: Array(8).fill(null).map(() => Array(8).fill(0)) }
+    );
+
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('move');
+    expect(out[0].targets[0].after).toMatchObject({
+      color: 1,
+      special: 'AFTERIMAGE_WILL',
+      owner: 'black',
+      flipEvadeRemaining: 3,
+      destroyEvadeRemaining: 2
+    });
+  });
 });

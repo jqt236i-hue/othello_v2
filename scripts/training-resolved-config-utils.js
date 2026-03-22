@@ -88,6 +88,7 @@ function applySelfplayArgsFromResolvedConfig(target, specified, resolved) {
     setNumberFromFlag(target, specified, 'games', argMap, gamesFlag);
     setNumberFromFlag(target, specified, 'maxPlies', argMap, '--max-plies');
     setNumberFromFlag(target, specified, 'jobs', argMap, '--selfplay-jobs');
+    setNumberFromFlag(target, specified, 'resumeChunkSize', argMap, '--selfplay-resume-chunk-size');
     setNumberFromFlag(target, specified, 'cardUsageRate', argMap, '--card-usage-rate');
     setNumberFromFlag(target, specified, 'policyMixRate', argMap, '--selfplay-policy-mix-rate');
     setNumberFromFlag(target, specified, 'cardUsageRateJitter', argMap, '--selfplay-card-usage-rate-jitter');

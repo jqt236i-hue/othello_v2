@@ -67,6 +67,11 @@
                 const guard = findSpecialMarkerAt(cardState, currentRow, col, 'GUARD');
                 if (guard) break;
                 destroyed.push({ row: currentRow, col });
+                const ghost = findSpecialMarkerAt(cardState, currentRow, col, 'GHOST');
+                if (!ghost) {
+                    to = { row: currentRow, col };
+                }
+                continue;
             }
 
             to = { row: currentRow, col };

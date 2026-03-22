@@ -139,9 +139,25 @@ function syncDiscVisualToCurrentState(row, col) {
     const markerKinds = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && MarkersAdapter.MARKER_KINDS)
         ? MarkersAdapter.MARKER_KINDS
         : { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' };
+    const isBombCategoryMarker = (marker) => {
+        if (!marker || typeof marker !== 'object') return false;
+        if (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.isBombCategoryMarker === 'function') {
+            return MarkersAdapter.isBombCategoryMarker(marker);
+        }
+        const data = (marker.data && typeof marker.data === 'object') ? marker.data : null;
+        const category = String(data && data.category ? data.category : '').trim().toLowerCase();
+        const type = String(data && data.type ? data.type : '').trim().toUpperCase();
+        return marker.kind === 'bomb' || category === 'bomb' || type === 'TIME_BOMB';
+    };
     let bomb = null;
     if (cardState && Array.isArray(cardState.markers)) {
-        bomb = cardState.markers.find(m => m.kind === markerKinds.BOMB && m.row === row && m.col === col) || null;
+        bomb = (
+            typeof MarkersAdapter !== 'undefined'
+            && MarkersAdapter
+            && typeof MarkersAdapter.findBombMarkerAt === 'function'
+        )
+            ? MarkersAdapter.findBombMarkerAt(cardState, row, col)
+            : (cardState.markers.find(m => isBombCategoryMarker(m) && m.row === row && m.col === col) || null);
         if (bomb && bomb.data) {
             bomb = { row, col, remainingTurns: bomb.data.remainingTurns, owner: bomb.owner };
         }
@@ -167,7 +183,12 @@ function syncDiscVisualToCurrentState(row, col) {
 
     let special = null;
     if (cardState && Array.isArray(cardState.markers)) {
-        const s = cardState.markers.find(m => m.kind === markerKinds.SPECIAL_STONE && m.row === row && m.col === col) || null;
+        const s = cardState.markers.find((m) => (
+            m.kind === markerKinds.SPECIAL_STONE
+            && !isBombCategoryMarker(m)
+            && m.row === row
+            && m.col === col
+        )) || null;
         if (s && s.data) {
             special = { row, col, type: s.data.type, owner: s.owner, remainingOwnerTurns: s.data.remainingOwnerTurns, regenRemaining: s.data.regenRemaining };
         }

@@ -232,24 +232,48 @@
         if (typeof cardState._nextChargeDeltaSeq !== 'number') cardState._nextChargeDeltaSeq = 1;
     }
 
-    function enqueueChargeDelta(cardState, playerKey, before, after, reason) {
+    function normalizeChargePopupMeta(meta) {
+        if (!meta || typeof meta !== 'object') return null;
+        const popupKind = String(meta.popupKind || '').trim().toLowerCase();
+        if (popupKind !== 'board') return null;
+
+        const anchorRow = normalizeBoardIndex(meta.anchorRow);
+        const anchorCol = normalizeBoardIndex(meta.anchorCol);
+        if (anchorRow === null || anchorCol === null) {
+            throw new Error('CardUtils.enqueueChargeDelta: board popup requires integer anchorRow/anchorCol');
+        }
+
+        const normalizedMeta = {
+            popupKind: 'board',
+            anchorRow,
+            anchorCol
+        };
+        const sourceType = (typeof meta.sourceType === 'string') ? meta.sourceType.trim() : '';
+        if (sourceType) normalizedMeta.sourceType = sourceType;
+        return normalizedMeta;
+    }
+
+    function enqueueChargeDelta(cardState, playerKey, before, after, reason, meta) {
         if (!cardState) return;
         const normalized = normalizePlayerKey(playerKey);
         if (!normalized) return;
         const delta = after - before;
         if (!Number.isFinite(delta) || delta === 0) return;
         ensureChargeState(cardState);
-        cardState.chargeDeltaEvents.push({
+        const event = {
             seq: cardState._nextChargeDeltaSeq++,
             player: normalized,
             delta,
             before,
             after,
             reason: reason || null
-        });
+        };
+        const popupMeta = normalizeChargePopupMeta(meta);
+        if (popupMeta) Object.assign(event, popupMeta);
+        cardState.chargeDeltaEvents.push(event);
     }
 
-    function setChargeWithDelta(cardState, playerKey, nextValue, reason) {
+    function setChargeWithDelta(cardState, playerKey, nextValue, reason, meta) {
         const normalized = normalizePlayerKey(playerKey);
         if (!cardState || !normalized) return { changed: false, before: 0, after: 0, delta: 0 };
 
@@ -262,7 +286,7 @@
         const after = Math.max(0, Math.min(CHARGE_MAX || 99, safeRequested));
 
         cardState.charge[normalized] = after;
-        enqueueChargeDelta(cardState, normalized, safeBefore, after, reason);
+        enqueueChargeDelta(cardState, normalized, safeBefore, after, reason, meta);
 
         return {
             changed: after !== safeBefore,
@@ -272,7 +296,7 @@
         };
     }
 
-    function addChargeWithDelta(cardState, playerKey, amount, reason) {
+    function addChargeWithDelta(cardState, playerKey, amount, reason, meta) {
         const normalized = normalizePlayerKey(playerKey);
         if (!cardState || !normalized) return { changed: false, before: 0, after: 0, delta: 0 };
         ensureChargeState(cardState);
@@ -280,7 +304,7 @@
         const safeBefore = Number.isFinite(beforeRaw) ? beforeRaw : 0;
         const add = Number(amount);
         const safeAdd = Number.isFinite(add) ? add : 0;
-        return setChargeWithDelta(cardState, normalized, safeBefore + safeAdd, reason);
+        return setChargeWithDelta(cardState, normalized, safeBefore + safeAdd, reason, meta);
     }
 
         return {

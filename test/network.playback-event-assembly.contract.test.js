@@ -64,10 +64,11 @@ async function closeServer(server) {
   await new Promise((resolve) => server.close(() => resolve()));
 }
 
-async function openSseStream(port, path) {
+async function openSseStream(port, path, options = {}) {
   const controller = new AbortController();
+  const headers = { Accept: 'text/event-stream', ...(options && options.headers ? options.headers : {}) };
   const response = await fetch(`http://127.0.0.1:${port}${path}`, {
-    headers: { Accept: 'text/event-stream' },
+    headers,
     signal: controller.signal
   });
   if (!response.ok || !response.body) {
@@ -95,9 +96,14 @@ async function openSseStream(port, path) {
   function parseBlock(block) {
     const lines = block.split(/\r?\n/);
     let eventName = 'message';
+    let eventId = '';
     const dataLines = [];
     for (const line of lines) {
       if (!line) continue;
+      if (line.startsWith('id:')) {
+        eventId = line.slice(3).trim();
+        continue;
+      }
       if (line.startsWith('event:')) {
         eventName = line.slice(6).trim();
         continue;
@@ -108,6 +114,7 @@ async function openSseStream(port, path) {
     }
     const rawData = dataLines.join('\n');
     return {
+      id: eventId,
       event: eventName,
       data: rawData ? JSON.parse(rawData) : null
     };
@@ -141,12 +148,12 @@ async function openSseStream(port, path) {
   })();
 
   return {
-    async nextEvent(expectedEventName, timeoutMs = 5000) {
+    async nextRawEvent(expectedEventName, timeoutMs = 5000) {
       const deadline = Date.now() + timeoutMs;
       while (Date.now() < deadline) {
         while (queue.length > 0) {
           const event = queue.shift();
-          if (event && event.event === expectedEventName) return event.data;
+          if (event && event.event === expectedEventName) return event;
         }
         const remaining = deadline - Date.now();
         if (remaining <= 0) break;
@@ -167,10 +174,14 @@ async function openSseStream(port, path) {
             reject(error);
           };
         });
-        if (event && event.event === expectedEventName) return event.data;
+        if (event && event.event === expectedEventName) return event;
         queue.push(event);
       }
       throw new Error(`SSE_TIMEOUT:${expectedEventName}`);
+    },
+    async nextEvent(expectedEventName, timeoutMs = 5000) {
+      const event = await this.nextRawEvent(expectedEventName, timeoutMs);
+      return event ? event.data : null;
     },
     async close() {
       controller.abort();
@@ -473,6 +484,124 @@ describe('network playback event assembly contract', () => {
     } finally {
       if (stream) {
         await stream.close();
+      }
+      if (room && room.server) {
+        await closeServer(room.server);
+      }
+    }
+  }, 20000);
+
+  test('local match stream replays missed snapshot events after Last-Event-ID reconnect', async () => {
+    let room = null;
+    let firstStream = null;
+    let resumedStream = null;
+    try {
+      room = await createJoinedLocalRoom();
+      expect(room.stateResponse.status).toBe(200);
+      expect(room.stateResponse.data.ok).toBe(true);
+
+      const initialSnapshot = room.stateResponse.data.snapshot;
+      const initialTurnIndex = Number(initialSnapshot && initialSnapshot.cardState && initialSnapshot.cardState.turnIndex) || 1;
+
+      firstStream = await openSseStream(
+        room.port,
+        `/api/match/stream?roomId=${encodeURIComponent(room.roomId)}&seatKey=black&seatToken=${encodeURIComponent(room.blackToken)}`
+      );
+      await firstStream.nextEvent('snapshot');
+
+      const blackPublish = await requestJson(room.port, 'POST', '/api/match/publish', {
+        roomId: room.roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken: room.blackToken,
+        baseVersion: room.stateResponse.data.stateVersion,
+        operationId: 'op_resume_black_1',
+        actionType: 'place',
+        actor: 'black',
+        params: { row: 2, col: 3 },
+        turnIndex: initialTurnIndex,
+        action: {
+          type: 'place',
+          playerKey: 'black',
+          row: 2,
+          col: 3,
+          turnIndex: initialTurnIndex
+        }
+      });
+      expect(blackPublish.status).toBe(200);
+      expect(blackPublish.data.ok).toBe(true);
+      expect(blackPublish.data.snapshot._meta).toEqual(expect.objectContaining({
+        authority: 'server',
+        version: blackPublish.data.stateVersion,
+        projectedForSeat: 'black',
+        turnStartReconciled: true
+      }));
+
+      const broadcastedSnapshot = await firstStream.nextRawEvent('snapshot');
+      const lastEventId = broadcastedSnapshot.id;
+      expect(lastEventId).toBeTruthy();
+
+      await firstStream.close();
+      firstStream = null;
+
+      const afterBlackSnapshot = blackPublish.data.snapshot;
+      const whiteTurnIndex = Number(afterBlackSnapshot && afterBlackSnapshot.cardState && afterBlackSnapshot.cardState.turnIndex) || 2;
+      const whitePublish = await requestJson(room.port, 'POST', '/api/match/publish', {
+        roomId: room.roomId,
+        seatKey: 'white',
+        playerKey: 'white',
+        seatToken: room.whiteToken,
+        baseVersion: blackPublish.data.stateVersion,
+        operationId: 'op_resume_white_1',
+        actionType: 'place',
+        actor: 'white',
+        params: { row: 2, col: 2 },
+        turnIndex: whiteTurnIndex,
+        action: {
+          type: 'place',
+          playerKey: 'white',
+          row: 2,
+          col: 2,
+          turnIndex: whiteTurnIndex
+        }
+      });
+      expect(whitePublish.status).toBe(200);
+      expect(whitePublish.data.ok).toBe(true);
+      expect(whitePublish.data.snapshot._meta).toEqual(expect.objectContaining({
+        authority: 'server',
+        version: whitePublish.data.stateVersion,
+        projectedForSeat: 'white',
+        turnStartReconciled: true
+      }));
+
+      resumedStream = await openSseStream(
+        room.port,
+        `/api/match/stream?roomId=${encodeURIComponent(room.roomId)}&seatKey=black&seatToken=${encodeURIComponent(room.blackToken)}`,
+        { headers: { 'Last-Event-ID': lastEventId } }
+      );
+      const resumedSnapshot = await resumedStream.nextRawEvent('snapshot');
+      expect(resumedSnapshot.id).toBeTruthy();
+      expect(resumedSnapshot.id).not.toBe(lastEventId);
+      expect(resumedSnapshot.data).toMatchObject({
+        ok: true,
+        roomId: room.roomId,
+        stateVersion: whitePublish.data.stateVersion,
+        snapshot: expect.objectContaining({
+          stateVersion: whitePublish.data.snapshot.stateVersion,
+          _meta: expect.objectContaining({
+            authority: 'server',
+            version: whitePublish.data.stateVersion,
+            projectedForSeat: 'black',
+            turnStartReconciled: true
+          })
+        })
+      });
+    } finally {
+      if (firstStream) {
+        await firstStream.close();
+      }
+      if (resumedStream) {
+        await resumedStream.close();
       }
       if (room && room.server) {
         await closeServer(room.server);

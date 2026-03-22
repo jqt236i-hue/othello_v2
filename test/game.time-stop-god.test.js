@@ -85,7 +85,7 @@ function createChainBoardState() {
 }
 
 describe('TIME_STOP_GOD（時間停石）', () => {
-  test('5個未満しか自石を破壊できない盤面では使用できない', () => {
+  test('3個未満しか自石を破壊できない盤面では使用できない', () => {
     const prng = createPrng(0.25);
     const cardState = CardLogic.createCardState(prng);
     const gameState = createEmptyGameState();
@@ -107,7 +107,7 @@ describe('TIME_STOP_GOD（時間停石）', () => {
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 
-  test('自石が21個未満でも破壊可能自石が5個あれば使用できる', () => {
+  test('自石が21個未満でも破壊可能自石が3個あれば使用できる', () => {
     const prng = createPrng(0.4);
     const cardState = CardLogic.createCardState(prng);
     const gameState = createEmptyGameState();
@@ -133,7 +133,7 @@ describe('TIME_STOP_GOD（時間停石）', () => {
     expect(cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({ type: 'TIME_STOP_GOD' }));
   });
 
-  test('使用後の次配置で5個の自石を破壊し、時間停石を配置する', () => {
+  test('使用後の次配置で3個の自石を破壊し、時間停石を配置する', () => {
     const { def, prng, cardState, gameState } = createPlacementState();
 
     expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).toContain(def.id);
@@ -147,24 +147,22 @@ describe('TIME_STOP_GOD（時間停石）', () => {
       { skipTurnStart: true }
     );
 
+    const costResolved = useRes.events.find((event) => event && event.type === 'time_stop_god_cost_resolved');
+    expect(costResolved).toBeTruthy();
+    expect(costResolved.destroyedCount).toBe(Shared.TIME_STOP_GOD_SELF_DESTROY_COUNT);
+    expect(costResolved.destroyed).toEqual(expect.arrayContaining([
+      { row: 0, col: 0 },
+      { row: 0, col: 1 },
+      { row: 0, col: 2 }
+    ]));
+    expect(costResolved.destroyed).toHaveLength(Shared.TIME_STOP_GOD_SELF_DESTROY_COUNT);
     expect(gameState.board[0][0]).toBe(Core.EMPTY);
     expect(gameState.board[0][1]).toBe(Core.EMPTY);
     expect(gameState.board[0][2]).toBe(Core.EMPTY);
-    expect(gameState.board[0][3]).toBe(Core.EMPTY);
-    expect(gameState.board[0][4]).toBe(Core.EMPTY);
+    expect(gameState.board[0][3]).toBe(Core.BLACK);
+    expect(gameState.board[0][4]).toBe(Core.BLACK);
     expect(useRes.events).toEqual(expect.arrayContaining([
-      expect.objectContaining({ type: 'card_used', player: 'black', cardId: def.id }),
-      expect.objectContaining({
-        type: 'time_stop_god_cost_resolved',
-        destroyedCount: 5,
-        destroyed: expect.arrayContaining([
-          { row: 0, col: 0 },
-          { row: 0, col: 1 },
-          { row: 0, col: 2 },
-          { row: 0, col: 3 },
-          { row: 0, col: 4 }
-        ])
-      })
+      expect.objectContaining({ type: 'card_used', player: 'black', cardId: def.id })
     ]));
     expect(cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({ type: 'TIME_STOP_GOD' }));
 

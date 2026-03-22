@@ -266,10 +266,15 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
       player: 'black',
       heavenBlessingCardId: 'offer_2'
     });
-    expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
     expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
     expect(global.cardState.hands.black).toEqual(['dummy_01', 'offer_2']);
     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
     expect(document.getElementById('heaven-blessing-overlay').classList.contains('active')).toBe(false);
+
+    window.onCardClick('offer_2', 'black');
+    expect(global.cardState.selectedCardId).toBe('offer_2');
   });
 });

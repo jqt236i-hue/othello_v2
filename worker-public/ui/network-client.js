@@ -14,6 +14,7 @@
     const REQUEST_TIMEOUT_MS = 10000;
     const STREAM_WATCHDOG_INTERVAL_MS = 5000;
     const STREAM_STALE_TIMEOUT_MS = 45000;
+    const RECONNECT_STREAM_RECOVERY_WAIT_MS = 350;
     const PUBLISH_RETRY_MAX_ATTEMPTS = 3;
     const PUBLISH_RETRY_BASE_DELAY_MS = 400;
     const PUBLISH_RETRY_MAX_DELAY_MS = 4000;
@@ -210,12 +211,16 @@
         turnTimerTickHandle: 0,
         turnTimerSyncRequestedDeadline: null,
         serverTimeOffsetMs: 0,
-        heartbeatResyncInFlight: false
-        ,
+        heartbeatResyncInFlight: false,
+        reconnectRecoveryTimerId: null,
+        reconnectRecoveryPending: false,
         authoritativeMatchState: {
             gameState: null,
             cardState: null,
-            stateVersion: null
+            stateVersion: null,
+            authority: null,
+            projectedForSeat: null,
+            turnStartReconciled: false
         },
         localPresentationState: {
             preservedQueues: null,
@@ -569,9 +574,41 @@
     }
 
     function getSnapshotStateVersion(snapshot) {
+        const meta = getSnapshotMeta(snapshot);
+        if (meta && meta.version !== null) return meta.version;
         return Number.isFinite(Number(snapshot && snapshot.stateVersion))
             ? Number(snapshot.stateVersion)
             : null;
+    }
+
+    function getSnapshotMeta(snapshot) {
+        if (!snapshot || typeof snapshot !== 'object' || !snapshot._meta || typeof snapshot._meta !== 'object') {
+            return null;
+        }
+        const meta = snapshot._meta;
+        return {
+            authority: String(meta.authority || '').trim().toLowerCase(),
+            version: Number.isFinite(Number(meta.version)) ? Number(meta.version) : null,
+            projectedForSeat: normalizePlayerKey(meta.projectedForSeat),
+            turnStartReconciled: meta.turnStartReconciled !== false
+        };
+    }
+
+    function isVersionConflictReason(reasonValue) {
+        const reason = String(reasonValue || '').trim();
+        return reason === 'VERSION_MISMATCH'
+            || reason === 'VERSION_AHEAD'
+            || reason === 'VERSION_BEHIND'
+            || reason === 'VERSION_GAP';
+    }
+
+    function getVersionConflictTelemetryKey(reasonValue) {
+        const reason = String(reasonValue || '').trim();
+        if (reason === 'VERSION_AHEAD') return 'publish_version_ahead';
+        if (reason === 'VERSION_BEHIND') return 'publish_version_behind';
+        if (reason === 'VERSION_GAP') return 'publish_version_gap';
+        if (reason === 'VERSION_MISMATCH') return 'publish_version_mismatch';
+        return '';
     }
 
     function resolveRejectedPublishSnapshotHandling(entry, payload, rejectedReason) {
@@ -603,7 +640,7 @@
         if (localStateVersionBefore !== null && snapshotVersion < localStateVersionBefore) {
             return { shouldApplySnapshot: false, skipReason: 'stale_snapshot_version', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
         }
-        if (reason === 'VERSION_MISMATCH' && localStateVersionBefore !== null && snapshotVersion === localStateVersionBefore) {
+        if (isVersionConflictReason(reason) && localStateVersionBefore !== null && snapshotVersion === localStateVersionBefore) {
             return { shouldApplySnapshot: false, skipReason: 'same_version_version_mismatch', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
         }
         if (shouldSkipForceSyncSnapshot(snapshot)) {
@@ -782,6 +819,13 @@
         if (!payload || typeof payload !== 'object') return;
         updateTurnTimerFromPayload(payload);
         updateRoomSeatsFromPayload(payload);
+        const snapshotMeta = getSnapshotMeta(payload.snapshot);
+        if (snapshotMeta && snapshotMeta.authority === 'server') {
+            state.authoritativeMatchState.stateVersion = getSnapshotStateVersion(payload.snapshot);
+            state.authoritativeMatchState.authority = snapshotMeta.authority;
+            state.authoritativeMatchState.projectedForSeat = snapshotMeta.projectedForSeat;
+            state.authoritativeMatchState.turnStartReconciled = snapshotMeta.turnStartReconciled;
+        }
         const warnings = (payload.playbackDiagnostics && Array.isArray(payload.playbackDiagnostics.warnings))
             ? payload.playbackDiagnostics.warnings.filter((warning) => String(warning || '').trim())
             : [];
@@ -1058,9 +1102,7 @@
     function markTrackedPublishSelfSnapshot(entry, snapshot) {
         if (!entry || typeof entry !== 'object') return;
         entry.selfSnapshotReceived = true;
-        entry.selfSnapshotVersion = Number.isFinite(Number(snapshot && snapshot.stateVersion))
-            ? Number(snapshot.stateVersion)
-            : null;
+        entry.selfSnapshotVersion = getSnapshotStateVersion(snapshot);
         if (entry.responseSettled === true) {
             settleTrackedPublish(entry);
         }
@@ -1097,9 +1139,7 @@
         if (hasNewerQueuedPublish(entry.sequence)) return false;
         if (entry.selfSnapshotReceived !== true) return true;
 
-        const responseVersion = Number.isFinite(Number(snapshot && snapshot.stateVersion))
-            ? Number(snapshot.stateVersion)
-            : null;
+        const responseVersion = getSnapshotStateVersion(snapshot);
         const selfSnapshotVersion = Number.isFinite(Number(entry.selfSnapshotVersion))
             ? Number(entry.selfSnapshotVersion)
             : null;
@@ -1151,9 +1191,7 @@
     function shouldSkipForceSyncSnapshot(snapshot) {
         if (!hasPendingLocalPublishes()) return false;
 
-        const remoteVersion = Number.isFinite(Number(snapshot && snapshot.stateVersion))
-            ? Number(snapshot.stateVersion)
-            : null;
+        const remoteVersion = getSnapshotStateVersion(snapshot);
         const localVersion = Number.isFinite(Number(state.stateVersion))
             ? Number(state.stateVersion)
             : null;
@@ -1627,6 +1665,32 @@
         }
     }
 
+    function clearReconnectRecoveryTimer() {
+        if (state.reconnectRecoveryTimerId !== null) {
+            clearScheduledTimeout(state.reconnectRecoveryTimerId);
+            state.reconnectRecoveryTimerId = null;
+        }
+    }
+
+    function completeReconnectRecoveryFromStream() {
+        if (!state.reconnectRecoveryPending) return;
+        state.reconnectRecoveryPending = false;
+        clearReconnectRecoveryTimer();
+    }
+
+    function scheduleReconnectRecoverySync() {
+        clearReconnectRecoveryTimer();
+        state.reconnectRecoveryPending = true;
+        state.reconnectRecoveryTimerId = scheduleTimeout(() => {
+            state.reconnectRecoveryTimerId = null;
+            if (!state.reconnectRecoveryPending) return;
+            state.reconnectRecoveryPending = false;
+            syncLatestStateWithRetry({ maxAttempts: 3, baseDelayMs: 350 }).catch(() => {
+                // Keep stream path resilient; next snapshot or reconnect will recover.
+            });
+        }, RECONNECT_STREAM_RECOVERY_WAIT_MS);
+    }
+
     function clearStreamWatchdogTimer() {
         if (!state.streamWatchdogTimerId) return;
         clearScheduledTimeout(state.streamWatchdogTimerId);
@@ -1687,6 +1751,8 @@
 
     function closeStream() {
         clearReconnectTimer();
+        clearReconnectRecoveryTimer();
+        state.reconnectRecoveryPending = false;
         clearStreamWatchdogTimer();
         if (state.eventSource) {
             try { state.eventSource.close(); } catch (e) { /* ignore */ }
@@ -1767,10 +1833,14 @@
             pruneTrackedPublishes();
         };
 
-        const handleStreamEvent = createStreamPayloadHandler(onSnapshot);
+        const handleStreamEvent = createStreamPayloadHandler((payload) => {
+            completeReconnectRecoveryFromStream();
+            onSnapshot(payload);
+        });
         const handlePresenceEvent = createStreamPayloadHandler(handlePresencePayload);
         const handleChatEvent = createStreamPayloadHandler(handleChatPayload);
         const handleHeartbeatEvent = createStreamPayloadHandler((payload) => {
+            completeReconnectRecoveryFromStream();
             applyPayloadSessionState(payload);
             maybeSyncFromHeartbeat(payload);
         });
@@ -1789,9 +1859,7 @@
             state.reconnectAttempt = 0;
             if (hadReconnect) {
                 emitStatus('ネット対戦: 接続を回復しました', false);
-                syncLatestStateWithRetry({ maxAttempts: 3, baseDelayMs: 350 }).catch(() => {
-                    // Keep stream path resilient; next snapshot or reconnect will recover.
-                });
+                scheduleReconnectRecoverySync();
             }
         };
 
@@ -2133,7 +2201,8 @@
                     const reason = (res.data && res.data.rejectedReason) || 'PUBLISH_REJECTED';
                     applyPayloadSessionState(res.data);
                     const rejectionHandling = resolveRejectedPublishSnapshotHandling(trackedPublish, res.data, reason);
-                    recordNetworkTelemetry(reason === 'VERSION_MISMATCH' ? 'publish_version_mismatch' : 'publish_rejected', {
+                    const versionTelemetryKey = getVersionConflictTelemetryKey(reason);
+                    recordNetworkTelemetry(versionTelemetryKey || 'publish_rejected', {
                         reason,
                         operationId,
                         sequence: trackedPublish.sequence,
@@ -2141,6 +2210,16 @@
                         rejectionStateVersion: rejectionHandling.rejectionStateVersion,
                         localStateVersionBefore: rejectionHandling.localStateVersionBefore
                     });
+                    if (versionTelemetryKey && versionTelemetryKey !== 'publish_version_mismatch') {
+                        recordNetworkTelemetry('publish_version_mismatch', {
+                            reason,
+                            operationId,
+                            sequence: trackedPublish.sequence,
+                            snapshotVersion: rejectionHandling.snapshotVersion,
+                            rejectionStateVersion: rejectionHandling.rejectionStateVersion,
+                            localStateVersionBefore: rejectionHandling.localStateVersionBefore
+                        });
+                    }
                     if (rejectionHandling.shouldApplySnapshot) {
                         const applied = applySnapshotThroughCoordinator(res.data.snapshot, {
                             source: 'publish_rejection',
@@ -2242,7 +2321,7 @@
         }
 
         if (firstResult && firstResult.ok === true) return firstResult;
-        if (!firstResult || firstResult.reason !== 'VERSION_MISMATCH') return firstResult || { ok: false, reason: 'REMATCH_REQUEST_FAILED' };
+        if (!firstResult || !isVersionConflictReason(firstResult.reason)) return firstResult || { ok: false, reason: 'REMATCH_REQUEST_FAILED' };
 
         try {
             await syncLatestStateWithRetry({ maxAttempts: 2, baseDelayMs: 250 });

@@ -622,13 +622,15 @@
                     willHunterKingSlashPhase = null;
                     // Map CHANGE -> flip to match UI AnimationEngine expectations (Spec B)
                     pEvent.type = 'flip';
+                    const changeMeta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
                     pEvent.targets = [{
                         r: ev.row,
                         col: ev.col,
                         ownerBefore: ev.ownerBefore,
                         ownerAfter: ev.ownerAfter,
                         cause: ev.cause || null,
-                        reason: ev.reason || null
+                        reason: ev.reason || null,
+                        meta: changeMeta
                     }];
                     const isChainFlip = isChainFlipPresentationEvent(ev);
                     const chainFlipLink = isChainFlip ? getChainFlipLink(ev) : null;
@@ -877,6 +879,25 @@
                         owner: ev.owner || ev.player || (ev.meta && ev.meta.owner) || null,
                         gained: Number(ev.gained) || 0,
                         text: (typeof ev.text === 'string' && ev.text.trim()) ? ev.text.trim() : ((ev.meta && typeof ev.meta.text === 'string' && ev.meta.text.trim()) ? ev.meta.text.trim() : null)
+                    }];
+                    break;
+                case 'CHARGE_BUBBLE':
+                    prevWasChainFlip = false;
+                    prevChainFlipLink = null;
+                    prevDestroyCause = null;
+                    willHunterKingSlashPhase = null;
+                    // Keep charge gain bubbles in the same readable phase as the flip/move
+                    // that produced them so the board popup appears without an extra delay.
+                    pEvent.phase = currentPhase;
+                    pEvent.type = 'observer_bubble';
+                    pEvent.targets = [{
+                        r: ev.row,
+                        col: ev.col,
+                        owner: ev.owner || ev.player || (ev.meta && ev.meta.owner) || null,
+                        gained: Number(ev.gained) || 0,
+                        text: (typeof ev.text === 'string' && ev.text.trim()) ? ev.text.trim() : null,
+                        bubbleKind: 'charge',
+                        sourceType: (ev.meta && ev.meta.sourceType) ? ev.meta.sourceType : null
                     }];
                     break;
                 default:
@@ -1194,13 +1215,21 @@
     function _isHyperactiveMoveTarget(target) {
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
+        const isFlipEvadeMove = reason.indexOf('flip_evade_move') >= 0;
+        const isDestroyEvadeMove =
+            cause === 'DESTROY_EVADE' ||
+            reason.indexOf('destroy_evade_move') === 0;
         return (
             cause === 'HYPERACTIVE' ||
+            cause === 'AFTERIMAGE_WILL' ||
             cause === 'ESCAPE_HYPERACTIVE' ||
             cause === 'EXTREME_HYPERACTIVE_WILL' ||
             cause === 'GLUTTONOUS_WILL' ||
             cause === 'ULTIMATE_HYPERACTIVE' ||
             cause === 'ULTIMATE_HYPERACTIVE_GOD' ||
+            cause === 'WILL_HUNTER_KING' ||
+            isFlipEvadeMove ||
+            isDestroyEvadeMove ||
             reason.indexOf('hyperactive') >= 0 ||
             reason.indexOf('gluttonous') >= 0
         );
@@ -1230,10 +1259,15 @@
     function _isSpecialDurationExpiredDestroyTarget(target) {
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
-        if (!reason || reason.indexOf('expired') < 0) return false;
+        const special = String(target && target.meta && target.meta.special ? target.meta.special : '').toUpperCase();
+        const isDurationEnd =
+            reason === 'duration_end' ||
+            reason.indexOf('duration') >= 0 ||
+            reason.indexOf('expire') >= 0;
+        if (!isDurationEnd) return false;
         if (cause === 'TRAP_WILL' && (reason.indexOf('trap_expired') >= 0 || reason.indexOf('trap_disarmed') >= 0)) return false;
         if (BOMB_DESTROY_CAUSES.has(cause)) return false;
-        return SPECIAL_DURATION_EXPIRE_CAUSES.has(cause);
+        return SPECIAL_DURATION_EXPIRE_CAUSES.has(cause) || !!special;
     }
 
     function _isSpecialDurationExpiredDestroyEvent(ev) {
@@ -1790,7 +1824,7 @@
             if (_isLightningDestroyTarget(t)) return false;
             if (_isRobotVacuumSuckDestroyTarget(t)) return false;
             if (_isGoldSilverSelfDestroyTarget(t)) return false;
-            if (cause === 'ULTIMATE_DESTROY_GOD' && reason.indexOf('expired') >= 0) return false;
+            if (_isSpecialDurationExpiredDestroyTarget(t)) return false;
             if (cause === 'TRAP_WILL' && (reason.indexOf('trap_expired') >= 0 || reason.indexOf('trap_disarmed') >= 0)) return false;
             return true;
             });

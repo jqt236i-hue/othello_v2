@@ -187,6 +187,36 @@ describe('visual-effects map shared between game/ui', () => {
     expect(willHunterKingMap.imagePathByOwner['-1']).toContain('WILL_HUNTER_KING-white.png');
   });
 
+  test('GHOST_WILL と GHOST が正式画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared).toBeTruthy();
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.GHOST_WILL).toBe('ghostStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.GHOST).toBe('ghostStone');
+
+    const ghostMap = shared.STONE_VISUAL_EFFECTS.ghostStone;
+    expect(ghostMap).toBeTruthy();
+    expect(ghostMap.imagePathByOwner['1']).toContain('GHOST_WILL-black.png');
+    expect(ghostMap.imagePathByOwner['-1']).toContain('GHOST_WILL-white.png');
+  });
+
+  test('AFTERIMAGE_WILL が残像石画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared).toBeTruthy();
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.AFTERIMAGE_WILL).toBe('afterimageStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.AFTERIMAGE_WILL).toBe('afterimageStone');
+
+    const afterimageMap = shared.STONE_VISUAL_EFFECTS.afterimageStone;
+    expect(afterimageMap).toBeTruthy();
+    expect(afterimageMap.imagePathByOwner['1']).toContain('ZAN-BLACK.png');
+    expect(afterimageMap.imagePathByOwner['-1']).toContain('ZAN-WHITE.png');
+  });
+
   test('ABSOLUTE_PROTECTED が昇格後の絶対保護石画像へ解決される', () => {
     require('../ui/visual-effects-map');
     require('../game/visual-effects-map');

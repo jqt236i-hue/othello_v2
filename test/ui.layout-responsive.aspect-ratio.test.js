@@ -177,7 +177,8 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(layoutCss).toMatch(/#cpu-character-img[\s\S]*--layout-cpu-image-scale/);
     expect(layoutCss).toMatch(/\.charge-display[\s\S]*font-size:\s*var\(--layout-size-charge-font\)/);
     expect(layoutCss).toMatch(/#charge-black[\s\S]*bottom:\s*var\(--layout-size-charge-offset\)/);
-    expect(layoutCss).toMatch(/#charge-delta-black[\s\S]*--charge-delta-base-transform:\s*translateX\(-50%\)\s*translateX\(calc\(-1\s*\*\s*var\(--layout-size-charge-delta-shift-x\)\)\)/);
+    expect(layoutCss).toMatch(/#charge-delta-black[\s\S]*--charge-delta-base-transform:\s*translateX\(-50%\)/);
+    expect(layoutCss).toMatch(/\.charge-delta[\s\S]*-webkit-text-stroke/);
     expect(cardsCss).toMatch(/\.deck-stack[\s\S]*width:\s*calc\(var\(--layout-size-deck-width\)\s*\*\s*var\(--layout-priority-deck-scale\)\)/);
     expect(cardsCss).toMatch(/\.card-item[\s\S]*width:\s*var\(--layout-size-card-width\)/);
     expect(cardsCss).toMatch(/#hand-black \.card-item[\s\S]*width:\s*calc\(var\(--layout-size-card-large-width\)\s*\*\s*var\(--layout-priority-hand-scale\)\)/);

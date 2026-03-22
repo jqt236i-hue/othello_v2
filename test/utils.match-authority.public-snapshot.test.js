@@ -97,9 +97,8 @@ describe('match authority public snapshot trap visibility', () => {
     ]));
   });
 
-  test('rehydrateSnapshotForPublish は時間停止状態を保ったまま transient state を除去する', () => {
-    const previousSnapshot = createSnapshot();
-    const incomingSnapshot = {
+  test('stripTransientPresentationState は時間停止状態を保ったまま transient state を除去する', () => {
+    const snapshot = {
       stateVersion: 8,
       gameState: {
         currentPlayer: 1,
@@ -129,12 +128,12 @@ describe('match authority public snapshot trap visibility', () => {
       }
     };
 
-    const rehydrated = MatchAuthority.rehydrateSnapshotForPublish(previousSnapshot, incomingSnapshot);
+    const sanitized = MatchAuthority.stripTransientPresentationState(snapshot);
 
-    expect(rehydrated.cardState.hands.white).toEqual(['w1']);
-    expect(rehydrated.cardState.discard).toEqual(['w1']);
-    expect(rehydrated.cardState.timeStopConsecutiveTurnsRemainingByPlayer).toEqual({ black: 1, white: 0 });
-    expect(rehydrated.cardState.markers).toEqual(expect.arrayContaining([
+    expect(sanitized.cardState.hands.white).toEqual(['__hidden_hand__:white:0']);
+    expect(sanitized.cardState.discard).toEqual(['__hidden_hand__:white:0']);
+    expect(sanitized.cardState.timeStopConsecutiveTurnsRemainingByPlayer).toEqual({ black: 1, white: 0 });
+    expect(sanitized.cardState.markers).toEqual(expect.arrayContaining([
       expect.objectContaining({
         row: 4,
         col: 4,
@@ -142,62 +141,32 @@ describe('match authority public snapshot trap visibility', () => {
         data: expect.objectContaining({ type: 'TIME_STOP', remainingOwnerTurns: 1 })
       })
     ]));
-    expect(rehydrated.cardState.presentationEvents).toEqual([]);
-    expect(rehydrated.cardState._presentationEventsPersist).toEqual([]);
-    expect(rehydrated.gameState.__resultShown).toBeUndefined();
+    expect(sanitized.cardState.presentationEvents).toEqual([]);
+    expect(sanitized.cardState._presentationEventsPersist).toEqual([]);
+    expect(sanitized.gameState.__resultShown).toBeUndefined();
   });
 
-  test('rehydrateSnapshotForPublish sanitizes malformed or out-of-range hidden tokens before they reach authority state', () => {
-    const previousSnapshot = createSnapshot();
-    previousSnapshot.cardState.hands.white = ['w1', 'w2'];
-    const incomingSnapshot = {
-      stateVersion: 8,
+  test('stripTransientChargeDeltaState は charge ledger を残したまま stale delta queue だけ除去する', () => {
+    const snapshot = {
+      stateVersion: 9,
       gameState: {
         currentPlayer: 1,
-        turnNumber: 13
+        turnNumber: 14
       },
       cardState: {
-        hands: {
-          black: ['b1'],
-          white: ['__hidden_hand__:white:99', '__hidden_hand__:white:-1', '__hidden_hand__:white:999']
-        },
-        discard: ['__hidden_hand__:white:1', '__hidden_hand__:white:999', '__hidden_hand__:white:-1'],
-        selectedCardId: '__hidden_hand__:white:999',
-        selectedCardOwnerKey: 'white',
-        pendingEffectByPlayer: {
-          black: {
-            type: 'CONDEMN_WILL',
-            stage: 'selectTarget',
-            offers: [
-              { handIndex: 99, cardId: '__hidden_hand__:white:999' },
-              { handIndex: 1, cardId: '__hidden_hand__:white:-1' },
-              { handIndex: 99, cardId: '__hidden_hand__:white:999' }
-            ]
-          },
-          white: null
-        },
-        presentationEvents: [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'flip', phase: 1 }] }],
-        _presentationEventsPersist: [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'flip', phase: 2 }] }]
+        charge: { black: 3, white: 1 },
+        chargeGainedTotal: { black: 3, white: 1 },
+        chargeDeltaEvents: [
+          { seq: 1, player: 'black', delta: 1, before: 2, after: 3, reason: 'turn_gain' }
+        ]
       }
     };
 
-    const rehydrated = MatchAuthority.rehydrateSnapshotForPublish(previousSnapshot, incomingSnapshot);
+    const sanitized = MatchAuthority.stripTransientChargeDeltaState(snapshot);
 
-    expect(rehydrated.cardState.hands.white).toEqual(['w1', 'w2']);
-    expect(rehydrated.cardState.discard).toEqual(['w2']);
-    expect(rehydrated.cardState.selectedCardId).toBeNull();
-    expect(rehydrated.cardState.selectedCardOwnerKey).toBeNull();
-    expect(rehydrated.cardState.pendingEffectByPlayer.black.offers).toEqual([
-      { handIndex: 0, cardId: 'w1' },
-      { handIndex: 1, cardId: 'w2' }
-    ]);
-
-    const hiddenStrings = [
-      ...rehydrated.cardState.hands.white,
-      ...rehydrated.cardState.discard,
-      ...rehydrated.cardState.pendingEffectByPlayer.black.offers.map((offer) => offer.cardId)
-    ].filter((value) => typeof value === 'string' && value.startsWith('__hidden_hand__:'));
-    expect(hiddenStrings).toEqual([]);
+    expect(sanitized.cardState.charge).toEqual({ black: 3, white: 1 });
+    expect(sanitized.cardState.chargeGainedTotal).toEqual({ black: 3, white: 1 });
+    expect(sanitized.cardState.chargeDeltaEvents).toEqual([]);
   });
 
   test('time stop marker details stay visible in opponent public snapshots', () => {

@@ -76,10 +76,12 @@ describe('数字マス（初期配置・配置報酬）', () => {
       { type: 'place', row: 0, col: 0 },
       prng
     );
+    const firstBubble = (first.presentationEvents || []).find((ev) => ev && ev.type === 'CHARGE_BUBBLE' && ev.meta && ev.meta.sourceType === 'number_cell_gain');
 
     const blackChargeAfter = Number(cardState.charge.black || 0);
     expect(blackChargeAfter - blackChargeBefore).toBe(targetBonus);
     expect(cardState.boardBonusConsumedByCell[targetKey]).toBe(true);
+    expect(firstBubble).toMatchObject({ row: 0, col: 0, gained: targetBonus });
 
     gameState.board[0][0] = Shared.EMPTY;
     gameState.currentPlayer = Shared.WHITE;
@@ -143,10 +145,14 @@ describe('数字マス（初期配置・配置報酬）', () => {
 
     const placementEffects = result.events.find((ev) => ev && ev.type === 'placement_effects');
     const bonusEvent = result.events.find((ev) => ev && ev.type === 'board_bonus_gain');
+    const chargeBubbles = (result.presentationEvents || []).filter((ev) => ev && ev.type === 'CHARGE_BUBBLE');
+    const combinedBubble = chargeBubbles[0] || null;
 
     expect(Number(cardState.charge.black || 0) - blackChargeBefore).toBe(1 + (targetBonus * 4));
     expect(bonusEvent).toMatchObject({ bonus: targetBonus, gained: targetBonus * 4, multiplier: 4, boostedBy: 'CRYSTAL_STONE' });
     expect(placementEffects && placementEffects.effects).toMatchObject({ crystalStoneUsed: true, crystalStoneGain: targetBonus * 4, chargeGained: 1 });
+    expect(chargeBubbles).toHaveLength(1);
+    expect(combinedBubble).toMatchObject({ row, col, gained: targetBonus * 4 + 1 });
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
     expect(gameState.board[row][col]).toBe(Shared.EMPTY);
   });

@@ -781,6 +781,105 @@ function runTimeStopGuardianCommandChainScenario() {
   return runPublishScenario(runner);
 }
 
+function runChargeDeltaReplayScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const path = require('path');",
+    "  const fromRoot = (relativePath) => require(path.resolve(process.cwd(), relativePath));",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const Core = fromRoot('game/logic/core.js');",
+    "  const CardLogic = fromRoot('game/logic/cards.js');",
+    "  const TurnPipelinePhases = fromRoot('game/turn/turn_pipeline_phases.js');",
+    "  const SeededPRNG = fromRoot('game/schema/prng.js');",
+    "  const gameState = Core.createGameState();",
+    "  const prng = SeededPRNG.createPRNG(19);",
+    "  const cardState = CardLogic.createCardState(prng);",
+    "  TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', [], prng);",
+    "  const initialTurnIndex = typeof cardState.turnIndex === 'number' ? cardState.turnIndex : 1;",
+    "  const room = {",
+    "    roomId: 'ROOMQ',",
+    "    seed: 19,",
+    "    stateVersion: 1,",
+    "    updatedAt: Date.now(),",
+    "    seats: { black: true, white: true },",
+    "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    seatNames: { black: 'black', white: 'white' },",
+    "    roomDeck: null,",
+    "    networkDebugEnabled: false,",
+    "    turnTimer: { limitSeconds: 120, active: true, turnSeatKey: 'black', turnStartedAt: Date.now(), turnDeadlineAt: Date.now() + 120000 },",
+    "    acceptedOperationsBySeat: {},",
+    "    snapshot: { gameState, cardState, stateVersion: 1, updatedAt: Date.now() }",
+    "  };",
+    "  const storage = new Map();",
+    "  storage.set('match_room_state_v1', room);",
+    "  const state = {",
+    "    storage: {",
+    "      get: async (key) => storage.get(key),",
+    "      put: async (key, value) => storage.set(key, value),",
+    "      delete: async (key) => storage.delete(key)",
+    "    }",
+    "  };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  let broadcastMeta = null;",
+    "  durableObject.broadcastSnapshot = async (meta) => { broadcastMeta = meta; };",
+    "  const firstResponse = await durableObject.handlePublish({",
+    "    roomId: 'ROOMQ',",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: 'token_black',",
+    "    baseVersion: 1,",
+    "    operationId: 'op_charge_black_1',",
+    "    actionType: 'place',",
+    "    actor: 'black',",
+    "    params: { row: 2, col: 3 },",
+    "    turnIndex: initialTurnIndex,",
+    "    action: { type: 'place', playerKey: 'black', row: 2, col: 3, turnIndex: initialTurnIndex }",
+    "  });",
+    "  const firstPayload = await firstResponse.json();",
+    "  const afterFirst = JSON.parse(JSON.stringify({",
+    "    status: firstResponse.status,",
+    "    payload: firstPayload,",
+    "    cardState: durableObject.room.snapshot.cardState,",
+    "    broadcastMeta",
+    "  }));",
+    "  broadcastMeta = null;",
+    "  const secondTurnIndex = (durableObject.room.snapshot.cardState && typeof durableObject.room.snapshot.cardState.turnIndex === 'number')",
+    "    ? durableObject.room.snapshot.cardState.turnIndex",
+    "    : initialTurnIndex;",
+    "  const secondResponse = await durableObject.handlePublish({",
+    "    roomId: 'ROOMQ',",
+    "    seatKey: 'white',",
+    "    playerKey: 'white',",
+    "    seatToken: 'token_white',",
+    "    baseVersion: durableObject.room.stateVersion,",
+    "    operationId: 'op_charge_white_1',",
+    "    actionType: 'place',",
+    "    actor: 'white',",
+    "    params: { row: 2, col: 4 },",
+    "    turnIndex: secondTurnIndex,",
+    "    action: { type: 'place', playerKey: 'white', row: 2, col: 4, turnIndex: secondTurnIndex }",
+    "  });",
+    "  const secondPayload = await secondResponse.json();",
+    "  await durableObject.loadRoom();",
+    `  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({`,
+    "    afterFirst,",
+    "    afterSecond: {",
+    "      status: secondResponse.status,",
+    "      payload: secondPayload,",
+    "      cardState: durableObject.room.snapshot.cardState,",
+    "      broadcastMeta",
+    "    }",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runPublishScenario(runner);
+}
+
 describe('match worker publish sanitize', () => {
   test('legacy client snapshot publishを拒否し authoritative state を変更しない', () => {
     const result = runPublishSanitizeScenario();
@@ -860,6 +959,22 @@ describe('match worker publish sanitize', () => {
       expect.objectContaining({ type: 'HAND_REMOVE' }),
       expect.objectContaining({ type: 'DESTROY' })
     ]));
+  });
+
+  test('second worker publish snapshot does not replay stale charge delta events from the previous turn', () => {
+    const result = runChargeDeltaReplayScenario();
+
+    expect(result.afterFirst.status).toBe(200);
+    expect(result.afterFirst.payload.snapshot.cardState.chargeDeltaEvents).toEqual([
+      expect.objectContaining({ player: 'black', delta: 1 })
+    ]);
+
+    expect(result.afterSecond.status).toBe(200);
+    expect(result.afterSecond.payload.snapshot.cardState.chargeDeltaEvents).toHaveLength(1);
+    expect(result.afterSecond.payload.snapshot.cardState.chargeDeltaEvents).toEqual([
+      expect.objectContaining({ player: 'white', delta: 1 })
+    ]);
+    expect(result.afterSecond.cardState.chargeDeltaEvents).toEqual([]);
   });
 
   test('time stop extra turn survives guardian selection and hands off to white after the follow-up place', () => {
@@ -1063,14 +1178,14 @@ describe('match worker publish sanitize', () => {
     expect(result.broadcastMeta).toBeNull();
   });
 
-  test('VERSION_MISMATCH response keeps room context and shared publishMeta shape', () => {
+  test('VERSION_AHEAD response keeps room context and shared publishMeta shape', () => {
     const result = runPublishVersionMismatchScenario();
 
     expect(result.status).toBe(409);
     expect(result.payload).toEqual(expect.objectContaining({
       ok: false,
       roomId: 'ROOMM',
-      rejectedReason: 'VERSION_MISMATCH',
+      rejectedReason: 'VERSION_AHEAD',
       roomDeck: null,
       networkDebugEnabled: false,
       snapshot: expect.any(Object),
@@ -1083,8 +1198,14 @@ describe('match worker publish sanitize', () => {
         actionType: 'place',
         receivedBaseVersion: 3,
         authoritativeStateVersion: 4,
-        rejectedReason: 'VERSION_MISMATCH'
+        rejectedReason: 'VERSION_AHEAD'
       })
+    }));
+    expect(result.payload.snapshot._meta).toEqual(expect.objectContaining({
+      authority: 'server',
+      version: 4,
+      projectedForSeat: 'black',
+      turnStartReconciled: true
     }));
   });
 

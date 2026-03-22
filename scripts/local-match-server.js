@@ -69,14 +69,6 @@ function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
     return MatchAuthority.resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue);
 }
 
-function validatePublishedHands(snapshot, publishingSeatKey) {
-    return MatchAuthority.validatePublishedHands(snapshot, publishingSeatKey);
-}
-
-function rehydrateSnapshotForPublish(previousSnapshot, incomingSnapshot) {
-    return MatchAuthority.rehydrateSnapshotForPublish(previousSnapshot, incomingSnapshot);
-}
-
 function toPublicSnapshot(room, viewerSeatKey) {
     return MatchAuthority.buildPublicSnapshot(room, viewerSeatKey || null);
 }
@@ -393,6 +385,7 @@ function buildPublishPayload(room, viewerSeatKey, options = {}) {
         roomDeck: toPublicRoomDeck(room),
         networkDebugEnabled,
         turnTimer: toPublicTurnTimer(room, serverTime),
+        playbackEvents: Array.isArray(options.playbackEvents) ? options.playbackEvents : [],
         serverTime,
         idempotentReplay: options.idempotentReplay === true,
         publishMeta: options.publishMeta || null
@@ -512,6 +505,9 @@ function applyCommandPublishToSnapshot(room, body, playerKey) {
         : null;
     if (!currentSnapshot) {
         return { ok: false, rejectedReason: 'INVALID_SNAPSHOT' };
+    }
+    if (MatchAuthority && typeof MatchAuthority.stripTransientChargeDeltaState === 'function') {
+        MatchAuthority.stripTransientChargeDeltaState(currentSnapshot);
     }
 
     const currentTurnIndex = Number.isFinite(Number(currentSnapshot.cardState && currentSnapshot.cardState.turnIndex))
@@ -813,6 +809,64 @@ function nextSseEventId(room) {
     return `${roomId}_${stateVersion}_${nextSeq}`;
 }
 
+function buildHeartbeatPayload(room, serverTime) {
+    return {
+        ok: true,
+        roomId: room.roomId,
+        stateVersion: Number.isFinite(Number(room.stateVersion)) ? Number(room.stateVersion) : 0,
+        seats: toPublicSeats(room),
+        seatNames: toPublicSeatNames(room),
+        roomDeck: toPublicRoomDeck(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+        turnTimer: toPublicTurnTimer(room, serverTime),
+        serverTime
+    };
+}
+
+function rememberBufferedRoomEvent(room, record) {
+    if (!room || !MatchAuthority || typeof MatchAuthority.appendBufferedSseEvent !== 'function') return;
+    room.sseEventBuffer = MatchAuthority.appendBufferedSseEvent(room.sseEventBuffer, record);
+}
+
+function buildBufferedSnapshotRecord(room, meta, eventId) {
+    const payloadByViewer = {
+        black: buildSnapshotPayload(room, meta, 'black'),
+        white: buildSnapshotPayload(room, meta, 'white')
+    };
+    return {
+        record: {
+            eventId,
+            eventName: 'snapshot',
+            payloadByViewer
+        },
+        payloadByViewer
+    };
+}
+
+function prepareSnapshotBroadcast(room, meta) {
+    const eventId = nextSseEventId(room);
+    const { record, payloadByViewer } = buildBufferedSnapshotRecord(room, meta, eventId);
+    return {
+        eventId,
+        record,
+        payloadByViewer,
+        fallbackPayload: buildSnapshotPayload(room, meta, null)
+    };
+}
+
+function broadcastPreparedSnapshot(room, preparedSnapshot) {
+    if (!room || !preparedSnapshot) return;
+    rememberBufferedRoomEvent(room, preparedSnapshot.record);
+    if (!room.streams || room.streams.size === 0) return;
+    for (const [streamId, streamInfo] of room.streams.entries()) {
+        const viewerSeatKey = streamInfo && streamInfo.seatKey ? streamInfo.seatKey : null;
+        const payload = (viewerSeatKey && preparedSnapshot.payloadByViewer[viewerSeatKey])
+            ? preparedSnapshot.payloadByViewer[viewerSeatKey]
+            : preparedSnapshot.fallbackPayload;
+        safeWriteToStream(room, streamId, 'snapshot', payload, preparedSnapshot.eventId);
+    }
+}
+
 function roomHasStreams() {
     for (const room of rooms.values()) {
         if (room && room.streams && room.streams.size > 0) return true;
@@ -856,18 +910,13 @@ function ensureHeartbeatLoop() {
         for (const room of rooms.values()) {
             if (!room || !room.streams || room.streams.size === 0) continue;
             const serverTime = Date.now();
-            const payload = {
-                ok: true,
-                roomId: room.roomId,
-                stateVersion: Number.isFinite(Number(room.stateVersion)) ? Number(room.stateVersion) : 0,
-                seats: toPublicSeats(room),
-                seatNames: toPublicSeatNames(room),
-                roomDeck: toPublicRoomDeck(room),
-                networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-                turnTimer: toPublicTurnTimer(room, serverTime),
-                serverTime
-            };
+            const payload = buildHeartbeatPayload(room, serverTime);
             const eventId = nextSseEventId(room);
+            rememberBufferedRoomEvent(room, {
+                eventId,
+                eventName: 'heartbeat',
+                payload
+            });
             for (const streamId of Array.from(room.streams.keys())) {
                 safeWriteToStream(room, streamId, 'heartbeat', payload, eventId);
             }
@@ -921,26 +970,34 @@ function buildPresencePayload(room, meta) {
 }
 
 function broadcastSnapshot(room, meta) {
-    if (!room || !room.streams || room.streams.size === 0) return;
-    const eventId = nextSseEventId(room);
-    for (const [streamId, streamInfo] of room.streams.entries()) {
-        const payload = buildSnapshotPayload(room, meta, streamInfo && streamInfo.seatKey ? streamInfo.seatKey : null);
-        safeWriteToStream(room, streamId, 'snapshot', payload, eventId);
-    }
+    if (!room) return;
+    broadcastPreparedSnapshot(room, prepareSnapshotBroadcast(room, meta));
 }
 
 function broadcastPresence(room, meta) {
-    if (!room || !room.streams || room.streams.size === 0) return;
+    if (!room) return;
     const payload = buildPresencePayload(room, meta || {});
     const eventId = nextSseEventId(room);
+    rememberBufferedRoomEvent(room, {
+        eventId,
+        eventName: 'presence',
+        payload
+    });
+    if (!room.streams || room.streams.size === 0) return;
     for (const streamId of Array.from(room.streams.keys())) {
         safeWriteToStream(room, streamId, 'presence', payload, eventId);
     }
 }
 
 function broadcastChat(room, payload) {
-    if (!room || !room.streams || room.streams.size === 0) return;
+    if (!room) return;
     const eventId = nextSseEventId(room);
+    rememberBufferedRoomEvent(room, {
+        eventId,
+        eventName: 'chat',
+        payload
+    });
+    if (!room.streams || room.streams.size === 0) return;
     for (const streamId of Array.from(room.streams.keys())) {
         safeWriteToStream(room, streamId, 'chat', payload, eventId);
     }
@@ -988,6 +1045,7 @@ function makeRoom(options) {
         turnTimer: createPausedTurnTimer({ snapshot }),
         lastAcceptedOperationBySeat: { black: null, white: null },
         eventSeq: 0,
+        sseEventBuffer: [],
         chatMessages: [],
         chatSeq: 0,
         streams: new Map(),
@@ -1309,12 +1367,11 @@ async function handlePublish(req, res) {
         return;
     }
 
-    const lastAcceptedOperation = acceptedOperationsBySeat[seatKey];
+    const lastAcceptedOperation = MatchAuthority.findAcceptedOperationBySeat(room, seatKey, operationId) || acceptedOperationsBySeat[seatKey];
     if (
         operationId
         && lastAcceptedOperation
         && typeof lastAcceptedOperation === 'object'
-        && String(lastAcceptedOperation.operationId || '') === operationId
     ) {
         const serverTime = Date.now();
         writeJson(res, 200, buildPublishPayload(room, seatKey, {
@@ -1334,16 +1391,19 @@ async function handlePublish(req, res) {
     }
 
     if (baseVersion === null || baseVersion !== room.stateVersion) {
+        const rejectedReason = MatchAuthority && typeof MatchAuthority.classifyVersionRejectionReason === 'function'
+            ? MatchAuthority.classifyVersionRejectionReason(baseVersion, room.stateVersion)
+            : 'VERSION_MISMATCH';
         writeJson(res, 409, buildPublishPayload(room, seatKey, {
             ok: false,
-            rejectedReason: 'VERSION_MISMATCH',
+            rejectedReason,
             publishMeta: {
                 kind: 'rejected',
                 operationId,
                 actionType,
                 receivedBaseVersion: baseVersion,
                 authoritativeStateVersion: room.stateVersion,
-                rejectedReason: 'VERSION_MISMATCH'
+                rejectedReason
             }
         }));
         return;
@@ -1432,11 +1492,16 @@ async function handlePublish(req, res) {
     room.updatedAt = nextSnapshot.updatedAt;
 
     if (operationId) {
-        acceptedOperationsBySeat[seatKey] = {
+        const acceptedEntry = {
             operationId,
             stateVersion: room.stateVersion,
             updatedAt: room.updatedAt
         };
+        if (typeof MatchAuthority.rememberAcceptedOperationBySeat === 'function') {
+            MatchAuthority.rememberAcceptedOperationBySeat(room, seatKey, acceptedEntry);
+        } else {
+            acceptedOperationsBySeat[seatKey] = acceptedEntry;
+        }
     }
 
     refreshTurnTimer(room, { nowMs: room.updatedAt, forceRestart: !isNetworkDebugAction });
@@ -1448,13 +1513,12 @@ async function handlePublish(req, res) {
         playbackDiagnostics: serverPlaybackDiagnostics,
         operationId: operationId || null
     };
-
-    broadcastSnapshot(room, meta);
-
     const serverTime = Date.now();
-    writeJson(res, 200, buildPublishPayload(room, seatKey, {
+    const preparedSnapshot = prepareSnapshotBroadcast(room, meta);
+    const responsePayload = buildPublishPayload(room, seatKey, {
         ok: true,
         serverTime,
+        playbackEvents: serverPlaybackEvents,
         playbackDiagnostics: serverPlaybackDiagnostics,
         publishMeta: {
             kind: 'accepted',
@@ -1463,7 +1527,12 @@ async function handlePublish(req, res) {
             receivedBaseVersion: baseVersion,
             authoritativeStateVersion: room.stateVersion
         }
-    }));
+    });
+    if (typeof MatchAuthority.stripTransientChargeDeltaState === 'function') {
+        MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
+    }
+    broadcastPreparedSnapshot(room, preparedSnapshot);
+    writeJson(res, 200, responsePayload);
 }
 
 async function handleChat(req, res) {
@@ -1597,6 +1666,26 @@ function handleStream(req, res, urlObj) {
     const streamId = `sse_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     room.streams.set(streamId, { res, seatKey: viewerSeatKey });
     ensureHeartbeatLoop();
+
+    const lastEventId = String((req && req.headers && req.headers['last-event-id']) || '').trim();
+    const replayEvents = MatchAuthority && typeof MatchAuthority.getBufferedSseReplayEvents === 'function'
+        ? MatchAuthority.getBufferedSseReplayEvents(room.sseEventBuffer, lastEventId, viewerSeatKey)
+        : null;
+
+    if (Array.isArray(replayEvents)) {
+        if (replayEvents.length > 0) {
+            for (const event of replayEvents) {
+                writeSse(res, event.eventName, event.payload, event.eventId);
+            }
+        } else {
+            writeSse(res, 'heartbeat', buildHeartbeatPayload(room, Date.now()), null);
+        }
+
+        req.on('close', () => {
+            removeStream(room, streamId);
+        });
+        return;
+    }
 
     writeSse(res, 'snapshot', buildSnapshotPayload(room, {
         playbackEvents: [],

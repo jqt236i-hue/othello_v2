@@ -118,6 +118,7 @@
 
         // PROTECTED_NEXT_STONE (弱い意志) - 1 card, cost: 1
         { id: 'hard_01', name: '弱い意志', type: 'PROTECTED_NEXT_STONE', cost: 1, desc: '次に置いた石は、次の相手ターンの間、反転されない' },
+        { id: 'afterimage_will_01', name: '残像の意志', type: 'AFTERIMAGE_WILL', cost: 8, desc: '次に置く石を残像石化。反転回避3回と破壊回避3回を持つ特殊石になり、両方使い切るまで持続する。' },
 
         // SWAP_WITH_ENEMY (交換の意志) - 1 card, cost: 17
         { id: 'swap_01', name: '交換の意志', type: 'SWAP_WITH_ENEMY', cost: 17, desc: '相手の通常石1つを自分色に交換し、その位置で挟める相手石を反転する。石は置かず、そのままターン終了。' },
@@ -148,7 +149,7 @@
         { id: 'bomb_01', name: '時限爆弾', type: 'TIME_BOMB', cost: 13, desc: '盤面上の自分の石1つを時限爆弾化。3ターン後に周囲9マスを破壊。反転されると解除。' },
 
         // TIME_STOP_GOD (時間停石) - 1 card, cost: 0
-        { id: 'time_stop_god_01', name: '時間停石', type: 'TIME_STOP_GOD', cost: 0, desc: '使用時にランダムで自分の石5つを破壊し、次に置く石を時間停石化する。5回目の自ターン開始時に時間停止し、そのターンと次のターンを連続で行動する。発動時に時間停石は消滅し、先に消えた場合は不発。' },
+        { id: 'time_stop_god_01', name: '時間停石', type: 'TIME_STOP_GOD', cost: 0, desc: '使用時にランダムで自分の石3つを破壊し、次に置く石を時間停石化する。5回目の自ターン開始時に時間停止し、そのターンと次のターンを連続で行動する。発動時に時間停石は消滅し、先に消えた場合は不発。' },
 
         // ULTIMATE_REVERSE_DRAGON (究極反転龍) - 1 card, cost: 30
         { id: 'udr_01', name: '究極反転龍', type: 'ULTIMATE_REVERSE_DRAGON', cost: 30, desc: '反転0でも空きマスに配置可能。次に置く石を龍化。置いた時に周囲1マス（8方向）を反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転し、移動先が無いときはその場で反転する。5ターン持続。反転保護を持つ特殊石。' },
@@ -256,7 +257,7 @@
         { id: 'board_expand_01', name: '盤面拡張', type: 'BOARD_EXPANSION_WILL', cost: 19, desc: '盤面の左右どちらか外側に1マスを追加する。追加位置は左右端マスから選ぶ。1対局で1回のみ使用可能。' },
 
         // BOARD_EXPANSION_GOD (盤面拡張神) - 1 card, cost: 27
-        { id: 'board_expand_god_01', name: '盤面拡張神', type: 'BOARD_EXPANSION_GOD', cost: 27, desc: '初期8x8の角マスを2つ選び、その外側6マス（各角3マスずつ、直交2方向+斜め）に拡張セルを同時追加する。' },
+        { id: 'board_expand_god_01', name: '盤面拡張神', type: 'BOARD_EXPANSION_GOD', cost: 27, desc: '初期8x8の角マスから拡張可能な角を最大2つ選び、その外側3〜6マス（各角3マスずつ、直交2方向+斜め）に拡張セルを追加する。' },
 
         // BLOCKADE_WILL (封鎖の意志) - 1 card, cost: 1
         { id: 'blockade_01', name: '封鎖の意志', type: 'BLOCKADE_WILL', cost: 1, desc: '盤面の空きマス1つを封鎖し、3ターンの間は両者とも配置・移動で入れない。' },
@@ -285,6 +286,7 @@
         'LAST_RESORT',
         'SNIPER_WILL',
         'PROTECTED_NEXT_STONE',
+        'AFTERIMAGE_WILL',
         'SWAP_WITH_ENEMY',
         'POSITION_SWAP_WILL',
         'PERMA_PROTECT_NEXT_STONE',
@@ -360,7 +362,7 @@
     const TIME_BOMB_TURNS = 3;
     const TIME_STOP_GOD_TURNS = 5;
     const TIME_STOP_GOD_CONSECUTIVE_TURNS = 2;
-    const TIME_STOP_GOD_SELF_DESTROY_COUNT = 5;
+    const TIME_STOP_GOD_SELF_DESTROY_COUNT = 3;
     const STRONG_WILL_PROMOTION_OWNER_TURNS = 10;
 
     // Destroy fade duration (ms)

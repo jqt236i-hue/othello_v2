@@ -158,6 +158,27 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避');
   });
 
+  test('long press shows 幽体 tag without mislabeling it as flip protection', () => {
+    global.cardState.markers = [{
+      kind: 'specialStone',
+      row: 2,
+      col: 6,
+      owner: 'black',
+      data: { type: 'GHOST', remainingOwnerTurns: 5 }
+    }];
+    global.gameState.board[2][6] = global.BLACK;
+
+    const mod = require('../ui/diff-renderer.js');
+    const shown = mod.showSpecialStoneInfoAt(2, 6);
+    expect(shown).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('幽体石');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('反転と石破壊の対象にはなる');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('幽体');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('破壊保護');
+  });
+
   test('long press renders effect tags as buttons and toggles tag detail panel', () => {
     global.cardState.markers.push({
       kind: 'specialStone',
@@ -245,6 +266,31 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
     expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避');
     expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避');
+  });
+
+  test('showSpecialStoneInfoAt shows afterimage tags without 多動状態', () => {
+    global.gameState.board[5][6] = global.BLACK;
+    global.cardState.markers = [{
+      kind: 'specialStone',
+      row: 5,
+      col: 6,
+      owner: 'black',
+      data: {
+        type: 'AFTERIMAGE_WILL',
+        flipEvadeRemaining: 3,
+        destroyEvadeRemaining: 3
+      }
+    }];
+
+    const mod = require('../ui/diff-renderer.js');
+    const shown = mod.showSpecialStoneInfoAt(5, 6);
+    expect(shown).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('残像石');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('反転回避3回');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('多動状態');
   });
 
   test('showSpecialStoneInfoAt hides trap info from the owner seat while hidden', () => {

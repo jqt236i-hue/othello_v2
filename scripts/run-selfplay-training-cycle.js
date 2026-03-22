@@ -51,6 +51,7 @@ function parseArgs(argv) {
         trainGames: 20000,
         evalGames: 2000,
         selfplayJobs: defaultSelfplayJobs(),
+        selfplayResumeChunkSize: 1000,
         adoptionJobs: defaultSelfplayJobs(),
         onnxGateJobs: defaultSelfplayJobs(),
         seed: 1,
@@ -222,6 +223,7 @@ function parseArgs(argv) {
         if (a === '--train-games') { args.trainGames = Number(argv[++i]); continue; }
         if (a === '--eval-games') { args.evalGames = Number(argv[++i]); continue; }
         if (a === '--selfplay-jobs') { args.selfplayJobs = Number(argv[++i]); continue; }
+        if (a === '--selfplay-resume-chunk-size') { args.selfplayResumeChunkSize = Number(argv[++i]); continue; }
         if (a === '--adoption-jobs') { args.adoptionJobs = Number(argv[++i]); continue; }
         if (a === '--onnx-gate-jobs') { args.onnxGateJobs = Number(argv[++i]); continue; }
         if (a === '--seed' || a === '-s') { args.seed = Number(argv[++i]); continue; }
@@ -404,6 +406,10 @@ function parseArgs(argv) {
     if (!Number.isFinite(args.evalGames) || args.evalGames < 1) throw new Error('--eval-games must be >= 1');
     if (!Number.isFinite(args.selfplayJobs) || args.selfplayJobs < 1) throw new Error('--selfplay-jobs must be >= 1');
     args.selfplayJobs = Math.floor(args.selfplayJobs);
+    if (!Number.isFinite(args.selfplayResumeChunkSize) || args.selfplayResumeChunkSize < 0) {
+        throw new Error('--selfplay-resume-chunk-size must be >= 0');
+    }
+    args.selfplayResumeChunkSize = Math.floor(args.selfplayResumeChunkSize);
     if (!Number.isFinite(args.adoptionJobs) || args.adoptionJobs < 1) throw new Error('--adoption-jobs must be >= 1');
     args.adoptionJobs = Math.floor(args.adoptionJobs);
     if (!Number.isFinite(args.onnxGateJobs) || args.onnxGateJobs < 1) throw new Error('--onnx-gate-jobs must be >= 1');
@@ -897,6 +903,7 @@ function printHelp() {
         '      --train-games <n>       Self-play games for train data (default: 20000)',
         '      --eval-games <n>        Self-play games for eval data (default: 2000)',
         '      --selfplay-jobs <n>     Parallel workers for self-play generation (default: auto, up to 10)',
+        '      --selfplay-resume-chunk-size <n>  Chunk checkpoint size for resumable self-play generation (default: 1000, 0=off)',
         '      --adoption-jobs <n>     Parallel workers for adoption benchmark (default: auto, up to 10)',
         '      --onnx-gate-jobs <n>    Parallel workers for ONNX gate matches (default: auto, up to 10)',
         '  -s, --seed <n>              Base seed (default: 1)',
@@ -1530,6 +1537,9 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         ? ['--baseline-model', gateControl.baselineModelPath]
         : [];
     const verboseArgs = args.verbose ? ['--verbose'] : [];
+    const selfplayResumeArgs = args.selfplayResumeChunkSize > 0
+        ? ['--resume-chunk-size', String(args.selfplayResumeChunkSize)]
+        : [];
     const adoptionCardRate = args.allowCardUsage ? args.cardUsageRate : 0;
     const quickAdoptionThreshold = Number.isFinite(args.quickAdoptionThreshold) ? args.quickAdoptionThreshold : args.threshold;
     const quickAdoptionSeedCount = Number.isFinite(args.quickAdoptionSeedCount) ? args.quickAdoptionSeedCount : args.adoptionSeedCount;
@@ -1598,7 +1608,14 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         '--seed-family', 'train',
         '--data-lane', 'train-main',
         '--jobs', String(args.selfplayJobs)
-    ].concat(generateCardArgs, selfplayDiversityArgs, guideModelArgs, verboseArgs), {
+    ].concat(
+        generateCardArgs,
+        selfplayDiversityArgs,
+        guideModelArgs,
+        selfplayResumeArgs,
+        shouldReuseStepArtifacts(args, 'generate-train') ? ['--reuse-completed-chunks'] : [],
+        verboseArgs
+    ), {
         reuseOutputs: [p.trainDataPath, p.trainHardcaseDataPath, `${p.trainDataPath}.summary.json`]
     });
 
@@ -1612,7 +1629,14 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         '--seed-family', 'eval',
         '--data-lane', 'eval-suite',
         '--jobs', String(args.selfplayJobs)
-    ].concat(generateCardArgs, selfplayDiversityArgs, guideModelArgs, verboseArgs), {
+    ].concat(
+        generateCardArgs,
+        selfplayDiversityArgs,
+        guideModelArgs,
+        selfplayResumeArgs,
+        shouldReuseStepArtifacts(args, 'generate-eval') ? ['--reuse-completed-chunks'] : [],
+        verboseArgs
+    ), {
         reuseOutputs: [p.evalDataPath, p.evalHardcaseDataPath, `${p.evalDataPath}.summary.json`]
     });
 
@@ -2143,6 +2167,7 @@ function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guide
             trainGames: args.trainGames,
             evalGames: args.evalGames,
             selfplayJobs: args.selfplayJobs,
+            selfplayResumeChunkSize: args.selfplayResumeChunkSize,
             adoptionJobs: args.adoptionJobs,
             onnxGateJobs: args.onnxGateJobs,
             seed: args.seed,

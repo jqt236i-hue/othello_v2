@@ -288,10 +288,16 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     expect(publishBodies[0].playbackEvents).toBeUndefined();
     expect(global.cardState.hands.white).toEqual([]);
     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
     expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
     expect(document.getElementById('heaven-blessing-overlay').classList.contains('active')).toBe(false);
     expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
+
+    releasePlayback();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
   });
 
   test('overlay destroy button does not play stone_destroy locally for condemn selection', async () => {

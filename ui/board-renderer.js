@@ -151,13 +151,14 @@ function _isFlipEvadeSpecialTypeForBoard(type) {
         typeUpper === 'EXTREME_HYPERACTIVE' ||
         typeUpper === 'ESCAPE_HYPERACTIVE' ||
         typeUpper === 'ULTIMATE_HYPERACTIVE' ||
-        typeUpper === 'WILL_HUNTER_KING'
+        typeUpper === 'WILL_HUNTER_KING' ||
+        typeUpper === 'AFTERIMAGE_WILL'
     );
 }
 
 function _isDestroyEvadeSpecialTypeForBoard(type) {
     const typeUpper = String(type || '').toUpperCase();
-    return typeUpper === 'WILL_HUNTER_KING' || typeUpper === 'ULTIMATE_HYPERACTIVE';
+    return typeUpper === 'WILL_HUNTER_KING' || typeUpper === 'ULTIMATE_HYPERACTIVE' || typeUpper === 'AFTERIMAGE_WILL';
 }
 
 function _resolveStrongWillDisplayTurnsForBoard(data) {
@@ -179,6 +180,17 @@ function _resolveSpecialDisplayTurnsForBoard(data) {
         if (Number.isFinite(regenRemaining)) return Math.max(0, Math.trunc(regenRemaining));
     }
     return undefined;
+}
+
+function _isBombCategoryMarkerForBoard(marker) {
+    if (!marker || typeof marker !== 'object') return false;
+    if (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.isBombCategoryMarker === 'function') {
+        return MarkersAdapter.isBombCategoryMarker(marker);
+    }
+    const data = (marker.data && typeof marker.data === 'object') ? marker.data : null;
+    const category = String(data && data.category ? data.category : '').trim().toLowerCase();
+    const type = String(data && data.type ? data.type : '').trim().toUpperCase();
+    return marker.kind === 'bomb' || category === 'bomb' || type === 'TIME_BOMB';
 }
 
 function _applyDoubleDigitTimerClassForBoard(timerElement, rawValue) {
@@ -315,6 +327,15 @@ function renderBoardFull() {
     const bombMap = new Map();
     const sproutMap = new Map();
     for (const m of markers) {
+        if (_isBombCategoryMarkerForBoard(m) && m.data) {
+            bombMap.set(`${m.row},${m.col}`, {
+                row: m.row,
+                col: m.col,
+                remainingTurns: m.data.remainingTurns,
+                owner: m.owner
+            });
+            continue;
+        }
         if (m.kind === markerKinds.SPECIAL_STONE && m.data && m.data.type) {
             if (_isBoardHiddenTrapForBoardRenderer(m)) continue;
             if (m.data.type === 'INHERITED_HYPERACTIVE') {
@@ -359,13 +380,6 @@ function renderBoardFull() {
                             : ((markerTypeUpper === 'ULTIMATE_HYPERACTIVE' || markerTypeUpper === 'EXTREME_HYPERACTIVE') ? 3 : null)
                     )
                     : 0
-            });
-        } else if (m.kind === markerKinds.BOMB && m.data) {
-            bombMap.set(`${m.row},${m.col}`, {
-                row: m.row,
-                col: m.col,
-                remainingTurns: m.data.remainingTurns,
-                owner: m.owner
             });
         }
     }

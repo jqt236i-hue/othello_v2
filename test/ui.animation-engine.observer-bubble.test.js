@@ -73,4 +73,52 @@ describe('animation-engine observer bubble', () => {
     expect(bubble.textContent).toContain('盤理観測してる場合じゃなかったわ');
     expect(bubble.textContent).not.toContain('観測が捗る');
   });
+
+  test('observer_bubble の charge kind は盤面内の布石ポップアップとして表示する', async () => {
+    const engine = require('../ui/animation-engine');
+
+    await engine.executeEvent({
+      type: 'observer_bubble',
+      targets: [{ r: 2, col: 3, owner: 'black', gained: 5, bubbleKind: 'charge' }]
+    });
+
+    const bubble = document.querySelector('.board-charge-bubble');
+    expect(bubble).not.toBeNull();
+    expect(bubble.dataset.row).toBe('2');
+    expect(bubble.dataset.col).toBe('3');
+    expect(bubble.dataset.bubbleKind).toBe('charge');
+    expect(bubble.textContent).toContain('+5');
+    expect(bubble.textContent).not.toContain('布石');
+    expect(bubble.textContent).not.toContain('観測が捗る');
+    expect(bubble.style.top).toBe('258px');
+    expect(bubble.style.transform).toBe('translate(-50%, 0)');
+    expect(bubble.style.padding).toBe('2px 8px');
+    expect(bubble.style.fontSize).toBe('12px');
+    expect(bubble.style.lineHeight).toBe('1.05');
+    expect(bubble.children).toHaveLength(2);
+
+    jest.advanceTimersByTime(2200);
+    expect(document.querySelector('.board-charge-bubble')).toBeNull();
+  });
+
+  test('同じ phase・同じマスの charge bubble は合算表示する', async () => {
+    const engine = require('../ui/animation-engine');
+
+    await engine.play([
+      {
+        type: 'observer_bubble',
+        phase: 1,
+        targets: [{ r: 2, col: 3, owner: 'black', gained: 2, bubbleKind: 'charge' }]
+      },
+      {
+        type: 'observer_bubble',
+        phase: 1,
+        targets: [{ r: 2, col: 3, owner: 'black', gained: 5, bubbleKind: 'charge' }]
+      }
+    ]);
+
+    const bubbles = document.querySelectorAll('.board-charge-bubble');
+    expect(bubbles).toHaveLength(1);
+    expect(bubbles[0].textContent).toContain('+7');
+  });
 });

@@ -46,6 +46,15 @@ describe('ULTIMATE_HYPERACTIVE turn-start integration', () => {
     expect(types.has('ultimate_hyperactive_flipped_start')).toBe(true);
     expect(types.has('ultimate_hyperactive_blown_start')).toBe(false);
     expect(cardState.charge.black).toBeGreaterThanOrEqual(1);
+
+    const movedEvent = events.find((ev) => ev && ev.type === 'ultimate_hyperactive_moved_start');
+    const lastMove = movedEvent && Array.isArray(movedEvent.details) ? movedEvent.details[movedEvent.details.length - 1] : null;
+    const presentationEvents = CardLogic.flushPresentationEvents(cardState);
+    const bubble = (presentationEvents || []).find((ev) => ev && ev.type === 'CHARGE_BUBBLE' && ev.meta && ev.meta.sourceType === 'ultimate_hyperactive_turn_start');
+
+    expect(lastMove && lastMove.to).toBeTruthy();
+    expect(bubble).toBeTruthy();
+    expect({ row: bubble.row, col: bubble.col }).toEqual(lastMove.to);
   });
 
   test('duration decrements only on owner turn', () => {

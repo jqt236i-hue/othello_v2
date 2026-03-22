@@ -199,6 +199,40 @@ describe('UI stone rendering', () => {
     assert.strictEqual(strongWillDisc.querySelector('.special-timer'), null);
   });
 
+  test('diff-renderer shows bomb countdown for unified TIME_BOMB markers', () => {
+    if (typeof document === 'undefined') {
+      const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+      global.window = dom.window;
+      global.document = dom.window.document;
+      global.HTMLElement = dom.window.HTMLElement;
+    }
+
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    gameState.board[2][2] = BLACK;
+    cardState.markers = [{
+      id: 14,
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 3 }
+    }];
+
+    const diffRenderer = require('../ui/diff-renderer');
+    diffRenderer.renderBoardDiff(boardEl);
+
+    const disc = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .disc');
+    assert.ok(disc, 'expected bomb disc');
+    const timer = disc.querySelector('.bomb-timer.countdown-timer');
+    assert.ok(timer, 'expected time bomb countdown timer');
+    assert.strictEqual(timer.textContent, '3');
+    assert.strictEqual(disc.querySelector('.special-timer'), null);
+  });
+
   test('diff-renderer shows destroy evade remaining for will hunter king', () => {
     if (typeof document === 'undefined') {
       const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
@@ -237,6 +271,47 @@ describe('UI stone rendering', () => {
     const destroyEvadeTimer = disc.querySelector('.destroy-evade-timer');
     assert.ok(flipEvadeTimer, 'expected flip evade timer');
     assert.strictEqual(flipEvadeTimer.textContent, '2');
+    assert.ok(destroyEvadeTimer, 'expected destroy evade timer');
+    assert.strictEqual(destroyEvadeTimer.textContent, '2');
+  });
+
+  test('diff-renderer shows dual evade timers for afterimage will', () => {
+    if (typeof document === 'undefined') {
+      const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+      global.window = dom.window;
+      global.document = dom.window.document;
+      global.HTMLElement = dom.window.HTMLElement;
+    }
+
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    gameState.board[2][4] = BLACK;
+    cardState.markers = [
+      {
+        id: 22,
+        kind: 'specialStone',
+        row: 2,
+        col: 4,
+        owner: 'black',
+        data: {
+          type: 'AFTERIMAGE_WILL',
+          flipEvadeRemaining: 3,
+          destroyEvadeRemaining: 2
+        }
+      }
+    ];
+
+    const diffRenderer = require('../ui/diff-renderer');
+    diffRenderer.renderBoardDiff(boardEl);
+
+    const disc = boardEl.querySelector('.cell[data-row="2"][data-col="4"] .disc');
+    assert.ok(disc, 'expected afterimage disc');
+    const flipEvadeTimer = disc.querySelector('.flip-evade-timer');
+    const destroyEvadeTimer = disc.querySelector('.destroy-evade-timer');
+    assert.ok(flipEvadeTimer, 'expected flip evade timer');
+    assert.strictEqual(flipEvadeTimer.textContent, '3');
     assert.ok(destroyEvadeTimer, 'expected destroy evade timer');
     assert.strictEqual(destroyEvadeTimer.textContent, '2');
   });
@@ -285,6 +360,40 @@ describe('UI stone rendering', () => {
     assert.ok(opponentDisc, 'expected trap disc for opponent render');
     assert.strictEqual(opponentDisc.querySelector('.special-timer'), null);
     assert.strictEqual(opponentDisc.classList.contains('trap-stone'), false);
+  });
+
+  test('board-renderer shows bomb countdown for unified TIME_BOMB markers', () => {
+    const boardRenderer = require('../ui/board-renderer');
+    if (typeof document === 'undefined') {
+      const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+      global.window = dom.window;
+      global.document = dom.window.document;
+      global.HTMLElement = dom.window.HTMLElement;
+    }
+
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    gameState.board[3][3] = WHITE;
+    cardState.markers = [{
+      id: 23,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'white',
+      data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 }
+    }];
+
+    boardRenderer.renderBoardFull();
+
+    const disc = boardEl.querySelector('.cell[data-row="3"][data-col="3"] .disc');
+    assert.ok(disc, 'expected bomb disc');
+    const timer = disc.querySelector('.bomb-timer.countdown-timer');
+    assert.ok(timer, 'expected board-renderer bomb timer');
+    assert.strictEqual(timer.textContent, '2');
+    assert.strictEqual(disc.querySelector('.special-timer'), null);
   });
 
   test('diff-renderer renders freeze overlay and remaining turns on frozen cells', () => {

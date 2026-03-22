@@ -345,6 +345,7 @@
 
         _shouldHighlightEffectTarget(eventType, target) {
             if (_isNoAnim()) return false;
+            if (target && target.meta && target.meta.blockedByGhost) return true;
             const cause = this._getTargetCause(target);
             const reason = this._getTargetReason(target);
 
@@ -1511,12 +1512,6 @@
             const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
             if (!targets.length) return Promise.resolve();
 
-            const totalMsRaw = Number(OBSERVER_BUBBLE_MS);
-            const fadeMsRaw = Number(OBSERVER_BUBBLE_FADE_MS);
-            const totalMs = Number.isFinite(totalMsRaw) && totalMsRaw > 0 ? totalMsRaw : 5000;
-            const fadeMs = Number.isFinite(fadeMsRaw) && fadeMsRaw > 0 ? fadeMsRaw : 700;
-            const holdMs = Math.max(0, totalMs - fadeMs);
-
             for (const t of targets) {
                 const row = Number.isInteger(t && t.r) ? t.r : null;
                 const col = Number.isInteger(t && t.col) ? t.col : null;
@@ -1525,11 +1520,38 @@
                 const cell = this.getCellEl(row, col);
                 if (!cell) continue;
 
+                const bubbleKind = String((t && t.bubbleKind) || '').trim().toLowerCase() === 'charge'
+                    ? 'charge'
+                    : 'observer';
+                const isChargeBubble = bubbleKind === 'charge';
+                const totalMsRaw = isChargeBubble ? 2000 : Number(OBSERVER_BUBBLE_MS);
+                const fadeMsRaw = isChargeBubble ? 250 : Number(OBSERVER_BUBBLE_FADE_MS);
+                const totalMs = Number.isFinite(totalMsRaw) && totalMsRaw > 0 ? totalMsRaw : (isChargeBubble ? 2000 : 5000);
+                const fadeMs = Number.isFinite(fadeMsRaw) && fadeMsRaw > 0 ? fadeMsRaw : (isChargeBubble ? 250 : 700);
+                const holdMs = Math.max(0, totalMs - fadeMs);
                 const gained = Math.max(0, Number(t && t.gained) || 0);
+                const phaseValue = Number.isFinite(Number(ev && ev.phase)) ? Math.trunc(Number(ev.phase)) : null;
                 const owner = String((t && t.owner) || '').toLowerCase();
                 const explicitText = (typeof (t && t.text) === 'string') ? String(t.text).trim() : '';
+                const bubbleClassName = isChargeBubble ? 'board-charge-bubble' : 'observer-speech-bubble';
 
-                const existing = document.querySelectorAll(`.observer-speech-bubble[data-row="${row}"][data-col="${col}"]`);
+                const existing = Array.from(document.querySelectorAll(`.${bubbleClassName}[data-row="${row}"][data-col="${col}"]`));
+                if (isChargeBubble && !explicitText) {
+                    const samePhaseBubble = existing.find((node) => {
+                        if (!node) return false;
+                        if (!Object.prototype.hasOwnProperty.call(node.dataset || {}, 'phase')) return false;
+                        return String(node.dataset.phase) === String(phaseValue);
+                    });
+                    if (samePhaseBubble) {
+                        const mergedGain = (Number(samePhaseBubble.dataset.gained) || 0) + gained;
+                        samePhaseBubble.dataset.gained = String(mergedGain);
+                        const labelEl = samePhaseBubble.querySelector('[data-charge-label="true"]');
+                        if (labelEl) {
+                            labelEl.textContent = `+${mergedGain}`;
+                        }
+                        continue;
+                    }
+                }
                 for (const oldNode of existing) {
                     try { if (oldNode && oldNode.parentElement) oldNode.parentElement.removeChild(oldNode); } catch (e) { /* ignore */ }
                 }
@@ -1537,29 +1559,39 @@
                 const rect = cell.getBoundingClientRect();
                 const viewportW = (typeof window !== 'undefined' && Number.isFinite(window.innerWidth)) ? window.innerWidth : document.documentElement.clientWidth;
                 const anchorX = rect.left + (rect.width / 2);
-                const anchorY = rect.top - 8;
+                const anchorY = isChargeBubble
+                    ? (rect.bottom - 2)
+                    : (rect.top - 8);
                 const clampedX = Math.max(24, Math.min(Math.max(24, viewportW - 24), anchorX));
 
                 const bubble = document.createElement('div');
-                bubble.className = 'observer-speech-bubble';
+                bubble.className = bubbleClassName;
                 bubble.dataset.row = String(row);
                 bubble.dataset.col = String(col);
                 bubble.dataset.owner = owner;
+                bubble.dataset.bubbleKind = bubbleKind;
+                if (isChargeBubble) {
+                    bubble.dataset.gained = String(gained);
+                    if (phaseValue !== null) bubble.dataset.phase = String(phaseValue);
+                }
                 bubble.setAttribute('aria-hidden', 'true');
                 bubble.style.position = 'fixed';
                 bubble.style.left = `${clampedX}px`;
                 bubble.style.top = `${anchorY}px`;
-                bubble.style.transform = 'translate(-50%, -100%)';
+                bubble.style.transform = isChargeBubble ? 'translate(-50%, 0)' : 'translate(-50%, -100%)';
                 bubble.style.display = 'block';
-                bubble.style.maxWidth = 'min(46vw, 320px)';
+                bubble.style.maxWidth = isChargeBubble ? 'min(30vw, 140px)' : 'min(46vw, 320px)';
                 bubble.style.width = 'max-content';
-                bubble.style.padding = '8px 12px';
-                bubble.style.borderRadius = '10px';
-                bubble.style.border = '1px solid var(--border-status)';
+                bubble.style.padding = isChargeBubble ? '2px 8px' : '8px 12px';
+                bubble.style.borderRadius = isChargeBubble ? '999px' : '10px';
+                bubble.style.border = isChargeBubble
+                    ? '1px solid rgba(255, 215, 120, 0.72)'
+                    : '1px solid var(--border-status)';
                 bubble.style.background = 'transparent';
                 bubble.style.color = 'var(--color-text-bright)';
-                bubble.style.fontSize = '13px';
-                bubble.style.lineHeight = '1.35';
+                bubble.style.fontSize = isChargeBubble ? '12px' : '13px';
+                bubble.style.fontWeight = isChargeBubble ? '800' : '400';
+                bubble.style.lineHeight = isChargeBubble ? '1.05' : '1.35';
                 bubble.style.textAlign = 'center';
                 bubble.style.boxShadow = 'var(--board-shadow-outer)';
                 bubble.style.opacity = '0';
@@ -1577,8 +1609,8 @@
                 bgLayer.style.right = '0';
                 bgLayer.style.bottom = '0';
                 bgLayer.style.borderRadius = 'inherit';
-                bgLayer.style.background = 'var(--bg-glass)';
-                bgLayer.style.opacity = '0.82';
+                bgLayer.style.background = isChargeBubble ? 'rgba(17, 22, 31, 0.92)' : 'var(--bg-glass)';
+                bgLayer.style.opacity = isChargeBubble ? '1' : '0.82';
                 bgLayer.style.pointerEvents = 'none';
                 bgLayer.style.zIndex = '0';
                 bubble.appendChild(bgLayer);
@@ -1586,22 +1618,29 @@
                 const label = document.createElement('span');
                 label.style.position = 'relative';
                 label.style.zIndex = '1';
-                label.textContent = explicitText || `布石+${gained} 観測が捗る`;
+                if (isChargeBubble) {
+                    label.style.display = 'block';
+                    label.style.lineHeight = '1.05';
+                    label.dataset.chargeLabel = 'true';
+                }
+                label.textContent = explicitText || (isChargeBubble ? `+${gained}` : `布石+${gained} 観測が捗る`);
                 bubble.appendChild(label);
 
-                const tail = document.createElement('div');
-                tail.style.position = 'absolute';
-                tail.style.left = '50%';
-                tail.style.top = 'calc(100% - 1px)';
-                tail.style.transform = 'translateX(-50%)';
-                tail.style.width = '0';
-                tail.style.height = '0';
-                tail.style.borderStyle = 'solid';
-                tail.style.borderWidth = '8px 7px 0 7px';
-                tail.style.borderColor = 'var(--bg-glass) transparent transparent transparent';
-                tail.style.opacity = '0.82';
-                tail.style.zIndex = '0';
-                bubble.appendChild(tail);
+                if (!isChargeBubble) {
+                    const tail = document.createElement('div');
+                    tail.style.position = 'absolute';
+                    tail.style.left = '50%';
+                    tail.style.top = 'calc(100% - 1px)';
+                    tail.style.transform = 'translateX(-50%)';
+                    tail.style.width = '0';
+                    tail.style.height = '0';
+                    tail.style.borderStyle = 'solid';
+                    tail.style.borderWidth = '8px 7px 0 7px';
+                    tail.style.borderColor = 'var(--bg-glass) transparent transparent transparent';
+                    tail.style.opacity = '0.82';
+                    tail.style.zIndex = '0';
+                    bubble.appendChild(tail);
+                }
 
                 document.body.appendChild(bubble);
                 try {
@@ -1647,6 +1686,13 @@
             const promises = ev.targets.map(async t => {
                 const cell = this.getCellEl(t.r, t.col);
                 if (!cell) return;
+                const blockedByGhost = !!(t && t.meta && t.meta.blockedByGhost);
+                if (blockedByGhost) {
+                    await this._runWithEffectTargetHighlight(cell, EVENT_TYPES.FLIP, t, async () => {
+                        await this._sleep(Math.max(120, Math.floor(FLIP_MS / 2)));
+                    });
+                    return;
+                }
                 const disc = cell.querySelector('.disc');
                 if (!disc) {
                     // If the disc is already removed, create a ghost and animate fade directly.
@@ -1732,6 +1778,7 @@
                     : null;
                 const ownerColor = this._resolveOwnerColorFromBefore(t && t.ownerBefore);
                 const disc = cell.querySelector('.disc');
+                const blockedByGhost = !!(t && t.meta && t.meta.blockedByGhost);
                 const shouldPreserveDestroyPlaybackWithoutDisc =
                     isSuperCrushCollision ||
                     this._shouldHighlightEffectTarget(EVENT_TYPES.DESTROY, t);
@@ -1768,7 +1815,15 @@
                     }
                     if (destroyCause === 'ROBOT_VACUUM' && destroyReason === 'robot_vacuum_suck' && this._resolveRobotVacuumSource(t)) {
                         await this.animateRobotVacuumSuction(t);
+                        if (blockedByGhost) {
+                            await this._sleep(Math.max(120, Math.floor(FADE_OUT_MS / 2)));
+                            return;
+                        }
                         cell.innerHTML = '';
+                        return;
+                    }
+                    if (blockedByGhost) {
+                        await this._sleep(Math.max(120, Math.floor(FADE_OUT_MS / 2)));
                         return;
                     }
 
@@ -2063,6 +2118,7 @@
                 const isCloneMove = !!(t && t.clone === true);
                 const isHyperactiveLikeMove = (
                     moveCause === 'HYPERACTIVE' ||
+                    moveCause === 'AFTERIMAGE_WILL' ||
                     moveCause === 'ESCAPE_HYPERACTIVE' ||
                     moveCause === 'EXTREME_HYPERACTIVE_WILL' ||
                     moveCause === 'HYPERACTIVE_INHERIT_WILL' ||
@@ -2074,6 +2130,7 @@
                     moveCause === 'ULTIMATE_HYPERACTIVE_GOD' ||
                     moveReason.indexOf('ultimate_reverse_dragon_move') === 0 ||
                     moveReason.indexOf('ultimate_destroy_god_move') === 0 ||
+                    moveReason.indexOf('afterimage_will_flip_evade_move') === 0 ||
                     moveReason.indexOf('hyperactive') >= 0 ||
                     moveReason.indexOf('gluttonous') >= 0 ||
                     moveReason.indexOf('robot_vacuum_move') === 0
@@ -2657,6 +2714,7 @@
 
             const isPrimaryFlipEvadeSpecialType = (
                 specialType === 'HYPERACTIVE' ||
+                specialType === 'AFTERIMAGE_WILL' ||
                 specialType === 'EXTREME_HYPERACTIVE' ||
                 specialType === 'ESCAPE_HYPERACTIVE' ||
                 specialType === 'ULTIMATE_HYPERACTIVE' ||
@@ -2678,7 +2736,7 @@
             }
 
             const hasDestroyEvadeCounter =
-                specialType === 'WILL_HUNTER_KING' &&
+                (specialType === 'WILL_HUNTER_KING' || specialType === 'AFTERIMAGE_WILL') &&
                 Number.isFinite(destroyEvadeRemaining) &&
                 destroyEvadeRemaining >= 0;
             if (hasDestroyEvadeCounter) {

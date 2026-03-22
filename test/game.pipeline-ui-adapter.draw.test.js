@@ -243,6 +243,37 @@ describe('pipeline_ui_adapter draw mapping', () => {
     expect(out[0].targets[0]).toMatchObject({ r: 5, col: 2, owner: 'black', text: '出稼ぎ、行ってきます' });
   });
 
+  test('maps CHARGE_BUBBLE presentation event to observer_bubble playback event with charge kind', () => {
+    const pres = [{ type: 'CHARGE_BUBBLE', player: 'black', row: 4, col: 4, gained: 5, meta: { owner: 'black', sourceType: 'placement_flip_gain' } }];
+    const out = adapter.mapToPlaybackEvents(pres, { markers: [] }, { board: Array(8).fill(null).map(() => Array(8).fill(0)) });
+
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('observer_bubble');
+    expect(out[0].targets[0]).toMatchObject({
+      r: 4,
+      col: 4,
+      owner: 'black',
+      gained: 5,
+      bubbleKind: 'charge',
+      sourceType: 'placement_flip_gain'
+    });
+  });
+
+  test('keeps CHARGE_BUBBLE in the same phase as the flip that generated it', () => {
+    const pres = [
+      { type: 'CHANGE', row: 2, col: 3, ownerBefore: 'white', ownerAfter: 'black' },
+      { type: 'CHARGE_BUBBLE', player: 'black', row: 2, col: 2, gained: 1, meta: { owner: 'black', sourceType: 'placement_flip_gain' } }
+    ];
+    const out = adapter.mapToPlaybackEvents(pres, { markers: [] }, { board: Array(8).fill(null).map(() => Array(8).fill(0)) });
+
+    const flipEvent = out.find((ev) => ev && ev.type === 'flip');
+    const bubbleEvent = out.find((ev) => ev && ev.type === 'observer_bubble' && ev.targets && ev.targets[0] && ev.targets[0].bubbleKind === 'charge');
+
+    expect(flipEvent).toBeTruthy();
+    expect(bubbleEvent).toBeTruthy();
+    expect(bubbleEvent.phase).toBe(flipEvent.phase);
+  });
+
   test('maps WORK_INCOME with anchor to log + observer_bubble playback events', () => {
     const pres = [{ type: 'WORK_INCOME', player: 'black', row: 2, col: 3, gained: 4, meta: { incomeStep: 3 } }];
     const out = adapter.mapToPlaybackEvents(pres, { markers: [] }, { board: Array(8).fill(null).map(() => Array(8).fill(0)) });

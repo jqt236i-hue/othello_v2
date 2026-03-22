@@ -188,7 +188,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(stateFetchCount).toBe(0);
   });
 
-  test('stream error後に再接続し、回復後に state API を再同期する', async () => {
+  test('stream error後に再接続し、stream event が来なければ fallback で state API を再同期する', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
     expect(client).toBeTruthy();
@@ -211,8 +211,50 @@ describe('NetworkMatchClient reconnect and resync', () => {
 
     await Promise.resolve();
     await Promise.resolve();
+    jest.advanceTimersByTime(400);
+    await Promise.resolve();
+    await Promise.resolve();
 
     expect(stateFetchCount).toBe(1);
+  });
+
+  test('reconnect 後に snapshot が届けば fallback state sync を走らせない', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
+    expect(joined.ok).toBe(true);
+    expect(eventSources).toHaveLength(1);
+
+    const firstStream = eventSources[0];
+    firstStream.readyState = global.EventSource.CLOSED;
+    firstStream.onerror();
+
+    jest.advanceTimersByTime(500);
+    expect(eventSources).toHaveLength(2);
+
+    const secondStream = eventSources[1];
+    secondStream.onopen();
+    const snapshotHandler = secondStream.listeners.snapshot;
+    expect(typeof snapshotHandler).toBe('function');
+
+    snapshotHandler({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        stateVersion: 2,
+        seats: { black: true, white: true },
+        snapshot: createSnapshot(2),
+        playbackEvents: []
+      })
+    });
+
+    jest.advanceTimersByTime(600);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(stateFetchCount).toBe(0);
   });
 
   test('再接続後の state 再同期は一時失敗時に自動リトライする', async () => {
@@ -442,7 +484,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(publishBodies[0].action).toEqual({ type: 'reset_game', playerKey: 'white' });
   });
 
-  test('requestRematch は VERSION_MISMATCH 後に再戦済みの最新局面へ同期したら再送しない', async () => {
+  test('requestRematch は VERSION_AHEAD 後に再戦済みの最新局面へ同期したら再送しない', async () => {
     let publishAttempt = 0;
     global.fetch = jest.fn(async (url, init = {}) => {
       const parsedUrl = new URL(String(url));
@@ -478,7 +520,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
         if (publishAttempt === 1) {
           return jsonResponse(409, {
             ok: false,
-            rejectedReason: 'VERSION_MISMATCH',
+            rejectedReason: 'VERSION_AHEAD',
             roomId: 'ABC',
             seats: { black: true, white: true },
             stateVersion: 2,

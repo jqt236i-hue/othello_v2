@@ -250,6 +250,17 @@ function _resolveSpecialDisplayTurnsForDiff(data) {
     return undefined;
 }
 
+function _isBombCategoryMarkerForDiff(marker) {
+    if (!marker || typeof marker !== 'object') return false;
+    if (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.isBombCategoryMarker === 'function') {
+        return MarkersAdapter.isBombCategoryMarker(marker);
+    }
+    const data = (marker.data && typeof marker.data === 'object') ? marker.data : null;
+    const category = String(data && data.category ? data.category : '').trim().toLowerCase();
+    const type = String(data && data.type ? data.type : '').trim().toUpperCase();
+    return marker.kind === 'bomb' || category === 'bomb' || type === 'TIME_BOMB';
+}
+
 function _cacheCell(row, col, cell) {
     if (!cellCache[row]) cellCache[row] = [];
     cellCache[row][col] = cell;
@@ -434,7 +445,8 @@ function _resolveFlipEvadeDisplayForDiff(special, inherited) {
         specialTypeUpper === 'EXTREME_HYPERACTIVE' ||
         specialTypeUpper === 'ESCAPE_HYPERACTIVE' ||
         specialTypeUpper === 'ULTIMATE_HYPERACTIVE' ||
-        specialTypeUpper === 'WILL_HUNTER_KING'
+        specialTypeUpper === 'WILL_HUNTER_KING' ||
+        specialTypeUpper === 'AFTERIMAGE_WILL'
     );
     const specialEvade = (special && specialSupportsFlipEvade && Number.isFinite(Number(special.flipEvadeRemaining)))
         ? Math.max(0, Math.trunc(Number(special.flipEvadeRemaining)))
@@ -461,6 +473,7 @@ const STONE_INFO_TAG_MEANINGS = Object.freeze({
     '反転回避': '反転対象になったとき、マス移動でその石だけ回避する。',
     '破壊回避': '破壊対象になったとき、空きマスへ移動してその石だけ回避する。',
     '特殊石': '通常石画像を使わない石。normal_stone-black.png / normal_stone-white.png 以外の見た目の石。',
+    '幽体': '反転・石破壊の対象にはなるが、その石自身は受けない。交換の意志の対象外で、入替や他の効果は通常どおり受ける。',
     '反転保護': '反転されない。挟める列ごと無効化する。',
     '破壊保護': '破壊効果を受けない。',
     '守る意志適用中': '守る意志または守護神の完全保護が重なっている。',
@@ -616,6 +629,14 @@ const SPECIAL_STONE_INFO = {
     OBSERVER: {
         name: '盤理の観測者石',
         desc: '所有者ターン開始時に30%で発動し、布石を1〜5獲得する。5ターン持続。'
+    },
+    GHOST: {
+        name: '幽体石',
+        desc: '5ターンの間、反転と石破壊の対象にはなるがその石自身は受けない。反転列の成立は無効化せず、交換の意志の対象外で、入替や他の効果は通常どおり受ける。'
+    },
+    AFTERIMAGE_WILL: {
+        name: '残像石',
+        desc: '反転回避3回と破壊回避3回を持つ特殊石。回避成功時だけ対応する回数を消費し、両方0になると通常石へ戻る。反転回避で移動先が無いと消滅し、破壊回避で空きマスが無いとそのまま破壊される。'
     },
     WILL_HUNTER_KING: {
         name: '意志狩りの王',
@@ -876,11 +897,13 @@ function _getProtectionInfo(type, entry, hasGuard) {
         Number.isFinite(remaining) &&
         remaining <= 0
     );
+    const ghost = !isBomb && type === 'GHOST';
     const flipProtected = hasGuard ? true : (isBomb ? false : (flipProtectedTypes.has(type) && ultimateProtectionActive));
     const destroyProtected = hasGuard || type === 'GUARD' || type === 'ABSOLUTE_PROTECTED';
     return {
         flipProtected,
-        destroyProtected
+        destroyProtected,
+        ghost
     };
 }
 
@@ -908,12 +931,14 @@ const STONE_INFO_FLIP_EVADE_TYPES = new Set([
     'INHERITED_HYPERACTIVE',
     'EXTREME_HYPERACTIVE',
     'ULTIMATE_HYPERACTIVE',
-    'WILL_HUNTER_KING'
+    'WILL_HUNTER_KING',
+    'AFTERIMAGE_WILL'
 ]);
 
 const STONE_INFO_DESTROY_EVADE_TYPES = new Set([
     'ULTIMATE_HYPERACTIVE',
-    'WILL_HUNTER_KING'
+    'WILL_HUNTER_KING',
+    'AFTERIMAGE_WILL'
 ]);
 
 function _hasActiveFlipEvadeForEntry(type, entry) {
@@ -925,7 +950,7 @@ function _hasActiveFlipEvadeForEntry(type, entry) {
     }
 
     const rawRemaining = Number(data ? data.flipEvadeRemaining : NaN);
-    const defaultRemaining = (type === 'ULTIMATE_HYPERACTIVE' || type === 'EXTREME_HYPERACTIVE') ? 3 : 1;
+    const defaultRemaining = (type === 'ULTIMATE_HYPERACTIVE' || type === 'EXTREME_HYPERACTIVE' || type === 'AFTERIMAGE_WILL') ? 3 : 1;
     const normalizedRemaining = Number.isFinite(rawRemaining)
         ? Math.max(0, Math.trunc(rawRemaining))
         : defaultRemaining;
@@ -941,7 +966,7 @@ function _hasActiveDestroyEvadeForEntry(type, entry) {
     }
 
     const rawRemaining = Number(data ? data.destroyEvadeRemaining : NaN);
-    const defaultRemaining = type === 'ULTIMATE_HYPERACTIVE' ? 1 : 0;
+    const defaultRemaining = type === 'ULTIMATE_HYPERACTIVE' ? 1 : (type === 'AFTERIMAGE_WILL' ? 3 : 0);
     const normalizedRemaining = Number.isFinite(rawRemaining)
         ? Math.max(0, Math.trunc(rawRemaining))
         : defaultRemaining;
@@ -957,6 +982,7 @@ function _buildSpecialStoneBadges(entries, hasGuard, protection) {
 
     if (hasGuard) badges.push('守る意志適用中');
     badges.push('特殊石');
+    if (protection.ghost) badges.push('幽体');
 
     if (contexts.some((ctx) => STONE_INFO_MOBILITY_TYPES.has(ctx.type))) {
         badges.push('多動状態');
@@ -968,8 +994,8 @@ function _buildSpecialStoneBadges(entries, hasGuard, protection) {
         badges.push('破壊回避');
     }
 
-    if (protection.flipProtected) badges.push('反転保護');
-    if (protection.destroyProtected) badges.push('破壊保護');
+    if (!protection.ghost && protection.flipProtected) badges.push('反転保護');
+    if (!protection.ghost && protection.destroyProtected) badges.push('破壊保護');
 
     return badges;
 }
@@ -1321,6 +1347,15 @@ function buildCurrentCellState() {
     const freezeMap = new Map();
     const sproutMap = new Map();
     for (const m of markers) {
+        if (_isBombCategoryMarkerForDiff(m) && m.data) {
+            bombMap.set(`${m.row},${m.col}`, {
+                row: m.row,
+                col: m.col,
+                remainingTurns: m.data.remainingTurns,
+                owner: m.owner
+            });
+            continue;
+        }
         if (m.kind === markerKinds.SPECIAL_STONE && m.data && m.data.type) {
             if (_isBoardHiddenTrap(m)) continue;
             if (m.data.type === 'INHERITED_HYPERACTIVE') {
@@ -1369,7 +1404,8 @@ function buildCurrentCellState() {
                 markerTypeUpper === 'EXTREME_HYPERACTIVE' ||
                 markerTypeUpper === 'ESCAPE_HYPERACTIVE' ||
                 markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ||
-                markerTypeUpper === 'WILL_HUNTER_KING'
+                markerTypeUpper === 'WILL_HUNTER_KING' ||
+                markerTypeUpper === 'AFTERIMAGE_WILL'
             );
             specialMap.set(`${m.row},${m.col}`, {
                 row: m.row,
@@ -1377,23 +1413,24 @@ function buildCurrentCellState() {
                 type: m.data.type,
                 owner: m.owner,
                 remainingOwnerTurns: _resolveSpecialDisplayTurnsForDiff(m.data),
-                destroyEvadeRemaining: Number.isFinite(Number(m.data.destroyEvadeRemaining))
-                    ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))
-                    : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ? 1 : null),
+                destroyEvadeRemaining: (
+                    markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ||
+                    markerTypeUpper === 'WILL_HUNTER_KING' ||
+                    markerTypeUpper === 'AFTERIMAGE_WILL'
+                )
+                    ? (
+                        Number.isFinite(Number(m.data.destroyEvadeRemaining))
+                            ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))
+                            : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ? 1 : (markerTypeUpper === 'AFTERIMAGE_WILL' ? 3 : null))
+                    )
+                    : null,
                 flipEvadeRemaining: markerSupportsFlipEvade
                     ? (
                         Number.isFinite(Number(m.data.flipEvadeRemaining))
                             ? Math.max(0, Math.trunc(Number(m.data.flipEvadeRemaining)))
-                            : ((markerTypeUpper === 'ULTIMATE_HYPERACTIVE' || markerTypeUpper === 'EXTREME_HYPERACTIVE') ? 3 : null)
+                            : ((markerTypeUpper === 'ULTIMATE_HYPERACTIVE' || markerTypeUpper === 'EXTREME_HYPERACTIVE' || markerTypeUpper === 'AFTERIMAGE_WILL') ? 3 : null)
                     )
                     : 0
-            });
-        } else if (m.kind === markerKinds.BOMB && m.data) {
-            bombMap.set(`${m.row},${m.col}`, {
-                row: m.row,
-                col: m.col,
-                remainingTurns: m.data.remainingTurns,
-                owner: m.owner
             });
         }
     }
@@ -1446,7 +1483,8 @@ function buildCurrentCellState() {
                     String(special.type || '').toUpperCase() === 'EXTREME_HYPERACTIVE' ||
                     String(special.type || '').toUpperCase() === 'ESCAPE_HYPERACTIVE' ||
                     String(special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE' ||
-                    String(special.type || '').toUpperCase() === 'WILL_HUNTER_KING'
+                    String(special.type || '').toUpperCase() === 'WILL_HUNTER_KING' ||
+                    String(special.type || '').toUpperCase() === 'AFTERIMAGE_WILL'
                 )
             );
 
@@ -1520,7 +1558,8 @@ function buildCurrentCellState() {
                 String(special.type || '').toUpperCase() === 'EXTREME_HYPERACTIVE' ||
                 String(special.type || '').toUpperCase() === 'ESCAPE_HYPERACTIVE' ||
                 String(special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE' ||
-                String(special.type || '').toUpperCase() === 'WILL_HUNTER_KING'
+                String(special.type || '').toUpperCase() === 'WILL_HUNTER_KING' ||
+                String(special.type || '').toUpperCase() === 'AFTERIMAGE_WILL'
             )
         );
 
@@ -1795,7 +1834,8 @@ function updateCellDOM(cell, state, row, col, prevState) {
                 String(state.special.type || '').toUpperCase() === 'EXTREME_HYPERACTIVE' ||
                 String(state.special.type || '').toUpperCase() === 'ESCAPE_HYPERACTIVE' ||
                 String(state.special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE' ||
-                String(state.special.type || '').toUpperCase() === 'WILL_HUNTER_KING'
+                String(state.special.type || '').toUpperCase() === 'WILL_HUNTER_KING' ||
+                String(state.special.type || '').toUpperCase() === 'AFTERIMAGE_WILL'
             ) &&
             Number.isFinite(state.special.flipEvadeRemaining)
         );
@@ -1803,7 +1843,8 @@ function updateCellDOM(cell, state, row, col, prevState) {
             state.special &&
             (
                 String(state.special.type || '').toUpperCase() === 'WILL_HUNTER_KING' ||
-                String(state.special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE'
+                String(state.special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE' ||
+                String(state.special.type || '').toUpperCase() === 'AFTERIMAGE_WILL'
             ) &&
             Number.isFinite(state.special.destroyEvadeRemaining)
         );

@@ -59,6 +59,8 @@ const CANDIDATE_CARD_TYPES = new Set([
     'PERMA_PROTECT_NEXT_STONE',
     'EXTEND_LIFE_WILL',
     'EXTEND_LIFE_GOD',
+    'AFTERIMAGE_WILL',
+    'GHOST_WILL',
     'CORROSION_WILL',
     'GUARD_WILL',
     'GUARDIAN_GOD',
@@ -719,8 +721,86 @@ function buildPendingSelectionTrace(record) {
     return null;
 }
 
+function normalizeDecisionCandidate(candidate) {
+    if (!candidate || typeof candidate !== 'object') return null;
+    return {
+        actionType: typeof candidate.actionType === 'string' ? candidate.actionType : null,
+        decisionKind: typeof candidate.decisionKind === 'string' ? candidate.decisionKind : null,
+        cardId: typeof candidate.cardId === 'string' ? candidate.cardId : null,
+        cardType: typeof candidate.cardType === 'string' ? candidate.cardType : null,
+        cardCost: Number.isFinite(candidate.cardCost) ? Number(candidate.cardCost) : null,
+        score: Number.isFinite(candidate.score) ? Number(candidate.score) : null,
+        minUseScore: Number.isFinite(candidate.minUseScore) ? Number(candidate.minUseScore) : null,
+        shouldUse: typeof candidate.shouldUse === 'boolean' ? candidate.shouldUse : null,
+        isSelected: candidate.isSelected === true
+    };
+}
+
+function resolveCardDecisionKind(record, normalizedCandidates) {
+    const selectedActionKey = typeof (record && record.selectedActionKey) === 'string'
+        ? record.selectedActionKey.trim()
+        : '';
+    if (selectedActionKey.startsWith('sell:')) return 'sell';
+    if (selectedActionKey.startsWith('use:')) return 'use';
+    if (selectedActionKey.startsWith('destroy:')) return 'destroy';
+    if (selectedActionKey === 'keep' || selectedActionKey.startsWith('keep:')) return 'keep';
+    if (record && record.sellCardId) return 'sell';
+    if (record && record.useCardId) return 'use';
+    if (record && record.destroyCardId) return 'destroy';
+    const selectedCandidate = Array.isArray(normalizedCandidates)
+        ? normalizedCandidates.find((candidate) => candidate && candidate.isSelected && candidate.decisionKind)
+        : null;
+    if (selectedCandidate && selectedCandidate.decisionKind) return selectedCandidate.decisionKind;
+    const firstCandidate = Array.isArray(normalizedCandidates)
+        ? normalizedCandidates.find((candidate) => candidate && candidate.decisionKind)
+        : null;
+    if (firstCandidate && firstCandidate.decisionKind) return firstCandidate.decisionKind;
+    const actionType = String(record && record.actionType ? record.actionType : '');
+    if (actionType === 'use_card') return 'use';
+    if (actionType === 'destroy_hand_card') return 'destroy';
+    if (actionType === 'cancel_card') return 'keep';
+    return null;
+}
+
+function buildCardSelectionTrace(record) {
+    if (!record || typeof record !== 'object') return null;
+    const candidates = Array.isArray(record.decisionCandidates)
+        ? record.decisionCandidates.map((candidate) => normalizeDecisionCandidate(candidate)).filter(Boolean)
+        : [];
+    const decision = resolveCardDecisionKind(record, candidates);
+    if (!decision) return null;
+    const selectedCandidate = candidates.find((candidate) => candidate && candidate.isSelected) || null;
+    const selectedCardId = (typeof record.sellCardId === 'string' && record.sellCardId)
+        || (typeof record.useCardId === 'string' && record.useCardId)
+        || (typeof record.destroyCardId === 'string' && record.destroyCardId)
+        || (selectedCandidate && selectedCandidate.cardId)
+        || null;
+    const reasonTags = Array.isArray(record.decisionReasonTags)
+        ? record.decisionReasonTags.map((tag) => String(tag || '').trim()).filter(Boolean)
+        : [];
+    const scoreSummary = record.decisionScoreSummary && typeof record.decisionScoreSummary === 'object'
+        ? { ...record.decisionScoreSummary }
+        : null;
+    return {
+        kind: 'card',
+        decision,
+        selectedCardId,
+        selectedActionKey: typeof record.selectedActionKey === 'string' && record.selectedActionKey.trim()
+            ? record.selectedActionKey.trim()
+            : null,
+        usableCardIds: Array.isArray(record.usableCardIds) ? record.usableCardIds.slice() : [],
+        handCards: Array.isArray(record.handCards) ? record.handCards.slice() : [],
+        reasonTags,
+        scoreSummary,
+        candidates,
+        pendingSelection: buildPendingSelectionTrace(record)
+    };
+}
+
 function buildSelectionTrace(record) {
     if (!record || typeof record !== 'object') return null;
+    const cardTrace = buildCardSelectionTrace(record);
+    if (cardTrace) return cardTrace;
     const actionType = String(record.actionType || '');
     if (actionType === 'place') {
         const topCandidates = Array.isArray(record.topPlacementCandidates)
@@ -749,29 +829,6 @@ function buildSelectionTrace(record) {
             topCandidates,
             forcedPlacementCategory: record.forcedPlacementCategory || null,
             pendingSelection: buildPendingSelectionTrace(record)
-        };
-    }
-    if (actionType === 'use_card') {
-        return {
-            kind: 'card',
-            decision: 'use',
-            selectedCardId: record.useCardId || null,
-            usableCardIds: Array.isArray(record.usableCardIds) ? record.usableCardIds.slice() : []
-        };
-    }
-    if (actionType === 'destroy_hand_card') {
-        return {
-            kind: 'card',
-            decision: 'destroy',
-            selectedCardId: record.destroyCardId || null,
-            handCards: Array.isArray(record.handCards) ? record.handCards.slice() : []
-        };
-    }
-    if (actionType === 'cancel_card') {
-        return {
-            kind: 'card',
-            decision: 'keep',
-            usableCardIds: Array.isArray(record.usableCardIds) ? record.usableCardIds.slice() : []
         };
     }
     return {
@@ -1796,7 +1853,7 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
     const defaultCandidateMoves = Array.isArray(legalMoves)
         ? legalMoves.filter((move) => move && Number.isInteger(move.row) && Number.isInteger(move.col))
         : [];
-    const candidateMoves = (options && options.enableTacticalLookahead === false && Array.isArray(forcedPlacement.moves) && forcedPlacement.moves.length > 0)
+    const candidateMoves = (Array.isArray(forcedPlacement.moves) && forcedPlacement.moves.length > 0)
         ? forcedPlacement.moves
         : defaultCandidateMoves;
     if (candidateMoves.length <= 0) {
@@ -2078,6 +2135,7 @@ function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCou
         oppCharge: cardState && cardState.charge && Number.isFinite(cardState.charge[oppKey]) ? cardState.charge[oppKey] : 0,
         oppHandSize: cardState && cardState.hands && Array.isArray(cardState.hands[oppKey]) ? cardState.hands[oppKey].length : 0,
         handSize: cardState && cardState.hands && Array.isArray(cardState.hands[ownKey]) ? cardState.hands[ownKey].length : 0,
+        handCardIds: cardState && cardState.hands && Array.isArray(cardState.hands[ownKey]) ? cardState.hands[ownKey].slice() : [],
         hasDestroyedCardThisTurn,
         forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0,
         ownCorners: planState.ownCorners,
@@ -3039,6 +3097,7 @@ function normalizeOptions(options) {
         schemaVersion: SELFPLAY_SCHEMA_VERSION,
         games: Number.isFinite(opts.games) ? Math.max(1, Math.floor(opts.games)) : 10,
         baseSeed: Number.isFinite(opts.baseSeed) ? Math.floor(opts.baseSeed) : 1,
+        gameIndexOffset: Number.isFinite(opts.gameIndexOffset) ? Math.max(0, Math.floor(opts.gameIndexOffset)) : 0,
         maxPlies: Number.isFinite(opts.maxPlies) ? Math.max(1, Math.floor(opts.maxPlies)) : 220,
         allowCardUsage: opts.allowCardUsage !== false,
         cardUsageRate: Number.isFinite(opts.cardUsageRate) ? Math.max(0, Math.min(1, opts.cardUsageRate)) : 0.2,
@@ -3581,16 +3640,17 @@ function runSelfPlayGames(options) {
         if (opts.shouldStop && opts.shouldStop()) {
             break;
         }
+        const gameIndex = opts.gameIndexOffset + i;
         const seed = opts.baseSeed + i;
         const gamePlayerPolicies = opts.playerPolicyResolver
-            ? opts.playerPolicyResolver(i, seed)
+            ? opts.playerPolicyResolver(gameIndex, seed)
             : opts.playerPolicies;
         const perGamePolicies = buildPerGamePolicySet(
             Object.assign({}, opts, { playerPolicies: gamePlayerPolicies || null }),
             seed,
-            i
+            gameIndex
         );
-        const one = runSingleGame(i, seed, Object.assign({}, opts, {
+        const one = runSingleGame(gameIndex, seed, Object.assign({}, opts, {
             playerPolicies: perGamePolicies
         }));
         gameSummaries.push(one.summary);
@@ -3625,7 +3685,9 @@ module.exports = {
     runSelfPlayGames,
     runSingleGame,
     decideAction,
+    buildActorViewSnapshot,
     buildCardDecisionContext,
+    buildSelectionTrace,
     selectPlacementMove,
     getPolicyActionScoreByKey,
     encodeBoard,

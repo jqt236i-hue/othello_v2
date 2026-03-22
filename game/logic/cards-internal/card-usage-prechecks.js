@@ -130,7 +130,7 @@
         case 'BOARD_EXPANSION_WILL':
             return validateSelectionTargets(context, 'getBoardExpansionTargets', 1) ? result : buildFailureResult();
         case 'BOARD_EXPANSION_GOD':
-            return validateSelectionTargets(context, 'getBoardExpansionGodTargets', 2) ? result : buildFailureResult();
+            return validateSelectionTargets(context, 'getBoardExpansionGodTargets', 1) ? result : buildFailureResult();
         case 'BLOCKADE_WILL':
             return validateSelectionTargets(context, 'getBlockadeTargets', 1) ? result : buildFailureResult();
         case 'METEOR_WILL':

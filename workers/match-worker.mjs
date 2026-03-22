@@ -110,20 +110,6 @@ function parseHiddenHandToken(value) {
     return null;
 }
 
-function resolveCardIdFromHiddenToken(value, previousHands) {
-    if (MatchAuthority && typeof MatchAuthority.resolveCardIdFromHiddenToken === 'function') {
-        return MatchAuthority.resolveCardIdFromHiddenToken(value, previousHands);
-    }
-    return null;
-}
-
-function rehydrateHiddenTokensInPlace(value, previousHands, visited = new WeakSet()) {
-    if (MatchAuthority && typeof MatchAuthority.rehydrateHiddenTokensInPlace === 'function') {
-        return MatchAuthority.rehydrateHiddenTokensInPlace(value, previousHands, visited);
-    }
-    return value;
-}
-
 function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
     if (MatchAuthority && typeof MatchAuthority.resolveAuthenticatedSeatKey === 'function') {
         return MatchAuthority.resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue);
@@ -559,6 +545,7 @@ function buildPublishPayload(room, viewerSeatKey, options = {}) {
         roomDeck: toPublicRoomDeck(room),
         networkDebugEnabled,
         turnTimer: toPublicTurnTimer(room, serverTime),
+        playbackEvents: Array.isArray(options.playbackEvents) ? options.playbackEvents : [],
         serverTime,
         idempotentReplay: options.idempotentReplay === true,
         publishMeta: options.publishMeta || null
@@ -663,6 +650,9 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
         : null;
     if (!currentSnapshot) {
         return { ok: false, rejectedReason: 'INVALID_SNAPSHOT' };
+    }
+    if (MatchAuthority && typeof MatchAuthority.stripTransientChargeDeltaState === 'function') {
+        MatchAuthority.stripTransientChargeDeltaState(currentSnapshot);
     }
 
     const currentTurnIndex = Number.isFinite(Number(currentSnapshot.cardState && currentSnapshot.cardState.turnIndex))
@@ -780,13 +770,6 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
     };
 }
 
-function validatePublishedHands(snapshot, publishingSeatKey) {
-    if (MatchAuthority && typeof MatchAuthority.validatePublishedHands === 'function') {
-        return MatchAuthority.validatePublishedHands(snapshot, publishingSeatKey);
-    }
-    return { ok: false, reason: 'INVALID_HAND_STATE' };
-}
-
 async function reconcileTurnStartIfNeeded(room, snapshot, options) {
     const opts = (options && typeof options === 'object') ? options : {};
     if (!snapshot || !snapshot.gameState || !snapshot.cardState) return opts.includeRawEvents ? [] : snapshot;
@@ -881,13 +864,6 @@ function projectSnapshotForViewer(room, viewerSeatKey) {
     }
 
     return shot;
-}
-
-function rehydrateSnapshotForPublish(previousSnapshot, incomingSnapshot) {
-    if (MatchAuthority && typeof MatchAuthority.rehydrateSnapshotForPublish === 'function') {
-        return MatchAuthority.rehydrateSnapshotForPublish(previousSnapshot, incomingSnapshot);
-    }
-    return deepClone(incomingSnapshot || {});
 }
 
 function toPublicSnapshot(room, viewerSeatKey) {
@@ -1248,6 +1224,20 @@ function buildPresencePayload(room, meta) {
     };
 }
 
+function buildHeartbeatPayload(room, serverTime) {
+    return {
+        ok: true,
+        roomId: room.roomId,
+        stateVersion: Number.isFinite(Number(room.stateVersion)) ? Number(room.stateVersion) : 0,
+        seats: toPublicSeats(room),
+        seatNames: toPublicSeatNames(room),
+        roomDeck: toPublicRoomDeck(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+        turnTimer: toPublicTurnTimer(room, serverTime),
+        serverTime
+    };
+}
+
 function resolveSeatForJoin(room, requestedSeatKey, providedToken) {
     const token = String(providedToken || '').trim();
     const requested = parseSeatKeyOptional(requestedSeatKey);
@@ -1505,6 +1495,7 @@ export class MatchRoomDurableObject {
         this.streamSeq = 0;
         this.encoder = new TextEncoder();
         this.heartbeatTimerId = null;
+        this.sseEventBuffer = [];
     }
 
     async loadRoom() {
@@ -1519,6 +1510,7 @@ export class MatchRoomDurableObject {
 
     async removeRoom() {
         this.room = null;
+        this.sseEventBuffer = [];
         if (this.heartbeatTimerId !== null) {
             try { clearTimeout(this.heartbeatTimerId); } catch (e) { /* ignore */ }
             this.heartbeatTimerId = null;
@@ -1546,6 +1538,51 @@ export class MatchRoomDurableObject {
         return `${roomId}_${stateVersion}_${nextSeq}`;
     }
 
+    rememberBufferedSseEvent(record) {
+        if (!MatchAuthority || typeof MatchAuthority.appendBufferedSseEvent !== 'function') return;
+        this.sseEventBuffer = MatchAuthority.appendBufferedSseEvent(this.sseEventBuffer, record);
+    }
+
+    buildBufferedSnapshotEvent(meta, eventId) {
+        const payloadByViewer = {
+            black: buildSnapshotPayload(this.room, meta, 'black'),
+            white: buildSnapshotPayload(this.room, meta, 'white')
+        };
+        return {
+            record: {
+                eventId,
+                eventName: 'snapshot',
+                payloadByViewer
+            },
+            payloadByViewer
+        };
+    }
+
+    prepareSnapshotBroadcast(meta) {
+        const eventId = this.nextSseEventId();
+        const { record, payloadByViewer } = this.buildBufferedSnapshotEvent(meta, eventId);
+        return {
+            eventId,
+            record,
+            payloadByViewer,
+            fallbackPayload: buildSnapshotPayload(this.room, meta, null)
+        };
+    }
+
+    async broadcastPreparedSnapshot(preparedSnapshot) {
+        if (!this.room || !preparedSnapshot) return;
+        this.rememberBufferedSseEvent(preparedSnapshot.record);
+        const streamEntries = Array.from(this.streams.entries());
+        if (streamEntries.length === 0) return;
+        await Promise.all(streamEntries.map(([streamId, streamInfo]) => {
+            const viewerSeatKey = streamInfo && streamInfo.seatKey ? streamInfo.seatKey : null;
+            const payload = (viewerSeatKey && preparedSnapshot.payloadByViewer[viewerSeatKey])
+                ? preparedSnapshot.payloadByViewer[viewerSeatKey]
+                : preparedSnapshot.fallbackPayload;
+            return this.sendSse(streamId, 'snapshot', payload, { eventId: preparedSnapshot.eventId });
+        }));
+    }
+
     ensureHeartbeatTimer() {
         if (this.heartbeatTimerId !== null) return;
         if (this.streams.size === 0) return;
@@ -1568,19 +1605,13 @@ export class MatchRoomDurableObject {
         if (streamEntries.length === 0) return;
 
         const serverTime = Date.now();
-
-        const payload = {
-            ok: true,
-            roomId: this.room.roomId,
-            stateVersion: Number.isFinite(Number(this.room.stateVersion)) ? Number(this.room.stateVersion) : 0,
-            seats: toPublicSeats(this.room),
-            seatNames: toPublicSeatNames(this.room),
-            roomDeck: toPublicRoomDeck(this.room),
-            networkDebugEnabled: toPublicNetworkDebugEnabled(this.room),
-            turnTimer: toPublicTurnTimer(this.room, serverTime),
-            serverTime
-        };
+        const payload = buildHeartbeatPayload(this.room, serverTime);
         const eventId = this.nextSseEventId();
+        this.rememberBufferedSseEvent({
+            eventId,
+            eventName: 'heartbeat',
+            payload
+        });
 
         await Promise.all(streamEntries.map(([streamId]) => (
             this.sendSse(streamId, 'heartbeat', payload, { eventId })
@@ -1631,23 +1662,23 @@ export class MatchRoomDurableObject {
 
     async broadcastSnapshot(meta) {
         if (!this.room) return;
-        const streamEntries = Array.from(this.streams.entries());
-        if (streamEntries.length === 0) return;
-
-        const eventId = this.nextSseEventId();
-        await Promise.all(streamEntries.map(([streamId, streamInfo]) => {
-            const payload = buildSnapshotPayload(this.room, meta, streamInfo && streamInfo.seatKey ? streamInfo.seatKey : null);
-            return this.sendSse(streamId, 'snapshot', payload, { eventId });
-        }));
+        const preparedSnapshot = meta && meta.__preparedSnapshot
+            ? meta.__preparedSnapshot
+            : this.prepareSnapshotBroadcast(meta);
+        await this.broadcastPreparedSnapshot(preparedSnapshot);
     }
 
     async broadcastPresence(meta) {
         if (!this.room) return;
         const payload = buildPresencePayload(this.room, meta || {});
+        const eventId = this.nextSseEventId();
+        this.rememberBufferedSseEvent({
+            eventId,
+            eventName: 'presence',
+            payload
+        });
         const streamEntries = Array.from(this.streams.entries());
         if (streamEntries.length === 0) return;
-
-        const eventId = this.nextSseEventId();
         await Promise.all(streamEntries.map(([streamId]) => (
             this.sendSse(streamId, 'presence', payload, { eventId })
         )));
@@ -1655,10 +1686,14 @@ export class MatchRoomDurableObject {
 
     async broadcastChat(payload) {
         if (!this.room) return;
+        const eventId = this.nextSseEventId();
+        this.rememberBufferedSseEvent({
+            eventId,
+            eventName: 'chat',
+            payload
+        });
         const streamEntries = Array.from(this.streams.entries());
         if (streamEntries.length === 0) return;
-
-        const eventId = this.nextSseEventId();
         await Promise.all(streamEntries.map(([streamId]) => (
             this.sendSse(streamId, 'chat', payload, { eventId })
         )));
@@ -1873,6 +1908,7 @@ export class MatchRoomDurableObject {
             roomDeck,
             networkDebugEnabled
         });
+        this.sseEventBuffer = [];
         this.room.seats.black = true;
         this.room.seatNames.black = playerName;
         this.room.updatedAt = Date.now();
@@ -2110,12 +2146,13 @@ export class MatchRoomDurableObject {
             }));
         }
 
-        const lastAcceptedOperation = acceptedOperationsBySeat[seatKey];
+        const lastAcceptedOperation = MatchAuthority && typeof MatchAuthority.findAcceptedOperationBySeat === 'function'
+            ? MatchAuthority.findAcceptedOperationBySeat(room, seatKey, operationId)
+            : acceptedOperationsBySeat[seatKey];
         if (
             operationId &&
             lastAcceptedOperation &&
-            typeof lastAcceptedOperation === 'object' &&
-            String(lastAcceptedOperation.operationId || '') === operationId
+            typeof lastAcceptedOperation === 'object'
         ) {
             const serverTime = Date.now();
             return jsonResponse(200, buildPublishPayload(room, seatKey, {
@@ -2134,16 +2171,19 @@ export class MatchRoomDurableObject {
         }
 
         if (baseVersion === null || baseVersion !== room.stateVersion) {
+            const rejectedReason = MatchAuthority && typeof MatchAuthority.classifyVersionRejectionReason === 'function'
+                ? MatchAuthority.classifyVersionRejectionReason(baseVersion, room.stateVersion)
+                : 'VERSION_MISMATCH';
             return jsonResponse(409, buildPublishPayload(room, seatKey, {
                 ok: false,
-                rejectedReason: 'VERSION_MISMATCH',
+                rejectedReason,
                 publishMeta: {
                     kind: 'rejected',
                     operationId,
                     actionType,
                     receivedBaseVersion: baseVersion,
                     authoritativeStateVersion: room.stateVersion,
-                    rejectedReason: 'VERSION_MISMATCH'
+                    rejectedReason
                 }
             }));
         }
@@ -2243,15 +2283,18 @@ export class MatchRoomDurableObject {
         room.snapshot = nextSnapshot;
         room.updatedAt = nextSnapshot.updatedAt;
         if (operationId) {
-            acceptedOperationsBySeat[seatKey] = {
+            const acceptedEntry = {
                 operationId,
                 stateVersion: room.stateVersion,
                 updatedAt: room.updatedAt
             };
+            if (MatchAuthority && typeof MatchAuthority.rememberAcceptedOperationBySeat === 'function') {
+                MatchAuthority.rememberAcceptedOperationBySeat(room, seatKey, acceptedEntry);
+            } else {
+                acceptedOperationsBySeat[seatKey] = acceptedEntry;
+            }
         }
         await this.refreshTurnTimer({ nowMs: room.updatedAt, forceRestart: !isNetworkDebugAction });
-
-        await this.saveRoom();
 
         const meta = {
             playerKey,
@@ -2260,13 +2303,12 @@ export class MatchRoomDurableObject {
             playbackDiagnostics: serverPlaybackDiagnostics,
             operationId: operationId || null
         };
-
-        await this.broadcastSnapshot(meta);
-
         const serverTime = Date.now();
-        return jsonResponse(200, buildPublishPayload(room, seatKey, {
+        const preparedSnapshot = this.prepareSnapshotBroadcast(meta);
+        const responsePayload = buildPublishPayload(room, seatKey, {
             ok: true,
             serverTime,
+            playbackEvents: serverPlaybackEvents,
             playbackDiagnostics: serverPlaybackDiagnostics,
             publishMeta: {
                 kind: 'accepted',
@@ -2275,7 +2317,16 @@ export class MatchRoomDurableObject {
                 receivedBaseVersion: baseVersion,
                 authoritativeStateVersion: room.stateVersion
             }
-        }));
+        });
+        if (MatchAuthority && typeof MatchAuthority.stripTransientChargeDeltaState === 'function') {
+            MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
+        }
+        await this.saveRoom();
+        await this.broadcastSnapshot({
+            ...meta,
+            __preparedSnapshot: preparedSnapshot
+        });
+        return jsonResponse(200, responsePayload);
     }
 
     async handleState(urlObj) {
@@ -2334,6 +2385,10 @@ export class MatchRoomDurableObject {
         const streamId = `sse_${this.streamSeq}_${Date.now()}`;
         this.streams.set(streamId, { writer, seatKey: viewerSeatKey });
         this.ensureHeartbeatTimer();
+        const lastEventId = String(request.headers.get('Last-Event-ID') || '').trim();
+        const replayEvents = MatchAuthority && typeof MatchAuthority.getBufferedSseReplayEvents === 'function'
+            ? MatchAuthority.getBufferedSseReplayEvents(this.sseEventBuffer, lastEventId, viewerSeatKey)
+            : null;
 
         const onAbort = () => {
             this.closeStream(streamId).catch(() => {});
@@ -2350,6 +2405,16 @@ export class MatchRoomDurableObject {
         queueMicrotask(() => {
             (async () => {
                 try {
+                    if (Array.isArray(replayEvents)) {
+                        if (replayEvents.length > 0) {
+                            for (const event of replayEvents) {
+                                await this.sendSse(streamId, event.eventName, event.payload, { eventId: event.eventId });
+                            }
+                        } else {
+                            await this.sendSse(streamId, 'heartbeat', buildHeartbeatPayload(room, Date.now()), { eventId: null });
+                        }
+                        return;
+                    }
                     await this.sendSse(streamId, 'snapshot', initialPayload);
                     await this.sendSse(streamId, 'chat', {
                         ok: true,

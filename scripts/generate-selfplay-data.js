@@ -77,6 +77,8 @@ function parseArgs(argv) {
         heuristicWeightMax: 1,
         jobs: 10,
         workerRetries: 1,
+        resumeChunkSize: 0,
+        reuseCompletedChunks: false,
         policyModelPath: null,
         policyModelPoolPaths: [],
         policyPoolSampling: 'uniform',
@@ -224,6 +226,15 @@ function parseArgs(argv) {
         if (a === '--worker-retries') {
             args.workerRetries = Number(argv[++i]);
             specified.add('workerRetries');
+            continue;
+        }
+        if (a === '--resume-chunk-size') {
+            args.resumeChunkSize = Number(argv[++i]);
+            specified.add('resumeChunkSize');
+            continue;
+        }
+        if (a === '--reuse-completed-chunks') {
+            args.reuseCompletedChunks = true;
             continue;
         }
         if (a === '--policy-model') {
@@ -378,6 +389,10 @@ function parseArgs(argv) {
         throw new Error('--worker-retries must be >= 0');
     }
     args.workerRetries = Math.floor(args.workerRetries);
+    if (!Number.isFinite(args.resumeChunkSize) || args.resumeChunkSize < 0) {
+        throw new Error('--resume-chunk-size must be >= 0');
+    }
+    args.resumeChunkSize = Math.floor(args.resumeChunkSize);
     if (args.policyModelPath && !fs.existsSync(args.policyModelPath)) {
         throw new Error(`--policy-model not found: ${args.policyModelPath}`);
     }
@@ -431,6 +446,8 @@ function printHelp() {
         '      --heuristic-weight-max <r> Max heuristic score weight (default: 1)',
         '  -j, --jobs <n>            Number of parallel self-play workers (default: 10)',
         '      --worker-retries <n>  Retry count for a shard worker that exits unexpectedly (default: 1)',
+        '      --resume-chunk-size <n> Completed chunk checkpoint size in games (default: 0=off)',
+        '      --reuse-completed-chunks  Reuse fully completed chunk checkpoints before rerunning missing work',
         '      --policy-model <path> Optional policy-table JSON used by both players',
         '      --policy-model-pool <paths> Comma-separated model paths for league-style mixed self-play',
         '      --policy-pool-sampling <mode> Model pool sampling mode: uniform|recency (default: uniform)',
@@ -615,10 +632,11 @@ function withFilteredConsole(enabled, fn) {
     }
 }
 
-function createShardPlan(totalGames, baseSeed, jobs) {
+function createShardPlan(totalGames, baseSeed, jobs, gameIndexOffset) {
     const safeGames = Math.max(1, Math.floor(Number(totalGames) || 1));
     const safeJobs = Math.max(1, Math.min(safeGames, Math.floor(Number(jobs) || 1)));
     const base = Math.floor(Number(baseSeed) || 1);
+    const baseOffset = Math.max(0, Math.floor(Number(gameIndexOffset) || 0));
     const out = [];
     let cursor = 0;
     const basePerShard = Math.floor(safeGames / safeJobs);
@@ -628,7 +646,8 @@ function createShardPlan(totalGames, baseSeed, jobs) {
         out.push({
             shardIndex: i,
             games,
-            seed: base + cursor
+            seed: base + cursor,
+            gameIndexOffset: baseOffset + cursor
         });
         cursor += games;
     }
@@ -637,6 +656,112 @@ function createShardPlan(totalGames, baseSeed, jobs) {
 
 function ensureDir(dirPath) {
     fs.mkdirSync(dirPath, { recursive: true });
+}
+
+function createChunkPlan(totalGames, baseSeed, chunkSize, gameIndexOffset) {
+    const safeGames = Math.max(1, Math.floor(Number(totalGames) || 1));
+    const safeChunkSize = Math.max(1, Math.floor(Number(chunkSize) || safeGames));
+    const base = Math.floor(Number(baseSeed) || 1);
+    const baseOffset = Math.max(0, Math.floor(Number(gameIndexOffset) || 0));
+    const out = [];
+    let cursor = 0;
+    let chunkIndex = 0;
+    while (cursor < safeGames) {
+        const games = Math.min(safeChunkSize, safeGames - cursor);
+        out.push({
+            chunkIndex,
+            games,
+            seed: base + cursor,
+            gameIndexOffset: baseOffset + cursor
+        });
+        cursor += games;
+        chunkIndex += 1;
+    }
+    return out;
+}
+
+function buildChunkArtifactDir(outPath) {
+    const resolvedOutPath = path.resolve(process.cwd(), String(outPath || 'data/selfplay.ndjson'));
+    return path.join(path.dirname(resolvedOutPath), `${path.basename(resolvedOutPath)}.resume-chunks`);
+}
+
+function buildChunkArtifactPaths(chunkDir, chunkIndex, includeHardcase) {
+    const chunkLabel = String(chunkIndex).padStart(4, '0');
+    return {
+        outPath: path.join(chunkDir, `selfplay.chunk.${chunkLabel}.ndjson`),
+        hardcaseOutPath: includeHardcase
+            ? path.join(chunkDir, `selfplay.hardcase.chunk.${chunkLabel}.ndjson`)
+            : null,
+        summaryPath: path.join(chunkDir, `selfplay.chunk.${chunkLabel}.summary.json`)
+    };
+}
+
+function fileExists(filePath) {
+    if (!filePath) return false;
+    try {
+        fs.accessSync(filePath, fs.constants.F_OK);
+        return true;
+    } catch (err) {
+        return false;
+    }
+}
+
+function readJsonFile(filePath) {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function buildChunkSummaryPayload(chunk, chunkCount, result, elapsedMs) {
+    return {
+        generatedAt: new Date().toISOString(),
+        elapsedMs,
+        schemaVersion: SELFPLAY_SCHEMA_VERSION,
+        chunk: {
+            chunkIndex: chunk.chunkIndex,
+            chunkCount,
+            games: chunk.games,
+            seed: chunk.seed,
+            gameIndexOffset: chunk.gameIndexOffset
+        },
+        summary: result.summary
+    };
+}
+
+function isReusableChunkPayload(payload, chunk, chunkCount) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
+    const chunkMeta = payload.chunk;
+    const summary = payload.summary;
+    if (!chunkMeta || typeof chunkMeta !== 'object' || !summary || typeof summary !== 'object') return false;
+    if (Number(chunkMeta.chunkIndex) !== chunk.chunkIndex) return false;
+    if (Number(chunkMeta.chunkCount) !== chunkCount) return false;
+    if (Number(chunkMeta.games) !== chunk.games) return false;
+    if (Number(chunkMeta.seed) !== chunk.seed) return false;
+    if (Number(chunkMeta.gameIndexOffset) !== chunk.gameIndexOffset) return false;
+    if (summary.aborted === true) return false;
+    return Number(summary.totalGames || 0) === chunk.games;
+}
+
+function loadReusableChunkResult(chunk, chunkCount, chunkPaths) {
+    if (!fileExists(chunkPaths.outPath) || !fileExists(chunkPaths.summaryPath)) {
+        return null;
+    }
+    if (chunkPaths.hardcaseOutPath && !fileExists(chunkPaths.hardcaseOutPath)) {
+        return null;
+    }
+    let payload = null;
+    try {
+        payload = readJsonFile(chunkPaths.summaryPath);
+    } catch (err) {
+        return null;
+    }
+    if (!isReusableChunkPayload(payload, chunk, chunkCount)) {
+        return null;
+    }
+    return {
+        chunkIndex: chunk.chunkIndex,
+        summary: payload.summary,
+        outPath: chunkPaths.outPath,
+        hardcaseOutPath: chunkPaths.hardcaseOutPath
+    };
 }
 
 function runSelfPlayShard(options) {
@@ -669,6 +794,7 @@ function runSelfPlayShard(options) {
     const result = withFilteredConsole(!opts.verbose, () => runSelfPlayGames({
         games: Number(opts.games),
         baseSeed: Number(opts.seed),
+        gameIndexOffset: Number(opts.gameIndexOffset || 0),
         maxPlies: Number(opts.maxPlies),
         allowCardUsage: !!opts.allowCardUsage,
         cardUsageRate: Number(opts.cardUsageRate),
@@ -919,6 +1045,7 @@ function createWorkerTask(args, shard, shardOutPath, hardcaseOutPath) {
         shardIndex: shard.shardIndex,
         games: shard.games,
         seed: shard.seed,
+        gameIndexOffset: shard.gameIndexOffset,
         maxPlies: args.maxPlies,
         outPath: shardOutPath,
         hardcaseOutPath,
@@ -952,12 +1079,15 @@ function createWorkerTask(args, shard, shardOutPath, hardcaseOutPath) {
     };
 }
 
-async function runSelfPlayParallel(args) {
-    const shardPlan = createShardPlan(args.games, args.seed, args.jobs);
-    const shardDir = path.resolve(
-        path.dirname(args.out),
-        `.selfplay-shards-${Date.now()}-${process.pid}`
-    );
+async function runSelfPlayParallel(args, options) {
+    const hooks = options || {};
+    const shardPlan = createShardPlan(args.games, args.seed, args.jobs, args.gameIndexOffset);
+    const shardDir = hooks.shardDir
+        ? path.resolve(process.cwd(), hooks.shardDir)
+        : path.resolve(
+            path.dirname(args.out),
+            `.selfplay-shards-${Date.now()}-${process.pid}`
+        );
     ensureDir(shardDir);
 
     const shardProgress = Array.from({ length: shardPlan.length }, () => 0);
@@ -985,7 +1115,13 @@ async function runSelfPlayParallel(args) {
                 if (Number.isFinite(idx) && idx >= 0 && idx < shardProgress.length) {
                     shardProgress[idx] = completed;
                     const globalCompleted = shardProgress.reduce((sum, one) => sum + one, 0);
-                    if (globalCompleted >= nextGlobalLog || globalCompleted >= args.games) {
+                    if (typeof hooks.onProgress === 'function') {
+                        hooks.onProgress({
+                            completed: Math.min(args.games, globalCompleted),
+                            total: args.games,
+                            winner: msg.winner || null
+                        });
+                    } else if (globalCompleted >= nextGlobalLog || globalCompleted >= args.games) {
                         console.log(`[selfplay] ${Math.min(args.games, globalCompleted)}/${args.games} completed (last winner: ${msg.winner || 'n/a'})`);
                         while (nextGlobalLog <= globalCompleted) nextGlobalLog += 10;
                     }
@@ -1020,7 +1156,163 @@ async function runSelfPlayParallel(args) {
         fs.rmSync(shardDir, { recursive: true, force: true });
     } catch (e) { /* ignore */ }
 
-    return { summary };
+    return {
+        summary,
+        outPath: args.out,
+        hardcaseOutPath: args.hardcaseOut || null
+    };
+}
+
+async function runSelfPlayJob(args, options) {
+    const hooks = options || {};
+    if (Number(args.jobs) > 1) {
+        return runSelfPlayParallel(args, hooks);
+    }
+
+    let nextGlobalLog = 10;
+    const result = await runSelfPlayShard(Object.assign({}, args, {
+        outPath: args.out,
+        hardcaseOutPath: args.hardcaseOut,
+        onProgress: (progress) => {
+            if (typeof hooks.onProgress === 'function') {
+                hooks.onProgress(progress);
+                return;
+            }
+            if (progress.completed >= nextGlobalLog || progress.completed === args.games) {
+                console.log(`[selfplay] ${progress.completed}/${args.games} completed (last winner: ${progress.winner || 'n/a'})`);
+                while (nextGlobalLog <= progress.completed) nextGlobalLog += 10;
+            }
+        }
+    }));
+    return {
+        summary: result.summary,
+        outPath: result.outPath,
+        hardcaseOutPath: result.hardcaseOutPath
+    };
+}
+
+function buildSummaryPayload(args, summary, policyModelPaths, policyModelCount, elapsedMs) {
+    return {
+        generatedAt: new Date().toISOString(),
+        elapsedMs,
+        schemaVersion: SELFPLAY_SCHEMA_VERSION,
+        config: {
+            games: args.games,
+            seed: args.seed,
+            maxPlies: args.maxPlies,
+            hardcaseOut: args.hardcaseOut,
+            allowCardUsage: args.allowCardUsage,
+            cardUsageRate: args.cardUsageRate,
+            policyMixRate: args.policyMixRate,
+            cardUsageRateJitter: args.cardUsageRateJitter,
+            tacticalWeightMin: args.tacticalWeightMin,
+            tacticalWeightMax: args.tacticalWeightMax,
+            tacticalDepthOpening: args.tacticalDepthOpening,
+            tacticalDepthMid: args.tacticalDepthMid,
+            tacticalDepthEnd: args.tacticalDepthEnd,
+            tacticalBeamWidth: args.tacticalBeamWidth,
+            teacherCommitteeWeightMin: args.teacherCommitteeWeightMin,
+            teacherCommitteeWeightMax: args.teacherCommitteeWeightMax,
+            teacherCommitteeConsensusBonusMin: args.teacherCommitteeConsensusBonusMin,
+            teacherCommitteeConsensusBonusMax: args.teacherCommitteeConsensusBonusMax,
+            policyScoreWeightMin: args.policyScoreWeightMin,
+            policyScoreWeightMax: args.policyScoreWeightMax,
+            heuristicWeightMin: args.heuristicWeightMin,
+            heuristicWeightMax: args.heuristicWeightMax,
+            jobs: args.jobs,
+            workerRetries: args.workerRetries,
+            resumeChunkSize: args.resumeChunkSize,
+            reuseCompletedChunks: args.reuseCompletedChunks === true,
+            hasPolicyModel: policyModelCount > 0,
+            policyModelPath: args.policyModelPath || null,
+            policyModelPoolPaths: policyModelPaths,
+            policyModelPoolSize: policyModelCount,
+            policyPoolSampling: args.policyPoolSampling,
+            policyPoolRecencyDecay: args.policyPoolRecencyDecay,
+            policyCurrentAnchorRate: args.policyCurrentAnchorRate,
+            seedFamily: args.seedFamily,
+            dataLane: args.dataLane,
+            resolvedConfigPath: args.resolvedConfigPath
+        },
+        summary
+    };
+}
+
+async function runSelfPlayWithResumeChunks(args) {
+    const chunkSize = Math.floor(Number(args.resumeChunkSize) || 0);
+    if (!(chunkSize > 0) || chunkSize >= Number(args.games || 0)) {
+        return runSelfPlayJob(args);
+    }
+
+    const chunkPlan = createChunkPlan(args.games, args.seed, chunkSize, args.gameIndexOffset);
+    const chunkDir = buildChunkArtifactDir(args.out);
+    ensureDir(chunkDir);
+
+    const chunkResults = [];
+    let completedGames = 0;
+    let nextGlobalLog = 10;
+    const logProgress = (globalCompleted, winner) => {
+        if (globalCompleted < nextGlobalLog && globalCompleted < args.games) {
+            return;
+        }
+        console.log(`[selfplay] ${Math.min(args.games, globalCompleted)}/${args.games} completed (last winner: ${winner || 'n/a'})`);
+        while (nextGlobalLog <= globalCompleted) nextGlobalLog += 10;
+    };
+
+    for (const chunk of chunkPlan) {
+        const chunkPaths = buildChunkArtifactPaths(chunkDir, chunk.chunkIndex, !!args.hardcaseOut);
+        const reused = args.reuseCompletedChunks
+            ? loadReusableChunkResult(chunk, chunkPlan.length, chunkPaths)
+            : null;
+        if (reused) {
+            console.log(`[selfplay] reuse chunk ${chunk.chunkIndex + 1}/${chunkPlan.length} games=${chunk.games} offset=${chunk.gameIndexOffset}`);
+            chunkResults.push(reused);
+            completedGames += Number(reused.summary && reused.summary.totalGames || 0);
+            logProgress(completedGames, 'reused');
+            continue;
+        }
+
+        console.log(`[selfplay] run chunk ${chunk.chunkIndex + 1}/${chunkPlan.length} games=${chunk.games} offset=${chunk.gameIndexOffset}`);
+        const chunkStartedAt = Date.now();
+        const chunkResult = await runSelfPlayJob(Object.assign({}, args, {
+            games: chunk.games,
+            seed: chunk.seed,
+            gameIndexOffset: chunk.gameIndexOffset,
+            out: chunkPaths.outPath,
+            hardcaseOut: chunkPaths.hardcaseOutPath
+        }), {
+            onProgress: (progress) => {
+                logProgress(completedGames + Number(progress.completed || 0), progress.winner || null);
+            }
+        });
+        const chunkPayload = buildChunkSummaryPayload(chunk, chunkPlan.length, chunkResult, Date.now() - chunkStartedAt);
+        fs.writeFileSync(chunkPaths.summaryPath, JSON.stringify(chunkPayload, null, 2), 'utf8');
+        chunkResults.push({
+            chunkIndex: chunk.chunkIndex,
+            summary: chunkResult.summary,
+            outPath: chunkPaths.outPath,
+            hardcaseOutPath: chunkPaths.hardcaseOutPath
+        });
+        completedGames += Number(chunkResult.summary && chunkResult.summary.totalGames || 0);
+    }
+
+    const sorted = chunkResults.slice().sort((a, b) => Number(a.chunkIndex) - Number(b.chunkIndex));
+    await mergeShardFiles(sorted.map((one) => one.outPath), args.out);
+    if (args.hardcaseOut) {
+        await mergeShardFiles(
+            sorted.map((one) => one.hardcaseOutPath).filter(Boolean),
+            args.hardcaseOut
+        );
+    }
+    const summary = combineSummary(sorted);
+    try {
+        fs.rmSync(chunkDir, { recursive: true, force: true });
+    } catch (err) { /* ignore */ }
+    return {
+        summary,
+        outPath: args.out,
+        hardcaseOutPath: args.hardcaseOut || null
+    };
 }
 
 async function runWorkerMain() {
@@ -1081,62 +1373,12 @@ async function main() {
     const startedAt = Date.now();
     const policyModelPaths = buildPolicyModelPathPool(args);
     const policyModels = loadPolicyModels(policyModelPaths);
-    const result = args.jobs <= 1
-        ? { summary: (await runSelfPlayShard(Object.assign({}, args, {
-            outPath: args.out,
-            hardcaseOutPath: args.hardcaseOut,
-            policyModels,
-            onProgress: (progress) => {
-                if (progress.completed % 10 === 0 || progress.completed === args.games) {
-                    console.log(`[selfplay] ${progress.completed}/${args.games} completed (last winner: ${progress.winner || 'n/a'})`);
-                }
-            }
-        }))).summary }
-        : await runSelfPlayParallel(args);
+    const result = await runSelfPlayWithResumeChunks(Object.assign({}, args, {
+        policyModels
+    }));
 
     const elapsedMs = Date.now() - startedAt;
-    const payload = {
-        generatedAt: new Date().toISOString(),
-        elapsedMs,
-        schemaVersion: SELFPLAY_SCHEMA_VERSION,
-        config: {
-            games: args.games,
-            seed: args.seed,
-            maxPlies: args.maxPlies,
-            hardcaseOut: args.hardcaseOut,
-            allowCardUsage: args.allowCardUsage,
-            cardUsageRate: args.cardUsageRate,
-            policyMixRate: args.policyMixRate,
-            cardUsageRateJitter: args.cardUsageRateJitter,
-            tacticalWeightMin: args.tacticalWeightMin,
-            tacticalWeightMax: args.tacticalWeightMax,
-            tacticalDepthOpening: args.tacticalDepthOpening,
-            tacticalDepthMid: args.tacticalDepthMid,
-            tacticalDepthEnd: args.tacticalDepthEnd,
-            tacticalBeamWidth: args.tacticalBeamWidth,
-            teacherCommitteeWeightMin: args.teacherCommitteeWeightMin,
-            teacherCommitteeWeightMax: args.teacherCommitteeWeightMax,
-            teacherCommitteeConsensusBonusMin: args.teacherCommitteeConsensusBonusMin,
-            teacherCommitteeConsensusBonusMax: args.teacherCommitteeConsensusBonusMax,
-            policyScoreWeightMin: args.policyScoreWeightMin,
-            policyScoreWeightMax: args.policyScoreWeightMax,
-            heuristicWeightMin: args.heuristicWeightMin,
-            heuristicWeightMax: args.heuristicWeightMax,
-            jobs: args.jobs,
-            workerRetries: args.workerRetries,
-            hasPolicyModel: policyModels.length > 0,
-            policyModelPath: args.policyModelPath || null,
-            policyModelPoolPaths: policyModelPaths,
-            policyModelPoolSize: policyModels.length,
-            policyPoolSampling: args.policyPoolSampling,
-            policyPoolRecencyDecay: args.policyPoolRecencyDecay,
-            policyCurrentAnchorRate: args.policyCurrentAnchorRate,
-            seedFamily: args.seedFamily,
-            dataLane: args.dataLane,
-            resolvedConfigPath: args.resolvedConfigPath
-        },
-        summary: result.summary
-    };
+    const payload = buildSummaryPayload(args, result.summary, policyModelPaths, policyModels.length, elapsedMs);
     fs.writeFileSync(summaryPath, JSON.stringify(payload, null, 2), 'utf8');
 
     console.log(`[selfplay] records: ${args.out}`);
@@ -1165,7 +1407,11 @@ if (require.main === module) {
 module.exports = {
     parseArgs,
     createShardPlan,
+    createChunkPlan,
+    buildChunkArtifactDir,
+    buildChunkArtifactPaths,
     runShardWorker,
     runSelfPlayParallel,
+    runSelfPlayWithResumeChunks,
     isRetriableWorkerFailure
 };

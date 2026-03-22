@@ -503,7 +503,8 @@
             type === 'INHERITED_HYPERACTIVE' ||
             type === 'EXTREME_HYPERACTIVE' ||
             type === 'ULTIMATE_HYPERACTIVE' ||
-            type === 'WILL_HUNTER_KING'
+            type === 'WILL_HUNTER_KING' ||
+            type === 'AFTERIMAGE_WILL'
         ) {
             return type;
         }
@@ -540,7 +541,9 @@
         const remaining = Number(entry.data && entry.data.flipEvadeRemaining);
         const normalized = Number.isFinite(remaining)
             ? remaining
-            : (markerTypeUpper === 'EXTREME_HYPERACTIVE' ? EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT : 1);
+            : (markerTypeUpper === 'AFTERIMAGE_WILL'
+                ? 3
+                : (markerTypeUpper === 'EXTREME_HYPERACTIVE' ? EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT : 1));
         return normalized > 0;
     }
 
@@ -552,8 +555,24 @@
             ? remaining
             : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE'
                 ? ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT
-                : (markerTypeUpper === 'EXTREME_HYPERACTIVE' ? EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT : 1));
+                : (markerTypeUpper === 'AFTERIMAGE_WILL'
+                    ? 3
+                    : (markerTypeUpper === 'EXTREME_HYPERACTIVE' ? EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT : 1)));
         entry.data.flipEvadeRemaining = Math.max(0, normalized - 1);
+    }
+
+    function pruneAfterimageMarkerIfDepleted(cardState, entry) {
+        if (!cardState || !Array.isArray(cardState.markers) || !entry || !entry.data) return;
+        const typeUpper = String(entry.data.type || '').toUpperCase();
+        if (typeUpper !== 'AFTERIMAGE_WILL') return;
+        const flipRemaining = Number.isFinite(Number(entry.data.flipEvadeRemaining))
+            ? Math.max(0, Math.trunc(Number(entry.data.flipEvadeRemaining)))
+            : 0;
+        const destroyRemaining = Number.isFinite(Number(entry.data.destroyEvadeRemaining))
+            ? Math.max(0, Math.trunc(Number(entry.data.destroyEvadeRemaining)))
+            : 0;
+        if (flipRemaining > 0 || destroyRemaining > 0) return;
+        cardState.markers = cardState.markers.filter((marker) => marker !== entry);
     }
 
     function removeFlipEvadeMarkerAt(cardState, row, col, deps = {}) {
@@ -572,6 +591,7 @@
 
     function getFlipEvadeCause(markerTypeUpper) {
         if (markerTypeUpper === 'WILL_HUNTER_KING') return 'WILL_HUNTER_KING';
+        if (markerTypeUpper === 'AFTERIMAGE_WILL') return 'AFTERIMAGE_WILL';
         if (markerTypeUpper === 'ESCAPE_HYPERACTIVE') return 'ESCAPE_HYPERACTIVE';
         if (markerTypeUpper === 'INHERITED_HYPERACTIVE') return 'HYPERACTIVE_INHERIT_WILL';
         if (markerTypeUpper === 'EXTREME_HYPERACTIVE') return 'EXTREME_HYPERACTIVE_WILL';
@@ -581,6 +601,7 @@
 
     function getFlipEvadeMoveReason(markerTypeUpper) {
         if (markerTypeUpper === 'WILL_HUNTER_KING') return 'will_hunter_king_flip_evade_move';
+        if (markerTypeUpper === 'AFTERIMAGE_WILL') return 'afterimage_will_flip_evade_move';
         if (markerTypeUpper === 'ESCAPE_HYPERACTIVE') return 'escape_hyperactive_flip_evade_move';
         if (markerTypeUpper === 'INHERITED_HYPERACTIVE') return 'inherited_hyperactive_flip_evade_move';
         if (markerTypeUpper === 'EXTREME_HYPERACTIVE') return 'extreme_hyperactive_flip_evade_move';
@@ -590,6 +611,7 @@
 
     function getFlipEvadeNoCandidateReason(markerTypeUpper) {
         if (markerTypeUpper === 'WILL_HUNTER_KING') return 'will_hunter_king_flip_evade_no_candidates';
+        if (markerTypeUpper === 'AFTERIMAGE_WILL') return 'afterimage_will_flip_evade_no_candidates';
         if (markerTypeUpper === 'ESCAPE_HYPERACTIVE') return 'escape_hyperactive_flip_evade_no_candidates';
         if (markerTypeUpper === 'INHERITED_HYPERACTIVE') return 'inherited_hyperactive_flip_evade_no_candidates';
         if (markerTypeUpper === 'EXTREME_HYPERACTIVE') return 'extreme_hyperactive_flip_evade_no_candidates';
@@ -703,6 +725,7 @@
                     entry.row = target.row;
                     entry.col = target.col;
                     consumeFlipEvade(entry, markerTypeUpper);
+                    pruneAfterimageMarkerIfDepleted(cardState, entry);
                     moved.push({
                         from: { row: fromRow, col: fromCol },
                         to: { row: target.row, col: target.col },
@@ -809,11 +832,14 @@
         const flipped = [];
 
         for (const cell of remainingFlips) {
+            let changed = true;
             if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
-                deps.BoardOps.changeAt(cardState, gameState, cell.row, cell.col, ownerKey, options.flipCause, options.flipReason);
+                const changeRes = deps.BoardOps.changeAt(cardState, gameState, cell.row, cell.col, ownerKey, options.flipCause, options.flipReason);
+                changed = !!(changeRes && changeRes.changed);
             } else {
                 setBoardCell(gameState, cell.row, cell.col, ownerVal);
             }
+            if (!changed) continue;
 
             flipped.push(typeof options.buildFlippedDetail === 'function'
                 ? options.buildFlippedDetail(cell)

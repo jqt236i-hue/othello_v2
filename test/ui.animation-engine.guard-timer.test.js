@@ -170,6 +170,76 @@ describe('animation-engine guard timer rendering', () => {
     expect(cell.classList.contains('effect-target-highlight')).toBe(false);
   });
 
+  test('blockedByGhost flip only shows highlight and keeps the disc owner', async () => {
+    const engine = require('../ui/animation-engine');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const syncSpy = jest.spyOn(engine, 'syncDiscVisual');
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '3';
+    cell.dataset.col = '3';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
+
+    await engine.handleFlip({
+      targets: [{
+        r: 3,
+        col: 3,
+        ownerBefore: 'black',
+        ownerAfter: 'white',
+        meta: { blockedByGhost: true }
+      }]
+    });
+
+    expect(syncSpy).not.toHaveBeenCalled();
+    expect(disc.classList.contains('black')).toBe(true);
+    expect(disc.classList.contains('white')).toBe(false);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(sleepSpy).toHaveBeenCalled();
+  });
+
+  test('blockedByGhost destroy only shows highlight and keeps the disc in place', async () => {
+    const engine = require('../ui/animation-engine');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '4';
+    cell.dataset.col = '4';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
+
+    await engine.handleDestroy({
+      targets: [{
+        r: 4,
+        col: 4,
+        ownerBefore: 'black',
+        cause: 'DESTROY_ONE_STONE',
+        reason: 'destroy_one_stone',
+        meta: { blockedByGhost: true }
+      }]
+    });
+
+    expect(cell.querySelector('.disc')).toBe(disc);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(sleepSpy).toHaveBeenCalled();
+  });
+
   test('loss_will_reset の STATUS_REMOVED は crossfadeDiscToState を使う', async () => {
     const crossfadeSpy = jest.fn(() => Promise.resolve());
     jest.doMock('../ui/stone-visuals', () => ({

@@ -293,7 +293,7 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     expect(targetsAfter.some((t) => t.row === 7 && t.col === 7)).toBe(false);
   });
 
-  test('BOARD_EXPANSION_GODは選択可能な角が2つ未満だと使用できない', () => {
+  test('BOARD_EXPANSION_GODは選択可能な角が1つあれば使え、その1角だけで確定する', () => {
     const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'BOARD_EXPANSION_GOD');
     expect(def).toBeTruthy();
 
@@ -311,6 +311,53 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
         { side: 'top', row: -1, col: 0, owner: Core.EMPTY },
         { side: 'top', row: -1, col: 7, owner: Core.EMPTY },
         { side: 'bottom', row: 8, col: 0, owner: Core.EMPTY }
+      ]
+    };
+
+    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', def.id);
+    expect(used).toBe(true);
+    expect(cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+      type: 'BOARD_EXPANSION_GOD',
+      stage: 'selectTarget',
+      selectedCount: 0,
+      maxSelections: 1,
+      selectedTargets: []
+    }));
+
+    const targets = CardLogic.getBoardExpansionGodTargets(cardState, gameState, 'black');
+    expect(targets).toEqual([{ row: 7, col: 7 }]);
+
+    const applied = CardLogic.applyBoardExpansionGod(cardState, gameState, 'black', 7, 7);
+    expect(applied && applied.applied).toBe(true);
+    expect(applied && applied.completed).toBe(true);
+    expect(applied && applied.sources).toEqual([{ row: 7, col: 7 }]);
+    expect(applied && applied.added).toEqual(expect.arrayContaining([
+      { row: 7, col: 8 },
+      { row: 8, col: 8 },
+      { row: 8, col: 7 }
+    ]));
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
+  test('BOARD_EXPANSION_GODは選択可能な角が0だと使用できない', () => {
+    const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'BOARD_EXPANSION_GOD');
+    expect(def).toBeTruthy();
+
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.charge.black = 40;
+    cardState.hands.black = [def.id];
+    gameState.boardExpansion = {
+      active: true,
+      side: 'mixed',
+      row: null,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: false, white: false },
+      cells: [
+        { side: 'top', row: -1, col: 0, owner: Core.EMPTY },
+        { side: 'top', row: -1, col: 7, owner: Core.EMPTY },
+        { side: 'bottom', row: 8, col: 0, owner: Core.EMPTY },
+        { side: 'bottom', row: 8, col: 7, owner: Core.EMPTY }
       ]
     };
 
@@ -387,6 +434,50 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     expect(second.gameState.boardExpansion.cells).toEqual(expect.arrayContaining([
       expect.objectContaining({ row: -1, col: 0 }),
       expect.objectContaining({ row: 8, col: 8 })
+    ]));
+  });
+
+  test('BOARD_EXPANSION_GODは候補が1角だけならターンパイプライン上でも1回選択で確定する', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    gameState.boardExpansion = {
+      active: true,
+      side: 'mixed',
+      row: null,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: false, white: false },
+      cells: [
+        { side: 'top', row: -1, col: 0, owner: Core.EMPTY },
+        { side: 'top', row: -1, col: 7, owner: Core.EMPTY },
+        { side: 'bottom', row: 8, col: 0, owner: Core.EMPTY }
+      ]
+    };
+    cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_EXPANSION_GOD',
+      stage: 'selectTarget',
+      selectedCount: 0,
+      maxSelections: 1,
+      selectedTargets: []
+    };
+
+    const turn = TurnPipeline.applyTurn(cardState, gameState, 'black', {
+      type: 'place',
+      expansionTarget: { row: 7, col: 7 }
+    });
+
+    expect(turn.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'board_expansion_selected',
+        applied: true,
+        completed: true
+      })
+    ]));
+    expect(turn.events.some((event) => event && event.type === 'board_expansion_first_selected')).toBe(false);
+    expect(turn.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(turn.gameState.boardExpansion.cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 7, col: 8 }),
+      expect.objectContaining({ row: 8, col: 8 }),
+      expect.objectContaining({ row: 8, col: 7 })
     ]));
   });
 

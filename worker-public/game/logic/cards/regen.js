@@ -242,11 +242,14 @@
                 }
                 if (line.length > 0 && !isBlocked(r, c) && getCellValue(gameState, r, c) === ownerColor) {
                     for (const p of line) {
+                        let changed = true;
                         if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
-                            deps.BoardOps.changeAt(cardState, gameState, p.row, p.col, regen.owner, 'REGEN', 'regen_capture_flip');
+                            const changeRes = deps.BoardOps.changeAt(cardState, gameState, p.row, p.col, regen.owner, 'REGEN', 'regen_capture_flip');
+                            changed = !!(changeRes && changeRes.changed);
                         } else {
                             setCellValue(gameState, p.row, p.col, ownerColor);
                         }
+                        if (!changed) continue;
                         clearBombAt(cardState, p.row, p.col);
                         captureFlips.push(p);
                     }

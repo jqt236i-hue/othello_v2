@@ -931,6 +931,28 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCue).toBeUndefined();
   });
 
+  test('GHOST の duration_end は special_expired を再生し stone_destroy を追加しない', () => {
+    const base = [{
+      type: 'destroy',
+      phase: 13,
+      targets: [{
+        r: 5,
+        col: 5,
+        cause: 'SYSTEM',
+        reason: 'duration_end',
+        meta: { special: 'GHOST' }
+      }]
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_expired');
+    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+
+    expect(expiredCue).toBeTruthy();
+    expect(expiredCue.phase).toBe(13);
+    expect(stoneCue).toBeUndefined();
+  });
+
   test('CROSS_BOMB の爆発は destroy と同じ phase で bomb_explode を再生し、stone_destroy は再生しない', () => {
     const pres = [
       { type: 'SPAWN', row: 3, col: 3, stoneId: 's1', ownerAfter: 'black', cause: 'SYSTEM', reason: 'standard_place' },
@@ -1107,6 +1129,61 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     expect(cues).toHaveLength(3);
     expect(cues.map((ev) => ev.phase)).toEqual([2, 3, 4]);
+  });
+
+  test('AFTERIMAGE_WILL の反転回避 move にも hyperactive_move を追加する', () => {
+    const base = [
+      {
+        type: 'move',
+        phase: 6,
+        targets: [{
+          from: { r: 4, col: 4 },
+          to: { r: 3, col: 3 },
+          cause: 'AFTERIMAGE_WILL',
+          reason: 'afterimage_will_flip_evade_move'
+        }]
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const cue = out.find((ev) =>
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'hyperactive_move'
+    );
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(6);
+  });
+
+  test('destroy_evade_move にも hyperactive_move を追加する', () => {
+    const base = [
+      {
+        type: 'move',
+        phase: 7,
+        targets: [{
+          from: { r: 2, col: 2 },
+          to: { r: 2, col: 3 },
+          cause: 'DESTROY_EVADE',
+          reason: 'destroy_evade_move',
+          meta: { special: 'WILL_HUNTER_KING' }
+        }]
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const cue = out.find((ev) =>
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'hyperactive_move'
+    );
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(7);
   });
 
   test('究極反転龍 / 究極破壊神の owner-turn move には専用 SE を追加する', () => {

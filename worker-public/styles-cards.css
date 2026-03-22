@@ -921,15 +921,15 @@
 
 #handSvg #handPath,
 #handSvg .finger {
-    stroke: #c08858;
-    stroke-width: 0.42;
+    stroke: #bc8053;
+    stroke-width: 0.46;
     stroke-linejoin: round;
     stroke-linecap: round;
 }
 
 #handSvg #thumbPath {
-    stroke: #b07848;
-    stroke-width: 0.42;
+    stroke: #b67546;
+    stroke-width: 0.5;
     stroke-linejoin: round;
     stroke-linecap: round;
 }

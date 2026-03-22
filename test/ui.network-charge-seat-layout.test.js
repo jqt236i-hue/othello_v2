@@ -10,7 +10,8 @@ function createRendererContext(options = {}) {
   const {
     seatKey = 'black',
     includeNetworkClient = true,
-    hands = { black: [], white: [] }
+    hands = { black: [], white: [] },
+    matchMode = 'network'
   } = options;
 
   const dom = new JSDOM(
@@ -58,7 +59,7 @@ function createRendererContext(options = {}) {
     showChargeDelta: jest.fn()
   };
   window.OwnerHelpers = require('../utils/owner-helpers');
-  window.MATCH_MODE = 'network';
+  window.MATCH_MODE = matchMode;
   if (includeNetworkClient) {
     window.NetworkMatchClient = {
       getSeatKey: () => seatKey
@@ -98,7 +99,7 @@ describe('network charge seat layout', () => {
     dom.window.close();
   });
 
-  test('maps charge delta popup to bottom slot for local seat owner', () => {
+  test('does not infer charge delta popup from raw totals in network mode without queue events', () => {
     const dom = createRendererContext({ seatKey: 'white' });
     const { window } = dom;
 
@@ -111,8 +112,51 @@ describe('network charge seat layout', () => {
     window.cardState.turnIndex = 2;
     window.renderCardUI();
 
+    expect(window.StoneVisuals.showChargeDelta).not.toHaveBeenCalled();
+
+    dom.window.close();
+  });
+
+  test('still infers charge delta popup from raw totals outside network mode', () => {
+    const dom = createRendererContext({ includeNetworkClient: false, matchMode: 'cpu' });
+    const { window } = dom;
+
+    window.cardState.charge.black = 3;
+    window.cardState.charge.white = 5;
+    window.cardState.turnIndex = 1;
+    window.renderCardUI();
+
+    window.cardState.charge.black = 5;
+    window.cardState.turnIndex = 2;
+    window.renderCardUI();
+
     expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledTimes(1);
     expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledWith('black', 2);
+
+    dom.window.close();
+  });
+
+  test('resets raw fallback baseline when turn index rewinds outside network mode', () => {
+    const dom = createRendererContext({ includeNetworkClient: false, matchMode: 'cpu' });
+    const { window } = dom;
+
+    window.cardState.charge.black = 6;
+    window.cardState.turnIndex = 5;
+    window.renderCardUI();
+    window.StoneVisuals.showChargeDelta.mockClear();
+
+    window.cardState.charge.black = 1;
+    window.cardState.turnIndex = 2;
+    window.renderCardUI();
+
+    expect(window.StoneVisuals.showChargeDelta).not.toHaveBeenCalled();
+
+    window.cardState.charge.black = 4;
+    window.cardState.turnIndex = 3;
+    window.renderCardUI();
+
+    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledTimes(1);
+    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledWith('black', 3);
 
     dom.window.close();
   });
@@ -133,6 +177,21 @@ describe('network charge seat layout', () => {
     dom.window.close();
   });
 
+  test('does not route board-anchored charge gains through the HUD popup', () => {
+    const dom = createRendererContext({ seatKey: 'white' });
+    const { window } = dom;
+
+    window.cardState.chargeDeltaEvents = [
+      { seq: 1, player: 'white', delta: 3, popupKind: 'board', anchorRow: 2, anchorCol: 4, sourceType: 'placement_flip_gain' }
+    ];
+    window.renderCardUI();
+
+    expect(window.StoneVisuals.showChargeDelta).not.toHaveBeenCalled();
+    expect(window.cardState.chargeDeltaEvents).toEqual([]);
+
+    dom.window.close();
+  });
+
   test('maps transient network charge delta popup to bottom slot for local seat owner', () => {
     const dom = createRendererContext({ seatKey: 'white' });
     const { window } = dom;
@@ -144,6 +203,26 @@ describe('network charge seat layout', () => {
 
     expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledTimes(1);
     expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledWith('black', 2);
+    expect(window.__networkTransientChargeDeltaEvents).toEqual([]);
+
+    dom.window.close();
+  });
+
+  test('prefers authoritative charge delta events over transient network queue and clears transient leftovers', () => {
+    const dom = createRendererContext({ seatKey: 'white' });
+    const { window } = dom;
+
+    window.cardState.chargeDeltaEvents = [
+      { seq: 1, player: 'white', delta: 3 }
+    ];
+    window.__networkTransientChargeDeltaEvents = [
+      { seq: 1, player: 'white', delta: 2 }
+    ];
+    window.renderCardUI();
+
+    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledTimes(1);
+    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledWith('black', 3);
+    expect(window.cardState.chargeDeltaEvents).toEqual([]);
     expect(window.__networkTransientChargeDeltaEvents).toEqual([]);
 
     dom.window.close();

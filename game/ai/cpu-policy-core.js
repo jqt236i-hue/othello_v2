@@ -25,6 +25,8 @@ const CHAIN_WILL_CARD_TYPES = Object.freeze(['DOUBLE_CHAIN_WILL', 'TRIPLE_CHAIN_
 
 const DEFENSIVE_CARD_TYPES = new Set([
     'PROTECTED_NEXT_STONE',
+    'AFTERIMAGE_WILL',
+    'GHOST_WILL',
     'PERMA_PROTECT_NEXT_STONE',
     'GUARD_WILL',
     'GUARDIAN_GOD',
@@ -118,6 +120,8 @@ const CORNER_HOLD_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeurist
     ? SharedCardHeuristics.createExtendedTypeSet(
         SharedCardHeuristics.DEFAULT_CORNER_HOLD_CARD_TYPES,
         [
+            'AFTERIMAGE_WILL',
+            'GHOST_WILL',
             'TRAP_WILL',
             'SNIPER_WILL',
             'LIGHTNING_WILL',
@@ -127,6 +131,7 @@ const CORNER_HOLD_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeurist
     )
     : new Set([
         'PROTECTED_NEXT_STONE',
+        'GHOST_WILL',
         'PERMA_PROTECT_NEXT_STONE',
         'GUARD_WILL',
         'GUARDIAN_GOD',
@@ -164,6 +169,8 @@ const CHARGE_RAMP_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeurist
 
 const REBUILD_KEEP_PRIORITY_CARD_TYPES = new Set([
     'PROTECTED_NEXT_STONE',
+    'AFTERIMAGE_WILL',
+    'GHOST_WILL',
     'PERMA_PROTECT_NEXT_STONE',
     'GUARD_WILL',
     'GUARDIAN_GOD',
@@ -183,6 +190,8 @@ const REBUILD_KEEP_PRIORITY_CARD_TYPES = new Set([
 
 const STABILITY_CARD_TYPES = new Set([
     'PROTECTED_NEXT_STONE',
+    'AFTERIMAGE_WILL',
+    'GHOST_WILL',
     'PERMA_PROTECT_NEXT_STONE',
     'GUARD_WILL',
     'GUARDIAN_GOD',
@@ -370,6 +379,8 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     RAINBOW_STONE: 16,
     GUARD_WILL: 12,
     GUARDIAN_GOD: 14,
+    AFTERIMAGE_WILL: 12,
+    GHOST_WILL: 11,
     HEAVEN_BLESSING: 6,
     HYPERACTIVE_INHERIT_WILL: -2,
     HYPERACTIVE_WILL: 0,
@@ -446,6 +457,8 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'RAINBOW_STONE',
     'GUARDIAN_GOD',
     'GUARD_WILL',
+    'AFTERIMAGE_WILL',
+    'GHOST_WILL',
     'HEAVEN_BLESSING',
     'HYPERACTIVE_INHERIT_WILL',
     'HYPERACTIVE_WILL',
@@ -521,6 +534,8 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     RAINBOW_STONE: { openingBias: 6, handPressureBias: 4, cornerNowBias: 4 },
     GUARDIAN_GOD: { leadBias: 4, cornerNowBias: 4, cornerEmergencyBias: 2 },
     GUARD_WILL: { leadBias: 4, cornerNowBias: 4 },
+    AFTERIMAGE_WILL: { leadBias: 4, cornerNowBias: 4, edgeEmergencyBias: 2 },
+    GHOST_WILL: { leadBias: 4, cornerNowBias: 4, edgeEmergencyBias: 2 },
     HEAVEN_BLESSING: { openingBias: 4, handPressureBias: -4, endgameBias: -6 },
     HYPERACTIVE_INHERIT_WILL: { openingBias: 4, midLateBias: 4, endgameBias: -6 },
     HYPERACTIVE_WILL: { trailingBias: 4, leadBias: -4, cornerEmergencyBias: 4 },
@@ -605,6 +620,7 @@ function buildCardTypeUsageStyle() {
 
     patch([
         'PROTECTED_NEXT_STONE',
+        'GHOST_WILL',
         'PERMA_PROTECT_NEXT_STONE',
         'GUARD_WILL',
         'GUARDIAN_GOD',
@@ -906,6 +922,8 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     RAINBOW_STONE: { archetype: 'economyCycle', placementWeight: 2, bonusBias: 6, flipBias: 6, stabilityBias: -2 },
     GUARDIAN_GOD: { archetype: 'anchorProtect', placementWeight: 0, cornerBias: 4, stabilityBias: 4 },
     GUARD_WILL: { archetype: 'anchorProtect', placementWeight: 0, edgeBias: 3, ownAdjBias: 3 },
+    AFTERIMAGE_WILL: { archetype: 'anchorProtect', placementWeight: 3, cornerBias: 3, stabilityBias: 3, oppAdjBias: 1 },
+    GHOST_WILL: { archetype: 'anchorProtect', placementWeight: 3, cornerBias: 3, stabilityBias: 3, oppAdjBias: 1 },
     HEAVEN_BLESSING: { archetype: 'economyCycle', placementWeight: 0 },
     HYPERACTIVE_INHERIT_WILL: { archetype: 'spawnMobile', placementWeight: 0, emptyAdjBias: 4, stabilityBias: -1 },
     HYPERACTIVE_WILL: { archetype: 'spawnMobile', placementWeight: 3, cornerBias: -1, stabilityBias: -1 },
@@ -1346,6 +1364,8 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const isBlockadeWill = cardType === 'BLOCKADE_WILL';
     const isMeteorWill = cardType === 'METEOR_WILL';
     const isProtectedNextStone = cardType === 'PROTECTED_NEXT_STONE';
+    const isAfterimageWill = cardType === 'AFTERIMAGE_WILL';
+    const isGhostWill = cardType === 'GHOST_WILL';
     const isPermaProtectNextStone = cardType === 'PERMA_PROTECT_NEXT_STONE';
     const isGuardWill = cardType === 'GUARD_WILL';
     const isGuardianGod = cardType === 'GUARDIAN_GOD';
@@ -1373,6 +1393,8 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const isSuperCrushWill = isSuperBuoyancyWill || isSuperGravityWill;
     const isAnchorPlacementCard = (
         isProtectedNextStone ||
+        isAfterimageWill ||
+        isGhostWill ||
         isPermaProtectNextStone ||
         isLightningWill ||
         isHyperactiveWill ||
@@ -1717,7 +1739,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (whiteLv6Mode && !criticalLowDiscEmergency) {
             score -= 120;
         }
-        if (isHoldCard || isGuardWill || isGuardianGod || isProtectedNextStone || isPermaProtectNextStone || isRegenWill) {
+        if (isHoldCard || isGuardWill || isGuardianGod || isProtectedNextStone || isAfterimageWill || isGhostWill || isPermaProtectNextStone || isRegenWill) {
             score -= 220;
         }
     }
@@ -1731,7 +1753,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         !isWhiteCornerSwingKeepCard
     ) {
         score -= 180;
-        if (isHoldCard || isGuardWill || isGuardianGod || isProtectedNextStone || isPermaProtectNextStone || isRegenWill) {
+        if (isHoldCard || isGuardWill || isGuardianGod || isProtectedNextStone || isAfterimageWill || isGhostWill || isPermaProtectNextStone || isRegenWill) {
             score -= 120;
         }
     }
@@ -2034,7 +2056,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         }
     }
 
-    if (isProtectedNextStone || isPermaProtectNextStone || isGuardWill || isGuardianGod || isRegenWill) {
+    if (isProtectedNextStone || isAfterimageWill || isGhostWill || isPermaProtectNextStone || isGuardWill || isGuardianGod || isRegenWill) {
         score += 10;
         if (hasCornerMoveNow) score += 70;
         else if (hasEdgeMoveNow) score += 26;
@@ -2496,6 +2518,8 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
     const isHeavenBlessing = cardType === 'HEAVEN_BLESSING';
     const isCondemnWill = cardType === 'CONDEMN_WILL';
     const isProtectedNextStone = cardType === 'PROTECTED_NEXT_STONE';
+    const isAfterimageWill = cardType === 'AFTERIMAGE_WILL';
+    const isGhostWill = cardType === 'GHOST_WILL';
     const isPermaProtectNextStone = cardType === 'PERMA_PROTECT_NEXT_STONE';
     const isGuardWill = cardType === 'GUARD_WILL';
     const isGuardianGod = cardType === 'GUARDIAN_GOD';
@@ -2597,7 +2621,7 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
     if (whiteLv6Mode && (isThrowChainCard || isChainWill) && ctx.ownCharge < 70 && !cornerEmergency) score -= 180;
     if (whiteLv6Mode && (isThrowChainCard || isChainWill) && ctx.ownCharge >= 70 && ctx.empties <= 20) score += 64;
 
-    if (isProtectedNextStone || isPermaProtectNextStone || isGuardWill || isGuardianGod || isRegenWill) {
+    if (isProtectedNextStone || isAfterimageWill || isGhostWill || isPermaProtectNextStone || isGuardWill || isGuardianGod || isRegenWill) {
         if (hasCornerMoveNow) score += 180;
         else if (hasEdgeMoveNow) score += 70;
         else score -= 80;

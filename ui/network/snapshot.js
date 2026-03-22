@@ -132,10 +132,132 @@
             return JSON.parse(JSON.stringify(value));
         }
 
+        function normalizeSeatKey(value) {
+            const normalized = String(value || '').trim().toLowerCase();
+            if (normalized === 'black' || normalized === 'white') return normalized;
+            return null;
+        }
+
+        function getSnapshotMeta(snapshot) {
+            if (!snapshot || typeof snapshot !== 'object' || !snapshot._meta || typeof snapshot._meta !== 'object') {
+                return null;
+            }
+            const meta = snapshot._meta;
+            return {
+                authority: String(meta.authority || '').trim().toLowerCase(),
+                version: Number.isFinite(Number(meta.version)) ? Number(meta.version) : null,
+                projectedForSeat: normalizeSeatKey(meta.projectedForSeat),
+                turnStartReconciled: meta.turnStartReconciled !== false
+            };
+        }
+
+        function getSnapshotVersion(snapshot) {
+            const meta = getSnapshotMeta(snapshot);
+            if (meta && meta.version !== null) return meta.version;
+            return Number.isFinite(Number(snapshot && snapshot.stateVersion))
+                ? Number(snapshot.stateVersion)
+                : null;
+        }
+
+        function shouldRejectSnapshotByAuthority(snapshot, state, opts) {
+            const meta = getSnapshotMeta(snapshot);
+            if (!meta) {
+                emitTelemetry('snapshot_authority_metadata_missing', {
+                    force: opts && opts.force === true
+                });
+                return false;
+            }
+            if (meta.authority !== 'server') {
+                emitTelemetry('snapshot_authority_rejected', {
+                    authority: meta.authority || null
+                });
+                return true;
+            }
+            const localSeatKey = normalizeSeatKey(state && state.seatKey);
+            if (meta.projectedForSeat && localSeatKey && meta.projectedForSeat !== localSeatKey) {
+                emitTelemetry('snapshot_projection_mismatch_rejected', {
+                    projectedForSeat: meta.projectedForSeat,
+                    localSeatKey
+                });
+                return true;
+            }
+            return false;
+        }
+
         function normalizeChargeValue(value) {
             return Number.isFinite(Number(value))
                 ? Math.trunc(Number(value))
                 : 0;
+        }
+
+        function normalizeChargePlayerKey(value) {
+            return (value === 'white' || value === -1 || value === '-1')
+                ? 'white'
+                : 'black';
+        }
+
+        function normalizeChargeState(charge) {
+            const nextCharge = (charge && typeof charge === 'object')
+                ? Object.assign({}, charge)
+                : {};
+            nextCharge.black = normalizeChargeValue(nextCharge.black);
+            nextCharge.white = normalizeChargeValue(nextCharge.white);
+            return nextCharge;
+        }
+
+        function normalizeChargeDeltaEvent(event, fallbackSeq) {
+            if (!event || typeof event !== 'object') return null;
+            const nextEvent = Object.assign({}, event);
+            nextEvent.seq = Number.isFinite(Number(nextEvent.seq))
+                ? Math.trunc(Number(nextEvent.seq))
+                : fallbackSeq;
+            nextEvent.player = normalizeChargePlayerKey(nextEvent.player);
+            nextEvent.before = normalizeChargeValue(nextEvent.before);
+            nextEvent.after = normalizeChargeValue(nextEvent.after);
+            nextEvent.delta = Number.isFinite(Number(nextEvent.delta))
+                ? normalizeChargeValue(nextEvent.delta)
+                : (nextEvent.after - nextEvent.before);
+            const popupKind = String(nextEvent.popupKind || '').trim().toLowerCase();
+            const sourceType = (typeof nextEvent.sourceType === 'string') ? nextEvent.sourceType.trim() : '';
+            if (popupKind === 'board') {
+                const anchorRow = Number(nextEvent.anchorRow);
+                const anchorCol = Number(nextEvent.anchorCol);
+                if (Number.isFinite(anchorRow) && Number.isFinite(anchorCol)) {
+                    nextEvent.popupKind = 'board';
+                    nextEvent.anchorRow = Math.trunc(anchorRow);
+                    nextEvent.anchorCol = Math.trunc(anchorCol);
+                    if (sourceType) nextEvent.sourceType = sourceType;
+                    else delete nextEvent.sourceType;
+                } else {
+                    delete nextEvent.popupKind;
+                    delete nextEvent.anchorRow;
+                    delete nextEvent.anchorCol;
+                    delete nextEvent.sourceType;
+                }
+            } else {
+                delete nextEvent.popupKind;
+                delete nextEvent.anchorRow;
+                delete nextEvent.anchorCol;
+                delete nextEvent.sourceType;
+            }
+            return nextEvent;
+        }
+
+        function normalizeChargeDeltaEventList(events) {
+            if (!Array.isArray(events)) return [];
+            const normalizedEvents = [];
+            for (let index = 0; index < events.length; index += 1) {
+                const normalizedEvent = normalizeChargeDeltaEvent(events[index], index + 1);
+                if (normalizedEvent) normalizedEvents.push(normalizedEvent);
+            }
+            return normalizedEvents;
+        }
+
+        function normalizeChargeDataForSnapshot(cardState) {
+            if (!cardState || typeof cardState !== 'object') return cardState;
+            cardState.charge = normalizeChargeState(cardState.charge);
+            cardState.chargeDeltaEvents = normalizeChargeDeltaEventList(cardState.chargeDeltaEvents);
+            return cardState;
         }
 
         function buildMissingChargeDeltaEvents(previousCardState, nextCardState, options) {
@@ -175,9 +297,9 @@
         }
 
         function setTransientChargeDeltaEvents(events) {
-            const nextEvents = Array.isArray(events)
+            const nextEvents = normalizeChargeDeltaEventList(Array.isArray(events)
                 ? cloneData(events)
-                : [];
+                : []);
             setGlobalValue('__networkTransientChargeDeltaEvents', nextEvents);
         }
 
@@ -219,6 +341,7 @@
             cardState._presentationEventsPersist = [];
             delete cardState._currentActionMeta;
             delete gameState.__resultShown;
+            normalizeChargeDataForSnapshot(cardState);
 
             return { ok: true, snapshot };
         }
@@ -545,9 +668,12 @@
                 return false;
             }
 
-            const nextVersion = Number.isFinite(Number(snapshot.stateVersion))
-                ? Number(snapshot.stateVersion)
-                : null;
+            if (shouldRejectSnapshotByAuthority(snapshot, state, opts)) {
+                return false;
+            }
+
+            const snapshotMeta = getSnapshotMeta(snapshot);
+            const nextVersion = getSnapshotVersion(snapshot);
 
             if (!opts.force && nextVersion === null) {
                 emitTelemetry('snapshot_missing_state_version_rejected', {
@@ -619,6 +745,12 @@
 
             if (nextVersion !== null) {
                 state.stateVersion = nextVersion;
+            }
+            if (state && state.authoritativeMatchState && typeof state.authoritativeMatchState === 'object') {
+                state.authoritativeMatchState.stateVersion = nextVersion;
+                state.authoritativeMatchState.authority = snapshotMeta ? snapshotMeta.authority : null;
+                state.authoritativeMatchState.projectedForSeat = snapshotMeta ? snapshotMeta.projectedForSeat : null;
+                state.authoritativeMatchState.turnStartReconciled = snapshotMeta ? snapshotMeta.turnStartReconciled : false;
             }
 
             setBusyState(presentationState.shouldKeepBusy);

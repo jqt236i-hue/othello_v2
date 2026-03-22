@@ -57,6 +57,29 @@ describe('selfplay runner', () => {
         };
     }
 
+    function createPlacementBoard() {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+        board[3][3] = Core.BLACK;
+        board[3][4] = Core.WHITE;
+        board[4][3] = Core.WHITE;
+        board[4][4] = Core.BLACK;
+        return board;
+    }
+
+    function mockTeacherLookahead() {
+        jest.spyOn(CpuLv6LookaheadProfile, 'buildLv6LookaheadOptions').mockReturnValue({
+            depth: 5,
+            maxBranch: 4,
+            nodeBudget: 1000,
+            maxTimeMs: 0,
+            endgameSolveEmpties: 24,
+            endgameDepth: 24,
+            endgameNodeBudget: 4000,
+            endgameMaxTimeMs: 0
+        });
+        return jest.spyOn(CpuPolicyCore, 'chooseMoveByLookahead');
+    }
+
     test('is deterministic for the same config/seed', () => {
         const options = {
             games: 2,
@@ -71,6 +94,26 @@ describe('selfplay runner', () => {
         expect(a.summary).toEqual(b.summary);
         expect(a.gameSummaries).toEqual(b.gameSummaries);
         expect(a.records).toEqual(b.records);
+    });
+
+    test('passes global game indexes through player policy resolver offsets', () => {
+        const seen = [];
+        runSelfPlayGames({
+            games: 2,
+            baseSeed: 123,
+            gameIndexOffset: 1000,
+            maxPlies: 80,
+            allowCardUsage: false,
+            playerPolicyResolver: (gameIndex, seed) => {
+                seen.push({ gameIndex, seed });
+                return null;
+            }
+        });
+
+        expect(seen).toEqual([
+            { gameIndex: 1000, seed: 123 },
+            { gameIndex: 1001, seed: 124 }
+        ]);
     });
 
     test('produces winner/outcome labels for each record', () => {
@@ -113,11 +156,7 @@ describe('selfplay runner', () => {
     });
 
     test('teacher lookahead uses per-policy tactical depth and beam overrides', () => {
-        const board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
-        board[3][3] = Core.BLACK;
-        board[3][4] = Core.WHITE;
-        board[4][3] = Core.WHITE;
-        board[4][4] = Core.BLACK;
+        const board = createPlacementBoard();
         const candidateMoves = [
             { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
             { row: 2, col: 5, flips: [{ row: 3, col: 4 }] }
@@ -166,6 +205,122 @@ describe('selfplay runner', () => {
             })
         );
         expect(selected).toBe(candidateMoves[0]);
+    });
+
+    test('teacher lookahead keeps forced corner hard filter before scoring', () => {
+        const board = createPlacementBoard();
+        const legalMoves = [
+            { row: 0, col: 0, flips: [{ row: 1, col: 1 }] },
+            { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+            { row: 5, col: 4, flips: [{ row: 4, col: 4 }] }
+        ];
+        const lookaheadSpy = mockTeacherLookahead().mockImplementation((moves) => {
+            expect(moves).toEqual([legalMoves[0]]);
+            return moves[0];
+        });
+
+        const selected = selectPlacementMove(
+            legalMoves,
+            { random: () => 0.5 },
+            {
+                gameState: { board },
+                cardState: {},
+                playerKey: 'black',
+                pendingType: null,
+                legalMovesCount: legalMoves.length
+            },
+            { forceCornerEdgePlacement: true }
+        );
+
+        expect(lookaheadSpy).toHaveBeenCalled();
+        expect(selected).toBe(legalMoves[0]);
+    });
+
+    test('teacher lookahead keeps forced edge hard filter before scoring', () => {
+        const board = createPlacementBoard();
+        const legalMoves = [
+            { row: 0, col: 3, flips: [{ row: 1, col: 3 }] },
+            { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+            { row: 5, col: 4, flips: [{ row: 4, col: 4 }] }
+        ];
+        const lookaheadSpy = mockTeacherLookahead().mockImplementation((moves) => {
+            expect(moves).toEqual([legalMoves[0]]);
+            return moves[0];
+        });
+
+        const selected = selectPlacementMove(
+            legalMoves,
+            { random: () => 0.5 },
+            {
+                gameState: { board },
+                cardState: {},
+                playerKey: 'black',
+                pendingType: null,
+                legalMovesCount: legalMoves.length
+            },
+            { forceCornerEdgePlacement: true }
+        );
+
+        expect(lookaheadSpy).toHaveBeenCalled();
+        expect(selected).toBe(legalMoves[0]);
+    });
+
+    test('teacher lookahead can still choose within multiple forced moves', () => {
+        const board = createPlacementBoard();
+        const legalMoves = [
+            { row: 0, col: 0, flips: [{ row: 1, col: 1 }] },
+            { row: 0, col: 7, flips: [{ row: 1, col: 6 }] },
+            { row: 2, col: 3, flips: [{ row: 3, col: 3 }] }
+        ];
+        const lookaheadSpy = mockTeacherLookahead().mockImplementation((moves) => {
+            expect(moves).toEqual([legalMoves[0], legalMoves[1]]);
+            return moves[1];
+        });
+
+        const selected = selectPlacementMove(
+            legalMoves,
+            { random: () => 0.5 },
+            {
+                gameState: { board },
+                cardState: {},
+                playerKey: 'black',
+                pendingType: null,
+                legalMovesCount: legalMoves.length
+            },
+            { forceCornerEdgePlacement: true }
+        );
+
+        expect(lookaheadSpy).toHaveBeenCalled();
+        expect(selected).toBe(legalMoves[1]);
+    });
+
+    test('teacher lookahead keeps full legal move space when no forced move exists', () => {
+        const board = createPlacementBoard();
+        const legalMoves = [
+            { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+            { row: 2, col: 5, flips: [{ row: 3, col: 4 }] },
+            { row: 5, col: 4, flips: [{ row: 4, col: 4 }] }
+        ];
+        const lookaheadSpy = mockTeacherLookahead().mockImplementation((moves) => {
+            expect(moves).toEqual(legalMoves);
+            return moves[2];
+        });
+
+        const selected = selectPlacementMove(
+            legalMoves,
+            { random: () => 0.5 },
+            {
+                gameState: { board },
+                cardState: {},
+                playerKey: 'black',
+                pendingType: null,
+                legalMovesCount: legalMoves.length
+            },
+            { forceCornerEdgePlacement: true }
+        );
+
+        expect(lookaheadSpy).toHaveBeenCalled();
+        expect(selected).toBe(legalMoves[2]);
     });
 
     test('buildCardDecisionContext preserves the same crystal evaluation metrics as the in-game CPU context', () => {
@@ -1095,6 +1250,24 @@ describe('selfplay runner', () => {
         const context = buildCardDecisionContext(gameState, cardState, 'black', 0, []);
 
         expect(context.usableCardIds).toEqual(['double_chain_01', 'silver_stone']);
+    });
+
+    test('buildCardDecisionContext keeps afterimage and ghost cards in teacher candidates', () => {
+        const gameState = Core.createGameState();
+        const cardState = {
+            pendingEffectByPlayer: { black: null, white: null },
+            markers: [],
+            charge: { black: 30, white: 0 },
+            hands: { black: ['afterimage_will_01', 'ghost_01', 'silver_stone'], white: [] },
+            hasUsedCardThisTurnByPlayer: { black: false, white: false },
+            hasDestroyedCardThisTurnByPlayer: { black: false, white: false }
+        };
+
+        jest.spyOn(CardLogic, 'getUsableCardIds').mockReturnValue(['afterimage_will_01', 'ghost_01', 'silver_stone']);
+
+        const context = buildCardDecisionContext(gameState, cardState, 'black', 0, []);
+
+        expect(context.usableCardIds).toEqual(['afterimage_will_01', 'ghost_01', 'silver_stone']);
     });
 
 });

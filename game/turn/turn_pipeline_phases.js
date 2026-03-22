@@ -247,6 +247,30 @@
         });
     }
 
+    function emitChargeBubblePresentation(CardLogic, cardState, payload) {
+        if (!CardLogic || typeof CardLogic.emitPresentationEvent !== 'function') return;
+        const data = payload || {};
+        const row = Number(data.row);
+        const col = Number(data.col);
+        const gained = Number(data.gained);
+        if (!Number.isInteger(row) || !Number.isInteger(col) || !(gained > 0)) return;
+
+        const explicitText = (typeof data.text === 'string' && data.text.trim()) ? data.text.trim() : null;
+        const sourceType = (typeof data.sourceType === 'string' && data.sourceType.trim()) ? data.sourceType.trim() : null;
+        CardLogic.emitPresentationEvent(cardState, {
+            type: 'CHARGE_BUBBLE',
+            player: data.player || null,
+            row,
+            col,
+            gained,
+            text: explicitText,
+            meta: {
+                owner: data.player || null,
+                sourceType
+            }
+        });
+    }
+
     function snapshotWorkMarkers(cardState) {
         const markers = (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
             ? MarkersAdapter.getMarkers(cardState)
@@ -385,12 +409,67 @@
         });
     }
 
-    function addChargeWithTotal(cardState, playerKey, amount) {
+    function buildBoardChargeDeltaMeta(row, col, sourceType) {
+        const anchorRow = Number(row);
+        const anchorCol = Number(col);
+        if (!Number.isInteger(anchorRow) || !Number.isInteger(anchorCol)) {
+            throw new Error('TurnPipelinePhases board charge popup requires integer anchorRow/anchorCol');
+        }
+        const meta = {
+            popupKind: 'board',
+            anchorRow,
+            anchorCol
+        };
+        if (typeof sourceType === 'string' && sourceType.trim()) {
+            meta.sourceType = sourceType.trim();
+        }
+        return meta;
+    }
+
+    function resolveBoardChargeAnchor(options) {
+        const opts = (options && typeof options === 'object') ? options : {};
+        const moved = Array.isArray(opts.moved) ? opts.moved : [];
+        for (let index = moved.length - 1; index >= 0; index--) {
+            const entry = moved[index];
+            const to = entry && entry.to;
+            const row = Number(to && to.row);
+            const col = Number(to && to.col);
+            if (Number.isInteger(row) && Number.isInteger(col)) {
+                return { row, col };
+            }
+        }
+
+        const targetRow = Number(opts.targetRow);
+        const targetCol = Number(opts.targetCol);
+        if (Number.isInteger(targetRow) && Number.isInteger(targetCol)) {
+            return { row: targetRow, col: targetCol };
+        }
+
+        const anchorRow = Number(opts.anchorRow);
+        const anchorCol = Number(opts.anchorCol);
+        if (Number.isInteger(anchorRow) && Number.isInteger(anchorCol)) {
+            return { row: anchorRow, col: anchorCol };
+        }
+
+        throw new Error('TurnPipelinePhases board charge popup requires a resolved anchor');
+    }
+
+    function addChargeWithTotal(cardState, playerKey, amount, options) {
         if (!cardState || !amount) return 0;
         if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
         if (!cardState.chargeGainedTotal) cardState.chargeGainedTotal = { black: 0, white: 0 };
+        const opts = (options && typeof options === 'object') ? options : null;
+        const boardAnchor = (opts && opts.popupKind === 'board')
+            ? resolveBoardChargeAnchor(opts)
+            : null;
+        const reason = (opts && typeof opts.reason === 'string' && opts.reason.trim())
+            ? opts.reason.trim()
+            : 'turn_start_effect';
+        const deltaMeta = (opts && opts.popupKind === 'board')
+            ? buildBoardChargeDeltaMeta(boardAnchor.row, boardAnchor.col, opts.sourceType)
+            : null;
         const deltaRes = (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function')
-            ? CardUtilsModule.addChargeWithDelta(cardState, playerKey, amount, 'turn_start_effect')
+            ? CardUtilsModule.addChargeWithDelta(cardState, playerKey, amount, reason, deltaMeta)
             : null;
         let added = deltaRes ? (Number(deltaRes.delta) || 0) : 0;
         if (!deltaRes) {
@@ -404,6 +483,30 @@
         }
 
         return added;
+    }
+
+    function awardBoardChargeGain(CardLogic, cardState, playerKey, amount, options) {
+        const opts = (options && typeof options === 'object') ? options : {};
+        const anchor = resolveBoardChargeAnchor(opts);
+        const gained = addChargeWithTotal(cardState, playerKey, amount, {
+            reason: opts.reason || 'turn_start_effect',
+            popupKind: 'board',
+            sourceType: opts.sourceType || null,
+            moved: opts.moved,
+            targetRow: anchor.row,
+            targetCol: anchor.col
+        });
+        if (gained > 0) {
+            emitChargeBubblePresentation(CardLogic, cardState, {
+                player: playerKey,
+                row: anchor.row,
+                col: anchor.col,
+                gained,
+                sourceType: opts.sourceType || null,
+                text: opts.text || null
+            });
+        }
+        return gained;
     }
 
     function transferChargeBetweenPlayers(cardState, fromPlayerKey, toPlayerKey, amount, reasonKey) {
@@ -692,7 +795,12 @@
                         const res = CardLogic.processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, { randomSource: p });
                         if (res && res.moved && res.moved.length) events.push({ type: 'dragon_moved_start', details: res.moved });
                         if (res && res.converted && res.converted.length) {
-                            addChargeWithTotal(cardState, playerKey, res.converted.length);
+                            awardBoardChargeGain(CardLogic, cardState, playerKey, res.converted.length, {
+                                anchorRow: row,
+                                anchorCol: col,
+                                moved: res.moved,
+                                sourceType: 'dragon_turn_start'
+                            });
                             events.push({ type: 'dragon_converted_start', details: res.converted });
                         }
                         if (res && res.destroyed && res.destroyed.length) events.push({ type: 'dragon_destroyed_anchor_start', details: res.destroyed });
@@ -700,7 +808,11 @@
                         const res = CardLogic.processBreedingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, p);
                         if (res && res.spawned && res.spawned.length) events.push({ type: 'breeding_spawned_start', details: res.spawned });
                         if (res && res.flipped && res.flipped.length) {
-                            addChargeWithTotal(cardState, playerKey, res.flipped.length);
+                            awardBoardChargeGain(CardLogic, cardState, playerKey, res.flipped.length, {
+                                anchorRow: row,
+                                anchorCol: col,
+                                sourceType: 'breeding_turn_start'
+                            });
                             events.push({ type: 'breeding_flipped_start', details: res.flipped });
                         }
                         if (res && res.destroyed && res.destroyed.length) events.push({ type: 'breeding_destroyed_anchor_start', details: res.destroyed });
@@ -729,8 +841,12 @@
                             hyperAggregated.flipped.push(...res.flipped);
                             hyperAggregated.flippedByOwner[ownerKey] = hyperAggregated.flippedByOwner[ownerKey] || [];
                             hyperAggregated.flippedByOwner[ownerKey].push(...res.flipped);
-                            // Rule: flip count grants charge to the effect owner (clamped to CHARGE_MAX).
-                            addChargeWithTotal(cardState, ownerKey, res.flipped.length);
+                            awardBoardChargeGain(CardLogic, cardState, ownerKey, res.flipped.length, {
+                                anchorRow: row,
+                                anchorCol: col,
+                                moved: res.moved,
+                                sourceType: 'hyperactive_turn_start'
+                            });
                         }
                     } else if (t === 'ROBOT_VACUUM') {
                         const ownerKey = owner;
@@ -753,7 +869,12 @@
                             hyperAggregated.flipped.push(...res.flipped);
                             hyperAggregated.flippedByOwner[ownerKey] = hyperAggregated.flippedByOwner[ownerKey] || [];
                             hyperAggregated.flippedByOwner[ownerKey].push(...res.flipped);
-                            addChargeWithTotal(cardState, ownerKey, res.flipped.length);
+                            awardBoardChargeGain(CardLogic, cardState, ownerKey, res.flipped.length, {
+                                anchorRow: row,
+                                anchorCol: col,
+                                moved: res.moved,
+                                sourceType: 'robot_vacuum_turn_start'
+                            });
                         }
                     } else if (t === 'GLUTTONOUS') {
                         const ownerKey = owner;
@@ -778,7 +899,12 @@
                         }
                         if (res && res.flipped && res.flipped.length) {
                             events.push({ type: 'ultimate_hyperactive_flipped_start', details: res.flipped });
-                            addChargeWithTotal(cardState, ownerKey, res.flipped.length);
+                            awardBoardChargeGain(CardLogic, cardState, ownerKey, res.flipped.length, {
+                                anchorRow: row,
+                                anchorCol: col,
+                                moved: res.moved,
+                                sourceType: 'ultimate_hyperactive_turn_start'
+                            });
                         }
                         if (res && res.destroyed && res.destroyed.length) {
                             events.push({ type: 'ultimate_hyperactive_destroyed_start', details: res.destroyed });
@@ -815,7 +941,12 @@
                 for (const ownerKey of ['black', 'white']) {
                     const arr = regenCaptureByOwner[ownerKey] || [];
                     if (!arr.length) continue;
-                    addChargeWithTotal(cardState, ownerKey, arr.length);
+                    const firstCapture = arr[0] || {};
+                    awardBoardChargeGain(CardLogic, cardState, ownerKey, arr.length, {
+                        anchorRow: firstCapture.row,
+                        anchorCol: firstCapture.col,
+                        sourceType: 'regen_capture_turn_start'
+                    });
                 }
                 events.push({ type: 'regen_capture_flipped_start', details: regenCaptureFlips });
             }
@@ -1838,9 +1969,15 @@
                 }
                 const flipCause = tabooReverseApplied ? 'TABOO_REVERSE_WILL' : 'SYSTEM';
                 const flipReason = tabooReverseApplied ? 'taboo_reverse_flip' : 'standard_flip';
+                const appliedPrimaryFlips = [];
                 for (const [fr, fc] of flips) {
-                    BoardOps.changeAt(cardState, gameState, fr, fc, playerKey, flipCause, flipReason);
+                    const changeRes = BoardOps.changeAt(cardState, gameState, fr, fc, playerKey, flipCause, flipReason);
+                    if (changeRes && changeRes.changed) {
+                        appliedPrimaryFlips.push([fr, fc]);
+                    }
                 }
+                flips = appliedPrimaryFlips;
+                flipCount = flips.length;
             } else {
                 const newState = Core.applyMove(gameState, { row: action.row, col: action.col, flips });
                 Object.assign(gameState, newState);
@@ -1904,8 +2041,23 @@
                 const appliedBonus = numberCellMultiplierConfig
                     ? bonusValue * Number(numberCellMultiplierConfig.multiplier || 1)
                     : bonusValue;
-                const gained = addChargeWithTotal(cardState, playerKey, appliedBonus);
+                const gained = addChargeWithTotal(cardState, playerKey, appliedBonus, {
+                    reason: 'board_bonus_gain',
+                    popupKind: 'board',
+                    sourceType: 'number_cell_gain',
+                    anchorRow: action.row,
+                    anchorCol: action.col
+                });
                 boardBonusGained = gained;
+                if (gained > 0 && flipCount <= 0) {
+                    emitChargeBubblePresentation(CardLogic, cardState, {
+                        player: playerKey,
+                        row: action.row,
+                        col: action.col,
+                        gained,
+                        sourceType: 'number_cell_gain'
+                    });
+                }
                 events.push({
                     type: 'board_bonus_gain',
                     player: playerKey,
@@ -1970,6 +2122,16 @@
                 effects[numberCellMultiplierConfig.gainField] = boardBonusGained;
             }
             events.push({ type: 'placement_effects', player: playerKey, effects });
+            const placementChargeBubbleGain = (Number(effects && effects.chargeGained) || 0) + (flipCount > 0 ? (Number(boardBonusGained) || 0) : 0);
+            if (placementChargeBubbleGain > 0 && flipCount > 0) {
+                emitChargeBubblePresentation(CardLogic, cardState, {
+                    player: playerKey,
+                    row: action.row,
+                    col: action.col,
+                    gained: placementChargeBubbleGain,
+                    sourceType: (Number(boardBonusGained) || 0) > 0 ? 'placement_action_gain' : 'placement_flip_gain'
+                });
+            }
 
             // GOLD/SILVER: the placed stone disappears on the opponent's next turn start.
 
@@ -1977,7 +2139,12 @@
             if (effects && effects.dragonPlaced && typeof CardLogic.processDragonEffectsAtAnchor === 'function') {
                 const dragonNow = CardLogic.processDragonEffectsAtAnchor(cardState, gameState, playerKey, action.row, action.col);
                 if (dragonNow.converted && dragonNow.converted.length) {
-                    addChargeWithTotal(cardState, playerKey, dragonNow.converted.length);
+                    awardBoardChargeGain(CardLogic, cardState, playerKey, dragonNow.converted.length, {
+                        anchorRow: action.row,
+                        anchorCol: action.col,
+                        moved: dragonNow.moved,
+                        sourceType: 'dragon_immediate'
+                    });
                     events.push({ type: 'dragon_converted_immediate', details: dragonNow.converted });
                 }
             }
@@ -1987,7 +2154,11 @@
                     events.push({ type: 'breeding_spawned_immediate', details: breedingNow.spawned });
                 }
                 if (breedingNow.flipped && breedingNow.flipped.length) {
-                    addChargeWithTotal(cardState, playerKey, breedingNow.flipped.length);
+                    awardBoardChargeGain(CardLogic, cardState, playerKey, breedingNow.flipped.length, {
+                        anchorRow: action.row,
+                        anchorCol: action.col,
+                        sourceType: 'breeding_immediate'
+                    });
                     events.push({ type: 'breeding_flipped_immediate', details: breedingNow.flipped });
                 }
             }
@@ -2085,7 +2256,12 @@
                 }
                 if (instantHyper && instantHyper.flipped && instantHyper.flipped.length) {
                     events.push({ type: 'hyperactive_flipped_immediate', details: instantHyper.flipped });
-                    addChargeWithTotal(cardState, playerKey, instantHyper.flipped.length);
+                    awardBoardChargeGain(CardLogic, cardState, playerKey, instantHyper.flipped.length, {
+                        anchorRow: action.row,
+                        anchorCol: action.col,
+                        moved: instantHyper.moved,
+                        sourceType: 'instant_hyperactive_immediate'
+                    });
                 }
                 if (instantHyper && instantHyper.destroyed && instantHyper.destroyed.length) {
                     events.push({ type: 'hyperactive_destroyed_immediate', details: instantHyper.destroyed });
@@ -2099,7 +2275,12 @@
                         if (typeof CardLogic.clearHyperactiveAtPositions === 'function') {
                             CardLogic.clearHyperactiveAtPositions(cardState, regenRes3.captureFlips);
                         }
-                        addChargeWithTotal(cardState, playerKey, regenRes3.captureFlips.length);
+                        const firstCapture = regenRes3.captureFlips[0] || {};
+                        awardBoardChargeGain(CardLogic, cardState, playerKey, regenRes3.captureFlips.length, {
+                            targetRow: firstCapture.row,
+                            targetCol: firstCapture.col,
+                            sourceType: 'regen_capture_immediate'
+                        });
                         events.push({ type: 'regen_capture_flipped', details: regenRes3.captureFlips });
                     }
                 }

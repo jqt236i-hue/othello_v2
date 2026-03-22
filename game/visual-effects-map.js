@@ -151,6 +151,24 @@ const GAME_STONE_VISUAL_EFFECTS = {
         },
         dataAttributes: {}
     },
+    ghostStone: {
+        cssClass: 'hyperactive-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/stones/GHOST_WILL-black.png',
+            '-1': 'assets/images/stones/GHOST_WILL-white.png'
+        },
+        dataAttributes: {}
+    },
+    afterimageStone: {
+        cssClass: 'hyperactive-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/stones/ZAN-BLACK.png',
+            '-1': 'assets/images/stones/ZAN-WHITE.png'
+        },
+        dataAttributes: {}
+    },
     willHunterKingStone: {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
@@ -297,6 +315,8 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'SNIPER_WILL': 'sniperStone',
     'LIGHTNING_WILL': 'lightningStone',
     'OBSERVER_WILL': 'observerStone',
+    'GHOST_WILL': 'ghostStone',
+    'AFTERIMAGE_WILL': 'afterimageStone',
     'WILL_HUNTER_KING': 'willHunterKingStone',
     'DESTROY_DRAGON_WILL': 'destroyDragonStone',
     'ULTIMATE_HYPERACTIVE_GOD': 'ultimateHyperactiveGod',
@@ -336,6 +356,8 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'SNIPER': 'sniperStone',
     'LIGHTNING': 'lightningStone',
     'OBSERVER': 'observerStone',
+    'GHOST': 'ghostStone',
+    'AFTERIMAGE_WILL': 'afterimageStone',
     'WILL_HUNTER_KING': 'willHunterKingStone',
     'DESTROY_DRAGON': 'destroyDragonStone',
     'ULTIMATE_HYPERACTIVE': 'ultimateHyperactiveGod',

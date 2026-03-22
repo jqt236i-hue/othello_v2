@@ -27,6 +27,7 @@ describe('selfplay training cycle script', () => {
         expect(args.maxHours).toBe(100);
         expect(args.onnxEpochs).toBe(9999);
         expect(args.selfplayJobs).toBe(10);
+        expect(args.selfplayResumeChunkSize).toBe(1000);
         expect(args.adoptionJobs).toBe(10);
         expect(args.onnxGateJobs).toBe(10);
         expect(args.cardUsageRate).toBeCloseTo(0.2, 6);
@@ -331,6 +332,11 @@ describe('selfplay training cycle script', () => {
         expect(shouldReuseStepArtifacts({ reuseExistingArtifacts: true, restartFromStep: 'adoption-quality-gate' }, 'adoption-quality-gate')).toBe(false);
         expect(shouldReuseStepArtifacts({ reuseExistingArtifacts: true, restartFromStep: 'adoption-quality-gate' }, 'adoption-final')).toBe(false);
         expect(shouldReuseStepArtifacts({ reuseExistingArtifacts: false, restartFromStep: 'adoption-quality-gate' }, 'train-policy')).toBe(false);
+    });
+
+    test('parseArgs accepts selfplay resume chunk overrides', () => {
+        expect(parseArgs(['--selfplay-resume-chunk-size', '0']).selfplayResumeChunkSize).toBe(0);
+        expect(() => parseArgs(['--selfplay-resume-chunk-size', '-1'])).toThrow('--selfplay-resume-chunk-size must be >= 0');
     });
 
     test('anchor baseline helpers resolve final-only gate control', () => {

@@ -429,6 +429,33 @@
         return bestMarker;
     }
 
+    function _pruneAfterimageMarkerIfDepleted(cardState, marker) {
+        if (!cardState || !Array.isArray(cardState.markers) || !marker || !marker.data) return;
+        const typeUpper = String(marker.data.type || '').toUpperCase();
+        if (typeUpper !== 'AFTERIMAGE_WILL') return;
+        const flipRemaining = _normalizeCounterValue(marker.data && marker.data.flipEvadeRemaining) || 0;
+        const destroyRemaining = _normalizeCounterValue(marker.data && marker.data.destroyEvadeRemaining) || 0;
+        if (flipRemaining > 0 || destroyRemaining > 0) return;
+        cardState.markers = cardState.markers.filter((entry) => entry !== marker);
+    }
+
+    function _consumeAfterimageMarkerOnNormalChange(cardState, row, col) {
+        if (!cardState || !Array.isArray(cardState.markers)) return null;
+        const marker = cardState.markers.find((entry) => (
+            entry &&
+            entry.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+            entry.row === row &&
+            entry.col === col &&
+            entry.data &&
+            String(entry.data.type || '').toUpperCase() === 'AFTERIMAGE_WILL'
+        ));
+        if (!marker || !marker.data) return null;
+        const flipRemaining = _normalizeCounterValue(marker.data && marker.data.flipEvadeRemaining) || 0;
+        if (flipRemaining > 0) return null;
+        cardState.markers = cardState.markers.filter((entry) => entry !== marker);
+        return marker;
+    }
+
     function _collectAllBoardCoordinates(gameState) {
         const coords = [];
         for (let row = 0; row < 8; row++) {
@@ -612,6 +639,44 @@
         };
     }
 
+    function _getGhostMarkerAt(cardState, row, col) {
+        const markersAtCell = _getSpecialMarkersAt(cardState, row, col);
+        return markersAtCell.find((marker) => String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase() === 'GHOST') || null;
+    }
+
+    function _shouldBlockGhostChange(cause, reason) {
+        const causeUpper = String(cause || '').toUpperCase();
+        const reasonLower = String(reason || '').toLowerCase();
+        if (reasonLower === 'tempt_applied') return false;
+        if (causeUpper === 'SWAP') return true;
+        if (reasonLower === 'regen_triggered') return true;
+        if (reasonLower.includes('flip')) return true;
+        if (reasonLower.includes('convert')) return true;
+        return false;
+    }
+
+    function _shouldBlockGhostDestroy(reason, meta) {
+        const reasonLower = String(reason || '').toLowerCase();
+        if (meta && meta.allowGhostDestroy === true) return false;
+        if (reasonLower === 'meteor_cell_destroy') return false;
+        return true;
+    }
+
+    function _populateSpecialVisualMeta(cardState, row, col, meta) {
+        const metaOut = Object.assign({}, meta);
+        if (metaOut.special !== undefined && metaOut.special !== null) return metaOut;
+        const visual = _getSpecialVisualMeta(cardState, row, col);
+        if (visual.special !== null) metaOut.special = visual.special;
+        if (visual.timer !== null) metaOut.timer = visual.timer;
+        if (visual.owner !== null) metaOut.owner = visual.owner;
+        if (visual.inheritedTimer !== null) metaOut.inheritedTimer = visual.inheritedTimer;
+        if (visual.inheritedOwner !== null) metaOut.inheritedOwner = visual.inheritedOwner;
+        if (visual.flipEvadeRemaining !== null) metaOut.flipEvadeRemaining = visual.flipEvadeRemaining;
+        if (visual.inheritedFlipEvadeRemaining !== null) metaOut.inheritedFlipEvadeRemaining = visual.inheritedFlipEvadeRemaining;
+        if (visual.destroyEvadeRemaining !== null) metaOut.destroyEvadeRemaining = visual.destroyEvadeRemaining;
+        return metaOut;
+    }
+
     function emitPresentationEvent(cardState, ev) {
         _ensureCardState(cardState);
         // Populate action meta fields if available on cardState._currentActionMeta
@@ -705,6 +770,23 @@
             ;
         if (guardMarker && !ignoreGuard) return { destroyed: false, reason: 'guard_protected' };
         if (_isFrozenCell(cardState, row, col)) return { destroyed: false, reason: 'frozen_protected' };
+        const ghostMarker = _getGhostMarkerAt(cardState, row, col);
+        if (ghostMarker && _shouldBlockGhostDestroy(reason, meta)) {
+            const stoneId = getStoneIdAt(cardState, gameState, row, col);
+            const metaOut = _populateSpecialVisualMeta(cardState, row, col, meta);
+            metaOut.blockedByGhost = true;
+            emitPresentationEvent(cardState, {
+                type: 'DESTROY',
+                stoneId,
+                row,
+                col,
+                ownerBefore: (prev === (SharedConstants.BLACK || 1)) ? 'black' : 'white',
+                cause: cause || null,
+                reason: reason || null,
+                meta: metaOut
+            });
+            return { destroyed: false, evaded: false, blockedByGhost: true, reason: 'ghost_protected' };
+        }
 
         const destroyEvadeMarker = _shouldSkipDestroyEvade(cause, reason, meta)
             ? null
@@ -715,16 +797,27 @@
                 const beforeRemaining = _normalizeCounterValue(destroyEvadeMarker.data && destroyEvadeMarker.data.destroyEvadeRemaining) || 0;
                 const afterRemaining = Math.max(0, beforeRemaining - 1);
                 destroyEvadeMarker.data.destroyEvadeRemaining = afterRemaining;
+                const afterimageWillDepleted = (
+                    String(destroyEvadeMarker.data && destroyEvadeMarker.data.type ? destroyEvadeMarker.data.type : '').toUpperCase() === 'AFTERIMAGE_WILL' &&
+                    afterRemaining <= 0 &&
+                    (_normalizeCounterValue(destroyEvadeMarker.data && destroyEvadeMarker.data.flipEvadeRemaining) || 0) <= 0
+                );
                 const visual = _getSpecialVisualMeta(cardState, row, col);
                 const moveMeta = Object.assign({}, meta, {
-                    special: visual.special !== null ? visual.special : ((destroyEvadeMarker.data && destroyEvadeMarker.data.type) || null),
-                    timer: visual.timer !== null ? visual.timer : null,
-                    owner: visual.owner !== null ? visual.owner : ((destroyEvadeMarker.owner !== undefined && destroyEvadeMarker.owner !== null) ? destroyEvadeMarker.owner : null),
+                    special: afterimageWillDepleted
+                        ? null
+                        : (visual.special !== null ? visual.special : ((destroyEvadeMarker.data && destroyEvadeMarker.data.type) || null)),
+                    timer: afterimageWillDepleted ? null : (visual.timer !== null ? visual.timer : null),
+                    owner: afterimageWillDepleted
+                        ? null
+                        : (visual.owner !== null ? visual.owner : ((destroyEvadeMarker.owner !== undefined && destroyEvadeMarker.owner !== null) ? destroyEvadeMarker.owner : null)),
                     inheritedTimer: visual.inheritedTimer !== null ? visual.inheritedTimer : null,
                     inheritedOwner: visual.inheritedOwner !== null ? visual.inheritedOwner : null,
-                    flipEvadeRemaining: visual.flipEvadeRemaining !== null ? visual.flipEvadeRemaining : null,
+                    flipEvadeRemaining: afterimageWillDepleted
+                        ? null
+                        : (visual.flipEvadeRemaining !== null ? visual.flipEvadeRemaining : null),
                     inheritedFlipEvadeRemaining: visual.inheritedFlipEvadeRemaining !== null ? visual.inheritedFlipEvadeRemaining : null,
-                    destroyEvadeRemaining: afterRemaining,
+                    destroyEvadeRemaining: afterimageWillDepleted ? null : afterRemaining,
                     destroyEvadeTriggeredBy: cause || null,
                     destroyEvadeTriggerReason: reason || null,
                     destroyEvadeOriginRow: row,
@@ -743,6 +836,7 @@
                 );
                 if (moveResult && moveResult.moved) {
                     _moveCellMarkers(cardState, row, col, destination.row, destination.col);
+                    _pruneAfterimageMarkerIfDepleted(cardState, destroyEvadeMarker);
                     return {
                         destroyed: false,
                         evaded: true,
@@ -797,7 +891,26 @@
         const ownerBeforeKey = (prev === (SharedConstants.BLACK || 1))
             ? 'black'
             : ((prev === (SharedConstants.WHITE || -1)) ? 'white' : null);
+        const ghostMarker = _getGhostMarkerAt(cardState, row, col);
+        if (ghostMarker && _shouldBlockGhostChange(cause, reason)) {
+            const stoneIdBlocked = getStoneIdAt(cardState, gameState, row, col);
+            const metaBlocked = _populateSpecialVisualMeta(cardState, row, col, meta);
+            metaBlocked.blockedByGhost = true;
+            emitPresentationEvent(cardState, {
+                type: 'CHANGE',
+                stoneId: stoneIdBlocked,
+                row,
+                col,
+                ownerBefore: ownerBeforeKey,
+                ownerAfter: ownerAfterKey,
+                cause: cause || null,
+                reason: reason || null,
+                meta: metaBlocked
+            });
+            return { changed: false, blockedByGhost: true, reason: 'ghost_protected' };
+        }
 
+        _consumeAfterimageMarkerOnNormalChange(cardState, row, col);
         const stoneId = getStoneIdAt(cardState, gameState, row, col);
 
         setCellValue(gameState, row, col, ownerAfterVal);
@@ -808,18 +921,7 @@
                 cardState.cornerCaptureCountByPlayer[ownerAfterKey] = (cardState.cornerCaptureCountByPlayer[ownerAfterKey] || 0) + 1;
             }
         }
-        const metaOut = Object.assign({}, meta);
-        if (metaOut.special === undefined || metaOut.special === null) {
-            const visual = _getSpecialVisualMeta(cardState, row, col);
-            if (visual.special !== null) metaOut.special = visual.special;
-            if (visual.timer !== null) metaOut.timer = visual.timer;
-            if (visual.owner !== null) metaOut.owner = visual.owner;
-            if (visual.inheritedTimer !== null) metaOut.inheritedTimer = visual.inheritedTimer;
-            if (visual.inheritedOwner !== null) metaOut.inheritedOwner = visual.inheritedOwner;
-            if (visual.flipEvadeRemaining !== null) metaOut.flipEvadeRemaining = visual.flipEvadeRemaining;
-            if (visual.inheritedFlipEvadeRemaining !== null) metaOut.inheritedFlipEvadeRemaining = visual.inheritedFlipEvadeRemaining;
-            if (visual.destroyEvadeRemaining !== null) metaOut.destroyEvadeRemaining = visual.destroyEvadeRemaining;
-        }
+        const metaOut = _populateSpecialVisualMeta(cardState, row, col, meta);
 
         emitPresentationEvent(cardState, {
             type: 'CHANGE',

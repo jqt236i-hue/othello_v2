@@ -197,9 +197,25 @@ function syncDiscVisualToCurrentState(row, col) {
     const markerKinds = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && MarkersAdapter.MARKER_KINDS)
         ? MarkersAdapter.MARKER_KINDS
         : { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' };
+    const isBombCategoryMarker = (marker) => {
+        if (!marker || typeof marker !== 'object') return false;
+        if (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.isBombCategoryMarker === 'function') {
+            return MarkersAdapter.isBombCategoryMarker(marker);
+        }
+        const data = (marker.data && typeof marker.data === 'object') ? marker.data : null;
+        const category = String(data && data.category ? data.category : '').trim().toLowerCase();
+        const type = String(data && data.type ? data.type : '').trim().toUpperCase();
+        return marker.kind === 'bomb' || category === 'bomb' || type === 'TIME_BOMB';
+    };
     let bomb = null;
     if (cardState && Array.isArray(cardState.markers)) {
-        bomb = cardState.markers.find(m => m.kind === markerKinds.BOMB && m.row === row && m.col === col) || null;
+        bomb = (
+            typeof MarkersAdapter !== 'undefined'
+            && MarkersAdapter
+            && typeof MarkersAdapter.findBombMarkerAt === 'function'
+        )
+            ? MarkersAdapter.findBombMarkerAt(cardState, row, col)
+            : (cardState.markers.find(m => isBombCategoryMarker(m) && m.row === row && m.col === col) || null);
         if (bomb && bomb.data) {
             bomb = { row, col, remainingTurns: bomb.data.remainingTurns, owner: bomb.owner };
         }
@@ -231,7 +247,12 @@ function syncDiscVisualToCurrentState(row, col) {
 
     let special = null;
     if (cardState && Array.isArray(cardState.markers)) {
-        const s = cardState.markers.find(m => m.kind === markerKinds.SPECIAL_STONE && m.row === row && m.col === col) || null;
+        const s = cardState.markers.find((m) => (
+            m.kind === markerKinds.SPECIAL_STONE
+            && !isBombCategoryMarker(m)
+            && m.row === row
+            && m.col === col
+        )) || null;
         if (s && s.data) {
             special = { row, col, type: s.data.type, owner: s.owner, remainingOwnerTurns: s.data.remainingOwnerTurns, regenRemaining: s.data.regenRemaining };
         }
@@ -275,6 +296,53 @@ var _chargeDeltaTimers = { black: null, white: null };
 var _chargeDeltaClearTimers = { black: null, white: null };
 var _chargeDeltaSeq = { black: 0, white: 0 };
 
+function _resolveChargeDeltaAnchorGapPx(el) {
+    try {
+        if (typeof window !== 'undefined' && window.getComputedStyle && el) {
+            var raw = window.getComputedStyle(el).getPropertyValue('--layout-size-charge-delta-anchor-gap');
+            var parsed = parseFloat(raw);
+            if (Number.isFinite(parsed)) return parsed;
+        }
+    } catch (e) { /* ignore */ }
+    return 8;
+}
+
+function _positionChargeDeltaEl(key, el) {
+    if (typeof document === 'undefined' || !el) return;
+    var chargeId = (key === 'black') ? 'charge-black' : 'charge-white';
+    var chargeEl = document.getElementById(chargeId);
+    if (!chargeEl || typeof chargeEl.getBoundingClientRect !== 'function') return;
+
+    var chargeRect = chargeEl.getBoundingClientRect();
+    if (!Number.isFinite(chargeRect.left) || !Number.isFinite(chargeRect.top)) return;
+
+    var deltaRect = (typeof el.getBoundingClientRect === 'function') ? el.getBoundingClientRect() : null;
+    var deltaHeight = (deltaRect && Number.isFinite(deltaRect.height) && deltaRect.height > 0)
+        ? deltaRect.height
+        : (el.offsetHeight || 0);
+    var gap = _resolveChargeDeltaAnchorGapPx(el);
+    var viewportHeight = 1080;
+    try {
+        viewportHeight = (typeof window !== 'undefined' && Number.isFinite(window.innerHeight) && window.innerHeight > 0)
+            ? window.innerHeight
+            : ((document.documentElement && Number.isFinite(document.documentElement.clientHeight) && document.documentElement.clientHeight > 0)
+                ? document.documentElement.clientHeight
+                : 1080);
+    } catch (e) { /* ignore */ }
+
+    var anchorLeft = chargeRect.left + (chargeRect.width / 2);
+    var anchorTop = (key === 'white')
+        ? (chargeRect.bottom + gap)
+        : (chargeRect.top - deltaHeight - gap);
+    var maxTop = Math.max(8, viewportHeight - deltaHeight - 8);
+    var clampedTop = Math.min(maxTop, Math.max(8, anchorTop));
+
+    el.style.left = `${anchorLeft}px`;
+    el.style.top = `${clampedTop}px`;
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+}
+
 function _showChargeDeltaNow(key, delta) {
     if (typeof document === 'undefined') return;
     if (!Number.isFinite(delta) || delta === 0) return;
@@ -285,6 +353,7 @@ function _showChargeDeltaNow(key, delta) {
 
     var sign = delta > 0 ? '+' : '';
     el.textContent = '布石' + sign + delta;
+    _positionChargeDeltaEl(key, el);
 
     el.classList.remove('is-increase', 'is-decrease');
     el.classList.add(delta > 0 ? 'is-increase' : 'is-decrease');
@@ -300,6 +369,7 @@ function _showChargeDeltaNow(key, delta) {
     void el.offsetWidth;
     var startShow = function () {
         if ((_chargeDeltaSeq[key] || 0) !== seq) return;
+        _positionChargeDeltaEl(key, el);
         el.classList.remove('is-restart');
         el.classList.remove('is-fadeout');
         el.classList.add('is-visible');

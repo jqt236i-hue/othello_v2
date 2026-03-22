@@ -23,6 +23,72 @@ function getCardCostTier(cost) {
 
 var _lastChargeForDelta = { black: null, white: null, turnIndex: null };
 
+function _normalizeChargeValueForRender(value) {
+    return Number.isFinite(Number(value))
+        ? Number(value)
+        : 0;
+}
+
+function _resetChargeDeltaBaseline() {
+    _lastChargeForDelta.black = null;
+    _lastChargeForDelta.white = null;
+    _lastChargeForDelta.turnIndex = null;
+}
+
+function _shouldResetChargeDeltaBaseline(currentTurnIndex) {
+    if (currentTurnIndex === null || _lastChargeForDelta.turnIndex === null) return false;
+    if (currentTurnIndex < _lastChargeForDelta.turnIndex) return true;
+    return currentTurnIndex === 0 && _lastChargeForDelta.turnIndex !== 0;
+}
+
+function _readChargeDeltaSnapshot(cardState) {
+    const chargeState = (cardState && cardState.charge && typeof cardState.charge === 'object')
+        ? cardState.charge
+        : { black: 0, white: 0 };
+    const currentTurnIndex = (cardState && typeof cardState.turnIndex === 'number')
+        ? cardState.turnIndex
+        : null;
+    return {
+        black: _normalizeChargeValueForRender(chargeState.black),
+        white: _normalizeChargeValueForRender(chargeState.white),
+        turnIndex: currentTurnIndex
+    };
+}
+
+function _rememberChargeDeltaSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') {
+        _resetChargeDeltaBaseline();
+        return;
+    }
+    _lastChargeForDelta.black = snapshot.black;
+    _lastChargeForDelta.white = snapshot.white;
+    _lastChargeForDelta.turnIndex = snapshot.turnIndex;
+}
+
+function _allowsRawChargeDeltaFallback(matchMode) {
+    return matchMode !== 'network';
+}
+
+function _consumeRawChargeDeltaFallback(chargeSnapshot, chargeDeltaHandler) {
+    if (!chargeSnapshot || !chargeDeltaHandler) return false;
+    let consumed = false;
+    if (_lastChargeForDelta.black !== null) {
+        const deltaBlack = chargeSnapshot.black - _lastChargeForDelta.black;
+        if (deltaBlack !== 0) {
+            chargeDeltaHandler('black', deltaBlack);
+            consumed = true;
+        }
+    }
+    if (_lastChargeForDelta.white !== null) {
+        const deltaWhite = chargeSnapshot.white - _lastChargeForDelta.white;
+        if (deltaWhite !== 0) {
+            chargeDeltaHandler('white', deltaWhite);
+            consumed = true;
+        }
+    }
+    return consumed;
+}
+
 function _resolveChargeMaxForRender() {
     try {
         if (typeof CHARGE_MAX !== 'undefined' && Number.isFinite(Number(CHARGE_MAX))) {
@@ -219,8 +285,8 @@ function _normalizeCardStateForRender(state) {
     if (!state || typeof state !== 'object') return null;
 
     if (!state.charge || typeof state.charge !== 'object') state.charge = {};
-    state.charge.black = Number.isFinite(Number(state.charge.black)) ? Number(state.charge.black) : 0;
-    state.charge.white = Number.isFinite(Number(state.charge.white)) ? Number(state.charge.white) : 0;
+    state.charge.black = _normalizeChargeValueForRender(state.charge.black);
+    state.charge.white = _normalizeChargeValueForRender(state.charge.white);
 
     if (!state.hands || typeof state.hands !== 'object') state.hands = {};
     if (!Array.isArray(state.hands.black)) state.hands.black = [];
@@ -274,17 +340,35 @@ function _resolveTransientNetworkChargeDeltaEvents() {
     return null;
 }
 
-function _clearTransientNetworkChargeDeltaEvents() {
+function _setTransientNetworkChargeDeltaEvents(events) {
+    const nextEvents = Array.isArray(events) ? events : [];
     try {
         if (typeof globalThis !== 'undefined') {
-            globalThis.__networkTransientChargeDeltaEvents = [];
+            globalThis.__networkTransientChargeDeltaEvents = nextEvents;
         }
     } catch (e) { /* ignore */ }
     try {
         if (typeof window !== 'undefined') {
-            window.__networkTransientChargeDeltaEvents = [];
+            window.__networkTransientChargeDeltaEvents = nextEvents;
         }
     } catch (e) { /* ignore */ }
+}
+
+function _clearTransientNetworkChargeDeltaEvents() {
+    _setTransientNetworkChargeDeltaEvents([]);
+}
+
+function _shouldRenderChargeDeltaOnHud(ev) {
+    if (!ev || ev.popupKind !== 'board') return true;
+    const hasAnchor = Number.isInteger(Number(ev.anchorRow)) && Number.isInteger(Number(ev.anchorCol));
+    const isGain = Number(ev.delta) > 0;
+    if (!hasAnchor || !isGain) {
+        try {
+            console.warn('[CardRenderer] invalid board charge delta metadata; falling back to HUD', ev);
+        } catch (e) { /* ignore */ }
+        return true;
+    }
+    return false;
 }
 
 function consumeChargeDeltaEventList(eventsSource, chargeDeltaHandler) {
@@ -302,9 +386,12 @@ function consumeChargeDeltaEventList(eventsSource, chargeDeltaHandler) {
     eventsSource.length = 0;
     if (!chargeDeltaHandler || events.length === 0) return events.length > 0;
 
+    const hudEvents = events.filter((ev) => _shouldRenderChargeDeltaOnHud(ev));
+    if (hudEvents.length === 0) return events.length > 0;
+
     const totalsByPlayer = { black: 0, white: 0 };
     const playerOrder = [];
-    for (const ev of events) {
+    for (const ev of hudEvents) {
         const player = (ev.player === 'white' || ev.player === -1 || ev.player === '-1') ? 'white' : 'black';
         if (totalsByPlayer[player] === 0) playerOrder.push(player);
         totalsByPlayer[player] += Number(ev.delta);
@@ -327,6 +414,23 @@ function consumeChargeDeltaEvents(cardState, chargeDeltaHandler) {
 
 function consumeTransientNetworkChargeDeltaEvents(chargeDeltaHandler) {
     return consumeChargeDeltaEventList(_resolveTransientNetworkChargeDeltaEvents(), chargeDeltaHandler);
+}
+
+function consumeChargeDeltaSourcesForRender(cardState, matchMode, chargeDeltaHandler) {
+    const consumedAuthoritativeQueue = consumeChargeDeltaEvents(cardState, chargeDeltaHandler);
+    if (consumedAuthoritativeQueue) {
+        _clearTransientNetworkChargeDeltaEvents();
+        return {
+            consumedAuthoritativeQueue: true,
+            consumedTransientQueue: false,
+            allowRawFallback: _allowsRawChargeDeltaFallback(matchMode)
+        };
+    }
+    return {
+        consumedAuthoritativeQueue: false,
+        consumedTransientQueue: consumeTransientNetworkChargeDeltaEvents(chargeDeltaHandler),
+        allowRawFallback: _allowsRawChargeDeltaFallback(matchMode)
+    };
 }
 
 function renderCardUI() {
@@ -375,39 +479,23 @@ function renderCardUI() {
             baseChargeDeltaHandler(slotKey, delta);
         }
         : null;
-    const chargeState = (cardState && cardState.charge) ? cardState.charge : { black: 0, white: 0 };
-    const currentBlackCharge = Number.isFinite(chargeState.black) ? chargeState.black : Number(chargeState.black || 0);
-    const currentWhiteCharge = Number.isFinite(chargeState.white) ? chargeState.white : Number(chargeState.white || 0);
-    const currentTurnIndex = (cardState && typeof cardState.turnIndex === 'number') ? cardState.turnIndex : null;
+    const chargeSnapshot = _readChargeDeltaSnapshot(cardState);
 
-    if (currentTurnIndex !== null && _lastChargeForDelta.turnIndex !== null && currentTurnIndex < _lastChargeForDelta.turnIndex) {
-        _lastChargeForDelta.black = null;
-        _lastChargeForDelta.white = null;
-    }
-    if (currentTurnIndex === 0 && _lastChargeForDelta.turnIndex !== 0) {
-        _lastChargeForDelta.black = null;
-        _lastChargeForDelta.white = null;
+    if (_shouldResetChargeDeltaBaseline(chargeSnapshot.turnIndex)) {
+        _resetChargeDeltaBaseline();
     }
 
-    const consumedQueue = consumeChargeDeltaEvents(cardState, chargeDeltaHandler);
-    const consumedTransientQueue = consumedQueue
-        ? (_clearTransientNetworkChargeDeltaEvents(), false)
-        : consumeTransientNetworkChargeDeltaEvents(chargeDeltaHandler);
+    const consumedChargeDeltaSources = consumeChargeDeltaSourcesForRender(cardState, matchMode, chargeDeltaHandler);
 
-    if (!consumedQueue && !consumedTransientQueue) {
-        if (_lastChargeForDelta.black !== null) {
-            const deltaBlack = currentBlackCharge - _lastChargeForDelta.black;
-            if (deltaBlack !== 0 && chargeDeltaHandler) chargeDeltaHandler('black', deltaBlack);
-        }
-        if (_lastChargeForDelta.white !== null) {
-            const deltaWhite = currentWhiteCharge - _lastChargeForDelta.white;
-            if (deltaWhite !== 0 && chargeDeltaHandler) chargeDeltaHandler('white', deltaWhite);
-        }
+    // In network mode, charge gain popups must come from authoritative/transient event queues.
+    // Falling back to raw total diffs can replay the current total as a fake +gain on turn handoff.
+    if (consumedChargeDeltaSources.allowRawFallback
+        && !consumedChargeDeltaSources.consumedAuthoritativeQueue
+        && !consumedChargeDeltaSources.consumedTransientQueue) {
+        _consumeRawChargeDeltaFallback(chargeSnapshot, chargeDeltaHandler);
     }
 
-    _lastChargeForDelta.black = currentBlackCharge;
-    _lastChargeForDelta.white = currentWhiteCharge;
-    _lastChargeForDelta.turnIndex = currentTurnIndex;
+    _rememberChargeDeltaSnapshot(chargeSnapshot);
     const decks = (cardState && cardState.decks && typeof cardState.decks === 'object') ? cardState.decks : null;
     const deckCountBlack = (decks && Array.isArray(decks.black))
         ? decks.black.length

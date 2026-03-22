@@ -147,9 +147,9 @@
 
 /* Charge Delta Display */
 .charge-delta {
-    position: absolute;
-    background: rgba(40, 40, 40, 0.9);
-    border: var(--layout-size-charge-delta-border) solid rgba(255, 255, 255, 0.25);
+    position: fixed;
+    background: rgba(18, 20, 28, 0.48);
+    border: var(--layout-size-charge-delta-border) solid rgba(255, 255, 255, 0.32);
     padding: var(--layout-size-charge-delta-pad-y) var(--layout-size-charge-delta-pad-x);
     border-radius: var(--layout-size-charge-delta-radius);
     color: #e6f2ff;
@@ -157,14 +157,23 @@
     font-weight: 700;
     pointer-events: none;
     z-index: 1011;
-    box-shadow: 0 calc(2px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5);
-    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.7);
+    box-shadow: 0 calc(4px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.45);
+    text-shadow:
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.68),
+        calc(0.7px * var(--layout-stage-scale)) 0 0 rgba(0, 0, 0, 0.88),
+        calc(-0.7px * var(--layout-stage-scale)) 0 0 rgba(0, 0, 0, 0.88),
+        0 calc(0.7px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.88),
+        0 calc(-0.7px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.88);
     opacity: 0;
     transform: var(--charge-delta-base-transform, translateX(-50%)) translateY(var(--layout-size-charge-delta-shift-y-start));
     transition: opacity 0.2s ease, transform 0.28s cubic-bezier(0.2, 0.9, 0.2, 1);
     white-space: nowrap;
     text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
+    -webkit-text-stroke: calc(0.5px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.9);
+    paint-order: stroke fill;
+    backdrop-filter: blur(calc(4px * var(--layout-stage-scale)));
+    -webkit-backdrop-filter: blur(calc(4px * var(--layout-stage-scale)));
 }
 
 .charge-delta.is-restart {
@@ -185,27 +194,27 @@
 }
 
 .charge-delta.is-increase {
-    background: rgba(20, 70, 140, 0.9);
-    border-color: rgba(120, 190, 255, 0.85);
-    color: #b3dcff;
+    background: rgba(24, 92, 184, 0.62);
+    border-color: rgba(150, 210, 255, 0.82);
+    color: #d7ecff;
 }
 
 .charge-delta.is-decrease {
-    background: rgba(120, 20, 20, 0.9);
-    border-color: rgba(255, 120, 120, 0.85);
-    color: #ffd0d0;
+    background: rgba(170, 36, 36, 0.58);
+    border-color: rgba(255, 150, 150, 0.82);
+    color: #ffe1e1;
 }
 
 #charge-delta-black {
     left: 50%;
-    bottom: var(--layout-size-charge-offset);
-    --charge-delta-base-transform: translateX(-50%) translateX(calc(-1 * var(--layout-size-charge-delta-shift-x)));
+    bottom: calc(var(--layout-size-charge-offset) + var(--layout-size-charge-delta-anchor-gap) + var(--layout-size-charge-font) + (var(--layout-size-charge-pad-y) * 2));
+    --charge-delta-base-transform: translateX(-50%);
 }
 
 #charge-delta-white {
     left: 50%;
-    top: var(--layout-size-charge-offset);
-    --charge-delta-base-transform: translateX(-50%) translateX(var(--layout-size-charge-delta-shift-x));
+    top: calc(var(--layout-size-charge-offset) + var(--layout-size-charge-font) + (var(--layout-size-charge-pad-y) * 2) + var(--layout-size-charge-delta-anchor-gap));
+    --charge-delta-base-transform: translateX(-50%);
 }
 /* Player Area Containers */
 .player-area-top,

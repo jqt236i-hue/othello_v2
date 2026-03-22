@@ -179,6 +179,54 @@ describe('card detail effect tags', () => {
     expect(tagsEl.style.display).toBe('none');
   });
 
+  test('GHOST_WILL uses 幽体 tag and avoids 反転保護 mislabeling', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'ghost_01',
+      name: '幽霊の意志',
+      type: 'GHOST_WILL',
+      cost: 5,
+      desc: '次に置く石を幽体化する。5ターンの間、反転・破壊の対象にはなるがその石自身は受けない。交換の意志の対象外で、入替や他の効果は通常どおり受ける。'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+
+    window.updateCardDetailPanel();
+
+    const tagsEl = document.getElementById('card-detail-effect-tags');
+    expect(tagsEl).not.toBeNull();
+    expect(tagsEl.textContent).toContain('幽体');
+    expect(tagsEl.textContent).toContain('特殊石');
+    expect(tagsEl.textContent).not.toContain('反転保護');
+  });
+
+  test('AFTERIMAGE_WILL shows 特殊石/反転回避/破壊回避 tags together', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'afterimage_will_01',
+      name: '残像の意志',
+      type: 'AFTERIMAGE_WILL',
+      cost: 8,
+      desc: '次に置く石を残像石化。反転回避3回と破壊回避3回を持つ特殊石になり、両方使い切るまで持続する。'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+
+    window.updateCardDetailPanel();
+
+    const tagsEl = document.getElementById('card-detail-effect-tags');
+    expect(tagsEl).not.toBeNull();
+    expect(tagsEl.textContent).toContain('特殊石');
+    expect(tagsEl.textContent).toContain('反転回避');
+    expect(tagsEl.textContent).toContain('破壊回避');
+  });
+
   test('throw-chain cards show formal quick descriptions instead of generated-only fallback text', () => {
     require('../cards/card-interaction.js');
 

@@ -72,4 +72,28 @@ describe('special stone placement visuals (spawn meta backfill)', () => {
     expect(status && status.meta && status.meta.special).toBe('WILL_HUNTER_KING');
     expect(status && status.meta && status.meta.destroyEvadeRemaining).toBe(2);
   });
+
+  test('afterimage marker backfills SPAWN meta with dual evade counts', () => {
+    const prng = { shuffle: (arr) => arr };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = { board: Array(8).fill(null).map(() => Array(8).fill(0)) };
+
+    cardState._currentActionMeta = { actionId: 'a4', turnIndex: 0, plyIndex: 0 };
+
+    BoardOps.spawnAt(cardState, gameState, 3, 3, 'black', 'SYSTEM', 'standard_place');
+    cardState.pendingEffectByPlayer.black = { type: 'AFTERIMAGE_WILL' };
+
+    const effects = CardLogic.applyPlacementEffects(cardState, gameState, 'black', 3, 3, 0);
+    expect(effects && effects.afterimagePlaced).toBe(true);
+
+    const spawn = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'SPAWN' && e.row === 3 && e.col === 3);
+    expect(spawn && spawn.meta && spawn.meta.special).toBe('AFTERIMAGE_WILL');
+    expect(spawn && spawn.meta && spawn.meta.flipEvadeRemaining).toBe(3);
+    expect(spawn && spawn.meta && spawn.meta.destroyEvadeRemaining).toBe(3);
+
+    const status = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'STATUS_APPLIED' && e.row === 3 && e.col === 3);
+    expect(status && status.meta && status.meta.special).toBe('AFTERIMAGE_WILL');
+    expect(status && status.meta && status.meta.flipEvadeRemaining).toBe(3);
+    expect(status && status.meta && status.meta.destroyEvadeRemaining).toBe(3);
+  });
 });

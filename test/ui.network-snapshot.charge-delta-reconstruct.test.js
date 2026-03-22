@@ -127,4 +127,91 @@ describe('network snapshot charge delta reconstruction', () => {
     expect(global.cardState.chargeDeltaEvents).toEqual(authoritativeEvents);
     expect(global.__networkTransientChargeDeltaEvents).toEqual([]);
   });
+
+  test('normalizes incoming snapshot charge totals before reconstructing delta events', () => {
+    const stateObj = { stateVersion: 10 };
+    const ctrl = createController(stateObj);
+    global.cardState.charge = { black: 5, white: 3 };
+
+    const snapshot = createSnapshot(11, {
+      charge: { black: 7, white: 1 },
+      chargeDeltaEvents: []
+    });
+    snapshot.cardState.charge.black = '7.9';
+    snapshot.cardState.charge.white = 'oops';
+
+    const applied = ctrl.applySnapshot(snapshot, { playbackEvents: [] });
+
+    expect(applied).toBe(true);
+    expect(global.cardState.charge).toEqual({ black: 7, white: 0 });
+    expect(global.__networkTransientChargeDeltaEvents).toEqual([
+      { seq: 1, player: 'black', before: 5, after: 7, delta: 2, reason: 'network_snapshot_charge_sync' },
+      { seq: 2, player: 'white', before: 3, after: 0, delta: -3, reason: 'network_snapshot_charge_sync' }
+    ]);
+  });
+
+  test('normalizes authoritative charge delta events on snapshot apply', () => {
+    const stateObj = { stateVersion: 10 };
+    const ctrl = createController(stateObj);
+    global.cardState.charge = { black: 5, white: 3 };
+
+    const snapshot = createSnapshot(11, {
+      charge: { black: 8, white: 4 },
+      chargeDeltaEvents: []
+    });
+    snapshot.cardState.chargeDeltaEvents = [
+      { seq: '7.9', player: -1, before: '1.2', after: '4.8', delta: '3.6', reason: 'server_gain' }
+    ];
+
+    const applied = ctrl.applySnapshot(snapshot, { playbackEvents: [] });
+
+    expect(applied).toBe(true);
+    expect(global.cardState.chargeDeltaEvents).toEqual([
+      { seq: 7, player: 'white', before: 1, after: 4, delta: 3, reason: 'server_gain' }
+    ]);
+    expect(global.__networkTransientChargeDeltaEvents).toEqual([]);
+  });
+
+  test('preserves normalized board popup metadata on authoritative charge events', () => {
+    const stateObj = { stateVersion: 10 };
+    const ctrl = createController(stateObj);
+    global.cardState.charge = { black: 5, white: 3 };
+
+    const snapshot = createSnapshot(11, {
+      charge: { black: 8, white: 3 },
+      chargeDeltaEvents: []
+    });
+    snapshot.cardState.chargeDeltaEvents = [
+      {
+        seq: '9',
+        player: 'black',
+        before: '5',
+        after: '8',
+        delta: '3',
+        reason: 'placement_or_effect_gain',
+        popupKind: 'board',
+        anchorRow: '2.9',
+        anchorCol: '4.1',
+        sourceType: 'placement_flip_gain'
+      }
+    ];
+
+    const applied = ctrl.applySnapshot(snapshot, { playbackEvents: [] });
+
+    expect(applied).toBe(true);
+    expect(global.cardState.chargeDeltaEvents).toEqual([
+      {
+        seq: 9,
+        player: 'black',
+        before: 5,
+        after: 8,
+        delta: 3,
+        reason: 'placement_or_effect_gain',
+        popupKind: 'board',
+        anchorRow: 2,
+        anchorCol: 4,
+        sourceType: 'placement_flip_gain'
+      }
+    ]);
+  });
 });

@@ -6,7 +6,14 @@ const PLAYER_KEYS = Object.freeze(['black', 'white']);
 const HIDDEN_HAND_TOKEN_PREFIX = '__hidden_hand__:';
 const HIDDEN_HAND_TOKEN_RE = /^__hidden_hand__:(black|white):(\d+)$/;
 const OPERATION_ID_MAX_LENGTH = 128;
-const DROP_HIDDEN_TOKEN = Symbol('drop_hidden_token');
+const SSE_RESUME_BUFFER_LIMIT = 96;
+const ACCEPTED_OPERATION_HISTORY_LIMIT = 16;
+const VERSION_REJECTION_REASONS = Object.freeze({
+    AHEAD: 'VERSION_AHEAD',
+    BEHIND: 'VERSION_BEHIND',
+    GAP: 'VERSION_GAP',
+    MISMATCH: 'VERSION_MISMATCH'
+});
 
 function parseSeatKeyOptional(value) {
     if (value === 1 || value === '1') return 'black';
@@ -57,10 +64,127 @@ function ensureAcceptedOperationsBySeat(room) {
     return normalized;
 }
 
+function normalizeAcceptedOperationEntry(value) {
+    const source = (value && typeof value === 'object') ? value : null;
+    if (!source) return null;
+    const operationId = normalizeOperationId(source.operationId);
+    if (!operationId) return null;
+    return {
+        operationId,
+        stateVersion: normalizeStateVersion(source.stateVersion),
+        updatedAt: Number.isFinite(Number(source.updatedAt)) ? Number(source.updatedAt) : null
+    };
+}
+
+function ensureAcceptedOperationHistoryBySeat(room) {
+    const historySource = (room && room.acceptedOperationHistoryBySeat && typeof room.acceptedOperationHistoryBySeat === 'object')
+        ? room.acceptedOperationHistoryBySeat
+        : {};
+    const lastAcceptedBySeat = ensureAcceptedOperationsBySeat(room);
+    const normalized = {
+        black: [],
+        white: []
+    };
+
+    for (const seatKey of PLAYER_KEYS) {
+        const sourceEntries = Array.isArray(historySource[seatKey])
+            ? historySource[seatKey]
+            : [];
+        const combined = sourceEntries.slice();
+        if (combined.length === 0 && lastAcceptedBySeat[seatKey]) {
+            combined.push(lastAcceptedBySeat[seatKey]);
+        }
+        const seen = new Set();
+        const entries = [];
+        for (const entry of combined) {
+            const normalizedEntry = normalizeAcceptedOperationEntry(entry);
+            if (!normalizedEntry || seen.has(normalizedEntry.operationId)) continue;
+            seen.add(normalizedEntry.operationId);
+            entries.push(normalizedEntry);
+        }
+        normalized[seatKey] = entries.slice(-ACCEPTED_OPERATION_HISTORY_LIMIT);
+        lastAcceptedBySeat[seatKey] = normalized[seatKey].length > 0
+            ? normalized[seatKey][normalized[seatKey].length - 1]
+            : null;
+    }
+
+    if (room && typeof room === 'object') {
+        room.acceptedOperationHistoryBySeat = normalized;
+        room.lastAcceptedOperationBySeat = lastAcceptedBySeat;
+    }
+
+    return normalized;
+}
+
+function findAcceptedOperationBySeat(room, seatKey, operationId) {
+    const normalizedSeat = normalizePlayerKey(seatKey);
+    const normalizedOperationId = normalizeOperationId(operationId);
+    if (!normalizedOperationId) return null;
+    const historyBySeat = ensureAcceptedOperationHistoryBySeat(room);
+    const seatHistory = Array.isArray(historyBySeat[normalizedSeat]) ? historyBySeat[normalizedSeat] : [];
+    for (let index = seatHistory.length - 1; index >= 0; index -= 1) {
+        if (seatHistory[index] && seatHistory[index].operationId === normalizedOperationId) {
+            return seatHistory[index];
+        }
+    }
+    return null;
+}
+
+function rememberAcceptedOperationBySeat(room, seatKey, entry) {
+    const normalizedSeat = normalizePlayerKey(seatKey);
+    const normalizedEntry = normalizeAcceptedOperationEntry(entry);
+    if (!normalizedEntry) return null;
+    const historyBySeat = ensureAcceptedOperationHistoryBySeat(room);
+    const currentEntries = Array.isArray(historyBySeat[normalizedSeat]) ? historyBySeat[normalizedSeat] : [];
+    const nextEntries = currentEntries.filter((one) => !one || one.operationId !== normalizedEntry.operationId);
+    nextEntries.push(normalizedEntry);
+    historyBySeat[normalizedSeat] = nextEntries.slice(-ACCEPTED_OPERATION_HISTORY_LIMIT);
+    if (room && typeof room === 'object') {
+        room.acceptedOperationHistoryBySeat = historyBySeat;
+        room.lastAcceptedOperationBySeat = room.lastAcceptedOperationBySeat && typeof room.lastAcceptedOperationBySeat === 'object'
+            ? room.lastAcceptedOperationBySeat
+            : { black: null, white: null };
+        room.lastAcceptedOperationBySeat[normalizedSeat] = historyBySeat[normalizedSeat][historyBySeat[normalizedSeat].length - 1] || null;
+    }
+    return historyBySeat[normalizedSeat][historyBySeat[normalizedSeat].length - 1] || null;
+}
+
 function normalizeStateVersion(value) {
     return Number.isFinite(Number(value))
         ? Number(value)
         : null;
+}
+
+function classifyVersionRejectionReason(receivedBaseVersionValue, authoritativeStateVersionValue) {
+    const receivedMissing = receivedBaseVersionValue === null
+        || receivedBaseVersionValue === undefined
+        || (typeof receivedBaseVersionValue === 'string' && receivedBaseVersionValue.trim() === '');
+    const authoritativeMissing = authoritativeStateVersionValue === null
+        || authoritativeStateVersionValue === undefined
+        || (typeof authoritativeStateVersionValue === 'string' && authoritativeStateVersionValue.trim() === '');
+    if (receivedMissing || authoritativeMissing) {
+        return VERSION_REJECTION_REASONS.GAP;
+    }
+    const receivedBaseVersion = normalizeStateVersion(receivedBaseVersionValue);
+    const authoritativeStateVersion = normalizeStateVersion(authoritativeStateVersionValue);
+    if (receivedBaseVersion === null || authoritativeStateVersion === null) {
+        return VERSION_REJECTION_REASONS.GAP;
+    }
+    if (receivedBaseVersion < authoritativeStateVersion) {
+        return VERSION_REJECTION_REASONS.AHEAD;
+    }
+    if (receivedBaseVersion > authoritativeStateVersion) {
+        return VERSION_REJECTION_REASONS.BEHIND;
+    }
+    return VERSION_REJECTION_REASONS.MISMATCH;
+}
+
+function isVersionRejectionReason(reasonValue) {
+    const normalized = String(reasonValue || '').trim();
+    return normalized === VERSION_REJECTION_REASONS.MISMATCH
+        || normalized === VERSION_REJECTION_REASONS.AHEAD
+        || normalized === VERSION_REJECTION_REASONS.BEHIND
+        || normalized === VERSION_REJECTION_REASONS.GAP;
 }
 
 function normalizePublishActionType(value) {
@@ -97,6 +221,7 @@ function buildPublishResponsePayload(options) {
         roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
         networkDebugEnabled: opts.networkDebugEnabled === true,
         turnTimer: (opts.turnTimer && typeof opts.turnTimer === 'object') ? opts.turnTimer : null,
+        playbackEvents: Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [],
         serverTime: Number.isFinite(Number(opts.serverTime)) ? Number(opts.serverTime) : Date.now()
     };
 
@@ -132,22 +257,11 @@ function buildPublishResponsePayload(options) {
 function makeHiddenHandToken(ownerKey, handIndex) {
     const normalizedOwner = normalizePlayerKey(ownerKey);
     const idx = Number.isFinite(Number(handIndex)) ? Math.max(0, Math.trunc(Number(handIndex))) : 0;
-    return `__hidden_hand__:${normalizedOwner}:${idx}`;
+    return `${HIDDEN_HAND_TOKEN_PREFIX}${normalizedOwner}:${idx}`;
 }
 
 function isHiddenHandTokenLike(value) {
     return typeof value === 'string' && value.startsWith(HIDDEN_HAND_TOKEN_PREFIX);
-}
-
-function getAuthoritativeHandCardId(previousHands, ownerKey, handIndex) {
-    if (!Number.isInteger(handIndex) || handIndex < 0) return null;
-    const ownerHand = (previousHands && Array.isArray(previousHands[ownerKey]))
-        ? previousHands[ownerKey]
-        : null;
-    if (!ownerHand || handIndex >= ownerHand.length) return null;
-    const cardId = ownerHand[handIndex];
-    if (typeof cardId !== 'string' || !cardId || isHiddenHandTokenLike(cardId)) return null;
-    return cardId;
 }
 
 function parseHiddenHandToken(value) {
@@ -159,99 +273,11 @@ function parseHiddenHandToken(value) {
     return { ownerKey, handIndex };
 }
 
-function resolveCardIdFromHiddenToken(value, previousHands) {
-    const parsed = parseHiddenHandToken(value);
-    if (!parsed) return null;
-    return getAuthoritativeHandCardId(previousHands, parsed.ownerKey, parsed.handIndex);
-}
-
-function sanitizeHiddenTokenReference(value, previousHands, options) {
-    const resolved = resolveCardIdFromHiddenToken(value, previousHands);
-    if (resolved) return resolved;
-    if (!isHiddenHandTokenLike(value)) return value;
-
-    const opts = (options && typeof options === 'object') ? options : {};
-    const fallbackOwnerKey = parseSeatKeyOptional(opts.fallbackOwnerKey);
-    if (fallbackOwnerKey && Number.isInteger(opts.fallbackIndex)) {
-        const fallbackCardId = getAuthoritativeHandCardId(previousHands, fallbackOwnerKey, opts.fallbackIndex);
-        if (fallbackCardId) return fallbackCardId;
-    }
-
-    return opts.dropUnresolved === true ? DROP_HIDDEN_TOKEN : null;
-}
-
-function sanitizeHiddenCardIdArrayForPublish(entries, previousHands, ownerKey) {
-    const source = Array.isArray(entries) ? entries : [];
-    const hasOwnerFallback = !!parseSeatKeyOptional(ownerKey);
-    return source
-        .map((cardId, index) => sanitizeHiddenTokenReference(cardId, previousHands, hasOwnerFallback
-            ? { fallbackOwnerKey: ownerKey, fallbackIndex: index, dropUnresolved: true }
-            : { dropUnresolved: true }))
-        .filter((cardId) => cardId !== DROP_HIDDEN_TOKEN);
-}
-
 function normalizeProjectedHandIndex(value, fallbackIndex, handLength) {
     if (!Number.isInteger(handLength) || handLength <= 0) return null;
     if (Number.isInteger(value) && value >= 0 && value < handLength) return value;
     if (Number.isInteger(fallbackIndex) && fallbackIndex >= 0 && fallbackIndex < handLength) return fallbackIndex;
     return null;
-}
-
-function sanitizeCondemnWillOffersForPublish(cardState, previousHands) {
-    if (!cardState || typeof cardState !== 'object') return cardState;
-    const pendingByPlayer = (cardState.pendingEffectByPlayer && typeof cardState.pendingEffectByPlayer === 'object')
-        ? cardState.pendingEffectByPlayer
-        : null;
-    if (!pendingByPlayer) return cardState;
-
-    for (const ownerKey of PLAYER_KEYS) {
-        const pending = pendingByPlayer[ownerKey];
-        if (!pending || pending.type !== 'CONDEMN_WILL' || !Array.isArray(pending.offers)) continue;
-        const opponentKey = getOpponentKey(ownerKey);
-        const opponentHand = (previousHands && Array.isArray(previousHands[opponentKey]))
-            ? previousHands[opponentKey]
-            : [];
-
-        pending.offers = pending.offers
-            .map((offer, index) => {
-                const nextOffer = (offer && typeof offer === 'object') ? { ...offer } : {};
-                const handIndex = normalizeProjectedHandIndex(nextOffer.handIndex, index, opponentHand.length);
-                if (handIndex === null) return null;
-
-                const fallbackCardId = getAuthoritativeHandCardId(previousHands, opponentKey, handIndex);
-                const nextCardId = sanitizeHiddenTokenReference(nextOffer.cardId, previousHands, {
-                    fallbackOwnerKey: opponentKey,
-                    fallbackIndex: handIndex
-                });
-
-                nextOffer.handIndex = handIndex;
-                nextOffer.cardId = (typeof nextCardId === 'string' && nextCardId)
-                    ? nextCardId
-                    : (fallbackCardId || null);
-                return nextOffer;
-            })
-            .filter(Boolean);
-    }
-
-    return cardState;
-}
-
-function rehydrateHiddenTokensInPlace(value, previousHands, visited = new WeakSet()) {
-    const sanitized = sanitizeHiddenTokenReference(value, previousHands);
-    if (sanitized !== value) return sanitized;
-    if (!value || typeof value !== 'object') return value;
-    if (visited.has(value)) return value;
-    visited.add(value);
-    if (Array.isArray(value)) {
-        for (let i = 0; i < value.length; i += 1) {
-            value[i] = rehydrateHiddenTokensInPlace(value[i], previousHands, visited);
-        }
-        return value;
-    }
-    for (const key of Object.keys(value)) {
-        value[key] = rehydrateHiddenTokensInPlace(value[key], previousHands, visited);
-    }
-    return value;
 }
 
 function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
@@ -268,36 +294,6 @@ function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
     return null;
 }
 
-function validatePublishedHands(snapshot, publishingSeatKey) {
-    const seatKey = parseSeatKeyOptional(publishingSeatKey);
-    const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object')
-        ? snapshot.cardState
-        : null;
-    const hands = (cardState && cardState.hands && typeof cardState.hands === 'object')
-        ? cardState.hands
-        : null;
-
-    if (!seatKey || !hands) {
-        return { ok: false, reason: 'INVALID_HAND_STATE' };
-    }
-
-    for (const ownerKey of PLAYER_KEYS) {
-        if (!Array.isArray(hands[ownerKey])) {
-            return { ok: false, reason: 'INVALID_HAND_STATE' };
-        }
-    }
-
-    const opponentKey = getOpponentKey(seatKey);
-    for (const cardId of hands[opponentKey]) {
-        const parsed = parseHiddenHandToken(cardId);
-        if (!parsed || parsed.ownerKey !== opponentKey) {
-            return { ok: false, reason: 'INVALID_OPPONENT_HAND_STATE' };
-        }
-    }
-
-    return { ok: true };
-}
-
 function stripTransientPresentationState(nextSnapshot) {
     const cardState = (nextSnapshot && nextSnapshot.cardState && typeof nextSnapshot.cardState === 'object')
         ? nextSnapshot.cardState
@@ -309,6 +305,16 @@ function stripTransientPresentationState(nextSnapshot) {
     }
     if (nextSnapshot && nextSnapshot.gameState && typeof nextSnapshot.gameState === 'object') {
         delete nextSnapshot.gameState.__resultShown;
+    }
+    return nextSnapshot;
+}
+
+function stripTransientChargeDeltaState(nextSnapshot) {
+    const cardState = (nextSnapshot && nextSnapshot.cardState && typeof nextSnapshot.cardState === 'object')
+        ? nextSnapshot.cardState
+        : null;
+    if (cardState) {
+        cardState.chargeDeltaEvents = [];
     }
     return nextSnapshot;
 }
@@ -339,45 +345,6 @@ function sanitizeOwnerOnlyTrapState(cardState, viewerSeatKey) {
     }
 
     return cardState;
-}
-
-function rehydrateSnapshotForPublish(previousSnapshot, incomingSnapshot) {
-    const nextSnapshot = deepClone(incomingSnapshot || {});
-    if (!nextSnapshot.cardState || typeof nextSnapshot.cardState !== 'object') {
-        nextSnapshot.cardState = {};
-    }
-
-    const nextCardState = nextSnapshot.cardState;
-    const previousCardState = (previousSnapshot && previousSnapshot.cardState && typeof previousSnapshot.cardState === 'object')
-        ? previousSnapshot.cardState
-        : {};
-    const previousHands = (previousCardState.hands && typeof previousCardState.hands === 'object')
-        ? previousCardState.hands
-        : {};
-
-    if (!nextCardState.hands || typeof nextCardState.hands !== 'object') {
-        nextCardState.hands = {};
-    }
-
-    for (const ownerKey of PLAYER_KEYS) {
-        nextCardState.hands[ownerKey] = sanitizeHiddenCardIdArrayForPublish(
-            nextCardState.hands[ownerKey],
-            previousHands,
-            ownerKey
-        );
-    }
-
-    if (Array.isArray(nextCardState.discard)) {
-        nextCardState.discard = sanitizeHiddenCardIdArrayForPublish(nextCardState.discard, previousHands);
-    }
-
-    rehydrateHiddenTokensInPlace(nextCardState, previousHands);
-    if (nextCardState.selectedCardId === null || typeof nextCardState.selectedCardId === 'undefined') {
-        nextCardState.selectedCardId = null;
-        nextCardState.selectedCardOwnerKey = null;
-    }
-    sanitizeCondemnWillOffersForPublish(nextCardState, previousHands);
-    return stripTransientPresentationState(nextSnapshot);
 }
 
 function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
@@ -463,35 +430,150 @@ function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
         }
     }
 
+    const projectedForSeat = parseSeatKeyOptional(
+        Object.prototype.hasOwnProperty.call(meta, 'projectedForSeat')
+            ? meta.projectedForSeat
+            : viewer
+    );
+    shot._meta = {
+        authority: 'server',
+        version: Number.isFinite(Number(meta.stateVersion))
+            ? Number(meta.stateVersion)
+            : (Number.isFinite(Number(shot.stateVersion)) ? Number(shot.stateVersion) : null),
+        projectedForSeat,
+        turnStartReconciled: meta.turnStartReconciled !== false
+    };
+
     return shot;
 }
 
 function buildPublicSnapshot(room, viewerSeatKey) {
     return projectSnapshotForViewer(room && room.snapshot ? room.snapshot : {}, viewerSeatKey || null, {
         stateVersion: room ? room.stateVersion : 0,
-        updatedAt: room ? room.updatedAt : Date.now()
+        updatedAt: room ? room.updatedAt : Date.now(),
+        projectedForSeat: viewerSeatKey || null,
+        turnStartReconciled: true
     });
+}
+
+function normalizeSseEventId(value) {
+    const normalized = String(value || '').trim();
+    return normalized || '';
+}
+
+function createBufferedSseEventRecord(options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const eventId = normalizeSseEventId(opts.eventId);
+    if (!eventId) return null;
+
+    const record = {
+        id: eventId,
+        event: String(opts.eventName || '').trim() || 'message'
+    };
+    const sourcePayloadByViewer = (opts.payloadByViewer && typeof opts.payloadByViewer === 'object')
+        ? opts.payloadByViewer
+        : null;
+
+    if (sourcePayloadByViewer) {
+        const payloadByViewer = {};
+        for (const [viewerKey, viewerPayload] of Object.entries(sourcePayloadByViewer)) {
+            const normalizedViewer = parseSeatKeyOptional(viewerKey);
+            if (!normalizedViewer) continue;
+            payloadByViewer[normalizedViewer] = deepClone(viewerPayload || {});
+        }
+        if (Object.keys(payloadByViewer).length > 0) {
+            record.payloadByViewer = payloadByViewer;
+        }
+    }
+
+    if (!record.payloadByViewer) {
+        record.payload = deepClone(opts.payload || {});
+    }
+
+    return record;
+}
+
+function appendBufferedSseEvent(bufferValue, recordValue, limitValue) {
+    const buffer = Array.isArray(bufferValue) ? bufferValue.slice() : [];
+    const record = createBufferedSseEventRecord(recordValue);
+    if (!record) return buffer;
+
+    buffer.push(record);
+    const limit = Number.isFinite(Number(limitValue))
+        ? Math.max(1, Math.trunc(Number(limitValue)))
+        : SSE_RESUME_BUFFER_LIMIT;
+    if (buffer.length > limit) {
+        buffer.splice(0, buffer.length - limit);
+    }
+    return buffer;
+}
+
+function getBufferedSseReplayEvents(bufferValue, lastEventIdValue, viewerSeatKey) {
+    const lastEventId = normalizeSseEventId(lastEventIdValue);
+    if (!lastEventId) return null;
+
+    const buffer = Array.isArray(bufferValue) ? bufferValue : [];
+    let startIndex = -1;
+    for (let index = buffer.length - 1; index >= 0; index -= 1) {
+        const entry = buffer[index];
+        if (entry && normalizeSseEventId(entry.id) === lastEventId) {
+            startIndex = index;
+            break;
+        }
+    }
+    if (startIndex < 0) return null;
+
+    const viewer = parseSeatKeyOptional(viewerSeatKey);
+    const replayEvents = [];
+    for (let index = startIndex + 1; index < buffer.length; index += 1) {
+        const entry = buffer[index];
+        if (!entry || typeof entry !== 'object') continue;
+
+        let payload;
+        if (entry.payloadByViewer && typeof entry.payloadByViewer === 'object') {
+            if (!viewer || !Object.prototype.hasOwnProperty.call(entry.payloadByViewer, viewer)) continue;
+            payload = entry.payloadByViewer[viewer];
+        } else if (Object.prototype.hasOwnProperty.call(entry, 'payload')) {
+            payload = entry.payload;
+        } else {
+            continue;
+        }
+
+        replayEvents.push({
+            eventId: normalizeSseEventId(entry.id),
+            eventName: String(entry.event || '').trim() || 'message',
+            payload: deepClone(payload || {})
+        });
+    }
+    return replayEvents;
 }
 
 module.exports = {
     PLAYER_KEYS,
     OPERATION_ID_MAX_LENGTH,
+    SSE_RESUME_BUFFER_LIMIT,
+    VERSION_REJECTION_REASONS,
     parseSeatKeyOptional,
     normalizePlayerKey,
     getCurrentPlayerKey,
     getOpponentKey,
     normalizeOperationId,
     ensureAcceptedOperationsBySeat,
+    ensureAcceptedOperationHistoryBySeat,
+    findAcceptedOperationBySeat,
+    rememberAcceptedOperationBySeat,
+    classifyVersionRejectionReason,
+    isVersionRejectionReason,
     makeHiddenHandToken,
     parseHiddenHandToken,
-    resolveCardIdFromHiddenToken,
-    rehydrateHiddenTokensInPlace,
     resolveAuthenticatedSeatKey,
-    validatePublishedHands,
     normalizePublishMeta,
     buildPublishResponsePayload,
     stripTransientPresentationState,
-    rehydrateSnapshotForPublish,
+    stripTransientChargeDeltaState,
     projectSnapshotForViewer,
-    buildPublicSnapshot
+    buildPublicSnapshot,
+    createBufferedSseEventRecord,
+    appendBufferedSseEvent,
+    getBufferedSseReplayEvents
 };

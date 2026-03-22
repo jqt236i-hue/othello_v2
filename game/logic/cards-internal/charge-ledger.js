@@ -41,10 +41,10 @@
         }
     }
 
-    function setChargeValue(cardState, playerKey, nextValue, reason, context) {
+    function setChargeValue(cardState, playerKey, nextValue, reason, context, meta) {
         const helpers = getHelpers(context);
         if (typeof helpers.setChargeWithDelta === 'function') {
-            return helpers.setChargeWithDelta(cardState, playerKey, nextValue, reason);
+            return helpers.setChargeWithDelta(cardState, playerKey, nextValue, reason, meta);
         }
         if (!cardState) return { changed: false, before: 0, after: 0, delta: 0 };
         ensureChargeState(cardState);
@@ -57,10 +57,10 @@
         return { changed: after !== safeBefore, before: safeBefore, after, delta: after - safeBefore };
     }
 
-    function addChargeValue(cardState, playerKey, amount, reason, context) {
+    function addChargeValue(cardState, playerKey, amount, reason, context, meta) {
         const helpers = getHelpers(context);
         if (typeof helpers.addChargeWithDelta === 'function') {
-            return helpers.addChargeWithDelta(cardState, playerKey, amount, reason);
+            return helpers.addChargeWithDelta(cardState, playerKey, amount, reason, meta);
         }
         if (!cardState) return { changed: false, before: 0, after: 0, delta: 0 };
         ensureChargeState(cardState);
@@ -68,15 +68,15 @@
         const safeBefore = Number.isFinite(before) ? before : 0;
         const add = Number(amount);
         const safeAdd = Number.isFinite(add) ? add : 0;
-        return setChargeValue(cardState, playerKey, safeBefore + safeAdd, reason, context);
+        return setChargeValue(cardState, playerKey, safeBefore + safeAdd, reason, context, meta);
     }
 
-    function addChargeWithTotal(cardState, playerKey, amount, context) {
+    function addChargeWithTotal(cardState, playerKey, amount, context, meta) {
         if (!cardState || !amount) return 0;
         ensureChargeState(cardState);
         ensureChargeGainedTotal(cardState);
 
-        const deltaRes = addChargeValue(cardState, playerKey, amount, 'placement_or_effect_gain', context);
+        const deltaRes = addChargeValue(cardState, playerKey, amount, 'placement_or_effect_gain', context, meta);
         const added = Number(deltaRes.delta) || 0;
         if (added > 0) {
             cardState.chargeGainedTotal[playerKey] = (cardState.chargeGainedTotal[playerKey] || 0) + added;

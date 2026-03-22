@@ -33,10 +33,17 @@
             ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT: Number.isFinite(Number(constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT))
                 ? Number(constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT)
                 : 1,
+            AFTERIMAGE_WILL_FLIP_EVADE_LIMIT: Number.isFinite(Number(constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT))
+                ? Number(constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT)
+                : 3,
+            AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT: Number.isFinite(Number(constants.AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT))
+                ? Number(constants.AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT)
+                : 3,
             SNIPER_WILL_TURNS: constants.SNIPER_WILL_TURNS,
             DESTROY_DRAGON_TURNS: constants.DESTROY_DRAGON_TURNS,
             LIGHTNING_WILL_TURNS: constants.LIGHTNING_WILL_TURNS,
             OBSERVER_WILL_TURNS: constants.OBSERVER_WILL_TURNS,
+            GHOST_WILL_TURNS: constants.GHOST_WILL_TURNS,
             WILL_HUNTER_KING_TURNS: constants.WILL_HUNTER_KING_TURNS,
             ROBOT_VACUUM_TURNS: constants.ROBOT_VACUUM_TURNS,
             STRONG_WILL_PROMOTION_OWNER_TURNS: constants.STRONG_WILL_PROMOTION_OWNER_TURNS,
@@ -226,9 +233,36 @@
             if (data.type !== 'FREEZE' && typeof helpers.isFrozenCellForCard === 'function' && helpers.isFrozenCellForCard(cardState, marker.row, marker.col)) {
                 continue;
             }
-            if ((data.type === 'GUARD' || data.type === 'BLOCKADE' || data.type === 'FREEZE') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
+            if ((data.type === 'GUARD' || data.type === 'BLOCKADE' || data.type === 'FREEZE' || data.type === 'GHOST') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
                 data.remainingOwnerTurns -= 1;
                 if (data.remainingOwnerTurns <= 0 && typeof helpers.removeMarkersAt === 'function') {
+                    if (data.type === 'GHOST') {
+                        if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
+                            BoardOpsModule.destroyAt(
+                                cardState,
+                                gameState,
+                                marker.row,
+                                marker.col,
+                                'SYSTEM',
+                                'duration_end',
+                                {
+                                    allowGhostDestroy: true,
+                                    ignoreGuard: true,
+                                    special: data.type,
+                                    owner: marker.owner,
+                                    timer: 0
+                                }
+                            );
+                        } else {
+                            if (gameState && gameState.board) gameState.board[marker.row][marker.col] = constants.EMPTY;
+                            helpers.removeMarkersAt(cardState, marker.row, marker.col, {
+                                kind: specialStoneKind,
+                                type: data.type,
+                                owner: marker.owner
+                            });
+                        }
+                        continue;
+                    }
                     if (typeof helpers.emitPresentationEvent === 'function') {
                         helpers.emitPresentationEvent(cardState, {
                             type: 'STATUS_REMOVED',
@@ -351,10 +385,18 @@
             }
         }
 
+        let actualChargeGained = chargeGain;
         if (typeof helpers.addChargeWithTotal === 'function') {
-            helpers.addChargeWithTotal(cardState, playerKey, chargeGain);
+            actualChargeGained = helpers.addChargeWithTotal(cardState, playerKey, chargeGain, (chargeGain > 0 && flipCount > 0) ? {
+                popupKind: 'board',
+                sourceType: 'placement_flip_gain',
+                anchorRow: row,
+                anchorCol: col
+            } : null);
         }
-        effects.chargeGained = chargeGain;
+        effects.chargeGained = Number.isFinite(Number(actualChargeGained))
+            ? Number(actualChargeGained)
+            : chargeGain;
         if (chargeMultiplierConfig && chargeMultiplierConfig.gainField && effects[chargeMultiplierConfig.gainField] == null) {
             effects[chargeMultiplierConfig.gainField] = 0;
         }
@@ -459,6 +501,23 @@
                 remainingOwnerTurns: constants.OBSERVER_WILL_TURNS
             });
             effects.observerPlaced = true;
+        }
+
+        if (pending && pending.type === 'GHOST_WILL' && typeof helpers.addMarker === 'function') {
+            helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
+                type: 'GHOST',
+                remainingOwnerTurns: constants.GHOST_WILL_TURNS
+            });
+            effects.ghostPlaced = true;
+        }
+
+        if (pending && pending.type === 'AFTERIMAGE_WILL' && typeof helpers.addMarker === 'function') {
+            helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
+                type: 'AFTERIMAGE_WILL',
+                flipEvadeRemaining: constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT,
+                destroyEvadeRemaining: constants.AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT
+            });
+            effects.afterimagePlaced = true;
         }
 
         if (pending && pending.type === 'TIME_STOP_GOD' && typeof helpers.addMarker === 'function') {

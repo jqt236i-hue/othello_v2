@@ -62,10 +62,13 @@
     const EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
     const ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
     const ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT = 1;
+    const AFTERIMAGE_WILL_FLIP_EVADE_LIMIT = 3;
+    const AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT = 3;
     const SNIPER_WILL_TURNS = 5;
     const DESTROY_DRAGON_TURNS = 3;
     const LIGHTNING_WILL_TURNS = 5;
     const OBSERVER_WILL_TURNS = 5;
+    const GHOST_WILL_TURNS = 5;
     const WILL_HUNTER_KING_TURNS = 8;
     const ROBOT_VACUUM_TURNS = 5;
     const INHERITED_HYPERACTIVE_TURNS = 10;
@@ -238,11 +241,12 @@
     }
 
     function isDestroyResolved(result) {
-        return !!(result && (result.destroyed || result.evaded));
+        return !!(result && (result.destroyed || result.evaded || result.blockedByGhost));
     }
 
     function clearBombAt(cardState, row, col) {
         if (!cardState) return false;
+        if (findSpecialMarkerAt(cardState, row, col, 'GHOST')) return false;
         const beforeLen = getBombMarkers(cardState).length;
         removeMarkersAt(cardState, row, col, { category: MARKER_CATEGORIES.BOMB });
         return getBombMarkers(cardState).length !== beforeLen;
@@ -371,12 +375,12 @@
         };
     }
 
-    function setChargeValue(cardState, playerKey, nextValue, reason) {
+    function setChargeValue(cardState, playerKey, nextValue, reason, meta) {
         if (CardChargeLedgerModule && typeof CardChargeLedgerModule.setChargeValue === 'function') {
-            return CardChargeLedgerModule.setChargeValue(cardState, playerKey, nextValue, reason, getChargeLedgerContext());
+            return CardChargeLedgerModule.setChargeValue(cardState, playerKey, nextValue, reason, getChargeLedgerContext(), meta);
         }
         if (CardUtilsModule && typeof CardUtilsModule.setChargeWithDelta === 'function') {
-            return CardUtilsModule.setChargeWithDelta(cardState, playerKey, nextValue, reason);
+            return CardUtilsModule.setChargeWithDelta(cardState, playerKey, nextValue, reason, meta);
         }
         if (!cardState) return { changed: false, before: 0, after: 0, delta: 0 };
         if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
@@ -473,12 +477,12 @@
         return globalScope.CardMeteor || null;
     })();
 
-    function addChargeValue(cardState, playerKey, amount, reason) {
+    function addChargeValue(cardState, playerKey, amount, reason, meta) {
         if (CardChargeLedgerModule && typeof CardChargeLedgerModule.addChargeValue === 'function') {
-            return CardChargeLedgerModule.addChargeValue(cardState, playerKey, amount, reason, getChargeLedgerContext());
+            return CardChargeLedgerModule.addChargeValue(cardState, playerKey, amount, reason, getChargeLedgerContext(), meta);
         }
         if (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function') {
-            return CardUtilsModule.addChargeWithDelta(cardState, playerKey, amount, reason);
+            return CardUtilsModule.addChargeWithDelta(cardState, playerKey, amount, reason, meta);
         }
         if (!cardState) return { changed: false, before: 0, after: 0, delta: 0 };
         if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
@@ -486,7 +490,7 @@
         const safeBefore = Number.isFinite(before) ? before : 0;
         const add = Number(amount);
         const safeAdd = Number.isFinite(add) ? add : 0;
-        return setChargeValue(cardState, playerKey, safeBefore + safeAdd, reason);
+        return setChargeValue(cardState, playerKey, safeBefore + safeAdd, reason, meta);
     }
 
     function ensureRiboRepaymentsByPlayer(cardState) {
@@ -2501,6 +2505,16 @@
                     placementsRemaining: cardType === 'LAST_RESORT' ? 3 : undefined
                 };
 
+        if (cardType === 'BOARD_EXPANSION_GOD' && cardState.pendingEffectByPlayer[chargeOwnerKey]) {
+            const boardExpansionGodPending = cardState.pendingEffectByPlayer[chargeOwnerKey];
+            const requiredSelections = getBoardExpansionGodRequiredSelectionCount(cardState, gameState, chargeOwnerKey);
+            boardExpansionGodPending.selectedCount = 0;
+            boardExpansionGodPending.maxSelections = requiredSelections > 0 ? requiredSelections : 1;
+            boardExpansionGodPending.selectedTargets = Array.isArray(boardExpansionGodPending.selectedTargets)
+                ? boardExpansionGodPending.selectedTargets
+                : [];
+        }
+
         // Special handling for WORK_WILL: arm next placement for this player
         if (cardType === 'WORK_WILL') {
             if (!cardState.workNextPlacementArmedByPlayer) cardState.workNextPlacementArmedByPlayer = { black: false, white: false };
@@ -2945,6 +2959,17 @@
             res.push({ row: corner.row, col: corner.col });
         }
         return res;
+    }
+
+    function getBoardExpansionGodRequiredSelectionCount(cardState, gameState, playerKey) {
+        const pending = cardState && cardState.pendingEffectByPlayer
+            ? cardState.pendingEffectByPlayer[playerKey]
+            : null;
+        const selectedCount = getBoardExpansionGodPendingSelectionsForCard(pending).length;
+        const availableCount = getBoardExpansionGodTargets(cardState, gameState, playerKey).length;
+        const totalSelectableCount = selectedCount + availableCount;
+        if (totalSelectableCount <= 0) return 0;
+        return Math.min(2, totalSelectableCount);
     }
 
     function getCellTeleportDestinations(cardState, gameState) {
@@ -3783,7 +3808,8 @@
         const allowed = targets.some((target) => target && target.row === row && target.col === col);
         if (!allowed) return { applied: false, reason: 'invalid_target' };
 
-        const maxSelections = 2;
+        const maxSelections = getBoardExpansionGodRequiredSelectionCount(cardState, gameState, playerKey);
+        if (maxSelections <= 0) return { applied: false, reason: 'invalid_target' };
         const selectedTargets = getBoardExpansionGodPendingSelectionsForCard(pending);
         const nextSelections = selectedTargets.concat({ row, col }).map((target) => ({ row: target.row, col: target.col }));
 
@@ -4108,6 +4134,11 @@
                 const guard = findSpecialMarkerAt(cardState, r, col, 'GUARD');
                 if (guard) break;
                 destroyed.push({ row: r, col });
+                const ghost = findSpecialMarkerAt(cardState, r, col, 'GHOST');
+                if (!ghost) {
+                    to = { row: r, col };
+                }
+                continue;
             }
 
             to = { row: r, col };
@@ -4622,10 +4653,13 @@
                 EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT,
                 ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT,
                 ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT,
+                AFTERIMAGE_WILL_FLIP_EVADE_LIMIT,
+                AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT,
                 SNIPER_WILL_TURNS,
                 DESTROY_DRAGON_TURNS,
                 LIGHTNING_WILL_TURNS,
                 OBSERVER_WILL_TURNS,
+                GHOST_WILL_TURNS,
                 WILL_HUNTER_KING_TURNS,
                 ROBOT_VACUUM_TURNS,
                 TIME_STOP_GOD_TURNS,
@@ -4690,15 +4724,15 @@
      * @param {number} flipCount
      * @returns {Object} Applied effects info
      */
-    function addChargeWithTotal(cardState, playerKey, amount) {
+    function addChargeWithTotal(cardState, playerKey, amount, meta) {
         if (CardChargeLedgerModule && typeof CardChargeLedgerModule.addChargeWithTotal === 'function') {
-            return CardChargeLedgerModule.addChargeWithTotal(cardState, playerKey, amount, getChargeLedgerContext());
+            return CardChargeLedgerModule.addChargeWithTotal(cardState, playerKey, amount, getChargeLedgerContext(), meta);
         }
         if (!cardState || !amount) return 0;
         if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
         if (!cardState.chargeGainedTotal) cardState.chargeGainedTotal = { black: 0, white: 0 };
 
-        const deltaRes = addChargeValue(cardState, playerKey, amount, 'placement_or_effect_gain');
+        const deltaRes = addChargeValue(cardState, playerKey, amount, 'placement_or_effect_gain', meta);
         const added = Number(deltaRes.delta) || 0;
         if (added > 0) {
             cardState.chargeGainedTotal[playerKey] = (cardState.chargeGainedTotal[playerKey] || 0) + added;
@@ -5093,18 +5127,27 @@
                 const res = findChainChoiceFn(gameState, sourceFlips, ownerVal, context, p);
                 if (!res || !res.applied || !Array.isArray(res.flips) || res.flips.length === 0) break;
                 const chainLink = i + 1;
+                const appliedThisLink = [];
                 for (const pos of res.flips) {
+                    let changed = true;
                     if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
-                        BoardOpsModule.changeAt(cardState, gameState, pos.row, pos.col, playerKey, CHAIN_WILL_EVENT_CAUSE, 'chain_flip', { chainLink });
+                        const changeRes = BoardOpsModule.changeAt(cardState, gameState, pos.row, pos.col, playerKey, CHAIN_WILL_EVENT_CAUSE, 'chain_flip', { chainLink });
+                        changed = !!(changeRes && changeRes.changed);
                     } else {
                         gameState.board[pos.row][pos.col] = ownerVal;
                     }
+                    if (!changed) continue;
                     clearBombAt(cardState, pos.row, pos.col);
+                    const appliedPos = { row: pos.row, col: pos.col };
+                    appliedThisLink.push(appliedPos);
+                    appliedFlips.push(appliedPos);
                 }
-                clearHyperactiveAtPositions(cardState, res.flips);
-                appliedFlips.push(...res.flips);
-                chosenSteps.push(res.chosen || null);
-                sourceFlips = res.flips;
+                if (appliedThisLink.length > 0) {
+                    clearHyperactiveAtPositions(cardState, appliedThisLink);
+                    chosenSteps.push(res.chosen || null);
+                }
+                sourceFlips = appliedThisLink;
+                if (sourceFlips.length === 0) break;
             }
             if (appliedFlips.length === 0) return { applied: false, flips: [], chosen: null, chosenSteps: [] };
             return { applied: true, flips: appliedFlips, chosen: chosenSteps[chosenSteps.length - 1] || null, chosenSteps };
@@ -5824,6 +5867,7 @@
         cardState.markers = cardState.markers.filter(m => {
             if (m.kind !== (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) return true;
             if (!m.data || (m.data.type !== 'HYPERACTIVE' && m.data.type !== 'ESCAPE_HYPERACTIVE' && m.data.type !== 'INHERITED_HYPERACTIVE' && m.data.type !== 'EXTREME_HYPERACTIVE' && m.data.type !== 'ROBOT_VACUUM' && m.data.type !== 'GLUTTONOUS' && m.data.type !== 'ULTIMATE_HYPERACTIVE' && m.data.type !== 'SNIPER' && m.data.type !== 'OBSERVER')) return true;
+            if (findSpecialMarkerAt(cardState, m.row, m.col, 'GHOST')) return true;
             return !removeSet.has(`${m.row},${m.col}`);
         });
     }
@@ -6223,6 +6267,7 @@
                 BoardOps: BoardOpsModule,
                 clearHyperactiveAtPositions,
                 clearBombAt,
+                emitPresentationEvent,
                 cardContext,
                 Core: core
             });
@@ -6237,6 +6282,7 @@
                 BoardOps: BoardOpsModule,
                 clearHyperactiveAtPositions,
                 clearBombAt,
+                emitPresentationEvent,
                 cardContext,
                 Core: browserCore
             });
@@ -6523,6 +6569,7 @@
         DESTROY_DRAGON_TURNS,
         LIGHTNING_WILL_TURNS,
         OBSERVER_WILL_TURNS,
+        GHOST_WILL_TURNS,
         WILL_HUNTER_KING_TURNS,
         NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS,
         THROW_CHAIN_CONFIG_BY_TYPE,

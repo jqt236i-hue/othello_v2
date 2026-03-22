@@ -53,4 +53,49 @@ describe('charge delta events', () => {
       { seq: 1, player: 'white', delta: 2, before: 4, after: 6, reason: 'normalized_gain' }
     ]);
   });
+
+  test('addChargeWithDelta records board popup metadata for flip-related gains', () => {
+    const cardState = {
+      charge: { black: 0, white: 0 },
+      chargeDeltaEvents: [],
+      _nextChargeDeltaSeq: 1
+    };
+
+    CardUtils.addChargeWithDelta(cardState, 'black', 4, 'placement_or_effect_gain', {
+      popupKind: 'board',
+      sourceType: 'placement_flip_gain',
+      anchorRow: 3,
+      anchorCol: 4
+    });
+
+    expect(cardState.chargeDeltaEvents).toEqual([
+      {
+        seq: 1,
+        player: 'black',
+        delta: 4,
+        before: 0,
+        after: 4,
+        reason: 'placement_or_effect_gain',
+        popupKind: 'board',
+        sourceType: 'placement_flip_gain',
+        anchorRow: 3,
+        anchorCol: 4
+      }
+    ]);
+  });
+
+  test('board popup metadata rejects missing anchors', () => {
+    const cardState = {
+      charge: { black: 0, white: 0 },
+      chargeDeltaEvents: [],
+      _nextChargeDeltaSeq: 1
+    };
+
+    expect(() => CardUtils.addChargeWithDelta(cardState, 'black', 2, 'placement_or_effect_gain', {
+      popupKind: 'board',
+      sourceType: 'placement_flip_gain',
+      anchorRow: 3,
+      anchorCol: null
+    })).toThrow('board popup requires integer anchorRow/anchorCol');
+  });
 });

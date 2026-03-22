@@ -77,6 +77,37 @@ describe('INSTANT_HYPERACTIVE_WILL（瞬間多動）', () => {
     expect(marker).toBeUndefined();
   });
 
+  test('移動反転の布石ポップアップは最後の移動先をアンカーにする', () => {
+    const prng = makePrng();
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = Core.createGameState();
+
+    gameState.board[1][3] = Core.WHITE;
+    gameState.board[1][4] = Core.BLACK;
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'INSTANT_HYPERACTIVE_WILL',
+      stage: null,
+      cardId: 'instant_hyperactive_01'
+    };
+
+    const res = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 2, col: 3 },
+      prng
+    );
+
+    const moved = (res.events || []).find(ev => ev && ev.type === 'hyperactive_moved_immediate');
+    const bubble = (res.presentationEvents || []).find(ev => ev && ev.type === 'CHARGE_BUBBLE' && ev.meta && ev.meta.sourceType === 'instant_hyperactive_immediate');
+    const lastMove = moved && Array.isArray(moved.details) ? moved.details[moved.details.length - 1] : null;
+
+    expect(lastMove && lastMove.to).toBeTruthy();
+    expect(bubble).toBeTruthy();
+    expect({ row: bubble.row, col: bubble.col }).toEqual(lastMove.to);
+  });
+
   test('通常の多動の意志は配置ターンで即時移動しない', () => {
     const prng = makePrng();
     const cardState = CardLogic.createCardState(prng);
