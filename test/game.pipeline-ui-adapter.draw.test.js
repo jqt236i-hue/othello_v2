@@ -243,6 +243,64 @@ describe('pipeline_ui_adapter draw mapping', () => {
     expect(out[0].targets[0]).toMatchObject({ r: 5, col: 2, owner: 'black', text: '出稼ぎ、行ってきます' });
   });
 
+  test('maps SPECIAL_STONE_BUBBLE presentation event to observer_bubble playback event', () => {
+    const pres = [{
+      type: 'SPECIAL_STONE_BUBBLE',
+      special: 'STRONG_WILL',
+      scenario: 'duration_end',
+      player: 'white',
+      row: 3,
+      col: 1,
+      text: '守りの膜が剥がれた、ここからは素だ。',
+      meta: { owner: 'white', reason: 'duration_end' }
+    }];
+    const out = adapter.mapToPlaybackEvents(pres, { markers: [] }, { board: Array(8).fill(null).map(() => Array(8).fill(0)) });
+
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('observer_bubble');
+    expect(out[0].rawType).toBe('SPECIAL_STONE_BUBBLE');
+    expect(out[0].targets[0]).toMatchObject({
+      r: 3,
+      col: 1,
+      owner: 'white',
+      gained: 0,
+      text: '守りの膜が剥がれた、ここからは素だ。',
+      special: 'STRONG_WILL',
+      scenario: 'duration_end',
+      reason: 'duration_end'
+    });
+  });
+
+  test('keeps SPECIAL_STONE_BUBBLE on the delayed duration-end revert phase', () => {
+    const pres = [
+      {
+        type: 'STATUS_REMOVED',
+        row: 4,
+        col: 4,
+        player: 'black',
+        meta: { special: 'STRONG_WILL', reason: 'duration_end', owner: 'black' }
+      },
+      {
+        type: 'SPECIAL_STONE_BUBBLE',
+        special: 'STRONG_WILL',
+        scenario: 'duration_end',
+        player: 'black',
+        row: 4,
+        col: 4,
+        text: '守りの膜が剥がれた、ここからは素だ。',
+        meta: { owner: 'black', reason: 'duration_end' }
+      }
+    ];
+    const out = adapter.mapToPlaybackEvents(pres, { markers: [] }, { board: Array(8).fill(null).map(() => Array(8).fill(0)) });
+
+    const revertEv = out.find((ev) => ev && ev.type === 'status_removed');
+    const bubbleEv = out.find((ev) => ev && ev.type === 'observer_bubble' && ev.rawType === 'SPECIAL_STONE_BUBBLE');
+
+    expect(revertEv).toBeTruthy();
+    expect(bubbleEv).toBeTruthy();
+    expect(bubbleEv.phase).toBe(revertEv.phase);
+  });
+
   test('maps CHARGE_BUBBLE presentation event to observer_bubble playback event with charge kind', () => {
     const pres = [{ type: 'CHARGE_BUBBLE', player: 'black', row: 4, col: 4, gained: 5, meta: { owner: 'black', sourceType: 'placement_flip_gain' } }];
     const out = adapter.mapToPlaybackEvents(pres, { markers: [] }, { board: Array(8).fill(null).map(() => Array(8).fill(0)) });

@@ -1114,6 +1114,16 @@
         entry.appliedVersion = getSnapshotStateVersion(snapshot);
     }
 
+    function hasTrackedPublishPresentedResult(entry) {
+        return !!(entry && entry.resultOverlayPresented === true);
+    }
+
+    function markTrackedPublishResultPresented(entry, snapshot) {
+        if (!entry || typeof entry !== 'object') return;
+        entry.resultOverlayPresented = true;
+        entry.resultOverlayVersion = getSnapshotStateVersion(snapshot);
+    }
+
     function markTrackedPublishShadowPlaybackQueued(entry, playbackEvents) {
         if (!entry || typeof entry !== 'object') return;
         const normalizedEvents = Array.isArray(playbackEvents)
@@ -1186,6 +1196,17 @@
             markTrackedPublishSnapshotApplied(trackedPublish, snapshot, source);
         }
         return applied;
+    }
+
+    function isTerminalSnapshotForResult(snapshot) {
+        const gameState = snapshot && snapshot.gameState;
+        if (!gameState || typeof gameState !== 'object') return false;
+        try {
+            if (typeof root.isGameOver === 'function') {
+                return !!root.isGameOver(gameState);
+            }
+        } catch (e) { /* ignore */ }
+        return gameState.currentPlayer === -1;
     }
 
     function shouldSkipForceSyncSnapshot(snapshot) {
@@ -1812,6 +1833,7 @@
             const operationId = payload && payload.operationId ? String(payload.operationId) : '';
             const trackedPublish = findTrackedPublish(operationId);
             const isSelfOperation = !!trackedPublish;
+            const isTerminalResultSnapshot = isTerminalSnapshotForResult(snapshot);
 
             // Single Writer: self-op でもサーバーの playbackEvents をそのまま使う
             if (isSelfOperation) {
@@ -1823,10 +1845,13 @@
                 applyOptions: {
                     playbackEvents,
                     force: false,
-                    skipResultOverlay: isSelfOperation
+                    skipResultOverlay: isSelfOperation && !isTerminalResultSnapshot
                 }
             });
             if (applied) {
+                if (isSelfOperation && isTerminalResultSnapshot) {
+                    markTrackedPublishResultPresented(trackedPublish, snapshot);
+                }
                 emitSnapshotCommentary(payload, snapshot, isSelfOperation, playbackEvents);
             }
             handleTimeoutPassPayload(payload);
@@ -2265,7 +2290,8 @@
                         trackedPublish,
                         applyOptions: {
                             force: true,
-                            playbackEvents: serverPlaybackEvents
+                            playbackEvents: serverPlaybackEvents,
+                            skipResultOverlay: hasTrackedPublishPresentedResult(trackedPublish)
                         }
                     });
                     if (applied) {

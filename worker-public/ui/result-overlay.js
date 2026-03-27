@@ -21,6 +21,11 @@ const SCORE_CONFIG = Object.freeze({
 });
 
 const SCORE_LEADERBOARD_STORAGE_KEY = `othello_cpu_leaderboard_v${SCORE_CONFIG.version}`;
+
+// Module-level token: survives gameState replacement by network snapshots.
+// Updated each time showResult() is called so stale delayed callbacks can detect
+// that a newer invocation has superseded them.
+let _pendingResultToken = null;
 const ResultOverlayOwnerHelpersModule = (() => {
     if (typeof require === 'function') {
         try {
@@ -742,7 +747,9 @@ function createDetailStatsSection(counts, chargeTotals, cardUseTotals, flipTotal
 function showResult() {
     if (gameState && gameState.__resultShown) return;
     if (gameState) gameState.__resultShown = true;
-    const resultToken = gameState ? (gameState.__resultToken = Date.now()) : null;
+    const resultToken = Date.now();
+    _pendingResultToken = resultToken;
+    if (gameState) gameState.__resultToken = resultToken;
 
     const counts = countDiscs(gameState);
     const resultContext = resolveResultWinnerContext(gameState, counts);
@@ -759,9 +766,12 @@ function showResult() {
 
 
 
-    // Show centered result overlay after a short delay
+    // Show centered result overlay after a short delay.
+    // Guard against stale callbacks (e.g., when showResult is called again for a new game),
+    // but do NOT abort just because gameState.__resultToken was cleared by a snapshot replacement.
+    // _pendingResultToken is module-level and unaffected by snapshot replacement.
     setTimeout(() => {
-        if (resultToken && gameState && gameState.__resultToken !== resultToken) return;
+        if (_pendingResultToken !== resultToken) return;
         try { showResultOverlay(); } catch (e) { console.warn('showResultOverlay failed', e); }
     }, 2000);
 }

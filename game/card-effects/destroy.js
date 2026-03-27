@@ -20,6 +20,7 @@ if (!DestroyOutcomeContract && typeof globalThis !== 'undefined' && globalThis.D
 }
 var DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS) || Object.freeze({
     DESTROYED: 'destroyed',
+    REGENERATED: 'regenerated',
     GHOST_BLOCKED: 'ghost_blocked',
     PROLIFERATED: 'proliferated',
     EVADED_MOVE: 'evaded_move'
@@ -30,6 +31,7 @@ function getDestroyOutcomeKind(result) {
         return DestroyOutcomeContract.getDestroyOutcomeKind(result);
     }
     if (!result || typeof result !== 'object') return null;
+    if (result.regenerated === true) return DESTROY_OUTCOME_KINDS.REGENERATED;
     if (result.proliferated === true) return DESTROY_OUTCOME_KINDS.PROLIFERATED;
     if (result.blockedByGhost === true) return DESTROY_OUTCOME_KINDS.GHOST_BLOCKED;
     if (result.evaded === true) return DESTROY_OUTCOME_KINDS.EVADED_MOVE;
@@ -75,6 +77,10 @@ function emitDestroyAppliedLog(context, playerKey, row, col) {
     const posText = posToNotation(row, col);
     if (outcomeKind === DESTROY_OUTCOME_KINDS.PROLIFERATED) {
         emitLogAdded(`${playerLabel}が破壊神で ${posText} を狙うと、石は残ったまま増殖した`);
+        return;
+    }
+    if (outcomeKind === DESTROY_OUTCOME_KINDS.REGENERATED) {
+        emitLogAdded(`${playerLabel}が破壊神で ${posText} を狙ったが復活された`);
         return;
     }
     if (outcomeKind === DESTROY_OUTCOME_KINDS.GHOST_BLOCKED) {

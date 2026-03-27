@@ -1367,7 +1367,15 @@ async function handlePublish(req, res) {
         return;
     }
 
-    const lastAcceptedOperation = MatchAuthority.findAcceptedOperationBySeat(room, seatKey, operationId) || acceptedOperationsBySeat[seatKey];
+    const lastAcceptedOperation = MatchAuthority && typeof MatchAuthority.findAcceptedOperationBySeat === 'function'
+        ? MatchAuthority.findAcceptedOperationBySeat(room, seatKey, operationId)
+        : (
+            operationId
+            && acceptedOperationsBySeat[seatKey]
+            && acceptedOperationsBySeat[seatKey].operationId === operationId
+        )
+            ? acceptedOperationsBySeat[seatKey]
+            : null;
     if (
         operationId
         && lastAcceptedOperation

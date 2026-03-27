@@ -34,6 +34,18 @@
         return globalScope.CardMarkers || null;
     }
 
+    function getCardRegenModule() {
+        if (typeof require === 'function') {
+            try {
+                return require('./cards/regen');
+            } catch (e) {
+                // Browser globals are checked below.
+            }
+        }
+        const globalScope = getGlobalScope();
+        return globalScope.CardRegen || null;
+    }
+
     const MarkersAdapter = (() => {
         if (typeof require === 'function') {
             try {
@@ -72,6 +84,7 @@
     const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS)
         || Object.freeze({
             DESTROYED: 'destroyed',
+            REGENERATED: 'regenerated',
             GHOST_BLOCKED: 'ghost_blocked',
             PROLIFERATED: 'proliferated',
             EVADED_MOVE: 'evaded_move'
@@ -82,6 +95,7 @@
             return DestroyOutcomeContract.getDestroyOutcomeKind(result);
         }
         if (!result || typeof result !== 'object') return null;
+        if (result.regenerated === true) return DESTROY_OUTCOME_KINDS.REGENERATED;
         if (result.proliferated === true) return DESTROY_OUTCOME_KINDS.PROLIFERATED;
         if (result.blockedByGhost === true) return DESTROY_OUTCOME_KINDS.GHOST_BLOCKED;
         if (result.evaded === true) return DESTROY_OUTCOME_KINDS.EVADED_MOVE;
@@ -99,6 +113,7 @@
         const kind = getDestroyOutcomeKind(source) || (typeof kindOrResult === 'string' ? kindOrResult : null);
         const outcome = Object.assign({}, source, {
             destroyed: kind === DESTROY_OUTCOME_KINDS.DESTROYED || source.destroyed === true,
+            regenerated: kind === DESTROY_OUTCOME_KINDS.REGENERATED || source.regenerated === true,
             evaded: kind === DESTROY_OUTCOME_KINDS.EVADED_MOVE || source.evaded === true,
             blockedByGhost: kind === DESTROY_OUTCOME_KINDS.GHOST_BLOCKED || source.blockedByGhost === true,
             proliferated: kind === DESTROY_OUTCOME_KINDS.PROLIFERATED || source.proliferated === true
@@ -1081,6 +1096,48 @@
             }
         }
 
+        const cardRegenModule = getCardRegenModule();
+        const activeRegenMarker = cardRegenModule && typeof cardRegenModule.findActiveRegenMarkerAt === 'function'
+            ? cardRegenModule.findActiveRegenMarkerAt(cardState, row, col)
+            : null;
+        if (activeRegenMarker && typeof cardRegenModule.applyRegenAfterDestroy === 'function') {
+            const ownerBeforeKeyForRegen = (prev === (SharedConstants.BLACK || 1)) ? 'black' : 'white';
+            const stoneId = getStoneIdAt(cardState, gameState, row, col);
+            const destroyMeta = _populateSpecialVisualMeta(cardState, row, col, _clonePresentationMeta(meta));
+            destroyMeta.regenerated = true;
+            destroyMeta.regenTriggeredBy = cause || null;
+            destroyMeta.regenTriggerReason = reason || null;
+            emitPresentationEvent(cardState, {
+                type: 'DESTROY',
+                stoneId,
+                row,
+                col,
+                ownerBefore: ownerBeforeKeyForRegen,
+                cause: cause || null,
+                reason: reason || null,
+                meta: destroyMeta
+            });
+            const regenResult = cardRegenModule.applyRegenAfterDestroy(cardState, gameState, row, col, {
+                destroyCause: cause || null,
+                destroyReason: reason || null
+            }, {
+                BoardOps: {
+                    changeAt,
+                    emitPresentationEvent
+                }
+            });
+            if (regenResult && regenResult.regenerated) {
+                return createDestroyOutcome(DESTROY_OUTCOME_KINDS.REGENERATED, {
+                    reason: 'regen_triggered',
+                    row,
+                    col,
+                    owner: regenResult.owner || ownerBeforeKeyForRegen,
+                    remaining: regenResult.remaining,
+                    captureFlips: Array.isArray(regenResult.captureFlips) ? regenResult.captureFlips.slice() : []
+                });
+            }
+        }
+
         // Check for special stone marker BEFORE markers are removed (for SALVATION_WILL tracking).
         const specialKindForSalvation = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
         const isNormalStoneForSalvation = !(Array.isArray(cardState.markers) && cardState.markers.some(
@@ -1139,7 +1196,26 @@
         const prev = getCellValue(gameState, row, col);
         if (prev === null) return { changed: false, reason: 'out_of_board' };
         const ownerAfterVal = ownerAfterKey === 'black' ? (SharedConstants.BLACK || 1) : (SharedConstants.WHITE || -1);
-        if (prev === ownerAfterVal) return { changed: false };
+        const forcePresentation = !!(meta && meta.forcePresentation === true);
+        if (prev === ownerAfterVal) {
+            if (!forcePresentation) return { changed: false };
+            const stoneIdForced = getStoneIdAt(cardState, gameState, row, col);
+            const forcedMetaInput = _clonePresentationMeta(meta);
+            delete forcedMetaInput.forcePresentation;
+            const forcedMeta = _populateSpecialVisualMeta(cardState, row, col, forcedMetaInput);
+            emitPresentationEvent(cardState, {
+                type: 'CHANGE',
+                stoneId: stoneIdForced,
+                row,
+                col,
+                ownerBefore: ownerAfterKey,
+                ownerAfter: ownerAfterKey,
+                cause: cause || null,
+                reason: reason || null,
+                meta: forcedMeta
+            });
+            return { changed: false, presented: true };
+        }
         if (_isFrozenCell(cardState, row, col)) return { changed: false, reason: 'frozen_protected' };
         if (_isAbsoluteProtectedCell(cardState, row, col)) return { changed: false, reason: 'absolute_protected' };
         const ownerBeforeKey = (prev === (SharedConstants.BLACK || 1))

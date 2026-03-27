@@ -52,6 +52,7 @@ describe('network snapshot pending presentation reconcile', () => {
     global.emitBoardUpdate = jest.fn();
     global.renderCardUI = jest.fn();
     global.VisualPlaybackActive = false;
+    global.__playbackActiveSince = null;
     global.isProcessing = false;
     global.isCardAnimating = false;
 
@@ -67,8 +68,10 @@ describe('network snapshot pending presentation reconcile', () => {
     delete global.emitBoardUpdate;
     delete global.renderCardUI;
     delete global.VisualPlaybackActive;
+    delete global.__playbackActiveSince;
     delete global.isProcessing;
     delete global.isCardAnimating;
+    delete global.AnimationEngine;
   });
 
   function createController(stateObj) {
@@ -85,9 +88,21 @@ describe('network snapshot pending presentation reconcile', () => {
           global.isProcessing = !!(flags && flags.processing === true);
           global.isCardAnimating = !!(flags && flags.cardAnimating === true);
         }),
+        clearPlaybackLock: jest.fn(() => {
+          busyStateCalls.push({ clearPlaybackLock: true });
+          global.isProcessing = false;
+          global.isCardAnimating = false;
+          global.VisualPlaybackActive = false;
+          global.__playbackActiveSince = null;
+          playbackActive = false;
+        }),
         getProcessing: jest.fn(() => global.isProcessing === true),
-        getCardAnimating: jest.fn(() => global.isCardAnimating === true),
-        getPlaybackActive: jest.fn(() => playbackActive === true)
+        getCardAnimating: jest.fn(() => global.isCardAnimating === true || playbackActive === true),
+        getPlaybackActive: jest.fn(() => playbackActive === true),
+        getPlaybackStartedAt: jest.fn(() => {
+          const startedAt = Number(global.__playbackActiveSince);
+          return Number.isFinite(startedAt) ? startedAt : null;
+        })
       }
     });
   }
@@ -130,6 +145,45 @@ describe('network snapshot pending presentation reconcile', () => {
     expect(global.cardState._presentationEventsPersist).toEqual(persistQueue);
     expect(busyStateCalls).toEqual([
       { processing: true, cardAnimating: true }
+    ]);
+  });
+
+  test('force snapshot clears stale playback lock when no new playback exists and engine is idle', () => {
+    const stateObj = { stateVersion: 10 };
+    const ctrl = createController(stateObj);
+
+    playbackActive = true;
+    global.VisualPlaybackActive = true;
+    global.__playbackActiveSince = 100;
+    global.AnimationEngine = { isPlaying: false };
+
+    const applied = ctrl.applySnapshot(createSnapshot(11), { playbackEvents: [] });
+
+    expect(applied).toBe(true);
+    expect(playbackActive).toBe(false);
+    expect(global.VisualPlaybackActive).toBe(false);
+    expect(busyStateCalls).toEqual([
+      { processing: false, cardAnimating: false },
+      { clearPlaybackLock: true }
+    ]);
+  });
+
+  test('force snapshot keeps playback lock while engine still reports active playback', () => {
+    const stateObj = { stateVersion: 10 };
+    const ctrl = createController(stateObj);
+
+    playbackActive = true;
+    global.VisualPlaybackActive = true;
+    global.__playbackActiveSince = 100;
+    global.AnimationEngine = { isPlaying: true };
+
+    const applied = ctrl.applySnapshot(createSnapshot(11), { playbackEvents: [] });
+
+    expect(applied).toBe(true);
+    expect(playbackActive).toBe(true);
+    expect(global.VisualPlaybackActive).toBe(true);
+    expect(busyStateCalls).toEqual([
+      { processing: false, cardAnimating: false }
     ]);
   });
 });

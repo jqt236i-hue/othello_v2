@@ -28,6 +28,7 @@
     const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS)
         || Object.freeze({
             DESTROYED: 'destroyed',
+            REGENERATED: 'regenerated',
             GHOST_BLOCKED: 'ghost_blocked',
             PROLIFERATED: 'proliferated',
             EVADED_MOVE: 'evaded_move'
@@ -142,7 +143,8 @@
             ? Object.assign({}, (details && typeof details === 'object') ? details : {}, { kind: kindOrResult })
             : Object.assign({}, (kindOrResult && typeof kindOrResult === 'object') ? kindOrResult : {});
         const kind = (source && source.kind) || (
-            source && source.proliferated ? DESTROY_OUTCOME_KINDS.PROLIFERATED
+            source && source.regenerated ? DESTROY_OUTCOME_KINDS.REGENERATED
+                : source && source.proliferated ? DESTROY_OUTCOME_KINDS.PROLIFERATED
                 : source && source.blockedByGhost ? DESTROY_OUTCOME_KINDS.GHOST_BLOCKED
                     : source && source.evaded ? DESTROY_OUTCOME_KINDS.EVADED_MOVE
                         : source && source.destroyed ? DESTROY_OUTCOME_KINDS.DESTROYED
@@ -150,6 +152,7 @@
         );
         const outcome = Object.assign({}, source, {
             destroyed: kind === DESTROY_OUTCOME_KINDS.DESTROYED || source.destroyed === true,
+            regenerated: kind === DESTROY_OUTCOME_KINDS.REGENERATED || source.regenerated === true,
             evaded: kind === DESTROY_OUTCOME_KINDS.EVADED_MOVE || source.evaded === true,
             blockedByGhost: kind === DESTROY_OUTCOME_KINDS.GHOST_BLOCKED || source.blockedByGhost === true,
             proliferated: kind === DESTROY_OUTCOME_KINDS.PROLIFERATED || source.proliferated === true
@@ -164,7 +167,7 @@
         if (DestroyOutcomeContract && typeof DestroyOutcomeContract.isDestroyOutcomeResolved === 'function') {
             return DestroyOutcomeContract.isDestroyOutcomeResolved(result);
         }
-        return !!(result && (result.destroyed || result.evaded || result.blockedByGhost || result.proliferated));
+        return !!(result && (result.destroyed || result.regenerated || result.evaded || result.blockedByGhost || result.proliferated));
     }
 
     function applyDestroyOneStone(cardState, gameState, playerKey, row, col, deps = {}) {

@@ -266,6 +266,64 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('different same-seat operationId is not treated as idempotent replay', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const seatToken = created.data.seatToken;
+      const baseVersion = Number(created.data.stateVersion);
+      const firstBody = {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken,
+        baseVersion,
+        operationId: 'op_place_1',
+        actionType: 'place',
+        actor: 'black',
+        params: { row: 2, col: 3 },
+        turnIndex: 1,
+        action: {
+          type: 'place',
+          playerKey: 'black',
+          row: 2,
+          col: 3,
+          turnIndex: 1
+        }
+      };
+
+      const first = await requestJson(port, 'POST', '/api/match/publish', firstBody);
+      expect(first.status).toBe(200);
+      expect(first.data && first.data.ok).toBe(true);
+
+      const second = await requestJson(port, 'POST', '/api/match/publish', {
+        ...firstBody,
+        operationId: 'op_place_2'
+      });
+
+      expect(second.status).toBe(409);
+      expect(second.data).toEqual(expect.objectContaining({
+        ok: false,
+        roomId,
+        rejectedReason: 'VERSION_AHEAD',
+        publishMeta: expect.objectContaining({
+          kind: 'rejected',
+          operationId: 'op_place_2',
+          actionType: 'place',
+          receivedBaseVersion: baseVersion,
+          authoritativeStateVersion: Number(first.data.stateVersion),
+          rejectedReason: 'VERSION_AHEAD'
+        })
+      }));
+      expect(second.data.idempotentReplay).toBeUndefined();
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('older accepted operationId is replayed even after a newer same-seat action', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);

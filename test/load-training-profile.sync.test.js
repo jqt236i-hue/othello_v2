@@ -169,6 +169,66 @@ describe('load-training-profile shared teacher sync', () => {
         expect(resolved.bootstrap.autoResumeLatestCheckpoint).toBe(true);
     });
 
+    test('browser_lv6_growth_quick_v1 resolves quick-only comparison lane', () => {
+        const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-training-profile-'));
+        const runsDir = path.join(tempRoot, 'runs');
+        const modelsDir = path.join(tempRoot, 'models');
+        const resolved = resolveTrainingProfile('browser_lv6_growth_quick_v1', {
+            cwd: process.cwd(),
+            runTag: 'test_browser_lv6_growth_quick_v1',
+            runsDir,
+            modelsDir
+        });
+        const args = resolved.command.args;
+
+        expect(resolved.gate && resolved.gate.name).toBe('browser_lv6_growth_quick_v1');
+        expect(args).toContain('--selfplay-use-candidate-every-iteration');
+        expect(args).toContain('--carry-over-checkpoint');
+        expect(args).toContain('--adoption-use-guide-baseline');
+        expect(args).toContain('--no-quality-gate');
+        expect(args).not.toContain('--quality-gate');
+        expect(getFlagValue(args, '--promotion-mode')).toBe('quick-only');
+        expect(getFlagValue(args, '--selfplay-tactical-weight-max')).toBe('1.25');
+        expect(getFlagValue(args, '--quick-adoption-seed-count')).toBe('3');
+        expect(getFlagValue(args, '--quick-adoption-min-seed-pass-count')).toBe('1');
+        expect(getFlagValue(args, '--final-adoption-seed-count')).toBe('3');
+        expect(getFlagValue(args, '--final-adoption-min-seed-pass-count')).toBe('2');
+        expect(getFlagValue(args, '--runs-dir')).toBe(runsDir);
+        expect(getFlagValue(args, '--models-dir')).toBe(modelsDir);
+        expect(resolved.bootstrap.autoResumeLatestCheckpoint).toBe(true);
+    });
+
+    test('browser_lv6_growth_final5_v1 resolves stricter final-seed comparison lane', () => {
+        const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-training-profile-'));
+        const runsDir = path.join(tempRoot, 'runs');
+        const modelsDir = path.join(tempRoot, 'models');
+        const resolved = resolveTrainingProfile('browser_lv6_growth_final5_v1', {
+            cwd: process.cwd(),
+            runTag: 'test_browser_lv6_growth_final5_v1',
+            runsDir,
+            modelsDir
+        });
+        const args = resolved.command.args;
+
+        expect(resolved.gate && resolved.gate.name).toBe('browser_lv6_growth_final5_v1');
+        expect(args).toContain('--selfplay-use-candidate-every-iteration');
+        expect(args).toContain('--carry-over-checkpoint');
+        expect(args).toContain('--adoption-use-guide-baseline');
+        expect(args).toContain('--no-quality-gate');
+        expect(args).not.toContain('--quality-gate');
+        expect(getFlagValue(args, '--promotion-mode')).toBe('strict');
+        expect(getFlagValue(args, '--selfplay-tactical-weight-max')).toBe('1.25');
+        expect(getFlagValue(args, '--quick-adoption-seed-count')).toBe('3');
+        expect(getFlagValue(args, '--quick-adoption-min-seed-pass-count')).toBe('1');
+        expect(getFlagValue(args, '--adoption-seed-count')).toBe('5');
+        expect(getFlagValue(args, '--adoption-min-seed-pass-count')).toBe('3');
+        expect(getFlagValue(args, '--final-adoption-seed-count')).toBe('5');
+        expect(getFlagValue(args, '--final-adoption-min-seed-pass-count')).toBe('3');
+        expect(getFlagValue(args, '--runs-dir')).toBe(runsDir);
+        expect(getFlagValue(args, '--models-dir')).toBe(modelsDir);
+        expect(resolved.bootstrap.autoResumeLatestCheckpoint).toBe(true);
+    });
+
     test('browser_lv6_deploy_v1 resolves strict promoted-only deploy lane', () => {
         const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-training-profile-'));
         const runsDir = path.join(tempRoot, 'runs');

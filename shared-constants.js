@@ -146,7 +146,7 @@
 
         { id: 'taboo_reverse_01', name: '禁忌の反転', type: 'TABOO_REVERSE_WILL', cost: 44, desc: '次に置く石は挟めなくても反転可能。最も反転枚数が多い列1方向のみ。' },
 
-        { id: 'regen_01', name: '復活の意志', type: 'REGEN_WILL', cost: 12, desc: '次に置いた石は1回だけ再生し、反転されたら元の色に戻る。戻った結果、そのマスを起点に挟める列があれば成立する方向の石を反転する。' },
+        { id: 'regen_01', name: '復活の意志', type: 'REGEN_WILL', cost: 12, desc: '次に置いた石は復活可能回数3を持つ。反転または破壊されるたびに1回消費して元の色へ戻り、そのマスを起点に挟める列があれば成立する方向の石を反転する。' },
 
         // DESTROY_ONE_STONE (破壊神) - 1 card, cost: 19
         { id: 'destroy_01', name: '破壊神', type: 'DESTROY_ONE_STONE', cost: 19, desc: '盤上の石を1つ選び、破壊する。' },
@@ -174,7 +174,7 @@
         { id: 'hyperactive_01', name: '多動の意志', type: 'HYPERACTIVE_WILL', cost: 8, desc: '次に置く石を多動石化。両者のターン開始時に、周囲8マスの空きへランダムに1マス移動し、移動後に挟める場合は通常反転。反転対象時は1回だけマス移動で回避する。' },
 
         // HYPERACTIVE_INHERIT_WILL (多動の継承) - 1 card, cost: 11
-        { id: 'hyperactive_inherit_01', name: '多動の継承', type: 'HYPERACTIVE_INHERIT_WILL', cost: 11, desc: '盤面上の自分の石1つに多動状態を付与する。通常石・特殊石を問わず選択でき、他の状態とも併用可能。両者ターン開始時に1マス移動し、移動後に挟めば反転。反転対象時は1回だけマス移動で回避する。持続は10ターン（所有者ターン開始時のみ減算）。' },
+        { id: 'hyperactive_inherit_01', name: '多動の継承', type: 'HYPERACTIVE_INHERIT_WILL', cost: 11, desc: '盤面上の自分の石1つに多動状態を付与する。通常石・特殊石を問わず選択でき、他の状態とも併用可能。両者ターン開始時に1マス移動し、移動後に挟めば反転。反転対象時は1回だけマス移動で回避し、破壊対象時も1回だけ空きマスへ移動して回避する。持続は10ターン（所有者ターン開始時のみ減算）。' },
 
         // EXTREME_HYPERACTIVE_WILL (極悪多動魔) - 1 card, cost: 35
         { id: 'extreme_hyperactive_01', name: '極悪多動魔', type: 'EXTREME_HYPERACTIVE_WILL', cost: 35, desc: '次に置く石を極悪多動魔化。ターン制限なしの多動状態となり、両者ターン開始時に周囲8マス（空き・占有）からランダム1マス移動。占有マスを選んだ場合はその石を1マス退避させてから進入する。移動後に挟めば反転し、隣接1マス（周囲8マス）の石を敵味方問わず遠ざかるように1マス退避させる。退避先が無い石はその場に残る。反転対象時はマス移動で回避し、最大3回まで。' },

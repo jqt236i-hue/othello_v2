@@ -123,6 +123,30 @@
             return true;
         }
 
+        function clearBusyStateAndPlaybackLock() {
+            const playbackState = resolvePlaybackStateModule();
+            if (playbackState && typeof playbackState.clearPlaybackLock === 'function') {
+                playbackState.clearPlaybackLock();
+                return true;
+            }
+
+            setBusyState(false);
+            setGlobalFlag('isProcessing', false);
+            setGlobalFlag('isCardAnimating', false);
+            setGlobalFlag('VisualPlaybackActive', false);
+            setGlobalValue('__playbackActiveSince', null);
+
+            try {
+                if (typeof document !== 'undefined') {
+                    const board = document.getElementById('board');
+                    if (board && board.classList && typeof board.classList.remove === 'function') {
+                        board.classList.remove('playback-locked');
+                    }
+                }
+            } catch (e) { /* ignore */ }
+            return true;
+        }
+
         function cloneData(value) {
             try {
                 if (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') {
@@ -485,6 +509,38 @@
             };
         }
 
+        function getPlaybackStartedAt() {
+            const playbackState = resolvePlaybackStateModule();
+            try {
+                if (playbackState && typeof playbackState.getPlaybackStartedAt === 'function') {
+                    const startedAt = Number(playbackState.getPlaybackStartedAt());
+                    return Number.isFinite(startedAt) ? startedAt : null;
+                }
+            } catch (e) { /* ignore */ }
+
+            const startedAt = Number(rootRef && rootRef.__playbackActiveSince);
+            return Number.isFinite(startedAt) ? startedAt : null;
+        }
+
+        function isPlaybackEngineRunning() {
+            try {
+                if (
+                    rootRef
+                    && rootRef.AnimationEngine
+                    && typeof rootRef.AnimationEngine.isPlaying === 'boolean'
+                ) {
+                    return rootRef.AnimationEngine.isPlaying === true;
+                }
+            } catch (e) { /* ignore */ }
+            return null;
+        }
+
+        function getStalePlaybackTimeoutMs() {
+            const timeoutMs = Number(rootRef && rootRef.PASS_STALE_PLAYBACK_MS);
+            if (Number.isFinite(timeoutMs) && timeoutMs > 0) return timeoutMs;
+            return 3500;
+        }
+
         function reconcilePresentationQueues(cardStateRef, options) {
             const opts = (options && typeof options === 'object') ? options : {};
             const preservedQueues = opts.preservedQueues || {
@@ -538,6 +594,22 @@
             const currentSignature = getTransientPresentationQueueSignature(currentQueues);
             return !!presentationState.restoredQueueSignature
                 && currentSignature === presentationState.restoredQueueSignature;
+        }
+
+        function shouldReleaseStalePlaybackLockAfterSnapshot(cardStateRef, presentationState) {
+            if (!presentationState || presentationState.shouldKeepBusy === true) return false;
+            if (isVisualPlaybackActive() !== true) return false;
+
+            const currentQueues = captureTransientPresentationQueues(cardStateRef);
+            if (currentQueues.hasPending) return false;
+
+            const playbackRunning = isPlaybackEngineRunning();
+            if (playbackRunning === false) return true;
+            if (playbackRunning === true) return false;
+
+            const startedAt = getPlaybackStartedAt();
+            if (startedAt === null) return false;
+            return (Date.now() - startedAt) > getStalePlaybackTimeoutMs();
         }
 
         function hasPendingPlaybackOrPresentation() {
@@ -778,6 +850,9 @@
             } else if (shouldReleaseRestoredQueueBusyState(cardStateRef, presentationState, busyStateBeforeSnapshot)) {
                 clearTransientPresentationQueues(cardStateRef);
                 setBusyState(false);
+            }
+            if (shouldReleaseStalePlaybackLockAfterSnapshot(cardStateRef, presentationState)) {
+                clearBusyStateAndPlaybackLock();
             }
             return true;
         }

@@ -492,6 +492,31 @@ function _resolveFlipEvadeDisplayForDiff(special, inherited) {
     };
 }
 
+function _resolveDestroyEvadeDisplayForDiff(special, inherited) {
+    const specialTypeUpper = String(special && special.type ? special.type : '').toUpperCase();
+    const specialSupportsDestroyEvade = (
+        specialTypeUpper === 'ULTIMATE_HYPERACTIVE' ||
+        specialTypeUpper === 'WILL_HUNTER_KING' ||
+        specialTypeUpper === 'AFTERIMAGE_WILL'
+    );
+    const specialEvade = (special && specialSupportsDestroyEvade && Number.isFinite(Number(special.destroyEvadeRemaining)))
+        ? Math.max(0, Math.trunc(Number(special.destroyEvadeRemaining)))
+        : null;
+    const inheritedEvade = (inherited && Number.isFinite(Number(inherited.destroyEvadeRemaining)))
+        ? Math.max(0, Math.trunc(Number(inherited.destroyEvadeRemaining)))
+        : null;
+    if (specialEvade !== null && inheritedEvade !== null) {
+        return {
+            special: specialEvade + inheritedEvade,
+            inherited: null
+        };
+    }
+    return {
+        special: specialEvade,
+        inherited: inheritedEvade
+    };
+}
+
 const LONG_PRESS_MS = 420;
 const LONG_PRESS_MOVE_CANCEL_PX = 8;
 const STONE_INFO_TAG_MEANINGS = Object.freeze({
@@ -1050,7 +1075,9 @@ function initializeBoardDOM(boardEl) {
     boardDomSignature = _getBoardDomSignatureForDiff(gameState);
 
     previousBoardState = null;
-    console.log('[DiffRenderer] Board DOM initialized with cell cache');
+    if (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true) {
+        console.log('[DiffRenderer] Board DOM initialized with cell cache');
+    }
 }
 
 
@@ -1157,7 +1184,9 @@ function buildCurrentCellState() {
         }
     }
     const legalSet = new Set([...normalLegalSet, ...tabooLegalSet]);
-    console.log('[DiffRenderer] legal hint cells:', legalSet.size, 'player:', player, 'taboo:', isTabooReversePending, 'tabooCells:', tabooLegalSet.size);
+    if (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true) {
+        console.log('[DiffRenderer] legal hint cells:', legalSet.size, 'player:', player, 'taboo:', isTabooReversePending, 'tabooCells:', tabooLegalSet.size);
+    }
     const selectableTargets = CardLogic.getSelectableTargets
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -1201,6 +1230,9 @@ function buildCurrentCellState() {
                     remainingOwnerTurns: m.data.remainingOwnerTurns,
                     flipEvadeRemaining: Number.isFinite(Number(m.data.flipEvadeRemaining))
                         ? Math.max(0, Math.trunc(Number(m.data.flipEvadeRemaining)))
+                        : null,
+                    destroyEvadeRemaining: Number.isFinite(Number(m.data.destroyEvadeRemaining))
+                        ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))
                         : null
                 });
                 continue;
@@ -1311,6 +1343,7 @@ function buildCurrentCellState() {
             const guard = val !== EMPTY ? guardMap.get(key) : null;
             const bomb = val !== EMPTY ? bombMap.get(key) : null;
             const flipEvadeDisplay = _resolveFlipEvadeDisplayForDiff(special, inherited);
+            const destroyEvadeDisplay = _resolveDestroyEvadeDisplayForDiff(special, inherited);
             const specialSupportsFlipEvade = !!(
                 special &&
                 (
@@ -1344,12 +1377,13 @@ function buildCurrentCellState() {
                     owner: getOwnerVal(special.owner),
                     remainingOwnerTurns: special.remainingOwnerTurns,
                     flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay.special : 0,
-                    destroyEvadeRemaining: special.destroyEvadeRemaining
+                    destroyEvadeRemaining: destroyEvadeDisplay.special
                 } : null,
                 inherited: inherited ? {
                     owner: getOwnerVal(inherited.owner),
                     remainingOwnerTurns: inherited.remainingOwnerTurns,
-                    flipEvadeRemaining: flipEvadeDisplay.inherited
+                    flipEvadeRemaining: flipEvadeDisplay.inherited,
+                    destroyEvadeRemaining: destroyEvadeDisplay.inherited
                 } : null,
                 guard: guard ? {
                     owner: getOwnerVal(guard.owner),
@@ -1365,7 +1399,7 @@ function buildCurrentCellState() {
                     owner: getOwnerVal(frozen.owner),
                     remainingOwnerTurns: frozen.remainingOwnerTurns
                 } : null,
-                destroyEvadeRemaining: special ? special.destroyEvadeRemaining : null
+                destroyEvadeRemaining: destroyEvadeDisplay.special !== null ? destroyEvadeDisplay.special : destroyEvadeDisplay.inherited
             };
         }
     }
@@ -1386,6 +1420,7 @@ function buildCurrentCellState() {
         const guard = expVal !== EMPTY ? guardMap.get(expKey) : null;
         const bomb = expVal !== EMPTY ? bombMap.get(expKey) : null;
         const flipEvadeDisplay = _resolveFlipEvadeDisplayForDiff(special, inherited);
+        const destroyEvadeDisplay = _resolveDestroyEvadeDisplayForDiff(special, inherited);
         const specialSupportsFlipEvade = !!(
             special &&
             (
@@ -1424,12 +1459,13 @@ function buildCurrentCellState() {
                 owner: getOwnerVal(special.owner),
                 remainingOwnerTurns: special.remainingOwnerTurns,
                 flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay.special : 0,
-                destroyEvadeRemaining: special.destroyEvadeRemaining
+                destroyEvadeRemaining: destroyEvadeDisplay.special
             } : null,
             inherited: inherited ? {
                 owner: getOwnerVal(inherited.owner),
                 remainingOwnerTurns: inherited.remainingOwnerTurns,
-                flipEvadeRemaining: flipEvadeDisplay.inherited
+                flipEvadeRemaining: flipEvadeDisplay.inherited,
+                destroyEvadeRemaining: destroyEvadeDisplay.inherited
             } : null,
             guard: guard ? {
                 owner: getOwnerVal(guard.owner),
@@ -1441,7 +1477,7 @@ function buildCurrentCellState() {
                 owner: getOwnerVal(blockade.owner),
                 remainingOwnerTurns: blockade.remainingOwnerTurns
             } : null,
-            destroyEvadeRemaining: special ? special.destroyEvadeRemaining : null
+            destroyEvadeRemaining: destroyEvadeDisplay.special !== null ? destroyEvadeDisplay.special : destroyEvadeDisplay.inherited
         });
     }
     state._expansionCell = state._expansionCells.length > 0 ? state._expansionCells[0] : null;
@@ -1481,6 +1517,7 @@ function cellStatesEqual(a, b) {
         if (a.inherited.owner !== b.inherited.owner) return false;
         if (a.inherited.remainingOwnerTurns !== b.inherited.remainingOwnerTurns) return false;
         if (a.inherited.flipEvadeRemaining !== b.inherited.flipEvadeRemaining) return false;
+        if (a.inherited.destroyEvadeRemaining !== b.inherited.destroyEvadeRemaining) return false;
     }
 
     if ((a.guard === null) !== (b.guard === null)) return false;
@@ -1774,6 +1811,18 @@ function updateCellDOM(cell, state, row, col, prevState) {
             _applyDoubleDigitTimerClassForDiff(evadeTimer, inheritedEvadeRemaining);
             discHud.appendChild(evadeTimer);
         }
+        if (
+            state.inherited &&
+            Number.isFinite(state.inherited.destroyEvadeRemaining) &&
+            !canShowDestroyEvade
+        ) {
+            const destroyEvadeTimer = document.createElement('div');
+            destroyEvadeTimer.className = 'stone-timer destroy-evade-timer';
+            const inheritedDestroyEvadeRemaining = Math.max(0, Math.trunc(state.inherited.destroyEvadeRemaining));
+            destroyEvadeTimer.textContent = String(inheritedDestroyEvadeRemaining);
+            _applyDoubleDigitTimerClassForDiff(destroyEvadeTimer, inheritedDestroyEvadeRemaining);
+            discHud.appendChild(destroyEvadeTimer);
+        }
 
         if (state.breedingSprout) {
             disc.classList.add('breeding-sprout');
@@ -1908,7 +1957,9 @@ function renderBoardDiff(boardEl) {
             }
             reconcileCellHasDiscClasses(boardEl);
             _scheduleBoardExpansionRevealSoundForDiff(revealExpansionKeys, nextSignature);
-            console.log('[DiffRenderer] Initial full render complete');
+            if (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true) {
+                console.log('[DiffRenderer] Initial full render complete');
+            }
             return cellCacheMap.size;
         }
 
@@ -1951,7 +2002,7 @@ function renderBoardDiff(boardEl) {
 
         previousBoardState = currentState;
 
-        if (updatedCount > 0) {
+        if (updatedCount > 0 && typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true) {
             console.log(`[DiffRenderer] Updated ${updatedCount}/${cellCacheMap.size} cells`);
         }
 
@@ -1977,7 +2028,9 @@ function forceFullRender(boardEl) {
     boardDomSignature = null;
     initializeBoardDOM(boardEl);
     renderBoardDiff(boardEl);
-    console.log('[DiffRenderer] Full render forced');
+    if (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true) {
+        console.log('[DiffRenderer] Full render forced');
+    }
 }
 
 /**

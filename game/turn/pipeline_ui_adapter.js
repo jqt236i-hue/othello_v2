@@ -109,6 +109,7 @@
     const REGEN_CONSUMED_REASON = 'regen_consumed';
     const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS) || Object.freeze({
         DESTROYED: 'destroyed',
+        REGENERATED: 'regenerated',
         GHOST_BLOCKED: 'ghost_blocked',
         PROLIFERATED: 'proliferated',
         EVADED_MOVE: 'evaded_move'
@@ -628,6 +629,7 @@
             return DestroyOutcomeContract.getDestroyOutcomeKind(meta);
         }
         if (!meta || typeof meta !== 'object') return null;
+        if (meta.regenerated === true) return DESTROY_OUTCOME_KINDS.REGENERATED;
         if (meta.proliferated === true) return DESTROY_OUTCOME_KINDS.PROLIFERATED;
         if (meta.blockedByGhost === true) return DESTROY_OUTCOME_KINDS.GHOST_BLOCKED;
         if (meta.evaded === true) return DESTROY_OUTCOME_KINDS.EVADED_MOVE;
@@ -635,19 +637,56 @@
         return null;
     }
 
+    function _isDestroyRemovalOutcome(target) {
+        const kind = _getDestroyOutcomeKind(target && target.meta);
+        return kind === null || kind === DESTROY_OUTCOME_KINDS.DESTROYED;
+    }
+
     function _isProliferationSpawnPresentationEvent(ev) {
         return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'PROLIFERATION_WILL' &&
             String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('proliferation_spawn') === 0;
     }
 
-    function _isEqualityWillSpawnEventLike(ev) {
-        return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'EQUALITY_WILL' &&
-            String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('equality_will_spawn') === 0;
+    const CARD_EFFECT_SPAWN_PROFILES = Object.freeze([
+        Object.freeze({
+            cause: 'EQUALITY_WILL',
+            reasonPrefix: 'equality_will_spawn',
+            rawResolvedType: 'equality_will_resolved',
+            soundSourceType: 'equality_will_spawn',
+            phaseStartIndex: 2
+        }),
+        Object.freeze({
+            cause: 'SALVATION_WILL',
+            reasonPrefix: 'salvation_spawn',
+            rawResolvedType: 'salvation_will_resolved',
+            soundSourceType: 'salvation_spawn',
+            phaseStartIndex: 1
+        })
+    ]);
+
+    function _matchesSpawnCauseAndReason(subject, cause, reasonPrefix) {
+        return String(subject && subject.cause ? subject.cause : '').toUpperCase() === String(cause || '').toUpperCase() &&
+            String(subject && subject.reason ? subject.reason : '').toLowerCase().indexOf(String(reasonPrefix || '').toLowerCase()) === 0;
     }
 
-    function _isSalvationWillSpawnEventLike(ev) {
-        return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'SALVATION_WILL' &&
-            String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('salvation_spawn') === 0;
+    function _isCardEffectSpawnEventLike(ev, profile) {
+        return !!profile && _matchesSpawnCauseAndReason(ev, profile.cause, profile.reasonPrefix);
+    }
+
+    function _isCardEffectSpawnPlaybackEvent(ev, profile) {
+        return !!(
+            ev &&
+            ev.type === 'spawn' &&
+            Array.isArray(ev.targets) &&
+            ev.targets.some((target) => _isCardEffectSpawnEventLike(target, profile))
+        );
+    }
+
+    function _getCardEffectSpawnProfile(ev) {
+        for (const profile of CARD_EFFECT_SPAWN_PROFILES) {
+            if (_isCardEffectSpawnEventLike(ev, profile)) return profile;
+        }
+        return null;
     }
 
     function _isCloneLikeSpawnPresentationEvent(ev, spawnMeta) {
@@ -797,7 +836,8 @@
 
         const spawnMeta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
         const overlapSpec = _getSpawnOverlapReturnSpec(ev, spawnMeta);
-        const equalityWillSpawnIndex = spawnMeta && Number.isFinite(Number(spawnMeta.spawnIndex))
+        const spawnProfile = _getCardEffectSpawnProfile(ev);
+        const sequentialSpawnIndex = spawnMeta && Number.isFinite(Number(spawnMeta.spawnIndex))
             ? Math.trunc(Number(spawnMeta.spawnIndex))
             : null;
         const followsPreservedProliferationDestroy =
@@ -818,11 +858,7 @@
                 phase: phaseState.currentPhase
             })));
         }
-        if (_isEqualityWillSpawnEventLike(ev) && equalityWillSpawnIndex !== null && equalityWillSpawnIndex > 1) {
-            phaseState.currentPhase++;
-            phase = phaseState.currentPhase;
-        }
-        if (_isSalvationWillSpawnEventLike(ev) && equalityWillSpawnIndex !== null && equalityWillSpawnIndex >= 1) {
+        if (spawnProfile && sequentialSpawnIndex !== null && sequentialSpawnIndex >= spawnProfile.phaseStartIndex) {
             phaseState.currentPhase++;
             phase = phaseState.currentPhase;
         }
@@ -1213,6 +1249,35 @@
                         text: (typeof ev.text === 'string' && ev.text.trim()) ? ev.text.trim() : ((ev.meta && typeof ev.meta.text === 'string' && ev.meta.text.trim()) ? ev.meta.text.trim() : null)
                     }];
                     break;
+                case 'SPECIAL_STONE_BUBBLE': {
+                    const bubbleScenario = (typeof ev.scenario === 'string' && ev.scenario.trim())
+                        ? ev.scenario.trim()
+                        : ((ev.meta && typeof ev.meta.scenario === 'string' && ev.meta.scenario.trim()) ? ev.meta.scenario.trim() : null);
+                    const bubbleReason = (typeof ev.reason === 'string' && ev.reason.trim())
+                        ? ev.reason.trim()
+                        : ((ev.meta && typeof ev.meta.reason === 'string' && ev.meta.reason.trim()) ? ev.meta.reason.trim() : bubbleScenario);
+                    const bubbleCause = (typeof ev.cause === 'string' && ev.cause.trim())
+                        ? ev.cause.trim()
+                        : ((ev.meta && typeof ev.meta.cause === 'string' && ev.meta.cause.trim()) ? ev.meta.cause.trim() : null);
+                    _preparePassivePlaybackPhaseState(phaseState, {
+                        clearWillHunter: false,
+                        preserveDurationEndRevert: _hasDurationEndMarker(bubbleScenario || bubbleReason, bubbleCause)
+                    });
+                    pEvent.type = 'observer_bubble';
+                    pEvent.targets = [{
+                        r: ev.row,
+                        col: ev.col,
+                        owner: ev.owner || ev.player || (ev.meta && ev.meta.owner) || null,
+                        gained: Number(ev.gained) || 0,
+                        text: (typeof ev.text === 'string' && ev.text.trim()) ? ev.text.trim() : ((ev.meta && typeof ev.meta.text === 'string' && ev.meta.text.trim()) ? ev.meta.text.trim() : null),
+                        special: (typeof ev.special === 'string' && ev.special.trim())
+                            ? ev.special.trim()
+                            : ((ev.meta && typeof ev.meta.special === 'string' && ev.meta.special.trim()) ? ev.meta.special.trim() : null),
+                        scenario: bubbleScenario,
+                        reason: bubbleReason
+                    }];
+                    break;
+                }
                 case 'OBSERVER_BUBBLE':
                     _preparePassivePlaybackPhaseState(phaseState);
                     pEvent.type = 'observer_bubble';
@@ -1612,10 +1677,7 @@
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
         const special = String(target && target.meta && target.meta.special ? target.meta.special : '').toUpperCase();
-        const isDurationEnd =
-            reason === 'duration_end' ||
-            reason.indexOf('duration') >= 0 ||
-            reason.indexOf('expire') >= 0;
+        const isDurationEnd = _hasDurationEndMarker(reason);
         if (!isDurationEnd) return false;
         if (cause === 'TRAP_WILL' && (reason.indexOf('trap_expired') >= 0 || reason.indexOf('trap_disarmed') >= 0)) return false;
         if (BOMB_DESTROY_CAUSES.has(cause)) return false;
@@ -1626,9 +1688,15 @@
         return !!(ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t) => _isSpecialDurationExpiredDestroyTarget(t)));
     }
 
-    function _isDurationEndReason(reason) {
+    function _hasDurationEndMarker(reason, cause) {
         const reasonLower = String(reason || '').toLowerCase();
-        return reasonLower === 'duration_end' || reasonLower.indexOf('duration') >= 0 || reasonLower.indexOf('expire') >= 0;
+        const causeLower = String(cause || '').toLowerCase();
+        return (
+            reasonLower === 'duration_end' ||
+            reasonLower.indexOf('duration') >= 0 ||
+            reasonLower.indexOf('expire') >= 0 ||
+            causeLower.indexOf('expire') >= 0
+        );
     }
 
     function _isSpecialDurationExpiredStatusRemovedEvent(ev) {
@@ -1636,7 +1704,7 @@
         const special = String(ev.meta && ev.meta.special ? ev.meta.special : '').toUpperCase();
         if (!SPECIAL_DURATION_REVERT_SPECIALS.has(special)) return false;
         const reason = String((ev.meta && ev.meta.reason) || ev.reason || '').toLowerCase();
-        if (!_isDurationEndReason(reason)) return false;
+        if (!_hasDurationEndMarker(reason)) return false;
         if (special === 'TRAP' || special === 'TRAP_REVEAL') return false;
         return true;
     }
@@ -1679,13 +1747,12 @@
             const reasonIncome = String(ev.reason || (ev.meta && ev.meta.reason) || '').toLowerCase();
             const causeIncome = String(ev.cause || '').toLowerCase();
             if (!reasonIncome && !causeIncome) return true;
-            return reasonIncome === 'duration_end' || reasonIncome.indexOf('duration') >= 0 || reasonIncome.indexOf('expire') >= 0 || causeIncome.indexOf('expire') >= 0;
+            return _hasDurationEndMarker(reasonIncome, causeIncome);
         }
         if (ev.type !== 'WORK_REMOVED') return false;
         const cause = String(ev.cause || '').toLowerCase();
         const reason = String(ev.reason || (ev.meta && ev.meta.reason) || '').toLowerCase();
-        if (reason === 'duration_end' || reason.indexOf('duration') >= 0) return true;
-        return cause.indexOf('expire') >= 0 || reason.indexOf('expire') >= 0;
+        return _hasDurationEndMarker(reason, cause);
     }
 
     function _isWorkFlipOrDestroyRemovedPresentationEvent(ev) {
@@ -1804,6 +1871,42 @@
         }
     }
 
+    function _pushRepeatedCueForCardEffectSpawnProfiles(ctx, events, soundKey) {
+        for (const profile of CARD_EFFECT_SPAWN_PROFILES) {
+            _pushRepeatedCueForMatchingTargets(
+                ctx,
+                events,
+                (target) => _isCardEffectSpawnEventLike(target, profile),
+                soundKey,
+                profile.soundSourceType
+            );
+        }
+    }
+
+    function _deferFirstCardEffectSpawnIntoDisappearPlayback(ctx, profile, soundKey) {
+        if (!_hasRawEvent(ctx.raw, profile.rawResolvedType, (ev) => Number(ev && ev.spawnedCount) > 0)) {
+            return;
+        }
+        const movedSpawn = _moveFirstPlaybackEventIntoCardUseAnimationTarget(
+            ctx,
+            ctx.base,
+            (ev) => _isCardEffectSpawnPlaybackEvent(ev, profile),
+            'disappearPlaybackEvents'
+        );
+        if (!movedSpawn) return;
+        _moveFirstPlaybackEventIntoCardUseAnimationTarget(
+            ctx,
+            ctx.added,
+            (ev) => ev &&
+                ev.type === SOUND_EVENT_TYPE &&
+                ev.meta &&
+                ev.meta.sourceType === profile.soundSourceType &&
+                Array.isArray(ev.targets) &&
+                ev.targets.some((target) => String(target && target.soundKey ? target.soundKey : '').trim() === String(soundKey || '').trim()),
+            'disappearPlaybackEvents'
+        );
+    }
+
     function _planCoreSoundCues(ctx) {
         const bombDestroyPhases = _collectUniquePhases(
             ctx.base,
@@ -1830,19 +1933,10 @@
         ) {
             _pushSoundCue(ctx, 'breeding_spawn', breedingPhase, 'breeding_spawned');
         }
-        _pushRepeatedCueForMatchingTargets(
+        _pushRepeatedCueForCardEffectSpawnProfiles(
             ctx,
             ctx.base.filter((ev) => ev && ev.type === 'spawn'),
-            (target) => _isEqualityWillSpawnEventLike(target),
-            'breeding_spawn',
-            'equality_will_spawn'
-        );
-        _pushRepeatedCueForMatchingTargets(
-            ctx,
-            ctx.base.filter((ev) => ev && ev.type === 'spawn'),
-            (target) => _isSalvationWillSpawnEventLike(target),
-            'breeding_spawn',
-            'salvation_spawn'
+            'breeding_spawn'
         );
 
         const hasAppliedTemptSelection = _hasRawEvent(ctx.raw, 'tempt_selected', (ev) => !!(ev && ev.applied));
@@ -2142,47 +2236,8 @@
                 'disappearPlaybackEvents'
             );
         }
-        if (_hasRawEvent(ctx.raw, 'equality_will_resolved', (ev) => Number(ev && ev.spawnedCount) > 0)) {
-            const movedEqualitySpawn = _moveFirstPlaybackEventIntoCardUseAnimationTarget(
-                ctx,
-                ctx.base,
-                (ev) => ev && ev.type === 'spawn' && Array.isArray(ev.targets) && ev.targets.some((target) => _isEqualityWillSpawnEventLike(target)),
-                'disappearPlaybackEvents'
-            );
-            if (movedEqualitySpawn) {
-                _moveFirstPlaybackEventIntoCardUseAnimationTarget(
-                    ctx,
-                    ctx.added,
-                    (ev) => ev &&
-                        ev.type === SOUND_EVENT_TYPE &&
-                        ev.meta &&
-                        ev.meta.sourceType === 'equality_will_spawn' &&
-                        Array.isArray(ev.targets) &&
-                        ev.targets.some((target) => String(target && target.soundKey ? target.soundKey : '').trim() === 'breeding_spawn'),
-                    'disappearPlaybackEvents'
-                );
-            }
-        }
-        if (_hasRawEvent(ctx.raw, 'salvation_will_resolved', (ev) => Number(ev && ev.spawnedCount) > 0)) {
-            const movedSalvationSpawn = _moveFirstPlaybackEventIntoCardUseAnimationTarget(
-                ctx,
-                ctx.base,
-                (ev) => ev && ev.type === 'spawn' && Array.isArray(ev.targets) && ev.targets.some((target) => _isSalvationWillSpawnEventLike(target)),
-                'disappearPlaybackEvents'
-            );
-            if (movedSalvationSpawn) {
-                _moveFirstPlaybackEventIntoCardUseAnimationTarget(
-                    ctx,
-                    ctx.added,
-                    (ev) => ev &&
-                        ev.type === SOUND_EVENT_TYPE &&
-                        ev.meta &&
-                        ev.meta.sourceType === 'salvation_spawn' &&
-                        Array.isArray(ev.targets) &&
-                        ev.targets.some((target) => String(target && target.soundKey ? target.soundKey : '').trim() === 'breeding_spawn'),
-                    'disappearPlaybackEvents'
-                );
-            }
+        for (const profile of CARD_EFFECT_SPAWN_PROFILES) {
+            _deferFirstCardEffectSpawnIntoDisappearPlayback(ctx, profile, 'breeding_spawn');
         }
 
         const strongWillPromotedPhase = _findPhase(
@@ -2254,6 +2309,7 @@
         if (!ev || ev.type !== 'destroy' || !Array.isArray(ev.targets)) return false;
         if (_isSpecialDurationExpiredPlaybackEvent(ev)) return false;
         return ev.targets.some((t) => {
+            if (!_isDestroyRemovalOutcome(t)) return false;
             const cause = String(t && t.cause ? t.cause : '').toUpperCase();
             const reason = String(t && t.reason ? t.reason : '').toLowerCase();
             if (BOMB_DESTROY_CAUSES.has(cause)) return false;
@@ -2275,7 +2331,13 @@
             ev.targets.some((t) => _isSniperShotDestroyTarget(t))
         ));
         if (sniperDestroyEvents.length > 0) {
-            _pushRepeatedCueForMatchingTargets(ctx, sniperDestroyEvents, (target) => _isSniperShotDestroyTarget(target), 'stone_destroy', 'sniper_shot');
+            _pushRepeatedCueForMatchingTargets(
+                ctx,
+                sniperDestroyEvents,
+                (target) => _isSniperShotDestroyTarget(target) && _isDestroyRemovalOutcome(target),
+                'stone_destroy',
+                'sniper_shot'
+            );
         }
 
         const lightningDestroyEvents = ctx.base.filter((ev) => (
@@ -2285,7 +2347,13 @@
             ev.targets.some((t) => _isLightningDestroyTarget(t))
         ));
         if (lightningDestroyEvents.length > 0) {
-            _pushRepeatedCueForMatchingTargets(ctx, lightningDestroyEvents, (target) => _isLightningDestroyTarget(target), 'stone_destroy', 'lightning_destroyed');
+            _pushRepeatedCueForMatchingTargets(
+                ctx,
+                lightningDestroyEvents,
+                (target) => _isLightningDestroyTarget(target) && _isDestroyRemovalOutcome(target),
+                'stone_destroy',
+                'lightning_destroyed'
+            );
         }
 
         const robotVacuumSuckPhases = _collectUniquePhases(
@@ -2610,6 +2678,7 @@
                     break;
                 case 'destroy_selected':
                     if (ev.destroyed) push(`破壊神で${_toPosText(ev.target)}を破壊`);
+                    else if (ev.regenerated) push(`破壊神: ${_toPosText(ev.target)} は復活した`);
                     else if (ev.proliferated) push(`破壊神: ${_toPosText(ev.target)} は石を残したまま増殖`);
                     else if (ev.blockedByGhost) push(`破壊神: ${_toPosText(ev.target)} は幽体化で無効化`);
                     else if (ev.evaded) push(`破壊神: ${_toPosText(ev.target)} は回避した`);

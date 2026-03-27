@@ -275,6 +275,40 @@ describe('animation-engine guard timer rendering', () => {
     expect(sleepSpy).toHaveBeenCalled();
   });
 
+  test('regenerated destroy only shows highlight and keeps the disc in place', async () => {
+    const engine = require('../ui/animation-engine');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '5';
+    cell.dataset.col = '6';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
+
+    await engine.handleDestroy({
+      targets: [{
+        r: 5,
+        col: 6,
+        ownerBefore: 'black',
+        cause: 'DESTROY_ONE_STONE',
+        reason: 'destroy_selected',
+        meta: { regenerated: true, special: 'REGEN', owner: 'black', timer: 2 }
+      }]
+    });
+
+    expect(cell.querySelector('.disc')).toBe(disc);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(sleepSpy).toHaveBeenCalled();
+  });
+
   test.each([
     ['GLUTTONOUS_WILL', 'gluttonous_eat'],
     ['WILL_HUNTER_KING', 'will_hunter_king_slash']
@@ -336,6 +370,35 @@ describe('animation-engine guard timer rendering', () => {
         cause,
         reason,
         meta: { blockedByGhost: true, special: 'GHOST', timer: 5, owner: 'white' }
+      }]
+    });
+
+    const minimumVisibleMs = Math.max(120, Math.floor(AnimationConstants.MOVE_MS / 2));
+    expect(sleepSpy.mock.calls.some((args) => Number(args[0]) >= (minimumVisibleMs - 20))).toBe(true);
+  });
+
+  test('regenerated will_hunter destroy keeps highlight visible through overlap midpoint', async () => {
+    const engine = require('../ui/animation-engine');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '5';
+    cell.dataset.col = '2';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc white';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    await engine.handleDestroy({
+      targets: [{
+        r: 5,
+        col: 2,
+        ownerBefore: 'white',
+        cause: 'WILL_HUNTER_KING',
+        reason: 'will_hunter_king_slash',
+        meta: { regenerated: true, special: 'REGEN', owner: 'white', timer: 2 }
       }]
     });
 
@@ -1639,6 +1702,8 @@ describe('animation-engine guard timer rendering', () => {
     });
 
     expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-spawn');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-spawn');
     expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
     expect(sleepSpy).toHaveBeenCalled();
     expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= 100)).toBe(true);

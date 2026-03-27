@@ -161,12 +161,18 @@
         return { applied: true };
     }
 
-    function applyRegenAfterFlips(cardState, gameState, flips, flipperKey, skipCapture, deps = {}) {
-        const regened = [];
-        const captureFlips = [];
-        if (!flips || !flips.length) return { regened, captureFlips };
-        const consumedRegenKeys = new Set();
+    function findActiveRegenMarkerAt(cardState, row, col) {
+        const markers = Array.isArray(cardState && cardState.markers) ? cardState.markers : [];
+        for (const marker of markers) {
+            if (!marker || marker.kind !== 'specialStone' || marker.row !== row || marker.col !== col) continue;
+            if (!marker.data || marker.data.type !== 'REGEN') continue;
+            if ((Number(marker.data.regenRemaining) || 0) <= 0) continue;
+            return marker;
+        }
+        return null;
+    }
 
+    function _getRegenCardContext(cardState, deps = {}) {
         const getCardContext = deps.getCardContext || (() => ({
             protectedStones: (cardState.markers ? cardState.markers.filter(m => m.kind === 'specialStone' && m.data && m.data.type === 'PROTECTED').map(m => ({ row: m.row, col: m.col })) : []),
             permaProtectedStones: (cardState.markers ? cardState.markers.filter(m => {
@@ -187,127 +193,227 @@
             }
             if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'specialStone' && m.data && m.data.category === 'bomb' && m.row === r && m.col === c));
         });
-
-        const specials = (cardState.markers || []).filter(m => m.kind === 'specialStone');
-        const dirs = DIRECTIONS;
-
         const context = getCardContext(cardState);
         const blockedSet = context.blockedCells ? new Set(context.blockedCells.map(p => `${p.row},${p.col}`)) : null;
         const protSet = context.protectedStones ? new Set(context.protectedStones.map(p => `${p.row},${p.col}`)) : null;
         const permaSet = context.permaProtectedStones ? new Set(context.permaProtectedStones.map(p => `${p.row},${p.col}`)) : null;
-        const isBlocked = (r, c) => {
-            const key = `${r},${c}`;
-            if (blockedSet && blockedSet.has(key)) return true;
-            if (protSet && protSet.has(key)) return true;
-            if (permaSet && permaSet.has(key)) return true;
-            return false;
+        return {
+            clearBombAt,
+            isBlocked(r, c) {
+                const key = `${r},${c}`;
+                if (blockedSet && blockedSet.has(key)) return true;
+                if (protSet && protSet.has(key)) return true;
+                if (permaSet && permaSet.has(key)) return true;
+                return false;
+            }
         };
+    }
 
+    function _removeConsumedRegenMarker(cardState, row, col, owner, deps = {}) {
+        if (typeof deps.removeMarkersAt === 'function') {
+            deps.removeMarkersAt(cardState, row, col, {
+                kind: 'specialStone',
+                type: 'REGEN',
+                owner
+            });
+            return;
+        }
+        const cardMarkers = getCardMarkersModule();
+        if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
+            cardMarkers.removeMarkersAt(cardState, row, col, {
+                kind: 'specialStone',
+                type: 'REGEN',
+                owner
+            });
+            return;
+        }
+        if (Array.isArray(cardState.markers)) {
+            cardState.markers = cardState.markers.filter(m => !(
+                m &&
+                m.kind === 'specialStone' &&
+                m.row === row &&
+                m.col === col &&
+                m.data &&
+                m.data.type === 'REGEN'
+            ));
+        }
+    }
+
+    function _emitRegenConsumedStatus(cardState, row, col, deps = {}) {
+        const boardOps = deps.BoardOps || null;
+        if (boardOps && typeof boardOps.emitPresentationEvent === 'function') {
+            boardOps.emitPresentationEvent(cardState, {
+                type: 'STATUS_REMOVED',
+                row,
+                col,
+                cause: 'REGEN',
+                reason: 'regen_consumed',
+                meta: { special: 'REGEN', reason: 'regen_consumed' }
+            });
+        }
+    }
+
+    function _captureFromRegenOrigin(cardState, gameState, row, col, regenOwner, ownerColor, ctx, deps = {}) {
+        const captureFlips = [];
+        for (const [dr, dc] of DIRECTIONS) {
+            const line = [];
+            let r = row + dr;
+            let c = col + dc;
+            while (getCellValue(gameState, r, c) === -ownerColor) {
+                if (ctx.isBlocked(r, c)) {
+                    line.length = 0;
+                    break;
+                }
+                line.push({ row: r, col: c });
+                r += dr;
+                c += dc;
+            }
+            if (line.length <= 0 || ctx.isBlocked(r, c) || getCellValue(gameState, r, c) !== ownerColor) continue;
+            for (const point of line) {
+                let changed = true;
+                if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
+                    const changeRes = deps.BoardOps.changeAt(cardState, gameState, point.row, point.col, regenOwner, 'REGEN', 'regen_capture_flip');
+                    changed = !!(changeRes && changeRes.changed);
+                } else {
+                    setCellValue(gameState, point.row, point.col, ownerColor);
+                }
+                if (!changed) continue;
+                ctx.clearBombAt(cardState, point.row, point.col);
+                captureFlips.push(point);
+            }
+        }
+        return captureFlips;
+    }
+
+    function _emitForcedRegenChange(cardState, gameState, row, col, ownerKey, ownerColor, nextRemaining, deps = {}) {
+        setCellValue(gameState, row, col, ownerColor);
+        const boardOps = deps.BoardOps || null;
+        if (boardOps && typeof boardOps.emitPresentationEvent === 'function') {
+            boardOps.emitPresentationEvent(cardState, {
+                type: 'CHANGE',
+                row,
+                col,
+                ownerBefore: ownerKey,
+                ownerAfter: ownerKey,
+                cause: 'REGEN',
+                reason: 'regen_triggered',
+                meta: {
+                    special: 'REGEN',
+                    owner: ownerKey,
+                    timer: nextRemaining,
+                    regenRemaining: nextRemaining
+                }
+            });
+        }
+    }
+
+    function _triggerRegenAtPosition(cardState, gameState, row, col, triggerKind, skipCapture, deps = {}, ctx, consumedRegenKeys) {
+        const regen = findActiveRegenMarkerAt(cardState, row, col);
+        if (!regen) return { triggered: false, regened: [], captureFlips: [] };
+        const ownerColor = regen.owner === 'black' ? (BLACK || 1) : (WHITE || -1);
+        const currentValue = getCellValue(gameState, row, col);
+        if (triggerKind !== 'destroy' && currentValue === ownerColor) {
+            return { triggered: false, regened: [], captureFlips: [] };
+        }
+
+        const nextRemaining = Math.max(0, Number(regen.data.regenRemaining || 0) - 1);
+        regen.data.regenRemaining = nextRemaining;
+        regen.data.remainingOwnerTurns = nextRemaining;
+
+        if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
+            deps.BoardOps.changeAt(
+                cardState,
+                gameState,
+                row,
+                col,
+                regen.owner,
+                'REGEN',
+                'regen_triggered',
+                triggerKind === 'destroy' ? { forcePresentation: true } : {}
+            );
+        } else {
+            _emitForcedRegenChange(cardState, gameState, row, col, regen.owner, ownerColor, nextRemaining, deps);
+        }
+
+        const regened = [{ row, col }];
+        const captureFlips = skipCapture
+            ? []
+            : _captureFromRegenOrigin(cardState, gameState, row, col, regen.owner, ownerColor, ctx, deps);
+
+        if ((regen.data.regenRemaining || 0) <= 0) {
+            const key = `${row},${col}`;
+            if (!consumedRegenKeys.has(key)) {
+                consumedRegenKeys.add(key);
+                _removeConsumedRegenMarker(cardState, row, col, regen.owner, deps);
+                _emitRegenConsumedStatus(cardState, row, col, deps);
+            }
+        }
+
+        return {
+            triggered: true,
+            regened,
+            captureFlips,
+            owner: regen.owner,
+            remaining: nextRemaining
+        };
+    }
+
+    function applyRegenAfterFlips(cardState, gameState, flips, flipperKey, skipCapture, deps = {}) {
+        const regened = [];
+        const captureFlips = [];
+        if (!flips || !flips.length) return { regened, captureFlips };
+        const consumedRegenKeys = new Set();
+        const ctx = _getRegenCardContext(cardState, deps);
         const toObj = (p) => (typeof p.row === 'number' ? p : { row: p[0], col: p[1] });
 
         for (const raw of flips) {
             const pos = toObj(raw);
-            const idx = specials.findIndex(s => s.data && s.data.type === 'REGEN' && s.row === pos.row && s.col === pos.col && (s.data.regenRemaining || 0) > 0);
-            if (idx === -1) continue;
-            const regen = specials[idx];
-            const ownerColor = regen.owner === 'black' ? (BLACK || 1) : (WHITE || -1);
-            if (getCellValue(gameState, pos.row, pos.col) === ownerColor) continue; // not flipped against owner
-
-            // consume regen and revert color
-            const nextRemaining = Math.max(0, Number(regen.data.regenRemaining || 0) - 1);
-            regen.data.regenRemaining = nextRemaining;
-            regen.data.remainingOwnerTurns = nextRemaining;
-            if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
-                deps.BoardOps.changeAt(cardState, gameState, pos.row, pos.col, regen.owner, 'REGEN', 'regen_triggered');
-            } else {
-                setCellValue(gameState, pos.row, pos.col, ownerColor);
-            }
-            regened.push({ row: pos.row, col: pos.col });
-
-            if (skipCapture) continue;
-
-            // single-origin capture from this cell
-            for (const [dr, dc] of dirs) {
-                const line = [];
-                let r = pos.row + dr;
-                let c = pos.col + dc;
-                while (getCellValue(gameState, r, c) === -ownerColor) {
-                    if (isBlocked(r, c)) {
-                        line.length = 0;
-                        break;
-                    }
-                    line.push({ row: r, col: c });
-                    r += dr;
-                    c += dc;
-                }
-                if (line.length > 0 && !isBlocked(r, c) && getCellValue(gameState, r, c) === ownerColor) {
-                    for (const p of line) {
-                        let changed = true;
-                        if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
-                            const changeRes = deps.BoardOps.changeAt(cardState, gameState, p.row, p.col, regen.owner, 'REGEN', 'regen_capture_flip');
-                            changed = !!(changeRes && changeRes.changed);
-                        } else {
-                            setCellValue(gameState, p.row, p.col, ownerColor);
-                        }
-                        if (!changed) continue;
-                        clearBombAt(cardState, p.row, p.col);
-                        captureFlips.push(p);
-                    }
-                }
-            }
-
-            // REGEN is one-time use. Remove marker immediately and emit a status-removed event
-            // so UI can run "regen visual -> normal stone" transition right after regen sequence.
-            if ((regen.data.regenRemaining || 0) <= 0) {
-                const k = `${pos.row},${pos.col}`;
-                if (!consumedRegenKeys.has(k)) {
-                    consumedRegenKeys.add(k);
-
-                    if (typeof deps.removeMarkersAt === 'function') {
-                        deps.removeMarkersAt(cardState, pos.row, pos.col, {
-                            kind: 'specialStone',
-                            type: 'REGEN',
-                            owner: regen.owner
-                        });
-                    } else {
-                        const cardMarkers = getCardMarkersModule();
-                        if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
-                            cardMarkers.removeMarkersAt(cardState, pos.row, pos.col, {
-                                kind: 'specialStone',
-                                type: 'REGEN',
-                                owner: regen.owner
-                            });
-                        } else if (Array.isArray(cardState.markers)) {
-                            cardState.markers = cardState.markers.filter(m => !(
-                                m &&
-                                m.kind === 'specialStone' &&
-                                m.row === pos.row &&
-                                m.col === pos.col &&
-                                m.data &&
-                                m.data.type === 'REGEN'
-                            ));
-                        }
-                    }
-
-                    if (deps.BoardOps && typeof deps.BoardOps.emitPresentationEvent === 'function') {
-                        deps.BoardOps.emitPresentationEvent(cardState, {
-                            type: 'STATUS_REMOVED',
-                            row: pos.row,
-                            col: pos.col,
-                            cause: 'REGEN',
-                            reason: 'regen_consumed',
-                            meta: { special: 'REGEN', reason: 'regen_consumed' }
-                        });
-                    }
-                }
-            }
+            const result = _triggerRegenAtPosition(
+                cardState,
+                gameState,
+                pos.row,
+                pos.col,
+                'flip',
+                !!skipCapture,
+                deps,
+                ctx,
+                consumedRegenKeys
+            );
+            if (!result.triggered) continue;
+            regened.push(...result.regened);
+            captureFlips.push(...result.captureFlips);
         }
 
         return { regened, captureFlips };
     }
 
+    function applyRegenAfterDestroy(cardState, gameState, row, col, triggerMeta, deps = {}) {
+        const consumedRegenKeys = new Set();
+        const ctx = _getRegenCardContext(cardState, deps);
+        const result = _triggerRegenAtPosition(
+            cardState,
+            gameState,
+            row,
+            col,
+            'destroy',
+            false,
+            deps,
+            ctx,
+            consumedRegenKeys
+        );
+        return {
+            regenerated: !!result.triggered,
+            regened: result.regened || [],
+            captureFlips: result.captureFlips || [],
+            owner: result.owner || null,
+            remaining: result.remaining
+        };
+    }
+
     return {
         applyRegenWill,
-        applyRegenAfterFlips
+        applyRegenAfterFlips,
+        applyRegenAfterDestroy,
+        findActiveRegenMarkerAt
     };
 }));

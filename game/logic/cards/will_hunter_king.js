@@ -95,8 +95,9 @@
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 if (gameState.board[row][col] !== enemyValue) continue;
-                const target = { row, col };
-                if (hasVisibleNonNormalStoneAt(cardState, row, col)) specialTargets.push(target);
+                const isSpecial = hasVisibleNonNormalStoneAt(cardState, row, col);
+                const target = { row, col, isSpecial };
+                if (isSpecial) specialTargets.push(target);
                 else normalTargets.push(target);
             }
         }
@@ -104,8 +105,9 @@
         const expansionCells = getExpansionCells(gameState);
         for (const cell of expansionCells) {
             if (!cell || cell.owner !== enemyValue) continue;
-            const target = { row: cell.row, col: cell.col };
-            if (hasVisibleNonNormalStoneAt(cardState, cell.row, cell.col)) specialTargets.push(target);
+            const isSpecial = hasVisibleNonNormalStoneAt(cardState, cell.row, cell.col);
+            const target = { row: cell.row, col: cell.col, isSpecial };
+            if (isSpecial) specialTargets.push(target);
             else normalTargets.push(target);
         }
 
@@ -203,7 +205,8 @@
                     row: target.row,
                     col: target.col,
                     sourceRow: row,
-                    sourceCol: col
+                    sourceCol: col,
+                    destroyedSpecial: target.isSpecial === true
                 });
             } else if (destroyResult && destroyResult.proliferated) {
                 result.proliferated.push({

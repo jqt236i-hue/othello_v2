@@ -187,7 +187,7 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     expect(cardState.expansionStoneIdByCell['-1,0']).toBe(spawned.stoneId);
   });
 
-  test('DESTROY_ONE_STONEは拡張マス上の復活石も対象にできる', () => {
+  test('DESTROY_ONE_STONEは拡張マス上の復活石を対象にでき、破壊ではなく復活消費になる', () => {
     const destroyDef = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'DESTROY_ONE_STONE');
     expect(destroyDef).toBeTruthy();
 
@@ -224,9 +224,15 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     const destroyed = CardLogic.applyDestroyEffect(cardState, gameState, 'black', 5, -1);
     expect(destroyed).toBe(true);
     expect(gameState.boardExpansion.cells).toEqual(expect.arrayContaining([
-      expect.objectContaining({ row: 5, col: -1, owner: Core.EMPTY })
+      expect.objectContaining({ row: 5, col: -1, owner: Core.WHITE })
     ]));
-    expect(cardState.markers.some((marker) => marker && marker.row === 5 && marker.col === -1)).toBe(false);
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 5,
+        col: -1,
+        data: expect.objectContaining({ type: 'REGEN', regenRemaining: 2 })
+      })
+    ]));
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 

@@ -28,7 +28,7 @@
 | triple_chain_01 | 三連鎖の意志 | TRIPLE_CHAIN_WILL | 22 | 通常反転後に追加反転2回 + 四連鎖生成 | generated-only（使用後生成で入手） | なし | 一次反転起点から候補が不足すると途中終了 | 追加反転2回 + 使用後に四連鎖の意志が手札追加 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json<br>game/logic/cards.js |
 | quad_chain_01 | 四連鎖の意志 | QUAD_CHAIN_WILL | 22 | 通常反転後に追加反転3回 + 無限連鎖生成 | generated-only（使用後生成で入手） | なし | 一次反転起点から候補が不足すると途中終了 | 追加反転3回 + 使用後に無限連鎖の意志が手札追加 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json<br>game/logic/cards.js |
 | infinite_chain_01 | 無限連鎖の意志 | INFINITE_CHAIN_WILL | 50 | 通常反転後に追加反転を可能な限り継続 | generated-only（使用後生成で入手） | なし | 追加反転できなくなった時点で終了 | 追加反転を可能な限り継続 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json<br>game/logic/cards.js |
-| regen_01 | 復活の意志 | REGEN_WILL | 12 | 1回だけ再生 + 再生起点反転 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 反転されないままなら再生効果未発動 | 1回だけ再生 + 再生起点反転 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:90<br>game/logic/cards.js:2308<br>shared-constants.js:136 |
+| regen_01 | 復活の意志 | REGEN_WILL | 12 | 最大3回の復活 + 再生起点反転 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 反転も破壊も受けないままなら復活効果未発動 | 最大3回の復活 + 再生起点反転 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:90<br>game/logic/cards.js:2308<br>shared-constants.js:136 |
 | destroy_01 | 破壊神 | DESTROY_ONE_STONE | 14 | 任意1石破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + GUARDで守られていない石が1個以上必要 | あり | GUARD保護対象は破壊失敗 | 任意1石破壊 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:97<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | bomb_01 | 時限爆弾 | TIME_BOMB | 13 | 3ターン後に3x3破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 自分石の有効対象が1個以上必要 | あり | 対象不足・既存爆弾重複不可・反転で解除 | 3ターン後に3x3破壊 | 高分散札（優勢時はCPU減点） | 中盤〜終盤劣勢 | cards/catalog.json:104<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | udr_01 | 究極反転龍 | ULTIMATE_REVERSE_DRAGON | 30 | 自由配置で配置時/ターン開始に周囲8反転（5ターン） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | アンカー喪失で終了 | 自由配置で配置時/ターン開始に周囲8反転（5ターン） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:111<br>game/logic/cards.js:2341<br>shared-constants.js:144 |
@@ -311,10 +311,10 @@
   - 01-rulebook.md:586
 
 ### regen_01 / 復活の意志（REGEN_WILL）
-- 効果詳細（処理順含む）: 1回だけ再生 + 再生起点反転
+- 効果詳細（処理順含む）: 最大3回の復活 + 再生起点反転
 - 合理的な使い方
   - 発動条件「手札所持・布石コスト充足・このターン未使用（`applyCardUsage`）」を満たす局面で使う。
-  - 期待リターン「1回だけ再生 + 再生起点反転」を満たす見込みがある手で使う。
+  - 期待リターン「最大3回の復活 + 再生起点反転」を満たす見込みがある手で使う。
   - CPU方針で明示がないため、対象条件を満たす時だけ選択する。
 - 利敵行為になる使い方
   - 失敗条件「反転されないままなら再生効果未発動」に該当する状態で切る。

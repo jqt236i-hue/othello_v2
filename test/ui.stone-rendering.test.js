@@ -152,10 +152,10 @@ describe('UI stone rendering', () => {
       { id: 4, kind: 'specialStone', row: 0, col: 3, owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 12 } },
       { id: 5, kind: 'specialStone', row: 0, col: 4, owner: 'black', data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 6 } },
       { id: 6, kind: 'specialStone', row: 0, col: 5, owner: 'black', data: { type: 'HYPERACTIVE', remainingOwnerTurns: 5, flipEvadeRemaining: 1 } },
-      { id: 7, kind: 'specialStone', row: 0, col: 6, owner: 'black', data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 4, flipEvadeRemaining: 0 } },
+      { id: 7, kind: 'specialStone', row: 0, col: 6, owner: 'black', data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 4, flipEvadeRemaining: 0, destroyEvadeRemaining: 1 } },
       { id: 8, kind: 'specialStone', row: 0, col: 7, owner: 'black', data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 } },
       { id: 9, kind: 'specialStone', row: 1, col: 0, owner: 'black', data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 } },
-      { id: 10, kind: 'specialStone', row: 1, col: 0, owner: 'black', data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 4, flipEvadeRemaining: 1 } },
+      { id: 10, kind: 'specialStone', row: 1, col: 0, owner: 'black', data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 4, flipEvadeRemaining: 1, destroyEvadeRemaining: 1 } },
       { id: 11, kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'PROTECTED', remainingOwnerTurns: 2, flipEvadeRemaining: 0 } },
       { id: 12, kind: 'specialStone', row: 1, col: 2, owner: 'black', data: { type: 'REGEN', regenRemaining: 3 } },
       { id: 13, kind: 'specialStone', row: 1, col: 3, owner: 'black', data: { type: 'PERMA_PROTECTED', strongWillPromotionOwnerTurnStarts: 4, strongWillPromotionThreshold: 10 } }
@@ -177,6 +177,7 @@ describe('UI stone rendering', () => {
     const inheritedDisc = boardEl.querySelector('.cell[data-row="0"][data-col="6"] .disc');
     assert.strictEqual(inheritedDisc.querySelector('.inherited-hyperactive-timer').textContent, '4');
     assert.strictEqual(inheritedDisc.querySelector('.flip-evade-timer').textContent, '0');
+    assert.strictEqual(inheritedDisc.querySelector('.destroy-evade-timer').textContent, '1');
 
     const ultimateDisc = boardEl.querySelector('.cell[data-row="0"][data-col="7"] .disc');
     assert.strictEqual(ultimateDisc.querySelector('.flip-evade-timer').textContent, '3');
@@ -187,6 +188,7 @@ describe('UI stone rendering', () => {
     assert.strictEqual(coexistEvadeTimers.length, 1);
     assert.strictEqual(coexistEvadeTimers[0].textContent, '4');
     assert.strictEqual(coexistDisc.querySelector('.inherited-hyperactive-timer').textContent, '4');
+    assert.strictEqual(coexistDisc.querySelector('.destroy-evade-timer').textContent, '2');
 
     const protectedDisc = boardEl.querySelector('.cell[data-row="1"][data-col="1"] .disc');
     assert.strictEqual(protectedDisc.querySelector('.flip-evade-timer'), null);

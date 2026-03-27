@@ -161,6 +161,27 @@ function _isDestroyEvadeSpecialTypeForBoard(type) {
     return typeUpper === 'WILL_HUNTER_KING' || typeUpper === 'ULTIMATE_HYPERACTIVE' || typeUpper === 'AFTERIMAGE_WILL';
 }
 
+function _resolveDestroyEvadeDisplayForBoard(special, inherited) {
+    const specialTypeUpper = String(special && special.type ? special.type : '').toUpperCase();
+    const specialSupportsDestroyEvade = _isDestroyEvadeSpecialTypeForBoard(specialTypeUpper);
+    const specialEvade = (special && specialSupportsDestroyEvade && Number.isFinite(Number(special.destroyEvadeRemaining)))
+        ? Math.max(0, Math.trunc(Number(special.destroyEvadeRemaining)))
+        : null;
+    const inheritedEvade = (inherited && Number.isFinite(Number(inherited.destroyEvadeRemaining)))
+        ? Math.max(0, Math.trunc(Number(inherited.destroyEvadeRemaining)))
+        : null;
+    if (specialEvade !== null && inheritedEvade !== null) {
+        return {
+            special: specialEvade + inheritedEvade,
+            inherited: null
+        };
+    }
+    return {
+        special: specialEvade,
+        inherited: inheritedEvade
+    };
+}
+
 function _resolveStrongWillDisplayTurnsForBoard(data) {
     if (String(data && data.type ? data.type : '').toUpperCase() !== 'PERMA_PROTECTED') return undefined;
     const rawThreshold = Number(data && data.strongWillPromotionThreshold);
@@ -346,6 +367,9 @@ function renderBoardFull() {
                     remainingOwnerTurns: m.data.remainingOwnerTurns,
                     flipEvadeRemaining: Number.isFinite(Number(m.data.flipEvadeRemaining))
                         ? Math.max(0, Math.trunc(Number(m.data.flipEvadeRemaining)))
+                        : null,
+                    destroyEvadeRemaining: Number.isFinite(Number(m.data.destroyEvadeRemaining))
+                        ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))
                         : null
                 });
                 continue;
@@ -458,6 +482,7 @@ function renderBoardFull() {
                 // Unified special stone visual effect
                 const special = specialMap.get(key);
                 const inheritedData = inheritedMap.get(key);
+                const destroyEvadeDisplay = _resolveDestroyEvadeDisplayForBoard(special, inheritedData);
                 const specialCanShowFlipEvade = !!(
                     special &&
                     _isFlipEvadeSpecialTypeForBoard(special.type) &&
@@ -466,7 +491,7 @@ function renderBoardFull() {
                 const specialCanShowDestroyEvade = !!(
                     special &&
                     _isDestroyEvadeSpecialTypeForBoard(special.type) &&
-                    Number.isFinite(Number(special.destroyEvadeRemaining))
+                    Number.isFinite(Number(destroyEvadeDisplay.special))
                 );
                 const specialFlipEvade = specialCanShowFlipEvade
                     ? Math.max(0, Math.trunc(Number(special.flipEvadeRemaining)))
@@ -474,6 +499,7 @@ function renderBoardFull() {
                 const inheritedFlipEvade = (inheritedData && Number.isFinite(Number(inheritedData.flipEvadeRemaining)))
                     ? Math.max(0, Math.trunc(Number(inheritedData.flipEvadeRemaining)))
                     : null;
+                const inheritedDestroyEvadeForDisplay = destroyEvadeDisplay.inherited;
                 const mergedFlipEvade = (specialFlipEvade !== null && inheritedFlipEvade !== null)
                     ? (specialFlipEvade + inheritedFlipEvade)
                     : null;
@@ -521,7 +547,7 @@ function renderBoardFull() {
                     if (specialCanShowDestroyEvade) {
                         const destroyEvadeTimer = document.createElement('div');
                         destroyEvadeTimer.className = 'stone-timer destroy-evade-timer';
-                        const destroyEvadeRemaining = Math.max(0, Math.trunc(Number(special.destroyEvadeRemaining)));
+                        const destroyEvadeRemaining = Math.max(0, Math.trunc(Number(destroyEvadeDisplay.special)));
                         destroyEvadeTimer.textContent = String(destroyEvadeRemaining);
                         _applyDoubleDigitTimerClassForBoard(destroyEvadeTimer, destroyEvadeRemaining);
                         discHud.appendChild(destroyEvadeTimer);
@@ -569,6 +595,14 @@ function renderBoardFull() {
                     evadeTimer.textContent = String(inheritedEvadeRemaining);
                     _applyDoubleDigitTimerClassForBoard(evadeTimer, inheritedEvadeRemaining);
                     discHud.appendChild(evadeTimer);
+                }
+                if (Number.isFinite(inheritedDestroyEvadeForDisplay) && !specialCanShowDestroyEvade) {
+                    const destroyEvadeTimer = document.createElement('div');
+                    destroyEvadeTimer.className = 'stone-timer destroy-evade-timer';
+                    const inheritedDestroyEvadeRemaining = Math.max(0, Math.trunc(inheritedDestroyEvadeForDisplay));
+                    destroyEvadeTimer.textContent = String(inheritedDestroyEvadeRemaining);
+                    _applyDoubleDigitTimerClassForBoard(destroyEvadeTimer, inheritedDestroyEvadeRemaining);
+                    discHud.appendChild(destroyEvadeTimer);
                 }
                 if (sproutMap.has(key)) {
                     disc.classList.add('breeding-sprout');

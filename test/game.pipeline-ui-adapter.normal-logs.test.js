@@ -21,6 +21,12 @@ describe('pipeline_ui_adapter normal logs', () => {
     expect(out).toEqual(['黒: 破壊神で左上外を破壊']);
   });
 
+  test('formats regenerated destroy_selected as revival log', () => {
+    const events = [{ type: 'destroy_selected', regenerated: true, target: { row: 4, col: 4 } }];
+    const out = Adapter.mapEffectLogsFromPipeline(events, [], 'black');
+    expect(out).toEqual(['黒: 破壊神: E5 は復活した']);
+  });
+
   test('uses shared special stone labels for status tick logs', () => {
     const out = Adapter.mapEffectLogsFromPipeline([], [
       { type: 'STATUS_TICK', row: 1, col: 2, meta: { special: 'TIME_STOP', timer: 4 } }

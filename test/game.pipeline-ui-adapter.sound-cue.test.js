@@ -970,6 +970,25 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(normalCue.phase).toBe(4);
   });
 
+  test('regenerated destroy は generic destroy でも stone_destroy を追加しない', () => {
+    const regeneratedDestroy = [{
+      type: 'destroy',
+      phase: 5,
+      targets: [{
+        r: 3,
+        col: 3,
+        cause: 'DESTROY_ONE_STONE',
+        reason: 'destroy_selected',
+        meta: { regenerated: true, special: 'REGEN' }
+      }]
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(regeneratedDestroy, []);
+    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+
+    expect(stoneCue).toBeUndefined();
+  });
+
   test('持続ターン切れの status_removed は special_reverted を再生し stone_destroy を追加しない', () => {
     const base = [{
       type: 'status_removed',
@@ -1075,6 +1094,21 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCues).toEqual([3, 4]);
   });
 
+  test('SNIPER_WILL の regen復活対象には stone_destroy を再生しない', () => {
+    const base = [
+      {
+        type: 'destroy',
+        phase: 3,
+        targets: [{ r: 1, col: 1, cause: 'SNIPER_WILL', reason: 'sniper_shot', meta: { regenerated: true, special: 'REGEN' } }]
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+
+    expect(stoneCue).toBeUndefined();
+  });
+
   test('LIGHTNING_WILL の lightning_destroyed が複数ある場合は命中数ぶん stone_destroy を再生する', () => {
     const base = [
       {
@@ -1094,6 +1128,23 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
       .sort((a, b) => a - b);
 
     expect(stoneCues).toEqual([10, 10]);
+  });
+
+  test('LIGHTNING_WILL の regen復活対象には stone_destroy を再生しない', () => {
+    const base = [
+      {
+        type: 'destroy',
+        phase: 10,
+        targets: [
+          { r: 1, col: 1, cause: 'LIGHTNING_WILL', reason: 'lightning_destroyed', meta: { regenerated: true, special: 'REGEN' } }
+        ]
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+
+    expect(stoneCue).toBeUndefined();
   });
 
   test('LIGHTNING_WILL の status_removed は special_reverted を再生し stone_destroy を追加しない', () => {

@@ -21,7 +21,7 @@ describe('animation-engine inherited hyperactive timer rendering', () => {
     delete global.document;
   });
 
-  test('INHERITED_HYPERACTIVE は見た目を上書きせず、継承タイマーのみ表示する', () => {
+  test('INHERITED_HYPERACTIVE は見た目を上書きせず、継承タイマーと回避カウントを表示する', () => {
     const engine = require('../ui/animation-engine');
     const disc = document.createElement('div');
     disc.className = 'disc black';
@@ -33,16 +33,20 @@ describe('animation-engine inherited hyperactive timer rendering', () => {
       inheritedTimer: 4,
       owner: 'black',
       flipEvadeRemaining: 1,
-      inheritedFlipEvadeRemaining: 1
+      inheritedFlipEvadeRemaining: 1,
+      destroyEvadeRemaining: 1
     });
 
     const timer = disc.querySelector('.inherited-hyperactive-timer');
     const evadeTimer = disc.querySelector('.flip-evade-timer');
+    const destroyEvadeTimer = disc.querySelector('.destroy-evade-timer');
     expect(timer).not.toBeNull();
     expect(timer.textContent).toBe('4');
     expect(timer.classList.contains('special-timer')).toBe(true);
     expect(evadeTimer).not.toBeNull();
     expect(evadeTimer.textContent).toBe('1');
+    expect(destroyEvadeTimer).not.toBeNull();
+    expect(destroyEvadeTimer.textContent).toBe('1');
     expect(disc.querySelector('.guard-timer')).toBeNull();
     expect(applyStoneVisualEffectMock).not.toHaveBeenCalled();
   });

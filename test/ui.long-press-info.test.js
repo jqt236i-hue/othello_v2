@@ -370,7 +370,7 @@ describe('board cell long press info', () => {
         row: 3,
         col: 3,
         owner: 'black',
-        data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 1 }
+        data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 1, destroyEvadeRemaining: 1 }
       }
     ];
 
@@ -382,6 +382,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).toContain('反転保護');
     expect(document.getElementById('stone-info-meta').textContent).toContain('多動状態');
     expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避');
   });
 
   test('long press on INHERITED_HYPERACTIVE shows registered inherited hyperactive info', () => {
@@ -390,7 +391,7 @@ describe('board cell long press info', () => {
       row: 2,
       col: 2,
       owner: 'black',
-      data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 1 }
+      data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 1, destroyEvadeRemaining: 1 }
     });
 
     const mod = require('../ui/diff-renderer.js');
@@ -403,9 +404,11 @@ describe('board cell long press info', () => {
 
     expect(document.getElementById('stone-info-name').textContent).toBe('継承多動石');
     expect(document.getElementById('stone-info-desc').textContent).toContain('周囲の空きへ1マス移動');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('破壊対象時も1回だけ空きマスへ移動して回避');
     expect(document.getElementById('stone-info-desc').textContent).toContain('10ターン持続');
     expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避');
   });
 
   test('long press on GLUTTONOUS shows registered info with flip protection and special-stone badge', () => {

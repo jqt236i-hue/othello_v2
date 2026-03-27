@@ -67,10 +67,10 @@
                 aria-selected="true" aria-controls="rules-help-page-catalog" data-help-tab="catalog">カード図鑑</button>
             <button id="rules-help-tab-effects" class="rules-help-tab" type="button" role="tab"
                 aria-selected="false" aria-controls="rules-help-page-effects" data-help-tab="effects">効果一覧</button>
-            <button id="rules-help-tab-rules" class="rules-help-tab" type="button" role="tab"
-                aria-selected="false" aria-controls="rules-help-page-rules" data-help-tab="rules">ルール説明</button>
-            <button id="rules-help-tab-controls" class="rules-help-tab" type="button" role="tab"
-                aria-selected="false" aria-controls="rules-help-page-controls" data-help-tab="controls">操作方法</button>
+            <button id="rules-help-tab-guide" class="rules-help-tab" type="button" role="tab"
+                aria-selected="false" aria-controls="rules-help-page-guide" data-help-tab="guide">ルールと操作</button>
+            <button id="rules-help-tab-counters" class="rules-help-tab" type="button" role="tab"
+                aria-selected="false" aria-controls="rules-help-page-counters" data-help-tab="counters">数字UI</button>
             <button id="rules-help-tab-updates" class="rules-help-tab" type="button" role="tab"
                 aria-selected="false" aria-controls="rules-help-page-updates" data-help-tab="updates">アップデート情報</button>
         </div>
@@ -145,28 +145,210 @@
                     </div>
                 </dl>
             </section>
-            <section id="rules-help-page-rules" class="rules-help-page" data-help-page="rules" aria-hidden="true">
-                <ul id="rules-help-rules-list">
-                    <li>このゲームは、通常のオセロにカード効果を加えた対戦です。</li>
-                    <li>自分の手番開始時に1枚ドローし、必要ならカードを1枚使ってから石を置きます。</li>
-                    <li>石を反転させると布石を得られ、数字マスに置いたときも追加で布石を獲得します。</li>
-                    <li>10ラウンドごとに、ラウンド開始時の両者へ同時にラウンド数の半分の布石が入ります。</li>
-                    <li>カードは布石を消費して使います。手札上限は5枚です。</li>
-                    <li>置ける場所がないときは、カードを使うかパスを選びます。</li>
-                    <li>盤面が埋まるか、両者が連続でパスすると終局です。</li>
-                    <li>最終的に石の数が多い側が勝利です。</li>
-                </ul>
+            <section id="rules-help-page-guide" class="rules-help-page" data-help-page="guide" aria-hidden="true">
+                <div id="rules-help-guide-layout">
+                    <section class="rules-help-guide-section" aria-labelledby="rules-help-guide-rules-title">
+                        <div id="rules-help-guide-rules-title" class="rules-help-guide-title">ルール</div>
+                        <ul id="rules-help-rules-list">
+                            <li>このゲームは、通常のオセロにカード効果を加えた対戦です。</li>
+                            <li>自分の手番開始時に1枚ドローし、必要ならカードを1枚使ってから石を置きます。</li>
+                            <li>石を反転させると布石を得られ、数字マスに置いたときも追加で布石を獲得します。</li>
+                            <li>10ラウンドごとに、ラウンド開始時の両者へ同時にラウンド数の半分の布石が入ります。</li>
+                            <li>カードは布石を消費して使います。手札上限は5枚です。</li>
+                            <li>置ける場所がないときは、カードを使うかパスを選びます。</li>
+                            <li>盤面が埋まるか、両者が連続でパスすると終局です。</li>
+                            <li>最終的に石の数が多い側が勝利です。</li>
+                        </ul>
+                    </section>
+                    <section class="rules-help-guide-section" aria-labelledby="rules-help-guide-controls-title">
+                        <div id="rules-help-guide-controls-title" class="rules-help-guide-title">操作</div>
+                        <ol id="rules-help-controls-list">
+                            <li>手札からカードを押すと、右のカード詳細で効果を確認できます。</li>
+                            <li>カードを使うときは「使用」、不要なカードを捨てるときは「破壊」を押します。</li>
+                            <li>盤面の緑マーカーが置ける場所です。マスを押すと石を置きます。</li>
+                            <li>置ける場所がないときは「パス」を押して手番を渡せます。</li>
+                            <li>右下パネルで「CPU / ネット対戦」、音量、BGMを調整できます。</li>
+                            <li>石や特殊石を長押しすると、その石の効果を確認できます。</li>
+                        </ol>
+                    </section>
+                </div>
             </section>
-            <section id="rules-help-page-controls" class="rules-help-page" data-help-page="controls"
+            <section id="rules-help-page-counters" class="rules-help-page" data-help-page="counters"
                 aria-hidden="true">
-                <ol id="rules-help-controls-list">
-                    <li>手札からカードを押すと、右のカード詳細で効果を確認できます。</li>
-                    <li>カードを使うときは「使用」、不要なカードを捨てるときは「破壊」を押します。</li>
-                    <li>盤面の緑マーカーが置ける場所です。マスを押すと石を置きます。</li>
-                    <li>置ける場所がないときは「パス」を押して手番を渡せます。</li>
-                    <li>右下パネルで「CPU / ネット対戦」、音量、BGMを調整できます。</li>
-                    <li>石や特殊石を長押しすると、その石の効果を確認できます。</li>
-                </ol>
+                <div id="rules-help-counters-layout">
+                    <section class="rules-help-counter-summary" aria-labelledby="rules-help-counters-title">
+                        <div class="rules-help-counter-summary-copy">
+                            <div id="rules-help-counters-title" class="rules-help-counter-summary-title">石の上の数字の見方
+                            </div>
+                            <div class="rules-help-counter-summary-text">
+                                石の上に出る数字は、位置と形で意味が変わります。下中央の数字は石本体やカウントダウン系、
+                                左右の小さい数字は回避回数系と覚えると見分けやすいです。
+                            </div>
+                            <div class="rules-help-counter-summary-note">
+                                色や輪郭が少し違っても、同じ位置に出る数字はほぼ同じ意味です。長押しすると石の詳しい効果も見られます。
+                            </div>
+                        </div>
+                        <div class="rules-help-counter-demo" aria-hidden="true">
+                            <div class="disc black" data-image-state="loaded"
+                                style="--stone-image: var(--normal-stone-black-image);">
+                                <div class="disc__face">
+                                    <div class="disc__base-image"></div>
+                                    <div class="disc__overlay-image"></div>
+                                </div>
+                                <div class="disc__hud">
+                                    <div class="countdown-timer">5</div>
+                                    <div class="stone-timer flip-evade-timer">3</div>
+                                    <div class="stone-timer destroy-evade-timer">1</div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <div id="rules-help-counters-list">
+                        <div class="rules-help-counter-row rules-help-counter-row-header" aria-hidden="true">
+                            <div class="rules-help-counter-cell">見本</div>
+                            <div class="rules-help-counter-cell">意味</div>
+                            <div class="rules-help-counter-cell">読み方</div>
+                        </div>
+                        <div class="rules-help-counter-row">
+                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
+                                <div class="rules-help-counter-demo" aria-hidden="true">
+                                    <div class="disc black" data-image-state="loaded"
+                                        style="--stone-image: var(--normal-stone-black-image);">
+                                        <div class="disc__face">
+                                            <div class="disc__base-image"></div>
+                                            <div class="disc__overlay-image"></div>
+                                        </div>
+                                        <div class="disc__hud">
+                                            <div class="guard-timer">3</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rules-help-counter-cell">
+                                <div class="rules-help-counter-label">上側の青い数字</div>
+                                <div class="rules-help-counter-meaning">完全保護の残りターン</div>
+                            </div>
+                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
+                                守る石など、上から掛かっている保護が切れるまでの残りターンです。
+                            </div>
+                        </div>
+                        <div class="rules-help-counter-row">
+                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
+                                <div class="rules-help-counter-demo" aria-hidden="true">
+                                    <div class="disc black" data-image-state="loaded"
+                                        style="--stone-image: var(--normal-stone-black-image);">
+                                        <div class="disc__face">
+                                            <div class="disc__base-image"></div>
+                                            <div class="disc__overlay-image"></div>
+                                        </div>
+                                        <div class="disc__hud">
+                                            <div class="special-timer">5</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rules-help-counter-cell">
+                                <div class="rules-help-counter-label">下中央の丸い数字</div>
+                                <div class="rules-help-counter-meaning">特殊石本体の持続ターン</div>
+                            </div>
+                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
+                                一般的な特殊石の残りターンです。龍・繁殖・労働石などでも、本体側の持続表示として読みます。
+                            </div>
+                        </div>
+                        <div class="rules-help-counter-row">
+                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
+                                <div class="rules-help-counter-demo" aria-hidden="true">
+                                    <div class="disc black" data-image-state="loaded"
+                                        style="--stone-image: var(--normal-stone-black-image);">
+                                        <div class="disc__face">
+                                            <div class="disc__base-image"></div>
+                                            <div class="disc__overlay-image"></div>
+                                        </div>
+                                        <div class="disc__hud">
+                                            <div class="countdown-timer">4</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rules-help-counter-cell">
+                                <div class="rules-help-counter-label">下中央のひし形数字</div>
+                                <div class="rules-help-counter-meaning">カウントダウン専用の残り回数</div>
+                            </div>
+                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
+                                時限爆弾の起爆まで、時間停石の発動まで、強い石の昇格までなどに使われます。
+                            </div>
+                        </div>
+                        <div class="rules-help-counter-row">
+                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
+                                <div class="rules-help-counter-demo" aria-hidden="true">
+                                    <div class="disc black" data-image-state="loaded"
+                                        style="--stone-image: var(--normal-stone-black-image);">
+                                        <div class="disc__face">
+                                            <div class="disc__base-image"></div>
+                                            <div class="disc__overlay-image"></div>
+                                        </div>
+                                        <div class="disc__hud">
+                                            <div class="stone-timer special-timer inherited-hyperactive-timer">9</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rules-help-counter-cell">
+                                <div class="rules-help-counter-label">左側の縦寄り数字</div>
+                                <div class="rules-help-counter-meaning">継承多動の残りターン</div>
+                            </div>
+                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
+                                継承多動が重なっている時だけ出る専用表示です。
+                            </div>
+                        </div>
+                        <div class="rules-help-counter-row">
+                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
+                                <div class="rules-help-counter-demo" aria-hidden="true">
+                                    <div class="disc black" data-image-state="loaded"
+                                        style="--stone-image: var(--normal-stone-black-image);">
+                                        <div class="disc__face">
+                                            <div class="disc__base-image"></div>
+                                            <div class="disc__overlay-image"></div>
+                                        </div>
+                                        <div class="disc__hud">
+                                            <div class="stone-timer flip-evade-timer">2</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rules-help-counter-cell">
+                                <div class="rules-help-counter-label">右側の縦寄り数字</div>
+                                <div class="rules-help-counter-meaning">反転回避の残り回数</div>
+                            </div>
+                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
+                                反転をあと何回まで避けられるかを表します。
+                            </div>
+                        </div>
+                        <div class="rules-help-counter-row">
+                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
+                                <div class="rules-help-counter-demo" aria-hidden="true">
+                                    <div class="disc black" data-image-state="loaded"
+                                        style="--stone-image: var(--normal-stone-black-image);">
+                                        <div class="disc__face">
+                                            <div class="disc__base-image"></div>
+                                            <div class="disc__overlay-image"></div>
+                                        </div>
+                                        <div class="disc__hud">
+                                            <div class="stone-timer destroy-evade-timer">1</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rules-help-counter-cell">
+                                <div class="rules-help-counter-label">左下の小さい数字</div>
+                                <div class="rules-help-counter-meaning">破壊回避の残り回数</div>
+                            </div>
+                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
+                                破壊をあと何回まで避けられるかを表します。
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </section>
             <section id="rules-help-page-updates" class="rules-help-page" data-help-page="updates"
                 aria-hidden="true">

@@ -257,7 +257,7 @@
         if (DestroyOutcomeContract && typeof DestroyOutcomeContract.isDestroyOutcomeResolved === 'function') {
             return DestroyOutcomeContract.isDestroyOutcomeResolved(result);
         }
-        return !!(result && (result.destroyed || result.evaded || result.blockedByGhost || result.proliferated));
+        return !!(result && (result.destroyed || result.regenerated || result.evaded || result.blockedByGhost || result.proliferated));
     }
 
     function createDestroyOutcome(kindOrResult, details) {
@@ -269,6 +269,7 @@
             : Object.assign({}, (kindOrResult && typeof kindOrResult === 'object') ? kindOrResult : {});
         return Object.assign({
             destroyed: false,
+            regenerated: false,
             evaded: false,
             blockedByGhost: false,
             proliferated: false
@@ -851,21 +852,30 @@
         };
     }
 
-    function collectEqualityWillSpawnablePositions(cardState, gameState) {
+    function collectRandomBoardSpawnablePositions(cardState, gameState) {
         return getEmptyBoardShapeCellsForCard(cardState, gameState)
             .filter((cell) => !isBlockedCell(cardState, cell.row, cell.col, gameState));
     }
 
-    function resolveEqualityWillUsage(cardState, gameState, playerKey, prng) {
+    function resolveRandomBoardSpawnEffectUsage(cardState, gameState, playerKey, requestedCount, prng, cause, reason) {
+        const normalizedRequestedCount = Number.isFinite(Number(requestedCount))
+            ? Math.max(0, Math.trunc(Number(requestedCount)))
+            : 0;
         const targets = sampleRandomPositions(
-            collectEqualityWillSpawnablePositions(cardState, gameState),
-            EQUALITY_WILL_MAX_SPAWNS,
+            collectRandomBoardSpawnablePositions(cardState, gameState),
+            normalizedRequestedCount,
             prng
         );
         const spawned = [];
 
         for (const target of targets) {
             if (!target) continue;
+            const spawnIndex = spawned.length + 1;
+            const spawnMeta = {
+                owner: playerKey,
+                requestedCount: normalizedRequestedCount,
+                spawnIndex
+            };
             let spawnRes = null;
             if (BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function') {
                 spawnRes = BoardOpsModule.spawnAt(
@@ -874,13 +884,9 @@
                     target.row,
                     target.col,
                     playerKey,
-                    'EQUALITY_WILL',
-                    'equality_will_spawn',
-                    {
-                        owner: playerKey,
-                        requestedCount: EQUALITY_WILL_MAX_SPAWNS,
-                        spawnIndex: spawned.length + 1
-                    }
+                    cause,
+                    reason,
+                    spawnMeta
                 );
             } else {
                 const ownerValue = playerKey === 'white' ? WHITE : BLACK;
@@ -894,13 +900,9 @@
                         row: target.row,
                         col: target.col,
                         ownerAfter: playerKey,
-                        cause: 'EQUALITY_WILL',
-                        reason: 'equality_will_spawn',
-                        meta: {
-                            owner: playerKey,
-                            requestedCount: EQUALITY_WILL_MAX_SPAWNS,
-                            spawnIndex: spawned.length + 1
-                        }
+                        cause,
+                        reason,
+                        meta: spawnMeta
                     });
                     spawnRes = { spawned: true, stoneId };
                 }
@@ -915,10 +917,22 @@
 
         return {
             applied: true,
-            requestedCount: EQUALITY_WILL_MAX_SPAWNS,
+            requestedCount: normalizedRequestedCount,
             spawnedCount: spawned.length,
             spawned
         };
+    }
+
+    function resolveEqualityWillUsage(cardState, gameState, playerKey, prng) {
+        return resolveRandomBoardSpawnEffectUsage(
+            cardState,
+            gameState,
+            playerKey,
+            EQUALITY_WILL_MAX_SPAWNS,
+            prng,
+            'EQUALITY_WILL',
+            'equality_will_spawn'
+        );
     }
 
     function processRiboWillTurnStartEffects(cardState, gameState, playerKey, prng) {
@@ -3631,6 +3645,7 @@
             type: 'INHERITED_HYPERACTIVE',
             remainingOwnerTurns: INHERITED_HYPERACTIVE_TURNS,
             flipEvadeRemaining: 1,
+            destroyEvadeRemaining: 1,
             hyperactiveSeq: cardState.hyperactiveSeqCounter
         });
 
@@ -4390,56 +4405,21 @@
             cardState.pendingEffectByPlayer[playerKey] = null;
             return { applied: false, reason: 'no_tracked_stones', spawned: [], requestedCount: 0, spawnedCount: 0 };
         }
-        const emptyCells = getEmptyBoardShapeCellsForCard(cardState, gameState)
-            .filter((cell) => !isBlockedCell(cardState, cell.row, cell.col, gameState));
         const requestedCount = tracked.length;
-        const targets = sampleRandomPositions(emptyCells, requestedCount, prng);
-        const spawned = [];
-        for (const target of targets) {
-            if (!target) continue;
-            let spawnRes = null;
-            if (BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function') {
-                spawnRes = BoardOpsModule.spawnAt(
-                    cardState,
-                    gameState,
-                    target.row,
-                    target.col,
-                    playerKey,
-                    'SALVATION_WILL',
-                    'salvation_spawn',
-                    {
-                        owner: playerKey,
-                        requestedCount,
-                        spawnIndex: spawned.length + 1
-                    }
-                );
-            } else {
-                const ownerValue = playerKey === 'white' ? WHITE : BLACK;
-                const wroteCell = setCellValueForCard(gameState, target.row, target.col, ownerValue);
-                if (wroteCell) {
-                    const stoneId = allocateStoneId(cardState);
-                    setStoneIdAtForCard(cardState, gameState, target.row, target.col, stoneId);
-                    emitPresentationEvent(cardState, {
-                        type: 'SPAWN',
-                        stoneId,
-                        row: target.row,
-                        col: target.col,
-                        ownerAfter: playerKey,
-                        cause: 'SALVATION_WILL',
-                        reason: 'salvation_spawn',
-                        meta: { owner: playerKey, requestedCount, spawnIndex: spawned.length + 1 }
-                    });
-                    spawnRes = { spawned: true, stoneId };
-                }
-            }
-            if (!(spawnRes && spawnRes.spawned)) continue;
-            spawned.push({ row: target.row, col: target.col, stoneId: spawnRes.stoneId || null });
-        }
+        const result = resolveRandomBoardSpawnEffectUsage(
+            cardState,
+            gameState,
+            playerKey,
+            requestedCount,
+            prng,
+            'SALVATION_WILL',
+            'salvation_spawn'
+        );
         if (cardState.prevOpponentTurnDestroyedNormalByPlayer) {
             cardState.prevOpponentTurnDestroyedNormalByPlayer[playerKey] = [];
         }
         cardState.pendingEffectByPlayer[playerKey] = null;
-        return { applied: true, spawned, requestedCount, spawnedCount: spawned.length };
+        return result;
     }
 
     function getStrongWindTargets(cardState, gameState) {

@@ -362,8 +362,7 @@ describe('result overlay seat perspective', () => {
     expect(global.resetGame).not.toHaveBeenCalled();
   });
 
-  test('ネット対戦でも未接続時は従来どおり resetGame を呼ぶ', () => {
-    window.MATCH_MODE = 'network';
+  test('ネット対戦でも未接続時は従来どおり resetGame を呼ぶ', () => {    window.MATCH_MODE = 'network';
     const requestRematch = jest.fn(() => Promise.resolve({ ok: true }));
     window.NetworkMatchClient = {
       getSeatKey: () => 'black',
@@ -384,4 +383,94 @@ describe('result overlay seat perspective', () => {
     expect(global.resetGame).toHaveBeenCalledTimes(1);
   });
 
+});
+
+// ---------------------------------------------------------------------------
+// __resultToken race: delayed overlay suppressed when snapshot replaces gameState
+// ---------------------------------------------------------------------------
+describe('showResult __resultToken race condition', () => {
+  let dom;
+
+  beforeEach(() => {
+    jest.resetModules();
+    dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' });
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.localStorage = dom.window.localStorage;
+
+    global.gameState = { currentPlayer: -1, __resultShown: false };
+    global.cardState = {
+      chargeGainedTotal: { black: 0, white: 0 },
+      cardUseCountByPlayer: { black: 0, white: 0 },
+      totalFlipCountByPlayer: { black: 0, white: 0 },
+      cornerCaptureCountByPlayer: { black: 0, white: 0 },
+      turnCountByPlayer: { black: 20, white: 19 },
+      turnIndex: 39
+    };
+    global.cpuSmartness = { black: 1, white: 1 };
+    global.countDiscs = jest.fn(() => ({ black: 35, white: 29 }));
+    global.resetGame = jest.fn();
+    global.addLog = jest.fn();
+    window.MATCH_MODE = 'cpu';
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    try {
+      if (dom && dom.window && typeof dom.window.close === 'function') dom.window.close();
+    } catch (e) {}
+    delete global.window;
+    delete global.document;
+    delete global.localStorage;
+    delete global.gameState;
+    delete global.cardState;
+    delete global.cpuSmartness;
+    delete global.countDiscs;
+    delete global.resetGame;
+    delete global.addLog;
+  });
+
+  // After the fix, gameState.__resultToken being cleared by a snapshot no longer
+  // suppresses the overlay, because the guard now uses a module-level token.
+  // This test verifies that __resultToken is still written to gameState (for external
+  // readers), and that the overlay IS shown even when it is subsequently deleted.
+  test('__resultToken が消えても遅延オーバーレイ表示はガードで止まらない（修正後の動作）', () => {
+    jest.useFakeTimers();
+    const mod = require('../ui/result-overlay.js');
+
+    mod.showResult();
+
+    expect(typeof global.gameState.__resultToken).toBe('number');
+
+    // Simulate what replaceObjectState does in snapshot.js: clears all keys not in next snapshot
+    const tokenBeforeReplacement = global.gameState.__resultToken;
+    delete global.gameState.__resultToken; // token cleared by follow-up snapshot
+
+    jest.advanceTimersByTime(2500);
+
+    // Fixed behavior: module-level token guard allows overlay to appear
+    expect(document.getElementById('result-overlay')).not.toBeNull();
+    expect(tokenBeforeReplacement).toBeGreaterThan(0); // confirms token was set
+  });
+
+  // Regression coverage for the original race bug:
+  // when a follow-up snapshot clears __resultToken during the 2-second delay,
+  // the result overlay must still appear while the game remains terminal.
+  test('__resultToken が消えても終局なら結果オーバーレイを表示すべき（レースバグ）', () => {
+    jest.useFakeTimers();
+    const mod = require('../ui/result-overlay.js');
+
+    mod.showResult();
+
+    // Simulate follow-up snapshot replacing gameState without __resultToken
+    delete global.gameState.__resultToken;
+    // Game is still terminal (currentPlayer remains -1)
+    expect(global.gameState.currentPlayer).toBe(-1);
+
+    jest.advanceTimersByTime(2500);
+
+    // Fixed behavior: overlay still appears because delayed presentation no longer
+    // depends on the transient gameState.__resultToken field surviving snapshot replacement.
+    expect(document.getElementById('result-overlay')).not.toBeNull();
+  });
 });

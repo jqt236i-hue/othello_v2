@@ -76,6 +76,7 @@
     })();
     const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS) || Object.freeze({
         DESTROYED: 'destroyed',
+        REGENERATED: 'regenerated',
         GHOST_BLOCKED: 'ghost_blocked',
         PROLIFERATED: 'proliferated',
         EVADED_MOVE: 'evaded_move'
@@ -89,7 +90,8 @@
             ? Object.assign({}, (details && typeof details === 'object') ? details : {}, { kind: kindOrResult })
             : Object.assign({}, (kindOrResult && typeof kindOrResult === 'object') ? kindOrResult : {});
         const kind = (source && source.kind) || (
-            source && source.proliferated ? DESTROY_OUTCOME_KINDS.PROLIFERATED
+            source && source.regenerated ? DESTROY_OUTCOME_KINDS.REGENERATED
+                : source && source.proliferated ? DESTROY_OUTCOME_KINDS.PROLIFERATED
                 : source && source.blockedByGhost ? DESTROY_OUTCOME_KINDS.GHOST_BLOCKED
                     : source && source.evaded ? DESTROY_OUTCOME_KINDS.EVADED_MOVE
                         : source && source.destroyed ? DESTROY_OUTCOME_KINDS.DESTROYED
@@ -97,6 +99,7 @@
         );
         const outcome = Object.assign({}, source, {
             destroyed: kind === DESTROY_OUTCOME_KINDS.DESTROYED || source.destroyed === true,
+            regenerated: kind === DESTROY_OUTCOME_KINDS.REGENERATED || source.regenerated === true,
             evaded: kind === DESTROY_OUTCOME_KINDS.EVADED_MOVE || source.evaded === true,
             blockedByGhost: kind === DESTROY_OUTCOME_KINDS.GHOST_BLOCKED || source.blockedByGhost === true,
             proliferated: kind === DESTROY_OUTCOME_KINDS.PROLIFERATED || source.proliferated === true
@@ -111,7 +114,7 @@
         if (DestroyOutcomeContract && typeof DestroyOutcomeContract.isDestroyOutcomeResolved === 'function') {
             return DestroyOutcomeContract.isDestroyOutcomeResolved(result);
         }
-        return !!(result && (result.destroyed || result.evaded || result.blockedByGhost || result.proliferated));
+        return !!(result && (result.destroyed || result.regenerated || result.evaded || result.blockedByGhost || result.proliferated));
     }
     const CHARGE_MAX = Number.isFinite(Number(SharedConstantsModule && SharedConstantsModule.CHARGE_MAX))
         ? Number(SharedConstantsModule.CHARGE_MAX)
@@ -144,24 +147,70 @@
         return globalScope.TurnPipelinePhaseHelpers || null;
     })();
 
+    const FALLBACK_OBSERVER_BUBBLE_SPEECH = Object.freeze({
+        placeLines: Object.freeze(['観測最高！']),
+        lostLine: '観測失敗'
+    });
+    const FALLBACK_WORK_BUBBLE_SPEECH = Object.freeze({
+        placeLines: Object.freeze(['ここで稼ぐ！']),
+        lostLine: 'あああああああああああああ'
+    });
+
+    function getLegacySpecialStoneBubbleSpeech(type) {
+        const key = String(type || '').trim().toUpperCase();
+        if (key === 'OBSERVER') {
+            return {
+                placeLines: (
+                    PhaseHelpersModule &&
+                    Array.isArray(PhaseHelpersModule.OBSERVER_PLACE_LINES) &&
+                    PhaseHelpersModule.OBSERVER_PLACE_LINES.length > 0
+                ) ? PhaseHelpersModule.OBSERVER_PLACE_LINES : FALLBACK_OBSERVER_BUBBLE_SPEECH.placeLines,
+                lostLine: (
+                    PhaseHelpersModule &&
+                    typeof PhaseHelpersModule.OBSERVER_LOST_LINE === 'string'
+                ) ? PhaseHelpersModule.OBSERVER_LOST_LINE : FALLBACK_OBSERVER_BUBBLE_SPEECH.lostLine
+            };
+        }
+        if (key === 'WORK') {
+            return {
+                placeLines: (
+                    PhaseHelpersModule &&
+                    Array.isArray(PhaseHelpersModule.WORK_PLACE_LINES) &&
+                    PhaseHelpersModule.WORK_PLACE_LINES.length > 0
+                ) ? PhaseHelpersModule.WORK_PLACE_LINES : FALLBACK_WORK_BUBBLE_SPEECH.placeLines,
+                lostLine: (
+                    PhaseHelpersModule &&
+                    typeof PhaseHelpersModule.WORK_LOST_LINE === 'string'
+                ) ? PhaseHelpersModule.WORK_LOST_LINE : FALLBACK_WORK_BUBBLE_SPEECH.lostLine
+            };
+        }
+        return null;
+    }
+
+    const getSpecialStoneBubbleSpeech = (
+        PhaseHelpersModule &&
+        typeof PhaseHelpersModule.getSpecialStoneBubbleSpeech === 'function'
+    ) ? PhaseHelpersModule.getSpecialStoneBubbleSpeech : getLegacySpecialStoneBubbleSpeech;
+    const observerBubbleSpeech = getSpecialStoneBubbleSpeech('OBSERVER') || getLegacySpecialStoneBubbleSpeech('OBSERVER');
+    const workBubbleSpeech = getSpecialStoneBubbleSpeech('WORK') || getLegacySpecialStoneBubbleSpeech('WORK');
     const OBSERVER_PLACE_LINES = (
-        PhaseHelpersModule &&
-        Array.isArray(PhaseHelpersModule.OBSERVER_PLACE_LINES) &&
-        PhaseHelpersModule.OBSERVER_PLACE_LINES.length > 0
-    ) ? PhaseHelpersModule.OBSERVER_PLACE_LINES : Object.freeze(['観測最高！']);
+        observerBubbleSpeech &&
+        Array.isArray(observerBubbleSpeech.placeLines) &&
+        observerBubbleSpeech.placeLines.length > 0
+    ) ? observerBubbleSpeech.placeLines : FALLBACK_OBSERVER_BUBBLE_SPEECH.placeLines;
     const OBSERVER_LOST_LINE = (
-        PhaseHelpersModule &&
-        typeof PhaseHelpersModule.OBSERVER_LOST_LINE === 'string'
-    ) ? PhaseHelpersModule.OBSERVER_LOST_LINE : '観測失敗';
+        observerBubbleSpeech &&
+        typeof observerBubbleSpeech.lostLine === 'string'
+    ) ? observerBubbleSpeech.lostLine : FALLBACK_OBSERVER_BUBBLE_SPEECH.lostLine;
     const WORK_PLACE_LINES = (
-        PhaseHelpersModule &&
-        Array.isArray(PhaseHelpersModule.WORK_PLACE_LINES) &&
-        PhaseHelpersModule.WORK_PLACE_LINES.length > 0
-    ) ? PhaseHelpersModule.WORK_PLACE_LINES : Object.freeze(['ここで稼ぐ！']);
+        workBubbleSpeech &&
+        Array.isArray(workBubbleSpeech.placeLines) &&
+        workBubbleSpeech.placeLines.length > 0
+    ) ? workBubbleSpeech.placeLines : FALLBACK_WORK_BUBBLE_SPEECH.placeLines;
     const WORK_LOST_LINE = (
-        PhaseHelpersModule &&
-        typeof PhaseHelpersModule.WORK_LOST_LINE === 'string'
-    ) ? PhaseHelpersModule.WORK_LOST_LINE : 'あああああああああああああ';
+        workBubbleSpeech &&
+        typeof workBubbleSpeech.lostLine === 'string'
+    ) ? workBubbleSpeech.lostLine : FALLBACK_WORK_BUBBLE_SPEECH.lostLine;
     const OBSERVER_CARD_ONE_LINERS = (
         PhaseHelpersModule &&
         PhaseHelpersModule.OBSERVER_CARD_ONE_LINERS &&
@@ -239,23 +288,30 @@
             return lines[Math.max(0, Math.min(lines.length - 1, index))] || null;
         };
 
-    function emitObserverBubblePresentation(CardLogic, cardState, payload) {
+    function emitSpeechBubblePresentation(CardLogic, cardState, payload, buildEvent) {
         if (!CardLogic || typeof CardLogic.emitPresentationEvent !== 'function') return;
+        if (typeof buildEvent !== 'function') return;
         const data = payload || {};
         const row = Number(data.row);
         const col = Number(data.col);
         if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-
-        const ev = {
-            type: 'OBSERVER_BUBBLE',
-            player: data.player || null,
-            row,
-            col,
-            gained: Number(data.gained) || 0,
-            text: data.text || null,
-            meta: { owner: data.player || null, reason: data.reason || null }
-        };
+        const ev = buildEvent(data, row, col);
+        if (!ev) return;
         CardLogic.emitPresentationEvent(cardState, ev);
+    }
+
+    function emitObserverBubblePresentation(CardLogic, cardState, payload) {
+        emitSpeechBubblePresentation(CardLogic, cardState, payload, function buildObserverBubbleEvent(data, row, col) {
+            return {
+                type: 'OBSERVER_BUBBLE',
+                player: data.player || null,
+                row,
+                col,
+                gained: Number(data.gained) || 0,
+                text: data.text || null,
+                meta: { owner: data.player || null, reason: data.reason || null }
+            };
+        });
     }
 
     const resolveWorkIncomeLine = (
@@ -268,35 +324,232 @@
         };
 
     function emitWorkBubblePresentation(CardLogic, cardState, payload) {
-        if (!CardLogic || typeof CardLogic.emitPresentationEvent !== 'function') return;
-        const data = payload || {};
+        emitSpeechBubblePresentation(CardLogic, cardState, payload, function buildWorkBubbleEvent(data, row, col) {
+            const gained = Number(data.gained) || 0;
+            const incomeStep = Number.isFinite(Number(data.incomeStep))
+                ? Math.max(1, Math.min(5, Math.trunc(Number(data.incomeStep))))
+                : null;
+            const text = (typeof data.text === 'string' && data.text.trim())
+                ? data.text.trim()
+                : resolveWorkIncomeLine(gained, incomeStep);
+
+            return {
+                type: 'WORK_BUBBLE',
+                player: data.player || null,
+                row,
+                col,
+                gained,
+                incomeStep,
+                text,
+                reason: data.reason || null,
+                meta: {
+                    owner: data.player || null,
+                    reason: data.reason || null,
+                    incomeStep
+                }
+            };
+        });
+    }
+
+    const getSpecialStoneBubbleSpeechLines = (
+        PhaseHelpersModule &&
+        typeof PhaseHelpersModule.getSpecialStoneBubbleSpeechLines === 'function'
+    )
+        ? PhaseHelpersModule.getSpecialStoneBubbleSpeechLines
+        : function getSpecialStoneBubbleSpeechLinesFallback(type, scenario) {
+            const speech = getSpecialStoneBubbleSpeech(type);
+            if (!speech) return null;
+            const scenarioKey = String(scenario || '').trim().toLowerCase();
+            if (scenarioKey === 'place' && Array.isArray(speech.placeLines) && speech.placeLines.length > 0) {
+                return speech.placeLines;
+            }
+            if (scenarioKey === 'destroy' && typeof speech.lostLine === 'string' && speech.lostLine) {
+                return [speech.lostLine];
+            }
+            if (Array.isArray(speech[scenarioKey]) && speech[scenarioKey].length > 0) {
+                return speech[scenarioKey];
+            }
+            return null;
+        };
+
+    const pickSpecialStoneBubbleSpeechLine = (
+        PhaseHelpersModule &&
+        typeof PhaseHelpersModule.pickSpecialStoneBubbleSpeechLine === 'function'
+    )
+        ? PhaseHelpersModule.pickSpecialStoneBubbleSpeechLine
+        : function pickSpecialStoneBubbleSpeechLineFallback(type, scenario, prng) {
+            return pickRandomLine(getSpecialStoneBubbleSpeechLines(type, scenario), prng);
+        };
+
+    const LEGACY_SPECIAL_STONE_BUBBLE_TYPES = Object.freeze({
+        OBSERVER: true,
+        WORK: true
+    });
+    const SPECIAL_STONE_PLACEMENT_EFFECT_SPECS = Object.freeze([
+        Object.freeze({ flag: 'protected', special: 'PROTECTED' }),
+        Object.freeze({ flag: 'permaProtected', special: 'PERMA_PROTECTED' }),
+        Object.freeze({ flag: 'regenPlaced', special: 'REGEN' }),
+        Object.freeze({ flag: 'dragonPlaced', special: 'DRAGON' }),
+        Object.freeze({ flag: 'breedingPlaced', special: 'BREEDING' }),
+        Object.freeze({ flag: 'proliferationPlaced', special: 'PROLIFERATION' }),
+        Object.freeze({ flag: 'ultimateDestroyGodPlaced', special: 'ULTIMATE_DESTROY_GOD' }),
+        Object.freeze({ flag: 'sniperPlaced', special: 'SNIPER' }),
+        Object.freeze({ flag: 'ghostPlaced', special: 'GHOST' }),
+        Object.freeze({ flag: 'afterimagePlaced', special: 'AFTERIMAGE_WILL' }),
+        Object.freeze({ flag: 'timeStopPlaced', special: 'TIME_STOP' }),
+        Object.freeze({ flag: 'willHunterKingPlaced', special: 'WILL_HUNTER_KING' }),
+        Object.freeze({ flag: 'destroyDragonPlaced', special: 'DESTROY_DRAGON' }),
+        Object.freeze({ flag: 'lightningPlaced', special: 'LIGHTNING' }),
+        Object.freeze({ flag: 'extremeHyperactivePlaced', special: 'EXTREME_HYPERACTIVE' }),
+        Object.freeze({ flag: 'escapeHyperactivePlaced', special: 'ESCAPE_HYPERACTIVE' }),
+        Object.freeze({ flag: 'robotVacuumPlaced', special: 'ROBOT_VACUUM' }),
+        Object.freeze({ flag: 'gluttonousPlaced', special: 'GLUTTONOUS' }),
+        Object.freeze({ flag: 'instantHyperactivePlaced', special: 'HYPERACTIVE' }),
+        Object.freeze({ flag: 'ultimateHyperactivePlaced', special: 'ULTIMATE_HYPERACTIVE' }),
+        Object.freeze({ flag: 'hyperactivePlaced', special: 'HYPERACTIVE' })
+    ]);
+
+    function normalizeSpecialStoneBubbleType(type) {
+        const key = String(type || '').trim().toUpperCase();
+        return key || null;
+    }
+
+    function normalizeSpecialStoneBubbleScenarioKey(scenario) {
+        const key = String(scenario || '').trim().toLowerCase();
+        return key || null;
+    }
+
+    function isLegacySpecialStoneBubbleType(type) {
+        const key = normalizeSpecialStoneBubbleType(type);
+        return !!(key && LEGACY_SPECIAL_STONE_BUBBLE_TYPES[key]);
+    }
+
+    function hasDurationEndMarker(reason, cause) {
+        const reasonLower = String(reason || '').toLowerCase();
+        const causeLower = String(cause || '').toLowerCase();
+        return reasonLower === 'duration_end' || reasonLower.indexOf('duration') >= 0 || reasonLower.indexOf('expire') >= 0 || causeLower.indexOf('expire') >= 0;
+    }
+
+    function resolveSpecialStoneBubblePlayer(payload) {
+        const data = (payload && typeof payload === 'object') ? payload : {};
+        return normalizePlayerKey(
+            data.player !== undefined ? data.player
+                : data.owner !== undefined ? data.owner
+                    : data.ownerBefore !== undefined ? data.ownerBefore
+                        : data.ownerAfter !== undefined ? data.ownerAfter
+                            : (data.meta && data.meta.owner !== undefined) ? data.meta.owner : null
+        );
+    }
+
+    function buildSpecialStoneBubbleKey(special, scenario, row, col, player) {
+        const typeKey = normalizeSpecialStoneBubbleType(special);
+        const scenarioKey = normalizeSpecialStoneBubbleScenarioKey(scenario);
+        const rowKey = Number(row);
+        const colKey = Number(col);
+        if (!typeKey || !scenarioKey || !Number.isInteger(rowKey) || !Number.isInteger(colKey)) return null;
+        const ownerKey = normalizePlayerKey(player) || '';
+        return `${rowKey},${colKey}:${ownerKey}:${typeKey}:${scenarioKey}`;
+    }
+
+    function createSpecialStoneBubbleTracker(cardState, sinceIndex) {
+        const tracker = new Set();
+        const pres = (cardState && Array.isArray(cardState.presentationEvents)) ? cardState.presentationEvents : [];
+        const start = Number.isFinite(Number(sinceIndex)) ? Math.max(0, Math.trunc(Number(sinceIndex))) : 0;
+        for (let index = start; index < pres.length; index += 1) {
+            const ev = pres[index];
+            if (!ev || ev.type !== 'SPECIAL_STONE_BUBBLE') continue;
+            const key = buildSpecialStoneBubbleKey(
+                ev.special || (ev.meta && ev.meta.special),
+                ev.scenario || (ev.meta && ev.meta.scenario),
+                ev.row,
+                ev.col,
+                ev.player || ev.owner || (ev.meta && ev.meta.owner)
+            );
+            if (key) tracker.add(key);
+        }
+        return tracker;
+    }
+
+    function emitSpecialStoneBubblePresentation(CardLogic, cardState, payload, options) {
+        if (!CardLogic || typeof CardLogic.emitPresentationEvent !== 'function') return false;
+        const data = (payload && typeof payload === 'object') ? payload : {};
+        const opts = (options && typeof options === 'object') ? options : {};
+        const special = normalizeSpecialStoneBubbleType(data.special);
+        const scenario = normalizeSpecialStoneBubbleScenarioKey(data.scenario);
+        const player = resolveSpecialStoneBubblePlayer(data);
         const row = Number(data.row);
         const col = Number(data.col);
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+        if (!special || !scenario || !Number.isInteger(row) || !Number.isInteger(col)) return false;
+        if (isLegacySpecialStoneBubbleType(special)) return false;
+        const explicitText = (typeof data.text === 'string' && data.text.trim()) ? data.text.trim() : null;
+        const text = explicitText || pickSpecialStoneBubbleSpeechLine(special, scenario, opts.prng);
+        if (!text) return false;
+        const bubbleKey = buildSpecialStoneBubbleKey(special, scenario, row, col, player);
+        const tracker = opts.tracker instanceof Set ? opts.tracker : null;
+        if (tracker && bubbleKey && tracker.has(bubbleKey)) return false;
 
-        const gained = Number(data.gained) || 0;
-        const incomeStep = Number.isFinite(Number(data.incomeStep))
-            ? Math.max(1, Math.min(5, Math.trunc(Number(data.incomeStep))))
-            : null;
-        const text = (typeof data.text === 'string' && data.text.trim())
-            ? data.text.trim()
-            : resolveWorkIncomeLine(gained, incomeStep);
+        const reason = (typeof data.reason === 'string' && data.reason.trim()) ? data.reason.trim() : scenario;
+        const cause = (typeof data.cause === 'string' && data.cause.trim()) ? data.cause.trim() : null;
+        const meta = Object.assign({}, (data.meta && typeof data.meta === 'object') ? data.meta : {});
+        meta.special = special;
+        meta.scenario = scenario;
+        if (typeof meta.owner === 'undefined') meta.owner = player || null;
+        if (typeof meta.reason === 'undefined') meta.reason = reason;
+        if (cause && typeof meta.cause === 'undefined') meta.cause = cause;
+        if (typeof meta.text === 'undefined') meta.text = text;
 
-        CardLogic.emitPresentationEvent(cardState, {
-            type: 'WORK_BUBBLE',
-            player: data.player || null,
+        emitSpeechBubblePresentation(CardLogic, cardState, {
+            player,
             row,
             col,
-            gained,
-            incomeStep,
+            special,
+            scenario,
             text,
-            reason: data.reason || null,
-            meta: {
-                owner: data.player || null,
-                reason: data.reason || null,
-                incomeStep
-            }
+            reason,
+            cause,
+            meta
+        }, function buildSpecialStoneBubbleEvent(bubbleData, bubbleRow, bubbleCol) {
+            return {
+                type: 'SPECIAL_STONE_BUBBLE',
+                special,
+                scenario,
+                player,
+                row: bubbleRow,
+                col: bubbleCol,
+                text,
+                reason,
+                cause,
+                meta
+            };
         });
+
+        if (tracker && bubbleKey) tracker.add(bubbleKey);
+        return true;
+    }
+
+    function resolvePlacedSpecialStoneType(effects) {
+        const data = (effects && typeof effects === 'object') ? effects : null;
+        if (!data) return null;
+        for (let index = 0; index < SPECIAL_STONE_PLACEMENT_EFFECT_SPECS.length; index += 1) {
+            const spec = SPECIAL_STONE_PLACEMENT_EFFECT_SPECS[index];
+            if (data[spec.flag] === true) {
+                return spec.special;
+            }
+        }
+        return null;
+    }
+
+    function emitSpecialStonePlacementBubbleFromEffects(CardLogic, cardState, playerKey, row, col, effects, prng) {
+        const special = resolvePlacedSpecialStoneType(effects);
+        if (!special) return false;
+        return emitSpecialStoneBubblePresentation(CardLogic, cardState, {
+            player: playerKey,
+            row,
+            col,
+            special,
+            scenario: 'place',
+            reason: 'placed'
+        }, { prng });
     }
 
     function emitChargeBubblePresentation(CardLogic, cardState, payload) {
@@ -369,7 +622,7 @@
         }
         const reason = String((ev.reason || (ev.meta && ev.meta.reason) || '')).toLowerCase();
         const cause = String(ev.cause || '').toLowerCase();
-        return reason === 'duration_end' || reason.indexOf('duration') >= 0 || reason.indexOf('expire') >= 0 || cause.indexOf('expire') >= 0;
+        return hasDurationEndMarker(reason, cause);
     }
 
     function hasWorkRemovedPresentationEventAt(cardState, row, col, sinceIndex) {
@@ -459,6 +712,135 @@
             text: OBSERVER_LOST_LINE,
             reason: reason || 'removed'
         });
+    }
+
+    function isGenericSpecialStoneBubbleType(type) {
+        const key = normalizeSpecialStoneBubbleType(type);
+        return !!key && !isLegacySpecialStoneBubbleType(key);
+    }
+
+    function snapshotSpecialStoneSpeechMarkers(cardState) {
+        const markers = (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
+            ? MarkersAdapter.getMarkers(cardState)
+            : (cardState && Array.isArray(cardState.markers) ? cardState.markers : []);
+        const out = [];
+        for (const m of markers) {
+            if (!m) continue;
+            if (m.kind !== (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) continue;
+            const markerType = String(m.data && m.data.type ? m.data.type : '').trim().toUpperCase();
+            if (!isGenericSpecialStoneBubbleType(markerType)) continue;
+            if (
+                !getSpecialStoneBubbleSpeechLines(markerType, 'destroy') &&
+                !getSpecialStoneBubbleSpeechLines(markerType, 'duration_end') &&
+                !getSpecialStoneBubbleSpeechLines(markerType, 'escape_exploded')
+            ) {
+                continue;
+            }
+            if (!Number.isInteger(m.row) || !Number.isInteger(m.col)) continue;
+            const markerId = (m.id !== undefined && m.id !== null)
+                ? String(m.id)
+                : `${m.row},${m.col}:${m.owner || ''}:${markerType}:${m.createdSeq || 0}`;
+            out.push({
+                key: markerId,
+                row: m.row,
+                col: m.col,
+                owner: (typeof m.owner === 'string' && m.owner) ? m.owner : null,
+                type: markerType
+            });
+        }
+        return out;
+    }
+
+    function getRemovedSpecialStoneSpeechMarkers(beforeSnapshot, afterSnapshot) {
+        const before = Array.isArray(beforeSnapshot) ? beforeSnapshot : [];
+        const after = Array.isArray(afterSnapshot) ? afterSnapshot : [];
+        const afterSet = new Set(after.map((item) => item && item.key).filter((key) => !!key));
+        return before.filter((item) => {
+            if (!item || !item.key || !item.type) return false;
+            if (!Number.isInteger(item.row) || !Number.isInteger(item.col)) return false;
+            return !afterSet.has(item.key);
+        });
+    }
+
+    function isDurationEndSpecialStoneBubbleReason(reason, cause) {
+        return hasDurationEndMarker(reason, cause);
+    }
+
+    function isEscapeExplosionSpecialStoneBubbleReason(reason, cause) {
+        const reasonText = String(reason || '').toLowerCase();
+        const causeText = String(cause || '').toLowerCase();
+        return reasonText.indexOf('escape_no_candidates_explosion') >= 0 ||
+            reasonText.indexOf('no_candidates_explosion') >= 0 ||
+            causeText.indexOf('escape_no_candidates_explosion') >= 0 ||
+            causeText.indexOf('no_candidates_explosion') >= 0;
+    }
+
+    function isProliferationTriggeredSpecialStoneBubbleEvent(ev, reason, cause) {
+        const reasonText = String(reason || '').toLowerCase();
+        const causeText = String(cause || '').toLowerCase();
+        return !!(
+            (ev && ev.meta && ev.meta.proliferated === true) ||
+            reasonText === 'proliferation_triggered' ||
+            causeText === 'proliferation_triggered'
+        );
+    }
+
+    function findMatchingSpecialStoneStatusRemovedEvent(presentationEvents, item) {
+        const events = Array.isArray(presentationEvents) ? presentationEvents : [];
+        if (!item || !item.type) return null;
+        for (let index = 0; index < events.length; index += 1) {
+            const ev = events[index];
+            if (!ev || ev.type !== 'STATUS_REMOVED') continue;
+            if (Number(ev.row) !== Number(item.row) || Number(ev.col) !== Number(item.col)) continue;
+            const special = String((ev.special || (ev.meta && ev.meta.special) || '')).trim().toUpperCase();
+            if (special !== item.type) continue;
+            return ev;
+        }
+        return null;
+    }
+
+    function hasMatchingSpecialStoneStatusAppliedEvent(presentationEvents, itemOrSpecial, rowValue, colValue) {
+        const events = Array.isArray(presentationEvents) ? presentationEvents : [];
+        const item = (itemOrSpecial && typeof itemOrSpecial === 'object')
+            ? itemOrSpecial
+            : { type: itemOrSpecial, row: rowValue, col: colValue };
+        const specialType = String(item && item.type ? item.type : '').trim().toUpperCase();
+        if (!specialType) return false;
+        for (let index = 0; index < events.length; index += 1) {
+            const ev = events[index];
+            if (!ev || ev.type !== 'STATUS_APPLIED') continue;
+            if (Number(ev.row) !== Number(item.row) || Number(ev.col) !== Number(item.col)) continue;
+            const special = String((ev.special || (ev.meta && ev.meta.special) || '')).trim().toUpperCase();
+            if (special !== specialType) continue;
+            return true;
+        }
+        return false;
+    }
+
+    function hasEscapeExplosionPresentationEventAt(presentationEvents, item) {
+        const events = Array.isArray(presentationEvents) ? presentationEvents : [];
+        if (!item) return false;
+        for (let index = 0; index < events.length; index += 1) {
+            const ev = events[index];
+            if (!ev) continue;
+            if (Number(ev.row) !== Number(item.row) || Number(ev.col) !== Number(item.col)) continue;
+            if (isEscapeExplosionSpecialStoneBubbleReason(ev.reason || (ev.meta && ev.meta.reason), ev.cause || (ev.meta && ev.meta.cause))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function hasRegenTriggeredPresentationEventAt(presentationEvents, row, col) {
+        const events = Array.isArray(presentationEvents) ? presentationEvents : [];
+        for (let index = 0; index < events.length; index += 1) {
+            const ev = events[index];
+            if (!ev || ev.type !== 'CHANGE') continue;
+            if (Number(ev.row) !== Number(row) || Number(ev.col) !== Number(col)) continue;
+            if (String(ev.reason || (ev.meta && ev.meta.reason) || '').toLowerCase() !== 'regen_triggered') continue;
+            return true;
+        }
+        return false;
     }
 
     function emitBoardChargeBubblePresentation(CardLogic, cardState, payload) {
@@ -867,6 +1249,250 @@
         return null;
     }
 
+    function createSpecialStoneBubbleEmitter(CardLogic, cardState, prng, fallbackPlayer, tracker) {
+        const emitted = tracker instanceof Set ? tracker : new Set();
+        return function emitSpecialStoneBubble(data) {
+            const payload = (data && typeof data === 'object') ? data : null;
+            if (!payload) return false;
+            const special = String(payload.special || '').trim().toUpperCase();
+            const scenario = String(payload.scenario || '').trim().toLowerCase();
+            const row = Number(payload.row);
+            const col = Number(payload.col);
+            if (!special || !scenario || !Number.isInteger(row) || !Number.isInteger(col)) return false;
+            const player = normalizePlayerKey(payload.player || fallbackPlayer);
+            const text = (typeof payload.text === 'string' && payload.text.trim())
+                ? payload.text.trim()
+                : pickSpecialStoneBubbleSpeechLine(special, scenario, prng);
+            if (!text) return false;
+            const key = buildSpecialStoneBubbleKey(special, scenario, row, col, player);
+            if (emitted.has(key)) return false;
+            return emitSpecialStoneBubblePresentation(CardLogic, cardState, {
+                player,
+                row,
+                col,
+                special,
+                scenario,
+                text,
+                reason: payload.reason || scenario,
+                cause: payload.cause || null
+            }, {
+                prng,
+                tracker: emitted
+            });
+        };
+    }
+
+    function emitSpecialStoneBubblesFromPhase(CardLogic, cardState, options) {
+        const opts = (options && typeof options === 'object') ? options : {};
+        const presentationEvents = Array.isArray(opts.presentationEvents) ? opts.presentationEvents : [];
+        const phaseEvents = Array.isArray(opts.events) ? opts.events : [];
+        const beforeSnapshot = Array.isArray(opts.beforeSnapshot) ? opts.beforeSnapshot : [];
+        const tracker = createSpecialStoneBubbleTracker(cardState, opts.presentationStartIndex);
+        const emitBubble = createSpecialStoneBubbleEmitter(CardLogic, cardState, opts.prng, opts.fallbackPlayer || null, tracker);
+        const deferredPhaseEvents = [];
+        const pendingWillHunterSpecialDestroyCells = new Set();
+
+        for (const ev of phaseEvents) {
+            if (!ev || !ev.type) continue;
+            if (ev.type === 'placement_effects') {
+                const special = resolvePlacedSpecialStoneType(ev.effects);
+                if (!special) continue;
+                emitBubble({
+                    special,
+                    scenario: 'place',
+                    player: ev.player || opts.fallbackPlayer || null,
+                    row: ev.row,
+                    col: ev.col,
+                    reason: 'placed'
+                });
+            } else if (ev.type === 'time_stop_triggered') {
+                deferredPhaseEvents.push(ev);
+            } else if (ev.type === 'hyperactive_inherit_selected' && ev.applied && ev.target) {
+                emitBubble({
+                    special: 'INHERITED_HYPERACTIVE',
+                    scenario: 'inherit_selected',
+                    player: ev.player || opts.fallbackPlayer || null,
+                    row: ev.target.row,
+                    col: ev.target.col,
+                    reason: ev.type
+                });
+                emitBubble({
+                    special: 'INHERITED_HYPERACTIVE',
+                    scenario: 'inherit_applied',
+                    player: ev.player || opts.fallbackPlayer || null,
+                    row: ev.target.row,
+                    col: ev.target.col,
+                    reason: 'inherit_applied'
+                });
+            } else if ((ev.type === 'will_hunter_king_destroyed_start' || ev.type === 'will_hunter_king_destroyed_immediate') && Array.isArray(ev.details)) {
+                for (const detail of ev.details) {
+                    const row = Number(detail && detail.row);
+                    const col = Number(detail && detail.col);
+                    if (detail && detail.destroyedSpecial === true && Number.isInteger(row) && Number.isInteger(col)) {
+                        pendingWillHunterSpecialDestroyCells.add(`${row},${col}`);
+                    }
+                }
+            } else if ((ev.type === 'will_hunter_king_moved_start' || ev.type === 'will_hunter_king_moved_immediate') && Array.isArray(ev.details)) {
+                for (const detail of ev.details) {
+                    const to = detail && detail.to;
+                    const row = Number(to && to.row);
+                    const col = Number(to && to.col);
+                    const key = (Number.isInteger(row) && Number.isInteger(col)) ? `${row},${col}` : null;
+                    if (!key || !pendingWillHunterSpecialDestroyCells.has(key)) continue;
+                    emitBubble({
+                        special: 'WILL_HUNTER_KING',
+                        scenario: 'special_destroy_triggered',
+                        player: ev.player || opts.fallbackPlayer || null,
+                        row,
+                        col,
+                        reason: ev.type,
+                        cause: 'WILL_HUNTER_KING'
+                    });
+                    pendingWillHunterSpecialDestroyCells.delete(key);
+                }
+            }
+        }
+
+        for (const ev of presentationEvents) {
+            if (!ev || !ev.type) continue;
+            const row = Number(ev.row);
+            const col = Number(ev.col);
+            if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+            const special = String((ev.special || (ev.meta && ev.meta.special) || '')).trim().toUpperCase();
+            const reason = ev.reason || (ev.meta && ev.meta.reason) || null;
+            const cause = ev.cause || (ev.meta && ev.meta.cause) || null;
+            const player = normalizePlayerKey(ev.player || ev.owner || (ev.meta && ev.meta.owner) || opts.fallbackPlayer);
+
+            if (ev.type === 'STATUS_APPLIED') {
+                if (!isGenericSpecialStoneBubbleType(special)) continue;
+                if (special === 'ABSOLUTE_PROTECTED' && String(reason || '').toLowerCase() === 'strong_will_promoted') {
+                    emitBubble({
+                        special,
+                        scenario: 'absolute_protected_promoted',
+                        player,
+                        row,
+                        col,
+                        reason: reason || 'strong_will_promoted',
+                        cause
+                    });
+                    continue;
+                }
+                if (special === 'INHERITED_HYPERACTIVE') {
+                    emitBubble({
+                        special,
+                        scenario: 'inherit_applied',
+                        player,
+                        row,
+                        col,
+                        reason: reason || 'inherit_applied',
+                        cause
+                    });
+                    continue;
+                }
+                continue;
+            }
+
+            if (ev.type === 'STATUS_REMOVED') {
+                if (!isGenericSpecialStoneBubbleType(special)) continue;
+                const durationEnd = isDurationEndSpecialStoneBubbleReason(reason, cause);
+                const escapeExploded = isEscapeExplosionSpecialStoneBubbleReason(reason, cause);
+                if (special === 'REGEN' && hasRegenTriggeredPresentationEventAt(presentationEvents, row, col)) {
+                    continue;
+                }
+                if (!durationEnd && !escapeExploded && hasMatchingSpecialStoneStatusAppliedEvent(presentationEvents, special, row, col)) {
+                    continue;
+                }
+                const scenario = escapeExploded && getSpecialStoneBubbleSpeechLines(special, 'escape_exploded')
+                    ? 'escape_exploded'
+                    : (durationEnd ? 'duration_end' : 'destroy');
+                emitBubble({
+                    special,
+                    scenario,
+                    player,
+                    row,
+                    col,
+                    reason: reason || scenario,
+                    cause
+                });
+                continue;
+            }
+
+            if ((ev.type === 'CHANGE' || ev.type === 'DESTROY') && ev.meta && ev.meta.blockedByGhost === true && special === 'GHOST') {
+                emitBubble({
+                    special,
+                    scenario: 'ghost_protected',
+                    player,
+                    row,
+                    col,
+                    reason: reason || 'ghost_protected',
+                    cause
+                });
+                continue;
+            }
+
+            if (ev.type === 'DESTROY' && isGenericSpecialStoneBubbleType(special)) {
+                const scenario = isProliferationTriggeredSpecialStoneBubbleEvent(ev, reason, cause) && getSpecialStoneBubbleSpeechLines(special, 'proliferation_triggered')
+                    ? 'proliferation_triggered'
+                    : (isEscapeExplosionSpecialStoneBubbleReason(reason, cause) && getSpecialStoneBubbleSpeechLines(special, 'escape_exploded'))
+                    ? 'escape_exploded'
+                    : 'destroy';
+                emitBubble({
+                    special,
+                    scenario,
+                    player,
+                    row,
+                    col,
+                    reason: reason || scenario,
+                    cause
+                });
+                continue;
+            }
+
+            if (ev.type === 'CHANGE' && String(reason || '').toLowerCase() === 'regen_triggered') {
+                emitBubble({
+                    special: special || 'REGEN',
+                    scenario: 'regen_triggered',
+                    player,
+                    row,
+                    col,
+                    reason: reason || 'regen_triggered',
+                    cause
+                });
+            }
+        }
+
+        for (const ev of deferredPhaseEvents) {
+            emitBubble({
+                special: 'TIME_STOP',
+                scenario: 'time_stop_triggered',
+                player: ev.player || opts.fallbackPlayer || null,
+                row: ev.row,
+                col: ev.col,
+                reason: ev.type
+            });
+        }
+
+        const afterSnapshot = snapshotSpecialStoneSpeechMarkers(cardState);
+        const removed = getRemovedSpecialStoneSpeechMarkers(beforeSnapshot, afterSnapshot);
+        for (const item of removed) {
+            if (!item || !item.type) continue;
+            if (findMatchingSpecialStoneStatusRemovedEvent(presentationEvents, item)) continue;
+            if (item.type === 'REGEN' && hasRegenTriggeredPresentationEventAt(presentationEvents, item.row, item.col)) continue;
+            if (hasMatchingSpecialStoneStatusAppliedEvent(presentationEvents, item)) continue;
+            const scenario = hasEscapeExplosionPresentationEventAt(presentationEvents, item) && getSpecialStoneBubbleSpeechLines(item.type, 'escape_exploded')
+                ? 'escape_exploded'
+                : 'destroy';
+            emitBubble({
+                special: item.type,
+                scenario,
+                player: item.owner || opts.fallbackPlayer || null,
+                row: item.row,
+                col: item.col,
+                reason: opts.removalReason || scenario
+            });
+        }
+    }
+
     function isFrozenCell(cardState, row, col) {
         if (CardUtilsModule && typeof CardUtilsModule.isFrozenCell === 'function') {
             return !!CardUtilsModule.isFrozenCell(cardState, row, col);
@@ -934,10 +1560,14 @@
 
             ensureGameRoundState(Core, gameState);
             applyPendingRoundBonusAtTurnStart(CardLogic, Core, cardState, gameState, events);
+            const eventStartIndex = Array.isArray(events)
+                ? events.length
+                : 0;
             const presentationStartIndex = Array.isArray(cardState.presentationEvents)
                 ? cardState.presentationEvents.length
                 : 0;
             const workMarkersBeforeStart = snapshotWorkMarkers(cardState);
+            const specialStoneSpeechBeforeStart = snapshotSpecialStoneSpeechMarkers(cardState);
             // Snapshot timers before any turn-start processing (for visual timer updates).
             const timerSnapshot = new Map();
             try {
@@ -1308,6 +1938,16 @@
                 presentationStartIndex
             });
 
+            emitSpecialStoneBubblesFromPhase(CardLogic, cardState, {
+                events: Array.isArray(events) ? events.slice(eventStartIndex) : [],
+                presentationEvents: newPresentationEvents,
+                beforeSnapshot: specialStoneSpeechBeforeStart,
+                presentationStartIndex,
+                prng: p,
+                fallbackPlayer: playerKey,
+                removalReason: 'removed_at_turn_start'
+            });
+
             // Emit timer update events when remaining turns changed.
             try {
                 const afterMarkers = (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
@@ -1357,6 +1997,10 @@
         const p = prng || undefined;
         const observerMarkersBeforeUsage = snapshotObserverMarkers(cardState);
         const workMarkersBeforeUsage = snapshotWorkMarkers(cardState);
+        const specialStoneSpeechBeforeUsage = snapshotSpecialStoneSpeechMarkers(cardState);
+        const eventStartIndex = Array.isArray(events)
+            ? events.length
+            : 0;
         const presentationStartIndex = Array.isArray(cardState.presentationEvents)
             ? cardState.presentationEvents.length
             : 0;
@@ -1612,6 +2256,17 @@
             emitWorkRemovedPresentationFromSnapshots(CardLogic, cardState, workMarkersBeforeUsage, {
                 presentationStartIndex
             });
+            emitSpecialStoneBubblesFromPhase(CardLogic, cardState, {
+                events: Array.isArray(events) ? events.slice(eventStartIndex) : [],
+                presentationEvents: Array.isArray(cardState.presentationEvents)
+                    ? cardState.presentationEvents.slice(presentationStartIndex)
+                    : [],
+                beforeSnapshot: specialStoneSpeechBeforeUsage,
+                presentationStartIndex,
+                prng: p,
+                fallbackPlayer: playerKey,
+                removalReason: 'removed_during_card_usage'
+            });
         }
     }
 
@@ -1691,6 +2346,10 @@
 
         const observerMarkersBeforeAction = snapshotObserverMarkers(cardState);
         const workMarkersBeforeAction = snapshotWorkMarkers(cardState);
+        const specialStoneSpeechBeforeAction = snapshotSpecialStoneSpeechMarkers(cardState);
+        const eventStartIndex = Array.isArray(events)
+            ? events.length
+            : 0;
         const presentationStartIndex = Array.isArray(cardState.presentationEvents)
             ? cardState.presentationEvents.length
             : 0;
@@ -1770,6 +2429,7 @@
                     applied,
                     kind: normalizedDestroyResult && normalizedDestroyResult.kind ? normalizedDestroyResult.kind : null,
                     destroyed: !!(normalizedDestroyResult && normalizedDestroyResult.destroyed),
+                    regenerated: !!(normalizedDestroyResult && normalizedDestroyResult.regenerated),
                     evaded: !!(normalizedDestroyResult && normalizedDestroyResult.evaded),
                     blockedByGhost: !!(normalizedDestroyResult && normalizedDestroyResult.blockedByGhost),
                     proliferated: !!(normalizedDestroyResult && normalizedDestroyResult.proliferated),
@@ -2478,7 +3138,7 @@
             if (numberCellMultiplierConfig && effects && numberCellMultiplierConfig.gainField) {
                 effects[numberCellMultiplierConfig.gainField] = boardBonusGained;
             }
-            events.push({ type: 'placement_effects', player: playerKey, effects });
+            events.push({ type: 'placement_effects', player: playerKey, row: action.row, col: action.col, effects });
             const placementChargeBubble = buildPlacementChargeBubblePayload(
                 playerKey,
                 action.row,
@@ -2490,6 +3150,15 @@
             if (placementChargeBubble) {
                 emitBoardChargeBubblePresentation(CardLogic, cardState, placementChargeBubble);
             }
+            emitSpecialStonePlacementBubbleFromEffects(
+                CardLogic,
+                cardState,
+                playerKey,
+                action.row,
+                action.col,
+                effects,
+                p
+            );
 
             // GOLD/SILVER: the placed stone disappears on the opponent's next turn start.
 
@@ -2714,6 +3383,17 @@
             emitObserverLostBubbleFromSnapshots(CardLogic, cardState, observerMarkersBeforeAction, 'removed_during_action');
             emitWorkRemovedPresentationFromSnapshots(CardLogic, cardState, workMarkersBeforeAction, {
                 presentationStartIndex
+            });
+            emitSpecialStoneBubblesFromPhase(CardLogic, cardState, {
+                events: Array.isArray(events) ? events.slice(eventStartIndex) : [],
+                presentationEvents: Array.isArray(cardState.presentationEvents)
+                    ? cardState.presentationEvents.slice(presentationStartIndex)
+                    : [],
+                beforeSnapshot: specialStoneSpeechBeforeAction,
+                presentationStartIndex,
+                prng: p,
+                fallbackPlayer: playerKey,
+                removalReason: 'removed_during_action'
             });
         }
     }

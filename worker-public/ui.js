@@ -270,7 +270,9 @@ function ensureWorkVisualsApplied() {
         try { window._lastEnsureVisualsTs = Date.now(); } catch (e) {}
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
         const works = markers.filter(m => m && m.kind === 'specialStone' && m.data && m.data.type === 'WORK');
-        console.log('[VISUAL_DEBUG] ensureWorkVisualsApplied invoked; workMarkers:', works.length);
+        if (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true) {
+            console.log('[VISUAL_DEBUG] ensureWorkVisualsApplied invoked; workMarkers:', works.length);
+        }
         if (!works.length) return;
 
         const normalizeOwner = (owner) => (owner === 'black' || owner === BLACK || owner === 1) ? BLACK : WHITE;

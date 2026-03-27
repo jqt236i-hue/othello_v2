@@ -156,6 +156,29 @@ describe('card detail effect tags', () => {
     }
   });
 
+  test('destroy-evasion cards are tagged even when text does not contain the exact term', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'hyperactive_inherit_01',
+      name: '多動の継承',
+      type: 'HYPERACTIVE_INHERIT_WILL',
+      cost: 11,
+      desc: '盤面上の自分の石1つに多動状態を付与する。通常石・特殊石を問わず選択でき、他の状態とも併用可能。両者ターン開始時に1マス移動し、移動後に挟めば反転。反転対象時は1回だけマス移動で回避し、破壊対象時も1回だけ空きマスへ移動して回避する。持続は10ターン（所有者ターン開始時のみ減算）。'
+    };
+
+    expect(cardDef.desc.includes('破壊回避')).toBe(false);
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+
+    window.updateCardDetailPanel();
+
+    const tagsEl = document.getElementById('card-detail-effect-tags');
+    expect(tagsEl).not.toBeNull();
+    expect(tagsEl.textContent).toContain('破壊回避');
+  });
+
   test('cards that only mention special stones as targets do not get the special-stone tag', () => {
     require('../cards/card-interaction.js');
 

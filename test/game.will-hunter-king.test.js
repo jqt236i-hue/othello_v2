@@ -625,7 +625,17 @@ describe('WILL_HUNTER_KING（意志狩りの王）', () => {
       actionId: 'whk-place-1'
     }, prng);
 
-    expect(res.events.some((ev) => ev && ev.type === 'will_hunter_king_destroyed_immediate')).toBe(true);
+    const destroyEvent = (res.events || []).find((ev) => ev && ev.type === 'will_hunter_king_destroyed_immediate');
+    expect(destroyEvent).toBeTruthy();
+    expect(destroyEvent.details).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 2,
+        col: 5,
+        sourceRow: 2,
+        sourceCol: 3,
+        destroyedSpecial: true
+      })
+    ]));
     expect(res.events.some((ev) => ev && ev.type === 'will_hunter_king_moved_immediate')).toBe(true);
     expect(res.gameState.board[2][3]).toBe(Shared.EMPTY);
     expect(res.gameState.board[2][5]).toBe(Shared.BLACK);
@@ -641,5 +651,38 @@ describe('WILL_HUNTER_KING（意志狩りの王）', () => {
     expect(marker.row).toBe(2);
     expect(marker.col).toBe(5);
     expect(marker.data.remainingOwnerTurns).toBe(8);
+
+    const bubbleIndex = (res.presentationEvents || []).findIndex((event) => (
+      event &&
+      event.type === 'SPECIAL_STONE_BUBBLE' &&
+      event.special === 'WILL_HUNTER_KING' &&
+      event.scenario === 'place' &&
+      event.row === 2 &&
+      event.col === 3
+    ));
+    const moveIndex = (res.presentationEvents || []).findIndex((event) => (
+      event &&
+      event.type === 'MOVE' &&
+      event.prevRow === 2 &&
+      event.prevCol === 3 &&
+      event.row === 2 &&
+      event.col === 5
+    ));
+
+    expect(bubbleIndex).toBeGreaterThanOrEqual(0);
+    expect(moveIndex).toBeGreaterThanOrEqual(0);
+    expect(bubbleIndex).toBeLessThan(moveIndex);
+
+    const specialDestroyBubbleIndex = (res.presentationEvents || []).findIndex((event) => (
+      event &&
+      event.type === 'SPECIAL_STONE_BUBBLE' &&
+      event.special === 'WILL_HUNTER_KING' &&
+      event.scenario === 'special_destroy_triggered' &&
+      event.row === 2 &&
+      event.col === 5
+    ));
+
+    expect(specialDestroyBubbleIndex).toBeGreaterThanOrEqual(0);
+    expect(specialDestroyBubbleIndex).toBeGreaterThan(moveIndex);
   });
 });

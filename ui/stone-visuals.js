@@ -73,7 +73,8 @@ function _getVisualEffectsHelperForStoneVisuals(name) {
 }
 
 async function crossfadeStoneVisual(disc, options = {}) {
-    console.log('[VISUAL_DEBUG] crossfadeStoneVisual invoked', options && options.effectKey);
+    const debugVisual = (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true);
+    if (debugVisual) console.log('[VISUAL_DEBUG] crossfadeStoneVisual invoked', options && options.effectKey);
     // Simplified: remove overlay-based cross-fade and apply final visual state immediately.
     // This function no longer performs opacity transitions or creates overlays.
     const {
@@ -93,9 +94,9 @@ async function crossfadeStoneVisual(disc, options = {}) {
 
     // Apply visual effect immediately (no animation)
     if (effectKey && typeof applyStoneVisualEffect === 'function') {
-        try { console.log('[VISUAL_DEBUG] crossfade attempting applyStoneVisualEffect', effectKey); } catch (e) {}
+        try { if (debugVisual) console.log('[VISUAL_DEBUG] crossfade attempting applyStoneVisualEffect', effectKey); } catch (e) {}
         try { applyStoneVisualEffect(disc, effectKey, { owner }); } catch (e) { console.warn('[VISUAL_DEBUG] applyStoneVisualEffect threw', e); }
-        try { console.log('[VISUAL_DEBUG] crossfade after apply classes:', disc && disc.className); } catch (e) {}
+        try { if (debugVisual) console.log('[VISUAL_DEBUG] crossfade after apply classes:', disc && disc.className); } catch (e) {}
     }
 
     // Clean up any overlay remnants if present

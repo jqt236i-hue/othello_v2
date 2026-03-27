@@ -282,7 +282,7 @@ async function applyStoneVisualEffect(discElement, effectKey, options = {}) {
         return false;
     }
 
-    if (effectKey === 'workStone') {
+    if (debugVisual && effectKey === 'workStone') {
         console.log('[VISUAL_DEBUG] applyStoneVisualEffect(workStone) called, options:', options, 'effect:', effect);
         try { window._lastApplyWorkTs = Date.now(); } catch (e) {}
     }

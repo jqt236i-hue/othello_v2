@@ -129,6 +129,56 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
+  test('cpu mode shows only locally revealed opponent hand copies face-up', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['own_card'], white: ['opp_card', 'opp_card'] }
+    });
+    const { window } = dom;
+
+    window.cardState._handCopyIdsByPlayer = {
+      black: [1],
+      white: [101, 102]
+    };
+    window.cardState._revealedHandCopyIdsByViewer = {
+      black: [101],
+      white: []
+    };
+
+    window.renderCardUI();
+
+    expect(window.document.querySelectorAll('#hand-white .card-item.visible')).toHaveLength(1);
+    expect(window.document.querySelectorAll('#hand-white .card-item.hidden')).toHaveLength(1);
+
+    dom.window.close();
+  });
+
+  test('cpu mode shows all opponent hand cards face-up after reveal hand marks every copy', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['own_card'], white: ['opp_card', 'own_card', 'opp_card'] }
+    });
+    const { window } = dom;
+
+    window.cardState._handCopyIdsByPlayer = {
+      black: [1],
+      white: [201, 202, 203]
+    };
+    window.cardState._revealedHandCopyIdsByViewer = {
+      black: [201, 202, 203],
+      white: []
+    };
+
+    window.renderCardUI();
+
+    expect(window.document.querySelectorAll('#hand-white .card-item.visible')).toHaveLength(3);
+    expect(window.document.querySelectorAll('#hand-white .card-item.hidden')).toHaveLength(0);
+
+    dom.window.close();
+  });
+
   test('network mode keeps local hand clickable during opponent turn without making it usable', () => {
     const dom = createRendererContext({
       matchMode: 'network',

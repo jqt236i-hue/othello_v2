@@ -104,6 +104,8 @@ describe('HYPERACTIVE_INHERIT_WILL (多動の継承)', () => {
     expect(guard).toBeTruthy();
     expect(inherited).toBeTruthy();
     expect(inherited.data.remainingOwnerTurns).toBe(10);
+    expect(inherited.data.flipEvadeRemaining).toBe(1);
+    expect(inherited.data.destroyEvadeRemaining).toBe(1);
   });
 
   test('inherited hyperactive does not decrement on opponent turn', () => {
@@ -298,6 +300,57 @@ describe('HYPERACTIVE_INHERIT_WILL (多動の継承)', () => {
     inherited = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'INHERITED_HYPERACTIVE');
     expect(inherited).toBeUndefined();
     expect(gameState.board[2][2]).toBe(Core.WHITE);
+  });
+
+  test('inherited hyperactive evades destroy once, then is destroyed normally after evade is consumed', () => {
+    const { cardState, gameState } = createStates();
+
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        gameState.board[r][c] = Core.BLACK;
+      }
+    }
+
+    gameState.board[4][4] = Core.BLACK;
+    gameState.board[7][7] = Core.EMPTY;
+    cardState.markers.push({
+      id: 2151,
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: {
+        type: 'INHERITED_HYPERACTIVE',
+        remainingOwnerTurns: 10,
+        flipEvadeRemaining: 1,
+        destroyEvadeRemaining: 1,
+        hyperactiveSeq: 1
+      },
+      createdSeq: 1
+    });
+
+    const first = BoardOps.destroyAt(cardState, gameState, 4, 4, 'SYSTEM', 'test_destroy');
+    expect(first).toMatchObject({
+      kind: 'evaded_move',
+      destroyed: false,
+      evaded: true,
+      reason: 'destroy_evaded',
+      from: { row: 4, col: 4 },
+      to: { row: 7, col: 7 }
+    });
+
+    let inherited = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'INHERITED_HYPERACTIVE');
+    expect(inherited).toBeTruthy();
+    expect(inherited.row).toBe(7);
+    expect(inherited.col).toBe(7);
+    expect(inherited.data.flipEvadeRemaining).toBe(1);
+    expect(inherited.data.destroyEvadeRemaining).toBe(0);
+
+    const second = BoardOps.destroyAt(cardState, gameState, 7, 7, 'SYSTEM', 'test_destroy_again');
+    expect(second.destroyed).toBe(true);
+    inherited = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'INHERITED_HYPERACTIVE');
+    expect(inherited).toBeUndefined();
+    expect(gameState.board[7][7]).toBe(Core.EMPTY);
   });
 
   test('究極多動神と継承多動が共存する場合、反転回避回数は 3+1 で合計4回になる', () => {

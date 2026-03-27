@@ -312,4 +312,24 @@ describe('NetworkMatchClient result sync', () => {
     expect(global.cardState.specialStones).toEqual([{ row: 1, col: 2, type: 'WORK' }]);
     expect(global.cardState.bombs).toEqual([{ row: 3, col: 4, remainingTurns: 2 }]);
   });
+
+  // Explicit skipResultOverlay remains a hard suppressor at the snapshot layer.
+  // The self-stream terminal fix lives in the network-client coordinator, not here.
+  test('applySnapshot に明示 skipResultOverlay を渡した場合は終局でも結果表示しない', () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    const terminalSnapshot = {
+      stateVersion: 20,
+      gameState: { currentPlayer: -1, turnNumber: 40 },
+      cardState: { markers: [] }
+    };
+
+    client.applySnapshot(terminalSnapshot, {
+      force: true,
+      skipResultOverlay: true
+    });
+
+    expect(global.showResult).toHaveBeenCalledTimes(0);
+  });
 });

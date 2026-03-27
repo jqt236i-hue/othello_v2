@@ -285,6 +285,44 @@ function _isHiddenHandTokenForRender(cardId) {
     return typeof cardId === 'string' && /^__hidden_hand__:(black|white):(\d+)$/.test(cardId);
 }
 
+function _isHandCardRevealedToViewerForRender(cardState, viewerKey, ownerKey, handIndex) {
+    if (!cardState || typeof cardState !== 'object') return false;
+    const viewer = viewerKey === 'white' ? 'white' : (viewerKey === 'black' ? 'black' : null);
+    const owner = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    if (!viewer || !owner || viewer === owner || !Number.isInteger(Number(handIndex))) return false;
+
+    const normalizedHandIndex = Math.max(0, Math.trunc(Number(handIndex)));
+
+    try {
+        if (
+            typeof CardLogic !== 'undefined'
+            && CardLogic
+            && typeof CardLogic.getHandCopyIdAt === 'function'
+            && typeof CardLogic.isCardCopyIdRevealedToViewer === 'function'
+        ) {
+            const copyId = CardLogic.getHandCopyIdAt(cardState, owner, normalizedHandIndex);
+            return Number.isInteger(copyId) && CardLogic.isCardCopyIdRevealedToViewer(cardState, viewer, copyId) === true;
+        }
+    } catch (e) { /* ignore */ }
+
+    const handCopyIdsByPlayer = (cardState._handCopyIdsByPlayer && typeof cardState._handCopyIdsByPlayer === 'object')
+        ? cardState._handCopyIdsByPlayer
+        : null;
+    const revealedHandCopyIdsByViewer = (cardState._revealedHandCopyIdsByViewer && typeof cardState._revealedHandCopyIdsByViewer === 'object')
+        ? cardState._revealedHandCopyIdsByViewer
+        : null;
+    const handCopyIds = handCopyIdsByPlayer && Array.isArray(handCopyIdsByPlayer[owner])
+        ? handCopyIdsByPlayer[owner]
+        : null;
+    const revealedCopyIds = revealedHandCopyIdsByViewer && Array.isArray(revealedHandCopyIdsByViewer[viewer])
+        ? revealedHandCopyIdsByViewer[viewer]
+        : null;
+    if (!handCopyIds || !revealedCopyIds || normalizedHandIndex >= handCopyIds.length) return false;
+
+    const copyId = handCopyIds[normalizedHandIndex];
+    return Number.isInteger(copyId) && revealedCopyIds.includes(copyId);
+}
+
 function _createHiddenHandCardElement(cardId, ownerKey) {
     const cardEl = document.createElement('div');
     cardEl.className = 'card-item hidden';
@@ -627,6 +665,7 @@ function renderCardUI() {
     const inputPlayerKey = isNetworkMode
         ? localPlayerKey
         : (isDebugHvH ? (isBlackTurn ? 'black' : 'white') : 'black');
+    const localRevealViewerKey = isNetworkMode ? null : _getLocalPlayerKeyForNetwork();
     const pending = cardState.pendingEffectByPlayer[inputPlayerKey];
     const allowDuringAnimForSell = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
     const canInteract = !isAnimating || allowDuringAnimForSell || staleVisualPlaybackLock || isDebugUnlimited;
@@ -667,9 +706,13 @@ function renderCardUI() {
         ownerHand.forEach((cardId, idx) => {
             let cardEl = document.createElement('div');
             const isHiddenToken = _isHiddenHandTokenForRender(cardId);
+            const isLocallyRevealedOpponentCard = !isNetworkMode
+                && !revealByDefault
+                && !isHiddenToken
+                && _isHandCardRevealedToViewerForRender(cardState, localRevealViewerKey, ownerKey, idx);
             const canShowFace = isNetworkMode
                 ? (ownerKey === localPlayerKey || !isHiddenToken)
-                : revealByDefault;
+                : (revealByDefault || isLocallyRevealedOpponentCard);
 
             if (!canShowFace || isHiddenToken) {
                 cardEl = _createHiddenHandCardElement(cardId, ownerKey);

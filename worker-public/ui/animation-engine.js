@@ -399,7 +399,8 @@
                 target &&
                 target.meta && (
                     target.meta.blockedByGhost ||
-                    target.meta.proliferated === true
+                    target.meta.proliferated === true ||
+                    target.meta.regenerated === true
                 )
             );
         }
@@ -408,7 +409,8 @@
             if (!target || !target.meta) return 0;
             const isProtectedDestroy =
                 target.meta.proliferated === true ||
-                target.meta.blockedByGhost === true;
+                target.meta.blockedByGhost === true ||
+                target.meta.regenerated === true;
             if (!isProtectedDestroy) return 0;
             const cause = this._getTargetCause(target);
             const reason = this._getTargetReason(target);
@@ -2834,7 +2836,7 @@
             }
 
             const hasDestroyEvadeCounter =
-                (specialType === 'WILL_HUNTER_KING' || specialType === 'AFTERIMAGE_WILL') &&
+                (specialType === 'WILL_HUNTER_KING' || specialType === 'AFTERIMAGE_WILL' || hasInheritedContext) &&
                 Number.isFinite(destroyEvadeRemaining) &&
                 destroyEvadeRemaining >= 0;
             if (hasDestroyEvadeCounter) {
