@@ -1,25 +1,248 @@
 {
   "ok": false,
-  "baseUrl": "http://127.0.0.1:8000/?matchServer=http%3A%2F%2F127.0.0.1%3A8788",
-  "timestamp": "2026-03-19T11:04:07.435Z",
+  "baseUrl": "http://127.0.0.1:8000/?matchServer=http%3A%2F%2F127.0.0.1%3A8787",
+  "serverUrl": "http://127.0.0.1:8787",
+  "timestamp": "2026-03-26T10:34:26.627Z",
   "browsers": {
     "black": "chromium-a",
     "white": "chromium-b"
   },
   "headless": false,
-  "slowMoMs": 30,
-  "roomId": null,
-  "actions": [],
+  "slowMoMs": 0,
+  "roomId": "BCD",
+  "actions": [
+    {
+      "index": 1,
+      "browser": "chromium-a",
+      "playerKey": "black",
+      "type": "place",
+      "row": 2,
+      "col": 3,
+      "notation": "d3",
+      "before": {
+        "seatKey": "black",
+        "currentPlayerKey": "black",
+        "canAct": true,
+        "turnNumber": 0,
+        "turnIndex": 1,
+        "legalMoves": 4,
+        "pending": null,
+        "consecutivePasses": 0,
+        "counts": {
+          "black": 2,
+          "white": 2
+        },
+        "overlayVisible": false,
+        "resultTitle": "",
+        "gameOver": false
+      },
+      "after": {
+        "chrome": {
+          "seatKey": "black",
+          "currentPlayerKey": "white",
+          "canAct": false,
+          "turnNumber": 1,
+          "turnIndex": 2,
+          "legalMoves": 3,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 4,
+            "white": 1
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "edge": {
+          "seatKey": "white",
+          "currentPlayerKey": "white",
+          "canAct": true,
+          "turnNumber": 1,
+          "turnIndex": 2,
+          "legalMoves": 3,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 4,
+            "white": 1
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      }
+    },
+    {
+      "index": 2,
+      "browser": "chromium-b",
+      "playerKey": "white",
+      "type": "place",
+      "row": 2,
+      "col": 4,
+      "notation": "e3",
+      "before": {
+        "seatKey": "white",
+        "currentPlayerKey": "white",
+        "canAct": true,
+        "turnNumber": 1,
+        "turnIndex": 2,
+        "legalMoves": 3,
+        "pending": null,
+        "consecutivePasses": 0,
+        "counts": {
+          "black": 4,
+          "white": 1
+        },
+        "overlayVisible": false,
+        "resultTitle": "",
+        "gameOver": false
+      },
+      "after": {
+        "chrome": {
+          "seatKey": "black",
+          "currentPlayerKey": "black",
+          "canAct": true,
+          "turnNumber": 2,
+          "turnIndex": 3,
+          "legalMoves": 5,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 3,
+            "white": 3
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "edge": {
+          "seatKey": "white",
+          "currentPlayerKey": "black",
+          "canAct": false,
+          "turnNumber": 2,
+          "turnIndex": 3,
+          "legalMoves": 5,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 3,
+            "white": 3
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      }
+    }
+  ],
   "stallEvents": [],
-  "pageEvents": [],
+  "pageEvents": [
+    {
+      "time": "2026-03-26T10:34:27.959Z",
+      "browser": "chromium-a",
+      "kind": "console",
+      "type": "error",
+      "text": "\u001b[0;93m2026-03-26 19:34:27.957299 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 0\u001b[m"
+    },
+    {
+      "time": "2026-03-26T10:34:27.969Z",
+      "browser": "chromium-b",
+      "kind": "console",
+      "type": "error",
+      "text": "\u001b[0;93m2026-03-26 19:34:27.967300 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 0\u001b[m"
+    }
+  ],
   "final": {
-    "actionsExecuted": 0,
+    "actionsExecuted": 2,
     "chrome": {
-      "error": "page.evaluate: Target page, context or browser has been closed"
+      "seatKey": "black",
+      "currentPlayerKey": "black",
+      "canAct": true,
+      "legalMoves": [
+        {
+          "row": 1,
+          "col": 5,
+          "flips": 1
+        },
+        {
+          "row": 2,
+          "col": 5,
+          "flips": 2
+        },
+        {
+          "row": 3,
+          "col": 5,
+          "flips": 1
+        },
+        {
+          "row": 4,
+          "col": 5,
+          "flips": 2
+        },
+        {
+          "row": 5,
+          "col": 5,
+          "flips": 1
+        }
+      ],
+      "pending": null,
+      "turnNumber": 2,
+      "turnIndex": 3,
+      "consecutivePasses": 0,
+      "counts": {
+        "black": 3,
+        "white": 3
+      },
+      "overlayVisible": false,
+      "resultTitle": "",
+      "resultText": "",
+      "gameOver": false
     },
     "edge": {
-      "error": "page.evaluate: Target page, context or browser has been closed"
+      "seatKey": "white",
+      "currentPlayerKey": "black",
+      "canAct": false,
+      "legalMoves": [
+        {
+          "row": 1,
+          "col": 5,
+          "flips": 1
+        },
+        {
+          "row": 2,
+          "col": 5,
+          "flips": 2
+        },
+        {
+          "row": 3,
+          "col": 5,
+          "flips": 1
+        },
+        {
+          "row": 4,
+          "col": 5,
+          "flips": 2
+        },
+        {
+          "row": 5,
+          "col": 5,
+          "flips": 1
+        }
+      ],
+      "pending": null,
+      "turnNumber": 2,
+      "turnIndex": 3,
+      "consecutivePasses": 0,
+      "counts": {
+        "black": 3,
+        "white": 3
+      },
+      "overlayVisible": false,
+      "resultTitle": "",
+      "resultText": "",
+      "gameOver": false
     }
   },
-  "error": "page.goto: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/?matchServer=http%3A%2F%2F127.0.0.1%3A8788\", waiting until \"domcontentloaded\"\u001b[22m\n\n    at main (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\run-local-network-chromium.js:524:24)"
+  "error": "Error: turn advance timeout: chrome={\"seatKey\":\"black\",\"currentPlayerKey\":\"black\",\"canAct\":true,\"legalMoves\":[{\"row\":1,\"col\":5,\"flips\":1},{\"row\":2,\"col\":5,\"flips\":2},{\"row\":3,\"col\":5,\"flips\":1},{\"row\":4,\"col\":5,\"flips\":2},{\"row\":5,\"col\":5,\"flips\":1}],\"pending\":null,\"turnNumber\":2,\"turnIndex\":3,\"consecutivePasses\":0,\"counts\":{\"black\":3,\"white\":3},\"overlayVisible\":false,\"resultTitle\":\"\",\"resultText\":\"\",\"gameOver\":false} edge={\"seatKey\":\"white\",\"currentPlayerKey\":\"black\",\"canAct\":false,\"legalMoves\":[{\"row\":1,\"col\":5,\"flips\":1},{\"row\":2,\"col\":5,\"flips\":2},{\"row\":3,\"col\":5,\"flips\":1},{\"row\":4,\"col\":5,\"flips\":2},{\"row\":5,\"col\":5,\"flips\":1}],\"pending\":null,\"turnNumber\":2,\"turnIndex\":3,\"consecutivePasses\":0,\"counts\":{\"black\":3,\"white\":3},\"overlayVisible\":false,\"resultTitle\":\"\",\"resultText\":\"\",\"gameOver\":false}\n    at waitForGlobalTurnAdvance (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\run-local-network-chromium.js:416:11)\n    at async main (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\run-local-network-chromium.js:642:34)"
 }

@@ -60,7 +60,9 @@ body.story-deck-lab-page-body {
 
 #deckBuilderOverlay.story-deck-lab-standalone .deck-builder-count-badge,
 #deckBuilderOverlay.story-deck-lab-standalone .deck-builder-card-footer,
-#deckBuilderOverlay.story-deck-lab-standalone .deck-builder-card .card-cost-badge {
+#deckBuilderOverlay.story-deck-lab-standalone .deck-builder-card .card-badge-row,
+#deckBuilderOverlay.story-deck-lab-standalone .deck-builder-card .card-cost-badge,
+#deckBuilderOverlay.story-deck-lab-standalone .deck-builder-card .card-type-badge {
     pointer-events: none;
 }
 

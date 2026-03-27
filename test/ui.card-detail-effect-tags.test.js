@@ -227,6 +227,35 @@ describe('card detail effect tags', () => {
     expect(tagsEl.textContent).toContain('破壊回避');
   });
 
+  test('TIME_STOP_GOD detail follows rulebook timing text without adding a protection tag', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'time_stop_01',
+      name: '時間停石',
+      type: 'TIME_STOP_GOD',
+      cost: 0,
+      desc: '使用時にランダムで自分の石3つを破壊し、次に置く石を時間停石化する。5回目の自ターン開始時に時間停止し、そのターンと次のターンを連続で行動する。発動時に効果は終了し、その石は同色の通常石に戻る。先に消えた場合は不発。'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+
+    window.updateCardDetailPanel();
+
+    const desc = document.getElementById('card-detail-desc').textContent;
+    expect(desc).toContain('時間停石化');
+    const detailText = document.getElementById('card-detail-more').textContent;
+    expect(detailText).toContain('5回目の所有者ターン開始時');
+    expect(detailText).toContain('モノクロ表示');
+
+    const tagsEl = document.getElementById('card-detail-effect-tags');
+    expect(tagsEl).not.toBeNull();
+    expect(tagsEl.textContent).toContain('特殊石');
+    expect(tagsEl.textContent).not.toContain('反転保護');
+  });
+
   test('throw-chain cards show formal quick descriptions instead of generated-only fallback text', () => {
     require('../cards/card-interaction.js');
 

@@ -280,6 +280,28 @@ function normalizeProjectedHandIndex(value, fallbackIndex, handLength) {
     return null;
 }
 
+function normalizeCardCopyIdList(values) {
+    if (!Array.isArray(values)) return [];
+    const next = [];
+    for (const rawValue of values) {
+        const numeric = Number(rawValue);
+        if (!Number.isInteger(numeric) || numeric <= 0) continue;
+        next.push(numeric);
+    }
+    return next;
+}
+
+function normalizeHandCopyIdArray(values, targetLength) {
+    const length = Number.isFinite(Number(targetLength)) ? Math.max(0, Math.trunc(Number(targetLength))) : 0;
+    const next = Array(length).fill(null);
+    if (!Array.isArray(values)) return next;
+    for (let index = 0; index < length; index += 1) {
+        const numeric = Number(values[index]);
+        next[index] = Number.isInteger(numeric) && numeric > 0 ? numeric : null;
+    }
+    return next;
+}
+
 function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
     if (!room || !room.seatTokens) return null;
     const seatToken = String(seatTokenValue || '').trim();
@@ -364,6 +386,15 @@ function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
     sanitizeOwnerOnlyTrapState(cardState, viewer);
     const hands = (cardState.hands && typeof cardState.hands === 'object') ? cardState.hands : {};
     const sourceHands = {};
+    const handCopyIdsByPlayer = (cardState._handCopyIdsByPlayer && typeof cardState._handCopyIdsByPlayer === 'object')
+        ? cardState._handCopyIdsByPlayer
+        : {};
+    const revealedHandCopyIdsByViewer = (cardState._revealedHandCopyIdsByViewer && typeof cardState._revealedHandCopyIdsByViewer === 'object')
+        ? cardState._revealedHandCopyIdsByViewer
+        : {};
+    const revealedCopyIdsForViewer = viewer
+        ? new Set(normalizeCardCopyIdList(revealedHandCopyIdsByViewer[viewer]))
+        : new Set();
     cardState.hands = cardState.hands && typeof cardState.hands === 'object' ? cardState.hands : {};
 
     for (const ownerKey of PLAYER_KEYS) {
@@ -374,12 +405,20 @@ function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
                     : cardId
             ))
             : [];
+        const ownerHandCopyIds = normalizeHandCopyIdArray(handCopyIdsByPlayer[ownerKey], ownerHand.length);
         sourceHands[ownerKey] = ownerHand;
         if (viewer && ownerKey === viewer) {
             cardState.hands[ownerKey] = ownerHand.slice();
             continue;
         }
-        cardState.hands[ownerKey] = ownerHand.map((_, handIndex) => makeHiddenHandToken(ownerKey, handIndex));
+        cardState.hands[ownerKey] = ownerHand.map((cardId, handIndex) => {
+            const cardCopyId = ownerHandCopyIds[handIndex];
+            const shouldReveal = viewer
+                && Number.isInteger(cardCopyId)
+                && revealedCopyIdsForViewer.has(cardCopyId)
+                && !isHiddenHandTokenLike(cardId);
+            return shouldReveal ? cardId : makeHiddenHandToken(ownerKey, handIndex);
+        });
     }
 
     if (Array.isArray(cardState.discard)) {
@@ -429,6 +468,12 @@ function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
             });
         }
     }
+
+    delete cardState._nextCardCopySeq;
+    delete cardState._handCopyIdsByPlayer;
+    delete cardState._deckCopyIdsByPlayer;
+    delete cardState._discardCopyIds;
+    delete cardState._revealedHandCopyIdsByViewer;
 
     const projectedForSeat = parseSeatKeyOptional(
         Object.prototype.hasOwnProperty.call(meta, 'projectedForSeat')

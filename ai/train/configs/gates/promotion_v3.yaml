@@ -1,20 +1,20 @@
 schemaVersion: training_gate.v1
 name: promotion_v3
 description: >
-  production_v3 用の本番昇格ゲート。quick/quality/final/onnx の seed 安定性は維持しつつ、
-  quality は大幅退行防止寄り、ONNX は adoption_v2 相当の安全線で確認する。
+  production_v3 用の本番昇格ゲート。quick/quality/final の multi-seed 安定性を強めつつ、
+  quality は non-regression 寄りにして proxy drift の誤判定を減らし、ONNX は adoption_v2 相当の安全線で確認する。
 trainCycleArgs:
   - --quality-gate
   - --quality-gate-games
   - "120"
   - --quality-gate-seed-count
-  - "3"
+  - "5"
   - --quality-gate-seed-stride
   - "1000"
   - --quality-gate-seed-offset
   - "250000"
   - --quality-gate-threshold
-  - "0.001"
+  - "0.000"
   - --quality-gate-confidence-level
   - "0.95"
   - --quality-gate-min-lower-bound
@@ -22,7 +22,7 @@ trainCycleArgs:
   - --quality-gate-min-seed-uplift
   - "-0.020"
   - --quality-gate-min-seed-pass-count
-  - "2"
+  - "3"
   - --quick-games
   - "120"
   - --final-games
@@ -30,7 +30,7 @@ trainCycleArgs:
   - --threshold
   - "0.006"
   - --adoption-seed-count
-  - "3"
+  - "5"
   - --adoption-seed-stride
   - "1000"
   - --adoption-final-seed-offset
@@ -42,11 +42,11 @@ trainCycleArgs:
   - --adoption-min-seed-uplift
   - "-0.020"
   - --adoption-min-seed-pass-count
-  - "2"
+  - "3"
   - --quick-adoption-threshold
   - "0.001"
   - --quick-adoption-seed-count
-  - "3"
+  - "5"
   - --quick-adoption-seed-stride
   - "1000"
   - --quick-adoption-confidence-level
@@ -56,11 +56,11 @@ trainCycleArgs:
   - --quick-adoption-min-seed-uplift
   - "-0.050"
   - --quick-adoption-min-seed-pass-count
-  - "1"
+  - "2"
   - --final-adoption-threshold
   - "0.004"
   - --final-adoption-seed-count
-  - "3"
+  - "5"
   - --final-adoption-seed-stride
   - "1000"
   - --final-adoption-confidence-level
@@ -70,7 +70,7 @@ trainCycleArgs:
   - --final-adoption-min-seed-uplift
   - "-0.020"
   - --final-adoption-min-seed-pass-count
-  - "2"
+  - "3"
   - --adoption-policy-score-weight
   - "1.40"
   - --adoption-heuristic-weight

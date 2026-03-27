@@ -3,6 +3,8 @@ name: browser_lv6_growth_v1
 description: >
   ブラウザLv6の累積成長レーン。deploy 用の promoted-only 主線とは分離し、
   root deploy からは bootstrap だけ取り込みつつ candidate を毎 iteration 継続学習する。
+  厳しい browser non-regression 判定は deploy レーン側に任せ、このレーンでは
+  tactical selfplay と guide 比較で raw strength を積み上げる。
 runTagPrefix: browser_lv6_growth_v1
 gateProfile: browser_lv6_growth_v1
 syncCpuLv6SharedTeacher: false
@@ -126,5 +128,9 @@ trainCycleArgs:
   - --onnx-tactical-miss-sample-boost
   - "0.60"
   - --onnx-tactical-miss-threshold
+  - "0.12"
+  - --onnx-corner-balance-sample-boost
+  - "0.18"
+  - --onnx-edge-balance-sample-boost
   - "0.08"
   - --carry-over-checkpoint

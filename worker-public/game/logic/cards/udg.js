@@ -352,15 +352,35 @@
         anchors.push({ row: anchorRow, col: anchorCol, remainingNow: afterDec });
 
         if (afterDec === 0) {
-            let destroyedRes = false;
-            if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                const res = deps.BoardOps.destroyAt(cardState, gameState, anchorRow, anchorCol, 'ULTIMATE_DESTROY_GOD', 'anchor_expired');
-                destroyedRes = !!(res && res.destroyed);
+            let revertedRes = false;
+            if (deps.BoardOps && typeof deps.BoardOps.revertSpecialStoneAt === 'function') {
+                const res = deps.BoardOps.revertSpecialStoneAt(
+                    cardState,
+                    gameState,
+                    anchorRow,
+                    anchorCol,
+                    'ULTIMATE_DESTROY_GOD',
+                    playerKey,
+                    'ULTIMATE_DESTROY_GOD',
+                    'anchor_expired'
+                );
+                revertedRes = !!(res && res.reverted);
             } else {
-                destroyedRes = destroyAt(cardState, gameState, anchorRow, anchorCol);
+                if (cardState.markers) {
+                    cardState.markers = cardState.markers.filter((entry) => !(
+                        entry &&
+                        entry.kind === 'specialStone' &&
+                        entry.row === anchorRow &&
+                        entry.col === anchorCol &&
+                        entry.owner === playerKey &&
+                        entry.data &&
+                        entry.data.type === 'ULTIMATE_DESTROY_GOD'
+                    ));
+                }
+                revertedRes = true;
             }
-            if (destroyedRes) {
-                expired.push({ row: anchorRow, col: anchorCol });
+            if (revertedRes) {
+                expired.push({ row: anchorRow, col: anchorCol, owner: playerKey, reason: 'anchor_expired' });
             }
             if (udg.data) udg.data.remainingOwnerTurns = -1;
         }
@@ -472,15 +492,35 @@
         // 3) Expire at 0: destroy anchor (only when we actually decremented)
         const expired = [];
         if (shouldDecrement && afterDec === 0) {
-            let destroyedRes = false;
-            if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                const res = deps.BoardOps.destroyAt(cardState, gameState, udg.row, udg.col, 'ULTIMATE_DESTROY_GOD', 'anchor_expired');
-                destroyedRes = !!res.destroyed;
+            let revertedRes = false;
+            if (deps.BoardOps && typeof deps.BoardOps.revertSpecialStoneAt === 'function') {
+                const res = deps.BoardOps.revertSpecialStoneAt(
+                    cardState,
+                    gameState,
+                    udg.row,
+                    udg.col,
+                    'ULTIMATE_DESTROY_GOD',
+                    playerKey,
+                    'ULTIMATE_DESTROY_GOD',
+                    'anchor_expired'
+                );
+                revertedRes = !!(res && res.reverted);
             } else {
-                destroyedRes = destroyAt(cardState, gameState, udg.row, udg.col);
+                if (cardState.markers) {
+                    cardState.markers = cardState.markers.filter((entry) => !(
+                        entry &&
+                        entry.kind === 'specialStone' &&
+                        entry.row === udg.row &&
+                        entry.col === udg.col &&
+                        entry.owner === playerKey &&
+                        entry.data &&
+                        entry.data.type === 'ULTIMATE_DESTROY_GOD'
+                    ));
+                }
+                revertedRes = true;
             }
-            if (destroyedRes) {
-                expired.push({ row: udg.row, col: udg.col });
+            if (revertedRes) {
+                expired.push({ row: udg.row, col: udg.col, owner: playerKey, reason: 'anchor_expired' });
             }
             if (udg.data) udg.data.remainingOwnerTurns = -1;
         }

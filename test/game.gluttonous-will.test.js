@@ -134,6 +134,58 @@ describe('GLUTTONOUS_WILL（悪食の意志）', () => {
     expect(marker.col).toBe(4);
   });
 
+  test('増殖石を捕食すると移動せずに増殖だけ発生し、捕食失敗扱いにはならない', () => {
+    const { cardState, gameState } = createState(0);
+
+    gameState.board[3][3] = Shared.BLACK;
+    gameState.board[3][4] = Shared.WHITE;
+    gameState.board[2][3] = Shared.EMPTY;
+
+    cardState.markers.push(
+      {
+        id: 3111,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'GLUTTONOUS', gluttonousMissStreak: 1 }
+      },
+      {
+        id: 3112,
+        kind: 'specialStone',
+        row: 3,
+        col: 4,
+        owner: 'white',
+        data: { type: 'PROLIFERATION' }
+      }
+    );
+
+    const events = [];
+    TurnPipelinePhases.applyTurnStartPhase(
+      CardLogic,
+      { BLACK: Shared.BLACK, WHITE: Shared.WHITE },
+      cardState,
+      gameState,
+      'black',
+      events,
+      createPrng(0)
+    );
+
+    const movedEvent = events.find((ev) => ev && ev.type === 'hyperactive_moved_start');
+    const destroyedEvent = events.find((ev) => ev && ev.type === 'hyperactive_destroyed_start');
+    expect(movedEvent).toBeUndefined();
+    expect(destroyedEvent).toBeUndefined();
+    expect(gameState.board[3][3]).toBe(Shared.BLACK);
+    expect(gameState.board[3][4]).toBe(Shared.WHITE);
+    expect(gameState.board[2][3]).toBe(Shared.WHITE);
+
+    const gluttonous = (cardState.markers || []).find((marker) => marker && marker.id === 3111);
+    expect(gluttonous).toBeTruthy();
+    expect(gluttonous.row).toBe(3);
+    expect(gluttonous.col).toBe(3);
+    expect(gluttonous.data.gluttonousMissStreak).toBe(0);
+  });
+
   test('隣接敵石がない場合は2連続で捕食失敗した時に消滅する', () => {
     const { cardState, gameState } = createState(0);
 

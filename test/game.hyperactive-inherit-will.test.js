@@ -159,9 +159,12 @@ describe('HYPERACTIVE_INHERIT_WILL (多動の継承)', () => {
     );
 
     expect(res && Array.isArray(res.destroyed)).toBe(true);
+    const reverted = ((res && res.destroyed) || []).find((detail) => detail && detail.reason === 'duration_end');
+    expect(reverted).toEqual(expect.objectContaining({ reason: 'duration_end', reverted: true, specialType: 'INHERITED_HYPERACTIVE' }));
     const inherited = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'INHERITED_HYPERACTIVE');
     expect(inherited).toBeUndefined();
-    expect(countBoardValue(gameState.board, 1)).toBe(0);
+    expect(countBoardValue(gameState.board, 1)).toBe(1);
+    expect(gameState.board[reverted.row][reverted.col]).toBe(1);
   });
 
   test('inherited move keeps coexisting special marker on moved stone', () => {

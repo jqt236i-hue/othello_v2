@@ -37,6 +37,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#card-detail-panel[\s\S]*order:\s*1/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#hand-black[\s\S]*order:\s*2/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#hand-white,\s*[\s\S]*#hand-black[\s\S]*overflow-x:\s*auto/);
+    expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#round-display-panel[\s\S]*display:\s*none/);
     expect(css).not.toMatch(/html\.layout-phone-landscape-blocked\s+body::before/);
     expect(css).toMatch(/#effect-live-panel[\s\S]*left:\s*calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/#cpu-character-img[\s\S]*clamp\(/);
@@ -53,6 +54,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(html).toMatch(/sim-aspect-3-2/);
     expect(html).toMatch(/sim-aspect-4-3/);
     expect(html).toMatch(/sim-aspect-5-4/);
+    expect(html).toMatch(/id="round-display-panel"/);
   });
 
   test('card detail panel anchor sync exists for landscape layout', () => {
@@ -179,6 +181,11 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(layoutCss).toMatch(/#charge-black[\s\S]*bottom:\s*var\(--layout-size-charge-offset\)/);
     expect(layoutCss).toMatch(/#charge-delta-black[\s\S]*--charge-delta-base-transform:\s*translateX\(-50%\)/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*-webkit-text-stroke/);
+    expect(layoutCss).toMatch(/@keyframes\s+round-bonus-banner-slide-down/);
+    expect(layoutCss).toMatch(/@keyframes\s+round-bonus-banner-fade-out/);
+    expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active[\s\S]*animation:\s*round-bonus-banner-slide-down/);
+    expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active\.is-round-bonus-fading[\s\S]*animation:\s*round-bonus-banner-fade-out/);
+    expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active[\s\S]*min-height:\s*calc\(52px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(cardsCss).toMatch(/\.deck-stack[\s\S]*width:\s*calc\(var\(--layout-size-deck-width\)\s*\*\s*var\(--layout-priority-deck-scale\)\)/);
     expect(cardsCss).toMatch(/\.card-item[\s\S]*width:\s*var\(--layout-size-card-width\)/);
     expect(cardsCss).toMatch(/#hand-black \.card-item[\s\S]*width:\s*calc\(var\(--layout-size-card-large-width\)\s*\*\s*var\(--layout-priority-hand-scale\)\)/);

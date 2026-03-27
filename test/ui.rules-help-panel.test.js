@@ -120,9 +120,9 @@ describe('rules help panel', () => {
     };
     window.CardCatalog = {
       cards: [
-        { id: 'c3', name: 'カード高', type: 'SPECIAL_A', cost: 7, desc: '効果3' },
-        { id: 'c1', name: 'カード低', type: 'SPECIAL_A', cost: 1, desc: '効果1' },
-        { id: 'c2', name: 'カード中', type: 'NORMAL_X', cost: 3, desc: '効果2' }
+        { id: 'c3', name: 'カード高', type: 'SPECIAL_A', cost: 7, desc: '効果3', display_type_ja: '禁忌' },
+        { id: 'c1', name: 'カード低', type: 'SPECIAL_A', cost: 1, desc: '効果1', display_type_ja: '守護' },
+        { id: 'c2', name: 'カード中', type: 'NORMAL_X', cost: 3, desc: '効果2', display_type_ja: '執行' }
       ]
     };
 
@@ -135,10 +135,19 @@ describe('rules help panel', () => {
 
     const cardButtons = Array.from(document.querySelectorAll('.rules-help-card-item'));
     expect(cardButtons).toHaveLength(3);
-    expect(cardButtons[0].textContent).toBe('コスト1 カード低');
-    expect(cardButtons[1].textContent).toBe('コスト3 カード中');
-    expect(cardButtons[2].textContent).toBe('コスト7 カード高');
-    expect(document.getElementById('rules-help-card-name').textContent).toBe('コスト1 カード低');
+    expect(cardButtons[0].querySelector('.rules-help-type-badge').textContent).toBe('守護');
+    expect(cardButtons[0].querySelector('.rules-help-card-cost-label').textContent).toBe('コスト1');
+    expect(cardButtons[0].querySelector('.rules-help-card-item-name').textContent).toBe('カード低');
+    expect(cardButtons[1].querySelector('.rules-help-type-badge').textContent).toBe('執行');
+    expect(cardButtons[1].querySelector('.rules-help-card-cost-label').textContent).toBe('コスト3');
+    expect(cardButtons[1].querySelector('.rules-help-card-item-name').textContent).toBe('カード中');
+    expect(cardButtons[2].querySelector('.rules-help-type-badge').textContent).toBe('禁忌');
+    expect(cardButtons[2].querySelector('.rules-help-card-cost-label').textContent).toBe('コスト7');
+    expect(cardButtons[2].querySelector('.rules-help-card-item-name').textContent).toBe('カード高');
+    const selectedHeading = document.getElementById('rules-help-card-name');
+    expect(selectedHeading.querySelector('.rules-help-type-badge').textContent).toBe('守護');
+    expect(selectedHeading.querySelector('.rules-help-card-cost-label').textContent).toBe('コスト1');
+    expect(selectedHeading.querySelector('.rules-help-card-title').textContent).toBe('カード低');
 
     const cardDescEl = document.getElementById('rules-help-card-desc');
     expect(cardDescEl.textContent).toContain('簡易説明');
@@ -147,7 +156,9 @@ describe('rules help panel', () => {
     expect(cardDescEl.querySelector('.rules-help-card-visual-image')).toBeTruthy();
 
     cardButtons[1].click();
-    expect(document.getElementById('rules-help-card-name').textContent).toBe('コスト3 カード中');
+    expect(selectedHeading.querySelector('.rules-help-type-badge').textContent).toBe('執行');
+    expect(selectedHeading.querySelector('.rules-help-card-cost-label').textContent).toBe('コスト3');
+    expect(selectedHeading.querySelector('.rules-help-card-title').textContent).toBe('カード中');
     expect(cardDescEl.querySelector('.rules-help-card-visual-image')).toBeFalsy();
 
     document.querySelector('[data-help-tab="effects"]').click();

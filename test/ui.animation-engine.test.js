@@ -70,6 +70,32 @@ describe('animation-engine _sleep', () => {
     delete global.window;
   });
 
+  test('round_bonus_banner playback delegates to the status-display round pill helper', async () => {
+    global.document = { getElementById: () => ({ classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) }) };
+    global.window = {
+      showRoundBonusDisplay: jest.fn()
+    };
+
+    const engine = require('../ui/animation-engine');
+
+    await engine.executePhase([
+      {
+        type: 'round_bonus_banner',
+        phase: 3,
+        targets: [{ roundNumber: 10, amount: 5, durationMs: 3000, text: 'BONUS ROUND +5' }]
+      }
+    ]);
+
+    expect(global.window.showRoundBonusDisplay).toHaveBeenCalledWith({
+      roundNumber: 10,
+      amount: 5,
+      durationMs: 3000,
+      text: 'BONUS ROUND +5'
+    });
+
+    delete global.window;
+  });
+
   test('place_hand_animation の直後 phase に spawn だけがある特殊石配置でも追加ギャップなしで再生する', async () => {
     const cellEl = { classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) };
     global.document = { getElementById: () => cellEl };

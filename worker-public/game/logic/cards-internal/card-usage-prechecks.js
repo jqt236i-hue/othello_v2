@@ -44,6 +44,15 @@
                 : buildFailureResult();
         }
 
+        if (cardType === 'EQUALITY_WILL') {
+            if (!context || !context.gameState || typeof context.canUseEqualityWillForPlayer !== 'function') {
+                return buildFailureResult();
+            }
+            return context.canUseEqualityWillForPlayer(context.cardState, context.gameState, context.playerKey)
+                ? result
+                : buildFailureResult();
+        }
+
         if (cardType === 'CORNER_TRIBUTE') {
             if (!context || !context.gameState || typeof context.countOpponentOccupiedCornersForPlayer !== 'function') {
                 return buildFailureResult();
@@ -78,6 +87,13 @@
                 : buildFailureResult();
         }
 
+        if (cardType === 'SALVATION_WILL') {
+            if (typeof context.getSalvationWillTargetCount !== 'function') return buildFailureResult();
+            return context.getSalvationWillTargetCount(context.cardState, context.playerKey) > 0
+                ? result
+                : buildFailureResult();
+        }
+
         if (cardType === 'HEAVEN_BLESSING') {
             if (typeof context.buildHeavenBlessingOffers !== 'function') return buildFailureResult();
             const offers = context.buildHeavenBlessingOffers(context.cardId, context.prng, context.heavenSeedHint);
@@ -92,6 +108,14 @@
             if (!Array.isArray(offers) || offers.length <= 0) return buildFailureResult();
             result.condemnOffers = offers;
             return result;
+        }
+
+        if (cardType === 'REVEAL_HAND_WILL') {
+            const opponentKey = context.playerKey === 'black' ? 'white' : 'black';
+            const opponentHand = (context && context.cardState && context.cardState.hands && Array.isArray(context.cardState.hands[opponentKey]))
+                ? context.cardState.hands[opponentKey]
+                : [];
+            return opponentHand.length > 0 ? result : buildFailureResult();
         }
 
         switch (cardType) {

@@ -210,6 +210,41 @@ describe('match authority public snapshot trap visibility', () => {
     expect(projected.cardState.timeStopConsecutiveTurnsRemainingByPlayer).toEqual({ black: 1, white: 0 });
   });
 
+  test('projectSnapshotForViewer reveals only marked opponent hand copies and strips internal copy metadata', () => {
+    const snapshot = {
+      stateVersion: 10,
+      gameState: { currentPlayer: 1 },
+      cardState: {
+        hands: {
+          black: ['b1'],
+          white: ['w1', 'w2', 'w3']
+        },
+        discard: [],
+        pendingEffectByPlayer: { black: null, white: null },
+        _nextCardCopySeq: 20,
+        _handCopyIdsByPlayer: {
+          black: [1],
+          white: [11, 12, 13]
+        },
+        _deckCopyIdsByPlayer: { black: [], white: [] },
+        _discardCopyIds: [],
+        _revealedHandCopyIdsByViewer: {
+          black: [11, 13],
+          white: []
+        }
+      }
+    };
+
+    const projected = MatchAuthority.projectSnapshotForViewer(snapshot, 'black');
+
+    expect(projected.cardState.hands.white).toEqual(['w1', '__hidden_hand__:white:1', 'w3']);
+    expect(projected.cardState._nextCardCopySeq).toBeUndefined();
+    expect(projected.cardState._handCopyIdsByPlayer).toBeUndefined();
+    expect(projected.cardState._deckCopyIdsByPlayer).toBeUndefined();
+    expect(projected.cardState._discardCopyIds).toBeUndefined();
+    expect(projected.cardState._revealedHandCopyIdsByViewer).toBeUndefined();
+  });
+
   test('projectSnapshotForViewer reconnect sanitizes malformed hidden tokens instead of leaking raw token ids', () => {
     const snapshot = createSnapshot();
     snapshot.cardState.hands.white = ['__hidden_hand__:white:99', 'w2'];

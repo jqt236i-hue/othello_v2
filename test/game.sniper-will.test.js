@@ -223,7 +223,7 @@ describe('SNIPER_WILL（狙撃の意志）', () => {
     expect(s2 && s2.data && s2.data.remainingOwnerTurns).toBe(4);
   });
 
-  test('5回目の所有者ターン開始で狙撃石アンカーが消滅する', () => {
+  test('5回目の所有者ターン開始で狙撃石アンカーは通常石に戻る', () => {
     const { cardState, gameState } = createStates(0.3);
 
     gameState.board[4][4] = Shared.BLACK;
@@ -246,8 +246,8 @@ describe('SNIPER_WILL（狙撃の意志）', () => {
     }
 
     const last = CardLogic.processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4, createPrng(0.3));
-    expect((last.expired || [])).toEqual([{ row: 4, col: 4 }]);
-    expect(gameState.board[4][4]).toBe(Shared.EMPTY);
+    expect((last.expired || [])).toEqual([expect.objectContaining({ row: 4, col: 4, reason: 'anchor_expired' })]);
+    expect(gameState.board[4][4]).toBe(Shared.BLACK);
     expect(cardState.markers.find((m) => m && m.id === 7201)).toBeUndefined();
   });
 });

@@ -5,7 +5,8 @@ const {
     selectPlacementMove,
     buildActorViewSnapshot,
     buildCardDecisionContext,
-    buildSelectionTrace
+    buildSelectionTrace,
+    encodeBoard
 } = require('../src/engine/selfplay-runner');
 const Core = require('../game/logic/core');
 const CardLogic = require('../game/logic/cards');
@@ -137,6 +138,10 @@ describe('selfplay runner', () => {
             expect(Array.isArray(rec.handCards)).toBe(true);
             expect(Array.isArray(rec.usableCardIds)).toBe(true);
             expect(Object.prototype.hasOwnProperty.call(rec, 'tacticalScoreMissRatio')).toBe(true);
+            if (Number.isFinite(rec.bestTacticalScore) && rec.bestTacticalScore <= 0) {
+                expect(rec.tacticalScoreMiss).toBe(0);
+                expect(rec.tacticalScoreMissRatio).toBe(0);
+            }
             if (Number.isFinite(rec.tacticalScoreMissRatio)) {
                 expect(rec.tacticalScoreMissRatio).toBeGreaterThanOrEqual(0);
             }
@@ -536,6 +541,149 @@ describe('selfplay runner', () => {
                 expect.objectContaining({ cardId: 'time_01', isSelected: false, shouldUse: false })
             ])
         }));
+    });
+
+    test('runSingleGame records placement committee metrics when teacher committee is enabled', () => {
+        const withoutCommittee = runSingleGame(0, 1, {
+            maxPlies: 1,
+            allowCardUsage: false,
+            enableTacticalLookahead: false,
+            playerPolicies: {
+                black: {
+                    allowCardUsage: false,
+                    enableTacticalLookahead: false,
+                    teacherCommitteeWeight: 0,
+                    teacherCommitteeConsensusBonus: 0
+                },
+                white: {
+                    allowCardUsage: false,
+                    enableTacticalLookahead: false,
+                    teacherCommitteeWeight: 0,
+                    teacherCommitteeConsensusBonus: 0
+                }
+            }
+        });
+        const withCommittee = runSingleGame(0, 1, {
+            maxPlies: 1,
+            allowCardUsage: false,
+            enableTacticalLookahead: false,
+            playerPolicies: {
+                black: {
+                    allowCardUsage: false,
+                    enableTacticalLookahead: false,
+                    teacherCommitteeWeight: 40,
+                    teacherCommitteeConsensusBonus: 400
+                },
+                white: {
+                    allowCardUsage: false,
+                    enableTacticalLookahead: false,
+                    teacherCommitteeWeight: 40,
+                    teacherCommitteeConsensusBonus: 400
+                }
+            }
+        });
+
+        expect(withoutCommittee.records[0].selectedCommitteeScore).toBe(0);
+        expect(withCommittee.records[0].topPlacementCandidates.some((one) => Number(one.committeeScore) > 0)).toBe(true);
+        expect(withCommittee.records[0].topPlacementCandidates.some((one) => Number(one.committeeVotes) > 0)).toBe(true);
+    });
+
+    test('decideAction lets teacher committee change use-card selection and preserves trace', () => {
+        const gameState = Core.createGameState();
+        gameState.board = createPlacementBoard();
+        gameState.currentPlayer = Core.BLACK;
+
+        const cardState = {
+            pendingEffectByPlayer: { black: null, white: null },
+            markers: [],
+            charge: { black: 20, white: 0 },
+            hands: { black: ['guard_01', 'time_01'], white: [] },
+            hasUsedCardThisTurnByPlayer: { black: false, white: false },
+            boardBonusByCell: {},
+            boardBonusConsumedByCell: {}
+        };
+
+        jest.spyOn(CardLogic, 'getUsableCardIds').mockReturnValue(['guard_01', 'time_01']);
+        jest.spyOn(CardLogic, 'getCardType').mockImplementation((cardId) => (
+            cardId === 'guard_01' ? 'GUARD_WILL' : 'TIME_BOMB'
+        ));
+        jest.spyOn(CardLogic, 'getCardCost').mockImplementation((cardId) => (
+            cardId === 'guard_01' ? 12 : 2
+        ));
+        jest.spyOn(CardLogic, 'getCardDef').mockImplementation((cardId) => ({
+            id: cardId,
+            type: cardId === 'guard_01' ? 'GUARD_WILL' : 'TIME_BOMB'
+        }));
+        jest.spyOn(CpuPolicyCore, 'scoreCardUseDecision').mockImplementation((cardId) => ({
+            cardId,
+            cardCost: cardId === 'guard_01' ? 12 : 2,
+            score: cardId === 'guard_01' ? 60 : 55,
+            minUseScore: 20,
+            shouldUse: true
+        }));
+
+        const boardKey = encodeBoard(gameState.board);
+        const stateKey = `black|${boardKey}|-|4`;
+        const policyTableModel = {
+            schemaVersion: 'policy_table.v1',
+            states: {
+                [stateKey]: {
+                    actions: {
+                        'use_card:guard_01': { visits: 49, avgOutcome: 0 },
+                        'use_card:time_01': { visits: 50, avgOutcome: 0 }
+                    }
+                }
+            }
+        };
+
+        const withoutCommittee = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.5 },
+            {
+                allowCardUsage: true,
+                cardUsageRate: 1,
+                policyTableModel,
+                teacherCommitteeWeight: 0,
+                teacherCommitteeConsensusBonus: 0
+            },
+            { gameState, cardState }
+        );
+        const withCommittee = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.5 },
+            {
+                allowCardUsage: true,
+                cardUsageRate: 1,
+                policyTableModel,
+                teacherCommitteeWeight: 600,
+                teacherCommitteeConsensusBonus: 500
+            },
+            { gameState, cardState }
+        );
+
+        expect(withoutCommittee.action).toEqual(expect.objectContaining({ type: 'use_card', useCardId: 'time_01' }));
+        expect(withCommittee.action).toEqual(expect.objectContaining({ type: 'use_card', useCardId: 'guard_01' }));
+        expect(withCommittee.cardDecision).toEqual(expect.objectContaining({
+            selectedActionKey: 'use:guard_01',
+            reasonTags: expect.arrayContaining(['decision:use', 'threshold_passed'])
+        }));
+        expect(withCommittee.cardDecision.candidates).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                cardId: 'guard_01',
+                isSelected: true,
+                committeeScore: expect.any(Number),
+                committeeVotes: 2
+            }),
+            expect.objectContaining({
+                cardId: 'time_01',
+                isSelected: false,
+                policyScore: 50000
+            })
+        ]));
     });
 
     test('retries with refreshed state after an invalid action rejection', () => {
@@ -1232,6 +1380,32 @@ describe('selfplay runner', () => {
         expect(decision.action.type).toBe('place');
         expect(decision.action.row).toBe(0);
         expect(decision.action.col).toBe(4);
+    });
+
+    test('decideAction destroys bucket1 card before considering card use', () => {
+        const gameState = Core.createGameState();
+        const cardState = {
+            pendingEffectByPlayer: { black: null, white: null },
+            markers: [],
+            charge: { black: 0, white: 0 },
+            hands: { black: ['time_stop_god_01'], white: [] },
+            hasUsedCardThisTurnByPlayer: { black: false, white: false },
+            hasDestroyedCardThisTurnByPlayer: { black: false, white: false }
+        };
+
+        const decision = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.5 },
+            { allowCardUsage: true, allowHandDestroy: true, enableTacticalLookahead: false },
+            { gameState, cardState }
+        );
+
+        expect(decision.action).toEqual({
+            type: 'destroy_hand_card',
+            destroyCardId: 'time_stop_god_01'
+        });
     });
 
     test('buildCardDecisionContext keeps staged chain-will cards in teacher candidates', () => {

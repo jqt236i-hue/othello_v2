@@ -4,6 +4,12 @@
 
 let cpuSpeechHideTimer = null;
 let cpuSpeechViewportHandlersBound = false;
+let roundDisplayViewportHandlersBound = false;
+let roundDisplayResizeObserver = null;
+let roundDisplayBonusTimer = null;
+let roundDisplayBonusFadeTimer = null;
+let roundDisplayBonusState = null;
+const ROUND_DISPLAY_BONUS_FADE_OUT_MS = 320;
 const HERO_DEFAULT_LABEL = 'オセロの勇者';
 const NETWORK_WAITING_NAME = '接続待ち';
 let StatusDisplayOwnerHelpersModule = null;
@@ -229,6 +235,216 @@ function hideCpuSpeechBubble() {
     bubble.textContent = '';
 }
 
+function getGameStateForStatusDisplay() {
+    try {
+        if (typeof window !== 'undefined' && window && window.gameState) return window.gameState;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof gameState !== 'undefined' && gameState) return gameState;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function getRoundDisplayElement() {
+    if (typeof document === 'undefined') return null;
+    return document.getElementById('round-display-panel');
+}
+
+function getEffectLivePanelElement() {
+    if (typeof document === 'undefined') return null;
+    return document.getElementById('effect-live-panel');
+}
+
+function getRoundDisplayBoardAnchorElement() {
+    if (typeof document === 'undefined') return null;
+    return document.getElementById('board-frame') || document.getElementById('board');
+}
+
+function getLayoutStageScaleForStatusDisplay() {
+    if (typeof window === 'undefined' || typeof document === 'undefined' || !document.documentElement) return 1;
+    try {
+        const rootStyle = window.getComputedStyle(document.documentElement);
+        const scale = Number.parseFloat(rootStyle.getPropertyValue('--layout-stage-scale'));
+        return Number.isFinite(scale) && scale > 0 ? scale : 1;
+    } catch (e) {
+        return 1;
+    }
+}
+
+function resolveRoundNumberForStatusDisplay() {
+    const state = getGameStateForStatusDisplay();
+    const explicitRoundNumber = Number(state && state.roundNumber);
+    if (Number.isFinite(explicitRoundNumber) && explicitRoundNumber >= 1) {
+        return Math.trunc(explicitRoundNumber);
+    }
+    const completedTurns = Number.isFinite(Number(state && state.turnNumber))
+        ? Math.max(0, Math.trunc(Number(state.turnNumber)))
+        : 0;
+    return Math.floor(completedTurns / 2) + 1;
+}
+
+function setRoundDisplayVisibility(roundEl, visible) {
+    if (!roundEl) return;
+    roundEl.style.display = visible ? 'inline-flex' : 'none';
+    roundEl.style.visibility = visible ? 'visible' : 'hidden';
+}
+
+function hasActiveRoundDisplayBonus() {
+    return !!(roundDisplayBonusState && typeof roundDisplayBonusState.text === 'string' && roundDisplayBonusState.text.trim());
+}
+
+function setRoundDisplayBonusClass(roundEl, active) {
+    if (!roundEl || !roundEl.classList) return;
+    if (active) roundEl.classList.add('is-round-bonus-active');
+    else roundEl.classList.remove('is-round-bonus-active');
+}
+
+function setRoundDisplayBonusFadeClass(roundEl, active) {
+    if (!roundEl || !roundEl.classList) return;
+    if (active) roundEl.classList.add('is-round-bonus-fading');
+    else roundEl.classList.remove('is-round-bonus-fading');
+}
+
+function activateRoundDisplayBonus(roundEl) {
+    if (!roundEl) return;
+    if (roundEl.classList && roundEl.classList.contains('is-round-bonus-active')) {
+        roundEl.classList.remove('is-round-bonus-active');
+        void roundEl.offsetWidth;
+    }
+    setRoundDisplayBonusFadeClass(roundEl, false);
+    setRoundDisplayBonusClass(roundEl, true);
+}
+
+function clearRoundDisplayBonusTimers() {
+    if (roundDisplayBonusTimer) {
+        clearTimeout(roundDisplayBonusTimer);
+        roundDisplayBonusTimer = null;
+    }
+    if (roundDisplayBonusFadeTimer) {
+        clearTimeout(roundDisplayBonusFadeTimer);
+        roundDisplayBonusFadeTimer = null;
+    }
+}
+
+function startRoundDisplayBonusFadeOut(fadeOutMs, updateAfterClear = true) {
+    const roundEl = getRoundDisplayElement();
+    setRoundDisplayBonusFadeClass(roundEl, true);
+    if (roundDisplayBonusFadeTimer) {
+        clearTimeout(roundDisplayBonusFadeTimer);
+        roundDisplayBonusFadeTimer = null;
+    }
+    roundDisplayBonusFadeTimer = setTimeout(() => {
+        clearRoundDisplayBonus(updateAfterClear);
+    }, fadeOutMs);
+}
+
+function clearRoundDisplayBonus(updateAfterClear = true) {
+    clearRoundDisplayBonusTimers();
+    roundDisplayBonusState = null;
+    const roundEl = getRoundDisplayElement();
+    setRoundDisplayBonusFadeClass(roundEl, false);
+    setRoundDisplayBonusClass(roundEl, false);
+    if (updateAfterClear) updateRoundDisplay();
+}
+
+function resolveRoundDisplayText() {
+    if (hasActiveRoundDisplayBonus()) {
+        return roundDisplayBonusState.text.trim();
+    }
+    return `ROUND ${resolveRoundNumberForStatusDisplay()}`;
+}
+
+function showRoundBonusDisplay(payload) {
+    const data = (payload && typeof payload === 'object') ? payload : {};
+    const amount = Number.isFinite(Number(data.amount))
+        ? Math.max(0, Math.trunc(Number(data.amount)))
+        : 0;
+    if (!(amount > 0)) return;
+    const durationMs = Number.isFinite(Number(data.durationMs))
+        ? Math.max(0, Math.trunc(Number(data.durationMs)))
+        : 3000;
+    const fadeOutMs = Number.isFinite(Number(data.fadeOutMs))
+        ? Math.max(0, Math.trunc(Number(data.fadeOutMs)))
+        : ROUND_DISPLAY_BONUS_FADE_OUT_MS;
+    const text = (typeof data.text === 'string' && data.text.trim())
+        ? data.text.trim()
+        : `BONUS ROUND +${amount}`;
+    roundDisplayBonusState = { text };
+    const roundEl = getRoundDisplayElement();
+    if (roundEl) {
+        roundEl.textContent = text;
+        activateRoundDisplayBonus(roundEl);
+    }
+    bindRoundDisplayViewportHandlers();
+    positionRoundDisplay();
+    clearRoundDisplayBonusTimers();
+    roundDisplayBonusTimer = setTimeout(() => {
+        startRoundDisplayBonusFadeOut(fadeOutMs, true);
+    }, durationMs);
+}
+
+function positionRoundDisplay() {
+    if (typeof window === 'undefined') return;
+    const roundEl = getRoundDisplayElement();
+    const effectPanel = getEffectLivePanelElement();
+    const boardAnchor = getRoundDisplayBoardAnchorElement();
+    if (!roundEl || !effectPanel) return;
+
+    const effectStyle = typeof window.getComputedStyle === 'function'
+        ? window.getComputedStyle(effectPanel)
+        : null;
+    if (!effectStyle || effectStyle.display === 'none' || effectStyle.visibility === 'hidden') {
+        setRoundDisplayVisibility(roundEl, false);
+        return;
+    }
+
+    setRoundDisplayVisibility(roundEl, true);
+    const effectRect = effectPanel.getBoundingClientRect();
+    if (!Number.isFinite(effectRect.left)) return;
+
+    let targetTop = effectRect.top;
+    if (boardAnchor && typeof boardAnchor.getBoundingClientRect === 'function') {
+        const boardRect = boardAnchor.getBoundingClientRect();
+        if (Number.isFinite(boardRect.top)) {
+            targetTop = boardRect.top;
+        }
+    }
+
+    roundEl.style.left = `${Math.round(effectRect.left)}px`;
+    roundEl.style.top = `${Math.round(Math.max(8, targetTop))}px`;
+}
+
+function bindRoundDisplayViewportHandlers() {
+    if (roundDisplayViewportHandlersBound || typeof window === 'undefined') return;
+    roundDisplayViewportHandlersBound = true;
+
+    const reposition = () => {
+        try { positionRoundDisplay(); } catch (e) { /* ignore */ }
+    };
+    window.addEventListener('resize', reposition);
+    window.addEventListener('orientationchange', reposition);
+    window.addEventListener('load', reposition);
+
+    if (typeof ResizeObserver === 'function') {
+        try {
+            const effectPanel = getEffectLivePanelElement();
+            if (effectPanel) {
+                roundDisplayResizeObserver = new ResizeObserver(reposition);
+                roundDisplayResizeObserver.observe(effectPanel);
+            }
+        } catch (e) { /* ignore */ }
+    }
+}
+
+function updateRoundDisplay() {
+    const roundEl = getRoundDisplayElement();
+    if (!roundEl) return;
+    roundEl.textContent = resolveRoundDisplayText();
+    setRoundDisplayBonusClass(roundEl, hasActiveRoundDisplayBonus());
+    bindRoundDisplayViewportHandlers();
+    positionRoundDisplay();
+}
+
 function showCpuSpeechBubble(text) {
     const line = String(text || '').trim();
     if (!line || typeof document === 'undefined') return;
@@ -247,7 +463,7 @@ function showCpuSpeechBubble(text) {
 }
 
 function updateStatus() {
-    // status element removed; keep CPU character update in sync
+    updateRoundDisplay();
     updateCpuCharacter();
 }
 
@@ -334,8 +550,11 @@ if (typeof window !== 'undefined') {
     try { window.showCpuSpeechBubble = showCpuSpeechBubble; } catch (e) { /* ignore */ }
     try { window.hideCpuSpeechBubble = hideCpuSpeechBubble; } catch (e) { /* ignore */ }
     try { window.positionCpuSpeechBubble = positionCpuSpeechBubble; } catch (e) { /* ignore */ }
+    try { window.showRoundBonusDisplay = showRoundBonusDisplay; } catch (e) { /* ignore */ }
+    try { window.clearRoundDisplayBonus = clearRoundDisplayBonus; } catch (e) { /* ignore */ }
     try { window.updateCpuCharacter = updateCpuCharacter; } catch (e) { /* ignore */ }
     try { window.updateStatus = updateStatus; } catch (e) { /* ignore */ }
+    try { updateRoundDisplay(); } catch (e) { /* ignore */ }
 }
 
 function showResult() {

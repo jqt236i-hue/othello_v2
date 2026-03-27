@@ -34,12 +34,14 @@ const DEFENSIVE_CARD_TYPES = new Set([
     'PLUNDER_WILL',
     'SELL_CARD_WILL',
     'HEAVEN_BLESSING',
+    'REVEAL_HAND_WILL',
     'CONDEMN_WILL',
     'TRAP_WILL',
     'EXTEND_LIFE_WILL',
     'EXTEND_LIFE_GOD',
     'SNIPER_WILL',
-    'LIGHTNING_WILL'
+    'LIGHTNING_WILL',
+    'SALVATION_WILL'
 ]);
 
 const HIGH_VARIANCE_CARD_TYPES = new Set([
@@ -60,6 +62,7 @@ const HIGH_VARIANCE_CARD_TYPES = new Set([
     'TABOO_REVERSE_WILL',
     'FREE_PLACEMENT',
     'LAST_RESORT',
+    'EQUALITY_WILL',
     'SNIPER_WILL',
     'HYPERACTIVE_WILL',
     'ESCAPE_WILL',
@@ -223,6 +226,7 @@ const SWING_CARD_TYPES = new Set([
     'TABOO_REVERSE_WILL',
     'FREE_PLACEMENT',
     'LAST_RESORT',
+    'EQUALITY_WILL',
     'METEOR_WILL',
     'BOARD_EXPANSION_WILL',
     'BOARD_EXPANSION_GOD',
@@ -346,6 +350,29 @@ const WHITE_LV6_DESTROY_WHEN_AHEAD_TYPES = new Set([
     'EXTREME_HYPERACTIVE_WILL'
 ]);
 
+const IMMEDIATE_DESTROY_CARD_TYPES = new Set([
+    'TIME_STOP_GOD',
+    'CELL_TELEPORT_WILL',
+    'FREEZE_WILL',
+    'REBUILD_WILL'
+]);
+
+const LOW_CHARGE_DESTROY_CARD_TYPES = new Set([
+    'ESCAPE_WILL',
+    'HYPERACTIVE_INHERIT_WILL',
+    'BOARD_EXPANSION_GOD',
+    'SUPPLY_WILL'
+]);
+
+const CONDITION_DEPENDENT_DESTROY_CARD_TYPES = new Set([
+    'RIBO_WILL',
+    'LAST_RESORT',
+    'EQUALITY_WILL',
+    'CORROSION_WILL'
+]);
+
+const LOW_CHARGE_DESTROY_MAX_CHARGE = 50;
+
 // Explicit per-card baseline bias so every catalog card type is scored intentionally.
 // Positive: generally usable/safer. Negative: volatile or high opportunity cost.
 const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
@@ -360,6 +387,7 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     CLONE_WILL: -1,
     CELL_TELEPORT_WILL: -4,
     CONDEMN_WILL: 4,
+    REVEAL_HAND_WILL: 2,
     CORROSION_WILL: 4,
     CROSS_BOMB: -2,
     DESTROY_DRAGON_WILL: 7,
@@ -372,6 +400,7 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     EXTEND_LIFE_WILL: 8,
     EXTEND_LIFE_GOD: 10,
     EXTREME_HYPERACTIVE_WILL: -8,
+    EQUALITY_WILL: 4,
     FREE_PLACEMENT: 2,
     GLUTTONOUS_WILL: 3,
     GOLD_STONE: 12,
@@ -394,11 +423,13 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     PLUNDER_WILL: 8,
     CORNER_TRIBUTE: 6,
     POSITION_SWAP_WILL: 6,
+    PROLIFERATION_WILL: 1,
     PROTECTED_NEXT_STONE: 10,
     REBUILD_WILL: 0,
     REGEN_WILL: 9,
     RIBO_WILL: 4,
     ROBOT_VACUUM_WILL: 4,
+    SALVATION_WILL: 8,
     SELL_CARD_WILL: 8,
     SUPPLY_WILL: 8,
     SILVER_STONE: 10,
@@ -436,6 +467,7 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'CELL_TELEPORT_WILL',
     'CLONE_WILL',
     'CONDEMN_WILL',
+    'REVEAL_HAND_WILL',
     'CORNER_TRIBUTE',
     'CORROSION_WILL',
     'CROSS_BOMB',
@@ -449,6 +481,7 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'EXTEND_LIFE_WILL',
     'EXTEND_LIFE_GOD',
     'EXTREME_HYPERACTIVE_WILL',
+    'EQUALITY_WILL',
     'FREE_PLACEMENT',
     'FREEZE_WILL',
     'GLUTTONOUS_WILL',
@@ -471,11 +504,13 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'PERMA_PROTECT_NEXT_STONE',
     'PLUNDER_WILL',
     'POSITION_SWAP_WILL',
+    'PROLIFERATION_WILL',
     'PROTECTED_NEXT_STONE',
     'REBUILD_WILL',
     'REGEN_WILL',
     'RIBO_WILL',
     'ROBOT_VACUUM_WILL',
+    'SALVATION_WILL',
     'SELL_CARD_WILL',
     'SUPPLY_WILL',
     'SILVER_STONE',
@@ -513,6 +548,7 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     INFINITE_CHAIN_WILL: { trailingBias: 12, lowMobilityBias: 12, leadBias: -10, cornerNowBias: -10, handPressureBias: 4, endgameBias: 2 },
     CLONE_WILL: { midLateBias: 4, cornerNowBias: 4, endgameBias: -4 },
     CONDEMN_WILL: { trailingBias: 2, handPressureBias: 4, cornerNowBias: -2 },
+    REVEAL_HAND_WILL: { openingBias: 4, midLateBias: 4, endgameBias: -10, handPressureBias: 2, trailingBias: 2, cornerNowBias: -2 },
     CORNER_TRIBUTE: { trailingBias: 8, cornerEmergencyBias: 8, leadBias: -6, handPressureBias: 2 },
     CORROSION_WILL: { midLateBias: 2, handPressureBias: 2, endgameBias: -2 },
     CROSS_BOMB: { cornerEmergencyBias: 4, endgameBias: -6 },
@@ -522,6 +558,7 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     TRIPLE_PLACE: { trailingBias: 8, handPressureBias: 6, cornerNowBias: -8, endgameBias: -2 },
     QUAD_PLACE: { trailingBias: 10, handPressureBias: 8, cornerNowBias: -10, endgameBias: 0 },
     INFINITE_PLACE: { trailingBias: 12, handPressureBias: 6, cornerNowBias: -12, endgameBias: 2, lowMobilityBias: 8 },
+    EQUALITY_WILL: { leadBias: -8, trailingBias: 8, midLateBias: 4, endgameBias: -8, lowMobilityBias: 4, handPressureBias: 2 },
     ESCAPE_WILL: { trailingBias: 4, edgeEmergencyBias: 4, handPressureBias: 2 },
     EXTEND_LIFE_WILL: { midLateBias: 4, leadBias: 4, endgameBias: -4 },
     EXTEND_LIFE_GOD: { midLateBias: 6, leadBias: 6, endgameBias: -6 },
@@ -548,11 +585,13 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     PERMA_PROTECT_NEXT_STONE: { leadBias: 4, cornerNowBias: 4 },
     PLUNDER_WILL: { openingBias: 2, handPressureBias: 4, endgameBias: -4 },
     POSITION_SWAP_WILL: { trailingBias: 6, edgeEmergencyBias: 4, cornerNowBias: -4 },
+    PROLIFERATION_WILL: { openingBias: 6, midLateBias: 4, endgameBias: -6, handPressureBias: 2 },
     PROTECTED_NEXT_STONE: { leadBias: 4, cornerNowBias: 4 },
     REBUILD_WILL: { handPressureBias: 8, openingBias: 2, endgameBias: -4 },
     REGEN_WILL: { leadBias: 4, cornerNowBias: 2, trailingBias: -4 },
     RIBO_WILL: { midLateBias: 6, handPressureBias: 4, leadBias: -8, endgameBias: -10 },
     ROBOT_VACUUM_WILL: { midLateBias: 4, cornerEmergencyBias: 2, endgameBias: -4 },
+    SALVATION_WILL: { trailingBias: 4, handPressureBias: 2, endgameBias: -2 },
     SELL_CARD_WILL: { handPressureBias: 6, openingBias: 2, cornerNowBias: -4 },
     SUPPLY_WILL: { openingBias: 6, midLateBias: 2, endgameBias: -12, cornerNowBias: -4, handPressureBias: -8 },
     SILVER_STONE: { openingBias: 4, handPressureBias: 2, cornerNowBias: 2 },
@@ -902,6 +941,7 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     INFINITE_CHAIN_WILL: { archetype: 'explosiveComeback', placementWeight: 2, flipBias: 7, oppAdjBias: 6, bonusBias: 3, stabilityBias: -1 },
     CLONE_WILL: { archetype: 'spawnMobile', placementWeight: 0, ownAdjBias: 1, edgeBias: 2 },
     CONDEMN_WILL: { archetype: 'economyCycle', placementWeight: 0 },
+    REVEAL_HAND_WILL: { archetype: 'economyCycle', placementWeight: 0 },
     CORROSION_WILL: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 3, oppAdjBias: 2 },
     CROSS_BOMB: { archetype: 'explosiveComeback', placementWeight: 3, edgeBias: 2, oppAdjBias: 3 },
     DESTROY_DRAGON_WILL: { archetype: 'anchorEngine', placementWeight: 3, edgeBias: 3, oppAdjBias: 3 },
@@ -942,6 +982,7 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     REGEN_WILL: { archetype: 'anchorProtect', placementWeight: 3, innerBias: -1, flipBias: 1, oppAdjBias: 1 },
     RIBO_WILL: { archetype: 'economyCycle', placementWeight: 0, bonusBias: 1, flipBias: 1 },
     ROBOT_VACUUM_WILL: { archetype: 'spawnMobile', placementWeight: 3, edgeBias: 2, oppAdjBias: 3, stabilityBias: 2 },
+    SALVATION_WILL: { archetype: 'recoveryReposition', placementWeight: 0, ownAdjBias: 2, stabilityBias: 2 },
     SELL_CARD_WILL: { archetype: 'economyCycle', placementWeight: 0, bonusBias: 0, flipBias: 1 },
     SUPPLY_WILL: { archetype: 'economyCycle', placementWeight: 0 },
     SILVER_STONE: { archetype: 'economyCycle', placementWeight: 2, flipBias: 4 },
@@ -1070,6 +1111,97 @@ function getMovePlanProfileForCardType(cardType) {
     const type = String(cardType || '');
     if (!Object.prototype.hasOwnProperty.call(CARD_TYPE_MOVE_PLAN_PROFILE, type)) return null;
     return CARD_TYPE_MOVE_PLAN_PROFILE[type] || null;
+}
+
+function getForcedHandDestroyReason(cardId, cardType, context, usableCardIdSet) {
+    const type = String(cardType || '').trim();
+    if (!type) return null;
+    if (IMMEDIATE_DESTROY_CARD_TYPES.has(type)) return 'bucket1_never_use';
+
+    const ctx = context || {};
+    const ownCharge = Number.isFinite(ctx.ownCharge) ? Number(ctx.ownCharge) : 0;
+    if (LOW_CHARGE_DESTROY_CARD_TYPES.has(type) && ownCharge <= LOW_CHARGE_DESTROY_MAX_CHARGE) {
+        return 'bucket2_low_charge';
+    }
+
+    const safeCardId = String(cardId || '').trim();
+    if (
+        CONDITION_DEPENDENT_DESTROY_CARD_TYPES.has(type) &&
+        safeCardId &&
+        !(usableCardIdSet instanceof Set && usableCardIdSet.has(safeCardId))
+    ) {
+        return 'bucket3_currently_unusable';
+    }
+
+    return null;
+}
+
+function getForcedHandDestroyPriority(reason) {
+    switch (String(reason || '')) {
+    case 'bucket1_never_use':
+        return 1;
+    case 'bucket2_low_charge':
+        return 2;
+    case 'bucket3_currently_unusable':
+        return 3;
+    default:
+        return 99;
+    }
+}
+
+function buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, context, reason) {
+    const ctx = context || {};
+    return {
+        cardId,
+        cardDef,
+        cardType,
+        cardCost,
+        score: -1000000,
+        shouldUse: false,
+        minUseScore: Number.isFinite(ctx.minUseScore) ? Number(ctx.minUseScore) : Number.NEGATIVE_INFINITY,
+        reason: String(reason || 'blocked')
+    };
+}
+
+function chooseForcedHandDestroyTarget(handCardIds, getCardCost, getCardDef, context, usableCardIdSet) {
+    if (!Array.isArray(handCardIds) || handCardIds.length <= 0) return null;
+    let best = null;
+
+    for (const rawCardId of handCardIds) {
+        const cardId = String(rawCardId || '').trim();
+        if (!cardId) continue;
+        const cardDef = typeof getCardDef === 'function' ? (getCardDef(cardId) || null) : null;
+        const cardType = cardDef && typeof cardDef.type === 'string' ? cardDef.type : '';
+        const reason = getForcedHandDestroyReason(cardId, cardType, context, usableCardIdSet);
+        if (!reason) continue;
+        const cardCost = typeof getCardCost === 'function' ? Number(getCardCost(cardId) || 0) : 0;
+        const priority = getForcedHandDestroyPriority(reason);
+
+        if (
+            !best ||
+            priority < best.priority ||
+            (priority === best.priority && cardCost > best.cardCost) ||
+            (priority === best.priority && cardCost === best.cardCost && cardId < best.cardId)
+        ) {
+            best = {
+                cardId,
+                cardDef,
+                cardType,
+                cardCost,
+                priority,
+                reason
+            };
+        }
+    }
+
+    if (!best) return null;
+    return {
+        cardId: best.cardId,
+        cardDef: best.cardDef,
+        cardType: best.cardType,
+        score: Number.NEGATIVE_INFINITY,
+        reason: best.reason
+    };
 }
 
 function countBoardDiscsForPlayer(board, playerValue) {
@@ -1336,6 +1468,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const isThrowChainCard = THROW_CHAIN_CARD_TYPES.includes(cardType);
     const isChainWill = CHAIN_WILL_CARD_TYPES.includes(cardType);
     const isLastResort = cardType === 'LAST_RESORT';
+    const isEqualityWill = cardType === 'EQUALITY_WILL';
     const isFreePlacement = (cardType === 'FREE_PLACEMENT' || cardType === 'LAST_RESORT');
     const isSniperWill = cardType === 'SNIPER_WILL';
     const isStrongWindWill = cardType === 'STRONG_WIND_WILL';
@@ -1346,6 +1479,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const isBoardExpansionWill = (cardType === 'BOARD_EXPANSION_WILL' || cardType === 'BOARD_EXPANSION_GOD');
     const isTrapWill = cardType === 'TRAP_WILL';
     const isHeavenBlessing = cardType === 'HEAVEN_BLESSING';
+    const isRevealHandWill = cardType === 'REVEAL_HAND_WILL';
     const isCondemnWill = cardType === 'CONDEMN_WILL';
     const isExtendLifeWill = cardType === 'EXTEND_LIFE_WILL';
     const isExtendLifeGod = cardType === 'EXTEND_LIFE_GOD';
@@ -1438,6 +1572,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const oppEdgeResetCount = Number.isFinite(ctx.oppEdgeResetCount) ? Math.max(0, Math.floor(ctx.oppEdgeResetCount)) : 0;
     const handCardIds = Array.isArray(ctx.handCardIds) ? ctx.handCardIds : [];
     const usableCardIds = Array.isArray(ctx.usableCardIds) ? ctx.usableCardIds : [];
+    const usableCardIdSet = new Set(usableCardIds);
     const deckRemaining = Number.isFinite(ctx.deckRemaining) ? Math.max(0, Math.floor(ctx.deckRemaining)) : null;
     let keepPriorityInHandCount = 0;
     let highVarianceInHandCount = 0;
@@ -1487,6 +1622,14 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const lowDiscEmergency = ctx.lowDiscEmergency === true || ownDiscs <= 8;
     const criticalLowDiscEmergency = ctx.criticalLowDiscEmergency === true || ownDiscs <= 4;
     const isWhiteCornerSwingKeepCard = WHITE_LV6_CORNER_SWING_KEEP_TYPES.has(cardType);
+
+    const forcedDestroyReason = getForcedHandDestroyReason(cardId, cardType, ctx, usableCardIdSet);
+    if (forcedDestroyReason) {
+        return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, forcedDestroyReason);
+    }
+    if (isLossWill && ownSpecialCount > 0) {
+        return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'loss_will_own_special');
+    }
 
     let maxSellCandidateCost = 0;
     if (typeof getCardCost === 'function' && handCardIds.length > 0) {
@@ -2025,6 +2168,21 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (keepPriorityInHandCount >= 2) score -= 18;
     }
 
+    if (isRevealHandWill) {
+        score += 10 + (oppHandSize * 8);
+        if (oppHandSize >= 4) score += 24;
+        else if (oppHandSize <= 1) score -= 110;
+        else if (oppHandSize <= 2 && !cornerEmergency) score -= 28;
+        if (openingPhase) score += 18;
+        if (midLatePhase && !endgamePhase) score += 10;
+        if (cornerEmergency || trailingHard) score += 18;
+        else if (trailing) score += 8;
+        if (leadStable && oppHandSize <= 2 && !ctx.forceUseCard) score -= 24;
+        if (hasCornerMoveNow && !cornerEmergency && oppHandSize <= 2 && !ctx.forceUseCard) score -= 14;
+        if (ctx.handSize >= 4) score += 4;
+        if (endgamePhase) score -= 44;
+    }
+
     if (isCondemnWill) {
         score += 8 + (oppHandSize * 14);
         if (oppHandSize >= 4) score += 38;
@@ -2208,6 +2366,17 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         else if (hasEdgeMoveNow) score += 18;
         if (cornerEmergency && !hasCornerMoveNow) score -= 26;
         if (trailing) score += 18;
+    }
+
+    if (isEqualityWill) {
+        score -= 24;
+        if (ctx.discDiff <= -10) score += 52;
+        else if (!ctx.forceUseCard) score -= 120;
+        if (ctx.discDiff <= -14) score += 24;
+        if (lowDiscEmergency) score += 18;
+        if (criticalLowDiscEmergency) score += 24;
+        if (ctx.empties <= 12) score -= 42;
+        else if (ctx.empties <= 18) score -= 16;
     }
 
     if (isGluttonousWill) {
@@ -2515,7 +2684,9 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
     const isTimeBomb = cardType === 'TIME_BOMB';
     const isTimeStopGod = cardType === 'TIME_STOP_GOD';
     const isLastResort = cardType === 'LAST_RESORT';
+    const isEqualityWill = cardType === 'EQUALITY_WILL';
     const isHeavenBlessing = cardType === 'HEAVEN_BLESSING';
+    const isRevealHandWill = cardType === 'REVEAL_HAND_WILL';
     const isCondemnWill = cardType === 'CONDEMN_WILL';
     const isProtectedNextStone = cardType === 'PROTECTED_NEXT_STONE';
     const isAfterimageWill = cardType === 'AFTERIMAGE_WILL';
@@ -2612,6 +2783,13 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
         if (ctx.legalMovesCount <= 0 && ctx.discDiff < 0) score += 40;
     }
 
+    if (isEqualityWill) {
+        if (ctx.discDiff <= -10) score += 150;
+        else score -= 220;
+        if (ctx.discDiff <= -14) score += 40;
+        if (ctx.empties <= 12) score -= 34;
+    }
+
     if (whiteLv6Mode && (isThrowChainCard || isChainWill)) score -= 260;
     if (whiteLv6Mode && isLastResort && ctx.discDiff >= 0 && !cornerEmergency) score -= 220;
     if (whiteLv6Mode && isLastResort && ctx.legalMovesCount > 0) score -= 520;
@@ -2698,6 +2876,14 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
             if (ctx.deckRemaining <= 2) score -= 140;
             else if (ctx.deckRemaining <= 4) score -= 50;
         }
+    }
+    if (isRevealHandWill) {
+        score += Math.min(72, oppHandSize * 16);
+        if (oppHandSize <= 1) score -= 120;
+        else if (oppHandSize <= 2 && !cornerEmergency) score -= 40;
+        if (cornerEmergency || ctx.discDiff <= -6) score += 16;
+        if (ctx.discDiff >= 6 && oppHandSize <= 2) score -= 24;
+        if (ctx.empties <= 12) score -= 48;
     }
     if (isCondemnWill) {
         score += Math.min(120, oppHandSize * 24);
@@ -2871,12 +3057,14 @@ function chooseHandDestroyTargetForCycle(handCardIds, usableCardIds, getCardCost
     const ctx = buildCardDecisionContext(Object.assign({}, context || {}, {
         handSize: hand.length
     }));
-    if (ctx.forceUseCard) return null;
 
     const usable = Array.isArray(usableCardIds)
         ? usableCardIds.map((id) => String(id || '').trim()).filter((id) => id.length > 0)
         : [];
     const usableSet = new Set(usable);
+    const forcedDestroy = chooseForcedHandDestroyTarget(hand, getCardCost, getCardDef, ctx, usableSet);
+    if (forcedDestroy) return forcedDestroy;
+    if (ctx.forceUseCard) return null;
 
     let hasRecoveryCard = false;
     let hasHoldCard = false;

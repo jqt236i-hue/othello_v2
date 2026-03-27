@@ -251,7 +251,12 @@ describe('CardEffectTiming module', () => {
       modules: {}
     });
 
-    expect(addChargeWithTotal).toHaveBeenCalledWith(cardState, 'black', 3);
+    expect(addChargeWithTotal).toHaveBeenCalledWith(cardState, 'black', 3, expect.objectContaining({
+      popupKind: 'board',
+      sourceType: 'placement_flip_gain',
+      anchorRow: 4,
+      anchorCol: 4
+    }));
     expect(effects).toMatchObject({
       chargeGained: 3,
       freePlacementUsed: true,

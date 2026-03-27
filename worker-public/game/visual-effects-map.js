@@ -115,6 +115,15 @@ const GAME_STONE_VISUAL_EFFECTS = {
         },
         dataAttributes: {} // data-breeding は renderBoard 内で owner に応じて付与
     },
+    proliferationStone: {
+        cssClass: 'breeding-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/stones/PROLIFERATION_WILL-black.png',
+            '-1': 'assets/images/stones/PROLIFERATION_WILL-white.png'
+        },
+        dataAttributes: {}
+    },
     ultimateDestroyGod: {
         cssClass: 'ultimate-destroy-god',
         cssMethod: 'pseudoElement',
@@ -311,6 +320,7 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'PERMA_PROTECT_NEXT_STONE': 'protectedStone',
     'ULTIMATE_REVERSE_DRAGON': 'ultimateDragon',
     'BREEDING_WILL': 'breedingStone',
+    'PROLIFERATION_WILL': 'proliferationStone',
     'ULTIMATE_DESTROY_GOD': 'ultimateDestroyGod',
     'SNIPER_WILL': 'sniperStone',
     'LIGHTNING_WILL': 'lightningStone',
@@ -352,6 +362,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'PERMA_PROTECTED': 'protectedStone',
     'DRAGON': 'ultimateDragon',
     'BREEDING': 'breedingStone',
+    'PROLIFERATION': 'proliferationStone',
     'ULTIMATE_DESTROY_GOD': 'ultimateDestroyGod',
     'SNIPER': 'sniperStone',
     'LIGHTNING': 'lightningStone',

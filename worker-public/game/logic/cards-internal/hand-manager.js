@@ -44,6 +44,298 @@
         return modules.CardSelectorsModule || modules.cardSelectorsModule || null;
     }
 
+    function normalizePlayerKey(playerKey) {
+        return playerKey === 'white' ? 'white' : 'black';
+    }
+
+    function ensureHands(cardState) {
+        if (!cardState || typeof cardState !== 'object') return { black: [], white: [] };
+        if (!cardState.hands || typeof cardState.hands !== 'object') {
+            cardState.hands = { black: [], white: [] };
+            return cardState.hands;
+        }
+        if (!Array.isArray(cardState.hands.black)) cardState.hands.black = [];
+        if (!Array.isArray(cardState.hands.white)) cardState.hands.white = [];
+        return cardState.hands;
+    }
+
+    function ensureDecks(cardState) {
+        if (!cardState || typeof cardState !== 'object') return { black: [], white: [] };
+        if (!cardState.decks || typeof cardState.decks !== 'object') {
+            cardState.decks = {
+                black: Array.isArray(cardState.deck) ? cardState.deck.slice() : [],
+                white: []
+            };
+            return cardState.decks;
+        }
+        if (!Array.isArray(cardState.decks.black)) {
+            cardState.decks.black = Array.isArray(cardState.deck) ? cardState.deck.slice() : [];
+        }
+        if (!Array.isArray(cardState.decks.white)) cardState.decks.white = [];
+        return cardState.decks;
+    }
+
+    function ensureDiscard(cardState) {
+        if (!cardState || typeof cardState !== 'object') return [];
+        if (!Array.isArray(cardState.discard)) cardState.discard = [];
+        return cardState.discard;
+    }
+
+    function ensureCopySeq(cardState) {
+        if (!cardState || typeof cardState !== 'object') return 1;
+        const existing = Number(cardState._nextCardCopySeq);
+        const next = Number.isInteger(existing) && existing > 0 ? existing : 1;
+        cardState._nextCardCopySeq = next;
+        return next;
+    }
+
+    function allocateNextCardCopyId(cardState) {
+        const next = ensureCopySeq(cardState);
+        cardState._nextCardCopySeq = next + 1;
+        return next;
+    }
+
+    function normalizeSingleCopyId(cardState, value) {
+        const numeric = Number(value);
+        if (Number.isInteger(numeric) && numeric > 0) return numeric;
+        return allocateNextCardCopyId(cardState);
+    }
+
+    function ensurePlayerCopyIdBuckets(cardState, fieldName) {
+        if (!cardState || typeof cardState !== 'object') {
+            return { black: [], white: [] };
+        }
+        if (!cardState[fieldName] || typeof cardState[fieldName] !== 'object') {
+            cardState[fieldName] = { black: [], white: [] };
+            return cardState[fieldName];
+        }
+        if (!Array.isArray(cardState[fieldName].black)) cardState[fieldName].black = [];
+        if (!Array.isArray(cardState[fieldName].white)) cardState[fieldName].white = [];
+        return cardState[fieldName];
+    }
+
+    function normalizeCopyIdArray(cardState, source, targetLength) {
+        const length = Number.isFinite(Number(targetLength))
+            ? Math.max(0, Math.trunc(Number(targetLength)))
+            : 0;
+        const next = Array.isArray(source) ? source.slice(0, length) : [];
+        for (let index = 0; index < length; index += 1) {
+            next[index] = normalizeSingleCopyId(cardState, next[index]);
+        }
+        return next;
+    }
+
+    function normalizeRevealCopyIdList(source) {
+        const next = [];
+        const seen = new Set();
+        const values = Array.isArray(source) ? source : [];
+        for (const rawValue of values) {
+            const numeric = Number(rawValue);
+            if (!Number.isInteger(numeric) || numeric <= 0 || seen.has(numeric)) continue;
+            seen.add(numeric);
+            next.push(numeric);
+        }
+        return next;
+    }
+
+    function syncNextCardCopySeq(cardState, buckets) {
+        if (!cardState || typeof cardState !== 'object') return 1;
+        let maxCopyId = 0;
+        const sources = Array.isArray(buckets) ? buckets : [];
+        for (const bucket of sources) {
+            if (!Array.isArray(bucket)) continue;
+            for (const rawValue of bucket) {
+                const numeric = Number(rawValue);
+                if (Number.isInteger(numeric) && numeric > maxCopyId) {
+                    maxCopyId = numeric;
+                }
+            }
+        }
+        const next = ensureCopySeq(cardState);
+        if (maxCopyId >= next) {
+            cardState._nextCardCopySeq = maxCopyId + 1;
+        }
+        return cardState._nextCardCopySeq;
+    }
+
+    function ensureCardCopyState(cardState) {
+        if (!cardState || typeof cardState !== 'object') return null;
+        ensureCopySeq(cardState);
+        const hands = ensureHands(cardState);
+        const decks = ensureDecks(cardState);
+        const discard = ensureDiscard(cardState);
+
+        const handCopyIdsByPlayer = ensurePlayerCopyIdBuckets(cardState, '_handCopyIdsByPlayer');
+        handCopyIdsByPlayer.black = normalizeCopyIdArray(cardState, handCopyIdsByPlayer.black, hands.black.length);
+        handCopyIdsByPlayer.white = normalizeCopyIdArray(cardState, handCopyIdsByPlayer.white, hands.white.length);
+
+        const deckCopyIdsByPlayer = ensurePlayerCopyIdBuckets(cardState, '_deckCopyIdsByPlayer');
+        deckCopyIdsByPlayer.black = normalizeCopyIdArray(cardState, deckCopyIdsByPlayer.black, decks.black.length);
+        deckCopyIdsByPlayer.white = normalizeCopyIdArray(cardState, deckCopyIdsByPlayer.white, decks.white.length);
+
+        cardState._discardCopyIds = normalizeCopyIdArray(cardState, cardState._discardCopyIds, discard.length);
+
+        const revealedHandCopyIdsByViewer = ensurePlayerCopyIdBuckets(cardState, '_revealedHandCopyIdsByViewer');
+        revealedHandCopyIdsByViewer.black = normalizeRevealCopyIdList(revealedHandCopyIdsByViewer.black);
+        revealedHandCopyIdsByViewer.white = normalizeRevealCopyIdList(revealedHandCopyIdsByViewer.white);
+
+        syncNextCardCopySeq(cardState, [
+            handCopyIdsByPlayer.black,
+            handCopyIdsByPlayer.white,
+            deckCopyIdsByPlayer.black,
+            deckCopyIdsByPlayer.white,
+            cardState._discardCopyIds,
+            revealedHandCopyIdsByViewer.black,
+            revealedHandCopyIdsByViewer.white
+        ]);
+
+        return {
+            handCopyIdsByPlayer,
+            deckCopyIdsByPlayer,
+            discardCopyIds: cardState._discardCopyIds,
+            revealedHandCopyIdsByViewer
+        };
+    }
+
+    function getHandCopyIdAt(cardState, playerKey, handIndex) {
+        const copyState = ensureCardCopyState(cardState);
+        const ownerKey = normalizePlayerKey(playerKey);
+        if (!copyState || !Number.isInteger(handIndex) || handIndex < 0) return null;
+        const copyIds = copyState.handCopyIdsByPlayer[ownerKey];
+        if (!Array.isArray(copyIds) || handIndex >= copyIds.length) return null;
+        return copyIds[handIndex] || null;
+    }
+
+    function getHandCopyIds(cardState, playerKey) {
+        const copyState = ensureCardCopyState(cardState);
+        const ownerKey = normalizePlayerKey(playerKey);
+        if (!copyState) return [];
+        return Array.isArray(copyState.handCopyIdsByPlayer[ownerKey])
+            ? copyState.handCopyIdsByPlayer[ownerKey].slice()
+            : [];
+    }
+
+    function isCardCopyIdRevealedToViewer(cardState, viewerKey, cardCopyId) {
+        const copyState = ensureCardCopyState(cardState);
+        const viewer = normalizePlayerKey(viewerKey);
+        const numeric = Number(cardCopyId);
+        if (!copyState || !Number.isInteger(numeric) || numeric <= 0) return false;
+        const revealed = copyState.revealedHandCopyIdsByViewer[viewer];
+        return Array.isArray(revealed) && revealed.includes(numeric);
+    }
+
+    function revealCurrentHandToViewer(cardState, viewerKey, ownerKey) {
+        const copyState = ensureCardCopyState(cardState);
+        if (!copyState) return [];
+        const viewer = normalizePlayerKey(viewerKey);
+        const owner = normalizePlayerKey(ownerKey);
+        const handCopyIds = Array.isArray(copyState.handCopyIdsByPlayer[owner])
+            ? copyState.handCopyIdsByPlayer[owner]
+            : [];
+        if (!handCopyIds.length) return [];
+        const revealLedger = copyState.revealedHandCopyIdsByViewer[viewer];
+        const seen = new Set(revealLedger);
+        for (const copyId of handCopyIds) {
+            if (!Number.isInteger(copyId) || copyId <= 0 || seen.has(copyId)) continue;
+            revealLedger.push(copyId);
+            seen.add(copyId);
+        }
+        return handCopyIds.slice();
+    }
+
+    function addCardToHand(cardState, playerKey, cardId, context, opts) {
+        const { MAX_HAND_SIZE } = getConstants(context);
+        const ownerKey = normalizePlayerKey(playerKey);
+        const hands = ensureHands(cardState);
+        const copyState = ensureCardCopyState(cardState);
+        const hand = hands[ownerKey];
+        const options = (opts && typeof opts === 'object') ? opts : {};
+        if (!Array.isArray(hand)) return null;
+        if (!options.ignoreHandLimit && hand.length >= MAX_HAND_SIZE) return null;
+        const cardCopyId = normalizeSingleCopyId(cardState, options.cardCopyId);
+        hand.push(cardId);
+        copyState.handCopyIdsByPlayer[ownerKey].push(cardCopyId);
+        return {
+            cardId,
+            cardCopyId,
+            handIndex: hand.length - 1
+        };
+    }
+
+    function addCardToDiscard(cardState, cardId, cardCopyId) {
+        const discard = ensureDiscard(cardState);
+        const copyState = ensureCardCopyState(cardState);
+        const normalizedCopyId = normalizeSingleCopyId(cardState, cardCopyId);
+        discard.push(cardId);
+        copyState.discardCopyIds.push(normalizedCopyId);
+        return {
+            cardId,
+            cardCopyId: normalizedCopyId,
+            discardIndex: discard.length - 1
+        };
+    }
+
+    function popDeckCard(cardState, playerKey) {
+        const ownerKey = normalizePlayerKey(playerKey);
+        const decks = ensureDecks(cardState);
+        const copyState = ensureCardCopyState(cardState);
+        const deck = Array.isArray(decks[ownerKey]) ? decks[ownerKey] : null;
+        if (!deck || deck.length <= 0) return null;
+        const cardId = deck.pop();
+        const cardCopyId = normalizeSingleCopyId(
+            cardState,
+            copyState.deckCopyIdsByPlayer[ownerKey].pop()
+        );
+        return { cardId, cardCopyId };
+    }
+
+    function removeHandCardAt(cardState, playerKey, handIndex) {
+        const ownerKey = normalizePlayerKey(playerKey);
+        const hands = ensureHands(cardState);
+        const copyState = ensureCardCopyState(cardState);
+        const hand = Array.isArray(hands[ownerKey]) ? hands[ownerKey] : null;
+        if (!hand || !Number.isInteger(handIndex) || handIndex < 0 || handIndex >= hand.length) return null;
+        const cardId = hand.splice(handIndex, 1)[0];
+        const cardCopyId = normalizeSingleCopyId(
+            cardState,
+            copyState.handCopyIdsByPlayer[ownerKey].splice(handIndex, 1)[0]
+        );
+        return { cardId, cardCopyId, handIndex };
+    }
+
+    function clearHandToDiscard(cardState, playerKey) {
+        const ownerKey = normalizePlayerKey(playerKey);
+        const hands = ensureHands(cardState);
+        const copyState = ensureCardCopyState(cardState);
+        const hand = Array.isArray(hands[ownerKey]) ? hands[ownerKey] : null;
+        if (!hand || hand.length <= 0) {
+            return { destroyedCards: [], destroyedCopyIds: [] };
+        }
+        const destroyedCards = hand.splice(0, hand.length);
+        const rawCopyIds = copyState.handCopyIdsByPlayer[ownerKey].splice(0, copyState.handCopyIdsByPlayer[ownerKey].length);
+        const destroyedCopyIds = destroyedCards.map((_, index) => normalizeSingleCopyId(cardState, rawCopyIds[index]));
+        ensureDiscard(cardState).push(...destroyedCards);
+        copyState.discardCopyIds.push(...destroyedCopyIds);
+        return { destroyedCards, destroyedCopyIds };
+    }
+
+    function moveDiscardCardToHandByCardId(cardState, playerKey, cardId, context, opts) {
+        const discard = ensureDiscard(cardState);
+        const copyState = ensureCardCopyState(cardState);
+        const discardIndex = discard.lastIndexOf(cardId);
+        if (discardIndex < 0) return null;
+        const removedCardId = discard.splice(discardIndex, 1)[0];
+        const removedCopyId = normalizeSingleCopyId(cardState, copyState.discardCopyIds.splice(discardIndex, 1)[0]);
+        const added = addCardToHand(cardState, playerKey, removedCardId, context, {
+            ...(opts && typeof opts === 'object' ? opts : {}),
+            cardCopyId: removedCopyId
+        });
+        if (added) return added;
+        discard.splice(discardIndex, 0, removedCardId);
+        copyState.discardCopyIds.splice(discardIndex, 0, removedCopyId);
+        return null;
+    }
+
     function hasTargets(targets, minimumCount) {
         const safeMinimumCount = Number.isFinite(Number(minimumCount))
             ? Math.max(1, Math.trunc(Number(minimumCount)))
@@ -97,19 +389,19 @@
     function commitDraw(cardState, playerKey, prng, context) {
         void prng;
         const { MAX_HAND_SIZE } = getConstants(context);
-        const hand = (cardState && cardState.hands && Array.isArray(cardState.hands[playerKey]))
-            ? cardState.hands[playerKey]
-            : null;
-        const decks = (cardState && cardState.decks && typeof cardState.decks === 'object') ? cardState.decks : null;
-        const playerDeck = (decks && Array.isArray(decks[playerKey]))
-            ? decks[playerKey]
-            : (Array.isArray(cardState && cardState.deck) ? cardState.deck : null);
-        if (!hand || !playerDeck) return null;
-        if (hand.length >= MAX_HAND_SIZE) return null;
-        if (playerDeck.length === 0) return null;
-        const cardId = playerDeck.pop();
-        hand.push(cardId);
-        return cardId;
+        const ownerKey = normalizePlayerKey(playerKey);
+        const hands = ensureHands(cardState);
+        const hand = Array.isArray(hands[ownerKey]) ? hands[ownerKey] : null;
+        if (!hand || hand.length >= MAX_HAND_SIZE) return null;
+        const drawn = popDeckCard(cardState, playerKey);
+        if (!drawn || !drawn.cardId) return null;
+        const added = addCardToHand(cardState, playerKey, drawn.cardId, context, { cardCopyId: drawn.cardCopyId });
+        if (added) return added.cardId;
+        const decks = ensureDecks(cardState);
+        const copyState = ensureCardCopyState(cardState);
+        decks[ownerKey].push(drawn.cardId);
+        copyState.deckCopyIdsByPlayer[ownerKey].push(drawn.cardCopyId);
+        return null;
     }
 
     function getCardDef(cardId, context) {
@@ -192,9 +484,8 @@
 
     function destroyHandCard(cardState, playerKey, cardId, opts, context) {
         void opts;
-        void context;
         if (!cardState || !cardState.hands) return { applied: false, reason: 'invalid_state' };
-        const ownerKey = playerKey === 'white' ? 'white' : 'black';
+        const ownerKey = normalizePlayerKey(playerKey);
         const hand = Array.isArray(cardState.hands[ownerKey]) ? cardState.hands[ownerKey] : null;
         if (!hand) return { applied: false, reason: 'invalid_hand' };
 
@@ -203,13 +494,12 @@
         const index = hand.indexOf(cardId);
         if (index < 0) return { applied: false, reason: 'card_not_in_hand' };
 
-        const destroyedCardId = hand[index];
-        hand.splice(index, 1);
-        if (!Array.isArray(cardState.discard)) cardState.discard = [];
-        cardState.discard.push(destroyedCardId);
+        const removed = removeHandCardAt(cardState, ownerKey, index);
+        if (!removed) return { applied: false, reason: 'card_not_in_hand' };
+        addCardToDiscard(cardState, removed.cardId, removed.cardCopyId);
         cardState.hasDestroyedCardThisTurnByPlayer[ownerKey] = true;
 
-        return { applied: true, destroyedCardId };
+        return { applied: true, destroyedCardId: removed.cardId, destroyedCardCopyId: removed.cardCopyId };
     }
 
     function getUsableCardIds(cardState, gameState, playerKey, context, opts) {
@@ -234,10 +524,29 @@
                 if (opponentHand.length === 0) continue;
             }
 
+            if (type === 'REVEAL_HAND_WILL') {
+                const opponentKey = playerKey === 'black' ? 'white' : 'black';
+                const opponentHand = (cardState.hands && Array.isArray(cardState.hands[opponentKey]))
+                    ? cardState.hands[opponentKey]
+                    : [];
+                if (opponentHand.length === 0) continue;
+            }
+
+            if (type === 'SALVATION_WILL') {
+                const salvationList = cardState.prevOpponentTurnDestroyedNormalByPlayer
+                    && cardState.prevOpponentTurnDestroyedNormalByPlayer[playerKey];
+                if (!Array.isArray(salvationList) || salvationList.length === 0) continue;
+            }
+
             if (gameState) {
                 if (type === 'LAST_RESORT') {
                     if (typeof helpers.canUseLastResortForPlayer !== 'function') continue;
                     if (!helpers.canUseLastResortForPlayer(cardState, gameState, playerKey)) continue;
+                }
+
+                if (type === 'EQUALITY_WILL') {
+                    if (typeof helpers.canUseEqualityWillForPlayer !== 'function') continue;
+                    if (!helpers.canUseEqualityWillForPlayer(cardState, gameState, playerKey)) continue;
                 }
 
                 if (type === 'TIME_STOP_GOD') {
@@ -319,6 +628,16 @@
         getCardCost,
         canUseCard,
         ensureHandDestroyFlags,
+        ensureCardCopyState,
+        getHandCopyIdAt,
+        getHandCopyIds,
+        isCardCopyIdRevealedToViewer,
+        revealCurrentHandToViewer,
+        addCardToHand,
+        addCardToDiscard,
+        removeHandCardAt,
+        clearHandToDiscard,
+        moveDiscardCardToHandByCardId,
         destroyHandCard,
         getUsableCardIds,
         hasUsableCard

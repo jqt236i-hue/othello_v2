@@ -1,70 +1,372 @@
-  console.warn
-    [presentation] BoardOps.emitPresentationEvent not available (events will be persisted)
+FAIL test/cpu.decision.refactor.test.js (9.166 s)
+  笳・Console
 
-    [0m [90m 54 |[39m     [36mtry[39m {
-     [90m 55 |[39m         [36mif[39m ([33m![39m__presentation_warned_no_boardops) {
-    [31m[1m>[22m[39m[90m 56 |[39m             console[33m.[39mwarn([32m'[presentation] BoardOps.emitPresentationEvent not available (events will be persisted)'[39m)[33m;[39m
-     [90m    |[39m                     [31m[1m^[22m[39m
-     [90m 57 |[39m             __presentation_warned_no_boardops [33m=[39m [36mtrue[39m[33m;[39m
-     [90m 58 |[39m         }
-     [90m 59 |[39m     } [36mcatch[39m (e) { [90m/* ignore */[39m }[0m
+    console.warn
+      [presentation] BoardOps.emitPresentationEvent not available (events will be persisted)
 
-      at Object.warn [as emitPresentationEvent] (game/logic/presentation.js:56:21)
-      at Object.emitPresentationEvent [as addMarker] (game/logic/cards/markers.js:364:36)
-      at Object.addMarker (game/logic/cards.js:1623:38)
-      at Object.addMarker [as applyPlacementEffects] (game/logic/cards-internal/effect-timing.js:487:21)
-      at Object.applyPlacementEffects (game/logic/cards.js:4224:39)
-      at Object.applyPlacementEffects (test/game.ultimate-hyperactive-god.test.js:26:31)
+      41 |         try {
+      42 |             if (!warnedNoBoardOps) {
+    > 43 |                 console.warn('[presentation] BoardOps.emitPresentationEvent not available (events will be persisted)');
+         |                         ^
+      44 |                 warnedNoBoardOps = true;
+      45 |             }
+      46 |         } catch (e) { /* ignore */ }
 
-FAIL test/game.ultimate-hyperactive-god.test.js
-  ULTIMATE_HYPERACTIVE_GOD
-    ﾃ・applyPlacementEffects places ultimate hyperactive marker (51 ms)
-    竏・owner turn only decrements duration, and on 10th owner turn it self-destructs (11 ms)
-    竏・moves two times with straight-line jumps and can jump over occupied stones (1 ms)
-    竏・self-destructs immediately when no reachable empty cell exists in straight 1-5 range (1 ms)
-    竏・flips capturable stones after landing (same rule as hyperactive) (1 ms)
-    竏・when surrounded with no move destination, only itself disappears (1 ms)
-    竏・active ultimate hyperactive is no longer treated as flip-protected context stone
-    竏・ultimate hyperactive can evade flips repeatedly during duration (6 ms)
-    ﾃ・ultimate hyperactive flip evasion is capped at 5 uses
-    竏・expired ultimate hyperactive can be swapped (3 ms)
+      at Object.warn [as emitPresentationEvent] (game/logic/presentation.js:43:25)
+      at emitPresentationEvent (game/cpu-decision.js:1379:31)
+      at emitPresentationEventForCpu (game/cpu-decision.js:1786:9)
+      at Object.runCpuCardUseViaPipeline [as applyCardChoice] (game/cpu-decision.js:3001:28)
+      at Object.applyCardChoice (test/cpu.decision.refactor.test.js:1602:28)
 
-  笳・ULTIMATE_HYPERACTIVE_GOD 窶ｺ applyPlacementEffects places ultimate hyperactive marker
+    console.warn
+      [CPU] cardState not initialized; skipping card use
+
+      3108 |     if (typeof cardState === 'undefined' || !cardState || !cardState.hasUsedCardThisTurnByPlayer) {
+      3109 |         // Defensive: in some browser load orders cardState may not be initialized yet
+    > 3110 |         console.warn('[CPU] cardState not initialized; skipping card use');
+           |                 ^
+      3111 |         return false;
+      3112 |     }
+      3113 |     if (cardState.hasUsedCardThisTurnByPlayer[playerKey]) return false;
+
+      at Object.warn [as cpuMaybeUseCardWithPolicy] (game/cpu-decision.js:3110:17)
+      at Object.cpuMaybeUseCardWithPolicy (test/cpu.decision.refactor.test.js:1746:33)
+
+  笳・cpu decision refactor helpers 窶ｺ selectCpuMoveWithPolicy keeps preferEdgeRetention off outside corner-hold mode when breaking special-flip ties
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 4
+    + Received  + 4
+
+      Array [
+        Object {
+    -     "col": 3,
+    +     "col": 4,
+          "flips": Array [
+            Object {
+    -         "col": 3,
+    -         "row": 3,
+    +         "col": 4,
+    +         "row": 1,
+            },
+          ],
+    -     "row": 2,
+    +     "row": 0,
+        },
+      ]
+
+      1140 |     });
+      1141 |     jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
+    > 1142 |       expect(moves).toEqual([innerSpecialKillMove]);
+           |                     ^
+      1143 |       return moves[0];
+      1144 |     });
+      1145 |
+
+      at Object.toEqual (test/cpu.decision.refactor.test.js:1142:21)
+      at Object.chooseMoveByLookahead [as selectCpuMoveWithPolicy] (game/cpu-decision.js:3224:38)
+      at Object.selectCpuMoveWithPolicy (test/cpu.decision.refactor.test.js:1146:30)
+
+  笳・cpu decision refactor helpers 窶ｺ selectCpuMoveWithPolicy treats corner-neighbor as new corner when METEOR_HOLE blocks original corner
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 4
+    + Received  + 4
+
+      Array [
+        Object {
+    -     "col": 1,
+    +     "col": 3,
+          "flips": Array [
+            Object {
+    -         "col": 1,
+    -         "row": 1,
+    +         "col": 3,
+    +         "row": 3,
+            },
+          ],
+    -     "row": 0,
+    +     "row": 2,
+        },
+      ]
+
+      1344 |     };
+      1345 |     jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
+    > 1346 |       expect(moves).toEqual([promotedCornerMove]);
+           |                     ^
+      1347 |       return moves[0];
+      1348 |     });
+      1349 |
+
+      at Object.toEqual (test/cpu.decision.refactor.test.js:1346:21)
+      at Object.chooseMoveByLookahead [as selectCpuMoveWithPolicy] (game/cpu-decision.js:3224:38)
+      at Object.selectCpuMoveWithPolicy (test/cpu.decision.refactor.test.js:1350:30)
+
+  笳・cpu decision refactor helpers 窶ｺ cpuSelectSwapWithEnemyWithPolicy continues turn start after immediate handoff
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: ObjectContaining {"actionType": "place", "playbackEvents": [{"type": "dummy"}, {"type": "turn_start_dummy"}], "playerKey": "white"}
+    Received: {"action": {"deferNetworkPublish": true, "swapTarget": {"col": 3, "row": 2}, "type": "place"}, "actionType": "place", "playbackEvents": [{"type": "dummy"}, {"phase": 1, "type": "turn_start_dummy"}], "playerKey": "white"}
+
+    Number of calls: 1
+
+      2030 |     expect(global.waitForPlaybackIdle).toHaveBeenCalled();
+      2031 |     expect(global.onTurnStart).toHaveBeenCalledWith(1);
+    > 2032 |     expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+           |                                                       ^
+      2033 |       playerKey: 'white',
+      2034 |       actionType: 'place',
+      2035 |       playbackEvents: [{ type: 'dummy' }, { type: 'turn_start_dummy' }]
+
+      at Object.toHaveBeenCalledWith (test/cpu.decision.refactor.test.js:2032:55)
+
+  笳・cpu decision refactor helpers 窶ｺ cpuSelectMeteorWillWithPolicy avoids plain corner hole when inner strong special is better
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Object {
+    -   "col": 3,
+    -   "row": 3,
+    +   "col": 0,
+    +   "row": 0,
+      }
+
+      2400 |
+      2401 |     const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    > 2402 |     expect(action.meteorTarget).toEqual({ row: 3, col: 3 });
+           |                                 ^
+      2403 |   });
+      2404 |
+      2405 |   test('cpuSelectTeleportWillWithPolicy prefers enemy corner target', async () => {
+
+      at Object.toEqual (test/cpu.decision.refactor.test.js:2402:33)
+
+FAIL test/game.cpu-policy-core.test.js
+  笳・cpu-policy-core 窶ｺ chooseMoveByLookahead allows nonstandard edge fallback when it is no riskier than inner move
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Object {
+        "col": 4,
+        "flips": Array [
+          Object {
+            "col": 3,
+    -       "row": 0,
+    +       "row": 4,
+          },
+        ],
+    -   "row": 0,
+    +   "row": 4,
+      }
+
+      518 |         });
+      519 |
+    > 520 |         expect(selected).toEqual(edgeMove);
+          |                          ^
+      521 |     });
+      522 |
+      523 |     test('chooseMoveByLookahead enables 30-ply endgame mode when empties are low', () => {
+
+      at Object.toEqual (test/game.cpu-policy-core.test.js:520:26)
+
+  笳・cpu-policy-core 窶ｺ scoreCardUseDecision uses REBUILD_WILL to recover from saturated low-quality hand
 
     expect(received).toBe(expected) // Object.is equality
 
-    Expected: 5
-    Received: 3
+    Expected: true
+    Received: false
 
-      38 |     expect(marker).toBeTruthy();
-      39 |     expect(marker.data.remainingOwnerTurns).toBe(10);
-    > 40 |     expect(marker.data.flipEvadeRemaining).toBe(5);
-         |                                            ^
-      41 |   });
-      42 |
-      43 |   test('owner turn only decrements duration, and on 10th owner turn it self-destructs', () => {
+      655 |             }
+      656 |         );
+    > 657 |         expect(out.shouldUse).toBe(true);
+          |                               ^
+      658 |         expect(out.score).toBeGreaterThan(out.minUseScore);
+      659 |     });
+      660 |
 
-      at Object.toBe (test/game.ultimate-hyperactive-god.test.js:40:44)
+      at Object.toBe (test/game.cpu-policy-core.test.js:657:31)
 
-  笳・ULTIMATE_HYPERACTIVE_GOD 窶ｺ ultimate hyperactive flip evasion is capped at 5 uses
+  笳・cpu-policy-core 窶ｺ scoreCardUseDecision suppresses CRYSTAL_STONE on medium-value number cell only
 
     expect(received).toBe(expected) // Object.is equality
 
-    Expected: 4
-    Received: 2
+    Expected: false
+    Received: true
 
-      332 |       const markerAfter = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
-      333 |       expect(markerAfter).toBeTruthy();
-    > 334 |       expect(markerAfter.data.flipEvadeRemaining).toBe(4 - i);
-          |                                                   ^
-      335 |       expect(gameState.board[markerAfter.row][markerAfter.col]).toBe(Core.WHITE);
-      336 |     }
-      337 |
+      1172 |             }
+      1173 |         );
+    > 1174 |         expect(out.shouldUse).toBe(false);
+           |                               ^
+      1175 |     });
+      1176 |
+      1177 |     test('scoreCardUseDecision promotes GLUTTONOUS_WILL when four-plus flips are available', () => {
 
-      at Object.toBe (test/game.ultimate-hyperactive-god.test.js:334:51)
+      at Object.toBe (test/game.cpu-policy-core.test.js:1174:31)
 
-Test Suites: 1 failed, 1 total
-Tests:       2 failed, 8 passed, 10 total
+  笳・cpu-policy-core 窶ｺ scoreCardUseDecision suppresses GLUTTONOUS_WILL below four flips even under mobility pressure
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      1221 |             }
+      1222 |         );
+    > 1223 |         expect(out.shouldUse).toBe(false);
+           |                               ^
+      1224 |     });
+      1225 |
+      1226 |     test('scoreCardUseDecision lowers threshold and promotes mobility rescue at four discs', () => {
+
+      at Object.toBe (test/game.cpu-policy-core.test.js:1223:31)
+
+  笳・cpu-policy-core 窶ｺ scoreCardUseDecision values LOSS_WILL when opponent has more specials
+
+    expect(received).toBeGreaterThan(expected)
+
+    Expected: > -1000000
+    Received:   -1000000
+
+      1282 |             }
+      1283 |         );
+    > 1284 |         expect(strong.score).toBeGreaterThan(weak.score);
+           |                              ^
+      1285 |     });
+      1286 |
+      1287 |     test('scoreCardUseDecision suppresses LOSS_WILL when it would reset own corner special without bigger enemy anchor payoff', () => {
+
+      at Object.toBeGreaterThan (test/game.cpu-policy-core.test.js:1284:30)
+
+  笳・cpu-policy-core 窶ｺ scoreCardUseDecision keeps LOSS_WILL available when enemy anchor resets clearly outweigh own
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      1332 |             }
+      1333 |         );
+    > 1334 |         expect(out.shouldUse).toBe(true);
+           |                               ^
+      1335 |         expect(out.score).toBeGreaterThanOrEqual(out.minUseScore);
+      1336 |     });
+      1337 |
+
+      at Object.toBe (test/game.cpu-policy-core.test.js:1334:31)
+
+  笳・cpu-policy-core 窶ｺ chooseSellCardTargetByRetention rotates SUPER_BUOYANCY_WILL when no corner or edge conversion exists
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "super"
+    Received: "work"
+
+      1667 |         );
+      1668 |         expect(selected).toBeTruthy();
+    > 1669 |         expect(selected.cardId).toBe('super');
+           |                                 ^
+      1670 |     });
+      1671 |
+      1672 |     test('chooseSellCardTargetByRetention keeps TELEPORT_WILL during corner emergency', () => {
+
+      at Object.toBe (test/game.cpu-policy-core.test.js:1669:33)
+
+  笳・cpu-policy-core 窶ｺ chooseHandDestroyTargetForCycle rotates time bomb first when missing recovery role
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "bomb"
+    Received: "silver"
+
+      1781 |         );
+      1782 |         expect(selected).toBeTruthy();
+    > 1783 |         expect(selected.cardId).toBe('bomb');
+           |                                 ^
+      1784 |     });
+      1785 |
+      1786 |     test('chooseHandDestroyTargetForCycle keeps recovery card during emergency hand-pressure cycle', () => {
+
+      at Object.toBe (test/game.cpu-policy-core.test.js:1783:33)
+
+  笳・cpu-policy-core 窶ｺ chooseHandDestroyTargetForCycle rotates SUPER_BUOYANCY_WILL first in non-emergency no-anchor fast cycle
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "super"
+    Received: "work"
+
+      1844 |         );
+      1845 |         expect(selected).toBeTruthy();
+    > 1846 |         expect(selected.cardId).toBe('super');
+           |                                 ^
+      1847 |     });
+      1848 |
+      1849 |     test('chooseHandDestroyTargetForCycle rotates CHAIN/DOUBLE first in white Lv6 stable lead', () => {
+
+      at Object.toBe (test/game.cpu-policy-core.test.js:1846:33)
+
+  笳・cpu-policy-core 窶ｺ chooseHandDestroyTargetForCycle keeps generated TRIPLE_PLACE in white Lv6 stable lead
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "heaven"
+    Received: "triple"
+
+      1904 |         );
+      1905 |         expect(selected).toBeTruthy();
+    > 1906 |         expect(selected.cardId).toBe('heaven');
+           |                                 ^
+      1907 |     });
+      1908 |
+      1909 |     test('chooseHandDestroyTargetForCycle rotates LAST_RESORT first when legal moves already exist', () => {
+
+      at Object.toBe (test/game.cpu-policy-core.test.js:1906:33)
+
+  笳・cpu-policy-core 窶ｺ scoreCardUseDecision suppresses SUPER_BUOYANCY_WILL in opening edge race without corner emergency
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      2085 |             }
+      2086 |         );
+    > 2087 |         expect(out.shouldUse).toBe(false);
+           |                               ^
+      2088 |     });
+      2089 |
+      2090 |     test('scoreCardUseDecision suppresses gold and rainbow economy cards below 3 flips', () => {
+
+      at Object.toBe (test/game.cpu-policy-core.test.js:2087:31)
+
+  笳・cpu-policy-core 窶ｺ scoreCardUseDecision uses STRONG_WIND_WILL in low-mobility edge deficit even without corner emergency
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      2456 |             }
+      2457 |         );
+    > 2458 |         expect(out.shouldUse).toBe(true);
+           |                               ^
+      2459 |     });
+      2460 |
+      2461 |     test('scoreCardUseDecision uses BREEDING_WILL earlier and suppresses it late while ahead', () => {
+
+      at Object.toBe (test/game.cpu-policy-core.test.js:2458:31)
+
+Test Suites: 2 failed, 2 total
+Tests:       16 failed, 160 passed, 176 total
 Snapshots:   0 total
-Time:        0.451 s, estimated 1 s
-Ran all test suites matching /test\\game.ultimate-hyperactive-god.test.js/i.
+Time:        12.363 s, estimated 13 s
+Ran all test suites within paths "test\game.cpu-policy-core.test.js", "test\cpu.decision.refactor.test.js".

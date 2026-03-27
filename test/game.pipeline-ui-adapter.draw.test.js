@@ -259,6 +259,20 @@ describe('pipeline_ui_adapter draw mapping', () => {
     });
   });
 
+  test('maps ROUND_BONUS_BANNER presentation event to round_bonus_banner playback event', () => {
+    const pres = [{ type: 'ROUND_BONUS_BANNER', roundNumber: 10, amount: 5, durationMs: 3000, text: 'BONUS ROUND +5' }];
+    const out = adapter.mapToPlaybackEvents(pres, { markers: [] }, { board: Array(8).fill(null).map(() => Array(8).fill(0)) });
+
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('round_bonus_banner');
+    expect(out[0].targets[0]).toMatchObject({
+      roundNumber: 10,
+      amount: 5,
+      durationMs: 3000,
+      text: 'BONUS ROUND +5'
+    });
+  });
+
   test('keeps CHARGE_BUBBLE in the same phase as the flip that generated it', () => {
     const pres = [
       { type: 'CHANGE', row: 2, col: 3, ownerBefore: 'white', ownerAfter: 'black' },

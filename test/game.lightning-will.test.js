@@ -185,7 +185,7 @@ describe('LIGHTNING_WILL（落雷）', () => {
     expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 8 && cell.col === 7).owner).toBe(Shared.EMPTY);
   });
 
-  test('5回目の所有者ターン開始で落雷石アンカーが消滅する', () => {
+  test('5回目の所有者ターン開始で落雷石アンカーは通常石に戻る', () => {
     const { cardState, gameState } = createStates(0.3);
 
     gameState.board[4][4] = Shared.BLACK;
@@ -208,8 +208,8 @@ describe('LIGHTNING_WILL（落雷）', () => {
     }
 
     const last = CardLogic.processLightningWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4, createPrng(0.3));
-    expect((last.expired || [])).toEqual([{ row: 4, col: 4 }]);
-    expect(gameState.board[4][4]).toBe(Shared.EMPTY);
+    expect((last.expired || [])).toEqual([expect.objectContaining({ row: 4, col: 4, reason: 'anchor_expired' })]);
+    expect(gameState.board[4][4]).toBe(Shared.BLACK);
     expect(cardState.markers.find((m) => m && m.id === 9102)).toBeUndefined();
   });
 
@@ -242,7 +242,7 @@ describe('LIGHTNING_WILL（落雷）', () => {
     expect(eventTypes.has('lightning_destroyed_start')).toBe(true);
     expect(eventTypes.has('lightning_expired_start')).toBe(true);
     expect(gameState.board[4][5]).toBe(Shared.EMPTY);
-    expect(gameState.board[4][4]).toBe(Shared.EMPTY);
+    expect(gameState.board[4][4]).toBe(Shared.BLACK);
   });
 
   test('落雷石は反転保護リストに含まれる', () => {

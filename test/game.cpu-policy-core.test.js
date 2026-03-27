@@ -115,6 +115,229 @@ describe('cpu-policy-core', () => {
         expect(decision.shouldUse).toBe(true);
     });
 
+    test('chooseHandDestroyTargetForCycle immediately destroys bucket1 never-use cards', () => {
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['time_stop_god_01'],
+            ['time_stop_god_01'],
+            () => 0,
+            () => ({ id: 'time_stop_god_01', type: 'TIME_STOP_GOD' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 2,
+                ownCharge: 80,
+                handSize: 1,
+                empties: 32,
+                discDiff: 0,
+                ownCorners: 0,
+                oppCorners: 0,
+                ownEdges: 0,
+                oppEdges: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toEqual(expect.objectContaining({
+            cardId: 'time_stop_god_01',
+            reason: 'bucket1_never_use'
+        }));
+    });
+
+    test('chooseHandDestroyTargetForCycle immediately destroys bucket2 cards while charge is 50 or lower', () => {
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['escape_01'],
+            ['escape_01'],
+            () => 7,
+            () => ({ id: 'escape_01', type: 'ESCAPE_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 2,
+                ownCharge: 50,
+                handSize: 1,
+                empties: 32,
+                discDiff: 0,
+                ownCorners: 0,
+                oppCorners: 0,
+                ownEdges: 0,
+                oppEdges: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toEqual(expect.objectContaining({
+            cardId: 'escape_01',
+            reason: 'bucket2_low_charge'
+        }));
+    });
+
+    test('chooseHandDestroyTargetForCycle immediately destroys bucket3 cards when currently unusable', () => {
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['last_resort_01'],
+            [],
+            () => 9,
+            () => ({ id: 'last_resort_01', type: 'LAST_RESORT' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 0,
+                ownCharge: 12,
+                handSize: 1,
+                empties: 20,
+                discDiff: 0,
+                ownCorners: 0,
+                oppCorners: 0,
+                ownEdges: 0,
+                oppEdges: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toEqual(expect.objectContaining({
+            cardId: 'last_resort_01',
+            reason: 'bucket3_currently_unusable'
+        }));
+    });
+
+    test('chooseHandDestroyTargetForCycle immediately destroys EQUALITY_WILL when the 10-disc gap is inactive', () => {
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['equality_01'],
+            [],
+            () => 15,
+            () => ({ id: 'equality_01', type: 'EQUALITY_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 3,
+                ownCharge: 20,
+                handSize: 1,
+                empties: 24,
+                discDiff: -8,
+                ownCorners: 0,
+                oppCorners: 1,
+                ownEdges: 2,
+                oppEdges: 4,
+                hasCornerMoveNow: false,
+                cornerEmergency: true
+            }
+        );
+        expect(selected).toEqual(expect.objectContaining({
+            cardId: 'equality_01',
+            reason: 'bucket3_currently_unusable'
+        }));
+    });
+
+    test('chooseHandDestroyTargetForCycle immediately destroys SUPPLY_WILL while charge is 50 or lower', () => {
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['supply_01'],
+            ['supply_01'],
+            () => 1,
+            () => ({ id: 'supply_01', type: 'SUPPLY_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 2,
+                ownCharge: 50,
+                handSize: 1,
+                empties: 32,
+                discDiff: 0,
+                ownCorners: 0,
+                oppCorners: 0,
+                ownEdges: 0,
+                oppEdges: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toEqual(expect.objectContaining({
+            cardId: 'supply_01',
+            reason: 'bucket2_low_charge'
+        }));
+    });
+
+    test('chooseHandDestroyTargetForCycle immediately destroys CORROSION_WILL when currently unusable', () => {
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['corrosion_01'],
+            [],
+            () => 4,
+            () => ({ id: 'corrosion_01', type: 'CORROSION_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 0,
+                ownCharge: 60,
+                handSize: 1,
+                empties: 20,
+                discDiff: 0,
+                ownCorners: 0,
+                oppCorners: 0,
+                ownEdges: 0,
+                oppEdges: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toEqual(expect.objectContaining({
+            cardId: 'corrosion_01',
+            reason: 'bucket3_currently_unusable'
+        }));
+    });
+
+    test('chooseHandDestroyTargetForCycle leaves TEMPT_WILL unchanged when low charge and currently unusable', () => {
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['tempt_01'],
+            [],
+            () => 6,
+            () => ({ id: 'tempt_01', type: 'TEMPT_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 0,
+                ownCharge: 50,
+                handSize: 1,
+                empties: 20,
+                discDiff: 0,
+                ownCorners: 0,
+                oppCorners: 0,
+                ownEdges: 0,
+                oppEdges: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toBeNull();
+    });
+
+    test('scoreCardUseDecision suppresses LOSS_WILL while own special stones remain', () => {
+        const decision = core.scoreCardUseDecision(
+            'loss_will_01',
+            () => 11,
+            () => ({ id: 'loss_will_01', type: 'LOSS_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 2,
+                ownCharge: 24,
+                handSize: 2,
+                ownDiscs: 10,
+                oppDiscs: 14,
+                empties: 26,
+                discDiff: -4,
+                ownCorners: 0,
+                oppCorners: 1,
+                ownEdges: 2,
+                oppEdges: 4,
+                ownSpecialCount: 1,
+                oppSpecialCount: 2,
+                hasCornerMoveNow: false,
+                cornerEmergency: true
+            }
+        );
+        expect(decision.shouldUse).toBe(false);
+        expect(decision.reason).toBe('loss_will_own_special');
+        expect(decision.score).toBeLessThan(decision.minUseScore);
+    });
+
     test('chooseMove falls back to deterministic rng', () => {
         const moves = [{ id: 0 }, { id: 1 }, { id: 2 }];
         const selected = core.chooseMove(moves, 1, { random: () => 0.5 }, null);
@@ -1264,6 +1487,61 @@ describe('cpu-policy-core', () => {
         expect(trailing.score).toBeGreaterThan(aheadEndgame.score);
     });
 
+    test('scoreCardUseDecision treats EQUALITY_WILL as a comeback-only option', () => {
+        const trailing = core.scoreCardUseDecision(
+            'equality',
+            () => 15,
+            () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 3,
+                discDiff: -12,
+                empties: 26,
+                ownCharge: 28,
+                handSize: 3,
+                ownDiscs: 8,
+                oppDiscs: 20,
+                ownCorners: 0,
+                oppCorners: 1,
+                ownEdges: 2,
+                oppEdges: 5,
+                usableCardIds: ['equality'],
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true,
+                cornerEmergency: true
+            }
+        );
+        const inactive = core.scoreCardUseDecision(
+            'equality',
+            () => 15,
+            () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                discDiff: -6,
+                empties: 26,
+                ownCharge: 28,
+                handSize: 3,
+                ownDiscs: 13,
+                oppDiscs: 19,
+                ownCorners: 1,
+                oppCorners: 1,
+                ownEdges: 4,
+                oppEdges: 4,
+                usableCardIds: [],
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true,
+                cornerEmergency: false
+            }
+        );
+
+        expect(trailing.shouldUse).toBe(true);
+        expect(inactive.shouldUse).toBe(false);
+        expect(trailing.score).toBeGreaterThan(inactive.score);
+    });
+
     test('scoreCardUseDecision suppresses METEOR_WILL while ahead and promotes it in corner emergency with bonus follow-up', () => {
         const ahead = core.scoreCardUseDecision(
             'meteor',
@@ -1521,6 +1799,48 @@ describe('cpu-policy-core', () => {
         );
         expect(selected).toBeTruthy();
         expect(selected.cardId).toBe('last');
+    });
+
+    test('scoreCardRetentionForSell devalues EQUALITY_WILL when the 10-disc gap is inactive', () => {
+        const live = core.scoreCardRetentionForSell(
+            'equality',
+            () => 15,
+            () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 3,
+                handSize: 4,
+                discDiff: -12,
+                empties: 24,
+                ownCorners: 0,
+                oppCorners: 1,
+                hasCornerMoveNow: false,
+                cornerEmergency: true,
+                ownCharge: 28
+            }
+        );
+        const inactive = core.scoreCardRetentionForSell(
+            'equality',
+            () => 15,
+            () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 3,
+                handSize: 4,
+                discDiff: -8,
+                empties: 24,
+                ownCorners: 0,
+                oppCorners: 1,
+                hasCornerMoveNow: false,
+                cornerEmergency: true,
+                ownCharge: 28
+            }
+        );
+
+        expect(live.score).toBeGreaterThan(inactive.score);
+        expect(inactive.score).toBeLessThan(0);
     });
 
     test('chooseSellCardTargetByRetention rotates SUPER_BUOYANCY_WILL when no corner or edge conversion exists', () => {
@@ -1858,6 +2178,15 @@ describe('cpu-policy-core', () => {
         expect(core.isCornerHoldCardType('GUARD_WILL')).toBe(true);
         expect(core.isChargeRampCardType('TREASURE_BOX')).toBe(true);
         expect(core.isCornerRecoveryCardType('HEAVEN_BLESSING')).toBe(false);
+    });
+
+    test('EQUALITY_WILL keeps an explicit CPU profile without free-placement recovery classification', () => {
+        expect(core.isCornerRecoveryCardType('EQUALITY_WILL')).toBe(false);
+        expect(core.hasUsageStyleForCardType('EQUALITY_WILL')).toBe(true);
+        expect(core.hasMovePlanProfileForCardType('EQUALITY_WILL')).toBe(true);
+        expect(core.getMovePlanProfileForCardType('EQUALITY_WILL')).toEqual(expect.objectContaining({
+            placementWeight: 0
+        }));
     });
 
     test('all catalog card types have explicit usage style profile', () => {

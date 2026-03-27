@@ -244,54 +244,38 @@
         return { placed: true };
     }
 
-    function clearAnchorStone(gameState, row, col) {
-        if (!gameState) return false;
-
+    function revertAnchorStone(cardState, gameState, row, col, ownerKey, reason) {
         const r = Number(row);
         const c = Number(col);
-        if (
-            BoardOps &&
-            typeof BoardOps.getCellValue === 'function' &&
-            typeof BoardOps.setCellValue === 'function' &&
-            Number.isInteger(r) &&
-            Number.isInteger(c) &&
-            BoardOps.getCellValue(gameState, r, c) !== null
-        ) {
-            return BoardOps.setCellValue(gameState, r, c, EMPTY);
-        }
-        if (Number.isInteger(r) && Number.isInteger(c)) {
-            const expansion = (gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-                ? gameState.boardExpansion
-                : null;
-            if (expansion) {
-                const cells = getExpansionCells(gameState).map((cell) => ({ ...cell }));
+        if (!Number.isInteger(r) || !Number.isInteger(c)) return false;
 
-                let cleared = false;
-                for (let i = 0; i < cells.length; i++) {
-                    const cell = cells[i];
-                    if (!cell || cell.row !== r || cell.col !== c) continue;
-                    cells[i] = { side: cell.side, row: cell.row, col: cell.col, owner: EMPTY };
-                    cleared = true;
-                }
-                if (cleared) {
-                    expansion.cells = cells.map((cell) => ({
-                        side: cell.side,
-                        row: cell.row,
-                        col: cell.col,
-                        owner: normalizeExpansionOwner(cell.owner)
-                    }));
-                    syncLegacyExpansionFields(expansion);
-                    return true;
-                }
-            }
+        if (BoardOps && typeof BoardOps.revertSpecialStoneAt === 'function') {
+            const revertRes = BoardOps.revertSpecialStoneAt(
+                cardState,
+                gameState,
+                r,
+                c,
+                'WORK',
+                ownerKey,
+                'WORK_WILL',
+                reason || 'duration_end'
+            );
+            return !!(revertRes && revertRes.reverted);
         }
 
-        if (!Array.isArray(gameState.board) || !Number.isInteger(r) || !Number.isInteger(c)) return false;
-        if (r < 0 || r >= gameState.board.length) return false;
-        const rowArr = gameState.board[r];
-        if (!Array.isArray(rowArr) || c < 0 || c >= rowArr.length) return false;
-        rowArr[c] = EMPTY;
-        return true;
+        const beforeCount = Array.isArray(cardState && cardState.markers)
+            ? cardState.markers.length
+            : 0;
+        cardState.markers = (cardState.markers || []).filter((marker) => !(
+            marker &&
+            marker.kind === 'specialStone' &&
+            marker.row === r &&
+            marker.col === c &&
+            marker.owner === ownerKey &&
+            marker.data &&
+            marker.data.type === 'WORK'
+        ));
+        return (cardState.markers || []).length !== beforeCount;
     }
 
     function processWorkEffects(cardState, gameState, playerKey, deps = {}) {
@@ -361,9 +345,8 @@
             : (5 - stage);
         const remainingBefore = Math.max(0, Math.trunc(rawRemaining));
         if (remainingBefore <= 0) {
-            cardState.markers = (cardState.markers || []).filter(m => !(m.kind === 'specialStone' && m.data && m.data.type === 'WORK' && m.owner === playerKey && m.row === row && m.col === col));
+            revertAnchorStone(cardState, gameState, row, col, playerKey, 'duration_end');
             cardState.workAnchorPosByPlayer[playerKey] = null;
-            clearAnchorStone(gameState, row, col);
             return {
                 gained: 0,
                 removed: true,
@@ -393,9 +376,8 @@
         let removed = false;
         if (remainingAfter <= 0) {
             // remove marker and anchor
-            cardState.markers = (cardState.markers || []).filter(m => !(m.kind === 'specialStone' && m.data && m.data.type === 'WORK' && m.owner === playerKey && m.row === row && m.col === col));
+            revertAnchorStone(cardState, gameState, row, col, playerKey, 'duration_end');
             cardState.workAnchorPosByPlayer[playerKey] = null;
-            clearAnchorStone(gameState, row, col);
             removed = true;
         }
 

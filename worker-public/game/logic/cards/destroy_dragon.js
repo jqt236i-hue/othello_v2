@@ -309,15 +309,35 @@
             anchors.push({ row: dragon.row, col: dragon.col, remainingNow: afterDec });
 
             if (afterDec === 0) {
-                let destroyedRes = false;
-                if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                    const res = deps.BoardOps.destroyAt(cardState, gameState, dragon.row, dragon.col, 'DESTROY_DRAGON', 'anchor_expired');
-                    destroyedRes = !!(res && res.destroyed);
+                let revertedRes = false;
+                if (deps.BoardOps && typeof deps.BoardOps.revertSpecialStoneAt === 'function') {
+                    const res = deps.BoardOps.revertSpecialStoneAt(
+                        cardState,
+                        gameState,
+                        dragon.row,
+                        dragon.col,
+                        'DESTROY_DRAGON',
+                        playerKey,
+                        'DESTROY_DRAGON',
+                        'anchor_expired'
+                    );
+                    revertedRes = !!(res && res.reverted);
                 } else {
-                    destroyedRes = destroyAt(cardState, gameState, dragon.row, dragon.col);
+                    if (cardState.markers) {
+                        cardState.markers = cardState.markers.filter((entry) => !(
+                            entry &&
+                            entry.kind === 'specialStone' &&
+                            entry.row === dragon.row &&
+                            entry.col === dragon.col &&
+                            entry.owner === playerKey &&
+                            entry.data &&
+                            entry.data.type === 'DESTROY_DRAGON'
+                        ));
+                    }
+                    revertedRes = true;
                 }
-                if (destroyedRes) {
-                    expired.push({ row: dragon.row, col: dragon.col });
+                if (revertedRes) {
+                    expired.push({ row: dragon.row, col: dragon.col, owner: playerKey, reason: 'anchor_expired' });
                 }
                 if (dragon.data) dragon.data.remainingOwnerTurns = -1;
             }
@@ -381,15 +401,35 @@
         if (dragon.data) dragon.data.remainingOwnerTurns = afterDec;
 
         if (shouldDecrement && afterDec === 0) {
-            let destroyedRes = false;
-            if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                const res = deps.BoardOps.destroyAt(cardState, gameState, row, col, 'DESTROY_DRAGON', 'anchor_expired');
-                destroyedRes = !!(res && res.destroyed);
+            let revertedRes = false;
+            if (deps.BoardOps && typeof deps.BoardOps.revertSpecialStoneAt === 'function') {
+                const res = deps.BoardOps.revertSpecialStoneAt(
+                    cardState,
+                    gameState,
+                    row,
+                    col,
+                    'DESTROY_DRAGON',
+                    playerKey,
+                    'DESTROY_DRAGON',
+                    'anchor_expired'
+                );
+                revertedRes = !!(res && res.reverted);
             } else {
-                destroyedRes = destroyAt(cardState, gameState, row, col);
+                if (cardState.markers) {
+                    cardState.markers = cardState.markers.filter((entry) => !(
+                        entry &&
+                        entry.kind === 'specialStone' &&
+                        entry.row === row &&
+                        entry.col === col &&
+                        entry.owner === playerKey &&
+                        entry.data &&
+                        entry.data.type === 'DESTROY_DRAGON'
+                    ));
+                }
+                revertedRes = true;
             }
-            if (destroyedRes) {
-                expired.push({ row, col });
+            if (revertedRes) {
+                expired.push({ row, col, owner: playerKey, reason: 'anchor_expired' });
             }
             if (dragon.data) dragon.data.remainingOwnerTurns = -1;
         }

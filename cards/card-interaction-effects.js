@@ -5,11 +5,35 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory();
+        let SpecialStoneRegistry = null;
+        try {
+            SpecialStoneRegistry = require('../shared/special-stone-registry');
+        } catch (e) { /* ignore */ }
+        module.exports = factory(SpecialStoneRegistry);
     } else {
-        root.CardInteractionEffects = factory();
+        root.CardInteractionEffects = factory(root.SpecialStoneRegistry || null);
     }
-}(typeof self !== 'undefined' ? self : this, function () {
+}(typeof self !== 'undefined' ? self : this, function (SpecialStoneRegistry) {
+    function getSpecialStoneDisplayName(rawType, fallback) {
+        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneDisplayName === 'function') {
+            return SpecialStoneRegistry.getSpecialStoneDisplayName(rawType, fallback);
+        }
+        return fallback !== undefined ? fallback : (rawType ? String(rawType) : '');
+    }
+
+    function getSpecialStoneDescription(rawType, fallback) {
+        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneDescription === 'function') {
+            return SpecialStoneRegistry.getSpecialStoneDescription(rawType, fallback);
+        }
+        return fallback !== undefined ? fallback : '';
+    }
+
+    const timeStopStoneName = getSpecialStoneDisplayName('TIME_STOP', '時間停石');
+    const timeStopStoneDescription = getSpecialStoneDescription(
+        'TIME_STOP',
+        '配置ターンは減算せず、以後は所有者ターン開始ごとにカウント減少する。5回目の所有者ターン開始時に時間停止を発動し、そのターンと次のターンを同じプレイヤーが連続で行動する。時間停止中は画面全体をモノクロ表示する。発動時に効果は終了し、その石は同色の通常石に戻る。先に空マスになった、または所有者の石でなくなった場合は不発で終了する。反転保護は持たない。'
+    );
+
     const quickCardEffectByType = Object.freeze({
         TREASURE_BOX: '布石を1〜3獲得',
         PLACE_ON_EMPTY: '反転0でも空きマスに置ける',
@@ -39,9 +63,10 @@
         REGEN_WILL: '次に置く石は反転されると3回まで復活して挟める列があれば反転させる。',
         DESTROY_ONE_STONE: '盤面の石1つを破壊',
         TIME_BOMB: '自分石1つを時限爆弾化。3ターン後にそのマス+周囲1マスを爆破',
-        TIME_STOP_GOD: '自分石3つを壊し、次石を時間停石化。5回目の自ターン開始時に2連続行動',
+        TIME_STOP_GOD: `自分石3つを壊し、次石を${timeStopStoneName}化。5回目の自ターン開始時に2連続行動`,
         ULTIMATE_REVERSE_DRAGON: '反転0でも空きマスに置ける。置いた石が龍化し、配置時に周囲1マスを反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マスを反転（5ターン）。反転保護を持つ特殊石。',
         BREEDING_WILL: '次に置く石を繁殖化。配置時+自ターン開始時に周囲へ1個生成',
+        PROLIFERATION_WILL: '次に置く石を増殖石化。破壊時は周囲8マスの空きへ1個増殖。各増殖石は所有者ターン10回持続し、期限切れや反転で通常石に戻る',
         CLONE_WILL: '自分石1つを選び、周囲1マスの空きへ1個複製',
         SPLIT_WILL: '自分石1つを選び、周囲1マスへ分裂（残りターン半減）',
         CROSS_BOMB: '次に置く石を起点に縦横2マスを爆破（通常反転後）',
@@ -68,6 +93,7 @@
         QUAD_PLACE: '使用ターンだけ石を4連続で置ける。使用後、無限投石が手札に加わる。',
         INFINITE_PLACE: '使用ターンだけ合法手がなくなるまで石を連続で置ける。置けなくなった時点で終了する。',
         HEAVEN_BLESSING: '候補5枚から1枚を選んで獲得',
+        REVEAL_HAND_WILL: '現在の相手手札をすべて表にする',
         CONDEMN_WILL: '相手手札を見て1枚破壊',
         GOLD_STONE: '次の反転布石を4倍',
         RAINBOW_STONE: '次の反転布石を6倍',
@@ -84,7 +110,9 @@
         ULTIMATE_HYPERACTIVE_GOD: '次に置く石を究極多動神化。両者ターン開始時に直線1〜5マス移動を2回。反転回避3回+破壊回避1回（10ターン）',
         BOARD_EXPANSION_WILL: '盤面の左右どちらか外側に1マスを追加する',
         BOARD_EXPANSION_GOD: '初期8x8の角を選び、外側3マスを同時に盤面拡張',
-        OBSERVER_WILL: '次に置く石を観測化し、毎ターン30%の確率で布石1〜5を獲得（5ターン）'
+        OBSERVER_WILL: '次に置く石を観測化し、毎ターン30%の確率で布石1〜5を獲得（5ターン）',
+        EQUALITY_WILL: '相手石が10枚以上多い時のみ使え、空きマスへ自分の通常石を最大3個生成',
+        SALVATION_WILL: '直前の相手ターンで破壊された自分の通常石をすべてランダムな空きマスへ配置する'
     });
 
     const detailCardEffectByType = Object.freeze({
@@ -115,10 +143,11 @@
         REGEN_WILL: '反転された瞬間に元色へ戻る。\nこの再生は最大3回まで発動する。\n戻った位置から挟める列があれば追加で反転する。',
         DESTROY_ONE_STONE: '対象を1つ選んで即時に除去する。',
         TIME_BOMB: '3ターン後に「そのマス+周囲1マス（3x3）」を爆破。\n反転されると爆弾は解除される。',
-        TIME_STOP_GOD: '使用時にランダムで自分の石3つを破壊する。\n次に置く石を時間停石化する。\n時間停石は所有者ターン開始ごとに減算し、5回目の開始時に時間停止を発動する。\n発動したターンと次のターンを同じプレイヤーが連続で行動し、その間は画面全体がモノクロ表示になる。\n発動時に時間停石は消滅し、先に消えた場合は不発。\n反転保護は持たない。',
+        TIME_STOP_GOD: `使用時にランダムで自分の石3つを破壊する。\n次に置く石を${timeStopStoneName}化する。\n${timeStopStoneDescription}`,
         SNIPER_WILL: '次に置く石は反転がなくても空きマスに配置できる。\n配置したターン即時と、自ターン開始時に最も近い敵石を1つ選んで破壊する。\n同距離の候補はランダムで選ばれる。\n持続は5ターン。',
         ULTIMATE_REVERSE_DRAGON: '反転が0でも空きマスに配置できる。\n配置時に周囲1マス（8方向）を反転する。\n自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転する。\n移動先が無いときはその場で反転する。\n持続は5ターン。\n反転保護を持つ特殊石として扱う。',
         BREEDING_WILL: '生成先は周囲8マスの空きからランダム1個。\n前回生成石の周囲へ拡散し、5ターン継続。',
+        PROLIFERATION_WILL: '次に置く石を増殖石化する。\n増殖石は所有者ターン10回持続し、所有者ターン開始時のみ残りターンが減る。\n増殖石が破壊対象になった時はその破壊を受けず、周囲8マスの空きからランダム1マスへ同色の増殖石を1個生成する。\n周囲に空きが無い場合は通常どおり破壊される。\n増殖で生まれた石も同じ増殖効果を持つが、親石の残りターンは引き継がず、それぞれ新しく10ターンから数える。\n10ターン経過しても消滅せず、同色の通常石に戻る。\n反転された時は増殖状態を失い、相手色の通常石になる。',
         CLONE_WILL: '盤面上の自分の石を1つ選択。\n周囲8マスの空きからランダム1マスへ同じ石を複製する。\n生成では反転せず、特殊石は残り持続ターンを引き継ぐ。',
         SPLIT_WILL: '盤面上の自分の石を1つ選択。\n周囲8マスの空きからランダム1マスへ同じ石を分裂生成する。\n生成では反転せず、特殊石の残り持続ターンは元石・生成石とも半減する（小数切り捨て、最小1）。',
         CROSS_BOMB: '次に置く石を十字爆弾化。\n通常反転後、その石を起点に縦横2マス（中心含む十字）を爆破。',
@@ -149,6 +178,7 @@
         QUAD_PLACE: '使用ターンだけ石を4連続で置ける。\n1手目から3手目までの途中でターン切替は発生しない。\n使用後、無限投石が手札に加わる。',
         INFINITE_PLACE: '使用ターンだけ合法手がある限り石を連続で置ける。\n合法手がなくなった時点でそのまま終了する。',
         HEAVEN_BLESSING: '表示された候補5枚から1枚だけ選んで獲得する。\n選ばなかった候補は消える。',
+        REVEAL_HAND_WILL: '使用時点の相手手札をすべて公開する。\n使用後に相手が引いたカードは公開しない。\n一度公開した同じカードは、手札を離れて後で戻っても表のまま。',
         CONDEMN_WILL: '相手手札を公開し、選んだ1枚を破壊。',
         GOLD_STONE: '次の反転で得る布石を4倍。\n使用後その石は消滅。',
         RAINBOW_STONE: '次の反転で得る布石を6倍。\n使用後その石は消滅。',
@@ -162,10 +192,12 @@
         DESTROY_DRAGON_WILL: '配置時と自ターン開始時に周囲1マス（8方向）の敵石をランダムで1個だけ破壊する。\n持続3ターン（所有者ターン開始で減算）。\n反転保護を持つ特殊石として扱う。',
         LIGHTNING_WILL: '配置時と自ターン開始時に盤面上の敵石をランダムで1個だけ破壊する。\n持続5ターン（所有者ターン開始で減算、配置ターン即時発動では減算しない）。\n反転保護を持つ特殊石として扱う。',
         ULTIMATE_DESTROY_GOD: '反転が0でも空きマスに配置できる。\n配置時に周囲1マス（8方向）の敵石を破壊する。\n自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）の敵石を破壊する。\n移動先が無いときはその場で破壊する。\n持続は5ターン。',
-        ULTIMATE_HYPERACTIVE_GOD: '両者ターン開始時に直線1〜5マス移動を2回行い、2マス以上は途中の石を飛び越える。\n移動後に挟めば反転し、反転対象時はマス移動で回避する（最大3回）。\n破壊対象時も1回だけマス移動で回避する。移動先が無いと消滅する。10ターン後は自己消滅する。',
+        ULTIMATE_HYPERACTIVE_GOD: '両者ターン開始時に直線1〜5マス移動を2回行い、2マス以上は途中の石を飛び越える。\n移動後に挟めば反転し、反転対象時はマス移動で回避する（最大3回）。\n破壊対象時も1回だけマス移動で回避する。移動先が無いと消滅する。10ターン後は同色の通常石に戻る。',
         BOARD_EXPANSION_WILL: '左右どちらか外側に1マスだけ盤面を拡張する。\n追加位置は左右端マスから選び、1対局で1回のみ使える。',
         BOARD_EXPANSION_GOD: '初期8x8の角マスを1つ選び、その外側3マス（直交2方向+斜め）に拡張セルを同時追加する。\n3マスのうち1つでも既存拡張セルと重なる角は選べない。',
-        OBSERVER_WILL: '所有者ターンの開始時に判定を行い、成功（確率30%）するとランダムで1〜5の布石を得る。\n持続は5ターン。'
+        OBSERVER_WILL: '所有者ターンの開始時に判定を行い、成功（確率30%）するとランダムで1〜5の布石を得る。\n持続は5ターン。',
+        EQUALITY_WILL: '相手の石数が自分より10枚以上多い時のみ使用できる。\n使用時、盤面の空きマスからランダムに最大3マスへ、自分色の通常石を1個ずつ生成する。\nこの生成では通常の挟み反転を行わない。\n空きマスが3未満なら、存在する空きマス数ぶんだけ生成する。',
+        SALVATION_WILL: '直前の相手ターンで破壊された自分の通常石をすべてランダムな空きマスへ配置する。\n対象0枚の時は使用不可。\n特殊石は対象外。'
     });
 
     function normalizeCardDescText(text) {

@@ -296,6 +296,19 @@ var _chargeDeltaTimers = { black: null, white: null };
 var _chargeDeltaClearTimers = { black: null, white: null };
 var _chargeDeltaSeq = { black: 0, white: 0 };
 
+function _getChargeDeltaElementId(key) {
+    return (key === 'black') ? 'charge-delta-black' : 'charge-delta-white';
+}
+
+function _resolveChargeDeltaEl(key) {
+    if (typeof document === 'undefined') return null;
+    return document.getElementById(_getChargeDeltaElementId(key));
+}
+
+function _isTopChargeDeltaSlot(key) {
+    return key === 'white';
+}
+
 function _resolveChargeDeltaAnchorGapPx(el) {
     try {
         if (typeof window !== 'undefined' && window.getComputedStyle && el) {
@@ -305,6 +318,18 @@ function _resolveChargeDeltaAnchorGapPx(el) {
         }
     } catch (e) { /* ignore */ }
     return 8;
+}
+
+function _resolveChargeDeltaViewportHeight() {
+    try {
+        if (typeof window !== 'undefined' && Number.isFinite(window.innerHeight) && window.innerHeight > 0) {
+            return window.innerHeight;
+        }
+        if (document.documentElement && Number.isFinite(document.documentElement.clientHeight) && document.documentElement.clientHeight > 0) {
+            return document.documentElement.clientHeight;
+        }
+    } catch (e) { /* ignore */ }
+    return 1080;
 }
 
 function _positionChargeDeltaEl(key, el) {
@@ -321,17 +346,10 @@ function _positionChargeDeltaEl(key, el) {
         ? deltaRect.height
         : (el.offsetHeight || 0);
     var gap = _resolveChargeDeltaAnchorGapPx(el);
-    var viewportHeight = 1080;
-    try {
-        viewportHeight = (typeof window !== 'undefined' && Number.isFinite(window.innerHeight) && window.innerHeight > 0)
-            ? window.innerHeight
-            : ((document.documentElement && Number.isFinite(document.documentElement.clientHeight) && document.documentElement.clientHeight > 0)
-                ? document.documentElement.clientHeight
-                : 1080);
-    } catch (e) { /* ignore */ }
+    var viewportHeight = _resolveChargeDeltaViewportHeight();
 
     var anchorLeft = chargeRect.left + (chargeRect.width / 2);
-    var anchorTop = (key === 'white')
+    var anchorTop = _isTopChargeDeltaSlot(key)
         ? (chargeRect.bottom + gap)
         : (chargeRect.top - deltaHeight - gap);
     var maxTop = Math.max(8, viewportHeight - deltaHeight - 8);
@@ -343,30 +361,26 @@ function _positionChargeDeltaEl(key, el) {
     el.style.bottom = 'auto';
 }
 
-function _showChargeDeltaNow(key, delta) {
-    if (typeof document === 'undefined') return;
-    if (!Number.isFinite(delta) || delta === 0) return;
-
-    var elId = (key === 'black') ? 'charge-delta-black' : 'charge-delta-white';
-    var el = document.getElementById(elId);
+function _setChargeDeltaText(el, delta) {
     if (!el) return;
-
     var sign = delta > 0 ? '+' : '';
-    el.textContent = '布石' + sign + delta;
-    _positionChargeDeltaEl(key, el);
+    el.textContent = sign + delta;
+}
 
+function _applyChargeDeltaVariant(el, delta) {
+    if (!el) return;
     el.classList.remove('is-increase', 'is-decrease');
     el.classList.add(delta > 0 ? 'is-increase' : 'is-decrease');
+}
 
-    var timer = _Timer();
-    if (_chargeDeltaTimers[key]) timer.clearTimeout(_chargeDeltaTimers[key]);
-    if (_chargeDeltaClearTimers[key]) timer.clearTimeout(_chargeDeltaClearTimers[key]);
-    var seq = (_chargeDeltaSeq[key] || 0) + 1;
-    _chargeDeltaSeq[key] = seq;
-
+function _restartChargeDeltaAnimation(el) {
+    if (!el) return;
     el.classList.remove('is-visible', 'is-fadeout', 'is-restart');
     el.classList.add('is-restart');
     void el.offsetWidth;
+}
+
+function _scheduleChargeDeltaLifecycle(key, el, seq, timer) {
     var startShow = function () {
         if ((_chargeDeltaSeq[key] || 0) !== seq) return;
         _positionChargeDeltaEl(key, el);
@@ -393,6 +407,27 @@ function _showChargeDeltaNow(key, delta) {
     } catch (e) {
         timer.setTimeout(startShow, 16);
     }
+}
+
+function _showChargeDeltaNow(key, delta) {
+    if (typeof document === 'undefined') return;
+    if (!Number.isFinite(delta) || delta === 0) return;
+
+    var el = _resolveChargeDeltaEl(key);
+    if (!el) return;
+
+    _setChargeDeltaText(el, delta);
+    _positionChargeDeltaEl(key, el);
+    _applyChargeDeltaVariant(el, delta);
+
+    var timer = _Timer();
+    if (_chargeDeltaTimers[key]) timer.clearTimeout(_chargeDeltaTimers[key]);
+    if (_chargeDeltaClearTimers[key]) timer.clearTimeout(_chargeDeltaClearTimers[key]);
+    var seq = (_chargeDeltaSeq[key] || 0) + 1;
+    _chargeDeltaSeq[key] = seq;
+
+    _restartChargeDeltaAnimation(el);
+    _scheduleChargeDeltaLifecycle(key, el, seq, timer);
 }
 
 function showChargeDelta(playerKey, delta) {

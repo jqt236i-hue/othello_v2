@@ -32,9 +32,18 @@ const QUALITY_WEIGHT_KEYS = Object.freeze(Object.keys(DEFAULT_QUALITY_WEIGHTS));
 
 function parseArgs(argv) {
     let qualityThresholdOverride = null;
+    let qualityGateStrengthFirst = null;
     const adoptionArgv = [];
     for (let i = 0; i < argv.length; i++) {
         const token = String(argv[i] || '');
+        if (token === '--quality-gate-strength-first') {
+            qualityGateStrengthFirst = true;
+            continue;
+        }
+        if (token === '--no-quality-gate-strength-first') {
+            qualityGateStrengthFirst = false;
+            continue;
+        }
         if (token === '--threshold') {
             const rawValue = argv[i + 1];
             const num = Number(rawValue);
@@ -52,6 +61,11 @@ function parseArgs(argv) {
     args.gatePhase = 'quality';
     if (qualityThresholdOverride !== null) {
         args.threshold = qualityThresholdOverride;
+    }
+    if (qualityGateStrengthFirst !== null) {
+        args.qualityGateStrengthFirst = qualityGateStrengthFirst;
+    } else if (args.qualityGateStrengthFirst !== true) {
+        args.qualityGateStrengthFirst = false;
     }
     const hasExplicitQualityWeights = QUALITY_WEIGHT_KEYS.some((key) => Number(args[key]) > 0);
     if (!hasExplicitQualityWeights) {
@@ -78,6 +92,31 @@ function buildQualitySeedDecision(seedDecision, threshold) {
     };
 }
 
+function buildStrengthFirstSourceDecision(perSeed, options) {
+    const sourceSeedDecisions = Array.isArray(perSeed)
+        ? perSeed
+            .map((entry) => entry && entry.decision ? entry.decision : null)
+            .filter((entry) => !!entry)
+        : [];
+    const threshold = Math.max(0, Number.isFinite(options && options.threshold) ? Number(options.threshold) : 0);
+    const minLowerBound = Math.max(0, Number.isFinite(options && options.minLowerBound) ? Number(options.minLowerBound) : 0);
+    const minSeedUplift = Math.max(0, Number.isFinite(options && options.minSeedUplift) ? Number(options.minSeedUplift) : 0);
+    const minSeedPassCount = Number.isFinite(options && options.minSeedPassCount)
+        ? Math.max(0, Math.floor(Number(options.minSeedPassCount)))
+        : 0;
+    const confidenceLevel = Number.isFinite(options && options.confidenceLevel)
+        ? Number(options.confidenceLevel)
+        : 0.95;
+    return computeAdoptionDecisionAverage(
+        sourceSeedDecisions,
+        threshold,
+        minSeedUplift,
+        minSeedPassCount,
+        confidenceLevel,
+        minLowerBound
+    );
+}
+
 function buildQualityGatePayload(adoptionPayload, options, earlyStop) {
     const perSeed = Array.isArray(adoptionPayload && adoptionPayload.perSeed)
         ? adoptionPayload.perSeed.map((entry) => Object.assign({}, entry, {
@@ -86,7 +125,7 @@ function buildQualityGatePayload(adoptionPayload, options, earlyStop) {
         : [];
     const qualitySeedDecisions = perSeed.map((entry) => entry.qualityDecision);
     const maxPossibleSeedUplift = QUALITY_WEIGHT_KEYS.reduce((sum, key) => sum + (Number(options[key]) || 0), 0);
-    const decision = earlyStop
+    const qualityDecision = earlyStop
         ? buildEarlyStopDecision(
             qualitySeedDecisions,
             options.seedCount,
@@ -101,6 +140,26 @@ function buildQualityGatePayload(adoptionPayload, options, earlyStop) {
             options.confidenceLevel,
             options.minLowerBound
         );
+    const rawSourceDecision = adoptionPayload && adoptionPayload.decision ? adoptionPayload.decision : null;
+    const sourceDecision = options && options.qualityGateStrengthFirst
+        ? buildStrengthFirstSourceDecision(perSeed, options)
+        : rawSourceDecision;
+    const decision = options && options.qualityGateStrengthFirst && sourceDecision
+        ? Object.assign({}, qualityDecision, {
+            passed: !!qualityDecision.passed && !!sourceDecision.passed,
+            passedByQuality: !!qualityDecision.passed,
+            passedBySourceStrength: !!sourceDecision.passed,
+            sourceStrengthUplift: sourceDecision.uplift,
+            sourceStrengthUpliftLowerBound: sourceDecision.upliftLowerBound,
+            sourceStrengthMinSeedUplift: sourceDecision.minSeedUplift,
+            sourceStrengthSeedPassCount: sourceDecision.seedPassCount,
+            sourceStrengthSeedCount: sourceDecision.seedCount,
+            sourceStrengthThreshold: sourceDecision.threshold,
+            sourceStrengthRequiredMinLowerBound: sourceDecision.requiredMinLowerBound,
+            sourceStrengthRequiredMinSeedUplift: sourceDecision.requiredMinSeedUplift,
+            sourceStrengthRequiredMinSeedPassCount: sourceDecision.requiredMinSeedPassCount
+        })
+        : qualityDecision;
 
     return {
         generatedAt: new Date().toISOString(),
@@ -118,6 +177,7 @@ function buildQualityGatePayload(adoptionPayload, options, earlyStop) {
             minLowerBound: options.minLowerBound,
             minSeedUplift: options.minSeedUplift,
             minSeedPassCount: options.minSeedPassCount,
+            qualityGateStrengthFirst: !!(options && options.qualityGateStrengthFirst),
             candidateModelPath: options.candidateModelPath,
             baselineModelPath: options.baselineModelPath || null,
             opponentModelPath: options.opponentModelPath || null,
@@ -131,7 +191,8 @@ function buildQualityGatePayload(adoptionPayload, options, earlyStop) {
         earlyStop: earlyStop || null,
         perSeed,
         decision,
-        sourceDecision: adoptionPayload && adoptionPayload.decision ? adoptionPayload.decision : null
+        sourceDecision,
+        rawSourceDecision: rawSourceDecision && sourceDecision !== rawSourceDecision ? rawSourceDecision : null
     };
 }
 
@@ -154,10 +215,14 @@ async function main() {
         console.log(`[policy-quality-gate] wrote: ${args.out}`);
     }
     const d = result.decision;
+    const source = result.sourceDecision;
     console.log(
         `[policy-quality-gate] baseline_quality=${d.baselineScore.toFixed(3)} candidate_quality=${d.candidateScore.toFixed(3)} ` +
         `uplift=${d.uplift.toFixed(3)} uplift_lb=${d.upliftLowerBound.toFixed(3)} threshold=${d.threshold.toFixed(3)} ` +
-        `seeds=${d.seedCount || 1} seed_pass=${d.seedPassCount || 0}/${d.seedCount || 0} early_stop=${d.earlyStopReason || 'none'} pass=${d.passed}`
+        `seeds=${d.seedCount || 1} seed_pass=${d.seedPassCount || 0}/${d.seedCount || 0} ` +
+        `source_uplift=${source && Number.isFinite(source.uplift) ? source.uplift.toFixed(3) : 'n/a'} ` +
+        `source_lb=${source && Number.isFinite(source.upliftLowerBound) ? source.upliftLowerBound.toFixed(3) : 'n/a'} ` +
+        `source_pass=${source && source.passed === true} early_stop=${d.earlyStopReason || 'none'} pass=${d.passed}`
     );
     process.exit(d.passed ? 0 : 2);
 }
@@ -173,6 +238,7 @@ module.exports = {
     DEFAULT_QUALITY_WEIGHTS,
     parseArgs,
     buildQualitySeedDecision,
+    buildStrengthFirstSourceDecision,
     buildQualityGatePayload,
     runQualityGate
 };

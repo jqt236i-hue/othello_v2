@@ -59,39 +59,56 @@
         const p = prng || undefined;
         const opts = (options && typeof options === 'object') ? options : {};
         const normalizedPlayerKey = normalizePlayerKey(playerKey) || playerKey;
-        // 1) Turn start processing
-        if (opts.skipTurnStart !== true) {
-            TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, events, p);
+        const previousBoardOpsRandomSource = cardState._boardOpsRandomSource;
+        if (p && typeof p.random === 'function') {
+            cardState._boardOpsRandomSource = p;
         }
+        try {
+            // 1) Turn start processing
+            if (opts.skipTurnStart !== true) {
+                TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, events, p);
+            }
 
-        // 2) Card usage (optional)
-        TurnPipelinePhases.applyCardUsagePhase(CardLogic, cardState, gameState, normalizedPlayerKey, action, events, p);
+            // 2) Card usage (optional)
+            TurnPipelinePhases.applyCardUsagePhase(CardLogic, cardState, gameState, normalizedPlayerKey, action, events, p);
 
-        // 3) Action
-    // Attach action meta to cardState so BoardOps and other helpers can populate presentationEvents with action metadata
-    const actionMeta = { actionId: action && action.actionId ? action.actionId : null, turnIndex: cardState.turnIndex || 0, plyIndex: 0 };
-    // Prefer explicit BoardOps API to set/clear action context
-    if (BoardOps && typeof BoardOps.setActionContext === 'function') {
-        BoardOps.setActionContext(cardState, actionMeta);
-    } else {
-        cardState._currentActionMeta = actionMeta;
-    }
-    try {
-        TurnPipelinePhases.applyActionPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, action, events, p, BoardOps);
-    } finally {
-        if (BoardOps && typeof BoardOps.clearActionContext === 'function') {
-            BoardOps.clearActionContext(cardState);
-        } else {
-            delete cardState._currentActionMeta;
+            // 3) Action
+            // Attach action meta to cardState so BoardOps and other helpers can populate presentationEvents with action metadata
+            const actionMeta = {
+                actionId: action && action.actionId ? action.actionId : null,
+                turnIndex: cardState.turnIndex || 0,
+                plyIndex: 0,
+                randomSource: (p && typeof p.random === 'function') ? p : null
+            };
+            // Prefer explicit BoardOps API to set/clear action context
+            if (BoardOps && typeof BoardOps.setActionContext === 'function') {
+                BoardOps.setActionContext(cardState, actionMeta);
+            } else {
+                cardState._currentActionMeta = actionMeta;
+            }
+            try {
+                TurnPipelinePhases.applyActionPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, action, events, p, BoardOps);
+            } finally {
+                if (BoardOps && typeof BoardOps.clearActionContext === 'function') {
+                    BoardOps.clearActionContext(cardState);
+                } else {
+                    delete cardState._currentActionMeta;
+                }
+            }
+
+            // Collect presentation events produced during phases
+            const presentationEvents = (typeof CardLogic.flushPresentationEvents === 'function')
+                ? CardLogic.flushPresentationEvents(cardState)
+                : (cardState.presentationEvents || []).slice();
+
+            return { gameState, cardState, events, presentationEvents };
+        } finally {
+            if (previousBoardOpsRandomSource && typeof previousBoardOpsRandomSource.random === 'function') {
+                cardState._boardOpsRandomSource = previousBoardOpsRandomSource;
+            } else {
+                delete cardState._boardOpsRandomSource;
+            }
         }
-    }
-
-        // Collect presentation events produced during phases
-        const presentationEvents = (typeof CardLogic.flushPresentationEvents === 'function')
-            ? CardLogic.flushPresentationEvents(cardState)
-            : (cardState.presentationEvents || []).slice();
-
-        return { gameState, cardState, events, presentationEvents };
     }
 
     /**

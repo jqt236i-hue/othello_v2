@@ -87,6 +87,20 @@ describe('network charge seat layout', () => {
     dom.window.close();
   });
 
+  test('renders charge max segment separately so the cap can be visually dimmed', () => {
+    const dom = createRendererContext({ seatKey: 'white' });
+    const { window } = dom;
+
+    window.cardState.charge.black = 4;
+    window.cardState.charge.white = 11;
+    window.renderCardUI();
+
+    expect(window.document.querySelector('#charge-black .charge-current')?.textContent).toBe('11');
+    expect(window.document.querySelector('#charge-black .charge-max')?.textContent).toBe('99');
+
+    dom.window.close();
+  });
+
   test('tags deck slots with seat-mapped owner keys in network mode', () => {
     const dom = createRendererContext({ seatKey: 'white' });
     const { window } = dom;
@@ -173,6 +187,22 @@ describe('network charge seat layout', () => {
 
     expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledTimes(1);
     expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledWith('black', 4);
+
+    dom.window.close();
+  });
+
+  test('prioritizes card use cost decrease when mixed-sign HUD deltas arrive in one render', () => {
+    const dom = createRendererContext({ seatKey: 'white' });
+    const { window } = dom;
+
+    window.cardState.chargeDeltaEvents = [
+      { seq: 1, player: 'white', delta: -5, reason: 'card_use_cost' },
+      { seq: 2, player: 'white', delta: 8, reason: 'treasure_box' }
+    ];
+    window.renderCardUI();
+
+    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledTimes(1);
+    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledWith('black', -5);
 
     dom.window.close();
   });

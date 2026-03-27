@@ -6,6 +6,13 @@ const path = require('path');
 const os = require('os');
 const { spawnSync } = require('child_process');
 const { StringDecoder } = require('string_decoder');
+const {
+    TRAINING_CHECKPOINT_HEAD_SPECS,
+    createEmptyResumeCheckpointPaths,
+    cloneResumeCheckpointPaths,
+    detectCheckpointHead,
+    isCheckpointNameCompatibleWithHead
+} = require('./training-checkpoint-utils');
 
 function defaultSelfplayJobs() {
     const cpuCount = Array.isArray(os.cpus()) ? os.cpus().length : 1;
@@ -42,6 +49,46 @@ function shouldReuseStepArtifacts(args, stepName) {
     const restartIndex = TRAINING_CYCLE_STEP_ORDER.indexOf(restartFromStep);
     if (stepIndex < 0 || restartIndex < 0) return true;
     return stepIndex < restartIndex;
+}
+
+function getPrimaryResumeCheckpointPath(resumeCheckpointPaths) {
+    return resumeCheckpointPaths && resumeCheckpointPaths.policy
+        ? resumeCheckpointPaths.policy
+        : null;
+}
+
+function resolveResumeCheckpointPathsFromArgs(args) {
+    const resolved = createEmptyResumeCheckpointPaths();
+    for (const spec of TRAINING_CHECKPOINT_HEAD_SPECS) {
+        if (args && args[spec.argKey]) {
+            resolved[spec.head] = args[spec.argKey];
+        }
+    }
+    if (args && args.resumeCheckpointPath) {
+        const detectedHead = detectCheckpointHead(args.resumeCheckpointPath);
+        if (!detectedHead) {
+            if (resolved.policy && path.resolve(resolved.policy) === path.resolve(args.resumeCheckpointPath)) {
+                return resolved;
+            }
+            throw new Error(
+                `--resume-checkpoint must point to a policy-net/policy-card/policy-target/policy-value checkpoint: ${args.resumeCheckpointPath}`
+            );
+        }
+        if (resolved[detectedHead] && path.resolve(resolved[detectedHead]) !== path.resolve(args.resumeCheckpointPath)) {
+            const conflictingSpec = TRAINING_CHECKPOINT_HEAD_SPECS.find((spec) => spec.head === detectedHead);
+            throw new Error(`--resume-checkpoint conflicts with ${conflictingSpec ? conflictingSpec.resumeFlag : detectedHead}`);
+        }
+        resolved[detectedHead] = args.resumeCheckpointPath;
+    }
+    return resolved;
+}
+
+function resolveCarryOverResumeCheckpointPaths(carryOver) {
+    const resolved = cloneResumeCheckpointPaths(carryOver && carryOver.resumeCheckpointPaths);
+    if (!resolved.policy && carryOver && carryOver.resumeCheckpointPath) {
+        resolved.policy = carryOver.resumeCheckpointPath;
+    }
+    return resolved;
 }
 
 function parseArgs(argv) {
@@ -135,6 +182,7 @@ function parseArgs(argv) {
         qualityGateMinLowerBound: -1,
         qualityGateMinSeedUplift: -1,
         qualityGateMinSeedPassCount: 0,
+        qualityGateStrengthFirst: false,
         quickAdoptionThreshold: null,
         quickAdoptionSeedCount: null,
         quickAdoptionSeedStride: null,
@@ -204,6 +252,11 @@ function parseArgs(argv) {
         selfplayUsePromotedModelOnly: true,
         bootstrapPolicyModelPath: null,
         resumeCheckpointPath: null,
+        resumePolicyCheckpointPath: null,
+        resumeCardCheckpointPath: null,
+        resumeTargetCheckpointPath: null,
+        resumeValueCheckpointPath: null,
+        resumeCheckpointPaths: createEmptyResumeCheckpointPaths(),
         carryOverCheckpoint: true,
         runTag: null,
         runsDir: path.resolve(process.cwd(), 'data', 'runs'),
@@ -310,6 +363,8 @@ function parseArgs(argv) {
         if (a === '--quality-gate-min-lower-bound') { args.qualityGateMinLowerBound = Number(argv[++i]); continue; }
         if (a === '--quality-gate-min-seed-uplift') { args.qualityGateMinSeedUplift = Number(argv[++i]); continue; }
         if (a === '--quality-gate-min-seed-pass-count') { args.qualityGateMinSeedPassCount = Number(argv[++i]); continue; }
+        if (a === '--quality-gate-strength-first') { args.qualityGateStrengthFirst = true; continue; }
+        if (a === '--no-quality-gate-strength-first') { args.qualityGateStrengthFirst = false; continue; }
         if (a === '--quick-adoption-threshold') { args.quickAdoptionThreshold = Number(argv[++i]); continue; }
         if (a === '--quick-adoption-seed-count') { args.quickAdoptionSeedCount = Number(argv[++i]); continue; }
         if (a === '--quick-adoption-seed-stride') { args.quickAdoptionSeedStride = Number(argv[++i]); continue; }
@@ -387,6 +442,10 @@ function parseArgs(argv) {
         if (a === '--selfplay-use-candidate-every-iteration') { args.selfplayUsePromotedModelOnly = false; continue; }
         if (a === '--bootstrap-policy-model') { args.bootstrapPolicyModelPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--resume-checkpoint') { args.resumeCheckpointPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--resume-policy-checkpoint') { args.resumePolicyCheckpointPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--resume-card-checkpoint') { args.resumeCardCheckpointPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--resume-target-checkpoint') { args.resumeTargetCheckpointPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--resume-value-checkpoint') { args.resumeValueCheckpointPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--carry-over-checkpoint') { args.carryOverCheckpoint = true; continue; }
         if (a === '--no-carry-over-checkpoint') { args.carryOverCheckpoint = false; continue; }
         if (a === '--run-tag') { args.runTag = String(argv[++i] || '').trim(); continue; }
@@ -879,6 +938,16 @@ function parseArgs(argv) {
     if (args.resumeCheckpointPath && !fs.existsSync(args.resumeCheckpointPath)) {
         throw new Error(`--resume-checkpoint not found: ${args.resumeCheckpointPath}`);
     }
+    for (const spec of TRAINING_CHECKPOINT_HEAD_SPECS) {
+        if (args[spec.argKey] && !fs.existsSync(args[spec.argKey])) {
+            throw new Error(`${spec.resumeFlag} not found: ${args[spec.argKey]}`);
+        }
+        if (args[spec.argKey] && !isCheckpointNameCompatibleWithHead(args[spec.argKey], spec.head)) {
+            throw new Error(`${spec.resumeFlag} expects a ${spec.prefix} checkpoint: ${args[spec.argKey]}`);
+        }
+    }
+    args.resumeCheckpointPaths = resolveResumeCheckpointPathsFromArgs(args);
+    args.resumeCheckpointPath = getPrimaryResumeCheckpointPath(args.resumeCheckpointPaths);
     if (!args.runTag) args.runTag = makeRunTag();
     if (!args.summaryOut) args.summaryOut = path.resolve(args.runsDir, `training-cycle.${args.runTag}.json`);
     if (args.restartFromStep) {
@@ -990,6 +1059,7 @@ function printHelp() {
         '      --quality-gate-min-lower-bound <r> Quality gate uplift lower confidence bound [-1..1] (default: -1)',
         '      --quality-gate-min-seed-uplift <r> Quality gate minimum per-seed uplift [-1..1] (default: -1)',
         '      --quality-gate-min-seed-pass-count <n> Quality gate minimum passing seeds (default: 0)',
+        '      --quality-gate-strength-first Require non-negative raw/source strength on quality-gate samples before passing',
         '      --quick-adoption-threshold <r> Override quick adoption threshold [0..1] (default: fallback to --threshold)',
         '      --quick-adoption-seed-count <n> Override quick adoption seed count (default: fallback to --adoption-seed-count)',
         '      --quick-adoption-seed-stride <n> Override quick adoption seed stride (default: fallback to --adoption-seed-stride)',
@@ -1066,7 +1136,11 @@ function printHelp() {
         '      --selfplay-use-promoted-model-only        Update next self-play guide only when promotion succeeds (default: on)',
         '      --selfplay-use-candidate-every-iteration  Update next self-play guide to latest candidate every iteration',
         '      --bootstrap-policy-model <path>  Seed self-play with an existing policy-table JSON',
-        '      --resume-checkpoint <path>       Resume ONNX training from checkpoint (.pt)',
+        '      --resume-checkpoint <path>       Legacy single resume checkpoint; head is inferred from filename',
+        '      --resume-policy-checkpoint <path> Resume policy ONNX training from checkpoint (.pt)',
+        '      --resume-card-checkpoint <path>   Resume card ONNX training from checkpoint (.pt)',
+        '      --resume-target-checkpoint <path> Resume target ONNX training from checkpoint (.pt)',
+        '      --resume-value-checkpoint <path>  Resume value ONNX training from checkpoint (.pt)',
         '      --carry-over-checkpoint          Carry candidate checkpoint to next iteration (default: on)',
         '      --no-carry-over-checkpoint       Do not carry checkpoint to next iteration',
         '      --run-tag <tag>         Tag appended to output filenames',
@@ -1339,6 +1413,7 @@ function resolvePromotionEligibility(args, gateState) {
 function buildInitialGuideModelPoolPaths(modelsDir, guideModelPath, maxSize, options) {
     const limit = Number.isFinite(maxSize) ? Math.max(1, Math.floor(maxSize)) : 1;
     const includeCandidateFiles = !options || options.includeCandidateFiles !== false;
+    const includeArchiveFiles = !!(options && options.includeArchiveFiles);
     const dedup = new Set();
     const out = [];
 
@@ -1352,6 +1427,32 @@ function buildInitialGuideModelPoolPaths(modelsDir, guideModelPath, maxSize, opt
     };
 
     addPath(guideModelPath);
+    if (includeArchiveFiles && modelsDir && fs.existsSync(modelsDir)) {
+        let archiveEntries = [];
+        try {
+            archiveEntries = fs.readdirSync(path.resolve(modelsDir, 'archive'), { withFileTypes: true });
+        } catch (e) {
+            archiveEntries = [];
+        }
+        const archivedGuideFiles = archiveEntries
+            .filter((entry) => entry && entry.isDirectory())
+            .map((entry) => {
+                const fullPath = path.resolve(modelsDir, 'archive', entry.name, 'policy-table.json');
+                let mtimeMs = 0;
+                try {
+                    mtimeMs = Number(fs.statSync(fullPath).mtimeMs) || 0;
+                } catch (e) {
+                    return null;
+                }
+                return { fullPath, mtimeMs };
+            })
+            .filter((one) => !!one)
+            .sort((a, b) => b.mtimeMs - a.mtimeMs);
+        for (const one of archivedGuideFiles) {
+            if (out.length >= limit) break;
+            addPath(one.fullPath);
+        }
+    }
     if (!includeCandidateFiles || !modelsDir || !fs.existsSync(modelsDir)) {
         return out.slice(0, limit);
     }
@@ -1424,7 +1525,10 @@ function resolveNextCarryOverState(args, carryOver, result) {
         guideModelPoolPaths: carryOver && Array.isArray(carryOver.guideModelPoolPaths)
             ? carryOver.guideModelPoolPaths.slice()
             : [],
-        resumeCheckpointPath: carryOver && carryOver.resumeCheckpointPath ? carryOver.resumeCheckpointPath : null,
+        resumeCheckpointPaths: resolveCarryOverResumeCheckpointPaths(carryOver),
+        resumeCheckpointPath: carryOver && carryOver.resumeCheckpointPath
+            ? carryOver.resumeCheckpointPath
+            : getPrimaryResumeCheckpointPath(resolveCarryOverResumeCheckpointPaths(carryOver)),
         checkpointCarryOverSkipped: false
     };
     if (!result || !result.paths) return nextState;
@@ -1436,17 +1540,33 @@ function resolveNextCarryOverState(args, carryOver, result) {
             ? promotedModelPath
             : result.paths.candidateModelPath;
         if (nextState.guideModelPath) {
-            const deduped = [nextState.guideModelPath]
-                .concat(nextState.guideModelPoolPaths.filter((one) => path.resolve(one) !== path.resolve(nextState.guideModelPath)));
-            nextState.guideModelPoolPaths = deduped.slice(0, args.selfplayPolicyModelPoolSize);
+            if (args.selfplayUsePromotedModelOnly && result.promoted) {
+                nextState.guideModelPoolPaths = buildInitialGuideModelPoolPaths(
+                    args.modelsDir,
+                    nextState.guideModelPath,
+                    args.selfplayPolicyModelPoolSize,
+                    { includeCandidateFiles: false, includeArchiveFiles: true }
+                );
+            } else {
+                const deduped = [nextState.guideModelPath]
+                    .concat(nextState.guideModelPoolPaths.filter((one) => path.resolve(one) !== path.resolve(nextState.guideModelPath)));
+                nextState.guideModelPoolPaths = deduped.slice(0, args.selfplayPolicyModelPoolSize);
+            }
         }
     }
 
-    const shouldCarryOverCheckpoint = args.carryOverCheckpoint && shouldAdvanceGuide;
-    if (shouldCarryOverCheckpoint && result.paths.checkpointPath && fs.existsSync(result.paths.checkpointPath)) {
-        nextState.resumeCheckpointPath = result.paths.checkpointPath;
-    } else if (args.carryOverCheckpoint && args.selfplayUsePromotedModelOnly && !result.promoted) {
-        nextState.checkpointCarryOverSkipped = true;
+    // Guide advancement and checkpoint carry-over are intentionally decoupled:
+    // promoted-only lanes should keep the promoted guide fixed while still
+    // accumulating candidate training state across iterations.
+    const shouldCarryOverCheckpoint = !!args.carryOverCheckpoint;
+    if (shouldCarryOverCheckpoint) {
+        for (const spec of TRAINING_CHECKPOINT_HEAD_SPECS) {
+            const checkpointPath = result.paths[spec.resultPathKey];
+            if (checkpointPath && fs.existsSync(checkpointPath)) {
+                nextState.resumeCheckpointPaths[spec.head] = checkpointPath;
+            }
+        }
+        nextState.resumeCheckpointPath = getPrimaryResumeCheckpointPath(nextState.resumeCheckpointPaths);
     }
 
     return nextState;
@@ -1499,7 +1619,11 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const guideModelPoolPaths = carryOver && Array.isArray(carryOver.guideModelPoolPaths)
         ? carryOver.guideModelPoolPaths.filter((one) => !!one)
         : [];
-    const resumeCheckpointPath = carryOver && carryOver.resumeCheckpointPath ? carryOver.resumeCheckpointPath : null;
+    const resumeCheckpointPaths = resolveCarryOverResumeCheckpointPaths(carryOver);
+    const policyResumeCheckpointPath = resumeCheckpointPaths.policy;
+    const cardResumeCheckpointPath = resumeCheckpointPaths.card;
+    const targetResumeCheckpointPath = resumeCheckpointPaths.target;
+    const valueResumeCheckpointPath = resumeCheckpointPaths.value;
     const anchorModelPath = carryOver && carryOver.anchorModelPath ? carryOver.anchorModelPath : null;
     const gateControl = resolveIterationGateControl(args, iterationIndex, guideModelPath, anchorModelPath);
     const generateCardArgs = args.allowCardUsage
@@ -1678,7 +1802,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         '--shape-immediate', String(args.shapeImmediate),
         '--checkpoint-out', p.checkpointPath
     ]
-        .concat(resumeCheckpointPath ? ['--resume-checkpoint', resumeCheckpointPath] : [])
+        .concat(policyResumeCheckpointPath ? ['--resume-checkpoint', policyResumeCheckpointPath] : [])
         .concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
         reuseOutputs: [p.onnxModelPath, p.onnxMetaPath, p.candidateModelPath]
     });
@@ -1724,7 +1848,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             '--metrics-out', p.cardMetricsPath,
             '--checkpoint-out', p.cardCheckpointPath
         ]
-            .concat(resumeCheckpointPath ? ['--resume-checkpoint', resumeCheckpointPath] : [])
+            .concat(cardResumeCheckpointPath ? ['--resume-checkpoint', cardResumeCheckpointPath] : [])
             .concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
             reuseOutputs: [p.cardOnnxModelPath, p.cardOnnxMetaPath]
         });
@@ -1761,7 +1885,9 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
             '--metrics-out', p.targetMetricsPath,
             '--checkpoint-out', p.targetCheckpointPath
-        ].concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
+        ]
+            .concat(targetResumeCheckpointPath ? ['--resume-checkpoint', targetResumeCheckpointPath] : [])
+            .concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
             reuseOutputs: [p.targetOnnxModelPath, p.targetOnnxMetaPath]
         });
     }
@@ -1802,7 +1928,9 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         '--value-target-economy-weight', String(args.onnxValueTargetEconomyWeight),
         '--value-target-corner-emergency-weight', String(args.onnxValueTargetCornerEmergencyWeight),
         '--checkpoint-out', p.valueCheckpointPath
-    ].concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
+    ]
+        .concat(valueResumeCheckpointPath ? ['--resume-checkpoint', valueResumeCheckpointPath] : [])
+        .concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
         reuseOutputs: [p.valueOnnxModelPath, p.valueOnnxMetaPath]
     });
 
@@ -1941,7 +2069,9 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
                 '--quality-weight-place-delta', String(args.adoptionQualityWeightPlaceDelta),
                 '--candidate-model', p.candidateModelPath,
                 '--out', p.qualityGatePath
-            ].concat(adoptionBaselineArgs, verboseArgs), {
+            ]
+                .concat(args.qualityGateStrengthFirst ? ['--quality-gate-strength-first'] : [])
+                .concat(adoptionBaselineArgs, verboseArgs), {
                 allowExitCodes: [0, 2],
                 reuseOutputs: [p.qualityGatePath]
             });
@@ -2079,7 +2209,8 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         evalSeed,
         usedGuideModelPath: guideModelPath,
         usedGuideModelPoolPaths: guideModelPoolPaths,
-        usedResumeCheckpointPath: resumeCheckpointPath,
+        usedResumeCheckpointPath: policyResumeCheckpointPath,
+        usedResumeCheckpointPaths: cloneResumeCheckpointPaths(resumeCheckpointPaths),
         usedAnchorModelPath: anchorModelPath,
         gateControl,
         paths: p,
@@ -2102,7 +2233,8 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             confidenceLevel: args.qualityGateConfidenceLevel,
             minLowerBound: args.qualityGateMinLowerBound,
             minSeedUplift: args.qualityGateMinSeedUplift,
-            minSeedPassCount: args.qualityGateMinSeedPassCount
+            minSeedPassCount: args.qualityGateMinSeedPassCount,
+            strengthFirst: args.qualityGateStrengthFirst
         },
         finalAdoptionConfig: {
             threshold: finalAdoptionThreshold,
@@ -2157,7 +2289,8 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     };
 }
 
-function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guideModelPoolPaths, resumeCheckpointPath, anchorModelPath, stoppedByTimeBudget, stopReason, failureDetail) {
+function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guideModelPoolPaths, resumeCheckpointPaths, anchorModelPath, stoppedByTimeBudget, stopReason, failureDetail) {
+    const latestResumeCheckpointPaths = cloneResumeCheckpointPaths(resumeCheckpointPaths);
     const payload = {
         generatedAt: new Date().toISOString(),
         elapsedMs: Date.now() - startedAt,
@@ -2244,6 +2377,7 @@ function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guide
             qualityGateMinLowerBound: args.qualityGateMinLowerBound,
             qualityGateMinSeedUplift: args.qualityGateMinSeedUplift,
             qualityGateMinSeedPassCount: args.qualityGateMinSeedPassCount,
+            qualityGateStrengthFirst: args.qualityGateStrengthFirst,
             qualityGateEnabled: args.qualityGateEnabled,
             qualityGateGames: args.qualityGateGames,
             qualityGateSeedCount: args.qualityGateSeedCount,
@@ -2323,6 +2457,11 @@ function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guide
             selfplayUsePromotedModelOnly: args.selfplayUsePromotedModelOnly,
             bootstrapPolicyModelPath: args.bootstrapPolicyModelPath,
             resumeCheckpointPath: args.resumeCheckpointPath,
+            resumePolicyCheckpointPath: args.resumePolicyCheckpointPath,
+            resumeCardCheckpointPath: args.resumeCardCheckpointPath,
+            resumeTargetCheckpointPath: args.resumeTargetCheckpointPath,
+            resumeValueCheckpointPath: args.resumeValueCheckpointPath,
+            resumeCheckpointPaths: cloneResumeCheckpointPaths(args.resumeCheckpointPaths),
             carryOverCheckpoint: args.carryOverCheckpoint,
             reuseExistingArtifacts: args.reuseExistingArtifacts,
             restartFromStep: args.restartFromStep,
@@ -2330,7 +2469,8 @@ function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guide
         },
         latestGuideModelPath: guideModelPath,
         latestGuideModelPoolPaths: guideModelPoolPaths,
-        latestResumeCheckpointPath: resumeCheckpointPath,
+        latestResumeCheckpointPath: getPrimaryResumeCheckpointPath(latestResumeCheckpointPaths),
+        latestResumeCheckpointPaths,
         latestAnchorModelPath: anchorModelPath,
         stoppedByTimeBudget,
         stopReason,
@@ -2372,9 +2512,12 @@ function main() {
         args.modelsDir,
         guideModelPath,
         args.selfplayPolicyModelPoolSize,
-        { includeCandidateFiles: !args.selfplayUsePromotedModelOnly }
+        {
+            includeCandidateFiles: !args.selfplayUsePromotedModelOnly,
+            includeArchiveFiles: !!args.selfplayUsePromotedModelOnly
+        }
     );
-    let resumeCheckpointPath = args.resumeCheckpointPath || null;
+    let resumeCheckpointPaths = cloneResumeCheckpointPaths(args.resumeCheckpointPaths);
     let anchorModelPath = guideModelPath || null;
     if (resolveAdoptionBaselineMode(args) === 'anchor' && !anchorModelPath) {
         throw new Error('--adoption-use-anchor-baseline requires an initial bootstrap policy model');
@@ -2394,7 +2537,7 @@ function main() {
             result = runIteration(args, i, deadlineMs, {
                 guideModelPath,
                 guideModelPoolPaths,
-                resumeCheckpointPath,
+                resumeCheckpointPaths,
                 anchorModelPath
             });
         } catch (err) {
@@ -2414,7 +2557,7 @@ function main() {
                 iterations,
                 guideModelPath,
                 guideModelPoolPaths,
-                resumeCheckpointPath,
+                resumeCheckpointPaths,
                 anchorModelPath,
                 stoppedByTimeBudget,
                 stopReason,
@@ -2463,11 +2606,11 @@ function main() {
             const nextCarryOverState = resolveNextCarryOverState(args, {
                 guideModelPath,
                 guideModelPoolPaths,
-                resumeCheckpointPath
+                resumeCheckpointPaths
             }, result);
             guideModelPath = nextCarryOverState.guideModelPath;
             guideModelPoolPaths = nextCarryOverState.guideModelPoolPaths;
-            resumeCheckpointPath = nextCarryOverState.resumeCheckpointPath;
+            resumeCheckpointPaths = cloneResumeCheckpointPaths(nextCarryOverState.resumeCheckpointPaths);
             if (nextCarryOverState.checkpointCarryOverSkipped) {
                 console.log(`[training-cycle] iteration ${i} checkpoint carry-over skipped (promoted-only mode, promoted=false)`);
             }
@@ -2483,7 +2626,7 @@ function main() {
             iterations,
             guideModelPath,
             guideModelPoolPaths,
-            resumeCheckpointPath,
+            resumeCheckpointPaths,
             anchorModelPath,
             stoppedByTimeBudget,
             stopReason,
@@ -2499,7 +2642,7 @@ function main() {
         iterations,
         guideModelPath,
         guideModelPoolPaths,
-        resumeCheckpointPath,
+        resumeCheckpointPaths,
         anchorModelPath,
         stoppedByTimeBudget,
         stopReason,
@@ -2530,6 +2673,8 @@ module.exports = {
     resolveAdoptionBaselineMode,
     shouldRunGateForIteration,
     resolveIterationGateControl,
+    getPrimaryResumeCheckpointPath,
+    resolveResumeCheckpointPathsFromArgs,
     resolveNextCarryOverState,
     buildPromotionCommandArgs,
     resolveQuickComponentDelta,

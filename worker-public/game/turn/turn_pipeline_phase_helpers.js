@@ -100,7 +100,8 @@
         INSTANT_HYPERACTIVE_WILL: '即3回移動して消滅',
         SELL_CARD_WILL: '手札売却で布石',
         REBUILD_WILL: '手札全破壊3ドロー',
-        SUPPLY_WILL: '2ドロー'
+        SUPPLY_WILL: '2ドロー',
+        SALVATION_WILL: '前ターン破壊の通常石を復活'
     });
 
     function pickRandomLine(lines, prng) {

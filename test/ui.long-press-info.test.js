@@ -107,6 +107,29 @@ describe('board cell long press info', () => {
     expect(global.handleCellClick).toHaveBeenCalledTimes(0);
   });
 
+  test('showSpecialStoneInfoAt uses shared TIME_STOP rulebook text', () => {
+    global.gameState.board[2][2] = global.BLACK;
+    global.cardState.markers = [{
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      data: { type: 'TIME_STOP', remainingOwnerTurns: 4 }
+    }];
+
+    const mod = require('../ui/diff-renderer.js');
+    const shown = mod.showSpecialStoneInfoAt(2, 2);
+
+    expect(shown).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('時間停石');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('5回目の所有者ターン開始時');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('モノクロ表示');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('同色の通常石に戻る');
+    expect(document.getElementById('stone-info-desc').textContent).not.toContain('3回目');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
+  });
+
   test('long press resolves network-style string coordinates for marker lookup', () => {
     global.cardState.markers.push({
       kind: 'specialStone',
@@ -152,7 +175,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-desc').textContent).toContain('2マス以上は途中の石を飛び越える');
     expect(document.getElementById('stone-info-desc').textContent).toContain('最大3回');
     expect(document.getElementById('stone-info-desc').textContent).toContain('破壊対象時も1回だけ');
-    expect(document.getElementById('stone-info-desc').textContent).toContain('10ターン後は自己消滅する');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('10ターン後は同色の通常石に戻る');
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
     expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避');

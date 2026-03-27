@@ -1555,24 +1555,24 @@
                 const isBoardPlacement = action && Number.isFinite(action.row) && Number.isFinite(action.col);
                 const isPass = actionType === 'pass';
                 if (isBoardPlacement || isPass) {
-                    publishSnapshot({
+                    const publishPromise = publishSnapshot({
                         playerKey: normalizePlayerKey(playerKey),
                         actionType: isBoardPlacement ? 'place' : 'pass',
                         playbackEvents: [],
                         action
                     });
-                    return { ok: true, skippedLocalExecution: true, playbackEvents: [] };
+                    return { ok: true, skippedLocalExecution: true, playbackEvents: [], publishPromise };
                 }
 
                 // Phase 2: cancel_card / destroy_hand_card — skip local, publish directly
                 if (actionType === 'cancel_card' || actionType === 'destroy_hand_card') {
-                    publishSnapshot({
+                    const publishPromise = publishSnapshot({
                         playerKey: normalizePlayerKey(playerKey),
                         actionType,
                         playbackEvents: [],
                         action
                     });
-                    return { ok: true, skippedLocalExecution: true, playbackEvents: [] };
+                    return { ok: true, skippedLocalExecution: true, playbackEvents: [], publishPromise };
                 }
 
                 // Phase 2: use_card
@@ -1587,13 +1587,13 @@
 
                     if (canResolvePendingType && !needsPending) {
                         // No-target card: skip local, publish directly
-                        publishSnapshot({
+                        const publishPromise = publishSnapshot({
                             playerKey: normalizePlayerKey(playerKey),
                             actionType: 'use_card',
                             playbackEvents: [],
                             action
                         });
-                        return { ok: true, skippedLocalExecution: true, playbackEvents: [] };
+                        return { ok: true, skippedLocalExecution: true, playbackEvents: [], publishPromise };
                     }
 
                     // Target card: run CardLogic.applyCardUsage() locally for pending state

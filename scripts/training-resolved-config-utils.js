@@ -181,6 +181,13 @@ function applyAdoptionArgsFromResolvedConfig(target, specified, resolved) {
     if (isQuality && (!specified || !specified.has('minSeedPassCount'))) {
         setNumberFromFlag(target, specified, 'minSeedPassCount', argMap, '--adoption-min-seed-pass-count');
     }
+    if (isQuality && (!specified || !specified.has('qualityGateStrengthFirst'))) {
+        if (hasFlag(argMap, '--quality-gate-strength-first')) {
+            target.qualityGateStrengthFirst = true;
+        } else if (hasFlag(argMap, '--no-quality-gate-strength-first')) {
+            target.qualityGateStrengthFirst = false;
+        }
+    }
 
     setNumberFromFlag(target, specified, 'jobs', argMap, '--adoption-jobs');
     setNumberFromFlag(target, specified, 'maxPlies', argMap, '--max-plies');

@@ -207,6 +207,7 @@ html.layout-profile-phone-portrait #info-panel #status {
 }
 
 html.layout-profile-phone-portrait #log,
+html.layout-profile-phone-portrait #round-display-panel,
 html.layout-profile-phone-portrait #effect-live-panel,
 html.layout-profile-phone-portrait #cpu-character-panel,
 html.layout-profile-phone-portrait #hero-character-panel {
@@ -327,6 +328,17 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-cost-badge {
     font-size: calc(10px * var(--layout-stage-scale));
     bottom: calc(4px * var(--layout-stage-scale));
     right: calc(4px * var(--layout-stage-scale));
+    padding: calc(2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row {
+    bottom: calc(4px * var(--layout-stage-scale));
+    right: calc(4px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-cost-badge,
+html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-type-badge {
+    font-size: calc(10px * var(--layout-stage-scale));
     padding: calc(2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
 }
 
@@ -499,6 +511,17 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-cost-badge {
         font-size: calc(10px * var(--layout-stage-scale));
         bottom: calc(4px * var(--layout-stage-scale));
         right: calc(4px * var(--layout-stage-scale));
+        padding: calc(2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+    }
+
+    #hand-black .card-item .card-badge-row {
+        bottom: calc(4px * var(--layout-stage-scale));
+        right: calc(4px * var(--layout-stage-scale));
+    }
+
+    #hand-black .card-item .card-badge-row .card-cost-badge,
+    #hand-black .card-item .card-badge-row .card-type-badge {
+        font-size: calc(10px * var(--layout-stage-scale));
         padding: calc(2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
     }
 
@@ -1280,6 +1303,17 @@ html.sim-aspect-5-4 #hero-character-img {
         padding: calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
     }
 
+    #hand-black .card-item .card-badge-row {
+        bottom: calc(4px * var(--layout-stage-scale));
+        right: calc(4px * var(--layout-stage-scale));
+    }
+
+    #hand-black .card-item .card-badge-row .card-cost-badge,
+    #hand-black .card-item .card-badge-row .card-type-badge {
+        font-size: calc(11px * var(--layout-stage-scale));
+        padding: calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
+    }
+
     #card-detail-panel {
         right: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-right));
         bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + var(--card-detail-landscape-bottom-reserve, clamp(calc(128px * var(--layout-stage-scale)), 17vh, calc(168px * var(--layout-stage-scale)))));
@@ -1441,6 +1475,17 @@ html.sim-aspect-5-4 #hero-character-img {
         right: var(--layout-size-card-badge-large-offset);
         padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
     }
+
+    html.layout-stage-enabled #hand-black .card-item .card-badge-row {
+        bottom: var(--layout-size-card-badge-large-offset);
+        right: var(--layout-size-card-badge-large-offset);
+    }
+
+    html.layout-stage-enabled #hand-black .card-item .card-badge-row .card-cost-badge,
+    html.layout-stage-enabled #hand-black .card-item .card-badge-row .card-type-badge {
+        font-size: var(--layout-size-card-badge-large-font);
+        padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
+    }
 }
 
 /* Stage-first mobile landscape layout: keep 1920x1080-relative composition on <=900px screens. */
@@ -1574,6 +1619,17 @@ html.sim-aspect-5-4 #hero-character-img {
         font-size: var(--layout-size-card-badge-large-font);
         bottom: var(--layout-size-card-badge-large-offset);
         right: var(--layout-size-card-badge-large-offset);
+        padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
+    }
+
+    html.layout-stage-enabled #hand-black .card-item .card-badge-row {
+        bottom: var(--layout-size-card-badge-large-offset);
+        right: var(--layout-size-card-badge-large-offset);
+    }
+
+    html.layout-stage-enabled #hand-black .card-item .card-badge-row .card-cost-badge,
+    html.layout-stage-enabled #hand-black .card-item .card-badge-row .card-type-badge {
+        font-size: var(--layout-size-card-badge-large-font);
         padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
     }
 

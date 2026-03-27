@@ -730,6 +730,10 @@ function normalizeDecisionCandidate(candidate) {
         cardType: typeof candidate.cardType === 'string' ? candidate.cardType : null,
         cardCost: Number.isFinite(candidate.cardCost) ? Number(candidate.cardCost) : null,
         score: Number.isFinite(candidate.score) ? Number(candidate.score) : null,
+        policyScore: Number.isFinite(candidate.policyScore) ? Number(candidate.policyScore) : null,
+        finalScore: Number.isFinite(candidate.finalScore) ? Number(candidate.finalScore) : null,
+        committeeScore: Number.isFinite(candidate.committeeScore) ? Number(candidate.committeeScore) : null,
+        committeeVotes: Number.isFinite(candidate.committeeVotes) ? Number(candidate.committeeVotes) : 0,
         minUseScore: Number.isFinite(candidate.minUseScore) ? Number(candidate.minUseScore) : null,
         shouldUse: typeof candidate.shouldUse === 'boolean' ? candidate.shouldUse : null,
         isSelected: candidate.isSelected === true
@@ -812,6 +816,7 @@ function buildSelectionTrace(record) {
                 tacticalScore: Number.isFinite(one && one.tacticalScore) ? Number(one.tacticalScore) : null,
                 heuristicScore: Number.isFinite(one && one.heuristicScore) ? Number(one.heuristicScore) : null,
                 policyScore: Number.isFinite(one && one.policyScore) ? Number(one.policyScore) : null,
+                committeeScore: Number.isFinite(one && one.committeeScore) ? Number(one.committeeScore) : null,
                 finalScore: Number.isFinite(one && one.finalScore) ? Number(one.finalScore) : null,
                 committeeVotes: Number.isFinite(one && one.committeeVotes) ? Number(one.committeeVotes) : 0
             }))
@@ -824,6 +829,8 @@ function buildSelectionTrace(record) {
                 seat: classifySelectionSeat(record.row, record.col),
                 selectedCompositeScore: Number.isFinite(record.selectedCompositeScore) ? Number(record.selectedCompositeScore) : null,
                 selectedTacticalScore: Number.isFinite(record.selectedTacticalScore) ? Number(record.selectedTacticalScore) : null,
+                selectedCommitteeScore: Number.isFinite(record.selectedCommitteeScore) ? Number(record.selectedCommitteeScore) : null,
+                selectedCommitteeVotes: Number.isFinite(record.selectedCommitteeVotes) ? Number(record.selectedCommitteeVotes) : 0,
                 selectedCellBonus: Number.isFinite(record.selectedCellBonus) ? Number(record.selectedCellBonus) : null
             },
             topCandidates,
@@ -1298,6 +1305,22 @@ function resolveTacticalMetricsCandidateLimit(options, candidateCount) {
     if (configured > 0) return Math.min(total, configured);
     if (total <= 4) return total;
     return Math.min(total, 3);
+}
+
+function computePositiveOpportunityMissMetrics(bestScore, selectedScore) {
+    const best = Number.isFinite(bestScore) ? Number(bestScore) : 0;
+    const selected = Number.isFinite(selectedScore) ? Number(selectedScore) : 0;
+    if (best <= 0) {
+        return {
+            miss: 0,
+            ratio: 0
+        };
+    }
+    const miss = Math.max(0, best - selected);
+    return {
+        miss,
+        ratio: miss / Math.max(1, Math.abs(best), Math.abs(selected))
+    };
 }
 
 function minimaxBoardSearch(board, currentPlayer, rootPlayer, depth, alpha, beta, passCount, beamWidth) {
@@ -1820,14 +1843,15 @@ function sortScoredMovesBy(scoredMoves, scoreKey) {
     });
 }
 
-function buildBordaMaps(scoredMoves) {
-    const keys = ['strategistScore', 'tacticianScore', 'economistScore'];
+function buildBordaMaps(scoredMoves, scoreKeys) {
+    const keys = Array.isArray(scoreKeys) && scoreKeys.length > 0
+        ? scoreKeys.slice()
+        : ['strategistScore', 'tacticianScore', 'economistScore'];
     const points = new Map();
-    const ranksByKey = {
-        strategistScore: new Map(),
-        tacticianScore: new Map(),
-        economistScore: new Map()
-    };
+    const ranksByKey = {};
+    for (const scoreKey of keys) {
+        ranksByKey[scoreKey] = new Map();
+    }
     const n = Array.isArray(scoredMoves) ? scoredMoves.length : 0;
     if (n <= 0) return { points, ranksByKey };
     for (const scoreKey of keys) {
@@ -1842,6 +1866,139 @@ function buildBordaMaps(scoredMoves) {
         }
     }
     return { points, ranksByKey };
+}
+
+function hasMeaningfulFiniteScore(scoredItems, scoreKey) {
+    if (!Array.isArray(scoredItems) || !scoreKey) return false;
+    let finiteCount = 0;
+    let firstValue = Number.NaN;
+    let varied = false;
+    for (const item of scoredItems) {
+        const value = Number(item && item[scoreKey]);
+        if (!Number.isFinite(value)) continue;
+        finiteCount += 1;
+        if (!Number.isFinite(firstValue)) {
+            firstValue = value;
+            continue;
+        }
+        if (value !== firstValue) varied = true;
+    }
+    return finiteCount > 0 && (varied || finiteCount === 1);
+}
+
+function resolveCommitteeScoreKeys(scoredItems, preferredKeys) {
+    const candidates = Array.isArray(preferredKeys) ? preferredKeys : [];
+    return candidates.filter((scoreKey) => hasMeaningfulFiniteScore(scoredItems, scoreKey));
+}
+
+function countCommitteeLeaderVotes(ranksByKey, candidateKey) {
+    if (!ranksByKey || !candidateKey) return 0;
+    let votes = 0;
+    for (const rankMap of Object.values(ranksByKey)) {
+        if (rankMap instanceof Map && rankMap.get(candidateKey) === 0) {
+            votes += 1;
+        }
+    }
+    return votes;
+}
+
+function resolveCommitteeConsensusScore(votes, consensusBonus) {
+    const normalizedVotes = Number.isFinite(votes) ? Math.max(0, Math.floor(Number(votes))) : 0;
+    const normalizedBonus = Number.isFinite(consensusBonus) ? Math.max(0, Number(consensusBonus)) : 0;
+    if (normalizedVotes < 2 || !(normalizedBonus > 0)) return 0;
+    return normalizedBonus * (normalizedVotes - 1);
+}
+
+function applyTeacherCommitteeToMoveScores(scoredMoves, options) {
+    const committeeWeight = Number.isFinite(options && options.teacherCommitteeWeight)
+        ? Math.max(0, Number(options.teacherCommitteeWeight))
+        : 0;
+    const consensusBonus = Number.isFinite(options && options.teacherCommitteeConsensusBonus)
+        ? Math.max(0, Number(options.teacherCommitteeConsensusBonus))
+        : 0;
+    for (const one of scoredMoves || []) {
+        one.committeeScore = 0;
+        one.committeeVotes = 0;
+        one.finalScore = Number(one && one.combinedScore) || 0;
+    }
+    if ((!Array.isArray(scoredMoves) || scoredMoves.length <= 0) || (!(committeeWeight > 0) && !(consensusBonus > 0))) {
+        return;
+    }
+    const scoreKeys = resolveCommitteeScoreKeys(scoredMoves, ['combinedScore', 'heuristicScore', 'tacticalScore', 'policyScore']);
+    if (scoreKeys.length <= 0) return;
+    const { points, ranksByKey } = buildBordaMaps(scoredMoves, scoreKeys);
+    for (const one of scoredMoves) {
+        const moveKey = makeMoveKey(one && one.move);
+        const pointScore = Number(points.get(moveKey) || 0);
+        const committeeVotes = countCommitteeLeaderVotes(ranksByKey, moveKey);
+        const committeeScore = (pointScore * committeeWeight) +
+            resolveCommitteeConsensusScore(committeeVotes, consensusBonus);
+        one.committeeVotes = committeeVotes;
+        one.committeeScore = committeeScore;
+        one.finalScore = (Number(one && one.combinedScore) || 0) + committeeScore;
+    }
+}
+
+function sortScoredCardsBy(scoredCards, scoreKey) {
+    return scoredCards.slice().sort((a, b) => {
+        const sa = Number.isFinite(a && a[scoreKey]) ? Number(a[scoreKey]) : Number.NEGATIVE_INFINITY;
+        const sb = Number.isFinite(b && b[scoreKey]) ? Number(b[scoreKey]) : Number.NEGATIVE_INFINITY;
+        if (sb !== sa) return sb - sa;
+        const aCost = Number.isFinite(a && a.cardCost) ? Number(a.cardCost) : Number.NEGATIVE_INFINITY;
+        const bCost = Number.isFinite(b && b.cardCost) ? Number(b.cardCost) : Number.NEGATIVE_INFINITY;
+        if (bCost !== aCost) return bCost - aCost;
+        return String(a && a.cardId ? a.cardId : '').localeCompare(String(b && b.cardId ? b.cardId : ''));
+    });
+}
+
+function buildCardBordaMaps(scoredCards, scoreKeys) {
+    const keys = Array.isArray(scoreKeys) ? scoreKeys.filter(Boolean) : [];
+    const points = new Map();
+    const ranksByKey = {};
+    const n = Array.isArray(scoredCards) ? scoredCards.length : 0;
+    if (n <= 0 || keys.length <= 0) return { points, ranksByKey };
+    for (const scoreKey of keys) {
+        ranksByKey[scoreKey] = new Map();
+        const ordered = sortScoredCardsBy(scoredCards, scoreKey);
+        for (let i = 0; i < ordered.length; i++) {
+            const one = ordered[i];
+            const key = String(one && one.cardId ? one.cardId : '');
+            if (!key) continue;
+            ranksByKey[scoreKey].set(key, i);
+            points.set(key, (points.get(key) || 0) + (n - 1 - i));
+        }
+    }
+    return { points, ranksByKey };
+}
+
+function applyTeacherCommitteeToCardCandidates(candidates, options) {
+    const committeeWeight = Number.isFinite(options && options.teacherCommitteeWeight)
+        ? Math.max(0, Number(options.teacherCommitteeWeight))
+        : 0;
+    const consensusBonus = Number.isFinite(options && options.teacherCommitteeConsensusBonus)
+        ? Math.max(0, Number(options.teacherCommitteeConsensusBonus))
+        : 0;
+    for (const one of candidates || []) {
+        one.committeeScore = 0;
+        one.committeeVotes = 0;
+        one.finalScore = Number.isFinite(one && one.baseScore) ? Number(one.baseScore) : 0;
+    }
+    if ((!Array.isArray(candidates) || candidates.length <= 0) || (!(committeeWeight > 0) && !(consensusBonus > 0))) {
+        return;
+    }
+    const scoreKeys = resolveCommitteeScoreKeys(candidates, ['policyScore', 'riskScore', 'costScore']);
+    if (scoreKeys.length <= 0) return;
+    const { points, ranksByKey } = buildCardBordaMaps(candidates, scoreKeys);
+    for (const one of candidates) {
+        const cardKey = String(one && one.cardId ? one.cardId : '');
+        const pointScore = Number(points.get(cardKey) || 0);
+        const committeeVotes = countCommitteeLeaderVotes(ranksByKey, cardKey);
+        const committeeScore = (pointScore * committeeWeight) +
+            resolveCommitteeConsensusScore(committeeVotes, consensusBonus);
+        one.committeeVotes = committeeVotes;
+        one.committeeScore = committeeScore;
+        one.finalScore = (Number.isFinite(one && one.baseScore) ? Number(one.baseScore) : 0) + committeeScore;
+    }
 }
 
 function scorePlacementCandidates(legalMoves, rng, context, options) {
@@ -1915,10 +2072,10 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
         if (combined > bestCombinedScore) bestCombinedScore = combined;
     }
 
-    let selected = parityMove
+    let preliminarySelected = parityMove
         ? scoredMoves.find((one) => CpuLv6LookaheadProfile.isSameMoveByCoord(one.move, parityMove)) || null
         : null;
-    if (!selected) {
+    if (!preliminarySelected) {
         let bestScored = null;
         let bestScore = Number.NEGATIVE_INFINITY;
         for (const one of scoredMoves) {
@@ -1938,10 +2095,10 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
                 }
             }
         }
-        selected = bestScored;
+        preliminarySelected = bestScored;
     }
 
-    if (!selected) {
+    if (!preliminarySelected) {
         return { move: null, metrics: null };
     }
 
@@ -1964,14 +2121,46 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
                 })
                 .slice(0, tacticalLimit);
 
-            if (!tacticalCandidates.some((one) => one === selected)) {
-                tacticalCandidates.push(selected);
+            if (!tacticalCandidates.some((one) => one === preliminarySelected)) {
+                tacticalCandidates.push(preliminarySelected);
             }
 
             for (const one of tacticalCandidates) {
                 const tactical = scoreTacticalMove(one.move, scoreContext, options);
                 one.tacticalScore = tactical;
                 if (tactical > bestTacticalScore) bestTacticalScore = tactical;
+            }
+        }
+    }
+
+    applyTeacherCommitteeToMoveScores(scoredMoves, options);
+
+    const teacherCommitteeEnabled = (
+        Number.isFinite(options && options.teacherCommitteeWeight) &&
+        Number(options.teacherCommitteeWeight) > 0
+    ) || (
+        Number.isFinite(options && options.teacherCommitteeConsensusBonus) &&
+        Number(options.teacherCommitteeConsensusBonus) > 0
+    );
+    let selected = preliminarySelected;
+    if (teacherCommitteeEnabled || !selected) {
+        selected = null;
+        let bestScore = Number.NEGATIVE_INFINITY;
+        for (const one of scoredMoves) {
+            const score = Number(one && one.finalScore) || 0;
+            if (score > bestScore) {
+                bestScore = score;
+                selected = one;
+                continue;
+            }
+            if (score === bestScore && selected && CpuLv6LookaheadProfile.isSameMoveByCoord(selected.move, one.move) === false) {
+                const bestRow = Number(selected.move && selected.move.row);
+                const bestCol = Number(selected.move && selected.move.col);
+                const row = Number(one.move && one.move.row);
+                const col = Number(one.move && one.move.col);
+                if (row < bestRow || (row === bestRow && col < bestCol)) {
+                    selected = one;
+                }
             }
         }
     }
@@ -2002,6 +2191,7 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
             policyScore: Number(one && one.policyScore) || 0,
             tacticalScore: Number(one && one.tacticalScore) || 0,
             combinedScore: Number(one && one.combinedScore) || 0,
+            committeeScore: Number(one && one.committeeScore) || 0,
             finalScore: Number(one && one.finalScore) || 0,
             committeeVotes: Number(one && one.committeeVotes) || 0
         }));
@@ -2011,7 +2201,7 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
     const bestCombined = Number(bestCombinedScore) || 0;
     const bestTactical = Number(bestTacticalScore) || 0;
     const compositeScoreMiss = Math.max(0, bestCombined - selectedCombined);
-    const tacticalScoreMiss = Math.max(0, bestTactical - selectedTactical);
+    const tacticalMissMetrics = computePositiveOpportunityMissMetrics(bestTactical, selectedTactical);
 
     return {
         move: selected.move,
@@ -2022,8 +2212,8 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
             compositeScoreMissRatio: compositeScoreMiss / Math.max(1, Math.abs(bestCombined)),
             selectedTacticalScore: selectedTactical,
             bestTacticalScore: bestTactical,
-            tacticalScoreMiss,
-            tacticalScoreMissRatio: tacticalScoreMiss / Math.max(1, Math.abs(bestTactical)),
+            tacticalScoreMiss: tacticalMissMetrics.miss,
+            tacticalScoreMissRatio: tacticalMissMetrics.ratio,
             selectedHeuristicScore: Number(selected.heuristicScore) || 0,
             selectedPolicyScore: Number(selected.policyScore) || 0,
             selectedFinalScore: Number(selected.finalScore) || 0,
@@ -2173,51 +2363,109 @@ function selectCardIdToUse(cardState, gameState, playerKey, options, context) {
         usable
     );
 
-    if (options && options.policyTableModel && context) {
-        let bestCardId = null;
-        let bestScore = -Infinity;
-        for (const cardId of usable) {
-            const s = getPolicyActionScoreByKey(options, context, `use_card:${cardId}`);
-            if (!Number.isFinite(s)) continue;
-            if (s > bestScore) {
-                bestScore = s;
-                bestCardId = cardId;
-            }
-        }
-        if (bestCardId) {
-            if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function') return bestCardId;
-            const score = CpuPolicyCore.scoreCardUseDecision(
-                bestCardId,
+    const candidates = usable.map((cardId) => {
+        const cardCost = Number(CardLogic.getCardCost(cardId) || 0);
+        const cardDef = CardLogic.getCardDef(cardId) || null;
+        const cardType = cardDef && typeof cardDef.type === 'string'
+            ? cardDef.type
+            : resolveCardType(cardId);
+        const policyScore = (options && options.policyTableModel && context)
+            ? getPolicyActionScoreByKey(options, context, `use_card:${cardId}`)
+            : null;
+        const scored = (
+            CpuPolicyCore &&
+            typeof CpuPolicyCore.scoreCardUseDecision === 'function'
+        )
+            ? CpuPolicyCore.scoreCardUseDecision(
+                cardId,
                 CardLogic.getCardCost,
                 CardLogic.getCardDef,
                 riskContext
-            );
-            if (!score || score.shouldUse) return bestCardId;
+            )
+            : null;
+        const riskScore = scored && Number.isFinite(scored.score)
+            ? Number(scored.score)
+            : Number.NEGATIVE_INFINITY;
+        const minUseScore = scored && Number.isFinite(scored.minUseScore)
+            ? Number(scored.minUseScore)
+            : null;
+        const shouldUse = scored ? scored.shouldUse !== false : true;
+        const baseScore = Number.isFinite(policyScore)
+            ? Number(policyScore)
+            : (Number.isFinite(riskScore) ? riskScore : cardCost);
+        return {
+            actionType: 'use_card',
+            decisionKind: 'use',
+            cardId,
+            cardType,
+            cardCost,
+            score: Number.isFinite(riskScore) ? riskScore : null,
+            riskScore,
+            policyScore: Number.isFinite(policyScore) ? Number(policyScore) : Number.NEGATIVE_INFINITY,
+            costScore: cardCost,
+            minUseScore,
+            shouldUse,
+            baseScore,
+            finalScore: baseScore,
+            committeeScore: 0,
+            committeeVotes: 0,
+            isSelected: false
+        };
+    });
+
+    applyTeacherCommitteeToCardCandidates(candidates, options);
+
+    const selectable = candidates.filter((one) => one && one.shouldUse !== false);
+    if (selectable.length <= 0) {
+        return {
+            cardId: null,
+            selectedActionKey: 'keep',
+            candidates,
+            scoreSummary: {
+                bestScore: candidates.reduce((best, one) => Math.max(best, Number(one && one.score) || Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY),
+                bestFinalScore: candidates.reduce((best, one) => Math.max(best, Number(one && one.finalScore) || Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY),
+                lowerScoreIsBetter: false
+            }
+        };
+    }
+
+    let selected = null;
+    for (const one of selectable) {
+        if (!selected) {
+            selected = one;
+            continue;
+        }
+        if (Number(one.finalScore) > Number(selected.finalScore)) {
+            selected = one;
+            continue;
+        }
+        if (Number(one.finalScore) === Number(selected.finalScore) && Number(one.cardCost) > Number(selected.cardCost)) {
+            selected = one;
+            continue;
+        }
+        if (Number(one.finalScore) === Number(selected.finalScore) && Number(one.cardCost) === Number(selected.cardCost) && String(one.cardId) < String(selected.cardId)) {
+            selected = one;
         }
     }
+    if (!selected) return null;
+    selected.isSelected = true;
 
-    if (CpuPolicyCore && typeof CpuPolicyCore.chooseCardWithRiskProfile === 'function') {
-        const selected = CpuPolicyCore.chooseCardWithRiskProfile(
-            usable,
-            CardLogic.getCardCost,
-            CardLogic.getCardDef,
-            riskContext
-        );
-        if (selected && selected.cardId) return selected.cardId;
-    }
-
-    usable.sort((a, b) => CardLogic.getCardCost(b) - CardLogic.getCardCost(a));
-    if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function') return usable[0];
-    for (const cardId of usable) {
-        const score = CpuPolicyCore.scoreCardUseDecision(
-            cardId,
-            CardLogic.getCardCost,
-            CardLogic.getCardDef,
-            riskContext
-        );
-        if (!score || score.shouldUse) return cardId;
-    }
-    return null;
+    return {
+        cardId: selected.cardId,
+        selectedActionKey: `use:${selected.cardId}`,
+        candidates,
+        scoreSummary: {
+            selectedScore: Number.isFinite(selected.score) ? Number(selected.score) : null,
+            selectedPolicyScore: Number.isFinite(selected.policyScore) ? Number(selected.policyScore) : null,
+            selectedFinalScore: Number.isFinite(selected.finalScore) ? Number(selected.finalScore) : null,
+            selectedCommitteeScore: Number.isFinite(selected.committeeScore) ? Number(selected.committeeScore) : 0,
+            selectedCommitteeVotes: Number.isFinite(selected.committeeVotes) ? Number(selected.committeeVotes) : 0,
+            bestScore: selectable.reduce((best, one) => Math.max(best, Number(one && one.score) || Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY),
+            bestFinalScore: selectable.reduce((best, one) => Math.max(best, Number(one && one.finalScore) || Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY),
+            minUseScore: Number.isFinite(selected.minUseScore) ? Number(selected.minUseScore) : null,
+            lowerScoreIsBetter: false
+        }
+    };
 }
 
 function selectDestroyHandCardId(cardState, gameState, playerKey, context) {
@@ -2922,7 +3170,7 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
         !mustTakePriorityPlacement &&
         !activeCardState.hasUsedCardThisTurnByPlayer[playerKey]
     ) {
-        const cardId = selectCardIdToUse(activeCardState, activeGameState, playerKey, options, {
+        const cardDecision = selectCardIdToUse(activeCardState, activeGameState, playerKey, options, {
             gameState: activeGameState,
             cardState: activeCardState,
             playerKey,
@@ -2930,6 +3178,7 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
             legalMovesCount: legalMoves.length,
             legalMoves
         });
+        const cardId = cardDecision && cardDecision.cardId ? cardDecision.cardId : null;
         const mustUseCardToCreateMove = legalMoves.length === 0;
         let adjustedRate = Number.isFinite(options.cardUsageRate) ? options.cardUsageRate : 0;
         let forceUseByRiskScore = false;
@@ -2962,7 +3211,24 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
         if (forceUseByRiskScore) adjustedRate = Math.max(adjustedRate, 0.98);
         const randomUse = rng.random() < adjustedRate;
         if (cardId && (mustUseCardToCreateMove || forceUseByRiskScore || randomUse)) {
-            return { action: { type: 'use_card', useCardId: cardId, useCardOwnerKey: playerKey }, legalMoves };
+            const decisionReasonTags = ['decision:use'];
+            if (mustUseCardToCreateMove) decisionReasonTags.push('force_use_card');
+            if (handSize >= 4) decisionReasonTags.push('hand_pressure');
+            if (forceUseByRiskScore || preferUseByRiskScore) decisionReasonTags.push('threshold_passed');
+            if (cardDecision && Array.isArray(cardDecision.candidates)) {
+                const selectedCandidate = cardDecision.candidates.find((one) => one && one.cardId === cardId) || null;
+                if (selectedCandidate && Number.isFinite(selectedCandidate.score) && Number.isFinite(selectedCandidate.minUseScore) && selectedCandidate.score >= selectedCandidate.minUseScore) {
+                    if (!decisionReasonTags.includes('threshold_passed')) decisionReasonTags.push('threshold_passed');
+                }
+            }
+            const cardDecisionTrace = cardDecision && typeof cardDecision === 'object'
+                ? Object.assign({}, cardDecision, { reasonTags: decisionReasonTags })
+                : null;
+            return {
+                action: { type: 'use_card', useCardId: cardId, useCardOwnerKey: playerKey },
+                legalMoves,
+                cardDecision: cardDecisionTrace
+            };
         }
     }
 
@@ -3558,6 +3824,12 @@ function runSingleGame(gameIndex, seed, options) {
             selectedTacticalScore: placementMetrics && Number.isFinite(placementMetrics.selectedTacticalScore)
                 ? Number(placementMetrics.selectedTacticalScore)
                 : null,
+            selectedCommitteeScore: placementMetrics && Number.isFinite(placementMetrics.selectedCommitteeScore)
+                ? Number(placementMetrics.selectedCommitteeScore)
+                : null,
+            selectedCommitteeVotes: placementMetrics && Number.isFinite(placementMetrics.selectedCommitteeVotes)
+                ? Number(placementMetrics.selectedCommitteeVotes)
+                : null,
             bestTacticalScore: placementMetrics && Number.isFinite(placementMetrics.bestTacticalScore)
                 ? Number(placementMetrics.bestTacticalScore)
                 : null,
@@ -3571,6 +3843,23 @@ function runSingleGame(gameIndex, seed, options) {
         };
         record.handCards = handCards;
         record.usableCardIds = usableCardIds;
+        if (decision && decision.cardDecision && typeof decision.cardDecision === 'object') {
+            record.selectedActionKey = typeof decision.cardDecision.selectedActionKey === 'string'
+                ? decision.cardDecision.selectedActionKey
+                : null;
+            record.decisionCandidates = Array.isArray(decision.cardDecision.candidates)
+                ? decision.cardDecision.candidates.map((one) => Object.assign({}, one))
+                : [];
+            record.decisionReasonTags = Array.isArray(decision.cardDecision.reasonTags)
+                ? decision.cardDecision.reasonTags.slice()
+                : [];
+            record.decisionScoreSummary = (
+                decision.cardDecision.scoreSummary &&
+                typeof decision.cardDecision.scoreSummary === 'object'
+            )
+                ? Object.assign({}, decision.cardDecision.scoreSummary)
+                : null;
+        }
         record.topPlacementCandidates = placementMetrics && Array.isArray(placementMetrics.topCandidates)
             ? placementMetrics.topCandidates.map((one) => Object.assign({}, one))
             : [];

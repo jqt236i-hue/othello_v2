@@ -246,12 +246,14 @@ function _normalizeCatalogCards(rawCards) {
         const name = _safeText(raw.name || raw.name_ja || raw.type, id);
         const desc = _safeText(raw.desc || raw.desc_ja, '効果説明が未登録です。');
         const type = _safeText(raw.type, '');
+        const displayTypeLabel = _safeText(raw.display_type_ja || raw.displayTypeLabel || raw.displayTypeJa, '');
         const cost = Number(raw.cost);
         normalized.push({
             id,
             name,
             type,
             desc,
+            displayTypeLabel,
             cost: Number.isFinite(cost) ? cost : null
         });
     }
@@ -354,10 +356,63 @@ function setupRulesHelp(rulesHelpBtn, rulesHelpPanel) {
     let isOpen = false;
     let selectedCardId = null;
 
+    function getCardDisplayTypeLabel(card) {
+        return _safeText(card && (card.displayTypeLabel || card.display_type_ja || card.displayTypeJa), '');
+    }
+
     function getCardLabel(card) {
         if (!card) return '';
         const costText = Number.isFinite(card.cost) ? String(card.cost) : '-';
-        return `コスト${costText} ${card.name}`;
+        const typeLabel = getCardDisplayTypeLabel(card);
+        return typeLabel ? `${typeLabel} コスト${costText} ${card.name}` : `コスト${costText} ${card.name}`;
+    }
+
+    function createTypeBadge(label) {
+        const badge = document.createElement('span');
+        badge.className = 'rules-help-type-badge';
+        badge.textContent = label;
+        return badge;
+    }
+
+    function createCardMetaRow(card, className) {
+        const row = document.createElement('div');
+        row.className = className;
+
+        const typeLabel = getCardDisplayTypeLabel(card);
+        if (typeLabel) {
+            row.appendChild(createTypeBadge(typeLabel));
+        }
+
+        const costText = Number.isFinite(card && card.cost) ? String(card.cost) : '-';
+        const costEl = document.createElement('span');
+        costEl.className = 'rules-help-card-cost-label';
+        costEl.textContent = `コスト${costText}`;
+        row.appendChild(costEl);
+
+        return row;
+    }
+
+    function createCardListContent(card) {
+        const fragment = document.createDocumentFragment();
+        fragment.appendChild(createCardMetaRow(card, 'rules-help-card-item-meta'));
+
+        const nameEl = document.createElement('span');
+        nameEl.className = 'rules-help-card-item-name';
+        nameEl.textContent = card.name;
+        fragment.appendChild(nameEl);
+
+        return fragment;
+    }
+
+    function renderSelectedCardHeading(card) {
+        if (!cardNameEl) return;
+        cardNameEl.innerHTML = '';
+        cardNameEl.appendChild(createCardMetaRow(card, 'rules-help-card-name-meta'));
+
+        const titleEl = document.createElement('div');
+        titleEl.className = 'rules-help-card-title';
+        titleEl.textContent = card.name;
+        cardNameEl.appendChild(titleEl);
     }
 
     function createCardSection(title, bodyText) {
@@ -407,7 +462,7 @@ function setupRulesHelp(rulesHelpBtn, rulesHelpPanel) {
         const card = catalogCards.find((entry) => entry.id === cardId);
         if (!card) return;
         selectedCardId = card.id;
-        if (cardNameEl) cardNameEl.textContent = getCardLabel(card);
+        renderSelectedCardHeading(card);
         if (cardDescEl) {
             const quick = _safeText(_getQuickCardEffect(card), card.desc);
             const detail = _resolveNonDuplicateDetailText(quick, _getDetailCardEffect(card));
@@ -450,7 +505,8 @@ function setupRulesHelp(rulesHelpBtn, rulesHelpPanel) {
             itemBtn.setAttribute('data-card-id', card.id);
             itemBtn.setAttribute('role', 'option');
             itemBtn.setAttribute('aria-selected', 'false');
-            itemBtn.textContent = getCardLabel(card);
+            itemBtn.setAttribute('aria-label', getCardLabel(card));
+            itemBtn.appendChild(createCardListContent(card));
             itemBtn.addEventListener('click', () => {
                 updateSelectedCard(card.id);
             });

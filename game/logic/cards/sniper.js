@@ -296,15 +296,35 @@
             anchors.push({ row: sniper.row, col: sniper.col, remainingNow: afterDec });
 
             if (afterDec === 0) {
-                let destroyedRes = false;
-                if (options.BoardOps && typeof options.BoardOps.destroyAt === 'function') {
-                    const res = options.BoardOps.destroyAt(cardState, gameState, sniper.row, sniper.col, 'SNIPER_WILL', 'anchor_expired');
-                    destroyedRes = !!(res && res.destroyed);
+                let revertedRes = false;
+                if (options.BoardOps && typeof options.BoardOps.revertSpecialStoneAt === 'function') {
+                    const res = options.BoardOps.revertSpecialStoneAt(
+                        cardState,
+                        gameState,
+                        sniper.row,
+                        sniper.col,
+                        'SNIPER',
+                        playerKey,
+                        'SNIPER_WILL',
+                        'anchor_expired'
+                    );
+                    revertedRes = !!(res && res.reverted);
                 } else {
-                    destroyedRes = destroyAt(cardState, gameState, sniper.row, sniper.col);
+                    if (cardState.markers) {
+                        cardState.markers = cardState.markers.filter((entry) => !(
+                            entry &&
+                            entry.kind === 'specialStone' &&
+                            entry.row === sniper.row &&
+                            entry.col === sniper.col &&
+                            entry.owner === playerKey &&
+                            entry.data &&
+                            entry.data.type === 'SNIPER'
+                        ));
+                    }
+                    revertedRes = true;
                 }
-                if (destroyedRes) {
-                    expired.push({ row: sniper.row, col: sniper.col });
+                if (revertedRes) {
+                    expired.push({ row: sniper.row, col: sniper.col, owner: playerKey, reason: 'anchor_expired' });
                 }
                 if (sniper.data) sniper.data.remainingOwnerTurns = -1;
             }
@@ -380,15 +400,35 @@
         if (sniper.data) sniper.data.remainingOwnerTurns = afterDec;
 
         if (shouldDecrement && afterDec === 0) {
-            let destroyedRes = false;
-            if (options.BoardOps && typeof options.BoardOps.destroyAt === 'function') {
-                const res = options.BoardOps.destroyAt(cardState, gameState, row, col, 'SNIPER_WILL', 'anchor_expired');
-                destroyedRes = !!(res && res.destroyed);
+            let revertedRes = false;
+            if (options.BoardOps && typeof options.BoardOps.revertSpecialStoneAt === 'function') {
+                const res = options.BoardOps.revertSpecialStoneAt(
+                    cardState,
+                    gameState,
+                    row,
+                    col,
+                    'SNIPER',
+                    playerKey,
+                    'SNIPER_WILL',
+                    'anchor_expired'
+                );
+                revertedRes = !!(res && res.reverted);
             } else {
-                destroyedRes = destroyAt(cardState, gameState, row, col);
+                if (cardState.markers) {
+                    cardState.markers = cardState.markers.filter((entry) => !(
+                        entry &&
+                        entry.kind === 'specialStone' &&
+                        entry.row === row &&
+                        entry.col === col &&
+                        entry.owner === playerKey &&
+                        entry.data &&
+                        entry.data.type === 'SNIPER'
+                    ));
+                }
+                revertedRes = true;
             }
-            if (destroyedRes) {
-                expired.push({ row, col });
+            if (revertedRes) {
+                expired.push({ row, col, owner: playerKey, reason: 'anchor_expired' });
             }
             if (sniper.data) sniper.data.remainingOwnerTurns = -1;
         }

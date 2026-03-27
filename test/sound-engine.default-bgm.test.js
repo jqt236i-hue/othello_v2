@@ -126,6 +126,13 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.volume).toBe(0.7);
   });
 
+  test('duration-end revert sound uses the renamed asset mapping', () => {
+    const soundEngine = loadSoundEngine();
+
+    expect(soundEngine.effectSoundFiles.special_reverted).toBe('持続ターン切れで特殊石が通常石に戻るタイミング.mp3');
+    expect(soundEngine.effectSoundFiles).not.toHaveProperty('special_expired');
+  });
+
   test('startup default track points to c-othello-2', () => {
     const soundEngine = loadSoundEngine();
 

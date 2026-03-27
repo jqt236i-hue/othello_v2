@@ -106,7 +106,22 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
-  test('trap_expired は trap_misfire を再生し special_expired/stone_destroy は追加しない', () => {
+  test('ROUND_BONUS_BANNER presentation event から round_bonus の sound_effect を追加する', () => {
+    const base = [{
+      type: 'round_bonus_banner',
+      phase: 4,
+      targets: [{ roundNumber: 10, amount: 5, text: 'BONUS ROUND +5' }]
+    }];
+    const pres = [{ type: 'ROUND_BONUS_BANNER', roundNumber: 10, amount: 5, text: 'BONUS ROUND +5' }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'round_bonus');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(4);
+  });
+
+  test('trap_expired は trap_misfire を再生し special_reverted/stone_destroy は追加しない', () => {
     const base = [{
       type: 'destroy',
       phase: 3,
@@ -115,7 +130,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     const raw = [{ type: 'trap_expired', details: [{ row: 2, col: 2 }] }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
-    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_expired');
+    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_reverted');
     const misfireCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'trap_misfire');
     const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
 
@@ -125,7 +140,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCue).toBeUndefined();
   });
 
-  test('trap_disarmed は trap_misfire を再生し special_expired/stone_destroy は追加しない', () => {
+  test('trap_disarmed は trap_misfire を再生し special_reverted/stone_destroy は追加しない', () => {
     const base = [{
       type: 'destroy',
       phase: 4,
@@ -135,7 +150,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
     const misfireCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'trap_misfire');
-    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_expired');
+    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_reverted');
     const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
 
     expect(misfireCue).toBeTruthy();
@@ -208,6 +223,115 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     expect(cue).toBeTruthy();
     expect(cue.phase).toBe(6);
+  });
+
+  test('proliferation spawn も clone_spawn sound を move phase に合わせる', () => {
+    const base = [{
+      type: 'move',
+      phase: 8,
+      targets: [{ from: { r: 3, col: 3 }, to: { r: 2, col: 2 }, clone: true, cause: 'PROLIFERATION_WILL', reason: 'proliferation_spawn' }]
+    }];
+    const pres = [{
+      type: 'SPAWN',
+      row: 2,
+      col: 2,
+      ownerAfter: 'black',
+      cause: 'PROLIFERATION_WILL',
+      reason: 'proliferation_spawn'
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'clone_spawn');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(8);
+  });
+
+  test('breeding spawn を保ちつつ Equality Will の各 spawn phase に breeding_spawn を重ねる', () => {
+    const base = [
+      {
+        type: 'spawn',
+        phase: 2,
+        targets: [{ r: 1, col: 1, cause: 'BREEDING', reason: 'breeding_spawn_immediate' }]
+      },
+      {
+        type: 'spawn',
+        phase: 4,
+        targets: [{ r: 2, col: 2, cause: 'EQUALITY_WILL', reason: 'equality_will_spawn' }]
+      },
+      {
+        type: 'spawn',
+        phase: 5,
+        targets: [{ r: 2, col: 3, cause: 'EQUALITY_WILL', reason: 'equality_will_spawn' }]
+      },
+      {
+        type: 'spawn',
+        phase: 6,
+        targets: [{ r: 2, col: 4, cause: 'EQUALITY_WILL', reason: 'equality_will_spawn' }]
+      }
+    ];
+    const raw = [{ type: 'breeding_spawned_start', details: [{ row: 1, col: 1 }] }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const breedingCues = out
+      .filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'breeding_spawn')
+      .map((ev) => ({ phase: ev.phase, sourceType: ev.meta && ev.meta.sourceType }));
+
+    expect(breedingCues).toEqual([
+      { phase: 2, sourceType: 'breeding_spawned' },
+      { phase: 4, sourceType: 'equality_will_spawn' },
+      { phase: 5, sourceType: 'equality_will_spawn' },
+      { phase: 6, sourceType: 'equality_will_spawn' }
+    ]);
+  });
+
+  test('gluttonous proliferation overlap keeps stone_destroy on overlap phase and clone_spawn on next phase', () => {
+    const base = [
+      {
+        type: 'destroy',
+        phase: 4,
+        targets: [{ r: 4, col: 4, cause: 'GLUTTONOUS_WILL', reason: 'gluttonous_eat' }]
+      },
+      {
+        type: 'move',
+        phase: 4,
+        targets: [{
+          from: { r: 4, col: 3 },
+          to: { r: 4, col: 4 },
+          cause: 'GLUTTONOUS_WILL',
+          reason: 'gluttonous_eat_overlap_return',
+          overlapReturn: true
+        }]
+      },
+      {
+        type: 'move',
+        phase: 5,
+        targets: [{
+          from: { r: 4, col: 4 },
+          to: { r: 4, col: 5 },
+          clone: true,
+          cause: 'PROLIFERATION_WILL',
+          reason: 'proliferation_spawn'
+        }]
+      }
+    ];
+    const pres = [{
+      type: 'SPAWN',
+      row: 4,
+      col: 5,
+      ownerAfter: 'white',
+      cause: 'PROLIFERATION_WILL',
+      reason: 'proliferation_spawn'
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
+    const destroyCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+    const cloneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'clone_spawn');
+
+    expect(destroyCue).toBeTruthy();
+    expect(cloneCue).toBeTruthy();
+    expect(destroyCue.phase).toBe(4);
+    expect(cloneCue.phase).toBe(5);
   });
 
   test('strong_wind_selected 成功時は strong wind move の phase で再生する', () => {
@@ -673,6 +797,61 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(resetStatus).toBeUndefined();
   });
 
+  test('equality_will_resolved は最初の spawn と breeding_spawn を card_use_animation の消失時へ寄せる', () => {
+    const base = [
+      {
+        type: 'card_use_animation',
+        phase: 5,
+        targets: [{ cardId: 'equality_will_01', owner: 'black' }]
+      },
+      {
+        type: 'spawn',
+        phase: 5,
+        targets: [{ r: 2, col: 2, cause: 'EQUALITY_WILL', reason: 'equality_will_spawn' }]
+      },
+      {
+        type: 'spawn',
+        phase: 6,
+        targets: [{ r: 2, col: 3, cause: 'EQUALITY_WILL', reason: 'equality_will_spawn' }]
+      },
+      {
+        type: 'spawn',
+        phase: 7,
+        targets: [{ r: 2, col: 4, cause: 'EQUALITY_WILL', reason: 'equality_will_spawn' }]
+      }
+    ];
+    const raw = [{ type: 'equality_will_resolved', player: 'black', spawnedCount: 3 }];
+    const pres = [{ type: 'CARD_USED', player: 'black', cardId: 'equality_will_01' }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw, pres);
+    const cardUseEv = out.find((ev) => ev && ev.type === 'card_use_animation');
+    const disappearEvents = cardUseEv && cardUseEv.targets && cardUseEv.targets[0]
+      ? cardUseEv.targets[0].disappearPlaybackEvents
+      : null;
+    const topLevelEqualitySpawns = out.filter((ev) => ev && ev.type === 'spawn' && ev.targets && ev.targets[0] && ev.targets[0].cause === 'EQUALITY_WILL');
+    const topLevelEqualityCues = out.filter((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.meta &&
+      ev.meta.sourceType === 'equality_will_spawn'
+    ));
+
+    expect(cardUseEv).toBeTruthy();
+    expect(disappearEvents).toEqual([
+      expect.objectContaining({
+        type: 'spawn',
+        targets: [expect.objectContaining({ cause: 'EQUALITY_WILL', reason: 'equality_will_spawn', r: 2, col: 2 })]
+      }),
+      expect.objectContaining({
+        type: 'sound_effect',
+        targets: [expect.objectContaining({ soundKey: 'breeding_spawn' })],
+        meta: expect.objectContaining({ sourceType: 'equality_will_spawn' })
+      })
+    ]);
+    expect(topLevelEqualitySpawns.map((ev) => ev.phase)).toEqual([6, 7]);
+    expect(topLevelEqualityCues.map((ev) => ev.phase)).toEqual([6, 7]);
+  });
+
   test('strong_will_promoted は status_applied の phase で進化音を再生する', () => {
     const base = [{
       type: 'status_applied',
@@ -791,15 +970,16 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(normalCue.phase).toBe(4);
   });
 
-  test('持続ターン切れの anchor_expired は special_expired を再生し stone_destroy を追加しない', () => {
+  test('持続ターン切れの status_removed は special_reverted を再生し stone_destroy を追加しない', () => {
     const base = [{
-      type: 'destroy',
+      type: 'status_removed',
       phase: 6,
-      targets: [{ r: 1, col: 1, cause: 'SNIPER_WILL', reason: 'anchor_expired' }]
+      targets: [{ r: 1, col: 1, after: { color: 1, special: null, timer: null, owner: 'black' } }],
+      meta: { special: 'SNIPER', reason: 'anchor_expired' }
     }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, []);
-    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_expired');
+    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_reverted');
     const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
 
     expect(expiredCue).toBeTruthy();
@@ -807,15 +987,16 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCue).toBeUndefined();
   });
 
-  test('ROBOT_VACUUM の anchor_expired でも special_expired を再生し stone_destroy を追加しない', () => {
+  test('ROBOT_VACUUM の status_removed でも special_reverted を再生し stone_destroy を追加しない', () => {
     const base = [{
-      type: 'destroy',
+      type: 'status_removed',
       phase: 7,
-      targets: [{ r: 2, col: 2, cause: 'ROBOT_VACUUM', reason: 'anchor_expired' }]
+      targets: [{ r: 2, col: 2, after: { color: 1, special: null, timer: null, owner: 'black' } }],
+      meta: { special: 'ROBOT_VACUUM', reason: 'anchor_expired' }
     }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, []);
-    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_expired');
+    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_reverted');
     const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
 
     expect(expiredCue).toBeTruthy();
@@ -915,15 +1096,16 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCues).toEqual([10, 10]);
   });
 
-  test('LIGHTNING_WILL の anchor_expired は special_expired を再生し stone_destroy を追加しない', () => {
+  test('LIGHTNING_WILL の status_removed は special_reverted を再生し stone_destroy を追加しない', () => {
     const base = [{
-      type: 'destroy',
+      type: 'status_removed',
       phase: 12,
-      targets: [{ r: 4, col: 4, cause: 'LIGHTNING_WILL', reason: 'anchor_expired' }]
+      targets: [{ r: 4, col: 4, after: { color: 1, special: null, timer: null, owner: 'black' } }],
+      meta: { special: 'LIGHTNING', reason: 'anchor_expired' }
     }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, []);
-    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_expired');
+    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_reverted');
     const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
 
     expect(expiredCue).toBeTruthy();
@@ -931,25 +1113,54 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCue).toBeUndefined();
   });
 
-  test('GHOST の duration_end は special_expired を再生し stone_destroy を追加しない', () => {
+  test('GHOST の status_removed duration_end は special_reverted を再生し stone_destroy を追加しない', () => {
     const base = [{
-      type: 'destroy',
+      type: 'status_removed',
       phase: 13,
-      targets: [{
-        r: 5,
-        col: 5,
-        cause: 'SYSTEM',
-        reason: 'duration_end',
-        meta: { special: 'GHOST' }
-      }]
+      targets: [{ r: 5, col: 5, after: { color: 1, special: null, timer: null, owner: 'black' } }],
+      meta: { special: 'GHOST', reason: 'duration_end' }
     }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, []);
-    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_expired');
+    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_reverted');
     const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
 
     expect(expiredCue).toBeTruthy();
     expect(expiredCue.phase).toBe(13);
+    expect(stoneCue).toBeUndefined();
+  });
+
+  test('TIME_STOP の status_removed duration_end でも special_reverted を再生し stone_destroy を追加しない', () => {
+    const base = [{
+      type: 'status_removed',
+      phase: 14,
+      targets: [{ r: 3, col: 3, after: { color: 1, special: null, timer: null, owner: 'black' } }],
+      meta: { special: 'TIME_STOP', reason: 'duration_end' }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_reverted');
+    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+
+    expect(expiredCue).toBeTruthy();
+    expect(expiredCue.phase).toBe(14);
+    expect(stoneCue).toBeUndefined();
+  });
+
+  test('WORK の status_removed duration_end でも special_reverted を再生し stone_destroy を追加しない', () => {
+    const base = [{
+      type: 'status_removed',
+      phase: 15,
+      targets: [{ r: 6, col: 1, after: { color: -1, special: null, timer: null, owner: 'white' } }],
+      meta: { special: 'WORK', reason: 'duration_end' }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_reverted');
+    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+
+    expect(expiredCue).toBeTruthy();
+    expect(expiredCue.phase).toBe(15);
     expect(stoneCue).toBeUndefined();
   });
 

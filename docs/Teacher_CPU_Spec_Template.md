@@ -143,7 +143,7 @@
 | WORK_WILL | 出稼ぎの意志 | 11 | 経済 |
 | DOUBLE_PLACE | 二連投石 | 24 | 展開 |
 | HEAVEN_BLESSING | 天の恵み | 3 | 手札補充 |
-| CONDEMN_WILL | 断罪の意志 | 6 | 手札干渉 |
+| CONDEMN_WILL | 断罪の意志 | 8 | 手札干渉 |
 | GOLD_STONE | 金の意志 | 6 | 経済 |
 | SILVER_STONE | 銀の意志 | 3 | 経済 |
 | EXTEND_LIFE_WILL | 延命の意志 | 4 | 防御 |

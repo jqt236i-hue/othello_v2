@@ -64,10 +64,55 @@
             : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
         return globalScope.PlaybackEventHelpers || null;
     })();
+    const DestroyOutcomeContract = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('../../shared/destroy-outcome-contract');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.DestroyOutcomeContract || null;
+    })();
+    const SpecialStoneRegistry = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('../../shared/special-stone-registry');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.SpecialStoneRegistry || null;
+    })();
+    const StoneStatusSnapshot = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('../../shared/stone-status-snapshot');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.StoneStatusSnapshot || null;
+    })();
 
     const REGEN_CAUSE = 'REGEN';
     const REGEN_TRIGGER_REASON = 'regen_triggered';
     const REGEN_CONSUMED_REASON = 'regen_consumed';
+    const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS) || Object.freeze({
+        DESTROYED: 'destroyed',
+        GHOST_BLOCKED: 'ghost_blocked',
+        PROLIFERATED: 'proliferated',
+        EVADED_MOVE: 'evaded_move'
+    });
     const BATCH_DESTROY_CAUSES = new Set(['TIME_BOMB', 'ULTIMATE_DESTROY_GOD', 'CROSS_BOMB', 'X_BOMB', 'ESCAPE_HYPERACTIVE']);
     const BOMB_DESTROY_CAUSES = new Set(['TIME_BOMB', 'CROSS_BOMB', 'X_BOMB', 'ESCAPE_HYPERACTIVE']);
     const SUPER_CRUSH_CAUSES = new Set(['SUPER_BUOYANCY_WILL', 'SUPER_GRAVITY_WILL']);
@@ -80,7 +125,24 @@
         'ROBOT_VACUUM',
         'ULTIMATE_DESTROY_GOD',
         'ULTIMATE_HYPERACTIVE_GOD',
+        'TIME_STOP',
         'TRAP_WILL'
+    ]);
+    const SPECIAL_DURATION_REVERT_SPECIALS = new Set([
+        'BREEDING',
+        'DESTROY_DRAGON',
+        'DRAGON',
+        'GHOST',
+        'INHERITED_HYPERACTIVE',
+        'LIGHTNING',
+        'OBSERVER',
+        'ROBOT_VACUUM',
+        'SNIPER',
+        'TIME_STOP',
+        'ULTIMATE_DESTROY_GOD',
+        'ULTIMATE_HYPERACTIVE',
+        'WILL_HUNTER_KING',
+        'WORK'
     ]);
     const SOUND_EVENT_TYPE = 'sound_effect';
     const CARD_EFFECT_FLIP_SOUND_KEY = 'card_effect_flip';
@@ -270,6 +332,13 @@
     }
 
     function resolveDisplayTimerValue(special, timerValue, regenRemainingValue) {
+        if (StoneStatusSnapshot && typeof StoneStatusSnapshot.resolveDisplayTimerValue === 'function') {
+            return StoneStatusSnapshot.resolveDisplayTimerValue({
+                type: special,
+                timer: timerValue,
+                regenRemaining: regenRemainingValue
+            });
+        }
         if (isInheritedHyperactiveType(special)) return null;
         const timer = toCounterOrNull(timerValue);
         if (timer !== null) return timer;
@@ -377,8 +446,6 @@
             destroyEvadeRemaining: null
         };
         const color = getCellColorAt(gameState, r, c);
-
-        // Find special stone
         let special = null;
         let timer = null;
         let owner = null;
@@ -395,56 +462,66 @@
                 m.row === r &&
                 m.col === c
             ));
-
-            const inherited = markersAtCell.find((m) => (
-                m &&
-                m.data &&
-                String(m.data.type || '').toUpperCase() === 'INHERITED_HYPERACTIVE'
-            ));
-            if (inherited) {
-                inheritedTimer = (inherited.data && Number.isFinite(Number(inherited.data.remainingOwnerTurns)))
-                    ? Number(inherited.data.remainingOwnerTurns)
-                    : null;
-                inheritedOwner = (inherited.owner !== undefined && inherited.owner !== null) ? inherited.owner : null;
-                inheritedFlipEvadeRemaining = toCounterOrNull(inherited.data && inherited.data.flipEvadeRemaining);
-            }
-
-            const visualSpecial = markersAtCell.find((m) => {
-                const typeUpper = String(m && m.data && m.data.type ? m.data.type : '').toUpperCase();
-                if (!typeUpper) return false;
-                if (typeUpper === 'GUARD') return false;
-                if (typeUpper === 'INHERITED_HYPERACTIVE') return false;
-                return true;
-            });
-
-            if (visualSpecial) {
-                special = (visualSpecial.data && visualSpecial.data.type) || null;
-                timer = resolveDisplayTimerValue(
-                    special,
-                    visualSpecial.data && visualSpecial.data.remainingOwnerTurns,
-                    visualSpecial.data && visualSpecial.data.regenRemaining
-                );
-                owner = (visualSpecial.owner !== undefined && visualSpecial.owner !== null) ? visualSpecial.owner : null;
-                flipEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.flipEvadeRemaining);
-                destroyEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.destroyEvadeRemaining);
-                if (flipEvadeRemaining === null) {
-                    const specialType = String(special || '').toUpperCase();
-                    if (specialType === 'ULTIMATE_HYPERACTIVE' || specialType === 'EXTREME_HYPERACTIVE') {
-                        flipEvadeRemaining = 3;
-                    }
-                }
-            }
-        }
-
-        // Bomb check
-        if (!special && cardState && cardState.markers) {
-            const b = MarkersAdapter && typeof MarkersAdapter.findBombMarkerAt === 'function'
+            const bombMarker = MarkersAdapter && typeof MarkersAdapter.findBombMarkerAt === 'function'
                 ? MarkersAdapter.findBombMarkerAt(cardState, r, c)
                 : cardState.markers.find(m => m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') && m.data && m.data.category === 'bomb' && m.row === r && m.col === c);
-            if (b) {
-                special = 'TIME_BOMB';
-                timer = (b.data && b.data.remainingTurns) || null;
-                owner = (b.owner !== undefined && b.owner !== null) ? b.owner : null;
+
+            if (StoneStatusSnapshot && typeof StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers === 'function') {
+                const visualState = StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers(markersAtCell, {
+                    bombMarker,
+                    mode: 'visual'
+                });
+                special = visualState.special;
+                timer = visualState.timer;
+                owner = visualState.owner;
+                inheritedTimer = visualState.inheritedTimer;
+                inheritedOwner = visualState.inheritedOwner;
+                flipEvadeRemaining = visualState.flipEvadeRemaining;
+                inheritedFlipEvadeRemaining = visualState.inheritedFlipEvadeRemaining;
+                destroyEvadeRemaining = visualState.destroyEvadeRemaining;
+            } else {
+                const inherited = markersAtCell.find((m) => (
+                    m &&
+                    m.data &&
+                    String(m.data.type || '').toUpperCase() === 'INHERITED_HYPERACTIVE'
+                ));
+                if (inherited) {
+                    inheritedTimer = (inherited.data && Number.isFinite(Number(inherited.data.remainingOwnerTurns)))
+                        ? Number(inherited.data.remainingOwnerTurns)
+                        : null;
+                    inheritedOwner = (inherited.owner !== undefined && inherited.owner !== null) ? inherited.owner : null;
+                    inheritedFlipEvadeRemaining = toCounterOrNull(inherited.data && inherited.data.flipEvadeRemaining);
+                }
+
+                const visualSpecial = markersAtCell.find((m) => {
+                    const typeUpper = String(m && m.data && m.data.type ? m.data.type : '').toUpperCase();
+                    if (!typeUpper) return false;
+                    if (typeUpper === 'GUARD') return false;
+                    if (typeUpper === 'INHERITED_HYPERACTIVE') return false;
+                    return true;
+                });
+
+                if (visualSpecial) {
+                    special = (visualSpecial.data && visualSpecial.data.type) || null;
+                    timer = resolveDisplayTimerValue(
+                        special,
+                        visualSpecial.data && visualSpecial.data.remainingOwnerTurns,
+                        visualSpecial.data && visualSpecial.data.regenRemaining
+                    );
+                    owner = (visualSpecial.owner !== undefined && visualSpecial.owner !== null) ? visualSpecial.owner : null;
+                    flipEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.flipEvadeRemaining);
+                    destroyEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.destroyEvadeRemaining);
+                    if (flipEvadeRemaining === null) {
+                        const specialType = String(special || '').toUpperCase();
+                        if (specialType === 'ULTIMATE_HYPERACTIVE' || specialType === 'EXTREME_HYPERACTIVE') {
+                            flipEvadeRemaining = 3;
+                        }
+                    }
+                } else if (bombMarker) {
+                    special = 'TIME_BOMB';
+                    timer = (bombMarker.data && bombMarker.data.remainingTurns) || null;
+                    owner = (bombMarker.owner !== undefined && bombMarker.owner !== null) ? bombMarker.owner : null;
+                }
             }
         }
 
@@ -461,75 +538,493 @@
         };
     }
 
+    function _createPlaybackPhaseState() {
+        return {
+            currentPhase: 1,
+            prevWasChainFlip: false,
+            prevChainFlipLink: null,
+            prevDestroyCause: null,
+            durationEndRevertPhase: null,
+            superCrushPhase: null,
+            superCrushActionId: null,
+            gluttonousEatPhase: null,
+            gluttonousEatActionId: null,
+            willHunterKingSlashPhase: null,
+            prevWasProliferationDestroy: false
+        };
+    }
+
+    function _createPlaybackEventBase(ev, finalCardState) {
+        return {
+            meta: ev && ev.meta ? ev.meta : null,
+            rawType: ev && ev.type ? ev.type : null,
+            actionId: ev && ev.actionId ? ev.actionId : null,
+            turnIndex: (ev && typeof ev.turnIndex === 'number')
+                ? ev.turnIndex
+                : (finalCardState && typeof finalCardState.turnIndex === 'number' ? finalCardState.turnIndex : 0),
+            plyIndex: (ev && typeof ev.plyIndex === 'number') ? ev.plyIndex : null
+        };
+    }
+
+    function _createPlaybackEvent(playbackBase, type, phase, targets) {
+        return Object.assign({
+            type,
+            phase,
+            targets: Array.isArray(targets) ? targets : []
+        }, playbackBase || null);
+    }
+
+    function _clearChainFlipPhaseState(phaseState) {
+        phaseState.prevWasChainFlip = false;
+        phaseState.prevChainFlipLink = null;
+    }
+
+    function _preparePassivePlaybackPhaseState(phaseState, options) {
+        _clearChainFlipPhaseState(phaseState);
+        phaseState.prevDestroyCause = null;
+        if (!options || options.clearWillHunter !== false) {
+            phaseState.willHunterKingSlashPhase = null;
+        }
+        if (!options || options.preserveDurationEndRevert !== true) {
+            phaseState.durationEndRevertPhase = null;
+        }
+    }
+
+    function _planDurationEndRevertPlaybackPhase(phaseState, hasPriorPlaybackEvent) {
+        if (Number.isInteger(phaseState.durationEndRevertPhase)) {
+            return phaseState.durationEndRevertPhase;
+        }
+        if (hasPriorPlaybackEvent) {
+            phaseState.currentPhase++;
+        }
+        phaseState.durationEndRevertPhase = phaseState.currentPhase;
+        return phaseState.durationEndRevertPhase;
+    }
+
+    function _clearGroupedDestroyPhaseState(phaseState) {
+        phaseState.willHunterKingSlashPhase = null;
+        phaseState.gluttonousEatPhase = null;
+        phaseState.gluttonousEatActionId = null;
+        phaseState.superCrushPhase = null;
+        phaseState.superCrushActionId = null;
+    }
+
+    function _assignActionScopedPhase(phaseState, phaseField, actionIdField, actionId) {
+        const hasActionMismatch =
+            phaseState[phaseField] !== null &&
+            phaseState[actionIdField] !== null &&
+            actionId !== null &&
+            phaseState[actionIdField] !== actionId;
+        if (phaseState[phaseField] === null || hasActionMismatch) {
+            phaseState.currentPhase++;
+            phaseState[phaseField] = phaseState.currentPhase;
+        }
+        phaseState[actionIdField] = actionId;
+        return phaseState[phaseField];
+    }
+
+    function _getDestroyOutcomeKind(meta) {
+        if (DestroyOutcomeContract && typeof DestroyOutcomeContract.getDestroyOutcomeKind === 'function') {
+            return DestroyOutcomeContract.getDestroyOutcomeKind(meta);
+        }
+        if (!meta || typeof meta !== 'object') return null;
+        if (meta.proliferated === true) return DESTROY_OUTCOME_KINDS.PROLIFERATED;
+        if (meta.blockedByGhost === true) return DESTROY_OUTCOME_KINDS.GHOST_BLOCKED;
+        if (meta.evaded === true) return DESTROY_OUTCOME_KINDS.EVADED_MOVE;
+        if (meta.destroyed === true) return DESTROY_OUTCOME_KINDS.DESTROYED;
+        return null;
+    }
+
+    function _isProliferationSpawnPresentationEvent(ev) {
+        return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'PROLIFERATION_WILL' &&
+            String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('proliferation_spawn') === 0;
+    }
+
+    function _isEqualityWillSpawnEventLike(ev) {
+        return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'EQUALITY_WILL' &&
+            String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('equality_will_spawn') === 0;
+    }
+
+    function _isSalvationWillSpawnEventLike(ev) {
+        return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'SALVATION_WILL' &&
+            String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('salvation_spawn') === 0;
+    }
+
+    function _isCloneLikeSpawnPresentationEvent(ev, spawnMeta) {
+        const spawnCause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
+        return (
+            (spawnCause === 'CLONE_WILL' || spawnCause === 'SPLIT_WILL' || spawnCause === 'PROLIFERATION_WILL') &&
+            spawnMeta &&
+            Number.isInteger(spawnMeta.fromRow) &&
+            Number.isInteger(spawnMeta.fromCol)
+        );
+    }
+
+    function _isGluttonousEatDestroyPresentationEvent(ev) {
+        return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'GLUTTONOUS_WILL' &&
+            String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('gluttonous_eat') === 0;
+    }
+
+    function _isSuperCrushDestroyPresentationEvent(ev) {
+        const cause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
+        const reason = String(ev && ev.reason ? ev.reason : '').toLowerCase();
+        return SUPER_CRUSH_CAUSES.has(cause) &&
+            (reason.indexOf('super_buoyancy_collision') === 0 || reason.indexOf('super_gravity_collision') === 0);
+    }
+
+    function _isWillHunterKingSlashDestroyPresentationEvent(ev) {
+        return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'WILL_HUNTER_KING' &&
+            String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('will_hunter_king_slash') === 0;
+    }
+
+    function _isGluttonousEatMovePresentationEvent(ev) {
+        return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'GLUTTONOUS_WILL' &&
+            String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('gluttonous_eat_move') === 0;
+    }
+
+    function _isSuperCrushMovePresentationEvent(ev) {
+        const cause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
+        const reason = String(ev && ev.reason ? ev.reason : '').toLowerCase();
+        return SUPER_CRUSH_CAUSES.has(cause) &&
+            (reason.indexOf('super_buoyancy_move') === 0 || reason.indexOf('super_gravity_move') === 0);
+    }
+
+    function _isWillHunterKingSlashMovePresentationEvent(ev) {
+        return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'WILL_HUNTER_KING' &&
+            String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('will_hunter_king_slash_move') === 0;
+    }
+
+    function _createOverlapReturnAfterState(meta, overlapOwner, overlapSpecial, includeMetaVisual) {
+        return {
+            color: overlapOwner === 'black' ? 1 : (overlapOwner === 'white' ? -1 : 0),
+            special: overlapSpecial,
+            timer: includeMetaVisual ? getPrimaryTimerFromMeta(meta) : null,
+            owner: overlapOwner || null,
+            inheritedTimer: includeMetaVisual ? getInheritedTimerFromMeta(meta) : null,
+            inheritedOwner: includeMetaVisual ? getInheritedOwnerFromMeta(meta) : null,
+            flipEvadeRemaining: includeMetaVisual ? getFlipEvadeRemainingFromMeta(meta) : null,
+            inheritedFlipEvadeRemaining: includeMetaVisual ? getInheritedFlipEvadeRemainingFromMeta(meta) : null,
+            destroyEvadeRemaining: includeMetaVisual ? getDestroyEvadeRemainingFromMeta(meta) : null
+        };
+    }
+
+    function _createOverlapReturnPlaybackEvent(playbackBase, options) {
+        const from = options && options.from ? options.from : null;
+        const to = options && options.to ? options.to : null;
+        const meta = options && options.meta ? options.meta : null;
+        const overlapOwner = (options && typeof options.owner === 'string' && options.owner)
+            ? options.owner
+            : null;
+        const overlapSpecial = options && options.special ? options.special : null;
+        return _createPlaybackEvent(playbackBase, 'move', options && options.phase, [{
+            from: { r: from && from.r, col: from && from.col },
+            to: { r: to && to.r, col: to && to.col },
+            ownerBefore: overlapOwner,
+            ownerAfter: overlapOwner,
+            cause: options && Object.prototype.hasOwnProperty.call(options, 'cause') ? options.cause : null,
+            reason: options && Object.prototype.hasOwnProperty.call(options, 'reason') ? options.reason : null,
+            overlapReturn: true,
+            meta,
+            sourceRow: from && from.r,
+            sourceCol: from && from.col,
+            after: _createOverlapReturnAfterState(meta, overlapOwner, overlapSpecial, !!(options && options.includeMetaVisual))
+        }]);
+    }
+
+    function _getSpawnOverlapReturnSpec(ev, spawnMeta) {
+        if (!_isProliferationSpawnPresentationEvent(ev) || !spawnMeta) return null;
+        const proliferationTriggeredBy = String(spawnMeta.proliferationTriggeredBy ? spawnMeta.proliferationTriggeredBy : '').toUpperCase();
+        const proliferationTriggerReason = String(spawnMeta.proliferationTriggerReason ? spawnMeta.proliferationTriggerReason : '').toLowerCase();
+        const isGluttonousTriggered =
+            proliferationTriggeredBy === 'GLUTTONOUS_WILL' &&
+            proliferationTriggerReason.indexOf('gluttonous_eat') === 0;
+        const isWillHunterTriggered =
+            proliferationTriggeredBy === 'WILL_HUNTER_KING' &&
+            proliferationTriggerReason.indexOf('will_hunter_king_slash') === 0;
+        if (
+            !Number.isInteger(spawnMeta.sourceRow) ||
+            !Number.isInteger(spawnMeta.sourceCol) ||
+            !Number.isInteger(spawnMeta.proliferationOriginRow) ||
+            !Number.isInteger(spawnMeta.proliferationOriginCol) ||
+            (!isGluttonousTriggered && !isWillHunterTriggered)
+        ) {
+            return null;
+        }
+        const overlapOwner = (typeof spawnMeta.projectileOwner === 'string' && spawnMeta.projectileOwner)
+            ? spawnMeta.projectileOwner
+            : ((typeof spawnMeta.owner === 'string' && spawnMeta.owner) ? spawnMeta.owner : ev && ev.ownerAfter);
+        return {
+            owner: overlapOwner,
+            special: isGluttonousTriggered ? 'GLUTTONOUS' : 'WILL_HUNTER_KING',
+            cause: proliferationTriggeredBy,
+            reason: isGluttonousTriggered ? 'gluttonous_eat_overlap_return' : 'will_hunter_king_slash_overlap_return',
+            from: { r: spawnMeta.sourceRow, col: spawnMeta.sourceCol },
+            to: { r: spawnMeta.proliferationOriginRow, col: spawnMeta.proliferationOriginCol },
+            meta: spawnMeta,
+            includeMetaVisual: true
+        };
+    }
+
+    function _getGhostBlockedOverlapReturnSpec(ev, destroyMeta, destroyOutcomeKind, isGluttonousEatDestroy, isWillHunterKingSlashDestroy) {
+        if (
+            destroyOutcomeKind !== DESTROY_OUTCOME_KINDS.GHOST_BLOCKED ||
+            !destroyMeta ||
+            !Number.isInteger(destroyMeta.sourceRow) ||
+            !Number.isInteger(destroyMeta.sourceCol) ||
+            (!isGluttonousEatDestroy && !isWillHunterKingSlashDestroy)
+        ) {
+            return null;
+        }
+        return {
+            owner: (typeof destroyMeta.projectileOwner === 'string' && destroyMeta.projectileOwner)
+                ? destroyMeta.projectileOwner
+                : null,
+            special: isGluttonousEatDestroy ? 'GLUTTONOUS' : 'WILL_HUNTER_KING',
+            cause: ev && ev.cause ? ev.cause : null,
+            reason: isGluttonousEatDestroy ? 'gluttonous_eat_overlap_return' : 'will_hunter_king_slash_overlap_return',
+            from: { r: destroyMeta.sourceRow, col: destroyMeta.sourceCol },
+            to: { r: ev && ev.row, col: ev && ev.col },
+            meta: destroyMeta,
+            includeMetaVisual: false
+        };
+    }
+
+    function _planSpawnPlayback(phaseState, ev, playbackBase, followsProliferationDestroy) {
+        _clearChainFlipPhaseState(phaseState);
+        phaseState.prevDestroyCause = null;
+        phaseState.durationEndRevertPhase = null;
+        phaseState.willHunterKingSlashPhase = null;
+
+        const spawnMeta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
+        const overlapSpec = _getSpawnOverlapReturnSpec(ev, spawnMeta);
+        const equalityWillSpawnIndex = spawnMeta && Number.isFinite(Number(spawnMeta.spawnIndex))
+            ? Math.trunc(Number(spawnMeta.spawnIndex))
+            : null;
+        const followsPreservedProliferationDestroy =
+            followsProliferationDestroy &&
+            _isProliferationSpawnPresentationEvent(ev);
+        let phase = phaseState.currentPhase;
+        const leadingPlaybackEvents = [];
+
+        if (followsPreservedProliferationDestroy && !overlapSpec) {
+            phaseState.currentPhase++;
+            phase = phaseState.currentPhase;
+        }
+        if (overlapSpec) {
+            if (!followsPreservedProliferationDestroy) {
+                phaseState.currentPhase++;
+            }
+            leadingPlaybackEvents.push(_createOverlapReturnPlaybackEvent(playbackBase, Object.assign({}, overlapSpec, {
+                phase: phaseState.currentPhase
+            })));
+        }
+        if (_isEqualityWillSpawnEventLike(ev) && equalityWillSpawnIndex !== null && equalityWillSpawnIndex > 1) {
+            phaseState.currentPhase++;
+            phase = phaseState.currentPhase;
+        }
+        if (_isSalvationWillSpawnEventLike(ev) && equalityWillSpawnIndex !== null && equalityWillSpawnIndex >= 1) {
+            phaseState.currentPhase++;
+            phase = phaseState.currentPhase;
+        }
+
+        let type = 'spawn';
+        let targets;
+        if (_isCloneLikeSpawnPresentationEvent(ev, spawnMeta)) {
+            if (overlapSpec) {
+                phaseState.currentPhase++;
+                phase = phaseState.currentPhase;
+            }
+            type = 'move';
+            targets = [{
+                from: { r: spawnMeta.fromRow, col: spawnMeta.fromCol },
+                to: { r: ev.row, col: ev.col },
+                stoneId: ev.stoneId,
+                ownerBefore: ev.ownerAfter,
+                ownerAfter: ev.ownerAfter,
+                cause: ev.cause || null,
+                reason: ev.reason || null,
+                clone: true
+            }];
+        } else {
+            targets = [{
+                r: ev.row,
+                col: ev.col,
+                stoneId: ev.stoneId,
+                ownerAfter: ev.ownerAfter,
+                cause: ev.cause || null,
+                reason: ev.reason || null
+            }];
+        }
+
+        return {
+            phase,
+            type,
+            targets,
+            leadingPlaybackEvents
+        };
+    }
+
+    function _planDestroyPlayback(phaseState, ev, destroyMeta, playbackBase) {
+        _clearChainFlipPhaseState(phaseState);
+        phaseState.durationEndRevertPhase = null;
+        const destroyCauseUpper = String(ev && ev.cause ? ev.cause : '').toUpperCase();
+        const isGluttonousEatDestroy = _isGluttonousEatDestroyPresentationEvent(ev);
+        const isSuperCrushDestroy = _isSuperCrushDestroyPresentationEvent(ev);
+        const isWillHunterKingSlashDestroy = _isWillHunterKingSlashDestroyPresentationEvent(ev);
+        let phase;
+
+        if (isGluttonousEatDestroy) {
+            phaseState.willHunterKingSlashPhase = null;
+            phaseState.superCrushPhase = null;
+            phaseState.superCrushActionId = null;
+            phase = _assignActionScopedPhase(
+                phaseState,
+                'gluttonousEatPhase',
+                'gluttonousEatActionId',
+                ev && ev.actionId ? ev.actionId : null
+            );
+        } else if (isSuperCrushDestroy) {
+            phaseState.willHunterKingSlashPhase = null;
+            phaseState.gluttonousEatPhase = null;
+            phaseState.gluttonousEatActionId = null;
+            phaseState.superCrushPhase = _assignActionScopedPhase(
+                phaseState,
+                'superCrushPhase',
+                'superCrushActionId',
+                ev && ev.actionId ? ev.actionId : null
+            );
+            phase = phaseState.superCrushPhase;
+        } else if (isWillHunterKingSlashDestroy) {
+            phaseState.gluttonousEatPhase = null;
+            phaseState.gluttonousEatActionId = null;
+            phaseState.superCrushPhase = null;
+            phaseState.superCrushActionId = null;
+            phaseState.currentPhase++;
+            phaseState.willHunterKingSlashPhase = phaseState.currentPhase;
+            phase = phaseState.willHunterKingSlashPhase;
+        } else if (BATCH_DESTROY_CAUSES.has(destroyCauseUpper)) {
+            _clearGroupedDestroyPhaseState(phaseState);
+            if (phaseState.prevDestroyCause !== destroyCauseUpper) {
+                phaseState.currentPhase++;
+            }
+            phase = phaseState.currentPhase;
+        } else {
+            _clearGroupedDestroyPhaseState(phaseState);
+            phaseState.currentPhase++;
+            phase = phaseState.currentPhase;
+        }
+
+        phaseState.prevDestroyCause = destroyCauseUpper;
+        const destroyOutcomeKind = _getDestroyOutcomeKind(destroyMeta);
+        phaseState.prevWasProliferationDestroy = destroyOutcomeKind === DESTROY_OUTCOME_KINDS.PROLIFERATED;
+
+        const overlapSpec = _getGhostBlockedOverlapReturnSpec(
+            ev,
+            destroyMeta,
+            destroyOutcomeKind,
+            isGluttonousEatDestroy,
+            isWillHunterKingSlashDestroy
+        );
+        const trailingPlaybackEvents = overlapSpec
+            ? [_createOverlapReturnPlaybackEvent(playbackBase, Object.assign({}, overlapSpec, { phase }))]
+            : [];
+
+        return { phase, trailingPlaybackEvents };
+    }
+
+    function _planChangePlaybackPhase(phaseState, ev) {
+        phaseState.durationEndRevertPhase = null;
+        phaseState.prevDestroyCause = null;
+        phaseState.willHunterKingSlashPhase = null;
+        const isChainFlip = isChainFlipPresentationEvent(ev);
+        const chainFlipLink = isChainFlip ? getChainFlipLink(ev) : null;
+        let phase = phaseState.currentPhase;
+        if (isChainFlip && (!phaseState.prevWasChainFlip || phaseState.prevChainFlipLink !== chainFlipLink)) {
+            phaseState.currentPhase++;
+            phase = phaseState.currentPhase;
+        }
+        if (isRegenTriggeredChange(ev)) {
+            phaseState.currentPhase++;
+            phase = phaseState.currentPhase;
+        }
+        phaseState.prevWasChainFlip = isChainFlip;
+        phaseState.prevChainFlipLink = isChainFlip ? chainFlipLink : null;
+        return phase;
+    }
+
+    function _planMovePlaybackPhase(phaseState, ev) {
+        _clearChainFlipPhaseState(phaseState);
+        phaseState.durationEndRevertPhase = null;
+        phaseState.prevDestroyCause = null;
+        const moveActionId = ev && ev.actionId ? ev.actionId : null;
+        const isSuperCrushActionMatched =
+            phaseState.superCrushActionId === null ||
+            moveActionId === null ||
+            phaseState.superCrushActionId === moveActionId;
+        const isGluttonousActionMatched =
+            phaseState.gluttonousEatActionId === null ||
+            moveActionId === null ||
+            phaseState.gluttonousEatActionId === moveActionId;
+        let phase;
+        if (_isGluttonousEatMovePresentationEvent(ev) && phaseState.gluttonousEatPhase !== null && isGluttonousActionMatched) {
+            phase = phaseState.gluttonousEatPhase;
+        } else if (_isSuperCrushMovePresentationEvent(ev) && phaseState.superCrushPhase !== null && isSuperCrushActionMatched) {
+            phase = phaseState.superCrushPhase;
+        } else if (_isWillHunterKingSlashMovePresentationEvent(ev) && phaseState.willHunterKingSlashPhase !== null) {
+            phase = phaseState.willHunterKingSlashPhase;
+        } else {
+            phaseState.currentPhase++;
+            phase = phaseState.currentPhase;
+        }
+        phaseState.gluttonousEatPhase = null;
+        phaseState.gluttonousEatActionId = null;
+        phaseState.superCrushPhase = null;
+        phaseState.superCrushActionId = null;
+        phaseState.willHunterKingSlashPhase = null;
+        return phase;
+    }
+
     /**
      * Converts presentation events (BoardOps output) into PlaybackEvents.
      * This expects events to be JSON-safe presentationEvents as emitted by BoardOps.
      */
     function mapToPlaybackEvents(presEvents, finalCardState, finalGameState) {
         const playbackEvents = [];
-        let currentPhase = 1;
-        let prevWasChainFlip = false;
-        let prevChainFlipLink = null;
-        let prevDestroyCause = null;
-        let superCrushPhase = null;
-        let superCrushActionId = null;
-        let gluttonousEatPhase = null;
-        let gluttonousEatActionId = null;
-        let willHunterKingSlashPhase = null;
+        const phaseState = _createPlaybackPhaseState();
 
         for (const ev of presEvents || []) {
-            const pEvent = {
-                type: null,
-                phase: currentPhase,
-                targets: [],
-                meta: ev.meta || null,
-                rawType: ev.type,
-                actionId: ev.actionId || null,
-                turnIndex: (typeof ev.turnIndex === 'number') ? ev.turnIndex : (finalCardState && typeof finalCardState.turnIndex === 'number' ? finalCardState.turnIndex : 0),
-                plyIndex: (typeof ev.plyIndex === 'number') ? ev.plyIndex : null
-            };
+            const followsProliferationDestroy = phaseState.prevWasProliferationDestroy;
+            phaseState.prevWasProliferationDestroy = false;
+            const trailingPlaybackEvents = [];
+            const playbackBase = _createPlaybackEventBase(ev, finalCardState);
+            const pEvent = _createPlaybackEvent(playbackBase, null, phaseState.currentPhase, []);
 
             switch (ev.type) {
-                case 'SPAWN':
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    prevDestroyCause = null;
-                    willHunterKingSlashPhase = null;
-                    const spawnCause = String(ev.cause || '').toUpperCase();
-                    if (
-                        (spawnCause === 'CLONE_WILL' || spawnCause === 'SPLIT_WILL') &&
-                        ev.meta &&
-                        Number.isInteger(ev.meta.fromRow) &&
-                        Number.isInteger(ev.meta.fromCol)
-                    ) {
-                        pEvent.type = 'move';
-                        pEvent.targets = [{
-                            from: { r: ev.meta.fromRow, col: ev.meta.fromCol },
-                            to: { r: ev.row, col: ev.col },
-                            stoneId: ev.stoneId,
-                            ownerBefore: ev.ownerAfter,
-                            ownerAfter: ev.ownerAfter,
-                            cause: ev.cause || null,
-                            reason: ev.reason || null,
-                            clone: true
-                        }];
-                    } else {
-                        pEvent.type = 'spawn';
-                        pEvent.targets = [{
-                            r: ev.row,
-                            col: ev.col,
-                            stoneId: ev.stoneId,
-                            ownerAfter: ev.ownerAfter,
-                            cause: ev.cause || null,
-                            reason: ev.reason || null
-                        }];
+                case 'SPAWN': {
+                    const spawnPlan = _planSpawnPlayback(
+                        phaseState,
+                        ev,
+                        playbackBase,
+                        followsProliferationDestroy
+                    );
+                    if (spawnPlan.leadingPlaybackEvents.length) {
+                        playbackEvents.push(...spawnPlan.leadingPlaybackEvents);
                     }
+                    pEvent.type = spawnPlan.type;
+                    pEvent.phase = spawnPlan.phase;
+                    pEvent.targets = spawnPlan.targets;
                     break;
-                case 'DESTROY':
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    pEvent.type = 'destroy';
+                }
+                case 'DESTROY': {
                     const destroyMeta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
+                    const destroyPlan = _planDestroyPlayback(
+                        phaseState,
+                        ev,
+                        destroyMeta,
+                        playbackBase
+                    );
+                    pEvent.type = 'destroy';
+                    pEvent.phase = destroyPlan.phase;
                     pEvent.targets = [{
                         r: ev.row,
                         col: ev.col,
@@ -543,83 +1038,12 @@
                         projectileOwner: destroyMeta && typeof destroyMeta.projectileOwner === 'string' ? destroyMeta.projectileOwner : null,
                         projectileStone: destroyMeta && typeof destroyMeta.projectileStone === 'string' ? destroyMeta.projectileStone : null
                     }];
-                    // For area-destroy effects, keep all destroys in the same phase so UI can animate simultaneously.
-                    const destroyCause = String(ev.cause || '');
-                    const destroyCauseUpper = destroyCause.toUpperCase();
-                    const destroyReason = String(ev.reason || '').toLowerCase();
-                    const isGluttonousEatDestroy =
-                        destroyCauseUpper === 'GLUTTONOUS_WILL' &&
-                        destroyReason.indexOf('gluttonous_eat') === 0;
-                    const isSuperCrushDestroy =
-                        SUPER_CRUSH_CAUSES.has(destroyCauseUpper) &&
-                        (destroyReason.indexOf('super_buoyancy_collision') === 0 || destroyReason.indexOf('super_gravity_collision') === 0);
-                    const isWillHunterKingSlashDestroy =
-                        destroyCauseUpper === 'WILL_HUNTER_KING' &&
-                        destroyReason.indexOf('will_hunter_king_slash') === 0;
-                    if (isGluttonousEatDestroy) {
-                        willHunterKingSlashPhase = null;
-                        superCrushPhase = null;
-                        superCrushActionId = null;
-                        const destroyActionId = ev.actionId || null;
-                        const hasActionMismatch =
-                            gluttonousEatPhase !== null &&
-                            gluttonousEatActionId !== null &&
-                            destroyActionId !== null &&
-                            gluttonousEatActionId !== destroyActionId;
-                        if (gluttonousEatPhase === null || hasActionMismatch) {
-                            currentPhase++;
-                            gluttonousEatPhase = currentPhase;
-                        }
-                        gluttonousEatActionId = destroyActionId;
-                        pEvent.phase = gluttonousEatPhase;
-                    } else if (isSuperCrushDestroy) {
-                        willHunterKingSlashPhase = null;
-                        gluttonousEatPhase = null;
-                        gluttonousEatActionId = null;
-                        const destroyActionId = ev.actionId || null;
-                        const hasActionMismatch =
-                            superCrushPhase !== null &&
-                            superCrushActionId !== null &&
-                            destroyActionId !== null &&
-                            superCrushActionId !== destroyActionId;
-                        if (superCrushPhase === null || hasActionMismatch) {
-                            currentPhase++;
-                            superCrushPhase = currentPhase;
-                        }
-                        superCrushActionId = destroyActionId;
-                        pEvent.phase = superCrushPhase;
-                    } else if (isWillHunterKingSlashDestroy) {
-                        gluttonousEatPhase = null;
-                        gluttonousEatActionId = null;
-                        superCrushPhase = null;
-                        superCrushActionId = null;
-                        currentPhase++;
-                        willHunterKingSlashPhase = currentPhase;
-                        pEvent.phase = willHunterKingSlashPhase;
-                    } else if (BATCH_DESTROY_CAUSES.has(destroyCauseUpper)) {
-                        willHunterKingSlashPhase = null;
-                        gluttonousEatPhase = null;
-                        gluttonousEatActionId = null;
-                        superCrushPhase = null;
-                        superCrushActionId = null;
-                        if (prevDestroyCause !== destroyCauseUpper) {
-                            currentPhase++;
-                        }
-                        pEvent.phase = currentPhase;
-                    } else {
-                        willHunterKingSlashPhase = null;
-                        gluttonousEatPhase = null;
-                        gluttonousEatActionId = null;
-                        superCrushPhase = null;
-                        superCrushActionId = null;
-                        currentPhase++;
-                        pEvent.phase = currentPhase;
+                    if (destroyPlan.trailingPlaybackEvents.length) {
+                        trailingPlaybackEvents.push(...destroyPlan.trailingPlaybackEvents);
                     }
-                    prevDestroyCause = destroyCauseUpper;
                     break;
+                }
                 case 'CHANGE':
-                    prevDestroyCause = null;
-                    willHunterKingSlashPhase = null;
                     // Map CHANGE -> flip to match UI AnimationEngine expectations (Spec B)
                     pEvent.type = 'flip';
                     const changeMeta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
@@ -632,26 +1056,9 @@
                         reason: ev.reason || null,
                         meta: changeMeta
                     }];
-                    const isChainFlip = isChainFlipPresentationEvent(ev);
-                    const chainFlipLink = isChainFlip ? getChainFlipLink(ev) : null;
-                    if (isChainFlip && (!prevWasChainFlip || prevChainFlipLink !== chainFlipLink)) {
-                        // Chain-will family: primary flips -> chain link 1 -> chain link 2 ...
-                        currentPhase++;
-                        pEvent.phase = currentPhase;
-                    }
-                    if (isRegenTriggeredChange(ev)) {
-                        // Keep "normal flip -> regen back" readable by separating phases.
-                        // Without this, both flips can be batched together for the same cell.
-                        currentPhase++;
-                        pEvent.phase = currentPhase;
-                    }
-                    prevWasChainFlip = isChainFlip;
-                    prevChainFlipLink = isChainFlip ? chainFlipLink : null;
+                    pEvent.phase = _planChangePlaybackPhase(phaseState, ev);
                     break;
                 case 'MOVE':
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    prevDestroyCause = null;
                     pEvent.type = 'move';
                     pEvent.targets = [{
                         from: { r: ev.prevRow, col: ev.prevCol },
@@ -662,76 +1069,34 @@
                         cause: ev.cause || null,
                         reason: ev.reason || null
                     }];
-                    const moveCause = String(ev.cause || '').toUpperCase();
-                    const moveReason = String(ev.reason || '').toLowerCase();
-                    const isGluttonousEatMove =
-                        moveCause === 'GLUTTONOUS_WILL' &&
-                        moveReason.indexOf('gluttonous_eat_move') === 0;
-                    const isSuperCrushMove =
-                        SUPER_CRUSH_CAUSES.has(moveCause) &&
-                        (moveReason.indexOf('super_buoyancy_move') === 0 || moveReason.indexOf('super_gravity_move') === 0);
-                    const isWillHunterKingSlashMove =
-                        moveCause === 'WILL_HUNTER_KING' &&
-                        moveReason.indexOf('will_hunter_king_slash_move') === 0;
-                    const moveActionId = ev.actionId || null;
-                    const isSuperCrushActionMatched =
-                        superCrushActionId === null ||
-                        moveActionId === null ||
-                        superCrushActionId === moveActionId;
-                    const isGluttonousActionMatched =
-                        gluttonousEatActionId === null ||
-                        moveActionId === null ||
-                        gluttonousEatActionId === moveActionId;
-                    if (isGluttonousEatMove && gluttonousEatPhase !== null && isGluttonousActionMatched) {
-                        pEvent.phase = gluttonousEatPhase;
-                    } else if (isSuperCrushMove && superCrushPhase !== null && isSuperCrushActionMatched) {
-                        pEvent.phase = superCrushPhase;
-                    } else if (isWillHunterKingSlashMove && willHunterKingSlashPhase !== null) {
-                        pEvent.phase = willHunterKingSlashPhase;
-                    } else {
-                        currentPhase++;
-                        pEvent.phase = currentPhase;
-                    }
-                    gluttonousEatPhase = null;
-                    gluttonousEatActionId = null;
-                    superCrushPhase = null;
-                    superCrushActionId = null;
-                    willHunterKingSlashPhase = null;
+                    pEvent.phase = _planMovePlaybackPhase(phaseState, ev);
                     break;
                 case 'STATUS_APPLIED':
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    prevDestroyCause = null;
-                    willHunterKingSlashPhase = null;
+                    _preparePassivePlaybackPhaseState(phaseState);
                     pEvent.type = 'status_applied';
                     pEvent.targets = [{ r: ev.row, col: ev.col }];
                     break;
                 case 'STATUS_TICK':
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    prevDestroyCause = null;
-                    willHunterKingSlashPhase = null;
+                    _preparePassivePlaybackPhaseState(phaseState);
                     pEvent.type = 'status_applied';
                     pEvent.targets = [{ r: ev.row, col: ev.col }];
                     break;
                 case 'STATUS_REMOVED':
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    prevDestroyCause = null;
-                    willHunterKingSlashPhase = null;
+                    _preparePassivePlaybackPhaseState(phaseState, {
+                        preserveDurationEndRevert: _isSpecialDurationExpiredStatusRemovedEvent(ev)
+                    });
                     pEvent.type = 'status_removed';
                     pEvent.targets = [{ r: ev.row, col: ev.col }];
                     if (isRegenConsumedStatus(ev)) {
-                        currentPhase++;
-                        pEvent.phase = currentPhase;
+                        phaseState.currentPhase++;
+                        pEvent.phase = phaseState.currentPhase;
+                    } else if (_isSpecialDurationExpiredStatusRemovedEvent(ev)) {
+                        pEvent.phase = _planDurationEndRevertPlaybackPhase(phaseState, playbackEvents.length > 0);
                     }
                     break;
                 case 'HAND_CLEAR':
                 case 'HAND_REMOVE':
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    prevDestroyCause = null;
-                    willHunterKingSlashPhase = null;
+                    _preparePassivePlaybackPhaseState(phaseState);
                     pEvent.type = 'hand_remove';
                     pEvent.targets = [{
                         player: ev.player || null,
@@ -740,15 +1105,12 @@
                         cardId: ev.cardId || null,
                         cardIds: Array.isArray(ev.cardIds) ? ev.cardIds.slice() : null
                     }];
-                    currentPhase++;
-                    pEvent.phase = currentPhase;
+                    phaseState.currentPhase++;
+                    pEvent.phase = phaseState.currentPhase;
                     break;
                 case 'DRAW_CARD':
                 case 'HAND_ADD':
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    prevDestroyCause = null;
-                    willHunterKingSlashPhase = null;
+                    _preparePassivePlaybackPhaseState(phaseState);
                     pEvent.type = 'hand_add';
                     pEvent.targets = [{
                         player: ev.player || null,
@@ -759,14 +1121,11 @@
                         generatedName: ev.meta && ev.meta.generatedName ? ev.meta.generatedName : null
                     }];
                     // Draw animation should run as its own readable step.
-                    currentPhase++;
-                    pEvent.phase = currentPhase;
+                    phaseState.currentPhase++;
+                    pEvent.phase = phaseState.currentPhase;
                     break;
                 case 'CARD_USED':
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    prevDestroyCause = null;
-                    willHunterKingSlashPhase = null;
+                    _preparePassivePlaybackPhaseState(phaseState);
                     const visualDescriptor = (PlaybackEventHelpers && typeof PlaybackEventHelpers.createCardVisualDescriptor === 'function')
                         ? PlaybackEventHelpers.createCardVisualDescriptor(ev.cardId || null, ev.meta || null)
                         : null;
@@ -781,21 +1140,16 @@
                         visualDescriptor
                     }];
                     // Card-use transport is also a readable step.
-                    currentPhase++;
-                    pEvent.phase = currentPhase;
+                    phaseState.currentPhase++;
+                    pEvent.phase = phaseState.currentPhase;
                     break;
                 case 'WORK_INCOME':
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    prevDestroyCause = null;
-                    willHunterKingSlashPhase = null;
+                    _preparePassivePlaybackPhaseState(phaseState);
                     pEvent.type = 'log';
                     pEvent.targets = [];
                     if (Number.isInteger(ev.row) && Number.isInteger(ev.col)) {
-                        playbackEvents.push({
-                            type: 'observer_bubble',
-                            phase: currentPhase,
-                            targets: [{
+                        playbackEvents.push(Object.assign(
+                            _createPlaybackEvent(playbackBase, 'observer_bubble', phaseState.currentPhase, [{
                                 r: ev.row,
                                 col: ev.col,
                                 owner: ev.owner || ev.player || (ev.meta && ev.meta.owner) || null,
@@ -804,45 +1158,39 @@
                                 incomeStep: Number.isFinite(Number(ev.incomeStep))
                                     ? Number(ev.incomeStep)
                                     : (Number.isFinite(Number(ev.meta && ev.meta.incomeStep)) ? Number(ev.meta.incomeStep) : null)
-                            }],
-                            rawType: 'WORK_BUBBLE',
-                            meta: ev.meta || null,
-                            actionId: ev.actionId || null,
-                            turnIndex: (typeof ev.turnIndex === 'number') ? ev.turnIndex : (finalCardState && typeof finalCardState.turnIndex === 'number' ? finalCardState.turnIndex : 0),
-                            plyIndex: (typeof ev.plyIndex === 'number') ? ev.plyIndex : null
-                        });
+                            }]),
+                            {
+                                rawType: 'WORK_BUBBLE'
+                            }
+                        ));
                     }
                     break;
                 case 'WORK_REMOVED':
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    prevDestroyCause = null;
-                    willHunterKingSlashPhase = null;
+                    _preparePassivePlaybackPhaseState(phaseState, {
+                        preserveDurationEndRevert: _isWorkDurationExpiredPresentationEvent(ev)
+                    });
                     pEvent.type = 'log';
                     pEvent.targets = [];
+                    if (_isWorkDurationExpiredPresentationEvent(ev)) {
+                        pEvent.phase = _planDurationEndRevertPlaybackPhase(phaseState, playbackEvents.length > 0);
+                    }
                     if (!_isWorkDurationExpiredPresentationEvent(ev) && Number.isInteger(ev.row) && Number.isInteger(ev.col)) {
-                        playbackEvents.push({
-                            type: 'observer_bubble',
-                            phase: currentPhase,
-                            targets: [{
+                        playbackEvents.push(Object.assign(
+                            _createPlaybackEvent(playbackBase, 'observer_bubble', phaseState.currentPhase, [{
                                 r: ev.row,
                                 col: ev.col,
                                 owner: ev.owner || ev.player || (ev.meta && ev.meta.owner) || null,
                                 gained: 0,
                                 text: _resolveWorkRemovedBubbleText(ev)
-                            }],
-                            rawType: 'WORK_BUBBLE',
-                            meta: ev.meta || null,
-                            actionId: ev.actionId || null,
-                            turnIndex: (typeof ev.turnIndex === 'number') ? ev.turnIndex : (finalCardState && typeof finalCardState.turnIndex === 'number' ? finalCardState.turnIndex : 0),
-                            plyIndex: (typeof ev.plyIndex === 'number') ? ev.plyIndex : null
-                        });
+                            }]),
+                            {
+                                rawType: 'WORK_BUBBLE'
+                            }
+                        ));
                     }
                     break;
                 case 'WORK_BUBBLE':
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    prevDestroyCause = null;
+                    _preparePassivePlaybackPhaseState(phaseState, { clearWillHunter: false });
                     pEvent.type = 'observer_bubble';
                     pEvent.targets = [{
                         r: ev.row,
@@ -855,9 +1203,7 @@
                     }];
                     break;
                 case 'OBSERVER_TRIGGERED':
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    prevDestroyCause = null;
+                    _preparePassivePlaybackPhaseState(phaseState, { clearWillHunter: false });
                     pEvent.type = 'observer_bubble';
                     pEvent.targets = [{
                         r: ev.row,
@@ -868,10 +1214,7 @@
                     }];
                     break;
                 case 'OBSERVER_BUBBLE':
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    prevDestroyCause = null;
-                    willHunterKingSlashPhase = null;
+                    _preparePassivePlaybackPhaseState(phaseState);
                     pEvent.type = 'observer_bubble';
                     pEvent.targets = [{
                         r: ev.row,
@@ -881,14 +1224,23 @@
                         text: (typeof ev.text === 'string' && ev.text.trim()) ? ev.text.trim() : ((ev.meta && typeof ev.meta.text === 'string' && ev.meta.text.trim()) ? ev.meta.text.trim() : null)
                     }];
                     break;
+                case 'ROUND_BONUS_BANNER':
+                    _preparePassivePlaybackPhaseState(phaseState);
+                    pEvent.type = 'round_bonus_banner';
+                    pEvent.targets = [{
+                        amount: Number(ev.amount) || 0,
+                        roundNumber: Number(ev.roundNumber) || 0,
+                        durationMs: Number(ev.durationMs) || 2200,
+                        text: (typeof ev.text === 'string' && ev.text.trim())
+                            ? ev.text.trim()
+                            : null
+                    }];
+                    break;
                 case 'CHARGE_BUBBLE':
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    prevDestroyCause = null;
-                    willHunterKingSlashPhase = null;
+                    _preparePassivePlaybackPhaseState(phaseState);
                     // Keep charge gain bubbles in the same readable phase as the flip/move
                     // that produced them so the board popup appears without an extra delay.
-                    pEvent.phase = currentPhase;
+                    pEvent.phase = phaseState.currentPhase;
                     pEvent.type = 'observer_bubble';
                     pEvent.targets = [{
                         r: ev.row,
@@ -904,15 +1256,14 @@
                     // Unknown presentation event:
                     // keep playback resilient by ignoring silently in player-facing logs.
                     pEvent.type = null;
-                    prevWasChainFlip = false;
-                    prevChainFlipLink = null;
-                    prevDestroyCause = null;
+                    _clearChainFlipPhaseState(phaseState);
+                    phaseState.prevDestroyCause = null;
                     continue;
             }
 
             if (ev.type !== 'DESTROY' && ev.type !== 'MOVE') {
-                superCrushPhase = null;
-                superCrushActionId = null;
+                phaseState.superCrushPhase = null;
+                phaseState.superCrushActionId = null;
             }
 
             // NOTE: Do not populate 'after' using a final snapshot. Adapter is a thin transform.
@@ -1036,6 +1387,7 @@
             }
 
             if (pEvent.type) playbackEvents.push(pEvent);
+            if (trailingPlaybackEvents.length) playbackEvents.push(...trailingPlaybackEvents);
         }
 
         const generatedThrowChainSplit = _extractGeneratedThrowChainPlayback(playbackEvents);
@@ -1274,6 +1626,25 @@
         return !!(ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t) => _isSpecialDurationExpiredDestroyTarget(t)));
     }
 
+    function _isDurationEndReason(reason) {
+        const reasonLower = String(reason || '').toLowerCase();
+        return reasonLower === 'duration_end' || reasonLower.indexOf('duration') >= 0 || reasonLower.indexOf('expire') >= 0;
+    }
+
+    function _isSpecialDurationExpiredStatusRemovedEvent(ev) {
+        if (!ev || String(ev.type || '').toLowerCase() !== 'status_removed') return false;
+        const special = String(ev.meta && ev.meta.special ? ev.meta.special : '').toUpperCase();
+        if (!SPECIAL_DURATION_REVERT_SPECIALS.has(special)) return false;
+        const reason = String((ev.meta && ev.meta.reason) || ev.reason || '').toLowerCase();
+        if (!_isDurationEndReason(reason)) return false;
+        if (special === 'TRAP' || special === 'TRAP_REVEAL') return false;
+        return true;
+    }
+
+    function _isSpecialDurationExpiredPlaybackEvent(ev) {
+        return _isSpecialDurationExpiredDestroyEvent(ev) || _isSpecialDurationExpiredStatusRemovedEvent(ev);
+    }
+
     function _isSniperShotDestroyTarget(target) {
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
@@ -1324,92 +1695,160 @@
         return true;
     }
 
-    function appendSoundEffectPlaybackEvents(playbackEvents, rawEvents, presentationEvents) {
+    function _createSoundCuePlanningContext(playbackEvents, rawEvents, presentationEvents) {
         const base = Array.isArray(playbackEvents) ? playbackEvents.slice() : [];
-        const raw = Array.isArray(rawEvents) ? rawEvents : [];
-        const pres = Array.isArray(presentationEvents) ? presentationEvents : [];
-        if (!raw.length && !base.length) return base;
-
-        const maxPhase = _maxPhase(base);
-        const fallbackPhase = maxPhase + 1;
-        const added = [];
-        const seenSingleKeys = new Set();
-
-        const pushCue = (soundKey, phase, sourceType, options = {}) => {
-            const key = String(soundKey || '').trim();
-            const allowRepeat = !!(options && options.allowRepeat === true);
-            if (!key) return;
-            if (!allowRepeat) {
-                if (seenSingleKeys.has(key)) return;
-                seenSingleKeys.add(key);
-            }
-            added.push({
-                type: SOUND_EVENT_TYPE,
-                phase: _phaseNum(phase),
-                targets: [{ soundKey: key }],
-                meta: sourceType ? { sourceType } : null
-            });
+        return {
+            base,
+            raw: Array.isArray(rawEvents) ? rawEvents : [],
+            pres: Array.isArray(presentationEvents) ? presentationEvents : [],
+            fallbackPhase: _maxPhase(base) + 1,
+            added: [],
+            seenSingleKeys: new Set()
         };
+    }
 
-        const tagCardUseAnimationTarget = (patch) => {
-            const anchorIndex = base.findIndex((ev) => ev && ev.type === 'card_use_animation');
-            if (anchorIndex < 0) return false;
-            const anchor = base[anchorIndex];
-            const targets = Array.isArray(anchor.targets) ? anchor.targets.slice() : [];
-            const firstTarget = targets[0] ? Object.assign({}, targets[0]) : {};
-            targets[0] = Object.assign(firstTarget, patch || {});
-            anchor.targets = targets;
-            return true;
-        };
+    function _pushSoundCue(ctx, soundKey, phase, sourceType, options = {}) {
+        const key = String(soundKey || '').trim();
+        const allowRepeat = !!(options && options.allowRepeat === true);
+        if (!key) return;
+        if (!allowRepeat) {
+            if (ctx.seenSingleKeys.has(key)) return;
+            ctx.seenSingleKeys.add(key);
+        }
+        ctx.added.push({
+            type: SOUND_EVENT_TYPE,
+            phase: _phaseNum(phase),
+            targets: [{ soundKey: key }],
+            meta: sourceType ? { sourceType } : null
+        });
+    }
 
-        const movePlaybackEventsToCardUseAnimationTarget = (predicate, propertyName) => {
-            const deferredEvents = base
-                .filter((ev) => !!ev && predicate(ev))
-                .map((ev) => _clonePlaybackEventWithPhase(ev, _phaseNum(ev && ev.phase)));
-            if (!deferredEvents.length) return false;
-            const patch = {};
-            patch[propertyName] = deferredEvents;
-            if (!tagCardUseAnimationTarget(patch)) return false;
-            for (let i = base.length - 1; i >= 0; i--) {
-                if (base[i] && predicate(base[i])) base.splice(i, 1);
-            }
-            return true;
-        };
+    function _tagCardUseAnimationPlaybackTarget(ctx, patch) {
+        const anchorIndex = ctx.base.findIndex((ev) => ev && ev.type === 'card_use_animation');
+        if (anchorIndex < 0) return false;
+        const anchor = ctx.base[anchorIndex];
+        const targets = Array.isArray(anchor.targets) ? anchor.targets.slice() : [];
+        const firstTarget = targets[0] ? Object.assign({}, targets[0]) : {};
+        targets[0] = Object.assign(firstTarget, patch || {});
+        anchor.targets = targets;
+        return true;
+    }
 
-        const bombDestroyPhases = Array.from(new Set(
-            base
-                .filter((ev) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t) => _isDestroyWithCause(t, BOMB_DESTROY_CAUSES)))
+    function _appendPlaybackEventsIntoCardUseAnimationTarget(ctx, propertyName, playbackEvents) {
+        const deferredEvents = Array.isArray(playbackEvents)
+            ? playbackEvents
+                .filter((ev) => !!ev)
+                .map((ev) => _clonePlaybackEventWithPhase(ev, _phaseNum(ev && ev.phase)))
+            : [];
+        if (!deferredEvents.length) return false;
+        const anchorIndex = ctx.base.findIndex((ev) => ev && ev.type === 'card_use_animation');
+        if (anchorIndex < 0) return false;
+        const anchor = ctx.base[anchorIndex];
+        const targets = Array.isArray(anchor.targets) ? anchor.targets.slice() : [];
+        const firstTarget = targets[0] ? Object.assign({}, targets[0]) : {};
+        const existingEvents = Array.isArray(firstTarget[propertyName])
+            ? firstTarget[propertyName]
+                .filter((ev) => !!ev)
+                .map((ev) => _clonePlaybackEventWithPhase(ev, _phaseNum(ev && ev.phase)))
+            : [];
+        firstTarget[propertyName] = existingEvents.concat(deferredEvents);
+        targets[0] = firstTarget;
+        anchor.targets = targets;
+        return true;
+    }
+
+    function _movePlaybackEventsIntoCardUseAnimationTarget(ctx, predicate, propertyName) {
+        const deferredEvents = ctx.base
+            .filter((ev) => !!ev && predicate(ev));
+        if (!deferredEvents.length) return false;
+        if (!_appendPlaybackEventsIntoCardUseAnimationTarget(ctx, propertyName, deferredEvents)) return false;
+        for (let i = ctx.base.length - 1; i >= 0; i--) {
+            if (ctx.base[i] && predicate(ctx.base[i])) ctx.base.splice(i, 1);
+        }
+        return true;
+    }
+
+    function _moveFirstPlaybackEventIntoCardUseAnimationTarget(ctx, sourceEvents, predicate, propertyName) {
+        if (!Array.isArray(sourceEvents)) return false;
+        const matchIndex = sourceEvents.findIndex((ev) => !!ev && predicate(ev));
+        if (matchIndex < 0) return false;
+        const matchedEvent = sourceEvents[matchIndex];
+        if (!_appendPlaybackEventsIntoCardUseAnimationTarget(ctx, propertyName, [matchedEvent])) return false;
+        sourceEvents.splice(matchIndex, 1);
+        return true;
+    }
+
+    function _collectUniquePhases(playbackEvents, predicate) {
+        return Array.from(new Set(
+            (Array.isArray(playbackEvents) ? playbackEvents : [])
+                .filter((ev) => predicate(ev))
                 .map((ev) => _phaseNum(ev && ev.phase))
                 .filter((phase) => phase > 0)
         )).sort((a, b) => a - b);
-        if (bombDestroyPhases.length > 0) {
-            for (const phase of bombDestroyPhases) {
-                pushCue('bomb_explode', phase, 'bomb_destroy', { allowRepeat: true });
+    }
+
+    function _pushCueForPhases(ctx, phases, soundKey, sourceType) {
+        for (const phase of phases) {
+            _pushSoundCue(ctx, soundKey, phase, sourceType, { allowRepeat: true });
+        }
+    }
+
+    function _pushRepeatedCueForMatchingTargets(ctx, events, targetPredicate, soundKey, sourceType) {
+        for (const ev of Array.isArray(events) ? events : []) {
+            const phase = _phaseNum(ev && ev.phase);
+            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
+            const hitCount = targets.filter((target) => targetPredicate(target)).length;
+            for (let i = 0; i < hitCount; i++) {
+                _pushSoundCue(ctx, soundKey, phase, sourceType, { allowRepeat: true });
             }
-        } else if (_hasRawEvent(raw, 'bombs_exploded', (ev) => !!(ev && ev.details))) {
-            pushCue('bomb_explode', fallbackPhase, 'bombs_exploded');
+        }
+    }
+
+    function _planCoreSoundCues(ctx) {
+        const bombDestroyPhases = _collectUniquePhases(
+            ctx.base,
+            (ev) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t) => _isDestroyWithCause(t, BOMB_DESTROY_CAUSES))
+        );
+        if (bombDestroyPhases.length > 0) {
+            _pushCueForPhases(ctx, bombDestroyPhases, 'bomb_explode', 'bomb_destroy');
+        } else if (_hasRawEvent(ctx.raw, 'bombs_exploded', (ev) => !!(ev && ev.details))) {
+            _pushSoundCue(ctx, 'bomb_explode', ctx.fallbackPhase, 'bombs_exploded');
         }
 
         const breedingPhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'spawn' && Array.isArray(ev.targets) && ev.targets.some((t) => {
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
                 const reason = String(t && t.reason ? t.reason : '').toLowerCase();
                 return cause === 'BREEDING' || reason.indexOf('breeding_spawn') === 0;
             }),
-            fallbackPhase
+            ctx.fallbackPhase
         );
         if (
-            _hasRawEvent(raw, 'breeding_spawned_start', (ev) => _rawDetailCount(ev) > 0) ||
-            _hasRawEvent(raw, 'breeding_spawned_immediate', (ev) => _rawDetailCount(ev) > 0)
+            _hasRawEvent(ctx.raw, 'breeding_spawned_start', (ev) => _rawDetailCount(ev) > 0) ||
+            _hasRawEvent(ctx.raw, 'breeding_spawned_immediate', (ev) => _rawDetailCount(ev) > 0)
         ) {
-            pushCue('breeding_spawn', breedingPhase, 'breeding_spawned');
+            _pushSoundCue(ctx, 'breeding_spawn', breedingPhase, 'breeding_spawned');
         }
+        _pushRepeatedCueForMatchingTargets(
+            ctx,
+            ctx.base.filter((ev) => ev && ev.type === 'spawn'),
+            (target) => _isEqualityWillSpawnEventLike(target),
+            'breeding_spawn',
+            'equality_will_spawn'
+        );
+        _pushRepeatedCueForMatchingTargets(
+            ctx,
+            ctx.base.filter((ev) => ev && ev.type === 'spawn'),
+            (target) => _isSalvationWillSpawnEventLike(target),
+            'breeding_spawn',
+            'salvation_spawn'
+        );
 
-        const hasAppliedTemptSelection = _hasRawEvent(raw, 'tempt_selected', (ev) => !!(ev && ev.applied));
-        const hasTemptSelectionEvent = _hasRawEvent(raw, 'tempt_selected');
-        const hasAppliedSwapSelection = _hasRawEvent(raw, 'swap_selected', (ev) => !!(ev && ev.swapped));
-        const hasSwapSelectionEvent = _hasRawEvent(raw, 'swap_selected');
+        const hasAppliedTemptSelection = _hasRawEvent(ctx.raw, 'tempt_selected', (ev) => !!(ev && ev.applied));
+        const hasTemptSelectionEvent = _hasRawEvent(ctx.raw, 'tempt_selected');
+        const hasAppliedSwapSelection = _hasRawEvent(ctx.raw, 'swap_selected', (ev) => !!(ev && ev.swapped));
+        const hasSwapSelectionEvent = _hasRawEvent(ctx.raw, 'swap_selected');
         const shouldIncludeCardEffectFlipTarget = (target) => {
             if (!isCardEffectFlipPresentationEvent(target)) return false;
             const reason = String(target && target.reason ? target.reason : '').toLowerCase();
@@ -1421,37 +1860,30 @@
             }
             return true;
         };
-        const cardEffectFlipPhases = Array.from(new Set(
-            base
-                .filter((ev) => ev && ev.type === 'flip' && Array.isArray(ev.targets) && ev.targets.some((t) => {
-                    return shouldIncludeCardEffectFlipTarget(t);
-                }))
-                .map((ev) => _phaseNum(ev && ev.phase))
-                .filter((phase) => phase > 0)
-        )).sort((a, b) => a - b);
+        const cardEffectFlipPhases = _collectUniquePhases(
+            ctx.base,
+            (ev) => ev && ev.type === 'flip' && Array.isArray(ev.targets) && ev.targets.some((t) => shouldIncludeCardEffectFlipTarget(t))
+        );
         if (cardEffectFlipPhases.length > 0) {
-            for (const phase of cardEffectFlipPhases) {
-                pushCue(CARD_EFFECT_FLIP_SOUND_KEY, phase, 'card_effect_flip', { allowRepeat: true });
-            }
+            _pushCueForPhases(ctx, cardEffectFlipPhases, CARD_EFFECT_FLIP_SOUND_KEY, 'card_effect_flip');
         } else {
-            const cardEffectFlipFallbackCount = _countCardEffectFlipFallbackEvents(raw);
+            const cardEffectFlipFallbackCount = _countCardEffectFlipFallbackEvents(ctx.raw);
             for (let i = 0; i < cardEffectFlipFallbackCount; i++) {
-                pushCue(CARD_EFFECT_FLIP_SOUND_KEY, fallbackPhase + i, 'card_effect_flip', { allowRepeat: true });
+                _pushSoundCue(ctx, CARD_EFFECT_FLIP_SOUND_KEY, ctx.fallbackPhase + i, 'card_effect_flip', { allowRepeat: true });
             }
         }
 
-        const ultimateAnchorMoveEvents = base.filter((ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => _isUltimateAnchorMoveTarget(t)));
+        const ultimateAnchorMoveEvents = ctx.base.filter((ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => _isUltimateAnchorMoveTarget(t)));
         if (ultimateAnchorMoveEvents.length > 0) {
-            for (const moveEv of ultimateAnchorMoveEvents) {
-                const phase = _phaseNum(moveEv && moveEv.phase);
-                const targets = Array.isArray(moveEv.targets) ? moveEv.targets : [];
-                const moveCount = targets.filter((t) => _isUltimateAnchorMoveTarget(t)).length;
-                for (let i = 0; i < moveCount; i++) {
-                    pushCue(ULTIMATE_ANCHOR_MOVE_SOUND_KEY, phase, 'ultimate_anchor_moved', { allowRepeat: true });
-                }
-            }
+            _pushRepeatedCueForMatchingTargets(
+                ctx,
+                ultimateAnchorMoveEvents,
+                (target) => _isUltimateAnchorMoveTarget(target),
+                ULTIMATE_ANCHOR_MOVE_SOUND_KEY,
+                'ultimate_anchor_moved'
+            );
         } else {
-            const fallbackMoveCount = raw.reduce((sum, ev) => {
+            const fallbackMoveCount = ctx.raw.reduce((sum, ev) => {
                 if (!ev || !ev.type) return sum;
                 if (
                     ev.type !== 'dragon_moved_start' &&
@@ -1464,22 +1896,21 @@
                 return sum + _rawDetailCount(ev);
             }, 0);
             for (let i = 0; i < fallbackMoveCount; i++) {
-                pushCue(ULTIMATE_ANCHOR_MOVE_SOUND_KEY, fallbackPhase + i, 'ultimate_anchor_moved', { allowRepeat: true });
+                _pushSoundCue(ctx, ULTIMATE_ANCHOR_MOVE_SOUND_KEY, ctx.fallbackPhase + i, 'ultimate_anchor_moved', { allowRepeat: true });
             }
         }
 
-        const hyperactiveMoveEvents = base.filter((ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => _isHyperactiveMoveTarget(t)));
+        const hyperactiveMoveEvents = ctx.base.filter((ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => _isHyperactiveMoveTarget(t)));
         if (hyperactiveMoveEvents.length > 0) {
-            for (const moveEv of hyperactiveMoveEvents) {
-                const phase = _phaseNum(moveEv && moveEv.phase);
-                const targets = Array.isArray(moveEv.targets) ? moveEv.targets : [];
-                const moveCount = targets.filter((t) => _isHyperactiveMoveTarget(t)).length;
-                for (let i = 0; i < moveCount; i++) {
-                    pushCue('hyperactive_move', phase, 'hyperactive_moved', { allowRepeat: true });
-                }
-            }
+            _pushRepeatedCueForMatchingTargets(
+                ctx,
+                hyperactiveMoveEvents,
+                (target) => _isHyperactiveMoveTarget(target),
+                'hyperactive_move',
+                'hyperactive_moved'
+            );
         } else {
-            const fallbackMoveCount = raw.reduce((sum, ev) => {
+            const fallbackMoveCount = ctx.raw.reduce((sum, ev) => {
                 if (!ev || !ev.type) return sum;
                 if (
                     ev.type !== 'hyperactive_moved_start' &&
@@ -1492,331 +1923,337 @@
                 return sum + _rawDetailCount(ev);
             }, 0);
             for (let i = 0; i < fallbackMoveCount; i++) {
-                pushCue('hyperactive_move', fallbackPhase + i, 'hyperactive_moved', { allowRepeat: true });
+                _pushSoundCue(ctx, 'hyperactive_move', ctx.fallbackPhase + i, 'hyperactive_moved', { allowRepeat: true });
             }
         }
 
-        const specialExpiredPhase = _findPhase(base, _isSpecialDurationExpiredDestroyEvent, fallbackPhase);
-        if (base.some(_isSpecialDurationExpiredDestroyEvent)) {
-            pushCue('special_expired', specialExpiredPhase, 'special_expired');
+        const specialRevertedPhase = _findPhase(ctx.base, _isSpecialDurationExpiredPlaybackEvent, ctx.fallbackPhase);
+        if (ctx.base.some(_isSpecialDurationExpiredPlaybackEvent)) {
+            _pushSoundCue(ctx, 'special_reverted', specialRevertedPhase, 'special_reverted');
         }
+    }
 
+    function _planSelectionSoundCues(ctx) {
         const trapSelectPhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'TRAP',
-            fallbackPhase
+            ctx.fallbackPhase
         );
         const timeBombSelectPhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'TIME_BOMB',
-            fallbackPhase
+            ctx.fallbackPhase
         );
-        if (_hasRawEvent(raw, 'trap_selected', (ev) => !!(ev && ev.applied))) {
-            pushCue('trap_select', trapSelectPhase, 'trap_selected');
+        if (_hasRawEvent(ctx.raw, 'trap_selected', (ev) => !!(ev && ev.applied))) {
+            _pushSoundCue(ctx, 'trap_select', trapSelectPhase, 'trap_selected');
         }
-        if (_hasRawEvent(raw, 'time_bomb_selected', (ev) => !!(ev && ev.applied))) {
-            pushCue('trap_select', timeBombSelectPhase, 'time_bomb_selected');
+        if (_hasRawEvent(ctx.raw, 'time_bomb_selected', (ev) => !!(ev && ev.applied))) {
+            _pushSoundCue(ctx, 'trap_select', timeBombSelectPhase, 'time_bomb_selected');
         }
 
         const guardSelectPhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'GUARD',
-            fallbackPhase
+            ctx.fallbackPhase
         );
-        if (_hasRawEvent(raw, 'guard_selected', (ev) => !!(ev && ev.applied))) {
-            pushCue('guard_select', guardSelectPhase, 'guard_selected');
+        if (_hasRawEvent(ctx.raw, 'guard_selected', (ev) => !!(ev && ev.applied))) {
+            _pushSoundCue(ctx, 'guard_select', guardSelectPhase, 'guard_selected');
         }
 
         const freezeSelectPhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'FREEZE',
-            fallbackPhase
+            ctx.fallbackPhase
         );
-        if (_hasRawEvent(raw, 'freeze_selected', (ev) => !!(ev && ev.applied))) {
-            pushCue('freeze_select', freezeSelectPhase, 'freeze_selected');
+        if (_hasRawEvent(ctx.raw, 'freeze_selected', (ev) => !!(ev && ev.applied))) {
+            _pushSoundCue(ctx, 'freeze_select', freezeSelectPhase, 'freeze_selected');
         }
 
-        const trapTriggeredEvent = raw.find((ev) => ev && ev.type === 'trap_triggered' && _rawDetailCount(ev) > 0);
+        const trapTriggeredEvent = ctx.raw.find((ev) => ev && ev.type === 'trap_triggered' && _rawDetailCount(ev) > 0);
         const trapTriggeredDetail = trapTriggeredEvent && Array.isArray(trapTriggeredEvent.details)
             ? trapTriggeredEvent.details[0]
             : null;
         const trapTriggeredPhase = (trapTriggeredDetail && Number.isInteger(trapTriggeredDetail.row) && Number.isInteger(trapTriggeredDetail.col))
             ? _findPhase(
-                base,
+                ctx.base,
                 (ev) => ev && ev.type === 'flip' && Array.isArray(ev.targets) && ev.targets.some((t) => t && t.r === trapTriggeredDetail.row && t.col === trapTriggeredDetail.col),
-                fallbackPhase
+                ctx.fallbackPhase
             )
-            : fallbackPhase;
+            : ctx.fallbackPhase;
         if (trapTriggeredEvent) {
-            pushCue('trap_triggered', trapTriggeredPhase, 'trap_triggered');
+            _pushSoundCue(ctx, 'trap_triggered', trapTriggeredPhase, 'trap_triggered');
         }
 
         const strongWindPhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => {
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
                 const reason = String(t && t.reason ? t.reason : '').toLowerCase();
                 return cause === 'STRONG_WIND_WILL' || reason.indexOf('strong_wind_move') === 0;
             }),
-            fallbackPhase
+            ctx.fallbackPhase
         );
-        if (_hasRawEvent(raw, 'strong_wind_selected', (ev) => !!(ev && ev.applied))) {
-            pushCue('strong_wind_move', strongWindPhase, 'strong_wind_selected');
+        if (_hasRawEvent(ctx.raw, 'strong_wind_selected', (ev) => !!(ev && ev.applied))) {
+            _pushSoundCue(ctx, 'strong_wind_move', strongWindPhase, 'strong_wind_selected');
         }
 
         const superBuoyancyPhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => {
                 if (!_isSuperCrushMoveTarget(t)) return false;
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
                 return cause === 'SUPER_BUOYANCY_WILL';
             }),
-            fallbackPhase
+            ctx.fallbackPhase
         );
-        if (_hasRawEvent(raw, 'super_buoyancy_selected', (ev) => !!(ev && ev.applied))) {
-            pushCue('super_buoyancy_move', superBuoyancyPhase, 'super_buoyancy_selected');
+        if (_hasRawEvent(ctx.raw, 'super_buoyancy_selected', (ev) => !!(ev && ev.applied))) {
+            _pushSoundCue(ctx, 'super_buoyancy_move', superBuoyancyPhase, 'super_buoyancy_selected');
         }
 
         const superGravityPhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => {
                 if (!_isSuperCrushMoveTarget(t)) return false;
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
                 return cause === 'SUPER_GRAVITY_WILL';
             }),
-            fallbackPhase
+            ctx.fallbackPhase
         );
-        if (_hasRawEvent(raw, 'super_gravity_selected', (ev) => !!(ev && ev.applied))) {
-            pushCue('super_gravity_move', superGravityPhase, 'super_gravity_selected');
+        if (_hasRawEvent(ctx.raw, 'super_gravity_selected', (ev) => !!(ev && ev.applied))) {
+            _pushSoundCue(ctx, 'super_gravity_move', superGravityPhase, 'super_gravity_selected');
         }
 
         const teleportPhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => {
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
                 const reason = String(t && t.reason ? t.reason : '').toLowerCase();
                 return cause === 'TELEPORT_WILL' || reason.indexOf('teleport_move') === 0;
             }),
-            fallbackPhase
+            ctx.fallbackPhase
         );
-        if (_hasRawEvent(raw, 'teleport_selected', (ev) => !!(ev && ev.applied))) {
-            pushCue('teleport_select', teleportPhase, 'teleport_selected');
+        if (_hasRawEvent(ctx.raw, 'teleport_selected', (ev) => !!(ev && ev.applied))) {
+            _pushSoundCue(ctx, 'teleport_select', teleportPhase, 'teleport_selected');
         }
 
         const trapMisfirePhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t) => {
                 const reason = String(t && t.reason ? t.reason : '').toLowerCase();
                 return reason.indexOf('trap_disarmed') >= 0 || reason.indexOf('trap_expired') >= 0;
             }),
-            fallbackPhase
+            ctx.fallbackPhase
         );
         if (
-            _hasRawEvent(raw, 'trap_disarmed', (ev) => _rawDetailCount(ev) > 0) ||
-            _hasRawEvent(raw, 'trap_expired', (ev) => _rawDetailCount(ev) > 0)
+            _hasRawEvent(ctx.raw, 'trap_disarmed', (ev) => _rawDetailCount(ev) > 0) ||
+            _hasRawEvent(ctx.raw, 'trap_expired', (ev) => _rawDetailCount(ev) > 0)
         ) {
-            pushCue('trap_misfire', trapMisfirePhase, 'trap_misfire');
+            _pushSoundCue(ctx, 'trap_misfire', trapMisfirePhase, 'trap_misfire');
         }
 
         const clonePhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => {
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-                return !!(t && t.clone === true) || cause === 'CLONE_WILL' || cause === 'SPLIT_WILL';
+                return !!(t && t.clone === true) || cause === 'CLONE_WILL' || cause === 'SPLIT_WILL' || cause === 'PROLIFERATION_WILL';
             }),
-            fallbackPhase
+            ctx.fallbackPhase
         );
         if (
-            _hasRawEvent(raw, 'clone_selected', (ev) => !!(ev && ev.applied)) ||
-            _hasRawEvent(raw, 'split_selected', (ev) => !!(ev && ev.applied))
+            _hasRawEvent(ctx.raw, 'clone_selected', (ev) => !!(ev && ev.applied)) ||
+            _hasRawEvent(ctx.raw, 'split_selected', (ev) => !!(ev && ev.applied)) ||
+            ctx.pres.some((ev) => (
+                ev &&
+                ev.type === 'SPAWN' &&
+                String(ev.cause || '').toUpperCase() === 'PROLIFERATION_WILL' &&
+                String(ev.reason || '').toLowerCase().indexOf('proliferation_spawn') === 0
+            ))
         ) {
-            pushCue('clone_spawn', clonePhase, 'clone_selected');
+            _pushSoundCue(ctx, 'clone_spawn', clonePhase, 'clone_selected');
         }
 
         const extendLifePhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() !== 'TRAP',
-            fallbackPhase
+            ctx.fallbackPhase
         );
-        if (_hasRawEvent(raw, 'extend_life_selected', (ev) => !!(ev && ev.applied))) {
-            pushCue('extend_life', extendLifePhase, 'extend_life_selected');
+        if (_hasRawEvent(ctx.raw, 'extend_life_selected', (ev) => !!(ev && ev.applied))) {
+            _pushSoundCue(ctx, 'extend_life', extendLifePhase, 'extend_life_selected');
         }
 
         const corrosionPhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'card_use_animation',
-            fallbackPhase
+            ctx.fallbackPhase
         );
-        if (_hasRawEvent(raw, 'corrosion_will_resolved', (ev) => Number(ev && ev.affectedCount) > 0)) {
-            pushCue('corrosion_tick', corrosionPhase, 'corrosion_will_resolved');
+        if (_hasRawEvent(ctx.raw, 'corrosion_will_resolved', (ev) => Number(ev && ev.affectedCount) > 0)) {
+            _pushSoundCue(ctx, 'corrosion_tick', corrosionPhase, 'corrosion_will_resolved');
         }
 
         const temptPhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'flip' && Array.isArray(ev.targets) && ev.targets.some((t) => {
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
                 const reason = String(t && t.reason ? t.reason : '').toLowerCase();
                 return cause === 'TEMPT_WILL' || reason.indexOf('tempt_applied') === 0;
             }),
-            fallbackPhase
+            ctx.fallbackPhase
         );
-        if (_hasRawEvent(raw, 'tempt_selected', (ev) => !!(ev && ev.applied))) {
-            pushCue('tempt_select', temptPhase, 'tempt_selected');
+        if (_hasRawEvent(ctx.raw, 'tempt_selected', (ev) => !!(ev && ev.applied))) {
+            _pushSoundCue(ctx, 'tempt_select', temptPhase, 'tempt_selected');
         }
+    }
 
+    function _planCardAndEconomySoundCues(ctx) {
         const cardUseAnimationPhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'card_use_animation',
             0
         );
-        const postCardUsePhase = cardUseAnimationPhase > 0 ? (cardUseAnimationPhase + 1) : fallbackPhase;
-        const hasCardUse = pres.some((ev) => {
-            if (!ev || ev.type !== 'CARD_USED') return false;
-            return true;
-        });
+        const postCardUsePhase = cardUseAnimationPhase > 0 ? (cardUseAnimationPhase + 1) : ctx.fallbackPhase;
+        const hasCardUse = ctx.pres.some((ev) => !!ev && ev.type === 'CARD_USED');
         if (hasCardUse && cardUseAnimationPhase > 0) {
-            pushCue('card_use_button', cardUseAnimationPhase, 'card_used');
+            _pushSoundCue(ctx, 'card_use_button', cardUseAnimationPhase, 'card_used');
         }
-        const hasTreasureGain = _hasRawEvent(raw, 'treasure_box_gain', (ev) => Number(ev && ev.gained) > 0);
+        const hasTreasureGain = _hasRawEvent(ctx.raw, 'treasure_box_gain', (ev) => Number(ev && ev.gained) > 0);
         if (hasTreasureGain) {
-            pushCue('treasure_gain', postCardUsePhase, 'treasure_box_gain');
+            _pushSoundCue(ctx, 'treasure_gain', postCardUsePhase, 'treasure_box_gain');
         }
 
-        if (_hasRawEvent(raw, 'loss_will_resolved', (ev) => Number(ev && ev.removedCount) > 0)) {
-            tagCardUseAnimationTarget({ disappearSoundKey: 'loss_will_reset' });
-            movePlaybackEventsToCardUseAnimationTarget(
+        const roundBonusBannerPhase = _findPhase(
+            ctx.base,
+            (ev) => ev && ev.type === 'round_bonus_banner',
+            ctx.fallbackPhase
+        );
+        const hasRoundBonusBanner = ctx.pres.some((ev) => (
+            ev &&
+            ev.type === 'ROUND_BONUS_BANNER' &&
+            Number(ev.amount) > 0
+        ));
+        if (hasRoundBonusBanner) {
+            _pushSoundCue(ctx, 'round_bonus', roundBonusBannerPhase, 'round_bonus');
+        }
+
+        if (_hasRawEvent(ctx.raw, 'loss_will_resolved', (ev) => Number(ev && ev.removedCount) > 0)) {
+            _tagCardUseAnimationPlaybackTarget(ctx, { disappearSoundKey: 'loss_will_reset' });
+            _movePlaybackEventsIntoCardUseAnimationTarget(
+                ctx,
                 (ev) => ev && ev.type === 'status_removed' && ev.meta && ev.meta.reason === 'loss_will_reset',
                 'disappearPlaybackEvents'
             );
         }
+        if (_hasRawEvent(ctx.raw, 'equality_will_resolved', (ev) => Number(ev && ev.spawnedCount) > 0)) {
+            const movedEqualitySpawn = _moveFirstPlaybackEventIntoCardUseAnimationTarget(
+                ctx,
+                ctx.base,
+                (ev) => ev && ev.type === 'spawn' && Array.isArray(ev.targets) && ev.targets.some((target) => _isEqualityWillSpawnEventLike(target)),
+                'disappearPlaybackEvents'
+            );
+            if (movedEqualitySpawn) {
+                _moveFirstPlaybackEventIntoCardUseAnimationTarget(
+                    ctx,
+                    ctx.added,
+                    (ev) => ev &&
+                        ev.type === SOUND_EVENT_TYPE &&
+                        ev.meta &&
+                        ev.meta.sourceType === 'equality_will_spawn' &&
+                        Array.isArray(ev.targets) &&
+                        ev.targets.some((target) => String(target && target.soundKey ? target.soundKey : '').trim() === 'breeding_spawn'),
+                    'disappearPlaybackEvents'
+                );
+            }
+        }
+        if (_hasRawEvent(ctx.raw, 'salvation_will_resolved', (ev) => Number(ev && ev.spawnedCount) > 0)) {
+            const movedSalvationSpawn = _moveFirstPlaybackEventIntoCardUseAnimationTarget(
+                ctx,
+                ctx.base,
+                (ev) => ev && ev.type === 'spawn' && Array.isArray(ev.targets) && ev.targets.some((target) => _isSalvationWillSpawnEventLike(target)),
+                'disappearPlaybackEvents'
+            );
+            if (movedSalvationSpawn) {
+                _moveFirstPlaybackEventIntoCardUseAnimationTarget(
+                    ctx,
+                    ctx.added,
+                    (ev) => ev &&
+                        ev.type === SOUND_EVENT_TYPE &&
+                        ev.meta &&
+                        ev.meta.sourceType === 'salvation_spawn' &&
+                        Array.isArray(ev.targets) &&
+                        ev.targets.some((target) => String(target && target.soundKey ? target.soundKey : '').trim() === 'breeding_spawn'),
+                    'disappearPlaybackEvents'
+                );
+            }
+        }
 
         const strongWillPromotedPhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'status_applied' && ev.meta && ev.meta.reason === 'strong_will_promoted',
-            fallbackPhase
+            ctx.fallbackPhase
         );
-        const hasStrongWillPromotion = pres.some((ev) => (
+        const hasStrongWillPromotion = ctx.pres.some((ev) => (
             ev &&
             ev.type === 'STATUS_APPLIED' &&
             String(ev.reason || (ev.meta && ev.meta.reason) || '').toLowerCase() === 'strong_will_promoted'
         ));
         if (hasStrongWillPromotion) {
-            pushCue('strong_will_promoted', strongWillPromotedPhase, 'strong_will_promoted');
+            _pushSoundCue(ctx, 'strong_will_promoted', strongWillPromotedPhase, 'strong_will_promoted');
         }
 
         const condemnPhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.type === 'card_use_animation',
-            fallbackPhase
+            ctx.fallbackPhase
         );
-        if (_hasRawEvent(raw, 'condemn_selected', (ev) => !!(ev && ev.applied && ev.destroyedCardId))) {
-            pushCue('stone_destroy', condemnPhase, 'condemn_selected');
+        if (_hasRawEvent(ctx.raw, 'condemn_selected', (ev) => !!(ev && ev.applied && ev.destroyedCardId))) {
+            _pushSoundCue(ctx, 'stone_destroy', condemnPhase, 'condemn_selected');
         }
 
         const sellPhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && (ev.type === 'hand_remove' || ev.type === 'card_use_animation'),
-            fallbackPhase
+            ctx.fallbackPhase
         );
-        if (_hasRawEvent(raw, 'sell_selected', (ev) => !!(ev && ev.applied && Number(ev.gained) > 0))) {
-            pushCue('charge_gain_common', sellPhase, 'sell_selected');
+        if (_hasRawEvent(ctx.raw, 'sell_selected', (ev) => !!(ev && ev.applied && Number(ev.gained) > 0))) {
+            _pushSoundCue(ctx, 'charge_gain_common', sellPhase, 'sell_selected');
         }
 
         const workIncomePhase = _findPhase(
-            base,
+            ctx.base,
             (ev) => ev && ev.rawType === 'WORK_INCOME',
             _findPhase(
-                base,
+                ctx.base,
                 (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'WORK',
-                fallbackPhase
+                ctx.fallbackPhase
             )
         );
-        const hasWorkIncome16 = pres.some((ev) => ev && ev.type === 'WORK_INCOME' && Number(ev.gained) === 16);
-        const hasWorkIncome = pres.some((ev) => ev && ev.type === 'WORK_INCOME' && Number(ev.gained) > 0);
+        const hasWorkIncome16 = ctx.pres.some((ev) => ev && ev.type === 'WORK_INCOME' && Number(ev.gained) === 16);
+        const hasWorkIncome = ctx.pres.some((ev) => ev && ev.type === 'WORK_INCOME' && Number(ev.gained) > 0);
         if (hasWorkIncome16) {
-            pushCue('work_income_16', workIncomePhase, 'work_income');
+            _pushSoundCue(ctx, 'work_income_16', workIncomePhase, 'work_income');
         } else if (hasWorkIncome && !hasTreasureGain) {
-            pushCue('charge_gain_common', workIncomePhase, 'work_income');
+            _pushSoundCue(ctx, 'charge_gain_common', workIncomePhase, 'work_income');
         }
 
-        const workRemovedEvents = pres.filter((ev) => _isWorkFlipOrDestroyRemovedPresentationEvent(ev));
+        const workRemovedEvents = ctx.pres.filter((ev) => _isWorkFlipOrDestroyRemovedPresentationEvent(ev));
         if (workRemovedEvents.length > 0) {
-            const workRemovedPlaybackEvents = base.filter((ev) => ev && ev.rawType === 'WORK_REMOVED');
+            const workRemovedPlaybackEvents = ctx.base.filter((ev) => ev && ev.rawType === 'WORK_REMOVED');
             const workRemovedFallbackPhase = _findPhase(
-                base,
+                ctx.base,
                 (ev) => ev && ev.rawType === 'WORK_REMOVED',
-                fallbackPhase
+                ctx.fallbackPhase
             );
             for (let i = 0; i < workRemovedEvents.length; i++) {
                 const playbackEv = workRemovedPlaybackEvents[i];
                 const phase = playbackEv ? _phaseNum(playbackEv.phase) : workRemovedFallbackPhase;
-                pushCue('work_removed', phase, 'work_removed', { allowRepeat: true });
+                _pushSoundCue(ctx, 'work_removed', phase, 'work_removed', { allowRepeat: true });
             }
         }
+    }
 
-        const sniperDestroyEvents = base.filter((ev) => (
-            ev &&
-            ev.type === 'destroy' &&
-            Array.isArray(ev.targets) &&
-            ev.targets.some((t) => _isSniperShotDestroyTarget(t))
-        ));
-        if (sniperDestroyEvents.length > 0) {
-            for (const sniperEv of sniperDestroyEvents) {
-                const phase = _phaseNum(sniperEv && sniperEv.phase);
-                const targets = Array.isArray(sniperEv.targets) ? sniperEv.targets : [];
-                const shotCount = targets.filter((t) => _isSniperShotDestroyTarget(t)).length;
-                for (let i = 0; i < shotCount; i++) {
-                    pushCue('stone_destroy', phase, 'sniper_shot', { allowRepeat: true });
-                }
-            }
-        }
-
-        const lightningDestroyEvents = base.filter((ev) => (
-            ev &&
-            ev.type === 'destroy' &&
-            Array.isArray(ev.targets) &&
-            ev.targets.some((t) => _isLightningDestroyTarget(t))
-        ));
-        if (lightningDestroyEvents.length > 0) {
-            for (const lightningEv of lightningDestroyEvents) {
-                const phase = _phaseNum(lightningEv && lightningEv.phase);
-                const targets = Array.isArray(lightningEv.targets) ? lightningEv.targets : [];
-                const hitCount = targets.filter((t) => _isLightningDestroyTarget(t)).length;
-                for (let i = 0; i < hitCount; i++) {
-                    pushCue('stone_destroy', phase, 'lightning_destroyed', { allowRepeat: true });
-                }
-            }
-        }
-
-        const robotVacuumSuckPhases = Array.from(new Set(
-            base
-                .filter((ev) => (
-                    ev &&
-                    ev.type === 'destroy' &&
-                    Array.isArray(ev.targets) &&
-                    ev.targets.some((t) => _isRobotVacuumSuckDestroyTarget(t))
-                ))
-                .map((ev) => _phaseNum(ev && ev.phase))
-                .filter((phase) => phase > 0)
-        )).sort((a, b) => a - b);
-        for (const phase of robotVacuumSuckPhases) {
-            pushCue('robot_vacuum_suck', phase, 'robot_vacuum_suck', { allowRepeat: true });
-        }
-
-        const goldSilverSelfDestroyPhases = Array.from(new Set(
-            base
-                .filter((ev) => _isGoldSilverSelfDestroyEvent(ev))
-                .map((ev) => _phaseNum(ev && ev.phase))
-                .filter((phase) => phase > 0)
-        )).sort((a, b) => a - b);
-        for (const phase of goldSilverSelfDestroyPhases) {
-            pushCue('charge_gain_common', phase, 'gold_silver_self_destroy', { allowRepeat: true });
-        }
-
-        const isGenericDestroyEvent = (ev) => {
-            if (!ev || ev.type !== 'destroy' || !Array.isArray(ev.targets)) return false;
-            if (_isSpecialDurationExpiredDestroyEvent(ev)) return false;
-            return ev.targets.some((t) => {
+    function _isGenericDestroyPlaybackEvent(ev) {
+        if (!ev || ev.type !== 'destroy' || !Array.isArray(ev.targets)) return false;
+        if (_isSpecialDurationExpiredPlaybackEvent(ev)) return false;
+        return ev.targets.some((t) => {
             const cause = String(t && t.cause ? t.cause : '').toUpperCase();
             const reason = String(t && t.reason ? t.reason : '').toLowerCase();
             if (BOMB_DESTROY_CAUSES.has(cause)) return false;
@@ -1827,15 +2264,54 @@
             if (_isSpecialDurationExpiredDestroyTarget(t)) return false;
             if (cause === 'TRAP_WILL' && (reason.indexOf('trap_expired') >= 0 || reason.indexOf('trap_disarmed') >= 0)) return false;
             return true;
-            });
-        };
-        if (base.some(isGenericDestroyEvent)) {
-            const genericDestroyPhase = _findPhase(base, isGenericDestroyEvent, fallbackPhase);
-            pushCue('stone_destroy', genericDestroyPhase, 'destroy');
+        });
+    }
+
+    function _planDestroySoundCues(ctx) {
+        const sniperDestroyEvents = ctx.base.filter((ev) => (
+            ev &&
+            ev.type === 'destroy' &&
+            Array.isArray(ev.targets) &&
+            ev.targets.some((t) => _isSniperShotDestroyTarget(t))
+        ));
+        if (sniperDestroyEvents.length > 0) {
+            _pushRepeatedCueForMatchingTargets(ctx, sniperDestroyEvents, (target) => _isSniperShotDestroyTarget(target), 'stone_destroy', 'sniper_shot');
         }
 
-        added.sort((a, b) => _phaseNum(a.phase) - _phaseNum(b.phase));
-        return base.concat(added);
+        const lightningDestroyEvents = ctx.base.filter((ev) => (
+            ev &&
+            ev.type === 'destroy' &&
+            Array.isArray(ev.targets) &&
+            ev.targets.some((t) => _isLightningDestroyTarget(t))
+        ));
+        if (lightningDestroyEvents.length > 0) {
+            _pushRepeatedCueForMatchingTargets(ctx, lightningDestroyEvents, (target) => _isLightningDestroyTarget(target), 'stone_destroy', 'lightning_destroyed');
+        }
+
+        const robotVacuumSuckPhases = _collectUniquePhases(
+            ctx.base,
+            (ev) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t) => _isRobotVacuumSuckDestroyTarget(t))
+        );
+        _pushCueForPhases(ctx, robotVacuumSuckPhases, 'robot_vacuum_suck', 'robot_vacuum_suck');
+
+        const goldSilverSelfDestroyPhases = _collectUniquePhases(ctx.base, (ev) => _isGoldSilverSelfDestroyEvent(ev));
+        _pushCueForPhases(ctx, goldSilverSelfDestroyPhases, 'charge_gain_common', 'gold_silver_self_destroy');
+
+        if (ctx.base.some(_isGenericDestroyPlaybackEvent)) {
+            const genericDestroyPhase = _findPhase(ctx.base, _isGenericDestroyPlaybackEvent, ctx.fallbackPhase);
+            _pushSoundCue(ctx, 'stone_destroy', genericDestroyPhase, 'destroy');
+        }
+    }
+
+    function appendSoundEffectPlaybackEvents(playbackEvents, rawEvents, presentationEvents) {
+        const ctx = _createSoundCuePlanningContext(playbackEvents, rawEvents, presentationEvents);
+        if (!ctx.raw.length && !ctx.base.length) return ctx.base;
+        _planCoreSoundCues(ctx);
+        _planSelectionSoundCues(ctx);
+        _planCardAndEconomySoundCues(ctx);
+        _planDestroySoundCues(ctx);
+        ctx.added.sort((a, b) => _phaseNum(a.phase) - _phaseNum(b.phase));
+        return ctx.base.concat(ctx.added);
     }
 
     function _playerLabel(playerKey) {
@@ -1854,6 +2330,10 @@
     }
 
     function _specialLabelJa(rawSpecial) {
+        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneDisplayName === 'function') {
+            const displayName = SpecialStoneRegistry.getSpecialStoneDisplayName(rawSpecial, null);
+            if (displayName) return displayName;
+        }
         const s = String(rawSpecial || '').toUpperCase();
         if (s === 'BREEDING') return '繁殖石';
         if (s === 'TIME_BOMB') return '時限爆弾';
@@ -1895,6 +2375,7 @@
         const details = (ev && Array.isArray(ev.details)) ? ev.details : null;
         const first = details && details[0] ? details[0] : null;
         const markerType = String(first && (first.specialType || first.type) ? (first.specialType || first.type) : '').toUpperCase();
+        if (markerType === 'INHERITED_HYPERACTIVE') return '継承多動石';
         if (markerType === 'EXTREME_HYPERACTIVE') return '極悪多動魔';
         if (markerType === 'ESCAPE_HYPERACTIVE') return '逃亡石';
         if (markerType === 'GLUTTONOUS') return '悪食石';
@@ -1903,6 +2384,33 @@
 
     function _pushCountLog(logs, ev, label, suffix) {
         logs.push(`${label}${_detailCount(ev)}${suffix}`);
+    }
+
+    function _countMatchingDetails(ev, predicate) {
+        const details = (ev && Array.isArray(ev.details)) ? ev.details : [];
+        return details.reduce((sum, detail) => sum + (predicate(detail) ? 1 : 0), 0);
+    }
+
+    function _isDurationEndRevertDetail(detail) {
+        const reason = String(detail && detail.reason ? detail.reason : '').toLowerCase();
+        return !!(detail && detail.reverted === true) || reason === 'duration_end' || reason === 'anchor_expired';
+    }
+
+    function _pushSplitDestroyedVsRevertedLog(push, ev, label, destroyedWord = '消滅') {
+        const revertedCount = _countMatchingDetails(ev, _isDurationEndRevertDetail);
+        const totalCount = _detailCount(ev);
+        const destroyedCount = Math.max(0, totalCount - revertedCount);
+        if (destroyedCount > 0) push(`${label}${destroyedCount}個が${destroyedWord}`);
+        if (revertedCount > 0) push(`${label}${revertedCount}個が通常石に戻る`);
+    }
+
+    function _observerExpiredLogText(ev) {
+        const durationCount = _countMatchingDetails(ev, (detail) => String(detail && detail.reason ? detail.reason : '').toLowerCase() === 'duration_end');
+        const lostCount = _countMatchingDetails(ev, (detail) => String(detail && detail.reason ? detail.reason : '').toLowerCase() === 'anchor_lost');
+        const totalCount = _detailCount(ev);
+        if (durationCount > 0 && lostCount === 0) return `盤理の観測者: 親石${durationCount}個が通常石に戻る`;
+        if (lostCount > 0 && durationCount === 0 && lostCount === totalCount) return `盤理の観測者: 親石${lostCount}個が失われて効果終了`;
+        return `盤理の観測者: 親石${totalCount}個の効果が終了`;
     }
 
     function _formatCrystalStonePlacementLog(effects) {
@@ -1976,7 +2484,7 @@
                     break;
                 case 'dragon_destroyed_anchor_start':
                 case 'dragon_destroyed_anchor_immediate':
-                    push(`究極反転龍: 親石${_detailCount(ev)}個が消滅`);
+                    push(`究極反転龍: 親石${_detailCount(ev)}個が通常石に戻る`);
                     break;
                 case 'breeding_spawned_start':
                 case 'breeding_spawned_immediate':
@@ -1987,7 +2495,7 @@
                     push(`繁殖石: ${_detailCount(ev)}枚を反転`);
                     break;
                 case 'breeding_destroyed_anchor_start':
-                    push(`繁殖石: 親石${_detailCount(ev)}個が消滅`);
+                    push(`繁殖石: 親石${_detailCount(ev)}個が通常石に戻る`);
                     break;
                 case 'hyperactive_moved_start':
                 case 'hyperactive_moved_immediate':
@@ -1995,7 +2503,7 @@
                     break;
                 case 'hyperactive_destroyed_start':
                 case 'hyperactive_destroyed_immediate':
-                    push(`${_hyperactiveLabel(ev, '多動石')}: ${_detailCount(ev)}個が消滅`);
+                    _pushSplitDestroyedVsRevertedLog(push, ev, `${_hyperactiveLabel(ev, '多動石')}: `);
                     break;
                 case 'hyperactive_flipped_start':
                 case 'hyperactive_flipped_immediate':
@@ -2017,6 +2525,9 @@
                 case 'robot_vacuum_destroyed_immediate':
                     push(`ロボット掃除機石: ${_detailCount(ev)}個が消滅`);
                     break;
+                case 'robot_vacuum_expired_start':
+                    push(`ロボット掃除機石: ${_detailCount(ev)}個が通常石に戻る`);
+                    break;
                 case 'robot_vacuum_flipped_start':
                 case 'robot_vacuum_flipped_immediate':
                     push(`ロボット掃除機石: ${_detailCount(ev)}枚を反転`);
@@ -2027,7 +2538,7 @@
                     break;
                 case 'ultimate_hyperactive_destroyed_start':
                 case 'ultimate_hyperactive_destroyed_immediate':
-                    push(`究極多動神: ${_detailCount(ev)}個が消滅`);
+                    _pushSplitDestroyedVsRevertedLog(push, ev, '究極多動神: ');
                     break;
                 case 'ultimate_hyperactive_flipped_start':
                 case 'ultimate_hyperactive_flipped_immediate':
@@ -2051,7 +2562,7 @@
                     break;
                 case 'udg_expired_start':
                 case 'udg_expired_immediate':
-                    push(`究極破壊神: 親石${_detailCount(ev)}個が消滅`);
+                    push(`究極破壊神: 親石${_detailCount(ev)}個が通常石に戻る`);
                     break;
                 case 'destroy_dragon_destroyed_start':
                 case 'destroy_dragon_destroyed_immediate':
@@ -2059,7 +2570,7 @@
                     break;
                 case 'destroy_dragon_expired_start':
                 case 'destroy_dragon_expired_immediate':
-                    push(`破壊龍: 親石${_detailCount(ev)}個が消滅`);
+                    push(`破壊龍: 親石${_detailCount(ev)}個が通常石に戻る`);
                     break;
                 case 'sniper_destroyed_start':
                 case 'sniper_destroyed_immediate':
@@ -2067,7 +2578,7 @@
                     break;
                 case 'sniper_expired_start':
                 case 'sniper_expired_immediate':
-                    push(`狙撃石: 親石${_detailCount(ev)}個が消滅`);
+                    push(`狙撃石: 親石${_detailCount(ev)}個が通常石に戻る`);
                     break;
                 case 'lightning_destroyed_start':
                 case 'lightning_destroyed_immediate':
@@ -2075,7 +2586,7 @@
                     break;
                 case 'lightning_expired_start':
                 case 'lightning_expired_immediate':
-                    push(`落雷石: 親石${_detailCount(ev)}個が消滅`);
+                    push(`落雷石: 親石${_detailCount(ev)}個が通常石に戻る`);
                     break;
                 case 'will_hunter_king_destroyed_start':
                 case 'will_hunter_king_destroyed_immediate':
@@ -2087,7 +2598,7 @@
                     break;
                 case 'will_hunter_king_expired_start':
                 case 'will_hunter_king_expired_immediate':
-                    push(`意志狩りの王: 親石${_detailCount(ev)}個が消滅`);
+                    push(`意志狩りの王: 親石${_detailCount(ev)}個が通常石に戻る`);
                     break;
                 case 'observer_triggered_start':
                 case 'observer_triggered_immediate':
@@ -2095,10 +2606,13 @@
                     break;
                 case 'observer_expired_start':
                 case 'observer_expired_immediate':
-                    push(`盤理の観測者: 親石${_detailCount(ev)}個が消滅`);
+                    push(_observerExpiredLogText(ev));
                     break;
                 case 'destroy_selected':
                     if (ev.destroyed) push(`破壊神で${_toPosText(ev.target)}を破壊`);
+                    else if (ev.proliferated) push(`破壊神: ${_toPosText(ev.target)} は石を残したまま増殖`);
+                    else if (ev.blockedByGhost) push(`破壊神: ${_toPosText(ev.target)} は幽体化で無効化`);
+                    else if (ev.evaded) push(`破壊神: ${_toPosText(ev.target)} は回避した`);
                     break;
                 case 'strong_wind_selected':
                     if (ev.applied) push(`強風で${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動`);
@@ -2147,6 +2661,9 @@
                     break;
                 case 'corrosion_will_resolved':
                     push(`腐食の意志: 特殊石${Number(ev.affectedCount) || 0}個の持続ターンを半減`);
+                    break;
+                case 'salvation_will_resolved':
+                    push(`救済の意志: 通常石${Number(ev.spawnedCount) || 0}個を復活`);
                     break;
                 case 'heaven_blessing_selected':
                     if (ev.applied) push('天の恵みでカード獲得');
@@ -2289,7 +2806,8 @@
                 continue;
             }
             if (ev.type === 'WORK_REMOVED') {
-                push('労働石: 効果終了');
+                if (_isWorkDurationExpiredPresentationEvent(ev)) push('労働石: 通常石に戻る');
+                else push('労働石: 効果終了');
                 continue;
             }
             if (!ev || ev.type !== 'STATUS_TICK' || !ev.meta) continue;

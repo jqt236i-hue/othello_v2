@@ -61,6 +61,58 @@
             : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
         return globalScope.SharedConstants || null;
     })();
+    const DestroyOutcomeContract = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('../../shared/destroy-outcome-contract');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.DestroyOutcomeContract || null;
+    })();
+    const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS) || Object.freeze({
+        DESTROYED: 'destroyed',
+        GHOST_BLOCKED: 'ghost_blocked',
+        PROLIFERATED: 'proliferated',
+        EVADED_MOVE: 'evaded_move'
+    });
+
+    function createDestroyOutcome(kindOrResult, details) {
+        if (DestroyOutcomeContract && typeof DestroyOutcomeContract.createDestroyOutcome === 'function') {
+            return DestroyOutcomeContract.createDestroyOutcome(kindOrResult, details);
+        }
+        const source = (typeof kindOrResult === 'string')
+            ? Object.assign({}, (details && typeof details === 'object') ? details : {}, { kind: kindOrResult })
+            : Object.assign({}, (kindOrResult && typeof kindOrResult === 'object') ? kindOrResult : {});
+        const kind = (source && source.kind) || (
+            source && source.proliferated ? DESTROY_OUTCOME_KINDS.PROLIFERATED
+                : source && source.blockedByGhost ? DESTROY_OUTCOME_KINDS.GHOST_BLOCKED
+                    : source && source.evaded ? DESTROY_OUTCOME_KINDS.EVADED_MOVE
+                        : source && source.destroyed ? DESTROY_OUTCOME_KINDS.DESTROYED
+                            : null
+        );
+        const outcome = Object.assign({}, source, {
+            destroyed: kind === DESTROY_OUTCOME_KINDS.DESTROYED || source.destroyed === true,
+            evaded: kind === DESTROY_OUTCOME_KINDS.EVADED_MOVE || source.evaded === true,
+            blockedByGhost: kind === DESTROY_OUTCOME_KINDS.GHOST_BLOCKED || source.blockedByGhost === true,
+            proliferated: kind === DESTROY_OUTCOME_KINDS.PROLIFERATED || source.proliferated === true
+        });
+        if (kind) outcome.kind = kind;
+        if (outcome.to && typeof outcome.destination === 'undefined') outcome.destination = outcome.to;
+        if (outcome.from && typeof outcome.source === 'undefined') outcome.source = outcome.from;
+        return outcome;
+    }
+
+    function isDestroyOutcomeResolved(result) {
+        if (DestroyOutcomeContract && typeof DestroyOutcomeContract.isDestroyOutcomeResolved === 'function') {
+            return DestroyOutcomeContract.isDestroyOutcomeResolved(result);
+        }
+        return !!(result && (result.destroyed || result.evaded || result.blockedByGhost || result.proliferated));
+    }
     const CHARGE_MAX = Number.isFinite(Number(SharedConstantsModule && SharedConstantsModule.CHARGE_MAX))
         ? Number(SharedConstantsModule.CHARGE_MAX)
         : 99;
@@ -409,6 +461,21 @@
         });
     }
 
+    function emitBoardChargeBubblePresentation(CardLogic, cardState, payload) {
+        const data = (payload && typeof payload === 'object') ? payload : null;
+        if (!data) return;
+        const gained = Number(data.gained);
+        if (!(gained > 0)) return;
+        emitChargeBubblePresentation(CardLogic, cardState, {
+            player: data.player || null,
+            row: data.row,
+            col: data.col,
+            gained,
+            sourceType: data.sourceType || null,
+            text: data.text || null
+        });
+    }
+
     function buildBoardChargeDeltaMeta(row, col, sourceType) {
         const anchorRow = Number(row);
         const anchorCol = Number(col);
@@ -454,6 +521,224 @@
         throw new Error('TurnPipelinePhases board charge popup requires a resolved anchor');
     }
 
+    function resolveBoardChargeGainContext(options) {
+        const opts = (options && typeof options === 'object') ? options : {};
+        const anchor = resolveBoardChargeAnchor(opts);
+        return {
+            anchor,
+            reason: opts.reason || 'turn_start_effect',
+            sourceType: opts.sourceType || null,
+            text: opts.text || null,
+            moved: opts.moved
+        };
+    }
+
+    function applyResolvedBoardChargeGain(cardState, playerKey, amount, context) {
+        const ctx = (context && typeof context === 'object') ? context : {};
+        const anchor = (ctx.anchor && Number.isInteger(Number(ctx.anchor.row)) && Number.isInteger(Number(ctx.anchor.col)))
+            ? { row: Number(ctx.anchor.row), col: Number(ctx.anchor.col) }
+            : resolveBoardChargeAnchor(ctx);
+        const gained = addChargeWithTotal(cardState, playerKey, amount, {
+            reason: ctx.reason || 'turn_start_effect',
+            popupKind: 'board',
+            sourceType: ctx.sourceType || null,
+            moved: ctx.moved,
+            targetRow: anchor.row,
+            targetCol: anchor.col
+        });
+        return {
+            anchor,
+            gained,
+            sourceType: ctx.sourceType || null,
+            text: ctx.text || null
+        };
+    }
+
+    function clonePendingRoundBonusPayload(value) {
+        if (!value || typeof value !== 'object') return null;
+        const roundNumber = Number.isFinite(Number(value.roundNumber))
+            ? Math.max(1, Math.trunc(Number(value.roundNumber)))
+            : 1;
+        const amount = Number.isFinite(Number(value.amount))
+            ? Math.max(0, Math.trunc(Number(value.amount)))
+            : 0;
+        if (!(amount > 0)) return null;
+        return { roundNumber, amount };
+    }
+
+    function ensureGameRoundState(Core, gameState) {
+        if (!gameState || typeof gameState !== 'object') return gameState;
+        if (Core && typeof Core.ensureRoundState === 'function') {
+            return Core.ensureRoundState(gameState);
+        }
+        const roundNumber = Number.isFinite(Number(gameState.roundNumber))
+            ? Math.max(1, Math.trunc(Number(gameState.roundNumber)))
+            : 1;
+        const progress = (gameState.roundCompletionByPlayer && typeof gameState.roundCompletionByPlayer === 'object')
+            ? gameState.roundCompletionByPlayer
+            : {};
+        gameState.roundNumber = roundNumber;
+        gameState.roundCompletionByPlayer = {
+            black: !!progress.black,
+            white: !!progress.white
+        };
+        gameState.pendingRoundBonus = clonePendingRoundBonusPayload(gameState.pendingRoundBonus);
+        return gameState;
+    }
+
+    function resolveRoundBonusAmountForGame(Core, roundNumber) {
+        if (Core && typeof Core.resolveRoundBonusAmount === 'function') {
+            return Core.resolveRoundBonusAmount(roundNumber);
+        }
+        const normalizedRound = Number.isFinite(Number(roundNumber))
+            ? Math.max(1, Math.trunc(Number(roundNumber)))
+            : 1;
+        if (normalizedRound % 10 !== 0) return 0;
+        return Math.max(0, Math.floor(normalizedRound / 2));
+    }
+
+    function advanceGameRoundAfterCompletedTurn(Core, gameState, playerKey, options) {
+        if (Core && typeof Core.advanceRoundAfterCompletedTurn === 'function') {
+            return Core.advanceRoundAfterCompletedTurn(gameState, playerKey, options);
+        }
+        const state = ensureGameRoundState(Core, gameState);
+        const key = normalizePlayerKey(playerKey);
+        const opts = (options && typeof options === 'object') ? options : {};
+        if (!state || !key) {
+            return {
+                advanced: false,
+                roundNumber: state ? state.roundNumber : 1,
+                pendingRoundBonus: clonePendingRoundBonusPayload(state && state.pendingRoundBonus)
+            };
+        }
+        state.roundCompletionByPlayer[key] = true;
+        if (!state.roundCompletionByPlayer.black || !state.roundCompletionByPlayer.white) {
+            return {
+                advanced: false,
+                roundNumber: state.roundNumber,
+                pendingRoundBonus: clonePendingRoundBonusPayload(state.pendingRoundBonus)
+            };
+        }
+        state.roundNumber = Math.max(1, Math.trunc(Number(state.roundNumber || 1))) + 1;
+        state.roundCompletionByPlayer = { black: false, white: false };
+        if (opts.scheduleBonus !== false) {
+            const amount = resolveRoundBonusAmountForGame(Core, state.roundNumber);
+            state.pendingRoundBonus = amount > 0
+                ? { roundNumber: state.roundNumber, amount }
+                : null;
+        }
+        return {
+            advanced: true,
+            roundNumber: state.roundNumber,
+            pendingRoundBonus: clonePendingRoundBonusPayload(state.pendingRoundBonus)
+        };
+    }
+
+    function consumePendingRoundBonusFromGame(Core, gameState) {
+        if (Core && typeof Core.consumePendingRoundBonus === 'function') {
+            return Core.consumePendingRoundBonus(gameState);
+        }
+        const state = ensureGameRoundState(Core, gameState);
+        if (!state) return null;
+        const pending = clonePendingRoundBonusPayload(state.pendingRoundBonus);
+        state.pendingRoundBonus = null;
+        return pending;
+    }
+
+    function emitRoundBonusBannerPresentation(CardLogic, cardState, payload) {
+        if (!CardLogic || typeof CardLogic.emitPresentationEvent !== 'function') return;
+        const data = (payload && typeof payload === 'object') ? payload : null;
+        const roundNumber = Number.isFinite(Number(data && data.roundNumber))
+            ? Math.max(1, Math.trunc(Number(data.roundNumber)))
+            : 0;
+        const amount = Number.isFinite(Number(data && data.amount))
+            ? Math.max(0, Math.trunc(Number(data.amount)))
+            : 0;
+        if (!(roundNumber > 0) || !(amount > 0)) return;
+        CardLogic.emitPresentationEvent(cardState, {
+            type: 'ROUND_BONUS_BANNER',
+            roundNumber,
+            amount,
+            durationMs: 3000,
+            text: `BONUS ROUND +${amount}`
+        });
+    }
+
+    function applyPendingRoundBonusAtTurnStart(CardLogic, Core, cardState, gameState, events) {
+        ensureGameRoundState(Core, gameState);
+        const pending = consumePendingRoundBonusFromGame(Core, gameState);
+        if (!pending) return null;
+        const amount = Number.isFinite(Number(pending.amount))
+            ? Math.max(0, Math.trunc(Number(pending.amount)))
+            : 0;
+        const roundNumber = Number.isFinite(Number(pending.roundNumber))
+            ? Math.max(1, Math.trunc(Number(pending.roundNumber)))
+            : 1;
+        if (!(amount > 0)) return null;
+
+        const blackGained = addChargeWithTotal(cardState, 'black', amount, { reason: 'round_bonus' });
+        const whiteGained = addChargeWithTotal(cardState, 'white', amount, { reason: 'round_bonus' });
+        if (!(blackGained > 0) && !(whiteGained > 0)) {
+            return {
+                roundNumber,
+                amount,
+                gainedByPlayer: { black: 0, white: 0 }
+            };
+        }
+
+        emitRoundBonusBannerPresentation(CardLogic, cardState, {
+            roundNumber,
+            amount
+        });
+        if (Array.isArray(events)) {
+            events.push({
+                type: 'round_bonus_gain',
+                roundNumber,
+                amount,
+                gainedByPlayer: { black: blackGained, white: whiteGained }
+            });
+        }
+        return {
+            roundNumber,
+            amount,
+            gainedByPlayer: { black: blackGained, white: whiteGained }
+        };
+    }
+
+    function applyPlacementBoardBonusGain(CardLogic, cardState, playerKey, row, col, amount, flipCount) {
+        const gained = addChargeWithTotal(cardState, playerKey, amount, {
+            reason: 'board_bonus_gain',
+            popupKind: 'board',
+            sourceType: 'number_cell_gain',
+            anchorRow: row,
+            anchorCol: col
+        });
+        if (gained > 0 && !(flipCount > 0)) {
+            emitBoardChargeBubblePresentation(CardLogic, cardState, {
+                player: playerKey,
+                row,
+                col,
+                gained,
+                sourceType: 'number_cell_gain'
+            });
+        }
+        return gained;
+    }
+
+    function buildPlacementChargeBubblePayload(playerKey, row, col, flipCount, boardBonusGained, effects) {
+        const flipGain = Number(effects && effects.chargeGained) || 0;
+        const mergedBoardBonus = flipCount > 0 ? (Number(boardBonusGained) || 0) : 0;
+        const totalGain = flipGain + mergedBoardBonus;
+        if (!(flipCount > 0) || !(totalGain > 0)) return null;
+        return {
+            player: playerKey,
+            row,
+            col,
+            gained: totalGain,
+            sourceType: mergedBoardBonus > 0 ? 'placement_action_gain' : 'placement_flip_gain'
+        };
+    }
+
     function addChargeWithTotal(cardState, playerKey, amount, options) {
         if (!cardState || !amount) return 0;
         if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
@@ -486,27 +771,19 @@
     }
 
     function awardBoardChargeGain(CardLogic, cardState, playerKey, amount, options) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        const anchor = resolveBoardChargeAnchor(opts);
-        const gained = addChargeWithTotal(cardState, playerKey, amount, {
-            reason: opts.reason || 'turn_start_effect',
-            popupKind: 'board',
-            sourceType: opts.sourceType || null,
-            moved: opts.moved,
-            targetRow: anchor.row,
-            targetCol: anchor.col
-        });
-        if (gained > 0) {
-            emitChargeBubblePresentation(CardLogic, cardState, {
+        const context = resolveBoardChargeGainContext(options);
+        const gainResult = applyResolvedBoardChargeGain(cardState, playerKey, amount, context);
+        if (gainResult.gained > 0) {
+            emitBoardChargeBubblePresentation(CardLogic, cardState, {
                 player: playerKey,
-                row: anchor.row,
-                col: anchor.col,
-                gained,
-                sourceType: opts.sourceType || null,
-                text: opts.text || null
+                row: gainResult.anchor.row,
+                col: gainResult.anchor.col,
+                gained: gainResult.gained,
+                sourceType: gainResult.sourceType,
+                text: gainResult.text
             });
         }
-        return gained;
+        return gainResult.gained;
     }
 
     function transferChargeBetweenPlayers(cardState, fromPlayerKey, toPlayerKey, amount, reasonKey) {
@@ -544,6 +821,7 @@
         const turnNumber = Number.isFinite(Number(turnNumberAfterCompletion))
             ? Number(turnNumberAfterCompletion)
             : (Number(gameState.turnNumber || 0) + 1);
+        advanceGameRoundAfterCompletedTurn(Core, gameState, playerKey);
         const timeStopRes = consumeTimeStopCompletedTurn(CardLogic, cardState, playerKey);
         if (timeStopRes.continueTurn === true) {
             gameState.currentPlayer = player;
@@ -645,6 +923,17 @@
         const p = prng || undefined;
 
         if (cardState.lastTurnStartedFor !== playerKey) {
+            // Set the active turn player for SALVATION_WILL normal-stone destruction tracking,
+            // and reset the opponent's (victim's) tracked destruction list for this new turn.
+            const opponentKeyForSalvation = playerKey === 'black' ? 'white' : 'black';
+            cardState._activeTurnPlayer = playerKey;
+            if (!cardState.prevOpponentTurnDestroyedNormalByPlayer) {
+                cardState.prevOpponentTurnDestroyedNormalByPlayer = { black: [], white: [] };
+            }
+            cardState.prevOpponentTurnDestroyedNormalByPlayer[opponentKeyForSalvation] = [];
+
+            ensureGameRoundState(Core, gameState);
+            applyPendingRoundBonusAtTurnStart(CardLogic, Core, cardState, gameState, events);
             const presentationStartIndex = Array.isArray(cardState.presentationEvents)
                 ? cardState.presentationEvents.length
                 : 0;
@@ -860,6 +1149,9 @@
                         if (res && res.destroyed && res.destroyed.length) {
                             events.push({ type: 'robot_vacuum_destroyed_start', details: res.destroyed });
                             hyperAggregated.destroyed.push(...res.destroyed);
+                        }
+                        if (res && res.expired && res.expired.length) {
+                            events.push({ type: 'robot_vacuum_expired_start', details: res.expired });
                         }
                         if (res && res.sucked && res.sucked.length) {
                             events.push({ type: 'robot_vacuum_sucked_start', details: res.sucked });
@@ -1143,6 +1435,25 @@
                     });
                 }
 
+                if (pendingType === 'EQUALITY_WILL') {
+                    const res = (typeof CardLogic.resolveEqualityWillUsage === 'function')
+                        ? CardLogic.resolveEqualityWillUsage(cardState, gameState, playerKey, p)
+                        : null;
+                    if (!res || res.applied !== true) {
+                        throw new Error('EQUALITY_WILL resolve failed');
+                    }
+                    if (cardState && cardState.pendingEffectByPlayer) {
+                        cardState.pendingEffectByPlayer[playerKey] = null;
+                    }
+                    events.push({
+                        type: 'equality_will_resolved',
+                        player: playerKey,
+                        requestedCount: Number(res.requestedCount) || 0,
+                        spawnedCount: Number(res.spawnedCount) || 0,
+                        spawned: Array.isArray(res.spawned) ? res.spawned.slice() : []
+                    });
+                }
+
                 if (pendingType === 'TIME_STOP_GOD') {
                     const res = (typeof CardLogic.resolveTimeStopGodUsage === 'function')
                         ? CardLogic.resolveTimeStopGodUsage(cardState, gameState, playerKey, p)
@@ -1159,15 +1470,13 @@
                 // Immediate-effect card: REBUILD_WILL
                 // On use, destroy all remaining hand cards and draw 3 cards immediately.
                 if (pendingType === 'REBUILD_WILL') {
-                    const hand = (cardState && cardState.hands && Array.isArray(cardState.hands[playerKey]))
-                        ? cardState.hands[playerKey]
-                        : null;
-                    const destroyedCount = hand ? hand.length : 0;
-                    if (destroyedCount > 0) {
-                        const destroyedCards = hand.splice(0, hand.length);
-                        if (!Array.isArray(cardState.discard)) cardState.discard = [];
-                        cardState.discard.push(...destroyedCards);
-                    }
+                    const clearResult = (typeof CardLogic.clearHandToDiscard === 'function')
+                        ? CardLogic.clearHandToDiscard(cardState, playerKey)
+                        : { destroyedCards: [] };
+                    const destroyedCards = Array.isArray(clearResult && clearResult.destroyedCards)
+                        ? clearResult.destroyedCards
+                        : [];
+                    const destroyedCount = destroyedCards.length;
 
                     if (typeof CardLogic.emitPresentationEvent === 'function') {
                         CardLogic.emitPresentationEvent(cardState, {
@@ -1201,6 +1510,21 @@
                     events.push({ type: 'rebuild_will_resolved', player: playerKey, destroyedCount, drawnCount });
                 }
 
+                if (pendingType === 'REVEAL_HAND_WILL') {
+                    const res = (typeof CardLogic.applyRevealHandWill === 'function')
+                        ? CardLogic.applyRevealHandWill(cardState, playerKey)
+                        : { applied: false, reason: 'missing_logic', revealedCount: 0 };
+                    if (!res || res.applied !== true) {
+                        throw new Error(`REVEAL_HAND_WILL resolve failed: ${res && res.reason ? res.reason : 'unknown'}`);
+                    }
+                    events.push({
+                        type: 'reveal_hand_will_resolved',
+                        player: playerKey,
+                        opponent: res.opponentKey || (playerKey === 'black' ? 'white' : 'black'),
+                        revealedCount: Number(res.revealedCount) || 0
+                    });
+                }
+
                 // Immediate-effect card: SUPPLY_WILL
                 // On use, draw 2 cards immediately (subject to deck shortage and hand limit).
                 if (pendingType === 'SUPPLY_WILL') {
@@ -1230,15 +1554,13 @@
                 // Immediate side effect card: GLUTTONOUS_WILL
                 // On use, destroy all remaining hand cards immediately (pending stays for next placement).
                 if (pendingType === 'GLUTTONOUS_WILL') {
-                    const hand = (cardState && cardState.hands && Array.isArray(cardState.hands[playerKey]))
-                        ? cardState.hands[playerKey]
-                        : null;
-                    const destroyedCount = hand ? hand.length : 0;
-                    if (destroyedCount > 0) {
-                        const destroyedCards = hand.splice(0, hand.length);
-                        if (!Array.isArray(cardState.discard)) cardState.discard = [];
-                        cardState.discard.push(...destroyedCards);
-                    }
+                    const clearResult = (typeof CardLogic.clearHandToDiscard === 'function')
+                        ? CardLogic.clearHandToDiscard(cardState, playerKey)
+                        : { destroyedCards: [] };
+                    const destroyedCards = Array.isArray(clearResult && clearResult.destroyedCards)
+                        ? clearResult.destroyedCards
+                        : [];
+                    const destroyedCount = destroyedCards.length;
 
                     if (typeof CardLogic.emitPresentationEvent === 'function') {
                         CardLogic.emitPresentationEvent(cardState, {
@@ -1263,6 +1585,25 @@
                         cardState.pendingEffectByPlayer[playerKey] = null;
                     }
                     events.push({ type: 'loss_will_resolved', player: playerKey, removedCount: Number(res.removedCount) || 0 });
+                }
+
+                if (pendingType === 'SALVATION_WILL') {
+                    const res = (typeof CardLogic.applySalvationWill === 'function')
+                        ? CardLogic.applySalvationWill(cardState, gameState, playerKey, p)
+                        : { applied: false, spawned: [], requestedCount: 0, spawnedCount: 0 };
+                    if (!res || res.applied !== true) {
+                        throw new Error('SALVATION_WILL resolve failed');
+                    }
+                    if (cardState && cardState.pendingEffectByPlayer) {
+                        cardState.pendingEffectByPlayer[playerKey] = null;
+                    }
+                    events.push({
+                        type: 'salvation_will_resolved',
+                        player: playerKey,
+                        spawned: Array.isArray(res.spawned) ? res.spawned.slice() : [],
+                        requestedCount: Number(res.requestedCount) || 0,
+                        spawnedCount: Number(res.spawnedCount) || 0
+                    });
                 }
 
             }
@@ -1405,14 +1746,37 @@
             const pending = cardState.pendingEffectByPlayer[playerKey];
             hydrateDeferredPendingSelectionState(pending, action);
             if (pending && pending.type === 'DESTROY_ONE_STONE' && action.destroyTarget) {
-                const destroyed = CardLogic.applyDestroyEffect(
-                    cardState,
-                    gameState,
-                    playerKey,
-                    action.destroyTarget.row,
-                    action.destroyTarget.col
-                );
-                events.push({ type: 'destroy_selected', player: playerKey, target: action.destroyTarget, destroyed });
+                const destroyResult = typeof CardLogic.applyDestroyEffectDetailed === 'function'
+                    ? CardLogic.applyDestroyEffectDetailed(
+                        cardState,
+                        gameState,
+                        playerKey,
+                        action.destroyTarget.row,
+                        action.destroyTarget.col
+                    )
+                    : { destroyed: !!CardLogic.applyDestroyEffect(
+                        cardState,
+                        gameState,
+                        playerKey,
+                        action.destroyTarget.row,
+                        action.destroyTarget.col
+                    ) };
+                const normalizedDestroyResult = createDestroyOutcome(destroyResult);
+                const applied = isDestroyOutcomeResolved(normalizedDestroyResult);
+                events.push({
+                    type: 'destroy_selected',
+                    player: playerKey,
+                    target: action.destroyTarget,
+                    applied,
+                    kind: normalizedDestroyResult && normalizedDestroyResult.kind ? normalizedDestroyResult.kind : null,
+                    destroyed: !!(normalizedDestroyResult && normalizedDestroyResult.destroyed),
+                    evaded: !!(normalizedDestroyResult && normalizedDestroyResult.evaded),
+                    blockedByGhost: !!(normalizedDestroyResult && normalizedDestroyResult.blockedByGhost),
+                    proliferated: !!(normalizedDestroyResult && normalizedDestroyResult.proliferated),
+                    reason: normalizedDestroyResult && normalizedDestroyResult.reason ? normalizedDestroyResult.reason : null,
+                    from: normalizedDestroyResult && normalizedDestroyResult.from ? normalizedDestroyResult.from : null,
+                    to: normalizedDestroyResult && normalizedDestroyResult.to ? normalizedDestroyResult.to : null
+                });
                 applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
                 // Selection-only pre-placement effect: stop after handling selection
                 return;
@@ -2041,23 +2405,16 @@
                 const appliedBonus = numberCellMultiplierConfig
                     ? bonusValue * Number(numberCellMultiplierConfig.multiplier || 1)
                     : bonusValue;
-                const gained = addChargeWithTotal(cardState, playerKey, appliedBonus, {
-                    reason: 'board_bonus_gain',
-                    popupKind: 'board',
-                    sourceType: 'number_cell_gain',
-                    anchorRow: action.row,
-                    anchorCol: action.col
-                });
+                const gained = applyPlacementBoardBonusGain(
+                    CardLogic,
+                    cardState,
+                    playerKey,
+                    action.row,
+                    action.col,
+                    appliedBonus,
+                    flipCount
+                );
                 boardBonusGained = gained;
-                if (gained > 0 && flipCount <= 0) {
-                    emitChargeBubblePresentation(CardLogic, cardState, {
-                        player: playerKey,
-                        row: action.row,
-                        col: action.col,
-                        gained,
-                        sourceType: 'number_cell_gain'
-                    });
-                }
                 events.push({
                     type: 'board_bonus_gain',
                     player: playerKey,
@@ -2122,15 +2479,16 @@
                 effects[numberCellMultiplierConfig.gainField] = boardBonusGained;
             }
             events.push({ type: 'placement_effects', player: playerKey, effects });
-            const placementChargeBubbleGain = (Number(effects && effects.chargeGained) || 0) + (flipCount > 0 ? (Number(boardBonusGained) || 0) : 0);
-            if (placementChargeBubbleGain > 0 && flipCount > 0) {
-                emitChargeBubblePresentation(CardLogic, cardState, {
-                    player: playerKey,
-                    row: action.row,
-                    col: action.col,
-                    gained: placementChargeBubbleGain,
-                    sourceType: (Number(boardBonusGained) || 0) > 0 ? 'placement_action_gain' : 'placement_flip_gain'
-                });
+            const placementChargeBubble = buildPlacementChargeBubblePayload(
+                playerKey,
+                action.row,
+                action.col,
+                flipCount,
+                boardBonusGained,
+                effects
+            );
+            if (placementChargeBubble) {
+                emitBoardChargeBubblePresentation(CardLogic, cardState, placementChargeBubble);
             }
 
             // GOLD/SILVER: the placed stone disappears on the opponent's next turn start.

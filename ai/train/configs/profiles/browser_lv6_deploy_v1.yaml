@@ -39,6 +39,14 @@ trainCycleArgs:
   - --with-cards
   - --card-usage-rate
   - "0.60"
+  - --selfplay-policy-model-pool-size
+  - "4"
+  - --selfplay-policy-pool-sampling
+  - recency
+  - --selfplay-policy-pool-recency-decay
+  - "2.0"
+  - --selfplay-policy-current-anchor-rate
+  - "0.35"
   - --selfplay-card-usage-rate-jitter
   - "0.08"
   - --selfplay-tactical-weight-min
@@ -59,15 +67,15 @@ trainCycleArgs:
   - --onnx-val-split
   - "0.15"
   - --onnx-early-stop-patience
-  - "16"
+  - "20"
   - --onnx-early-stop-min-delta
-  - "0.00010"
+  - "0.00005"
   - --onnx-early-stop-min-epochs
   - "48"
   - --onnx-early-stop-monitor
   - val_loss
   - --onnx-early-stop-smoothing-window
-  - "3"
+  - "5"
   - --onnx-resume-optimizer
   - --onnx-card-no-action-weight
   - "0.66"

@@ -9,6 +9,8 @@ describe('animation-engine observer bubble', () => {
     dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>', { pretendToBeVisual: true });
     global.window = dom.window;
     global.document = dom.window.document;
+    global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+    global.window.requestAnimationFrame = global.requestAnimationFrame;
     global.window.__telemetry__ = { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 };
     global.window.getEffectKeyForSpecialType = () => null;
     global.window.applyStoneVisualEffect = () => {};
@@ -35,6 +37,7 @@ describe('animation-engine observer bubble', () => {
   afterEach(() => {
     jest.useRealTimers();
     if (dom && dom.window) dom.window.close();
+    delete global.requestAnimationFrame;
     delete global.window;
     delete global.document;
   });
@@ -91,11 +94,14 @@ describe('animation-engine observer bubble', () => {
     expect(bubble.textContent).not.toContain('布石');
     expect(bubble.textContent).not.toContain('観測が捗る');
     expect(bubble.style.top).toBe('258px');
-    expect(bubble.style.transform).toBe('translate(-50%, 0)');
+    expect(bubble.style.transform).toBe('translate(-50%, -18px)');
+    expect(bubble.style.transition).toBe('opacity 250ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1)');
     expect(bubble.style.padding).toBe('2px 8px');
     expect(bubble.style.fontSize).toBe('12px');
     expect(bubble.style.lineHeight).toBe('1.05');
     expect(bubble.children).toHaveLength(2);
+    jest.advanceTimersByTime(20);
+    expect(bubble.style.transform).toBe('translate(-50%, 0)');
 
     jest.advanceTimersByTime(2200);
     expect(document.querySelector('.board-charge-bubble')).toBeNull();

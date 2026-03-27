@@ -86,22 +86,59 @@
         }
     }
 
+    function getCardDisplayTypeLabel(cardDef) {
+        if (!cardDef || typeof cardDef !== 'object') return '';
+        const label = String(cardDef.display_type_ja || cardDef.displayTypeJa || cardDef.displayTypeLabel || '').trim();
+        return label || '';
+    }
+
+    function ensureCardBadgeRow(cardEl, cardDef) {
+        if (!cardEl || !cardDef) return cardEl;
+
+        let badgeRow = cardEl.querySelector('.card-badge-row');
+        if (!badgeRow) {
+            badgeRow = document.createElement('div');
+            badgeRow.className = 'card-badge-row';
+            cardEl.appendChild(badgeRow);
+        }
+
+        const typeLabel = getCardDisplayTypeLabel(cardDef);
+        let typeBadge = badgeRow.querySelector('.card-type-badge');
+        if (typeLabel) {
+            if (!typeBadge) {
+                typeBadge = document.createElement('div');
+                typeBadge.className = 'card-type-badge';
+                badgeRow.insertBefore(typeBadge, badgeRow.firstChild || null);
+            }
+            typeBadge.textContent = typeLabel;
+        } else if (typeBadge) {
+            typeBadge.remove();
+        }
+
+        const cost = Number(cardDef.cost) || 0;
+        let costBadge = cardEl.querySelector('.card-cost-badge');
+        if (!costBadge) {
+            costBadge = document.createElement('div');
+            costBadge.className = 'card-cost-badge';
+        }
+        costBadge.textContent = `コスト${cost}`;
+        if (costBadge.parentElement !== badgeRow) {
+            badgeRow.appendChild(costBadge);
+        }
+
+        return cardEl;
+    }
+
     function createFallbackCardFace(cardDef) {
         const cardEl = document.createElement('div');
         cardEl.className = 'card-item visible';
-        const cost = Number(cardDef && cardDef.cost) || 0;
 
         const nameSpan = document.createElement('span');
         nameSpan.className = 'card-name';
         nameSpan.textContent = cardDef && cardDef.name ? cardDef.name : String(cardDef && cardDef.id ? cardDef.id : '?');
         cardEl.appendChild(nameSpan);
 
-        const costBadge = document.createElement('div');
-        costBadge.className = 'card-cost-badge';
-        costBadge.textContent = `コスト${cost}`;
-        cardEl.appendChild(costBadge);
-
-        return cardEl;
+        return ensureCardBadgeRow(cardEl, cardDef);
     }
 
     function createDeckCardElement(cardDef, options) {
@@ -121,6 +158,7 @@
         if (!cardEl) {
             cardEl = createFallbackCardFace(cardDef);
         }
+        ensureCardBadgeRow(cardEl, cardDef);
 
         cardEl.classList.add('deck-builder-card');
         cardEl.dataset.cardId = cardDef.id;

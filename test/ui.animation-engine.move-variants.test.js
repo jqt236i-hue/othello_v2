@@ -78,3 +78,294 @@ describe.each(CASES)('animation-engine move variants %s', (cause, reason, midpoi
     expect(String(animateCalls[0][1].transform)).toContain(midpointScale);
   });
 });
+
+describe.each([
+  ['GLUTTONOUS_WILL', 'gluttonous_eat_overlap_return'],
+  ['WILL_HUNTER_KING', 'will_hunter_king_slash_overlap_return']
+])('animation-engine overlap return %s', (cause, reason) => {
+  let dom;
+
+  beforeEach(() => {
+    jest.resetModules();
+    dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.emitBoardUpdate = jest.fn();
+  });
+
+  afterEach(() => {
+    delete global.window;
+    delete global.document;
+    delete global.emitBoardUpdate;
+    if (dom && dom.window && typeof dom.window.close === 'function') {
+      dom.window.close();
+    }
+  });
+
+  test('animates out-and-back without relocating source or target discs', async () => {
+    const board = document.getElementById('board');
+    const fromCell = document.createElement('div');
+    const toCell = document.createElement('div');
+    const sourceDisc = document.createElement('div');
+    const targetDisc = document.createElement('div');
+    const animateCalls = [];
+
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '3';
+    fromCell.dataset.col = '3';
+    fromCell.getBoundingClientRect = () => ({ left: 20, top: 20, width: 50, height: 50 });
+
+    toCell.className = 'cell';
+    toCell.dataset.row = '3';
+    toCell.dataset.col = '4';
+    toCell.getBoundingClientRect = () => ({ left: 90, top: 20, width: 50, height: 50 });
+
+    sourceDisc.className = 'disc black';
+    targetDisc.className = 'disc white';
+    fromCell.appendChild(sourceDisc);
+    toCell.appendChild(targetDisc);
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    global.window.Element.prototype.animate = jest.fn((keyframes) => {
+      animateCalls.push(keyframes);
+      return {
+        addEventListener(eventName, handler) {
+          if (eventName === 'finish' && typeof handler === 'function') {
+            handler();
+          }
+        },
+        removeEventListener() {},
+        finished: Promise.resolve()
+      };
+    });
+
+    const engine = require('../ui/animation-engine');
+    await engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 3, col: 3 },
+        to: { r: 3, col: 4 },
+        ownerAfter: 'black',
+        cause,
+        reason,
+        after: { color: 1, special: cause === 'GLUTTONOUS_WILL' ? 'GLUTTONOUS' : 'WILL_HUNTER_KING', timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(animateCalls).toHaveLength(1);
+    expect(animateCalls[0]).toHaveLength(3);
+    expect(String(animateCalls[0][0].transform)).toContain('translate(0, 0)');
+    expect(String(animateCalls[0][2].transform)).toContain('translate(0, 0)');
+    expect(fromCell.querySelectorAll('.disc.black')).toHaveLength(1);
+    expect(toCell.querySelectorAll('.disc.white')).toHaveLength(1);
+  });
+
+  test('removes the overlap ghost before restoring the hidden source disc', async () => {
+    const board = document.getElementById('board');
+    const fromCell = document.createElement('div');
+    const toCell = document.createElement('div');
+    const sourceDisc = document.createElement('div');
+    const targetDisc = document.createElement('div');
+    let sourceVisibilityAtGhostRemoval = null;
+
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '4';
+    fromCell.dataset.col = '2';
+    fromCell.getBoundingClientRect = () => ({ left: 20, top: 20, width: 50, height: 50 });
+
+    toCell.className = 'cell';
+    toCell.dataset.row = '4';
+    toCell.dataset.col = '3';
+    toCell.getBoundingClientRect = () => ({ left: 90, top: 20, width: 50, height: 50 });
+
+    sourceDisc.className = 'disc black';
+    targetDisc.className = 'disc white';
+    fromCell.appendChild(sourceDisc);
+    toCell.appendChild(targetDisc);
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    global.window.Element.prototype.animate = jest.fn(() => ({
+      addEventListener(eventName, handler) {
+        if (eventName === 'finish' && typeof handler === 'function') {
+          handler();
+        }
+      },
+      removeEventListener() {},
+      finished: Promise.resolve()
+    }));
+
+    const originalRemoveChild = document.body.removeChild.bind(document.body);
+    jest.spyOn(document.body, 'removeChild').mockImplementation((node) => {
+      if (node && node.classList && node.classList.contains('disc')) {
+        sourceVisibilityAtGhostRemoval = sourceDisc.style.visibility;
+      }
+      return originalRemoveChild(node);
+    });
+
+    const engine = require('../ui/animation-engine');
+    await engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 4, col: 2 },
+        to: { r: 4, col: 3 },
+        ownerAfter: 'black',
+        cause,
+        reason,
+        after: { color: 1, special: cause === 'GLUTTONOUS_WILL' ? 'GLUTTONOUS' : 'WILL_HUNTER_KING', timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(sourceVisibilityAtGhostRemoval).toBe('hidden');
+    expect(sourceDisc.style.visibility).toBe('visible');
+  });
+
+  test('keeps the destination disc visible while the overlap-return ghost is in flight', async () => {
+    const board = document.getElementById('board');
+    const fromCell = document.createElement('div');
+    const toCell = document.createElement('div');
+    const sourceDisc = document.createElement('div');
+    const targetDisc = document.createElement('div');
+
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '5';
+    fromCell.dataset.col = '1';
+    fromCell.getBoundingClientRect = () => ({ left: 20, top: 20, width: 50, height: 50 });
+
+    toCell.className = 'cell';
+    toCell.dataset.row = '5';
+    toCell.dataset.col = '2';
+    toCell.getBoundingClientRect = () => ({ left: 90, top: 20, width: 50, height: 50 });
+
+    sourceDisc.className = 'disc black';
+    targetDisc.className = 'disc white';
+    fromCell.appendChild(sourceDisc);
+    toCell.appendChild(targetDisc);
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    let finishAnimation = null;
+    const finished = new Promise((resolve) => {
+      finishAnimation = resolve;
+    });
+
+    global.window.Element.prototype.animate = jest.fn(() => ({
+      addEventListener(eventName, handler) {
+        if (eventName === 'finish' && typeof handler === 'function') {
+          finished.then(handler);
+        }
+      },
+      removeEventListener() {},
+      finished
+    }));
+
+    const engine = require('../ui/animation-engine');
+    const playbackPromise = engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 5, col: 1 },
+        to: { r: 5, col: 2 },
+        ownerAfter: 'black',
+        cause,
+        reason,
+        after: { color: 1, special: cause === 'GLUTTONOUS_WILL' ? 'GLUTTONOUS' : 'WILL_HUNTER_KING', timer: null, owner: 'black' }
+      }]
+    });
+
+    await Promise.resolve();
+    expect(sourceDisc.style.visibility).toBe('hidden');
+    expect(targetDisc.style.visibility).not.toBe('hidden');
+
+    finishAnimation();
+    await playbackPromise;
+
+    expect(sourceDisc.style.visibility).toBe('visible');
+    expect(targetDisc.style.visibility).not.toBe('hidden');
+  });
+});
+
+describe('animation-engine move animation finish fallback', () => {
+  let dom;
+
+  beforeEach(() => {
+    jest.resetModules();
+    dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.emitBoardUpdate = jest.fn();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    delete global.window;
+    delete global.document;
+    delete global.emitBoardUpdate;
+    if (dom && dom.window && typeof dom.window.close === 'function') {
+      dom.window.close();
+    }
+  });
+
+  test('completes move playback from animation.finished even when finish events never fire', async () => {
+    jest.useFakeTimers();
+
+    const board = document.getElementById('board');
+    const fromCell = document.createElement('div');
+    const toCell = document.createElement('div');
+    const disc = document.createElement('div');
+
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '1';
+    fromCell.dataset.col = '1';
+    fromCell.getBoundingClientRect = () => ({ left: 20, top: 20, width: 50, height: 50 });
+
+    toCell.className = 'cell';
+    toCell.dataset.row = '1';
+    toCell.dataset.col = '3';
+    toCell.getBoundingClientRect = () => ({ left: 140, top: 20, width: 50, height: 50 });
+
+    disc.className = 'disc black';
+    fromCell.appendChild(disc);
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    let finishAnimation = null;
+    const finished = new Promise((resolve) => {
+      finishAnimation = resolve;
+    });
+
+    global.window.Element.prototype.animate = jest.fn(() => ({
+      addEventListener() {},
+      removeEventListener() {},
+      finished
+    }));
+
+    const engine = require('../ui/animation-engine');
+    const settled = jest.fn();
+    const playbackPromise = engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 1, col: 1 },
+        to: { r: 1, col: 3 },
+        ownerAfter: 'black',
+        cause: 'STRONG_WIND_WILL',
+        reason: 'strong_wind_move',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+    playbackPromise.then(settled);
+
+    await Promise.resolve();
+    expect(settled).not.toHaveBeenCalled();
+
+    finishAnimation();
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(settled).toHaveBeenCalledTimes(1);
+    expect(fromCell.querySelector('.disc')).toBeNull();
+    expect(toCell.querySelector('.disc')).toBe(disc);
+
+    jest.runOnlyPendingTimers();
+    await playbackPromise;
+  });
+});

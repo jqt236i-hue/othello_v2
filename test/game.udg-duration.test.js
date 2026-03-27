@@ -62,8 +62,8 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
     }
 
     const last = CardLogic.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, 'black', 4, 4);
-    expect((last.expired || [])).toEqual([{ row: 4, col: 4 }]);
-    expect(gameState.board[4][4]).toBe(0);
+    expect((last.expired || [])).toEqual([expect.objectContaining({ row: 4, col: 4, reason: 'anchor_expired' })]);
+    expect(gameState.board[4][4]).toBe(1);
     const marker = cardState.markers.find((m) => m && m.id === 9001);
     expect(marker).toBeUndefined();
   });

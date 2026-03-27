@@ -21,12 +21,69 @@ function getCardCostTier(cost) {
     return 'gray';
 }
 
+function _normalizeCardDisplayTypeLabel(label) {
+    const normalized = String(label || '').trim();
+    return normalized || '';
+}
+
+function _resolveCardDisplayTypeLabel(cardDef, fallbackCardId) {
+    if (cardDef && typeof cardDef === 'object') {
+        const directLabel = _normalizeCardDisplayTypeLabel(cardDef.display_type_ja || cardDef.displayTypeJa);
+        if (directLabel) return directLabel;
+    }
+
+    const cardId = String(fallbackCardId || (cardDef && cardDef.id) || '').trim();
+    if (!cardId) return '';
+
+    try {
+        if (typeof window !== 'undefined' && window.CardCatalog && Array.isArray(window.CardCatalog.cards)) {
+            const catalogCard = window.CardCatalog.cards.find((entry) => entry && entry.id === cardId);
+            if (catalogCard) {
+                const catalogLabel = _normalizeCardDisplayTypeLabel(catalogCard.display_type_ja || catalogCard.displayTypeJa);
+                if (catalogLabel) return catalogLabel;
+            }
+        }
+    } catch (e) { /* ignore */ }
+
+    return '';
+}
+
+function _createCardBadgeRow(cardDef, cost, tierClass, fallbackCardId) {
+    const badgeRow = document.createElement('div');
+    badgeRow.className = 'card-badge-row';
+
+    const typeLabel = _resolveCardDisplayTypeLabel(cardDef, fallbackCardId);
+    if (typeLabel) {
+        const typeBadge = document.createElement('div');
+        typeBadge.className = 'card-type-badge';
+        typeBadge.textContent = typeLabel;
+        badgeRow.appendChild(typeBadge);
+    }
+
+    const costBadge = document.createElement('div');
+    costBadge.className = 'card-cost-badge';
+    if (tierClass) {
+        costBadge.classList.add(tierClass);
+    }
+    costBadge.textContent = `コスト${cost}`;
+    badgeRow.appendChild(costBadge);
+
+    return badgeRow;
+}
+
 var _lastChargeForDelta = { black: null, white: null, turnIndex: null };
 
 function _normalizeChargeValueForRender(value) {
     return Number.isFinite(Number(value))
         ? Number(value)
         : 0;
+}
+
+function _renderChargeDisplay(el, currentValue, maxValue) {
+    if (!el) return;
+    const safeCurrent = _normalizeChargeValueForRender(currentValue);
+    const safeMax = _normalizeChargeValueForRender(maxValue);
+    el.innerHTML = `<span class="charge-label">布石:</span> <span class="charge-current">${safeCurrent}</span><span class="charge-separator"> / </span><span class="charge-max">${safeMax}</span>`;
 }
 
 function _resetChargeDeltaBaseline() {
@@ -271,11 +328,7 @@ function createCardFaceElement(cardId) {
     nameSpan.textContent = cardDef ? cardDef.name : '?';
     cardEl.appendChild(nameSpan);
 
-    const costBadge = document.createElement('div');
-    costBadge.className = 'card-cost-badge';
-    costBadge.classList.add(tierClass);
-    costBadge.textContent = `コスト${cost}`;
-    cardEl.appendChild(costBadge);
+    cardEl.appendChild(_createCardBadgeRow(cardDef, cost, tierClass, cardId));
 
     cardEl.dataset.cardId = cardId;
     return cardEl;
@@ -371,6 +424,41 @@ function _shouldRenderChargeDeltaOnHud(ev) {
     return false;
 }
 
+function _normalizeChargeDeltaOwnerKey(playerKey) {
+    return (playerKey === 'white' || playerKey === -1 || playerKey === '-1') ? 'white' : 'black';
+}
+
+function _mapChargeDeltaOwnerToVisibleSlot(ownerKey, bottomOwnerKey) {
+    return ownerKey === bottomOwnerKey ? 'black' : 'white';
+}
+
+function _createVisibleChargeDeltaHandler(baseChargeDeltaHandler, bottomOwnerKey) {
+    if (!baseChargeDeltaHandler) return null;
+    return (playerKey, delta) => {
+        const ownerKey = _normalizeChargeDeltaOwnerKey(playerKey);
+        const slotKey = _mapChargeDeltaOwnerToVisibleSlot(ownerKey, bottomOwnerKey);
+        baseChargeDeltaHandler(slotKey, delta);
+    };
+}
+
+function _pickHudChargeDeltaDisplayEvent(events) {
+    const list = Array.isArray(events) ? events : [];
+    if (list.length === 0) return null;
+    const hasPositive = list.some((ev) => Number(ev && ev.delta) > 0);
+    const hasNegative = list.some((ev) => Number(ev && ev.delta) < 0);
+    if (hasPositive && hasNegative) {
+        for (let index = list.length - 1; index >= 0; index--) {
+            const ev = list[index];
+            if (!ev) continue;
+            if (Number(ev.delta) >= 0) continue;
+            if (String(ev.reason || '').trim() === 'card_use_cost') {
+                return ev;
+            }
+        }
+    }
+    return null;
+}
+
 function consumeChargeDeltaEventList(eventsSource, chargeDeltaHandler) {
     if (!Array.isArray(eventsSource) || eventsSource.length === 0) {
         return false;
@@ -389,15 +477,24 @@ function consumeChargeDeltaEventList(eventsSource, chargeDeltaHandler) {
     const hudEvents = events.filter((ev) => _shouldRenderChargeDeltaOnHud(ev));
     if (hudEvents.length === 0) return events.length > 0;
 
-    const totalsByPlayer = { black: 0, white: 0 };
+    const eventsByPlayer = { black: [], white: [] };
     const playerOrder = [];
     for (const ev of hudEvents) {
-        const player = (ev.player === 'white' || ev.player === -1 || ev.player === '-1') ? 'white' : 'black';
-        if (totalsByPlayer[player] === 0) playerOrder.push(player);
-        totalsByPlayer[player] += Number(ev.delta);
+        const player = _normalizeChargeDeltaOwnerKey(ev.player);
+        if (eventsByPlayer[player].length === 0) playerOrder.push(player);
+        eventsByPlayer[player].push(ev);
     }
     for (const player of playerOrder) {
-        const totalDelta = Number(totalsByPlayer[player] || 0);
+        const playerEvents = eventsByPlayer[player];
+        const prioritizedEvent = _pickHudChargeDeltaDisplayEvent(playerEvents);
+        if (prioritizedEvent) {
+            const prioritizedDelta = Number(prioritizedEvent.delta || 0);
+            if (prioritizedDelta !== 0) {
+                chargeDeltaHandler(player, prioritizedDelta);
+            }
+            continue;
+        }
+        const totalDelta = playerEvents.reduce((sum, ev) => sum + Number(ev && ev.delta ? ev.delta : 0), 0);
         if (totalDelta !== 0) {
             chargeDeltaHandler(player, totalDelta);
         }
@@ -463,22 +560,16 @@ function renderCardUI() {
     const chargeWhiteEl = document.getElementById('charge-white');
     const chargeMax = _resolveChargeMaxForRender();
     if (chargeBlackEl) {
-        chargeBlackEl.textContent = `布石: ${cardState.charge[bottomOwnerKey] || 0} / ${chargeMax}`;
+        _renderChargeDisplay(chargeBlackEl, cardState.charge[bottomOwnerKey] || 0, chargeMax);
     }
     if (chargeWhiteEl) {
-        chargeWhiteEl.textContent = `布石: ${cardState.charge[topOwnerKey] || 0} / ${chargeMax}`;
+        _renderChargeDisplay(chargeWhiteEl, cardState.charge[topOwnerKey] || 0, chargeMax);
     }
 
     const baseChargeDeltaHandler = (typeof window !== 'undefined' && window.StoneVisuals && typeof window.StoneVisuals.showChargeDelta === 'function')
         ? window.StoneVisuals.showChargeDelta
         : null;
-    const chargeDeltaHandler = baseChargeDeltaHandler
-        ? (playerKey, delta) => {
-            const ownerKey = (playerKey === 'white' || playerKey === -1 || playerKey === '-1') ? 'white' : 'black';
-            const slotKey = ownerKey === bottomOwnerKey ? 'black' : 'white';
-            baseChargeDeltaHandler(slotKey, delta);
-        }
-        : null;
+    const chargeDeltaHandler = _createVisibleChargeDeltaHandler(baseChargeDeltaHandler, bottomOwnerKey);
     const chargeSnapshot = _readChargeDeltaSnapshot(cardState);
 
     if (_shouldResetChargeDeltaBaseline(chargeSnapshot.turnIndex)) {
@@ -575,10 +666,10 @@ function renderCardUI() {
 
         ownerHand.forEach((cardId, idx) => {
             let cardEl = document.createElement('div');
-            const canShowFace = isNetworkMode
-                ? (ownerKey === localPlayerKey)
-                : revealByDefault;
             const isHiddenToken = _isHiddenHandTokenForRender(cardId);
+            const canShowFace = isNetworkMode
+                ? (ownerKey === localPlayerKey || !isHiddenToken)
+                : revealByDefault;
 
             if (!canShowFace || isHiddenToken) {
                 cardEl = _createHiddenHandCardElement(cardId, ownerKey);
@@ -592,7 +683,7 @@ function renderCardUI() {
                 const canAfford = isDebugUnlimited ? true : ((cardState.charge[ownerKey] || 0) >= cost);
                 const isOwnerTurn = ownerKey === 'black' ? isBlackTurn : !isBlackTurn;
                 const canInspectOwnerHand = isNetworkMode
-                    ? (ownerKey === localPlayerKey)
+                    ? canShowFace
                     : (isDebugHvH ? true : (ownerKey === 'black'));
                 const canControlOwnerHand = isNetworkMode
                     ? (ownerKey === localPlayerKey && isOwnerTurn)

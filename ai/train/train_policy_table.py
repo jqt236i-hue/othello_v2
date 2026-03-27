@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import math
 import os
 from dataclasses import dataclass
 from typing import Dict, Iterable, Tuple
@@ -321,18 +322,47 @@ def iter_ndjson(path: str) -> Iterable[dict]:
             yield rec
 
 
+def _best_action_confidence_penalty(total_visits: int, action_visits: int) -> float:
+    """Pessimistic penalty so bestAction does not overfit lucky low-visit actions."""
+    safe_total_visits = max(2.0, float(total_visits))
+    safe_action_visits = max(1.0, float(action_visits))
+    return math.sqrt(math.log1p(safe_total_visits) / safe_action_visits)
+
+
+def _is_better_best_action_candidate(
+    action_key: str,
+    stat: ActionStat,
+    score: float,
+    best_key: str,
+    best_stat: ActionStat | None,
+    best_score: float,
+) -> bool:
+    if best_stat is None:
+        return True
+    if not math.isclose(score, best_score, rel_tol=1e-12, abs_tol=1e-12):
+        return score > best_score
+    if not math.isclose(stat.avg_outcome, best_stat.avg_outcome, rel_tol=1e-12, abs_tol=1e-12):
+        return stat.avg_outcome > best_stat.avg_outcome
+    if stat.visits != best_stat.visits:
+        return stat.visits > best_stat.visits
+    return action_key < best_key
+
+
 def choose_best_action(action_map: Dict[str, ActionStat]) -> Tuple[str, ActionStat]:
+    if not action_map:
+        return "", ActionStat()
+
+    total_visits = sum(max(0, stat.visits) for stat in action_map.values())
     best_key = ""
-    best_stat = ActionStat(visits=0, outcome_sum=-10**9)
+    best_stat: ActionStat | None = None
+    best_score = float("-inf")
     for action_key, stat in action_map.items():
-        if stat.avg_outcome > best_stat.avg_outcome:
+        score = stat.avg_outcome - _best_action_confidence_penalty(total_visits, stat.visits)
+        if _is_better_best_action_candidate(action_key, stat, score, best_key, best_stat, best_score):
             best_key = action_key
             best_stat = stat
-            continue
-        if stat.avg_outcome == best_stat.avg_outcome and stat.visits > best_stat.visits:
-            best_key = action_key
-            best_stat = stat
-    return best_key, best_stat
+            best_score = score
+    return best_key, best_stat or ActionStat()
 
 
 def _materialize_states(table: Dict[str, Dict[str, ActionStat]], min_visits: int) -> tuple[dict, int]:

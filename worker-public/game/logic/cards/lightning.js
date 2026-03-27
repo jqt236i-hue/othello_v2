@@ -306,15 +306,35 @@
             anchors.push({ row: lightning.row, col: lightning.col, remainingNow: afterDec });
 
             if (afterDec === 0) {
-                let destroyedRes = false;
-                if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                    const res = deps.BoardOps.destroyAt(cardState, gameState, lightning.row, lightning.col, 'LIGHTNING_WILL', 'anchor_expired');
-                    destroyedRes = !!(res && res.destroyed);
+                let revertedRes = false;
+                if (deps.BoardOps && typeof deps.BoardOps.revertSpecialStoneAt === 'function') {
+                    const res = deps.BoardOps.revertSpecialStoneAt(
+                        cardState,
+                        gameState,
+                        lightning.row,
+                        lightning.col,
+                        'LIGHTNING',
+                        playerKey,
+                        'LIGHTNING_WILL',
+                        'anchor_expired'
+                    );
+                    revertedRes = !!(res && res.reverted);
                 } else {
-                    destroyedRes = destroyAt(cardState, gameState, lightning.row, lightning.col);
+                    if (cardState.markers) {
+                        cardState.markers = cardState.markers.filter((entry) => !(
+                            entry &&
+                            entry.kind === 'specialStone' &&
+                            entry.row === lightning.row &&
+                            entry.col === lightning.col &&
+                            entry.owner === playerKey &&
+                            entry.data &&
+                            entry.data.type === 'LIGHTNING'
+                        ));
+                    }
+                    revertedRes = true;
                 }
-                if (destroyedRes) {
-                    expired.push({ row: lightning.row, col: lightning.col });
+                if (revertedRes) {
+                    expired.push({ row: lightning.row, col: lightning.col, owner: playerKey, reason: 'anchor_expired' });
                 }
                 if (lightning.data) lightning.data.remainingOwnerTurns = -1;
             }
@@ -378,15 +398,35 @@
         if (lightning.data) lightning.data.remainingOwnerTurns = afterDec;
 
         if (shouldDecrement && afterDec === 0) {
-            let destroyedRes = false;
-            if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                const res = deps.BoardOps.destroyAt(cardState, gameState, row, col, 'LIGHTNING_WILL', 'anchor_expired');
-                destroyedRes = !!(res && res.destroyed);
+            let revertedRes = false;
+            if (deps.BoardOps && typeof deps.BoardOps.revertSpecialStoneAt === 'function') {
+                const res = deps.BoardOps.revertSpecialStoneAt(
+                    cardState,
+                    gameState,
+                    row,
+                    col,
+                    'LIGHTNING',
+                    playerKey,
+                    'LIGHTNING_WILL',
+                    'anchor_expired'
+                );
+                revertedRes = !!(res && res.reverted);
             } else {
-                destroyedRes = destroyAt(cardState, gameState, row, col);
+                if (cardState.markers) {
+                    cardState.markers = cardState.markers.filter((entry) => !(
+                        entry &&
+                        entry.kind === 'specialStone' &&
+                        entry.row === row &&
+                        entry.col === col &&
+                        entry.owner === playerKey &&
+                        entry.data &&
+                        entry.data.type === 'LIGHTNING'
+                    ));
+                }
+                revertedRes = true;
             }
-            if (destroyedRes) {
-                expired.push({ row, col });
+            if (revertedRes) {
+                expired.push({ row, col, owner: playerKey, reason: 'anchor_expired' });
             }
             if (lightning.data) lightning.data.remainingOwnerTurns = -1;
         }

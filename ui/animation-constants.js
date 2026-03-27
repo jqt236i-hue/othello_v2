@@ -60,6 +60,7 @@ const AnimationConstants = {
         HAND_REMOVE: 'hand_remove',
         CARD_USE_ANIMATION: 'card_use_animation',
         OBSERVER_BUBBLE: 'observer_bubble',
+        ROUND_BONUS_BANNER: 'round_bonus_banner',
         SOUND_EFFECT: 'sound_effect',
         LOG: 'log'
     }

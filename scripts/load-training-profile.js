@@ -4,6 +4,12 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const {
+    TRAINING_CHECKPOINT_HEAD_SPECS,
+    createEmptyResumeCheckpointPaths,
+    cloneResumeCheckpointPaths,
+    detectCheckpointHead
+} = require('./training-checkpoint-utils');
 
 const PROFILE_SCHEMA_VERSION = 'training_profile.v1';
 const GATE_SCHEMA_VERSION = 'training_gate.v1';
@@ -17,7 +23,7 @@ const RESERVED_TRAIN_CYCLE_FLAGS = new Set([
     '--bootstrap-policy-model',
     '--resume-checkpoint',
     '--run-tag'
-]);
+].concat(TRAINING_CHECKPOINT_HEAD_SPECS.map((spec) => spec.resumeFlag)));
 
 const SHARED_TEACHER_ARG_SPECS = Object.freeze([
     { flag: '--selfplay-policy-mix-rate', key: 'policyMixRate', type: 'number' },
@@ -251,30 +257,91 @@ function executeBootstrapPlans(plans, options) {
     return actions;
 }
 
-function findLatestCheckpoint(modelsDir) {
-    if (!modelsDir || !fs.existsSync(modelsDir)) return null;
+function findLatestCheckpointPaths(modelsDir) {
+    const latest = createEmptyResumeCheckpointPaths();
+    if (!modelsDir || !fs.existsSync(modelsDir)) return latest;
     let entries = [];
     try {
         entries = fs.readdirSync(modelsDir, { withFileTypes: true });
     } catch (e) {
-        return null;
+        return latest;
     }
 
-    const candidates = entries
-        .filter((entry) => entry && entry.isFile() && /\.checkpoint\.pt$/i.test(entry.name))
-        .map((entry) => {
-            const fullPath = path.resolve(modelsDir, entry.name);
-            let mtimeMs = 0;
-            try {
-                mtimeMs = Number(fs.statSync(fullPath).mtimeMs) || 0;
-            } catch (e) {
-                mtimeMs = 0;
-            }
-            return { fullPath, mtimeMs };
-        })
-        .sort((a, b) => b.mtimeMs - a.mtimeMs);
+    const latestByHead = new Map();
+    for (const entry of entries) {
+        if (!entry || !entry.isFile() || !/\.checkpoint\.pt$/i.test(entry.name)) continue;
+        const fullPath = path.resolve(modelsDir, entry.name);
+        const head = detectCheckpointHead(fullPath);
+        if (!head) continue;
+        let mtimeMs = 0;
+        try {
+            mtimeMs = Number(fs.statSync(fullPath).mtimeMs) || 0;
+        } catch (e) {
+            mtimeMs = 0;
+        }
+        const previous = latestByHead.get(head);
+        if (!previous || mtimeMs > previous.mtimeMs) {
+            latestByHead.set(head, { fullPath, mtimeMs });
+        }
+    }
 
-    return candidates.length > 0 ? candidates[0].fullPath : null;
+    for (const spec of TRAINING_CHECKPOINT_HEAD_SPECS) {
+        const entry = latestByHead.get(spec.head);
+        latest[spec.head] = entry ? entry.fullPath : null;
+    }
+    return latest;
+}
+
+function findLatestCheckpoint(modelsDir) {
+    const latest = findLatestCheckpointPaths(modelsDir);
+    return latest.policy || null;
+}
+
+function assignResumeCheckpointPath(target, head, checkpointPath, label) {
+    if (!target || !head || !checkpointPath) return;
+    const resolvedPath = path.resolve(checkpointPath);
+    if (target[head] && path.resolve(target[head]) !== resolvedPath) {
+        throw new Error(
+            `${label || 'resume checkpoint'} conflicts with existing ${head} checkpoint: ${target[head]} (tried to set: ${resolvedPath})`
+        );
+    }
+    target[head] = resolvedPath;
+}
+
+function resolveExplicitResumeCheckpointPaths(cwd, bootstrap) {
+    const resolved = createEmptyResumeCheckpointPaths();
+    if (!bootstrap || typeof bootstrap !== 'object') return resolved;
+
+    const configuredMap =
+        bootstrap.resumeCheckpointPaths && typeof bootstrap.resumeCheckpointPaths === 'object' && !Array.isArray(bootstrap.resumeCheckpointPaths)
+            ? bootstrap.resumeCheckpointPaths
+            : null;
+
+    for (const spec of TRAINING_CHECKPOINT_HEAD_SPECS) {
+        const rawValue = bootstrap[spec.bootstrapKey] || (configuredMap ? configuredMap[spec.head] : null);
+        if (!rawValue) continue;
+        const resolvedPath = resolveMaybePath(cwd, rawValue);
+        if (!resolvedPath || !fs.existsSync(resolvedPath)) {
+            throw new Error(`${spec.bootstrapKey} not found: ${resolvedPath || '(empty)'}`);
+        }
+        assignResumeCheckpointPath(resolved, spec.head, resolvedPath, spec.bootstrapKey);
+    }
+
+    if (bootstrap.resumeCheckpointPath) {
+        const explicitCheckpoint = resolveMaybePath(cwd, bootstrap.resumeCheckpointPath);
+        if (!explicitCheckpoint || !fs.existsSync(explicitCheckpoint)) {
+            throw new Error(`bootstrap.resumeCheckpointPath not found: ${explicitCheckpoint || '(empty)'}`);
+        }
+        const explicitHead = detectCheckpointHead(explicitCheckpoint);
+        if (!explicitHead) {
+            throw new Error(
+                `bootstrap.resumeCheckpointPath must target a policy-net/policy-card/policy-target/policy-value checkpoint: ${explicitCheckpoint}`
+            );
+        }
+        assignResumeCheckpointPath(resolved, explicitHead, explicitCheckpoint, 'bootstrap.resumeCheckpointPath');
+    }
+
+    return resolved;
 }
 
 function usesPromotedOnlyGuideMode(trainCycleArgs) {
@@ -360,6 +427,7 @@ function applySharedTeacherProfileArgs(trainCycleArgs, teacherProfile) {
     for (const spec of SHARED_TEACHER_ARG_SPECS) {
         const rawValue = teacherProfile[spec.key];
         if (rawValue == null) continue;
+        if (findFlagIndex(nextArgs, spec.flag) >= 0) continue;
         nextArgs = upsertFlagValue(nextArgs, spec.flag, formatSharedTeacherValue(spec.type, rawValue));
     }
     const hasExplicitGuideMode =
@@ -465,19 +533,20 @@ function resolveTrainingProfile(profileRef, options) {
         }
     }
 
-    const autoResumeLatestCheckpointEnabled = bootstrap.autoResumeLatestCheckpoint === true
-        && !promotedOnlyGuideMode;
+    // Promoted-only lanes still benefit from cumulative optimizer/checkpoint state
+    // even when the selfplay guide remains pinned to the current promoted model.
+    const autoResumeLatestCheckpointEnabled = bootstrap.autoResumeLatestCheckpoint === true;
 
-    let resumeCheckpointPath = null;
-    if (bootstrap.resumeCheckpointPath) {
-        const explicitCheckpoint = resolveMaybePath(cwd, bootstrap.resumeCheckpointPath);
-        if (explicitCheckpoint && fs.existsSync(explicitCheckpoint)) {
-            resumeCheckpointPath = explicitCheckpoint;
+    const resumeCheckpointPaths = resolveExplicitResumeCheckpointPaths(cwd, bootstrap);
+    if (autoResumeLatestCheckpointEnabled) {
+        const latestResumeCheckpointPaths = findLatestCheckpointPaths(modelsDir);
+        for (const spec of TRAINING_CHECKPOINT_HEAD_SPECS) {
+            if (!resumeCheckpointPaths[spec.head] && latestResumeCheckpointPaths[spec.head]) {
+                resumeCheckpointPaths[spec.head] = latestResumeCheckpointPaths[spec.head];
+            }
         }
     }
-    if (!resumeCheckpointPath && autoResumeLatestCheckpointEnabled) {
-        resumeCheckpointPath = findLatestCheckpoint(modelsDir);
-    }
+    const resumeCheckpointPath = resumeCheckpointPaths.policy || null;
 
     const generatedArgs = [
         '--python', docs.pythonPath,
@@ -489,8 +558,10 @@ function resolveTrainingProfile(profileRef, options) {
     if (bootstrapPolicyModelPath) {
         generatedArgs.push('--bootstrap-policy-model', bootstrapPolicyModelPath);
     }
-    if (resumeCheckpointPath) {
-        generatedArgs.push('--resume-checkpoint', resumeCheckpointPath);
+    for (const spec of TRAINING_CHECKPOINT_HEAD_SPECS) {
+        if (resumeCheckpointPaths[spec.head]) {
+            generatedArgs.push(spec.resumeFlag, resumeCheckpointPaths[spec.head]);
+        }
     }
 
     const launcherScriptPath = resolveMaybePath(
@@ -539,6 +610,7 @@ function resolveTrainingProfile(profileRef, options) {
             actions: bootstrapActions,
             bootstrapPolicyModelPath,
             resumeCheckpointPath,
+            resumeCheckpointPaths: cloneResumeCheckpointPaths(resumeCheckpointPaths),
             autoResumeLatestCheckpoint: autoResumeLatestCheckpointEnabled
         },
         preflight,
@@ -588,6 +660,7 @@ module.exports = {
     resolveNamedConfigPath,
     loadStructuredFile,
     resolveProfileDocument,
+    findLatestCheckpointPaths,
     findLatestCheckpoint,
     resolveTrainingProfile,
     writeResolvedConfig,

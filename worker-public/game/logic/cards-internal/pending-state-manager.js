@@ -159,6 +159,7 @@
         const helpers = getHelpers(context);
         const getCardDef = helpers.getCardDef;
         const addChargeValue = helpers.addChargeValue;
+        const moveDiscardCardToHandByCardId = helpers.moveDiscardCardToHandByCardId;
         const cardId = pending.cardId;
         const cardDef = (cardId && typeof getCardDef === 'function') ? getCardDef(cardId) : null;
         const cost = cardDef ? Number(cardDef.cost || 0) : 0;
@@ -185,15 +186,20 @@
         }
 
         if (cardId) {
-            ensureHands(cardState);
-            const discard = ensureDiscard(cardState);
             const handKey = Array.isArray(cardState.hands[playerKey]) ? playerKey : 'black';
-            if (!cardState.hands[handKey].includes(cardId)) {
-                cardState.hands[handKey].push(cardId);
-            }
-            const discardIndex = discard.lastIndexOf(cardId);
-            if (discardIndex >= 0) {
-                discard.splice(discardIndex, 1);
+            const restored = (typeof moveDiscardCardToHandByCardId === 'function')
+                ? moveDiscardCardToHandByCardId(cardState, handKey, cardId, { ignoreHandLimit: true })
+                : null;
+            if (!restored) {
+                ensureHands(cardState);
+                const discard = ensureDiscard(cardState);
+                if (!cardState.hands[handKey].includes(cardId)) {
+                    cardState.hands[handKey].push(cardId);
+                }
+                const discardIndex = discard.lastIndexOf(cardId);
+                if (discardIndex >= 0) {
+                    discard.splice(discardIndex, 1);
+                }
             }
         }
 

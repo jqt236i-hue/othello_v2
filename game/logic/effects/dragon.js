@@ -357,11 +357,28 @@
 
             // If countdown reached 0 this turn, destroy anchor after applying
             if (afterDec === 0) {
-                destroyed.push({ row: dragon.row, col: dragon.col });
-                if (BoardOps && typeof BoardOps.destroyAt === 'function') {
-                    BoardOps.destroyAt(cardState, gameState, dragon.row, dragon.col, 'DRAGON', 'anchor_expired');
+                destroyed.push({ row: dragon.row, col: dragon.col, owner: playerKey, reason: 'anchor_expired' });
+                if (BoardOps && typeof BoardOps.revertSpecialStoneAt === 'function') {
+                    BoardOps.revertSpecialStoneAt(
+                        cardState,
+                        gameState,
+                        dragon.row,
+                        dragon.col,
+                        'DRAGON',
+                        playerKey,
+                        'DRAGON',
+                        'anchor_expired'
+                    );
                 } else {
-                    setCellValue(gameState, dragon.row, dragon.col, 0);
+                    cardState.markers = (cardState.markers || []).filter((entry) => !(
+                        entry &&
+                        entry.kind === 'specialStone' &&
+                        entry.row === dragon.row &&
+                        entry.col === dragon.col &&
+                        entry.owner === playerKey &&
+                        entry.data &&
+                        entry.data.type === 'DRAGON'
+                    ));
                 }
                 if (dragon.data) dragon.data.remainingOwnerTurns = -1;
             }
@@ -524,11 +541,28 @@
         });
 
         if (afterDec === 0) {
-            destroyed.push({ row: anchorRow, col: anchorCol });
-            if (BoardOps && typeof BoardOps.destroyAt === 'function') {
-                BoardOps.destroyAt(cardState, gameState, anchorRow, anchorCol, 'DRAGON', 'anchor_expired');
+            destroyed.push({ row: anchorRow, col: anchorCol, owner: playerKey, reason: 'anchor_expired' });
+            if (BoardOps && typeof BoardOps.revertSpecialStoneAt === 'function') {
+                BoardOps.revertSpecialStoneAt(
+                    cardState,
+                    gameState,
+                    anchorRow,
+                    anchorCol,
+                    'DRAGON',
+                    playerKey,
+                    'DRAGON',
+                    'anchor_expired'
+                );
             } else {
-                setCellValue(gameState, anchorRow, anchorCol, P_EMPTY);
+                cardState.markers = (cardState.markers || []).filter((entry) => !(
+                    entry &&
+                    entry.kind === 'specialStone' &&
+                    entry.row === anchorRow &&
+                    entry.col === anchorCol &&
+                    entry.owner === playerKey &&
+                    entry.data &&
+                    entry.data.type === 'DRAGON'
+                ));
             }
             if (dragon.data) dragon.data.remainingOwnerTurns = -1;
         }

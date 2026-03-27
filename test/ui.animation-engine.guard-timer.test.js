@@ -1,4 +1,5 @@
 const { JSDOM } = require('jsdom');
+const AnimationConstants = require('../ui/animation-constants');
 
 describe('animation-engine guard timer rendering', () => {
   let dom;
@@ -240,6 +241,108 @@ describe('animation-engine guard timer rendering', () => {
     expect(sleepSpy).toHaveBeenCalled();
   });
 
+  test('proliferated destroy only shows highlight and keeps the disc in place', async () => {
+    const engine = require('../ui/animation-engine');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '5';
+    cell.dataset.col = '5';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc white';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
+
+    await engine.handleDestroy({
+      targets: [{
+        r: 5,
+        col: 5,
+        ownerBefore: 'white',
+        cause: 'DESTROY_ONE_STONE',
+        reason: 'destroy_one_stone',
+        meta: { proliferated: true, special: 'PROLIFERATION' }
+      }]
+    });
+
+    expect(cell.querySelector('.disc')).toBe(disc);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(sleepSpy).toHaveBeenCalled();
+  });
+
+  test.each([
+    ['GLUTTONOUS_WILL', 'gluttonous_eat'],
+    ['WILL_HUNTER_KING', 'will_hunter_king_slash']
+  ])('proliferated %s destroy keeps highlight visible through overlap midpoint', async (cause, reason) => {
+    const engine = require('../ui/animation-engine');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '5';
+    cell.dataset.col = '4';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc white';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
+
+    await engine.handleDestroy({
+      targets: [{
+        r: 5,
+        col: 4,
+        ownerBefore: 'white',
+        cause,
+        reason,
+        meta: { proliferated: true, special: 'PROLIFERATION' }
+      }]
+    });
+
+    const minimumVisibleMs = Math.max(120, Math.floor(AnimationConstants.MOVE_MS / 2));
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(sleepSpy.mock.calls.some((args) => Number(args[0]) >= (minimumVisibleMs - 20))).toBe(true);
+  });
+
+  test.each([
+    ['GLUTTONOUS_WILL', 'gluttonous_eat'],
+    ['WILL_HUNTER_KING', 'will_hunter_king_slash']
+  ])('ghost-blocked %s destroy keeps highlight visible through overlap midpoint', async (cause, reason) => {
+    const engine = require('../ui/animation-engine');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '5';
+    cell.dataset.col = '3';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc white';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    await engine.handleDestroy({
+      targets: [{
+        r: 5,
+        col: 3,
+        ownerBefore: 'white',
+        cause,
+        reason,
+        meta: { blockedByGhost: true, special: 'GHOST', timer: 5, owner: 'white' }
+      }]
+    });
+
+    const minimumVisibleMs = Math.max(120, Math.floor(AnimationConstants.MOVE_MS / 2));
+    expect(sleepSpy.mock.calls.some((args) => Number(args[0]) >= (minimumVisibleMs - 20))).toBe(true);
+  });
+
   test('loss_will_reset の STATUS_REMOVED は crossfadeDiscToState を使う', async () => {
     const crossfadeSpy = jest.fn(() => Promise.resolve());
     jest.doMock('../ui/stone-visuals', () => ({
@@ -294,6 +397,40 @@ describe('animation-engine guard timer rendering', () => {
     });
 
     expect(freezeFadeSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('special stone duration_end の STATUS_REMOVED は通常石へクロスフェードする', async () => {
+    const crossfadeSpy = jest.fn(async (disc, opts = {}) => {
+      disc.dataset.effectKey = String(opts.effectKey || '');
+    });
+    jest.doMock('../ui/stone-visuals', () => ({
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '2';
+    cell.dataset.col = '2';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    await engine.handleStatusChange({
+      type: 'status_removed',
+      rawType: 'STATUS_REMOVED',
+      targets: [{ r: 2, col: 2, after: { color: 1, special: null, timer: null, owner: 'black' } }],
+      meta: { special: 'TIME_STOP', reason: 'duration_end' }
+    });
+
+    expect(crossfadeSpy).toHaveBeenCalledTimes(1);
+    expect(crossfadeSpy.mock.calls[0][1]).toEqual(expect.objectContaining({
+      effectKey: null,
+      owner: 1,
+      fadeIn: false
+    }));
   });
 
   test('fadeOutFreezeOverlay removes frozen-cell visuals after fade', async () => {
@@ -544,7 +681,8 @@ describe('animation-engine guard timer rendering', () => {
 
   test.each([
     ['CLONE_WILL', 'clone_spawn'],
-    ['SPLIT_WILL', 'split_spawn']
+    ['SPLIT_WILL', 'split_spawn'],
+    ['PROLIFERATION_WILL', 'proliferation_spawn']
   ])('%s after-state playback hides destination disc until move finishes', async (cause, reason) => {
     const board = document.getElementById('board');
     const setRect = (el, row, col) => {
@@ -1434,6 +1572,80 @@ describe('animation-engine guard timer rendering', () => {
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
+  });
+
+  test('Equality Will spawn keeps red cell highlight visible briefly', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '2';
+    targetCell.dataset.col = '5';
+    board.appendChild(targetCell);
+
+    const addSpy = jest.spyOn(targetCell.classList, 'add');
+    const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+
+    await engine.handleSpawn({
+      type: 'spawn',
+      targets: [{
+        r: 2,
+        col: 5,
+        cause: 'EQUALITY_WILL',
+        reason: 'equality_will_spawn',
+        ownerAfter: 'black',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-spawn');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-spawn');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(sleepSpy).toHaveBeenCalled();
+    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= 100)).toBe(true);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+    sleepSpy.mockRestore();
+  });
+
+  test('Salvation Will spawn keeps red cell highlight visible briefly', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '3';
+    targetCell.dataset.col = '6';
+    board.appendChild(targetCell);
+
+    const addSpy = jest.spyOn(targetCell.classList, 'add');
+    const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+
+    await engine.handleSpawn({
+      type: 'spawn',
+      targets: [{
+        r: 3,
+        col: 6,
+        cause: 'SALVATION_WILL',
+        reason: 'salvation_spawn',
+        ownerAfter: 'black',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(sleepSpy).toHaveBeenCalled();
+    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= 100)).toBe(true);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+    sleepSpy.mockRestore();
   });
 
   test('free placement place event applies and clears red cell highlight', async () => {

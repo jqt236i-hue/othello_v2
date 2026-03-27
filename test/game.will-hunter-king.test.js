@@ -416,6 +416,60 @@ describe('WILL_HUNTER_KING（意志狩りの王）', () => {
     expect(enemyMarker.data.destroyEvadeRemaining).toBe(0);
   });
 
+  test('増殖石を斬ると移動せず、元の位置に残したまま増殖だけ発生する', () => {
+    const { cardState, gameState } = createState(0);
+
+    gameState.board[3][3] = Shared.BLACK;
+    gameState.board[3][5] = Shared.WHITE;
+    gameState.board[2][4] = Shared.EMPTY;
+
+    cardState.markers.push(
+      {
+        id: 8211,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: {
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
+          flipEvadeRemaining: 2,
+          destroyEvadeRemaining: 2
+        }
+      },
+      {
+        id: 8212,
+        kind: 'specialStone',
+        row: 3,
+        col: 5,
+        owner: 'white',
+        data: { type: 'PROLIFERATION' }
+      }
+    );
+
+    const out = CardLogic.processWillHunterKingEffectsAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      3,
+      3,
+      createPrng(0)
+    );
+
+    expect(out.destroyed).toHaveLength(0);
+    expect(out.moved).toHaveLength(0);
+    expect(out.proliferated).toHaveLength(1);
+    expect(out.proliferated[0]).toMatchObject({ row: 3, col: 5, sourceRow: 3, sourceCol: 3 });
+    expect(gameState.board[3][3]).toBe(Shared.BLACK);
+    expect(gameState.board[3][5]).toBe(Shared.WHITE);
+    expect(gameState.board[2][4]).toBe(Shared.WHITE);
+
+    const marker = cardState.markers.find((m) => m && m.id === 8211);
+    expect(marker).toBeTruthy();
+    expect(marker.row).toBe(3);
+    expect(marker.col).toBe(3);
+  });
+
   test('破壊回避は隣接空きがなくても遠距離の空きマスへ移動する', () => {
     const { cardState, gameState } = createState();
 

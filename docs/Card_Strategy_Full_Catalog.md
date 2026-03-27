@@ -46,14 +46,14 @@
 | work_01 | 出稼ぎの意志 | WORK_WILL | 11 | 自ターン開始で 1→2→4→8→16（上限99） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | アンカー喪失または残りターン0で終了 | 自ターン開始で 1→2→4→8→16（上限99） | 条件未充足で使用不可/低効率 | 序盤〜中盤（角/辺に置ける時） | cards/catalog.json:195<br>game/logic/cards.js:1227<br>shared-constants.js:171 |
 | double_01 | 二連投石 | DOUBLE_PLACE | 24 | そのターンのみ追加1手 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 2手目の合法手が無ければ追加配置できない | そのターンのみ追加1手 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:202<br>game/logic/cards.js:2489<br>shared-constants.js:173 |
 | heaven_01 | 天の恵み | HEAVEN_BLESSING | 3 | 候補5枚から1枚を手札獲得 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 候補生成に成功し、手札上限5未満 | あり | 候補なし/手札上限で受取不可 | 候補5枚から1枚を手札獲得 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:209<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
-| condemn_01 | 断罪の意志 | CONDEMN_WILL | 6 | 相手手札1枚破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 相手手札が1枚以上必要 | あり | 対象index不正/target_mismatch | 相手手札1枚破壊 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:216<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
+| condemn_01 | 断罪の意志 | CONDEMN_WILL | 8 | 相手手札1枚破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 相手手札が1枚以上必要 | あり | 対象index不正/target_mismatch | 相手手札1枚破壊 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:216<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | gold_stone | 金の意志 | GOLD_STONE | 6 | 反転布石×4、配置石は即時消滅 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 反転0〜1枚だと費用回収しにくい | 反転布石×4、配置石は即時消滅 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:223<br>game/logic/cards.js:2191<br>shared-constants.js:180 |
 | silver_stone | 銀の意志 | SILVER_STONE | 3 | 反転布石×3、配置石は即時消滅 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 反転0〜1枚だと費用回収しにくい | 反転布石×3、配置石は即時消滅 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:230<br>game/logic/cards.js:2204<br>shared-constants.js:240 |
 | extend_life_01 | 延命の意志 | EXTEND_LIFE_WILL | 4 | remainingOwnerTurns を2倍 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + remainingOwnerTurns>0 の自分特殊石が必要 | あり | 対象が特殊石でない/remainingOwnerTurns無効 | remainingOwnerTurns を2倍 | 条件未充足で使用不可/低効率 | 中盤〜終盤（寿命付き特殊石が残る局面） | cards/catalog.json:244<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | extend_life_god_01 | 延命神 | EXTEND_LIFE_GOD | 10 | remainingOwnerTurns を4倍 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + remainingOwnerTurns>0 の自分特殊石が必要 | あり | 対象が特殊石でない/remainingOwnerTurns無効 | remainingOwnerTurns を4倍 | 条件未充足で使用不可/低効率 | 中盤〜終盤（寿命付き特殊石を長く残したい局面） | cards/catalog.json<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | guard_01 | 守る意志 | GUARD_WILL | 2 | 3ターン完全保護（反転/交換/破壊/誘惑を遮断） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 自分石の有効対象が1個以上必要 | あり | 対象不足 | 3ターン完全保護（反転/交換/破壊/誘惑を遮断） | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:251<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | udg_01 | 究極破壊神 | ULTIMATE_DESTROY_GOD | 25 | 自由配置で配置時/ターン開始に周囲8破壊（5ターン） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | アンカー喪失で終了 | 自由配置で配置時/ターン開始に周囲8破壊（5ターン） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:258<br>game/logic/cards.js:2369<br>game/logic/cards.js:2371 |
-| ultimate_hyperactive_01 | 究極多動神 | ULTIMATE_HYPERACTIVE_GOD | 28 | 両者ターン開始に直線1〜5マス移動×2+反転（10ターン） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 移動先なしで消滅、残り0で自己消滅 | 両者ターン開始に直線1〜5マス移動×2+反転（10ターン） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:265<br>game/logic/cards.js:2432<br>game/logic/cards/hyperactive.js:105 |
+| ultimate_hyperactive_01 | 究極多動神 | ULTIMATE_HYPERACTIVE_GOD | 28 | 両者ターン開始に直線1〜5マス移動×2+反転（10ターン） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 移動先なしで消滅、残り0で同色通常石化 | 両者ターン開始に直線1〜5マス移動×2+反転（10ターン） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:265<br>game/logic/cards.js:2432<br>game/logic/cards/hyperactive.js:105 |
 | board_expand_01 | 盤面拡張 | BOARD_EXPANSION_WILL | 19 | 左右外側に1セル追加（各プレイヤー1回） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 未使用かつ拡張未展開、左右端選択対象が存在 | あり | 使用済み/既に拡張中で使用不可 | 左右外側に1セル追加（各プレイヤー1回） | 高分散札（優勢時はCPU減点） | 終盤劣勢（cornerEmergency想定） | cards/catalog.json:272<br>game/logic/cards.js:971<br>game/logic/cards.js:1175 |
 | blockade_01 | 封鎖の意志 | BLOCKADE_WILL | 1 | 空き1マスを3ターン封鎖 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 空きかつ未封鎖マスが1個以上必要 | あり | 空きマス不足/対象不正 | 空き1マスを3ターン封鎖 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:279<br>game/logic/cards.js:975<br>game/logic/cards.js:1016 |
 
@@ -284,7 +284,7 @@
   - shared-constants.js:224
   - game/ai/cpu-policy-core.js:29
 
-### chain-will 系 / 連鎖の意志系
+### chain-will 系 / 連鎖系
 - 対象カード: `double_chain_01` / `triple_chain_01` / `quad_chain_01` / `infinite_chain_01`
 - 効果詳細（処理順含む）:
   - `DOUBLE_CHAIN_WILL`: 通常反転のあと追加反転1回。使用後に `TRIPLE_CHAIN_WILL` を手札追加
@@ -860,7 +860,7 @@
   - 期待リターン「両者ターン開始に直線1〜5マス移動を2回+反転（10ターン）」を満たす見込みがある手で使う。
   - CPU方針で明示がないため、対象条件を満たす時だけ選択する。
 - 利敵行為になる使い方
-  - 失敗条件「移動先なしで消滅、残り0で自己消滅」に該当する状態で切る。
+  - 失敗条件「移動先なしで消滅、残り0で同色通常石化」に該当する状態で切る。
   - CPU方針で高分散札として減点される局面（優勢・角確保局面）で先打ちする。
   - 対象不足を見落とし、使用不可/不発でテンポを失う。
 - 相性の良い盤面/悪い盤面: 未確認（盤面相性の明示ロジックなし）

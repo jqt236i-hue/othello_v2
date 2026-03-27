@@ -1351,6 +1351,44 @@ describe('cpu decision refactor helpers', () => {
     expect(move).toBe(promotedCornerMove);
   });
 
+  test('selectCpuMoveWithPolicy still avoids pseudo-corner C-square after METEOR_HOLE promotes a new corner', () => {
+    const riskyPseudoCornerAdjacentMove = { row: 0, col: 2, flips: [{ row: 1, col: 2 }] };
+    const safeInnerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+    const candidates = [riskyPseudoCornerAdjacentMove, safeInnerMove];
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, -1, 0, 0, 0],
+        [0, 0, 0, 1, 1, 0, 0, 0],
+        [0, 0, 0, -1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: [
+        { kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'METEOR_HOLE' } }
+      ]
+    };
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
+      expect(moves).toEqual([safeInnerMove]);
+      return moves[0];
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+    expect(move).toBe(safeInnerMove);
+  });
+
   test('selectCpuMoveWithPolicy prioritizes expansion corner as corner move', () => {
     const expansionCornerMove = { row: -1, col: -1, flips: [{ row: 0, col: 0 }] };
     const safeInnerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
@@ -1688,6 +1726,56 @@ describe('cpu decision refactor helpers', () => {
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
     const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
     expect(action.type).toBe('destroy_hand_card');
+  });
+
+  test('cpuMaybeDestroyHandCardWithPolicy immediately destroys bucket1 cards without hand pressure', () => {
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: ['time_stop_god_01'], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 60, black: 0 },
+      turnIndex: 10
+    };
+    global.cpuSmartness.white = 6;
+    global.getLegalMoves = () => [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }];
+    global.CardLogic = {
+      getUsableCardIds: () => ['time_stop_god_01'],
+      getCardDef: () => ({ id: 'time_stop_god_01', name: '時間停石', type: 'TIME_STOP_GOD' }),
+      getCardCost: () => 0
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn((_cs, _gs, _p, action) => ({
+        ok: action.type === 'destroy_hand_card',
+        nextCardState: {
+          ...global.cardState,
+          hands: { ...global.cardState.hands, white: [] },
+          hasDestroyedCardThisTurnByPlayer: { ...global.cardState.hasDestroyedCardThisTurnByPlayer, white: true }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    const destroyed = cpuDecision.cpuMaybeDestroyHandCardWithPolicy('white');
+    expect(destroyed).toBe(true);
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.type).toBe('destroy_hand_card');
+    expect(action.destroyCardId).toBe('time_stop_god_01');
   });
 
   test('cpuMaybeUseCardWithPolicy is defensive when cardState is missing', () => {

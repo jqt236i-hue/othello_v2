@@ -44,6 +44,7 @@
             LIGHTNING_WILL_TURNS: constants.LIGHTNING_WILL_TURNS,
             OBSERVER_WILL_TURNS: constants.OBSERVER_WILL_TURNS,
             GHOST_WILL_TURNS: constants.GHOST_WILL_TURNS,
+            PROLIFERATION_WILL_TURNS: constants.PROLIFERATION_WILL_TURNS,
             WILL_HUNTER_KING_TURNS: constants.WILL_HUNTER_KING_TURNS,
             ROBOT_VACUUM_TURNS: constants.ROBOT_VACUUM_TURNS,
             STRONG_WILL_PROMOTION_OWNER_TURNS: constants.STRONG_WILL_PROMOTION_OWNER_TURNS,
@@ -92,6 +93,26 @@
     function getStrongWillPromotionOwnerTurns(constants) {
         const raw = Number(constants && constants.STRONG_WILL_PROMOTION_OWNER_TURNS);
         return Number.isFinite(raw) ? Math.max(1, Math.trunc(raw)) : 10;
+    }
+
+    function getProliferationOwnerTurns(constants) {
+        const raw = Number(constants && constants.PROLIFERATION_WILL_TURNS);
+        return Number.isFinite(raw) ? Math.max(1, Math.trunc(raw)) : 10;
+    }
+
+    function emitDurationEndStatusRemoved(cardState, helpers, marker, data) {
+        if (typeof helpers.emitPresentationEvent !== 'function' || !marker || !data) return;
+        helpers.emitPresentationEvent(cardState, {
+            type: 'STATUS_REMOVED',
+            row: marker.row,
+            col: marker.col,
+            reason: 'duration_end',
+            meta: {
+                special: data.type,
+                owner: marker.owner,
+                reason: 'duration_end'
+            }
+        });
     }
 
     function processStrongWillPromotionOnTurnStart(cardState, playerKey, specialMarkers, helpers, constants) {
@@ -204,8 +225,9 @@
         const specialStoneKind = getSpecialStoneKind(constants);
         for (const marker of specialMarkers) {
             const data = marker.data || {};
+            const dataType = String(data.type || '').toUpperCase();
             if (data.expiresForPlayer === playerKey) {
-                if (data.type === 'GOLD' || data.type === 'SILVER') {
+                if (dataType === 'GOLD' || dataType === 'SILVER') {
                     if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
                         BoardOpsModule.destroyAt(cardState, gameState, marker.row, marker.col, 'SYSTEM', 'gold_silver_expired');
                     } else {
@@ -220,6 +242,9 @@
                 continue;
             }
             if (typeof data.remainingOwnerTurns === 'number' && data.remainingOwnerTurns <= 0) {
+                if (dataType === 'PROLIFERATION') {
+                    emitDurationEndStatusRemoved(cardState, helpers, marker, data);
+                }
                 if (typeof helpers.removeMarkersAt === 'function') {
                     helpers.removeMarkersAt(cardState, marker.row, marker.col, { kind: specialStoneKind, type: data.type, owner: marker.owner });
                 }
@@ -233,49 +258,39 @@
             if (data.type !== 'FREEZE' && typeof helpers.isFrozenCellForCard === 'function' && helpers.isFrozenCellForCard(cardState, marker.row, marker.col)) {
                 continue;
             }
-            if ((data.type === 'GUARD' || data.type === 'BLOCKADE' || data.type === 'FREEZE' || data.type === 'GHOST') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
+            if ((dataType === 'GUARD' || dataType === 'BLOCKADE' || dataType === 'FREEZE' || dataType === 'GHOST' || dataType === 'PROLIFERATION') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
                 data.remainingOwnerTurns -= 1;
                 if (data.remainingOwnerTurns <= 0 && typeof helpers.removeMarkersAt === 'function') {
-                    if (data.type === 'GHOST') {
-                        if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
-                            BoardOpsModule.destroyAt(
+                    if (dataType === 'GHOST') {
+                        if (BoardOpsModule && typeof BoardOpsModule.revertSpecialStoneAt === 'function') {
+                            const revertRes = BoardOpsModule.revertSpecialStoneAt(
                                 cardState,
                                 gameState,
                                 marker.row,
                                 marker.col,
+                                'GHOST',
+                                marker.owner,
                                 'SYSTEM',
                                 'duration_end',
                                 {
-                                    allowGhostDestroy: true,
-                                    ignoreGuard: true,
                                     special: data.type,
                                     owner: marker.owner,
                                     timer: 0
                                 }
                             );
-                        } else {
-                            if (gameState && gameState.board) gameState.board[marker.row][marker.col] = constants.EMPTY;
-                            helpers.removeMarkersAt(cardState, marker.row, marker.col, {
-                                kind: specialStoneKind,
-                                type: data.type,
-                                owner: marker.owner
-                            });
+                            if (revertRes && revertRes.reverted) {
+                                continue;
+                            }
                         }
+                        emitDurationEndStatusRemoved(cardState, helpers, marker, data);
+                        helpers.removeMarkersAt(cardState, marker.row, marker.col, {
+                            kind: specialStoneKind,
+                            type: data.type,
+                            owner: marker.owner
+                        });
                         continue;
                     }
-                    if (typeof helpers.emitPresentationEvent === 'function') {
-                        helpers.emitPresentationEvent(cardState, {
-                            type: 'STATUS_REMOVED',
-                            row: marker.row,
-                            col: marker.col,
-                            reason: 'duration_end',
-                            meta: {
-                                special: data.type,
-                                owner: marker.owner,
-                                reason: 'duration_end'
-                            }
-                        });
-                    }
+                    emitDurationEndStatusRemoved(cardState, helpers, marker, data);
                     helpers.removeMarkersAt(cardState, marker.row, marker.col, {
                         kind: specialStoneKind,
                         type: data.type,
@@ -477,6 +492,14 @@
                 remainingOwnerTurns: 5
             });
             effects.breedingPlaced = true;
+        }
+
+        if (pending && pending.type === 'PROLIFERATION_WILL' && typeof helpers.addMarker === 'function') {
+            helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
+                type: 'PROLIFERATION',
+                remainingOwnerTurns: getProliferationOwnerTurns(constants)
+            });
+            effects.proliferationPlaced = true;
         }
 
         if (pending && pending.type === 'ULTIMATE_DESTROY_GOD' && typeof helpers.addMarker === 'function') {

@@ -249,6 +249,67 @@ describe('card use source element selection', () => {
     expect(global.playCardUseHandAnimation).not.toHaveBeenCalled();
   });
 
+  test('network mode keeps card UI busy until server-authored card use publish settles', async () => {
+    let resolvePublish;
+    const publishPromise = new Promise((resolve) => {
+      resolvePublish = resolve;
+    });
+    window.MATCH_MODE = 'network';
+    window.LOCAL_PLAYER_KEY = 'black';
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      skippedLocalExecution: true,
+      publishPromise,
+      playbackEvents: []
+    }));
+
+    require('../cards/card-interaction.js');
+    global.renderCardUI.mockClear();
+    global.cardState.selectedCardOwnerKey = 'black';
+
+    window.useSelectedCard();
+
+    expect(global.cardState.selectedCardId).toBe('dup_card');
+    expect(global.cardState.selectedCardOwnerKey).toBe('black');
+    expect(global.window.isProcessing).toBe(true);
+    expect(global.window.isCardAnimating).toBe(true);
+
+    resolvePublish({ ok: true });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.cardState.selectedCardId).toBeNull();
+    expect(global.cardState.selectedCardOwnerKey).toBeNull();
+    expect(global.window.isProcessing).toBe(false);
+    expect(global.window.isCardAnimating).toBe(false);
+    expect(global.ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
+  });
+
+  test('network mode keeps selection and logs failure when server-authored card use publish is rejected', async () => {
+    window.MATCH_MODE = 'network';
+    window.LOCAL_PLAYER_KEY = 'black';
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      skippedLocalExecution: true,
+      publishPromise: Promise.resolve({ ok: false, reason: 'OUT_OF_TURN' }),
+      playbackEvents: []
+    }));
+
+    require('../cards/card-interaction.js');
+    global.addLog.mockClear();
+    global.cardState.selectedCardOwnerKey = 'black';
+
+    window.useSelectedCard();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.cardState.selectedCardId).toBe('dup_card');
+    expect(global.cardState.selectedCardOwnerKey).toBe('black');
+    expect(global.window.isProcessing).toBe(false);
+    expect(global.window.isCardAnimating).toBe(false);
+    expect(global.addLog).toHaveBeenCalledWith('カード使用に失敗しました (OUT_OF_TURN)');
+  });
+
   test('network mode does not emit a duplicate effect log for card use', () => {
     window.MATCH_MODE = 'network';
     window.LOCAL_PLAYER_KEY = 'black';
@@ -544,6 +605,39 @@ describe('card use source element selection', () => {
 
       expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
       expect(global.renderCardUI).toHaveBeenCalledTimes(1);
+      delete global.waitForPlaybackIdle;
+    });
+
+    test('board を変える card playback がある時は emitBoardUpdate を playback 完了まで待つ', async () => {
+      let resolvePlayback;
+      const playbackPromise = new Promise((resolve) => { resolvePlayback = resolve; });
+      global.waitForPlaybackIdle = jest.fn(() => playbackPromise);
+      global.CardLogic = {
+        getCardDef: (id) => ({ id, type: 'EQUALITY_WILL', name: '平等の意志', desc: 'd', cost: 1 })
+      };
+      global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+        ok: true,
+        nextCardState: global.cardState,
+        nextGameState: global.gameState,
+        playbackEvents: [
+          { type: 'card_use_animation', targets: [{ player: 'black', owner: 'black', cardId: 'dup_card' }] },
+          { type: 'spawn', targets: [{ r: 2, col: 2, cause: 'EQUALITY_WILL', reason: 'equality_will_spawn' }] }
+        ]
+      }));
+
+      require('../cards/card-interaction.js');
+      global.renderCardUI.mockClear();
+      global.emitBoardUpdate.mockClear();
+      window.useSelectedCard();
+
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
+
+      resolvePlayback();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
       delete global.waitForPlaybackIdle;
     });
 });

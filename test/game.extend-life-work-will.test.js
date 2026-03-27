@@ -262,7 +262,7 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     expect(work).toBeUndefined();
   });
 
-  test('WORK stone self-destructs when remainingOwnerTurns reaches 0', () => {
+  test('WORK stone reverts to a normal stone when remainingOwnerTurns reaches 0', () => {
     const { cardState, gameState } = createStates();
     gameState.board[4][4] = SharedConstants.BLACK;
     cardState.workAnchorPosByPlayer.black = { row: 4, col: 4 };
@@ -281,7 +281,7 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
 
     const work = (cardState.markers || []).find((m) => m && m.row === 4 && m.col === 4 && m.data && m.data.type === 'WORK');
     expect(work).toBeUndefined();
-    expect(gameState.board[4][4]).toBe(SharedConstants.EMPTY);
+    expect(gameState.board[4][4]).toBe(SharedConstants.BLACK);
   });
 
   test('WORK stone does not grant charge after anchor is lost before owner turn start', () => {

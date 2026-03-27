@@ -235,6 +235,34 @@ function _getCardDisplayLabel(cardId, cardDef) {
     return cardId || '-';
 }
 
+function _getCardDisplayTypeLabel(cardDef) {
+    return String(cardDef && (cardDef.display_type_ja || cardDef.displayTypeJa) || '').trim();
+}
+
+function _appendCardDisplayBadges(cardEl, cardDef, cost, tier) {
+    if (!cardEl) return;
+    const badgeRow = document.createElement('div');
+    badgeRow.className = 'card-badge-row';
+
+    const typeLabel = _getCardDisplayTypeLabel(cardDef);
+    if (typeLabel) {
+        const typeBadge = document.createElement('div');
+        typeBadge.className = 'card-type-badge';
+        typeBadge.textContent = typeLabel;
+        badgeRow.appendChild(typeBadge);
+    }
+
+    const costBadge = document.createElement('div');
+    costBadge.className = 'card-cost-badge';
+    if (tier) {
+        costBadge.classList.add(`cost-tier-${tier}`);
+    }
+    costBadge.textContent = cardDef ? `コスト${cost}` : 'コスト?';
+    badgeRow.appendChild(costBadge);
+
+    cardEl.appendChild(badgeRow);
+}
+
 function _setSelectedCardSelection(cardId, ownerKey) {
     if (!cardState || typeof cardState !== 'object') return;
     if (!cardId) {
@@ -415,6 +443,18 @@ function _hasDestroyEvasionTagSignal(sourceText) {
     return patterns.some((pattern) => pattern.test(normalized));
 }
 
+function _hasPositiveProtectionTagSignal(sourceText, term) {
+    const normalized = String(sourceText || '').replace(/\s+/g, '');
+    if (!normalized || !term || !normalized.includes(term)) return false;
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const negativePatterns = [
+        new RegExp(`${escaped}(?:は|を)?持たない`),
+        new RegExp(`${escaped}(?:は|を)?持たず`),
+        new RegExp(`${escaped}なし`)
+    ];
+    return !negativePatterns.some((pattern) => pattern.test(normalized));
+}
+
 const CARD_DETAIL_EFFECT_TAG_TERMS = Object.freeze([
     '幽体',
     '反転保護',
@@ -452,6 +492,10 @@ function _collectCardDetailEffectTags(cardDef, quickText, detailText) {
         }
         if (term === '破壊回避') {
             if (sourceText.includes(term) || hasDestroyEvasionTagSignal) tags.push(term);
+            continue;
+        }
+        if (term === '反転保護') {
+            if (_hasPositiveProtectionTagSignal(sourceText, term)) tags.push(term);
             continue;
         }
         if (sourceText.includes(term)) tags.push(term);
@@ -1003,11 +1047,7 @@ function _renderHeavenOverlay(playerKey) {
         nameSpan.textContent = _getCardDisplayLabel(cardId, def);
         cardEl.appendChild(nameSpan);
 
-        const costBadge = document.createElement('div');
-        costBadge.className = 'card-cost-badge';
-        costBadge.classList.add(`cost-tier-${tier}`);
-        costBadge.textContent = def ? `コスト${cost}` : 'コスト?';
-        cardEl.appendChild(costBadge);
+        _appendCardDisplayBadges(cardEl, def, cost, tier);
 
         cardEl.addEventListener('click', () => {
             _heavenSelectionByPlayer[playerKey] = offerKey;
@@ -1499,11 +1539,83 @@ function _hasHandRemovePlaybackEvent(runResult) {
     return _hasPlaybackEventType(runResult, 'hand_remove');
 }
 
+function _hasBoardMutatingPlaybackEvent(runResult) {
+    const boardMutatingTypes = new Set([
+        'place',
+        'spawn',
+        'flip',
+        'destroy',
+        'move',
+        'status_applied',
+        'status_removed'
+    ]);
+    return _getRunResultPlaybackEvents(runResult).some((ev) => (
+        ev &&
+        boardMutatingTypes.has(String(ev.type || '').toLowerCase())
+    ));
+}
+
 function _getDeferredGeneratedThrowChainHandAddMeta(runResult) {
     const meta = runResult && runResult.result
         ? runResult.result.deferredGeneratedThrowChainHandAdd
         : null;
     return (meta && typeof meta === 'object') ? meta : null;
+}
+
+function _getRunResultPublishPromise(runResult) {
+    const publishPromise = (runResult && runResult.result)
+        ? runResult.result.publishPromise
+        : null;
+    return (publishPromise && typeof publishPromise.then === 'function')
+        ? publishPromise
+        : null;
+}
+
+function _handleServerAuthoredCardUse(playerKey, ownerKey, cardId, runResult) {
+    const publishPromise = _getRunResultPublishPromise(runResult);
+    if (!publishPromise) return false;
+
+    _setPendingSelectionBusy(true);
+    if (typeof renderCardUI === 'function') {
+        try { renderCardUI(); } catch (e) { /* ignore */ }
+    }
+
+    Promise.resolve(publishPromise)
+        .then((publishResult) => {
+            _setPendingSelectionBusy(false);
+            if (!publishResult || publishResult.ok !== true) {
+                const reason = publishResult && publishResult.reason
+                    ? String(publishResult.reason)
+                    : 'NETWORK_PUBLISH_FAILED';
+                addLog(`カード使用に失敗しました (${reason})`);
+                if (typeof renderCardUI === 'function') {
+                    try { renderCardUI(); } catch (e) { /* ignore */ }
+                }
+                return;
+            }
+
+            if (cardState && cardState.selectedCardId === cardId && _getSelectedCardOwnerKey(playerKey) === ownerKey) {
+                _clearSelectedCardSelection();
+            }
+            if (typeof renderCardUI === 'function') {
+                try { renderCardUI(); } catch (e) { /* ignore */ }
+            }
+            if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
+                try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
+            }
+        })
+        .catch((error) => {
+            _setPendingSelectionBusy(false);
+            const reason = (error && error.message)
+                ? String(error.message)
+                : 'PUBLISH_ERROR';
+            addLog(`カード使用に失敗しました (${reason})`);
+            if (typeof renderCardUI === 'function') {
+                try { renderCardUI(); } catch (e) { /* ignore */ }
+            }
+        });
+
+    return true;
 }
 
 function _applyDeferredGeneratedThrowChainHandReveal(runResult) {
@@ -1571,6 +1683,13 @@ function _attachCardUsePlaybackSourceElement(runResult, sourceCardEl, sourceCard
     }
 }
 
+function _getWaitForPlaybackIdleFn() {
+    const waitForPlaybackFn = (typeof waitForPlaybackIdle === 'function')
+        ? waitForPlaybackIdle
+        : ((typeof window !== 'undefined' && typeof window.waitForPlaybackIdle === 'function') ? window.waitForPlaybackIdle : null);
+    return typeof waitForPlaybackFn === 'function' ? waitForPlaybackFn : null;
+}
+
 function _renderCardUiWithOptionalPlaybackDelay(shouldDelay) {
     if (typeof renderCardUI !== 'function') return;
     if (!shouldDelay) {
@@ -1578,9 +1697,7 @@ function _renderCardUiWithOptionalPlaybackDelay(shouldDelay) {
         return;
     }
 
-    const waitForPlaybackFn = (typeof waitForPlaybackIdle === 'function')
-        ? waitForPlaybackIdle
-        : ((typeof window !== 'undefined' && typeof window.waitForPlaybackIdle === 'function') ? window.waitForPlaybackIdle : null);
+    const waitForPlaybackFn = _getWaitForPlaybackIdleFn();
     if (typeof waitForPlaybackFn === 'function') {
         Promise.resolve(waitForPlaybackFn()).then(() => {
             try { renderCardUI(); } catch (e) { /* ignore */ }
@@ -1591,6 +1708,29 @@ function _renderCardUiWithOptionalPlaybackDelay(shouldDelay) {
     }
 
     renderCardUI();
+}
+
+function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay) {
+    const renderBoardSync = () => {
+        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+        else if (typeof renderBoard === 'function') renderBoard();
+    };
+    if (!shouldDelay) {
+        renderBoardSync();
+        return;
+    }
+
+    const waitForPlaybackFn = _getWaitForPlaybackIdleFn();
+    if (typeof waitForPlaybackFn === 'function') {
+        Promise.resolve(waitForPlaybackFn()).then(() => {
+            try { renderBoardSync(); } catch (e) { /* ignore */ }
+        }).catch(() => {
+            try { renderBoardSync(); } catch (e) { /* ignore */ }
+        });
+        return;
+    }
+
+    renderBoardSync();
 }
 
 function _getActiveNetworkMatchClient() {
@@ -2191,6 +2331,15 @@ function useSelectedCard() {
         addLog(`カード使用に失敗しました${reason ? ` (${reason})` : ''}`);
         return;
     }
+    const skippedLocalExecution = !!(
+        result && (
+            result.skippedLocalExecution === true
+            || (result.result && result.result.skippedLocalExecution === true)
+        )
+    );
+    if (skippedLocalExecution && _handleServerAuthoredCardUse(playerKey, ownerKey, cardId, result)) {
+        return;
+    }
 
     if (isDebugUnlimited) {
         addLog(`🐛 デバッグ: コスト無視 & 回数制限無視`);
@@ -2214,12 +2363,6 @@ function useSelectedCard() {
 
     _attachCardUsePlaybackSourceElement(result, usedCardEl, usedCardRect);
     const hasCardUsePlayback = _hasPlaybackEventType(result, 'card_use_animation');
-    const skippedLocalExecution = !!(
-        result && (
-            result.skippedLocalExecution === true
-            || (result.result && result.result.skippedLocalExecution === true)
-        )
-    );
 
     // Direct animation fallback for browser reliability.
     if (!hasCardUsePlayback && !skippedLocalExecution) {
@@ -2240,9 +2383,9 @@ function useSelectedCard() {
 
     const shouldDelayPostUseHandVisual = !!(cardDef && (cardDef.type === 'TREASURE_BOX' || cardDef.type === 'REBUILD_WILL' || cardDef.type === 'SUPPLY_WILL'))
         || _hasHandRemovePlaybackEvent(result);
+    const shouldDelayPostUseBoardVisual = _hasBoardMutatingPlaybackEvent(result);
     _renderCardUiWithOptionalPlaybackDelay(shouldDelayPostUseHandVisual);
-    if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-    else if (typeof renderBoard === 'function') renderBoard();
+    _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelayPostUseBoardVisual);
     if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
         try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
     }

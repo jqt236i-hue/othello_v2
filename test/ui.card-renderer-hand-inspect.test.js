@@ -134,7 +134,7 @@ describe('card renderer hand inspection', () => {
       matchMode: 'network',
       seatKey: 'white',
       currentPlayer: 1,
-      hands: { black: ['opp_card'], white: ['own_card'] }
+      hands: { black: ['__hidden_hand__:black:0'], white: ['own_card'] }
     });
     const { window } = dom;
 
@@ -151,6 +151,30 @@ describe('card renderer hand inspection', () => {
     ownCardEl.click();
 
     expect(window.onCardClick).toHaveBeenCalledWith('own_card', 'white');
+
+    dom.window.close();
+  });
+
+  test('network mode shows revealed opponent cards face-up while keeping hidden tokens concealed', () => {
+    const dom = createRendererContext({
+      matchMode: 'network',
+      seatKey: 'black',
+      currentPlayer: 1,
+      hands: { black: ['own_card'], white: ['opp_card', '__hidden_hand__:white:1'] }
+    });
+    const { window } = dom;
+
+    window.renderCardUI();
+
+    const revealedOppCardEl = window.document.querySelector('#hand-white .card-item.visible');
+    const hiddenOppCardEl = window.document.querySelector('#hand-white .card-item.hidden');
+    expect(revealedOppCardEl).not.toBeNull();
+    expect(revealedOppCardEl.classList.contains('clickable')).toBe(true);
+    expect(hiddenOppCardEl).not.toBeNull();
+
+    revealedOppCardEl.click();
+
+    expect(window.onCardClick).toHaveBeenCalledWith('opp_card', 'white');
 
     dom.window.close();
   });

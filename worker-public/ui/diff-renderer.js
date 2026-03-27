@@ -41,6 +41,32 @@ var BoardRendererStoneHelpersModule = null;
 if (typeof require === 'function') {
     try { BoardRendererStoneHelpersModule = require('./board-renderer'); } catch (e) { /* ignore */ }
 }
+var SpecialStoneRegistryModule = null;
+if (typeof require === 'function') {
+    try { SpecialStoneRegistryModule = require('../shared/special-stone-registry'); } catch (e) { /* ignore */ }
+}
+var StoneStatusSnapshotModule = null;
+if (typeof require === 'function') {
+    try { StoneStatusSnapshotModule = require('../shared/stone-status-snapshot'); } catch (e) { /* ignore */ }
+}
+
+function _getGlobalScopeForDiff() {
+    return (typeof globalThis !== 'undefined')
+        ? globalThis
+        : (typeof self !== 'undefined' ? self : (typeof window !== 'undefined' ? window : {}));
+}
+
+function _getSpecialStoneRegistryForDiff() {
+    if (SpecialStoneRegistryModule) return SpecialStoneRegistryModule;
+    const globalScope = _getGlobalScopeForDiff();
+    return globalScope.SpecialStoneRegistry || null;
+}
+
+function _getStoneStatusSnapshotForDiff() {
+    if (StoneStatusSnapshotModule) return StoneStatusSnapshotModule;
+    const globalScope = _getGlobalScopeForDiff();
+    return globalScope.StoneStatusSnapshot || null;
+}
 
 function _getDiscStoneHelperForDiff(name) {
     if (BoardRendererStoneHelpersModule && typeof BoardRendererStoneHelpersModule[name] === 'function') {
@@ -513,154 +539,39 @@ function _resolveNetworkLocalPlayerKeyForDiff() {
     return 'black';
 }
 
-const SPECIAL_STONE_INFO = {
-    PROTECTED: {
-        name: '弱い石',
-        desc: '次の自分ターン開始まで反転されない。'
-    },
-    PERMA_PROTECTED: {
-        name: '強い石',
-        desc: '反転されない。所有者ターン開始10回で絶対保護石へ昇格する。'
-    },
-    DRAGON: {
-        name: '究極反転龍',
-        desc: '配置時に周囲8マスを反転。自ターン開始時はランダムな空きマスへ移動してから周囲8マスを反転。5ターンで消滅。'
-    },
-    BREEDING: {
-        name: '繁殖石',
-        desc: '配置時と自ターン開始時に周囲へ石を1つ生成。前回生成石起点で拡散し、5ターン持続。'
-    },
-    ULTIMATE_DESTROY_GOD: {
-        name: '究極破壊神',
-        desc: '配置時に周囲8マスの敵石を破壊。自ターン開始時はランダムな空きマスへ移動してから周囲8マスの敵石を破壊。5ターンで消滅。'
-    },
-    DESTROY_DRAGON: {
-        name: '破壊龍',
-        desc: '配置時と自ターン開始時に周囲8マスの敵石をランダム1個だけ破壊。3ターンで消滅。'
-    },
-    SNIPER: {
-        name: '狙撃石',
-        desc: '自ターン開始時に最も近い敵石を1つ破壊。同距離ならランダム。5ターンで消滅。'
-    },
-    LIGHTNING: {
-        name: '落雷石',
-        desc: '配置ターン即時＋自ターン開始時に盤面上のランダムな敵石を1つ破壊。5ターン持続。反転保護を持つ特殊石。'
-    },
-    HYPERACTIVE: {
-        name: '多動石',
-        desc: '両者ターン開始時に周囲の空きへ1マス移動。移動後に挟めば反転。反転対象時は1回だけマス移動で回避する。'
-    },
-    EXTREME_HYPERACTIVE: {
-        name: '極悪多動魔',
-        desc: '両者ターン開始時に周囲8マス（空き・占有）からランダム1マス移動。占有マスを選んだ場合はその石を1マス退避させてから進入。移動後に挟めば反転し、隣接1マス（周囲8マス）の石を敵味方問わず遠ざかるように1マス退避させる。退避先が無い石はその場に残る。反転対象時はマス移動で回避し、最大3回まで。'
-    },
-    ESCAPE_HYPERACTIVE: {
-        name: '逃亡石',
-        desc: '両者ターン開始時に近くの石から逃げるように1マス移動。移動先で挟める石があれば反転可能。反転対象時は1回だけマス移動で回避し、移動先が無いと周囲8マスを爆破して消滅する。'
-    },
-    ROBOT_VACUUM: {
-        name: 'ロボット掃除機石',
-        desc: '両者ターン開始時に敵石へ近づくよう1マス移動し、移動後に周囲8マスの敵石を吸い込んで破壊する。吸い込み1個につき布石+3。守る石の完全保護は吸い込めず、5ターンで消滅。'
-    },
-    GLUTTONOUS: {
-        name: '悪食石',
-        desc: '両者ターン開始時に1マス移動し、隣接敵石があれば優先して進入して捕食する。隣接敵石が無い時は敵に近づくよう移動し、2連続で捕食失敗すると飢えて消滅する。反転保護を持つ特殊石。'
-    },
-    ULTIMATE_HYPERACTIVE: {
-        name: '究極多動神',
-        desc: '両者ターン開始時に直線1〜5マス移動を2回行い、2マス以上は途中の石を飛び越える。移動後に挟めば反転。反転対象時はマス移動で回避（最大3回）。破壊対象時も1回だけマス移動で回避する。移動先が無いと消滅。10ターン後は自己消滅する。'
-    },
-    INHERITED_HYPERACTIVE: {
-        name: '継承多動石',
-        desc: '両者ターン開始時に周囲の空きへ1マス移動。移動後に挟めば反転。反転対象時は1回だけマス移動で回避し、回避後は通常どおり反転される。10ターン持続（所有者ターン開始時のみ減算）。'
-    },
-    REGEN: {
-        name: '復活石',
-        desc: '反転された時に1回だけ元の色へ戻り、その位置から挟める列を反転する。'
-    },
-    GOLD: {
-        name: '金石',
-        desc: '配置直後に自壊し、そのターンの獲得布石を4倍にする。'
-    },
-    RAINBOW: {
-        name: '虹石',
-        desc: '配置直後に自壊し、そのターンの獲得布石を6倍にする。'
-    },
-    SILVER: {
-        name: '銀石',
-        desc: '配置直後に自壊し、そのターンの獲得布石を3倍にする。'
-    },
-    WORK: {
-        name: '労働石',
-        desc: '石が残っている間、自ターン開始時に1→2→4→8→16の順で布石獲得。'
-    },
-    TIME_BOMB: {
-        name: '時限爆弾',
-        desc: '3ターン後に周囲9マスを爆破。反転されると解除。'
-    },
-    TIME_STOP: {
-        name: '時間停石',
-        desc: '所有者ターン開始ごとに減算し、3回目で時間停止を発動する。発動したターンと次のターンを連続で行動し、その後この石は消滅する。'
-    },
-    CROSS_BOMB: {
-        name: '十字爆弾',
-        desc: '通常反転の直後に即起爆し、中心と縦横2マスの石を爆破。'
-    },
-    X_BOMB: {
-        name: 'クロス爆弾',
-        desc: '通常反転の直後に即起爆し、中心と斜め2マスの石を爆破。'
-    },
-    GUARD: {
-        name: '守る石',
-        desc: '3ターン、反転/交換/破壊/誘惑を無効化する。'
-    },
-    TRAP: {
-        name: '罠石',
-        desc: '次の相手ターン中に反転されると発動する。'
-    },
-    FREEZE: {
-        name: '凍結マス',
-        desc: '5ターンの間このマスを凍結する。石がある場合はその石ごと凍結され、凍結中の石は反転・破壊・移動されない。凍結マスには配置・移動できず、反転経路も遮断する。'
-    },
-    BLOCKADE: {
-        name: '封鎖マス',
-        desc: 'このマスには3ターンの間、配置・移動で入れない。'
-    },
-    OBSERVER: {
-        name: '盤理の観測者石',
-        desc: '所有者ターン開始時に30%で発動し、布石を1〜5獲得する。5ターン持続。'
-    },
-    GHOST: {
-        name: '幽体石',
-        desc: '5ターンの間、反転と石破壊の対象にはなるがその石自身は受けない。反転列の成立は無効化せず、交換の意志の対象外で、入替や他の効果は通常どおり受ける。'
-    },
-    AFTERIMAGE_WILL: {
-        name: '残像石',
-        desc: '反転回避3回と破壊回避3回を持つ特殊石。回避成功時だけ対応する回数を消費し、両方0になると通常石へ戻る。反転回避で移動先が無いと消滅し、破壊回避で空きマスが無いとそのまま破壊される。'
-    },
-    WILL_HUNTER_KING: {
-        name: '意志狩りの王',
-        desc: '自ターン開始時に敵石1つを狙い、特殊石があれば優先してその方向へ移動しながら斬撃で破壊する。反転回避2回と破壊回避2回を持ち、8ターン後に自己消滅する。'
-    },
-    METEOR_HOLE: {
-        name: '流星穴',
-        desc: '隕石で破壊された永続穴。このマスには配置・移動で入れず、反転経路も遮断する。'
-    },
-    ABSOLUTE_PROTECTED: {
-        name: '絶対保護石',
-        desc: '反転・交換・破壊・誘惑・テレポート・隕石・意志の喪失を含む全ての効果を無効化する。解除なし（永続）。'
-    }
-};
-
-const SPECIAL_STONE_INFO_TYPE_ALIASES = {
-    ULTIMATE_HYPERACTIVE_GOD: 'ULTIMATE_HYPERACTIVE',
-    EXTREME_HYPERACTIVE_WILL: 'EXTREME_HYPERACTIVE'
-};
-
 function _normalizeSpecialStoneInfoType(rawType) {
     if (!rawType) return null;
-    const asString = String(rawType);
-    return SPECIAL_STONE_INFO_TYPE_ALIASES[asString] || asString;
+    const registry = _getSpecialStoneRegistryForDiff();
+    if (registry && typeof registry.normalizeSpecialStoneType === 'function') {
+        return registry.normalizeSpecialStoneType(rawType);
+    }
+    return String(rawType).toUpperCase();
+}
+
+function _getSpecialStoneInfoForDiff(rawType) {
+    const type = _normalizeSpecialStoneInfoType(rawType);
+    if (!type) return null;
+    const registry = _getSpecialStoneRegistryForDiff();
+    if (registry && typeof registry.getSpecialStoneInfo === 'function') {
+        return registry.getSpecialStoneInfo(type);
+    }
+    return null;
+}
+
+function _createSpecialStoneStatusSnapshotForDiff(input, options) {
+    const snapshotModule = _getStoneStatusSnapshotForDiff();
+    if (snapshotModule && typeof snapshotModule.createSpecialStoneStatusSnapshot === 'function') {
+        return snapshotModule.createSpecialStoneStatusSnapshot(input, options);
+    }
+    return null;
+}
+
+function _buildSpecialStoneStatusTagsForDiff(inputs, options) {
+    const snapshotModule = _getStoneStatusSnapshotForDiff();
+    if (snapshotModule && typeof snapshotModule.buildSpecialStoneStatusTags === 'function') {
+        return snapshotModule.buildSpecialStoneStatusTags(inputs, options);
+    }
+    return (options && options.includeSpecialStone === false) ? [] : ['特殊石'];
 }
 
 function _normalizeBoardCoord(value) {
@@ -877,127 +788,46 @@ function _getEntryType(entry) {
     return _normalizeSpecialStoneInfoType(markerType);
 }
 
-function _getProtectionInfo(type, entry, hasGuard) {
-    const flipProtectedTypes = new Set([
-        'PROTECTED',
-        'PERMA_PROTECTED',
-        'ABSOLUTE_PROTECTED',
-        'DRAGON',
-        'BREEDING',
-        'LIGHTNING',
-        'GLUTTONOUS',
-        'DESTROY_DRAGON',
-        'ULTIMATE_DESTROY_GOD',
-        'GUARD'
-    ]);
-    const isBomb = !!(entry && entry.kind === _getMarkerKinds().BOMB);
-    const remaining = Number(entry && entry.marker && entry.marker.data ? entry.marker.data.remainingOwnerTurns : NaN);
-    const ultimateProtectionActive = !(
-        type === 'ULTIMATE_HYPERACTIVE' &&
-        Number.isFinite(remaining) &&
-        remaining <= 0
-    );
-    const ghost = !isBomb && type === 'GHOST';
-    const flipProtected = hasGuard ? true : (isBomb ? false : (flipProtectedTypes.has(type) && ultimateProtectionActive));
-    const destroyProtected = hasGuard || type === 'GUARD' || type === 'ABSOLUTE_PROTECTED';
-    return {
-        flipProtected,
-        destroyProtected,
-        ghost
-    };
-}
-
-const STONE_INFO_MOBILITY_TYPES = new Set([
-    'HYPERACTIVE',
-    'ESCAPE_HYPERACTIVE',
-    'INHERITED_HYPERACTIVE',
-    'EXTREME_HYPERACTIVE',
-    'ULTIMATE_HYPERACTIVE'
-]);
-
-function _isHyperactiveLikeTypeForDiff(type) {
-    return STONE_INFO_MOBILITY_TYPES.has(String(type || '').toUpperCase());
-}
-
 function _hasHyperactiveLikeStateForDiff(state) {
     if (!state || typeof state !== 'object') return false;
-    if (_isHyperactiveLikeTypeForDiff(state.special && state.special.type)) return true;
+    const specialSnapshot = _createSpecialStoneStatusSnapshotForDiff({
+        type: state.special && state.special.type,
+        remainingOwnerTurns: state.special && state.special.remainingOwnerTurns,
+        flipEvadeRemaining: state.special && state.special.flipEvadeRemaining,
+        destroyEvadeRemaining: state.special && state.special.destroyEvadeRemaining,
+        hasGuard: !!state.guard
+    }, { mode: 'raw' });
+    if (specialSnapshot && specialSnapshot.hasMobility) return true;
     return !!state.inherited;
 }
 
-const STONE_INFO_FLIP_EVADE_TYPES = new Set([
-    'HYPERACTIVE',
-    'ESCAPE_HYPERACTIVE',
-    'INHERITED_HYPERACTIVE',
-    'EXTREME_HYPERACTIVE',
-    'ULTIMATE_HYPERACTIVE',
-    'WILL_HUNTER_KING',
-    'AFTERIMAGE_WILL'
-]);
-
-const STONE_INFO_DESTROY_EVADE_TYPES = new Set([
-    'ULTIMATE_HYPERACTIVE',
-    'WILL_HUNTER_KING',
-    'AFTERIMAGE_WILL'
-]);
-
-function _hasActiveFlipEvadeForEntry(type, entry) {
-    if (!type || !entry || !STONE_INFO_FLIP_EVADE_TYPES.has(type)) return false;
-    const data = entry && entry.marker && entry.marker.data ? entry.marker.data : null;
-    const remainingOwnerTurns = Number(data ? data.remainingOwnerTurns : NaN);
-    if (type === 'ULTIMATE_HYPERACTIVE' && Number.isFinite(remainingOwnerTurns) && remainingOwnerTurns <= 0) {
-        return false;
-    }
-
-    const rawRemaining = Number(data ? data.flipEvadeRemaining : NaN);
-    const defaultRemaining = (type === 'ULTIMATE_HYPERACTIVE' || type === 'EXTREME_HYPERACTIVE' || type === 'AFTERIMAGE_WILL') ? 3 : 1;
-    const normalizedRemaining = Number.isFinite(rawRemaining)
-        ? Math.max(0, Math.trunc(rawRemaining))
-        : defaultRemaining;
-    return normalizedRemaining > 0;
+function _createEntryStatusInputForDiff(entry, hasGuard) {
+    if (!entry || !entry.marker) return null;
+    const type = _getEntryType(entry);
+    if (!type) return null;
+    const data = entry.marker.data || {};
+    const isBomb = entry.kind === _getMarkerKinds().BOMB;
+    return {
+        type,
+        timer: isBomb ? data.remainingTurns : data.remainingOwnerTurns,
+        regenRemaining: data.regenRemaining,
+        flipEvadeRemaining: data.flipEvadeRemaining,
+        destroyEvadeRemaining: data.destroyEvadeRemaining,
+        hasGuard: !!hasGuard
+    };
 }
 
-function _hasActiveDestroyEvadeForEntry(type, entry) {
-    if (!type || !entry || !STONE_INFO_DESTROY_EVADE_TYPES.has(type)) return false;
-    const data = entry && entry.marker && entry.marker.data ? entry.marker.data : null;
-    const remainingOwnerTurns = Number(data ? data.remainingOwnerTurns : NaN);
-    if (type === 'ULTIMATE_HYPERACTIVE' && Number.isFinite(remainingOwnerTurns) && remainingOwnerTurns <= 0) {
-        return false;
-    }
-
-    const rawRemaining = Number(data ? data.destroyEvadeRemaining : NaN);
-    const defaultRemaining = type === 'ULTIMATE_HYPERACTIVE' ? 1 : (type === 'AFTERIMAGE_WILL' ? 3 : 0);
-    const normalizedRemaining = Number.isFinite(rawRemaining)
-        ? Math.max(0, Math.trunc(rawRemaining))
-        : defaultRemaining;
-    return normalizedRemaining > 0;
-}
-
-function _buildSpecialStoneBadges(entries, hasGuard, protection) {
-    const badges = [];
+function _buildSpecialStoneBadges(entries, hasGuard, primaryInput) {
     const resolvedEntries = Array.isArray(entries) ? entries : [];
-    const contexts = resolvedEntries
-        .map((entry) => ({ entry, type: _getEntryType(entry) }))
-        .filter((ctx) => !!ctx.type);
-
-    if (hasGuard) badges.push('守る意志適用中');
-    badges.push('特殊石');
-    if (protection.ghost) badges.push('幽体');
-
-    if (contexts.some((ctx) => STONE_INFO_MOBILITY_TYPES.has(ctx.type))) {
-        badges.push('多動状態');
-    }
-    if (contexts.some((ctx) => _hasActiveFlipEvadeForEntry(ctx.type, ctx.entry))) {
-        badges.push('反転回避');
-    }
-    if (contexts.some((ctx) => _hasActiveDestroyEvadeForEntry(ctx.type, ctx.entry))) {
-        badges.push('破壊回避');
-    }
-
-    if (!protection.ghost && protection.flipProtected) badges.push('反転保護');
-    if (!protection.ghost && protection.destroyProtected) badges.push('破壊保護');
-
-    return badges;
+    const statusInputs = resolvedEntries
+        .map((entry) => _createEntryStatusInputForDiff(entry, false))
+        .filter((input) => !!input);
+    const rawPrimary = primaryInput || (statusInputs.length > 0 ? statusInputs[0] : null);
+    const primary = rawPrimary ? Object.assign({}, rawPrimary, { hasGuard: !!hasGuard }) : null;
+    return _buildSpecialStoneStatusTagsForDiff(statusInputs, {
+        hasGuard,
+        primary
+    });
 }
 
 const NORMAL_STONE_INFO = {
@@ -1054,10 +884,15 @@ function showSpecialStoneInfoAt(row, col) {
             return false;
         }
 
-        info = SPECIAL_STONE_INFO[type] || { name: type, desc: '効果情報は未登録です。' };
         const hasGuard = _hasGuardMarkerAt(row, col);
-        const protection = _getProtectionInfo(type, entry, hasGuard);
-        badges.push(..._buildSpecialStoneBadges(entries, hasGuard, protection));
+        const primaryInput = _createEntryStatusInputForDiff(entry, hasGuard);
+        const primarySnapshot = primaryInput
+            ? _createSpecialStoneStatusSnapshotForDiff(primaryInput, { mode: 'info' })
+            : null;
+        info = primarySnapshot
+            ? { name: primarySnapshot.name, desc: primarySnapshot.description }
+            : (_getSpecialStoneInfoForDiff(type) || { name: type, desc: '効果情報は未登録です。' });
+        badges.push(..._buildSpecialStoneBadges(entries, hasGuard, primaryInput));
     } else {
         info = _getNormalStoneInfo(row, col);
         if (!info) {
@@ -1827,25 +1662,23 @@ function updateCellDOM(cell, state, row, col, prevState) {
             if (owner === 'black' || owner === BLACK || owner === 1) return BLACK;
             return WHITE;
         };
+        const specialStatusSnapshot = state.special
+            ? _createSpecialStoneStatusSnapshotForDiff({
+                type: state.special.type,
+                remainingOwnerTurns: state.special.remainingOwnerTurns,
+                flipEvadeRemaining: state.special.flipEvadeRemaining,
+                destroyEvadeRemaining: state.special.destroyEvadeRemaining,
+                hasGuard: !!state.guard
+            }, { mode: 'raw' })
+            : null;
         const canShowSpecialFlipEvade = !!(
-            state.special &&
-            (
-                String(state.special.type || '').toUpperCase() === 'HYPERACTIVE' ||
-                String(state.special.type || '').toUpperCase() === 'EXTREME_HYPERACTIVE' ||
-                String(state.special.type || '').toUpperCase() === 'ESCAPE_HYPERACTIVE' ||
-                String(state.special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE' ||
-                String(state.special.type || '').toUpperCase() === 'WILL_HUNTER_KING' ||
-                String(state.special.type || '').toUpperCase() === 'AFTERIMAGE_WILL'
-            ) &&
+            specialStatusSnapshot &&
+            specialStatusSnapshot.hasFlipEvade &&
             Number.isFinite(state.special.flipEvadeRemaining)
         );
         const canShowDestroyEvade = !!(
-            state.special &&
-            (
-                String(state.special.type || '').toUpperCase() === 'WILL_HUNTER_KING' ||
-                String(state.special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE' ||
-                String(state.special.type || '').toUpperCase() === 'AFTERIMAGE_WILL'
-            ) &&
+            specialStatusSnapshot &&
+            specialStatusSnapshot.hasDestroyEvade &&
             Number.isFinite(state.special.destroyEvadeRemaining)
         );
 
@@ -1868,12 +1701,9 @@ function updateCellDOM(cell, state, row, col, prevState) {
             // Add timer for effects with remaining turns
             if (state.special.remainingOwnerTurns !== undefined) {
                 const timer = document.createElement('div');
-                timer.className =
-                    (state.special.type === 'DRAGON' || state.special.type === 'DESTROY_DRAGON' || state.special.type === 'LIGHTNING') ? 'dragon-timer'
-                        : (state.special.type === 'ULTIMATE_DESTROY_GOD' ? 'udg-timer'
-                            : (state.special.type === 'BREEDING' ? 'breeding-timer'
-                                : (state.special.type === 'WORK' ? 'work-timer'
-                                    : ((state.special.type === 'TIME_STOP' || state.special.type === 'PERMA_PROTECTED') ? 'countdown-timer' : 'special-timer'))));
+                timer.className = (specialStatusSnapshot && specialStatusSnapshot.timerClass)
+                    ? specialStatusSnapshot.timerClass
+                    : 'special-timer';
                 const remaining = Math.max(0, Math.trunc(Number(state.special.remainingOwnerTurns)));
                 timer.textContent = String(remaining);
                 _applyDoubleDigitTimerClassForDiff(timer, remaining);

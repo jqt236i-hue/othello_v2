@@ -73,6 +73,7 @@
                 type: c.type,
                 cost: c.cost,
                 desc: c.desc,
+                display_type_ja: c.display_type_ja,
                 enabled: c.enabled
             }));
         }
@@ -91,6 +92,7 @@
                     type: c.type,
                     cost: c.cost,
                     desc: c.desc_ja,
+                    display_type_ja: c.display_type_ja,
                     enabled: c.enabled
                 }));
             }
@@ -118,6 +120,7 @@
 
         // PROTECTED_NEXT_STONE (弱い意志) - 1 card, cost: 1
         { id: 'hard_01', name: '弱い意志', type: 'PROTECTED_NEXT_STONE', cost: 1, desc: '次に置いた石は、次の相手ターンの間、反転されない' },
+        { id: 'ghost_01', name: '幽霊の意志', type: 'GHOST_WILL', cost: 5, desc: '次に置く石を幽体化する。5ターンの間、反転・破壊の対象にはなるがその石自身は受けない。交換の意志の対象外で、入替や他の効果は通常どおり受ける。' },
         { id: 'afterimage_will_01', name: '残像の意志', type: 'AFTERIMAGE_WILL', cost: 8, desc: '次に置く石を残像石化。反転回避3回と破壊回避3回を持つ特殊石になり、両方使い切るまで持続する。' },
 
         // SWAP_WITH_ENEMY (交換の意志) - 1 card, cost: 17
@@ -135,8 +138,11 @@
         { id: 'super_gravity_01', name: '超重力', type: 'SUPER_GRAVITY_WILL', cost: 16, desc: '盤面の石1つを選び、下方向へ限界まで移動させる。進行方向上の石は衝突時にすべて破壊して進む。' },
 
         { id: 'trap_01', name: '罠の意志', type: 'TRAP_WILL', cost: 4, desc: '自分の石を1つ罠石にしてターン終了。次の相手ターン中に反転されると、相手の布石を最大20奪う＋手札全破壊。' },
-
-        { id: 'chain_01', name: '連鎖の意志', type: 'CHAIN_WILL', cost: 22, desc: 'このターンの配置で発生した通常反転を起点に、追加反転を最大2回まで行う。' },
+        { id: 'tempt_01', name: '誘惑の意志', type: 'TEMPT_WILL', cost: 20, desc: '相手の特殊石1つを自分の石にする（残りターン等は維持）。対象が無いと使えない。' },
+        { id: 'double_chain_01', name: '二連鎖の意志', type: 'DOUBLE_CHAIN_WILL', cost: 22, desc: 'この手で起きた通常反転のあと、追加反転を1回行う。使用後、三連鎖の意志が手札に加わる。' },
+        { id: 'triple_chain_01', name: '三連鎖の意志', type: 'TRIPLE_CHAIN_WILL', cost: 22, desc: 'この手で起きた通常反転のあと、追加反転を2回行う。使用後、四連鎖の意志が手札に加わる。', enabled: false },
+        { id: 'quad_chain_01', name: '四連鎖の意志', type: 'QUAD_CHAIN_WILL', cost: 22, desc: 'この手で起きた通常反転のあと、追加反転を3回行う。使用後、無限連鎖の意志が手札に加わる。', enabled: false },
+        { id: 'infinite_chain_01', name: '無限連鎖の意志', type: 'INFINITE_CHAIN_WILL', cost: 50, desc: 'この手で起きた通常反転のあと、追加反転を可能な限り続ける。追加反転できなくなった時点で終了する。', enabled: false },
 
         { id: 'taboo_reverse_01', name: '禁忌の反転', type: 'TABOO_REVERSE_WILL', cost: 44, desc: '次に置く石は挟めなくても反転可能。最も反転枚数が多い列1方向のみ。' },
 
@@ -149,13 +155,14 @@
         { id: 'bomb_01', name: '時限爆弾', type: 'TIME_BOMB', cost: 13, desc: '盤面上の自分の石1つを時限爆弾化。3ターン後に周囲9マスを破壊。反転されると解除。' },
 
         // TIME_STOP_GOD (時間停石) - 1 card, cost: 0
-        { id: 'time_stop_god_01', name: '時間停石', type: 'TIME_STOP_GOD', cost: 0, desc: '使用時にランダムで自分の石3つを破壊し、次に置く石を時間停石化する。5回目の自ターン開始時に時間停止し、そのターンと次のターンを連続で行動する。発動時に時間停石は消滅し、先に消えた場合は不発。' },
+        { id: 'time_stop_god_01', name: '時間停石', type: 'TIME_STOP_GOD', cost: 0, desc: '使用時にランダムで自分の石3つを破壊し、次に置く石を時間停石化する。5回目の自ターン開始時に時間停止し、そのターンと次のターンを連続で行動する。発動時に効果は終了し、その石は同色の通常石に戻る。先に消えた場合は不発。' },
 
         // ULTIMATE_REVERSE_DRAGON (究極反転龍) - 1 card, cost: 30
         { id: 'udr_01', name: '究極反転龍', type: 'ULTIMATE_REVERSE_DRAGON', cost: 30, desc: '反転0でも空きマスに配置可能。次に置く石を龍化。置いた時に周囲1マス（8方向）を反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転し、移動先が無いときはその場で反転する。5ターン持続。反転保護を持つ特殊石。' },
 
         // BREEDING_WILL (繁殖の意志) - 1 card, cost: 16
         { id: 'breeding_01', name: '繁殖の意志', type: 'BREEDING_WILL', cost: 16, desc: '次に置く石を繁殖石化。配置時と自ターン開始時に周囲8マスへランダム1個生成。以後は前回生成石の周囲へ拡散。生成石が反転/消滅した場合は親石起点に戻る。持続5ターン。' },
+        { id: 'proliferation_01', name: '増殖の意志', type: 'PROLIFERATION_WILL', cost: 4, desc: '次に置く石を増殖石化。破壊される時はその破壊を受けず、周囲8マスの空きへランダム1個増殖する。空きがなければ通常どおり破壊。各増殖石は所有者ターン10回持続し、期限切れでは消えずに通常石へ戻る。増殖で生まれた石も親の残りターンを引き継がず毎回10ターン。反転されると増殖状態を失って普通に反転する。' },
         { id: 'clone_01', name: '複製の意志', type: 'CLONE_WILL', cost: 16, desc: '盤面上の自分の石1つを選び、周囲8マスの空きからランダム1マスへ同じ石を複製する。生成では反転しない。特殊石は残り持続ターンなどを引き継ぐ。周囲に空きがない石は対象外。' },
         { id: 'split_01', name: '分裂の意志', type: 'SPLIT_WILL', cost: 12, desc: '盤面上の自分の石1つを選び、周囲8マスの空きからランダム1マスへ同じ石を分裂生成する。生成では反転しない。特殊石の残り持続ターンは元石・生成石とも半分になる。周囲に空きがない石は対象外。' },
         { id: 'teleport_01', name: 'テレポート', type: 'TELEPORT_WILL', cost: 10, desc: '盤面上の石1つを選び、ランダムな空きマスへテレポートさせる。対象は敵味方・通常石・特殊石を問わない。' },
@@ -212,8 +219,10 @@
         { id: 'infinite_01', name: '無限投石', type: 'INFINITE_PLACE', cost: 50, desc: '生成専用。合法手が尽きるまで同じ手番で置き続け、置けなくなった時点で終了する。', enabled: false },
         // HEAVEN_BLESSING (天の恵み) - 1 card, cost: 3
         { id: 'heaven_01', name: '天の恵み', type: 'HEAVEN_BLESSING', cost: 3, desc: 'ランダムな候補5枚から1枚を選んで獲得する。' },
-        // CONDEMN_WILL (断罪の意志) - 1 card, cost: 6
-        { id: 'condemn_01', name: '断罪の意志', type: 'CONDEMN_WILL', cost: 6, desc: '相手手札を公開し、1枚選んで破壊する。' },
+        // REVEAL_HAND_WILL (観測の意志) - 1 card, cost: 6
+        { id: 'reveal_hand_01', name: '観測の意志', type: 'REVEAL_HAND_WILL', cost: 6, desc: '現在の相手手札をすべて表にする。使用後に相手が引いたカードは表にならない。' },
+        // CONDEMN_WILL (断罪の意志) - 1 card, cost: 8
+        { id: 'condemn_01', name: '断罪の意志', type: 'CONDEMN_WILL', cost: 8, desc: '相手手札を公開し、1枚選んで破壊する。' },
 
         // GOLD_STONE (金の意志) - 1 card, cost: 6
         { id: 'gold_stone', name: '金の意志', type: 'GOLD_STONE', cost: 6, desc: '次の反転で得る布石が4倍。使用後その石は消滅する。' },
@@ -251,7 +260,7 @@
         { id: 'udg_01', name: '究極破壊神', type: 'ULTIMATE_DESTROY_GOD', cost: 25, desc: '反転0でも空きマスに配置可能。次に置く石を究極破壊神化。置いた時に周囲1マス（8方向）の敵石を破壊。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）の敵石を破壊し、移動先が無いときはその場で破壊する。5ターン持続。' },
 
         // ULTIMATE_HYPERACTIVE_GOD (究極多動神) - 1 card, cost: 28
-        { id: 'ultimate_hyperactive_01', name: '究極多動神', type: 'ULTIMATE_HYPERACTIVE_GOD', cost: 28, desc: '次に置く石を究極多動神化。両者ターン開始時に直線1〜5マス移動を2回行い、2マス以上は途中の石を飛び越える。移動後に挟めば反転。反転対象時はマス移動で回避し、最大3回まで。破壊対象時も1回だけマス移動で回避する。移動先が無いと消滅。特殊石として扱われ、10ターン後は自己消滅する。' },
+        { id: 'ultimate_hyperactive_01', name: '究極多動神', type: 'ULTIMATE_HYPERACTIVE_GOD', cost: 28, desc: '次に置く石を究極多動神化。両者ターン開始時に直線1〜5マス移動を2回行い、2マス以上は途中の石を飛び越える。移動後に挟めば反転。反転対象時はマス移動で回避し、最大3回まで。破壊対象時も1回だけマス移動で回避する。移動先が無いと消滅。特殊石として扱われ、10ターン後は同色の通常石に戻る。' },
 
         // BOARD_EXPANSION_WILL (盤面拡張) - 1 card, cost: 19
         { id: 'board_expand_01', name: '盤面拡張', type: 'BOARD_EXPANSION_WILL', cost: 19, desc: '盤面の左右どちらか外側に1マスを追加する。追加位置は左右端マスから選ぶ。1対局で1回のみ使用可能。' },
@@ -269,7 +278,13 @@
         { id: 'freeze_01', name: '凍結の意志', type: 'FREEZE_WILL', cost: 5, desc: '盤面上のマスを1つ選び、5ターン凍結する。凍結マスとその石は反転・破壊されず、凍結中は特殊石の持続ターンが減らない。' },
 
         // OBSERVER_WILL (盤理の観測者) - 1 card, cost: 1
-        { id: 'observer_01', name: '盤理の観測者', type: 'OBSERVER_WILL', cost: 1, desc: '次に置く石を観測者石化。所有者ターン開始時に30%で発動し、布石を1〜5獲得。5ターン持続。' }
+        { id: 'observer_01', name: '盤理の観測者', type: 'OBSERVER_WILL', cost: 1, desc: '次に置く石を観測者石化。所有者ターン開始時に30%で発動し、布石を1〜5獲得。5ターン持続。' },
+
+        // SALVATION_WILL (救済の意志) - 1 card, cost: 17
+        { id: 'salvation_01', name: '救済の意志', type: 'SALVATION_WILL', cost: 17, desc: '直前の相手ターンで破壊された自分の通常石をすべてランダムな空きマスへ配置する。対象0枚の時は使用不可。特殊石は対象外。' },
+
+        // EQUALITY_WILL (平等の意志) - 1 card, cost: 15
+        { id: 'equality_will_01', name: '平等の意志', type: 'EQUALITY_WILL', cost: 15, desc: '相手の石数が自分より10枚以上多い時のみ使用可。盤面の空きマスへランダムに最大3個、自分色の通常石を生成する。生成では反転しない。' }
     ];
 
     const CARD_DEFS = (catalogCards && catalogCards.length) ? catalogCards : CARD_DEFS_FALLBACK;
@@ -286,6 +301,7 @@
         'LAST_RESORT',
         'SNIPER_WILL',
         'PROTECTED_NEXT_STONE',
+        'GHOST_WILL',
         'AFTERIMAGE_WILL',
         'SWAP_WITH_ENEMY',
         'POSITION_SWAP_WILL',
@@ -295,13 +311,17 @@
         'SUPER_GRAVITY_WILL',
         'TRAP_WILL',
         'TEMPT_WILL',
-        'CHAIN_WILL',
+        'DOUBLE_CHAIN_WILL',
+        'TRIPLE_CHAIN_WILL',
+        'QUAD_CHAIN_WILL',
+        'INFINITE_CHAIN_WILL',
         'REGEN_WILL',
         'DESTROY_ONE_STONE',
         'TIME_BOMB',
         'TIME_STOP_GOD',
         'ULTIMATE_REVERSE_DRAGON',
         'BREEDING_WILL',
+        'PROLIFERATION_WILL',
         'CLONE_WILL',
         'SPLIT_WILL',
         'TELEPORT_WILL',
@@ -313,6 +333,7 @@
         'QUAD_PLACE',
         'INFINITE_PLACE',
         'HEAVEN_BLESSING',
+        'REVEAL_HAND_WILL',
         'CONDEMN_WILL',
         'PLUNDER_WILL',
         'CORNER_TRIBUTE',
@@ -348,7 +369,9 @@
         'INSTANT_HYPERACTIVE_WILL',
         'SELL_CARD_WILL',
         'REBUILD_WILL',
-        'SUPPLY_WILL'
+        'SUPPLY_WILL',
+        'EQUALITY_WILL',
+        'SALVATION_WILL'
     ];
 
     // ===== DEBUG MODE =====

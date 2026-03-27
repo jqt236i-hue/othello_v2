@@ -83,11 +83,11 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
 
     stoneVisuals.showChargeDelta('black', 1);
     jest.advanceTimersByTime(20);
-    expect(el.textContent).toBe('布石+1');
+    expect(el.textContent).toBe('+1');
 
     stoneVisuals.showChargeDelta('black', 2);
     jest.advanceTimersByTime(20);
-    expect(el.textContent).toBe('布石+2');
+    expect(el.textContent).toBe('+2');
 
     jest.advanceTimersByTime(4500);
     expect(el.textContent).toBe('');

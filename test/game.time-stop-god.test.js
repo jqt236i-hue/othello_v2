@@ -270,7 +270,7 @@ describe('TIME_STOP_GOD（時間停石）', () => {
         remainingBonusTurns: Shared.TIME_STOP_GOD_CONSECUTIVE_TURNS
       })
     ]));
-    expect(gameState.board[3][3]).toBe(Core.EMPTY);
+    expect(gameState.board[3][3]).toBe(Core.BLACK);
     expect((cardState.markers || []).some((entry) => entry && entry.id === 9101)).toBe(false);
     expect(cardState.timeStopConsecutiveTurnsRemainingByPlayer.black).toBe(Shared.TIME_STOP_GOD_CONSECUTIVE_TURNS);
   });

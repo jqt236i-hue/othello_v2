@@ -138,7 +138,7 @@ describe('DESTROY_DRAGON_WILL（破壊龍）', () => {
     expect(marker.data.remainingOwnerTurns).toBe(2);
   });
 
-  test('3回目の所有者ターン開始でアンカーが消滅する', () => {
+  test('3回目の所有者ターン開始でアンカーは通常石に戻る', () => {
     const { cardState, gameState } = createStates(0.1);
 
     gameState.board[2][2] = Shared.BLACK;
@@ -160,8 +160,8 @@ describe('DESTROY_DRAGON_WILL（破壊龍）', () => {
     expect(gameState.board[2][2]).toBe(Shared.BLACK);
 
     const third = CardLogic.processDestroyDragonEffectsAtTurnStartAnchor(cardState, gameState, 'black', 2, 2, createPrng(0.1));
-    expect((third.expired || [])).toEqual([{ row: 2, col: 2 }]);
-    expect(gameState.board[2][2]).toBe(Shared.EMPTY);
+    expect((third.expired || [])).toEqual([expect.objectContaining({ row: 2, col: 2, reason: 'anchor_expired' })]);
+    expect(gameState.board[2][2]).toBe(Shared.BLACK);
     expect(cardState.markers.find((m) => m && m.id === 8302)).toBeUndefined();
   });
 
@@ -247,7 +247,7 @@ describe('DESTROY_DRAGON_WILL（破壊龍）', () => {
     expect(eventTypes.has('destroy_dragon_destroyed_start')).toBe(true);
     expect(eventTypes.has('destroy_dragon_expired_start')).toBe(true);
     expect(gameState.board[4][5]).toBe(Shared.EMPTY);
-    expect(gameState.board[4][4]).toBe(Shared.EMPTY);
+    expect(gameState.board[4][4]).toBe(Shared.BLACK);
   });
 
   test('破壊龍は反転保護リストに含まれる', () => {

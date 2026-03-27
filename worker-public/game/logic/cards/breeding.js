@@ -329,17 +329,25 @@
         _mergeSprouts(cardState, playerKey, spawned);
 
         if (afterDec === 0) {
-            destroyed.push({ row, col });
-            if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                deps.BoardOps.destroyAt(cardState, gameState, row, col, 'BREEDING', 'anchor_expired');
+            destroyed.push({ row, col, owner: playerKey, reason: 'anchor_expired' });
+            if (deps.BoardOps && typeof deps.BoardOps.revertSpecialStoneAt === 'function') {
+                deps.BoardOps.revertSpecialStoneAt(
+                    cardState,
+                    gameState,
+                    row,
+                    col,
+                    'BREEDING',
+                    playerKey,
+                    'BREEDING',
+                    'anchor_expired'
+                );
             } else {
-                _setBoardCell(gameState, row, col, EMPTY);
+                if (cardState.markers) {
+                    cardState.markers = cardState.markers.filter(m => !(m.kind === 'specialStone' && m.data && m.data.type === 'BREEDING' && m.row === row && m.col === col && m.owner === playerKey));
+                }
             }
             if (anchor.data) anchor.data.remainingOwnerTurns = -1;
             _clearFrontier(cardState, anchor.id);
-            if (cardState.markers) {
-                cardState.markers = cardState.markers.filter(m => !(m.kind === 'specialStone' && m.data && m.data.type === 'BREEDING' && m.row === row && m.col === col && m.owner === playerKey));
-            }
         }
 
         return { spawned, destroyed, flipped, anchors };

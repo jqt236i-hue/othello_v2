@@ -5,6 +5,7 @@ const {
     DEFAULT_QUALITY_WEIGHTS,
     parseArgs,
     buildQualitySeedDecision,
+    buildStrengthFirstSourceDecision,
     buildQualityGatePayload
 } = require('../scripts/benchmark-policy-quality-gate');
 
@@ -31,6 +32,15 @@ describe('selfplay policy quality gate', () => {
         expect(args.gatePhase).toBe('quality');
     });
 
+    test('parseArgs enables strength-first quality gate when requested', () => {
+        const args = parseArgs([
+            '--candidate-model', 'data/models/candidate.json',
+            '--quality-gate-strength-first'
+        ]);
+
+        expect(args.qualityGateStrengthFirst).toBe(true);
+    });
+
     test('buildQualitySeedDecision uses quality uplift only', () => {
         const out = buildQualitySeedDecision({
             baselineQualityScore: 0.11,
@@ -43,6 +53,28 @@ describe('selfplay policy quality gate', () => {
         expect(out.candidateScore).toBeCloseTo(0.29);
         expect(out.uplift).toBeCloseTo(0.18);
         expect(out.passed).toBe(true);
+    });
+
+    test('buildStrengthFirstSourceDecision clamps source requirements to non-negative strength', () => {
+        const sourceDecision = buildStrengthFirstSourceDecision([
+            {
+                decision: { baselineScore: 0.52, candidateScore: 0.53, uplift: 0.01, passed: true }
+            },
+            {
+                decision: { baselineScore: 0.51, candidateScore: 0.49, uplift: -0.02, passed: false }
+            }
+        ], {
+            threshold: -0.01,
+            confidenceLevel: 0.95,
+            minLowerBound: -0.05,
+            minSeedUplift: -0.05,
+            minSeedPassCount: 1
+        });
+
+        expect(sourceDecision.threshold).toBe(0);
+        expect(sourceDecision.requiredMinLowerBound).toBe(0);
+        expect(sourceDecision.requiredMinSeedUplift).toBe(0);
+        expect(sourceDecision.passed).toBe(false);
     });
 
     test('buildQualityGatePayload aggregates per-seed quality decisions', () => {
@@ -81,6 +113,7 @@ describe('selfplay policy quality gate', () => {
             minLowerBound: -1,
             minSeedUplift: -1,
             minSeedPassCount: 0,
+            qualityGateStrengthFirst: true,
             candidateModelPath: path.join('data', 'models', 'candidate.json'),
             baselineModelPath: null,
             opponentModelPath: null,
@@ -92,9 +125,12 @@ describe('selfplay policy quality gate', () => {
         expect(payload.perSeed).toHaveLength(2);
         expect(payload.perSeed[0].qualityDecision.uplift).toBeCloseTo(0.12);
         expect(payload.decision.uplift).toBeCloseTo(0.11);
-        expect(payload.decision.passed).toBe(true);
+        expect(payload.decision.passedByQuality).toBe(true);
+        expect(payload.decision.passedBySourceStrength).toBe(false);
+        expect(payload.decision.passed).toBe(false);
         expect(payload.sourceDecision.passed).toBe(false);
         expect(payload.config.qualityWeights.qualityWeightCorner).toBe(DEFAULT_QUALITY_WEIGHTS.qualityWeightCorner);
+        expect(payload.config.qualityGateStrengthFirst).toBe(true);
     });
 
     test('buildQualityGatePayload preserves early-stop failure state', () => {
@@ -172,6 +208,7 @@ describe('selfplay policy quality gate', () => {
                     '--quality-gate-min-lower-bound', '-0.02',
                     '--quality-gate-min-seed-uplift', '-0.03',
                     '--quality-gate-min-seed-pass-count', '2',
+                    '--quality-gate-strength-first',
                     '--adoption-jobs', '3',
                     '--max-plies', '140',
                     '--card-usage-rate', '0.33',
@@ -199,6 +236,7 @@ describe('selfplay policy quality gate', () => {
             expect(args.maxPlies).toBe(140);
             expect(args.aRate).toBeCloseTo(0.33, 6);
             expect(args.bRate).toBeCloseTo(0.33, 6);
+            expect(args.qualityGateStrengthFirst).toBe(true);
             expect(args.tacticalWeight).toBeCloseTo(0.2, 6);
             expect(args.policyScoreWeight).toBeCloseTo(1.8, 6);
             expect(args.whitePriority).toBeCloseTo(0.6, 6);

@@ -10,8 +10,8 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'black');
 
     expect(out).toEqual([
-      '黒: 究極破壊神: 親石2個が消滅',
-      '黒: 究極反転龍: 親石1個が消滅'
+      '黒: 究極破壊神: 親石2個が通常石に戻る',
+      '黒: 究極反転龍: 親石1個が通常石に戻る'
     ]);
   });
 
@@ -24,8 +24,8 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'white');
 
     expect(out).toEqual([
-      '白: 究極破壊神: 親石1個が消滅',
-      '白: 究極反転龍: 親石2個が消滅'
+      '白: 究極破壊神: 親石1個が通常石に戻る',
+      '白: 究極反転龍: 親石2個が通常石に戻る'
     ]);
   });
 
@@ -91,7 +91,7 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'black');
 
     expect(out).toEqual([
-      '白: 究極破壊神: 親石1個が消滅'
+      '白: 究極破壊神: 親石1個が通常石に戻る'
     ]);
   });
 
@@ -138,7 +138,7 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     const rawEvents = [
       { type: 'robot_vacuum_moved_start', details: [{ from: { row: 3, col: 3 }, to: { row: 3, col: 4 } }] },
       { type: 'robot_vacuum_sucked_start', details: [{ row: 3, col: 5 }, { row: 2, col: 5 }] },
-      { type: 'robot_vacuum_destroyed_start', details: [{ row: 3, col: 3 }] },
+      { type: 'robot_vacuum_expired_start', details: [{ row: 3, col: 3, reason: 'anchor_expired' }] },
       { type: 'placement_effects', effects: { robotVacuumPlaced: true, hyperactivePlaced: true } }
     ];
 
@@ -147,7 +147,7 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     expect(out).toEqual([
       '黒: ロボット掃除機石: 1回移動',
       '黒: ロボット掃除機石: 2個を吸い込み',
-      '黒: ロボット掃除機石: 1個が消滅',
+      '黒: ロボット掃除機石: 1個が通常石に戻る',
       '黒: ロボット掃除機石を設置'
     ]);
   });
@@ -155,7 +155,7 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
   test('logs observer trigger/expire/placement wording', () => {
     const rawEvents = [
       { type: 'observer_triggered_start', details: [{ row: 3, col: 3, owner: 'black', gained: 2 }, { row: 5, col: 5, owner: 'black', gained: 4 }] },
-      { type: 'observer_expired_start', details: [{ row: 3, col: 3 }] },
+      { type: 'observer_expired_start', details: [{ row: 3, col: 3, reason: 'duration_end' }] },
       { type: 'placement_effects', effects: { observerPlaced: true } }
     ];
 
@@ -163,7 +163,7 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
 
     expect(out).toEqual([
       '黒: 盤理の観測者: 布石+6',
-      '黒: 盤理の観測者: 親石1個が消滅',
+      '黒: 盤理の観測者: 親石1個が通常石に戻る',
       '黒: 盤理の観測者を設置'
     ]);
   });
@@ -179,7 +179,7 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
 
     expect(out).toEqual([
       '黒: 落雷石: 1個を破壊',
-      '黒: 落雷石: 親石1個が消滅',
+      '黒: 落雷石: 親石1個が通常石に戻る',
       '黒: 落雷の意志: 落雷石を設置'
     ]);
   });

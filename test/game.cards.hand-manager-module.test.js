@@ -36,7 +36,7 @@ describe('CardHandManager module', () => {
     expect(CardHandManager.commitDraw(cardState, 'black', null, context)).toBeNull();
 
     const result = CardHandManager.destroyHandCard(cardState, 'black', 'card_b', null, context);
-    expect(result).toEqual({ applied: true, destroyedCardId: 'card_b' });
+    expect(result).toMatchObject({ applied: true, destroyedCardId: 'card_b' });
     expect(cardState.hands.black).toEqual([]);
     expect(cardState.discard).toEqual(['card_b']);
     expect(cardState.hasDestroyedCardThisTurnByPlayer.black).toBe(true);
@@ -91,5 +91,56 @@ describe('CardHandManager module', () => {
     selectorsModule.getDestroyTargets.mockReturnValue([{ row: 2, col: 3 }]);
 
     expect(CardHandManager.getUsableCardIds(cardState, gameState, 'black', context)).toEqual(['ribo_card', 'destroy_card']);
+  });
+
+  test('copy ids keep reveal ledger stable across destroy, redraw, and discard restore', () => {
+    const CardHandManager = require('../game/logic/cards-internal/hand-manager');
+    const context = {
+      constants: {
+        MAX_HAND_SIZE: 5,
+        RIBO_WILL_UNLOCK_TURN_INDEX: 19
+      },
+      modules: {
+        CardDefsModule: {
+          getCardDef: (cardId) => ({ id: cardId, type: 'GENERIC', cost: 0, name: cardId }),
+          getCardType: () => 'GENERIC'
+        },
+        CardCostsModule: {
+          getCardCost: () => 0
+        }
+      },
+      helpers: {}
+    };
+    const cardState = {
+      hands: { black: [], white: ['card_a', 'card_b'] },
+      decks: { black: [], white: ['card_a'] },
+      discard: [],
+      charge: { black: 0, white: 0 },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      hasDestroyedCardThisTurnByPlayer: {},
+      turnIndex: 0
+    };
+
+    CardHandManager.ensureCardCopyState(cardState, context);
+    const initialCopyIds = CardHandManager.getHandCopyIds(cardState, 'white', context);
+    expect(initialCopyIds).toHaveLength(2);
+    expect(initialCopyIds[0]).not.toBe(initialCopyIds[1]);
+
+    expect(CardHandManager.revealCurrentHandToViewer(cardState, 'black', 'white', context)).toEqual(initialCopyIds);
+    expect(CardHandManager.isCardCopyIdRevealedToViewer(cardState, 'black', initialCopyIds[0], context)).toBe(true);
+    expect(CardHandManager.isCardCopyIdRevealedToViewer(cardState, 'black', initialCopyIds[1], context)).toBe(true);
+
+    const destroyed = CardHandManager.destroyHandCard(cardState, 'white', 'card_a', null, context);
+    expect(destroyed.destroyedCardCopyId).toBe(initialCopyIds[0]);
+    expect(CardHandManager.commitDraw(cardState, 'white', null, context)).toBe('card_a');
+
+    const currentCopyIds = CardHandManager.getHandCopyIds(cardState, 'white', context);
+    expect(currentCopyIds).toHaveLength(2);
+    expect(currentCopyIds[1]).not.toBe(initialCopyIds[0]);
+    expect(CardHandManager.isCardCopyIdRevealedToViewer(cardState, 'black', currentCopyIds[1], context)).toBe(false);
+
+    const restored = CardHandManager.moveDiscardCardToHandByCardId(cardState, 'white', 'card_a', context, { ignoreHandLimit: true });
+    expect(restored.cardCopyId).toBe(initialCopyIds[0]);
+    expect(CardHandManager.isCardCopyIdRevealedToViewer(cardState, 'black', restored.cardCopyId, context)).toBe(true);
   });
 });

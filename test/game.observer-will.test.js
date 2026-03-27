@@ -174,6 +174,16 @@ describe('OBSERVER_WILL（盤理の観測者）', () => {
     const byDuration = CardLogic.processObserverWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 5, 5, createSequencePrng([0.9]));
     expect((byDuration.expired || [])[0]).toMatchObject({ row: 5, col: 5, reason: 'duration_end' });
     expect(cardState.markers.find((m) => m && m.id === 9003)).toBeUndefined();
+    expect(gameState.board[5][5]).toBe(Shared.BLACK);
+    expect(CardLogic.flushPresentationEvents(cardState) || []).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'STATUS_REMOVED',
+        row: 5,
+        col: 5,
+        reason: 'duration_end',
+        meta: expect.objectContaining({ special: 'OBSERVER' })
+      })
+    ]));
 
     gameState.board[6][6] = Shared.WHITE;
     cardState.markers.push({
@@ -188,6 +198,7 @@ describe('OBSERVER_WILL（盤理の観測者）', () => {
     const byLostAnchor = CardLogic.processObserverWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 6, 6, createSequencePrng([0.1]));
     expect((byLostAnchor.expired || [])[0]).toMatchObject({ row: 6, col: 6, reason: 'anchor_lost' });
     expect(cardState.markers.find((m) => m && m.id === 9004)).toBeUndefined();
+    expect(gameState.board[6][6]).toBe(Shared.WHITE);
   });
 
   test('所有者ターン開始時に観測不発なら吹き出しを表示しない', () => {

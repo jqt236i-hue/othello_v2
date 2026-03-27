@@ -164,6 +164,7 @@
         const result = {
             moved: [],
             destroyed: [],
+            proliferated: [],
             expired: []
         };
 
@@ -199,6 +200,13 @@
                 : { destroyed: false };
             if (destroyResult && destroyResult.destroyed) {
                 result.destroyed.push({
+                    row: target.row,
+                    col: target.col,
+                    sourceRow: row,
+                    sourceCol: col
+                });
+            } else if (destroyResult && destroyResult.proliferated) {
+                result.proliferated.push({
                     row: target.row,
                     col: target.col,
                     sourceRow: row,
@@ -245,10 +253,30 @@
         }
 
         if (shouldDecrement && afterTurns <= 0) {
-            const destroyResult = boardOps && typeof boardOps.destroyAt === 'function'
-                ? boardOps.destroyAt(cardState, gameState, row, col, 'WILL_HUNTER_KING', 'anchor_expired')
-                : { destroyed: false };
-            if (destroyResult && destroyResult.destroyed) {
+            const revertResult = boardOps && typeof boardOps.revertSpecialStoneAt === 'function'
+                ? boardOps.revertSpecialStoneAt(
+                    cardState,
+                    gameState,
+                    row,
+                    col,
+                    'WILL_HUNTER_KING',
+                    playerKey,
+                    'WILL_HUNTER_KING',
+                    'anchor_expired'
+                )
+                : { reverted: false };
+            if (revertResult && revertResult.reverted) {
+                result.expired.push({ row, col, owner: playerKey, reason: 'anchor_expired' });
+            } else if (!boardOps || typeof boardOps.revertSpecialStoneAt !== 'function') {
+                cardState.markers = (cardState.markers || []).filter((entry) => !(
+                    entry &&
+                    entry.kind === 'specialStone' &&
+                    entry.row === row &&
+                    entry.col === col &&
+                    entry.owner === playerKey &&
+                    entry.data &&
+                    entry.data.type === 'WILL_HUNTER_KING'
+                ));
                 result.expired.push({ row, col, owner: playerKey, reason: 'anchor_expired' });
             }
         }

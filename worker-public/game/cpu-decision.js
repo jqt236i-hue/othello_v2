@@ -1896,6 +1896,7 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     BOARD_EXPANSION_GOD: makePlanPressureProfile(3, 4, 3, 4),
     BOARD_EXPANSION_WILL: makePlanPressureProfile(2, 3, 2, 3),
     BREEDING_WILL: makePlanPressureProfile(2, 2, 2, 3),
+    PROLIFERATION_WILL: makePlanPressureProfile(1, 2, 1, 2),
     CHAIN_WILL: makePlanPressureProfile(2, 4, 2, 3),
     DOUBLE_CHAIN_WILL: makePlanPressureProfile(2, 4, 2, 3),
     TRIPLE_CHAIN_WILL: makePlanPressureProfile(3, 5, 3, 4),
@@ -1922,6 +1923,7 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     GOLD_STONE: makePlanPressureProfile(1, 2, 0, 2),
     CRYSTAL_STONE: makePlanPressureProfile(1, 2, 1, 2),
     RAINBOW_STONE: makePlanPressureProfile(1, 3, 0, 3),
+    AFTERIMAGE_WILL: makePlanPressureProfile(0, 0, 0, 1),
     GUARDIAN_GOD: makePlanPressureProfile(0, 0, 0, 0),
     GUARD_WILL: makePlanPressureProfile(0, 0, 0, 0),
     GHOST_WILL: makePlanPressureProfile(0, 0, 0, 1),
@@ -1942,6 +1944,7 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     REGEN_WILL: makePlanPressureProfile(0, 0, 0, 1),
     RIBO_WILL: makePlanPressureProfile(1, 2, 0, 2),
     ROBOT_VACUUM_WILL: makePlanPressureProfile(2, 2, 2, 3),
+    SALVATION_WILL: makePlanPressureProfile(1, 2, 1, 2),
     SELL_CARD_WILL: makePlanPressureProfile(1, 2, 0, 2),
     SUPPLY_WILL: makePlanPressureProfile(1, 2, 0, 2),
     SILVER_STONE: makePlanPressureProfile(1, 2, 0, 2),
@@ -3577,20 +3580,10 @@ function isEdgeDangerousCornerAdjacent(row, col, board) {
 
 function isLv6OpenCornerAdjacentCell(row, col, board) {
     if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return false;
-    const maxR = board.length - 1;
-    const maxC = Array.isArray(board[0]) ? (board[0].length - 1) : maxR;
-    if (maxR < 2 || maxC < 2) return false;
-    const isX = (row === 1 || row === (maxR - 1)) && (col === 1 || col === (maxC - 1));
-    const isC = !isX && (
-        ((row === 0 || row === maxR) && (col === 1 || col === (maxC - 1))) ||
-        ((col === 0 || col === maxC) && (row === 1 || row === (maxR - 1)))
-    );
-    if (!isX && !isC) return false;
-    const cornerRow = row <= 1 ? 0 : maxR;
-    const cornerCol = col <= 1 ? 0 : maxC;
-    const cornerLine = Array.isArray(board[cornerRow]) ? board[cornerRow] : null;
-    if (!cornerLine || cornerCol < 0 || cornerCol >= cornerLine.length) return false;
-    return cornerLine[cornerCol] === 0;
+    if (isCornerCell(row, col, board)) return false;
+    const cornerHint = getCornerProximity(row, col, board);
+    if (!cornerHint) return false;
+    return getBoardCellValueSafe(board, cornerHint.corner[0], cornerHint.corner[1]) === 0;
 }
 
 function filterLv6OpenCornerAdjacentMoves(candidateMoves, board) {

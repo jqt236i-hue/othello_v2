@@ -50,6 +50,8 @@
         <h1>カードオセロ</h1>
     </div>
 
+    <div id="round-display-panel" aria-live="polite" aria-atomic="true">ROUND 1</div>
+
     <div id="effect-live-panel" aria-live="polite" aria-atomic="false">
         <div class="effect-live-title">効果ログ</div>
         <div id="effect-live-lines"></div>
@@ -148,6 +150,7 @@
                     <li>このゲームは、通常のオセロにカード効果を加えた対戦です。</li>
                     <li>自分の手番開始時に1枚ドローし、必要ならカードを1枚使ってから石を置きます。</li>
                     <li>石を反転させると布石を得られ、数字マスに置いたときも追加で布石を獲得します。</li>
+                    <li>10ラウンドごとに、ラウンド開始時の両者へ同時にラウンド数の半分の布石が入ります。</li>
                     <li>カードは布石を消費して使います。手札上限は5枚です。</li>
                     <li>置ける場所がないときは、カードを使うかパスを選びます。</li>
                     <li>盤面が埋まるか、両者が連続でパスすると終局です。</li>
@@ -218,9 +221,9 @@
             <div id="board"></div>
             <!-- Occupancy UI (removed) -->
             <!-- Charge UI -->
-            <div id="charge-black" class="charge-display">布石: 0 / 99</div>
+            <div id="charge-black" class="charge-display"><span class="charge-label">布石:</span> <span class="charge-current">0</span><span class="charge-separator"> / </span><span class="charge-max">99</span></div>
             <div id="charge-delta-black" class="charge-delta" aria-live="polite"></div>
-            <div id="charge-white" class="charge-display">布石: 0 / 99</div>
+            <div id="charge-white" class="charge-display"><span class="charge-label">布石:</span> <span class="charge-current">0</span><span class="charge-separator"> / </span><span class="charge-max">99</span></div>
             <div id="charge-delta-white" class="charge-delta" aria-live="polite"></div>
             <!-- Card Animation FX Layer -->
             <div id="card-fx-layer"></div>
@@ -447,144 +450,113 @@
                     </filter>
                 </defs>
 
-                <!-- back of hand -->
+                <!-- ===== PALM / back of hand ===== -->
+                <!-- wider at knuckle row, tapers toward wrist; fingers sit on top -->
                 <path id="handPath"
-                    d="M76,300
-                       C71,283 67,263 64,240
-                       C61,218 59,197 57,179
-                       C55,160 58,146 67,137
-                       C76,128 89,125 103,125
-                       C116,125 128,122 140,119
-                       C152,116 162,119 169,127
-                       C176,136 179,150 178,167
-                       C176,186 172,207 168,229
-                       C163,252 159,274 156,300 Z"
+                    d="M 58,295
+                       C 56,275 54,250 55,225
+                       C 55,200 58,180 62,169
+                       C 66,159 71,153 80,151
+                       L 148,151
+                       C 157,151 162,157 164,167
+                       C 167,178 165,200 162,225
+                       C 160,250 157,275 153,295 Z"
                     fill="url(#skinGradient)" filter="url(#dropShadow)"/>
-                <path d="M76,300
-                       C71,283 67,263 64,240
-                       C61,218 59,197 57,179
-                       C55,160 58,146 67,137
-                       C76,128 89,125 103,125
-                       C116,125 128,122 140,119
-                       C152,116 162,119 169,127
-                       C176,136 179,150 178,167
-                       C176,186 172,207 168,229
-                       C163,252 159,274 156,300 Z"
+                <path
+                    d="M 58,295
+                       C 56,275 54,250 55,225
+                       C 55,200 58,180 62,169
+                       C 66,159 71,153 80,151
+                       L 148,151
+                       C 157,151 162,157 164,167
+                       C 167,178 165,200 162,225
+                       C 160,250 157,275 153,295 Z"
                     fill="url(#palmShadow)" filter="url(#innerGlow)"/>
-                <path d="M86,246 C88,216 91,189 96,151" fill="none" stroke="#9f673d" stroke-width="0.75" opacity="0.18" stroke-linecap="round"/>
-                <path d="M108,245 C112,213 117,184 123,147" fill="none" stroke="#9f673d" stroke-width="0.72" opacity="0.16" stroke-linecap="round"/>
-                <path d="M129,239 C136,208 142,183 147,152" fill="none" stroke="#9f673d" stroke-width="0.68" opacity="0.14" stroke-linecap="round"/>
+                <!-- back-of-hand tendon suggestions -->
+                <path d="M 80,248 C 81,218 82,188 84,162" fill="none" stroke="#9a6038" stroke-width="0.55" opacity="0.15" stroke-linecap="round"/>
+                <path d="M 98,250 C 100,218 102,186 103,161" fill="none" stroke="#9a6038" stroke-width="0.52" opacity="0.13" stroke-linecap="round"/>
+                <path d="M 118,248 C 120,216 122,185 123,161" fill="none" stroke="#9a6038" stroke-width="0.50" opacity="0.12" stroke-linecap="round"/>
 
-                <!-- pinky -->
+                <!-- ===== PINKY (leftmost, shortest) — leans slightly left ===== -->
                 <path class="finger"
-                    d="M58,149
-                       C52,135 47,118 44,99
-                       C41,79 42,61 47,47
-                       C51,37 58,32 65,37
-                       C72,44 74,60 73,80
-                       C72,101 69,126 66,149 Z"
+                    d="M 68,166
+                       C 68,146 68,118 69,95
+                       C 70,79 72,70 75,70
+                       C 78,70 80,79 81,95
+                       C 82,118 83,146 85,166 Z"
                     fill="url(#skinGradient)" filter="url(#dropShadow)"/>
-                <path d="M58,149
-                       C52,135 47,118 44,99
-                       C41,79 42,61 47,47
-                       C51,37 58,32 65,37
-                       C72,44 74,60 73,80
-                       C72,101 69,126 66,149 Z"
+                <path d="M 68,166 C 68,146 68,118 69,95 C 70,79 72,70 75,70 C 78,70 80,79 81,95 C 82,118 83,146 85,166 Z"
                     fill="url(#fingerHL)" opacity="0.20"/>
-                <line x1="47" y1="112" x2="66" y2="110" stroke="#aa7246" stroke-width="0.45" opacity="0.22" stroke-linecap="round"/>
-                <line x1="49" y1="86" x2="66" y2="84" stroke="#aa7246" stroke-width="0.4" opacity="0.18" stroke-linecap="round"/>
-                <ellipse cx="58" cy="37" rx="4.8" ry="3.7" fill="url(#nailGrad)" stroke="#cca088" stroke-width="0.32" opacity="0.82" transform="rotate(-18,58,37)"/>
-                <path d="M53,38 Q58,33 63,37" fill="none" stroke="#ead6c6" stroke-width="0.34" opacity="0.48" transform="rotate(-18,58,37)"/>
+                <line x1="69" y1="133" x2="82" y2="132" stroke="#9a6038" stroke-width="0.42" opacity="0.22" stroke-linecap="round"/>
+                <line x1="69" y1="96"  x2="81" y2="95"  stroke="#9a6038" stroke-width="0.38" opacity="0.18" stroke-linecap="round"/>
+                <ellipse cx="75" cy="72" rx="4.8" ry="3.4" fill="url(#nailGrad)" stroke="#cca088" stroke-width="0.30" opacity="0.82"/>
 
-                <!-- ring -->
+                <!-- ===== RING — slight natural taper ===== -->
                 <path class="finger"
-                    d="M79,146
-                       C73,129 69,102 69,73
-                       C69,45 73,22 81,8
-                       C87,-1 96,0 101,11
-                       C106,24 106,49 101,80
-                       C97,111 91,132 86,146 Z"
+                    d="M 86,163
+                       C 85,137 85,100 86,64
+                       C 87,43 90,30 94,30
+                       C 98,30 101,43 102,64
+                       C 103,100 103,137 102,163 Z"
                     fill="url(#skinGradient)" filter="url(#dropShadow)"/>
-                <path d="M79,146
-                       C73,129 69,102 69,73
-                       C69,45 73,22 81,8
-                       C87,-1 96,0 101,11
-                       C106,24 106,49 101,80
-                       C97,111 91,132 86,146 Z"
+                <path d="M 86,163 C 85,137 85,100 86,64 C 87,43 90,30 94,30 C 98,30 101,43 102,64 C 103,100 103,137 102,163 Z"
                     fill="url(#fingerHL)" opacity="0.19"/>
-                <line x1="70" y1="97" x2="91" y2="95" stroke="#aa7246" stroke-width="0.46" opacity="0.22" stroke-linecap="round"/>
-                <line x1="72" y1="62" x2="92" y2="60" stroke="#aa7246" stroke-width="0.4" opacity="0.18" stroke-linecap="round"/>
-                <ellipse cx="88" cy="9" rx="5.3" ry="4" fill="url(#nailGrad)" stroke="#cca088" stroke-width="0.32" opacity="0.82" transform="rotate(-8,88,9)"/>
-                <path d="M82,10 Q88,4 94,9" fill="none" stroke="#ead6c6" stroke-width="0.34" opacity="0.48" transform="rotate(-8,88,9)"/>
+                <line x1="86" y1="118" x2="102" y2="117" stroke="#9a6038" stroke-width="0.44" opacity="0.22" stroke-linecap="round"/>
+                <line x1="87" y1="66"  x2="102" y2="65"  stroke="#9a6038" stroke-width="0.40" opacity="0.18" stroke-linecap="round"/>
+                <ellipse cx="94" cy="32" rx="5.5" ry="3.8" fill="url(#nailGrad)" stroke="#cca088" stroke-width="0.30" opacity="0.82"/>
 
-                <!-- middle -->
+                <!-- ===== MIDDLE (longest) — straight, widest ===== -->
                 <path class="finger"
-                    d="M102,145
-                       C95,125 93,92 95,54
-                       C97,24 103,4 112,0
-                       C121,-4 130,2 135,16
-                       C139,31 138,59 133,92
-                       C128,123 119,141 111,145 Z"
+                    d="M 103,159
+                       C 102,130 102,92 103,55
+                       C 104,33 108,18 113,18
+                       C 118,18 122,33 123,55
+                       C 124,92 124,130 123,159 Z"
                     fill="url(#skinGradient)" filter="url(#dropShadow)"/>
-                <path d="M102,145
-                       C95,125 93,92 95,54
-                       C97,24 103,4 112,0
-                       C121,-4 130,2 135,16
-                       C139,31 138,59 133,92
-                       C128,123 119,141 111,145 Z"
+                <path d="M 103,159 C 102,130 102,92 103,55 C 104,33 108,18 113,18 C 118,18 122,33 123,55 C 124,92 124,130 123,159 Z"
                     fill="url(#fingerHL)" opacity="0.18"/>
-                <line x1="96" y1="83" x2="119" y2="81" stroke="#aa7246" stroke-width="0.46" opacity="0.22" stroke-linecap="round"/>
-                <line x1="99" y1="42" x2="121" y2="40" stroke="#aa7246" stroke-width="0.4" opacity="0.18" stroke-linecap="round"/>
-                <ellipse cx="116" cy="3" rx="5.6" ry="4.2" fill="url(#nailGrad)" stroke="#cca088" stroke-width="0.32" opacity="0.82"/>
-                <path d="M110,3 Q116,-2 122,3" fill="none" stroke="#ead6c6" stroke-width="0.34" opacity="0.48"/>
+                <line x1="103" y1="110" x2="123" y2="109" stroke="#9a6038" stroke-width="0.44" opacity="0.22" stroke-linecap="round"/>
+                <line x1="103" y1="58"  x2="123" y2="57"  stroke="#9a6038" stroke-width="0.40" opacity="0.18" stroke-linecap="round"/>
+                <ellipse cx="113" cy="20" rx="5.8" ry="4.0" fill="url(#nailGrad)" stroke="#cca088" stroke-width="0.30" opacity="0.82"/>
 
-                <!-- index -->
+                <!-- ===== INDEX — leans slightly right ===== -->
                 <path class="finger"
-                    d="M125,147
-                       C120,130 120,104 124,77
-                       C128,50 135,30 145,17
-                       C152,8 161,10 166,22
-                       C170,35 169,58 163,85
-                       C156,114 148,134 139,147 Z"
+                    d="M 124,161
+                       C 124,133 125,96 126,63
+                       C 127,43 130,30 134,30
+                       C 138,30 141,43 142,63
+                       C 143,96 143,133 142,161 Z"
                     fill="url(#skinGradient)" filter="url(#dropShadow)"/>
-                <path d="M125,147
-                       C120,130 120,104 124,77
-                       C128,50 135,30 145,17
-                       C152,8 161,10 166,22
-                       C170,35 169,58 163,85
-                       C156,114 148,134 139,147 Z"
+                <path d="M 124,161 C 124,133 125,96 126,63 C 127,43 130,30 134,30 C 138,30 141,43 142,63 C 143,96 143,133 142,161 Z"
                     fill="url(#fingerHL)" opacity="0.17"/>
-                <line x1="123" y1="93" x2="147" y2="90" stroke="#aa7246" stroke-width="0.46" opacity="0.22" stroke-linecap="round"/>
-                <line x1="129" y1="57" x2="150" y2="53" stroke="#aa7246" stroke-width="0.4" opacity="0.18" stroke-linecap="round"/>
-                <ellipse cx="151" cy="18" rx="5.4" ry="4" fill="url(#nailGrad)" stroke="#cca088" stroke-width="0.32" opacity="0.82" transform="rotate(12,151,18)"/>
-                <path d="M145,18 Q151,12 157,17" fill="none" stroke="#ead6c6" stroke-width="0.34" opacity="0.48" transform="rotate(12,151,18)"/>
+                <line x1="125" y1="116" x2="143" y2="115" stroke="#9a6038" stroke-width="0.44" opacity="0.22" stroke-linecap="round"/>
+                <line x1="126" y1="67"  x2="142" y2="66"  stroke="#9a6038" stroke-width="0.40" opacity="0.18" stroke-linecap="round"/>
+                <ellipse cx="134" cy="32" rx="5.5" ry="3.8" fill="url(#nailGrad)" stroke="#cca088" stroke-width="0.30" opacity="0.82"/>
 
-                <!-- knuckles -->
-                <ellipse cx="67" cy="148" rx="5.6" ry="4.3" fill="url(#knuckle)"/>
-                <ellipse cx="89" cy="145" rx="6.4" ry="4.6" fill="url(#knuckle)"/>
-                <ellipse cx="112" cy="144" rx="6.9" ry="4.8" fill="url(#knuckle)"/>
-                <ellipse cx="138" cy="146" rx="6.5" ry="4.7" fill="url(#knuckle)"/>
+                <!-- knuckle dimples -->
+                <ellipse cx="76"  cy="163" rx="5.2" ry="3.8" fill="url(#knuckle)"/>
+                <ellipse cx="94"  cy="160" rx="6.0" ry="4.2" fill="url(#knuckle)"/>
+                <ellipse cx="113" cy="156" rx="6.5" ry="4.5" fill="url(#knuckle)"/>
+                <ellipse cx="134" cy="158" rx="6.0" ry="4.2" fill="url(#knuckle)"/>
 
-                <!-- thumb -->
+                <!-- ===== THUMB (right side, rounder/pillowy shape) ===== -->
                 <path id="thumbPath"
-                    d="M133,179
-                       C143,170 155,160 168,149
-                       C181,138 190,131 196,129
-                       C200,128 202,131 201,137
-                       C199,145 192,155 180,166
-                       C168,177 155,186 144,191
-                       C135,194 128,193 124,186
-                       C122,183 127,182 133,179 Z"
+                    d="M 140,205
+                       C 145,190 155,176 166,163
+                       C 173,154 179,148 183,146
+                       C 187,144 190,146 190,152
+                       C 190,159 187,168 180,177
+                       C 171,186 159,196 149,203
+                       C 143,207 140,207 140,205 Z"
                     fill="url(#thumbGrad)" filter="url(#dropShadow)"/>
-                <path d="M137,174 C146,167 157,157 170,147 C180,140 188,135 194,134"
+                <path d="M 145,200 C 153,186 162,172 172,160 C 177,154 182,149 186,146"
                     fill="none" stroke="#f0d8c0" stroke-width="1.0" opacity="0.20" stroke-linecap="round"/>
-                <path d="M167,151 Q171,158 164,165" fill="none" stroke="#9d6538" stroke-width="0.46" opacity="0.24" stroke-linecap="round"/>
-                <ellipse cx="191" cy="132" rx="5.5" ry="4.6" fill="url(#nailGrad)" stroke="#cca088" stroke-width="0.34" opacity="0.78" transform="rotate(-28,191,132)"/>
-                <path d="M186,131 Q191,126 196,130" fill="none" stroke="#ead6c6" stroke-width="0.34" opacity="0.44" transform="rotate(-28,191,132)"/>
+                <path d="M 164,165 Q 167,172 162,178" fill="none" stroke="#9a6038" stroke-width="0.46" opacity="0.24" stroke-linecap="round"/>
+                <ellipse cx="187" cy="148" rx="5.2" ry="4.4" fill="url(#nailGrad)" stroke="#cca088" stroke-width="0.30" opacity="0.78" transform="rotate(-32,187,148)"/>
 
                 <!-- web between index and thumb -->
-                <path d="M126,148 C132,149 136,157 134,167 C130,160 126,154 122,149 Z"
-                    fill="url(#skinGradient)" opacity="0.72"/>
+                <path d="M 126,163 C 132,161 138,166 140,178 C 136,171 131,166 126,163 Z"
+                    fill="url(#skinGradient)" opacity="0.65"/>
             </svg>
             <div id="heldStone" class="held-stone black"></div>
         </div>
@@ -605,6 +577,9 @@
     <script src="shared-constants.js"></script>
     <script src="shared/deck-spec.js"></script>
     <script src="shared/deck-codec.js"></script>
+    <script src="shared/destroy-outcome-contract.js"></script>
+    <script src="shared/special-stone-registry.js"></script>
+    <script src="shared/stone-status-snapshot.js"></script>
     <script src="game/logic/markers_adapter.js"></script>
     <script src="game/logic/board_ops.js"></script>
     <script src="utils/owner-helpers.js"></script>

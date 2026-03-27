@@ -11,6 +11,8 @@ const {
     normalizeRestartFromStep,
     resolveAdoptionBaselineMode,
     resolveIterationGateControl,
+    getPrimaryResumeCheckpointPath,
+    resolveResumeCheckpointPathsFromArgs,
     resolveNextCarryOverState,
     buildPromotionCommandArgs,
     shouldReuseStepArtifacts,
@@ -102,6 +104,7 @@ describe('selfplay training cycle script', () => {
         expect(args.qualityGateMinLowerBound).toBeCloseTo(-1, 6);
         expect(args.qualityGateMinSeedUplift).toBeCloseTo(-1, 6);
         expect(args.qualityGateMinSeedPassCount).toBe(0);
+        expect(args.qualityGateStrengthFirst).toBe(false);
         expect(args.quickAdoptionThreshold).toBeNull();
         expect(args.quickAdoptionSeedCount).toBeNull();
         expect(args.quickAdoptionSeedStride).toBeNull();
@@ -305,6 +308,52 @@ describe('selfplay training cycle script', () => {
         expect(args.onnxValueTargetCornerEmergencyWeight).toBeCloseTo(0.04, 6);
     });
 
+    test('parseArgs maps legacy resume checkpoint into compatible head slot', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-cycle-resume-'));
+        const valueCheckpointPath = path.join(tempDir, 'policy-value.candidate.resume.checkpoint.pt');
+        fs.writeFileSync(valueCheckpointPath, 'resume\n', 'utf8');
+
+        try {
+            const args = parseArgs(['--resume-checkpoint', valueCheckpointPath]);
+            expect(args.resumeCheckpointPath).toBeNull();
+            expect(args.resumeCheckpointPaths).toMatchObject({
+                policy: null,
+                value: valueCheckpointPath
+            });
+            expect(getPrimaryResumeCheckpointPath(args.resumeCheckpointPaths)).toBeNull();
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('parseArgs accepts head-specific resume checkpoints', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-cycle-resume-'));
+        const policyCheckpointPath = path.join(tempDir, 'custom-policy.pt');
+        const cardCheckpointPath = path.join(tempDir, 'custom-card.pt');
+        fs.writeFileSync(policyCheckpointPath, 'policy\n', 'utf8');
+        fs.writeFileSync(cardCheckpointPath, 'card\n', 'utf8');
+
+        try {
+            const args = parseArgs([
+                '--resume-policy-checkpoint', policyCheckpointPath,
+                '--resume-card-checkpoint', cardCheckpointPath,
+                '--quality-gate-strength-first'
+            ]);
+            expect(args.resumeCheckpointPath).toBe(policyCheckpointPath);
+            expect(args.resumeCheckpointPaths).toMatchObject({
+                policy: policyCheckpointPath,
+                card: cardCheckpointPath
+            });
+            expect(resolveResumeCheckpointPathsFromArgs(args)).toMatchObject({
+                policy: policyCheckpointPath,
+                card: cardCheckpointPath
+            });
+            expect(args.qualityGateStrengthFirst).toBe(true);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('resolvePromotionEligibility promotes on quick-only pass without final or onnx gate', () => {
         const args = parseArgs(['--promotion-mode', 'quick-only']);
         const eligibility = resolvePromotionEligibility(args, {
@@ -411,18 +460,22 @@ describe('selfplay training cycle script', () => {
         }
     });
 
-    test('resolveNextCarryOverState keeps promoted-only guide when candidate is not promoted', () => {
+    test('resolveNextCarryOverState keeps promoted-only guide while carrying checkpoint when candidate is not promoted', () => {
         const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-carry-over-'));
         const modelsDir = path.join(tempDir, 'models');
         fs.mkdirSync(modelsDir, { recursive: true });
         const currentGuidePath = path.join(modelsDir, 'policy-table.json');
         const previousCheckpointPath = path.join(modelsDir, 'policy-net.prev.checkpoint.pt');
+        const previousCardCheckpointPath = path.join(modelsDir, 'policy-card.prev.checkpoint.pt');
         const candidateModelPath = path.join(modelsDir, 'policy-table.candidate.test.it01.json');
         const candidateCheckpointPath = path.join(modelsDir, 'policy-net.candidate.test.it01.checkpoint.pt');
+        const candidateCardCheckpointPath = path.join(modelsDir, 'policy-card.candidate.test.it01.checkpoint.pt');
         fs.writeFileSync(currentGuidePath, '{}\n', 'utf8');
         fs.writeFileSync(previousCheckpointPath, 'prev\n', 'utf8');
+        fs.writeFileSync(previousCardCheckpointPath, 'prev-card\n', 'utf8');
         fs.writeFileSync(candidateModelPath, '{}\n', 'utf8');
         fs.writeFileSync(candidateCheckpointPath, 'candidate\n', 'utf8');
+        fs.writeFileSync(candidateCardCheckpointPath, 'candidate-card\n', 'utf8');
 
         try {
             const args = parseArgs([
@@ -433,19 +486,28 @@ describe('selfplay training cycle script', () => {
             const nextState = resolveNextCarryOverState(args, {
                 guideModelPath: currentGuidePath,
                 guideModelPoolPaths: [currentGuidePath],
-                resumeCheckpointPath: previousCheckpointPath
+                resumeCheckpointPath: previousCheckpointPath,
+                resumeCheckpointPaths: {
+                    policy: previousCheckpointPath,
+                    card: previousCardCheckpointPath
+                }
             }, {
                 promoted: false,
                 paths: {
                     candidateModelPath,
-                    checkpointPath: candidateCheckpointPath
+                    checkpointPath: candidateCheckpointPath,
+                    cardCheckpointPath: candidateCardCheckpointPath
                 }
             });
 
             expect(nextState.guideModelPath).toBe(currentGuidePath);
             expect(nextState.guideModelPoolPaths).toEqual([currentGuidePath]);
-            expect(nextState.resumeCheckpointPath).toBe(previousCheckpointPath);
-            expect(nextState.checkpointCarryOverSkipped).toBe(true);
+            expect(nextState.resumeCheckpointPath).toBe(candidateCheckpointPath);
+            expect(nextState.resumeCheckpointPaths).toMatchObject({
+                policy: candidateCheckpointPath,
+                card: candidateCardCheckpointPath
+            });
+            expect(nextState.checkpointCarryOverSkipped).toBe(false);
         } finally {
             fs.rmSync(tempDir, { recursive: true, force: true });
         }
@@ -457,14 +519,18 @@ describe('selfplay training cycle script', () => {
         fs.mkdirSync(modelsDir, { recursive: true });
         const previousGuidePath = path.join(modelsDir, 'policy-table.previous.json');
         const previousCheckpointPath = path.join(modelsDir, 'policy-net.prev.checkpoint.pt');
+        const previousValueCheckpointPath = path.join(modelsDir, 'policy-value.prev.checkpoint.pt');
         const promotedGuidePath = path.join(modelsDir, 'policy-table.json');
         const candidateModelPath = path.join(modelsDir, 'policy-table.candidate.test.it02.json');
         const candidateCheckpointPath = path.join(modelsDir, 'policy-net.candidate.test.it02.checkpoint.pt');
+        const candidateValueCheckpointPath = path.join(modelsDir, 'policy-value.candidate.test.it02.checkpoint.pt');
         fs.writeFileSync(previousGuidePath, '{}\n', 'utf8');
         fs.writeFileSync(previousCheckpointPath, 'prev\n', 'utf8');
+        fs.writeFileSync(previousValueCheckpointPath, 'prev-value\n', 'utf8');
         fs.writeFileSync(promotedGuidePath, '{}\n', 'utf8');
         fs.writeFileSync(candidateModelPath, '{}\n', 'utf8');
         fs.writeFileSync(candidateCheckpointPath, 'candidate\n', 'utf8');
+        fs.writeFileSync(candidateValueCheckpointPath, 'candidate-value\n', 'utf8');
 
         try {
             const args = parseArgs([
@@ -475,18 +541,27 @@ describe('selfplay training cycle script', () => {
             const nextState = resolveNextCarryOverState(args, {
                 guideModelPath: previousGuidePath,
                 guideModelPoolPaths: [previousGuidePath],
-                resumeCheckpointPath: previousCheckpointPath
+                resumeCheckpointPath: previousCheckpointPath,
+                resumeCheckpointPaths: {
+                    policy: previousCheckpointPath,
+                    value: previousValueCheckpointPath
+                }
             }, {
                 promoted: true,
                 paths: {
                     candidateModelPath,
-                    checkpointPath: candidateCheckpointPath
+                    checkpointPath: candidateCheckpointPath,
+                    valueCheckpointPath: candidateValueCheckpointPath
                 }
             });
 
             expect(nextState.guideModelPath).toBe(promotedGuidePath);
             expect(nextState.guideModelPoolPaths).toEqual([promotedGuidePath]);
             expect(nextState.resumeCheckpointPath).toBe(candidateCheckpointPath);
+            expect(nextState.resumeCheckpointPaths).toMatchObject({
+                policy: candidateCheckpointPath,
+                value: candidateValueCheckpointPath
+            });
             expect(nextState.checkpointCarryOverSkipped).toBe(false);
         } finally {
             fs.rmSync(tempDir, { recursive: true, force: true });
@@ -540,157 +615,273 @@ describe('selfplay training cycle script', () => {
         }
     });
 
+    test('buildInitialGuideModelPoolPaths keeps recent archived promoted guides for promoted-only restart', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-guide-pool-'));
+        const modelsDir = path.join(tempDir, 'models');
+        const archiveDir = path.join(modelsDir, 'archive');
+        fs.mkdirSync(archiveDir, { recursive: true });
+        const guideModelPath = path.join(modelsDir, 'policy-table.json');
+        const staleCandidatePath = path.join(modelsDir, 'policy-table.candidate.old.json');
+        const olderArchivePath = path.join(archiveDir, '2026-03-19T00-00-00Z', 'policy-table.json');
+        const newerArchivePath = path.join(archiveDir, '2026-03-20T00-00-00Z', 'policy-table.json');
+        fs.mkdirSync(path.dirname(olderArchivePath), { recursive: true });
+        fs.mkdirSync(path.dirname(newerArchivePath), { recursive: true });
+        fs.writeFileSync(guideModelPath, '{}\n', 'utf8');
+        fs.writeFileSync(staleCandidatePath, '{}\n', 'utf8');
+        fs.writeFileSync(olderArchivePath, '{}\n', 'utf8');
+        fs.writeFileSync(newerArchivePath, '{}\n', 'utf8');
+        const now = new Date();
+        fs.utimesSync(olderArchivePath, new Date(now.getTime() - 5000), new Date(now.getTime() - 5000));
+        fs.utimesSync(newerArchivePath, now, now);
+
+        try {
+            const pool = buildInitialGuideModelPoolPaths(modelsDir, guideModelPath, 3, {
+                includeCandidateFiles: false,
+                includeArchiveFiles: true
+            });
+
+            expect(pool).toEqual([guideModelPath, newerArchivePath, olderArchivePath]);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('resolveNextCarryOverState rebuilds promoted-only pool from archived champions after promotion', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-carry-over-'));
+        const modelsDir = path.join(tempDir, 'models');
+        const archiveDir = path.join(modelsDir, 'archive');
+        fs.mkdirSync(archiveDir, { recursive: true });
+        const previousGuidePath = path.join(modelsDir, 'policy-table.previous.json');
+        const previousCheckpointPath = path.join(modelsDir, 'policy-net.prev.checkpoint.pt');
+        const previousTargetCheckpointPath = path.join(modelsDir, 'policy-target.prev.checkpoint.pt');
+        const promotedGuidePath = path.join(modelsDir, 'policy-table.json');
+        const archivedGuidePath = path.join(archiveDir, '2026-03-20T00-00-00Z', 'policy-table.json');
+        const candidateModelPath = path.join(modelsDir, 'policy-table.candidate.test.it03.json');
+        const candidateCheckpointPath = path.join(modelsDir, 'policy-net.candidate.test.it03.checkpoint.pt');
+        const candidateTargetCheckpointPath = path.join(modelsDir, 'policy-target.candidate.test.it03.checkpoint.pt');
+        fs.mkdirSync(path.dirname(archivedGuidePath), { recursive: true });
+        fs.writeFileSync(previousGuidePath, '{}\n', 'utf8');
+        fs.writeFileSync(previousCheckpointPath, 'prev\n', 'utf8');
+        fs.writeFileSync(previousTargetCheckpointPath, 'prev-target\n', 'utf8');
+        fs.writeFileSync(promotedGuidePath, '{}\n', 'utf8');
+        fs.writeFileSync(archivedGuidePath, '{}\n', 'utf8');
+        fs.writeFileSync(candidateModelPath, '{}\n', 'utf8');
+        fs.writeFileSync(candidateCheckpointPath, 'candidate\n', 'utf8');
+        fs.writeFileSync(candidateTargetCheckpointPath, 'candidate-target\n', 'utf8');
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--selfplay-use-promoted-model-only',
+                '--selfplay-policy-model-pool-size', '3'
+            ]);
+            const nextState = resolveNextCarryOverState(args, {
+                guideModelPath: previousGuidePath,
+                guideModelPoolPaths: [previousGuidePath],
+                resumeCheckpointPath: previousCheckpointPath,
+                resumeCheckpointPaths: {
+                    policy: previousCheckpointPath,
+                    target: previousTargetCheckpointPath
+                }
+            }, {
+                promoted: true,
+                paths: {
+                    candidateModelPath,
+                    checkpointPath: candidateCheckpointPath,
+                    targetCheckpointPath: candidateTargetCheckpointPath
+                }
+            });
+
+            expect(nextState.guideModelPath).toBe(promotedGuidePath);
+            expect(nextState.guideModelPoolPaths).toEqual([promotedGuidePath, archivedGuidePath]);
+            expect(nextState.resumeCheckpointPath).toBe(candidateCheckpointPath);
+            expect(nextState.resumeCheckpointPaths).toMatchObject({
+                policy: candidateCheckpointPath,
+                target: candidateTargetCheckpointPath
+            });
+            expect(nextState.checkpointCarryOverSkipped).toBe(false);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('parseArgs keeps explicit run tag and paths', () => {
-        const existingPath = __filename;
-        const args = parseArgs([
-            '--run-tag', 'testtag',
-            '--max-hours', '6',
-            '--bootstrap-policy-model', existingPath,
-            '--resume-checkpoint', existingPath,
-            '--adoption-seed-count', '3',
-            '--adoption-seed-stride', '2000',
-            '--adoption-final-seed-offset', '500000',
-            '--adoption-confidence-level', '0.95',
-            '--adoption-min-lower-bound', '0.01',
-            '--adoption-min-seed-uplift', '-0.01',
-            '--adoption-min-seed-pass-count', '2',
-            '--quality-gate',
-            '--quality-gate-games', '900',
-            '--quality-gate-seed-count', '4',
-            '--quality-gate-seed-stride', '600',
-            '--quality-gate-seed-offset', '250000',
-            '--quality-gate-threshold', '0.004',
-            '--quality-gate-confidence-level', '0.9',
-            '--quality-gate-min-lower-bound', '-0.02',
-            '--quality-gate-min-seed-uplift', '-0.04',
-            '--quality-gate-min-seed-pass-count', '2',
-            '--selfplay-policy-model-pool-size', '6',
-            '--selfplay-policy-pool-sampling', 'uniform',
-            '--selfplay-policy-pool-recency-decay', '3',
-            '--selfplay-policy-current-anchor-rate', '0.4',
-            '--quick-adoption-threshold', '0.003',
-            '--quick-adoption-seed-count', '5',
-            '--quick-adoption-seed-stride', '777',
-            '--quick-adoption-confidence-level', '0.9',
-            '--quick-adoption-min-lower-bound', '-0.02',
-            '--quick-adoption-min-seed-uplift', '-0.08',
-            '--quick-adoption-min-seed-pass-count', '1',
-            '--final-adoption-threshold', '0.02',
-            '--final-adoption-seed-count', '7',
-            '--final-adoption-seed-stride', '999',
-            '--final-adoption-confidence-level', '0.95',
-            '--final-adoption-min-lower-bound', '0.005',
-            '--final-adoption-min-seed-uplift', '-0.03',
-            '--final-adoption-min-seed-pass-count', '2',
-            '--onnx-gate',
-            '--onnx-gate-games', '8',
-            '--onnx-gate-seed-count', '3',
-            '--onnx-gate-seed-stride', '1000',
-            '--onnx-gate-seed-offset', '800000',
-            '--onnx-gate-threshold', '0.52',
-            '--onnx-gate-min-seed-score', '0.45',
-            '--onnx-gate-min-seed-pass-count', '2',
-            '--onnx-gate-max-average-latency-ms', '14',
-            '--onnx-gate-max-p95-latency-ms', '22',
-            '--onnx-gate-max-max-latency-ms', '35',
-            '--onnx-gate-timeout-ms', '200000',
-            '--onnx-gate-black-level', '6',
-            '--onnx-gate-white-level', '5',
-            '--onnx-gate-candidate-color-mode', 'white',
-            '--onnx-corner-emergency-sample-boost', '0.4',
-            '--onnx-negative-future-disc-sample-boost', '0.3',
-            '--onnx-negative-future-disc-threshold', '-3',
-            '--onnx-tactical-miss-sample-boost', '0.5',
-            '--onnx-tactical-miss-threshold', '0.06',
-            '--onnx-hand-pressure-sample-boost', '0.25',
-            '--onnx-pending-target-sample-boost', '0.35',
-            '--onnx-early-stop-smoothing-window', '4',
-            '--promotion-mode', 'onnx-primary',
-            '--onnx-primary-max-quick-regression', '0.06',
-            '--onnx-primary-require-quick-regression',
-            '--onnx-primary-require-quick-non-regression',
-            '--onnx-primary-min-quick-core-delta', '0.01',
-            '--onnx-primary-min-quick-white-delta', '-0.02',
-            '--onnx-primary-min-quick-quality-delta', '-0.03',
-            '--onnx-primary-min-quick-uplift', '0.005',
-            '--onnx-primary-min-quick-lower-bound', '-0.01',
-            '--onnx-primary-min-onnx-gate-avg', '0.52',
-            '--onnx-primary-min-onnx-gate-min-seed', '0.45',
-            '--adoption-use-guide-baseline',
-            '--runs-dir', 'data/runs',
-            '--models-dir', 'data/models',
-            '--summary-out', 'data/runs/out.json'
-        ]);
-        expect(args.runTag).toBe('testtag');
-        expect(args.maxHours).toBe(6);
-        expect(args.bootstrapPolicyModelPath).toBe(path.resolve(process.cwd(), existingPath));
-        expect(args.resumeCheckpointPath).toBe(path.resolve(process.cwd(), existingPath));
-        expect(args.adoptionSeedCount).toBe(3);
-        expect(args.adoptionSeedStride).toBe(2000);
-        expect(args.adoptionFinalSeedOffset).toBe(500000);
-        expect(args.adoptionConfidenceLevel).toBeCloseTo(0.95, 6);
-        expect(args.adoptionMinLowerBound).toBeCloseTo(0.01, 6);
-        expect(args.adoptionMinSeedUplift).toBeCloseTo(-0.01, 6);
-        expect(args.adoptionMinSeedPassCount).toBe(2);
-        expect(args.qualityGateEnabled).toBe(true);
-        expect(args.qualityGateGames).toBe(900);
-        expect(args.qualityGateSeedCount).toBe(4);
-        expect(args.qualityGateSeedStride).toBe(600);
-        expect(args.qualityGateSeedOffset).toBe(250000);
-        expect(args.qualityGateThreshold).toBeCloseTo(0.004, 6);
-        expect(args.qualityGateConfidenceLevel).toBeCloseTo(0.9, 6);
-        expect(args.qualityGateMinLowerBound).toBeCloseTo(-0.02, 6);
-        expect(args.qualityGateMinSeedUplift).toBeCloseTo(-0.04, 6);
-        expect(args.qualityGateMinSeedPassCount).toBe(2);
-        expect(args.selfplayPolicyModelPoolSize).toBe(6);
-        expect(args.selfplayPolicyPoolSampling).toBe('uniform');
-        expect(args.selfplayPolicyPoolRecencyDecay).toBeCloseTo(3, 6);
-        expect(args.selfplayPolicyCurrentAnchorRate).toBeCloseTo(0.4, 6);
-        expect(args.quickAdoptionThreshold).toBeCloseTo(0.003, 6);
-        expect(args.quickAdoptionSeedCount).toBe(5);
-        expect(args.quickAdoptionSeedStride).toBe(777);
-        expect(args.quickAdoptionConfidenceLevel).toBeCloseTo(0.9, 6);
-        expect(args.quickAdoptionMinLowerBound).toBeCloseTo(-0.02, 6);
-        expect(args.quickAdoptionMinSeedUplift).toBeCloseTo(-0.08, 6);
-        expect(args.quickAdoptionMinSeedPassCount).toBe(1);
-        expect(args.finalAdoptionThreshold).toBeCloseTo(0.02, 6);
-        expect(args.finalAdoptionSeedCount).toBe(7);
-        expect(args.finalAdoptionSeedStride).toBe(999);
-        expect(args.finalAdoptionConfidenceLevel).toBeCloseTo(0.95, 6);
-        expect(args.finalAdoptionMinLowerBound).toBeCloseTo(0.005, 6);
-        expect(args.finalAdoptionMinSeedUplift).toBeCloseTo(-0.03, 6);
-        expect(args.finalAdoptionMinSeedPassCount).toBe(2);
-        expect(args.onnxGateEnabled).toBe(true);
-        expect(args.onnxGateGames).toBe(8);
-        expect(args.onnxGateSeedCount).toBe(3);
-        expect(args.onnxGateThreshold).toBeCloseTo(0.52, 6);
-        expect(args.onnxGateMinSeedScore).toBeCloseTo(0.45, 6);
-        expect(args.onnxGateMinSeedPassCount).toBe(2);
-        expect(args.onnxGateMaxAverageLatencyMs).toBe(14);
-        expect(args.onnxGateMaxP95LatencyMs).toBe(22);
-        expect(args.onnxGateMaxMaxLatencyMs).toBe(35);
-        expect(args.onnxGateCandidateColorMode).toBe('white');
-        expect(args.onnxCornerEmergencySampleBoost).toBeCloseTo(0.4, 6);
-        expect(args.onnxNegativeFutureDiscSampleBoost).toBeCloseTo(0.3, 6);
-        expect(args.onnxNegativeFutureDiscThreshold).toBeCloseTo(-3, 6);
-        expect(args.onnxTacticalMissSampleBoost).toBeCloseTo(0.5, 6);
-        expect(args.onnxTacticalMissThreshold).toBeCloseTo(0.06, 6);
-        expect(args.onnxHandPressureSampleBoost).toBeCloseTo(0.25, 6);
-        expect(args.onnxPendingTargetSampleBoost).toBeCloseTo(0.35, 6);
-        expect(args.onnxEarlyStopSmoothingWindow).toBe(4);
-        expect(args.adoptionUseGuideBaseline).toBe(true);
-        expect(args.promotionMode).toBe('onnx-primary');
-        expect(args.onnxPrimaryMaxQuickRegression).toBeCloseTo(0.06, 6);
-        expect(args.onnxPrimaryRequireQuickRegression).toBe(true);
-        expect(args.onnxPrimaryRequireQuickNonRegression).toBe(true);
-        expect(args.onnxPrimaryMinQuickCoreDelta).toBeCloseTo(0.01, 6);
-        expect(args.onnxPrimaryMinQuickWhiteDelta).toBeCloseTo(-0.02, 6);
-        expect(args.onnxPrimaryMinQuickQualityDelta).toBeCloseTo(-0.03, 6);
-        expect(args.onnxPrimaryMinQuickUplift).toBeCloseTo(0.005, 6);
-        expect(args.onnxPrimaryMinQuickLowerBound).toBeCloseTo(-0.01, 6);
-        expect(args.onnxPrimaryMinOnnxGateAvg).toBeCloseTo(0.52, 6);
-        expect(args.onnxPrimaryMinOnnxGateMinSeed).toBeCloseTo(0.45, 6);
-        expect(args.summaryOut).toBe(path.resolve(process.cwd(), 'data/runs/out.json'));
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-parse-args-'));
+        const bootstrapPath = path.join(tempDir, 'bootstrap-policy.json');
+        const policyCheckpointPath = path.join(tempDir, 'policy-net.resume.checkpoint.pt');
+        const cardCheckpointPath = path.join(tempDir, 'policy-card.resume.checkpoint.pt');
+        const targetCheckpointPath = path.join(tempDir, 'policy-target.resume.checkpoint.pt');
+        const valueCheckpointPath = path.join(tempDir, 'policy-value.resume.checkpoint.pt');
+        fs.writeFileSync(bootstrapPath, '{}\n', 'utf8');
+        fs.writeFileSync(policyCheckpointPath, 'policy\n', 'utf8');
+        fs.writeFileSync(cardCheckpointPath, 'card\n', 'utf8');
+        fs.writeFileSync(targetCheckpointPath, 'target\n', 'utf8');
+        fs.writeFileSync(valueCheckpointPath, 'value\n', 'utf8');
+
+        try {
+            const args = parseArgs([
+                '--run-tag', 'testtag',
+                '--max-hours', '6',
+                '--bootstrap-policy-model', bootstrapPath,
+                '--resume-policy-checkpoint', policyCheckpointPath,
+                '--resume-card-checkpoint', cardCheckpointPath,
+                '--resume-target-checkpoint', targetCheckpointPath,
+                '--resume-value-checkpoint', valueCheckpointPath,
+                '--adoption-seed-count', '3',
+                '--adoption-seed-stride', '2000',
+                '--adoption-final-seed-offset', '500000',
+                '--adoption-confidence-level', '0.95',
+                '--adoption-min-lower-bound', '0.01',
+                '--adoption-min-seed-uplift', '-0.01',
+                '--adoption-min-seed-pass-count', '2',
+                '--quality-gate',
+                '--quality-gate-games', '900',
+                '--quality-gate-seed-count', '4',
+                '--quality-gate-seed-stride', '600',
+                '--quality-gate-seed-offset', '250000',
+                '--quality-gate-threshold', '0.004',
+                '--quality-gate-confidence-level', '0.9',
+                '--quality-gate-min-lower-bound', '-0.02',
+                '--quality-gate-min-seed-uplift', '-0.04',
+                '--quality-gate-min-seed-pass-count', '2',
+                '--quality-gate-strength-first',
+                '--selfplay-policy-model-pool-size', '6',
+                '--selfplay-policy-pool-sampling', 'uniform',
+                '--selfplay-policy-pool-recency-decay', '3',
+                '--selfplay-policy-current-anchor-rate', '0.4',
+                '--quick-adoption-threshold', '0.003',
+                '--quick-adoption-seed-count', '5',
+                '--quick-adoption-seed-stride', '777',
+                '--quick-adoption-confidence-level', '0.9',
+                '--quick-adoption-min-lower-bound', '-0.02',
+                '--quick-adoption-min-seed-uplift', '-0.08',
+                '--quick-adoption-min-seed-pass-count', '1',
+                '--final-adoption-threshold', '0.02',
+                '--final-adoption-seed-count', '7',
+                '--final-adoption-seed-stride', '999',
+                '--final-adoption-confidence-level', '0.95',
+                '--final-adoption-min-lower-bound', '0.005',
+                '--final-adoption-min-seed-uplift', '-0.03',
+                '--final-adoption-min-seed-pass-count', '2',
+                '--onnx-gate',
+                '--onnx-gate-games', '8',
+                '--onnx-gate-seed-count', '3',
+                '--onnx-gate-seed-stride', '1000',
+                '--onnx-gate-seed-offset', '800000',
+                '--onnx-gate-threshold', '0.52',
+                '--onnx-gate-min-seed-score', '0.45',
+                '--onnx-gate-min-seed-pass-count', '2',
+                '--onnx-gate-max-average-latency-ms', '14',
+                '--onnx-gate-max-p95-latency-ms', '22',
+                '--onnx-gate-max-max-latency-ms', '35',
+                '--onnx-gate-timeout-ms', '200000',
+                '--onnx-gate-black-level', '6',
+                '--onnx-gate-white-level', '5',
+                '--onnx-gate-candidate-color-mode', 'white',
+                '--onnx-corner-emergency-sample-boost', '0.4',
+                '--onnx-negative-future-disc-sample-boost', '0.3',
+                '--onnx-negative-future-disc-threshold', '-3',
+                '--onnx-tactical-miss-sample-boost', '0.5',
+                '--onnx-tactical-miss-threshold', '0.06',
+                '--onnx-hand-pressure-sample-boost', '0.25',
+                '--onnx-pending-target-sample-boost', '0.35',
+                '--onnx-early-stop-smoothing-window', '4',
+                '--promotion-mode', 'onnx-primary',
+                '--onnx-primary-max-quick-regression', '0.06',
+                '--onnx-primary-require-quick-regression',
+                '--onnx-primary-require-quick-non-regression',
+                '--onnx-primary-min-quick-core-delta', '0.01',
+                '--onnx-primary-min-quick-white-delta', '-0.02',
+                '--onnx-primary-min-quick-quality-delta', '-0.03',
+                '--onnx-primary-min-quick-uplift', '0.005',
+                '--onnx-primary-min-quick-lower-bound', '-0.01',
+                '--onnx-primary-min-onnx-gate-avg', '0.52',
+                '--onnx-primary-min-onnx-gate-min-seed', '0.45',
+                '--adoption-use-guide-baseline',
+                '--runs-dir', 'data/runs',
+                '--models-dir', 'data/models',
+                '--summary-out', 'data/runs/out.json'
+            ]);
+            expect(args.runTag).toBe('testtag');
+            expect(args.maxHours).toBe(6);
+            expect(args.bootstrapPolicyModelPath).toBe(bootstrapPath);
+            expect(args.resumeCheckpointPath).toBe(policyCheckpointPath);
+            expect(args.resumeCheckpointPaths).toMatchObject({
+                policy: policyCheckpointPath,
+                card: cardCheckpointPath,
+                target: targetCheckpointPath,
+                value: valueCheckpointPath
+            });
+            expect(args.adoptionSeedCount).toBe(3);
+            expect(args.adoptionSeedStride).toBe(2000);
+            expect(args.adoptionFinalSeedOffset).toBe(500000);
+            expect(args.adoptionConfidenceLevel).toBeCloseTo(0.95, 6);
+            expect(args.adoptionMinLowerBound).toBeCloseTo(0.01, 6);
+            expect(args.adoptionMinSeedUplift).toBeCloseTo(-0.01, 6);
+            expect(args.adoptionMinSeedPassCount).toBe(2);
+            expect(args.qualityGateEnabled).toBe(true);
+            expect(args.qualityGateGames).toBe(900);
+            expect(args.qualityGateSeedCount).toBe(4);
+            expect(args.qualityGateSeedStride).toBe(600);
+            expect(args.qualityGateSeedOffset).toBe(250000);
+            expect(args.qualityGateThreshold).toBeCloseTo(0.004, 6);
+            expect(args.qualityGateConfidenceLevel).toBeCloseTo(0.9, 6);
+            expect(args.qualityGateMinLowerBound).toBeCloseTo(-0.02, 6);
+            expect(args.qualityGateMinSeedUplift).toBeCloseTo(-0.04, 6);
+            expect(args.qualityGateMinSeedPassCount).toBe(2);
+            expect(args.qualityGateStrengthFirst).toBe(true);
+            expect(args.selfplayPolicyModelPoolSize).toBe(6);
+            expect(args.selfplayPolicyPoolSampling).toBe('uniform');
+            expect(args.selfplayPolicyPoolRecencyDecay).toBeCloseTo(3, 6);
+            expect(args.selfplayPolicyCurrentAnchorRate).toBeCloseTo(0.4, 6);
+            expect(args.quickAdoptionThreshold).toBeCloseTo(0.003, 6);
+            expect(args.quickAdoptionSeedCount).toBe(5);
+            expect(args.quickAdoptionSeedStride).toBe(777);
+            expect(args.quickAdoptionConfidenceLevel).toBeCloseTo(0.9, 6);
+            expect(args.quickAdoptionMinLowerBound).toBeCloseTo(-0.02, 6);
+            expect(args.quickAdoptionMinSeedUplift).toBeCloseTo(-0.08, 6);
+            expect(args.quickAdoptionMinSeedPassCount).toBe(1);
+            expect(args.finalAdoptionThreshold).toBeCloseTo(0.02, 6);
+            expect(args.finalAdoptionSeedCount).toBe(7);
+            expect(args.finalAdoptionSeedStride).toBe(999);
+            expect(args.finalAdoptionConfidenceLevel).toBeCloseTo(0.95, 6);
+            expect(args.finalAdoptionMinLowerBound).toBeCloseTo(0.005, 6);
+            expect(args.finalAdoptionMinSeedUplift).toBeCloseTo(-0.03, 6);
+            expect(args.finalAdoptionMinSeedPassCount).toBe(2);
+            expect(args.onnxGateEnabled).toBe(true);
+            expect(args.onnxGateGames).toBe(8);
+            expect(args.onnxGateSeedCount).toBe(3);
+            expect(args.onnxGateThreshold).toBeCloseTo(0.52, 6);
+            expect(args.onnxGateMinSeedScore).toBeCloseTo(0.45, 6);
+            expect(args.onnxGateMinSeedPassCount).toBe(2);
+            expect(args.onnxGateMaxAverageLatencyMs).toBe(14);
+            expect(args.onnxGateMaxP95LatencyMs).toBe(22);
+            expect(args.onnxGateMaxMaxLatencyMs).toBe(35);
+            expect(args.onnxGateCandidateColorMode).toBe('white');
+            expect(args.onnxCornerEmergencySampleBoost).toBeCloseTo(0.4, 6);
+            expect(args.onnxNegativeFutureDiscSampleBoost).toBeCloseTo(0.3, 6);
+            expect(args.onnxNegativeFutureDiscThreshold).toBeCloseTo(-3, 6);
+            expect(args.onnxTacticalMissSampleBoost).toBeCloseTo(0.5, 6);
+            expect(args.onnxTacticalMissThreshold).toBeCloseTo(0.06, 6);
+            expect(args.onnxHandPressureSampleBoost).toBeCloseTo(0.25, 6);
+            expect(args.onnxPendingTargetSampleBoost).toBeCloseTo(0.35, 6);
+            expect(args.onnxEarlyStopSmoothingWindow).toBe(4);
+            expect(args.adoptionUseGuideBaseline).toBe(true);
+            expect(args.promotionMode).toBe('onnx-primary');
+            expect(args.onnxPrimaryMaxQuickRegression).toBeCloseTo(0.06, 6);
+            expect(args.onnxPrimaryRequireQuickRegression).toBe(true);
+            expect(args.onnxPrimaryRequireQuickNonRegression).toBe(true);
+            expect(args.onnxPrimaryMinQuickCoreDelta).toBeCloseTo(0.01, 6);
+            expect(args.onnxPrimaryMinQuickWhiteDelta).toBeCloseTo(-0.02, 6);
+            expect(args.onnxPrimaryMinQuickQualityDelta).toBeCloseTo(-0.03, 6);
+            expect(args.onnxPrimaryMinQuickUplift).toBeCloseTo(0.005, 6);
+            expect(args.onnxPrimaryMinQuickLowerBound).toBeCloseTo(-0.01, 6);
+            expect(args.onnxPrimaryMinOnnxGateAvg).toBeCloseTo(0.52, 6);
+            expect(args.onnxPrimaryMinOnnxGateMinSeed).toBeCloseTo(0.45, 6);
+            expect(args.summaryOut).toBe(path.resolve(process.cwd(), 'data/runs/out.json'));
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
     });
 
     test('parseArgs rejects missing bootstrap/resume paths', () => {

@@ -161,7 +161,7 @@ describe('ROBOT_VACUUM_WILL（ロボット掃除機）', () => {
     expect(marker.data.remainingOwnerTurns).toBe(5);
   });
 
-  test('持続ターンは所有者ターン開始時のみ減少し、0で自己消滅する', () => {
+  test('持続ターンは所有者ターン開始時のみ減少し、0で同色の通常石に戻る', () => {
     const { cardState, gameState } = createState(0.2);
 
     gameState.board[3][3] = Shared.BLACK;
@@ -206,11 +206,14 @@ describe('ROBOT_VACUUM_WILL（ロボット掃除機）', () => {
     const lastEvents = runTurnStart('black', 0.4);
     marker = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ROBOT_VACUUM');
     expect(marker).toBeUndefined();
-    expect(countStones(gameState.board)).toBe(0);
+    expect(countStones(gameState.board)).toBe(1);
+    expect(gameState.board.flat().filter((cell) => cell === Shared.BLACK).length).toBe(1);
 
-    const hasDestroyedLog = lastEvents.some((ev) => (
-      ev && ev.type === 'robot_vacuum_destroyed_start' && Array.isArray(ev.details) && ev.details.length > 0
+    const expiredEvent = lastEvents.find((ev) => (
+      ev && ev.type === 'robot_vacuum_expired_start' && Array.isArray(ev.details) && ev.details.length > 0
     ));
-    expect(hasDestroyedLog).toBe(true);
+    expect(expiredEvent).toBeTruthy();
+    const reverted = expiredEvent.details[0];
+    expect(gameState.board[reverted.row][reverted.col]).toBe(Shared.BLACK);
   });
 });

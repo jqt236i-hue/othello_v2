@@ -20,6 +20,7 @@
     const REGEN_CAUSE = 'REGEN';
     const REGEN_TRIGGER_REASON = 'regen_triggered';
     const EFFECT_TARGET_HIGHLIGHT_CLASS = 'effect-target-highlight';
+    const EFFECT_TARGET_SPAWN_HIGHLIGHT_CLASS = 'effect-target-highlight-spawn';
     const LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY = '__skipNextPlaybackSoundUntilByKey';
 
     function hasRegenBackFlip(events) {
@@ -345,7 +346,10 @@
 
         _shouldHighlightEffectTarget(eventType, target) {
             if (_isNoAnim()) return false;
-            if (target && target.meta && target.meta.blockedByGhost) return true;
+            if (target && target.meta && (
+                target.meta.blockedByGhost ||
+                target.meta.proliferated === true
+            )) return true;
             const cause = this._getTargetCause(target);
             const reason = this._getTargetReason(target);
 
@@ -390,11 +394,53 @@
                 eventType === EVENT_TYPES.PLACE;
         }
 
-        async _runWithEffectTargetHighlight(cell, eventType, target, runner) {
+        _shouldPreserveDiscOnDestroy(target) {
+            return !!(
+                target &&
+                target.meta && (
+                    target.meta.blockedByGhost ||
+                    target.meta.proliferated === true
+                )
+            );
+        }
+
+        _resolveDestroyTargetHighlightMinimumMs(target) {
+            if (!target || !target.meta) return 0;
+            const isProtectedDestroy =
+                target.meta.proliferated === true ||
+                target.meta.blockedByGhost === true;
+            if (!isProtectedDestroy) return 0;
+            const cause = this._getTargetCause(target);
+            const reason = this._getTargetReason(target);
+            const isOverlapReturnDestroy =
+                (cause === 'GLUTTONOUS_WILL' && reason.indexOf('gluttonous_eat') === 0) ||
+                (cause === 'WILL_HUNTER_KING' && reason.indexOf('will_hunter_king_slash') === 0);
+            if (!isOverlapReturnDestroy) return 0;
+            return Math.max(120, Math.floor(MOVE_MS / 2));
+        }
+
+        _resolveSpawnTargetHighlightMinimumMs(target) {
+            if (!target) return 0;
+            const cause = this._getTargetCause(target);
+            const reason = this._getTargetReason(target);
+            const isEqualityWillSpawn =
+                cause === 'EQUALITY_WILL' &&
+                reason.indexOf('equality_will_spawn') === 0;
+            const isSalvationWillSpawn =
+                cause === 'SALVATION_WILL' &&
+                reason.indexOf('salvation_spawn') === 0;
+            if (!isEqualityWillSpawn && !isSalvationWillSpawn) return 0;
+            return 120;
+        }
+
+        async _runWithEffectTargetHighlight(cell, eventType, target, runner, minimumVisibleMs) {
             if (!cell || typeof runner !== 'function') return undefined;
 
             const shouldHighlight = this._shouldHighlightEffectTarget(eventType, target);
-            return this._runWithTransientCellHighlight(cell, shouldHighlight, runner);
+            const extraClasses = shouldHighlight && eventType === EVENT_TYPES.SPAWN
+                ? [EFFECT_TARGET_SPAWN_HIGHLIGHT_CLASS]
+                : [];
+            return this._runWithTransientCellHighlight(cell, shouldHighlight, runner, minimumVisibleMs, extraClasses);
         }
 
         _shouldHighlightStatusChange(ev, target) {
@@ -408,19 +454,25 @@
             return reason === 'strong_will_promoted';
         }
 
-        async _runWithTransientCellHighlight(cell, shouldHighlight, runner, minimumVisibleMs) {
+        async _runWithTransientCellHighlight(cell, shouldHighlight, runner, minimumVisibleMs, extraClasses) {
             if (!cell || typeof runner !== 'function') return undefined;
             if (!shouldHighlight) {
                 return runner();
             }
 
             let highlighted = false;
+            const transientClasses = Array.isArray(extraClasses)
+                ? extraClasses.filter((className) => typeof className === 'string' && className)
+                : [];
             const minVisible = Number.isFinite(Number(minimumVisibleMs))
                 ? Math.max(0, Math.trunc(Number(minimumVisibleMs)))
                 : 0;
             const startedAt = Date.now();
             try {
                 cell.classList.add(EFFECT_TARGET_HIGHLIGHT_CLASS);
+                for (const className of transientClasses) {
+                    cell.classList.add(className);
+                }
                 highlighted = true;
             } catch (e) { /* ignore */ }
 
@@ -435,9 +487,98 @@
                     }
                 }
                 if (highlighted) {
+                    for (const className of transientClasses) {
+                        try { cell.classList.remove(className); } catch (e) { /* ignore */ }
+                    }
                     try { cell.classList.remove(EFFECT_TARGET_HIGHLIGHT_CLASS); } catch (e) { /* ignore */ }
                 }
             }
+        }
+
+        async _waitForAnimationFinish(anim, durationMs, timeoutPaddingMs) {
+            if (!anim) return;
+            const timeoutMs = Math.max(0, Math.round(Number(durationMs) || 0)) +
+                Math.max(0, Math.round(Number(timeoutPaddingMs) || 0));
+
+            await new Promise((resolve) => {
+                let timeoutId = null;
+                let done = false;
+                const finish = () => {
+                    if (done) return;
+                    done = true;
+                    try {
+                        if (anim && typeof anim.removeEventListener === 'function') {
+                            anim.removeEventListener('finish', finish);
+                        }
+                    } catch (e) { /* ignore */ }
+                    if (timeoutId !== null) {
+                        try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
+                        timeoutId = null;
+                    }
+                    resolve();
+                };
+                try {
+                    if (anim && typeof anim.addEventListener === 'function') {
+                        anim.addEventListener('finish', finish, { once: true });
+                    }
+                } catch (e) { /* ignore */ }
+                try {
+                    timeoutId = _Timer().setTimeout(finish, timeoutMs, this.playbackScope);
+                } catch (e) {
+                    timeoutId = setTimeout(finish, timeoutMs);
+                }
+                try {
+                    if (anim && anim.finished && typeof anim.finished.then === 'function') {
+                        anim.finished.then(finish).catch(finish);
+                    }
+                } catch (e) { /* ignore */ }
+            });
+        }
+
+        async _waitForOpacityTransition(element, durationMs, timeoutPaddingMs, startTransition, cleanup) {
+            if (!element) {
+                if (typeof cleanup === 'function') {
+                    try { cleanup(); } catch (e) { /* ignore */ }
+                }
+                return;
+            }
+
+            const timeoutMs = Math.max(0, Math.round(Number(durationMs) || 0)) +
+                Math.max(0, Math.round(Number(timeoutPaddingMs) || 0));
+
+            await new Promise((resolve) => {
+                let timeoutId = null;
+                let done = false;
+                const finish = () => {
+                    if (done) return;
+                    done = true;
+                    if (timeoutId !== null) {
+                        try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
+                        timeoutId = null;
+                    }
+                    try { element.removeEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
+                    if (typeof cleanup === 'function') {
+                        try { cleanup(); } catch (e) { /* ignore */ }
+                    }
+                    resolve();
+                };
+                const onEnd = (e) => {
+                    if (!e || e.propertyName === 'opacity') finish();
+                };
+                try { element.addEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
+                try {
+                    timeoutId = _Timer().setTimeout(finish, timeoutMs, this.playbackScope);
+                } catch (e) {
+                    timeoutId = setTimeout(finish, timeoutMs);
+                }
+                if (typeof startTransition === 'function') {
+                    try {
+                        startTransition();
+                    } catch (e) {
+                        finish();
+                    }
+                }
+            });
         }
 
         _resolveSniperProjectileOwner(target) {
@@ -506,35 +647,7 @@
                 easing: 'linear'
             });
 
-            await new Promise((resolve) => {
-                let timeoutId = null;
-                let done = false;
-                const finish = () => {
-                    if (done) return;
-                    done = true;
-                    try { if (anim && typeof anim.removeEventListener === 'function') anim.removeEventListener('finish', finish); } catch (e) { /* ignore */ }
-                    if (timeoutId !== null) {
-                        try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
-                        timeoutId = null;
-                    }
-                    resolve();
-                };
-                try {
-                    if (anim && typeof anim.addEventListener === 'function') {
-                        anim.addEventListener('finish', finish, { once: true });
-                    }
-                } catch (e) { /* ignore */ }
-                try {
-                    timeoutId = _Timer().setTimeout(finish, durationMs + 120, this.playbackScope);
-                } catch (e) {
-                    timeoutId = setTimeout(finish, durationMs + 120);
-                }
-                try {
-                    if (anim && anim.finished && typeof anim.finished.then === 'function') {
-                        anim.finished.then(finish).catch(finish);
-                    }
-                } catch (e) { /* ignore */ }
-            });
+            await this._waitForAnimationFinish(anim, durationMs, 120);
 
             if (projectile.parentElement) projectile.parentElement.removeChild(projectile);
         }
@@ -594,35 +707,7 @@
                 easing: 'cubic-bezier(0.2, 0.9, 0.25, 1)'
             });
 
-            await new Promise((resolve) => {
-                let timeoutId = null;
-                let done = false;
-                const finish = () => {
-                    if (done) return;
-                    done = true;
-                    try { if (anim && typeof anim.removeEventListener === 'function') anim.removeEventListener('finish', finish); } catch (e) { /* ignore */ }
-                    if (timeoutId !== null) {
-                        try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
-                        timeoutId = null;
-                    }
-                    resolve();
-                };
-                try {
-                    if (anim && typeof anim.addEventListener === 'function') {
-                        anim.addEventListener('finish', finish, { once: true });
-                    }
-                } catch (e) { /* ignore */ }
-                try {
-                    timeoutId = _Timer().setTimeout(finish, durationMs + 120, this.playbackScope);
-                } catch (e) {
-                    timeoutId = setTimeout(finish, durationMs + 120);
-                }
-                try {
-                    if (anim && anim.finished && typeof anim.finished.then === 'function') {
-                        anim.finished.then(finish).catch(finish);
-                    }
-                } catch (e) { /* ignore */ }
-            });
+            await this._waitForAnimationFinish(anim, durationMs, 120);
 
             if (projectile.parentElement) projectile.parentElement.removeChild(projectile);
         }
@@ -1456,6 +1541,8 @@
                     return Promise.resolve();
                 case EVENT_TYPES.OBSERVER_BUBBLE:
                     return this.handleObserverBubble(ev);
+                case EVENT_TYPES.ROUND_BONUS_BANNER:
+                    return this.handleRoundBonusBanner(ev);
                 case EVENT_TYPES.SOUND_EFFECT:
                     return this.handleSoundEffect(ev);
                 case EVENT_TYPES.HAND_REMOVE:
@@ -1482,6 +1569,35 @@
         }
 
         // --- Visual Primitive Handlers ---
+
+        async handleRoundBonusBanner(ev) {
+            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
+            const target = targets[0] || ev || null;
+            const amount = Number.isFinite(Number(target && target.amount))
+                ? Math.max(0, Math.trunc(Number(target.amount)))
+                : 0;
+            if (!(amount > 0)) return Promise.resolve();
+            const roundNumber = Number.isFinite(Number(target && target.roundNumber))
+                ? Math.max(1, Math.trunc(Number(target.roundNumber)))
+                : 1;
+            const durationMs = Number.isFinite(Number(target && target.durationMs))
+                ? Math.max(0, Math.trunc(Number(target.durationMs)))
+                : 2200;
+            const text = (typeof (target && target.text) === 'string' && target.text.trim())
+                ? target.text.trim()
+                : `BONUS ROUND +${amount}`;
+            try {
+                if (typeof window !== 'undefined' && typeof window.showRoundBonusDisplay === 'function') {
+                    window.showRoundBonusDisplay({
+                        amount,
+                        roundNumber,
+                        durationMs,
+                        text
+                    });
+                }
+            } catch (e) { /* ignore */ }
+            return Promise.resolve();
+        }
 
         async handleSoundEffect(ev) {
             const keys = [];
@@ -1534,6 +1650,8 @@
                 const owner = String((t && t.owner) || '').toLowerCase();
                 const explicitText = (typeof (t && t.text) === 'string') ? String(t.text).trim() : '';
                 const bubbleClassName = isChargeBubble ? 'board-charge-bubble' : 'observer-speech-bubble';
+                const finalTransform = isChargeBubble ? 'translate(-50%, 0)' : 'translate(-50%, -100%)';
+                const initialTransform = isChargeBubble ? 'translate(-50%, -18px)' : finalTransform;
 
                 const existing = Array.from(document.querySelectorAll(`.${bubbleClassName}[data-row="${row}"][data-col="${col}"]`));
                 if (isChargeBubble && !explicitText) {
@@ -1578,7 +1696,7 @@
                 bubble.style.position = 'fixed';
                 bubble.style.left = `${clampedX}px`;
                 bubble.style.top = `${anchorY}px`;
-                bubble.style.transform = isChargeBubble ? 'translate(-50%, 0)' : 'translate(-50%, -100%)';
+                bubble.style.transform = initialTransform;
                 bubble.style.display = 'block';
                 bubble.style.maxWidth = isChargeBubble ? 'min(30vw, 140px)' : 'min(46vw, 320px)';
                 bubble.style.width = 'max-content';
@@ -1598,7 +1716,9 @@
                 bubble.style.visibility = 'visible';
                 bubble.style.pointerEvents = 'none';
                 bubble.style.zIndex = '13100';
-                bubble.style.transition = `opacity ${fadeMs}ms ease`;
+                bubble.style.transition = isChargeBubble
+                    ? `opacity ${fadeMs}ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1)`
+                    : `opacity ${fadeMs}ms ease`;
                 bubble.style.wordBreak = 'break-word';
                 bubble.style.isolation = 'isolate';
 
@@ -1643,12 +1763,18 @@
                 }
 
                 document.body.appendChild(bubble);
+                if (isChargeBubble) {
+                    // Commit the initial entry position before the next frame so the downward motion is visible.
+                    void bubble.offsetWidth;
+                }
                 try {
                     requestAnimationFrame(() => {
                         bubble.style.opacity = '1';
+                        bubble.style.transform = finalTransform;
                     });
                 } catch (e) {
                     bubble.style.opacity = '1';
+                    bubble.style.transform = finalTransform;
                 }
 
                 setTimeout(() => {
@@ -1667,6 +1793,9 @@
             for (const t of ev.targets) {
                 const cell = this.getCellEl(t.r, t.col);
                 if (!cell) continue;
+                const highlightMinimumMs = eventType === EVENT_TYPES.SPAWN
+                    ? this._resolveSpawnTargetHighlightMinimumMs(t)
+                    : 0;
 
                 await this._runWithEffectTargetHighlight(cell, eventType, t, async () => {
                     const after = t.after || {};
@@ -1676,7 +1805,7 @@
                     // Fade-in is reserved for explicit spawn/crossfade paths only.
                     cell.innerHTML = '';
                     cell.appendChild(disc);
-                });
+                }, highlightMinimumMs);
             }
             // Do not block subsequent phases (e.g., immediate flips) after placement.
             return Promise.resolve();
@@ -1778,7 +1907,8 @@
                     : null;
                 const ownerColor = this._resolveOwnerColorFromBefore(t && t.ownerBefore);
                 const disc = cell.querySelector('.disc');
-                const blockedByGhost = !!(t && t.meta && t.meta.blockedByGhost);
+                const preserveDiscOnDestroy = this._shouldPreserveDiscOnDestroy(t);
+                const destroyHighlightMinimumMs = this._resolveDestroyTargetHighlightMinimumMs(t);
                 const shouldPreserveDestroyPlaybackWithoutDisc =
                     isSuperCrushCollision ||
                     this._shouldHighlightEffectTarget(EVENT_TYPES.DESTROY, t);
@@ -1790,6 +1920,10 @@
                         (superCrushDestinationContext && superCrushDestinationContext.sourceHadDisc === false)
                     );
                     if (useGhostOnlyDestroy) {
+                        if (preserveDiscOnDestroy) {
+                            await this._sleep(Math.max(120, Math.floor(FADE_OUT_MS / 2)));
+                            return;
+                        }
                         if (ownerColor === null && !isSuperCrushCollision) {
                             await this._sleep(FADE_OUT_MS);
                         } else {
@@ -1815,14 +1949,14 @@
                     }
                     if (destroyCause === 'ROBOT_VACUUM' && destroyReason === 'robot_vacuum_suck' && this._resolveRobotVacuumSource(t)) {
                         await this.animateRobotVacuumSuction(t);
-                        if (blockedByGhost) {
+                        if (preserveDiscOnDestroy) {
                             await this._sleep(Math.max(120, Math.floor(FADE_OUT_MS / 2)));
                             return;
                         }
                         cell.innerHTML = '';
                         return;
                     }
-                    if (blockedByGhost) {
+                    if (preserveDiscOnDestroy) {
                         await this._sleep(Math.max(120, Math.floor(FADE_OUT_MS / 2)));
                         return;
                     }
@@ -1864,7 +1998,7 @@
                         }
                     }
                     this._removeDiscFromCell(cell, disc);
-                });
+                }, destroyHighlightMinimumMs);
             });
             await Promise.all(promises);
         }
@@ -1913,10 +2047,7 @@
                         duration: durationMs,
                         easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)'
                     });
-                    await Promise.race([
-                        anim.finished.catch(() => undefined),
-                        this._sleep(durationMs + 80)
-                    ]);
+                    await this._waitForAnimationFinish(anim, durationMs, 80);
                 } else {
                     await this._sleep(durationMs);
                 }
@@ -1946,6 +2077,7 @@
             const fadePromises = breedingTargets.map(async (t) => {
                 const cell = this.getCellEl(t.r, t.col);
                 if (!cell) return;
+                const highlightMinimumMs = this._resolveSpawnTargetHighlightMinimumMs(t);
                 await this._runWithEffectTargetHighlight(cell, EVENT_TYPES.SPAWN, t, async () => {
                     const after = t.after || {};
                     const disc = this.createDisc(after);
@@ -1963,29 +2095,19 @@
                     disc.classList.remove('stone-instant');
                     disc.style.transition = prevTransition ? `${prevTransition}, opacity ${fadeMs}ms ease` : `opacity ${fadeMs}ms ease`;
 
-                    await new Promise((resolve) => {
-                        let timeoutId = null;
-                        let done = false;
-                        const finish = () => {
-                            if (done) return;
-                            done = true;
-                            try { disc.removeEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
-                            if (timeoutId !== null) {
-                                try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
-                                timeoutId = null;
-                            }
+                    await this._waitForOpacityTransition(
+                        disc,
+                        fadeMs,
+                        120,
+                        () => {
+                            try { requestAnimationFrame(() => { disc.style.opacity = '1'; }); } catch (e) { disc.style.opacity = '1'; }
+                        },
+                        () => {
                             disc.style.opacity = '';
                             disc.style.transition = prevTransition;
-                            resolve();
-                        };
-                        const onEnd = (e) => {
-                            if (!e || e.propertyName === 'opacity') finish();
-                        };
-                        try { disc.addEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
-                        try { timeoutId = _Timer().setTimeout(finish, fadeMs + 120, this.playbackScope); } catch (e) { timeoutId = setTimeout(finish, fadeMs + 120); }
-                        try { requestAnimationFrame(() => { disc.style.opacity = '1'; }); } catch (e) { disc.style.opacity = '1'; }
-                    });
-                });
+                        }
+                    );
+                }, highlightMinimumMs);
             });
 
             await Promise.all(fadePromises);
@@ -2003,105 +2125,277 @@
             return 0;
         }
 
-        async handleMove(ev) {
-            const ensureDiscVisibleForMove = (discEl) => {
-                if (!discEl) return;
-                try {
-                    discEl.classList.remove('stone-hidden', 'stone-hidden-all', 'stone-instant', 'destroy-fade', 'shatter');
-                } catch (e) { /* ignore */ }
-                try { discEl.style.visibility = 'visible'; } catch (e) { /* ignore */ }
-                try { discEl.style.opacity = ''; } catch (e) { /* ignore */ }
+        _getMoveSemantics(target) {
+            const cause = this._getTargetCause(target);
+            const reason = this._getTargetReason(target);
+            const isPositionSwapMove =
+                cause === 'POSITION_SWAP_WILL' ||
+                reason === 'position_swap';
+            const isDestroyEvadeMove =
+                cause === 'DESTROY_EVADE' ||
+                reason.indexOf('destroy_evade_move') === 0;
+            const isTeleportMove =
+                cause === 'TELEPORT_WILL' ||
+                reason === 'teleport_move';
+            const isCloneMove = !!(target && target.clone === true);
+            const isOverlapReturnMove =
+                (cause === 'GLUTTONOUS_WILL' && reason.indexOf('gluttonous_eat_overlap_return') === 0) ||
+                (cause === 'WILL_HUNTER_KING' && reason.indexOf('will_hunter_king_slash_overlap_return') === 0);
+            const isHyperactiveLikeMove = (
+                cause === 'HYPERACTIVE' ||
+                cause === 'AFTERIMAGE_WILL' ||
+                cause === 'ESCAPE_HYPERACTIVE' ||
+                cause === 'EXTREME_HYPERACTIVE_WILL' ||
+                cause === 'HYPERACTIVE_INHERIT_WILL' ||
+                cause === 'ULTIMATE_REVERSE_DRAGON' ||
+                cause === 'ULTIMATE_DESTROY_GOD' ||
+                cause === 'ROBOT_VACUUM' ||
+                cause === 'GLUTTONOUS_WILL' ||
+                cause === 'ULTIMATE_HYPERACTIVE' ||
+                cause === 'ULTIMATE_HYPERACTIVE_GOD' ||
+                reason.indexOf('ultimate_reverse_dragon_move') === 0 ||
+                reason.indexOf('ultimate_destroy_god_move') === 0 ||
+                reason.indexOf('afterimage_will_flip_evade_move') === 0 ||
+                reason.indexOf('hyperactive') >= 0 ||
+                reason.indexOf('gluttonous') >= 0 ||
+                reason.indexOf('robot_vacuum_move') === 0
+            );
+            return {
+                cause,
+                reason,
+                isPositionSwapMove,
+                isDestroyEvadeMove,
+                isTeleportMove,
+                isCloneMove,
+                isOverlapReturnMove,
+                isHyperactiveLikeMove,
+                shouldHighlightBothCells: isPositionSwapMove,
+                shouldHideDestinationDiscDuringGhostPlayback:
+                    !isOverlapReturnMove && (isCloneMove || isHyperactiveLikeMove),
+                useGhostOnlyByDefault: isCloneMove || isOverlapReturnMove
             };
-            const buildMoveGhostAnimationSpec = (moveCause, moveReason, deltaX, deltaY) => {
-                const normalizedCause = String(moveCause || '').toUpperCase();
-                const normalizedReason = String(moveReason || '').toLowerCase();
-                const defaultSpec = {
+        }
+
+        _getMoveHighlightCells(fromCell, toCell, moveSemantics) {
+            if (!moveSemantics) return [toCell];
+            if (moveSemantics.shouldHighlightBothCells) return [fromCell, toCell];
+            return moveSemantics.isDestroyEvadeMove ? [fromCell] : [toCell];
+        }
+
+        _ensureMoveDiscVisible(discEl) {
+            if (!discEl) return;
+            try {
+                discEl.classList.remove('stone-hidden', 'stone-hidden-all', 'stone-instant', 'destroy-fade', 'shatter');
+            } catch (e) { /* ignore */ }
+            try { discEl.style.visibility = 'visible'; } catch (e) { /* ignore */ }
+            try { discEl.style.opacity = ''; } catch (e) { /* ignore */ }
+        }
+
+        _buildMoveGhostAnimationSpec(moveSemantics, deltaX, deltaY) {
+            const normalizedCause = String(moveSemantics && moveSemantics.cause ? moveSemantics.cause : '').toUpperCase();
+            const normalizedReason = String(moveSemantics && moveSemantics.reason ? moveSemantics.reason : '').toLowerCase();
+            const defaultSpec = {
+                keyframes: [
+                    { transform: 'translate(0, 0)' },
+                    { transform: `translate(${deltaX}px, ${deltaY}px)` }
+                ],
+                easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)'
+            };
+            const absX = Math.abs(deltaX);
+            const absY = Math.abs(deltaY);
+            const dominantTravel = Math.max(absX, absY);
+            if (dominantTravel <= 0) return defaultSpec;
+
+            if (normalizedCause === 'STRONG_WIND_WILL' || normalizedReason.indexOf('strong_wind_move') === 0) {
+                const gustOffset = Math.max(10, Math.round(dominantTravel * 0.14));
+                const gustX = absX >= absY
+                    ? Math.round(deltaX * 0.58)
+                    : Math.round(deltaX * 0.54) + (deltaX >= 0 ? gustOffset : -gustOffset);
+                const gustY = absX >= absY
+                    ? Math.round(deltaY * 0.54) - gustOffset
+                    : Math.round(deltaY * 0.58);
+                return {
                     keyframes: [
-                        { transform: 'translate(0, 0)' },
-                        { transform: `translate(${deltaX}px, ${deltaY}px)` }
+                        { transform: 'translate(0, 0) scale(1)' },
+                        { transform: `translate(${gustX}px, ${gustY}px) scale(1.08)` },
+                        { transform: `translate(${deltaX}px, ${deltaY}px) scale(1)` }
                     ],
-                    easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)'
+                    easing: 'cubic-bezier(0.14, 0.92, 0.24, 1)'
                 };
-                const absX = Math.abs(deltaX);
-                const absY = Math.abs(deltaY);
-                const dominantTravel = Math.max(absX, absY);
-                if (dominantTravel <= 0) return defaultSpec;
+            }
 
-                const isStrongWindMove =
-                    normalizedCause === 'STRONG_WIND_WILL' ||
-                    normalizedReason.indexOf('strong_wind_move') === 0;
-                const isSuperBuoyancyMove =
-                    normalizedCause === 'SUPER_BUOYANCY_WILL' ||
-                    normalizedReason.indexOf('super_buoyancy_move') === 0;
-                const isSuperGravityMove =
-                    normalizedCause === 'SUPER_GRAVITY_WILL' ||
-                    normalizedReason.indexOf('super_gravity_move') === 0;
+            if (normalizedCause === 'SUPER_BUOYANCY_WILL' || normalizedReason.indexOf('super_buoyancy_move') === 0) {
+                const lift = Math.max(18, Math.round(dominantTravel * 0.2));
+                return {
+                    keyframes: [
+                        { transform: 'translate(0, 0) scale(1)' },
+                        { transform: `translate(${Math.round(deltaX * 0.45)}px, ${Math.round(deltaY * 0.45) - lift}px) scale(1.06)` },
+                        { transform: `translate(${deltaX}px, ${deltaY}px) scale(1)` }
+                    ],
+                    easing: 'cubic-bezier(0.12, 0.88, 0.28, 1)'
+                };
+            }
 
-                if (isStrongWindMove) {
-                    const gustOffset = Math.max(10, Math.round(dominantTravel * 0.14));
-                    const gustX = absX >= absY
-                        ? Math.round(deltaX * 0.58)
-                        : Math.round(deltaX * 0.54) + (deltaX >= 0 ? gustOffset : -gustOffset);
-                    const gustY = absX >= absY
-                        ? Math.round(deltaY * 0.54) - gustOffset
-                        : Math.round(deltaY * 0.58);
-                    return {
-                        keyframes: [
-                            { transform: 'translate(0, 0) scale(1)' },
-                            { transform: `translate(${gustX}px, ${gustY}px) scale(1.08)` },
-                            { transform: `translate(${deltaX}px, ${deltaY}px) scale(1)` }
-                        ],
-                        easing: 'cubic-bezier(0.14, 0.92, 0.24, 1)'
-                    };
+            if (normalizedCause === 'SUPER_GRAVITY_WILL' || normalizedReason.indexOf('super_gravity_move') === 0) {
+                const drop = Math.max(20, Math.round(dominantTravel * 0.22));
+                return {
+                    keyframes: [
+                        { transform: 'translate(0, 0) scale(1)' },
+                        { transform: `translate(${Math.round(deltaX * 0.7)}px, ${Math.round(deltaY * 0.7) + drop}px) scale(1.05)` },
+                        { transform: `translate(${deltaX}px, ${deltaY}px) scale(1)` }
+                    ],
+                    easing: 'cubic-bezier(0.36, 0.08, 0.74, 0.98)'
+                };
+            }
+
+            if (moveSemantics && moveSemantics.isOverlapReturnMove) {
+                const overlapScale = normalizedCause === 'WILL_HUNTER_KING' ? 1.06 : 1.03;
+                return {
+                    keyframes: [
+                        { transform: 'translate(0, 0) scale(1)' },
+                        { transform: `translate(${deltaX}px, ${deltaY}px) scale(${overlapScale})` },
+                        { transform: 'translate(0, 0) scale(1)' }
+                    ],
+                    easing: 'cubic-bezier(0.22, 0.78, 0.32, 1)'
+                };
+            }
+
+            return defaultSpec;
+        }
+
+        _resolveMoveFallbackState(target) {
+            const fallbackState = (target && target.after && (target.after.color === 1 || target.after.color === -1))
+                ? target.after
+                : {
+                    color: (target && target.ownerAfter === 'black') ? 1 : ((target && target.ownerAfter === 'white') ? -1 : 0),
+                    special: target && target.after ? target.after.special : null,
+                    timer: target && target.after ? target.after.timer : null,
+                    owner: (target && target.after && target.after.owner) || (target && target.ownerAfter) || null
+                };
+            if (fallbackState.color !== 1 && fallbackState.color !== -1) return null;
+            return fallbackState;
+        }
+
+        _resolveMoveDiscContext(fromCell, toCell, target, moveSemantics) {
+            let disc = fromCell.querySelector('.disc');
+            let sourceCell = fromCell;
+            let useGhostOnly = !!(moveSemantics && moveSemantics.useGhostOnlyByDefault);
+
+            if (!disc) {
+                const toDisc = toCell.querySelector('.disc');
+                if (toDisc) {
+                    disc = toDisc;
+                    sourceCell = toCell;
                 }
+            }
 
-                if (isSuperBuoyancyMove) {
-                    const lift = Math.max(18, Math.round(dominantTravel * 0.2));
-                    return {
-                        keyframes: [
-                            { transform: 'translate(0, 0) scale(1)' },
-                            { transform: `translate(${Math.round(deltaX * 0.45)}px, ${Math.round(deltaY * 0.45) - lift}px) scale(1.06)` },
-                            { transform: `translate(${deltaX}px, ${deltaY}px) scale(1)` }
-                        ],
-                        easing: 'cubic-bezier(0.12, 0.88, 0.28, 1)'
-                    };
-                }
+            if (!disc) {
+                const fallbackState = this._resolveMoveFallbackState(target);
+                if (!fallbackState) return null;
+                disc = this.createDisc(fallbackState);
+                useGhostOnly = true;
+            }
 
-                if (isSuperGravityMove) {
-                    const drop = Math.max(20, Math.round(dominantTravel * 0.22));
-                    return {
-                        keyframes: [
-                            { transform: 'translate(0, 0) scale(1)' },
-                            { transform: `translate(${Math.round(deltaX * 0.7)}px, ${Math.round(deltaY * 0.7) + drop}px) scale(1.05)` },
-                            { transform: `translate(${deltaX}px, ${deltaY}px) scale(1)` }
-                        ],
-                        easing: 'cubic-bezier(0.36, 0.08, 0.74, 0.98)'
-                    };
-                }
+            return { disc, sourceCell, useGhostOnly };
+        }
 
-                return defaultSpec;
-            };
+        _moveLiveDiscToDestination(fromCell, toCell, sourceCell, disc) {
+            if (!disc || !toCell) return null;
+            toCell.innerHTML = '';
+            this._ensureMoveDiscVisible(disc);
+            toCell.appendChild(disc);
+            toCell.classList.add('has-disc');
+            if (sourceCell === fromCell) {
+                fromCell.innerHTML = '';
+                fromCell.classList.remove('has-disc');
+            }
+            return disc;
+        }
 
+        _applyImmediateGhostOnlyMoveTarget(target, toCell, disc) {
+            if (!toCell) return null;
+            toCell.innerHTML = '';
+            const targetDisc = (target && target.after && (target.after.color === 1 || target.after.color === -1))
+                ? this.createDisc(target.after)
+                : disc;
+            if (!targetDisc) return null;
+            this._ensureMoveDiscVisible(targetDisc);
+            toCell.appendChild(targetDisc);
+            toCell.classList.add('has-disc');
+            return targetDisc;
+        }
+
+        _ensureAnimatedCloneMoveTarget(target, toCell) {
+            if (!toCell) return null;
+            const existingTargetDisc = toCell.querySelector('.disc');
+            if (existingTargetDisc) return existingTargetDisc;
+            if (!(target && target.after && (target.after.color === 1 || target.after.color === -1))) return null;
+            const targetDisc = this.createDisc(target.after);
+            this._ensureMoveDiscVisible(targetDisc);
+            toCell.appendChild(targetDisc);
+            toCell.classList.add('has-disc');
+            return targetDisc;
+        }
+
+        _hideMoveDestinationDiscForGhostPlayback(toCell, disc, moveSemantics) {
+            if (!toCell || !moveSemantics || !moveSemantics.shouldHideDestinationDiscDuringGhostPlayback) return null;
+            const liveTargetDisc = toCell.querySelector('.disc');
+            if (liveTargetDisc && liveTargetDisc !== disc) {
+                liveTargetDisc.style.visibility = 'hidden';
+                return liveTargetDisc;
+            }
+            return null;
+        }
+
+        _hideMoveSourceDiscForGhostPlayback(disc, useGhostOnly, moveSemantics) {
+            const shouldHideSourceDisc = !!disc && (!useGhostOnly || (moveSemantics && moveSemantics.isOverlapReturnMove));
+            if (!shouldHideSourceDisc) return false;
+            disc.style.visibility = 'hidden';
+            return true;
+        }
+
+        _createMoveGhost(disc, fromRect) {
+            const ghost = disc.cloneNode(true);
+            ghost.classList.remove('destroy-fade', 'shatter');
+            ghost.classList.add('stone-instant');
+            document.body.appendChild(ghost);
+
+            const discScale = 0.82;
+            const discInsetRatio = (1 - discScale) / 2;
+            ghost.style.position = 'fixed';
+            ghost.style.top = `${fromRect.top + fromRect.height * discInsetRatio}px`;
+            ghost.style.left = `${fromRect.left + fromRect.width * discInsetRatio}px`;
+            ghost.style.width = `${fromRect.width * discScale}px`;
+            ghost.style.height = `${fromRect.height * discScale}px`;
+            ghost.style.margin = '0';
+            ghost.style.zIndex = '1000';
+            return ghost;
+        }
+
+        _cleanupMoveGhostPlayback(ghost, hiddenTargetDisc, discHidden, disc) {
+            if (ghost && ghost.parentElement) {
+                ghost.parentElement.removeChild(ghost);
+            }
+            if (hiddenTargetDisc) {
+                try { this._ensureMoveDiscVisible(hiddenTargetDisc); } catch (e) { /* ignore */ }
+            }
+            if (discHidden) {
+                try { this._ensureMoveDiscVisible(disc); } catch (e) { /* ignore */ }
+            }
+        }
+
+        async handleMove(ev) {
             const promises = ev.targets.map(async t => {
                 const fromCell = this.getCellEl(t.from.r, t.from.col);
                 const toCell = this.getCellEl(t.to.r, t.to.col);
                 if (!fromCell || !toCell) return;
 
-                const moveCause = String(t && t.cause ? t.cause : '').toUpperCase();
-                const moveReason = String(t && t.reason ? t.reason : '').toLowerCase();
+                const moveSemantics = this._getMoveSemantics(t);
 
                 let highlightedCells = [];
                 try {
                     if (this._shouldHighlightEffectTarget(EVENT_TYPES.MOVE, t)) {
-                        const isDestroyEvadeMove =
-                            moveCause === 'DESTROY_EVADE' ||
-                            moveReason.indexOf('destroy_evade_move') === 0;
-                        const shouldHighlightBothCells =
-                            moveCause === 'POSITION_SWAP_WILL' ||
-                            moveReason.indexOf('position_swap') === 0;
-                        const cellsToHighlight = shouldHighlightBothCells
-                            ? [fromCell, toCell]
-                            : (isDestroyEvadeMove ? [fromCell] : [toCell]);
+                        const cellsToHighlight = this._getMoveHighlightCells(fromCell, toCell, moveSemantics);
                         for (const oneCell of cellsToHighlight) {
                             if (!oneCell || highlightedCells.indexOf(oneCell) >= 0) continue;
                             try {
@@ -2111,271 +2405,95 @@
                         }
                     }
 
-                const isPositionSwapMove =
-                    moveCause === 'POSITION_SWAP_WILL' || moveReason === 'position_swap';
-                const isTeleportMove =
-                    moveCause === 'TELEPORT_WILL' || moveReason === 'teleport_move';
-                const isCloneMove = !!(t && t.clone === true);
-                const isHyperactiveLikeMove = (
-                    moveCause === 'HYPERACTIVE' ||
-                    moveCause === 'AFTERIMAGE_WILL' ||
-                    moveCause === 'ESCAPE_HYPERACTIVE' ||
-                    moveCause === 'EXTREME_HYPERACTIVE_WILL' ||
-                    moveCause === 'HYPERACTIVE_INHERIT_WILL' ||
-                    moveCause === 'ULTIMATE_REVERSE_DRAGON' ||
-                    moveCause === 'ULTIMATE_DESTROY_GOD' ||
-                    moveCause === 'ROBOT_VACUUM' ||
-                    moveCause === 'GLUTTONOUS_WILL' ||
-                    moveCause === 'ULTIMATE_HYPERACTIVE' ||
-                    moveCause === 'ULTIMATE_HYPERACTIVE_GOD' ||
-                    moveReason.indexOf('ultimate_reverse_dragon_move') === 0 ||
-                    moveReason.indexOf('ultimate_destroy_god_move') === 0 ||
-                    moveReason.indexOf('afterimage_will_flip_evade_move') === 0 ||
-                    moveReason.indexOf('hyperactive') >= 0 ||
-                    moveReason.indexOf('gluttonous') >= 0 ||
-                    moveReason.indexOf('robot_vacuum_move') === 0
-                );
-                let disc = fromCell.querySelector('.disc');
-                let sourceCell = fromCell;
-                let useGhostOnly = isCloneMove;
-                // Fallback for race: board may already be in "after" state (disc only exists at destination).
-                if (!disc) {
-                    const toDisc = toCell.querySelector('.disc');
-                    if (toDisc) {
-                        disc = toDisc;
-                        sourceCell = toCell;
-                    }
-                }
+                    const moveContext = this._resolveMoveDiscContext(fromCell, toCell, t, moveSemantics);
+                    if (!moveContext) return;
+                    const disc = moveContext.disc;
+                    const sourceCell = moveContext.sourceCell;
+                    const useGhostOnly = moveContext.useGhostOnly;
+                    // Move visuals must stay as "move only" and never look like destroy.
+                    this._ensureMoveDiscVisible(disc);
 
-                // Snapshot playback fallback:
-                // if both source/destination cells are already empty in the final board,
-                // animate a temporary ghost from event metadata so movement still remains readable.
-                if (!disc) {
-                    const fallbackState = (t && t.after && (t.after.color === 1 || t.after.color === -1))
-                        ? t.after
-                        : {
-                            color: (t.ownerAfter === 'black') ? 1 : ((t.ownerAfter === 'white') ? -1 : 0),
-                            special: (t.after && t.after.special) || null,
-                            timer: (t.after && t.after.timer) || null,
-                            owner: (t.after && t.after.owner) || t.ownerAfter || null
-                        };
-                    if (fallbackState.color !== 1 && fallbackState.color !== -1) return;
-                    disc = this.createDisc(fallbackState);
-                    useGhostOnly = true;
-                }
-                // Move visuals must stay as "move only" and never look like destroy.
-                ensureDiscVisibleForMove(disc);
+                    // Section 5.5: Straight-line interpolation via ghost
+                    const fromRect = fromCell.getBoundingClientRect();
+                    const toRect = toCell.getBoundingClientRect();
+                    const deltaX = toRect.left - fromRect.left;
+                    const deltaY = toRect.top - fromRect.top;
+                    const noAnim = _isNoAnim();
 
-                // Section 5.5: Straight-line interpolation via ghost
-                const fromRect = fromCell.getBoundingClientRect();
-                const toRect = toCell.getBoundingClientRect();
-                const deltaX = toRect.left - fromRect.left;
-                const deltaY = toRect.top - fromRect.top;
-                const noAnim = _isNoAnim();
-
-                // If no-animations mode, skip animation and perform immediate DOM move
-                if (noAnim || isTeleportMove) {
-                    try {
-                        let targetDisc = null;
-                        if (!useGhostOnly) {
-                            toCell.innerHTML = '';
-                            ensureDiscVisibleForMove(disc);
-                            toCell.appendChild(disc);
-                            targetDisc = disc;
-                            toCell.classList.add('has-disc');
-                            if (sourceCell === fromCell) {
-                                fromCell.innerHTML = '';
-                                fromCell.classList.remove('has-disc');
-                            }
-                        } else {
-                            toCell.innerHTML = '';
-                            targetDisc = (t && t.after && (t.after.color === 1 || t.after.color === -1))
-                                ? this.createDisc(t.after)
-                                : disc;
-                            if (targetDisc) {
-                                ensureDiscVisibleForMove(targetDisc);
-                                toCell.appendChild(targetDisc);
-                                toCell.classList.add('has-disc');
-                            }
-                        }
-
-                        if (isTeleportMove && !noAnim && targetDisc && typeof targetDisc.animate === 'function') {
-                            const durationMs = 140;
-                            const anim = targetDisc.animate([
-                                { opacity: 0.25, transform: 'scale(0.5)' },
-                                { opacity: 1, transform: 'scale(1)' }
-                            ], {
-                                duration: durationMs,
-                                easing: 'cubic-bezier(0.18, 0.9, 0.3, 1)'
-                            });
-                            await new Promise((resolve) => {
-                                let timeoutId = null;
-                                let done = false;
-                                const finish = () => {
-                                    if (done) return;
-                                    done = true;
-                                    try { if (anim && typeof anim.removeEventListener === 'function') anim.removeEventListener('finish', finish); } catch (e) { /* ignore */ }
-                                    if (timeoutId !== null) {
-                                        try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
-                                        timeoutId = null;
-                                    }
-                                    resolve();
-                                };
-                                try {
-                                    if (anim && typeof anim.addEventListener === 'function') {
-                                        anim.addEventListener('finish', finish, { once: true });
-                                    }
-                                } catch (e) { /* ignore */ }
-                                try {
-                                    timeoutId = _Timer().setTimeout(finish, durationMs + 120, this.playbackScope);
-                                } catch (e) {
-                                    timeoutId = setTimeout(finish, durationMs + 120);
-                                }
-                                try {
-                                    if (anim && anim.finished && typeof anim.finished.then === 'function') {
-                                        anim.finished.then(finish).catch(finish);
-                                    }
-                                } catch (e) { /* ignore */ }
-                            });
-                        }
-                    } catch (e) {
-                        // best-effort
-                    }
-                    return;
-                }
-
-                let hiddenTargetDisc = null;
-                if (isCloneMove || isHyperactiveLikeMove) {
-                    const liveTargetDisc = toCell.querySelector('.disc');
-                    if (liveTargetDisc && liveTargetDisc !== disc) {
-                        liveTargetDisc.style.visibility = 'hidden';
-                        hiddenTargetDisc = liveTargetDisc;
-                    }
-                }
-
-                const ghost = disc.cloneNode(true);
-                ghost.classList.remove('destroy-fade', 'shatter');
-                ghost.classList.add('stone-instant');
-                document.body.appendChild(ghost);
-
-                const discScale = 0.82;
-                const discInsetRatio = (1 - discScale) / 2;
-                ghost.style.position = 'fixed';
-                ghost.style.top = `${fromRect.top + fromRect.height * discInsetRatio}px`;
-                ghost.style.left = `${fromRect.left + fromRect.width * discInsetRatio}px`;
-                ghost.style.width = `${fromRect.width * discScale}px`;
-                ghost.style.height = `${fromRect.height * discScale}px`;
-                ghost.style.margin = '0';
-                ghost.style.zIndex = '1000';
-
-                let discHidden = false;
-                if (!useGhostOnly) {
-                    disc.style.visibility = 'hidden';
-                    discHidden = true;
-                }
-
-                try {
-                    const durationScale = isPositionSwapMove ? 0.8 : 1;
-                    const durationMs = Math.max(1, Math.round(MOVE_MS * durationScale));
-
-                    let anim = null;
-                    if (typeof ghost.animate === 'function') {
+                    // If no-animations mode, skip animation and perform immediate DOM move
+                    if (noAnim || moveSemantics.isTeleportMove) {
                         try {
-                            const animationSpec = buildMoveGhostAnimationSpec(moveCause, moveReason, deltaX, deltaY);
-                            anim = ghost.animate(animationSpec.keyframes, {
-                                duration: durationMs,
-                                easing: animationSpec.easing
-                            });
-                        } catch (e) {
-                            anim = null;
-                        }
-                    }
+                            if (moveSemantics.isOverlapReturnMove) {
+                                return;
+                            }
+                            let targetDisc = null;
+                            if (!useGhostOnly) {
+                                targetDisc = this._moveLiveDiscToDestination(fromCell, toCell, sourceCell, disc);
+                            } else {
+                                targetDisc = this._applyImmediateGhostOnlyMoveTarget(t, toCell, disc);
+                            }
 
-                    if (!anim) {
-                        if (!useGhostOnly) {
-                            toCell.innerHTML = '';
-                            ensureDiscVisibleForMove(disc);
-                            discHidden = false;
-                            toCell.appendChild(disc);
-                            toCell.classList.add('has-disc');
-                            if (sourceCell === fromCell) {
-                                fromCell.innerHTML = '';
-                                fromCell.classList.remove('has-disc');
+                            if (moveSemantics.isTeleportMove && !noAnim && targetDisc && typeof targetDisc.animate === 'function') {
+                                const durationMs = 140;
+                                const anim = targetDisc.animate([
+                                    { opacity: 0.25, transform: 'scale(0.5)' },
+                                    { opacity: 1, transform: 'scale(1)' }
+                                ], {
+                                    duration: durationMs,
+                                    easing: 'cubic-bezier(0.18, 0.9, 0.3, 1)'
+                                });
+                                await this._waitForAnimationFinish(anim, durationMs, 120);
                             }
-                        } else if (isCloneMove) {
-                            const existingTargetDisc = toCell.querySelector('.disc');
-                            if (!existingTargetDisc && t && t.after && (t.after.color === 1 || t.after.color === -1)) {
-                                const targetDisc = this.createDisc(t.after);
-                                ensureDiscVisibleForMove(targetDisc);
-                                toCell.appendChild(targetDisc);
-                                toCell.classList.add('has-disc');
-                            }
+                        } catch (e) {
+                            // best-effort
                         }
                         return;
                     }
 
-                    // Some environments resolve `finished` too early or don't support it reliably.
-                    // Wait for finish event with a timeout fallback so move never becomes an instant teleport.
-                    await new Promise((resolve) => {
-                        let timeoutId = null;
-                        let done = false;
-                        const finish = () => {
-                            if (done) return;
-                            done = true;
-                            try { if (anim && typeof anim.removeEventListener === 'function') anim.removeEventListener('finish', finish); } catch (e) { /* ignore */ }
-                            if (timeoutId !== null) {
-                                try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
-                                timeoutId = null;
-                            }
-                            resolve();
-                        };
-                        try {
-                            if (anim && typeof anim.addEventListener === 'function') {
-                                anim.addEventListener('finish', finish, { once: true });
-                            }
-                        } catch (e) { /* ignore */ }
-                        try {
-                            timeoutId = _Timer().setTimeout(finish, durationMs + 220, this.playbackScope);
-                        } catch (e) {
-                            timeoutId = setTimeout(finish, durationMs + 220);
-                        }
-                        try {
-                            if (anim && anim.finished && typeof anim.finished.then === 'function') {
-                                anim.finished.then(finish).catch(finish);
-                            }
-                        } catch (e) { /* ignore */ }
-                    });
+                    const hiddenTargetDisc = this._hideMoveDestinationDiscForGhostPlayback(toCell, disc, moveSemantics);
+                    const ghost = this._createMoveGhost(disc, fromRect);
+                    let discHidden = this._hideMoveSourceDiscForGhostPlayback(disc, useGhostOnly, moveSemantics);
 
-                    if (!useGhostOnly) {
-                        toCell.innerHTML = '';
-                        ensureDiscVisibleForMove(disc);
-                        discHidden = false;
-                        toCell.appendChild(disc);
-                        toCell.classList.add('has-disc');
-                        if (sourceCell === fromCell) {
-                            fromCell.innerHTML = '';
-                            fromCell.classList.remove('has-disc');
+                    try {
+                        const durationScale = moveSemantics.isPositionSwapMove ? 0.8 : 1;
+                        const durationMs = Math.max(1, Math.round(MOVE_MS * durationScale));
+
+                        let anim = null;
+                        if (typeof ghost.animate === 'function') {
+                            try {
+                                const animationSpec = this._buildMoveGhostAnimationSpec(moveSemantics, deltaX, deltaY);
+                                anim = ghost.animate(animationSpec.keyframes, {
+                                    duration: durationMs,
+                                    easing: animationSpec.easing
+                                });
+                            } catch (e) {
+                                anim = null;
+                            }
                         }
-                    } else if (isCloneMove) {
-                        const existingTargetDisc = toCell.querySelector('.disc');
-                        if (!existingTargetDisc && t && t.after && (t.after.color === 1 || t.after.color === -1)) {
-                            const targetDisc = this.createDisc(t.after);
-                            ensureDiscVisibleForMove(targetDisc);
-                            toCell.appendChild(targetDisc);
-                            toCell.classList.add('has-disc');
+
+                        if (!anim) {
+                            if (!useGhostOnly) {
+                                this._moveLiveDiscToDestination(fromCell, toCell, sourceCell, disc);
+                                discHidden = false;
+                            } else if (moveSemantics.isCloneMove) {
+                                this._ensureAnimatedCloneMoveTarget(t, toCell);
+                            }
+                            return;
                         }
+
+                        // Some environments resolve `finished` too early or don't support it reliably.
+                        // Wait for finish event with a timeout fallback so move never becomes an instant teleport.
+                        await this._waitForAnimationFinish(anim, durationMs, 220);
+
+                        if (!useGhostOnly) {
+                            this._moveLiveDiscToDestination(fromCell, toCell, sourceCell, disc);
+                            discHidden = false;
+                        } else if (moveSemantics.isCloneMove) {
+                            this._ensureAnimatedCloneMoveTarget(t, toCell);
+                        }
+                    } finally {
+                        this._cleanupMoveGhostPlayback(ghost, hiddenTargetDisc, discHidden, disc);
                     }
-                } finally {
-                    if (hiddenTargetDisc) {
-                        try { ensureDiscVisibleForMove(hiddenTargetDisc); } catch (e) { /* ignore */ }
-                    }
-                    if (discHidden) {
-                        try { ensureDiscVisibleForMove(disc); } catch (e) { /* ignore */ }
-                    }
-                    if (ghost && ghost.parentElement) {
-                        ghost.parentElement.removeChild(ghost);
-                    }
-                }
                 } finally {
                     for (const highlightedCell of highlightedCells) {
                         try { highlightedCell.classList.remove(EFFECT_TARGET_HIGHLIGHT_CLASS); } catch (e) { /* ignore */ }
@@ -2497,33 +2615,23 @@
             cell.appendChild(ghost);
             ghost.style.transition = `opacity ${durationMs}ms ease`;
 
-            await new Promise((resolve) => {
-                let timeoutId = null;
-                let done = false;
-                const finish = () => {
-                    if (done) return;
-                    done = true;
-                    if (timeoutId !== null) {
-                        try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
-                        timeoutId = null;
-                    }
-                    try { ghost.removeEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
-                    try { if (ghost.parentElement) ghost.parentElement.removeChild(ghost); } catch (e) { /* ignore */ }
-                    resolve();
-                };
-                const onEnd = (e) => {
-                    if (!e || e.propertyName === 'opacity') finish();
-                };
-                try { ghost.addEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
-                try { timeoutId = _Timer().setTimeout(finish, durationMs + 120, this.playbackScope); } catch (e) { timeoutId = setTimeout(finish, durationMs + 120); }
-                try {
-                    requestAnimationFrame(() => {
+            await this._waitForOpacityTransition(
+                ghost,
+                durationMs,
+                120,
+                () => {
+                    try {
+                        requestAnimationFrame(() => {
+                            ghost.style.opacity = '0';
+                        });
+                    } catch (e) {
                         ghost.style.opacity = '0';
-                    });
-                } catch (e) {
-                    ghost.style.opacity = '0';
+                    }
+                },
+                () => {
+                    try { if (ghost.parentElement) ghost.parentElement.removeChild(ghost); } catch (e) { /* ignore */ }
                 }
-            });
+            );
         }
 
         async crossfadeDiscToState(disc, after, durationMs) {
@@ -2556,37 +2664,27 @@
             disc.style.transition = prevDiscTransition ? `${prevDiscTransition}, opacity ${durationMs}ms ease` : `opacity ${durationMs}ms ease`;
             ghost.style.transition = `opacity ${durationMs}ms ease`;
 
-            await new Promise((resolve) => {
-                let timeoutId = null;
-                let done = false;
-                const finish = () => {
-                    if (done) return;
-                    done = true;
-                    if (timeoutId !== null) {
-                        try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
-                        timeoutId = null;
+            await this._waitForOpacityTransition(
+                ghost,
+                durationMs,
+                120,
+                () => {
+                    try {
+                        requestAnimationFrame(() => {
+                            disc.style.opacity = '1';
+                            ghost.style.opacity = '0';
+                        });
+                    } catch (e) {
+                        disc.style.opacity = '1';
+                        ghost.style.opacity = '0';
                     }
-                    try { ghost.removeEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
+                },
+                () => {
                     try { if (ghost.parentElement) ghost.parentElement.removeChild(ghost); } catch (e) { /* ignore */ }
                     disc.style.opacity = '';
                     disc.style.transition = prevDiscTransition;
-                    resolve();
-                };
-                const onEnd = (e) => {
-                    if (!e || e.propertyName === 'opacity') finish();
-                };
-                try { ghost.addEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
-                try { timeoutId = _Timer().setTimeout(finish, durationMs + 120, this.playbackScope); } catch (e) { timeoutId = setTimeout(finish, durationMs + 120); }
-                try {
-                    requestAnimationFrame(() => {
-                        disc.style.opacity = '1';
-                        ghost.style.opacity = '0';
-                    });
-                } catch (e) {
-                    disc.style.opacity = '1';
-                    ghost.style.opacity = '0';
                 }
-            });
+            );
         }
 
         // --- Helpers ---

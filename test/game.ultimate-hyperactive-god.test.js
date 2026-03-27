@@ -41,7 +41,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     expect(marker.data.destroyEvadeRemaining).toBe(1);
   });
 
-  test('owner turn only decrements duration, and on 10th owner turn it self-destructs', () => {
+  test('owner turn only decrements duration, and on 10th owner turn it reverts to a normal stone', () => {
     const { cardState, gameState } = makeState();
     gameState.board[3][3] = 1;
     cardState.markers.push({
@@ -79,9 +79,10 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     const last = CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, 'black', marker.row, marker.col, { random: () => 0.1 }, {
       currentTurnPlayerKey: 'black'
     });
-    expect(last.destroyed || []).toHaveLength(1);
+    expect(last.destroyed || []).toEqual([expect.objectContaining({ reverted: true, reason: 'duration_end' })]);
     const after = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
     expect(after).toBeUndefined();
+    expect(gameState.board.flat().filter((cell) => cell === 1).length).toBe(1);
   });
 
   test('moves two times with straight-line jumps and can jump over occupied stones', () => {
@@ -141,7 +142,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
 
     const res = CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, 'black', 3, 3, { random: () => 0.1 });
     expect(res.moved).toEqual([]);
-    expect(res.destroyed).toEqual([{ row: 3, col: 3 }]);
+    expect(res.destroyed).toEqual([expect.objectContaining({ row: 3, col: 3, reason: 'no_candidates', specialType: 'ULTIMATE_HYPERACTIVE' })]);
     expect(gameState.board[3][3]).toBe(0);
     const marker = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
     expect(marker).toBeUndefined();

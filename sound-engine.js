@@ -35,6 +35,7 @@ const SoundEngine = {
         strong_wind_move: '強風の意志で石を移動させるタイミング.mp3',
         super_buoyancy_move: '超浮力で石を浮かせるタイミング.mp3',
         super_gravity_move: '超重力で石を落下させるタイミング.mp3',
+        round_bonus: 'ラウンドボーナスで布石獲得タイミング.mp3',
         teleport_select: 'テレポートを使って石を選択するタイミング.mp3',
         tempt_select: '誘惑の意志で相手特殊石を誘惑したタイミング.mp3',
         treasure_gain: '宝箱で布石取得したタイミング.mp3',
@@ -49,7 +50,7 @@ const SoundEngine = {
         card_effect_flip: 'カード効果で石が反転するタイミング.mp3',
         bomb_explode: '爆弾系の石が起爆するタイミング.mp3',
         stone_destroy: '破壊ロジック＿石が破壊されるとき.mp3',
-        special_expired: '持続ターン切れで石が自己破壊で消滅するタイミング.mp3',
+        special_reverted: '持続ターン切れで特殊石が通常石に戻るタイミング.mp3',
         charge_gain_common: '売却の意志、出稼ぎの意志でカード効果で布石獲得するタイミング.mp3',
         work_income_16: '出稼ぎの意志が布石16獲得するタイミング.mp3',
         work_removed: '出稼ぎの意志が反転または破壊されて消えるタイミング.mp3'

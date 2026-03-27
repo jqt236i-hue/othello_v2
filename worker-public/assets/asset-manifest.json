@@ -1,6 +1,6 @@
 {
-  "version": "2026-03-21",
-  "generatedAt": "2026-03-21T12:46:25.412Z",
+  "version": "2026-03-26",
+  "generatedAt": "2026-03-26T09:40:00.286Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -113,6 +113,14 @@
     {
       "path": "assets/images/stones/perma_protect_next_stone-white.png",
       "sha256": "5ea01367badbcf27f904c42f1d1044beec870bd8f51cab73d6448d35f397962c"
+    },
+    {
+      "path": "assets/images/stones/PROLIFERATION_WILL-black.png",
+      "sha256": "f0c357d8fb0e830d24a48324aecbf19bd28876cd18994743d173a0b9b39a6d2e"
+    },
+    {
+      "path": "assets/images/stones/PROLIFERATION_WILL-white.png",
+      "sha256": "d52eb5cbd0c878b213b79e53576e56232d1592220102d3a2cfdba8e570c6052d"
     },
     {
       "path": "assets/images/stones/protected_next_stone.png",

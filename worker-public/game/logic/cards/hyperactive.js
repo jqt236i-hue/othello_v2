@@ -857,15 +857,63 @@
         };
     }
 
+    function revertTimedSpecialAt(cardState, gameState, row, col, ownerKey, specialType, deps = {}, cause, reason) {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+        if (deps.BoardOps && typeof deps.BoardOps.revertSpecialStoneAt === 'function') {
+            const revertRes = deps.BoardOps.revertSpecialStoneAt(
+                cardState,
+                gameState,
+                row,
+                col,
+                specialType,
+                ownerKey,
+                cause || 'SYSTEM',
+                reason || 'duration_end'
+            );
+            return !!(revertRes && revertRes.reverted);
+        }
+        if (!Array.isArray(cardState.markers)) return false;
+        const beforeLength = cardState.markers.length;
+        cardState.markers = cardState.markers.filter((marker) => !(
+            marker &&
+            marker.kind === 'specialStone' &&
+            marker.row === row &&
+            marker.col === col &&
+            marker.owner === ownerKey &&
+            marker.data &&
+            String(marker.data.type || '').toUpperCase() === String(specialType || '').toUpperCase()
+        ));
+        return cardState.markers.length !== beforeLength;
+    }
+
     function destroyUltimateAnchor(cardState, gameState, entry, deps, destroyAt, reason) {
+        const destroyReason = reason || 'no_candidates';
+        const isDurationEnd = destroyReason === 'expired' || destroyReason === 'duration_end';
+        if (isDurationEnd) {
+            const reverted = revertTimedSpecialAt(
+                cardState,
+                gameState,
+                entry.row,
+                entry.col,
+                entry.owner,
+                'ULTIMATE_HYPERACTIVE',
+                deps,
+                'ULTIMATE_HYPERACTIVE_GOD',
+                'duration_end'
+            );
+            return reverted
+                ? [{ row: entry.row, col: entry.col, specialType: 'ULTIMATE_HYPERACTIVE', reason: 'duration_end', reverted: true }]
+                : [];
+        }
+
         let anchorDestroyed = false;
         if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-            const res = deps.BoardOps.destroyAt(cardState, gameState, entry.row, entry.col, 'ULTIMATE_HYPERACTIVE_GOD', reason || 'no_candidates');
+            const res = deps.BoardOps.destroyAt(cardState, gameState, entry.row, entry.col, 'ULTIMATE_HYPERACTIVE_GOD', destroyReason);
             anchorDestroyed = !!(res && res.destroyed);
         } else {
             anchorDestroyed = destroyAt(cardState, gameState, entry.row, entry.col);
         }
-        return anchorDestroyed ? [{ row: entry.row, col: entry.col }] : [];
+        return anchorDestroyed ? [{ row: entry.row, col: entry.col, specialType: 'ULTIMATE_HYPERACTIVE', reason: destroyReason }] : [];
     }
 
     function moveHyperactiveOnce(cardState, gameState, entry, prng, deps = {}) {
@@ -1152,14 +1200,20 @@
 
         if (afterDec > 0) return { destroyed: [] };
 
-        let destroyed = false;
-        if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-            const res = deps.BoardOps.destroyAt(cardState, gameState, entry.row, entry.col, 'HYPERACTIVE_INHERIT_WILL', 'expired');
-            destroyed = !!(res && res.destroyed);
-        } else if (typeof deps.destroyAt === 'function') {
-            destroyed = !!deps.destroyAt(cardState, gameState, entry.row, entry.col);
-        }
-        return destroyed ? { destroyed: [{ row: entry.row, col: entry.col, specialType: 'INHERITED_HYPERACTIVE' }] } : { destroyed: [] };
+        const reverted = revertTimedSpecialAt(
+            cardState,
+            gameState,
+            entry.row,
+            entry.col,
+            ownerKey,
+            'INHERITED_HYPERACTIVE',
+            deps,
+            'HYPERACTIVE_INHERIT_WILL',
+            'duration_end'
+        );
+        return reverted
+            ? { destroyed: [{ row: entry.row, col: entry.col, specialType: 'INHERITED_HYPERACTIVE', reason: 'duration_end', reverted: true }] }
+            : { destroyed: [] };
     }
 
     function processHyperactiveMoves(cardState, gameState, prng, deps = {}) {
@@ -1520,7 +1574,7 @@
         };
 
         if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-            const res = deps.BoardOps.destroyAt(
+            return deps.BoardOps.destroyAt(
                 cardState,
                 gameState,
                 targetRow,
@@ -1529,7 +1583,6 @@
                 'gluttonous_eat',
                 destroyMeta
             );
-            return !!(res && res.destroyed);
         }
 
         const guarded = (cardState.markers || []).some((m) => (
@@ -1540,12 +1593,12 @@
             m.data &&
             m.data.type === 'GUARD'
         ));
-        if (guarded) return false;
+        if (guarded) return { destroyed: false };
 
         if (typeof deps.destroyAt === 'function') {
-            return !!deps.destroyAt(cardState, gameState, targetRow, targetCol);
+            return { destroyed: !!deps.destroyAt(cardState, gameState, targetRow, targetCol) };
         }
-        return false;
+        return { destroyed: false };
     }
 
     function processGluttonousMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps = {}) {
@@ -1612,7 +1665,7 @@
             if (!target) continue;
 
             const from = { row: entry.row, col: entry.col };
-            const destroyedRes = _destroyGluttonousTarget(
+            const destroyResult = _destroyGluttonousTarget(
                 cardState,
                 gameState,
                 ownerKey,
@@ -1622,7 +1675,22 @@
                 target.col,
                 deps
             );
-            if (!destroyedRes) continue;
+            if (!destroyResult || (!destroyResult.destroyed && !destroyResult.proliferated)) continue;
+
+            if (destroyResult.proliferated) {
+                const eatDetail = {
+                    row: target.row,
+                    col: target.col,
+                    sourceRow: from.row,
+                    sourceCol: from.col,
+                    proliferated: true
+                };
+                ate.push(eatDetail);
+                if (entry.data && typeof entry.data === 'object') {
+                    entry.data.gluttonousMissStreak = 0;
+                }
+                return { moved, destroyed, flipped, ownerKey, ate };
+            }
 
             let movedRes = false;
             if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
@@ -1851,23 +1919,20 @@
             const afterDec = Math.max(0, before - 1);
             if (entry.data) entry.data.remainingOwnerTurns = afterDec;
             if (afterDec <= 0) {
-                let anchorDestroyed = false;
-                if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                    const res = deps.BoardOps.destroyAt(cardState, gameState, entry.row, entry.col, 'ROBOT_VACUUM', 'anchor_expired', {
-                        sourceRow: entry.row,
-                        sourceCol: entry.col,
-                        projectileOwner: ownerKey,
-                        projectileStone: 'robot_vacuum'
-                    });
-                    anchorDestroyed = !!(res && res.destroyed);
-                } else if (typeof deps.destroyAt === 'function') {
-                    anchorDestroyed = !!deps.destroyAt(cardState, gameState, entry.row, entry.col);
-                }
+                const anchorReverted = revertTimedSpecialAt(
+                    cardState,
+                    gameState,
+                    entry.row,
+                    entry.col,
+                    ownerKey,
+                    'ROBOT_VACUUM',
+                    deps,
+                    'ROBOT_VACUUM',
+                    'anchor_expired'
+                );
 
-                if (anchorDestroyed) {
-                    const detail = { row: entry.row, col: entry.col };
-                    expired.push(detail);
-                    destroyed.push(detail);
+                if (anchorReverted) {
+                    expired.push({ row: entry.row, col: entry.col, specialType: 'ROBOT_VACUUM', owner: ownerKey, reason: 'anchor_expired', reverted: true });
                 }
             }
         }

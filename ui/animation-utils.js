@@ -180,6 +180,36 @@ function _getFallbackCardCostTier(cost) {
     return 'gray';
 }
 
+function _normalizeCardUseDisplayTypeLabel(label) {
+    const normalized = String(label || '').trim();
+    return normalized || '';
+}
+
+function _resolveCardUseDisplayTypeLabel(descriptor, cardId) {
+    const directLabel = _normalizeCardUseDisplayTypeLabel(
+        descriptor && (descriptor.display_type_ja || descriptor.displayTypeJa || descriptor.displayTypeLabel || descriptor.typeLabel)
+    );
+    if (directLabel) return directLabel;
+
+    try {
+        if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function' && cardId) {
+            const cardDef = CardLogic.getCardDef(cardId);
+            const cardLabel = _normalizeCardUseDisplayTypeLabel(cardDef && (cardDef.display_type_ja || cardDef.displayTypeJa));
+            if (cardLabel) return cardLabel;
+        }
+    } catch (e) { /* ignore */ }
+
+    try {
+        if (typeof window !== 'undefined' && window.CardCatalog && Array.isArray(window.CardCatalog.cards) && cardId) {
+            const catalogCard = window.CardCatalog.cards.find((entry) => entry && entry.id === cardId);
+            const catalogLabel = _normalizeCardUseDisplayTypeLabel(catalogCard && (catalogCard.display_type_ja || catalogCard.displayTypeJa));
+            if (catalogLabel) return catalogLabel;
+        }
+    } catch (e) { /* ignore */ }
+
+    return '';
+}
+
 function _normalizeCardUseVisualDescriptor(descriptor, fallbackCardId, fallbackCardName, fallbackCardCost) {
     const resolved = (descriptor && typeof descriptor === 'object') ? Object.assign({}, descriptor) : {};
     if (!resolved.cardId && fallbackCardId) {
@@ -203,6 +233,7 @@ function _buildFallbackCardUseElement(cardId, cardName, cardCost, descriptor) {
     const resolvedCardName = visualDescriptor.name || null;
     const resolvedCardCost = Number.isFinite(Number(visualDescriptor.cost)) ? Number(visualDescriptor.cost) : null;
     const resolvedCostTier = visualDescriptor.costTier || _getFallbackCardCostTier(resolvedCardCost);
+    const resolvedTypeLabel = _resolveCardUseDisplayTypeLabel(visualDescriptor, resolvedCardId);
     const createCardFaceElement = _resolveCreateCardFaceElement();
     if (createCardFaceElement && resolvedCardId) {
         try {
@@ -229,14 +260,25 @@ function _buildFallbackCardUseElement(cardId, cardName, cardCost, descriptor) {
         label.textContent = resolvedCardName;
         cardEl.appendChild(label);
     }
-    if (resolvedCardCost !== null) {
-        const badge = document.createElement('div');
-        badge.className = 'card-cost-badge';
-        if (resolvedCostTier) {
-            badge.classList.add(`cost-tier-${resolvedCostTier}`);
+    if (resolvedTypeLabel || resolvedCardCost !== null) {
+        const badgeRow = document.createElement('div');
+        badgeRow.className = 'card-badge-row';
+        if (resolvedTypeLabel) {
+            const typeBadge = document.createElement('div');
+            typeBadge.className = 'card-type-badge';
+            typeBadge.textContent = resolvedTypeLabel;
+            badgeRow.appendChild(typeBadge);
         }
-        badge.textContent = `コスト${resolvedCardCost}`;
-        cardEl.appendChild(badge);
+        if (resolvedCardCost !== null) {
+            const badge = document.createElement('div');
+            badge.className = 'card-cost-badge';
+            if (resolvedCostTier) {
+                badge.classList.add(`cost-tier-${resolvedCostTier}`);
+            }
+            badge.textContent = `コスト${resolvedCardCost}`;
+            badgeRow.appendChild(badge);
+        }
+        cardEl.appendChild(badgeRow);
     }
     return cardEl;
 }

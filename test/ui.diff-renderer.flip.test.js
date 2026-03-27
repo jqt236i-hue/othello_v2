@@ -118,4 +118,23 @@ describe('DiffRenderer flip fallback', () => {
 		expect(disc).toBeTruthy();
 		expect(disc.classList.contains('flip')).toBe(true);
 	});
+
+	test('shows registered stone info for proliferation stones', () => {
+		const diff = require('../ui/diff-renderer');
+
+		gameState.board[1][2] = BLACK;
+		cardState.markers = [{
+			kind: 'specialStone',
+			row: 1,
+			col: 2,
+			data: { type: 'PROLIFERATION' }
+		}];
+
+		diff.renderBoardDiff(boardEl);
+
+		expect(diff.showSpecialStoneInfoAt(1, 2)).toBe(true);
+		expect(document.getElementById('stone-info-name').textContent).toBe('増殖石');
+		expect(document.getElementById('stone-info-desc').textContent).toContain('破壊対象');
+		expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
+	});
 });

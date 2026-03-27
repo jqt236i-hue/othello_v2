@@ -140,6 +140,97 @@
         return expansion;
     }
 
+    function normalizeRoundNumber(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return 1;
+        const roundNumber = Math.trunc(numeric);
+        return roundNumber >= 1 ? roundNumber : 1;
+    }
+
+    function normalizeRoundPlayerKey(player) {
+        if (player === BLACK || player === 'black' || player === 1 || player === '1' || player === '+1') return 'black';
+        if (player === WHITE || player === 'white' || player === -1 || player === '-1') return 'white';
+        return null;
+    }
+
+    function createRoundCompletionByPlayer(source) {
+        const value = (source && typeof source === 'object') ? source : {};
+        return {
+            black: !!value.black,
+            white: !!value.white
+        };
+    }
+
+    function clonePendingRoundBonus(source) {
+        if (!source || typeof source !== 'object') return null;
+        const roundNumber = normalizeRoundNumber(source.roundNumber);
+        const amountValue = Number(source.amount);
+        const amount = Number.isFinite(amountValue) ? Math.max(0, Math.trunc(amountValue)) : 0;
+        if (!(amount > 0)) return null;
+        return { roundNumber, amount };
+    }
+
+    function ensureRoundState(state) {
+        if (!state || typeof state !== 'object') return state;
+        state.roundNumber = normalizeRoundNumber(state.roundNumber);
+        state.roundCompletionByPlayer = createRoundCompletionByPlayer(state.roundCompletionByPlayer);
+        state.pendingRoundBonus = clonePendingRoundBonus(state.pendingRoundBonus);
+        return state;
+    }
+
+    function resolveRoundBonusAmount(roundNumber) {
+        const normalizedRound = normalizeRoundNumber(roundNumber);
+        if (normalizedRound % 10 !== 0) return 0;
+        return Math.max(0, Math.floor(normalizedRound / 2));
+    }
+
+    function advanceRoundAfterCompletedTurn(state, player, options) {
+        const targetState = ensureRoundState(state);
+        const playerKey = normalizeRoundPlayerKey(player);
+        const opts = (options && typeof options === 'object') ? options : {};
+        if (!targetState || !playerKey) {
+            return {
+                advanced: false,
+                roundNumber: targetState ? targetState.roundNumber : 1,
+                pendingRoundBonus: clonePendingRoundBonus(targetState && targetState.pendingRoundBonus)
+            };
+        }
+
+        targetState.roundCompletionByPlayer[playerKey] = true;
+        const completedBlack = !!targetState.roundCompletionByPlayer.black;
+        const completedWhite = !!targetState.roundCompletionByPlayer.white;
+        if (!completedBlack || !completedWhite) {
+            return {
+                advanced: false,
+                roundNumber: targetState.roundNumber,
+                pendingRoundBonus: clonePendingRoundBonus(targetState.pendingRoundBonus)
+            };
+        }
+
+        const nextRoundNumber = normalizeRoundNumber(targetState.roundNumber + 1);
+        targetState.roundNumber = nextRoundNumber;
+        targetState.roundCompletionByPlayer = createRoundCompletionByPlayer(null);
+        if (opts.scheduleBonus !== false) {
+            const amount = resolveRoundBonusAmount(nextRoundNumber);
+            targetState.pendingRoundBonus = amount > 0
+                ? { roundNumber: nextRoundNumber, amount }
+                : null;
+        }
+        return {
+            advanced: true,
+            roundNumber: targetState.roundNumber,
+            pendingRoundBonus: clonePendingRoundBonus(targetState.pendingRoundBonus)
+        };
+    }
+
+    function consumePendingRoundBonus(state) {
+        const targetState = ensureRoundState(state);
+        if (!targetState) return null;
+        const pending = clonePendingRoundBonus(targetState.pendingRoundBonus);
+        targetState.pendingRoundBonus = null;
+        return pending;
+    }
+
     function getExpansionCells(state) {
         if (!state || !state.boardExpansion || typeof state.boardExpansion !== 'object') return [];
         return normalizeExpansionCells(state.boardExpansion);
@@ -163,6 +254,9 @@
             currentPlayer: BLACK,
             consecutivePasses: 0,
             turnNumber: 0,
+            roundNumber: 1,
+            roundCompletionByPlayer: createRoundCompletionByPlayer(null),
+            pendingRoundBonus: null,
             boardExpansion: createBoardExpansionState(null)
         };
     }
@@ -182,6 +276,9 @@
             currentPlayer: state.currentPlayer,
             consecutivePasses: state.consecutivePasses,
             turnNumber: state.turnNumber || 0,
+            roundNumber: normalizeRoundNumber(state && state.roundNumber),
+            roundCompletionByPlayer: createRoundCompletionByPlayer(state && state.roundCompletionByPlayer),
+            pendingRoundBonus: clonePendingRoundBonus(state && state.pendingRoundBonus),
             boardExpansion: createBoardExpansionState(sourceExpansion)
         };
     }
@@ -313,6 +410,7 @@
         newState.currentPlayer = -newState.currentPlayer;
         newState.consecutivePasses = state.consecutivePasses + 1;
         newState.turnNumber = (state.turnNumber || 0) + 1;
+        advanceRoundAfterCompletedTurn(newState, state.currentPlayer);
         return newState;
     }
 
@@ -466,6 +564,10 @@
         // State management
         createGameState,
         copyGameState,
+        ensureRoundState,
+        resolveRoundBonusAmount,
+        advanceRoundAfterCompletedTurn,
+        consumePendingRoundBonus,
         getExpansionCells,
 
         // Move logic
