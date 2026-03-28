@@ -331,6 +331,16 @@ function _createHiddenHandCardElement(cardId, ownerKey) {
     cardEl.textContent = 'CARD';
     return cardEl;
 }
+
+function _createCaptureReservedSlotElement() {
+    const cardEl = document.createElement('div');
+    cardEl.className = 'card-item capture-reserved-slot';
+    cardEl.style.opacity = '0';
+    cardEl.style.pointerEvents = 'none';
+    cardEl.setAttribute('aria-hidden', 'true');
+    return cardEl;
+}
+
 function _refreshDebugHandLayoutIfNeeded() {
     try {
         if (typeof require === 'function') {
@@ -684,6 +694,15 @@ function renderCardUI() {
     const revealVisibleCount = (handRevealState && Number.isFinite(handRevealState.visibleCount))
         ? Math.max(0, Math.trunc(handRevealState.visibleCount))
         : null;
+    const captureReservedState = (typeof window !== 'undefined' && window.__captureReservedHandSlotState && typeof window.__captureReservedHandSlotState === 'object')
+        ? window.__captureReservedHandSlotState
+        : null;
+    const reservedPlayerKey = (captureReservedState && (captureReservedState.playerKey === 'black' || captureReservedState.playerKey === 'white'))
+        ? captureReservedState.playerKey
+        : null;
+    const reservedHandIndex = (captureReservedState && Number.isInteger(captureReservedState.handIndex))
+        ? captureReservedState.handIndex
+        : null;
 
     function renderHandSlot(containerEl, ownerKey, revealByDefault) {
         if (!containerEl) return;
@@ -702,53 +721,111 @@ function renderCardUI() {
         const selectedOwnerKey = (cardState.selectedCardOwnerKey === 'white' || cardState.selectedCardOwnerKey === 'black')
             ? cardState.selectedCardOwnerKey
             : inputPlayerKey;
-
-        ownerHand.forEach((cardId, idx) => {
-            let cardEl = document.createElement('div');
-            const isHiddenToken = _isHiddenHandTokenForRender(cardId);
-            const isLocallyRevealedOpponentCard = !isNetworkMode
-                && !revealByDefault
-                && !isHiddenToken
-                && _isHandCardRevealedToViewerForRender(cardState, localRevealViewerKey, ownerKey, idx);
-            const canShowFace = isNetworkMode
-                ? (ownerKey === localPlayerKey || !isHiddenToken)
-                : (revealByDefault || isLocallyRevealedOpponentCard);
-
-            if (!canShowFace || isHiddenToken) {
-                cardEl = _createHiddenHandCardElement(cardId, ownerKey);
-            } else {
-                const cardDef = CARD_DEFS.find(c => c.id === cardId);
-                cardEl = createCardFaceElement(cardId);
-
-                const cost = cardDef ? (cardDef.cost || 0) : 0;
-
-                const hasNotUsedThisTurn = isDebugUnlimited ? true : !cardState.hasUsedCardThisTurnByPlayer[ownerKey];
-                const canAfford = isDebugUnlimited ? true : ((cardState.charge[ownerKey] || 0) >= cost);
-                const isOwnerTurn = ownerKey === 'black' ? isBlackTurn : !isBlackTurn;
-                const canInspectOwnerHand = isNetworkMode
-                    ? canShowFace
-                    : (isDebugHvH ? true : (ownerKey === 'black'));
-                const canControlOwnerHand = isNetworkMode
-                    ? (ownerKey === localPlayerKey && isOwnerTurn)
-                    : (isDebugHvH ? isOwnerTurn : (ownerKey === 'black' && isOwnerTurn));
-                const usable = canControlOwnerHand && canInteract && hasNotUsedThisTurn && canAfford;
-
-                if (canInspectOwnerHand && canInteract) {
-                    cardEl.classList.add('clickable');
-                    cardEl.addEventListener('click', () => onCardClick(cardId, ownerKey));
-                }
-                if (usable) {
-                    cardEl.classList.add('usable');
-                }
-                if (cardState.selectedCardId === cardId && selectedOwnerKey === ownerKey) {
-                    cardEl.classList.add('selected');
-                }
-
-                cardEl.dataset.cardId = cardId;
-                cardEl.dataset.ownerKey = ownerKey;
+        const pendingCaptureReservedIndex = (() => {
+            const ownerPending = cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[ownerKey];
+            if (
+                !ownerPending
+                || ownerPending.type !== 'CAPTURE_WILL'
+                || ownerPending.stage !== 'selectTarget'
+                || !Number.isInteger(ownerPending.sourceHandIndex)
+            ) {
+                return null;
             }
+            return Math.max(0, Math.trunc(ownerPending.sourceHandIndex));
+        })();
+        const insertedReservedHandIndex = Number.isInteger(pendingCaptureReservedIndex)
+            ? pendingCaptureReservedIndex
+            : (
+                reservedPlayerKey === ownerKey
+                && Number.isInteger(reservedHandIndex)
+                && reservedHandIndex >= ownerHand.length
+                ? reservedHandIndex
+                : null
+            );
+        const renderEntries = [];
 
-            if (shouldFade && idx >= Math.max(0, ownerHandLen - fadeCount)) {
+        for (let idx = 0; idx < ownerHand.length; idx += 1) {
+            if (Number.isInteger(insertedReservedHandIndex) && insertedReservedHandIndex === renderEntries.length) {
+                renderEntries.push({ kind: 'capture_reserved_placeholder', visualIndex: renderEntries.length });
+            }
+            renderEntries.push({
+                kind: 'card',
+                cardId: ownerHand[idx],
+                actualIndex: idx,
+                visualIndex: renderEntries.length
+            });
+        }
+        if (Number.isInteger(insertedReservedHandIndex) && insertedReservedHandIndex === renderEntries.length) {
+            renderEntries.push({ kind: 'capture_reserved_placeholder', visualIndex: renderEntries.length });
+        }
+
+        renderEntries.forEach((entry) => {
+            let cardEl = document.createElement('div');
+            const visualIndex = entry && Number.isInteger(entry.visualIndex)
+                ? entry.visualIndex
+                : renderEntries.length;
+            const isPlaceholderOnly = !!(entry && entry.kind === 'capture_reserved_placeholder');
+            const cardId = entry && entry.kind === 'card'
+                ? entry.cardId
+                : null;
+            const actualIndex = entry && entry.kind === 'card' && Number.isInteger(entry.actualIndex)
+                ? entry.actualIndex
+                : null;
+            const isCaptureReservedSlot = isPlaceholderOnly
+                || (reservedPlayerKey === ownerKey && reservedHandIndex === visualIndex);
+
+            if (isPlaceholderOnly) {
+                cardEl = _createCaptureReservedSlotElement();
+            } else {
+                const isHiddenToken = _isHiddenHandTokenForRender(cardId);
+                const isLocallyRevealedOpponentCard = !isNetworkMode
+                    && !revealByDefault
+                    && !isHiddenToken
+                    && _isHandCardRevealedToViewerForRender(cardState, localRevealViewerKey, ownerKey, actualIndex);
+                const canShowFace = isNetworkMode
+                    ? (ownerKey === localPlayerKey || !isHiddenToken)
+                    : (revealByDefault || isLocallyRevealedOpponentCard);
+
+                if (isCaptureReservedSlot) {
+                    cardEl = _createCaptureReservedSlotElement();
+                } else if (!canShowFace || isHiddenToken) {
+                    cardEl = _createHiddenHandCardElement(cardId, ownerKey);
+                } else {
+                    const cardDef = CARD_DEFS.find(c => c.id === cardId);
+                    cardEl = createCardFaceElement(cardId);
+
+                    const cost = cardDef ? (cardDef.cost || 0) : 0;
+
+                    const hasNotUsedThisTurn = isDebugUnlimited ? true : !cardState.hasUsedCardThisTurnByPlayer[ownerKey];
+                    const canAfford = isDebugUnlimited ? true : ((cardState.charge[ownerKey] || 0) >= cost);
+                    const isOwnerTurn = ownerKey === 'black' ? isBlackTurn : !isBlackTurn;
+                    const canInspectOwnerHand = isNetworkMode
+                        ? canShowFace
+                        : (isDebugHvH ? true : (ownerKey === 'black'));
+                    const canControlOwnerHand = isNetworkMode
+                        ? (ownerKey === localPlayerKey && isOwnerTurn)
+                        : (isDebugHvH ? isOwnerTurn : (ownerKey === 'black' && isOwnerTurn));
+                    const usable = canControlOwnerHand && canInteract && hasNotUsedThisTurn && canAfford;
+
+                    if (canInspectOwnerHand && canInteract) {
+                        cardEl.classList.add('clickable');
+                        cardEl.addEventListener('click', () => onCardClick(cardId, ownerKey));
+                    }
+                    if (usable) {
+                        cardEl.classList.add('usable');
+                    }
+                    if (cardState.selectedCardId === cardId && selectedOwnerKey === ownerKey) {
+                        cardEl.classList.add('selected');
+                    }
+                }
+            }
+            if (cardId) {
+                cardEl.dataset.cardId = cardId;
+            }
+            cardEl.dataset.ownerKey = ownerKey;
+            cardEl.dataset.handIndex = String(visualIndex);
+
+            if (!isPlaceholderOnly && shouldFade && actualIndex >= Math.max(0, ownerHandLen - fadeCount)) {
                 cardEl.classList.add('card-fade-prep');
             }
 

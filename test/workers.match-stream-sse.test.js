@@ -119,8 +119,8 @@ function runResumeScenario() {
     "  durableObject.sseEventBuffer = [",
     "    { id: 'SSE1_1_1', event: 'heartbeat', payload: { ok: true, roomId: 'SSE1', stateVersion: 1 } },",
     "    { id: 'SSE1_2_2', event: 'snapshot', payloadByViewer: {",
-    "      black: { ok: true, roomId: 'SSE1', stateVersion: 2, playbackEvents: [{ type: 'observer_bubble', phase: 2, targets: [{ player: 'black', text: 'resume' }] }], snapshot: { stateVersion: 2, gameState: { currentPlayer: -1, turnNumber: 2, consecutivePasses: 0 }, cardState: { hands: { black: ['b1'], white: ['__hidden_hand__:white:0'] }, charge: { black: 0, white: 0 }, pendingEffectByPlayer: { black: null, white: null }, hasUsedCardThisTurnByPlayer: { black: false, white: false }, lastUsedCardByPlayer: { black: null, white: null }, markers: [], discard: [], turnIndex: 2 } } },",
-    "      white: { ok: true, roomId: 'SSE1', stateVersion: 2, playbackEvents: [], snapshot: { stateVersion: 2, gameState: { currentPlayer: -1, turnNumber: 2, consecutivePasses: 0 }, cardState: { hands: { black: ['__hidden_hand__:black:0'], white: ['w1'] }, charge: { black: 0, white: 0 }, pendingEffectByPlayer: { black: null, white: null }, hasUsedCardThisTurnByPlayer: { black: false, white: false }, lastUsedCardByPlayer: { black: null, white: null }, markers: [], discard: [], turnIndex: 2 } } }",
+    "      black: { ok: true, roomId: 'SSE1', stateVersion: 2, playbackEvents: [{ type: 'observer_bubble', phase: 2, targets: [{ player: 'black', text: 'resume' }] }], effectLogs: ['白がカードを使用: 交換'], snapshot: { stateVersion: 2, gameState: { currentPlayer: -1, turnNumber: 2, consecutivePasses: 0 }, cardState: { hands: { black: ['b1'], white: ['__hidden_hand__:white:0'] }, charge: { black: 0, white: 0 }, pendingEffectByPlayer: { black: null, white: null }, hasUsedCardThisTurnByPlayer: { black: false, white: false }, lastUsedCardByPlayer: { black: null, white: null }, markers: [], discard: [], turnIndex: 2 } } },",
+    "      white: { ok: true, roomId: 'SSE1', stateVersion: 2, playbackEvents: [], effectLogs: ['白がカードを使用: 交換'], snapshot: { stateVersion: 2, gameState: { currentPlayer: -1, turnNumber: 2, consecutivePasses: 0 }, cardState: { hands: { black: ['__hidden_hand__:black:0'], white: ['w1'] }, charge: { black: 0, white: 0 }, pendingEffectByPlayer: { black: null, white: null }, hasUsedCardThisTurnByPlayer: { black: false, white: false }, lastUsedCardByPlayer: { black: null, white: null }, markers: [], discard: [], turnIndex: 2 } } }",
     "    } }",
     "  ];",
     "  const streamRequest = new Request('https://room/api/match/stream?seatKey=black&seatToken=token_black', { headers: { 'Last-Event-ID': 'SSE1_1_1' } });",
@@ -154,6 +154,7 @@ describe('match worker stream SSE', () => {
     expect(result.firstChunk).toContain('data: ');
     expect(result.firstChunk).toContain('"networkDebugEnabled":true');
     expect(result.firstChunk).toContain('"roomDeck":{"mode":"shared"');
+    expect(result.firstChunk).toContain('"effectLogs":[]');
   });
 
   test('Last-Event-ID 付き再接続では buffered snapshot を replay する', () => {
@@ -164,6 +165,7 @@ describe('match worker stream SSE', () => {
     expect(result.firstChunk).toContain('event: snapshot');
     expect(result.firstChunk).toContain('id: SSE1_2_2');
     expect(result.firstChunk).toContain('"observer_bubble"');
+    expect(result.firstChunk).toContain('"effectLogs":["白がカードを使用: 交換"]');
     expect(result.firstChunk).toContain('"__hidden_hand__:white:0"');
     expect(result.firstChunk).not.toContain('"type":"history"');
   });

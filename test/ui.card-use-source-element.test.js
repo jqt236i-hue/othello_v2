@@ -640,4 +640,37 @@ describe('card use source element selection', () => {
       expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
       delete global.waitForPlaybackIdle;
     });
-});
+
+    test('capture_to_hand_animation がある時も emitBoardUpdate を playback 完了まで待つ', async () => {
+      let resolvePlayback;
+      const playbackPromise = new Promise((resolve) => { resolvePlayback = resolve; });
+      global.waitForPlaybackIdle = jest.fn(() => playbackPromise);
+      global.CardLogic = {
+        getCardDef: (id) => ({ id, type: 'EQUALITY_WILL', name: '平等の意志', desc: 'd', cost: 1 })
+      };
+      global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+        ok: true,
+        nextCardState: global.cardState,
+        nextGameState: global.gameState,
+        playbackEvents: [
+          { type: 'card_use_animation', targets: [{ player: 'black', owner: 'black', cardId: 'dup_card' }] },
+          { type: 'capture_to_hand_animation', targets: [{ player: 'black', cardId: 'guardian_god_01', sourceRow: 4, sourceCol: 5, insertIndex: 1 }] }
+        ]
+      }));
+
+      require('../cards/card-interaction.js');
+      global.renderCardUI.mockClear();
+      global.emitBoardUpdate.mockClear();
+      window.useSelectedCard();
+
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
+
+      resolvePlayback();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+      delete global.waitForPlaybackIdle;
+    });
+  });

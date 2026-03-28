@@ -629,6 +629,7 @@ function buildPendingSelectionRecord(action, pendingType) {
         'superGravityTarget',
         'sacrificeTarget',
         'temptTarget',
+        'captureTarget',
         'swapTarget',
         'positionSwapTarget',
         'guardTarget',
@@ -2957,6 +2958,10 @@ function chooseTemptTarget(gameState, cardState, playerKey, rng) {
     );
 }
 
+function chooseCaptureTarget(gameState, cardState, playerKey, rng) {
+    return chooseTemptTarget(gameState, cardState, playerKey, rng);
+}
+
 function scoreTimeBombTarget(gameState, playerKey, target, rng) {
     if (!gameState || !Array.isArray(gameState.board) || !target) return -Infinity;
     const board = gameState.board;
@@ -3065,6 +3070,7 @@ function buildPendingSelectionAction(gameState, cardState, playerKey, pendingTyp
             chooseSuperGravityTarget,
             chooseSellCardTarget,
             chooseTemptTarget,
+            chooseCaptureTarget,
             chooseTimeBombTarget,
             chooseGuardTarget,
             chooseBoardExpansionTarget,

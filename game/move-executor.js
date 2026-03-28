@@ -297,9 +297,9 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
             },
             publishSnapshot: publishNetworkSnapshot,
             onTurnStart: onTurnStartLogic,
-            scheduleCpuTurn: ({ delayMs, expectedTurnNumber }) => {
+            scheduleCpuTurn: ({ delayMs, expectedTurnNumber, nextPlayerKey }) => {
                 const expectedCpuSchedule = {
-                    playerKey: 'white',
+                    playerKey: nextPlayerKey || 'white',
                     turnNumber: expectedTurnNumber
                 };
                 debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduling CPU', { CPU_DELAY: delayMs });

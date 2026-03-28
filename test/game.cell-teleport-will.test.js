@@ -37,10 +37,10 @@ function getAllOuterExpansionCells(owner = Core.EMPTY) {
 }
 
 describe('CELL_TELEPORT_WILL（マステレポート）', () => {
-  test('カード定義が存在し、コスト23である', () => {
+  test('カード定義が存在し、コスト18である', () => {
     const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'CELL_TELEPORT_WILL');
     expect(def).toBeTruthy();
-    expect(def.cost).toBe(23);
+    expect(def.cost).toBe(18);
   });
 
   test('対象は盤面上の石があるマスで、外側候補が無いと対象がない', () => {

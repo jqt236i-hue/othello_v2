@@ -293,6 +293,12 @@ function handleCellClick(row, col) {
         }
         return;
     }
+    if (pending && pending.type === 'CAPTURE_WILL' && pending.stage === 'selectTarget') {
+        if (typeof handleCaptureSelection === 'function') {
+            handleCaptureSelection(row, col, playerKey);
+        }
+        return;
+    }
     if (pending && pending.type === 'TRAP_WILL' && pending.stage === 'selectTarget') {
         if (typeof handleTrapSelection === 'function') {
             handleTrapSelection(row, col, playerKey);
@@ -378,9 +384,10 @@ function handleCellClick(row, col) {
         return;
     }
 
-    // Human move: BLACK always, or WHITE when network human mode is enabled
+    // Human move: BLACK always, WHITE when network human mode is enabled, or FATE_WILL controlled.
     const currentPlayerKey = getPlayerKey(gameState.currentPlayer);
-    const isHumanTurn = (currentPlayerKey === 'black') || (isHumanVsHumanModeEnabled() && currentPlayerKey === 'white');
+    const isFateWillControlled = !!((cardState && cardState.fateWillControllerByTurnOwner || {})[currentPlayerKey]);
+    const isHumanTurn = (currentPlayerKey === 'black') || (isHumanVsHumanModeEnabled() && currentPlayerKey === 'white') || isFateWillControlled;
     if (!isHumanTurn) return;
 
     const protection = getActiveProtectionForPlayer(gameState.currentPlayer);
@@ -483,9 +490,20 @@ function resolveNetworkLocalPlayerKey() {
 }
 
 function canLocalUserOperateCurrentTurn() {
-    if (!isNetworkModeForTurnManager()) return true;
-
     const currentPlayerKey = getPlayerKey(gameState.currentPlayer);
+    const isHvH = !!(__uiImpl_turn_manager && __uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN);
+    // FATE_WILL: if another player controls this turn, only the controller can operate.
+    // Applies in network mode and in local non-HvH mode.
+    if (!isHvH) {
+        const cs = (typeof cardState !== 'undefined' && cardState) ? cardState : null;
+        const fwc = cs && cs.fateWillControllerByTurnOwner;
+        const controller = fwc && fwc[currentPlayerKey];
+        if (controller) {
+            const localPlayerKey = resolveNetworkLocalPlayerKey();
+            return controller === localPlayerKey;
+        }
+    }
+    if (!isNetworkModeForTurnManager()) return true;
     const localPlayerKey = resolveNetworkLocalPlayerKey();
     return currentPlayerKey === localPlayerKey;
 }
@@ -646,6 +664,14 @@ function resetGame() {
     if (__uiImpl_turn_manager && typeof __uiImpl_turn_manager.clearLogUI === 'function') {
         __uiImpl_turn_manager.clearLogUI();
     }
+
+    try {
+        if (typeof emitGameReset === 'function') {
+            emitGameReset({
+                turnNumber: 0
+            });
+        }
+    } catch (e) { /* ignore */ }
 
     if (typeof emitLogAdded === 'function') {
         emitLogAdded(`ゲーム開始 (黒: Lv${cpuSmartness.black}, 白: Lv${cpuSmartness.white})`, 'normal');
@@ -920,6 +946,7 @@ if (typeof module !== 'undefined' && module.exports) {
         startActionSaveInterval,
         stopActionSaveInterval,
         watchdogPing,
+        canLocalUserOperateCurrentTurn,
         // Expose helper for testing / minimal UI integrations
         requestUIRender
     };

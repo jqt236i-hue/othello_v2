@@ -138,7 +138,8 @@
         { id: 'super_gravity_01', name: '超重力', type: 'SUPER_GRAVITY_WILL', cost: 16, desc: '盤面の石1つを選び、下方向へ限界まで移動させる。進行方向上の石は衝突時にすべて破壊して進む。' },
 
         { id: 'trap_01', name: '罠の意志', type: 'TRAP_WILL', cost: 4, desc: '自分の石を1つ罠石にしてターン終了。次の相手ターン中に反転されると、相手の布石を最大20奪う＋手札全破壊。' },
-        { id: 'tempt_01', name: '誘惑の意志', type: 'TEMPT_WILL', cost: 20, desc: '相手の特殊石1つを自分の石にする（残りターン等は維持）。対象が無いと使えない。' },
+        { id: 'tempt_01', name: '誘惑の意志', type: 'TEMPT_WILL', cost: 23, desc: '相手の特殊石1つを自分の石にする（残りターン等は維持）。対象が無いと使えない。' },
+        { id: 'capture_01', name: '捕獲の意志', type: 'CAPTURE_WILL', cost: 20, desc: '盤面上の敵の特殊石を1つ捕獲して自分の手札に加える。対象が無いと使えない。' },
         { id: 'double_chain_01', name: '二連鎖の意志', type: 'DOUBLE_CHAIN_WILL', cost: 22, desc: 'この手で起きた通常反転のあと、追加反転を1回行う。使用後、三連鎖の意志が手札に加わる。' },
         { id: 'triple_chain_01', name: '三連鎖の意志', type: 'TRIPLE_CHAIN_WILL', cost: 22, desc: 'この手で起きた通常反転のあと、追加反転を2回行う。使用後、四連鎖の意志が手札に加わる。', enabled: false },
         { id: 'quad_chain_01', name: '四連鎖の意志', type: 'QUAD_CHAIN_WILL', cost: 22, desc: 'この手で起きた通常反転のあと、追加反転を3回行う。使用後、無限連鎖の意志が手札に加わる。', enabled: false },
@@ -166,7 +167,7 @@
         { id: 'clone_01', name: '複製の意志', type: 'CLONE_WILL', cost: 16, desc: '盤面上の自分の石1つを選び、周囲8マスの空きからランダム1マスへ同じ石を複製する。生成では反転しない。特殊石は残り持続ターンなどを引き継ぐ。周囲に空きがない石は対象外。' },
         { id: 'split_01', name: '分裂の意志', type: 'SPLIT_WILL', cost: 12, desc: '盤面上の自分の石1つを選び、周囲8マスの空きからランダム1マスへ同じ石を分裂生成する。生成では反転しない。特殊石の残り持続ターンは元石・生成石とも半分になる。周囲に空きがない石は対象外。' },
         { id: 'teleport_01', name: 'テレポート', type: 'TELEPORT_WILL', cost: 10, desc: '盤面上の石1つを選び、ランダムな空きマスへテレポートさせる。対象は敵味方・通常石・特殊石を問わない。' },
-        { id: 'cell_teleport_01', name: 'マステレポート', type: 'CELL_TELEPORT_WILL', cost: 23, desc: '盤面上の石があるマス1つを選び、盤面拡張・盤面拡張神で追加できる外側マスのどこかへランダムにテレポートさせる。移動元のマスは穴になる。対象は敵味方・通常石・特殊石を問わない。' },
+        { id: 'cell_teleport_01', name: 'マステレポート', type: 'CELL_TELEPORT_WILL', cost: 18, desc: '盤面上の石があるマス1つを選び、盤面拡張・盤面拡張神で追加できる外側マスのどこかへランダムにテレポートさせる。移動元のマスは穴になる。対象は敵味方・通常石・特殊石を問わない。' },
         { id: 'cross_bomb_01', name: '十字爆弾', type: 'CROSS_BOMB', cost: 18, desc: '次に置く石を十字爆弾化。通常反転後に即起爆し、中心と縦横2マス（中心含む十字）の石を爆破する。' },
         { id: 'x_bomb_01', name: 'クロス爆弾', type: 'X_BOMB', cost: 18, desc: '次に置く石をクロス爆弾化。通常反転後に即起爆し、中心と斜め2マス（中心含むX字）の石を爆破する。' },
 
@@ -284,7 +285,7 @@
         { id: 'salvation_01', name: '救済の意志', type: 'SALVATION_WILL', cost: 17, desc: '直前の相手ターンで破壊された自分の通常石をすべてランダムな空きマスへ配置する。対象0枚の時は使用不可。特殊石は対象外。' },
 
         // EQUALITY_WILL (平等の意志) - 1 card, cost: 15
-        { id: 'equality_will_01', name: '平等の意志', type: 'EQUALITY_WILL', cost: 15, desc: '相手の石数が自分より10枚以上多い時のみ使用可。盤面の空きマスへランダムに最大3個、自分色の通常石を生成する。生成では反転しない。' }
+        { id: 'equality_will_01', name: '平等の意志', type: 'EQUALITY_WILL', cost: 15, desc: '相手の石数が自分より10個以上多い時のみ使用可。盤面の空きマスへランダムに最大3個、自分色の通常石を生成する。生成では反転しない。' }
     ];
 
     const CARD_DEFS = (catalogCards && catalogCards.length) ? catalogCards : CARD_DEFS_FALLBACK;
@@ -311,6 +312,7 @@
         'SUPER_GRAVITY_WILL',
         'TRAP_WILL',
         'TEMPT_WILL',
+        'CAPTURE_WILL',
         'DOUBLE_CHAIN_WILL',
         'TRIPLE_CHAIN_WILL',
         'QUAD_CHAIN_WILL',

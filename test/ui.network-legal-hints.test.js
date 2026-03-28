@@ -108,4 +108,17 @@ describe('network legal hints for join seat', () => {
     expect(legalCell).toBeTruthy();
     expect(legalCell.classList.contains('legal')).toBe(true);
   });
+
+  test('diff-renderer adds time-stop legal emphasis when time stop class is active', () => {
+    const diffRenderer = require('../ui/diff-renderer');
+
+    document.documentElement.classList.add('time-stop-active');
+    document.body.classList.add('time-stop-active');
+    diffRenderer.renderBoardDiff(global.boardEl);
+
+    const legalCell = global.boardEl.querySelector('.cell[data-row="2"][data-col="3"]');
+    expect(legalCell).toBeTruthy();
+    expect(legalCell.classList.contains('legal')).toBe(true);
+    expect(legalCell.classList.contains('time-stop-legal-emphasis')).toBe(true);
+  });
 });

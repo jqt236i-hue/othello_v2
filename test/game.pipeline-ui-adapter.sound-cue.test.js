@@ -478,6 +478,21 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(flipCue).toBeUndefined();
   });
 
+  test('capture_selected 成功時は capture_to_hand_animation phase で誘惑音を再生する', () => {
+    const base = [{
+      type: 'capture_to_hand_animation',
+      phase: 11,
+      targets: [{ player: 'black', cardId: 'guardian_god_01', sourceRow: 4, sourceCol: 5, insertIndex: 1 }]
+    }];
+    const raw = [{ type: 'capture_selected', applied: true, target: { row: 4, col: 5 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const captureCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'tempt_select');
+
+    expect(captureCue).toBeTruthy();
+    expect(captureCue.phase).toBe(11);
+  });
+
   test('dragon_converted_start は DRAGON 反転の flip phase で card_effect_flip を再生する', () => {
     const base = [{
       type: 'flip',

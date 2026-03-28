@@ -132,6 +132,37 @@
         return 'black';
     }
 
+    function resolvePlayerKeyFromTurnValueOptional(value) {
+        const normalized = (value === null || typeof value === 'undefined')
+            ? ''
+            : String(value).trim().toLowerCase();
+        if (normalized === 'white' || normalized === '-1') return 'white';
+        if (normalized === 'black' || normalized === '1' || normalized === '+1') return 'black';
+        if (value === -1) return 'white';
+        if (value === 1) return 'black';
+        return null;
+    }
+
+    function getFateWillControllerForTurnOwner(cardStateRef, turnOwnerKey) {
+        const ownerKey = resolvePlayerKeyFromTurnValueOptional(turnOwnerKey);
+        if (!cardStateRef || typeof cardStateRef !== 'object') return null;
+        const controllerMap = (cardStateRef.fateWillControllerByTurnOwner && typeof cardStateRef.fateWillControllerByTurnOwner === 'object')
+            ? cardStateRef.fateWillControllerByTurnOwner
+            : null;
+        if (!controllerMap) return null;
+        const controllerKey = controllerMap[ownerKey];
+        if (!controllerKey) return null;
+        return resolvePlayerKeyFromTurnValueOptional(controllerKey);
+    }
+
+    function resolveCpuTurnOwnerKey(gameStateRef, cardStateRef) {
+        const turnOwnerKey = resolvePlayerKeyFromTurnValueOptional(gameStateRef ? gameStateRef.currentPlayer : null);
+        if (!turnOwnerKey) return null;
+        const controllerKey = getFateWillControllerForTurnOwner(cardStateRef, turnOwnerKey);
+        const effectiveOperatorKey = controllerKey || turnOwnerKey;
+        return effectiveOperatorKey === 'white' ? turnOwnerKey : null;
+    }
+
     async function waitForPlaybackIdleIfNeeded(playbackEvents) {
         if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return;
 
@@ -370,9 +401,14 @@
             };
         }
 
-        const nextPlayerKey = resolveCurrentPlayerKey();
         const humanMode = !!opts.humanMode;
-        if (nextPlayerKey === 'white' && !humanMode && scheduleCpuTurn) {
+        const gameStateRef = readCurrentGameState();
+        const cardStateRef = readCurrentCardState();
+        const nextPlayerKey = resolveCurrentPlayerKey();
+        const cpuTurnOwnerKey = (!humanMode)
+            ? resolveCpuTurnOwnerKey(gameStateRef, cardStateRef)
+            : null;
+        if (cpuTurnOwnerKey && cpuTurnOwnerKey === nextPlayerKey && scheduleCpuTurn) {
             if (setProcessing) setProcessing(true);
             scheduleCpuTurn({
                 delayMs: cpuDelayMs,

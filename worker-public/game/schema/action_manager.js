@@ -204,6 +204,7 @@
                 positionSwapTarget: a.positionSwapTarget,
                 splitTarget: a.splitTarget,
                 temptTarget: a.temptTarget,
+                captureTarget: a.captureTarget,
                 expansionTarget: a.expansionTarget,
                 blockadeTarget: a.blockadeTarget,
                 meteorTarget: a.meteorTarget,

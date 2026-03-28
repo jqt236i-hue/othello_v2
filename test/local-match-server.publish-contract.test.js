@@ -1,6 +1,6 @@
 const http = require('http');
 const Core = require('../game/logic/core');
-const { createLocalMatchServer, resetRoomsForTests } = require('../scripts/local-match-server');
+const { createLocalMatchServer, resetRoomsForTests, patchRoomSnapshotForTests } = require('../scripts/local-match-server');
 
 function requestJson(port, method, path, payload) {
   return new Promise((resolve, reject) => {
@@ -236,6 +236,7 @@ describe('local match server publish contract', () => {
       const first = await requestJson(port, 'POST', '/api/match/publish', publishBody);
       expect(first.status).toBe(200);
       expect(Array.isArray(first.data.playbackEvents)).toBe(true);
+      expect(Array.isArray(first.data.effectLogs)).toBe(true);
       expect(first.data.playbackEvents.length).toBeGreaterThan(0);
 
       const replay = await requestJson(port, 'POST', '/api/match/publish', publishBody);
@@ -249,6 +250,7 @@ describe('local match server publish contract', () => {
         networkDebugEnabled: false,
         snapshot: expect.any(Object),
         playbackEvents: expect.any(Array),
+        effectLogs: expect.any(Array),
         seats: expect.any(Object),
         seatNames: expect.any(Object),
         turnTimer: expect.any(Object),
@@ -466,6 +468,123 @@ describe('local match server publish contract', () => {
       );
       expect(currentState.status).toBe(200);
       expect(currentState.data.snapshot.cardState.chargeDeltaEvents).toEqual([]);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('FATE_WILL controller seat can publish action during controlled opponent turn', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const blackSeatToken = created.data.seatToken;
+
+      const joined = await requestJson(port, 'POST', '/api/match/join', { roomId, playerName: 'しろ' });
+      expect(joined.status).toBe(200);
+      const whiteSeatToken = joined.data.seatToken;
+
+      // Set FATE_WILL controller state: black controls white's turn, and it is white's turn.
+      // We inject this into the room snapshot directly (test-only escape hatch).
+      const stateAfterJoin = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${encodeURIComponent(roomId)}&seatKey=white&seatToken=${encodeURIComponent(whiteSeatToken)}`
+      );
+      expect(stateAfterJoin.status).toBe(200);
+      const baseVersion = Number(stateAfterJoin.data.stateVersion);
+
+      // Patch the room: set currentPlayer to 'white' (already the case at game start for white's turn after black's first move)
+      // and arm fateWillControllerByTurnOwner so black controls white's turn.
+      const patched = patchRoomSnapshotForTests(roomId, (room) => {
+        // Ensure it is white's turn
+        if (room.snapshot && room.snapshot.gameState) {
+          room.snapshot.gameState.currentPlayer = -1; // white
+        }
+        if (room.snapshot && room.snapshot.cardState) {
+          room.snapshot.cardState.fateWillControllerByTurnOwner = { black: null, white: 'black' };
+        }
+      });
+      expect(patched).toBe(true);
+
+      // Fetch the patched state to get legal moves for white
+      const patchedState = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${encodeURIComponent(roomId)}&seatKey=white&seatToken=${encodeURIComponent(whiteSeatToken)}`
+      );
+      expect(patchedState.status).toBe(200);
+      const patchedVersion = Number(patchedState.data.stateVersion);
+
+      // Black (controller) publishes on behalf of white's turn
+      const move = pickFirstLegalMove(patchedState.data.snapshot, 'white');
+      const controllerPublish = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken: blackSeatToken,
+        baseVersion: patchedVersion,
+        operationId: 'op_fate_will_controller_1',
+        actionType: 'place',
+        actor: 'black',
+        params: { row: move.row, col: move.col },
+        action: {
+          type: 'place',
+          playerKey: 'black',
+          row: move.row,
+          col: move.col
+        }
+      });
+
+      // Controller action should be accepted (not OUT_OF_TURN)
+      expect(controllerPublish.status).toBe(200);
+      expect(controllerPublish.data.ok).toBe(true);
+      expect(controllerPublish.data.rejectedReason).toBeUndefined();
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('non-controller out-of-turn publish is still rejected with OUT_OF_TURN', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const blackSeatToken = created.data.seatToken;
+
+      const joined = await requestJson(port, 'POST', '/api/match/join', { roomId, playerName: 'しろ' });
+      expect(joined.status).toBe(200);
+      const whiteSeatToken = joined.data.seatToken;
+
+      const stateAfterJoin = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${encodeURIComponent(roomId)}&seatKey=white&seatToken=${encodeURIComponent(whiteSeatToken)}`
+      );
+      const stateVersion = Number(stateAfterJoin.data.stateVersion);
+      const move = pickFirstLegalMove(stateAfterJoin.data.snapshot, 'white');
+
+      // White tries to publish during black's turn with no FATE_WILL active
+      const outOfTurnPublish = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'white',
+        playerKey: 'white',
+        seatToken: whiteSeatToken,
+        baseVersion: stateVersion,
+        operationId: 'op_out_of_turn_1',
+        actionType: 'place',
+        actor: 'white',
+        params: { row: move.row, col: move.col },
+        action: { type: 'place', playerKey: 'white', row: move.row, col: move.col }
+      });
+
+      expect(outOfTurnPublish.status).toBe(409);
+      expect(outOfTurnPublish.data.ok).toBe(false);
+      expect(outOfTurnPublish.data.rejectedReason).toBe('OUT_OF_TURN');
     } finally {
       await closeServer(server);
     }

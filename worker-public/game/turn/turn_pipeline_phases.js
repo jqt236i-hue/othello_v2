@@ -1558,6 +1558,14 @@
             }
             cardState.prevOpponentTurnDestroyedNormalByPlayer[opponentKeyForSalvation] = [];
 
+            // Clear FATE_WILL controller for the opponent if the current player was that controller.
+            // This means the single controlled opponent turn has already completed.
+            if (cardState.fateWillControllerByTurnOwner) {
+                if (cardState.fateWillControllerByTurnOwner[opponentKeyForSalvation] === playerKey) {
+                    cardState.fateWillControllerByTurnOwner[opponentKeyForSalvation] = null;
+                }
+            }
+
             ensureGameRoundState(Core, gameState);
             applyPendingRoundBonusAtTurnStart(CardLogic, Core, cardState, gameState, events);
             const eventStartIndex = Array.isArray(events)
@@ -2250,6 +2258,25 @@
                     });
                 }
 
+                if (pendingType === 'FATE_WILL') {
+                    const res = (typeof CardLogic.applyFateWill === 'function')
+                        ? CardLogic.applyFateWill(cardState, playerKey)
+                        : { applied: false, reason: 'not_implemented' };
+                    if (!res || res.applied !== true) {
+                        throw new Error('FATE_WILL resolve failed');
+                    }
+                    if (cardState && cardState.pendingEffectByPlayer) {
+                        cardState.pendingEffectByPlayer[playerKey] = null;
+                    }
+                    events.push({
+                        type: 'fate_will_resolved',
+                        player: playerKey,
+                        opponentKey: res.turnOwnerKey,
+                        stacked: !!res.stacked,
+                        controllerKey: res.controllerKey
+                    });
+                }
+
             }
         } finally {
             emitObserverLostBubbleFromSnapshots(CardLogic, cardState, observerMarkersBeforeUsage, 'removed_during_card_usage');
@@ -2615,6 +2642,30 @@
                 return;
             } else if (pending && pending.type === 'TEMPT_WILL' && action.temptTarget == null) {
                 throw new Error('TEMPT_WILL requires temptTarget before placement');
+            }
+            if (pending && pending.type === 'CAPTURE_WILL' && action.captureTarget) {
+                const res = CardLogic.applyCaptureWill(
+                    cardState,
+                    gameState,
+                    playerKey,
+                    action.captureTarget.row,
+                    action.captureTarget.col
+                );
+                events.push({
+                    type: 'capture_selected',
+                    player: playerKey,
+                    target: action.captureTarget,
+                    applied: !!(res && res.applied),
+                    capturedCardId: (res && res.capturedCardId) ? res.capturedCardId : null,
+                    capturedCardType: (res && res.capturedCardType) ? res.capturedCardType : null,
+                    capturedCardName: (res && res.capturedCardName) ? res.capturedCardName : null,
+                    sourceSpecialType: (res && res.sourceSpecialType) ? res.sourceSpecialType : null,
+                    insertIndex: (res && Number.isInteger(res.insertIndex)) ? res.insertIndex : null
+                });
+                applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
+                return;
+            } else if (pending && pending.type === 'CAPTURE_WILL' && action.captureTarget == null) {
+                throw new Error('CAPTURE_WILL requires captureTarget before placement');
             }
             if (pending && pending.type === 'SWAP_WITH_ENEMY' && action.swapTarget) {
                 const swapped = CardLogic.applySwapEffect(
@@ -2995,8 +3046,12 @@
                 const flipReason = tabooReverseApplied ? 'taboo_reverse_flip' : 'standard_flip';
                 const appliedPrimaryFlips = [];
                 for (const [fr, fc] of flips) {
-                    const changeRes = BoardOps.changeAt(cardState, gameState, fr, fc, playerKey, flipCause, flipReason);
+                    const changeMeta = tabooReverseApplied ? { allowGhostFlip: true } : undefined;
+                    const changeRes = BoardOps.changeAt(cardState, gameState, fr, fc, playerKey, flipCause, flipReason, changeMeta);
                     if (changeRes && changeRes.changed) {
+                        if (tabooReverseApplied && CardLogic && typeof CardLogic.transferCellMarkerOwnership === 'function') {
+                            CardLogic.transferCellMarkerOwnership(cardState, fr, fc, playerKey);
+                        }
                         appliedPrimaryFlips.push([fr, fc]);
                     }
                 }
@@ -3087,18 +3142,18 @@
                 });
             }
 
-            if (flips.length > 0 && typeof CardLogic.clearBombAt === 'function') {
+            if (!tabooReverseApplied && flips.length > 0 && typeof CardLogic.clearBombAt === 'function') {
                 for (const [r, c] of flips) {
                     CardLogic.clearBombAt(cardState, r, c);
                 }
             }
-            if (flips.length > 0 && typeof CardLogic.clearHyperactiveAtPositions === 'function') {
+            if (!tabooReverseApplied && flips.length > 0 && typeof CardLogic.clearHyperactiveAtPositions === 'function') {
                 const flippedPositions = flips.map(([r, c]) => ({ row: r, col: c }));
                 CardLogic.clearHyperactiveAtPositions(cardState, flippedPositions);
             }
 
             // REGEN handling immediately after primary flips
-            if (flipCount > 0 && typeof CardLogic.applyRegenAfterFlips === 'function') {
+            if (!tabooReverseApplied && flipCount > 0 && typeof CardLogic.applyRegenAfterFlips === 'function') {
                 const regenRes = CardLogic.applyRegenAfterFlips(cardState, gameState, flips, playerKey);
                 if (regenRes.regened && regenRes.regened.length) {
                     events.push({ type: 'regen_triggered', details: regenRes.regened });

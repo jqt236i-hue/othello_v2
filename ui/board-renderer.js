@@ -87,6 +87,16 @@ function _syncTimeStopClassForBoardRenderer() {
     }
 }
 
+function applyTimeStopLegalEmphasis(cell, active) {
+    if (!cell || !cell.classList) return;
+    const shouldEmphasize = !!active && (
+        cell.classList.contains('legal') ||
+        cell.classList.contains('legal-free') ||
+        cell.classList.contains('selectable-friendly')
+    );
+    cell.classList.toggle('time-stop-legal-emphasis', shouldEmphasize);
+}
+
 function renderBoard() {
     _syncTimeStopClassForBoardRenderer();
     // Single Visual Writer: skip renders while playback is active or already queued.
@@ -259,8 +269,20 @@ function _canLocalPlayerControlCurrentTurnForBoard() {
             isNetworkMode = matchMode === 'network';
         }
     } catch (e) { /* ignore */ }
-    if (!isNetworkMode) return true;
     const currentPlayerKey = gameState.currentPlayer === WHITE ? 'white' : 'black';
+    const isHvH = !!(typeof window !== 'undefined' && window.DEBUG_HUMAN_VS_HUMAN === true);
+    // FATE_WILL: if another player controls this turn, only the controller can operate.
+    // Applies in network mode and in local non-HvH mode.
+    if (isNetworkMode || !isHvH) {
+        const cs = (typeof cardState !== 'undefined' && cardState) ? cardState : null;
+        const fwc = cs && cs.fateWillControllerByTurnOwner;
+        const controller = fwc && fwc[currentPlayerKey];
+        if (controller) {
+            const localPlayerKey = _resolveNetworkLocalPlayerKeyForBoard();
+            return controller === localPlayerKey;
+        }
+    }
+    if (!isNetworkMode) return true;
     const localPlayerKey = _resolveNetworkLocalPlayerKeyForBoard();
     return currentPlayerKey === localPlayerKey;
 }
@@ -277,6 +299,7 @@ function renderBoardFull() {
     const playerKey = getPlayerKey(player);
     const pending = cardState.pendingEffectByPlayer[playerKey];
     const isTabooReversePending = !!(pending && pending.type === 'TABOO_REVERSE_WILL');
+    const timeStopActive = _isTimeStopActiveForBoardRenderer();
     const freePlacementActive = !!(pending && (
         (typeof CardLogic !== 'undefined' &&
             CardLogic &&
@@ -312,10 +335,13 @@ function renderBoardFull() {
         : ((typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function')
             ? window.getCurrentMatchMode() === 'network'
             : ((typeof window !== 'undefined' ? window.MATCH_MODE : null) === 'network')));
+    // FATE_WILL: show legal hints and allow interaction during the controlled (victim's) turn.
+    const isFateWillControlledTurn = !!(cardState && cardState.fateWillControllerByTurnOwner && cardState.fateWillControllerByTurnOwner[playerKey]);
     const isHumanTurn = isNetworkMode
         ? _canLocalPlayerControlCurrentTurnForBoard()
         : ((gameState.currentPlayer === BLACK) ||
-            (window.DEBUG_HUMAN_VS_HUMAN && gameState.currentPlayer === WHITE));
+            (window.DEBUG_HUMAN_VS_HUMAN && gameState.currentPlayer === WHITE) ||
+            isFateWillControlledTurn);
     const showLegalHints = isHumanTurn && !isSelectingTarget && _canLocalPlayerControlCurrentTurnForBoard();
 
     let normalLegalSet = new Set();
@@ -469,6 +495,7 @@ function renderBoardFull() {
             if (isHumanTurn && selectableTargetSet.has(key)) {
                 cell.classList.add('selectable-friendly');
             }
+            applyTimeStopLegalEmphasis(cell, timeStopActive);
 
             const val = gameState.board[r][c];
             if (val !== EMPTY) {
@@ -814,6 +841,7 @@ if (typeof module !== 'undefined' && module.exports) {
         renderBoard,
         renderBoardFull,
         updateOccupancyUI,
+        applyTimeStopLegalEmphasis,
         ensureDiscSkeleton,
         getDiscHudRoot,
         applyDiscRenderState,

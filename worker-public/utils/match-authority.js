@@ -209,6 +209,18 @@ function normalizePublishMeta(value) {
     return normalized;
 }
 
+function normalizeEffectLogMessages(values) {
+    const source = Array.isArray(values) ? values : [];
+    const next = [];
+    for (let index = 0; index < source.length; index += 1) {
+        const text = String(source[index] || '').trim();
+        if (!text) continue;
+        if (next.length > 0 && next[next.length - 1] === text) continue;
+        next.push(text);
+    }
+    return next;
+}
+
 function buildPublishResponsePayload(options) {
     const opts = (options && typeof options === 'object') ? options : {};
     const payload = {
@@ -222,6 +234,7 @@ function buildPublishResponsePayload(options) {
         networkDebugEnabled: opts.networkDebugEnabled === true,
         turnTimer: (opts.turnTimer && typeof opts.turnTimer === 'object') ? opts.turnTimer : null,
         playbackEvents: Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [],
+        effectLogs: normalizeEffectLogMessages(opts.effectLogs),
         serverTime: Number.isFinite(Number(opts.serverTime)) ? Number(opts.serverTime) : Date.now()
     };
 
@@ -369,6 +382,39 @@ function sanitizeOwnerOnlyTrapState(cardState, viewerSeatKey) {
     return cardState;
 }
 
+/**
+ * Returns the FATE_WILL controller seat key for the given turn owner, or null if none.
+ * Reads from snapshot.cardState.fateWillControllerByTurnOwner.
+ */
+function getFateWillControllerKey(snapshot, turnOwnerKey) {
+    const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object')
+        ? snapshot.cardState
+        : null;
+    if (!cardState) return null;
+    const controllerMap = (cardState.fateWillControllerByTurnOwner && typeof cardState.fateWillControllerByTurnOwner === 'object')
+        ? cardState.fateWillControllerByTurnOwner
+        : {};
+    const owner = parseSeatKeyOptional(turnOwnerKey);
+    if (!owner) return null;
+    return parseSeatKeyOptional(controllerMap[owner]) || null;
+}
+
+/**
+ * Returns true if seatKey is the authenticated FATE_WILL controller for the current turn owner.
+ * Only valid when it is currently the turn owner's turn (gameState.currentPlayer === turnOwnerKey).
+ */
+function isFateWillControllerForCurrentTurn(snapshot, seatKey) {
+    const seat = parseSeatKeyOptional(seatKey);
+    if (!seat) return false;
+    const gameState = (snapshot && snapshot.gameState && typeof snapshot.gameState === 'object')
+        ? snapshot.gameState
+        : null;
+    const currentPlayerKey = getCurrentPlayerKey(gameState);
+    if (seat === currentPlayerKey) return false;
+    const controllerKey = getFateWillControllerKey(snapshot, currentPlayerKey);
+    return controllerKey === seat;
+}
+
 function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
     const shot = deepClone(snapshotValue || {});
     const meta = (metadata && typeof metadata === 'object') ? metadata : {};
@@ -397,6 +443,12 @@ function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
         : new Set();
     cardState.hands = cardState.hands && typeof cardState.hands === 'object' ? cardState.hands : {};
 
+    // Determine current turn owner for FATE_WILL controller hand visibility.
+    const currentTurnOwner = getCurrentPlayerKey(shot.gameState && typeof shot.gameState === 'object' ? shot.gameState : null);
+    const fateWillControllerMap = (cardState.fateWillControllerByTurnOwner && typeof cardState.fateWillControllerByTurnOwner === 'object')
+        ? cardState.fateWillControllerByTurnOwner
+        : {};
+
     for (const ownerKey of PLAYER_KEYS) {
         const ownerHand = Array.isArray(hands[ownerKey])
             ? hands[ownerKey].map((cardId, handIndex) => (
@@ -408,6 +460,14 @@ function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
         const ownerHandCopyIds = normalizeHandCopyIdArray(handCopyIdsByPlayer[ownerKey], ownerHand.length);
         sourceHands[ownerKey] = ownerHand;
         if (viewer && ownerKey === viewer) {
+            cardState.hands[ownerKey] = ownerHand.slice();
+            continue;
+        }
+        // Reveal the turn owner's hand to the FATE_WILL controller during the controlled turn.
+        const isFateWillControlledHand = viewer
+            && ownerKey === currentTurnOwner
+            && parseSeatKeyOptional(fateWillControllerMap[ownerKey]) === viewer;
+        if (isFateWillControlledHand) {
             cardState.hands[ownerKey] = ownerHand.slice();
             continue;
         }
@@ -612,7 +672,10 @@ module.exports = {
     makeHiddenHandToken,
     parseHiddenHandToken,
     resolveAuthenticatedSeatKey,
+    getFateWillControllerKey,
+    isFateWillControllerForCurrentTurn,
     normalizePublishMeta,
+    normalizeEffectLogMessages,
     buildPublishResponsePayload,
     stripTransientPresentationState,
     stripTransientChargeDeltaState,

@@ -108,6 +108,38 @@
         }
         return out;
     }, []));
+    const CAPTURE_SOURCE_CARD_TYPE_BY_SPECIAL_TYPE = Object.freeze({
+        TRAP: 'TRAP_WILL',
+        PROTECTED: 'PROTECTED_NEXT_STONE',
+        PERMA_PROTECTED: 'PERMA_PROTECT_NEXT_STONE',
+        ABSOLUTE_PROTECTED: 'PERMA_PROTECT_NEXT_STONE',
+        TIME_BOMB: 'TIME_BOMB',
+        TIME_STOP: 'TIME_STOP_GOD',
+        ULTIMATE_REVERSE_DRAGON: 'ULTIMATE_REVERSE_DRAGON',
+        BREEDING: 'BREEDING_WILL',
+        PROLIFERATION: 'PROLIFERATION_WILL',
+        HYPERACTIVE: 'HYPERACTIVE_WILL',
+        INHERITED_HYPERACTIVE: 'HYPERACTIVE_INHERIT_WILL',
+        EXTREME_HYPERACTIVE: 'EXTREME_HYPERACTIVE_WILL',
+        ESCAPE_HYPERACTIVE: 'ESCAPE_WILL',
+        ROBOT_VACUUM: 'ROBOT_VACUUM_WILL',
+        GLUTTONOUS: 'GLUTTONOUS_WILL',
+        ULTIMATE_HYPERACTIVE: 'ULTIMATE_HYPERACTIVE_GOD',
+        REGEN: 'REGEN_WILL',
+        WORK: 'WORK_WILL',
+        BLOCKADE: 'BLOCKADE_WILL',
+        FREEZE: 'FREEZE_WILL',
+        OBSERVER: 'OBSERVER_WILL',
+        DESTROY_DRAGON: 'DESTROY_DRAGON_WILL',
+        LIGHTNING: 'LIGHTNING_WILL',
+        GHOST: 'GHOST_WILL',
+        AFTERIMAGE: 'AFTERIMAGE_WILL',
+        WILL_HUNTER_KING: 'WILL_HUNTER_KING',
+        CRYSTAL_STONE: 'CRYSTAL_STONE',
+        GOLD_STONE: 'GOLD_STONE',
+        SILVER_STONE: 'SILVER_STONE',
+        RAINBOW_STONE: 'RAINBOW_STONE'
+    });
     const NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS = Object.freeze({
         CRYSTAL_STONE: {
             multiplier: 4,
@@ -1914,7 +1946,13 @@
             // SALVATION_WILL: per-player list of {row, col} for normal stones destroyed on the
             // immediately previous opponent turn. Reset at the start of each player's turn for
             // the opponent (victim) key. Only normal stones (no specialStone marker) are recorded.
-            prevOpponentTurnDestroyedNormalByPlayer: { black: [], white: [] }
+            prevOpponentTurnDestroyedNormalByPlayer: { black: [], white: [] },
+
+            // FATE_WILL: maps turn-owner key to the controller key (the player who used the card).
+            // When non-null for a given turn owner, that upcoming opponent turn is operated by the
+            // controller instead. Cleared at the start of the controller's next turn (i.e. after
+            // the single controlled turn ends). Stacking/nesting is blocked.
+            fateWillControllerByTurnOwner: { black: null, white: null }
         };
         ensureCardCopyState(cardState);
         return cardState;
@@ -2109,7 +2147,14 @@
                         ? cs.prevOpponentTurnDestroyedNormalByPlayer.white.map(p => ({ row: p.row, col: p.col }))
                         : []
                 }
-                : { black: [], white: [] }
+                : { black: [], white: [] },
+
+            fateWillControllerByTurnOwner: (cs.fateWillControllerByTurnOwner && typeof cs.fateWillControllerByTurnOwner === 'object')
+                ? {
+                    black: cs.fateWillControllerByTurnOwner.black || null,
+                    white: cs.fateWillControllerByTurnOwner.white || null
+                }
+                : { black: null, white: null }
         };
         ensureCardCopyState(nextState);
         return nextState;
@@ -2170,8 +2215,9 @@
      * @returns {Object} The created marker
      */
     function addMarker(cardState, kind, row, col, owner, data) {
+        const markerData = attachMarkerOriginIfNeeded(cardState, kind, owner, data);
         if (CardMarkersModule && typeof CardMarkersModule.addMarker === 'function') {
-            return CardMarkersModule.addMarker(cardState, kind, row, col, owner, data);
+            return CardMarkersModule.addMarker(cardState, kind, row, col, owner, markerData);
         }
         ensureMarkers(cardState);
         const id = cardState._nextMarkerId || 1;
@@ -2181,7 +2227,7 @@
         if (typeof cardState._nextCreatedSeq === 'undefined') cardState._nextCreatedSeq = 1;
         const createdSeq = cardState._nextCreatedSeq++;
 
-        const normalized = normalizeMarkerInput(kind, data);
+        const normalized = normalizeMarkerInput(kind, markerData);
         const marker = {
             id,
             row,
@@ -2406,6 +2452,77 @@
         return CardHandManagerModule.getCardCost(cardId, getCardHandManagerContext());
     }
 
+    function getCardDefByType(cardType) {
+        const normalizedType = String(cardType || '');
+        if (!normalizedType) return null;
+        for (const cardDef of CARD_DEFS || []) {
+            if (cardDef && cardDef.type === normalizedType) return cardDef;
+        }
+        return null;
+    }
+
+    function getCardIdByType(cardType) {
+        const cardDef = getCardDefByType(cardType);
+        return cardDef && cardDef.id ? cardDef.id : null;
+    }
+
+    function resolveCaptureSourceTypeFromMarkerData(markerData) {
+        if (!markerData || typeof markerData !== 'object') return null;
+        if (typeof markerData.sourceType === 'string' && markerData.sourceType) {
+            return markerData.sourceType;
+        }
+        if (typeof markerData.sourceCardId === 'string' && markerData.sourceCardId) {
+            return getCardType(markerData.sourceCardId);
+        }
+        const specialType = (typeof markerData.type === 'string' && markerData.type)
+            ? markerData.type
+            : null;
+        return specialType ? (CAPTURE_SOURCE_CARD_TYPE_BY_SPECIAL_TYPE[specialType] || null) : null;
+    }
+
+    function resolveCaptureSourceInfo(markerEntry) {
+        const marker = markerEntry && markerEntry.marker ? markerEntry.marker : null;
+        const markerData = marker && marker.data ? marker.data : null;
+        if (!marker || !markerData) return null;
+        const sourceType = resolveCaptureSourceTypeFromMarkerData(markerData);
+        const sourceCardId = (typeof markerData.sourceCardId === 'string' && markerData.sourceCardId)
+            ? markerData.sourceCardId
+            : getCardIdByType(sourceType);
+        if (!sourceCardId) return null;
+        const sourceCardType = sourceType || getCardType(sourceCardId);
+        const sourceCardDef = getCardDef(sourceCardId);
+        return {
+            sourceCardId,
+            sourceCardType,
+            sourceCardDef,
+            sourceCardName: sourceCardDef && sourceCardDef.name ? sourceCardDef.name : null,
+            sourceSpecialType: (typeof markerData.type === 'string' && markerData.type) ? markerData.type : null
+        };
+    }
+
+    function attachMarkerOriginIfNeeded(cardState, kind, owner, data) {
+        const normalizedKind = String(kind || '');
+        const markerData = (data && typeof data === 'object') ? { ...data } : {};
+        const isSpecialMarker =
+            normalizedKind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') ||
+            normalizedKind === (MARKER_CATEGORIES ? MARKER_CATEGORIES.BOMB : 'bomb') ||
+            typeof markerData.type === 'string';
+        if (!isSpecialMarker || !markerData.type) return markerData;
+        if (markerData.sourceType && markerData.sourceCardId) return markerData;
+
+        const pending = cardState && cardState.pendingEffectByPlayer && owner
+            ? cardState.pendingEffectByPlayer[owner]
+            : null;
+        const pendingType = pending && typeof pending.type === 'string' ? pending.type : null;
+        if (!markerData.sourceType && pendingType) {
+            markerData.sourceType = pendingType;
+        }
+        if (!markerData.sourceCardId && markerData.sourceType) {
+            markerData.sourceCardId = getCardIdByType(markerData.sourceType);
+        }
+        return markerData;
+    }
+
     /**
      * Check if card can be used
      * @param {Object} cardState
@@ -2534,6 +2651,10 @@
         const counts = countDiscsForCardComparison(gameState);
         if (playerKey === 'white') return counts.black - counts.white;
         return counts.white - counts.black;
+    }
+
+    function getEqualityWillBoardCounts(gameState) {
+        return countDiscsForCardComparison(gameState);
     }
 
     function hasFewerDiscsThanOpponentForPlayer(gameState, playerKey) {
@@ -2689,6 +2810,7 @@
                 buildHeavenBlessingOffers,
                 buildCondemnOffers,
                 getTemptWillTargets,
+                getCaptureWillTargets,
                 getStrongWindTargets,
                 getSuperBuoyancyTargets,
                 getSuperGravityTargets,
@@ -2724,8 +2846,9 @@
         const heavenOffers = Array.isArray(usagePrecheck.heavenOffers) ? usagePrecheck.heavenOffers : null;
         const condemnOffers = Array.isArray(usagePrecheck.condemnOffers) ? usagePrecheck.condemnOffers : null;
 
+        let removedCard = null;
         if (!(opts && opts.noConsume)) {
-            const removedCard = removeHandCardAt(cardState, handKey, idx);
+            removedCard = removeHandCardAt(cardState, handKey, idx);
             if (!removedCard || removedCard.cardId !== cardId) return false;
             addCardToDiscard(cardState, removedCard.cardId, removedCard.cardCopyId);
             // Consume charge
@@ -2753,6 +2876,7 @@
                     cardType === 'POSITION_SWAP_WILL' ||
                     cardType === 'TRAP_WILL' ||
                     cardType === 'TEMPT_WILL' ||
+                    cardType === 'CAPTURE_WILL' ||
                     cardType === 'GUARD_WILL' ||
                     cardType === 'GUARDIAN_GOD' ||
                     cardType === 'HYPERACTIVE_INHERIT_WILL' ||
@@ -2775,12 +2899,14 @@
                 ? CardPendingStateManagerModule.createPendingEffectState({
                     cardType,
                     cardId,
+                    sourceHandIndex: removedCard ? removedCard.handIndex : undefined,
                     needsSelection,
                     offers: pendingOffers
                 })
                 : {
                     type: cardType,
                     cardId,
+                    sourceHandIndex: removedCard ? removedCard.handIndex : undefined,
                     stage: needsSelection ? 'selectTarget' : null,
                     offers: pendingOffers,
                     selectedCount: cardType === 'BOARD_EXPANSION_GOD' ? 0 : undefined,
@@ -2940,6 +3066,11 @@
             res.push({ row, col });
         }
         return res;
+    }
+
+    function getCaptureWillTargets(cardState, gameState, playerKey) {
+        const targets = getTemptWillTargets(cardState, gameState, playerKey);
+        return targets.filter((target) => !!resolveCaptureSourceInfo(getSpecialMarkerAt(cardState, target.row, target.col)));
     }
 
     function getTrapTargets(cardState, gameState, playerKey) {
@@ -3559,19 +3690,8 @@
         }
 
         // Transfer ownership metadata while preserving remaining turns/counters.
-        let wasWork = false;
-        const specialMarker = findSpecialMarkerAt(cardState, row, col);
-        if (specialMarker) {
-            wasWork = !!(specialMarker.data && specialMarker.data.type === 'WORK');
-            specialMarker.owner = playerKey;
-            if (specialMarker.data && specialMarker.data.expiresForPlayer !== undefined) {
-                specialMarker.data.expiresForPlayer = playerKey;
-            }
-        }
-        const bombMarker = findBombMarkerAt(cardState, row, col);
-        if (bombMarker) {
-            bombMarker.owner = playerKey;
-        }
+        const transferResult = transferCellMarkerOwnership(cardState, row, col, playerKey);
+        const wasWork = !!(transferResult && transferResult.hadWork);
 
         // If this was a WORK anchor, STEAL ends the effect immediately.
         if (wasWork) {
@@ -3597,6 +3717,131 @@
 
         cardState.pendingEffectByPlayer[playerKey] = null;
         return { applied: true };
+    }
+
+    function transferCellMarkerOwnership(cardState, row, col, playerKey) {
+        const ownerKey = playerKey === 'white' ? 'white' : 'black';
+        const ownerColor = ownerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
+        const markersAtCell = getMarkers(cardState).filter((marker) => (
+            marker &&
+            marker.row === row &&
+            marker.col === col
+        ));
+        let transferred = false;
+        let hadWork = false;
+
+        for (const marker of markersAtCell) {
+            transferred = true;
+            marker.owner = ownerKey;
+            const markerData = (marker.data && typeof marker.data === 'object') ? marker.data : null;
+            if (!markerData) continue;
+            if (String(markerData.type || '').toUpperCase() === 'WORK') {
+                hadWork = true;
+            }
+            if (Object.prototype.hasOwnProperty.call(markerData, 'expiresForPlayer')) {
+                markerData.expiresForPlayer = ownerKey;
+            }
+            if (Object.prototype.hasOwnProperty.call(markerData, 'ownerColor')) {
+                markerData.ownerColor = typeof markerData.ownerColor === 'number'
+                    ? ownerColor
+                    : ownerKey;
+            }
+        }
+
+        return { transferred, hadWork };
+    }
+
+    function applyCaptureWill(cardState, gameState, playerKey, row, col) {
+        const pending = cardState.pendingEffectByPlayer[playerKey];
+        if (!pending || pending.type !== 'CAPTURE_WILL' || pending.stage !== 'selectTarget') {
+            return { applied: false, reason: 'not_pending' };
+        }
+
+        const opponentKey = playerKey === 'black' ? 'white' : 'black';
+        if (!isSpecialStoneAt(cardState, row, col)) return { applied: false, reason: 'not_special' };
+        if (getSpecialOwnerAt(cardState, row, col) !== opponentKey) return { applied: false, reason: 'not_opponent_special' };
+        if (getCellValueForCard(gameState, row, col) === EMPTY) return { applied: false, reason: 'empty' };
+        const guarded = getSpecialMarkers(cardState).some(m => (
+            m &&
+            m.row === row &&
+            m.col === col &&
+            m.data &&
+            m.data.type === 'GUARD'
+        ));
+        if (guarded) return { applied: false, reason: 'guarded' };
+        if (isAbsoluteProtectedCell(cardState, row, col)) return { applied: false, reason: 'absolute_protected' };
+
+        const markerEntry = getSpecialMarkerAt(cardState, row, col);
+        const captureSource = resolveCaptureSourceInfo(markerEntry);
+        if (!captureSource || !captureSource.sourceCardId) {
+            return { applied: false, reason: 'missing_source_card' };
+        }
+
+        const insertIndex = Number.isInteger(pending.sourceHandIndex)
+            ? Math.max(0, pending.sourceHandIndex)
+            : ((cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])) ? cardState.hands[playerKey].length : 0);
+        const added = addCardToHand(cardState, playerKey, captureSource.sourceCardId, {
+            insertIndex,
+            ignoreHandLimit: true
+        });
+        if (!added) return { applied: false, reason: 'hand_add_failed' };
+
+        const stoneId = getStoneIdAtForCard(cardState, gameState, row, col);
+        const targetValue = getCellValueForCard(gameState, row, col);
+        const ownerBefore = targetValue === (BLACK || 1) ? 'black' : 'white';
+        const wasWork = !!(markerEntry && markerEntry.marker && markerEntry.marker.data && markerEntry.marker.data.type === 'WORK');
+
+        clearStoneIdAtForCard(cardState, gameState, row, col);
+        setCellValueForCard(gameState, row, col, EMPTY);
+        removeMarkersAt(cardState, row, col);
+
+        if (wasWork && cardState.workAnchorPosByPlayer && cardState.workAnchorPosByPlayer[opponentKey]) {
+            cardState.workAnchorPosByPlayer[opponentKey] = null;
+            emitPresentationEvent(cardState, {
+                type: 'WORK_REMOVED',
+                row,
+                col,
+                ownerBefore: opponentKey,
+                ownerAfter: playerKey,
+                cause: 'CAPTURE_WILL',
+                reason: 'captured_to_hand',
+                removed: true,
+                meta: { reason: 'captured_to_hand' }
+            });
+        }
+
+        emitPresentationEvent(cardState, {
+            type: 'HAND_ADD',
+            player: playerKey,
+            cardId: captureSource.sourceCardId,
+            count: 1,
+            reason: 'capture_will',
+            meta: {
+                owner: playerKey,
+                reason: 'capture_will',
+                sourceType: captureSource.sourceCardType || null,
+                sourceCardId: captureSource.sourceCardId,
+                sourceName: captureSource.sourceCardName || null,
+                sourceSpecialType: captureSource.sourceSpecialType || null,
+                sourceRow: row,
+                sourceCol: col,
+                sourceOwner: ownerBefore,
+                stoneId: stoneId || null,
+                insertIndex: added.handIndex
+            }
+        });
+
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return {
+            applied: true,
+            target: { row, col },
+            capturedCardId: captureSource.sourceCardId,
+            capturedCardType: captureSource.sourceCardType || null,
+            capturedCardName: captureSource.sourceCardName || null,
+            sourceSpecialType: captureSource.sourceSpecialType || null,
+            stoneId: stoneId || null,
+            insertIndex: added.handIndex
+        };
     }
 
     function applyGuardWill(cardState, gameState, playerKey, row, col) {
@@ -4422,6 +4667,45 @@
         return result;
     }
 
+    /**
+     * Returns the controller key for a given turn owner if FATE_WILL is active.
+     * @param {Object} cardState
+     * @param {string} turnOwnerKey - 'black' or 'white'
+     * @returns {string|null} controller key or null
+     */
+    function getFateWillControllerForTurnOwner(cardState, turnOwnerKey) {
+        if (!cardState || !cardState.fateWillControllerByTurnOwner) return null;
+        const key = String(turnOwnerKey || '');
+        if (key !== 'black' && key !== 'white') return null;
+        return cardState.fateWillControllerByTurnOwner[key] || null;
+    }
+
+    /**
+     * Resolve FATE_WILL usage: arm the controller override for the opponent's next turn.
+     * If stacking (effect already active for opponent, or current turn is already controlled),
+     * the card is consumed but has no additional control effect per spec.
+     */
+    function applyFateWill(cardState, playerKey) {
+        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        if (!pending || pending.type !== 'FATE_WILL') {
+            return { applied: false, reason: 'not_pending' };
+        }
+        const opponentKey = playerKey === 'black' ? 'white' : 'black';
+        if (!cardState.fateWillControllerByTurnOwner) {
+            cardState.fateWillControllerByTurnOwner = { black: null, white: null };
+        }
+        // Prevent stacking/nesting: if opponent already has a controller, or if this
+        // player's own turn is currently being controlled, treat as no additional effect.
+        const opponentAlreadyControlled = !!cardState.fateWillControllerByTurnOwner[opponentKey];
+        const currentTurnIsControlled = !!cardState.fateWillControllerByTurnOwner[playerKey];
+        const alreadyActive = opponentAlreadyControlled || currentTurnIsControlled;
+        if (!alreadyActive) {
+            cardState.fateWillControllerByTurnOwner[opponentKey] = playerKey;
+        }
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return { applied: true, stacked: alreadyActive, controllerKey: playerKey, turnOwnerKey: opponentKey };
+    }
+
     function getStrongWindTargets(cardState, gameState) {
         if (CardSelectorsModule && typeof CardSelectorsModule.getStrongWindTargets === 'function') {
             return CardSelectorsModule.getStrongWindTargets(cardState, gameState);
@@ -4926,6 +5210,7 @@
                 canUseTimeStopGodForPlayer,
                 countOpponentOccupiedCornersForPlayer,
                 getTemptWillTargets,
+                getCaptureWillTargets,
                 getStrongWindTargets,
                 getSuperBuoyancyTargets,
                 getSuperGravityTargets,
@@ -5366,18 +5651,14 @@
     }
 
     function getTabooReverseDirectionalFlips(gameState, row, col, ownerVal, direction, context = {}) {
-        const protectedStones = context.protectedStones || [];
-        const permaProtectedStones = context.permaProtectedStones || [];
         const blockedCells = context.blockedCells || [];
+        const absoluteProtectedStones = context.absoluteProtectedStones || [];
 
-        const protectedSet = protectedStones.length
-            ? new Set(protectedStones.map(p => `${p.row},${p.col}`))
-            : null;
-        const permaSet = permaProtectedStones.length
-            ? new Set(permaProtectedStones.map(p => `${p.row},${p.col}`))
-            : null;
         const blockedSet = blockedCells.length
             ? new Set(blockedCells.map(p => `${p.row},${p.col}`))
+            : null;
+        const absoluteSet = absoluteProtectedStones.length
+            ? new Set(absoluteProtectedStones.map((p) => `${p.row},${p.col}`))
             : null;
 
         const [dr, dc] = direction;
@@ -5390,10 +5671,9 @@
             if (blockedSet && blockedSet.has(key)) {
                 return [];
             }
-            if ((protectedSet && protectedSet.has(key)) || (permaSet && permaSet.has(key))) {
-                return [];
+            if (!(absoluteSet && absoluteSet.has(key))) {
+                flips.push({ row: r, col: c });
             }
-            flips.push({ row: r, col: c });
             r += dr;
             c += dc;
         }
@@ -6746,6 +7026,13 @@
         const protectedStones = specials
             .filter(s => s.data && s.data.type === 'PROTECTED')
             .map(s => ({ row: s.row, col: s.col, owner: s.owner }));
+        const absoluteProtectedStones = specials
+            .filter((s) => s.data && s.data.type === 'ABSOLUTE_PROTECTED')
+            .map((s) => ({
+                row: s.row,
+                col: s.col,
+                owner: s.owner === 'black' ? (BLACK || 1) : (WHITE || -1)
+            }));
 
         // PERMA_PROTECTED, ABSOLUTE_PROTECTED, DRAGON, BREEDING, UDG, LIGHTNING, GLUTTONOUS, and GUARD stones are immune to flipping.
         const permaProtectedStones = specials
@@ -6793,6 +7080,7 @@
 
         return {
             protectedStones,
+            absoluteProtectedStones,
             permaProtectedStones,
             bombs,
             blockedCells
@@ -6910,6 +7198,7 @@
                 getSuperBuoyancyTargets,
                 getSuperGravityTargets,
                 getTemptWillTargets,
+                getCaptureWillTargets,
                 getTrapTargets,
                 getGuardTargets,
                 getHyperactiveInheritTargets,
@@ -7006,6 +7295,7 @@
         applyRevealHandWill,
         applyCondemnWill,
         applyTemptWill,
+        applyCaptureWill,
         applyExtendLifeWill,
         applyExtendLifeGod,
         applyCorrosionWill,
@@ -7021,10 +7311,13 @@
         applyBlockadeWill,
         applyMeteorWill,
         applyFreezeWill,
+        getEqualityWillBoardCounts,
         getLossWillRemovableCount,
         applyLossWill,
         getSalvationWillTargetCount,
         applySalvationWill,
+        getFateWillControllerForTurnOwner,
+        applyFateWill,
         applyStrongWindWill,
         applySuperBuoyancyWill,
         applySuperGravityWill,
@@ -7051,6 +7344,7 @@
 
         // Helpers
         getCardContext,
+        transferCellMarkerOwnership,
         hasPendingEffect,
         getPendingEffectType,
         isFreePlacementPendingType,
@@ -7062,6 +7356,7 @@
         pickTabooReverseFlips,
         cancelPendingSelection,
         getTemptWillTargets,
+        getCaptureWillTargets,
         getExtendLifeTargets,
         getCorrosionTargets,
         getGuardTargets,

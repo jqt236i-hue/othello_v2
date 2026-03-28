@@ -152,7 +152,12 @@
         return res;
     }
 
+    function getCaptureWillTargets(cardState, gameState, playerKey) {
+        return getTemptWillTargets(cardState, gameState, playerKey);
+    }
+
     return {
-        getTemptWillTargets
+        getTemptWillTargets,
+        getCaptureWillTargets
     };
 }));

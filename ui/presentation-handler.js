@@ -5,6 +5,169 @@
     let gamePresentationRuntime = null;
     let boardUpdateDrainController = null;
     const missingRuntimeWarnings = Object.create(null);
+    let commentaryContextHelpers = null;
+    let ownerHelpers = null;
+    let commentaryBroker = null;
+
+    function resolveFromGlobal(name) {
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis[name]) {
+                return globalThis[name];
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof window !== 'undefined' && window && window[name]) {
+                return window[name];
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function resolveCommentaryContextHelpers() {
+        if (commentaryContextHelpers) return commentaryContextHelpers;
+        commentaryContextHelpers = resolveFromGlobal('CommentaryContextHelpers');
+        if (commentaryContextHelpers) return commentaryContextHelpers;
+        try {
+            if (typeof require === 'function') {
+                commentaryContextHelpers = require('../shared/commentary-context-helpers');
+                if (commentaryContextHelpers) return commentaryContextHelpers;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function resolveCommentaryBroker() {
+        if (commentaryBroker) return commentaryBroker;
+        commentaryBroker = resolveFromGlobal('CommentaryBroker');
+        if (commentaryBroker) return commentaryBroker;
+        try {
+            if (typeof require === 'function') {
+                commentaryBroker = require('./commentary-broker');
+                if (commentaryBroker) return commentaryBroker;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function ensureCommentaryBrokerInitialized() {
+        const broker = resolveCommentaryBroker();
+        if (!broker || typeof broker.initBroker !== 'function') return broker;
+        try {
+            broker.initBroker({
+                root: (typeof globalThis !== 'undefined') ? globalThis : null,
+                addLog: (typeof addLog === 'function') ? addLog : null,
+                getShowHeroSpeechBubble: () => {
+                    try {
+                        if (typeof globalThis !== 'undefined' && typeof globalThis.showHeroSpeechBubble === 'function') {
+                            return globalThis.showHeroSpeechBubble;
+                        }
+                    } catch (e) { /* ignore */ }
+                    return null;
+                },
+                getShowCpuSpeechBubble: () => {
+                    try {
+                        if (typeof globalThis !== 'undefined' && typeof globalThis.showCpuSpeechBubble === 'function') {
+                            return globalThis.showCpuSpeechBubble;
+                        }
+                    } catch (e) { /* ignore */ }
+                    return null;
+                }
+            });
+        } catch (e) { /* ignore */ }
+        return broker;
+    }
+
+    function resolveOwnerHelpers() {
+        if (ownerHelpers) return ownerHelpers;
+        ownerHelpers = resolveFromGlobal('OwnerHelpers');
+        if (ownerHelpers) return ownerHelpers;
+        try {
+            if (typeof require === 'function') {
+                ownerHelpers = require('../utils/owner-helpers');
+                if (ownerHelpers) return ownerHelpers;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function normalizeCommentaryPlayerKey(value, fallbackKey) {
+        const helpers = resolveCommentaryContextHelpers();
+        if (helpers && typeof helpers.normalizePlayerKey === 'function') {
+            return helpers.normalizePlayerKey(value, fallbackKey);
+        }
+        const normalized = String(value || '').trim().toLowerCase();
+        if (value === -1 || normalized === 'white' || normalized === '-1') return 'white';
+        if (value === 1 || normalized === 'black' || normalized === '1') return 'black';
+        return fallbackKey === 'white' ? 'white' : 'black';
+    }
+
+    function countDiscsFromBoard(board) {
+        const helpers = resolveCommentaryContextHelpers();
+        if (helpers && typeof helpers.countDiscsFromBoard === 'function') {
+            return helpers.countDiscsFromBoard(board);
+        }
+        const rows = Array.isArray(board) ? board : [];
+        let black = 0;
+        let white = 0;
+        for (let row = 0; row < rows.length; row += 1) {
+            const line = Array.isArray(rows[row]) ? rows[row] : [];
+            for (let col = 0; col < line.length; col += 1) {
+                const value = Number(line[col]);
+                if (value === 1) black += 1;
+                else if (value === -1) white += 1;
+            }
+        }
+        return { black, white };
+    }
+
+    function getCurrentMatchMode() {
+        try {
+            if (typeof window !== 'undefined' && window && typeof window.getCurrentMatchMode === 'function') {
+                return String(window.getCurrentMatchMode() || 'cpu').trim().toLowerCase() || 'cpu';
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && typeof globalThis.getCurrentMatchMode === 'function') {
+                return String(globalThis.getCurrentMatchMode() || 'cpu').trim().toLowerCase() || 'cpu';
+            }
+        } catch (e) { /* ignore */ }
+        return 'cpu';
+    }
+
+    function resolveLocalHeroPlayerKey() {
+        const helpers = resolveOwnerHelpers();
+        if (helpers && typeof helpers.resolveLocalPlayerKey === 'function') {
+            const rootRef = (typeof window !== 'undefined' && window)
+                ? window
+                : (typeof globalThis !== 'undefined' ? globalThis : null);
+            const resolvedPlayerKey = helpers.resolveLocalPlayerKey(rootRef);
+            if (resolvedPlayerKey === 'black' || resolvedPlayerKey === 'white') {
+                return normalizeCommentaryPlayerKey(resolvedPlayerKey, 'black');
+            }
+        }
+
+        const matchMode = getCurrentMatchMode();
+        if (matchMode === 'network') {
+            try {
+                if (typeof window !== 'undefined'
+                    && window
+                    && window.NetworkMatchClient
+                    && typeof window.NetworkMatchClient.getSeatKey === 'function') {
+                    return normalizeCommentaryPlayerKey(window.NetworkMatchClient.getSeatKey(), 'black');
+                }
+            } catch (e) { /* ignore */ }
+            return null;
+        }
+        return 'black';
+    }
+
+    function buildBoardSignature(board) {
+        try {
+            return JSON.stringify(Array.isArray(board) ? board : []);
+        } catch (e) {
+            return '';
+        }
+    }
 
     function resolveGamePresentationRuntime() {
         if (gamePresentationRuntime) return gamePresentationRuntime;
@@ -85,19 +248,15 @@
         };
     }
 
-    function appendCpuCommentary(entry) {
-        if (!entry || typeof addLog !== 'function') return;
-        const text = (entry && entry.text)
-            ? String(entry.text)
-            : ((entry && entry.prefix && entry.line) ? `${entry.prefix}: ${entry.line}` : '');
-        if (!text) return;
-        addLog(text);
-    }
-
-    function queueEnemyCardCommentary(resultPromise) {
+    function queueCommentary(resultPromise) {
         if (!resultPromise || typeof resultPromise.then !== 'function') return;
         resultPromise.then((entry) => {
-            appendCpuCommentary(entry);
+            const broker = ensureCommentaryBrokerInitialized();
+            if (broker && typeof broker.showCommentaryEntry === 'function') {
+                broker.showCommentaryEntry(entry);
+                return;
+            }
+            if (entry && entry.text && typeof addLog === 'function') addLog(entry.text);
         }).catch(() => {
             // Keep presentation flow deterministic.
         });
@@ -106,13 +265,111 @@
     function emitCpuReactionToEnemyCard(ev) {
         const runtime = resolveGamePresentationRuntime();
         if (!runtime || typeof runtime.requestEnemyCardCommentary !== 'function') return;
-        queueEnemyCardCommentary(runtime.requestEnemyCardCommentary(ev));
+        queueCommentary(runtime.requestEnemyCardCommentary(ev));
     }
 
     function emitCpuReactionToEnemyCardFromPlayback(playbackEvents) {
         const runtime = resolveGamePresentationRuntime();
         if (!runtime || typeof runtime.requestEnemyCardCommentaryFromPlayback !== 'function') return false;
-        queueEnemyCardCommentary(runtime.requestEnemyCardCommentaryFromPlayback(playbackEvents));
+        queueCommentary(runtime.requestEnemyCardCommentaryFromPlayback(playbackEvents));
+        return true;
+    }
+
+    function buildHeroCardEventFromPlayback(playbackEvents, localPlayerKey) {
+        const events = Array.isArray(playbackEvents) ? playbackEvents : [];
+        for (const ev of events) {
+            if (!ev || ev.type !== 'card_use_animation') continue;
+            const targets = Array.isArray(ev.targets) ? ev.targets : [];
+            for (const target of targets) {
+                if (!target || typeof target !== 'object') continue;
+                const ownerKey = normalizeCommentaryPlayerKey(target.owner || target.player, localPlayerKey);
+                return {
+                    ownerKey,
+                    localPlayerKey,
+                    eventType: ownerKey === localPlayerKey ? 'card_used' : 'card_used_by_enemy',
+                    cardId: target.cardId ? String(target.cardId) : null,
+                    cardType: target.cardType ? String(target.cardType) : null
+                };
+            }
+        }
+        return null;
+    }
+
+    function buildHeroCardEventFromPresentationEvent(ev, localPlayerKey) {
+        if (!ev || typeof ev !== 'object') return null;
+        const ownerKey = normalizeCommentaryPlayerKey(
+            (ev.meta && ev.meta.owner) ? ev.meta.owner : ev.player,
+            localPlayerKey
+        );
+        return {
+            ownerKey,
+            localPlayerKey,
+            eventType: ownerKey === localPlayerKey ? 'card_used' : 'card_used_by_enemy',
+            cardId: ev.cardId ? String(ev.cardId) : null,
+            cardType: ev.cardType
+                ? String(ev.cardType)
+                : ((ev.meta && (ev.meta.cardType || ev.meta.type))
+                    ? String(ev.meta.cardType || ev.meta.type)
+                    : null)
+        };
+    }
+
+    function createHeroCardCommentaryRequest(cardEvent) {
+        if (!cardEvent || !cardEvent.localPlayerKey) return null;
+        const broker = ensureCommentaryBrokerInitialized();
+        if (!broker || typeof broker.requestCommentaryAndShow !== 'function') return null;
+
+        const state = (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object')
+            ? gameState
+            : null;
+        if (!state || !Array.isArray(state.board)) return null;
+
+        const turnNumber = Number.isFinite(Number(state.turnNumber)) ? Number(state.turnNumber) : null;
+        const commentaryKey = [
+            getCurrentMatchMode(),
+            cardEvent.localPlayerKey,
+            cardEvent.eventType,
+            turnNumber !== null ? turnNumber : '',
+            cardEvent.cardId || '',
+            buildBoardSignature(state.board)
+        ].join('|');
+        const counts = countDiscsFromBoard(state.board);
+        return broker.requestCommentaryAndShow({
+            eventType: cardEvent.eventType,
+            playerKey: cardEvent.localPlayerKey,
+            speakerRole: 'hero',
+            turnNumber,
+            counts,
+            board: state.board,
+            cardId: cardEvent.cardId,
+            cardType: cardEvent.cardType,
+            dedupeScope: 'hero-card',
+            dedupeKey: commentaryKey,
+            log: true,
+            show: true
+        });
+    }
+
+    function requestHeroCardCommentaryFromPlayback(playbackEvents) {
+        const localPlayerKey = resolveLocalHeroPlayerKey();
+        if (!localPlayerKey) return Promise.resolve(null);
+        const cardEvent = buildHeroCardEventFromPlayback(playbackEvents, localPlayerKey);
+        if (!cardEvent) return Promise.resolve(null);
+        const request = createHeroCardCommentaryRequest(cardEvent);
+        return request || Promise.resolve(null);
+    }
+
+    function emitHeroCardCommentaryFromPlayback(playbackEvents) {
+        requestHeroCardCommentaryFromPlayback(playbackEvents);
+    }
+
+    function emitHeroCardCommentaryFromEvent(ev) {
+        const localPlayerKey = resolveLocalHeroPlayerKey();
+        if (!localPlayerKey) return false;
+        const cardEvent = buildHeroCardEventFromPresentationEvent(ev, localPlayerKey);
+        if (!cardEvent) return false;
+        const request = createHeroCardCommentaryRequest(cardEvent);
+        if (!request) return false;
         return true;
     }
 
@@ -152,8 +409,13 @@
         const suppressPlayback = !!(ev && ev.meta && ev.meta.suppressPlayback === true);
 
         const opts = options && typeof options === 'object' ? options : {};
-        if (!suppressPlayback && opts.emitEnemyCardReaction !== false) {
-            emitCpuReactionToEnemyCardFromPlayback(payload);
+        if (!suppressPlayback) {
+            if (opts.emitEnemyCardReaction !== false) {
+                emitCpuReactionToEnemyCardFromPlayback(payload);
+            }
+            if (opts.emitHeroCardReaction !== false) {
+                emitHeroCardCommentaryFromPlayback(payload);
+            }
         }
         if (suppressPlayback) return;
 
@@ -234,7 +496,14 @@
                     }]
                 }];
                 emitCpuReactionToEnemyCard(ev);
-                return playPlaybackEvents({ events: playback }, { emitEnemyCardReaction: false });
+                const emittedHeroCardReaction = emitHeroCardCommentaryFromEvent(ev);
+                return playPlaybackEvents(
+                    { events: playback },
+                    {
+                        emitEnemyCardReaction: false,
+                        emitHeroCardReaction: !emittedHeroCardReaction
+                    }
+                );
             }
 
             if (ev.type === 'SCHEDULE_CPU_TURN') {

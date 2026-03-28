@@ -117,6 +117,75 @@ function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
     return null;
 }
 
+function normalizeEffectLogMessages(values) {
+    if (MatchAuthority && typeof MatchAuthority.normalizeEffectLogMessages === 'function') {
+        return MatchAuthority.normalizeEffectLogMessages(values);
+    }
+    const source = Array.isArray(values) ? values : [];
+    const next = [];
+    for (let index = 0; index < source.length; index += 1) {
+        const text = String(source[index] || '').trim();
+        if (!text) continue;
+        if (next.length > 0 && next[next.length - 1] === text) continue;
+        next.push(text);
+    }
+    return next;
+}
+
+function appendEffectLogMessages(...lists) {
+    const merged = [];
+    for (let index = 0; index < lists.length; index += 1) {
+        const list = Array.isArray(lists[index]) ? lists[index] : [];
+        for (let innerIndex = 0; innerIndex < list.length; innerIndex += 1) {
+            merged.push(list[innerIndex]);
+        }
+    }
+    return normalizeEffectLogMessages(merged);
+}
+
+function getSeatLabelJa(playerKey) {
+    return normalizePlayerKey(playerKey) === 'white' ? '白' : '黒';
+}
+
+function resolveActionCardId(action) {
+    if (!action || typeof action !== 'object') return '';
+    if (action.useCardId) return String(action.useCardId);
+    if (action.cardId) return String(action.cardId);
+    return '';
+}
+
+function resolveActionCardDisplayName(action, cardLogic) {
+    const cardId = resolveActionCardId(action);
+    if (!cardId) return '';
+    const cardDef = (cardLogic && typeof cardLogic.getCardDef === 'function')
+        ? cardLogic.getCardDef(cardId)
+        : null;
+    const displayName = cardDef && cardDef.name ? String(cardDef.name).trim() : '';
+    return displayName || cardId;
+}
+
+function buildNetworkCardUseEffectLogs(action, playerKey, cardLogic) {
+    const actionType = String(action && (action.type || action.actionType) ? (action.type || action.actionType) : '').trim().toLowerCase();
+    if (actionType !== 'use_card') return [];
+    const displayName = resolveActionCardDisplayName(action, cardLogic);
+    if (!displayName) return [];
+    return [`${getSeatLabelJa(playerKey)}がカードを使用: ${displayName}`];
+}
+
+function collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerKey, playbackAdapter) {
+    const adapter = (playbackAdapter && typeof playbackAdapter.mapEffectLogsFromPipeline === 'function')
+        ? playbackAdapter
+        : null;
+    if (!adapter) return [];
+    try {
+        return normalizeEffectLogMessages(
+            adapter.mapEffectLogsFromPipeline(rawEvents, presentationEvents, playerKey) || []
+        );
+    } catch (e) {
+        return [];
+    }
+}
+
 function randomFromChars(chars, length) {
     const bytes = new Uint8Array(length);
     crypto.getRandomValues(bytes);
@@ -174,11 +243,13 @@ function loadTurnPipelineModules() {
         turnPipelineModulesPromise = Promise.all([
             import('../game/turn/turn_pipeline.js').then((mod) => mod.default || mod),
             import('../game/schema/prng.js').then((mod) => mod.default || mod),
-            import('../game/turn/pipeline_ui_adapter.js').then((mod) => mod.default || mod)
-        ]).then(([TurnPipeline, SeededPRNG, TurnPipelineUIAdapter]) => ({
+            import('../game/turn/pipeline_ui_adapter.js').then((mod) => mod.default || mod),
+            import('../game/logic/cards.js').then((mod) => mod.default || mod)
+        ]).then(([TurnPipeline, SeededPRNG, TurnPipelineUIAdapter, CardLogic]) => ({
             TurnPipeline,
             SeededPRNG,
-            TurnPipelineUIAdapter
+            TurnPipelineUIAdapter,
+            CardLogic
         }));
     }
     return turnPipelineModulesPromise;
@@ -485,7 +556,15 @@ function collectServerPlaybackEvents(snapshot, rawEvents, playbackAdapter) {
     const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object')
         ? snapshot.cardState
         : null;
-    if (!cardState) return [];
+    const playerKey = getCurrentPlayerKey(snapshot && snapshot.gameState);
+    if (!cardState) {
+        return {
+            playbackEvents: [],
+            diagnostics: null,
+            presentationEvents: [],
+            playerKey
+        };
+    }
 
     let presentationEvents = [];
     if (Array.isArray(cardState.presentationEvents) && cardState.presentationEvents.length > 0) {
@@ -499,8 +578,13 @@ function collectServerPlaybackEvents(snapshot, rawEvents, playbackAdapter) {
     cardState.presentationEvents = [];
     cardState._presentationEventsPersist = [];
     delete cardState._currentActionMeta;
-    const playerKey = getCurrentPlayerKey(snapshot && snapshot.gameState);
-    return mapServerPresentationToPlaybackEvents(presentationEvents, rawEvents, snapshot, playbackAdapter, playerKey);
+    const assembly = mapServerPresentationToPlaybackEvents(presentationEvents, rawEvents, snapshot, playbackAdapter, playerKey);
+    return Object.assign({}, assembly || {}, {
+        playbackEvents: Array.isArray(assembly && assembly.playbackEvents) ? assembly.playbackEvents : [],
+        diagnostics: assembly ? assembly.diagnostics || null : null,
+        presentationEvents,
+        playerKey
+    });
 }
 
 function getPlaybackAssemblyWarnings(diagnostics) {
@@ -546,6 +630,7 @@ function buildPublishPayload(room, viewerSeatKey, options = {}) {
         networkDebugEnabled,
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(options.playbackEvents) ? options.playbackEvents : [],
+        effectLogs: normalizeEffectLogMessages(options.effectLogs),
         serverTime,
         idempotentReplay: options.idempotentReplay === true,
         publishMeta: options.publishMeta || null
@@ -616,10 +701,10 @@ function appendTurnStartDrawPlaybackEvents(playbackAssembly, snapshot, handState
     const playbackEvents = (PlaybackEventHelpers && typeof PlaybackEventHelpers.appendPlaybackEventsAfter === 'function')
         ? PlaybackEventHelpers.appendPlaybackEventsAfter(baseEvents, drawPlaybackEvents)
         : baseEvents.concat(deepClone(drawPlaybackEvents));
-    return {
+    return Object.assign({}, assembly, {
         playbackEvents,
         diagnostics: assembly.diagnostics
-    };
+    });
 }
 
 async function reconcileTurnStartAndCollectPlayback(room, snapshot, playbackAdapter) {
@@ -637,7 +722,18 @@ async function reconcileTurnStartAndCollectPlayback(room, snapshot, playbackAdap
         : await loadTurnPipelineModules();
     const adapter = modules && modules.TurnPipelineUIAdapter ? modules.TurnPipelineUIAdapter : null;
     const playbackAssembly = collectServerPlaybackEvents(snapshot, rawEvents, adapter);
-    return appendTurnStartDrawPlaybackEvents(playbackAssembly, snapshot, handState, adapter);
+    const effectLogs = collectPipelineEffectLogMessages(
+        rawEvents,
+        playbackAssembly && Array.isArray(playbackAssembly.presentationEvents) ? playbackAssembly.presentationEvents : [],
+        playbackAssembly && playbackAssembly.playerKey ? playbackAssembly.playerKey : getCurrentPlayerKey(snapshot && snapshot.gameState),
+        adapter
+    );
+    return appendTurnStartDrawPlaybackEvents(
+        Object.assign({}, playbackAssembly, { effectLogs }),
+        snapshot,
+        handState,
+        adapter
+    );
 }
 
 async function applyCommandPublishToSnapshot(room, body, playerKey) {
@@ -681,6 +777,7 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
             snapshot: currentSnapshot,
             playbackEvents: [],
             playbackDiagnostics: null,
+            effectLogs: [],
             action: { type: NETWORK_DEBUG_FILL_HAND_ACTION, playerKey }
         };
     }
@@ -701,7 +798,7 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
         return { ok: false, rejectedReason: 'SEAT_MISMATCH' };
     }
 
-    const { TurnPipeline, SeededPRNG, TurnPipelineUIAdapter } = await loadTurnPipelineModules();
+    const { TurnPipeline, SeededPRNG, TurnPipelineUIAdapter, CardLogic } = await loadTurnPipelineModules();
     if (!TurnPipeline || typeof TurnPipeline.applyTurnSafe !== 'function') {
         return { ok: false, rejectedReason: 'COMMAND_PIPELINE_UNAVAILABLE' };
     }
@@ -745,6 +842,13 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
     const playbackEvents = (playbackAssembly && Array.isArray(playbackAssembly.playbackEvents))
         ? playbackAssembly.playbackEvents
         : [];
+    const actionPresentationEvents = Array.isArray(result.presentationEvents)
+        ? result.presentationEvents
+        : ((result.cardState && Array.isArray(result.cardState.presentationEvents)) ? result.cardState.presentationEvents : []);
+    const actionEffectLogs = appendEffectLogMessages(
+        buildNetworkCardUseEffectLogs(builtAction.action, playerKey, CardLogic),
+        collectPipelineEffectLogMessages(result.events, actionPresentationEvents, playerKey, TurnPipelineUIAdapter)
+    );
 
     const turnStartPlaybackAssembly = await reconcileTurnStartAndCollectPlayback(room, nextSnapshot, TurnPipelineUIAdapter);
     reportPlaybackAssemblyDiagnostics('worker-turn-start', turnStartPlaybackAssembly && turnStartPlaybackAssembly.diagnostics, {
@@ -753,9 +857,13 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
     const turnStartPlaybackEvents = (turnStartPlaybackAssembly && Array.isArray(turnStartPlaybackAssembly.playbackEvents))
         ? turnStartPlaybackAssembly.playbackEvents
         : [];
+    const turnStartEffectLogs = (turnStartPlaybackAssembly && Array.isArray(turnStartPlaybackAssembly.effectLogs))
+        ? turnStartPlaybackAssembly.effectLogs
+        : [];
     const combinedPlaybackEvents = (PlaybackEventHelpers && typeof PlaybackEventHelpers.appendPlaybackEventsAfter === 'function')
         ? PlaybackEventHelpers.appendPlaybackEventsAfter(playbackEvents, turnStartPlaybackEvents)
         : playbackEvents.concat(deepClone(turnStartPlaybackEvents));
+    const combinedEffectLogs = appendEffectLogMessages(actionEffectLogs, turnStartEffectLogs);
 
     if (MatchAuthority && typeof MatchAuthority.stripTransientPresentationState === 'function') {
         MatchAuthority.stripTransientPresentationState(nextSnapshot);
@@ -766,6 +874,7 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
         snapshot: nextSnapshot,
         playbackEvents: combinedPlaybackEvents,
         playbackDiagnostics: toDebugPlaybackDiagnostics(playbackAssembly && playbackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
+        effectLogs: combinedEffectLogs,
         action: builtAction.action
     };
 }
@@ -1196,6 +1305,7 @@ function buildSnapshotPayload(room, meta, viewerSeatKey) {
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
+        effectLogs: normalizeEffectLogMessages(meta && meta.effectLogs),
         playbackDiagnostics: toDebugPlaybackDiagnostics(meta && meta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
         operationId: meta && meta.operationId ? String(meta.operationId) : null,
         playerKey: meta && meta.playerKey ? normalizePlayerKey(meta.playerKey) : null,
@@ -1841,6 +1951,9 @@ export class MatchRoomDurableObject {
         const serverPlaybackEvents = (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.playbackEvents))
             ? serverPlaybackAssembly.playbackEvents
             : [];
+        const serverEffectLogs = (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.effectLogs))
+            ? serverPlaybackAssembly.effectLogs
+            : [];
 
         room.stateVersion = Number.isFinite(Number(room.stateVersion))
             ? Math.max(0, Math.trunc(Number(room.stateVersion))) + 1
@@ -1858,6 +1971,7 @@ export class MatchRoomDurableObject {
             playerKey: timedOutSeatKey,
             actionType: 'timeout_pass',
             playbackEvents: serverPlaybackEvents,
+            effectLogs: serverEffectLogs,
             playbackDiagnostics: toDebugPlaybackDiagnostics(serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
             operationId: `timeout_${room.stateVersion}_${nowMs}`
         });
@@ -2192,7 +2306,9 @@ export class MatchRoomDurableObject {
         if (playerKey !== expectedPlayerKey) {
             const allowOutOfTurnRematch = isRematchResetAction && await this.isSnapshotGameOver(room.snapshot);
             const allowOutOfTurnNetworkDebug = isNetworkDebugAction && toPublicNetworkDebugEnabled(room);
-            if (!allowOutOfTurnRematch && !allowOutOfTurnNetworkDebug) {
+            const allowFateWillController = MatchAuthority && typeof MatchAuthority.isFateWillControllerForCurrentTurn === 'function'
+                && MatchAuthority.isFateWillControllerForCurrentTurn(room.snapshot, playerKey);
+            if (!allowOutOfTurnRematch && !allowOutOfTurnNetworkDebug && !allowFateWillController) {
                 return jsonResponse(409, buildPublishPayload(room, seatKey, {
                     ok: false,
                     rejectedReason: 'OUT_OF_TURN',
@@ -2221,6 +2337,7 @@ export class MatchRoomDurableObject {
 
         let nextSnapshot;
         let serverPlaybackEvents = [];
+        let serverEffectLogs = [];
         let serverPlaybackDiagnostics = null;
         if (isRematchResetAction) {
             const rematchSeed = Date.now();
@@ -2260,6 +2377,7 @@ export class MatchRoomDurableObject {
             }
             nextSnapshot = commandResult.snapshot;
             serverPlaybackEvents = Array.isArray(commandResult.playbackEvents) ? commandResult.playbackEvents : [];
+            serverEffectLogs = Array.isArray(commandResult.effectLogs) ? commandResult.effectLogs : [];
             serverPlaybackDiagnostics = commandResult.playbackDiagnostics || null;
         } else {
             return jsonResponse(409, buildPublishPayload(room, seatKey, {
@@ -2300,6 +2418,7 @@ export class MatchRoomDurableObject {
             playerKey,
             actionType: body.actionType ? String(body.actionType) : null,
             playbackEvents: serverPlaybackEvents,
+            effectLogs: serverEffectLogs,
             playbackDiagnostics: serverPlaybackDiagnostics,
             operationId: operationId || null
         };
@@ -2309,6 +2428,7 @@ export class MatchRoomDurableObject {
             ok: true,
             serverTime,
             playbackEvents: serverPlaybackEvents,
+            effectLogs: serverEffectLogs,
             playbackDiagnostics: serverPlaybackDiagnostics,
             publishMeta: {
                 kind: 'accepted',

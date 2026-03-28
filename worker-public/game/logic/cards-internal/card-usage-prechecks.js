@@ -121,6 +121,8 @@
         switch (cardType) {
         case 'TEMPT_WILL':
             return validateSelectionTargets(context, 'getTemptWillTargets', 1) ? result : buildFailureResult();
+        case 'CAPTURE_WILL':
+            return validateSelectionTargets(context, 'getCaptureWillTargets', 1) ? result : buildFailureResult();
         case 'STRONG_WIND_WILL':
             return validateSelectionTargets(context, 'getStrongWindTargets', 1) ? result : buildFailureResult();
         case 'SUPER_BUOYANCY_WILL':

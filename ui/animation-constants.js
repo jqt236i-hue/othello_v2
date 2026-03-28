@@ -57,6 +57,7 @@ const AnimationConstants = {
         STATUS_APPLIED: 'status_applied',
         STATUS_REMOVED: 'status_removed',
         HAND_ADD: 'hand_add',
+        CAPTURE_TO_HAND_ANIMATION: 'capture_to_hand_animation',
         HAND_REMOVE: 'hand_remove',
         CARD_USE_ANIMATION: 'card_use_animation',
         OBSERVER_BUBBLE: 'observer_bubble',

@@ -19,6 +19,7 @@
         'POSITION_SWAP_WILL',
         'TRAP_WILL',
         'TEMPT_WILL',
+        'CAPTURE_WILL',
         'GUARD_WILL',
         'GUARDIAN_GOD',
         'HYPERACTIVE_INHERIT_WILL',
@@ -141,6 +142,7 @@
         return {
             type: cardType,
             cardId: opts.cardId,
+            sourceHandIndex: Number.isInteger(opts.sourceHandIndex) ? opts.sourceHandIndex : undefined,
             stage: needsSelection ? 'selectTarget' : null,
             offers: opts.offers || undefined,
             selectedCount: cardType === 'BOARD_EXPANSION_GOD' ? 0 : undefined,

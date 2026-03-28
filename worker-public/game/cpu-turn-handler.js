@@ -22,6 +22,10 @@ let commentaryRuntimeHelpers = null;
 if (typeof require === 'function') {
     try { commentaryRuntimeHelpers = require('../shared/commentary-runtime-helpers'); } catch (e) { /* ignore */ }
 }
+let cpuCardLogic = null;
+if (typeof require === 'function') {
+    try { cpuCardLogic = require('./logic/cards'); } catch (e) { /* ignore */ }
+}
 
 // Local safe constants to avoid ReferenceError for undeclared globals in test environments
 const CONST_BLACK = (typeof BLACK !== 'undefined') ? BLACK : ((typeof global !== 'undefined' && typeof global.BLACK !== 'undefined') ? global.BLACK : 1);
@@ -75,6 +79,39 @@ function getCurrentTurnNumberSafe() {
         return Number.isFinite(turnNumber) ? turnNumber : null;
     } catch (e) { /* ignore */ }
     return null;
+}
+
+function resolveCpuCardLogic() {
+    if (cpuCardLogic && typeof cpuCardLogic === 'object') return cpuCardLogic;
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.CardLogic && typeof globalThis.CardLogic === 'object') {
+            cpuCardLogic = globalThis.CardLogic;
+            return cpuCardLogic;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function getFateWillControllerForTurnOwnerSafe(turnOwnerKey, cardStateRef) {
+    const cardStateValue = cardStateRef && typeof cardStateRef === 'object' ? cardStateRef : resolvePresentationCardState(null);
+    const logic = resolveCpuCardLogic();
+    if (logic && typeof logic.getFateWillControllerForTurnOwner === 'function') {
+        try {
+            return logic.getFateWillControllerForTurnOwner(cardStateValue, turnOwnerKey);
+        } catch (e) { /* ignore */ }
+    }
+    if (!cardStateValue || !cardStateValue.fateWillControllerByTurnOwner) return null;
+    const controllerKey = cardStateValue.fateWillControllerByTurnOwner[turnOwnerKey];
+    if (controllerKey === 'black' || controllerKey === 'white') return controllerKey;
+    return null;
+}
+
+function resolveCpuControlledTurnOwnerKey() {
+    const turnOwnerKey = getCurrentPlayerKeySafe();
+    if (!turnOwnerKey) return null;
+    const controllerKey = getFateWillControllerForTurnOwnerSafe(turnOwnerKey, null);
+    const effectiveOperatorKey = controllerKey || turnOwnerKey;
+    return effectiveOperatorKey === 'white' ? turnOwnerKey : null;
 }
 
 function isHumanVsHumanModeEnabled() {
@@ -389,13 +426,12 @@ function emitCpuCommentary(eventType, playerKey, extra) {
         : fallbackContext;
 
     runtime.requestCommentary(context).then((text) => {
-        const line = String(text || '').trim();
-        if (!line) return;
-        const runtimeHelpers = resolveCommentaryRuntimeHelpers();
-        const prefix = (runtimeHelpers && typeof runtimeHelpers.getCpuSpeakerPrefix === 'function')
-            ? runtimeHelpers.getCpuSpeakerPrefix(playerKey)
-            : (playerKey === 'black' ? '黒CPU' : '白CPU');
-        emitLogAdded(`${prefix}: ${line}`);
+        const entry = formatPresentationCommentaryResult(playerKey, text);
+        if (!entry) return;
+        emitLogAdded(Object.assign({
+            kind: 'commentary',
+            speakerRole: 'cpu'
+        }, entry));
     }).catch(() => {
         // Ignore commentary failures to keep turn processing deterministic.
     });
@@ -510,6 +546,8 @@ function formatPresentationCommentaryResult(playerKey, text) {
         ? runtimeHelpers.getCpuSpeakerPrefix(playerKey)
         : (playerKey === 'black' ? '黒CPU' : '白CPU');
     return {
+        kind: 'commentary',
+        speakerRole: 'cpu',
         playerKey,
         prefix,
         line,
@@ -860,6 +898,7 @@ function getPendingTypeHandlers(playerKey) {
         'TELEPORT_WILL': async () => { if (typeof cpuSelectTeleportWillWithPolicy === 'function') await cpuSelectTeleportWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'CELL_TELEPORT_WILL': async () => { if (typeof cpuSelectCellTeleportWillWithPolicy === 'function') await cpuSelectCellTeleportWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'TEMPT_WILL': async () => { if (typeof cpuSelectTemptWillWithPolicy === 'function') await cpuSelectTemptWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
+        'CAPTURE_WILL': async () => { if (typeof cpuSelectCaptureWillWithPolicy === 'function') await cpuSelectCaptureWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'TIME_BOMB': async () => { if (typeof cpuSelectTimeBombWithPolicy === 'function') await cpuSelectTimeBombWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'BOARD_EXPANSION_WILL': async () => { if (typeof cpuSelectBoardExpansionWillWithPolicy === 'function') await cpuSelectBoardExpansionWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
         'BOARD_EXPANSION_GOD': async () => { if (typeof cpuSelectBoardExpansionWillWithPolicy === 'function') await cpuSelectBoardExpansionWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
@@ -888,18 +927,17 @@ async function processCpuTurn() {
         debugCpuTrace('[DEBUG][processCpuTurn] skip: game over');
         return;
     }
-    const current = gameState && gameState.currentPlayer;
-    const isWhiteTurn = current === CONST_WHITE || current === 'white';
-    if (!gameState || !isWhiteTurn) {
-        debugCpuTrace('[DEBUG][processCpuTurn] skip: not white turn');
+    const cpuTurnOwnerKey = resolveCpuControlledTurnOwnerKey();
+    if (!gameState || !cpuTurnOwnerKey) {
+        debugCpuTrace('[DEBUG][processCpuTurn] skip: no local CPU-controlled turn');
         return;
     }
     if (isProcessing || isUiAnimationBusy()) {
-        scheduleRunCpuTurn('white', { autoMode: false }, getAnimationRetryDelayMs());
+        scheduleRunCpuTurn(cpuTurnOwnerKey, { autoMode: false }, getAnimationRetryDelayMs());
         debugCpuTrace('[DEBUG][processCpuTurn] defer: busy');
         return;
     }
-    runCpuTurn('white', { autoMode: false });
+    runCpuTurn(cpuTurnOwnerKey, { autoMode: false });
     debugCpuTrace('[DEBUG][processCpuTurn] exit');
 }
 

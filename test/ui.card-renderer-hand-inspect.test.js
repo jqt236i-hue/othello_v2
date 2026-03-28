@@ -257,6 +257,63 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
+  test('capture will pending keeps the used hand slot reserved before target selection completes', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['own_card', 'opp_card'], white: [] }
+    });
+    const { window } = dom;
+
+    window.cardState.pendingEffectByPlayer.black = {
+      type: 'CAPTURE_WILL',
+      stage: 'selectTarget',
+      sourceHandIndex: 1,
+      cardId: 'capture_01'
+    };
+
+    window.renderCardUI();
+
+    const blackHandSlots = window.document.querySelectorAll('#hand-black .card-item');
+    const reservedSlot = window.document.querySelector('#hand-black .card-item[data-hand-index="1"]');
+    const shiftedCard = window.document.querySelector('#hand-black .card-item[data-hand-index="2"]');
+
+    expect(blackHandSlots).toHaveLength(3);
+    expect(reservedSlot).not.toBeNull();
+    expect(reservedSlot.classList.contains('capture-reserved-slot')).toBe(true);
+    expect(reservedSlot.style.opacity).toBe('0');
+    expect(shiftedCard).not.toBeNull();
+    expect(shiftedCard.dataset.cardId).toBe('opp_card');
+
+    dom.window.close();
+  });
+
+  test('capture animation state can reserve an appended target slot before reveal render catches up', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['own_card'], white: [] }
+    });
+    const { window } = dom;
+
+    window.__captureReservedHandSlotState = {
+      playerKey: 'black',
+      handIndex: 1,
+      token: 'capture-slot-test'
+    };
+
+    window.renderCardUI();
+
+    const blackHandSlots = window.document.querySelectorAll('#hand-black .card-item');
+    const reservedSlot = window.document.querySelector('#hand-black .card-item[data-hand-index="1"]');
+
+    expect(blackHandSlots).toHaveLength(2);
+    expect(reservedSlot).not.toBeNull();
+    expect(reservedSlot.classList.contains('capture-reserved-slot')).toBe(true);
+
+    dom.window.close();
+  });
+
   test('network mode infers white local hand from projected hidden black hand when seat client is unavailable', () => {
     const dom = createRendererContext({
       matchMode: 'network',
@@ -306,6 +363,150 @@ describe('card renderer hand inspection', () => {
     expect(
       Array.from(window.document.querySelectorAll('#hand-black .card-name')).some((el) => el.textContent === '?')
     ).toBe(false);
+
+    dom.window.close();
+  });
+});
+
+describe('card renderer FATE_WILL hand visibility', () => {
+  test('network mode: controller sees victim hand face-up and usable during controlled turn', () => {
+    // Black controls white's turn (FATE_WILL). Local player is black (the controller).
+    const dom = createRendererContext({
+      matchMode: 'network',
+      seatKey: 'black',
+      networkClientIsActive: true,
+      currentPlayer: -1, // white's turn
+      hands: { black: ['own_card'], white: ['opp_card'] }
+    });
+    const { window } = dom;
+
+    window.cardState.fateWillControllerByTurnOwner = { black: null, white: 'black' };
+    window.cardState.charge = { black: 5, white: 5 };
+
+    window.renderCardUI();
+
+    // Controller sees victim (white) hand face-up
+    const victimCardEl = window.document.querySelector('#hand-white .card-item.visible');
+    expect(victimCardEl).not.toBeNull();
+    expect(victimCardEl.classList.contains('clickable')).toBe(true);
+    expect(victimCardEl.classList.contains('usable')).toBe(true);
+
+    dom.window.close();
+  });
+
+  test('network mode: victim sees own hand face-up but cannot use it (locked out)', () => {
+    // Black controls white's turn. Local player is white (the victim).
+    const dom = createRendererContext({
+      matchMode: 'network',
+      seatKey: 'white',
+      networkClientIsActive: true,
+      currentPlayer: -1, // white's turn
+      hands: { black: ['__hidden_hand__:black:0'], white: ['own_card'] }
+    });
+    const { window } = dom;
+
+    window.cardState.fateWillControllerByTurnOwner = { black: null, white: 'black' };
+    window.cardState.charge = { black: 5, white: 5 };
+
+    window.renderCardUI();
+
+    // Victim's own hand is still face-up (they can see their cards)
+    const ownCardEl = window.document.querySelector('#hand-black .card-item.visible');
+    expect(ownCardEl).not.toBeNull();
+    // But it is NOT usable (victim is locked out)
+    expect(ownCardEl.classList.contains('usable')).toBe(false);
+
+    dom.window.close();
+  });
+
+  test('cpu mode: controller (black) sees victim (white) hand face-up and usable during controlled turn', () => {
+    // Black controls white's turn in local/cpu mode.
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: -1, // white's turn
+      hands: { black: ['own_card'], white: ['opp_card'] }
+    });
+    const { window } = dom;
+
+    window.cardState.fateWillControllerByTurnOwner = { black: null, white: 'black' };
+    window.cardState.charge = { black: 5, white: 5 };
+
+    window.renderCardUI();
+
+    // White's hand (topOwnerKey) should now be face-up and usable for controller (black)
+    const victimCardEl = window.document.querySelector('#hand-white .card-item.visible');
+    expect(victimCardEl).not.toBeNull();
+    expect(victimCardEl.classList.contains('clickable')).toBe(true);
+    expect(victimCardEl.classList.contains('usable')).toBe(true);
+
+    dom.window.close();
+  });
+
+  test('cpu mode: victim (black) hand is NOT usable when white controls black turn', () => {
+    // White controls black's turn in local/cpu mode. Black (always input in cpu mode) is the victim.
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1, // black's turn
+      hands: { black: ['own_card'], white: [] }
+    });
+    const { window } = dom;
+
+    window.cardState.fateWillControllerByTurnOwner = { black: 'white', white: null };
+    window.cardState.charge = { black: 5, white: 5 };
+
+    window.renderCardUI();
+
+    // Black's hand is still face-up (in cpu mode bottomOwnerKey=black, revealByDefault=true)
+    // but must NOT be usable since black is the victim
+    const ownCardEl = window.document.querySelector('#hand-black .card-item.visible');
+    expect(ownCardEl).not.toBeNull();
+    expect(ownCardEl.classList.contains('usable')).toBe(false);
+
+    dom.window.close();
+  });
+
+  test('HvH mode: controller sees victim hand face-up and usable; victim hand locked out', () => {
+    // Black controls white's turn in HvH mode.
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: -1, // white's turn
+      hands: { black: ['own_card'], white: ['opp_card'] }
+    });
+    const { window } = dom;
+
+    window.DEBUG_HUMAN_VS_HUMAN = true;
+    window.DEBUG_UNLIMITED_USAGE = true;
+    window.cardState.fateWillControllerByTurnOwner = { black: null, white: 'black' };
+    window.cardState.charge = { black: 5, white: 5 };
+
+    window.renderCardUI();
+
+    // inputPlayerKey in HvH during FATE_WILL should be the controller (black)
+    // White's hand (victim) is visible and usable (controlled by black)
+    const victimCardEl = window.document.querySelector('#hand-white .card-item.visible');
+    expect(victimCardEl).not.toBeNull();
+    expect(victimCardEl.classList.contains('usable')).toBe(true);
+
+    dom.window.close();
+  });
+
+  test('normal turns: FATE_WILL absent does not affect existing render behavior', () => {
+    // No FATE_WILL — black's turn, cpu mode, basic hand render unchanged.
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['own_card'], white: ['opp_card'] }
+    });
+    const { window } = dom;
+
+    // fateWillControllerByTurnOwner absent — should not crash and behave as before
+    window.renderCardUI();
+
+    const blackCardEl = window.document.querySelector('#hand-black .card-item.visible');
+    const whiteCardEl = window.document.querySelector('#hand-white .card-item.hidden');
+    expect(blackCardEl).not.toBeNull();
+    expect(blackCardEl.classList.contains('clickable')).toBe(true);
+    expect(whiteCardEl).not.toBeNull();
 
     dom.window.close();
   });

@@ -48,7 +48,7 @@
 
     /**
      * Apply a single action within a turn, following a fixed turn pipeline.
-    * - action: { type: 'place' | 'pass' | 'use_card' | 'cancel_card' | 'destroy_hand_card', row?, col?, useCardId?, useCardOwnerKey?, destroyCardId?, destroyOptions?, debugOptions?, cancelOptions?, destroyTarget?: {row:number,col:number}, strongWindTarget?: {row:number,col:number}, superBuoyancyTarget?: {row:number,col:number}, superGravityTarget?: {row:number,col:number}, teleportTarget?: {row:number,col:number}, sacrificeTarget?: {row:number,col:number}, sellCardId?: string, temptTarget?, positionSwapTarget?: {row:number,col:number}, trapTarget?: {row:number,col:number}, bombTarget?: {row:number,col:number}, cloneTarget?: {row:number,col:number}, splitTarget?: {row:number,col:number}, blockadeTarget?: {row:number,col:number}, meteorTarget?: {row:number,col:number} }
+    * - action: { type: 'place' | 'pass' | 'use_card' | 'cancel_card' | 'destroy_hand_card', row?, col?, useCardId?, useCardOwnerKey?, destroyCardId?, destroyOptions?, debugOptions?, cancelOptions?, destroyTarget?: {row:number,col:number}, strongWindTarget?: {row:number,col:number}, superBuoyancyTarget?: {row:number,col:number}, superGravityTarget?: {row:number,col:number}, teleportTarget?: {row:number,col:number}, sacrificeTarget?: {row:number,col:number}, sellCardId?: string, temptTarget?, captureTarget?: {row:number,col:number}, positionSwapTarget?: {row:number,col:number}, trapTarget?: {row:number,col:number}, bombTarget?: {row:number,col:number}, cloneTarget?: {row:number,col:number}, splitTarget?: {row:number,col:number}, blockadeTarget?: {row:number,col:number}, meteorTarget?: {row:number,col:number} }
      * - If useCardId is provided it will be applied before placement (consuming charge/hand)
      * Returns { gameState, cardState, events }
      *
@@ -137,9 +137,17 @@
             ? options.currentStateVersion
             : 0;
 
+        let effectivePipelinePlayerKey = actionPlayerKey;
         if (actionPlayerKey && currentPlayerKey && actionPlayerKey !== currentPlayerKey) {
-            const events = [{ type: 'action_rejected', player: playerKey, reason: 'OUT_OF_TURN', message: 'playerKey does not match gameState.currentPlayer' }];
-            return { ok: false, gameState: gs, cardState: cs, events, nextStateVersion: currentVersion, rejectedReason: 'OUT_OF_TURN' };
+            // Allow FATE_WILL controller to act on behalf of the turn owner.
+            // Remap to turn owner so all bookkeeping is attributed to the correct player.
+            const fateWillController = (cs.fateWillControllerByTurnOwner || {})[currentPlayerKey];
+            if (fateWillController === actionPlayerKey) {
+                effectivePipelinePlayerKey = currentPlayerKey;
+            } else {
+                const events = [{ type: 'action_rejected', player: playerKey, reason: 'OUT_OF_TURN', message: 'playerKey does not match gameState.currentPlayer' }];
+                return { ok: false, gameState: gs, cardState: cs, events, nextStateVersion: currentVersion, rejectedReason: 'OUT_OF_TURN' };
+            }
         }
 
         // Protocol guards (duplicate/out-of-order/version mismatch)
@@ -163,7 +171,7 @@
         }
 
         try {
-            const res = applyTurn(cs, gs, actionPlayerKey || playerKey, action, prng, options);
+            const res = applyTurn(cs, gs, effectivePipelinePlayerKey || playerKey, action, prng, options);
 
             // Validate resulting state (be tolerant of missing schema modules in browser-like env)
             var StateValidatorModule = null;

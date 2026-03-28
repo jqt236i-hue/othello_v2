@@ -234,46 +234,24 @@
         return _stoneBaseImagesReadyPromise;
     }
 
-    function parseCpuCommentaryLog(text) {
-        const raw = String(text || '').trim();
-        const match = raw.match(/^(黒|白)CPU:\s*(.+)$/);
-        if (!match) return null;
-        const playerKey = match[1] === '白' ? 'white' : 'black';
-        const line = String(match[2] || '').trim();
-        if (!line) return null;
-        return { playerKey, line };
-    }
-
-    function maybeShowCpuSpeechFromLog(text) {
-        try {
-            if (typeof window === 'undefined') return;
-            const parsed = parseCpuCommentaryLog(text);
-            if (!parsed) return;
-            if (typeof window.showCpuSpeechBubble === 'function') {
-                window.showCpuSpeechBubble(parsed.line, { playerKey: parsed.playerKey });
-            }
-        } catch (e) {
-            // ignore speech UI failures to keep log path stable
-        }
-    }
-
     function addLog(text) {
+        const resolvedText = (text && typeof text === 'object' && typeof text.text === 'string')
+            ? String(text.text)
+            : String(text);
         try {
             const logEl = (typeof document !== 'undefined') ? document.getElementById('log') : null;
             if (logEl) {
                 const entry = document.createElement('div');
                 entry.className = 'logEntry';
-                entry.textContent = String(text);
+                entry.textContent = resolvedText;
                 logEl.appendChild(entry);
                 try { logEl.scrollTop = logEl.scrollHeight; } catch (e) { if (logEl && logEl.parentElement) logEl.parentElement.scrollTop = logEl.parentElement.scrollHeight; }
-                maybeShowCpuSpeechFromLog(text);
                 return;
             }
         } catch (e) {
             // ignore DOM errors
         }
-        maybeShowCpuSpeechFromLog(text);
-        if (typeof console !== 'undefined' && console.log) console.log('[log]', String(text));
+        if (typeof console !== 'undefined' && console.log) console.log('[log]', resolvedText);
     }
 
     function updateBgmButtons() {
@@ -487,6 +465,12 @@
                 ? hideCpuSpeechBubble
                 : (root && typeof root.hideCpuSpeechBubble === 'function' ? root.hideCpuSpeechBubble : null);
             if (hideCpuSpeechBubbleFn) hideCpuSpeechBubbleFn();
+        } catch (e) { /* ignore */ }
+        try {
+            const hideHeroSpeechBubbleFn = (typeof hideHeroSpeechBubble === 'function')
+                ? hideHeroSpeechBubble
+                : (root && typeof root.hideHeroSpeechBubble === 'function' ? root.hideHeroSpeechBubble : null);
+            if (hideHeroSpeechBubbleFn) hideHeroSpeechBubbleFn();
         } catch (e) { /* ignore */ }
     }
 
@@ -767,6 +751,31 @@
          * policy = { mode: 'compat'|'strict' } - compat allows fallback, strict rejects on failure
          * Returns an object: { status: 'ok'|'fallback'|'error', details }
          */
+        try {
+            const commentaryBroker = require('./commentary-broker');
+            if (commentaryBroker && typeof commentaryBroker.initBroker === 'function') {
+                commentaryBroker.initBroker({
+                    root: (typeof globalThis !== 'undefined') ? globalThis : null,
+                    addLog,
+                    getShowHeroSpeechBubble: () => {
+                        try {
+                            if (typeof window !== 'undefined' && typeof window.showHeroSpeechBubble === 'function') {
+                                return window.showHeroSpeechBubble;
+                            }
+                        } catch (e) { /* ignore */ }
+                        return null;
+                    },
+                    getShowCpuSpeechBubble: () => {
+                        try {
+                            if (typeof window !== 'undefined' && typeof window.showCpuSpeechBubble === 'function') {
+                                return window.showCpuSpeechBubble;
+                            }
+                        } catch (e) { /* ignore */ }
+                        return null;
+                    }
+                });
+            }
+        } catch (e) { /* ignore */ }
         _gameDIInstallResult = { timersImpl, registerUIGlobals, preloadAssets, preloadSpecialStoneVisuals };
         return _gameDIInstallResult;
     }

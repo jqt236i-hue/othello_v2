@@ -1147,14 +1147,28 @@
                 case 'DRAW_CARD':
                 case 'HAND_ADD':
                     _preparePassivePlaybackPhaseState(phaseState);
-                    pEvent.type = 'hand_add';
+                    const handAddReason = ev.reason || (ev.meta && ev.meta.reason) || null;
+                    const isCaptureWillHandAdd = String(handAddReason || '').trim().toLowerCase() === 'capture_will';
+                    const handAddVisualDescriptor = (PlaybackEventHelpers && typeof PlaybackEventHelpers.createCardVisualDescriptor === 'function')
+                        ? PlaybackEventHelpers.createCardVisualDescriptor(ev.cardId || null, ev.meta || null)
+                        : null;
+                    pEvent.type = isCaptureWillHandAdd ? 'capture_to_hand_animation' : 'hand_add';
                     pEvent.targets = [{
                         player: ev.player || null,
                         cardId: ev.cardId || null,
                         count: Number.isFinite(ev.count) ? ev.count : 1,
-                        reason: ev.reason || (ev.meta && ev.meta.reason) || null,
+                        reason: handAddReason,
                         sourceType: ev.meta && ev.meta.sourceType ? ev.meta.sourceType : null,
-                        generatedName: ev.meta && ev.meta.generatedName ? ev.meta.generatedName : null
+                        sourceCardId: ev.meta && ev.meta.sourceCardId ? ev.meta.sourceCardId : null,
+                        sourceName: ev.meta && ev.meta.sourceName ? ev.meta.sourceName : null,
+                        sourceSpecialType: ev.meta && ev.meta.sourceSpecialType ? ev.meta.sourceSpecialType : null,
+                        sourceRow: ev.meta && Number.isInteger(ev.meta.sourceRow) ? ev.meta.sourceRow : null,
+                        sourceCol: ev.meta && Number.isInteger(ev.meta.sourceCol) ? ev.meta.sourceCol : null,
+                        sourceOwner: ev.meta && ev.meta.sourceOwner ? ev.meta.sourceOwner : null,
+                        stoneId: ev.meta && Number.isInteger(ev.meta.stoneId) ? ev.meta.stoneId : null,
+                        insertIndex: ev.meta && Number.isInteger(ev.meta.insertIndex) ? ev.meta.insertIndex : null,
+                        generatedName: ev.meta && ev.meta.generatedName ? ev.meta.generatedName : null,
+                        visualDescriptor: handAddVisualDescriptor
                     }];
                     // Draw animation should run as its own readable step.
                     phaseState.currentPhase++;
@@ -2195,6 +2209,15 @@
         );
         if (_hasRawEvent(ctx.raw, 'tempt_selected', (ev) => !!(ev && ev.applied))) {
             _pushSoundCue(ctx, 'tempt_select', temptPhase, 'tempt_selected');
+        }
+
+        const capturePhase = _findPhase(
+            ctx.base,
+            (ev) => ev && ev.type === 'capture_to_hand_animation',
+            ctx.fallbackPhase
+        );
+        if (_hasRawEvent(ctx.raw, 'capture_selected', (ev) => !!(ev && ev.applied))) {
+            _pushSoundCue(ctx, 'tempt_select', capturePhase, 'capture_selected');
         }
     }
 

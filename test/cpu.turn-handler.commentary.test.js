@@ -43,7 +43,14 @@ describe('cpu turn handler commentary', () => {
       eventType: 'turn_start',
       playerKey: 'white'
     }));
-    expect(global.emitLogAdded).toHaveBeenCalledWith('白CPU: 行くぞ');
+    expect(global.emitLogAdded).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'commentary',
+      speakerRole: 'cpu',
+      playerKey: 'white',
+      prefix: '白CPU',
+      line: '行くぞ',
+      text: '白CPU: 行くぞ'
+    }));
   });
 
   test('corner gain after CPU move triggers an immediate second commentary request', async () => {
@@ -98,7 +105,14 @@ describe('cpu turn handler commentary', () => {
       board: expect.any(Array)
     }));
     expect(requestCommentaryMock.mock.calls[1][0].board[0][0]).toBe(-1);
-    expect(global.emitLogAdded).toHaveBeenNthCalledWith(2, '白CPU: 角だ');
+    expect(global.emitLogAdded).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      kind: 'commentary',
+      speakerRole: 'cpu',
+      playerKey: 'white',
+      prefix: '白CPU',
+      line: '角だ',
+      text: '白CPU: 角だ'
+    }));
   });
 
   test('non-corner CPU move does not trigger extra commentary request', async () => {

@@ -1197,11 +1197,13 @@
         if (prev === null) return { changed: false, reason: 'out_of_board' };
         const ownerAfterVal = ownerAfterKey === 'black' ? (SharedConstants.BLACK || 1) : (SharedConstants.WHITE || -1);
         const forcePresentation = !!(meta && meta.forcePresentation === true);
+        const allowGhostFlip = !!(meta && meta.allowGhostFlip === true);
         if (prev === ownerAfterVal) {
             if (!forcePresentation) return { changed: false };
             const stoneIdForced = getStoneIdAt(cardState, gameState, row, col);
             const forcedMetaInput = _clonePresentationMeta(meta);
             delete forcedMetaInput.forcePresentation;
+            delete forcedMetaInput.allowGhostFlip;
             const forcedMeta = _populateSpecialVisualMeta(cardState, row, col, forcedMetaInput);
             emitPresentationEvent(cardState, {
                 type: 'CHANGE',
@@ -1222,9 +1224,11 @@
             ? 'black'
             : ((prev === (SharedConstants.WHITE || -1)) ? 'white' : null);
         const ghostMarker = _getGhostMarkerAt(cardState, row, col);
-        if (ghostMarker && _shouldBlockGhostChange(cause, reason)) {
+        if (ghostMarker && _shouldBlockGhostChange(cause, reason) && !allowGhostFlip) {
             const stoneIdBlocked = getStoneIdAt(cardState, gameState, row, col);
-            const metaBlocked = _populateSpecialVisualMeta(cardState, row, col, meta);
+            const metaBlockedInput = _clonePresentationMeta(meta);
+            delete metaBlockedInput.allowGhostFlip;
+            const metaBlocked = _populateSpecialVisualMeta(cardState, row, col, metaBlockedInput);
             metaBlocked.blockedByGhost = true;
             emitPresentationEvent(cardState, {
                 type: 'CHANGE',
@@ -1254,7 +1258,9 @@
                 cardState.cornerCaptureCountByPlayer[ownerAfterKey] = (cardState.cornerCaptureCountByPlayer[ownerAfterKey] || 0) + 1;
             }
         }
-        const metaOut = _populateSpecialVisualMeta(cardState, row, col, meta);
+        const metaOutInput = _clonePresentationMeta(meta);
+        delete metaOutInput.allowGhostFlip;
+        const metaOut = _populateSpecialVisualMeta(cardState, row, col, metaOutInput);
 
         emitPresentationEvent(cardState, {
             type: 'CHANGE',

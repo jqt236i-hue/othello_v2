@@ -360,14 +360,16 @@
         const opts = (options && typeof options === 'object') ? options : {};
         const safeDelay = Number.isFinite(Number(opts.delayMs)) ? Math.max(0, Math.trunc(Number(opts.delayMs))) : 0;
         const expectedTurnNumber = Number.isFinite(Number(opts.expectedTurnNumber)) ? Number(opts.expectedTurnNumber) : null;
+        const expectedPlayerKey = (typeof opts.nextPlayerKey === 'undefined' || opts.nextPlayerKey === null)
+            ? null
+            : normalizeSelectionPlayerKey(opts.nextPlayerKey);
         const tid = setTimeout(() => {
             try {
                 const gameStateRef = root && root.gameState ? root.gameState : null;
                 const currentPlayer = gameStateRef ? gameStateRef.currentPlayer : null;
                 const currentTurnNumber = (gameStateRef && Number.isFinite(Number(gameStateRef.turnNumber))) ? Number(gameStateRef.turnNumber) : null;
-                const isWhiteTurn = currentPlayer === 'white' || currentPlayer === -1 || currentPlayer === '-1'
-                    || (typeof root.WHITE !== 'undefined' && currentPlayer === root.WHITE);
-                if (!isWhiteTurn) return;
+                const currentPlayerKey = normalizeSelectionPlayerKey(currentPlayer);
+                if (expectedPlayerKey && currentPlayerKey !== expectedPlayerKey) return;
                 if (expectedTurnNumber !== null && currentTurnNumber !== null && expectedTurnNumber !== currentTurnNumber) return;
                 if (root && typeof root.processCpuTurn === 'function') {
                     root.processCpuTurn();

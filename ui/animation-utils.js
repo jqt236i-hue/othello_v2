@@ -1014,6 +1014,199 @@ function _finalizeHandAddAnimation(payload, options) {
     } catch (e) { /* ignore */ }
 }
 
+function _getCaptureReservedHandSlotState() {
+    try {
+        if (typeof window !== 'undefined' && window.__captureReservedHandSlotState && typeof window.__captureReservedHandSlotState === 'object') {
+            return window.__captureReservedHandSlotState;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _clearCaptureReservedHandSlotState(expectedToken) {
+    try {
+        if (typeof window === 'undefined') return;
+        if (!window.__captureReservedHandSlotState) return;
+        if (expectedToken && window.__captureReservedHandSlotState.token && window.__captureReservedHandSlotState.token !== expectedToken) {
+            return;
+        }
+        window.__captureReservedHandSlotState = null;
+    } catch (e) { /* ignore */ }
+}
+
+function _finalizeCaptureToHandAnimation(payload) {
+    const data = payload || {};
+    _clearCaptureReservedHandSlotState(data.reservedToken || null);
+    try {
+        if (typeof renderCardUI === 'function') renderCardUI();
+    } catch (e) { /* ignore */ }
+}
+
+function _resolveCaptureTargetCardElement(playerKey, handIndex) {
+    const handEl = _resolveHandElementByOwner(playerKey);
+    if (!handEl || !Number.isInteger(handIndex)) return null;
+    return handEl.querySelector(`.card-item[data-owner-key="${playerKey}"][data-hand-index="${handIndex}"]`)
+        || handEl.querySelector(`.card-item[data-hand-index="${handIndex}"]`);
+}
+
+function playCaptureToHandAnimation(payload) {
+    const data = payload || {};
+    const toPlayerKey = _normalizeHandOwnerKey(data.player);
+    const reservedState = _getCaptureReservedHandSlotState();
+    const reservedToken = reservedState && reservedState.playerKey === toPlayerKey
+        ? (reservedState.token || null)
+        : null;
+
+    return _enqueueHandLayerAnimation(() => new Promise((resolve) => {
+        const done = () => {
+            _finalizeCaptureToHandAnimation(Object.assign({}, data, { reservedToken }));
+            resolve();
+        };
+
+        if (_isNoAnim()) {
+            done();
+            return;
+        }
+
+        const layerEl = (typeof handLayer !== 'undefined' && handLayer) ? handLayer : document.getElementById('handLayer');
+        const boardRoot = (typeof boardEl !== 'undefined' && boardEl) ? boardEl : document.getElementById('board');
+        const sourceRow = Number(data.sourceRow);
+        const sourceCol = Number(data.sourceCol);
+        const insertIndex = Number(data.insertIndex);
+        const targetCardEl = _resolveCaptureTargetCardElement(toPlayerKey, Number.isInteger(insertIndex) ? insertIndex : -1);
+        const sourceCell = boardRoot && Number.isInteger(sourceRow) && Number.isInteger(sourceCol)
+            ? boardRoot.querySelector(`.cell[data-row="${sourceRow}"][data-col="${sourceCol}"]`)
+            : null;
+        if (!layerEl || !targetCardEl || !sourceCell) {
+            done();
+            return;
+        }
+
+        const targetRect = _normalizeCardSourceRect(targetCardEl.getBoundingClientRect());
+        const sourceDisc = sourceCell.querySelector('.disc');
+        const sourceRect = sourceDisc
+            ? _normalizeCardSourceRect(sourceDisc.getBoundingClientRect())
+            : _normalizeCardSourceRect(sourceCell.getBoundingClientRect());
+        if (!sourceRect || !targetRect) {
+            done();
+            return;
+        }
+
+        _setCardAnimatingState(true);
+        layerEl.style.display = 'block';
+
+        const sc = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
+        let cleanupStarted = false;
+        let movingStone = null;
+        let revealCard = null;
+        let timeoutId = _Timer().setTimeout(() => {
+            void cleanup();
+        }, 2600, sc);
+
+        const cleanup = async () => {
+            if (cleanupStarted) return;
+            cleanupStarted = true;
+            try {
+                if (movingStone && movingStone.parentElement) movingStone.parentElement.removeChild(movingStone);
+            } catch (e) { /* ignore */ }
+            try {
+                if (revealCard && revealCard.parentElement) revealCard.parentElement.removeChild(revealCard);
+            } catch (e) { /* ignore */ }
+            if (timeoutId) {
+                _Timer().clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+            layerEl.style.display = 'none';
+            _setCardAnimatingState(false);
+            done();
+        };
+
+        movingStone = sourceDisc ? sourceDisc.cloneNode(true) : document.createElement('div');
+        if (!sourceDisc) {
+            const sourceOwnerKey = _normalizeHandOwnerKey(data.sourceOwner);
+            movingStone.className = `disc ${sourceOwnerKey === 'white' ? 'white' : 'black'}`;
+            if (data.sourceSpecialType && typeof applyStoneVisualEffect === 'function') {
+                try {
+                    applyStoneVisualEffect(movingStone, data.sourceSpecialType, { owner: sourceOwnerKey });
+                } catch (e) { /* ignore */ }
+            }
+        }
+        movingStone.style.position = 'fixed';
+        movingStone.style.pointerEvents = 'none';
+        movingStone.style.zIndex = '1300';
+        movingStone.style.left = `${sourceRect.left}px`;
+        movingStone.style.top = `${sourceRect.top}px`;
+        movingStone.style.width = `${sourceRect.width}px`;
+        movingStone.style.height = `${sourceRect.height}px`;
+        movingStone.style.margin = '0';
+        layerEl.appendChild(movingStone);
+
+        const targetCenterX = targetRect.left + (targetRect.width / 2);
+        const targetCenterY = targetRect.top + (targetRect.height / 2);
+        const stoneCenterX = sourceRect.left + (sourceRect.width / 2);
+        const stoneCenterY = sourceRect.top + (sourceRect.height / 2);
+        const stoneDx = targetCenterX - stoneCenterX;
+        const stoneDy = targetCenterY - stoneCenterY;
+
+        const descriptor = _normalizeCardUseVisualDescriptor(data.visualDescriptor, data.cardId, data.sourceName, null);
+        const cardDef = (typeof CardLogic !== 'undefined' && typeof CardLogic.getCardDef === 'function' && descriptor.cardId)
+            ? CardLogic.getCardDef(descriptor.cardId)
+            : null;
+        const revealName = descriptor.name || (cardDef && cardDef.name) || '';
+        const revealCost = Number.isFinite(Number(descriptor.cost))
+            ? Number(descriptor.cost)
+            : ((cardDef && Number.isFinite(Number(cardDef.cost))) ? Number(cardDef.cost) : null);
+
+        (async () => {
+            await _animateCompat(movingStone, [
+                { transform: 'translate(0px, 0px) scale(1)', opacity: 1 },
+                { transform: `translate(${stoneDx}px, ${stoneDy}px) scale(0.82)`, opacity: 1 }
+            ], {
+                duration: 360,
+                easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)',
+                fill: 'forwards'
+            }, sc);
+
+            movingStone.style.opacity = '0';
+            revealCard = _buildFallbackCardUseElement(descriptor.cardId || null, revealName, revealCost, descriptor);
+            revealCard.classList.add('visible');
+            revealCard.style.position = 'fixed';
+            revealCard.style.pointerEvents = 'none';
+            revealCard.style.zIndex = '1301';
+            revealCard.style.left = `${targetRect.left}px`;
+            revealCard.style.top = `${targetRect.top}px`;
+            revealCard.style.width = `${targetRect.width}px`;
+            revealCard.style.height = `${targetRect.height}px`;
+            revealCard.style.margin = '0';
+            revealCard.style.opacity = '0';
+            revealCard.style.transform = 'scale(0.72)';
+            layerEl.appendChild(revealCard);
+
+            await _animateCompat(revealCard, [
+                { opacity: 0, transform: 'scale(0.72)' },
+                { opacity: 1, transform: 'scale(1)' }
+            ], {
+                duration: 180,
+                easing: 'ease-out',
+                fill: 'forwards'
+            }, sc);
+
+            await _animateCompat(revealCard, [
+                { opacity: 1, transform: 'scale(1)' },
+                { opacity: 1, transform: 'scale(1)' }
+            ], {
+                duration: 120,
+                easing: 'linear',
+                fill: 'forwards'
+            }, sc);
+        })().catch(() => {
+            // no-op
+        }).finally(() => {
+            void cleanup();
+        });
+    }));
+}
+
 /**
  * ドロー時のハンド演出
  * Hand carries a card from deck to hand area.
@@ -1547,6 +1740,7 @@ if (typeof module !== 'undefined' && module.exports) {
         playClearHandAnimation,
         playDrawCardHandAnimation,
         playDirectHandAddAnimation,
+        playCaptureToHandAnimation,
         playTrapPlacementFlash,
         playCardUseHandAnimation,
         animateHyperactiveMove,
@@ -1558,6 +1752,7 @@ if (typeof window !== 'undefined') {
     window.playClearHandAnimation = playClearHandAnimation;
     window.playDrawCardHandAnimation = playDrawCardHandAnimation;
     window.playDirectHandAddAnimation = playDirectHandAddAnimation;
+    window.playCaptureToHandAnimation = playCaptureToHandAnimation;
     window.playTrapPlacementFlash = playTrapPlacementFlash;
     window.playCardUseHandAnimation = playCardUseHandAnimation;
 }

@@ -87,6 +87,85 @@ describe('TABOO_REVERSE_WILL（禁忌の反転）', () => {
     expect(candidates).toHaveLength(0);
   });
 
+  test('bypasses protected and guard stones but leaves ABSOLUTE_PROTECTED unchanged in the same taboo line', () => {
+    const { cardState, gameState } = makeState();
+    cardState.pendingEffectByPlayer.black = { type: 'TABOO_REVERSE_WILL', cardId: 'taboo_reverse_01', stage: null };
+
+    gameState.board[2][4] = Shared.WHITE;
+    gameState.board[2][5] = Shared.WHITE;
+    gameState.board[2][6] = Shared.WHITE;
+    gameState.board[2][7] = Shared.WHITE;
+    cardState.markers = [
+      { kind: 'specialStone', row: 2, col: 4, owner: 'white', data: { type: 'PROTECTED', expiresForPlayer: 'white' } },
+      { kind: 'specialStone', row: 2, col: 5, owner: 'white', data: { type: 'PERMA_PROTECTED' } },
+      { kind: 'specialStone', row: 2, col: 6, owner: 'white', data: { type: 'ABSOLUTE_PROTECTED' } },
+      { kind: 'specialStone', row: 2, col: 7, owner: 'white', data: { type: 'GUARD', remainingOwnerTurns: 3 } }
+    ];
+
+    const candidates = CardLogic.getTabooReverseCandidates(cardState, gameState, 'black', 2, 3);
+    expect(candidates).toEqual([
+      expect.objectContaining({
+        direction: [0, 1],
+        score: 3,
+        flips: [
+          { row: 2, col: 4 },
+          { row: 2, col: 5 },
+          { row: 2, col: 7 }
+        ]
+      })
+    ]);
+
+    const res = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 2, col: 3 });
+
+    expect(res.gameState.board[2][4]).toBe(Shared.BLACK);
+    expect(res.gameState.board[2][5]).toBe(Shared.BLACK);
+    expect(res.gameState.board[2][6]).toBe(Shared.WHITE);
+    expect(res.gameState.board[2][7]).toBe(Shared.BLACK);
+
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 2, col: 4, owner: 'black', data: expect.objectContaining({ type: 'PROTECTED', expiresForPlayer: 'black' }) }),
+      expect.objectContaining({ row: 2, col: 5, owner: 'black', data: expect.objectContaining({ type: 'PERMA_PROTECTED' }) }),
+      expect.objectContaining({ row: 2, col: 6, owner: 'white', data: expect.objectContaining({ type: 'ABSOLUTE_PROTECTED' }) }),
+      expect.objectContaining({ row: 2, col: 7, owner: 'black', data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 3 }) })
+    ]));
+
+    const tabooEvent = res.events.find((ev) => ev && ev.type === 'taboo_reverse_flipped');
+    expect(tabooEvent).toBeTruthy();
+    expect(tabooEvent.details).toEqual([
+      { row: 2, col: 4 },
+      { row: 2, col: 5 },
+      { row: 2, col: 7 }
+    ]);
+  });
+
+  test('bypasses ghost and transfers marker ownership for ghost and bomb stones', () => {
+    const { cardState, gameState } = makeState();
+    cardState.pendingEffectByPlayer.black = { type: 'TABOO_REVERSE_WILL', cardId: 'taboo_reverse_01', stage: null };
+
+    gameState.board[2][4] = Shared.WHITE;
+    gameState.board[2][5] = Shared.WHITE;
+    cardState.markers = [
+      { kind: 'specialStone', row: 2, col: 4, owner: 'white', data: { type: 'GHOST', remainingOwnerTurns: 5 } },
+      { kind: 'specialStone', row: 2, col: 5, owner: 'white', data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } }
+    ];
+
+    const res = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 2, col: 3 });
+
+    expect(res.gameState.board[2][4]).toBe(Shared.BLACK);
+    expect(res.gameState.board[2][5]).toBe(Shared.BLACK);
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 2, col: 4, owner: 'black', data: expect.objectContaining({ type: 'GHOST', remainingOwnerTurns: 5 }) }),
+      expect.objectContaining({ row: 2, col: 5, owner: 'black', data: expect.objectContaining({ type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 }) })
+    ]));
+
+    const tabooEvent = res.events.find((ev) => ev && ev.type === 'taboo_reverse_flipped');
+    expect(tabooEvent).toBeTruthy();
+    expect(tabooEvent.details).toEqual([
+      { row: 2, col: 4 },
+      { row: 2, col: 5 }
+    ]);
+  });
+
   test('allows placement with zero normal flips and reverses only the longest enemy line', () => {
     const { cardState, gameState } = makeState();
     cardState.pendingEffectByPlayer.black = { type: 'TABOO_REVERSE_WILL', cardId: 'taboo_reverse_01', stage: null };

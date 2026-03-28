@@ -744,11 +744,57 @@
     }
 
     function emitEffectLog(text) {
+        const line = String(text || '').trim();
+        if (!line) return;
         try {
-            if (typeof addLog === 'function') {
-                addLog(String(text || ''));
+            if (root && typeof root.emitEffectLog === 'function' && root.emitEffectLog !== emitEffectLog) {
+                root.emitEffectLog(line);
+                return;
             }
         } catch (e) { /* ignore */ }
+        try {
+            if (root && typeof root.emitLogAdded === 'function') {
+                root.emitLogAdded(line, 'effect');
+                return;
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis && globalThis !== root) {
+                if (typeof globalThis.emitEffectLog === 'function' && globalThis.emitEffectLog !== emitEffectLog) {
+                    globalThis.emitEffectLog(line);
+                    return;
+                }
+                if (typeof globalThis.emitLogAdded === 'function') {
+                    globalThis.emitLogAdded(line, 'effect');
+                    return;
+                }
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof addLog === 'function') {
+                addLog(line);
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    function getPayloadEffectLogs(payload) {
+        const source = (payload && Array.isArray(payload.effectLogs)) ? payload.effectLogs : [];
+        const normalized = [];
+        for (let index = 0; index < source.length; index += 1) {
+            const line = String(source[index] || '').trim();
+            if (!line) continue;
+            if (normalized.length > 0 && normalized[normalized.length - 1] === line) continue;
+            normalized.push(line);
+        }
+        return normalized;
+    }
+
+    function emitPayloadEffectLogs(payload) {
+        const effectLogs = getPayloadEffectLogs(payload);
+        for (let index = 0; index < effectLogs.length; index += 1) {
+            emitEffectLog(effectLogs[index]);
+        }
+        return effectLogs.length;
     }
 
     function emitStatusAndEffectLog(text, isError) {
@@ -1852,6 +1898,7 @@
                 if (isSelfOperation && isTerminalResultSnapshot) {
                     markTrackedPublishResultPresented(trackedPublish, snapshot);
                 }
+                emitPayloadEffectLogs(payload);
                 emitSnapshotCommentary(payload, snapshot, isSelfOperation, playbackEvents);
             }
             handleTimeoutPassPayload(payload);
@@ -2295,6 +2342,7 @@
                         }
                     });
                     if (applied) {
+                        emitPayloadEffectLogs(res.data);
                         recordNetworkTelemetry('publish_response_snapshot_applied', {
                             operationId,
                             applied,

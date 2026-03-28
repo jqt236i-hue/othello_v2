@@ -78,6 +78,34 @@ function _getDiscStoneHelperForDiff(name) {
     return null;
 }
 
+function _isTimeStopActiveForDiff() {
+    if (typeof document === 'undefined') return false;
+    try {
+        return !!(
+            (document.documentElement && document.documentElement.classList && document.documentElement.classList.contains('time-stop-active')) ||
+            (document.body && document.body.classList && document.body.classList.contains('time-stop-active'))
+        );
+    } catch (e) {
+        return false;
+    }
+}
+
+function _applyTimeStopLegalEmphasisForDiff(cell) {
+    const helper = _getDiscStoneHelperForDiff('applyTimeStopLegalEmphasis');
+    if (typeof helper === 'function') {
+        helper(cell, _isTimeStopActiveForDiff());
+        return;
+    }
+    if (!cell || !cell.classList) return;
+    const active = _isTimeStopActiveForDiff();
+    const shouldEmphasize = !!active && (
+        cell.classList.contains('legal') ||
+        cell.classList.contains('legal-free') ||
+        cell.classList.contains('selectable-friendly')
+    );
+    cell.classList.toggle('time-stop-legal-emphasis', shouldEmphasize);
+}
+
 function _playBoardExpansionRevealSoundForDiff() {
     try {
         if (typeof SoundEngine === 'undefined' || !SoundEngine || typeof SoundEngine.playEffectByKey !== 'function') {
@@ -1639,6 +1667,7 @@ function updateCellDOM(cell, state, row, col, prevState) {
     if (state.isExtendLifeTarget && !state.blockade && !state.frozen) {
         cell.classList.add('selectable-friendly-no-circle');
     }
+    _applyTimeStopLegalEmphasisForDiff(cell);
 
     if (state.blockade) {
         cell.classList.add('blocked-cell');
@@ -1897,6 +1926,39 @@ function reconcileCellHasDiscClasses(boardEl) {
     });
 }
 
+function reconcileCellHintClasses(boardEl, currentState) {
+    if (!boardEl || !currentState || typeof currentState !== 'object') return;
+    const expansionStateMap = new Map(
+        _getExpansionStateListForDiff(currentState)
+            .filter(Boolean)
+            .map((exp) => [`${exp.row},${exp.col}`, exp])
+    );
+    const cells = boardEl.querySelectorAll('.cell');
+    cells.forEach((cell) => {
+        try {
+            const row = Number(cell && cell.dataset ? cell.dataset.row : NaN);
+            const col = Number(cell && cell.dataset ? cell.dataset.col : NaN);
+            if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+            const state = (row >= 0 && row < 8 && col >= 0 && col < 8)
+                ? currentState[row][col]
+                : (expansionStateMap.get(`${row},${col}`) || null);
+            const canShowHint = !!(state && !state.blockade && !state.frozen);
+            const shouldShowLegalFree = !!(canShowHint && state && state.isLegalFree);
+            const shouldShowLegal = !!(canShowHint && state && state.isLegal && !shouldShowLegalFree);
+            const shouldShowTabooLegal = !!(canShowHint && state && state.isTabooLegal);
+            const shouldShowSelectable = !!(canShowHint && state && state.isSelectableFriendly);
+            const shouldShowExtendLifeTarget = !!(canShowHint && state && state.isExtendLifeTarget);
+
+            cell.classList.toggle('legal-free', shouldShowLegalFree);
+            cell.classList.toggle('legal', shouldShowLegal);
+            cell.classList.toggle('effect-target-highlight', shouldShowTabooLegal);
+            cell.classList.toggle('selectable-friendly', shouldShowSelectable);
+            cell.classList.toggle('selectable-friendly-no-circle', shouldShowExtendLifeTarget);
+            _applyTimeStopLegalEmphasisForDiff(cell);
+        } catch (e) { /* ignore */ }
+    });
+}
+
 /**
  * 差分レンダリング実行
  * Execute differential rendering
@@ -1956,6 +2018,7 @@ function renderBoardDiff(boardEl) {
                 }
             }
             reconcileCellHasDiscClasses(boardEl);
+            reconcileCellHintClasses(boardEl, previousBoardState);
             _scheduleBoardExpansionRevealSoundForDiff(revealExpansionKeys, nextSignature);
             if (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true) {
                 console.log('[DiffRenderer] Initial full render complete');
@@ -2007,6 +2070,7 @@ function renderBoardDiff(boardEl) {
         }
 
         reconcileCellHasDiscClasses(boardEl);
+        reconcileCellHintClasses(boardEl, currentState);
 
         return updatedCount;
     } finally {

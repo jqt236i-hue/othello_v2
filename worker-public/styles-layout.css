@@ -2073,6 +2073,32 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     animation: round-bonus-banner-fade-out 320ms ease forwards;
 }
 
+#fate-will-banner {
+    position: fixed;
+    z-index: 11992;
+    top: calc(10px * var(--layout-stage-scale));
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: calc(6px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(180, 120, 255, 0.72);
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background: linear-gradient(180deg, rgba(58, 20, 78, 0.96), rgba(28, 10, 48, 0.96));
+    box-shadow: 0 0 calc(14px * var(--layout-stage-scale)) rgba(180, 120, 255, 0.28), var(--board-shadow-outer);
+    color: #ddb8ff;
+    font-size: calc(13px * var(--layout-stage-scale));
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+#fate-will-banner.is-visible {
+    display: inline-flex;
+}
+
 #rules-help-panel {
     position: fixed;
     left: 50%;
@@ -3083,7 +3109,8 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     z-index: 110;
 }
 
-#cpu-speech-bubble {
+#cpu-speech-bubble,
+#hero-speech-bubble {
     position: fixed;
     left: 50%;
     top: calc(40px * var(--layout-stage-scale));
@@ -3108,7 +3135,8 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     word-break: break-word;
 }
 
-#cpu-speech-bubble::after {
+#cpu-speech-bubble::after,
+#hero-speech-bubble::after {
     content: "";
     position: absolute;
     left: 50%;
@@ -3119,7 +3147,8 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     border-color: var(--bg-panel-dark) transparent transparent transparent;
 }
 
-#cpu-speech-bubble.is-visible {
+#cpu-speech-bubble.is-visible,
+#hero-speech-bubble.is-visible {
     opacity: 1;
     visibility: visible;
 }

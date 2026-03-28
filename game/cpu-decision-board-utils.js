@@ -20,6 +20,7 @@
         'STRONG_WIND_WILL',
         'TABOO_REVERSE_WILL',
         'TEMPT_WILL',
+        'CAPTURE_WILL',
         'METEOR_WILL',
         'ULTIMATE_DESTROY_GOD',
         'ULTIMATE_REVERSE_DRAGON'

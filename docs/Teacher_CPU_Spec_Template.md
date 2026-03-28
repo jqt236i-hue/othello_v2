@@ -121,7 +121,7 @@
 | PERMA_PROTECT_NEXT_STONE | 強い意志 | 15 | 防御 |
 | STRONG_WIND_WILL | 強風の意志 | 9 | 攻撃/盤面操作 |
 | TRAP_WILL | 罠の意志 | 4 | 牽制 |
-| TEMPT_WILL | 誘惑の意志 | 20 | 攻撃 |
+| TEMPT_WILL | 誘惑の意志 | 23 | 攻撃 |
 | DOUBLE_CHAIN_WILL | 二連鎖の意志 | 22 | 攻撃 |
 | TRIPLE_CHAIN_WILL | 三連鎖の意志 | 22 | 攻撃 |
 | QUAD_CHAIN_WILL | 四連鎖の意志 | 22 | 攻撃 |

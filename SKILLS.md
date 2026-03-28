@@ -1,6 +1,6 @@
 # カードオセロ / SKILLS.md
 
-最終更新: 2026-03-16
+最終更新: 2026-03-27
 
 ## 0. この文書の役割
 
@@ -33,7 +33,9 @@
 | Skill | 使う時 | 主対象 |
 | --- | --- | --- |
 | `animation-visual-playback-workflow` | 演出順、board render、playback lock、visual regression を直す時 | `ui/animation-*`, `ui/presentation-handler.js`, `ui/playback-state-manager.js` |
+| `new-card-implementation-workflow` | 新カード実装を type 分岐から end-to-end で通す時 | `cards/catalog.json`, `game/card-effects/*`, pending target, CPU, presentation, docs / tests |
 | `card-effect-integration-workflow` | カード追加、削除、仕様変更を end-to-end で通す時 | `cards/catalog.json`, `game/card-effects/*`, pending target, CPU, presentation |
+| `card-cost-adjustment-workflow` | カードの cost 数値変更を end-to-end で通す時 | `cards/catalog.json`, generated catalog, tier UI, CPU cost scoring, docs / tests |
 | `cpu-onnx-gate-workflow` | browser ONNX gate と benchmark / fallback をそろえる時 | `ui/handlers/cpu-policy.js`, `game/ai/policy-onnx-runtime.js`, benchmark scripts |
 | `deck-builder-authoring-workflow` | deck builder と story-deck-lab の authoring UI を直す時 | `shared/deck-spec.js`, `shared/deck-codec.js`, `ui/deck-builder-*`, `ui/story-deck-lab/*` |
 | `design-plan-runbook-authoring-workflow` | design / plan / runbook 文書を作る時 | `docs/*-plan*.md`, `docs/*-runbook*.md` |
@@ -51,7 +53,9 @@
 ## 4. 選び方の近道
 
 - 演出や再生の崩れ: `animation-visual-playback-workflow`
+- 新カード実装を既存 type 再利用か新 type 追加かの分岐から進める: `new-card-implementation-workflow`
 - カードの追加 / 削除 / 表示や効果の一貫性: `card-effect-integration-workflow`
+- カードの cost 数値変更と tier / CPU 影響確認: `card-cost-adjustment-workflow`
 - CPU の ONNX 利用条件や fallback: `cpu-onnx-gate-workflow`
 - deck builder / story-deck-lab: `deck-builder-authoring-workflow`
 - 設計書や実行手順書: `design-plan-runbook-authoring-workflow`

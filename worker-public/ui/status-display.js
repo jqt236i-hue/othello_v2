@@ -2,8 +2,8 @@
 // Import difficulty level constants
 // (included via <script> in index.html before this file)
 
-let cpuSpeechHideTimer = null;
-let cpuSpeechViewportHandlersBound = false;
+let portraitSpeechHideTimer = null;
+let portraitSpeechViewportHandlersBound = false;
 let roundDisplayViewportHandlersBound = false;
 let roundDisplayResizeObserver = null;
 let roundDisplayBonusTimer = null;
@@ -12,6 +12,22 @@ let roundDisplayBonusState = null;
 const ROUND_DISPLAY_BONUS_FADE_OUT_MS = 320;
 const HERO_DEFAULT_LABEL = 'オセロの勇者';
 const NETWORK_WAITING_NAME = '接続待ち';
+const PORTRAIT_SPEECH_ROLE_CPU = 'cpu';
+const PORTRAIT_SPEECH_ROLE_HERO = 'hero';
+const PORTRAIT_SPEECH_CONFIG = {
+    cpu: {
+        role: PORTRAIT_SPEECH_ROLE_CPU,
+        bubbleId: 'cpu-speech-bubble',
+        imageId: 'cpu-character-img',
+        panelId: 'cpu-character-panel'
+    },
+    hero: {
+        role: PORTRAIT_SPEECH_ROLE_HERO,
+        bubbleId: 'hero-speech-bubble',
+        imageId: 'hero-character-img',
+        panelId: 'hero-character-panel'
+    }
+};
 let StatusDisplayOwnerHelpersModule = null;
 if (typeof require === 'function') {
     try { StatusDisplayOwnerHelpersModule = require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
@@ -159,13 +175,32 @@ function applyNetworkSeatLabels(levelLabel) {
     return true;
 }
 
-function ensureCpuSpeechBubbleElement() {
+function normalizePortraitSpeechRole(value) {
+    return value === PORTRAIT_SPEECH_ROLE_HERO ? PORTRAIT_SPEECH_ROLE_HERO : PORTRAIT_SPEECH_ROLE_CPU;
+}
+
+function resolvePortraitSpeechConfig(value) {
+    const roleValue = value && typeof value === 'object'
+        ? (value.speakerRole || value.role)
+        : value;
+    const role = normalizePortraitSpeechRole(roleValue);
+    return PORTRAIT_SPEECH_CONFIG[role] || PORTRAIT_SPEECH_CONFIG.cpu;
+}
+
+function getPortraitSpeechBubbleElement(value) {
     if (typeof document === 'undefined') return null;
-    let bubble = document.getElementById('cpu-speech-bubble');
+    const config = resolvePortraitSpeechConfig(value);
+    return document.getElementById(config.bubbleId);
+}
+
+function ensurePortraitSpeechBubbleElement(value) {
+    if (typeof document === 'undefined' || !document.body) return null;
+    const config = resolvePortraitSpeechConfig(value);
+    let bubble = getPortraitSpeechBubbleElement(config.role);
     if (bubble) return bubble;
 
     bubble = document.createElement('div');
-    bubble.id = 'cpu-speech-bubble';
+    bubble.id = config.bubbleId;
     bubble.setAttribute('aria-live', 'polite');
     bubble.setAttribute('aria-atomic', 'true');
     bubble.setAttribute('role', 'status');
@@ -173,10 +208,11 @@ function ensureCpuSpeechBubbleElement() {
     return bubble;
 }
 
-function getCpuSpeechAnchorRect() {
+function getPortraitSpeechAnchorRect(value) {
     if (typeof document === 'undefined') return null;
-    const img = document.getElementById('cpu-character-img');
-    const panel = document.getElementById('cpu-character-panel');
+    const config = resolvePortraitSpeechConfig(value);
+    const img = document.getElementById(config.imageId);
+    const panel = document.getElementById(config.panelId);
     const target = (img && img.getAttribute('src')) ? img : panel;
     if (!target || typeof target.getBoundingClientRect !== 'function') return null;
     const rect = target.getBoundingClientRect();
@@ -184,11 +220,12 @@ function getCpuSpeechAnchorRect() {
     return rect;
 }
 
-function positionCpuSpeechBubble() {
+function positionPortraitSpeechBubble(value) {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
-    const bubble = ensureCpuSpeechBubbleElement();
+    const config = resolvePortraitSpeechConfig(value);
+    const bubble = getPortraitSpeechBubbleElement(config.role);
     if (!bubble || !bubble.classList.contains('is-visible')) return;
-    const rect = getCpuSpeechAnchorRect();
+    const rect = getPortraitSpeechAnchorRect(config.role);
     if (!rect) return;
 
     const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
@@ -217,22 +254,67 @@ function positionCpuSpeechBubble() {
     }
 }
 
-function bindCpuSpeechViewportHandlers() {
-    if (cpuSpeechViewportHandlersBound || typeof window === 'undefined') return;
-    cpuSpeechViewportHandlersBound = true;
+function positionAllPortraitSpeechBubbles() {
+    positionPortraitSpeechBubble(PORTRAIT_SPEECH_ROLE_CPU);
+    positionPortraitSpeechBubble(PORTRAIT_SPEECH_ROLE_HERO);
+}
+
+function bindPortraitSpeechViewportHandlers() {
+    if (portraitSpeechViewportHandlersBound || typeof window === 'undefined') return;
+    portraitSpeechViewportHandlersBound = true;
     const handler = () => {
-        try { positionCpuSpeechBubble(); } catch (e) { /* ignore */ }
+        try { positionAllPortraitSpeechBubbles(); } catch (e) { /* ignore */ }
     };
     window.addEventListener('resize', handler);
     window.addEventListener('orientationchange', handler);
     window.addEventListener('scroll', handler, { passive: true });
 }
 
+function hidePortraitSpeechBubble(role) {
+    const roles = role
+        ? [normalizePortraitSpeechRole(role)]
+        : [PORTRAIT_SPEECH_ROLE_CPU, PORTRAIT_SPEECH_ROLE_HERO];
+    roles.forEach((speakerRole) => {
+        const bubble = getPortraitSpeechBubbleElement(speakerRole);
+        if (!bubble) return;
+        bubble.classList.remove('is-visible');
+        bubble.textContent = '';
+    });
+    if (portraitSpeechHideTimer) {
+        clearTimeout(portraitSpeechHideTimer);
+        portraitSpeechHideTimer = null;
+    }
+}
+
+function positionCpuSpeechBubble() {
+    positionPortraitSpeechBubble(PORTRAIT_SPEECH_ROLE_CPU);
+}
+
 function hideCpuSpeechBubble() {
-    const bubble = ensureCpuSpeechBubbleElement();
+    hidePortraitSpeechBubble(PORTRAIT_SPEECH_ROLE_CPU);
+}
+
+function hideHeroSpeechBubble() {
+    hidePortraitSpeechBubble(PORTRAIT_SPEECH_ROLE_HERO);
+}
+
+function showPortraitSpeechBubble(text, options = {}) {
+    const line = String(text || '').trim();
+    if (!line || typeof document === 'undefined') return;
+    const config = resolvePortraitSpeechConfig(options);
+    const bubble = ensurePortraitSpeechBubbleElement(config.role);
     if (!bubble) return;
-    bubble.classList.remove('is-visible');
-    bubble.textContent = '';
+
+    bindPortraitSpeechViewportHandlers();
+    hidePortraitSpeechBubble(config.role);
+    bubble.textContent = line;
+    bubble.classList.add('is-visible');
+    positionPortraitSpeechBubble(config.role);
+
+    if (portraitSpeechHideTimer) {
+        clearTimeout(portraitSpeechHideTimer);
+        portraitSpeechHideTimer = null;
+    }
 }
 
 function getGameStateForStatusDisplay() {
@@ -445,26 +527,74 @@ function updateRoundDisplay() {
     positionRoundDisplay();
 }
 
-function showCpuSpeechBubble(text) {
-    const line = String(text || '').trim();
-    if (!line || typeof document === 'undefined') return;
-    const bubble = ensureCpuSpeechBubbleElement();
-    if (!bubble) return;
+function showCpuSpeechBubble(text, options = {}) {
+    showPortraitSpeechBubble(text, options);
+}
 
-    bindCpuSpeechViewportHandlers();
-    bubble.textContent = line;
-    bubble.classList.add('is-visible');
-    positionCpuSpeechBubble();
+function showHeroSpeechBubble(text, options = {}) {
+    const bubbleOptions = Object.assign({}, options || {}, { speakerRole: PORTRAIT_SPEECH_ROLE_HERO });
+    showPortraitSpeechBubble(text, bubbleOptions);
+}
 
-    if (cpuSpeechHideTimer) {
-        clearTimeout(cpuSpeechHideTimer);
-        cpuSpeechHideTimer = null;
+// ===== FATE_WILL Banner =====
+
+const FATE_WILL_BANNER_ID = 'fate-will-banner';
+
+function _getCardStateForFateWillBanner() {
+    try { if (typeof cardState !== 'undefined' && cardState) return cardState; } catch (e) { /* ignore */ }
+    try { if (typeof window !== 'undefined' && window && window.cardState) return window.cardState; } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _getFateWillBannerText() {
+    const cs = _getCardStateForFateWillBanner();
+    const gs = getGameStateForStatusDisplay();
+    if (!cs || !cs.fateWillControllerByTurnOwner || !gs) return null;
+    const BLACK_VAL = (typeof BLACK !== 'undefined') ? BLACK : 1;
+    const currentPlayerKey = gs.currentPlayer === BLACK_VAL ? 'black' : 'white';
+    const controller = cs.fateWillControllerByTurnOwner[currentPlayerKey];
+    if (!controller) return null;
+    if (!isNetworkModeForLabels()) return '運命の意志発動中';
+    const localSeat = getOwnSeatKeyForLabels();
+    if (localSeat === controller) return '運命の意志発動中 ▸ 代理操作中';
+    return '運命の意志発動中 ▸ 相手代理操作中';
+}
+
+function getFateWillBannerElement() {
+    if (typeof document === 'undefined') return null;
+    return document.getElementById(FATE_WILL_BANNER_ID);
+}
+
+function ensureFateWillBannerElement() {
+    if (typeof document === 'undefined' || !document.body) return null;
+    let el = getFateWillBannerElement();
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = FATE_WILL_BANNER_ID;
+    el.setAttribute('aria-live', 'polite');
+    el.setAttribute('aria-atomic', 'true');
+    el.setAttribute('role', 'status');
+    document.body.appendChild(el);
+    return el;
+}
+
+function updateFateWillBanner() {
+    const text = _getFateWillBannerText();
+    if (!text) {
+        const el = getFateWillBannerElement();
+        if (el) el.classList.remove('is-visible');
+        return;
     }
+    const el = ensureFateWillBannerElement();
+    if (!el) return;
+    el.textContent = text;
+    el.classList.add('is-visible');
 }
 
 function updateStatus() {
     updateRoundDisplay();
     updateCpuCharacter();
+    try { updateFateWillBanner(); } catch (e) { /* ignore */ }
 }
 
 function applyCpuCharacterLevelScale(charImg, level) {
@@ -550,10 +680,13 @@ if (typeof window !== 'undefined') {
     try { window.showCpuSpeechBubble = showCpuSpeechBubble; } catch (e) { /* ignore */ }
     try { window.hideCpuSpeechBubble = hideCpuSpeechBubble; } catch (e) { /* ignore */ }
     try { window.positionCpuSpeechBubble = positionCpuSpeechBubble; } catch (e) { /* ignore */ }
+    try { window.showHeroSpeechBubble = showHeroSpeechBubble; } catch (e) { /* ignore */ }
+    try { window.hideHeroSpeechBubble = hideHeroSpeechBubble; } catch (e) { /* ignore */ }
     try { window.showRoundBonusDisplay = showRoundBonusDisplay; } catch (e) { /* ignore */ }
     try { window.clearRoundDisplayBonus = clearRoundDisplayBonus; } catch (e) { /* ignore */ }
     try { window.updateCpuCharacter = updateCpuCharacter; } catch (e) { /* ignore */ }
     try { window.updateStatus = updateStatus; } catch (e) { /* ignore */ }
+    try { window.updateFateWillBanner = updateFateWillBanner; } catch (e) { /* ignore */ }
     try { updateRoundDisplay(); } catch (e) { /* ignore */ }
 }
 

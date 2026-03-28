@@ -1485,6 +1485,27 @@
                         }
                     }
                     return Promise.resolve();
+                case EVENT_TYPES.CAPTURE_TO_HAND_ANIMATION:
+                    if (typeof window !== 'undefined' && typeof window.playCaptureToHandAnimation === 'function') {
+                        const tCapture = (ev.targets && ev.targets[0]) ? ev.targets[0] : ev;
+                        return window.playCaptureToHandAnimation({
+                            player: tCapture.player,
+                            cardId: tCapture.cardId,
+                            count: tCapture.count,
+                            reason: tCapture.reason,
+                            sourceType: tCapture.sourceType,
+                            sourceCardId: tCapture.sourceCardId,
+                            sourceName: tCapture.sourceName,
+                            sourceSpecialType: tCapture.sourceSpecialType,
+                            sourceRow: tCapture.sourceRow,
+                            sourceCol: tCapture.sourceCol,
+                            sourceOwner: tCapture.sourceOwner,
+                            stoneId: tCapture.stoneId,
+                            insertIndex: tCapture.insertIndex,
+                            visualDescriptor: tCapture.visualDescriptor || null
+                        });
+                    }
+                    return Promise.resolve();
                 case EVENT_TYPES.PLACE_HAND_ANIMATION:
                     {
                         const tPlace = (ev.targets && ev.targets[0]) ? ev.targets[0] : ev;

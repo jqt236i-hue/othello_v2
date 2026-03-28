@@ -253,12 +253,16 @@
         if (!Array.isArray(hand)) return null;
         if (!options.ignoreHandLimit && hand.length >= MAX_HAND_SIZE) return null;
         const cardCopyId = normalizeSingleCopyId(cardState, options.cardCopyId);
-        hand.push(cardId);
-        copyState.handCopyIdsByPlayer[ownerKey].push(cardCopyId);
+        const requestedInsertIndex = Number(options.insertIndex);
+        const insertIndex = Number.isInteger(requestedInsertIndex)
+            ? Math.max(0, Math.min(hand.length, requestedInsertIndex))
+            : hand.length;
+        hand.splice(insertIndex, 0, cardId);
+        copyState.handCopyIdsByPlayer[ownerKey].splice(insertIndex, 0, cardCopyId);
         return {
             cardId,
             cardCopyId,
-            handIndex: hand.length - 1
+            handIndex: insertIndex
         };
     }
 

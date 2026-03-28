@@ -45,6 +45,21 @@ function resolvePlayerValue(playerKey, fallbackValue) {
     return (typeof BLACK !== 'undefined') ? BLACK : fallbackValue;
 }
 
+function getFateWillControllerForTurnOwner(turnOwnerKey) {
+    const ownerKey = normalizePlayerKeyOptional(turnOwnerKey);
+    if (!ownerKey || !cardState || typeof cardState !== 'object') return null;
+    const controllerMap = (cardState.fateWillControllerByTurnOwner && typeof cardState.fateWillControllerByTurnOwner === 'object')
+        ? cardState.fateWillControllerByTurnOwner
+        : null;
+    if (!controllerMap) return null;
+    return normalizePlayerKeyOptional(controllerMap[ownerKey]);
+}
+
+function getEffectiveTurnOperatorKey(turnOwnerKey) {
+    const ownerKey = normalizePlayerKey(turnOwnerKey, 'black');
+    return getFateWillControllerForTurnOwner(ownerKey) || ownerKey;
+}
+
 function hasUsableWaitMs(t) {
     if (!t || typeof t.waitMs !== 'function') return false;
     // game/timers default waitMs() is immediate unless UI impl is injected.
@@ -87,15 +102,19 @@ function scheduleWhiteCpuTurnGuarded(delayMs, options) {
     const expectedTurnNumber = Number.isFinite(opts.expectedTurnNumber)
         ? opts.expectedTurnNumber
         : ((gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null);
+    const expectedPlayerKey = normalizePlayerKeyOptional(opts.nextPlayerKey);
     const retryCount = Number.isFinite(opts.retryCount) ? Math.max(0, opts.retryCount) : 0;
     scheduleWithDelay(delayMs, () => {
-        const currentPlayer = gameState ? gameState.currentPlayer : null;
-        if (normalizePlayerKeyOptional(currentPlayer) !== 'white') return;
+        const currentPlayerKey = normalizePlayerKeyOptional(gameState ? gameState.currentPlayer : null);
+        if (!currentPlayerKey) return;
+        if (expectedPlayerKey && currentPlayerKey !== expectedPlayerKey) return;
+        if (!isCpuControlledPlayer(currentPlayerKey)) return;
         const currentTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
         const cpuFn = resolveCpuTurnFnForPass();
         if (!cpuFn) {
             if (retryCount < WHITE_CPU_TURN_MAX_RETRIES) {
                 scheduleWhiteCpuTurnGuarded(WHITE_CPU_TURN_RETRY_DELAY_MS, {
+                    nextPlayerKey: expectedPlayerKey || currentPlayerKey,
                     expectedTurnNumber: currentTurnNumber !== null ? currentTurnNumber : expectedTurnNumber,
                     retryCount: retryCount + 1
                 });
@@ -146,8 +165,9 @@ function isNetworkModeEnabled() {
 function isCpuControlledPlayer(playerKey) {
     if (!playerKey) return false;
     if (isHumanVsHumanModeEnabled() || isNetworkModeEnabled()) return false;
-    // Browser match defaults: black=local human, white=CPU.
-    return playerKey === 'white';
+    const effectiveOperatorKey = getEffectiveTurnOperatorKey(playerKey);
+    // Browser match defaults: white seat is the local CPU controller.
+    return effectiveOperatorKey === 'white';
 }
 
 function publishNetworkSnapshot(meta) {
@@ -389,6 +409,7 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey, publishAction) {
     const nextPlayerKey = normalizePlayerKey(nextPlayer, 'black');
     const nextHasCard = hasUsableCardFor(nextPlayerKey);
     const nextIsWhite = nextPlayerKey === 'white';
+    const nextIsCpuControlled = isCpuControlledPlayer(nextPlayerKey);
     const humanMode = isHumanVsHumanModeEnabled();
     if (!nextMoves.length && !nextHasCard) {
         if (typeof isGameOver === 'function' && isGameOver(gameState)) {
@@ -398,14 +419,16 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey, publishAction) {
             return true;
         }
 
-        if (!isCpuControlledPlayer(nextPlayerKey)) {
+        if (!nextIsCpuControlled) {
             isProcessing = false;
             if (typeof onTurnStart === 'function') onTurnStart(nextPlayer);
         } else if (nextIsWhite) {
             isProcessing = !humanMode;
             if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue('white', nextPlayer));
             if (!humanMode) {
-                scheduleWhiteCpuTurnGuarded((typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600));
+                scheduleWhiteCpuTurnGuarded((typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600), {
+                    nextPlayerKey
+                });
             }
         } else {
             // Delegate to black-pass handler for additional delays/flows
@@ -415,11 +438,13 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey, publishAction) {
         return true;
     }
 
-    if (nextIsWhite) {
+    if (nextIsCpuControlled) {
         isProcessing = !humanMode;
-        if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue('white', nextPlayer));
+        if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue(nextPlayerKey, nextPlayer));
         if (!humanMode) {
-            scheduleWhiteCpuTurnGuarded(CPU_TURN_DELAY_MS);
+            scheduleWhiteCpuTurnGuarded(CPU_TURN_DELAY_MS, {
+                nextPlayerKey
+            });
         }
     } else {
         isProcessing = false;
@@ -457,8 +482,8 @@ async function finalizePassTurnHandoff(lastPlayerKey, publishAction) {
             if (typeof onTurnStart === 'function') return onTurnStart(player);
             return null;
         },
-        scheduleCpuTurn: ({ delayMs, expectedTurnNumber }) => {
-            scheduleWhiteCpuTurnGuarded(delayMs, { expectedTurnNumber });
+        scheduleCpuTurn: ({ delayMs, expectedTurnNumber, nextPlayerKey }) => {
+            scheduleWhiteCpuTurnGuarded(delayMs, { expectedTurnNumber, nextPlayerKey });
         },
         onHumanTurnReady: () => {
             try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }

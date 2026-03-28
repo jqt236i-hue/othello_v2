@@ -185,6 +185,8 @@ function buildPendingSelectionAction(context) {
         return buildSellCardAction(context);
     case 'TEMPT_WILL':
         return buildBoardCellAction(context, 'chooseTemptTarget', 'temptTarget');
+    case 'CAPTURE_WILL':
+        return buildBoardCellAction(context, 'chooseCaptureTarget', 'captureTarget');
     case 'TIME_BOMB':
         return buildBoardCellAction(context, 'chooseTimeBombTarget', 'bombTarget');
     case 'GUARD_WILL':

@@ -34,6 +34,46 @@ describe('pipeline_ui_adapter draw mapping', () => {
     });
   });
 
+  test('maps capture_will HAND_ADD to capture_to_hand_animation playback event with source metadata', () => {
+    const pres = [{
+      type: 'HAND_ADD',
+      player: 'black',
+      cardId: 'guardian_god_01',
+      count: 1,
+      reason: 'capture_will',
+      meta: {
+        sourceType: 'GUARDIAN_GOD',
+        sourceCardId: 'guardian_god_01',
+        sourceName: '守護神',
+        sourceSpecialType: 'GUARD',
+        sourceRow: 4,
+        sourceCol: 5,
+        sourceOwner: 'white',
+        insertIndex: 1
+      }
+    }];
+    const out = adapter.mapToPlaybackEvents(pres, { markers: [] }, { board: Array(8).fill(null).map(() => Array(8).fill(0)) });
+
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('capture_to_hand_animation');
+    expect(out[0].targets[0]).toMatchObject({
+      player: 'black',
+      cardId: 'guardian_god_01',
+      reason: 'capture_will',
+      sourceType: 'GUARDIAN_GOD',
+      sourceCardId: 'guardian_god_01',
+      sourceName: '守護神',
+      sourceSpecialType: 'GUARD',
+      sourceRow: 4,
+      sourceCol: 5,
+      sourceOwner: 'white',
+      insertIndex: 1
+    });
+    expect(out[0].targets[0].visualDescriptor).toEqual(expect.objectContaining({
+      cardId: 'guardian_god_01'
+    }));
+  });
+
   test('keeps generated throw-chain hand_add after placement phases when card use and placement share one action', () => {
     const pres = [
       { type: 'CARD_USED', player: 'black', cardId: 'double_01', meta: { owner: 'black', cost: 24, name: '二連投石' } },

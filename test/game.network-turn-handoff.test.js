@@ -83,6 +83,10 @@ describe('network-turn-handoff', () => {
 
   test('white 手番かつ humanMode=false なら CPU scheduling を行う', async () => {
     global.gameState = { currentPlayer: 'white', turnNumber: 12 };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      fateWillControllerByTurnOwner: { black: null, white: null }
+    };
     const handoff = require('../game/network-turn-handoff');
     const publishSnapshot = jest.fn();
     const scheduleCpuTurn = jest.fn();
@@ -106,6 +110,64 @@ describe('network-turn-handoff', () => {
       nextPlayerKey: 'white'
     });
     expect(result).toMatchObject({ scheduledCpu: true, gameOver: false, nextPlayerKey: 'white' });
+  });
+
+  test('FATE_WILL で人間が white 手番を代理操作する時は CPU scheduling を行わない', async () => {
+    global.gameState = { currentPlayer: 'white', turnNumber: 12 };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      fateWillControllerByTurnOwner: { black: null, white: 'black' }
+    };
+    const handoff = require('../game/network-turn-handoff');
+    const publishSnapshot = jest.fn();
+    const scheduleCpuTurn = jest.fn();
+    const setProcessing = jest.fn();
+
+    const result = await handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [{ type: 'flip' }],
+      publishSnapshot,
+      scheduleCpuTurn,
+      setProcessing,
+      humanMode: false,
+      cpuDelayMs: 321
+    });
+
+    expect(setProcessing).toHaveBeenCalledWith(false);
+    expect(scheduleCpuTurn).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ scheduledCpu: false, gameOver: false, nextPlayerKey: 'white' });
+  });
+
+  test('FATE_WILL で white CPU が black 手番を代理操作する時は black 手番として CPU scheduling する', async () => {
+    global.gameState = { currentPlayer: 'black', turnNumber: 13 };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      fateWillControllerByTurnOwner: { black: 'white', white: null }
+    };
+    const handoff = require('../game/network-turn-handoff');
+    const publishSnapshot = jest.fn();
+    const scheduleCpuTurn = jest.fn();
+    const setProcessing = jest.fn();
+
+    const result = await handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'white',
+      actionType: 'place',
+      playbackEvents: [{ type: 'flip' }],
+      publishSnapshot,
+      scheduleCpuTurn,
+      setProcessing,
+      humanMode: false,
+      cpuDelayMs: 222
+    });
+
+    expect(setProcessing).toHaveBeenCalledWith(true);
+    expect(scheduleCpuTurn).toHaveBeenCalledWith({
+      delayMs: 222,
+      expectedTurnNumber: 13,
+      nextPlayerKey: 'black'
+    });
+    expect(result).toMatchObject({ scheduledCpu: true, gameOver: false, nextPlayerKey: 'black' });
   });
 
   test('game over なら turn start や CPU scheduling を行わず結果表示と publish だけ行う', async () => {

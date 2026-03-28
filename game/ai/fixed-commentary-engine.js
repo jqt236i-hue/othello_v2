@@ -7,6 +7,7 @@
 }(typeof self !== 'undefined' ? self : this, function () {
     let Data = null;
     let CommentaryContextHelpers = null;
+    let CommentaryRuntimeHelpers = null;
     let OwnerHelpersModule = null;
     if (typeof require === 'function') {
         try { Data = require('../../data/dialogue/fixed-commentary-data'); } catch (e) { Data = null; }
@@ -14,6 +15,7 @@
             try { Data = require('../..//data/dialogue/fixed-commentary-data'); } catch (e) { Data = null; }
         }
         try { CommentaryContextHelpers = require('../../shared/commentary-context-helpers'); } catch (e) { CommentaryContextHelpers = null; }
+        try { CommentaryRuntimeHelpers = require('../../shared/commentary-runtime-helpers'); } catch (e) { CommentaryRuntimeHelpers = null; }
         try { OwnerHelpersModule = require('../../utils/owner-helpers'); } catch (e) { OwnerHelpersModule = null; }
     }
     if (!Data && typeof globalThis !== 'undefined') {
@@ -21,6 +23,9 @@
     }
     if (!CommentaryContextHelpers && typeof globalThis !== 'undefined') {
         CommentaryContextHelpers = globalThis.CommentaryContextHelpers || null;
+    }
+    if (!CommentaryRuntimeHelpers && typeof globalThis !== 'undefined') {
+        CommentaryRuntimeHelpers = globalThis.CommentaryRuntimeHelpers || null;
     }
     if (!OwnerHelpersModule && typeof globalThis !== 'undefined') {
         OwnerHelpersModule = globalThis.OwnerHelpers || null;
@@ -42,6 +47,11 @@
         boardSwingLines: ['盤面が一気に動いた、ここからが本番だ'],
         passLines: ['打てる場所がない、次で取り返す'],
         cardTargetLines: ['その狙いは見えている、返しを準備する'],
+        heroChatterLines: ['まだ五分だ、次の一手で流れを作る'],
+        heroAheadLines: ['この優位を崩さず、次も主導権を取る'],
+        heroBehindLines: ['苦しくても、ここから逆転の筋を拾う'],
+        heroCornerGainLines: ['角を取った、この流れを勝ち筋につなげる'],
+        heroCornerLossLines: ['角を取られた、でもここから立て直す'],
         cornerFirstOwnedLines: ['角を先に取った、この流れは渡さない'],
         cornerFirstLostLines: ['先に角を取られた、ここから立て直す'],
         cornerStreakTwoOwnedLines: ['角を連続で取った、このまま押し切る'],
@@ -51,7 +61,9 @@
         cornerAllOwnedLines: ['四隅を全部取った、盤面は支配した'],
         cornerAllLostLines: ['四隅を全部取られた、最後まで食らいつく'],
         getCardUseLines: function () { return ['ここでカードを切る、流れを動かす']; },
-        getCardHitLines: function () { return ['そのカードは重い、受け切って返す']; }
+        getCardHitLines: function () { return ['そのカードは重い、受け切って返す']; },
+        getHeroCardUseLines: function () { return ['ここでカードを使う、この一手で流れを引き寄せる']; },
+        getHeroCardHitLines: function () { return ['相手がカードを切った、受けて返す手を探す']; }
     };
 
     const DB = Data || DEFAULT_DATA;
@@ -67,10 +79,7 @@
     };
 
     const config = Object.assign({}, DEFAULT_CONFIG);
-    const perPlayerState = {
-        black: createPlayerState(),
-        white: createPlayerState()
-    };
+    const perSpeakerState = Object.create(null);
 
     let fallbackCardTypeMap = null;
 
@@ -92,6 +101,35 @@
             ownCornerGainStreak: 0,
             oppCornerGainStreak: 0
         };
+    }
+
+    function normalizeSpeakerRole(value) {
+        try {
+            if (CommentaryRuntimeHelpers && typeof CommentaryRuntimeHelpers.normalizeSpeakerRole === 'function') {
+                return CommentaryRuntimeHelpers.normalizeSpeakerRole(value, 'cpu');
+            }
+        } catch (e) { /* ignore */ }
+        return String(value || '').trim().toLowerCase() === 'hero' ? 'hero' : 'cpu';
+    }
+
+    function buildSpeakerStateKey(speakerRole, playerKey) {
+        return `${normalizeSpeakerRole(speakerRole)}:${normalizePlayerKey(playerKey)}`;
+    }
+
+    function getSpeakerState(speakerRole, playerKey) {
+        const stateKey = buildSpeakerStateKey(speakerRole, playerKey);
+        if (!perSpeakerState[stateKey]) {
+            perSpeakerState[stateKey] = createPlayerState();
+        }
+        return perSpeakerState[stateKey];
+    }
+
+    function initializeSpeakerStates() {
+        for (const speakerRole of ['cpu', 'hero']) {
+            for (const playerKey of ['black', 'white']) {
+                perSpeakerState[buildSpeakerStateKey(speakerRole, playerKey)] = createPlayerState();
+            }
+        }
     }
 
     function clampCornerCount(value) {
@@ -308,6 +346,18 @@
         const direct = String(context && context.advantage || '').toLowerCase();
         if (direct === 'ahead' || direct === 'behind' || direct === 'even') return direct;
 
+        try {
+            if (CommentaryContextHelpers && typeof CommentaryContextHelpers.resolveAdvantageLabel === 'function') {
+                const resolved = CommentaryContextHelpers.resolveAdvantageLabel(playerKey, counts, {
+                    board: Array.isArray(context && context.board) ? context.board : null,
+                    turnNumber: Number.isFinite(Number(context && context.turnNumber)) ? Number(context.turnNumber) : null,
+                    occupiedCells: (counts.black || 0) + (counts.white || 0),
+                    phase: String(context && context.phase || '').toLowerCase()
+                });
+                if (resolved === 'ahead' || resolved === 'behind' || resolved === 'even') return resolved;
+            }
+        } catch (e) { /* ignore */ }
+
         const own = playerKey === 'black' ? counts.black : counts.white;
         const opp = playerKey === 'black' ? counts.white : counts.black;
         const discDiff = own - opp;
@@ -522,10 +572,103 @@
         return pickRandomLineFromPools(playerState, [DB.chatterLines, DB.middleEvenLines]);
     }
 
+    function resolveLinePool(primaryLines, fallbackLines) {
+        if (Array.isArray(primaryLines) && primaryLines.length) return primaryLines;
+        if (Array.isArray(fallbackLines) && fallbackLines.length) return fallbackLines;
+        return [];
+    }
+
+    function resolveLineFactory(primaryFactory, fallbackFactory) {
+        if (typeof primaryFactory === 'function') return primaryFactory;
+        if (typeof fallbackFactory === 'function') return fallbackFactory;
+        return function () { return []; };
+    }
+
+    function chooseHeroLine(playerState, eventType, advantage, context) {
+        if (isCornerOwnedEventType(eventType)) {
+            return pickRandomLine(
+                playerState,
+                resolveLinePool(DB.heroCornerGainLines, DEFAULT_DATA.heroCornerGainLines)
+            );
+        }
+        if (isCornerLostEventType(eventType)) {
+            return pickRandomLine(
+                playerState,
+                resolveLinePool(DB.heroCornerLossLines, DEFAULT_DATA.heroCornerLossLines)
+            );
+        }
+        if (eventType === 'card_used') {
+            const type = resolveCardType(context);
+            const factory = resolveLineFactory(DB.getHeroCardUseLines, DEFAULT_DATA.getHeroCardUseLines);
+            return pickRandomLine(playerState, factory(type, advantage));
+        }
+        if (eventType === 'card_used_by_enemy') {
+            const type = resolveCardType(context);
+            const factory = resolveLineFactory(DB.getHeroCardHitLines, DEFAULT_DATA.getHeroCardHitLines);
+            return pickRandomLine(playerState, factory(type, advantage));
+        }
+        if (advantage === 'ahead') {
+            return pickRandomLine(playerState, resolveLinePool(DB.heroAheadLines, DEFAULT_DATA.heroAheadLines));
+        }
+        if (advantage === 'behind') {
+            return pickRandomLine(playerState, resolveLinePool(DB.heroBehindLines, DEFAULT_DATA.heroBehindLines));
+        }
+        return pickRandomLine(playerState, resolveLinePool(DB.heroChatterLines, DEFAULT_DATA.heroChatterLines));
+    }
+
+    function chooseCpuLine(playerState, eventType, phase, advantage, context) {
+        if (eventType === 'game_start') {
+            return pickRandomLine(playerState, DB.openingLines);
+        }
+        if (eventType === 'corner_first_owned') {
+            return pickRandomLine(playerState, DB.cornerFirstOwnedLines || DB.middleAheadLines);
+        }
+        if (eventType === 'corner_first_lost') {
+            return pickRandomLine(playerState, DB.cornerFirstLostLines || DB.middleBehindLines);
+        }
+        if (eventType === 'corner_streak_two_owned') {
+            return pickRandomLine(playerState, DB.cornerStreakTwoOwnedLines || DB.middleAheadLines);
+        }
+        if (eventType === 'corner_streak_two_lost') {
+            return pickRandomLine(playerState, DB.cornerStreakTwoLostLines || DB.middleBehindLines);
+        }
+        if (eventType === 'corner_streak_three_owned') {
+            return pickRandomLine(playerState, DB.cornerStreakThreeOwnedLines || DB.endAheadLines);
+        }
+        if (eventType === 'corner_streak_three_lost') {
+            return pickRandomLine(playerState, DB.cornerStreakThreeLostLines || DB.endBehindLines);
+        }
+        if (eventType === 'corner_all_owned') {
+            return pickRandomLine(playerState, DB.cornerAllOwnedLines || DB.endAheadLines);
+        }
+        if (eventType === 'corner_all_lost') {
+            return pickRandomLine(playerState, DB.cornerAllLostLines || DB.endBehindLines);
+        }
+        if (eventType === 'board_swing') {
+            return pickRandomLine(playerState, DB.boardSwingLines);
+        }
+        if (eventType === 'pass') {
+            return pickRandomLine(playerState, DB.passLines);
+        }
+        if (eventType === 'card_targeted') {
+            return pickRandomLine(playerState, DB.cardTargetLines);
+        }
+        if (eventType === 'card_used') {
+            const type = resolveCardType(context);
+            return pickRandomLine(playerState, DB.getCardUseLines(type, advantage));
+        }
+        if (eventType === 'card_used_by_enemy') {
+            const type = resolveCardType(context);
+            return pickRandomLine(playerState, DB.getCardHitLines(type, advantage));
+        }
+        return chooseTurnStartLine(playerState, phase, advantage);
+    }
+
     function buildCommentary(context) {
         const ctx = context && typeof context === 'object' ? context : {};
         const playerKey = normalizePlayerKey(ctx.playerKey);
-        const playerState = perPlayerState[playerKey] || (perPlayerState[playerKey] = createPlayerState());
+        const speakerRole = normalizeSpeakerRole(ctx.speakerRole);
+        const playerState = getSpeakerState(speakerRole, playerKey);
 
         const counts = normalizeCounts(ctx);
         const corners = normalizeCorners(ctx, playerKey);
@@ -567,40 +710,9 @@
             return '';
         }
 
-        let line = '';
-        if (eventType === 'game_start') {
-            line = pickRandomLine(playerState, DB.openingLines);
-        } else if (eventType === 'corner_first_owned') {
-            line = pickRandomLine(playerState, DB.cornerFirstOwnedLines || DB.middleAheadLines);
-        } else if (eventType === 'corner_first_lost') {
-            line = pickRandomLine(playerState, DB.cornerFirstLostLines || DB.middleBehindLines);
-        } else if (eventType === 'corner_streak_two_owned') {
-            line = pickRandomLine(playerState, DB.cornerStreakTwoOwnedLines || DB.middleAheadLines);
-        } else if (eventType === 'corner_streak_two_lost') {
-            line = pickRandomLine(playerState, DB.cornerStreakTwoLostLines || DB.middleBehindLines);
-        } else if (eventType === 'corner_streak_three_owned') {
-            line = pickRandomLine(playerState, DB.cornerStreakThreeOwnedLines || DB.endAheadLines);
-        } else if (eventType === 'corner_streak_three_lost') {
-            line = pickRandomLine(playerState, DB.cornerStreakThreeLostLines || DB.endBehindLines);
-        } else if (eventType === 'corner_all_owned') {
-            line = pickRandomLine(playerState, DB.cornerAllOwnedLines || DB.endAheadLines);
-        } else if (eventType === 'corner_all_lost') {
-            line = pickRandomLine(playerState, DB.cornerAllLostLines || DB.endBehindLines);
-        } else if (eventType === 'board_swing') {
-            line = pickRandomLine(playerState, DB.boardSwingLines);
-        } else if (eventType === 'pass') {
-            line = pickRandomLine(playerState, DB.passLines);
-        } else if (eventType === 'card_targeted') {
-            line = pickRandomLine(playerState, DB.cardTargetLines);
-        } else if (eventType === 'card_used') {
-            const type = resolveCardType(ctx);
-            line = pickRandomLine(playerState, DB.getCardUseLines(type, advantage));
-        } else if (eventType === 'card_used_by_enemy') {
-            const type = resolveCardType(ctx);
-            line = pickRandomLine(playerState, DB.getCardHitLines(type, advantage));
-        } else {
-            line = chooseTurnStartLine(playerState, phase, advantage);
-        }
+        const line = speakerRole === 'hero'
+            ? chooseHeroLine(playerState, eventType, advantage, ctx)
+            : chooseCpuLine(playerState, eventType, phase, advantage, ctx);
 
         const unified = applyToneConsistency(line, eventType, advantage);
         return sanitize(unified, Number(config.maxChars));
@@ -613,9 +725,13 @@
     }
 
     function resetState() {
-        perPlayerState.black = createPlayerState();
-        perPlayerState.white = createPlayerState();
+        for (const key of Object.keys(perSpeakerState)) {
+            delete perSpeakerState[key];
+        }
+        initializeSpeakerStates();
     }
+
+    initializeSpeakerStates();
 
     return {
         isEnabled,

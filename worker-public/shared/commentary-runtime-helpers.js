@@ -27,18 +27,27 @@
         return !!(runtime && typeof runtime.requestCommentary === 'function');
     }
 
-    function resolveCommentaryRuntimeFromGlobal(rootRef) {
-        const candidates = [rootRef];
+    function resolveFromGlobal(globalName, rootRef) {
+        const candidates = [];
+        if (rootRef) candidates.push(rootRef);
         try {
-            if (typeof globalThis !== 'undefined' && globalThis !== rootRef) candidates.push(globalThis);
+            if (typeof globalThis !== 'undefined' && globalThis && globalThis !== rootRef) {
+                candidates.push(globalThis);
+            }
         } catch (e) { /* ignore */ }
 
         for (const candidate of candidates) {
             try {
-                const runtime = candidate && candidate.CpuCommentaryRuntime;
-                if (hasCommentaryRuntime(runtime)) return runtime;
+                const resolved = candidate && candidate[globalName];
+                if (resolved) return resolved;
             } catch (e) { /* ignore */ }
         }
+        return null;
+    }
+
+    function resolveCommentaryRuntimeFromGlobal(rootRef) {
+        const runtime = resolveFromGlobal('CpuCommentaryRuntime', rootRef);
+        if (hasCommentaryRuntime(runtime)) return runtime;
         return null;
     }
 
@@ -81,16 +90,30 @@
         return 'turn_start';
     }
 
-    function getCpuSpeakerPrefix(playerKey) {
+    function normalizeSpeakerRole(value, fallbackRole) {
+        const role = String(value || '').trim().toLowerCase();
+        if (role === 'cpu' || role === 'hero') return role;
+        return String(fallbackRole || '').trim().toLowerCase() === 'hero' ? 'hero' : 'cpu';
+    }
+
+    function getSpeakerPrefix(playerKey, speakerRole) {
+        if (normalizeSpeakerRole(speakerRole, 'cpu') === 'hero') return '勇者';
         return normalizePlayerKey(playerKey, 'black') === 'white' ? '白CPU' : '黒CPU';
+    }
+
+    function getCpuSpeakerPrefix(playerKey) {
+        return getSpeakerPrefix(playerKey, 'cpu');
     }
 
     return {
         hasCommentaryRuntime,
+        resolveFromGlobal,
         resolveCommentaryRuntimeFromGlobal,
         resolveCommentaryRuntimeByRequire,
         extractCardIdFromPlaybackEvents,
         resolveCommentaryEventType,
+        normalizeSpeakerRole,
+        getSpeakerPrefix,
         getCpuSpeakerPrefix
     };
 }));

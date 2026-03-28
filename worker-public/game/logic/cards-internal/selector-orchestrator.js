@@ -41,6 +41,10 @@
             method: 'getTrapTargets',
             args: (context) => [context.cardState, context.gameState, context.playerKey]
         },
+        CAPTURE_WILL: {
+            method: 'getCaptureWillTargets',
+            args: (context) => [context.cardState, context.gameState, context.playerKey]
+        },
         GUARD_WILL: {
             method: 'getGuardTargets',
             args: (context) => [context.cardState, context.gameState, context.playerKey]
@@ -112,6 +116,7 @@
         SUPER_BUOYANCY_WILL: (context) => invokeLocal(context, 'getSuperBuoyancyTargets', [context.cardState, context.gameState]),
         SUPER_GRAVITY_WILL: (context) => invokeLocal(context, 'getSuperGravityTargets', [context.cardState, context.gameState]),
         TEMPT_WILL: (context) => invokeLocal(context, 'getTemptWillTargets', [context.cardState, context.gameState, context.playerKey]),
+        CAPTURE_WILL: (context) => invokeLocal(context, 'getCaptureWillTargets', [context.cardState, context.gameState, context.playerKey]),
         TRAP_WILL: (context) => invokeLocal(context, 'getTrapTargets', [context.cardState, context.gameState, context.playerKey]),
         GUARD_WILL: (context) => invokeLocal(context, 'getGuardTargets', [context.cardState, context.gameState, context.playerKey]),
         GUARDIAN_GOD: (context) => invokeLocal(context, 'getGuardTargets', [context.cardState, context.gameState, context.playerKey]),

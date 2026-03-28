@@ -7,6 +7,7 @@ describe('animation-engine hand_add', () => {
       playClearHandAnimation: jest.fn(() => Promise.resolve()),
       playDrawCardHandAnimation: jest.fn(() => Promise.resolve()),
       playDirectHandAddAnimation: jest.fn(() => Promise.resolve()),
+      playCaptureToHandAnimation: jest.fn(() => Promise.resolve()),
       playCardUseHandAnimation: jest.fn(() => Promise.resolve()),
       playHandAnimation: jest.fn((player, row, col, onComplete) => {
         if (typeof onComplete === 'function') onComplete();
@@ -61,6 +62,43 @@ describe('animation-engine hand_add', () => {
     );
     expect(global.window.playDrawCardHandAnimation).not.toHaveBeenCalledWith(
       expect.objectContaining({ cardId: 'triple_01', reason: 'generated_throw_chain' })
+    );
+  });
+
+  test('delegates capture_to_hand_animation to capture hand animation helper', async () => {
+    const engine = require('../ui/animation-engine');
+    await engine.executeEvent({
+      type: 'capture_to_hand_animation',
+      targets: [{
+        player: 'black',
+        cardId: 'guardian_god_01',
+        reason: 'capture_will',
+        sourceType: 'GUARDIAN_GOD',
+        sourceCardId: 'guardian_god_01',
+        sourceSpecialType: 'GUARD',
+        sourceRow: 4,
+        sourceCol: 5,
+        sourceOwner: 'white',
+        insertIndex: 1,
+        visualDescriptor: { cardId: 'guardian_god_01', name: '守護神', cost: 30, costTier: 'red' }
+      }]
+    });
+
+    expect(global.window.playCaptureToHandAnimation).toHaveBeenCalledTimes(1);
+    expect(global.window.playCaptureToHandAnimation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        player: 'black',
+        cardId: 'guardian_god_01',
+        reason: 'capture_will',
+        sourceType: 'GUARDIAN_GOD',
+        sourceCardId: 'guardian_god_01',
+        sourceSpecialType: 'GUARD',
+        sourceRow: 4,
+        sourceCol: 5,
+        sourceOwner: 'white',
+        insertIndex: 1,
+        visualDescriptor: { cardId: 'guardian_god_01', name: '守護神', cost: 30, costTier: 'red' }
+      })
     );
   });
 

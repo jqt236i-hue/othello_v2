@@ -31,6 +31,14 @@ function createSnapshot(stateVersion, board) {
   };
 }
 
+async function flushCommentaryQueue() {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 describe('NetworkMatchClient commentary', () => {
   let dom;
   let eventSourceInstance;
@@ -149,8 +157,7 @@ describe('NetworkMatchClient commentary', () => {
       })
     });
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushCommentaryQueue();
 
     expect(requestCommentaryMock).toHaveBeenCalledWith(expect.objectContaining({
       eventType: 'card_used',
@@ -158,5 +165,57 @@ describe('NetworkMatchClient commentary', () => {
       cardId: 'swap_01'
     }));
     expect(global.addLog).toHaveBeenCalledWith('白CPU: 読み切った');
+  });
+
+  test('remote use_card without playback animation also emits local hero enemy-card commentary', async () => {
+    requestCommentaryMock.mockImplementation(async (context) => (
+      context && context.speakerRole === 'hero'
+        ? '相手がカードを切った。受けて返す手を探す。'
+        : '読み切った'
+    ));
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(joined.ok).toBe(true);
+    expect(eventSourceInstance).toBeTruthy();
+
+    const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    board[3][3] = 1;
+    board[3][4] = -1;
+    const snapshot = createSnapshot(4, board);
+    snapshot.gameState.turnNumber = 2;
+    snapshot.cardState.lastUsedCardByPlayer.white = 'swap_01';
+
+    eventSourceInstance.onmessage({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        operationId: 'other_player_fallback',
+        playerKey: ' WHITE ',
+        actionType: 'use_card',
+        cardId: 'swap_01',
+        playbackEvents: [{ type: 'noop' }],
+        snapshot
+      })
+    });
+
+    await flushCommentaryQueue();
+
+    expect(requestCommentaryMock).toHaveBeenCalledWith(expect.objectContaining({
+      eventType: 'card_used',
+      playerKey: 'white',
+      cardId: 'swap_01'
+    }));
+    expect(requestCommentaryMock).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      eventType: 'card_used_by_enemy',
+      playerKey: 'black',
+      cardId: 'swap_01',
+      speakerRole: 'hero'
+    }));
+    expect(global.addLog).toHaveBeenCalledWith('白CPU: 読み切った');
+    expect(global.addLog).toHaveBeenCalledWith('勇者: 相手がカードを切った。受けて返す手を探す。');
   });
 });

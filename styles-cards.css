@@ -483,6 +483,17 @@
     word-break: break-word;
 }
 
+#card-detail-live-state {
+    display: none;
+    font-size: calc(12px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+    font-weight: 600;
+    color: #d8c38a;
+    margin: calc(-2px * var(--layout-stage-scale)) 0 calc(6px * var(--layout-stage-scale));
+    line-height: 1.35;
+    min-height: 0;
+    word-break: break-word;
+}
+
 #card-detail-effect-tags {
     display: none;
     flex-wrap: wrap;
@@ -614,6 +625,7 @@
 #card-detail-panel > #card-detail-header,
 #card-detail-panel > #card-detail-name,
 #card-detail-panel > #card-detail-desc,
+#card-detail-panel > #card-detail-live-state,
 #card-detail-panel > #card-detail-effect-tags,
 #card-detail-panel > #card-detail-more,
 #card-detail-panel > #card-detail-actions,

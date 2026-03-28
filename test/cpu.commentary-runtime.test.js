@@ -1,6 +1,7 @@
 let runtime = null;
 let engine = null;
 const data = require('../data/dialogue/fixed-commentary-data');
+const shared = require('../shared-constants');
 
 function normalizeCommentaryBody(line) {
   return String(line || '')
@@ -15,6 +16,13 @@ function sanitizeCommentaryLine(line, maxChars = 120) {
   const chars = Array.from(text);
   if (!Number.isFinite(maxChars) || maxChars <= 0 || chars.length <= maxChars) return text;
   return chars.slice(0, maxChars).join('');
+}
+
+function getCatalogCardTypes() {
+  const defs = Array.isArray(shared && shared.CARD_DEFS) ? shared.CARD_DEFS : [];
+  return [...new Set(
+    defs.map((card) => String(card && card.type ? card.type : '').trim()).filter(Boolean)
+  )].sort();
 }
 
 describe('cpu commentary runtime', () => {
@@ -72,6 +80,25 @@ describe('cpu commentary runtime', () => {
     expect(typeof text).toBe('string');
     expect(text.includes('交換の意志')).toBe(true);
     expect(text.includes('相手の通常石1つ')).toBe(true);
+  });
+
+  test('speakerRole hero can request hero-side card commentary', async () => {
+    global.CPU_TALK_ENABLED = true;
+    runtime.setConfig({ maxChars: 200 });
+
+    const text = await runtime.requestCommentary({
+      eventType: 'card_used',
+      playerKey: 'black',
+      speakerRole: 'hero',
+      turnNumber: 12,
+      counts: { black: 20, white: 12 },
+      cardType: 'SWAP_WITH_ENEMY'
+    });
+
+    expect(typeof text).toBe('string');
+    expect(text).toContain('交換の意志');
+    expect(text).toContain('相手の通常石1つ');
+    expect(text).toContain('を切る');
   });
 
   test('basic pools are fixed to 100000 lines total', () => {
@@ -147,6 +174,58 @@ describe('cpu commentary runtime', () => {
     expect(new Set(hitLines).size).toBe(hitLines.length);
   });
 
+  test('hero fixed pools keep exact rollout sizes', () => {
+    const pools = [
+      ['heroChatterLines', data.heroChatterLines, 300],
+      ['heroAheadLines', data.heroAheadLines, 50],
+      ['heroBehindLines', data.heroBehindLines, 50],
+      ['heroCornerGainLines', data.heroCornerGainLines, 30],
+      ['heroCornerLossLines', data.heroCornerLossLines, 30]
+    ];
+
+    for (const [, pool, expectedSize] of pools) {
+      expect(Array.isArray(pool)).toBe(true);
+      expect(pool.length).toBe(expectedSize);
+      expect(new Set(pool).size).toBe(pool.length);
+    }
+  });
+
+  test('hero card commentary pools expand to 10 lines per catalog card and advantage context', () => {
+    const catalogTypes = getCatalogCardTypes();
+    let totalUseLines = 0;
+    let totalHitLines = 0;
+
+    expect(catalogTypes.length).toBeGreaterThan(0);
+
+    for (const cardType of catalogTypes) {
+      for (const advantage of ['ahead', 'even', 'behind']) {
+        const useLines = data.getHeroCardUseLines(cardType, advantage);
+        const hitLines = data.getHeroCardHitLines(cardType, advantage);
+
+        expect(useLines.length).toBe(10);
+        expect(hitLines.length).toBe(10);
+        expect(new Set(useLines).size).toBe(useLines.length);
+        expect(new Set(hitLines).size).toBe(hitLines.length);
+
+        totalUseLines += useLines.length;
+        totalHitLines += hitLines.length;
+      }
+    }
+
+    expect(totalUseLines).toBe(catalogTypes.length * 3 * 10);
+    expect(totalHitLines).toBe(catalogTypes.length * 3 * 10);
+  });
+
+  test('all catalog card types have commentary labels and summaries', () => {
+    const catalogTypes = getCatalogCardTypes();
+    expect(catalogTypes.length).toBeGreaterThan(0);
+
+    for (const cardType of catalogTypes) {
+      expect(data.CARD_TYPE_LABELS[cardType]).toBeTruthy();
+      expect(data.CARD_EFFECT_SUMMARIES[cardType]).toBeTruthy();
+    }
+  });
+
   test('in-match dialogue pools match requested totals', () => {
     const fixedPools = [
       data.openingLines,
@@ -185,9 +264,9 @@ describe('cpu commentary runtime', () => {
     }
 
     expect(fixedTotal).toBe(119200);
-    expect(cardUseTotal).toBe(54720);
-    expect(cardHitTotal).toBe(54720);
-    expect(fixedTotal + cardUseTotal + cardHitTotal).toBe(228640);
+    expect(cardUseTotal).toBe(cardTypes.length * 3 * 480);
+    expect(cardHitTotal).toBe(cardTypes.length * 3 * 480);
+    expect(fixedTotal + cardUseTotal + cardHitTotal).toBe(119200 + (cardTypes.length * 3 * 480 * 2));
   });
 
   test('all in-match dialogue lines stay globally unique including sanitized display text', () => {

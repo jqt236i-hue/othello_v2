@@ -51,6 +51,7 @@ const HIGH_VARIANCE_CARD_TYPES = new Set([
     ...THROW_CHAIN_CARD_TYPES,
     ...CHAIN_WILL_CARD_TYPES,
     'TEMPT_WILL',
+    'CAPTURE_WILL',
     'POSITION_SWAP_WILL',
     'SWAP_WITH_ENEMY',
     'TIME_BOMB',
@@ -105,6 +106,7 @@ const CORNER_RECOVERY_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeu
         'POSITION_SWAP_WILL',
         'STRONG_WIND_WILL',
         'TEMPT_WILL',
+        'CAPTURE_WILL',
         'ULTIMATE_DESTROY_GOD',
         'ULTIMATE_REVERSE_DRAGON',
         'METEOR_WILL',
@@ -218,6 +220,7 @@ const SWING_CARD_TYPES = new Set([
     'POSITION_SWAP_WILL',
     'STRONG_WIND_WILL',
     'TEMPT_WILL',
+    'CAPTURE_WILL',
     'ULTIMATE_DESTROY_GOD',
     'ULTIMATE_REVERSE_DRAGON',
     'TIME_BOMB',
@@ -251,6 +254,7 @@ const EDGE_CONTEST_CARD_TYPES = new Set([
     'POSITION_SWAP_WILL',
     'STRONG_WIND_WILL',
     'TEMPT_WILL',
+    'CAPTURE_WILL',
     'TABOO_REVERSE_WILL',
     'FREE_PLACEMENT',
     'LAST_RESORT',
@@ -442,6 +446,7 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     TABOO_REVERSE_WILL: 1,
     TELEPORT_WILL: -1,
     TEMPT_WILL: 5,
+    CAPTURE_WILL: 5,
     TIME_BOMB: -2,
     TIME_STOP_GOD: -4,
     TRAP_WILL: 2,
@@ -523,6 +528,7 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'TABOO_REVERSE_WILL',
     'TELEPORT_WILL',
     'TEMPT_WILL',
+    'CAPTURE_WILL',
     'TIME_BOMB',
     'TIME_STOP_GOD',
     'TRAP_WILL',
@@ -605,6 +611,7 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     TELEPORT_WILL: { trailingBias: 4, edgeEmergencyBias: 4, cornerNowBias: -4 },
     CELL_TELEPORT_WILL: { trailingBias: 6, edgeEmergencyBias: 4, cornerNowBias: -6, leadBias: -4 },
     TEMPT_WILL: { trailingBias: 4, edgeEmergencyBias: 4, cornerNowBias: -4 },
+    CAPTURE_WILL: { trailingBias: 4, edgeEmergencyBias: 4, cornerNowBias: -4 },
     TIME_BOMB: { trailingBias: 4, cornerEmergencyBias: 4, leadBias: -4 },
     TIME_STOP_GOD: { leadBias: -8, trailingBias: 8, midLateBias: 6, endgameBias: -8, cornerNowBias: 2, cornerEmergencyBias: 6, lowMobilityBias: 4, handPressureBias: 2 },
     TRAP_WILL: { edgeEmergencyBias: 4, cornerEmergencyBias: 2, cornerNowBias: -2 },
@@ -685,7 +692,8 @@ function buildCardTypeUsageStyle() {
         'SWAP_WITH_ENEMY',
         'POSITION_SWAP_WILL',
         'STRONG_WIND_WILL',
-        'TEMPT_WILL',
+    'TEMPT_WILL',
+    'CAPTURE_WILL',
         'TABOO_REVERSE_WILL',
         'FREE_PLACEMENT',
         'LAST_RESORT',
@@ -995,6 +1003,7 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     TABOO_REVERSE_WILL: { archetype: 'explosiveComeback', placementWeight: 3, cornerBias: 3, edgeBias: 2, mobilityBias: 3 },
     TELEPORT_WILL: { archetype: 'recoveryReposition', placementWeight: 0, mobilityBias: 3, emptyAdjBias: 3, xPenalty: 1 },
     TEMPT_WILL: { archetype: 'recoveryReposition', placementWeight: 0, cornerBias: 4, edgeBias: 3, stabilityBias: 0 },
+    CAPTURE_WILL: { archetype: 'recoveryReposition', placementWeight: 0, cornerBias: 4, edgeBias: 3, stabilityBias: 0 },
     TIME_BOMB: { archetype: 'explosiveComeback', placementWeight: 0, cornerBias: -2, oppAdjBias: 3, stabilityBias: -1 },
     TIME_STOP_GOD: { archetype: 'anchorEngine', placementWeight: 3, cornerBias: 5, edgeBias: 4, innerBias: -2, emptyAdjBias: -1, ownAdjBias: 3, oppAdjBias: -1, stabilityBias: 6 },
     TRAP_WILL: { archetype: 'controlBoard', placementWeight: 0, cornerBias: -2, oppAdjBias: 3, ownAdjBias: -2, stabilityBias: -2 },
@@ -1474,7 +1483,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const isStrongWindWill = cardType === 'STRONG_WIND_WILL';
     const isSwapWithEnemy = cardType === 'SWAP_WITH_ENEMY';
     const isPositionSwapWill = cardType === 'POSITION_SWAP_WILL';
-    const isTemptWill = cardType === 'TEMPT_WILL';
+    const isTemptWill = cardType === 'TEMPT_WILL' || cardType === 'CAPTURE_WILL';
     const isCloneWill = cardType === 'CLONE_WILL';
     const isBoardExpansionWill = (cardType === 'BOARD_EXPANSION_WILL' || cardType === 'BOARD_EXPANSION_GOD');
     const isTrapWill = cardType === 'TRAP_WILL';
@@ -2713,7 +2722,7 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
     const isLossWill = cardType === 'LOSS_WILL';
     const isCorrosionWill = cardType === 'CORROSION_WILL';
     const isTrapWill = cardType === 'TRAP_WILL';
-    const isTemptWill = cardType === 'TEMPT_WILL';
+    const isTemptWill = cardType === 'TEMPT_WILL' || cardType === 'CAPTURE_WILL';
     const isExtendLifeWill = cardType === 'EXTEND_LIFE_WILL';
     const isExtendLifeGod = cardType === 'EXTEND_LIFE_GOD';
     const isExtendLifeCard = isExtendLifeWill || isExtendLifeGod;

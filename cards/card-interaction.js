@@ -546,6 +546,61 @@ function _ensureCardDetailEffectTagsElement() {
     return tagsEl;
 }
 
+function _ensureCardDetailLiveStateElement() {
+    if (typeof document === 'undefined') return null;
+    let stateEl = document.getElementById('card-detail-live-state');
+    if (stateEl) return stateEl;
+    const panelEl = document.getElementById('card-detail-panel');
+    if (!panelEl) return null;
+    stateEl = document.createElement('div');
+    stateEl.id = 'card-detail-live-state';
+    stateEl.setAttribute('aria-live', 'polite');
+    const tagsEl = _ensureCardDetailEffectTagsElement();
+    if (tagsEl && tagsEl.parentElement === panelEl) {
+        panelEl.insertBefore(stateEl, tagsEl);
+    } else {
+        const detailMoreEl = document.getElementById('card-detail-more');
+        if (detailMoreEl && detailMoreEl.parentElement === panelEl) {
+            panelEl.insertBefore(stateEl, detailMoreEl);
+        } else {
+            panelEl.appendChild(stateEl);
+        }
+    }
+    return stateEl;
+}
+
+function _getSalvationWillLiveStateText(ownerKey) {
+    if (!ownerKey || !CardLogic || typeof CardLogic.getSalvationWillTargetCount !== 'function') return '';
+    const count = Math.max(0, Number(CardLogic.getSalvationWillTargetCount(cardState, ownerKey)) || 0);
+    return count <= 0 ? '救済不可能' : `${count}個救済可能`;
+}
+
+function _getEqualityWillLiveStateText() {
+    if (!CardLogic || typeof CardLogic.getEqualityWillBoardCounts !== 'function') return '';
+    const counts = CardLogic.getEqualityWillBoardCounts(gameState);
+    const black = Math.max(0, Number(counts && counts.black) || 0);
+    const white = Math.max(0, Number(counts && counts.white) || 0);
+    return `（黒${black}／白${white}）`;
+}
+
+function _getCardDetailLiveStateText(cardDef, ownerKey) {
+    if (!cardDef || !ownerKey) return '';
+    if (cardDef.type === 'SALVATION_WILL') {
+        return _getSalvationWillLiveStateText(ownerKey);
+    }
+    if (cardDef.type === 'EQUALITY_WILL') {
+        return _getEqualityWillLiveStateText();
+    }
+    return '';
+}
+
+function _renderCardDetailLiveState(stateEl, text) {
+    if (!stateEl) return;
+    const normalized = String(text || '').trim();
+    stateEl.textContent = normalized;
+    stateEl.style.display = normalized ? 'block' : 'none';
+}
+
 function _renderCardDetailEffectTags(tagsEl, tags) {
     if (!tagsEl) return;
     tagsEl.textContent = '';
@@ -1433,9 +1488,36 @@ function _resolveInputPlayerKey() {
     return isDebugHvH ? (gameState.currentPlayer === BLACK ? 'black' : 'white') : 'black';
 }
 
+// Returns the turn owner (victim) key when the local player is the FATE_WILL controller,
+// null otherwise.
+function _getFateWillTurnOwnerKeyForLocalController() {
+    try {
+        if (!cardState || !cardState.fateWillControllerByTurnOwner || !gameState) return null;
+        const currentPlayerKey = gameState.currentPlayer === BLACK ? 'black' : 'white';
+        const controller = cardState.fateWillControllerByTurnOwner[currentPlayerKey];
+        if (!controller) return null;
+        return _resolveInputPlayerKey() === controller ? currentPlayerKey : null;
+    } catch (e) { return null; }
+}
+
 function _canInputPlayerActNow() {
     const currentPlayerKey = gameState.currentPlayer === BLACK ? 'black' : 'white';
-    return _resolveInputPlayerKey() === currentPlayerKey;
+    const localKey = _resolveInputPlayerKey();
+    // FATE_WILL: block the victim and allow only the controller.
+    // Applies in network mode and in local non-HvH mode (in HvH both players share the device).
+    const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
+    if (_isNetworkMode() || !isDebugHvH) {
+        const cs = (typeof cardState !== 'undefined' && cardState) ? cardState : null;
+        const fwc = cs && cs.fateWillControllerByTurnOwner;
+        const controller = fwc && fwc[currentPlayerKey];
+        if (controller) {
+            // controller can act; victim (turn owner) cannot
+            return controller === localKey;
+        }
+    }
+    if (localKey === currentPlayerKey) return true;
+    // HvH + FATE_WILL: local player is controller, not turn owner.
+    return _getFateWillTurnOwnerKeyForLocalController() !== null;
 }
 
 function _commitSharedStateSnapshot(stateKey, nextState) {
@@ -1547,7 +1629,8 @@ function _hasBoardMutatingPlaybackEvent(runResult) {
         'destroy',
         'move',
         'status_applied',
-        'status_removed'
+        'status_removed',
+        'capture_to_hand_animation'
     ]);
     return _getRunResultPlaybackEvents(runResult).some((ev) => (
         ev &&
@@ -1681,6 +1764,35 @@ function _attachCardUsePlaybackSourceElement(runResult, sourceCardEl, sourceCard
         if (!ev.sourceCardEl && sourceCardEl && typeof sourceCardEl.cloneNode === 'function') ev.sourceCardEl = sourceCardEl;
         if (!ev.sourceCardRect && sourceCardRect) ev.sourceCardRect = sourceCardRect;
     }
+}
+
+function _setCaptureReservedHandSlotState(nextState) {
+    try {
+        if (typeof window !== 'undefined') {
+            window.__captureReservedHandSlotState = nextState || null;
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function _primeCaptureReservedHandSlotState(runResult) {
+    const playbackEvents = _getRunResultPlaybackEvents(runResult);
+    const captureEvent = playbackEvents.find((ev) => ev && ev.type === 'capture_to_hand_animation');
+    const target = captureEvent && Array.isArray(captureEvent.targets) && captureEvent.targets[0]
+        ? captureEvent.targets[0]
+        : null;
+    const playerKey = target && (target.player === 'black' || target.player === 'white')
+        ? target.player
+        : null;
+    if (!playerKey || !Number.isInteger(target && target.insertIndex)) {
+        _setCaptureReservedHandSlotState(null);
+        return false;
+    }
+    _setCaptureReservedHandSlotState({
+        playerKey,
+        handIndex: target.insertIndex,
+        token: `capture-slot-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    });
+    return true;
 }
 
 function _getWaitForPlaybackIdleFn() {
@@ -1849,6 +1961,7 @@ function updateCardDetailPanel() {
     const nameEl = document.getElementById('card-detail-name');
     const descEl = document.getElementById('card-detail-desc');
     const detailTagsEl = _ensureCardDetailEffectTagsElement();
+    const detailStateEl = _ensureCardDetailLiveStateElement();
     const detailMoreEl = document.getElementById('card-detail-more');
     const detailBtn = document.getElementById('toggle-card-detail-btn');
     const detailActionsEl = document.getElementById('card-detail-actions');
@@ -1861,7 +1974,8 @@ function updateCardDetailPanel() {
 
     if (!nameEl || !descEl || !useBtn || !reasonEl) return;
 
-    const playerKey = _resolveInputPlayerKey();
+    // FATE_WILL: controller uses victim's hand/charge/pending for all interaction checks.
+    const playerKey = _getFateWillTurnOwnerKeyForLocalController() || _resolveInputPlayerKey();
     const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
     const selectedId = cardState.selectedCardId;
     const selectedOwnerKey = _getSelectedCardOwnerKey(playerKey);
@@ -1886,11 +2000,13 @@ function updateCardDetailPanel() {
         const tags = _collectCardDetailEffectTags(cardDef, quickText, detailText);
         nameEl.textContent = cardDef ? cardDef.name : '?';
         descEl.textContent = _stripCardDetailTagPhrases(quickText) || quickText;
+        _renderCardDetailLiveState(detailStateEl, _getCardDetailLiveStateText(cardDef, selectedOwnerKey));
         if (detailMoreEl) detailMoreEl.textContent = detailText;
         _renderCardDetailEffectTags(detailTagsEl, tags);
     } else {
         nameEl.textContent = '-';
         descEl.textContent = 'カードを選択してください';
+        _renderCardDetailLiveState(detailStateEl, '');
         if (detailMoreEl) detailMoreEl.textContent = '';
         _renderCardDetailEffectTags(detailTagsEl, []);
     }
@@ -2042,7 +2158,8 @@ function updateCardDetailPanel() {
             pending.type === 'SELL_CARD_WILL'
         );
     const cancellableSelecting = selecting &&
-        (pending.type === 'DESTROY_ONE_STONE' || pending.type === 'POSITION_SWAP_WILL' || pending.type === 'METEOR_WILL');
+        (pending.type === 'DESTROY_ONE_STONE' || pending.type === 'POSITION_SWAP_WILL' || pending.type === 'METEOR_WILL') &&
+        _canInputPlayerActNow();
     if (cancelBtn) {
         cancelBtn.style.display = cancellableSelecting ? 'block' : 'none';
         cancelBtn.textContent = 'キャンセル';
@@ -2120,7 +2237,7 @@ function updateCardDetailPanel() {
 
 function toggleCardDetailExpanded() {
     const selectedId = cardState ? cardState.selectedCardId : null;
-    const playerKey = _resolveInputPlayerKey();
+    const playerKey = _getFateWillTurnOwnerKeyForLocalController() || _resolveInputPlayerKey();
     const selectedOwnerKey = _getSelectedCardOwnerKey(playerKey);
     if (!selectedId || selectedOwnerKey !== playerKey || !_doesPlayerOwnCard(playerKey, selectedId)) {
         _closeCardDetailTabPanel();
@@ -2171,7 +2288,9 @@ function onCardClick(cardId, ownerKey) {
     _closeCardDetailTagTabIfOpen();
 
     if (clickedOwnerKey && clickedOwnerKey !== playerKey) {
-        if (!isDebugHvH || !_doesPlayerOwnCard(clickedOwnerKey, cardId)) return;
+        const isFateWillController = _getFateWillTurnOwnerKeyForLocalController() !== null;
+        if (!isDebugHvH && !isFateWillController) return;
+        if (!_doesPlayerOwnCard(clickedOwnerKey, cardId)) return;
 
         playUiEffectSound('hand_card_select');
 
@@ -2243,11 +2362,13 @@ function destroySelectedHandCard() {
     if (!isDebugUnlimited && !_canInputPlayerActNow()) return;
     if (cardState.selectedCardId === null) return;
 
+    // FATE_WILL: network auth key = controller's seat; card ownership key = victim's key.
     const playerKey = _resolveInputPlayerKey();
+    const actionPlayerKey = _getFateWillTurnOwnerKeyForLocalController() || playerKey;
     const cardId = cardState.selectedCardId;
-    const selectedOwnerKey = _getSelectedCardOwnerKey(playerKey);
+    const selectedOwnerKey = _getSelectedCardOwnerKey(actionPlayerKey);
 
-    if (selectedOwnerKey !== playerKey || !_doesPlayerOwnCard(playerKey, cardId)) {
+    if (selectedOwnerKey !== actionPlayerKey || !_doesPlayerOwnCard(actionPlayerKey, cardId)) {
         _clearSelectedCardSelection();
         addLog('自分の手札からカードを選択してください');
         renderCardUI();
@@ -2268,7 +2389,7 @@ function destroySelectedHandCard() {
         return;
     }
 
-    const playerName = playerKey === 'black' ? '黒' : '白';
+    const playerName = actionPlayerKey === 'black' ? '黒' : '白';
     addLog(`${playerName}が手札を破壊: ${cardDef ? cardDef.name : cardId}`);
 
     _clearSelectedCardSelection();
@@ -2289,35 +2410,36 @@ function useSelectedCard() {
     if (!isDebugUnlimited && !_canInputPlayerActNow()) return;
     if (cardState.selectedCardId === null) return;
 
-    // Determine playerKey
+    // FATE_WILL: network auth key = controller's seat; card ownership key = victim's key.
     const playerKey = _resolveInputPlayerKey();
+    const actionPlayerKey = _getFateWillTurnOwnerKeyForLocalController() || playerKey;
     const cardId = cardState.selectedCardId;
-    const selectedOwnerKey = _getSelectedCardOwnerKey(playerKey);
+    const selectedOwnerKey = _getSelectedCardOwnerKey(actionPlayerKey);
 
-    if (selectedOwnerKey !== playerKey || !_doesPlayerOwnCard(playerKey, cardId)) {
+    if (selectedOwnerKey !== actionPlayerKey || !_doesPlayerOwnCard(actionPlayerKey, cardId)) {
         _clearSelectedCardSelection();
         addLog('自分の手札からカードを選択してください');
         renderCardUI();
         return;
     }
 
-    if (!isDebugUnlimited && cardState.hasUsedCardThisTurnByPlayer[playerKey]) return;
+    if (!isDebugUnlimited && cardState.hasUsedCardThisTurnByPlayer[actionPlayerKey]) return;
 
     const cardDef = CardLogic.getCardDef(cardId);
 
     // Charge Check (in debug mode, skip)
     const cost = cardDef ? cardDef.cost : 0;
-    if (!isDebugUnlimited && (cardState.charge[playerKey] || 0) < cost) {
-        addLog(`布石不足: ${cardDef ? cardDef.name : cardId} (必要: ${cost}, 所持: ${cardState.charge[playerKey] || 0})`);
+    if (!isDebugUnlimited && (cardState.charge[actionPlayerKey] || 0) < cost) {
+        addLog(`布石不足: ${cardDef ? cardDef.name : cardId} (必要: ${cost}, 所持: ${cardState.charge[actionPlayerKey] || 0})`);
         return;
     }
-    if (!_isSelectedCardUsableNow(playerKey, cardId, isDebugUnlimited ? { skipCostAndTurnLimit: true } : undefined)) {
+    if (!_isSelectedCardUsableNow(actionPlayerKey, cardId, isDebugUnlimited ? { skipCostAndTurnLimit: true } : undefined)) {
         addLog('このカードは現在使用できません（対象不足など）');
         renderCardUI();
         return;
     }
-    // Determine ownerKey (actual hand holding the card)
-    const ownerKey = playerKey;
+    // ownerKey = who holds the card (victim when FATE_WILL); playerKey = network auth key.
+    const ownerKey = actionPlayerKey;
     const usedCardEl = _findCardElementInOwnerHand(cardId, ownerKey);
     const usedCardRect = _snapshotElementRect(usedCardEl);
     const debugOptions = isDebugUnlimited ? { ignoreCost: true, noConsume: true } : null;
@@ -2362,6 +2484,7 @@ function useSelectedCard() {
     _applyDeferredGeneratedThrowChainHandReveal(result);
 
     _attachCardUsePlaybackSourceElement(result, usedCardEl, usedCardRect);
+    _primeCaptureReservedHandSlotState(result);
     const hasCardUsePlayback = _hasPlaybackEventType(result, 'card_use_animation');
 
     // Direct animation fallback for browser reliability.
@@ -2397,8 +2520,10 @@ function passCurrentTurn() {
     if (!_canInputPlayerActNow()) return;
 
     const playerKey = _resolveInputPlayerKey();
+    // FATE_WILL: pending effect is on the victim's (turn owner's) key.
+    const pendingCheckKey = _getFateWillTurnOwnerKeyForLocalController() || playerKey;
     const pending = (cardState && cardState.pendingEffectByPlayer)
-        ? cardState.pendingEffectByPlayer[playerKey]
+        ? cardState.pendingEffectByPlayer[pendingCheckKey]
         : null;
     const legalMoves = _getLegalMovesForCurrentPlayer();
     if (legalMoves.length > 0) return;
@@ -2416,9 +2541,13 @@ function passCurrentTurn() {
 }
 
 function cancelPendingSelection(specificPlayerKey) {
+    if (!_canInputPlayerActNow()) return;
     const playerKey = specificPlayerKey || _resolveInputPlayerKey();
+    // FATE_WILL: pending effect is on the victim's key, not the controller's key.
+    const fateWillVictimKey = specificPlayerKey ? null : _getFateWillTurnOwnerKeyForLocalController();
+    const pendingCheckKey = fateWillVictimKey || playerKey;
 
-    const pending = cardState.pendingEffectByPlayer[playerKey];
+    const pending = cardState.pendingEffectByPlayer[pendingCheckKey];
     if (!pending || pending.stage !== 'selectTarget') return;
     if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'POSITION_SWAP_WILL') return;
 

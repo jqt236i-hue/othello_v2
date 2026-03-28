@@ -20,7 +20,10 @@ describe('presentation handler CPU scheduling', () => {
     jest.unmock('../game/cpu-turn-handler');
     delete global.BLACK;
     delete global.WHITE;
+    delete global.CpuCommentaryRuntime;
+    delete global.LOCAL_PLAYER_KEY;
     delete global.addLog;
+    delete global.getCurrentMatchMode;
     delete global.gameState;
     delete global.GamePresentationRuntime;
   });
@@ -84,6 +87,9 @@ describe('presentation handler CPU scheduling', () => {
     };
     global.gameState.board[3][3] = 1;
     global.gameState.board[3][4] = -1;
+    global.CpuCommentaryRuntime = { requestCommentary: requestCommentaryMock };
+    global.LOCAL_PLAYER_KEY = 'black';
+    global.getCurrentMatchMode = jest.fn(() => 'cpu');
     global.addLog = jest.fn();
 
     const ph = require('../ui/presentation-handler');
@@ -105,6 +111,53 @@ describe('presentation handler CPU scheduling', () => {
       cardId: 'swap_01'
     }));
     expect(global.addLog).toHaveBeenCalledWith('白CPU: うるさいぞ！');
+  });
+
+  test('CARD_USED local card event also emits hero card commentary', async () => {
+    jest.resetModules();
+    const requestCommentaryMock = jest.fn(async (context) => (
+      context && context.speakerRole === 'hero'
+        ? '交換の意志で流れを作る。'
+        : 'うるさいぞ！'
+    ));
+    jest.doMock('../game/ai/cpu-commentary-runtime', () => ({
+      requestCommentary: requestCommentaryMock
+    }));
+
+    global.gameState = {
+      turnNumber: 7,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.gameState.board[3][3] = 1;
+    global.gameState.board[3][4] = -1;
+    global.addLog = jest.fn();
+
+    const ph = require('../ui/presentation-handler');
+    await ph.handlePresentationEvent({
+      type: 'CARD_USED',
+      player: 'black',
+      cardId: 'swap_01',
+      cardType: 'SWAP_WITH_ENEMY',
+      meta: {
+        owner: 'black',
+        cardType: 'SWAP_WITH_ENEMY',
+        cost: 17,
+        name: '交換の意志'
+      }
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(requestCommentaryMock).toHaveBeenCalledWith(expect.objectContaining({
+      eventType: 'card_used',
+      playerKey: 'black',
+      cardId: 'swap_01',
+      cardType: 'SWAP_WITH_ENEMY',
+      speakerRole: 'hero'
+    }));
+    expect(global.addLog).toHaveBeenCalledWith('白CPU: うるさいぞ！');
+    expect(global.addLog).toHaveBeenCalledWith('勇者: 交換の意志で流れを作る。');
   });
 
   test('PLAYBACK_EVENTS enemy ownerの大文字と空白を正規化してcommentaryを発火する', async () => {

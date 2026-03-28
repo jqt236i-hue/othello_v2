@@ -22,6 +22,11 @@ describe('CommentaryRuntimeHelpers', () => {
     expect(helpers.getCpuSpeakerPrefix('black')).toBe('黒CPU');
   });
 
+  test('returns 勇者 prefix for hero speaker role', () => {
+    expect(helpers.getSpeakerPrefix(' WHITE ', 'hero')).toBe('勇者');
+    expect(helpers.getSpeakerPrefix('black', ' HERO ')).toBe('勇者');
+  });
+
   test('resolves commentary runtime from global or require loader', () => {
     const runtime = { requestCommentary: jest.fn() };
     const fromGlobal = helpers.resolveCommentaryRuntimeFromGlobal({

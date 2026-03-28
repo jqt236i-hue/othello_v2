@@ -91,4 +91,31 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     expect(cell.querySelector('.disc')).toBeNull();
     expect(cell.classList.contains('has-disc')).toBe(false);
   });
+
+  test('reconciles stale legal hint classes even when state is unchanged', () => {
+    const diff = require('../ui/diff-renderer');
+
+    diff.renderBoardDiff(boardEl);
+
+    const cell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    expect(cell).toBeTruthy();
+
+    cell.classList.add(
+      'legal',
+      'legal-free',
+      'effect-target-highlight',
+      'selectable-friendly',
+      'selectable-friendly-no-circle',
+      'time-stop-legal-emphasis'
+    );
+
+    diff.renderBoardDiff(boardEl);
+
+    expect(cell.classList.contains('legal')).toBe(false);
+    expect(cell.classList.contains('legal-free')).toBe(false);
+    expect(cell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(cell.classList.contains('selectable-friendly')).toBe(false);
+    expect(cell.classList.contains('selectable-friendly-no-circle')).toBe(false);
+    expect(cell.classList.contains('time-stop-legal-emphasis')).toBe(false);
+  });
 });

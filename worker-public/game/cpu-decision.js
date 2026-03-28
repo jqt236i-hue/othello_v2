@@ -1958,6 +1958,7 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     TELEPORT_WILL: makePlanPressureProfile(2, 3, 2, 2),
     CELL_TELEPORT_WILL: makePlanPressureProfile(3, 4, 3, 2),
     TEMPT_WILL: makePlanPressureProfile(2, 3, 2, 2),
+    CAPTURE_WILL: makePlanPressureProfile(2, 3, 2, 2),
     TIME_BOMB: makePlanPressureProfile(3, 4, 3, 2),
     TIME_STOP_GOD: makePlanPressureProfile(3, 4, 3, 2),
     TRAP_WILL: makePlanPressureProfile(1, 2, 1, 2),
@@ -2443,6 +2444,7 @@ const HIGH_VARIANCE_CARD_TYPES_FOR_QUIESCENCE = new Set([
     'SWAP_WITH_ENEMY',
     'POSITION_SWAP_WILL',
     'TEMPT_WILL',
+    'CAPTURE_WILL',
     'TELEPORT_WILL',
     'CELL_TELEPORT_WILL',
     'SUPER_BUOYANCY_WILL',
@@ -4211,6 +4213,7 @@ function scorePendingTargetByType(playerKey, pendingType, target, pending) {
         score += (oppAdj - ownAdj) * 70;
         return score;
     case 'TEMPT_WILL':
+    case 'CAPTURE_WILL':
         score += opp ? 300 : -400;
         if (corner) score += opp ? 2600 : -2200;
         else if (edge) score += opp ? 900 : -700;
@@ -5732,6 +5735,43 @@ async function cpuSelectTemptWillWithPolicy(playerKey) {
     }
 }
 
+/**
+ * 捕獲の意志 対象選択
+ * @param {string} playerKey - 'black' または 'white'
+ */
+async function cpuSelectCaptureWillWithPolicy(playerKey) {
+    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
+        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+        : [];
+
+    if (!targets.length) {
+        cpuDebugLog(`[CPU] ${playerKey}: 捕獲対象なし`);
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return;
+    }
+
+    const target = await choosePendingTargetWithPolicyAsync(playerKey, 'CAPTURE_WILL', targets, null) || targets[0];
+    cpuDebugLog(`[CPU] ${playerKey}: 捕獲ターゲット (${target.row}, ${target.col})`);
+
+    const pipelineResult = runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { captureTarget: { row: target.row, col: target.col } },
+        'CAPTURE_WILL'
+    );
+    if (pipelineResult) return;
+
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyCaptureWill === 'function') {
+        const res = CardLogic.applyCaptureWill(cardState, gameState, playerKey, target.row, target.col);
+        if (!res || !res.applied) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+        emitCpuSelectionStateChange();
+    } else {
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        emitCpuSelectionStateChange();
+    }
+}
+
 // UI-level exposure is handled by UI layer; Node/CommonJS consumers should use module.exports.
 
 
@@ -5788,6 +5828,7 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuSelectPositionSwapWillWithPolicy,
         cpuSelectTrapWillWithPolicy,
         cpuSelectGuardWillWithPolicy,
+        cpuSelectCaptureWillWithPolicy,
         cpuSelectHyperactiveInheritWillWithPolicy,
         cpuSelectExtendLifeWillWithPolicy,
         cpuSelectCorrosionWillWithPolicy,

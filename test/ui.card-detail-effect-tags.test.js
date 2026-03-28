@@ -54,7 +54,9 @@ describe('card detail effect tags', () => {
         type: 'ULTIMATE_REVERSE_DRAGON',
         cost: 30,
         desc: '反転0でも空きマスに配置可能。次に置く石を龍化。置いた時に周囲1マス（8方向）を反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転。移動先が無いときはその場で反転。5ターン持続。反転保護を持つ特殊石。'
-      })
+      }),
+      getSalvationWillTargetCount: () => 0,
+      getEqualityWillBoardCounts: () => ({ black: 0, white: 0 })
     };
 
     global.renderCardUI = jest.fn();
@@ -186,7 +188,7 @@ describe('card detail effect tags', () => {
       id: 'cell_teleport_01',
       name: 'マステレポート',
       type: 'CELL_TELEPORT_WILL',
-      cost: 23,
+      cost: 18,
       desc: '盤面上の石があるマス1つを選び、盤面拡張・盤面拡張神で追加できる外側マスのどこかへランダムにテレポートさせる。移動元のマスは穴になる。対象は敵味方・通常石・特殊石を問わない。'
     };
 
@@ -277,6 +279,90 @@ describe('card detail effect tags', () => {
     expect(tagsEl).not.toBeNull();
     expect(tagsEl.textContent).toContain('特殊石');
     expect(tagsEl.textContent).not.toContain('反転保護');
+  });
+
+  test('SALVATION_WILL detail panel shows positive salvageable count as live state', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'salvation_01',
+      name: '救済の意志',
+      type: 'SALVATION_WILL',
+      cost: 17,
+      desc: '直前の相手ターンで破壊された自分の通常石をすべてランダムな空きマスへ配置する。対象0枚の時は使用不可。特殊石は対象外。'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+    global.CardLogic.getSalvationWillTargetCount = () => 3;
+
+    window.updateCardDetailPanel();
+
+    const stateEl = document.getElementById('card-detail-live-state');
+    expect(stateEl).not.toBeNull();
+    expect(stateEl.textContent).toBe('3個救済可能');
+    expect(stateEl.style.display).toBe('block');
+    expect(document.getElementById('card-detail-desc').textContent).toContain('直前の相手ターンで破壊された自分の通常石');
+  });
+
+  test('SALVATION_WILL detail panel shows impossible state when nothing can be salvaged', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'salvation_01',
+      name: '救済の意志',
+      type: 'SALVATION_WILL',
+      cost: 17,
+      desc: '直前の相手ターンで破壊された自分の通常石をすべてランダムな空きマスへ配置する。対象0枚の時は使用不可。特殊石は対象外。'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+    global.CardLogic.getSalvationWillTargetCount = () => 0;
+
+    window.updateCardDetailPanel();
+
+    const stateEl = document.getElementById('card-detail-live-state');
+    expect(stateEl).not.toBeNull();
+    expect(stateEl.textContent).toBe('救済不可能');
+    expect(stateEl.style.display).toBe('block');
+  });
+
+  test('EQUALITY_WILL detail panel shows current board counts as live state', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'equality_will_01',
+      name: '平等の意志',
+      type: 'EQUALITY_WILL',
+      cost: 15,
+      desc: '相手の石数が自分より10個以上多い時のみ使用可。盤面の空きマスへランダムに最大3個、自分色の通常石を生成する。生成では反転しない。'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+    global.CardLogic.getEqualityWillBoardCounts = () => ({ black: 36, white: 21 });
+
+    window.updateCardDetailPanel();
+
+    const stateEl = document.getElementById('card-detail-live-state');
+    expect(stateEl).not.toBeNull();
+    expect(stateEl.textContent).toBe('（黒36／白21）');
+    expect(stateEl.style.display).toBe('block');
+  });
+
+  test('non-salvation detail panel hides live salvage state', () => {
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+
+    const stateEl = document.getElementById('card-detail-live-state');
+    expect(stateEl).not.toBeNull();
+    expect(stateEl.textContent).toBe('');
+    expect(stateEl.style.display).toBe('none');
   });
 
   test('throw-chain cards show formal quick descriptions instead of generated-only fallback text', () => {

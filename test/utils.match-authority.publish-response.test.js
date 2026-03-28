@@ -3,6 +3,7 @@ const MatchAuthority = require('../utils/match-authority');
 describe('match authority publish response payload', () => {
   test('normalizes publishMeta and preserves room context', () => {
     const playbackEvents = [{ type: 'observer_bubble', phase: 2, targets: [{ player: 'black', text: 'ok' }] }];
+    const effectLogs = ['黒: 反転保護を付与', '黒: 反転保護を付与', ''];
     const payload = MatchAuthority.buildPublishResponsePayload({
       ok: false,
       roomId: 'abc',
@@ -14,6 +15,7 @@ describe('match authority publish response payload', () => {
       networkDebugEnabled: true,
       turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black' },
       playbackEvents,
+      effectLogs,
       serverTime: 12345,
       rejectedReason: 'VERSION_MISMATCH',
       publishMeta: {
@@ -33,6 +35,7 @@ describe('match authority publish response payload', () => {
       rejectedReason: 'VERSION_MISMATCH',
       networkDebugEnabled: true,
       playbackEvents,
+      effectLogs: ['黒: 反転保護を付与'],
       serverTime: 12345,
       publishMeta: {
         kind: 'rejected',
@@ -185,5 +188,99 @@ describe('match authority publish response payload', () => {
     });
 
     expect(MatchAuthority.getBufferedSseReplayEvents(buffer, 'ROOM_4_7', 'black')).toBeNull();
+  });
+});
+
+describe('match authority FATE_WILL controller helpers', () => {
+  function makeSnapshot({ currentPlayer, fateWillControllerByTurnOwner }) {
+    return {
+      gameState: { currentPlayer },
+      cardState: { fateWillControllerByTurnOwner: fateWillControllerByTurnOwner || { black: null, white: null } }
+    };
+  }
+
+  test('getFateWillControllerKey returns controller key when set', () => {
+    const snapshot = makeSnapshot({ currentPlayer: 'white', fateWillControllerByTurnOwner: { black: null, white: 'black' } });
+    expect(MatchAuthority.getFateWillControllerKey(snapshot, 'white')).toBe('black');
+    expect(MatchAuthority.getFateWillControllerKey(snapshot, 'black')).toBeNull();
+  });
+
+  test('getFateWillControllerKey returns null when not set', () => {
+    const snapshot = makeSnapshot({ currentPlayer: 'black' });
+    expect(MatchAuthority.getFateWillControllerKey(snapshot, 'black')).toBeNull();
+    expect(MatchAuthority.getFateWillControllerKey(snapshot, 'white')).toBeNull();
+  });
+
+  test('isFateWillControllerForCurrentTurn returns true for controller during controlled turn', () => {
+    const snapshot = makeSnapshot({ currentPlayer: 'white', fateWillControllerByTurnOwner: { black: null, white: 'black' } });
+    expect(MatchAuthority.isFateWillControllerForCurrentTurn(snapshot, 'black')).toBe(true);
+  });
+
+  test('isFateWillControllerForCurrentTurn returns false for turn owner themselves', () => {
+    const snapshot = makeSnapshot({ currentPlayer: 'white', fateWillControllerByTurnOwner: { black: null, white: 'black' } });
+    expect(MatchAuthority.isFateWillControllerForCurrentTurn(snapshot, 'white')).toBe(false);
+  });
+
+  test('isFateWillControllerForCurrentTurn returns false when controller map is inactive', () => {
+    const snapshot = makeSnapshot({ currentPlayer: 'black' });
+    expect(MatchAuthority.isFateWillControllerForCurrentTurn(snapshot, 'white')).toBe(false);
+  });
+
+  test('isFateWillControllerForCurrentTurn returns false when fateWill set but it is not currently that turn', () => {
+    // fateWillControllerByTurnOwner['white'] = 'black' is set, but currentPlayer is 'black' (not white's turn yet)
+    const snapshot = makeSnapshot({ currentPlayer: 'black', fateWillControllerByTurnOwner: { black: null, white: 'black' } });
+    expect(MatchAuthority.isFateWillControllerForCurrentTurn(snapshot, 'black')).toBe(false);
+  });
+
+  test('projectSnapshotForViewer reveals controlled hand to FATE_WILL controller during controlled turn', () => {
+    const snapshot = {
+      gameState: { currentPlayer: 'white' },
+      cardState: {
+        hands: { black: ['b1', 'b2'], white: ['w1', 'w2'] },
+        fateWillControllerByTurnOwner: { black: null, white: 'black' }
+      }
+    };
+    // Black is the controller for white's turn - black should see white's hand
+    const blackView = MatchAuthority.projectSnapshotForViewer(snapshot, 'black', { stateVersion: 5 });
+    expect(blackView.cardState.hands.black).toEqual(['b1', 'b2']);
+    expect(blackView.cardState.hands.white).toEqual(['w1', 'w2']);
+  });
+
+  test('projectSnapshotForViewer does NOT reveal hand to controller outside of controlled turn', () => {
+    // Same fateWill state, but currentPlayer is 'black' (not white's turn)
+    const snapshot = {
+      gameState: { currentPlayer: 'black' },
+      cardState: {
+        hands: { black: ['b1', 'b2'], white: ['w1', 'w2'] },
+        fateWillControllerByTurnOwner: { black: null, white: 'black' }
+      }
+    };
+    // Black is the controller for white's upcoming turn, but it's black's turn now - white's hand stays hidden
+    const blackView = MatchAuthority.projectSnapshotForViewer(snapshot, 'black', { stateVersion: 5 });
+    expect(blackView.cardState.hands.black).toEqual(['b1', 'b2']);
+    expect(blackView.cardState.hands.white).toEqual([
+      '__hidden_hand__:white:0',
+      '__hidden_hand__:white:1'
+    ]);
+  });
+
+  test('projectSnapshotForViewer does NOT reveal controlled hand to non-controller observers', () => {
+    // In a theoretical 3-seat scenario, or just checking null viewer
+    const snapshot = {
+      gameState: { currentPlayer: 'white' },
+      cardState: {
+        hands: { black: ['b1'], white: ['w1'] },
+        fateWillControllerByTurnOwner: { black: null, white: 'black' }
+      }
+    };
+    // Viewer is white (turn owner) - sees own hand, black's hidden
+    const whiteView = MatchAuthority.projectSnapshotForViewer(snapshot, 'white', { stateVersion: 5 });
+    expect(whiteView.cardState.hands.white).toEqual(['w1']);
+    expect(whiteView.cardState.hands.black).toEqual(['__hidden_hand__:black:0']);
+
+    // Null viewer - both hands hidden
+    const nullView = MatchAuthority.projectSnapshotForViewer(snapshot, null, { stateVersion: 5 });
+    expect(nullView.cardState.hands.white).toEqual(['__hidden_hand__:white:0']);
+    expect(nullView.cardState.hands.black).toEqual(['__hidden_hand__:black:0']);
   });
 });

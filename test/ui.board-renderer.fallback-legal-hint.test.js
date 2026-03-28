@@ -135,6 +135,18 @@ describe('board-renderer fallback legal hints', () => {
     expect(document.body.classList.contains('time-stop-active')).toBe(false);
   });
 
+  test('renderBoardFull adds time-stop legal emphasis to legal cells during time stop', () => {
+    const boardRenderer = require('../ui/board-renderer');
+
+    global.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 1, white: 0 };
+    boardRenderer.renderBoardFull();
+
+    const legalCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    expect(legalCell).toBeTruthy();
+    expect(legalCell.classList.contains('legal')).toBe(true);
+    expect(legalCell.classList.contains('time-stop-legal-emphasis')).toBe(true);
+  });
+
   test('renderBoardFull skips full redraw while persisted PLAYBACK_EVENTS are pending', () => {
     global.boardEl.innerHTML = '<div class="sentinel"></div>';
     global.cardState._presentationEventsPersist = [
