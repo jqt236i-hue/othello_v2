@@ -113,6 +113,46 @@
             this._remainingEvents = [];
             this._watchdogId = null;
             this._phaseContext = null;
+            this._playbackRunSequence = 0;
+            this._activePlaybackRunId = null;
+        }
+
+        _registerPlaybackAbortHandle(runId, runState) {
+            if (!PlaybackState || typeof PlaybackState.registerPlaybackAbortHandle !== 'function') return null;
+            const handle = {
+                runId,
+                abort: () => {
+                    if (runState.externallyAborted === true) return false;
+                    runState.externallyAborted = true;
+                    this.isAborted = true;
+                    this.isPlaying = false;
+                    this._activePlaybackRunId = null;
+                    const scope = runState.scope;
+                    if (scope !== null) {
+                        try { _Timer().clearScope(scope); } catch (e) { /* ignore */ }
+                    }
+                    const watchdogId = runState.watchdogId;
+                    if (watchdogId) {
+                        try { _Timer().clearTimeout(watchdogId); } catch (e) { /* ignore */ }
+                    }
+                    if (this.playbackScope === scope) {
+                        this.playbackScope = null;
+                    }
+                    if (this._watchdogId === watchdogId) {
+                        this._watchdogId = null;
+                    }
+                    runState.watchdogId = null;
+                    return true;
+                }
+            };
+            PlaybackState.registerPlaybackAbortHandle(handle);
+            return handle;
+        }
+
+        _clearPlaybackAbortHandle(handle) {
+            if (PlaybackState && typeof PlaybackState.clearPlaybackAbortHandle === 'function') {
+                PlaybackState.clearPlaybackAbortHandle(handle);
+            }
         }
 
         _toBoardIndex(value) {
@@ -1172,11 +1212,23 @@
                 this.isAborted = false;
             }
 
+            const runId = this._playbackRunSequence + 1;
+            this._playbackRunSequence = runId;
+            this._activePlaybackRunId = runId;
+            const runState = {
+                scope: null,
+                watchdogId: null,
+                externallyAborted: false
+            };
+            let abortHandle = null;
+
             // Setup playback scope and flags
             this.isPlaying = true;
             this.playbackScope = (typeof TimerRegistry !== 'undefined' && TimerRegistry.newScope) ? TimerRegistry.newScope() : null;
+            runState.scope = this.playbackScope;
                 // expose scope for animations to register timers under
                 if (typeof window !== 'undefined') window._currentPlaybackScope = this.playbackScope;
+            abortHandle = this._registerPlaybackAbortHandle(runId, runState);
 
             // VisualPlaybackActive is the single source of truth during playback
             try {
@@ -1189,6 +1241,7 @@
                 } else {
                     this._watchdogId = _Timer().setTimeout(() => this.handleWatchdog(), WATCHDOG_TIMEOUT_MS);
                 }
+                runState.watchdogId = this._watchdogId;
 
                 // Group by phase
                 this._remainingEvents = normalizedEvents.slice();
@@ -1240,27 +1293,38 @@
                 abortedDuringPlay = true;
                 console.error('[AnimationEngine] Playback error:', err);
             } finally {
+                this._clearPlaybackAbortHandle(abortHandle);
                 // cleanup watchdog & scope
-                if (this.playbackScope !== null) {
-                    _Timer().clearScope(this.playbackScope);
-                    this.playbackScope = null;
+                if (runState.scope !== null) {
+                    _Timer().clearScope(runState.scope);
                 }
                 // remove exposed scope
-                if (typeof window !== 'undefined' && window._currentPlaybackScope) delete window._currentPlaybackScope;
-                if (this._watchdogId) {
-                    _Timer().clearTimeout(this._watchdogId);
+                if (typeof window !== 'undefined' && window._currentPlaybackScope === runState.scope) delete window._currentPlaybackScope;
+                if (runState.watchdogId) {
+                    _Timer().clearTimeout(runState.watchdogId);
+                }
+                const isCurrentRun = this._activePlaybackRunId === runId;
+                if (this.playbackScope === runState.scope) {
+                    this.playbackScope = null;
+                }
+                if (this._watchdogId === runState.watchdogId) {
                     this._watchdogId = null;
                 }
-                this.isPlaying = false;
-                this.setGlobalInteractionLock(false);
+                if (isCurrentRun) {
+                    this._activePlaybackRunId = null;
+                    this.isPlaying = false;
+                }
+                if (isCurrentRun && !runState.externallyAborted) {
+                    this.setGlobalInteractionLock(false);
+                }
 
                  // One-shot board update context for DiffRenderer:
                  // After playback, AnimationEngine triggers `emitBoardUpdate()` to sync any non-animated UI (timers, hints).
                  // DiffRenderer has a fallback "owner changed => add .flip" animation which would otherwise replay flips,
                  // making stones appear to flip twice. This context is consumed/cleared by ui/diff-renderer.js.
-                 if ((shouldSuppressNextDiffFlip || shouldSuppressBoardExpansionRevealSound) && !abortedDuringPlay && !this._watchdogFired && !this.isAborted) {
-                      try {
-                          if (PlaybackState && typeof PlaybackState.armBoardUpdateContext === 'function') {
+                 if (isCurrentRun && !runState.externallyAborted && (shouldSuppressNextDiffFlip || shouldSuppressBoardExpansionRevealSound) && !abortedDuringPlay && !this._watchdogFired && !this.isAborted) {
+                       try {
+                           if (PlaybackState && typeof PlaybackState.armBoardUpdateContext === 'function') {
                              const boardUpdateContext = {
                                  source: 'animation-engine',
                                  reason: 'post_playback_sync'
@@ -1274,13 +1338,17 @@
                              PlaybackState.armBoardUpdateContext(boardUpdateContext);
                           }
                       } catch (e) { /* ignore */ }
-                  }
+                   }
                  // Avoid leaking abort state into the next playback run.
-                 this.isAborted = false;
+                 if (isCurrentRun) {
+                     this.isAborted = false;
+                 }
                  // After playback completes, request a final board diff render to ensure DOM matches state.
                  // This avoids stale visuals when diff rendering was suppressed during playback.
-                 try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
-             }
+                 if (isCurrentRun && !runState.externallyAborted) {
+                     try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+                 }
+              }
         }
         groupByPhase(events) {
             return events.reduce((acc, ev) => {
@@ -1424,11 +1492,13 @@
                 if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
             } catch (e) { console.error('[AnimationEngine] watchdog emitBoardUpdate failed', e); }
             // Ensure flags cleared
-            this.setGlobalInteractionLock(false);
-            if (PlaybackState && typeof PlaybackState.setPlaybackActive === 'function') {
-                PlaybackState.setPlaybackActive(false);
+            if (PlaybackState && typeof PlaybackState.abortPlayback === 'function') {
+                PlaybackState.abortPlayback();
+                if (this.boardEl && this.boardEl.classList) {
+                    this.boardEl.classList.remove('playback-locked');
+                }
             } else if (typeof window !== 'undefined') {
-                window.VisualPlaybackActive = false;
+                this.setGlobalInteractionLock(false);
             }
         }
 
@@ -1441,7 +1511,14 @@
                 if (this.playbackScope !== null) _Timer().clearScope(this.playbackScope);
             } catch (e) { }
             this.isAborted = true;
-            this.setGlobalInteractionLock(false);
+            if (PlaybackState && typeof PlaybackState.abortPlayback === 'function') {
+                PlaybackState.abortPlayback();
+                if (this.boardEl && this.boardEl.classList) {
+                    this.boardEl.classList.remove('playback-locked');
+                }
+            } else {
+                this.setGlobalInteractionLock(false);
+            }
             try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { }
         }
 

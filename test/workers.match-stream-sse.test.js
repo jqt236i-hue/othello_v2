@@ -142,6 +142,54 @@ function runResumeScenario() {
   return runScenario(runner);
 }
 
+function runRejectedStreamScenario(streamPath) {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const pathName = process.argv[2];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const storage = new Map();",
+    "  const state = {",
+    "    storage: {",
+    "      get: async (key) => storage.get(key),",
+    "      put: async (key, value) => storage.set(key, value),",
+    "      delete: async (key) => storage.delete(key)",
+    "    }",
+    "  };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
+    "    roomId: 'SSE1',",
+    "    playerName: 'くろ',",
+    "    seed: 1,",
+    "    networkDebugEnabled: false,",
+    "    snapshot: {",
+    "      gameState: { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: 1, consecutivePasses: 0, turnNumber: 0 },",
+    "      cardState: {}",
+    "    }",
+    "  });",
+    "  const createPayload = await createResponse.json();",
+    "  const streamResponse = await durableObject.handleStream(new Request(`https://room${pathName}`));",
+    "  const payload = await streamResponse.json();",
+    "  process.stdout.write(JSON.stringify({",
+    "    status: streamResponse.status,",
+    "    createPayload,",
+    "    payload",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  const result = spawnSync(process.execPath, ['-e', runner, workerModulePath, streamPath], {
+    encoding: 'utf8'
+  });
+  if (result.status !== 0) {
+    throw new Error(result.stderr || result.stdout || 'stream reject runner failed');
+  }
+  return JSON.parse(String(result.stdout || '{}'));
+}
+
 describe('match worker stream SSE', () => {
   test('初回snapshotイベントにSSE event idを付与する', () => {
     const result = runStreamScenario();
@@ -168,5 +216,27 @@ describe('match worker stream SSE', () => {
     expect(result.firstChunk).toContain('"effectLogs":["白がカードを使用: 交換"]');
     expect(result.firstChunk).toContain('"__hidden_hand__:white:0"');
     expect(result.firstChunk).not.toContain('"type":"history"');
+  });
+
+  test('seatToken なしの stream は SEAT_TOKEN_REQUIRED で拒否する', () => {
+    const result = runRejectedStreamScenario('/api/match/stream?seatKey=black');
+
+    expect(result.status).toBe(403);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: false,
+      reason: 'SEAT_TOKEN_REQUIRED'
+    }));
+    expect(result.createPayload.ok).toBe(true);
+  });
+
+  test('不正な seatToken の stream は SEAT_TOKEN_MISMATCH で拒否する', () => {
+    const result = runRejectedStreamScenario('/api/match/stream?seatKey=black&seatToken=stale-token');
+
+    expect(result.status).toBe(403);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: false,
+      reason: 'SEAT_TOKEN_MISMATCH'
+    }));
+    expect(result.createPayload.ok).toBe(true);
   });
 });

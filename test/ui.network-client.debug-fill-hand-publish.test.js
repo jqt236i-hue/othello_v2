@@ -164,8 +164,6 @@ describe('NetworkMatchClient debug fill hand publish tracking', () => {
       phase: expect.stringMatching(/queued|inflight/),
       responseSettled: false,
       selfSnapshotReceived: false,
-      shadowPlaybackEvents: [],
-      shadowPlaybackEventStrings: [],
       requestMeta: expect.objectContaining({
         actionType: 'debug_fill_hand',
         actor: 'black',

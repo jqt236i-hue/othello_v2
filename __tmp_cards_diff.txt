@@ -1,0 +1,802 @@
+diff --git a/game/logic/cards.js b/game/logic/cards.js
+index 0a6107c..b43adf0 100644
+--- a/game/logic/cards.js
++++ b/game/logic/cards.js
+@@ -35,6 +35,20 @@
+         throw new Error('SharedConstants not loaded');
+     }
+ 
++    const DestroyOutcomeContract = (() => {
++        if (typeof require === 'function') {
++            try {
++                return require('../../shared/destroy-outcome-contract');
++            } catch (e) {
++                return null;
++            }
++        }
++        const globalScope = (typeof globalThis !== 'undefined')
++            ? globalThis
++            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
++        return globalScope.DestroyOutcomeContract || null;
++    })();
++
+     // Constants
+     // Policy: no initial draw at game start.
+     const INITIAL_HAND_SIZE = 0;
+@@ -82,6 +96,7 @@
+     const RIBO_WILL_REPAYMENT_AMOUNT = 4;
+     const RIBO_WILL_OWNER_TURNS = 9;
+     const RIBO_WILL_SHORTAGE_DESTROY_COUNT = 2;
++    const EQUALITY_WILL_MAX_SPAWNS = 3;
+     const FLIP_CHARGE_MULTIPLIER_EFFECTS = Object.freeze({
+         GOLD_STONE: { multiplier: 4, effectFlag: 'goldStoneUsed', destroyReason: 'gold_stone_sacrifice' },
+         RAINBOW_STONE: { multiplier: 6, effectFlag: 'rainbowStoneUsed', destroyReason: 'rainbow_stone_sacrifice' },
+@@ -156,10 +171,8 @@
+         const type = String(sourceCardType || '');
+         const config = type ? (configByType[type] || null) : null;
+         if (!config || !config.nextCardId) return null;
+-        if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return null;
+-        if (cardState.hands[playerKey].length >= MAX_HAND_SIZE) return null;
+-
+-        cardState.hands[playerKey].push(config.nextCardId);
++        const added = addCardToHand(cardState, playerKey, config.nextCardId);
++        if (!added) return null;
+         try {
+             emitPresentationEvent(cardState, {
+                 type: 'HAND_ADD',
+@@ -241,7 +254,25 @@
+     }
+ 
+     function isDestroyResolved(result) {
+-        return !!(result && (result.destroyed || result.evaded || result.blockedByGhost));
++        if (DestroyOutcomeContract && typeof DestroyOutcomeContract.isDestroyOutcomeResolved === 'function') {
++            return DestroyOutcomeContract.isDestroyOutcomeResolved(result);
++        }
++        return !!(result && (result.destroyed || result.evaded || result.blockedByGhost || result.proliferated));
++    }
++
++    function createDestroyOutcome(kindOrResult, details) {
++        if (DestroyOutcomeContract && typeof DestroyOutcomeContract.createDestroyOutcome === 'function') {
++            return DestroyOutcomeContract.createDestroyOutcome(kindOrResult, details);
++        }
++        const source = (typeof kindOrResult === 'string')
++            ? Object.assign({}, (details && typeof details === 'object') ? details : {}, { kind: kindOrResult })
++            : Object.assign({}, (kindOrResult && typeof kindOrResult === 'object') ? kindOrResult : {});
++        return Object.assign({
++            destroyed: false,
++            evaded: false,
++            blockedByGhost: false,
++            proliferated: false
++        }, source);
+     }
+ 
+     function clearBombAt(cardState, row, col) {
+@@ -639,6 +670,46 @@
+         return { destroyed: true, evaded: false };
+     }
+ 
++    function revertSpecialStoneWithPresentation(cardState, gameState, row, col, specialType, ownerKey, cause, reason, meta) {
++        if (BoardOpsModule && typeof BoardOpsModule.revertSpecialStoneAt === 'function') {
++            return BoardOpsModule.revertSpecialStoneAt(
++                cardState,
++                gameState,
++                row,
++                col,
++                specialType,
++                ownerKey,
++                cause || 'SYSTEM',
++                reason || 'duration_end',
++                (meta && typeof meta === 'object') ? meta : {}
++            );
++        }
++
++        const prev = getCellValueForCard(gameState, row, col);
++        if (prev === EMPTY) return { reverted: false, reason: 'empty_cell' };
++        if (prev === null) return { reverted: false, reason: 'out_of_board' };
++
++        removeMarkersAt(cardState, row, col, {
++            kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
++            type: specialType,
++            owner: ownerKey
++        });
++        emitPresentationEvent(cardState, {
++            type: 'STATUS_REMOVED',
++            row,
++            col,
++            cause: cause || null,
++            reason: reason || null,
++            meta: Object.assign({}, (meta && typeof meta === 'object') ? meta : {}, {
++                special: specialType,
++                owner: ownerKey,
++                reason: reason || null,
++                reverted: true
++            })
++        });
++        return { reverted: true };
++    }
++
+     function ensureTimeStopConsecutiveTurnsRemainingByPlayer(cardState) {
+         if (!cardState.timeStopConsecutiveTurnsRemainingByPlayer || typeof cardState.timeStopConsecutiveTurnsRemainingByPlayer !== 'object') {
+             cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 0, white: 0 };
+@@ -750,10 +821,9 @@
+             return { triggered: [], fizzled: [] };
+         }
+ 
+-        destroyCellWithPresentation(cardState, gameState, row, col, 'TIME_STOP', 'time_stop_trigger_expire', {
++        revertSpecialStoneWithPresentation(cardState, gameState, row, col, 'TIME_STOP', playerKey, 'TIME_STOP', 'duration_end', {
+             owner: playerKey,
+-            ignoreGuard: true,
+-            ignoreDestroyEvade: true
++            timer: 0
+         });
+         const totalReservedTurns = reserveTimeStopConsecutiveTurns(cardState, playerKey, TIME_STOP_GOD_CONSECUTIVE_TURNS);
+         return {
+@@ -781,6 +851,76 @@
+         };
+     }
+ 
++    function collectEqualityWillSpawnablePositions(cardState, gameState) {
++        return getEmptyBoardShapeCellsForCard(cardState, gameState)
++            .filter((cell) => !isBlockedCell(cardState, cell.row, cell.col, gameState));
++    }
++
++    function resolveEqualityWillUsage(cardState, gameState, playerKey, prng) {
++        const targets = sampleRandomPositions(
++            collectEqualityWillSpawnablePositions(cardState, gameState),
++            EQUALITY_WILL_MAX_SPAWNS,
++            prng
++        );
++        const spawned = [];
++
++        for (const target of targets) {
++            if (!target) continue;
++            let spawnRes = null;
++            if (BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function') {
++                spawnRes = BoardOpsModule.spawnAt(
++                    cardState,
++                    gameState,
++                    target.row,
++                    target.col,
++                    playerKey,
++                    'EQUALITY_WILL',
++                    'equality_will_spawn',
++                    {
++                        owner: playerKey,
++                        requestedCount: EQUALITY_WILL_MAX_SPAWNS,
++                        spawnIndex: spawned.length + 1
++                    }
++                );
++            } else {
++                const ownerValue = playerKey === 'white' ? WHITE : BLACK;
++                const wroteCell = setCellValueForCard(gameState, target.row, target.col, ownerValue);
++                if (wroteCell) {
++                    const stoneId = allocateStoneId(cardState);
++                    setStoneIdAtForCard(cardState, gameState, target.row, target.col, stoneId);
++                    emitPresentationEvent(cardState, {
++                        type: 'SPAWN',
++                        stoneId,
++                        row: target.row,
++                        col: target.col,
++                        ownerAfter: playerKey,
++                        cause: 'EQUALITY_WILL',
++                        reason: 'equality_will_spawn',
++                        meta: {
++                            owner: playerKey,
++                            requestedCount: EQUALITY_WILL_MAX_SPAWNS,
++                            spawnIndex: spawned.length + 1
++                        }
++                    });
++                    spawnRes = { spawned: true, stoneId };
++                }
++            }
++            if (!(spawnRes && spawnRes.spawned)) continue;
++            spawned.push({
++                row: target.row,
++                col: target.col,
++                stoneId: spawnRes.stoneId || null
++            });
++        }
++
++        return {
++            applied: true,
++            requestedCount: EQUALITY_WILL_MAX_SPAWNS,
++            spawnedCount: spawned.length,
++            spawned
++        };
++    }
++
+     function processRiboWillTurnStartEffects(cardState, gameState, playerKey, prng) {
+         const riboByPlayer = ensureRiboRepaymentsByPlayer(cardState);
+         const active = Array.isArray(riboByPlayer[playerKey]) ? riboByPlayer[playerKey] : [];
+@@ -1674,7 +1814,7 @@
+         const whiteDeck = buildDeck('white');
+         const boardBonusByCell = buildInitialBoardBonusMap(p);
+ 
+-        return {
++        const cardState = {
+             // Per-player decks (non-shared)
+             decks: {
+                 black: blackDeck,
+@@ -1686,13 +1826,19 @@
+             initialDeckSize: blackDeck.length,
+             initialDeckSizeByPlayer: { black: blackDeck.length, white: whiteDeck.length },
+             reshuffleRequiresFullCycle: false,
+-            hands: { black: [], white: [] },
+-            turnIndex: 0,
+-            lastTurnStartedFor: null,
+-            turnCountByPlayer: { black: 0, white: 0 },
+-            timeStopConsecutiveTurnsRemainingByPlayer: { black: 0, white: 0 },
+-            observerTriviaBaseByPlayer: { black: null, white: null },
++             hands: { black: [], white: [] },
++             turnIndex: 0,
++             lastTurnStartedFor: null,
++             _activeTurnPlayer: null,
++             turnCountByPlayer: { black: 0, white: 0 },
++              timeStopConsecutiveTurnsRemainingByPlayer: { black: 0, white: 0 },
++              observerTriviaBaseByPlayer: { black: null, white: null },
+             observerTriviaCursorByPlayer: { black: null, white: null },
++            _nextCardCopySeq: 1,
++            _handCopyIdsByPlayer: { black: [], white: [] },
++            _deckCopyIdsByPlayer: { black: [], white: [] },
++            _discardCopyIds: [],
++            _revealedHandCopyIdsByViewer: { black: [], white: [] },
+ 
+             // Card usage state
+             selectedCardId: null,
+@@ -1749,8 +1895,15 @@
+             // - sprout: one-turn visual tags for stones spawned by breeding
+             breedingFrontierByAnchorId: {},
+             breedingSproutByOwner: { black: [], white: [] },
+-            _breedingSproutClearedTokenByOwner: { black: null, white: null }
++            _breedingSproutClearedTokenByOwner: { black: null, white: null },
++
++            // SALVATION_WILL: per-player list of {row, col} for normal stones destroyed on the
++            // immediately previous opponent turn. Reset at the start of each player's turn for
++            // the opponent (victim) key. Only normal stones (no specialStone marker) are recorded.
++            prevOpponentTurnDestroyedNormalByPlayer: { black: [], white: [] }
+         };
++        ensureCardCopyState(cardState);
++        return cardState;
+     }
+ 
+     /**
+@@ -1775,7 +1928,7 @@
+                 black: Number.isFinite(cs.initialDeckSize) ? cs.initialDeckSize : decks.black.length,
+                 white: Number.isFinite(cs.initialDeckSize) ? cs.initialDeckSize : decks.white.length
+             };
+-        return {
++        const nextState = {
+             decks,
+             // Legacy compatibility field. Do not use in new code.
+             deck: decks.black.slice(),
+@@ -1783,12 +1936,13 @@
+             hands: {
+                 black: cs.hands.black.slice(),
+                 white: cs.hands.white.slice()
+-            },
+-            turnIndex: cs.turnIndex,
+-            lastTurnStartedFor: cs.lastTurnStartedFor,
+-            turnCountByPlayer: { ...cs.turnCountByPlayer },
+-            timeStopConsecutiveTurnsRemainingByPlayer: {
+-                black: Number.isFinite(Number(cs && cs.timeStopConsecutiveTurnsRemainingByPlayer && cs.timeStopConsecutiveTurnsRemainingByPlayer.black))
++             },
++             turnIndex: cs.turnIndex,
++             lastTurnStartedFor: cs.lastTurnStartedFor,
++             _activeTurnPlayer: (typeof cs._activeTurnPlayer === 'string') ? cs._activeTurnPlayer : null,
++             turnCountByPlayer: { ...cs.turnCountByPlayer },
++             timeStopConsecutiveTurnsRemainingByPlayer: {
++                 black: Number.isFinite(Number(cs && cs.timeStopConsecutiveTurnsRemainingByPlayer && cs.timeStopConsecutiveTurnsRemainingByPlayer.black))
+                     ? Math.max(0, Math.floor(Number(cs.timeStopConsecutiveTurnsRemainingByPlayer.black)))
+                     : 0,
+                 white: Number.isFinite(Number(cs && cs.timeStopConsecutiveTurnsRemainingByPlayer && cs.timeStopConsecutiveTurnsRemainingByPlayer.white))
+@@ -1807,6 +1961,28 @@
+                     white: Number.isFinite(Number(cs.observerTriviaCursorByPlayer.white)) ? Number(cs.observerTriviaCursorByPlayer.white) : null
+                 }
+                 : { black: null, white: null },
++            _nextCardCopySeq: Number.isFinite(Number(cs._nextCardCopySeq))
++                ? Math.max(1, Math.floor(Number(cs._nextCardCopySeq)))
++                : 1,
++            _handCopyIdsByPlayer: (cs._handCopyIdsByPlayer && typeof cs._handCopyIdsByPlayer === 'object')
++                ? {
++                    black: Array.isArray(cs._handCopyIdsByPlayer.black) ? cs._handCopyIdsByPlayer.black.slice() : [],
++                    white: Array.isArray(cs._handCopyIdsByPlayer.white) ? cs._handCopyIdsByPlayer.white.slice() : []
++                }
++                : { black: [], white: [] },
++            _deckCopyIdsByPlayer: (cs._deckCopyIdsByPlayer && typeof cs._deckCopyIdsByPlayer === 'object')
++                ? {
++                    black: Array.isArray(cs._deckCopyIdsByPlayer.black) ? cs._deckCopyIdsByPlayer.black.slice() : [],
++                    white: Array.isArray(cs._deckCopyIdsByPlayer.white) ? cs._deckCopyIdsByPlayer.white.slice() : []
++                }
++                : { black: [], white: [] },
++            _discardCopyIds: Array.isArray(cs._discardCopyIds) ? cs._discardCopyIds.slice() : [],
++            _revealedHandCopyIdsByViewer: (cs._revealedHandCopyIdsByViewer && typeof cs._revealedHandCopyIdsByViewer === 'object')
++                ? {
++                    black: Array.isArray(cs._revealedHandCopyIdsByViewer.black) ? cs._revealedHandCopyIdsByViewer.black.slice() : [],
++                    white: Array.isArray(cs._revealedHandCopyIdsByViewer.white) ? cs._revealedHandCopyIdsByViewer.white.slice() : []
++                }
++                : { black: [], white: [] },
+ 
+             selectedCardId: cs.selectedCardId,
+             hasUsedCardThisTurnByPlayer: { ...cs.hasUsedCardThisTurnByPlayer },
+@@ -1908,8 +2084,21 @@
+                     black: cs._breedingSproutClearedTokenByOwner.black || null,
+                     white: cs._breedingSproutClearedTokenByOwner.white || null
+                 }
+-                : { black: null, white: null }
++                : { black: null, white: null },
++
++            prevOpponentTurnDestroyedNormalByPlayer: (cs.prevOpponentTurnDestroyedNormalByPlayer && typeof cs.prevOpponentTurnDestroyedNormalByPlayer === 'object')
++                ? {
++                    black: Array.isArray(cs.prevOpponentTurnDestroyedNormalByPlayer.black)
++                        ? cs.prevOpponentTurnDestroyedNormalByPlayer.black.map(p => ({ row: p.row, col: p.col }))
++                        : [],
++                    white: Array.isArray(cs.prevOpponentTurnDestroyedNormalByPlayer.white)
++                        ? cs.prevOpponentTurnDestroyedNormalByPlayer.white.map(p => ({ row: p.row, col: p.col }))
++                        : []
++                }
++                : { black: [], white: [] }
+         };
++        ensureCardCopyState(nextState);
++        return nextState;
+     }
+ 
+     /**
+@@ -2083,6 +2272,76 @@
+         return CardHandManagerModule.commitDraw(cardState, playerKey, prng || defaultPrng, getCardHandManagerContext());
+     }
+ 
++    function ensureCardCopyState(cardState) {
++        if (!CardHandManagerModule || typeof CardHandManagerModule.ensureCardCopyState !== 'function') {
++            throw new Error('[cards.js] CardHandManager.ensureCardCopyState not available');
++        }
++        return CardHandManagerModule.ensureCardCopyState(cardState, getCardHandManagerContext());
++    }
++
++    function getHandCopyIdAt(cardState, playerKey, handIndex) {
++        if (!CardHandManagerModule || typeof CardHandManagerModule.getHandCopyIdAt !== 'function') {
++            throw new Error('[cards.js] CardHandManager.getHandCopyIdAt not available');
++        }
++        return CardHandManagerModule.getHandCopyIdAt(cardState, playerKey, handIndex, getCardHandManagerContext());
++    }
++
++    function getHandCopyIds(cardState, playerKey) {
++        if (!CardHandManagerModule || typeof CardHandManagerModule.getHandCopyIds !== 'function') {
++            throw new Error('[cards.js] CardHandManager.getHandCopyIds not available');
++        }
++        return CardHandManagerModule.getHandCopyIds(cardState, playerKey, getCardHandManagerContext());
++    }
++
++    function isCardCopyIdRevealedToViewer(cardState, viewerKey, cardCopyId) {
++        if (!CardHandManagerModule || typeof CardHandManagerModule.isCardCopyIdRevealedToViewer !== 'function') {
++            throw new Error('[cards.js] CardHandManager.isCardCopyIdRevealedToViewer not available');
++        }
++        return CardHandManagerModule.isCardCopyIdRevealedToViewer(cardState, viewerKey, cardCopyId, getCardHandManagerContext());
++    }
++
++    function revealCurrentHandToViewer(cardState, viewerKey, ownerKey) {
++        if (!CardHandManagerModule || typeof CardHandManagerModule.revealCurrentHandToViewer !== 'function') {
++            throw new Error('[cards.js] CardHandManager.revealCurrentHandToViewer not available');
++        }
++        return CardHandManagerModule.revealCurrentHandToViewer(cardState, viewerKey, ownerKey, getCardHandManagerContext());
++    }
++
++    function addCardToHand(cardState, playerKey, cardId, opts) {
++        if (!CardHandManagerModule || typeof CardHandManagerModule.addCardToHand !== 'function') {
++            throw new Error('[cards.js] CardHandManager.addCardToHand not available');
++        }
++        return CardHandManagerModule.addCardToHand(cardState, playerKey, cardId, getCardHandManagerContext(), opts);
++    }
++
++    function addCardToDiscard(cardState, cardId, cardCopyId) {
++        if (!CardHandManagerModule || typeof CardHandManagerModule.addCardToDiscard !== 'function') {
++            throw new Error('[cards.js] CardHandManager.addCardToDiscard not available');
++        }
++        return CardHandManagerModule.addCardToDiscard(cardState, cardId, cardCopyId, getCardHandManagerContext());
++    }
++
++    function removeHandCardAt(cardState, playerKey, handIndex) {
++        if (!CardHandManagerModule || typeof CardHandManagerModule.removeHandCardAt !== 'function') {
++            throw new Error('[cards.js] CardHandManager.removeHandCardAt not available');
++        }
++        return CardHandManagerModule.removeHandCardAt(cardState, playerKey, handIndex, getCardHandManagerContext());
++    }
++
++    function clearHandToDiscard(cardState, playerKey) {
++        if (!CardHandManagerModule || typeof CardHandManagerModule.clearHandToDiscard !== 'function') {
++            throw new Error('[cards.js] CardHandManager.clearHandToDiscard not available');
++        }
++        return CardHandManagerModule.clearHandToDiscard(cardState, playerKey, getCardHandManagerContext());
++    }
++
++    function moveDiscardCardToHandByCardId(cardState, playerKey, cardId, opts) {
++        if (!CardHandManagerModule || typeof CardHandManagerModule.moveDiscardCardToHandByCardId !== 'function') {
++            throw new Error('[cards.js] CardHandManager.moveDiscardCardToHandByCardId not available');
++        }
++        return CardHandManagerModule.moveDiscardCardToHandByCardId(cardState, playerKey, cardId, getCardHandManagerContext(), opts);
++    }
++
+     /**
+      * Get card definition
+      * @param {string} cardId
+@@ -2257,10 +2516,14 @@
+         return { black, white };
+     }
+ 
+-    function hasFewerDiscsThanOpponentForPlayer(gameState, playerKey) {
++    function getDiscDisadvantageForPlayer(gameState, playerKey) {
+         const counts = countDiscsForCardComparison(gameState);
+-        if (playerKey === 'white') return counts.white < counts.black;
+-        return counts.black < counts.white;
++        if (playerKey === 'white') return counts.black - counts.white;
++        return counts.white - counts.black;
++    }
++
++    function hasFewerDiscsThanOpponentForPlayer(gameState, playerKey) {
++        return getDiscDisadvantageForPlayer(gameState, playerKey) > 0;
+     }
+ 
+     function canUseLastResortForPlayer(cardState, gameState, playerKey) {
+@@ -2269,6 +2532,12 @@
+         return hasFewerDiscsThanOpponentForPlayer(gameState, playerKey);
+     }
+ 
++    function canUseEqualityWillForPlayer(cardState, gameState, playerKey) {
++        void cardState;
++        if (!gameState || !Array.isArray(gameState.board)) return false;
++        return getDiscDisadvantageForPlayer(gameState, playerKey) >= 10;
++    }
++
+     function _ensureHandDestroyFlags(cardState) {
+         if (!CardHandManagerModule || typeof CardHandManagerModule.ensureHandDestroyFlags !== 'function') {
+             throw new Error('[cards.js] CardHandManager.ensureHandDestroyFlags not available');
+@@ -2400,6 +2669,7 @@
+                 heavenSeedHint,
+                 hasStandardLegalMoveForPlayer,
+                 canUseLastResortForPlayer,
++                canUseEqualityWillForPlayer,
+                 canUseTimeStopGodForPlayer,
+                 countOpponentOccupiedCornersForPlayer,
+                 buildHeavenBlessingOffers,
+@@ -2432,7 +2702,8 @@
+                 getFreezeTargets,
+                 getTimeStopGodDestroyableCount,
+                 timeStopGodSelfDestroyCount: TIME_STOP_GOD_SELF_DESTROY_COUNT,
+-                getLossWillRemovableCount
++                getLossWillRemovableCount,
++                getSalvationWillTargetCount
+             })
+             : null;
+         if (!usagePrecheck || usagePrecheck.ok !== true) return false;
+@@ -2440,10 +2711,9 @@
+         const condemnOffers = Array.isArray(usagePrecheck.condemnOffers) ? usagePrecheck.condemnOffers : null;
+ 
+         if (!(opts && opts.noConsume)) {
+-            // Remove from hand
+-            cardState.hands[handKey].splice(idx, 1);
+-            // Add to discard
+-            cardState.discard.push(cardId);
++            const removedCard = removeHandCardAt(cardState, handKey, idx);
++            if (!removedCard || removedCard.cardId !== cardId) return false;
++            addCardToDiscard(cardState, removedCard.cardId, removedCard.cardCopyId);
+             // Consume charge
+             addChargeValue(cardState, chargeOwnerKey, -cost, 'card_use_cost');
+             // Set used flag
+@@ -2557,7 +2827,8 @@
+             return CardPendingStateManagerModule.cancelPendingSelection(cardState, playerKey, opts, {
+                 helpers: {
+                     getCardDef,
+-                    addChargeValue
++                    addChargeValue,
++                    moveDiscardCardToHandByCardId
+                 }
+             });
+         }
+@@ -2588,13 +2859,7 @@
+ 
+         if (cardId) {
+             const handKey = cardState.hands[playerKey] ? playerKey : 'black';
+-            if (!cardState.hands[handKey].includes(cardId)) {
+-                cardState.hands[handKey].push(cardId);
+-            }
+-            const discardIndex = cardState.discard.lastIndexOf(cardId);
+-            if (discardIndex >= 0) {
+-                cardState.discard.splice(discardIndex, 1);
+-            }
++            moveDiscardCardToHandByCardId(cardState, handKey, cardId, { ignoreHandLimit: true });
+         }
+ 
+         cardState.pendingEffectByPlayer[playerKey] = null;
+@@ -3221,13 +3486,11 @@
+                 setChargeValue(cardState, victimKey, remainingCharge, 'trap_stolen_charge');
+                 const gainedCharge = addChargeWithTotal(cardState, ownerKey, stolenCharge);
+ 
+-                const victimHand = Array.isArray(cardState.hands[victimKey]) ? cardState.hands[victimKey] : [];
+-                const destroyedCards = victimHand.splice(0, victimHand.length);
++                const clearResult = clearHandToDiscard(cardState, victimKey);
++                const destroyedCards = Array.isArray(clearResult && clearResult.destroyedCards)
++                    ? clearResult.destroyedCards
++                    : [];
+                 const destroyedCount = destroyedCards.length;
+-                if (destroyedCount > 0) {
+-                    if (!Array.isArray(cardState.discard)) cardState.discard = [];
+-                    cardState.discard.push(...destroyedCards);
+-                }
+ 
+                 removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: ownerKey });
+                 res.triggered.push({
+@@ -4106,6 +4369,78 @@
+         return { applied: true, removedCount: removed.length, removed };
+     }
+ 
++    function getSalvationWillTargetCount(cardState, playerKey) {
++        if (!cardState || !cardState.prevOpponentTurnDestroyedNormalByPlayer) return 0;
++        const list = cardState.prevOpponentTurnDestroyedNormalByPlayer[playerKey];
++        return Array.isArray(list) ? list.length : 0;
++    }
++
++    function applySalvationWill(cardState, gameState, playerKey, prng) {
++        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
++        if (!pending || pending.type !== 'SALVATION_WILL') {
++            return { applied: false, reason: 'not_pending', spawned: [], requestedCount: 0, spawnedCount: 0 };
++        }
++        const tracked = (cardState.prevOpponentTurnDestroyedNormalByPlayer && Array.isArray(cardState.prevOpponentTurnDestroyedNormalByPlayer[playerKey]))
++            ? cardState.prevOpponentTurnDestroyedNormalByPlayer[playerKey].slice()
++            : [];
++        if (tracked.length === 0) {
++            if (cardState.prevOpponentTurnDestroyedNormalByPlayer) {
++                cardState.prevOpponentTurnDestroyedNormalByPlayer[playerKey] = [];
++            }
++            cardState.pendingEffectByPlayer[playerKey] = null;
++            return { applied: false, reason: 'no_tracked_stones', spawned: [], requestedCount: 0, spawnedCount: 0 };
++        }
++        const emptyCells = getEmptyBoardShapeCellsForCard(cardState, gameState);
++        const requestedCount = tracked.length;
++        const targets = sampleRandomPositions(emptyCells, requestedCount, prng);
++        const spawned = [];
++        for (const target of targets) {
++            if (!target) continue;
++            let spawnRes = null;
++            if (BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function') {
++                spawnRes = BoardOpsModule.spawnAt(
++                    cardState,
++                    gameState,
++                    target.row,
++                    target.col,
++                    playerKey,
++                    'SALVATION_WILL',
++                    'salvation_spawn',
++                    {
++                        owner: playerKey,
++                        requestedCount,
++                        spawnIndex: spawned.length + 1
++                    }
++                );
++            } else {
++                const ownerValue = playerKey === 'white' ? WHITE : BLACK;
++                const wroteCell = setCellValueForCard(gameState, target.row, target.col, ownerValue);
++                if (wroteCell) {
++                    const stoneId = allocateStoneId(cardState);
++                    setStoneIdAtForCard(cardState, gameState, target.row, target.col, stoneId);
++                    emitPresentationEvent(cardState, {
++                        type: 'SPAWN',
++                        stoneId,
++                        row: target.row,
++                        col: target.col,
++                        ownerAfter: playerKey,
++                        cause: 'SALVATION_WILL',
++                        reason: 'salvation_spawn',
++                        meta: { owner: playerKey, requestedCount, spawnIndex: spawned.length + 1 }
++                    });
++                    spawnRes = { spawned: true, stoneId };
++                }
++            }
++            if (!(spawnRes && spawnRes.spawned)) continue;
++            spawned.push({ row: target.row, col: target.col, stoneId: spawnRes.stoneId || null });
++        }
++        if (cardState.prevOpponentTurnDestroyedNormalByPlayer) {
++            cardState.prevOpponentTurnDestroyedNormalByPlayer[playerKey] = [];
++        }
++        cardState.pendingEffectByPlayer[playerKey] = null;
++        return { applied: true, spawned, requestedCount, spawnedCount: spawned.length };
++    }
++
+     function getStrongWindTargets(cardState, gameState) {
+         if (CardSelectorsModule && typeof CardSelectorsModule.getStrongWindTargets === 'function') {
+             return CardSelectorsModule.getStrongWindTargets(cardState, gameState);
+@@ -4606,6 +4941,7 @@
+             helpers: {
+                 hasStandardLegalMoveForPlayer,
+                 canUseLastResortForPlayer,
++                canUseEqualityWillForPlayer,
+                 canUseTimeStopGodForPlayer,
+                 countOpponentOccupiedCornersForPlayer,
+                 getTemptWillTargets,
+@@ -4895,8 +5231,11 @@
+             return { applied: false, reason: '謇区惆縺ｫ縺ｪ縺・き繝ｼ繝峨・螢ｲ蜊ｴ縺ｧ縺阪∪縺帙ｓ' };
+         }
+ 
+-        cardState.hands[playerKey].splice(idx, 1);
+-        cardState.discard.push(soldCardId);
++        const removed = removeHandCardAt(cardState, playerKey, idx);
++        if (!removed) {
++            return { applied: false, reason: '謇区惆縺ｫ縺ｪ縺・き繝ｼ繝峨・螢ｲ蜊ｴ縺ｧ縺阪∪縺帙ｓ' };
++        }
++        addCardToDiscard(cardState, removed.cardId, removed.cardCopyId);
+ 
+         const gainBase = getCardCost(soldCardId);
+         const gained = addChargeWithTotal(cardState, playerKey, gainBase);
+@@ -4934,12 +5273,47 @@
+             return { applied: false, reason: 'hand_full' };
+         }
+ 
+-        cardState.hands[playerKey].push(selectedCardId);
++        const added = addCardToHand(cardState, playerKey, selectedCardId);
++        if (!added) {
++            return { applied: false, reason: 'hand_full' };
++        }
+         const vanished = offers.filter(id => id !== selectedCardId);
+         cardState.pendingEffectByPlayer[playerKey] = null;
+         return { applied: true, selectedCardId, vanished };
+     }
+ 
++    /**
++     * Apply REVEAL_HAND_WILL (隕ｳ貂ｬ縺ｮ諢丞ｿ・
++     * Reveal the opponent hand as it exists at use time for the acting viewer only.
++     * @param {Object} cardState
++     * @param {string} playerKey
++     * @returns {{applied:boolean, reason?:string, opponentKey?:string, revealedCount?:number}}
++     */
++    function applyRevealHandWill(cardState, playerKey) {
++        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
++        if (!pending || pending.type !== 'REVEAL_HAND_WILL' || pending.stage !== null) {
++            return { applied: false, reason: 'pending_not_found' };
++        }
++
++        const opponentKey = playerKey === 'black' ? 'white' : 'black';
++        const opponentHand = (cardState.hands && Array.isArray(cardState.hands[opponentKey])) ? cardState.hands[opponentKey] : null;
++        if (!opponentHand) {
++            return { applied: false, reason: 'invalid_hand' };
++        }
++        if (opponentHand.length <= 0) {
++            cardState.pendingEffectByPlayer[playerKey] = null;
++            return { applied: false, reason: 'opponent_hand_empty', opponentKey, revealedCount: 0 };
++        }
++
++        const revealedCopyIds = revealCurrentHandToViewer(cardState, playerKey, opponentKey);
++        cardState.pendingEffectByPlayer[playerKey] = null;
++        return {
++            applied: true,
++            opponentKey,
++            revealedCount: revealedCopyIds.length
++        };
++    }
++
+     /**
+      * Apply CONDEMN_WILL (譁ｭ鄂ｪ縺ｮ諢丞ｿ・
+      * Reveal opponent hand and destroy exactly one selected card.
+@@ -4982,12 +5356,15 @@
+         if (targetIndex < 0 || targetIndex >= opponentHand.length) {
+             return { applied: false, reason: 'invalid_target' };
+         }
+-        const handCardId = opponentHand[targetIndex];
++        const removed = removeHandCardAt(cardState, opponentKey, targetIndex);
++        if (!removed) {
++            return { applied: false, reason: 'invalid_target' };
++        }
++        const handCardId = removed.cardId;
+         const handToken = parseHiddenHandToken(handCardId);
+         const offerToken = parseHiddenHandToken(offer.cardId);
+         const destroyedCardId = handToken && !offerToken ? offer.cardId : handCardId;
+-        opponentHand.splice(targetIndex, 1);
+-        cardState.discard.push(handCardId);
++        addCardToDiscard(cardState, handCardId, removed.cardCopyId);
+         cardState.pendingEffectByPlayer[playerKey] = null;
+ 
+         return { applied: true, destroyedCardId };
+@@ -5751,13 +6128,24 @@
+             markerData.remainingOwnerTurns -= 1;
+             result.remainingOwnerTurns = markerData.remainingOwnerTurns;
+             if (markerData.remainingOwnerTurns <= 0) {
+-                removeMarkersAt(cardState, row, col, {
+-                    kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
+-                    type: 'OBSERVER',
+-                    owner: playerKey
+-                });
+-                result.remainingOwnerTurns = 0;
+-                result.expired.push({ row, col, owner: playerKey, reason: 'duration_end' });
++                const revertRes = revertSpecialStoneWithPresentation(
++                    cardState,
++                    gameState,
++                    row,
++                    col,
++                    'OBSERVER',
++                    playerKey,
++                    'OBSERVER_WILL',
++                    'duration_end',
++                    {
++                        owner: playerKey,
++                        timer: 0
++                    }
++                );
++                if (revertRes && revertRes.reverted) {
++                    result.remainingOwnerTurns = 0;
++                    result.expired.push({ row, col, owner: playerKey, reason: 'duration_end' });
++                }
+             }
+         } else {
+             result.remainingOwnerTurns = (typeof markerData.remainingOwnerTurns === 'number')
+@@ -6236,20 +6624,22 @@
+      * Apply DESTROY_ONE_STONE
+      * Delegates to effects/destroy_one_stone.js module.
+      */
+-    function applyDestroyEffect(cardState, gameState, playerKey, row, col) {
++    function applyDestroyEffectDetailed(cardState, gameState, playerKey, row, col) {
+         // Delegate to effect module
+         if (typeof module === 'object' && module.exports) {
+             const mod = require('./effects/destroy_one_stone');
+-            const r = mod.applyDestroyOneStone(cardState, gameState, playerKey, row, col, { BoardOps: BoardOpsModule, destroyAt });
+-            return isDestroyResolved(r);
++            return mod.applyDestroyOneStone(cardState, gameState, playerKey, row, col, { BoardOps: BoardOpsModule, destroyAt });
+         }
+         // Browser: use global
+         if (typeof DestroyOneStone !== 'undefined' && typeof DestroyOneStone.applyDestroyOneStone === 'function') {
+-            const r = DestroyOneStone.applyDestroyOneStone(cardState, gameState, playerKey, row, col, { BoardOps: BoardOpsModule, destroyAt });
+-            return isDestroyResolved(r);
++            return DestroyOneStone.applyDestroyOneStone(cardState, gameState, playerKey, row, col, { BoardOps: BoardOpsModule, destroyAt });
+         }
+         console.warn('[cards.js] DestroyOneStone module not available');
+-        return false;
++        return createDestroyOutcome();
++    }
++
++    function applyDestroyEffect(cardState, gameState, playerKey, row, col) {
++        return isDestroyResolved(applyDestroyEffectDetailed(cardState, gameState, playerKey, row, col));
+     }
+ 
+ 
+@@ -6594,6 +6984,16 @@
+         getChainWillConfig,
+         canUseCard,
+         destroyHandCard,
++        ensureCardCopyState,
++        getHandCopyIdAt,
++        getHandCopyIds,
++        isCardCopyIdRevealedToViewer,
++        revealCurrentHandToViewer,
++        addCardToHand,
++        addCardToDiscard,
++        removeHandCardAt,
++        clearHandToDiscard,
++        moveDiscardCardToHandByCardId,
+         getUsableCardIds,
+         hasUsableCard,
+         applyCardUsage,
+@@ -6615,12 +7015,14 @@
+         processDragonEffectsAtTurnStartAnchor,
+         processDragonEffectsAtAnchor,
+         applyDestroyEffect,
++        applyDestroyEffectDetailed,
+         applySwapEffect,
+         applyPositionSwapWill,
+         applyStrongWill,
+         applyAbsoluteProtect,
+         applySellCardWill,
+         applyHeavenBlessingChoice,
++        applyRevealHandWill,
+         applyCondemnWill,
+         applyTemptWill,
+         applyExtendLifeWill,
+@@ -6640,10 +7042,13 @@
+         applyFreezeWill,
+         getLossWillRemovableCount,
+         applyLossWill,
++        getSalvationWillTargetCount,
++        applySalvationWill,
+         applyStrongWindWill,
+         applySuperBuoyancyWill,
+         applySuperGravityWill,
+         armRiboWillEffect,
++        resolveEqualityWillUsage,
+         getTimeStopGodDestroyableCount,
+         resolveTimeStopGodUsage,
+         consumeTimeStopConsecutiveTurn,

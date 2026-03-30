@@ -4,6 +4,7 @@ const { JSDOM } = require('jsdom');
 describe('initializeUI playback runtime delegation', () => {
   let dom;
   let playbackStateMock;
+  let busyState;
 
   beforeEach(() => {
     jest.resetModules();
@@ -17,9 +18,40 @@ describe('initializeUI playback runtime delegation', () => {
     global.location = dom.window.location;
     global.resetGame = jest.fn();
     global.watchdogPing = jest.fn();
+    busyState = {
+      cardAnimating: false,
+      processing: false
+    };
 
     playbackStateMock = {
-      syncLegacyWindowFlags: jest.fn(() => ({ isCardAnimating: false, isProcessing: false })),
+      getCardAnimating: jest.fn(() => busyState.cardAnimating === true),
+      getProcessing: jest.fn(() => busyState.processing === true),
+      setBusyState: jest.fn((config) => {
+        if (Object.prototype.hasOwnProperty.call(config, 'cardAnimating')) {
+          busyState.cardAnimating = config.cardAnimating === true;
+          global.window.isCardAnimating = busyState.cardAnimating;
+        }
+        if (Object.prototype.hasOwnProperty.call(config, 'processing')) {
+          busyState.processing = config.processing === true;
+          global.window.isProcessing = busyState.processing;
+        }
+        return {
+          isCardAnimating: busyState.cardAnimating,
+          isProcessing: busyState.processing
+        };
+      }),
+      syncLegacyWindowFlags: jest.fn(({ readCardAnimating, readProcessing } = {}) => {
+        if (typeof readCardAnimating === 'function') {
+          global.window.isCardAnimating = readCardAnimating() === true;
+        }
+        if (typeof readProcessing === 'function') {
+          global.window.isProcessing = readProcessing() === true;
+        }
+        return {
+          isCardAnimating: global.window.isCardAnimating === true,
+          isProcessing: global.window.isProcessing === true
+        };
+      }),
       ensureDebugRuntime: jest.fn(() => ({ mirrorIntervalId: null, playbackWatchdogId: null }))
     };
 
@@ -62,5 +94,21 @@ describe('initializeUI playback runtime delegation', () => {
     expect(global.window._uiMirrorIntervalId).toBeUndefined();
     expect(global.window._playbackWatchdogId).toBeUndefined();
     expect(global.window._watchdogIntervalId).toBeDefined();
+  });
+
+  test('uses PlaybackStateManager to clear no-anim busy flags', async () => {
+    busyState.cardAnimating = true;
+    busyState.processing = true;
+    global.window.DISABLE_ANIMATIONS = true;
+
+    const initModule = require('../ui/handlers/init.js');
+    await initModule.initializeUI();
+
+    expect(playbackStateMock.setBusyState).toHaveBeenCalledWith(expect.objectContaining({
+      cardAnimating: false,
+      processing: false
+    }));
+    expect(global.window.isCardAnimating).toBe(false);
+    expect(global.window.isProcessing).toBe(false);
   });
 });

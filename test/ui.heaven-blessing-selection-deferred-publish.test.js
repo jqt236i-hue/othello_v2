@@ -104,6 +104,9 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
     global.cardState = initial.cardState;
     global.isProcessing = false;
     global.isCardAnimating = false;
+    const playbackStateManager = require('../ui/playback-state-manager');
+    playbackStateManager.clearPlaybackLock();
+    global.PlaybackStateManager = playbackStateManager;
 
     global.CardLogic = {
       getCardDef: (id) => ({ id, name: `name_${id}`, desc: `desc_${id}`, cost: 2 })
@@ -231,6 +234,7 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
     delete global.NetworkMatchClient;
     delete global.EventSource;
     delete global.fetch;
+    delete global.PlaybackStateManager;
     delete globalThis.waitForPlaybackIdle;
   });
 

@@ -1,5 +1,24 @@
 const { JSDOM } = require('jsdom');
 
+function withServerMeta(snapshot, metaVersion) {
+  const rawVersion = arguments.length >= 2
+    ? metaVersion
+    : (snapshot && snapshot.stateVersion);
+  const version = (rawVersion === null || typeof rawVersion === 'undefined' || (typeof rawVersion === 'string' && rawVersion.trim() === ''))
+    ? null
+    : Number.isFinite(Number(rawVersion))
+    ? Number(rawVersion)
+    : null;
+  return Object.assign({
+    _meta: {
+      authority: 'server',
+      version,
+      projectedForSeat: null,
+      turnStartReconciled: true
+    }
+  }, snapshot || {});
+}
+
 describe('NetworkMatchClient result sync', () => {
   let dom;
 
@@ -56,11 +75,11 @@ describe('NetworkMatchClient result sync', () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
 
-    const terminalSnapshot = {
+    const terminalSnapshot = withServerMeta({
       stateVersion: 7,
       gameState: { currentPlayer: -1, turnNumber: 40, __resultShown: true },
       cardState: { markers: [] }
-    };
+    });
 
     const first = client.applySnapshot(terminalSnapshot, { force: true });
     const second = client.applySnapshot(terminalSnapshot, { force: true });
@@ -74,11 +93,11 @@ describe('NetworkMatchClient result sync', () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
 
-    const terminalSnapshot = {
+    const terminalSnapshot = withServerMeta({
       stateVersion: 8,
       gameState: { currentPlayer: -1, turnNumber: 41, __resultShown: true },
       cardState: { markers: [] }
-    };
+    });
 
     client.applySnapshot(terminalSnapshot, { force: true, skipResultOverlay: true });
 
@@ -98,11 +117,11 @@ describe('NetworkMatchClient result sync', () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
 
-    const snapshot = {
+    const snapshot = withServerMeta({
       stateVersion: 9,
       gameState: { currentPlayer: 1, turnNumber: 42, __resultShown: false },
       cardState: { markers: [], presentationEvents: [] }
-    };
+    });
 
     client.applySnapshot(snapshot, {
       force: true,
@@ -133,7 +152,7 @@ describe('NetworkMatchClient result sync', () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
 
-    client.applySnapshot({
+    client.applySnapshot(withServerMeta({
       stateVersion: 10,
       gameState: { currentPlayer: 1, turnNumber: 42, __resultShown: false },
       cardState: {
@@ -141,7 +160,7 @@ describe('NetworkMatchClient result sync', () => {
         presentationEvents: [{ type: 'stale_from_snapshot' }],
         _presentationEventsPersist: [{ type: 'stale_persist_from_snapshot' }]
       }
-    }, {
+    }), {
       force: true,
       skipResultOverlay: true,
       playbackEvents: [{ type: 'hand_add', phase: 1, targets: [{ player: 'black', count: 1 }] }]
@@ -167,7 +186,7 @@ describe('NetworkMatchClient result sync', () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
 
-    client.applySnapshot({
+    client.applySnapshot(withServerMeta({
       stateVersion: 11,
       gameState: { currentPlayer: 1, turnNumber: 44, __resultShown: false },
       cardState: {
@@ -175,7 +194,7 @@ describe('NetworkMatchClient result sync', () => {
         presentationEvents: [{ type: 'stale_from_snapshot' }],
         _presentationEventsPersist: [{ type: 'stale_persist_from_snapshot' }]
       }
-    }, {
+    }), {
       force: true,
       skipResultOverlay: true
     });
@@ -201,7 +220,7 @@ describe('NetworkMatchClient result sync', () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
 
-    client.applySnapshot({
+    client.applySnapshot(withServerMeta({
       stateVersion: 12,
       gameState: { currentPlayer: 1, turnNumber: 45, __resultShown: false },
       cardState: {
@@ -209,7 +228,7 @@ describe('NetworkMatchClient result sync', () => {
         presentationEvents: [{ type: 'stale_from_snapshot' }],
         _presentationEventsPersist: [{ type: 'stale_persist_from_snapshot' }]
       }
-    }, {
+    }), {
       force: true,
       skipResultOverlay: true
     });
@@ -234,11 +253,11 @@ describe('NetworkMatchClient result sync', () => {
     });
     expect(playbackState.getSuppressNextDiffFlip()).toBe(true);
 
-    client.applySnapshot({
+    client.applySnapshot(withServerMeta({
       stateVersion: 13,
       gameState: { currentPlayer: 1, turnNumber: 46, __resultShown: false },
       cardState: { markers: [] }
-    }, {
+    }), {
       force: true,
       skipResultOverlay: true
     });
@@ -252,7 +271,7 @@ describe('NetworkMatchClient result sync', () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
 
-    const applied = client.applySnapshot({
+    const applied = client.applySnapshot(withServerMeta({
       stateVersion: 14,
       gameState: { currentPlayer: 1, turnNumber: 47, __resultShown: true },
       cardState: {
@@ -261,7 +280,7 @@ describe('NetworkMatchClient result sync', () => {
         _presentationEventsPersist: [{ type: 'snapshot_persist' }],
         _currentActionMeta: { type: 'PLACE' }
       }
-    }, {
+    }), {
       force: true,
       skipResultOverlay: true
     });
@@ -278,10 +297,10 @@ describe('NetworkMatchClient result sync', () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
 
-    const applied = client.applySnapshot({
+    const applied = client.applySnapshot(withServerMeta({
       gameState: { currentPlayer: 1, turnNumber: 48 },
       cardState: { markers: [] }
-    }, {
+    }, null), {
       force: false,
       skipResultOverlay: true
     });
@@ -294,7 +313,7 @@ describe('NetworkMatchClient result sync', () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
 
-    const snapshot = {
+    const snapshot = withServerMeta({
       stateVersion: 10,
       gameState: { currentPlayer: 1, turnNumber: 43, __resultShown: false },
       cardState: {
@@ -303,7 +322,7 @@ describe('NetworkMatchClient result sync', () => {
           { id: 2, kind: 'specialStone', row: 3, col: 4, owner: 'white', data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } }
         ]
       }
-    };
+    });
 
     client.applySnapshot(snapshot, { force: true, skipResultOverlay: true });
 
@@ -319,11 +338,11 @@ describe('NetworkMatchClient result sync', () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
 
-    const terminalSnapshot = {
+    const terminalSnapshot = withServerMeta({
       stateVersion: 20,
       gameState: { currentPlayer: -1, turnNumber: 40 },
       cardState: { markers: [] }
-    };
+    });
 
     client.applySnapshot(terminalSnapshot, {
       force: true,

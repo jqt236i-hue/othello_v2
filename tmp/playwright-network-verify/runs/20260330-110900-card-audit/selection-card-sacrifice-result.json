@@ -1,0 +1,10 @@
+{
+  "ok": false,
+  "target": "sacrifice",
+  "cardId": "sacrifice_01",
+  "pendingType": "SACRIFICE_WILL",
+  "baseUrl": "http://127.0.0.1:8014/",
+  "serverUrl": "http://127.0.0.1:8794",
+  "timestamp": "2026-03-30T02:09:49.845Z",
+  "fatalError": "Error: 未登録カードです: sacrifice_01\n    at createDeckSpecError (C:\\Users\\quarr\\Desktop\\othello_v2\\shared\\deck-spec.js:19:23)\n    at C:\\Users\\quarr\\Desktop\\othello_v2\\shared\\deck-spec.js:142:23\n    at Array.forEach (<anonymous>)\n    at aggregateCardEntries (C:\\Users\\quarr\\Desktop\\othello_v2\\shared\\deck-spec.js:127:14)\n    at normalizeDeckSpec (C:\\Users\\quarr\\Desktop\\othello_v2\\shared\\deck-spec.js:198:32)\n    at Object.createDeckSpecFromCardIds (C:\\Users\\quarr\\Desktop\\othello_v2\\shared\\deck-spec.js:240:16)\n    at buildTargetDeckCode (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-selection-card-flow.js:187:38)\n    at runAttempt (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-selection-card-flow.js:698:22)\n    at async main (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-selection-card-flow.js:862:29)"
+}

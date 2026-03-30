@@ -331,6 +331,13 @@ function resolveForcedPlacementCandidates(legalMoves, options, board) {
         };
     }
 
+    if (!options || options.forceCornerEdgePlacement !== true) {
+        return {
+            category: null,
+            moves: defaultMoves
+        };
+    }
+
     const edgeMoves = safeLegalMoves.filter((move) => !isCorner(move.row, move.col, board) && isEdge(move.row, move.col, board));
     if (edgeMoves.length > 0) {
         return {

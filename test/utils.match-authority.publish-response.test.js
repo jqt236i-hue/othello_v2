@@ -104,6 +104,12 @@ describe('match authority publish response payload', () => {
     expect(MatchAuthority.isVersionRejectionReason('OTHER')).toBe(false);
   });
 
+  test('treats blank operationId as missing after normalization', () => {
+    expect(MatchAuthority.hasRequiredOperationId(' op_same_turn ')).toBe(true);
+    expect(MatchAuthority.hasRequiredOperationId('   ')).toBe(false);
+    expect(MatchAuthority.hasRequiredOperationId(null)).toBe(false);
+  });
+
   test('tracks recent accepted operations without losing lastAccepted compatibility', () => {
     const room = {
       lastAcceptedOperationBySeat: {

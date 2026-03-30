@@ -121,6 +121,116 @@
         return undefined;
     }
 
+    function toPublishFailureResult(publishResult) {
+        if (publishResult && typeof publishResult === 'object' && publishResult.ok === false) {
+            return publishResult;
+        }
+        return {
+            ok: false,
+            reason: 'NETWORK_PUBLISH_FAILED'
+        };
+    }
+
+    async function publishTurnHandoffSnapshot(publishSnapshotFn, meta, options) {
+        var publishFn = (typeof publishSnapshotFn === 'function') ? publishSnapshotFn : null;
+        var opts = (options && typeof options === 'object') ? options : {};
+        var onPublishFailed = (typeof opts.onPublishFailed === 'function') ? opts.onPublishFailed : null;
+        var awaitPublishResult = opts.awaitPublishResult === true;
+        var payload = buildPublishMeta(meta);
+
+        if (!publishFn) {
+            return { ok: true, publishResult: undefined };
+        }
+
+        if (!awaitPublishResult) {
+            try {
+                var publishResult = publishFn(payload);
+                if (publishResult && typeof publishResult.then === 'function') {
+                    publishResult.then(function (resolvedPublishResult) {
+                        if (resolvedPublishResult && typeof resolvedPublishResult === 'object' && resolvedPublishResult.ok === false && onPublishFailed) {
+                            onPublishFailed({
+                                reason: 'network_publish_failed',
+                                publishResult: resolvedPublishResult
+                            });
+                        }
+                    }).catch(function (error) {
+                        if (onPublishFailed) {
+                            onPublishFailed({
+                                reason: 'network_publish_threw',
+                                publishResult: {
+                                    ok: false,
+                                    reason: 'NETWORK_PUBLISH_THREW',
+                                    errorMessage: error && error.message ? error.message : String(error || 'unknown_error')
+                                }
+                            });
+                        }
+                    });
+                } else if (publishResult && typeof publishResult === 'object' && publishResult.ok === false && onPublishFailed) {
+                    onPublishFailed({
+                        reason: 'network_publish_failed',
+                        publishResult: publishResult
+                    });
+                }
+                return {
+                    ok: !(publishResult && typeof publishResult === 'object' && publishResult.ok === false),
+                    publishResult: publishResult
+                };
+            } catch (error) {
+                var thrownPublishResult = {
+                    ok: false,
+                    reason: 'NETWORK_PUBLISH_THREW',
+                    errorMessage: error && error.message ? error.message : String(error || 'unknown_error')
+                };
+                if (onPublishFailed) {
+                    onPublishFailed({
+                        reason: 'network_publish_threw',
+                        publishResult: thrownPublishResult
+                    });
+                }
+                return {
+                    ok: false,
+                    publishResult: thrownPublishResult
+                };
+            }
+        }
+
+        try {
+            var awaitedPublishResult = await Promise.resolve(publishFn(payload));
+            if (awaitedPublishResult && typeof awaitedPublishResult === 'object' && awaitedPublishResult.ok === false) {
+                if (onPublishFailed) {
+                    await Promise.resolve(onPublishFailed({
+                        reason: 'network_publish_failed',
+                        publishResult: awaitedPublishResult
+                    }));
+                }
+                return {
+                    ok: false,
+                    publishResult: awaitedPublishResult
+                };
+            }
+            return {
+                ok: true,
+                publishResult: awaitedPublishResult
+            };
+        } catch (error) {
+            var awaitedThrownPublishResult = {
+                ok: false,
+                reason: 'NETWORK_PUBLISH_THREW',
+                errorMessage: error && error.message ? error.message : String(error || 'unknown_error')
+            };
+            if (onPublishFailed) {
+                await Promise.resolve(onPublishFailed({
+                    reason: 'network_publish_threw',
+                    publishResult: awaitedThrownPublishResult
+                }));
+            }
+            return {
+                ok: false,
+                publishResult: awaitedThrownPublishResult
+            };
+        }
+    }
+
     function resolvePlayerKeyFromTurnValue(value) {
         const normalized = (value === null || typeof value === 'undefined')
             ? ''
@@ -327,6 +437,8 @@
                 return resolvePlayerKeyFromTurnValue(gameStateRef ? gameStateRef.currentPlayer : null);
             };
         const onHumanTurnReady = (typeof opts.onHumanTurnReady === 'function') ? opts.onHumanTurnReady : null;
+        const onPublishFailed = (typeof opts.onPublishFailed === 'function') ? opts.onPublishFailed : null;
+        const awaitPublishResult = opts.awaitPublishResult === true;
         const scheduleCpuTurn = (typeof opts.scheduleCpuTurn === 'function') ? opts.scheduleCpuTurn : null;
         const cpuDelayMs = Number.isFinite(Number(opts.cpuDelayMs))
             ? Math.max(0, Math.trunc(Number(opts.cpuDelayMs)))
@@ -334,13 +446,29 @@
 
         if (isGameOverNow(opts.isGameOver, snapshotOverride)) {
             if (resultOrder === 'beforePublish') showResultIfAvailable(opts.showResult);
-            publishSnapshotFn(buildPublishMeta({
+            const gameOverPublish = await publishTurnHandoffSnapshot(publishSnapshotFn, {
                 playerKey,
                 actionType,
                 action,
                 playbackEvents: basePlaybackEvents,
                 snapshot: snapshotOverride
-            }));
+            }, {
+                awaitPublishResult,
+                onPublishFailed
+            });
+            if (!gameOverPublish.ok) {
+                if (setProcessing) setProcessing(false);
+                return {
+                    ok: false,
+                    reason: 'network_publish_failed',
+                    result: toPublishFailureResult(gameOverPublish.publishResult),
+                    gameOver: false,
+                    scheduledCpu: false,
+                    nextPlayerKey: resolveCurrentPlayerKey(),
+                    playbackEvents: basePlaybackEvents,
+                    turnStartPlaybackEvents: []
+                };
+            }
             if (resultOrder !== 'beforePublish') showResultIfAvailable(opts.showResult);
             if (setProcessing) setProcessing(false);
             return {
@@ -380,13 +508,29 @@
             });
         }
 
-        publishSnapshotFn(buildPublishMeta({
+        const publishOutcome = await publishTurnHandoffSnapshot(publishSnapshotFn, {
             playerKey,
             actionType,
             action,
             playbackEvents: combinedPlaybackEvents,
             snapshot: snapshotOverride
-        }));
+        }, {
+            awaitPublishResult,
+            onPublishFailed
+        });
+        if (!publishOutcome.ok) {
+            if (setProcessing) setProcessing(false);
+            return {
+                ok: false,
+                reason: 'network_publish_failed',
+                result: toPublishFailureResult(publishOutcome.publishResult),
+                gameOver: false,
+                scheduledCpu: false,
+                nextPlayerKey: resolveCurrentPlayerKey(),
+                playbackEvents: combinedPlaybackEvents,
+                turnStartPlaybackEvents
+            };
+        }
 
         if (opts.checkGameOverAfterTurnStart !== false && isGameOverNow(opts.isGameOver, snapshotOverride)) {
             showResultIfAvailable(opts.showResult);
@@ -410,11 +554,31 @@
             : null;
         if (cpuTurnOwnerKey && cpuTurnOwnerKey === nextPlayerKey && scheduleCpuTurn) {
             if (setProcessing) setProcessing(true);
-            scheduleCpuTurn({
-                delayMs: cpuDelayMs,
-                expectedTurnNumber: readCurrentTurnNumber(),
-                nextPlayerKey
-            });
+            let scheduleAccepted = true;
+            try {
+                scheduleAccepted = scheduleCpuTurn({
+                    delayMs: cpuDelayMs,
+                    expectedTurnNumber: readCurrentTurnNumber(),
+                    nextPlayerKey
+                });
+            } catch (e) {
+                if (setProcessing) setProcessing(false);
+                throw e;
+            }
+            if (scheduleAccepted === false) {
+                if (setProcessing) setProcessing(false);
+                if (onHumanTurnReady) {
+                    onHumanTurnReady({ nextPlayerKey, scheduledCpu: false });
+                }
+                return {
+                    ok: true,
+                    gameOver: false,
+                    scheduledCpu: false,
+                    nextPlayerKey,
+                    playbackEvents: combinedPlaybackEvents,
+                    turnStartPlaybackEvents
+                };
+            }
             return {
                 ok: true,
                 gameOver: false,

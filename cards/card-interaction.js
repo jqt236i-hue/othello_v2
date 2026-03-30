@@ -782,6 +782,13 @@ function _setPendingSelectionBusy(active) {
     }
     const normalized = !!active;
     const rootRef = _getUiRootRef();
+    if (_playbackStateModule && typeof _playbackStateModule.setBusyState === 'function') {
+        _playbackStateModule.setBusyState({
+            processing: normalized,
+            cardAnimating: normalized
+        });
+        return;
+    }
     try { if (typeof isProcessing !== 'undefined') isProcessing = normalized; } catch (e) { /* ignore */ }
     try { if (typeof isCardAnimating !== 'undefined') isCardAnimating = normalized; } catch (e) { /* ignore */ }
     try {
@@ -1265,7 +1272,11 @@ function _getUiRootRef() {
 
 function _isProcessingNow() {
     const rootRef = _getUiRootRef();
+    const managedProcessing = (_playbackStateModule && typeof _playbackStateModule.getProcessing === 'function')
+        ? _playbackStateModule.getProcessing()
+        : false;
     return (
+        managedProcessing === true ||
         (typeof isProcessing !== 'undefined' && !!isProcessing) ||
         !!(rootRef && rootRef.isProcessing)
     );
@@ -1349,6 +1360,11 @@ function _clearCardUiBusyFlags(options) {
     const rootRef = _getUiRootRef();
 
     try {
+        if (_playbackStateModule && typeof _playbackStateModule.setBusyState === 'function') {
+            const managerBusyState = { cardAnimating: false };
+            if (clearProcessing) managerBusyState.processing = false;
+            _playbackStateModule.setBusyState(managerBusyState);
+        }
         if (clearProcessing && typeof isProcessing !== 'undefined') isProcessing = false;
         if (typeof isCardAnimating !== 'undefined') isCardAnimating = false;
         if (rootRef) {
@@ -1485,7 +1501,16 @@ function _getNetworkLocalPlayerKey() {
 function _resolveInputPlayerKey() {
     const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
     if (_isNetworkMode()) return _getNetworkLocalPlayerKey();
-    return isDebugHvH ? (gameState.currentPlayer === BLACK ? 'black' : 'white') : 'black';
+    if (isDebugHvH) {
+        // Mirror the renderer's inputPlayerKey formula: when FATE_WILL is active in HvH,
+        // the controller takes ownership of input so actions are attributed to the controller,
+        // not the victim (current player).
+        const currentPlayerKey = gameState.currentPlayer === BLACK ? 'black' : 'white';
+        const fwc = (typeof cardState !== 'undefined' && cardState && cardState.fateWillControllerByTurnOwner) || null;
+        const controller = fwc && fwc[currentPlayerKey];
+        return controller || currentPlayerKey;
+    }
+    return 'black';
 }
 
 // Returns the turn owner (victim) key when the local player is the FATE_WILL controller,
@@ -1674,6 +1699,9 @@ function _handleServerAuthoredCardUse(playerKey, ownerKey, cardId, runResult) {
                 if (typeof renderCardUI === 'function') {
                     try { renderCardUI(); } catch (e) { /* ignore */ }
                 }
+                if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
+                    ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
+                }
                 return;
             }
 
@@ -1684,7 +1712,7 @@ function _handleServerAuthoredCardUse(playerKey, ownerKey, cardId, runResult) {
                 try { renderCardUI(); } catch (e) { /* ignore */ }
             }
             if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
-                try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
+                ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
             }
         })
         .catch((error) => {
@@ -1695,6 +1723,9 @@ function _handleServerAuthoredCardUse(playerKey, ownerKey, cardId, runResult) {
             addLog(`カード使用に失敗しました (${reason})`);
             if (typeof renderCardUI === 'function') {
                 try { renderCardUI(); } catch (e) { /* ignore */ }
+            }
+            if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
+                ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
             }
         });
 

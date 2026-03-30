@@ -50,6 +50,7 @@ describe('move-executor CPU scheduling fallback', () => {
         global.BoardOps = { emitPresentationEvent: jest.fn() };
         global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
         global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)), turnNumber: 12 };
+        global.isProcessing = false;
 
         const moveExecutor = require('../game/move-executor');
         const move = { row: 2, col: 3, player: 1 };
@@ -72,10 +73,41 @@ describe('move-executor CPU scheduling fallback', () => {
 
         await moveExecutor.executeMoveViaPipeline(move, false, playerKey, adapter, pipeline);
 
+        expect(global.isProcessing).toBe(true);
         // Simulate state changed before delayed callback fires.
         global.gameState.currentPlayer = 1;
         jest.runAllTimers();
 
         expect(mockCpu).not.toHaveBeenCalled();
+        expect(global.isProcessing).toBe(false);
+    });
+
+    test('late CPU fallback clears processing when processCpuTurn never becomes available', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)), turnNumber: 8 };
+        global.isProcessing = false;
+
+        const moveExecutor = require('../game/move-executor');
+        const move = { row: 2, col: 3, player: 1 };
+        const playerKey = 'black';
+
+        const fakeRes = {
+            ok: true,
+            nextGameState: { currentPlayer: -1, turnNumber: 8 },
+            nextCardState: global.cardState,
+            playbackEvents: [{ type: 'PLAYBACK_EVENTS', events: [] }],
+            phases: {},
+            placementEffects: {},
+            immediate: {}
+        };
+
+        const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
+
+        await moveExecutor.executeMoveViaPipeline(move, false, playerKey, adapter, {});
+
+        expect(global.isProcessing).toBe(true);
+        jest.runAllTimers();
+        expect(global.isProcessing).toBe(false);
     });
 });

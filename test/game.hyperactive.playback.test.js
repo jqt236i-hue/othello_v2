@@ -1,22 +1,54 @@
-const path = require('path');
-
 describe('hyperactive playback detection', () => {
   test('uses bootstrap registered PlaybackEngine when available and does not force emitBoardUpdate', async () => {
     jest.isolateModules(() => {
       jest.resetModules();
-      // Mock bootstrap to return PlaybackEngine
-      jest.doMock(path.resolve(__dirname, '..', 'ui', 'bootstrap.js'), () => ({
-        getRegisteredUIGlobals: () => ({ PlaybackEngine: { playPresentationEvents: () => {} } })
-      }), { virtual: false });
-
+      const gameVisuals = require('../game/move-executor-visuals');
+      gameVisuals.setUIImpl({
+        hasPlaybackEngine: () => true
+      });
       // stub emitBoardUpdate
       global.emitBoardUpdate = jest.fn();
+      global.emitGameStateChange = jest.fn();
+      global.emitCardStateChange = jest.fn();
 
-      const hyper = require(path.resolve(__dirname, '..', 'game', 'special-effects', 'hyperactive.js'));
+      const hyper = require('../game/special-effects/hyperactive');
       // call processHyperactiveMovesAtTurnStart with minimal params
       return hyper.processHyperactiveMovesAtTurnStart(1, { moved: [], destroyed: [], flipped: [] }).then(() => {
         expect(global.emitBoardUpdate).not.toHaveBeenCalled();
+        gameVisuals.clearUIImpl();
+        delete global.emitGameStateChange;
+        delete global.emitCardStateChange;
       });
+    });
+  });
+
+  test('delegates chained hyperactive fallback animation to injected move visuals without DOM queries in game/', async () => {
+    await jest.isolateModulesAsync(async () => {
+      jest.resetModules();
+      const gameVisuals = require('../game/move-executor-visuals');
+      const animateHyperactiveMoveChain = jest.fn(async () => {});
+      gameVisuals.setUIImpl({
+        hasPlaybackEngine: () => false,
+        animateHyperactiveMoveChain
+      });
+
+      global.emitBoardUpdate = jest.fn();
+      global.emitGameStateChange = jest.fn();
+      global.emitCardStateChange = jest.fn();
+      const hyper = require('../game/special-effects/hyperactive');
+      const moved = [
+        { from: { row: 3, col: 3 }, to: { row: 3, col: 4 } },
+        { from: { row: 3, col: 4 }, to: { row: 3, col: 5 } }
+      ];
+
+      await hyper.processHyperactiveMovesAtTurnStart(1, { moved, destroyed: [], flipped: [] });
+
+      expect(animateHyperactiveMoveChain).toHaveBeenCalledWith(moved);
+      expect(global.emitBoardUpdate).toHaveBeenCalled();
+      gameVisuals.clearUIImpl();
+      delete global.emitBoardUpdate;
+      delete global.emitGameStateChange;
+      delete global.emitCardStateChange;
     });
   });
 });

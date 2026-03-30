@@ -1,0 +1,1124 @@
+{
+  "target": "reveal_hand_01",
+  "timestamp": "2026-03-26T10:52:20.879Z",
+  "phase": "search",
+  "attemptIndex": 1,
+  "actionIndex": 0,
+  "roomId": "XHE",
+  "black": {
+    "seatKey": "black",
+    "currentPlayerKey": "black",
+    "canAct": true,
+    "turnIndex": 1,
+    "turnNumber": 0,
+    "charge": 0,
+    "ownHand": [
+      {
+        "id": "taboo_reverse_01",
+        "canUse": false,
+        "cost": 44
+      },
+      {
+        "id": "chest_01",
+        "canUse": true,
+        "cost": 0
+      },
+      {
+        "id": "free_01",
+        "canUse": false,
+        "cost": 14
+      },
+      {
+        "id": "last_resort_01",
+        "canUse": false,
+        "cost": 9
+      },
+      {
+        "id": "sniper_01",
+        "canUse": false,
+        "cost": 23
+      },
+      {
+        "id": "hard_01",
+        "canUse": false,
+        "cost": 1
+      },
+      {
+        "id": "ghost_01",
+        "canUse": false,
+        "cost": 5
+      },
+      {
+        "id": "afterimage_will_01",
+        "canUse": false,
+        "cost": 8
+      },
+      {
+        "id": "swap_01",
+        "canUse": false,
+        "cost": 17
+      },
+      {
+        "id": "position_swap_01",
+        "canUse": false,
+        "cost": 13
+      },
+      {
+        "id": "perma_01",
+        "canUse": false,
+        "cost": 15
+      },
+      {
+        "id": "strong_wind_01",
+        "canUse": false,
+        "cost": 9
+      },
+      {
+        "id": "super_buoyancy_01",
+        "canUse": false,
+        "cost": 16
+      },
+      {
+        "id": "super_gravity_01",
+        "canUse": false,
+        "cost": 16
+      },
+      {
+        "id": "trap_01",
+        "canUse": false,
+        "cost": 4
+      },
+      {
+        "id": "tempt_01",
+        "canUse": false,
+        "cost": 20
+      },
+      {
+        "id": "double_chain_01",
+        "canUse": false,
+        "cost": 22
+      },
+      {
+        "id": "triple_chain_01",
+        "canUse": false,
+        "cost": 22
+      },
+      {
+        "id": "quad_chain_01",
+        "canUse": false,
+        "cost": 22
+      },
+      {
+        "id": "infinite_chain_01",
+        "canUse": false,
+        "cost": 50
+      },
+      {
+        "id": "regen_01",
+        "canUse": false,
+        "cost": 12
+      },
+      {
+        "id": "destroy_01",
+        "canUse": false,
+        "cost": 19
+      },
+      {
+        "id": "bomb_01",
+        "canUse": false,
+        "cost": 13
+      },
+      {
+        "id": "time_stop_god_01",
+        "canUse": true,
+        "cost": 0
+      },
+      {
+        "id": "udr_01",
+        "canUse": false,
+        "cost": 30
+      },
+      {
+        "id": "breeding_01",
+        "canUse": false,
+        "cost": 16
+      },
+      {
+        "id": "proliferation_01",
+        "canUse": false,
+        "cost": 4
+      },
+      {
+        "id": "clone_01",
+        "canUse": false,
+        "cost": 16
+      },
+      {
+        "id": "split_01",
+        "canUse": false,
+        "cost": 12
+      },
+      {
+        "id": "teleport_01",
+        "canUse": false,
+        "cost": 10
+      },
+      {
+        "id": "cell_teleport_01",
+        "canUse": false,
+        "cost": 23
+      },
+      {
+        "id": "cross_bomb_01",
+        "canUse": false,
+        "cost": 18
+      },
+      {
+        "id": "x_bomb_01",
+        "canUse": false,
+        "cost": 18
+      },
+      {
+        "id": "hyperactive_01",
+        "canUse": false,
+        "cost": 8
+      },
+      {
+        "id": "hyperactive_inherit_01",
+        "canUse": false,
+        "cost": 11
+      },
+      {
+        "id": "extreme_hyperactive_01",
+        "canUse": false,
+        "cost": 35
+      },
+      {
+        "id": "escape_01",
+        "canUse": false,
+        "cost": 7
+      },
+      {
+        "id": "robot_vacuum_01",
+        "canUse": false,
+        "cost": 17
+      },
+      {
+        "id": "gluttonous_will_01",
+        "canUse": false,
+        "cost": 29
+      },
+      {
+        "id": "will_hunter_king_01",
+        "canUse": false,
+        "cost": 33
+      },
+      {
+        "id": "instant_hyperactive_01",
+        "canUse": false,
+        "cost": 2
+      },
+      {
+        "id": "sell_01",
+        "canUse": false,
+        "cost": 8
+      },
+      {
+        "id": "rebuild_01",
+        "canUse": true,
+        "cost": 0
+      },
+      {
+        "id": "supply_01",
+        "canUse": false,
+        "cost": 1
+      },
+      {
+        "id": "plunder_will",
+        "canUse": false,
+        "cost": 4
+      },
+      {
+        "id": "corner_tribute_01",
+        "canUse": true,
+        "cost": 0
+      },
+      {
+        "id": "work_01",
+        "canUse": false,
+        "cost": 11
+      },
+      {
+        "id": "ribo_01",
+        "canUse": false,
+        "cost": 0
+      },
+      {
+        "id": "loss_will_01",
+        "canUse": false,
+        "cost": 11
+      },
+      {
+        "id": "double_01",
+        "canUse": false,
+        "cost": 24
+      },
+      {
+        "id": "triple_01",
+        "canUse": false,
+        "cost": 24
+      },
+      {
+        "id": "quad_01",
+        "canUse": false,
+        "cost": 24
+      },
+      {
+        "id": "infinite_01",
+        "canUse": false,
+        "cost": 50
+      },
+      {
+        "id": "heaven_01",
+        "canUse": false,
+        "cost": 3
+      },
+      {
+        "id": "reveal_hand_01",
+        "canUse": false,
+        "cost": 6
+      },
+      {
+        "id": "condemn_01",
+        "canUse": false,
+        "cost": 8
+      },
+      {
+        "id": "gold_stone",
+        "canUse": false,
+        "cost": 6
+      },
+      {
+        "id": "rainbow_stone",
+        "canUse": false,
+        "cost": 10
+      },
+      {
+        "id": "silver_stone",
+        "canUse": false,
+        "cost": 3
+      },
+      {
+        "id": "crystal_stone",
+        "canUse": false,
+        "cost": 8
+      },
+      {
+        "id": "extend_life_01",
+        "canUse": false,
+        "cost": 4
+      },
+      {
+        "id": "extend_life_god_01",
+        "canUse": false,
+        "cost": 10
+      },
+      {
+        "id": "corrosion_01",
+        "canUse": false,
+        "cost": 2
+      },
+      {
+        "id": "guard_01",
+        "canUse": false,
+        "cost": 2
+      },
+      {
+        "id": "guardian_god_01",
+        "canUse": false,
+        "cost": 10
+      },
+      {
+        "id": "destroy_dragon_01",
+        "canUse": false,
+        "cost": 7
+      },
+      {
+        "id": "lightning_01",
+        "canUse": false,
+        "cost": 26
+      },
+      {
+        "id": "udg_01",
+        "canUse": false,
+        "cost": 25
+      },
+      {
+        "id": "ultimate_hyperactive_01",
+        "canUse": false,
+        "cost": 28
+      },
+      {
+        "id": "board_expand_01",
+        "canUse": false,
+        "cost": 19
+      },
+      {
+        "id": "board_expand_god_01",
+        "canUse": false,
+        "cost": 27
+      },
+      {
+        "id": "blockade_01",
+        "canUse": false,
+        "cost": 1
+      },
+      {
+        "id": "meteor_01",
+        "canUse": false,
+        "cost": 21
+      },
+      {
+        "id": "freeze_01",
+        "canUse": false,
+        "cost": 5
+      },
+      {
+        "id": "observer_01",
+        "canUse": false,
+        "cost": 1
+      },
+      {
+        "id": "salvation_01",
+        "canUse": false,
+        "cost": 17
+      },
+      {
+        "id": "equality_will_01",
+        "canUse": false,
+        "cost": 15
+      }
+    ],
+    "projectedHands": {
+      "black": [
+        "taboo_reverse_01",
+        "chest_01",
+        "free_01",
+        "last_resort_01",
+        "sniper_01",
+        "hard_01",
+        "ghost_01",
+        "afterimage_will_01",
+        "swap_01",
+        "position_swap_01",
+        "perma_01",
+        "strong_wind_01",
+        "super_buoyancy_01",
+        "super_gravity_01",
+        "trap_01",
+        "tempt_01",
+        "double_chain_01",
+        "triple_chain_01",
+        "quad_chain_01",
+        "infinite_chain_01",
+        "regen_01",
+        "destroy_01",
+        "bomb_01",
+        "time_stop_god_01",
+        "udr_01",
+        "breeding_01",
+        "proliferation_01",
+        "clone_01",
+        "split_01",
+        "teleport_01",
+        "cell_teleport_01",
+        "cross_bomb_01",
+        "x_bomb_01",
+        "hyperactive_01",
+        "hyperactive_inherit_01",
+        "extreme_hyperactive_01",
+        "escape_01",
+        "robot_vacuum_01",
+        "gluttonous_will_01",
+        "will_hunter_king_01",
+        "instant_hyperactive_01",
+        "sell_01",
+        "rebuild_01",
+        "supply_01",
+        "plunder_will",
+        "corner_tribute_01",
+        "work_01",
+        "ribo_01",
+        "loss_will_01",
+        "double_01",
+        "triple_01",
+        "quad_01",
+        "infinite_01",
+        "heaven_01",
+        "reveal_hand_01",
+        "condemn_01",
+        "gold_stone",
+        "rainbow_stone",
+        "silver_stone",
+        "crystal_stone",
+        "extend_life_01",
+        "extend_life_god_01",
+        "corrosion_01",
+        "guard_01",
+        "guardian_god_01",
+        "destroy_dragon_01",
+        "lightning_01",
+        "udg_01",
+        "ultimate_hyperactive_01",
+        "board_expand_01",
+        "board_expand_god_01",
+        "blockade_01",
+        "meteor_01",
+        "freeze_01",
+        "observer_01",
+        "salvation_01",
+        "equality_will_01"
+      ],
+      "white": [
+        "__hidden_hand__:white:0",
+        "__hidden_hand__:white:1",
+        "__hidden_hand__:white:2",
+        "__hidden_hand__:white:3",
+        "__hidden_hand__:white:4",
+        "__hidden_hand__:white:5",
+        "__hidden_hand__:white:6",
+        "__hidden_hand__:white:7",
+        "__hidden_hand__:white:8",
+        "__hidden_hand__:white:9",
+        "__hidden_hand__:white:10",
+        "__hidden_hand__:white:11",
+        "__hidden_hand__:white:12",
+        "__hidden_hand__:white:13",
+        "__hidden_hand__:white:14",
+        "__hidden_hand__:white:15",
+        "__hidden_hand__:white:16",
+        "__hidden_hand__:white:17",
+        "__hidden_hand__:white:18",
+        "__hidden_hand__:white:19",
+        "__hidden_hand__:white:20",
+        "__hidden_hand__:white:21",
+        "__hidden_hand__:white:22",
+        "__hidden_hand__:white:23",
+        "__hidden_hand__:white:24",
+        "__hidden_hand__:white:25",
+        "__hidden_hand__:white:26",
+        "__hidden_hand__:white:27",
+        "__hidden_hand__:white:28",
+        "__hidden_hand__:white:29",
+        "__hidden_hand__:white:30",
+        "__hidden_hand__:white:31",
+        "__hidden_hand__:white:32",
+        "__hidden_hand__:white:33",
+        "__hidden_hand__:white:34",
+        "__hidden_hand__:white:35",
+        "__hidden_hand__:white:36",
+        "__hidden_hand__:white:37",
+        "__hidden_hand__:white:38",
+        "__hidden_hand__:white:39",
+        "__hidden_hand__:white:40",
+        "__hidden_hand__:white:41",
+        "__hidden_hand__:white:42",
+        "__hidden_hand__:white:43",
+        "__hidden_hand__:white:44",
+        "__hidden_hand__:white:45",
+        "__hidden_hand__:white:46",
+        "__hidden_hand__:white:47",
+        "__hidden_hand__:white:48",
+        "__hidden_hand__:white:49",
+        "__hidden_hand__:white:50",
+        "__hidden_hand__:white:51",
+        "__hidden_hand__:white:52",
+        "__hidden_hand__:white:53",
+        "__hidden_hand__:white:54",
+        "__hidden_hand__:white:55",
+        "__hidden_hand__:white:56",
+        "__hidden_hand__:white:57",
+        "__hidden_hand__:white:58",
+        "__hidden_hand__:white:59",
+        "__hidden_hand__:white:60",
+        "__hidden_hand__:white:61",
+        "__hidden_hand__:white:62",
+        "__hidden_hand__:white:63",
+        "__hidden_hand__:white:64",
+        "__hidden_hand__:white:65",
+        "__hidden_hand__:white:66",
+        "__hidden_hand__:white:67",
+        "__hidden_hand__:white:68",
+        "__hidden_hand__:white:69",
+        "__hidden_hand__:white:70",
+        "__hidden_hand__:white:71",
+        "__hidden_hand__:white:72",
+        "__hidden_hand__:white:73",
+        "__hidden_hand__:white:74",
+        "__hidden_hand__:white:75",
+        "__hidden_hand__:white:76"
+      ]
+    },
+    "pending": null,
+    "legalMoves": 4,
+    "gameOver": false
+  },
+  "white": {
+    "seatKey": "white",
+    "currentPlayerKey": "black",
+    "canAct": false,
+    "turnIndex": 1,
+    "turnNumber": 0,
+    "charge": 0,
+    "ownHand": [
+      {
+        "id": "chest_01",
+        "canUse": true,
+        "cost": 0
+      },
+      {
+        "id": "free_01",
+        "canUse": false,
+        "cost": 14
+      },
+      {
+        "id": "last_resort_01",
+        "canUse": false,
+        "cost": 9
+      },
+      {
+        "id": "sniper_01",
+        "canUse": false,
+        "cost": 23
+      },
+      {
+        "id": "hard_01",
+        "canUse": false,
+        "cost": 1
+      },
+      {
+        "id": "ghost_01",
+        "canUse": false,
+        "cost": 5
+      },
+      {
+        "id": "afterimage_will_01",
+        "canUse": false,
+        "cost": 8
+      },
+      {
+        "id": "swap_01",
+        "canUse": false,
+        "cost": 17
+      },
+      {
+        "id": "position_swap_01",
+        "canUse": false,
+        "cost": 13
+      },
+      {
+        "id": "perma_01",
+        "canUse": false,
+        "cost": 15
+      },
+      {
+        "id": "strong_wind_01",
+        "canUse": false,
+        "cost": 9
+      },
+      {
+        "id": "super_buoyancy_01",
+        "canUse": false,
+        "cost": 16
+      },
+      {
+        "id": "super_gravity_01",
+        "canUse": false,
+        "cost": 16
+      },
+      {
+        "id": "trap_01",
+        "canUse": false,
+        "cost": 4
+      },
+      {
+        "id": "tempt_01",
+        "canUse": false,
+        "cost": 20
+      },
+      {
+        "id": "double_chain_01",
+        "canUse": false,
+        "cost": 22
+      },
+      {
+        "id": "triple_chain_01",
+        "canUse": false,
+        "cost": 22
+      },
+      {
+        "id": "quad_chain_01",
+        "canUse": false,
+        "cost": 22
+      },
+      {
+        "id": "infinite_chain_01",
+        "canUse": false,
+        "cost": 50
+      },
+      {
+        "id": "taboo_reverse_01",
+        "canUse": false,
+        "cost": 44
+      },
+      {
+        "id": "regen_01",
+        "canUse": false,
+        "cost": 12
+      },
+      {
+        "id": "destroy_01",
+        "canUse": false,
+        "cost": 19
+      },
+      {
+        "id": "bomb_01",
+        "canUse": false,
+        "cost": 13
+      },
+      {
+        "id": "time_stop_god_01",
+        "canUse": true,
+        "cost": 0
+      },
+      {
+        "id": "udr_01",
+        "canUse": false,
+        "cost": 30
+      },
+      {
+        "id": "breeding_01",
+        "canUse": false,
+        "cost": 16
+      },
+      {
+        "id": "proliferation_01",
+        "canUse": false,
+        "cost": 4
+      },
+      {
+        "id": "clone_01",
+        "canUse": false,
+        "cost": 16
+      },
+      {
+        "id": "split_01",
+        "canUse": false,
+        "cost": 12
+      },
+      {
+        "id": "teleport_01",
+        "canUse": false,
+        "cost": 10
+      },
+      {
+        "id": "cell_teleport_01",
+        "canUse": false,
+        "cost": 23
+      },
+      {
+        "id": "cross_bomb_01",
+        "canUse": false,
+        "cost": 18
+      },
+      {
+        "id": "x_bomb_01",
+        "canUse": false,
+        "cost": 18
+      },
+      {
+        "id": "hyperactive_01",
+        "canUse": false,
+        "cost": 8
+      },
+      {
+        "id": "hyperactive_inherit_01",
+        "canUse": false,
+        "cost": 11
+      },
+      {
+        "id": "extreme_hyperactive_01",
+        "canUse": false,
+        "cost": 35
+      },
+      {
+        "id": "escape_01",
+        "canUse": false,
+        "cost": 7
+      },
+      {
+        "id": "robot_vacuum_01",
+        "canUse": false,
+        "cost": 17
+      },
+      {
+        "id": "gluttonous_will_01",
+        "canUse": false,
+        "cost": 29
+      },
+      {
+        "id": "will_hunter_king_01",
+        "canUse": false,
+        "cost": 33
+      },
+      {
+        "id": "instant_hyperactive_01",
+        "canUse": false,
+        "cost": 2
+      },
+      {
+        "id": "sell_01",
+        "canUse": false,
+        "cost": 8
+      },
+      {
+        "id": "rebuild_01",
+        "canUse": true,
+        "cost": 0
+      },
+      {
+        "id": "supply_01",
+        "canUse": false,
+        "cost": 1
+      },
+      {
+        "id": "plunder_will",
+        "canUse": false,
+        "cost": 4
+      },
+      {
+        "id": "corner_tribute_01",
+        "canUse": true,
+        "cost": 0
+      },
+      {
+        "id": "work_01",
+        "canUse": false,
+        "cost": 11
+      },
+      {
+        "id": "ribo_01",
+        "canUse": false,
+        "cost": 0
+      },
+      {
+        "id": "loss_will_01",
+        "canUse": false,
+        "cost": 11
+      },
+      {
+        "id": "double_01",
+        "canUse": false,
+        "cost": 24
+      },
+      {
+        "id": "triple_01",
+        "canUse": false,
+        "cost": 24
+      },
+      {
+        "id": "quad_01",
+        "canUse": false,
+        "cost": 24
+      },
+      {
+        "id": "infinite_01",
+        "canUse": false,
+        "cost": 50
+      },
+      {
+        "id": "heaven_01",
+        "canUse": false,
+        "cost": 3
+      },
+      {
+        "id": "reveal_hand_01",
+        "canUse": false,
+        "cost": 6
+      },
+      {
+        "id": "condemn_01",
+        "canUse": false,
+        "cost": 8
+      },
+      {
+        "id": "gold_stone",
+        "canUse": false,
+        "cost": 6
+      },
+      {
+        "id": "rainbow_stone",
+        "canUse": false,
+        "cost": 10
+      },
+      {
+        "id": "silver_stone",
+        "canUse": false,
+        "cost": 3
+      },
+      {
+        "id": "crystal_stone",
+        "canUse": false,
+        "cost": 8
+      },
+      {
+        "id": "extend_life_01",
+        "canUse": false,
+        "cost": 4
+      },
+      {
+        "id": "extend_life_god_01",
+        "canUse": false,
+        "cost": 10
+      },
+      {
+        "id": "corrosion_01",
+        "canUse": false,
+        "cost": 2
+      },
+      {
+        "id": "guard_01",
+        "canUse": false,
+        "cost": 2
+      },
+      {
+        "id": "guardian_god_01",
+        "canUse": false,
+        "cost": 10
+      },
+      {
+        "id": "destroy_dragon_01",
+        "canUse": false,
+        "cost": 7
+      },
+      {
+        "id": "lightning_01",
+        "canUse": false,
+        "cost": 26
+      },
+      {
+        "id": "udg_01",
+        "canUse": false,
+        "cost": 25
+      },
+      {
+        "id": "ultimate_hyperactive_01",
+        "canUse": false,
+        "cost": 28
+      },
+      {
+        "id": "board_expand_01",
+        "canUse": false,
+        "cost": 19
+      },
+      {
+        "id": "board_expand_god_01",
+        "canUse": false,
+        "cost": 27
+      },
+      {
+        "id": "blockade_01",
+        "canUse": false,
+        "cost": 1
+      },
+      {
+        "id": "meteor_01",
+        "canUse": false,
+        "cost": 21
+      },
+      {
+        "id": "freeze_01",
+        "canUse": false,
+        "cost": 5
+      },
+      {
+        "id": "observer_01",
+        "canUse": false,
+        "cost": 1
+      },
+      {
+        "id": "salvation_01",
+        "canUse": false,
+        "cost": 17
+      },
+      {
+        "id": "equality_will_01",
+        "canUse": false,
+        "cost": 15
+      }
+    ],
+    "projectedHands": {
+      "black": [
+        "__hidden_hand__:black:0",
+        "__hidden_hand__:black:1",
+        "__hidden_hand__:black:2",
+        "__hidden_hand__:black:3",
+        "__hidden_hand__:black:4",
+        "__hidden_hand__:black:5",
+        "__hidden_hand__:black:6",
+        "__hidden_hand__:black:7",
+        "__hidden_hand__:black:8",
+        "__hidden_hand__:black:9",
+        "__hidden_hand__:black:10",
+        "__hidden_hand__:black:11",
+        "__hidden_hand__:black:12",
+        "__hidden_hand__:black:13",
+        "__hidden_hand__:black:14",
+        "__hidden_hand__:black:15",
+        "__hidden_hand__:black:16",
+        "__hidden_hand__:black:17",
+        "__hidden_hand__:black:18",
+        "__hidden_hand__:black:19",
+        "__hidden_hand__:black:20",
+        "__hidden_hand__:black:21",
+        "__hidden_hand__:black:22",
+        "__hidden_hand__:black:23",
+        "__hidden_hand__:black:24",
+        "__hidden_hand__:black:25",
+        "__hidden_hand__:black:26",
+        "__hidden_hand__:black:27",
+        "__hidden_hand__:black:28",
+        "__hidden_hand__:black:29",
+        "__hidden_hand__:black:30",
+        "__hidden_hand__:black:31",
+        "__hidden_hand__:black:32",
+        "__hidden_hand__:black:33",
+        "__hidden_hand__:black:34",
+        "__hidden_hand__:black:35",
+        "__hidden_hand__:black:36",
+        "__hidden_hand__:black:37",
+        "__hidden_hand__:black:38",
+        "__hidden_hand__:black:39",
+        "__hidden_hand__:black:40",
+        "__hidden_hand__:black:41",
+        "__hidden_hand__:black:42",
+        "__hidden_hand__:black:43",
+        "__hidden_hand__:black:44",
+        "__hidden_hand__:black:45",
+        "__hidden_hand__:black:46",
+        "__hidden_hand__:black:47",
+        "__hidden_hand__:black:48",
+        "__hidden_hand__:black:49",
+        "__hidden_hand__:black:50",
+        "__hidden_hand__:black:51",
+        "__hidden_hand__:black:52",
+        "__hidden_hand__:black:53",
+        "__hidden_hand__:black:54",
+        "__hidden_hand__:black:55",
+        "__hidden_hand__:black:56",
+        "__hidden_hand__:black:57",
+        "__hidden_hand__:black:58",
+        "__hidden_hand__:black:59",
+        "__hidden_hand__:black:60",
+        "__hidden_hand__:black:61",
+        "__hidden_hand__:black:62",
+        "__hidden_hand__:black:63",
+        "__hidden_hand__:black:64",
+        "__hidden_hand__:black:65",
+        "__hidden_hand__:black:66",
+        "__hidden_hand__:black:67",
+        "__hidden_hand__:black:68",
+        "__hidden_hand__:black:69",
+        "__hidden_hand__:black:70",
+        "__hidden_hand__:black:71",
+        "__hidden_hand__:black:72",
+        "__hidden_hand__:black:73",
+        "__hidden_hand__:black:74",
+        "__hidden_hand__:black:75",
+        "__hidden_hand__:black:76"
+      ],
+      "white": [
+        "chest_01",
+        "free_01",
+        "last_resort_01",
+        "sniper_01",
+        "hard_01",
+        "ghost_01",
+        "afterimage_will_01",
+        "swap_01",
+        "position_swap_01",
+        "perma_01",
+        "strong_wind_01",
+        "super_buoyancy_01",
+        "super_gravity_01",
+        "trap_01",
+        "tempt_01",
+        "double_chain_01",
+        "triple_chain_01",
+        "quad_chain_01",
+        "infinite_chain_01",
+        "taboo_reverse_01",
+        "regen_01",
+        "destroy_01",
+        "bomb_01",
+        "time_stop_god_01",
+        "udr_01",
+        "breeding_01",
+        "proliferation_01",
+        "clone_01",
+        "split_01",
+        "teleport_01",
+        "cell_teleport_01",
+        "cross_bomb_01",
+        "x_bomb_01",
+        "hyperactive_01",
+        "hyperactive_inherit_01",
+        "extreme_hyperactive_01",
+        "escape_01",
+        "robot_vacuum_01",
+        "gluttonous_will_01",
+        "will_hunter_king_01",
+        "instant_hyperactive_01",
+        "sell_01",
+        "rebuild_01",
+        "supply_01",
+        "plunder_will",
+        "corner_tribute_01",
+        "work_01",
+        "ribo_01",
+        "loss_will_01",
+        "double_01",
+        "triple_01",
+        "quad_01",
+        "infinite_01",
+        "heaven_01",
+        "reveal_hand_01",
+        "condemn_01",
+        "gold_stone",
+        "rainbow_stone",
+        "silver_stone",
+        "crystal_stone",
+        "extend_life_01",
+        "extend_life_god_01",
+        "corrosion_01",
+        "guard_01",
+        "guardian_god_01",
+        "destroy_dragon_01",
+        "lightning_01",
+        "udg_01",
+        "ultimate_hyperactive_01",
+        "board_expand_01",
+        "board_expand_god_01",
+        "blockade_01",
+        "meteor_01",
+        "freeze_01",
+        "observer_01",
+        "salvation_01",
+        "equality_will_01"
+      ]
+    },
+    "pending": null,
+    "legalMoves": 4,
+    "gameOver": false
+  }
+}

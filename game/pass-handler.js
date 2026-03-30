@@ -8,16 +8,47 @@ const PASS_HANDLER_VERSION = '2.0'; // TurnPipeline-only version
 let timers = null;
 let OwnerHelpersModule = null;
 let passHandlerNetworkTurnHandoff = null;
+let passHandlerPendingCoordinator = null;
 if (typeof require === 'function') {
     try { timers = require('./timers'); } catch (e) { /* ignore */ }
     try { OwnerHelpersModule = require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
     try { passHandlerNetworkTurnHandoff = require('./network-turn-handoff'); } catch (e) { /* ignore */ }
+    try { passHandlerPendingCoordinator = require('./turn/pending-coordinator'); } catch (e) { /* ignore */ }
 }
 if (!OwnerHelpersModule && typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) {
     OwnerHelpersModule = globalThis.OwnerHelpers;
 }
 if (!passHandlerNetworkTurnHandoff && typeof globalThis !== 'undefined' && globalThis.NetworkTurnHandoff) {
     passHandlerNetworkTurnHandoff = globalThis.NetworkTurnHandoff;
+}
+if (!passHandlerPendingCoordinator && typeof globalThis !== 'undefined' && globalThis.PendingCoordinator) {
+    passHandlerPendingCoordinator = globalThis.PendingCoordinator;
+}
+
+function getPlaybackStateForPassHandler() {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) {
+            return globalThis.PlaybackStateManager;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function setPassHandlerProcessing(active) {
+    const next = active === true;
+    const playbackState = getPlaybackStateForPassHandler();
+    if (playbackState && typeof playbackState.setBusyState === 'function') {
+        playbackState.setBusyState({ processing: next });
+    } else if (playbackState && typeof playbackState.setProcessing === 'function') {
+        playbackState.setProcessing(next);
+    }
+    try { isProcessing = next; } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined') {
+            globalThis.isProcessing = next;
+        }
+    } catch (e) { /* ignore */ }
+    return next;
 }
 
 function normalizePlayerKeyOptional(value) {
@@ -35,6 +66,15 @@ function normalizePlayerKey(value, fallbackKey) {
     const normalized = normalizePlayerKeyOptional(value);
     if (normalized) return normalized;
     return fallbackKey === 'white' ? 'white' : 'black';
+}
+
+function readPendingForPassHandler(playerKey) {
+    if (passHandlerPendingCoordinator && typeof passHandlerPendingCoordinator.readPendingEffect === 'function') {
+        return passHandlerPendingCoordinator.readPendingEffect(cardState, playerKey);
+    }
+    return (cardState && cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[playerKey])
+        ? cardState.pendingEffectByPlayer[playerKey]
+        : null;
 }
 
 function resolvePlayerValue(playerKey, fallbackValue) {
@@ -264,14 +304,14 @@ function finalizeNoActionTerminal() {
         gameState.consecutivePasses = 2;
     }
     if (typeof showResult === 'function') showResult();
-    isProcessing = false;
+    setPassHandlerProcessing(false);
     return true;
 }
 
 function handleRejectedPass() {
     if (finalizeNoActionTerminal()) return true;
     console.warn('[PASS-HANDLER] Pass was rejected; keeping current turn');
-    isProcessing = false;
+    setPassHandlerProcessing(false);
     return false;
 }
 
@@ -286,7 +326,7 @@ function ensureCurrentPlayerCanActOrPass(options) {
     const opts = options || {};
     const currentPlayer = gameState.currentPlayer;
     const playerKey = normalizePlayerKey(currentPlayer, 'black');
-    const pending = (cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[playerKey]) ? cardState.pendingEffectByPlayer[playerKey] : null;
+    const pending = readPendingForPassHandler(playerKey);
 
     // Target selection is still an available action, so do not auto-pass.
     if (pending && pending.stage === 'selectTarget') return false;
@@ -389,7 +429,7 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey, publishAction) {
 
     if (typeof isGameOver === 'function' && isGameOver(gameState)) {
         if (typeof showResult === 'function') showResult();
-        isProcessing = false;
+        setPassHandlerProcessing(false);
         publishPassSnapshot(safeLastPlayerKey, publishAction);
         return true;
     }
@@ -414,16 +454,16 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey, publishAction) {
     if (!nextMoves.length && !nextHasCard) {
         if (typeof isGameOver === 'function' && isGameOver(gameState)) {
             if (typeof showResult === 'function') showResult();
-            isProcessing = false;
+            setPassHandlerProcessing(false);
             publishPassSnapshot(safeLastPlayerKey, publishAction);
             return true;
         }
 
         if (!nextIsCpuControlled) {
-            isProcessing = false;
+            setPassHandlerProcessing(false);
             if (typeof onTurnStart === 'function') onTurnStart(nextPlayer);
         } else if (nextIsWhite) {
-            isProcessing = !humanMode;
+            setPassHandlerProcessing(!humanMode);
             if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue('white', nextPlayer));
             if (!humanMode) {
                 scheduleWhiteCpuTurnGuarded((typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600), {
@@ -439,7 +479,7 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey, publishAction) {
     }
 
     if (nextIsCpuControlled) {
-        isProcessing = !humanMode;
+        setPassHandlerProcessing(!humanMode);
         if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue(nextPlayerKey, nextPlayer));
         if (!humanMode) {
             scheduleWhiteCpuTurnGuarded(CPU_TURN_DELAY_MS, {
@@ -447,7 +487,7 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey, publishAction) {
             });
         }
     } else {
-        isProcessing = false;
+        setPassHandlerProcessing(false);
         if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue('black', nextPlayer));
         try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
     }
@@ -476,7 +516,7 @@ async function finalizePassTurnHandoff(lastPlayerKey, publishAction) {
         humanMode,
         cpuDelayMs: safeCpuDelay,
         resultOrder: 'beforePublish',
-        setProcessing: (nextValue) => { isProcessing = !!nextValue; },
+        setProcessing: (nextValue) => { setPassHandlerProcessing(nextValue); },
         publishSnapshot: publishNetworkSnapshot,
         onTurnStart: (player) => {
             if (typeof onTurnStart === 'function') return onTurnStart(player);

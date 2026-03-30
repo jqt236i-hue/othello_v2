@@ -1,0 +1,584 @@
+{
+  "timestamp": "2026-03-30T02:18:07.904Z",
+  "phase": "setup_time_stop",
+  "actionIndex": 0,
+  "roomId": "NYX",
+  "black": {
+    "currentPlayerKey": "black",
+    "turnNumber": 0,
+    "turnIndex": 1,
+    "hand": [
+      {
+        "id": "heaven_01",
+        "type": "HEAVEN_BLESSING",
+        "name": "天の恵み",
+        "cost": 3,
+        "canUse": false
+      },
+      {
+        "id": "chest_01",
+        "type": "TREASURE_BOX",
+        "name": "宝箱",
+        "cost": 0,
+        "canUse": true
+      },
+      {
+        "id": "free_01",
+        "type": "FREE_PLACEMENT",
+        "name": "自由の意志",
+        "cost": 14,
+        "canUse": false
+      },
+      {
+        "id": "last_resort_01",
+        "type": "LAST_RESORT",
+        "name": "最後の切り札",
+        "cost": 9,
+        "canUse": false
+      },
+      {
+        "id": "sniper_01",
+        "type": "SNIPER_WILL",
+        "name": "狙撃の意志",
+        "cost": 23,
+        "canUse": false
+      },
+      {
+        "id": "hard_01",
+        "type": "PROTECTED_NEXT_STONE",
+        "name": "弱い意志",
+        "cost": 1,
+        "canUse": false
+      },
+      {
+        "id": "ghost_01",
+        "type": "GHOST_WILL",
+        "name": "幽霊の意志",
+        "cost": 5,
+        "canUse": false
+      },
+      {
+        "id": "afterimage_will_01",
+        "type": "AFTERIMAGE_WILL",
+        "name": "残像の意志",
+        "cost": 8,
+        "canUse": false
+      },
+      {
+        "id": "swap_01",
+        "type": "SWAP_WITH_ENEMY",
+        "name": "交換の意志",
+        "cost": 17,
+        "canUse": false
+      },
+      {
+        "id": "position_swap_01",
+        "type": "POSITION_SWAP_WILL",
+        "name": "入替の意志",
+        "cost": 13,
+        "canUse": false
+      },
+      {
+        "id": "perma_01",
+        "type": "PERMA_PROTECT_NEXT_STONE",
+        "name": "強い意志",
+        "cost": 15,
+        "canUse": false
+      },
+      {
+        "id": "strong_wind_01",
+        "type": "STRONG_WIND_WILL",
+        "name": "強風の意志",
+        "cost": 9,
+        "canUse": false
+      },
+      {
+        "id": "super_buoyancy_01",
+        "type": "SUPER_BUOYANCY_WILL",
+        "name": "超浮力",
+        "cost": 16,
+        "canUse": false
+      },
+      {
+        "id": "super_gravity_01",
+        "type": "SUPER_GRAVITY_WILL",
+        "name": "超重力",
+        "cost": 16,
+        "canUse": false
+      },
+      {
+        "id": "trap_01",
+        "type": "TRAP_WILL",
+        "name": "罠の意志",
+        "cost": 4,
+        "canUse": false
+      },
+      {
+        "id": "tempt_01",
+        "type": "TEMPT_WILL",
+        "name": "誘惑の意志",
+        "cost": 23,
+        "canUse": false
+      },
+      {
+        "id": "capture_01",
+        "type": "CAPTURE_WILL",
+        "name": "捕獲の意志",
+        "cost": 20,
+        "canUse": false
+      },
+      {
+        "id": "double_chain_01",
+        "type": "DOUBLE_CHAIN_WILL",
+        "name": "二連鎖の意志",
+        "cost": 22,
+        "canUse": false
+      },
+      {
+        "id": "triple_chain_01",
+        "type": "TRIPLE_CHAIN_WILL",
+        "name": "三連鎖の意志",
+        "cost": 22,
+        "canUse": false
+      },
+      {
+        "id": "quad_chain_01",
+        "type": "QUAD_CHAIN_WILL",
+        "name": "四連鎖の意志",
+        "cost": 22,
+        "canUse": false
+      },
+      {
+        "id": "infinite_chain_01",
+        "type": "INFINITE_CHAIN_WILL",
+        "name": "無限連鎖の意志",
+        "cost": 50,
+        "canUse": false
+      },
+      {
+        "id": "taboo_reverse_01",
+        "type": "TABOO_REVERSE_WILL",
+        "name": "禁忌の反転",
+        "cost": 44,
+        "canUse": false
+      },
+      {
+        "id": "regen_01",
+        "type": "REGEN_WILL",
+        "name": "復活の意志",
+        "cost": 12,
+        "canUse": false
+      },
+      {
+        "id": "destroy_01",
+        "type": "DESTROY_ONE_STONE",
+        "name": "破壊神",
+        "cost": 19,
+        "canUse": false
+      },
+      {
+        "id": "bomb_01",
+        "type": "TIME_BOMB",
+        "name": "時限爆弾",
+        "cost": 13,
+        "canUse": false
+      },
+      {
+        "id": "time_stop_god_01",
+        "type": "TIME_STOP_GOD",
+        "name": "時間停石",
+        "cost": 0,
+        "canUse": true
+      },
+      {
+        "id": "udr_01",
+        "type": "ULTIMATE_REVERSE_DRAGON",
+        "name": "究極反転龍",
+        "cost": 30,
+        "canUse": false
+      },
+      {
+        "id": "breeding_01",
+        "type": "BREEDING_WILL",
+        "name": "繁殖の意志",
+        "cost": 16,
+        "canUse": false
+      },
+      {
+        "id": "proliferation_01",
+        "type": "PROLIFERATION_WILL",
+        "name": "増殖の意志",
+        "cost": 4,
+        "canUse": false
+      },
+      {
+        "id": "clone_01",
+        "type": "CLONE_WILL",
+        "name": "複製の意志",
+        "cost": 16,
+        "canUse": false
+      },
+      {
+        "id": "split_01",
+        "type": "SPLIT_WILL",
+        "name": "分裂の意志",
+        "cost": 12,
+        "canUse": false
+      },
+      {
+        "id": "teleport_01",
+        "type": "TELEPORT_WILL",
+        "name": "テレポート",
+        "cost": 10,
+        "canUse": false
+      },
+      {
+        "id": "cell_teleport_01",
+        "type": "CELL_TELEPORT_WILL",
+        "name": "マステレポート",
+        "cost": 18,
+        "canUse": false
+      },
+      {
+        "id": "cross_bomb_01",
+        "type": "CROSS_BOMB",
+        "name": "十字爆弾",
+        "cost": 18,
+        "canUse": false
+      },
+      {
+        "id": "x_bomb_01",
+        "type": "X_BOMB",
+        "name": "クロス爆弾",
+        "cost": 18,
+        "canUse": false
+      },
+      {
+        "id": "hyperactive_01",
+        "type": "HYPERACTIVE_WILL",
+        "name": "多動の意志",
+        "cost": 8,
+        "canUse": false
+      },
+      {
+        "id": "hyperactive_inherit_01",
+        "type": "HYPERACTIVE_INHERIT_WILL",
+        "name": "多動の継承",
+        "cost": 11,
+        "canUse": false
+      },
+      {
+        "id": "extreme_hyperactive_01",
+        "type": "EXTREME_HYPERACTIVE_WILL",
+        "name": "極悪多動魔",
+        "cost": 35,
+        "canUse": false
+      },
+      {
+        "id": "escape_01",
+        "type": "ESCAPE_WILL",
+        "name": "逃げる意志",
+        "cost": 7,
+        "canUse": false
+      },
+      {
+        "id": "robot_vacuum_01",
+        "type": "ROBOT_VACUUM_WILL",
+        "name": "ロボット掃除機",
+        "cost": 17,
+        "canUse": false
+      },
+      {
+        "id": "gluttonous_will_01",
+        "type": "GLUTTONOUS_WILL",
+        "name": "悪食の意志",
+        "cost": 29,
+        "canUse": false
+      },
+      {
+        "id": "will_hunter_king_01",
+        "type": "WILL_HUNTER_KING",
+        "name": "意志狩りの王",
+        "cost": 33,
+        "canUse": false
+      },
+      {
+        "id": "instant_hyperactive_01",
+        "type": "INSTANT_HYPERACTIVE_WILL",
+        "name": "瞬間多動",
+        "cost": 2,
+        "canUse": false
+      },
+      {
+        "id": "sell_01",
+        "type": "SELL_CARD_WILL",
+        "name": "売却の意志",
+        "cost": 8,
+        "canUse": false
+      },
+      {
+        "id": "rebuild_01",
+        "type": "REBUILD_WILL",
+        "name": "再構築の意志",
+        "cost": 0,
+        "canUse": true
+      },
+      {
+        "id": "supply_01",
+        "type": "SUPPLY_WILL",
+        "name": "補給の意志",
+        "cost": 1,
+        "canUse": false
+      },
+      {
+        "id": "plunder_will",
+        "type": "PLUNDER_WILL",
+        "name": "吸収の意志",
+        "cost": 4,
+        "canUse": false
+      },
+      {
+        "id": "corner_tribute_01",
+        "type": "CORNER_TRIBUTE",
+        "name": "角の代償",
+        "cost": 0,
+        "canUse": true
+      },
+      {
+        "id": "work_01",
+        "type": "WORK_WILL",
+        "name": "出稼ぎの意志",
+        "cost": 11,
+        "canUse": false
+      },
+      {
+        "id": "ribo_01",
+        "type": "RIBO_WILL",
+        "name": "リボ払いの意志",
+        "cost": 0,
+        "canUse": false
+      },
+      {
+        "id": "loss_will_01",
+        "type": "LOSS_WILL",
+        "name": "意志の喪失",
+        "cost": 11,
+        "canUse": false
+      },
+      {
+        "id": "double_01",
+        "type": "DOUBLE_PLACE",
+        "name": "二連投石",
+        "cost": 24,
+        "canUse": false
+      },
+      {
+        "id": "triple_01",
+        "type": "TRIPLE_PLACE",
+        "name": "三連投石",
+        "cost": 24,
+        "canUse": false
+      },
+      {
+        "id": "quad_01",
+        "type": "QUAD_PLACE",
+        "name": "四連投石",
+        "cost": 24,
+        "canUse": false
+      },
+      {
+        "id": "infinite_01",
+        "type": "INFINITE_PLACE",
+        "name": "無限投石",
+        "cost": 50,
+        "canUse": false
+      },
+      {
+        "id": "reveal_hand_01",
+        "type": "REVEAL_HAND_WILL",
+        "name": "観測の意志",
+        "cost": 6,
+        "canUse": false
+      },
+      {
+        "id": "condemn_01",
+        "type": "CONDEMN_WILL",
+        "name": "断罪の意志",
+        "cost": 8,
+        "canUse": false
+      },
+      {
+        "id": "gold_stone",
+        "type": "GOLD_STONE",
+        "name": "金の意志",
+        "cost": 6,
+        "canUse": false
+      },
+      {
+        "id": "rainbow_stone",
+        "type": "RAINBOW_STONE",
+        "name": "虹の意志",
+        "cost": 10,
+        "canUse": false
+      },
+      {
+        "id": "silver_stone",
+        "type": "SILVER_STONE",
+        "name": "銀の意志",
+        "cost": 3,
+        "canUse": false
+      },
+      {
+        "id": "crystal_stone",
+        "type": "CRYSTAL_STONE",
+        "name": "水晶の意志",
+        "cost": 8,
+        "canUse": false
+      },
+      {
+        "id": "extend_life_01",
+        "type": "EXTEND_LIFE_WILL",
+        "name": "延命の意志",
+        "cost": 4,
+        "canUse": false
+      },
+      {
+        "id": "extend_life_god_01",
+        "type": "EXTEND_LIFE_GOD",
+        "name": "延命神",
+        "cost": 10,
+        "canUse": false
+      },
+      {
+        "id": "corrosion_01",
+        "type": "CORROSION_WILL",
+        "name": "腐食の意志",
+        "cost": 2,
+        "canUse": false
+      },
+      {
+        "id": "guard_01",
+        "type": "GUARD_WILL",
+        "name": "守る意志",
+        "cost": 2,
+        "canUse": false
+      },
+      {
+        "id": "guardian_god_01",
+        "type": "GUARDIAN_GOD",
+        "name": "守護神",
+        "cost": 10,
+        "canUse": false
+      },
+      {
+        "id": "destroy_dragon_01",
+        "type": "DESTROY_DRAGON_WILL",
+        "name": "破壊龍",
+        "cost": 7,
+        "canUse": false
+      },
+      {
+        "id": "lightning_01",
+        "type": "LIGHTNING_WILL",
+        "name": "落雷",
+        "cost": 26,
+        "canUse": false
+      },
+      {
+        "id": "udg_01",
+        "type": "ULTIMATE_DESTROY_GOD",
+        "name": "究極破壊神",
+        "cost": 25,
+        "canUse": false
+      },
+      {
+        "id": "ultimate_hyperactive_01",
+        "type": "ULTIMATE_HYPERACTIVE_GOD",
+        "name": "究極多動神",
+        "cost": 28,
+        "canUse": false
+      },
+      {
+        "id": "board_expand_01",
+        "type": "BOARD_EXPANSION_WILL",
+        "name": "盤面拡張",
+        "cost": 19,
+        "canUse": false
+      },
+      {
+        "id": "board_expand_god_01",
+        "type": "BOARD_EXPANSION_GOD",
+        "name": "盤面拡張神",
+        "cost": 27,
+        "canUse": false
+      },
+      {
+        "id": "blockade_01",
+        "type": "BLOCKADE_WILL",
+        "name": "封鎖の意志",
+        "cost": 1,
+        "canUse": false
+      },
+      {
+        "id": "meteor_01",
+        "type": "METEOR_WILL",
+        "name": "隕石",
+        "cost": 21,
+        "canUse": false
+      },
+      {
+        "id": "freeze_01",
+        "type": "FREEZE_WILL",
+        "name": "凍結の意志",
+        "cost": 5,
+        "canUse": false
+      },
+      {
+        "id": "observer_01",
+        "type": "OBSERVER_WILL",
+        "name": "盤理の観測者",
+        "cost": 1,
+        "canUse": false
+      },
+      {
+        "id": "salvation_01",
+        "type": "SALVATION_WILL",
+        "name": "救済の意志",
+        "cost": 17,
+        "canUse": false
+      },
+      {
+        "id": "equality_will_01",
+        "type": "EQUALITY_WILL",
+        "name": "平等の意志",
+        "cost": 15,
+        "canUse": false
+      },
+      {
+        "id": "fate_will_01",
+        "type": "FATE_WILL",
+        "name": "運命の意志",
+        "cost": 50,
+        "canUse": false
+      }
+    ],
+    "pending": null,
+    "markers": [],
+    "bonusTurns": {
+      "black": 0,
+      "white": 0
+    }
+  },
+  "white": {
+    "currentPlayerKey": "black",
+    "turnNumber": 0,
+    "turnIndex": 1,
+    "hand": [],
+    "pending": null,
+    "markers": [],
+    "bonusTurns": {
+      "black": 0,
+      "white": 0
+    }
+  }
+}

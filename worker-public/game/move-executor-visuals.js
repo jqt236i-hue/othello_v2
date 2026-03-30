@@ -124,6 +124,27 @@ async function animateHyperactiveMove(from, to, options) {
     return Promise.resolve();
 }
 
+async function animateHyperactiveMoveChain(moves) {
+    if (typeof __uiImpl_move_exec_visuals !== 'undefined' && __uiImpl_move_exec_visuals && typeof __uiImpl_move_exec_visuals.animateHyperactiveMoveChain === 'function') {
+        return __uiImpl_move_exec_visuals.animateHyperactiveMoveChain(moves);
+    }
+    if (!Array.isArray(moves)) {
+        return Promise.resolve();
+    }
+    for (const move of moves) {
+        if (!move || !move.from || !move.to) continue;
+        await animateHyperactiveMove(move.from, move.to);
+    }
+    return Promise.resolve();
+}
+
+function hasPlaybackEngine() {
+    if (typeof __uiImpl_move_exec_visuals !== 'undefined' && __uiImpl_move_exec_visuals && typeof __uiImpl_move_exec_visuals.hasPlaybackEngine === 'function') {
+        return __uiImpl_move_exec_visuals.hasPlaybackEngine() === true;
+    }
+    return false;
+}
+
 async function playDrawAnimation(player, drawnCardId) {
     if (typeof __uiImpl_move_exec_visuals !== 'undefined' && __uiImpl_move_exec_visuals && typeof __uiImpl_move_exec_visuals.playDrawAnimation === 'function') {
         return __uiImpl_move_exec_visuals.playDrawAnimation(player, drawnCardId);
@@ -175,6 +196,8 @@ if (typeof module !== 'undefined' && module.exports) {
         animateFadeOutAt,
         animateDestroyAt,
         animateHyperactiveMove,
+        animateHyperactiveMoveChain,
+        hasPlaybackEngine,
         playDrawAnimation,
         updateDeckVisual,
         applyPendingSpecialstoneVisual,

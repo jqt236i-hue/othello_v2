@@ -1,0 +1,8 @@
+{
+  "timestamp": "2026-03-30T00:43:46.646Z",
+  "baseUrl": "http://127.0.0.1:8010",
+  "stage": "done",
+  "ok": true,
+  "roomId": "EGQ",
+  "resultPath": "C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\runs\\20260330-093907-playwright-audit\\reveal-hand-seeded-result.json"
+}

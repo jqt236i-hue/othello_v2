@@ -270,6 +270,35 @@ describe('selfplay runner', () => {
         expect(selected).toBe(legalMoves[0]);
     });
 
+    test('teacher lookahead keeps full move space by default when only edge candidates exist', () => {
+        const board = createPlacementBoard();
+        const legalMoves = [
+            { row: 0, col: 3, flips: [{ row: 1, col: 3 }] },
+            { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+            { row: 5, col: 4, flips: [{ row: 4, col: 4 }] }
+        ];
+        const lookaheadSpy = mockTeacherLookahead().mockImplementation((moves) => {
+            expect(moves).toEqual(legalMoves);
+            return moves[1];
+        });
+
+        const selected = selectPlacementMove(
+            legalMoves,
+            { random: () => 0.5 },
+            {
+                gameState: { board },
+                cardState: {},
+                playerKey: 'black',
+                pendingType: null,
+                legalMovesCount: legalMoves.length
+            },
+            {}
+        );
+
+        expect(lookaheadSpy).toHaveBeenCalled();
+        expect(selected).toBe(legalMoves[1]);
+    });
+
     test('teacher lookahead can still choose within multiple forced moves', () => {
         const board = createPlacementBoard();
         const legalMoves = [
@@ -438,11 +467,12 @@ describe('selfplay runner', () => {
     });
     test('records pending target selections with structured labels', () => {
         const result = runSelfPlayGames({
-            games: 1,
+            games: 3,
             baseSeed: 1,
             maxPlies: 140,
             allowCardUsage: true,
-            cardUsageRate: 0.35
+            cardUsageRate: 0.35,
+            enableTacticalLookahead: false
         });
 
         const pendingRecord = result.records.find((one) => one && one.pendingSelection && one.pendingSelection.kind === 'board_cell');
@@ -1338,7 +1368,7 @@ describe('selfplay runner', () => {
         expect(decision.action.col).toBe(0);
     });
 
-    test('decideAction forces edge placement before card use and inner preference', () => {
+    test('decideAction can still force edge placement before card use when explicitly requested', () => {
         const gameState = Core.createGameState();
         gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
         gameState.board[0][0] = 1;
@@ -1373,7 +1403,7 @@ describe('selfplay runner', () => {
             cardState,
             'black',
             { random: () => 0.5 },
-            { allowCardUsage: true, cardUsageRate: 1, enableTacticalLookahead: false },
+            { allowCardUsage: true, cardUsageRate: 1, enableTacticalLookahead: false, forceCornerEdgePlacement: true },
             { gameState, cardState }
         );
 

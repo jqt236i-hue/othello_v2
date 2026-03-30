@@ -27,6 +27,13 @@ describe('turn-manager scheduling', () => {
     if (adapter && typeof adapter.clearDeferredGeneratedThrowChainPlayback === 'function') {
       adapter.clearDeferredGeneratedThrowChainPlayback();
     }
+    const cpuTurnHandler = require('../game/cpu-turn-handler');
+    if (cpuTurnHandler && typeof cpuTurnHandler.resetCpuTurnHandlerState === 'function') {
+      cpuTurnHandler.resetCpuTurnHandlerState();
+    }
+    if (cpuTurnHandler && typeof cpuTurnHandler.setTimers === 'function') {
+      cpuTurnHandler.setTimers(null);
+    }
 
     delete global.timers;
     delete global.findMoveForCell;
@@ -42,19 +49,24 @@ describe('turn-manager scheduling', () => {
     delete global.updateCpuCharacter;
     delete global.AnimationEngine;
     delete global.VisualPlaybackActive;
+    delete global.__playbackActiveSince;
     delete global.PlaybackStateManager;
+    delete global.__uiImpl;
     delete global.__uiImpl_turn_manager;
     delete global.NetworkMatchClient;
     delete global.MATCH_MODE;
     delete global.LOCAL_PLAYER_KEY;
     delete global.__LOCAL_PLAYER_KEY;
     delete global.BOARD_VIEWER_KEY;
+    delete global.ActionManager;
     delete global.TurnPipelinePhases;
     delete global.processBombs;
     delete global.processUltimateDestroyGodsAtTurnStart;
     delete global.processUltimateReverseDragonsAtTurnStart;
     delete global.processBreedingEffectsAtTurnStart;
     delete global.processHyperactiveMovesAtTurnStart;
+    delete global.isGameOver;
+    delete global.handleGuardSelection;
   });
 
   test('handleCellClick executes move immediately after hand animation callback', async () => {
@@ -67,6 +79,38 @@ describe('turn-manager scheduling', () => {
     expect(global.executeMove).toHaveBeenCalled();
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
+  });
+
+  test('handleCellClick routes pending GUARDIAN_GOD selection through shared guard dispatch', () => {
+    global.cardState = {
+      pendingEffectByPlayer: {
+        black: { type: 'GUARDIAN_GOD', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    global.handleGuardSelection = jest.fn();
+
+    const rm = require('../game/turn-manager');
+    rm.handleCellClick(2, 3);
+
+    expect(global.handleGuardSelection).toHaveBeenCalledWith(2, 3, 'black');
+    expect(global.findMoveForCell).not.toHaveBeenCalled();
+    expect(global.executeMove).not.toHaveBeenCalled();
+  });
+
+  test('handleCellClick keeps SELL_CARD_WILL hand overlay pending off the board path', () => {
+    global.cardState = {
+      pendingEffectByPlayer: {
+        black: { type: 'SELL_CARD_WILL', stage: 'selectTarget' },
+        white: null
+      }
+    };
+
+    const rm = require('../game/turn-manager');
+    rm.handleCellClick(4, 4);
+
+    expect(global.findMoveForCell).not.toHaveBeenCalled();
+    expect(global.executeMove).not.toHaveBeenCalled();
   });
 
   test.each([
@@ -110,6 +154,62 @@ describe('turn-manager scheduling', () => {
     expect(global.findMoveForCell).not.toHaveBeenCalled();
     expect(global.executeMove).not.toHaveBeenCalled();
     expect(global.VisualPlaybackActive).toBe(true);
+  });
+
+  test('stale PlaybackStateManager lock with idle engine no longer blocks board clicks', () => {
+    let playbackLocked = true;
+    const clearPlaybackLock = jest.fn(() => {
+      playbackLocked = false;
+      global.VisualPlaybackActive = false;
+      global.isCardAnimating = false;
+    });
+    global.VisualPlaybackActive = true;
+    global.isCardAnimating = true;
+    global.AnimationEngine = { isPlaying: false };
+    global.PlaybackStateManager = {
+      getProcessing: jest.fn(() => false),
+      getCardAnimating: jest.fn(() => playbackLocked),
+      getPlaybackActive: jest.fn(() => playbackLocked),
+      getPlaybackStartedAt: jest.fn(() => Date.now() - 4000),
+      clearPlaybackLock
+    };
+
+    const rm = require('../game/turn-manager');
+    rm.handleCellClick(0, 0);
+
+    expect(clearPlaybackLock).toHaveBeenCalledTimes(1);
+    expect(global.findMoveForCell).toHaveBeenCalled();
+    expect(global.executeMove).toHaveBeenCalledTimes(1);
+  });
+
+  test('stale PlaybackStateManager lock prefers abortPlayback over clearPlaybackLock', () => {
+    let playbackLocked = true;
+    const abortPlayback = jest.fn(() => {
+      playbackLocked = false;
+      global.VisualPlaybackActive = false;
+      global.isCardAnimating = false;
+      global.__playbackActiveSince = null;
+    });
+    const clearPlaybackLock = jest.fn();
+    global.VisualPlaybackActive = true;
+    global.isCardAnimating = true;
+    global.AnimationEngine = { isPlaying: false };
+    global.PlaybackStateManager = {
+      getProcessing: jest.fn(() => false),
+      getCardAnimating: jest.fn(() => playbackLocked),
+      getPlaybackActive: jest.fn(() => playbackLocked),
+      getPlaybackStartedAt: jest.fn(() => Date.now() - 4000),
+      abortPlayback,
+      clearPlaybackLock
+    };
+
+    const rm = require('../game/turn-manager');
+    rm.handleCellClick(0, 0);
+
+    expect(abortPlayback).toHaveBeenCalledTimes(1);
+    expect(clearPlaybackLock).not.toHaveBeenCalled();
+    expect(global.findMoveForCell).toHaveBeenCalled();
+    expect(global.executeMove).toHaveBeenCalledTimes(1);
   });
 
   test('network modeでcurrentPlayerが"white"文字列でも白手番を操作できる', () => {
@@ -176,6 +276,212 @@ describe('turn-manager scheduling', () => {
     expect(global.cardState.presentationEvents).toHaveLength(0);
     expect(global.cardState._presentationEventsPersist).toHaveLength(0);
     expect(uiResetSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('resetGame は stale playback lock を解除してから新規配布へ入る', () => {
+    const clearPlaybackLock = jest.fn(() => {
+      global.VisualPlaybackActive = false;
+      global.__playbackActiveSince = null;
+    });
+    global.VisualPlaybackActive = true;
+    global.__playbackActiveSince = Date.now() - 5000;
+    global.PlaybackStateManager = {
+      clearPlaybackLock,
+      setBusyState: jest.fn(),
+      getProcessing: jest.fn(() => false),
+      getCardAnimating: jest.fn(() => false),
+      getPlaybackActive: jest.fn(() => false),
+      setPlaybackStartedAt: jest.fn()
+    };
+    global.cpuSmartness = { black: 2, white: 3 };
+    global.createGameState = jest.fn(() => ({
+      currentPlayer: global.BLACK,
+      turnNumber: 0,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    }));
+    global.initCardState = jest.fn(() => {});
+    global.emitLogAdded = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+    global.emitGameStateChange = jest.fn();
+    global.updateCpuCharacter = jest.fn();
+    global.dealInitialCards = jest.fn(() => new Promise(() => {}));
+    global.cardState = {
+      pendingEffectByPlayer: {},
+      presentationEvents: [],
+      _presentationEventsPersist: []
+    };
+
+    const rm = require('../game/turn-manager');
+    rm.setUIImpl({
+      resetTransientUIState: jest.fn(),
+      readCpuSmartness: () => ({ black: 2, white: 3 }),
+      clearLogUI: jest.fn()
+    });
+
+    rm.resetGame();
+
+    expect(clearPlaybackLock).toHaveBeenCalledTimes(1);
+    expect(global.VisualPlaybackActive).toBe(false);
+    expect(global.__playbackActiveSince).toBeNull();
+  });
+
+  test('resetGame は PendingCoordinator の action cache もクリアする', () => {
+    global.cpuSmartness = { black: 2, white: 3 };
+    global.createGameState = jest.fn(() => ({
+      currentPlayer: global.BLACK,
+      turnNumber: 0,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    }));
+    global.initCardState = jest.fn(() => {});
+    global.emitLogAdded = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+    global.emitGameStateChange = jest.fn();
+    global.updateCpuCharacter = jest.fn();
+    global.dealInitialCards = jest.fn(() => new Promise(() => {}));
+    global.cardState = {
+      turnIndex: 5,
+      pendingEffectByPlayer: {
+        black: { type: 'POSITION_SWAP_WILL', stage: 'selectTarget', firstTarget: { row: 1, col: 2 } },
+        white: null
+      },
+      presentationEvents: [],
+      _presentationEventsPersist: []
+    };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) }),
+        reset: jest.fn(),
+        clearStorage: jest.fn()
+      }
+    };
+
+    const PendingCoordinator = require('../game/turn/pending-coordinator');
+    PendingCoordinator.createPendingSelectionAction(
+      'black',
+      'POSITION_SWAP_WILL',
+      { firstTarget: { row: 1, col: 2 } },
+      { cardState: global.cardState }
+    );
+    expect(PendingCoordinator.readPendingSelectionAction('black')).toEqual(expect.objectContaining({
+      turnIndex: 5
+    }));
+
+    const rm = require('../game/turn-manager');
+    rm.setUIImpl({
+      resetTransientUIState: jest.fn(),
+      readCpuSmartness: () => ({ black: 2, white: 3 }),
+      clearLogUI: jest.fn()
+    });
+
+    rm.resetGame();
+
+    expect(PendingCoordinator.readPendingSelectionAction('black')).toBeNull();
+  });
+
+  test('古い reset の配布完了は新しい対局へ turn start を混ぜない', async () => {
+    let resolveFirstDeal;
+    let resolveSecondDeal;
+    const firstDeal = new Promise((resolve) => { resolveFirstDeal = resolve; });
+    const secondDeal = new Promise((resolve) => { resolveSecondDeal = resolve; });
+
+    global.cpuSmartness = { black: 2, white: 3 };
+    global.createGameState = jest.fn(() => ({
+      currentPlayer: global.BLACK,
+      turnNumber: 0,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    }));
+    global.initCardState = jest.fn(() => {});
+    global.emitLogAdded = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+    global.emitGameStateChange = jest.fn();
+    global.updateCpuCharacter = jest.fn();
+    global.dealInitialCards = jest
+      .fn()
+      .mockImplementationOnce(() => firstDeal)
+      .mockImplementationOnce(() => secondDeal);
+    global.cardState = {
+      pendingEffectByPlayer: {},
+      presentationEvents: [],
+      _presentationEventsPersist: []
+    };
+    global.__uiImpl = {
+      onTurnStart: jest.fn(() => Promise.resolve())
+    };
+
+    const rm = require('../game/turn-manager');
+    rm.setUIImpl({
+      resetTransientUIState: jest.fn(),
+      readCpuSmartness: () => ({ black: 2, white: 3 }),
+      clearLogUI: jest.fn()
+    });
+
+    rm.resetGame();
+    rm.resetGame();
+    expect(global.isProcessing).toBe(true);
+    expect(global.isCardAnimating).toBe(true);
+
+    resolveFirstDeal();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(global.isProcessing).toBe(true);
+    expect(global.isCardAnimating).toBe(true);
+
+    resolveSecondDeal();
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(global.__uiImpl.onTurnStart).toHaveBeenCalledTimes(1);
+    expect(global.isProcessing).toBe(false);
+  });
+
+  test('resetGame は前ゲームの CPU retry latch をクリアして新規対局の再試行を許可する', async () => {
+    const cpuTurnHandler = require('../game/cpu-turn-handler');
+    const waitMs = jest.fn(() => new Promise(() => {}));
+    cpuTurnHandler.setTimers({ waitMs });
+
+    global.isGameOver = jest.fn(() => false);
+    global.cpuSmartness = { black: 2, white: 3 };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      presentationEvents: [],
+      _presentationEventsPersist: [],
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      hands: { black: [], white: [] },
+      charge: { black: 0, white: 0 }
+    };
+    global.gameState = {
+      currentPlayer: global.WHITE,
+      turnNumber: 9,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.isCardAnimating = true;
+    global.isProcessing = false;
+
+    await cpuTurnHandler.processCpuTurn();
+    expect(waitMs).toHaveBeenCalledTimes(1);
+
+    global.createGameState = jest.fn(() => ({
+      currentPlayer: global.WHITE,
+      turnNumber: 0,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    }));
+    global.initCardState = jest.fn(() => {});
+    global.emitLogAdded = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+    global.emitGameStateChange = jest.fn();
+    global.updateCpuCharacter = jest.fn();
+    global.dealInitialCards = jest.fn(() => new Promise(() => {}));
+
+    const rm = require('../game/turn-manager');
+    rm.setUIImpl({
+      resetTransientUIState: jest.fn(),
+      readCpuSmartness: () => ({ black: 2, white: 3 }),
+      clearLogUI: jest.fn()
+    });
+
+    rm.resetGame();
+    await cpuTurnHandler.processCpuTurn();
+
+    expect(waitMs).toHaveBeenCalledTimes(2);
   });
 
   test('resetGame は遅延 generated throw chain hand_add queue をクリアする', () => {

@@ -633,6 +633,60 @@ function runPublishVersionMismatchScenario() {
   return runPublishScenario(runner);
 }
 
+function runPublishMissingOperationIdScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const room = {",
+    "    roomId: 'ROOMO',",
+    "    stateVersion: 6,",
+    "    updatedAt: Date.now(),",
+    "    seats: { black: true, white: true },",
+    "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black', turnStartedAt: null, turnDeadlineAt: null },",
+    "    acceptedOperationsBySeat: {},",
+    "    snapshot: {",
+    "      stateVersion: 6,",
+    "      gameState: { currentPlayer: 1, turnNumber: 8, board: Array.from({ length: 8 }, () => Array(8).fill(0)) },",
+    "      cardState: {",
+    "        hands: { black: [], white: [] },",
+    "        discard: [],",
+    "        pendingEffectByPlayer: { black: null, white: null },",
+    "        presentationEvents: [],",
+    "        _presentationEventsPersist: []",
+    "      }",
+    "    }",
+    "  };",
+    "  const storage = new Map();",
+    "  storage.set('match_room_state_v1', room);",
+    "  const state = {",
+    "    storage: {",
+    "      get: async (key) => storage.get(key),",
+    "      put: async (key, value) => storage.set(key, value),",
+    "      delete: async (key) => storage.delete(key)",
+    "    }",
+    "  };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  const response = await durableObject.handlePublish({",
+    "    roomId: 'ROOMO',",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: 'token_black',",
+    "    baseVersion: 6,",
+    "    actionType: 'place'",
+    "  });",
+    "  const payload = await response.json();",
+    `  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({ status: response.status, payload }));`,
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runPublishScenario(runner);
+}
+
 function runPublishIdempotentReplayScenario() {
   const runner = [
     "(async () => {",
@@ -1204,6 +1258,37 @@ describe('match worker publish sanitize', () => {
     expect(result.payload.snapshot._meta).toEqual(expect.objectContaining({
       authority: 'server',
       version: 4,
+      projectedForSeat: 'black',
+      turnStartReconciled: true
+    }));
+  });
+
+  test('missing operationId publish is rejected with shared publishMeta shape', () => {
+    const result = runPublishMissingOperationIdScenario();
+
+    expect(result.status).toBe(409);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: false,
+      roomId: 'ROOMO',
+      rejectedReason: 'OPERATION_ID_REQUIRED',
+      roomDeck: null,
+      networkDebugEnabled: false,
+      snapshot: expect.any(Object),
+      seats: expect.any(Object),
+      seatNames: expect.any(Object),
+      turnTimer: expect.any(Object),
+      publishMeta: expect.objectContaining({
+        kind: 'rejected',
+        operationId: '',
+        actionType: 'place',
+        receivedBaseVersion: 6,
+        authoritativeStateVersion: 6,
+        rejectedReason: 'OPERATION_ID_REQUIRED'
+      })
+    }));
+    expect(result.payload.snapshot._meta).toEqual(expect.objectContaining({
+      authority: 'server',
+      version: 6,
       projectedForSeat: 'black',
       turnStartReconciled: true
     }));

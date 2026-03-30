@@ -357,8 +357,7 @@ const WHITE_LV6_DESTROY_WHEN_AHEAD_TYPES = new Set([
 const IMMEDIATE_DESTROY_CARD_TYPES = new Set([
     'TIME_STOP_GOD',
     'CELL_TELEPORT_WILL',
-    'FREEZE_WILL',
-    'REBUILD_WILL'
+    'FREEZE_WILL'
 ]);
 
 const LOW_CHARGE_DESTROY_CARD_TYPES = new Set([
@@ -405,7 +404,9 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     EXTEND_LIFE_GOD: 10,
     EXTREME_HYPERACTIVE_WILL: -8,
     EQUALITY_WILL: 4,
+    FATE_WILL: 2,
     FREE_PLACEMENT: 2,
+    FREEZE_WILL: -4,
     GLUTTONOUS_WILL: 3,
     GOLD_STONE: 12,
     CRYSTAL_STONE: 10,
@@ -487,6 +488,7 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'EXTEND_LIFE_GOD',
     'EXTREME_HYPERACTIVE_WILL',
     'EQUALITY_WILL',
+    'FATE_WILL',
     'FREE_PLACEMENT',
     'FREEZE_WILL',
     'GLUTTONOUS_WILL',
@@ -565,6 +567,7 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     QUAD_PLACE: { trailingBias: 10, handPressureBias: 8, cornerNowBias: -10, endgameBias: 0 },
     INFINITE_PLACE: { trailingBias: 12, handPressureBias: 6, cornerNowBias: -12, endgameBias: 2, lowMobilityBias: 8 },
     EQUALITY_WILL: { leadBias: -8, trailingBias: 8, midLateBias: 4, endgameBias: -8, lowMobilityBias: 4, handPressureBias: 2 },
+    FATE_WILL: { leadBias: -6, trailingBias: 8, midLateBias: 4, endgameBias: -8, lowMobilityBias: 4, handPressureBias: 2, cornerNowBias: -4 },
     ESCAPE_WILL: { trailingBias: 4, edgeEmergencyBias: 4, handPressureBias: 2 },
     EXTEND_LIFE_WILL: { midLateBias: 4, leadBias: 4, endgameBias: -4 },
     EXTEND_LIFE_GOD: { midLateBias: 6, leadBias: 6, endgameBias: -6 },
@@ -950,6 +953,7 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     CLONE_WILL: { archetype: 'spawnMobile', placementWeight: 0, ownAdjBias: 1, edgeBias: 2 },
     CONDEMN_WILL: { archetype: 'economyCycle', placementWeight: 0 },
     REVEAL_HAND_WILL: { archetype: 'economyCycle', placementWeight: 0 },
+    CORNER_TRIBUTE: { archetype: 'economyCycle', placementWeight: 0 },
     CORROSION_WILL: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 3, oppAdjBias: 2 },
     CROSS_BOMB: { archetype: 'explosiveComeback', placementWeight: 3, edgeBias: 2, oppAdjBias: 3 },
     DESTROY_DRAGON_WILL: { archetype: 'anchorEngine', placementWeight: 3, edgeBias: 3, oppAdjBias: 3 },
@@ -962,6 +966,8 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     EXTEND_LIFE_WILL: { archetype: 'anchorProtect', placementWeight: 0, stabilityBias: 5, ownAdjBias: 3 },
     EXTEND_LIFE_GOD: { archetype: 'anchorProtect', placementWeight: 0, stabilityBias: 6, ownAdjBias: 4 },
     EXTREME_HYPERACTIVE_WILL: { archetype: 'spawnMobile', placementWeight: 3, cornerBias: -2, oppAdjBias: 2, stabilityBias: -2 },
+    EQUALITY_WILL: { archetype: 'explosiveComeback', placementWeight: 0 },
+    FATE_WILL: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 4, edgeBias: 2, mobilityBias: 3, oppAdjBias: 2 },
     FREE_PLACEMENT: { archetype: 'recoveryReposition', placementWeight: 3, cornerBias: 4, edgeBias: 3, innerBias: -2, bonusBias: 2, xPenalty: 3, cPenalty: 2 },
     FREEZE_WILL: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 2, edgeBias: 2, stabilityBias: 3, oppAdjBias: 1 },
     GLUTTONOUS_WILL: { archetype: 'spawnMobile', placementWeight: 3, cornerBias: 2, edgeBias: 2, oppAdjBias: 3, stabilityBias: 2 },
@@ -985,6 +991,7 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     PERMA_PROTECT_NEXT_STONE: { archetype: 'anchorProtect', placementWeight: 3, cornerBias: 4, stabilityBias: 4 },
     PLUNDER_WILL: { archetype: 'economyCycle', placementWeight: 2, flipBias: 4, oppAdjBias: 2 },
     POSITION_SWAP_WILL: { archetype: 'recoveryReposition', placementWeight: 0, cornerBias: 4, edgeBias: 3, emptyAdjBias: 3 },
+    PROLIFERATION_WILL: { archetype: 'spawnMobile', placementWeight: 3, cornerBias: -1 },
     PROTECTED_NEXT_STONE: { archetype: 'anchorProtect', placementWeight: 3 },
     REBUILD_WILL: { archetype: 'economyCycle', placementWeight: 0 },
     REGEN_WILL: { archetype: 'anchorProtect', placementWeight: 3, innerBias: -1, flipBias: 1, oppAdjBias: 1 },
@@ -1109,6 +1116,13 @@ function hasUsageStyleForCardType(cardType) {
     );
 }
 
+function hasBaseScoreBonusForCardType(cardType) {
+    return Object.prototype.hasOwnProperty.call(
+        CARD_TYPE_BASE_SCORE_BONUS,
+        String(cardType || '')
+    );
+}
+
 function hasMovePlanProfileForCardType(cardType) {
     return Object.prototype.hasOwnProperty.call(
         CARD_TYPE_MOVE_PLAN_PROFILE,
@@ -1129,6 +1143,10 @@ function getForcedHandDestroyReason(cardId, cardType, context, usableCardIdSet) 
 
     const ctx = context || {};
     const ownCharge = Number.isFinite(ctx.ownCharge) ? Number(ctx.ownCharge) : 0;
+    const handSize = Number.isFinite(ctx.handSize) ? Math.max(0, Math.floor(ctx.handSize)) : 0;
+    if (type === 'SUPPLY_WILL' && handSize >= 2) {
+        return null;
+    }
     if (LOW_CHARGE_DESTROY_CARD_TYPES.has(type) && ownCharge <= LOW_CHARGE_DESTROY_MAX_CHARGE) {
         return 'bucket2_low_charge';
     }
@@ -1601,6 +1619,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const cornerDiff = ownCorners - oppCorners;
     const ownAnchorResetWeight = (ownCornerResetCount * 2) + ownEdgeResetCount;
     const oppAnchorResetWeight = (oppCornerResetCount * 2) + oppEdgeResetCount;
+    const lossEnemyAnchorPayoffIsModest = oppSpecialCount <= (ownSpecialCount + 1) && oppAnchorResetWeight <= ownAnchorResetWeight;
     const strategicDiff = Number(ctx.discDiff || 0) + (cornerDiff * 4) + edgeDiff;
     const handPressureLevel = Math.max(0, ctx.handSize - 2);
     const chargePressureLevel = ctx.ownCharge >= 40 ? 2 : (ctx.ownCharge >= 28 ? 1 : 0);
@@ -1636,10 +1655,9 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     if (forcedDestroyReason) {
         return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, forcedDestroyReason);
     }
-    if (isLossWill && ownSpecialCount > 0) {
+    if (isLossWill && ownSpecialCount > 0 && lossEnemyAnchorPayoffIsModest) {
         return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'loss_will_own_special');
     }
-
     let maxSellCandidateCost = 0;
     if (typeof getCardCost === 'function' && handCardIds.length > 0) {
         for (const handId of handCardIds) {
@@ -1970,6 +1988,11 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         } else if (maxLegalBoardBonus === 1) {
             score -= 180;
             if (whiteLv6Mode && setupBudgetTight) score -= 48;
+        } else if (maxLegalBoardBonus === 2) {
+            score -= 260;
+            if (whiteLv6Mode) score -= 60;
+            if (cornerEmergency) score -= 48;
+            if (openingPhase) score -= 24;
         } else if (maxLegalBoardBonus >= 3) {
             score += 132;
         } else {
@@ -2068,6 +2091,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (trailingHard) score += 68;
         else if (trailing) score += 30;
         if (edgeEmergency) score += 26;
+        if (ctx.legalMovesCount <= 1 && edgeDiff < 0 && hasEdgeMoveNow && !cornerEmergency) score += 18;
         if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 46;
         if (leadStable && !ctx.forceUseCard) score -= 78;
         if (endgamePhase && leadStable) score -= 28;
@@ -2394,6 +2418,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         else if (hasEdgeMoveNow) score += 30;
         else score -= 48;
         if (maxLegalFlips < 4 && !ctx.forceUseCard) score -= 260;
+        if (whiteLv6Mode && maxLegalFlips < 4 && !ctx.forceUseCard) score -= 60;
         if (maxLegalFlips >= 4) score += 108;
         if (cornerEmergency && !hasCornerMoveNow) score += 40;
         if (trailingHard) score += 52;
@@ -2443,6 +2468,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (cornerEmergency || trailingHard) score += 96;
         else if (trailing) score += 34;
         if (edgeEmergency) score += 26;
+        if (openingPhase && !cornerEmergency && edgeDiff >= -1 && maxLegalFlips <= 2 && maxLegalGain <= 2) score -= 140;
         if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 48;
         if (leadStable && !ctx.forceUseCard) score -= 108;
         if (endgamePhase) score -= 78;
@@ -2766,6 +2792,7 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
     if (isRecoveryCard) score += cornerEmergency ? 220 : 120;
     if (isChargeRampCard && !isWorkWill) score += 85;
     if (isWorkWill) score += hasCornerMoveNow ? 110 : 35;
+    if (isWorkWill && !cornerEmergency && !hasCornerMoveNow && !hasEdgeMoveNow) score += 90;
     if (DEFENSIVE_CARD_TYPES.has(cardType)) score += 40;
     if (HIGH_VARIANCE_CARD_TYPES.has(cardType)) score -= 35;
     if (hasCornerMoveNow && isHoldCard) score += 55;
@@ -2800,6 +2827,12 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
     }
 
     if (whiteLv6Mode && (isThrowChainCard || isChainWill)) score -= 260;
+    if (
+        whiteLv6Mode &&
+        (cardType === 'TRIPLE_PLACE' || cardType === 'QUAD_PLACE' || cardType === 'INFINITE_PLACE') &&
+        ctx.discDiff >= 4 &&
+        !cornerEmergency
+    ) score += 520;
     if (whiteLv6Mode && isLastResort && ctx.discDiff >= 0 && !cornerEmergency) score -= 220;
     if (whiteLv6Mode && isLastResort && ctx.legalMovesCount > 0) score -= 520;
     if (whiteLv6Mode && isLastResort && ctx.legalMovesCount > 0 && ctx.handSize >= 4) score -= 220;
@@ -3001,6 +3034,7 @@ function scoreCardRetentionForSell(cardId, getCardCost, getCardDef, context) {
         else score -= 96;
         if (oppCorners > ownCorners) score += 26;
         if (hasCornerMoveNow && ctx.discDiff >= 0 && !cornerEmergency) score -= 52;
+        if (!cornerEmergency && !hasCornerMoveNow && !hasEdgeMoveNow) score -= 110;
         if (ctx.empties <= 12) score -= 82;
     }
     if (isTeleportWill) {
@@ -3091,6 +3125,7 @@ function chooseHandDestroyTargetForCycle(handCardIds, usableCardIds, getCardCost
     const oppCorners = Number.isFinite(context && context.oppCorners) ? Number(context.oppCorners) : 0;
     const cornerEmergency = !!(context && context.cornerEmergency) || (oppCorners > ownCorners);
     const hasCornerMoveNow = context && context.hasCornerMoveNow === true;
+    const hasEdgeMoveNow = context && context.hasEdgeMoveNow === true;
     const cornerHoldMode = context && context.cornerHoldMode === true;
     const whiteLv6Mode = ctx.level >= 6 && Number(ctx.playerValue) < 0;
     const needRecoveryCard = (cornerEmergency || !hasCornerMoveNow) && !hasRecoveryCard;
@@ -3144,6 +3179,8 @@ function chooseHandDestroyTargetForCycle(handCardIds, usableCardIds, getCardCost
         const isTimeBomb = cardType === 'TIME_BOMB';
         const isTimeStopGod = cardType === 'TIME_STOP_GOD';
         const isLastResort = cardType === 'LAST_RESORT';
+        const isSuperCrushWill = cardType === 'SUPER_BUOYANCY_WILL' || cardType === 'SUPER_GRAVITY_WILL';
+        const isGeneratedKeepPlace = cardType === 'TRIPLE_PLACE' || cardType === 'QUAD_PLACE' || cardType === 'INFINITE_PLACE';
         const isFastRotate = WHITE_LV6_FAST_ROTATE_TYPES.has(cardType);
         const isWhiteCornerKeep = WHITE_LV6_CORNER_SWING_KEEP_TYPES.has(cardType);
 
@@ -3151,6 +3188,7 @@ function chooseHandDestroyTargetForCycle(handCardIds, usableCardIds, getCardCost
         if (needRecoveryCard && isRecoveryCard) destroyScore += 520;
         if (needHoldCard && isHoldCard) destroyScore += 460;
         if (needChargeRampCard && isRampCard) destroyScore += 220;
+        if (needRecoveryCard && isTimeBomb) destroyScore -= 220;
 
         // Prefer rotating risky cards while stable, especially in hand-saturated states.
         if (isTimeBomb && !cornerEmergency && ctx.discDiff >= 0) destroyScore -= 210;
@@ -3167,10 +3205,11 @@ function chooseHandDestroyTargetForCycle(handCardIds, usableCardIds, getCardCost
         if (whiteLv6Mode) {
             if ((cornerEmergency || hasCornerMoveNow || cornerHoldMode) && isWhiteCornerKeep) destroyScore += 520;
             if (isFastRotate) destroyScore -= 380;
-            if (ctx.discDiff >= 4 && WHITE_LV6_DESTROY_WHEN_AHEAD_TYPES.has(cardType)) destroyScore -= 360;
-            if ((ctx.legalMovesCount <= 2 || ctx.handSize >= 4) && WHITE_LV6_DESTROY_WHEN_AHEAD_TYPES.has(cardType) && !isWhiteCornerKeep) {
+            if (ctx.discDiff >= 4 && WHITE_LV6_DESTROY_WHEN_AHEAD_TYPES.has(cardType) && !isGeneratedKeepPlace) destroyScore -= 360;
+            if ((ctx.legalMovesCount <= 2 || ctx.handSize >= 4) && WHITE_LV6_DESTROY_WHEN_AHEAD_TYPES.has(cardType) && !isWhiteCornerKeep && !isGeneratedKeepPlace) {
                 destroyScore -= 220;
             }
+            if (!cornerEmergency && !hasCornerMoveNow && !hasEdgeMoveNow && isSuperCrushWill) destroyScore -= 160;
             if (ctx.legalMovesCount <= 1 && HIGH_VARIANCE_CARD_TYPES.has(cardType) && !isWhiteCornerKeep) {
                 destroyScore -= 180;
             }
@@ -3402,6 +3441,15 @@ function countCornersFor(board, playerValue) {
 }
 
 function adjacentCornerFor(row, col, boardOrRows, colsMaybe) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.getCornerProximity === 'function') {
+        const hint = SharedBoardUtils.getCornerProximity(row, col, boardOrRows, colsMaybe);
+        if (hint && Array.isArray(hint.corner) && hint.corner.length === 2) {
+            return {
+                row: Number(hint.corner[0]),
+                col: Number(hint.corner[1])
+            };
+        }
+    }
     const geom = resolveBoardGeometry(boardOrRows, colsMaybe);
     const maxR = geom.maxR;
     const maxC = geom.maxC;
@@ -3443,6 +3491,14 @@ function getBoardBonusAtCell(boardBonusByCell, boardBonusConsumedByCell, row, co
     return Number.isFinite(raw) && raw > 0 ? raw : 0;
 }
 
+function getBoardCellValueSafe(board, row, col) {
+    if (!inBoard(board, row, col)) return null;
+    if (SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function') {
+        return SharedBoardUtils.getCellValue(board, row, col);
+    }
+    return Array.isArray(board) && Array.isArray(board[row]) ? board[row][col] : null;
+}
+
 function computeLegalMoveMetrics(legalMoves, getBoardBonus) {
     const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
     let maxLegalFlips = 0;
@@ -3478,8 +3534,7 @@ function countAdjacentCellsByValue(board, row, col, value) {
             if (dr === 0 && dc === 0) continue;
             const nr = row + dr;
             const nc = col + dc;
-            if (!inBoard(board, nr, nc)) continue;
-            if (board[nr][nc] === value) count += 1;
+            if (getBoardCellValueSafe(board, nr, nc) === value) count += 1;
         }
     }
     return count;
@@ -3504,12 +3559,37 @@ function computePlacementStabilityProxy(board, row, col, playerValue) {
 
     const adjacentCorner = adjacentCornerFor(row, col, board);
     if (adjacentCorner && inBoard(board, adjacentCorner.row, adjacentCorner.col)) {
-        const cornerVal = board[adjacentCorner.row][adjacentCorner.col];
+        const cornerVal = getBoardCellValueSafe(board, adjacentCorner.row, adjacentCorner.col);
         if (cornerVal === playerValue) score += 1.5;
         else if (cornerVal === -playerValue) score -= 0.6;
     }
 
     return score;
+}
+
+function evaluateMoveStabilityProfile(board, move, playerValue, ownAnchoredEdgesBefore) {
+    if (!Array.isArray(board) || !move) {
+        return {
+            stabilityProxy: Number.NEGATIVE_INFINITY,
+            anchoredEdgeDelta: Number.NEGATIVE_INFINITY
+        };
+    }
+    const row = Number(move.row);
+    const col = Number(move.col);
+    if (!Number.isInteger(row) || !Number.isInteger(col) || !inBoard(board, row, col)) {
+        return {
+            stabilityProxy: Number.NEGATIVE_INFINITY,
+            anchoredEdgeDelta: Number.NEGATIVE_INFINITY
+        };
+    }
+    const after = applyMoveToBoard(board, move, playerValue);
+    const anchoredBefore = Number.isFinite(ownAnchoredEdgesBefore)
+        ? Number(ownAnchoredEdgesBefore)
+        : countAnchoredEdgeDiscsFromCorners(board, playerValue);
+    return {
+        stabilityProxy: computePlacementStabilityProxy(after, row, col, playerValue),
+        anchoredEdgeDelta: countAnchoredEdgeDiscsFromCorners(after, playerValue) - anchoredBefore
+    };
 }
 
 function resolveMovePlanProfile(context) {
@@ -3535,8 +3615,7 @@ function countAdjacentOpponentStrikeProfile(board, row, col, playerValue) {
             if (dr === 0 && dc === 0) continue;
             const targetRow = row + dr;
             const targetCol = col + dc;
-            if (!inBoard(board, targetRow, targetCol)) continue;
-            if (board[targetRow][targetCol] !== opponentValue) continue;
+            if (getBoardCellValueSafe(board, targetRow, targetCol) !== opponentValue) continue;
             out.oppAdjCount += 1;
             if (isCorner(targetRow, targetCol, board)) out.oppCornerCount += 1;
             else if (isEdge(targetRow, targetCol, board)) out.oppEdgeCount += 1;
@@ -3564,7 +3643,7 @@ function collectUltimateHyperactiveLandingProfile(board, row, col, playerValue, 
                 const targetRow = row + (dr * distance);
                 const targetCol = col + (dc * distance);
                 if (!inBoard(board, targetRow, targetCol)) break;
-                if (board[targetRow][targetCol] !== 0) continue;
+                if (getBoardCellValueSafe(board, targetRow, targetCol) !== 0) continue;
                 out.count += 1;
                 if (distance > out.maxDistance) out.maxDistance = distance;
                 if (distance >= 3) out.longRangeCount += 1;
@@ -3603,10 +3682,10 @@ function scoreMoveForCornerEdgePlan(move, context) {
 
     const adjacentCorner = adjacentCornerFor(row, col, board);
     if (adjacentCorner && board && inBoard(board, adjacentCorner.row, adjacentCorner.col)) {
-        const cornerVal = board[adjacentCorner.row][adjacentCorner.col];
+        const cornerVal = getBoardCellValueSafe(board, adjacentCorner.row, adjacentCorner.col);
         const cornerEmpty = cornerVal === 0;
         if (cornerEmpty && isXSquare(row, col, board)) score -= 12000;
-        if (cornerEmpty && isCSquare(row, col, board)) score -= 6500;
+        if (cornerEmpty && isCSquare(row, col, board)) score -= 9000;
         if (cornerVal === playerValue && isXSquare(row, col, board)) score += 1200;
         if (cornerVal === playerValue && isCSquare(row, col, board)) score += 800;
     }
@@ -3695,6 +3774,13 @@ function scoreMoveForCornerEdgePlan(move, context) {
     const oppEdgesBefore = countEdgesFor(board, -playerValue);
     const ownEdgesAfter = countEdgesFor(after, playerValue);
     const oppEdgesAfter = countEdgesFor(after, -playerValue);
+    const ownFrontierBefore = countFrontierDiscsFor(board, playerValue);
+    const ownFrontierAfter = countFrontierDiscsFor(after, playerValue);
+    const ownAnchoredEdgesBefore = countAnchoredEdgeDiscsFromCorners(board, playerValue);
+    const ownAnchoredEdgesAfter = countAnchoredEdgeDiscsFromCorners(after, playerValue);
+    const frontierDelta = ownFrontierAfter - ownFrontierBefore;
+    const anchoredEdgeDelta = ownAnchoredEdgesAfter - ownAnchoredEdgesBefore;
+    const stabilityProxy = computePlacementStabilityProxy(after, row, col, playerValue);
     const cornerLead = ownCornersAfter - oppCornersAfter;
     const edgeLeadBefore = ownEdgesBefore - oppEdgesBefore;
     const edgeLeadAfter = ownEdgesAfter - oppEdgesAfter;
@@ -3795,6 +3881,28 @@ function scoreMoveForCornerEdgePlan(move, context) {
         score -= 280;
     }
 
+    if (level >= 6) {
+        const boundedStability = Math.max(-5, Math.min(6, stabilityProxy));
+        score += Math.round(boundedStability * (whiteLv6Mode ? 210 : 170));
+        if (!isCorner(row, col, board) && isEdge(row, col, board)) {
+            score += anchoredEdgeDelta * (whiteLv6Mode ? 560 : 420);
+            if (
+                anchoredEdgeDelta <= 0 &&
+                stabilityProxy <= 0.5 &&
+                cornerLead <= 0 &&
+                !lowMobilityBefore &&
+                !lowDiscEmergency
+            ) {
+                score -= whiteLv6Mode ? 9800 : 7600;
+            }
+        } else if (!isCorner(row, col, board) && !isEdge(row, col, board) && anchoredEdgeDelta > 0) {
+            score += anchoredEdgeDelta * (whiteLv6Mode ? 240 : 180);
+        }
+        if (!isCorner(row, col, board) && frontierDelta > 0) {
+            score -= frontierDelta * (whiteLv6Mode ? 170 : 120);
+        }
+    }
+
     // If recovery/hold counters are not online yet, bias toward charge-positive
     // bonus cells and safe edges rather than low-value inner expansion.
     if (
@@ -3821,17 +3929,10 @@ function scoreMoveForCornerEdgePlan(move, context) {
         const ownAdjAfter = countAdjacentCellsByValue(after, row, col, playerValue);
         const oppAdjBefore = countAdjacentCellsByValue(board, row, col, -playerValue);
         const emptyAdjBefore = countAdjacentCellsByValue(board, row, col, 0);
-        const ownFrontierBefore = countFrontierDiscsFor(board, playerValue);
-        const ownFrontierAfter = countFrontierDiscsFor(after, playerValue);
-        const ownAnchoredEdgesBefore = countAnchoredEdgeDiscsFromCorners(board, playerValue);
-        const ownAnchoredEdgesAfter = countAnchoredEdgeDiscsFromCorners(after, playerValue);
         const ownRiskBefore = countXsAndCsFor(board, playerValue);
         const ownRiskAfter = countXsAndCsFor(after, playerValue);
         const ownMobilityDelta = ownMovesAfter.length - ownMovesBefore.length;
         const oppMobilityPressure = oppMovesBefore.length - oppMoves.length;
-        const frontierDelta = ownFrontierAfter - ownFrontierBefore;
-        const anchoredEdgeDelta = ownAnchoredEdgesAfter - ownAnchoredEdgesBefore;
-        const stabilityProxy = computePlacementStabilityProxy(after, row, col, playerValue);
         const profileScale = 0.32 + (Number(movePlanProfile.placementWeight) * 0.14);
 
         let profileScore = 0;
@@ -4750,6 +4851,10 @@ function chooseMoveByLookahead(candidateMoves, options) {
     if ((budgetHit || timeHit) && !bestMove && candidateMoves.length > 0) return candidateMoves[0];
 
     if (bestMove && level >= 6) {
+        const standardBoard = Array.isArray(board) &&
+            board.length === 8 &&
+            board.every((row) => Array.isArray(row) && row.length === 8);
+        const ownAnchoredEdgesBefore = countAnchoredEdgeDiscsFromCorners(board, playerValue);
         const rankedAllMoves = buildSearchMoveOrder(candidateMoves, {
             level,
             board,
@@ -4788,12 +4893,24 @@ function chooseMoveByLookahead(candidateMoves, options) {
             const ownCornersNow = countCornersFor(board, playerValue);
             const oppCornersNow = countCornersFor(board, -playerValue);
             if (ownCornersNow > oppCornersNow) {
+                const selectedRisk = evaluateImmediateCornerDonation(board, bestMove, playerValue);
+                const selectedProfile = evaluateMoveStabilityProfile(board, bestMove, playerValue, ownAnchoredEdgesBefore);
                 for (const move of rankedAllMoves) {
                     if (!move) continue;
                     if (isCorner(move.row, move.col, board)) continue;
                     if (!isEdge(move.row, move.col, board)) continue;
                     const altRisk = evaluateImmediateCornerDonation(board, move, playerValue);
-                    if (altRisk.donatesCornerNow) continue;
+                    if (!standardBoard && selectedRisk.donatesCornerNow) {
+                        if (altRisk.oppCornerMoves > selectedRisk.oppCornerMoves) continue;
+                    } else if (altRisk.donatesCornerNow) {
+                        continue;
+                    }
+                    const altProfile = evaluateMoveStabilityProfile(board, move, playerValue, ownAnchoredEdgesBefore);
+                    const meaningfullyMoreStable = (
+                        altProfile.anchoredEdgeDelta > selectedProfile.anchoredEdgeDelta ||
+                        altProfile.stabilityProxy > (selectedProfile.stabilityProxy + 0.75)
+                    );
+                    if (!meaningfullyMoreStable) continue;
                     bestMove = move;
                     break;
                 }
@@ -4804,12 +4921,21 @@ function chooseMoveByLookahead(candidateMoves, options) {
         if (!isCorner(bestMove.row, bestMove.col, board) && !isEdge(bestMove.row, bestMove.col, board)) {
             const anyCornerExists = rankedAllMoves.some((move) => move && isCorner(move.row, move.col, board));
             if (!anyCornerExists) {
+                const selectedRisk = evaluateImmediateCornerDonation(board, bestMove, playerValue);
+                const selectedProfile = evaluateMoveStabilityProfile(board, bestMove, playerValue, ownAnchoredEdgesBefore);
                 for (const move of rankedAllMoves) {
                     if (!move) continue;
                     if (isCorner(move.row, move.col, board)) continue;
                     if (!isEdge(move.row, move.col, board)) continue;
                     const altRisk = evaluateImmediateCornerDonation(board, move, playerValue);
-                    if (altRisk.donatesCornerNow) continue;
+                    if (!standardBoard && selectedRisk.donatesCornerNow) {
+                        if (altRisk.oppCornerMoves > selectedRisk.oppCornerMoves) continue;
+                    } else if (altRisk.donatesCornerNow) {
+                        continue;
+                    }
+                    const altProfile = evaluateMoveStabilityProfile(board, move, playerValue, ownAnchoredEdgesBefore);
+                    const meaningfullySaferEdge = altProfile.anchoredEdgeDelta > 0;
+                    if (!meaningfullySaferEdge) continue;
                     bestMove = move;
                     break;
                 }
@@ -4832,6 +4958,7 @@ module.exports = {
     isChargeRampCardType,
     isCornerHoldCardType,
     isCornerRecoveryCardType,
+    hasBaseScoreBonusForCardType,
     hasMovePlanProfileForCardType,
     hasUsageStyleForCardType,
     scoreCardRetentionForSell,

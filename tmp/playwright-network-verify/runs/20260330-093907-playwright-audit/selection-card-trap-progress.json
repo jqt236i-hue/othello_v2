@@ -1,0 +1,12 @@
+{
+  "target": "trap",
+  "timestamp": "2026-03-30T00:44:20.835Z",
+  "phase": "select_target_attempt",
+  "actorSeatKey": "white",
+  "pendingType": "TRAP_WILL",
+  "candidate": {
+    "row": 2,
+    "col": 4
+  },
+  "attemptIndex": 1
+}

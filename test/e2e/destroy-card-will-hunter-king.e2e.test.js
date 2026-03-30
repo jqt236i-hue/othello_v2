@@ -1,34 +1,8 @@
 const { chromium } = require('playwright');
-const path = require('path');
-const http = require('http');
-const fs = require('fs');
+const { startStaticServer, stopStaticServer, stopPlaywrightPage, stopPlaywrightBrowser } = require('./e2e-runtime-helpers');
 
 function startServer(port = 0) {
-  const root = path.resolve(__dirname, '..', '..');
-  const server = http.createServer((req, res) => {
-    let reqPath = req.url.split('?')[0];
-    if (reqPath === '/') reqPath = '/index.html';
-    const filePath = path.join(root, decodeURIComponent(reqPath));
-    fs.readFile(filePath, (err, data) => {
-      if (err) {
-        res.statusCode = 404;
-        res.end('Not found');
-        return;
-      }
-      const ext = path.extname(filePath).toLowerCase();
-      const mime = ext === '.html'
-        ? 'text/html'
-        : ext === '.js'
-          ? 'application/javascript'
-          : ext === '.css'
-            ? 'text/css'
-            : 'application/octet-stream';
-      res.setHeader('Content-Type', mime);
-      res.end(data);
-    });
-  });
-  server.listen(port);
-  return server;
+  return startStaticServer(port);
 }
 
 describe('DESTROY_ONE_STONE destroy evade E2E', () => {
@@ -45,18 +19,12 @@ describe('DESTROY_ONE_STONE destroy evade E2E', () => {
   }, 30000);
 
   afterAll(async () => {
-    if (page) {
-      await page.close().catch(() => {});
-      page = null;
-    }
-    if (browser) {
-      await browser.close();
-      browser = null;
-    }
-    if (serverProc && typeof serverProc.close === 'function') {
-      await new Promise((resolve) => serverProc.close(resolve));
-      serverProc = null;
-    }
+    await stopPlaywrightPage(page, 10000);
+    page = null;
+    await stopPlaywrightBrowser(browser, 10000);
+    browser = null;
+    await stopStaticServer(serverProc);
+    serverProc = null;
   }, 30000);
 
   test('破壊神で意志狩りの王を選んだ時は破壊回避して表示も移動先へ残る', async () => {
@@ -124,6 +92,8 @@ describe('DESTROY_ONE_STONE destroy evade E2E', () => {
 
     await page.evaluate(async () => {
       await window.executeDestroy(4, 4, 'black');
+      if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+      else if (typeof renderBoard === 'function') renderBoard();
     });
 
     await page.waitForFunction(() => {

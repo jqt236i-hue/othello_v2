@@ -138,4 +138,41 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(global.window.__suppressNextDiffFlip).toBe(false);
     expect(global.window.__suppressNextBoardExpansionRevealSound).toBe(false);
   });
+
+  test('abortPlayback clears playback timing and busy flags together', () => {
+    const manager = require('../ui/playback-state-manager');
+
+    manager.setInteractionLock(true);
+    manager.setPlaybackStartedAt(1234);
+    manager.armBoardUpdateContext({
+      suppressFallbackFlip: true,
+      source: 'unit-test',
+      reason: 'abort_cleanup'
+    });
+
+    manager.abortPlayback();
+
+    expect(manager.getPlaybackActive()).toBe(false);
+    expect(manager.getCardAnimating()).toBe(false);
+    expect(manager.getProcessing()).toBe(false);
+    expect(manager.getPlaybackStartedAt()).toBeNull();
+    expect(manager.getBoardUpdateContext()).toBeNull();
+    expect(global.window.__playbackActiveSince).toBeNull();
+  });
+
+  test('abortPlayback invokes the registered playback abort handle only once', () => {
+    const manager = require('../ui/playback-state-manager');
+    const abort = jest.fn(() => true);
+
+    manager.registerPlaybackAbortHandle({ abort });
+    manager.setInteractionLock(true);
+
+    manager.abortPlayback();
+    manager.abortPlayback();
+
+    expect(abort).toHaveBeenCalledTimes(1);
+    expect(manager.getPlaybackActive()).toBe(false);
+    expect(manager.getProcessing()).toBe(false);
+    expect(manager.getCardAnimating()).toBe(false);
+  });
 });

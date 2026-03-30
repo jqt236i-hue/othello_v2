@@ -28,6 +28,11 @@ describe('card use source element selection', () => {
     `);
     global.window = dom.window;
     global.document = dom.window.document;
+    const playbackStateManager = require('../ui/playback-state-manager');
+    playbackStateManager.abortPlayback();
+    playbackStateManager.setBusyState({ processing: false, cardAnimating: false, playbackActive: false });
+    global.PlaybackStateManager = playbackStateManager;
+    global.window.PlaybackStateManager = playbackStateManager;
 
     global.BLACK = 1;
     global.WHITE = -1;
@@ -72,6 +77,12 @@ describe('card use source element selection', () => {
   });
 
   afterEach(() => {
+    try {
+      if (global.PlaybackStateManager && typeof global.PlaybackStateManager.abortPlayback === 'function') {
+        global.PlaybackStateManager.abortPlayback();
+      }
+    } catch (e) { /* ignore */ }
+    delete global.PlaybackStateManager;
     delete global.window;
     delete global.document;
   });
@@ -308,6 +319,33 @@ describe('card use source element selection', () => {
     expect(global.window.isProcessing).toBe(false);
     expect(global.window.isCardAnimating).toBe(false);
     expect(global.addLog).toHaveBeenCalledWith('カード使用に失敗しました (OUT_OF_TURN)');
+    expect(global.ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
+  });
+
+  test('network mode wakes current player when server-authored card use publish promise rejects', async () => {
+    window.MATCH_MODE = 'network';
+    window.LOCAL_PLAYER_KEY = 'black';
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      skippedLocalExecution: true,
+      publishPromise: Promise.reject(new Error('SOCKET_DOWN')),
+      playbackEvents: []
+    }));
+
+    require('../cards/card-interaction.js');
+    global.addLog.mockClear();
+    global.cardState.selectedCardOwnerKey = 'black';
+
+    window.useSelectedCard();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.cardState.selectedCardId).toBe('dup_card');
+    expect(global.cardState.selectedCardOwnerKey).toBe('black');
+    expect(global.window.isProcessing).toBe(false);
+    expect(global.window.isCardAnimating).toBe(false);
+    expect(global.addLog).toHaveBeenCalledWith('カード使用に失敗しました (SOCKET_DOWN)');
+    expect(global.ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
   });
 
   test('network mode does not emit a duplicate effect log for card use', () => {

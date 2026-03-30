@@ -4,9 +4,21 @@ describe('cpu-turn-handler helpers', () => {
   afterEach(() => {
     // restore timers
     mod.setTimers(null);
+    if (typeof mod.resetCpuTurnHandlerState === 'function') {
+      mod.resetCpuTurnHandlerState();
+    }
     jest.useRealTimers();
     // cleanup any globals we set
     delete global.cpuSelectDestroyWithPolicy;
+    delete global.BLACK;
+    delete global.WHITE;
+    delete global.cpuSmartness;
+    delete global.gameState;
+    delete global.cardState;
+    delete global.isCardAnimating;
+    delete global.isProcessing;
+    delete global.isGameOver;
+    delete global.PlaybackStateManager;
   });
 
   test('scheduleRetry uses timers.waitMs when available', async () => {
@@ -45,5 +57,77 @@ describe('cpu-turn-handler helpers', () => {
     expect(typeof h.DESTROY_ONE_STONE).toBe('function');
     await h.DESTROY_ONE_STONE();
     expect(invoked).toBe(true);
+  });
+
+  test('resetCpuTurnHandlerState clears stale scheduled retry latch', async () => {
+    const waitMs = jest.fn(() => new Promise(() => {}));
+    mod.setTimers({ waitMs });
+
+    global.BLACK = 1;
+    global.WHITE = -1;
+    global.cpuSmartness = { black: 1, white: 6 };
+    global.isCardAnimating = true;
+    global.isProcessing = false;
+    global.isGameOver = jest.fn(() => false);
+    global.gameState = {
+      currentPlayer: global.WHITE,
+      turnNumber: 7,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      hands: { black: [], white: [] },
+      charge: { black: 0, white: 0 }
+    };
+
+    await mod.processCpuTurn();
+    expect(waitMs).toHaveBeenCalledTimes(1);
+
+    mod.resetCpuTurnHandlerState();
+    global.gameState = {
+      currentPlayer: global.WHITE,
+      turnNumber: 0,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+
+    await mod.processCpuTurn();
+    expect(waitMs).toHaveBeenCalledTimes(2);
+  });
+
+  test('processCpuTurn defers when PlaybackStateManager reports processing busy', async () => {
+    const waitMs = jest.fn(() => new Promise(() => {}));
+    mod.setTimers({ waitMs });
+
+    global.BLACK = 1;
+    global.WHITE = -1;
+    global.cpuSmartness = { black: 1, white: 6 };
+    global.isCardAnimating = false;
+    global.isProcessing = false;
+    global.isGameOver = jest.fn(() => false);
+    global.PlaybackStateManager = {
+      getProcessing: jest.fn(() => true),
+      getCardAnimating: jest.fn(() => false),
+      getPlaybackActive: jest.fn(() => false),
+      setProcessing: jest.fn()
+    };
+    global.gameState = {
+      currentPlayer: global.WHITE,
+      turnNumber: 3,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      hands: { black: [], white: [] },
+      charge: { black: 0, white: 0 }
+    };
+
+    await mod.processCpuTurn();
+
+    expect(global.PlaybackStateManager.getProcessing).toHaveBeenCalled();
+    expect(waitMs).toHaveBeenCalledTimes(1);
   });
 });

@@ -70,6 +70,9 @@ describe('TRAP_WILL selection turn handoff', () => {
     global.MATCH_MODE = 'cpu';
     global.DEBUG_HUMAN_VS_HUMAN = false;
     global.requestAnimationFrame = jest.fn();
+    const playbackStateManager = require('../ui/playback-state-manager');
+    playbackStateManager.clearPlaybackLock();
+    global.PlaybackStateManager = playbackStateManager;
   });
 
   afterEach(() => {
@@ -98,6 +101,7 @@ describe('TRAP_WILL selection turn handoff', () => {
     delete global.MATCH_MODE;
     delete global.DEBUG_HUMAN_VS_HUMAN;
     delete global.requestAnimationFrame;
+    delete global.PlaybackStateManager;
     delete globalThis.waitForPlaybackIdle;
   });
 

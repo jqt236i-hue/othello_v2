@@ -90,6 +90,11 @@ describe('SELL_CARD_WILL deferred publish from card interaction', () => {
     global.document = dom.window.document;
     global.location = dom.window.location;
     global.localStorage = dom.window.localStorage;
+    const playbackStateManager = require('../ui/playback-state-manager');
+    playbackStateManager.abortPlayback();
+    playbackStateManager.setBusyState({ processing: false, cardAnimating: false, playbackActive: false });
+    global.PlaybackStateManager = playbackStateManager;
+    global.window.PlaybackStateManager = playbackStateManager;
     window.DEBUG_UNLIMITED_USAGE = false;
     window.DEBUG_HUMAN_VS_HUMAN = false;
     window.AUTO_MODE_ACTIVE = false;
@@ -204,6 +209,13 @@ describe('SELL_CARD_WILL deferred publish from card interaction', () => {
 
   afterEach(() => {
     try {
+      if (global.PlaybackStateManager && typeof global.PlaybackStateManager.abortPlayback === 'function') {
+        global.PlaybackStateManager.abortPlayback();
+      }
+    } catch (e) {
+      // ignore
+    }
+    try {
       if (dom && dom.window && typeof dom.window.close === 'function') dom.window.close();
     } catch (e) {
       // ignore
@@ -234,6 +246,7 @@ describe('SELL_CARD_WILL deferred publish from card interaction', () => {
     delete global.ActionManager;
     delete global.TurnPipeline;
     delete global.TurnPipelineUIAdapter;
+    delete global.PlaybackStateManager;
     delete global.NetworkMatchClient;
     delete global.EventSource;
     delete global.fetch;

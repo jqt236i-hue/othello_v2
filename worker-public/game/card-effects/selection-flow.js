@@ -19,41 +19,14 @@
     'use strict';
 
     let cachedNetworkTurnHandoff = null;
+    let cachedPendingCoordinator = null;
+    let cachedPendingStateManager = null;
     let cachedPlaybackStateManager = null;
-    const pendingSelectionActionByPlayer = {
-        black: null,
-        white: null
+    let selectionSignalBridge = null;
+    const localSelectionBusyState = {
+        processing: false,
+        cardAnimating: false
     };
-
-    const PENDING_SELECTION_CONTRACTS = Object.freeze({
-        DESTROY_ONE_STONE: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        STRONG_WIND_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        SUPER_BUOYANCY_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        SUPER_GRAVITY_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        TELEPORT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        CELL_TELEPORT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        TEMPT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        TRAP_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        GUARD_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        GUARDIAN_GOD: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        HYPERACTIVE_INHERIT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        EXTEND_LIFE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        EXTEND_LIFE_GOD: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        CORROSION_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        CLONE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        SPLIT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        BLOCKADE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        BOARD_EXPANSION_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        BOARD_EXPANSION_GOD: { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        FREEZE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        POSITION_SWAP_WILL: { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        METEOR_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        TIME_BOMB: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        SWAP_WITH_ENEMY: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        SELL_CARD_WILL: { kind: 'hand_overlay', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        HEAVEN_BLESSING: { kind: 'hand_overlay', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        CONDEMN_WILL: { kind: 'hand_overlay', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true }
-    });
 
     function normalizePendingType(pendingType) {
         return String(pendingType || '').trim().toUpperCase();
@@ -72,39 +45,105 @@
         return cachedNetworkTurnHandoff;
     }
 
+    function setSignalBridge(bridge) {
+        selectionSignalBridge = (bridge && typeof bridge === 'object') ? bridge : null;
+        return selectionSignalBridge;
+    }
+
+    function clearSignalBridge() {
+        selectionSignalBridge = null;
+        return true;
+    }
+
+    function getSignalBridge() {
+        return selectionSignalBridge;
+    }
+
+    function readSignalBridgeMethod(name) {
+        const bridge = getSignalBridge();
+        if (!bridge || typeof name !== 'string') return null;
+        return (typeof bridge[name] === 'function') ? bridge[name] : null;
+    }
+
+    function getPendingStateManager() {
+        if (cachedPendingStateManager && typeof cachedPendingStateManager === 'object') {
+            return cachedPendingStateManager;
+        }
+        if (typeof require === 'function') {
+            try { cachedPendingStateManager = require('../logic/cards-internal/pending-state-manager'); } catch (e) { /* ignore */ }
+        }
+        if (!cachedPendingStateManager && root && root.CardPendingStateManager) {
+            cachedPendingStateManager = root.CardPendingStateManager;
+        }
+        return cachedPendingStateManager;
+    }
+
+    function getPendingCoordinator() {
+        if (cachedPendingCoordinator && typeof cachedPendingCoordinator === 'object') {
+            return cachedPendingCoordinator;
+        }
+        if (typeof require === 'function') {
+            try { cachedPendingCoordinator = require('../turn/pending-coordinator'); } catch (e) { /* ignore */ }
+        }
+        if (!cachedPendingCoordinator && root && root.PendingCoordinator) {
+            cachedPendingCoordinator = root.PendingCoordinator;
+        }
+        return cachedPendingCoordinator;
+    }
+
     function getPlaybackStateManager() {
+        const bridge = getSignalBridge();
+        if (bridge && bridge.playbackStateManager && typeof bridge.playbackStateManager === 'object') {
+            return bridge.playbackStateManager;
+        }
+        const getPlaybackStateManagerFromBridge = readSignalBridgeMethod('getPlaybackStateManager');
+        if (getPlaybackStateManagerFromBridge) {
+            try {
+                const playbackStateFromBridge = getPlaybackStateManagerFromBridge();
+                if (playbackStateFromBridge && typeof playbackStateFromBridge === 'object') {
+                    return playbackStateFromBridge;
+                }
+            } catch (e) { /* ignore */ }
+        }
         if (cachedPlaybackStateManager && typeof cachedPlaybackStateManager === 'object') {
             return cachedPlaybackStateManager;
         }
         if (!cachedPlaybackStateManager && root && root.PlaybackStateManager) {
             cachedPlaybackStateManager = root.PlaybackStateManager;
         }
-        if (typeof require === 'function') {
-            try { cachedPlaybackStateManager = require('../../ui/playback-state-manager'); } catch (e) { /* ignore */ }
-        }
         return cachedPlaybackStateManager;
     }
 
     function resolvePendingSelectionContract(pendingType) {
-        const normalized = normalizePendingType(pendingType);
-        return normalized && PENDING_SELECTION_CONTRACTS[normalized]
-            ? PENDING_SELECTION_CONTRACTS[normalized]
-            : null;
+        const pendingStateManager = getPendingStateManager();
+        if (!pendingStateManager || typeof pendingStateManager.resolvePendingSelectionContract !== 'function') {
+            return null;
+        }
+        return pendingStateManager.resolvePendingSelectionContract(pendingType);
     }
 
     function isSelectionOnlyEndTurnPendingType(pendingType) {
-        const contract = resolvePendingSelectionContract(pendingType);
-        return !!(contract && contract.turnOutcome === 'end_turn');
+        const pendingStateManager = getPendingStateManager();
+        if (!pendingStateManager || typeof pendingStateManager.isSelectionOnlyEndTurnPendingType !== 'function') {
+            return false;
+        }
+        return pendingStateManager.isSelectionOnlyEndTurnPendingType(pendingType);
     }
 
     function shouldDeferNetworkPublishForPendingType(pendingType) {
-        const contract = resolvePendingSelectionContract(pendingType);
-        return !!(contract && contract.deferNetworkPublish === true);
+        const pendingStateManager = getPendingStateManager();
+        if (!pendingStateManager || typeof pendingStateManager.shouldDeferNetworkPublishForPendingType !== 'function') {
+            return false;
+        }
+        return pendingStateManager.shouldDeferNetworkPublishForPendingType(pendingType);
     }
 
     function shouldWaitForPlaybackIdleForPendingType(pendingType) {
-        const contract = resolvePendingSelectionContract(pendingType);
-        return !!(contract && contract.waitForPlaybackIdle === true);
+        const pendingStateManager = getPendingStateManager();
+        if (!pendingStateManager || typeof pendingStateManager.shouldWaitForPlaybackIdleForPendingType !== 'function') {
+            return false;
+        }
+        return pendingStateManager.shouldWaitForPlaybackIdleForPendingType(pendingType);
     }
 
     function cloneData(value) {
@@ -120,6 +159,17 @@
         return String(playerKey || '').trim().toLowerCase() === 'white' ? 'white' : 'black';
     }
 
+    function resolveSelectionTurnPlayerKeyOptional(value) {
+        const normalized = (value === null || typeof value === 'undefined')
+            ? ''
+            : String(value).trim().toLowerCase();
+        if (normalized === 'white' || normalized === '-1') return 'white';
+        if (normalized === 'black' || normalized === '1' || normalized === '+1') return 'black';
+        if (value === -1) return 'white';
+        if (value === 1) return 'black';
+        return null;
+    }
+
     function clonePendingSelectionAction(action) {
         if (!action || typeof action !== 'object') return null;
         try {
@@ -130,66 +180,46 @@
     }
 
     function storePendingSelectionAction(playerKey, action, pendingType) {
-        const normalizedPlayerKey = normalizeSelectionPlayerKey(playerKey);
-        if (!action || typeof action !== 'object') {
-            pendingSelectionActionByPlayer[normalizedPlayerKey] = null;
-            return null;
+        const pendingCoordinator = getPendingCoordinator();
+        if (!pendingCoordinator || typeof pendingCoordinator.storePendingSelectionAction !== 'function') {
+            return clonePendingSelectionAction(action);
         }
-        pendingSelectionActionByPlayer[normalizedPlayerKey] = {
-            action: clonePendingSelectionAction(action),
-            pendingType: normalizePendingType(pendingType)
-        };
-        return readPendingSelectionAction(normalizedPlayerKey);
+        return pendingCoordinator.storePendingSelectionAction(playerKey, action, pendingType);
     }
 
     function readPendingSelectionAction(playerKey) {
-        const normalizedPlayerKey = normalizeSelectionPlayerKey(playerKey);
-        const storedEntry = pendingSelectionActionByPlayer[normalizedPlayerKey];
-        const action = storedEntry && typeof storedEntry === 'object' && storedEntry.action && typeof storedEntry.action === 'object'
-            ? storedEntry.action
-            : storedEntry;
-        if (!action || typeof action !== 'object') return null;
-        return clonePendingSelectionAction(action);
+        const pendingCoordinator = getPendingCoordinator();
+        if (!pendingCoordinator || typeof pendingCoordinator.readPendingSelectionAction !== 'function') {
+            return null;
+        }
+        return pendingCoordinator.readPendingSelectionAction(playerKey);
     }
 
     function clearPendingSelectionAction(playerKey) {
-        pendingSelectionActionByPlayer[normalizeSelectionPlayerKey(playerKey)] = null;
+        const pendingCoordinator = getPendingCoordinator();
+        if (!pendingCoordinator || typeof pendingCoordinator.clearPendingSelectionAction !== 'function') {
+            return false;
+        }
+        return pendingCoordinator.clearPendingSelectionAction(playerKey);
     }
 
     function syncPendingSelectionActionCache(pendingEffectByPlayer) {
-        const pendingByPlayer = pendingEffectByPlayer && typeof pendingEffectByPlayer === 'object'
-            ? pendingEffectByPlayer
-            : null;
-        const summary = {
-            cleared: [],
-            retained: []
-        };
-        const playerKeys = ['black', 'white'];
-        for (let index = 0; index < playerKeys.length; index += 1) {
-            const playerKey = playerKeys[index];
-            const storedEntry = pendingSelectionActionByPlayer[playerKey];
-            if (!storedEntry || typeof storedEntry !== 'object') continue;
-
-            const pending = pendingByPlayer ? pendingByPlayer[playerKey] : null;
-            const expectedType = normalizePendingType(pending && pending.type);
-            const storedType = normalizePendingType(storedEntry.pendingType);
-            if (!expectedType || !storedType || storedType !== expectedType) {
-                pendingSelectionActionByPlayer[playerKey] = null;
-                summary.cleared.push(playerKey);
-                continue;
-            }
-            summary.retained.push(playerKey);
+        const pendingCoordinator = getPendingCoordinator();
+        if (!pendingCoordinator || typeof pendingCoordinator.syncPendingSelectionActionCache !== 'function') {
+            return {
+                cleared: [],
+                retained: []
+            };
         }
-        return summary;
+        return pendingCoordinator.syncPendingSelectionActionCache(pendingEffectByPlayer);
     }
 
     function shouldRetainPendingSelectionAction(cardStateValue, playerKey, pendingType) {
-        const normalizedPlayerKey = normalizeSelectionPlayerKey(playerKey);
-        const pendingByPlayer = cardStateValue && cardStateValue.pendingEffectByPlayer;
-        const pending = pendingByPlayer && pendingByPlayer[normalizedPlayerKey];
-        if (!pending || !pending.type) return false;
-        if (!pendingType) return true;
-        return normalizePendingType(pending.type) === normalizePendingType(pendingType);
+        const pendingCoordinator = getPendingCoordinator();
+        if (!pendingCoordinator || typeof pendingCoordinator.shouldRetainPendingSelectionAction !== 'function') {
+            return false;
+        }
+        return pendingCoordinator.shouldRetainPendingSelectionAction(cardStateValue, playerKey, pendingType);
     }
 
     function capturePendingSelectionSnapshot(gameStateValue, cardStateValue) {
@@ -210,23 +240,44 @@
 
     function publishPendingSelectionSnapshot(meta) {
         const payload = (meta && typeof meta === 'object') ? meta : {};
+        const publishSnapshotViaBridge = readSignalBridgeMethod('publishSnapshot');
+        if (publishSnapshotViaBridge) {
+            try {
+                return publishSnapshotViaBridge(payload);
+            } catch (e) { /* ignore */ }
+        }
         const networkTurnHandoff = getNetworkTurnHandoff();
         if (networkTurnHandoff && typeof networkTurnHandoff.publishNetworkSnapshot === 'function') {
             return networkTurnHandoff.publishNetworkSnapshot(payload);
         }
-        try {
-            if (!root || !root.NetworkMatchClient) return undefined;
-            if (typeof root.NetworkMatchClient.publishSnapshot !== 'function') return undefined;
-            if (typeof root.NetworkMatchClient.isActive === 'function' && !root.NetworkMatchClient.isActive()) return undefined;
-            return root.NetworkMatchClient.publishSnapshot(payload);
-        } catch (e) { /* ignore */ }
         return undefined;
+    }
+
+    function readLegacyBusyFlag(flagName, fallbackValue) {
+        try {
+            if (root && typeof root === 'object' && typeof root[flagName] !== 'undefined') {
+                return root[flagName] === true;
+            }
+            if (root && root.window && typeof root.window === 'object' && typeof root.window[flagName] !== 'undefined') {
+                return root.window[flagName] === true;
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis && typeof globalThis[flagName] !== 'undefined') {
+                return globalThis[flagName] === true;
+            }
+            if (typeof globalThis !== 'undefined' && globalThis && globalThis.window && typeof globalThis.window === 'object' && typeof globalThis.window[flagName] !== 'undefined') {
+                return globalThis.window[flagName] === true;
+            }
+        } catch (e) { /* ignore */ }
+        return fallbackValue === true;
     }
 
     function setSelectionProcessing(nextValue) {
         const playbackState = getPlaybackStateManager();
-        if (!playbackState || typeof playbackState !== 'object') return false;
         const normalized = nextValue === true;
+        localSelectionBusyState.processing = normalized;
+        if (!playbackState || typeof playbackState !== 'object') return true;
         try {
             if (typeof playbackState.setBusyState === 'function') {
                 playbackState.setBusyState({ processing: normalized });
@@ -237,13 +288,14 @@
                 return true;
             }
         } catch (e) { /* ignore */ }
-        return false;
+        return true;
     }
 
     function setSelectionCardAnimating(nextValue) {
         const playbackState = getPlaybackStateManager();
-        if (!playbackState || typeof playbackState !== 'object') return false;
         const normalized = nextValue === true;
+        localSelectionBusyState.cardAnimating = normalized;
+        if (!playbackState || typeof playbackState !== 'object') return true;
         try {
             if (typeof playbackState.setBusyState === 'function') {
                 playbackState.setBusyState({ cardAnimating: normalized });
@@ -254,12 +306,14 @@
                 return true;
             }
         } catch (e) { /* ignore */ }
-        return false;
+        return true;
     }
 
     function setSelectionBusy(nextValue) {
         const playbackState = getPlaybackStateManager();
         const normalized = nextValue === true;
+        localSelectionBusyState.processing = normalized;
+        localSelectionBusyState.cardAnimating = normalized;
         if (playbackState && typeof playbackState === 'object') {
             try {
                 if (typeof playbackState.setBusyState === 'function') {
@@ -271,17 +325,15 @@
                 }
             } catch (e) { /* ignore */ }
         }
-        setSelectionProcessing(normalized);
-        setSelectionCardAnimating(normalized);
-        return false;
+        return true;
     }
 
     function readSelectionBusyState() {
         const playbackState = getPlaybackStateManager();
         if (!playbackState || typeof playbackState !== 'object') {
             return {
-                processing: false,
-                cardAnimating: false
+                processing: localSelectionBusyState.processing === true || readLegacyBusyFlag('isProcessing', false),
+                cardAnimating: localSelectionBusyState.cardAnimating === true || readLegacyBusyFlag('isCardAnimating', false)
             };
         }
 
@@ -317,14 +369,28 @@
     }
 
     function hasActiveNetworkPublishClient() {
-        try {
-            if (!root || !root.NetworkMatchClient) return false;
-            if (typeof root.NetworkMatchClient.publishSnapshot !== 'function') return false;
-            if (typeof root.NetworkMatchClient.isActive === 'function' && root.NetworkMatchClient.isActive() !== true) return false;
-            return true;
-        } catch (e) {
+        const isNetworkPublishActiveViaBridge = readSignalBridgeMethod('isNetworkPublishActive');
+        if (typeof isNetworkPublishActiveViaBridge === 'function') {
+            try {
+                return isNetworkPublishActiveViaBridge() === true;
+            } catch (e) {
+                /* ignore and fall back to root client */
+            }
+        }
+        const networkClient = root && root.NetworkMatchClient && typeof root.NetworkMatchClient === 'object'
+            ? root.NetworkMatchClient
+            : null;
+        if (!networkClient || typeof networkClient.publishSnapshot !== 'function') {
             return false;
         }
+        if (typeof networkClient.isActive === 'function') {
+            try {
+                return networkClient.isActive() === true;
+            } catch (e) {
+                return false;
+            }
+        }
+        return true;
     }
 
     function shouldUseNetworkPublishOnlyPendingSelection(pendingType) {
@@ -368,7 +434,7 @@
                 const gameStateRef = root && root.gameState ? root.gameState : null;
                 const currentPlayer = gameStateRef ? gameStateRef.currentPlayer : null;
                 const currentTurnNumber = (gameStateRef && Number.isFinite(Number(gameStateRef.turnNumber))) ? Number(gameStateRef.turnNumber) : null;
-                const currentPlayerKey = normalizeSelectionPlayerKey(currentPlayer);
+                const currentPlayerKey = resolveSelectionTurnPlayerKeyOptional(currentPlayer);
                 if (expectedPlayerKey && currentPlayerKey !== expectedPlayerKey) return;
                 if (expectedTurnNumber !== null && currentTurnNumber !== null && expectedTurnNumber !== currentTurnNumber) return;
                 if (root && typeof root.processCpuTurn === 'function') {
@@ -382,91 +448,35 @@
     async function waitForSelectionPlaybackIdle(playbackEvents) {
         if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return;
 
+        const waitForPlaybackViaBridge = readSignalBridgeMethod('waitForPlaybackIdle');
+        if (waitForPlaybackViaBridge) {
+            try {
+                await waitForPlaybackViaBridge(playbackEvents);
+                return;
+            } catch (e) { /* ignore */ }
+        }
+
         const networkTurnHandoff = getNetworkTurnHandoff();
         if (networkTurnHandoff && typeof networkTurnHandoff.waitForPlaybackIdleIfNeeded === 'function') {
             return networkTurnHandoff.waitForPlaybackIdleIfNeeded(playbackEvents);
         }
-
-        const waitForPlaybackFn = (root && typeof root.waitForPlaybackIdle === 'function')
-            ? root.waitForPlaybackIdle
-            : null;
-        if (typeof waitForPlaybackFn !== 'function') return;
-
-        try {
-            await waitForPlaybackFn();
-        } catch (e) { /* ignore */ }
-    }
-
-    function clonePendingSelectionTransportTarget(target) {
-        if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
-        return { row: target.row, col: target.col };
-    }
-
-    function buildPendingSelectionTransportState(pendingType, pending) {
-        const normalizedPendingType = normalizePendingType(pendingType || (pending && pending.type));
-        if (!normalizedPendingType || !pending || normalizePendingType(pending.type) !== normalizedPendingType) {
-            return null;
-        }
-
-        const transportState = {
-            type: normalizedPendingType,
-            stage: typeof pending.stage === 'string' && pending.stage ? pending.stage : 'selectTarget'
-        };
-        const contract = resolvePendingSelectionContract(normalizedPendingType);
-        if (!contract || contract.kind !== 'multi_stage') {
-            return null;
-        }
-
-        if (normalizedPendingType === 'POSITION_SWAP_WILL') {
-            const firstTarget = clonePendingSelectionTransportTarget(pending.firstTarget);
-            if (firstTarget) {
-                transportState.firstTarget = firstTarget;
-            }
-        }
-
-        if (normalizedPendingType === 'BOARD_EXPANSION_GOD') {
-            const selectedTargets = Array.isArray(pending.selectedTargets)
-                ? pending.selectedTargets.map((target) => clonePendingSelectionTransportTarget(target)).filter((target) => !!target)
-                : [];
-            if (selectedTargets.length > 0) {
-                transportState.selectedTargets = selectedTargets;
-            }
-            if (Number.isFinite(Number(pending.selectedCount))) {
-                transportState.selectedCount = Math.max(0, Math.trunc(Number(pending.selectedCount)));
-            }
-            if (Number.isFinite(Number(pending.maxSelections))) {
-                transportState.maxSelections = Math.max(0, Math.trunc(Number(pending.maxSelections)));
-            }
-        }
-
-        const transportKeys = Object.keys(transportState);
-        return transportKeys.length > 2 ? transportState : null;
     }
 
     function createPendingSelectionAction(playerKey, pendingType, actionPayload, options) {
+        const pendingCoordinator = getPendingCoordinator();
+        if (pendingCoordinator && typeof pendingCoordinator.createPendingSelectionAction === 'function') {
+            return pendingCoordinator.createPendingSelectionAction(playerKey, pendingType, actionPayload, options);
+        }
         const opts = (options && typeof options === 'object') ? options : {};
         const normalizedPayload = Object.assign({}, actionPayload || {});
-        if (shouldDeferNetworkPublishForPendingType(pendingType)) {
-            normalizedPayload.deferNetworkPublish = true;
-        }
-
         const actionType = typeof opts.actionType === 'string' && opts.actionType ? opts.actionType : 'place';
-        const cardStateRef = opts.cardState || (root ? root.cardState : null);
-        const pendingByPlayer = cardStateRef && cardStateRef.pendingEffectByPlayer;
-        const currentPending = pendingByPlayer ? pendingByPlayer[normalizeSelectionPlayerKey(playerKey)] : null;
-        const transportState = buildPendingSelectionTransportState(pendingType, currentPending);
-        if (transportState) {
-            normalizedPayload.pendingSelectionState = transportState;
-        }
         const action = (root && root.ActionManager && root.ActionManager.ActionManager && typeof root.ActionManager.ActionManager.createAction === 'function')
             ? root.ActionManager.ActionManager.createAction(actionType, playerKey, normalizedPayload)
             : Object.assign({ type: actionType }, normalizedPayload);
-
-        if (action && cardStateRef && typeof cardStateRef.turnIndex === 'number') {
-            action.turnIndex = cardStateRef.turnIndex;
+        if (action && opts.cardState && typeof opts.cardState.turnIndex === 'number') {
+            action.turnIndex = opts.cardState.turnIndex;
         }
-        storePendingSelectionAction(playerKey, action, pendingType);
-        return action;
+        return storePendingSelectionAction(playerKey, action, pendingType);
     }
 
     async function finalizePendingSelectionFlow(options) {
@@ -477,6 +487,14 @@
         const actionType = opts.actionType || 'place';
         const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents.slice() : [];
         const cardStateValue = opts.cardStateValue || (root ? root.cardState : null);
+        const pendingByPlayer = cardStateValue && cardStateValue.pendingEffectByPlayer;
+        if (
+            !(opts.action && typeof opts.action === 'object')
+            && pendingByPlayer
+            && pendingByPlayer[playerKey]
+        ) {
+            syncPendingSelectionActionCache(cardStateValue);
+        }
         const pendingAction = (opts.action && typeof opts.action === 'object')
             ? storePendingSelectionAction(playerKey, opts.action, pendingType)
             : readPendingSelectionAction(playerKey);
@@ -487,6 +505,7 @@
 
         if (contract && contract.turnOutcome === 'end_turn') {
             const networkTurnHandoff = getNetworkTurnHandoff();
+            let publishFailureHandled = false;
             if (!networkTurnHandoff || typeof networkTurnHandoff.finalizeNetworkTurnHandoff !== 'function') {
                 setSelectionProcessing(false);
                 setSelectionCardAnimating(false);
@@ -496,13 +515,22 @@
                 return false;
             }
 
-            await networkTurnHandoff.finalizeNetworkTurnHandoff({
+            const handoffResult = await networkTurnHandoff.finalizeNetworkTurnHandoff({
+                awaitPublishResult: readMatchMode() === 'network' && contract.deferNetworkPublish === true && hasActiveNetworkPublishClient(),
                 playerKey,
                 actionType,
                 action: pendingAction,
                 playbackEvents,
                 humanMode: isHumanVsHumanModeEnabled(),
                 setProcessing: setSelectionProcessing,
+                onPublishFailed: () => {
+                    publishFailureHandled = true;
+                    clearPendingSelectionAction(playerKey);
+                    setSelectionCardAnimating(false);
+                    if (ensureFn) {
+                        try { ensureFn({ useBlackDelay: opts.useBlackDelay !== false }); } catch (e) { /* ignore */ }
+                    }
+                },
                 publishSnapshot: ({ playerKey: publishPlayerKey, action: publishAction, playbackEvents: publishPlaybackEvents }) => {
                     const publishMeta = {
                         playerKey: publishPlayerKey,
@@ -510,11 +538,24 @@
                         action: publishAction || pendingAction,
                         playbackEvents: publishPlaybackEvents
                     };
-                    publishPendingSelectionSnapshot(publishMeta);
+                    return publishPendingSelectionSnapshot(publishMeta);
                 },
                 scheduleCpuTurn: scheduleWhiteCpuTurn,
                 onHumanTurnReady: opts.onHumanTurnReady
             });
+            if (readMatchMode() === 'network' && contract.deferNetworkPublish === true && hasActiveNetworkPublishClient()) {
+                if (!handoffResult || handoffResult.ok !== true) {
+                    if (!publishFailureHandled) {
+                        clearPendingSelectionAction(playerKey);
+                        setSelectionProcessing(false);
+                        setSelectionCardAnimating(false);
+                        if (ensureFn) {
+                            try { ensureFn({ useBlackDelay: opts.useBlackDelay !== false }); } catch (e) { /* ignore */ }
+                        }
+                    }
+                    return false;
+                }
+            }
             if (!shouldRetainPendingSelectionAction(cardStateValue, playerKey, pendingType)) {
                 clearPendingSelectionAction(playerKey);
             }
@@ -598,11 +639,10 @@
     function emitSelectionMessage(message, context) {
         const text = resolveSelectionMessage(message, context);
         if (!text) return false;
-        const emitLogAdded = resolveRootFunction('emitLogAdded');
-        if (typeof emitLogAdded !== 'function') return false;
+        const emitMessageViaBridge = readSignalBridgeMethod('emitMessage');
+        if (typeof emitMessageViaBridge !== 'function') return false;
         try {
-            emitLogAdded(text);
-            return true;
+            return emitMessageViaBridge(text, context || {}) === true;
         } catch (e) {
             return false;
         }
@@ -641,14 +681,14 @@
 
     function emitSelectionPlaybackEvents(playbackEvents, meta, cardStateValue) {
         if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
-        const presentationHelper = resolvePresentationHelper();
-        if (!presentationHelper || typeof presentationHelper.emitPresentationEvent !== 'function') return false;
+        const emitPlaybackEventsViaBridge = readSignalBridgeMethod('emitPlaybackEvents');
+        if (typeof emitPlaybackEventsViaBridge !== 'function') return false;
         try {
-            return presentationHelper.emitPresentationEvent(cardStateValue || (root ? root.cardState : null), {
-                type: 'PLAYBACK_EVENTS',
-                events: playbackEvents,
-                meta: (meta && typeof meta === 'object') ? meta : {}
-            }) === true;
+            return emitPlaybackEventsViaBridge(
+                playbackEvents,
+                (meta && typeof meta === 'object') ? meta : {},
+                cardStateValue || (root ? root.cardState : null)
+            ) === true;
         } catch (e) {
             return false;
         }
@@ -683,11 +723,12 @@
 
     function emitSelectionStateChangeSignals(playbackEvents) {
         armSelectionBoardUpdateContext(playbackEvents);
-        const signalNames = ['emitCardStateChange', 'emitBoardUpdate', 'emitGameStateChange'];
-        for (let index = 0; index < signalNames.length; index += 1) {
-            const signalFn = resolveRootFunction(signalNames[index]);
-            if (typeof signalFn !== 'function') continue;
-            try { signalFn(); } catch (e) { /* ignore */ }
+        const emitStateChangesViaBridge = readSignalBridgeMethod('emitStateChanges');
+        if (typeof emitStateChangesViaBridge !== 'function') return false;
+        try {
+            return emitStateChangesViaBridge(playbackEvents) === true;
+        } catch (e) {
+            return false;
         }
     }
 
@@ -705,8 +746,12 @@
     function getSelectionPending(playerKey, options) {
         const normalizedPlayerKey = normalizeSelectionPlayerKey(playerKey);
         const opts = (options && typeof options === 'object') ? options : {};
-        const pendingByPlayer = root && root.cardState && root.cardState.pendingEffectByPlayer;
-        const pending = pendingByPlayer && pendingByPlayer[normalizedPlayerKey];
+        const pendingCoordinator = getPendingCoordinator();
+        const pending = (pendingCoordinator && typeof pendingCoordinator.readPendingEffect === 'function')
+            ? pendingCoordinator.readPendingEffect(root ? root.cardState : null, normalizedPlayerKey)
+            : (root && root.cardState && root.cardState.pendingEffectByPlayer
+                ? root.cardState.pendingEffectByPlayer[normalizedPlayerKey]
+                : null);
         if (!pending || typeof pending !== 'object') {
             return { pending: null, pendingType: null };
         }
@@ -725,9 +770,9 @@
     }
 
     function defaultSelectionHandoffRender() {
-        const emitBoardUpdate = resolveRootFunction('emitBoardUpdate');
-        if (typeof emitBoardUpdate !== 'function') return;
-        try { emitBoardUpdate(); } catch (e) { /* ignore */ }
+        const emitBoardUpdateViaBridge = readSignalBridgeMethod('emitBoardUpdate');
+        if (typeof emitBoardUpdateViaBridge !== 'function') return;
+        try { emitBoardUpdateViaBridge(); } catch (e) { /* ignore */ }
     }
 
     async function previewPendingSelectionExecution(options) {
@@ -802,6 +847,12 @@
         let executionResult = null;
         let appliedSelection = null;
         let skipFinalizeNetworkPublish = false;
+        let shouldClearPendingActionOnExit = false;
+
+        function markPendingActionFailure() {
+            if (!pendingAction || typeof pendingAction !== 'object') return;
+            shouldClearPendingActionOnExit = true;
+        }
 
         try {
             const pendingInfo = getSelectionPending(playerKey, opts);
@@ -849,6 +900,11 @@
                     playbackEvents: []
                 }));
                 if (!publishResult || publishResult.ok !== true) {
+                    markPendingActionFailure();
+                    const ensureFn = resolveRootFunction('ensureCurrentPlayerCanActOrPass');
+                    if (typeof ensureFn === 'function') {
+                        ensureFn({ useBlackDelay: true });
+                    }
                     return {
                         ok: false,
                         reason: 'network_publish_failed',
@@ -882,6 +938,7 @@
                     validateResult: opts.validateResult
                 });
                 if (!preview.ok) {
+                    markPendingActionFailure();
                     emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
                         action: pendingAction,
                         result: preview.result
@@ -906,6 +963,11 @@
                         playbackEvents: []
                     }));
                     if (!publishResult || publishResult.ok !== true) {
+                        markPendingActionFailure();
+                        const ensureFn = resolveRootFunction('ensureCurrentPlayerCanActOrPass');
+                        if (typeof ensureFn === 'function') {
+                            ensureFn({ useBlackDelay: true });
+                        }
                         return {
                             ok: false,
                             reason: 'network_publish_failed',
@@ -976,6 +1038,7 @@
                     validateResult: opts.validateResult
                 });
                 if (!preview.ok) {
+                    markPendingActionFailure();
                     emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
                         action: pendingAction,
                         result: preview.result
@@ -994,6 +1057,7 @@
                     playbackEvents: []
                 }));
                 if (!publishResult || publishResult.ok !== true) {
+                    markPendingActionFailure();
                     return {
                         ok: false,
                         reason: 'network_publish_failed',
@@ -1020,6 +1084,7 @@
                 : null;
 
             if (!executionResult || executionResult.ok === false) {
+                markPendingActionFailure();
                 emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
                     action: pendingAction,
                     result: executionResult
@@ -1039,6 +1104,7 @@
                 : true;
 
             if (!appliedSelection) {
+                markPendingActionFailure();
                 emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
                     action: pendingAction,
                     result: executionResult
@@ -1116,13 +1182,22 @@
                     }
                 }
             } else {
+                if (shouldClearPendingActionOnExit) {
+                    clearPendingSelectionAction(playerKey);
+                    pendingAction = null;
+                }
                 setSelectionBusy(false);
             }
         }
     }
 
     return {
-        PENDING_SELECTION_CONTRACTS,
+        PENDING_SELECTION_CONTRACTS: (function () {
+            const pendingStateManager = getPendingStateManager();
+            return pendingStateManager && pendingStateManager.PENDING_SELECTION_CONTRACTS
+                ? pendingStateManager.PENDING_SELECTION_CONTRACTS
+                : Object.freeze({});
+        }()),
         resolvePendingSelectionContract,
         isSelectionOnlyEndTurnPendingType,
         shouldDeferNetworkPublishForPendingType,
@@ -1135,6 +1210,8 @@
         syncPendingSelectionActionCache,
         waitForSelectionPlaybackIdle,
         finalizePendingSelectionFlow,
+        setSignalBridge,
+        clearSignalBridge,
         applySelectionStateResult,
         emitSelectionPlaybackEvents,
         executePendingSelection,

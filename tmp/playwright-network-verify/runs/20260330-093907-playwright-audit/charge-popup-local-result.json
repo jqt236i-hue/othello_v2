@@ -1,0 +1,465 @@
+{
+  "ok": false,
+  "baseUrl": "http://127.0.0.1:8010/?matchServer=http%3A%2F%2F127.0.0.1%3A8790",
+  "serverUrl": "http://127.0.0.1:8790",
+  "timestamp": "2026-03-30T00:42:51.933Z",
+  "browsers": {
+    "left": "chrome",
+    "right": "msedge"
+  },
+  "launchEvents": [
+    {
+      "browser": "left",
+      "channel": "chrome",
+      "mode": "preferred"
+    },
+    {
+      "browser": "right",
+      "channel": "msedge",
+      "mode": "preferred"
+    }
+  ],
+  "headless": false,
+  "slowMoMs": 50,
+  "roomId": "JJZ",
+  "actions": [
+    {
+      "index": 1,
+      "browser": "chrome",
+      "playerKey": "black",
+      "type": "place",
+      "row": 2,
+      "col": 3,
+      "notation": "d3",
+      "before": {
+        "left": {
+          "seatKey": "black",
+          "currentPlayerKey": "black",
+          "canAct": true,
+          "turnNumber": 0,
+          "turnIndex": 1,
+          "legalMoves": 4,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 2,
+            "white": 2
+          },
+          "charge": {
+            "black": 0,
+            "white": 0
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "right": {
+          "seatKey": "white",
+          "currentPlayerKey": "black",
+          "canAct": false,
+          "turnNumber": 0,
+          "turnIndex": 1,
+          "legalMoves": 4,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 2,
+            "white": 2
+          },
+          "charge": {
+            "black": 0,
+            "white": 0
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      },
+      "after": {
+        "left": {
+          "seatKey": "black",
+          "currentPlayerKey": "white",
+          "canAct": false,
+          "turnNumber": 1,
+          "turnIndex": 2,
+          "legalMoves": 3,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 4,
+            "white": 1
+          },
+          "charge": {
+            "black": 1,
+            "white": 0
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "right": {
+          "seatKey": "white",
+          "currentPlayerKey": "white",
+          "canAct": true,
+          "turnNumber": 1,
+          "turnIndex": 2,
+          "legalMoves": 3,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 4,
+            "white": 1
+          },
+          "charge": {
+            "black": 1,
+            "white": 0
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      },
+      "chargeAudit": {
+        "left": {
+          "page": "left",
+          "seatKey": "black",
+          "popupByOwner": {
+            "black": 0,
+            "white": 0
+          },
+          "expectedByOwner": {
+            "black": 1,
+            "white": 0
+          },
+          "events": [],
+          "mismatches": [
+            {
+              "page": "left",
+              "ownerKey": "black",
+              "popupDelta": 0,
+              "expectedDelta": 1,
+              "afterCharge": 1,
+              "beforeCharge": 0,
+              "replayedCurrentTotal": false
+            }
+          ]
+        },
+        "right": {
+          "page": "right",
+          "seatKey": "white",
+          "popupByOwner": {
+            "black": 0,
+            "white": 0
+          },
+          "expectedByOwner": {
+            "black": 1,
+            "white": 0
+          },
+          "events": [],
+          "mismatches": [
+            {
+              "page": "right",
+              "ownerKey": "black",
+              "popupDelta": 0,
+              "expectedDelta": 1,
+              "afterCharge": 1,
+              "beforeCharge": 0,
+              "replayedCurrentTotal": false
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "stallEvents": [],
+  "pageEvents": [
+    {
+      "time": "2026-03-30T00:42:53.028Z",
+      "browser": "chrome",
+      "kind": "console",
+      "type": "error",
+      "text": "\u001b[0;93m2026-03-30 09:42:53.012400 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 0\u001b[m"
+    },
+    {
+      "time": "2026-03-30T00:42:53.029Z",
+      "browser": "msedge",
+      "kind": "console",
+      "type": "error",
+      "text": "\u001b[0;93m2026-03-30 09:42:53.025299 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 0\u001b[m"
+    }
+  ],
+  "chargeAudit": {
+    "totalPopupEvents": 0,
+    "totalActionsWithChargeChange": 1,
+    "mismatches": [
+      {
+        "actionIndex": 1,
+        "notation": "d3",
+        "left": [
+          {
+            "page": "left",
+            "ownerKey": "black",
+            "popupDelta": 0,
+            "expectedDelta": 1,
+            "afterCharge": 1,
+            "beforeCharge": 0,
+            "replayedCurrentTotal": false
+          }
+        ],
+        "right": [
+          {
+            "page": "right",
+            "ownerKey": "black",
+            "popupDelta": 0,
+            "expectedDelta": 1,
+            "afterCharge": 1,
+            "beforeCharge": 0,
+            "replayedCurrentTotal": false
+          }
+        ]
+      }
+    ]
+  },
+  "final": {
+    "actionsExecuted": 1,
+    "left": {
+      "seatKey": "black",
+      "currentPlayerKey": "white",
+      "canAct": false,
+      "legalMoves": [
+        {
+          "row": 2,
+          "col": 2,
+          "flips": 1
+        },
+        {
+          "row": 2,
+          "col": 4,
+          "flips": 1
+        },
+        {
+          "row": 4,
+          "col": 2,
+          "flips": 1
+        }
+      ],
+      "pending": null,
+      "turnNumber": 1,
+      "turnIndex": 2,
+      "consecutivePasses": 0,
+      "counts": {
+        "black": 4,
+        "white": 1
+      },
+      "charge": {
+        "black": 1,
+        "white": 0
+      },
+      "overlayVisible": false,
+      "resultTitle": "",
+      "gameOver": false,
+      "board": [
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          -1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    "right": {
+      "seatKey": "white",
+      "currentPlayerKey": "white",
+      "canAct": true,
+      "legalMoves": [
+        {
+          "row": 2,
+          "col": 2,
+          "flips": 1
+        },
+        {
+          "row": 2,
+          "col": 4,
+          "flips": 1
+        },
+        {
+          "row": 4,
+          "col": 2,
+          "flips": 1
+        }
+      ],
+      "pending": null,
+      "turnNumber": 1,
+      "turnIndex": 2,
+      "consecutivePasses": 0,
+      "counts": {
+        "black": 4,
+        "white": 1
+      },
+      "charge": {
+        "black": 1,
+        "white": 0
+      },
+      "overlayVisible": false,
+      "resultTitle": "",
+      "gameOver": false,
+      "board": [
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          -1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    }
+  },
+  "error": "Error: charge popup mismatch after d3: {\"left\":[{\"page\":\"left\",\"ownerKey\":\"black\",\"popupDelta\":0,\"expectedDelta\":1,\"afterCharge\":1,\"beforeCharge\":0,\"replayedCurrentTotal\":false}],\"right\":[{\"page\":\"right\",\"ownerKey\":\"black\",\"popupDelta\":0,\"expectedDelta\":1,\"afterCharge\":1,\"beforeCharge\":0,\"replayedCurrentTotal\":false}]}\n    at main (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-charge-popup-local.js:858:27)"
+}

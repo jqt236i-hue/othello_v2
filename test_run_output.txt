@@ -1,0 +1,126 @@
+
+> othello@1.0.0 pretest
+> npm run checkall
+
+
+> othello@1.0.0 checkall
+> node scripts/run-all-checks.js
+
+
+=== running: node scripts/check-window-usage.js ===
+[STATIC-CHECK] No forbidden window usage found.
+
+=== running: node scripts/test-shim-forwarding.js ===
+calls.length= 1 last= { testKey: 'value' }
+
+All checks passed.
+
+> othello@1.0.0 test
+> npm run test:jest
+
+
+> othello@1.0.0 test:jest
+> jest --runInBand
+
+FAIL test/ui.network-client.guard-tempt-deferred-publish.test.js
+  笳・NetworkMatchClient TEMPT_WILL deferred publish 窶ｺ selection publishes only the deferred command once
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 12
+    Received: 11
+
+      370 |     expect(publishBodies[0].snapshot).toBeUndefined();
+      371 |     expect(publishBodies[0].playbackEvents).toBeUndefined();
+    > 372 |     expect(global.gameState.turnNumber).toBe(12);
+          |                                         ^
+      373 |     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
+      374 |     expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+      375 |     expect(presentation.emitPresentationEvent).not.toHaveBeenCalled();
+
+      at Object.toBe (test/ui.network-client.guard-tempt-deferred-publish.test.js:372:41)
+
+  笳・NetworkMatchClient CAPTURE_WILL deferred publish 窶ｺ selection publishes only the deferred command once
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 12
+    Received: 11
+
+      370 |     expect(publishBodies[0].snapshot).toBeUndefined();
+      371 |     expect(publishBodies[0].playbackEvents).toBeUndefined();
+    > 372 |     expect(global.gameState.turnNumber).toBe(12);
+          |                                         ^
+      373 |     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
+      374 |     expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+      375 |     expect(presentation.emitPresentationEvent).not.toHaveBeenCalled();
+
+      at Object.toBe (test/ui.network-client.guard-tempt-deferred-publish.test.js:372:41)
+
+  笳・NetworkMatchClient GUARD_WILL deferred publish 窶ｺ selection publishes only the deferred command once
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 12
+    Received: 11
+
+      370 |     expect(publishBodies[0].snapshot).toBeUndefined();
+      371 |     expect(publishBodies[0].playbackEvents).toBeUndefined();
+    > 372 |     expect(global.gameState.turnNumber).toBe(12);
+          |                                         ^
+      373 |     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
+      374 |     expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+      375 |     expect(presentation.emitPresentationEvent).not.toHaveBeenCalled();
+
+      at Object.toBe (test/ui.network-client.guard-tempt-deferred-publish.test.js:372:41)
+
+  笳・NetworkMatchClient GUARDIAN_GOD deferred publish 窶ｺ selection publishes only the deferred command once
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 12
+    Received: 11
+
+      370 |     expect(publishBodies[0].snapshot).toBeUndefined();
+      371 |     expect(publishBodies[0].playbackEvents).toBeUndefined();
+    > 372 |     expect(global.gameState.turnNumber).toBe(12);
+          |                                         ^
+      373 |     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
+      374 |     expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+      375 |     expect(presentation.emitPresentationEvent).not.toHaveBeenCalled();
+
+      at Object.toBe (test/ui.network-client.guard-tempt-deferred-publish.test.js:372:41)
+
+FAIL test/ui.network-client.multi-stage-selection.test.js
+  笳・POSITION_SWAP_WILL authoritative multi-stage contract 窶ｺ final selection publishes once with carried pendingSelectionState
+
+    expect(received).toBeNull()
+
+    Received: {"cardId": "position_swap_01", "firstTarget": {"col": 3, "row": 2}, "stage": "selectTarget", "type": "POSITION_SWAP_WILL"}
+
+      405 |       pendingSelectionState: expectedTransportState
+      406 |     }));
+    > 407 |     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
+          |                                                          ^
+      408 |     expect(global.gameState.turnNumber).toBe(13);
+      409 |     expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+      410 |     expect(global.isProcessing).toBe(false);
+
+      at Object.toBeNull (test/ui.network-client.multi-stage-selection.test.js:407:58)
+
+  笳・BOARD_EXPANSION_GOD authoritative multi-stage contract 窶ｺ final selection publishes once with carried pendingSelectionState
+
+    expect(received).toBeNull()
+
+    Received: {"maxSelections": 2, "selectedCount": 1, "selectedTargets": [{"col": 0, "row": 0}], "stage": "selectTarget", "type": "BOARD_EXPANSION_GOD"}
+
+      405 |       pendingSelectionState: expectedTransportState
+      406 |     }));
+    > 407 |     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
+          |                                                          ^
+      408 |     expect(global.gameState.turnNumber).toBe(13);
+      409 |     expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+      410 |     expect(global.isProcessing).toBe(false);
+
+      at Object.toBeNull (test/ui.network-client.multi-stage-selection.test.js:407:58)
+

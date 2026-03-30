@@ -160,21 +160,11 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
 
     // Single Visual Writer: if PlaybackEngine is available in the browser, skip manual DOM animations here.
     // PresentationEvents already encode MOVE/CHANGE and will be consumed by PlaybackEngine.
-    // Prefer canonical UI registration: check UIBootstrap registered globals first
+    // Prefer canonical UI registration via injected globals/shared shim without importing ui/ from game/.
     try {
-        const uiBootstrap = require('../../ui/bootstrap');
-        if (uiBootstrap && typeof uiBootstrap.getRegisteredUIGlobals === 'function') {
-            const g = uiBootstrap.getRegisteredUIGlobals();
-            if (g && g.PlaybackEngine && typeof g.PlaybackEngine.playPresentationEvents === 'function') {
-                return;
-            }
+        if (mv && typeof mv.hasPlaybackEngine === 'function' && mv.hasPlaybackEngine()) {
+            return;
         }
-    } catch (e) { /* ignore */ }
-
-    // Fallback: check globalThis PlaybackEngine (avoid using window in non-UI modules)
-    try {
-        const hasUiPlayback = (typeof globalThis !== 'undefined' && globalThis.PlaybackEngine && typeof globalThis.PlaybackEngine.playPresentationEvents === 'function');
-        if (hasUiPlayback) { return; }
     } catch (e) { /* ignore */ }
 
     // Animate using the pre-move DOM first, then sync to post-move state.
@@ -189,27 +179,13 @@ async function processHyperactiveMovesAtTurnStart(player, precomputedResult = nu
     const allMoved = (result.moved || [])
         .concat(result.ultimateMoved || []);
     if (allMoved.length > 0) {
-        let carryDisc = null;
-        try {
-            const boardRoot = (typeof boardEl !== 'undefined' && boardEl && typeof boardEl.querySelector === 'function')
-                ? boardEl
-                : null;
-            if (boardRoot && allMoved.length > 1) {
-                const firstMove = allMoved[0];
-                const lastMove = allMoved[allMoved.length - 1];
-                const firstFromCell = boardRoot.querySelector(`.cell[data-row="${firstMove.from.row}"][data-col="${firstMove.from.col}"]`);
-                const firstFromDisc = firstFromCell ? firstFromCell.querySelector('.disc') : null;
-                if (!firstFromDisc) {
-                    const lastToCell = boardRoot.querySelector(`.cell[data-row="${lastMove.to.row}"][data-col="${lastMove.to.col}"]`);
-                    const lastToDisc = lastToCell ? lastToCell.querySelector('.disc') : null;
-                    if (lastToDisc) carryDisc = lastToDisc;
+        if (mv && typeof mv.animateHyperactiveMoveChain === 'function') {
+            await mv.animateHyperactiveMoveChain(allMoved);
+        } else {
+            for (const m of allMoved) {
+                if (mv && typeof mv.animateHyperactiveMove === 'function') {
+                    await mv.animateHyperactiveMove(m.from, m.to);
                 }
-            }
-        } catch (e) { /* ignore */ }
-
-        for (const m of allMoved) {
-            if (mv && typeof mv.animateHyperactiveMove === 'function') {
-                await mv.animateHyperactiveMove(m.from, m.to, { carryDisc });
             }
         }
     }

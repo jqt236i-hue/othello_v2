@@ -1,5 +1,6 @@
 const path = require('path');
 const cpuHandler = require(path.resolve(__dirname, '..', 'game', 'cpu-turn-handler.js'));
+const PendingCoordinator = require(path.resolve(__dirname, '..', 'game', 'turn', 'pending-coordinator.js'));
 
 function waitTick() { return new Promise(resolve => setImmediate(resolve)); }
 
@@ -14,6 +15,11 @@ describe('cpu turn handler pending selection', () => {
     global.playHandAnimation = (player, r, c, cb) => cb();
     global.executeMove = jest.fn();
     global.generateMovesForPlayer = jest.fn(() => [{ row: 1, col: 2, flips: [] }]);
+    PendingCoordinator.clearPendingSelectionActionCache();
+  });
+
+  afterEach(() => {
+    PendingCoordinator.clearPendingSelectionActionCache();
   });
 
   test('DESTROY_ONE_STONE invokes cpuSelectDestroyWithPolicy', async () => {
@@ -84,6 +90,22 @@ describe('cpu turn handler pending selection', () => {
     cpuHandler.processCpuTurn();
     await waitTick();
     expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('SWAP_WITH_ENEMY clears cached pending action when function absent', async () => {
+    delete global.cpuSelectSwapWithEnemyWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget' };
+    PendingCoordinator.storePendingSelectionAction(
+      'white',
+      { type: 'pending_selection', cardId: 'swap-card', turnIndex: 0 },
+      'SWAP_WITH_ENEMY'
+    );
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+    expect(PendingCoordinator.readPendingSelectionAction('white')).toBeNull();
   });
 
   test('POSITION_SWAP_WILL invokes cpuSelectPositionSwapWillWithPolicy when available', async () => {

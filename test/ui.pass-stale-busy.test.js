@@ -60,6 +60,7 @@ describe('pass fail-safe when no legal moves', () => {
   });
 
   afterEach(() => {
+    delete global.PlaybackStateManager;
     delete global.window;
     delete global.document;
   });
@@ -82,6 +83,47 @@ describe('pass fail-safe when no legal moves', () => {
     expect(global.processPassTurn).toHaveBeenCalledWith('black', false);
     expect(global.isProcessing).toBe(false);
     expect(global.window.isProcessing).toBe(false);
+  });
+
+  test('manual pass clears stale busy flags through PlaybackStateManager', () => {
+    let processing = true;
+    let cardAnimating = false;
+    const playbackStateManager = {
+      getProcessing: jest.fn(() => processing),
+      getCardAnimating: jest.fn(() => cardAnimating),
+      getPlaybackActive: jest.fn(() => false),
+      getPlaybackStartedAt: jest.fn(() => null),
+      setBusyState: jest.fn((config) => {
+        if (Object.prototype.hasOwnProperty.call(config, 'processing')) {
+          processing = config.processing === true;
+          global.isProcessing = processing;
+          global.window.isProcessing = processing;
+        }
+        if (Object.prototype.hasOwnProperty.call(config, 'cardAnimating')) {
+          cardAnimating = config.cardAnimating === true;
+          global.isCardAnimating = cardAnimating;
+          global.window.isCardAnimating = cardAnimating;
+        }
+        return {
+          isProcessing: processing,
+          isCardAnimating: cardAnimating,
+          playbackActive: false
+        };
+      })
+    };
+    global.PlaybackStateManager = playbackStateManager;
+    global.window.PlaybackStateManager = playbackStateManager;
+
+    require('../cards/card-interaction.js');
+
+    window.passCurrentTurn();
+
+    expect(playbackStateManager.setBusyState).toHaveBeenCalledWith(expect.objectContaining({
+      processing: false,
+      cardAnimating: false
+    }));
+    expect(global.processPassTurn).toHaveBeenCalledWith('black', false);
+    expect(processing).toBe(false);
   });
 
   test('stale visual playback flag with idle engine allows manual pass', () => {

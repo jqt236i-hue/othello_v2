@@ -7,6 +7,9 @@ var AnimationShared = (typeof require === 'function') ? require('./animation-hel
 var PlaybackStateModule = (typeof require === 'function') ? (function () {
     try { return require('./playback-state-manager'); } catch (e) { return (typeof window !== 'undefined' ? window.PlaybackStateManager : null); }
 }()) : (typeof window !== 'undefined' ? window.PlaybackStateManager : null);
+var AnimationUtilsModule = (typeof require === 'function') ? (function () {
+    try { return require('./animation-utils'); } catch (e) { return (typeof window !== 'undefined' ? window : null); }
+}()) : (typeof window !== 'undefined' ? window : null);
 
 // Visual helpers and animation sequence for move execution
 
@@ -396,6 +399,39 @@ function waitForPlaybackIdle() {
     });
 }
 
+async function animateHyperactiveMoveChain(moves) {
+    const animateMove = (AnimationUtilsModule && typeof AnimationUtilsModule.animateHyperactiveMove === 'function')
+        ? AnimationUtilsModule.animateHyperactiveMove
+        : (typeof animateHyperactiveMove === 'function' ? animateHyperactiveMove : null);
+    const path = Array.isArray(moves) ? moves.filter((move) => !!(move && move.from && move.to)) : [];
+    if (!animateMove || path.length === 0) return;
+
+    let carryDisc = null;
+    if (path.length > 1 && typeof boardEl !== 'undefined' && boardEl && typeof boardEl.querySelector === 'function') {
+        const lastMove = path[path.length - 1];
+        const lastToCell = boardEl.querySelector(`.cell[data-row="${lastMove.to.row}"][data-col="${lastMove.to.col}"]`);
+        const lastToDisc = lastToCell ? lastToCell.querySelector('.disc') : null;
+        if (lastToDisc) {
+            carryDisc = lastToDisc;
+        }
+    }
+
+    for (const move of path) {
+        if (carryDisc) {
+            await animateMove(move.from, move.to, { carryDisc });
+        } else {
+            await animateMove(move.from, move.to);
+        }
+    }
+}
+
+function hasPlaybackEngine() {
+    const engine = (typeof PlaybackEngine !== 'undefined' && PlaybackEngine)
+        ? PlaybackEngine
+        : ((typeof window !== 'undefined' && window.PlaybackEngine) ? window.PlaybackEngine : null);
+    return !!(engine && typeof engine.playPresentationEvents === 'function');
+}
+
 async function runMoveVisualSequence(move, hadSelection, phases, effects, immediate) {
     if (!_assertNotDuringPlayback()) return;
     if (typeof window !== 'undefined') {
@@ -545,6 +581,17 @@ try {
             getTurnTransitionGapMs,
             animateFlipsWithDeferredColor,
             animateRegenBack,
+            animateFadeOutAt: AnimationUtilsModule && typeof AnimationUtilsModule.animateFadeOutAt === 'function'
+                ? AnimationUtilsModule.animateFadeOutAt
+                : undefined,
+            animateDestroyAt: AnimationUtilsModule && typeof AnimationUtilsModule.animateDestroyAt === 'function'
+                ? AnimationUtilsModule.animateDestroyAt
+                : undefined,
+            animateHyperactiveMove: AnimationUtilsModule && typeof AnimationUtilsModule.animateHyperactiveMove === 'function'
+                ? AnimationUtilsModule.animateHyperactiveMove
+                : undefined,
+            animateHyperactiveMoveChain,
+            hasPlaybackEngine,
             applyPendingSpecialstoneVisual,
             waitForPlayback: waitForPlaybackIdle,
             runMoveVisualSequence
@@ -564,6 +611,17 @@ if (typeof module !== 'undefined' && module.exports) {
         getTurnTransitionGapMs,
         animateFlipsWithDeferredColor,
         animateRegenBack,
+        animateFadeOutAt: AnimationUtilsModule && typeof AnimationUtilsModule.animateFadeOutAt === 'function'
+            ? AnimationUtilsModule.animateFadeOutAt
+            : (typeof animateFadeOutAt === 'function' ? animateFadeOutAt : undefined),
+        animateDestroyAt: AnimationUtilsModule && typeof AnimationUtilsModule.animateDestroyAt === 'function'
+            ? AnimationUtilsModule.animateDestroyAt
+            : (typeof animateDestroyAt === 'function' ? animateDestroyAt : undefined),
+        animateHyperactiveMove: AnimationUtilsModule && typeof AnimationUtilsModule.animateHyperactiveMove === 'function'
+            ? AnimationUtilsModule.animateHyperactiveMove
+            : (typeof animateHyperactiveMove === 'function' ? animateHyperactiveMove : undefined),
+        animateHyperactiveMoveChain,
+        hasPlaybackEngine,
         applyPendingSpecialstoneVisual,
         waitForPlaybackIdle,
         runMoveVisualSequence

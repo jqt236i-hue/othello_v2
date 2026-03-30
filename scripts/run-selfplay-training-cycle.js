@@ -91,6 +91,52 @@ function resolveCarryOverResumeCheckpointPaths(carryOver) {
     return resolved;
 }
 
+function parseSelfplayCardUsageRateScheduleSpec(value, flagName) {
+    const label = flagName || '--selfplay-card-usage-rate-schedule';
+    const raw = String(value || '').trim();
+    if (!raw) return [];
+    const entries = raw.split(',').map((one) => one.trim()).filter((one) => !!one);
+    let lastIteration = 0;
+    return entries.map((entry) => {
+        const parts = entry.split('@');
+        if (parts.length !== 2) {
+            throw new Error(`${label} entries must use <rate>@<iteration>`);
+        }
+        const rate = Number(parts[0]);
+        const iteration = Number(parts[1]);
+        if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
+            throw new Error(`${label} rates must be in [0,1]`);
+        }
+        if (!Number.isFinite(iteration) || iteration < 1 || Math.floor(iteration) !== iteration) {
+            throw new Error(`${label} iterations must be integers >= 1`);
+        }
+        if (iteration <= lastIteration) {
+            throw new Error(`${label} iterations must be strictly increasing`);
+        }
+        lastIteration = iteration;
+        return {
+            iteration,
+            rate
+        };
+    });
+}
+
+function resolveSelfplayCardUsageRateForIteration(args, iterationIndex) {
+    if (!args || args.allowCardUsage === false) return 0;
+    const fallbackRate = Number.isFinite(args.cardUsageRate) ? Number(args.cardUsageRate) : 0;
+    const schedule = Array.isArray(args.selfplayCardUsageRateSchedule)
+        ? args.selfplayCardUsageRateSchedule
+        : [];
+    if (schedule.length <= 0) return fallbackRate;
+    let resolvedRate = fallbackRate;
+    for (const entry of schedule) {
+        if (!entry || !Number.isFinite(entry.iteration) || !Number.isFinite(entry.rate)) continue;
+        if (iterationIndex < entry.iteration) break;
+        resolvedRate = Number(entry.rate);
+    }
+    return resolvedRate;
+}
+
 function parseArgs(argv) {
     const args = {
         iterations: 1,
@@ -113,6 +159,8 @@ function parseArgs(argv) {
         selfplayPolicyPoolRecencyDecay: 2.5,
         selfplayPolicyCurrentAnchorRate: 0.35,
         selfplayCardUsageRateJitter: 0,
+        selfplayCardUsageRateScheduleSpec: null,
+        selfplayCardUsageRateSchedule: [],
         selfplayTacticalWeightMin: 1,
         selfplayTacticalWeightMax: 1,
         selfplayTacticalDepthOpening: 4,
@@ -183,6 +231,7 @@ function parseArgs(argv) {
         qualityGateMinSeedUplift: -1,
         qualityGateMinSeedPassCount: 0,
         qualityGateStrengthFirst: false,
+        quickAdoptionSeedOffset: 0,
         quickAdoptionThreshold: null,
         quickAdoptionSeedCount: null,
         quickAdoptionSeedStride: null,
@@ -292,6 +341,10 @@ function parseArgs(argv) {
         if (a === '--selfplay-policy-pool-recency-decay') { args.selfplayPolicyPoolRecencyDecay = Number(argv[++i]); continue; }
         if (a === '--selfplay-policy-current-anchor-rate') { args.selfplayPolicyCurrentAnchorRate = Number(argv[++i]); continue; }
         if (a === '--selfplay-card-usage-rate-jitter') { args.selfplayCardUsageRateJitter = Number(argv[++i]); continue; }
+        if (a === '--selfplay-card-usage-rate-schedule') {
+            args.selfplayCardUsageRateScheduleSpec = String(argv[++i] || '').trim();
+            continue;
+        }
         if (a === '--selfplay-tactical-weight-min') { args.selfplayTacticalWeightMin = Number(argv[++i]); continue; }
         if (a === '--selfplay-tactical-weight-max') { args.selfplayTacticalWeightMax = Number(argv[++i]); continue; }
         if (a === '--selfplay-tactical-depth-opening') { args.selfplayTacticalDepthOpening = Number(argv[++i]); continue; }
@@ -365,6 +418,7 @@ function parseArgs(argv) {
         if (a === '--quality-gate-min-seed-pass-count') { args.qualityGateMinSeedPassCount = Number(argv[++i]); continue; }
         if (a === '--quality-gate-strength-first') { args.qualityGateStrengthFirst = true; continue; }
         if (a === '--no-quality-gate-strength-first') { args.qualityGateStrengthFirst = false; continue; }
+        if (a === '--quick-adoption-seed-offset') { args.quickAdoptionSeedOffset = Number(argv[++i]); continue; }
         if (a === '--quick-adoption-threshold') { args.quickAdoptionThreshold = Number(argv[++i]); continue; }
         if (a === '--quick-adoption-seed-count') { args.quickAdoptionSeedCount = Number(argv[++i]); continue; }
         if (a === '--quick-adoption-seed-stride') { args.quickAdoptionSeedStride = Number(argv[++i]); continue; }
@@ -499,6 +553,10 @@ function parseArgs(argv) {
     if (!Number.isFinite(args.selfplayCardUsageRateJitter) || args.selfplayCardUsageRateJitter < 0 || args.selfplayCardUsageRateJitter > 1) {
         throw new Error('--selfplay-card-usage-rate-jitter must be in [0,1]');
     }
+    args.selfplayCardUsageRateSchedule = parseSelfplayCardUsageRateScheduleSpec(
+        args.selfplayCardUsageRateScheduleSpec,
+        '--selfplay-card-usage-rate-schedule'
+    );
     if (!Number.isFinite(args.selfplayTacticalWeightMin) || args.selfplayTacticalWeightMin < 0) {
         throw new Error('--selfplay-tactical-weight-min must be >= 0');
     }
@@ -738,6 +796,10 @@ function parseArgs(argv) {
         throw new Error('--quick-adoption-seed-stride must be >= 1');
     }
     if (args.quickAdoptionSeedStride !== null) args.quickAdoptionSeedStride = Math.floor(args.quickAdoptionSeedStride);
+    if (!Number.isFinite(args.quickAdoptionSeedOffset) || args.quickAdoptionSeedOffset < 0) {
+        throw new Error('--quick-adoption-seed-offset must be >= 0');
+    }
+    args.quickAdoptionSeedOffset = Math.floor(args.quickAdoptionSeedOffset);
     if (args.quickAdoptionConfidenceLevel !== null && (!Number.isFinite(args.quickAdoptionConfidenceLevel) || args.quickAdoptionConfidenceLevel < 0.5 || args.quickAdoptionConfidenceLevel >= 1)) {
         throw new Error('--quick-adoption-confidence-level must be in [0.5,1)');
     }
@@ -988,6 +1050,7 @@ function printHelp() {
         '      --selfplay-policy-pool-recency-decay <r> Recency decay (>0) for recency sampling (default: 2.5)',
         '      --selfplay-policy-current-anchor-rate <r> Probability to anchor one side to current guide model [0..1] (default: 0.35)',
         '      --selfplay-card-usage-rate-jitter <r> Per-game card usage jitter (+/-r) [0..1] (default: 0)',
+        '      --selfplay-card-usage-rate-schedule <spec> Step schedule for self-play card usage only (<rate>@<iteration>,...)',
         '      --selfplay-tactical-weight-min <r> Min tactical lookahead weight during self-play (default: 1)',
         '      --selfplay-tactical-weight-max <r> Max tactical lookahead weight during self-play (default: 1)',
         '      --selfplay-tactical-depth-opening <n> Tactical search depth in opening phase for self-play (default: 4)',
@@ -1060,6 +1123,7 @@ function printHelp() {
         '      --quality-gate-min-seed-uplift <r> Quality gate minimum per-seed uplift [-1..1] (default: -1)',
         '      --quality-gate-min-seed-pass-count <n> Quality gate minimum passing seeds (default: 0)',
         '      --quality-gate-strength-first Require non-negative raw/source strength on quality-gate samples before passing',
+        '      --quick-adoption-seed-offset <n> Seed offset for quick adoption run (default: 0 = reuse iteration base seed family)',
         '      --quick-adoption-threshold <r> Override quick adoption threshold [0..1] (default: fallback to --threshold)',
         '      --quick-adoption-seed-count <n> Override quick adoption seed count (default: fallback to --adoption-seed-count)',
         '      --quick-adoption-seed-stride <n> Override quick adoption seed stride (default: fallback to --adoption-seed-stride)',
@@ -1611,8 +1675,10 @@ function buildPromotionCommandArgs(args, iterationPaths, adoptionResultPath, has
 
 function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const seed = args.seed + ((iterationIndex - 1) * args.seedStride);
+    const quickAdoptionSeed = seed + args.quickAdoptionSeedOffset;
     const finalAdoptionSeed = seed + args.adoptionFinalSeedOffset;
     const evalSeed = seed + args.evalSeedOffset;
+    const selfplayCardUsageRate = resolveSelfplayCardUsageRateForIteration(args, iterationIndex);
     const p = buildIterationPaths(args, iterationIndex);
     const steps = [];
     const guideModelPath = carryOver && carryOver.guideModelPath ? carryOver.guideModelPath : null;
@@ -1627,7 +1693,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const anchorModelPath = carryOver && carryOver.anchorModelPath ? carryOver.anchorModelPath : null;
     const gateControl = resolveIterationGateControl(args, iterationIndex, guideModelPath, anchorModelPath);
     const generateCardArgs = args.allowCardUsage
-        ? ['--with-cards', '--card-usage-rate', String(args.cardUsageRate)]
+        ? ['--with-cards', '--card-usage-rate', String(selfplayCardUsageRate)]
         : ['--no-cards', '--card-usage-rate', '0'];
     const selfplayDiversityArgs = [
         '--policy-mix-rate', String(args.selfplayPolicyMixRate),
@@ -1955,7 +2021,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         runManagedStep('adoption-quick', process.execPath, [
             path.resolve('scripts', 'benchmark-policy-adoption.js'),
             '--games', String(args.quickGames),
-            '--seed', String(seed),
+            '--seed', String(quickAdoptionSeed),
             '--seed-count', String(quickAdoptionSeedCount),
             '--seed-stride', String(quickAdoptionSeedStride),
             '--jobs', String(args.adoptionJobs),
@@ -2205,6 +2271,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     return {
         iteration: iterationIndex,
         seed,
+        quickAdoptionSeed,
         finalAdoptionSeed,
         evalSeed,
         usedGuideModelPath: guideModelPath,
@@ -2212,9 +2279,12 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         usedResumeCheckpointPath: policyResumeCheckpointPath,
         usedResumeCheckpointPaths: cloneResumeCheckpointPaths(resumeCheckpointPaths),
         usedAnchorModelPath: anchorModelPath,
+        usedSelfplayCardUsageRate: selfplayCardUsageRate,
         gateControl,
         paths: p,
         quickAdoptionConfig: {
+            seed: quickAdoptionSeed,
+            seedOffset: args.quickAdoptionSeedOffset,
             threshold: quickAdoptionThreshold,
             seedCount: quickAdoptionSeedCount,
             seedStride: quickAdoptionSeedStride,
@@ -2315,6 +2385,7 @@ function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guide
             selfplayPolicyPoolRecencyDecay: args.selfplayPolicyPoolRecencyDecay,
             selfplayPolicyCurrentAnchorRate: args.selfplayPolicyCurrentAnchorRate,
             selfplayCardUsageRateJitter: args.selfplayCardUsageRateJitter,
+            selfplayCardUsageRateScheduleSpec: args.selfplayCardUsageRateScheduleSpec,
             selfplayTacticalWeightMin: args.selfplayTacticalWeightMin,
             selfplayTacticalWeightMax: args.selfplayTacticalWeightMax,
             selfplayTacticalDepthOpening: args.selfplayTacticalDepthOpening,
@@ -2389,6 +2460,7 @@ function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guide
             qualityGateMinSeedUplift: args.qualityGateMinSeedUplift,
             qualityGateMinSeedPassCount: args.qualityGateMinSeedPassCount,
             quickAdoptionThreshold: args.quickAdoptionThreshold,
+            quickAdoptionSeedOffset: args.quickAdoptionSeedOffset,
             quickAdoptionSeedCount: args.quickAdoptionSeedCount,
             quickAdoptionSeedStride: args.quickAdoptionSeedStride,
             quickAdoptionConfidenceLevel: args.quickAdoptionConfidenceLevel,
@@ -2673,6 +2745,7 @@ module.exports = {
     resolveAdoptionBaselineMode,
     shouldRunGateForIteration,
     resolveIterationGateControl,
+    resolveSelfplayCardUsageRateForIteration,
     getPrimaryResumeCheckpointPath,
     resolveResumeCheckpointPathsFromArgs,
     resolveNextCarryOverState,

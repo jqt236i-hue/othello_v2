@@ -28,6 +28,7 @@ npm run worker:deploy
 - `worker:deploy` 実行時も `worker-public/` を自動再生成してから公開します
 - 公開後は同一オリジンの `/api/match/*` が有効になります
 - 接続先欄を空欄にすると同一オリジンへ接続します
+- `/api/match/stream` の `seatToken` はブラウザ `EventSource` の制約上 query parameter で送ります（custom header は付けられません）。HTTPS 配信を前提にし、アクセスログやプロキシログで token を平文保持しない運用にします。
 
 ## 4. 再参加確認
 

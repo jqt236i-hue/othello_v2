@@ -53,6 +53,20 @@
         return value;
     }
 
+    let activePlaybackAbortHandle = null;
+
+    function registerPlaybackAbortHandle(handle) {
+        activePlaybackAbortHandle = (handle && typeof handle.abort === 'function') ? handle : null;
+        return activePlaybackAbortHandle;
+    }
+
+    function clearPlaybackAbortHandle(handle) {
+        if (!handle || activePlaybackAbortHandle === handle) {
+            activePlaybackAbortHandle = null;
+        }
+        return true;
+    }
+
     function getPlaybackActive() {
         return readMirroredValue('VisualPlaybackActive') === true;
     }
@@ -61,7 +75,7 @@
         const next = active === true;
         setMirroredValue('VisualPlaybackActive', next);
         if (next) {
-            if (!Number.isFinite(Number(readMirroredValue('__playbackActiveSince')))) {
+            if (getPlaybackStartedAt() === null) {
                 setMirroredValue('__playbackActiveSince', Date.now());
             }
         } else {
@@ -140,7 +154,11 @@
     }
 
     function getPlaybackStartedAt() {
-        const value = Number(readMirroredValue('__playbackActiveSince'));
+        const rawValue = readMirroredValue('__playbackActiveSince');
+        if (rawValue === null || typeof rawValue === 'undefined' || rawValue === '') {
+            return null;
+        }
+        const value = Number(rawValue);
         return Number.isFinite(value) ? value : null;
     }
 
@@ -247,6 +265,17 @@
         return true;
     }
 
+    function abortPlayback() {
+        const abortHandle = activePlaybackAbortHandle;
+        activePlaybackAbortHandle = null;
+        if (abortHandle && typeof abortHandle.abort === 'function') {
+            abortHandle.abort();
+        }
+        clearPlaybackLock();
+        setPlaybackStartedAt(null);
+        return true;
+    }
+
     function syncLegacyWindowFlags(options) {
         const target = getRoot();
         const config = (options && typeof options === 'object') ? options : {};
@@ -275,7 +304,7 @@
         const readProcessing = (typeof config.readProcessing === 'function')
             ? config.readProcessing
             : function () { return target.isProcessing === true; };
-        const abortPlayback = (typeof config.abortPlayback === 'function')
+        const requestAbortPlayback = (typeof config.abortPlayback === 'function')
             ? config.abortPlayback
             : function () {
                 try {
@@ -332,8 +361,10 @@
                     if (getPlaybackActive()) {
                         const startedAt = ensurePlaybackStartedAt();
                         if (startedAt !== null && (Date.now() - startedAt) > watchdogTimeoutMs) {
-                            abortPlayback();
-                            clearPlaybackLock();
+                            requestAbortPlayback();
+                            if (getPlaybackActive()) {
+                                abortPlayback();
+                            }
                             const board = getBoardElement();
                             if (board && board.classList && typeof board.classList.remove === 'function') {
                                 board.classList.remove('playback-locked');
@@ -397,6 +428,9 @@
         getSuppressNextDiffFlip,
         setSuppressNextDiffFlip,
         consumeSuppressNextDiffFlip,
+        registerPlaybackAbortHandle,
+        clearPlaybackAbortHandle,
+        abortPlayback,
         clearPlaybackLock,
         syncLegacyWindowFlags,
         ensureDebugRuntime,

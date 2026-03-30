@@ -124,6 +124,25 @@ describe('pass-handler flows', () => {
         expect(global.TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
     });
 
+    test('ensureCurrentPlayerCanActOrPass は target-selection pending 中なら自動パスしない', () => {
+        delete require.cache[modPath];
+        global.cardState = {
+            turnIndex: 0,
+            turnCountByPlayer: { black: 0, white: 0 },
+            hands: { black: [], white: [] },
+            pendingEffectByPlayer: {
+                black: { type: 'GUARD_WILL', stage: 'selectTarget' },
+                white: null
+            }
+        };
+        global.TurnPipeline = makeTurnPipeline();
+        global.Core = { getLegalMoves: jest.fn(() => []) };
+        const ph = require('../game/pass-handler');
+        const handled = ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
+        expect(handled).toBe(false);
+        expect(global.TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
+    });
+
     test('ensureCurrentPlayerCanActOrPass はCPUターンでは自動パスする', () => {
         delete require.cache[modPath];
         global.gameState = { currentPlayer: global.WHITE };
@@ -315,5 +334,28 @@ describe('pass-handler flows', () => {
         expect(payload.snapshot).toBeUndefined();
         expect(payload.action).toEqual({ type: 'pass', playerKey: 'black', turnIndex: 4 });
         expect(global.cardState.hands.white).toEqual(['white_draw']);
+    });
+
+    test('pass reject clears processing through PlaybackStateManager when available', async () => {
+        delete require.cache[modPath];
+        global.isProcessing = true;
+        global.PlaybackStateManager = {
+            setBusyState: jest.fn()
+        };
+        global.TurnPipeline = {
+            applyTurnSafe: jest.fn(() => ({
+                ok: false,
+                events: [{ type: 'action_rejected', reason: 'ILLEGAL_PASS', message: 'Illegal pass: legal moves available' }]
+            }))
+        };
+        global.Core = {
+            getLegalMoves: jest.fn((state, player) => player === global.BLACK ? [{ row: 0, col: 0, flips: [[0, 1]] }] : [])
+        };
+
+        const ph = require('../game/pass-handler');
+        await expect(ph.processPassTurn('black', false)).resolves.toBe(false);
+
+        expect(global.PlaybackStateManager.setBusyState).toHaveBeenCalledWith({ processing: false });
+        expect(global.isProcessing).toBe(false);
     });
 });

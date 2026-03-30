@@ -25,7 +25,9 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         });
         global.applyCardChoice = jest.fn(() => false);
         global.CardLogic = {
-            getUsableCardIds: () => ['card_a']
+            getUsableCardIds: () => ['card_a'],
+            hasUsableCard: () => true,
+            getCardDef: (id) => ({ id })
         };
         global.selectCardFromOnnxPolicyAsync = jest.fn(async () => ({ hold: true }));
         global.cpuMaybeUseCardWithPolicy = jest.fn(() => false);
@@ -198,5 +200,28 @@ describe('cpu-turn-handler onnx hold behavior', () => {
 
         expect(global.selectMoveFromOnnxPolicyAsync).not.toHaveBeenCalled();
         expect(global.selectCpuMoveWithPolicy).toHaveBeenCalled();
+    });
+
+    test('no-legal-moves retry still falls back to policy and direct card use after ONNX hold', async () => {
+        global.cardState = {
+            hands: { white: ['card_a'], black: [] },
+            charge: { white: 10, black: 10 },
+            pendingEffectByPlayer: { white: null, black: null },
+            hasUsedCardThisTurnByPlayer: { white: false, black: false },
+            hasDestroyedCardThisTurnByPlayer: { white: false, black: false }
+        };
+        global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 10 };
+        global.generateMovesForPlayer = jest.fn(() => []);
+        global.cpuMaybeUseCardWithPolicy = jest.fn(() => false);
+        global.applyCardChoice = jest.fn(() => true);
+
+        await mod.runCpuTurn('white');
+
+        expect(global.selectCardFromOnnxPolicyAsync).toHaveBeenCalled();
+        expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
+        expect(global.applyCardChoice).toHaveBeenCalledWith('white', {
+            cardId: 'card_a',
+            cardDef: { id: 'card_a' }
+        });
     });
 });

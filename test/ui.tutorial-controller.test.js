@@ -1,7 +1,23 @@
 const { JSDOM } = require('jsdom');
 const TutorialControllerModule = require('../ui/tutorial/tutorial-controller');
+const TutorialStateModule = require('../ui/tutorial/tutorial-state');
+
+async function advanceUntilChoiceVisible(dom, overlayRoot, dialogWindow) {
+  const deadline = Date.now() + 2500;
+  while (Date.now() < deadline) {
+    const choiceButton = overlayRoot.querySelector('.tutorial-choice-btn');
+    if (choiceButton) return choiceButton;
+    dialogWindow.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  return overlayRoot.querySelector('.tutorial-choice-btn');
+}
 
 describe('tutorial controller close behavior', () => {
+  afterEach(() => {
+    TutorialStateModule.resetState();
+  });
+
   test('外側クリックと Escape では閉じず、終了ボタンで閉じる', async () => {
     const dom = new JSDOM('<button id="tutorialBtn">tutorial</button><div id="tutorialOverlay"></div>');
     const button = dom.window.document.getElementById('tutorialBtn');
@@ -43,11 +59,7 @@ describe('tutorial controller close behavior', () => {
     await controller.open();
 
     const dialogWindow = overlayRoot.querySelector('.tutorial-dialog-window');
-    for (let i = 0; i < 60; i += 1) {
-      dialogWindow.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      if (overlayRoot.querySelector('.tutorial-choice-btn')) break;
-    }
+    const choiceButton = await advanceUntilChoiceVisible(dom, overlayRoot, dialogWindow);
 
     expect(playEffectByKey).toHaveBeenCalledWith('tutorial_story_effect', expect.objectContaining({
       filePath: 'assets/story/sound-ef/テキストをクリックするとき.mp3'
@@ -59,7 +71,6 @@ describe('tutorial controller close behavior', () => {
     ));
     expect(textClickCall[1].volumeScale).toBeUndefined();
 
-    const choiceButton = overlayRoot.querySelector('.tutorial-choice-btn');
     expect(choiceButton).toBeTruthy();
     choiceButton.click();
     expect(dom.window.Tutorial.State.getState().mode).toBe('dialogue');
@@ -95,11 +106,7 @@ describe('tutorial controller close behavior', () => {
     playEffectByKey.mockClear();
 
     const dialogWindow = overlayRoot.querySelector('.tutorial-dialog-window');
-    for (let i = 0; i < 60; i += 1) {
-      dialogWindow.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      if (overlayRoot.querySelector('.tutorial-choice-btn')) break;
-    }
+    await advanceUntilChoiceVisible(dom, overlayRoot, dialogWindow);
     playEffectByKey.mockClear();
 
     dialogWindow.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));

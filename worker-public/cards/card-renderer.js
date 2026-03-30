@@ -672,9 +672,13 @@ function renderCardUI() {
     const isAnimating = _isCardAnimatingForRender();
     const staleVisualPlaybackLock = _isStaleVisualPlaybackLockForRender();
     const isDebugUnlimited = (typeof window !== 'undefined' && window.DEBUG_UNLIMITED_USAGE === true);
+    const currentTurnOwnerKey = isBlackTurn ? 'black' : 'white';
+    const fateWillControllerKey = (cardState.fateWillControllerByTurnOwner && cardState.fateWillControllerByTurnOwner[currentTurnOwnerKey]) || null;
+    const fateWillVictimKey = fateWillControllerKey ? currentTurnOwnerKey : null;
+    const fateWillIsActive = !!fateWillControllerKey;
     const inputPlayerKey = isNetworkMode
         ? localPlayerKey
-        : (isDebugHvH ? (isBlackTurn ? 'black' : 'white') : 'black');
+        : (isDebugHvH ? (fateWillControllerKey || (isBlackTurn ? 'black' : 'white')) : 'black');
     const localRevealViewerKey = isNetworkMode ? null : _getLocalPlayerKeyForNetwork();
     const pending = cardState.pendingEffectByPlayer[inputPlayerKey];
     const allowDuringAnimForSell = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
@@ -782,9 +786,15 @@ function renderCardUI() {
                     && !revealByDefault
                     && !isHiddenToken
                     && _isHandCardRevealedToViewerForRender(cardState, localRevealViewerKey, ownerKey, actualIndex);
+                const fateWillIsViewingVictim = fateWillIsActive
+                    && ownerKey === fateWillVictimKey
+                    && inputPlayerKey === fateWillControllerKey;
+                const fateWillVictimLockedOut = fateWillIsActive
+                    && ownerKey === fateWillVictimKey
+                    && inputPlayerKey === fateWillVictimKey;
                 const canShowFace = isNetworkMode
-                    ? (ownerKey === localPlayerKey || !isHiddenToken)
-                    : (revealByDefault || isLocallyRevealedOpponentCard);
+                    ? (ownerKey === localPlayerKey || fateWillIsViewingVictim || !isHiddenToken)
+                    : (revealByDefault || isLocallyRevealedOpponentCard || fateWillIsViewingVictim);
 
                 if (isCaptureReservedSlot) {
                     cardEl = _createCaptureReservedSlotElement();
@@ -801,10 +811,12 @@ function renderCardUI() {
                     const isOwnerTurn = ownerKey === 'black' ? isBlackTurn : !isBlackTurn;
                     const canInspectOwnerHand = isNetworkMode
                         ? canShowFace
-                        : (isDebugHvH ? true : (ownerKey === 'black'));
+                        : (isDebugHvH ? true : (ownerKey === 'black' || fateWillIsViewingVictim));
                     const canControlOwnerHand = isNetworkMode
-                        ? (ownerKey === localPlayerKey && isOwnerTurn)
-                        : (isDebugHvH ? isOwnerTurn : (ownerKey === 'black' && isOwnerTurn));
+                        ? ((ownerKey === localPlayerKey && isOwnerTurn && !fateWillVictimLockedOut) || (fateWillIsViewingVictim && isOwnerTurn))
+                        : (isDebugHvH
+                            ? (isOwnerTurn && !fateWillVictimLockedOut)
+                            : ((ownerKey === 'black' && isOwnerTurn && !fateWillVictimLockedOut) || (fateWillIsViewingVictim && isOwnerTurn)));
                     const usable = canControlOwnerHand && canInteract && hasNotUsedThisTurn && canAfford;
 
                     if (canInspectOwnerHand && canInteract) {

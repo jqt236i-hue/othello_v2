@@ -11,6 +11,12 @@ function jsonResponse(status, data) {
 function createSnapshot(stateVersion) {
   return {
     stateVersion,
+    _meta: {
+      authority: 'server',
+      version: stateVersion,
+      projectedForSeat: null,
+      turnStartReconciled: true
+    },
     gameState: {
       currentPlayer: 1,
       turnNumber: 1

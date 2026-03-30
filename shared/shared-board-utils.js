@@ -463,6 +463,81 @@
         return { xKeys, cKeys };
     }
 
+    function getCornerProximity(row, col, boardOrRows, maybeCols) {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+        if (Array.isArray(boardOrRows)) {
+            if (!hasPlayableCell(boardOrRows, row, col)) return null;
+            const isX = isXSquare(row, col, boardOrRows);
+            const isC = !isX && isCSquare(row, col, boardOrRows);
+            if (!isX && !isC) return null;
+            const corners = getCornerCells(boardOrRows);
+            for (const corner of corners) {
+                if (!corner || !Number.isInteger(corner.row) || !Number.isInteger(corner.col)) continue;
+                for (const vertical of [-1, 1]) {
+                    for (const horizontal of [-1, 1]) {
+                        if (
+                            hasPlayableCell(boardOrRows, corner.row + vertical, corner.col) ||
+                            hasPlayableCell(boardOrRows, corner.row, corner.col + horizontal)
+                        ) {
+                            continue;
+                        }
+                        const inwardRow = corner.row - vertical;
+                        const inwardCol = corner.col - horizontal;
+                        if (isX && inwardRow === row && inwardCol === col) {
+                            return { kind: 'X', corner: [corner.row, corner.col] };
+                        }
+                        if (isC && (
+                            (inwardRow === row && corner.col === col) ||
+                            (corner.row === row && inwardCol === col)
+                        )) {
+                            return { kind: 'C', corner: [corner.row, corner.col] };
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        const bounds = resolveBoardBounds(boardOrRows, maybeCols);
+        if (!bounds) return null;
+        const rowNearTop = row === (bounds.minRow + 1);
+        const rowNearBottom = row === (bounds.maxRow - 1);
+        const colNearLeft = col === (bounds.minCol + 1);
+        const colNearRight = col === (bounds.maxCol - 1);
+
+        if ((rowNearTop || rowNearBottom) && (colNearLeft || colNearRight)) {
+            return {
+                kind: 'X',
+                corner: [
+                    rowNearTop ? bounds.minRow : bounds.maxRow,
+                    colNearLeft ? bounds.minCol : bounds.maxCol
+                ]
+            };
+        }
+
+        if ((row === bounds.minRow || row === bounds.maxRow) && (colNearLeft || colNearRight)) {
+            return {
+                kind: 'C',
+                corner: [
+                    row,
+                    colNearLeft ? bounds.minCol : bounds.maxCol
+                ]
+            };
+        }
+
+        if ((col === bounds.minCol || col === bounds.maxCol) && (rowNearTop || rowNearBottom)) {
+            return {
+                kind: 'C',
+                corner: [
+                    rowNearTop ? bounds.minRow : bounds.maxRow,
+                    col
+                ]
+            };
+        }
+
+        return null;
+    }
+
     function isCorner(row, col, boardOrRows, maybeCols) {
         return isCornerCell(row, col, boardOrRows, maybeCols);
     }
@@ -765,6 +840,7 @@
         setCellValue,
         countBoardEmpties,
         getCornerCells,
+        getCornerProximity,
         isCornerCell,
         isEdgeCell,
         isCorner,

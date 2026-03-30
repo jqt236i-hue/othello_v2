@@ -104,7 +104,7 @@ describe('expansion fallback helpers', () => {
       { row: 7, col: 7 },
       { row: 7, col: 8 }
     ]));
-    expect(out.destroyed).toEqual([{ row: 8, col: 7 }]);
+    expect(out.destroyed).toEqual([expect.objectContaining({ row: 8, col: 7, reason: 'anchor_expired' })]);
     expect(gameState.board[7][7]).toBe(Shared.BLACK);
     expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 7 && cell.col === 8).owner).toBe(Shared.BLACK);
     expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 8 && cell.col === 7).owner).toBe(Shared.EMPTY);

@@ -43,6 +43,7 @@ argument-hint: 'どの profile / run-tag を起動・停止・監視したいか
 - 旧 run を止めずに新 run を起動し、どちらの process / log を見ているか分からなくなること
 - profile を直したあと、既に起動中の古い run に設定が自動反映されると誤解すること
 - run-tag を固定せずに起動し、監視・停止・比較の入口を失うこと
+- 起動や再起動を報告したのに、その場で `launcher.log` の tail か monitor コマンドを返さず、利用者が追跡入口を失うこと
 
 ## Procedure
 
@@ -52,9 +53,10 @@ argument-hint: 'どの profile / run-tag を起動・停止・監視したいか
 4. 新 run は必ず明示 run-tag で起動し、起動直後に run directory と `config.resolved.json`, `preflight.json`, `launcher.log` の生成を確認する。
 5. 起動後は process 一覧で新 run-tag を含む `run-selfplay-training-cycle.js` が生きていることを確認する。
 6. 監視コマンドは必ず run 専用 path を返す。相対 `launcher.log` は使わない。
-7. `training-cycle.summary.json` がまだ無い初期段階では、`Get-Content <run-dir>/launcher.log -Wait -Tail <n>` を先に案内する。
-8. summary 生成後は `npm run selfplay:monitor -- --profile <profile> --run-tag <tag> --watch` を案内し、watch / interval / tail を必要に応じて付ける。
-9. 最後に、今どの run が動いているか、どのコマンドで監視・停止できるか、設定変更が次回起動から有効かを明示する。
+7. 起動または再起動を報告する時は、完了報告の中で必ずコピペ可能な監視コマンドを 1 つ以上提示する。利用者が明示的に求めない限り、tail / watch 自体を別プロセスで起動しない。
+8. `training-cycle.summary.json` がまだ無い初期段階では、`Get-Content <run-dir>/launcher.log -Wait -Tail <n>` を先に案内する。
+9. summary 生成後は `npm run selfplay:monitor -- --profile <profile> --run-tag <tag> --watch` を案内し、watch / interval / tail を必要に応じて付ける。
+10. 必要に応じて `tail`, `monitor`, `stop` の 3 種類をそろえて提示し、最後に、今どの run が動いているか、どのコマンドで監視・停止できるか、設定変更が次回起動から有効かを明示する。
 
 ## Validation Bundle
 
@@ -63,11 +65,13 @@ argument-hint: 'どの profile / run-tag を起動・停止・監視したいか
 - `data/runs/<profile>/<run-tag>/config.resolved.json` の生成確認
 - `data/runs/<profile>/<run-tag>/launcher.log` の生成確認
 - target run-tag を含む process の存在確認
+- launch / resume の返答に `tail`, `monitor`, `stop` の 3 種類が含まれていることを確認
 - log tail もしくは monitor で 1 回は進捗を確認
 
 ## Completion Checklist
 
 - 起動中 run の `profile` と `run-tag` を報告している
+- 起動 / 再起動を報告した時は、その場で少なくとも 1 つのコピペ可能な監視コマンドを提示している
 - 正しい run 専用 `launcher.log` path を案内している
 - `tail`, `monitor`, `stop` の 3 種類のコマンドを提示している
 - 旧 run を止めた場合は対象 process を報告している

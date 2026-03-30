@@ -89,7 +89,7 @@ let PendingTargetSelector = null;
 if (typeof require === 'function') {
     try { PendingTargetSelector = require('./turn-handlers/pending-target-selector'); } catch (e) { /* ignore */ }
 }
-let PendingSelectionFlow = null;
+var PendingSelectionFlow = null;
 if (typeof require === 'function') {
     try { PendingSelectionFlow = require('./card-effects/selection-flow'); } catch (e) { /* ignore */ }
 }
@@ -97,11 +97,18 @@ let cpuDecisionNetworkTurnHandoff = null;
 if (typeof require === 'function') {
     try { cpuDecisionNetworkTurnHandoff = require('./network-turn-handoff'); } catch (e) { /* ignore */ }
 }
+let CpuPendingCoordinator = null;
+if (typeof require === 'function') {
+    try { CpuPendingCoordinator = require('./turn/pending-coordinator'); } catch (e) { /* ignore */ }
+}
 if (!cpuDecisionNetworkTurnHandoff && typeof globalThis !== 'undefined' && globalThis.NetworkTurnHandoff) {
     cpuDecisionNetworkTurnHandoff = globalThis.NetworkTurnHandoff;
 }
 if (!PendingSelectionFlow && typeof globalThis !== 'undefined' && globalThis.PendingSelectionFlow) {
     PendingSelectionFlow = globalThis.PendingSelectionFlow;
+}
+if (!CpuPendingCoordinator && typeof globalThis !== 'undefined' && globalThis.PendingCoordinator) {
+    CpuPendingCoordinator = globalThis.PendingCoordinator;
 }
 
 function hasPendingSelectionFlowContract(moduleRef) {
@@ -155,6 +162,44 @@ function resolvePendingSelectionFlow(requiredFunctionName) {
         return hasPendingSelectionFlowFunction(PendingSelectionFlow, requiredName) ? PendingSelectionFlow : null;
     }
     return hasPendingSelectionFlowContract(PendingSelectionFlow) ? PendingSelectionFlow : null;
+}
+
+function resolveCpuPendingCoordinator() {
+    if (CpuPendingCoordinator && typeof CpuPendingCoordinator === 'object') {
+        return CpuPendingCoordinator;
+    }
+    if (typeof require === 'function') {
+        try { CpuPendingCoordinator = require('./turn/pending-coordinator'); } catch (e) { /* ignore */ }
+    }
+    if (!CpuPendingCoordinator && typeof globalThis !== 'undefined' && globalThis.PendingCoordinator) {
+        CpuPendingCoordinator = globalThis.PendingCoordinator;
+    }
+    return CpuPendingCoordinator;
+}
+
+function readCpuPendingEffect(playerKey, stateRef) {
+    const resolvedState = stateRef || ((typeof cardState !== 'undefined') ? cardState : null);
+    const pendingCoordinator = resolveCpuPendingCoordinator();
+    if (pendingCoordinator && typeof pendingCoordinator.readPendingEffect === 'function') {
+        return pendingCoordinator.readPendingEffect(resolvedState, playerKey);
+    }
+    return (resolvedState && resolvedState.pendingEffectByPlayer)
+        ? (resolvedState.pendingEffectByPlayer[playerKey] || null)
+        : null;
+}
+
+function clearCpuPendingEffect(playerKey, stateRef) {
+    const resolvedState = stateRef || ((typeof cardState !== 'undefined') ? cardState : null);
+    const pendingCoordinator = resolveCpuPendingCoordinator();
+    if (pendingCoordinator && typeof pendingCoordinator.clearPendingEffect === 'function') {
+        return pendingCoordinator.clearPendingEffect(resolvedState, playerKey, {
+            clearSelectionAction: true
+        });
+    }
+    if (resolvedState && resolvedState.pendingEffectByPlayer) {
+        resolvedState.pendingEffectByPlayer[playerKey] = null;
+    }
+    return { ok: true, playerKey };
 }
 
 const CpuDecisionBoardUtilsModule = (() => {
@@ -446,7 +491,7 @@ function resolvePendingType(playerKey) {
         }
     } catch (e) { /* ignore */ }
     try {
-        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const pending = readCpuPendingEffect(playerKey);
         return pending && pending.type ? pending.type : null;
     } catch (e) { /* ignore */ }
     return null;
@@ -1661,7 +1706,7 @@ function resolveTurnPipeline() {
     return null;
 }
 
-function runCpuPendingSelectionViaPipeline(playerKey, actionPayload, pendingType) {
+async function runCpuPendingSelectionViaPipeline(playerKey, actionPayload, pendingType) {
     const adapter = resolveTurnPipelineAdapter();
     const pipeline = resolveTurnPipeline();
     const pendingSelectionFlow = resolvePendingSelectionFlow('createPendingSelectionAction');
@@ -1697,7 +1742,7 @@ function runCpuPendingSelectionViaPipeline(playerKey, actionPayload, pendingType
         });
     }
     emitCpuSelectionStateChange();
-    finalizeCpuPendingSelectionFlow(playerKey, pendingType, res.playbackEvents, action);
+    await finalizeCpuPendingSelectionFlow(playerKey, pendingType, res.playbackEvents, action);
     return { ok: true, res };
 }
 
@@ -1917,6 +1962,8 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     EXTEND_LIFE_WILL: makePlanPressureProfile(1, 1, 1, 2),
     EXTEND_LIFE_GOD: makePlanPressureProfile(1, 1, 1, 3),
     EXTREME_HYPERACTIVE_WILL: makePlanPressureProfile(3, 4, 3, 3),
+    EQUALITY_WILL: makePlanPressureProfile(2, 3, 2, 2),
+    FATE_WILL: makePlanPressureProfile(2, 3, 2, 2),
     FREE_PLACEMENT: makePlanPressureProfile(2, 4, 2, 0),
     FREEZE_WILL: makePlanPressureProfile(1, 2, 1, 1),
     GLUTTONOUS_WILL: makePlanPressureProfile(3, 4, 3, 3),
@@ -1928,6 +1975,7 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     GUARD_WILL: makePlanPressureProfile(0, 0, 0, 0),
     GHOST_WILL: makePlanPressureProfile(0, 0, 0, 1),
     HEAVEN_BLESSING: makePlanPressureProfile(1, 2, 1, 2),
+    REVEAL_HAND_WILL: makePlanPressureProfile(1, 2, 0, 1),
     HYPERACTIVE_INHERIT_WILL: makePlanPressureProfile(2, 2, 2, 3),
     HYPERACTIVE_WILL: makePlanPressureProfile(3, 3, 3, 3),
     INSTANT_HYPERACTIVE_WILL: makePlanPressureProfile(3, 4, 3, 4),
@@ -2101,10 +2149,6 @@ function buildCornerPlanState(playerKey, legalMoves, usableCardIds) {
         cornerEmergency,
         cornerHoldMode,
         recoveryReady,
-                DOUBLE_PLACE: GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE.DOUBLE_PLACE,
-                TRIPLE_PLACE: GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE.TRIPLE_PLACE,
-                QUAD_PLACE: GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE.QUAD_PLACE,
-                INFINITE_PLACE: GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE.INFINITE_PLACE,
         recoveryCostGap,
         maxBoardBonusOnLegalMoves,
         highBonusMoveAvailable: maxBoardBonusOnLegalMoves >= 3
@@ -2133,7 +2177,7 @@ function isCardChoiceAllowedByPlan(playerKey, level, legalMovesCount, cardId, ca
     const lowChargeTight = ownCharge <= Math.max(8, reserveChargeFloor + 2);
     const maxLegalFlips = Number.isFinite(decisionContext && decisionContext.maxLegalFlips)
         ? Math.max(0, Math.floor(Number(decisionContext.maxLegalFlips)))
-                    : getGeneratedThrowChainPlanPressureProfile(type);
+        : 0;
     const maxLegalGain = Number.isFinite(decisionContext && decisionContext.maxLegalGain)
         ? Math.max(0, Number(decisionContext.maxLegalGain))
         : maxLegalFlips;
@@ -2196,7 +2240,7 @@ function buildMovePlanContext(playerKey, level, candidateMoves) {
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
     const board = getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
     if (!isPlayableBoard(board)) return null;
-    const pending = cs && cs.pendingEffectByPlayer ? cs.pendingEffectByPlayer[playerKey] : null;
+    const pending = readCpuPendingEffect(playerKey, cs);
     const pendingType = resolvePendingType(playerKey);
     const playerValue = playerKey === 'black'
         ? (typeof BLACK !== 'undefined' ? BLACK : 1)
@@ -2230,7 +2274,7 @@ function buildMovePlanContext(playerKey, level, candidateMoves) {
         pendingPlacementsRemaining: pending && Number.isFinite(Number(pending.placementsRemaining))
             ? Number(pending.placementsRemaining)
             : 0,
-        preferEdgeRetention: true
+        preferEdgeRetention: plan.cornerHoldMode === true
     };
 }
 
@@ -2902,7 +2946,7 @@ function selectCardToUse(playerKey) {
 
 function selectHandCardToDestroy(playerKey) {
     if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return null;
-    if (cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[playerKey]) return null;
+    if (readCpuPendingEffect(playerKey)) return null;
     if (!CpuPolicyCore || typeof CpuPolicyCore.chooseHandDestroyTargetForCycle !== 'function') return null;
     if (typeof CardLogic === 'undefined' || !CardLogic) return null;
 
@@ -2979,7 +3023,7 @@ function applyHandCardDestroy(playerKey, destroyChoice) {
 
 function cpuMaybeDestroyHandCardWithPolicy(playerKey) {
     if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return false;
-    if (cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[playerKey]) return false;
+    if (readCpuPendingEffect(playerKey)) return false;
 
     const destroyChoice = selectHandCardToDestroy(playerKey);
     if (!destroyChoice) return false;
@@ -3164,7 +3208,7 @@ function selectCpuMoveWithPolicy(candidateMoves, playerKey) {
         : null;
     const pendingType = resolvePendingType(playerKey);
     if (pendingType === 'FREE_PLACEMENT' || pendingType === 'LAST_RESORT') {
-        const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const pending = readCpuPendingEffect(playerKey);
         const pendingPicked = choosePendingTargetWithPolicy(playerKey, pendingType, prioritizedCandidateMoves, pending);
         if (pendingPicked) {
             cpuDebugLog(
@@ -3646,9 +3690,7 @@ function hasLv6MarkerPressure() {
 function shouldForceLv6EdgePriority(playerKey, board) {
     if (!board) return true;
 
-    const pending = (cardState && cardState.pendingEffectByPlayer)
-        ? cardState.pendingEffectByPlayer[playerKey]
-        : null;
+    const pending = readCpuPendingEffect(playerKey);
     if (pending && pending.type) {
         return true;
     }
@@ -3787,7 +3829,11 @@ function filterCloneSplitTargetsForLv6(playerKey, targets) {
 function getCornerProximity(row, col, boardOverride) {
     const board = Array.isArray(boardOverride) ? boardOverride : getCurrentCpuBoard();
     const boardUtils = resolveSharedBoardUtilsModule();
-    if (!board || !boardUtils || typeof boardUtils.getCornerCells !== 'function') return null;
+    if (!board || !boardUtils) return null;
+    if (typeof boardUtils.getCornerProximity === 'function') {
+        return boardUtils.getCornerProximity(row, col, board);
+    }
+    if (typeof boardUtils.getCornerCells !== 'function') return null;
     if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
     const isX = typeof boardUtils.isXSquare === 'function'
         ? boardUtils.isXSquare(row, col, board)
@@ -4256,7 +4302,7 @@ function scorePendingTargetByType(playerKey, pendingType, target, pending) {
         return score;
     case 'METEOR_WILL':
         score += opp ? 240 : (own ? -260 : 40);
-        if (corner) score += opp ? 3600 : (own ? -4200 : 260);
+        if (corner) score += opp ? 260 : (own ? -4200 : 260);
         else if (edge) score += opp ? 1000 : (own ? -1100 : 120);
         score += destructiveMarkerScore * 1.4;
         score += (oppAdj - ownAdj) * 90;
@@ -4613,7 +4659,7 @@ async function cpuSelectDestroyWithPolicy(playerKey) {
 
     if (targets.length === 0) {
         cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 破壊対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
@@ -4621,7 +4667,7 @@ async function cpuSelectDestroyWithPolicy(playerKey) {
 
     cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 破壊ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { destroyTarget: { row: target.row, col: target.col } },
         'DESTROY_ONE_STONE'
@@ -4632,7 +4678,7 @@ async function cpuSelectDestroyWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyDestroyEffect === 'function') {
         const applied = !!CardLogic.applyDestroyEffect(cardState, gameState, playerKey, target.row, target.col);
         if (!applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
         return;
@@ -4654,14 +4700,14 @@ async function cpuSelectStrongWindWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 強風対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'STRONG_WIND_WILL', targets, null) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 強風ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { strongWindTarget: { row: target.row, col: target.col }, deferNetworkPublish: true },
         'STRONG_WIND_WILL'
@@ -4671,7 +4717,7 @@ async function cpuSelectStrongWindWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyStrongWindWill === 'function') {
         const res = CardLogic.applyStrongWindWill(cardState, gameState, playerKey, target.row, target.col, cpuRng);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
         return;
@@ -4685,14 +4731,14 @@ async function cpuSelectSuperBuoyancyWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 超浮力対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'SUPER_BUOYANCY_WILL', targets, null) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 超浮力ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { superBuoyancyTarget: { row: target.row, col: target.col }, deferNetworkPublish: true },
         'SUPER_BUOYANCY_WILL'
@@ -4702,7 +4748,7 @@ async function cpuSelectSuperBuoyancyWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySuperBuoyancyWill === 'function') {
         const res = CardLogic.applySuperBuoyancyWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
         return;
@@ -4716,14 +4762,14 @@ async function cpuSelectSuperGravityWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 超重力対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'SUPER_GRAVITY_WILL', targets, null) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 超重力ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { superGravityTarget: { row: target.row, col: target.col }, deferNetworkPublish: true },
         'SUPER_GRAVITY_WILL'
@@ -4733,7 +4779,7 @@ async function cpuSelectSuperGravityWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySuperGravityWill === 'function') {
         const res = CardLogic.applySuperGravityWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
         return;
@@ -4751,7 +4797,7 @@ async function cpuSelectSellCardWillWithPolicy(playerKey) {
         : [];
     if (!hand.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 売却対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
@@ -4800,7 +4846,7 @@ async function cpuSelectSellCardWillWithPolicy(playerKey) {
     }
     cpuDebugLog(`[CPU] ${playerKey}: 売却カード ${targetCardId} (cost=${bestCost})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { sellCardId: targetCardId },
         'SELL_CARD_WILL'
@@ -4810,7 +4856,7 @@ async function cpuSelectSellCardWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySellCardWill === 'function') {
         const res = CardLogic.applySellCardWill(cardState, playerKey, targetCardId);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
         return;
@@ -4822,11 +4868,11 @@ async function cpuSelectSellCardWillWithPolicy(playerKey) {
  * @param {string} playerKey - 'black' または 'white'
  */
 async function cpuSelectHeavenBlessingWithPolicy(playerKey) {
-    const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
+    const pending = readCpuPendingEffect(playerKey);
     const offers = (pending && Array.isArray(pending.offers)) ? pending.offers.slice() : [];
     if (!offers.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 天の恵み候補なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
@@ -4892,7 +4938,7 @@ async function cpuSelectHeavenBlessingWithPolicy(playerKey) {
     }
     cpuDebugLog(`[CPU] ${playerKey}: 天の恵み選択 ${targetCardId} (score=${bestScore.toFixed(1)} cost=${bestCost})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { heavenBlessingCardId: targetCardId },
         'HEAVEN_BLESSING'
@@ -4902,7 +4948,7 @@ async function cpuSelectHeavenBlessingWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyHeavenBlessingChoice === 'function') {
         const res = CardLogic.applyHeavenBlessingChoice(cardState, playerKey, targetCardId);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         } else {
             const actor = playerKey === 'black' ? '黒' : '白';
             emitCpuEffectLog(`${actor}: 天の恵みでカード獲得`);
@@ -4916,11 +4962,11 @@ async function cpuSelectHeavenBlessingWithPolicy(playerKey) {
  * @param {string} playerKey - 'black' または 'white'
  */
 async function cpuSelectCondemnWillWithPolicy(playerKey) {
-    const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
+    const pending = readCpuPendingEffect(playerKey);
     const offers = (pending && Array.isArray(pending.offers)) ? pending.offers.slice() : [];
     if (!offers.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 断罪候補なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
@@ -4992,12 +5038,12 @@ async function cpuSelectCondemnWillWithPolicy(playerKey) {
         }
     }
     if (!target || !Number.isInteger(target.handIndex)) {
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
     cpuDebugLog(`[CPU] ${playerKey}: 断罪選択 index=${target.handIndex} card=${target.cardId} (score=${bestScore.toFixed(1)} cost=${bestCost})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { condemnTargetIndex: target.handIndex },
         'CONDEMN_WILL'
@@ -5007,7 +5053,7 @@ async function cpuSelectCondemnWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyCondemnWill === 'function') {
         const res = CardLogic.applyCondemnWill(cardState, playerKey, target.handIndex);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
     }
@@ -5024,14 +5070,14 @@ async function cpuSelectSwapWithEnemyWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 交換対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'SWAP_WITH_ENEMY', targets, null) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 交換ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { swapTarget: { row: target.row, col: target.col } },
         'SWAP_WITH_ENEMY'
@@ -5041,7 +5087,7 @@ async function cpuSelectSwapWithEnemyWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySwapEffect === 'function') {
         const applied = !!CardLogic.applySwapEffect(cardState, gameState, playerKey, target.row, target.col);
         if (!applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         } else {
             handOffSelectionTurnInGameState(playerKey);
             maybeContinueCpuSelectionTurnHandoff(playerKey, 'SWAP_WITH_ENEMY', []);
@@ -5066,15 +5112,15 @@ async function cpuSelectPositionSwapWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 入替対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
-    const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
+    const pending = readCpuPendingEffect(playerKey);
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'POSITION_SWAP_WILL', targets, pending) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 入替ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { positionSwapTarget: { row: target.row, col: target.col } },
         'POSITION_SWAP_WILL'
@@ -5084,7 +5130,7 @@ async function cpuSelectPositionSwapWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyPositionSwapWill === 'function') {
         const res = CardLogic.applyPositionSwapWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
         return;
@@ -5106,14 +5152,14 @@ async function cpuSelectTrapWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 罠対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'TRAP_WILL', targets, null) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 罠ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { trapTarget: { row: target.row, col: target.col } },
         'TRAP_WILL'
@@ -5123,7 +5169,7 @@ async function cpuSelectTrapWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyTrapWill === 'function') {
         const res = CardLogic.applyTrapWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         } else {
             handOffSelectionTurnInGameState(playerKey);
             maybeContinueCpuSelectionTurnHandoff(playerKey, 'TRAP_WILL', []);
@@ -5138,7 +5184,7 @@ async function cpuSelectTrapWillWithPolicy(playerKey) {
  * @param {string} playerKey - 'black' または 'white'
  */
 async function cpuSelectGuardWillWithPolicy(playerKey) {
-    const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
+    const pending = readCpuPendingEffect(playerKey);
     const pendingType = (pending && (pending.type === 'GUARD_WILL' || pending.type === 'GUARDIAN_GOD'))
         ? pending.type
         : 'GUARD_WILL';
@@ -5149,14 +5195,14 @@ async function cpuSelectGuardWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 守る対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, pendingType, targets, pending) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 守るターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { guardTarget: { row: target.row, col: target.col } },
         pendingType
@@ -5166,7 +5212,7 @@ async function cpuSelectGuardWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyGuardWill === 'function') {
         const res = CardLogic.applyGuardWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
         return;
@@ -5186,14 +5232,14 @@ async function cpuSelectHyperactiveInheritWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 継承多動対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'HYPERACTIVE_INHERIT_WILL', targets, null) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 継承多動ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { hyperactiveInheritTarget: { row: target.row, col: target.col } },
         'HYPERACTIVE_INHERIT_WILL'
@@ -5203,7 +5249,7 @@ async function cpuSelectHyperactiveInheritWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyHyperactiveInheritWill === 'function') {
         const res = CardLogic.applyHyperactiveInheritWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
         return;
@@ -5215,7 +5261,7 @@ async function cpuSelectHyperactiveInheritWillWithPolicy(playerKey) {
  * @param {string} playerKey - 'black' または 'white'
  */
 async function cpuSelectExtendLifeWillWithPolicy(playerKey) {
-    const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+    const pending = readCpuPendingEffect(playerKey);
     const pendingType = pending && pending.type === 'EXTEND_LIFE_GOD'
         ? 'EXTEND_LIFE_GOD'
         : 'EXTEND_LIFE_WILL';
@@ -5228,14 +5274,14 @@ async function cpuSelectExtendLifeWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: ${pendingType === 'EXTEND_LIFE_GOD' ? '延命神' : '延命'}対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, pendingType, targets, pending) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: ${pendingType === 'EXTEND_LIFE_GOD' ? '延命神' : '延命'}ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { extendTarget: { row: target.row, col: target.col } },
         pendingType
@@ -5245,7 +5291,7 @@ async function cpuSelectExtendLifeWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic[applyMethodName] === 'function') {
         const res = CardLogic[applyMethodName](cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
         return;
@@ -5265,14 +5311,14 @@ async function cpuSelectCorrosionWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 腐食対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'CORROSION_WILL', targets, null) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 腐食ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { corrosionTarget: { row: target.row, col: target.col } },
         'CORROSION_WILL'
@@ -5282,7 +5328,7 @@ async function cpuSelectCorrosionWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyCorrosionWill === 'function') {
         const res = CardLogic.applyCorrosionWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
         return;
@@ -5370,18 +5416,18 @@ async function cpuSelectTimeBombWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 時限爆弾対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = chooseTimeBombTargetWithPolicy(playerKey, targets);
     if (!target) {
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
     cpuDebugLog(`[CPU] ${playerKey}: 時限爆弾ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { bombTarget: { row: target.row, col: target.col } },
         'TIME_BOMB'
@@ -5391,7 +5437,7 @@ async function cpuSelectTimeBombWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyTimeBombWill === 'function') {
         const res = CardLogic.applyTimeBombWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
     }
@@ -5402,9 +5448,7 @@ async function cpuSelectTimeBombWithPolicy(playerKey) {
  * @param {string} playerKey - 'black' または 'white'
  */
 async function cpuSelectBoardExpansionWillWithPolicy(playerKey) {
-    const pending = (cardState && cardState.pendingEffectByPlayer)
-        ? cardState.pendingEffectByPlayer[playerKey]
-        : null;
+    const pending = readCpuPendingEffect(playerKey);
     const pendingType = pending && typeof pending.type === 'string' ? pending.type : 'BOARD_EXPANSION_WILL';
     const isGodExpansion = pendingType === 'BOARD_EXPANSION_GOD';
     const cardLabel = isGodExpansion ? '盤面拡張神' : '盤面拡張';
@@ -5415,14 +5459,14 @@ async function cpuSelectBoardExpansionWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: ${cardLabel}対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, pendingType, targets, pending) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: ${cardLabel}ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { expansionTarget: { row: target.row, col: target.col } },
         pendingType
@@ -5438,7 +5482,7 @@ async function cpuSelectBoardExpansionWillWithPolicy(playerKey) {
     if (typeof applyFn === 'function') {
         const res = applyFn(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
     }
@@ -5455,14 +5499,14 @@ async function cpuSelectBlockadeWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 封鎖対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'BLOCKADE_WILL', targets, null) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 封鎖ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { blockadeTarget: { row: target.row, col: target.col } },
         'BLOCKADE_WILL'
@@ -5472,7 +5516,7 @@ async function cpuSelectBlockadeWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyBlockadeWill === 'function') {
         const res = CardLogic.applyBlockadeWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
     }
@@ -5489,14 +5533,14 @@ async function cpuSelectMeteorWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 隕石対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'METEOR_WILL', targets, null) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 隕石ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { meteorTarget: { row: target.row, col: target.col } },
         'METEOR_WILL'
@@ -5506,7 +5550,7 @@ async function cpuSelectMeteorWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyMeteorWill === 'function') {
         const res = CardLogic.applyMeteorWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
     }
@@ -5523,14 +5567,14 @@ async function cpuSelectFreezeWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 凍結対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'FREEZE_WILL', targets, null) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 凍結ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { freezeTarget: { row: target.row, col: target.col } },
         'FREEZE_WILL'
@@ -5540,7 +5584,7 @@ async function cpuSelectFreezeWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyFreezeWill === 'function') {
         const res = CardLogic.applyFreezeWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
     }
@@ -5557,21 +5601,21 @@ async function cpuSelectCloneWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 複製対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const eligibleTargets = filterCloneSplitTargetsForLv6(playerKey, targets);
     if (!eligibleTargets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 複製対象なし (通常石は除外)`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'CLONE_WILL', eligibleTargets, null) || eligibleTargets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 複製ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { cloneTarget: { row: target.row, col: target.col } },
         'CLONE_WILL'
@@ -5581,7 +5625,7 @@ async function cpuSelectCloneWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyCloneWill === 'function') {
         const res = CardLogic.applyCloneWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
     }
@@ -5598,21 +5642,21 @@ async function cpuSelectSplitWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 分裂対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const eligibleTargets = filterCloneSplitTargetsForLv6(playerKey, targets);
     if (!eligibleTargets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 分裂対象なし (通常石は除外)`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'SPLIT_WILL', eligibleTargets, null) || eligibleTargets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 分裂ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { splitTarget: { row: target.row, col: target.col } },
         'SPLIT_WILL'
@@ -5622,7 +5666,7 @@ async function cpuSelectSplitWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySplitWill === 'function') {
         const res = CardLogic.applySplitWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
     }
@@ -5639,14 +5683,14 @@ async function cpuSelectTeleportWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: テレポート対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'TELEPORT_WILL', targets, null) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: テレポートターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { teleportTarget: { row: target.row, col: target.col } },
         'TELEPORT_WILL'
@@ -5656,7 +5700,7 @@ async function cpuSelectTeleportWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyTeleportWill === 'function') {
         const res = CardLogic.applyTeleportWill(cardState, gameState, playerKey, target.row, target.col, cpuRng);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
     }
@@ -5673,14 +5717,14 @@ async function cpuSelectCellTeleportWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: マステレポート対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'CELL_TELEPORT_WILL', targets, null) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: マステレポートターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { teleportTarget: { row: target.row, col: target.col } },
         'CELL_TELEPORT_WILL'
@@ -5690,7 +5734,7 @@ async function cpuSelectCellTeleportWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyCellTeleportWill === 'function') {
         const res = CardLogic.applyCellTeleportWill(cardState, gameState, playerKey, target.row, target.col, cpuRng);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
     }
@@ -5707,14 +5751,14 @@ async function cpuSelectTemptWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 誘惑対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'TEMPT_WILL', targets, null) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 誘惑ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { temptTarget: { row: target.row, col: target.col } },
         'TEMPT_WILL'
@@ -5724,7 +5768,7 @@ async function cpuSelectTemptWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyTemptWill === 'function') {
         const res = CardLogic.applyTemptWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
         return;
@@ -5746,14 +5790,14 @@ async function cpuSelectCaptureWillWithPolicy(playerKey) {
 
     if (!targets.length) {
         cpuDebugLog(`[CPU] ${playerKey}: 捕獲対象なし`);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'CAPTURE_WILL', targets, null) || targets[0];
     cpuDebugLog(`[CPU] ${playerKey}: 捕獲ターゲット (${target.row}, ${target.col})`);
 
-    const pipelineResult = runCpuPendingSelectionViaPipeline(
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
         { captureTarget: { row: target.row, col: target.col } },
         'CAPTURE_WILL'
@@ -5763,11 +5807,11 @@ async function cpuSelectCaptureWillWithPolicy(playerKey) {
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyCaptureWill === 'function') {
         const res = CardLogic.applyCaptureWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCpuPendingEffect(playerKey);
         }
         emitCpuSelectionStateChange();
     } else {
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCpuPendingEffect(playerKey);
         emitCpuSelectionStateChange();
     }
 }

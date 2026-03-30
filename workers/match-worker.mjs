@@ -1743,6 +1743,14 @@ export class MatchRoomDurableObject {
         }
     }
 
+    async closeStreamsForSeat(seatKey) {
+        if (!seatKey || !this.streams || this.streams.size === 0) return;
+        for (const [streamId, stream] of Array.from(this.streams.entries())) {
+            if (!stream || stream.seatKey !== seatKey) continue;
+            await this.closeStream(streamId);
+        }
+    }
+
     async sendSse(streamId, eventName, payload, options) {
         const stream = this.streams.get(streamId);
         if (!stream) return;
@@ -2169,8 +2177,13 @@ export class MatchRoomDurableObject {
             ? room.seatNames
             : { black: '', white: '' };
         room.seatNames[seatKey] = '';
+        room.seatTokens = room.seatTokens && typeof room.seatTokens === 'object'
+            ? room.seatTokens
+            : {};
+        room.seatTokens[seatKey] = makeSeatToken();
         room.updatedAt = Date.now();
         await this.refreshTurnTimer({ nowMs: room.updatedAt, forceRestart: false });
+        await this.closeStreamsForSeat(seatKey);
 
         await this.broadcastPresence({
             type: 'leave',
@@ -2256,6 +2269,23 @@ export class MatchRoomDurableObject {
                     receivedBaseVersion: baseVersion,
                     authoritativeStateVersion: room.stateVersion,
                     rejectedReason: 'SEAT_TOKEN_MISMATCH'
+                }
+            }));
+        }
+
+        if (!(MatchAuthority && typeof MatchAuthority.hasRequiredOperationId === 'function'
+            ? MatchAuthority.hasRequiredOperationId(operationId)
+            : !!operationId)) {
+            return jsonResponse(409, buildPublishPayload(room, seatKey, {
+                ok: false,
+                rejectedReason: 'OPERATION_ID_REQUIRED',
+                publishMeta: {
+                    kind: 'rejected',
+                    operationId,
+                    actionType,
+                    receivedBaseVersion: baseVersion,
+                    authoritativeStateVersion: room.stateVersion,
+                    rejectedReason: 'OPERATION_ID_REQUIRED'
                 }
             }));
         }

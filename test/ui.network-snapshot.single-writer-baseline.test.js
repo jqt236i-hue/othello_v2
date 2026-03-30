@@ -90,6 +90,12 @@ describe('applySnapshot single-writer baseline', () => {
   });
 
   afterEach(() => {
+    try {
+      const pendingCoordinator = require('../game/turn/pending-coordinator');
+      if (pendingCoordinator && typeof pendingCoordinator.clearPendingSelectionActionCache === 'function') {
+        pendingCoordinator.clearPendingSelectionActionCache();
+      }
+    } catch (e) { /* ignore */ }
     delete global.window;
     delete global.document;
     delete global.BLACK;
@@ -194,7 +200,49 @@ describe('applySnapshot single-writer baseline', () => {
 
     expect(syncPendingCalls.length).toBeGreaterThanOrEqual(1);
     const lastSync = syncPendingCalls[syncPendingCalls.length - 1];
-    expect(lastSync.black).toEqual({ type: 'CONDEMN_WILL', stage: 'selectTarget' });
+    expect(lastSync).toEqual(expect.objectContaining({
+      turnIndex: 1,
+      pendingEffectByPlayer: expect.objectContaining({
+        black: { type: 'CONDEMN_WILL', stage: 'selectTarget' }
+      })
+    }));
+  });
+
+  test('snapshot 実経路で same-type stale pending action cache を turnIndex 差分で prune する', () => {
+    const PendingCoordinator = require('../game/turn/pending-coordinator');
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    PendingCoordinator.createPendingSelectionAction(
+      'black',
+      'BOARD_EXPANSION_GOD',
+      { anchor: { row: 4, col: 4 } },
+      {
+        cardState: {
+          turnIndex: 6,
+          pendingEffectByPlayer: {
+            black: { type: 'BOARD_EXPANSION_GOD', stage: 'selectTarget', selectedTargets: [{ row: 2, col: 3 }] },
+            white: null
+          }
+        }
+      }
+    );
+    global.syncPendingSelectionActionCache = PendingCoordinator.syncPendingSelectionActionCache;
+
+    const stateObj = { stateVersion: 10 };
+    const ctrl = createController(stateObj);
+    const snap = createSnapshot(11);
+    snap.cardState.turnIndex = 7;
+    snap.cardState.pendingEffectByPlayer = {
+      black: { type: 'BOARD_EXPANSION_GOD', stage: 'selectTarget' },
+      white: null
+    };
+
+    ctrl.applySnapshot(snap, { playbackEvents: [] });
+
+    expect(PendingCoordinator.readPendingSelectionAction('black')).toBeNull();
   });
 
   test('snapshot 適用で時間停止の永続状態を保持しつつ transient queue を落とす', () => {
@@ -239,6 +287,52 @@ describe('applySnapshot single-writer baseline', () => {
     const applied = ctrl.applySnapshot(snap, { playbackEvents: [] });
     expect(applied).toBe(false);
     expect(emittedEvents).toHaveLength(0);
+  });
+
+  test('_meta がない snapshot は適用されない', () => {
+    const stateObj = { stateVersion: 10 };
+    const ctrl = createController(stateObj);
+    const snap = createSnapshot(11);
+    delete snap._meta;
+
+    const applied = ctrl.applySnapshot(snap, { playbackEvents: [] });
+
+    expect(applied).toBe(false);
+    expect(stateObj.stateVersion).toBe(10);
+    expect(global.gameState.turnNumber).toBe(10);
+    expect(emittedEvents).toHaveLength(0);
+    expect(busyStateCalls).toHaveLength(0);
+  });
+
+  test('stale shadow playback early return は busy を解放して suppressPlayback event を emit する', () => {
+    const stateObj = { stateVersion: 15 };
+    const ctrl = createController(stateObj);
+    const snap = createSnapshot(10);
+    const shadowEvents = [{ type: 'flip', phase: 1, targets: [{ r: 2, c: 3 }] }];
+
+    const applied = ctrl.applySnapshot(snap, {
+      allowStaleShadowPlayback: true,
+      shadowPlaybackEvents: shadowEvents
+    });
+
+    expect(applied).toBe(true);
+    expect(busyStateCalls).toEqual(expect.arrayContaining([
+      expect.objectContaining({ processing: true, cardAnimating: true }),
+      expect.objectContaining({ processing: false, cardAnimating: false })
+    ]));
+    expect(busyStateCalls[busyStateCalls.length - 1]).toEqual(
+      expect.objectContaining({ processing: false, cardAnimating: false })
+    );
+    expect(emittedEvents).toContainEqual(
+      expect.objectContaining({
+        type: 'PLAYBACK_EVENTS',
+        events: shadowEvents,
+        meta: expect.objectContaining({
+          source: 'self_snapshot_sync',
+          suppressPlayback: true
+        })
+      })
+    );
   });
 
   test('_meta.version が top-level stateVersion より優先される', () => {

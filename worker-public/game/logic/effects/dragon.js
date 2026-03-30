@@ -380,6 +380,9 @@
                         entry.data.type === 'DRAGON'
                     ));
                 }
+                if (isExpansionCoordinate(dragon.row, dragon.col)) {
+                    setCellValue(gameState, dragon.row, dragon.col, P_EMPTY);
+                }
                 if (dragon.data) dragon.data.remainingOwnerTurns = -1;
             }
         }
@@ -563,6 +566,9 @@
                     entry.data &&
                     entry.data.type === 'DRAGON'
                 ));
+            }
+            if (isExpansionCoordinate(anchorRow, anchorCol)) {
+                setCellValue(gameState, anchorRow, anchorCol, P_EMPTY);
             }
             if (dragon.data) dragon.data.remainingOwnerTurns = -1;
         }

@@ -125,6 +125,10 @@
 
         function clearBusyStateAndPlaybackLock() {
             const playbackState = resolvePlaybackStateModule();
+            if (playbackState && typeof playbackState.abortPlayback === 'function') {
+                playbackState.abortPlayback();
+                return true;
+            }
             if (playbackState && typeof playbackState.clearPlaybackLock === 'function') {
                 playbackState.clearPlaybackLock();
                 return true;
@@ -167,9 +171,12 @@
                 return null;
             }
             const meta = snapshot._meta;
+            const rawVersion = meta.version;
             return {
                 authority: String(meta.authority || '').trim().toLowerCase(),
-                version: Number.isFinite(Number(meta.version)) ? Number(meta.version) : null,
+                version: (rawVersion === null || typeof rawVersion === 'undefined' || (typeof rawVersion === 'string' && rawVersion.trim() === ''))
+                    ? null
+                    : (Number.isFinite(Number(rawVersion)) ? Number(rawVersion) : null),
                 projectedForSeat: normalizeSeatKey(meta.projectedForSeat),
                 turnStartReconciled: meta.turnStartReconciled !== false
             };
@@ -189,7 +196,7 @@
                 emitTelemetry('snapshot_authority_metadata_missing', {
                     force: opts && opts.force === true
                 });
-                return false;
+                return true;
             }
             if (meta.authority !== 'server') {
                 emitTelemetry('snapshot_authority_rejected', {
@@ -767,6 +774,7 @@
                     });
                     setBusyState(true);
                     refreshUi();
+                    setBusyState(false);
                     return true;
                 }
                 emitTelemetry('snapshot_stale_rejected', {
@@ -804,7 +812,7 @@
             const syncPendingSelectionActionCache = resolveGlobalFunction('syncPendingSelectionActionCache', cfg.syncPendingSelectionActionCache);
             if (syncPendingSelectionActionCache && cardStateRef) {
                 try {
-                    syncPendingSelectionActionCache(cardStateRef.pendingEffectByPlayer || null);
+                    syncPendingSelectionActionCache(cardStateRef);
                 } catch (e) { /* ignore */ }
             }
 

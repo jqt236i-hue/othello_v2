@@ -1147,6 +1147,20 @@
         return globalScope.CardPendingStateManager || null;
     })();
 
+    const PendingCoordinatorModule = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('../turn/pending-coordinator');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.PendingCoordinator || null;
+    })();
+
     const CardChargeLedgerModule = (() => {
         if (typeof require === 'function') {
             try {
@@ -1160,6 +1174,36 @@
             : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
         return globalScope.CardChargeLedger || null;
     })();
+
+    function readCardPendingEffect(cardState, playerKey) {
+        if (PendingCoordinatorModule && typeof PendingCoordinatorModule.readPendingEffect === 'function') {
+            return PendingCoordinatorModule.readPendingEffect(cardState, playerKey);
+        }
+        return (cardState && cardState.pendingEffectByPlayer) ? (cardState.pendingEffectByPlayer[playerKey] || null) : null;
+    }
+
+    function writeCardPendingEffect(cardState, playerKey, pendingEffect, options) {
+        if (PendingCoordinatorModule && typeof PendingCoordinatorModule.writePendingEffect === 'function') {
+            const result = PendingCoordinatorModule.writePendingEffect(cardState, playerKey, pendingEffect, options);
+            return result && result.ok ? result.pendingEffect : null;
+        }
+        if (!cardState || typeof cardState !== 'object') return null;
+        if (!cardState.pendingEffectByPlayer || typeof cardState.pendingEffectByPlayer !== 'object') {
+            cardState.pendingEffectByPlayer = { black: null, white: null };
+        }
+        cardState.pendingEffectByPlayer[playerKey] = pendingEffect || null;
+        return cardState.pendingEffectByPlayer[playerKey];
+    }
+
+    function clearCardPendingEffect(cardState, playerKey, options) {
+        if (PendingCoordinatorModule && typeof PendingCoordinatorModule.clearPendingEffect === 'function') {
+            const result = PendingCoordinatorModule.clearPendingEffect(cardState, playerKey, options);
+            return !!(result && result.ok);
+        }
+        if (!cardState || !cardState.pendingEffectByPlayer) return false;
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return true;
+    }
 
     const BoardOpsModule = (() => {
         if (typeof require === 'function') {
@@ -2510,9 +2554,7 @@
         if (!isSpecialMarker || !markerData.type) return markerData;
         if (markerData.sourceType && markerData.sourceCardId) return markerData;
 
-        const pending = cardState && cardState.pendingEffectByPlayer && owner
-            ? cardState.pendingEffectByPlayer[owner]
-            : null;
+        const pending = readCardPendingEffect(cardState, owner);
         const pendingType = pending && typeof pending.type === 'string' ? pending.type : null;
         if (!markerData.sourceType && pendingType) {
             markerData.sourceType = pendingType;
@@ -2894,7 +2936,9 @@
                     cardType === 'METEOR_WILL' ||
                     cardType === 'FREEZE_WILL'
                 );
-        cardState.pendingEffectByPlayer[chargeOwnerKey] =
+        writeCardPendingEffect(
+            cardState,
+            chargeOwnerKey,
             CardPendingStateManagerModule && typeof CardPendingStateManagerModule.createPendingEffectState === 'function'
                 ? CardPendingStateManagerModule.createPendingEffectState({
                     cardType,
@@ -2913,10 +2957,11 @@
                     maxSelections: cardType === 'BOARD_EXPANSION_GOD' ? 2 : undefined,
                     selectedTargets: cardType === 'BOARD_EXPANSION_GOD' ? [] : undefined,
                     placementsRemaining: cardType === 'LAST_RESORT' ? 3 : undefined
-                };
+                }
+        );
 
-        if (cardType === 'BOARD_EXPANSION_GOD' && cardState.pendingEffectByPlayer[chargeOwnerKey]) {
-            const boardExpansionGodPending = cardState.pendingEffectByPlayer[chargeOwnerKey];
+        if (cardType === 'BOARD_EXPANSION_GOD' && readCardPendingEffect(cardState, chargeOwnerKey)) {
+            const boardExpansionGodPending = readCardPendingEffect(cardState, chargeOwnerKey);
             const requiredSelections = getBoardExpansionGodRequiredSelectionCount(cardState, gameState, chargeOwnerKey);
             boardExpansionGodPending.selectedCount = 0;
             boardExpansionGodPending.maxSelections = requiredSelections > 0 ? requiredSelections : 1;
@@ -2964,16 +3009,20 @@
      */
     function cancelPendingSelection(cardState, playerKey, opts) {
         if (CardPendingStateManagerModule && typeof CardPendingStateManagerModule.cancelPendingSelection === 'function') {
-            return CardPendingStateManagerModule.cancelPendingSelection(cardState, playerKey, opts, {
+            const result = CardPendingStateManagerModule.cancelPendingSelection(cardState, playerKey, opts, {
                 helpers: {
                     getCardDef,
                     addChargeValue,
                     moveDiscardCardToHandByCardId
                 }
             });
+            if (result && result.canceled) {
+                clearCardPendingEffect(cardState, playerKey);
+            }
+            return result;
         }
         if (!cardState || !cardState.pendingEffectByPlayer) return { canceled: false, reason: 'no_state' };
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.stage !== 'selectTarget') return { canceled: false, reason: 'not_pending' };
         if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'POSITION_SWAP_WILL' && pending.type !== 'BOARD_EXPANSION_WILL' && pending.type !== 'BOARD_EXPANSION_GOD' && pending.type !== 'BLOCKADE_WILL' && pending.type !== 'METEOR_WILL' && pending.type !== 'FREEZE_WILL') {
             return { canceled: false, reason: 'not_cancellable' };
@@ -3002,7 +3051,7 @@
             moveDiscardCardToHandByCardId(cardState, handKey, cardId, { ignoreHandLimit: true });
         }
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { canceled: true, cardId };
     }
 
@@ -3353,9 +3402,7 @@
         const occupied = new Set(
             getExpansionDescriptorsForCard(gameState).map((cell) => `${cell.row},${cell.col}`)
         );
-        const pending = cardState && cardState.pendingEffectByPlayer
-            ? cardState.pendingEffectByPlayer[playerKey]
-            : null;
+        const pending = readCardPendingEffect(cardState, playerKey);
         const selectedKeys = new Set(
             getBoardExpansionGodPendingSelectionsForCard(pending).map((target) => `${target.row},${target.col}`)
         );
@@ -3372,9 +3419,7 @@
     }
 
     function getBoardExpansionGodRequiredSelectionCount(cardState, gameState, playerKey) {
-        const pending = cardState && cardState.pendingEffectByPlayer
-            ? cardState.pendingEffectByPlayer[playerKey]
-            : null;
+        const pending = readCardPendingEffect(cardState, playerKey);
         const selectedCount = getBoardExpansionGodPendingSelectionsForCard(pending).length;
         const availableCount = getBoardExpansionGodTargets(cardState, gameState, playerKey).length;
         const totalSelectableCount = selectedCount + availableCount;
@@ -3554,7 +3599,7 @@
     }
 
     function applyTrapWill(cardState, gameState, playerKey, row, col) {
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'TRAP_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -3573,7 +3618,7 @@
             hidden: true
         });
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, row, col };
     }
 
@@ -3662,7 +3707,7 @@
     }
 
     function applyTemptWill(cardState, gameState, playerKey, row, col) {
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'TEMPT_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -3715,7 +3760,7 @@
             });
         }
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true };
     }
 
@@ -3752,7 +3797,7 @@
     }
 
     function applyCaptureWill(cardState, gameState, playerKey, row, col) {
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'CAPTURE_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -3831,7 +3876,7 @@
             }
         });
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return {
             applied: true,
             target: { row, col },
@@ -3845,7 +3890,7 @@
     }
 
     function applyGuardWill(cardState, gameState, playerKey, row, col) {
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || (pending.type !== 'GUARD_WILL' && pending.type !== 'GUARDIAN_GOD') || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -3866,12 +3911,12 @@
             type: 'GUARD',
             remainingOwnerTurns
         });
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, row, col };
     }
 
     function applyHyperactiveInheritWill(cardState, gameState, playerKey, row, col) {
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'HYPERACTIVE_INHERIT_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -3894,7 +3939,7 @@
             hyperactiveSeq: cardState.hyperactiveSeqCounter
         });
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, row, col, remainingOwnerTurns: INHERITED_HYPERACTIVE_TURNS };
     }
 
@@ -3903,7 +3948,7 @@
         const pendingType = settings.pendingType || 'EXTEND_LIFE_WILL';
         const multiplier = Number.isFinite(settings.multiplier) ? Number(settings.multiplier) : 2;
         const getTargets = typeof settings.getTargets === 'function' ? settings.getTargets : getExtendLifeTargets;
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== pendingType || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -3941,7 +3986,7 @@
             }
         }
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return {
             applied: true,
             row,
@@ -3986,7 +4031,7 @@
                 getCorrosionTargets
             });
         }
-        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'CORROSION_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending', affectedCount: 0, details: [] };
         }
@@ -4019,7 +4064,7 @@
             });
         }
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, affectedCount: details.length, details };
     }
 
@@ -4047,7 +4092,7 @@
                 specialStoneKind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'
             });
         }
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'TIME_BOMB' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -4066,7 +4111,7 @@
             placedTurn: cardState.turnIndex
         });
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, row, col };
     }
 
@@ -4094,7 +4139,7 @@
                 addMarker
             });
         }
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'CLONE_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -4147,7 +4192,7 @@
         }
         spawned.push({ row: target.row, col: target.col });
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, source: { row, col }, spawned };
     }
 
@@ -4199,7 +4244,7 @@
                 addMarker
             });
         }
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'SPLIT_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -4281,12 +4326,12 @@
         }
         spawned.push({ row: target.row, col: target.col });
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, source: { row, col }, spawned, durationChanges };
     }
 
     function applyBoardExpansionWill(cardState, gameState, playerKey, row, col) {
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'BOARD_EXPANSION_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -4317,12 +4362,12 @@
 
         boardExpansion.usedByPlayer[playerKey] = true;
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, side, row, col: targetCol };
     }
 
     function applyBoardExpansionGod(cardState, gameState, playerKey, row, col) {
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'BOARD_EXPANSION_GOD' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -4390,7 +4435,7 @@
 
         boardExpansion.usedByPlayer[playerKey] = true;
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return {
             applied: true,
             completed: true,
@@ -4402,7 +4447,7 @@
     }
 
     function applyBlockadeWill(cardState, gameState, playerKey, row, col) {
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'BLOCKADE_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -4419,7 +4464,7 @@
             remainingOwnerTurns: BLOCKADE_TURNS
         });
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, row, col };
     }
 
@@ -4438,7 +4483,7 @@
                 addMarker
             });
         }
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'METEOR_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -4486,12 +4531,12 @@
             type: 'METEOR_HOLE'
         });
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, row, col, destroyed };
     }
 
     function applyFreezeWill(cardState, gameState, playerKey, row, col) {
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'FREEZE_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -4508,7 +4553,7 @@
             remainingOwnerTurns: FREEZE_TURNS
         });
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, row, col };
     }
 
@@ -4544,7 +4589,7 @@
     }
 
     function applyLossWill(cardState, gameState, playerKey) {
-        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'LOSS_WILL') {
             return { applied: false, reason: 'not_pending', removedCount: 0, removed: [] };
         }
@@ -4625,7 +4670,7 @@
             });
         }
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, removedCount: removed.length, removed };
     }
 
@@ -4636,7 +4681,7 @@
     }
 
     function applySalvationWill(cardState, gameState, playerKey, prng) {
-        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'SALVATION_WILL') {
             return { applied: false, reason: 'not_pending', spawned: [], requestedCount: 0, spawnedCount: 0 };
         }
@@ -4647,7 +4692,7 @@
             if (cardState.prevOpponentTurnDestroyedNormalByPlayer) {
                 cardState.prevOpponentTurnDestroyedNormalByPlayer[playerKey] = [];
             }
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCardPendingEffect(cardState, playerKey);
             return { applied: false, reason: 'no_tracked_stones', spawned: [], requestedCount: 0, spawnedCount: 0 };
         }
         const requestedCount = tracked.length;
@@ -4663,7 +4708,7 @@
         if (cardState.prevOpponentTurnDestroyedNormalByPlayer) {
             cardState.prevOpponentTurnDestroyedNormalByPlayer[playerKey] = [];
         }
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return result;
     }
 
@@ -4686,7 +4731,7 @@
      * the card is consumed but has no additional control effect per spec.
      */
     function applyFateWill(cardState, playerKey) {
-        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'FATE_WILL') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -4702,7 +4747,7 @@
         if (!alreadyActive) {
             cardState.fateWillControllerByTurnOwner[opponentKey] = playerKey;
         }
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, stacked: alreadyActive, controllerKey: playerKey, turnOwnerKey: opponentKey };
     }
 
@@ -4862,7 +4907,7 @@
                 getMarkers
             });
         }
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'TELEPORT_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -4899,7 +4944,7 @@
             }
         }
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, from: { row, col }, to };
     }
 
@@ -4922,7 +4967,7 @@
                 getMarkers
             });
         }
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'CELL_TELEPORT_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -4974,7 +5019,7 @@
         _moveMarkersForTeleport(cardState, row, col, to.row, to.col);
         _leaveMeteorHoleAt(cardState, gameState, playerKey, row, col);
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return {
             applied: true,
             from: { row, col },
@@ -4996,7 +5041,7 @@
                 getMarkers
             });
         }
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'STRONG_WIND_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -5029,7 +5074,7 @@
             }
         }
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, from: { row, col }, to, direction: pick.direction, movedDistance, chargeGained: 0 };
     }
 
@@ -5041,7 +5086,7 @@
         const destroyReason = String(cfg.destroyReason || '').trim();
         const targetGetter = typeof cfg.targetGetter === 'function' ? cfg.targetGetter : null;
 
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== pendingType || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -5125,7 +5170,7 @@
             }
         }
 
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return {
             applied: true,
             from: { row, col },
@@ -5485,7 +5530,7 @@
      * @returns {{applied:boolean, reason?:string, gained?:number}}
      */
     function applySellCardWill(cardState, playerKey, soldCardId) {
-        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'SELL_CARD_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'pending_not_found' };
         }
@@ -5505,7 +5550,7 @@
 
         const gainBase = getCardCost(soldCardId);
         const gained = addChargeWithTotal(cardState, playerKey, gainBase);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, soldCardId, gained };
     }
 
@@ -5519,14 +5564,14 @@
      * @returns {{applied:boolean, reason?:string, selectedCardId?:string, vanished?:string[]}}
      */
     function applyHeavenBlessingChoice(cardState, playerKey, selectedCardId) {
-        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'HEAVEN_BLESSING' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'pending_not_found' };
         }
 
         const offers = Array.isArray(pending.offers) ? pending.offers.slice() : [];
         if (!offers.length) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCardPendingEffect(cardState, playerKey);
             return { applied: false, reason: 'offers_not_found' };
         }
         if (!selectedCardId || !offers.includes(selectedCardId)) {
@@ -5544,7 +5589,7 @@
             return { applied: false, reason: 'hand_full' };
         }
         const vanished = offers.filter(id => id !== selectedCardId);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return { applied: true, selectedCardId, vanished };
     }
 
@@ -5556,7 +5601,7 @@
      * @returns {{applied:boolean, reason?:string, opponentKey?:string, revealedCount?:number}}
      */
     function applyRevealHandWill(cardState, playerKey) {
-        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'REVEAL_HAND_WILL' || pending.stage !== null) {
             return { applied: false, reason: 'pending_not_found' };
         }
@@ -5567,12 +5612,12 @@
             return { applied: false, reason: 'invalid_hand' };
         }
         if (opponentHand.length <= 0) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCardPendingEffect(cardState, playerKey);
             return { applied: false, reason: 'opponent_hand_empty', opponentKey, revealedCount: 0 };
         }
 
         const revealedCopyIds = revealCurrentHandToViewer(cardState, playerKey, opponentKey);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
         return {
             applied: true,
             opponentKey,
@@ -5595,14 +5640,14 @@
             if (!m) return null;
             return { owner: m[1], handIndex: Number(m[2]) };
         };
-        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'CONDEMN_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'pending_not_found' };
         }
 
         const offers = Array.isArray(pending.offers) ? pending.offers.slice() : [];
         if (!offers.length) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCardPendingEffect(cardState, playerKey);
             return { applied: false, reason: 'offers_not_found' };
         }
 
@@ -5631,7 +5676,7 @@
         const offerToken = parseHiddenHandToken(offer.cardId);
         const destroyedCardId = handToken && !offerToken ? offer.cardId : handCardId;
         addCardToDiscard(cardState, handCardId, removed.cardCopyId);
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
 
         return { applied: true, destroyedCardId };
     }
@@ -5746,7 +5791,7 @@
 
 
     function applyChainWillAfterMove(cardState, gameState, playerKey, primaryFlips, prng) {
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         const chainConfig = pending ? getChainWillConfig(pending.type) : null;
         if (!pending || !chainConfig) {
             return { applied: false, flips: [], chosen: null };
@@ -6944,7 +6989,7 @@
     }
 
     function applyPositionSwapWill(cardState, gameState, playerKey, row, col) {
-        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'POSITION_SWAP_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
         }
@@ -6985,7 +7030,7 @@
         setCellValueForCard(gameState, row, col, firstValue);
 
         swapCellCoordinates(cardState, gameState, first, { row, col });
-        cardState.pendingEffectByPlayer[playerKey] = null;
+        clearCardPendingEffect(cardState, playerKey);
 
         emitPresentationEvent(cardState, {
             type: 'MOVE',
@@ -7096,9 +7141,9 @@
     function onTurnEnd(cardState, gameState, playerKey) {
         // Protection expiration is now handled exclusively in onTurnStart
         // to ensure it lasts until the start of the owner's next turn.
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (pending && isChainWillCardType(pending.type)) {
-            cardState.pendingEffectByPlayer[playerKey] = null;
+            clearCardPendingEffect(cardState, playerKey);
         }
     }
 
@@ -7109,7 +7154,7 @@
      * @returns {boolean}
      */
     function hasPendingEffect(cardState, playerKey) {
-        return cardState.pendingEffectByPlayer[playerKey] !== null;
+        return readCardPendingEffect(cardState, playerKey) !== null;
     }
 
     // Presentation event helpers (PoC)
@@ -7149,7 +7194,7 @@
      * @returns {string|null}
      */
     function getPendingEffectType(cardState, playerKey) {
-        const pending = cardState.pendingEffectByPlayer[playerKey];
+        const pending = readCardPendingEffect(cardState, playerKey);
         return pending ? pending.type : null;
     }
 
@@ -7174,7 +7219,7 @@
      * @returns {Array<{row:number,col:number}>}
      */
     function getSelectableTargets(cardState, gameState, playerKey) {
-        const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending) return [];
         if (!CardSelectorOrchestratorModule || typeof CardSelectorOrchestratorModule.getSelectableTargetsForPending !== 'function') {
             return [];

@@ -1,7 +1,14 @@
 const TurnPipeline = require('../game/turn/turn_pipeline');
 const CardLogic = require('../game/logic/cards');
+const PendingCoordinator = require('../game/turn/pending-coordinator');
 
 describe('TREASURE_BOX (宝箱)', () => {
+  afterEach(() => {
+    PendingCoordinator.clearPendingSelectionAction('black');
+    PendingCoordinator.clearPendingSelectionAction('white');
+    delete global.ActionManager;
+  });
+
   function makeState() {
     const prng = { shuffle: () => {}, random: () => 0.5 };
     const cardState = CardLogic.createCardState(prng);
@@ -39,5 +46,26 @@ describe('TREASURE_BOX (宝箱)', () => {
     TurnPipeline.applyTurn(cardState, gameState, 'black', action, prng);
 
     expect(cardState.charge.black).toBe(3);
+  });
+
+  test('use card: clears cached pending selection action together with pending state', () => {
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    const { cardState, gameState } = makeState();
+    cardState.hands.black = ['chest_01'];
+    PendingCoordinator.createPendingSelectionAction(
+      'black',
+      'TREASURE_BOX',
+      { cardId: 'chest_01' },
+      { cardState }
+    );
+
+    TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'use_card', useCardId: 'chest_01' }, { shuffle: () => {}, random: () => 0.0 });
+
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(PendingCoordinator.readPendingSelectionAction('black')).toBeNull();
   });
 });

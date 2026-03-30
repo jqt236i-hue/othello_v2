@@ -116,6 +116,61 @@
         }
         return !!(result && (result.destroyed || result.regenerated || result.evaded || result.blockedByGhost || result.proliferated));
     }
+
+    function normalizePendingTypeForActionPhase(pendingType) {
+        return String(pendingType || '').trim().toUpperCase();
+    }
+
+    function matchesPendingTypeForActionPhase(pending, expectedType) {
+        const normalizedPendingType = normalizePendingTypeForActionPhase(pending && pending.type);
+        if (!normalizedPendingType) return false;
+        const expectedTypes = Array.isArray(expectedType) ? expectedType : [expectedType];
+        return expectedTypes.some((type) => normalizePendingTypeForActionPhase(type) === normalizedPendingType);
+    }
+
+    function requirePendingActionValue(pending, expectedType, value, errorMessage) {
+        if (!matchesPendingTypeForActionPhase(pending, expectedType)) return false;
+        if (value == null) {
+            throw new Error(errorMessage);
+        }
+        return true;
+    }
+
+    function readPendingForActionPhase(cardState, playerKey) {
+        if (PendingCoordinatorModule && typeof PendingCoordinatorModule.readPendingEffect === 'function') {
+            return PendingCoordinatorModule.readPendingEffect(cardState, playerKey);
+        }
+        return (cardState && cardState.pendingEffectByPlayer)
+            ? (cardState.pendingEffectByPlayer[playerKey] || null)
+            : null;
+    }
+
+    function getPendingEffectTypeForActionPhase(CardLogic, cardState, playerKey) {
+        if (PendingCoordinatorModule && typeof PendingCoordinatorModule.getPendingEffectType === 'function') {
+            return PendingCoordinatorModule.getPendingEffectType(cardState, playerKey);
+        }
+        if (typeof CardLogic.getPendingEffectType === 'function') {
+            return CardLogic.getPendingEffectType(cardState, playerKey);
+        }
+        const pending = readPendingForActionPhase(cardState, playerKey);
+        return pending ? pending.type : null;
+    }
+
+    function clearPendingForActionPhase(cardState, playerKey) {
+        if (PendingCoordinatorModule && typeof PendingCoordinatorModule.clearPendingEffect === 'function') {
+            return PendingCoordinatorModule.clearPendingEffect(cardState, playerKey, {
+                clearSelectionAction: true
+            });
+        }
+        if (cardState && cardState.pendingEffectByPlayer) {
+            cardState.pendingEffectByPlayer[playerKey] = null;
+        }
+        if (PendingCoordinatorModule && typeof PendingCoordinatorModule.clearPendingSelectionAction === 'function') {
+            PendingCoordinatorModule.clearPendingSelectionAction(playerKey);
+        }
+        return { ok: true, playerKey };
+    }
+
     const CHARGE_MAX = Number.isFinite(Number(SharedConstantsModule && SharedConstantsModule.CHARGE_MAX))
         ? Number(SharedConstantsModule.CHARGE_MAX)
         : 99;
@@ -145,6 +200,19 @@
             ? globalThis
             : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
         return globalScope.TurnPipelinePhaseHelpers || null;
+    })();
+    const PendingCoordinatorModule = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('./pending-coordinator');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.PendingCoordinator || null;
     })();
 
     const FALLBACK_OBSERVER_BUBBLE_SPEECH = Object.freeze({
@@ -1548,6 +1616,10 @@
     function applyTurnStartPhase(CardLogic, Core, cardState, gameState, playerKey, events, prng) {
         const p = prng || undefined;
 
+        if (PendingCoordinatorModule && typeof PendingCoordinatorModule.syncPendingSelectionActionCache === 'function') {
+            PendingCoordinatorModule.syncPendingSelectionActionCache(cardState);
+        }
+
         if (cardState.lastTurnStartedFor !== playerKey) {
             // Set the active turn player for SALVATION_WILL normal-stone destruction tracking,
             // and reset the opponent's (victim's) tracked destruction list for this new turn.
@@ -2035,18 +2107,12 @@
 
                 // Immediate-effect card: TREASURE_BOX
                 // On use, gain random charge [1..3] and clear pending (no placement dependency).
-                const pendingType = (typeof CardLogic.getPendingEffectType === 'function')
-                    ? CardLogic.getPendingEffectType(cardState, playerKey)
-                    : (cardState && cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[playerKey]
-                        ? cardState.pendingEffectByPlayer[playerKey].type
-                        : null);
+                const pendingType = getPendingEffectTypeForActionPhase(CardLogic, cardState, playerKey);
                 if (pendingType === 'TREASURE_BOX') {
                     const rnd = (p && typeof p.random === 'function') ? p.random() : Math.random();
                     const gained = 1 + Math.floor(Math.max(0, Math.min(0.999999, rnd)) * 3);
                     addChargeWithTotal(cardState, playerKey, gained);
-                    if (cardState && cardState.pendingEffectByPlayer) {
-                        cardState.pendingEffectByPlayer[playerKey] = null;
-                    }
+                    clearPendingForActionPhase(cardState, playerKey);
                     events.push({ type: 'treasure_box_gain', player: playerKey, gained });
                 }
 
@@ -2056,9 +2122,7 @@
                         ? CardLogic.countOccupiedCornersForPlayer(cardState, gameState, opponentKey)
                         : 0;
                     const stolen = transferChargeBetweenPlayers(cardState, opponentKey, playerKey, 20, 'corner_tribute');
-                    if (cardState && cardState.pendingEffectByPlayer) {
-                        cardState.pendingEffectByPlayer[playerKey] = null;
-                    }
+                    clearPendingForActionPhase(cardState, playerKey);
                     events.push({
                         type: 'corner_tribute_resolved',
                         player: playerKey,
@@ -2075,9 +2139,7 @@
                     if (!res || res.applied !== true) {
                         throw new Error('RIBO_WILL resolve failed');
                     }
-                    if (cardState && cardState.pendingEffectByPlayer) {
-                        cardState.pendingEffectByPlayer[playerKey] = null;
-                    }
+                    clearPendingForActionPhase(cardState, playerKey);
                     events.push({
                         type: 'ribo_will_resolved',
                         player: playerKey,
@@ -2094,9 +2156,7 @@
                     if (!res || res.applied !== true) {
                         throw new Error('EQUALITY_WILL resolve failed');
                     }
-                    if (cardState && cardState.pendingEffectByPlayer) {
-                        cardState.pendingEffectByPlayer[playerKey] = null;
-                    }
+                    clearPendingForActionPhase(cardState, playerKey);
                     events.push({
                         type: 'equality_will_resolved',
                         player: playerKey,
@@ -2156,9 +2216,7 @@
                         }
                     }
 
-                    if (cardState && cardState.pendingEffectByPlayer) {
-                        cardState.pendingEffectByPlayer[playerKey] = null;
-                    }
+                    clearPendingForActionPhase(cardState, playerKey);
                     events.push({ type: 'rebuild_will_resolved', player: playerKey, destroyedCount, drawnCount });
                 }
 
@@ -2197,9 +2255,7 @@
                         }
                     }
 
-                    if (cardState && cardState.pendingEffectByPlayer) {
-                        cardState.pendingEffectByPlayer[playerKey] = null;
-                    }
+                    clearPendingForActionPhase(cardState, playerKey);
                     events.push({ type: 'supply_will_resolved', player: playerKey, drawnCount });
                 }
 
@@ -2233,9 +2289,7 @@
                     if (!res || res.applied !== true) {
                         throw new Error('LOSS_WILL resolve failed');
                     }
-                    if (cardState && cardState.pendingEffectByPlayer) {
-                        cardState.pendingEffectByPlayer[playerKey] = null;
-                    }
+                    clearPendingForActionPhase(cardState, playerKey);
                     events.push({ type: 'loss_will_resolved', player: playerKey, removedCount: Number(res.removedCount) || 0 });
                 }
 
@@ -2246,9 +2300,7 @@
                     if (!res || res.applied !== true) {
                         throw new Error('SALVATION_WILL resolve failed');
                     }
-                    if (cardState && cardState.pendingEffectByPlayer) {
-                        cardState.pendingEffectByPlayer[playerKey] = null;
-                    }
+                    clearPendingForActionPhase(cardState, playerKey);
                     events.push({
                         type: 'salvation_will_resolved',
                         player: playerKey,
@@ -2265,9 +2317,7 @@
                     if (!res || res.applied !== true) {
                         throw new Error('FATE_WILL resolve failed');
                     }
-                    if (cardState && cardState.pendingEffectByPlayer) {
-                        cardState.pendingEffectByPlayer[playerKey] = null;
-                    }
+                    clearPendingForActionPhase(cardState, playerKey);
                     events.push({
                         type: 'fate_will_resolved',
                         player: playerKey,
@@ -2389,9 +2439,7 @@
                     throw new Error('Illegal pass: legal moves available');
                 }
                 // Pass policy: abandon any unresolved card effect for this turn.
-                if (cardState && cardState.pendingEffectByPlayer) {
-                    cardState.pendingEffectByPlayer[playerKey] = null;
-                }
+                clearPendingForActionPhase(cardState, playerKey);
                 const newState = Core.applyPass(gameState);
                 Object.assign(gameState, newState);
                 const timeStopPassRes = consumeTimeStopCompletedTurn(CardLogic, cardState, playerKey);
@@ -2429,7 +2477,7 @@
             return;
         } else if (action.type === 'place') {
             // 3.5) Optional pre-placement selection effects (for cards that require a target)
-            const pending = cardState.pendingEffectByPlayer[playerKey];
+            const pending = readPendingForActionPhase(cardState, playerKey);
             hydrateDeferredPendingSelectionState(pending, action);
             if (pending && pending.type === 'DESTROY_ONE_STONE' && action.destroyTarget) {
                 const destroyResult = typeof CardLogic.applyDestroyEffectDetailed === 'function'
@@ -2628,7 +2676,7 @@
             } else if (pending && pending.type === 'CONDEMN_WILL' && action.condemnTargetIndex == null) {
                 throw new Error('CONDEMN_WILL requires condemnTargetIndex before placement');
             }
-            if (pending && pending.type === 'TEMPT_WILL' && action.temptTarget) {
+            if (requirePendingActionValue(pending, 'TEMPT_WILL', action.temptTarget, 'TEMPT_WILL requires temptTarget before placement')) {
                 const res = CardLogic.applyTemptWill(
                     cardState,
                     gameState,
@@ -2640,10 +2688,8 @@
                 applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
                 // Selection-only pre-placement effect: stop after handling selection
                 return;
-            } else if (pending && pending.type === 'TEMPT_WILL' && action.temptTarget == null) {
-                throw new Error('TEMPT_WILL requires temptTarget before placement');
             }
-            if (pending && pending.type === 'CAPTURE_WILL' && action.captureTarget) {
+            if (requirePendingActionValue(pending, 'CAPTURE_WILL', action.captureTarget, 'CAPTURE_WILL requires captureTarget before placement')) {
                 const res = CardLogic.applyCaptureWill(
                     cardState,
                     gameState,
@@ -2664,8 +2710,6 @@
                 });
                 applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
                 return;
-            } else if (pending && pending.type === 'CAPTURE_WILL' && action.captureTarget == null) {
-                throw new Error('CAPTURE_WILL requires captureTarget before placement');
             }
             if (pending && pending.type === 'SWAP_WITH_ENEMY' && action.swapTarget) {
                 const swapped = CardLogic.applySwapEffect(
@@ -2712,7 +2756,7 @@
             } else if (pending && pending.type === 'POSITION_SWAP_WILL' && action.positionSwapTarget == null) {
                 throw new Error('POSITION_SWAP_WILL requires positionSwapTarget before placement');
             }
-            if (pending && pending.type === 'TRAP_WILL' && action.trapTarget) {
+            if (requirePendingActionValue(pending, 'TRAP_WILL', action.trapTarget, 'TRAP_WILL requires trapTarget before placement')) {
                 const res = CardLogic.applyTrapWill(
                     cardState,
                     gameState,
@@ -2725,10 +2769,8 @@
                     handOffTurnAfterSelection(Core, CardLogic, cardState, gameState, playerKey);
                 }
                 return;
-            } else if (pending && pending.type === 'TRAP_WILL' && action.trapTarget == null) {
-                throw new Error('TRAP_WILL requires trapTarget before placement');
             }
-            if (pending && (pending.type === 'GUARD_WILL' || pending.type === 'GUARDIAN_GOD') && action.guardTarget) {
+            if (requirePendingActionValue(pending, ['GUARD_WILL', 'GUARDIAN_GOD'], action.guardTarget, 'GUARD-like card requires guardTarget before placement')) {
                 const res = CardLogic.applyGuardWill(
                     cardState,
                     gameState,
@@ -2738,8 +2780,6 @@
                 );
                 events.push({ type: 'guard_selected', player: playerKey, target: action.guardTarget, applied: !!(res && res.applied) });
                 return;
-            } else if (pending && (pending.type === 'GUARD_WILL' || pending.type === 'GUARDIAN_GOD') && action.guardTarget == null) {
-                throw new Error('GUARD-like card requires guardTarget before placement');
             }
             if (pending && pending.type === 'HYPERACTIVE_INHERIT_WILL' && action.hyperactiveInheritTarget) {
                 const res = CardLogic.applyHyperactiveInheritWill(
@@ -2956,7 +2996,7 @@
 
             // SWAP_WITH_ENEMY selection via board click (legacy browser path).
             // Treat as selection-only action (same as action.swapTarget).
-            const pendingType = CardLogic.getPendingEffectType(cardState, playerKey);
+            const pendingType = getPendingEffectTypeForActionPhase(CardLogic, cardState, playerKey);
             if (pendingType === 'SWAP_WITH_ENEMY') {
                 const targetCell = getActionCellOwner(gameState, action.row, action.col);
                 if (targetCell === -player) {
@@ -3098,11 +3138,7 @@
             const bonusMap = (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
                 ? cardState.boardBonusByCell
                 : null;
-            const pendingPlacementType = (typeof CardLogic.getPendingEffectType === 'function')
-                ? CardLogic.getPendingEffectType(cardState, playerKey)
-                : (cardState && cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[playerKey]
-                    ? cardState.pendingEffectByPlayer[playerKey].type
-                    : null);
+            const pendingPlacementType = getPendingEffectTypeForActionPhase(CardLogic, cardState, playerKey);
             const numberCellMultiplierConfig = (
                 pendingPlacementType &&
                 CardLogic &&
@@ -3395,9 +3431,7 @@
             }
 
             let postExtra = cardState.extraPlaceRemainingByPlayer[playerKey] || 0;
-            const pendingAfterPlacement = (cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[playerKey])
-                ? cardState.pendingEffectByPlayer[playerKey]
-                : null;
+            const pendingAfterPlacement = readPendingForActionPhase(cardState, playerKey);
             const hasLastResortContinuation = !!(
                 pendingAfterPlacement &&
                 pendingAfterPlacement.type === 'LAST_RESORT' &&
@@ -3415,7 +3449,7 @@
                 keepTurnForContinuation = hasContinuationMovesForPendingType(Core, CardLogic, cardState, gameState, playerKey, continuationPendingType);
                 if (!keepTurnForContinuation) {
                     if (hasLastResortContinuation) {
-                        cardState.pendingEffectByPlayer[playerKey] = null;
+                        clearPendingForActionPhase(cardState, playerKey);
                     }
                     clearMultiPlaceStateForPlayer(cardState, playerKey);
                     postExtra = 0;

@@ -62,4 +62,32 @@ describe('CardPendingStateManager', () => {
     expect(cardState.cardUseCountByPlayer.black).toBe(0);
   });
 
+  test('exports shared pending selection contract helpers', () => {
+    expect(PendingStateManager.resolvePendingSelectionContract('SELL_CARD_WILL')).toEqual(expect.objectContaining({
+      kind: 'hand_overlay',
+      turnOutcome: 'continue_turn',
+      deferNetworkPublish: true
+    }));
+    expect(PendingStateManager.resolvePendingSelectionContract('CAPTURE_WILL')).toEqual(expect.objectContaining({
+      kind: 'continue_turn',
+      turnOutcome: 'continue_turn',
+      deferNetworkPublish: true
+    }));
+    expect(PendingStateManager.shouldDeferNetworkPublishForPendingType('CAPTURE_WILL')).toBe(true);
+    expect(PendingStateManager.shouldDeferNetworkPublishForPendingType('GUARD_WILL')).toBe(true);
+    expect(PendingStateManager.shouldWaitForPlaybackIdleForPendingType('TEMPT_WILL')).toBe(true);
+    expect(PendingStateManager.isSelectionOnlyEndTurnPendingType('TRAP_WILL')).toBe(true);
+    expect(PendingStateManager.isSelectionOnlyEndTurnPendingType('GUARD_WILL')).toBe(false);
+  });
+
+  test('resolves shared pending selection dispatch keys for aliases and overlays', () => {
+    expect(PendingStateManager.resolvePendingSelectionDispatchKey('GUARD_WILL')).toBe('guard');
+    expect(PendingStateManager.resolvePendingSelectionDispatchKey('GUARDIAN_GOD')).toBe('guard');
+    expect(PendingStateManager.resolvePendingSelectionDispatchKey('TELEPORT_WILL')).toBe('teleport');
+    expect(PendingStateManager.resolvePendingSelectionDispatchKey('CELL_TELEPORT_WILL')).toBe('cell_teleport');
+    expect(PendingStateManager.resolvePendingSelectionDispatchKey('BOARD_EXPANSION_GOD')).toBe('board_expansion');
+    expect(PendingStateManager.resolvePendingSelectionDispatchKey('SELL_CARD_WILL')).toBe('sell_card');
+    expect(PendingStateManager.resolvePendingSelectionDispatchKey('')).toBeNull();
+  });
+
 });

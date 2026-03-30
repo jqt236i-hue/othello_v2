@@ -31,6 +31,11 @@
             try { return require('../game/card-effects/selection-flow'); } catch (e) { return root.PendingSelectionFlow || null; }
         })()
         : (root.PendingSelectionFlow || null);
+    const PendingCoordinatorModule = (typeof require === 'function')
+        ? (() => {
+            try { return require('../game/turn/pending-coordinator'); } catch (e) { return root.PendingCoordinator || null; }
+        })()
+        : (root.PendingCoordinator || null);
 
     function resolveCardLogicModule() {
         if (root && root.CardLogic) return root.CardLogic;
@@ -63,6 +68,16 @@
                 PlaybackStateModule.clearBoardUpdateContext();
             }
         } catch (e) { /* ignore */ }
+    }
+
+    function clearPlaybackStateForLeave() {
+        try {
+            if (PlaybackStateModule && typeof PlaybackStateModule.abortPlayback === 'function') {
+                PlaybackStateModule.abortPlayback();
+                return;
+            }
+        } catch (e) { /* ignore */ }
+        clearBoardUpdateContext();
     }
 
     function armSuppressDiffBoardUpdateContext(reason) {
@@ -541,12 +556,6 @@
             selfSnapshotVersion: Number.isFinite(Number(entry.selfSnapshotVersion)) ? Number(entry.selfSnapshotVersion) : null,
             appliedSource: entry && typeof entry.appliedSource === 'string' ? entry.appliedSource : '',
             appliedVersion: Number.isFinite(Number(entry.appliedVersion)) ? Number(entry.appliedVersion) : null,
-            shadowPlaybackEvents: Array.isArray(entry.shadowPlaybackEvents)
-                ? cloneReadableNetworkStateValue(entry.shadowPlaybackEvents, [])
-                : [],
-            shadowPlaybackEventStrings: Array.isArray(entry.shadowPlaybackEventStrings)
-                ? entry.shadowPlaybackEventStrings.slice()
-                : [],
             completedAt: Number.isFinite(Number(entry.completedAt)) ? Number(entry.completedAt) : null,
             requestMeta: cloneTrackedPublishRequestMeta(entry.requestMeta)
         };
@@ -1019,8 +1028,6 @@
             selfSnapshotVersion: null,
             appliedSource: '',
             appliedVersion: null,
-            shadowPlaybackEvents: [],
-            shadowPlaybackEventStrings: [],
             completedAt: null,
             requestMeta: (requestMeta && typeof requestMeta === 'object') ? {
                 actionType: requestMeta.actionType || null,
@@ -1040,70 +1047,6 @@
             ? entry.requestMeta.playbackEvents
             : [];
         return playbackEvents;
-    }
-
-    function getTrackedPublishQueuedShadowPlaybackEvents(entry) {
-        const playbackEvents = entry && Array.isArray(entry.shadowPlaybackEvents)
-            ? entry.shadowPlaybackEvents
-            : [];
-        return playbackEvents;
-    }
-
-    function stringifyPlaybackEvent(eventValue) {
-        try {
-            return JSON.stringify(eventValue);
-        } catch (e) {
-            return null;
-        }
-    }
-
-    function stringifyPlaybackEventList(playbackEvents) {
-        if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return [];
-        const eventStrings = [];
-        for (let index = 0; index < playbackEvents.length; index += 1) {
-            const eventString = stringifyPlaybackEvent(playbackEvents[index]);
-            if (eventString === null) {
-                return null;
-            }
-            eventStrings.push(eventString);
-        }
-        return eventStrings;
-    }
-
-    function hasPlaybackEventPrefix(prefixEvents, allEvents, prefixEventStrings) {
-        if (!Array.isArray(prefixEvents) || !Array.isArray(allEvents)) return false;
-        if (prefixEvents.length > allEvents.length) return false;
-        const cachedPrefixStrings = Array.isArray(prefixEventStrings) && prefixEventStrings.length === prefixEvents.length
-            ? prefixEventStrings
-            : stringifyPlaybackEventList(prefixEvents);
-        if (!Array.isArray(cachedPrefixStrings) || cachedPrefixStrings.length !== prefixEvents.length) return false;
-        for (let index = 0; index < prefixEvents.length; index += 1) {
-            const candidateString = stringifyPlaybackEvent(allEvents[index]);
-            if (candidateString === null || cachedPrefixStrings[index] !== candidateString) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    function resolveSelfSnapshotShadowPlaybackEvents(entry, streamPlaybackEvents) {
-        const payloadPlaybackEvents = Array.isArray(streamPlaybackEvents) ? streamPlaybackEvents : [];
-        const queuedShadowPlaybackEvents = getTrackedPublishQueuedShadowPlaybackEvents(entry);
-        const queuedShadowPlaybackEventStrings = entry && Array.isArray(entry.shadowPlaybackEventStrings)
-            ? entry.shadowPlaybackEventStrings
-            : [];
-        if (!payloadPlaybackEvents.length) {
-            return queuedShadowPlaybackEvents.length > 0
-                ? []
-                : cloneDataForCommandPayload(getTrackedPublishRequestedPlaybackEvents(entry));
-        }
-        if (!queuedShadowPlaybackEvents.length) {
-            return cloneDataForCommandPayload(payloadPlaybackEvents);
-        }
-        if (hasPlaybackEventPrefix(queuedShadowPlaybackEvents, payloadPlaybackEvents, queuedShadowPlaybackEventStrings)) {
-            return cloneDataForCommandPayload(payloadPlaybackEvents.slice(queuedShadowPlaybackEvents.length));
-        }
-        return cloneDataForCommandPayload(payloadPlaybackEvents);
     }
 
     function findTrackedPublish(operationId) {
@@ -1168,15 +1111,6 @@
         if (!entry || typeof entry !== 'object') return;
         entry.resultOverlayPresented = true;
         entry.resultOverlayVersion = getSnapshotStateVersion(snapshot);
-    }
-
-    function markTrackedPublishShadowPlaybackQueued(entry, playbackEvents) {
-        if (!entry || typeof entry !== 'object') return;
-        const normalizedEvents = Array.isArray(playbackEvents)
-            ? cloneDataForCommandPayload(playbackEvents)
-            : [];
-        entry.shadowPlaybackEvents = normalizedEvents;
-        entry.shadowPlaybackEventStrings = stringifyPlaybackEventList(normalizedEvents) || [];
     }
 
     function hasPendingLocalPublishes() {
@@ -1663,10 +1597,33 @@
                         return { ok: true, skippedLocalExecution: true, playbackEvents: [], publishPromise };
                     }
 
-                    // Target card: run CardLogic.applyCardUsage() locally for pending state
-                    const resolvedCardLogic = resolveCardLogicModule();
-                    if (resolvedCardLogic && typeof resolvedCardLogic.applyCardUsage === 'function') {
-                        resolvedCardLogic.applyCardUsage(cardStateArg, normalizePlayerKey(playerKey), cardId);
+                    if (!canResolvePendingType) {
+                        return {
+                            ok: false,
+                            rejectedReason: 'PENDING_CARD_TYPE_UNRESOLVED',
+                            cardId: cardId || null
+                        };
+                    }
+
+                    if (!PendingCoordinatorModule || typeof PendingCoordinatorModule.setPendingHintLocally !== 'function') {
+                        return {
+                            ok: false,
+                            rejectedReason: 'PENDING_HINT_COORDINATOR_UNAVAILABLE',
+                            cardType
+                        };
+                    }
+                    const pendingHintResult = PendingCoordinatorModule.setPendingHintLocally(
+                        cardStateArg,
+                        normalizePlayerKey(playerKey),
+                        cardType,
+                        { cardId }
+                    );
+                    if (!pendingHintResult || pendingHintResult.ok !== true) {
+                        return {
+                            ok: false,
+                            rejectedReason: 'PENDING_HINT_UNAVAILABLE',
+                            cardType
+                        };
                     }
                     return {
                         ok: true,
@@ -1898,8 +1855,10 @@
                 if (isSelfOperation && isTerminalResultSnapshot) {
                     markTrackedPublishResultPresented(trackedPublish, snapshot);
                 }
-                emitPayloadEffectLogs(payload);
-                emitSnapshotCommentary(payload, snapshot, isSelfOperation, playbackEvents);
+                const emittedEffectLogCount = emitPayloadEffectLogs(payload);
+                if (emittedEffectLogCount === 0) {
+                    emitSnapshotCommentary(payload, snapshot, isSelfOperation, playbackEvents);
+                }
             }
             handleTimeoutPassPayload(payload);
             pruneTrackedPublishes();
@@ -2146,7 +2105,7 @@
     }
 
     async function leaveRoom() {
-        clearBoardUpdateContext();
+        clearPlaybackStateForLeave();
         if (!state.roomId) {
             const controller = getNetworkSessionSeatController();
             if (controller && typeof controller.resetSessionState === 'function') {
@@ -2166,10 +2125,24 @@
         const roomId = state.roomId;
         const seatKey = state.seatKey;
         const seatToken = state.seatToken;
+        let leaveResponse = null;
 
         try {
-            await requestJson('POST', '/api/match/leave', { roomId, seatKey, seatToken });
-        } catch (e) { /* ignore */ }
+            leaveResponse = await requestJson('POST', '/api/match/leave', { roomId, seatKey, seatToken });
+        } catch (e) {
+            emitStatus('ネット対戦: 部屋の退出に失敗しました');
+            return { ok: false, reason: 'LEAVE_REQUEST_FAILED' };
+        }
+
+        const leaveReason = String(leaveResponse && leaveResponse.data && leaveResponse.data.reason ? leaveResponse.data.reason : '').trim();
+        if (!(leaveResponse && leaveResponse.ok) && leaveReason !== 'ROOM_NOT_FOUND') {
+            emitStatus(`ネット対戦: 部屋の退出に失敗しました (${leaveReason || 'LEAVE_FAILED'})`);
+            return {
+                ok: false,
+                reason: leaveReason || 'LEAVE_FAILED',
+                status: leaveResponse ? leaveResponse.status : 0
+            };
+        }
 
         const controller = getNetworkSessionSeatController();
         if (controller && typeof controller.resetSessionState === 'function') {

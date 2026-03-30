@@ -11,6 +11,7 @@ const {
     normalizeRestartFromStep,
     resolveAdoptionBaselineMode,
     resolveIterationGateControl,
+    resolveSelfplayCardUsageRateForIteration,
     getPrimaryResumeCheckpointPath,
     resolveResumeCheckpointPathsFromArgs,
     resolveNextCarryOverState,
@@ -39,6 +40,8 @@ describe('selfplay training cycle script', () => {
         expect(args.selfplayPolicyPoolRecencyDecay).toBeCloseTo(2.5, 6);
         expect(args.selfplayPolicyCurrentAnchorRate).toBeCloseTo(0.35, 6);
         expect(args.selfplayCardUsageRateJitter).toBeCloseTo(0, 6);
+        expect(args.selfplayCardUsageRateScheduleSpec).toBeNull();
+        expect(args.selfplayCardUsageRateSchedule).toEqual([]);
         expect(args.selfplayTacticalWeightMin).toBeCloseTo(1, 6);
         expect(args.selfplayTacticalWeightMax).toBeCloseTo(1, 6);
         expect(args.selfplayTacticalDepthOpening).toBe(4);
@@ -106,6 +109,7 @@ describe('selfplay training cycle script', () => {
         expect(args.qualityGateMinSeedPassCount).toBe(0);
         expect(args.qualityGateStrengthFirst).toBe(false);
         expect(args.quickAdoptionThreshold).toBeNull();
+        expect(args.quickAdoptionSeedOffset).toBe(0);
         expect(args.quickAdoptionSeedCount).toBeNull();
         expect(args.quickAdoptionSeedStride).toBeNull();
         expect(args.quickAdoptionConfidenceLevel).toBeNull();
@@ -161,6 +165,8 @@ describe('selfplay training cycle script', () => {
         expect(() => parseArgs(['--selfplay-policy-pool-recency-decay', '0'])).toThrow('--selfplay-policy-pool-recency-decay must be > 0');
         expect(() => parseArgs(['--selfplay-policy-current-anchor-rate', '-0.1'])).toThrow('--selfplay-policy-current-anchor-rate must be in [0,1]');
         expect(() => parseArgs(['--selfplay-card-usage-rate-jitter', '-0.1'])).toThrow('--selfplay-card-usage-rate-jitter must be in [0,1]');
+        expect(() => parseArgs(['--selfplay-card-usage-rate-schedule', 'oops'])).toThrow('--selfplay-card-usage-rate-schedule entries must use <rate>@<iteration>');
+        expect(() => parseArgs(['--selfplay-card-usage-rate-schedule', '0.3@2,0.4@2'])).toThrow('--selfplay-card-usage-rate-schedule iterations must be strictly increasing');
         expect(() => parseArgs(['--selfplay-tactical-weight-min', '-1'])).toThrow('--selfplay-tactical-weight-min must be >= 0');
         expect(() => parseArgs(['--selfplay-tactical-weight-max', '-1'])).toThrow('--selfplay-tactical-weight-max must be >= 0');
         expect(() => parseArgs(['--selfplay-tactical-weight-min', '1.2', '--selfplay-tactical-weight-max', '0.9'])).toThrow('--selfplay-tactical-weight-max must be >= --selfplay-tactical-weight-min');
@@ -220,6 +226,7 @@ describe('selfplay training cycle script', () => {
         expect(() => parseArgs(['--quality-gate-min-seed-pass-count', '-1'])).toThrow('--quality-gate-min-seed-pass-count must be >= 0');
         expect(() => parseArgs(['--quality-gate-seed-count', '3', '--quality-gate-min-seed-pass-count', '4'])).toThrow('--quality-gate-min-seed-pass-count must be <= --quality-gate-seed-count');
         expect(() => parseArgs(['--quick-adoption-threshold', '2'])).toThrow('--quick-adoption-threshold must be in [0,1]');
+        expect(() => parseArgs(['--quick-adoption-seed-offset', '-1'])).toThrow('--quick-adoption-seed-offset must be >= 0');
         expect(() => parseArgs(['--quick-adoption-seed-count', '0'])).toThrow('--quick-adoption-seed-count must be >= 1');
         expect(() => parseArgs(['--quick-adoption-seed-stride', '0'])).toThrow('--quick-adoption-seed-stride must be >= 1');
         expect(() => parseArgs(['--quick-adoption-confidence-level', '1'])).toThrow('--quick-adoption-confidence-level must be in [0.5,1)');
@@ -306,6 +313,27 @@ describe('selfplay training cycle script', () => {
         expect(args.onnxValueTargetEdgeWeight).toBeCloseTo(0.03, 6);
         expect(args.onnxValueTargetEconomyWeight).toBeCloseTo(0.02, 6);
         expect(args.onnxValueTargetCornerEmergencyWeight).toBeCloseTo(0.04, 6);
+    });
+
+    test('parseArgs accepts selfplay card usage schedule and resolves step schedule per iteration', () => {
+        const args = parseArgs([
+            '--card-usage-rate', '0.60',
+            '--selfplay-card-usage-rate-schedule', '0.30@1,0.40@3,0.50@6,0.60@10'
+        ]);
+
+        expect(args.selfplayCardUsageRateScheduleSpec).toBe('0.30@1,0.40@3,0.50@6,0.60@10');
+        expect(args.selfplayCardUsageRateSchedule).toEqual([
+            { rate: 0.30, iteration: 1 },
+            { rate: 0.40, iteration: 3 },
+            { rate: 0.50, iteration: 6 },
+            { rate: 0.6, iteration: 10 }
+        ]);
+        expect(resolveSelfplayCardUsageRateForIteration(args, 1)).toBeCloseTo(0.30, 6);
+        expect(resolveSelfplayCardUsageRateForIteration(args, 2)).toBeCloseTo(0.30, 6);
+        expect(resolveSelfplayCardUsageRateForIteration(args, 3)).toBeCloseTo(0.40, 6);
+        expect(resolveSelfplayCardUsageRateForIteration(args, 6)).toBeCloseTo(0.50, 6);
+        expect(resolveSelfplayCardUsageRateForIteration(args, 9)).toBeCloseTo(0.50, 6);
+        expect(resolveSelfplayCardUsageRateForIteration(args, 10)).toBeCloseTo(0.6, 6);
     });
 
     test('parseArgs maps legacy resume checkpoint into compatible head slot', () => {
@@ -750,6 +778,7 @@ describe('selfplay training cycle script', () => {
                 '--selfplay-policy-pool-recency-decay', '3',
                 '--selfplay-policy-current-anchor-rate', '0.4',
                 '--quick-adoption-threshold', '0.003',
+                '--quick-adoption-seed-offset', '200000',
                 '--quick-adoption-seed-count', '5',
                 '--quick-adoption-seed-stride', '777',
                 '--quick-adoption-confidence-level', '0.9',
@@ -835,6 +864,7 @@ describe('selfplay training cycle script', () => {
             expect(args.selfplayPolicyPoolRecencyDecay).toBeCloseTo(3, 6);
             expect(args.selfplayPolicyCurrentAnchorRate).toBeCloseTo(0.4, 6);
             expect(args.quickAdoptionThreshold).toBeCloseTo(0.003, 6);
+            expect(args.quickAdoptionSeedOffset).toBe(200000);
             expect(args.quickAdoptionSeedCount).toBe(5);
             expect(args.quickAdoptionSeedStride).toBe(777);
             expect(args.quickAdoptionConfidenceLevel).toBeCloseTo(0.9, 6);

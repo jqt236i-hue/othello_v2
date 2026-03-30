@@ -112,6 +112,64 @@ describe('network-turn-handoff', () => {
     expect(result).toMatchObject({ scheduledCpu: true, gameOver: false, nextPlayerKey: 'white' });
   });
 
+  test('scheduleCpuTurn が false を返したら processing を戻して human handoff 扱いにする', async () => {
+    global.gameState = { currentPlayer: 'white', turnNumber: 12 };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      fateWillControllerByTurnOwner: { black: null, white: null }
+    };
+    const handoff = require('../game/network-turn-handoff');
+    const publishSnapshot = jest.fn();
+    const scheduleCpuTurn = jest.fn(() => false);
+    const setProcessing = jest.fn();
+    const onHumanTurnReady = jest.fn();
+
+    const result = await handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [{ type: 'flip' }],
+      publishSnapshot,
+      scheduleCpuTurn,
+      setProcessing,
+      onHumanTurnReady,
+      humanMode: false,
+      cpuDelayMs: 321
+    });
+
+    expect(setProcessing).toHaveBeenNthCalledWith(1, true);
+    expect(setProcessing).toHaveBeenNthCalledWith(2, false);
+    expect(onHumanTurnReady).toHaveBeenCalledWith({ nextPlayerKey: 'white', scheduledCpu: false });
+    expect(result).toMatchObject({ scheduledCpu: false, gameOver: false, nextPlayerKey: 'white' });
+  });
+
+  test('scheduleCpuTurn が例外を投げたら processing を戻して再送出する', async () => {
+    global.gameState = { currentPlayer: 'white', turnNumber: 12 };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      fateWillControllerByTurnOwner: { black: null, white: null }
+    };
+    const handoff = require('../game/network-turn-handoff');
+    const publishSnapshot = jest.fn();
+    const scheduleCpuTurn = jest.fn(() => {
+      throw new Error('scheduler blew up');
+    });
+    const setProcessing = jest.fn();
+
+    await expect(handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [{ type: 'flip' }],
+      publishSnapshot,
+      scheduleCpuTurn,
+      setProcessing,
+      humanMode: false,
+      cpuDelayMs: 321
+    })).rejects.toThrow('scheduler blew up');
+
+    expect(setProcessing).toHaveBeenNthCalledWith(1, true);
+    expect(setProcessing).toHaveBeenNthCalledWith(2, false);
+  });
+
   test('FATE_WILL で人間が white 手番を代理操作する時は CPU scheduling を行わない', async () => {
     global.gameState = { currentPlayer: 'white', turnNumber: 12 };
     global.cardState = {
@@ -250,5 +308,48 @@ describe('network-turn-handoff', () => {
       playbackEvents: [{ type: 'flip', phase: 1 }, { type: 'escape_explosion', phase: 2 }]
     }));
     expect(result).toMatchObject({ gameOver: false, scheduledCpu: false, nextPlayerKey: 'white' });
+  });
+
+  test('awaitPublishResult 有効時は publish failure を返して CPU scheduling を進めない', async () => {
+    global.gameState = { currentPlayer: 'white', turnNumber: 12 };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      fateWillControllerByTurnOwner: { black: null, white: null }
+    };
+    const handoff = require('../game/network-turn-handoff');
+    const publishSnapshot = jest.fn(() => Promise.resolve({ ok: false, reason: 'OUT_OF_TURN' }));
+    const onPublishFailed = jest.fn();
+    const scheduleCpuTurn = jest.fn();
+    const setProcessing = jest.fn();
+    const onHumanTurnReady = jest.fn();
+
+    const result = await handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'black',
+      actionType: 'place',
+      action: { type: 'place', row: 2, col: 3, turnIndex: 12 },
+      playbackEvents: [{ type: 'flip', phase: 1 }],
+      publishSnapshot,
+      onPublishFailed,
+      awaitPublishResult: true,
+      scheduleCpuTurn,
+      setProcessing,
+      onHumanTurnReady,
+      humanMode: false,
+      cpuDelayMs: 321
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: 'network_publish_failed',
+      result: { ok: false, reason: 'OUT_OF_TURN' },
+      scheduledCpu: false
+    });
+    expect(onPublishFailed).toHaveBeenCalledWith(expect.objectContaining({
+      reason: 'network_publish_failed',
+      publishResult: { ok: false, reason: 'OUT_OF_TURN' }
+    }));
+    expect(scheduleCpuTurn).not.toHaveBeenCalled();
+    expect(onHumanTurnReady).not.toHaveBeenCalled();
+    expect(setProcessing).toHaveBeenCalledWith(false);
   });
 });

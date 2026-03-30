@@ -26,6 +26,10 @@ let cpuCardLogic = null;
 if (typeof require === 'function') {
     try { cpuCardLogic = require('./logic/cards'); } catch (e) { /* ignore */ }
 }
+let pendingCoordinator = null;
+if (typeof require === 'function') {
+    try { pendingCoordinator = require('./turn/pending-coordinator'); } catch (e) { /* ignore */ }
+}
 
 // Local safe constants to avoid ReferenceError for undeclared globals in test environments
 const CONST_BLACK = (typeof BLACK !== 'undefined') ? BLACK : ((typeof global !== 'undefined' && typeof global.BLACK !== 'undefined') ? global.BLACK : 1);
@@ -92,6 +96,55 @@ function resolveCpuCardLogic() {
     return null;
 }
 
+function resolvePendingCoordinatorForCpu() {
+    if (pendingCoordinator && typeof pendingCoordinator === 'object') return pendingCoordinator;
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.PendingCoordinator && typeof globalThis.PendingCoordinator === 'object') {
+            pendingCoordinator = globalThis.PendingCoordinator;
+            return pendingCoordinator;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function resolvePendingSelectionDispatchKeyForCpu(pendingType) {
+    const coordinator = resolvePendingCoordinatorForCpu();
+    if (!coordinator || typeof coordinator.resolvePendingSelectionDispatchKey !== 'function') return null;
+    return coordinator.resolvePendingSelectionDispatchKey(pendingType);
+}
+
+function readCpuPendingSelection(playerKey) {
+    const coordinator = resolvePendingCoordinatorForCpu();
+    if (coordinator && typeof coordinator.readPendingEffect === 'function') {
+        return coordinator.readPendingEffect(cardState, playerKey);
+    }
+    if (cardState && cardState.pendingEffectByPlayer) {
+        return cardState.pendingEffectByPlayer[playerKey] || null;
+    }
+    return null;
+}
+
+function clearCpuPendingSelection(playerKey) {
+    const coordinator = resolvePendingCoordinatorForCpu();
+    if (coordinator && typeof coordinator.clearPendingEffect === 'function') {
+        const result = coordinator.clearPendingEffect(cardState, playerKey);
+        return !!(result && result.ok);
+    }
+    if (cardState && cardState.pendingEffectByPlayer) {
+        cardState.pendingEffectByPlayer[playerKey] = null;
+        return true;
+    }
+    return false;
+}
+
+async function runOptionalCpuPendingSelectionHandler(handlerFn, playerKey) {
+    if (typeof handlerFn === 'function') {
+        await handlerFn(playerKey);
+        return;
+    }
+    clearCpuPendingSelection(playerKey);
+}
+
 function getFateWillControllerForTurnOwnerSafe(turnOwnerKey, cardStateRef) {
     const cardStateValue = cardStateRef && typeof cardStateRef === 'object' ? cardStateRef : resolvePresentationCardState(null);
     const logic = resolveCpuCardLogic();
@@ -125,10 +178,43 @@ function isHumanVsHumanModeEnabled() {
     return debugHvH || matchMode === 'network';
 }
 
+function getPlaybackStateForCpuTurn() {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) {
+            return globalThis.PlaybackStateManager;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function readCpuProcessing() {
+    const playbackState = getPlaybackStateForCpuTurn();
+    if (playbackState && typeof playbackState.getProcessing === 'function') {
+        return playbackState.getProcessing() === true;
+    }
+    if (typeof isProcessing !== 'undefined') return isProcessing === true;
+    return (typeof globalThis !== 'undefined') ? !!globalThis.isProcessing : false;
+}
+
+function setCpuProcessing(active) {
+    const next = active === true;
+    const playbackState = getPlaybackStateForCpuTurn();
+    if (playbackState && typeof playbackState.setProcessing === 'function') {
+        playbackState.setProcessing(next);
+    }
+    try { isProcessing = next; } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined') {
+            globalThis.isProcessing = next;
+        }
+    } catch (e) { /* ignore */ }
+    return next;
+}
+
 function shouldAbortCpuForHumanMode(playerKey, context) {
     if (!isHumanVsHumanModeEnabled()) return false;
     resetPendingSelectRetryState(playerKey);
-    isProcessing = false;
+    setCpuProcessing(false);
     debugCpuTrace('[AI] abort CPU run in human-controlled mode', {
         playerKey,
         context: context || 'unknown'
@@ -672,6 +758,13 @@ async function maybeUseCardFromOnnx(playerKey, level, legalMovesCount, legalMove
     if (typeof selectCardFromOnnxPolicyAsync !== 'function') return none;
     if (typeof applyCardChoice !== 'function') return none;
     if (typeof CardLogic === 'undefined' || !CardLogic || !cardState || !gameState) return none;
+    if (
+        cardState &&
+        cardState.hasUsedCardThisTurnByPlayer &&
+        cardState.hasUsedCardThisTurnByPlayer[playerKey]
+    ) {
+        return none;
+    }
     try {
         let usable = [];
         if (typeof CardLogic.getUsableCardIds === 'function') {
@@ -757,16 +850,26 @@ function setTimers(t) {
 function getTimers() { return timers; }
 
 function isUiAnimationBusy() {
+    const playbackState = getPlaybackStateForCpuTurn();
+    if (playbackState) {
+        if (typeof playbackState.getCardAnimating === 'function' && playbackState.getCardAnimating() === true) {
+            return true;
+        }
+        if (typeof playbackState.getPlaybackActive === 'function' && playbackState.getPlaybackActive() === true) {
+            return true;
+        }
+    }
     const localCard = (typeof isCardAnimating !== 'undefined') ? !!isCardAnimating : false;
     const winCard = (typeof globalThis !== 'undefined') ? !!globalThis.isCardAnimating : false;
     const winPlayback = (typeof globalThis !== 'undefined') ? (globalThis.VisualPlaybackActive === true) : false;
     return localCard || winCard || winPlayback;
 }
-const _cpuRetryPendingByPlayer = { black: false, white: false };
+const _cpuRetryPendingByPlayer = { black: null, white: null };
 const _pendingSelectRetryStateByPlayer = {
     black: { key: '', count: 0 },
     white: { key: '', count: 0 }
 };
+let _cpuRetryGeneration = 0;
 const MAX_STUCK_PENDING_SELECT_RETRIES = 4;
 
 function _retryStateKey(playerKey) {
@@ -777,6 +880,14 @@ function resetPendingSelectRetryState(playerKey) {
     const key = _retryStateKey(playerKey);
     _pendingSelectRetryStateByPlayer[key].key = '';
     _pendingSelectRetryStateByPlayer[key].count = 0;
+}
+
+function resetCpuTurnHandlerState() {
+    _cpuRetryGeneration += 1;
+    _cpuRetryPendingByPlayer.black = null;
+    _cpuRetryPendingByPlayer.white = null;
+    resetPendingSelectRetryState('black');
+    resetPendingSelectRetryState('white');
 }
 
 function makePendingSelectRetryKey(pending) {
@@ -804,12 +915,25 @@ function shouldAbortStuckPendingSelection(playerKey, pending) {
 
 function scheduleRunCpuTurn(playerKey, options, delayMs) {
     const key = playerKey === 'white' ? 'white' : 'black';
-    if (_cpuRetryPendingByPlayer[key]) return;
-    _cpuRetryPendingByPlayer[key] = true;
+    const expectedRetryGeneration = _cpuRetryGeneration;
+    if (_cpuRetryPendingByPlayer[key] === expectedRetryGeneration) return;
+    _cpuRetryPendingByPlayer[key] = expectedRetryGeneration;
     const expectedPlayerKey = getCurrentPlayerKeySafe();
     const expectedTurnNumber = getCurrentTurnNumberSafe();
     scheduleRetry(() => {
-        _cpuRetryPendingByPlayer[key] = false;
+        if (_cpuRetryPendingByPlayer[key] === expectedRetryGeneration) {
+            _cpuRetryPendingByPlayer[key] = null;
+        }
+        if (expectedRetryGeneration !== _cpuRetryGeneration) {
+            debugCpuTrace('[AI] skip stale scheduled CPU run (generation changed)', {
+                playerKey: key,
+                expectedRetryGeneration,
+                currentRetryGeneration: _cpuRetryGeneration,
+                expectedPlayerKey,
+                expectedTurnNumber
+            });
+            return;
+        }
         if (shouldAbortCpuForHumanMode(key, 'scheduled_retry')) {
             return;
         }
@@ -850,6 +974,55 @@ function resolveProcessPassTurn() {
     return null;
 }
 
+function resolveApplyCardChoiceFn() {
+    if (typeof applyCardChoice === 'function') return applyCardChoice;
+    if (typeof globalThis !== 'undefined' && globalThis && typeof globalThis.applyCardChoice === 'function') {
+        return globalThis.applyCardChoice;
+    }
+    return null;
+}
+
+function getUsableCardIdsForCpuRetry(playerKey) {
+    if (typeof CardLogic === 'undefined' || !CardLogic) return [];
+    if (typeof CardLogic.getUsableCardIds === 'function') {
+        const usable = CardLogic.getUsableCardIds(cardState, gameState, playerKey);
+        return Array.isArray(usable) ? usable.slice() : [];
+    }
+    if (typeof CardLogic.hasUsableCard === 'function' && CardLogic.hasUsableCard(cardState, gameState, playerKey)) {
+        const hand = (cardState && cardState.hands && Array.isArray(cardState.hands[playerKey]))
+            ? cardState.hands[playerKey]
+            : [];
+        return hand.slice();
+    }
+    return [];
+}
+
+function tryApplyAnyUsableCard(playerKey) {
+    const hasUsedCardThisTurn = !!(
+        cardState &&
+        cardState.hasUsedCardThisTurnByPlayer &&
+        cardState.hasUsedCardThisTurnByPlayer[playerKey]
+    );
+    const hasPendingSelection = !!(
+        cardState &&
+        readCpuPendingSelection(playerKey)
+    );
+    if (hasUsedCardThisTurn || hasPendingSelection) return false;
+    const applyChoice = resolveApplyCardChoiceFn();
+    if (typeof applyChoice !== 'function') return false;
+    const usableIds = getUsableCardIdsForCpuRetry(playerKey);
+    if (!usableIds.length) return false;
+    for (const cardId of usableIds) {
+        const cardDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
+            ? CardLogic.getCardDef(cardId)
+            : null;
+        if (applyChoice(playerKey, { cardId, cardDef })) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Prefer shared scheduleRetry helper from game/timer-utils when available, fallback to a local implementation
 // Build scheduleRetry as a small wrapper that prefers injected timers with a real impl,
 // then falls back to setTimeout.
@@ -875,64 +1048,95 @@ function scheduleRetry(fn, delayMs = getAnimationRetryDelayMs()) {
     if (tid && typeof tid.unref === 'function') tid.unref();
 }
 
-// Return a mapping of pending-effect type => async handler for a given playerKey.
-// This centralizes the handler registration and makes it simpler to test/extend.
-function getPendingTypeHandlers(playerKey) {
+// Return a mapping of shared pending-dispatch keys => async handler for a given playerKey.
+function getPendingDispatchHandlers(playerKey) {
     return {
-        'DESTROY_ONE_STONE': async () => { await cpuSelectDestroyWithPolicy(playerKey); },
-        'STRONG_WIND_WILL': async () => { if (typeof cpuSelectStrongWindWillWithPolicy === 'function') await cpuSelectStrongWindWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'SUPER_BUOYANCY_WILL': async () => { if (typeof cpuSelectSuperBuoyancyWillWithPolicy === 'function') await cpuSelectSuperBuoyancyWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'SUPER_GRAVITY_WILL': async () => { if (typeof cpuSelectSuperGravityWillWithPolicy === 'function') await cpuSelectSuperGravityWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'SELL_CARD_WILL': async () => { if (typeof cpuSelectSellCardWillWithPolicy === 'function') await cpuSelectSellCardWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'HEAVEN_BLESSING': async () => { if (typeof cpuSelectHeavenBlessingWithPolicy === 'function') await cpuSelectHeavenBlessingWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'CONDEMN_WILL': async () => { if (typeof cpuSelectCondemnWillWithPolicy === 'function') await cpuSelectCondemnWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'SWAP_WITH_ENEMY': async () => { if (typeof cpuSelectSwapWithEnemyWithPolicy === 'function') await cpuSelectSwapWithEnemyWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'POSITION_SWAP_WILL': async () => { if (typeof cpuSelectPositionSwapWillWithPolicy === 'function') await cpuSelectPositionSwapWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'TRAP_WILL': async () => { if (typeof cpuSelectTrapWillWithPolicy === 'function') await cpuSelectTrapWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'GUARD_WILL': async () => { if (typeof cpuSelectGuardWillWithPolicy === 'function') await cpuSelectGuardWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'GUARDIAN_GOD': async () => { if (typeof cpuSelectGuardWillWithPolicy === 'function') await cpuSelectGuardWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'HYPERACTIVE_INHERIT_WILL': async () => { if (typeof cpuSelectHyperactiveInheritWillWithPolicy === 'function') await cpuSelectHyperactiveInheritWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'EXTEND_LIFE_WILL': async () => { if (typeof cpuSelectExtendLifeWillWithPolicy === 'function') await cpuSelectExtendLifeWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'EXTEND_LIFE_GOD': async () => { if (typeof cpuSelectExtendLifeWillWithPolicy === 'function') await cpuSelectExtendLifeWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'CORROSION_WILL': async () => { if (typeof cpuSelectCorrosionWillWithPolicy === 'function') await cpuSelectCorrosionWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'TELEPORT_WILL': async () => { if (typeof cpuSelectTeleportWillWithPolicy === 'function') await cpuSelectTeleportWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'CELL_TELEPORT_WILL': async () => { if (typeof cpuSelectCellTeleportWillWithPolicy === 'function') await cpuSelectCellTeleportWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'TEMPT_WILL': async () => { if (typeof cpuSelectTemptWillWithPolicy === 'function') await cpuSelectTemptWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'CAPTURE_WILL': async () => { if (typeof cpuSelectCaptureWillWithPolicy === 'function') await cpuSelectCaptureWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'TIME_BOMB': async () => { if (typeof cpuSelectTimeBombWithPolicy === 'function') await cpuSelectTimeBombWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'BOARD_EXPANSION_WILL': async () => { if (typeof cpuSelectBoardExpansionWillWithPolicy === 'function') await cpuSelectBoardExpansionWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'BOARD_EXPANSION_GOD': async () => { if (typeof cpuSelectBoardExpansionWillWithPolicy === 'function') await cpuSelectBoardExpansionWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'BLOCKADE_WILL': async () => { if (typeof cpuSelectBlockadeWillWithPolicy === 'function') await cpuSelectBlockadeWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'METEOR_WILL': async () => { if (typeof cpuSelectMeteorWillWithPolicy === 'function') await cpuSelectMeteorWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'FREEZE_WILL': async () => { if (typeof cpuSelectFreezeWillWithPolicy === 'function') await cpuSelectFreezeWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'CLONE_WILL': async () => { if (typeof cpuSelectCloneWillWithPolicy === 'function') await cpuSelectCloneWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; },
-        'SPLIT_WILL': async () => { if (typeof cpuSelectSplitWillWithPolicy === 'function') await cpuSelectSplitWillWithPolicy(playerKey); else cardState.pendingEffectByPlayer[playerKey] = null; }
+        destroy: async () => { await cpuSelectDestroyWithPolicy(playerKey); },
+        strong_wind: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectStrongWindWillWithPolicy === 'function' ? cpuSelectStrongWindWillWithPolicy : null, playerKey); },
+        super_buoyancy: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectSuperBuoyancyWillWithPolicy === 'function' ? cpuSelectSuperBuoyancyWillWithPolicy : null, playerKey); },
+        super_gravity: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectSuperGravityWillWithPolicy === 'function' ? cpuSelectSuperGravityWillWithPolicy : null, playerKey); },
+        sell_card: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectSellCardWillWithPolicy === 'function' ? cpuSelectSellCardWillWithPolicy : null, playerKey); },
+        heaven_blessing: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectHeavenBlessingWithPolicy === 'function' ? cpuSelectHeavenBlessingWithPolicy : null, playerKey); },
+        condemn: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectCondemnWillWithPolicy === 'function' ? cpuSelectCondemnWillWithPolicy : null, playerKey); },
+        swap_with_enemy: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectSwapWithEnemyWithPolicy === 'function' ? cpuSelectSwapWithEnemyWithPolicy : null, playerKey); },
+        position_swap: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectPositionSwapWillWithPolicy === 'function' ? cpuSelectPositionSwapWillWithPolicy : null, playerKey); },
+        trap: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectTrapWillWithPolicy === 'function' ? cpuSelectTrapWillWithPolicy : null, playerKey); },
+        guard: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectGuardWillWithPolicy === 'function' ? cpuSelectGuardWillWithPolicy : null, playerKey); },
+        hyperactive_inherit: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectHyperactiveInheritWillWithPolicy === 'function' ? cpuSelectHyperactiveInheritWillWithPolicy : null, playerKey); },
+        extend_life: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectExtendLifeWillWithPolicy === 'function' ? cpuSelectExtendLifeWillWithPolicy : null, playerKey); },
+        corrosion: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectCorrosionWillWithPolicy === 'function' ? cpuSelectCorrosionWillWithPolicy : null, playerKey); },
+        teleport: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectTeleportWillWithPolicy === 'function' ? cpuSelectTeleportWillWithPolicy : null, playerKey); },
+        cell_teleport: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectCellTeleportWillWithPolicy === 'function' ? cpuSelectCellTeleportWillWithPolicy : null, playerKey); },
+        tempt: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectTemptWillWithPolicy === 'function' ? cpuSelectTemptWillWithPolicy : null, playerKey); },
+        capture: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectCaptureWillWithPolicy === 'function' ? cpuSelectCaptureWillWithPolicy : null, playerKey); },
+        time_bomb: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectTimeBombWithPolicy === 'function' ? cpuSelectTimeBombWithPolicy : null, playerKey); },
+        board_expansion: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectBoardExpansionWillWithPolicy === 'function' ? cpuSelectBoardExpansionWillWithPolicy : null, playerKey); },
+        blockade: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectBlockadeWillWithPolicy === 'function' ? cpuSelectBlockadeWillWithPolicy : null, playerKey); },
+        meteor: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectMeteorWillWithPolicy === 'function' ? cpuSelectMeteorWillWithPolicy : null, playerKey); },
+        freeze: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectFreezeWillWithPolicy === 'function' ? cpuSelectFreezeWillWithPolicy : null, playerKey); },
+        clone: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectCloneWillWithPolicy === 'function' ? cpuSelectCloneWillWithPolicy : null, playerKey); },
+        split: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectSplitWillWithPolicy === 'function' ? cpuSelectSplitWillWithPolicy : null, playerKey); }
+    };
+}
+
+function getPendingTypeHandlers(playerKey) {
+    const dispatchHandlers = getPendingDispatchHandlers(playerKey);
+    return {
+        DESTROY_ONE_STONE: dispatchHandlers.destroy,
+        STRONG_WIND_WILL: dispatchHandlers.strong_wind,
+        SUPER_BUOYANCY_WILL: dispatchHandlers.super_buoyancy,
+        SUPER_GRAVITY_WILL: dispatchHandlers.super_gravity,
+        SELL_CARD_WILL: dispatchHandlers.sell_card,
+        HEAVEN_BLESSING: dispatchHandlers.heaven_blessing,
+        CONDEMN_WILL: dispatchHandlers.condemn,
+        SWAP_WITH_ENEMY: dispatchHandlers.swap_with_enemy,
+        POSITION_SWAP_WILL: dispatchHandlers.position_swap,
+        TRAP_WILL: dispatchHandlers.trap,
+        GUARD_WILL: dispatchHandlers.guard,
+        GUARDIAN_GOD: dispatchHandlers.guard,
+        HYPERACTIVE_INHERIT_WILL: dispatchHandlers.hyperactive_inherit,
+        EXTEND_LIFE_WILL: dispatchHandlers.extend_life,
+        EXTEND_LIFE_GOD: dispatchHandlers.extend_life,
+        CORROSION_WILL: dispatchHandlers.corrosion,
+        TELEPORT_WILL: dispatchHandlers.teleport,
+        CELL_TELEPORT_WILL: dispatchHandlers.cell_teleport,
+        TEMPT_WILL: dispatchHandlers.tempt,
+        CAPTURE_WILL: dispatchHandlers.capture,
+        TIME_BOMB: dispatchHandlers.time_bomb,
+        BOARD_EXPANSION_WILL: dispatchHandlers.board_expansion,
+        BOARD_EXPANSION_GOD: dispatchHandlers.board_expansion,
+        BLOCKADE_WILL: dispatchHandlers.blockade,
+        METEOR_WILL: dispatchHandlers.meteor,
+        FREEZE_WILL: dispatchHandlers.freeze,
+        CLONE_WILL: dispatchHandlers.clone,
+        SPLIT_WILL: dispatchHandlers.split
     };
 }
 
 async function processCpuTurn() {
     if (isHumanVsHumanModeEnabled()) {
-        isProcessing = false;
+        setCpuProcessing(false);
         return;
     }
     const localIsCardAnimating = (typeof isCardAnimating !== 'undefined') ? !!isCardAnimating : false;
     debugCpuTrace('[DEBUG][processCpuTurn] enter', {
-        isProcessing,
+        isProcessing: readCpuProcessing(),
         isCardAnimating: localIsCardAnimating,
         gameStateCurrentPlayer: gameState && gameState.currentPlayer
     });
     if (typeof isGameOver === 'function' && gameState && isGameOver(gameState)) {
         if (typeof showResult === 'function') showResult();
-        isProcessing = false;
+        setCpuProcessing(false);
         debugCpuTrace('[DEBUG][processCpuTurn] skip: game over');
         return;
     }
     const cpuTurnOwnerKey = resolveCpuControlledTurnOwnerKey();
     if (!gameState || !cpuTurnOwnerKey) {
+        setCpuProcessing(false);
         debugCpuTrace('[DEBUG][processCpuTurn] skip: no local CPU-controlled turn');
         return;
     }
-    if (isProcessing || isUiAnimationBusy()) {
+    if (readCpuProcessing() || isUiAnimationBusy()) {
         scheduleRunCpuTurn(cpuTurnOwnerKey, { autoMode: false }, getAnimationRetryDelayMs());
         debugCpuTrace('[DEBUG][processCpuTurn] defer: busy');
         return;
@@ -946,10 +1150,10 @@ async function processAutoBlackTurn() {
     // Re-enabled for Auto mode: invoke black run with autoMode flag
     if (typeof isGameOver === 'function' && gameState && isGameOver(gameState)) {
         if (typeof showResult === 'function') showResult();
-        isProcessing = false;
+        setCpuProcessing(false);
         return;
     }
-    if (isProcessing || isUiAnimationBusy()) return;
+    if (readCpuProcessing() || isUiAnimationBusy()) return;
     if (gameState.currentPlayer !== CONST_BLACK) return;
     return runCpuTurn('black', { autoMode: true });
 }
@@ -970,7 +1174,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
 
     if (typeof isGameOver === 'function' && gameState && isGameOver(gameState)) {
         if (typeof showResult === 'function') showResult();
-        isProcessing = false;
+        setCpuProcessing(false);
         return;
     }
     if (currentPlayerKey && currentPlayerKey !== playerKey) {
@@ -979,7 +1183,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
             currentPlayer,
             autoMode
         });
-        isProcessing = false;
+        setCpuProcessing(false);
         return;
     }
 
@@ -989,14 +1193,14 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
             isWhite,
             autoMode,
             hasUsedCard: cardState.hasUsedCardThisTurnByPlayer[playerKey],
-            pendingEffect: !!cardState.pendingEffectByPlayer[playerKey]
+            pendingEffect: !!readCpuPendingSelection(playerKey)
         });
     }
 
-    isProcessing = true;
+    setCpuProcessing(true);
 
     if (isUiAnimationBusy()) {
-        isProcessing = false;
+        setCpuProcessing(false);
         scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
         return;
     }
@@ -1006,7 +1210,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
             ? cpuSmartness[playerKey]
             : 1;
         const hasUsedCardThisTurn = !!(cardState && cardState.hasUsedCardThisTurnByPlayer && cardState.hasUsedCardThisTurnByPlayer[playerKey]);
-        const hasPendingSelection = !!(cardState && cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[playerKey]);
+        const hasPendingSelection = !!readCpuPendingSelection(playerKey);
 
         emitCpuCommentary('turn_start', playerKey, {
             level,
@@ -1019,7 +1223,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 ? !!cpuMaybeDestroyHandCardWithPolicy(playerKey)
                 : false;
             if (destroyedForCycle) {
-                isProcessing = false;
+                setCpuProcessing(false);
                 scheduleRetry(() => {
                     if (isUiAnimationBusy()) {
                         scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
@@ -1054,7 +1258,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                     level,
                     cardId: getLastUsedCardIdSafe(playerKey)
                 });
-                isProcessing = false;
+                setCpuProcessing(false);
                 const resumeAfterCardAnimation = () => {
                     if (shouldAbortCpuForHumanMode(playerKey, 'resume_after_card_animation')) {
                         return;
@@ -1070,7 +1274,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
             }
         }
 
-        let pending = cardState.pendingEffectByPlayer[playerKey];
+        let pending = readCpuPendingSelection(playerKey);
 
         if (pending && pending.stage === 'selectTarget') {
             emitCpuCommentary('card_targeted', playerKey, {
@@ -1079,9 +1283,10 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
             });
         }
 
-        // Use pending handler factory for clarity and testability
+        // Use shared pending-dispatch keys so human/CPU paths do not duplicate type aliases.
         if (pending && pending.stage === 'selectTarget') {
-            const handler = getPendingTypeHandlers(playerKey)[pending.type];
+            const pendingDispatchKey = resolvePendingSelectionDispatchKeyForCpu(pending.type);
+            const handler = pendingDispatchKey ? getPendingDispatchHandlers(playerKey)[pendingDispatchKey] : null;
             if (handler) {
                 if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
                     debugLog(`[AI] CPU selecting ${pending.type.replace(/_/g, ' ').toLowerCase()} target`, 'debug', { playerKey, pendingEffect: pending });
@@ -1090,9 +1295,9 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 if (shouldAbortCpuForHumanMode(playerKey, 'after_pending_selection')) {
                     return;
                 }
-                pending = cardState.pendingEffectByPlayer[playerKey];
+                pending = readCpuPendingSelection(playerKey);
                 if (isUiAnimationBusy()) {
-                    isProcessing = false;
+                    setCpuProcessing(false);
                     scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
                     return;
                 }
@@ -1102,7 +1307,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                     : ((activePlayerAfterSelection === CONST_WHITE || activePlayerAfterSelection === 'white') ? 'white' : null);
                 if (activePlayerKeyAfterSelection && activePlayerKeyAfterSelection !== playerKey) {
                     resetPendingSelectRetryState(playerKey);
-                    isProcessing = false;
+                    setCpuProcessing(false);
                     return;
                 }
                 // Continue-turn selection cards may keep pending selectTarget
@@ -1111,26 +1316,22 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 if (pending && pending.stage === 'selectTarget') {
                     if (shouldAbortStuckPendingSelection(playerKey, pending)) {
                         // Safety valve: avoid infinite retry loops when a selector cannot progress.
-                        if (cardState && cardState.pendingEffectByPlayer) {
-                            cardState.pendingEffectByPlayer[playerKey] = null;
-                        }
+                        clearCpuPendingSelection(playerKey);
                         resetPendingSelectRetryState(playerKey);
-                        isProcessing = false;
+                        setCpuProcessing(false);
                         scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
                         return;
                     }
-                    isProcessing = false;
+                    setCpuProcessing(false);
                     scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
                     return;
                 }
             } else {
                 if (shouldAbortStuckPendingSelection(playerKey, pending)) {
-                    if (cardState && cardState.pendingEffectByPlayer) {
-                        cardState.pendingEffectByPlayer[playerKey] = null;
-                    }
+                    clearCpuPendingSelection(playerKey);
                     resetPendingSelectRetryState(playerKey);
                 }
-                isProcessing = false;
+                setCpuProcessing(false);
                 scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
                 return;
             }
@@ -1147,23 +1348,34 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 ? !!CardLogic.hasUsableCard(cardState, gameState, playerKey)
                 : false;
             if (stillUsableCard) {
+                const expectedRetryTurnNumber = getCurrentTurnNumberSafe();
                 const onnxCardDecision = await maybeUseCardFromOnnx(playerKey, level, 0, []);
                 if (shouldAbortCpuForHumanMode(playerKey, 'after_onnx_retry')) {
                     return;
                 }
-                const heldByOnnx = !!(onnxCardDecision && onnxCardDecision.hold === true);
-                const overrideHold = heldByOnnx && shouldOverrideOnnxHoldDecision(playerKey, level, 0);
+                const currentPlayerKeyAfterOnnx = getCurrentPlayerKeySafe();
+                const currentTurnNumberAfterOnnx = getCurrentTurnNumberSafe();
+                if (
+                    (currentPlayerKeyAfterOnnx && currentPlayerKeyAfterOnnx !== playerKey) ||
+                    (expectedRetryTurnNumber !== null && currentTurnNumberAfterOnnx !== expectedRetryTurnNumber)
+                ) {
+                    setCpuProcessing(false);
+                    return;
+                }
                 let retried = !!(onnxCardDecision && onnxCardDecision.applied === true);
-                if (!retried && (!heldByOnnx || overrideHold)) {
+                if (!retried && typeof cpuMaybeUseCardWithPolicy === 'function') {
                     retried = (typeof cpuMaybeUseCardWithPolicy === 'function') ? cpuMaybeUseCardWithPolicy(playerKey) : false;
                 }
+                if (!retried) {
+                    retried = tryApplyAnyUsableCard(playerKey);
+                }
                 if (retried) {
-                    isProcessing = false;
+                    setCpuProcessing(false);
                     scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
                     return;
                 }
                 // Avoid illegal-pass spam: keep turn and retry later.
-                isProcessing = false;
+                setCpuProcessing(false);
                 scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
                 return;
             }
@@ -1179,7 +1391,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 passFn(playerKey, autoMode);
             } else {
                 console.error('[AI] processPassTurn is not available');
-                isProcessing = false;
+                setCpuProcessing(false);
             }
             resetPendingSelectRetryState(playerKey);
             return;
@@ -1207,7 +1419,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
             if (passFn) {
                 passFn(playerKey, autoMode);
             } else {
-                isProcessing = false;
+                setCpuProcessing(false);
             }
             return;
         }
@@ -1237,12 +1449,12 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                     playerKey,
                     nowCurrentKey
                 });
-                isProcessing = false;
+                setCpuProcessing(false);
                 return;
             }
             if (isUiAnimationBusy()) {
                 scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
-                isProcessing = false;
+                setCpuProcessing(false);
                 return;
             }
             const cornersBeforeMove = countOwnedBasicCornersSafe(gameState, playerKey);
@@ -1278,7 +1490,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 playerKey
             });
         }
-        isProcessing = false;
+        setCpuProcessing(false);
         // If it's a critical logic error, we might want to skip the turn or alert the user
         if (typeof emitLogAdded === 'function') {
             emitLogAdded(`${selfName}の思考中にエラーが発生しました`);
@@ -1297,6 +1509,7 @@ if (typeof module !== 'undefined' && module.exports) {
         scheduleRetry,
         getPendingTypeHandlers,
         runCpuTurn,
+        resetCpuTurnHandlerState,
         PresentationRuntime: presentationRuntime
     };
 }

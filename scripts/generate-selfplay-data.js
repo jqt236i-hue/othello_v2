@@ -937,6 +937,8 @@ function runShardWorker(task, options) {
             env: Object.assign({}, process.env, {
                 [WORKER_ENV_FLAG]: '1',
                 [WORKER_TASK_ENV]: JSON.stringify(task),
+                SELFPLAY_GENERATE_WORKER_SEED: String(Number(task && task.seed)),
+                SELFPLAY_GENERATE_WORKER_GAMES: String(Number(task && task.games)),
                 SELFPLAY_DEBUG_STACK: workerOptions.debugStack ? '1' : String(process.env.SELFPLAY_DEBUG_STACK || '0')
             }),
             stdio: ['inherit', 'inherit', 'inherit', 'ipc']
@@ -961,9 +963,16 @@ function runShardWorker(task, options) {
                 return;
             }
             if (msg.type === 'error') {
-                const error = new Error(msg.message || 'worker error');
+                const detailParts = [];
+                if (Number.isFinite(shardIndex)) detailParts.push(`shard=${shardIndex}`);
+                if (Number.isFinite(Number(msg.seed))) detailParts.push(`seed=${Number(msg.seed)}`);
+                if (Number.isFinite(Number(msg.games))) detailParts.push(`games=${Number(msg.games)}`);
+                const detailSuffix = detailParts.length > 0 ? ` (${detailParts.join(' ')})` : '';
+                const error = new Error(`${msg.message || 'worker error'}${detailSuffix}`);
                 error.workerFailureType = 'message';
                 error.shardIndex = Number.isFinite(shardIndex) ? shardIndex : null;
+                error.seed = Number.isFinite(Number(msg.seed)) ? Number(msg.seed) : null;
+                error.games = Number.isFinite(Number(msg.games)) ? Number(msg.games) : null;
                 error.retriable = false;
                 finish(error);
             }
@@ -1353,7 +1362,15 @@ async function main() {
             return;
         } catch (err) {
             if (typeof process.send === 'function') {
-                process.send({ type: 'error', message: err && err.message ? err.message : String(err) });
+                const includeStack = process.env.SELFPLAY_DEBUG_STACK === '1';
+                process.send({
+                    type: 'error',
+                    message: includeStack && err && err.stack
+                        ? String(err.stack)
+                        : (err && err.message ? err.message : String(err)),
+                    seed: Number(process.env.SELFPLAY_GENERATE_WORKER_SEED || Number.NaN),
+                    games: Number(process.env.SELFPLAY_GENERATE_WORKER_GAMES || Number.NaN)
+                });
             }
             throw err;
         }

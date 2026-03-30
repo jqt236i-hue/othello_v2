@@ -227,4 +227,23 @@ describe('move-executor presentation emission', () => {
         expect(global.renderCardUI).not.toHaveBeenCalled();
         expect(global.emitCardStateChange).not.toHaveBeenCalled();
     });
+
+    test('skipped local execution clears processing through PlaybackStateManager when available', async () => {
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
+        global.isProcessing = true;
+        global.PlaybackStateManager = {
+            setBusyState: jest.fn()
+        };
+
+        const moveExecutor = require('../game/move-executor');
+        const adapter = {
+            runTurnWithAdapter: jest.fn(() => ({ skippedLocalExecution: true }))
+        };
+
+        await moveExecutor.executeMoveViaPipeline({ row: 2, col: 3, player: 1 }, false, 'black', adapter, {});
+
+        expect(global.PlaybackStateManager.setBusyState).toHaveBeenCalledWith({ processing: false });
+        expect(global.isProcessing).toBe(false);
+    });
 });

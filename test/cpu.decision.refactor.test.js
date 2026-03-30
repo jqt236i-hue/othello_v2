@@ -2070,7 +2070,7 @@ describe('cpu decision refactor helpers', () => {
     expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
       playerKey: 'white',
       actionType: 'place',
-      playbackEvents: [{ type: 'dummy' }, { type: 'turn_start_dummy' }]
+      playbackEvents: [{ type: 'dummy' }, expect.objectContaining({ type: 'turn_start_dummy' })]
     }));
     expect(global.NetworkMatchClient.publishSnapshot.mock.calls[0][0].snapshot).toBeUndefined();
   });

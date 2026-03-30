@@ -553,7 +553,7 @@ describe('cpu-policy-core', () => {
         expect(selected).toEqual(edgeMove);
     });
 
-    test('chooseMoveByLookahead prefers safe edge over inner move when no corner exists at Lv6', () => {
+    test('chooseMoveByLookahead keeps inner move when only a loose edge exists at Lv6', () => {
         const board = Array.from({ length: 8 }, () => Array(8).fill(0));
         board[0][0] = -1;
         board[7][7] = 1;
@@ -576,7 +576,33 @@ describe('cpu-policy-core', () => {
             priorWeight: 500,
             scoreMove: (move) => (move === innerMove ? 999999 : 0)
         });
-        expect(selected).toEqual(edgeMove);
+        expect(selected).toEqual(innerMove);
+    });
+
+    test('chooseMoveByLookahead prefers stabilizing edge over inner move when no corner exists at Lv6', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[0][0] = -1;
+        board[0][1] = 1;
+        board[3][3] = -1;
+        board[3][4] = 1;
+        board[4][3] = 1;
+        board[4][4] = -1;
+
+        const stabilizingEdgeMove = { row: 0, col: 2, flips: [{ row: 0, col: 1 }] };
+        const innerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+
+        const selected = core.chooseMoveByLookahead([innerMove, stabilizingEdgeMove], {
+            board,
+            playerValue: -1,
+            level: 6,
+            depth: 1,
+            maxBranch: 2,
+            nodeBudget: 2000,
+            searchWeight: 0,
+            priorWeight: 500,
+            scoreMove: (move) => (move === innerMove ? 999999 : 0)
+        });
+        expect(selected).toEqual(stabilizingEdgeMove);
     });
 
     test('chooseMoveByLookahead keeps standard-board donation veto for risky edge moves', () => {
@@ -604,15 +630,14 @@ describe('cpu-policy-core', () => {
         expect(selected).toEqual(innerMove);
     });
 
-    test('chooseMoveByLookahead allows nonstandard edge fallback when it is no riskier than inner move', () => {
+    test('chooseMoveByLookahead allows nonstandard stabilizing edge fallback when it improves anchored edge control', () => {
         const board = Array.from({ length: 9 }, () => Array(9).fill(0));
-        board[0][1] = -1;
-        board[0][2] = 1;
-        board[0][3] = 1;
+        board[0][0] = -1;
+        board[0][1] = 1;
         board[4][3] = 1;
 
         const innerMove = { row: 4, col: 4, flips: [{ row: 4, col: 3 }] };
-        const edgeMove = { row: 0, col: 4, flips: [{ row: 0, col: 3 }] };
+        const edgeMove = { row: 0, col: 2, flips: [{ row: 0, col: 1 }] };
 
         const selected = core.chooseMoveByLookahead([innerMove, edgeMove], {
             board,
@@ -627,6 +652,38 @@ describe('cpu-policy-core', () => {
         });
 
         expect(selected).toEqual(edgeMove);
+    });
+
+    test('chooseMoveByLookahead does not crash when nonstandard edge neighbors live in expansion cells', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[0][0] = -1;
+        board[0][5] = -1;
+        board[0][6] = 1;
+        board[4][3] = 1;
+
+        SharedBoardUtils.attachBoardShape(board, {
+            boardExpansion: {
+                cells: [
+                    { row: -1, col: 7, owner: 0 },
+                    { row: 0, col: 8, owner: 0 }
+                ]
+            }
+        });
+
+        const innerMove = { row: 4, col: 4, flips: [{ row: 4, col: 3 }] };
+        const expansionEdgeMove = { row: 0, col: 7, flips: [{ row: 0, col: 6 }] };
+
+        expect(() => core.chooseMoveByLookahead([innerMove, expansionEdgeMove], {
+            board,
+            playerValue: -1,
+            level: 6,
+            depth: 1,
+            maxBranch: 2,
+            nodeBudget: 2000,
+            searchWeight: 0,
+            priorWeight: 500,
+            scoreMove: (move) => (move === innerMove ? 999999 : 0)
+        })).not.toThrow();
     });
 
     test('chooseMoveByLookahead enables 30-ply endgame mode when empties are low', () => {
@@ -2180,18 +2237,42 @@ describe('cpu-policy-core', () => {
         expect(core.isCornerRecoveryCardType('HEAVEN_BLESSING')).toBe(false);
     });
 
-    test('EQUALITY_WILL keeps an explicit CPU profile without free-placement recovery classification', () => {
+    test('CORNER_TRIBUTE keeps an explicit economy-cycle move plan profile', () => {
+        expect(core.hasMovePlanProfileForCardType('CORNER_TRIBUTE')).toBe(true);
+        expect(core.getMovePlanProfileForCardType('CORNER_TRIBUTE')).toEqual(expect.objectContaining({
+            archetype: 'economyCycle',
+            placementWeight: 0
+        }));
+    });
+
+    test('EQUALITY_WILL keeps an explicit explosive-comeback profile without free-placement recovery classification', () => {
         expect(core.isCornerRecoveryCardType('EQUALITY_WILL')).toBe(false);
         expect(core.hasUsageStyleForCardType('EQUALITY_WILL')).toBe(true);
         expect(core.hasMovePlanProfileForCardType('EQUALITY_WILL')).toBe(true);
         expect(core.getMovePlanProfileForCardType('EQUALITY_WILL')).toEqual(expect.objectContaining({
+            archetype: 'explosiveComeback',
             placementWeight: 0
+        }));
+    });
+
+    test('PROLIFERATION_WILL keeps an explicit spawn-mobile move plan profile', () => {
+        expect(core.hasMovePlanProfileForCardType('PROLIFERATION_WILL')).toBe(true);
+        expect(core.getMovePlanProfileForCardType('PROLIFERATION_WILL')).toEqual(expect.objectContaining({
+            archetype: 'spawnMobile',
+            placementWeight: 3,
+            cornerBias: -1
         }));
     });
 
     test('all catalog card types have explicit usage style profile', () => {
         const types = Array.from(new Set((catalog.cards || []).map((c) => c && c.type).filter(Boolean)));
         const missing = types.filter((type) => !core.hasUsageStyleForCardType(type));
+        expect(missing).toEqual([]);
+    });
+
+    test('all catalog card types have explicit base score bonus', () => {
+        const types = Array.from(new Set((catalog.cards || []).map((c) => c && c.type).filter(Boolean)));
+        const missing = types.filter((type) => !core.hasBaseScoreBonusForCardType(type));
         expect(missing).toEqual([]);
     });
 
@@ -2850,6 +2931,38 @@ describe('cpu-policy-core', () => {
         const saferScore = core.scoreMoveForCornerEdgePlan(saferMove, {
             level: 6,
             board,
+            playerValue: -1
+        });
+
+        expect(saferScore).toBeGreaterThan(riskyScore);
+    });
+
+    test('scoreMoveForCornerEdgePlan penalizes pseudo-corner C-square after METEOR_HOLE reshapes the board', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[1][2] = 1;
+        board[3][3] = 1;
+        board[3][4] = -1;
+        board[4][3] = -1;
+        board[4][4] = 1;
+        const shapedBoard = SharedBoardUtils.attachBoardShape(board, {
+            cardState: {
+                markers: [
+                    { kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'METEOR_HOLE' } }
+                ]
+            }
+        });
+
+        const riskyMove = { row: 0, col: 2, flips: [{ row: 1, col: 2 }] };
+        const saferMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+
+        const riskyScore = core.scoreMoveForCornerEdgePlan(riskyMove, {
+            level: 6,
+            board: shapedBoard,
+            playerValue: -1
+        });
+        const saferScore = core.scoreMoveForCornerEdgePlan(saferMove, {
+            level: 6,
+            board: shapedBoard,
             playerValue: -1
         });
 

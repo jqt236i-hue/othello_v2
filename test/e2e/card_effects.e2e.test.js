@@ -1,28 +1,8 @@
 const { chromium } = require('playwright');
-const path = require('path');
-const http = require('http');
-const fs = require('fs');
+const { startStaticServer, stopStaticServer, stopPlaywrightBrowser } = require('./e2e-runtime-helpers');
 
 function startServer(port = 0) {
-  const root = path.resolve(__dirname, '..', '..');
-  const server = http.createServer((req, res) => {
-    let reqPath = req.url.split('?')[0];
-    if (reqPath === '/') reqPath = '/index.html';
-    const filePath = path.join(root, decodeURIComponent(reqPath));
-    fs.readFile(filePath, (err, data) => {
-      if (err) {
-        res.statusCode = 404;
-        res.end('Not found');
-        return;
-      }
-      const ext = path.extname(filePath).toLowerCase();
-      const mime = ext === '.html' ? 'text/html' : ext === '.js' ? 'application/javascript' : ext === '.css' ? 'text/css' : 'application/octet-stream';
-      res.setHeader('Content-Type', mime);
-      res.end(data);
-    });
-  });
-  server.listen(port);
-  return server;
+  return startStaticServer(port);
 }
 
 describe('Card effects E2E', () => {
@@ -37,11 +17,11 @@ describe('Card effects E2E', () => {
   }, 30000);
 
   afterAll(async () => {
-    if (browser) await browser.close();
-    if (serverProc && typeof serverProc.close === 'function') {
-      await new Promise(resolve => serverProc.close(resolve));
-    }
-  });
+    await stopPlaywrightBrowser(browser, 10000);
+    browser = null;
+    await stopStaticServer(serverProc);
+    serverProc = null;
+  }, 30000);
 
   test('using a card via DebugActions applies effect and logs usage', async () => {
     const page = await browser.newPage();
@@ -76,21 +56,38 @@ describe('Card effects E2E', () => {
       const usableIds = (window.CardLogic && typeof window.CardLogic.getUsableCardIds === 'function')
         ? (window.CardLogic.getUsableCardIds(window.cardState, window.gameState, 'black') || [])
         : [];
+      const immediateUsableIds = usableIds.filter((cardId) => {
+        const def = (window.CardLogic && typeof window.CardLogic.getCardDef === 'function')
+          ? window.CardLogic.getCardDef(cardId)
+          : null;
+        const type = def && def.type ? def.type : null;
+        if (!type) return true;
+        if (!window.PendingCoordinator || typeof window.PendingCoordinator.requiresPendingTarget !== 'function') {
+          return true;
+        }
+        return window.PendingCoordinator.requiresPendingTarget(type) !== true;
+      });
       const hand = (window.cardState && window.cardState.hands && Array.isArray(window.cardState.hands.black))
         ? window.cardState.hands.black
         : [];
-      const selectedCardId = usableIds[0] || hand[0] || null;
+      const selectedCardId = immediateUsableIds[0] || usableIds[0] || hand[0] || null;
+      const selectedCardDef = selectedCardId && window.CardLogic && typeof window.CardLogic.getCardDef === 'function'
+        ? window.CardLogic.getCardDef(selectedCardId)
+        : null;
       if (selectedCardId) {
         window.cardState.selectedCardId = selectedCardId;
       }
       return {
         selectedCardId,
+        selectedCardType: selectedCardDef && selectedCardDef.type ? selectedCardDef.type : null,
         usableCount: usableIds.length,
+        immediateUsableCount: immediateUsableIds.length,
         handCount: hand.length
       };
     });
     expect(setup.selectedCardId).toBeTruthy();
     expect(setup.usableCount).toBeGreaterThan(0);
+    expect(setup.immediateUsableCount).toBeGreaterThan(0);
 
     // wait until selectedCardId is set
     await page.waitForFunction(() => window.cardState && window.cardState.selectedCardId !== null, { timeout: 2000 });
@@ -154,19 +151,44 @@ describe('Card effects E2E', () => {
     await page.waitForTimeout(600);
 
     const beforeClick = await page.evaluate(() => {
-      const target = document.querySelector('#hand-black .card-item.clickable');
+      const clickables = Array.from(document.querySelectorAll('#hand-black .card-item.clickable'));
+      const usableIds = (window.CardLogic && typeof window.CardLogic.getUsableCardIds === 'function')
+        ? (window.CardLogic.getUsableCardIds(window.cardState, window.gameState, 'black') || [])
+        : [];
+      const immediateUsableIds = usableIds.filter((cardId) => {
+        const def = (window.CardLogic && typeof window.CardLogic.getCardDef === 'function')
+          ? window.CardLogic.getCardDef(cardId)
+          : null;
+        const type = def && def.type ? def.type : null;
+        if (!type) return true;
+        if (!window.PendingCoordinator || typeof window.PendingCoordinator.requiresPendingTarget !== 'function') {
+          return true;
+        }
+        return window.PendingCoordinator.requiresPendingTarget(type) !== true;
+      });
+      const target = clickables.find((el) => immediateUsableIds.includes(el.dataset.cardId))
+        || clickables.find((el) => usableIds.includes(el.dataset.cardId))
+        || clickables[0]
+        || null;
+      if (target) {
+        target.setAttribute('data-e2e-target', 'debug-usable-card');
+      }
       const rect = target ? target.getBoundingClientRect() : null;
       return {
         selectedCardId: window.cardState && window.cardState.selectedCardId,
         targetWidth: rect ? rect.width : 0,
-        clickableCount: document.querySelectorAll('#hand-black .card-item.clickable').length
+        clickableCount: clickables.length,
+        chosenCardId: target ? target.dataset.cardId : null,
+        immediateUsableCount: immediateUsableIds.length
       };
     });
 
     expect(beforeClick.clickableCount).toBeGreaterThan(0);
     expect(beforeClick.targetWidth).toBeGreaterThan(0);
+    expect(beforeClick.chosenCardId).toBeTruthy();
+    expect(beforeClick.immediateUsableCount).toBeGreaterThan(0);
 
-    await page.locator('#hand-black .card-item.clickable').first().click();
+    await page.locator('#hand-black .card-item[data-e2e-target="debug-usable-card"]').click();
     await page.waitForTimeout(250);
 
     const afterSelect = await page.evaluate(() => ({

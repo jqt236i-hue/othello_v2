@@ -118,6 +118,7 @@ function runRoomDeckScenario(action) {
     "        seatKey: 'white',",
     "        playerKey: 'white',",
     "        seatToken: joinPayload.seatToken,",
+    "        operationId: 'worker-room-deck-reset',",
     "        baseVersion: 5,",
     "        actionType: 'reset_game',",
     "        snapshot: {",

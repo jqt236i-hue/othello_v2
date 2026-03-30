@@ -16,6 +16,37 @@ if (!moveExecutorNetworkTurnHandoff && typeof globalThis !== 'undefined' && glob
     moveExecutorNetworkTurnHandoff = globalThis.NetworkTurnHandoff;
 }
 
+function getPlaybackStateForMoveExecutor() {
+    try {
+        if (__uiImpl_move_executor && __uiImpl_move_executor.PlaybackStateManager) {
+            return __uiImpl_move_executor.PlaybackStateManager;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) {
+            return globalThis.PlaybackStateManager;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function setMoveExecutorProcessing(active) {
+    const next = active === true;
+    const playbackState = getPlaybackStateForMoveExecutor();
+    if (playbackState && typeof playbackState.setBusyState === 'function') {
+        playbackState.setBusyState({ processing: next });
+    } else if (playbackState && typeof playbackState.setProcessing === 'function') {
+        playbackState.setProcessing(next);
+    }
+    try { isProcessing = next; } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined') {
+            globalThis.isProcessing = next;
+        }
+    } catch (e) { /* ignore */ }
+    return next;
+}
+
 function isMoveExecutorDebugEnabled() {
     try {
         if (__uiImpl_move_executor && __uiImpl_move_executor.DEBUG_MOVE_EXEC_LOG === true) return true;
@@ -159,7 +190,7 @@ async function executeMove(move) {
 
     } catch (error) {
         console.error('[CRITICAL] Error in executeMove:', error);
-        isProcessing = false;
+        setMoveExecutorProcessing(false);
     } finally {
         const safeIsProcessing = (typeof isProcessing !== 'undefined') ? isProcessing : undefined;
         const safeIsCardAnimating = (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined;
@@ -181,7 +212,7 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
     // Single Writer: network mode ではローカル実行がスキップされている
     if (res.skippedLocalExecution === true) {
         // サーバー応答の applySnapshot が state 更新と playback を担当する
-        isProcessing = false;
+        setMoveExecutorProcessing(false);
         return;
     }
 
@@ -190,7 +221,7 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
         console.warn('[MoveExecutor] Action rejected:', res.rejectedReason, 'events:', JSON.stringify(res.events || res, null, 2));
         // Do not record, do not increment turnIndex
         // Important: reset isProcessing to allow auto-loop to continue
-        isProcessing = false;
+        setMoveExecutorProcessing(false);
         try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
         return;
     }
@@ -287,7 +318,7 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
             humanMode,
             cpuDelayMs: safeCpuDelay,
             resultOrder: 'beforePublish',
-            setProcessing: (nextValue) => { isProcessing = !!nextValue; },
+            setProcessing: (nextValue) => { setMoveExecutorProcessing(nextValue); },
             afterTurnStart: () => {
                 try {
                     const now = getTimeNow();
@@ -306,13 +337,17 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
                 if (__uiImpl_move_executor && typeof __uiImpl_move_executor.scheduleCpuTurn === 'function') {
                     __uiImpl_move_executor.scheduleCpuTurn(delayMs, () => {
                         if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
+                            setMoveExecutorProcessing(false);
                             debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale scheduled CPU callback', expectedCpuSchedule);
                             return;
                         }
                         debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduled CPU callback firing, isProcessing, isCardAnimating', { isProcessing: (typeof isProcessing !== 'undefined') ? isProcessing : undefined, isCardAnimating: (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined });
-                        try { processCpuTurn(); } catch (e) { debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] processCpuTurn threw', e); }
+                        try { processCpuTurn(); } catch (e) {
+                            setMoveExecutorProcessing(false);
+                            debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] processCpuTurn threw', e);
+                        }
                     });
-                    return;
+                    return true;
                 }
 
                 try {
@@ -321,17 +356,22 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
                         debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] global processCpuTurn available; scheduling via setTimeout', { delay: delayMs });
                         setTimeout(() => {
                             if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
+                                setMoveExecutorProcessing(false);
                                 debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale global CPU callback', expectedCpuSchedule);
                                 return;
                             }
-                            try { globalCpu(); } catch (err) { debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] global processCpuTurn threw', err); }
+                            try { globalCpu(); } catch (err) {
+                                setMoveExecutorProcessing(false);
+                                debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] global processCpuTurn threw', err);
+                            }
                         }, delayMs);
-                        return;
+                        return true;
                     }
 
                         debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduleCpuTurn/processCpuTurn unavailable; retrying late global lookup');
                         setTimeout(() => {
                             if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
+                                setMoveExecutorProcessing(false);
                                 debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale late CPU callback', expectedCpuSchedule);
                                 return;
                             }
@@ -339,13 +379,20 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
                                 ? globalThis.processCpuTurn
                                 : null;
                             if (!lateGlobalCpu) {
+                                setMoveExecutorProcessing(false);
                                 debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] processCpuTurn unavailable in late fallback');
                                 return;
                             }
-                            try { lateGlobalCpu(); } catch (err) { debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] late global processCpuTurn threw', err); }
+                            try { lateGlobalCpu(); } catch (err) {
+                                setMoveExecutorProcessing(false);
+                                debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] late global processCpuTurn threw', err);
+                            }
                         }, delayMs);
+                        return true;
                 } catch (e) {
+                    setMoveExecutorProcessing(false);
                     debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] error while trying CPU fallback', e);
+                    return false;
                 }
             },
             onHumanTurnReady: ({ nextPlayerKey }) => {
@@ -361,7 +408,7 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
     if (typeof WHITE !== 'undefined' && gameState.currentPlayer === WHITE && humanMode) {
         debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] human-vs-human mode: skip CPU scheduling');
     }
-    isProcessing = false;
+    setMoveExecutorProcessing(false);
     try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
 }
 

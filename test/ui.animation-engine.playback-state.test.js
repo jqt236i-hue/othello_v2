@@ -24,8 +24,7 @@ describe('animation-engine playback-state integration', () => {
 
   test('watchdog clears playback through PlaybackStateManager', async () => {
     const playbackStateMock = {
-      setInteractionLock: jest.fn(),
-      setPlaybackActive: jest.fn(),
+      abortPlayback: jest.fn(),
       setSuppressNextDiffFlip: jest.fn()
     };
 
@@ -34,8 +33,63 @@ describe('animation-engine playback-state integration', () => {
     const engine = require('../ui/animation-engine');
     await engine.handleWatchdog();
 
-    expect(playbackStateMock.setInteractionLock).toHaveBeenCalledWith(false);
-    expect(playbackStateMock.setPlaybackActive).toHaveBeenCalledWith(false);
+    expect(playbackStateMock.abortPlayback).toHaveBeenCalledTimes(1);
+    expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  test('abortAndSync delegates playback abort to PlaybackStateManager when available', () => {
+    const playbackStateMock = {
+      abortPlayback: jest.fn()
+    };
+    jest.doMock('../ui/playback-state-manager', () => playbackStateMock);
+
+    const engine = require('../ui/animation-engine');
+    engine.abortAndSync();
+
+    expect(playbackStateMock.abortPlayback).toHaveBeenCalledTimes(1);
+    expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  test('external abort prevents a late finalize from clearing a newer playback lock', async () => {
+    jest.unmock('../ui/playback-state-manager');
+    const manager = require('../ui/playback-state-manager');
+    const engine = require('../ui/animation-engine');
+    let resolveFirstPhase = null;
+    let resolveSecondPhase = null;
+    const executePhaseSpy = jest.spyOn(engine, 'executePhase')
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveFirstPhase = resolve;
+      }))
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveSecondPhase = resolve;
+      }));
+
+    const firstPlayPromise = engine.play([{ type: 'move', phase: 1, targets: [] }]);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    manager.abortPlayback();
+    const secondPlayPromise = engine.play([{ type: 'move', phase: 1, targets: [] }]);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(typeof resolveFirstPhase).toBe('function');
+    expect(typeof resolveSecondPhase).toBe('function');
+    expect(manager.getPlaybackActive()).toBe(true);
+
+    resolveFirstPhase();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(manager.getPlaybackActive()).toBe(true);
+
+    resolveSecondPhase();
+    await secondPlayPromise;
+    await firstPlayPromise;
+
+    expect(engine.isPlaying).toBe(false);
+    expect(manager.getPlaybackActive()).toBe(false);
+    executePhaseSpy.mockRestore();
   });
 
   test('cell teleport playback arms board update context to suppress expansion reveal sound', async () => {

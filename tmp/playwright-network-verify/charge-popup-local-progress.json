@@ -1,0 +1,461 @@
+{
+  "ok": true,
+  "baseUrl": "http://127.0.0.1:8010/?matchServer=http%3A%2F%2F127.0.0.1%3A8790",
+  "serverUrl": "http://127.0.0.1:8790",
+  "timestamp": "2026-03-30T01:54:59.866Z",
+  "browsers": {
+    "left": "chrome",
+    "right": "msedge"
+  },
+  "launchEvents": [
+    {
+      "browser": "left",
+      "channel": "chrome",
+      "mode": "preferred"
+    },
+    {
+      "browser": "right",
+      "channel": "msedge",
+      "mode": "preferred"
+    }
+  ],
+  "headless": false,
+  "slowMoMs": 0,
+  "roomId": "S4J",
+  "actions": [
+    {
+      "index": 1,
+      "browser": "chrome",
+      "playerKey": "black",
+      "type": "place",
+      "row": 2,
+      "col": 3,
+      "notation": "d3",
+      "before": {
+        "left": {
+          "seatKey": "black",
+          "currentPlayerKey": "black",
+          "canAct": true,
+          "turnNumber": 0,
+          "turnIndex": 1,
+          "legalMoves": 4,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 2,
+            "white": 2
+          },
+          "charge": {
+            "black": 0,
+            "white": 0
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "right": {
+          "seatKey": "white",
+          "currentPlayerKey": "black",
+          "canAct": false,
+          "turnNumber": 0,
+          "turnIndex": 1,
+          "legalMoves": 4,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 2,
+            "white": 2
+          },
+          "charge": {
+            "black": 0,
+            "white": 0
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      },
+      "after": {
+        "left": {
+          "seatKey": "black",
+          "currentPlayerKey": "white",
+          "canAct": false,
+          "turnNumber": 1,
+          "turnIndex": 2,
+          "legalMoves": 3,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 4,
+            "white": 1
+          },
+          "charge": {
+            "black": 1,
+            "white": 0
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        },
+        "right": {
+          "seatKey": "white",
+          "currentPlayerKey": "white",
+          "canAct": true,
+          "turnNumber": 1,
+          "turnIndex": 2,
+          "legalMoves": 3,
+          "pending": null,
+          "consecutivePasses": 0,
+          "counts": {
+            "black": 4,
+            "white": 1
+          },
+          "charge": {
+            "black": 1,
+            "white": 0
+          },
+          "overlayVisible": false,
+          "resultTitle": "",
+          "gameOver": false
+        }
+      },
+      "chargeAudit": {
+        "left": {
+          "page": "left",
+          "seatKey": "black",
+          "boardHookInstalled": true,
+          "popupByOwner": {
+            "black": 1,
+            "white": 0
+          },
+          "expectedByOwner": {
+            "black": 1,
+            "white": 0
+          },
+          "events": [
+            {
+              "kind": "board",
+              "time": "2026-03-30T01:55:03.421Z",
+              "row": 2,
+              "col": 3,
+              "ownerKey": "black",
+              "delta": 1,
+              "seatKey": "black",
+              "currentPlayerKey": "white",
+              "turnIndex": 2,
+              "charge": {
+                "black": 1,
+                "white": 0
+              },
+              "bubbleKind": "charge",
+              "text": "+1"
+            }
+          ],
+          "mismatches": []
+        },
+        "right": {
+          "page": "right",
+          "seatKey": "white",
+          "boardHookInstalled": true,
+          "popupByOwner": {
+            "black": 1,
+            "white": 0
+          },
+          "expectedByOwner": {
+            "black": 1,
+            "white": 0
+          },
+          "events": [
+            {
+              "kind": "board",
+              "time": "2026-03-30T01:55:03.876Z",
+              "row": 2,
+              "col": 3,
+              "ownerKey": "black",
+              "delta": 1,
+              "seatKey": "white",
+              "currentPlayerKey": "white",
+              "turnIndex": 2,
+              "charge": {
+                "black": 1,
+                "white": 0
+              },
+              "bubbleKind": "charge",
+              "text": "+1"
+            }
+          ],
+          "mismatches": []
+        }
+      }
+    }
+  ],
+  "stallEvents": [],
+  "pageEvents": [
+    {
+      "time": "2026-03-30T01:55:01.094Z",
+      "browser": "chrome",
+      "kind": "console",
+      "type": "error",
+      "text": "\u001b[0;93m2026-03-30 10:55:01.078499 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 0\u001b[m"
+    },
+    {
+      "time": "2026-03-30T01:55:01.098Z",
+      "browser": "msedge",
+      "kind": "console",
+      "type": "error",
+      "text": "\u001b[0;93m2026-03-30 10:55:01.093298 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 0\u001b[m"
+    }
+  ],
+  "chargeAudit": {
+    "totalPopupEvents": 2,
+    "totalActionsWithChargeChange": 1,
+    "mismatches": [],
+    "boardHookInstalled": {
+      "left": true,
+      "right": true
+    }
+  },
+  "final": {
+    "actionsExecuted": 1,
+    "targetActions": 1,
+    "left": {
+      "seatKey": "black",
+      "currentPlayerKey": "white",
+      "canAct": false,
+      "legalMoves": [
+        {
+          "row": 2,
+          "col": 2,
+          "flips": 1
+        },
+        {
+          "row": 2,
+          "col": 4,
+          "flips": 1
+        },
+        {
+          "row": 4,
+          "col": 2,
+          "flips": 1
+        }
+      ],
+      "pending": null,
+      "turnNumber": 1,
+      "turnIndex": 2,
+      "consecutivePasses": 0,
+      "counts": {
+        "black": 4,
+        "white": 1
+      },
+      "charge": {
+        "black": 1,
+        "white": 0
+      },
+      "overlayVisible": false,
+      "resultTitle": "",
+      "gameOver": false,
+      "board": [
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          -1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    "right": {
+      "seatKey": "white",
+      "currentPlayerKey": "white",
+      "canAct": true,
+      "legalMoves": [
+        {
+          "row": 2,
+          "col": 2,
+          "flips": 1
+        },
+        {
+          "row": 2,
+          "col": 4,
+          "flips": 1
+        },
+        {
+          "row": 4,
+          "col": 2,
+          "flips": 1
+        }
+      ],
+      "pending": null,
+      "turnNumber": 1,
+      "turnIndex": 2,
+      "consecutivePasses": 0,
+      "counts": {
+        "black": 4,
+        "white": 1
+      },
+      "charge": {
+        "black": 1,
+        "white": 0
+      },
+      "overlayVisible": false,
+      "resultTitle": "",
+      "gameOver": false,
+      "board": [
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          -1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    }
+  },
+  "error": null
+}

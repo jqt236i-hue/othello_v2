@@ -1,8 +1,13 @@
 const SharedConstants = require('../shared-constants');
 const CardLogic = require('../game/logic/cards');
 const TurnPipeline = require('../game/turn/turn_pipeline');
+const PendingCoordinator = require('../game/turn/pending-coordinator');
 
 describe('CardLogic applyCardUsage presentation event', () => {
+  afterEach(() => {
+    PendingCoordinator.clearPendingSelectionActionCache();
+  });
+
   test('emits CARD_USED presentation event', () => {
     const defs = Array.isArray(SharedConstants.CARD_DEFS) ? SharedConstants.CARD_DEFS : [];
     const def = defs.find(d => d && d.id && d.type !== 'TEMPT_WILL');
@@ -34,10 +39,16 @@ describe('CardLogic applyCardUsage presentation event', () => {
     const ok = CardLogic.applyCardUsage(cardState, gameState, 'black', def.id);
     expect(ok).toBe(true);
     expect(cardState.cardUseCountByPlayer.black).toBe(1);
+    PendingCoordinator.storePendingSelectionAction(
+      'black',
+      { type: 'pending_selection', cardId: def.id, turnIndex: cardState.turnIndex || 0 },
+      'DESTROY_ONE_STONE'
+    );
 
     const canceled = CardLogic.cancelPendingSelection(cardState, 'black');
     expect(canceled && canceled.canceled).toBe(true);
     expect(cardState.cardUseCountByPlayer.black).toBe(0);
+    expect(PendingCoordinator.readPendingSelectionAction('black')).toBeNull();
   });
 
 

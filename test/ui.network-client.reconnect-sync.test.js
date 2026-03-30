@@ -11,6 +11,12 @@ function jsonResponse(status, data) {
 function createSnapshot(stateVersion, gameStateOverrides = {}) {
   return {
     stateVersion,
+    _meta: {
+      authority: 'server',
+      version: stateVersion,
+      projectedForSeat: null,
+      turnStartReconciled: true
+    },
     gameState: {
       currentPlayer: -1,
       turnNumber: 1,
@@ -426,7 +432,11 @@ describe('NetworkMatchClient reconnect and resync', () => {
             stateVersion: 2,
             snapshot: {
               ...optimisticSnapshot,
-              stateVersion: 2
+              stateVersion: 2,
+              _meta: {
+                ...(optimisticSnapshot._meta || {}),
+                version: 2
+              }
             }
           }));
         });

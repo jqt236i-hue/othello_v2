@@ -66,7 +66,9 @@ function ensureAcceptedOperationsBySeat(room) {
 }
 
 function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
-    return MatchAuthority.resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue);
+    return MatchAuthority && typeof MatchAuthority.resolveAuthenticatedSeatKey === 'function'
+        ? MatchAuthority.resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue)
+        : null;
 }
 
 function toPublicSnapshot(room, viewerSeatKey) {
@@ -320,7 +322,7 @@ function normalizeCardStateForTurnStart(room, snapshot) {
         : {};
     const currentPlayerKey = getCurrentPlayerKey(snapshot.gameState);
     const baselinePrng = SeededPRNG.createPRNG(createTurnStartSeed(room, snapshot, currentPlayerKey));
-    const baselineCardState = CardLogic.createCardState(baselinePrng);
+    const baselineCardState = CardLogic.createCardState(baselinePrng, buildInitialDeckOptions(room));
     snapshot.cardState = mergeWithDefaultShape(baselineCardState, currentCardState);
     if (!Array.isArray(snapshot.cardState.presentationEvents)) {
         snapshot.cardState.presentationEvents = [];
@@ -1095,6 +1097,16 @@ function broadcastPresence(room, meta) {
     }
 }
 
+function closeSeatStreams(room, seatKey) {
+    if (!room || !room.streams || !seatKey) return;
+    for (const [streamId, streamInfo] of Array.from(room.streams.entries())) {
+        if (!streamInfo || streamInfo.seatKey !== seatKey) continue;
+        room.streams.delete(streamId);
+        try { streamInfo.res.end(); } catch (e) { /* ignore */ }
+    }
+    stopHeartbeatLoopIfIdle();
+}
+
 function broadcastChat(room, payload) {
     if (!room) return;
     const eventId = nextSseEventId(room);
@@ -1383,8 +1395,11 @@ async function handleLeave(req, res) {
 
     room.seats[seatKey] = false;
     room.seatNames[seatKey] = '';
+    room.seatTokens = room.seatTokens || {};
+    room.seatTokens[seatKey] = makeSeatToken();
     room.updatedAt = Date.now();
     refreshTurnTimer(room, { nowMs: room.updatedAt, forceRestart: false });
+    closeSeatStreams(room, seatKey);
 
     broadcastPresence(room, {
         type: 'leave',
@@ -1472,6 +1487,24 @@ async function handlePublish(req, res) {
                 receivedBaseVersion: baseVersion,
                 authoritativeStateVersion: room.stateVersion,
                 rejectedReason: 'SEAT_TOKEN_MISMATCH'
+            }
+        }));
+        return;
+    }
+
+    if (!(MatchAuthority && typeof MatchAuthority.hasRequiredOperationId === 'function'
+        ? MatchAuthority.hasRequiredOperationId(operationId)
+        : !!operationId)) {
+        writeJson(res, 409, buildPublishPayload(room, seatKey, {
+            ok: false,
+            rejectedReason: 'OPERATION_ID_REQUIRED',
+            publishMeta: {
+                kind: 'rejected',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion,
+                rejectedReason: 'OPERATION_ID_REQUIRED'
             }
         }));
         return;

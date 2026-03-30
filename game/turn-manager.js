@@ -35,6 +35,7 @@ if (typeof require === 'function') {
 if (!TurnPipelineUIAdapter && typeof globalThis !== 'undefined' && globalThis.TurnPipelineUIAdapter) {
     TurnPipelineUIAdapter = globalThis.TurnPipelineUIAdapter;
 }
+var CpuTurnHandlerModule = null;
 
 function getTurnPipelineUIAdapter() {
     if (TurnPipelineUIAdapter) {
@@ -47,6 +48,29 @@ function getTurnPipelineUIAdapter() {
         TurnPipelineUIAdapter = globalThis.TurnPipelineUIAdapter;
     }
     return TurnPipelineUIAdapter;
+}
+
+function getCpuTurnHandlerModule() {
+    if (CpuTurnHandlerModule && typeof CpuTurnHandlerModule === 'object') {
+        return CpuTurnHandlerModule;
+    }
+    try {
+        if (typeof resetCpuTurnHandlerState === 'function') {
+            CpuTurnHandlerModule = { resetCpuTurnHandlerState };
+            return CpuTurnHandlerModule;
+        }
+    } catch (e) { /* ignore */ }
+    if (typeof require === 'function') {
+        try { CpuTurnHandlerModule = require('./cpu-turn-handler'); } catch (e) { /* ignore */ }
+    }
+    return CpuTurnHandlerModule;
+}
+
+function resetCpuTurnSchedulingStateForTurnManager() {
+    const cpuTurnHandler = getCpuTurnHandlerModule();
+    if (cpuTurnHandler && typeof cpuTurnHandler.resetCpuTurnHandlerState === 'function') {
+        cpuTurnHandler.resetCpuTurnHandlerState();
+    }
 }
 
 var OwnerHelpersModule = null;
@@ -66,6 +90,94 @@ function getPlaybackStateForTurnManager() {
     return null;
 }
 
+function readTurnManagerProcessing() {
+    const playbackState = getPlaybackStateForTurnManager();
+    if (playbackState && typeof playbackState.getProcessing === 'function') {
+        return playbackState.getProcessing() === true;
+    }
+    const localProcessing = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isProcessing !== 'undefined')
+        ? __uiImpl.isProcessing
+        : (typeof isProcessing !== 'undefined' ? isProcessing : false);
+    const globalProcessing = (typeof globalThis !== 'undefined') ? !!globalThis.isProcessing : false;
+    return localProcessing || globalProcessing;
+}
+
+function readTurnManagerCardAnimating() {
+    const playbackState = getPlaybackStateForTurnManager();
+    if (playbackState && typeof playbackState.getCardAnimating === 'function') {
+        return playbackState.getCardAnimating() === true;
+    }
+    const localCardAnimating = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isCardAnimating !== 'undefined')
+        ? __uiImpl.isCardAnimating
+        : (typeof isCardAnimating !== 'undefined' ? isCardAnimating : false);
+    const globalCardAnimating = (typeof globalThis !== 'undefined') ? !!globalThis.isCardAnimating : false;
+    return localCardAnimating || globalCardAnimating;
+}
+
+function setTurnManagerBusyState(options) {
+    const config = (options && typeof options === 'object')
+        ? options
+        : {
+            processing: options === true,
+            cardAnimating: options === true
+        };
+    const playbackState = getPlaybackStateForTurnManager();
+    const hasProcessing = Object.prototype.hasOwnProperty.call(config, 'processing');
+    const hasCardAnimating = Object.prototype.hasOwnProperty.call(config, 'cardAnimating');
+    const hasPlaybackActive = Object.prototype.hasOwnProperty.call(config, 'playbackActive');
+    const nextProcessing = hasProcessing ? (config.processing === true) : null;
+    const nextCardAnimating = hasCardAnimating ? (config.cardAnimating === true) : null;
+    const nextPlaybackActive = hasPlaybackActive ? (config.playbackActive === true) : null;
+
+    if (playbackState) {
+        if (typeof playbackState.setBusyState === 'function') {
+            playbackState.setBusyState(config);
+        } else {
+            if (hasProcessing && typeof playbackState.setProcessing === 'function') {
+                playbackState.setProcessing(nextProcessing);
+            }
+            if (hasCardAnimating && typeof playbackState.setCardAnimating === 'function') {
+                playbackState.setCardAnimating(nextCardAnimating);
+            }
+            if (hasPlaybackActive && typeof playbackState.setPlaybackActive === 'function') {
+                playbackState.setPlaybackActive(nextPlaybackActive);
+            }
+        }
+        if (nextPlaybackActive === false && typeof playbackState.setPlaybackStartedAt === 'function') {
+            playbackState.setPlaybackStartedAt(null);
+        }
+    }
+
+    try {
+        if (hasProcessing) isProcessing = nextProcessing;
+    } catch (e) { /* ignore */ }
+    try {
+        if (hasCardAnimating) isCardAnimating = nextCardAnimating;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined') {
+            if (hasProcessing) globalThis.isProcessing = nextProcessing;
+            if (hasCardAnimating) globalThis.isCardAnimating = nextCardAnimating;
+            if (hasPlaybackActive) {
+                globalThis.VisualPlaybackActive = nextPlaybackActive;
+                if (nextPlaybackActive) {
+                    if (!Number.isFinite(Number(globalThis.__playbackActiveSince))) {
+                        globalThis.__playbackActiveSince = Date.now();
+                    }
+                } else {
+                    globalThis.__playbackActiveSince = null;
+                }
+            }
+        }
+    } catch (e) { /* ignore */ }
+
+    return {
+        isProcessing: readTurnManagerProcessing(),
+        isCardAnimating: readTurnManagerCardAnimating(),
+        playbackActive: isVisualPlaybackActiveForTurnManager()
+    };
+}
+
 function isVisualPlaybackActiveForTurnManager() {
     const playbackState = getPlaybackStateForTurnManager();
     if (playbackState && typeof playbackState.getPlaybackActive === 'function') {
@@ -76,17 +188,16 @@ function isVisualPlaybackActiveForTurnManager() {
 
 function clearPlaybackLockForTurnManager() {
     const playbackState = getPlaybackStateForTurnManager();
-    if (playbackState && typeof playbackState.clearPlaybackLock === 'function') {
+    if (playbackState && typeof playbackState.abortPlayback === 'function') {
+        playbackState.abortPlayback();
+    } else if (playbackState && typeof playbackState.clearPlaybackLock === 'function') {
         playbackState.clearPlaybackLock();
-        return;
+    } else {
+        setTurnManagerBusyState({
+            cardAnimating: false,
+            playbackActive: false
+        });
     }
-    try {
-        if (typeof globalThis !== 'undefined') {
-            globalThis.isCardAnimating = false;
-            globalThis.VisualPlaybackActive = false;
-            globalThis.__playbackActiveSince = null;
-        }
-    } catch (e) { /* ignore */ }
 }
 
 function getPlaybackStartedAtForTurnManager() {
@@ -180,9 +291,10 @@ function setUIImpl(obj) {
 }
 
 // Module-scoped UI locks (local state; UI may mirror these via UI bootstrap if desired)
-if (typeof isProcessing === 'undefined') { try { globalThis.isProcessing = false; } catch (e) { this.isProcessing = false; } }
-if (typeof isCardAnimating === 'undefined') { try { globalThis.isCardAnimating = false; } catch (e) { this.isCardAnimating = false; } }
+if (typeof isProcessing === 'undefined') { setTurnManagerBusyState({ processing: false }); }
+if (typeof isCardAnimating === 'undefined') { setTurnManagerBusyState({ cardAnimating: false }); }
 if (typeof cpuSmartness === 'undefined') { try { globalThis.cpuSmartness = { black: 1, white: 1 }; } catch (e) { this.cpuSmartness = { black: 1, white: 1 }; } }
+var resetGameGeneration = 0;
 
 // Timers abstraction (injected by UI if desired)
 if (typeof timers === 'undefined') { try { globalThis.timers = globalThis.timers || null; } catch (e) { this.timers = this.timers || null; } }
@@ -244,142 +356,14 @@ function handleCellClick(row, col) {
 
     const playerKey = getPlayerKey(gameState.currentPlayer);
     if (!canLocalUserOperateCurrentTurn()) return;
-    const pending = cardState.pendingEffectByPlayer[playerKey];
-
-    // Selection-mode (destroy) has priority
-    if (pending && pending.type === 'DESTROY_ONE_STONE' && pending.stage === 'selectTarget') {
-        handleDestroySelection(row, col, playerKey);
-        return;
-    }
-    if (pending && pending.type === 'STRONG_WIND_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handleStrongWindSelection === 'function') {
-            handleStrongWindSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && pending.type === 'SUPER_BUOYANCY_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handleSuperBuoyancySelection === 'function') {
-            handleSuperBuoyancySelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && pending.type === 'SUPER_GRAVITY_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handleSuperGravitySelection === 'function') {
-            handleSuperGravitySelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && (pending.type === 'TELEPORT_WILL' || pending.type === 'CELL_TELEPORT_WILL') && pending.stage === 'selectTarget') {
-        if (typeof handleTeleportSelection === 'function') {
-            handleTeleportSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget') {
-        // This effect is resolved by selecting a card from hand UI, not board cells.
-        return;
-    }
-    if (pending && pending.type === 'HEAVEN_BLESSING' && pending.stage === 'selectTarget') {
-        // This effect is resolved via the heaven blessing overlay UI.
-        return;
-    }
-    if (pending && pending.type === 'CONDEMN_WILL' && pending.stage === 'selectTarget') {
-        // This effect is resolved via the hand selection overlay UI.
-        return;
-    }
-    if (pending && pending.type === 'TEMPT_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handleTemptSelection === 'function') {
-            handleTemptSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && pending.type === 'CAPTURE_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handleCaptureSelection === 'function') {
-            handleCaptureSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && pending.type === 'TRAP_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handleTrapSelection === 'function') {
-            handleTrapSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && (pending.type === 'GUARD_WILL' || pending.type === 'GUARDIAN_GOD') && pending.stage === 'selectTarget') {
-        if (typeof handleGuardSelection === 'function') {
-            handleGuardSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && pending.type === 'HYPERACTIVE_INHERIT_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handleHyperactiveInheritSelection === 'function') {
-            handleHyperactiveInheritSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && (pending.type === 'EXTEND_LIFE_WILL' || pending.type === 'EXTEND_LIFE_GOD') && pending.stage === 'selectTarget') {
-        if (typeof handleExtendLifeSelection === 'function') {
-            handleExtendLifeSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && pending.type === 'CORROSION_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handleCorrosionSelection === 'function') {
-            handleCorrosionSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && pending.type === 'TIME_BOMB' && pending.stage === 'selectTarget') {
-        if (typeof handleTimeBombSelection === 'function') {
-            handleTimeBombSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && pending.type === 'SWAP_WITH_ENEMY' && pending.stage === 'selectTarget') {
-        if (typeof handleSwapSelection === 'function') {
-            handleSwapSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && pending.type === 'POSITION_SWAP_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handlePositionSwapSelection === 'function') {
-            handlePositionSwapSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && (pending.type === 'BOARD_EXPANSION_WILL' || pending.type === 'BOARD_EXPANSION_GOD') && pending.stage === 'selectTarget') {
-        if (typeof handleBoardExpansionSelection === 'function') {
-            handleBoardExpansionSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && pending.type === 'BLOCKADE_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handleBlockadeSelection === 'function') {
-            handleBlockadeSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && pending.type === 'METEOR_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handleMeteorSelection === 'function') {
-            handleMeteorSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && pending.type === 'FREEZE_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handleFreezeSelection === 'function') {
-            handleFreezeSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && pending.type === 'CLONE_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handleCloneSelection === 'function') {
-            handleCloneSelection(row, col, playerKey);
-        }
-        return;
-    }
-    if (pending && pending.type === 'SPLIT_WILL' && pending.stage === 'selectTarget') {
-        if (typeof handleSplitSelection === 'function') {
-            handleSplitSelection(row, col, playerKey);
+    const pending = readPendingForTurnManager(playerKey);
+    const pendingDispatchKey = (pending && pending.stage === 'selectTarget')
+        ? resolvePendingSelectionDispatchKeyForTurnManager(pending.type)
+        : null;
+    if (pendingDispatchKey) {
+        const pendingSelectionHandler = resolveBoardPendingSelectionHandlerForTurnManager(pendingDispatchKey);
+        if (typeof pendingSelectionHandler === 'function') {
+            pendingSelectionHandler(row, col, playerKey);
         }
         return;
     }
@@ -420,9 +404,7 @@ function handleCellClick(row, col) {
 }
 
 function isAnimationInProgress() {
-    const proc = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isProcessing !== 'undefined') ? __uiImpl.isProcessing : (typeof isProcessing !== 'undefined' ? isProcessing : false);
-    const winProc = (typeof globalThis !== 'undefined') ? !!globalThis.isProcessing : false;
-    const processingActive = proc || winProc;
+    const processingActive = readTurnManagerProcessing();
     // UI render is deferred while presentation events are queued, so board clicks must
     // remain locked until the queue is consumed to avoid stale legal-hint clicks.
     const queuedPresentation = hasQueuedPresentationEventsForTurnManager();
@@ -434,12 +416,8 @@ function isAnimationInProgress() {
             visualPlayback
         });
     }
-    const card = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isCardAnimating !== 'undefined') ? __uiImpl.isCardAnimating : (typeof isCardAnimating !== 'undefined' ? isCardAnimating : false);
-    const playbackState = getPlaybackStateForTurnManager();
-    const winCard = playbackState && typeof playbackState.getCardAnimating === 'function'
-        ? (playbackState.getCardAnimating() === true)
-        : ((typeof globalThis !== 'undefined') ? !!globalThis.isCardAnimating : false);
-    return proc || card || winProc || winCard || visualPlayback || queuedPresentation;
+    const cardAnimatingActive = readTurnManagerCardAnimating();
+    return processingActive || cardAnimatingActive || visualPlayback || queuedPresentation;
 }
 
 function isHumanVsHumanModeEnabled() {
@@ -569,12 +547,117 @@ function requestUIRender() {
     }
 }
 
+function resolvePendingCoordinatorForTurnManager() {
+    var pendingCoordinator = null;
+    if (typeof require === 'function') {
+        try { pendingCoordinator = require('./turn/pending-coordinator'); } catch (e) { /* ignore */ }
+    }
+    if (!pendingCoordinator && typeof globalThis !== 'undefined' && globalThis.PendingCoordinator) {
+        pendingCoordinator = globalThis.PendingCoordinator;
+    }
+    return (pendingCoordinator && typeof pendingCoordinator === 'object') ? pendingCoordinator : null;
+}
+
+function resolvePendingSelectionDispatchKeyForTurnManager(pendingType) {
+    var pendingCoordinator = resolvePendingCoordinatorForTurnManager();
+    if (!pendingCoordinator || typeof pendingCoordinator.resolvePendingSelectionDispatchKey !== 'function') {
+        return null;
+    }
+    return pendingCoordinator.resolvePendingSelectionDispatchKey(pendingType);
+}
+
+function readPendingForTurnManager(playerKey) {
+    var pendingCoordinator = resolvePendingCoordinatorForTurnManager();
+    if (pendingCoordinator && typeof pendingCoordinator.readPendingEffect === 'function') {
+        return pendingCoordinator.readPendingEffect(cardState, playerKey);
+    }
+    return (cardState && cardState.pendingEffectByPlayer)
+        ? (cardState.pendingEffectByPlayer[playerKey] || null)
+        : null;
+}
+
+function resolveBoardPendingSelectionHandlerForTurnManager(dispatchKey) {
+    switch (String(dispatchKey || '')) {
+    case 'destroy':
+        return (typeof handleDestroySelection === 'function') ? handleDestroySelection : null;
+    case 'strong_wind':
+        return (typeof handleStrongWindSelection === 'function') ? handleStrongWindSelection : null;
+    case 'super_buoyancy':
+        return (typeof handleSuperBuoyancySelection === 'function') ? handleSuperBuoyancySelection : null;
+    case 'super_gravity':
+        return (typeof handleSuperGravitySelection === 'function') ? handleSuperGravitySelection : null;
+    case 'teleport':
+    case 'cell_teleport':
+        return (typeof handleTeleportSelection === 'function') ? handleTeleportSelection : null;
+    case 'tempt':
+        return (typeof handleTemptSelection === 'function') ? handleTemptSelection : null;
+    case 'capture':
+        return (typeof handleCaptureSelection === 'function') ? handleCaptureSelection : null;
+    case 'trap':
+        return (typeof handleTrapSelection === 'function') ? handleTrapSelection : null;
+    case 'guard':
+        return (typeof handleGuardSelection === 'function') ? handleGuardSelection : null;
+    case 'hyperactive_inherit':
+        return (typeof handleHyperactiveInheritSelection === 'function') ? handleHyperactiveInheritSelection : null;
+    case 'extend_life':
+        return (typeof handleExtendLifeSelection === 'function') ? handleExtendLifeSelection : null;
+    case 'corrosion':
+        return (typeof handleCorrosionSelection === 'function') ? handleCorrosionSelection : null;
+    case 'time_bomb':
+        return (typeof handleTimeBombSelection === 'function') ? handleTimeBombSelection : null;
+    case 'swap_with_enemy':
+        return (typeof handleSwapSelection === 'function') ? handleSwapSelection : null;
+    case 'position_swap':
+        return (typeof handlePositionSwapSelection === 'function') ? handlePositionSwapSelection : null;
+    case 'board_expansion':
+        return (typeof handleBoardExpansionSelection === 'function') ? handleBoardExpansionSelection : null;
+    case 'blockade':
+        return (typeof handleBlockadeSelection === 'function') ? handleBlockadeSelection : null;
+    case 'meteor':
+        return (typeof handleMeteorSelection === 'function') ? handleMeteorSelection : null;
+    case 'freeze':
+        return (typeof handleFreezeSelection === 'function') ? handleFreezeSelection : null;
+    case 'clone':
+        return (typeof handleCloneSelection === 'function') ? handleCloneSelection : null;
+    case 'split':
+        return (typeof handleSplitSelection === 'function') ? handleSplitSelection : null;
+    default:
+        return null;
+    }
+}
+
+function clearPendingSelectionActionCacheForTurnManager() {
+    var pendingCoordinator = resolvePendingCoordinatorForTurnManager();
+    if (!pendingCoordinator) return false;
+    if (typeof pendingCoordinator.clearPendingSelectionActionCache === 'function') {
+        pendingCoordinator.clearPendingSelectionActionCache();
+        return true;
+    }
+    if (typeof pendingCoordinator.clearPendingSelectionAction === 'function') {
+        pendingCoordinator.clearPendingSelectionAction('black');
+        pendingCoordinator.clearPendingSelectionAction('white');
+        return true;
+    }
+    return false;
+}
+
 function resetGame() {
     // Auto mode removed: nothing to stop or reset
 
     // Hard cleanup before rebuilding state (F5 相当の再起動に近づける)
     // - stale playback/presentation queues can block board refresh
     // - UI transient overlays/flags may survive without a full page reload
+    resetGameGeneration += 1;
+    const currentResetGeneration = resetGameGeneration;
+    const isCurrentResetGeneration = () => currentResetGeneration === resetGameGeneration;
+    resetCpuTurnSchedulingStateForTurnManager();
+    setTurnManagerBusyState({
+        processing: false,
+        cardAnimating: false,
+        playbackActive: false
+    });
+    clearPlaybackLockForTurnManager();
+    clearPendingSelectionActionCacheForTurnManager();
     try {
         if (cardState && typeof cardState === 'object') {
             if (Array.isArray(cardState.presentationEvents)) cardState.presentationEvents.length = 0;
@@ -687,39 +770,56 @@ function resetGame() {
     };
 
     const runTurnStartAndPublishResetSnapshot = () => {
+        if (!isCurrentResetGeneration()) return Promise.resolve(false);
         Promise.resolve()
-            .then(() => runTurnStartAfterReset())
+            .then(() => {
+                if (!isCurrentResetGeneration()) return false;
+                return runTurnStartAfterReset();
+            })
             .catch((error) => {
+                if (!isCurrentResetGeneration()) return;
                 console.error('onTurnStart error during reset:', error);
             })
             .finally(() => {
+                if (!isCurrentResetGeneration()) return;
                 publishNetworkResetSnapshot();
             });
     };
 
     // Lock input during initial dealing animation
-    isProcessing = true;
-    isCardAnimating = true;
+    setTurnManagerBusyState({
+        processing: true,
+        cardAnimating: true
+    });
 
     if (typeof dealInitialCards === 'function') {
         dealInitialCards()
             .then(() => {
-                isProcessing = false;
+                if (!isCurrentResetGeneration()) return;
+                setTurnManagerBusyState({ processing: false });
                 runTurnStartAndPublishResetSnapshot();
                 if (typeof emitLogAdded === 'function') emitLogAdded('カード配布完了', 'normal');
 
             })
             .catch((err) => {
+                if (!isCurrentResetGeneration()) return;
                 console.error('Deal animation error:', err);
                 if (typeof emitLogAdded === 'function') emitLogAdded('エラー: カード配布に失敗しました', 'normal');
             })
             .finally(() => {
-                isCardAnimating = false;
-                isProcessing = false;
+                if (!isCurrentResetGeneration()) return;
+                setTurnManagerBusyState({
+                    cardAnimating: false,
+                    processing: false
+                });
             });
     } else {
         // No animation path (Phase2 safe-guard): continue immediately
-        isCardAnimating = false; isProcessing = false;
+        if (!isCurrentResetGeneration()) return;
+        setTurnManagerBusyState({
+            cardAnimating: false,
+            processing: false
+        });
         runTurnStartAndPublishResetSnapshot();
         if (typeof emitLogAdded === 'function') emitLogAdded('カード配布完了', 'normal');
     }
@@ -871,7 +971,7 @@ async function onTurnStart(player) {
 
     if (typeof isGameOver === 'function' && isGameOver(gameState)) {
         if (typeof showResult === 'function') showResult();
-        isProcessing = false;
+        setTurnManagerBusyState({ processing: false });
         return {
             playbackEvents: Array.isArray(turnStartPlaybackEvents) ? turnStartPlaybackEvents : []
         };
@@ -912,11 +1012,13 @@ function watchdogPing(nowMs) {
             lastFlagActiveTime = now;
         } else if (now - lastFlagActiveTime > WATCHDOG_TIMEOUT_MS) {
             console.warn('[WATCHDOG] Flags stuck for too long. Force clearing...', {
-                isProcessing,
-                isCardAnimating
+                isProcessing: readTurnManagerProcessing(),
+                isCardAnimating: readTurnManagerCardAnimating()
             });
-            isProcessing = false;
-            isCardAnimating = false;
+            setTurnManagerBusyState({
+                processing: false,
+                cardAnimating: false
+            });
             clearPlaybackLockForTurnManager();
             lastFlagActiveTime = null;
             if (typeof emitLogAdded === 'function') emitLogAdded('警告: 処理が長時間停滞したため強制解除しました', 'normal');

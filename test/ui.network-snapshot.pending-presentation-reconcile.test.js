@@ -88,8 +88,8 @@ describe('network snapshot pending presentation reconcile', () => {
           global.isProcessing = !!(flags && flags.processing === true);
           global.isCardAnimating = !!(flags && flags.cardAnimating === true);
         }),
-        clearPlaybackLock: jest.fn(() => {
-          busyStateCalls.push({ clearPlaybackLock: true });
+        abortPlayback: jest.fn(() => {
+          busyStateCalls.push({ abortPlayback: true });
           global.isProcessing = false;
           global.isCardAnimating = false;
           global.VisualPlaybackActive = false;
@@ -164,7 +164,7 @@ describe('network snapshot pending presentation reconcile', () => {
     expect(global.VisualPlaybackActive).toBe(false);
     expect(busyStateCalls).toEqual([
       { processing: false, cardAnimating: false },
-      { clearPlaybackLock: true }
+      { abortPlayback: true }
     ]);
   });
 

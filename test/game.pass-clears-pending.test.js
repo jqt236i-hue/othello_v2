@@ -1,6 +1,7 @@
 const Shared = require('../shared-constants');
 const CardLogic = require('../game/logic/cards');
 const TurnPipeline = require('../game/turn/turn_pipeline');
+const PendingCoordinator = require('../game/turn/pending-coordinator');
 
 function makeNoMoveState() {
   const cardState = CardLogic.createCardState({ shuffle: (arr) => arr });
@@ -15,6 +16,11 @@ function makeNoMoveState() {
 }
 
 describe('pass clears pending card effect', () => {
+  afterEach(() => {
+    PendingCoordinator.clearPendingSelectionAction('black');
+    PendingCoordinator.clearPendingSelectionAction('white');
+  });
+
   test('clears placement-wait pending on pass', () => {
     const { cardState, gameState } = makeNoMoveState();
     cardState.pendingEffectByPlayer.black = { type: 'DOUBLE_CHAIN_WILL', cardId: 'double_chain_01', stage: null };
@@ -29,5 +35,27 @@ describe('pass clears pending card effect', () => {
 
     const res = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'pass' });
     expect(res.cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
+  test('clears cached pending selection action on pass', () => {
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    const { cardState, gameState } = makeNoMoveState();
+    cardState.pendingEffectByPlayer.black = { type: 'DESTROY_ONE_STONE', cardId: 'destroy_01', stage: 'selectTarget' };
+    PendingCoordinator.createPendingSelectionAction(
+      'black',
+      'DESTROY_ONE_STONE',
+      { destroyTarget: { row: 2, col: 3 } },
+      { cardState }
+    );
+
+    TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'pass' });
+
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(PendingCoordinator.readPendingSelectionAction('black')).toBeNull();
+    delete global.ActionManager;
   });
 });

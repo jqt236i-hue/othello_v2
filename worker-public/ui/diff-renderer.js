@@ -592,6 +592,31 @@ function _resolveNetworkLocalPlayerKeyForDiff() {
     return 'black';
 }
 
+function _canLocalPlayerControlCurrentTurnForDiff() {
+    let isNetworkMode = false;
+    try {
+        isNetworkMode = (OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function')
+            ? OwnerHelpersModule.isNetworkMode(typeof window !== 'undefined' ? window : null)
+            : ((typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function')
+                ? window.getCurrentMatchMode() === 'network'
+                : ((typeof window !== 'undefined' ? window.MATCH_MODE : null) === 'network'));
+    } catch (e) { /* ignore */ }
+    const currentPlayerKey = gameState.currentPlayer === WHITE ? 'white' : 'black';
+    const isHvH = !!(typeof window !== 'undefined' && window.DEBUG_HUMAN_VS_HUMAN === true);
+    if (isNetworkMode || !isHvH) {
+        const cs = (typeof cardState !== 'undefined' && cardState) ? cardState : null;
+        const fwc = cs && cs.fateWillControllerByTurnOwner;
+        const controller = fwc && fwc[currentPlayerKey];
+        if (controller) {
+            const localPlayerKey = _resolveNetworkLocalPlayerKeyForDiff();
+            return controller === localPlayerKey;
+        }
+    }
+    if (!isNetworkMode) return true;
+    const localPlayerKey = _resolveNetworkLocalPlayerKeyForDiff();
+    return currentPlayerKey === localPlayerKey;
+}
+
 function _normalizeSpecialStoneInfoType(rawType) {
     if (!rawType) return null;
     const registry = _getSpecialStoneRegistryForDiff();
@@ -1144,22 +1169,24 @@ function buildCurrentCellState() {
     ));
     const isTabooReversePending = !!(pending && pending.type === 'TABOO_REVERSE_WILL');
     let isNetworkMode = false;
-    let canControlCurrentTurn = true;
     try {
         isNetworkMode = (OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function')
             ? OwnerHelpersModule.isNetworkMode(typeof window !== 'undefined' ? window : null)
             : ((typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function')
                 ? window.getCurrentMatchMode() === 'network'
                 : ((typeof window !== 'undefined' ? window.MATCH_MODE : null) === 'network'));
-        if (isNetworkMode) {
-            const localPlayerKey = _resolveNetworkLocalPlayerKeyForDiff();
-            canControlCurrentTurn = playerKey === localPlayerKey;
-        }
     } catch (e) { /* ignore */ }
+    const canControlCurrentTurn = _canLocalPlayerControlCurrentTurnForDiff();
+    const isFateWillControlledTurn = !!(
+        cardState &&
+        cardState.fateWillControllerByTurnOwner &&
+        cardState.fateWillControllerByTurnOwner[playerKey]
+    );
     const isHumanTurn = isNetworkMode
         ? canControlCurrentTurn
         : ((gameState.currentPlayer === BLACK) ||
-            (window.DEBUG_HUMAN_VS_HUMAN && gameState.currentPlayer === WHITE));
+            (window.DEBUG_HUMAN_VS_HUMAN && gameState.currentPlayer === WHITE) ||
+            isFateWillControlledTurn);
     const isSelectingTarget = !!(
         pending && (
             pending.stage === 'selectTarget' ||

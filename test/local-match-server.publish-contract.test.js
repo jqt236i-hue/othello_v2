@@ -143,6 +143,50 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('missing operationId publish is rejected before command handling', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const seatToken = created.data.seatToken;
+      const authoritativeVersion = Number(created.data.stateVersion);
+
+      const response = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken,
+        baseVersion: authoritativeVersion,
+        actionType: 'place'
+      });
+
+      expect(response.status).toBe(409);
+      expect(response.data).toEqual(expect.objectContaining({
+        ok: false,
+        roomId,
+        rejectedReason: 'OPERATION_ID_REQUIRED',
+        snapshot: expect.any(Object),
+        publishMeta: expect.objectContaining({
+          kind: 'rejected',
+          operationId: '',
+          actionType: 'place',
+          receivedBaseVersion: authoritativeVersion,
+          authoritativeStateVersion: authoritativeVersion,
+          rejectedReason: 'OPERATION_ID_REQUIRED'
+        })
+      }));
+      expect(response.data.snapshot._meta).toEqual(expect.objectContaining({
+        authority: 'server',
+        version: authoritativeVersion,
+        projectedForSeat: 'black'
+      }));
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('legacy snapshot-only publish is rejected and authoritative state stays unchanged', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);

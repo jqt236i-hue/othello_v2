@@ -83,6 +83,15 @@ function pendingHash(pending) {
     }
 }
 
+function pendingByPlayerHash(pendingByPlayer) {
+    if (!pendingByPlayer || typeof pendingByPlayer !== 'object') return '';
+    try {
+        return JSON.stringify(pendingByPlayer);
+    } catch (e) {
+        return '';
+    }
+}
+
 function chooseMove(moves) {
     if (!Array.isArray(moves) || moves.length <= 0) return null;
     const scored = moves
@@ -349,11 +358,20 @@ async function getLiveState(page) {
                 : null;
             let canUse = false;
             try {
-                canUse = !!(
+                if (
                     window.CardLogic
-                    && typeof window.CardLogic.canUseCard === 'function'
-                    && window.CardLogic.canUseCard(window.cardState, seatKey, cardId)
-                );
+                    && typeof window.CardLogic.getUsableCardIds === 'function'
+                    && window.gameState
+                ) {
+                    const usableIds = window.CardLogic.getUsableCardIds(window.cardState, window.gameState, seatKey) || [];
+                    canUse = Array.isArray(usableIds) && usableIds.includes(cardId);
+                } else {
+                    canUse = !!(
+                        window.CardLogic
+                        && typeof window.CardLogic.canUseCard === 'function'
+                        && window.CardLogic.canUseCard(window.cardState, seatKey, cardId)
+                    );
+                }
             } catch (e) {
                 canUse = false;
             }
@@ -477,7 +495,7 @@ async function waitForSynchronizedState(blackPage, whitePage, timeout) {
             && black.turnIndex === white.turnIndex
             && black.turnNumber === white.turnNumber
             && boardHash(black.board) === boardHash(white.board)
-            && pendingHash(black.pending) === pendingHash(white.pending)
+            && pendingByPlayerHash(black.pendingByPlayer) === pendingByPlayerHash(white.pendingByPlayer)
         ),
         timeout,
         'wait for synchronized state'
@@ -513,17 +531,29 @@ async function performTurnAction(page, state, actionLog, label) {
 async function useTargetCard(page, seatKey, cardId) {
     await waitForPlaybackIdle(page);
     const result = await page.evaluate(({ seatKey, cardId }) => {
+        const useBtn = document.getElementById('use-card-btn');
+        const reasonEl = document.getElementById('use-card-reason');
         const beforeSelected = window.cardState ? window.cardState.selectedCardId : null;
+        const beforeUseDisabled = useBtn ? !!useBtn.disabled : null;
+        const beforeUseReason = reasonEl ? String(reasonEl.textContent || '') : '';
         window.onCardClick(cardId, seatKey);
         const afterSelected = window.cardState ? window.cardState.selectedCardId : null;
+        const afterSelectUseDisabled = useBtn ? !!useBtn.disabled : null;
+        const afterSelectUseReason = reasonEl ? String(reasonEl.textContent || '') : '';
         window.useSelectedCard();
         const pending = window.cardState && window.cardState.pendingEffectByPlayer
             ? window.cardState.pendingEffectByPlayer[seatKey] || null
             : null;
         return {
             beforeSelected,
+            beforeUseDisabled,
+            beforeUseReason,
             afterSelected,
+            afterSelectUseDisabled,
+            afterSelectUseReason,
             afterUseSelected: window.cardState ? window.cardState.selectedCardId : null,
+            afterUseDisabled: useBtn ? !!useBtn.disabled : null,
+            afterUseReason: reasonEl ? String(reasonEl.textContent || '') : '',
             pending: pending ? JSON.parse(JSON.stringify(pending)) : null
         };
     }, { seatKey, cardId });
@@ -715,7 +745,8 @@ async function main() {
                     if (timeStopCard && timeStopCard.canUse === true) {
                         await waitForNetworkIdle(blackPage, STATE_TIMEOUT_MS, 1);
                         result.actionLog.push({ type: 'use_time_stop_begin', turnNumber: synced.black.turnNumber, turnIndex: synced.black.turnIndex });
-                        await useTargetCard(blackPage, 'black', TARGET_CARD_IDS.timeStop);
+                        const useTimeStopResult = await useTargetCard(blackPage, 'black', TARGET_CARD_IDS.timeStop);
+                        result.actionLog.push({ type: 'use_time_stop_result', result: useTimeStopResult });
                         const afterUse = await waitForCondition(
                             blackPage,
                             whitePage,
@@ -727,16 +758,7 @@ async function main() {
                             'wait for TIME_STOP_GOD pending'
                         );
                         result.actionLog.push({ type: 'time_stop_pending', black: afterUse.black, white: afterUse.white });
-                        await performTurnAction(blackPage, afterUse.black, result.actionLog, 'time_stop_followup_place');
-                        const afterPlace = await waitForSynchronizedState(blackPage, whitePage, STATE_TIMEOUT_MS);
-                        const timeStopMarker = Array.isArray(afterPlace.black.markers)
-                            ? afterPlace.black.markers.find((marker) => marker && marker.data && marker.data.type === 'TIME_STOP' && marker.owner === 'black')
-                            : null;
-                        if (!timeStopMarker) {
-                            throw new Error('TIME_STOP marker was not found after placement');
-                        }
-                        result.actionLog.push({ type: 'time_stop_placed', marker: timeStopMarker, black: afterPlace.black, white: afterPlace.white });
-                        phase = 'wait_time_stop_trigger';
+                        phase = 'place_time_stop_when_possible';
                         continue;
                     }
                 }
@@ -744,6 +766,32 @@ async function main() {
                 const actorPage = actorKey === 'white' ? whitePage : blackPage;
                 const actorState = synced[actorKey];
                 await performTurnAction(actorPage, actorState, result.actionLog, `${actorKey}_setup_progress`);
+                continue;
+            }
+
+            if (phase === 'place_time_stop_when_possible') {
+                const blackPending = synced.black.pendingByPlayer && synced.black.pendingByPlayer.black;
+                const whitePending = synced.white.pendingByPlayer && synced.white.pendingByPlayer.black;
+                if (!blackPending || blackPending.type !== 'TIME_STOP_GOD' || !whitePending || whitePending.type !== 'TIME_STOP_GOD') {
+                    throw new Error('TIME_STOP_GOD pending cleared before follow-up placement');
+                }
+                if (synced.black.currentPlayerKey === 'black' && Array.isArray(synced.black.legalMoves) && synced.black.legalMoves.length > 0) {
+                    await performTurnAction(blackPage, synced.black, result.actionLog, 'time_stop_followup_place');
+                    const afterPlace = await waitForSynchronizedState(blackPage, whitePage, STATE_TIMEOUT_MS);
+                    const timeStopMarker = Array.isArray(afterPlace.black.markers)
+                        ? afterPlace.black.markers.find((marker) => marker && marker.data && marker.data.type === 'TIME_STOP' && marker.owner === 'black')
+                        : null;
+                    if (!timeStopMarker) {
+                        throw new Error('TIME_STOP marker was not found after placement');
+                    }
+                    result.actionLog.push({ type: 'time_stop_placed', marker: timeStopMarker, black: afterPlace.black, white: afterPlace.white });
+                    phase = 'wait_time_stop_trigger';
+                    continue;
+                }
+                const actorKey = synced.black.currentPlayerKey;
+                const actorPage = actorKey === 'white' ? whitePage : blackPage;
+                const actorState = synced[actorKey];
+                await performTurnAction(actorPage, actorState, result.actionLog, `${actorKey}_advance_until_time_stop_place`);
                 continue;
             }
 

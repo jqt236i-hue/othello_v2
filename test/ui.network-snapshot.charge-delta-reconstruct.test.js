@@ -25,8 +25,22 @@ function createBaseCardState(options = {}) {
 }
 
 function createSnapshot(stateVersion, options = {}) {
+  const topLevelStateVersion = Number.isFinite(Number(options.topLevelStateVersion))
+    ? Number(options.topLevelStateVersion)
+    : stateVersion;
+  const metaVersion = Number.isFinite(Number(options.metaVersion))
+    ? Number(options.metaVersion)
+    : stateVersion;
   return {
-    stateVersion,
+    stateVersion: topLevelStateVersion,
+    _meta: {
+      authority: 'server',
+      version: metaVersion,
+      projectedForSeat: Object.prototype.hasOwnProperty.call(options, 'projectedForSeat')
+        ? options.projectedForSeat
+        : null,
+      turnStartReconciled: options.turnStartReconciled !== false
+    },
     gameState: {
       currentPlayer: 1,
       turnNumber: stateVersion,

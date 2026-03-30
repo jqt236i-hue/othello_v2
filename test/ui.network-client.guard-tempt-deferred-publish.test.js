@@ -36,6 +36,27 @@ const CASES = [
     }
   },
   {
+    label: 'CAPTURE_WILL',
+    modulePath: path.resolve(__dirname, '..', 'game', 'card-effects', 'capture.js'),
+    handlerName: 'handleCaptureSelection',
+    pendingType: 'CAPTURE_WILL',
+    rawEventType: 'capture_selected',
+    buildNextCardState: (cardState) => ({
+      ...cloneJson(cardState),
+      pendingEffectByPlayer: { black: null, white: null },
+      hands: {
+        ...cloneJson(cardState.hands),
+        black: ['captured_01']
+      },
+      markers: []
+    }),
+    assertAppliedState: ({ cardState, emitLogAdded }) => {
+      expect(cardState.hands.black).toEqual(['captured_01']);
+      expect(cardState.markers).toEqual([]);
+      expect(emitLogAdded).not.toHaveBeenCalled();
+    }
+  },
+  {
     label: 'GUARD_WILL',
     modulePath: path.resolve(__dirname, '..', 'game', 'card-effects', 'guard.js'),
     handlerName: 'handleGuardSelection',
@@ -176,7 +197,9 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ modulePath
 
     global.LOG_MESSAGES = {
       temptSelectPrompt: jest.fn(() => '相手の石を選んでください'),
-      temptApplied: jest.fn(() => '誘惑を適用しました')
+      temptApplied: jest.fn(() => '誘惑を適用しました'),
+      captureSelectPrompt: jest.fn(() => '特殊石を選んでください'),
+      captureApplied: jest.fn(() => '捕獲を適用しました')
     };
     global.posToNotation = jest.fn(() => 'C3');
     global.emitLogAdded = jest.fn();

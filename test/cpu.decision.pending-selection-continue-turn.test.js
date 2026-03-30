@@ -1,7 +1,9 @@
 describe('DESTROY_ONE_STONE CPU selection deferred publish', () => {
   const cpuDecisionModuleId = require.resolve('../game/cpu-decision');
+  const pendingCoordinatorModuleId = require.resolve('../game/turn/pending-coordinator');
 
   let cpuDecision;
+  let PendingCoordinator;
   let runTurnMock;
 
   beforeEach(() => {
@@ -9,6 +11,7 @@ describe('DESTROY_ONE_STONE CPU selection deferred publish', () => {
     jest.restoreAllMocks();
 
     cpuDecision = require(cpuDecisionModuleId);
+    PendingCoordinator = require(pendingCoordinatorModuleId);
 
     global.BLACK = 1;
     global.WHITE = -1;
@@ -66,9 +69,11 @@ describe('DESTROY_ONE_STONE CPU selection deferred publish', () => {
     global.processCpuTurn = jest.fn();
     global.CPU_TURN_DELAY_MS = 0;
     global.requestAnimationFrame = jest.fn();
+    PendingCoordinator.clearPendingSelectionActionCache();
   });
 
   afterEach(() => {
+    PendingCoordinator.clearPendingSelectionActionCache();
     delete global.BLACK;
     delete global.WHITE;
     delete global.cpuSmartness;
@@ -93,10 +98,13 @@ describe('DESTROY_ONE_STONE CPU selection deferred publish', () => {
   });
 
   test('CPU continue-turn selection picks a destroy target and does not hand off the turn', async () => {
-    await cpuDecision.cpuSelectDestroyWithPolicy('white');
+    PendingCoordinator.storePendingSelectionAction(
+      'white',
+      { type: 'pending_selection', cardId: 'destroy-card', turnIndex: 3 },
+      'DESTROY_ONE_STONE'
+    );
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await cpuDecision.cpuSelectDestroyWithPolicy('white');
 
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
     const action = runTurnMock.mock.calls[0][3];
@@ -104,6 +112,7 @@ describe('DESTROY_ONE_STONE CPU selection deferred publish', () => {
     expect(action.destroyTarget).toEqual({ row: 2, col: 3 });
 
     expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
+    expect(PendingCoordinator.readPendingSelectionAction('white')).toBeNull();
     expect(global.onTurnStart).not.toHaveBeenCalled();
     expect(global.processCpuTurn).not.toHaveBeenCalled();
   });

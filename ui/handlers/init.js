@@ -39,17 +39,32 @@ const InitPlaybackStateRuntime = (() => {
     return null;
 })();
 
+function _getPlaybackStateRuntime() {
+    return (InitPlaybackStateRuntime && typeof InitPlaybackStateRuntime === 'object')
+        ? InitPlaybackStateRuntime
+        : null;
+}
+
 function _readCardAnimatingFlag() {
+    const playbackState = _getPlaybackStateRuntime();
+    if (playbackState && typeof playbackState.getCardAnimating === 'function') {
+        return playbackState.getCardAnimating() === true;
+    }
     return (typeof isCardAnimating !== 'undefined') ? isCardAnimating : false;
 }
 
 function _readProcessingFlag() {
+    const playbackState = _getPlaybackStateRuntime();
+    if (playbackState && typeof playbackState.getProcessing === 'function') {
+        return playbackState.getProcessing() === true;
+    }
     return (typeof isProcessing !== 'undefined') ? isProcessing : false;
 }
 
 function _syncPlaybackWindowFlags() {
-    if (InitPlaybackStateRuntime && typeof InitPlaybackStateRuntime.syncLegacyWindowFlags === 'function') {
-        return InitPlaybackStateRuntime.syncLegacyWindowFlags({
+    const playbackState = _getPlaybackStateRuntime();
+    if (playbackState && typeof playbackState.syncLegacyWindowFlags === 'function') {
+        return playbackState.syncLegacyWindowFlags({
             readCardAnimating: _readCardAnimatingFlag,
             readProcessing: _readProcessingFlag
         });
@@ -64,9 +79,44 @@ function _syncPlaybackWindowFlags() {
     };
 }
 
+function _setPlaybackBusyFlags(options) {
+    const config = (options && typeof options === 'object')
+        ? options
+        : {
+            processing: options === true,
+            cardAnimating: options === true
+        };
+    const playbackState = _getPlaybackStateRuntime();
+    if (playbackState && typeof playbackState.setBusyState === 'function') {
+        playbackState.setBusyState(config);
+        return _syncPlaybackWindowFlags();
+    }
+
+    if (typeof window !== 'undefined') {
+        if (Object.prototype.hasOwnProperty.call(config, 'cardAnimating')) {
+            window.isCardAnimating = config.cardAnimating === true;
+        }
+        if (Object.prototype.hasOwnProperty.call(config, 'processing')) {
+            window.isProcessing = config.processing === true;
+        }
+    }
+    try {
+        if (Object.prototype.hasOwnProperty.call(config, 'cardAnimating') && typeof isCardAnimating !== 'undefined') {
+            isCardAnimating = config.cardAnimating === true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (Object.prototype.hasOwnProperty.call(config, 'processing') && typeof isProcessing !== 'undefined') {
+            isProcessing = config.processing === true;
+        }
+    } catch (e) { /* ignore */ }
+    return _syncPlaybackWindowFlags();
+}
+
 function _installPlaybackDebugRuntime() {
-    if (!InitPlaybackStateRuntime || typeof InitPlaybackStateRuntime.ensureDebugRuntime !== 'function') return null;
-    return InitPlaybackStateRuntime.ensureDebugRuntime({
+    const playbackState = _getPlaybackStateRuntime();
+    if (!playbackState || typeof playbackState.ensureDebugRuntime !== 'function') return null;
+    return playbackState.ensureDebugRuntime({
         readCardAnimating: _readCardAnimatingFlag,
         readProcessing: _readProcessingFlag,
         abortPlayback: () => {
@@ -421,9 +471,10 @@ async function initializeUI() {
 
         // If no-anim mode is enabled, ensure flags are not stuck true
         if (window.DISABLE_ANIMATIONS === true) {
-            isCardAnimating = false;
-            isProcessing = false;
-            _syncPlaybackWindowFlags();
+            _setPlaybackBusyFlags({
+                cardAnimating: false,
+                processing: false
+            });
         }
 
         if (debugAllowed) {

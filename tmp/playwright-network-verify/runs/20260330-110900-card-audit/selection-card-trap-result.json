@@ -1,0 +1,4663 @@
+{
+  "ok": true,
+  "target": "trap",
+  "cardId": "trap_01",
+  "pendingType": "TRAP_WILL",
+  "baseUrl": "http://127.0.0.1:8014/",
+  "serverUrl": "http://127.0.0.1:8794",
+  "timestamp": "2026-03-30T02:09:12.424Z",
+  "attempts": [
+    {
+      "attempt": 1,
+      "ok": true,
+      "roomId": "TDM",
+      "actionLog": [
+        {
+          "type": "synced_state",
+          "index": 0,
+          "black": {
+            "seatKey": "black",
+            "currentPlayerKey": "black",
+            "turnIndex": 1,
+            "turnNumber": 0,
+            "canAct": true,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                -1,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "super_gravity_01",
+                "type": "SUPER_GRAVITY_WILL",
+                "name": "超重力",
+                "cost": 16,
+                "canUse": false
+              }
+            ],
+            "charge": 0,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 2,
+                "col": 3,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 4,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": false,
+              "isProcessing": false,
+              "isCardAnimating": false,
+              "animationEnginePlaying": false,
+              "playbackStartedAt": 0,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          },
+          "white": {
+            "seatKey": "white",
+            "currentPlayerKey": "black",
+            "turnIndex": 1,
+            "turnNumber": 0,
+            "canAct": false,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                -1,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [],
+            "charge": 0,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 2,
+                "col": 3,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 4,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": false,
+              "isProcessing": false,
+              "isCardAnimating": false,
+              "animationEnginePlaying": false,
+              "playbackStartedAt": 0,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          }
+        },
+        {
+          "type": "black_turn_0",
+          "row": 2,
+          "col": 3
+        },
+        {
+          "type": "synced_state",
+          "index": 1,
+          "black": {
+            "seatKey": "black",
+            "currentPlayerKey": "white",
+            "turnIndex": 2,
+            "turnNumber": 1,
+            "canAct": false,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "super_gravity_01",
+                "type": "SUPER_GRAVITY_WILL",
+                "name": "超重力",
+                "cost": 16,
+                "canUse": false
+              }
+            ],
+            "charge": 1,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 2,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 2,
+                "col": 4,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 2,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": false,
+              "isProcessing": false,
+              "isCardAnimating": false,
+              "animationEnginePlaying": false,
+              "playbackStartedAt": 0,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          },
+          "white": {
+            "seatKey": "white",
+            "currentPlayerKey": "white",
+            "turnIndex": 2,
+            "turnNumber": 1,
+            "canAct": true,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "ghost_01",
+                "type": "GHOST_WILL",
+                "name": "幽霊の意志",
+                "cost": 5,
+                "canUse": false
+              }
+            ],
+            "charge": 0,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 2,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 2,
+                "col": 4,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 2,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": true,
+              "isProcessing": false,
+              "isCardAnimating": true,
+              "animationEnginePlaying": true,
+              "playbackStartedAt": 1774836556120,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          }
+        },
+        {
+          "type": "white_turn_1",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "type": "synced_state",
+          "index": 2,
+          "black": {
+            "seatKey": "black",
+            "currentPlayerKey": "black",
+            "turnIndex": 3,
+            "turnNumber": 2,
+            "canAct": true,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "super_gravity_01",
+                "type": "SUPER_GRAVITY_WILL",
+                "name": "超重力",
+                "cost": 16,
+                "canUse": false
+              },
+              {
+                "id": "tempt_01",
+                "type": "TEMPT_WILL",
+                "name": "誘惑の意志",
+                "cost": 23,
+                "canUse": false
+              }
+            ],
+            "charge": 1,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 1,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 2,
+                "col": 5,
+                "flips": 2
+              },
+              {
+                "row": 3,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 5,
+                "flips": 2
+              },
+              {
+                "row": 5,
+                "col": 5,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": true,
+              "isProcessing": false,
+              "isCardAnimating": true,
+              "animationEnginePlaying": true,
+              "playbackStartedAt": 1774836558590,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          },
+          "white": {
+            "seatKey": "white",
+            "currentPlayerKey": "black",
+            "turnIndex": 3,
+            "turnNumber": 2,
+            "canAct": false,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "ghost_01",
+                "type": "GHOST_WILL",
+                "name": "幽霊の意志",
+                "cost": 5,
+                "canUse": false
+              }
+            ],
+            "charge": 1,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 1,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 2,
+                "col": 5,
+                "flips": 2
+              },
+              {
+                "row": 3,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 5,
+                "flips": 2
+              },
+              {
+                "row": 5,
+                "col": 5,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": false,
+              "isProcessing": false,
+              "isCardAnimating": false,
+              "animationEnginePlaying": false,
+              "playbackStartedAt": 0,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          }
+        },
+        {
+          "type": "black_turn_2",
+          "row": 4,
+          "col": 5
+        },
+        {
+          "type": "synced_state",
+          "index": 3,
+          "black": {
+            "seatKey": "black",
+            "currentPlayerKey": "white",
+            "turnIndex": 4,
+            "turnNumber": 3,
+            "canAct": false,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "super_gravity_01",
+                "type": "SUPER_GRAVITY_WILL",
+                "name": "超重力",
+                "cost": 16,
+                "canUse": false
+              },
+              {
+                "id": "tempt_01",
+                "type": "TEMPT_WILL",
+                "name": "誘惑の意志",
+                "cost": 23,
+                "canUse": false
+              }
+            ],
+            "charge": 3,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 2,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 4,
+                "flips": 2
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": false,
+              "isProcessing": false,
+              "isCardAnimating": false,
+              "animationEnginePlaying": false,
+              "playbackStartedAt": 0,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          },
+          "white": {
+            "seatKey": "white",
+            "currentPlayerKey": "white",
+            "turnIndex": 4,
+            "turnNumber": 3,
+            "canAct": true,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "ghost_01",
+                "type": "GHOST_WILL",
+                "name": "幽霊の意志",
+                "cost": 5,
+                "canUse": false
+              },
+              {
+                "id": "free_01",
+                "type": "FREE_PLACEMENT",
+                "name": "自由の意志",
+                "cost": 14,
+                "canUse": false
+              }
+            ],
+            "charge": 1,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 2,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 4,
+                "flips": 2
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": true,
+              "isProcessing": false,
+              "isCardAnimating": true,
+              "animationEnginePlaying": true,
+              "playbackStartedAt": 1774836561053,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          }
+        },
+        {
+          "type": "white_turn_3",
+          "row": 5,
+          "col": 4
+        },
+        {
+          "type": "synced_state",
+          "index": 4,
+          "black": {
+            "seatKey": "black",
+            "currentPlayerKey": "black",
+            "turnIndex": 5,
+            "turnNumber": 4,
+            "canAct": true,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "super_gravity_01",
+                "type": "SUPER_GRAVITY_WILL",
+                "name": "超重力",
+                "cost": 16,
+                "canUse": false
+              },
+              {
+                "id": "tempt_01",
+                "type": "TEMPT_WILL",
+                "name": "誘惑の意志",
+                "cost": 23,
+                "canUse": false
+              },
+              {
+                "id": "chest_01",
+                "type": "TREASURE_BOX",
+                "name": "宝箱",
+                "cost": 0,
+                "canUse": true
+              }
+            ],
+            "charge": 3,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 1,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 2,
+                "col": 5,
+                "flips": 2
+              },
+              {
+                "row": 3,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 6,
+                "col": 3,
+                "flips": 1
+              },
+              {
+                "row": 6,
+                "col": 5,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": true,
+              "isProcessing": false,
+              "isCardAnimating": true,
+              "animationEnginePlaying": true,
+              "playbackStartedAt": 1774836563520,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          },
+          "white": {
+            "seatKey": "white",
+            "currentPlayerKey": "black",
+            "turnIndex": 5,
+            "turnNumber": 4,
+            "canAct": false,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "ghost_01",
+                "type": "GHOST_WILL",
+                "name": "幽霊の意志",
+                "cost": 5,
+                "canUse": false
+              },
+              {
+                "id": "free_01",
+                "type": "FREE_PLACEMENT",
+                "name": "自由の意志",
+                "cost": 14,
+                "canUse": false
+              }
+            ],
+            "charge": 3,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 1,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 2,
+                "col": 5,
+                "flips": 2
+              },
+              {
+                "row": 3,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 6,
+                "col": 3,
+                "flips": 1
+              },
+              {
+                "row": 6,
+                "col": 5,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": false,
+              "isProcessing": false,
+              "isCardAnimating": false,
+              "animationEnginePlaying": false,
+              "playbackStartedAt": 0,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          }
+        },
+        {
+          "type": "black_turn_4",
+          "row": 2,
+          "col": 5
+        },
+        {
+          "type": "synced_state",
+          "index": 5,
+          "black": {
+            "seatKey": "black",
+            "currentPlayerKey": "white",
+            "turnIndex": 6,
+            "turnNumber": 5,
+            "canAct": false,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "super_gravity_01",
+                "type": "SUPER_GRAVITY_WILL",
+                "name": "超重力",
+                "cost": 16,
+                "canUse": false
+              },
+              {
+                "id": "tempt_01",
+                "type": "TEMPT_WILL",
+                "name": "誘惑の意志",
+                "cost": 23,
+                "canUse": false
+              },
+              {
+                "id": "chest_01",
+                "type": "TREASURE_BOX",
+                "name": "宝箱",
+                "cost": 0,
+                "canUse": true
+              }
+            ],
+            "charge": 9,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 1,
+                "col": 4,
+                "flips": 2
+              },
+              {
+                "row": 2,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 6,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": false,
+              "isProcessing": false,
+              "isCardAnimating": false,
+              "animationEnginePlaying": false,
+              "playbackStartedAt": 0,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          },
+          "white": {
+            "seatKey": "white",
+            "currentPlayerKey": "white",
+            "turnIndex": 6,
+            "turnNumber": 5,
+            "canAct": true,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "ghost_01",
+                "type": "GHOST_WILL",
+                "name": "幽霊の意志",
+                "cost": 5,
+                "canUse": false
+              },
+              {
+                "id": "free_01",
+                "type": "FREE_PLACEMENT",
+                "name": "自由の意志",
+                "cost": 14,
+                "canUse": false
+              },
+              {
+                "id": "trap_01",
+                "type": "TRAP_WILL",
+                "name": "罠の意志",
+                "cost": 4,
+                "canUse": false
+              }
+            ],
+            "charge": 3,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 1,
+                "col": 4,
+                "flips": 2
+              },
+              {
+                "row": 2,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 6,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": true,
+              "isProcessing": false,
+              "isCardAnimating": true,
+              "animationEnginePlaying": true,
+              "playbackStartedAt": 1774836566054,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          }
+        },
+        {
+          "type": "white_turn_5",
+          "row": 1,
+          "col": 4
+        },
+        {
+          "type": "synced_state",
+          "index": 6,
+          "black": {
+            "seatKey": "black",
+            "currentPlayerKey": "black",
+            "turnIndex": 7,
+            "turnNumber": 6,
+            "canAct": true,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "super_gravity_01",
+                "type": "SUPER_GRAVITY_WILL",
+                "name": "超重力",
+                "cost": 16,
+                "canUse": false
+              },
+              {
+                "id": "tempt_01",
+                "type": "TEMPT_WILL",
+                "name": "誘惑の意志",
+                "cost": 23,
+                "canUse": false
+              },
+              {
+                "id": "chest_01",
+                "type": "TREASURE_BOX",
+                "name": "宝箱",
+                "cost": 0,
+                "canUse": true
+              },
+              {
+                "id": "bomb_01",
+                "type": "TIME_BOMB",
+                "name": "時限爆弾",
+                "cost": 13,
+                "canUse": false
+              }
+            ],
+            "charge": 9,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 0,
+                "col": 3,
+                "flips": 1
+              },
+              {
+                "row": 0,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 6,
+                "col": 3,
+                "flips": 1
+              },
+              {
+                "row": 6,
+                "col": 5,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": true,
+              "isProcessing": false,
+              "isCardAnimating": true,
+              "animationEnginePlaying": true,
+              "playbackStartedAt": 1774836568519,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          },
+          "white": {
+            "seatKey": "white",
+            "currentPlayerKey": "black",
+            "turnIndex": 7,
+            "turnNumber": 6,
+            "canAct": false,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "ghost_01",
+                "type": "GHOST_WILL",
+                "name": "幽霊の意志",
+                "cost": 5,
+                "canUse": true
+              },
+              {
+                "id": "free_01",
+                "type": "FREE_PLACEMENT",
+                "name": "自由の意志",
+                "cost": 14,
+                "canUse": true
+              },
+              {
+                "id": "trap_01",
+                "type": "TRAP_WILL",
+                "name": "罠の意志",
+                "cost": 4,
+                "canUse": true
+              }
+            ],
+            "charge": 15,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 0,
+                "col": 3,
+                "flips": 1
+              },
+              {
+                "row": 0,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 6,
+                "col": 3,
+                "flips": 1
+              },
+              {
+                "row": 6,
+                "col": 5,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": false,
+              "isProcessing": false,
+              "isCardAnimating": false,
+              "animationEnginePlaying": false,
+              "playbackStartedAt": 0,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          }
+        },
+        {
+          "type": "black_turn_6",
+          "row": 0,
+          "col": 3
+        },
+        {
+          "type": "synced_state",
+          "index": 7,
+          "black": {
+            "seatKey": "black",
+            "currentPlayerKey": "white",
+            "turnIndex": 8,
+            "turnNumber": 7,
+            "canAct": false,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "super_gravity_01",
+                "type": "SUPER_GRAVITY_WILL",
+                "name": "超重力",
+                "cost": 16,
+                "canUse": false
+              },
+              {
+                "id": "tempt_01",
+                "type": "TEMPT_WILL",
+                "name": "誘惑の意志",
+                "cost": 23,
+                "canUse": false
+              },
+              {
+                "id": "chest_01",
+                "type": "TREASURE_BOX",
+                "name": "宝箱",
+                "cost": 0,
+                "canUse": true
+              },
+              {
+                "id": "bomb_01",
+                "type": "TIME_BOMB",
+                "name": "時限爆弾",
+                "cost": 13,
+                "canUse": false
+              }
+            ],
+            "charge": 12,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 0,
+                "col": 4,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 2,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 2,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 3,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 4,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 6,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": false,
+              "isProcessing": false,
+              "isCardAnimating": false,
+              "animationEnginePlaying": false,
+              "playbackStartedAt": 0,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          },
+          "white": {
+            "seatKey": "white",
+            "currentPlayerKey": "white",
+            "turnIndex": 8,
+            "turnNumber": 7,
+            "canAct": true,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "ghost_01",
+                "type": "GHOST_WILL",
+                "name": "幽霊の意志",
+                "cost": 5,
+                "canUse": true
+              },
+              {
+                "id": "free_01",
+                "type": "FREE_PLACEMENT",
+                "name": "自由の意志",
+                "cost": 14,
+                "canUse": true
+              },
+              {
+                "id": "trap_01",
+                "type": "TRAP_WILL",
+                "name": "罠の意志",
+                "cost": 4,
+                "canUse": true
+              },
+              {
+                "id": "last_resort_01",
+                "type": "LAST_RESORT",
+                "name": "最後の切り札",
+                "cost": 9,
+                "canUse": true
+              }
+            ],
+            "charge": 15,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 0,
+                "col": 4,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 2,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 2,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 3,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 4,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 6,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": true,
+              "isProcessing": false,
+              "isCardAnimating": true,
+              "animationEnginePlaying": true,
+              "playbackStartedAt": 1774836571504,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          }
+        },
+        {
+          "type": "use_target_card",
+          "actorKey": "white",
+          "card": {
+            "id": "trap_01",
+            "type": "TRAP_WILL",
+            "name": "罠の意志",
+            "cost": 4,
+            "canUse": true
+          },
+          "state": {
+            "seatKey": "white",
+            "currentPlayerKey": "white",
+            "turnIndex": 8,
+            "turnNumber": 7,
+            "canAct": true,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "ghost_01",
+                "type": "GHOST_WILL",
+                "name": "幽霊の意志",
+                "cost": 5,
+                "canUse": true
+              },
+              {
+                "id": "free_01",
+                "type": "FREE_PLACEMENT",
+                "name": "自由の意志",
+                "cost": 14,
+                "canUse": true
+              },
+              {
+                "id": "trap_01",
+                "type": "TRAP_WILL",
+                "name": "罠の意志",
+                "cost": 4,
+                "canUse": true
+              },
+              {
+                "id": "last_resort_01",
+                "type": "LAST_RESORT",
+                "name": "最後の切り札",
+                "cost": 9,
+                "canUse": true
+              }
+            ],
+            "charge": 15,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 0,
+                "col": 4,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 2,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 2,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 3,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 4,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 6,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": false,
+              "isProcessing": false,
+              "isCardAnimating": false,
+              "animationEnginePlaying": false,
+              "playbackStartedAt": 0,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          }
+        },
+        {
+          "type": "used_target_card",
+          "actorKey": "white",
+          "before": {
+            "seatKey": "white",
+            "currentPlayerKey": "white",
+            "turnIndex": 8,
+            "turnNumber": 7,
+            "canAct": true,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "ghost_01",
+                "type": "GHOST_WILL",
+                "name": "幽霊の意志",
+                "cost": 5,
+                "canUse": true
+              },
+              {
+                "id": "free_01",
+                "type": "FREE_PLACEMENT",
+                "name": "自由の意志",
+                "cost": 14,
+                "canUse": true
+              },
+              {
+                "id": "trap_01",
+                "type": "TRAP_WILL",
+                "name": "罠の意志",
+                "cost": 4,
+                "canUse": true
+              },
+              {
+                "id": "last_resort_01",
+                "type": "LAST_RESORT",
+                "name": "最後の切り札",
+                "cost": 9,
+                "canUse": true
+              }
+            ],
+            "charge": 15,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 0,
+                "col": 4,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 2,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 2,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 3,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 4,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 6,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": false,
+              "isProcessing": false,
+              "isCardAnimating": false,
+              "animationEnginePlaying": false,
+              "playbackStartedAt": 0,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          },
+          "immediate": {
+            "selectedBeforeClick": null,
+            "selectedAfterClick": "trap_01",
+            "selectedAfterUse": "trap_01",
+            "useButtonDisabled": true,
+            "hasUsedAfterUse": false,
+            "chargeAfterUse": 15,
+            "pendingAfterUse": null
+          },
+          "after": {
+            "seatKey": "white",
+            "currentPlayerKey": "white",
+            "turnIndex": 8,
+            "turnNumber": 7,
+            "canAct": true,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "ghost_01",
+                "type": "GHOST_WILL",
+                "name": "幽霊の意志",
+                "cost": 5,
+                "canUse": false
+              },
+              {
+                "id": "free_01",
+                "type": "FREE_PLACEMENT",
+                "name": "自由の意志",
+                "cost": 14,
+                "canUse": false
+              },
+              {
+                "id": "last_resort_01",
+                "type": "LAST_RESORT",
+                "name": "最後の切り札",
+                "cost": 9,
+                "canUse": false
+              }
+            ],
+            "charge": 11,
+            "hasUsedCardThisTurn": true,
+            "pending": {
+              "type": "TRAP_WILL",
+              "cardId": "trap_01",
+              "sourceHandIndex": 2,
+              "stage": "selectTarget"
+            },
+            "pendingByPlayer": {
+              "black": null,
+              "white": {
+                "type": "TRAP_WILL",
+                "cardId": "trap_01",
+                "sourceHandIndex": 2,
+                "stage": "selectTarget"
+              }
+            },
+            "legalMoves": [
+              {
+                "row": 0,
+                "col": 4,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 2,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 2,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 3,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 4,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 6,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": true,
+              "isProcessing": false,
+              "isCardAnimating": false,
+              "animationEnginePlaying": true,
+              "playbackStartedAt": 1774836573803,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          }
+        },
+        {
+          "type": "pending_ready",
+          "black": {
+            "seatKey": "black",
+            "currentPlayerKey": "white",
+            "turnIndex": 8,
+            "turnNumber": 7,
+            "canAct": false,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "super_gravity_01",
+                "type": "SUPER_GRAVITY_WILL",
+                "name": "超重力",
+                "cost": 16,
+                "canUse": false
+              },
+              {
+                "id": "tempt_01",
+                "type": "TEMPT_WILL",
+                "name": "誘惑の意志",
+                "cost": 23,
+                "canUse": false
+              },
+              {
+                "id": "chest_01",
+                "type": "TREASURE_BOX",
+                "name": "宝箱",
+                "cost": 0,
+                "canUse": true
+              },
+              {
+                "id": "bomb_01",
+                "type": "TIME_BOMB",
+                "name": "時限爆弾",
+                "cost": 13,
+                "canUse": false
+              }
+            ],
+            "charge": 12,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": {
+                "type": "TRAP_WILL",
+                "cardId": "trap_01",
+                "sourceHandIndex": 2,
+                "stage": "selectTarget"
+              }
+            },
+            "legalMoves": [
+              {
+                "row": 0,
+                "col": 4,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 2,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 2,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 3,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 4,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 6,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": true,
+              "isProcessing": true,
+              "isCardAnimating": true,
+              "animationEnginePlaying": true,
+              "playbackStartedAt": 1774836573800,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          },
+          "white": {
+            "seatKey": "white",
+            "currentPlayerKey": "white",
+            "turnIndex": 8,
+            "turnNumber": 7,
+            "canAct": true,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "ghost_01",
+                "type": "GHOST_WILL",
+                "name": "幽霊の意志",
+                "cost": 5,
+                "canUse": false
+              },
+              {
+                "id": "free_01",
+                "type": "FREE_PLACEMENT",
+                "name": "自由の意志",
+                "cost": 14,
+                "canUse": false
+              },
+              {
+                "id": "last_resort_01",
+                "type": "LAST_RESORT",
+                "name": "最後の切り札",
+                "cost": 9,
+                "canUse": false
+              }
+            ],
+            "charge": 11,
+            "hasUsedCardThisTurn": true,
+            "pending": {
+              "type": "TRAP_WILL",
+              "cardId": "trap_01",
+              "sourceHandIndex": 2,
+              "stage": "selectTarget"
+            },
+            "pendingByPlayer": {
+              "black": null,
+              "white": {
+                "type": "TRAP_WILL",
+                "cardId": "trap_01",
+                "sourceHandIndex": 2,
+                "stage": "selectTarget"
+              }
+            },
+            "legalMoves": [
+              {
+                "row": 0,
+                "col": 4,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 2,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 2,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 3,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 4,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 6,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": true,
+              "isProcessing": false,
+              "isCardAnimating": false,
+              "animationEnginePlaying": true,
+              "playbackStartedAt": 1774836573803,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          }
+        },
+        {
+          "type": "select_target_attempt",
+          "actorSeatKey": "white",
+          "candidate": {
+            "row": 2,
+            "col": 4
+          }
+        },
+        {
+          "type": "select_target_progress",
+          "candidate": {
+            "row": 2,
+            "col": 4
+          },
+          "black": {
+            "seatKey": "black",
+            "currentPlayerKey": "white",
+            "turnIndex": 8,
+            "turnNumber": 7,
+            "canAct": false,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "super_gravity_01",
+                "type": "SUPER_GRAVITY_WILL",
+                "name": "超重力",
+                "cost": 16,
+                "canUse": false
+              },
+              {
+                "id": "tempt_01",
+                "type": "TEMPT_WILL",
+                "name": "誘惑の意志",
+                "cost": 23,
+                "canUse": false
+              },
+              {
+                "id": "chest_01",
+                "type": "TREASURE_BOX",
+                "name": "宝箱",
+                "cost": 0,
+                "canUse": true
+              },
+              {
+                "id": "bomb_01",
+                "type": "TIME_BOMB",
+                "name": "時限爆弾",
+                "cost": 13,
+                "canUse": false
+              }
+            ],
+            "charge": 12,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": {
+                "type": "TRAP_WILL",
+                "cardId": "trap_01",
+                "sourceHandIndex": 2,
+                "stage": "selectTarget"
+              }
+            },
+            "legalMoves": [
+              {
+                "row": 0,
+                "col": 4,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 2,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 2,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 3,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 4,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 6,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": false,
+              "isProcessing": false,
+              "isCardAnimating": false,
+              "animationEnginePlaying": false,
+              "playbackStartedAt": 0,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          },
+          "white": {
+            "seatKey": "white",
+            "currentPlayerKey": "white",
+            "turnIndex": 8,
+            "turnNumber": 7,
+            "canAct": true,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "ghost_01",
+                "type": "GHOST_WILL",
+                "name": "幽霊の意志",
+                "cost": 5,
+                "canUse": false
+              },
+              {
+                "id": "free_01",
+                "type": "FREE_PLACEMENT",
+                "name": "自由の意志",
+                "cost": 14,
+                "canUse": false
+              },
+              {
+                "id": "last_resort_01",
+                "type": "LAST_RESORT",
+                "name": "最後の切り札",
+                "cost": 9,
+                "canUse": false
+              }
+            ],
+            "charge": 11,
+            "hasUsedCardThisTurn": true,
+            "pending": {
+              "type": "TRAP_WILL",
+              "cardId": "trap_01",
+              "sourceHandIndex": 2,
+              "stage": "selectTarget"
+            },
+            "pendingByPlayer": {
+              "black": null,
+              "white": {
+                "type": "TRAP_WILL",
+                "cardId": "trap_01",
+                "sourceHandIndex": 2,
+                "stage": "selectTarget"
+              }
+            },
+            "legalMoves": [
+              {
+                "row": 0,
+                "col": 4,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 1,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 2,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 2,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 3,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 4,
+                "col": 2,
+                "flips": 2
+              },
+              {
+                "row": 4,
+                "col": 6,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 2,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 6,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": false,
+              "isProcessing": true,
+              "isCardAnimating": true,
+              "animationEnginePlaying": false,
+              "playbackStartedAt": 0,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          }
+        },
+        {
+          "type": "post_selection_sync",
+          "black": {
+            "seatKey": "black",
+            "currentPlayerKey": "black",
+            "turnIndex": 9,
+            "turnNumber": 8,
+            "canAct": true,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "super_gravity_01",
+                "type": "SUPER_GRAVITY_WILL",
+                "name": "超重力",
+                "cost": 16,
+                "canUse": false
+              },
+              {
+                "id": "tempt_01",
+                "type": "TEMPT_WILL",
+                "name": "誘惑の意志",
+                "cost": 23,
+                "canUse": false
+              },
+              {
+                "id": "chest_01",
+                "type": "TREASURE_BOX",
+                "name": "宝箱",
+                "cost": 0,
+                "canUse": true
+              },
+              {
+                "id": "bomb_01",
+                "type": "TIME_BOMB",
+                "name": "時限爆弾",
+                "cost": 13,
+                "canUse": false
+              },
+              {
+                "id": "trap_01",
+                "type": "TRAP_WILL",
+                "name": "罠の意志",
+                "cost": 4,
+                "canUse": true
+              }
+            ],
+            "charge": 12,
+            "hasUsedCardThisTurn": false,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 1,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 6,
+                "col": 3,
+                "flips": 1
+              },
+              {
+                "row": 6,
+                "col": 4,
+                "flips": 4
+              },
+              {
+                "row": 6,
+                "col": 5,
+                "flips": 1
+              }
+            ],
+            "markers": [],
+            "busy": {
+              "VisualPlaybackActive": true,
+              "isProcessing": true,
+              "isCardAnimating": true,
+              "animationEnginePlaying": true,
+              "playbackStartedAt": 1774836575964,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          },
+          "white": {
+            "seatKey": "white",
+            "currentPlayerKey": "black",
+            "turnIndex": 9,
+            "turnNumber": 8,
+            "canAct": false,
+            "board": [
+              [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1,
+                -1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                -1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "hand": [
+              {
+                "id": "ghost_01",
+                "type": "GHOST_WILL",
+                "name": "幽霊の意志",
+                "cost": 5,
+                "canUse": false
+              },
+              {
+                "id": "free_01",
+                "type": "FREE_PLACEMENT",
+                "name": "自由の意志",
+                "cost": 14,
+                "canUse": false
+              },
+              {
+                "id": "last_resort_01",
+                "type": "LAST_RESORT",
+                "name": "最後の切り札",
+                "cost": 9,
+                "canUse": false
+              }
+            ],
+            "charge": 11,
+            "hasUsedCardThisTurn": true,
+            "pending": null,
+            "pendingByPlayer": {
+              "black": null,
+              "white": null
+            },
+            "legalMoves": [
+              {
+                "row": 1,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 3,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 5,
+                "col": 5,
+                "flips": 1
+              },
+              {
+                "row": 6,
+                "col": 3,
+                "flips": 1
+              },
+              {
+                "row": 6,
+                "col": 4,
+                "flips": 4
+              },
+              {
+                "row": 6,
+                "col": 5,
+                "flips": 1
+              }
+            ],
+            "markers": [
+              {
+                "row": 2,
+                "col": 4,
+                "kind": "specialStone",
+                "owner": "white",
+                "data": {
+                  "type": "TRAP",
+                  "remainingOwnerTurns": null
+                }
+              }
+            ],
+            "busy": {
+              "VisualPlaybackActive": true,
+              "isProcessing": false,
+              "isCardAnimating": false,
+              "animationEnginePlaying": true,
+              "playbackStartedAt": 1774836575964,
+              "hasPendingPresentation": true
+            },
+            "gameOver": false
+          }
+        },
+        {
+          "type": "black_followup",
+          "row": 6,
+          "col": 4
+        }
+      ],
+      "error": null,
+      "final": {
+        "black": {
+          "seatKey": "black",
+          "currentPlayerKey": "black",
+          "turnIndex": 9,
+          "turnNumber": 8,
+          "canAct": true,
+          "board": [
+            [
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              -1,
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              -1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              -1,
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              -1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hand": [
+            {
+              "id": "super_gravity_01",
+              "type": "SUPER_GRAVITY_WILL",
+              "name": "超重力",
+              "cost": 16,
+              "canUse": false
+            },
+            {
+              "id": "tempt_01",
+              "type": "TEMPT_WILL",
+              "name": "誘惑の意志",
+              "cost": 23,
+              "canUse": false
+            },
+            {
+              "id": "chest_01",
+              "type": "TREASURE_BOX",
+              "name": "宝箱",
+              "cost": 0,
+              "canUse": true
+            },
+            {
+              "id": "bomb_01",
+              "type": "TIME_BOMB",
+              "name": "時限爆弾",
+              "cost": 13,
+              "canUse": false
+            },
+            {
+              "id": "trap_01",
+              "type": "TRAP_WILL",
+              "name": "罠の意志",
+              "cost": 4,
+              "canUse": true
+            }
+          ],
+          "charge": 12,
+          "hasUsedCardThisTurn": false,
+          "pending": null,
+          "pendingByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "legalMoves": [
+            {
+              "row": 1,
+              "col": 5,
+              "flips": 1
+            },
+            {
+              "row": 3,
+              "col": 5,
+              "flips": 1
+            },
+            {
+              "row": 5,
+              "col": 5,
+              "flips": 1
+            },
+            {
+              "row": 6,
+              "col": 3,
+              "flips": 1
+            },
+            {
+              "row": 6,
+              "col": 4,
+              "flips": 4
+            },
+            {
+              "row": 6,
+              "col": 5,
+              "flips": 1
+            }
+          ],
+          "markers": [],
+          "busy": {
+            "VisualPlaybackActive": false,
+            "isProcessing": true,
+            "isCardAnimating": true,
+            "animationEnginePlaying": false,
+            "playbackStartedAt": 0,
+            "hasPendingPresentation": true
+          },
+          "gameOver": false
+        },
+        "white": {
+          "seatKey": "white",
+          "currentPlayerKey": "black",
+          "turnIndex": 9,
+          "turnNumber": 8,
+          "canAct": false,
+          "board": [
+            [
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              -1,
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              -1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              -1,
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              -1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hand": [
+            {
+              "id": "ghost_01",
+              "type": "GHOST_WILL",
+              "name": "幽霊の意志",
+              "cost": 5,
+              "canUse": false
+            },
+            {
+              "id": "free_01",
+              "type": "FREE_PLACEMENT",
+              "name": "自由の意志",
+              "cost": 14,
+              "canUse": false
+            },
+            {
+              "id": "last_resort_01",
+              "type": "LAST_RESORT",
+              "name": "最後の切り札",
+              "cost": 9,
+              "canUse": false
+            }
+          ],
+          "charge": 11,
+          "hasUsedCardThisTurn": true,
+          "pending": null,
+          "pendingByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "legalMoves": [
+            {
+              "row": 1,
+              "col": 5,
+              "flips": 1
+            },
+            {
+              "row": 3,
+              "col": 5,
+              "flips": 1
+            },
+            {
+              "row": 5,
+              "col": 5,
+              "flips": 1
+            },
+            {
+              "row": 6,
+              "col": 3,
+              "flips": 1
+            },
+            {
+              "row": 6,
+              "col": 4,
+              "flips": 4
+            },
+            {
+              "row": 6,
+              "col": 5,
+              "flips": 1
+            }
+          ],
+          "markers": [
+            {
+              "row": 2,
+              "col": 4,
+              "kind": "specialStone",
+              "owner": "white",
+              "data": {
+                "type": "TRAP",
+                "remainingOwnerTurns": null
+              }
+            }
+          ],
+          "busy": {
+            "VisualPlaybackActive": false,
+            "isProcessing": false,
+            "isCardAnimating": false,
+            "animationEnginePlaying": false,
+            "playbackStartedAt": 0,
+            "hasPendingPresentation": true
+          },
+          "gameOver": false
+        }
+      }
+    }
+  ]
+}

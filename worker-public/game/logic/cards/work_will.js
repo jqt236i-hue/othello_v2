@@ -146,6 +146,37 @@
         expansion.owner = latest ? normalizeExpansionOwner(latest.owner) : EMPTY;
     }
 
+    function clearExpansionCellOwner(gameState, row, col) {
+        if (!isExpansionCoordinate(row, col)) return false;
+        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
+            ? gameState.boardExpansion
+            : null;
+        if (!expansion) return false;
+        const cells = getExpansionCells(gameState);
+        if (!cells.length) return false;
+        let changed = false;
+        expansion.cells = cells.map((cell) => {
+            if (!cell) return cell;
+            if (cell.row === row && cell.col === col) {
+                changed = changed || cell.owner !== EMPTY;
+                return {
+                    side: resolveExpansionSide(cell.side, cell.row, cell.col),
+                    row: cell.row,
+                    col: cell.col,
+                    owner: EMPTY
+                };
+            }
+            return {
+                side: resolveExpansionSide(cell.side, cell.row, cell.col),
+                row: cell.row,
+                col: cell.col,
+                owner: normalizeExpansionOwner(cell.owner)
+            };
+        });
+        syncLegacyExpansionFields(expansion);
+        return changed;
+    }
+
     function getCellValue(gameState, row, col) {
         if (BoardOps && typeof BoardOps.getCellValue === 'function') {
             return BoardOps.getCellValue(gameState, row, col);
@@ -248,6 +279,7 @@
         const r = Number(row);
         const c = Number(col);
         if (!Number.isInteger(r) || !Number.isInteger(c)) return false;
+        const removalReason = reason || 'duration_end';
 
         if (BoardOps && typeof BoardOps.revertSpecialStoneAt === 'function') {
             const revertRes = BoardOps.revertSpecialStoneAt(
@@ -258,8 +290,11 @@
                 'WORK',
                 ownerKey,
                 'WORK_WILL',
-                reason || 'duration_end'
+                removalReason
             );
+            if (revertRes && revertRes.reverted && removalReason === 'duration_end') {
+                clearExpansionCellOwner(gameState, r, c);
+            }
             return !!(revertRes && revertRes.reverted);
         }
 
@@ -275,7 +310,11 @@
             marker.data &&
             marker.data.type === 'WORK'
         ));
-        return (cardState.markers || []).length !== beforeCount;
+        const removed = (cardState.markers || []).length !== beforeCount;
+        if (removed && removalReason === 'duration_end') {
+            clearExpansionCellOwner(gameState, r, c);
+        }
+        return removed;
     }
 
     function processWorkEffects(cardState, gameState, playerKey, deps = {}) {

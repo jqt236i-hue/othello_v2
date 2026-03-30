@@ -47,6 +47,10 @@ function normalizeOperationId(value) {
     return Array.from(normalized).slice(0, OPERATION_ID_MAX_LENGTH).join('');
 }
 
+function hasRequiredOperationId(value) {
+    return normalizeOperationId(value) !== '';
+}
+
 function ensureAcceptedOperationsBySeat(room) {
     const source = (room && room.lastAcceptedOperationBySeat && typeof room.lastAcceptedOperationBySeat === 'object')
         ? room.lastAcceptedOperationBySeat
@@ -316,16 +320,18 @@ function normalizeHandCopyIdArray(values, targetLength) {
 }
 
 function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
-    if (!room || !room.seatTokens) return null;
+    if (!room || !room.seatTokens || !room.seats) return null;
     const seatToken = String(seatTokenValue || '').trim();
     if (!seatToken) return null;
 
     const requestedSeat = parseSeatKeyOptional(seatKeyValue);
     if (requestedSeat) {
-        return room.seatTokens[requestedSeat] === seatToken ? requestedSeat : null;
+        return room.seats[requestedSeat] === true && room.seatTokens[requestedSeat] === seatToken
+            ? requestedSeat
+            : null;
     }
-    if (room.seatTokens.black === seatToken) return 'black';
-    if (room.seatTokens.white === seatToken) return 'white';
+    if (room.seats.black === true && room.seatTokens.black === seatToken) return 'black';
+    if (room.seats.white === true && room.seatTokens.white === seatToken) return 'white';
     return null;
 }
 
@@ -663,6 +669,7 @@ module.exports = {
     getCurrentPlayerKey,
     getOpponentKey,
     normalizeOperationId,
+    hasRequiredOperationId,
     ensureAcceptedOperationsBySeat,
     ensureAcceptedOperationHistoryBySeat,
     findAcceptedOperationBySeat,

@@ -44,6 +44,9 @@
     function setChargeValue(cardState, playerKey, nextValue, reason, context, meta) {
         const helpers = getHelpers(context);
         if (typeof helpers.setChargeWithDelta === 'function') {
+            if (meta === undefined) {
+                return helpers.setChargeWithDelta(cardState, playerKey, nextValue, reason);
+            }
             return helpers.setChargeWithDelta(cardState, playerKey, nextValue, reason, meta);
         }
         if (!cardState) return { changed: false, before: 0, after: 0, delta: 0 };
@@ -60,6 +63,9 @@
     function addChargeValue(cardState, playerKey, amount, reason, context, meta) {
         const helpers = getHelpers(context);
         if (typeof helpers.addChargeWithDelta === 'function') {
+            if (meta === undefined) {
+                return helpers.addChargeWithDelta(cardState, playerKey, amount, reason);
+            }
             return helpers.addChargeWithDelta(cardState, playerKey, amount, reason, meta);
         }
         if (!cardState) return { changed: false, before: 0, after: 0, delta: 0 };
