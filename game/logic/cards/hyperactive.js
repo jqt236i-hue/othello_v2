@@ -425,6 +425,16 @@
         return { row: candidates[0].row, col: candidates[0].col };
     }
 
+    function canExtremeHyperactiveSwapCell(cardState, row, col, deps) {
+        if (deps && typeof deps.isFrozenCell === 'function' && deps.isFrozenCell(cardState, row, col)) {
+            return false;
+        }
+        if (deps && typeof deps.isAbsoluteProtectedCell === 'function' && deps.isAbsoluteProtectedCell(cardState, row, col)) {
+            return false;
+        }
+        return true;
+    }
+
     function applyExtremeHyperactiveRepel(cardState, gameState, entry, deps = {}) {
         if (!entry) return [];
         const isBlockedCell = typeof deps.isBlockedCell === 'function'
@@ -1032,6 +1042,8 @@
             target = pickEscapeTarget(candidates, threats);
         }
 
+        let usedExtremeSwapFallback = false;
+        let swapSource = null;
         if (isExtremeHyperactive) {
             const candidatePool = candidates.slice();
             while (!target && candidatePool.length > 0) {
@@ -1050,8 +1062,40 @@
                 const dc = picked.col - entry.col;
                 const vacateTarget = selectExtremeRepelTarget(cardState, gameState, entry, picked.row, picked.col, dr, dc, isBlockedCell);
                 if (!vacateTarget) {
-                    candidatePool.splice(normalizedIndex, 1);
-                    continue;
+                    const sourceBeforeSwap = { row: entry.row, col: entry.col };
+                    if (
+                        typeof deps.swapOccupiedCellsWithPresentation !== 'function' ||
+                        !canExtremeHyperactiveSwapCell(cardState, sourceBeforeSwap.row, sourceBeforeSwap.col, deps) ||
+                        !canExtremeHyperactiveSwapCell(cardState, picked.row, picked.col, deps)
+                    ) {
+                        candidatePool.splice(normalizedIndex, 1);
+                        continue;
+                    }
+                    const swapResult = deps.swapOccupiedCellsWithPresentation(
+                        cardState,
+                        gameState,
+                        sourceBeforeSwap,
+                        { row: picked.row, col: picked.col },
+                        {
+                            cause: 'EXTREME_HYPERACTIVE_WILL',
+                            reason: 'extreme_hyperactive_forced_swap'
+                        }
+                    );
+                    if (!swapResult || !swapResult.swapped) {
+                        candidatePool.splice(normalizedIndex, 1);
+                        continue;
+                    }
+                    repelled.push({
+                        from: { row: picked.row, col: picked.col },
+                        to: { row: sourceBeforeSwap.row, col: sourceBeforeSwap.col },
+                        source: sourceBeforeSwap,
+                        specialType: 'EXTREME_HYPERACTIVE',
+                        forcedSwap: true
+                    });
+                    usedExtremeSwapFallback = true;
+                    swapSource = sourceBeforeSwap;
+                    target = picked;
+                    break;
                 }
 
                 let vacated = false;
@@ -1094,7 +1138,7 @@
             }
         }
 
-        if (!target) {
+        if (!target && !isExtremeHyperactive) {
             const index = Math.floor(p.random() * candidates.length);
             target = candidates[index] || null;
         }
@@ -1118,21 +1162,36 @@
             flipCells = getFlipsWithContext(gameState, target.row, target.col, ownerVal, deps.getCardContext ? deps.getCardContext(cardState) : {});
         }
 
-        const sourceRow = entry.row;
-        const sourceCol = entry.col;
+        const sourceRow = usedExtremeSwapFallback && swapSource ? swapSource.row : entry.row;
+        const sourceCol = usedExtremeSwapFallback && swapSource ? swapSource.col : entry.col;
 
-        if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
-            deps.BoardOps.moveAt(cardState, gameState, sourceRow, sourceCol, target.row, target.col, moveCause, moveReason);
-        } else {
-            setBoardCell(gameState, sourceRow, sourceCol, EMPTY);
-            setBoardCell(gameState, target.row, target.col, ownerVal);
+        let moveSucceeded = usedExtremeSwapFallback;
+        if (!usedExtremeSwapFallback) {
+            if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
+                const moveResult = deps.BoardOps.moveAt(
+                    cardState,
+                    gameState,
+                    sourceRow,
+                    sourceCol,
+                    target.row,
+                    target.col,
+                    moveCause,
+                    moveReason
+                );
+                moveSucceeded = !!(moveResult && moveResult.moved);
+            } else {
+                setBoardCell(gameState, sourceRow, sourceCol, EMPTY);
+                setBoardCell(gameState, target.row, target.col, ownerVal);
+                moveSucceeded = true;
+            }
+            if (!moveSucceeded) {
+                return { moved, destroyed, flipped, repelled, ownerKey };
+            }
+            moveCoexistingSpecialMarkers(cardState, entry, sourceRow, sourceCol, target.row, target.col);
+            entry.row = target.row;
+            entry.col = target.col;
         }
         moved.push({ from: { row: sourceRow, col: sourceCol }, to: { row: target.row, col: target.col }, specialType: markerType });
-
-        moveCoexistingSpecialMarkers(cardState, entry, sourceRow, sourceCol, target.row, target.col);
-
-        entry.row = target.row;
-        entry.col = target.col;
 
         if (isExtremeHyperactive) {
             const repelResults = applyExtremeHyperactiveRepel(cardState, gameState, entry, deps);

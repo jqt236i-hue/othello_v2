@@ -364,14 +364,18 @@ const LOW_CHARGE_DESTROY_CARD_TYPES = new Set([
     'ESCAPE_WILL',
     'HYPERACTIVE_INHERIT_WILL',
     'BOARD_EXPANSION_GOD',
-    'SUPPLY_WILL'
+    'SUPPLY_WILL',
+    'REVEAL_HAND_WILL',
+    'FATE_WILL'
 ]);
 
 const CONDITION_DEPENDENT_DESTROY_CARD_TYPES = new Set([
     'RIBO_WILL',
     'LAST_RESORT',
     'EQUALITY_WILL',
-    'CORROSION_WILL'
+    'CORROSION_WILL',
+    'SALVATION_WILL',
+    'CORNER_TRIBUTE'
 ]);
 
 const LOW_CHARGE_DESTROY_MAX_CHARGE = 50;
@@ -3499,6 +3503,23 @@ function getBoardCellValueSafe(board, row, col) {
     return Array.isArray(board) && Array.isArray(board[row]) ? board[row][col] : null;
 }
 
+function hasOwnedAdjacentCorner(board, row, col, playerValue) {
+    const adjacentCorner = adjacentCornerFor(row, col, board);
+    if (!adjacentCorner || !inBoard(board, adjacentCorner.row, adjacentCorner.col)) return false;
+    return getBoardCellValueSafe(board, adjacentCorner.row, adjacentCorner.col) === playerValue;
+}
+
+function isPseudoCornerXSquare(board, row, col, playerValue) {
+    if (!Array.isArray(board) || !isXSquare(row, col, board)) return false;
+    const adjacentCorner = adjacentCornerFor(row, col, board);
+    if (!adjacentCorner || !inBoard(board, adjacentCorner.row, adjacentCorner.col)) return false;
+    if (getBoardCellValueSafe(board, adjacentCorner.row, adjacentCorner.col) !== playerValue) return false;
+    return (
+        getBoardCellValueSafe(board, row, adjacentCorner.col) === playerValue &&
+        getBoardCellValueSafe(board, adjacentCorner.row, col) === playerValue
+    );
+}
+
 function computeLegalMoveMetrics(legalMoves, getBoardBonus) {
     const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
     let maxLegalFlips = 0;
@@ -3679,15 +3700,19 @@ function scoreMoveForCornerEdgePlan(move, context) {
     const lowMobilityBefore = ownMovesBefore.length <= 2;
     const lowDiscEmergency = ownDiscsBefore != null && ownDiscsBefore <= 8;
     const criticalLowDiscEmergency = ownDiscsBefore != null && ownDiscsBefore <= 4;
+    const xSquare = isXSquare(row, col, board);
+    const cSquare = !xSquare && isCSquare(row, col, board);
 
     const adjacentCorner = adjacentCornerFor(row, col, board);
     if (adjacentCorner && board && inBoard(board, adjacentCorner.row, adjacentCorner.col)) {
         const cornerVal = getBoardCellValueSafe(board, adjacentCorner.row, adjacentCorner.col);
         const cornerEmpty = cornerVal === 0;
-        if (cornerEmpty && isXSquare(row, col, board)) score -= 12000;
-        if (cornerEmpty && isCSquare(row, col, board)) score -= 9000;
-        if (cornerVal === playerValue && isXSquare(row, col, board)) score += 1200;
-        if (cornerVal === playerValue && isCSquare(row, col, board)) score += 800;
+        if (cornerEmpty && xSquare) score -= 12000;
+        if (cornerEmpty && cSquare) score -= 9000;
+        if (cornerVal === playerValue && xSquare) {
+            score += isPseudoCornerXSquare(board, row, col, playerValue) ? 2400 : 1800;
+        }
+        if (cornerVal === playerValue && cSquare) score += 800;
     }
 
     const bonusValue = getBoardBonusAtCell(
@@ -4056,8 +4081,12 @@ function countXsAndCsFor(board, playerValue) {
         const row = Array.isArray(board[r]) ? board[r] : [];
         for (let col = 0; col < row.length; col++) {
             if (row[col] !== playerValue) continue;
-            if (isXSquare(r, col, board)) x += 1;
-            else if (isCSquare(r, col, board)) c += 1;
+            const xSquare = isXSquare(r, col, board);
+            const cSquare = !xSquare && isCSquare(r, col, board);
+            if (!xSquare && !cSquare) continue;
+            if (hasOwnedAdjacentCorner(board, r, col, playerValue)) continue;
+            if (xSquare) x += 1;
+            else c += 1;
         }
     }
     return { x, c };

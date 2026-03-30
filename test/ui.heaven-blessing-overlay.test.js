@@ -86,14 +86,40 @@ describe('HEAVEN_BLESSING overlay flow', () => {
     expect(offers.length).toBe(5);
     offers[1].click();
     expect(document.getElementById('heaven-blessing-detail-name').textContent).toBe('name_offer_2');
+    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('hand_card_select');
+
+    global.SoundEngine.init.mockClear();
+    global.SoundEngine.playEffectByKey.mockClear();
 
     const selectBtn = document.getElementById('heaven-blessing-select-btn');
     expect(selectBtn.disabled).toBe(false);
     selectBtn.click();
 
+    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('treasure_gain');
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
     const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
     expect(action.heavenBlessingCardId).toBe('offer_2');
+  });
+
+  test('CONDEMN_WILL overlay click does not switch to treasure_gain sound', () => {
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'CONDEMN_WILL',
+      stage: 'selectTarget',
+      offers: [
+        { handIndex: 0, cardId: 'offer_1' },
+        { handIndex: 1, cardId: 'offer_2' }
+      ]
+    };
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+    const overlay = document.getElementById('heaven-blessing-overlay');
+    const offers = overlay.querySelectorAll('.heaven-offer-card');
+    offers[1].click();
+
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalledWith('treasure_gain');
   });
 
   test('hand full disables selection with reason text', () => {

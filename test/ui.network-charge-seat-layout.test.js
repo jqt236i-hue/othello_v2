@@ -22,8 +22,10 @@ function createRendererContext(options = {}) {
       <div id="hand-white"></div>
       <div id="charge-black"></div>
       <div id="charge-white"></div>
-      <div id="charge-delta-black"></div>
-      <div id="charge-delta-white"></div>
+      <div id="charge-delta-black-increase"></div>
+      <div id="charge-delta-black-decrease"></div>
+      <div id="charge-delta-white-increase"></div>
+      <div id="charge-delta-white-decrease"></div>
       <div id="discard-count"></div>
       <div id="active-black"><div class="effect-slot-content"></div></div>
       <div id="active-white"><div class="effect-slot-content"></div></div>
@@ -191,7 +193,7 @@ describe('network charge seat layout', () => {
     dom.window.close();
   });
 
-  test('prioritizes card use cost decrease when mixed-sign HUD deltas arrive in one render', () => {
+  test('shows mixed-sign HUD deltas together when they arrive in one render', () => {
     const dom = createRendererContext({ seatKey: 'white' });
     const { window } = dom;
 
@@ -201,13 +203,16 @@ describe('network charge seat layout', () => {
     ];
     window.renderCardUI();
 
-    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledTimes(1);
-    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledWith('black', -5);
+    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledTimes(2);
+    expect(window.StoneVisuals.showChargeDelta.mock.calls).toEqual([
+      ['black', -5],
+      ['black', 8]
+    ]);
 
     dom.window.close();
   });
 
-  test('does not route board-anchored charge gains through the HUD popup', () => {
+  test('also routes board-anchored charge gains through the HUD popup', () => {
     const dom = createRendererContext({ seatKey: 'white' });
     const { window } = dom;
 
@@ -216,8 +221,33 @@ describe('network charge seat layout', () => {
     ];
     window.renderCardUI();
 
-    expect(window.StoneVisuals.showChargeDelta).not.toHaveBeenCalled();
+    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledTimes(1);
+    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledWith('black', 3);
     expect(window.cardState.chargeDeltaEvents).toEqual([]);
+
+    dom.window.close();
+  });
+
+  test('can drain HUD charge delta popups before the full card UI render pass', () => {
+    const dom = createRendererContext({ seatKey: 'white' });
+    const { window } = dom;
+
+    window.cardState.chargeDeltaEvents = [
+      { seq: 1, player: 'white', delta: -5, reason: 'card_use_cost' },
+      { seq: 2, player: 'white', delta: 8, popupKind: 'board', anchorRow: 2, anchorCol: 4, sourceType: 'placement_flip_gain' }
+    ];
+
+    window.drainVisibleChargeDeltaPopups({ allowRawFallback: false });
+
+    expect(window.StoneVisuals.showChargeDelta.mock.calls).toEqual([
+      ['black', -5],
+      ['black', 8]
+    ]);
+    expect(window.cardState.chargeDeltaEvents).toEqual([]);
+
+    window.StoneVisuals.showChargeDelta.mockClear();
+    window.renderCardUI();
+    expect(window.StoneVisuals.showChargeDelta).not.toHaveBeenCalled();
 
     dom.window.close();
   });

@@ -118,4 +118,23 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     expect(cell.classList.contains('selectable-friendly-no-circle')).toBe(false);
     expect(cell.classList.contains('time-stop-legal-emphasis')).toBe(false);
   });
+
+  test('suppresses normal legal hints during BLOCKADE_WILL target selection while keeping selectable targets', () => {
+    global.getLegalMoves = () => [{ row: 0, col: 0 }];
+    global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 1 }];
+    global.cardState.pendingEffectByPlayer = {
+      black: { type: 'BLOCKADE_WILL', stage: 'selectTarget', cardId: 'blockade_01' },
+      white: null
+    };
+
+    const diff = require('../ui/diff-renderer');
+    diff.renderBoardDiff(boardEl);
+
+    const legalCell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    const selectableCell = boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
+    expect(legalCell).toBeTruthy();
+    expect(selectableCell).toBeTruthy();
+    expect(legalCell.classList.contains('legal')).toBe(false);
+    expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
+  });
 });

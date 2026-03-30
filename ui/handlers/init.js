@@ -212,6 +212,12 @@ async function initializeUI() {
     const sidePanelToggleBtn = document.getElementById('sidePanelToggleBtn');
     const debugAllowed = _isDebugAllowed();
 
+    try {
+        if (typeof SoundEngine !== 'undefined' && typeof SoundEngine.primeEffectSounds === 'function') {
+            SoundEngine.primeEffectSounds();
+        }
+    } catch (e) { /* ignore */ }
+
     // Reset
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {

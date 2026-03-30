@@ -109,22 +109,14 @@ function renderBoard() {
         const player = gameState.currentPlayer;
         const playerKey = getPlayerKey(player);
         const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const selectableTargets = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getSelectableTargets === 'function')
+            ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+            : [];
         const isSelectingTarget = !!(
-            pending && (
-                pending.stage === 'selectTarget' ||
-                pending.type === 'DESTROY_ONE_STONE' ||
-                pending.type === 'SWAP_WITH_ENEMY' ||
-                pending.type === 'GUARD_WILL' ||
-                pending.type === 'GUARDIAN_GOD' ||
-                pending.type === 'HYPERACTIVE_INHERIT_WILL' ||
-                pending.type === 'TEMPT_WILL' ||
-                pending.type === 'CLONE_WILL' ||
-                pending.type === 'BOARD_EXPANSION_WILL' ||
-                pending.type === 'BOARD_EXPANSION_GOD' ||
-                pending.type === 'EXTEND_LIFE_WILL' ||
-                pending.type === 'EXTEND_LIFE_GOD' ||
-                pending.type === 'CORROSION_WILL'
-            )
+            pending &&
+            pending.stage === 'selectTarget' &&
+            Array.isArray(selectableTargets) &&
+            selectableTargets.length > 0
         );
         if (boardEl) boardEl.classList.toggle('selection-mode', isSelectingTarget);
     } catch (e) {
@@ -309,26 +301,16 @@ function renderBoardFull() {
         pending.type === 'SNIPER_WILL' ||
         pending.type === 'LAST_RESORT'
     ));
-    const isSelectingTarget = !!(
-        pending && (
-            pending.stage === 'selectTarget' ||
-            pending.type === 'DESTROY_ONE_STONE' ||
-            pending.type === 'SWAP_WITH_ENEMY' ||
-            pending.type === 'GUARD_WILL' ||
-            pending.type === 'GUARDIAN_GOD' ||
-            pending.type === 'HYPERACTIVE_INHERIT_WILL' ||
-            pending.type === 'TEMPT_WILL' ||
-            pending.type === 'CLONE_WILL' ||
-            pending.type === 'BOARD_EXPANSION_WILL' ||
-            pending.type === 'BOARD_EXPANSION_GOD' ||
-            pending.type === 'EXTEND_LIFE_WILL' ||
-            pending.type === 'EXTEND_LIFE_GOD' ||
-            pending.type === 'CORROSION_WILL'
-        )
-    );
     const selectableTargets = CardLogic.getSelectableTargets
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
+    const isSelectingTarget = !!(
+        pending &&
+        pending.stage === 'selectTarget' &&
+        Array.isArray(selectableTargets) &&
+        selectableTargets.length > 0
+    );
+    if (boardEl) boardEl.classList.toggle('selection-mode', isSelectingTarget);
     const selectableTargetSet = new Set(selectableTargets.map(p => p.row + ',' + p.col));
     const isNetworkMode = !!(OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function'
         ? OwnerHelpersModule.isNetworkMode(typeof window !== 'undefined' ? window : null)

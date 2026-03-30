@@ -285,6 +285,205 @@ describe.each([
   });
 });
 
+describe('animation-engine extreme forced swap playback', () => {
+  let dom;
+
+  beforeEach(() => {
+    jest.resetModules();
+    dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.emitBoardUpdate = jest.fn();
+  });
+
+  afterEach(() => {
+    delete global.window;
+    delete global.document;
+    delete global.emitBoardUpdate;
+    if (dom && dom.window && typeof dom.window.close === 'function') {
+      dom.window.close();
+    }
+  });
+
+  test('overlaps the occupied destination first, then sends the displaced stone back to the source cell', async () => {
+    const board = document.getElementById('board');
+    const fromCell = document.createElement('div');
+    const toCell = document.createElement('div');
+    const sourceDisc = document.createElement('div');
+    const targetDisc = document.createElement('div');
+    const animateCalls = [];
+    let finishFirstAnimation = null;
+    let finishSecondAnimation = null;
+
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '6';
+    fromCell.dataset.col = '2';
+    fromCell.getBoundingClientRect = () => ({ left: 20, top: 20, width: 50, height: 50 });
+
+    toCell.className = 'cell';
+    toCell.dataset.row = '6';
+    toCell.dataset.col = '3';
+    toCell.getBoundingClientRect = () => ({ left: 90, top: 20, width: 50, height: 50 });
+
+    sourceDisc.className = 'disc black';
+    targetDisc.className = 'disc white';
+    fromCell.appendChild(sourceDisc);
+    toCell.appendChild(targetDisc);
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    global.window.Element.prototype.animate = jest.fn((keyframes) => {
+      animateCalls.push(keyframes);
+      const animationIndex = animateCalls.length;
+      let finished = Promise.resolve();
+      if (animationIndex === 1) {
+        finished = new Promise((resolve) => {
+          finishFirstAnimation = resolve;
+        });
+      } else if (animationIndex === 2) {
+        finished = new Promise((resolve) => {
+          finishSecondAnimation = resolve;
+        });
+      }
+      return {
+        addEventListener(eventName, handler) {
+          if (eventName === 'finish' && typeof handler === 'function') {
+            finished.then(handler);
+          }
+        },
+        removeEventListener() {},
+        finished
+      };
+    });
+
+    const engine = require('../ui/animation-engine');
+    const createDiscSpy = jest.spyOn(engine, 'createDisc');
+    const playPromise = engine.handleMove({
+      type: 'move',
+      meta: { sequence: 'extreme_hyperactive_forced_swap' },
+      targets: [{
+        from: { r: 6, col: 2 },
+        to: { r: 6, col: 3 },
+        ownerBefore: 'black',
+        ownerAfter: 'black',
+        cause: 'EXTREME_HYPERACTIVE_WILL',
+        reason: 'extreme_hyperactive_forced_swap',
+        extremeForcedSwapRole: 'lead',
+        after: { color: 1, special: 'EXTREME_HYPERACTIVE', timer: 5, owner: 'black' }
+      }, {
+        from: { r: 6, col: 3 },
+        to: { r: 6, col: 2 },
+        ownerBefore: 'white',
+        ownerAfter: 'white',
+        cause: 'EXTREME_HYPERACTIVE_WILL',
+        reason: 'extreme_hyperactive_forced_swap',
+        extremeForcedSwapRole: 'follow',
+        after: { color: -1, special: null, timer: null, owner: 'white' }
+      }]
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(animateCalls).toHaveLength(1);
+    expect(animateCalls[0]).toHaveLength(3);
+    expect(String(animateCalls[0][2].transform)).toContain('scale(1.06)');
+    expect(sourceDisc.style.visibility).toBe('hidden');
+    expect(targetDisc.style.visibility).not.toBe('hidden');
+    expect(toCell.querySelectorAll('.disc.white')).toHaveLength(1);
+
+    finishFirstAnimation();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(animateCalls).toHaveLength(2);
+    expect(createDiscSpy).toHaveBeenCalledTimes(0);
+    expect(fromCell.querySelectorAll('.disc.black')).toHaveLength(0);
+    expect(toCell.querySelectorAll('.disc.black')).toHaveLength(1);
+
+    finishSecondAnimation();
+    await playPromise;
+
+    expect(animateCalls).toHaveLength(2);
+    expect(createDiscSpy).toHaveBeenCalledTimes(1);
+    expect(fromCell.querySelectorAll('.disc.white')).toHaveLength(1);
+    expect(fromCell.querySelectorAll('.disc.black')).toHaveLength(0);
+    expect(toCell.querySelectorAll('.disc.black')).toHaveLength(1);
+    expect(toCell.querySelectorAll('.disc.white')).toHaveLength(0);
+  });
+
+  test('applies the forced-swap final state immediately in no-anim mode', async () => {
+    const board = document.getElementById('board');
+    const fromCell = document.createElement('div');
+    const toCell = document.createElement('div');
+    const sourceDisc = document.createElement('div');
+    const targetDisc = document.createElement('div');
+
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '1';
+    fromCell.dataset.col = '1';
+    fromCell.getBoundingClientRect = () => ({ left: 20, top: 20, width: 50, height: 50 });
+
+    toCell.className = 'cell';
+    toCell.dataset.row = '1';
+    toCell.dataset.col = '2';
+    toCell.getBoundingClientRect = () => ({ left: 90, top: 20, width: 50, height: 50 });
+
+    sourceDisc.className = 'disc black';
+    targetDisc.className = 'disc white';
+    fromCell.appendChild(sourceDisc);
+    toCell.appendChild(targetDisc);
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    window.DISABLE_ANIMATIONS = true;
+
+    const engine = require('../ui/animation-engine');
+    await engine.handleMove({
+      type: 'move',
+      meta: { sequence: 'extreme_hyperactive_forced_swap' },
+      targets: [{
+        from: { r: 1, col: 1 },
+        to: { r: 1, col: 2 },
+        ownerBefore: 'black',
+        ownerAfter: 'black',
+        cause: 'EXTREME_HYPERACTIVE_WILL',
+        reason: 'extreme_hyperactive_forced_swap',
+        extremeForcedSwapRole: 'lead',
+        after: { color: 1, special: 'EXTREME_HYPERACTIVE', timer: 5, owner: 'black' }
+      }, {
+        from: { r: 1, col: 2 },
+        to: { r: 1, col: 1 },
+        ownerBefore: 'white',
+        ownerAfter: 'white',
+        cause: 'EXTREME_HYPERACTIVE_WILL',
+        reason: 'extreme_hyperactive_forced_swap',
+        extremeForcedSwapRole: 'follow',
+        after: { color: -1, special: null, timer: null, owner: 'white' }
+      }]
+    });
+
+    expect(fromCell.querySelectorAll('.disc.white')).toHaveLength(1);
+    expect(fromCell.querySelectorAll('.disc.black')).toHaveLength(0);
+    expect(toCell.querySelectorAll('.disc.black')).toHaveLength(1);
+    expect(toCell.querySelectorAll('.disc.white')).toHaveLength(0);
+  });
+
+  test('ignores malformed forced-swap payloads without throwing', async () => {
+    const engine = require('../ui/animation-engine');
+
+    await expect(engine.handleMove({
+      type: 'move',
+      meta: { sequence: 'extreme_hyperactive_forced_swap' },
+      targets: [{
+        from: { r: 2, col: 2 },
+        to: null,
+        cause: 'EXTREME_HYPERACTIVE_WILL',
+        reason: 'extreme_hyperactive_forced_swap'
+      }]
+    })).resolves.toBeUndefined();
+  });
+});
+
 describe('animation-engine move animation finish fallback', () => {
   let dom;
 

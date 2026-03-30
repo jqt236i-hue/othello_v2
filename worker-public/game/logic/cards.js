@@ -48,6 +48,19 @@
             : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
         return globalScope.DestroyOutcomeContract || null;
     })();
+    const StoneStatusSnapshot = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('../../shared/stone-status-snapshot');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.StoneStatusSnapshot || null;
+    })();
 
     // Constants
     // Policy: no initial draw at game start.
@@ -1725,6 +1738,13 @@
         );
     }
 
+    function isFrozenCell(cardState, row, col) {
+        if (CardMarkersModule && typeof CardMarkersModule.isFrozenCellForCard === 'function') {
+            return !!CardMarkersModule.isFrozenCellForCard(cardState, row, col);
+        }
+        return !!findSpecialMarkerAt(cardState, row, col, 'FREEZE');
+    }
+
     function isAbsoluteProtectedCell(cardState, row, col) {
         return !!findSpecialMarkerAt(cardState, row, col, 'ABSOLUTE_PROTECTED');
     }
@@ -1805,6 +1825,154 @@
                 cardState.breedingFrontierByAnchorId[key] = arr.map(swapPoint);
             }
         }
+    }
+
+    function compactPresentationMeta(meta) {
+        if (!meta || typeof meta !== 'object') return undefined;
+        const out = {};
+        for (const [key, value] of Object.entries(meta)) {
+            if (value !== null && value !== undefined) out[key] = value;
+        }
+        return Object.keys(out).length ? out : undefined;
+    }
+
+    function getCellVisualPresentationMeta(cardState, row, col) {
+        const markersAtCell = getSpecialMarkers(cardState).filter((marker) => (
+            marker &&
+            marker.row === row &&
+            marker.col === col
+        ));
+        const bombMarker = findBombMarkerAt(cardState, row, col);
+        if (StoneStatusSnapshot && typeof StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers === 'function') {
+            return compactPresentationMeta(StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers(markersAtCell, {
+                bombMarker,
+                mode: 'raw'
+            }));
+        }
+
+        const toCounterOrNull = (value) => {
+            if (value === null || value === undefined || value === '') return null;
+            const n = Number(value);
+            if (!Number.isFinite(n)) return null;
+            return Math.max(0, Math.trunc(n));
+        };
+
+        const meta = {
+            special: null,
+            timer: null,
+            owner: null,
+            inheritedTimer: null,
+            inheritedOwner: null,
+            flipEvadeRemaining: null,
+            inheritedFlipEvadeRemaining: null,
+            destroyEvadeRemaining: null
+        };
+
+        const destroyValues = markersAtCell
+            .map((marker) => toCounterOrNull(marker && marker.data && marker.data.destroyEvadeRemaining))
+            .filter((value) => value !== null);
+        if (destroyValues.length) {
+            meta.destroyEvadeRemaining = destroyValues.reduce((sum, value) => sum + value, 0);
+        }
+
+        const inherited = markersAtCell.find((marker) => (
+            marker &&
+            marker.data &&
+            String(marker.data.type || '').toUpperCase() === 'INHERITED_HYPERACTIVE'
+        ));
+        if (inherited) {
+            meta.inheritedTimer = toCounterOrNull(inherited.data && inherited.data.remainingOwnerTurns);
+            meta.inheritedOwner = (inherited.owner !== undefined && inherited.owner !== null) ? inherited.owner : null;
+            meta.inheritedFlipEvadeRemaining = toCounterOrNull(inherited.data && inherited.data.flipEvadeRemaining);
+        }
+
+        const visualSpecial = markersAtCell.find((marker) => {
+            const type = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+            if (!type) return false;
+            if (type === 'GUARD') return false;
+            if (type === 'INHERITED_HYPERACTIVE') return false;
+            return true;
+        });
+        if (visualSpecial) {
+            meta.special = (visualSpecial.data && visualSpecial.data.type) || null;
+            meta.timer = Number.isFinite(Number(visualSpecial.data && visualSpecial.data.remainingOwnerTurns))
+                ? Math.max(0, Math.trunc(Number(visualSpecial.data.remainingOwnerTurns)))
+                : null;
+            meta.owner = (visualSpecial.owner !== undefined && visualSpecial.owner !== null) ? visualSpecial.owner : null;
+            meta.flipEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.flipEvadeRemaining);
+        } else if (bombMarker) {
+            meta.special = (bombMarker.data && bombMarker.data.type) || 'TIME_BOMB';
+            meta.timer = Number.isFinite(Number(bombMarker.data && bombMarker.data.remainingTurns))
+                ? Math.max(0, Math.trunc(Number(bombMarker.data.remainingTurns)))
+                : null;
+            meta.owner = (bombMarker.owner !== undefined && bombMarker.owner !== null) ? bombMarker.owner : null;
+        }
+
+        return compactPresentationMeta(meta);
+    }
+
+    function swapOccupiedCellsWithPresentation(cardState, gameState, posA, posB, options = {}) {
+        if (!cardState || !gameState || !posA || !posB) return { swapped: false, reason: 'invalid_args' };
+
+        const aRow = Number(posA.row);
+        const aCol = Number(posA.col);
+        const bRow = Number(posB.row);
+        const bCol = Number(posB.col);
+        if (!Number.isInteger(aRow) || !Number.isInteger(aCol) || !Number.isInteger(bRow) || !Number.isInteger(bCol)) {
+            return { swapped: false, reason: 'invalid_args' };
+        }
+
+        const valueA = getCellValueForCard(gameState, aRow, aCol);
+        const valueB = getCellValueForCard(gameState, bRow, bCol);
+        if (valueA === null || valueB === null) return { swapped: false, reason: 'out_of_board' };
+        if (valueA === EMPTY || valueB === EMPTY) return { swapped: false, reason: 'empty' };
+
+        const stoneIdA = getStoneIdAtForCard(cardState, gameState, aRow, aCol);
+        const stoneIdB = getStoneIdAtForCard(cardState, gameState, bRow, bCol);
+        const ownerBeforeA = valueA === (BLACK || 1) ? 'black' : 'white';
+        const ownerBeforeB = valueB === (BLACK || 1) ? 'black' : 'white';
+
+        setCellValueForCard(gameState, aRow, aCol, valueB);
+        setCellValueForCard(gameState, bRow, bCol, valueA);
+        swapCellCoordinates(cardState, gameState, { row: aRow, col: aCol }, { row: bRow, col: bCol });
+
+        const firstEvent = {
+            type: 'MOVE',
+            stoneId: stoneIdA,
+            row: bRow,
+            col: bCol,
+            prevRow: aRow,
+            prevCol: aCol,
+            ownerBefore: ownerBeforeA,
+            ownerAfter: ownerBeforeA,
+            cause: options.firstCause || options.cause || null,
+            reason: options.firstReason || options.reason || null
+        };
+        const firstMeta = getCellVisualPresentationMeta(cardState, bRow, bCol);
+        if (firstMeta) firstEvent.meta = firstMeta;
+        emitPresentationEvent(cardState, firstEvent);
+
+        const secondEvent = {
+            type: 'MOVE',
+            stoneId: stoneIdB,
+            row: aRow,
+            col: aCol,
+            prevRow: bRow,
+            prevCol: bCol,
+            ownerBefore: ownerBeforeB,
+            ownerAfter: ownerBeforeB,
+            cause: options.secondCause || options.cause || null,
+            reason: options.secondReason || options.reason || null
+        };
+        const secondMeta = getCellVisualPresentationMeta(cardState, aRow, aCol);
+        if (secondMeta) secondEvent.meta = secondMeta;
+        emitPresentationEvent(cardState, secondEvent);
+
+        return {
+            swapped: true,
+            first: { row: aRow, col: aCol },
+            second: { row: bRow, col: bCol }
+        };
     }
 
     function buildInitialBoardBonusMap(prng) {
@@ -6642,8 +6810,11 @@
                 clearBombAt,
                 clearHyperactiveAtPositions,
                 isBlockedCell,
+                isAbsoluteProtectedCell,
+                isFrozenCell,
                 getCardContext,
                 BoardOps: BoardOpsModule,
+                swapOccupiedCellsWithPresentation,
                 destroyAt,
                 currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
                 inheritedHyperactiveTurns: INHERITED_HYPERACTIVE_TURNS,
@@ -6658,8 +6829,11 @@
                 clearBombAt,
                 clearHyperactiveAtPositions,
                 isBlockedCell,
+                isAbsoluteProtectedCell,
+                isFrozenCell,
                 getCardContext,
                 BoardOps: BoardOpsModule,
+                swapOccupiedCellsWithPresentation,
                 destroyAt,
                 currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
                 inheritedHyperactiveTurns: INHERITED_HYPERACTIVE_TURNS,
@@ -7021,41 +7195,14 @@
             return { applied: true, completed: false, firstTarget: { row, col } };
         }
 
-        const stoneIdA = getStoneIdAtForCard(cardState, gameState, first.row, first.col);
-        const stoneIdB = getStoneIdAtForCard(cardState, gameState, row, col);
-        const ownerBeforeA = firstValue === (BLACK || 1) ? 'black' : 'white';
-        const ownerBeforeB = cellValue === (BLACK || 1) ? 'black' : 'white';
-
-        setCellValueForCard(gameState, first.row, first.col, cellValue);
-        setCellValueForCard(gameState, row, col, firstValue);
-
-        swapCellCoordinates(cardState, gameState, first, { row, col });
+        const swapResult = swapOccupiedCellsWithPresentation(cardState, gameState, first, { row, col }, {
+            cause: 'POSITION_SWAP_WILL',
+            reason: 'position_swap'
+        });
+        if (!swapResult || !swapResult.swapped) {
+            return { applied: false, reason: (swapResult && swapResult.reason) || 'swap_failed' };
+        }
         clearCardPendingEffect(cardState, playerKey);
-
-        emitPresentationEvent(cardState, {
-            type: 'MOVE',
-            stoneId: stoneIdA,
-            row,
-            col,
-            prevRow: first.row,
-            prevCol: first.col,
-            ownerBefore: ownerBeforeA,
-            ownerAfter: ownerBeforeA,
-            cause: 'POSITION_SWAP_WILL',
-            reason: 'position_swap'
-        });
-        emitPresentationEvent(cardState, {
-            type: 'MOVE',
-            stoneId: stoneIdB,
-            row: first.row,
-            col: first.col,
-            prevRow: row,
-            prevCol: col,
-            ownerBefore: ownerBeforeB,
-            ownerAfter: ownerBeforeB,
-            cause: 'POSITION_SWAP_WILL',
-            reason: 'position_swap'
-        });
 
         return { applied: true, completed: true, from: first, to: { row, col } };
     }
@@ -7420,6 +7567,7 @@
         countOccupiedCornersForPlayer,
         isBlockedCell,
         isAbsoluteProtectedCell,
+        isFrozenCell,
         getTrapTargets,
         applyTrapWill,
         processTrapEffects,
@@ -7431,6 +7579,7 @@
         processRobotVacuumMoveAtAnchor,
         processInstantHyperactiveMoveAtAnchor,
         processUltimateHyperactiveMoveAtAnchor,
+        swapOccupiedCellsWithPresentation,
         // Presentation helpers (PoC)
         allocateStoneId,
         emitPresentationEvent,

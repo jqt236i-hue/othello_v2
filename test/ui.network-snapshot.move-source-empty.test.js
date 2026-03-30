@@ -295,6 +295,70 @@ describe('Network snapshot move-source empty handling', () => {
     );
   });
 
+  test('network snapshot keeps extreme forced-swap source and destination aligned without destroy-fade fallback', () => {
+    const source = { row: 4, col: 4 };
+    const dest = { row: 4, col: 5 };
+    const beforeBoard = createBoard();
+    beforeBoard[source.row][source.col] = global.BLACK;
+    beforeBoard[dest.row][dest.col] = global.WHITE;
+    global.gameState.board = beforeBoard;
+    global.cardState = createBaseCardState([
+      createSpecialMarker(source.row, source.col, 'EXTREME_HYPERACTIVE', { remainingOwnerTurns: 8, flipEvadeRemaining: 3 })
+    ]);
+    diff.renderBoardDiff(global.boardEl);
+
+    const controllerState = { stateVersion: 1, lastResultVersionShown: null, resultShownForUnversioned: false };
+    const controller = createController(controllerState);
+
+    const afterBoard = createBoard();
+    afterBoard[source.row][source.col] = global.WHITE;
+    afterBoard[dest.row][dest.col] = global.BLACK;
+    const applied = controller.applySnapshot(
+      createSnapshot(2, afterBoard, [
+        createSpecialMarker(dest.row, dest.col, 'EXTREME_HYPERACTIVE', { remainingOwnerTurns: 8, flipEvadeRemaining: 3 })
+      ]),
+      {
+        playbackEvents: [{
+          type: 'move',
+          phase: 1,
+          meta: { sequence: 'extreme_hyperactive_forced_swap' },
+          targets: [{
+            from: { r: source.row, col: source.col },
+            to: { r: dest.row, col: dest.col },
+            cause: 'EXTREME_HYPERACTIVE_WILL',
+            reason: 'extreme_hyperactive_forced_swap',
+            extremeForcedSwapRole: 'lead',
+            after: { color: 1, special: 'EXTREME_HYPERACTIVE', timer: 8, owner: 'black' }
+          }, {
+            from: { r: dest.row, col: dest.col },
+            to: { r: source.row, col: source.col },
+            cause: 'EXTREME_HYPERACTIVE_WILL',
+            reason: 'extreme_hyperactive_forced_swap',
+            extremeForcedSwapRole: 'follow',
+            after: { color: -1, special: null, timer: null, owner: 'white' }
+          }]
+        }]
+      }
+    );
+
+    expect(applied).toBe(true);
+    const sourceCell = global.boardEl.querySelector(`.cell[data-row="${source.row}"][data-col="${source.col}"]`);
+    const destCell = global.boardEl.querySelector(`.cell[data-row="${dest.row}"][data-col="${dest.col}"]`);
+    expect(sourceCell).toBeTruthy();
+    expect(destCell).toBeTruthy();
+    expect(sourceCell.querySelectorAll('.disc.white')).toHaveLength(1);
+    expect(sourceCell.querySelector('.disc.black')).toBeNull();
+    expect(destCell.querySelectorAll('.disc.black')).toHaveLength(1);
+    expect(destCell.querySelector('.disc.white')).toBeNull();
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledWith(
+      global.cardState,
+      expect.objectContaining({
+        type: 'PLAYBACK_EVENTS',
+        meta: expect.objectContaining({ source: 'network_snapshot' })
+      })
+    );
+  });
+
   test('network snapshot still uses destroy-fade for unrelated removals when a different move is queued', () => {
     const beforeBoard = createBoard();
     beforeBoard[1][1] = global.BLACK;

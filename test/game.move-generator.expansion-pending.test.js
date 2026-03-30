@@ -85,4 +85,25 @@ describe('move-generator expansion pending regression', () => {
       })
     ]));
   });
+
+  test.each(['CAPTURE_WILL', 'HYPERACTIVE_INHERIT_WILL', 'CLONE_WILL', 'SPLIT_WILL'])(
+    '%s blocks normal move generation while target selection is pending',
+    (pendingType) => {
+      const { cardState, gameState } = createStates();
+      global.cardState = cardState;
+      global.gameState = gameState;
+
+      gameState.board[3][1] = Core.WHITE;
+      gameState.board[3][2] = Core.BLACK;
+
+      const MoveGenerator = require('../game/move-generator');
+      const moves = MoveGenerator.generateMovesForPlayer(Core.BLACK, {
+        type: pendingType,
+        stage: 'selectTarget',
+        cardId: `${String(pendingType).toLowerCase()}_01`
+      }, [], []);
+
+      expect(moves).toEqual([]);
+    }
+  );
 });

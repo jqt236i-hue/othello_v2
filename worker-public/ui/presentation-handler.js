@@ -540,6 +540,14 @@
     async function flushBoardPresentationEvents() {
         try {
             const events = flushPendingPresentationEvents();
+            try {
+                const drainChargeDeltaPopups = (typeof window !== 'undefined' && typeof window.drainVisibleChargeDeltaPopups === 'function')
+                    ? window.drainVisibleChargeDeltaPopups
+                    : ((typeof drainVisibleChargeDeltaPopups === 'function') ? drainVisibleChargeDeltaPopups : null);
+                if (drainChargeDeltaPopups) {
+                    drainChargeDeltaPopups({ allowRawFallback: false });
+                }
+            } catch (e) { /* ignore */ }
             for (const ev of events) {
                 await handlePresentationEvent(ev);
             }

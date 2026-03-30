@@ -916,6 +916,25 @@ function cloneSnapshotWithVersion(room) {
     return shot;
 }
 
+function canViewerInspectOwnerHandForProjection(snapshot, viewerSeatKey, ownerSeatKey) {
+    const viewer = parseSeatKeyOptional(viewerSeatKey);
+    const owner = parseSeatKeyOptional(ownerSeatKey);
+    if (!viewer || !owner) return false;
+    if (viewer === owner) return true;
+    const gameState = (snapshot && snapshot.gameState && typeof snapshot.gameState === 'object')
+        ? snapshot.gameState
+        : null;
+    const currentPlayerKey = getCurrentPlayerKey(gameState);
+    if (owner !== currentPlayerKey) return false;
+    const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object')
+        ? snapshot.cardState
+        : null;
+    const controllerMap = (cardState && cardState.fateWillControllerByTurnOwner && typeof cardState.fateWillControllerByTurnOwner === 'object')
+        ? cardState.fateWillControllerByTurnOwner
+        : {};
+    return parseSeatKeyOptional(controllerMap[owner]) === viewer;
+}
+
 function projectSnapshotForViewer(room, viewerSeatKey) {
     const shot = cloneSnapshotWithVersion(room);
     if (!shot || typeof shot !== 'object') return shot;
@@ -931,7 +950,7 @@ function projectSnapshotForViewer(room, viewerSeatKey) {
     for (const ownerKey of PLAYER_KEYS) {
         const ownerHand = Array.isArray(hands[ownerKey]) ? hands[ownerKey].slice() : [];
         sourceHands[ownerKey] = ownerHand;
-        if (viewer && ownerKey === viewer) {
+        if (canViewerInspectOwnerHandForProjection(shot, viewer, ownerKey)) {
             cardState.hands[ownerKey] = ownerHand.slice();
             continue;
         }
@@ -939,7 +958,8 @@ function projectSnapshotForViewer(room, viewerSeatKey) {
     }
 
     const selectedOwnerKey = parseSeatKeyOptional(cardState.selectedCardOwnerKey);
-    if (!viewer || !selectedOwnerKey || selectedOwnerKey !== viewer) {
+    const canViewerInspectSelectedOwnerHand = canViewerInspectOwnerHandForProjection(shot, viewer, selectedOwnerKey);
+    if (!canViewerInspectSelectedOwnerHand) {
         cardState.selectedCardId = null;
         cardState.selectedCardOwnerKey = null;
     }
@@ -950,7 +970,7 @@ function projectSnapshotForViewer(room, viewerSeatKey) {
             if (!pending || pending.type !== 'CONDEMN_WILL' || !Array.isArray(pending.offers)) continue;
             const opponentKey = getOpponentKey(ownerKey);
             const opponentHand = Array.isArray(sourceHands[opponentKey]) ? sourceHands[opponentKey] : [];
-            const revealToViewer = !!(viewer && ownerKey === viewer);
+            const revealToViewer = canViewerInspectOwnerHandForProjection(shot, viewer, ownerKey);
             pending.offers = pending.offers.map((offer, idx) => {
                 const parsedToken = offer && offer.cardId ? parseHiddenHandToken(offer.cardId) : null;
                 const fallbackIndex = parsedToken && Number.isInteger(parsedToken.handIndex) ? parsedToken.handIndex : idx;

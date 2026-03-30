@@ -28,6 +28,7 @@ function makeBaseCardState(overrides) {
     return Object.assign({
         selectedCardId: null,
         selectedCardOwnerKey: null,
+        lastTurnStartedFor: null,
         turnIndex: 0,
         charge: { black: 10, white: 10 },
         hands: { black: ['black_card'], white: ['white_card'] },
@@ -115,6 +116,48 @@ describe('FATE_WILL UI: controller can act on victim turn', () => {
         global.window.onCardClick('white_card', 'white');
         // Selection should be set (no early return due to FATE_WILL)
         expect(global.cardState.selectedCardId).toBe('white_card');
+    });
+
+    test('controller (black) can still use victim card before victim turn-start clears stale used flag', () => {
+        setupCardInteractionGlobals(dom, 'white', 'black', true);
+        global.cardState.lastTurnStartedFor = 'black';
+        global.cardState.hasUsedCardThisTurnByPlayer.white = true;
+        global.cardState.selectedCardId = 'white_card';
+        global.cardState.selectedCardOwnerKey = 'white';
+
+        global.window.updateCardDetailPanel();
+
+        expect(dom.window.document.getElementById('use-card-btn').disabled).toBe(false);
+
+        global.window.useSelectedCard();
+
+        expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            'black',
+            expect.objectContaining({
+                type: 'use_card',
+                useCardId: 'white_card',
+                useCardOwnerKey: 'white'
+            }),
+            expect.anything()
+        );
+    });
+
+    test('victim card still stays blocked after same-turn card use was already recorded', () => {
+        setupCardInteractionGlobals(dom, 'white', 'black', true);
+        global.cardState.lastTurnStartedFor = 'white';
+        global.cardState.hasUsedCardThisTurnByPlayer.white = true;
+        global.cardState.selectedCardId = 'white_card';
+        global.cardState.selectedCardOwnerKey = 'white';
+
+        global.window.updateCardDetailPanel();
+
+        expect(dom.window.document.getElementById('use-card-btn').disabled).toBe(true);
+
+        global.window.useSelectedCard();
+
+        expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
     });
 
     test('victim (black) cannot destroy card in local (cpu) mode when FATE_WILL active', () => {
@@ -687,6 +730,86 @@ describe('FATE_WILL UI: victim cannot cancel pending selection', () => {
         global.window.cancelPendingSelection('black');
 
         expect(runMock).toHaveBeenCalled();
+    });
+});
+
+describe('FATE_WILL UI: controller can complete victim SELL_CARD_WILL pending', () => {
+    function setupSellTest(options) {
+        jest.resetModules();
+        const dom = makeDom();
+        global.window = dom.window;
+        global.document = dom.window.document;
+        global.BLACK = 1;
+        global.WHITE = -1;
+
+        global.gameState = {
+            currentPlayer: options.currentPlayer === 'black' ? 1 : -1,
+            board: Array.from({ length: 8 }, () => Array(8).fill(0))
+        };
+        global.cardState = makeBaseCardState({
+            fateWillControllerByTurnOwner: options.fateWillController
+        });
+
+        dom.window.LOCAL_PLAYER_KEY = options.localPlayerKey;
+        if (options.matchMode === 'network') {
+            dom.window.MATCH_MODE = 'network';
+            dom.window.NetworkMatchClient = {
+                getSeatKey: () => options.localPlayerKey,
+                isActive: () => true
+            };
+        }
+
+        global.CardLogic = {
+            getCardDef: (id) => ({ id, name: id, desc: id, cost: 0, type: 'TEST' }),
+            getUsableCardIds: () => ['white_card', 'black_card'],
+            canUseCard: () => true,
+            getCardContext: () => ({ protectedStones: [], permaProtectedStones: [] }),
+            getSelectableTargets: () => []
+        };
+        global.Core = { getLegalMoves: () => [] };
+        global.renderCardUI = jest.fn();
+        global.emitBoardUpdate = jest.fn();
+        global.addLog = jest.fn();
+        global.processPassTurn = jest.fn();
+        const runMock = jest.fn(() => ({ ok: true, nextCardState: global.cardState, nextGameState: global.gameState, playbackEvents: [] }));
+        global.ActionManager = {
+            ActionManager: {
+                createAction: (t, p, x) => ({ type: t, player: p, ...(x || {}) }),
+                recordAction: jest.fn(),
+                incrementTurnIndex: jest.fn()
+            }
+        };
+        global.TurnPipeline = {};
+        global.TurnPipelineUIAdapter = { runTurnWithAdapter: runMock };
+
+        require(path.resolve(__dirname, '..', 'cards', 'card-interaction.js'));
+        return { dom, runMock };
+    }
+
+    test('controller (black) can confirm victim (white) SELL_CARD_WILL selection in local mode', () => {
+        const { runMock } = setupSellTest({
+            localPlayerKey: 'black',
+            currentPlayer: 'white',
+            fateWillController: { black: null, white: 'black' },
+            matchMode: 'cpu'
+        });
+        global.cardState.pendingEffectByPlayer.white = {
+            type: 'SELL_CARD_WILL',
+            cardId: 'sell_01',
+            stage: 'selectTarget'
+        };
+
+        global.window.onCardClick('white_card', 'white');
+        const ok = global.window.confirmSellCardSelection();
+
+        expect(ok).toBe(true);
+        expect(runMock).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            'black',
+            expect.objectContaining({ type: 'place', sellCardId: 'white_card' }),
+            expect.anything()
+        );
     });
 });
 

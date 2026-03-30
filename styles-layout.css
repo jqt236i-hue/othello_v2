@@ -189,8 +189,8 @@
     box-shadow: 0 calc(4px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.45);
     text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42);
     opacity: 0;
-    transform: var(--charge-delta-base-transform, translateX(-50%)) translateY(var(--layout-size-charge-delta-shift-y-start));
-    transition: opacity 0.2s ease, transform 0.28s cubic-bezier(0.2, 0.9, 0.2, 1);
+    transform: translateY(var(--layout-size-charge-delta-shift-y-start));
+    transition: opacity 0s linear, transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
     white-space: nowrap;
     text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
@@ -202,18 +202,18 @@
 
 .charge-delta.is-restart {
     opacity: 0 !important;
-    transform: var(--charge-delta-base-transform, translateX(-50%)) translateY(var(--layout-size-charge-delta-shift-y-start)) !important;
+    transform: translateY(var(--layout-size-charge-delta-shift-y-start)) !important;
     transition: none !important;
 }
 
 .charge-delta.is-visible {
     opacity: 1;
-    transform: var(--charge-delta-base-transform, translateX(-50%)) translateY(0);
+    transform: translateY(0);
 }
 
 .charge-delta.is-fadeout {
     opacity: 0;
-    transform: var(--charge-delta-base-transform, translateX(-50%)) translateY(var(--layout-size-charge-delta-shift-y-end));
+    transform: translateY(var(--layout-size-charge-delta-shift-y-end));
     transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
@@ -227,18 +227,6 @@
     background: rgba(170, 36, 36, 0.58);
     border-color: rgba(255, 150, 150, 0.82);
     color: #ffe1e1;
-}
-
-#charge-delta-black {
-    left: 50%;
-    bottom: calc(var(--layout-size-charge-offset) + var(--layout-size-charge-delta-anchor-gap) + var(--layout-size-charge-font) + (var(--layout-size-charge-pad-y) * 2));
-    --charge-delta-base-transform: translateX(-50%);
-}
-
-#charge-delta-white {
-    left: 50%;
-    top: calc(var(--layout-size-charge-offset) + (6px * var(--layout-stage-scale)) + var(--layout-size-charge-font) + (var(--layout-size-charge-pad-y) * 2) + var(--layout-size-charge-delta-anchor-gap));
-    --charge-delta-base-transform: translateX(-50%);
 }
 /* Player Area Containers */
 .player-area-top,

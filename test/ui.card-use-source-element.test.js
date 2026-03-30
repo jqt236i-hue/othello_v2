@@ -584,6 +584,30 @@ describe('card use source element selection', () => {
     expect(document.getElementById('use-card-reason').textContent).toBe('現在このカードは使用できません（対象不足など）');
   });
 
+  test.each([
+    ['SWAP_WITH_ENEMY', '交換する敵石を選んでください', 'none'],
+    ['TEMPT_WILL', '対象の相手特殊石を選んでください', 'none'],
+    ['CAPTURE_WILL', '捕獲する相手特殊石を選んでください', 'none'],
+    ['CORROSION_WILL', '腐食の対象となる特殊石を選んでください', 'none'],
+    ['BOARD_EXPANSION_WILL', '左右端マスを選んで盤面を拡張してください', 'block'],
+    ['BOARD_EXPANSION_GOD', '角マスを選んで盤面を拡張してください', 'block'],
+    ['BLOCKADE_WILL', '封鎖する空きマスを選んでください', 'block'],
+    ['FREEZE_WILL', '凍結するマスを選んでください', 'block']
+  ])('updateCardDetailPanel shows pending prompt for %s', (pendingType, expectedReason, expectedCancelDisplay) => {
+    require('../cards/card-interaction.js');
+
+    global.cardState.pendingEffectByPlayer.black = {
+      type: pendingType,
+      stage: 'selectTarget',
+      cardId: `${String(pendingType).toLowerCase()}_01`
+    };
+
+    window.updateCardDetailPanel();
+
+    expect(document.getElementById('use-card-reason').textContent).toBe(expectedReason);
+    expect(document.getElementById('cancel-card-btn').style.display).toBe(expectedCancelDisplay);
+  });
+
   test('useSelectedCard blocks cards that are not currently usable by rules in local mode', () => {
     global.CardLogic = {
       getCardDef: (id) => ({ id, name: 'Duplicate Card', desc: 'd', cost: 1 }),

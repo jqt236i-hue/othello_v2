@@ -182,4 +182,147 @@ describe('pipeline_ui_adapter move metadata', () => {
       destroyEvadeRemaining: 2
     });
   });
+
+  test('bundles extreme hyperactive forced swap pair into one playback move with per-target after state', () => {
+    const pres = [
+      {
+        type: 'MOVE',
+        actionId: 'extreme-swap-1',
+        prevRow: 4,
+        prevCol: 4,
+        row: 4,
+        col: 5,
+        stoneId: 'extreme1',
+        ownerBefore: 'black',
+        ownerAfter: 'black',
+        cause: 'EXTREME_HYPERACTIVE_WILL',
+        reason: 'extreme_hyperactive_forced_swap',
+        meta: {
+          special: 'EXTREME_HYPERACTIVE',
+          timer: 8,
+          owner: 'black'
+        }
+      },
+      {
+        type: 'MOVE',
+        actionId: 'extreme-swap-1',
+        prevRow: 4,
+        prevCol: 5,
+        row: 4,
+        col: 4,
+        stoneId: 'target1',
+        ownerBefore: 'white',
+        ownerAfter: 'white',
+        cause: 'EXTREME_HYPERACTIVE_WILL',
+        reason: 'extreme_hyperactive_forced_swap',
+        meta: {
+          owner: 'white'
+        }
+      }
+    ];
+
+    const out = adapter.mapToPlaybackEvents(
+      pres,
+      { markers: [] },
+      { board: Array(8).fill(null).map(() => Array(8).fill(0)) }
+    );
+
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('move');
+    expect(out[0].meta).toMatchObject({
+      sequence: 'extreme_hyperactive_forced_swap'
+    });
+    expect(out[0].targets).toHaveLength(2);
+    expect(out[0].targets[0]).toMatchObject({
+      extremeForcedSwapRole: 'lead',
+      from: { r: 4, col: 4 },
+      to: { r: 4, col: 5 },
+      ownerBefore: 'black',
+      ownerAfter: 'black',
+      cause: 'EXTREME_HYPERACTIVE_WILL',
+      reason: 'extreme_hyperactive_forced_swap',
+      after: {
+        color: 1,
+        special: 'EXTREME_HYPERACTIVE',
+        owner: 'black',
+        timer: 8
+      }
+    });
+    expect(out[0].targets[1]).toMatchObject({
+      extremeForcedSwapRole: 'follow',
+      from: { r: 4, col: 5 },
+      to: { r: 4, col: 4 },
+      ownerBefore: 'white',
+      ownerAfter: 'white',
+      cause: 'EXTREME_HYPERACTIVE_WILL',
+      reason: 'extreme_hyperactive_forced_swap',
+      after: {
+        color: -1,
+        special: null,
+        owner: 'white',
+        timer: null
+      }
+    });
+  });
+
+  test('bundles extreme hyperactive forced swap across interleaved passive status events', () => {
+    const pres = [
+      {
+        type: 'MOVE',
+        actionId: 'extreme-swap-2',
+        prevRow: 5,
+        prevCol: 5,
+        row: 5,
+        col: 6,
+        stoneId: 'extreme2',
+        ownerBefore: 'black',
+        ownerAfter: 'black',
+        cause: 'EXTREME_HYPERACTIVE_WILL',
+        reason: 'extreme_hyperactive_forced_swap',
+        meta: {
+          special: 'EXTREME_HYPERACTIVE',
+          owner: 'black',
+          timer: 7
+        }
+      },
+      {
+        type: 'STATUS_APPLIED',
+        actionId: 'extreme-swap-2',
+        row: 5,
+        col: 6,
+        meta: { special: 'EXTREME_HYPERACTIVE', owner: 'black', timer: 7 }
+      },
+      {
+        type: 'MOVE',
+        actionId: 'extreme-swap-2',
+        prevRow: 5,
+        prevCol: 6,
+        row: 5,
+        col: 5,
+        stoneId: 'target2',
+        ownerBefore: 'white',
+        ownerAfter: 'white',
+        cause: 'EXTREME_HYPERACTIVE_WILL',
+        reason: 'extreme_hyperactive_forced_swap',
+        meta: { owner: 'white' }
+      }
+    ];
+
+    const out = adapter.mapToPlaybackEvents(
+      pres,
+      { markers: [] },
+      { board: Array(8).fill(null).map(() => Array(8).fill(0)) }
+    );
+
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({
+      type: 'move',
+      meta: { sequence: 'extreme_hyperactive_forced_swap' }
+    });
+    expect(out[0].targets).toHaveLength(2);
+    expect(out[1]).toMatchObject({
+      type: 'status_applied',
+      targets: [expect.objectContaining({ r: 5, col: 6 })]
+    });
+  });
 });

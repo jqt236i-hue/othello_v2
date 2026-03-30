@@ -12,8 +12,10 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
         <body>
           <div id="charge-black" class="charge-display">布石: 30 / 99</div>
           <div id="charge-white" class="charge-display">布石: 12 / 99</div>
-          <div id="charge-delta-black" class="charge-delta"></div>
-          <div id="charge-delta-white" class="charge-delta"></div>
+          <div id="charge-delta-black-increase" class="charge-delta"></div>
+          <div id="charge-delta-black-decrease" class="charge-delta"></div>
+          <div id="charge-delta-white-increase" class="charge-delta"></div>
+          <div id="charge-delta-white-decrease" class="charge-delta"></div>
         </body>
       </html>
     `);
@@ -44,27 +46,23 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
       y: 72,
       toJSON() { return {}; }
     });
-    document.getElementById('charge-delta-black').getBoundingClientRect = () => ({
-      left: 0,
-      top: 0,
-      width: 96,
-      height: 28,
-      right: 96,
-      bottom: 28,
-      x: 0,
-      y: 0,
-      toJSON() { return {}; }
-    });
-    document.getElementById('charge-delta-white').getBoundingClientRect = () => ({
-      left: 0,
-      top: 0,
-      width: 96,
-      height: 28,
-      right: 96,
-      bottom: 28,
-      x: 0,
-      y: 0,
-      toJSON() { return {}; }
+    [
+      'charge-delta-black-increase',
+      'charge-delta-black-decrease',
+      'charge-delta-white-increase',
+      'charge-delta-white-decrease'
+    ].forEach((id) => {
+      document.getElementById(id).getBoundingClientRect = () => ({
+        left: 0,
+        top: 0,
+        width: 96,
+        height: 28,
+        right: 96,
+        bottom: 28,
+        x: 0,
+        y: 0,
+        toJSON() { return {}; }
+      });
     });
   });
 
@@ -77,35 +75,58 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
     delete global.WHITE;
   });
 
-  test('restarts immediately when new delta arrives during display', () => {
+  test('shows immediately and restarts when new same-side delta arrives during display', () => {
     const stoneVisuals = require(path.resolve(__dirname, '..', 'ui', 'stone-visuals.js'));
-    const el = document.getElementById('charge-delta-black');
+    const el = document.getElementById('charge-delta-black-increase');
 
     stoneVisuals.showChargeDelta('black', 1);
-    jest.advanceTimersByTime(20);
     expect(el.textContent).toBe('+1');
+    expect(el.classList.contains('is-visible')).toBe(true);
 
     stoneVisuals.showChargeDelta('black', 2);
-    jest.advanceTimersByTime(20);
     expect(el.textContent).toBe('+2');
+    expect(el.classList.contains('is-visible')).toBe(true);
 
     jest.advanceTimersByTime(4500);
     expect(el.textContent).toBe('');
   });
 
-  test('anchors local slot popup above its charge counter and top slot popup below its charge counter', () => {
+  test('uses mirrored left-right anchors for the opponent slot', () => {
     const stoneVisuals = require(path.resolve(__dirname, '..', 'ui', 'stone-visuals.js'));
-    const blackEl = document.getElementById('charge-delta-black');
-    const whiteEl = document.getElementById('charge-delta-white');
+    const blackIncreaseEl = document.getElementById('charge-delta-black-increase');
+    const blackDecreaseEl = document.getElementById('charge-delta-black-decrease');
+    const whiteIncreaseEl = document.getElementById('charge-delta-white-increase');
+    const whiteDecreaseEl = document.getElementById('charge-delta-white-decrease');
 
     stoneVisuals.showChargeDelta('black', 17);
-    jest.advanceTimersByTime(20);
-    expect(blackEl.style.left).toBe('541px');
-    expect(blackEl.style.top).toBe('584px');
-
+    stoneVisuals.showChargeDelta('black', -3);
+    stoneVisuals.showChargeDelta('white', 9);
     stoneVisuals.showChargeDelta('white', -4);
-    jest.advanceTimersByTime(20);
-    expect(whiteEl.style.left).toBe('541px');
-    expect(whiteEl.style.top).toBe('110px');
+
+    expect(blackIncreaseEl.style.left).toBe('376px');
+    expect(blackIncreaseEl.style.top).toBe('621px');
+    expect(blackDecreaseEl.style.left).toBe('610px');
+    expect(blackDecreaseEl.style.top).toBe('621px');
+
+    expect(whiteIncreaseEl.style.left).toBe('610px');
+    expect(whiteIncreaseEl.style.top).toBe('73px');
+    expect(whiteDecreaseEl.style.left).toBe('376px');
+    expect(whiteDecreaseEl.style.top).toBe('73px');
+  });
+
+  test('shows positive and negative popups simultaneously on the same slot', () => {
+    const stoneVisuals = require(path.resolve(__dirname, '..', 'ui', 'stone-visuals.js'));
+    const increaseEl = document.getElementById('charge-delta-black-increase');
+    const decreaseEl = document.getElementById('charge-delta-black-decrease');
+
+    stoneVisuals.showChargeDelta('black', 5);
+    stoneVisuals.showChargeDelta('black', -2);
+
+    expect(increaseEl.textContent).toBe('+5');
+    expect(decreaseEl.textContent).toBe('-2');
+    expect(increaseEl.classList.contains('is-visible')).toBe(true);
+    expect(decreaseEl.classList.contains('is-visible')).toBe(true);
+    expect(increaseEl.style.left).toBe('376px');
+    expect(decreaseEl.style.left).toBe('610px');
   });
 });

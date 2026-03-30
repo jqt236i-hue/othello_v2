@@ -733,6 +733,82 @@
             String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('will_hunter_king_slash_move') === 0;
     }
 
+    function _isExtremeForcedSwapMovePresentationEvent(ev) {
+        return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'EXTREME_HYPERACTIVE_WILL' &&
+            String(ev && ev.reason ? ev.reason : '').toLowerCase() === 'extreme_hyperactive_forced_swap';
+    }
+
+    function _isExtremeForcedSwapMovePairPresentation(firstEv, secondEv) {
+        if (!_isExtremeForcedSwapMovePresentationEvent(firstEv) || !_isExtremeForcedSwapMovePresentationEvent(secondEv)) {
+            return false;
+        }
+        if (
+            !Number.isInteger(firstEv.prevRow) ||
+            !Number.isInteger(firstEv.prevCol) ||
+            !Number.isInteger(firstEv.row) ||
+            !Number.isInteger(firstEv.col) ||
+            !Number.isInteger(secondEv.prevRow) ||
+            !Number.isInteger(secondEv.prevCol) ||
+            !Number.isInteger(secondEv.row) ||
+            !Number.isInteger(secondEv.col)
+        ) {
+            return false;
+        }
+        if (
+            firstEv.row !== secondEv.prevRow ||
+            firstEv.col !== secondEv.prevCol ||
+            firstEv.prevRow !== secondEv.row ||
+            firstEv.prevCol !== secondEv.col
+        ) {
+            return false;
+        }
+        if (
+            firstEv.actionId &&
+            secondEv.actionId &&
+            firstEv.actionId !== secondEv.actionId
+        ) {
+            return false;
+        }
+        return true;
+    }
+
+    function _canSkipEventBetweenExtremeForcedSwapMoves(firstEv, candidateEv) {
+        const candidateType = String(candidateEv && candidateEv.type ? candidateEv.type : '').toUpperCase();
+        if (
+            candidateType !== 'STATUS_APPLIED' &&
+            candidateType !== 'STATUS_TICK' &&
+            candidateType !== 'STATUS_REMOVED'
+        ) {
+            return false;
+        }
+        if (
+            firstEv &&
+            firstEv.actionId &&
+            candidateEv &&
+            candidateEv.actionId &&
+            firstEv.actionId !== candidateEv.actionId
+        ) {
+            return false;
+        }
+        return true;
+    }
+
+    function _findExtremeForcedSwapMovePairPresentationIndex(presentationEvents, firstIndex) {
+        const firstEv = Array.isArray(presentationEvents) ? presentationEvents[firstIndex] : null;
+        if (!_isExtremeForcedSwapMovePresentationEvent(firstEv)) return -1;
+        for (let index = firstIndex + 1; index < presentationEvents.length; index += 1) {
+            const candidateEv = presentationEvents[index];
+            if (_isExtremeForcedSwapMovePairPresentation(firstEv, candidateEv)) {
+                return index;
+            }
+            // Only skip passive status events so we do not reorder unrelated move writers.
+            if (!_canSkipEventBetweenExtremeForcedSwapMoves(firstEv, candidateEv)) {
+                break;
+            }
+        }
+        return -1;
+    }
+
     function _createOverlapReturnAfterState(meta, overlapOwner, overlapSpecial, includeMetaVisual) {
         return {
             color: overlapOwner === 'black' ? 1 : (overlapOwner === 'white' ? -1 : 0),
@@ -768,6 +844,39 @@
             sourceCol: from && from.col,
             after: _createOverlapReturnAfterState(meta, overlapOwner, overlapSpecial, !!(options && options.includeMetaVisual))
         }]);
+    }
+
+    function _createExtremeForcedSwapPlaybackEvent(playbackBase, phase, leadEv, followEv) {
+        const playbackMeta = (playbackBase && playbackBase.meta && typeof playbackBase.meta === 'object')
+            ? Object.assign({}, playbackBase.meta)
+            : {};
+        playbackMeta.sequence = 'extreme_hyperactive_forced_swap';
+        return _createPlaybackEvent(
+            Object.assign({}, playbackBase || {}, { meta: playbackMeta }),
+            'move',
+            phase,
+            [{
+                from: { r: leadEv.prevRow, col: leadEv.prevCol },
+                to: { r: leadEv.row, col: leadEv.col },
+                stoneId: leadEv.stoneId,
+                ownerBefore: leadEv.ownerBefore,
+                ownerAfter: leadEv.ownerAfter,
+                cause: leadEv.cause || null,
+                reason: leadEv.reason || null,
+                meta: (leadEv && leadEv.meta && typeof leadEv.meta === 'object') ? leadEv.meta : null,
+                extremeForcedSwapRole: 'lead'
+            }, {
+                from: { r: followEv.prevRow, col: followEv.prevCol },
+                to: { r: followEv.row, col: followEv.col },
+                stoneId: followEv.stoneId,
+                ownerBefore: followEv.ownerBefore,
+                ownerAfter: followEv.ownerAfter,
+                cause: followEv.cause || null,
+                reason: followEv.reason || null,
+                meta: (followEv && followEv.meta && typeof followEv.meta === 'object') ? followEv.meta : null,
+                extremeForcedSwapRole: 'follow'
+            }]
+        );
     }
 
     function _getSpawnOverlapReturnSpec(ev, spawnMeta) {
@@ -1028,7 +1137,11 @@
         const playbackEvents = [];
         const phaseState = _createPlaybackPhaseState();
 
-        for (const ev of presEvents || []) {
+        const presentationEvents = Array.isArray(presEvents) ? presEvents : [];
+        const consumedPresentationIndexes = new Set();
+        for (let presIndex = 0; presIndex < presentationEvents.length; presIndex += 1) {
+            if (consumedPresentationIndexes.has(presIndex)) continue;
+            const ev = presentationEvents[presIndex];
             const followsProliferationDestroy = phaseState.prevWasProliferationDestroy;
             phaseState.prevWasProliferationDestroy = false;
             const trailingPlaybackEvents = [];
@@ -1094,7 +1207,22 @@
                     }];
                     pEvent.phase = _planChangePlaybackPhase(phaseState, ev);
                     break;
-                case 'MOVE':
+                case 'MOVE': {
+                    const forcedSwapPairIndex = _findExtremeForcedSwapMovePairPresentationIndex(presentationEvents, presIndex);
+                    if (forcedSwapPairIndex >= 0) {
+                        const forcedSwapPhase = _planMovePlaybackPhase(phaseState, ev);
+                        Object.assign(
+                            pEvent,
+                            _createExtremeForcedSwapPlaybackEvent(
+                                playbackBase,
+                                forcedSwapPhase,
+                                ev,
+                                presentationEvents[forcedSwapPairIndex]
+                            )
+                        );
+                        consumedPresentationIndexes.add(forcedSwapPairIndex);
+                        break;
+                    }
                     pEvent.type = 'move';
                     pEvent.targets = [{
                         from: { r: ev.prevRow, col: ev.prevCol },
@@ -1107,6 +1235,7 @@
                     }];
                     pEvent.phase = _planMovePlaybackPhase(phaseState, ev);
                     break;
+                }
                 case 'STATUS_APPLIED':
                     _preparePassivePlaybackPhaseState(phaseState);
                     pEvent.type = 'status_applied';
@@ -1349,44 +1478,46 @@
             // Instead, include minimal per-target 'after' info derived from the presentation event itself
             // so that visual writers can render based on event payload without requiring snapshots.
             if (pEvent.type !== 'log' && pEvent.type !== 'card_use_animation' && pEvent.type !== 'observer_bubble') {
+                const eventMeta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
                 for (const t of pEvent.targets) {
+                    const targetMeta = (t && t.meta && typeof t.meta === 'object') ? t.meta : eventMeta;
                     // Add a best-effort 'after' using event-sourced owner fields (no final snapshot)
                     if (t.ownerAfter !== undefined) {
                         t.after = {
                             color: (t.ownerAfter === 'black') ? 1 : -1,
-                            special: getVisualSpecialFromMeta(ev.meta),
-                            timer: getPrimaryTimerFromMeta(ev.meta),
-                            owner: (ev.meta && ev.meta.owner) || null,
-                            inheritedTimer: getInheritedTimerFromMeta(ev.meta),
-                            inheritedOwner: getInheritedOwnerFromMeta(ev.meta),
-                            flipEvadeRemaining: getFlipEvadeRemainingFromMeta(ev.meta),
-                            inheritedFlipEvadeRemaining: getInheritedFlipEvadeRemainingFromMeta(ev.meta),
-                            destroyEvadeRemaining: getDestroyEvadeRemainingFromMeta(ev.meta)
+                            special: getVisualSpecialFromMeta(targetMeta),
+                            timer: getPrimaryTimerFromMeta(targetMeta),
+                            owner: (targetMeta && targetMeta.owner) || null,
+                            inheritedTimer: getInheritedTimerFromMeta(targetMeta),
+                            inheritedOwner: getInheritedOwnerFromMeta(targetMeta),
+                            flipEvadeRemaining: getFlipEvadeRemainingFromMeta(targetMeta),
+                            inheritedFlipEvadeRemaining: getInheritedFlipEvadeRemainingFromMeta(targetMeta),
+                            destroyEvadeRemaining: getDestroyEvadeRemainingFromMeta(targetMeta)
                         };
                     } else if (pEvent.type === 'spawn') {
                         t.after = {
                             color: (t.ownerAfter === 'black') ? 1 : -1,
-                            special: getVisualSpecialFromMeta(ev.meta),
-                            timer: getPrimaryTimerFromMeta(ev.meta),
-                            owner: (ev.meta && ev.meta.owner) || null,
-                            inheritedTimer: getInheritedTimerFromMeta(ev.meta),
-                            inheritedOwner: getInheritedOwnerFromMeta(ev.meta),
-                            flipEvadeRemaining: getFlipEvadeRemainingFromMeta(ev.meta),
-                            inheritedFlipEvadeRemaining: getInheritedFlipEvadeRemainingFromMeta(ev.meta),
-                            destroyEvadeRemaining: getDestroyEvadeRemainingFromMeta(ev.meta)
+                            special: getVisualSpecialFromMeta(targetMeta),
+                            timer: getPrimaryTimerFromMeta(targetMeta),
+                            owner: (targetMeta && targetMeta.owner) || null,
+                            inheritedTimer: getInheritedTimerFromMeta(targetMeta),
+                            inheritedOwner: getInheritedOwnerFromMeta(targetMeta),
+                            flipEvadeRemaining: getFlipEvadeRemainingFromMeta(targetMeta),
+                            inheritedFlipEvadeRemaining: getInheritedFlipEvadeRemainingFromMeta(targetMeta),
+                            destroyEvadeRemaining: getDestroyEvadeRemainingFromMeta(targetMeta)
                         };
                     } else if (pEvent.type === 'move') {
                         const afterColor = (t.ownerAfter === 'black') ? 1 : ((t.ownerAfter === 'white') ? -1 : 0);
                         t.after = {
                             color: afterColor,
-                            special: getVisualSpecialFromMeta(ev.meta),
-                            timer: getPrimaryTimerFromMeta(ev.meta),
-                            owner: (ev.meta && ev.meta.owner) || t.ownerAfter || null,
-                            inheritedTimer: getInheritedTimerFromMeta(ev.meta),
-                            inheritedOwner: getInheritedOwnerFromMeta(ev.meta),
-                            flipEvadeRemaining: getFlipEvadeRemainingFromMeta(ev.meta),
-                            inheritedFlipEvadeRemaining: getInheritedFlipEvadeRemainingFromMeta(ev.meta),
-                            destroyEvadeRemaining: getDestroyEvadeRemainingFromMeta(ev.meta)
+                            special: getVisualSpecialFromMeta(targetMeta),
+                            timer: getPrimaryTimerFromMeta(targetMeta),
+                            owner: (targetMeta && targetMeta.owner) || t.ownerAfter || null,
+                            inheritedTimer: getInheritedTimerFromMeta(targetMeta),
+                            inheritedOwner: getInheritedOwnerFromMeta(targetMeta),
+                            flipEvadeRemaining: getFlipEvadeRemainingFromMeta(targetMeta),
+                            inheritedFlipEvadeRemaining: getInheritedFlipEvadeRemainingFromMeta(targetMeta),
+                            destroyEvadeRemaining: getDestroyEvadeRemainingFromMeta(targetMeta)
                         };
                     } else if (pEvent.type === 'destroy') {
                         t.after = {

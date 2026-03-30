@@ -421,6 +421,19 @@ function isFateWillControllerForCurrentTurn(snapshot, seatKey) {
     return controllerKey === seat;
 }
 
+function canViewerInspectOwnerHand(snapshot, viewerSeatKey, ownerSeatKey) {
+    const viewer = parseSeatKeyOptional(viewerSeatKey);
+    const owner = parseSeatKeyOptional(ownerSeatKey);
+    if (!viewer || !owner) return false;
+    if (viewer === owner) return true;
+    const gameState = (snapshot && snapshot.gameState && typeof snapshot.gameState === 'object')
+        ? snapshot.gameState
+        : null;
+    const currentPlayerKey = getCurrentPlayerKey(gameState);
+    if (owner !== currentPlayerKey) return false;
+    return getFateWillControllerKey(snapshot, owner) === viewer;
+}
+
 function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
     const shot = deepClone(snapshotValue || {});
     const meta = (metadata && typeof metadata === 'object') ? metadata : {};
@@ -449,12 +462,6 @@ function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
         : new Set();
     cardState.hands = cardState.hands && typeof cardState.hands === 'object' ? cardState.hands : {};
 
-    // Determine current turn owner for FATE_WILL controller hand visibility.
-    const currentTurnOwner = getCurrentPlayerKey(shot.gameState && typeof shot.gameState === 'object' ? shot.gameState : null);
-    const fateWillControllerMap = (cardState.fateWillControllerByTurnOwner && typeof cardState.fateWillControllerByTurnOwner === 'object')
-        ? cardState.fateWillControllerByTurnOwner
-        : {};
-
     for (const ownerKey of PLAYER_KEYS) {
         const ownerHand = Array.isArray(hands[ownerKey])
             ? hands[ownerKey].map((cardId, handIndex) => (
@@ -465,15 +472,7 @@ function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
             : [];
         const ownerHandCopyIds = normalizeHandCopyIdArray(handCopyIdsByPlayer[ownerKey], ownerHand.length);
         sourceHands[ownerKey] = ownerHand;
-        if (viewer && ownerKey === viewer) {
-            cardState.hands[ownerKey] = ownerHand.slice();
-            continue;
-        }
-        // Reveal the turn owner's hand to the FATE_WILL controller during the controlled turn.
-        const isFateWillControlledHand = viewer
-            && ownerKey === currentTurnOwner
-            && parseSeatKeyOptional(fateWillControllerMap[ownerKey]) === viewer;
-        if (isFateWillControlledHand) {
+        if (canViewerInspectOwnerHand(shot, viewer, ownerKey)) {
             cardState.hands[ownerKey] = ownerHand.slice();
             continue;
         }
@@ -496,11 +495,12 @@ function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
         cardState.selectedCardId = null;
         cardState.selectedCardOwnerKey = null;
     }
-    if (viewer && selectedOwnerKey === viewer && isHiddenHandTokenLike(cardState.selectedCardId)) {
+    const canViewerInspectSelectedOwnerHand = canViewerInspectOwnerHand(shot, viewer, selectedOwnerKey);
+    if (canViewerInspectSelectedOwnerHand && isHiddenHandTokenLike(cardState.selectedCardId)) {
         cardState.selectedCardId = null;
         cardState.selectedCardOwnerKey = null;
     }
-    if (!viewer || !selectedOwnerKey || selectedOwnerKey !== viewer) {
+    if (!canViewerInspectSelectedOwnerHand) {
         cardState.selectedCardId = null;
         cardState.selectedCardOwnerKey = null;
     }
@@ -511,7 +511,7 @@ function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
             if (!pending || pending.type !== 'CONDEMN_WILL' || !Array.isArray(pending.offers)) continue;
             const opponentKey = getOpponentKey(ownerKey);
             const opponentHand = Array.isArray(sourceHands[opponentKey]) ? sourceHands[opponentKey] : [];
-            const revealToViewer = !!(viewer && ownerKey === viewer);
+            const revealToViewer = canViewerInspectOwnerHand(shot, viewer, ownerKey);
             pending.offers = pending.offers.map((offer, idx) => {
                 const parsedToken = offer && offer.cardId ? parseHiddenHandToken(offer.cardId) : null;
                 const fallbackIndex = parsedToken && Number.isInteger(parsedToken.handIndex) ? parsedToken.handIndex : idx;
@@ -681,6 +681,7 @@ module.exports = {
     resolveAuthenticatedSeatKey,
     getFateWillControllerKey,
     isFateWillControllerForCurrentTurn,
+    canViewerInspectOwnerHand,
     normalizePublishMeta,
     normalizeEffectLogMessages,
     buildPublishResponsePayload,

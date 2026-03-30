@@ -1187,21 +1187,14 @@ function buildCurrentCellState() {
         : ((gameState.currentPlayer === BLACK) ||
             (window.DEBUG_HUMAN_VS_HUMAN && gameState.currentPlayer === WHITE) ||
             isFateWillControlledTurn);
+    const selectableTargets = CardLogic.getSelectableTargets
+        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+        : [];
     const isSelectingTarget = !!(
-        pending && (
-            pending.stage === 'selectTarget' ||
-            pending.type === 'DESTROY_ONE_STONE' ||
-            pending.type === 'SWAP_WITH_ENEMY' ||
-            pending.type === 'GUARD_WILL' ||
-            pending.type === 'GUARDIAN_GOD' ||
-            pending.type === 'HYPERACTIVE_INHERIT_WILL' ||
-            pending.type === 'TEMPT_WILL' ||
-            pending.type === 'BOARD_EXPANSION_WILL' ||
-            pending.type === 'BOARD_EXPANSION_GOD' ||
-            pending.type === 'EXTEND_LIFE_WILL' ||
-            pending.type === 'EXTEND_LIFE_GOD' ||
-            pending.type === 'CORROSION_WILL'
-        )
+        pending &&
+        pending.stage === 'selectTarget' &&
+        Array.isArray(selectableTargets) &&
+        selectableTargets.length > 0
     );
     const isExtendLifeSelection = !!(
         pending &&
@@ -1242,9 +1235,6 @@ function buildCurrentCellState() {
     if (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true) {
         console.log('[DiffRenderer] legal hint cells:', legalSet.size, 'player:', player, 'taboo:', isTabooReversePending, 'tabooCells:', tabooLegalSet.size);
     }
-    const selectableTargets = CardLogic.getSelectableTargets
-        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
-        : [];
     const selectableTargetSet = new Set(selectableTargets.map(p => p.row + ',' + p.col));
 
     // Build unified special/bomb maps from markers (primary)

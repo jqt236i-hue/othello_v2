@@ -255,6 +255,62 @@ describe('cpu-policy-core', () => {
         }));
     });
 
+    test('chooseHandDestroyTargetForCycle immediately destroys REVEAL_HAND_WILL while charge is 50 or lower', () => {
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['reveal_01'],
+            ['reveal_01'],
+            () => 3,
+            () => ({ id: 'reveal_01', type: 'REVEAL_HAND_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 2,
+                ownCharge: 50,
+                handSize: 1,
+                empties: 32,
+                discDiff: 0,
+                ownCorners: 0,
+                oppCorners: 0,
+                ownEdges: 0,
+                oppEdges: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toEqual(expect.objectContaining({
+            cardId: 'reveal_01',
+            reason: 'bucket2_low_charge'
+        }));
+    });
+
+    test('chooseHandDestroyTargetForCycle immediately destroys FATE_WILL while charge is 50 or lower', () => {
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['fate_01'],
+            ['fate_01'],
+            () => 6,
+            () => ({ id: 'fate_01', type: 'FATE_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 2,
+                ownCharge: 50,
+                handSize: 1,
+                empties: 32,
+                discDiff: 0,
+                ownCorners: 0,
+                oppCorners: 0,
+                ownEdges: 0,
+                oppEdges: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toEqual(expect.objectContaining({
+            cardId: 'fate_01',
+            reason: 'bucket2_low_charge'
+        }));
+    });
+
     test('chooseHandDestroyTargetForCycle immediately destroys CORROSION_WILL when currently unusable', () => {
         const selected = core.chooseHandDestroyTargetForCycle(
             ['corrosion_01'],
@@ -279,6 +335,62 @@ describe('cpu-policy-core', () => {
         );
         expect(selected).toEqual(expect.objectContaining({
             cardId: 'corrosion_01',
+            reason: 'bucket3_currently_unusable'
+        }));
+    });
+
+    test('chooseHandDestroyTargetForCycle immediately destroys SALVATION_WILL when currently unusable', () => {
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['salvation_01'],
+            [],
+            () => 7,
+            () => ({ id: 'salvation_01', type: 'SALVATION_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 0,
+                ownCharge: 60,
+                handSize: 1,
+                empties: 20,
+                discDiff: 0,
+                ownCorners: 0,
+                oppCorners: 0,
+                ownEdges: 0,
+                oppEdges: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toEqual(expect.objectContaining({
+            cardId: 'salvation_01',
+            reason: 'bucket3_currently_unusable'
+        }));
+    });
+
+    test('chooseHandDestroyTargetForCycle immediately destroys CORNER_TRIBUTE when currently unusable', () => {
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['corner_tribute_01'],
+            [],
+            () => 8,
+            () => ({ id: 'corner_tribute_01', type: 'CORNER_TRIBUTE' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 0,
+                ownCharge: 60,
+                handSize: 1,
+                empties: 20,
+                discDiff: 0,
+                ownCorners: 0,
+                oppCorners: 0,
+                ownEdges: 0,
+                oppEdges: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toEqual(expect.objectContaining({
+            cardId: 'corner_tribute_01',
             reason: 'bucket3_currently_unusable'
         }));
     });
@@ -603,6 +715,35 @@ describe('cpu-policy-core', () => {
             scoreMove: (move) => (move === innerMove ? 999999 : 0)
         });
         expect(selected).toEqual(stabilizingEdgeMove);
+    });
+
+    test('chooseMoveByLookahead prefers pseudo-corner X when own corner and both C-squares are already secured', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[0][0] = -1;
+        board[0][1] = -1;
+        board[1][0] = -1;
+        board[1][2] = 1;
+        board[1][3] = -1;
+        board[3][3] = 1;
+        board[3][4] = -1;
+        board[4][3] = -1;
+        board[4][4] = 1;
+
+        const pseudoCornerXMove = { row: 1, col: 1, flips: [{ row: 1, col: 2 }] };
+        const innerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+
+        const selected = core.chooseMoveByLookahead([pseudoCornerXMove, innerMove], {
+            board,
+            playerValue: -1,
+            level: 6,
+            depth: 1,
+            maxBranch: 2,
+            nodeBudget: 2000,
+            searchWeight: 1,
+            priorWeight: 0,
+            scoreMove: () => 0
+        });
+        expect(selected).toEqual(pseudoCornerXMove);
     });
 
     test('chooseMoveByLookahead keeps standard-board donation veto for risky edge moves', () => {
@@ -2967,6 +3108,35 @@ describe('cpu-policy-core', () => {
         });
 
         expect(saferScore).toBeGreaterThan(riskyScore);
+    });
+
+    test('scoreMoveForCornerEdgePlan rewards pseudo-corner X once own corner and both C-squares are secured', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[0][0] = -1;
+        board[0][1] = -1;
+        board[1][0] = -1;
+        board[1][2] = 1;
+        board[1][3] = -1;
+        board[3][3] = 1;
+        board[3][4] = -1;
+        board[4][3] = -1;
+        board[4][4] = 1;
+
+        const pseudoCornerXMove = { row: 1, col: 1, flips: [{ row: 1, col: 2 }] };
+        const innerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+
+        const pseudoCornerScore = core.scoreMoveForCornerEdgePlan(pseudoCornerXMove, {
+            level: 6,
+            board,
+            playerValue: -1
+        });
+        const innerScore = core.scoreMoveForCornerEdgePlan(innerMove, {
+            level: 6,
+            board,
+            playerValue: -1
+        });
+
+        expect(pseudoCornerScore).toBeGreaterThan(innerScore);
     });
 
     test('scoreMoveForCornerEdgePlan amplifies safe-edge preference in low-disc survival mode', () => {

@@ -2228,6 +2228,7 @@
         _getMoveSemantics(target) {
             const cause = this._getTargetCause(target);
             const reason = this._getTargetReason(target);
+            const extremeForcedSwapRole = String(target && target.extremeForcedSwapRole ? target.extremeForcedSwapRole : '').toLowerCase();
             const isPositionSwapMove =
                 cause === 'POSITION_SWAP_WILL' ||
                 reason === 'position_swap';
@@ -2241,6 +2242,10 @@
             const isOverlapReturnMove =
                 (cause === 'GLUTTONOUS_WILL' && reason.indexOf('gluttonous_eat_overlap_return') === 0) ||
                 (cause === 'WILL_HUNTER_KING' && reason.indexOf('will_hunter_king_slash_overlap_return') === 0);
+            const isExtremeForcedSwapMove =
+                extremeForcedSwapRole === 'lead' &&
+                cause === 'EXTREME_HYPERACTIVE_WILL' &&
+                reason.indexOf('extreme_hyperactive_forced_swap') === 0;
             const isHyperactiveLikeMove = (
                 cause === 'HYPERACTIVE' ||
                 cause === 'AFTERIMAGE_WILL' ||
@@ -2268,10 +2273,11 @@
                 isTeleportMove,
                 isCloneMove,
                 isOverlapReturnMove,
+                isExtremeForcedSwapMove,
                 isHyperactiveLikeMove,
                 shouldHighlightBothCells: isPositionSwapMove,
                 shouldHideDestinationDiscDuringGhostPlayback:
-                    !isOverlapReturnMove && (isCloneMove || isHyperactiveLikeMove),
+                    !isOverlapReturnMove && !isExtremeForcedSwapMove && (isCloneMove || isHyperactiveLikeMove),
                 useGhostOnlyByDefault: isCloneMove || isOverlapReturnMove
             };
         }
@@ -2360,6 +2366,17 @@
                 };
             }
 
+            if (moveSemantics && moveSemantics.isExtremeForcedSwapMove) {
+                return {
+                    keyframes: [
+                        { transform: 'translate(0, 0) scale(1)' },
+                        { transform: `translate(${Math.round(deltaX * 0.65)}px, ${Math.round(deltaY * 0.65)}px) scale(1.03)` },
+                        { transform: `translate(${deltaX}px, ${deltaY}px) scale(1.06)` }
+                    ],
+                    easing: 'cubic-bezier(0.18, 0.82, 0.28, 1)'
+                };
+            }
+
             return defaultSpec;
         }
 
@@ -2425,6 +2442,18 @@
             return targetDisc;
         }
 
+        _setCellDiscFromState(cell, state) {
+            if (!cell) return null;
+            cell.innerHTML = '';
+            cell.classList.remove('has-disc');
+            if (!state || (state.color !== 1 && state.color !== -1)) return null;
+            const disc = this.createDisc(state);
+            this._ensureMoveDiscVisible(disc);
+            cell.appendChild(disc);
+            cell.classList.add('has-disc');
+            return disc;
+        }
+
         _ensureAnimatedCloneMoveTarget(target, toCell) {
             if (!toCell) return null;
             const existingTargetDisc = toCell.querySelector('.disc');
@@ -2472,6 +2501,37 @@
             return ghost;
         }
 
+        _settleMoveGhostIntoCell(ghost, cell, after) {
+            if (!ghost || !cell) return null;
+            try {
+                if (ghost.parentElement && ghost.parentElement !== cell) {
+                    ghost.parentElement.removeChild(ghost);
+                }
+            } catch (e) { /* ignore */ }
+            try {
+                ghost.classList.remove('stone-instant');
+                ghost.style.position = '';
+                ghost.style.top = '';
+                ghost.style.left = '';
+                ghost.style.width = '';
+                ghost.style.height = '';
+                ghost.style.margin = '';
+                ghost.style.zIndex = '';
+                ghost.style.pointerEvents = '';
+                ghost.style.transform = '';
+                ghost.style.visibility = 'visible';
+                ghost.style.opacity = '';
+                ghost.style.transition = '';
+            } catch (e) { /* ignore */ }
+            cell.innerHTML = '';
+            cell.appendChild(ghost);
+            cell.classList.add('has-disc');
+            if (after && (after.color === 1 || after.color === -1)) {
+                try { this.syncDiscVisual(ghost, after); } catch (e) { /* ignore */ }
+            }
+            return ghost;
+        }
+
         _cleanupMoveGhostPlayback(ghost, hiddenTargetDisc, discHidden, disc) {
             if (ghost && ghost.parentElement) {
                 ghost.parentElement.removeChild(ghost);
@@ -2484,8 +2544,208 @@
             }
         }
 
+        _isValidMoveCellPosition(position) {
+            return !!(
+                position &&
+                Number.isInteger(position.r) &&
+                Number.isInteger(position.col)
+            );
+        }
+
+        _hasRenderableDiscState(state) {
+            return !!(state && (state.color === 1 || state.color === -1));
+        }
+
+        _canApplyExtremeForcedSwapFinalState(lead, follow) {
+            return this._hasRenderableDiscState(lead && lead.after) &&
+                this._hasRenderableDiscState(follow && follow.after);
+        }
+
+        _applyExtremeForcedSwapFinalState(returnCell, overlapCell, leadAfter, followAfter) {
+            if (returnCell) {
+                this._setCellDiscFromState(returnCell, followAfter || null);
+            }
+            if (overlapCell) {
+                this._setCellDiscFromState(overlapCell, leadAfter || null);
+            }
+        }
+
+        _isExtremeForcedSwapMoveEvent(ev) {
+            const sequence = String(ev && ev.meta && ev.meta.sequence ? ev.meta.sequence : '').toLowerCase();
+            if (sequence === 'extreme_hyperactive_forced_swap') return true;
+            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
+            if (targets.length !== 2) return false;
+            return targets.every((target) => {
+                const cause = String(this._getTargetCause(target) || '').toUpperCase();
+                const reason = String(this._getTargetReason(target) || '').toLowerCase();
+                return cause === 'EXTREME_HYPERACTIVE_WILL' && reason === 'extreme_hyperactive_forced_swap';
+            });
+        }
+
+        _resolveExtremeForcedSwapMoveTargets(ev) {
+            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
+            if (targets.length !== 2) return null;
+            let lead = targets.find((target) => String(target && target.extremeForcedSwapRole ? target.extremeForcedSwapRole : '').toLowerCase() === 'lead') || null;
+            let follow = targets.find((target) => String(target && target.extremeForcedSwapRole ? target.extremeForcedSwapRole : '').toLowerCase() === 'follow') || null;
+            if (!lead || !follow) {
+                [lead, follow] = targets;
+            }
+            if (
+                !lead ||
+                !follow ||
+                !this._isValidMoveCellPosition(lead.from) ||
+                !this._isValidMoveCellPosition(lead.to) ||
+                !this._isValidMoveCellPosition(follow.from) ||
+                !this._isValidMoveCellPosition(follow.to)
+            ) {
+                return null;
+            }
+            if (
+                lead.to.r !== follow.from.r ||
+                lead.to.col !== follow.from.col ||
+                lead.from.r !== follow.to.r ||
+                lead.from.col !== follow.to.col
+            ) {
+                return null;
+            }
+            return { lead, follow };
+        }
+
+        async _handleExtremeForcedSwapMove(ev) {
+            const pairedTargets = this._resolveExtremeForcedSwapMoveTargets(ev);
+            if (!pairedTargets) return false;
+
+            const lead = pairedTargets.lead;
+            const follow = pairedTargets.follow;
+            const fromCell = this.getCellEl(lead.from.r, lead.from.col);
+            const overlapCell = this.getCellEl(lead.to.r, lead.to.col);
+            const returnCell = this.getCellEl(follow.to.r, follow.to.col);
+            const canApplyFinalState = this._canApplyExtremeForcedSwapFinalState(lead, follow);
+            if (!fromCell || !overlapCell || !returnCell) {
+                if (canApplyFinalState) {
+                    this._applyExtremeForcedSwapFinalState(returnCell || fromCell, overlapCell, lead.after, follow.after);
+                    return true;
+                }
+                return false;
+            }
+
+            const leadSemantics = this._getMoveSemantics(lead);
+            const returnSemantics = this._getMoveSemantics(follow);
+            let highlightedCells = [];
+
+            try {
+                if (this._shouldHighlightEffectTarget(EVENT_TYPES.MOVE, lead)) {
+                    const cellsToHighlight = this._getMoveHighlightCells(fromCell, overlapCell, leadSemantics);
+                    for (const oneCell of cellsToHighlight) {
+                        if (!oneCell || highlightedCells.indexOf(oneCell) >= 0) continue;
+                        try {
+                            oneCell.classList.add(EFFECT_TARGET_HIGHLIGHT_CLASS);
+                            highlightedCells.push(oneCell);
+                        } catch (e) { /* ignore */ }
+                    }
+                }
+
+                const noAnim = _isNoAnim();
+                if (noAnim || leadSemantics.isTeleportMove) {
+                    if (!canApplyFinalState) return false;
+                    this._applyExtremeForcedSwapFinalState(returnCell, overlapCell, lead.after, follow.after);
+                    return true;
+                }
+
+                const sourceDisc = fromCell.querySelector('.disc');
+                const occupiedDisc = overlapCell.querySelector('.disc');
+                if (!sourceDisc || !occupiedDisc) {
+                    if (!canApplyFinalState) return false;
+                    this._applyExtremeForcedSwapFinalState(returnCell, overlapCell, lead.after, follow.after);
+                    return true;
+                }
+
+                this._ensureMoveDiscVisible(sourceDisc);
+                this._ensureMoveDiscVisible(occupiedDisc);
+
+                const overlapFromRect = fromCell.getBoundingClientRect();
+                const overlapToRect = overlapCell.getBoundingClientRect();
+                let overlapGhost = this._createMoveGhost(sourceDisc, overlapFromRect);
+                sourceDisc.style.visibility = 'hidden';
+
+                try {
+                    const overlapDurationMs = Math.max(1, Math.round(MOVE_MS));
+                    let overlapAnim = null;
+                    if (typeof overlapGhost.animate === 'function') {
+                        try {
+                            const overlapSpec = this._buildMoveGhostAnimationSpec(
+                                leadSemantics,
+                                overlapToRect.left - overlapFromRect.left,
+                                overlapToRect.top - overlapFromRect.top
+                            );
+                            overlapAnim = overlapGhost.animate(overlapSpec.keyframes, {
+                                duration: overlapDurationMs,
+                                easing: overlapSpec.easing
+                            });
+                        } catch (e) {
+                            overlapAnim = null;
+                        }
+                    }
+                    if (overlapAnim) {
+                        await this._waitForAnimationFinish(overlapAnim, overlapDurationMs, 220);
+                    }
+                    this._removeDiscFromCell(fromCell, sourceDisc);
+                    this._removeDiscFromCell(overlapCell, occupiedDisc);
+                    overlapGhost = this._settleMoveGhostIntoCell(overlapGhost, overlapCell, lead.after || null);
+                } finally {
+                    if (overlapGhost && overlapGhost.parentElement && overlapGhost.parentElement === document.body) {
+                        overlapGhost.parentElement.removeChild(overlapGhost);
+                    }
+                }
+
+                const returnFromRect = overlapCell.getBoundingClientRect();
+                const returnToRect = returnCell.getBoundingClientRect();
+                const returnGhost = this._createMoveGhost(occupiedDisc, returnFromRect);
+
+                try {
+                    const returnDurationMs = Math.max(1, Math.round(MOVE_MS));
+                    let returnAnim = null;
+                    if (typeof returnGhost.animate === 'function') {
+                        try {
+                            const returnSpec = this._buildMoveGhostAnimationSpec(
+                                returnSemantics,
+                                returnToRect.left - returnFromRect.left,
+                                returnToRect.top - returnFromRect.top
+                            );
+                            returnAnim = returnGhost.animate(returnSpec.keyframes, {
+                                duration: returnDurationMs,
+                                easing: returnSpec.easing
+                            });
+                        } catch (e) {
+                            returnAnim = null;
+                        }
+                    }
+                    if (returnAnim) {
+                        await this._waitForAnimationFinish(returnAnim, returnDurationMs, 220);
+                    }
+                } finally {
+                    if (returnGhost && returnGhost.parentElement) {
+                        returnGhost.parentElement.removeChild(returnGhost);
+                    }
+                }
+
+                this._setCellDiscFromState(returnCell, follow.after || null);
+                return true;
+            } finally {
+                for (const highlightedCell of highlightedCells) {
+                    try { highlightedCell.classList.remove(EFFECT_TARGET_HIGHLIGHT_CLASS); } catch (e) { /* ignore */ }
+                }
+            }
+        }
+
         async handleMove(ev) {
-            const promises = ev.targets.map(async t => {
+            if (this._isExtremeForcedSwapMoveEvent(ev)) {
+                const handled = await this._handleExtremeForcedSwapMove(ev);
+                if (handled) return;
+            }
+            const moveTargets = Array.isArray(ev && ev.targets) ? ev.targets : [];
+            const promises = moveTargets.map(async t => {
+                if (!t || !this._isValidMoveCellPosition(t.from) || !this._isValidMoveCellPosition(t.to)) return;
                 const fromCell = this.getCellEl(t.from.r, t.from.col);
                 const toCell = this.getCellEl(t.to.r, t.to.col);
                 if (!fromCell || !toCell) return;
@@ -2790,6 +3050,7 @@
         // --- Helpers ---
 
         getCellEl(r, c) {
+            if (!this.boardEl || typeof this.boardEl.querySelector !== 'function') return null;
             return this.boardEl.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
         }
 

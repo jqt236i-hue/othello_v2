@@ -1,4 +1,5 @@
 const mod = require('../game/cpu-turn-handler');
+const cpuDecision = require('../game/cpu-decision');
 
 function makeBoard() {
     const board = Array.from({ length: 8 }, () => Array(8).fill(0));
@@ -11,6 +12,8 @@ function makeBoard() {
 
 describe('cpu-turn-handler onnx hold behavior', () => {
     beforeEach(() => {
+        mod.resetCpuTurnHandlerState();
+        mod.setTimers(null);
         delete global.CPU_LV6_SHARED_PROFILE;
         global.BLACK = 1;
         global.WHITE = -1;
@@ -31,6 +34,11 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         };
         global.selectCardFromOnnxPolicyAsync = jest.fn(async () => ({ hold: true }));
         global.cpuMaybeUseCardWithPolicy = jest.fn(() => false);
+    });
+
+    afterEach(() => {
+        mod.resetCpuTurnHandlerState();
+        mod.setTimers(null);
     });
 
     test('respects ONNX hold in stable state', async () => {
@@ -223,5 +231,95 @@ describe('cpu-turn-handler onnx hold behavior', () => {
             cardId: 'card_a',
             cardDef: { id: 'card_a' }
         });
+    });
+
+    test('runCpuTurn destroys bucket2 FATE_WILL before card-use path in browser Lv6 flow', async () => {
+        const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation(() => 1);
+        global.cpuMaybeDestroyHandCardWithPolicy = cpuDecision.cpuMaybeDestroyHandCardWithPolicy;
+        global.cardState = {
+            hands: { white: ['fate_01'], black: [] },
+            charge: { white: 50, black: 10 },
+            pendingEffectByPlayer: { white: null, black: null },
+            hasUsedCardThisTurnByPlayer: { white: false, black: false },
+            hasDestroyedCardThisTurnByPlayer: { white: false, black: false }
+        };
+        global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 10 };
+        global.generateMovesForPlayer = jest.fn(() => [
+            { row: 2, col: 3, flips: [{ row: 3, col: 3 }] }
+        ]);
+        global.CardLogic = {
+            getUsableCardIds: () => ['fate_01'],
+            hasUsableCard: () => true,
+            getCardDef: () => ({ id: 'fate_01', name: '運命の意志', type: 'FATE_WILL' }),
+            getCardCost: () => 50
+        };
+        global.TurnPipeline = {};
+        global.TurnPipelineUIAdapter = {
+            runTurnWithAdapter: jest.fn((_cs, _gs, _p, action) => ({
+                ok: action.type === 'destroy_hand_card',
+                nextCardState: {
+                    ...global.cardState,
+                    hands: { ...global.cardState.hands, white: [] },
+                    hasDestroyedCardThisTurnByPlayer: { ...global.cardState.hasDestroyedCardThisTurnByPlayer, white: true }
+                },
+                nextGameState: global.gameState,
+                playbackEvents: []
+            }))
+        };
+
+        await mod.runCpuTurn('white');
+
+        expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
+        const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+        expect(action.type).toBe('destroy_hand_card');
+        expect(action.destroyCardId).toBe('fate_01');
+        expect(global.selectCardFromOnnxPolicyAsync).not.toHaveBeenCalled();
+        expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
+        expect(setTimeoutSpy).toHaveBeenCalled();
+    });
+
+    test('runCpuTurn destroys bucket3 CORNER_TRIBUTE before card-use path in browser Lv6 flow', async () => {
+        const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation(() => 1);
+        global.cpuMaybeDestroyHandCardWithPolicy = cpuDecision.cpuMaybeDestroyHandCardWithPolicy;
+        global.cardState = {
+            hands: { white: ['corner_tribute_01'], black: [] },
+            charge: { white: 60, black: 10 },
+            pendingEffectByPlayer: { white: null, black: null },
+            hasUsedCardThisTurnByPlayer: { white: false, black: false },
+            hasDestroyedCardThisTurnByPlayer: { white: false, black: false }
+        };
+        global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 10 };
+        global.generateMovesForPlayer = jest.fn(() => [
+            { row: 2, col: 3, flips: [{ row: 3, col: 3 }] }
+        ]);
+        global.CardLogic = {
+            getUsableCardIds: () => [],
+            hasUsableCard: () => false,
+            getCardDef: () => ({ id: 'corner_tribute_01', name: '角の代償', type: 'CORNER_TRIBUTE' }),
+            getCardCost: () => 12
+        };
+        global.TurnPipeline = {};
+        global.TurnPipelineUIAdapter = {
+            runTurnWithAdapter: jest.fn((_cs, _gs, _p, action) => ({
+                ok: action.type === 'destroy_hand_card',
+                nextCardState: {
+                    ...global.cardState,
+                    hands: { ...global.cardState.hands, white: [] },
+                    hasDestroyedCardThisTurnByPlayer: { ...global.cardState.hasDestroyedCardThisTurnByPlayer, white: true }
+                },
+                nextGameState: global.gameState,
+                playbackEvents: []
+            }))
+        };
+
+        await mod.runCpuTurn('white');
+
+        expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
+        const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+        expect(action.type).toBe('destroy_hand_card');
+        expect(action.destroyCardId).toBe('corner_tribute_01');
+        expect(global.selectCardFromOnnxPolicyAsync).not.toHaveBeenCalled();
+        expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
+        expect(setTimeoutSpy).toHaveBeenCalled();
     });
 });

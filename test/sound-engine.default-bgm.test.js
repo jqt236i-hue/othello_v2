@@ -298,20 +298,56 @@ describe('SoundEngine default BGM', () => {
     );
   });
 
-  test('stone placement sound applies its own 0.8 volume scale on top of the SE master volume', () => {
+  test('primeEffectSounds preloads one pooled audio element per registered effect path', () => {
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const soundEngine = loadSoundEngine({ Audio: MockAudio });
+    const uniqueEffectPathCount = new Set(
+      Object.keys(soundEngine.effectSoundFiles).map((key) => soundEngine.getEffectFilePath(key))
+    ).size;
+
+    expect(soundEngine.primeEffectSounds()).toBe(uniqueEffectPathCount);
+    expect(instances).toHaveLength(uniqueEffectPathCount);
+    expect(instances.every((audio) => audio.preload === 'auto')).toBe(true);
+    expect(instances.every((audio) => audio.load.mock.calls.length === 1)).toBe(true);
+  });
+
+  test('playEffectByKey reuses an idle warmed effect audio instead of rebuilding it', () => {
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const soundEngine = loadSoundEngine({ Audio: MockAudio });
+    const originalPrimeEffectSounds = soundEngine.primeEffectSounds.bind(soundEngine);
+    const effectPath = soundEngine.getEffectFilePath('card_effect_flip');
+
+    soundEngine.init = jest.fn(() => {
+      originalPrimeEffectSounds();
+    });
+
+    expect(soundEngine.playEffectByKey('card_effect_flip')).toBe(true);
+
+    const warmedAudio = instances.find((audio) => audio.src === effectPath);
+    expect(warmedAudio).toBeTruthy();
+    expect(warmedAudio.play).toHaveBeenCalledTimes(1);
+
+    warmedAudio.paused = true;
+
+    expect(soundEngine.playEffectByKey('card_effect_flip')).toBe(true);
+    expect(instances.filter((audio) => audio.src === effectPath)).toHaveLength(1);
+    expect(warmedAudio.play).toHaveBeenCalledTimes(2);
+  });
+
+  test('stone placement sound applies its own 0.75 volume scale on top of the SE master volume', () => {
     const soundEngine = loadSoundEngine();
     const { context, gains } = createMockAudioContext();
     soundEngine.ctx = context;
     soundEngine.volume = 0.7;
     soundEngine.currentType = '2';
 
-    expect(soundEngine.resolveStoneClackVolume()).toBeCloseTo(0.56, 6);
+    expect(soundEngine.resolveStoneClackVolume()).toBeCloseTo(0.525, 6);
 
     soundEngine.playStoneClack();
 
     expect(gains).toHaveLength(3);
-    expect(gains[0].gain.linearRampToValueAtTime.mock.calls[0][0]).toBeCloseTo(0.224, 6);
-    expect(gains[1].gain.linearRampToValueAtTime.mock.calls[0][0]).toBeCloseTo(0.112, 6);
-    expect(gains[2].gain.setValueAtTime.mock.calls[0][0]).toBeCloseTo(0.084, 6);
+    expect(gains[0].gain.linearRampToValueAtTime.mock.calls[0][0]).toBeCloseTo(0.21, 6);
+    expect(gains[1].gain.linearRampToValueAtTime.mock.calls[0][0]).toBeCloseTo(0.105, 6);
+    expect(gains[2].gain.setValueAtTime.mock.calls[0][0]).toBeCloseTo(0.07875, 6);
   });
 });

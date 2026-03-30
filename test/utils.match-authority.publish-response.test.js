@@ -252,6 +252,51 @@ describe('match authority FATE_WILL controller helpers', () => {
     expect(blackView.cardState.hands.white).toEqual(['w1', 'w2']);
   });
 
+  test('projectSnapshotForViewer preserves victim hand selection for FATE_WILL controller during controlled turn', () => {
+    const snapshot = {
+      gameState: { currentPlayer: 'white' },
+      cardState: {
+        hands: { black: ['b1'], white: ['w1', 'w2'] },
+        selectedCardId: 'w2',
+        selectedCardOwnerKey: 'white',
+        fateWillControllerByTurnOwner: { black: null, white: 'black' }
+      }
+    };
+
+    const blackView = MatchAuthority.projectSnapshotForViewer(snapshot, 'black', { stateVersion: 5 });
+
+    expect(blackView.cardState.selectedCardId).toBe('w2');
+    expect(blackView.cardState.selectedCardOwnerKey).toBe('white');
+  });
+
+  test('projectSnapshotForViewer reveals victim CONDEMN_WILL offers to FATE_WILL controller during controlled turn', () => {
+    const snapshot = {
+      gameState: { currentPlayer: 'white' },
+      cardState: {
+        hands: { black: ['b1', 'b2'], white: ['w1'] },
+        pendingEffectByPlayer: {
+          black: null,
+          white: {
+            type: 'CONDEMN_WILL',
+            stage: 'selectTarget',
+            offers: [
+              { handIndex: 0, cardId: 'b1' },
+              { handIndex: 1, cardId: 'b2' }
+            ]
+          }
+        },
+        fateWillControllerByTurnOwner: { black: null, white: 'black' }
+      }
+    };
+
+    const blackView = MatchAuthority.projectSnapshotForViewer(snapshot, 'black', { stateVersion: 5 });
+
+    expect(blackView.cardState.pendingEffectByPlayer.white.offers).toEqual([
+      { handIndex: 0, cardId: 'b1' },
+      { handIndex: 1, cardId: 'b2' }
+    ]);
+  });
+
   test('projectSnapshotForViewer does NOT reveal hand to controller outside of controlled turn', () => {
     // Same fateWill state, but currentPlayer is 'black' (not white's turn)
     const snapshot = {

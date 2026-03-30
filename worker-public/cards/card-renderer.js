@@ -323,6 +323,16 @@ function _isHandCardRevealedToViewerForRender(cardState, viewerKey, ownerKey, ha
     return Number.isInteger(copyId) && revealedCopyIds.includes(copyId);
 }
 
+function _hasOwnerUsedCardThisActiveTurnForRender(cardState, ownerKey) {
+    const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    if (!cardState || typeof cardState !== 'object' || !normalizedOwnerKey) return false;
+    if (cardState.lastTurnStartedFor !== normalizedOwnerKey) return false;
+    return !!(
+        cardState.hasUsedCardThisTurnByPlayer
+        && cardState.hasUsedCardThisTurnByPlayer[normalizedOwnerKey]
+    );
+}
+
 function _createHiddenHandCardElement(cardId, ownerKey) {
     const cardEl = document.createElement('div');
     cardEl.className = 'card-item hidden';
@@ -460,16 +470,7 @@ function _clearTransientNetworkChargeDeltaEvents() {
 }
 
 function _shouldRenderChargeDeltaOnHud(ev) {
-    if (!ev || ev.popupKind !== 'board') return true;
-    const hasAnchor = Number.isInteger(Number(ev.anchorRow)) && Number.isInteger(Number(ev.anchorCol));
-    const isGain = Number(ev.delta) > 0;
-    if (!hasAnchor || !isGain) {
-        try {
-            console.warn('[CardRenderer] invalid board charge delta metadata; falling back to HUD', ev);
-        } catch (e) { /* ignore */ }
-        return true;
-    }
-    return false;
+    return !!ev;
 }
 
 function _normalizeChargeDeltaOwnerKey(playerKey) {
@@ -489,22 +490,18 @@ function _createVisibleChargeDeltaHandler(baseChargeDeltaHandler, bottomOwnerKey
     };
 }
 
-function _pickHudChargeDeltaDisplayEvent(events) {
+function _collectHudChargeDeltaTotalsBySign(events) {
     const list = Array.isArray(events) ? events : [];
-    if (list.length === 0) return null;
-    const hasPositive = list.some((ev) => Number(ev && ev.delta) > 0);
-    const hasNegative = list.some((ev) => Number(ev && ev.delta) < 0);
-    if (hasPositive && hasNegative) {
-        for (let index = list.length - 1; index >= 0; index--) {
-            const ev = list[index];
-            if (!ev) continue;
-            if (Number(ev.delta) >= 0) continue;
-            if (String(ev.reason || '').trim() === 'card_use_cost') {
-                return ev;
-            }
-        }
+    const totals = { increase: 0, decrease: 0 };
+    const signOrder = [];
+    for (const ev of list) {
+        const delta = Number(ev && ev.delta ? ev.delta : 0);
+        if (!Number.isFinite(delta) || delta === 0) continue;
+        const signKey = delta > 0 ? 'increase' : 'decrease';
+        if (totals[signKey] === 0) signOrder.push(signKey);
+        totals[signKey] += delta;
     }
-    return null;
+    return { totals, signOrder };
 }
 
 function consumeChargeDeltaEventList(eventsSource, chargeDeltaHandler) {
@@ -534,17 +531,12 @@ function consumeChargeDeltaEventList(eventsSource, chargeDeltaHandler) {
     }
     for (const player of playerOrder) {
         const playerEvents = eventsByPlayer[player];
-        const prioritizedEvent = _pickHudChargeDeltaDisplayEvent(playerEvents);
-        if (prioritizedEvent) {
-            const prioritizedDelta = Number(prioritizedEvent.delta || 0);
-            if (prioritizedDelta !== 0) {
-                chargeDeltaHandler(player, prioritizedDelta);
+        const { totals, signOrder } = _collectHudChargeDeltaTotalsBySign(playerEvents);
+        for (const signKey of signOrder) {
+            const totalDelta = totals[signKey];
+            if (totalDelta !== 0) {
+                chargeDeltaHandler(player, totalDelta);
             }
-            continue;
-        }
-        const totalDelta = playerEvents.reduce((sum, ev) => sum + Number(ev && ev.delta ? ev.delta : 0), 0);
-        if (totalDelta !== 0) {
-            chargeDeltaHandler(player, totalDelta);
         }
     }
     return true;
@@ -578,6 +570,62 @@ function consumeChargeDeltaSourcesForRender(cardState, matchMode, chargeDeltaHan
     };
 }
 
+function _resolveVisibleChargeOwners(matchMode) {
+    const isNetworkMode = matchMode === 'network';
+    const localPlayerKey = isNetworkMode ? _getLocalPlayerKeyForNetwork() : null;
+    const bottomOwnerKey = isNetworkMode
+        ? localPlayerKey
+        : 'black';
+    return {
+        bottomOwnerKey,
+        topOwnerKey: bottomOwnerKey === 'black' ? 'white' : 'black'
+    };
+}
+
+function _drainChargeDeltaPopups(cardState, options) {
+    const state = _normalizeCardStateForRender(cardState);
+    if (!state) {
+        return {
+            consumedAuthoritativeQueue: false,
+            consumedTransientQueue: false,
+            consumedRawFallback: false
+        };
+    }
+
+    const opts = (options && typeof options === 'object') ? options : {};
+    const matchMode = opts.matchMode || _getCurrentMatchMode();
+    const visibleOwners = _resolveVisibleChargeOwners(matchMode);
+    const baseChargeDeltaHandler = (typeof window !== 'undefined' && window.StoneVisuals && typeof window.StoneVisuals.showChargeDelta === 'function')
+        ? window.StoneVisuals.showChargeDelta
+        : null;
+    const chargeDeltaHandler = _createVisibleChargeDeltaHandler(baseChargeDeltaHandler, visibleOwners.bottomOwnerKey);
+    const chargeSnapshot = _readChargeDeltaSnapshot(state);
+
+    if (_shouldResetChargeDeltaBaseline(chargeSnapshot.turnIndex)) {
+        _resetChargeDeltaBaseline();
+    }
+
+    const consumedChargeDeltaSources = consumeChargeDeltaSourcesForRender(state, matchMode, chargeDeltaHandler);
+    let consumedRawFallback = false;
+    if (opts.allowRawFallback !== false
+        && consumedChargeDeltaSources.allowRawFallback
+        && !consumedChargeDeltaSources.consumedAuthoritativeQueue
+        && !consumedChargeDeltaSources.consumedTransientQueue) {
+        consumedRawFallback = _consumeRawChargeDeltaFallback(chargeSnapshot, chargeDeltaHandler);
+    }
+
+    _rememberChargeDeltaSnapshot(chargeSnapshot);
+    return {
+        consumedAuthoritativeQueue: consumedChargeDeltaSources.consumedAuthoritativeQueue,
+        consumedTransientQueue: consumedChargeDeltaSources.consumedTransientQueue,
+        consumedRawFallback
+    };
+}
+
+function drainVisibleChargeDeltaPopups(options) {
+    return _drainChargeDeltaPopups(_resolveCardRendererCardState(), options);
+}
+
 function renderCardUI() {
     const gameState = _resolveCardRendererGameState();
     const cardState = _normalizeCardStateForRender(_resolveCardRendererCardState());
@@ -593,12 +641,11 @@ function renderCardUI() {
 
     const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
     const matchMode = _getCurrentMatchMode();
+    const visibleOwners = _resolveVisibleChargeOwners(matchMode);
     const isNetworkMode = matchMode === 'network';
-    const localPlayerKey = isNetworkMode ? _getLocalPlayerKeyForNetwork() : null;
-    const bottomOwnerKey = isNetworkMode
-        ? localPlayerKey
-        : 'black';
-    const topOwnerKey = bottomOwnerKey === 'black' ? 'white' : 'black';
+    const bottomOwnerKey = visibleOwners.bottomOwnerKey;
+    const topOwnerKey = visibleOwners.topOwnerKey;
+    const localPlayerKey = isNetworkMode ? bottomOwnerKey : null;
 
     if (deckBlackEl) deckBlackEl.dataset.ownerKey = bottomOwnerKey;
     if (deckWhiteEl) deckWhiteEl.dataset.ownerKey = topOwnerKey;
@@ -614,27 +661,7 @@ function renderCardUI() {
         _renderChargeDisplay(chargeWhiteEl, cardState.charge[topOwnerKey] || 0, chargeMax);
     }
 
-    const baseChargeDeltaHandler = (typeof window !== 'undefined' && window.StoneVisuals && typeof window.StoneVisuals.showChargeDelta === 'function')
-        ? window.StoneVisuals.showChargeDelta
-        : null;
-    const chargeDeltaHandler = _createVisibleChargeDeltaHandler(baseChargeDeltaHandler, bottomOwnerKey);
-    const chargeSnapshot = _readChargeDeltaSnapshot(cardState);
-
-    if (_shouldResetChargeDeltaBaseline(chargeSnapshot.turnIndex)) {
-        _resetChargeDeltaBaseline();
-    }
-
-    const consumedChargeDeltaSources = consumeChargeDeltaSourcesForRender(cardState, matchMode, chargeDeltaHandler);
-
-    // In network mode, charge gain popups must come from authoritative/transient event queues.
-    // Falling back to raw total diffs can replay the current total as a fake +gain on turn handoff.
-    if (consumedChargeDeltaSources.allowRawFallback
-        && !consumedChargeDeltaSources.consumedAuthoritativeQueue
-        && !consumedChargeDeltaSources.consumedTransientQueue) {
-        _consumeRawChargeDeltaFallback(chargeSnapshot, chargeDeltaHandler);
-    }
-
-    _rememberChargeDeltaSnapshot(chargeSnapshot);
+    _drainChargeDeltaPopups(cardState, { matchMode });
     const decks = (cardState && cardState.decks && typeof cardState.decks === 'object') ? cardState.decks : null;
     const deckCountBlack = (decks && Array.isArray(decks.black))
         ? decks.black.length
@@ -680,7 +707,10 @@ function renderCardUI() {
         ? localPlayerKey
         : (isDebugHvH ? (fateWillControllerKey || (isBlackTurn ? 'black' : 'white')) : 'black');
     const localRevealViewerKey = isNetworkMode ? null : _getLocalPlayerKeyForNetwork();
-    const pending = cardState.pendingEffectByPlayer[inputPlayerKey];
+    const pendingOwnerKey = fateWillControllerKey && inputPlayerKey === fateWillControllerKey
+        ? currentTurnOwnerKey
+        : inputPlayerKey;
+    const pending = cardState.pendingEffectByPlayer[pendingOwnerKey];
     const allowDuringAnimForSell = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
     const canInteract = !isAnimating || allowDuringAnimForSell || staleVisualPlaybackLock || isDebugUnlimited;
 
@@ -806,7 +836,7 @@ function renderCardUI() {
 
                     const cost = cardDef ? (cardDef.cost || 0) : 0;
 
-                    const hasNotUsedThisTurn = isDebugUnlimited ? true : !cardState.hasUsedCardThisTurnByPlayer[ownerKey];
+                    const hasNotUsedThisTurn = isDebugUnlimited ? true : !_hasOwnerUsedCardThisActiveTurnForRender(cardState, ownerKey);
                     const canAfford = isDebugUnlimited ? true : ((cardState.charge[ownerKey] || 0) >= cost);
                     const isOwnerTurn = ownerKey === 'black' ? isBlackTurn : !isBlackTurn;
                     const canInspectOwnerHand = isNetworkMode
@@ -876,3 +906,9 @@ function renderCardUI() {
         }
     }
 }
+
+try {
+    if (typeof window !== 'undefined') {
+        window.drainVisibleChargeDeltaPopups = drainVisibleChargeDeltaPopups;
+    }
+} catch (e) { /* ignore */ }

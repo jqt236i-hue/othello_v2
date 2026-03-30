@@ -106,6 +106,42 @@ describe('board-renderer fallback legal hints', () => {
     expect(normalLegalCells).toHaveLength(0);
   });
 
+  test('renderBoard enters selection mode for BLOCKADE_WILL board targeting', () => {
+    global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 1 }]);
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'BLOCKADE_WILL',
+      stage: 'selectTarget',
+      cardId: 'blockade_01'
+    };
+
+    const boardRenderer = require('../ui/board-renderer');
+    boardRenderer.renderBoard();
+
+    expect(global.boardEl.classList.contains('selection-mode')).toBe(true);
+    expect(global.renderBoardDiff).toHaveBeenCalledTimes(1);
+  });
+
+  test('renderBoardFull suppresses normal legal hints while BLOCKADE_WILL target selection is active', () => {
+    global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 1 }]);
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'BLOCKADE_WILL',
+      stage: 'selectTarget',
+      cardId: 'blockade_01'
+    };
+
+    const boardRenderer = require('../ui/board-renderer');
+    boardRenderer.renderBoardFull();
+
+    expect(global.boardEl.classList.contains('selection-mode')).toBe(true);
+
+    const legalCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    const selectableCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
+    expect(legalCell).toBeTruthy();
+    expect(selectableCell).toBeTruthy();
+    expect(legalCell.classList.contains('legal')).toBe(false);
+    expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
+  });
+
   test('renderBoard skips diff render while PLAYBACK_EVENTS are pending', () => {
     global.cardState.presentationEvents = [
       { type: 'PLAYBACK_EVENTS', events: [{ type: 'hyperactive_move', phase: 1 }] }

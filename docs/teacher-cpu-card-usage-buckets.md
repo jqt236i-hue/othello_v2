@@ -25,6 +25,8 @@
 - 逃げる意志 (`ESCAPE_WILL`)
 - 盤面拡張神 (`BOARD_EXPANSION_GOD`)
 - 補給の意志 (`SUPPLY_WILL`)
+- 観測の意志 (`REVEAL_HAND_WILL`)
+- 運命の意志 (`FATE_WILL`)
 
 ## 区分3: 現在の使用条件を満たしていない間は即破壊
 
@@ -32,6 +34,8 @@
 - リボ払いの意志 (`RIBO_WILL`)
 - 平等の意志 (`EQUALITY_WILL`)
 - 腐食の意志 (`CORROSION_WILL`)
+- 救済の意志 (`SALVATION_WILL`)
+- 角の代償 (`CORNER_TRIBUTE`)
 
 ## 区分4: 上記以外
 
@@ -70,7 +74,6 @@
 - 瞬間多動 (`INSTANT_HYPERACTIVE_WILL`)
 - 売却の意志 (`SELL_CARD_WILL`)
 - 吸収の意志 (`PLUNDER_WILL`)
-- 角の代償 (`CORNER_TRIBUTE`)
 - 出稼ぎの意志 (`WORK_WILL`)
 - 意志の喪失 (`LOSS_WILL`)
 - 二連投石 (`DOUBLE_PLACE`)
@@ -93,9 +96,6 @@
 - 隕石 (`METEOR_WILL`)
 - 盤理の観測者 (`OBSERVER_WILL`)
 - 再構築の意志 (`REBUILD_WILL`)
-- 観測の意志 (`REVEAL_HAND_WILL`)
-- 救済の意志 (`SALVATION_WILL`)
-- 運命の意志 (`FATE_WILL`)
 - 捕獲の意志 (`CAPTURE_WILL`)
 - 三連鎖の意志 (`TRIPLE_CHAIN_WILL`)
 - 四連鎖の意志 (`QUAD_CHAIN_WILL`)

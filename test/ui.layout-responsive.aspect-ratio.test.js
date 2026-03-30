@@ -166,6 +166,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(varsCss).toMatch(/--layout-size-card-large-width/);
     expect(varsCss).toMatch(/--layout-size-charge-font/);
     expect(varsCss).toMatch(/--layout-size-charge-offset/);
+    expect(varsCss).toMatch(/--layout-size-charge-delta-side-gap/);
     expect(layoutCss).toMatch(/--layout-stage-offset-x/);
     expect(layoutCss).toMatch(/--layout-stage-offset-y/);
     expect(layoutCss).toMatch(/#side-panel[\s\S]*--layout-stage-bottom-safe-shift/);
@@ -179,7 +180,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(layoutCss).toMatch(/#cpu-character-img[\s\S]*--layout-cpu-image-scale/);
     expect(layoutCss).toMatch(/\.charge-display[\s\S]*font-size:\s*var\(--layout-size-charge-font\)/);
     expect(layoutCss).toMatch(/#charge-black[\s\S]*bottom:\s*var\(--layout-size-charge-offset\)/);
-    expect(layoutCss).toMatch(/#charge-delta-black[\s\S]*--charge-delta-base-transform:\s*translateX\(-50%\)/);
+    expect(layoutCss).toMatch(/\.charge-delta[\s\S]*transform:\s*translateY\(var\(--layout-size-charge-delta-shift-y-start\)\)/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*-webkit-text-stroke/);
     expect(layoutCss).toMatch(/@keyframes\s+round-bonus-banner-slide-down/);
     expect(layoutCss).toMatch(/@keyframes\s+round-bonus-banner-fade-out/);

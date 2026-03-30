@@ -77,6 +77,35 @@ describe('FATE_WILL core game support', () => {
         });
     });
 
+    describe('stale used-card flag handling', () => {
+        function makeBaseGameState(currentPlayerValue) {
+            const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+            board[3][3] = -1; board[3][4] = 1;
+            board[4][3] = 1; board[4][4] = -1;
+            return { currentPlayer: currentPlayerValue, board };
+        }
+
+        test('previous-turn used-card flag does not block the next turn owner before turn-start bookkeeping runs', () => {
+            const cs = CardLogic.createCardState();
+            cs.hands.white = ['fate_will_01'];
+            cs.charge.white = 99;
+            cs.hasUsedCardThisTurnByPlayer.white = true;
+            cs.lastTurnStartedFor = 'black';
+
+            expect(CardLogic.getUsableCardIds(cs, makeBaseGameState(-1), 'white')).toContain('fate_will_01');
+        });
+
+        test('same-turn used-card flag still blocks a second card use', () => {
+            const cs = CardLogic.createCardState();
+            cs.hands.white = ['fate_will_01'];
+            cs.charge.white = 99;
+            cs.hasUsedCardThisTurnByPlayer.white = true;
+            cs.lastTurnStartedFor = 'white';
+
+            expect(CardLogic.getUsableCardIds(cs, makeBaseGameState(-1), 'white')).not.toContain('fate_will_01');
+        });
+    });
+
     // -----------------------------------------------------------------------
     // applyFateWill
     // -----------------------------------------------------------------------

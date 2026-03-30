@@ -4,13 +4,16 @@ const SoundEngine = {
     isMuted: false,
     volume: 0.7,
     currentType: '2',
-    stoneClackVolumeScale: 0.8,
+    stoneClackVolumeScale: 0.75,
     bgm: null,
     bgmVolume: 0.07,
     currentTrackIndex: 1,
     allowBgmPlay: true, // Default to true requested by user
     _bgmBufferedState: null,
     _bgmBufferCache: {},
+    _effectAudioPools: {},
+    effectAudioPoolSize: 3,
+    _effectWarmupStarted: false,
 
     // BGM Playlist
     playlist: [
@@ -64,6 +67,7 @@ const SoundEngine = {
 
     init() {
         this._ensureAudioContext(true);
+        this.primeEffectSounds();
 
         // Init BGM on first interaction
         if (!this.bgm) {
@@ -462,11 +466,90 @@ const SoundEngine = {
         }
     },
 
+    _canCreateEffectAudioElement() {
+        return typeof Audio === 'function';
+    },
+
+    _createEffectAudioElement(filePath) {
+        if (!this._canCreateEffectAudioElement()) return null;
+        const audio = new Audio(filePath);
+        audio.preload = 'auto';
+        if (typeof audio.load === 'function') {
+            try { audio.load(); } catch (e) { /* ignore */ }
+        }
+        return audio;
+    },
+
+    _getEffectAudioPool(filePath) {
+        const key = String(filePath || '').trim();
+        if (!key) return [];
+        if (!Object.prototype.hasOwnProperty.call(this._effectAudioPools, key)) {
+            const warmed = this._createEffectAudioElement(key);
+            this._effectAudioPools[key] = warmed ? [warmed] : [];
+        }
+        return this._effectAudioPools[key];
+    },
+
+    _takeEffectAudio(filePath) {
+        const pool = this._getEffectAudioPool(filePath);
+        for (const candidate of pool) {
+            if (candidate && candidate.paused !== false) {
+                return candidate;
+            }
+        }
+        if (pool.length < Math.max(1, Number(this.effectAudioPoolSize) || 1)) {
+            const created = this._createEffectAudioElement(filePath);
+            if (created) {
+                pool.push(created);
+                return created;
+            }
+        }
+        return this._createEffectAudioElement(filePath);
+    },
+
+    _getRegisteredEffectFilePaths() {
+        const seen = new Set();
+        const paths = [];
+        const keys = Object.keys(this.effectSoundFiles || {});
+        for (const key of keys) {
+            const filePath = this.getEffectFilePath(key);
+            if (!filePath || seen.has(filePath)) continue;
+            seen.add(filePath);
+            paths.push(filePath);
+        }
+        return paths;
+    },
+
+    _resetEffectWarmup() {
+        this._effectAudioPools = {};
+        this._effectWarmupStarted = false;
+    },
+
+    primeEffectSounds() {
+        if (this._effectWarmupStarted) {
+            return Object.keys(this._effectAudioPools || {}).length;
+        }
+        this._effectWarmupStarted = true;
+        const filePaths = this._getRegisteredEffectFilePaths();
+        for (const filePath of filePaths) {
+            try { this._getEffectAudioPool(filePath); } catch (e) { /* ignore */ }
+        }
+        return filePaths.length;
+    },
+
     registerEffectSound(key, fileName) {
         const k = String(key || '').trim();
         const f = String(fileName || '').trim();
         if (!k || !f) return false;
+        const previousPath = this.getEffectFilePath(k);
         this.effectSoundFiles[k] = f;
+        const nextPath = this.getEffectFilePath(k);
+        if (previousPath && previousPath !== nextPath) {
+            delete this._effectAudioPools[previousPath];
+        }
+        if (this._effectWarmupStarted && nextPath) {
+            try { this._getEffectAudioPool(nextPath); } catch (e) { /* ignore */ }
+        }
         return true;
     },
 
@@ -482,7 +565,10 @@ const SoundEngine = {
     setEffectBasePath(path) {
         const raw = String(path || '').trim();
         if (!raw) return this.effectBasePath;
-        this.effectBasePath = raw.endsWith('/') ? raw : `${raw}/`;
+        const nextBasePath = raw.endsWith('/') ? raw : `${raw}/`;
+        if (nextBasePath === this.effectBasePath) return this.effectBasePath;
+        this.effectBasePath = nextBasePath;
+        this._resetEffectWarmup();
         return this.effectBasePath;
     },
 
@@ -542,9 +628,10 @@ const SoundEngine = {
 
         const effectVolume = this.resolveEffectVolume(key, opts);
 
-        const audio = new Audio(filePath);
-        audio.preload = 'auto';
+        const audio = this._takeEffectAudio(filePath);
+        if (!audio) return false;
         audio.volume = effectVolume * (this.isMuted ? 0 : 1);
+        try { audio.currentTime = 0; } catch (e) { /* ignore */ }
         audio.onerror = () => {
             if (!this._missingEffectWarned[filePath]) {
                 this._missingEffectWarned[filePath] = true;

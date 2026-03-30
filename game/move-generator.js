@@ -208,31 +208,7 @@ function generateMovesForPlayer(player, pending, protection, perma) {
 
     const pendingType = pending.type;
     // Target-selection cards must be resolved BEFORE any placement can happen.
-    if (pending.stage === 'selectTarget' && (
-        pendingType === 'DESTROY_ONE_STONE' ||
-        pendingType === 'STRONG_WIND_WILL' ||
-        pendingType === 'SUPER_BUOYANCY_WILL' ||
-        pendingType === 'SUPER_GRAVITY_WILL' ||
-        pendingType === 'SELL_CARD_WILL' ||
-        pendingType === 'HEAVEN_BLESSING' ||
-        pendingType === 'CONDEMN_WILL' ||
-        pendingType === 'SWAP_WITH_ENEMY' ||
-        pendingType === 'POSITION_SWAP_WILL' ||
-        pendingType === 'TRAP_WILL' ||
-        pendingType === 'TEMPT_WILL' ||
-        pendingType === 'GUARD_WILL' ||
-        pendingType === 'GUARDIAN_GOD' ||
-        pendingType === 'EXTEND_LIFE_WILL' ||
-        pendingType === 'EXTEND_LIFE_GOD' ||
-        pendingType === 'CORROSION_WILL' ||
-        pendingType === 'TELEPORT_WILL' ||
-        pendingType === 'CELL_TELEPORT_WILL' ||
-        pendingType === 'BOARD_EXPANSION_WILL' ||
-        pendingType === 'BOARD_EXPANSION_GOD' ||
-        pendingType === 'BLOCKADE_WILL' ||
-        pendingType === 'METEOR_WILL' ||
-        pendingType === 'FREEZE_WILL'
-    )) {
+    if (pending.stage === 'selectTarget') {
         return [];
     }
     if (isFreePlacementPendingTypeForMoveGeneration(pendingType)) {

@@ -24,8 +24,10 @@ function createRendererContext(options = {}) {
       <div id="hand-white"></div>
       <div id="charge-black"></div>
       <div id="charge-white"></div>
-      <div id="charge-delta-black"></div>
-      <div id="charge-delta-white"></div>
+      <div id="charge-delta-black-increase"></div>
+      <div id="charge-delta-black-decrease"></div>
+      <div id="charge-delta-white-increase"></div>
+      <div id="charge-delta-white-decrease"></div>
       <div id="discard-count"></div>
       <div id="active-black"><div class="effect-slot-content"></div></div>
       <div id="active-white"><div class="effect-slot-content"></div></div>

@@ -22,6 +22,7 @@ describe('initializeUI action button binding', () => {
       getCardDef: jest.fn(() => ({ type: 'WORK_WILL' }))
     };
     global.SoundEngine = {
+      primeEffectSounds: jest.fn(),
       init: jest.fn(),
       playEffectByKey: jest.fn()
     };
@@ -43,6 +44,15 @@ describe('initializeUI action button binding', () => {
     delete global.CardLogic;
     delete global.SoundEngine;
     delete global.resetGame;
+  });
+
+  test('UI初期化時に効果音を先読みする', () => {
+    const initModule = require('../ui/handlers/init.js');
+    initModule.initializeUI();
+
+    expect(global.SoundEngine.primeEffectSounds).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.init).not.toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
   });
 
   test('破壊ボタン押下で既存処理を呼ぶ', () => {

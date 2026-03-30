@@ -306,6 +306,34 @@ const _pendingSelectionFlowModule = (() => {
     return null;
 })();
 
+function _getPendingStateManagerForCardUi() {
+    if (typeof require === 'function') {
+        try { return require('../game/logic/cards-internal/pending-state-manager'); } catch (e) { /* ignore */ }
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.CardPendingStateManager) {
+            return globalThis.CardPendingStateManager;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _isCancellablePendingSelectionForCardUi(pendingType) {
+    const pendingStateManager = _getPendingStateManagerForCardUi();
+    if (pendingStateManager && typeof pendingStateManager.isCancellablePendingType === 'function') {
+        return pendingStateManager.isCancellablePendingType(pendingType);
+    }
+    return (
+        pendingType === 'DESTROY_ONE_STONE' ||
+        pendingType === 'POSITION_SWAP_WILL' ||
+        pendingType === 'BOARD_EXPANSION_WILL' ||
+        pendingType === 'BOARD_EXPANSION_GOD' ||
+        pendingType === 'BLOCKADE_WILL' ||
+        pendingType === 'METEOR_WILL' ||
+        pendingType === 'FREEZE_WILL'
+    );
+}
+
 function _normalizeCardDescText(text) {
     return String(text || '')
         .replace(/\s+/g, ' ')
@@ -840,11 +868,13 @@ function _finalizePendingSelectionAfterRun(playerKey, pendingType, runResult) {
     });
 }
 
-function _executeSellSelection(playerKey, sellCardId) {
+function _executeSellSelection(playerKey, sellCardId, options) {
     if (!sellCardId) return { ok: false, reason: 'no_sell_card' };
     if (!_canInteractWithCardUi()) return { ok: false, reason: 'busy' };
     _setPendingSelectionBusy(true);
     let completed = false;
+    const opts = (options && typeof options === 'object') ? options : {};
+    const selectionOwnerKey = opts.selectionOwnerKey || playerKey;
 
     try {
         const soldCardDef = CardLogic.getCardDef(sellCardId);
@@ -855,7 +885,7 @@ function _executeSellSelection(playerKey, sellCardId) {
             playerKey,
             action,
             onSuccess: () => {
-                _clearSellSelection(playerKey);
+                _clearSellSelection(selectionOwnerKey);
                 if (typeof renderCardUI === 'function') renderCardUI();
             },
             onFailure: () => {
@@ -873,7 +903,7 @@ function _executeSellSelection(playerKey, sellCardId) {
         if (!result.ok) return result;
 
         addLog(`${playerKey === 'black' ? '黒' : '白'}が${soldCardDef ? soldCardDef.name : sellCardId}を売却（+${gain}）`);
-        _clearSellSelection(playerKey);
+        _clearSellSelection(selectionOwnerKey);
         const shouldDelayPostActionHandVisual = _hasHandRemovePlaybackEvent(result);
         _renderCardUiWithOptionalPlaybackDelay(shouldDelayPostActionHandVisual);
         if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
@@ -1112,6 +1142,9 @@ function _renderHeavenOverlay(playerKey) {
         _appendCardDisplayBadges(cardEl, def, cost, tier);
 
         cardEl.addEventListener('click', () => {
+            if (pendingType === 'HEAVEN_BLESSING') {
+                playUiEffectSound('hand_card_select');
+            }
             _heavenSelectionByPlayer[playerKey] = offerKey;
             _renderHeavenOverlay(playerKey);
         });
@@ -1150,6 +1183,7 @@ function _executeHeavenSelection(playerKey, selectedCardId) {
     if (!selectedCardId) return { ok: false, reason: 'no_selection' };
     if (!_canInteractWithCardUi()) return { ok: false, reason: 'busy' };
     _setPendingSelectionBusy(true);
+    playUiEffectSound('treasure_gain');
     let completed = false;
 
     try {
@@ -1523,6 +1557,20 @@ function _getFateWillTurnOwnerKeyForLocalController() {
         if (!controller) return null;
         return _resolveInputPlayerKey() === controller ? currentPlayerKey : null;
     } catch (e) { return null; }
+}
+
+function _getCardUiActionOwnerKey(inputPlayerKey) {
+    return _getFateWillTurnOwnerKeyForLocalController() || inputPlayerKey || _resolveInputPlayerKey();
+}
+
+function _hasPlayerUsedCardThisActiveTurn(playerKey) {
+    const normalizedKey = _normalizeOwnerKey(playerKey);
+    if (!cardState || typeof cardState !== 'object') return false;
+    if (cardState.lastTurnStartedFor !== normalizedKey) return false;
+    return !!(
+        cardState.hasUsedCardThisTurnByPlayer
+        && cardState.hasUsedCardThisTurnByPlayer[normalizedKey]
+    );
 }
 
 function _canInputPlayerActNow() {
@@ -2006,7 +2054,7 @@ function updateCardDetailPanel() {
     if (!nameEl || !descEl || !useBtn || !reasonEl) return;
 
     // FATE_WILL: controller uses victim's hand/charge/pending for all interaction checks.
-    const playerKey = _getFateWillTurnOwnerKeyForLocalController() || _resolveInputPlayerKey();
+    const playerKey = _getCardUiActionOwnerKey(_resolveInputPlayerKey());
     const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
     const selectedId = cardState.selectedCardId;
     const selectedOwnerKey = _getSelectedCardOwnerKey(playerKey);
@@ -2062,7 +2110,7 @@ function updateCardDetailPanel() {
     const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
     _ensureHandDestroyFlags();
     // カード使用は毎ターン1回（毎ターン開始時にリセット）、ただしデバッグモードでは制限なし
-    const hasNotUsedThisTurn = isDebugUnlimited ? true : !cardState.hasUsedCardThisTurnByPlayer[playerKey];
+    const hasNotUsedThisTurn = isDebugUnlimited ? true : !_hasPlayerUsedCardThisActiveTurn(playerKey);
     const canInteract = isDebugUnlimited ? true : _canInteractWithCardUi();
 
     // Check charge (デバッグモードでは無視)
@@ -2130,7 +2178,7 @@ function updateCardDetailPanel() {
         try {
             const chargeVal = (cardState && cardState.charge) ? cardState.charge[playerKey] : undefined;
             if (typeof chargeVal === 'number' && typeof cost === 'number' && chargeVal >= cost) {
-                console.warn('[CARD_UI] USE DISABLED despite sufficient charge', { selectedId, cardId: selectedId, cost, charge: chargeVal, hasUsedThisTurn: cardState.hasUsedCardThisTurnByPlayer && cardState.hasUsedCardThisTurnByPlayer[playerKey], isProcessing: _isProcessingNow(), isCardAnimating: _isCardAnimatingNow(), currentPlayer: gameState && gameState.currentPlayer });
+                console.warn('[CARD_UI] USE DISABLED despite sufficient charge', { selectedId, cardId: selectedId, cost, charge: chargeVal, hasUsedThisTurn: _hasPlayerUsedCardThisActiveTurn(playerKey), isProcessing: _isProcessingNow(), isCardAnimating: _isCardAnimatingNow(), currentPlayer: gameState && gameState.currentPlayer });
             }
         } catch (e) { /* ignore */ }
     } else {
@@ -2167,29 +2215,9 @@ function updateCardDetailPanel() {
     }
 
     // 選択モード用のキャンセルボタン表示制御
-    const selecting = pending && pending.stage === 'selectTarget' &&
-        (
-            pending.type === 'DESTROY_ONE_STONE' ||
-            pending.type === 'STRONG_WIND_WILL' ||
-            pending.type === 'SUPER_BUOYANCY_WILL' ||
-            pending.type === 'SUPER_GRAVITY_WILL' ||
-            pending.type === 'TELEPORT_WILL' ||
-            pending.type === 'CELL_TELEPORT_WILL' ||
-            pending.type === 'POSITION_SWAP_WILL' ||
-            pending.type === 'TRAP_WILL' ||
-            pending.type === 'GUARD_WILL' ||
-            pending.type === 'GUARDIAN_GOD' ||
-            pending.type === 'HYPERACTIVE_INHERIT_WILL' ||
-            pending.type === 'TIME_BOMB' ||
-            pending.type === 'CLONE_WILL' ||
-            pending.type === 'SPLIT_WILL' ||
-            pending.type === 'EXTEND_LIFE_WILL' ||
-            pending.type === 'EXTEND_LIFE_GOD' ||
-            pending.type === 'METEOR_WILL' ||
-            pending.type === 'SELL_CARD_WILL'
-        );
+    const selecting = !!(pending && pending.stage === 'selectTarget');
     const cancellableSelecting = selecting &&
-        (pending.type === 'DESTROY_ONE_STONE' || pending.type === 'POSITION_SWAP_WILL' || pending.type === 'METEOR_WILL') &&
+        _isCancellablePendingSelectionForCardUi(pending.type) &&
         _canInputPlayerActNow();
     if (cancelBtn) {
         cancelBtn.style.display = cancellableSelecting ? 'block' : 'none';
@@ -2208,6 +2236,8 @@ function updateCardDetailPanel() {
             reasonEl.textContent = 'テレポートさせる石を選んでください';
         } else if (pending.type === 'CELL_TELEPORT_WILL') {
             reasonEl.textContent = 'マステレポートさせるマスを選んでください';
+        } else if (pending.type === 'SWAP_WITH_ENEMY') {
+            reasonEl.textContent = '交換する敵石を選んでください';
         } else if (pending.type === 'POSITION_SWAP_WILL') {
             const first = pending.firstTarget;
             reasonEl.textContent = first
@@ -2215,6 +2245,10 @@ function updateCardDetailPanel() {
                 : '1つ目の石を選んでください（全ての石が対象）';
         } else if (pending.type === 'TRAP_WILL') {
             reasonEl.textContent = '罠を設置する自分の石を選んでください（選択後にターン終了）';
+        } else if (pending.type === 'TEMPT_WILL') {
+            reasonEl.textContent = '対象の相手特殊石を選んでください';
+        } else if (pending.type === 'CAPTURE_WILL') {
+            reasonEl.textContent = '捕獲する相手特殊石を選んでください';
         } else if (pending.type === 'GUARD_WILL') {
             reasonEl.textContent = '守る石にする自分の石を選んでください';
         } else if (pending.type === 'GUARDIAN_GOD') {
@@ -2227,12 +2261,22 @@ function updateCardDetailPanel() {
             reasonEl.textContent = '周囲に空きがある自分の石を選んでください';
         } else if (pending.type === 'SPLIT_WILL') {
             reasonEl.textContent = '分裂させる自分の石を選んでください（持続ターンは半減）';
+        } else if (pending.type === 'BOARD_EXPANSION_WILL') {
+            reasonEl.textContent = '左右端マスを選んで盤面を拡張してください';
+        } else if (pending.type === 'BOARD_EXPANSION_GOD') {
+            reasonEl.textContent = '角マスを選んで盤面を拡張してください';
         } else if (pending.type === 'EXTEND_LIFE_WILL' || pending.type === 'EXTEND_LIFE_GOD') {
             reasonEl.textContent = pending.type === 'EXTEND_LIFE_GOD'
                 ? '4倍延命する自分の特殊石を選んでください'
                 : '延命する自分の特殊石を選んでください';
+        } else if (pending.type === 'CORROSION_WILL') {
+            reasonEl.textContent = '腐食の対象となる特殊石を選んでください';
+        } else if (pending.type === 'BLOCKADE_WILL') {
+            reasonEl.textContent = '封鎖する空きマスを選んでください';
         } else if (pending.type === 'METEOR_WILL') {
             reasonEl.textContent = '隕石で破壊するマスを選んでください';
+        } else if (pending.type === 'FREEZE_WILL') {
+            reasonEl.textContent = '凍結するマスを選んでください';
         } else if (pending.type === 'SELL_CARD_WILL') {
             reasonEl.textContent = selectedSellCardId
                 ? '売却対象を選択済みです。売却ボタンで確定してください'
@@ -2268,7 +2312,7 @@ function updateCardDetailPanel() {
 
 function toggleCardDetailExpanded() {
     const selectedId = cardState ? cardState.selectedCardId : null;
-    const playerKey = _getFateWillTurnOwnerKeyForLocalController() || _resolveInputPlayerKey();
+    const playerKey = _getCardUiActionOwnerKey(_resolveInputPlayerKey());
     const selectedOwnerKey = _getSelectedCardOwnerKey(playerKey);
     if (!selectedId || selectedOwnerKey !== playerKey || !_doesPlayerOwnCard(playerKey, selectedId)) {
         _closeCardDetailTabPanel();
@@ -2309,23 +2353,24 @@ function onCardClick(cardId, ownerKey) {
     const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
     if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return;
     const playerKey = _resolveInputPlayerKey();
+    const actionOwnerKey = _getCardUiActionOwnerKey(playerKey);
     const clickedOwnerKey = (ownerKey === 'white' || ownerKey === 'black')
         ? ownerKey
         : null;
-    const pending = cardState.pendingEffectByPlayer[playerKey];
+    const pending = cardState.pendingEffectByPlayer[actionOwnerKey];
     const allowDuringAnimForSell = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
     if (_isCardAnimatingNow() && !isDebugUnlimited && !allowDuringAnimForSell && !_releaseStaleVisualPlaybackLock()) return;
 
     _closeCardDetailTagTabIfOpen();
 
-    if (clickedOwnerKey && clickedOwnerKey !== playerKey) {
-        const isFateWillController = _getFateWillTurnOwnerKeyForLocalController() !== null;
+    if (clickedOwnerKey && clickedOwnerKey !== actionOwnerKey) {
+        const isFateWillController = actionOwnerKey !== playerKey;
         if (!isDebugHvH && !isFateWillController) return;
         if (!_doesPlayerOwnCard(clickedOwnerKey, cardId)) return;
 
         playUiEffectSound('hand_card_select');
 
-        if (cardState.selectedCardId === cardId && _getSelectedCardOwnerKey(playerKey) === clickedOwnerKey) {
+        if (cardState.selectedCardId === cardId && _getSelectedCardOwnerKey(actionOwnerKey) === clickedOwnerKey) {
             _clearSelectedCardSelection();
         } else {
             _setSelectedCardSelection(cardId, clickedOwnerKey);
@@ -2338,28 +2383,28 @@ function onCardClick(cardId, ownerKey) {
         return;
     }
     if (pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget') {
-        if (!_doesPlayerOwnCard(playerKey, cardId)) return;
-        if (_sellSelectionByPlayer[playerKey] === cardId) {
-            _sellSelectionByPlayer[playerKey] = null;
-            if (cardState.selectedCardId === cardId && _getSelectedCardOwnerKey(playerKey) === playerKey) {
+        if (!_doesPlayerOwnCard(actionOwnerKey, cardId)) return;
+        if (_sellSelectionByPlayer[actionOwnerKey] === cardId) {
+            _sellSelectionByPlayer[actionOwnerKey] = null;
+            if (cardState.selectedCardId === cardId && _getSelectedCardOwnerKey(actionOwnerKey) === actionOwnerKey) {
                 _clearSelectedCardSelection();
             }
         } else {
-            _sellSelectionByPlayer[playerKey] = cardId;
-            _setSelectedCardSelection(cardId, playerKey);
+            _sellSelectionByPlayer[actionOwnerKey] = cardId;
+            _setSelectedCardSelection(cardId, actionOwnerKey);
         }
         renderCardUI();
         return;
     }
 
-    if (!_doesPlayerOwnCard(playerKey, cardId)) return;
+    if (!_doesPlayerOwnCard(actionOwnerKey, cardId)) return;
 
     playUiEffectSound('hand_card_select');
 
-    if (cardState.selectedCardId === cardId && _getSelectedCardOwnerKey(playerKey) === playerKey) {
+    if (cardState.selectedCardId === cardId && _getSelectedCardOwnerKey(actionOwnerKey) === actionOwnerKey) {
         _clearSelectedCardSelection();
     } else {
-        _setSelectedCardSelection(cardId, playerKey);
+        _setSelectedCardSelection(cardId, actionOwnerKey);
     }
 
     renderCardUI();
@@ -2368,17 +2413,18 @@ function onCardClick(cardId, ownerKey) {
 function confirmSellCardSelection() {
     if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return false;
     const playerKey = _resolveInputPlayerKey();
-    const pending = cardState.pendingEffectByPlayer[playerKey];
+    const actionOwnerKey = _getCardUiActionOwnerKey(playerKey);
+    const pending = cardState.pendingEffectByPlayer[actionOwnerKey];
     if (!pending || pending.type !== 'SELL_CARD_WILL' || pending.stage !== 'selectTarget') return false;
 
-    const sellCardId = _sellSelectionByPlayer[playerKey];
+    const sellCardId = _sellSelectionByPlayer[actionOwnerKey];
     if (!sellCardId) {
         addLog('売却するカードを先に選んでください');
         renderCardUI();
         return false;
     }
 
-    const result = _executeSellSelection(playerKey, sellCardId);
+    const result = _executeSellSelection(playerKey, sellCardId, { selectionOwnerKey: actionOwnerKey });
     if (!result.ok) {
         addLog('売却に失敗しました');
         return false;
@@ -2454,7 +2500,7 @@ function useSelectedCard() {
         return;
     }
 
-    if (!isDebugUnlimited && cardState.hasUsedCardThisTurnByPlayer[actionPlayerKey]) return;
+    if (!isDebugUnlimited && _hasPlayerUsedCardThisActiveTurn(actionPlayerKey)) return;
 
     const cardDef = CardLogic.getCardDef(cardId);
 

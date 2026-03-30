@@ -459,7 +459,12 @@
         const hands = cardState && cardState.hands;
         if (!hands || !Array.isArray(hands[playerKey])) return false;
         const skipCostAndTurnLimit = opts && opts.skipCostAndTurnLimit;
-        if (!skipCostAndTurnLimit && cardState.hasUsedCardThisTurnByPlayer[playerKey]) return false;
+        const hasLiveTurnUsageFlag = !skipCostAndTurnLimit
+            && cardState
+            && cardState.lastTurnStartedFor === playerKey
+            && cardState.hasUsedCardThisTurnByPlayer
+            && cardState.hasUsedCardThisTurnByPlayer[playerKey];
+        if (hasLiveTurnUsageFlag) return false;
         if (!hands[playerKey].includes(cardId)) return false;
         if (!skipCostAndTurnLimit) {
             const cost = getCardCost(cardId, context);

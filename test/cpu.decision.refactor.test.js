@@ -1778,6 +1778,106 @@ describe('cpu decision refactor helpers', () => {
     expect(action.destroyCardId).toBe('time_stop_god_01');
   });
 
+  test('cpuMaybeDestroyHandCardWithPolicy uses bucket2 low-charge destroy in browser Lv6 path', () => {
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: ['fate_01'], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 50, black: 0 },
+      turnIndex: 10
+    };
+    global.cpuSmartness.white = 6;
+    global.getLegalMoves = () => [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }];
+    global.CardLogic = {
+      getUsableCardIds: () => ['fate_01'],
+      getCardDef: () => ({ id: 'fate_01', name: '運命の意志', type: 'FATE_WILL' }),
+      getCardCost: () => 50
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn((_cs, _gs, _p, action) => ({
+        ok: action.type === 'destroy_hand_card',
+        nextCardState: {
+          ...global.cardState,
+          hands: { ...global.cardState.hands, white: [] },
+          hasDestroyedCardThisTurnByPlayer: { ...global.cardState.hasDestroyedCardThisTurnByPlayer, white: true }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    const destroyed = cpuDecision.cpuMaybeDestroyHandCardWithPolicy('white');
+    expect(destroyed).toBe(true);
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.type).toBe('destroy_hand_card');
+    expect(action.destroyCardId).toBe('fate_01');
+  });
+
+  test('cpuMaybeDestroyHandCardWithPolicy uses bucket3 unusable destroy in browser Lv6 path', () => {
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: ['corner_tribute_01'], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 60, black: 0 },
+      turnIndex: 10
+    };
+    global.cpuSmartness.white = 6;
+    global.getLegalMoves = () => [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }];
+    global.CardLogic = {
+      getUsableCardIds: () => [],
+      getCardDef: () => ({ id: 'corner_tribute_01', name: '角の代償', type: 'CORNER_TRIBUTE' }),
+      getCardCost: () => 12
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn((_cs, _gs, _p, action) => ({
+        ok: action.type === 'destroy_hand_card',
+        nextCardState: {
+          ...global.cardState,
+          hands: { ...global.cardState.hands, white: [] },
+          hasDestroyedCardThisTurnByPlayer: { ...global.cardState.hasDestroyedCardThisTurnByPlayer, white: true }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    const destroyed = cpuDecision.cpuMaybeDestroyHandCardWithPolicy('white');
+    expect(destroyed).toBe(true);
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.type).toBe('destroy_hand_card');
+    expect(action.destroyCardId).toBe('corner_tribute_01');
+  });
+
   test('cpuMaybeUseCardWithPolicy is defensive when cardState is missing', () => {
     // remove/omit cardState
     delete global.cardState;
