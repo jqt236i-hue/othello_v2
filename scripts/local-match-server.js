@@ -71,6 +71,12 @@ function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
         : null;
 }
 
+function classifySeatTokenRejectionReason(seatTokenValue) {
+    return MatchAuthority && typeof MatchAuthority.classifySeatTokenRejectionReason === 'function'
+        ? MatchAuthority.classifySeatTokenRejectionReason(seatTokenValue)
+        : (String(seatTokenValue || '').trim() ? 'SEAT_TOKEN_MISMATCH' : 'SEAT_TOKEN_REQUIRED');
+}
+
 function toPublicSnapshot(room, viewerSeatKey) {
     return MatchAuthority.buildPublicSnapshot(room, viewerSeatKey || null);
 }
@@ -91,6 +97,9 @@ function normalizeEffectLogMessages(values) {
 }
 
 function appendEffectLogMessages(...lists) {
+    if (MatchAuthority && typeof MatchAuthority.appendEffectLogMessages === 'function') {
+        return MatchAuthority.appendEffectLogMessages(...lists);
+    }
     const merged = [];
     for (let index = 0; index < lists.length; index += 1) {
         const list = Array.isArray(lists[index]) ? lists[index] : [];
@@ -1388,8 +1397,8 @@ async function handleLeave(req, res) {
         return;
     }
 
-    if (seatToken && room.seatTokens && room.seatTokens[seatKey] !== seatToken) {
-        writeJson(res, 403, { ok: false, reason: 'SEAT_TOKEN_MISMATCH' });
+    if (resolveAuthenticatedSeatKey(room, seatKey, seatToken) !== seatKey) {
+        writeJson(res, 403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
         return;
     }
 
@@ -1775,7 +1784,7 @@ function handleState(req, res, urlObj) {
     const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
     const viewerSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
     if (!viewerSeatKey) {
-        writeJson(res, 403, { ok: false, reason: seatToken ? 'SEAT_TOKEN_MISMATCH' : 'SEAT_TOKEN_REQUIRED' });
+        writeJson(res, 403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
         return;
     }
 
@@ -1808,7 +1817,7 @@ function handleStream(req, res, urlObj) {
     const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
     const viewerSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
     if (!viewerSeatKey) {
-        writeJson(res, 403, { ok: false, reason: seatToken ? 'SEAT_TOKEN_MISMATCH' : 'SEAT_TOKEN_REQUIRED' });
+        writeJson(res, 403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
         return;
     }
 

@@ -32,7 +32,7 @@ trainCycleArgs:
   - --train-games
   - "10000"
   - --eval-games
-  - "2400"
+  - "2000"
   - --selfplay-jobs
   - "10"
   - --adoption-jobs
@@ -67,7 +67,7 @@ trainCycleArgs:
   - --selfplay-tactical-depth-end
   - "7"
   - --selfplay-tactical-beam-width
-  - "6"
+  - "4"
   - --selfplay-policy-score-weight-min
   - "1.6"
   - --selfplay-policy-score-weight-max

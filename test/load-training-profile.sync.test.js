@@ -150,13 +150,14 @@ describe('load-training-profile shared teacher sync', () => {
         expect(getFlagValue(args, '--selfplay-policy-model-pool-size')).toBe('4');
         expect(getFlagValue(args, '--selfplay-policy-pool-sampling')).toBe('recency');
         expect(Number(getFlagValue(args, '--selfplay-policy-current-anchor-rate'))).toBeCloseTo(0.35, 6);
+        expect(getFlagValue(args, '--eval-games')).toBe('2000');
         expect(getFlagValue(args, '--selfplay-card-usage-rate-schedule')).toBe('0.30@1,0.40@3,0.50@6,0.60@10');
         expect(getFlagValue(args, '--selfplay-tactical-weight-min')).toBe('0.95');
         expect(getFlagValue(args, '--selfplay-tactical-weight-max')).toBe('1.25');
         expect(getFlagValue(args, '--selfplay-tactical-depth-opening')).toBe('4');
         expect(getFlagValue(args, '--selfplay-tactical-depth-mid')).toBe('6');
         expect(getFlagValue(args, '--selfplay-tactical-depth-end')).toBe('7');
-        expect(getFlagValue(args, '--selfplay-tactical-beam-width')).toBe('6');
+        expect(getFlagValue(args, '--selfplay-tactical-beam-width')).toBe('4');
         expect(Number(getFlagValue(args, '--onnx-tactical-miss-sample-boost'))).toBeCloseTo(0.6, 6);
         expect(Number(getFlagValue(args, '--onnx-tactical-miss-threshold'))).toBeCloseTo(0.12, 6);
         expect(Number(getFlagValue(args, '--onnx-corner-balance-sample-boost'))).toBeCloseTo(0.18, 6);
@@ -190,7 +191,9 @@ describe('load-training-profile shared teacher sync', () => {
         expect(args).toContain('--no-quality-gate');
         expect(args).not.toContain('--quality-gate');
         expect(getFlagValue(args, '--promotion-mode')).toBe('quick-only');
+        expect(getFlagValue(args, '--eval-games')).toBe('2000');
         expect(getFlagValue(args, '--selfplay-tactical-weight-max')).toBe('1.25');
+        expect(getFlagValue(args, '--selfplay-tactical-beam-width')).toBe('4');
         expect(getFlagValue(args, '--quick-adoption-seed-count')).toBe('3');
         expect(getFlagValue(args, '--quick-adoption-min-seed-pass-count')).toBe('1');
         expect(getFlagValue(args, '--final-adoption-seed-count')).toBe('3');
@@ -219,7 +222,9 @@ describe('load-training-profile shared teacher sync', () => {
         expect(args).toContain('--no-quality-gate');
         expect(args).not.toContain('--quality-gate');
         expect(getFlagValue(args, '--promotion-mode')).toBe('strict');
+        expect(getFlagValue(args, '--eval-games')).toBe('2000');
         expect(getFlagValue(args, '--selfplay-tactical-weight-max')).toBe('1.25');
+        expect(getFlagValue(args, '--selfplay-tactical-beam-width')).toBe('4');
         expect(getFlagValue(args, '--quick-adoption-seed-count')).toBe('3');
         expect(getFlagValue(args, '--quick-adoption-min-seed-pass-count')).toBe('1');
         expect(getFlagValue(args, '--adoption-seed-count')).toBe('5');

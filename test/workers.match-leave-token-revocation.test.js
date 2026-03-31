@@ -90,4 +90,68 @@ describe('match worker leave contract', () => {
     expect(result.newSeatToken).not.toBe(result.oldSeatToken);
     expect(result.streamClosed).toBe(true);
   });
+
+  test('leave rejects missing and stale seat token without clearing the seat', () => {
+    const runner = [
+      "(async () => {",
+      "  const modulePath = process.argv[1];",
+      "  const { MatchRoomDurableObject } = await import(modulePath);",
+      "  const storage = new Map();",
+      "  const state = {",
+      "    storage: {",
+      "      get: async (key) => storage.get(key),",
+      "      put: async (key, value) => storage.set(key, value),",
+      "      delete: async (key) => storage.delete(key)",
+      "    }",
+      "  };",
+      "  const durableObject = new MatchRoomDurableObject(state);",
+      "  const board = Array.from({ length: 8 }, () => Array(8).fill(0));",
+      "  board[3][3] = -1;",
+      "  board[3][4] = 1;",
+      "  board[4][3] = 1;",
+      "  board[4][4] = -1;",
+      "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
+      "    roomId: 'LEAVE2',",
+      "    playerName: 'くろ',",
+      "    seed: 1,",
+      "    snapshot: {",
+      "      gameState: { board, currentPlayer: 1, consecutivePasses: 0, turnNumber: 0 },",
+      "      cardState: {}",
+      "    }",
+      "  });",
+      "  const createPayload = await createResponse.json();",
+      "  const missingLeaveResponse = await durableObject.handleLeave({ seatKey: 'black', seatToken: '' });",
+      "  const missingLeavePayload = await missingLeaveResponse.json();",
+      "  const staleLeaveResponse = await durableObject.handleLeave({ seatKey: 'black', seatToken: 'stale-token' });",
+      "  const staleLeavePayload = await staleLeaveResponse.json();",
+      "  const stateResponse = await durableObject.handleState(new URL(`https://room/api/match/state?seatKey=black&seatToken=${createPayload.seatToken}`));",
+      "  const statePayload = await stateResponse.json();",
+      "  await durableObject.loadRoom();",
+      "  process.stdout.write(JSON.stringify({",
+      "    missingLeaveStatus: missingLeaveResponse.status,",
+      "    missingLeaveReason: missingLeavePayload.reason || null,",
+      "    staleLeaveStatus: staleLeaveResponse.status,",
+      "    staleLeaveReason: staleLeavePayload.reason || null,",
+      "    stateStatus: stateResponse.status,",
+      "    stateOk: statePayload.ok === true,",
+      "    seatStillJoined: !!(durableObject.room && durableObject.room.seats && durableObject.room.seats.black),",
+      "    seatTokenUnchanged: !!(durableObject.room && durableObject.room.seatTokens && durableObject.room.seatTokens.black === createPayload.seatToken)",
+      "  }));",
+      "})().catch((error) => {",
+      "  console.error(error && error.stack ? error.stack : String(error));",
+      "  process.exit(1);",
+      "});"
+    ].join('\n');
+
+    const result = runScenario(runner);
+
+    expect(result.missingLeaveStatus).toBe(403);
+    expect(result.missingLeaveReason).toBe('SEAT_TOKEN_REQUIRED');
+    expect(result.staleLeaveStatus).toBe(403);
+    expect(result.staleLeaveReason).toBe('SEAT_TOKEN_MISMATCH');
+    expect(result.stateStatus).toBe(200);
+    expect(result.stateOk).toBe(true);
+    expect(result.seatStillJoined).toBe(true);
+    expect(result.seatTokenUnchanged).toBe(true);
+  });
 });

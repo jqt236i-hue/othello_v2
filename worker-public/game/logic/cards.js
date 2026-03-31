@@ -3071,39 +3071,11 @@
         cardState.lastUsedCardByPlayer[chargeOwnerKey] = cardId;
 
         const pendingOffers = heavenOffers || condemnOffers || undefined;
-        const needsSelection =
-            CardPendingStateManagerModule && typeof CardPendingStateManagerModule.requiresTargetSelection === 'function'
-                ? CardPendingStateManagerModule.requiresTargetSelection(cardType)
-                : (
-                    cardType === 'DESTROY_ONE_STONE' ||
-                    cardType === 'STRONG_WIND_WILL' ||
-                    cardType === 'SUPER_BUOYANCY_WILL' ||
-                    cardType === 'SUPER_GRAVITY_WILL' ||
-                    cardType === 'SELL_CARD_WILL' ||
-                    cardType === 'HEAVEN_BLESSING' ||
-                    cardType === 'CONDEMN_WILL' ||
-                    cardType === 'SWAP_WITH_ENEMY' ||
-                    cardType === 'POSITION_SWAP_WILL' ||
-                    cardType === 'TRAP_WILL' ||
-                    cardType === 'TEMPT_WILL' ||
-                    cardType === 'CAPTURE_WILL' ||
-                    cardType === 'GUARD_WILL' ||
-                    cardType === 'GUARDIAN_GOD' ||
-                    cardType === 'HYPERACTIVE_INHERIT_WILL' ||
-                    cardType === 'EXTEND_LIFE_WILL' ||
-                    cardType === 'EXTEND_LIFE_GOD' ||
-                    cardType === 'CORROSION_WILL' ||
-                    cardType === 'TIME_BOMB' ||
-                    cardType === 'TELEPORT_WILL' ||
-                    cardType === 'CELL_TELEPORT_WILL' ||
-                    cardType === 'CLONE_WILL' ||
-                    cardType === 'SPLIT_WILL' ||
-                    cardType === 'BOARD_EXPANSION_WILL' ||
-                    cardType === 'BOARD_EXPANSION_GOD' ||
-                    cardType === 'BLOCKADE_WILL' ||
-                    cardType === 'METEOR_WILL' ||
-                    cardType === 'FREEZE_WILL'
-                );
+        const needsSelection = !!(
+            CardPendingStateManagerModule
+            && typeof CardPendingStateManagerModule.requiresTargetSelection === 'function'
+            && CardPendingStateManagerModule.requiresTargetSelection(cardType)
+        );
         writeCardPendingEffect(
             cardState,
             chargeOwnerKey,
@@ -3192,7 +3164,7 @@
         if (!cardState || !cardState.pendingEffectByPlayer) return { canceled: false, reason: 'no_state' };
         const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.stage !== 'selectTarget') return { canceled: false, reason: 'not_pending' };
-        if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'POSITION_SWAP_WILL' && pending.type !== 'BOARD_EXPANSION_WILL' && pending.type !== 'BOARD_EXPANSION_GOD' && pending.type !== 'BLOCKADE_WILL' && pending.type !== 'METEOR_WILL' && pending.type !== 'FREEZE_WILL') {
+        if (!(CardPendingStateManagerModule && typeof CardPendingStateManagerModule.isCancellablePendingType === 'function' && CardPendingStateManagerModule.isCancellablePendingType(pending.type))) {
             return { canceled: false, reason: 'not_cancellable' };
         }
 
@@ -4084,31 +4056,31 @@
     }
 
     function applyHyperactiveInheritWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'HYPERACTIVE_INHERIT_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
+        if (typeof module === 'object' && module.exports) {
+            const mod = require('./cards/hyperactive');
+            return mod.applyHyperactiveInheritWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                clearCardPendingEffect,
+                getHyperactiveInheritTargets,
+                removeMarkersAt,
+                addMarker,
+                inheritedHyperactiveTurns: INHERITED_HYPERACTIVE_TURNS,
+                MARKER_KINDS
+            });
         }
-        const targets = getHyperactiveInheritTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        removeMarkersAt(cardState, row, col, {
-            kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
-            type: 'INHERITED_HYPERACTIVE',
-            owner: playerKey
-        });
-
-        cardState.hyperactiveSeqCounter = (cardState.hyperactiveSeqCounter || 0) + 1;
-        addMarker(cardState, 'specialStone', row, col, playerKey, {
-            type: 'INHERITED_HYPERACTIVE',
-            remainingOwnerTurns: INHERITED_HYPERACTIVE_TURNS,
-            flipEvadeRemaining: 1,
-            destroyEvadeRemaining: 1,
-            hyperactiveSeq: cardState.hyperactiveSeqCounter
-        });
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, row, col, remainingOwnerTurns: INHERITED_HYPERACTIVE_TURNS };
+        if (typeof CardHyperactive !== 'undefined' && typeof CardHyperactive.applyHyperactiveInheritWill === 'function') {
+            return CardHyperactive.applyHyperactiveInheritWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                clearCardPendingEffect,
+                getHyperactiveInheritTargets,
+                removeMarkersAt,
+                addMarker,
+                inheritedHyperactiveTurns: INHERITED_HYPERACTIVE_TURNS,
+                MARKER_KINDS
+            });
+        }
+        console.warn('[cards.js] CardHyperactive applyHyperactiveInheritWill not available');
+        return { applied: false, reason: 'module_unavailable' };
     }
 
     function applyExtendLifeSelection(cardState, gameState, playerKey, row, col, options) {

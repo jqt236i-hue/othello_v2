@@ -2007,7 +2007,73 @@
         };
     }
 
+    function applyHyperactiveInheritWill(cardState, gameState, playerKey, row, col, deps = {}) {
+        const readCardPendingEffect = typeof deps.readCardPendingEffect === 'function'
+            ? deps.readCardPendingEffect
+            : null;
+        const clearCardPendingEffect = typeof deps.clearCardPendingEffect === 'function'
+            ? deps.clearCardPendingEffect
+            : null;
+        const getHyperactiveInheritTargets = typeof deps.getHyperactiveInheritTargets === 'function'
+            ? deps.getHyperactiveInheritTargets
+            : null;
+        const removeMarkersAt = typeof deps.removeMarkersAt === 'function'
+            ? deps.removeMarkersAt
+            : null;
+        const addMarker = typeof deps.addMarker === 'function'
+            ? deps.addMarker
+            : null;
+        const markerKinds = (deps.MARKER_KINDS && typeof deps.MARKER_KINDS === 'object')
+            ? deps.MARKER_KINDS
+            : null;
+        const inheritedTurns = Number.isFinite(Number(deps.inheritedHyperactiveTurns))
+            ? Math.max(1, Math.trunc(Number(deps.inheritedHyperactiveTurns)))
+            : 10;
+
+        if (
+            !readCardPendingEffect
+            || !clearCardPendingEffect
+            || !getHyperactiveInheritTargets
+            || !removeMarkersAt
+            || !addMarker
+        ) {
+            return { applied: false, reason: 'dependencies_unavailable' };
+        }
+
+        const pending = readCardPendingEffect(cardState, playerKey);
+        if (!pending || pending.type !== 'HYPERACTIVE_INHERIT_WILL' || pending.stage !== 'selectTarget') {
+            return { applied: false, reason: 'not_pending' };
+        }
+
+        const targets = getHyperactiveInheritTargets(cardState, gameState, playerKey);
+        const allowed = Array.isArray(targets) && targets.some((target) => (
+            target &&
+            target.row === row &&
+            target.col === col
+        ));
+        if (!allowed) return { applied: false, reason: 'invalid_target' };
+
+        removeMarkersAt(cardState, row, col, {
+            kind: markerKinds ? markerKinds.SPECIAL_STONE : 'specialStone',
+            type: 'INHERITED_HYPERACTIVE',
+            owner: playerKey
+        });
+
+        cardState.hyperactiveSeqCounter = (cardState.hyperactiveSeqCounter || 0) + 1;
+        addMarker(cardState, 'specialStone', row, col, playerKey, {
+            type: 'INHERITED_HYPERACTIVE',
+            remainingOwnerTurns: inheritedTurns,
+            flipEvadeRemaining: 1,
+            destroyEvadeRemaining: 1,
+            hyperactiveSeq: cardState.hyperactiveSeqCounter
+        });
+
+        clearCardPendingEffect(cardState, playerKey);
+        return { applied: true, row, col, remainingOwnerTurns: inheritedTurns };
+    }
+
     return {
+        applyHyperactiveInheritWill,
         moveHyperactiveOnce,
         resolveHyperactiveFlipEvasion,
         processHyperactiveMoves,

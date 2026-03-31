@@ -679,6 +679,33 @@
         };
     }
 
+    async function applyDeferredSelectionPreviewResult(result, context) {
+        const liveContext = (context && typeof context === 'object') ? context : {};
+        const appliedState = applySelectionStateResult(result);
+        const playbackEvents = Array.isArray(result && result.playbackEvents)
+            ? result.playbackEvents
+            : [];
+        const nextContext = Object.assign({}, liveContext, {
+            cardState: appliedState.cardState,
+            gameState: appliedState.gameState,
+            playbackEvents
+        });
+
+        if (liveContext.emitStateChanges !== false) {
+            emitSelectionStateChangeSignals(playbackEvents);
+        }
+
+        if (typeof liveContext.afterStateChange === 'function') {
+            await liveContext.afterStateChange(nextContext);
+        }
+
+        return {
+            appliedState,
+            playbackEvents,
+            liveContext: nextContext
+        };
+    }
+
     function emitSelectionPlaybackEvents(playbackEvents, meta, cardStateValue) {
         if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
         const emitPlaybackEventsViaBridge = readSignalBridgeMethod('emitPlaybackEvents');
@@ -975,6 +1002,17 @@
                         };
                     }
 
+                    const deferredPreviewContext = Object.assign({}, baseContext, {
+                        action: pendingAction,
+                        result: preview.result,
+                        appliedSelection: preview.appliedSelection,
+                        emitStateChanges: false
+                    });
+                    const deferredPreview = await applyDeferredSelectionPreviewResult(preview.result, deferredPreviewContext);
+                    if (!shouldRetainPendingSelectionAction(deferredPreview.appliedState.cardState, playerKey, resolvedPendingType)) {
+                        clearPendingSelectionAction(playerKey);
+                    }
+
                     return {
                         ok: true,
                         pendingType: resolvedPendingType,
@@ -1063,6 +1101,17 @@
                         reason: 'network_publish_failed',
                         result: publishResult || { ok: false, reason: 'NETWORK_PUBLISH_FAILED' }
                     };
+                }
+
+                const deferredPreviewContext = Object.assign({}, baseContext, {
+                    action: pendingAction,
+                    result: preview.result,
+                    appliedSelection: preview.appliedSelection,
+                    emitStateChanges: false
+                });
+                const deferredPreview = await applyDeferredSelectionPreviewResult(preview.result, deferredPreviewContext);
+                if (!shouldRetainPendingSelectionAction(deferredPreview.appliedState.cardState, playerKey, resolvedPendingType)) {
+                    clearPendingSelectionAction(playerKey);
                 }
 
                 return {

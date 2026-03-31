@@ -117,6 +117,13 @@ function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
     return null;
 }
 
+function classifySeatTokenRejectionReason(seatTokenValue) {
+    if (MatchAuthority && typeof MatchAuthority.classifySeatTokenRejectionReason === 'function') {
+        return MatchAuthority.classifySeatTokenRejectionReason(seatTokenValue);
+    }
+    return String(seatTokenValue || '').trim() ? 'SEAT_TOKEN_MISMATCH' : 'SEAT_TOKEN_REQUIRED';
+}
+
 function normalizeEffectLogMessages(values) {
     if (MatchAuthority && typeof MatchAuthority.normalizeEffectLogMessages === 'function') {
         return MatchAuthority.normalizeEffectLogMessages(values);
@@ -133,6 +140,9 @@ function normalizeEffectLogMessages(values) {
 }
 
 function appendEffectLogMessages(...lists) {
+    if (MatchAuthority && typeof MatchAuthority.appendEffectLogMessages === 'function') {
+        return MatchAuthority.appendEffectLogMessages(...lists);
+    }
     const merged = [];
     for (let index = 0; index < lists.length; index += 1) {
         const list = Array.isArray(lists[index]) ? lists[index] : [];
@@ -2187,9 +2197,13 @@ export class MatchRoomDurableObject {
 
         const seatKey = normalizePlayerKey(body.seatKey);
         const seatToken = String(body.seatToken || '').trim();
+        const authenticatedSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
 
-        if (seatToken && room.seatTokens && room.seatTokens[seatKey] !== seatToken) {
-            return jsonResponse(403, { ok: false, reason: 'SEAT_TOKEN_MISMATCH' });
+        if (authenticatedSeatKey !== seatKey) {
+            return jsonResponse(403, {
+                ok: false,
+                reason: classifySeatTokenRejectionReason(seatToken)
+            });
         }
 
         room.seats[seatKey] = false;
@@ -2512,7 +2526,7 @@ export class MatchRoomDurableObject {
         const seatToken = String(urlObj && urlObj.searchParams ? (urlObj.searchParams.get('seatToken') || '') : '').trim();
         const viewerSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
         if (!viewerSeatKey) {
-            return jsonResponse(403, { ok: false, reason: seatToken ? 'SEAT_TOKEN_MISMATCH' : 'SEAT_TOKEN_REQUIRED' });
+            return jsonResponse(403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
         }
 
         const serverTime = Date.now();
@@ -2545,7 +2559,7 @@ export class MatchRoomDurableObject {
         const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
         const viewerSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
         if (!viewerSeatKey) {
-            return jsonResponse(403, { ok: false, reason: seatToken ? 'SEAT_TOKEN_MISMATCH' : 'SEAT_TOKEN_REQUIRED' });
+            return jsonResponse(403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
         }
 
         const { readable, writable } = new TransformStream();

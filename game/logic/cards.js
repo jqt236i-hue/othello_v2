@@ -4056,31 +4056,31 @@
     }
 
     function applyHyperactiveInheritWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'HYPERACTIVE_INHERIT_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
+        if (typeof module === 'object' && module.exports) {
+            const mod = require('./cards/hyperactive');
+            return mod.applyHyperactiveInheritWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                clearCardPendingEffect,
+                getHyperactiveInheritTargets,
+                removeMarkersAt,
+                addMarker,
+                inheritedHyperactiveTurns: INHERITED_HYPERACTIVE_TURNS,
+                MARKER_KINDS
+            });
         }
-        const targets = getHyperactiveInheritTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        removeMarkersAt(cardState, row, col, {
-            kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
-            type: 'INHERITED_HYPERACTIVE',
-            owner: playerKey
-        });
-
-        cardState.hyperactiveSeqCounter = (cardState.hyperactiveSeqCounter || 0) + 1;
-        addMarker(cardState, 'specialStone', row, col, playerKey, {
-            type: 'INHERITED_HYPERACTIVE',
-            remainingOwnerTurns: INHERITED_HYPERACTIVE_TURNS,
-            flipEvadeRemaining: 1,
-            destroyEvadeRemaining: 1,
-            hyperactiveSeq: cardState.hyperactiveSeqCounter
-        });
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, row, col, remainingOwnerTurns: INHERITED_HYPERACTIVE_TURNS };
+        if (typeof CardHyperactive !== 'undefined' && typeof CardHyperactive.applyHyperactiveInheritWill === 'function') {
+            return CardHyperactive.applyHyperactiveInheritWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                clearCardPendingEffect,
+                getHyperactiveInheritTargets,
+                removeMarkersAt,
+                addMarker,
+                inheritedHyperactiveTurns: INHERITED_HYPERACTIVE_TURNS,
+                MARKER_KINDS
+            });
+        }
+        console.warn('[cards.js] CardHyperactive applyHyperactiveInheritWill not available');
+        return { applied: false, reason: 'module_unavailable' };
     }
 
     function applyExtendLifeSelection(cardState, gameState, playerKey, row, col, options) {

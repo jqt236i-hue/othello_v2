@@ -225,6 +225,17 @@ function normalizeEffectLogMessages(values) {
     return next;
 }
 
+function appendEffectLogMessages(...lists) {
+    const merged = [];
+    for (let index = 0; index < lists.length; index += 1) {
+        const list = Array.isArray(lists[index]) ? lists[index] : [];
+        for (let innerIndex = 0; innerIndex < list.length; innerIndex += 1) {
+            merged.push(list[innerIndex]);
+        }
+    }
+    return normalizeEffectLogMessages(merged);
+}
+
 function buildPublishResponsePayload(options) {
     const opts = (options && typeof options === 'object') ? options : {};
     const payload = {
@@ -333,6 +344,12 @@ function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
     if (room.seats.black === true && room.seatTokens.black === seatToken) return 'black';
     if (room.seats.white === true && room.seatTokens.white === seatToken) return 'white';
     return null;
+}
+
+function classifySeatTokenRejectionReason(seatTokenValue) {
+    return String(seatTokenValue || '').trim()
+        ? 'SEAT_TOKEN_MISMATCH'
+        : 'SEAT_TOKEN_REQUIRED';
 }
 
 function stripTransientPresentationState(nextSnapshot) {
@@ -679,11 +696,13 @@ module.exports = {
     makeHiddenHandToken,
     parseHiddenHandToken,
     resolveAuthenticatedSeatKey,
+    classifySeatTokenRejectionReason,
     getFateWillControllerKey,
     isFateWillControllerForCurrentTurn,
     canViewerInspectOwnerHand,
     normalizePublishMeta,
     normalizeEffectLogMessages,
+    appendEffectLogMessages,
     buildPublishResponsePayload,
     stripTransientPresentationState,
     stripTransientChargeDeltaState,

@@ -130,6 +130,58 @@ describe('local match server leave contract', () => {
     }
   });
 
+  test('leave rejects missing and stale seat token without clearing the seat', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      expect(created.status).toBe(200);
+
+      const roomId = created.data.roomId;
+      const oldSeatToken = created.data.seatToken;
+
+      const missingLeave = await requestJson(port, 'POST', '/api/match/leave', {
+        roomId,
+        seatKey: 'black',
+        seatToken: ''
+      });
+      expect(missingLeave.status).toBe(403);
+      expect(missingLeave.data.reason).toBe('SEAT_TOKEN_REQUIRED');
+
+      const staleLeave = await requestJson(port, 'POST', '/api/match/leave', {
+        roomId,
+        seatKey: 'black',
+        seatToken: 'stale-token'
+      });
+      expect(staleLeave.status).toBe(403);
+      expect(staleLeave.data.reason).toBe('SEAT_TOKEN_MISMATCH');
+
+      let roomState = null;
+      const captured = patchRoomSnapshotForTests(roomId, (room) => {
+        roomState = {
+          blackStillJoined: !!(room && room.seats && room.seats.black),
+          blackSeatToken: room && room.seatTokens ? room.seatTokens.black : null
+        };
+      });
+      expect(captured).toBe(true);
+
+      const state = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${encodeURIComponent(roomId)}&seatKey=black&seatToken=${encodeURIComponent(oldSeatToken)}`
+      );
+      expect(state.status).toBe(200);
+      expect(state.data.ok).toBe(true);
+      expect(roomState).toEqual({
+        blackStillJoined: true,
+        blackSeatToken: oldSeatToken
+      });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('stream rejects missing and stale seat token', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);

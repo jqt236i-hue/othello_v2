@@ -104,6 +104,25 @@ describe('match authority publish response payload', () => {
     expect(MatchAuthority.isVersionRejectionReason('OTHER')).toBe(false);
   });
 
+  test('classifies seat-token rejection reasons by token presence', () => {
+    expect(MatchAuthority.classifySeatTokenRejectionReason('valid-token')).toBe('SEAT_TOKEN_MISMATCH');
+    expect(MatchAuthority.classifySeatTokenRejectionReason('   ')).toBe('SEAT_TOKEN_REQUIRED');
+    expect(MatchAuthority.classifySeatTokenRejectionReason(null)).toBe('SEAT_TOKEN_REQUIRED');
+  });
+
+  test('appends effect logs through shared normalization rules', () => {
+    expect(MatchAuthority.appendEffectLogMessages(
+      ['黒: 反転保護を付与', '黒: 反転保護を付与', ''],
+      null,
+      ['白: 破壊を無効化', '白: 破壊を無効化'],
+      ['黒: 反転保護を付与']
+    )).toEqual([
+      '黒: 反転保護を付与',
+      '白: 破壊を無効化',
+      '黒: 反転保護を付与'
+    ]);
+  });
+
   test('treats blank operationId as missing after normalization', () => {
     expect(MatchAuthority.hasRequiredOperationId(' op_same_turn ')).toBe(true);
     expect(MatchAuthority.hasRequiredOperationId('   ')).toBe(false);

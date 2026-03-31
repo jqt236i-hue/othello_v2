@@ -1553,9 +1553,10 @@
             // --- Single Writer: network active 時はローカル実行をスキップ ---
             if (state.active) {
                 const actionType = action && (action.type || action.actionType) ? String(action.type || action.actionType) : '';
+                const shouldDeferNetworkPublish = !!(action && action.deferNetworkPublish === true);
                 const isBoardPlacement = action && Number.isFinite(action.row) && Number.isFinite(action.col);
                 const isPass = actionType === 'pass';
-                if (isBoardPlacement || isPass) {
+                if (!shouldDeferNetworkPublish && (isBoardPlacement || isPass)) {
                     const publishPromise = publishSnapshot({
                         playerKey: normalizePlayerKey(playerKey),
                         actionType: isBoardPlacement ? 'place' : 'pass',
@@ -1566,7 +1567,7 @@
                 }
 
                 // Phase 2: cancel_card / destroy_hand_card — skip local, publish directly
-                if (actionType === 'cancel_card' || actionType === 'destroy_hand_card') {
+                if (!shouldDeferNetworkPublish && (actionType === 'cancel_card' || actionType === 'destroy_hand_card')) {
                     const publishPromise = publishSnapshot({
                         playerKey: normalizePlayerKey(playerKey),
                         actionType,
