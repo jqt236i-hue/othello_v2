@@ -1,14 +1,14 @@
 schemaVersion: training_gate.v1
 name: browser_lv6_growth_v1
 description: >
-  ブラウザLv6累積成長レーン用の隔離ゲート。browser non-regression は deploy レーンに任せ、
-  このレーンでは deploy/bootstrap anchor に対する実戦前進を拾って隔離 models/runs だけ更新する。
+  ブラウザLv6累積成長レーン用の最軽量隔離ゲート。browser non-regression は deploy レーンに任せ、
+  このレーンでは deploy/bootstrap anchor に対する実戦前進を quick 判定だけで拾って隔離 models/runs だけ更新する。
 trainCycleArgs:
   - --no-quality-gate
   - --quick-games
-  - "120"
+  - "40"
   - --final-games
-  - "240"
+  - "160"
   - --threshold
   - "0.006"
   - --adoption-seed-count
@@ -26,9 +26,9 @@ trainCycleArgs:
   - --adoption-min-seed-pass-count
   - "2"
   - --quick-adoption-threshold
-  - "0.001"
+  - "0.010"
   - --quick-adoption-seed-count
-  - "3"
+  - "1"
   - --quick-adoption-seed-stride
   - "1000"
   - --quick-adoption-seed-offset
@@ -91,4 +91,4 @@ trainCycleArgs:
   - "0.012"
   - --adoption-use-anchor-baseline
   - --promotion-mode
-  - strict
+  - quick-only

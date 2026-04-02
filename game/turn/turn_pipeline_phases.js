@@ -2157,12 +2157,85 @@
                         throw new Error('EQUALITY_WILL resolve failed');
                     }
                     clearPendingForActionPhase(cardState, playerKey);
+                    if (res && Array.isArray(res.flipped) && res.flipped.length && typeof CardLogic.applyRegenAfterFlips === 'function') {
+                        const regenRes = CardLogic.applyRegenAfterFlips(cardState, gameState, res.flipped, playerKey);
+                        if (regenRes && regenRes.regened && regenRes.regened.length) {
+                            events.push({ type: 'regen_triggered', details: regenRes.regened });
+                        }
+                        if (regenRes && regenRes.captureFlips && regenRes.captureFlips.length) {
+                            if (typeof CardLogic.clearHyperactiveAtPositions === 'function') {
+                                CardLogic.clearHyperactiveAtPositions(cardState, regenRes.captureFlips);
+                            }
+                            const firstCapture = regenRes.captureFlips[0] || {};
+                            awardBoardChargeGain(CardLogic, cardState, playerKey, regenRes.captureFlips.length, {
+                                targetRow: firstCapture.row,
+                                targetCol: firstCapture.col,
+                                sourceType: 'regen_capture_immediate'
+                            });
+                            events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
+                        }
+                    }
+                    if (res && Array.isArray(res.flipped) && res.flipped.length) {
+                        const firstFlip = res.flipped[0] || {};
+                        awardBoardChargeGain(CardLogic, cardState, playerKey, res.flipped.length, {
+                            targetRow: firstFlip.row,
+                            targetCol: firstFlip.col,
+                            sourceType: 'equality_will_immediate'
+                        });
+                    }
                     events.push({
                         type: 'equality_will_resolved',
                         player: playerKey,
                         requestedCount: Number(res.requestedCount) || 0,
                         spawnedCount: Number(res.spawnedCount) || 0,
-                        spawned: Array.isArray(res.spawned) ? res.spawned.slice() : []
+                        spawned: Array.isArray(res.spawned) ? res.spawned.slice() : [],
+                        flippedCount: Number(res.flippedCount) || 0,
+                        flipped: Array.isArray(res.flipped) ? res.flipped.slice() : []
+                    });
+                }
+
+                if (pendingType === 'REINFORCEMENT_WILL') {
+                    const res = (typeof CardLogic.resolveReinforcementWillUsage === 'function')
+                        ? CardLogic.resolveReinforcementWillUsage(cardState, gameState, playerKey, p)
+                        : null;
+                    if (!res || res.applied !== true) {
+                        throw new Error('REINFORCEMENT_WILL resolve failed');
+                    }
+                    clearPendingForActionPhase(cardState, playerKey);
+                    if (res && Array.isArray(res.flipped) && res.flipped.length && typeof CardLogic.applyRegenAfterFlips === 'function') {
+                        const regenRes = CardLogic.applyRegenAfterFlips(cardState, gameState, res.flipped, playerKey);
+                        if (regenRes && regenRes.regened && regenRes.regened.length) {
+                            events.push({ type: 'regen_triggered', details: regenRes.regened });
+                        }
+                        if (regenRes && regenRes.captureFlips && regenRes.captureFlips.length) {
+                            if (typeof CardLogic.clearHyperactiveAtPositions === 'function') {
+                                CardLogic.clearHyperactiveAtPositions(cardState, regenRes.captureFlips);
+                            }
+                            const firstCapture = regenRes.captureFlips[0] || {};
+                            awardBoardChargeGain(CardLogic, cardState, playerKey, regenRes.captureFlips.length, {
+                                targetRow: firstCapture.row,
+                                targetCol: firstCapture.col,
+                                sourceType: 'regen_capture_immediate'
+                            });
+                            events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
+                        }
+                    }
+                    if (res && Array.isArray(res.flipped) && res.flipped.length) {
+                        const firstFlip = res.flipped[0] || {};
+                        awardBoardChargeGain(CardLogic, cardState, playerKey, res.flipped.length, {
+                            targetRow: firstFlip.row,
+                            targetCol: firstFlip.col,
+                            sourceType: 'reinforcement_will_immediate'
+                        });
+                    }
+                    events.push({
+                        type: 'reinforcement_will_resolved',
+                        player: playerKey,
+                        requestedCount: Number(res.requestedCount) || 0,
+                        spawnedCount: Number(res.spawnedCount) || 0,
+                        spawned: Array.isArray(res.spawned) ? res.spawned.slice() : [],
+                        flippedCount: Number(res.flippedCount) || 0,
+                        flipped: Array.isArray(res.flipped) ? res.flipped.slice() : []
                     });
                 }
 
@@ -2301,12 +2374,40 @@
                         throw new Error('SALVATION_WILL resolve failed');
                     }
                     clearPendingForActionPhase(cardState, playerKey);
+                    if (res && Array.isArray(res.flipped) && res.flipped.length && typeof CardLogic.applyRegenAfterFlips === 'function') {
+                        const regenRes = CardLogic.applyRegenAfterFlips(cardState, gameState, res.flipped, playerKey);
+                        if (regenRes && regenRes.regened && regenRes.regened.length) {
+                            events.push({ type: 'regen_triggered', details: regenRes.regened });
+                        }
+                        if (regenRes && regenRes.captureFlips && regenRes.captureFlips.length) {
+                            if (typeof CardLogic.clearHyperactiveAtPositions === 'function') {
+                                CardLogic.clearHyperactiveAtPositions(cardState, regenRes.captureFlips);
+                            }
+                            const firstCapture = regenRes.captureFlips[0] || {};
+                            awardBoardChargeGain(CardLogic, cardState, playerKey, regenRes.captureFlips.length, {
+                                targetRow: firstCapture.row,
+                                targetCol: firstCapture.col,
+                                sourceType: 'regen_capture_immediate'
+                            });
+                            events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
+                        }
+                    }
+                    if (res && Array.isArray(res.flipped) && res.flipped.length) {
+                        const firstFlip = res.flipped[0] || {};
+                        awardBoardChargeGain(CardLogic, cardState, playerKey, res.flipped.length, {
+                            targetRow: firstFlip.row,
+                            targetCol: firstFlip.col,
+                            sourceType: 'salvation_will_immediate'
+                        });
+                    }
                     events.push({
                         type: 'salvation_will_resolved',
                         player: playerKey,
                         spawned: Array.isArray(res.spawned) ? res.spawned.slice() : [],
                         requestedCount: Number(res.requestedCount) || 0,
-                        spawnedCount: Number(res.spawnedCount) || 0
+                        spawnedCount: Number(res.spawnedCount) || 0,
+                        flippedCount: Number(res.flippedCount) || 0,
+                        flipped: Array.isArray(res.flipped) ? res.flipped.slice() : []
                     });
                 }
 

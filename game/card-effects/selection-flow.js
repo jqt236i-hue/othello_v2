@@ -356,6 +356,34 @@
         };
     }
 
+    function shouldAllowSelectionEntryDuringPlayback(playerKey, pendingType) {
+        const playbackState = getPlaybackStateManager();
+        if (!playbackState || typeof playbackState.shouldAllowSelectionEntryDuringPlayback !== 'function') {
+            return false;
+        }
+        try {
+            return playbackState.shouldAllowSelectionEntryDuringPlayback({
+                playerKey,
+                pendingType
+            }) === true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function clearSelectionEntryDuringPlayback() {
+        const playbackState = getPlaybackStateManager();
+        if (!playbackState || typeof playbackState.clearSelectionEntryPlaybackContext !== 'function') {
+            return false;
+        }
+        try {
+            playbackState.clearSelectionEntryPlaybackContext();
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
     function readMatchMode() {
         try {
             if (root && typeof root.getCurrentMatchMode === 'function') {
@@ -502,13 +530,14 @@
             ? opts.ensureCurrentPlayerCanActOrPass
             : null;
         const skipNetworkPublish = opts.skipNetworkPublish === true;
+        const clearCardAnimatingOnFinish = opts.clearCardAnimatingOnFinish !== false;
 
         if (contract && contract.turnOutcome === 'end_turn') {
             const networkTurnHandoff = getNetworkTurnHandoff();
             let publishFailureHandled = false;
             if (!networkTurnHandoff || typeof networkTurnHandoff.finalizeNetworkTurnHandoff !== 'function') {
                 setSelectionProcessing(false);
-                setSelectionCardAnimating(false);
+                if (clearCardAnimatingOnFinish) setSelectionCardAnimating(false);
                 if (ensureFn) {
                     try { ensureFn({ useBlackDelay: opts.useBlackDelay !== false }); } catch (e) { /* ignore */ }
                 }
@@ -526,7 +555,7 @@
                 onPublishFailed: () => {
                     publishFailureHandled = true;
                     clearPendingSelectionAction(playerKey);
-                    setSelectionCardAnimating(false);
+                    if (clearCardAnimatingOnFinish) setSelectionCardAnimating(false);
                     if (ensureFn) {
                         try { ensureFn({ useBlackDelay: opts.useBlackDelay !== false }); } catch (e) { /* ignore */ }
                     }
@@ -548,7 +577,7 @@
                     if (!publishFailureHandled) {
                         clearPendingSelectionAction(playerKey);
                         setSelectionProcessing(false);
-                        setSelectionCardAnimating(false);
+                        if (clearCardAnimatingOnFinish) setSelectionCardAnimating(false);
                         if (ensureFn) {
                             try { ensureFn({ useBlackDelay: opts.useBlackDelay !== false }); } catch (e) { /* ignore */ }
                         }
@@ -559,7 +588,7 @@
             if (!shouldRetainPendingSelectionAction(cardStateValue, playerKey, pendingType)) {
                 clearPendingSelectionAction(playerKey);
             }
-            setSelectionCardAnimating(false);
+            if (clearCardAnimatingOnFinish) setSelectionCardAnimating(false);
             return true;
         }
 
@@ -582,7 +611,7 @@
         }
 
         setSelectionProcessing(false);
-        setSelectionCardAnimating(false);
+        if (clearCardAnimatingOnFinish) setSelectionCardAnimating(false);
 
         if (typeof opts.onSettled === 'function') {
             try { await opts.onSettled(); } catch (e) { /* ignore */ }
@@ -860,15 +889,28 @@
             ? opts.actionType
             : 'place';
 
+        const pendingInfo = getSelectionPending(playerKey, opts);
+        const pending = pendingInfo.pending;
+        const resolvedPendingType = pendingInfo.pendingType;
+        const allowSelectionEntryDuringPlayback = shouldAllowSelectionEntryDuringPlayback(playerKey, resolvedPendingType);
         const busyState = readSelectionBusyState();
-        if (busyState.processing === true || busyState.cardAnimating === true) {
+        if (
+            busyState.processing === true
+            || (busyState.cardAnimating === true && allowSelectionEntryDuringPlayback !== true)
+        ) {
             return { ok: false, reason: 'busy' };
         }
 
-        setSelectionBusy(true);
+        if (allowSelectionEntryDuringPlayback === true) {
+            clearSelectionEntryDuringPlayback();
+        }
+        const ownsSelectionCardAnimating = allowSelectionEntryDuringPlayback !== true;
+        setSelectionProcessing(true);
+        if (ownsSelectionCardAnimating) {
+            setSelectionCardAnimating(true);
+        }
 
         let shouldFinalize = false;
-        let resolvedPendingType = null;
         let pendingAction = null;
         let playbackEvents = [];
         let executionResult = null;
@@ -882,9 +924,6 @@
         }
 
         try {
-            const pendingInfo = getSelectionPending(playerKey, opts);
-            const pending = pendingInfo.pending;
-            resolvedPendingType = pendingInfo.pendingType;
             if (!pending || !resolvedPendingType) {
                 return { ok: false, reason: 'pending_unavailable' };
             }
@@ -1220,11 +1259,15 @@
                         cardStateValue: root ? root.cardState : null,
                         onHumanTurnReady: defaultSelectionHandoffRender,
                         ensureCurrentPlayerCanActOrPass: resolveRootFunction('ensureCurrentPlayerCanActOrPass'),
-                        skipNetworkPublish: skipFinalizeNetworkPublish
+                        skipNetworkPublish: skipFinalizeNetworkPublish,
+                        clearCardAnimatingOnFinish: ownsSelectionCardAnimating
                     }, (opts.finalizeOptions && typeof opts.finalizeOptions === 'object') ? opts.finalizeOptions : {});
                     await finalizePendingSelectionFlow(finalizeOptions);
                 } catch (e) {
-                    setSelectionBusy(false);
+                    setSelectionProcessing(false);
+                    if (ownsSelectionCardAnimating) {
+                        setSelectionCardAnimating(false);
+                    }
                     const ensureFn = resolveRootFunction('ensureCurrentPlayerCanActOrPass');
                     if (typeof ensureFn === 'function') {
                         try { ensureFn({ useBlackDelay: true }); } catch (ignore) { /* ignore */ }
@@ -1235,7 +1278,10 @@
                     clearPendingSelectionAction(playerKey);
                     pendingAction = null;
                 }
-                setSelectionBusy(false);
+                setSelectionProcessing(false);
+                if (ownsSelectionCardAnimating) {
+                    setSelectionCardAnimating(false);
+                }
             }
         }
     }

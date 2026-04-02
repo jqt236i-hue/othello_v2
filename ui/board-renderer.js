@@ -54,6 +54,13 @@ function _hasPendingPlaybackEventsForBoardRenderer() {
 }
 
 function _shouldSkipBoardRenderForPlayback() {
+    if (PlaybackStateModule && typeof PlaybackStateModule.shouldAllowSelectionEntryDuringPlayback === 'function') {
+        try {
+            if (PlaybackStateModule.shouldAllowSelectionEntryDuringPlayback() === true) {
+                return false;
+            }
+        } catch (e) { /* ignore */ }
+    }
     return _isVisualPlaybackActiveForBoardRenderer() || _hasPendingPlaybackEventsForBoardRenderer();
 }
 
@@ -325,6 +332,18 @@ function renderBoardFull() {
             (window.DEBUG_HUMAN_VS_HUMAN && gameState.currentPlayer === WHITE) ||
             isFateWillControlledTurn);
     const showLegalHints = isHumanTurn && !isSelectingTarget && _canLocalPlayerControlCurrentTurnForBoard();
+    const positionSwapSelectedTargetSet = new Set();
+    if (
+        isHumanTurn &&
+        pending &&
+        pending.type === 'POSITION_SWAP_WILL' &&
+        pending.stage === 'selectTarget' &&
+        pending.firstTarget &&
+        Number.isInteger(pending.firstTarget.row) &&
+        Number.isInteger(pending.firstTarget.col)
+    ) {
+        positionSwapSelectedTargetSet.add(`${pending.firstTarget.row},${pending.firstTarget.col}`);
+    }
 
     let normalLegalSet = new Set();
     if (showLegalHints) {
@@ -464,6 +483,7 @@ function renderBoardFull() {
 
             // Human turn gets legal move hints (Black always, White in HvH)
             const key = r + ',' + c;
+            const isPositionSwapSelectedTarget = positionSwapSelectedTargetSet.has(key);
             if (showLegalHints && gameState.board[r][c] === EMPTY) {
                 if (freePlacementActive) {
                     cell.classList.add('legal-free');
@@ -473,6 +493,9 @@ function renderBoardFull() {
                 if (tabooLegalSet.has(key)) {
                     cell.classList.add('effect-target-highlight');
                 }
+            }
+            if (isPositionSwapSelectedTarget) {
+                cell.classList.add('effect-target-highlight');
             }
             if (isHumanTurn && selectableTargetSet.has(key)) {
                 cell.classList.add('selectable-friendly');

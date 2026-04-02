@@ -297,6 +297,24 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     expect(global.cardState.discard).toEqual([]);
     expect(global.cardState.hasUsedCardThisTurnByPlayer.black).toBe(false);
     expect(global.cardState.lastUsedCardByPlayer.black).toBeNull();
+    expect(result.playbackEvents).toEqual([
+      expect.objectContaining({
+        type: 'card_use_animation',
+        phase: 1,
+        targets: [expect.objectContaining({
+          player: 'black',
+          owner: 'black',
+          cardId: 'guard_01',
+          cardType: 'GUARD_WILL'
+        })]
+      }),
+      expect.objectContaining({
+        type: 'sound_effect',
+        phase: 1,
+        targets: [{ soundKey: 'card_use_button' }],
+        meta: { sourceType: 'card_used' }
+      })
+    ]);
     expect(publishPayloads).toHaveLength(0);
   });
 
@@ -511,6 +529,19 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     expect(result.ok).toBe(true);
     expect(publishPayloads).toHaveLength(1);
     expect(publishPayloads[0].playbackEvents).toBeUndefined();
+    expect(publishPayloads[0].snapshot).toBeUndefined();
+    expect(playbackEvents[0].targets[0].sourceCardEl).toEqual({ localOnly: true, id: 'card-dom-node' });
+    expect(playbackEvents[0].targets[0].sourceCardRect).toEqual({
+      left: 220,
+      top: 500,
+      width: 90,
+      height: 120,
+      right: 310,
+      bottom: 620
+    });
+  });
+});
+shPayloads[0].playbackEvents).toBeUndefined();
     expect(publishPayloads[0].snapshot).toBeUndefined();
     expect(playbackEvents[0].targets[0].sourceCardEl).toEqual({ localOnly: true, id: 'card-dom-node' });
     expect(playbackEvents[0].targets[0].sourceCardRect).toEqual({

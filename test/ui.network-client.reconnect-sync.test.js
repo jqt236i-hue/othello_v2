@@ -577,3 +577,19 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(document.getElementById('result-overlay')).toBeNull();
   });
 });
+reset_game', playerKey: 'white' });
+  });
+
+  test('非終局スナップショットの適用時に result overlay を自動で閉じる', async () => {
+    document.body.innerHTML = '<div id="result-overlay"></div>';
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
+    expect(joined.ok).toBe(true);
+
+    expect(document.getElementById('result-overlay')).toBeNull();
+  });
+});

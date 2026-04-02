@@ -643,6 +643,7 @@
         SELL_CARD_WILL: '手札売却で布石',
         REBUILD_WILL: '手札全破壊3ドロー',
         SUPPLY_WILL: '2ドロー',
+        REINFORCEMENT_WILL: '内側の隣接マスへ通常石を増援',
         SALVATION_WILL: '前ターン破壊の通常石を復活'
     });
 

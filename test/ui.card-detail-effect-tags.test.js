@@ -289,7 +289,7 @@ describe('card detail effect tags', () => {
       name: '救済の意志',
       type: 'SALVATION_WILL',
       cost: 17,
-      desc: '直前の相手ターンで破壊された自分の通常石をすべてランダムな空きマスへ配置する。対象0枚の時は使用不可。特殊石は対象外。'
+      desc: '直前の相手ターンで破壊された自分の通常石をすべてランダムな空きマスへ配置する。対象0枚の時は使用不可。特殊石は対象外。各復活石は、そのマスを起点に通常の挟み反転を行う。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -314,7 +314,7 @@ describe('card detail effect tags', () => {
       name: '救済の意志',
       type: 'SALVATION_WILL',
       cost: 17,
-      desc: '直前の相手ターンで破壊された自分の通常石をすべてランダムな空きマスへ配置する。対象0枚の時は使用不可。特殊石は対象外。'
+      desc: '直前の相手ターンで破壊された自分の通常石をすべてランダムな空きマスへ配置する。対象0枚の時は使用不可。特殊石は対象外。各復活石は、そのマスを起点に通常の挟み反転を行う。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -338,7 +338,7 @@ describe('card detail effect tags', () => {
       name: '平等の意志',
       type: 'EQUALITY_WILL',
       cost: 15,
-      desc: '相手の石数が自分より10個以上多い時のみ使用可。盤面の空きマスへランダムに最大3個、自分色の通常石を生成する。生成では反転しない。'
+      desc: '相手の石数が自分より10個以上多い時のみ使用可。盤面の空きマスへランダムに最大3個、自分色の通常石を生成する。各生成石は、そのマスを起点に通常の挟み反転を行う。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -351,6 +351,30 @@ describe('card detail effect tags', () => {
     const stateEl = document.getElementById('card-detail-live-state');
     expect(stateEl).not.toBeNull();
     expect(stateEl.textContent).toBe('（黒36／白21）');
+    expect(stateEl.style.display).toBe('block');
+  });
+
+  test('REINFORCEMENT_WILL detail panel shows current candidate count as live state', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'reinforcement_01',
+      name: '増援の意志',
+      type: 'REINFORCEMENT_WILL',
+      cost: 6,
+      desc: '盤面の角辺以外で石に隣接する空きマスからランダム1マスへ、自分色の通常石を1個配置する。'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+    global.CardLogic.getReinforcementWillTargetCount = () => 4;
+
+    window.updateCardDetailPanel();
+
+    const stateEl = document.getElementById('card-detail-live-state');
+    expect(stateEl).not.toBeNull();
+    expect(stateEl.textContent).toBe('4マス候補');
     expect(stateEl.style.display).toBe('block');
   });
 

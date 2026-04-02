@@ -49,6 +49,15 @@ describe('cards catalog consistency', () => {
     expect(Number(byId.get('x_bomb_01').cost)).toBe(18);
   });
 
+  test('reinforcement will card is present with expected cost/type/display', () => {
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
+    expect(byId.has('reinforcement_01')).toBe(true);
+    expect(byId.get('reinforcement_01').type).toBe('REINFORCEMENT_WILL');
+    expect(Number(byId.get('reinforcement_01').cost)).toBe(6);
+    expect(byId.get('reinforcement_01').display_type_ja).toBe('繁栄');
+  });
+
   test('regen/perma costs are swapped as specified', () => {
     const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));

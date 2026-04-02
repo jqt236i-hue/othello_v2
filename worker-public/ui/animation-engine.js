@@ -83,6 +83,15 @@
         return null;
     }
 
+    function _getDeferredVisualWriteGeneration() {
+        if (PlaybackState && typeof PlaybackState.getDeferredVisualWriteGeneration === 'function') {
+            try {
+                return Number(PlaybackState.getDeferredVisualWriteGeneration()) || 0;
+            } catch (e) { /* ignore */ }
+        }
+        return 0;
+    }
+
     function _consumeLocalPlaybackSoundSkip(soundKey) {
         const normalizedKey = String(soundKey || '').trim();
         if (!normalizedKey) return false;
@@ -115,6 +124,8 @@
             this._phaseContext = null;
             this._playbackRunSequence = 0;
             this._activePlaybackRunId = null;
+            this._deferredStatusDiscSyncTokens = new Map();
+            this._deferredStatusDiscSyncSequence = 0;
         }
 
         _registerPlaybackAbortHandle(runId, runState) {
@@ -468,10 +479,13 @@
             const isEqualityWillSpawn =
                 cause === 'EQUALITY_WILL' &&
                 reason.indexOf('equality_will_spawn') === 0;
+            const isReinforcementWillSpawn =
+                cause === 'REINFORCEMENT_WILL' &&
+                reason.indexOf('reinforcement_will_spawn') === 0;
             const isSalvationWillSpawn =
                 cause === 'SALVATION_WILL' &&
                 reason.indexOf('salvation_spawn') === 0;
-            if (!isEqualityWillSpawn && !isSalvationWillSpawn) return 0;
+            if (!isEqualityWillSpawn && !isReinforcementWillSpawn && !isSalvationWillSpawn) return 0;
             return 120;
         }
 
@@ -2891,7 +2905,12 @@
 
                         if (isStatusTick) {
                             const disc = await this.waitForDisc(t.r, t.col, 4);
-                            if (!disc) return;
+                            if (!disc) {
+                                if (this._shouldDeferStatusDiscSync(after)) {
+                                    this._scheduleDeferredStatusDiscSync(t.r, t.col, after);
+                                }
+                                return;
+                            }
                             this.syncDiscTimerOnly(disc, after);
                             return;
                         }
@@ -2902,7 +2921,12 @@
                         }
 
                         const disc = await this.waitForDisc(t.r, t.col, 4);
-                        if (!disc) return;
+                        if (!disc) {
+                            if (this._shouldDeferStatusDiscSync(after)) {
+                                this._scheduleDeferredStatusDiscSync(t.r, t.col, after);
+                            }
+                            return;
+                        }
 
                         const isRegenConsumed =
                             ev &&
@@ -2952,6 +2976,100 @@
                 );
             });
             await Promise.all(promises);
+        }
+
+        _shouldDeferStatusDiscSync(after) {
+            if (!after || typeof after !== 'object') return false;
+            if (after.color === 1 || after.color === -1) return true;
+            if (after.special) return true;
+            return Number.isFinite(Number(after.timer));
+        }
+
+        _scheduleDeferredStatusDiscSync(row, col, after) {
+            const rootRef = _getUiRootRef();
+            const syncToCurrentState = (Visuals && typeof Visuals.syncDiscVisualToCurrentState === 'function')
+                ? Visuals.syncDiscVisualToCurrentState
+                : ((rootRef && rootRef.StoneVisuals && typeof rootRef.StoneVisuals.syncDiscVisualToCurrentState === 'function')
+                    ? rootRef.StoneVisuals.syncDiscVisualToCurrentState.bind(rootRef.StoneVisuals)
+                    : ((rootRef && typeof rootRef.syncDiscVisualToCurrentState === 'function')
+                        ? rootRef.syncDiscVisualToCurrentState.bind(rootRef)
+                        : null));
+            const emitBoardUpdateFn = (typeof emitBoardUpdate === 'function')
+                ? emitBoardUpdate
+                : ((rootRef && typeof rootRef.emitBoardUpdate === 'function')
+                    ? rootRef.emitBoardUpdate.bind(rootRef)
+                    : null);
+            const waitForPlaybackIdleFn = (rootRef && typeof rootRef.waitForPlaybackIdle === 'function')
+                ? rootRef.waitForPlaybackIdle.bind(rootRef)
+                : null;
+            const fallbackState = (after && typeof after === 'object') ? Object.assign({}, after) : null;
+            const cellKey = `${Number(row)}:${Number(col)}`;
+            const token = this._deferredStatusDiscSyncSequence + 1;
+            this._deferredStatusDiscSyncSequence = token;
+            this._deferredStatusDiscSyncTokens.set(cellKey, token);
+            const playbackGeneration = _getDeferredVisualWriteGeneration();
+
+            const waitForNextFrame = () => new Promise((resolve) => {
+                try {
+                    requestAnimationFrame(() => setTimeout(resolve, 0));
+                } catch (e) {
+                    setTimeout(resolve, 0);
+                }
+            });
+
+            const isCurrentDeferredSync = () => {
+                return this._deferredStatusDiscSyncTokens.get(cellKey) === token
+                    && playbackGeneration === _getDeferredVisualWriteGeneration();
+            };
+
+            const clearIfCurrent = () => {
+                if (this._deferredStatusDiscSyncTokens.get(cellKey) === token) {
+                    this._deferredStatusDiscSyncTokens.delete(cellKey);
+                }
+            };
+
+            const trySync = () => {
+                if (!isCurrentDeferredSync()) return false;
+                const cell = this.getCellEl(row, col);
+                const disc = cell ? cell.querySelector('.disc') : null;
+                if (!disc) return false;
+                if (typeof syncToCurrentState === 'function') {
+                    try {
+                        syncToCurrentState(row, col);
+                        return true;
+                    } catch (e) { /* ignore */ }
+                }
+                if (fallbackState) {
+                    try {
+                        this.syncDiscVisual(disc, fallbackState);
+                        return true;
+                    } catch (e) { /* ignore */ }
+                }
+                return false;
+            };
+
+            Promise.resolve().then(async () => {
+                if (!isCurrentDeferredSync()) return;
+                if (typeof waitForPlaybackIdleFn === 'function') {
+                    try { await Promise.resolve(waitForPlaybackIdleFn()); } catch (e) { /* ignore */ }
+                }
+
+                if (!isCurrentDeferredSync()) return;
+
+                if (trySync()) return;
+
+                if (typeof emitBoardUpdateFn === 'function') {
+                    try { emitBoardUpdateFn(); } catch (e) { /* ignore */ }
+                }
+
+                for (let attempt = 0; attempt < 4; attempt += 1) {
+                    await waitForNextFrame();
+                    if (!isCurrentDeferredSync()) return;
+                    if (trySync()) return;
+                }
+            }).catch(() => {}).finally(() => {
+                clearIfCurrent();
+            });
         }
 
         async fadeOutFreezeOverlay(cell, durationMs) {

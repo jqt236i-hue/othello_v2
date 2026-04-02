@@ -367,6 +367,34 @@ describe('cpu-policy-core', () => {
         }));
     });
 
+    test('chooseHandDestroyTargetForCycle immediately destroys REINFORCEMENT_WILL when currently unusable', () => {
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['reinforcement_01'],
+            [],
+            () => 6,
+            () => ({ id: 'reinforcement_01', type: 'REINFORCEMENT_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 3,
+                ownCharge: 20,
+                handSize: 1,
+                empties: 24,
+                discDiff: -4,
+                ownCorners: 0,
+                oppCorners: 1,
+                ownEdges: 2,
+                oppEdges: 4,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toEqual(expect.objectContaining({
+            cardId: 'reinforcement_01',
+            reason: 'bucket3_currently_unusable'
+        }));
+    });
+
     test('chooseHandDestroyTargetForCycle immediately destroys CORNER_TRIBUTE when currently unusable', () => {
         const selected = core.chooseHandDestroyTargetForCycle(
             ['corner_tribute_01'],
@@ -1740,6 +1768,59 @@ describe('cpu-policy-core', () => {
         expect(trailing.score).toBeGreaterThan(inactive.score);
     });
 
+    test('scoreCardUseDecision treats REINFORCEMENT_WILL as a recovery option under pressure', () => {
+        const pressured = core.scoreCardUseDecision(
+            'reinforcement',
+            () => 6,
+            () => ({ id: 'reinforcement', type: 'REINFORCEMENT_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 1,
+                discDiff: -10,
+                empties: 26,
+                ownCharge: 12,
+                handSize: 3,
+                ownDiscs: 10,
+                oppDiscs: 20,
+                ownCorners: 0,
+                oppCorners: 2,
+                ownEdges: 2,
+                oppEdges: 6,
+                usableCardIds: ['reinforcement'],
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true,
+                cornerEmergency: true
+            }
+        );
+        const stable = core.scoreCardUseDecision(
+            'reinforcement',
+            () => 6,
+            () => ({ id: 'reinforcement', type: 'REINFORCEMENT_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                discDiff: 8,
+                empties: 14,
+                ownCharge: 12,
+                handSize: 3,
+                ownDiscs: 22,
+                oppDiscs: 14,
+                ownCorners: 2,
+                oppCorners: 0,
+                ownEdges: 7,
+                oppEdges: 3,
+                usableCardIds: ['reinforcement'],
+                hasCornerMoveNow: true,
+                hasEdgeMoveNow: true,
+                cornerEmergency: false
+            }
+        );
+        expect(pressured.score).toBeGreaterThan(stable.score);
+        expect(stable.shouldUse).toBe(false);
+    });
+
     test('scoreCardUseDecision suppresses METEOR_WILL while ahead and promotes it in corner emergency with bonus follow-up', () => {
         const ahead = core.scoreCardUseDecision(
             'meteor',
@@ -2039,6 +2120,46 @@ describe('cpu-policy-core', () => {
 
         expect(live.score).toBeGreaterThan(inactive.score);
         expect(inactive.score).toBeLessThan(0);
+    });
+
+    test('scoreCardRetentionForSell devalues REINFORCEMENT_WILL when corner recovery pressure is absent', () => {
+        const pressured = core.scoreCardRetentionForSell(
+            'reinforcement',
+            () => 6,
+            () => ({ id: 'reinforcement', type: 'REINFORCEMENT_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 2,
+                handSize: 4,
+                discDiff: -10,
+                empties: 24,
+                ownCorners: 0,
+                oppCorners: 2,
+                hasCornerMoveNow: false,
+                cornerEmergency: true,
+                ownCharge: 12
+            }
+        );
+        const stable = core.scoreCardRetentionForSell(
+            'reinforcement',
+            () => 6,
+            () => ({ id: 'reinforcement', type: 'REINFORCEMENT_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 4,
+                handSize: 4,
+                discDiff: 8,
+                empties: 14,
+                ownCorners: 2,
+                oppCorners: 0,
+                hasCornerMoveNow: true,
+                cornerEmergency: false,
+                ownCharge: 12
+            }
+        );
+        expect(pressured.score).toBeGreaterThan(stable.score);
     });
 
     test('chooseSellCardTargetByRetention rotates SUPER_BUOYANCY_WILL when no corner or edge conversion exists', () => {
@@ -2392,6 +2513,15 @@ describe('cpu-policy-core', () => {
         expect(core.hasMovePlanProfileForCardType('EQUALITY_WILL')).toBe(true);
         expect(core.getMovePlanProfileForCardType('EQUALITY_WILL')).toEqual(expect.objectContaining({
             archetype: 'explosiveComeback',
+            placementWeight: 0
+        }));
+    });
+
+    test('REINFORCEMENT_WILL keeps an explicit recovery-reposition move plan profile', () => {
+        expect(core.hasUsageStyleForCardType('REINFORCEMENT_WILL')).toBe(true);
+        expect(core.hasMovePlanProfileForCardType('REINFORCEMENT_WILL')).toBe(true);
+        expect(core.getMovePlanProfileForCardType('REINFORCEMENT_WILL')).toEqual(expect.objectContaining({
+            archetype: 'recoveryReposition',
             placementWeight: 0
         }));
     });

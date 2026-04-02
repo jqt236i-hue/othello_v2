@@ -139,6 +139,7 @@
             setGlobalFlag('isCardAnimating', false);
             setGlobalFlag('VisualPlaybackActive', false);
             setGlobalValue('__playbackActiveSince', null);
+            setGlobalValue('__busyStateSince', null);
 
             try {
                 if (typeof document !== 'undefined') {
@@ -512,7 +513,8 @@
             return {
                 processing,
                 cardAnimating,
-                playbackActive: isVisualPlaybackActive()
+                playbackActive: isVisualPlaybackActive(),
+                busyStartedAt: getBusyStartedAt() || getPlaybackStartedAt()
             };
         }
 
@@ -525,7 +527,28 @@
                 }
             } catch (e) { /* ignore */ }
 
-            const startedAt = Number(rootRef && rootRef.__playbackActiveSince);
+            const rawValue = rootRef && rootRef.__playbackActiveSince;
+            if (rawValue === null || typeof rawValue === 'undefined' || rawValue === '') {
+                return null;
+            }
+            const startedAt = Number(rawValue);
+            return Number.isFinite(startedAt) ? startedAt : null;
+        }
+
+        function getBusyStartedAt() {
+            const playbackState = resolvePlaybackStateModule();
+            try {
+                if (playbackState && typeof playbackState.getBusyStartedAt === 'function') {
+                    const startedAt = Number(playbackState.getBusyStartedAt());
+                    return Number.isFinite(startedAt) ? startedAt : null;
+                }
+            } catch (e) { /* ignore */ }
+
+            const rawValue = rootRef && rootRef.__busyStateSince;
+            if (rawValue === null || typeof rawValue === 'undefined' || rawValue === '') {
+                return null;
+            }
+            const startedAt = Number(rawValue);
             return Number.isFinite(startedAt) ? startedAt : null;
         }
 
@@ -592,7 +615,25 @@
                     || busyStateBeforeSnapshot.playbackActive === true
                 )
             );
-            if (hadBusyBeforeSnapshot) return false;
+            if (hadBusyBeforeSnapshot) {
+                const rawBusyStartedAt = busyStateBeforeSnapshot && busyStateBeforeSnapshot.busyStartedAt;
+                const busyStartedAt = (rawBusyStartedAt === null || typeof rawBusyStartedAt === 'undefined' || rawBusyStartedAt === '')
+                    ? null
+                    : Number(rawBusyStartedAt);
+                const hasBusyStartedAt = Number.isFinite(busyStartedAt);
+                if (hasBusyStartedAt) {
+                    const busyAgeMs = Date.now() - busyStartedAt;
+                    if (busyAgeMs <= getStalePlaybackTimeoutMs()) {
+                        return false;
+                    }
+                }
+
+                const enginePlaying = isPlaybackEngineRunning();
+                if (enginePlaying === true) return false;
+                if (enginePlaying !== false && !hasBusyStartedAt) {
+                    return false;
+                }
+            }
             if (isVisualPlaybackActive()) return false;
 
             const currentQueues = captureTransientPresentationQueues(cardStateRef);

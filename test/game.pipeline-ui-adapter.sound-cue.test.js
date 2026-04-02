@@ -75,6 +75,75 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
+  test('hyperactive_inherit_selected 成功時は INHERITED_HYPERACTIVE の status_applied phase で guard_select を再生する', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 12,
+      targets: [{
+        r: 4,
+        col: 4,
+        after: {
+          color: 1,
+          special: null,
+          timer: null,
+          owner: 'black',
+          inheritedTimer: 10,
+          inheritedOwner: 'black',
+          inheritedFlipEvadeRemaining: 1,
+          destroyEvadeRemaining: 1
+        }
+      }],
+      meta: {
+        special: 'INHERITED_HYPERACTIVE',
+        timer: 10,
+        owner: 'black',
+        flipEvadeRemaining: 1,
+        destroyEvadeRemaining: 1
+      }
+    }];
+    const raw = [{ type: 'hyperactive_inherit_selected', applied: true, target: { row: 4, col: 4 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'guard_select');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(12);
+  });
+
+  test('hyperactive_inherit_selected が不成立なら guard_select を再生しない', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 7,
+      targets: [{
+        r: 1,
+        col: 5,
+        after: {
+          color: 1,
+          special: null,
+          timer: null,
+          owner: 'black',
+          inheritedTimer: 10,
+          inheritedOwner: 'black',
+          inheritedFlipEvadeRemaining: 1,
+          destroyEvadeRemaining: 1
+        }
+      }],
+      meta: {
+        special: 'INHERITED_HYPERACTIVE',
+        timer: 10,
+        owner: 'black',
+        flipEvadeRemaining: 1,
+        destroyEvadeRemaining: 1
+      }
+    }];
+    const raw = [{ type: 'hyperactive_inherit_selected', applied: false, target: { row: 1, col: 5 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'guard_select');
+
+    expect(cue).toBeUndefined();
+  });
+
   test('freeze_selected 成功時は FREEZE の status_applied phase で freeze_select を再生する', () => {
     const base = [{
       type: 'status_applied',
@@ -567,7 +636,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue.phase).toBe(4);
   });
 
-  test('card effect driven flip phases は taboo/regen/swap/breeding/hyperactive 系でも card_effect_flip を再生する', () => {
+  test('card effect driven flip phases は taboo/regen/swap/equality/salvation/breeding/hyperactive 系でも card_effect_flip を再生する', () => {
     const base = [
       {
         type: 'flip',
@@ -592,21 +661,31 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
       {
         type: 'flip',
         phase: 9,
-        targets: [{ r: 5, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'BREEDING', reason: 'breeding_flip' }]
+        targets: [{ r: 5, col: 3, ownerBefore: 'white', ownerAfter: 'black', cause: 'EQUALITY_WILL', reason: 'equality_will_flip' }]
       },
       {
         type: 'flip',
         phase: 10,
-        targets: [{ r: 6, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'HYPERACTIVE', reason: 'hyperactive_flip' }]
+        targets: [{ r: 5, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'SALVATION_WILL', reason: 'salvation_flip' }]
       },
       {
         type: 'flip',
         phase: 11,
-        targets: [{ r: 6, col: 5, ownerBefore: 'white', ownerAfter: 'black', cause: 'ULTIMATE_HYPERACTIVE_GOD', reason: 'ultimate_hyperactive_flip' }]
+        targets: [{ r: 5, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'BREEDING', reason: 'breeding_flip' }]
       },
       {
         type: 'flip',
         phase: 12,
+        targets: [{ r: 6, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'HYPERACTIVE', reason: 'hyperactive_flip' }]
+      },
+      {
+        type: 'flip',
+        phase: 13,
+        targets: [{ r: 6, col: 5, ownerBefore: 'white', ownerAfter: 'black', cause: 'ULTIMATE_HYPERACTIVE_GOD', reason: 'ultimate_hyperactive_flip' }]
+      },
+      {
+        type: 'flip',
+        phase: 14,
         targets: [{ r: 6, col: 6, ownerBefore: 'white', ownerAfter: 'black', cause: 'ROBOT_VACUUM', reason: 'robot_vacuum_flip' }]
       }
     ];
@@ -622,7 +701,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
       .filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_effect_flip')
       .map((ev) => ev.phase);
 
-    expect(cues).toEqual([5, 6, 7, 8, 9, 10, 11, 12]);
+    expect(cues).toEqual([5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
   });
 
   test('condemn_selected 成功時は card_use_animation の phase で stone_destroy を再生する', () => {
@@ -865,6 +944,51 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     ]);
     expect(topLevelEqualitySpawns.map((ev) => ev.phase)).toEqual([6, 7]);
     expect(topLevelEqualityCues.map((ev) => ev.phase)).toEqual([6, 7]);
+  });
+
+  test('reinforcement_will_resolved は最初の spawn と breeding_spawn を card_use_animation の消失時へ寄せる', () => {
+    const base = [
+      {
+        type: 'card_use_animation',
+        phase: 5,
+        targets: [{ cardId: 'reinforcement_01', owner: 'black' }]
+      },
+      {
+        type: 'spawn',
+        phase: 5,
+        targets: [{ r: 2, col: 4, cause: 'REINFORCEMENT_WILL', reason: 'reinforcement_will_spawn' }]
+      }
+    ];
+    const raw = [{ type: 'reinforcement_will_resolved', player: 'black', spawnedCount: 1 }];
+    const pres = [{ type: 'CARD_USED', player: 'black', cardId: 'reinforcement_01' }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw, pres);
+    const cardUseEv = out.find((ev) => ev && ev.type === 'card_use_animation');
+    const disappearEvents = cardUseEv && cardUseEv.targets && cardUseEv.targets[0]
+      ? cardUseEv.targets[0].disappearPlaybackEvents
+      : null;
+    const topLevelSpawns = out.filter((ev) => ev && ev.type === 'spawn' && ev.targets && ev.targets[0] && ev.targets[0].cause === 'REINFORCEMENT_WILL');
+    const topLevelCues = out.filter((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.meta &&
+      ev.meta.sourceType === 'reinforcement_will_spawn'
+    ));
+
+    expect(cardUseEv).toBeTruthy();
+    expect(disappearEvents).toEqual([
+      expect.objectContaining({
+        type: 'spawn',
+        targets: [expect.objectContaining({ cause: 'REINFORCEMENT_WILL', reason: 'reinforcement_will_spawn', r: 2, col: 4 })]
+      }),
+      expect.objectContaining({
+        type: 'sound_effect',
+        targets: [expect.objectContaining({ soundKey: 'breeding_spawn' })],
+        meta: expect.objectContaining({ sourceType: 'reinforcement_will_spawn' })
+      })
+    ]);
+    expect(topLevelSpawns).toHaveLength(0);
+    expect(topLevelCues).toHaveLength(0);
   });
 
   test('strong_will_promoted は status_applied の phase で進化音を再生する', () => {

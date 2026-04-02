@@ -67,6 +67,14 @@ function _getUIGlobals() {
 
 function _hasPendingPlaybackOrPresentation() {
     try {
+        const playbackState = (typeof window !== 'undefined' && window && window.PlaybackStateManager && typeof window.PlaybackStateManager.shouldAllowSelectionEntryDuringPlayback === 'function')
+            ? window.PlaybackStateManager
+            : ((typeof globalThis !== 'undefined' && globalThis && globalThis.PlaybackStateManager && typeof globalThis.PlaybackStateManager.shouldAllowSelectionEntryDuringPlayback === 'function')
+                ? globalThis.PlaybackStateManager
+                : null);
+        if (playbackState && playbackState.shouldAllowSelectionEntryDuringPlayback() === true) {
+            return false;
+        }
         const pending = (cardState && Array.isArray(cardState._presentationEventsPersist)) ? cardState._presentationEventsPersist.length : 0;
         const live = (cardState && Array.isArray(cardState.presentationEvents)) ? cardState.presentationEvents.length : 0;
         const playback = (typeof window !== 'undefined') ? (window.VisualPlaybackActive === true) : false;

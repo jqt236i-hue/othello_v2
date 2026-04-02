@@ -289,6 +289,9 @@
             reason.indexOf('taboo_reverse_flip') === 0 ||
             reason.indexOf('regen_triggered') === 0 ||
             reason.indexOf('regen_capture_flip') === 0 ||
+            reason.indexOf('equality_will_flip') === 0 ||
+            reason.indexOf('reinforcement_will_flip') === 0 ||
+            reason.indexOf('salvation_flip') === 0 ||
             reason.indexOf('breeding_flip') === 0 ||
             reason.indexOf('hyperactive_flip') === 0 ||
             reason.indexOf('escape_hyperactive_flip') === 0 ||
@@ -654,6 +657,13 @@
             rawResolvedType: 'equality_will_resolved',
             soundSourceType: 'equality_will_spawn',
             phaseStartIndex: 2
+        }),
+        Object.freeze({
+            cause: 'REINFORCEMENT_WILL',
+            reasonPrefix: 'reinforcement_will_spawn',
+            rawResolvedType: 'reinforcement_will_resolved',
+            soundSourceType: 'reinforcement_will_spawn',
+            phaseStartIndex: 1
         }),
         Object.freeze({
             cause: 'SALVATION_WILL',
@@ -2199,6 +2209,15 @@
             _pushSoundCue(ctx, 'guard_select', guardSelectPhase, 'guard_selected');
         }
 
+        const hyperactiveInheritSelectPhase = _findPhase(
+            ctx.base,
+            (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'INHERITED_HYPERACTIVE',
+            ctx.fallbackPhase
+        );
+        if (_hasRawEvent(ctx.raw, 'hyperactive_inherit_selected', (ev) => !!(ev && ev.applied))) {
+            _pushSoundCue(ctx, 'guard_select', hyperactiveInheritSelectPhase, 'hyperactive_inherit_selected');
+        }
+
         const freezeSelectPhase = _findPhase(
             ctx.base,
             (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'FREEZE',
@@ -2885,8 +2904,18 @@
                 case 'corrosion_will_resolved':
                     push(`腐食の意志: 特殊石${Number(ev.affectedCount) || 0}個の持続ターンを半減`);
                     break;
+                case 'equality_will_resolved': {
+                    const flippedCount = Number(ev.flippedCount) || 0;
+                    let line = `平等の意志: 通常石${Number(ev.spawnedCount) || 0}個を生成`;
+                    if (flippedCount > 0) line += `、${flippedCount}枚を反転`;
+                    push(line);
+                    break;
+                }
+                case 'reinforcement_will_resolved':
+                    push(`増援の意志: 通常石${Number(ev.spawnedCount) || 0}個を配置${(Number(ev.flippedCount) || 0) > 0 ? `、${Number(ev.flippedCount) || 0}枚を反転` : ''}`);
+                    break;
                 case 'salvation_will_resolved':
-                    push(`救済の意志: 通常石${Number(ev.spawnedCount) || 0}個を復活`);
+                    push(`救済の意志: 通常石${Number(ev.spawnedCount) || 0}個を復活${(Number(ev.flippedCount) || 0) > 0 ? `、${Number(ev.flippedCount) || 0}枚を反転` : ''}`);
                     break;
                 case 'heaven_blessing_selected':
                     if (ev.applied) push('天の恵みでカード獲得');

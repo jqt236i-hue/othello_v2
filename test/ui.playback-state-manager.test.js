@@ -176,3 +176,7 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(manager.getCardAnimating()).toBe(false);
   });
 });
+bal.window.__suppressNextDiffFlip).toBe(false);
+    expect(global.window.__suppressNextBoardExpansionRevealSound).toBe(false);
+  });
+});

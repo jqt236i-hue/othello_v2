@@ -16,6 +16,16 @@ describe('visual-effects map shared between game/ui', () => {
     delete global.requestAnimationFrame;
   });
 
+  test('ui visual-effects-map bootstrap stays quiet without debug flags', () => {
+    const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      require('../ui/visual-effects-map');
+      expect(consoleLog).not.toHaveBeenCalled();
+    } finally {
+      consoleLog.mockRestore();
+    }
+  });
+
   test('ui.applyStoneVisualEffect can resolve keys from game/visual-effects-map via window.GameVisualEffectsMap', async () => {
     // Match browser load order: UI loads first, then game publishes the map and calls __visualEffectsMapReady.
     require('../ui/visual-effects-map');

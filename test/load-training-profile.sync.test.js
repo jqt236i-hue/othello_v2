@@ -125,7 +125,7 @@ describe('load-training-profile shared teacher sync', () => {
         expect(getFlagValue(args, '--models-dir')).toBe(modelsDir);
     });
 
-    test('browser_lv6_growth_v1 resolves isolated cumulative growth lane', () => {
+    test('browser_lv6_growth_v1 resolves isolated anchor quick-only lane', () => {
         const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-training-profile-'));
         const runsDir = path.join(tempRoot, 'runs');
         const modelsDir = path.join(tempRoot, 'models');
@@ -138,32 +138,37 @@ describe('load-training-profile shared teacher sync', () => {
         const args = resolved.command.args;
 
         expect(resolved.gate && resolved.gate.name).toBe('browser_lv6_growth_v1');
-        expect(args).toContain('--selfplay-use-candidate-every-iteration');
-        expect(args).not.toContain('--selfplay-use-promoted-model-only');
+        expect(args).toContain('--selfplay-use-promoted-model-only');
+        expect(args).not.toContain('--selfplay-use-candidate-every-iteration');
         expect(args).toContain('--carry-over-checkpoint');
         expect(args).not.toContain('--adoption-use-guide-baseline');
         expect(args).toContain('--adoption-use-anchor-baseline');
         expect(args).toContain('--no-quality-gate');
         expect(args).not.toContain('--quality-gate');
         expect(args).not.toContain('--no-promote');
-        expect(getFlagValue(args, '--promotion-mode')).toBe('strict');
-        expect(getFlagValue(args, '--selfplay-policy-model-pool-size')).toBe('4');
+        expect(getFlagValue(args, '--promotion-mode')).toBe('quick-only');
+        expect(getFlagValue(args, '--selfplay-policy-model-pool-size')).toBe('2');
         expect(getFlagValue(args, '--selfplay-policy-pool-sampling')).toBe('recency');
-        expect(Number(getFlagValue(args, '--selfplay-policy-current-anchor-rate'))).toBeCloseTo(0.35, 6);
+        expect(Number(getFlagValue(args, '--selfplay-policy-current-anchor-rate'))).toBeCloseTo(0.70, 6);
         expect(getFlagValue(args, '--eval-games')).toBe('2000');
-        expect(getFlagValue(args, '--selfplay-card-usage-rate-schedule')).toBe('0.30@1,0.40@3,0.50@6,0.60@10');
+        expect(getFlagValue(args, '--quick-games')).toBe('40');
+        expect(getFlagValue(args, '--final-games')).toBe('160');
+        expect(Number(getFlagValue(args, '--quick-adoption-threshold'))).toBeCloseTo(0.01, 6);
+        expect(getFlagValue(args, '--selfplay-card-usage-rate-schedule')).toBeNull();
         expect(getFlagValue(args, '--selfplay-tactical-weight-min')).toBe('0.95');
         expect(getFlagValue(args, '--selfplay-tactical-weight-max')).toBe('1.25');
         expect(getFlagValue(args, '--selfplay-tactical-depth-opening')).toBe('4');
         expect(getFlagValue(args, '--selfplay-tactical-depth-mid')).toBe('6');
         expect(getFlagValue(args, '--selfplay-tactical-depth-end')).toBe('7');
         expect(getFlagValue(args, '--selfplay-tactical-beam-width')).toBe('4');
+        expect(Number(getFlagValue(args, '--onnx-winner-sample-boost'))).toBeCloseTo(0.40, 6);
+        expect(Number(getFlagValue(args, '--onnx-corner-emergency-sample-boost'))).toBeCloseTo(0.75, 6);
         expect(Number(getFlagValue(args, '--onnx-tactical-miss-sample-boost'))).toBeCloseTo(0.6, 6);
-        expect(Number(getFlagValue(args, '--onnx-tactical-miss-threshold'))).toBeCloseTo(0.12, 6);
+        expect(Number(getFlagValue(args, '--onnx-tactical-miss-threshold'))).toBeCloseTo(0.08, 6);
         expect(Number(getFlagValue(args, '--onnx-corner-balance-sample-boost'))).toBeCloseTo(0.18, 6);
         expect(Number(getFlagValue(args, '--onnx-edge-balance-sample-boost'))).toBeCloseTo(0.08, 6);
         expect(getFlagValue(args, '--quick-adoption-seed-offset')).toBe('200000');
-        expect(getFlagValue(args, '--quick-adoption-seed-count')).toBe('3');
+        expect(getFlagValue(args, '--quick-adoption-seed-count')).toBe('1');
         expect(getFlagValue(args, '--quick-adoption-min-seed-pass-count')).toBe('1');
         expect(getFlagValue(args, '--final-adoption-seed-count')).toBe('3');
         expect(getFlagValue(args, '--final-adoption-min-seed-pass-count')).toBe('2');
@@ -185,15 +190,19 @@ describe('load-training-profile shared teacher sync', () => {
         const args = resolved.command.args;
 
         expect(resolved.gate && resolved.gate.name).toBe('browser_lv6_growth_quick_v1');
-        expect(args).toContain('--selfplay-use-candidate-every-iteration');
+        expect(args).toContain('--selfplay-use-promoted-model-only');
+        expect(args).not.toContain('--selfplay-use-candidate-every-iteration');
         expect(args).toContain('--carry-over-checkpoint');
         expect(args).toContain('--adoption-use-guide-baseline');
         expect(args).toContain('--no-quality-gate');
         expect(args).not.toContain('--quality-gate');
         expect(getFlagValue(args, '--promotion-mode')).toBe('quick-only');
+        expect(getFlagValue(args, '--selfplay-policy-model-pool-size')).toBe('2');
+        expect(Number(getFlagValue(args, '--selfplay-policy-current-anchor-rate'))).toBeCloseTo(0.70, 6);
         expect(getFlagValue(args, '--eval-games')).toBe('2000');
         expect(getFlagValue(args, '--selfplay-tactical-weight-max')).toBe('1.25');
         expect(getFlagValue(args, '--selfplay-tactical-beam-width')).toBe('4');
+        expect(Number(getFlagValue(args, '--onnx-tactical-miss-threshold'))).toBeCloseTo(0.08, 6);
         expect(getFlagValue(args, '--quick-adoption-seed-count')).toBe('3');
         expect(getFlagValue(args, '--quick-adoption-min-seed-pass-count')).toBe('1');
         expect(getFlagValue(args, '--final-adoption-seed-count')).toBe('3');
@@ -216,15 +225,19 @@ describe('load-training-profile shared teacher sync', () => {
         const args = resolved.command.args;
 
         expect(resolved.gate && resolved.gate.name).toBe('browser_lv6_growth_final5_v1');
-        expect(args).toContain('--selfplay-use-candidate-every-iteration');
+        expect(args).toContain('--selfplay-use-promoted-model-only');
+        expect(args).not.toContain('--selfplay-use-candidate-every-iteration');
         expect(args).toContain('--carry-over-checkpoint');
         expect(args).toContain('--adoption-use-guide-baseline');
         expect(args).toContain('--no-quality-gate');
         expect(args).not.toContain('--quality-gate');
         expect(getFlagValue(args, '--promotion-mode')).toBe('strict');
+        expect(getFlagValue(args, '--selfplay-policy-model-pool-size')).toBe('2');
+        expect(Number(getFlagValue(args, '--selfplay-policy-current-anchor-rate'))).toBeCloseTo(0.70, 6);
         expect(getFlagValue(args, '--eval-games')).toBe('2000');
         expect(getFlagValue(args, '--selfplay-tactical-weight-max')).toBe('1.25');
         expect(getFlagValue(args, '--selfplay-tactical-beam-width')).toBe('4');
+        expect(Number(getFlagValue(args, '--onnx-tactical-miss-threshold'))).toBeCloseTo(0.08, 6);
         expect(getFlagValue(args, '--quick-adoption-seed-count')).toBe('3');
         expect(getFlagValue(args, '--quick-adoption-min-seed-pass-count')).toBe('1');
         expect(getFlagValue(args, '--adoption-seed-count')).toBe('5');
@@ -268,10 +281,10 @@ describe('load-training-profile shared teacher sync', () => {
         expect(getFlagValue(args, '--quick-adoption-min-seed-pass-count')).toBe('2');
         expect(getFlagValue(args, '--final-adoption-seed-count')).toBe('5');
         expect(getFlagValue(args, '--final-adoption-min-seed-pass-count')).toBe('3');
-        expect(getFlagValue(args, '--selfplay-policy-model-pool-size')).toBe('4');
+        expect(getFlagValue(args, '--selfplay-policy-model-pool-size')).toBe('2');
         expect(getFlagValue(args, '--selfplay-policy-pool-sampling')).toBe('recency');
         expect(getFlagValue(args, '--selfplay-policy-pool-recency-decay')).toBe('2.0');
-        expect(getFlagValue(args, '--selfplay-policy-current-anchor-rate')).toBe('0.35');
+        expect(getFlagValue(args, '--selfplay-policy-current-anchor-rate')).toBe('0.70');
         expect(getFlagValue(args, '--selfplay-tactical-weight-max')).toBe('1.25');
         expect(getFlagValue(args, '--onnx-early-stop-patience')).toBe('20');
         expect(getFlagValue(args, '--onnx-early-stop-min-delta')).toBe('0.00005');
@@ -388,7 +401,7 @@ describe('load-training-profile shared teacher sync', () => {
         expect(getFlagValue(args, '--resume-value-checkpoint')).toBe(valueCheckpointPath);
     });
 
-    test('browser_lv6_growth_v1 keeps auto-resume checkpoint in cumulative lane', () => {
+    test('browser_lv6_growth_v1 keeps auto-resume checkpoint in anchor quick-only lane', () => {
         const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-training-profile-'));
         const runsDir = path.join(tempRoot, 'runs');
         const modelsDir = path.join(tempRoot, 'models');
@@ -419,6 +432,7 @@ describe('load-training-profile shared teacher sync', () => {
         expect(getFlagValue(args, '--resume-value-checkpoint')).toBe(valueCheckpointPath);
         expect(args).toContain('--carry-over-checkpoint');
         expect(args).toContain('--no-quality-gate');
+        expect(getFlagValue(args, '--promotion-mode')).toBe('quick-only');
         expect(args).not.toContain('--adoption-use-guide-baseline');
         expect(args).toContain('--adoption-use-anchor-baseline');
     });

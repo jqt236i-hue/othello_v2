@@ -473,6 +473,7 @@ function _buildEmptyCellStateForDiffRender() {
                 isLegal: false,
                 isLegalFree: false,
                 isTabooLegal: false,
+                isPositionSwapSelectedTarget: false,
                 isSelectableFriendly: false,
                 isExtendLifeTarget: false,
                 breedingSprout: false,
@@ -1236,6 +1237,18 @@ function buildCurrentCellState() {
         console.log('[DiffRenderer] legal hint cells:', legalSet.size, 'player:', player, 'taboo:', isTabooReversePending, 'tabooCells:', tabooLegalSet.size);
     }
     const selectableTargetSet = new Set(selectableTargets.map(p => p.row + ',' + p.col));
+    const positionSwapSelectedTargetSet = new Set();
+    if (
+        isHumanTurn &&
+        pending &&
+        pending.type === 'POSITION_SWAP_WILL' &&
+        pending.stage === 'selectTarget' &&
+        pending.firstTarget &&
+        Number.isInteger(pending.firstTarget.row) &&
+        Number.isInteger(pending.firstTarget.col)
+    ) {
+        positionSwapSelectedTargetSet.add(`${pending.firstTarget.row},${pending.firstTarget.col}`);
+    }
 
     // Build unified special/bomb maps from markers (primary)
     const markerKinds = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && MarkersAdapter.MARKER_KINDS)
@@ -1375,6 +1388,7 @@ function buildCurrentCellState() {
             const isLegal = showLegalHints && val === EMPTY && legalSet.has(key);
             const isTabooLegal = showLegalHints && val === EMPTY && tabooLegalSet.has(key);
             const isLegalFree = showLegalHints && val === EMPTY && freePlacementActive;
+            const isPositionSwapSelectedTarget = isHumanTurn && positionSwapSelectedTargetSet.has(key);
             const isSelectableFriendly = isHumanTurn && selectableTargetSet.has(key);
             const isExtendLifeTarget = isSelectableFriendly && isExtendLifeSelection;
             const bonusValueRaw = (val === EMPTY && !blockade && !frozen && boardBonusConsumedByCell[key] !== true)
@@ -1412,6 +1426,7 @@ function buildCurrentCellState() {
                 isLegal: isLegal && !isLegalFree,
                 isLegalFree,
                 isTabooLegal,
+                isPositionSwapSelectedTarget,
                 isSelectableFriendly,
                 isExtendLifeTarget,
                 breedingSprout: (val !== EMPTY) && sproutMap.has(key),
@@ -1457,6 +1472,7 @@ function buildCurrentCellState() {
         const isLegal = showLegalHints && expVal === EMPTY && legalSet.has(expKey);
         const isTabooLegal = showLegalHints && expVal === EMPTY && tabooLegalSet.has(expKey);
         const isLegalFree = showLegalHints && expVal === EMPTY && freePlacementActive;
+        const isPositionSwapSelectedTarget = isHumanTurn && positionSwapSelectedTargetSet.has(expKey);
         const isSelectableFriendly = isHumanTurn && selectableTargetSet.has(expKey);
         const isExtendLifeTarget = isSelectableFriendly && isExtendLifeSelection;
         const blockade = blockadeMap.get(expKey) || null;
@@ -1491,6 +1507,7 @@ function buildCurrentCellState() {
             isLegal: isLegal && !isLegalFree,
             isLegalFree,
             isTabooLegal,
+            isPositionSwapSelectedTarget,
             isSelectableFriendly,
             isExtendLifeTarget,
             breedingSprout: false,
@@ -1542,6 +1559,7 @@ function cellStatesEqual(a, b) {
     if (a.isLegal !== b.isLegal) return false;
     if (a.isLegalFree !== b.isLegalFree) return false;
     if (!!a.isTabooLegal !== !!b.isTabooLegal) return false;
+    if (!!a.isPositionSwapSelectedTarget !== !!b.isPositionSwapSelectedTarget) return false;
     if (a.isSelectableFriendly !== b.isSelectableFriendly) return false;
     if (!!a.isExtendLifeTarget !== !!b.isExtendLifeTarget) return false;
     if (!!a.breedingSprout !== !!b.breedingSprout) return false;
@@ -1675,7 +1693,7 @@ function updateCellDOM(cell, state, row, col, prevState) {
     } else if (state.isLegal && !state.blockade && !state.frozen) {
         cell.classList.add('legal');
     }
-    if (state.isTabooLegal && !state.blockade && !state.frozen) {
+    if (state.isPositionSwapSelectedTarget || (state.isTabooLegal && !state.blockade && !state.frozen)) {
         cell.classList.add('effect-target-highlight');
     }
     if (state.isSelectableFriendly && !state.blockade && !state.frozen) {
@@ -1963,12 +1981,13 @@ function reconcileCellHintClasses(boardEl, currentState) {
             const shouldShowLegalFree = !!(canShowHint && state && state.isLegalFree);
             const shouldShowLegal = !!(canShowHint && state && state.isLegal && !shouldShowLegalFree);
             const shouldShowTabooLegal = !!(canShowHint && state && state.isTabooLegal);
+            const shouldShowPositionSwapSelectedTarget = !!(state && state.isPositionSwapSelectedTarget);
             const shouldShowSelectable = !!(canShowHint && state && state.isSelectableFriendly);
             const shouldShowExtendLifeTarget = !!(canShowHint && state && state.isExtendLifeTarget);
 
             cell.classList.toggle('legal-free', shouldShowLegalFree);
             cell.classList.toggle('legal', shouldShowLegal);
-            cell.classList.toggle('effect-target-highlight', shouldShowTabooLegal);
+            cell.classList.toggle('effect-target-highlight', shouldShowTabooLegal || shouldShowPositionSwapSelectedTarget);
             cell.classList.toggle('selectable-friendly', shouldShowSelectable);
             cell.classList.toggle('selectable-friendly-no-circle', shouldShowExtendLifeTarget);
             _applyTimeStopLegalEmphasisForDiff(cell);
@@ -1984,7 +2003,12 @@ function reconcileCellHintClasses(boardEl, currentState) {
  */
 function renderBoardDiff(boardEl) {
     // Single Visual Writer detection: prevent diff/rerender during active playback
-    if (_isVisualPlaybackActiveForDiff()) {
+    const allowSelectionEntryDuringPlayback = !!(
+        PlaybackStateModule
+        && typeof PlaybackStateModule.shouldAllowSelectionEntryDuringPlayback === 'function'
+        && PlaybackStateModule.shouldAllowSelectionEntryDuringPlayback() === true
+    );
+    if (_isVisualPlaybackActiveForDiff() && !allowSelectionEntryDuringPlayback) {
         if (typeof window !== 'undefined' && window.__DEV__ === true) {
             throw new Error('renderBoardDiff called during active VisualPlayback (dev fail-fast)');
         } else {

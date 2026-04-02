@@ -295,6 +295,28 @@ const _cardInteractionEffectsModule = (() => {
     return null;
 })();
 
+let _deferredCardUiRenderGeneration = 0;
+let _deferredBoardUpdateGeneration = 0;
+
+function _getDeferredVisualWriteGenerationForCardUi() {
+    if (_playbackStateModule && typeof _playbackStateModule.getDeferredVisualWriteGeneration === 'function') {
+        try {
+            return Number(_playbackStateModule.getDeferredVisualWriteGeneration()) || 0;
+        } catch (e) { /* ignore */ }
+    }
+    return 0;
+}
+
+function _isDeferredCardUiRenderCurrent(localGeneration, playbackGeneration) {
+    return localGeneration === _deferredCardUiRenderGeneration
+        && playbackGeneration === _getDeferredVisualWriteGenerationForCardUi();
+}
+
+function _isDeferredBoardUpdateCurrent(localGeneration, playbackGeneration) {
+    return localGeneration === _deferredBoardUpdateGeneration
+        && playbackGeneration === _getDeferredVisualWriteGenerationForCardUi();
+}
+
 const _pendingSelectionFlowModule = (() => {
     if (typeof PendingSelectionFlow !== 'undefined' && PendingSelectionFlow) return PendingSelectionFlow;
     if (typeof require === 'function') {
@@ -331,6 +353,23 @@ function _isCancellablePendingSelectionForCardUi(pendingType) {
         pendingType === 'BLOCKADE_WILL' ||
         pendingType === 'METEOR_WILL' ||
         pendingType === 'FREEZE_WILL'
+    );
+}
+
+function _isHandOverlayPendingTypeForCardUi(pendingType) {
+    const normalizedType = String(pendingType || '').trim().toUpperCase();
+    if (!normalizedType) return false;
+    const pendingStateManager = _getPendingStateManagerForCardUi();
+    if (pendingStateManager && typeof pendingStateManager.resolvePendingSelectionContract === 'function') {
+        const contract = pendingStateManager.resolvePendingSelectionContract(normalizedType);
+        if (contract && typeof contract.kind === 'string') {
+            return contract.kind === 'hand_overlay';
+        }
+    }
+    return (
+        normalizedType === 'SELL_CARD_WILL'
+        || normalizedType === 'HEAVEN_BLESSING'
+        || normalizedType === 'CONDEMN_WILL'
     );
 }
 
@@ -611,10 +650,19 @@ function _getEqualityWillLiveStateText() {
     return `（黒${black}／白${white}）`;
 }
 
+function _getReinforcementWillLiveStateText(ownerKey) {
+    if (!ownerKey || !CardLogic || typeof CardLogic.getReinforcementWillTargetCount !== 'function') return '';
+    const count = Math.max(0, Number(CardLogic.getReinforcementWillTargetCount(cardState, gameState, ownerKey)) || 0);
+    return count <= 0 ? '増援不可能' : `${count}マス候補`;
+}
+
 function _getCardDetailLiveStateText(cardDef, ownerKey) {
     if (!cardDef || !ownerKey) return '';
     if (cardDef.type === 'SALVATION_WILL') {
         return _getSalvationWillLiveStateText(ownerKey);
+    }
+    if (cardDef.type === 'REINFORCEMENT_WILL') {
+        return _getReinforcementWillLiveStateText(ownerKey);
     }
     if (cardDef.type === 'EQUALITY_WILL') {
         return _getEqualityWillLiveStateText();
@@ -1380,6 +1428,56 @@ function _isStaleVisualPlaybackLock() {
     return false;
 }
 
+function _hasQueuedPresentationEventsForCardUi() {
+    if (!cardState || typeof cardState !== 'object') return false;
+
+    const hasQueuedPlaybackEvents = (queue) => Array.isArray(queue)
+        && queue.some((event) => event && event.type === 'PLAYBACK_EVENTS');
+
+    return hasQueuedPlaybackEvents(cardState.presentationEvents)
+        || hasQueuedPlaybackEvents(cardState._presentationEventsPersist);
+}
+
+function _getCardUiBusyStartedAt() {
+    if (_playbackStateModule && typeof _playbackStateModule.getBusyStartedAt === 'function') {
+        const startedAt = Number(_playbackStateModule.getBusyStartedAt());
+        if (Number.isFinite(startedAt)) return startedAt;
+    }
+
+    const rootRef = _getUiRootRef();
+    if (!rootRef) return null;
+    const rawValue = rootRef.__busyStateSince;
+    if (rawValue === null || typeof rawValue === 'undefined' || rawValue === '') return null;
+    const startedAt = Number(rawValue);
+    return Number.isFinite(startedAt) ? startedAt : null;
+}
+
+function _isStaleCardUiBusyLock() {
+    if (!_isCardUiBusy()) return false;
+    if (_hasQueuedPresentationEventsForCardUi()) return false;
+
+    const visualPlaybackRunning = _isVisualPlaybackRunningNow();
+    const staleVisualLock = _isStaleVisualPlaybackLock();
+    if (visualPlaybackRunning && !staleVisualLock) return false;
+
+    const startedAt = _getCardUiBusyStartedAt();
+    if (Number.isFinite(startedAt)) {
+        return (Date.now() - startedAt) > _getVisualPlaybackStaleMs();
+    }
+
+    if (_isVisualPlaybackActiveNow()) {
+        const rootRef = _getUiRootRef();
+        const playbackStartedAt = (_playbackStateModule && typeof _playbackStateModule.getPlaybackStartedAt === 'function')
+            ? _playbackStateModule.getPlaybackStartedAt()
+            : Number(rootRef && rootRef.__playbackActiveSince);
+        if (Number.isFinite(playbackStartedAt)) {
+            return (Date.now() - playbackStartedAt) > _getVisualPlaybackStaleMs();
+        }
+    }
+
+    return staleVisualLock;
+}
+
 function _clearPlaybackLockedDomState() {
     if (typeof document === 'undefined') return;
     const board = document.getElementById('board');
@@ -1426,6 +1524,17 @@ function _releaseStaleVisualPlaybackLock() {
     return true;
 }
 
+function _releaseStaleCardUiBusyLock() {
+    if (!_isStaleCardUiBusyLock()) return false;
+
+    _clearCardUiBusyFlags({
+        clearProcessing: true,
+        clearPlayback: _isVisualPlaybackActiveNow()
+    });
+
+    return true;
+}
+
 function _armLocalPlaybackSoundSkip(soundKey) {
     const key = String(soundKey || '').trim();
     if (!key) return false;
@@ -1460,7 +1569,7 @@ function _clearLocalPlaybackSoundSkip(soundKey) {
 
 function _canInteractWithCardUi() {
     if (!_isCardUiBusy()) return true;
-    return _releaseStaleVisualPlaybackLock();
+    return _releaseStaleCardUiBusyLock();
 }
 
 function _resolveCoreApi() {
@@ -1711,6 +1820,66 @@ function _hasBoardMutatingPlaybackEvent(runResult) {
     ));
 }
 
+function _getRunResultNextCardState(runResult) {
+    const nextCardState = (runResult && runResult.result && runResult.result.nextCardState && typeof runResult.result.nextCardState === 'object')
+        ? runResult.result.nextCardState
+        : null;
+    if (nextCardState) return nextCardState;
+    return (cardState && typeof cardState === 'object') ? cardState : null;
+}
+
+function _doesRunResultEnterBoardTargetSelectionForOwner(runResult, ownerKey) {
+    const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    if (!normalizedOwnerKey) return false;
+    const nextCardState = _getRunResultNextCardState(runResult);
+    if (!nextCardState || !nextCardState.pendingEffectByPlayer) return false;
+    const pending = nextCardState.pendingEffectByPlayer[normalizedOwnerKey];
+    if (!pending || pending.stage !== 'selectTarget') return false;
+    return !_isHandOverlayPendingTypeForCardUi(pending.type);
+}
+
+function _getBoardTargetSelectionEntryContext(runResult, ownerKey) {
+    const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    if (!normalizedOwnerKey) return null;
+    const nextCardState = _getRunResultNextCardState(runResult);
+    if (!nextCardState || !nextCardState.pendingEffectByPlayer) return null;
+    const pending = nextCardState.pendingEffectByPlayer[normalizedOwnerKey];
+    if (!pending || pending.stage !== 'selectTarget' || _isHandOverlayPendingTypeForCardUi(pending.type)) {
+        return null;
+    }
+    return {
+        playerKey: normalizedOwnerKey,
+        pendingType: pending.type
+    };
+}
+
+function _armBoardTargetSelectionEntryPlaybackContext(runResult, ownerKey) {
+    if (!_playbackStateModule || typeof _playbackStateModule.armSelectionEntryPlaybackContext !== 'function') {
+        return false;
+    }
+    const context = _getBoardTargetSelectionEntryContext(runResult, ownerKey);
+    if (!context) return false;
+    try {
+        _playbackStateModule.armSelectionEntryPlaybackContext({
+            playerKey: context.playerKey,
+            pendingType: context.pendingType,
+            source: 'card-interaction',
+            reason: 'selection_entry_after_card_use',
+            expiresAt: Date.now() + 2500
+        });
+        if (typeof _playbackStateModule.armBoardUpdateContext === 'function') {
+            _playbackStateModule.armBoardUpdateContext({
+                allowSelectionEntryDuringPlayback: true,
+                source: 'card-interaction',
+                reason: 'selection_entry_after_card_use'
+            });
+        }
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
 function _getDeferredGeneratedThrowChainHandAddMeta(runResult) {
     const meta = runResult && runResult.result
         ? runResult.result.deferredGeneratedThrowChainHandAdd
@@ -1881,30 +2050,93 @@ function _getWaitForPlaybackIdleFn() {
     return typeof waitForPlaybackFn === 'function' ? waitForPlaybackFn : null;
 }
 
+function _waitForCardUseAnimationIdle() {
+    const scheduleNextTick = (callback) => {
+        try {
+            const rootRef = _getUiRootRef();
+            if (rootRef && typeof rootRef.requestAnimationFrame === 'function') {
+                rootRef.requestAnimationFrame(callback);
+                return;
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof requestAnimationFrame === 'function') {
+                requestAnimationFrame(callback);
+                return;
+            }
+        } catch (e) { /* ignore */ }
+        setTimeout(callback, 16);
+    };
+
+    const waitForCardAnimationIdle = () => new Promise((resolve) => {
+        const tick = () => {
+            try {
+                if (!_isCardAnimatingNow()) {
+                    resolve();
+                    return;
+                }
+                if (_releaseStaleCardUiBusyLock()) {
+                    if (!_isCardAnimatingNow()) {
+                        resolve();
+                        return;
+                    }
+                }
+            } catch (e) {
+                resolve();
+                return;
+            }
+            scheduleNextTick(tick);
+        };
+        tick();
+    });
+    return waitForCardAnimationIdle();
+}
+
 function _renderCardUiWithOptionalPlaybackDelay(shouldDelay) {
     if (typeof renderCardUI !== 'function') return;
+    const localGeneration = ++_deferredCardUiRenderGeneration;
+    const playbackGeneration = _getDeferredVisualWriteGenerationForCardUi();
+    const runRenderCardUi = () => {
+        if (!_isDeferredCardUiRenderCurrent(localGeneration, playbackGeneration)) return;
+        try { renderCardUI(); } catch (e) { /* ignore */ }
+    };
     if (!shouldDelay) {
-        renderCardUI();
+        runRenderCardUi();
         return;
     }
 
     const waitForPlaybackFn = _getWaitForPlaybackIdleFn();
     if (typeof waitForPlaybackFn === 'function') {
         Promise.resolve(waitForPlaybackFn()).then(() => {
-            try { renderCardUI(); } catch (e) { /* ignore */ }
+            runRenderCardUi();
         }).catch(() => {
-            try { renderCardUI(); } catch (e) { /* ignore */ }
+            runRenderCardUi();
         });
         return;
     }
 
-    renderCardUI();
+    runRenderCardUi();
 }
 
 function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay) {
+    const localGeneration = ++_deferredBoardUpdateGeneration;
+    const playbackGeneration = _getDeferredVisualWriteGenerationForCardUi();
     const renderBoardSync = () => {
+        if (!_isDeferredBoardUpdateCurrent(localGeneration, playbackGeneration)) return;
         if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
         else if (typeof renderBoard === 'function') renderBoard();
+    };
+    const renderBoardAfterCardAnimationIfNeeded = () => {
+        if (!_isDeferredBoardUpdateCurrent(localGeneration, playbackGeneration)) return;
+        if (!_isCardAnimatingNow()) {
+            renderBoardSync();
+            return;
+        }
+        Promise.resolve(_waitForCardUseAnimationIdle()).then(() => {
+            renderBoardSync();
+        }).catch(() => {
+            renderBoardSync();
+        });
     };
     if (!shouldDelay) {
         renderBoardSync();
@@ -1914,14 +2146,14 @@ function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay) {
     const waitForPlaybackFn = _getWaitForPlaybackIdleFn();
     if (typeof waitForPlaybackFn === 'function') {
         Promise.resolve(waitForPlaybackFn()).then(() => {
-            try { renderBoardSync(); } catch (e) { /* ignore */ }
+            renderBoardAfterCardAnimationIfNeeded();
         }).catch(() => {
-            try { renderBoardSync(); } catch (e) { /* ignore */ }
+            renderBoardAfterCardAnimationIfNeeded();
         });
         return;
     }
 
-    renderBoardSync();
+    renderBoardAfterCardAnimationIfNeeded();
 }
 
 function _getActiveNetworkMatchClient() {
@@ -2359,7 +2591,7 @@ function onCardClick(cardId, ownerKey) {
         : null;
     const pending = cardState.pendingEffectByPlayer[actionOwnerKey];
     const allowDuringAnimForSell = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
-    if (_isCardAnimatingNow() && !isDebugUnlimited && !allowDuringAnimForSell && !_releaseStaleVisualPlaybackLock()) return;
+    if (_isCardAnimatingNow() && !isDebugUnlimited && !allowDuringAnimForSell && !_releaseStaleCardUiBusyLock()) return;
 
     _closeCardDetailTagTabIfOpen();
 
@@ -2563,27 +2795,31 @@ function useSelectedCard() {
     _attachCardUsePlaybackSourceElement(result, usedCardEl, usedCardRect);
     _primeCaptureReservedHandSlotState(result);
     const hasCardUsePlayback = _hasPlaybackEventType(result, 'card_use_animation');
+    const willPlayDirectCardUseAnimation = !hasCardUsePlayback && !skippedLocalExecution && typeof playCardUseHandAnimation === 'function';
 
     // Direct animation fallback for browser reliability.
-    if (!hasCardUsePlayback && !skippedLocalExecution) {
+    if (willPlayDirectCardUseAnimation) {
         try {
-            if (typeof playCardUseHandAnimation === 'function') {
-                playCardUseHandAnimation({
-                    player: playerKey,
-                    owner: ownerKey,
-                    cardId,
-                    cost: Number.isFinite(cost) ? cost : null,
-                    name: cardDef ? cardDef.name : null,
-                    sourceCardEl: usedCardEl || null,
-                    sourceCardRect: usedCardRect || null
-                }).catch(() => {});
-            }
+            playCardUseHandAnimation({
+                player: playerKey,
+                owner: ownerKey,
+                cardId,
+                cost: Number.isFinite(cost) ? cost : null,
+                name: cardDef ? cardDef.name : null,
+                sourceCardEl: usedCardEl || null,
+                sourceCardRect: usedCardRect || null
+            }).catch(() => {});
         } catch (e) { /* ignore */ }
     }
 
     const shouldDelayPostUseHandVisual = !!(cardDef && (cardDef.type === 'TREASURE_BOX' || cardDef.type === 'REBUILD_WILL' || cardDef.type === 'SUPPLY_WILL'))
         || _hasHandRemovePlaybackEvent(result);
-    const shouldDelayPostUseBoardVisual = _hasBoardMutatingPlaybackEvent(result);
+    const entersBoardTargetSelection = _doesRunResultEnterBoardTargetSelectionForOwner(result, actionPlayerKey);
+    if (entersBoardTargetSelection) {
+        _armBoardTargetSelectionEntryPlaybackContext(result, actionPlayerKey);
+    }
+    const shouldDelayBoardForSelectionEntry = false;
+    const shouldDelayPostUseBoardVisual = _hasBoardMutatingPlaybackEvent(result) || shouldDelayBoardForSelectionEntry;
     _renderCardUiWithOptionalPlaybackDelay(shouldDelayPostUseHandVisual);
     _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelayPostUseBoardVisual);
     if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
@@ -2626,7 +2862,7 @@ function cancelPendingSelection(specificPlayerKey) {
 
     const pending = cardState.pendingEffectByPlayer[pendingCheckKey];
     if (!pending || pending.stage !== 'selectTarget') return;
-    if (pending.type !== 'DESTROY_ONE_STONE' && pending.type !== 'POSITION_SWAP_WILL') return;
+    if (!_isCancellablePendingSelectionForCardUi(pending.type)) return;
 
     const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
     const cancelOptions = isDebugUnlimited ? { refundCost: false, resetUsage: false, noConsume: true } : null;
@@ -2642,8 +2878,10 @@ function cancelPendingSelection(specificPlayerKey) {
 
     if (pending.type === 'POSITION_SWAP_WILL') {
         addLog(`${playerKey === 'black' ? '黒' : '白'}の入替の意志をキャンセルしました`);
-    } else {
+    } else if (pending.type === 'DESTROY_ONE_STONE') {
         addLog(`${playerKey === 'black' ? '黒' : '白'}の破壊神をキャンセルしました`);
+    } else {
+        addLog(`${playerKey === 'black' ? '黒' : '白'}の対象選択をキャンセルしました`);
     }
     renderCardUI();
     if (typeof emitBoardUpdate === 'function') emitBoardUpdate();

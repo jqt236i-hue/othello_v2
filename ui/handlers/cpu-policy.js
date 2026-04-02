@@ -14,6 +14,15 @@ function _isDebugEnabled() {
     return false;
 }
 
+function _debugLog() {
+    if (!_isDebugEnabled()) return;
+    try {
+        if (typeof console !== 'undefined' && typeof console.log === 'function') {
+            console.log.apply(console, arguments);
+        }
+    } catch (e) { /* ignore */ }
+}
+
 function _shouldUseCardSpecialistByDefault() {
     try {
         const qs = (typeof location !== 'undefined' && location.search) ? location.search : '';
@@ -295,7 +304,7 @@ async function _loadAuxiliaryPolicyOnnxModels(runtime, options) {
                 targetMetaUrl: cfg.targetMetaUrl
             });
             if (targetOk) {
-                console.log(`[CPU] policy-target loaded (${cfg.targetModelUrl})`);
+                _debugLog(`[CPU] policy-target loaded (${cfg.targetModelUrl})`);
             }
         } catch (targetErr) {
             if (_isDebugEnabled()) console.warn('[CPU] policy-target loading failed', targetErr);
@@ -315,7 +324,7 @@ async function _loadAuxiliaryPolicyOnnxModels(runtime, options) {
                 valueMetaUrl: cfg.valueMetaUrl
             });
             if (valueOk) {
-                console.log(`[CPU] policy-value loaded (${cfg.valueModelUrl})`);
+                _debugLog(`[CPU] policy-value loaded (${cfg.valueModelUrl})`);
             }
         } catch (valueErr) {
             if (_isDebugEnabled()) console.warn('[CPU] policy-value loading failed', valueErr);
@@ -334,10 +343,10 @@ async function initLvMaxModels() {
     }
 
     try {
-        console.log('[LvMax] Loading Deep CFR models...');
+        _debugLog('[LvMax] Loading Deep CFR models...');
         const success = await window.loadLvMaxModels('/ai/deepcfr/models/final');
         if (success) {
-            console.log('[LvMax] Models loaded successfully');
+            _debugLog('[LvMax] Models loaded successfully');
             // Silent loading - only log to console, not UI
         } else {
             console.warn('[LvMax] Model loading failed');
@@ -358,9 +367,9 @@ async function loadCpuPolicy() {
     }
     try {
         const whiteLevel = cpuSmartness.white || 3;
-        console.log(`Attempting to load policy for level ${whiteLevel}`);
+        _debugLog(`Attempting to load policy for level ${whiteLevel}`);
         mccfrPolicy = await CpuPolicy.loadPolicyForLevel(whiteLevel);
-        console.log('Policy loaded successfully:', mccfrPolicy);
+        _debugLog('Policy loaded successfully:', mccfrPolicy);
         addLog(`MCCFRポリシー (レベル ${whiteLevel}) を読み込みました`);
     } catch (err) {
         console.error('Policy load failed - Full error:', err);
@@ -492,7 +501,7 @@ async function initPolicyOnnxModel() {
     }
 
     if (!shouldLoadPrimaryOnnx) {
-        if (_isDebugEnabled()) console.log('[CPU] policy-onnx skipped by shared Lv6 parity profile');
+        _debugLog('[CPU] policy-onnx skipped by shared Lv6 parity profile');
         await _loadAuxiliaryPolicyOnnxModels(runtime, {
             hasTargetModel,
             targetModelUrl,
@@ -535,12 +544,12 @@ async function initPolicyOnnxModel() {
                 valueMetaUrl: hasValueModel ? valueMetaUrl : '',
                 lastError: ''
             });
-            console.log(`[CPU] policy-onnx loaded (${modelUrl})`);
+            _debugLog(`[CPU] policy-onnx loaded (${modelUrl})`);
             if (useCardSpecialist && typeof runtime.loadCardModelFromUrl === 'function') {
                 try {
                     const cardOk = await _withLoadTimeout(runtime.loadCardModelFromUrl(cardModelUrl, cardMetaUrl), loadTimeoutMs, 'policy-card load');
                     if (cardOk) {
-                        console.log(`[CPU] policy-card loaded (${cardModelUrl})`);
+                        _debugLog(`[CPU] policy-card loaded (${cardModelUrl})`);
                     } else if (_isDebugEnabled()) {
                         const status = (typeof runtime.getStatus === 'function') ? runtime.getStatus() : null;
                         console.warn('[CPU] policy-card not loaded', status && status.cardLastError ? status.cardLastError : '');
@@ -631,7 +640,7 @@ async function initPolicyTableModel() {
             });
             const status = (typeof runtime.getStatus === 'function') ? runtime.getStatus() : null;
             const statesCount = status && Number.isFinite(status.statesCount) ? status.statesCount : '?';
-            console.log(`[CPU] policy-table loaded (states=${statesCount}, url=${modelUrl})`);
+            _debugLog(`[CPU] policy-table loaded (states=${statesCount}, url=${modelUrl})`);
         } else {
             const status = (typeof runtime.getStatus === 'function') ? runtime.getStatus() : null;
             _reportCriticalModelLoadIssue('table', status && status.lastError ? status.lastError : 'runtime returned not loaded', {

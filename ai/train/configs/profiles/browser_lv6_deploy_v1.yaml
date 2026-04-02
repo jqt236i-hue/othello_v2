@@ -40,13 +40,13 @@ trainCycleArgs:
   - --card-usage-rate
   - "0.60"
   - --selfplay-policy-model-pool-size
-  - "4"
+  - "2"
   - --selfplay-policy-pool-sampling
   - recency
   - --selfplay-policy-pool-recency-decay
   - "2.0"
   - --selfplay-policy-current-anchor-rate
-  - "0.35"
+  - "0.70"
   - --selfplay-card-usage-rate-jitter
   - "0.08"
   - --selfplay-tactical-weight-min

@@ -15,6 +15,12 @@ function cloneJson(value) {
 function createSnapshot(stateVersion) {
   return {
     stateVersion,
+    _meta: {
+      authority: 'server',
+      version: stateVersion,
+      projectedForSeat: null,
+      turnStartReconciled: true
+    },
     gameState: {
       currentPlayer: 1,
       turnNumber: 5,
@@ -42,6 +48,12 @@ function createSnapshot(stateVersion) {
 function createLiveResponseSnapshot(stateVersion) {
   return {
     stateVersion,
+    _meta: {
+      authority: 'server',
+      version: stateVersion,
+      projectedForSeat: null,
+      turnStartReconciled: true
+    },
     gameState: cloneJson(global.gameState),
     cardState: cloneJson(global.cardState)
   };
@@ -50,6 +62,12 @@ function createLiveResponseSnapshot(stateVersion) {
 function createHeavenResolvedSnapshot(stateVersion) {
   return {
     stateVersion,
+    _meta: {
+      authority: 'server',
+      version: stateVersion,
+      projectedForSeat: null,
+      turnStartReconciled: true
+    },
     gameState: cloneJson(global.gameState),
     cardState: {
       ...cloneJson(global.cardState),

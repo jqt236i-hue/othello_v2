@@ -21,6 +21,12 @@ function createBaseCardState() {
 function createSnapshot(stateVersion) {
   return {
     stateVersion,
+    _meta: {
+      authority: 'server',
+      version: stateVersion,
+      projectedForSeat: null,
+      turnStartReconciled: true
+    },
     gameState: {
       currentPlayer: 1,
       turnNumber: stateVersion,

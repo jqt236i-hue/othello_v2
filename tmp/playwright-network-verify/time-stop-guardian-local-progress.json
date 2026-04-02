@@ -1,18 +1,18 @@
 {
-  "timestamp": "2026-03-19T10:50:05.296Z",
-  "phase": "setup_time_stop",
-  "actionIndex": 0,
-  "roomId": "TUC",
+  "timestamp": "2026-03-31T17:21:14.386Z",
+  "phase": "place_time_stop_when_possible",
+  "actionIndex": 5,
+  "roomId": "SGY",
   "black": {
     "currentPlayerKey": "black",
-    "turnNumber": 0,
-    "turnIndex": 1,
+    "turnNumber": 2,
+    "turnIndex": 3,
     "hand": [
       {
-        "id": "clone_01",
-        "type": "CLONE_WILL",
-        "name": "複製の意志",
-        "cost": 16,
+        "id": "reveal_hand_01",
+        "type": "REVEAL_HAND_WILL",
+        "name": "観測の意志",
+        "cost": 2,
         "canUse": false
       },
       {
@@ -26,14 +26,14 @@
         "id": "free_01",
         "type": "FREE_PLACEMENT",
         "name": "自由の意志",
-        "cost": 16,
+        "cost": 14,
         "canUse": false
       },
       {
         "id": "last_resort_01",
         "type": "LAST_RESORT",
         "name": "最後の切り札",
-        "cost": 12,
+        "cost": 9,
         "canUse": false
       },
       {
@@ -48,6 +48,20 @@
         "type": "PROTECTED_NEXT_STONE",
         "name": "弱い意志",
         "cost": 1,
+        "canUse": true
+      },
+      {
+        "id": "ghost_01",
+        "type": "GHOST_WILL",
+        "name": "幽霊の意志",
+        "cost": 5,
+        "canUse": false
+      },
+      {
+        "id": "afterimage_will_01",
+        "type": "AFTERIMAGE_WILL",
+        "name": "残像の意志",
+        "cost": 8,
         "canUse": false
       },
       {
@@ -62,13 +76,6 @@
         "type": "POSITION_SWAP_WILL",
         "name": "入替の意志",
         "cost": 13,
-        "canUse": false
-      },
-      {
-        "id": "sacrifice_01",
-        "type": "SACRIFICE_WILL",
-        "name": "生贄の意志",
-        "cost": 5,
         "canUse": false
       },
       {
@@ -89,14 +96,14 @@
         "id": "super_buoyancy_01",
         "type": "SUPER_BUOYANCY_WILL",
         "name": "超浮力",
-        "cost": 14,
+        "cost": 16,
         "canUse": false
       },
       {
         "id": "super_gravity_01",
         "type": "SUPER_GRAVITY_WILL",
         "name": "超重力",
-        "cost": 14,
+        "cost": 16,
         "canUse": false
       },
       {
@@ -110,6 +117,13 @@
         "id": "tempt_01",
         "type": "TEMPT_WILL",
         "name": "誘惑の意志",
+        "cost": 23,
+        "canUse": false
+      },
+      {
+        "id": "capture_01",
+        "type": "CAPTURE_WILL",
+        "name": "捕獲の意志",
         "cost": 20,
         "canUse": false
       },
@@ -172,9 +186,9 @@
       {
         "id": "time_stop_god_01",
         "type": "TIME_STOP_GOD",
-        "name": "時間停神",
+        "name": "時間停石",
         "cost": 0,
-        "canUse": true
+        "canUse": false
       },
       {
         "id": "udr_01",
@@ -187,6 +201,20 @@
         "id": "breeding_01",
         "type": "BREEDING_WILL",
         "name": "繁殖の意志",
+        "cost": 16,
+        "canUse": false
+      },
+      {
+        "id": "proliferation_01",
+        "type": "PROLIFERATION_WILL",
+        "name": "増殖の意志",
+        "cost": 4,
+        "canUse": false
+      },
+      {
+        "id": "clone_01",
+        "type": "CLONE_WILL",
+        "name": "複製の意志",
         "cost": 16,
         "canUse": false
       },
@@ -208,7 +236,7 @@
         "id": "cell_teleport_01",
         "type": "CELL_TELEPORT_WILL",
         "name": "マステレポート",
-        "cost": 23,
+        "cost": 18,
         "canUse": false
       },
       {
@@ -300,7 +328,7 @@
         "type": "SUPPLY_WILL",
         "name": "補給の意志",
         "cost": 1,
-        "canUse": false
+        "canUse": true
       },
       {
         "id": "plunder_will",
@@ -314,7 +342,7 @@
         "type": "CORNER_TRIBUTE",
         "name": "角の代償",
         "cost": 0,
-        "canUse": true
+        "canUse": false
       },
       {
         "id": "work_01",
@@ -376,7 +404,7 @@
         "id": "condemn_01",
         "type": "CONDEMN_WILL",
         "name": "断罪の意志",
-        "cost": 6,
+        "cost": 8,
         "canUse": false
       },
       {
@@ -404,14 +432,21 @@
         "id": "crystal_stone",
         "type": "CRYSTAL_STONE",
         "name": "水晶の意志",
-        "cost": 7,
+        "cost": 8,
         "canUse": false
       },
       {
         "id": "extend_life_01",
         "type": "EXTEND_LIFE_WILL",
         "name": "延命の意志",
-        "cost": 2,
+        "cost": 4,
+        "canUse": false
+      },
+      {
+        "id": "extend_life_god_01",
+        "type": "EXTEND_LIFE_GOD",
+        "name": "延命神",
+        "cost": 10,
         "canUse": false
       },
       {
@@ -439,7 +474,7 @@
         "id": "destroy_dragon_01",
         "type": "DESTROY_DRAGON_WILL",
         "name": "破壊龍",
-        "cost": 15,
+        "cost": 7,
         "canUse": false
       },
       {
@@ -482,7 +517,7 @@
         "type": "BLOCKADE_WILL",
         "name": "封鎖の意志",
         "cost": 1,
-        "canUse": false
+        "canUse": true
       },
       {
         "id": "meteor_01",
@@ -503,10 +538,35 @@
         "type": "OBSERVER_WILL",
         "name": "盤理の観測者",
         "cost": 1,
+        "canUse": true
+      },
+      {
+        "id": "salvation_01",
+        "type": "SALVATION_WILL",
+        "name": "救済の意志",
+        "cost": 17,
+        "canUse": false
+      },
+      {
+        "id": "equality_will_01",
+        "type": "EQUALITY_WILL",
+        "name": "平等の意志",
+        "cost": 15,
+        "canUse": false
+      },
+      {
+        "id": "fate_will_01",
+        "type": "FATE_WILL",
+        "name": "運命の意志",
+        "cost": 50,
         "canUse": false
       }
     ],
-    "pending": null,
+    "pending": {
+      "type": "TIME_STOP_GOD",
+      "cardId": "time_stop_god_01",
+      "stage": null
+    },
     "markers": [],
     "bonusTurns": {
       "black": 0,
@@ -515,8 +575,8 @@
   },
   "white": {
     "currentPlayerKey": "black",
-    "turnNumber": 0,
-    "turnIndex": 1,
+    "turnNumber": 2,
+    "turnIndex": 3,
     "hand": [],
     "pending": null,
     "markers": [],

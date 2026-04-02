@@ -86,6 +86,15 @@ function getEqualitySpawnEvents(result) {
   ));
 }
 
+function getEqualityFlipEvents(result) {
+  return (result.presentationEvents || []).filter((event) => (
+    event &&
+    event.type === 'CHANGE' &&
+    event.cause === 'EQUALITY_WILL' &&
+    event.reason === 'equality_will_flip'
+  ));
+}
+
 describe('EQUALITY_WILL（平等の意志）', () => {
   const equalityWillDef = getEqualityWillDef();
 
@@ -132,7 +141,7 @@ describe('EQUALITY_WILL（平等の意志）', () => {
     }));
   });
 
-  test('use_cardで即時解決し、固定PRNGで生成位置・メタデータが決まり、通常反転は起きない', () => {
+  test('use_cardで即時解決し、固定PRNGで生成位置・メタデータが決まり、生成石から通常反転する', () => {
     expect(equalityWillDef).toBeTruthy();
 
     const prng = createPrng([0, 0, 0]);
@@ -156,18 +165,25 @@ describe('EQUALITY_WILL（平等の意志）', () => {
 
       const resolveEvent = result.events.find((event) => event && event.type === 'equality_will_resolved');
       const spawnEvents = getEqualitySpawnEvents(result);
+      const flipEvents = getEqualityFlipEvents(result);
 
       expect(result.cardState.pendingEffectByPlayer.black).toBeNull();
       expect(resolveEvent).toMatchObject({
         type: 'equality_will_resolved',
         player: 'black',
         requestedCount: 3,
-        spawnedCount: 3
+        spawnedCount: 3,
+        flippedCount: 3
       });
       expect((resolveEvent.spawned || []).map((entry) => [entry.row, entry.col])).toEqual([
         [0, 4],
         [0, 5],
         [0, 6]
+      ]);
+      expect((resolveEvent.flipped || []).map((entry) => [entry.row, entry.col])).toEqual([
+        [0, 3],
+        [0, 2],
+        [0, 1]
       ]);
 
       expect(spawnSpy).toHaveBeenCalledTimes(3);
@@ -200,13 +216,18 @@ describe('EQUALITY_WILL（平等の意志）', () => {
         }));
       }
 
-      expect(gameState.board[0][1]).toBe(Shared.WHITE);
-      expect(gameState.board[0][2]).toBe(Shared.WHITE);
-      expect(gameState.board[0][3]).toBe(Shared.WHITE);
+      expect(flipEvents.map((event) => [event.row, event.col])).toEqual([
+        [0, 3],
+        [0, 2],
+        [0, 1]
+      ]);
+      expect(gameState.board[0][1]).toBe(Shared.BLACK);
+      expect(gameState.board[0][2]).toBe(Shared.BLACK);
+      expect(gameState.board[0][3]).toBe(Shared.BLACK);
       expect(gameState.board[0][4]).toBe(Shared.BLACK);
       expect(gameState.board[0][5]).toBe(Shared.BLACK);
       expect(gameState.board[0][6]).toBe(Shared.BLACK);
-      expect(result.cardState.totalFlipCountByPlayer.black).toBe(0);
+      expect(result.cardState.totalFlipCountByPlayer.black).toBe(3);
     } finally {
       spawnSpy.mockRestore();
     }

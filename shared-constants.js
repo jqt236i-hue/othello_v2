@@ -220,8 +220,8 @@
         { id: 'infinite_01', name: '無限投石', type: 'INFINITE_PLACE', cost: 50, desc: '生成専用。合法手が尽きるまで同じ手番で置き続け、置けなくなった時点で終了する。', enabled: false },
         // HEAVEN_BLESSING (天の恵み) - 1 card, cost: 3
         { id: 'heaven_01', name: '天の恵み', type: 'HEAVEN_BLESSING', cost: 3, desc: 'ランダムな候補5枚から1枚を選んで獲得する。' },
-        // REVEAL_HAND_WILL (観測の意志) - 1 card, cost: 6
-        { id: 'reveal_hand_01', name: '観測の意志', type: 'REVEAL_HAND_WILL', cost: 6, desc: '現在の相手手札をすべて表にする。使用後に相手が引いたカードは表にならない。' },
+        // REVEAL_HAND_WILL (観測の意志) - 1 card, cost: 2
+        { id: 'reveal_hand_01', name: '観測の意志', type: 'REVEAL_HAND_WILL', cost: 2, desc: '現在の相手手札をすべて表にする。使用後に相手が引いたカードは表にならない。' },
         // CONDEMN_WILL (断罪の意志) - 1 card, cost: 8
         { id: 'condemn_01', name: '断罪の意志', type: 'CONDEMN_WILL', cost: 8, desc: '相手手札を公開し、1枚選んで破壊する。' },
 
@@ -282,10 +282,13 @@
         { id: 'observer_01', name: '盤理の観測者', type: 'OBSERVER_WILL', cost: 1, desc: '次に置く石を観測者石化。所有者ターン開始時に30%で発動し、布石を1〜5獲得。5ターン持続。' },
 
         // SALVATION_WILL (救済の意志) - 1 card, cost: 17
-        { id: 'salvation_01', name: '救済の意志', type: 'SALVATION_WILL', cost: 17, desc: '直前の相手ターンで破壊された自分の通常石をすべてランダムな空きマスへ配置する。対象0枚の時は使用不可。特殊石は対象外。' },
+        { id: 'salvation_01', name: '救済の意志', type: 'SALVATION_WILL', cost: 17, desc: '直前の相手ターンで破壊された自分の通常石をすべてランダムな空きマスへ配置する。対象0枚の時は使用不可。特殊石は対象外。各復活石は、そのマスを起点に通常の挟み反転を行う。' },
+
+        // REINFORCEMENT_WILL (増援の意志) - 1 card, cost: 6
+        { id: 'reinforcement_01', name: '増援の意志', type: 'REINFORCEMENT_WILL', cost: 6, desc: '盤面の角辺以外で石に隣接する空きマスからランダム1マスへ、自分色の通常石を1個配置する。' },
 
         // EQUALITY_WILL (平等の意志) - 1 card, cost: 15
-        { id: 'equality_will_01', name: '平等の意志', type: 'EQUALITY_WILL', cost: 15, desc: '相手の石数が自分より10個以上多い時のみ使用可。盤面の空きマスへランダムに最大3個、自分色の通常石を生成する。生成では反転しない。' }
+        { id: 'equality_will_01', name: '平等の意志', type: 'EQUALITY_WILL', cost: 15, desc: '相手の石数が自分より10個以上多い時のみ使用可。盤面の空きマスへランダムに最大3個、自分色の通常石を生成する。各生成石は、そのマスを起点に通常の挟み反転を行う。' }
     ];
 
     const CARD_DEFS = (catalogCards && catalogCards.length) ? catalogCards : CARD_DEFS_FALLBACK;
@@ -372,6 +375,7 @@
         'SELL_CARD_WILL',
         'REBUILD_WILL',
         'SUPPLY_WILL',
+        'REINFORCEMENT_WILL',
         'EQUALITY_WILL',
         'SALVATION_WILL'
     ];

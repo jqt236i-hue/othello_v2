@@ -36,6 +36,11 @@
             try { return require('../game/turn/pending-coordinator'); } catch (e) { return root.PendingCoordinator || null; }
         })()
         : (root.PendingCoordinator || null);
+    const PlaybackEventHelpers = (typeof require === 'function')
+        ? (() => {
+            try { return require('../shared/playback-event-helpers'); } catch (e) { return root.PlaybackEventHelpers || null; }
+        })()
+        : (root.PlaybackEventHelpers || null);
 
     function resolveCardLogicModule() {
         if (root && root.CardLogic) return root.CardLogic;
@@ -51,6 +56,78 @@
         if (!cl || typeof cl.getCardDef !== 'function') return null;
         const def = cl.getCardDef(cardId);
         return (def && def.type) ? String(def.type) : null;
+    }
+
+    function resolvePendingSelectionContract(cardType) {
+        if (!cardType) return null;
+        try {
+            if (PendingCoordinatorModule && typeof PendingCoordinatorModule.getPendingSelectionContract === 'function') {
+                const contract = PendingCoordinatorModule.getPendingSelectionContract(cardType);
+                if (contract && typeof contract === 'object') return contract;
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (PendingSelectionFlow && typeof PendingSelectionFlow.resolvePendingSelectionContract === 'function') {
+                const contract = PendingSelectionFlow.resolvePendingSelectionContract(cardType);
+                if (contract && typeof contract === 'object') return contract;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function shouldRestorePendingCardUsePlayback(cardType) {
+        const contract = resolvePendingSelectionContract(cardType);
+        if (!contract) return false;
+        return contract.kind !== 'hand_overlay';
+    }
+
+    function buildPendingCardUsePlaybackEvents(playerKey, cardId, cardType) {
+        if (!cardId) return [];
+
+        const normalizedPlayerKey = normalizePlayerKey(playerKey);
+        const cardLogic = resolveCardLogicModule();
+        const cardDef = (cardLogic && typeof cardLogic.getCardDef === 'function')
+            ? cardLogic.getCardDef(cardId)
+            : null;
+        const resolvedCardType = cardType || (cardDef && cardDef.type ? String(cardDef.type) : null);
+        const cost = (cardDef && Number.isFinite(Number(cardDef.cost)))
+            ? Number(cardDef.cost)
+            : null;
+        const name = (cardDef && cardDef.name)
+            ? String(cardDef.name)
+            : null;
+        const costTier = (cardDef && cardDef.costTier)
+            ? String(cardDef.costTier)
+            : null;
+        const visualDescriptor = (PlaybackEventHelpers && typeof PlaybackEventHelpers.createCardVisualDescriptor === 'function')
+            ? PlaybackEventHelpers.createCardVisualDescriptor(cardId, {
+                name,
+                cost,
+                costTier
+            })
+            : null;
+
+        return [
+            {
+                type: 'card_use_animation',
+                phase: 1,
+                targets: [{
+                    player: normalizedPlayerKey,
+                    owner: normalizedPlayerKey,
+                    cardId,
+                    cardType: resolvedCardType,
+                    cost,
+                    name,
+                    visualDescriptor
+                }]
+            },
+            {
+                type: 'sound_effect',
+                phase: 1,
+                targets: [{ soundKey: 'card_use_button' }],
+                meta: { sourceType: 'card_used' }
+            }
+        ];
     }
 
     function getPlaybackActive() {
@@ -1626,10 +1703,13 @@
                             cardType
                         };
                     }
+                    const playbackEvents = shouldRestorePendingCardUsePlayback(cardType)
+                        ? buildPendingCardUsePlaybackEvents(playerKey, cardId, cardType)
+                        : [];
                     return {
                         ok: true,
                         pendingSelectionActive: true,
-                        playbackEvents: [],
+                        playbackEvents,
                         nextCardState: cardStateArg,
                         nextGameState: gameStateArg
                     };

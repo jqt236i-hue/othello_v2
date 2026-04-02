@@ -49,6 +49,7 @@ describe('ui cpu-policy handler', () => {
     const loadFromUrl = jest.fn(async () => true);
     const loadTargetModelFromUrl = jest.fn(async () => true);
     const loadValueModelFromUrl = jest.fn(async () => true);
+    const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
     global.window.fetch = jest.fn(async (url) => {
       const s = String(url || '');
       const ok =
@@ -64,15 +65,20 @@ describe('ui cpu-policy handler', () => {
       loadValueModelFromUrl
     };
 
-    await handlers.initPolicyOnnxModel();
+    try {
+      await handlers.initPolicyOnnxModel();
 
-    expect(loadFromUrl).not.toHaveBeenCalled();
-    expect(loadTargetModelFromUrl).toHaveBeenCalledWith('./data/models/policy-target.onnx', './data/models/policy-target.onnx.meta.json');
-    expect(loadValueModelFromUrl).toHaveBeenCalledWith('./data/models/policy-value.onnx', './data/models/policy-value.onnx.meta.json');
-    expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.loaded).toBe(false);
-    expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.skipReason).toBe('shared-profile-policy-table-parity');
-    expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.targetLoaded).toBe(true);
-    expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.valueLoaded).toBe(true);
+      expect(loadFromUrl).not.toHaveBeenCalled();
+      expect(loadTargetModelFromUrl).toHaveBeenCalledWith('./data/models/policy-target.onnx', './data/models/policy-target.onnx.meta.json');
+      expect(loadValueModelFromUrl).toHaveBeenCalledWith('./data/models/policy-value.onnx', './data/models/policy-value.onnx.meta.json');
+      expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.loaded).toBe(false);
+      expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.skipReason).toBe('shared-profile-policy-table-parity');
+      expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.targetLoaded).toBe(true);
+      expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.valueLoaded).toBe(true);
+      expect(consoleLog).not.toHaveBeenCalled();
+    } finally {
+      consoleLog.mockRestore();
+    }
   });
 
   test('initPolicyOnnxModel configures and loads runtime when available', async () => {
@@ -231,16 +237,22 @@ describe('ui cpu-policy handler', () => {
     const configure = jest.fn();
     const loadFromUrl = jest.fn(async () => true);
     const getStatus = jest.fn(() => ({ statesCount: 12 }));
+    const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
     global.window.CpuPolicyTableRuntime = { configure, loadFromUrl, getStatus };
 
-    await handlers.initPolicyTableModel();
+    try {
+      await handlers.initPolicyTableModel();
 
-    expect(configure).toHaveBeenCalledWith({
-      enabled: true,
-      minLevel: 6,
-      sourceUrl: 'data/models/policy-table.json'
-    });
-    expect(loadFromUrl).toHaveBeenCalledWith('data/models/policy-table.json');
+      expect(configure).toHaveBeenCalledWith({
+        enabled: true,
+        minLevel: 6,
+        sourceUrl: 'data/models/policy-table.json'
+      });
+      expect(loadFromUrl).toHaveBeenCalledWith('data/models/policy-table.json');
+      expect(consoleLog).not.toHaveBeenCalled();
+    } finally {
+      consoleLog.mockRestore();
+    }
   });
 
   test('initPolicyTableModel resolves root path when relative model path is missing', async () => {

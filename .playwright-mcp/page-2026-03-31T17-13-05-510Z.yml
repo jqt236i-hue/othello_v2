@@ -1,0 +1,104 @@
+- generic [active] [ref=e1]:
+  - heading "カードオセロ" [level=1] [ref=e2]
+  - generic:
+    - generic: 効果ログ
+  - generic:
+    - img "敵CPU"
+    - generic: 盤喰いの小鬼
+  - generic:
+    - img "オセロの勇者"
+    - generic: オセロの勇者
+  - button "story" [ref=e3] [cursor=pointer]
+  - button "tutorial" [ref=e4] [cursor=pointer]
+  - 'button "DEBUG: OFF" [ref=e5] [cursor=pointer]'
+  - button "help" [ref=e6] [cursor=pointer]
+  - generic:
+    - dialog:
+      - generic:
+        - generic: story
+        - button: ×
+      - generic: 章を選んで開始します。未解放の章は表示されますが開始できません。
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - generic:
+        - generic: "10"
+    - generic [ref=e10]:
+      - generic: "布石: 0 / 99"
+      - generic: "布石: 0 / 99"
+    - generic [ref=e12]:
+      - generic:
+        - generic: "10"
+      - generic [ref=e14]:
+        - generic [ref=e15]: カード詳細
+        - generic [ref=e16]: "-"
+        - generic [ref=e17]: カードを選択してください
+        - generic "カード効果タグ" [ref=e18]
+        - generic [ref=e19]:
+          - button "詳細" [disabled] [ref=e20]
+          - button "使用" [disabled] [ref=e21]
+          - button "破壊" [disabled] [ref=e22]
+        - button "パス" [disabled] [ref=e23]
+  - generic [ref=e25]:
+    - button "操作パネルを閉じる" [expanded] [ref=e26] [cursor=pointer]: −
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - generic [ref=e29]: GAME
+        - button "リセット" [ref=e30] [cursor=pointer]
+        - 'button "AUTO: OFF" [ref=e31] [cursor=pointer]'
+      - generic [ref=e32]:
+        - generic [ref=e33]: MATCH
+        - button "CPU" [ref=e34] [cursor=pointer]
+        - button "ネット対戦" [ref=e35] [cursor=pointer]
+        - button "ランキング" [ref=e36] [cursor=pointer]
+      - generic [ref=e37]:
+        - generic [ref=e38]: DECK
+        - button "デッキ" [ref=e39] [cursor=pointer]
+        - generic [ref=e40]: 標準デッキ / 73枚
+      - generic [ref=e41]:
+        - generic [ref=e42]: AI SMART
+        - generic [ref=e43]: 黒
+        - combobox [ref=e44]:
+          - 'option "Lv1: 盤喰いの小鬼" [selected]'
+          - 'option "Lv2: 反転の影"'
+          - 'option "Lv3: 布石を紡ぐ者"'
+          - 'option "Lv4: 盤面支配者"'
+          - 'option "Lv5: 終局を告げる者"'
+          - 'option "Lv6: 盤理の観測者"'
+        - generic [ref=e45]: 白
+        - combobox [ref=e46]:
+          - 'option "Lv1: 盤喰いの小鬼" [selected]'
+          - 'option "Lv2: 反転の影"'
+          - 'option "Lv3: 布石を紡ぐ者"'
+          - 'option "Lv4: 盤面支配者"'
+          - 'option "Lv5: 終局を告げる者"'
+          - 'option "Lv6: 盤理の観測者"'
+      - generic [ref=e47]:
+        - generic [ref=e48]: SE
+        - button "🔊 ON" [ref=e49] [cursor=pointer]
+        - combobox [ref=e50]:
+          - option "Type 1 (標準)" [selected]
+          - option "Type 2 (硬め)"
+          - option "Type 3 (重め)"
+          - option "Type 4 (響き)"
+          - option "Type 5 (ソフト)"
+        - slider [ref=e51]: "0.7"
+      - generic [ref=e52]:
+        - generic [ref=e53]: BGM
+        - button "▶" [ref=e54] [cursor=pointer]
+        - button "⏸" [ref=e55] [cursor=pointer]
+        - combobox [ref=e56]:
+          - option "c-othello"
+          - option "c-othello-2" [selected]
+          - option "盤喰いの小鬼戦"
+          - option "幻想即興曲"
+          - option "ノクターン"
+        - slider [ref=e57]: "0.07"
+    - generic [ref=e59]:
+      - generic [ref=e60]: 捨て札
+      - generic [ref=e61]: "0"
+  - generic:
+    - generic:
+      - generic:
+        - img
+      - button [disabled]: 終了
+      - dialog

@@ -129,7 +129,7 @@ describe('SoundEngine default BGM', () => {
   test('duration-end revert sound uses the renamed asset mapping', () => {
     const soundEngine = loadSoundEngine();
 
-    expect(soundEngine.effectSoundFiles.special_reverted).toBe('持続ターン切れで特殊石が通常石に戻るタイミング.mp3');
+    expect(soundEngine.effectSoundFiles.special_reverted).toBe('特殊石が通常石に戻ったタイミング.mp3');
     expect(soundEngine.effectSoundFiles).not.toHaveProperty('special_expired');
   });
 
@@ -270,7 +270,7 @@ describe('SoundEngine default BGM', () => {
     const soundEngine = loadSoundEngine();
 
     expect(soundEngine.getEffectFilePath('super_buoyancy_move')).toBe(
-      'assets/audio/sound-effect/超浮力で石を浮かせるタイミング.mp3'
+      'assets/audio/sound-effect/超浮力で石が浮上したタイミング.mp3'
     );
   });
 
@@ -278,7 +278,7 @@ describe('SoundEngine default BGM', () => {
     const soundEngine = loadSoundEngine();
 
     expect(soundEngine.getEffectFilePath('card_effect_flip')).toBe(
-      'assets/audio/sound-effect/カード効果で石が反転するタイミング.mp3'
+      'assets/audio/sound-effect/カード効果で石が反転したタイミング.mp3'
     );
   });
 
@@ -286,7 +286,7 @@ describe('SoundEngine default BGM', () => {
     const soundEngine = loadSoundEngine();
 
     expect(soundEngine.getEffectFilePath('ultimate_anchor_move')).toBe(
-      'assets/audio/sound-effect/究極反転龍と究極破壊神が移動するタイミング.mp3'
+      'assets/audio/sound-effect/究極反転龍・究極破壊神が移動したタイミング.mp3'
     );
   });
 
@@ -294,7 +294,7 @@ describe('SoundEngine default BGM', () => {
     const soundEngine = loadSoundEngine();
 
     expect(soundEngine.getEffectFilePath('strong_will_promoted')).toBe(
-      'assets/audio/sound-effect/石が進化するタイミング.mp3'
+      'assets/audio/sound-effect/強い意志の石が進化したタイミング.mp3'
     );
   });
 

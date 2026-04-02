@@ -345,98 +345,136 @@
         try { delete root._currentPlaybackScope; } catch (e) { try { root._currentPlaybackScope = null; } catch (err) { /* ignore */ } }
     }
 
-    function configurePendingSelectionFlowBridge() {
+    function resolvePendingSelectionFlowModule() {
         try {
-            const selectionFlow = require('../game/card-effects/selection-flow');
-            if (!selectionFlow || typeof selectionFlow.setSignalBridge !== 'function') return false;
-            selectionFlow.setSignalBridge({
-                getPlaybackStateManager: () => getPlaybackStateModuleForReset(),
-                waitForPlaybackIdle: () => {
-                    try {
-                        if (typeof globalThis !== 'undefined' && typeof globalThis.waitForPlaybackIdle === 'function') {
-                            return globalThis.waitForPlaybackIdle();
-                        }
-                    } catch (e) { /* ignore */ }
-                    return undefined;
-                },
-                publishSnapshot: (meta) => {
-                    try {
-                        if (typeof globalThis === 'undefined' || !globalThis.NetworkMatchClient) return undefined;
-                        if (typeof globalThis.NetworkMatchClient.publishSnapshot !== 'function') return undefined;
-                        if (typeof globalThis.NetworkMatchClient.isActive === 'function' && !globalThis.NetworkMatchClient.isActive()) {
-                            return undefined;
-                        }
-                        return globalThis.NetworkMatchClient.publishSnapshot(meta);
-                    } catch (e) {
+            if (typeof require === 'function') {
+                const selectionFlowModule = require('../game/card-effects/selection-flow');
+                if (selectionFlowModule && typeof selectionFlowModule.setSignalBridge === 'function') {
+                    return selectionFlowModule;
+                }
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.PendingSelectionFlow && typeof globalThis.PendingSelectionFlow.setSignalBridge === 'function') {
+                return globalThis.PendingSelectionFlow;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function resolvePresentationHelperModule() {
+        try {
+            if (typeof require === 'function') {
+                const presentationHelperModule = require('../game/logic/presentation');
+                if (presentationHelperModule && typeof presentationHelperModule.emitPresentationEvent === 'function') {
+                    return presentationHelperModule;
+                }
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.PresentationHelper && typeof globalThis.PresentationHelper.emitPresentationEvent === 'function') {
+                return globalThis.PresentationHelper;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function buildPendingSelectionFlowBridge() {
+        return {
+            getPlaybackStateManager: () => getPlaybackStateModuleForReset(),
+            waitForPlaybackIdle: () => {
+                try {
+                    if (typeof globalThis !== 'undefined' && typeof globalThis.waitForPlaybackIdle === 'function') {
+                        return globalThis.waitForPlaybackIdle();
+                    }
+                } catch (e) { /* ignore */ }
+                return undefined;
+            },
+            publishSnapshot: (meta) => {
+                try {
+                    if (typeof globalThis === 'undefined' || !globalThis.NetworkMatchClient) return undefined;
+                    if (typeof globalThis.NetworkMatchClient.publishSnapshot !== 'function') return undefined;
+                    if (typeof globalThis.NetworkMatchClient.isActive === 'function' && !globalThis.NetworkMatchClient.isActive()) {
                         return undefined;
                     }
-                },
-                isNetworkPublishActive: () => {
-                    try {
-                        if (typeof globalThis === 'undefined' || !globalThis.NetworkMatchClient) return false;
-                        if (typeof globalThis.NetworkMatchClient.publishSnapshot !== 'function') return false;
-                        if (typeof globalThis.NetworkMatchClient.isActive === 'function') {
-                            return globalThis.NetworkMatchClient.isActive() === true;
-                        }
-                        return true;
-                    } catch (e) {
-                        return false;
-                    }
-                },
-                emitPlaybackEvents: (events, meta, cardStateValue) => {
-                    if (!Array.isArray(events) || events.length === 0) return false;
-                    try {
-                        const presentationHelper = require('../game/logic/presentation');
-                        if (!presentationHelper || typeof presentationHelper.emitPresentationEvent !== 'function') {
-                            return false;
-                        }
-                        return presentationHelper.emitPresentationEvent(cardStateValue || (typeof globalThis !== 'undefined' ? globalThis.cardState : null), {
-                            type: 'PLAYBACK_EVENTS',
-                            events,
-                            meta: (meta && typeof meta === 'object') ? meta : {}
-                        }) === true;
-                    } catch (e) {
-                        return false;
-                    }
-                },
-                emitStateChanges: () => {
-                    const signalNames = ['emitCardStateChange', 'emitBoardUpdate', 'emitGameStateChange'];
-                    let emitted = false;
-                    for (let index = 0; index < signalNames.length; index += 1) {
-                        try {
-                            if (typeof globalThis === 'undefined') continue;
-                            const signalFn = globalThis[signalNames[index]];
-                            if (typeof signalFn !== 'function') continue;
-                            signalFn();
-                            emitted = true;
-                        } catch (e) { /* ignore */ }
-                    }
-                    return emitted;
-                },
-                emitMessage: (text) => {
-                    if (!text) return false;
-                    try {
-                        if (typeof globalThis === 'undefined' || typeof globalThis.emitLogAdded !== 'function') {
-                            return false;
-                        }
-                        globalThis.emitLogAdded(text);
-                        return true;
-                    } catch (e) {
-                        return false;
-                    }
-                },
-                emitBoardUpdate: () => {
-                    try {
-                        if (typeof globalThis === 'undefined' || typeof globalThis.emitBoardUpdate !== 'function') {
-                            return false;
-                        }
-                        globalThis.emitBoardUpdate();
-                        return true;
-                    } catch (e) {
-                        return false;
-                    }
+                    return globalThis.NetworkMatchClient.publishSnapshot(meta);
+                } catch (e) {
+                    return undefined;
                 }
-            });
+            },
+            isNetworkPublishActive: () => {
+                try {
+                    if (typeof globalThis === 'undefined' || !globalThis.NetworkMatchClient) return false;
+                    if (typeof globalThis.NetworkMatchClient.publishSnapshot !== 'function') return false;
+                    if (typeof globalThis.NetworkMatchClient.isActive === 'function') {
+                        return globalThis.NetworkMatchClient.isActive() === true;
+                    }
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            },
+            emitPlaybackEvents: (events, meta, cardStateValue) => {
+                if (!Array.isArray(events) || events.length === 0) return false;
+                try {
+                    const presentationHelper = resolvePresentationHelperModule();
+                    if (!presentationHelper || typeof presentationHelper.emitPresentationEvent !== 'function') {
+                        return false;
+                    }
+                    return presentationHelper.emitPresentationEvent(cardStateValue || (typeof globalThis !== 'undefined' ? globalThis.cardState : null), {
+                        type: 'PLAYBACK_EVENTS',
+                        events,
+                        meta: (meta && typeof meta === 'object') ? meta : {}
+                    }) === true;
+                } catch (e) {
+                    return false;
+                }
+            },
+            emitStateChanges: () => {
+                const signalNames = ['emitCardStateChange', 'emitBoardUpdate', 'emitGameStateChange'];
+                let emitted = false;
+                for (let index = 0; index < signalNames.length; index += 1) {
+                    try {
+                        if (typeof globalThis === 'undefined') continue;
+                        const signalFn = globalThis[signalNames[index]];
+                        if (typeof signalFn !== 'function') continue;
+                        signalFn();
+                        emitted = true;
+                    } catch (e) { /* ignore */ }
+                }
+                return emitted;
+            },
+            emitMessage: (text) => {
+                if (!text) return false;
+                try {
+                    if (typeof globalThis === 'undefined' || typeof globalThis.emitLogAdded !== 'function') {
+                        return false;
+                    }
+                    globalThis.emitLogAdded(text);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            },
+            emitBoardUpdate: () => {
+                try {
+                    if (typeof globalThis === 'undefined' || typeof globalThis.emitBoardUpdate !== 'function') {
+                        return false;
+                    }
+                    globalThis.emitBoardUpdate();
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+        };
+    }
+
+    function configurePendingSelectionFlowBridge() {
+        try {
+            const selectionFlow = resolvePendingSelectionFlowModule();
+            if (!selectionFlow || typeof selectionFlow.setSignalBridge !== 'function') return false;
+            selectionFlow.setSignalBridge(buildPendingSelectionFlowBridge());
             return true;
         } catch (e) {
             return false;

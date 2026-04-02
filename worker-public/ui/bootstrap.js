@@ -234,6 +234,92 @@
         return _stoneBaseImagesReadyPromise;
     }
 
+    function isDebugConsoleLoggingEnabled() {
+        try {
+            const globals = getRegisteredUIGlobals();
+            if (globals && globals.DEBUG_UNLIMITED_USAGE === true) return true;
+            if (globals && globals.DEBUG_MODE_ALLOWED === true) return true;
+            if (globals && globals.DEBUG_MODE_ALLOWED === false) return false;
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof window !== 'undefined' && window) {
+                if (window.DEBUG_UNLIMITED_USAGE === true) return true;
+                if (window.DEBUG_MODE_ALLOWED === true) return true;
+                if (window.DEBUG_MODE_ALLOWED === false) return false;
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            const qs = (typeof location !== 'undefined' && location && typeof location.search === 'string')
+                ? location.search
+                : '';
+            return /[?&]debug=1\b/.test(qs) || /[?&]debug=true\b/.test(qs);
+        } catch (e) { /* ignore */ }
+        return false;
+    }
+
+    function getConsoleLoggerForLevel(level) {
+        if (typeof console === 'undefined' || !console) return null;
+        if (level === 'error' && typeof console.error === 'function') return console.error;
+        if (level === 'warn' && typeof console.warn === 'function') return console.warn;
+        if (level === 'info' && typeof console.info === 'function') return console.info;
+        if (level === 'debug' && typeof console.debug === 'function') return console.debug;
+        if (typeof console.log === 'function') return console.log;
+        return null;
+    }
+
+    function emitConsoleMirror(prefix, text, level) {
+        if (!isDebugConsoleLoggingEnabled()) return false;
+        try {
+            const logger = getConsoleLoggerForLevel(level || 'log');
+            if (!logger) return false;
+            logger.call(console, prefix, String(text));
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function debugLog(message, level, meta) {
+        if (!isDebugConsoleLoggingEnabled()) return false;
+        try {
+            const resolvedLevel = (typeof level === 'string' && level.trim())
+                ? level.trim().toLowerCase()
+                : 'debug';
+            const logger = getConsoleLoggerForLevel(resolvedLevel);
+            if (!logger) return false;
+            if (typeof meta !== 'undefined' && meta !== null) {
+                logger.call(console, `[debug:${resolvedLevel}]`, String(message), meta);
+            } else {
+                logger.call(console, `[debug:${resolvedLevel}]`, String(message));
+            }
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function syncDebugLogGlobalRegistration() {
+        const enabled = isDebugConsoleLoggingEnabled();
+        try {
+            if (typeof window !== 'undefined' && window) {
+                if (enabled) {
+                    window.debugLog = debugLog;
+                } else if (window.debugLog === debugLog) {
+                    try { delete window.debugLog; } catch (e) { try { window.debugLog = undefined; } catch (e2) { /* ignore */ } }
+                }
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis) {
+                if (enabled) {
+                    globalThis.debugLog = debugLog;
+                } else if (globalThis.debugLog === debugLog) {
+                    try { delete globalThis.debugLog; } catch (e) { try { globalThis.debugLog = undefined; } catch (e2) { /* ignore */ } }
+                }
+            }
+        } catch (e) { /* ignore */ }
+    }
+
     function addLog(text) {
         const resolvedText = (text && typeof text === 'object' && typeof text.text === 'string')
             ? String(text.text)
@@ -246,6 +332,7 @@
                 entry.textContent = resolvedText;
                 logEl.appendChild(entry);
                 try { logEl.scrollTop = logEl.scrollHeight; } catch (e) { if (logEl && logEl.parentElement) logEl.parentElement.scrollTop = logEl.parentElement.scrollHeight; }
+                emitConsoleMirror('[log]', resolvedText, 'log');
                 return;
             }
         } catch (e) {
@@ -333,10 +420,15 @@
         } catch (e) { /* ignore */ }
 
         if (!clearedViaManager && root) {
+            try { root.isProcessing = false; } catch (e) { /* ignore */ }
             try { root.isCardAnimating = false; } catch (e) { /* ignore */ }
             try { root.VisualPlaybackActive = false; } catch (e) { /* ignore */ }
             try { root.__playbackActiveSince = null; } catch (e) { /* ignore */ }
+            try { root.__busyStateSince = null; } catch (e) { /* ignore */ }
             try { root.__boardUpdateContext = null; } catch (e) { /* ignore */ }
+            try { root.__selectionEntryPlaybackContext = null; } catch (e) { /* ignore */ }
+            try { root.__suppressNextDiffFlip = false; } catch (e) { /* ignore */ }
+            try { root.__suppressNextBoardExpansionRevealSound = false; } catch (e) { /* ignore */ }
         }
 
         if (!root) return;
@@ -345,98 +437,136 @@
         try { delete root._currentPlaybackScope; } catch (e) { try { root._currentPlaybackScope = null; } catch (err) { /* ignore */ } }
     }
 
-    function configurePendingSelectionFlowBridge() {
+    function resolvePendingSelectionFlowModule() {
         try {
-            const selectionFlow = require('../game/card-effects/selection-flow');
-            if (!selectionFlow || typeof selectionFlow.setSignalBridge !== 'function') return false;
-            selectionFlow.setSignalBridge({
-                getPlaybackStateManager: () => getPlaybackStateModuleForReset(),
-                waitForPlaybackIdle: () => {
-                    try {
-                        if (typeof globalThis !== 'undefined' && typeof globalThis.waitForPlaybackIdle === 'function') {
-                            return globalThis.waitForPlaybackIdle();
-                        }
-                    } catch (e) { /* ignore */ }
-                    return undefined;
-                },
-                publishSnapshot: (meta) => {
-                    try {
-                        if (typeof globalThis === 'undefined' || !globalThis.NetworkMatchClient) return undefined;
-                        if (typeof globalThis.NetworkMatchClient.publishSnapshot !== 'function') return undefined;
-                        if (typeof globalThis.NetworkMatchClient.isActive === 'function' && !globalThis.NetworkMatchClient.isActive()) {
-                            return undefined;
-                        }
-                        return globalThis.NetworkMatchClient.publishSnapshot(meta);
-                    } catch (e) {
+            if (typeof require === 'function') {
+                const selectionFlowModule = require('../game/card-effects/selection-flow');
+                if (selectionFlowModule && typeof selectionFlowModule.setSignalBridge === 'function') {
+                    return selectionFlowModule;
+                }
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.PendingSelectionFlow && typeof globalThis.PendingSelectionFlow.setSignalBridge === 'function') {
+                return globalThis.PendingSelectionFlow;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function resolvePresentationHelperModule() {
+        try {
+            if (typeof require === 'function') {
+                const presentationHelperModule = require('../game/logic/presentation');
+                if (presentationHelperModule && typeof presentationHelperModule.emitPresentationEvent === 'function') {
+                    return presentationHelperModule;
+                }
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.PresentationHelper && typeof globalThis.PresentationHelper.emitPresentationEvent === 'function') {
+                return globalThis.PresentationHelper;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function buildPendingSelectionFlowBridge() {
+        return {
+            getPlaybackStateManager: () => getPlaybackStateModuleForReset(),
+            waitForPlaybackIdle: () => {
+                try {
+                    if (typeof globalThis !== 'undefined' && typeof globalThis.waitForPlaybackIdle === 'function') {
+                        return globalThis.waitForPlaybackIdle();
+                    }
+                } catch (e) { /* ignore */ }
+                return undefined;
+            },
+            publishSnapshot: (meta) => {
+                try {
+                    if (typeof globalThis === 'undefined' || !globalThis.NetworkMatchClient) return undefined;
+                    if (typeof globalThis.NetworkMatchClient.publishSnapshot !== 'function') return undefined;
+                    if (typeof globalThis.NetworkMatchClient.isActive === 'function' && !globalThis.NetworkMatchClient.isActive()) {
                         return undefined;
                     }
-                },
-                isNetworkPublishActive: () => {
-                    try {
-                        if (typeof globalThis === 'undefined' || !globalThis.NetworkMatchClient) return false;
-                        if (typeof globalThis.NetworkMatchClient.publishSnapshot !== 'function') return false;
-                        if (typeof globalThis.NetworkMatchClient.isActive === 'function') {
-                            return globalThis.NetworkMatchClient.isActive() === true;
-                        }
-                        return true;
-                    } catch (e) {
-                        return false;
-                    }
-                },
-                emitPlaybackEvents: (events, meta, cardStateValue) => {
-                    if (!Array.isArray(events) || events.length === 0) return false;
-                    try {
-                        const presentationHelper = require('../game/logic/presentation');
-                        if (!presentationHelper || typeof presentationHelper.emitPresentationEvent !== 'function') {
-                            return false;
-                        }
-                        return presentationHelper.emitPresentationEvent(cardStateValue || (typeof globalThis !== 'undefined' ? globalThis.cardState : null), {
-                            type: 'PLAYBACK_EVENTS',
-                            events,
-                            meta: (meta && typeof meta === 'object') ? meta : {}
-                        }) === true;
-                    } catch (e) {
-                        return false;
-                    }
-                },
-                emitStateChanges: () => {
-                    const signalNames = ['emitCardStateChange', 'emitBoardUpdate', 'emitGameStateChange'];
-                    let emitted = false;
-                    for (let index = 0; index < signalNames.length; index += 1) {
-                        try {
-                            if (typeof globalThis === 'undefined') continue;
-                            const signalFn = globalThis[signalNames[index]];
-                            if (typeof signalFn !== 'function') continue;
-                            signalFn();
-                            emitted = true;
-                        } catch (e) { /* ignore */ }
-                    }
-                    return emitted;
-                },
-                emitMessage: (text) => {
-                    if (!text) return false;
-                    try {
-                        if (typeof globalThis === 'undefined' || typeof globalThis.emitLogAdded !== 'function') {
-                            return false;
-                        }
-                        globalThis.emitLogAdded(text);
-                        return true;
-                    } catch (e) {
-                        return false;
-                    }
-                },
-                emitBoardUpdate: () => {
-                    try {
-                        if (typeof globalThis === 'undefined' || typeof globalThis.emitBoardUpdate !== 'function') {
-                            return false;
-                        }
-                        globalThis.emitBoardUpdate();
-                        return true;
-                    } catch (e) {
-                        return false;
-                    }
+                    return globalThis.NetworkMatchClient.publishSnapshot(meta);
+                } catch (e) {
+                    return undefined;
                 }
-            });
+            },
+            isNetworkPublishActive: () => {
+                try {
+                    if (typeof globalThis === 'undefined' || !globalThis.NetworkMatchClient) return false;
+                    if (typeof globalThis.NetworkMatchClient.publishSnapshot !== 'function') return false;
+                    if (typeof globalThis.NetworkMatchClient.isActive === 'function') {
+                        return globalThis.NetworkMatchClient.isActive() === true;
+                    }
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            },
+            emitPlaybackEvents: (events, meta, cardStateValue) => {
+                if (!Array.isArray(events) || events.length === 0) return false;
+                try {
+                    const presentationHelper = resolvePresentationHelperModule();
+                    if (!presentationHelper || typeof presentationHelper.emitPresentationEvent !== 'function') {
+                        return false;
+                    }
+                    return presentationHelper.emitPresentationEvent(cardStateValue || (typeof globalThis !== 'undefined' ? globalThis.cardState : null), {
+                        type: 'PLAYBACK_EVENTS',
+                        events,
+                        meta: (meta && typeof meta === 'object') ? meta : {}
+                    }) === true;
+                } catch (e) {
+                    return false;
+                }
+            },
+            emitStateChanges: () => {
+                const signalNames = ['emitCardStateChange', 'emitBoardUpdate', 'emitGameStateChange'];
+                let emitted = false;
+                for (let index = 0; index < signalNames.length; index += 1) {
+                    try {
+                        if (typeof globalThis === 'undefined') continue;
+                        const signalFn = globalThis[signalNames[index]];
+                        if (typeof signalFn !== 'function') continue;
+                        signalFn();
+                        emitted = true;
+                    } catch (e) { /* ignore */ }
+                }
+                return emitted;
+            },
+            emitMessage: (text) => {
+                if (!text) return false;
+                try {
+                    if (typeof globalThis === 'undefined' || typeof globalThis.emitLogAdded !== 'function') {
+                        return false;
+                    }
+                    globalThis.emitLogAdded(text);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            },
+            emitBoardUpdate: () => {
+                try {
+                    if (typeof globalThis === 'undefined' || typeof globalThis.emitBoardUpdate !== 'function') {
+                        return false;
+                    }
+                    globalThis.emitBoardUpdate();
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+        };
+    }
+
+    function configurePendingSelectionFlowBridge() {
+        try {
+            const selectionFlow = resolvePendingSelectionFlowModule();
+            if (!selectionFlow || typeof selectionFlow.setSignalBridge !== 'function') return false;
+            selectionFlow.setSignalBridge(buildPendingSelectionFlowBridge());
             return true;
         } catch (e) {
             return false;
@@ -646,6 +776,7 @@
         try { window.updateBgmButtons = updateBgmButtons; } catch (e) {}
         try { window.updateStatus = updateStatus; } catch (e) {}
     }
+    syncDebugLogGlobalRegistration();
 
     // DI: Install game-side implementations (timers, UI helpers)
     function installGameDI() {
@@ -899,6 +1030,7 @@
                 }
             }
         } catch (e) { /* ignore */ }
+        syncDebugLogGlobalRegistration();
         return _uiGlobals;
     }
     function getRegisteredUIGlobals() {
@@ -949,10 +1081,10 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        return { addLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady };
+        return { addLog, debugLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady, resetTransientUIState: runResetTransientUIStateCleanup };
     }
 
-    return { addLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady };
+    return { addLog, debugLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady, resetTransientUIState: runResetTransientUIStateCleanup };
 }));
 
 

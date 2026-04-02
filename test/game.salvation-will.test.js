@@ -53,6 +53,15 @@ function getSalvationSpawnEvents(result) {
   ));
 }
 
+function getSalvationFlipEvents(result) {
+  return (result.presentationEvents || []).filter((e) => (
+    e &&
+    e.type === 'CHANGE' &&
+    e.cause === 'SALVATION_WILL' &&
+    e.reason === 'salvation_flip'
+  ));
+}
+
 describe('SALVATION_WILL（救済の意志）', () => {
   const salvationDef = getSalvationDef();
 
@@ -91,14 +100,14 @@ describe('SALVATION_WILL（救済の意志）', () => {
     expect(cardState.pendingEffectByPlayer.black).toMatchObject({ type: 'SALVATION_WILL' });
   });
 
-  test('use_card: 破壊された石の数だけランダムな空きマスに石を生成し、反転は起きない', () => {
+  test('use_card: 破壊された石の数だけランダムな空きマスに石を生成し、復活石から通常反転する', () => {
     expect(salvationDef).toBeTruthy();
     const prng = createPrng([0, 0, 0]);
     const cardState = createCardState(prng, salvationDef.id, salvationDef.cost);
-    // Black has 1 stone at (7,7); 3 white stones; rest empty
+    // First revived stone at (0,3) should flip the two white stones between it and the black stone at (0,0).
     const gameState = createSparseGameState(
-      [[7, 7]],
-      [[0, 0], [0, 1], [0, 2]]
+      [[0, 0], [7, 7]],
+      [[0, 1], [0, 2]]
     );
     // Simulate 2 black stones destroyed on opponent's previous turn
     cardState.prevOpponentTurnDestroyedNormalByPlayer = {
@@ -118,16 +127,30 @@ describe('SALVATION_WILL（救済の意志）', () => {
 
       const resolveEvent = result.events.find((e) => e && e.type === 'salvation_will_resolved');
       const spawnEvents = getSalvationSpawnEvents(result);
+      const flipEvents = getSalvationFlipEvents(result);
 
       expect(result.cardState.pendingEffectByPlayer.black).toBeNull();
       expect(resolveEvent).toMatchObject({
         type: 'salvation_will_resolved',
         player: 'black',
         requestedCount: 2,
-        spawnedCount: 2
+        spawnedCount: 2,
+        flippedCount: 2
       });
+      expect((resolveEvent.spawned || []).map((entry) => [entry.row, entry.col])).toEqual([
+        [0, 3],
+        [0, 4]
+      ]);
+      expect((resolveEvent.flipped || []).map((entry) => [entry.row, entry.col])).toEqual([
+        [0, 2],
+        [0, 1]
+      ]);
 
       expect(spawnSpy).toHaveBeenCalledTimes(2);
+      expect(spawnSpy.mock.calls.map((call) => [call[2], call[3]])).toEqual([
+        [0, 3],
+        [0, 4]
+      ]);
       for (const call of spawnSpy.mock.calls) {
         expect(call[4]).toBe('black');
         expect(call[5]).toBe('SALVATION_WILL');
@@ -136,10 +159,20 @@ describe('SALVATION_WILL（救済の意志）', () => {
       }
 
       expect(spawnEvents).toHaveLength(2);
+      expect(spawnEvents.map((e) => [e.row, e.col])).toEqual([
+        [0, 3],
+        [0, 4]
+      ]);
       expect(spawnEvents.map((e) => e.meta && e.meta.spawnIndex)).toEqual([1, 2]);
-
-      // No flips should occur (salvation spawns, does not flip)
-      expect(result.cardState.totalFlipCountByPlayer.black).toBe(0);
+      expect(flipEvents.map((e) => [e.row, e.col])).toEqual([
+        [0, 2],
+        [0, 1]
+      ]);
+      expect(gameState.board[0][1]).toBe(Shared.BLACK);
+      expect(gameState.board[0][2]).toBe(Shared.BLACK);
+      expect(gameState.board[0][3]).toBe(Shared.BLACK);
+      expect(gameState.board[0][4]).toBe(Shared.BLACK);
+      expect(result.cardState.totalFlipCountByPlayer.black).toBe(2);
     } finally {
       spawnSpy.mockRestore();
     }

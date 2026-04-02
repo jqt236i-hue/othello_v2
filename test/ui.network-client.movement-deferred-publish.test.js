@@ -40,6 +40,12 @@ function cloneJson(value) {
 function createLiveResponseSnapshot(stateVersion) {
   return {
     stateVersion,
+    _meta: {
+      authority: 'server',
+      version: stateVersion,
+      projectedForSeat: null,
+      turnStartReconciled: true
+    },
     gameState: cloneJson(global.gameState),
     cardState: cloneJson(global.cardState)
   };
@@ -48,6 +54,12 @@ function createLiveResponseSnapshot(stateVersion) {
 function createSnapshot(stateVersion, pendingType) {
   return {
     stateVersion,
+    _meta: {
+      authority: 'server',
+      version: stateVersion,
+      projectedForSeat: null,
+      turnStartReconciled: true
+    },
     gameState: {
       currentPlayer: 1,
       turnNumber: 11
@@ -174,10 +186,22 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerNam
           snapshot: body.snapshot
             ? {
               ...body.snapshot,
-              stateVersion: 21
+              stateVersion: 21,
+              _meta: {
+                authority: 'server',
+                version: 21,
+                projectedForSeat: null,
+                turnStartReconciled: true
+              }
             }
             : {
               stateVersion: 21,
+              _meta: {
+                authority: 'server',
+                version: 21,
+                projectedForSeat: null,
+                turnStartReconciled: true
+              },
               gameState: {
                 ...cloneJson(global.gameState),
                 currentPlayer: global.WHITE,

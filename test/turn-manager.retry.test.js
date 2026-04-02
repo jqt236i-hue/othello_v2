@@ -98,6 +98,34 @@ describe('turn-manager scheduling', () => {
     expect(global.executeMove).not.toHaveBeenCalled();
   });
 
+  test('handleCellClick allows pending board selection during card-use animation handoff', () => {
+    const playbackStateManager = require('../ui/playback-state-manager');
+    playbackStateManager.clearPlaybackLock();
+    playbackStateManager.armSelectionEntryPlaybackContext({
+      playerKey: 'black',
+      pendingType: 'GUARDIAN_GOD',
+      source: 'test',
+      reason: 'selection_entry',
+      expiresAt: Date.now() + 1000
+    });
+    global.PlaybackStateManager = playbackStateManager;
+    global.isCardAnimating = true;
+    global.cardState = {
+      pendingEffectByPlayer: {
+        black: { type: 'GUARDIAN_GOD', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    global.handleGuardSelection = jest.fn();
+
+    const rm = require('../game/turn-manager');
+    rm.handleCellClick(2, 3);
+
+    expect(global.handleGuardSelection).toHaveBeenCalledWith(2, 3, 'black');
+    expect(global.findMoveForCell).not.toHaveBeenCalled();
+    expect(global.executeMove).not.toHaveBeenCalled();
+  });
+
   test('handleCellClick keeps SELL_CARD_WILL hand overlay pending off the board path', () => {
     global.cardState = {
       pendingEffectByPlayer: {
@@ -114,9 +142,9 @@ describe('turn-manager scheduling', () => {
   });
 
   test.each([
-    ['presentationEvents', { presentationEvents: [{ type: 'place' }], _presentationEventsPersist: [] }],
-    ['_presentationEventsPersist', { presentationEvents: [], _presentationEventsPersist: [{ type: 'place' }] }]
-  ])('queued %s blocks stale board clicks until playback sync finishes', (_label, queues) => {
+    ['presentationEvents', { presentationEvents: [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'flip', phase: 1 }] }], _presentationEventsPersist: [] }],
+    ['_presentationEventsPersist', { presentationEvents: [], _presentationEventsPersist: [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'flip', phase: 1 }] }] }]
+  ])('queued %s playback batches block stale board clicks until playback sync finishes', (_label, queues) => {
     global.cardState = {
       pendingEffectByPlayer: { black: null, white: null },
       presentationEvents: queues.presentationEvents,
@@ -128,6 +156,23 @@ describe('turn-manager scheduling', () => {
 
     expect(global.findMoveForCell).not.toHaveBeenCalled();
     expect(global.executeMove).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['presentationEvents', { presentationEvents: [{ type: 'CARD_USED', player: 'black', cardId: 'capture_01' }], _presentationEventsPersist: [] }],
+    ['_presentationEventsPersist', { presentationEvents: [], _presentationEventsPersist: [{ type: 'HAND_REMOVE', player: 'black', cardId: 'capture_01' }] }]
+  ])('queued %s non-playback presentation does not block board clicks', (_label, queues) => {
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      presentationEvents: queues.presentationEvents,
+      _presentationEventsPersist: queues._presentationEventsPersist
+    };
+
+    const rm = require('../game/turn-manager');
+    rm.handleCellClick(0, 0);
+
+    expect(global.findMoveForCell).toHaveBeenCalled();
+    expect(global.executeMove).toHaveBeenCalledTimes(1);
   });
 
   test('stale visual playback flag with idle engine no longer blocks board clicks', () => {
@@ -264,6 +309,7 @@ describe('turn-manager scheduling', () => {
     };
 
     const uiResetSpy = jest.fn();
+    const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
     const rm = require('../game/turn-manager');
     rm.setUIImpl({
       resetTransientUIState: uiResetSpy,
@@ -271,11 +317,16 @@ describe('turn-manager scheduling', () => {
       clearLogUI: jest.fn()
     });
 
-    rm.resetGame();
+    try {
+      rm.resetGame();
 
-    expect(global.cardState.presentationEvents).toHaveLength(0);
-    expect(global.cardState._presentationEventsPersist).toHaveLength(0);
-    expect(uiResetSpy).toHaveBeenCalledTimes(1);
+      expect(global.cardState.presentationEvents).toHaveLength(0);
+      expect(global.cardState._presentationEventsPersist).toHaveLength(0);
+      expect(uiResetSpy).toHaveBeenCalledTimes(1);
+      expect(consoleLog).not.toHaveBeenCalled();
+    } finally {
+      consoleLog.mockRestore();
+    }
   });
 
   test('resetGame は stale playback lock を解除してから新規配布へ入る', () => {

@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { JSDOM } = require('jsdom');
 
 describe('UI bootstrap early CPU registration', () => {
@@ -28,6 +30,111 @@ describe('UI bootstrap early CPU registration', () => {
     expect(typeof globals.processAutoBlackTurn).toBe('function');
     // Also mirrors to globalThis for legacy fallback
     expect(typeof global.processCpuTurn === 'function' || typeof globalThis.processCpuTurn === 'function').toBe(true);
+  });
+
+  test('classic-script installGameDI wires pending selection bridge through globals when require is unavailable', () => {
+    const dom = new JSDOM('<!doctype html><html><body></body></html>', {
+      runScripts: 'outside-only',
+      url: 'http://localhost/'
+    });
+    const { window } = dom;
+    const bridgeState = { bridge: null };
+
+    window.PendingSelectionFlow = {
+      setSignalBridge: (bridge) => {
+        bridgeState.bridge = bridge;
+      }
+    };
+    window.PresentationHelper = {
+      emitPresentationEvent: jest.fn(() => true)
+    };
+    window.PlaybackStateManager = { sentinel: true };
+    window.emitCardStateChange = jest.fn();
+    window.emitBoardUpdate = jest.fn();
+    window.emitGameStateChange = jest.fn();
+    window.emitLogAdded = jest.fn();
+    window.cardState = { _presentationEventsPersist: [] };
+    window.Image = class {
+      set src(_value) {
+        if (typeof this.onload === 'function') this.onload();
+      }
+    };
+
+    const source = fs.readFileSync(path.resolve(__dirname, '../ui/bootstrap.js'), 'utf8');
+    const browserLikeCode = `var require = undefined; var module = undefined; var exports = undefined;\n${source}`;
+    expect(() => window.eval(browserLikeCode)).not.toThrow();
+
+    expect(window.UIBootstrap).toBeTruthy();
+    window.UIBootstrap.installGameDI();
+
+    expect(bridgeState.bridge).toBeTruthy();
+    expect(bridgeState.bridge.getPlaybackStateManager()).toBe(window.PlaybackStateManager);
+    expect(bridgeState.bridge.emitPlaybackEvents([{ type: 'flip', phase: 1 }], { cause: 'FREEZE_WILL' }, window.cardState)).toBe(true);
+    expect(window.PresentationHelper.emitPresentationEvent).toHaveBeenCalledWith(window.cardState, {
+      type: 'PLAYBACK_EVENTS',
+      events: [{ type: 'flip', phase: 1 }],
+      meta: { cause: 'FREEZE_WILL' }
+    });
+
+    expect(bridgeState.bridge.emitStateChanges()).toBe(true);
+    expect(window.emitCardStateChange).toHaveBeenCalledTimes(1);
+    expect(window.emitBoardUpdate).toHaveBeenCalledTimes(1);
+    expect(window.emitGameStateChange).toHaveBeenCalledTimes(1);
+
+    expect(bridgeState.bridge.emitMessage('pending target')).toBe(true);
+    expect(window.emitLogAdded).toHaveBeenCalledWith('pending target');
+    expect(bridgeState.bridge.emitBoardUpdate()).toBe(true);
+    expect(window.emitBoardUpdate).toHaveBeenCalledTimes(2);
+
+    dom.window.close();
+  });
+
+  test('classic-script bridge emits representative target-selection playback batches unchanged', () => {
+    const dom = new JSDOM('<!doctype html><html><body></body></html>', {
+      runScripts: 'outside-only',
+      url: 'http://localhost/'
+    });
+    const { window } = dom;
+    const bridgeState = { bridge: null };
+
+    window.PendingSelectionFlow = {
+      setSignalBridge: (bridge) => {
+        bridgeState.bridge = bridge;
+      }
+    };
+    window.PresentationHelper = {
+      emitPresentationEvent: jest.fn(() => true)
+    };
+    window.cardState = { _presentationEventsPersist: [] };
+    window.Image = class {
+      set src(_value) {
+        if (typeof this.onload === 'function') this.onload();
+      }
+    };
+
+    const source = fs.readFileSync(path.resolve(__dirname, '../ui/bootstrap.js'), 'utf8');
+    const browserLikeCode = `var require = undefined; var module = undefined; var exports = undefined;\n${source}`;
+    window.eval(browserLikeCode);
+    window.UIBootstrap.installGameDI();
+
+    expect(bridgeState.bridge).toBeTruthy();
+
+    const cases = [
+      [{ type: 'sound_effect', phase: 1, targets: [{ soundKey: 'trap_select' }] }],
+      [{ type: 'status_applied', phase: 2, targets: [{ r: 3, col: 3, cause: 'FREEZE_WILL', reason: 'freeze_selected' }] }],
+      [{ type: 'capture_to_hand_animation', phase: 3, targets: [{ player: 'black', cardId: 'dragon_01', sourceRow: 3, sourceCol: 3, insertIndex: 0 }] }]
+    ];
+
+    cases.forEach((events, index) => {
+      expect(bridgeState.bridge.emitPlaybackEvents(events, { sample: index }, window.cardState)).toBe(true);
+      expect(window.PresentationHelper.emitPresentationEvent).toHaveBeenNthCalledWith(index + 1, window.cardState, {
+        type: 'PLAYBACK_EVENTS',
+        events,
+        meta: { sample: index }
+      });
+    });
+
+    dom.window.close();
   });
 
   test('resetTransientUIState clears lingering fx ghosts and stale has-disc shadows', () => {

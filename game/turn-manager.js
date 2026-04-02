@@ -324,8 +324,10 @@ if (!scheduleRetry) {
 function hasQueuedPresentationEventsForTurnManager() {
     try {
         if (!cardState || typeof cardState !== 'object') return false;
-        return (Array.isArray(cardState.presentationEvents) && cardState.presentationEvents.length > 0)
-            || (Array.isArray(cardState._presentationEventsPersist) && cardState._presentationEventsPersist.length > 0);
+        const hasQueuedPlaybackEvents = (queue) => Array.isArray(queue)
+            && queue.some((event) => event && event.type === 'PLAYBACK_EVENTS');
+        return hasQueuedPlaybackEvents(cardState.presentationEvents)
+            || hasQueuedPlaybackEvents(cardState._presentationEventsPersist);
     } catch (e) { /* ignore */ }
     return false;
 }
@@ -351,15 +353,17 @@ function handleCellClick(row, col) {
     // Auto mode owns progression; ignore manual board input.
     if (typeof globalThis !== 'undefined' && globalThis.AUTO_MODE_ACTIVE === true) return;
 
-    // Block while animations are running
-    if (isAnimationInProgress()) return;
-
     const playerKey = getPlayerKey(gameState.currentPlayer);
     if (!canLocalUserOperateCurrentTurn()) return;
     const pending = readPendingForTurnManager(playerKey);
     const pendingDispatchKey = (pending && pending.stage === 'selectTarget')
         ? resolvePendingSelectionDispatchKeyForTurnManager(pending.type)
         : null;
+    const allowPendingSelectionDuringAnimation = shouldAllowPendingSelectionDuringAnimation(playerKey, pending, pendingDispatchKey);
+
+    // Block while animations are running
+    if (isAnimationInProgress() && !allowPendingSelectionDuringAnimation) return;
+
     if (pendingDispatchKey) {
         const pendingSelectionHandler = resolveBoardPendingSelectionHandlerForTurnManager(pendingDispatchKey);
         if (typeof pendingSelectionHandler === 'function') {
@@ -418,6 +422,23 @@ function isAnimationInProgress() {
     }
     const cardAnimatingActive = readTurnManagerCardAnimating();
     return processingActive || cardAnimatingActive || visualPlayback || queuedPresentation;
+}
+
+function shouldAllowPendingSelectionDuringAnimation(playerKey, pending, pendingDispatchKey) {
+    if (!pending || !pendingDispatchKey || pending.stage !== 'selectTarget') return false;
+    if (readTurnManagerProcessing()) return false;
+    const playbackState = getPlaybackStateForTurnManager();
+    if (!playbackState || typeof playbackState.shouldAllowSelectionEntryDuringPlayback !== 'function') {
+        return false;
+    }
+    try {
+        return playbackState.shouldAllowSelectionEntryDuringPlayback({
+            playerKey,
+            pendingType: pending.type
+        }) === true;
+    } catch (e) {
+        return false;
+    }
 }
 
 function isHumanVsHumanModeEnabled() {

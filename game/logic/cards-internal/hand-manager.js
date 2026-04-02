@@ -558,6 +558,11 @@
                     if (!helpers.canUseEqualityWillForPlayer(cardState, gameState, playerKey)) continue;
                 }
 
+                if (type === 'REINFORCEMENT_WILL') {
+                    if (typeof helpers.canUseReinforcementWillForPlayer !== 'function') continue;
+                    if (!helpers.canUseReinforcementWillForPlayer(cardState, gameState, playerKey)) continue;
+                }
+
                 if (type === 'TIME_STOP_GOD') {
                     if (typeof helpers.canUseTimeStopGodForPlayer !== 'function') continue;
                     if (!helpers.canUseTimeStopGodForPlayer(cardState, gameState, playerKey)) continue;

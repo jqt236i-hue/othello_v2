@@ -36,8 +36,22 @@ describe('pipeline_ui_adapter normal logs', () => {
 
   test('maps salvation resolution to player-facing effect log', () => {
     const out = Adapter.mapEffectLogsFromPipeline([
-      { type: 'salvation_will_resolved', player: 'black', spawnedCount: 2 }
+      { type: 'salvation_will_resolved', player: 'black', spawnedCount: 2, flippedCount: 3 }
     ], [], 'black');
-    expect(out).toEqual(['黒: 救済の意志: 通常石2個を復活']);
+    expect(out).toEqual(['黒: 救済の意志: 通常石2個を復活、3枚を反転']);
+  });
+
+  test('maps equality resolution to player-facing effect log', () => {
+    const out = Adapter.mapEffectLogsFromPipeline([
+      { type: 'equality_will_resolved', player: 'black', spawnedCount: 3, flippedCount: 2 }
+    ], [], 'black');
+    expect(out).toEqual(['黒: 平等の意志: 通常石3個を生成、2枚を反転']);
+  });
+
+  test('maps reinforcement resolution to player-facing effect log', () => {
+    const out = Adapter.mapEffectLogsFromPipeline([
+      { type: 'reinforcement_will_resolved', player: 'black', spawnedCount: 1, flippedCount: 2 }
+    ], [], 'black');
+    expect(out).toEqual(['黒: 増援の意志: 通常石1個を配置、2枚を反転']);
   });
 });

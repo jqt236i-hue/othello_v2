@@ -53,6 +53,15 @@
                 : buildFailureResult();
         }
 
+        if (cardType === 'REINFORCEMENT_WILL') {
+            if (!context || !context.gameState || typeof context.canUseReinforcementWillForPlayer !== 'function') {
+                return buildFailureResult();
+            }
+            return context.canUseReinforcementWillForPlayer(context.cardState, context.gameState, context.playerKey)
+                ? result
+                : buildFailureResult();
+        }
+
         if (cardType === 'CORNER_TRIBUTE') {
             if (!context || !context.gameState || typeof context.countOpponentOccupiedCornersForPlayer !== 'function') {
                 return buildFailureResult();

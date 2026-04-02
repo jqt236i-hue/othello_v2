@@ -592,7 +592,19 @@
                     || busyStateBeforeSnapshot.playbackActive === true
                 )
             );
-            if (hadBusyBeforeSnapshot) return false;
+            // If the system was already busy before this snapshot, only skip
+            // the release when the animation engine is actively playing or
+            // its state is unknown.  When the engine is provably idle, the
+            // pre-existing busy flags are stale — fall through to the
+            // signature / queue-consumption checks instead of bailing out
+            // unconditionally.
+            if (hadBusyBeforeSnapshot) {
+                const enginePlaying = isPlaybackEngineRunning();
+                if (enginePlaying !== false) return false;
+                // enginePlaying === false: engine is definitely idle.
+                // The pre-snapshot busy flags are stale; continue to the
+                // queue-consumption checks below to decide release.
+            }
             if (isVisualPlaybackActive()) return false;
 
             const currentQueues = captureTransientPresentationQueues(cardStateRef);

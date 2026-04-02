@@ -137,4 +137,43 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     expect(legalCell.classList.contains('legal')).toBe(false);
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
   });
+
+  test('updates POSITION_SWAP_WILL first-target highlight as pending selection changes', () => {
+    const diff = require('../ui/diff-renderer');
+
+    global.gameState.board[0][0] = BLACK;
+    global.gameState.board[0][1] = WHITE;
+    global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 1 }];
+
+    diff.renderBoardDiff(boardEl);
+
+    const firstCell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    const secondCell = boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
+    expect(firstCell).toBeTruthy();
+    expect(secondCell).toBeTruthy();
+    expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    global.cardState.pendingEffectByPlayer = {
+      black: {
+        type: 'POSITION_SWAP_WILL',
+        stage: 'selectTarget',
+        cardId: 'position_swap_01',
+        firstTarget: { row: 0, col: 0 }
+      },
+      white: null
+    };
+
+    diff.renderBoardDiff(boardEl);
+
+    expect(firstCell.classList.contains('effect-target-highlight')).toBe(true);
+    expect(secondCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(secondCell.classList.contains('selectable-friendly')).toBe(true);
+
+    global.cardState.pendingEffectByPlayer = { black: null, white: null };
+    global.CardLogic.getSelectableTargets = () => [];
+
+    diff.renderBoardDiff(boardEl);
+
+    expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
+  });
 });

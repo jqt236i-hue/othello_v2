@@ -142,6 +142,30 @@ describe('board-renderer fallback legal hints', () => {
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
   });
 
+  test('renderBoardFull highlights the first selected stone during POSITION_SWAP_WILL targeting', () => {
+    global.getLegalMoves.mockReturnValue([]);
+    global.gameState.board[0][0] = global.BLACK;
+    global.gameState.board[0][1] = global.WHITE;
+    global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 1 }]);
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'POSITION_SWAP_WILL',
+      stage: 'selectTarget',
+      cardId: 'position_swap_01',
+      firstTarget: { row: 0, col: 0 }
+    };
+
+    const boardRenderer = require('../ui/board-renderer');
+    boardRenderer.renderBoardFull();
+
+    const firstCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    const secondCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
+    expect(firstCell).toBeTruthy();
+    expect(secondCell).toBeTruthy();
+    expect(firstCell.classList.contains('effect-target-highlight')).toBe(true);
+    expect(secondCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(secondCell.classList.contains('selectable-friendly')).toBe(true);
+  });
+
   test('renderBoard skips diff render while PLAYBACK_EVENTS are pending', () => {
     global.cardState.presentationEvents = [
       { type: 'PLAYBACK_EVENTS', events: [{ type: 'hyperactive_move', phase: 1 }] }

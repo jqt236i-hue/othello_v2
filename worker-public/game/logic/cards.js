@@ -109,6 +109,7 @@
     const RIBO_WILL_REPAYMENT_AMOUNT = 4;
     const RIBO_WILL_OWNER_TURNS = 9;
     const RIBO_WILL_SHORTAGE_DESTROY_COUNT = 2;
+    const REINFORCEMENT_WILL_SPAWN_COUNT = 1;
     const EQUALITY_WILL_MAX_SPAWNS = 3;
     const FLIP_CHARGE_MULTIPLIER_EFFECTS = Object.freeze({
         GOLD_STONE: { multiplier: 4, effectFlag: 'goldStoneUsed', destroyReason: 'gold_stone_sacrifice' },
@@ -897,74 +898,150 @@
         };
     }
 
-    function collectRandomBoardSpawnablePositions(cardState, gameState) {
+    function collectRandomBoardSpawnablePositions(cardState, gameState, predicate) {
         return getEmptyBoardShapeCellsForCard(cardState, gameState)
-            .filter((cell) => !isBlockedCell(cardState, cell.row, cell.col, gameState));
+            .filter((cell) => {
+                if (!cell) return false;
+                if (isBlockedCell(cardState, cell.row, cell.col, gameState)) return false;
+                if (typeof predicate === 'function' && predicate(cell) !== true) return false;
+                return true;
+            });
     }
 
-    function resolveRandomBoardSpawnEffectUsage(cardState, gameState, playerKey, requestedCount, prng, cause, reason) {
+    function resolveRandomBoardSpawnEffectUsage(cardState, gameState, playerKey, requestedCount, prng, cause, reason, options = {}) {
         const normalizedRequestedCount = Number.isFinite(Number(requestedCount))
             ? Math.max(0, Math.trunc(Number(requestedCount)))
             : 0;
         const targets = sampleRandomPositions(
-            collectRandomBoardSpawnablePositions(cardState, gameState),
+            collectRandomBoardSpawnablePositions(cardState, gameState, options.targetFilter),
             normalizedRequestedCount,
             prng
         );
-        const spawned = [];
-
-        for (const target of targets) {
-            if (!target) continue;
-            const spawnIndex = spawned.length + 1;
-            const spawnMeta = {
+        const spawnMetaFactory = (typeof options.spawnMetaFactory === 'function')
+            ? options.spawnMetaFactory
+            : ((spawnIndex) => ({
                 owner: playerKey,
                 requestedCount: normalizedRequestedCount,
                 spawnIndex
-            };
-            let spawnRes = null;
-            if (BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function') {
-                spawnRes = BoardOpsModule.spawnAt(
+            }));
+        const normalFlip = options.normalFlip === true;
+        const player = playerKey === 'white' ? WHITE : BLACK;
+        let spawned = [];
+        let flipped = [];
+        let usedSharedSpawnAndFlip = false;
+        let sharedSpawnAndFlipBatch = null;
+        let sharedSpawnCount = 0;
+
+        if (normalFlip && BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function' && typeof BoardOpsModule.changeAt === 'function') {
+            if (typeof module === 'object' && module.exports) {
+                const breedingMod = require('./cards/breeding');
+                if (breedingMod && typeof breedingMod.spawnAndFlipBatch === 'function') {
+                    sharedSpawnAndFlipBatch = breedingMod.spawnAndFlipBatch;
+                }
+            } else if (typeof CardBreeding !== 'undefined' && typeof CardBreeding.spawnAndFlipBatch === 'function') {
+                sharedSpawnAndFlipBatch = CardBreeding.spawnAndFlipBatch;
+            }
+            if (sharedSpawnAndFlipBatch) {
+                const batch = sharedSpawnAndFlipBatch(
                     cardState,
                     gameState,
-                    target.row,
-                    target.col,
                     playerKey,
+                    player,
+                    targets.filter(Boolean),
                     cause,
                     reason,
-                    spawnMeta
+                    {
+                        row: Number.isInteger(options.anchorRow) ? options.anchorRow : null,
+                        col: Number.isInteger(options.anchorCol) ? options.anchorCol : null
+                    },
+                    {
+                        getCardContext,
+                        getFlipsWithContext: getFlipsWithContextLocal,
+                        clearBombAt,
+                        clearHyperactiveAtPositions,
+                        changeCause: cause,
+                        changeReason: options.flipReason || 'breeding_flip',
+                        BoardOps: {
+                            spawnAt: (innerCardState, innerGameState, row, col, ownerKey, spawnCause, spawnReason) => {
+                                sharedSpawnCount += 1;
+                                const spawnIndex = sharedSpawnCount;
+                                return BoardOpsModule.spawnAt(
+                                    innerCardState,
+                                    innerGameState,
+                                    row,
+                                    col,
+                                    ownerKey,
+                                    spawnCause,
+                                    spawnReason,
+                                    spawnMetaFactory(spawnIndex, { row, col })
+                                );
+                            },
+                            changeAt: (innerCardState, innerGameState, row, col, ownerKey, flipCause, flipReason, meta) => (
+                                BoardOpsModule.changeAt(innerCardState, innerGameState, row, col, ownerKey, flipCause, flipReason, meta)
+                            )
+                        }
+                    }
                 );
-            } else {
-                const ownerValue = playerKey === 'white' ? WHITE : BLACK;
-                const wroteCell = setCellValueForCard(gameState, target.row, target.col, ownerValue);
-                if (wroteCell) {
-                    const stoneId = allocateStoneId(cardState);
-                    setStoneIdAtForCard(cardState, gameState, target.row, target.col, stoneId);
-                    emitPresentationEvent(cardState, {
-                        type: 'SPAWN',
-                        stoneId,
-                        row: target.row,
-                        col: target.col,
-                        ownerAfter: playerKey,
+                usedSharedSpawnAndFlip = true;
+                spawned = Array.isArray(batch && batch.spawned) ? batch.spawned.slice() : [];
+                flipped = Array.isArray(batch && batch.flipped) ? batch.flipped.slice() : [];
+            }
+        }
+
+        if (!normalFlip || !usedSharedSpawnAndFlip) {
+            spawned = [];
+            flipped = [];
+            for (const target of targets) {
+                if (!target) continue;
+                const spawnIndex = spawned.length + 1;
+                const spawnMeta = spawnMetaFactory(spawnIndex, target);
+                let spawnRes = null;
+                if (BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function') {
+                    spawnRes = BoardOpsModule.spawnAt(
+                        cardState,
+                        gameState,
+                        target.row,
+                        target.col,
+                        playerKey,
                         cause,
                         reason,
-                        meta: spawnMeta
-                    });
-                    spawnRes = { spawned: true, stoneId };
+                        spawnMeta
+                    );
+                } else {
+                    const ownerValue = playerKey === 'white' ? WHITE : BLACK;
+                    const wroteCell = setCellValueForCard(gameState, target.row, target.col, ownerValue);
+                    if (wroteCell) {
+                        const stoneId = allocateStoneId(cardState);
+                        setStoneIdAtForCard(cardState, gameState, target.row, target.col, stoneId);
+                        emitPresentationEvent(cardState, {
+                            type: 'SPAWN',
+                            stoneId,
+                            row: target.row,
+                            col: target.col,
+                            ownerAfter: playerKey,
+                            cause,
+                            reason,
+                            meta: spawnMeta
+                        });
+                        spawnRes = { spawned: true, stoneId };
+                    }
                 }
+                if (!(spawnRes && spawnRes.spawned)) continue;
+                spawned.push({
+                    row: target.row,
+                    col: target.col,
+                    stoneId: spawnRes.stoneId || null
+                });
             }
-            if (!(spawnRes && spawnRes.spawned)) continue;
-            spawned.push({
-                row: target.row,
-                col: target.col,
-                stoneId: spawnRes.stoneId || null
-            });
         }
 
         return {
             applied: true,
             requestedCount: normalizedRequestedCount,
             spawnedCount: spawned.length,
-            spawned
+            spawned,
+            flippedCount: flipped.length,
+            flipped
         };
     }
 
@@ -976,8 +1053,89 @@
             EQUALITY_WILL_MAX_SPAWNS,
             prng,
             'EQUALITY_WILL',
-            'equality_will_spawn'
+            'equality_will_spawn',
+            {
+                normalFlip: true,
+                flipReason: 'equality_will_flip',
+                spawnMetaFactory: (spawnIndex) => ({
+                    owner: playerKey,
+                    requestedCount: EQUALITY_WILL_MAX_SPAWNS,
+                    spawnIndex
+                })
+            }
         );
+    }
+
+    function isInnerPlayableCellForReinforcement(cardState, gameState, row, col) {
+        if (!hasBoardShapeCellForCard(cardState, gameState, row, col)) return false;
+        const orthogonal = [
+            [row - 1, col],
+            [row + 1, col],
+            [row, col - 1],
+            [row, col + 1]
+        ];
+        return orthogonal.every((pos) => hasBoardShapeCellForCard(cardState, gameState, pos[0], pos[1]));
+    }
+
+    function isAdjacentToAnyStoneForReinforcement(cardState, gameState, row, col) {
+        for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+                if (dr === 0 && dc === 0) continue;
+                const nextRow = row + dr;
+                const nextCol = col + dc;
+                if (!hasBoardShapeCellForCard(cardState, gameState, nextRow, nextCol)) continue;
+                if (getCellValueForCard(gameState, nextRow, nextCol) !== EMPTY) return true;
+            }
+        }
+        return false;
+    }
+
+    function getReinforcementWillTargets(cardState, gameState, playerKey) {
+        if (!gameState || !Array.isArray(gameState.board)) return [];
+        return collectRandomBoardSpawnablePositions(cardState, gameState, (cell) => {
+            const row = Number(cell && cell.row);
+            const col = Number(cell && cell.col);
+            if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+            if (!isInnerPlayableCellForReinforcement(cardState, gameState, row, col)) return false;
+            return isAdjacentToAnyStoneForReinforcement(cardState, gameState, row, col);
+        });
+    }
+
+    function canUseReinforcementWillForPlayer(cardState, gameState, playerKey) {
+        return getReinforcementWillTargets(cardState, gameState, playerKey).length > 0;
+    }
+
+    function resolveReinforcementWillUsage(cardState, gameState, playerKey, prng) {
+        const pending = readCardPendingEffect(cardState, playerKey);
+        if (!pending || pending.type !== 'REINFORCEMENT_WILL') {
+            return { applied: false, reason: 'not_pending', requestedCount: 0, spawnedCount: 0, spawned: [], flippedCount: 0, flipped: [] };
+        }
+        const targetSet = new Set(getReinforcementWillTargets(cardState, gameState, playerKey).map((cell) => `${cell.row},${cell.col}`));
+        if (targetSet.size <= 0) {
+            clearCardPendingEffect(cardState, playerKey);
+            return { applied: false, reason: 'no_targets', requestedCount: REINFORCEMENT_WILL_SPAWN_COUNT, spawnedCount: 0, spawned: [], flippedCount: 0, flipped: [] };
+        }
+        const result = resolveRandomBoardSpawnEffectUsage(
+            cardState,
+            gameState,
+            playerKey,
+            REINFORCEMENT_WILL_SPAWN_COUNT,
+            prng,
+            'REINFORCEMENT_WILL',
+            'reinforcement_will_spawn',
+            {
+                normalFlip: true,
+                flipReason: 'reinforcement_will_flip',
+                targetFilter: (cell) => targetSet.has(`${cell.row},${cell.col}`),
+                spawnMetaFactory: (spawnIndex) => ({
+                    owner: playerKey,
+                    requestedCount: REINFORCEMENT_WILL_SPAWN_COUNT,
+                    spawnIndex
+                })
+            }
+        );
+        clearCardPendingEffect(cardState, playerKey);
+        return result;
     }
 
     function processRiboWillTurnStartEffects(cardState, gameState, playerKey, prng) {
@@ -2883,6 +3041,10 @@
         return getDiscDisadvantageForPlayer(gameState, playerKey) >= 10;
     }
 
+    function getReinforcementWillTargetCount(cardState, gameState, playerKey) {
+        return getReinforcementWillTargets(cardState, gameState, playerKey).length;
+    }
+
     function _ensureHandDestroyFlags(cardState) {
         if (!CardHandManagerModule || typeof CardHandManagerModule.ensureHandDestroyFlags !== 'function') {
             throw new Error('[cards.js] CardHandManager.ensureHandDestroyFlags not available');
@@ -3015,6 +3177,7 @@
                 hasStandardLegalMoveForPlayer,
                 canUseLastResortForPlayer,
                 canUseEqualityWillForPlayer,
+                canUseReinforcementWillForPlayer,
                 canUseTimeStopGodForPlayer,
                 countOpponentOccupiedCornersForPlayer,
                 buildHeavenBlessingOffers,
@@ -3049,7 +3212,8 @@
                 getTimeStopGodDestroyableCount,
                 timeStopGodSelfDestroyCount: TIME_STOP_GOD_SELF_DESTROY_COUNT,
                 getLossWillRemovableCount,
-                getSalvationWillTargetCount
+                getSalvationWillTargetCount,
+                getReinforcementWillTargetCount
             })
             : null;
         if (!usagePrecheck || usagePrecheck.ok !== true) return false;
@@ -3975,10 +4139,28 @@
         const targetValue = getCellValueForCard(gameState, row, col);
         const ownerBefore = targetValue === (BLACK || 1) ? 'black' : 'white';
         const wasWork = !!(markerEntry && markerEntry.marker && markerEntry.marker.data && markerEntry.marker.data.type === 'WORK');
+        const removedSpecialType = captureSource.sourceSpecialType
+            || (markerEntry && markerEntry.marker && markerEntry.marker.data && markerEntry.marker.data.type)
+            || null;
 
         clearStoneIdAtForCard(cardState, gameState, row, col);
         setCellValueForCard(gameState, row, col, EMPTY);
         removeMarkersAt(cardState, row, col);
+
+        if (!wasWork) {
+            emitPresentationEvent(cardState, {
+                type: 'STATUS_REMOVED',
+                row,
+                col,
+                cause: 'CAPTURE_WILL',
+                reason: 'captured_to_hand',
+                meta: {
+                    special: removedSpecialType,
+                    owner: ownerBefore,
+                    reason: 'captured_to_hand'
+                }
+            });
+        }
 
         if (wasWork && cardState.workAnchorPosByPlayer && cardState.workAnchorPosByPlayer[opponentKey]) {
             cardState.workAnchorPosByPlayer[opponentKey] = null;
@@ -4843,7 +5025,16 @@
             requestedCount,
             prng,
             'SALVATION_WILL',
-            'salvation_spawn'
+            'salvation_spawn',
+            {
+                normalFlip: true,
+                flipReason: 'salvation_flip',
+                spawnMetaFactory: (spawnIndex) => ({
+                    owner: playerKey,
+                    requestedCount,
+                    spawnIndex
+                })
+            }
         );
         if (cardState.prevOpponentTurnDestroyedNormalByPlayer) {
             cardState.prevOpponentTurnDestroyedNormalByPlayer[playerKey] = [];
@@ -5392,6 +5583,7 @@
                 hasStandardLegalMoveForPlayer,
                 canUseLastResortForPlayer,
                 canUseEqualityWillForPlayer,
+                canUseReinforcementWillForPlayer,
                 canUseTimeStopGodForPlayer,
                 countOpponentOccupiedCornersForPlayer,
                 getTemptWillTargets,
@@ -5409,6 +5601,7 @@
                 getCellTeleportTargets,
                 getCloneTargets,
                 getSplitTargets,
+                getReinforcementWillTargets,
                 getOccupiedBoardShapeCellsForCard,
                 getBoardExpansionTargets,
                 getBoardExpansionGodTargets,
@@ -7476,6 +7669,9 @@
         applyMeteorWill,
         applyFreezeWill,
         getEqualityWillBoardCounts,
+        getReinforcementWillTargets,
+        getReinforcementWillTargetCount,
+        canUseReinforcementWillForPlayer,
         getLossWillRemovableCount,
         applyLossWill,
         getSalvationWillTargetCount,
@@ -7487,6 +7683,7 @@
         applySuperGravityWill,
         armRiboWillEffect,
         resolveEqualityWillUsage,
+        resolveReinforcementWillUsage,
         getTimeStopGodDestroyableCount,
         resolveTimeStopGodUsage,
         consumeTimeStopConsecutiveTurn,

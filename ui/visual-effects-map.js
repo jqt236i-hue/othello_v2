@@ -1,6 +1,23 @@
 // UI implementation for visual-effects-map
 // This file contains DOM-manipulating visual helpers intended to run in the browser UI.
-console.log('[VISUAL_EFFECTS] ui/visual-effects-map.js loaded');
+function shouldLogVisualEffectsBootstrap() {
+    try {
+        if (typeof window !== 'undefined' && window) {
+            if (window.DEBUG_WORK_VISUALS === true || window.DEBUG_MODE_ALLOWED === true) return true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        const qs = (typeof location !== 'undefined' && location && typeof location.search === 'string')
+            ? location.search
+            : '';
+        return /[?&]debug=(?:1|true)\b/i.test(qs);
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+if (shouldLogVisualEffectsBootstrap() && typeof console !== 'undefined' && typeof console.log === 'function') {
+    console.log('[VISUAL_EFFECTS] ui/visual-effects-map.js loaded');
+}
 
 // Single source: consume maps from game/visual-effects-map.js (globals or require)
 function getSharedVisualEffectsMap() {

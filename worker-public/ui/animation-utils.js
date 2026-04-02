@@ -21,6 +21,8 @@ function _Timer() { return (__anim_res_utils && typeof __anim_res_utils.getTimer
 })(); }
 let __playback_state_utils = null;
 try { __playback_state_utils = (typeof require === 'function') ? require('./playback-state-manager') : (typeof globalThis !== 'undefined' ? globalThis.PlaybackStateManager : null); } catch (e) { __playback_state_utils = (typeof globalThis !== 'undefined' ? globalThis.PlaybackStateManager : null); }
+let __owner_helpers_utils = null;
+try { __owner_helpers_utils = (typeof require === 'function') ? require('../utils/owner-helpers') : (typeof globalThis !== 'undefined' ? globalThis.OwnerHelpers : null); } catch (e) { __owner_helpers_utils = (typeof globalThis !== 'undefined' ? globalThis.OwnerHelpers : null); }
 function _setCardAnimatingState(locked) {
     if (__playback_state_utils && typeof __playback_state_utils.setCardAnimating === 'function') {
         __playback_state_utils.setCardAnimating(locked);
@@ -44,9 +46,48 @@ function _normalizeHandOwnerKey(value) {
     return 'black';
 }
 
+function _getCurrentMatchModeForHandAnimations() {
+    const rootRef = _getHandLayerAnimationRoot();
+    try {
+        if (__owner_helpers_utils && typeof __owner_helpers_utils.getCurrentMatchMode === 'function') {
+            return String(__owner_helpers_utils.getCurrentMatchMode(rootRef) || 'cpu');
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (rootRef && typeof rootRef.MATCH_MODE !== 'undefined') {
+            return String(rootRef.MATCH_MODE || 'cpu');
+        }
+    } catch (e) { /* ignore */ }
+    return 'cpu';
+}
+
+function _resolveVisibleSlotOwnersForHandAnimations() {
+    const matchMode = _getCurrentMatchModeForHandAnimations();
+    if (matchMode !== 'network') return null;
+
+    const rootRef = _getHandLayerAnimationRoot();
+    let bottomOwnerKey = 'black';
+    try {
+        if (__owner_helpers_utils && typeof __owner_helpers_utils.resolveLocalPlayerKey === 'function') {
+            bottomOwnerKey = _normalizeHandOwnerKey(__owner_helpers_utils.resolveLocalPlayerKey(rootRef));
+        } else if (rootRef && typeof rootRef.LOCAL_PLAYER_KEY !== 'undefined') {
+            bottomOwnerKey = _normalizeHandOwnerKey(rootRef.LOCAL_PLAYER_KEY);
+        }
+    } catch (e) { /* ignore */ }
+
+    return {
+        bottomOwnerKey,
+        topOwnerKey: bottomOwnerKey === 'white' ? 'black' : 'white'
+    };
+}
+
 function _resolveHandElementByOwner(playerKey) {
     if (typeof document === 'undefined') return null;
     const ownerKey = _normalizeHandOwnerKey(playerKey);
+    const visibleOwners = _resolveVisibleSlotOwnersForHandAnimations();
+    if (visibleOwners) {
+        return document.getElementById(visibleOwners.bottomOwnerKey === ownerKey ? 'hand-black' : 'hand-white');
+    }
     const handBlackEl = document.getElementById('hand-black');
     const handWhiteEl = document.getElementById('hand-white');
     const handElements = [handBlackEl, handWhiteEl].filter(Boolean);
@@ -64,6 +105,10 @@ function _resolveHandElementByOwner(playerKey) {
 function _resolveDeckElementByOwner(playerKey) {
     if (typeof document === 'undefined') return null;
     const ownerKey = _normalizeHandOwnerKey(playerKey);
+    const visibleOwners = _resolveVisibleSlotOwnersForHandAnimations();
+    if (visibleOwners) {
+        return document.getElementById(visibleOwners.bottomOwnerKey === ownerKey ? 'deck-black' : 'deck-white');
+    }
     const deckBlackEl = document.getElementById('deck-black');
     const deckWhiteEl = document.getElementById('deck-white');
     const deckElements = [deckBlackEl, deckWhiteEl].filter(Boolean);
@@ -81,6 +126,11 @@ function _resolveDeckElementByOwner(playerKey) {
 function _isOwnerOnBottomSlot(playerKey) {
     const ownerKey = _normalizeHandOwnerKey(playerKey);
     if (typeof document === 'undefined') return ownerKey === 'black';
+
+    const visibleOwners = _resolveVisibleSlotOwnersForHandAnimations();
+    if (visibleOwners) {
+        return visibleOwners.bottomOwnerKey === ownerKey;
+    }
 
     const bottomEl = document.getElementById('hand-black');
     const topEl = document.getElementById('hand-white');

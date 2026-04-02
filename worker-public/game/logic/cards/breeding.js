@@ -222,7 +222,7 @@
         return list[Math.max(0, Math.min(list.length - 1, idx))];
     }
 
-    function _spawnAndFlipBatch(cardState, gameState, playerKey, player, targets, cause, reason, anchorPos, deps) {
+    function spawnAndFlipBatch(cardState, gameState, playerKey, player, targets, cause, reason, anchorPos, deps) {
         const spawned = [];
         const flipped = [];
         const flippedSet = new Set();
@@ -230,6 +230,8 @@
         const getFlipsWithContext = deps.getFlipsWithContext || ((gs, r, c, playerVal, ctx) => []);
         const clearBombAt = deps.clearBombAt || ((cs, r, c) => { if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'specialStone' && m.data && m.data.category === 'bomb' && m.row === r && m.col === c)); });
         const clearHyperactiveAtPositions = deps.clearHyperactiveAtPositions;
+        const changeCause = deps.changeCause || 'BREEDING';
+        const changeReason = deps.changeReason || 'breeding_flip';
 
         for (const target of targets) {
             const context = getCardContext(cardState);
@@ -252,7 +254,7 @@
             for (const [fr, fc] of flips) {
                 let changed = true;
                 if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
-                    const changeRes = deps.BoardOps.changeAt(cardState, gameState, fr, fc, playerKey, 'BREEDING', 'breeding_flip');
+                    const changeRes = deps.BoardOps.changeAt(cardState, gameState, fr, fc, playerKey, changeCause, changeReason);
                     changed = !!(changeRes && changeRes.changed);
                 } else {
                     _setBoardCell(gameState, fr, fc, player);
@@ -309,7 +311,7 @@
         const targets = _collectEmptyNeighborTargets(cardState, gameState, origins, deps);
         const picked = _pickRandomTarget(targets, prng);
 
-        const batch = _spawnAndFlipBatch(
+        const batch = spawnAndFlipBatch(
             cardState,
             gameState,
             playerKey,
@@ -390,7 +392,7 @@
 
         const targets = _collectEmptyNeighborTargets(cardState, gameState, [{ row, col }], deps);
         const picked = _pickRandomTarget(targets, prng);
-        const batch = _spawnAndFlipBatch(
+        const batch = spawnAndFlipBatch(
             cardState,
             gameState,
             playerKey,
@@ -416,6 +418,7 @@
     return {
         processBreedingEffects,
         processBreedingEffectsAtAnchor,
-        processBreedingEffectsAtTurnStartAnchor
+        processBreedingEffectsAtTurnStartAnchor,
+        spawnAndFlipBatch
     };
 }));

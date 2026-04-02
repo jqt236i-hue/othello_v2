@@ -55,6 +55,18 @@
 
     let activePlaybackAbortHandle = null;
 
+    function getDeferredVisualWriteGeneration() {
+        const rawValue = readMirroredValue('__deferredVisualWriteGeneration');
+        const value = Number(rawValue);
+        return Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
+    }
+
+    function invalidateDeferredVisualWrites() {
+        const nextValue = getDeferredVisualWriteGeneration() + 1;
+        setMirroredValue('__deferredVisualWriteGeneration', nextValue);
+        return nextValue;
+    }
+
     function registerPlaybackAbortHandle(handle) {
         activePlaybackAbortHandle = (handle && typeof handle.abort === 'function') ? handle : null;
         return activePlaybackAbortHandle;
@@ -71,6 +83,35 @@
         return readMirroredValue('VisualPlaybackActive') === true;
     }
 
+    function getBusyStartedAt() {
+        const rawValue = readMirroredValue('__busyStateSince');
+        if (rawValue === null || typeof rawValue === 'undefined' || rawValue === '') {
+            return null;
+        }
+        const value = Number(rawValue);
+        return Number.isFinite(value) ? value : null;
+    }
+
+    function setBusyStartedAt(value) {
+        if (value === null || typeof value === 'undefined' || value === '') {
+            return setMirroredValue('__busyStateSince', null);
+        }
+        const next = Number(value);
+        return setMirroredValue('__busyStateSince', Number.isFinite(next) ? next : null);
+    }
+
+    function syncBusyStartedAt(nowValue) {
+        const hasBusy = getProcessing() || readMirroredValue('isCardAnimating') === true || getPlaybackActive();
+        if (!hasBusy) {
+            setBusyStartedAt(null);
+            return null;
+        }
+        const startedAt = getBusyStartedAt();
+        if (startedAt !== null) return startedAt;
+        const next = Number(nowValue);
+        return setBusyStartedAt(Number.isFinite(next) ? next : Date.now());
+    }
+
     function setPlaybackActive(active) {
         const next = active === true;
         setMirroredValue('VisualPlaybackActive', next);
@@ -81,6 +122,7 @@
         } else {
             setMirroredValue('__playbackActiveSince', null);
         }
+        syncBusyStartedAt();
         return next;
     }
 
@@ -108,7 +150,9 @@
     }
 
     function setCardAnimating(active) {
-        return setMirroredValue('isCardAnimating', active === true) === true;
+        const next = setMirroredValue('isCardAnimating', active === true) === true;
+        syncBusyStartedAt();
+        return next;
     }
 
     function getProcessing() {
@@ -116,7 +160,9 @@
     }
 
     function setProcessing(active) {
-        return setMirroredValue('isProcessing', active === true) === true;
+        const next = setMirroredValue('isProcessing', active === true) === true;
+        syncBusyStartedAt();
+        return next;
     }
 
     function setBusyState(options) {
@@ -182,6 +228,9 @@
         if (typeof context.source === 'string' && context.source.trim()) {
             next.source = context.source.trim();
         }
+        if (context.allowSelectionEntryDuringPlayback === true) {
+            next.allowSelectionEntryDuringPlayback = true;
+        }
         return Object.keys(next).length > 0 ? next : null;
     }
 
@@ -201,6 +250,108 @@
             );
         }
         return null;
+    }
+
+    function normalizeSelectionEntryPlayerKey(playerKey) {
+        return String(playerKey || '').trim().toLowerCase() === 'white' ? 'white' : 'black';
+    }
+
+    function normalizeSelectionEntryPendingType(pendingType) {
+        const normalized = String(pendingType || '').trim().toUpperCase();
+        return normalized || null;
+    }
+
+    function cloneSelectionEntryPlaybackContext(context) {
+        if (!context || typeof context !== 'object') return null;
+        return Object.assign({}, context);
+    }
+
+    function normalizeSelectionEntryPlaybackContext(context) {
+        if (!context || typeof context !== 'object') return null;
+        const next = {};
+        if (typeof context.playerKey !== 'undefined' && context.playerKey !== null) {
+            next.playerKey = normalizeSelectionEntryPlayerKey(context.playerKey);
+        }
+        if (typeof context.pendingType !== 'undefined' && context.pendingType !== null) {
+            next.pendingType = normalizeSelectionEntryPendingType(context.pendingType);
+        }
+        const expiresAt = Number(context.expiresAt);
+        if (Number.isFinite(expiresAt) && expiresAt > 0) {
+            next.expiresAt = Math.trunc(expiresAt);
+        }
+        if (typeof context.source === 'string' && context.source.trim()) {
+            next.source = context.source.trim();
+        }
+        if (typeof context.reason === 'string' && context.reason.trim()) {
+            next.reason = context.reason.trim();
+        }
+        return Object.keys(next).length > 0 ? next : null;
+    }
+
+    function getSelectionEntryPlaybackContext() {
+        const current = normalizeSelectionEntryPlaybackContext(readMirroredValue('__selectionEntryPlaybackContext'));
+        if (!current) return null;
+        if (Number.isFinite(current.expiresAt) && current.expiresAt < Date.now()) {
+            clearSelectionEntryPlaybackContext();
+            return null;
+        }
+        return cloneSelectionEntryPlaybackContext(current);
+    }
+
+    function setSelectionEntryPlaybackContext(context) {
+        const next = normalizeSelectionEntryPlaybackContext(context);
+        setMirroredValue('__selectionEntryPlaybackContext', next ? cloneSelectionEntryPlaybackContext(next) : null);
+        return getSelectionEntryPlaybackContext();
+    }
+
+    function armSelectionEntryPlaybackContext(context) {
+        const next = normalizeSelectionEntryPlaybackContext(context);
+        if (!next) {
+            clearSelectionEntryPlaybackContext();
+            return null;
+        }
+        if (!Number.isFinite(next.expiresAt)) {
+            next.expiresAt = Date.now() + 2500;
+        }
+        const current = getSelectionEntryPlaybackContext();
+        return setSelectionEntryPlaybackContext(current ? Object.assign({}, current, next) : next);
+    }
+
+    function clearSelectionEntryPlaybackContext() {
+        setMirroredValue('__selectionEntryPlaybackContext', null);
+        return true;
+    }
+
+    function matchesSelectionEntryPlaybackContext(current, options) {
+        if (!current || typeof current !== 'object') return false;
+        const opts = (options && typeof options === 'object') ? options : {};
+        if (typeof opts.playerKey !== 'undefined' && opts.playerKey !== null) {
+            if (normalizeSelectionEntryPlayerKey(opts.playerKey) !== current.playerKey) {
+                return false;
+            }
+        }
+        if (typeof opts.pendingType !== 'undefined' && opts.pendingType !== null) {
+            if (normalizeSelectionEntryPendingType(opts.pendingType) !== current.pendingType) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function shouldAllowSelectionEntryDuringPlayback(options) {
+        const current = getSelectionEntryPlaybackContext();
+        if (!current) return false;
+        const opts = (options && typeof options === 'object') ? options : {};
+        const hasExplicitFilter = (
+            (typeof opts.playerKey !== 'undefined' && opts.playerKey !== null)
+            || (typeof opts.pendingType !== 'undefined' && opts.pendingType !== null)
+        );
+        if (hasExplicitFilter) {
+            return matchesSelectionEntryPlaybackContext(current, opts);
+        }
+
+        const boardUpdateContext = getBoardUpdateContext();
+        return !!(boardUpdateContext && boardUpdateContext.allowSelectionEntryDuringPlayback === true);
     }
 
     function setBoardUpdateContext(context) {
@@ -261,6 +412,7 @@
 
     function clearPlaybackLock() {
         clearBoardUpdateContext();
+        clearSelectionEntryPlaybackContext();
         setBusyState({ processing: false, cardAnimating: false, playbackActive: false });
         return true;
     }
@@ -271,6 +423,7 @@
         if (abortHandle && typeof abortHandle.abort === 'function') {
             abortHandle.abort();
         }
+        invalidateDeferredVisualWrites();
         clearPlaybackLock();
         setPlaybackStartedAt(null);
         return true;
@@ -413,6 +566,8 @@
         getPlaybackActive,
         setPlaybackActive,
         setPlaybackStartedAt,
+        getBusyStartedAt,
+        setBusyStartedAt,
         getCardAnimating,
         setCardAnimating,
         getProcessing,
@@ -425,6 +580,13 @@
         armBoardUpdateContext,
         consumeBoardUpdateContext,
         clearBoardUpdateContext,
+        getSelectionEntryPlaybackContext,
+        setSelectionEntryPlaybackContext,
+        armSelectionEntryPlaybackContext,
+        clearSelectionEntryPlaybackContext,
+        shouldAllowSelectionEntryDuringPlayback,
+        getDeferredVisualWriteGeneration,
+        invalidateDeferredVisualWrites,
         getSuppressNextDiffFlip,
         setSuppressNextDiffFlip,
         consumeSuppressNextDiffFlip,

@@ -62,7 +62,22 @@ describe('CAPTURE_WILL (捕獲の意志)', () => {
     expect((cardState.markers || []).some((marker) => marker && marker.row === 3 && marker.col === 3)).toBe(false);
     expect(cardState.hands.black).toEqual([trapDef.id, dragonDef.id, doubleDef.id]);
 
-    const handAddEvent = (cardState.presentationEvents || []).find((ev) => ev && ev.type === 'HAND_ADD' && ev.reason === 'capture_will');
+    const presentationEvents = cardState.presentationEvents || [];
+    const statusRemovedEvent = presentationEvents.find((ev) => ev && ev.type === 'STATUS_REMOVED');
+    expect(statusRemovedEvent).toBeTruthy();
+    expect(statusRemovedEvent).toMatchObject({
+      row: 3,
+      col: 3,
+      cause: 'CAPTURE_WILL',
+      reason: 'captured_to_hand',
+      meta: expect.objectContaining({
+        special: 'DRAGON',
+        owner: 'white',
+        reason: 'captured_to_hand'
+      })
+    });
+
+    const handAddEvent = presentationEvents.find((ev) => ev && ev.type === 'HAND_ADD' && ev.reason === 'capture_will');
     expect(handAddEvent).toBeTruthy();
     expect(handAddEvent).toMatchObject({
       player: 'black',
@@ -77,6 +92,61 @@ describe('CAPTURE_WILL (捕獲の意志)', () => {
         insertIndex: 1
       })
     });
+    expect(presentationEvents.indexOf(statusRemovedEvent)).toBeLessThan(presentationEvents.indexOf(handAddEvent));
+  });
+
+  test('capturing WORK keeps WORK_REMOVED semantics without adding STATUS_REMOVED', () => {
+    const captureDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'CAPTURE_WILL');
+
+    expect(captureDef).toBeTruthy();
+
+    const { cardState, gameState } = makeState();
+    gameState.board[2][4] = -1;
+    cardState.hands.black = [captureDef.id];
+    cardState.charge.black = captureDef.cost;
+    cardState.workAnchorPosByPlayer = {
+      black: null,
+      white: { row: 2, col: 4 }
+    };
+    cardState.markers.push({
+      id: 404,
+      kind: 'specialStone',
+      row: 2,
+      col: 4,
+      owner: 'white',
+      data: {
+        type: 'WORK',
+        remainingOwnerTurns: 2,
+        sourceType: 'WORKER_WILL',
+        sourceCardId: 'worker_will_01'
+      }
+    });
+
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', captureDef.id)).toBe(true);
+    const res = CardLogic.applyCaptureWill(cardState, gameState, 'black', 2, 4);
+
+    expect(res).toMatchObject({
+      applied: true,
+      sourceSpecialType: 'WORK',
+      insertIndex: 0
+    });
+
+    const presentationEvents = cardState.presentationEvents || [];
+    const workRemovedEvent = presentationEvents.find((ev) => ev && ev.type === 'WORK_REMOVED');
+    expect(workRemovedEvent).toBeTruthy();
+    expect(workRemovedEvent).toMatchObject({
+      row: 2,
+      col: 4,
+      cause: 'CAPTURE_WILL',
+      reason: 'captured_to_hand'
+    });
+    expect(presentationEvents.some((ev) => (
+      ev
+      && ev.type === 'STATUS_REMOVED'
+      && ev.row === 2
+      && ev.col === 4
+      && ev.reason === 'captured_to_hand'
+    ))).toBe(false);
   });
 
   test('capture target list excludes guarded enemy special stones', () => {

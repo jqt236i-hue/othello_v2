@@ -1,15 +1,15 @@
 {
   "ok": true,
-  "baseUrl": "http://127.0.0.1:8012/?matchServer=http%3A%2F%2F127.0.0.1%3A8792",
-  "serverUrl": "http://127.0.0.1:8792",
-  "timestamp": "2026-03-30T02:05:01.322Z",
+  "baseUrl": "http://127.0.0.1:8001/?matchServer=http%3A%2F%2F127.0.0.1%3A8787",
+  "serverUrl": "http://127.0.0.1:8787",
+  "timestamp": "2026-03-31T17:14:41.244Z",
   "browsers": {
     "black": "chromium-a",
     "white": "chromium-b"
   },
-  "headless": false,
-  "slowMoMs": 40,
-  "roomId": "4J7",
+  "headless": true,
+  "slowMoMs": 0,
+  "roomId": "3F2",
   "actions": [
     {
       "index": 1,
@@ -3794,32 +3794,102 @@
   "stallEvents": [],
   "pageEvents": [
     {
-      "time": "2026-03-30T02:05:02.668Z",
-      "browser": "chromium-a",
-      "kind": "console",
-      "type": "error",
-      "text": "\u001b[0;93m2026-03-30 11:05:02.665499 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 0\u001b[m"
-    },
-    {
-      "time": "2026-03-30T02:05:02.669Z",
+      "time": "2026-03-31T17:14:44.256Z",
       "browser": "chromium-b",
       "kind": "console",
       "type": "error",
-      "text": "\u001b[0;93m2026-03-30 11:05:02.668300 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 0\u001b[m"
+      "text": "\u001b[0;93m2026-04-01 02:14:44.248898 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 0\u001b[m"
     },
     {
-      "time": "2026-03-30T02:07:00.859Z",
+      "time": "2026-03-31T17:14:44.257Z",
+      "browser": "chromium-a",
+      "kind": "console",
+      "type": "error",
+      "text": "\u001b[0;93m2026-04-01 02:14:44.249398 [W:onnxruntime:Default, cpuid_info.cc:95 LogEarlyWarning] Unknown CPU vendor. cpuinfo_vendor value: 0\u001b[m"
+    },
+    {
+      "time": "2026-03-31T17:14:44.284Z",
+      "browser": "chromium-b",
+      "kind": "console",
+      "type": "warning",
+      "text": "No available adapters."
+    },
+    {
+      "time": "2026-03-31T17:14:44.286Z",
+      "browser": "chromium-b",
+      "kind": "console",
+      "type": "warning",
+      "text": "removing requested execution provider \"webgpu\" from session options because it is not available: Error: Failed to get GPU adapter. You may need to enable flag \"--enable-unsafe-webgpu\" if you are using Chrome."
+    },
+    {
+      "time": "2026-03-31T17:14:44.286Z",
+      "browser": "chromium-a",
+      "kind": "console",
+      "type": "warning",
+      "text": "No available adapters."
+    },
+    {
+      "time": "2026-03-31T17:14:44.287Z",
+      "browser": "chromium-a",
+      "kind": "console",
+      "type": "warning",
+      "text": "removing requested execution provider \"webgpu\" from session options because it is not available: Error: Failed to get GPU adapter. You may need to enable flag \"--enable-unsafe-webgpu\" if you are using Chrome."
+    },
+    {
+      "time": "2026-03-31T17:14:44.505Z",
+      "browser": "chromium-a",
+      "kind": "console",
+      "type": "warning",
+      "text": "removing requested execution provider \"webgpu\" from session options because it is not available: Error: Failed to get GPU adapter. You may need to enable flag \"--enable-unsafe-webgpu\" if you are using Chrome."
+    },
+    {
+      "time": "2026-03-31T17:14:44.519Z",
+      "browser": "chromium-b",
+      "kind": "console",
+      "type": "warning",
+      "text": "removing requested execution provider \"webgpu\" from session options because it is not available: Error: Failed to get GPU adapter. You may need to enable flag \"--enable-unsafe-webgpu\" if you are using Chrome."
+    },
+    {
+      "time": "2026-03-31T17:14:45.064Z",
+      "browser": "chromium-a",
+      "kind": "console",
+      "type": "warning",
+      "text": "[AnimationEngine] abortAndSync called — stopping playback and syncing state"
+    },
+    {
+      "time": "2026-03-31T17:14:45.510Z",
+      "browser": "chromium-b",
+      "kind": "console",
+      "type": "warning",
+      "text": "[AnimationEngine] abortAndSync called — stopping playback and syncing state"
+    },
+    {
+      "time": "2026-03-31T17:16:43.329Z",
+      "browser": "chromium-a",
+      "kind": "console",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "time": "2026-03-31T17:16:43.387Z",
       "browser": "chromium-b",
       "kind": "console",
       "type": "error",
       "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
     },
     {
-      "time": "2026-03-30T02:07:00.869Z",
+      "time": "2026-03-31T17:17:42.667Z",
+      "browser": "chromium-b",
+      "kind": "console",
+      "type": "warning",
+      "text": "[AnimationEngine] abortAndSync called — stopping playback and syncing state"
+    },
+    {
+      "time": "2026-03-31T17:17:42.672Z",
       "browser": "chromium-a",
       "kind": "console",
-      "type": "error",
-      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      "type": "warning",
+      "text": "[AnimationEngine] abortAndSync called — stopping playback and syncing state"
     }
   ],
   "final": {
@@ -3839,7 +3909,7 @@
       },
       "overlayVisible": true,
       "resultTitle": "勝利！",
-      "resultText": "勝利！ 黒 57枚 / 白 7枚 最終スコア 7590 共有ランキング: MATCHのランキングボタンで確認（終局時に自動送信） 勝敗ボーナス 5000 速攻ボーナス 585 黒一色ボーナス 0 補助ボーナス 2005 補助内訳: 反転880 / 自石1125 詳細統計を表示 盤喰いの小鬼 「くそっ…次は許さない！」 再戦 閉じる",
+      "resultText": "勝利！ 黒 57枚 / 白 7枚 最終スコア 7590 共有ランキング: MATCHのランキングボタンで確認（終局時に自動送信） 勝敗ボーナス 5000 速攻ボーナス 585 黒一色ボーナス 0 補助ボーナス 2005 補助内訳: 反転880 / 自石1125 詳細統計を表示 盤喰いの小鬼 「ぐぬぬ…悔しい！」 再戦 閉じる",
       "gameOver": true
     },
     "edge": {
@@ -3857,7 +3927,7 @@
       },
       "overlayVisible": true,
       "resultTitle": "敗北...",
-      "resultText": "敗北... 黒 57枚 / 白 7枚 最終スコア 0 共有ランキング: MATCHのランキングボタンで確認（終局時に自動送信） 勝敗ボーナス 0 速攻ボーナス 0 黒一色ボーナス 0 補助ボーナス 0 補助内訳: 反転0 / 自石0 詳細統計を表示 盤喰いの小鬼 「ふふ、これが実力差だ。」 再戦 閉じる",
+      "resultText": "敗北... 黒 57枚 / 白 7枚 最終スコア 0 共有ランキング: MATCHのランキングボタンで確認（終局時に自動送信） 勝敗ボーナス 0 速攻ボーナス 0 黒一色ボーナス 0 補助ボーナス 0 補助内訳: 反転0 / 自石0 詳細統計を表示 盤喰いの小鬼 「その程度で満足か？もっと来い！」 再戦 閉じる",
       "gameOver": true
     }
   },

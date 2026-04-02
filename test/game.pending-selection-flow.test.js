@@ -129,6 +129,66 @@ describe('pending selection flow contracts', () => {
     }
   });
 
+  test('selection entry handoff allows pending selection while card animation flag is still active', async () => {
+    const playbackStateManager = attachPlaybackStateManager();
+    playbackStateManager.armSelectionEntryPlaybackContext({
+      playerKey: 'black',
+      pendingType: 'GUARD_WILL',
+      source: 'test',
+      reason: 'selection_entry',
+      expiresAt: Date.now() + 1000
+    });
+    playbackStateManager.setBusyState({ processing: false, cardAnimating: true, playbackActive: false });
+    global.cardState = {
+      turnIndex: 9,
+      pendingEffectByPlayer: {
+        black: { type: 'GUARD_WILL', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    global.gameState = {
+      currentPlayer: 1,
+      turnNumber: 10,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { black: null, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+    global.emitBoardUpdate = jest.fn();
+    global.emitCardStateChange = jest.fn();
+    global.emitGameStateChange = jest.fn();
+
+    const result = await flow.executePendingSelection({
+      row: 3,
+      col: 4,
+      playerKey: 'black',
+      pendingType: 'GUARD_WILL',
+      actionPayload: {
+        guardTarget: { row: 3, col: 4 }
+      }
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      pendingType: 'GUARD_WILL'
+    }));
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+  });
+
   test('network deferred selection falls back to root NetworkMatchClient without signal bridge', async () => {
     flow.clearSignalBridge();
     global.MATCH_MODE = 'network';

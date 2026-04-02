@@ -468,10 +468,13 @@
             const isEqualityWillSpawn =
                 cause === 'EQUALITY_WILL' &&
                 reason.indexOf('equality_will_spawn') === 0;
+            const isReinforcementWillSpawn =
+                cause === 'REINFORCEMENT_WILL' &&
+                reason.indexOf('reinforcement_will_spawn') === 0;
             const isSalvationWillSpawn =
                 cause === 'SALVATION_WILL' &&
                 reason.indexOf('salvation_spawn') === 0;
-            if (!isEqualityWillSpawn && !isSalvationWillSpawn) return 0;
+            if (!isEqualityWillSpawn && !isReinforcementWillSpawn && !isSalvationWillSpawn) return 0;
             return 120;
         }
 
@@ -3196,6 +3199,88 @@
 
             const hasDestroyEvadeCounter =
                 (specialType === 'WILL_HUNTER_KING' || specialType === 'AFTERIMAGE_WILL' || hasInheritedContext) &&
+                Number.isFinite(destroyEvadeRemaining) &&
+                destroyEvadeRemaining >= 0;
+            if (hasDestroyEvadeCounter) {
+                appendTimer('stone-timer destroy-evade-timer', destroyEvadeRemaining, { allowZero: true });
+            }
+        }
+
+        applyFinalStates(ev) {
+            // Fallback: use per-target provided 'after' states when available
+            for (const t of ev.targets || []) {
+                const state = t.after || { color: 0, special: null, timer: null };
+                const [r, c] = [t.r, t.col];
+                const cell = this.getCellEl(r, c);
+                if (!cell) continue;
+                if (state.color === 0) {
+                    cell.innerHTML = '';
+                } else {
+                    let disc = cell.querySelector('.disc');
+                    if (!disc) {
+                        disc = this.createDisc(state);
+                        cell.appendChild(disc);
+                    }
+                    this.syncDiscVisual(disc, state);
+                }
+            }
+        }
+
+        setGlobalInteractionLock(locked) {
+            if (PlaybackState && typeof PlaybackState.setInteractionLock === 'function') {
+                PlaybackState.setInteractionLock(locked);
+            } else {
+                window.isProcessing = locked;
+                window.isCardAnimating = locked; // legacy flag
+                window.VisualPlaybackActive = locked;
+                window.__playbackActiveSince = locked ? Date.now() : null;
+            }
+            if (this.boardEl) {
+                if (locked) this.boardEl.classList.add('playback-locked');
+                else this.boardEl.classList.remove('playback-locked');
+            }
+        }
+
+        log(msg) {
+            if (window.addLog) window.addLog(msg);
+            else console.log('[LOG]', msg);
+        }
+    }
+
+    return new PlaybackEngine();
+}));
+lass = 'stone-timer work-timer';
+                appendTimer(primaryClass, primaryTimerValue);
+            }
+
+            if (Number.isFinite(inheritedTimerValue) && inheritedTimerValue > 0) {
+                appendTimer('stone-timer special-timer inherited-hyperactive-timer', inheritedTimerValue);
+            }
+
+            const isPrimaryFlipEvadeSpecialType = (
+                specialType === 'HYPERACTIVE' ||
+                specialType === 'EXTREME_HYPERACTIVE' ||
+                specialType === 'ESCAPE_HYPERACTIVE' ||
+                specialType === 'ULTIMATE_HYPERACTIVE' ||
+                specialType === 'WILL_HUNTER_KING'
+            );
+            const hasInheritedContext = (
+                specialType === 'INHERITED_HYPERACTIVE' ||
+                (state.inheritedTimer !== null && state.inheritedTimer !== undefined) ||
+                (state.inheritedOwner !== null && state.inheritedOwner !== undefined && state.inheritedOwner !== '')
+            );
+
+            const hasPrimaryEvadeCounter = isPrimaryFlipEvadeSpecialType && Number.isFinite(flipEvadeRemaining) && flipEvadeRemaining >= 0;
+            const hasInheritedEvadeCounter = hasInheritedContext && Number.isFinite(inheritedFlipEvadeRemaining) && inheritedFlipEvadeRemaining >= 0;
+            const evadeCounterValue = hasPrimaryEvadeCounter
+                ? (hasInheritedEvadeCounter ? (flipEvadeRemaining + inheritedFlipEvadeRemaining) : flipEvadeRemaining)
+                : (hasInheritedEvadeCounter ? inheritedFlipEvadeRemaining : NaN);
+            if (Number.isFinite(evadeCounterValue) && evadeCounterValue >= 0) {
+                appendTimer('stone-timer flip-evade-timer', evadeCounterValue, { allowZero: true });
+            }
+
+            const hasDestroyEvadeCounter =
+                specialType === 'WILL_HUNTER_KING' &&
                 Number.isFinite(destroyEvadeRemaining) &&
                 destroyEvadeRemaining >= 0;
             if (hasDestroyEvadeCounter) {

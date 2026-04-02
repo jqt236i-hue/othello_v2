@@ -40,6 +40,7 @@ describe('card use source element selection', () => {
     global.cardState = {
       selectedCardId: 'dup_card',
       turnIndex: 1,
+      lastTurnStartedFor: null,
       charge: { black: 10, white: 10 },
       hands: { black: ['dup_card'], white: ['dup_card'] },
       hasUsedCardThisTurnByPlayer: { black: false, white: false },
@@ -258,6 +259,67 @@ describe('card use source element selection', () => {
 
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
     expect(global.playCardUseHandAnimation).not.toHaveBeenCalled();
+  });
+
+  test('network pending target-card use attaches source element to returned card_use_animation and skips direct fallback', () => {
+    const ownCardEl = document.querySelector('#hand-black .card-item[data-card-id="dup_card"]');
+    ownCardEl.getBoundingClientRect = () => ({
+      left: 220,
+      top: 500,
+      width: 90,
+      height: 120,
+      right: 310,
+      bottom: 620
+    });
+    const playbackEvents = [{
+      type: 'card_use_animation',
+      phase: 1,
+      targets: [{
+        player: 'black',
+        owner: 'black',
+        cardId: 'dup_card',
+        cardType: 'CAPTURE_WILL'
+      }]
+    }, {
+      type: 'sound_effect',
+      phase: 1,
+      targets: [{ soundKey: 'card_use_button' }],
+      meta: { sourceType: 'card_used' }
+    }];
+
+    window.MATCH_MODE = 'network';
+    window.LOCAL_PLAYER_KEY = 'black';
+    global.CardLogic = {
+      getCardDef: (id) => ({ id, type: 'CAPTURE_WILL', name: '捕獲の意志', desc: 'd', cost: 1 })
+    };
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      pendingSelectionActive: true,
+      nextCardState: {
+        ...global.cardState,
+        pendingEffectByPlayer: {
+          ...global.cardState.pendingEffectByPlayer,
+          black: { type: 'CAPTURE_WILL', stage: 'selectTarget', cardId: 'dup_card' }
+        }
+      },
+      nextGameState: global.gameState,
+      playbackEvents
+    }));
+
+    require('../cards/card-interaction.js');
+    window.useSelectedCard();
+
+    expect(global.playCardUseHandAnimation).not.toHaveBeenCalled();
+    expect(playbackEvents[0].targets[0].sourceCardEl).toBeTruthy();
+    expect(playbackEvents[0].targets[0].sourceCardEl.closest('#hand-black')).not.toBeNull();
+    expect(playbackEvents[0].targets[0].sourceCardRect).toEqual({
+      left: 220,
+      top: 500,
+      width: 90,
+      height: 120,
+      right: 310,
+      bottom: 620
+    });
   });
 
   test('network mode keeps card UI busy until server-authored card use publish settles', async () => {
@@ -628,6 +690,7 @@ describe('card use source element selection', () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     require('../cards/card-interaction.js');
 
+    global.cardState.lastTurnStartedFor = 'black';
     global.cardState.hasUsedCardThisTurnByPlayer.black = true;
     global.cardState.selectedCardId = 'dup_card';
     global.cardState.selectedCardOwnerKey = 'black';
@@ -703,6 +766,89 @@ describe('card use source element selection', () => {
       delete global.waitForPlaybackIdle;
     });
 
+    test('selectTarget へ入る card use は card_use_animation 中でも即座に emitBoardUpdate する', async () => {
+      let resolvePlayback;
+      const playbackPromise = new Promise((resolve) => { resolvePlayback = resolve; });
+      global.waitForPlaybackIdle = jest.fn(() => playbackPromise);
+      global.CardLogic = {
+        getCardDef: (id) => ({ id, type: 'CAPTURE_WILL', name: '捕獲の意志', desc: 'd', cost: 1 })
+      };
+      global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: {
+            ...global.cardState.pendingEffectByPlayer,
+            black: { type: 'CAPTURE_WILL', stage: 'selectTarget' }
+          }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: [
+          { type: 'card_use_animation', targets: [{ player: 'black', owner: 'black', cardId: 'dup_card' }] }
+        ]
+      }));
+
+      require('../cards/card-interaction.js');
+      global.renderCardUI.mockClear();
+      global.emitBoardUpdate.mockClear();
+      window.useSelectedCard();
+
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+
+      resolvePlayback();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(0);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+      delete global.waitForPlaybackIdle;
+    });
+
+    test('selectTarget へ入る card use は direct fallback card animation 中でも即座に emitBoardUpdate する', async () => {
+      let resolveAnimation;
+      global.playCardUseHandAnimation = jest.fn(() => {
+        global.window.isCardAnimating = true;
+        return new Promise((resolve) => {
+          resolveAnimation = () => {
+            global.window.isCardAnimating = false;
+            resolve();
+          };
+        });
+      });
+      global.CardLogic = {
+        getCardDef: (id) => ({ id, type: 'CAPTURE_WILL', name: '捕獲の意志', desc: 'd', cost: 1 })
+      };
+      global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: {
+            ...global.cardState.pendingEffectByPlayer,
+            black: { type: 'CAPTURE_WILL', stage: 'selectTarget' }
+          }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }));
+
+      require('../cards/card-interaction.js');
+      global.renderCardUI.mockClear();
+      global.emitBoardUpdate.mockClear();
+      window.useSelectedCard();
+
+      expect(global.playCardUseHandAnimation).toHaveBeenCalledTimes(1);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+
+      resolveAnimation();
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 25));
+
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+      global.window.isCardAnimating = false;
+    });
+
     test('capture_to_hand_animation がある時も emitBoardUpdate を playback 完了まで待つ', async () => {
       let resolvePlayback;
       const playbackPromise = new Promise((resolve) => { resolvePlayback = resolve; });
@@ -734,5 +880,33 @@ describe('card use source element selection', () => {
       expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
       expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
       delete global.waitForPlaybackIdle;
+    });
+
+    test('cancelPendingSelection accepts other cancellable board-target pending types', () => {
+      global.cardState.pendingEffectByPlayer.black = { type: 'BOARD_EXPANSION_GOD', stage: 'selectTarget' };
+      global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { black: null, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }));
+
+      require('../cards/card-interaction.js');
+      global.emitBoardUpdate.mockClear();
+      global.renderCardUI.mockClear();
+      global.addLog.mockClear();
+
+      window.cancelPendingSelection('black');
+
+      expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+      expect(global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3]).toEqual(
+        expect.objectContaining({ type: 'cancel_card' })
+      );
+      expect(global.renderCardUI).toHaveBeenCalledTimes(1);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+      expect(global.addLog).toHaveBeenCalledWith('黒の対象選択をキャンセルしました');
     });
   });
