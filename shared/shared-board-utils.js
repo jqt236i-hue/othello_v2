@@ -1,17 +1,46 @@
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory();
+        module.exports = factory(require('../shared-constants'));
     } else {
-        root.SharedBoardUtils = factory();
+        root.SharedBoardUtils = factory(root.SharedConstants);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function () {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (SharedConstants) {
     'use strict';
 
     const BOARD_SHAPE_META_KEY = '__sharedBoardShapeMeta';
-    const EMPTY = 0;
-    const MAIN_BOARD_SIZE = 8;
+    const EMPTY = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
+        ? Number(SharedConstants.EMPTY)
+        : 0;
+    const BLACK = Number.isFinite(Number(SharedConstants && SharedConstants.BLACK))
+        ? Number(SharedConstants.BLACK)
+        : 1;
+    const WHITE = Number.isFinite(Number(SharedConstants && SharedConstants.WHITE))
+        ? Number(SharedConstants.WHITE)
+        : -1;
+    const DEFAULT_BOARD_ROWS = Number.isFinite(Number(SharedConstants && SharedConstants.DEFAULT_BOARD_ROWS))
+        ? Math.max(1, Math.floor(Number(SharedConstants.DEFAULT_BOARD_ROWS)))
+        : 8;
+    const DEFAULT_BOARD_COLS = Number.isFinite(Number(SharedConstants && SharedConstants.DEFAULT_BOARD_COLS))
+        ? Math.max(1, Math.floor(Number(SharedConstants.DEFAULT_BOARD_COLS)))
+        : 8;
+    const MIN_BOARD_ROWS = Number.isFinite(Number(SharedConstants && SharedConstants.MIN_BOARD_ROWS))
+        ? Math.max(1, Math.floor(Number(SharedConstants.MIN_BOARD_ROWS)))
+        : 4;
+    const MAX_BOARD_ROWS = Number.isFinite(Number(SharedConstants && SharedConstants.MAX_BOARD_ROWS))
+        ? Math.max(MIN_BOARD_ROWS, Math.floor(Number(SharedConstants.MAX_BOARD_ROWS)))
+        : DEFAULT_BOARD_ROWS;
+    const MIN_BOARD_COLS = Number.isFinite(Number(SharedConstants && SharedConstants.MIN_BOARD_COLS))
+        ? Math.max(1, Math.floor(Number(SharedConstants.MIN_BOARD_COLS)))
+        : 4;
+    const MAX_BOARD_COLS = Number.isFinite(Number(SharedConstants && SharedConstants.MAX_BOARD_COLS))
+        ? Math.max(MIN_BOARD_COLS, Math.floor(Number(SharedConstants.MAX_BOARD_COLS)))
+        : Math.max(DEFAULT_BOARD_COLS, DEFAULT_BOARD_ROWS);
+    const MAIN_BOARD_SIZE = DEFAULT_BOARD_ROWS;
     const OUTER_MIN = -1;
-    const OUTER_MAX = 8;
+    const OUTER_MAX = DEFAULT_BOARD_COLS;
+    const PADDED_BOARD_MIN = OUTER_MIN;
+    const PADDED_BOARD_MAX = OUTER_MAX;
+    const PADDED_BOARD_SIZE = (PADDED_BOARD_MAX - PADDED_BOARD_MIN) + 1;
 
     function toBoardCellKey(row, col) {
         return `${row},${col}`;
@@ -20,6 +49,340 @@
     function normalizeOwner(value) {
         if (value === 1 || value === -1) return value;
         return EMPTY;
+    }
+
+    function clampBoardDimension(value, fallbackValue, minValue, maxValue) {
+        const fallback = Number.isFinite(Number(fallbackValue))
+            ? Math.floor(Number(fallbackValue))
+            : minValue;
+        const numeric = Number.isFinite(Number(value))
+            ? Math.floor(Number(value))
+            : fallback;
+        return Math.max(minValue, Math.min(maxValue, numeric));
+    }
+
+    function getBoardDimensionBounds(axis) {
+        const normalizedAxis = axis === 'col' || axis === 'cols' || axis === 'column'
+            ? 'col'
+            : 'row';
+        if (normalizedAxis === 'col') {
+            return {
+                min: MIN_BOARD_COLS,
+                max: MAX_BOARD_COLS
+            };
+        }
+        return {
+            min: MIN_BOARD_ROWS,
+            max: MAX_BOARD_ROWS
+        };
+    }
+
+    function normalizeBoardDimensionValue(value, fallbackValue, axis) {
+        const bounds = getBoardDimensionBounds(axis);
+        const normalizedAxis = axis === 'col' || axis === 'cols' || axis === 'column'
+            ? 'col'
+            : 'row';
+        const defaultValue = normalizedAxis === 'col'
+            ? DEFAULT_BOARD_COLS
+            : DEFAULT_BOARD_ROWS;
+        const fallback = Number.isFinite(Number(fallbackValue))
+            ? Number(fallbackValue)
+            : defaultValue;
+        return clampBoardDimension(value, fallback, bounds.min, bounds.max);
+    }
+
+    function stepBoardDimensionValue(value, direction, fallbackValue, axis) {
+        const normalizedDirection = Number(direction);
+        const baseValue = normalizeBoardDimensionValue(value, fallbackValue, axis);
+        if (!Number.isFinite(normalizedDirection) || normalizedDirection === 0) {
+            return baseValue;
+        }
+        const step = normalizedDirection > 0 ? 1 : -1;
+        return normalizeBoardDimensionValue(baseValue + step, baseValue, axis);
+    }
+
+    function isNumericBoardDimensionArg(value) {
+        if (value === null || typeof value === 'undefined') return false;
+        if (Array.isArray(value)) return false;
+        if (typeof value === 'object') return false;
+        return Number.isFinite(Number(value));
+    }
+
+    function deriveBoardDimsFromBoard(board) {
+        if (!Array.isArray(board) || board.length <= 0) return null;
+        let cols = 0;
+        for (const row of board) {
+            if (Array.isArray(row)) cols = Math.max(cols, row.length);
+        }
+        if (cols <= 0) return null;
+        return {
+            rows: board.length,
+            cols
+        };
+    }
+
+    function readBoundsSpan(bounds, axis) {
+        if (!bounds || typeof bounds !== 'object') return null;
+        const minKey = axis === 'col' ? 'minCol' : 'minRow';
+        const maxKey = axis === 'col' ? 'maxCol' : 'maxRow';
+        const min = Number(bounds[minKey]);
+        const max = Number(bounds[maxKey]);
+        if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+        return Math.max(1, Math.floor(max - min + 1));
+    }
+
+    function buildBoardConfig(rows, cols) {
+        const normalizedRows = clampBoardDimension(rows, DEFAULT_BOARD_ROWS, MIN_BOARD_ROWS, MAX_BOARD_ROWS);
+        const fallbackCols = Number.isFinite(Number(cols))
+            ? Number(cols)
+            : (Number.isFinite(Number(rows)) ? Number(rows) : DEFAULT_BOARD_COLS);
+        const normalizedCols = clampBoardDimension(fallbackCols, DEFAULT_BOARD_COLS, MIN_BOARD_COLS, MAX_BOARD_COLS);
+        return {
+            rows: normalizedRows,
+            cols: normalizedCols,
+            standard8x8: normalizedRows === DEFAULT_BOARD_ROWS && normalizedCols === DEFAULT_BOARD_COLS,
+            baseBounds: {
+                minRow: 0,
+                maxRow: normalizedRows - 1,
+                minCol: 0,
+                maxCol: normalizedCols - 1
+            },
+            outerBounds: {
+                minRow: OUTER_MIN,
+                maxRow: normalizedRows,
+                minCol: OUTER_MIN,
+                maxCol: normalizedCols
+            }
+        };
+    }
+
+    function normalizeBoardConfig(rawConfig, fallbackBoard) {
+        let candidate = rawConfig;
+        let board = Array.isArray(fallbackBoard) ? fallbackBoard : null;
+
+        if (Array.isArray(candidate)) {
+            board = candidate;
+            candidate = null;
+        }
+
+        if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+            if (Array.isArray(candidate.board)) board = candidate.board;
+            if (candidate.boardConfig && typeof candidate.boardConfig === 'object') {
+                candidate = candidate.boardConfig;
+            }
+        }
+
+        const derived = deriveBoardDimsFromBoard(board);
+        let rows = null;
+        let cols = null;
+
+        if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+            rows = candidate.rows;
+            cols = candidate.cols;
+            if (!Number.isFinite(Number(rows))) rows = readBoundsSpan(candidate.baseBounds, 'row');
+            if (!Number.isFinite(Number(cols))) cols = readBoundsSpan(candidate.baseBounds, 'col');
+            if (!Number.isFinite(Number(rows)) && candidate.outerBounds) {
+                const outerMinRow = Number(candidate.outerBounds.minRow);
+                const outerMaxRow = Number(candidate.outerBounds.maxRow);
+                if (Number.isFinite(outerMinRow) && Number.isFinite(outerMaxRow)) rows = Math.max(1, Math.floor(outerMaxRow - outerMinRow - 1));
+            }
+            if (!Number.isFinite(Number(cols)) && candidate.outerBounds) {
+                const outerMinCol = Number(candidate.outerBounds.minCol);
+                const outerMaxCol = Number(candidate.outerBounds.maxCol);
+                if (Number.isFinite(outerMinCol) && Number.isFinite(outerMaxCol)) cols = Math.max(1, Math.floor(outerMaxCol - outerMinCol - 1));
+            }
+        }
+
+        if (!Number.isFinite(Number(rows)) && derived) rows = derived.rows;
+        if (!Number.isFinite(Number(cols)) && derived) cols = derived.cols;
+
+        return buildBoardConfig(rows, cols);
+    }
+
+    function extractBoardConfigSource(value) {
+        if (Array.isArray(value)) return value;
+        if (!value || typeof value !== 'object') return null;
+        if (value.roomBoardConfig && typeof value.roomBoardConfig === 'object') return value.roomBoardConfig;
+        if (Array.isArray(value.board)) return value;
+        if (value.boardConfig && typeof value.boardConfig === 'object') return value;
+        if (
+            isNumericBoardDimensionArg(value.rows)
+            || isNumericBoardDimensionArg(value.cols)
+            || (value.baseBounds && typeof value.baseBounds === 'object')
+            || (value.outerBounds && typeof value.outerBounds === 'object')
+        ) {
+            return value;
+        }
+        return null;
+    }
+
+    function maybeResolveBoardConfig(value) {
+        const source = extractBoardConfigSource(value);
+        return source ? resolveBoardConfig(source) : null;
+    }
+
+    function readBoardGeometry(value) {
+        const config = maybeResolveBoardConfig(value);
+        if (!config) return null;
+        const rows = Number(config.rows);
+        const cols = Number(config.cols);
+        if (!Number.isFinite(rows) || !Number.isFinite(cols)) return null;
+        return {
+            rows: Math.trunc(rows),
+            cols: Math.trunc(cols)
+        };
+    }
+
+    function compareBoardGeometry(previousValue, nextValue) {
+        const previous = readBoardGeometry(previousValue);
+        const next = readBoardGeometry(nextValue);
+        return {
+            previous,
+            next,
+            changed: !!(
+                previous
+                && next
+                && (previous.rows !== next.rows || previous.cols !== next.cols)
+            )
+        };
+    }
+
+    function resolveBoardConfig(boardOrConfig, maybeCols) {
+        if (typeof boardOrConfig === 'undefined' || boardOrConfig === null) {
+            return buildBoardConfig(DEFAULT_BOARD_ROWS, DEFAULT_BOARD_COLS);
+        }
+        if (Array.isArray(boardOrConfig)) {
+            const derived = deriveBoardDimsFromBoard(boardOrConfig);
+            return derived
+                ? buildBoardConfig(derived.rows, derived.cols)
+                : buildBoardConfig(DEFAULT_BOARD_ROWS, DEFAULT_BOARD_COLS);
+        }
+        if (isNumericBoardDimensionArg(boardOrConfig) || isNumericBoardDimensionArg(maybeCols)) {
+            return buildBoardConfig(boardOrConfig, maybeCols);
+        }
+        if (boardOrConfig && typeof boardOrConfig === 'object' && !Array.isArray(boardOrConfig)) {
+            const candidate = (boardOrConfig.boardConfig && typeof boardOrConfig.boardConfig === 'object')
+                ? boardOrConfig.boardConfig
+                : boardOrConfig;
+            const boardFallback = Array.isArray(boardOrConfig.board)
+                ? boardOrConfig.board
+                : (Array.isArray(candidate.board) ? candidate.board : null);
+            const derived = deriveBoardDimsFromBoard(boardFallback);
+            let rows = candidate.rows;
+            let cols = candidate.cols;
+
+            if (!isNumericBoardDimensionArg(rows)) rows = readBoundsSpan(candidate.baseBounds, 'row');
+            if (!isNumericBoardDimensionArg(cols)) cols = readBoundsSpan(candidate.baseBounds, 'col');
+            if (!isNumericBoardDimensionArg(rows) && candidate.outerBounds) {
+                const outerMinRow = Number(candidate.outerBounds.minRow);
+                const outerMaxRow = Number(candidate.outerBounds.maxRow);
+                if (Number.isFinite(outerMinRow) && Number.isFinite(outerMaxRow)) {
+                    rows = Math.max(1, Math.floor(outerMaxRow - outerMinRow - 1));
+                }
+            }
+            if (!isNumericBoardDimensionArg(cols) && candidate.outerBounds) {
+                const outerMinCol = Number(candidate.outerBounds.minCol);
+                const outerMaxCol = Number(candidate.outerBounds.maxCol);
+                if (Number.isFinite(outerMinCol) && Number.isFinite(outerMaxCol)) {
+                    cols = Math.max(1, Math.floor(outerMaxCol - outerMinCol - 1));
+                }
+            }
+            if (!isNumericBoardDimensionArg(rows) && derived) rows = derived.rows;
+            if (!isNumericBoardDimensionArg(cols) && derived) cols = derived.cols;
+            return buildBoardConfig(rows, cols);
+        }
+        return normalizeBoardConfig(boardOrConfig);
+    }
+
+    function resolveBaseBoardBounds(boardOrConfig, maybeCols) {
+        return resolveBoardConfig(boardOrConfig, maybeCols).baseBounds;
+    }
+
+    function resolveOuterBounds(boardOrConfig, maybeCols) {
+        return resolveBoardConfig(boardOrConfig, maybeCols).outerBounds;
+    }
+
+    function getBoardRows(boardOrConfig, maybeCols) {
+        return resolveBoardConfig(boardOrConfig, maybeCols).rows;
+    }
+
+    function getBoardCols(boardOrConfig, maybeCols) {
+        return resolveBoardConfig(boardOrConfig, maybeCols).cols;
+    }
+
+    function isMainBoardCell(row, col, boardOrConfig, maybeCols) {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+        const bounds = resolveBaseBoardBounds(boardOrConfig, maybeCols);
+        return (
+            row >= bounds.minRow &&
+            row <= bounds.maxRow &&
+            col >= bounds.minCol &&
+            col <= bounds.maxCol
+        );
+    }
+
+    function collectMainBoardCoordinates(boardOrConfig, maybeCols) {
+        const config = resolveBoardConfig(boardOrConfig, maybeCols);
+        const coords = [];
+        for (let row = 0; row < config.rows; row++) {
+            for (let col = 0; col < config.cols; col++) {
+                coords.push({ row, col });
+            }
+        }
+        return coords;
+    }
+
+    function createEmptyBoard(boardOrConfig, maybeCols, maybeFillValue) {
+        const looksLikeConfigObject = !!(boardOrConfig && typeof boardOrConfig === 'object');
+        const useNumericArgs = !looksLikeConfigObject
+            && Number.isFinite(Number(boardOrConfig))
+            && Number.isFinite(Number(maybeCols));
+        const config = useNumericArgs
+            ? resolveBoardConfig(boardOrConfig, maybeCols)
+            : resolveBoardConfig(boardOrConfig);
+        const fillValue = useNumericArgs ? maybeFillValue : maybeCols;
+        const normalizedFillValue = (typeof fillValue === 'undefined') ? EMPTY : fillValue;
+        return Array.from({ length: config.rows }, () => Array.from({ length: config.cols }, () => normalizedFillValue));
+    }
+
+    function getOpeningAnchor(boardOrConfig, maybeCols) {
+        const config = resolveBoardConfig(boardOrConfig, maybeCols);
+        return {
+            row: Math.floor((config.rows - 2) / 2),
+            col: Math.floor((config.cols - 2) / 2)
+        };
+    }
+
+    function getOpeningPlacements(boardOrConfig, maybeCols) {
+        const config = resolveBoardConfig(boardOrConfig, maybeCols);
+        const anchor = getOpeningAnchor(config);
+        if (config.rows === 7 && config.cols === 7) {
+            const placements = [];
+            for (let rowOffset = 0; rowOffset < 3; rowOffset += 1) {
+                for (let colOffset = 0; colOffset < 3; colOffset += 1) {
+                    if (rowOffset === 1 && colOffset === 1) continue;
+                    placements.push({
+                        row: anchor.row + rowOffset,
+                        col: anchor.col + colOffset,
+                        owner: ((rowOffset + colOffset) % 2 === 0) ? WHITE : BLACK
+                    });
+                }
+            }
+            return placements;
+        }
+        return [
+            { row: anchor.row, col: anchor.col, owner: WHITE },
+            { row: anchor.row, col: anchor.col + 1, owner: BLACK },
+            { row: anchor.row + 1, col: anchor.col, owner: BLACK },
+            { row: anchor.row + 1, col: anchor.col + 1, owner: WHITE }
+        ];
+    }
+
+    function getOpeningCells(boardOrConfig, maybeCols) {
+        return getOpeningPlacements(boardOrConfig, maybeCols).map((placement) => ({
+            row: placement.row,
+            col: placement.col
+        }));
     }
 
     function isRawCellInBounds(board, row, col) {
@@ -35,46 +398,81 @@
         );
     }
 
-    function isExpansionCoordinate(row, col) {
+    function isExpansionCoordinate(row, col, boardOrConfig, maybeCols) {
         if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-        if (row < OUTER_MIN || row > OUTER_MAX || col < OUTER_MIN || col > OUTER_MAX) return false;
-        if (row >= 0 && row < MAIN_BOARD_SIZE && col >= 0 && col < MAIN_BOARD_SIZE) return false;
-        return true;
+        const outerBounds = resolveOuterBounds(boardOrConfig, maybeCols);
+        if (
+            row < outerBounds.minRow ||
+            row > outerBounds.maxRow ||
+            col < outerBounds.minCol ||
+            col > outerBounds.maxCol
+        ) {
+            return false;
+        }
+        return !isMainBoardCell(row, col, boardOrConfig, maybeCols);
     }
 
-    function resolveExpansionSide(side, row, col) {
+    function isPaddedBoardCoordinate(row, col) {
+        return (
+            Number.isInteger(row) &&
+            Number.isInteger(col) &&
+            row >= PADDED_BOARD_MIN &&
+            row <= PADDED_BOARD_MAX &&
+            col >= PADDED_BOARD_MIN &&
+            col <= PADDED_BOARD_MAX
+        );
+    }
+
+    function toPaddedBoardIndex(row, col) {
+        if (!isPaddedBoardCoordinate(row, col)) return -1;
+        return ((row - PADDED_BOARD_MIN) * PADDED_BOARD_SIZE) + (col - PADDED_BOARD_MIN);
+    }
+
+    function fromPaddedBoardIndex(index) {
+        if (!Number.isInteger(index) || index < 0 || index >= (PADDED_BOARD_SIZE * PADDED_BOARD_SIZE)) return null;
+        const rowOffset = Math.floor(index / PADDED_BOARD_SIZE);
+        const colOffset = index % PADDED_BOARD_SIZE;
+        return {
+            row: PADDED_BOARD_MIN + rowOffset,
+            col: PADDED_BOARD_MIN + colOffset
+        };
+    }
+
+    function resolveExpansionSide(side, row, col, boardOrConfig, maybeCols) {
         if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-        if (col === -1) return 'left';
-        if (col === 8) return 'right';
-        if (row === -1) return 'top';
-        if (row === 8) return 'bottom';
+        const outerBounds = resolveOuterBounds(boardOrConfig, maybeCols);
+        if (col === outerBounds.minCol) return 'left';
+        if (col === outerBounds.maxCol) return 'right';
+        if (row === outerBounds.minRow) return 'top';
+        if (row === outerBounds.maxRow) return 'bottom';
         return null;
     }
 
-    function normalizeExpansionCell(cell) {
+    function normalizeExpansionCell(cell, boardOrConfig) {
         if (!cell || typeof cell !== 'object') return null;
         const row = Number(cell.row);
         let col = Number(cell.col);
-        const side = resolveExpansionSide(cell.side, row, col);
+        const side = resolveExpansionSide(cell.side, row, col, boardOrConfig);
+        const outerBounds = resolveOuterBounds(boardOrConfig);
         if (!Number.isInteger(row)) return null;
         if (!Number.isInteger(col)) {
-            if (side === 'left') col = -1;
-            else if (side === 'right') col = 8;
+            if (side === 'left') col = outerBounds.minCol;
+            else if (side === 'right') col = outerBounds.maxCol;
         }
-        if (!Number.isInteger(col) || !isExpansionCoordinate(row, col)) return null;
+        if (!Number.isInteger(col) || !isExpansionCoordinate(row, col, boardOrConfig)) return null;
         return {
-            side: resolveExpansionSide(side, row, col),
+            side: resolveExpansionSide(side, row, col, boardOrConfig),
             row,
             col,
             owner: normalizeOwner(cell.owner)
         };
     }
 
-    function collectExpansionDescriptors(boardExpansion) {
+    function collectExpansionDescriptors(boardExpansion, boardOrConfig) {
         if (!boardExpansion || typeof boardExpansion !== 'object') return [];
         const out = [];
         const push = (raw) => {
-            const normalized = normalizeExpansionCell(raw);
+            const normalized = normalizeExpansionCell(raw, boardOrConfig);
             if (!normalized) return;
             if (out.some((one) => one.row === normalized.row && one.col === normalized.col)) return;
             out.push(normalized);
@@ -145,7 +543,8 @@
 
     function buildShapeMeta(board, options) {
         if (!Array.isArray(board)) return null;
-        const expansionCells = collectExpansionDescriptors(options && options.boardExpansion);
+        const boardConfig = resolveBoardConfig((options && options.boardConfig) || board);
+        const expansionCells = collectExpansionDescriptors(options && options.boardExpansion, boardConfig);
         const meteorHoleKeys = collectMeteorHoleKeys(options && options.cardState);
         const playableKeys = new Set();
         let minRow = Infinity;
@@ -184,8 +583,8 @@
         }
 
         const standard8x8 =
-            board.length === MAIN_BOARD_SIZE &&
-            board.every((row) => Array.isArray(row) && row.length === MAIN_BOARD_SIZE) &&
+            board.length === DEFAULT_BOARD_ROWS &&
+            board.every((row) => Array.isArray(row) && row.length === DEFAULT_BOARD_COLS) &&
             expansionCells.length === 0 &&
             meteorHoleKeys.size === 0;
 
@@ -246,17 +645,21 @@
             if (maxCol < 0) return null;
             return { minRow: 0, maxRow: boardOrRows.length - 1, minCol: 0, maxCol };
         }
-        const rows = Number.isFinite(boardOrRows) ? Math.max(1, Math.floor(boardOrRows)) : MAIN_BOARD_SIZE;
-        const cols = Number.isFinite(maybeCols) ? Math.max(1, Math.floor(maybeCols)) : rows;
-        return { minRow: 0, maxRow: rows - 1, minCol: 0, maxCol: cols - 1 };
+        const config = resolveBoardConfig(boardOrRows, maybeCols);
+        return {
+            minRow: 0,
+            maxRow: config.rows - 1,
+            minCol: 0,
+            maxCol: config.cols - 1
+        };
     }
 
     function isStandardBoard8x8(board) {
         const meta = getBoardShapeMeta(board);
         if (meta) return meta.standard8x8 === true;
-        if (!Array.isArray(board) || board.length !== MAIN_BOARD_SIZE) return false;
+        if (!Array.isArray(board) || board.length !== DEFAULT_BOARD_ROWS) return false;
         for (const row of board) {
-            if (!Array.isArray(row) || row.length !== MAIN_BOARD_SIZE) return false;
+            if (!Array.isArray(row) || row.length !== DEFAULT_BOARD_COLS) return false;
         }
         return true;
     }
@@ -364,6 +767,57 @@
 
     function getCornerCells(board) {
         return collectBoardCoordinates(board).filter((cell) => buildCornerKeySet(board).has(toBoardCellKey(cell.row, cell.col)));
+    }
+
+    function getPerimeterCells(board) {
+        return collectBoardCoordinates(board).filter((cell) => isEdgeCell(cell.row, cell.col, board));
+    }
+
+    function getCornerEdgeLineDescriptors(board) {
+        if (!Array.isArray(board)) return [];
+        const corners = getCornerCells(board);
+        const lines = [];
+        const directions = [
+            { row: -1, col: 0 },
+            { row: 1, col: 0 },
+            { row: 0, col: -1 },
+            { row: 0, col: 1 }
+        ];
+
+        for (const corner of corners) {
+            if (!corner || !Number.isInteger(corner.row) || !Number.isInteger(corner.col)) continue;
+            for (const direction of directions) {
+                const nextRow = corner.row + direction.row;
+                const nextCol = corner.col + direction.col;
+                if (!hasPlayableCell(board, nextRow, nextCol)) continue;
+                if (!isEdgeCell(nextRow, nextCol, board)) continue;
+
+                const cells = [{ row: corner.row, col: corner.col }];
+                let currentRow = nextRow;
+                let currentCol = nextCol;
+                while (hasPlayableCell(board, currentRow, currentCol) && isEdgeCell(currentRow, currentCol, board)) {
+                    cells.push({ row: currentRow, col: currentCol });
+                    if (isCornerCell(currentRow, currentCol, board) && (currentRow !== corner.row || currentCol !== corner.col)) {
+                        break;
+                    }
+                    currentRow += direction.row;
+                    currentCol += direction.col;
+                }
+
+                if (cells.length <= 1) continue;
+                const cellKeys = cells.map((cell) => toBoardCellKey(cell.row, cell.col));
+                lines.push({
+                    key: cellKeys.join('|'),
+                    canonicalKey: cellKeys.slice().sort().join('|'),
+                    corner: { row: corner.row, col: corner.col },
+                    direction: { row: direction.row, col: direction.col },
+                    directionTarget: { row: nextRow, col: nextCol },
+                    cells
+                });
+            }
+        }
+
+        return lines;
     }
 
     function isCornerCell(row, col, boardOrRows, maybeCols) {
@@ -780,47 +1234,69 @@
         };
     }
 
-    function formatPosTextJa(posOrRow, maybeCol) {
-        const pos = normalizePosArgs(posOrRow, maybeCol);
+    function resolveNotationArgs(posOrRow, maybeCol, maybeBoardOrConfig) {
+        const objectPosWithBoardContext = !!(
+            posOrRow &&
+            typeof posOrRow === 'object' &&
+            !Number.isFinite(Number(maybeCol))
+        );
+        return {
+            pos: objectPosWithBoardContext
+                ? normalizePosArgs(posOrRow)
+                : normalizePosArgs(posOrRow, maybeCol),
+            boardOrConfig: objectPosWithBoardContext ? maybeCol : maybeBoardOrConfig
+        };
+    }
+
+    function formatPosTextJa(posOrRow, maybeCol, maybeBoardOrConfig) {
+        const resolved = resolveNotationArgs(posOrRow, maybeCol, maybeBoardOrConfig);
+        const pos = resolved.pos;
+        const config = resolveBoardConfig(resolved.boardOrConfig);
+        const baseBounds = config.baseBounds;
+        const outerBounds = config.outerBounds;
         const row = pos.row;
         const col = pos.col;
         if (!Number.isInteger(row) || !Number.isInteger(col)) return '';
-        if (row === -1 && col === -1) return '左上外';
-        if (row === -1 && col === 8) return '右上外';
-        if (row === 8 && col === -1) return '左下外';
-        if (row === 8 && col === 8) return '右下外';
-        if (row === -1 && col >= 0 && col < MAIN_BOARD_SIZE) {
+        if (row === outerBounds.minRow && col === outerBounds.minCol) return '左上外';
+        if (row === outerBounds.minRow && col === outerBounds.maxCol) return '右上外';
+        if (row === outerBounds.maxRow && col === outerBounds.minCol) return '左下外';
+        if (row === outerBounds.maxRow && col === outerBounds.maxCol) return '右下外';
+        if (row === outerBounds.minRow && col >= baseBounds.minCol && col <= baseBounds.maxCol) {
             return `上外${String.fromCharCode(65 + col)}`;
         }
-        if (row === 8 && col >= 0 && col < MAIN_BOARD_SIZE) {
+        if (row === outerBounds.maxRow && col >= baseBounds.minCol && col <= baseBounds.maxCol) {
             return `下外${String.fromCharCode(65 + col)}`;
         }
-        if (col === -1 && row >= 0 && row < MAIN_BOARD_SIZE) return `左外${row + 1}`;
-        if (col === 8 && row >= 0 && row < MAIN_BOARD_SIZE) return `右外${row + 1}`;
-        if (row >= 0 && row < MAIN_BOARD_SIZE && col >= 0 && col < MAIN_BOARD_SIZE) {
+        if (col === outerBounds.minCol && row >= baseBounds.minRow && row <= baseBounds.maxRow) return `左外${row + 1}`;
+        if (col === outerBounds.maxCol && row >= baseBounds.minRow && row <= baseBounds.maxRow) return `右外${row + 1}`;
+        if (row >= baseBounds.minRow && row <= baseBounds.maxRow && col >= baseBounds.minCol && col <= baseBounds.maxCol) {
             return `${String.fromCharCode(65 + col)}${row + 1}`;
         }
         return `(${row},${col})`;
     }
 
-    function posToNotation(posOrRow, maybeCol) {
-        const pos = normalizePosArgs(posOrRow, maybeCol);
+    function posToNotation(posOrRow, maybeCol, maybeBoardOrConfig) {
+        const resolved = resolveNotationArgs(posOrRow, maybeCol, maybeBoardOrConfig);
+        const pos = resolved.pos;
+        const config = resolveBoardConfig(resolved.boardOrConfig);
+        const baseBounds = config.baseBounds;
+        const outerBounds = config.outerBounds;
         const row = pos.row;
         const col = pos.col;
         if (!Number.isInteger(row) || !Number.isInteger(col)) return '';
-        if (row === -1 && col === -1) return 'top-left';
-        if (row === -1 && col === 8) return 'top-right';
-        if (row === 8 && col === -1) return 'bottom-left';
-        if (row === 8 && col === 8) return 'bottom-right';
-        if (row === -1 && col >= 0 && col < MAIN_BOARD_SIZE) {
+        if (row === outerBounds.minRow && col === outerBounds.minCol) return 'top-left';
+        if (row === outerBounds.minRow && col === outerBounds.maxCol) return 'top-right';
+        if (row === outerBounds.maxRow && col === outerBounds.minCol) return 'bottom-left';
+        if (row === outerBounds.maxRow && col === outerBounds.maxCol) return 'bottom-right';
+        if (row === outerBounds.minRow && col >= baseBounds.minCol && col <= baseBounds.maxCol) {
             return `top-${String.fromCharCode(97 + col)}`;
         }
-        if (row === 8 && col >= 0 && col < MAIN_BOARD_SIZE) {
+        if (row === outerBounds.maxRow && col >= baseBounds.minCol && col <= baseBounds.maxCol) {
             return `bottom-${String.fromCharCode(97 + col)}`;
         }
-        if (col === -1 && row >= 0 && row < MAIN_BOARD_SIZE) return `left${row + 1}`;
-        if (col === 8 && row >= 0 && row < MAIN_BOARD_SIZE) return `right${row + 1}`;
-        if (row >= 0 && row < MAIN_BOARD_SIZE && col >= 0 && col < MAIN_BOARD_SIZE) {
+        if (col === outerBounds.minCol && row >= baseBounds.minRow && row <= baseBounds.maxRow) return `left${row + 1}`;
+        if (col === outerBounds.maxCol && row >= baseBounds.minRow && row <= baseBounds.maxRow) return `right${row + 1}`;
+        if (row >= baseBounds.minRow && row <= baseBounds.maxRow && col >= baseBounds.minCol && col <= baseBounds.maxCol) {
             return `${String.fromCharCode(97 + col)}${row + 1}`;
         }
         return `r${row}c${col}`;
@@ -828,18 +1304,58 @@
 
     return {
         BOARD_SHAPE_META_KEY,
+        DEFAULT_BOARD_ROWS,
+        DEFAULT_BOARD_COLS,
+        MIN_BOARD_ROWS,
+        MAX_BOARD_ROWS,
+        MIN_BOARD_COLS,
+        MAX_BOARD_COLS,
+        getBoardDimensionBounds,
+        normalizeBoardDimensionValue,
+        stepBoardDimensionValue,
+        MAIN_BOARD_SIZE,
+        OUTER_MIN,
+        OUTER_MAX,
+        PADDED_BOARD_MIN,
+        PADDED_BOARD_MAX,
+        PADDED_BOARD_SIZE,
+        buildBoardConfig,
+        normalizeBoardConfig,
+        extractBoardConfigSource,
+        maybeResolveBoardConfig,
+        readBoardGeometry,
+        compareBoardGeometry,
+        resolveBoardConfig,
+        resolveBaseBoardBounds,
+        resolveOuterBounds,
+        getBoardRows,
+        getBoardCols,
         attachBoardShape,
         copyBoardShape,
         cloneBoard,
         getBoardShapeMeta,
         resolveBoardBounds,
         isStandardBoard8x8,
+        isPaddedBoardCoordinate,
+        toPaddedBoardIndex,
+        fromPaddedBoardIndex,
+        isMainBoardCell,
+        isExpansionCoordinate,
+        resolveExpansionSide,
+        collectExpansionDescriptors,
+        collectMainBoardCoordinates,
+        createEmptyBoard,
+        getOpeningAnchor,
+        getOpeningPlacements,
+        getOpeningCells,
         hasPlayableCell,
         collectBoardCoordinates,
         getCellValue,
         setCellValue,
         countBoardEmpties,
         getCornerCells,
+        getPerimeterCells,
+        getCornerEdgeLineDescriptors,
         getCornerProximity,
         isCornerCell,
         isEdgeCell,

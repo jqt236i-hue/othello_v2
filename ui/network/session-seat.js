@@ -100,6 +100,38 @@
             };
         }
 
+        function resolveSharedBoardUtils() {
+            try {
+                if (rootRef && rootRef.SharedBoardUtils) {
+                    return rootRef.SharedBoardUtils;
+                }
+            } catch (e) { /* ignore */ }
+            try {
+                if (typeof require === 'function') {
+                    return require('../../shared/shared-board-utils');
+                }
+            } catch (e) { /* ignore */ }
+            return null;
+        }
+
+        function maybeResolveBoardConfig(value) {
+            const boardUtils = resolveSharedBoardUtils();
+            if (!boardUtils || typeof boardUtils.maybeResolveBoardConfig !== 'function') return null;
+            try {
+                return boardUtils.maybeResolveBoardConfig(value);
+            } catch (e) { /* ignore */ }
+            return null;
+        }
+
+        function normalizeRoomBoardConfig(value, options) {
+            const opts = (options && typeof options === 'object') ? options : {};
+            return (
+                maybeResolveBoardConfig(value)
+                || maybeResolveBoardConfig(opts.snapshot && opts.snapshot.gameState)
+                || maybeResolveBoardConfig(opts.fallbackBoardConfig)
+            );
+        }
+
         function normalizeNetworkDebugEnabled(value) {
             return value === true;
         }
@@ -117,13 +149,15 @@
             const state = resolveState();
             if (typeof state.roomStateListener !== 'function') return;
             try {
+                const active = typeof cfg.isActive === 'function' ? cfg.isActive() : !!state.active;
                 state.roomStateListener({
-                    active: typeof cfg.isActive === 'function' ? cfg.isActive() : !!state.active,
+                    active,
                     roomId: state.roomId,
                     seatKey: state.seatKey,
                     seats: normalizeRoomSeats(state.roomSeats),
                     seatNames: normalizeSeatNames(state.seatNames),
                     roomDeck: normalizeRoomDeck(state.roomDeck),
+                    roomBoardConfig: active ? normalizeRoomBoardConfig(state.roomBoardConfig) : null,
                     networkDebugEnabled: normalizeNetworkDebugEnabled(state.networkDebugEnabled),
                     hasTwoPlayers: hasTwoPlayers()
                 });
@@ -145,6 +179,13 @@
             }
             if (Object.prototype.hasOwnProperty.call(payload, 'roomDeck')) {
                 state.roomDeck = normalizeRoomDeck(payload.roomDeck);
+                changed = true;
+            }
+            if (Object.prototype.hasOwnProperty.call(payload, 'roomBoardConfig')) {
+                state.roomBoardConfig = normalizeRoomBoardConfig(payload.roomBoardConfig, {
+                    snapshot: payload.snapshot,
+                    fallbackBoardConfig: state.roomBoardConfig
+                });
                 changed = true;
             }
             if (Object.prototype.hasOwnProperty.call(payload, 'networkDebugEnabled')) {
@@ -235,6 +276,9 @@
             state.roomSeats = normalizeRoomSeats(payload.seats);
             state.seatNames = normalizeSeatNames(payload.seatNames);
             state.roomDeck = normalizeRoomDeck(payload.roomDeck);
+            state.roomBoardConfig = normalizeRoomBoardConfig(payload.roomBoardConfig, {
+                snapshot: payload.snapshot
+            });
             state.networkDebugEnabled = normalizeNetworkDebugEnabled(payload.networkDebugEnabled);
 
             const ownName = normalizePlayerName(payload.playerName);
@@ -268,6 +312,7 @@
             state.roomSeats = { black: false, white: false };
             state.seatNames = { black: '', white: '' };
             state.roomDeck = null;
+            state.roomBoardConfig = null;
             state.networkDebugEnabled = false;
             state.chatHistory = [];
             state.stateVersion = null;
@@ -279,6 +324,7 @@
             normalizePlayerName,
             normalizeRoomSeats,
             normalizeSeatNames,
+            normalizeRoomBoardConfig,
             getSeatDisplayName,
             hasTwoPlayers,
             emitRoomStateChanged,

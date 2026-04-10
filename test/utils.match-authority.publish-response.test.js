@@ -12,6 +12,7 @@ describe('match authority publish response payload', () => {
       seats: { black: true, white: false },
       seatNames: { black: 'くろ', white: '' },
       roomDeck: null,
+      roomBoardConfig: { rows: 7, cols: 9 },
       networkDebugEnabled: true,
       turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black' },
       playbackEvents,
@@ -34,6 +35,10 @@ describe('match authority publish response payload', () => {
       stateVersion: 12,
       rejectedReason: 'VERSION_MISMATCH',
       networkDebugEnabled: true,
+      roomBoardConfig: {
+        rows: 7,
+        cols: 9
+      },
       playbackEvents,
       effectLogs: ['黒: 反転保護を付与'],
       serverTime: 12345,
@@ -65,6 +70,46 @@ describe('match authority publish response payload', () => {
     });
 
     expect(payload.publishMeta).toBeUndefined();
+  });
+
+  test('omits roomBoardConfig when caller did not provide it', () => {
+    const payload = MatchAuthority.buildPublishResponsePayload({
+      ok: true,
+      roomId: 'ABC',
+      stateVersion: 5,
+      snapshot: { stateVersion: 5, gameState: {}, cardState: {} },
+      seats: { black: true, white: true },
+      seatNames: { black: 'くろ', white: 'しろ' },
+      roomDeck: null,
+      networkDebugEnabled: false,
+      turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black' },
+      serverTime: 999
+    });
+
+    expect(Object.prototype.hasOwnProperty.call(payload, 'roomBoardConfig')).toBe(false);
+  });
+
+  test('resolveRoomBoardConfig prefers explicit room config and falls back to snapshot board shape', () => {
+    expect(MatchAuthority.resolveRoomBoardConfig({
+      roomBoardConfig: { rows: 7, cols: 9 }
+    })).toMatchObject({
+      rows: 7,
+      cols: 9,
+      standard8x8: false
+    });
+
+    expect(MatchAuthority.resolveRoomBoardConfig({
+      roomBoardConfig: null,
+      snapshot: {
+        gameState: {
+          board: Array.from({ length: 6 }, () => Array.from({ length: 10 }, () => 0))
+        }
+      }
+    })).toMatchObject({
+      rows: 6,
+      cols: 10,
+      standard8x8: false
+    });
   });
 
   test('buildPublicSnapshot adds authority metadata for viewer-projected snapshots', () => {

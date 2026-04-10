@@ -25,8 +25,8 @@ const LEADERBOARD_MAX_STORED_PLAYERS = 200;
 const LEADERBOARD_PLAYER_ID_RE = /^[A-Za-z0-9_-]{8,80}$/;
 const NETWORK_TURN_LIMIT_SECONDS = 120;
 const NETWORK_TURN_LIMIT_MS = NETWORK_TURN_LIMIT_SECONDS * 1000;
-const SSE_HEARTBEAT_INTERVAL_MS = 20000;
-const SSE_WRITE_TIMEOUT_MS = 2500;
+const SSE_HEARTBEAT_INTERVAL_MS = 10000;
+const SSE_WRITE_TIMEOUT_MS = 10000;
 const NETWORK_DEBUG_FILL_HAND_ACTION = 'debug_fill_hand';
 const OPERATION_ID_MAX_LENGTH = Number.isFinite(Number(MatchAuthority.OPERATION_ID_MAX_LENGTH))
     ? Number(MatchAuthority.OPERATION_ID_MAX_LENGTH)
@@ -390,9 +390,9 @@ function sortLeaderboardEntries(entries) {
 
 async function makeInitialSnapshot(seed, options) {
     const { Core, CardLogic, TurnPipelinePhases, SeededPRNG } = await loadTurnStartModules();
-    const gameState = Core.createGameState();
+    const opts = buildInitialDeckSnapshotOptions(options);
+    const gameState = Core.createGameState(opts.boardConfig);
     const prng = SeededPRNG.createPRNG(seed);
-    const opts = (options && typeof options === 'object') ? options : {};
     const cardInitOptions = buildInitialDeckSnapshotOptions(opts);
     const cardState = CardLogic.createCardState(prng, cardInitOptions);
 
@@ -637,6 +637,7 @@ function buildPublishPayload(room, viewerSeatKey, options = {}) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled,
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(options.playbackEvents) ? options.playbackEvents : [],
@@ -1113,15 +1114,23 @@ function hasRoomDeckMetadataEntries(value) {
 
 function buildInitialDeckSnapshotOptions(value) {
     const source = (value && typeof value === 'object') ? value : {};
+    const options = {};
     const initialDeckSpecByPlayer = cloneInitialDeckSpecByPlayer(source.initialDeckSpecByPlayer);
     if (initialDeckSpecByPlayer.black || initialDeckSpecByPlayer.white) {
-        return { initialDeckSpecByPlayer };
+        options.initialDeckSpecByPlayer = initialDeckSpecByPlayer;
+    } else {
+        const initialDeckSpec = (source.initialDeckSpec && typeof source.initialDeckSpec === 'object')
+            ? deepClone(source.initialDeckSpec)
+            : null;
+        if (initialDeckSpec) {
+            options.initialDeckSpec = initialDeckSpec;
+        }
     }
-
-    const initialDeckSpec = (source.initialDeckSpec && typeof source.initialDeckSpec === 'object')
-        ? deepClone(source.initialDeckSpec)
-        : null;
-    return initialDeckSpec ? { initialDeckSpec } : {};
+    const boardConfig = MatchAuthority.resolveRoomBoardConfig(source);
+    if (boardConfig) {
+        options.boardConfig = boardConfig;
+    }
+    return options;
 }
 
 function getRoomInitialDeckSpecByPlayer(room) {
@@ -1231,6 +1240,10 @@ function toPublicRoomDeck(room) {
     };
 }
 
+function toPublicRoomBoardConfig(room) {
+    return MatchAuthority.resolveRoomBoardConfig(room);
+}
+
 function toPublicNetworkDebugEnabled(room) {
     return !!(room && room.networkDebugEnabled === true);
 }
@@ -1332,6 +1345,7 @@ function buildSnapshotPayload(room, meta, viewerSeatKey) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
@@ -1358,6 +1372,7 @@ function buildPresencePayload(room, meta) {
         seats: toPublicSeats(room),
         seatNames,
         roomDeck: toPublicRoomDeck(room),
+        roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
@@ -1372,6 +1387,7 @@ function buildHeartbeatPayload(room, serverTime) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
@@ -1500,6 +1516,7 @@ async function resolveDeckSelection(rawDeckCodeValue) {
 async function handleCreate(env, options) {
     const opts = (options && typeof options === 'object') ? options : {};
     const networkDebugEnabled = opts.networkDebugEnabled === true;
+    const roomBoardConfig = MatchAuthority.normalizeRoomBoardConfig(opts.roomBoardConfig);
     const deckSelection = await resolveDeckSelection(opts.deckCode);
     if (!deckSelection.ok) {
         return jsonResponse(400, {
@@ -1532,7 +1549,8 @@ async function handleCreate(env, options) {
         const roomId = makeRoomId();
         const seed = Date.now();
         const snapshot = await makeInitialSnapshot(seed, {
-            initialDeckSpecByPlayer
+            initialDeckSpecByPlayer,
+            roomBoardConfig
         });
         const stub = getRoomStub(env, roomId);
         const req = new Request('https://room/internal/create', {
@@ -1545,7 +1563,8 @@ async function handleCreate(env, options) {
                 playerName: opts.playerName,
                 networkDebugEnabled,
                 initialDeckSpecByPlayer,
-                roomDeck
+                roomDeck,
+                roomBoardConfig
             })
         });
         const response = await stub.fetch(req);
@@ -1856,6 +1875,10 @@ export class MatchRoomDurableObject {
             ? cloneInitialDeckSpecByPlayer(opts.initialDeckSpecByPlayer)
             : null;
         const roomDeck = (opts.roomDeck && typeof opts.roomDeck === 'object') ? deepClone(opts.roomDeck) : null;
+        const roomBoardConfig = MatchAuthority.normalizeRoomBoardConfig(
+            opts.roomBoardConfig,
+            snapshot && snapshot.gameState && snapshot.gameState.board
+        );
         const networkDebugEnabled = opts.networkDebugEnabled === true;
         const nowMs = Date.now();
         return {
@@ -1865,6 +1888,7 @@ export class MatchRoomDurableObject {
             initialDeckSpec,
             initialDeckSpecByPlayer,
             roomDeck,
+            roomBoardConfig,
             networkDebugEnabled,
             stateVersion: 0,
             seats: { black: false, white: false },
@@ -2040,6 +2064,10 @@ export class MatchRoomDurableObject {
         const roomDeck = (payload.roomDeck && typeof payload.roomDeck === 'object')
             ? deepClone(payload.roomDeck)
             : null;
+        const roomBoardConfig = MatchAuthority.normalizeRoomBoardConfig(
+            payload.roomBoardConfig,
+            snapshot && snapshot.gameState && snapshot.gameState.board
+        );
         const networkDebugEnabled = payload.networkDebugEnabled === true;
 
         if (!roomId) {
@@ -2058,6 +2086,7 @@ export class MatchRoomDurableObject {
             initialDeckSpec,
             initialDeckSpecByPlayer,
             roomDeck,
+            roomBoardConfig,
             networkDebugEnabled
         });
         this.sseEventBuffer = [];
@@ -2078,6 +2107,7 @@ export class MatchRoomDurableObject {
             seats: toPublicSeats(this.room),
             seatNames: toPublicSeatNames(this.room),
             roomDeck: toPublicRoomDeck(this.room),
+            roomBoardConfig: toPublicRoomBoardConfig(this.room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(this.room),
             stateVersion: this.room.stateVersion,
             snapshot: toPublicSnapshot(this.room, 'black'),
@@ -2180,6 +2210,7 @@ export class MatchRoomDurableObject {
             seats: toPublicSeats(room),
             seatNames: toPublicSeatNames(room),
             roomDeck: toPublicRoomDeck(room),
+            roomBoardConfig: toPublicRoomBoardConfig(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
             stateVersion: room.stateVersion,
             snapshot: toPublicSnapshot(room, seatKey),
@@ -2236,6 +2267,7 @@ export class MatchRoomDurableObject {
             ok: true,
             seats: toPublicSeats(room),
             seatNames: toPublicSeatNames(room),
+            roomBoardConfig: toPublicRoomBoardConfig(room),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
         });
@@ -2538,6 +2570,7 @@ export class MatchRoomDurableObject {
             seats: toPublicSeats(room),
             seatNames: toPublicSeatNames(room),
             roomDeck: toPublicRoomDeck(room),
+            roomBoardConfig: toPublicRoomBoardConfig(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
             snapshot: toPublicSnapshot(room, viewerSeatKey),
             turnTimer: toPublicTurnTimer(room, serverTime),
@@ -2557,6 +2590,7 @@ export class MatchRoomDurableObject {
         const urlObj = new URL(request.url);
         const seatKey = parseSeatKeyOptional(urlObj.searchParams.get('seatKey') || '');
         const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
+        const resumeEventId = String(urlObj.searchParams.get('lastEventId') || '').trim();
         const viewerSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
         if (!viewerSeatKey) {
             return jsonResponse(403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
@@ -2569,7 +2603,7 @@ export class MatchRoomDurableObject {
         const streamId = `sse_${this.streamSeq}_${Date.now()}`;
         this.streams.set(streamId, { writer, seatKey: viewerSeatKey });
         this.ensureHeartbeatTimer();
-        const lastEventId = String(request.headers.get('Last-Event-ID') || '').trim();
+        const lastEventId = String(request.headers.get('Last-Event-ID') || resumeEventId).trim();
         const replayEvents = MatchAuthority && typeof MatchAuthority.getBufferedSseReplayEvents === 'function'
             ? MatchAuthority.getBufferedSseReplayEvents(this.sseEventBuffer, lastEventId, viewerSeatKey)
             : null;

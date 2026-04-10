@@ -103,6 +103,84 @@
             return null;
         }
 
+        function resolveBoardUpdateDispatch() {
+            if (cfg.boardUpdateDispatch && typeof cfg.boardUpdateDispatch === 'object') {
+                return cfg.boardUpdateDispatch;
+            }
+
+            try {
+                if (rootRef && rootRef.BoardUpdateDispatch && typeof rootRef.BoardUpdateDispatch === 'object') {
+                    return rootRef.BoardUpdateDispatch;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof globalThis !== 'undefined' && globalThis.BoardUpdateDispatch && typeof globalThis.BoardUpdateDispatch === 'object') {
+                    return globalThis.BoardUpdateDispatch;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof require === 'function') {
+                    return require('../board-update-dispatch');
+                }
+            } catch (e) { /* ignore */ }
+
+            return null;
+        }
+
+        function resolveBoardUpdateSyncRuntime() {
+            if (cfg.boardUpdateSyncRuntime && typeof cfg.boardUpdateSyncRuntime === 'object') {
+                return cfg.boardUpdateSyncRuntime;
+            }
+
+            try {
+                if (rootRef && rootRef.BoardUpdateSyncRuntime && typeof rootRef.BoardUpdateSyncRuntime === 'object') {
+                    return rootRef.BoardUpdateSyncRuntime;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof globalThis !== 'undefined' && globalThis.BoardUpdateSyncRuntime && typeof globalThis.BoardUpdateSyncRuntime === 'object') {
+                    return globalThis.BoardUpdateSyncRuntime;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof require === 'function') {
+                    return require('../board-update-sync-runtime');
+                }
+            } catch (e) { /* ignore */ }
+
+            return null;
+        }
+
+        function resolveSharedBoardUtils() {
+            if (cfg.sharedBoardUtils && typeof cfg.sharedBoardUtils === 'object') {
+                return cfg.sharedBoardUtils;
+            }
+
+            try {
+                if (rootRef && rootRef.SharedBoardUtils && typeof rootRef.SharedBoardUtils === 'object') {
+                    return rootRef.SharedBoardUtils;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof globalThis !== 'undefined' && globalThis.SharedBoardUtils && typeof globalThis.SharedBoardUtils === 'object') {
+                    return globalThis.SharedBoardUtils;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof require === 'function') {
+                    return require('../../shared/shared-board-utils');
+                }
+            } catch (e) { /* ignore */ }
+
+            return null;
+        }
+
         function setBusyState(active) {
             const playbackState = resolvePlaybackStateModule();
             if (!playbackState || typeof playbackState !== 'object') return false;
@@ -341,6 +419,36 @@
             } catch (e) { /* ignore */ }
         }
 
+        function readBoardGeometry(value) {
+            const boardUtils = resolveSharedBoardUtils();
+            if (boardUtils && typeof boardUtils.readBoardGeometry === 'function') {
+                try {
+                    return boardUtils.readBoardGeometry(value);
+                } catch (e) { /* ignore */ }
+            }
+            return null;
+        }
+
+        function compareBoardGeometry(previousValue, nextValue) {
+            const boardUtils = resolveSharedBoardUtils();
+            if (boardUtils && typeof boardUtils.compareBoardGeometry === 'function') {
+                try {
+                    return boardUtils.compareBoardGeometry(previousValue, nextValue);
+                } catch (e) { /* ignore */ }
+            }
+            const previous = readBoardGeometry(previousValue);
+            const next = readBoardGeometry(nextValue);
+            return {
+                previous,
+                next,
+                changed: !!(
+                    previous
+                    && next
+                    && (previous.rows !== next.rows || previous.cols !== next.cols)
+                )
+            };
+        }
+
         function sanitizeIncomingSnapshot(snapshot) {
             if (!snapshot || typeof snapshot !== 'object') {
                 return { ok: false, reason: 'invalid_snapshot' };
@@ -492,6 +600,17 @@
             return false;
         }
 
+        function hasPendingPresentationEvents(source) {
+            const playbackState = resolvePlaybackStateModule();
+            if (playbackState && typeof playbackState.hasPendingPresentationEvents === 'function') {
+                return playbackState.hasPendingPresentationEvents(source);
+            }
+            const ref = (source && typeof source === 'object') ? source : {};
+            const pendingPersist = Array.isArray(ref._presentationEventsPersist) ? ref._presentationEventsPersist.length > 0 : false;
+            const pendingLive = Array.isArray(ref.presentationEvents) ? ref.presentationEvents.length > 0 : false;
+            return pendingPersist || pendingLive;
+        }
+
         function readBusyStateSnapshot() {
             const playbackState = resolvePlaybackStateModule();
             let processing = false;
@@ -557,11 +676,18 @@
             };
             const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
             const shadowPlaybackEvents = Array.isArray(opts.shadowPlaybackEvents) ? opts.shadowPlaybackEvents : [];
+            const dropPreservedQueues = opts.dropPreservedQueues === true;
+            const hasPendingPreservedQueues = preservedQueues.hasPending === true;
             const hasPlaybackEvents = playbackEvents.length > 0;
-            const shouldEmitShadowPlayback = !hasPlaybackEvents && !preservedQueues.hasPending && shadowPlaybackEvents.length > 0;
-            const restoredPreservedQueues = !hasPlaybackEvents && !shouldEmitShadowPlayback && preservedQueues.hasPending;
+            const shouldEmitShadowPlayback = !hasPlaybackEvents
+                && (!hasPendingPreservedQueues || dropPreservedQueues)
+                && shadowPlaybackEvents.length > 0;
+            const restoredPreservedQueues = !hasPlaybackEvents
+                && !shouldEmitShadowPlayback
+                && hasPendingPreservedQueues
+                && !dropPreservedQueues;
 
-            if (hasPlaybackEvents || shouldEmitShadowPlayback) {
+            if (hasPlaybackEvents || shouldEmitShadowPlayback || dropPreservedQueues) {
                 clearTransientPresentationQueues(cardStateRef);
             } else if (restoredPreservedQueues) {
                 restoreTransientPresentationQueues(cardStateRef, preservedQueues);
@@ -574,7 +700,7 @@
                 shouldEmitShadowPlayback,
                 // Shadow playback with suppressPlayback=true returns immediately
                 // without running AnimationEngine, so it should not keep busy.
-                shouldKeepBusy: hasPlaybackEvents || preservedQueues.hasPending,
+                shouldKeepBusy: hasPlaybackEvents || (hasPendingPreservedQueues && !dropPreservedQueues),
                 restoredPreservedQueues,
                 restoredQueueSignature: restoredPreservedQueues
                     ? getTransientPresentationQueueSignature(preservedQueues)
@@ -635,11 +761,23 @@
             const cardStateRef = resolveGlobalObject('cardState');
             try {
                 const visualPlayback = isVisualPlaybackActive();
-                const pendingPersist = !!(cardStateRef && Array.isArray(cardStateRef._presentationEventsPersist) && cardStateRef._presentationEventsPersist.length > 0);
-                const pendingLive = !!(cardStateRef && Array.isArray(cardStateRef.presentationEvents) && cardStateRef.presentationEvents.length > 0);
-                return visualPlayback || pendingPersist || pendingLive;
+                return visualPlayback || hasPendingPresentationEvents(cardStateRef);
             } catch (e) {
                 return isVisualPlaybackActive();
+            }
+        }
+
+        function armBoardUpdateDuringPlayback(source, reason) {
+            const runtime = resolveBoardUpdateSyncRuntime();
+            if (!runtime || typeof runtime.armBoardUpdateSyncContext !== 'function') return false;
+            try {
+                return !!runtime.armBoardUpdateSyncContext({
+                    allowBoardUpdateDuringPlayback: true,
+                    source: source || 'network_snapshot',
+                    reason: reason || 'snapshot_playback_board_sync'
+                });
+            } catch (e) {
+                return false;
             }
         }
 
@@ -681,10 +819,18 @@
                 if (emitGameStateChange) emitGameStateChange();
             } catch (e) { /* ignore */ }
             try {
-                const emitBoardUpdate = resolveGlobalFunction('emitBoardUpdate', cfg.emitBoardUpdate);
-                const renderBoard = resolveGlobalFunction('renderBoard', cfg.renderBoard);
-                if (emitBoardUpdate) emitBoardUpdate();
-                else if (renderBoard) renderBoard();
+                const boardUpdateDispatch = resolveBoardUpdateDispatch();
+                if (boardUpdateDispatch && typeof boardUpdateDispatch.requestBoardUpdate === 'function') {
+                    boardUpdateDispatch.requestBoardUpdate({
+                        emitBoardUpdate: cfg.emitBoardUpdate,
+                        renderBoard: cfg.renderBoard
+                    });
+                } else {
+                    const emitBoardUpdate = resolveGlobalFunction('emitBoardUpdate', cfg.emitBoardUpdate);
+                    const renderBoard = resolveGlobalFunction('renderBoard', cfg.renderBoard);
+                    if (emitBoardUpdate) emitBoardUpdate();
+                    else if (renderBoard) renderBoard();
+                }
             } catch (e) { /* ignore */ }
             renderCardUiAfterPlaybackIfNeeded();
         }
@@ -765,6 +911,9 @@
 
             const snapshotMeta = getSnapshotMeta(snapshot);
             const nextVersion = getSnapshotVersion(snapshot);
+            const currentAppliedVersion = Number.isFinite(Number(state && state.appliedStateVersion))
+                ? Number(state.appliedStateVersion)
+                : (Number.isFinite(Number(state && state.stateVersion)) ? Number(state.stateVersion) : null);
 
             if (!opts.force && nextVersion === null) {
                 emitTelemetry('snapshot_missing_state_version_rejected', {
@@ -773,11 +922,11 @@
                 return false;
             }
 
-            if (!opts.force && nextVersion !== null && state.stateVersion !== null && nextVersion <= state.stateVersion) {
+            if (!opts.force && nextVersion !== null && currentAppliedVersion !== null && nextVersion <= currentAppliedVersion) {
                 if (opts.allowStaleShadowPlayback === true && shadowPlaybackEvents.length > 0) {
                     emitTelemetry('snapshot_shadow_playback_emitted', {
                         nextVersion,
-                        currentVersion: state.stateVersion,
+                        currentVersion: currentAppliedVersion,
                         shadowPlaybackCount: shadowPlaybackEvents.length
                     });
                     emitPlaybackEvents(shadowPlaybackEvents, {
@@ -785,13 +934,17 @@
                         suppressPlayback: true
                     });
                     setBusyState(true);
+                    armBoardUpdateDuringPlayback(
+                        opts.shadowPlaybackSource || 'self_snapshot_sync',
+                        'stale_shadow_playback_board_sync'
+                    );
                     refreshUi();
                     setBusyState(false);
                     return true;
                 }
                 emitTelemetry('snapshot_stale_rejected', {
                     nextVersion,
-                    currentVersion: state.stateVersion,
+                    currentVersion: currentAppliedVersion,
                     force: false
                 });
                 return false;
@@ -805,6 +958,7 @@
                 return false;
             }
 
+            const previousGameState = cloneData(resolveGlobalObject('gameState'));
             const previousCardState = cloneData(resolveGlobalObject('cardState'));
             const preservedQueues = captureTransientPresentationQueues(resolveGlobalObject('cardState'));
             const busyStateBeforeSnapshot = readBusyStateSnapshot();
@@ -828,15 +982,27 @@
                 } catch (e) { /* ignore */ }
             }
 
+            const boardGeometry = compareBoardGeometry(previousGameState, resolveGlobalObject('gameState'));
+            if (boardGeometry.changed) {
+                emitTelemetry('snapshot_board_geometry_changed', {
+                    previousRows: boardGeometry.previous.rows,
+                    previousCols: boardGeometry.previous.cols,
+                    nextRows: boardGeometry.next.rows,
+                    nextCols: boardGeometry.next.cols
+                });
+            }
+
             const presentationState = reconcilePresentationQueues(cardStateRef, {
                 preservedQueues,
                 playbackEvents,
-                shadowPlaybackEvents
+                shadowPlaybackEvents,
+                dropPreservedQueues: boardGeometry.changed
             });
             const shouldEmitShadowPlayback = presentationState.shouldEmitShadowPlayback;
 
             if (nextVersion !== null) {
                 state.stateVersion = nextVersion;
+                state.appliedStateVersion = nextVersion;
             }
             if (state && state.authoritativeMatchState && typeof state.authoritativeMatchState === 'object') {
                 state.authoritativeMatchState.stateVersion = nextVersion;
@@ -859,6 +1025,12 @@
             }
 
             maybeShowResultFromSnapshot(nextVersion, opts);
+            if (playbackEvents.length > 0 || shouldEmitShadowPlayback) {
+                armBoardUpdateDuringPlayback(
+                    shouldEmitShadowPlayback ? (opts.shadowPlaybackSource || 'self_snapshot_sync') : 'network_snapshot',
+                    shouldEmitShadowPlayback ? 'snapshot_shadow_playback_board_sync' : 'snapshot_playback_board_sync'
+                );
+            }
             refreshUi();
 
             // After refreshUi consumed the suppressed shadow events for

@@ -1,6 +1,7 @@
 'use strict';
 
 const deepClone = require('./deepClone');
+const SharedBoardUtils = require('../shared/shared-board-utils');
 
 const PLAYER_KEYS = Object.freeze(['black', 'white']);
 const HIDDEN_HAND_TOKEN_PREFIX = '__hidden_hand__:';
@@ -236,6 +237,53 @@ function appendEffectLogMessages(...lists) {
     return normalizeEffectLogMessages(merged);
 }
 
+function normalizeRoomBoardConfig(value, fallbackBoard) {
+    const source = (value !== null && typeof value !== 'undefined') ? value : fallbackBoard;
+    if (SharedBoardUtils && typeof SharedBoardUtils.resolveBoardConfig === 'function') {
+        const normalized = SharedBoardUtils.resolveBoardConfig(source);
+        return normalized ? deepClone(normalized) : null;
+    }
+
+    const fallback = Array.isArray(source)
+        ? source
+        : ((source && Array.isArray(source.board)) ? source.board : (Array.isArray(fallbackBoard) ? fallbackBoard : null));
+    const rows = Number(value && value.rows);
+    const cols = Number(value && value.cols);
+    const fallbackRows = Array.isArray(fallback) ? fallback.length : NaN;
+    const fallbackCols = Array.isArray(fallback) && Array.isArray(fallback[0]) ? fallback[0].length : NaN;
+    const normalizedRows = Number.isFinite(rows) && rows > 0
+        ? Math.trunc(rows)
+        : (Number.isFinite(fallbackRows) && fallbackRows > 0 ? Math.trunc(fallbackRows) : 8);
+    const normalizedCols = Number.isFinite(cols) && cols > 0
+        ? Math.trunc(cols)
+        : (Number.isFinite(fallbackCols) && fallbackCols > 0 ? Math.trunc(fallbackCols) : 8);
+    return {
+        rows: normalizedRows,
+        cols: normalizedCols,
+        standard8x8: normalizedRows === 8 && normalizedCols === 8,
+        baseBounds: {
+            minRow: 0,
+            maxRow: normalizedRows - 1,
+            minCol: 0,
+            maxCol: normalizedCols - 1
+        },
+        outerBounds: {
+            minRow: -1,
+            maxRow: normalizedRows,
+            minCol: -1,
+            maxCol: normalizedCols
+        }
+    };
+}
+
+function resolveRoomBoardConfig(value) {
+    const source = (value && typeof value === 'object') ? value : {};
+    return normalizeRoomBoardConfig(
+        source.boardConfig || source.roomBoardConfig,
+        source.snapshot && source.snapshot.gameState && source.snapshot.gameState.board
+    );
+}
+
 function buildPublishResponsePayload(options) {
     const opts = (options && typeof options === 'object') ? options : {};
     const payload = {
@@ -264,6 +312,9 @@ function buildPublishResponsePayload(options) {
     }
     if (Object.prototype.hasOwnProperty.call(opts, 'playbackDiagnostics')) {
         payload.playbackDiagnostics = opts.playbackDiagnostics || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'roomBoardConfig')) {
+        payload.roomBoardConfig = opts.roomBoardConfig;
     }
 
     const publishMeta = normalizePublishMeta(opts.publishMeta);
@@ -703,6 +754,8 @@ module.exports = {
     normalizePublishMeta,
     normalizeEffectLogMessages,
     appendEffectLogMessages,
+    normalizeRoomBoardConfig,
+    resolveRoomBoardConfig,
     buildPublishResponsePayload,
     stripTransientPresentationState,
     stripTransientChargeDeltaState,

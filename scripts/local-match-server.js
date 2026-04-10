@@ -39,7 +39,7 @@ const CHAT_HISTORY_LIMIT = 40;
 const NETWORK_PLAYER_NAME_MAX = 7;
 const NETWORK_TURN_LIMIT_SECONDS = 120;
 const NETWORK_TURN_LIMIT_MS = NETWORK_TURN_LIMIT_SECONDS * 1000;
-const SSE_HEARTBEAT_INTERVAL_MS = 20000;
+const SSE_HEARTBEAT_INTERVAL_MS = 10000;
 const NETWORK_DEBUG_FILL_HAND_ACTION = 'debug_fill_hand';
 
 const rooms = new Map();
@@ -184,9 +184,9 @@ function isNetworkDebugFillHandPayload(value) {
 }
 
 function makeInitialSnapshot(seed, options) {
-    const gameState = Core.createGameState();
+    const opts = buildInitialDeckSnapshotOptions(options);
+    const gameState = Core.createGameState(opts.boardConfig);
     const prng = SeededPRNG.createPRNG(seed);
-    const opts = (options && typeof options === 'object') ? options : {};
     const cardState = CardLogic.createCardState(prng, opts);
 
     const startupEvents = [];
@@ -230,12 +230,20 @@ function resolveDeckSelection(rawDeckCodeValue) {
     }
 }
 
-function buildInitialDeckOptions(room) {
-    const byPlayer = room && room.initialDeckSpecByPlayer;
+function buildInitialDeckSnapshotOptions(room) {
+    const source = (room && typeof room === 'object') ? room : {};
+    const options = {};
+    const byPlayer = source.initialDeckSpecByPlayer;
     if (byPlayer && (byPlayer.black || byPlayer.white)) {
-        return { initialDeckSpecByPlayer: deepClone(byPlayer) };
+        options.initialDeckSpecByPlayer = deepClone(byPlayer);
+    } else if (source.initialDeckSpec && typeof source.initialDeckSpec === 'object') {
+        options.initialDeckSpec = deepClone(source.initialDeckSpec);
     }
-    return {};
+    const boardConfig = MatchAuthority.resolveRoomBoardConfig(source);
+    if (boardConfig) {
+        options.boardConfig = boardConfig;
+    }
+    return options;
 }
 
 function assignRoomDeckSelection(room, seatKey, deckSelection) {
@@ -331,7 +339,7 @@ function normalizeCardStateForTurnStart(room, snapshot) {
         : {};
     const currentPlayerKey = getCurrentPlayerKey(snapshot.gameState);
     const baselinePrng = SeededPRNG.createPRNG(createTurnStartSeed(room, snapshot, currentPlayerKey));
-    const baselineCardState = CardLogic.createCardState(baselinePrng, buildInitialDeckOptions(room));
+    const baselineCardState = CardLogic.createCardState(baselinePrng, buildInitialDeckSnapshotOptions(room));
     snapshot.cardState = mergeWithDefaultShape(baselineCardState, currentCardState);
     if (!Array.isArray(snapshot.cardState.presentationEvents)) {
         snapshot.cardState.presentationEvents = [];
@@ -476,6 +484,7 @@ function buildPublishPayload(room, viewerSeatKey, options = {}) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled,
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(options.playbackEvents) ? options.playbackEvents : [],
@@ -839,6 +848,10 @@ function toPublicRoomDeck(room) {
     return (room && room.roomDeck) ? deepClone(room.roomDeck) : null;
 }
 
+function toPublicRoomBoardConfig(room) {
+    return MatchAuthority.resolveRoomBoardConfig(room);
+}
+
 function toPublicNetworkDebugEnabled(room) {
     return !!(room && room.networkDebugEnabled === true);
 }
@@ -933,6 +946,7 @@ function buildHeartbeatPayload(room, serverTime) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
@@ -1054,6 +1068,7 @@ function buildSnapshotPayload(room, meta, viewerSeatKey) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
@@ -1080,6 +1095,7 @@ function buildPresencePayload(room, meta) {
         seats: toPublicSeats(room),
         seatNames,
         roomDeck: toPublicRoomDeck(room),
+        roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
@@ -1158,7 +1174,8 @@ function makeRoom(options) {
     }
 
     const seed = Date.now();
-    const snapshot = makeInitialSnapshot(seed);
+    const initialSnapshotOptions = buildInitialDeckSnapshotOptions(opts);
+    const snapshot = makeInitialSnapshot(seed, initialSnapshotOptions);
     const room = {
         roomId,
         seed,
@@ -1168,6 +1185,7 @@ function makeRoom(options) {
         seatNames: { black: '', white: '' },
         seatTokens: { black: makeSeatToken(), white: makeSeatToken() },
         roomDeck: null,
+        roomBoardConfig: initialSnapshotOptions.boardConfig || MatchAuthority.normalizeRoomBoardConfig(null),
         networkDebugEnabled: opts.networkDebugEnabled === true,
         turnTimer: createPausedTurnTimer({ snapshot }),
         lastAcceptedOperationBySeat: { black: null, white: null },
@@ -1251,6 +1269,7 @@ async function handleCreate(req, res) {
     const body = await parseBody(req);
     const playerName = normalizeNetworkPlayerName(body.playerName);
     const networkDebugEnabled = body.networkDebugEnabled === true;
+    const roomBoardConfig = MatchAuthority.normalizeRoomBoardConfig(body.roomBoardConfig);
     if (!playerName) {
         writeJson(res, 400, { ok: false, reason: 'PLAYER_NAME_REQUIRED' });
         return;
@@ -1262,7 +1281,7 @@ async function handleCreate(req, res) {
         return;
     }
 
-    const room = makeRoom({ networkDebugEnabled });
+    const room = makeRoom({ networkDebugEnabled, roomBoardConfig });
     room.seats.black = true;
     room.seatNames.black = playerName;
     if (deckSelection.hasCustomDeck) {
@@ -1281,6 +1300,7 @@ async function handleCreate(req, res) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         stateVersion: room.stateVersion,
         snapshot: toPublicSnapshot(room, 'black'),
@@ -1335,7 +1355,7 @@ async function handleJoin(req, res) {
     const hasTwoSeatsNow = hasTwoActiveSeats(room);
     let rebasedInitialSnapshot = false;
     if (!hadTwoSeats && hasTwoSeatsNow && room.stateVersion === 0) {
-        const nextSnapshot = makeInitialSnapshot(room.seed, buildInitialDeckOptions(room));
+        const nextSnapshot = makeInitialSnapshot(room.seed, buildInitialDeckSnapshotOptions(room));
         room.stateVersion = 1;
         nextSnapshot.stateVersion = room.stateVersion;
         nextSnapshot.updatedAt = Date.now();
@@ -1377,6 +1397,7 @@ async function handleJoin(req, res) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         stateVersion: room.stateVersion,
         snapshot: toPublicSnapshot(room, seatKey),
@@ -1425,6 +1446,7 @@ async function handleLeave(req, res) {
         ok: true,
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
+        roomBoardConfig: toPublicRoomBoardConfig(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
     });
@@ -1608,7 +1630,7 @@ async function handlePublish(req, res) {
     let serverPlaybackDiagnostics = null;
     if (isRematchResetAction) {
         const rematchSeed = Date.now();
-        nextSnapshot = makeInitialSnapshot(rematchSeed, buildInitialDeckOptions(room));
+        nextSnapshot = makeInitialSnapshot(rematchSeed, buildInitialDeckSnapshotOptions(room));
         room.seed = rematchSeed;
     } else if (hasCommandPayload) {
         const commandResult = applyCommandPublishToSnapshot(room, body, playerKey);
@@ -1796,6 +1818,7 @@ function handleState(req, res, urlObj) {
         seats: toPublicSeats(room),
         seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
+        roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         snapshot: toPublicSnapshot(room, viewerSeatKey),
         turnTimer: toPublicTurnTimer(room, serverTime),
@@ -1815,6 +1838,7 @@ function handleStream(req, res, urlObj) {
 
     const seatKey = parseSeatKeyOptional(urlObj.searchParams.get('seatKey') || '');
     const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
+    const resumeEventId = String(urlObj.searchParams.get('lastEventId') || '').trim();
     const viewerSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
     if (!viewerSeatKey) {
         writeJson(res, 403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
@@ -1832,7 +1856,7 @@ function handleStream(req, res, urlObj) {
     room.streams.set(streamId, { res, seatKey: viewerSeatKey });
     ensureHeartbeatLoop();
 
-    const lastEventId = String((req && req.headers && req.headers['last-event-id']) || '').trim();
+    const lastEventId = String((req && req.headers && req.headers['last-event-id']) || resumeEventId).trim();
     const replayEvents = MatchAuthority && typeof MatchAuthority.getBufferedSseReplayEvents === 'function'
         ? MatchAuthority.getBufferedSseReplayEvents(room.sseEventBuffer, lastEventId, viewerSeatKey)
         : null;
