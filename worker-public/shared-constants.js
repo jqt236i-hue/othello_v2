@@ -35,6 +35,12 @@
     // ===== GAME CONSTANTS (canonicalized) =====
     // These constants are the single source of truth for core game parameters.
     const BOARD_SIZE = 8;
+    const DEFAULT_BOARD_ROWS = 8;
+    const DEFAULT_BOARD_COLS = 8;
+    const MIN_BOARD_ROWS = 4;
+    const MAX_BOARD_ROWS = 10;
+    const MIN_BOARD_COLS = 4;
+    const MAX_BOARD_COLS = 10;
     const HAND_LIMIT = 5;
     const CHARGE_LIMIT = 3;
     const CHARGE_MAX = 99;
@@ -178,7 +184,7 @@
         { id: 'hyperactive_inherit_01', name: '多動の継承', type: 'HYPERACTIVE_INHERIT_WILL', cost: 11, desc: '盤面上の自分の石1つに多動状態を付与する。通常石・特殊石を問わず選択でき、他の状態とも併用可能。両者ターン開始時に1マス移動し、移動後に挟めば反転。反転対象時は1回だけマス移動で回避し、破壊対象時も1回だけ空きマスへ移動して回避する。持続は10ターン（所有者ターン開始時のみ減算）。' },
 
         // EXTREME_HYPERACTIVE_WILL (極悪多動魔) - 1 card, cost: 35
-        { id: 'extreme_hyperactive_01', name: '極悪多動魔', type: 'EXTREME_HYPERACTIVE_WILL', cost: 35, desc: '次に置く石を極悪多動魔化。ターン制限なしの多動状態となり、両者ターン開始時に周囲8マス（空き・占有）からランダム1マス移動。占有マスを選んだ場合はその石を1マス退避させてから進入し、退避先が無い場合はその石と位置交換して進入する。退避も位置交換もできる候補が無い場合は消滅する。移動後に挟めば反転し、隣接1マス（周囲8マス）の石を敵味方問わず遠ざかるように1マス退避させる。退避先が無い石はその場に残る。反転対象時はマス移動で回避し、最大3回まで。' },
+        { id: 'extreme_hyperactive_01', name: '極悪多動魔', type: 'EXTREME_HYPERACTIVE_WILL', cost: 35, desc: '次に置く石を極悪多動魔化。ターン制限なしの多動状態となり、両者ターン開始時に周囲8マス（空き・占有）からランダム1マス移動。占有マスを選んだ場合はその石を1マス退避させてから進入し、退避先が無い場合はその石と位置交換して進入する。退避も位置交換もできる候補が無い場合は消滅する。移動後に挟めば反転し、隣接1マス（周囲8マス）の石を敵味方問わず遠ざかるように1マス退避させる。退避先が無い石はその場に残る。反転対象時はマス移動で回避し、最大3回まで。破壊対象時も1回だけ空きマスへ移動して回避する。' },
 
         // ESCAPE_WILL (逃げる意志) - 1 card, cost: 12
         { id: 'escape_01', name: '逃げる意志', type: 'ESCAPE_WILL', cost: 12, desc: '次に置く石を逃亡石化。両者ターン開始時に近くの石から逃げるように1マス移動し、移動先で挟める場合は反転。反転対象時は1回だけマス移動で回避し、移動先が無いと周囲8マスを爆破して消滅。' },
@@ -192,9 +198,6 @@
 
         // INSTANT_HYPERACTIVE_WILL (瞬間多動) - 1 card, cost: 5
         { id: 'instant_hyperactive_01', name: '瞬間多動', type: 'INSTANT_HYPERACTIVE_WILL', cost: 5, desc: '次に置く石を瞬間多動石化。配置直後にランダム1マス移動を3回行い、各移動後に挟める場合は通常反転。最後に消滅する。' },
-
-        // SELL_CARD_WILL (売却の意志) - 1 card, cost: 8
-        { id: 'sell_01', name: '売却の意志', type: 'SELL_CARD_WILL', cost: 8, desc: 'カード使用後、自分の手札から1枚を売却し、そのカードのコスト分の布石を獲得する。' },
 
         // REBUILD_WILL (再構築の意志) - 1 card, cost: 0
         { id: 'rebuild_01', name: '再構築の意志', type: 'REBUILD_WILL', cost: 0, desc: '手札をすべて破壊し、新たに3枚ドローする。' },
@@ -282,7 +285,7 @@
         { id: 'observer_01', name: '盤理の観測者', type: 'OBSERVER_WILL', cost: 1, desc: '次に置く石を観測者石化。所有者ターン開始時に30%で発動し、布石を1〜5獲得。5ターン持続。' },
 
         // SALVATION_WILL (救済の意志) - 1 card, cost: 17
-        { id: 'salvation_01', name: '救済の意志', type: 'SALVATION_WILL', cost: 17, desc: '直前の相手ターンで破壊された自分の通常石をすべてランダムな空きマスへ配置する。対象0枚の時は使用不可。特殊石は対象外。各復活石は、そのマスを起点に通常の挟み反転を行う。' },
+        { id: 'salvation_01', name: '救済の意志', type: 'SALVATION_WILL', cost: 17, desc: '直前の相手ターンで破壊された全ての石を自分の通常石としてランダムな空きマスへ配置する。対象0枚の時は使用不可。対象は自分・相手、通常石・特殊石を問わない。各復活石は、そのマスを起点に通常の挟み反転を行う。' },
 
         // REINFORCEMENT_WILL (増援の意志) - 1 card, cost: 6
         { id: 'reinforcement_01', name: '増援の意志', type: 'REINFORCEMENT_WILL', cost: 6, desc: '盤面の角辺以外で石に隣接する空きマスからランダム1マスへ、自分色の通常石を1個配置する。' },
@@ -329,6 +332,7 @@
         'PROLIFERATION_WILL',
         'CLONE_WILL',
         'SPLIT_WILL',
+        'SEED_WILL',
         'TELEPORT_WILL',
         'CELL_TELEPORT_WILL',
         'CROSS_BOMB',
@@ -372,7 +376,6 @@
         'GLUTTONOUS_WILL',
         'WILL_HUNTER_KING',
         'INSTANT_HYPERACTIVE_WILL',
-        'SELL_CARD_WILL',
         'REBUILD_WILL',
         'SUPPLY_WILL',
         'REINFORCEMENT_WILL',
@@ -406,6 +409,12 @@
         EMPTY,
         DIRECTIONS,
         BOARD_SIZE,
+        DEFAULT_BOARD_ROWS,
+        DEFAULT_BOARD_COLS,
+        MIN_BOARD_ROWS,
+        MAX_BOARD_ROWS,
+        MIN_BOARD_COLS,
+        MAX_BOARD_COLS,
         HAND_LIMIT,
         CHARGE_LIMIT,
         CHARGE_MAX,
@@ -447,6 +456,12 @@
         window.DESTROY_FADE_MS = DESTROY_FADE_MS;
         // Expose new canonical game constants for browser usage
         window.BOARD_SIZE = BOARD_SIZE;
+        window.DEFAULT_BOARD_ROWS = DEFAULT_BOARD_ROWS;
+        window.DEFAULT_BOARD_COLS = DEFAULT_BOARD_COLS;
+        window.MIN_BOARD_ROWS = MIN_BOARD_ROWS;
+        window.MAX_BOARD_ROWS = MAX_BOARD_ROWS;
+        window.MIN_BOARD_COLS = MIN_BOARD_COLS;
+        window.MAX_BOARD_COLS = MAX_BOARD_COLS;
         window.HAND_LIMIT = HAND_LIMIT;
         window.CHARGE_LIMIT = CHARGE_LIMIT;
         window.CHARGE_MAX = CHARGE_MAX;

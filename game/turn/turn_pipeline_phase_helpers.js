@@ -22,7 +22,7 @@
         return Object.freeze(frozen);
     }
 
-    const SPECIAL_STONE_BUBBLE_SCENARIO_KEYS = Object.freeze(['place', 'destroy', 'duration_end', 'proliferation_triggered', 'time_stop_triggered', 'regen_triggered', 'ghost_protected', 'inherit_selected', 'inherit_applied', 'escape_exploded', 'absolute_protected_promoted', 'special_destroy_triggered'].map((key) => String(key)));
+    const SPECIAL_STONE_BUBBLE_SCENARIO_KEYS = Object.freeze(['place', 'destroy', 'duration_end', 'proliferation_triggered', 'time_stop_triggered', 'regen_triggered', 'ghost_protected', 'inherit_selected', 'inherit_applied', 'escape_exploded', 'absolute_protected_promoted', 'special_destroy_triggered', 'living_will_restored'].map((key) => String(key)));
 
     const SPECIAL_STONE_BUBBLE_SCENARIO_ALIASES = Object.freeze({
         placelines: 'place',
@@ -52,8 +52,20 @@
         absoluteprotectedpromoted: 'absolute_protected_promoted',
         'absolute-protected-promoted': 'absolute_protected_promoted',
         specialdestroytriggered: 'special_destroy_triggered',
-        'special-destroy-triggered': 'special_destroy_triggered'
+        'special-destroy-triggered': 'special_destroy_triggered',
+        livingwillrestored: 'living_will_restored',
+        'living-will-restored': 'living_will_restored',
+        revived: 'living_will_restored',
+        revive: 'living_will_restored'
     });
+
+    const GENERIC_LIVING_WILL_RESTORED_LINES = Object.freeze([
+        'まだ終わらない、ここから立て直す。',
+        '一度沈んだくらいで、この未練は消えない。',
+        '戻ってきた、もう一手ぶん働くよ。',
+        '消えたつもりなら誤算だ、私はまだ盤にいる。',
+        '生きる意志が残っていた、もう一度だけ立つ。'
+    ]);
 
     const SPECIAL_STONE_SCENARIO_BUBBLE_SPEECH = Object.freeze({
         PROTECTED: freezeSpeechScenarioCatalog({
@@ -306,25 +318,25 @@
         }),
         ESCAPE_HYPERACTIVE: freezeSpeechScenarioCatalog({
             place: [
-                '近寄るな、私は逃げるぞ。',
-                '生き残るためなら何だってする。',
-                '追われる前に走る、それが礼儀だ。',
-                'ここから先は逃走劇だ。',
-                '捕まる気は最初からない。',
+                '近寄らないで！ 私、逃げるから！',
+                '生き残るためなら何だってするよ！',
+                '追われる前に走るのが一番だよ！',
+                'ここから先は逃走劇だよ！',
+                '捕まるわけにはいかないの！',
             ],
             destroy: [
-                '逃げ損ねた景色って、どうして毎回同じなんだろうな。',
-                '包囲されるたび、前世の最期まで追いついてくる。',
-                '足場を奪われた時点で負けだった。',
-                '追手が多すぎた。',
-                '今回の逃走はここまで。',
+                '逃げ損ねるなんて、やっぱり悔しいよ…！',
+                '囲まれると、さすがに怖いよ…！',
+                '足場を奪われた時点で負けだったよ！',
+                '追手が多すぎるってば！',
+                '今回の逃走はここまでみたい…！',
             ],
             escape_exploded: [
-                '行き場がないなら、まとめて吹き飛べ。',
-                '逃げ道なし、なら爆ぜるだけだ。',
-                '追い詰めたつもりだろ、巻き添えだ。',
-                'もう無理だ、景気よく散る。',
-                '捕まるくらいなら盤ごと荒らす。',
+                '行き場がないなら、もう吹き飛ぶしかないよ！',
+                '逃げ道なしなら、景気よく爆ぜるね！',
+                '追い詰めたつもりでも、巻き添えだからね！',
+                'もう無理！ 派手に散ってやるんだから！',
+                '捕まるくらいなら盤ごと荒らしちゃうよ！',
             ],
         }),
         ROBOT_VACUUM: freezeSpeechScenarioCatalog({
@@ -550,7 +562,12 @@
                 '盤理は観測するためにある',
                 '観測最高！'
             ]),
-            lostLine: '盤理観測してる場合じゃなかったわ'
+            lostLine: '盤理観測してる場合じゃなかったわ',
+            living_will_restored: Object.freeze([
+                '観測再開っと、まだ盤理は追える。',
+                '消えかけたけど、観測ログは続行だよ。',
+                '戻った戻った、まだ盤面を見てるからね。'
+            ])
         }),
         WORK: Object.freeze({
             placeLines: Object.freeze([
@@ -560,6 +577,11 @@
                 '一攫千金や！'
             ]),
             lostLine: 'あああああああああああああ',
+            living_will_restored: Object.freeze([
+                'まだ稼げる！ ここから巻き返しや！',
+                '持ち直したで！ もうひと掘りや！',
+                '危なかったわ、でもまだ働けるで！'
+            ]),
             incomeLinesByStep: Object.freeze({
                 1: '布石＋1 初儲けや！',
                 2: '布石＋2 もっと掘るでー！',
@@ -640,7 +662,6 @@
         ROBOT_VACUUM_WILL: '敵を吸い込み移動',
         GLUTTONOUS_WILL: '敵を食べて進み2連続空腹で消滅',
         INSTANT_HYPERACTIVE_WILL: '即3回移動して消滅',
-        SELL_CARD_WILL: '手札売却で布石',
         REBUILD_WILL: '手札全破壊3ドロー',
         SUPPLY_WILL: '2ドロー',
         REINFORCEMENT_WILL: '内側の隣接マスへ通常石を増援',
@@ -690,6 +711,9 @@
         }
         if (key === 'destroy' && typeof speech.lostLine === 'string' && speech.lostLine) {
             return [speech.lostLine];
+        }
+        if (key === 'living_will_restored') {
+            return GENERIC_LIVING_WILL_RESTORED_LINES;
         }
         return null;
     }

@@ -8,7 +8,12 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
         '盤理は観測するためにある',
         '観測最高！'
       ],
-      lostLine: '盤理観測してる場合じゃなかったわ'
+      lostLine: '盤理観測してる場合じゃなかったわ',
+      living_will_restored: [
+        '観測再開っと、まだ盤理は追える。',
+        '消えかけたけど、観測ログは続行だよ。',
+        '戻った戻った、まだ盤面を見てるからね。'
+      ]
     });
 
     expect(phaseHelpers.getSpecialStoneBubbleSpeech('WORK')).toEqual({
@@ -19,6 +24,11 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
         '一攫千金や！'
       ],
       lostLine: 'あああああああああああああ',
+      living_will_restored: [
+        'まだ稼げる！ ここから巻き返しや！',
+        '持ち直したで！ もうひと掘りや！',
+        '危なかったわ、でもまだ働けるで！'
+      ],
       incomeLinesByStep: {
         1: '布石＋1 初儲けや！',
         2: '布石＋2 もっと掘るでー！',
@@ -42,7 +52,8 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
       'inherit_applied',
       'escape_exploded',
       'absolute_protected_promoted',
-      'special_destroy_triggered'
+      'special_destroy_triggered',
+      'living_will_restored'
     ]));
 
     const gluttonousPlaceLines = phaseHelpers.getSpecialStoneBubbleSpeechLines('GLUTTONOUS', 'place');
@@ -53,12 +64,39 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
     const ghostProtectedLines = phaseHelpers.getSpecialStoneBubbleSpeech('GHOST', 'ghost_protected');
     expect(ghostProtectedLines).toHaveLength(5);
     expect(ghostProtectedLines[0]).toBe('当たってないよ。');
+    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('ESCAPE_HYPERACTIVE', 'place')).toEqual([
+      '近寄らないで！ 私、逃げるから！',
+      '生き残るためなら何だってするよ！',
+      '追われる前に走るのが一番だよ！',
+      'ここから先は逃走劇だよ！',
+      '捕まるわけにはいかないの！'
+    ]);
+    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('ESCAPE_HYPERACTIVE', 'destroy')).toEqual([
+      '逃げ損ねるなんて、やっぱり悔しいよ…！',
+      '囲まれると、さすがに怖いよ…！',
+      '足場を奪われた時点で負けだったよ！',
+      '追手が多すぎるってば！',
+      '今回の逃走はここまでみたい…！'
+    ]);
+    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('ESCAPE_HYPERACTIVE', 'escape_exploded')).toEqual([
+      '行き場がないなら、もう吹き飛ぶしかないよ！',
+      '逃げ道なしなら、景気よく爆ぜるね！',
+      '追い詰めたつもりでも、巻き添えだからね！',
+      'もう無理！ 派手に散ってやるんだから！',
+      '捕まるくらいなら盤ごと荒らしちゃうよ！'
+    ]);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('INHERITED_HYPERACTIVE', 'inherit_selected')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('INHERITED_HYPERACTIVE', 'inherit_applied')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('PROLIFERATION', 'proliferation_triggered')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('WILL_HUNTER_KING', 'special_destroy_triggered')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('ESCAPE_HYPERACTIVE', 'escape_exploded')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('ABSOLUTE_PROTECTED', 'absolute_protected_promoted')).toHaveLength(5);
+    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('DRAGON', 'living_will_restored')).toHaveLength(5);
+    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('OBSERVER', 'living_will_restored')).toEqual([
+      '観測再開っと、まだ盤理は追える。',
+      '消えかけたけど、観測ログは続行だよ。',
+      '戻った戻った、まだ盤面を見てるからね。'
+    ]);
   });
 
   test('keeps excluded stones and unsupported scenarios out of the catalog', () => {

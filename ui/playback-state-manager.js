@@ -53,6 +53,27 @@
         return value;
     }
 
+    function getBoardElement(options) {
+        const config = (options && typeof options === 'object') ? options : {};
+        if (config.boardElement && typeof config.boardElement === 'object') return config.boardElement;
+        const target = getRoot();
+        try {
+            if (target && target.document && typeof target.document.getElementById === 'function') {
+                return target.document.getElementById('board');
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function setBoardLockActive(active, options) {
+        const boardElement = getBoardElement(options);
+        const locked = active === true;
+        if (boardElement && boardElement.classList && typeof boardElement.classList.toggle === 'function') {
+            boardElement.classList.toggle('playback-locked', locked);
+        }
+        return locked;
+    }
+
     let activePlaybackAbortHandle = null;
 
     function registerPlaybackAbortHandle(handle) {
@@ -160,6 +181,45 @@
         }
         const value = Number(rawValue);
         return Number.isFinite(value) ? value : null;
+    }
+
+    function getPresentationQueueState(source) {
+        const resolved = (source && typeof source === 'object')
+            ? source
+            : (function () {
+                const target = getRoot();
+                try {
+                    if (target && target.cardState && typeof target.cardState === 'object') return target.cardState;
+                } catch (e) { /* ignore */ }
+                try {
+                    if (typeof globalThis !== 'undefined' && globalThis && globalThis.cardState && typeof globalThis.cardState === 'object') {
+                        return globalThis.cardState;
+                    }
+                } catch (e) { /* ignore */ }
+                return null;
+            }());
+        const presentationEvents = Array.isArray(resolved && resolved.presentationEvents) ? resolved.presentationEvents : [];
+        const persistentEvents = Array.isArray(resolved && resolved._presentationEventsPersist) ? resolved._presentationEventsPersist : [];
+        const mergedEvents = presentationEvents.concat(persistentEvents);
+        return {
+            presentationEvents,
+            persistentEvents,
+            hasPending: mergedEvents.length > 0,
+            hasVisualPlayback: mergedEvents.some((ev) => ev && ev.type === 'PLAYBACK_EVENTS')
+        };
+    }
+
+    function getPresentationQueueEntries(source) {
+        const queueState = getPresentationQueueState(source);
+        return queueState.presentationEvents.concat(queueState.persistentEvents);
+    }
+
+    function hasPendingPresentationEvents(source) {
+        return getPresentationQueueState(source).hasPending === true;
+    }
+
+    function hasPendingVisualPlayback(source) {
+        return getPresentationQueueState(source).hasVisualPlayback === true;
     }
 
     function cloneBoardUpdateContext(context) {
@@ -293,6 +353,22 @@
         return true;
     }
 
+    function shouldDeferBoardUpdate(options) {
+        const opts = (options && typeof options === 'object') ? options : {};
+        if (shouldAllowSelectionEntryDuringPlayback(opts) === true) {
+            return false;
+        }
+        return getPlaybackActive() === true || hasPendingVisualPlayback(opts.cardState);
+    }
+
+    function shouldDeferUiSync(options) {
+        const opts = (options && typeof options === 'object') ? options : {};
+        if (shouldAllowSelectionEntryDuringPlayback(opts) === true) {
+            return false;
+        }
+        return getPlaybackActive() === true || hasPendingPresentationEvents(opts.cardState);
+    }
+
     function setBoardUpdateContext(context) {
         const next = normalizeBoardUpdateContext(context);
         setMirroredValue('__boardUpdateContext', next ? cloneBoardUpdateContext(next) : null);
@@ -349,153 +425,152 @@
         return !!(context && context.suppressFallbackFlip === true);
     }
 
-    function clearPlaybackLock() {
+    function beginPlayback(options) {
+        const opts = (options && typeof options === 'object') ? options : {};
+        setInteractionLock(true);
+        if (opts.startedAt === null) {
+            setPlaybackStartedAt(null);
+        } else {
+            ensurePlaybackStartedAt(opts.startedAt);
+        }
+        setBoardLockActive(true, opts);
+        return {
+            playbackActive: getPlaybackActive(),
+            isCardAnimating: getCardAnimating(),
+            isProcessing: getProcessing(),
+            startedAt: getPlaybackStartedAt()
+        };
+    }
+
+    function finalizePlayback(options) {
+        const opts = (options && typeof options === 'object') ? options : {};
+        if (Object.prototype.hasOwnProperty.call(opts, 'boardUpdateContext')) {
+            if (opts.boardUpdateContext) {
+                armBoardUpdateContext(opts.boardUpdateContext);
+            } else if (opts.clearBoardUpdateContext !== false) {
+                clearBoardUpdateContext();
+            }
+        } else if (opts.clearBoardUpdateContext === true) {
+            clearBoardUpdateContext();
+        }
+        if (opts.clearSelectionEntry !== false) {
+            clearSelectionEntryPlaybackContext();
+        }
+        setBusyState({ processing: false, cardAnimating: false, playbackActive: false });
+        setPlaybackStartedAt(null);
+        setBoardLockActive(false, opts);
+        if (typeof opts.emitBoardUpdate === 'function') {
+            opts.emitBoardUpdate();
+        }
+        return getBoardUpdateContext();
+    }
+
+    function clearPlaybackLock(options) {
         clearBoardUpdateContext();
         clearSelectionEntryPlaybackContext();
         setBusyState({ processing: false, cardAnimating: false, playbackActive: false });
+        setBoardLockActive(false, options);
         return true;
     }
 
-    function abortPlayback() {
+    function abortPlayback(options) {
         const abortHandle = activePlaybackAbortHandle;
         activePlaybackAbortHandle = null;
         if (abortHandle && typeof abortHandle.abort === 'function') {
             abortHandle.abort();
         }
-        clearPlaybackLock();
+        clearPlaybackLock(options);
         setPlaybackStartedAt(null);
         return true;
     }
 
-    function syncLegacyWindowFlags(options) {
-        const target = getRoot();
-        const config = (options && typeof options === 'object') ? options : {};
-        if (typeof config.readCardAnimating === 'function') {
-            setCardAnimating(config.readCardAnimating() === true);
-        } else if (Object.prototype.hasOwnProperty.call(config, 'cardAnimating')) {
-            setCardAnimating(config.cardAnimating === true);
+    var PlaybackRuntimeModule = null;
+
+    function getPlaybackRuntimeModule() {
+        if (PlaybackRuntimeModule) return PlaybackRuntimeModule;
+        if (typeof require === 'function') {
+            try {
+                PlaybackRuntimeModule = require('./playback-runtime');
+            } catch (e) {
+                PlaybackRuntimeModule = null;
+            }
         }
-        if (typeof config.readProcessing === 'function') {
-            setProcessing(config.readProcessing() === true);
-        } else if (Object.prototype.hasOwnProperty.call(config, 'processing')) {
-            setProcessing(config.processing === true);
+        if (!PlaybackRuntimeModule) {
+            try {
+                if (typeof globalThis !== 'undefined' && globalThis && globalThis.PlaybackRuntime) {
+                    PlaybackRuntimeModule = globalThis.PlaybackRuntime;
+                }
+            } catch (e) { /* ignore */ }
+        }
+        return PlaybackRuntimeModule;
+    }
+
+    function getRuntimePlaybackState() {
+        return {
+            getPlaybackActive,
+            setPlaybackActive,
+            ensurePlaybackStartedAt,
+            setPlaybackStartedAt,
+            getCardAnimating,
+            setCardAnimating,
+            getProcessing,
+            setProcessing,
+            setBusyState,
+            setInteractionLock,
+            getPlaybackStartedAt,
+            getBoardUpdateContext,
+            setBoardUpdateContext,
+            armBoardUpdateContext,
+            consumeBoardUpdateContext,
+            clearBoardUpdateContext,
+            getSelectionEntryPlaybackContext,
+            setSelectionEntryPlaybackContext,
+            armSelectionEntryPlaybackContext,
+            clearSelectionEntryPlaybackContext,
+            shouldAllowSelectionEntryDuringPlayback,
+            getSuppressNextDiffFlip,
+            setSuppressNextDiffFlip,
+            consumeSuppressNextDiffFlip,
+            registerPlaybackAbortHandle,
+            clearPlaybackAbortHandle,
+            abortPlayback,
+            clearPlaybackLock,
+            beginPlayback,
+            finalizePlayback,
+            getPresentationQueueState,
+            getPresentationQueueEntries,
+            hasPendingPresentationEvents,
+            hasPendingVisualPlayback,
+            shouldDeferBoardUpdate,
+            shouldDeferUiSync,
+            setBoardLockActive
+        };
+    }
+
+    function syncLegacyWindowFlags(options) {
+        const runtime = getPlaybackRuntimeModule();
+        if (runtime && typeof runtime.syncLegacyWindowFlags === 'function') {
+            return runtime.syncLegacyWindowFlags(getRuntimePlaybackState(), options);
         }
         return {
             isCardAnimating: getCardAnimating(),
-            isProcessing: getProcessing()
+            isProcessing: getProcessing(),
+            playbackActive: getPlaybackActive()
         };
     }
 
     function ensureDebugRuntime(options) {
-        const target = getRoot();
-        const config = (options && typeof options === 'object') ? options : {};
-        const readCardAnimating = (typeof config.readCardAnimating === 'function')
-            ? config.readCardAnimating
-            : function () { return target.isCardAnimating === true; };
-        const readProcessing = (typeof config.readProcessing === 'function')
-            ? config.readProcessing
-            : function () { return target.isProcessing === true; };
-        const requestAbortPlayback = (typeof config.abortPlayback === 'function')
-            ? config.abortPlayback
-            : function () {
-                try {
-                    if (target.AnimationEngine && typeof target.AnimationEngine.abortAndSync === 'function') {
-                        target.AnimationEngine.abortAndSync();
-                    }
-                } catch (e) { /* ignore */ }
-            };
-        const getBoardElement = (typeof config.getBoardElement === 'function')
-            ? config.getBoardElement
-            : function () {
-                try {
-                    if (target.document && typeof target.document.getElementById === 'function') {
-                        return target.document.getElementById('board');
-                    }
-                } catch (e) { /* ignore */ }
-                return null;
-            };
-        const mirrorIntervalMs = Number.isFinite(Number(config.mirrorIntervalMs))
-            ? Math.max(16, Math.trunc(Number(config.mirrorIntervalMs)))
-            : 100;
-        const watchdogIntervalMs = Number.isFinite(Number(config.watchdogIntervalMs))
-            ? Math.max(50, Math.trunc(Number(config.watchdogIntervalMs)))
-            : 500;
-        const watchdogTimeoutMs = Number.isFinite(Number(config.watchdogTimeoutMs))
-            ? Math.max(1000, Math.trunc(Number(config.watchdogTimeoutMs)))
-            : 15000;
-        const setIntervalImpl = (typeof setInterval === 'function')
-            ? setInterval
-            : ((typeof target.setInterval === 'function') ? target.setInterval.bind(target) : null);
-        const clearIntervalImpl = (typeof clearInterval === 'function')
-            ? clearInterval
-            : ((typeof target.clearInterval === 'function') ? target.clearInterval.bind(target) : null);
-
-        syncLegacyWindowFlags({
-            readCardAnimating,
-            readProcessing
-        });
-
-        if (setIntervalImpl && (typeof target._uiMirrorIntervalId === 'undefined' || target._uiMirrorIntervalId === null)) {
-            target._uiMirrorIntervalId = setIntervalImpl(function () {
-                try {
-                    syncLegacyWindowFlags({
-                        readCardAnimating,
-                        readProcessing
-                    });
-                } catch (e) { /* ignore */ }
-            }, mirrorIntervalMs);
+        const runtime = getPlaybackRuntimeModule();
+        if (runtime && typeof runtime.ensureDebugRuntime === 'function') {
+            return runtime.ensureDebugRuntime(getRuntimePlaybackState(), options);
         }
-
-        if (setIntervalImpl && (typeof target._playbackWatchdogId === 'undefined' || target._playbackWatchdogId === null)) {
-            target._playbackWatchdogId = setIntervalImpl(function () {
-                try {
-                    if (getPlaybackActive()) {
-                        const startedAt = ensurePlaybackStartedAt();
-                        if (startedAt !== null && (Date.now() - startedAt) > watchdogTimeoutMs) {
-                            requestAbortPlayback();
-                            if (getPlaybackActive()) {
-                                abortPlayback();
-                            }
-                            const board = getBoardElement();
-                            if (board && board.classList && typeof board.classList.remove === 'function') {
-                                board.classList.remove('playback-locked');
-                            }
-                        }
-                    } else {
-                        setPlaybackStartedAt(null);
-                    }
-                } catch (e) { /* ignore */ }
-            }, watchdogIntervalMs);
-        }
-
-        return {
-            mirrorIntervalId: target._uiMirrorIntervalId || null,
-            playbackWatchdogId: target._playbackWatchdogId || null,
-            clear: function () {
-                if (target._uiMirrorIntervalId !== null && typeof target._uiMirrorIntervalId !== 'undefined') {
-                    clearIntervalImpl(target._uiMirrorIntervalId);
-                    target._uiMirrorIntervalId = null;
-                }
-                if (target._playbackWatchdogId !== null && typeof target._playbackWatchdogId !== 'undefined') {
-                    clearIntervalImpl(target._playbackWatchdogId);
-                    target._playbackWatchdogId = null;
-                }
-            }
-        };
+        return null;
     }
 
     function clearDebugRuntime() {
-        const target = getRoot();
-        const clearIntervalImpl = (typeof clearInterval === 'function')
-            ? clearInterval
-            : ((typeof target.clearInterval === 'function') ? target.clearInterval.bind(target) : null);
-        if (target._uiMirrorIntervalId !== null && typeof target._uiMirrorIntervalId !== 'undefined') {
-            if (clearIntervalImpl) clearIntervalImpl(target._uiMirrorIntervalId);
-            target._uiMirrorIntervalId = null;
-        }
-        if (target._playbackWatchdogId !== null && typeof target._playbackWatchdogId !== 'undefined') {
-            if (clearIntervalImpl) clearIntervalImpl(target._playbackWatchdogId);
-            target._playbackWatchdogId = null;
+        const runtime = getPlaybackRuntimeModule();
+        if (runtime && typeof runtime.clearDebugRuntime === 'function') {
+            return runtime.clearDebugRuntime(getRuntimePlaybackState());
         }
         return true;
     }
@@ -511,6 +586,16 @@
         setBusyState,
         setInteractionLock,
         getPlaybackStartedAt,
+        ensurePlaybackStartedAt,
+        beginPlayback,
+        finalizePlayback,
+        setBoardLockActive,
+        getPresentationQueueState,
+        getPresentationQueueEntries,
+        hasPendingPresentationEvents,
+        hasPendingVisualPlayback,
+        shouldDeferBoardUpdate,
+        shouldDeferUiSync,
         getBoardUpdateContext,
         setBoardUpdateContext,
         armBoardUpdateContext,

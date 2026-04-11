@@ -6,6 +6,14 @@ describe('match-mode network button behavior', () => {
   let joinRoom;
   let leaveRoom;
 
+  function dispatchWheel(target, props) {
+    const ev = new dom.window.Event('wheel', { bubbles: true, cancelable: true });
+    const p = props || {};
+    Object.defineProperty(ev, 'deltaX', { value: p.deltaX ?? 0 });
+    Object.defineProperty(ev, 'deltaY', { value: p.deltaY ?? 0 });
+    target.dispatchEvent(ev);
+  }
+
   function buildUiRefs() {
     return {
       modeCpuBtn: document.getElementById('modeCpuBtn'),
@@ -15,6 +23,10 @@ describe('match-mode network button behavior', () => {
       networkServerInput: document.getElementById('networkServerInput'),
       networkPlayerNameInput: document.getElementById('networkPlayerNameInput'),
       networkRoomInput: document.getElementById('networkRoomIdInput'),
+      networkBoardSizeRowsInput: document.getElementById('networkBoardSizeRowsInput'),
+      networkBoardSizeColsInput: document.getElementById('networkBoardSizeColsInput'),
+      networkBoardSizeSummary: document.getElementById('networkBoardSizeSummary'),
+      networkBoardSizeNote: document.getElementById('networkBoardSizeNote'),
       networkEnableDebugCheckbox: document.getElementById('networkEnableDebugCheckbox'),
       networkCopyRoomBtn: document.getElementById('networkCopyRoomBtn'),
       networkCreateBtn: document.getElementById('networkCreateBtn'),
@@ -23,6 +35,7 @@ describe('match-mode network button behavior', () => {
       networkOverlay: document.getElementById('networkOverlay'),
       networkCloseBtn: document.getElementById('networkCloseBtn'),
       networkStatus: document.getElementById('networkStatusText'),
+      networkDeckInfo: document.getElementById('networkDeckInfo'),
       networkTimerStatus: document.getElementById('networkTimerStatus'),
       autoToggleBtn: document.getElementById('autoToggleBtn')
     };
@@ -41,6 +54,17 @@ describe('match-mode network button behavior', () => {
       '<input id="networkServerInput" type="text" />' +
       '<input id="networkPlayerNameInput" type="text" />' +
       '<input id="networkRoomIdInput" type="text" />' +
+      '<div id="networkBoardSizeRow">' +
+      '<div id="networkBoardSizeHeader"><span id="networkBoardSizeTitle">盤面サイズ</span><span id="networkBoardSizeSummary"></span></div>' +
+      '<div id="networkBoardSizeInputs">' +
+      '<label for="networkBoardSizeRowsInput">縦</label>' +
+      '<input id="networkBoardSizeRowsInput" type="number" value="8" />' +
+      '<span>x</span>' +
+      '<label for="networkBoardSizeColsInput">横</label>' +
+      '<input id="networkBoardSizeColsInput" type="number" value="8" />' +
+      '</div>' +
+      '<div id="networkBoardSizeNote"></div>' +
+      '</div>' +
       '<input id="networkEnableDebugCheckbox" type="checkbox" />' +
       '<button id="networkCopyRoomBtn">部屋番号コピー</button>' +
       '<button id="networkCreateBtn">部屋作成</button>' +
@@ -49,6 +73,7 @@ describe('match-mode network button behavior', () => {
       '<div id="networkOverlay"></div>' +
       '<button id="networkCloseBtn">閉じる</button>' +
       '<div id="networkStatusText"></div>' +
+      '<div id="networkDeckInfo"></div>' +
       '<div id="networkTimerStatus"></div>' +
       '</body></html>',
       { url: 'http://localhost/' }
@@ -127,6 +152,122 @@ describe('match-mode network button behavior', () => {
     expect(document.getElementById('modeCpuBtn').style.outline).toBe('');
     expect(document.getElementById('modeNetworkBtn').style.outline).not.toBe('');
     expect(leaveRoom).not.toHaveBeenCalled();
+  });
+
+  test('初期化直後に部屋盤面情報が未確定でも 8x8 表示へ安全にフォールバックする', () => {
+    expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: 標準デッキ / 作成時に送る盤面: 8x8');
+  });
+
+  test('ネット対戦モーダルの盤面サイズ変更は pending 表示と部屋作成 payload に反映される', async () => {
+    let localBoardConfig = { rows: 8, cols: 8, standard8x8: true };
+    const setLocalBoardConfig = jest.fn((nextBoardConfig) => {
+      const rows = Number.isFinite(Number(nextBoardConfig && nextBoardConfig.rows)) ? Number(nextBoardConfig.rows) : 8;
+      const cols = Number.isFinite(Number(nextBoardConfig && nextBoardConfig.cols)) ? Number(nextBoardConfig.cols) : 8;
+      localBoardConfig = {
+        rows,
+        cols,
+        standard8x8: rows === 8 && cols === 8
+      };
+    });
+
+    window.UIBootstrap = {
+      getRegisteredUIGlobals: jest.fn(() => ({
+        DeckBuilderController: {
+          getLocalBoardConfig: jest.fn(() => Object.assign({}, localBoardConfig)),
+          setLocalBoardConfig,
+          getActiveLocalChoice: jest.fn(() => ({ mode: 'standard', deckSize: 64 }))
+        }
+      }))
+    };
+
+    const networkBtn = document.getElementById('modeNetworkBtn');
+    const playerInput = document.getElementById('networkPlayerNameInput');
+    const rowsInput = document.getElementById('networkBoardSizeRowsInput');
+    const colsInput = document.getElementById('networkBoardSizeColsInput');
+    const createBtn = document.getElementById('networkCreateBtn');
+
+    networkBtn.click();
+    await Promise.resolve();
+
+    rowsInput.value = '7';
+    rowsInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    colsInput.value = '9';
+    colsInput.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+
+    expect(setLocalBoardConfig).toHaveBeenCalled();
+    expect(document.getElementById('networkBoardSizeSummary').textContent).toBe('7x9');
+    expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: 標準 64枚 / 作成時に送る盤面: 7x9');
+
+    playerInput.value = 'くろ';
+    createBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(createRoom).toHaveBeenCalledWith(expect.objectContaining({
+      playerName: 'くろ',
+      roomBoardConfig: expect.objectContaining({
+        rows: 7,
+        cols: 9,
+        standard8x8: false
+      })
+    }));
+  });
+
+  test('ネット対戦モーダルの盤面サイズ入力はホイールで 10x10 まで増減できる', async () => {
+    let localBoardConfig = { rows: 8, cols: 8, standard8x8: true };
+    const setLocalBoardConfig = jest.fn((nextBoardConfig) => {
+      const rows = Number.isFinite(Number(nextBoardConfig && nextBoardConfig.rows)) ? Number(nextBoardConfig.rows) : 8;
+      const cols = Number.isFinite(Number(nextBoardConfig && nextBoardConfig.cols)) ? Number(nextBoardConfig.cols) : 8;
+      localBoardConfig = {
+        rows,
+        cols,
+        standard8x8: rows === 8 && cols === 8
+      };
+    });
+
+    window.UIBootstrap = {
+      getRegisteredUIGlobals: jest.fn(() => ({
+        DeckBuilderController: {
+          getLocalBoardConfig: jest.fn(() => Object.assign({}, localBoardConfig)),
+          setLocalBoardConfig,
+          getActiveLocalChoice: jest.fn(() => ({ mode: 'standard', deckSize: 64 }))
+        }
+      }))
+    };
+
+    const networkBtn = document.getElementById('modeNetworkBtn');
+    const rowsInput = document.getElementById('networkBoardSizeRowsInput');
+    const colsInput = document.getElementById('networkBoardSizeColsInput');
+
+    networkBtn.click();
+    await Promise.resolve();
+
+    expect(rowsInput.max).toBe('10');
+    expect(colsInput.max).toBe('10');
+
+    dispatchWheel(rowsInput, { deltaY: -100 });
+    dispatchWheel(rowsInput, { deltaY: -100 });
+    dispatchWheel(rowsInput, { deltaY: -100 });
+    dispatchWheel(colsInput, { deltaY: -100 });
+    dispatchWheel(colsInput, { deltaY: -100 });
+
+    expect(setLocalBoardConfig).toHaveBeenCalled();
+    expect(document.getElementById('networkBoardSizeSummary').textContent).toBe('10x10');
+    expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: 標準 64枚 / 作成時に送る盤面: 10x10');
+  });
+
+  test('部屋盤面が確定したらネット対戦モーダルの盤面サイズ入力をロックする', () => {
+    const roomStateListener = window.NetworkMatchClient.setRoomStateListener.mock.calls[0][0];
+    expect(typeof roomStateListener).toBe('function');
+
+    roomStateListener({
+      roomBoardConfig: { rows: 7, cols: 8 }
+    });
+
+    expect(document.getElementById('networkBoardSizeRowsInput').disabled).toBe(true);
+    expect(document.getElementById('networkBoardSizeColsInput').disabled).toBe(true);
+    expect(document.getElementById('networkBoardSizeSummary').textContent).toBe('7x8 / 部屋固定');
+    expect(document.getElementById('networkBoardSizeNote').textContent).toBe('ネット対戦中は部屋で決めた盤面サイズを使います');
   });
 
   test('CPUボタン押下ではネット対戦からCPUへ戻る', async () => {

@@ -204,7 +204,7 @@ describe('UI bootstrap early CPU registration', () => {
       <div class="observer-speech-bubble"></div>
       <div id="handLayer" style="display:block">
         <div id="handWrapper" style="display:block;transform:translateX(5px)">
-          <svg id="handSvg"></svg>
+          <img id="handImage" />
           <div class="transient-card">dummy</div>
           <div id="heldStone" style="display:block"><div>dummy</div></div>
         </div>
@@ -278,7 +278,7 @@ describe('UI bootstrap early CPU registration', () => {
     expect(document.getElementById('handWrapper').style.transform).toBe('');
     expect(document.getElementById('handLayer').querySelector('.moving-card')).toBeNull();
     expect(document.getElementById('handWrapper').querySelector('.transient-card')).toBeNull();
-    expect(document.getElementById('handSvg')).not.toBeNull();
+    expect(document.getElementById('handImage')).not.toBeNull();
     expect(document.getElementById('heldStone')).not.toBeNull();
     expect(document.getElementById('heldStone').innerHTML).toBe('');
     expect(document.getElementById('heldStone').style.display).toBe('none');

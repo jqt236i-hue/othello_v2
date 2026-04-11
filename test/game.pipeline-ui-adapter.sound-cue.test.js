@@ -175,6 +175,49 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
+  test('board_shrink_selected 成功時は METEOR_HOLE の status_applied phase で stone_destroy を再生する', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 14,
+      targets: [{ r: 0, col: 7, after: { special: 'METEOR_HOLE' } }],
+      meta: { special: 'METEOR_HOLE' }
+    }];
+    const raw = [{
+      type: 'board_shrink_selected',
+      applied: true,
+      completed: true,
+      cardType: 'BOARD_SHRINK_WILL',
+      changedTargets: [{ row: 0, col: 7 }, { row: 7, col: 0 }, { row: 7, col: 7 }]
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(14);
+  });
+
+  test('board_shrink_selected が不成立なら stone_destroy を再生しない', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 10,
+      targets: [{ r: 0, col: 7, after: { special: 'METEOR_HOLE' } }],
+      meta: { special: 'METEOR_HOLE' }
+    }];
+    const raw = [{
+      type: 'board_shrink_selected',
+      applied: true,
+      completed: true,
+      cardType: 'BOARD_SHRINK_WILL',
+      changedTargets: []
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+
+    expect(cue).toBeUndefined();
+  });
+
   test('ROUND_BONUS_BANNER presentation event から round_bonus の sound_effect を追加する', () => {
     const base = [{
       type: 'round_bonus_banner',
@@ -759,26 +802,6 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue.phase).toBe(4);
   });
 
-  test('sell_selected 成功時は hand_remove の phase で charge_gain_common を再生する', () => {
-    const base = [{
-      type: 'hand_remove',
-      phase: 9,
-      targets: [{ player: 'black', count: 1, reason: 'sell_card_will', cardId: 'WORK_WILL_001' }]
-    }];
-    const raw = [{
-      type: 'sell_selected',
-      applied: true,
-      soldCardId: 'WORK_WILL_001',
-      gained: 6
-    }];
-
-    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
-    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'charge_gain_common');
-
-    expect(cue).toBeTruthy();
-    expect(cue.phase).toBe(9);
-  });
-
   test('corrosion_will_resolved は card_use_animation の phase で corrosion_tick を再生する', () => {
     const base = [{
       type: 'card_use_animation',
@@ -1016,6 +1039,49 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     expect(cue).toBeTruthy();
     expect(cue.phase).toBe(7);
+  });
+
+  test('種まきの意志の芽生えは seed_sprout の専用音を再生する', () => {
+    const base = [{
+      type: 'spawn',
+      phase: 8,
+      targets: [{ r: 2, col: 4, cause: 'SEED_WILL', reason: 'seed_sprout' }]
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const seedCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'seed_sprout');
+    const breedingCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'breeding_spawn');
+
+    expect(seedCue).toBeTruthy();
+    expect(seedCue.phase).toBe(8);
+    expect(breedingCue).toBeUndefined();
+  });
+
+  test('生きる意志の復活は spawn と flip の両方で専用音を再生する', () => {
+    const base = [
+      {
+        type: 'spawn',
+        phase: 9,
+        targets: [{ r: 1, col: 1, cause: 'LIVING_WILL', reason: 'living_will_restored' }]
+      },
+      {
+        type: 'flip',
+        phase: 10,
+        targets: [{ r: 4, col: 4, cause: 'LIVING_WILL', reason: 'living_will_restored', ownerBefore: -1, ownerAfter: 1 }]
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const livingCues = out
+      .filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'living_will_restored')
+      .map((ev) => ({ phase: ev.phase, sourceType: ev.meta && ev.meta.sourceType }));
+    const genericFlipCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_effect_flip');
+
+    expect(livingCues).toEqual([
+      { phase: 9, sourceType: 'living_will_restored' },
+      { phase: 10, sourceType: 'living_will_restored' }
+    ]);
+    expect(genericFlipCue).toBeUndefined();
   });
 
 

@@ -1,10 +1,10 @@
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'));
+        module.exports = factory(require('../../../shared-constants'), require('../../../shared/shared-board-utils'));
     } else {
-        root.CardExpansion = factory(root.SharedConstants);
+        root.CardExpansion = factory(root.SharedConstants, root.SharedBoardUtils || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (SharedConstants) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (SharedConstants, SharedBoardUtils) {
     'use strict';
 
     const {
@@ -14,18 +14,58 @@
         BOARD_SIZE,
         INITIAL_BOARD_BONUS_DISTRIBUTION
     } = SharedConstants || {};
+    const BoardUtils = SharedBoardUtils || null;
 
-    function isMainBoardCellForCard(row, col) {
-        const boardSize = Number.isInteger(BOARD_SIZE) ? BOARD_SIZE : 8;
-        return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < boardSize && col >= 0 && col < boardSize;
+    function resolveCardBoardConfig(boardOrConfig) {
+        if (BoardUtils && typeof BoardUtils.resolveBoardConfig === 'function') {
+            return BoardUtils.resolveBoardConfig(boardOrConfig);
+        }
+        const board = Array.isArray(boardOrConfig)
+            ? boardOrConfig
+            : (boardOrConfig && Array.isArray(boardOrConfig.board) ? boardOrConfig.board : null);
+        const rows = Array.isArray(board) && board.length > 0
+            ? board.length
+            : (Number.isInteger(BOARD_SIZE) ? BOARD_SIZE : 8);
+        const cols = Array.isArray(board) && Array.isArray(board[0]) && board[0].length > 0
+            ? board[0].length
+            : rows;
+        return {
+            rows,
+            cols,
+            standard8x8: rows === 8 && cols === 8,
+            baseBounds: {
+                minRow: 0,
+                maxRow: rows - 1,
+                minCol: 0,
+                maxCol: cols - 1
+            },
+            outerBounds: {
+                minRow: -1,
+                maxRow: rows,
+                minCol: -1,
+                maxCol: cols
+            }
+        };
     }
 
-    function resolveExpansionSideForCard(side, row, col) {
+    function isMainBoardCellForCard(row, col, boardOrConfig) {
+        if (BoardUtils && typeof BoardUtils.isMainBoardCell === 'function') {
+            return BoardUtils.isMainBoardCell(row, col, boardOrConfig);
+        }
+        const config = resolveCardBoardConfig(boardOrConfig);
+        return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < config.rows && col >= 0 && col < config.cols;
+    }
+
+    function resolveExpansionSideForCard(side, row, col, boardOrConfig) {
+        if (BoardUtils && typeof BoardUtils.resolveExpansionSide === 'function') {
+            return BoardUtils.resolveExpansionSide(side, row, col, boardOrConfig);
+        }
         if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-        if (col === -1) return 'left';
-        if (col === 8) return 'right';
-        if (row === -1) return 'top';
-        if (row === 8) return 'bottom';
+        const config = resolveCardBoardConfig(boardOrConfig);
+        if (col === config.outerBounds.minCol) return 'left';
+        if (col === config.outerBounds.maxCol) return 'right';
+        if (row === config.outerBounds.minRow) return 'top';
+        if (row === config.outerBounds.maxRow) return 'bottom';
         return null;
     }
 
@@ -33,11 +73,122 @@
         return (owner === BLACK || owner === WHITE) ? owner : EMPTY;
     }
 
-    function isExpansionCoordinateForCard(row, col) {
+    function isExpansionCoordinateForCard(row, col, boardOrConfig) {
+        if (BoardUtils && typeof BoardUtils.isExpansionCoordinate === 'function') {
+            return BoardUtils.isExpansionCoordinate(row, col, boardOrConfig);
+        }
         if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-        if (row < -1 || row > 8 || col < -1 || col > 8) return false;
-        if (isMainBoardCellForCard(row, col)) return false;
+        const config = resolveCardBoardConfig(boardOrConfig);
+        if (row < config.outerBounds.minRow || row > config.outerBounds.maxRow) return false;
+        if (col < config.outerBounds.minCol || col > config.outerBounds.maxCol) return false;
+        if (isMainBoardCellForCard(row, col, config)) return false;
         return true;
+    }
+
+    function getOpeningCellsForCard(boardOrConfig) {
+        if (BoardUtils && typeof BoardUtils.getOpeningCells === 'function') {
+            return BoardUtils.getOpeningCells(boardOrConfig);
+        }
+        const config = resolveCardBoardConfig(boardOrConfig);
+        const anchorRow = Math.floor((config.rows - 2) / 2);
+        const anchorCol = Math.floor((config.cols - 2) / 2);
+        return [
+            { row: anchorRow, col: anchorCol },
+            { row: anchorRow, col: anchorCol + 1 },
+            { row: anchorRow + 1, col: anchorCol },
+            { row: anchorRow + 1, col: anchorCol + 1 }
+        ];
+    }
+
+    function collectInitialBoardBonusCandidates(boardOrConfig) {
+        const config = resolveCardBoardConfig(boardOrConfig);
+        const blocked = new Set();
+        const orthogonalDirs = [
+            { dr: -1, dc: 0 },
+            { dr: 1, dc: 0 },
+            { dr: 0, dc: -1 },
+            { dr: 0, dc: 1 }
+        ];
+        const openingCells = getOpeningCellsForCard(config);
+        for (const cell of openingCells) {
+            blocked.add(`${cell.row},${cell.col}`);
+            for (const dir of orthogonalDirs) {
+                const nextRow = cell.row + dir.dr;
+                const nextCol = cell.col + dir.dc;
+                if (!isMainBoardCellForCard(nextRow, nextCol, config)) continue;
+                blocked.add(`${nextRow},${nextCol}`);
+            }
+        }
+
+        const cells = [];
+        for (let row = 0; row < config.rows; row++) {
+            for (let col = 0; col < config.cols; col++) {
+                if (blocked.has(`${row},${col}`)) continue;
+                cells.push({ row, col });
+            }
+        }
+        return cells;
+    }
+
+    function getNormalizedInitialBonusDistribution() {
+        const source = Array.isArray(INITIAL_BOARD_BONUS_DISTRIBUTION) && INITIAL_BOARD_BONUS_DISTRIBUTION.length > 0
+            ? INITIAL_BOARD_BONUS_DISTRIBUTION
+            : [
+                { value: 1, count: 9 },
+                { value: 2, count: 8 },
+                { value: 3, count: 6 },
+                { value: 4, count: 5 },
+                { value: 5, count: 4 },
+                { value: 6, count: 3 },
+                { value: 7, count: 2 },
+                { value: 8, count: 1 },
+                { value: 9, count: 1 },
+                { value: 10, count: 1 }
+            ];
+        return source.reduce((out, entry, index) => {
+            if (!entry) return out;
+            const value = Number(entry.value);
+            const count = Number(entry.count);
+            if (!Number.isInteger(value) || value < 1 || value > 10) return out;
+            if (!Number.isInteger(count) || count <= 0) return out;
+            out.push({ value, count, index });
+            return out;
+        }, []);
+    }
+
+    function scaleInitialBonusDistribution(distribution, targetCount) {
+        const normalizedTarget = Number.isFinite(Number(targetCount))
+            ? Math.max(0, Math.trunc(Number(targetCount)))
+            : 0;
+        if (!(normalizedTarget > 0)) return [];
+        const source = Array.isArray(distribution) ? distribution : [];
+        const sourceTotal = source.reduce((sum, entry) => sum + (Number(entry && entry.count) || 0), 0);
+        if (!(sourceTotal > 0)) return [];
+
+        const scaled = source.map((entry, index) => {
+            const exact = (entry.count * normalizedTarget) / sourceTotal;
+            return {
+                value: entry.value,
+                count: Math.floor(exact),
+                fraction: exact - Math.floor(exact),
+                index
+            };
+        });
+
+        let assigned = scaled.reduce((sum, entry) => sum + entry.count, 0);
+        let remaining = Math.max(0, normalizedTarget - assigned);
+        const priority = scaled
+            .slice()
+            .sort((a, b) => {
+                if (b.fraction !== a.fraction) return b.fraction - a.fraction;
+                return a.index - b.index;
+            });
+        for (let i = 0; i < priority.length && remaining > 0; i++) {
+            priority[i].count += 1;
+            assigned += 1;
+            remaining -= 1;
+        }
+        return scaled.filter((entry) => entry.count > 0);
     }
 
     function getExpansionDescriptorsForCard(gameState) {
@@ -45,6 +196,7 @@
             ? gameState.boardExpansion
             : null;
         if (!expansion) return [];
+        const boardConfig = resolveCardBoardConfig(gameState);
 
         const out = [];
         const pushDescriptor = (source, legacyRow, legacyOwner) => {
@@ -58,19 +210,19 @@
                 row = source.row;
                 col = source.col;
                 owner = source.owner;
-                if (!Number.isInteger(col) && side === 'left') col = -1;
-                if (!Number.isInteger(col) && side === 'right') col = 8;
+                if (!Number.isInteger(col) && side === 'left') col = boardConfig.outerBounds.minCol;
+                if (!Number.isInteger(col) && side === 'right') col = boardConfig.outerBounds.maxCol;
             } else {
                 side = source;
                 row = legacyRow;
-                if (side === 'left') col = -1;
-                if (side === 'right') col = 8;
+                if (side === 'left') col = boardConfig.outerBounds.minCol;
+                if (side === 'right') col = boardConfig.outerBounds.maxCol;
             }
 
-            if (!isExpansionCoordinateForCard(row, col)) return;
+            if (!isExpansionCoordinateForCard(row, col, boardConfig)) return;
             if (out.some((desc) => desc && desc.row === row && desc.col === col)) return;
             out.push({
-                side: resolveExpansionSideForCard(side, row, col),
+                side: resolveExpansionSideForCard(side, row, col, boardConfig),
                 row,
                 col,
                 owner: normalizeExpansionOwnerForCard(owner)
@@ -91,12 +243,12 @@
         return out;
     }
 
-    function syncLegacyExpansionFieldsForCard(expansion) {
+    function syncLegacyExpansionFieldsForCard(expansion, boardOrConfig) {
         if (!expansion || typeof expansion !== 'object') return;
         if (!Array.isArray(expansion.cells)) expansion.cells = [];
         const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
         expansion.active = !!latest;
-        expansion.side = latest ? resolveExpansionSideForCard(latest.side, latest.row, latest.col) : null;
+        expansion.side = latest ? resolveExpansionSideForCard(latest.side, latest.row, latest.col, boardOrConfig) : null;
         expansion.row = latest ? latest.row : null;
         expansion.owner = latest ? normalizeExpansionOwnerForCard(latest.owner) : EMPTY;
     }
@@ -129,24 +281,24 @@
             col: desc.col,
             owner: normalizeExpansionOwnerForCard(desc.owner)
         }));
-        syncLegacyExpansionFieldsForCard(expansion);
+        syncLegacyExpansionFieldsForCard(expansion, gameState);
         return expansion;
     }
 
     function writeExpansionDescriptorsForCard(gameState, cells) {
         const boardExpansion = ensureMutableBoardExpansionForCard(gameState);
         boardExpansion.cells = (Array.isArray(cells) ? cells : []).map((cell) => ({
-            side: resolveExpansionSideForCard(cell && cell.side, cell && cell.row, cell && cell.col),
+            side: resolveExpansionSideForCard(cell && cell.side, cell && cell.row, cell && cell.col, gameState),
             row: cell && cell.row,
             col: cell && cell.col,
             owner: normalizeExpansionOwnerForCard(cell && cell.owner)
         }));
-        syncLegacyExpansionFieldsForCard(boardExpansion);
+        syncLegacyExpansionFieldsForCard(boardExpansion, gameState);
         return boardExpansion;
     }
 
     function getCellValueForCard(gameState, row, col) {
-        if (isMainBoardCellForCard(row, col)) {
+        if (isMainBoardCellForCard(row, col, gameState)) {
             return (gameState && Array.isArray(gameState.board) && Array.isArray(gameState.board[row]))
                 ? gameState.board[row][col]
                 : null;
@@ -162,7 +314,7 @@
     }
 
     function setCellValueForCard(gameState, row, col, value) {
-        if (isMainBoardCellForCard(row, col)) {
+        if (isMainBoardCellForCard(row, col, gameState)) {
             if (!gameState || !Array.isArray(gameState.board) || !Array.isArray(gameState.board[row])) return false;
             gameState.board[row][col] = value;
             return true;
@@ -175,58 +327,67 @@
             if (!cell) continue;
             const cellCol = Number.isInteger(cell.col)
                 ? cell.col
-                : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : null));
+                : (cell.side === 'left'
+                    ? resolveCardBoardConfig(gameState).outerBounds.minCol
+                    : (cell.side === 'right' ? resolveCardBoardConfig(gameState).outerBounds.maxCol : null));
             if (!Number.isInteger(cellCol)) continue;
             if (cell.row === row && cellCol === col) {
                 expansion.cells[i] = {
-                    side: resolveExpansionSideForCard(cell.side, cell.row, cellCol),
+                    side: resolveExpansionSideForCard(cell.side, cell.row, cellCol, gameState),
                     row: cell.row,
                     col: cellCol,
                     owner: normalizedOwner
                 };
-                syncLegacyExpansionFieldsForCard(expansion);
+                syncLegacyExpansionFieldsForCard(expansion, gameState);
                 return true;
             }
         }
         return false;
     }
 
-    function getBoardExpansionGodCornerDescriptorsForCard() {
+    function getBoardExpansionGodCornerDescriptorsForCard(boardOrConfig) {
+        const config = resolveCardBoardConfig(boardOrConfig);
+        const lastRow = config.baseBounds.maxRow;
+        const lastCol = config.baseBounds.maxCol;
+        const outerMinRow = config.outerBounds.minRow;
+        const outerMaxRow = config.outerBounds.maxRow;
+        const outerMinCol = config.outerBounds.minCol;
+        const outerMaxCol = config.outerBounds.maxCol;
         return [
             {
                 row: 0,
                 col: 0,
                 cells: [
-                    { row: -1, col: 0 },
-                    { row: -1, col: -1 },
-                    { row: 0, col: -1 }
+                    { row: outerMinRow, col: 0 },
+                    { row: outerMinRow, col: outerMinCol },
+                    { row: 0, col: outerMinCol }
                 ]
             },
             {
                 row: 0,
-                col: 7,
+                col: lastCol,
                 cells: [
-                    { row: -1, col: 7 },
-                    { row: -1, col: 8 },
-                    { row: 0, col: 8 }
+                    { row: outerMinRow, col: lastCol },
+                    { row: outerMinRow, col: outerMaxCol },
+                    { row: 0, col: outerMaxCol }
                 ]
             },
             {
-                row: 7,
+                row: lastRow,
                 col: 0,
                 cells: [
-                    { row: 8, col: 0 },
-                    { row: 8, col: -1 },
-                    { row: 7, col: -1 }
+                    { row: outerMaxRow, col: 0 },
+                    { row: outerMaxRow, col: outerMinCol },
+                    { row: lastRow, col: outerMinCol }
                 ]
             },
             {
-                row: 7,
-                col: 7,
+                row: lastRow,
+                col: lastCol,
                 cells: [
-                    { row: 7, col: 8 },
-                    { row: 8, col: 8 },
-                    { row: 8, col: 7 }
+                    { row: lastRow, col: outerMaxCol },
+                    { row: outerMaxRow, col: outerMaxCol },
+                    { row: outerMaxRow, col: lastCol }
                 ]
             }
         ];
@@ -255,25 +416,27 @@
         return unique;
     }
 
-    function getBoardExpansionGodAdditionsForCard(row, col) {
-        const corner = getBoardExpansionGodCornerDescriptorsForCard().find((entry) => entry && entry.row === row && entry.col === col);
+    function getBoardExpansionGodAdditionsForCard(row, col, boardOrConfig) {
+        const corner = getBoardExpansionGodCornerDescriptorsForCard(boardOrConfig)
+            .find((entry) => entry && entry.row === row && entry.col === col);
         if (!corner || !Array.isArray(corner.cells)) return null;
         return corner.cells.map((cell) => ({ row: cell.row, col: cell.col }));
     }
 
-    function getBoardExpansionWillCellDescriptorsForCard() {
-        const boardSize = Number.isInteger(BOARD_SIZE) ? BOARD_SIZE : 8;
+    function getBoardExpansionWillCellDescriptorsForCard(boardOrConfig) {
+        const config = resolveCardBoardConfig(boardOrConfig);
         const cells = [];
-        for (let row = 0; row < boardSize; row++) {
-            cells.push({ row, col: -1, side: 'left' });
-            cells.push({ row, col: 8, side: 'right' });
+        for (let row = 0; row < config.rows; row++) {
+            cells.push({ row, col: config.outerBounds.minCol, side: 'left' });
+            cells.push({ row, col: config.outerBounds.maxCol, side: 'right' });
         }
         return cells;
     }
 
     function ensureExpansionCellForCard(gameState, row, col, owner) {
-        if (isMainBoardCellForCard(row, col)) return true;
-        if (!isExpansionCoordinateForCard(row, col)) return false;
+        const boardConfig = resolveCardBoardConfig(gameState);
+        if (isMainBoardCellForCard(row, col, boardConfig)) return true;
+        if (!isExpansionCoordinateForCard(row, col, boardConfig)) return false;
 
         const currentValue = getCellValueForCard(gameState, row, col);
         if (currentValue !== null) {
@@ -281,15 +444,15 @@
         }
 
         const validExpansionTargets = [];
-        validExpansionTargets.push(...getBoardExpansionWillCellDescriptorsForCard());
-        for (const corner of getBoardExpansionGodCornerDescriptorsForCard()) {
+        validExpansionTargets.push(...getBoardExpansionWillCellDescriptorsForCard(boardConfig));
+        for (const corner of getBoardExpansionGodCornerDescriptorsForCard(boardConfig)) {
             if (!corner || !Array.isArray(corner.cells)) continue;
             for (const cell of corner.cells) {
                 if (!cell) continue;
                 validExpansionTargets.push({
                     row: cell.row,
                     col: cell.col,
-                    side: resolveExpansionSideForCard(null, cell.row, cell.col)
+                    side: resolveExpansionSideForCard(null, cell.row, cell.col, boardConfig)
                 });
             }
         }
@@ -299,7 +462,7 @@
 
         const cells = getExpansionDescriptorsForCard(gameState);
         cells.push({
-            side: resolveExpansionSideForCard(matched.side, row, col),
+            side: resolveExpansionSideForCard(matched.side, row, col, boardConfig),
             row,
             col,
             owner: normalizeExpansionOwnerForCard(owner)
@@ -308,68 +471,23 @@
         return true;
     }
 
-    function buildInitialBoardBonusMap(prng) {
-        const boardSize = Number.isInteger(BOARD_SIZE) ? BOARD_SIZE : 8;
-        const center = Math.floor(boardSize / 2);
-        const initialStoneCells = [
-            { row: center - 1, col: center - 1 },
-            { row: center - 1, col: center },
-            { row: center, col: center - 1 },
-            { row: center, col: center }
-        ];
-        const orthogonalDirs = [
-            { dr: -1, dc: 0 },
-            { dr: 1, dc: 0 },
-            { dr: 0, dc: -1 },
-            { dr: 0, dc: 1 }
-        ];
-
-        const blocked = new Set();
-        for (const stone of initialStoneCells) {
-            blocked.add(`${stone.row},${stone.col}`);
-            for (const dir of orthogonalDirs) {
-                const nextRow = stone.row + dir.dr;
-                const nextCol = stone.col + dir.dc;
-                if (nextRow < 0 || nextRow >= boardSize || nextCol < 0 || nextCol >= boardSize) continue;
-                blocked.add(`${nextRow},${nextCol}`);
-            }
-        }
-
-        const allEmptyCells = [];
-        for (let row = 0; row < boardSize; row++) {
-            for (let col = 0; col < boardSize; col++) {
-                const key = `${row},${col}`;
-                if (blocked.has(key)) continue;
-                allEmptyCells.push({ row, col });
-            }
-        }
-
-        const distribution = Array.isArray(INITIAL_BOARD_BONUS_DISTRIBUTION) && INITIAL_BOARD_BONUS_DISTRIBUTION.length > 0
-            ? INITIAL_BOARD_BONUS_DISTRIBUTION
-            : [
-                { value: 1, count: 9 },
-                { value: 2, count: 8 },
-                { value: 3, count: 6 },
-                { value: 4, count: 5 },
-                { value: 5, count: 4 },
-                { value: 6, count: 3 },
-                { value: 7, count: 2 },
-                { value: 8, count: 1 },
-                { value: 9, count: 1 },
-                { value: 10, count: 1 }
-            ];
-
+    function buildInitialBoardBonusMap(prng, boardOrConfig) {
+        const distribution = getNormalizedInitialBonusDistribution();
+        const baseCandidates = collectInitialBoardBonusCandidates(resolveCardBoardConfig());
+        const candidates = collectInitialBoardBonusCandidates(boardOrConfig);
+        const baseCandidateCount = baseCandidates.length > 0 ? baseCandidates.length : 60;
+        const baseDistributionTotal = distribution.reduce((sum, entry) => sum + entry.count, 0);
+        const targetBonusCount = Math.min(
+            candidates.length,
+            Math.max(0, Math.round((candidates.length * baseDistributionTotal) / baseCandidateCount))
+        );
+        const scaledDistribution = scaleInitialBonusDistribution(distribution, targetBonusCount);
         const bonusValues = [];
-        for (const entry of distribution) {
-            if (!entry) continue;
-            const value = Number(entry.value);
-            const count = Number(entry.count);
-            if (!Number.isInteger(value) || value < 1 || value > 10) continue;
-            if (!Number.isInteger(count) || count <= 0) continue;
-            for (let i = 0; i < count; i++) bonusValues.push(value);
+        for (const entry of scaledDistribution) {
+            for (let i = 0; i < entry.count; i++) bonusValues.push(entry.value);
         }
 
-        const cells = allEmptyCells.slice();
+        const cells = candidates.slice();
         const values = bonusValues.slice();
         if (prng && typeof prng.shuffle === 'function') {
             prng.shuffle(cells);

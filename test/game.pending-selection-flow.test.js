@@ -97,7 +97,7 @@ describe('pending selection flow contracts', () => {
 
   test('shared contract distinguishes end-turn and continue-turn selections', () => {
     expect(flow.shouldDeferNetworkPublishForPendingType('GUARD_WILL')).toBe(true);
-    expect(flow.shouldDeferNetworkPublishForPendingType('SELL_CARD_WILL')).toBe(true);
+    expect(flow.shouldDeferNetworkPublishForPendingType('HEAVEN_BLESSING')).toBe(true);
     expect(flow.isSelectionOnlyEndTurnPendingType('GUARD_WILL')).toBe(false);
     expect(flow.isSelectionOnlyEndTurnPendingType('TRAP_WILL')).toBe(true);
   });
@@ -317,10 +317,10 @@ describe('pending selection flow contracts', () => {
       }
     };
 
-    const action = flow.createPendingSelectionAction('black', 'SELL_CARD_WILL', { sellCardId: 'sell_card' }, { cardState: global.cardState });
+    const action = flow.createPendingSelectionAction('black', 'HEAVEN_BLESSING', { heavenBlessingCardId: 'offer_card' }, { cardState: global.cardState });
 
     expect(action.type).toBe('place');
-    expect(action.sellCardId).toBe('sell_card');
+    expect(action.heavenBlessingCardId).toBe('offer_card');
     expect(action.deferNetworkPublish).toBe(true);
     expect(action.turnIndex).toBe(7);
   });

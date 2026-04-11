@@ -43,16 +43,6 @@ describe('cpu turn handler pending selection', () => {
     expect(mock).toHaveBeenCalledWith('white');
   });
 
-  test('SELL_CARD_WILL invokes cpuSelectSellCardWillWithPolicy when available', async () => {
-    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
-    global.cpuSelectSellCardWillWithPolicy = mock;
-    cardState.pendingEffectByPlayer.white = { type: 'SELL_CARD_WILL', stage: 'selectTarget' };
-
-    cpuHandler.processCpuTurn();
-    await waitTick();
-    expect(mock).toHaveBeenCalledWith('white');
-  });
-
   test('HEAVEN_BLESSING invokes cpuSelectHeavenBlessingWithPolicy when available', async () => {
     const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
     global.cpuSelectHeavenBlessingWithPolicy = mock;
@@ -279,6 +269,35 @@ describe('cpu turn handler pending selection', () => {
     expect(cardState.pendingEffectByPlayer.white).toBeNull();
   });
 
+  test('BOARD_SHRINK_WILL invokes cpuSelectBoardShrinkWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectBoardShrinkWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'BOARD_SHRINK_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('BOARD_SHRINK_GOD invokes cpuSelectBoardShrinkWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectBoardShrinkWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'BOARD_SHRINK_GOD', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('BOARD_SHRINK_GOD clears pending when function absent', async () => {
+    delete global.cpuSelectBoardShrinkWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'BOARD_SHRINK_GOD', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
   test('BLOCKADE_WILL invokes cpuSelectBlockadeWillWithPolicy when available', async () => {
     const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
     global.cpuSelectBlockadeWillWithPolicy = mock;
@@ -292,6 +311,25 @@ describe('cpu turn handler pending selection', () => {
   test('BLOCKADE_WILL clears pending when function absent', async () => {
     delete global.cpuSelectBlockadeWillWithPolicy;
     cardState.pendingEffectByPlayer.white = { type: 'BLOCKADE_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('SEED_WILL invokes cpuSelectSeedWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectSeedWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'SEED_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('SEED_WILL clears pending when function absent', async () => {
+    delete global.cpuSelectSeedWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'SEED_WILL', stage: 'selectTarget' };
 
     cpuHandler.processCpuTurn();
     await waitTick();

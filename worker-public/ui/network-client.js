@@ -13,13 +13,14 @@
     const RECONNECT_MAX_EXPONENT = 7;
     const REQUEST_TIMEOUT_MS = 10000;
     const STREAM_WATCHDOG_INTERVAL_MS = 5000;
-    const STREAM_STALE_TIMEOUT_MS = 45000;
+    const STREAM_STALE_TIMEOUT_MS = 25000;
     const RECONNECT_STREAM_RECOVERY_WAIT_MS = 350;
     const PUBLISH_RETRY_MAX_ATTEMPTS = 3;
     const PUBLISH_RETRY_BASE_DELAY_MS = 400;
     const PUBLISH_RETRY_MAX_DELAY_MS = 4000;
     const PUBLISH_TRACKER_MAX_OPERATIONS = 32;
     const PUBLISH_TRACKER_RETENTION_MS = 60000;
+    const NETWORK_LOCAL_PENDING_HINT_TTL_MS = 45000;
     const NETWORK_TELEMETRY_RECENT_LIMIT = 40;
     const PlaybackStateModule = (typeof require === 'function')
         ? (() => {
@@ -81,11 +82,10 @@
         return contract.kind !== 'hand_overlay';
     }
 
-    function buildPendingCardUsePlaybackEvents(playerKey, ownerKey, cardId, cardType) {
+    function buildPendingCardUsePlaybackEvents(playerKey, cardId, cardType) {
         if (!cardId) return [];
 
         const normalizedPlayerKey = normalizePlayerKey(playerKey);
-        const normalizedOwnerKey = normalizePlayerKey(ownerKey || playerKey);
         const cardLogic = resolveCardLogicModule();
         const cardDef = (cardLogic && typeof cardLogic.getCardDef === 'function')
             ? cardLogic.getCardDef(cardId)
@@ -114,7 +114,7 @@
                 phase: 1,
                 targets: [{
                     player: normalizedPlayerKey,
-                    owner: normalizedOwnerKey,
+                    owner: normalizedPlayerKey,
                     cardId,
                     cardType: resolvedCardType,
                     cost,
@@ -156,48 +156,6 @@
             }
         } catch (e) { /* ignore */ }
         clearBoardUpdateContext();
-    }
-
-    let uiBootstrapModule = null;
-
-    function resolveUIBootstrapModule() {
-        if (uiBootstrapModule) return uiBootstrapModule;
-
-        try {
-            if (root && root.UIBootstrap && typeof root.UIBootstrap === 'object') {
-                uiBootstrapModule = root.UIBootstrap;
-                return uiBootstrapModule;
-            }
-        } catch (e) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && globalThis.UIBootstrap && typeof globalThis.UIBootstrap === 'object') {
-                uiBootstrapModule = globalThis.UIBootstrap;
-                return uiBootstrapModule;
-            }
-        } catch (e) { /* ignore */ }
-
-        try {
-            if (typeof require === 'function') {
-                uiBootstrapModule = require('./bootstrap');
-                if (uiBootstrapModule) return uiBootstrapModule;
-            }
-        } catch (e) { /* ignore */ }
-
-        return null;
-    }
-
-    function resetTransientUiForRoomTransition() {
-        try {
-            const uiBootstrap = resolveUIBootstrapModule();
-            if (uiBootstrap && typeof uiBootstrap.resetTransientUIState === 'function') {
-                uiBootstrap.resetTransientUIState();
-                return true;
-            }
-        } catch (e) { /* ignore */ }
-
-        clearPlaybackStateForLeave();
-        return false;
     }
 
     function armSuppressDiffBoardUpdateContext(reason) {
@@ -311,17 +269,16 @@
         roomId: '',
         seatKey: 'black',
         seatToken: '',
-        sessionEpoch: 0,
-        sessionTransitionToken: 0,
-        streamEpoch: 0,
         roomSeats: { black: false, white: false },
         seatNames: { black: '', white: '' },
         roomDeck: null,
+        roomBoardConfig: null,
         networkDebugEnabled: false,
         serverUrl: deriveInitialServerUrl(),
         stateVersion: null,
         eventSource: null,
         lastStreamActivityAt: 0,
+        lastStreamEventId: '',
         streamWatchdogTimerId: 0,
         statusWriter: null,
         roomStateListener: null,
@@ -352,6 +309,10 @@
         heartbeatResyncInFlight: false,
         reconnectRecoveryTimerId: null,
         reconnectRecoveryPending: false,
+        appliedStateVersion: null,
+        pendingForceSyncPlaybackVersion: null,
+        pendingForceSyncPlaybackSource: '',
+        pendingForceSyncPlaybackSignature: '',
         authoritativeMatchState: {
             gameState: null,
             cardState: null,
@@ -643,70 +604,6 @@
         }
     }
 
-    function getSessionEpoch() {
-        return Number.isFinite(Number(state.sessionEpoch))
-            ? Number(state.sessionEpoch)
-            : 0;
-    }
-
-    function bumpSessionEpoch() {
-        const nextEpoch = getSessionEpoch() + 1;
-        state.sessionEpoch = nextEpoch;
-        return nextEpoch;
-    }
-
-    function createActiveSessionGuard() {
-        return { sessionEpoch: getSessionEpoch() };
-    }
-
-    function isActiveSessionGuardCurrent(guard) {
-        if (!guard || typeof guard !== 'object') return false;
-        return Number(guard.sessionEpoch) === getSessionEpoch();
-    }
-
-    function beginSessionTransition() {
-        const nextToken = Number.isFinite(Number(state.sessionTransitionToken))
-            ? Number(state.sessionTransitionToken) + 1
-            : 1;
-        state.sessionTransitionToken = nextToken;
-        return nextToken;
-    }
-
-    function isSessionTransitionCurrent(token) {
-        return Number(token) === (Number.isFinite(Number(state.sessionTransitionToken))
-            ? Number(state.sessionTransitionToken)
-            : 0);
-    }
-
-    function invalidateStreamEpoch() {
-        const nextEpoch = Number.isFinite(Number(state.streamEpoch))
-            ? Number(state.streamEpoch) + 1
-            : 1;
-        state.streamEpoch = nextEpoch;
-        return nextEpoch;
-    }
-
-    function getStreamEpoch() {
-        return Number.isFinite(Number(state.streamEpoch))
-            ? Number(state.streamEpoch)
-            : 0;
-    }
-
-    function isCurrentStreamGuard(streamEpoch, eventSource, sessionGuard) {
-        if (sessionGuard && !isActiveSessionGuardCurrent(sessionGuard)) return false;
-        return Number(streamEpoch) === getStreamEpoch() && state.eventSource === eventSource;
-    }
-
-    function createStaleSessionError() {
-        const error = new Error('STALE_SESSION');
-        error.code = 'STALE_SESSION';
-        return error;
-    }
-
-    function isStaleSessionError(error) {
-        return !!(error && (error.code === 'STALE_SESSION' || error.message === 'STALE_SESSION'));
-    }
-
     function cloneReadableNetworkStateValue(value, fallbackValue) {
         if (typeof value === 'undefined') return fallbackValue;
         try {
@@ -760,6 +657,7 @@
             roomSeats: cloneReadableNetworkStateValue(state.roomSeats || { black: false, white: false }, { black: false, white: false }),
             seatNames: cloneReadableNetworkStateValue(state.seatNames || { black: '', white: '' }, { black: '', white: '' }),
             roomDeck: cloneReadableNetworkStateValue(state.roomDeck, null),
+            roomBoardConfig: cloneReadableNetworkStateValue(state.roomBoardConfig, null),
             networkDebugEnabled: state.networkDebugEnabled === true,
             stateVersion: Number.isFinite(Number(state.stateVersion)) ? Number(state.stateVersion) : null,
             publishTracker: {
@@ -788,6 +686,93 @@
             projectedForSeat: normalizePlayerKey(meta.projectedForSeat),
             turnStartReconciled: meta.turnStartReconciled !== false
         };
+    }
+
+    function getAppliedStateVersion() {
+        if (Number.isFinite(Number(state.appliedStateVersion))) {
+            return Number(state.appliedStateVersion);
+        }
+        return Number.isFinite(Number(state.stateVersion))
+            ? Number(state.stateVersion)
+            : null;
+    }
+
+    function computeForceSyncPlaybackRecoverySignature(snapshot) {
+        if (!snapshot || typeof snapshot !== 'object') return '';
+        if (!snapshot.gameState || typeof snapshot.gameState !== 'object') return '';
+        if (!snapshot.cardState || typeof snapshot.cardState !== 'object') return '';
+        try {
+            const signatureCardState = cloneDataForCommandPayload(snapshot.cardState);
+            delete signatureCardState.presentationEvents;
+            delete signatureCardState._presentationEventsPersist;
+            delete signatureCardState.chargeDeltaEvents;
+            return JSON.stringify({
+                gameState: cloneDataForCommandPayload(snapshot.gameState),
+                cardState: signatureCardState
+            });
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function clearPendingForceSyncPlaybackRecovery() {
+        state.pendingForceSyncPlaybackVersion = null;
+        state.pendingForceSyncPlaybackSource = '';
+        state.pendingForceSyncPlaybackSignature = '';
+    }
+
+    function rememberPendingForceSyncPlaybackRecovery(snapshot, options) {
+        const opts = (options && typeof options === 'object') ? options : {};
+        const snapshotVersion = getSnapshotStateVersion(snapshot);
+        const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
+        if (snapshotVersion === null) {
+            clearPendingForceSyncPlaybackRecovery();
+            return false;
+        }
+        if (opts.force !== true || playbackEvents.length > 0) {
+            const pendingVersion = Number.isFinite(Number(state.pendingForceSyncPlaybackVersion))
+                ? Number(state.pendingForceSyncPlaybackVersion)
+                : null;
+            if (pendingVersion !== null && snapshotVersion >= pendingVersion) {
+                clearPendingForceSyncPlaybackRecovery();
+            }
+            return false;
+        }
+        state.pendingForceSyncPlaybackVersion = snapshotVersion;
+        state.pendingForceSyncPlaybackSource = typeof opts.source === 'string' ? opts.source : '';
+        state.pendingForceSyncPlaybackSignature = computeForceSyncPlaybackRecoverySignature(snapshot);
+        return true;
+    }
+
+    function consumePendingForceSyncPlaybackRecovery(snapshotOrVersion) {
+        const snapshotVersion = Number.isFinite(Number(snapshotOrVersion))
+            ? Number(snapshotOrVersion)
+            : getSnapshotStateVersion(snapshotOrVersion);
+        const pendingVersion = Number.isFinite(Number(state.pendingForceSyncPlaybackVersion))
+            ? Number(state.pendingForceSyncPlaybackVersion)
+            : null;
+        if (snapshotVersion === null || pendingVersion === null || snapshotVersion < pendingVersion) {
+            return false;
+        }
+        clearPendingForceSyncPlaybackRecovery();
+        return true;
+    }
+
+    function shouldRecoverForceSyncedStreamPlayback(snapshot, playbackEvents) {
+        const pendingVersion = Number.isFinite(Number(state.pendingForceSyncPlaybackVersion))
+            ? Number(state.pendingForceSyncPlaybackVersion)
+            : null;
+        const pendingSignature = typeof state.pendingForceSyncPlaybackSignature === 'string'
+            ? state.pendingForceSyncPlaybackSignature
+            : '';
+        const snapshotVersion = getSnapshotStateVersion(snapshot);
+        const localVersion = getAppliedStateVersion();
+        if (pendingVersion === null || snapshotVersion === null) return false;
+        if (snapshotVersion !== pendingVersion) return false;
+        if (!Array.isArray(playbackEvents) || playbackEvents.length <= 0) return false;
+        if (shouldSkipForceSyncSnapshot(snapshot)) return false;
+        if (pendingSignature && computeForceSyncPlaybackRecoverySignature(snapshot) !== pendingSignature) return false;
+        return localVersion === snapshotVersion;
     }
 
     function isVersionConflictReason(reasonValue) {
@@ -839,7 +824,7 @@
         if (isVersionConflictReason(reason) && localStateVersionBefore !== null && snapshotVersion === localStateVersionBefore) {
             return { shouldApplySnapshot: false, skipReason: 'same_version_version_mismatch', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
         }
-        if (shouldSkipForceSyncSnapshot(snapshot)) {
+        if (shouldSkipForceSyncSnapshot(snapshot, { ignoreSequence: entry && entry.sequence })) {
             return { shouldApplySnapshot: false, skipReason: 'skip_force_sync_guard', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
         }
         return { shouldApplySnapshot: true, skipReason: null, snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
@@ -1114,9 +1099,7 @@
             : null;
         if (remoteVersion === null) return;
 
-        const localVersion = Number.isFinite(Number(state.stateVersion))
-            ? Number(state.stateVersion)
-            : null;
+        const localVersion = getAppliedStateVersion();
 
         if (localVersion !== null && remoteVersion <= localVersion) return;
         if (state.heartbeatResyncInFlight) return;
@@ -1300,9 +1283,41 @@
         entry.resultOverlayVersion = getSnapshotStateVersion(snapshot);
     }
 
-    function hasPendingLocalPublishes() {
+    function hasPendingLocalPublishes(options) {
+        const opts = (options && typeof options === 'object') ? options : {};
+        const ignoredSequence = Number.isFinite(Number(opts.ignoreSequence))
+            ? Number(opts.ignoreSequence)
+            : null;
         const operations = pruneTrackedPublishes();
-        return operations.some((entry) => entry && (entry.phase === 'queued' || entry.phase === 'inflight'));
+        return operations.some((entry) => {
+            if (!entry || (entry.phase !== 'queued' && entry.phase !== 'inflight')) return false;
+            if (ignoredSequence === null) return true;
+            return Number(entry.sequence) !== ignoredSequence;
+        });
+    }
+
+    function hasLocalDeferredPendingHint() {
+        const localCardState = (root && root.cardState && typeof root.cardState === 'object')
+            ? root.cardState
+            : ((typeof globalThis !== 'undefined' && globalThis.cardState && typeof globalThis.cardState === 'object')
+                ? globalThis.cardState
+                : null);
+        if (!localCardState || typeof localCardState !== 'object') return false;
+        const pendingByPlayer = localCardState.pendingEffectByPlayer;
+        if (!pendingByPlayer || typeof pendingByPlayer !== 'object') return false;
+        const seatKey = normalizePlayerKey(state.seatKey);
+        const pending = pendingByPlayer[seatKey];
+        if (!pending || typeof pending !== 'object') return false;
+        if (pending.__networkLocalHint !== true) return false;
+        const hintSetAt = Number.isFinite(Number(pending.__networkLocalHintSetAt))
+            ? Number(pending.__networkLocalHintSetAt)
+            : null;
+        if (hintSetAt === null || (Date.now() - hintSetAt) > NETWORK_LOCAL_PENDING_HINT_TTL_MS) {
+            return false;
+        }
+        const pendingType = pending.type ? String(pending.type) : '';
+        const contract = resolvePendingSelectionContract(pendingType);
+        return !!(contract && contract.deferNetworkPublish === true);
     }
 
     function hasNewerQueuedPublish(sequence) {
@@ -1362,6 +1377,12 @@
         if (applied && trackedPublish) {
             markTrackedPublishSnapshotApplied(trackedPublish, snapshot, source);
         }
+        if (applied) {
+            const appliedVersion = getSnapshotStateVersion(snapshot);
+            if (appliedVersion !== null) {
+                state.appliedStateVersion = appliedVersion;
+            }
+        }
         return applied;
     }
 
@@ -1376,13 +1397,16 @@
         return gameState.currentPlayer === -1;
     }
 
-    function shouldSkipForceSyncSnapshot(snapshot) {
-        if (!hasPendingLocalPublishes()) return false;
-
+    function shouldSkipForceSyncSnapshot(snapshot, options) {
         const remoteVersion = getSnapshotStateVersion(snapshot);
-        const localVersion = Number.isFinite(Number(state.stateVersion))
-            ? Number(state.stateVersion)
-            : null;
+        const localVersion = getAppliedStateVersion();
+        const pendingLocalPublish = hasPendingLocalPublishes(options);
+        const preserveLocalPendingHint = hasLocalDeferredPendingHint()
+            && remoteVersion !== null
+            && localVersion !== null
+            && remoteVersion <= localVersion;
+
+        if (!pendingLocalPublish && !preserveLocalPendingHint) return false;
 
         if (remoteVersion === null) return true;
         if (localVersion === null) return false;
@@ -1410,21 +1434,15 @@
         const baseDelayMs = Number.isFinite(Number(opts.baseDelayMs))
             ? Math.max(100, Math.trunc(Number(opts.baseDelayMs)))
             : 350;
-        const sessionGuard = isActiveSessionGuardCurrent(opts.sessionGuard)
-            ? opts.sessionGuard
-            : createActiveSessionGuard();
 
         let lastError = null;
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-            if (!isActiveSessionGuardCurrent(sessionGuard)) {
-                return { ok: false, reason: 'STALE_SESSION' };
-            }
             if (!isActive()) {
                 return { ok: false, reason: 'INACTIVE' };
             }
 
             try {
-                const result = await syncLatestState({ sessionGuard });
+                const result = await syncLatestState();
                 if (result && result.ok === true) {
                     return result;
                 }
@@ -1645,10 +1663,20 @@
                 hasShadowPlaybackEvents: !!(options && Array.isArray(options.shadowPlaybackEvents) && options.shadowPlaybackEvents.length > 0)
             });
         }
-        return invokeControllerMethod(getNetworkSnapshotController, 'applySnapshot', arguments, false);
+        const applied = invokeControllerMethod(getNetworkSnapshotController, 'applySnapshot', arguments, false);
+        if (applied) {
+            const snapshotVersion = getSnapshotStateVersion(snapshot);
+            if (snapshotVersion !== null) {
+                state.appliedStateVersion = snapshotVersion;
+            }
+        }
+        return applied;
     }
 
     function activateSessionFromResponse(data, fallbackRoomId) {
+        state.lastStreamEventId = '';
+        state.appliedStateVersion = getSnapshotStateVersion(data && data.snapshot);
+        clearPendingForceSyncPlaybackRecovery();
         invokeControllerMethod(getNetworkSessionSeatController, 'activateSessionFromResponse', arguments, undefined);
     }
 
@@ -1664,12 +1692,11 @@
         }
     }
 
-    function createStreamPayloadHandler(payloadHandler, shouldAcceptEvent) {
+    function createStreamPayloadHandler(payloadHandler) {
         return function handleParsedStreamEvent(event) {
-            if (typeof shouldAcceptEvent === 'function' && shouldAcceptEvent() !== true) return;
             const payload = parseStreamEventPayload(event);
             if (!payload) return;
-            if (typeof shouldAcceptEvent === 'function' && shouldAcceptEvent() !== true) return;
+            rememberStreamEventId(event);
             markStreamActivity();
             payloadHandler(payload);
         };
@@ -1775,7 +1802,6 @@
                 // Phase 2: use_card
                 if (actionType === 'use_card') {
                     const cardId = action && (action.useCardId || action.cardId);
-                    const pendingOwnerKey = normalizePlayerKey(action && action.useCardOwnerKey ? action.useCardOwnerKey : playerKey);
                     const cardType = resolveCardTypeForId(cardId);
                     const canResolvePendingType = !!cardType;
                     const needsPending = !!(canResolvePendingType
@@ -1811,7 +1837,7 @@
                     }
                     const pendingHintResult = PendingCoordinatorModule.setPendingHintLocally(
                         cardStateArg,
-                        pendingOwnerKey,
+                        normalizePlayerKey(playerKey),
                         cardType,
                         { cardId }
                     );
@@ -1822,9 +1848,8 @@
                             cardType
                         };
                     }
-                    const resolvedPendingOwnerKey = normalizePlayerKey(pendingHintResult.playerKey || pendingOwnerKey);
                     const playbackEvents = shouldRestorePendingCardUsePlayback(cardType)
-                        ? buildPendingCardUsePlaybackEvents(playerKey, resolvedPendingOwnerKey, cardId, cardType)
+                        ? buildPendingCardUsePlaybackEvents(playerKey, cardId, cardType)
                         : [];
                     return {
                         ok: true,
@@ -1905,14 +1930,12 @@
 
     function scheduleReconnectRecoverySync() {
         clearReconnectRecoveryTimer();
-        const sessionGuard = createActiveSessionGuard();
         state.reconnectRecoveryPending = true;
         state.reconnectRecoveryTimerId = scheduleTimeout(() => {
             state.reconnectRecoveryTimerId = null;
-            if (!isActiveSessionGuardCurrent(sessionGuard)) return;
             if (!state.reconnectRecoveryPending) return;
             state.reconnectRecoveryPending = false;
-            syncLatestStateWithRetry({ maxAttempts: 3, baseDelayMs: 350, sessionGuard }).catch(() => {
+            syncLatestStateWithRetry({ maxAttempts: 3, baseDelayMs: 350 }).catch(() => {
                 // Keep stream path resilient; next snapshot or reconnect will recover.
             });
         }, RECONNECT_STREAM_RECOVERY_WAIT_MS);
@@ -1928,18 +1951,23 @@
         state.lastStreamActivityAt = Date.now();
     }
 
+    function rememberStreamEventId(event) {
+        const eventId = String(
+            event && typeof event === 'object'
+                ? (event.lastEventId || event.eventId || '')
+                : ''
+        ).trim();
+        if (!eventId) return;
+        state.lastStreamEventId = eventId;
+    }
+
     function scheduleStreamWatchdog() {
         clearStreamWatchdogTimer();
         if (!isActive()) return;
         if (!state.eventSource) return;
 
-        const watchedStream = state.eventSource;
-        const watchedStreamEpoch = getStreamEpoch();
-        const sessionGuard = createActiveSessionGuard();
-
         state.streamWatchdogTimerId = scheduleTimeout(() => {
             state.streamWatchdogTimerId = 0;
-            if (!isCurrentStreamGuard(watchedStreamEpoch, watchedStream, sessionGuard)) return;
             if (!isActive()) return;
             if (!state.eventSource) return;
 
@@ -1956,7 +1984,7 @@
                     }
                 } catch (e) { /* ignore */ }
                 state.eventSource = null;
-                scheduleStreamReconnect({ sessionGuard });
+                scheduleStreamReconnect();
                 return;
             }
 
@@ -1964,12 +1992,7 @@
         }, STREAM_WATCHDOG_INTERVAL_MS);
     }
 
-    function scheduleStreamReconnect(options) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        const sessionGuard = isActiveSessionGuardCurrent(opts.sessionGuard)
-            ? opts.sessionGuard
-            : createActiveSessionGuard();
-        if (!isActiveSessionGuardCurrent(sessionGuard)) return;
+    function scheduleStreamReconnect() {
         if (!isActive()) return;
         if (state.reconnectTimerId !== null) return;
 
@@ -1981,9 +2004,8 @@
 
         state.reconnectTimerId = scheduleTimeout(() => {
             state.reconnectTimerId = null;
-            if (!isActiveSessionGuardCurrent(sessionGuard)) return;
             if (!isActive()) return;
-            openStream({ reconnect: true, sessionGuard });
+            openStream({ reconnect: true });
         }, delayMs);
     }
 
@@ -1992,7 +2014,6 @@
         clearReconnectRecoveryTimer();
         state.reconnectRecoveryPending = false;
         clearStreamWatchdogTimer();
-        invalidateStreamEpoch();
         if (state.eventSource) {
             try { state.eventSource.close(); } catch (e) { /* ignore */ }
             state.eventSource = null;
@@ -2005,22 +2026,12 @@
         return code === 408 || code === 429 || code === 500 || code === 502 || code === 503 || code === 504;
     }
 
-    async function publishRequestWithRetry(payload, options) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        const sessionGuard = isActiveSessionGuardCurrent(opts.sessionGuard)
-            ? opts.sessionGuard
-            : createActiveSessionGuard();
+    async function publishRequestWithRetry(payload) {
         let lastError = null;
 
         for (let attempt = 0; attempt < PUBLISH_RETRY_MAX_ATTEMPTS; attempt += 1) {
-            if (!isActiveSessionGuardCurrent(sessionGuard)) {
-                throw createStaleSessionError();
-            }
             try {
                 const res = await requestJson('POST', '/api/match/publish', payload);
-                if (!isActiveSessionGuardCurrent(sessionGuard)) {
-                    throw createStaleSessionError();
-                }
                 if (!isRetryablePublishStatus(res && res.status) || attempt >= (PUBLISH_RETRY_MAX_ATTEMPTS - 1)) {
                     return res;
                 }
@@ -2040,7 +2051,6 @@
 
     function openStream(options) {
         const opts = options || {};
-        if (opts.sessionGuard && !isActiveSessionGuardCurrent(opts.sessionGuard)) return;
         closeStream();
         if (!state.active || !state.roomId) return;
         if (typeof EventSource !== 'function') {
@@ -2048,34 +2058,30 @@
             return;
         }
 
-        const streamUrl = `${withTrailingSlashRemoved(state.serverUrl)}/api/match/stream?roomId=${encodeURIComponent(state.roomId)}&seatKey=${encodeURIComponent(state.seatKey)}&seatToken=${encodeURIComponent(state.seatToken || '')}`;
-        const sessionGuard = isActiveSessionGuardCurrent(opts.sessionGuard)
-            ? opts.sessionGuard
-            : createActiveSessionGuard();
+        const resumeEventId = opts.reconnect === true
+            ? String(state.lastStreamEventId || '').trim()
+            : '';
+        const resumeQuery = resumeEventId
+            ? `&lastEventId=${encodeURIComponent(resumeEventId)}`
+            : '';
+        const streamUrl = `${withTrailingSlashRemoved(state.serverUrl)}/api/match/stream?roomId=${encodeURIComponent(state.roomId)}&seatKey=${encodeURIComponent(state.seatKey)}&seatToken=${encodeURIComponent(state.seatToken || '')}${resumeQuery}`;
         const es = new EventSource(streamUrl);
         state.eventSource = es;
-        const streamEpoch = getStreamEpoch();
         markStreamActivity();
         scheduleStreamWatchdog();
 
-        const isCurrentStream = () => isCurrentStreamGuard(streamEpoch, es, sessionGuard);
-
         const onSnapshot = (payload) => {
-            if (!isCurrentStream()) return;
             if (!payload || payload.ok !== true) return;
             applyPayloadSessionState(payload);
             const snapshot = payload.snapshot;
             const playbackEvents = Array.isArray(payload.playbackEvents) ? payload.playbackEvents : [];
             const operationId = payload && payload.operationId ? String(payload.operationId) : '';
+            const snapshotVersion = getSnapshotStateVersion(snapshot);
             const trackedPublish = findTrackedPublish(operationId);
             const isSelfOperation = !!trackedPublish;
             const isTerminalResultSnapshot = isTerminalSnapshotForResult(snapshot);
 
-            // Single Writer: self-op でもサーバーの playbackEvents をそのまま使う
-            if (isSelfOperation) {
-                markTrackedPublishSelfSnapshot(trackedPublish, snapshot);
-            }
-            const applied = applySnapshotThroughCoordinator(snapshot, {
+            let applied = applySnapshotThroughCoordinator(snapshot, {
                 source: 'stream',
                 trackedPublish,
                 applyOptions: {
@@ -2084,7 +2090,30 @@
                     skipResultOverlay: isSelfOperation && !isTerminalResultSnapshot
                 }
             });
+            const recoveredForcedPlayback = !applied && shouldRecoverForceSyncedStreamPlayback(snapshot, playbackEvents)
+                ? applySnapshot(snapshot, {
+                    force: true,
+                    playbackEvents,
+                    skipResultOverlay: isSelfOperation && !isTerminalResultSnapshot
+                })
+                : false;
+            if (!applied && recoveredForcedPlayback) {
+                applied = true;
+                if (snapshotVersion !== null) {
+                    state.appliedStateVersion = snapshotVersion;
+                }
+                if (trackedPublish) {
+                    markTrackedPublishSnapshotApplied(trackedPublish, snapshot, 'stream_force_recovery');
+                }
+                recordNetworkTelemetry('stream_playback_recovered_after_force_sync', {
+                    operationId,
+                    snapshotVersion,
+                    playbackEventCount: playbackEvents.length,
+                    recoverySource: state.pendingForceSyncPlaybackSource || ''
+                });
+            }
             if (applied) {
+                consumePendingForceSyncPlaybackRecovery(snapshotVersion);
                 if (isSelfOperation && isTerminalResultSnapshot) {
                     markTrackedPublishResultPresented(trackedPublish, snapshot);
                 }
@@ -2093,29 +2122,24 @@
                     emitSnapshotCommentary(payload, snapshot, isSelfOperation, playbackEvents);
                 }
             }
+            if (isSelfOperation) {
+                markTrackedPublishSelfSnapshot(trackedPublish, snapshot);
+            }
             handleTimeoutPassPayload(payload);
             pruneTrackedPublishes();
         };
 
         const handleStreamEvent = createStreamPayloadHandler((payload) => {
-            if (!isCurrentStream()) return;
             completeReconnectRecoveryFromStream();
             onSnapshot(payload);
-        }, isCurrentStream);
-        const handlePresenceEvent = createStreamPayloadHandler((payload) => {
-            if (!isCurrentStream()) return;
-            handlePresencePayload(payload);
-        }, isCurrentStream);
-        const handleChatEvent = createStreamPayloadHandler((payload) => {
-            if (!isCurrentStream()) return;
-            handleChatPayload(payload);
-        }, isCurrentStream);
+        });
+        const handlePresenceEvent = createStreamPayloadHandler(handlePresencePayload);
+        const handleChatEvent = createStreamPayloadHandler(handleChatPayload);
         const handleHeartbeatEvent = createStreamPayloadHandler((payload) => {
-            if (!isCurrentStream()) return;
             completeReconnectRecoveryFromStream();
             applyPayloadSessionState(payload);
             maybeSyncFromHeartbeat(payload);
-        }, isCurrentStream);
+        });
 
         es.addEventListener('snapshot', handleStreamEvent);
         es.addEventListener('presence', handlePresenceEvent);
@@ -2124,7 +2148,6 @@
         es.onmessage = handleStreamEvent;
 
         es.onopen = () => {
-            if (!isCurrentStream()) return;
             markStreamActivity();
             scheduleStreamWatchdog();
             clearReconnectTimer();
@@ -2137,7 +2160,6 @@
         };
 
         es.onerror = () => {
-            if (!isCurrentStream()) return;
             emitStatus('ネット対戦: 接続が不安定です（再接続待機）', true);
             if (!isActive()) return;
 
@@ -2146,7 +2168,7 @@
                 : 1;
             const readyState = Number.isFinite(Number(es.readyState)) ? Number(es.readyState) : null;
             if (readyState !== openState) {
-                scheduleStreamReconnect({ sessionGuard });
+                scheduleStreamReconnect();
             }
         };
     }
@@ -2177,7 +2199,6 @@
 
     async function createRoom(options) {
         const opts = options || {};
-        const transitionToken = beginSessionTransition();
         if (opts.serverUrl) setServerUrl(opts.serverUrl);
 
         const playerName = normalizePlayerName(opts.playerName);
@@ -2193,11 +2214,11 @@
         if (opts.deckCode) {
             requestPayload.deckCode = String(opts.deckCode).trim();
         }
+        if (opts.roomBoardConfig && typeof opts.roomBoardConfig === 'object') {
+            requestPayload.roomBoardConfig = cloneDataForCommandPayload(opts.roomBoardConfig);
+        }
 
         const res = await requestJson('POST', '/api/match/create', requestPayload);
-        if (!isSessionTransitionCurrent(transitionToken)) {
-            return { ok: false, reason: 'STALE_SESSION' };
-        }
         if (!res.ok || !res.data || res.data.ok !== true) {
             if (isMatchApiMissing(res)) {
                 emitStatus('ネット対戦: 対戦用API(/api/match)が見つかりません', true);
@@ -2211,13 +2232,10 @@
             return { ok: false, reason: (res.data && res.data.reason) || 'CREATE_FAILED' };
         }
 
-        bumpSessionEpoch();
-        resetTransientUiForRoomTransition();
         activateSessionFromResponse(Object.assign({}, res.data, { playerName }), '');
-        resetPublishTracker();
         resetNetworkTelemetry();
 
-        openStream({ sessionGuard: createActiveSessionGuard() });
+        openStream();
         emitStatus(`ネット対戦: 部屋 ${state.roomId} を作成（${state.seatKey === 'black' ? '黒' : '白'}）`);
 
         return {
@@ -2231,7 +2249,6 @@
 
     async function joinRoom(roomId, options) {
         const opts = options || {};
-        const transitionToken = beginSessionTransition();
         if (opts.serverUrl) setServerUrl(opts.serverUrl);
 
         const playerName = normalizePlayerName(opts.playerName);
@@ -2262,9 +2279,6 @@
             usedStoredClaim = true;
         }
         let res = await requestJson('POST', '/api/match/join', joinPayload);
-        if (!isSessionTransitionCurrent(transitionToken)) {
-            return { ok: false, reason: 'STALE_SESSION' };
-        }
         if ((!res.ok || !res.data || res.data.ok !== true) && usedStoredClaim && shouldRetryJoinWithoutStoredClaim(res)) {
             clearSeatClaim(normalizedRoomId);
             const retryPayload = { roomId: normalizedRoomId, playerName };
@@ -2272,9 +2286,6 @@
                 retryPayload.deckCode = String(opts.deckCode).trim();
             }
             res = await requestJson('POST', '/api/match/join', retryPayload);
-            if (!isSessionTransitionCurrent(transitionToken)) {
-                return { ok: false, reason: 'STALE_SESSION' };
-            }
         }
         if (!res.ok || !res.data || res.data.ok !== true) {
             if (isMatchApiMissing(res)) {
@@ -2289,13 +2300,10 @@
             return { ok: false, reason: (res.data && res.data.reason) || 'JOIN_FAILED' };
         }
 
-        bumpSessionEpoch();
-        resetTransientUiForRoomTransition();
         activateSessionFromResponse(Object.assign({}, res.data, { playerName }), normalizedRoomId);
-        resetPublishTracker();
         resetNetworkTelemetry();
 
-        openStream({ sessionGuard: createActiveSessionGuard() });
+        openStream();
         emitStatus(`ネット対戦: 部屋 ${state.roomId} ${res.data.rejoined ? 'へ再参加' : 'に参加'}（${state.seatKey === 'black' ? '黒' : '白'}）`);
 
         return {
@@ -2307,20 +2315,10 @@
         };
     }
 
-    async function syncLatestState(options) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        const sessionGuard = isActiveSessionGuardCurrent(opts.sessionGuard)
-            ? opts.sessionGuard
-            : createActiveSessionGuard();
-        if (!isActiveSessionGuardCurrent(sessionGuard)) {
-            return { ok: false, reason: 'STALE_SESSION' };
-        }
+    async function syncLatestState() {
         if (!state.roomId) return { ok: false, reason: 'NO_ROOM' };
         const path = `/api/match/state?roomId=${encodeURIComponent(state.roomId)}&seatKey=${encodeURIComponent(state.seatKey)}&seatToken=${encodeURIComponent(state.seatToken || '')}`;
         const res = await requestJson('GET', path);
-        if (!isActiveSessionGuardCurrent(sessionGuard)) {
-            return { ok: false, reason: 'STALE_SESSION' };
-        }
         if (!res.ok || !res.data || res.data.ok !== true) {
             return { ok: false, reason: (res.data && res.data.reason) || 'STATE_FETCH_FAILED' };
         }
@@ -2332,6 +2330,13 @@
                     source: 'state_sync',
                     applyOptions: { force: true }
                 });
+                if (appliedSnapshot) {
+                    rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
+                        source: 'state_sync',
+                        force: true,
+                        playbackEvents: []
+                    });
+                }
                 recordNetworkTelemetry('state_sync_snapshot_applied', {
                     snapshotVersion: getSnapshotStateVersion(res.data.snapshot),
                     force: true
@@ -2375,10 +2380,9 @@
     }
 
     async function leaveRoom() {
+        clearPlaybackStateForLeave();
+        clearPendingForceSyncPlaybackRecovery();
         if (!state.roomId) {
-            beginSessionTransition();
-            bumpSessionEpoch();
-            resetTransientUiForRoomTransition();
             const controller = getNetworkSessionSeatController();
             if (controller && typeof controller.resetSessionState === 'function') {
                 controller.resetSessionState();
@@ -2390,6 +2394,7 @@
             resetNetworkTelemetry();
             resetTurnTimerState();
             closeStream();
+            state.lastStreamEventId = '';
             teardownActionBridge();
             return { ok: true };
         }
@@ -2397,26 +2402,16 @@
         const roomId = state.roomId;
         const seatKey = state.seatKey;
         const seatToken = state.seatToken;
-        const transitionToken = beginSessionTransition();
-        const sessionGuard = createActiveSessionGuard();
         let leaveResponse = null;
 
         try {
             leaveResponse = await requestJson('POST', '/api/match/leave', { roomId, seatKey, seatToken });
         } catch (e) {
-            if (!isSessionTransitionCurrent(transitionToken) || !isActiveSessionGuardCurrent(sessionGuard)) {
-                return { ok: false, reason: 'STALE_SESSION' };
-            }
             emitStatus('ネット対戦: 部屋の退出に失敗しました');
             return { ok: false, reason: 'LEAVE_REQUEST_FAILED' };
         }
 
-        if (!isSessionTransitionCurrent(transitionToken) || !isActiveSessionGuardCurrent(sessionGuard)) {
-            return { ok: false, reason: 'STALE_SESSION' };
-        }
-
         const leaveReason = String(leaveResponse && leaveResponse.data && leaveResponse.data.reason ? leaveResponse.data.reason : '').trim();
-
         if (!(leaveResponse && leaveResponse.ok) && leaveReason !== 'ROOM_NOT_FOUND') {
             emitStatus(`ネット対戦: 部屋の退出に失敗しました (${leaveReason || 'LEAVE_FAILED'})`);
             return {
@@ -2425,11 +2420,6 @@
                 status: leaveResponse ? leaveResponse.status : 0
             };
         }
-
-        bumpSessionEpoch();
-        closeStream();
-        teardownActionBridge();
-        resetTransientUiForRoomTransition();
 
         const controller = getNetworkSessionSeatController();
         if (controller && typeof controller.resetSessionState === 'function') {
@@ -2444,13 +2434,18 @@
             state.networkDebugEnabled = false;
             state.chatHistory = [];
             state.stateVersion = null;
+            state.appliedStateVersion = null;
             resetPublishTracker();
             state.lastResultVersionShown = null;
             state.resultShownForUnversioned = false;
         }
+        state.appliedStateVersion = null;
         resetPublishTracker();
         resetNetworkTelemetry();
         resetTurnTimerState();
+        closeStream();
+        state.lastStreamEventId = '';
+        teardownActionBridge();
         setSeatGlobals('black');
         clearSeatClaim(roomId);
         emitRoomStateChanged();
@@ -2466,7 +2461,6 @@
     function publishSnapshot(meta) {
         if (!isActive()) return Promise.resolve({ ok: false, reason: 'INACTIVE' });
         if (!state.seatToken) return Promise.resolve({ ok: false, reason: 'SEAT_TOKEN_REQUIRED' });
-        const sessionGuard = createActiveSessionGuard();
 
         const info = meta || {};
         const playerKey = normalizePlayerKey(info.playerKey || state.seatKey);
@@ -2493,10 +2487,6 @@
 
         state.publishChain = state.publishChain
             .then(async () => {
-                if (!isActiveSessionGuardCurrent(sessionGuard)) {
-                    settleTrackedPublish(trackedPublish);
-                    return { ok: false, reason: 'STALE_SESSION' };
-                }
                 if (!isActive()) {
                     settleTrackedPublish(trackedPublish);
                     return { ok: false, reason: 'INACTIVE' };
@@ -2531,11 +2521,7 @@
                 }
 
                 markTrackedPublishInFlight(trackedPublish);
-                const res = await publishRequestWithRetry(payload, { sessionGuard });
-                if (!isActiveSessionGuardCurrent(sessionGuard)) {
-                    settleTrackedPublish(trackedPublish);
-                    return { ok: false, reason: 'STALE_SESSION' };
-                }
+                const res = await publishRequestWithRetry(payload);
                 if (!res.ok || !res.data || res.data.ok !== true) {
                     const reason = (res.data && res.data.rejectedReason) || 'PUBLISH_REJECTED';
                     applyPayloadSessionState(res.data);
@@ -2560,11 +2546,22 @@
                         });
                     }
                     if (rejectionHandling.shouldApplySnapshot) {
+                        const rejectionPlaybackEvents = Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : [];
                         const applied = applySnapshotThroughCoordinator(res.data.snapshot, {
                             source: 'publish_rejection',
                             trackedPublish,
-                            applyOptions: { force: true }
+                            applyOptions: {
+                                force: true,
+                                playbackEvents: rejectionPlaybackEvents
+                            }
                         });
+                        if (applied) {
+                            rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
+                                source: 'publish_rejection',
+                                force: true,
+                                playbackEvents: rejectionPlaybackEvents
+                            });
+                        }
                         recordNetworkTelemetry('publish_rejection_snapshot_applied', {
                             reason,
                             operationId,
@@ -2609,6 +2606,11 @@
                         }
                     });
                     if (applied) {
+                        rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
+                            source: 'publish_response',
+                            force: true,
+                            playbackEvents: serverPlaybackEvents
+                        });
                         emitPayloadEffectLogs(res.data);
                         recordNetworkTelemetry('publish_response_snapshot_applied', {
                             operationId,
@@ -2628,10 +2630,6 @@
                 return { ok: true };
             })
             .catch((error) => {
-                if (isStaleSessionError(error)) {
-                    settleTrackedPublish(trackedPublish);
-                    return { ok: false, reason: 'STALE_SESSION' };
-                }
                 const message = error && error.message ? error.message : 'PUBLISH_ERROR';
                 settleTrackedPublish(trackedPublish);
                 emitStatus(`ネット対戦: 通信失敗 (${message})`, true);
@@ -2711,6 +2709,13 @@
             : null;
     }
 
+    function getRoomBoardConfig() {
+        if (state.active !== true) return null;
+        return (state.roomBoardConfig && typeof state.roomBoardConfig === 'object')
+            ? cloneReadableNetworkStateValue(state.roomBoardConfig, null)
+            : null;
+    }
+
     function setRoomStateListener(listener) {
         state.roomStateListener = (typeof listener === 'function') ? listener : null;
         emitRoomStateChanged();
@@ -2742,7 +2747,6 @@
         if (!state.seatToken) {
             return { ok: false, reason: 'SEAT_TOKEN_REQUIRED' };
         }
-        const sessionGuard = createActiveSessionGuard();
 
         const normalizedText = normalizeChatText(text);
         if (!normalizedText) {
@@ -2763,9 +2767,6 @@
         };
 
         const res = await requestJson('POST', '/api/match/chat', payload);
-        if (!isActiveSessionGuardCurrent(sessionGuard)) {
-            return { ok: false, reason: 'STALE_SESSION' };
-        }
         if (!res.ok || !res.data || res.data.ok !== true) {
             const reason = (res.data && res.data.reason) || 'CHAT_SEND_FAILED';
             applyPayloadSessionState(res.data);
@@ -2818,6 +2819,7 @@
         getState,
         getStateVersion,
         getRoomDeck,
+        getRoomBoardConfig,
         getNetworkTelemetry
     };
 

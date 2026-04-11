@@ -541,16 +541,3 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     });
   });
 });
-shPayloads[0].playbackEvents).toBeUndefined();
-    expect(publishPayloads[0].snapshot).toBeUndefined();
-    expect(playbackEvents[0].targets[0].sourceCardEl).toEqual({ localOnly: true, id: 'card-dom-node' });
-    expect(playbackEvents[0].targets[0].sourceCardRect).toEqual({
-      left: 220,
-      top: 500,
-      width: 90,
-      height: 120,
-      right: 310,
-      bottom: 620
-    });
-  });
-});

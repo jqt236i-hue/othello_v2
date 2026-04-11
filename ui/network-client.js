@@ -13,13 +13,14 @@
     const RECONNECT_MAX_EXPONENT = 7;
     const REQUEST_TIMEOUT_MS = 10000;
     const STREAM_WATCHDOG_INTERVAL_MS = 5000;
-    const STREAM_STALE_TIMEOUT_MS = 45000;
+    const STREAM_STALE_TIMEOUT_MS = 25000;
     const RECONNECT_STREAM_RECOVERY_WAIT_MS = 350;
     const PUBLISH_RETRY_MAX_ATTEMPTS = 3;
     const PUBLISH_RETRY_BASE_DELAY_MS = 400;
     const PUBLISH_RETRY_MAX_DELAY_MS = 4000;
     const PUBLISH_TRACKER_MAX_OPERATIONS = 32;
     const PUBLISH_TRACKER_RETENTION_MS = 60000;
+    const NETWORK_LOCAL_PENDING_HINT_TTL_MS = 45000;
     const NETWORK_TELEMETRY_RECENT_LIMIT = 40;
     const PlaybackStateModule = (typeof require === 'function')
         ? (() => {
@@ -271,11 +272,13 @@
         roomSeats: { black: false, white: false },
         seatNames: { black: '', white: '' },
         roomDeck: null,
+        roomBoardConfig: null,
         networkDebugEnabled: false,
         serverUrl: deriveInitialServerUrl(),
         stateVersion: null,
         eventSource: null,
         lastStreamActivityAt: 0,
+        lastStreamEventId: '',
         streamWatchdogTimerId: 0,
         statusWriter: null,
         roomStateListener: null,
@@ -306,6 +309,10 @@
         heartbeatResyncInFlight: false,
         reconnectRecoveryTimerId: null,
         reconnectRecoveryPending: false,
+        appliedStateVersion: null,
+        pendingForceSyncPlaybackVersion: null,
+        pendingForceSyncPlaybackSource: '',
+        pendingForceSyncPlaybackSignature: '',
         authoritativeMatchState: {
             gameState: null,
             cardState: null,
@@ -650,6 +657,7 @@
             roomSeats: cloneReadableNetworkStateValue(state.roomSeats || { black: false, white: false }, { black: false, white: false }),
             seatNames: cloneReadableNetworkStateValue(state.seatNames || { black: '', white: '' }, { black: '', white: '' }),
             roomDeck: cloneReadableNetworkStateValue(state.roomDeck, null),
+            roomBoardConfig: cloneReadableNetworkStateValue(state.roomBoardConfig, null),
             networkDebugEnabled: state.networkDebugEnabled === true,
             stateVersion: Number.isFinite(Number(state.stateVersion)) ? Number(state.stateVersion) : null,
             publishTracker: {
@@ -678,6 +686,93 @@
             projectedForSeat: normalizePlayerKey(meta.projectedForSeat),
             turnStartReconciled: meta.turnStartReconciled !== false
         };
+    }
+
+    function getAppliedStateVersion() {
+        if (Number.isFinite(Number(state.appliedStateVersion))) {
+            return Number(state.appliedStateVersion);
+        }
+        return Number.isFinite(Number(state.stateVersion))
+            ? Number(state.stateVersion)
+            : null;
+    }
+
+    function computeForceSyncPlaybackRecoverySignature(snapshot) {
+        if (!snapshot || typeof snapshot !== 'object') return '';
+        if (!snapshot.gameState || typeof snapshot.gameState !== 'object') return '';
+        if (!snapshot.cardState || typeof snapshot.cardState !== 'object') return '';
+        try {
+            const signatureCardState = cloneDataForCommandPayload(snapshot.cardState);
+            delete signatureCardState.presentationEvents;
+            delete signatureCardState._presentationEventsPersist;
+            delete signatureCardState.chargeDeltaEvents;
+            return JSON.stringify({
+                gameState: cloneDataForCommandPayload(snapshot.gameState),
+                cardState: signatureCardState
+            });
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function clearPendingForceSyncPlaybackRecovery() {
+        state.pendingForceSyncPlaybackVersion = null;
+        state.pendingForceSyncPlaybackSource = '';
+        state.pendingForceSyncPlaybackSignature = '';
+    }
+
+    function rememberPendingForceSyncPlaybackRecovery(snapshot, options) {
+        const opts = (options && typeof options === 'object') ? options : {};
+        const snapshotVersion = getSnapshotStateVersion(snapshot);
+        const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
+        if (snapshotVersion === null) {
+            clearPendingForceSyncPlaybackRecovery();
+            return false;
+        }
+        if (opts.force !== true || playbackEvents.length > 0) {
+            const pendingVersion = Number.isFinite(Number(state.pendingForceSyncPlaybackVersion))
+                ? Number(state.pendingForceSyncPlaybackVersion)
+                : null;
+            if (pendingVersion !== null && snapshotVersion >= pendingVersion) {
+                clearPendingForceSyncPlaybackRecovery();
+            }
+            return false;
+        }
+        state.pendingForceSyncPlaybackVersion = snapshotVersion;
+        state.pendingForceSyncPlaybackSource = typeof opts.source === 'string' ? opts.source : '';
+        state.pendingForceSyncPlaybackSignature = computeForceSyncPlaybackRecoverySignature(snapshot);
+        return true;
+    }
+
+    function consumePendingForceSyncPlaybackRecovery(snapshotOrVersion) {
+        const snapshotVersion = Number.isFinite(Number(snapshotOrVersion))
+            ? Number(snapshotOrVersion)
+            : getSnapshotStateVersion(snapshotOrVersion);
+        const pendingVersion = Number.isFinite(Number(state.pendingForceSyncPlaybackVersion))
+            ? Number(state.pendingForceSyncPlaybackVersion)
+            : null;
+        if (snapshotVersion === null || pendingVersion === null || snapshotVersion < pendingVersion) {
+            return false;
+        }
+        clearPendingForceSyncPlaybackRecovery();
+        return true;
+    }
+
+    function shouldRecoverForceSyncedStreamPlayback(snapshot, playbackEvents) {
+        const pendingVersion = Number.isFinite(Number(state.pendingForceSyncPlaybackVersion))
+            ? Number(state.pendingForceSyncPlaybackVersion)
+            : null;
+        const pendingSignature = typeof state.pendingForceSyncPlaybackSignature === 'string'
+            ? state.pendingForceSyncPlaybackSignature
+            : '';
+        const snapshotVersion = getSnapshotStateVersion(snapshot);
+        const localVersion = getAppliedStateVersion();
+        if (pendingVersion === null || snapshotVersion === null) return false;
+        if (snapshotVersion !== pendingVersion) return false;
+        if (!Array.isArray(playbackEvents) || playbackEvents.length <= 0) return false;
+        if (shouldSkipForceSyncSnapshot(snapshot)) return false;
+        if (pendingSignature && computeForceSyncPlaybackRecoverySignature(snapshot) !== pendingSignature) return false;
+        return localVersion === snapshotVersion;
     }
 
     function isVersionConflictReason(reasonValue) {
@@ -729,7 +824,7 @@
         if (isVersionConflictReason(reason) && localStateVersionBefore !== null && snapshotVersion === localStateVersionBefore) {
             return { shouldApplySnapshot: false, skipReason: 'same_version_version_mismatch', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
         }
-        if (shouldSkipForceSyncSnapshot(snapshot)) {
+        if (shouldSkipForceSyncSnapshot(snapshot, { ignoreSequence: entry && entry.sequence })) {
             return { shouldApplySnapshot: false, skipReason: 'skip_force_sync_guard', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
         }
         return { shouldApplySnapshot: true, skipReason: null, snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
@@ -1004,9 +1099,7 @@
             : null;
         if (remoteVersion === null) return;
 
-        const localVersion = Number.isFinite(Number(state.stateVersion))
-            ? Number(state.stateVersion)
-            : null;
+        const localVersion = getAppliedStateVersion();
 
         if (localVersion !== null && remoteVersion <= localVersion) return;
         if (state.heartbeatResyncInFlight) return;
@@ -1190,9 +1283,41 @@
         entry.resultOverlayVersion = getSnapshotStateVersion(snapshot);
     }
 
-    function hasPendingLocalPublishes() {
+    function hasPendingLocalPublishes(options) {
+        const opts = (options && typeof options === 'object') ? options : {};
+        const ignoredSequence = Number.isFinite(Number(opts.ignoreSequence))
+            ? Number(opts.ignoreSequence)
+            : null;
         const operations = pruneTrackedPublishes();
-        return operations.some((entry) => entry && (entry.phase === 'queued' || entry.phase === 'inflight'));
+        return operations.some((entry) => {
+            if (!entry || (entry.phase !== 'queued' && entry.phase !== 'inflight')) return false;
+            if (ignoredSequence === null) return true;
+            return Number(entry.sequence) !== ignoredSequence;
+        });
+    }
+
+    function hasLocalDeferredPendingHint() {
+        const localCardState = (root && root.cardState && typeof root.cardState === 'object')
+            ? root.cardState
+            : ((typeof globalThis !== 'undefined' && globalThis.cardState && typeof globalThis.cardState === 'object')
+                ? globalThis.cardState
+                : null);
+        if (!localCardState || typeof localCardState !== 'object') return false;
+        const pendingByPlayer = localCardState.pendingEffectByPlayer;
+        if (!pendingByPlayer || typeof pendingByPlayer !== 'object') return false;
+        const seatKey = normalizePlayerKey(state.seatKey);
+        const pending = pendingByPlayer[seatKey];
+        if (!pending || typeof pending !== 'object') return false;
+        if (pending.__networkLocalHint !== true) return false;
+        const hintSetAt = Number.isFinite(Number(pending.__networkLocalHintSetAt))
+            ? Number(pending.__networkLocalHintSetAt)
+            : null;
+        if (hintSetAt === null || (Date.now() - hintSetAt) > NETWORK_LOCAL_PENDING_HINT_TTL_MS) {
+            return false;
+        }
+        const pendingType = pending.type ? String(pending.type) : '';
+        const contract = resolvePendingSelectionContract(pendingType);
+        return !!(contract && contract.deferNetworkPublish === true);
     }
 
     function hasNewerQueuedPublish(sequence) {
@@ -1252,6 +1377,12 @@
         if (applied && trackedPublish) {
             markTrackedPublishSnapshotApplied(trackedPublish, snapshot, source);
         }
+        if (applied) {
+            const appliedVersion = getSnapshotStateVersion(snapshot);
+            if (appliedVersion !== null) {
+                state.appliedStateVersion = appliedVersion;
+            }
+        }
         return applied;
     }
 
@@ -1266,13 +1397,16 @@
         return gameState.currentPlayer === -1;
     }
 
-    function shouldSkipForceSyncSnapshot(snapshot) {
-        if (!hasPendingLocalPublishes()) return false;
-
+    function shouldSkipForceSyncSnapshot(snapshot, options) {
         const remoteVersion = getSnapshotStateVersion(snapshot);
-        const localVersion = Number.isFinite(Number(state.stateVersion))
-            ? Number(state.stateVersion)
-            : null;
+        const localVersion = getAppliedStateVersion();
+        const pendingLocalPublish = hasPendingLocalPublishes(options);
+        const preserveLocalPendingHint = hasLocalDeferredPendingHint()
+            && remoteVersion !== null
+            && localVersion !== null
+            && remoteVersion <= localVersion;
+
+        if (!pendingLocalPublish && !preserveLocalPendingHint) return false;
 
         if (remoteVersion === null) return true;
         if (localVersion === null) return false;
@@ -1529,10 +1663,20 @@
                 hasShadowPlaybackEvents: !!(options && Array.isArray(options.shadowPlaybackEvents) && options.shadowPlaybackEvents.length > 0)
             });
         }
-        return invokeControllerMethod(getNetworkSnapshotController, 'applySnapshot', arguments, false);
+        const applied = invokeControllerMethod(getNetworkSnapshotController, 'applySnapshot', arguments, false);
+        if (applied) {
+            const snapshotVersion = getSnapshotStateVersion(snapshot);
+            if (snapshotVersion !== null) {
+                state.appliedStateVersion = snapshotVersion;
+            }
+        }
+        return applied;
     }
 
     function activateSessionFromResponse(data, fallbackRoomId) {
+        state.lastStreamEventId = '';
+        state.appliedStateVersion = getSnapshotStateVersion(data && data.snapshot);
+        clearPendingForceSyncPlaybackRecovery();
         invokeControllerMethod(getNetworkSessionSeatController, 'activateSessionFromResponse', arguments, undefined);
     }
 
@@ -1552,6 +1696,7 @@
         return function handleParsedStreamEvent(event) {
             const payload = parseStreamEventPayload(event);
             if (!payload) return;
+            rememberStreamEventId(event);
             markStreamActivity();
             payloadHandler(payload);
         };
@@ -1806,6 +1951,16 @@
         state.lastStreamActivityAt = Date.now();
     }
 
+    function rememberStreamEventId(event) {
+        const eventId = String(
+            event && typeof event === 'object'
+                ? (event.lastEventId || event.eventId || '')
+                : ''
+        ).trim();
+        if (!eventId) return;
+        state.lastStreamEventId = eventId;
+    }
+
     function scheduleStreamWatchdog() {
         clearStreamWatchdogTimer();
         if (!isActive()) return;
@@ -1903,7 +2058,13 @@
             return;
         }
 
-        const streamUrl = `${withTrailingSlashRemoved(state.serverUrl)}/api/match/stream?roomId=${encodeURIComponent(state.roomId)}&seatKey=${encodeURIComponent(state.seatKey)}&seatToken=${encodeURIComponent(state.seatToken || '')}`;
+        const resumeEventId = opts.reconnect === true
+            ? String(state.lastStreamEventId || '').trim()
+            : '';
+        const resumeQuery = resumeEventId
+            ? `&lastEventId=${encodeURIComponent(resumeEventId)}`
+            : '';
+        const streamUrl = `${withTrailingSlashRemoved(state.serverUrl)}/api/match/stream?roomId=${encodeURIComponent(state.roomId)}&seatKey=${encodeURIComponent(state.seatKey)}&seatToken=${encodeURIComponent(state.seatToken || '')}${resumeQuery}`;
         const es = new EventSource(streamUrl);
         state.eventSource = es;
         markStreamActivity();
@@ -1915,15 +2076,12 @@
             const snapshot = payload.snapshot;
             const playbackEvents = Array.isArray(payload.playbackEvents) ? payload.playbackEvents : [];
             const operationId = payload && payload.operationId ? String(payload.operationId) : '';
+            const snapshotVersion = getSnapshotStateVersion(snapshot);
             const trackedPublish = findTrackedPublish(operationId);
             const isSelfOperation = !!trackedPublish;
             const isTerminalResultSnapshot = isTerminalSnapshotForResult(snapshot);
 
-            // Single Writer: self-op でもサーバーの playbackEvents をそのまま使う
-            if (isSelfOperation) {
-                markTrackedPublishSelfSnapshot(trackedPublish, snapshot);
-            }
-            const applied = applySnapshotThroughCoordinator(snapshot, {
+            let applied = applySnapshotThroughCoordinator(snapshot, {
                 source: 'stream',
                 trackedPublish,
                 applyOptions: {
@@ -1932,7 +2090,30 @@
                     skipResultOverlay: isSelfOperation && !isTerminalResultSnapshot
                 }
             });
+            const recoveredForcedPlayback = !applied && shouldRecoverForceSyncedStreamPlayback(snapshot, playbackEvents)
+                ? applySnapshot(snapshot, {
+                    force: true,
+                    playbackEvents,
+                    skipResultOverlay: isSelfOperation && !isTerminalResultSnapshot
+                })
+                : false;
+            if (!applied && recoveredForcedPlayback) {
+                applied = true;
+                if (snapshotVersion !== null) {
+                    state.appliedStateVersion = snapshotVersion;
+                }
+                if (trackedPublish) {
+                    markTrackedPublishSnapshotApplied(trackedPublish, snapshot, 'stream_force_recovery');
+                }
+                recordNetworkTelemetry('stream_playback_recovered_after_force_sync', {
+                    operationId,
+                    snapshotVersion,
+                    playbackEventCount: playbackEvents.length,
+                    recoverySource: state.pendingForceSyncPlaybackSource || ''
+                });
+            }
             if (applied) {
+                consumePendingForceSyncPlaybackRecovery(snapshotVersion);
                 if (isSelfOperation && isTerminalResultSnapshot) {
                     markTrackedPublishResultPresented(trackedPublish, snapshot);
                 }
@@ -1940,6 +2121,9 @@
                 if (emittedEffectLogCount === 0) {
                     emitSnapshotCommentary(payload, snapshot, isSelfOperation, playbackEvents);
                 }
+            }
+            if (isSelfOperation) {
+                markTrackedPublishSelfSnapshot(trackedPublish, snapshot);
             }
             handleTimeoutPassPayload(payload);
             pruneTrackedPublishes();
@@ -2029,6 +2213,9 @@
         }
         if (opts.deckCode) {
             requestPayload.deckCode = String(opts.deckCode).trim();
+        }
+        if (opts.roomBoardConfig && typeof opts.roomBoardConfig === 'object') {
+            requestPayload.roomBoardConfig = cloneDataForCommandPayload(opts.roomBoardConfig);
         }
 
         const res = await requestJson('POST', '/api/match/create', requestPayload);
@@ -2143,6 +2330,13 @@
                     source: 'state_sync',
                     applyOptions: { force: true }
                 });
+                if (appliedSnapshot) {
+                    rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
+                        source: 'state_sync',
+                        force: true,
+                        playbackEvents: []
+                    });
+                }
                 recordNetworkTelemetry('state_sync_snapshot_applied', {
                     snapshotVersion: getSnapshotStateVersion(res.data.snapshot),
                     force: true
@@ -2187,6 +2381,7 @@
 
     async function leaveRoom() {
         clearPlaybackStateForLeave();
+        clearPendingForceSyncPlaybackRecovery();
         if (!state.roomId) {
             const controller = getNetworkSessionSeatController();
             if (controller && typeof controller.resetSessionState === 'function') {
@@ -2199,6 +2394,7 @@
             resetNetworkTelemetry();
             resetTurnTimerState();
             closeStream();
+            state.lastStreamEventId = '';
             teardownActionBridge();
             return { ok: true };
         }
@@ -2238,14 +2434,17 @@
             state.networkDebugEnabled = false;
             state.chatHistory = [];
             state.stateVersion = null;
+            state.appliedStateVersion = null;
             resetPublishTracker();
             state.lastResultVersionShown = null;
             state.resultShownForUnversioned = false;
         }
+        state.appliedStateVersion = null;
         resetPublishTracker();
         resetNetworkTelemetry();
         resetTurnTimerState();
         closeStream();
+        state.lastStreamEventId = '';
         teardownActionBridge();
         setSeatGlobals('black');
         clearSeatClaim(roomId);
@@ -2347,11 +2546,22 @@
                         });
                     }
                     if (rejectionHandling.shouldApplySnapshot) {
+                        const rejectionPlaybackEvents = Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : [];
                         const applied = applySnapshotThroughCoordinator(res.data.snapshot, {
                             source: 'publish_rejection',
                             trackedPublish,
-                            applyOptions: { force: true }
+                            applyOptions: {
+                                force: true,
+                                playbackEvents: rejectionPlaybackEvents
+                            }
                         });
+                        if (applied) {
+                            rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
+                                source: 'publish_rejection',
+                                force: true,
+                                playbackEvents: rejectionPlaybackEvents
+                            });
+                        }
                         recordNetworkTelemetry('publish_rejection_snapshot_applied', {
                             reason,
                             operationId,
@@ -2396,6 +2606,11 @@
                         }
                     });
                     if (applied) {
+                        rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
+                            source: 'publish_response',
+                            force: true,
+                            playbackEvents: serverPlaybackEvents
+                        });
                         emitPayloadEffectLogs(res.data);
                         recordNetworkTelemetry('publish_response_snapshot_applied', {
                             operationId,
@@ -2491,6 +2706,13 @@
     function getRoomDeck() {
         return (state.roomDeck && typeof state.roomDeck === 'object')
             ? Object.assign({}, state.roomDeck)
+            : null;
+    }
+
+    function getRoomBoardConfig() {
+        if (state.active !== true) return null;
+        return (state.roomBoardConfig && typeof state.roomBoardConfig === 'object')
+            ? cloneReadableNetworkStateValue(state.roomBoardConfig, null)
             : null;
     }
 
@@ -2597,6 +2819,7 @@
         getState,
         getStateVersion,
         getRoomDeck,
+        getRoomBoardConfig,
         getNetworkTelemetry
     };
 
