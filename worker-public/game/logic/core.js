@@ -7,20 +7,21 @@
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
         // Node.js: Assume shared-constants is up two levels
-        module.exports = factory(require('../../shared-constants'));
+        module.exports = factory(require('../../shared-constants'), require('../../shared/shared-board-utils'));
     } else {
         // Browser: Assume SharedConstants is global
-        const core = factory(root.SharedConstants);
+        const core = factory(root.SharedConstants, root.SharedBoardUtils || null);
         // Expose both modern and legacy global names for compatibility
         root.CoreLogic = core;
         if (typeof root.Core === 'undefined') {
             root.Core = core;
         }
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, SharedBoardUtils) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY, DIRECTIONS } = SharedConstants || {};
+    const BoardUtils = SharedBoardUtils || null;
 
     // Check if constants are loaded
     if (BLACK === undefined) {
@@ -33,84 +34,185 @@
         return (owner === BLACK || owner === WHITE) ? owner : EMPTY;
     }
 
-    function isMainBoardCell(row, col) {
-        return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < 8 && col >= 0 && col < 8;
+    function resolveGameBoardConfig(boardOrConfig) {
+        if (BoardUtils && typeof BoardUtils.resolveBoardConfig === 'function') {
+            return BoardUtils.resolveBoardConfig(boardOrConfig);
+        }
+        const board = Array.isArray(boardOrConfig)
+            ? boardOrConfig
+            : (boardOrConfig && Array.isArray(boardOrConfig.board) ? boardOrConfig.board : null);
+        const rows = Array.isArray(board) && board.length > 0 ? board.length : 8;
+        const cols = Array.isArray(board) && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
+        return {
+            rows,
+            cols,
+            standard8x8: rows === 8 && cols === 8,
+            baseBounds: { minRow: 0, maxRow: rows - 1, minCol: 0, maxCol: cols - 1 },
+            outerBounds: { minRow: -1, maxRow: rows, minCol: -1, maxCol: cols }
+        };
     }
 
-    function resolveExpansionSide(side, row, col) {
+    function isMainBoardCell(row, col, boardOrConfig) {
+        if (BoardUtils && typeof BoardUtils.isMainBoardCell === 'function') {
+            return BoardUtils.isMainBoardCell(row, col, boardOrConfig);
+        }
+        const config = resolveGameBoardConfig(boardOrConfig);
+        return (
+            Number.isInteger(row) &&
+            Number.isInteger(col) &&
+            row >= 0 &&
+            row < config.rows &&
+            col >= 0 &&
+            col < config.cols
+        );
+    }
+
+    function isExpansionCoordinate(row, col, boardOrConfig) {
+        if (BoardUtils && typeof BoardUtils.isExpansionCoordinate === 'function') {
+            return BoardUtils.isExpansionCoordinate(row, col, boardOrConfig);
+        }
+        const config = resolveGameBoardConfig(boardOrConfig);
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+        if (row < config.outerBounds.minRow || row > config.outerBounds.maxRow) return false;
+        if (col < config.outerBounds.minCol || col > config.outerBounds.maxCol) return false;
+        return !isMainBoardCell(row, col, config);
+    }
+
+    function resolveExpansionSide(side, row, col, boardOrConfig) {
+        if (BoardUtils && typeof BoardUtils.resolveExpansionSide === 'function') {
+            return BoardUtils.resolveExpansionSide(side, row, col, boardOrConfig);
+        }
         if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-        if (col === -1) return 'left';
-        if (col === 8) return 'right';
-        if (row === -1) return 'top';
-        if (row === 8) return 'bottom';
+        const config = resolveGameBoardConfig(boardOrConfig);
+        if (col === config.outerBounds.minCol) return 'left';
+        if (col === config.outerBounds.maxCol) return 'right';
+        if (row === config.outerBounds.minRow) return 'top';
+        if (row === config.outerBounds.maxRow) return 'bottom';
         return null;
     }
 
-    function appendExpansionCell(cells, source, legacyRow, legacyOwner) {
+    function createBoardMatrix(boardOrConfig) {
+        if (BoardUtils && typeof BoardUtils.createEmptyBoard === 'function') {
+            return BoardUtils.createEmptyBoard(resolveGameBoardConfig(boardOrConfig), EMPTY);
+        }
+        const config = resolveGameBoardConfig(boardOrConfig);
+        return Array.from({ length: config.rows }, () => Array.from({ length: config.cols }, () => EMPTY));
+    }
+
+    function getOpeningAnchor(boardOrConfig) {
+        if (BoardUtils && typeof BoardUtils.getOpeningAnchor === 'function') {
+            return BoardUtils.getOpeningAnchor(boardOrConfig);
+        }
+        const config = resolveGameBoardConfig(boardOrConfig);
+        return {
+            row: Math.floor((config.rows - 2) / 2),
+            col: Math.floor((config.cols - 2) / 2)
+        };
+    }
+
+    function getOpeningPlacements(boardOrConfig) {
+        if (BoardUtils && typeof BoardUtils.getOpeningPlacements === 'function') {
+            return BoardUtils.getOpeningPlacements(boardOrConfig);
+        }
+        const config = resolveGameBoardConfig(boardOrConfig);
+        const anchor = getOpeningAnchor(config);
+        if (config.rows === 7 && config.cols === 7) {
+            const placements = [];
+            for (let rowOffset = 0; rowOffset < 3; rowOffset += 1) {
+                for (let colOffset = 0; colOffset < 3; colOffset += 1) {
+                    if (rowOffset === 1 && colOffset === 1) continue;
+                    placements.push({
+                        row: anchor.row + rowOffset,
+                        col: anchor.col + colOffset,
+                        owner: ((rowOffset + colOffset) % 2 === 0) ? WHITE : BLACK
+                    });
+                }
+            }
+            return placements;
+        }
+        return [
+            { row: anchor.row, col: anchor.col, owner: WHITE },
+            { row: anchor.row, col: anchor.col + 1, owner: BLACK },
+            { row: anchor.row + 1, col: anchor.col, owner: BLACK },
+            { row: anchor.row + 1, col: anchor.col + 1, owner: WHITE }
+        ];
+    }
+
+    function forEachMainBoardCell(state, visitor) {
+        if (!state || !Array.isArray(state.board) || typeof visitor !== 'function') return;
+        for (let row = 0; row < state.board.length; row++) {
+            const line = Array.isArray(state.board[row]) ? state.board[row] : [];
+            for (let col = 0; col < line.length; col++) {
+                visitor(row, col, line[col]);
+            }
+        }
+    }
+
+    function appendExpansionCell(cells, source, legacyRow, legacyOwner, boardOrConfig) {
         if (!Array.isArray(cells)) return;
 
         let side = null;
         let row = null;
         let col = null;
         let owner = legacyOwner;
+        const boardConfig = resolveGameBoardConfig(boardOrConfig);
 
         if (source && typeof source === 'object') {
             side = source.side;
             row = source.row;
             col = source.col;
             owner = source.owner;
-            if (!Number.isInteger(col) && side === 'left') col = -1;
-            if (!Number.isInteger(col) && side === 'right') col = 8;
+            if (!Number.isInteger(col) && side === 'left') col = boardConfig.outerBounds.minCol;
+            if (!Number.isInteger(col) && side === 'right') col = boardConfig.outerBounds.maxCol;
         } else {
             side = source;
             row = legacyRow;
-            if (side === 'left') col = -1;
-            if (side === 'right') col = 8;
+            if (side === 'left') col = boardConfig.outerBounds.minCol;
+            if (side === 'right') col = boardConfig.outerBounds.maxCol;
         }
 
         if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-        if (row < -1 || row > 8 || col < -1 || col > 8) return;
-        if (isMainBoardCell(row, col)) return;
+        if (!isExpansionCoordinate(row, col, boardConfig)) return;
         if (cells.some((cell) => cell && cell.row === row && cell.col === col)) return;
 
         cells.push({
-            side: resolveExpansionSide(side, row, col),
+            side: resolveExpansionSide(side, row, col, boardConfig),
             row,
             col,
             owner: normalizeExpansionOwner(owner)
         });
     }
 
-    function normalizeExpansionCells(expansion) {
+    function normalizeExpansionCells(expansion, boardOrConfig) {
         const cells = [];
         if (expansion && Array.isArray(expansion.cells)) {
             for (const cell of expansion.cells) {
                 if (!cell || typeof cell !== 'object') continue;
-                appendExpansionCell(cells, cell);
+                appendExpansionCell(cells, cell, null, null, boardOrConfig);
             }
         }
         if (cells.length === 0 && expansion && expansion.active === true) {
-            appendExpansionCell(cells, expansion);
+            appendExpansionCell(cells, expansion, null, null, boardOrConfig);
         }
         return cells;
     }
 
-    function syncLegacyExpansionFields(expansion) {
+    function syncLegacyExpansionFields(expansion, boardOrConfig) {
         if (!expansion || typeof expansion !== 'object') return;
         if (!Array.isArray(expansion.cells)) expansion.cells = [];
         const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
         expansion.active = !!latest;
-        expansion.side = latest ? resolveExpansionSide(latest.side, latest.row, latest.col) : null;
+        expansion.side = latest ? resolveExpansionSide(latest.side, latest.row, latest.col, boardOrConfig) : null;
         expansion.row = latest ? latest.row : null;
         expansion.owner = latest ? normalizeExpansionOwner(latest.owner) : EMPTY;
     }
 
-    function createBoardExpansionState(sourceExpansion) {
+    function createBoardExpansionState(sourceExpansion, boardOrConfig) {
         const usedByPlayer = {
             black: !!(sourceExpansion && sourceExpansion.usedByPlayer && sourceExpansion.usedByPlayer.black),
             white: !!(sourceExpansion && sourceExpansion.usedByPlayer && sourceExpansion.usedByPlayer.white)
         };
-        const cells = normalizeExpansionCells(sourceExpansion);
+        const cells = normalizeExpansionCells(sourceExpansion, boardOrConfig);
         const out = {
             active: false,
             side: null,
@@ -119,13 +221,13 @@
             usedByPlayer,
             cells
         };
-        syncLegacyExpansionFields(out);
+        syncLegacyExpansionFields(out, boardOrConfig);
         return out;
     }
 
     function ensureBoardExpansionState(state) {
         if (!state.boardExpansion || typeof state.boardExpansion !== 'object') {
-            state.boardExpansion = createBoardExpansionState(null);
+            state.boardExpansion = createBoardExpansionState(null, state);
             return state.boardExpansion;
         }
         const expansion = state.boardExpansion;
@@ -135,8 +237,8 @@
             expansion.usedByPlayer.black = !!expansion.usedByPlayer.black;
             expansion.usedByPlayer.white = !!expansion.usedByPlayer.white;
         }
-        expansion.cells = normalizeExpansionCells(expansion);
-        syncLegacyExpansionFields(expansion);
+        expansion.cells = normalizeExpansionCells(expansion, state);
+        syncLegacyExpansionFields(expansion, state);
         return expansion;
     }
 
@@ -233,31 +335,31 @@
 
     function getExpansionCells(state) {
         if (!state || !state.boardExpansion || typeof state.boardExpansion !== 'object') return [];
-        return normalizeExpansionCells(state.boardExpansion);
+        return normalizeExpansionCells(state.boardExpansion, state);
     }
 
     /**
      * Create initial game state
+     * @param {Object} [boardConfigInput]
      * @returns {Object} gameState
      */
-    function createGameState() {
-        const board = [];
-        for (let i = 0; i < 8; i++) {
-            board.push([EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY]);
+    function createGameState(boardConfigInput) {
+        const boardConfig = resolveGameBoardConfig(boardConfigInput);
+        const board = createBoardMatrix(boardConfig);
+        const openingPlacements = getOpeningPlacements(boardConfig);
+        for (const stone of openingPlacements) {
+            board[stone.row][stone.col] = stone.owner;
         }
-        board[3][3] = WHITE;
-        board[3][4] = BLACK;
-        board[4][3] = BLACK;
-        board[4][4] = WHITE;
         return {
             board: board,
+            boardConfig,
             currentPlayer: BLACK,
             consecutivePasses: 0,
             turnNumber: 0,
             roundNumber: 1,
             roundCompletionByPlayer: createRoundCompletionByPlayer(null),
             pendingRoundBonus: null,
-            boardExpansion: createBoardExpansionState(null)
+            boardExpansion: createBoardExpansionState(null, boardConfig)
         };
     }
 
@@ -268,18 +370,20 @@
      */
     function copyGameState(state) {
         const newBoard = state.board.map(row => row.slice());
+        const boardConfig = resolveGameBoardConfig(state);
         const sourceExpansion = (state && state.boardExpansion && typeof state.boardExpansion === 'object')
             ? state.boardExpansion
             : null;
         return {
             board: newBoard,
+            boardConfig,
             currentPlayer: state.currentPlayer,
             consecutivePasses: state.consecutivePasses,
             turnNumber: state.turnNumber || 0,
             roundNumber: normalizeRoundNumber(state && state.roundNumber),
             roundCompletionByPlayer: createRoundCompletionByPlayer(state && state.roundCompletionByPlayer),
             pendingRoundBonus: clonePendingRoundBonus(state && state.pendingRoundBonus),
-            boardExpansion: createBoardExpansionState(sourceExpansion)
+            boardExpansion: createBoardExpansionState(sourceExpansion, boardConfig)
         };
     }
 
@@ -289,8 +393,10 @@
     }
 
     function getCellValue(state, row, col) {
-        if (isMainBoardCell(row, col)) {
-            return state.board[row][col];
+        if (isMainBoardCell(row, col, state)) {
+            return (Array.isArray(state.board[row]) && Number.isInteger(col) && col >= 0 && col < state.board[row].length)
+                ? state.board[row][col]
+                : null;
         }
         const expansionCells = getExpansionCells(state);
         for (const expansion of expansionCells) {
@@ -302,7 +408,8 @@
     }
 
     function setCellValue(state, row, col, value) {
-        if (isMainBoardCell(row, col)) {
+        if (isMainBoardCell(row, col, state)) {
+            if (!Array.isArray(state.board[row]) || col < 0 || col >= state.board[row].length) return false;
             state.board[row][col] = value;
             return true;
         }
@@ -314,12 +421,12 @@
             if (!cell) continue;
             if (cell.row === row && cell.col === col) {
                 expansion.cells[i] = {
-                    side: resolveExpansionSide(cell.side, cell.row, cell.col),
+                    side: resolveExpansionSide(cell.side, cell.row, cell.col, state),
                     row: cell.row,
                     col: cell.col,
                     owner
                 };
-                syncLegacyExpansionFields(expansion);
+                syncLegacyExpansionFields(expansion, state);
                 return true;
             }
         }
@@ -427,11 +534,9 @@
         if (totalDiscs > 0 && (discs.black === 0 || discs.white === 0)) return true;
 
         let emptyCount = 0;
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (state.board[r][c] === EMPTY) emptyCount++;
-            }
-        }
+        forEachMainBoardCell(state, (row, col, value) => {
+            if (value === EMPTY) emptyCount += 1;
+        });
         const expansionCells = getExpansionCells(state);
         for (const expansion of expansionCells) {
             if (expansion && expansion.owner === EMPTY) emptyCount++;
@@ -446,12 +551,10 @@
      */
     function countDiscs(state) {
         let black = 0, white = 0;
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (state.board[r][c] === BLACK) black++;
-                else if (state.board[r][c] === WHITE) white++;
-            }
-        }
+        forEachMainBoardCell(state, (row, col, value) => {
+            if (value === BLACK) black += 1;
+            else if (value === WHITE) white += 1;
+        });
         const expansionCells = getExpansionCells(state);
         for (const expansion of expansionCells) {
             if (!expansion) continue;
@@ -474,17 +577,14 @@
             ? new Set(blockedCells.map(p => `${p.row},${p.col}`))
             : null;
         const moves = [];
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (state.board[r][c] === EMPTY) {
-                    if (blockedSet && blockedSet.has(`${r},${c}`)) continue;
-                    const flips = getFlipsWithContext(state, r, c, player, context);
-                    if (flips.length > 0) {
-                        moves.push({ row: r, col: c, flips });
-                    }
-                }
+        forEachMainBoardCell(state, (row, col, value) => {
+            if (value !== EMPTY) return;
+            if (blockedSet && blockedSet.has(`${row},${col}`)) return;
+            const flips = getFlipsWithContext(state, row, col, player, context);
+            if (flips.length > 0) {
+                moves.push({ row, col, flips });
             }
-        }
+        });
         const expansionCells = getExpansionCells(state);
         for (const expansion of expansionCells) {
             if (!expansion || expansion.owner !== EMPTY) continue;
@@ -510,15 +610,12 @@
             ? new Set(blockedCells.map(p => `${p.row},${p.col}`))
             : null;
         const moves = [];
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (state.board[r][c] === EMPTY) {
-                    if (blockedSet && blockedSet.has(`${r},${c}`)) continue;
-                    const flips = getFlipsWithContext(state, r, c, player, context);
-                    moves.push({ row: r, col: c, flips });
-                }
-            }
-        }
+        forEachMainBoardCell(state, (row, col, value) => {
+            if (value !== EMPTY) return;
+            if (blockedSet && blockedSet.has(`${row},${col}`)) return;
+            const flips = getFlipsWithContext(state, row, col, player, context);
+            moves.push({ row, col, flips });
+        });
         const expansionCells = getExpansionCells(state);
         for (const expansion of expansionCells) {
             if (!expansion || expansion.owner !== EMPTY) continue;
@@ -537,14 +634,15 @@
      * @returns {boolean}
      */
     function hasLegalMove(state, player, context = {}) {
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (state.board[r][c] === EMPTY) {
-                    const flips = getFlipsWithContext(state, r, c, player, context);
-                    if (flips.length > 0) return true;
-                }
+        let found = false;
+        forEachMainBoardCell(state, (row, col, value) => {
+            if (found || value !== EMPTY) return;
+            const flips = getFlipsWithContext(state, row, col, player, context);
+            if (flips.length > 0) {
+                found = true;
             }
-        }
+        });
+        if (found) return true;
         const expansionCells = getExpansionCells(state);
         for (const expansion of expansionCells) {
             if (!expansion || expansion.owner !== EMPTY) continue;

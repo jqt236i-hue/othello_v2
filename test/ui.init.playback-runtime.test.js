@@ -4,6 +4,7 @@ const { JSDOM } = require('jsdom');
 describe('initializeUI playback runtime delegation', () => {
   let dom;
   let playbackStateMock;
+  let playbackRuntimeMock;
   let busyState;
 
   beforeEach(() => {
@@ -40,7 +41,13 @@ describe('initializeUI playback runtime delegation', () => {
           isProcessing: busyState.processing
         };
       }),
-      syncLegacyWindowFlags: jest.fn(({ readCardAnimating, readProcessing } = {}) => {
+      syncLegacyWindowFlags: jest.fn(),
+      ensureDebugRuntime: jest.fn()
+    };
+
+    playbackRuntimeMock = {
+      syncLegacyWindowFlags: jest.fn((playbackState, { readCardAnimating, readProcessing } = {}) => {
+        expect(playbackState).toBe(playbackStateMock);
         if (typeof readCardAnimating === 'function') {
           global.window.isCardAnimating = readCardAnimating() === true;
         }
@@ -49,10 +56,20 @@ describe('initializeUI playback runtime delegation', () => {
         }
         return {
           isCardAnimating: global.window.isCardAnimating === true,
-          isProcessing: global.window.isProcessing === true
+          isProcessing: global.window.isProcessing === true,
+          playbackActive: false
         };
       }),
-      ensureDebugRuntime: jest.fn(() => ({ mirrorIntervalId: null, playbackWatchdogId: null }))
+      ensureDebugRuntime: jest.fn((playbackState, options) => {
+        expect(playbackState).toBe(playbackStateMock);
+        expect(options).toEqual(expect.objectContaining({
+          readCardAnimating: expect.any(Function),
+          readProcessing: expect.any(Function),
+          abortPlayback: expect.any(Function),
+          getBoardElement: expect.any(Function)
+        }));
+        return { mirrorIntervalId: null, playbackWatchdogId: null };
+      })
     };
 
     const bootstrapPath = path.resolve(__dirname, '..', 'ui', 'bootstrap.js');
@@ -62,6 +79,8 @@ describe('initializeUI playback runtime delegation', () => {
 
     const playbackStatePath = path.resolve(__dirname, '..', 'ui', 'playback-state-manager.js');
     jest.doMock(playbackStatePath, () => playbackStateMock, { virtual: false });
+    const playbackRuntimePath = path.resolve(__dirname, '..', 'ui', 'playback-runtime.js');
+    jest.doMock(playbackRuntimePath, () => playbackRuntimeMock, { virtual: false });
   });
 
   afterEach(() => {
@@ -80,17 +99,14 @@ describe('initializeUI playback runtime delegation', () => {
     jest.useRealTimers();
   });
 
-  test('delegates debug playback runtime setup to PlaybackStateManager', async () => {
+  test('delegates debug playback runtime setup to PlaybackRuntime', async () => {
     const initModule = require('../ui/handlers/init.js');
     await initModule.initializeUI();
 
-    expect(playbackStateMock.syncLegacyWindowFlags).toHaveBeenCalled();
-    expect(playbackStateMock.ensureDebugRuntime).toHaveBeenCalledWith(expect.objectContaining({
-      readCardAnimating: expect.any(Function),
-      readProcessing: expect.any(Function),
-      abortPlayback: expect.any(Function),
-      getBoardElement: expect.any(Function)
-    }));
+    expect(playbackRuntimeMock.syncLegacyWindowFlags).toHaveBeenCalled();
+    expect(playbackRuntimeMock.ensureDebugRuntime).toHaveBeenCalled();
+    expect(playbackStateMock.syncLegacyWindowFlags).not.toHaveBeenCalled();
+    expect(playbackStateMock.ensureDebugRuntime).not.toHaveBeenCalled();
     expect(global.window._uiMirrorIntervalId).toBeUndefined();
     expect(global.window._playbackWatchdogId).toBeUndefined();
     expect(global.window._watchdogIntervalId).toBeDefined();
