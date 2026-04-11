@@ -115,35 +115,35 @@
     }
 
     function resolvePendingSelectionContract(pendingType) {
-        const pendingStateManager = getPendingStateManager();
-        if (!pendingStateManager || typeof pendingStateManager.resolvePendingSelectionContract !== 'function') {
+        const pendingCoordinator = getPendingCoordinator();
+        if (!pendingCoordinator || typeof pendingCoordinator.getPendingSelectionContract !== 'function') {
             return null;
         }
-        return pendingStateManager.resolvePendingSelectionContract(pendingType);
+        return pendingCoordinator.getPendingSelectionContract(pendingType);
     }
 
     function isSelectionOnlyEndTurnPendingType(pendingType) {
-        const pendingStateManager = getPendingStateManager();
-        if (!pendingStateManager || typeof pendingStateManager.isSelectionOnlyEndTurnPendingType !== 'function') {
+        const pendingCoordinator = getPendingCoordinator();
+        if (!pendingCoordinator || typeof pendingCoordinator.isSelectionOnlyEndTurnPendingType !== 'function') {
             return false;
         }
-        return pendingStateManager.isSelectionOnlyEndTurnPendingType(pendingType);
+        return pendingCoordinator.isSelectionOnlyEndTurnPendingType(pendingType);
     }
 
     function shouldDeferNetworkPublishForPendingType(pendingType) {
-        const pendingStateManager = getPendingStateManager();
-        if (!pendingStateManager || typeof pendingStateManager.shouldDeferNetworkPublishForPendingType !== 'function') {
+        const pendingCoordinator = getPendingCoordinator();
+        if (!pendingCoordinator || typeof pendingCoordinator.shouldDeferNetworkPublishForPendingType !== 'function') {
             return false;
         }
-        return pendingStateManager.shouldDeferNetworkPublishForPendingType(pendingType);
+        return pendingCoordinator.shouldDeferNetworkPublishForPendingType(pendingType);
     }
 
     function shouldWaitForPlaybackIdleForPendingType(pendingType) {
-        const pendingStateManager = getPendingStateManager();
-        if (!pendingStateManager || typeof pendingStateManager.shouldWaitForPlaybackIdleForPendingType !== 'function') {
+        const pendingCoordinator = getPendingCoordinator();
+        if (!pendingCoordinator || typeof pendingCoordinator.shouldWaitForPlaybackIdleForPendingType !== 'function') {
             return false;
         }
-        return pendingStateManager.shouldWaitForPlaybackIdleForPendingType(pendingType);
+        return pendingCoordinator.shouldWaitForPlaybackIdleForPendingType(pendingType);
     }
 
     function cloneData(value) {

@@ -12,7 +12,7 @@
 }(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const MODULE_SELECTOR_HANDLERS = Object.freeze({
+    const SELECTOR_HANDLER_CONFIGS = Object.freeze({
         DESTROY_ONE_STONE: {
             method: 'getDestroyTargets',
             args: (context) => [context.cardState, context.gameState]
@@ -28,6 +28,10 @@
         SUPER_GRAVITY_WILL: {
             method: 'getSuperGravityTargets',
             args: (context) => [context.cardState, context.gameState]
+        },
+        TEMPT_WILL: {
+            method: 'getTemptWillTargets',
+            args: (context) => [context.cardState, context.gameState, context.playerKey]
         },
         SWAP_WITH_ENEMY: {
             method: 'getSwapTargets',
@@ -111,31 +115,6 @@
         }
     });
 
-    const LOCAL_SELECTOR_HANDLERS = Object.freeze({
-        STRONG_WIND_WILL: (context) => invokeLocal(context, 'getStrongWindTargets', [context.cardState, context.gameState]),
-        SUPER_BUOYANCY_WILL: (context) => invokeLocal(context, 'getSuperBuoyancyTargets', [context.cardState, context.gameState]),
-        SUPER_GRAVITY_WILL: (context) => invokeLocal(context, 'getSuperGravityTargets', [context.cardState, context.gameState]),
-        TEMPT_WILL: (context) => invokeLocal(context, 'getTemptWillTargets', [context.cardState, context.gameState, context.playerKey]),
-        CAPTURE_WILL: (context) => invokeLocal(context, 'getCaptureWillTargets', [context.cardState, context.gameState, context.playerKey]),
-        TRAP_WILL: (context) => invokeLocal(context, 'getTrapTargets', [context.cardState, context.gameState, context.playerKey]),
-        GUARD_WILL: (context) => invokeLocal(context, 'getGuardTargets', [context.cardState, context.gameState, context.playerKey]),
-        GUARDIAN_GOD: (context) => invokeLocal(context, 'getGuardTargets', [context.cardState, context.gameState, context.playerKey]),
-        HYPERACTIVE_INHERIT_WILL: (context) => invokeLocal(context, 'getHyperactiveInheritTargets', [context.cardState, context.gameState, context.playerKey]),
-        TIME_BOMB: (context) => invokeLocal(context, 'getTimeBombTargets', [context.cardState, context.gameState, context.playerKey]),
-        TELEPORT_WILL: (context) => invokeLocal(context, 'getTeleportTargets', [context.cardState, context.gameState]),
-        CELL_TELEPORT_WILL: (context) => invokeLocal(context, 'getCellTeleportTargets', [context.cardState, context.gameState]),
-        CLONE_WILL: (context) => invokeLocal(context, 'getCloneTargets', [context.cardState, context.gameState, context.playerKey]),
-        SPLIT_WILL: (context) => invokeLocal(context, 'getSplitTargets', [context.cardState, context.gameState, context.playerKey]),
-        BOARD_EXPANSION_WILL: (context) => invokeLocal(context, 'getBoardExpansionTargets', [context.cardState, context.gameState, context.playerKey]),
-        BOARD_EXPANSION_GOD: (context) => invokeLocal(context, 'getBoardExpansionGodTargets', [context.cardState, context.gameState, context.playerKey]),
-        EXTEND_LIFE_WILL: (context) => invokeLocal(context, 'getExtendLifeTargets', [context.cardState, context.gameState, context.playerKey]),
-        EXTEND_LIFE_GOD: (context) => invokeLocal(context, 'getExtendLifeTargets', [context.cardState, context.gameState, context.playerKey]),
-        CORROSION_WILL: (context) => invokeLocal(context, 'getCorrosionTargets', [context.cardState, context.gameState, context.playerKey]),
-        BLOCKADE_WILL: (context) => invokeLocal(context, 'getBlockadeTargets', [context.cardState, context.gameState, context.playerKey]),
-        METEOR_WILL: (context) => invokeLocal(context, 'getMeteorTargets', [context.cardState, context.gameState, context.playerKey]),
-        FREEZE_WILL: (context) => invokeLocal(context, 'getFreezeTargets', [context.cardState, context.gameState, context.playerKey])
-    });
-
     function getPendingType(context) {
         const pending = context && context.pending;
         return pending && pending.type ? String(pending.type) : '';
@@ -158,7 +137,7 @@
     }
 
     function invokeModuleSelector(context, type) {
-        const config = MODULE_SELECTOR_HANDLERS[type];
+        const config = SELECTOR_HANDLER_CONFIGS[type];
         const selectorsModule = context && context.selectorsModule;
         if (!config || !selectorsModule) return null;
         const selector = selectorsModule[config.method];
@@ -177,24 +156,38 @@
         return selector(...args);
     }
 
-    function getDestroyTargetsFallback(context) {
-        const { emptyValue } = getConstants(context);
-        const gameState = context && context.gameState;
-        const res = [];
-        if (!gameState || !Array.isArray(gameState.board)) return res;
+    function invokeLocalSelector(context, type) {
+        const config = SELECTOR_HANDLER_CONFIGS[type];
+        if (!config) return [];
+        return invokeLocal(context, config.method, config.args(context));
+    }
 
-        for (let row = 0; row < 8; row++) {
-            for (let col = 0; col < 8; col++) {
-                if (gameState.board[row][col] !== emptyValue) {
-                    res.push({ row, col });
-                }
+    function forEachSelectableCell(context, visitor) {
+        if (typeof visitor !== 'function') return;
+        const gameState = context && context.gameState;
+        if (!gameState || !Array.isArray(gameState.board)) return;
+
+        for (let row = 0; row < gameState.board.length; row += 1) {
+            const boardRow = Array.isArray(gameState.board[row]) ? gameState.board[row] : [];
+            for (let col = 0; col < boardRow.length; col += 1) {
+                visitor(row, col, boardRow[col], null);
             }
         }
 
         for (const expansion of getExpansionDescriptors(context)) {
-            if (!expansion || Number(expansion.owner) === emptyValue) continue;
-            res.push({ row: expansion.row, col: expansion.col });
+            if (!expansion) continue;
+            visitor(expansion.row, expansion.col, Number(expansion.owner), expansion.side || null);
         }
+    }
+
+    function getDestroyTargetsFallback(context) {
+        const { emptyValue } = getConstants(context);
+        const res = [];
+        forEachSelectableCell(context, (row, col, ownerValue) => {
+            if (ownerValue !== emptyValue) {
+                res.push({ row, col });
+            }
+        });
         return res;
     }
 
@@ -204,11 +197,8 @@
         const playerVal = context.playerKey === 'black' ? blackValue : whiteValue;
         const opponentVal = -playerVal;
         const cardState = context && context.cardState;
-        const gameState = context && context.gameState;
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
         const res = [];
-
-        if (!gameState || !Array.isArray(gameState.board)) return res;
 
         const isHiddenTrapForPlayer = (marker) => (
             marker &&
@@ -238,16 +228,9 @@
             res.push({ row: targetRow, col: targetCol });
         };
 
-        for (let row = 0; row < 8; row++) {
-            for (let col = 0; col < 8; col++) {
-                pushSwapTarget(row, col, gameState.board[row][col]);
-            }
-        }
-
-        for (const expansion of getExpansionDescriptors(context)) {
-            if (!expansion) continue;
-            pushSwapTarget(expansion.row, expansion.col, Number(expansion.owner));
-        }
+        forEachSelectableCell(context, (row, col, ownerValue) => {
+            pushSwapTarget(row, col, ownerValue);
+        });
         return res;
     }
 
@@ -255,14 +238,11 @@
         const { emptyValue } = getConstants(context);
         const helpers = (context && context.helpers) || {};
         const isPositionSwapProtectedCell = helpers.isPositionSwapProtectedCell;
-        const gameState = context && context.gameState;
         const pending = context && context.pending;
         const first = pending && pending.firstTarget
             ? { row: pending.firstTarget.row, col: pending.firstTarget.col }
             : null;
         const res = [];
-
-        if (!gameState || !Array.isArray(gameState.board)) return res;
 
         const pushPositionSwapTarget = (targetRow, targetCol, ownerValue) => {
             if (ownerValue === emptyValue) return;
@@ -273,16 +253,9 @@
             res.push({ row: targetRow, col: targetCol });
         };
 
-        for (let row = 0; row < 8; row++) {
-            for (let col = 0; col < 8; col++) {
-                pushPositionSwapTarget(row, col, gameState.board[row][col]);
-            }
-        }
-
-        for (const expansion of getExpansionDescriptors(context)) {
-            if (!expansion) continue;
-            pushPositionSwapTarget(expansion.row, expansion.col, Number(expansion.owner));
-        }
+        forEachSelectableCell(context, (row, col, ownerValue) => {
+            pushPositionSwapTarget(row, col, ownerValue);
+        });
         return res;
     }
 
@@ -297,9 +270,9 @@
         if (type === 'SWAP_WITH_ENEMY') return getSwapTargetsFallback(context);
         if (type === 'POSITION_SWAP_WILL') return getPositionSwapTargetsFallback(context);
 
-        const localSelector = LOCAL_SELECTOR_HANDLERS[type];
-        if (typeof localSelector === 'function') {
-            return localSelector(context);
+        const localTargets = invokeLocalSelector(context, type);
+        if (Array.isArray(localTargets) && localTargets.length > 0) {
+            return localTargets;
         }
         return [];
     }

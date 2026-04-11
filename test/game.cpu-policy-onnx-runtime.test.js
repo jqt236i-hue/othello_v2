@@ -33,6 +33,30 @@ describe('policy-onnx-runtime', () => {
     expect(selected).toBeNull();
   });
 
+  test('chooseMove returns null on non-8x8 board even when model is loaded', async () => {
+    const scores = new Float32Array(64);
+    scores[0] = 5.0;
+    runtime.__setLoadedForTest({
+      run: jest.fn(async () => ({
+        logits: { data: scores }
+      }))
+    }, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      outputName: 'logits',
+      inputDim: 70
+    });
+
+    const selected = await runtime.chooseMove([{ row: 0, col: 0, flips: [] }], {
+      playerKey: 'white',
+      level: 6,
+      board: Array.from({ length: 7 }, () => Array.from({ length: 7 }, () => 0)),
+      legalMovesCount: 1
+    });
+
+    expect(selected).toBeNull();
+  });
+
   test('chooseMove selects move with highest logit among legal candidates', async () => {
     const scores = new Float32Array(64);
     scores[0] = 0.1;  // (0,0)

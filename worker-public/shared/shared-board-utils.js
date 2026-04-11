@@ -485,6 +485,68 @@
         return out;
     }
 
+    function resolveBoardShapeSource(boardOrConfig) {
+        if (Array.isArray(boardOrConfig)) {
+            return {
+                board: boardOrConfig,
+                boardExpansion: null
+            };
+        }
+        if (!boardOrConfig || typeof boardOrConfig !== 'object') {
+            return {
+                board: null,
+                boardExpansion: null
+            };
+        }
+        return {
+            board: Array.isArray(boardOrConfig.board) ? boardOrConfig.board : null,
+            boardExpansion: (boardOrConfig.boardExpansion && typeof boardOrConfig.boardExpansion === 'object')
+                ? boardOrConfig.boardExpansion
+                : null
+        };
+    }
+
+    function getAttachedExpansionDescriptors(board) {
+        const meta = getBoardShapeMeta(board);
+        if (!meta || !Array.isArray(meta.expansionCells)) return [];
+        return meta.expansionCells.map((cell) => ({
+            side: cell.side,
+            row: cell.row,
+            col: cell.col,
+            owner: normalizeOwner(cell.owner)
+        }));
+    }
+
+    function forEachBoardShapeCell(boardOrConfig, visitor) {
+        if (typeof visitor !== 'function') return;
+        const source = resolveBoardShapeSource(boardOrConfig);
+        const board = source.board;
+        const config = resolveBoardConfig(boardOrConfig);
+        for (let row = 0; row < config.rows; row += 1) {
+            const boardRow = Array.isArray(board) && Array.isArray(board[row]) ? board[row] : [];
+            for (let col = 0; col < config.cols; col += 1) {
+                visitor(row, col, boardRow[col], null);
+            }
+        }
+
+        const expansionDescriptors = source.boardExpansion
+            ? collectExpansionDescriptors(source.boardExpansion, boardOrConfig)
+            : getAttachedExpansionDescriptors(board);
+        for (const cell of expansionDescriptors) {
+            if (!cell) continue;
+            visitor(cell.row, cell.col, Number(cell.owner), cell.side || null);
+        }
+    }
+
+    function countDiscsByPlayer(boardOrConfig) {
+        const counts = { black: 0, white: 0 };
+        forEachBoardShapeCell(boardOrConfig, function countOwnedCell(row, col, value) {
+            if (Number(value) === BLACK) counts.black += 1;
+            else if (Number(value) === WHITE) counts.white += 1;
+        });
+        return counts;
+    }
+
     function collectMeteorHoleKeys(cardState) {
         const out = new Set();
         const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
@@ -1343,6 +1405,7 @@
         isExpansionCoordinate,
         resolveExpansionSide,
         collectExpansionDescriptors,
+        forEachBoardShapeCell,
         collectMainBoardCoordinates,
         createEmptyBoard,
         getOpeningAnchor,
@@ -1350,6 +1413,7 @@
         getOpeningCells,
         hasPlayableCell,
         collectBoardCoordinates,
+        countDiscsByPlayer,
         getCellValue,
         setCellValue,
         countBoardEmpties,

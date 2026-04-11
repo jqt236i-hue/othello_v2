@@ -179,6 +179,16 @@ describe('PendingCoordinator', () => {
       kind: 'continue_turn',
       deferNetworkPublish: true
     }));
+    expect(PendingCoordinator.getPendingSelectionContract('SELL_CARD_WILL')).toEqual(expect.objectContaining({
+      kind: 'hand_overlay',
+      turnOutcome: 'continue_turn',
+      deferNetworkPublish: true
+    }));
+    expect(PendingCoordinator.isSelectionOnlyEndTurnPendingType('TRAP_WILL')).toBe(true);
+    expect(PendingCoordinator.isSelectionOnlyEndTurnPendingType('GUARD_WILL')).toBe(false);
+    expect(PendingCoordinator.shouldDeferNetworkPublishForPendingType('GUARD_WILL')).toBe(true);
+    expect(PendingCoordinator.shouldWaitForPlaybackIdleForPendingType('GUARD_WILL')).toBe(true);
+    expect(PendingCoordinator.resolvePendingSelectionDispatchKey('SELL_CARD_WILL')).toBe('sell_card');
   });
 
   test('createPendingSelectionAction caches multi-stage transport state under the coordinator owner', () => {

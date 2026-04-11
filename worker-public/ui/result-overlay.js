@@ -37,6 +37,86 @@ const ResultOverlayOwnerHelpersModule = (() => {
     } catch (e) { /* ignore */ }
     return null;
 })();
+const ResultOverlayBoardUtilsModule = (() => {
+    if (typeof require === 'function') {
+        try {
+            return require('../shared/shared-board-utils');
+        } catch (e) { /* ignore */ }
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.SharedBoardUtils) return globalThis.SharedBoardUtils;
+    } catch (e) { /* ignore */ }
+    return null;
+})();
+
+function createEmptyResultPresentationState() {
+    return {
+        lastResultVersionShown: null,
+        resultShownForUnversioned: false
+    };
+}
+
+function ensureResultPresentationState(resultState) {
+    if (!resultState || typeof resultState !== 'object') return null;
+    if (!Object.prototype.hasOwnProperty.call(resultState, 'lastResultVersionShown')) {
+        resultState.lastResultVersionShown = null;
+    }
+    if (!Object.prototype.hasOwnProperty.call(resultState, 'resultShownForUnversioned')) {
+        resultState.resultShownForUnversioned = false;
+    }
+    return resultState;
+}
+
+function resetResultPresentationState(resultState) {
+    const target = ensureResultPresentationState(resultState);
+    if (!target) return createEmptyResultPresentationState();
+    target.lastResultVersionShown = null;
+    target.resultShownForUnversioned = false;
+    return target;
+}
+
+function normalizeDiscCounts(counts) {
+    const normalized = (counts && typeof counts === 'object') ? counts : {};
+    return {
+        black: Number.isFinite(Number(normalized.black)) ? Number(normalized.black) : 0,
+        white: Number.isFinite(Number(normalized.white)) ? Number(normalized.white) : 0
+    };
+}
+
+function countDiscsFromBoardState(gameStateRef) {
+    const stateRef = (gameStateRef && typeof gameStateRef === 'object') ? gameStateRef : null;
+    if (ResultOverlayBoardUtilsModule && typeof ResultOverlayBoardUtilsModule.countDiscsByPlayer === 'function') {
+        return normalizeDiscCounts(ResultOverlayBoardUtilsModule.countDiscsByPlayer(stateRef));
+    }
+
+    const counts = { black: 0, white: 0 };
+    const board = stateRef && Array.isArray(stateRef.board) ? stateRef.board : [];
+    for (let row = 0; row < board.length; row += 1) {
+        const boardRow = Array.isArray(board[row]) ? board[row] : [];
+        for (let col = 0; col < boardRow.length; col += 1) {
+            const value = Number(boardRow[col]);
+            if (value === 1) counts.black += 1;
+            else if (value === -1) counts.white += 1;
+        }
+    }
+    return counts;
+}
+
+function countDiscs(gameStateRef) {
+    const stateRef = (gameStateRef && typeof gameStateRef === 'object')
+        ? gameStateRef
+        : (typeof gameState !== 'undefined' ? gameState : null);
+    try {
+        if (
+            typeof globalThis !== 'undefined' &&
+            typeof globalThis.countDiscs === 'function' &&
+            globalThis.countDiscs !== countDiscs
+        ) {
+            return normalizeDiscCounts(globalThis.countDiscs(stateRef));
+        }
+    } catch (e) { /* ignore */ }
+    return countDiscsFromBoardState(stateRef);
+}
 
 function parseResultPlayerKey(value) {
     try {
@@ -616,8 +696,78 @@ function createStoryEncounterDialogue(override) {
 }
 
 function removeExistingResultOverlay() {
-    const existing = document.getElementById('result-overlay');
+    const doc = (typeof document !== 'undefined') ? document : null;
+    if (!doc) return;
+    const existing = doc.getElementById('result-overlay');
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+}
+
+function dismissResultOverlayIfPresent() {
+    removeExistingResultOverlay();
+}
+
+function syncResultPresentationFromSnapshot(options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const resultState = ensureResultPresentationState(
+        (opts.resultState && typeof opts.resultState === 'object') ? opts.resultState : null
+    );
+    const rawVersion = opts.stateVersion;
+    const stateVersion = Number.isFinite(Number(rawVersion)) ? Number(rawVersion) : null;
+    const gameStateRef = (opts.gameStateRef && typeof opts.gameStateRef === 'object')
+        ? opts.gameStateRef
+        : (typeof gameState !== 'undefined' ? gameState : null);
+    const isGameOverFn = (typeof opts.isGameOver === 'function')
+        ? opts.isGameOver
+        : (typeof isGameOver === 'function' ? isGameOver : null);
+
+    if (opts.skipResultOverlay === true) return false;
+
+    let terminal = false;
+    try {
+        terminal = !!(isGameOverFn && gameStateRef && isGameOverFn(gameStateRef));
+    } catch (e) {
+        terminal = false;
+    }
+
+    if (!terminal) {
+        if (resultState) {
+            resultState.resultShownForUnversioned = false;
+        }
+        dismissResultOverlayIfPresent();
+        return false;
+    }
+
+    if (resultState) {
+        if (stateVersion !== null) {
+            if (resultState.lastResultVersionShown === stateVersion) return false;
+            resultState.lastResultVersionShown = stateVersion;
+        } else {
+            if (resultState.resultShownForUnversioned) return false;
+            resultState.resultShownForUnversioned = true;
+        }
+    }
+
+    try {
+        if (gameStateRef && typeof gameStateRef === 'object') {
+            gameStateRef.__resultShown = false;
+        }
+    } catch (e) { /* ignore */ }
+
+    const showResultFn = (typeof opts.showResult === 'function') ? opts.showResult : showResult;
+    if (typeof showResultFn === 'function') {
+        showResultFn();
+        return true;
+    }
+
+    const showResultOverlayFn = (typeof opts.showResultOverlay === 'function')
+        ? opts.showResultOverlay
+        : showResultOverlay;
+    if (typeof showResultOverlayFn === 'function') {
+        showResultOverlayFn();
+        return true;
+    }
+
+    return false;
 }
 
 function createStoryEncounterHeroRow(override, counts) {
@@ -1102,6 +1252,10 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         showResult,
         showResultOverlay,
+        syncResultPresentationFromSnapshot,
+        dismissResultOverlayIfPresent,
+        createEmptyResultPresentationState,
+        resetResultPresentationState,
         createMonsterDialogue,
         createObserverDuelDialogue,
         getMonsterDialogues,

@@ -36,6 +36,7 @@ if (!TurnPipelineUIAdapter && typeof globalThis !== 'undefined' && globalThis.Tu
     TurnPipelineUIAdapter = globalThis.TurnPipelineUIAdapter;
 }
 var CpuTurnHandlerModule = null;
+var PendingCoordinatorForTurnManager = null;
 
 function getTurnPipelineUIAdapter() {
     if (TurnPipelineUIAdapter) {
@@ -569,14 +570,18 @@ function requestUIRender() {
 }
 
 function resolvePendingCoordinatorForTurnManager() {
-    var pendingCoordinator = null;
+    if (PendingCoordinatorForTurnManager && typeof PendingCoordinatorForTurnManager === 'object') {
+        return PendingCoordinatorForTurnManager;
+    }
     if (typeof require === 'function') {
-        try { pendingCoordinator = require('./turn/pending-coordinator'); } catch (e) { /* ignore */ }
+        try { PendingCoordinatorForTurnManager = require('./turn/pending-coordinator'); } catch (e) { /* ignore */ }
     }
-    if (!pendingCoordinator && typeof globalThis !== 'undefined' && globalThis.PendingCoordinator) {
-        pendingCoordinator = globalThis.PendingCoordinator;
+    if (!PendingCoordinatorForTurnManager && typeof globalThis !== 'undefined' && globalThis.PendingCoordinator) {
+        PendingCoordinatorForTurnManager = globalThis.PendingCoordinator;
     }
-    return (pendingCoordinator && typeof pendingCoordinator === 'object') ? pendingCoordinator : null;
+    return (PendingCoordinatorForTurnManager && typeof PendingCoordinatorForTurnManager === 'object')
+        ? PendingCoordinatorForTurnManager
+        : null;
 }
 
 function resolvePendingSelectionDispatchKeyForTurnManager(pendingType) {

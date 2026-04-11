@@ -27,21 +27,26 @@
             try { return require('./playback-state-manager'); } catch (e) { return root.PlaybackStateManager || null; }
         })()
         : (root.PlaybackStateManager || null);
-    const PendingSelectionFlow = (typeof require === 'function')
-        ? (() => {
-            try { return require('../game/card-effects/selection-flow'); } catch (e) { return root.PendingSelectionFlow || null; }
-        })()
-        : (root.PendingSelectionFlow || null);
     const PendingCoordinatorModule = (typeof require === 'function')
         ? (() => {
             try { return require('../game/turn/pending-coordinator'); } catch (e) { return root.PendingCoordinator || null; }
         })()
         : (root.PendingCoordinator || null);
+    const PendingStateManagerModule = (typeof require === 'function')
+        ? (() => {
+            try { return require('../game/logic/cards-internal/pending-state-manager'); } catch (e) { return root.CardPendingStateManager || null; }
+        })()
+        : (root.CardPendingStateManager || null);
     const PlaybackEventHelpers = (typeof require === 'function')
         ? (() => {
             try { return require('../shared/playback-event-helpers'); } catch (e) { return root.PlaybackEventHelpers || null; }
         })()
         : (root.PlaybackEventHelpers || null);
+    const ResultOverlayModule = (typeof require === 'function')
+        ? (() => {
+            try { return require('./result-overlay'); } catch (e) { return root || null; }
+        })()
+        : (root || null);
 
     function resolveCardLogicModule() {
         if (root && root.CardLogic) return root.CardLogic;
@@ -68,18 +73,63 @@
             }
         } catch (e) { /* ignore */ }
         try {
-            if (PendingSelectionFlow && typeof PendingSelectionFlow.resolvePendingSelectionContract === 'function') {
-                const contract = PendingSelectionFlow.resolvePendingSelectionContract(cardType);
+            if (PendingStateManagerModule && typeof PendingStateManagerModule.resolvePendingSelectionContract === 'function') {
+                const contract = PendingStateManagerModule.resolvePendingSelectionContract(cardType);
                 if (contract && typeof contract === 'object') return contract;
             }
         } catch (e) { /* ignore */ }
         return null;
     }
 
+    function shouldDeferNetworkPublishForPendingType(cardType) {
+        if (!cardType) return false;
+        try {
+            if (PendingCoordinatorModule && typeof PendingCoordinatorModule.shouldDeferNetworkPublishForPendingType === 'function') {
+                return PendingCoordinatorModule.shouldDeferNetworkPublishForPendingType(cardType) === true;
+            }
+        } catch (e) { /* ignore */ }
+        const contract = resolvePendingSelectionContract(cardType);
+        return !!(contract && contract.deferNetworkPublish === true);
+    }
+
+    function syncPendingSelectionActionCache(pendingEffectByPlayer) {
+        try {
+            if (PendingCoordinatorModule && typeof PendingCoordinatorModule.syncPendingSelectionActionCache === 'function') {
+                return PendingCoordinatorModule.syncPendingSelectionActionCache(pendingEffectByPlayer);
+            }
+        } catch (e) { /* ignore */ }
+        return {
+            cleared: [],
+            retained: []
+        };
+    }
+
     function shouldRestorePendingCardUsePlayback(cardType) {
         const contract = resolvePendingSelectionContract(cardType);
         if (!contract) return false;
         return contract.kind !== 'hand_overlay';
+    }
+
+    function createInitialResultPresentationState() {
+        if (ResultOverlayModule && typeof ResultOverlayModule.createEmptyResultPresentationState === 'function') {
+            return ResultOverlayModule.createEmptyResultPresentationState();
+        }
+        return {
+            lastResultVersionShown: null,
+            resultShownForUnversioned: false
+        };
+    }
+
+    function resetNetworkResultPresentationState(resultState) {
+        if (!resultState || typeof resultState !== 'object') {
+            return createInitialResultPresentationState();
+        }
+        if (ResultOverlayModule && typeof ResultOverlayModule.resetResultPresentationState === 'function') {
+            return ResultOverlayModule.resetResultPresentationState(resultState);
+        }
+        resultState.lastResultVersionShown = null;
+        resultState.resultShownForUnversioned = false;
+        return resultState;
     }
 
     function buildPendingCardUsePlaybackEvents(playerKey, cardId, cardType) {
@@ -264,6 +314,7 @@
         return deriveSameOriginServerUrl();
     }
 
+    const initialResultPresentationState = createInitialResultPresentationState();
     const state = {
         active: false,
         roomId: '',
@@ -291,8 +342,8 @@
             nextSequence: 0,
             operations: []
         },
-        lastResultVersionShown: null,
-        resultShownForUnversioned: false,
+        lastResultVersionShown: initialResultPresentationState.lastResultVersionShown,
+        resultShownForUnversioned: initialResultPresentationState.resultShownForUnversioned,
         reconnectTimerId: null,
         reconnectAttempt: 0,
         turnTimer: {
@@ -449,9 +500,7 @@
             root,
             getState: () => state,
             onTelemetry: (type, details) => recordNetworkTelemetry(type, details),
-            syncPendingSelectionActionCache: PendingSelectionFlow && typeof PendingSelectionFlow.syncPendingSelectionActionCache === 'function'
-                ? (pendingEffectByPlayer) => PendingSelectionFlow.syncPendingSelectionActionCache(pendingEffectByPlayer)
-                : null
+            syncPendingSelectionActionCache
         });
         return networkSnapshotController;
     }
@@ -469,7 +518,8 @@
             playerNameMax: PLAYER_NAME_MAX,
             updateTurnTimerFromPayload: (payload) => updateTurnTimerFromPayload(payload),
             ensureActionBridge: () => ensureActionBridge(),
-            applySnapshot: (snapshot, options) => applySnapshot(snapshot, options)
+            applySnapshot: (snapshot, options) => applySnapshot(snapshot, options),
+            resetResultPresentationState: (resultState) => resetNetworkResultPresentationState(resultState)
         });
         return networkSessionSeatController;
     }
@@ -1316,8 +1366,7 @@
             return false;
         }
         const pendingType = pending.type ? String(pending.type) : '';
-        const contract = resolvePendingSelectionContract(pendingType);
-        return !!(contract && contract.deferNetworkPublish === true);
+        return shouldDeferNetworkPublishForPendingType(pendingType);
     }
 
     function hasNewerQueuedPublish(sequence) {
@@ -1804,10 +1853,7 @@
                     const cardId = action && (action.useCardId || action.cardId);
                     const cardType = resolveCardTypeForId(cardId);
                     const canResolvePendingType = !!cardType;
-                    const needsPending = !!(canResolvePendingType
-                        && PendingSelectionFlow
-                        && typeof PendingSelectionFlow.shouldDeferNetworkPublishForPendingType === 'function'
-                        && PendingSelectionFlow.shouldDeferNetworkPublishForPendingType(cardType));
+                    const needsPending = !!(canResolvePendingType && shouldDeferNetworkPublishForPendingType(cardType));
 
                     if (canResolvePendingType && !needsPending) {
                         // No-target card: skip local, publish directly
@@ -1877,11 +1923,7 @@
                         return null;
                     }
                 })();
-                const shouldDeferPendingSelection = !!(
-                    PendingSelectionFlow
-                    && typeof PendingSelectionFlow.shouldDeferNetworkPublishForPendingType === 'function'
-                    && PendingSelectionFlow.shouldDeferNetworkPublishForPendingType(pendingType)
-                );
+                const shouldDeferPendingSelection = shouldDeferNetworkPublishForPendingType(pendingType);
                 if (!shouldDeferNetworkPublish && !shouldDeferPendingSelection) {
                     publishSnapshot({
                         playerKey: normalizePlayerKey(playerKey),
@@ -2436,8 +2478,7 @@
             state.stateVersion = null;
             state.appliedStateVersion = null;
             resetPublishTracker();
-            state.lastResultVersionShown = null;
-            state.resultShownForUnversioned = false;
+            resetNetworkResultPresentationState(state);
         }
         state.appliedStateVersion = null;
         resetPublishTracker();

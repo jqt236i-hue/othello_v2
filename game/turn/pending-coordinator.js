@@ -16,30 +16,44 @@
         white: null
     };
 
-    function getPendingStateManager() {
-        if (cachedPendingStateManager && typeof cachedPendingStateManager === 'object') {
-            return cachedPendingStateManager;
+    function resolveCachedModule(cacheRef, requirePath, globalKey) {
+        if (cacheRef && typeof cacheRef === 'object') {
+            return cacheRef;
         }
+        var resolvedModule = cacheRef;
         if (typeof require === 'function') {
-            try { cachedPendingStateManager = require('../logic/cards-internal/pending-state-manager'); } catch (e) { /* ignore */ }
+            try { resolvedModule = require(requirePath); } catch (e) { /* ignore */ }
         }
-        if (!cachedPendingStateManager && root && root.CardPendingStateManager) {
-            cachedPendingStateManager = root.CardPendingStateManager;
+        if (!resolvedModule && root && root[globalKey]) {
+            resolvedModule = root[globalKey];
         }
+        return resolvedModule;
+    }
+
+    function getPendingStateManager() {
+        cachedPendingStateManager = resolveCachedModule(
+            cachedPendingStateManager,
+            '../logic/cards-internal/pending-state-manager',
+            'CardPendingStateManager'
+        );
         return cachedPendingStateManager;
     }
 
     function getOwnerHelpers() {
-        if (cachedOwnerHelpers && typeof cachedOwnerHelpers === 'object') {
-            return cachedOwnerHelpers;
-        }
-        if (typeof require === 'function') {
-            try { cachedOwnerHelpers = require('../../utils/owner-helpers'); } catch (e) { /* ignore */ }
-        }
-        if (!cachedOwnerHelpers && root && root.OwnerHelpers) {
-            cachedOwnerHelpers = root.OwnerHelpers;
-        }
+        cachedOwnerHelpers = resolveCachedModule(
+            cachedOwnerHelpers,
+            '../../utils/owner-helpers',
+            'OwnerHelpers'
+        );
         return cachedOwnerHelpers;
+    }
+
+    function callPendingStateManager(methodName, args, fallbackValue) {
+        var pendingStateManager = getPendingStateManager();
+        if (!pendingStateManager || typeof pendingStateManager[methodName] !== 'function') {
+            return fallbackValue;
+        }
+        return pendingStateManager[methodName].apply(pendingStateManager, args || []);
     }
 
     function normalizePlayerKey(playerKey) {
@@ -87,19 +101,23 @@
     }
 
     function resolvePendingSelectionContract(cardType) {
-        var pendingStateManager = getPendingStateManager();
-        if (!pendingStateManager || typeof pendingStateManager.resolvePendingSelectionContract !== 'function') {
-            return null;
-        }
-        return pendingStateManager.resolvePendingSelectionContract(cardType);
+        return callPendingStateManager('resolvePendingSelectionContract', [cardType], null);
     }
 
     function resolvePendingSelectionDispatchKey(cardType) {
-        var pendingStateManager = getPendingStateManager();
-        if (!pendingStateManager || typeof pendingStateManager.resolvePendingSelectionDispatchKey !== 'function') {
-            return null;
-        }
-        return pendingStateManager.resolvePendingSelectionDispatchKey(cardType);
+        return callPendingStateManager('resolvePendingSelectionDispatchKey', [cardType], null);
+    }
+
+    function isSelectionOnlyEndTurnPendingType(cardType) {
+        return callPendingStateManager('isSelectionOnlyEndTurnPendingType', [cardType], false);
+    }
+
+    function shouldDeferNetworkPublishForPendingType(cardType) {
+        return callPendingStateManager('shouldDeferNetworkPublishForPendingType', [cardType], false);
+    }
+
+    function shouldWaitForPlaybackIdleForPendingType(cardType) {
+        return callPendingStateManager('shouldWaitForPlaybackIdleForPendingType', [cardType], false);
     }
 
     function storePendingSelectionAction(playerKey, action, pendingType) {
@@ -308,16 +326,11 @@
     }
 
     function createPendingSelectionAction(playerKey, pendingType, actionPayload, options) {
-        var pendingStateManager = getPendingStateManager();
         var opts = (options && typeof options === 'object') ? options : {};
         var normalizedPayload = Object.assign({}, actionPayload || {});
         var normalizedPlayerKey = normalizePlayerKey(playerKey);
         var cardStateRef = opts.cardState || null;
-        if (
-            pendingStateManager
-            && typeof pendingStateManager.shouldDeferNetworkPublishForPendingType === 'function'
-            && pendingStateManager.shouldDeferNetworkPublishForPendingType(pendingType)
-        ) {
+        if (shouldDeferNetworkPublishForPendingType(pendingType)) {
             normalizedPayload.deferNetworkPublish = true;
         }
 
@@ -421,6 +434,9 @@
         clearPendingEffect: clearPendingEffect,
         requiresPendingTarget: requiresPendingTarget,
         getPendingSelectionContract: getPendingSelectionContract,
+        isSelectionOnlyEndTurnPendingType: isSelectionOnlyEndTurnPendingType,
+        shouldDeferNetworkPublishForPendingType: shouldDeferNetworkPublishForPendingType,
+        shouldWaitForPlaybackIdleForPendingType: shouldWaitForPlaybackIdleForPendingType,
         resolvePendingSelectionDispatchKey: resolvePendingSelectionDispatchKey,
         storePendingSelectionAction: storePendingSelectionAction,
         readPendingSelectionAction: readPendingSelectionAction,
