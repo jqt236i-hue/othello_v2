@@ -230,13 +230,7 @@ const countBoardEmpties = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoar
 
 const isStandardBoard8x8 = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.isStandardBoard8x8 === 'function')
     ? CpuDecisionBoardUtilsModule.isStandardBoard8x8
-    : function isStandardBoard8x8Fallback(board) {
-        if (!Array.isArray(board) || board.length !== 8) return false;
-        for (const row of board) {
-            if (!Array.isArray(row) || row.length !== 8) return false;
-        }
-        return true;
-    };
+    : function isStandardBoard8x8Fallback() { return false; };
 
 const isCornerCell = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.isCornerCell === 'function')
     ? CpuDecisionBoardUtilsModule.isCornerCell

@@ -835,64 +835,84 @@
             renderCardUiAfterPlaybackIfNeeded();
         }
 
-        function dismissResultOverlayIfPresent() {
+        function resolveResultPresentationSync() {
             try {
-                const doc = (rootRef && rootRef.document) || (typeof document !== 'undefined' ? document : null);
-                if (!doc) return;
-                const overlay = doc.getElementById('result-overlay');
-                if (overlay && overlay.parentNode) {
-                    overlay.parentNode.removeChild(overlay);
+                const syncResultPresentation = resolveGlobalFunction('syncResultPresentationFromSnapshot', cfg.syncResultPresentationFromSnapshot);
+                if (typeof syncResultPresentation === 'function') {
+                    return syncResultPresentation;
                 }
             } catch (e) { /* ignore */ }
+            try {
+                if (typeof require === 'function') {
+                    const resultOverlayModule = require('../result-overlay');
+                    if (resultOverlayModule && typeof resultOverlayModule.syncResultPresentationFromSnapshot === 'function') {
+                        return resultOverlayModule.syncResultPresentationFromSnapshot;
+                    }
+                }
+            } catch (e) { /* ignore */ }
+            return null;
         }
 
         function maybeShowResultFromSnapshot(nextVersion, options) {
             const opts = options || {};
-            const state = resolveState();
-            if (opts.skipResultOverlay) return;
+            const syncResultPresentation = resolveResultPresentationSync();
+            if (typeof syncResultPresentation !== 'function') return false;
+            return syncResultPresentation({
+                resultState: resolveState(),
+                stateVersion: nextVersion,
+                skipResultOverlay: opts.skipResultOverlay === true,
+                gameStateRef: resolveGlobalObject('gameState'),
+                isGameOver: resolveGlobalFunction('isGameOver', cfg.isGameOver),
+                showResult: resolveGlobalFunction('showResult', cfg.showResult),
+                showResultOverlay: resolveGlobalFunction('showResultOverlay', cfg.showResultOverlay)
+            });
+        }
 
-            let terminal = false;
-            try {
-                const isGameOver = resolveGlobalFunction('isGameOver', cfg.isGameOver);
-                const gameStateRef = resolveGlobalObject('gameState');
-                terminal = !!(isGameOver && gameStateRef && isGameOver(gameStateRef));
-            } catch (e) {
-                terminal = false;
+        function finalizeSnapshotPresentation(nextVersion, options, context) {
+            const opts = options || {};
+            const details = (context && typeof context === 'object') ? context : {};
+            const presentationState = details.presentationState || {};
+            const playbackEvents = Array.isArray(details.playbackEvents) ? details.playbackEvents : [];
+            const shadowPlaybackEvents = Array.isArray(details.shadowPlaybackEvents) ? details.shadowPlaybackEvents : [];
+            const cardStateRef = details.cardStateRef || null;
+            const busyStateBeforeSnapshot = details.busyStateBeforeSnapshot || null;
+            const shouldEmitShadowPlayback = presentationState.shouldEmitShadowPlayback === true;
+
+            setBusyState(presentationState.shouldKeepBusy === true);
+            if (playbackEvents.length > 0) {
+                emitPlaybackEvents(playbackEvents, { source: 'network_snapshot' });
+            } else if (shouldEmitShadowPlayback) {
+                emitPlaybackEvents(shadowPlaybackEvents, {
+                    source: opts.shadowPlaybackSource || 'self_snapshot_sync',
+                    suppressPlayback: true
+                });
+                // suppressPlayback causes playPlaybackEvents to return immediately
+                // without running AnimationEngine, so busy flags are never released.
+                setBusyState(false);
             }
 
-            if (!terminal) {
-                state.resultShownForUnversioned = false;
-                dismissResultOverlayIfPresent();
-                return;
+            maybeShowResultFromSnapshot(nextVersion, opts);
+            if (playbackEvents.length > 0 || shouldEmitShadowPlayback) {
+                armBoardUpdateDuringPlayback(
+                    shouldEmitShadowPlayback ? (opts.shadowPlaybackSource || 'self_snapshot_sync') : 'network_snapshot',
+                    shouldEmitShadowPlayback ? 'snapshot_shadow_playback_board_sync' : 'snapshot_playback_board_sync'
+                );
             }
+            refreshUi();
 
-            if (nextVersion !== null) {
-                if (state.lastResultVersionShown === nextVersion) return;
-                state.lastResultVersionShown = nextVersion;
-            } else {
-                if (state.resultShownForUnversioned) return;
-                state.resultShownForUnversioned = true;
+            // After refreshUi consumed the suppressed shadow events for
+            // diff-renderer's move-source detection, clear them so
+            // _hasPendingPlaybackEventsForBoardRenderer() does not
+            // permanently block future renderBoard() calls.
+            if (shouldEmitShadowPlayback) {
+                clearTransientPresentationQueues(cardStateRef);
+            } else if (shouldReleaseRestoredQueueBusyState(cardStateRef, presentationState, busyStateBeforeSnapshot)) {
+                clearTransientPresentationQueues(cardStateRef);
+                setBusyState(false);
             }
-
-            try {
-                const gameStateRef = resolveGlobalObject('gameState');
-                if (gameStateRef && typeof gameStateRef === 'object') {
-                    gameStateRef.__resultShown = false;
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                const showResult = resolveGlobalFunction('showResult', cfg.showResult);
-                if (showResult) {
-                    showResult();
-                    return;
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                const showResultOverlay = resolveGlobalFunction('showResultOverlay', cfg.showResultOverlay);
-                if (showResultOverlay) showResultOverlay();
-            } catch (e) { /* ignore */ }
+            if (shouldReleaseStalePlaybackLockAfterSnapshot(cardStateRef, presentationState)) {
+                clearBusyStateAndPlaybackLock();
+            }
         }
 
         function applySnapshot(snapshot, options) {
@@ -998,7 +1018,6 @@
                 shadowPlaybackEvents,
                 dropPreservedQueues: boardGeometry.changed
             });
-            const shouldEmitShadowPlayback = presentationState.shouldEmitShadowPlayback;
 
             if (nextVersion !== null) {
                 state.stateVersion = nextVersion;
@@ -1011,41 +1030,13 @@
                 state.authoritativeMatchState.turnStartReconciled = snapshotMeta ? snapshotMeta.turnStartReconciled : false;
             }
 
-            setBusyState(presentationState.shouldKeepBusy);
-            if (playbackEvents.length > 0) {
-                emitPlaybackEvents(playbackEvents, { source: 'network_snapshot' });
-            } else if (shouldEmitShadowPlayback) {
-                emitPlaybackEvents(shadowPlaybackEvents, {
-                    source: opts.shadowPlaybackSource || 'self_snapshot_sync',
-                    suppressPlayback: true
-                });
-                // suppressPlayback causes playPlaybackEvents to return immediately
-                // without running AnimationEngine, so busy flags are never released.
-                setBusyState(false);
-            }
-
-            maybeShowResultFromSnapshot(nextVersion, opts);
-            if (playbackEvents.length > 0 || shouldEmitShadowPlayback) {
-                armBoardUpdateDuringPlayback(
-                    shouldEmitShadowPlayback ? (opts.shadowPlaybackSource || 'self_snapshot_sync') : 'network_snapshot',
-                    shouldEmitShadowPlayback ? 'snapshot_shadow_playback_board_sync' : 'snapshot_playback_board_sync'
-                );
-            }
-            refreshUi();
-
-            // After refreshUi consumed the suppressed shadow events for
-            // diff-renderer's move-source detection, clear them so
-            // _hasPendingPlaybackEventsForBoardRenderer() does not
-            // permanently block future renderBoard() calls.
-            if (shouldEmitShadowPlayback) {
-                clearTransientPresentationQueues(cardStateRef);
-            } else if (shouldReleaseRestoredQueueBusyState(cardStateRef, presentationState, busyStateBeforeSnapshot)) {
-                clearTransientPresentationQueues(cardStateRef);
-                setBusyState(false);
-            }
-            if (shouldReleaseStalePlaybackLockAfterSnapshot(cardStateRef, presentationState)) {
-                clearBusyStateAndPlaybackLock();
-            }
+            finalizeSnapshotPresentation(nextVersion, opts, {
+                presentationState,
+                playbackEvents,
+                shadowPlaybackEvents,
+                cardStateRef,
+                busyStateBeforeSnapshot
+            });
             return true;
         }
 

@@ -2,6 +2,8 @@ const Core = require('../game/logic/core');
 const CardLogic = require('../game/logic/cards');
 const CardExpansion = require('../game/logic/cards/expansion');
 const CardSelectors = require('../game/logic/cards/selectors');
+const CardTargets = require('../game/logic/cards/targets');
+const CardHyperactive = require('../game/logic/cards/hyperactive');
 const SharedBoardUtils = require('../shared/shared-board-utils');
 
 function createPrng() {
@@ -118,6 +120,80 @@ describe('custom board config foundations', () => {
       expect.objectContaining({ row: 0, col: 4, side: 'right' }),
       expect.objectContaining({ row: 4, col: 3, side: 'bottom' })
     ]));
+  });
+
+  test('capture target helpers can read custom-board expansion cells', () => {
+    const gameState = Core.createGameState({ rows: 4, cols: 4 });
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: true, white: true },
+      cells: [
+        { side: 'bottom', row: 4, col: 2, owner: Core.WHITE }
+      ]
+    };
+    const cardState = {
+      markers: [
+        { kind: 'specialStone', row: 4, col: 2, owner: 'white', data: { type: 'TIME_BOMB' } }
+      ]
+    };
+
+    expect(CardTargets.getCaptureWillTargets(cardState, gameState, 'black')).toEqual([
+      { row: 4, col: 2 }
+    ]);
+  });
+
+  test('hyperactive anchor can move into a custom-board expansion cell', () => {
+    const gameState = Core.createGameState({ rows: 4, cols: 4 });
+    for (let row = 0; row < 4; row += 1) {
+      for (let col = 0; col < 4; col += 1) {
+        gameState.board[row][col] = Core.WHITE;
+      }
+    }
+    gameState.board[3][3] = Core.BLACK;
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: true, white: true },
+      cells: [
+        { side: 'bottom', row: 4, col: 3, owner: Core.EMPTY }
+      ]
+    };
+    const cardState = {
+      markers: [
+        {
+          kind: 'specialStone',
+          row: 3,
+          col: 3,
+          owner: 'black',
+          data: { type: 'HYPERACTIVE', remainingOwnerTurns: 2 }
+        }
+      ]
+    };
+
+    const result = CardHyperactive.processHyperactiveMoveAtAnchor(
+      cardState,
+      gameState,
+      'black',
+      3,
+      3,
+      { random: () => 0 },
+      {
+        isBlockedCell: () => false,
+        getFlipsWithContext: () => []
+      }
+    );
+
+    expect(result.moved).toEqual([
+      { from: { row: 3, col: 3 }, to: { row: 4, col: 3 }, specialType: 'HYPERACTIVE' }
+    ]);
+    expect(gameState.board[3][3]).toBe(Core.EMPTY);
+    expect(gameState.boardExpansion.cells[0].owner).toBe(Core.BLACK);
+    expect(cardState.markers[0]).toEqual(expect.objectContaining({ row: 4, col: 3 }));
   });
 
   test('custom right-edge expansion cell can materialize on 8x9 board', () => {

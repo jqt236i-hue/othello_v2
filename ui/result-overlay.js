@@ -616,8 +616,76 @@ function createStoryEncounterDialogue(override) {
 }
 
 function removeExistingResultOverlay() {
-    const existing = document.getElementById('result-overlay');
+    const doc = (typeof document !== 'undefined') ? document : null;
+    if (!doc) return;
+    const existing = doc.getElementById('result-overlay');
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+}
+
+function dismissResultOverlayIfPresent() {
+    removeExistingResultOverlay();
+}
+
+function syncResultPresentationFromSnapshot(options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const resultState = (opts.resultState && typeof opts.resultState === 'object') ? opts.resultState : null;
+    const rawVersion = opts.stateVersion;
+    const stateVersion = Number.isFinite(Number(rawVersion)) ? Number(rawVersion) : null;
+    const gameStateRef = (opts.gameStateRef && typeof opts.gameStateRef === 'object')
+        ? opts.gameStateRef
+        : (typeof gameState !== 'undefined' ? gameState : null);
+    const isGameOverFn = (typeof opts.isGameOver === 'function')
+        ? opts.isGameOver
+        : (typeof isGameOver === 'function' ? isGameOver : null);
+
+    if (opts.skipResultOverlay === true) return false;
+
+    let terminal = false;
+    try {
+        terminal = !!(isGameOverFn && gameStateRef && isGameOverFn(gameStateRef));
+    } catch (e) {
+        terminal = false;
+    }
+
+    if (!terminal) {
+        if (resultState) {
+            resultState.resultShownForUnversioned = false;
+        }
+        dismissResultOverlayIfPresent();
+        return false;
+    }
+
+    if (resultState) {
+        if (stateVersion !== null) {
+            if (resultState.lastResultVersionShown === stateVersion) return false;
+            resultState.lastResultVersionShown = stateVersion;
+        } else {
+            if (resultState.resultShownForUnversioned) return false;
+            resultState.resultShownForUnversioned = true;
+        }
+    }
+
+    try {
+        if (gameStateRef && typeof gameStateRef === 'object') {
+            gameStateRef.__resultShown = false;
+        }
+    } catch (e) { /* ignore */ }
+
+    const showResultFn = (typeof opts.showResult === 'function') ? opts.showResult : showResult;
+    if (typeof showResultFn === 'function') {
+        showResultFn();
+        return true;
+    }
+
+    const showResultOverlayFn = (typeof opts.showResultOverlay === 'function')
+        ? opts.showResultOverlay
+        : showResultOverlay;
+    if (typeof showResultOverlayFn === 'function') {
+        showResultOverlayFn();
+        return true;
+    }
+
+    return false;
 }
 
 function createStoryEncounterHeroRow(override, counts) {
@@ -1102,6 +1170,8 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         showResult,
         showResultOverlay,
+        syncResultPresentationFromSnapshot,
+        dismissResultOverlayIfPresent,
         createMonsterDialogue,
         createObserverDuelDialogue,
         getMonsterDialogues,

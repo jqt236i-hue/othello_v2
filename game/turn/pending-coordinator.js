@@ -102,6 +102,30 @@
         return pendingStateManager.resolvePendingSelectionDispatchKey(cardType);
     }
 
+    function isSelectionOnlyEndTurnPendingType(cardType) {
+        var pendingStateManager = getPendingStateManager();
+        if (!pendingStateManager || typeof pendingStateManager.isSelectionOnlyEndTurnPendingType !== 'function') {
+            return false;
+        }
+        return pendingStateManager.isSelectionOnlyEndTurnPendingType(cardType);
+    }
+
+    function shouldDeferNetworkPublishForPendingType(cardType) {
+        var pendingStateManager = getPendingStateManager();
+        if (!pendingStateManager || typeof pendingStateManager.shouldDeferNetworkPublishForPendingType !== 'function') {
+            return false;
+        }
+        return pendingStateManager.shouldDeferNetworkPublishForPendingType(cardType);
+    }
+
+    function shouldWaitForPlaybackIdleForPendingType(cardType) {
+        var pendingStateManager = getPendingStateManager();
+        if (!pendingStateManager || typeof pendingStateManager.shouldWaitForPlaybackIdleForPendingType !== 'function') {
+            return false;
+        }
+        return pendingStateManager.shouldWaitForPlaybackIdleForPendingType(cardType);
+    }
+
     function storePendingSelectionAction(playerKey, action, pendingType) {
         var normalizedPlayerKey = normalizePlayerKey(playerKey);
         if (!action || typeof action !== 'object') {
@@ -308,16 +332,11 @@
     }
 
     function createPendingSelectionAction(playerKey, pendingType, actionPayload, options) {
-        var pendingStateManager = getPendingStateManager();
         var opts = (options && typeof options === 'object') ? options : {};
         var normalizedPayload = Object.assign({}, actionPayload || {});
         var normalizedPlayerKey = normalizePlayerKey(playerKey);
         var cardStateRef = opts.cardState || null;
-        if (
-            pendingStateManager
-            && typeof pendingStateManager.shouldDeferNetworkPublishForPendingType === 'function'
-            && pendingStateManager.shouldDeferNetworkPublishForPendingType(pendingType)
-        ) {
+        if (shouldDeferNetworkPublishForPendingType(pendingType)) {
             normalizedPayload.deferNetworkPublish = true;
         }
 
@@ -421,6 +440,9 @@
         clearPendingEffect: clearPendingEffect,
         requiresPendingTarget: requiresPendingTarget,
         getPendingSelectionContract: getPendingSelectionContract,
+        isSelectionOnlyEndTurnPendingType: isSelectionOnlyEndTurnPendingType,
+        shouldDeferNetworkPublishForPendingType: shouldDeferNetworkPublishForPendingType,
+        shouldWaitForPlaybackIdleForPendingType: shouldWaitForPlaybackIdleForPendingType,
         resolvePendingSelectionDispatchKey: resolvePendingSelectionDispatchKey,
         storePendingSelectionAction: storePendingSelectionAction,
         readPendingSelectionAction: readPendingSelectionAction,

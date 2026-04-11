@@ -793,11 +793,7 @@ function isStandardOnnxBoard(board) {
     if (SharedBoardUtils && typeof SharedBoardUtils.isStandardBoard8x8 === 'function') {
         return SharedBoardUtils.isStandardBoard8x8(board);
     }
-    if (!Array.isArray(board) || board.length !== 8) return false;
-    for (const row of board) {
-        if (!Array.isArray(row) || row.length !== 8) return false;
-    }
-    return true;
+    return false;
 }
 
 function hasOnlyStandardMoveIndexes(moves) {

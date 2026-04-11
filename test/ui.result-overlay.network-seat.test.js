@@ -41,6 +41,7 @@ describe('result overlay seat perspective', () => {
     delete global.cpuSmartness;
     delete global.countDiscs;
     delete global.resetGame;
+    delete global.isGameOver;
   });
 
   test('network白席で白優勢なら勝利表示になる', () => {
@@ -381,6 +382,57 @@ describe('result overlay seat perspective', () => {
 
     expect(requestRematch).not.toHaveBeenCalled();
     expect(global.resetGame).toHaveBeenCalledTimes(1);
+  });
+
+  test('syncResultPresentationFromSnapshot は stateVersion ごとに 1 回だけ結果表示する', () => {
+    const mod = require('../ui/result-overlay.js');
+    const showResult = jest.fn();
+    global.isGameOver = jest.fn(() => true);
+    const syncState = {
+      lastResultVersionShown: null,
+      resultShownForUnversioned: false
+    };
+
+    const first = mod.syncResultPresentationFromSnapshot({
+      resultState: syncState,
+      stateVersion: 14,
+      gameStateRef: global.gameState,
+      isGameOver: global.isGameOver,
+      showResult
+    });
+    const second = mod.syncResultPresentationFromSnapshot({
+      resultState: syncState,
+      stateVersion: 14,
+      gameStateRef: global.gameState,
+      isGameOver: global.isGameOver,
+      showResult
+    });
+
+    expect(first).toBe(true);
+    expect(second).toBe(false);
+    expect(showResult).toHaveBeenCalledTimes(1);
+  });
+
+  test('syncResultPresentationFromSnapshot は非終局 snapshot で既存 overlay を閉じる', () => {
+    const mod = require('../ui/result-overlay.js');
+    global.isGameOver = jest.fn(() => false);
+    const overlay = document.createElement('div');
+    overlay.id = 'result-overlay';
+    document.body.appendChild(overlay);
+
+    const shown = mod.syncResultPresentationFromSnapshot({
+      resultState: {
+        lastResultVersionShown: 20,
+        resultShownForUnversioned: true
+      },
+      stateVersion: 21,
+      gameStateRef: global.gameState,
+      isGameOver: global.isGameOver,
+      showResult: jest.fn()
+    });
+
+    expect(shown).toBe(false);
+    expect(document.getElementById('result-overlay')).toBeNull();
   });
 
 });

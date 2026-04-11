@@ -690,139 +690,46 @@ if (typeof window !== 'undefined') {
     try { updateRoundDisplay(); } catch (e) { /* ignore */ }
 }
 
-// Module-level token: survives gameState replacement by network snapshots.
-// Updated each time showResult() is called so stale delayed callbacks can detect
-// that a newer invocation has superseded them.
-let _statusDisplayPendingResultToken = null;
+function resolveResultOverlayApiForStatusDisplay() {
+    try {
+        if (typeof require === 'function') {
+            const resultOverlay = require('./result-overlay.js');
+            if (resultOverlay && typeof resultOverlay === 'object') return resultOverlay;
+        }
+    } catch (e) { /* ignore */ }
+
+    try {
+        if (typeof globalThis !== 'undefined') {
+            const api = {
+                showResult: (typeof globalThis.showResult === 'function' && globalThis.showResult !== showResult)
+                    ? globalThis.showResult.bind(globalThis)
+                    : null,
+                showResultOverlay: (typeof globalThis.showResultOverlay === 'function' && globalThis.showResultOverlay !== showResultOverlay)
+                    ? globalThis.showResultOverlay.bind(globalThis)
+                    : null
+            };
+            if (api.showResult || api.showResultOverlay) return api;
+        }
+    } catch (e) { /* ignore */ }
+
+    return null;
+}
 
 function showResult() {
-    if (gameState && gameState.__resultShown) return;
-    if (gameState) gameState.__resultShown = true;
-    const resultToken = Date.now();
-    _statusDisplayPendingResultToken = resultToken;
-    if (gameState) gameState.__resultToken = resultToken;
-
-    const counts = countDiscs(gameState);
-    let result;
-    if (counts.black > counts.white) {
-        result = `黒の勝ち! (黒: ${counts.black}, 白: ${counts.white})`;
-    } else if (counts.white > counts.black) {
-        result = `白の勝ち! (黒: ${counts.black}, 白: ${counts.white})`;
-    } else {
-        result = `引き分け! (黒: ${counts.black}, 白: ${counts.white})`;
+    const resultOverlayApi = resolveResultOverlayApiForStatusDisplay();
+    if (!resultOverlayApi || typeof resultOverlayApi.showResult !== 'function') {
+        console.warn('[status-display] result-overlay.showResult unavailable');
+        return;
     }
-    // status element removed; log the result instead
-    addLog('ゲーム終了: ' + result);
-
-
-    
-    // Show centered result overlay after a short delay.
-    // Guard against stale callbacks (e.g., when showResult is called again for a new game),
-    // but do NOT abort just because gameState.__resultToken was cleared by a snapshot replacement.
-    setTimeout(() => {
-        if (_statusDisplayPendingResultToken !== resultToken) return;
-        try { showResultOverlay(); } catch (e) { console.warn('showResultOverlay failed', e); }
-    }, 2000);
+    return resultOverlayApi.showResult();
 }
 
 // Create or show a result overlay in the center of the screen.
 function showResultOverlay() {
-    const counts = countDiscs(gameState);
-    let title = '';
-    if (counts.black > counts.white) title = '勝利！';
-    else if (counts.white > counts.black) title = '敗北...';
-    else title = '引き分け';
-
-    // Remove existing overlay if any
-    const existing = document.getElementById('result-overlay');
-    if (existing) existing.parentNode.removeChild(existing);
-
-    const overlay = document.createElement('div');
-    overlay.id = 'result-overlay';
-    overlay.className = 'result-overlay';
-
-    const panel = document.createElement('div');
-    panel.className = 'result-panel';
-
-    const titleEl = document.createElement('div');
-    titleEl.className = 'result-title';
-    titleEl.textContent = title;
-    panel.appendChild(titleEl);
-
-    const subtitle = document.createElement('div');
-    subtitle.className = 'result-subtitle';
-    subtitle.textContent = `${counts.black} : ${counts.white}`;
-    panel.appendChild(subtitle);
-
-    const countsEl = document.createElement('div');
-    countsEl.className = 'result-counts';
-
-    const blackDot = document.createElement('span');
-    blackDot.className = 'result-dot black';
-    countsEl.appendChild(blackDot);
-    const blackText = document.createElement('span');
-    blackText.className = 'result-count-text';
-    blackText.textContent = ` 黒 ${counts.black}`;
-    countsEl.appendChild(blackText);
-
-    const spacer = document.createElement('span');
-    spacer.style.width = '24px';
-    countsEl.appendChild(spacer);
-
-    const whiteDot = document.createElement('span');
-    whiteDot.className = 'result-dot white';
-    countsEl.appendChild(whiteDot);
-    const whiteText = document.createElement('span');
-    whiteText.className = 'result-count-text';
-    whiteText.textContent = ` 白 ${counts.white}`;
-    countsEl.appendChild(whiteText);
-
-    panel.appendChild(countsEl);
-
-    const btnRow = document.createElement('div');
-    btnRow.className = 'result-btn-row';
-    const restartBtn = document.createElement('button');
-    restartBtn.className = 'premium-btn primary';
-    restartBtn.textContent = '再戦';
-    restartBtn.addEventListener('click', () => {
-        const el = document.getElementById('result-overlay');
-        if (el) el.parentNode.removeChild(el);
-        if (typeof resetGame === 'function') resetGame();
-    });
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'premium-btn secondary';
-    closeBtn.textContent = '閉じる';
-    closeBtn.addEventListener('click', () => {
-        const el = document.getElementById('result-overlay');
-        if (el) el.parentNode.removeChild(el);
-    });
-    btnRow.appendChild(restartBtn);
-    btnRow.appendChild(closeBtn);
-    panel.appendChild(btnRow);
-
-    // Show a single monster (matching CPU difficulty) speaking; no hero line
-    (function() {
-        const cpuLevel = (cpuSmartness && cpuSmartness.white) ? cpuSmartness.white : 1;
-
-        const outcomeKey = counts.black > counts.white ? 'win' : (counts.black < counts.white ? 'lose' : 'draw');
-        // Monster perspective: if player (黒) wins, monster lost
-        const monsterOutcome = outcomeKey === 'win' ? 'lose' : (outcomeKey === 'lose' ? 'win' : 'draw');
-
-        const dialogContainer = document.createElement('div');
-        dialogContainer.className = 'result-dialogues';
-
-        const row = document.createElement('div');
-        row.className = 'dialogue-row monster';
-        const name = document.createElement('div'); name.className = 'character-name'; name.textContent = CPU_LEVEL_NAMES[cpuLevel] || (`モンスターLv${cpuLevel}`);
-        const text = document.createElement('div'); text.className = 'dialogue-text';
-        const speech = getDialogueForOutcome(cpuLevel, monsterOutcome);
-        text.textContent = speech ? `「${speech}」` : '';
-        row.appendChild(name); row.appendChild(text);
-        dialogContainer.appendChild(row);
-
-        panel.appendChild(dialogContainer);
-    })();
-
-    overlay.appendChild(panel);
-    document.body.appendChild(overlay);
+    const resultOverlayApi = resolveResultOverlayApiForStatusDisplay();
+    if (!resultOverlayApi || typeof resultOverlayApi.showResultOverlay !== 'function') {
+        console.warn('[status-display] result-overlay.showResultOverlay unavailable');
+        return;
+    }
+    return resultOverlayApi.showResultOverlay();
 }
