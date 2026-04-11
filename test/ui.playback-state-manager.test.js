@@ -34,7 +34,11 @@ describe('PlaybackStateManager runtime helpers', () => {
       readProcessing: () => true
     });
 
-    expect(result).toEqual({ isCardAnimating: true, isProcessing: true });
+    expect(result).toEqual({
+      isCardAnimating: true,
+      isProcessing: true,
+      playbackActive: false
+    });
     expect(global.window.isCardAnimating).toBe(true);
     expect(global.window.isProcessing).toBe(true);
   });
@@ -174,9 +178,5 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(manager.getPlaybackActive()).toBe(false);
     expect(manager.getProcessing()).toBe(false);
     expect(manager.getCardAnimating()).toBe(false);
-  });
-});
-bal.window.__suppressNextDiffFlip).toBe(false);
-    expect(global.window.__suppressNextBoardExpansionRevealSound).toBe(false);
   });
 });

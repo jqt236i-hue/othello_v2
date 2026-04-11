@@ -27,6 +27,7 @@ describe('presentation handler boardUpdated draining', () => {
     jest.useRealTimers();
     jest.resetModules();
     jest.unmock('../game/cpu-turn-handler');
+    jest.unmock('../ui/stone-visuals');
     delete global.CardLogic;
     delete global.cardState;
     delete global.AnimationEngine;
@@ -36,6 +37,8 @@ describe('presentation handler boardUpdated draining', () => {
     delete global.GamePresentationRuntime;
     delete global.BLACK;
     delete global.WHITE;
+    delete global.document;
+    delete global.syncDiscVisualToCurrentState;
   });
 
   test('onBoardUpdated drains overlapping playback batches sequentially', async () => {
@@ -208,5 +211,62 @@ describe('presentation handler boardUpdated draining', () => {
         targets: [expect.objectContaining({ r: 3, col: 4, ownerAfter: 'black' })]
       })
     ]);
+  });
+
+  test('CROSSFADE_STONE uses StoneVisuals sync instead of legacy playback-guarded global sync', async () => {
+    const safeSync = jest.fn();
+    const crossfadeSpy = jest.fn().mockResolvedValue(undefined);
+    jest.doMock('../ui/stone-visuals', () => ({
+      syncDiscVisualToCurrentState: safeSync,
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+
+    const disc = {};
+    const cell = {
+      querySelector: jest.fn(() => disc)
+    };
+
+    global.document = {
+      querySelector: jest.fn(() => cell)
+    };
+    global.GameEvents = { gameEvents: { on: jest.fn() } };
+    global.cardState = { _presentationEventsPersist: [] };
+    global.CardLogic = {
+      flushPresentationEvents: jest
+        .fn()
+        .mockReturnValueOnce([{
+          type: 'CROSSFADE_STONE',
+          row: 1,
+          col: 2,
+          effectKey: 'regenStone',
+          owner: 1,
+          newColor: 1,
+          durationMs: 600,
+          autoFadeOut: true,
+          fadeWholeStone: true
+        }])
+        .mockReturnValue([])
+    };
+    global.AnimationEngine = {
+      play: jest.fn()
+    };
+    global.renderCardUI = jest.fn();
+    global.syncDiscVisualToCurrentState = jest.fn(() => {
+      throw new Error('legacy sync should not be called');
+    });
+
+    const ph = require('../ui/presentation-handler');
+    await ph.onBoardUpdated();
+
+    expect(safeSync).toHaveBeenCalledWith(1, 2);
+    expect(global.syncDiscVisualToCurrentState).not.toHaveBeenCalled();
+    expect(crossfadeSpy).toHaveBeenCalledWith(disc, expect.objectContaining({
+      effectKey: 'regenStone',
+      owner: 1,
+      newColor: 1,
+      durationMs: 600,
+      autoFadeOut: true,
+      fadeWholeStone: true
+    }));
   });
 });
