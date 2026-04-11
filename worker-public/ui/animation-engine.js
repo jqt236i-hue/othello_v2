@@ -12,15 +12,31 @@
             require('./playback-state-manager')
         );
     } else {
-        root.AnimationEngine = factory(root.AnimationConstants, { crossfadeStoneVisual: root.crossfadeStoneVisual }, root.PlaybackStateManager);
+        root.AnimationEngine = factory(root.AnimationConstants, root.StoneVisuals || { crossfadeStoneVisual: root.crossfadeStoneVisual }, root.PlaybackStateManager);
     }
 }(typeof self !== 'undefined' ? self : this, function (Constants, Visuals, PlaybackStateManager) {
 
-    const { EVENT_TYPES, FLIP_MS, PHASE_GAP_MS, FADE_IN_MS, BREEDING_SPAWN_FADE_MS, REGEN_CONSUME_FADE_MS, FADE_OUT_MS, OVERLAY_CROSSFADE_MS, MOVE_MS, OBSERVER_BUBBLE_MS, OBSERVER_BUBBLE_FADE_MS } = Constants;
+    const {
+        EVENT_TYPES,
+        FLIP_MS,
+        PHASE_GAP_MS,
+        POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS,
+        FADE_IN_MS,
+        BREEDING_SPAWN_FADE_MS,
+        REGEN_CONSUME_FADE_MS,
+        FADE_OUT_MS,
+        OVERLAY_CROSSFADE_MS,
+        MOVE_MS,
+        OBSERVER_BUBBLE_MS,
+        OBSERVER_BUBBLE_FADE_MS
+    } = Constants;
     const REGEN_CAUSE = 'REGEN';
     const REGEN_TRIGGER_REASON = 'regen_triggered';
     const EFFECT_TARGET_HIGHLIGHT_CLASS = 'effect-target-highlight';
+    const EFFECT_TARGET_POSITIVE_HIGHLIGHT_CLASS = 'effect-target-highlight-positive';
     const EFFECT_TARGET_SPAWN_HIGHLIGHT_CLASS = 'effect-target-highlight-spawn';
+    const HIGHLIGHT_TONE_NEGATIVE = 'negative';
+    const HIGHLIGHT_TONE_POSITIVE = 'positive';
     const LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY = '__skipNextPlaybackSoundUntilByKey';
 
     function hasRegenBackFlip(events) {
@@ -32,23 +48,32 @@
         );
     }
 
-    // Shared animation helpers (deduplicated)
-    var AnimationShared = (typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null);
+    var AnimationResolver = (typeof require === 'function')
+        ? (function () { try { return require('./animation-resolver'); } catch (e) { return (typeof window !== 'undefined' ? window.AnimationResolver : null); } }())
+        : (typeof window !== 'undefined' ? window.AnimationResolver : null);
+    var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimationShared === 'function')
+        ? AnimationResolver.getAnimationShared()
+        : ((typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null));
     var _isNoAnim = (AnimationShared && AnimationShared.isNoAnim) ? AnimationShared.isNoAnim : function () { return false; };
-    var OwnerHelpersModule = (function () {
-        if (typeof require === 'function') {
-            try {
-                return require('../utils/owner-helpers');
-            } catch (e) {
-                return null;
+    var OwnerHelpersModule = (AnimationResolver && typeof AnimationResolver.resolveModuleOrGlobal === 'function')
+        ? AnimationResolver.resolveModuleOrGlobal('../utils/owner-helpers', 'OwnerHelpers')
+        : (function () {
+            if (typeof require === 'function') {
+                try {
+                    return require('../utils/owner-helpers');
+                } catch (e) {
+                    return null;
+                }
             }
-        }
-        if (typeof OwnerHelpers !== 'undefined' && OwnerHelpers) return OwnerHelpers;
-        try {
-            if (typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) return globalThis.OwnerHelpers;
-        } catch (e) { /* ignore */ }
-        return null;
-    }());
+            if (typeof OwnerHelpers !== 'undefined' && OwnerHelpers) return OwnerHelpers;
+            try {
+                if (typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) return globalThis.OwnerHelpers;
+            } catch (e) { /* ignore */ }
+            return null;
+        }());
+    var BoardUpdateDispatch = (AnimationResolver && typeof AnimationResolver.resolveModuleOrGlobal === 'function')
+        ? AnimationResolver.resolveModuleOrGlobal('./board-update-dispatch', 'BoardUpdateDispatch')
+        : ((typeof require === 'function') ? (function () { try { return require('./board-update-dispatch'); } catch (e) { return null; } }()) : (typeof window !== 'undefined' ? window.BoardUpdateDispatch : null));
     var _Timer = (AnimationShared && AnimationShared.getTimer) ? AnimationShared.getTimer : function () {
         if (typeof TimerRegistry !== 'undefined') return TimerRegistry;
         return {
@@ -83,15 +108,6 @@
         return null;
     }
 
-    function _getDeferredVisualWriteGeneration() {
-        if (PlaybackState && typeof PlaybackState.getDeferredVisualWriteGeneration === 'function') {
-            try {
-                return Number(PlaybackState.getDeferredVisualWriteGeneration()) || 0;
-            } catch (e) { /* ignore */ }
-        }
-        return 0;
-    }
-
     function _consumeLocalPlaybackSoundSkip(soundKey) {
         const normalizedKey = String(soundKey || '').trim();
         if (!normalizedKey) return false;
@@ -112,6 +128,19 @@
         return expiresAt >= Date.now();
     }
 
+    function _requestBoardUpdate() {
+        if (BoardUpdateDispatch && typeof BoardUpdateDispatch.requestBoardUpdate === 'function') {
+            return BoardUpdateDispatch.requestBoardUpdate();
+        }
+        try {
+            if (typeof emitBoardUpdate === 'function') {
+                emitBoardUpdate();
+                return true;
+            }
+        } catch (e) { /* ignore */ }
+        return false;
+    }
+
     class PlaybackEngine {
         constructor() {
             this.isPlaying = false;
@@ -124,8 +153,6 @@
             this._phaseContext = null;
             this._playbackRunSequence = 0;
             this._activePlaybackRunId = null;
-            this._deferredStatusDiscSyncTokens = new Map();
-            this._deferredStatusDiscSyncSequence = 0;
         }
 
         _registerPlaybackAbortHandle(runId, runState) {
@@ -164,6 +191,13 @@
             if (PlaybackState && typeof PlaybackState.clearPlaybackAbortHandle === 'function') {
                 PlaybackState.clearPlaybackAbortHandle(handle);
             }
+        }
+
+        _isPlaybackStateActive() {
+            if (PlaybackState && typeof PlaybackState.getPlaybackActive === 'function') {
+                return PlaybackState.getPlaybackActive() === true;
+            }
+            return this.isPlaying === true;
         }
 
         _toBoardIndex(value) {
@@ -381,8 +415,7 @@
         _shouldPlayPlaceHandAnimation(target) {
             if (this._getCurrentMatchMode() !== 'network') return false;
             const descriptor = this._resolvePlaceHandDescriptor(target);
-            if (!descriptor) return false;
-            return descriptor.playerKey !== this._resolveLocalSeatKey();
+            return !!descriptor;
         }
 
         _resolvePlayerValue(playerKey) {
@@ -395,12 +428,30 @@
             return !!cause && cause !== 'SYSTEM';
         }
 
-        _shouldHighlightEffectTarget(eventType, target) {
-            if (_isNoAnim()) return false;
+        _isPositiveSpawnLikeEffectTarget(eventType, target, cause, reason) {
+            const normalizedCause = String(cause || '').toUpperCase();
+            const normalizedReason = String(reason || '').toLowerCase();
+            const isCloneLikeMove = eventType === EVENT_TYPES.MOVE && !!(target && target.clone === true);
+            if (eventType !== EVENT_TYPES.SPAWN && eventType !== EVENT_TYPES.PLACE && !isCloneLikeMove) {
+                return false;
+            }
+            return (
+                (normalizedCause === 'BREEDING' && normalizedReason.indexOf('breeding_spawn') === 0) ||
+                (normalizedCause === 'EQUALITY_WILL' && normalizedReason.indexOf('equality_will_spawn') === 0) ||
+                (normalizedCause === 'REINFORCEMENT_WILL' && normalizedReason.indexOf('reinforcement_will_spawn') === 0) ||
+                (normalizedCause === 'SALVATION_WILL' && normalizedReason.indexOf('salvation_spawn') === 0) ||
+                (normalizedCause === 'CLONE_WILL' && normalizedReason.indexOf('clone_spawn') === 0) ||
+                (normalizedCause === 'SPLIT_WILL' && normalizedReason.indexOf('split_spawn') === 0) ||
+                (normalizedCause === 'PROLIFERATION_WILL' && normalizedReason.indexOf('proliferation_spawn') === 0)
+            );
+        }
+
+        _resolveEffectTargetHighlightTone(eventType, target) {
+            if (_isNoAnim()) return null;
             if (target && target.meta && (
                 target.meta.blockedByGhost ||
                 target.meta.proliferated === true
-            )) return true;
+            )) return HIGHLIGHT_TONE_NEGATIVE;
             const cause = this._getTargetCause(target);
             const reason = this._getTargetReason(target);
 
@@ -408,20 +459,25 @@
                 eventType === EVENT_TYPES.DESTROY &&
                 cause === 'GLUTTONOUS_WILL' &&
                 reason.indexOf('gluttonous_eat') === 0;
-            if (isGluttonousEatDestroy) return false;
+            if (isGluttonousEatDestroy) return null;
 
             const isFreePlacementPlace =
                 (eventType === EVENT_TYPES.PLACE || eventType === EVENT_TYPES.SPAWN) && (
                     cause === 'FREE_PLACEMENT' ||
                     reason.indexOf('free_placement_place') === 0
                 );
-            if (isFreePlacementPlace) return true;
+            if (isFreePlacementPlace) return HIGHLIGHT_TONE_NEGATIVE;
 
-            if (!this._isCardEffectCause(cause)) return false;
+            if (!this._isCardEffectCause(cause)) return null;
             if (eventType === EVENT_TYPES.MOVE) {
+                if (this._isPositiveSpawnLikeEffectTarget(eventType, target, cause, reason)) {
+                    return HIGHLIGHT_TONE_POSITIVE;
+                }
                 const isGluttonousEatMove =
                     cause === 'GLUTTONOUS_WILL' &&
                     reason.indexOf('gluttonous_eat_move') === 0;
+                const isFlipEvadeMove =
+                    reason.indexOf('flip_evade_move') >= 0;
                 const isDestroyEvadeMove =
                     cause === 'DESTROY_EVADE' ||
                     reason.indexOf('destroy_evade_move') === 0;
@@ -429,20 +485,29 @@
                     cause === 'SUPER_BUOYANCY_WILL' ||
                     cause === 'SUPER_GRAVITY_WILL' ||
                     cause === 'POSITION_SWAP_WILL' ||
+                    cause === 'CELL_TELEPORT_WILL' ||
                     cause === 'TELEPORT_WILL' ||
                     isGluttonousEatMove ||
+                    isFlipEvadeMove ||
                     isDestroyEvadeMove ||
                     reason.indexOf('position_swap') === 0 ||
                     reason.indexOf('strong_wind_move') === 0 ||
                     reason.indexOf('super_buoyancy_move') === 0 ||
                     reason.indexOf('super_gravity_move') === 0 ||
                     reason.indexOf('teleport_move') === 0 ||
-                    reason.indexOf('destroy_evade_move') === 0;
+                    reason.indexOf('destroy_evade_move') === 0
+                    ? HIGHLIGHT_TONE_NEGATIVE
+                    : null;
+            }
+            if (this._isPositiveSpawnLikeEffectTarget(eventType, target, cause, reason)) {
+                return HIGHLIGHT_TONE_POSITIVE;
             }
             return eventType === EVENT_TYPES.FLIP ||
                 eventType === EVENT_TYPES.DESTROY ||
                 eventType === EVENT_TYPES.SPAWN ||
-                eventType === EVENT_TYPES.PLACE;
+                eventType === EVENT_TYPES.PLACE
+                ? HIGHLIGHT_TONE_NEGATIVE
+                : null;
         }
 
         _shouldPreserveDiscOnDestroy(target) {
@@ -486,33 +551,71 @@
                 cause === 'SALVATION_WILL' &&
                 reason.indexOf('salvation_spawn') === 0;
             if (!isEqualityWillSpawn && !isReinforcementWillSpawn && !isSalvationWillSpawn) return 0;
-            return 120;
+            return POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS;
+        }
+
+        _resolveStatusChangeHighlightMinimumMs(highlightTone) {
+            if (!highlightTone) return 0;
+            return highlightTone === HIGHLIGHT_TONE_POSITIVE
+                ? POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS
+                : PHASE_GAP_MS;
         }
 
         async _runWithEffectTargetHighlight(cell, eventType, target, runner, minimumVisibleMs) {
             if (!cell || typeof runner !== 'function') return undefined;
 
-            const shouldHighlight = this._shouldHighlightEffectTarget(eventType, target);
-            const extraClasses = shouldHighlight && eventType === EVENT_TYPES.SPAWN
+            const highlightTone = this._resolveEffectTargetHighlightTone(eventType, target);
+            const extraClasses = highlightTone === HIGHLIGHT_TONE_NEGATIVE && eventType === EVENT_TYPES.SPAWN
                 ? [EFFECT_TARGET_SPAWN_HIGHLIGHT_CLASS]
                 : [];
-            return this._runWithTransientCellHighlight(cell, shouldHighlight, runner, minimumVisibleMs, extraClasses);
+            return this._runWithTransientCellHighlight(cell, highlightTone, runner, minimumVisibleMs, extraClasses);
         }
 
-        _shouldHighlightStatusChange(ev, target) {
-            if (!ev || ev.type !== EVENT_TYPES.STATUS_APPLIED) return false;
+        _resolveStatusChangeHighlightTone(ev, target) {
+            if (!ev || (ev.type !== EVENT_TYPES.STATUS_APPLIED && ev.type !== EVENT_TYPES.STATUS_REMOVED)) return null;
+            const meta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
+            const explicitTone = String(meta.highlightTone || '').toLowerCase();
+            if (explicitTone === HIGHLIGHT_TONE_POSITIVE || explicitTone === HIGHLIGHT_TONE_NEGATIVE) {
+                return explicitTone;
+            }
+            if (explicitTone === 'none') return null;
+
+            const rawType = String(ev && ev.rawType ? ev.rawType : '').toUpperCase();
+            if (rawType === 'STATUS_TICK') return null;
+
             const reason = String(
-                (ev && ev.meta && ev.meta.reason) ||
+                meta.reason ||
                 (ev && ev.reason) ||
                 (target && target.reason) ||
                 ''
             ).toLowerCase();
-            return reason === 'strong_will_promoted';
+            const specialUpper = String(
+                meta.special ||
+                (target && target.after && target.after.special) ||
+                ''
+            ).toUpperCase();
+            const after = (target && target.after && typeof target.after === 'object') ? target.after : null;
+            const afterColor = after && Number.isFinite(Number(after.color)) ? Number(after.color) : null;
+
+            if (specialUpper === 'BLOCKADE' || specialUpper === 'FREEZE') return null;
+            if (specialUpper === 'TIME_BOMB') return HIGHLIGHT_TONE_NEGATIVE;
+            if (reason === 'strong_will_promoted') return HIGHLIGHT_TONE_POSITIVE;
+            if (specialUpper === 'TRAP_REVEAL' || reason === 'trap_expired_reveal') return HIGHLIGHT_TONE_NEGATIVE;
+            if (!specialUpper) return null;
+
+            if (ev.type === EVENT_TYPES.STATUS_APPLIED) {
+                return HIGHLIGHT_TONE_POSITIVE;
+            }
+            if (afterColor === 0) return null;
+            return HIGHLIGHT_TONE_NEGATIVE;
         }
 
-        async _runWithTransientCellHighlight(cell, shouldHighlight, runner, minimumVisibleMs, extraClasses) {
+        async _runWithTransientCellHighlight(cell, highlightTone, runner, minimumVisibleMs, extraClasses) {
             if (!cell || typeof runner !== 'function') return undefined;
-            if (!shouldHighlight) {
+            const baseHighlightClass = highlightTone === HIGHLIGHT_TONE_POSITIVE
+                ? EFFECT_TARGET_POSITIVE_HIGHLIGHT_CLASS
+                : (highlightTone === HIGHLIGHT_TONE_NEGATIVE ? EFFECT_TARGET_HIGHLIGHT_CLASS : null);
+            if (!baseHighlightClass) {
                 return runner();
             }
 
@@ -525,7 +628,7 @@
                 : 0;
             const startedAt = Date.now();
             try {
-                cell.classList.add(EFFECT_TARGET_HIGHLIGHT_CLASS);
+                cell.classList.add(baseHighlightClass);
                 for (const className of transientClasses) {
                     cell.classList.add(className);
                 }
@@ -546,7 +649,7 @@
                     for (const className of transientClasses) {
                         try { cell.classList.remove(className); } catch (e) { /* ignore */ }
                     }
-                    try { cell.classList.remove(EFFECT_TARGET_HIGHLIGHT_CLASS); } catch (e) { /* ignore */ }
+                    try { cell.classList.remove(baseHighlightClass); } catch (e) { /* ignore */ }
                 }
             }
         }
@@ -1218,7 +1321,7 @@
                 event.targets.some((target) => String(target && target.cause ? target.cause : '').toUpperCase() === 'CELL_TELEPORT_WILL')
             ));
 
-            if (this.isPlaying) {
+            if (this._isPlaybackStateActive()) {
                 console.warn('[AnimationEngine] Already playing. Aborting previous...');
                 this.isAborted = true;
                 // Wait a short settle period
@@ -1246,7 +1349,12 @@
 
             // VisualPlaybackActive is the single source of truth during playback
             try {
-                this.setGlobalInteractionLock(true);
+                if (PlaybackState && typeof PlaybackState.beginPlayback === 'function') {
+                    PlaybackState.beginPlayback({ boardElement: this.boardEl });
+                    this.isPlaying = PlaybackState.getPlaybackActive() === true;
+                } else {
+                    this.setGlobalInteractionLock(true);
+                }
 
                 // Watchdog to prevent permanent freezes
                 const WATCHDOG_TIMEOUT_MS = (typeof window !== 'undefined' && Number.isFinite(window.PLAYBACK_WATCHDOG_MS)) ? window.PLAYBACK_WATCHDOG_MS : 10000;
@@ -1328,40 +1436,42 @@
                     this._activePlaybackRunId = null;
                     this.isPlaying = false;
                 }
-                if (isCurrentRun && !runState.externallyAborted) {
-                    this.setGlobalInteractionLock(false);
+                const shouldArmBoardUpdateContext = isCurrentRun
+                    && !runState.externallyAborted
+                    && (shouldSuppressNextDiffFlip || shouldSuppressBoardExpansionRevealSound)
+                    && !abortedDuringPlay
+                    && !this._watchdogFired
+                    && !this.isAborted;
+                const boardUpdateContext = shouldArmBoardUpdateContext
+                    ? {
+                        source: 'animation-engine',
+                        reason: 'post_playback_sync',
+                        suppressFallbackFlip: shouldSuppressNextDiffFlip === true,
+                        suppressBoardExpansionRevealSound: shouldSuppressBoardExpansionRevealSound === true
+                    }
+                    : null;
+                // Avoid leaking abort state into the next playback run.
+                if (isCurrentRun) {
+                    this.isAborted = false;
                 }
-
-                 // One-shot board update context for DiffRenderer:
-                 // After playback, AnimationEngine triggers `emitBoardUpdate()` to sync any non-animated UI (timers, hints).
-                 // DiffRenderer has a fallback "owner changed => add .flip" animation which would otherwise replay flips,
-                 // making stones appear to flip twice. This context is consumed/cleared by ui/diff-renderer.js.
-                 if (isCurrentRun && !runState.externallyAborted && (shouldSuppressNextDiffFlip || shouldSuppressBoardExpansionRevealSound) && !abortedDuringPlay && !this._watchdogFired && !this.isAborted) {
-                       try {
-                           if (PlaybackState && typeof PlaybackState.armBoardUpdateContext === 'function') {
-                             const boardUpdateContext = {
-                                 source: 'animation-engine',
-                                 reason: 'post_playback_sync'
-                             };
-                             if (shouldSuppressNextDiffFlip) {
-                                 boardUpdateContext.suppressFallbackFlip = true;
-                             }
-                             if (shouldSuppressBoardExpansionRevealSound) {
-                                 boardUpdateContext.suppressBoardExpansionRevealSound = true;
-                             }
-                             PlaybackState.armBoardUpdateContext(boardUpdateContext);
-                          }
-                      } catch (e) { /* ignore */ }
-                   }
-                 // Avoid leaking abort state into the next playback run.
-                 if (isCurrentRun) {
-                     this.isAborted = false;
-                 }
-                 // After playback completes, request a final board diff render to ensure DOM matches state.
-                 // This avoids stale visuals when diff rendering was suppressed during playback.
-                 if (isCurrentRun && !runState.externallyAborted) {
-                     try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
-                 }
+                // After playback completes, request a final board diff render to ensure DOM matches state.
+                // This avoids stale visuals when diff rendering was suppressed during playback.
+                if (isCurrentRun && !runState.externallyAborted) {
+                    if (PlaybackState && typeof PlaybackState.finalizePlayback === 'function') {
+                        PlaybackState.finalizePlayback({
+                            boardElement: this.boardEl,
+                            boardUpdateContext,
+                            clearBoardUpdateContext: true,
+                            emitBoardUpdate: _requestBoardUpdate
+                        });
+                    } else {
+                        this.setGlobalInteractionLock(false);
+                        if (boardUpdateContext && PlaybackState && typeof PlaybackState.armBoardUpdateContext === 'function') {
+                            PlaybackState.armBoardUpdateContext(boardUpdateContext);
+                        }
+                        _requestBoardUpdate();
+                    }
+                }
               }
         }
         groupByPhase(events) {
@@ -1503,14 +1613,11 @@
             this.isAborted = true;
             // Apply final state by requesting a full board sync
             try {
-                if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+                _requestBoardUpdate();
             } catch (e) { console.error('[AnimationEngine] watchdog emitBoardUpdate failed', e); }
             // Ensure flags cleared
             if (PlaybackState && typeof PlaybackState.abortPlayback === 'function') {
-                PlaybackState.abortPlayback();
-                if (this.boardEl && this.boardEl.classList) {
-                    this.boardEl.classList.remove('playback-locked');
-                }
+                PlaybackState.abortPlayback({ boardElement: this.boardEl });
             } else if (typeof window !== 'undefined') {
                 this.setGlobalInteractionLock(false);
             }
@@ -1526,14 +1633,11 @@
             } catch (e) { }
             this.isAborted = true;
             if (PlaybackState && typeof PlaybackState.abortPlayback === 'function') {
-                PlaybackState.abortPlayback();
-                if (this.boardEl && this.boardEl.classList) {
-                    this.boardEl.classList.remove('playback-locked');
-                }
+                PlaybackState.abortPlayback({ boardElement: this.boardEl });
             } else {
                 this.setGlobalInteractionLock(false);
             }
-            try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { }
+            try { _requestBoardUpdate(); } catch (e) { }
         }
 
         async executeEvent(ev) {
@@ -2025,7 +2129,7 @@
                 const destroyHighlightMinimumMs = this._resolveDestroyTargetHighlightMinimumMs(t);
                 const shouldPreserveDestroyPlaybackWithoutDisc =
                     isSuperCrushCollision ||
-                    this._shouldHighlightEffectTarget(EVENT_TYPES.DESTROY, t);
+                    !!this._resolveEffectTargetHighlightTone(EVENT_TYPES.DESTROY, t);
                 if (!disc && !shouldPreserveDestroyPlaybackWithoutDisc) return;
 
                 await this._runWithEffectTargetHighlight(cell, EVENT_TYPES.DESTROY, t, async () => {
@@ -2246,10 +2350,13 @@
             const isPositionSwapMove =
                 cause === 'POSITION_SWAP_WILL' ||
                 reason === 'position_swap';
+            const isFlipEvadeMove =
+                reason.indexOf('flip_evade_move') >= 0;
             const isDestroyEvadeMove =
                 cause === 'DESTROY_EVADE' ||
                 reason.indexOf('destroy_evade_move') === 0;
             const isTeleportMove =
+                cause === 'CELL_TELEPORT_WILL' ||
                 cause === 'TELEPORT_WILL' ||
                 reason === 'teleport_move';
             const isCloneMove = !!(target && target.clone === true);
@@ -2283,6 +2390,7 @@
                 cause,
                 reason,
                 isPositionSwapMove,
+                isFlipEvadeMove,
                 isDestroyEvadeMove,
                 isTeleportMove,
                 isCloneMove,
@@ -2299,7 +2407,7 @@
         _getMoveHighlightCells(fromCell, toCell, moveSemantics) {
             if (!moveSemantics) return [toCell];
             if (moveSemantics.shouldHighlightBothCells) return [fromCell, toCell];
-            return moveSemantics.isDestroyEvadeMove ? [fromCell] : [toCell];
+            return (moveSemantics.isDestroyEvadeMove || moveSemantics.isFlipEvadeMove) ? [fromCell] : [toCell];
         }
 
         _ensureMoveDiscVisible(discEl) {
@@ -2515,6 +2623,26 @@
             return ghost;
         }
 
+        _createMoveGhostFromState(state, fromRect) {
+            if (!state || (state.color !== 1 && state.color !== -1)) return null;
+            if (typeof document === 'undefined' || !document || !document.body) return null;
+            const ghost = this.createDisc(state);
+            ghost.classList.remove('destroy-fade', 'shatter');
+            ghost.classList.add('stone-instant');
+            document.body.appendChild(ghost);
+
+            const discScale = 0.82;
+            const discInsetRatio = (1 - discScale) / 2;
+            ghost.style.position = 'fixed';
+            ghost.style.top = `${fromRect.top + fromRect.height * discInsetRatio}px`;
+            ghost.style.left = `${fromRect.left + fromRect.width * discInsetRatio}px`;
+            ghost.style.width = `${fromRect.width * discScale}px`;
+            ghost.style.height = `${fromRect.height * discScale}px`;
+            ghost.style.margin = '0';
+            ghost.style.zIndex = '1000';
+            return ghost;
+        }
+
         _settleMoveGhostIntoCell(ghost, cell, after) {
             if (!ghost || !cell) return null;
             try {
@@ -2635,9 +2763,18 @@
             const overlapCell = this.getCellEl(lead.to.r, lead.to.col);
             const returnCell = this.getCellEl(follow.to.r, follow.to.col);
             const canApplyFinalState = this._canApplyExtremeForcedSwapFinalState(lead, follow);
+            const leadGhostState = this._resolveMoveFallbackState(lead);
+            const followGhostState = this._resolveMoveFallbackState(follow);
             if (!fromCell || !overlapCell || !returnCell) {
                 if (canApplyFinalState) {
                     this._applyExtremeForcedSwapFinalState(returnCell || fromCell, overlapCell, lead.after, follow.after);
+                    return true;
+                }
+                return false;
+            }
+            if (!leadGhostState || !followGhostState) {
+                if (canApplyFinalState) {
+                    this._applyExtremeForcedSwapFinalState(returnCell, overlapCell, lead.after, follow.after);
                     return true;
                 }
                 return false;
@@ -2646,9 +2783,14 @@
             const leadSemantics = this._getMoveSemantics(lead);
             const returnSemantics = this._getMoveSemantics(follow);
             let highlightedCells = [];
+            let overlapGhost = null;
+            let returnGhost = null;
+            const docBody = (typeof document !== 'undefined' && document && document.body) ? document.body : null;
+            const sourceDisc = fromCell.querySelector('.disc');
+            const occupiedDisc = overlapCell.querySelector('.disc');
 
             try {
-                if (this._shouldHighlightEffectTarget(EVENT_TYPES.MOVE, lead)) {
+                if (this._resolveEffectTargetHighlightTone(EVENT_TYPES.MOVE, lead)) {
                     const cellsToHighlight = this._getMoveHighlightCells(fromCell, overlapCell, leadSemantics);
                     for (const oneCell of cellsToHighlight) {
                         if (!oneCell || highlightedCells.indexOf(oneCell) >= 0) continue;
@@ -2666,21 +2808,19 @@
                     return true;
                 }
 
-                const sourceDisc = fromCell.querySelector('.disc');
-                const occupiedDisc = overlapCell.querySelector('.disc');
-                if (!sourceDisc || !occupiedDisc) {
+                this._ensureMoveDiscVisible(sourceDisc);
+                this._ensureMoveDiscVisible(occupiedDisc);
+                if (sourceDisc) sourceDisc.style.visibility = 'hidden';
+                if (occupiedDisc) occupiedDisc.style.visibility = 'hidden';
+
+                const overlapFromRect = fromCell.getBoundingClientRect();
+                const overlapToRect = overlapCell.getBoundingClientRect();
+                overlapGhost = this._createMoveGhostFromState(lead.after || leadGhostState, overlapFromRect);
+                if (!overlapGhost) {
                     if (!canApplyFinalState) return false;
                     this._applyExtremeForcedSwapFinalState(returnCell, overlapCell, lead.after, follow.after);
                     return true;
                 }
-
-                this._ensureMoveDiscVisible(sourceDisc);
-                this._ensureMoveDiscVisible(occupiedDisc);
-
-                const overlapFromRect = fromCell.getBoundingClientRect();
-                const overlapToRect = overlapCell.getBoundingClientRect();
-                let overlapGhost = this._createMoveGhost(sourceDisc, overlapFromRect);
-                sourceDisc.style.visibility = 'hidden';
 
                 try {
                     const overlapDurationMs = Math.max(1, Math.round(MOVE_MS));
@@ -2707,14 +2847,19 @@
                     this._removeDiscFromCell(overlapCell, occupiedDisc);
                     overlapGhost = this._settleMoveGhostIntoCell(overlapGhost, overlapCell, lead.after || null);
                 } finally {
-                    if (overlapGhost && overlapGhost.parentElement && overlapGhost.parentElement === document.body) {
+                    if (docBody && overlapGhost && overlapGhost.parentElement && overlapGhost.parentElement === docBody) {
                         overlapGhost.parentElement.removeChild(overlapGhost);
                     }
                 }
 
                 const returnFromRect = overlapCell.getBoundingClientRect();
                 const returnToRect = returnCell.getBoundingClientRect();
-                const returnGhost = this._createMoveGhost(occupiedDisc, returnFromRect);
+                returnGhost = this._createMoveGhostFromState(follow.after || followGhostState, returnFromRect);
+                if (!returnGhost) {
+                    if (!canApplyFinalState) return false;
+                    this._applyExtremeForcedSwapFinalState(returnCell, overlapCell, lead.after, follow.after);
+                    return true;
+                }
 
                 try {
                     const returnDurationMs = Math.max(1, Math.round(MOVE_MS));
@@ -2737,15 +2882,20 @@
                     if (returnAnim) {
                         await this._waitForAnimationFinish(returnAnim, returnDurationMs, 220);
                     }
+                    returnGhost = this._settleMoveGhostIntoCell(returnGhost, returnCell, follow.after || null);
                 } finally {
-                    if (returnGhost && returnGhost.parentElement) {
+                    if (docBody && returnGhost && returnGhost.parentElement === docBody) {
                         returnGhost.parentElement.removeChild(returnGhost);
                     }
                 }
-
-                this._setCellDiscFromState(returnCell, follow.after || null);
                 return true;
             } finally {
+                if (sourceDisc && sourceDisc.parentElement) {
+                    try { this._ensureMoveDiscVisible(sourceDisc); } catch (e) { /* ignore */ }
+                }
+                if (occupiedDisc && occupiedDisc.parentElement) {
+                    try { this._ensureMoveDiscVisible(occupiedDisc); } catch (e) { /* ignore */ }
+                }
                 for (const highlightedCell of highlightedCells) {
                     try { highlightedCell.classList.remove(EFFECT_TARGET_HIGHLIGHT_CLASS); } catch (e) { /* ignore */ }
                 }
@@ -2768,13 +2918,17 @@
 
                 let highlightedCells = [];
                 try {
-                    if (this._shouldHighlightEffectTarget(EVENT_TYPES.MOVE, t)) {
+                    const highlightTone = this._resolveEffectTargetHighlightTone(EVENT_TYPES.MOVE, t);
+                    const highlightClass = highlightTone === HIGHLIGHT_TONE_POSITIVE
+                        ? EFFECT_TARGET_POSITIVE_HIGHLIGHT_CLASS
+                        : (highlightTone === HIGHLIGHT_TONE_NEGATIVE ? EFFECT_TARGET_HIGHLIGHT_CLASS : null);
+                    if (highlightClass) {
                         const cellsToHighlight = this._getMoveHighlightCells(fromCell, toCell, moveSemantics);
                         for (const oneCell of cellsToHighlight) {
-                            if (!oneCell || highlightedCells.indexOf(oneCell) >= 0) continue;
+                            if (!oneCell || highlightedCells.some((entry) => entry.cell === oneCell && entry.className === highlightClass)) continue;
                             try {
-                                oneCell.classList.add(EFFECT_TARGET_HIGHLIGHT_CLASS);
-                                highlightedCells.push(oneCell);
+                                oneCell.classList.add(highlightClass);
+                                highlightedCells.push({ cell: oneCell, className: highlightClass });
                             } catch (e) { /* ignore */ }
                         }
                     }
@@ -2870,7 +3024,7 @@
                     }
                 } finally {
                     for (const highlightedCell of highlightedCells) {
-                        try { highlightedCell.classList.remove(EFFECT_TARGET_HIGHLIGHT_CLASS); } catch (e) { /* ignore */ }
+                        try { highlightedCell.cell.classList.remove(highlightedCell.className); } catch (e) { /* ignore */ }
                     }
                 }
             });
@@ -2882,10 +3036,10 @@
                 const cell = this.getCellEl(t.r, t.col);
                 if (!cell) return;
 
-                const shouldHighlightStatusChange = this._shouldHighlightStatusChange(ev, t);
+                const highlightTone = this._resolveStatusChangeHighlightTone(ev, t);
                 await this._runWithTransientCellHighlight(
                     cell,
-                    shouldHighlightStatusChange,
+                    highlightTone,
                     async () => {
                         const after = t.after || {};
                         const rawType = String(ev && ev.rawType ? ev.rawType : '').toUpperCase();
@@ -2905,12 +3059,7 @@
 
                         if (isStatusTick) {
                             const disc = await this.waitForDisc(t.r, t.col, 4);
-                            if (!disc) {
-                                if (this._shouldDeferStatusDiscSync(after)) {
-                                    this._scheduleDeferredStatusDiscSync(t.r, t.col, after);
-                                }
-                                return;
-                            }
+                            if (!disc) return;
                             this.syncDiscTimerOnly(disc, after);
                             return;
                         }
@@ -2921,12 +3070,7 @@
                         }
 
                         const disc = await this.waitForDisc(t.r, t.col, 4);
-                        if (!disc) {
-                            if (this._shouldDeferStatusDiscSync(after)) {
-                                this._scheduleDeferredStatusDiscSync(t.r, t.col, after);
-                            }
-                            return;
-                        }
+                        if (!disc) return;
 
                         const isRegenConsumed =
                             ev &&
@@ -2972,104 +3116,10 @@
                             this.syncDiscVisual(disc, after);
                         }
                     },
-                    shouldHighlightStatusChange ? PHASE_GAP_MS : 0
+                    this._resolveStatusChangeHighlightMinimumMs(highlightTone)
                 );
             });
             await Promise.all(promises);
-        }
-
-        _shouldDeferStatusDiscSync(after) {
-            if (!after || typeof after !== 'object') return false;
-            if (after.color === 1 || after.color === -1) return true;
-            if (after.special) return true;
-            return Number.isFinite(Number(after.timer));
-        }
-
-        _scheduleDeferredStatusDiscSync(row, col, after) {
-            const rootRef = _getUiRootRef();
-            const syncToCurrentState = (Visuals && typeof Visuals.syncDiscVisualToCurrentState === 'function')
-                ? Visuals.syncDiscVisualToCurrentState
-                : ((rootRef && rootRef.StoneVisuals && typeof rootRef.StoneVisuals.syncDiscVisualToCurrentState === 'function')
-                    ? rootRef.StoneVisuals.syncDiscVisualToCurrentState.bind(rootRef.StoneVisuals)
-                    : ((rootRef && typeof rootRef.syncDiscVisualToCurrentState === 'function')
-                        ? rootRef.syncDiscVisualToCurrentState.bind(rootRef)
-                        : null));
-            const emitBoardUpdateFn = (typeof emitBoardUpdate === 'function')
-                ? emitBoardUpdate
-                : ((rootRef && typeof rootRef.emitBoardUpdate === 'function')
-                    ? rootRef.emitBoardUpdate.bind(rootRef)
-                    : null);
-            const waitForPlaybackIdleFn = (rootRef && typeof rootRef.waitForPlaybackIdle === 'function')
-                ? rootRef.waitForPlaybackIdle.bind(rootRef)
-                : null;
-            const fallbackState = (after && typeof after === 'object') ? Object.assign({}, after) : null;
-            const cellKey = `${Number(row)}:${Number(col)}`;
-            const token = this._deferredStatusDiscSyncSequence + 1;
-            this._deferredStatusDiscSyncSequence = token;
-            this._deferredStatusDiscSyncTokens.set(cellKey, token);
-            const playbackGeneration = _getDeferredVisualWriteGeneration();
-
-            const waitForNextFrame = () => new Promise((resolve) => {
-                try {
-                    requestAnimationFrame(() => setTimeout(resolve, 0));
-                } catch (e) {
-                    setTimeout(resolve, 0);
-                }
-            });
-
-            const isCurrentDeferredSync = () => {
-                return this._deferredStatusDiscSyncTokens.get(cellKey) === token
-                    && playbackGeneration === _getDeferredVisualWriteGeneration();
-            };
-
-            const clearIfCurrent = () => {
-                if (this._deferredStatusDiscSyncTokens.get(cellKey) === token) {
-                    this._deferredStatusDiscSyncTokens.delete(cellKey);
-                }
-            };
-
-            const trySync = () => {
-                if (!isCurrentDeferredSync()) return false;
-                const cell = this.getCellEl(row, col);
-                const disc = cell ? cell.querySelector('.disc') : null;
-                if (!disc) return false;
-                if (typeof syncToCurrentState === 'function') {
-                    try {
-                        syncToCurrentState(row, col);
-                        return true;
-                    } catch (e) { /* ignore */ }
-                }
-                if (fallbackState) {
-                    try {
-                        this.syncDiscVisual(disc, fallbackState);
-                        return true;
-                    } catch (e) { /* ignore */ }
-                }
-                return false;
-            };
-
-            Promise.resolve().then(async () => {
-                if (!isCurrentDeferredSync()) return;
-                if (typeof waitForPlaybackIdleFn === 'function') {
-                    try { await Promise.resolve(waitForPlaybackIdleFn()); } catch (e) { /* ignore */ }
-                }
-
-                if (!isCurrentDeferredSync()) return;
-
-                if (trySync()) return;
-
-                if (typeof emitBoardUpdateFn === 'function') {
-                    try { emitBoardUpdateFn(); } catch (e) { /* ignore */ }
-                }
-
-                for (let attempt = 0; attempt < 4; attempt += 1) {
-                    await waitForNextFrame();
-                    if (!isCurrentDeferredSync()) return;
-                    if (trySync()) return;
-                }
-            }).catch(() => {}).finally(() => {
-                clearIfCurrent();
-            });
         }
 
         async fadeOutFreezeOverlay(cell, durationMs) {
@@ -3202,6 +3252,7 @@
             disc.classList.remove('black', 'white');
             if (state.color === 1) disc.classList.add('black');
             else if (state.color === -1) disc.classList.add('white');
+            disc.classList.toggle('living-will-aura', !!state.livingWillAura);
             if (typeof window !== 'undefined' && typeof window.setDiscStoneImage === 'function') {
                 window.setDiscStoneImage(disc, state.color);
             }
@@ -3313,7 +3364,13 @@
             }
 
             const hasDestroyEvadeCounter =
-                (specialType === 'WILL_HUNTER_KING' || specialType === 'AFTERIMAGE_WILL' || hasInheritedContext) &&
+                (
+                    specialType === 'ULTIMATE_HYPERACTIVE' ||
+                    specialType === 'EXTREME_HYPERACTIVE' ||
+                    specialType === 'WILL_HUNTER_KING' ||
+                    specialType === 'AFTERIMAGE_WILL' ||
+                    hasInheritedContext
+                ) &&
                 Number.isFinite(destroyEvadeRemaining) &&
                 destroyEvadeRemaining >= 0;
             if (hasDestroyEvadeCounter) {
@@ -3342,8 +3399,18 @@
         }
 
         setGlobalInteractionLock(locked) {
-            if (PlaybackState && typeof PlaybackState.setInteractionLock === 'function') {
+            if (PlaybackState && typeof PlaybackState.beginPlayback === 'function' && locked === true) {
+                PlaybackState.beginPlayback({ boardElement: this.boardEl });
+            } else if (PlaybackState && typeof PlaybackState.finalizePlayback === 'function' && locked !== true) {
+                PlaybackState.finalizePlayback({
+                    boardElement: this.boardEl,
+                    clearBoardUpdateContext: false
+                });
+            } else if (PlaybackState && typeof PlaybackState.setInteractionLock === 'function') {
                 PlaybackState.setInteractionLock(locked);
+                if (typeof PlaybackState.setBoardLockActive === 'function') {
+                    PlaybackState.setBoardLockActive(locked, { boardElement: this.boardEl });
+                }
             } else {
                 window.isProcessing = locked;
                 window.isCardAnimating = locked; // legacy flag

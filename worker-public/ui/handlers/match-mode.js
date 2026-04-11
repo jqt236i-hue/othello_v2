@@ -23,6 +23,10 @@
         networkRoomInput: null,
         networkServerInput: null,
         networkPlayerNameInput: null,
+        networkBoardSizeRowsInput: null,
+        networkBoardSizeColsInput: null,
+        networkBoardSizeSummary: null,
+        networkBoardSizeNote: null,
         networkEnableDebugCheckbox: null,
         networkCopyRoomBtn: null,
         networkCreateBtn: null,
@@ -114,6 +118,127 @@
         }
     }
 
+    function getActiveLocalBoardConfig() {
+        const controller = getDeckBuilderController();
+        if (!controller || typeof controller.getLocalBoardConfig !== 'function') {
+            return null;
+        }
+        try {
+            return controller.getLocalBoardConfig();
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function createDefaultBoardConfig() {
+        try {
+            if (root.SharedBoardUtils && typeof root.SharedBoardUtils.createDefaultBoardConfig === 'function') {
+                return root.SharedBoardUtils.createDefaultBoardConfig();
+            }
+        } catch (e) { /* ignore */ }
+        return {
+            rows: 8,
+            cols: 8,
+            standard8x8: true
+        };
+    }
+
+    function normalizeBoardConfig(boardConfig, fallbackBoardConfig) {
+        const fallback = (fallbackBoardConfig && typeof fallbackBoardConfig === 'object')
+            ? fallbackBoardConfig
+            : createDefaultBoardConfig();
+        try {
+            if (root.SharedBoardUtils && typeof root.SharedBoardUtils.normalizeBoardConfig === 'function') {
+                return root.SharedBoardUtils.normalizeBoardConfig(boardConfig, fallback);
+            }
+        } catch (e) { /* ignore */ }
+        const fallbackRows = Number.isFinite(Number(fallback && fallback.rows)) ? Number(fallback.rows) : 8;
+        const fallbackCols = Number.isFinite(Number(fallback && fallback.cols)) ? Number(fallback.cols) : 8;
+        const rows = Number.isFinite(Number(boardConfig && boardConfig.rows)) ? Number(boardConfig.rows) : fallbackRows;
+        const cols = Number.isFinite(Number(boardConfig && boardConfig.cols)) ? Number(boardConfig.cols) : fallbackCols;
+        return {
+            rows,
+            cols,
+            standard8x8: rows === 8 && cols === 8
+        };
+    }
+
+    function getBoardDimensionBounds(axis) {
+        try {
+            if (root.SharedBoardUtils && typeof root.SharedBoardUtils.getBoardDimensionBounds === 'function') {
+                return root.SharedBoardUtils.getBoardDimensionBounds(axis);
+            }
+        } catch (e) { /* ignore */ }
+        return axis === 'col'
+            ? { min: 4, max: 10 }
+            : { min: 4, max: 10 };
+    }
+
+    function stepBoardDimensionValue(value, direction, fallbackValue, axis) {
+        try {
+            if (root.SharedBoardUtils && typeof root.SharedBoardUtils.stepBoardDimensionValue === 'function') {
+                return root.SharedBoardUtils.stepBoardDimensionValue(value, direction, fallbackValue, axis);
+            }
+        } catch (e) { /* ignore */ }
+        const bounds = getBoardDimensionBounds(axis);
+        const fallback = Number.isFinite(Number(fallbackValue)) ? Number(fallbackValue) : 8;
+        const numeric = Number.isFinite(Number(value)) ? Number(value) : fallback;
+        const step = Number(direction) > 0 ? 1 : -1;
+        return Math.max(bounds.min, Math.min(bounds.max, Math.floor(numeric + step)));
+    }
+
+    function readPrimaryWheelDelta(event) {
+        const deltaX = Number(event && event.deltaX) || 0;
+        const deltaY = Number(event && event.deltaY) || 0;
+        return Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+    }
+
+    function applyBoardDimensionInputBounds(inputRef, axis) {
+        if (!inputRef) return;
+        const bounds = getBoardDimensionBounds(axis);
+        inputRef.min = String(bounds.min);
+        inputRef.max = String(bounds.max);
+    }
+
+    function getPendingRoomBoardConfig() {
+        const localBoardConfig = getActiveLocalBoardConfig();
+        if (localBoardConfig) {
+            return normalizeBoardConfig(localBoardConfig);
+        }
+        if (uiRefs.networkBoardSizeRowsInput || uiRefs.networkBoardSizeColsInput) {
+            return normalizeBoardConfig({
+                rows: uiRefs.networkBoardSizeRowsInput ? uiRefs.networkBoardSizeRowsInput.value : null,
+                cols: uiRefs.networkBoardSizeColsInput ? uiRefs.networkBoardSizeColsInput.value : null
+            });
+        }
+        return createDefaultBoardConfig();
+    }
+
+    function getRoomBoardConfig(roomState) {
+        let roomBoardConfig = roomState && roomState.roomBoardConfig;
+        if (!roomBoardConfig && root.NetworkMatchClient && typeof root.NetworkMatchClient.getRoomBoardConfig === 'function') {
+            try {
+                roomBoardConfig = root.NetworkMatchClient.getRoomBoardConfig();
+            } catch (e) { /* ignore */ }
+        }
+        if (!roomBoardConfig || typeof roomBoardConfig !== 'object') {
+            return null;
+        }
+        return normalizeBoardConfig(roomBoardConfig);
+    }
+
+    function formatBoardConfigLabel(boardConfig) {
+        const normalizedBoardConfig = normalizeBoardConfig(boardConfig);
+        return `${normalizedBoardConfig.rows}x${normalizedBoardConfig.cols}`;
+    }
+
+    function hasCustomRoomBoardConfig(boardConfig) {
+        if (!boardConfig || typeof boardConfig !== 'object') return false;
+        const rows = Number(boardConfig.rows);
+        const cols = Number(boardConfig.cols);
+        return !(rows === 8 && cols === 8);
+    }
+
     function formatPendingRoomDeckText() {
         const controller = getDeckBuilderController();
         if (!controller || typeof controller.getActiveLocalChoice !== 'function') {
@@ -130,6 +255,51 @@
         } catch (e) {
             return '作成時に送るデッキ: 標準デッキ';
         }
+    }
+
+    function formatPendingRoomSettingsText() {
+        return `${formatPendingRoomDeckText()} / 作成時に送る盤面: ${formatBoardConfigLabel(getPendingRoomBoardConfig())}`;
+    }
+
+    function renderNetworkBoardSizeControls(roomState) {
+        const roomBoardConfig = getRoomBoardConfig(roomState);
+        const activeBoardConfig = roomBoardConfig || getPendingRoomBoardConfig();
+        const locked = !!roomBoardConfig;
+
+        if (uiRefs.networkBoardSizeSummary) {
+            uiRefs.networkBoardSizeSummary.textContent = locked
+                ? `${formatBoardConfigLabel(activeBoardConfig)} / 部屋固定`
+                : formatBoardConfigLabel(activeBoardConfig);
+            uiRefs.networkBoardSizeSummary.classList.toggle('is-room-override', locked);
+        }
+        if (uiRefs.networkBoardSizeRowsInput) {
+            applyBoardDimensionInputBounds(uiRefs.networkBoardSizeRowsInput, 'row');
+            uiRefs.networkBoardSizeRowsInput.value = String(activeBoardConfig.rows);
+            uiRefs.networkBoardSizeRowsInput.disabled = locked;
+        }
+        if (uiRefs.networkBoardSizeColsInput) {
+            applyBoardDimensionInputBounds(uiRefs.networkBoardSizeColsInput, 'col');
+            uiRefs.networkBoardSizeColsInput.value = String(activeBoardConfig.cols);
+            uiRefs.networkBoardSizeColsInput.disabled = locked;
+        }
+        if (uiRefs.networkBoardSizeNote) {
+            uiRefs.networkBoardSizeNote.textContent = locked
+                ? 'ネット対戦中は部屋で決めた盤面サイズを使います'
+                : '部屋作成前に変更できます';
+            uiRefs.networkBoardSizeNote.classList.toggle('is-room-override', locked);
+        }
+    }
+
+    function updatePendingRoomBoardConfigFromInputs() {
+        const controller = getDeckBuilderController();
+        const nextBoardConfig = normalizeBoardConfig({
+            rows: uiRefs.networkBoardSizeRowsInput ? uiRefs.networkBoardSizeRowsInput.value : null,
+            cols: uiRefs.networkBoardSizeColsInput ? uiRefs.networkBoardSizeColsInput.value : null
+        }, getPendingRoomBoardConfig());
+        if (controller && typeof controller.setLocalBoardConfig === 'function') {
+            controller.setLocalBoardConfig(nextBoardConfig);
+        }
+        renderNetworkDeckInfo();
     }
 
     function formatSeatDeckText(seatLabel, deckCode, deckSize) {
@@ -186,9 +356,21 @@
             } catch (e) { /* ignore */ }
         }
 
-        el.textContent = formatRoomDeckText(roomDeck);
-        el.style.color = hasCustomRoomDeck(roomDeck) ? '#ffecb3' : '#d7ccc8';
+        const roomBoardConfig = getRoomBoardConfig(roomState);
+
+        const boardText = roomBoardConfig
+            ? `部屋盤面: ${formatBoardConfigLabel(roomBoardConfig)}`
+            : `作成時に送る盤面: ${formatBoardConfigLabel(getPendingRoomBoardConfig())}`;
+        el.textContent = `${formatRoomDeckText(roomDeck)} / ${boardText}`;
+        el.style.color = (hasCustomRoomDeck(roomDeck) || hasCustomRoomBoardConfig(roomBoardConfig)) ? '#ffecb3' : '#d7ccc8';
+        renderNetworkBoardSizeControls(roomState);
         scheduleControlPanelLayoutSync();
+        try {
+            const controller = getDeckBuilderController();
+            if (controller && typeof controller.render === 'function') {
+                controller.render();
+            }
+        } catch (e) { /* ignore */ }
     }
 
     function resolveNetworkDebugModeAccessSetter() {
@@ -932,7 +1114,8 @@
             const cs = (typeof cardState !== 'undefined' && cardState)
                 ? cardState
                 : (root && root.cardState ? root.cardState : null);
-            if (!gs || !Array.isArray(gs.board) || gs.board.length !== 8) return false;
+            if (!gs || !Array.isArray(gs.board) || gs.board.length <= 0) return false;
+            if (!Array.isArray(gs.board[0]) || gs.board[0].length <= 0) return false;
             if (!cs || typeof cs !== 'object') return false;
             return true;
         } catch (e) {
@@ -944,7 +1127,9 @@
         if (!hasRenderableState()) return;
         try { if (typeof renderCardUI === 'function') renderCardUI(); } catch (e) { /* ignore */ }
         try {
-            if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+            if (root.BoardUpdateDispatch && typeof root.BoardUpdateDispatch.requestBoardUpdate === 'function') {
+                root.BoardUpdateDispatch.requestBoardUpdate();
+            } else if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
             else if (typeof renderBoard === 'function') renderBoard();
         } catch (e) { /* ignore */ }
     }
@@ -1180,6 +1365,34 @@
             });
         }
 
+        const bindNetworkBoardSizeInput = (inputRef, axis) => {
+            if (!inputRef || inputRef.dataset.networkBoardSizeBound === '1') return;
+            const onBoardSizeInput = () => {
+                if (inputRef.disabled) return;
+                updatePendingRoomBoardConfigFromInputs();
+            };
+            inputRef.addEventListener('input', onBoardSizeInput);
+            inputRef.addEventListener('change', onBoardSizeInput);
+            inputRef.addEventListener('wheel', (event) => {
+                if (inputRef.disabled) return;
+                const primaryDelta = readPrimaryWheelDelta(event);
+                if (!primaryDelta) return;
+                const fallback = getPendingRoomBoardConfig();
+                const fallbackValue = axis === 'col' ? fallback.cols : fallback.rows;
+                inputRef.value = String(stepBoardDimensionValue(
+                    inputRef.value,
+                    primaryDelta < 0 ? 1 : -1,
+                    fallbackValue,
+                    axis
+                ));
+                if (event && event.cancelable) event.preventDefault();
+                updatePendingRoomBoardConfigFromInputs();
+            }, { passive: false });
+            inputRef.dataset.networkBoardSizeBound = '1';
+        };
+        bindNetworkBoardSizeInput(uiRefs.networkBoardSizeRowsInput, 'row');
+        bindNetworkBoardSizeInput(uiRefs.networkBoardSizeColsInput, 'col');
+
         if (uiRefs.networkCopyRoomBtn) {
             uiRefs.networkCopyRoomBtn.addEventListener('click', async () => {
                 const roomId = uiRefs.networkRoomInput ? formatRoomIdInput(uiRefs.networkRoomInput.value) : '';
@@ -1206,6 +1419,7 @@
                 const serverUrl = uiRefs.networkServerInput ? uiRefs.networkServerInput.value.trim() : '';
                 const playerName = resolveRequiredNetworkPlayerName();
                 const deckCode = getActiveLocalDeckCode();
+                const roomBoardConfig = getPendingRoomBoardConfig();
                 const requestedNetworkDebugEnabled = !!(
                     uiRefs.networkEnableDebugCheckbox
                     && uiRefs.networkEnableDebugCheckbox.checked
@@ -1219,6 +1433,7 @@
                         serverUrl,
                         playerName,
                         deckCode,
+                        roomBoardConfig,
                         networkDebugEnabled: requestedNetworkDebugEnabled
                     });
                     if (result && result.ok && uiRefs.networkRoomInput) {
@@ -1299,6 +1514,10 @@
         uiRefs.networkRoomInput = opts.networkRoomInput || null;
         uiRefs.networkServerInput = opts.networkServerInput || null;
         uiRefs.networkPlayerNameInput = opts.networkPlayerNameInput || null;
+        uiRefs.networkBoardSizeRowsInput = opts.networkBoardSizeRowsInput || null;
+        uiRefs.networkBoardSizeColsInput = opts.networkBoardSizeColsInput || null;
+        uiRefs.networkBoardSizeSummary = opts.networkBoardSizeSummary || null;
+        uiRefs.networkBoardSizeNote = opts.networkBoardSizeNote || null;
         uiRefs.networkEnableDebugCheckbox = opts.networkEnableDebugCheckbox || null;
         uiRefs.networkCopyRoomBtn = opts.networkCopyRoomBtn || null;
         uiRefs.networkCreateBtn = opts.networkCreateBtn || null;
