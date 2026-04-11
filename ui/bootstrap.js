@@ -234,10 +234,80 @@
         return _stoneBaseImagesReadyPromise;
     }
 
+    function readDebugQueryString() {
+        try {
+            if (typeof location !== 'undefined' && location && typeof location.search === 'string') {
+                return location.search;
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof window !== 'undefined' && window.location && typeof window.location.search === 'string') {
+                return window.location.search;
+            }
+        } catch (e) { /* ignore */ }
+        return '';
+    }
+
+    function isDebugSessionEnabled() {
+        const seed = (_uiGlobals && typeof _uiGlobals === 'object') ? _uiGlobals : {};
+        if (seed.DEBUG_UNLIMITED_USAGE === true) return true;
+        if (seed.DEBUG_MODE_ALLOWED === true) return true;
+        if (seed.DEBUG_MODE_ALLOWED === false) return false;
+        const query = readDebugQueryString();
+        return /[?&]debug=1(?:&|$)/.test(query) || /[?&]debug=true(?:&|$)/i.test(query);
+    }
+
+    function setDebugLogTarget(target, enabled) {
+        if (!target || typeof target !== 'object') return;
+        if (enabled) {
+            try {
+                target.debugLog = debugLog;
+                return;
+            } catch (e) { /* ignore */ }
+        }
+        try {
+            delete target.debugLog;
+        } catch (e) {
+            try { target.debugLog = undefined; } catch (ignored) { /* ignore */ }
+        }
+    }
+
+    function syncDebugLogAvailability() {
+        const enabled = isDebugSessionEnabled();
+        try {
+            if (typeof window !== 'undefined' && window) {
+                setDebugLogTarget(window, enabled);
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis) {
+                setDebugLogTarget(globalThis, enabled);
+            }
+        } catch (e) { /* ignore */ }
+        return enabled;
+    }
+
+    function debugLog(message, level, meta) {
+        if (!isDebugSessionEnabled()) return false;
+        const logLevel = String(level || 'debug').trim().toLowerCase() || 'debug';
+        const consoleRef = (typeof console !== 'undefined' && console) ? console : null;
+        const writer = consoleRef && typeof consoleRef[logLevel] === 'function'
+            ? consoleRef[logLevel].bind(consoleRef)
+            : (consoleRef && typeof consoleRef.log === 'function' ? consoleRef.log.bind(consoleRef) : null);
+        if (!writer) return false;
+        if (arguments.length >= 3) {
+            writer(`[debug:${logLevel}]`, message, meta);
+        } else {
+            writer(`[debug:${logLevel}]`, message);
+        }
+        return true;
+    }
+
     function addLog(text) {
         const resolvedText = (text && typeof text === 'object' && typeof text.text === 'string')
             ? String(text.text)
             : String(text);
+        let appendedToDom = false;
         try {
             const logEl = (typeof document !== 'undefined') ? document.getElementById('log') : null;
             if (logEl) {
@@ -246,12 +316,14 @@
                 entry.textContent = resolvedText;
                 logEl.appendChild(entry);
                 try { logEl.scrollTop = logEl.scrollHeight; } catch (e) { if (logEl && logEl.parentElement) logEl.parentElement.scrollTop = logEl.parentElement.scrollHeight; }
-                return;
+                appendedToDom = true;
             }
         } catch (e) {
             // ignore DOM errors
         }
-        if (typeof console !== 'undefined' && console.log) console.log('[log]', resolvedText);
+        if ((!appendedToDom || isDebugSessionEnabled()) && typeof console !== 'undefined' && console.log) {
+            console.log('[log]', resolvedText);
+        }
     }
 
     function updateBgmButtons() {
@@ -296,7 +368,29 @@
         return root && root.document ? root.document : null;
     }
 
+    function resolveSharedUIBootstrapHelpers() {
+        try {
+            if (typeof require === 'function') {
+                const sharedBootstrap = require('../shared/ui-bootstrap-shared');
+                if (sharedBootstrap && typeof sharedBootstrap === 'object') {
+                    return sharedBootstrap;
+                }
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.SharedUIBootstrap) {
+                return globalThis.SharedUIBootstrap;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
     function getPlaybackStateModuleForReset() {
+        const sharedBootstrap = resolveSharedUIBootstrapHelpers();
+        if (sharedBootstrap && typeof sharedBootstrap.resolvePlaybackStateManager === 'function') {
+            const resolved = sharedBootstrap.resolvePlaybackStateManager(getTransientUIResetRoot());
+            if (resolved) return resolved;
+        }
         const root = getTransientUIResetRoot();
         if (root && root.PlaybackStateManager) return root.PlaybackStateManager;
         try {
@@ -632,7 +726,7 @@
         try {
             const handLayerEl = doc.getElementById('handLayer');
             const handWrapperEl = doc.getElementById('handWrapper');
-            const handSvgEl = doc.getElementById('handSvg');
+            const handImageEl = doc.getElementById('handImage');
             const heldStoneEl = doc.getElementById('heldStone');
 
             if (handLayerEl) {
@@ -642,9 +736,9 @@
             if (handWrapperEl) {
                 handWrapperEl.style.transform = '';
                 handWrapperEl.style.display = 'none';
-                removeNonPreservedChildren(handWrapperEl, [handSvgEl, heldStoneEl]);
+                removeNonPreservedChildren(handWrapperEl, [handImageEl, heldStoneEl]);
             }
-            if (handSvgEl) handSvgEl.style.visibility = '';
+            if (handImageEl) handImageEl.style.visibility = '';
             if (heldStoneEl) {
                 heldStoneEl.innerHTML = '';
                 heldStoneEl.style.display = 'none';
@@ -684,6 +778,7 @@
         try { window.updateBgmButtons = updateBgmButtons; } catch (e) {}
         try { window.updateStatus = updateStatus; } catch (e) {}
     }
+    syncDebugLogAvailability();
 
     // DI: Install game-side implementations (timers, UI helpers)
     function installGameDI() {
@@ -937,6 +1032,7 @@
                 }
             }
         } catch (e) { /* ignore */ }
+        syncDebugLogAvailability();
         return _uiGlobals;
     }
     function getRegisteredUIGlobals() {
@@ -987,10 +1083,10 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        return { addLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady };
+        return { addLog, debugLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady };
     }
 
-    return { addLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady };
+    return { addLog, debugLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady };
 }));
 
 

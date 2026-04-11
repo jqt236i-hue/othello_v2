@@ -1,10 +1,10 @@
 (function (root, factory) {
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = factory();
+        module.exports = factory(require('../../shared/ui-bootstrap-shared'));
     } else {
-        root.StoryEncounterModule = factory();
+        root.StoryEncounterModule = factory(root.SharedUIBootstrap || null);
     }
-}(typeof self !== 'undefined' ? self : this, function () {
+}(typeof self !== 'undefined' ? self : this, function (SharedUIBootstrap) {
     'use strict';
 
     function createStoryEncounter(options) {
@@ -16,6 +16,10 @@
         let activeEncounter = null;
         let previousBuildCardInitOptions = null;
         let hasEncounterDeckInitOverride = false;
+
+        const uiBootstrapShared = (SharedUIBootstrap && typeof SharedUIBootstrap === 'object')
+            ? SharedUIBootstrap
+            : null;
 
         function cloneDeckCardIds(deckCardIds) {
             return Array.isArray(deckCardIds) ? deckCardIds.slice() : null;
@@ -34,9 +38,21 @@
         }
 
         function getTurnManagerUiImpl() {
+            if (uiBootstrapShared && typeof uiBootstrapShared.readUIImpl === 'function') {
+                return uiBootstrapShared.readUIImpl(rootRef, 'turn_manager');
+            }
             return (rootRef && rootRef.__uiImpl_turn_manager && typeof rootRef.__uiImpl_turn_manager === 'object')
                 ? rootRef.__uiImpl_turn_manager
                 : {};
+        }
+
+        function setTurnManagerUiImpl(nextValue) {
+            if (uiBootstrapShared && typeof uiBootstrapShared.writeUIImpl === 'function') {
+                return uiBootstrapShared.writeUIImpl(rootRef, 'turn_manager', nextValue);
+            }
+            const payload = (nextValue && typeof nextValue === 'object') ? Object.assign({}, nextValue) : {};
+            rootRef.__uiImpl_turn_manager = payload;
+            return payload;
         }
 
         function resolveEncounterDeckInitOptions(encounter) {
@@ -64,7 +80,7 @@
                 hasEncounterDeckInitOverride = true;
             }
 
-            rootRef.__uiImpl_turn_manager = Object.assign({}, turnManagerUiImpl, {
+            setTurnManagerUiImpl(Object.assign({}, turnManagerUiImpl, {
                 buildCardInitOptions: function () {
                     const liveDeckInitOptions = resolveEncounterDeckInitOptions(activeEncounter);
                     if (liveDeckInitOptions) {
@@ -74,7 +90,7 @@
                         ? previousBuildCardInitOptions.apply(this, arguments)
                         : {};
                 }
-            });
+            }));
         }
 
         function clearEncounterDeckInitOverride() {
@@ -86,7 +102,7 @@
             } else {
                 delete restoredTurnManagerUiImpl.buildCardInitOptions;
             }
-            rootRef.__uiImpl_turn_manager = restoredTurnManagerUiImpl;
+            setTurnManagerUiImpl(restoredTurnManagerUiImpl);
             previousBuildCardInitOptions = null;
             hasEncounterDeckInitOverride = false;
         }

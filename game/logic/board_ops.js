@@ -2,20 +2,25 @@
     if (typeof module === 'object' && module.exports) {
         let CardExpansionModule = null;
         let CardMarkersModule = null;
+        let SharedBoardUtilsModule = null;
         try {
             CardExpansionModule = require('./cards/expansion');
         } catch (e) { /* ignore */ }
         try {
             CardMarkersModule = require('./cards/markers');
         } catch (e) { /* ignore */ }
-        module.exports = factory(require('../../shared-constants'), CardExpansionModule, CardMarkersModule);
+        try {
+            SharedBoardUtilsModule = require('../../shared/shared-board-utils');
+        } catch (e) { /* ignore */ }
+        module.exports = factory(require('../../shared-constants'), CardExpansionModule, CardMarkersModule, SharedBoardUtilsModule);
     } else {
-        root.BoardOps = factory(root.SharedConstants, root.CardExpansion || null, root.CardMarkers || null);
+        root.BoardOps = factory(root.SharedConstants, root.CardExpansion || null, root.CardMarkers || null, root.SharedBoardUtils || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardExpansionModule, CardMarkersModule) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardExpansionModule, CardMarkersModule, SharedBoardUtils) {
     'use strict';
 
     const { EMPTY } = SharedConstants || {};
+    const BoardUtils = SharedBoardUtils || null;
     function getGlobalScope() {
         return (typeof globalThis !== 'undefined')
             ? globalThis
@@ -34,6 +39,25 @@
         return globalScope.CardMarkers || null;
     }
 
+    function getSpecialStoneRegistryModule() {
+        if (typeof require === 'function') {
+            try {
+                return require('../../shared/special-stone-registry');
+            } catch (e) { /* ignore */ }
+        }
+        const globalScope = getGlobalScope();
+        return globalScope.SpecialStoneRegistry || null;
+    }
+
+    function isOverlayOnlySpecialStoneType(type) {
+        const registry = getSpecialStoneRegistryModule();
+        if (registry && typeof registry.isOverlayOnlySpecialStoneType === 'function') {
+            return registry.isOverlayOnlySpecialStoneType(type);
+        }
+        const typeUpper = String(type || '').toUpperCase();
+        return typeUpper === 'GUARD' || typeUpper === 'INHERITED_HYPERACTIVE' || typeUpper === 'LIVING_WILL';
+    }
+
     function getCardRegenModule() {
         if (typeof require === 'function') {
             try {
@@ -44,6 +68,18 @@
         }
         const globalScope = getGlobalScope();
         return globalScope.CardRegen || null;
+    }
+
+    function getCardLivingWillModule() {
+        if (typeof require === 'function') {
+            try {
+                return require('./cards/living_will');
+            } catch (e) {
+                // Browser globals are checked below.
+            }
+        }
+        const globalScope = getGlobalScope();
+        return globalScope.CardLivingWill || null;
     }
 
     const MarkersAdapter = (() => {
@@ -85,6 +121,7 @@
         || Object.freeze({
             DESTROYED: 'destroyed',
             REGENERATED: 'regenerated',
+            LIVING_WILL_RESTORED: 'living_will_restored',
             GHOST_BLOCKED: 'ghost_blocked',
             PROLIFERATED: 'proliferated',
             EVADED_MOVE: 'evaded_move'
@@ -95,6 +132,7 @@
             return DestroyOutcomeContract.getDestroyOutcomeKind(result);
         }
         if (!result || typeof result !== 'object') return null;
+        if (result.livingWillRevived === true) return DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED;
         if (result.regenerated === true) return DESTROY_OUTCOME_KINDS.REGENERATED;
         if (result.proliferated === true) return DESTROY_OUTCOME_KINDS.PROLIFERATED;
         if (result.blockedByGhost === true) return DESTROY_OUTCOME_KINDS.GHOST_BLOCKED;
@@ -114,6 +152,7 @@
         const outcome = Object.assign({}, source, {
             destroyed: kind === DESTROY_OUTCOME_KINDS.DESTROYED || source.destroyed === true,
             regenerated: kind === DESTROY_OUTCOME_KINDS.REGENERATED || source.regenerated === true,
+            livingWillRevived: kind === DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED || source.livingWillRevived === true,
             evaded: kind === DESTROY_OUTCOME_KINDS.EVADED_MOVE || source.evaded === true,
             blockedByGhost: kind === DESTROY_OUTCOME_KINDS.GHOST_BLOCKED || source.blockedByGhost === true,
             proliferated: kind === DESTROY_OUTCOME_KINDS.PROLIFERATED || source.proliferated === true
@@ -150,36 +189,60 @@
         return 's' + String(cardState._nextStoneId++);
     }
 
-    function isMainBoardCell(row, col) {
-        const cardExpansion = getCardExpansionModule();
-        if (cardExpansion && typeof cardExpansion.isMainBoardCellForCard === 'function') {
-            return cardExpansion.isMainBoardCellForCard(row, col);
+    function resolveBoardDims(gameState, cardState) {
+        const boardSource = (gameState && Array.isArray(gameState.board))
+            ? gameState
+            : (cardState && Array.isArray(cardState.stoneIdMap) ? cardState : (gameState || cardState));
+        if (BoardUtils && typeof BoardUtils.resolveBoardConfig === 'function') {
+            const config = BoardUtils.resolveBoardConfig(boardSource);
+            return { rows: config.rows, cols: config.cols };
         }
-        return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < 8 && col >= 0 && col < 8;
+        const board = (gameState && Array.isArray(gameState.board))
+            ? gameState.board
+            : (cardState && Array.isArray(cardState.stoneIdMap) ? cardState.stoneIdMap : null);
+        const rows = Array.isArray(board) && board.length > 0 ? board.length : 8;
+        const cols = Array.isArray(board) && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
+        return { rows, cols };
     }
 
-    function resolveExpansionSide(side, row, col) {
+    function isMainBoardCell(row, col, boardOrState) {
+        const cardExpansion = getCardExpansionModule();
+        if (cardExpansion && typeof cardExpansion.isMainBoardCellForCard === 'function') {
+            return cardExpansion.isMainBoardCellForCard(row, col, boardOrState);
+        }
+        const dims = resolveBoardDims(boardOrState, boardOrState);
+        return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < dims.rows && col >= 0 && col < dims.cols;
+    }
+
+    function resolveExpansionSide(side, row, col, boardOrState) {
         const cardExpansion = getCardExpansionModule();
         if (cardExpansion && typeof cardExpansion.resolveExpansionSideForCard === 'function') {
-            return cardExpansion.resolveExpansionSideForCard(side, row, col);
+            return cardExpansion.resolveExpansionSideForCard(side, row, col, boardOrState);
         }
         if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
+        const dims = resolveBoardDims(boardOrState, boardOrState);
         if (col === -1) return 'left';
-        if (col === 8) return 'right';
+        if (col === dims.cols) return 'right';
         if (row === -1) return 'top';
-        if (row === 8) return 'bottom';
+        if (row === dims.rows) return 'bottom';
         return null;
     }
 
-    function isExpansionCoordinate(row, col) {
+    function isExpansionCoordinate(row, col, boardOrState) {
+        const cardExpansion = getCardExpansionModule();
+        if (cardExpansion && typeof cardExpansion.isExpansionCoordinateForCard === 'function') {
+            return cardExpansion.isExpansionCoordinateForCard(row, col, boardOrState);
+        }
         if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-        if (row < -1 || row > 8 || col < -1 || col > 8) return false;
-        if (isMainBoardCell(row, col)) return false;
+        const dims = resolveBoardDims(boardOrState, boardOrState);
+        if (row < -1 || row > dims.rows || col < -1 || col > dims.cols) return false;
+        if (isMainBoardCell(row, col, boardOrState)) return false;
         return true;
     }
 
-    function isMainBoardCorner(row, col) {
-        return isMainBoardCell(row, col) && (row === 0 || row === 7) && (col === 0 || col === 7);
+    function isMainBoardCorner(row, col, boardOrState) {
+        const dims = resolveBoardDims(boardOrState, boardOrState);
+        return isMainBoardCell(row, col, boardOrState) && (row === 0 || row === dims.rows - 1) && (col === 0 || col === dims.cols - 1);
     }
 
     function ensureResultTotals(cardState) {
@@ -204,6 +267,12 @@
         const cardExpansion = getCardExpansionModule();
         if (cardExpansion && typeof cardExpansion.normalizeExpansionOwnerForCard === 'function') {
             return cardExpansion.normalizeExpansionOwnerForCard(owner);
+        }
+        if (BoardUtils && typeof BoardUtils.normalizeOwner === 'function') {
+            const normalizedOwner = BoardUtils.normalizeOwner(owner);
+            return (normalizedOwner === SharedConstants.BLACK || normalizedOwner === SharedConstants.WHITE)
+                ? normalizedOwner
+                : EMPTY;
         }
         return (owner === SharedConstants.BLACK || owner === SharedConstants.WHITE) ? owner : EMPTY;
     }
@@ -231,18 +300,18 @@
                 col = source.col;
                 owner = source.owner;
                 if (!Number.isInteger(col) && side === 'left') col = -1;
-                if (!Number.isInteger(col) && side === 'right') col = 8;
+                if (!Number.isInteger(col) && side === 'right') col = resolveBoardDims(gameState, null).cols;
             } else {
                 side = source;
                 row = legacyRow;
                 if (side === 'left') col = -1;
-                if (side === 'right') col = 8;
+                if (side === 'right') col = resolveBoardDims(gameState, null).cols;
             }
 
-            if (!isExpansionCoordinate(row, col)) return;
+            if (!isExpansionCoordinate(row, col, gameState)) return;
             if (out.some((desc) => desc && desc.row === row && desc.col === col)) return;
             out.push({
-                side: resolveExpansionSide(side, row, col),
+                side: resolveExpansionSide(side, row, col, gameState),
                 row,
                 col,
                 owner: normalizeExpansionOwner(owner)
@@ -263,17 +332,17 @@
         return out;
     }
 
-    function syncLegacyExpansionFields(expansion) {
+    function syncLegacyExpansionFields(expansion, gameState) {
         const cardExpansion = getCardExpansionModule();
         if (cardExpansion && typeof cardExpansion.syncLegacyExpansionFieldsForCard === 'function') {
-            cardExpansion.syncLegacyExpansionFieldsForCard(expansion);
+            cardExpansion.syncLegacyExpansionFieldsForCard(expansion, gameState);
             return;
         }
         if (!expansion || typeof expansion !== 'object') return;
         if (!Array.isArray(expansion.cells)) expansion.cells = [];
         const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
         expansion.active = !!latest;
-        expansion.side = latest ? resolveExpansionSide(latest.side, latest.row, latest.col) : null;
+        expansion.side = latest ? resolveExpansionSide(latest.side, latest.row, latest.col, gameState) : null;
         expansion.row = latest ? latest.row : null;
         expansion.owner = latest ? normalizeExpansionOwner(latest.owner) : EMPTY;
     }
@@ -308,7 +377,7 @@
             col: desc.col,
             owner: normalizeExpansionOwner(desc.owner)
         }));
-        syncLegacyExpansionFields(expansion);
+        syncLegacyExpansionFields(expansion, gameState);
         return expansion;
     }
 
@@ -327,7 +396,7 @@
         if (cardExpansion && typeof cardExpansion.getCellValueForCard === 'function') {
             return cardExpansion.getCellValueForCard(gameState, row, col);
         }
-        if (isMainBoardCell(row, col)) return gameState.board[row][col];
+        if (isMainBoardCell(row, col, gameState)) return gameState.board[row][col];
         const descriptors = getExpansionDescriptors(gameState);
         for (const descriptor of descriptors) {
             if (!descriptor) continue;
@@ -343,7 +412,7 @@
         if (cardExpansion && typeof cardExpansion.setCellValueForCard === 'function') {
             return cardExpansion.setCellValueForCard(gameState, row, col, value);
         }
-        if (isMainBoardCell(row, col)) {
+        if (isMainBoardCell(row, col, gameState)) {
             gameState.board[row][col] = value;
             return true;
         }
@@ -355,16 +424,16 @@
             if (!cell) continue;
             const cellCol = Number.isInteger(cell.col)
                 ? cell.col
-                : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : null));
+                : (cell.side === 'left' ? -1 : (cell.side === 'right' ? resolveBoardDims(gameState, null).cols : null));
             if (!Number.isInteger(cellCol)) continue;
             if (cell.row === row && cellCol === col) {
                 expansion.cells[i] = {
-                    side: resolveExpansionSide(cell.side, cell.row, cellCol),
+                    side: resolveExpansionSide(cell.side, cell.row, cellCol, gameState),
                     row: cell.row,
                     col: cellCol,
                     owner: normalizedOwner
                 };
-                syncLegacyExpansionFields(expansion);
+                syncLegacyExpansionFields(expansion, gameState);
                 return true;
             }
         }
@@ -376,7 +445,7 @@
         if (cardMarkers && typeof cardMarkers.getStoneIdAtForCard === 'function') {
             return cardMarkers.getStoneIdAtForCard(cardState, gameState, row, col);
         }
-        if (isMainBoardCell(row, col)) {
+        if (isMainBoardCell(row, col, gameState)) {
             return cardState.stoneIdMap ? cardState.stoneIdMap[row][col] : null;
         }
         if (isExpansionCell(gameState, row, col)) {
@@ -390,8 +459,14 @@
         if (cardMarkers && typeof cardMarkers.setStoneIdAtForCard === 'function') {
             return cardMarkers.setStoneIdAtForCard(cardState, gameState, row, col, stoneId);
         }
-        if (isMainBoardCell(row, col)) {
-            if (!cardState.stoneIdMap) cardState.stoneIdMap = Array(8).fill(null).map(() => Array(8).fill(null));
+        if (isMainBoardCell(row, col, gameState || cardState)) {
+            const dims = resolveBoardDims(gameState, cardState);
+            if (!cardState.stoneIdMap) {
+                cardState.stoneIdMap = Array.from({ length: dims.rows }, () => Array.from({ length: dims.cols }, () => null));
+            }
+            if (!Array.isArray(cardState.stoneIdMap[row])) {
+                cardState.stoneIdMap[row] = Array.from({ length: dims.cols }, () => null);
+            }
             cardState.stoneIdMap[row][col] = stoneId;
             return true;
         }
@@ -641,8 +716,9 @@
 
     function _collectAllBoardCoordinates(gameState) {
         const coords = [];
-        for (let row = 0; row < 8; row++) {
-            for (let col = 0; col < 8; col++) {
+        const dims = resolveBoardDims(gameState, null);
+        for (let row = 0; row < dims.rows; row++) {
+            for (let col = 0; col < dims.cols; col++) {
                 coords.push({ row, col });
             }
         }
@@ -781,9 +857,7 @@
             const visualSpecial = markersAtCell.find((m) => {
                 const typeUpper = String(m && m.data && m.data.type ? m.data.type : '').toUpperCase();
                 if (!typeUpper) return false;
-                if (typeUpper === 'GUARD') return false;
-                if (typeUpper === 'INHERITED_HYPERACTIVE') return false;
-                return true;
+                return !isOverlayOnlySpecialStoneType(typeUpper);
             });
             if (visualSpecial) {
                 flipEvadeRemaining = _normalizeCounterValue(visualSpecial.data && visualSpecial.data.flipEvadeRemaining);
@@ -889,6 +963,67 @@
         // UI updates are handled by higher-level controllers (no direct UI calls here).
     }
 
+    function _findSpecialMarkerAt(cardState, row, col, type) {
+        const cardMarkers = getCardMarkersModule();
+        if (cardMarkers && typeof cardMarkers.findSpecialMarkerAt === 'function') {
+            return cardMarkers.findSpecialMarkerAt(cardState, row, col, type) || null;
+        }
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        return markers.find((marker) => (
+            marker &&
+            marker.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+            marker.row === row &&
+            marker.col === col &&
+            marker.data &&
+            marker.data.type === type
+        )) || null;
+    }
+
+    function _removeSpecialMarkersAt(cardState, row, col, options) {
+        const cardMarkers = getCardMarkersModule();
+        if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
+            cardMarkers.removeMarkersAt(cardState, row, col, options);
+            return;
+        }
+        if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
+            MarkersAdapter.removeMarkersAt(cardState, row, col, options);
+            return;
+        }
+        if (!cardState || !Array.isArray(cardState.markers)) return;
+        const opts = options || {};
+        cardState.markers = cardState.markers.filter((marker) => {
+            if (!marker || marker.row !== row || marker.col !== col) return true;
+            if (opts.kind && marker.kind !== opts.kind) return true;
+            if (opts.type && (!marker.data || marker.data.type !== opts.type)) return true;
+            if (opts.owner && marker.owner !== opts.owner) return true;
+            return false;
+        });
+    }
+
+    function _invalidateSeedMarkerAt(cardState, row, col, cause, reason) {
+        const seedMarker = _findSpecialMarkerAt(cardState, row, col, 'SEED');
+        if (!seedMarker) return false;
+        emitPresentationEvent(cardState, {
+            type: 'STATUS_REMOVED',
+            row,
+            col,
+            cause: cause || null,
+            reason: 'seed_invalidated',
+            meta: {
+                special: 'SEED',
+                owner: seedMarker.owner || null,
+                reason: 'seed_invalidated',
+                invalidatedByCause: cause || null,
+                invalidatedByReason: reason || null
+            }
+        });
+        _removeSpecialMarkersAt(cardState, row, col, {
+            kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
+            type: 'SEED'
+        });
+        return true;
+    }
+
     function spawnAt(cardState, gameState, row, col, ownerKey, cause, reason, meta = {}) {
         _ensureCardState(cardState);
         const pos = _normalizeCellPosition(row, col);
@@ -896,6 +1031,7 @@
         row = pos.row;
         col = pos.col;
         if (_isBlockedDestinationCell(cardState, row, col)) return { spawned: false, reason: 'blocked_destination' };
+        _invalidateSeedMarkerAt(cardState, row, col, cause, reason);
         const ownerVal = ownerKey === 'black' ? (SharedConstants.BLACK || 1) : (SharedConstants.WHITE || -1);
         if (!setCellValue(gameState, row, col, ownerVal)) return { spawned: false };
         const stoneId = allocateStoneId(cardState);
@@ -1138,11 +1274,94 @@
             }
         }
 
-        // Check for special stone marker BEFORE markers are removed (for SALVATION_WILL tracking).
         const specialKindForSalvation = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
-        const isNormalStoneForSalvation = !(Array.isArray(cardState.markers) && cardState.markers.some(
+        const wasSpecialStoneForSalvation = !!(Array.isArray(cardState.markers) && cardState.markers.some(
             m => m && m.kind === specialKindForSalvation && m.row === row && m.col === col
         ));
+        const ownerBeforeKeyForDestroy = (prev === (SharedConstants.BLACK || 1)) ? 'black' : 'white';
+        const recordSalvationDestroy = () => {
+            const activeTurnPlayer = cardState._activeTurnPlayer;
+            const beneficiaryPlayer = activeTurnPlayer === 'black'
+                ? 'white'
+                : (activeTurnPlayer === 'white' ? 'black' : null);
+            if (beneficiaryPlayer) {
+                if (!cardState.prevOpponentTurnDestroyedStonesByPlayer) {
+                    cardState.prevOpponentTurnDestroyedStonesByPlayer = { black: [], white: [] };
+                }
+                if (!Array.isArray(cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer])) {
+                    cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer] = [];
+                }
+                cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer].push({
+                    row,
+                    col,
+                    owner: ownerBeforeKeyForDestroy,
+                    wasSpecial: wasSpecialStoneForSalvation
+                });
+            }
+        };
+
+        const cardLivingWillModule = getCardLivingWillModule();
+        const livingWillMarker = cardLivingWillModule && typeof cardLivingWillModule.findLivingWillMarkerAt === 'function'
+            ? cardLivingWillModule.findLivingWillMarkerAt(cardState, row, col)
+            : null;
+        if (livingWillMarker && cardLivingWillModule && typeof cardLivingWillModule.restoreFromLivingWillSnapshot === 'function') {
+            const livingStoneId = getStoneIdAt(cardState, gameState, row, col);
+            setStoneIdAt(cardState, gameState, row, col, null);
+            setCellValue(gameState, row, col, EMPTY);
+            if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
+                cardMarkers.removeMarkersAt(cardState, row, col);
+            } else if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
+                MarkersAdapter.removeMarkersAt(cardState, row, col);
+            } else if (Array.isArray(cardState.markers)) {
+                cardState.markers = cardState.markers.filter(m => !(m.row === row && m.col === col));
+            }
+            const destroyMeta = _clonePresentationMeta(meta);
+            destroyMeta.livingWillTriggered = true;
+            emitPresentationEvent(cardState, {
+                type: 'DESTROY',
+                stoneId: livingStoneId,
+                row,
+                col,
+                ownerBefore: ownerBeforeKeyForDestroy,
+                cause: cause || null,
+                reason: reason || null,
+                meta: destroyMeta
+            });
+            const livingWillResult = cardLivingWillModule.restoreFromLivingWillSnapshot(
+                cardState,
+                gameState,
+                livingWillMarker,
+                {
+                    triggerKind: 'destroy',
+                    sourceRow: row,
+                    sourceCol: col,
+                    cause: cause || null,
+                    reason: reason || null
+                },
+                {
+                    BoardOps: {
+                        spawnAt,
+                        changeAt,
+                        getCellValue,
+                        getExpansionDescriptors,
+                        emitPresentationEvent
+                    },
+                    random: meta && meta.random
+                }
+            );
+            if (livingWillResult && livingWillResult.restored) {
+                return createDestroyOutcome(DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED, {
+                    reason: 'living_will_restored',
+                    from: { row, col },
+                    to: livingWillResult.destination || { row, col },
+                    owner: livingWillResult.owner || ownerBeforeKeyForDestroy,
+                    livingWillRevived: true,
+                    relocated: !!livingWillResult.relocated
+                });
+            }
+            recordSalvationDestroy();
+            return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED);
+        }
 
         let stoneId = null;
         stoneId = getStoneIdAt(cardState, gameState, row, col);
@@ -1158,31 +1377,18 @@
         } else if (Array.isArray(cardState.markers)) {
             cardState.markers = cardState.markers.filter(m => !(m.row === row && m.col === col));
         }
-        const ownerBeforeKeyForSalvation = (prev === (SharedConstants.BLACK || 1)) ? 'black' : 'white';
         emitPresentationEvent(cardState, {
             type: 'DESTROY',
             stoneId,
             row,
             col,
-            ownerBefore: ownerBeforeKeyForSalvation,
+            ownerBefore: ownerBeforeKeyForDestroy,
             cause: cause || null,
             reason: reason || null,
             meta: _clonePresentationMeta(meta)
         });
 
-        // Record normal stone destruction for SALVATION_WILL turn-scoped tracking.
-        if (isNormalStoneForSalvation) {
-            const activeTurnPlayer = cardState._activeTurnPlayer;
-            if (typeof activeTurnPlayer === 'string' && activeTurnPlayer !== ownerBeforeKeyForSalvation) {
-                if (!cardState.prevOpponentTurnDestroyedNormalByPlayer) {
-                    cardState.prevOpponentTurnDestroyedNormalByPlayer = { black: [], white: [] };
-                }
-                if (!Array.isArray(cardState.prevOpponentTurnDestroyedNormalByPlayer[ownerBeforeKeyForSalvation])) {
-                    cardState.prevOpponentTurnDestroyedNormalByPlayer[ownerBeforeKeyForSalvation] = [];
-                }
-                cardState.prevOpponentTurnDestroyedNormalByPlayer[ownerBeforeKeyForSalvation].push({ row, col });
-            }
-        }
+        recordSalvationDestroy();
 
         return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED);
     }
@@ -1254,7 +1460,7 @@
         if (ownerBeforeKey !== null) {
             ensureResultTotals(cardState);
             cardState.totalFlipCountByPlayer[ownerAfterKey] = (cardState.totalFlipCountByPlayer[ownerAfterKey] || 0) + 1;
-            if (ownerBeforeKey !== ownerAfterKey && isMainBoardCorner(row, col)) {
+            if (ownerBeforeKey !== ownerAfterKey && isMainBoardCorner(row, col, gameState)) {
                 cardState.cornerCaptureCountByPlayer[ownerAfterKey] = (cardState.cornerCaptureCountByPlayer[ownerAfterKey] || 0) + 1;
             }
         }
@@ -1297,6 +1503,16 @@
             return true;
         });
         if (!matchesAtCell.length) return { reverted: false, reason: 'marker_not_found' };
+        const cardLivingWillModule = getCardLivingWillModule();
+        const livingWillMarker = cardLivingWillModule && typeof cardLivingWillModule.findLivingWillMarkerAt === 'function'
+            ? cardLivingWillModule.findLivingWillMarkerAt(cardState, row, col)
+            : null;
+        const shouldRestoreLivingWill = !!(
+            livingWillMarker &&
+            cardLivingWillModule &&
+            typeof cardLivingWillModule.shouldTriggerForSpecialLoss === 'function' &&
+            cardLivingWillModule.shouldTriggerForSpecialLoss(livingWillMarker, specialType)
+        );
 
         const markerKind = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
         const cardMarkers = getCardMarkersModule();
@@ -1349,10 +1565,36 @@
             meta: metaOut
         });
 
-        return {
+        const result = {
             reverted: true,
             removedCount: matchesAtCell.length - remainingMatches.length
         };
+        if (shouldRestoreLivingWill && cardLivingWillModule && typeof cardLivingWillModule.restoreFromLivingWillSnapshot === 'function') {
+            result.livingWillRestore = cardLivingWillModule.restoreFromLivingWillSnapshot(
+                cardState,
+                gameState,
+                livingWillMarker,
+                {
+                    triggerKind: 'special_loss',
+                    sourceRow: row,
+                    sourceCol: col,
+                    cause: cause || null,
+                    reason: reason || null,
+                    removedSpecialType: specialType
+                },
+                {
+                    BoardOps: {
+                        spawnAt,
+                        changeAt,
+                        getCellValue,
+                        getExpansionDescriptors,
+                        emitPresentationEvent
+                    },
+                    random: meta && meta.random
+                }
+            );
+        }
+        return result;
     }
 
     function moveAt(cardState, gameState, fromRow, fromCol, toRow, toCol, cause, reason, meta = {}) {
@@ -1375,6 +1617,7 @@
         if (destVal === null) return { moved: false, reason: 'to_out_of_board' };
         if (destVal !== EMPTY) return { moved: false, reason: 'dest_not_empty' };
         if (_isBlockedDestinationCell(cardState, toRow, toCol)) return { moved: false, reason: 'blocked_destination' };
+        _invalidateSeedMarkerAt(cardState, toRow, toCol, cause, reason);
 
         const stoneId = getStoneIdAt(cardState, gameState, fromRow, fromCol);
         setStoneIdAt(cardState, gameState, fromRow, fromCol, null);

@@ -7,108 +7,79 @@
 }(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function () {
     'use strict';
 
-    const PENDING_SELECTION_CONTRACTS = Object.freeze({
-        DESTROY_ONE_STONE: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        STRONG_WIND_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        SUPER_BUOYANCY_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        SUPER_GRAVITY_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        TELEPORT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        CELL_TELEPORT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        TEMPT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        CAPTURE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        TRAP_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        GUARD_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        GUARDIAN_GOD: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        HYPERACTIVE_INHERIT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        EXTEND_LIFE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        EXTEND_LIFE_GOD: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        CORROSION_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        CLONE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        SPLIT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        BLOCKADE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        BOARD_EXPANSION_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        BOARD_EXPANSION_GOD: { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        FREEZE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        POSITION_SWAP_WILL: { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        METEOR_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        TIME_BOMB: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        SWAP_WITH_ENEMY: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        SELL_CARD_WILL: { kind: 'hand_overlay', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        HEAVEN_BLESSING: { kind: 'hand_overlay', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true },
-        CONDEMN_WILL: { kind: 'hand_overlay', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true }
+    const PENDING_SELECTION_CONTRACT_DEFINITIONS = Object.freeze({
+        DESTROY_ONE_STONE: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'destroy' },
+        STRONG_WIND_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'strong_wind' },
+        SUPER_BUOYANCY_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'super_buoyancy' },
+        SUPER_GRAVITY_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'super_gravity' },
+        TELEPORT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'teleport' },
+        CELL_TELEPORT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'cell_teleport' },
+        TEMPT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'tempt' },
+        CAPTURE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'capture' },
+        TRAP_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'trap' },
+        GUARD_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'guard' },
+        GUARDIAN_GOD: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'guard' },
+        LIVING_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'living_will' },
+        HYPERACTIVE_INHERIT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'hyperactive_inherit' },
+        EXTEND_LIFE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'extend_life' },
+        EXTEND_LIFE_GOD: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'extend_life' },
+        CORROSION_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'corrosion' },
+        CLONE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'clone' },
+        SPLIT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'split' },
+        BLOCKADE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'blockade' },
+        BOARD_EXPANSION_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'board_expansion' },
+        BOARD_EXPANSION_GOD: { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'board_expansion' },
+        BOARD_SHRINK_WILL: { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'board_shrink' },
+        BOARD_SHRINK_GOD: { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'board_shrink' },
+        FREEZE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'freeze' },
+        SEED_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'seed' },
+        POSITION_SWAP_WILL: { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'position_swap' },
+        METEOR_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'meteor' },
+        TIME_BOMB: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'time_bomb' },
+        SWAP_WITH_ENEMY: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'swap_with_enemy' },
+        HEAVEN_BLESSING: { kind: 'hand_overlay', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'heaven_blessing' },
+        CONDEMN_WILL: { kind: 'hand_overlay', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'condemn' }
     });
 
-    const TARGET_SELECTION_PENDING_TYPES = new Set([
-        'DESTROY_ONE_STONE',
-        'STRONG_WIND_WILL',
-        'SUPER_BUOYANCY_WILL',
-        'SUPER_GRAVITY_WILL',
-        'SELL_CARD_WILL',
-        'HEAVEN_BLESSING',
-        'CONDEMN_WILL',
-        'SWAP_WITH_ENEMY',
-        'POSITION_SWAP_WILL',
-        'TRAP_WILL',
-        'TEMPT_WILL',
-        'CAPTURE_WILL',
-        'GUARD_WILL',
-        'GUARDIAN_GOD',
-        'HYPERACTIVE_INHERIT_WILL',
-        'EXTEND_LIFE_WILL',
-        'EXTEND_LIFE_GOD',
-        'CORROSION_WILL',
-        'TIME_BOMB',
-        'TELEPORT_WILL',
-        'CELL_TELEPORT_WILL',
-        'CLONE_WILL',
-        'SPLIT_WILL',
-        'BOARD_EXPANSION_WILL',
-        'BOARD_EXPANSION_GOD',
-        'BLOCKADE_WILL',
-        'METEOR_WILL',
-        'FREEZE_WILL'
-    ]);
+    function buildPendingSelectionContracts(definitions) {
+        const contracts = {};
+        Object.keys(definitions).forEach((cardType) => {
+            const definition = definitions[cardType] || {};
+            contracts[cardType] = Object.freeze({
+                kind: definition.kind,
+                turnOutcome: definition.turnOutcome,
+                deferNetworkPublish: definition.deferNetworkPublish === true,
+                waitForPlaybackIdle: definition.waitForPlaybackIdle === true
+            });
+        });
+        return Object.freeze(contracts);
+    }
 
-    const CANCELLABLE_PENDING_TYPES = new Set([
-        'DESTROY_ONE_STONE',
-        'POSITION_SWAP_WILL',
-        'BOARD_EXPANSION_WILL',
-        'BOARD_EXPANSION_GOD',
-        'BLOCKADE_WILL',
-        'METEOR_WILL',
-        'FREEZE_WILL'
-    ]);
+    function buildPendingSelectionTypeSet(definitions, fieldName) {
+        const types = [];
+        Object.keys(definitions).forEach((cardType) => {
+            if (definitions[cardType] && definitions[cardType][fieldName] === true) {
+                types.push(cardType);
+            }
+        });
+        return new Set(types);
+    }
 
-    const PENDING_SELECTION_DISPATCH_KEYS = Object.freeze({
-        DESTROY_ONE_STONE: 'destroy',
-        STRONG_WIND_WILL: 'strong_wind',
-        SUPER_BUOYANCY_WILL: 'super_buoyancy',
-        SUPER_GRAVITY_WILL: 'super_gravity',
-        TELEPORT_WILL: 'teleport',
-        CELL_TELEPORT_WILL: 'cell_teleport',
-        TEMPT_WILL: 'tempt',
-        CAPTURE_WILL: 'capture',
-        TRAP_WILL: 'trap',
-        GUARD_WILL: 'guard',
-        GUARDIAN_GOD: 'guard',
-        HYPERACTIVE_INHERIT_WILL: 'hyperactive_inherit',
-        EXTEND_LIFE_WILL: 'extend_life',
-        EXTEND_LIFE_GOD: 'extend_life',
-        CORROSION_WILL: 'corrosion',
-        TIME_BOMB: 'time_bomb',
-        SWAP_WITH_ENEMY: 'swap_with_enemy',
-        POSITION_SWAP_WILL: 'position_swap',
-        BOARD_EXPANSION_WILL: 'board_expansion',
-        BOARD_EXPANSION_GOD: 'board_expansion',
-        BLOCKADE_WILL: 'blockade',
-        METEOR_WILL: 'meteor',
-        FREEZE_WILL: 'freeze',
-        CLONE_WILL: 'clone',
-        SPLIT_WILL: 'split',
-        SELL_CARD_WILL: 'sell_card',
-        HEAVEN_BLESSING: 'heaven_blessing',
-        CONDEMN_WILL: 'condemn'
-    });
+    function buildPendingSelectionDispatchKeys(definitions) {
+        const dispatchKeys = {};
+        Object.keys(definitions).forEach((cardType) => {
+            const dispatchKey = definitions[cardType] && definitions[cardType].dispatchKey;
+            if (typeof dispatchKey === 'string' && dispatchKey) {
+                dispatchKeys[cardType] = dispatchKey;
+            }
+        });
+        return Object.freeze(dispatchKeys);
+    }
+
+    const PENDING_SELECTION_CONTRACTS = buildPendingSelectionContracts(PENDING_SELECTION_CONTRACT_DEFINITIONS);
+    const TARGET_SELECTION_PENDING_TYPES = buildPendingSelectionTypeSet(PENDING_SELECTION_CONTRACT_DEFINITIONS, 'needsTargetSelection');
+    const CANCELLABLE_PENDING_TYPES = buildPendingSelectionTypeSet(PENDING_SELECTION_CONTRACT_DEFINITIONS, 'cancellable');
+    const PENDING_SELECTION_DISPATCH_KEYS = buildPendingSelectionDispatchKeys(PENDING_SELECTION_CONTRACT_DEFINITIONS);
 
     function normalizeCardType(cardType) {
         return String(cardType || '');
@@ -240,9 +211,11 @@
             sourceHandIndex: Number.isInteger(opts.sourceHandIndex) ? opts.sourceHandIndex : undefined,
             stage: needsSelection ? 'selectTarget' : null,
             offers: opts.offers || undefined,
-            selectedCount: cardType === 'BOARD_EXPANSION_GOD' ? 0 : undefined,
-            maxSelections: cardType === 'BOARD_EXPANSION_GOD' ? 2 : undefined,
-            selectedTargets: cardType === 'BOARD_EXPANSION_GOD' ? [] : undefined,
+            selectedCount: (cardType === 'BOARD_EXPANSION_GOD' || cardType === 'BOARD_SHRINK_WILL') ? 0 : undefined,
+            maxSelections: cardType === 'BOARD_EXPANSION_GOD'
+                ? 2
+                : (cardType === 'BOARD_SHRINK_WILL' ? 3 : undefined),
+            selectedTargets: (cardType === 'BOARD_EXPANSION_GOD' || cardType === 'BOARD_SHRINK_WILL') ? [] : undefined,
             placementsRemaining: cardType === 'LAST_RESORT' ? 3 : undefined
         };
     }

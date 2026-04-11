@@ -5,7 +5,9 @@
             require('../shared/deck-codec'),
             require('./storage/deck-presets'),
             require('./deck-builder-state'),
-            require('./deck-builder-renderer')
+            require('./deck-builder-renderer'),
+            require('../shared/shared-board-utils'),
+            require('../shared/ui-bootstrap-shared')
         );
     } else {
         root.DeckBuilderControllerModule = factory(
@@ -13,7 +15,9 @@
             root.DeckCodecModule,
             root.DeckPresetStorage,
             root.DeckBuilderStateModule,
-            root.DeckBuilderRendererModule
+            root.DeckBuilderRendererModule,
+            root.SharedBoardUtils,
+            root.SharedUIBootstrap || null
         );
     }
 }(typeof self !== 'undefined' ? self : this, function (
@@ -21,12 +25,14 @@
     DeckCodecModule,
     DeckPresetStorage,
     DeckBuilderStateModule,
-    DeckBuilderRendererModule
+    DeckBuilderRendererModule,
+    SharedBoardUtils,
+    SharedUIBootstrap
 ) {
     'use strict';
 
     function ensureDependencies() {
-        if (!DeckSpecHelpers || !DeckCodecModule || !DeckPresetStorage || !DeckBuilderStateModule || !DeckBuilderRendererModule) {
+        if (!DeckSpecHelpers || !DeckCodecModule || !DeckPresetStorage || !DeckBuilderStateModule || !DeckBuilderRendererModule || !SharedBoardUtils) {
             throw new Error('Deck builder dependencies are missing');
         }
     }
@@ -36,22 +42,32 @@
 
         const opts = (options && typeof options === 'object') ? options : {};
         const rootRef = opts.root || (typeof window !== 'undefined' ? window : globalThis);
+        const uiBootstrapShared = SharedUIBootstrap || null;
         const refs = Object.assign({
             openBtn: null,
             controlSummary: null,
             overlay: null,
             closeBtn: null,
             headerSummary: null,
-            body: null
+            body: null,
+            boardSizeOpenBtn: null,
+            boardSizeControlSummary: null,
+            boardSizeEditor: null,
+            boardSizeRowsInput: null,
+            boardSizeColsInput: null,
+            boardSizeCloseBtn: null,
+            boardSizeEditorNote: null
         }, opts.refs || {});
 
         const state = {
             overlayOpen: false,
+            boardSizeEditorOpen: false,
             view: 'presets',
             noticeText: '',
             noticeIsError: false,
             presetState: DeckPresetStorage.loadState(),
             activeLocalChoice: null,
+            localBoardConfig: SharedBoardUtils.buildBoardConfig(),
             editor: {
                 presetId: '',
                 nameValue: '',
@@ -63,6 +79,112 @@
         function normalizeChoiceLabel(name, fallback) {
             const normalized = String(name || '').replace(/\s+/g, ' ').trim();
             return normalized || fallback;
+        }
+
+        function normalizeBoardConfig(value) {
+            if (typeof SharedBoardUtils.resolveBoardConfig === 'function') {
+                return SharedBoardUtils.resolveBoardConfig(value);
+            }
+            return SharedBoardUtils.buildBoardConfig(
+                value && value.rows,
+                value && value.cols
+            );
+        }
+
+        function cloneBoardConfig(value) {
+            const normalized = normalizeBoardConfig(value);
+            return {
+                rows: normalized.rows,
+                cols: normalized.cols,
+                standard8x8: normalized.standard8x8 === true,
+                baseBounds: Object.assign({}, normalized.baseBounds || {}),
+                outerBounds: Object.assign({}, normalized.outerBounds || {})
+            };
+        }
+
+        function createDefaultBoardConfig() {
+            return cloneBoardConfig(SharedBoardUtils.buildBoardConfig());
+        }
+
+        function resolveSharedUIBootstrapHelpers() {
+            if (uiBootstrapShared && typeof uiBootstrapShared === 'object') {
+                return uiBootstrapShared;
+            }
+            try {
+                if (rootRef && rootRef.SharedUIBootstrap && typeof rootRef.SharedUIBootstrap === 'object') {
+                    return rootRef.SharedUIBootstrap;
+                }
+            } catch (e) { /* ignore */ }
+            return null;
+        }
+
+        function mergeTurnManagerUiImpl(payload) {
+            const sharedHelpers = resolveSharedUIBootstrapHelpers();
+            if (sharedHelpers && typeof sharedHelpers.mergeUIImpl === 'function') {
+                sharedHelpers.mergeUIImpl(rootRef, 'turn_manager', payload);
+                return;
+            }
+            try {
+                rootRef.__uiImpl_turn_manager = Object.assign({}, rootRef.__uiImpl_turn_manager || {}, payload);
+            } catch (e) { /* ignore */ }
+            try {
+                if (typeof globalThis !== 'undefined') {
+                    globalThis.__uiImpl_turn_manager = Object.assign({}, globalThis.__uiImpl_turn_manager || {}, payload);
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        function formatBoardConfigLabel(boardConfig) {
+            const normalized = normalizeBoardConfig(boardConfig);
+            return `${normalized.rows}x${normalized.cols}`;
+        }
+
+        function parseBoardDimensionInput(value, fallbackValue) {
+            const normalized = String(value || '').trim();
+            if (!normalized) return fallbackValue;
+            const numeric = Number(normalized);
+            return Number.isFinite(numeric) ? numeric : fallbackValue;
+        }
+
+        function getBoardDimensionBounds(axis) {
+            if (SharedBoardUtils && typeof SharedBoardUtils.getBoardDimensionBounds === 'function') {
+                return SharedBoardUtils.getBoardDimensionBounds(axis);
+            }
+            return axis === 'col'
+                ? { min: 4, max: 10 }
+                : { min: 4, max: 10 };
+        }
+
+        function stepBoardDimensionValue(value, direction, fallbackValue, axis) {
+            if (SharedBoardUtils && typeof SharedBoardUtils.stepBoardDimensionValue === 'function') {
+                return SharedBoardUtils.stepBoardDimensionValue(value, direction, fallbackValue, axis);
+            }
+            const bounds = getBoardDimensionBounds(axis);
+            const fallback = Number.isFinite(Number(fallbackValue)) ? Number(fallbackValue) : 8;
+            const numeric = Number.isFinite(Number(value)) ? Number(value) : fallback;
+            const step = Number(direction) > 0 ? 1 : -1;
+            return Math.max(bounds.min, Math.min(bounds.max, Math.floor(numeric + step)));
+        }
+
+        function readPrimaryWheelDelta(event) {
+            const deltaX = Number(event && event.deltaX) || 0;
+            const deltaY = Number(event && event.deltaY) || 0;
+            return Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+        }
+
+        function applyBoardDimensionInputBounds(inputRef, axis) {
+            if (!inputRef) return;
+            const bounds = getBoardDimensionBounds(axis);
+            inputRef.min = String(bounds.min);
+            inputRef.max = String(bounds.max);
+        }
+
+        function updateLocalBoardConfigFromInputs() {
+            const fallback = getLocalBoardConfig();
+            updateLocalBoardConfig({
+                rows: parseBoardDimensionInput(refs.boardSizeRowsInput && refs.boardSizeRowsInput.value, fallback.rows),
+                cols: parseBoardDimensionInput(refs.boardSizeColsInput && refs.boardSizeColsInput.value, fallback.cols)
+            });
         }
 
         function compareCardDefsForDeckBuilder(left, right) {
@@ -250,6 +372,138 @@
             }
         }
 
+        function getRoomBoardConfigMetadata() {
+            try {
+                if (!rootRef.NetworkMatchClient || typeof rootRef.NetworkMatchClient.getRoomBoardConfig !== 'function') return null;
+                if (typeof rootRef.NetworkMatchClient.isActive === 'function' && !rootRef.NetworkMatchClient.isActive()) return null;
+                const roomBoardConfig = rootRef.NetworkMatchClient.getRoomBoardConfig();
+                return roomBoardConfig ? normalizeBoardConfig(roomBoardConfig) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function isStoryModeActive() {
+            try {
+                return !!(
+                    rootRef.Story &&
+                    rootRef.Story.State &&
+                    typeof rootRef.Story.State.isActive === 'function' &&
+                    rootRef.Story.State.isActive()
+                );
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function isTutorialModeActive() {
+            try {
+                return !!(
+                    rootRef.Tutorial &&
+                    rootRef.Tutorial.State &&
+                    typeof rootRef.Tutorial.State.isActive === 'function' &&
+                    rootRef.Tutorial.State.isActive()
+                );
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function resolveBoardConfigLockReason() {
+            return resolveBoardConfigOwnership().reason;
+        }
+
+        function resolveBoardConfigOwnership() {
+            const roomBoardConfig = getRoomBoardConfigMetadata();
+            if (roomBoardConfig) {
+                return {
+                    reason: 'room',
+                    boardConfig: cloneBoardConfig(roomBoardConfig)
+                };
+            }
+            if (isStoryModeActive() || isTutorialModeActive()) {
+                return {
+                    reason: isStoryModeActive() ? 'story' : 'tutorial',
+                    boardConfig: createDefaultBoardConfig()
+                };
+            }
+            return {
+                reason: '',
+                boardConfig: cloneBoardConfig(state.localBoardConfig)
+            };
+        }
+
+        function readBoardConfig() {
+            return resolveBoardConfigOwnership().boardConfig;
+        }
+
+        function getLocalBoardConfig() {
+            return cloneBoardConfig(state.localBoardConfig);
+        }
+
+        function updateLocalBoardConfig(nextBoardConfig) {
+            state.localBoardConfig = normalizeBoardConfig(nextBoardConfig);
+            renderBoardSizeControls();
+        }
+
+        function buildBoardSizeSummaryText() {
+            const boardConfig = readBoardConfig();
+            const label = formatBoardConfigLabel(boardConfig);
+            const lockReason = resolveBoardConfigLockReason();
+            if (lockReason === 'room') return `${label} / 部屋固定`;
+            if (lockReason === 'story') return `${label} / ストーリー固定`;
+            if (lockReason === 'tutorial') return `${label} / チュートリアル固定`;
+            return label;
+        }
+
+        function buildBoardSizeNoteText() {
+            const lockReason = resolveBoardConfigLockReason();
+            if (lockReason === 'room') {
+                return 'ネット対戦中は部屋で決めた盤面サイズを使います';
+            }
+            if (lockReason === 'story') {
+                return 'ストーリー中は 8x8 固定です';
+            }
+            if (lockReason === 'tutorial') {
+                return 'チュートリアル中は 8x8 固定です';
+            }
+            return '次のリセット / 新規対局で反映';
+        }
+
+        function renderBoardSizeControls() {
+            const activeBoardConfig = readBoardConfig();
+            const editableBoardConfig = resolveBoardConfigLockReason()
+                ? activeBoardConfig
+                : getLocalBoardConfig();
+            const locked = !!resolveBoardConfigLockReason();
+
+            if (refs.boardSizeOpenBtn) {
+                refs.boardSizeOpenBtn.setAttribute('aria-expanded', state.boardSizeEditorOpen ? 'true' : 'false');
+            }
+            if (refs.boardSizeControlSummary) {
+                refs.boardSizeControlSummary.textContent = buildBoardSizeSummaryText();
+                refs.boardSizeControlSummary.classList.toggle('is-room-override', resolveBoardConfigLockReason() === 'room');
+            }
+            if (refs.boardSizeEditor) {
+                refs.boardSizeEditor.hidden = !state.boardSizeEditorOpen;
+                refs.boardSizeEditor.classList.toggle('is-locked', locked);
+            }
+            if (refs.boardSizeRowsInput) {
+                applyBoardDimensionInputBounds(refs.boardSizeRowsInput, 'row');
+                refs.boardSizeRowsInput.value = String(editableBoardConfig.rows);
+                refs.boardSizeRowsInput.disabled = locked;
+            }
+            if (refs.boardSizeColsInput) {
+                applyBoardDimensionInputBounds(refs.boardSizeColsInput, 'col');
+                refs.boardSizeColsInput.value = String(editableBoardConfig.cols);
+                refs.boardSizeColsInput.disabled = locked;
+            }
+            if (refs.boardSizeEditorNote) {
+                refs.boardSizeEditorNote.textContent = buildBoardSizeNoteText();
+                refs.boardSizeEditorNote.classList.toggle('is-room-override', resolveBoardConfigLockReason() === 'room');
+            }
+        }
+
         function readNetworkSeatKey() {
             try {
                 if (rootRef.NetworkMatchClient && typeof rootRef.NetworkMatchClient.getSeatKey === 'function') {
@@ -367,25 +621,28 @@
 
         function buildCardInitOptions() {
             const roomDeck = getRoomDeckMetadata();
+            const baseOptions = {
+                boardConfig: readBoardConfig()
+            };
             if (roomDeck) {
-                return resolveRoomDeckInitOptions(roomDeck) || {};
+                return Object.assign(baseOptions, resolveRoomDeckInitOptions(roomDeck) || {});
             }
 
             const effective = getEffectiveChoice();
             if (effective.choice && effective.choice.mode === 'custom' && effective.choice.deckSpec) {
                 if (effective.roomOverrideActive) {
-                    return { initialDeckSpec: effective.choice.deckSpec };
+                    return Object.assign(baseOptions, { initialDeckSpec: effective.choice.deckSpec });
                 }
                 if (readCurrentMatchMode() === 'cpu') {
-                    return {
+                    return Object.assign(baseOptions, {
                         initialDeckSpecByPlayer: {
                             black: effective.choice.deckSpec
                         }
-                    };
+                    });
                 }
-                return { initialDeckSpec: effective.choice.deckSpec };
+                return Object.assign(baseOptions, { initialDeckSpec: effective.choice.deckSpec });
             }
-            return {};
+            return baseOptions;
         }
 
         function readActiveDeckSpec() {
@@ -401,18 +658,12 @@
         function installTurnManagerBinding() {
             const payload = {
                 buildCardInitOptions,
-                readActiveDeckSpec
+                readActiveDeckSpec,
+                readBoardConfig,
+                getLocalBoardConfig
             };
 
-            try {
-                rootRef.__uiImpl_turn_manager = Object.assign({}, rootRef.__uiImpl_turn_manager || {}, payload);
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (typeof globalThis !== 'undefined') {
-                    globalThis.__uiImpl_turn_manager = Object.assign({}, globalThis.__uiImpl_turn_manager || {}, payload);
-                }
-            } catch (e) { /* ignore */ }
+            mergeTurnManagerUiImpl(payload);
 
             try {
                 if (rootRef.UIBootstrap && typeof rootRef.UIBootstrap.registerUIGlobals === 'function') {
@@ -556,6 +807,7 @@
                 onEditorUse: useEditorDraft,
                 onEditorCopyCode: copyEditorCode
             }, renderOptions);
+            renderBoardSizeControls();
         }
 
         function renderPreservingEditorScroll() {
@@ -778,13 +1030,69 @@
                 refs.overlay.dataset.deckBuilderBound = '1';
             }
 
+            if (refs.boardSizeOpenBtn && refs.boardSizeOpenBtn.dataset.boardSizeBound !== '1') {
+                refs.boardSizeOpenBtn.addEventListener('click', () => {
+                    state.boardSizeEditorOpen = !state.boardSizeEditorOpen;
+                    renderBoardSizeControls();
+                });
+                refs.boardSizeOpenBtn.dataset.boardSizeBound = '1';
+            }
+
+            if (refs.boardSizeCloseBtn && refs.boardSizeCloseBtn.dataset.boardSizeBound !== '1') {
+                refs.boardSizeCloseBtn.addEventListener('click', () => {
+                    state.boardSizeEditorOpen = false;
+                    renderBoardSizeControls();
+                });
+                refs.boardSizeCloseBtn.dataset.boardSizeBound = '1';
+            }
+
+            const bindBoardSizeInput = (inputRef, axis) => {
+                if (!inputRef || inputRef.dataset.boardSizeBound === '1') return;
+                const onBoardSizeInput = () => {
+                    if (resolveBoardConfigLockReason()) {
+                        renderBoardSizeControls();
+                        return;
+                    }
+                    updateLocalBoardConfigFromInputs();
+                };
+                inputRef.addEventListener('input', onBoardSizeInput);
+                inputRef.addEventListener('change', onBoardSizeInput);
+                inputRef.addEventListener('wheel', (event) => {
+                    if (resolveBoardConfigLockReason() || inputRef.disabled) {
+                        renderBoardSizeControls();
+                        return;
+                    }
+                    const primaryDelta = readPrimaryWheelDelta(event);
+                    if (!primaryDelta) return;
+                    const fallback = getLocalBoardConfig();
+                    const fallbackValue = axis === 'col' ? fallback.cols : fallback.rows;
+                    inputRef.value = String(stepBoardDimensionValue(
+                        inputRef.value,
+                        primaryDelta < 0 ? 1 : -1,
+                        fallbackValue,
+                        axis
+                    ));
+                    if (event && event.cancelable) event.preventDefault();
+                    updateLocalBoardConfigFromInputs();
+                }, { passive: false });
+                inputRef.dataset.boardSizeBound = '1';
+            };
+
+            bindBoardSizeInput(refs.boardSizeRowsInput, 'row');
+            bindBoardSizeInput(refs.boardSizeColsInput, 'col');
+
             if (rootRef && typeof rootRef.addEventListener === 'function' && !rootRef.__deckBuilderEscBound) {
                 rootRef.addEventListener('keydown', (event) => {
-                    if (!state.overlayOpen) return;
-                    if (event && event.key === 'Escape') {
+                    if (!event || event.key !== 'Escape') return;
+                    if (state.boardSizeEditorOpen) {
                         event.preventDefault();
-                        close();
+                        state.boardSizeEditorOpen = false;
+                        renderBoardSizeControls();
+                        return;
                     }
+                    if (!state.overlayOpen) return;
+                    event.preventDefault();
+                    close();
                 });
                 rootRef.__deckBuilderEscBound = true;
             }
@@ -796,6 +1104,9 @@
             render,
             buildCardInitOptions,
             readActiveDeckSpec,
+            readBoardConfig,
+            getLocalBoardConfig,
+            setLocalBoardConfig: updateLocalBoardConfig,
             getActiveLocalChoice: function () {
                 return Object.assign({}, state.activeLocalChoice || createStandardChoice({ source: 'standard' }));
             }

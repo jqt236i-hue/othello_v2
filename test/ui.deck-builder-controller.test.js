@@ -3,6 +3,14 @@ const { JSDOM } = require('jsdom');
 describe('deck builder controller', () => {
   let dom;
 
+  function dispatchWheel(target, props) {
+    const ev = new dom.window.Event('wheel', { bubbles: true, cancelable: true });
+    const p = props || {};
+    Object.defineProperty(ev, 'deltaX', { value: p.deltaX ?? 0 });
+    Object.defineProperty(ev, 'deltaY', { value: p.deltaY ?? 0 });
+    target.dispatchEvent(ev);
+  }
+
   beforeEach(() => {
     jest.resetModules();
     dom = new JSDOM(`<!doctype html><html><body>
@@ -12,6 +20,13 @@ describe('deck builder controller', () => {
       <button id="closeBtn" type="button"></button>
       <div id="header"></div>
       <div id="body"></div>
+      <button id="boardSizeOpenBtn" type="button"></button>
+      <div id="boardSizeControlSummary"></div>
+      <div id="boardSizeEditor"></div>
+      <input id="boardSizeRowsInput" type="number" value="8" />
+      <input id="boardSizeColsInput" type="number" value="8" />
+      <button id="boardSizeCloseBtn" type="button"></button>
+      <div id="boardSizeEditorNote"></div>
     </body></html>`, { url: 'http://localhost/' });
 
     global.window = dom.window;
@@ -37,6 +52,7 @@ describe('deck builder controller', () => {
     delete global.history;
     delete global.localStorage;
     delete global.navigator;
+    delete global.__uiImpl_turn_manager;
   });
 
   function openEditor(body) {
@@ -86,7 +102,14 @@ describe('deck builder controller', () => {
         overlay: document.getElementById('overlay'),
         closeBtn: document.getElementById('closeBtn'),
         headerSummary: document.getElementById('header'),
-        body: document.getElementById('body')
+        body: document.getElementById('body'),
+        boardSizeOpenBtn: document.getElementById('boardSizeOpenBtn'),
+        boardSizeControlSummary: document.getElementById('boardSizeControlSummary'),
+        boardSizeEditor: document.getElementById('boardSizeEditor'),
+        boardSizeRowsInput: document.getElementById('boardSizeRowsInput'),
+        boardSizeColsInput: document.getElementById('boardSizeColsInput'),
+        boardSizeCloseBtn: document.getElementById('boardSizeCloseBtn'),
+        boardSizeEditorNote: document.getElementById('boardSizeEditorNote')
       }
     });
   }
@@ -123,6 +146,36 @@ describe('deck builder controller', () => {
       .map((cardDef) => cardDef.id);
 
     expect(renderedIds).toEqual(expectedIds);
+  });
+
+  test('候補カードのコストはカード直下、タイプは右下バッジ行に入る', () => {
+    const { createDeckBuilderController } = require('../ui/deck-builder-controller');
+    const body = document.getElementById('body');
+
+    createDeckBuilderController({
+      root: window,
+      refs: {
+        openBtn: document.getElementById('openBtn'),
+        controlSummary: document.getElementById('summary'),
+        overlay: document.getElementById('overlay'),
+        closeBtn: document.getElementById('closeBtn'),
+        headerSummary: document.getElementById('header'),
+        body
+      }
+    }).open();
+
+    openEditor(body);
+
+    const firstCard = body.querySelector('.deck-builder-candidate-grid .deck-builder-card');
+    expect(firstCard).toBeTruthy();
+
+    const costBadge = firstCard.querySelector('.card-cost-badge');
+    const badgeRow = firstCard.querySelector('.card-badge-row');
+    expect(costBadge).toBeTruthy();
+    expect(costBadge.parentElement).toBe(firstCard);
+    expect(badgeRow).toBeTruthy();
+    expect(badgeRow.querySelector('.card-type-badge')).toBeTruthy();
+    expect(badgeRow.querySelector('.card-cost-badge')).toBeNull();
   });
 
   test('候補カードは4回目の押下で0枚に戻り、スクロール位置を保つ', () => {
@@ -312,15 +365,22 @@ describe('deck builder controller', () => {
       })
     };
 
-    try {
-      const controller = createController();
+      try {
+        const controller = createController();
 
-      expect(controller.getActiveLocalChoice()).toMatchObject({
-        mode: 'custom',
-        source: 'preset',
-        deckCode: localDeck.deckCode
+        expect(controller.getActiveLocalChoice()).toMatchObject({
+          mode: 'custom',
+          source: 'preset',
+          deckCode: localDeck.deckCode
+        });
+      expect(controller.buildCardInitOptions()).toMatchObject({
+        initialDeckSpec: roomDeck.deckSpec,
+        boardConfig: expect.objectContaining({
+          rows: 8,
+          cols: 8,
+          standard8x8: true
+        })
       });
-      expect(controller.buildCardInitOptions()).toEqual({ initialDeckSpec: roomDeck.deckSpec });
       expect(controller.readActiveDeckSpec()).toEqual(roomDeck.deckSpec);
     } finally {
       delete window.NetworkMatchClient;
@@ -352,11 +412,16 @@ describe('deck builder controller', () => {
     try {
       const controller = createController();
 
-      expect(controller.buildCardInitOptions()).toEqual({
+      expect(controller.buildCardInitOptions()).toMatchObject({
         initialDeckSpecByPlayer: {
           black: blackDeck.deckSpec,
           white: whiteDeck.deckSpec
-        }
+        },
+        boardConfig: expect.objectContaining({
+          rows: 8,
+          cols: 8,
+          standard8x8: true
+        })
       });
       expect(controller.readActiveDeckSpec()).toEqual(blackDeck.deckSpec);
     } finally {
@@ -372,12 +437,135 @@ describe('deck builder controller', () => {
 
     const controller = createController();
 
-    expect(controller.buildCardInitOptions()).toEqual({
+    expect(controller.buildCardInitOptions()).toMatchObject({
       initialDeckSpecByPlayer: {
         black: localDeck.deckSpec
-      }
+      },
+      boardConfig: expect.objectContaining({
+        rows: 8,
+        cols: 8,
+        standard8x8: true
+      })
     });
     expect(controller.readActiveDeckSpec()).toEqual(localDeck.deckSpec);
+  });
+
+  test('network room boardConfig はローカル設定より優先される', () => {
+    window.NetworkMatchClient = {
+      isActive: () => true,
+      getRoomBoardConfig: () => ({ rows: 7, cols: 9 })
+    };
+
+    try {
+      const controller = createController();
+
+      expect(controller.getLocalBoardConfig()).toMatchObject({
+        rows: 8,
+        cols: 8,
+        standard8x8: true
+      });
+      expect(controller.readBoardConfig()).toMatchObject({
+        rows: 7,
+        cols: 9,
+        standard8x8: false
+      });
+      expect(controller.buildCardInitOptions()).toMatchObject({
+        boardConfig: expect.objectContaining({
+          rows: 7,
+          cols: 9,
+          standard8x8: false
+        })
+      });
+    } finally {
+      delete window.NetworkMatchClient;
+    }
+  });
+
+  test('SharedUIBootstrap helper 経由で turn_manager binding を同期する', () => {
+    window.SharedUIBootstrap = require('../shared/ui-bootstrap-shared');
+
+    createController();
+
+    expect(window.__uiImpl_turn_manager).toEqual(expect.objectContaining({
+      buildCardInitOptions: expect.any(Function),
+      readBoardConfig: expect.any(Function),
+      getLocalBoardConfig: expect.any(Function)
+    }));
+    expect(global.__uiImpl_turn_manager).toEqual(expect.objectContaining({
+      buildCardInitOptions: expect.any(Function),
+      readBoardConfig: expect.any(Function),
+      getLocalBoardConfig: expect.any(Function)
+    }));
+    expect(window.__uiImpl_turn_manager.readBoardConfig()).toMatchObject({
+      rows: 8,
+      cols: 8,
+      standard8x8: true
+    });
+  });
+
+  test.each([
+    ['Story', 'ストーリー固定'],
+    ['Tutorial', 'チュートリアル固定']
+  ])('%s mode はローカル設定を残したまま実対局用 boardConfig を標準盤に固定する', (moduleKey, expectedLabel) => {
+    window[moduleKey] = {
+      State: {
+        isActive: () => true
+      }
+    };
+
+    const controller = createController();
+    controller.setLocalBoardConfig({ rows: 7, cols: 9 });
+
+    expect(controller.getLocalBoardConfig()).toMatchObject({
+      rows: 7,
+      cols: 9,
+      standard8x8: false
+    });
+    expect(controller.readBoardConfig()).toMatchObject({
+      rows: 8,
+      cols: 8,
+      standard8x8: true
+    });
+    expect(document.getElementById('boardSizeControlSummary').textContent).toContain(expectedLabel);
+  });
+
+  test('setLocalBoardConfig はローカル盤面サイズを 10x10 上限で更新する', () => {
+    const controller = createController();
+
+    controller.setLocalBoardConfig({ rows: 11, cols: 12 });
+
+    expect(controller.getLocalBoardConfig()).toMatchObject({
+      rows: 10,
+      cols: 10,
+      standard8x8: false
+    });
+    expect(controller.readBoardConfig()).toMatchObject({
+      rows: 10,
+      cols: 10,
+      standard8x8: false
+    });
+  });
+
+  test('盤面サイズ入力はホイールで 10x10 まで増減できる', () => {
+    const controller = createController();
+    const rowsInput = document.getElementById('boardSizeRowsInput');
+    const colsInput = document.getElementById('boardSizeColsInput');
+
+    expect(rowsInput.max).toBe('10');
+    expect(colsInput.max).toBe('10');
+
+    dispatchWheel(rowsInput, { deltaY: -100 });
+    dispatchWheel(rowsInput, { deltaY: -100 });
+    dispatchWheel(rowsInput, { deltaY: -100 });
+    dispatchWheel(colsInput, { deltaY: -100 });
+
+    expect(rowsInput.value).toBe('10');
+    expect(colsInput.value).toBe('9');
+    expect(controller.getLocalBoardConfig()).toMatchObject({
+      rows: 10,
+      cols: 9,
+      standard8x8: false
+    });
   });
 
   test('CPU対戦の片側カスタム指定でも白は標準デッキ枚数を維持する', () => {
@@ -404,7 +592,13 @@ describe('deck builder controller', () => {
     const controller = createController();
 
     expect(controller.getActiveLocalChoice()).toMatchObject({ mode: 'standard', source: 'standard' });
-    expect(controller.buildCardInitOptions()).toEqual({});
+    expect(controller.buildCardInitOptions()).toMatchObject({
+      boardConfig: expect.objectContaining({
+        rows: 8,
+        cols: 8,
+        standard8x8: true
+      })
+    });
 
     const stored = JSON.parse(localStorage.getItem('deck_builder_presets_v1'));
     expect(stored.activePresetId).toBe('');

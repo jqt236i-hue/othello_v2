@@ -10,6 +10,7 @@
     'use strict';
 
     var cachedPendingStateManager = null;
+    var cachedOwnerHelpers = null;
     var pendingSelectionActionByPlayer = {
         black: null,
         white: null
@@ -28,7 +29,24 @@
         return cachedPendingStateManager;
     }
 
+    function getOwnerHelpers() {
+        if (cachedOwnerHelpers && typeof cachedOwnerHelpers === 'object') {
+            return cachedOwnerHelpers;
+        }
+        if (typeof require === 'function') {
+            try { cachedOwnerHelpers = require('../../utils/owner-helpers'); } catch (e) { /* ignore */ }
+        }
+        if (!cachedOwnerHelpers && root && root.OwnerHelpers) {
+            cachedOwnerHelpers = root.OwnerHelpers;
+        }
+        return cachedOwnerHelpers;
+    }
+
     function normalizePlayerKey(playerKey) {
+        var ownerHelpers = getOwnerHelpers();
+        if (ownerHelpers && typeof ownerHelpers.normalizePlayerKey === 'function') {
+            return ownerHelpers.normalizePlayerKey(playerKey, 'black');
+        }
         return String(playerKey || '').trim().toLowerCase() === 'white' ? 'white' : 'black';
     }
 
@@ -260,14 +278,14 @@
             return null;
         }
 
-        if (normalizedPendingType === 'POSITION_SWAP_WILL') {
+        if (normalizedPendingType === 'POSITION_SWAP_WILL' || normalizedPendingType === 'BOARD_SHRINK_GOD') {
             var firstTarget = clonePendingSelectionTransportTarget(pending.firstTarget);
             if (firstTarget) {
                 transportState.firstTarget = firstTarget;
             }
         }
 
-        if (normalizedPendingType === 'BOARD_EXPANSION_GOD') {
+        if (normalizedPendingType === 'BOARD_EXPANSION_GOD' || normalizedPendingType === 'BOARD_SHRINK_WILL') {
             var selectedTargets = Array.isArray(pending.selectedTargets)
                 ? pending.selectedTargets.map(function (target) {
                     return clonePendingSelectionTransportTarget(target);
@@ -358,6 +376,8 @@
             return { ok: false, reason: 'pending_hint_unavailable' };
         }
 
+        pending.__networkLocalHint = true;
+        pending.__networkLocalHintSetAt = Date.now();
         pendingByPlayer[normalizedPlayerKey] = pending;
         return {
             ok: true,

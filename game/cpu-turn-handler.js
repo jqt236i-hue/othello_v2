@@ -476,6 +476,19 @@ function shouldOverrideOnnxHoldDecision(playerKey, level, legalMovesCount) {
     return false;
 }
 
+function resolveCommentaryCpuLevel(playerKey, explicitLevel) {
+    const direct = Number(explicitLevel);
+    if (Number.isFinite(direct) && direct >= 1) return Math.max(1, Math.floor(direct));
+
+    try {
+        if (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey])) {
+            return Math.max(1, Math.floor(cpuSmartness[playerKey]));
+        }
+    } catch (e) { /* ignore */ }
+
+    return 1;
+}
+
 function emitCpuCommentary(eventType, playerKey, extra) {
     const runtime = resolveCpuCommentaryRuntime();
     if (!runtime || typeof runtime.requestCommentary !== 'function') return;
@@ -484,6 +497,7 @@ function emitCpuCommentary(eventType, playerKey, extra) {
     const helpers = resolveCommentaryContextHelpers();
     const counts = countDiscsSafe(gameState);
     const turnNumber = gameState && Number.isFinite(gameState.turnNumber) ? gameState.turnNumber : null;
+    const commentaryLevel = resolveCommentaryCpuLevel(playerKey, extra && extra.level);
     const fallbackContext = Object.assign({
         eventType: String(eventType || 'turn_start'),
         playerKey: playerKey === 'black' ? 'black' : 'white',
@@ -492,6 +506,9 @@ function emitCpuCommentary(eventType, playerKey, extra) {
         advantage: resolveAdvantageLabel(playerKey, counts),
         counts,
         occupiedCells: (counts.black || 0) + (counts.white || 0),
+        level: commentaryLevel,
+        cpuLevel: commentaryLevel,
+        difficultyLevel: commentaryLevel,
         legalMovesCount: Number.isFinite(extra && extra.legalMovesCount) ? extra.legalMovesCount : null,
         cardId: (extra && extra.cardId) ? String(extra.cardId) : null,
         pendingType: (extra && extra.pendingType) ? String(extra.pendingType) : null
@@ -505,6 +522,9 @@ function emitCpuCommentary(eventType, playerKey, extra) {
             board: gameState && gameState.board,
             cardId: extra && extra.cardId,
             extra: Object.assign({
+                level: commentaryLevel,
+                cpuLevel: commentaryLevel,
+                difficultyLevel: commentaryLevel,
                 legalMovesCount: Number.isFinite(extra && extra.legalMovesCount) ? extra.legalMovesCount : null,
                 pendingType: (extra && extra.pendingType) ? String(extra.pendingType) : null
             }, extra || {})
@@ -567,63 +587,6 @@ function getTurnNumberFromState(state) {
     return null;
 }
 
-function buildEnemyCardUsedEventFromPlayback(playbackEvents) {
-    const events = Array.isArray(playbackEvents) ? playbackEvents : [];
-    for (const ev of events) {
-        if (!ev || ev.type !== 'card_use_animation') continue;
-        const targets = Array.isArray(ev.targets) ? ev.targets : [];
-        for (const one of targets) {
-            if (!one || typeof one !== 'object') continue;
-            const ownerKey = normalizePresentationPlayerKey(one.owner || one.player, 'black');
-            if (ownerKey !== 'black') continue;
-            return {
-                player: ownerKey,
-                cardId: one.cardId || null,
-                meta: {
-                    owner: ownerKey,
-                    cost: Number.isFinite(one.cost) ? one.cost : null,
-                    name: one.name || null
-                }
-            };
-        }
-    }
-    return null;
-}
-
-function buildEnemyCardCommentaryContext(ev, options) {
-    const state = resolvePresentationGameState(options);
-    if (!state || !Array.isArray(state.board)) return null;
-
-    const ownerKey = normalizePresentationPlayerKey((ev && ev.player) || (ev && ev.meta && ev.meta.owner), 'black');
-    if (ownerKey !== 'black') return null;
-
-    const speakerKey = 'white';
-    const counts = countDiscsSafe(state);
-    const turnNumber = getTurnNumberFromState(state);
-    const helpers = resolveCommentaryContextHelpers();
-    if (helpers && typeof helpers.buildCommentaryContext === 'function') {
-        return helpers.buildCommentaryContext({
-            eventType: 'card_used_by_enemy',
-            playerKey: speakerKey,
-            turnNumber,
-            counts,
-            board: state.board,
-            cardId: (ev && ev.cardId) ? String(ev.cardId) : null
-        });
-    }
-
-    return {
-        eventType: 'card_used_by_enemy',
-        playerKey: speakerKey,
-        turnNumber,
-        counts,
-        board: state.board,
-        phase: resolvePhaseByTurn(turnNumber, (counts.black || 0) + (counts.white || 0)),
-        advantage: resolveAdvantageLabel(speakerKey, counts),
-        cardId: (ev && ev.cardId) ? String(ev.cardId) : null
-    };
-}
-
 function formatPresentationCommentaryResult(playerKey, text) {
     const line = String(text || '').trim();
     if (!line) return null;
@@ -641,116 +604,256 @@ function formatPresentationCommentaryResult(playerKey, text) {
     };
 }
 
-function requestEnemyCardCommentary(ev, options) {
-    if (isHumanVsHumanModeEnabled()) return Promise.resolve(null);
+function createPresentationRuntime(dependencies) {
+    const deps = (dependencies && typeof dependencies === 'object') ? dependencies : {};
+    const normalizePlayerKey = typeof deps.normalizePlayerKey === 'function'
+        ? deps.normalizePlayerKey
+        : ((value, fallbackKey) => (value === 'white' ? 'white' : (fallbackKey === 'white' ? 'white' : 'black')));
+    const resolveGameState = typeof deps.resolveGameState === 'function'
+        ? deps.resolveGameState
+        : (() => null);
+    const resolveCardState = typeof deps.resolveCardState === 'function'
+        ? deps.resolveCardState
+        : ((value) => (value && typeof value === 'object') ? value : null);
+    const getPlayerKeyFromState = typeof deps.getCurrentPlayerKeyFromState === 'function'
+        ? deps.getCurrentPlayerKeyFromState
+        : (() => null);
+    const getTurnNumber = typeof deps.getTurnNumberFromState === 'function'
+        ? deps.getTurnNumberFromState
+        : (() => null);
+    const countDiscs = typeof deps.countDiscs === 'function'
+        ? deps.countDiscs
+        : (() => ({ black: 0, white: 0 }));
+    const resolveContextHelpers = typeof deps.resolveCommentaryContextHelpers === 'function'
+        ? deps.resolveCommentaryContextHelpers
+        : (() => null);
+    const resolveCpuLevel = typeof deps.resolveCommentaryCpuLevel === 'function'
+        ? deps.resolveCommentaryCpuLevel
+        : (() => 1);
+    const resolvePhase = typeof deps.resolvePhaseByTurn === 'function'
+        ? deps.resolvePhaseByTurn
+        : (() => 'middle');
+    const resolveAdvantage = typeof deps.resolveAdvantageLabel === 'function'
+        ? deps.resolveAdvantageLabel
+        : (() => 'even');
+    const resolveRuntimeHelpers = typeof deps.resolveCommentaryRuntimeHelpers === 'function'
+        ? deps.resolveCommentaryRuntimeHelpers
+        : (() => null);
+    const resolveCommentaryRuntime = typeof deps.resolveCpuCommentaryRuntime === 'function'
+        ? deps.resolveCpuCommentaryRuntime
+        : (() => null);
+    const formatCommentaryResult = typeof deps.formatCommentaryResult === 'function'
+        ? deps.formatCommentaryResult
+        : (() => null);
+    const isHumanModeEnabled = typeof deps.isHumanVsHumanModeEnabled === 'function'
+        ? deps.isHumanVsHumanModeEnabled
+        : (() => false);
+    const flushPresentationEvents = typeof deps.flushPresentationEvents === 'function'
+        ? deps.flushPresentationEvents
+        : null;
+    const processScheduledCpuTurn = typeof deps.processCpuTurn === 'function'
+        ? deps.processCpuTurn
+        : null;
 
-    const opts = (options && typeof options === 'object') ? options : {};
-    const runtime = (opts.runtime && typeof opts.runtime.requestCommentary === 'function')
-        ? opts.runtime
-        : resolveCpuCommentaryRuntime();
-    if (!runtime || typeof runtime.requestCommentary !== 'function') return Promise.resolve(null);
-
-    const context = buildEnemyCardCommentaryContext(ev, opts);
-    if (!context) return Promise.resolve(null);
-
-    return Promise.resolve(runtime.requestCommentary(context))
-        .then((text) => formatPresentationCommentaryResult('white', text))
-        .catch(() => null);
-}
-
-function requestEnemyCardCommentaryFromPlayback(playbackEvents, options) {
-    const enemyCardEvent = buildEnemyCardUsedEventFromPlayback(playbackEvents);
-    if (!enemyCardEvent) return Promise.resolve(null);
-    return requestEnemyCardCommentary(enemyCardEvent, options);
-}
-
-function flushPendingPresentationEvents(cardStateRef, options) {
-    const state = resolvePresentationCardState(cardStateRef);
-    if (!state) return [];
-
-    const opts = (options && typeof options === 'object') ? options : {};
-    let events = [];
-    const flushLiveEvents = (typeof opts.flushLiveEvents === 'function')
-        ? opts.flushLiveEvents
-        : ((typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.flushPresentationEvents === 'function')
-            ? CardLogic.flushPresentationEvents
-            : null);
-    if (typeof flushLiveEvents === 'function') {
-        try {
-            events = flushLiveEvents(state) || [];
-        } catch (e) {
-            events = [];
-        }
-    }
-
-    if (events && events.length > 0 && Array.isArray(state._presentationEventsPersist)) {
-        state._presentationEventsPersist.length = 0;
-    }
-
-    if ((!events || events.length === 0) && Array.isArray(state._presentationEventsPersist) && state._presentationEventsPersist.length) {
-        events = state._presentationEventsPersist.slice();
-        state._presentationEventsPersist.length = 0;
-    }
-
-    return Array.isArray(events) ? events : [];
-}
-
-function createBoardUpdateDrainController() {
-    let drainInProgress = false;
-    let drainPending = false;
-
-    return {
-        async requestDrain(runDrain) {
-            drainPending = true;
-            if (drainInProgress) return;
-
-            drainInProgress = true;
-            try {
-                while (drainPending) {
-                    drainPending = false;
-                    if (typeof runDrain === 'function') {
-                        await runDrain();
+    function buildEnemyCardUsedEventFromPlayback(playbackEvents) {
+        const events = Array.isArray(playbackEvents) ? playbackEvents : [];
+        for (const ev of events) {
+            if (!ev || ev.type !== 'card_use_animation') continue;
+            const targets = Array.isArray(ev.targets) ? ev.targets : [];
+            for (const one of targets) {
+                if (!one || typeof one !== 'object') continue;
+                const ownerKey = normalizePlayerKey(one.owner || one.player, 'black');
+                if (ownerKey !== 'black') continue;
+                return {
+                    player: ownerKey,
+                    cardId: one.cardId || null,
+                    meta: {
+                        owner: ownerKey,
+                        cost: Number.isFinite(one.cost) ? one.cost : null,
+                        name: one.name || null
                     }
-                }
-            } finally {
-                drainInProgress = false;
+                };
             }
         }
+        return null;
+    }
+
+    function buildEnemyCardCommentaryContext(ev, options) {
+        const state = resolveGameState(options);
+        if (!state || !Array.isArray(state.board)) return null;
+
+        const ownerKey = normalizePlayerKey((ev && ev.player) || (ev && ev.meta && ev.meta.owner), 'black');
+        if (ownerKey !== 'black') return null;
+
+        const speakerKey = 'white';
+        const counts = countDiscs(state);
+        const turnNumber = getTurnNumber(state);
+        const helpers = resolveContextHelpers();
+        const commentaryLevel = resolveCpuLevel(
+            speakerKey,
+            options && typeof options === 'object' ? options.level : null
+        );
+        if (helpers && typeof helpers.buildCommentaryContext === 'function') {
+            return helpers.buildCommentaryContext({
+                eventType: 'card_used_by_enemy',
+                playerKey: speakerKey,
+                turnNumber,
+                counts,
+                board: state.board,
+                cardId: (ev && ev.cardId) ? String(ev.cardId) : null,
+                extra: {
+                    level: commentaryLevel,
+                    cpuLevel: commentaryLevel,
+                    difficultyLevel: commentaryLevel
+                }
+            });
+        }
+
+        return {
+            eventType: 'card_used_by_enemy',
+            playerKey: speakerKey,
+            turnNumber,
+            counts,
+            board: state.board,
+            phase: resolvePhase(turnNumber, (counts.black || 0) + (counts.white || 0)),
+            advantage: resolveAdvantage(speakerKey, counts),
+            cardId: (ev && ev.cardId) ? String(ev.cardId) : null,
+            level: commentaryLevel,
+            cpuLevel: commentaryLevel,
+            difficultyLevel: commentaryLevel
+        };
+    }
+
+    function requestEnemyCardCommentary(ev, options) {
+        if (isHumanModeEnabled()) return Promise.resolve(null);
+
+        const opts = (options && typeof options === 'object') ? options : {};
+        const runtime = (opts.runtime && typeof opts.runtime.requestCommentary === 'function')
+            ? opts.runtime
+            : resolveCommentaryRuntime();
+        if (!runtime || typeof runtime.requestCommentary !== 'function') return Promise.resolve(null);
+
+        const context = buildEnemyCardCommentaryContext(ev, opts);
+        if (!context) return Promise.resolve(null);
+
+        return Promise.resolve(runtime.requestCommentary(context))
+            .then((text) => formatCommentaryResult('white', text))
+            .catch(() => null);
+    }
+
+    function requestEnemyCardCommentaryFromPlayback(playbackEvents, options) {
+        const enemyCardEvent = buildEnemyCardUsedEventFromPlayback(playbackEvents);
+        if (!enemyCardEvent) return Promise.resolve(null);
+        return requestEnemyCardCommentary(enemyCardEvent, options);
+    }
+
+    function flushPendingPresentationEvents(cardStateRef, options) {
+        const state = resolveCardState(cardStateRef);
+        if (!state) return [];
+
+        const opts = (options && typeof options === 'object') ? options : {};
+        let events = [];
+        const flushLiveEvents = (typeof opts.flushLiveEvents === 'function')
+            ? opts.flushLiveEvents
+            : flushPresentationEvents;
+        if (typeof flushLiveEvents === 'function') {
+            try {
+                events = flushLiveEvents(state) || [];
+            } catch (e) {
+                events = [];
+            }
+        }
+
+        if (events && events.length > 0 && Array.isArray(state._presentationEventsPersist)) {
+            state._presentationEventsPersist.length = 0;
+        }
+
+        if ((!events || events.length === 0) && Array.isArray(state._presentationEventsPersist) && state._presentationEventsPersist.length) {
+            events = state._presentationEventsPersist.slice();
+            state._presentationEventsPersist.length = 0;
+        }
+
+        return Array.isArray(events) ? events : [];
+    }
+
+    function createBoardUpdateDrainController() {
+        let drainInProgress = false;
+        let drainPending = false;
+
+        return {
+            async requestDrain(runDrain) {
+                drainPending = true;
+                if (drainInProgress) return;
+
+                drainInProgress = true;
+                try {
+                    while (drainPending) {
+                        drainPending = false;
+                        if (typeof runDrain === 'function') {
+                            await runDrain();
+                        }
+                    }
+                } finally {
+                    drainInProgress = false;
+                }
+            }
+        };
+    }
+
+    function scheduleCpuTurn(ev, options) {
+        const payload = (ev && typeof ev === 'object') ? ev : {};
+        const opts = (options && typeof options === 'object') ? options : {};
+        const delay = Number.isFinite(payload.delayMs) ? payload.delayMs : 0;
+        const scheduleFn = (typeof opts.setTimeout === 'function') ? opts.setTimeout : setTimeout;
+        const cpuTurnFn = (typeof opts.processCpuTurn === 'function') ? opts.processCpuTurn : processScheduledCpuTurn;
+
+        return scheduleFn(function () {
+            try {
+                const state = resolveGameState(opts);
+                const currentPlayerKey = getPlayerKeyFromState(state);
+                const currentTurnNumber = getTurnNumber(state);
+                if (payload.expectedPlayerKey && payload.expectedPlayerKey !== currentPlayerKey) return;
+                if (Number.isFinite(payload.expectedTurnNumber) && payload.expectedTurnNumber !== currentTurnNumber) return;
+            } catch (e) { /* ignore */ }
+
+            if (typeof cpuTurnFn === 'function') {
+                cpuTurnFn();
+            } else {
+                console.warn('[GamePresentationRuntime] processCpuTurn not available for SCHEDULE_CPU_TURN');
+            }
+        }, delay);
+    }
+
+    return {
+        buildEnemyCardUsedEventFromPlayback,
+        requestEnemyCardCommentary,
+        requestEnemyCardCommentaryFromPlayback,
+        flushPendingPresentationEvents,
+        createBoardUpdateDrainController,
+        scheduleCpuTurn
     };
 }
 
-function schedulePresentationCpuTurn(ev, options) {
-    const payload = (ev && typeof ev === 'object') ? ev : {};
-    const opts = (options && typeof options === 'object') ? options : {};
-    const delay = Number.isFinite(payload.delayMs) ? payload.delayMs : 0;
-    const scheduleFn = (typeof opts.setTimeout === 'function') ? opts.setTimeout : setTimeout;
-    const cpuTurnFn = (typeof opts.processCpuTurn === 'function') ? opts.processCpuTurn : processCpuTurn;
-
-    return scheduleFn(function () {
-        try {
-            const state = resolvePresentationGameState(opts);
-            const currentPlayerKey = getCurrentPlayerKeyFromState(state);
-            const currentTurnNumber = getTurnNumberFromState(state);
-            if (payload.expectedPlayerKey && payload.expectedPlayerKey !== currentPlayerKey) return;
-            if (Number.isFinite(payload.expectedTurnNumber) && payload.expectedTurnNumber !== currentTurnNumber) return;
-        } catch (e) { /* ignore */ }
-
-        if (typeof cpuTurnFn === 'function') {
-            cpuTurnFn();
-        } else {
-            console.warn('[GamePresentationRuntime] processCpuTurn not available for SCHEDULE_CPU_TURN');
-        }
-    }, delay);
-}
-
-const presentationRuntime = {
-    buildEnemyCardUsedEventFromPlayback,
-    requestEnemyCardCommentary,
-    requestEnemyCardCommentaryFromPlayback,
-    flushPendingPresentationEvents,
-    createBoardUpdateDrainController,
-    scheduleCpuTurn: schedulePresentationCpuTurn
-};
+const presentationRuntime = createPresentationRuntime({
+    normalizePlayerKey: normalizePresentationPlayerKey,
+    resolveGameState: resolvePresentationGameState,
+    resolveCardState: resolvePresentationCardState,
+    getCurrentPlayerKeyFromState,
+    getTurnNumberFromState,
+    countDiscs: countDiscsSafe,
+    resolveCommentaryContextHelpers,
+    resolveCommentaryCpuLevel,
+    resolvePhaseByTurn,
+    resolveAdvantageLabel,
+    resolveCommentaryRuntimeHelpers,
+    resolveCpuCommentaryRuntime,
+    formatCommentaryResult: formatPresentationCommentaryResult,
+    isHumanVsHumanModeEnabled,
+    flushPresentationEvents: (state) => ((typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.flushPresentationEvents === 'function')
+        ? CardLogic.flushPresentationEvents(state)
+        : []),
+    processCpuTurn: () => processCpuTurn()
+});
 
 async function maybeUseCardFromOnnx(playerKey, level, legalMovesCount, legalMoves) {
     const none = { attempted: false, applied: false, hold: false };
@@ -1055,13 +1158,13 @@ function getPendingDispatchHandlers(playerKey) {
         strong_wind: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectStrongWindWillWithPolicy === 'function' ? cpuSelectStrongWindWillWithPolicy : null, playerKey); },
         super_buoyancy: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectSuperBuoyancyWillWithPolicy === 'function' ? cpuSelectSuperBuoyancyWillWithPolicy : null, playerKey); },
         super_gravity: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectSuperGravityWillWithPolicy === 'function' ? cpuSelectSuperGravityWillWithPolicy : null, playerKey); },
-        sell_card: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectSellCardWillWithPolicy === 'function' ? cpuSelectSellCardWillWithPolicy : null, playerKey); },
         heaven_blessing: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectHeavenBlessingWithPolicy === 'function' ? cpuSelectHeavenBlessingWithPolicy : null, playerKey); },
         condemn: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectCondemnWillWithPolicy === 'function' ? cpuSelectCondemnWillWithPolicy : null, playerKey); },
         swap_with_enemy: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectSwapWithEnemyWithPolicy === 'function' ? cpuSelectSwapWithEnemyWithPolicy : null, playerKey); },
         position_swap: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectPositionSwapWillWithPolicy === 'function' ? cpuSelectPositionSwapWillWithPolicy : null, playerKey); },
         trap: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectTrapWillWithPolicy === 'function' ? cpuSelectTrapWillWithPolicy : null, playerKey); },
         guard: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectGuardWillWithPolicy === 'function' ? cpuSelectGuardWillWithPolicy : null, playerKey); },
+        living_will: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectLivingWillWithPolicy === 'function' ? cpuSelectLivingWillWithPolicy : null, playerKey); },
         hyperactive_inherit: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectHyperactiveInheritWillWithPolicy === 'function' ? cpuSelectHyperactiveInheritWillWithPolicy : null, playerKey); },
         extend_life: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectExtendLifeWillWithPolicy === 'function' ? cpuSelectExtendLifeWillWithPolicy : null, playerKey); },
         corrosion: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectCorrosionWillWithPolicy === 'function' ? cpuSelectCorrosionWillWithPolicy : null, playerKey); },
@@ -1071,9 +1174,11 @@ function getPendingDispatchHandlers(playerKey) {
         capture: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectCaptureWillWithPolicy === 'function' ? cpuSelectCaptureWillWithPolicy : null, playerKey); },
         time_bomb: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectTimeBombWithPolicy === 'function' ? cpuSelectTimeBombWithPolicy : null, playerKey); },
         board_expansion: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectBoardExpansionWillWithPolicy === 'function' ? cpuSelectBoardExpansionWillWithPolicy : null, playerKey); },
+        board_shrink: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectBoardShrinkWithPolicy === 'function' ? cpuSelectBoardShrinkWithPolicy : null, playerKey); },
         blockade: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectBlockadeWillWithPolicy === 'function' ? cpuSelectBlockadeWillWithPolicy : null, playerKey); },
         meteor: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectMeteorWillWithPolicy === 'function' ? cpuSelectMeteorWillWithPolicy : null, playerKey); },
         freeze: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectFreezeWillWithPolicy === 'function' ? cpuSelectFreezeWillWithPolicy : null, playerKey); },
+        seed: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectSeedWillWithPolicy === 'function' ? cpuSelectSeedWillWithPolicy : null, playerKey); },
         clone: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectCloneWillWithPolicy === 'function' ? cpuSelectCloneWillWithPolicy : null, playerKey); },
         split: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectSplitWillWithPolicy === 'function' ? cpuSelectSplitWillWithPolicy : null, playerKey); }
     };
@@ -1086,7 +1191,6 @@ function getPendingTypeHandlers(playerKey) {
         STRONG_WIND_WILL: dispatchHandlers.strong_wind,
         SUPER_BUOYANCY_WILL: dispatchHandlers.super_buoyancy,
         SUPER_GRAVITY_WILL: dispatchHandlers.super_gravity,
-        SELL_CARD_WILL: dispatchHandlers.sell_card,
         HEAVEN_BLESSING: dispatchHandlers.heaven_blessing,
         CONDEMN_WILL: dispatchHandlers.condemn,
         SWAP_WITH_ENEMY: dispatchHandlers.swap_with_enemy,
@@ -1094,6 +1198,7 @@ function getPendingTypeHandlers(playerKey) {
         TRAP_WILL: dispatchHandlers.trap,
         GUARD_WILL: dispatchHandlers.guard,
         GUARDIAN_GOD: dispatchHandlers.guard,
+        LIVING_WILL: dispatchHandlers.living_will,
         HYPERACTIVE_INHERIT_WILL: dispatchHandlers.hyperactive_inherit,
         EXTEND_LIFE_WILL: dispatchHandlers.extend_life,
         EXTEND_LIFE_GOD: dispatchHandlers.extend_life,
@@ -1105,9 +1210,12 @@ function getPendingTypeHandlers(playerKey) {
         TIME_BOMB: dispatchHandlers.time_bomb,
         BOARD_EXPANSION_WILL: dispatchHandlers.board_expansion,
         BOARD_EXPANSION_GOD: dispatchHandlers.board_expansion,
+        BOARD_SHRINK_WILL: dispatchHandlers.board_shrink,
+        BOARD_SHRINK_GOD: dispatchHandlers.board_shrink,
         BLOCKADE_WILL: dispatchHandlers.blockade,
         METEOR_WILL: dispatchHandlers.meteor,
         FREEZE_WILL: dispatchHandlers.freeze,
+        SEED_WILL: dispatchHandlers.seed,
         CLONE_WILL: dispatchHandlers.clone,
         SPLIT_WILL: dispatchHandlers.split
     };

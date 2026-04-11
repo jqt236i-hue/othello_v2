@@ -64,6 +64,19 @@
             : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
         return globalScope.PlaybackEventHelpers || null;
     })();
+    const TurnPipelinePhaseHelpers = (() => {
+        if (typeof require === 'function') {
+            try {
+                return require('./turn_pipeline_phase_helpers');
+            } catch (e) {
+                return null;
+            }
+        }
+        const globalScope = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+        return globalScope.TurnPipelinePhaseHelpers || null;
+    })();
     const DestroyOutcomeContract = (() => {
         if (typeof require === 'function') {
             try {
@@ -107,9 +120,13 @@
     const REGEN_CAUSE = 'REGEN';
     const REGEN_TRIGGER_REASON = 'regen_triggered';
     const REGEN_CONSUMED_REASON = 'regen_consumed';
+    const LIVING_WILL_CAUSE = 'LIVING_WILL';
+    const LIVING_WILL_RESTORE_REASON = 'living_will_restored';
+    const LIVING_WILL_CONSUMED_REASON = 'living_will_consumed';
     const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS) || Object.freeze({
         DESTROYED: 'destroyed',
         REGENERATED: 'regenerated',
+        LIVING_WILL_RESTORED: 'living_will_restored',
         GHOST_BLOCKED: 'ghost_blocked',
         PROLIFERATED: 'proliferated',
         EVADED_MOVE: 'evaded_move'
@@ -167,14 +184,24 @@
         'ultimate_hyperactive_flipped_immediate'
     ]);
     const GENERATED_THROW_CHAIN_REASON = 'generated_throw_chain';
-    const WORK_LOST_BUBBLE_TEXT = 'あああああああああああああ';
-    const WORK_INCOME_BUBBLE_TEXT_BY_STEP = Object.freeze({
+    const DEFAULT_WORK_LOST_BUBBLE_TEXT = 'あああああああああああああ';
+    const DEFAULT_WORK_INCOME_BUBBLE_TEXT_BY_STEP = Object.freeze({
         1: '布石＋1 初儲けや！',
         2: '布石＋2 もっと掘るでー！',
         3: '布石＋4 順調やな！',
         4: '布石＋8 ぼろ儲けや！',
         5: '布石＋16 これで家族が養える...！'
     });
+    const WORK_LOST_BUBBLE_TEXT = (
+        TurnPipelinePhaseHelpers
+        && typeof TurnPipelinePhaseHelpers.WORK_LOST_LINE === 'string'
+        && TurnPipelinePhaseHelpers.WORK_LOST_LINE
+    ) ? TurnPipelinePhaseHelpers.WORK_LOST_LINE : DEFAULT_WORK_LOST_BUBBLE_TEXT;
+    const WORK_INCOME_BUBBLE_TEXT_BY_STEP = (
+        TurnPipelinePhaseHelpers
+        && TurnPipelinePhaseHelpers.WORK_INCOME_LINES_BY_STEP
+        && typeof TurnPipelinePhaseHelpers.WORK_INCOME_LINES_BY_STEP === 'object'
+    ) ? TurnPipelinePhaseHelpers.WORK_INCOME_LINES_BY_STEP : DEFAULT_WORK_INCOME_BUBBLE_TEXT_BY_STEP;
     const MULTI_PLACE_LABEL_BY_TYPE = Object.freeze({
         DOUBLE_PLACE: '二連投石',
         TRIPLE_PLACE: '三連投石',
@@ -252,6 +279,9 @@
             : (Number.isFinite(Number(ev && ev.meta && ev.meta.incomeStep))
                 ? Number(ev.meta.incomeStep)
                 : _inferWorkIncomeStepByGain(ev && ev.gained));
+        if (TurnPipelinePhaseHelpers && typeof TurnPipelinePhaseHelpers.resolveWorkIncomeLine === 'function') {
+            return TurnPipelinePhaseHelpers.resolveWorkIncomeLine(ev && ev.gained, rawStep);
+        }
         const step = Number.isFinite(rawStep) ? Math.max(1, Math.min(5, Math.trunc(rawStep))) : null;
         if (step && WORK_INCOME_BUBBLE_TEXT_BY_STEP[step]) return WORK_INCOME_BUBBLE_TEXT_BY_STEP[step];
 
@@ -272,6 +302,85 @@
 
     function isRegenConsumedStatus(ev) {
         return !!(ev && ev.meta && ev.meta.special === REGEN_CAUSE && ev.meta.reason === REGEN_CONSUMED_REASON);
+    }
+
+    function isLivingWillConsumedStatus(ev) {
+        const meta = ev && ev.meta;
+        return !!(
+            ev &&
+            meta &&
+            String(meta.special || '').toUpperCase() === LIVING_WILL_CAUSE &&
+            String(meta.reason || ev.reason || '').toLowerCase() === LIVING_WILL_CONSUMED_REASON
+        );
+    }
+
+    function isLivingWillRestorePresentationEvent(ev) {
+        const meta = ev && ev.meta;
+        return !!(
+            ev &&
+            (ev.type === 'SPAWN' || ev.type === 'CHANGE') &&
+            (
+                meta && meta.livingWillRevived === true ||
+                (
+                    String(ev.cause || (meta && meta.cause) || '').toUpperCase() === LIVING_WILL_CAUSE &&
+                    String(ev.reason || (meta && meta.reason) || '').toLowerCase() === LIVING_WILL_RESTORE_REASON
+                )
+            )
+        );
+    }
+
+    function isLivingWillRestoreChange(ev) {
+        return !!(ev && ev.type === 'CHANGE' && isLivingWillRestorePresentationEvent(ev));
+    }
+
+    function hasLivingWillTriggeredDestroyPresentationEventAt(presentationEvents, row, col) {
+        const events = Array.isArray(presentationEvents) ? presentationEvents : [];
+        for (let index = 0; index < events.length; index += 1) {
+            const ev = events[index];
+            if (!ev || ev.type !== 'DESTROY') continue;
+            if (Number(ev.row) !== Number(row) || Number(ev.col) !== Number(col)) continue;
+            const meta = (ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
+            if (!(meta && meta.livingWillTriggered === true)) continue;
+            return true;
+        }
+        return false;
+    }
+
+    function hasLivingWillRestoreChangePresentationEventAt(presentationEvents, row, col) {
+        const events = Array.isArray(presentationEvents) ? presentationEvents : [];
+        for (let index = 0; index < events.length; index += 1) {
+            const ev = events[index];
+            if (!isLivingWillRestoreChange(ev)) continue;
+            if (Number(ev.row) !== Number(row) || Number(ev.col) !== Number(col)) continue;
+            return true;
+        }
+        return false;
+    }
+
+    function hasLivingWillRestorePresentationEventForSource(presentationEvents, row, col, special) {
+        const events = Array.isArray(presentationEvents) ? presentationEvents : [];
+        const specialUpper = String(special || '').trim().toUpperCase();
+        for (let index = 0; index < events.length; index += 1) {
+            const ev = events[index];
+            if (!isLivingWillRestorePresentationEvent(ev)) continue;
+            const meta = (ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
+            const restoredSpecial = String(ev.special || meta.special || '').trim().toUpperCase();
+            if (specialUpper && restoredSpecial && restoredSpecial !== specialUpper) continue;
+            const destMatches = Number(ev.row) === Number(row) && Number(ev.col) === Number(col);
+            const sourceMatches =
+                Number(meta.revivedFromRow) === Number(row) &&
+                Number(meta.revivedFromCol) === Number(col);
+            if (destMatches || sourceMatches) return true;
+        }
+        return false;
+    }
+
+    function isObserverLostBubblePresentationEvent(ev) {
+        const reason = String((ev && ev.reason) || (ev && ev.meta && ev.meta.reason) || '').toLowerCase();
+        return reason.indexOf('anchor_lost') >= 0 ||
+            reason.indexOf('removed') >= 0 ||
+            reason.indexOf('captured') >= 0 ||
+            reason.indexOf('lost') >= 0;
     }
 
     function isChainFlipPresentationEvent(ev) {
@@ -330,9 +439,25 @@
         return String(type || '').toUpperCase() === 'INHERITED_HYPERACTIVE';
     }
 
+    function isOverlayOnlySpecialStoneType(type) {
+        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isOverlayOnlySpecialStoneType === 'function') {
+            return SpecialStoneRegistry.isOverlayOnlySpecialStoneType(type);
+        }
+        const typeUpper = String(type || '').toUpperCase();
+        return typeUpper === 'GUARD' || typeUpper === 'INHERITED_HYPERACTIVE' || typeUpper === 'LIVING_WILL';
+    }
+
     function getVisualSpecialFromMeta(meta) {
         const special = (meta && meta.special) || null;
-        return isInheritedHyperactiveType(special) ? null : special;
+        return isOverlayOnlySpecialStoneType(special) ? null : special;
+    }
+
+    function shouldPreferFinalVisualStateForStatusApplied(eventSpecialRaw, visualSpecial, livingWillAura) {
+        if (!isOverlayOnlySpecialStoneType(eventSpecialRaw)) return false;
+        if (String(eventSpecialRaw || '').toUpperCase() === 'LIVING_WILL') {
+            return livingWillAura === true && !!visualSpecial;
+        }
+        return !!visualSpecial;
     }
 
     function resolveDisplayTimerValue(special, timerValue, regenRemainingValue) {
@@ -447,7 +572,8 @@
             inheritedOwner: null,
             flipEvadeRemaining: null,
             inheritedFlipEvadeRemaining: null,
-            destroyEvadeRemaining: null
+            destroyEvadeRemaining: null,
+            livingWillAura: false
         };
         const color = getCellColorAt(gameState, r, c);
         let special = null;
@@ -458,6 +584,7 @@
         let flipEvadeRemaining = null;
         let inheritedFlipEvadeRemaining = null;
         let destroyEvadeRemaining = null;
+        let livingWillAura = false;
 
         if (cardState && cardState.markers) {
             const markersAtCell = cardState.markers.filter((m) => (
@@ -483,6 +610,7 @@
                 flipEvadeRemaining = visualState.flipEvadeRemaining;
                 inheritedFlipEvadeRemaining = visualState.inheritedFlipEvadeRemaining;
                 destroyEvadeRemaining = visualState.destroyEvadeRemaining;
+                livingWillAura = visualState.livingWillAura === true;
             } else {
                 const inherited = markersAtCell.find((m) => (
                     m &&
@@ -500,9 +628,7 @@
                 const visualSpecial = markersAtCell.find((m) => {
                     const typeUpper = String(m && m.data && m.data.type ? m.data.type : '').toUpperCase();
                     if (!typeUpper) return false;
-                    if (typeUpper === 'GUARD') return false;
-                    if (typeUpper === 'INHERITED_HYPERACTIVE') return false;
-                    return true;
+                    return !isOverlayOnlySpecialStoneType(typeUpper);
                 });
 
                 if (visualSpecial) {
@@ -527,6 +653,13 @@
                     owner = (bombMarker.owner !== undefined && bombMarker.owner !== null) ? bombMarker.owner : null;
                 }
             }
+            if (!livingWillAura) {
+                livingWillAura = markersAtCell.some((m) => (
+                    m &&
+                    m.data &&
+                    String(m.data.type || '').toUpperCase() === 'LIVING_WILL'
+                ));
+            }
         }
 
         return {
@@ -538,7 +671,8 @@
             inheritedOwner,
             flipEvadeRemaining,
             inheritedFlipEvadeRemaining,
-            destroyEvadeRemaining
+            destroyEvadeRemaining,
+            livingWillAura
         };
     }
 
@@ -681,6 +815,14 @@
 
     function _isCardEffectSpawnEventLike(ev, profile) {
         return !!profile && _matchesSpawnCauseAndReason(ev, profile.cause, profile.reasonPrefix);
+    }
+
+    function _isSeedSproutEventLike(ev) {
+        return _matchesSpawnCauseAndReason(ev, 'SEED_WILL', 'seed_sprout');
+    }
+
+    function _isLivingWillRestoreEventLike(ev) {
+        return _matchesSpawnCauseAndReason(ev, 'LIVING_WILL', 'living_will_restored');
     }
 
     function _isCardEffectSpawnPlaybackEvent(ev, profile) {
@@ -981,6 +1123,10 @@
             phaseState.currentPhase++;
             phase = phaseState.currentPhase;
         }
+        if (isLivingWillRestorePresentationEvent(ev)) {
+            phaseState.currentPhase++;
+            phase = phaseState.currentPhase;
+        }
 
         let type = 'spawn';
         let targets;
@@ -1094,6 +1240,13 @@
         const isChainFlip = isChainFlipPresentationEvent(ev);
         const chainFlipLink = isChainFlip ? getChainFlipLink(ev) : null;
         let phase = phaseState.currentPhase;
+        if (isLivingWillRestoreChange(ev)) {
+            phaseState.currentPhase++;
+            phase = phaseState.currentPhase;
+            phaseState.prevWasChainFlip = false;
+            phaseState.prevChainFlipLink = null;
+            return phase;
+        }
         if (isChainFlip && (!phaseState.prevWasChainFlip || phaseState.prevChainFlipLink !== chainFlipLink)) {
             phaseState.currentPhase++;
             phase = phaseState.currentPhase;
@@ -1203,9 +1356,8 @@
                     break;
                 }
                 case 'CHANGE':
-                    // Map CHANGE -> flip to match UI AnimationEngine expectations (Spec B)
-                    pEvent.type = 'flip';
                     const changeMeta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
+                    pEvent.type = 'flip';
                     pEvent.targets = [{
                         r: ev.row,
                         col: ev.col,
@@ -1257,16 +1409,50 @@
                     pEvent.targets = [{ r: ev.row, col: ev.col }];
                     break;
                 case 'STATUS_REMOVED':
-                    _preparePassivePlaybackPhaseState(phaseState, {
-                        preserveDurationEndRevert: _isSpecialDurationExpiredStatusRemovedEvent(ev)
-                    });
-                    pEvent.type = 'status_removed';
-                    pEvent.targets = [{ r: ev.row, col: ev.col }];
-                    if (isRegenConsumedStatus(ev)) {
-                        phaseState.currentPhase++;
-                        pEvent.phase = phaseState.currentPhase;
-                    } else if (_isSpecialDurationExpiredStatusRemovedEvent(ev)) {
-                        pEvent.phase = _planDurationEndRevertPlaybackPhase(phaseState, playbackEvents.length > 0);
+                    if (isLivingWillConsumedStatus(ev)) {
+                        if (
+                            hasLivingWillTriggeredDestroyPresentationEventAt(presentationEvents, ev.row, ev.col) ||
+                            hasLivingWillRestoreChangePresentationEventAt(presentationEvents, ev.row, ev.col)
+                        ) {
+                            pEvent.type = null;
+                            pEvent.targets = [];
+                            break;
+                        }
+                        const livingWillMeta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
+                        const destroyPlan = _planDestroyPlayback(
+                            phaseState,
+                            {
+                                type: 'DESTROY',
+                                row: ev.row,
+                                col: ev.col,
+                                cause: LIVING_WILL_CAUSE,
+                                reason: LIVING_WILL_CONSUMED_REASON
+                            },
+                            livingWillMeta,
+                            playbackBase
+                        );
+                        pEvent.type = 'destroy';
+                        pEvent.phase = destroyPlan.phase;
+                        pEvent.targets = [{
+                            r: ev.row,
+                            col: ev.col,
+                            ownerBefore: livingWillMeta && livingWillMeta.owner ? livingWillMeta.owner : null,
+                            cause: LIVING_WILL_CAUSE,
+                            reason: LIVING_WILL_CONSUMED_REASON,
+                            meta: livingWillMeta
+                        }];
+                    } else {
+                        _preparePassivePlaybackPhaseState(phaseState, {
+                            preserveDurationEndRevert: _isSpecialDurationExpiredStatusRemovedEvent(ev)
+                        });
+                        pEvent.type = 'status_removed';
+                        pEvent.targets = [{ r: ev.row, col: ev.col }];
+                        if (isRegenConsumedStatus(ev)) {
+                            phaseState.currentPhase++;
+                            pEvent.phase = phaseState.currentPhase;
+                        } else if (_isSpecialDurationExpiredStatusRemovedEvent(ev)) {
+                            pEvent.phase = _planDurationEndRevertPlaybackPhase(phaseState, playbackEvents.length > 0);
+                        }
                     }
                     break;
                 case 'HAND_CLEAR':
@@ -1363,7 +1549,12 @@
                     if (_isWorkDurationExpiredPresentationEvent(ev)) {
                         pEvent.phase = _planDurationEndRevertPlaybackPhase(phaseState, playbackEvents.length > 0);
                     }
-                    if (!_isWorkDurationExpiredPresentationEvent(ev) && Number.isInteger(ev.row) && Number.isInteger(ev.col)) {
+                    if (
+                        !_isWorkDurationExpiredPresentationEvent(ev) &&
+                        Number.isInteger(ev.row) &&
+                        Number.isInteger(ev.col) &&
+                        !hasLivingWillRestorePresentationEventForSource(presentationEvents, ev.row, ev.col, 'WORK')
+                    ) {
                         playbackEvents.push(Object.assign(
                             _createPlaybackEvent(playbackBase, 'observer_bubble', phaseState.currentPhase, [{
                                 r: ev.row,
@@ -1416,6 +1607,21 @@
                         clearWillHunter: false,
                         preserveDurationEndRevert: _hasDurationEndMarker(bubbleScenario || bubbleReason, bubbleCause)
                     });
+                    if (
+                        (bubbleScenario === 'destroy' || bubbleScenario === 'duration_end' || bubbleScenario === 'escape_exploded') &&
+                        hasLivingWillRestorePresentationEventForSource(
+                            presentationEvents,
+                            ev.row,
+                            ev.col,
+                            (typeof ev.special === 'string' && ev.special.trim())
+                                ? ev.special.trim()
+                                : ((ev.meta && typeof ev.meta.special === 'string' && ev.meta.special.trim()) ? ev.meta.special.trim() : null)
+                        )
+                    ) {
+                        pEvent.type = null;
+                        pEvent.targets = [];
+                        break;
+                    }
                     pEvent.type = 'observer_bubble';
                     pEvent.targets = [{
                         r: ev.row,
@@ -1433,6 +1639,14 @@
                 }
                 case 'OBSERVER_BUBBLE':
                     _preparePassivePlaybackPhaseState(phaseState);
+                    if (
+                        isObserverLostBubblePresentationEvent(ev) &&
+                        hasLivingWillRestorePresentationEventForSource(presentationEvents, ev.row, ev.col, 'OBSERVER')
+                    ) {
+                        pEvent.type = null;
+                        pEvent.targets = [];
+                        break;
+                    }
                     pEvent.type = 'observer_bubble';
                     pEvent.targets = [{
                         r: ev.row,
@@ -1552,33 +1766,47 @@
                         const inheritedFlipEvadeRemainingFromEvent = getInheritedFlipEvadeRemainingFromMeta(ev.meta);
                         const destroyEvadeRemainingFromEvent = getDestroyEvadeRemainingFromMeta(ev.meta);
                         const isStatusRemoved = pEvent.type === 'status_removed';
+                        const preferFinalVisualStateForApply = !isStatusRemoved &&
+                            shouldPreferFinalVisualStateForStatusApplied(
+                                specialFromEventRaw,
+                                visual.special || null,
+                                visual.livingWillAura === true
+                            );
                         let color = visual.color || 0;
                         if (color === 0 && (specialFromEventRaw === 'TRAP' || specialFromEventRaw === 'TRAP_REVEAL')) {
                             if (ownerFromEvent === 'black' || ownerFromEvent === 1 || ownerFromEvent === '1') color = 1;
                             if (ownerFromEvent === 'white' || ownerFromEvent === -1 || ownerFromEvent === '-1') color = -1;
                         }
-                        const specialForVisual = isStatusRemoved ? (visual.special || null) : (specialFromEvent || visual.special || null);
+                        const specialForVisual = isStatusRemoved
+                            ? (visual.special || null)
+                            : (preferFinalVisualStateForApply ? (visual.special || null) : (specialFromEvent || visual.special || null));
                         const timerForVisual = isStatusRemoved
                             ? (visual.timer || null)
-                            : ((ev.meta && ev.meta.timer) || visual.timer || null);
+                            : (preferFinalVisualStateForApply ? (visual.timer || null) : ((ev.meta && ev.meta.timer) || visual.timer || null));
                         const ownerForVisual = isStatusRemoved
                             ? (visual.owner || null)
-                            : (ownerFromEvent || visual.owner || null);
+                            : (preferFinalVisualStateForApply ? (visual.owner || ownerFromEvent || null) : (ownerFromEvent || visual.owner || null));
                         const inheritedTimerForVisual = isStatusRemoved
                             ? (visual.inheritedTimer || null)
-                            : (inheritedTimerFromEvent || visual.inheritedTimer || null);
+                            : (preferFinalVisualStateForApply ? (visual.inheritedTimer || null) : (inheritedTimerFromEvent || visual.inheritedTimer || null));
                         const inheritedOwnerForVisual = isStatusRemoved
                             ? (visual.inheritedOwner || null)
-                            : (inheritedOwnerFromEvent || visual.inheritedOwner || null);
+                            : (preferFinalVisualStateForApply ? (visual.inheritedOwner || null) : (inheritedOwnerFromEvent || visual.inheritedOwner || null));
                         const flipEvadeRemainingForVisual = isStatusRemoved
                             ? (visual.flipEvadeRemaining ?? null)
-                            : ((flipEvadeRemainingFromEvent ?? visual.flipEvadeRemaining) ?? null);
+                            : (preferFinalVisualStateForApply
+                                ? (visual.flipEvadeRemaining ?? null)
+                                : ((flipEvadeRemainingFromEvent ?? visual.flipEvadeRemaining) ?? null));
                         const inheritedFlipEvadeRemainingForVisual = isStatusRemoved
                             ? (visual.inheritedFlipEvadeRemaining ?? null)
-                            : ((inheritedFlipEvadeRemainingFromEvent ?? visual.inheritedFlipEvadeRemaining) ?? null);
+                            : (preferFinalVisualStateForApply
+                                ? (visual.inheritedFlipEvadeRemaining ?? null)
+                                : ((inheritedFlipEvadeRemainingFromEvent ?? visual.inheritedFlipEvadeRemaining) ?? null));
                         const destroyEvadeRemainingForVisual = isStatusRemoved
                             ? (visual.destroyEvadeRemaining ?? null)
-                            : ((destroyEvadeRemainingFromEvent ?? visual.destroyEvadeRemaining) ?? null);
+                            : (preferFinalVisualStateForApply
+                                ? (visual.destroyEvadeRemaining ?? null)
+                                : ((destroyEvadeRemainingFromEvent ?? visual.destroyEvadeRemaining) ?? null));
                         t.after = {
                             color,
                             special: specialForVisual,
@@ -1588,7 +1816,8 @@
                             inheritedOwner: inheritedOwnerForVisual,
                             flipEvadeRemaining: flipEvadeRemainingForVisual,
                             inheritedFlipEvadeRemaining: inheritedFlipEvadeRemainingForVisual,
-                            destroyEvadeRemaining: destroyEvadeRemainingForVisual
+                            destroyEvadeRemaining: destroyEvadeRemainingForVisual,
+                            livingWillAura: visual.livingWillAura === true
                         };
                     } else {
                         t.after = {
@@ -2094,6 +2323,38 @@
             'breeding_spawn'
         );
 
+        const seedSproutEvents = ctx.base.filter((ev) => (
+            ev &&
+            ev.type === 'spawn' &&
+            Array.isArray(ev.targets) &&
+            ev.targets.some((target) => _isSeedSproutEventLike(target))
+        ));
+        if (seedSproutEvents.length > 0) {
+            _pushRepeatedCueForMatchingTargets(
+                ctx,
+                seedSproutEvents,
+                (target) => _isSeedSproutEventLike(target),
+                'seed_sprout',
+                'seed_sprout'
+            );
+        }
+
+        const livingWillRestoreEvents = ctx.base.filter((ev) => (
+            ev &&
+            (ev.type === 'spawn' || ev.type === 'flip') &&
+            Array.isArray(ev.targets) &&
+            ev.targets.some((target) => _isLivingWillRestoreEventLike(target))
+        ));
+        if (livingWillRestoreEvents.length > 0) {
+            _pushRepeatedCueForMatchingTargets(
+                ctx,
+                livingWillRestoreEvents,
+                (target) => _isLivingWillRestoreEventLike(target),
+                'living_will_restored',
+                'living_will_restored'
+            );
+        }
+
         const hasAppliedTemptSelection = _hasRawEvent(ctx.raw, 'tempt_selected', (ev) => !!(ev && ev.applied));
         const hasTemptSelectionEvent = _hasRawEvent(ctx.raw, 'tempt_selected');
         const hasAppliedSwapSelection = _hasRawEvent(ctx.raw, 'swap_selected', (ev) => !!(ev && ev.swapped));
@@ -2369,6 +2630,51 @@
         if (_hasRawEvent(ctx.raw, 'capture_selected', (ev) => !!(ev && ev.applied))) {
             _pushSoundCue(ctx, 'tempt_select', capturePhase, 'capture_selected');
         }
+
+        const hasBoardShrinkDestroyPlayback = ctx.base.some((ev) => (
+            ev &&
+            ev.type === 'destroy' &&
+            Array.isArray(ev.targets) &&
+            ev.targets.some((target) => {
+                const cause = String(target && target.cause ? target.cause : '').toUpperCase();
+                const reason = String(target && target.reason ? target.reason : '').toLowerCase();
+                return cause === 'BOARD_SHRINK_WILL' ||
+                    cause === 'BOARD_SHRINK_GOD' ||
+                    reason.indexOf('board_shrink') >= 0;
+            })
+        ));
+        const boardShrinkPhase = _findPhase(
+            ctx.base,
+            (ev) => (
+                ev &&
+                ev.type === 'status_applied' &&
+                (
+                    (ev.meta && String(ev.meta.special || '').toUpperCase() === 'METEOR_HOLE') ||
+                    (Array.isArray(ev.targets) && ev.targets.some((target) => (
+                        target &&
+                        target.after &&
+                        String(target.after.special || '').toUpperCase() === 'METEOR_HOLE'
+                    )))
+                )
+            ),
+            _findPhase(
+                ctx.base,
+                (ev) => ev && ev.type === 'card_use_animation',
+                ctx.fallbackPhase
+            )
+        );
+        if (
+            !hasBoardShrinkDestroyPlayback &&
+            _hasRawEvent(ctx.raw, 'board_shrink_selected', (ev) => !!(
+                ev &&
+                ev.applied &&
+                ev.completed !== false &&
+                Array.isArray(ev.changedTargets) &&
+                ev.changedTargets.length > 0
+            ))
+        ) {
+            _pushSoundCue(ctx, 'stone_destroy', boardShrinkPhase, 'board_shrink_selected');
+        }
     }
 
     function _planCardAndEconomySoundCues(ctx) {
@@ -2434,15 +2740,6 @@
         );
         if (_hasRawEvent(ctx.raw, 'condemn_selected', (ev) => !!(ev && ev.applied && ev.destroyedCardId))) {
             _pushSoundCue(ctx, 'stone_destroy', condemnPhase, 'condemn_selected');
-        }
-
-        const sellPhase = _findPhase(
-            ctx.base,
-            (ev) => ev && (ev.type === 'hand_remove' || ev.type === 'card_use_animation'),
-            ctx.fallbackPhase
-        );
-        if (_hasRawEvent(ctx.raw, 'sell_selected', (ev) => !!(ev && ev.applied && Number(ev.gained) > 0))) {
-            _pushSoundCue(ctx, 'charge_gain_common', sellPhase, 'sell_selected');
         }
 
         const workIncomePhase = _findPhase(
@@ -2874,9 +3171,6 @@
                         }
                     }
                     break;
-                case 'sell_selected':
-                    if (ev.applied) push(`売却で+${ev.gained || 0}`);
-                    break;
                 case 'rebuild_will_resolved':
                     push(`再構築の意志: 手札${Number(ev.destroyedCount) || 0}枚を破壊し、${Number(ev.drawnCount) || 0}枚ドロー`);
                     break;
@@ -2915,7 +3209,7 @@
                     push(`増援の意志: 通常石${Number(ev.spawnedCount) || 0}個を配置${(Number(ev.flippedCount) || 0) > 0 ? `、${Number(ev.flippedCount) || 0}枚を反転` : ''}`);
                     break;
                 case 'salvation_will_resolved':
-                    push(`救済の意志: 通常石${Number(ev.spawnedCount) || 0}個を復活${(Number(ev.flippedCount) || 0) > 0 ? `、${Number(ev.flippedCount) || 0}枚を反転` : ''}`);
+                    push(`救済の意志: 破壊石${Number(ev.spawnedCount) || 0}個を通常石として救済${(Number(ev.flippedCount) || 0) > 0 ? `、${Number(ev.flippedCount) || 0}枚を反転` : ''}`);
                     break;
                 case 'heaven_blessing_selected':
                     if (ev.applied) push('天の恵みでカード獲得');
@@ -2973,6 +3267,23 @@
                         } else {
                             const sideLabel = ev.side === 'left' ? '左' : (ev.side === 'right' ? '右' : '左右');
                             push(`盤面拡張: ${sideLabel}側へ1マス拡張`);
+                        }
+                    }
+                    break;
+                case 'board_shrink_selected':
+                    if (ev.applied) {
+                        if (ev.completed === false) {
+                            if (ev.cardType === 'BOARD_SHRINK_GOD') {
+                                push(`盤面縮小神: 1つ目に${_toPosText(ev.firstTarget || ev.target)}を選択`);
+                            } else {
+                                const remaining = Number(ev.remainingSelections) || 0;
+                                push(`盤面縮小: 外周マスを選択（残り${remaining}）`);
+                            }
+                        } else {
+                            const changedCount = Array.isArray(ev.changedTargets) ? ev.changedTargets.length : 0;
+                            push(ev.cardType === 'BOARD_SHRINK_GOD'
+                                ? `盤面縮小神: ${changedCount}マスを穴化`
+                                : `盤面縮小: ${changedCount}マスを穴化`);
                         }
                     }
                     break;

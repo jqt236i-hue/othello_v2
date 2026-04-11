@@ -136,6 +136,38 @@ describe('PendingCoordinator', () => {
     });
   });
 
+  test('normalizes seat aliases through OwnerHelpers when reading and writing pending state', () => {
+    const cardState = {
+      pendingEffectByPlayer: {
+        black: null,
+        white: null
+      }
+    };
+
+    expect(
+      PendingCoordinator.writePendingEffect(cardState, -1, {
+        type: 'TRAP_WILL',
+        stage: 'selectTarget'
+      })
+    ).toEqual({
+      ok: true,
+      playerKey: 'white',
+      pendingEffect: {
+        type: 'TRAP_WILL',
+        stage: 'selectTarget'
+      }
+    });
+    expect(PendingCoordinator.readPendingEffect(cardState, 'white')).toEqual({
+      type: 'TRAP_WILL',
+      stage: 'selectTarget'
+    });
+    expect(PendingCoordinator.readPendingEffect(cardState, '-1')).toEqual({
+      type: 'TRAP_WILL',
+      stage: 'selectTarget'
+    });
+    expect(PendingCoordinator.readPendingEffect(cardState, '+1')).toBeNull();
+  });
+
   test('delegates target requirements and pending contracts to shared owner', () => {
     expect(PendingCoordinator.requiresPendingTarget('CAPTURE_WILL')).toBe(true);
     expect(PendingCoordinator.getPendingSelectionContract('TRAP_WILL')).toEqual(expect.objectContaining({
@@ -196,6 +228,66 @@ describe('PendingCoordinator', () => {
         stage: 'selectTarget'
       })
     }));
+  });
+
+  test('createPendingSelectionAction transports shrink selections for both selectedTargets and firstTarget contracts', () => {
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+
+    const shrinkWillState = {
+      turnIndex: 11,
+      pendingEffectByPlayer: {
+        black: {
+          type: 'BOARD_SHRINK_WILL',
+          stage: 'selectTarget',
+          selectedTargets: [{ row: 0, col: 0 }, { row: 0, col: 7 }],
+          selectedCount: 2,
+          maxSelections: 3
+        },
+        white: null
+      }
+    };
+    const shrinkWillAction = PendingCoordinator.createPendingSelectionAction(
+      'black',
+      'BOARD_SHRINK_WILL',
+      { shrinkTarget: { row: 7, col: 0 } },
+      { cardState: shrinkWillState }
+    );
+
+    expect(shrinkWillAction.pendingSelectionState).toEqual({
+      type: 'BOARD_SHRINK_WILL',
+      stage: 'selectTarget',
+      selectedTargets: [{ row: 0, col: 0 }, { row: 0, col: 7 }],
+      selectedCount: 2,
+      maxSelections: 3
+    });
+
+    const shrinkGodState = {
+      turnIndex: 12,
+      pendingEffectByPlayer: {
+        black: {
+          type: 'BOARD_SHRINK_GOD',
+          stage: 'selectTarget',
+          firstTarget: { row: 0, col: 0 }
+        },
+        white: null
+      }
+    };
+    const shrinkGodAction = PendingCoordinator.createPendingSelectionAction(
+      'black',
+      'BOARD_SHRINK_GOD',
+      { shrinkTarget: { row: 0, col: 1 } },
+      { cardState: shrinkGodState }
+    );
+
+    expect(shrinkGodAction.pendingSelectionState).toEqual({
+      type: 'BOARD_SHRINK_GOD',
+      stage: 'selectTarget',
+      firstTarget: { row: 0, col: 0 }
+    });
   });
 
   test('syncPendingSelectionActionCache prunes stale entries while retaining matching pending types', () => {

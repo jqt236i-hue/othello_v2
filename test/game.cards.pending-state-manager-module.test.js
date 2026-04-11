@@ -4,6 +4,9 @@ describe('CardPendingStateManager', () => {
   test('requiresTargetSelection distinguishes pending selector cards', () => {
     expect(PendingStateManager.requiresTargetSelection('DESTROY_ONE_STONE')).toBe(true);
     expect(PendingStateManager.requiresTargetSelection('BOARD_EXPANSION_GOD')).toBe(true);
+    expect(PendingStateManager.requiresTargetSelection('BOARD_SHRINK_WILL')).toBe(true);
+    expect(PendingStateManager.requiresTargetSelection('BOARD_SHRINK_GOD')).toBe(true);
+    expect(PendingStateManager.requiresTargetSelection('LIVING_WILL')).toBe(true);
     expect(PendingStateManager.requiresTargetSelection('DOUBLE_CHAIN_WILL')).toBe(false);
     expect(PendingStateManager.requiresTargetSelection('')).toBe(false);
   });
@@ -17,6 +20,17 @@ describe('CardPendingStateManager', () => {
       stage: 'selectTarget',
       selectedCount: 0,
       maxSelections: 2,
+      selectedTargets: []
+    }));
+
+    expect(PendingStateManager.createPendingEffectState({
+      cardType: 'BOARD_SHRINK_WILL',
+      cardId: 'board_shrink_01'
+    })).toEqual(expect.objectContaining({
+      type: 'BOARD_SHRINK_WILL',
+      stage: 'selectTarget',
+      selectedCount: 0,
+      maxSelections: 3,
       selectedTargets: []
     }));
 
@@ -63,13 +77,23 @@ describe('CardPendingStateManager', () => {
   });
 
   test('exports shared pending selection contract helpers', () => {
-    expect(PendingStateManager.resolvePendingSelectionContract('SELL_CARD_WILL')).toEqual(expect.objectContaining({
+    expect(PendingStateManager.resolvePendingSelectionContract('HEAVEN_BLESSING')).toEqual(expect.objectContaining({
       kind: 'hand_overlay',
       turnOutcome: 'continue_turn',
       deferNetworkPublish: true
     }));
     expect(PendingStateManager.resolvePendingSelectionContract('CAPTURE_WILL')).toEqual(expect.objectContaining({
       kind: 'continue_turn',
+      turnOutcome: 'continue_turn',
+      deferNetworkPublish: true
+    }));
+    expect(PendingStateManager.resolvePendingSelectionContract('LIVING_WILL')).toEqual(expect.objectContaining({
+      kind: 'continue_turn',
+      turnOutcome: 'continue_turn',
+      deferNetworkPublish: true
+    }));
+    expect(PendingStateManager.resolvePendingSelectionContract('BOARD_SHRINK_GOD')).toEqual(expect.objectContaining({
+      kind: 'multi_stage',
       turnOutcome: 'continue_turn',
       deferNetworkPublish: true
     }));
@@ -86,8 +110,27 @@ describe('CardPendingStateManager', () => {
     expect(PendingStateManager.resolvePendingSelectionDispatchKey('TELEPORT_WILL')).toBe('teleport');
     expect(PendingStateManager.resolvePendingSelectionDispatchKey('CELL_TELEPORT_WILL')).toBe('cell_teleport');
     expect(PendingStateManager.resolvePendingSelectionDispatchKey('BOARD_EXPANSION_GOD')).toBe('board_expansion');
-    expect(PendingStateManager.resolvePendingSelectionDispatchKey('SELL_CARD_WILL')).toBe('sell_card');
+    expect(PendingStateManager.resolvePendingSelectionDispatchKey('BOARD_SHRINK_WILL')).toBe('board_shrink');
+    expect(PendingStateManager.resolvePendingSelectionDispatchKey('BOARD_SHRINK_GOD')).toBe('board_shrink');
+    expect(PendingStateManager.resolvePendingSelectionDispatchKey('LIVING_WILL')).toBe('living_will');
+    expect(PendingStateManager.resolvePendingSelectionDispatchKey('HEAVEN_BLESSING')).toBe('heaven_blessing');
     expect(PendingStateManager.resolvePendingSelectionDispatchKey('')).toBeNull();
+  });
+
+  test('keeps target selection, cancellation, and dispatch helpers aligned for shared pending contracts', () => {
+    const cases = [
+      ['DESTROY_ONE_STONE', { requiresTarget: true, cancellable: true, dispatchKey: 'destroy' }],
+      ['CAPTURE_WILL', { requiresTarget: true, cancellable: false, dispatchKey: 'capture' }],
+      ['BOARD_SHRINK_GOD', { requiresTarget: true, cancellable: true, dispatchKey: 'board_shrink' }],
+      ['CONDEMN_WILL', { requiresTarget: true, cancellable: false, dispatchKey: 'condemn' }],
+      ['DOUBLE_CHAIN_WILL', { requiresTarget: false, cancellable: false, dispatchKey: null }]
+    ];
+
+    for (const [cardType, expected] of cases) {
+      expect(PendingStateManager.requiresTargetSelection(cardType)).toBe(expected.requiresTarget);
+      expect(PendingStateManager.isCancellablePendingType(cardType)).toBe(expected.cancellable);
+      expect(PendingStateManager.resolvePendingSelectionDispatchKey(cardType)).toBe(expected.dispatchKey);
+    }
   });
 
 });

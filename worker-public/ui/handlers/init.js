@@ -7,6 +7,16 @@
  * UI初期化
  * Initialize all UI event listeners and elements
  */
+const InitBootstrapShared = (() => {
+    if (typeof require === 'function') {
+        try { return require('../../shared/ui-bootstrap-shared'); } catch (e) { /* ignore */ }
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.SharedUIBootstrap) return globalThis.SharedUIBootstrap;
+    } catch (e) { /* ignore */ }
+    return null;
+})();
+
 function _isDebugAllowed() {
     try {
         if (typeof window !== 'undefined') {
@@ -28,7 +38,11 @@ function setUiInitializedFlag(value) {
     } catch (e) { /* ignore */ }
 }
 
-const InitPlaybackStateRuntime = (() => {
+function _getPlaybackStateRuntime() {
+    if (InitBootstrapShared && typeof InitBootstrapShared.resolvePlaybackStateManager === 'function') {
+        const resolved = InitBootstrapShared.resolvePlaybackStateManager();
+        if (resolved) return resolved;
+    }
     if (typeof PlaybackStateManager !== 'undefined' && PlaybackStateManager) return PlaybackStateManager;
     if (typeof require === 'function') {
         try { return require('../playback-state-manager'); } catch (e) { /* ignore */ }
@@ -37,11 +51,29 @@ const InitPlaybackStateRuntime = (() => {
         if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) return globalThis.PlaybackStateManager;
     } catch (e) { /* ignore */ }
     return null;
-})();
+}
 
-function _getPlaybackStateRuntime() {
-    return (InitPlaybackStateRuntime && typeof InitPlaybackStateRuntime === 'object')
-        ? InitPlaybackStateRuntime
+function _getPlaybackRuntimeModule() {
+    if (InitBootstrapShared && typeof InitBootstrapShared.resolvePlaybackRuntime === 'function') {
+        const resolved = InitBootstrapShared.resolvePlaybackRuntime();
+        if (resolved) return resolved;
+    }
+    if (typeof PlaybackRuntime !== 'undefined' && PlaybackRuntime) return PlaybackRuntime;
+    if (typeof require === 'function') {
+        try { return require('../playback-runtime'); } catch (e) { /* ignore */ }
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.PlaybackRuntime) return globalThis.PlaybackRuntime;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _getUiBootstrapModule() {
+    if (InitBootstrapShared && typeof InitBootstrapShared.resolveUIBootstrap === 'function') {
+        return InitBootstrapShared.resolveUIBootstrap();
+    }
+    return (typeof UIBootstrap !== 'undefined' && UIBootstrap && typeof UIBootstrap.installGameDI === 'function')
+        ? UIBootstrap
         : null;
 }
 
@@ -63,6 +95,13 @@ function _readProcessingFlag() {
 
 function _syncPlaybackWindowFlags() {
     const playbackState = _getPlaybackStateRuntime();
+    const playbackRuntime = _getPlaybackRuntimeModule();
+    if (playbackRuntime && typeof playbackRuntime.syncLegacyWindowFlags === 'function') {
+        return playbackRuntime.syncLegacyWindowFlags(playbackState, {
+            readCardAnimating: _readCardAnimatingFlag,
+            readProcessing: _readProcessingFlag
+        });
+    }
     if (playbackState && typeof playbackState.syncLegacyWindowFlags === 'function') {
         return playbackState.syncLegacyWindowFlags({
             readCardAnimating: _readCardAnimatingFlag,
@@ -115,6 +154,27 @@ function _setPlaybackBusyFlags(options) {
 
 function _installPlaybackDebugRuntime() {
     const playbackState = _getPlaybackStateRuntime();
+    const playbackRuntime = _getPlaybackRuntimeModule();
+    if (playbackRuntime && typeof playbackRuntime.ensureDebugRuntime === 'function') {
+        return playbackRuntime.ensureDebugRuntime(playbackState, {
+            readCardAnimating: _readCardAnimatingFlag,
+            readProcessing: _readProcessingFlag,
+            abortPlayback: () => {
+                try {
+                    if (window.AnimationEngine && typeof window.AnimationEngine.abortAndSync === 'function') {
+                        window.AnimationEngine.abortAndSync();
+                    }
+                } catch (e) { /* ignore */ }
+            },
+            getBoardElement: () => {
+                try {
+                    return document.getElementById('board');
+                } catch (e) {
+                    return null;
+                }
+            }
+        });
+    }
     if (!playbackState || typeof playbackState.ensureDebugRuntime !== 'function') return null;
     return playbackState.ensureDebugRuntime({
         readCardAnimating: _readCardAnimatingFlag,
@@ -139,13 +199,9 @@ function _installPlaybackDebugRuntime() {
 async function initializeUI() {
     setUiInitializedFlag(false);
     try {
-        if (typeof UIBootstrap !== 'undefined' && UIBootstrap && typeof UIBootstrap.installGameDI === 'function') {
-            UIBootstrap.installGameDI();
-        } else if (typeof require === 'function') {
-            const uiBootstrap = require('../bootstrap');
-            if (uiBootstrap && typeof uiBootstrap.installGameDI === 'function') {
-                uiBootstrap.installGameDI();
-            }
+        const uiBootstrap = _getUiBootstrapModule();
+        if (uiBootstrap && typeof uiBootstrap.installGameDI === 'function') {
+            uiBootstrap.installGameDI();
         }
     } catch (e) {
         console.warn('[init] UIBootstrap.installGameDI failed', e);
@@ -165,6 +221,11 @@ async function initializeUI() {
     const tutorialOverlay = document.getElementById('tutorialOverlay');
     const rulesHelpBtn = document.getElementById('rulesHelpBtn');
     const rulesHelpPanel = document.getElementById('rules-help-panel');
+    const handSkinBtn = document.getElementById('handSkinBtn');
+    const handSkinPanel = document.getElementById('handSkinPanel');
+    const handSkinCloseBtn = document.getElementById('handSkinCloseBtn');
+    const handSkinOptions = document.getElementById('handSkinOptions');
+    const handImage = document.getElementById('handImage');
     const autoToggleBtn = document.getElementById('autoToggleBtn');
     const smartBlack = document.getElementById('smartBlack');
     const smartWhite = document.getElementById('smartWhite');
@@ -180,11 +241,22 @@ async function initializeUI() {
     const deckBuilderCloseBtn = document.getElementById('deckBuilderCloseBtn');
     const deckBuilderHeaderSummary = document.getElementById('deckBuilderHeaderSummary');
     const deckBuilderBody = document.getElementById('deckBuilderBody');
+    const boardSizeOpenBtn = document.getElementById('boardSizeOpenBtn');
+    const boardSizeControlSummary = document.getElementById('boardSizeControlSummary');
+    const boardSizeEditor = document.getElementById('boardSizeEditor');
+    const boardSizeRowsInput = document.getElementById('boardSizeRowsInput');
+    const boardSizeColsInput = document.getElementById('boardSizeColsInput');
+    const boardSizeCloseBtn = document.getElementById('boardSizeCloseBtn');
+    const boardSizeEditorNote = document.getElementById('boardSizeEditorNote');
     const networkPanel = document.getElementById('networkPanel');
     const networkAdvancedSettings = document.getElementById('networkAdvancedSettings');
     const networkServerInput = document.getElementById('networkServerInput');
     const networkPlayerNameInput = document.getElementById('networkPlayerNameInput');
     const networkRoomIdInput = document.getElementById('networkRoomIdInput');
+    const networkBoardSizeRowsInput = document.getElementById('networkBoardSizeRowsInput');
+    const networkBoardSizeColsInput = document.getElementById('networkBoardSizeColsInput');
+    const networkBoardSizeSummary = document.getElementById('networkBoardSizeSummary');
+    const networkBoardSizeNote = document.getElementById('networkBoardSizeNote');
     const networkEnableDebugCheckbox = document.getElementById('networkEnableDebugCheckbox');
     const networkCopyRoomBtn = document.getElementById('networkCopyRoomBtn');
     const networkCreateBtn = document.getElementById('networkCreateBtn');
@@ -256,6 +328,10 @@ async function initializeUI() {
             networkRoomInput: networkRoomIdInput,
             networkServerInput,
             networkPlayerNameInput,
+            networkBoardSizeRowsInput,
+            networkBoardSizeColsInput,
+            networkBoardSizeSummary,
+            networkBoardSizeNote,
             networkEnableDebugCheckbox,
             networkCopyRoomBtn,
             networkCreateBtn,
@@ -290,7 +366,14 @@ async function initializeUI() {
             overlay: deckBuilderOverlay,
             closeBtn: deckBuilderCloseBtn,
             headerSummary: deckBuilderHeaderSummary,
-            body: deckBuilderBody
+            body: deckBuilderBody,
+            boardSizeOpenBtn,
+            boardSizeControlSummary,
+            boardSizeEditor,
+            boardSizeRowsInput,
+            boardSizeColsInput,
+            boardSizeCloseBtn,
+            boardSizeEditorNote
         });
     }
 
@@ -311,6 +394,17 @@ async function initializeUI() {
 
     if (typeof setupRulesHelp === 'function') {
         setupRulesHelp(rulesHelpBtn, rulesHelpPanel);
+    }
+
+    if (typeof setupHandSkinControls === 'function') {
+        setupHandSkinControls({
+            button: handSkinBtn,
+            panel: handSkinPanel,
+            closeBtn: handSkinCloseBtn,
+            optionsEl: handSkinOptions,
+            handImage,
+            root: window
+        });
     }
 
     if (typeof setupStoryControls === 'function') {
@@ -364,7 +458,6 @@ async function initializeUI() {
     const useBtn = document.getElementById('use-card-btn');
     const detailBtn = document.getElementById('toggle-card-detail-btn');
     const passBtn = document.getElementById('pass-btn');
-    const sellBtn = document.getElementById('sell-card-btn');
     if (destroyBtn && typeof destroySelectedHandCard === 'function') {
         destroyBtn.addEventListener('click', () => {
             destroySelectedHandCard();
@@ -377,11 +470,6 @@ async function initializeUI() {
     }
     if (detailBtn && typeof toggleCardDetailExpanded === 'function') {
         detailBtn.addEventListener('click', toggleCardDetailExpanded);
-    }
-    if (sellBtn && typeof confirmSellCardSelection === 'function') {
-        sellBtn.addEventListener('click', () => {
-            confirmSellCardSelection();
-        });
     }
     if (passBtn && typeof passCurrentTurn === 'function') {
         passBtn.addEventListener('click', passCurrentTurn);
