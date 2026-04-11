@@ -915,6 +915,71 @@
             }
         }
 
+        function applyAuthoritativeSnapshotState(snapshot, options, nextVersion, snapshotMeta) {
+            const opts = options || {};
+            const state = resolveState();
+            const shadowPlaybackEvents = Array.isArray(opts.shadowPlaybackEvents) ? opts.shadowPlaybackEvents : [];
+            const previousGameState = cloneData(resolveGlobalObject('gameState'));
+            const previousCardState = cloneData(resolveGlobalObject('cardState'));
+            const preservedQueues = captureTransientPresentationQueues(resolveGlobalObject('cardState'));
+            const busyStateBeforeSnapshot = readBusyStateSnapshot();
+            const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
+
+            replaceObjectState('gameState', snapshot.gameState);
+            replaceObjectState('cardState', snapshot.cardState);
+            try {
+                const ensureLegacyMarkers = resolveGlobalFunction('ensureLegacyMarkers', cfg.ensureLegacyMarkers);
+                const nextCardState = resolveGlobalObject('cardState');
+                if (ensureLegacyMarkers && nextCardState) ensureLegacyMarkers(nextCardState);
+            } catch (e) { /* ignore */ }
+
+            const cardStateRef = resolveGlobalObject('cardState');
+            const synthesizedChargeDeltaEvents = buildMissingChargeDeltaEvents(previousCardState, cardStateRef, opts);
+            setTransientChargeDeltaEvents(synthesizedChargeDeltaEvents);
+            const syncPendingSelectionActionCache = resolveGlobalFunction('syncPendingSelectionActionCache', cfg.syncPendingSelectionActionCache);
+            if (syncPendingSelectionActionCache && cardStateRef) {
+                try {
+                    syncPendingSelectionActionCache(cardStateRef);
+                } catch (e) { /* ignore */ }
+            }
+
+            const boardGeometry = compareBoardGeometry(previousGameState, resolveGlobalObject('gameState'));
+            if (boardGeometry.changed) {
+                emitTelemetry('snapshot_board_geometry_changed', {
+                    previousRows: boardGeometry.previous.rows,
+                    previousCols: boardGeometry.previous.cols,
+                    nextRows: boardGeometry.next.rows,
+                    nextCols: boardGeometry.next.cols
+                });
+            }
+
+            const presentationState = reconcilePresentationQueues(cardStateRef, {
+                preservedQueues,
+                playbackEvents,
+                shadowPlaybackEvents,
+                dropPreservedQueues: boardGeometry.changed
+            });
+
+            if (nextVersion !== null) {
+                state.stateVersion = nextVersion;
+                state.appliedStateVersion = nextVersion;
+            }
+            if (state && state.authoritativeMatchState && typeof state.authoritativeMatchState === 'object') {
+                state.authoritativeMatchState.stateVersion = nextVersion;
+                state.authoritativeMatchState.authority = snapshotMeta ? snapshotMeta.authority : null;
+                state.authoritativeMatchState.projectedForSeat = snapshotMeta ? snapshotMeta.projectedForSeat : null;
+                state.authoritativeMatchState.turnStartReconciled = snapshotMeta ? snapshotMeta.turnStartReconciled : false;
+            }
+
+            return {
+                presentationState,
+                playbackEvents,
+                shadowPlaybackEvents,
+                cardStateRef,
+                busyStateBeforeSnapshot
+            };
+        }
+
         function applySnapshot(snapshot, options) {
             const opts = options || {};
             const state = resolveState();
@@ -978,65 +1043,8 @@
                 return false;
             }
 
-            const previousGameState = cloneData(resolveGlobalObject('gameState'));
-            const previousCardState = cloneData(resolveGlobalObject('cardState'));
-            const preservedQueues = captureTransientPresentationQueues(resolveGlobalObject('cardState'));
-            const busyStateBeforeSnapshot = readBusyStateSnapshot();
-            const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
-
-            replaceObjectState('gameState', snapshot.gameState);
-            replaceObjectState('cardState', snapshot.cardState);
-            try {
-                const ensureLegacyMarkers = resolveGlobalFunction('ensureLegacyMarkers', cfg.ensureLegacyMarkers);
-                const cardStateRef = resolveGlobalObject('cardState');
-                if (ensureLegacyMarkers && cardStateRef) ensureLegacyMarkers(cardStateRef);
-            } catch (e) { /* ignore */ }
-
-            const cardStateRef = resolveGlobalObject('cardState');
-            const synthesizedChargeDeltaEvents = buildMissingChargeDeltaEvents(previousCardState, cardStateRef, opts);
-            setTransientChargeDeltaEvents(synthesizedChargeDeltaEvents);
-            const syncPendingSelectionActionCache = resolveGlobalFunction('syncPendingSelectionActionCache', cfg.syncPendingSelectionActionCache);
-            if (syncPendingSelectionActionCache && cardStateRef) {
-                try {
-                    syncPendingSelectionActionCache(cardStateRef);
-                } catch (e) { /* ignore */ }
-            }
-
-            const boardGeometry = compareBoardGeometry(previousGameState, resolveGlobalObject('gameState'));
-            if (boardGeometry.changed) {
-                emitTelemetry('snapshot_board_geometry_changed', {
-                    previousRows: boardGeometry.previous.rows,
-                    previousCols: boardGeometry.previous.cols,
-                    nextRows: boardGeometry.next.rows,
-                    nextCols: boardGeometry.next.cols
-                });
-            }
-
-            const presentationState = reconcilePresentationQueues(cardStateRef, {
-                preservedQueues,
-                playbackEvents,
-                shadowPlaybackEvents,
-                dropPreservedQueues: boardGeometry.changed
-            });
-
-            if (nextVersion !== null) {
-                state.stateVersion = nextVersion;
-                state.appliedStateVersion = nextVersion;
-            }
-            if (state && state.authoritativeMatchState && typeof state.authoritativeMatchState === 'object') {
-                state.authoritativeMatchState.stateVersion = nextVersion;
-                state.authoritativeMatchState.authority = snapshotMeta ? snapshotMeta.authority : null;
-                state.authoritativeMatchState.projectedForSeat = snapshotMeta ? snapshotMeta.projectedForSeat : null;
-                state.authoritativeMatchState.turnStartReconciled = snapshotMeta ? snapshotMeta.turnStartReconciled : false;
-            }
-
-            finalizeSnapshotPresentation(nextVersion, opts, {
-                presentationState,
-                playbackEvents,
-                shadowPlaybackEvents,
-                cardStateRef,
-                busyStateBeforeSnapshot
-            });
+            const applyContext = applyAuthoritativeSnapshotState(snapshot, opts, nextVersion, snapshotMeta);
+            finalizeSnapshotPresentation(nextVersion, opts, applyContext);
             return true;
         }
 

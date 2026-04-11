@@ -16,30 +16,44 @@
         white: null
     };
 
-    function getPendingStateManager() {
-        if (cachedPendingStateManager && typeof cachedPendingStateManager === 'object') {
-            return cachedPendingStateManager;
+    function resolveCachedModule(cacheRef, requirePath, globalKey) {
+        if (cacheRef && typeof cacheRef === 'object') {
+            return cacheRef;
         }
+        var resolvedModule = cacheRef;
         if (typeof require === 'function') {
-            try { cachedPendingStateManager = require('../logic/cards-internal/pending-state-manager'); } catch (e) { /* ignore */ }
+            try { resolvedModule = require(requirePath); } catch (e) { /* ignore */ }
         }
-        if (!cachedPendingStateManager && root && root.CardPendingStateManager) {
-            cachedPendingStateManager = root.CardPendingStateManager;
+        if (!resolvedModule && root && root[globalKey]) {
+            resolvedModule = root[globalKey];
         }
+        return resolvedModule;
+    }
+
+    function getPendingStateManager() {
+        cachedPendingStateManager = resolveCachedModule(
+            cachedPendingStateManager,
+            '../logic/cards-internal/pending-state-manager',
+            'CardPendingStateManager'
+        );
         return cachedPendingStateManager;
     }
 
     function getOwnerHelpers() {
-        if (cachedOwnerHelpers && typeof cachedOwnerHelpers === 'object') {
-            return cachedOwnerHelpers;
-        }
-        if (typeof require === 'function') {
-            try { cachedOwnerHelpers = require('../../utils/owner-helpers'); } catch (e) { /* ignore */ }
-        }
-        if (!cachedOwnerHelpers && root && root.OwnerHelpers) {
-            cachedOwnerHelpers = root.OwnerHelpers;
-        }
+        cachedOwnerHelpers = resolveCachedModule(
+            cachedOwnerHelpers,
+            '../../utils/owner-helpers',
+            'OwnerHelpers'
+        );
         return cachedOwnerHelpers;
+    }
+
+    function callPendingStateManager(methodName, args, fallbackValue) {
+        var pendingStateManager = getPendingStateManager();
+        if (!pendingStateManager || typeof pendingStateManager[methodName] !== 'function') {
+            return fallbackValue;
+        }
+        return pendingStateManager[methodName].apply(pendingStateManager, args || []);
     }
 
     function normalizePlayerKey(playerKey) {
@@ -87,43 +101,23 @@
     }
 
     function resolvePendingSelectionContract(cardType) {
-        var pendingStateManager = getPendingStateManager();
-        if (!pendingStateManager || typeof pendingStateManager.resolvePendingSelectionContract !== 'function') {
-            return null;
-        }
-        return pendingStateManager.resolvePendingSelectionContract(cardType);
+        return callPendingStateManager('resolvePendingSelectionContract', [cardType], null);
     }
 
     function resolvePendingSelectionDispatchKey(cardType) {
-        var pendingStateManager = getPendingStateManager();
-        if (!pendingStateManager || typeof pendingStateManager.resolvePendingSelectionDispatchKey !== 'function') {
-            return null;
-        }
-        return pendingStateManager.resolvePendingSelectionDispatchKey(cardType);
+        return callPendingStateManager('resolvePendingSelectionDispatchKey', [cardType], null);
     }
 
     function isSelectionOnlyEndTurnPendingType(cardType) {
-        var pendingStateManager = getPendingStateManager();
-        if (!pendingStateManager || typeof pendingStateManager.isSelectionOnlyEndTurnPendingType !== 'function') {
-            return false;
-        }
-        return pendingStateManager.isSelectionOnlyEndTurnPendingType(cardType);
+        return callPendingStateManager('isSelectionOnlyEndTurnPendingType', [cardType], false);
     }
 
     function shouldDeferNetworkPublishForPendingType(cardType) {
-        var pendingStateManager = getPendingStateManager();
-        if (!pendingStateManager || typeof pendingStateManager.shouldDeferNetworkPublishForPendingType !== 'function') {
-            return false;
-        }
-        return pendingStateManager.shouldDeferNetworkPublishForPendingType(cardType);
+        return callPendingStateManager('shouldDeferNetworkPublishForPendingType', [cardType], false);
     }
 
     function shouldWaitForPlaybackIdleForPendingType(cardType) {
-        var pendingStateManager = getPendingStateManager();
-        if (!pendingStateManager || typeof pendingStateManager.shouldWaitForPlaybackIdleForPendingType !== 'function') {
-            return false;
-        }
-        return pendingStateManager.shouldWaitForPlaybackIdleForPendingType(cardType);
+        return callPendingStateManager('shouldWaitForPlaybackIdleForPendingType', [cardType], false);
     }
 
     function storePendingSelectionAction(playerKey, action, pendingType) {

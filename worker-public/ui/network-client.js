@@ -42,6 +42,11 @@
             try { return require('../shared/playback-event-helpers'); } catch (e) { return root.PlaybackEventHelpers || null; }
         })()
         : (root.PlaybackEventHelpers || null);
+    const ResultOverlayModule = (typeof require === 'function')
+        ? (() => {
+            try { return require('./result-overlay'); } catch (e) { return root || null; }
+        })()
+        : (root || null);
 
     function resolveCardLogicModule() {
         if (root && root.CardLogic) return root.CardLogic;
@@ -103,6 +108,28 @@
         const contract = resolvePendingSelectionContract(cardType);
         if (!contract) return false;
         return contract.kind !== 'hand_overlay';
+    }
+
+    function createInitialResultPresentationState() {
+        if (ResultOverlayModule && typeof ResultOverlayModule.createEmptyResultPresentationState === 'function') {
+            return ResultOverlayModule.createEmptyResultPresentationState();
+        }
+        return {
+            lastResultVersionShown: null,
+            resultShownForUnversioned: false
+        };
+    }
+
+    function resetNetworkResultPresentationState(resultState) {
+        if (!resultState || typeof resultState !== 'object') {
+            return createInitialResultPresentationState();
+        }
+        if (ResultOverlayModule && typeof ResultOverlayModule.resetResultPresentationState === 'function') {
+            return ResultOverlayModule.resetResultPresentationState(resultState);
+        }
+        resultState.lastResultVersionShown = null;
+        resultState.resultShownForUnversioned = false;
+        return resultState;
     }
 
     function buildPendingCardUsePlaybackEvents(playerKey, cardId, cardType) {
@@ -287,6 +314,7 @@
         return deriveSameOriginServerUrl();
     }
 
+    const initialResultPresentationState = createInitialResultPresentationState();
     const state = {
         active: false,
         roomId: '',
@@ -314,8 +342,8 @@
             nextSequence: 0,
             operations: []
         },
-        lastResultVersionShown: null,
-        resultShownForUnversioned: false,
+        lastResultVersionShown: initialResultPresentationState.lastResultVersionShown,
+        resultShownForUnversioned: initialResultPresentationState.resultShownForUnversioned,
         reconnectTimerId: null,
         reconnectAttempt: 0,
         turnTimer: {
@@ -490,7 +518,8 @@
             playerNameMax: PLAYER_NAME_MAX,
             updateTurnTimerFromPayload: (payload) => updateTurnTimerFromPayload(payload),
             ensureActionBridge: () => ensureActionBridge(),
-            applySnapshot: (snapshot, options) => applySnapshot(snapshot, options)
+            applySnapshot: (snapshot, options) => applySnapshot(snapshot, options),
+            resetResultPresentationState: (resultState) => resetNetworkResultPresentationState(resultState)
         });
         return networkSessionSeatController;
     }
@@ -2449,8 +2478,7 @@
             state.stateVersion = null;
             state.appliedStateVersion = null;
             resetPublishTracker();
-            state.lastResultVersionShown = null;
-            state.resultShownForUnversioned = false;
+            resetNetworkResultPresentationState(state);
         }
         state.appliedStateVersion = null;
         resetPublishTracker();

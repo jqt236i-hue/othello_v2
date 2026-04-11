@@ -154,6 +154,10 @@
 
     function forEachBoardShapeCell(gameState, visitor) {
         if (typeof visitor !== 'function') return;
+        if (BoardUtils && typeof BoardUtils.forEachBoardShapeCell === 'function') {
+            BoardUtils.forEachBoardShapeCell(gameState, visitor);
+            return;
+        }
         const board = resolveBoardShapeBoard(gameState);
         if (board && BoardUtils && typeof BoardUtils.collectBoardCoordinates === 'function' && typeof BoardUtils.getCellValue === 'function') {
             for (const cell of BoardUtils.collectBoardCoordinates(board)) {

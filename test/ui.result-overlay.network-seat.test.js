@@ -119,6 +119,19 @@ describe('result overlay seat perspective', () => {
     expect(countsLine && countsLine.nextElementSibling).toBe(totalScore);
   });
 
+  test('結果表示 state helper は version/unversioned の表示済みフラグを初期化する', () => {
+    const mod = require('../ui/result-overlay.js');
+    const state = mod.createEmptyResultPresentationState();
+    state.lastResultVersionShown = 12;
+    state.resultShownForUnversioned = true;
+
+    expect(mod.resetResultPresentationState(state)).toBe(state);
+    expect(state).toEqual({
+      lastResultVersionShown: null,
+      resultShownForUnversioned: false
+    });
+  });
+
   test('総反転枚数と角取得数を詳細統計で保持する', () => {
     global.countDiscs.mockReturnValue({ black: 32, white: 32 });
     global.cardState.totalFlipCountByPlayer = { black: 12, white: 9 };

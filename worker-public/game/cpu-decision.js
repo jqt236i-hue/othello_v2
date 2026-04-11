@@ -70,19 +70,50 @@ if (!SharedBoardUtilsModule) {
     } catch (e) { /* ignore */ }
 }
 
-function resolveSharedBoardUtilsModule() {
-    if (SharedBoardUtilsModule && typeof SharedBoardUtilsModule === 'object') return SharedBoardUtilsModule;
-    if (typeof require === 'function') {
-        try { SharedBoardUtilsModule = require('../shared/shared-board-utils'); } catch (e) { /* ignore */ }
-    }
-    if (!SharedBoardUtilsModule) {
+function readGlobalModule(globalKey) {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis && globalThis[globalKey]) {
+            return globalThis[globalKey];
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function resolveModuleReference(currentValue, options) {
+    const opts = options || {};
+    const isValid = (typeof opts.isValid === 'function')
+        ? opts.isValid
+        : function isTruthy(value) { return !!value; };
+    if (isValid(currentValue)) return currentValue;
+
+    let resolvedModule = null;
+    if (typeof opts.readLocal === 'function') {
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.SharedBoardUtils) {
-                SharedBoardUtilsModule = globalThis.SharedBoardUtils;
-            }
+            resolvedModule = opts.readLocal();
         } catch (e) { /* ignore */ }
+        if (isValid(resolvedModule)) return resolvedModule;
     }
-    return SharedBoardUtilsModule;
+    if (opts.requirePath && typeof require === 'function') {
+        try {
+            resolvedModule = require(opts.requirePath);
+        } catch (e) { /* ignore */ }
+        if (isValid(resolvedModule)) return resolvedModule;
+    }
+    if (opts.globalKey) {
+        resolvedModule = readGlobalModule(opts.globalKey);
+        if (isValid(resolvedModule)) return resolvedModule;
+    }
+    return null;
+}
+
+function resolveSharedBoardUtilsModule() {
+    const resolvedModule = resolveModuleReference(SharedBoardUtilsModule, {
+        requirePath: '../shared/shared-board-utils',
+        globalKey: 'SharedBoardUtils',
+        isValid: (moduleRef) => !!(moduleRef && typeof moduleRef === 'object')
+    });
+    if (resolvedModule) SharedBoardUtilsModule = resolvedModule;
+    return resolvedModule;
 }
 
 let PendingTargetSelector = null;
@@ -133,48 +164,25 @@ function hasPendingSelectionFlowFunction(moduleRef, functionName) {
 
 function resolvePendingSelectionFlow(requiredFunctionName) {
     const requiredName = typeof requiredFunctionName === 'string' ? requiredFunctionName : '';
-
-    if (!requiredName && hasPendingSelectionFlowContract(PendingSelectionFlow)) {
-        return PendingSelectionFlow;
-    }
-    if (requiredName && hasPendingSelectionFlowFunction(PendingSelectionFlow, requiredName)) {
-        return PendingSelectionFlow;
-    }
-    let resolvedModule = null;
-    if (typeof require === 'function') {
-        try { resolvedModule = require('./card-effects/selection-flow'); } catch (e) { /* ignore */ }
-    }
-    if (
-        ((requiredName && !hasPendingSelectionFlowFunction(resolvedModule, requiredName))
-            || (!requiredName && !hasPendingSelectionFlowContract(resolvedModule)))
-        && typeof globalThis !== 'undefined'
-        && globalThis.PendingSelectionFlow
-    ) {
-        resolvedModule = globalThis.PendingSelectionFlow;
-    }
-    if (
-        (requiredName && hasPendingSelectionFlowFunction(resolvedModule, requiredName))
-        || (!requiredName && hasPendingSelectionFlowContract(resolvedModule))
-    ) {
-        PendingSelectionFlow = resolvedModule;
-    }
-    if (requiredName) {
-        return hasPendingSelectionFlowFunction(PendingSelectionFlow, requiredName) ? PendingSelectionFlow : null;
-    }
-    return hasPendingSelectionFlowContract(PendingSelectionFlow) ? PendingSelectionFlow : null;
+    const resolvedModule = resolveModuleReference(PendingSelectionFlow, {
+        requirePath: './card-effects/selection-flow',
+        globalKey: 'PendingSelectionFlow',
+        isValid: (moduleRef) => requiredName
+            ? hasPendingSelectionFlowFunction(moduleRef, requiredName)
+            : hasPendingSelectionFlowContract(moduleRef)
+    });
+    if (resolvedModule) PendingSelectionFlow = resolvedModule;
+    return resolvedModule;
 }
 
 function resolveCpuPendingCoordinator() {
-    if (CpuPendingCoordinator && typeof CpuPendingCoordinator === 'object') {
-        return CpuPendingCoordinator;
-    }
-    if (typeof require === 'function') {
-        try { CpuPendingCoordinator = require('./turn/pending-coordinator'); } catch (e) { /* ignore */ }
-    }
-    if (!CpuPendingCoordinator && typeof globalThis !== 'undefined' && globalThis.PendingCoordinator) {
-        CpuPendingCoordinator = globalThis.PendingCoordinator;
-    }
-    return CpuPendingCoordinator;
+    const resolvedModule = resolveModuleReference(CpuPendingCoordinator, {
+        requirePath: './turn/pending-coordinator',
+        globalKey: 'PendingCoordinator',
+        isValid: (moduleRef) => !!(moduleRef && typeof moduleRef === 'object')
+    });
+    if (resolvedModule) CpuPendingCoordinator = resolvedModule;
+    return resolvedModule;
 }
 
 function readCpuPendingEffect(playerKey, stateRef) {
@@ -448,55 +456,35 @@ const WHITE_LV6_CORNER_SWING_KEEP_TYPES = new Set([
 ]);
 
 function resolvePolicyTableRuntime() {
-    try {
-        if (
-            typeof globalThis !== 'undefined' &&
-            globalThis.CpuPolicyTableRuntime &&
+    const resolvedModule = resolveModuleReference(CpuPolicyTableRuntime, {
+        globalKey: 'CpuPolicyTableRuntime',
+        isValid: (moduleRef) => !!(
+            moduleRef &&
             (
-                typeof globalThis.CpuPolicyTableRuntime.chooseMove === 'function' ||
-                typeof globalThis.CpuPolicyTableRuntime.getActionScoreForKey === 'function'
+                typeof moduleRef.chooseMove === 'function' ||
+                typeof moduleRef.getActionScoreForKey === 'function'
             )
-        ) {
-            CpuPolicyTableRuntime = globalThis.CpuPolicyTableRuntime;
-            return CpuPolicyTableRuntime;
-        }
-    } catch (e) { /* ignore */ }
-    if (
-        CpuPolicyTableRuntime &&
-        (
-            typeof CpuPolicyTableRuntime.chooseMove === 'function' ||
-            typeof CpuPolicyTableRuntime.getActionScoreForKey === 'function'
         )
-    ) return CpuPolicyTableRuntime;
-    return null;
+    });
+    if (resolvedModule) CpuPolicyTableRuntime = resolvedModule;
+    return resolvedModule;
 }
 
 function resolvePolicyOnnxRuntime() {
-    try {
-        if (
-            typeof globalThis !== 'undefined' &&
-            globalThis.CpuPolicyOnnxRuntime &&
+    const resolvedModule = resolveModuleReference(CpuPolicyOnnxRuntime, {
+        globalKey: 'CpuPolicyOnnxRuntime',
+        isValid: (moduleRef) => !!(
+            moduleRef &&
             (
-                typeof globalThis.CpuPolicyOnnxRuntime.chooseMove === 'function' ||
-                typeof globalThis.CpuPolicyOnnxRuntime.chooseCard === 'function' ||
-                typeof globalThis.CpuPolicyOnnxRuntime.choosePendingTarget === 'function' ||
-                typeof globalThis.CpuPolicyOnnxRuntime.evaluatePosition === 'function'
+                typeof moduleRef.chooseMove === 'function' ||
+                typeof moduleRef.chooseCard === 'function' ||
+                typeof moduleRef.choosePendingTarget === 'function' ||
+                typeof moduleRef.evaluatePosition === 'function'
             )
-        ) {
-            CpuPolicyOnnxRuntime = globalThis.CpuPolicyOnnxRuntime;
-            return CpuPolicyOnnxRuntime;
-        }
-    } catch (e) { /* ignore */ }
-    if (
-        CpuPolicyOnnxRuntime &&
-        (
-            typeof CpuPolicyOnnxRuntime.chooseMove === 'function' ||
-            typeof CpuPolicyOnnxRuntime.chooseCard === 'function' ||
-            typeof CpuPolicyOnnxRuntime.choosePendingTarget === 'function' ||
-            typeof CpuPolicyOnnxRuntime.evaluatePosition === 'function'
         )
-    ) return CpuPolicyOnnxRuntime;
-    return null;
+    });
+    if (resolvedModule) CpuPolicyOnnxRuntime = resolvedModule;
+    return resolvedModule;
 }
 
 function resolvePendingType(playerKey) {
@@ -1702,29 +1690,21 @@ function finalizeCpuPendingSelectionFlow(playerKey, pendingType, playbackEvents,
 }
 
 function resolveTurnPipelineAdapter() {
-    try {
-        if (typeof TurnPipelineUIAdapter !== 'undefined' && TurnPipelineUIAdapter) return TurnPipelineUIAdapter;
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof require === 'function') return require('./turn/pipeline_ui_adapter');
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && globalThis.TurnPipelineUIAdapter) return globalThis.TurnPipelineUIAdapter;
-    } catch (e) { /* ignore */ }
-    return null;
+    return resolveModuleReference(null, {
+        readLocal: () => (typeof TurnPipelineUIAdapter !== 'undefined' ? TurnPipelineUIAdapter : null),
+        requirePath: './turn/pipeline_ui_adapter',
+        globalKey: 'TurnPipelineUIAdapter',
+        isValid: (moduleRef) => !!moduleRef
+    });
 }
 
 function resolveTurnPipeline() {
-    try {
-        if (typeof TurnPipeline !== 'undefined' && TurnPipeline) return TurnPipeline;
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof require === 'function') return require('./turn/turn_pipeline');
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && globalThis.TurnPipeline) return globalThis.TurnPipeline;
-    } catch (e) { /* ignore */ }
-    return null;
+    return resolveModuleReference(null, {
+        readLocal: () => (typeof TurnPipeline !== 'undefined' ? TurnPipeline : null),
+        requirePath: './turn/turn_pipeline',
+        globalKey: 'TurnPipeline',
+        isValid: (moduleRef) => !!moduleRef
+    });
 }
 
 async function runCpuPendingSelectionViaPipeline(playerKey, actionPayload, pendingType) {

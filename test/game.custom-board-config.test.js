@@ -4,6 +4,7 @@ const CardExpansion = require('../game/logic/cards/expansion');
 const CardSelectors = require('../game/logic/cards/selectors');
 const CardTargets = require('../game/logic/cards/targets');
 const CardHyperactive = require('../game/logic/cards/hyperactive');
+const SelectorOrchestrator = require('../game/logic/cards-internal/selector-orchestrator');
 const SharedBoardUtils = require('../shared/shared-board-utils');
 
 function createPrng() {
@@ -251,5 +252,86 @@ describe('custom board config foundations', () => {
       next: { rows: 8, cols: 8 },
       changed: true
     });
+  });
+
+  test('shared board-shape iterator and disc counter include expansion cells once', () => {
+    const gameState = Core.createGameState({ rows: 4, cols: 4 });
+    gameState.board = [
+      [Core.BLACK, Core.EMPTY, Core.EMPTY, Core.EMPTY],
+      [Core.EMPTY, Core.BLACK, Core.EMPTY, Core.EMPTY],
+      [Core.EMPTY, Core.EMPTY, Core.WHITE, Core.EMPTY],
+      [Core.EMPTY, Core.EMPTY, Core.EMPTY, Core.EMPTY]
+    ];
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: true, white: true },
+      cells: [
+        { side: 'bottom', row: 4, col: 2, owner: Core.WHITE }
+      ]
+    };
+
+    const visited = [];
+    SharedBoardUtils.forEachBoardShapeCell(gameState, (row, col, value, side) => {
+      visited.push(`${row},${col}:${value}:${side || 'main'}`);
+    });
+
+    expect(visited).toHaveLength(17);
+    expect(visited.filter((entry) => entry.startsWith('4,2:'))).toEqual(['4,2:-1:bottom']);
+    expect(SharedBoardUtils.countDiscsByPlayer(gameState)).toEqual({ black: 2, white: 2 });
+  });
+
+  test('selector orchestrator destroy fallback respects custom board size and expansion cells', () => {
+    const gameState = Core.createGameState({ rows: 4, cols: 4 });
+    gameState.board = [
+      [Core.BLACK, Core.EMPTY, Core.EMPTY, Core.EMPTY],
+      [Core.EMPTY, Core.EMPTY, Core.EMPTY, Core.EMPTY],
+      [Core.EMPTY, Core.EMPTY, Core.WHITE, Core.EMPTY],
+      [Core.EMPTY, Core.EMPTY, Core.EMPTY, Core.EMPTY]
+    ];
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: true, white: true },
+      cells: [
+        { side: 'bottom', row: 4, col: 2, owner: Core.BLACK }
+      ]
+    };
+
+    const targets = SelectorOrchestrator.getSelectableTargetsForPending({
+      pending: { type: 'DESTROY_ONE_STONE' },
+      gameState,
+      cardState: {},
+      playerKey: 'black',
+      constants: { EMPTY: Core.EMPTY, BLACK: Core.BLACK, WHITE: Core.WHITE },
+      helpers: {
+        getExpansionDescriptorsForCard: (state) => SharedBoardUtils.collectExpansionDescriptors(state.boardExpansion, state)
+      }
+    });
+
+    expect(sortMoveKeys(targets)).toEqual(['0,0', '2,2', '4,2']);
+  });
+
+  test('selector orchestrator unified config still reaches local-only selectors', () => {
+    const getTemptWillTargets = jest.fn(() => [{ row: 1, col: 1 }]);
+
+    const targets = SelectorOrchestrator.getSelectableTargetsForPending({
+      pending: { type: 'TEMPT_WILL' },
+      gameState: { board: [[Core.EMPTY]] },
+      cardState: { markers: [] },
+      playerKey: 'black',
+      localSelectors: { getTemptWillTargets }
+    });
+
+    expect(targets).toEqual([{ row: 1, col: 1 }]);
+    expect(getTemptWillTargets).toHaveBeenCalledWith(
+      { markers: [] },
+      { board: [[Core.EMPTY]] },
+      'black'
+    );
   });
 });

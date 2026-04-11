@@ -15,6 +15,22 @@
             return (typeof cfg.getState === 'function' && cfg.getState()) || {};
         }
 
+        function resetResultPresentationState(state) {
+            const target = (state && typeof state === 'object') ? state : resolveState();
+            if (typeof cfg.resetResultPresentationState === 'function') {
+                return cfg.resetResultPresentationState(target);
+            }
+            if (!target || typeof target !== 'object') {
+                return {
+                    lastResultVersionShown: null,
+                    resultShownForUnversioned: false
+                };
+            }
+            target.lastResultVersionShown = null;
+            target.resultShownForUnversioned = false;
+            return target;
+        }
+
         function normalizePlayerKey(value) {
             if (typeof cfg.normalizePlayerKey === 'function') {
                 return cfg.normalizePlayerKey(value);
@@ -270,8 +286,7 @@
             state.seatKey = normalizePlayerKey(payload.seatKey);
             state.seatToken = String(payload.seatToken || '').trim();
             state.stateVersion = Number.isFinite(Number(payload.stateVersion)) ? Number(payload.stateVersion) : null;
-            state.lastResultVersionShown = null;
-            state.resultShownForUnversioned = false;
+            resetResultPresentationState(state);
             state.chatHistory = [];
             state.roomSeats = normalizeRoomSeats(payload.seats);
             state.seatNames = normalizeSeatNames(payload.seatNames);
@@ -316,8 +331,7 @@
             state.networkDebugEnabled = false;
             state.chatHistory = [];
             state.stateVersion = null;
-            state.lastResultVersionShown = null;
-            state.resultShownForUnversioned = false;
+            resetResultPresentationState(state);
         }
 
         return {

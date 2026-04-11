@@ -149,6 +149,10 @@
 
     function forEachBoardShapeCell(gameState, visitor) {
         if (typeof visitor !== 'function') return;
+        if (SharedBoardUtils && typeof SharedBoardUtils.forEachBoardShapeCell === 'function') {
+            SharedBoardUtils.forEachBoardShapeCell(gameState, visitor);
+            return;
+        }
         if (!gameState || !Array.isArray(gameState.board)) return;
         const config = resolveBoardConfig(gameState);
 
