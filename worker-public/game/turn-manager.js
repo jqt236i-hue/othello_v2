@@ -114,22 +114,6 @@ function readTurnManagerCardAnimating() {
     return localCardAnimating || globalCardAnimating;
 }
 
-function shouldLogTurnManagerInfo() {
-    try {
-        if (typeof isDebugLogAvailable === 'function') return isDebugLogAvailable() === true;
-    } catch (e) { /* ignore */ }
-    return false;
-}
-
-function logTurnManagerInfo() {
-    if (!shouldLogTurnManagerInfo()) return;
-    try {
-        if (typeof console !== 'undefined' && typeof console.log === 'function') {
-            console.log.apply(console, arguments);
-        }
-    } catch (e) { /* ignore */ }
-}
-
 function setTurnManagerBusyState(options) {
     const config = (options && typeof options === 'object')
         ? options
@@ -184,19 +168,6 @@ function setTurnManagerBusyState(options) {
                     globalThis.__playbackActiveSince = null;
                 }
             }
-
-            const busyActive = !!(
-                globalThis.isProcessing === true
-                || globalThis.isCardAnimating === true
-                || globalThis.VisualPlaybackActive === true
-            );
-            if (busyActive) {
-                if (!Number.isFinite(Number(globalThis.__busyStateSince))) {
-                    globalThis.__busyStateSince = Date.now();
-                }
-            } else if (hasProcessing || hasCardAnimating || hasPlaybackActive) {
-                globalThis.__busyStateSince = null;
-            }
         }
     } catch (e) { /* ignore */ }
 
@@ -237,30 +208,7 @@ function getPlaybackStartedAtForTurnManager() {
     }
     try {
         if (typeof globalThis !== 'undefined') {
-            const rawValue = globalThis.__playbackActiveSince;
-            if (rawValue === null || typeof rawValue === 'undefined' || rawValue === '') {
-                return null;
-            }
-            const startedAt = Number(rawValue);
-            return Number.isFinite(startedAt) ? startedAt : null;
-        }
-    } catch (e) { /* ignore */ }
-    return null;
-}
-
-function getBusyStartedAtForTurnManager() {
-    const playbackState = getPlaybackStateForTurnManager();
-    if (playbackState && typeof playbackState.getBusyStartedAt === 'function') {
-        const startedAt = Number(playbackState.getBusyStartedAt());
-        return Number.isFinite(startedAt) ? startedAt : null;
-    }
-    try {
-        if (typeof globalThis !== 'undefined') {
-            const rawValue = globalThis.__busyStateSince;
-            if (rawValue === null || typeof rawValue === 'undefined' || rawValue === '') {
-                return null;
-            }
-            const startedAt = Number(rawValue);
+            const startedAt = Number(globalThis.__playbackActiveSince);
             return Number.isFinite(startedAt) ? startedAt : null;
         }
     } catch (e) { /* ignore */ }
@@ -310,25 +258,6 @@ function releaseStalePlaybackLockForTurnManager(options) {
     if (!isStalePlaybackLockForTurnManager(options)) return false;
     clearPlaybackLockForTurnManager();
     return true;
-}
-
-/**
- * Returns true when isProcessing / isCardAnimating appear stuck without any
- * active playback or queued presentation events.  Used by the network-mode
- * safety net inside isAnimationInProgress() to avoid permanent freezes.
- *
- * Uses the broader busy-state timestamp so direct hand/card animations running
- * outside AnimationEngine are not mistaken for stale busy flags.
- */
-function isStaleBusyFlagForTurnManager() {
-    const startedAt = getBusyStartedAtForTurnManager();
-    if (startedAt !== null) {
-        return (Date.now() - startedAt) > getStalePlaybackTimeoutMsForTurnManager();
-    }
-
-    const playbackStartedAt = getPlaybackStartedAtForTurnManager();
-    if (playbackStartedAt === null) return false;
-    return (Date.now() - playbackStartedAt) > getStalePlaybackTimeoutMsForTurnManager();
 }
 
 function emitPresentationEventViaBoardOps(ev) {
@@ -433,9 +362,7 @@ function handleCellClick(row, col) {
     const allowPendingSelectionDuringAnimation = shouldAllowPendingSelectionDuringAnimation(playerKey, pending, pendingDispatchKey);
 
     // Block while animations are running
-    if (isAnimationInProgress() && !allowPendingSelectionDuringAnimation) {
-        return;
-    }
+    if (isAnimationInProgress() && !allowPendingSelectionDuringAnimation) return;
 
     if (pendingDispatchKey) {
         const pendingSelectionHandler = resolveBoardPendingSelectionHandlerForTurnManager(pendingDispatchKey);
@@ -494,34 +421,6 @@ function isAnimationInProgress() {
         });
     }
     const cardAnimatingActive = readTurnManagerCardAnimating();
-
-    // Network-mode safety net: if isProcessing or isCardAnimating is stuck true
-    // but nothing is actually running (no VisualPlaybackActive, no queued
-    // presentation, AnimationEngine not playing), force-clear the stale flags.
-    // This prevents permanent freezes caused by busy-flag race conditions
-    // during network snapshot apply / hand animation cleanup overlap.
-    if ((processingActive || cardAnimatingActive) && !visualPlayback && !queuedPresentation) {
-        const enginePlaying = isPlaybackRunningForTurnManager();
-        if (enginePlaying !== true) {
-            const shouldRelease = isStaleBusyFlagForTurnManager();
-            if (shouldRelease) {
-                try {
-                    if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
-                        debugLog('[STALE-BUSY] Releasing stuck isProcessing/isCardAnimating flags (network safety net)', 'warn', {
-                            processingActive,
-                            cardAnimatingActive,
-                            visualPlayback,
-                            queuedPresentation,
-                            enginePlaying
-                        });
-                    }
-                } catch (e) { /* ignore */ }
-                clearPlaybackLockForTurnManager();
-                return false;
-            }
-        }
-    }
-
     return processingActive || cardAnimatingActive || visualPlayback || queuedPresentation;
 }
 
@@ -811,7 +710,7 @@ function resetGame() {
         cpuSmartness.white = clampCpuLevel((vals && vals.white) || cpuSmartness.white || 1);
     }
 
-    logTurnManagerInfo(`[resetGame] CPU Levels - Black: ${cpuSmartness.black}, White: ${cpuSmartness.white}`);
+    console.log(`[resetGame] CPU Levels - Black: ${cpuSmartness.black}, White: ${cpuSmartness.white}`);
 
     if (typeof updateCpuCharacter === 'function') {
         updateCpuCharacter();
@@ -862,7 +761,7 @@ function resetGame() {
     if (typeof ActionManager !== 'undefined' && ActionManager.ActionManager) {
         ActionManager.ActionManager.reset();
         try { ActionManager.ActionManager.clearStorage(); } catch (e) { /* ignore */ }
-        logTurnManagerInfo('[resetGame] ActionManager reset and cleared storage');
+        console.log('[resetGame] ActionManager reset and cleared storage');
     }
 
     // Clear UI log via helper if available (game/ must not touch DOM)
@@ -958,7 +857,7 @@ async function onTurnStart(player) {
 
     const safeIsProcessing = (typeof isProcessing !== 'undefined') ? isProcessing : undefined;
     const safeIsCardAnimating = (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined;
-    logTurnManagerInfo('[DEBUG][onTurnStart] enter', { player, playerKey, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, USE_TURN_PIPELINE: !!(__uiImpl_turn_manager && __uiImpl_turn_manager.USE_TURN_PIPELINE) });
+    console.log('[DEBUG][onTurnStart] enter', { player, playerKey, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, USE_TURN_PIPELINE: !!(__uiImpl_turn_manager && __uiImpl_turn_manager.USE_TURN_PIPELINE) });
 
     // Record hand size before turn start to detect if a draw happened
     const handSizeBefore = cardState.hands[playerKey].length;
@@ -979,7 +878,7 @@ async function onTurnStart(player) {
             }
             // Provide runtime PRNG to pipeline so start-of-turn effects that need randomness can run in browser
             const runtimePrng = (typeof getGamePrng === 'function') ? getGamePrng() : ((typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.getGamePrng === 'function') ? __uiImpl.getGamePrng() : undefined);
-            logTurnManagerInfo('[onTurnStart] runtimePrng available:', !!runtimePrng);
+            if (typeof console !== 'undefined' && console.log) console.log('[onTurnStart] runtimePrng available:', !!runtimePrng);
             TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, playerKey, _startEvents, runtimePrng);
             // Convert any presentation events emitted during turn-start into PlaybackEvents
             const adapter = getTurnPipelineUIAdapter();
@@ -1014,7 +913,7 @@ async function onTurnStart(player) {
         debugLog(`[TURN-START] After turn-start phase: handAfter: ${handSizeAfter}, newTurnCount: ${newTurnCount}`, 'info');
     }
 
-    logTurnManagerInfo('[DEBUG][onTurnStart] exit', { playerKey, handSizeBefore, handSizeAfter, newTurnCount, isProcessing, isCardAnimating, pendingEffect: cardState.pendingEffectByPlayer });
+    console.log('[DEBUG][onTurnStart] exit', { playerKey, handSizeBefore, handSizeAfter, newTurnCount, isProcessing, isCardAnimating, pendingEffect: cardState.pendingEffectByPlayer });
 
     // 2. Log
     const turnCount = gameState.turnNumber + 1;
@@ -1023,7 +922,7 @@ async function onTurnStart(player) {
     // 3. Draw Animation (if draw happened during the turn-start phase)
     if (handSizeAfter > handSizeBefore) {
         // A card was drawn - convert to playback event and let AnimationEngine own the visuals.
-        logTurnManagerInfo(`[DRAW] Card drawn for ${playerKey}! handBefore=${handSizeBefore}, handAfter=${handSizeAfter}`);
+        console.log(`[DRAW] Card drawn for ${playerKey}! handBefore=${handSizeBefore}, handAfter=${handSizeAfter}`);
         try {
             const drawnCardId = cardState.hands[playerKey][cardState.hands[playerKey].length - 1];
             if (drawnCardId !== null && drawnCardId !== undefined) {
