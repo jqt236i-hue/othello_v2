@@ -15,6 +15,8 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         mod.resetCpuTurnHandlerState();
         mod.setTimers(null);
         delete global.CPU_LV6_SHARED_PROFILE;
+        global.__BENCH_FAST_MODE = true;
+        global.ANIMATION_RETRY_DELAY_MS = 0;
         global.BLACK = 1;
         global.WHITE = -1;
         global.cpuSmartness = { white: 6, black: 1 };
@@ -39,6 +41,8 @@ describe('cpu-turn-handler onnx hold behavior', () => {
     afterEach(() => {
         mod.resetCpuTurnHandlerState();
         mod.setTimers(null);
+        delete global.__BENCH_FAST_MODE;
+        delete global.ANIMATION_RETRY_DELAY_MS;
     });
 
     test('respects ONNX hold in stable state', async () => {

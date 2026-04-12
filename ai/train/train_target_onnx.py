@@ -13,6 +13,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+import onnx_trainer_common as trainer_common
 import train_policy_onnx as base
 
 
@@ -278,18 +279,15 @@ def train_model(
         raise ValueError("--log-interval-steps must be >= 0")
     if val_split < 0 or val_split >= 0.5:
         raise ValueError("--val-split must be in [0,0.5)")
-    if early_stop_patience < 0:
-        raise ValueError("--early-stop-patience must be >= 0")
-    if early_stop_min_delta < 0:
-        raise ValueError("--early-stop-min-delta must be >= 0")
-    if early_stop_min_epochs < 0:
-        raise ValueError("--early-stop-min-epochs must be >= 0")
-    if early_stop_smoothing_window < 1:
-        raise ValueError("--early-stop-smoothing-window must be >= 1")
-
-    monitor = str(early_stop_monitor or "").strip().lower()
-    if monitor not in ("val_loss", "train_loss"):
-        raise ValueError("--early-stop-monitor must be val_loss/train_loss")
+    monitor = trainer_common.normalize_early_stop_monitor(
+        early_stop_monitor,
+        early_stop_patience=early_stop_patience,
+        early_stop_min_delta=early_stop_min_delta,
+        early_stop_min_epochs=early_stop_min_epochs,
+        early_stop_smoothing_window=early_stop_smoothing_window,
+        allowed_monitors=("val_loss", "train_loss"),
+        allowed_monitors_label="val_loss/train_loss",
+    )
 
     torch.manual_seed(seed)
     if device == "cuda":
@@ -302,23 +300,15 @@ def train_model(
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     resumed_from: str | None = None
 
-    resume_path = (resume_checkpoint or "").strip()
-    if resume_path:
-        if not os.path.exists(resume_path):
-            raise ValueError(f"resume checkpoint not found: {resume_path}")
-        checkpoint = torch.load(resume_path, map_location=device)
-        state = checkpoint.get("model_state") if isinstance(checkpoint, dict) else None
-        if state is None and isinstance(checkpoint, dict):
-            state = checkpoint
-        if not isinstance(state, dict):
-            raise ValueError(f"invalid checkpoint format: {resume_path}")
+    resume_path, checkpoint, state = trainer_common.read_resume_checkpoint(resume_checkpoint, device)
+    if resume_path and state is not None:
         try:
             model.load_state_dict(state)
             if resume_optimizer and isinstance(checkpoint, dict) and isinstance(checkpoint.get("optimizer_state"), dict):
                 optimizer.load_state_dict(checkpoint["optimizer_state"])
             resumed_from = resume_path
         except Exception as exc:
-            print(f"[train_target_onnx] resume checkpoint incompatible; ignored: {resume_path} ({exc})", flush=True)
+            trainer_common.log_ignored_resume_checkpoint("train_target_onnx", resume_path, exc)
 
     total_records = int(x.shape[0])
     val_count = int(total_records * val_split)
@@ -548,9 +538,7 @@ def write_meta(
             "trainTargetSamples": train_summary.target_samples,
         },
     }
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, indent=2)
+    trainer_common.write_json_payload(path, payload)
 
 
 def maybe_write_checkpoint(
@@ -563,16 +551,11 @@ def maybe_write_checkpoint(
     device: str,
     resumed_from: str | None,
 ) -> None:
-    out = (checkpoint_out or "").strip()
-    if not out:
-        return
-    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
-    payload = {
-        "formatVersion": 1,
-        "schemaVersion": MODEL_SCHEMA_VERSION,
-        "model_state": model.cpu().state_dict(),
-        "optimizer_state": optimizer.state_dict(),
-        "modelConfig": {
+    payload = trainer_common.build_model_checkpoint_payload(
+        MODEL_SCHEMA_VERSION,
+        model,
+        optimizer,
+        {
             "inputDim": TARGET_INPUT_DIM,
             "baseInputDim": base.BASE_INPUT_DIM,
             "baseModelInputDim": TARGET_BASE_INPUT_DIM,
@@ -580,7 +563,7 @@ def maybe_write_checkpoint(
             "pendingTypes": TARGET_PENDING_TYPES,
             "cardActionIds": base.CARD_ACTION_IDS,
         },
-        "training": {
+        {
             "epochs": int(args.epochs),
             "batchSize": int(args.batch_size),
             "lr": float(args.lr),
@@ -606,7 +589,7 @@ def maybe_write_checkpoint(
             "resumedFrom": resumed_from,
             "resumeOptimizer": bool(args.resume_optimizer),
         },
-        "stats": {
+        {
             "recordsRead": int(data.records_read),
             "trainRecords": int(data.train_records),
             "targetRecords": int(data.target_records),
@@ -617,14 +600,14 @@ def maybe_write_checkpoint(
             "trainTargetAccuracy": float(train_summary.target_acc),
             "trainTargetSamples": int(train_summary.target_samples),
         },
-    }
-    torch.save(payload, out)
+    )
+    trainer_common.write_model_checkpoint(checkpoint_out, payload)
 
 
 def main() -> int:
     args = parse_args()
     device = base.choose_device(str(args.device).strip().lower())
-    meta_out = args.meta_out or (args.onnx_out + ".meta.json")
+    meta_out = trainer_common.resolve_meta_output_path(args.meta_out, args.onnx_out)
 
     data = load_target_dataset(args)
     model, optimizer, train_summary, resumed_from, epoch_metrics = train_model(

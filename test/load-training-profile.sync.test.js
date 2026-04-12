@@ -8,6 +8,11 @@ const {
 } = require('../scripts/load-training-profile');
 const cpuLv6SharedProfile = require('../constants/cpu-lv6-shared-profile');
 
+const REPO_ROOT = process.cwd();
+const REPO_PYTHON_PATH = path.join(REPO_ROOT, '.venv', 'Scripts', 'python.exe');
+const ADAPTIVE_PROFILE_PATH = resolveNamedConfigPath('profile', 'adaptive_best_current_v1', REPO_ROOT);
+const ADAPTIVE_GATE_PATH = resolveNamedConfigPath('gate', 'adaptive_best_current_v1', REPO_ROOT);
+
 function getFlagValue(args, flag) {
     const index = args.indexOf(flag);
     if (index < 0) return null;
@@ -20,6 +25,51 @@ function createFakeCheckpoint(modelsDir, fileName) {
     const checkpointPath = path.join(modelsDir, fileName || 'policy-value.fake.checkpoint.pt');
     fs.writeFileSync(checkpointPath, 'fake checkpoint', 'utf8');
     return checkpointPath;
+}
+
+function createFixtureFile(filePath, contents) {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, contents, 'utf8');
+    return filePath;
+}
+
+function seedAdaptiveBestCurrentBootstrap(tempRoot) {
+    const bootstrapDir = path.join(tempRoot, 'data', 'models', 'research_incremental_growth_v1');
+    createFixtureFile(
+        path.join(tempRoot, 'scripts', 'run-selfplay-training-cycle.js'),
+        '# test launcher fixture\n'
+    );
+    return {
+        sourcePolicyTablePath: createFixtureFile(
+            path.join(bootstrapDir, 'policy-table.candidate.research_incremental_growth_v1_20260317_012456.it11.json'),
+            JSON.stringify({ seed: 'adaptive-best-current' }, null, 2)
+        ),
+        sourceOnnxModelPath: createFixtureFile(
+            path.join(bootstrapDir, 'policy-net.candidate.research_incremental_growth_v1_20260317_012456.it11.onnx'),
+            'fake onnx model'
+        ),
+        sourceOnnxMetaPath: createFixtureFile(
+            path.join(bootstrapDir, 'policy-net.candidate.research_incremental_growth_v1_20260317_012456.it11.onnx.meta.json'),
+            JSON.stringify({ format: 'onnx-meta' }, null, 2)
+        ),
+        sourceCheckpointPath: createFixtureFile(
+            path.join(bootstrapDir, 'policy-net.candidate.research_incremental_growth_v1_20260317_012456.it11.checkpoint.pt'),
+            'fake checkpoint'
+        )
+    };
+}
+
+function resolveAdaptiveBestCurrentProfile(tempRoot, runTag, runsDir, modelsDir) {
+    const bootstrapSources = seedAdaptiveBestCurrentBootstrap(tempRoot);
+    const resolved = resolveTrainingProfile(ADAPTIVE_PROFILE_PATH, {
+        cwd: tempRoot,
+        pythonPath: REPO_PYTHON_PATH,
+        gateProfile: ADAPTIVE_GATE_PATH,
+        runTag,
+        runsDir,
+        modelsDir
+    });
+    return Object.assign({ resolved }, bootstrapSources);
 }
 
 describe('load-training-profile shared teacher sync', () => {
@@ -57,6 +107,30 @@ describe('load-training-profile shared teacher sync', () => {
         expect(getFlagValue(args, '--selfplay-teacher-committee-consensus-bonus-max')).toBe(String(teacher.teacherCommitteeConsensusBonusMax));
         expect(args).toContain('--selfplay-use-promoted-model-only');
         expect(args).not.toContain('--selfplay-use-candidate-every-iteration');
+        expect(resolved.sharedTeacherSync).toMatchObject({
+            enabled: true,
+            mode: 'fill-missing'
+        });
+        expect(resolved.sharedTeacherSync.sourcePath).toMatch(/constants[\\/]cpu-lv6-shared-profile\.js$/);
+        expect(resolved.sharedTeacherSync.guideMode).toMatchObject({
+            desired: 'promoted-only',
+            active: 'promoted-only',
+            status: 'preserved-explicit'
+        });
+        expect(
+            resolved.sharedTeacherSync.flagActions.find((one) => one.flag === '--selfplay-policy-mix-rate')
+        ).toMatchObject({
+            key: 'policyMixRate',
+            status: 'preserved-explicit'
+        });
+        expect(
+            resolved.sharedTeacherSync.flagActions.find((one) => one.flag === '--selfplay-teacher-committee-weight-min')
+        ).toMatchObject({
+            key: 'teacherCommitteeWeightMin',
+            status: 'applied',
+            formattedValue: String(teacher.teacherCommitteeWeightMin)
+        });
+        expect(resolved.seedBankPlan).toBeNull();
     });
 
     test('production_v3 resolves promotion_v3 gate and promoted-only guide mode', () => {
@@ -293,16 +367,83 @@ describe('load-training-profile shared teacher sync', () => {
         expect(args).toContain('--onnx-resume-optimizer');
     });
 
+    test('browser_lv6_deploy_v1_seedbank_canary resolves isolated quick-only canary lane with seed bank plan', () => {
+        const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-training-profile-'));
+        const runsDir = path.join(tempRoot, 'runs');
+        const modelsDir = path.join(tempRoot, 'models');
+        const resolved = resolveTrainingProfile('browser_lv6_deploy_v1_seedbank_canary', {
+            cwd: process.cwd(),
+            runTag: 'test_browser_lv6_deploy_v1_seedbank_canary',
+            runsDir,
+            modelsDir
+        });
+        const args = resolved.command.args;
+
+        expect(resolved.gate && resolved.gate.name).toBe('browser_lv6_deploy_fast_quick_v1');
+        expect(args).toContain('--selfplay-use-promoted-model-only');
+        expect(args).not.toContain('--selfplay-use-candidate-every-iteration');
+        expect(args).toContain('--no-quality-gate');
+        expect(args).not.toContain('--quality-gate');
+        expect(args).toContain('--adoption-use-anchor-baseline');
+        expect(args).not.toContain('--adoption-use-guide-baseline');
+        expect(resolved.bootstrap.autoResumeLatestCheckpoint).toBe(true);
+        expect(getFlagValue(args, '--selfplay-jobs')).toBe('10');
+        expect(getFlagValue(args, '--adoption-jobs')).toBe('8');
+        expect(getFlagValue(args, '--onnx-gate-jobs')).toBe('8');
+        expect(getFlagValue(args, '--seed-bank')).toBe('data/runs/browser_lv6_deploy_v1_seedbank_canary/seed-bank.v1.json');
+        expect(getFlagValue(args, '--selfplay-policy-model-pool-size')).toBe('2');
+        expect(getFlagValue(args, '--selfplay-policy-pool-sampling')).toBe('recency');
+        expect(getFlagValue(args, '--selfplay-policy-pool-recency-decay')).toBe('2.0');
+        expect(getFlagValue(args, '--selfplay-policy-current-anchor-rate')).toBe('0.70');
+        expect(getFlagValue(args, '--selfplay-card-usage-rate-jitter')).toBe('0.06');
+        expect(getFlagValue(args, '--selfplay-tactical-weight-min')).toBe('0.95');
+        expect(getFlagValue(args, '--selfplay-tactical-weight-max')).toBe('1.10');
+        expect(getFlagValue(args, '--selfplay-tactical-beam-width')).toBe('12');
+        expect(getFlagValue(args, '--train-games')).toBe('12000');
+        expect(getFlagValue(args, '--eval-games')).toBe('2400');
+        expect(getFlagValue(args, '--quick-games')).toBe('60');
+        expect(getFlagValue(args, '--quality-gate-games')).toBeNull();
+        expect(getFlagValue(args, '--final-games')).toBe('120');
+        expect(getFlagValue(args, '--promotion-mode')).toBe('quick-only');
+        expect(getFlagValue(args, '--runs-dir')).toBe(runsDir);
+        expect(getFlagValue(args, '--models-dir')).toBe(modelsDir);
+        expect(resolved.seedBankPlan).toMatchObject({
+            path: path.resolve(process.cwd(), 'data', 'runs', 'browser_lv6_deploy_v1_seedbank_canary', 'seed-bank.v1.json'),
+            bankId: 'browser_lv6_deploy_v1_seedbank_canary-seed-bank'
+        });
+        expect(resolved.seedBankPlan.gates.quick).toMatchObject({
+            baseSeed: 1,
+            seedCount: 2,
+            seedStride: 1000
+        });
+        expect(resolved.seedBankPlan.gates.final).toMatchObject({
+            baseSeed: 500001,
+            seedCount: 2,
+            seedStride: 1000
+        });
+        expect(resolved.seedBankPlan.gates.onnx).toMatchObject({
+            baseSeed: 700001,
+            seedCount: 1,
+            seedStride: 1000
+        });
+        expect(resolved.seedBankPlan.gates.quality).toBeUndefined();
+        expect(resolved.sharedTeacherSync.guideMode).toMatchObject({
+            desired: 'promoted-only',
+            active: 'promoted-only',
+            status: 'preserved-explicit'
+        });
+    });
+
     test('adaptive_best_current_v1 resolves 10000-game repeated promotion loop', () => {
         const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-training-profile-'));
         const runsDir = path.join(tempRoot, 'runs');
         const modelsDir = path.join(tempRoot, 'models');
-        const resolved = resolveTrainingProfile('adaptive_best_current_v1', {
-            cwd: process.cwd(),
-            runTag: 'test_adaptive_best_current_v1',
+        const { resolved } = resolveAdaptiveBestCurrentProfile(
+            tempRoot,
+            'test_adaptive_best_current_v1',
             runsDir,
             modelsDir
-        });
+        );
         const args = resolved.command.args;
 
         expect(resolved.gate && resolved.gate.name).toBe('adaptive_best_current_v1');
@@ -348,21 +489,11 @@ describe('load-training-profile shared teacher sync', () => {
         const modelsDir = path.join(tempRoot, 'models');
         fs.mkdirSync(modelsDir, { recursive: true });
         const staleBootstrapPath = path.join(modelsDir, 'policy-table.json');
-        const sourcePolicyTablePath = path.join(
-            process.cwd(),
-            'data',
-            'models',
-            'research_incremental_growth_v1',
-            'policy-table.candidate.research_incremental_growth_v1_20260317_012456.it11.json'
-        );
+        const { sourcePolicyTablePath } = seedAdaptiveBestCurrentBootstrap(tempRoot);
         fs.writeFileSync(staleBootstrapPath, 'stale bootstrap\n', 'utf8');
-
-        const resolved = resolveTrainingProfile('adaptive_best_current_v1', {
-            cwd: process.cwd(),
-            runTag: 'test_adaptive_refresh_bootstrap',
-            runsDir,
-            modelsDir
-        });
+        const {
+            resolved
+        } = resolveAdaptiveBestCurrentProfile(tempRoot, 'test_adaptive_refresh_bootstrap', runsDir, modelsDir);
         const policyTableAction = resolved.bootstrap.actions.find((one) => one && one.label === 'policy-table');
 
         expect(fs.existsSync(sourcePolicyTablePath)).toBe(true);

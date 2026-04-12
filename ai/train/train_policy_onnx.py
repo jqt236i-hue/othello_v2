@@ -13,6 +13,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+import onnx_trainer_common as trainer_common
 import train_policy_table as policy_table
 
 
@@ -867,14 +868,6 @@ def train_model(
         raise ValueError("--log-interval-steps must be >= 0")
     if val_split < 0 or val_split >= 0.5:
         raise ValueError("--val-split must be in [0,0.5)")
-    if early_stop_patience < 0:
-        raise ValueError("--early-stop-patience must be >= 0")
-    if early_stop_min_delta < 0:
-        raise ValueError("--early-stop-min-delta must be >= 0")
-    if early_stop_min_epochs < 0:
-        raise ValueError("--early-stop-min-epochs must be >= 0")
-    if early_stop_smoothing_window < 1:
-        raise ValueError("--early-stop-smoothing-window must be >= 1")
     if card_loss_weight <= 0:
         raise ValueError("--card-loss-weight must be > 0")
     if card_no_action_weight <= 0:
@@ -907,9 +900,15 @@ def train_model(
         raise ValueError("--edge-balance-sample-boost must be >= 0")
     if economy_balance_sample_boost < 0:
         raise ValueError("--economy-balance-sample-boost must be >= 0")
-    monitor = str(early_stop_monitor or "").strip().lower()
-    if monitor not in ("val_loss", "train_loss", "val_place_loss", "train_place_loss"):
-        raise ValueError("--early-stop-monitor must be val_loss/train_loss/val_place_loss/train_place_loss")
+    monitor = trainer_common.normalize_early_stop_monitor(
+        early_stop_monitor,
+        early_stop_patience=early_stop_patience,
+        early_stop_min_delta=early_stop_min_delta,
+        early_stop_min_epochs=early_stop_min_epochs,
+        early_stop_smoothing_window=early_stop_smoothing_window,
+        allowed_monitors=("val_loss", "train_loss", "val_place_loss", "train_place_loss"),
+        allowed_monitors_label="val_loss/train_loss/val_place_loss/train_place_loss",
+    )
 
     torch.manual_seed(seed)
     if device == "cuda":
@@ -924,37 +923,19 @@ def train_model(
     loss_place_fn = nn.CrossEntropyLoss(ignore_index=IGNORE_INDEX)
     resumed_from: str | None = None
 
-    resume_path = (resume_checkpoint or "").strip()
-    if resume_path:
-        if not os.path.exists(resume_path):
-            raise ValueError(f"resume checkpoint not found: {resume_path}")
-        ckpt = torch.load(resume_path, map_location=device)
-        state = ckpt.get("model_state") if isinstance(ckpt, dict) else None
-        if state is None and isinstance(ckpt, dict):
-            state = ckpt
-        if not isinstance(state, dict):
-            raise ValueError(f"invalid checkpoint format: {resume_path}")
+    resume_path, ckpt, state = trainer_common.read_resume_checkpoint(resume_checkpoint, device)
+    if resume_path and state is not None:
         try:
             model.load_state_dict(state)
         except Exception as exc:
-            msg = str(exc)
-            if "size mismatch for" in msg or "Missing key(s) in state_dict" in msg or "Unexpected key(s) in state_dict" in msg:
-                print(
-                    f"[train_policy_onnx] resume checkpoint incompatible; ignored: {resume_path} ({msg})",
-                    flush=True
-                )
+            if trainer_common.is_state_dict_compatibility_error(exc):
+                trainer_common.log_ignored_resume_checkpoint("train_policy_onnx", resume_path, exc)
                 ckpt = None
                 state = None
             else:
                 raise ValueError(f"failed to load model checkpoint: {resume_path}: {exc}") from exc
         if resume_optimizer and isinstance(ckpt, dict) and state is not None:
-            optimizer_state = ckpt.get("optimizer_state")
-            if optimizer_state:
-                try:
-                    opt.load_state_dict(optimizer_state)
-                except Exception:
-                    # Optimizer mismatch is non-fatal; keep resumed weights.
-                    pass
+            trainer_common.load_resume_optimizer_state(opt, ckpt)
         if state is not None:
             resumed_from = resume_path
 
@@ -1391,9 +1372,7 @@ def write_meta(
             "trainCardSamples": train_summary.card_samples,
         },
     }
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
+    trainer_common.write_json_payload(path, payload)
 
 
 def maybe_write_checkpoint(
@@ -1406,23 +1385,18 @@ def maybe_write_checkpoint(
     device: str,
     resumed_from: str | None,
 ) -> None:
-    out = (checkpoint_out or "").strip()
-    if not out:
-        return
-    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
-    payload = {
-        "formatVersion": 1,
-        "schemaVersion": MODEL_SCHEMA_VERSION,
-        "model_state": model.cpu().state_dict(),
-        "optimizer_state": optimizer.state_dict(),
-        "modelConfig": {
+    payload = trainer_common.build_model_checkpoint_payload(
+        MODEL_SCHEMA_VERSION,
+        model,
+        optimizer,
+        {
             "inputDim": INPUT_DIM,
             "baseInputDim": BASE_INPUT_DIM,
             "placeOutputDim": PLACE_OUTPUT_DIM,
             "cardOutputDim": CARD_ACTION_DIM,
             "cardActionIds": CARD_ACTION_IDS,
         },
-        "training": {
+        {
             "epochs": int(args.epochs),
             "batchSize": int(args.batch_size),
             "lr": float(args.lr),
@@ -1454,7 +1428,7 @@ def maybe_write_checkpoint(
             "resumedFrom": resumed_from,
             "resumeOptimizer": bool(args.resume_optimizer),
         },
-        "stats": {
+        {
             "recordsRead": int(data.records_read),
             "trainRecords": int(data.train_records),
             "placeRecords": int(data.place_records),
@@ -1473,8 +1447,8 @@ def maybe_write_checkpoint(
             "trainPlaceSamples": int(train_summary.place_samples),
             "trainCardSamples": int(train_summary.card_samples),
         },
-    }
-    torch.save(payload, out)
+    )
+    trainer_common.write_model_checkpoint(checkpoint_out, payload)
 
 
 def maybe_write_metrics(metrics_out: str, metrics: list[dict]) -> None:
@@ -1507,7 +1481,7 @@ def maybe_write_policy_table(args: argparse.Namespace) -> None:
 def main() -> int:
     args = parse_args()
     device = choose_device(str(args.device).strip().lower())
-    meta_out = args.meta_out or (args.onnx_out + ".meta.json")
+    meta_out = trainer_common.resolve_meta_output_path(args.meta_out, args.onnx_out)
 
     data = load_dataset(
         args.input,
