@@ -10,6 +10,14 @@ const {
     loadResolvedTrainingConfig,
     applyAdoptionArgsFromResolvedConfig
 } = require('./training-resolved-config-utils');
+const {
+    POLICY_GATE_PAYLOAD_SCHEMA_VERSION,
+    attachPolicyGateDecisionDiagnostics
+} = require('./policy-gate-result-utils');
+const {
+    buildSeedList,
+    buildSeedSchedule
+} = require('./policy-seed-utils');
 
 function parseArgs(argv) {
     const args = {
@@ -801,14 +809,6 @@ function logEarlyStop(earlyStop) {
     );
 }
 
-function buildSeedList(baseSeed, seedCount, seedStride) {
-    const out = [];
-    for (let i = 0; i < seedCount; i++) {
-        out.push(baseSeed + (i * seedStride));
-    }
-    return out;
-}
-
 function buildSeedBenchmarkJobPlan(totalJobs, seedCount, cpuCount) {
     const safeCpuCount = Math.max(1, Math.floor(Number(cpuCount) || os.cpus().length || 1));
     const safeSeedCount = Math.max(1, Math.floor(Number(seedCount) || 1));
@@ -966,7 +966,13 @@ function buildAdoptionPayload(options, perSeed, startedAt, runtime) {
     const runtimeOptions = runtime || {};
     const decisionSelector = getDecisionSelector(options);
     const selectedSeedDecisions = perSeed.map((entry) => decisionSelector(entry, options));
-    const decision = runtimeOptions.earlyStop
+    const seedSchedule = buildSeedSchedule(
+        options.seed,
+        options.seedCount,
+        options.seedStride,
+        perSeed.map((entry) => entry && entry.seed)
+    );
+    const rawDecision = runtimeOptions.earlyStop
         ? buildEarlyStopDecision(selectedSeedDecisions, options.seedCount, options, runtimeOptions.earlyStop)
         : computeAdoptionDecisionAverage(
             selectedSeedDecisions,
@@ -976,16 +982,22 @@ function buildAdoptionPayload(options, perSeed, startedAt, runtime) {
             options.confidenceLevel,
             options.minLowerBound
         );
+    const decision = attachPolicyGateDecisionDiagnostics(rawDecision);
     const first = perSeed[0] || null;
     const progressEvery = Number.isFinite(options.progressEvery)
         ? Math.max(0, Math.floor(options.progressEvery))
         : 100;
     const totalElapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
     console.log(`[policy-adoption] done total_elapsed_s=${totalElapsedSec}`);
+    const benchmarkSchemaVersion = first && first.baseline ? first.baseline.schemaVersion : null;
 
     return {
         generatedAt: new Date().toISOString(),
-        schemaVersion: first && first.baseline ? first.baseline.schemaVersion : null,
+        schemaVersion: benchmarkSchemaVersion,
+        payloadSchemaVersion: POLICY_GATE_PAYLOAD_SCHEMA_VERSION,
+        gateFamily: 'adoption',
+        gateType: options.gatePhase || 'quality',
+        benchmarkSchemaVersion,
         config: {
             games: options.games,
             seed: options.seed,
@@ -1027,6 +1039,7 @@ function buildAdoptionPayload(options, perSeed, startedAt, runtime) {
             opponentModelPath: options.opponentModelPath || null,
             candidateModelPath: options.candidateModelPath
         },
+        seedSchedule,
         baseline: first ? first.baseline : null,
         candidate: first ? first.candidate : null,
         completedSeedCount: perSeed.length,
@@ -1288,7 +1301,7 @@ async function main() {
         `[policy-adoption] baseline=${d.baselineScore.toFixed(3)} candidate=${d.candidateScore.toFixed(3)} uplift=${d.uplift.toFixed(3)} uplift_lb=${d.upliftLowerBound.toFixed(3)} lb_req=${d.requiredMinLowerBound.toFixed(3)} conf=${d.confidenceLevel.toFixed(3)} min_seed_uplift=${d.minSeedUplift.toFixed(3)} threshold=${d.threshold.toFixed(3)} ` +
         `seeds=${d.seedCount || 1} seed_pass=${d.seedPassCount || 0}/${d.seedCount || 0} min_seed_req=${d.requiredMinSeedPassCount || 0} tactical_weight=${args.tacticalWeight.toFixed(2)} tactical_depth=${args.tacticalDepthOpening}/${args.tacticalDepthMid}/${args.tacticalDepthEnd} beam=${args.tacticalBeamWidth} ` +
         `policy_weight=${args.policyScoreWeight.toFixed(2)} heuristic_weight=${args.heuristicWeight.toFixed(2)} white_priority=${args.whitePriority.toFixed(2)} q_corner=${args.qualityWeightCorner.toFixed(3)} q_edge=${args.qualityWeightEdge.toFixed(3)} q_corner_recovery=${args.qualityWeightCornerRecovery.toFixed(3)} q_corner_recapture=${args.qualityWeightCornerRecapture.toFixed(3)} q_edge_recovery=${args.qualityWeightEdgeRecovery.toFixed(3)} ` +
-        `q_corner_hold=${args.qualityWeightCornerHold.toFixed(3)} q_corner_hold_turns=${args.qualityWeightCornerHoldTurns.toFixed(3)} q_edge_hold=${args.qualityWeightEdgeHold.toFixed(3)} q_final_corner=${args.qualityWeightFinalCornerShare.toFixed(3)} q_final_edge=${args.qualityWeightFinalEdgeShare.toFixed(3)} q_bonus=${args.qualityWeightBonus.toFixed(3)} q_card=${args.qualityWeightCardImmediate.toFixed(3)} q_card_future=${args.qualityWeightCardFuture.toFixed(3)} q_place=${args.qualityWeightPlaceDelta.toFixed(3)} early_stop=${d.earlyStopReason || 'none'} pass=${d.passed}`
+        `q_corner_hold=${args.qualityWeightCornerHold.toFixed(3)} q_corner_hold_turns=${args.qualityWeightCornerHoldTurns.toFixed(3)} q_edge_hold=${args.qualityWeightEdgeHold.toFixed(3)} q_final_corner=${args.qualityWeightFinalCornerShare.toFixed(3)} q_final_edge=${args.qualityWeightFinalEdgeShare.toFixed(3)} q_bonus=${args.qualityWeightBonus.toFixed(3)} q_card=${args.qualityWeightCardImmediate.toFixed(3)} q_card_future=${args.qualityWeightCardFuture.toFixed(3)} q_place=${args.qualityWeightPlaceDelta.toFixed(3)} early_stop=${d.earlyStopReason || 'none'} failure_reason=${d.primaryFailureReason || 'none'} pass=${d.passed}`
     );
     process.exit(d.passed ? 0 : 2);
 }

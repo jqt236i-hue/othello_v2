@@ -11,6 +11,12 @@ function jsonResponse(status, data) {
 function createSnapshot(stateVersion, board) {
   return {
     stateVersion,
+    _meta: {
+      authority: 'server',
+      version: stateVersion,
+      projectedForSeat: null,
+      turnStartReconciled: true
+    },
     gameState: {
       currentPlayer: 1,
       turnNumber: 1,
@@ -164,7 +170,7 @@ describe('NetworkMatchClient commentary', () => {
       playerKey: 'white',
       cardId: 'swap_01'
     }));
-    expect(global.addLog).toHaveBeenCalledWith('白CPU: 読み切った');
+    expect(global.addLog).not.toHaveBeenCalledWith('白CPU: 読み切った');
   });
 
   test('remote use_card without playback animation also emits local hero enemy-card commentary', async () => {
@@ -215,7 +221,7 @@ describe('NetworkMatchClient commentary', () => {
       cardId: 'swap_01',
       speakerRole: 'hero'
     }));
-    expect(global.addLog).toHaveBeenCalledWith('白CPU: 読み切った');
-    expect(global.addLog).toHaveBeenCalledWith('勇者: 相手がカードを切った。受けて返す手を探す。');
+    expect(global.addLog).not.toHaveBeenCalledWith('白CPU: 読み切った');
+    expect(global.addLog).not.toHaveBeenCalledWith('勇者: 相手がカードを切った。受けて返す手を探す。');
   });
 });

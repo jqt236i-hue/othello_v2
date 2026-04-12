@@ -1,6 +1,30 @@
 const MatchAuthority = require('../utils/match-authority');
 
 describe('match authority publish response payload', () => {
+  test('buildPublicSeatMetadata normalizes seat booleans, player names, and hand skin ids together', () => {
+    expect(MatchAuthority.buildPublicSeatMetadata({
+      seats: { black: 1, white: 0 },
+      seatNames: { black: '  Alpha   Beta  ', white: '   ' },
+      seatHandSkins: { black: '  fancy-hand  ', white: null }
+    })).toEqual({
+      seats: { black: true, white: false },
+      seatNames: { black: 'Alpha B', white: '' },
+      seatHandSkins: { black: 'fancy-hand', white: '' }
+    });
+  });
+
+  test('buildPublicSeatMetadata upgrades legacy renamed gacha ids', () => {
+    expect(MatchAuthority.buildPublicSeatMetadata({
+      seats: { black: true, white: true },
+      seatNames: { black: 'くろ', white: 'しろ' },
+      seatHandSkins: { black: ' gacha__n__hand-swap ', white: 'gacha__n__hand.png' }
+    })).toEqual({
+      seats: { black: true, white: true },
+      seatNames: { black: 'くろ', white: 'しろ' },
+      seatHandSkins: { black: 'gacha__n__陽気な手', white: 'gacha__n__人の手' }
+    });
+  });
+
   test('normalizes publishMeta and preserves room context', () => {
     const playbackEvents = [{ type: 'observer_bubble', phase: 2, targets: [{ player: 'black', text: 'ok' }] }];
     const effectLogs = ['黒: 反転保護を付与', '黒: 反転保護を付与', ''];
@@ -9,8 +33,9 @@ describe('match authority publish response payload', () => {
       roomId: 'abc',
       stateVersion: '12',
       snapshot: { stateVersion: 12, gameState: {}, cardState: {} },
-      seats: { black: true, white: false },
-      seatNames: { black: 'くろ', white: '' },
+      seats: { black: 1, white: 0 },
+      seatNames: { black: '  Alpha   Beta  ', white: '  しろ  ' },
+      seatHandSkins: { black: '  fancy-hand  ', white: null },
       roomDeck: null,
       roomBoardConfig: { rows: 7, cols: 9 },
       networkDebugEnabled: true,
@@ -34,6 +59,9 @@ describe('match authority publish response payload', () => {
       roomId: 'ABC',
       stateVersion: 12,
       rejectedReason: 'VERSION_MISMATCH',
+      seats: { black: true, white: false },
+      seatNames: { black: 'Alpha B', white: 'しろ' },
+      seatHandSkins: { black: 'fancy-hand', white: '' },
       networkDebugEnabled: true,
       roomBoardConfig: {
         rows: 7,

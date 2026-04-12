@@ -9,6 +9,10 @@ const {
     loadResolvedTrainingConfig,
     applyOnnxGateArgsFromResolvedConfig
 } = require('./training-resolved-config-utils');
+const {
+    buildSeedList,
+    buildSeedSchedule
+} = require('./policy-seed-utils');
 
 function defaultJobs() {
     const cpuCount = Array.isArray(os.cpus()) ? os.cpus().length : 1;
@@ -198,14 +202,6 @@ function printHelp() {
         '      --verbose                Print match-level logs',
         '  -h, --help                   Show this help'
     ].join('\n'));
-}
-
-function buildSeedList(baseSeed, seedCount, seedStride) {
-    const normalizedSeedCount = Number.isFinite(Number(seedCount)) ? Math.max(0, Math.floor(Number(seedCount))) : 0;
-    const normalizedSeedStride = Number.isFinite(Number(seedStride)) ? Math.max(1, Math.floor(Number(seedStride))) : 1;
-    const out = [];
-    for (let i = 0; i < normalizedSeedCount; i++) out.push(baseSeed + (i * normalizedSeedStride));
-    return out;
 }
 
 function backupFile(filePath) {
@@ -770,6 +766,12 @@ async function runOnnxGate(options) {
     }
 
     const decision = computeOnnxGateDecision(perSeed, options, diagnostics);
+    const seedSchedule = buildSeedSchedule(
+        options.seed,
+        options.seedCount,
+        options.seedStride,
+        perSeed.map((entry) => entry && entry.seed)
+    );
     return {
         generatedAt: new Date().toISOString(),
         config: {
@@ -799,6 +801,7 @@ async function runOnnxGate(options) {
             candidateValueOnnxPath: options.candidateValueOnnxPath || null,
             candidateValueOnnxMetaPath: options.candidateValueOnnxMetaPath || null
         },
+        seedSchedule,
         perSeed,
         diagnostics,
         decision

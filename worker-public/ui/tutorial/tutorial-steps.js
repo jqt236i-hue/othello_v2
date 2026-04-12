@@ -716,6 +716,9 @@
         [DEFAULT_SCENARIO_ID]: createScenarioRecord({
             id: DEFAULT_SCENARIO_ID,
             title: '0章 観測者チュートリアル',
+            menuLabel: '第零章 チュートリアル',
+            menuDescription: '盤理の観測者と基本ルールを学ぶ導入章。',
+            menuUnavailableMessage: 'この build ではチュートリアルを開始できません。',
             observerName: OBSERVER_NAME,
             observerImageSrc: OBSERVER_IMAGE_SRC,
             entryStepId: 'INTRO_SCENE_001',

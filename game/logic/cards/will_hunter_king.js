@@ -25,6 +25,13 @@
         return (owner === BLACK || owner === WHITE) ? owner : EMPTY;
     }
 
+    function resolveBoardDims(gameState) {
+        const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
+        const rows = board && board.length > 0 ? board.length : 8;
+        const cols = board && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
+        return { rows, cols };
+    }
+
     function getExpansionCells(gameState) {
         if (BoardOpsModule && typeof BoardOpsModule.getExpansionDescriptors === 'function') {
             return BoardOpsModule.getExpansionDescriptors(gameState);
@@ -40,7 +47,7 @@
             const row = Number.isInteger(cell.row) ? cell.row : null;
             let col = Number.isInteger(cell.col) ? cell.col : null;
             if (col === null && cell.side === 'left') col = -1;
-            if (col === null && cell.side === 'right') col = 8;
+            if (col === null && cell.side === 'right') col = resolveBoardDims(gameState).cols;
             if (!Number.isInteger(row) || !Number.isInteger(col)) return;
             if (cells.some((one) => one.row === row && one.col === col)) return;
             cells.push({
@@ -63,7 +70,8 @@
         if (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function') {
             return BoardOpsModule.getCellValue(gameState, row, col);
         }
-        if (row >= 0 && row < 8 && col >= 0 && col < 8) return gameState.board[row][col];
+        const dims = resolveBoardDims(gameState);
+        if (row >= 0 && row < dims.rows && col >= 0 && col < dims.cols) return gameState.board[row][col];
         const expansionCells = getExpansionCells(gameState);
         for (const cell of expansionCells) {
             if (!cell) continue;
@@ -92,8 +100,9 @@
     function collectEnemyTargets(cardState, gameState, enemyValue) {
         const specialTargets = [];
         const normalTargets = [];
-        for (let row = 0; row < 8; row++) {
-            for (let col = 0; col < 8; col++) {
+        const dims = resolveBoardDims(gameState);
+        for (let row = 0; row < dims.rows; row++) {
+            for (let col = 0; col < dims.cols; col++) {
                 if (gameState.board[row][col] !== enemyValue) continue;
                 const isSpecial = hasVisibleNonNormalStoneAt(cardState, row, col);
                 const target = { row, col, isSpecial };

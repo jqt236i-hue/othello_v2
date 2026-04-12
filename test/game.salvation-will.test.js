@@ -72,25 +72,25 @@ describe('SALVATION_WILL（救済の意志）', () => {
     expect(Number(salvationDef.cost)).toBe(17);
   });
 
-  test('使用不可: 直前の相手ターンで破壊された自分の通常石が0枚の場合', () => {
+  test('使用不可: 直前の相手ターンで破壊された石が0枚の場合', () => {
     expect(salvationDef).toBeTruthy();
     const prng = createPrng([0]);
     const cardState = createCardState(prng, salvationDef.id, salvationDef.cost);
     const gameState = createSparseGameState([[3, 3]], [[4, 4]]);
     // No destroyed stones tracked
-    cardState.prevOpponentTurnDestroyedNormalByPlayer = { black: [], white: [] };
+    cardState.prevOpponentTurnDestroyedStonesByPlayer = { black: [], white: [] };
 
     expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).toEqual([]);
     expect(CardLogic.applyCardUsage(cardState, gameState, 'black', salvationDef.id)).toBe(false);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 
-  test('使用可能: 直前の相手ターンで自分の通常石が1枚以上破壊された場合', () => {
+  test('使用可能: 直前の相手ターンで石が1枚以上破壊された場合', () => {
     expect(salvationDef).toBeTruthy();
     const prng = createPrng([0]);
     const cardState = createCardState(prng, salvationDef.id, salvationDef.cost);
     const gameState = createSparseGameState([[3, 3]], [[4, 4]]);
-    cardState.prevOpponentTurnDestroyedNormalByPlayer = {
+    cardState.prevOpponentTurnDestroyedStonesByPlayer = {
       black: [{ row: 2, col: 2 }],
       white: []
     };
@@ -110,7 +110,7 @@ describe('SALVATION_WILL（救済の意志）', () => {
       [[0, 1], [0, 2]]
     );
     // Simulate 2 black stones destroyed on opponent's previous turn
-    cardState.prevOpponentTurnDestroyedNormalByPlayer = {
+    cardState.prevOpponentTurnDestroyedStonesByPlayer = {
       black: [{ row: 1, col: 0 }, { row: 1, col: 1 }],
       white: []
     };
@@ -183,7 +183,7 @@ describe('SALVATION_WILL（救済の意志）', () => {
     const prng = createPrng([0, 0, 0]);
     const cardState = createCardState(prng, salvationDef.id, salvationDef.cost);
     const gameState = createSparseGameState([[7, 7]], [[0, 0], [0, 1]]);
-    cardState.prevOpponentTurnDestroyedNormalByPlayer = {
+    cardState.prevOpponentTurnDestroyedStonesByPlayer = {
       black: [{ row: 1, col: 0 }],
       white: []
     };
@@ -197,7 +197,7 @@ describe('SALVATION_WILL（救済の意志）', () => {
     );
 
     // History must be empty after use
-    expect(cardState.prevOpponentTurnDestroyedNormalByPlayer.black).toEqual([]);
+    expect(cardState.prevOpponentTurnDestroyedStonesByPlayer.black).toEqual([]);
 
     // Attempting to use again (after re-adding to hand) should fail
     cardState.hands.black = [salvationDef.id];
@@ -206,31 +206,36 @@ describe('SALVATION_WILL（救済の意志）', () => {
     expect(CardLogic.applyCardUsage(cardState, gameState, 'black', salvationDef.id)).toBe(false);
   });
 
-  test('特殊石は破壊されても救済の追跡対象に含まれない', () => {
+  test('直前ターンに破壊された自分/相手の通常石・特殊石はすべて救済の追跡対象に含まれる', () => {
     expect(salvationDef).toBeTruthy();
     const prng = createPrng([0]);
     const cardState = CardLogic.createCardState(prng);
     cardState.debugNoDraw = true;
     cardState._activeTurnPlayer = 'white';
 
-    const gameState = createSparseGameState([[2, 2], [3, 3]], []);
+    const gameState = createSparseGameState([[2, 2], [3, 3]], [[4, 4]]);
 
-    // Mark (2,2) as a special stone
+    // Mark (2,2) black and (4,4) white as special stones
     if (!Array.isArray(cardState.markers)) cardState.markers = [];
     const specialKind = 'specialStone';
     cardState.markers.push({ kind: specialKind, row: 2, col: 2 });
+    cardState.markers.push({ kind: specialKind, row: 4, col: 4 });
 
     // Initialize destruction tracking
-    cardState.prevOpponentTurnDestroyedNormalByPlayer = { black: [], white: [] };
+    cardState.prevOpponentTurnDestroyedStonesByPlayer = { black: [], white: [] };
 
-    // Destroy both black stones while white is the active turn player
+    // Destroy black special, black normal, and white special while white is the active turn player.
+    // All of them should become black's next-turn salvation targets.
     BoardOps.destroyAt(cardState, gameState, 2, 2, 'TEST', 'test_special');
     BoardOps.destroyAt(cardState, gameState, 3, 3, 'TEST', 'test_normal');
+    BoardOps.destroyAt(cardState, gameState, 4, 4, 'TEST', 'test_enemy_special');
 
-    const tracked = cardState.prevOpponentTurnDestroyedNormalByPlayer.black;
-    // Only the normal stone at (3,3) should be tracked; the special stone at (2,2) is excluded
-    expect(tracked).toHaveLength(1);
-    expect(tracked[0]).toEqual({ row: 3, col: 3 });
+    const tracked = cardState.prevOpponentTurnDestroyedStonesByPlayer.black;
+    expect(tracked).toEqual([
+      { row: 2, col: 2, owner: 'black', wasSpecial: true },
+      { row: 3, col: 3, owner: 'black', wasSpecial: false },
+      { row: 4, col: 4, owner: 'white', wasSpecial: true }
+    ]);
   });
 
   test('封鎖された空きマスはスポーン候補から除外され、他の空きマスに生成される', () => {
@@ -255,7 +260,7 @@ describe('SALVATION_WILL（救済の意志）', () => {
     });
 
     // 2 stones destroyed → requests 2 spawns, but only 1 unblocked empty cell exists
-    cardState.prevOpponentTurnDestroyedNormalByPlayer = {
+    cardState.prevOpponentTurnDestroyedStonesByPlayer = {
       black: [{ row: 1, col: 0 }, { row: 2, col: 0 }],
       white: []
     };
@@ -288,7 +293,7 @@ describe('SALVATION_WILL（救済の意志）', () => {
     board[7][7] = Shared.EMPTY;
     board[0][0] = Shared.BLACK; // black's 1 stone
     const gameState = createGameState(board);
-    cardState.prevOpponentTurnDestroyedNormalByPlayer = {
+    cardState.prevOpponentTurnDestroyedStonesByPlayer = {
       black: [{ row: 1, col: 0 }, { row: 1, col: 1 }, { row: 1, col: 2 }],
       white: []
     };

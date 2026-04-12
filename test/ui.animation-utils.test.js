@@ -87,6 +87,14 @@ describe('animation-utils animateHyperactiveMove chained fallback', () => {
     global.window = dom.window;
     global.document = dom.window.document;
     global.boardEl = document.getElementById('board');
+    const raf = (cb) => {
+      cb(Date.now());
+      return 1;
+    };
+    global.requestAnimationFrame = raf;
+    global.cancelAnimationFrame = () => {};
+    global.window.requestAnimationFrame = raf;
+    global.window.cancelAnimationFrame = () => {};
 
     const proto = global.window.Element && global.window.Element.prototype;
     if (proto && typeof proto.animate !== 'function') {
@@ -104,6 +112,8 @@ describe('animation-utils animateHyperactiveMove chained fallback', () => {
     delete global.window;
     delete global.document;
     delete global.boardEl;
+    delete global.requestAnimationFrame;
+    delete global.cancelAnimationFrame;
   });
 
   test('animates chained ultimate-hyperactive path from final-state disc via carryDisc', async () => {
@@ -174,17 +184,6 @@ describe('animation-utils animateHyperactiveMove chained fallback', () => {
       return cell;
     };
 
-    const proto = window.Element && window.Element.prototype;
-    const originalAnimate = proto ? proto.animate : undefined;
-    const animateMock = jest.fn(() => ({
-      addEventListener(type, cb) {
-        if (type === 'finish') setTimeout(cb, 0);
-      },
-      removeEventListener() {},
-      finished: Promise.resolve()
-    }));
-    if (proto) proto.animate = animateMock;
-
     try {
       const shortFrom = ensureCell(3, 3);
       const shortTo = ensureCell(3, 4);
@@ -192,9 +191,14 @@ describe('animation-utils animateHyperactiveMove chained fallback', () => {
       shortDisc.className = 'disc black';
       shortFrom.appendChild(shortDisc);
 
-      await anim.animateHyperactiveMove({ row: 3, col: 3 }, { row: 3, col: 4 });
-      const shortDuration = animateMock.mock.calls[0][1].duration;
-      animateMock.mockClear();
+      const shortMove = anim.animateHyperactiveMove({ row: 3, col: 3 }, { row: 3, col: 4 });
+      const shortGhost = fxLayer.querySelector('.hyperactive-move-ghost');
+      expect(shortGhost).not.toBeNull();
+      const shortTransition = shortGhost.style.transition;
+      const shortEvent = new window.Event('transitionend');
+      Object.defineProperty(shortEvent, 'propertyName', { value: 'left' });
+      shortGhost.dispatchEvent(shortEvent);
+      await shortMove;
 
       const longFrom = ensureCell(4, 0);
       const longTo = ensureCell(4, 6);
@@ -202,15 +206,89 @@ describe('animation-utils animateHyperactiveMove chained fallback', () => {
       longDisc.className = 'disc black';
       longFrom.appendChild(longDisc);
 
-      await anim.animateHyperactiveMove({ row: 4, col: 0 }, { row: 4, col: 6 });
-      const longDuration = animateMock.mock.calls[0][1].duration;
+      const longMove = anim.animateHyperactiveMove({ row: 4, col: 0 }, { row: 4, col: 6 });
+      const longGhost = fxLayer.querySelector('.hyperactive-move-ghost');
+      expect(longGhost).not.toBeNull();
+      const longTransition = longGhost.style.transition;
+      const longEvent = new window.Event('transitionend');
+      Object.defineProperty(longEvent, 'propertyName', { value: 'left' });
+      longGhost.dispatchEvent(longEvent);
+      await longMove;
 
-      expect(shortDuration).toBe(longDuration);
-      expect(shortDuration).toBe(400);
+      expect(shortTransition).toContain('400ms');
+      expect(shortTransition).toBe(longTransition);
       expect(shortTo.querySelector('.disc')).not.toBeNull();
       expect(longTo.querySelector('.disc')).not.toBeNull();
-    } finally {
-      if (proto) proto.animate = originalAnimate;
-    }
+    } finally {}
+  });
+
+  test('animateHyperactiveMove matches the live disc size instead of legacy cell scaling', async () => {
+    jest.doMock(path.resolve(__dirname, '..', 'ui', 'animation-shared.js'), () => ({
+      isNoAnim: () => false,
+      getTimer: () => ({
+        setTimeout: (fn, ms) => setTimeout(fn, ms),
+        clearTimeout: (id) => clearTimeout(id),
+        clearAll: () => {},
+        pendingCount: () => 0,
+        newScope: () => null,
+        clearScope: () => {}
+      })
+    }));
+
+    const anim = require('../ui/animation-utils');
+    const board = document.getElementById('board');
+    const fxLayer = document.getElementById('card-fx-layer');
+    fxLayer.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 1000, right: 1000, bottom: 1000 });
+    board.style.setProperty('--board-disc-size-px', '65px');
+    board.style.setProperty('--board-disc-inset-px', '4px');
+
+    const fromCell = board.querySelector('.cell[data-row="3"][data-col="3"]');
+    const toCell = board.querySelector('.cell[data-row="3"][data-col="4"]');
+    fromCell.getBoundingClientRect = () => ({
+      left: 300.4,
+      top: 200.4,
+      width: 73.2,
+      height: 73.2,
+      right: 373.6,
+      bottom: 273.6
+    });
+    toCell.getBoundingClientRect = () => ({
+      left: 380.4,
+      top: 200.4,
+      width: 73.2,
+      height: 73.2,
+      right: 453.6,
+      bottom: 273.6
+    });
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+    disc.getBoundingClientRect = () => ({
+      left: 304.4,
+      top: 204.4,
+      width: 65.1,
+      height: 65.1,
+      right: 369.5,
+      bottom: 269.5
+    });
+    fromCell.appendChild(disc);
+
+    try {
+      const movePromise = anim.animateHyperactiveMove({ row: 3, col: 3 }, { row: 3, col: 4 });
+      const ghost = fxLayer.querySelector('.hyperactive-move-ghost');
+      expect(ghost).not.toBeNull();
+      expect(ghost.style.left).toBe('384px');
+      expect(ghost.style.top).toBe('204px');
+      expect(ghost.style.width).toBe('65px');
+      expect(ghost.style.height).toBe('65px');
+      expect(ghost.style.width).not.toBe('60px');
+      expect(ghost.style.height).not.toBe('60px');
+      expect(ghost.style.transition).toContain('left 400ms');
+      const moveEvent = new window.Event('transitionend');
+      Object.defineProperty(moveEvent, 'propertyName', { value: 'left' });
+      ghost.dispatchEvent(moveEvent);
+      await movePromise;
+      expect(toCell.querySelector('.disc')).toBe(disc);
+    } finally {}
   });
 });

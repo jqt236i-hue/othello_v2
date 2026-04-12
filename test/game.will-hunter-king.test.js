@@ -10,11 +10,11 @@ function createPrng(randomValue = 0) {
   };
 }
 
-function createState(randomValue = 0) {
+function createState(randomValue = 0, rows = 8, cols = rows) {
   const prng = createPrng(randomValue);
   const cardState = CardLogic.createCardState(prng);
   const gameState = {
-    board: Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY)),
+    board: Array.from({ length: rows }, () => Array(cols).fill(Shared.EMPTY)),
     currentPlayer: Shared.BLACK,
     turnNumber: 1,
     consecutivePasses: 0
@@ -262,6 +262,65 @@ describe('WILL_HUNTER_KING（意志狩りの王）', () => {
     expect(marker).toBeTruthy();
     expect(marker.row).toBe(-1);
     expect(marker.col).toBe(0);
+  });
+
+  test('10x10 の右側拡張セルの敵石も破壊してそのマスへ移動できる', () => {
+    const { cardState, gameState } = createState(0, 10, 10);
+
+    gameState.board[0][9] = Shared.BLACK;
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: Shared.EMPTY,
+      usedByPlayer: { black: true, white: false },
+      cells: [{ side: 'right', row: 0, col: 10, owner: Shared.WHITE }]
+    };
+
+    cardState.markers.push(
+      {
+        id: 8121,
+        kind: 'specialStone',
+        row: 0,
+        col: 9,
+        owner: 'black',
+        data: {
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
+          flipEvadeRemaining: 2,
+          destroyEvadeRemaining: 2
+        }
+      },
+      {
+        id: 8122,
+        kind: 'specialStone',
+        row: 0,
+        col: 10,
+        owner: 'white',
+        data: { type: 'OBSERVER', remainingOwnerTurns: 5 }
+      }
+    );
+
+    const out = CardLogic.processWillHunterKingEffectsAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      0,
+      9,
+      createPrng(0)
+    );
+
+    expect(out.destroyed).toHaveLength(1);
+    expect(out.destroyed[0]).toMatchObject({ row: 0, col: 10, sourceRow: 0, sourceCol: 9 });
+    expect(out.moved).toHaveLength(1);
+    expect(out.moved[0]).toMatchObject({ from: { row: 0, col: 9 }, to: { row: 0, col: 10 } });
+    expect(gameState.board[0][9]).toBe(Shared.EMPTY);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 0 && cell.col === 10).owner).toBe(Shared.BLACK);
+
+    const marker = cardState.markers.find((m) => m && m.id === 8121);
+    expect(marker).toBeTruthy();
+    expect(marker.row).toBe(0);
+    expect(marker.col).toBe(10);
   });
 
   test('盤面で通常見た目の隠し罠石は特殊石優先の対象にしない', () => {

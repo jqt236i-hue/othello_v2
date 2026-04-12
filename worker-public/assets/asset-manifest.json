@@ -1,6 +1,6 @@
 {
-  "version": "2026-03-30",
-  "generatedAt": "2026-03-30T21:39:19.320Z",
+  "version": "2026-04-12",
+  "generatedAt": "2026-04-12T10:38:52.612Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -245,6 +245,86 @@
     {
       "path": "assets/images/stones/ZAN-WHITE.png",
       "sha256": "bc622317855561cfc0d09a74e351126b6685e72c8c7e50d2cc069a5063309e2e"
+    },
+    {
+      "path": "assets/images/other/a.png",
+      "sha256": "00120b9f42b26097e0818de9c5c7a7f3fac31451cf4f40120d6e7b5beb555773"
+    },
+    {
+      "path": "assets/images/other/aaa.png",
+      "sha256": "26fd6fca9e961b99586974434a96809503e8ab0b19d2b88ac713253b27d0a92c"
+    },
+    {
+      "path": "assets/images/other/bud.png",
+      "sha256": "19e0a32d22b73ee75f01853faed04fdf6b016b0a77a1ce60c7f4a2583d417fd4"
+    },
+    {
+      "path": "assets/images/other/ICE.png",
+      "sha256": "312480508df6093420625da7aa6eb3bfa9d8f19b53a475c4d597f6431de46cf4"
+    },
+    {
+      "path": "assets/images/other/seed.png",
+      "sha256": "1860a550483fc73443299d8a1483212c130b5f192d8acf74fd8017951ffcb0bf"
+    },
+    {
+      "path": "assets/images/other/X.png",
+      "sha256": "c3644e92ccc11fbb3488547e11807d47db62e379192d94f78dfcb508c4dfcb0f"
+    },
+    {
+      "path": "assets/images/other/観測石.png",
+      "sha256": "2ecd16bbbbe9664cf3190619a89492c2a2c085889ca0475c157dc865c5af6b29"
+    },
+    {
+      "path": "assets/images/hand-skin/lv1-2.png",
+      "sha256": "610b5ac7f026c7a0345f3c7894ac37027b891e820825b44bbb6f46a67a67bf3b"
+    },
+    {
+      "path": "assets/images/hand-skin/lv3-5.png",
+      "sha256": "01b294fbe6220b47e6a26a0ebbf3f6fe953b67920eb48709439a845d948ad419"
+    },
+    {
+      "path": "assets/images/hand-skin/lv4.png",
+      "sha256": "9782e236b3f2632360cccfbd69bc9ccabf137d3fbc3af0ca3156efc22b92435c"
+    },
+    {
+      "path": "assets/images/hand-skin/lv6.png",
+      "sha256": "1b9c8d559901613145cc22852bcaa45ab7b12be99467d967f1a260fe1ed54d78"
+    },
+    {
+      "path": "assets/images/hand-skin/勇者の手.png",
+      "sha256": "31dbec8c481d7c27d4e6206159d12cd0ae82e8b65263b5dad89a5ad15662af6e"
+    },
+    {
+      "path": "assets/images/Gacha/N/人の手.png",
+      "sha256": "1dfc5ca1aff2a5dae24b0667694cc08106f7748f4501c00cc0e968fe488f2189"
+    },
+    {
+      "path": "assets/images/Gacha/N/小鬼の手.png",
+      "sha256": "610b5ac7f026c7a0345f3c7894ac37027b891e820825b44bbb6f46a67a67bf3b"
+    },
+    {
+      "path": "assets/images/Gacha/N/陽気な手.png",
+      "sha256": "73e958642f4c0fd027b95fe2d90405a7b8cbf7a8452cf703705dad7923e82e38"
+    },
+    {
+      "path": "assets/images/Gacha/N/魚眼ハンド.png",
+      "sha256": "4e3838f64a8af90fe8da5f612d58a5c9cb5d88cb90d26448874d1f54f53dec8e"
+    },
+    {
+      "path": "assets/images/Gacha/R/支配の手.png",
+      "sha256": "9782e236b3f2632360cccfbd69bc9ccabf137d3fbc3af0ca3156efc22b92435c"
+    },
+    {
+      "path": "assets/images/Gacha/R/猫の手.png",
+      "sha256": "90896d78cd0f6a5aebb246ddce2c939f7f49ad7debb28d2b0e7af21a27c6204a"
+    },
+    {
+      "path": "assets/images/Gacha/SR/虹の手.png",
+      "sha256": "ca8938488e7924460c62fc7eae8eddb37dab897a51306d17e62139e20552dd81"
+    },
+    {
+      "path": "assets/images/Gacha/SSR/邪悪な手.png",
+      "sha256": "6dde01b2b0434eb0c717d157a92ac76d4928f6e7c08eef68428d065282b9eed5"
     }
   ]
 }

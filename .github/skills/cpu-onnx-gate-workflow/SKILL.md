@@ -50,8 +50,11 @@ argument-hint: 'どの gate や fallback を直したいか。browser, runtime, 
 
 - `test/ui.cpu-policy-handler.test.js`
 - `test/game.cpu-policy-table-runtime.test.js`
+- `test/game.cpu-policy-onnx-runtime.test.js`
 - `test/selfplay.benchmark-policy.test.js`
-- 必要な ONNX runtime / CPU decision の近い test
+- `test/selfplay.policy-onnx-gate.test.js`
+- `test/cpu.turn-handler.onnx-hold.test.js`
+- `test/cpu.lv6-shared-profile.test.js`
 
 ## Completion Checklist
 

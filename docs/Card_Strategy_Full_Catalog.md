@@ -40,7 +40,6 @@
 | escape_01 | 逃げる意志 | ESCAPE_WILL | 12 | ターン開始移動 + 反転機会 + 移動不能時爆破 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 移動先なしで周囲爆破後に消滅 | ターン開始移動 + 反転機会 + 移動不能時爆破 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:153<br>game/logic/cards.js:2397<br>shared-constants.js:156 |
 | robot_vacuum_01 | ロボット掃除機 | ROBOT_VACUUM_WILL | 17 | 敵へ接近移動後に敵1吸引破壊、吸引成功で寿命+1 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 移動先なしで消滅、GUARD対象は吸引不可 | 敵へ接近移動後に敵1吸引破壊、吸引成功で寿命+1 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:160<br>game/logic/cards.js:2408<br>shared-constants.js:159 |
 | instant_hyperactive_01 | 瞬間多動 | INSTANT_HYPERACTIVE_WILL | 5 | 配置直後3回移動後に消滅 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 3回移動後に必ず消滅 | 配置直後3回移動後に消滅 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:167<br>game/logic/cards.js:2420<br>shared-constants.js:162 |
-| sell_01 | 売却の意志 | SELL_CARD_WILL | 8 | 売却カードのcost分を即時獲得 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 使用後に売却用の自分手札が最低1枚必要（手札>1） | あり | 売却対象未選択/手札不足 | 売却カードのcost分を即時獲得 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:174<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | rebuild_01 | 再構築の意志 | REBUILD_WILL | 0 | 手札を全破壊して即時2ドロー | 手札所持・このターン未使用（`applyCardUsage`） | なし | 山札不足時は2枚未満ドローで終了 | 手札品質の再抽選（即時2枚補充） | 高優先カードを手放すと利敵 | 中盤（手札詰まり解消） | cards/catalog.json:181<br>game/turn/turn_pipeline_phases.js / game/turn/turn_pipeline_phase_helpers.js<br>shared-constants.js:169 |
 | plunder_will | 吸収の意志 | PLUNDER_WILL | 4 | 反転枚数ぶん吸収（自 gain += plundered） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 相手布石が少ないと吸収量が伸びない | 反転枚数ぶん吸収（自 gain += plundered） | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:188<br>game/logic/cards.js:2216<br>shared-constants.js:168 |
 | work_01 | 出稼ぎの意志 | WORK_WILL | 11 | 自ターン開始で 1→2→4→8→16（上限99） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | アンカー喪失または残りターン0で終了 | 自ターン開始で 1→2→4→8→16（上限99） | 条件未充足で使用不可/低効率 | 序盤〜中盤（角/辺に置ける時） | cards/catalog.json:195<br>game/logic/cards.js:1227<br>shared-constants.js:171 |
@@ -571,29 +570,6 @@
   - 01-rulebook.md:361
   - 01-rulebook.md:364
 
-### sell_01 / 売却の意志（SELL_CARD_WILL）
-- 効果詳細（処理順含む）: 売却カードのcost分を即時獲得
-- 合理的な使い方
-  - 発動条件「手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 使用後に売却用の自分手札が最低1枚必要（手札>1）」を満たす局面で使う。
-  - 期待リターン「売却カードのcost分を即時獲得」を満たす見込みがある手で使う。
-  - CPU方針で明示がないため、対象条件を満たす時だけ選択する。
-- 利敵行為になる使い方
-  - 失敗条件「売却対象未選択/手札不足」に該当する状態で切る。
-  - このターンのカード使用枠を、直接価値が薄い局面で消費する。
-  - 対象不足を見落とし、使用不可/不発でテンポを失う。
-- 相性の良い盤面/悪い盤面: 未確認（盤面相性の明示ロジックなし）
-- 特殊石や保護状態との相互作用: 未確認（当該カード固有の追加条件は明示コードを確認できず）
-- 布石収支観点（定性的）: +（売却cost分）
-- 根拠コード参照
-  - cards/catalog.json:174
-  - cards/card-interaction.js / cards/card-interaction-effects.js
-  - cards/card-interaction.js / cards/card-interaction-effects.js
-  - game/logic/cards.js:929
-  - game/logic/cards.js:1124
-  - game/logic/cards.js:1204
-  - game/logic/cards.js:2642
-  - shared-constants.js:165
-
 ### rebuild_01 / 再構築の意志（REBUILD_WILL）
 - 効果詳細（処理順含む）: 手札を全破壊し、即時2ドローして pending を解消
 - 合理的な使い方
@@ -999,7 +975,6 @@
 - escape_01 (ESCAPE_WILL) / 優先度: C / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
 - robot_vacuum_01 (ROBOT_VACUUM_WILL) / 優先度: B / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 移動先なしで消滅、GUARD対象は吸引不可
 - instant_hyperactive_01 (INSTANT_HYPERACTIVE_WILL) / 優先度: C / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 優勢時・角確保手がある時・緊急性が低い時
-- sell_01 (SELL_CARD_WILL) / 優先度: A / use_if: 使用後に売却用の自分手札が最低1枚必要（手札>1） を満たす / avoid_if: 売却対象未選択/手札不足
 - rebuild_01 (REBUILD_WILL) / 優先度: B / use_if: 手札品質が低く再抽選したい時、手札4枚以上で詰まり解消したい時 / avoid_if: 高優先防御札を保持中、山札が薄い時
 - plunder_will (PLUNDER_WILL) / 優先度: A / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: 相手布石が少ないと吸収量が伸びない
 - work_01 (WORK_WILL) / 優先度: A / use_if: 基本条件（手札/コスト/未使用）を満たす / avoid_if: アンカー喪失または残りターン0で終了

@@ -40,6 +40,7 @@ function runStreamScenario() {
     "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
     "    roomId: 'SSE1',",
     "    playerName: 'くろ',",
+    "    selectedHandSkinId: 'gacha__n__hand-swap',",
     "    seed: 1,",
     "    networkDebugEnabled: true,",
     "    roomDeck: { mode: 'shared', deckCode: 'D1C1:test_card*3', deckSize: 30, source: 'room' },",
@@ -142,6 +143,122 @@ function runResumeScenario() {
   return runScenario(runner);
 }
 
+function runResumeScenarioWithQueryParam() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const state = {",
+    "    storage: {",
+    "      get: async () => null,",
+    "      put: async () => {},",
+    "      delete: async () => {}",
+    "    }",
+    "  };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  durableObject.roomLoaded = true;",
+    "  durableObject.room = {",
+    "    roomId: 'SSE1',",
+    "    seed: 1,",
+    "    stateVersion: 2,",
+    "    snapshot: {",
+    "      stateVersion: 2,",
+    "      gameState: { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: -1, turnNumber: 2, consecutivePasses: 0 },",
+    "      cardState: { hands: { black: ['b1'], white: ['w1'] }, charge: { black: 0, white: 0 }, pendingEffectByPlayer: { black: null, white: null }, hasUsedCardThisTurnByPlayer: { black: false, white: false }, lastUsedCardByPlayer: { black: null, white: null }, markers: [], discard: [], turnIndex: 2 }",
+    "    },",
+    "    updatedAt: Date.now(),",
+    "    seats: { black: true, white: true },",
+    "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    seatNames: { black: 'black', white: 'white' },",
+    "    roomDeck: null,",
+    "    networkDebugEnabled: false,",
+    "    turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'white', turnStartedAt: null, turnDeadlineAt: null },",
+    "    lastAcceptedOperationBySeat: { black: null, white: null },",
+    "    eventSeq: 2,",
+    "    chatMessages: [],",
+    "    chatSeq: 0",
+    "  };",
+    "  durableObject.sseEventBuffer = [",
+    "    { id: 'SSE1_1_1', event: 'heartbeat', payload: { ok: true, roomId: 'SSE1', stateVersion: 1 } },",
+    "    { id: 'SSE1_2_2', event: 'snapshot', payloadByViewer: {",
+    "      black: { ok: true, roomId: 'SSE1', stateVersion: 2, playbackEvents: [{ type: 'observer_bubble', phase: 2, targets: [{ player: 'black', text: 'resume' }] }], effectLogs: ['白がカードを使用: 交換'], snapshot: { stateVersion: 2, gameState: { currentPlayer: -1, turnNumber: 2, consecutivePasses: 0 }, cardState: { hands: { black: ['b1'], white: ['__hidden_hand__:white:0'] }, charge: { black: 0, white: 0 }, pendingEffectByPlayer: { black: null, white: null }, hasUsedCardThisTurnByPlayer: { black: false, white: false }, lastUsedCardByPlayer: { black: null, white: null }, markers: [], discard: [], turnIndex: 2 } } },",
+    "      white: { ok: true, roomId: 'SSE1', stateVersion: 2, playbackEvents: [], effectLogs: ['白がカードを使用: 交換'], snapshot: { stateVersion: 2, gameState: { currentPlayer: -1, turnNumber: 2, consecutivePasses: 0 }, cardState: { hands: { black: ['__hidden_hand__:black:0'], white: ['w1'] }, charge: { black: 0, white: 0 }, pendingEffectByPlayer: { black: null, white: null }, hasUsedCardThisTurnByPlayer: { black: false, white: false }, lastUsedCardByPlayer: { black: null, white: null }, markers: [], discard: [], turnIndex: 2 } } }",
+    "    } }",
+    "  ];",
+    "  const streamRequest = new Request('https://room/api/match/stream?seatKey=black&seatToken=token_black&lastEventId=SSE1_1_1');",
+    "  const streamResponse = await durableObject.handleStream(streamRequest);",
+    "  const reader = streamResponse.body.getReader();",
+    "  const readResult = await Promise.race([",
+    "    reader.read(),",
+    "    new Promise((_, reject) => setTimeout(() => reject(new Error('STREAM_READ_TIMEOUT')), 1000))",
+    "  ]);",
+    "  const firstChunk = Buffer.from(readResult && readResult.value ? readResult.value : []).toString('utf8');",
+    "  try { await reader.cancel(); } catch (e) { /* ignore */ }",
+    "  process.stdout.write(JSON.stringify({ status: streamResponse.status, firstChunk }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
+function runCreateApiSeatHandSkinScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const workerModule = await import(modulePath);",
+    "  const worker = workerModule.default;",
+    "  const MatchRoomDurableObject = workerModule.MatchRoomDurableObject;",
+    "  const roomStorages = new Map();",
+    "  const env = {",
+    "    MATCH_ROOM: {",
+    "      idFromName: (name) => String(name || ''),",
+    "      get: (id) => ({",
+    "        fetch: async (request) => {",
+    "          const roomId = String(id || '');",
+    "          let storage = roomStorages.get(roomId);",
+    "          if (!storage) {",
+    "            storage = new Map();",
+    "            roomStorages.set(roomId, storage);",
+    "          }",
+    "          const state = {",
+    "            storage: {",
+    "              get: async (key) => storage.get(key),",
+    "              put: async (key, value) => storage.set(key, value),",
+    "              delete: async (key) => storage.delete(key)",
+    "            }",
+    "          };",
+    "          const durableObject = new MatchRoomDurableObject(state);",
+    "          return durableObject.fetch(request);",
+    "        }",
+    "      })",
+    "    }",
+    "  };",
+    "  const createResponse = await worker.fetch(new Request('https://example.com/api/match/create', {",
+    "    method: 'POST',",
+    "    headers: { 'Content-Type': 'application/json' },",
+    "    body: JSON.stringify({ playerName: 'くろ', selectedHandSkinId: 'gacha__n__hand-swap' })",
+    "  }), env);",
+    "  const createPayload = await createResponse.json();",
+    "  const stateResponse = await worker.fetch(new Request(`https://example.com/api/match/state?roomId=${createPayload.roomId}&seatKey=black&seatToken=${createPayload.seatToken}`), env);",
+    "  const statePayload = await stateResponse.json();",
+    "  process.stdout.write(JSON.stringify({",
+    "    createStatus: createResponse.status,",
+    "    createPayload,",
+    "    stateStatus: stateResponse.status,",
+    "    statePayload",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
 function runRejectedStreamScenario(streamPath) {
   const runner = [
     "(async () => {",
@@ -202,6 +319,7 @@ describe('match worker stream SSE', () => {
     expect(result.firstChunk).toContain('data: ');
     expect(result.firstChunk).toContain('"networkDebugEnabled":true');
     expect(result.firstChunk).toContain('"roomDeck":{"mode":"shared"');
+    expect(result.firstChunk).toContain('"seatHandSkins":{"black":"gacha__n__陽気な手","white":""}');
     expect(result.firstChunk).toContain('"effectLogs":[]');
   });
 
@@ -216,6 +334,34 @@ describe('match worker stream SSE', () => {
     expect(result.firstChunk).toContain('"effectLogs":["白がカードを使用: 交換"]');
     expect(result.firstChunk).toContain('"__hidden_hand__:white:0"');
     expect(result.firstChunk).not.toContain('"type":"history"');
+  });
+
+  test('lastEventId query 付き再接続では buffered snapshot を replay する', () => {
+    const result = runResumeScenarioWithQueryParam();
+
+    expect(result.status).toBe(200);
+    expect(typeof result.firstChunk).toBe('string');
+    expect(result.firstChunk).toContain('event: snapshot');
+    expect(result.firstChunk).toContain('id: SSE1_2_2');
+    expect(result.firstChunk).toContain('"observer_bubble"');
+    expect(result.firstChunk).toContain('"effectLogs":["白がカードを使用: 交換"]');
+    expect(result.firstChunk).toContain('"__hidden_hand__:white:0"');
+    expect(result.firstChunk).not.toContain('"type":"history"');
+  });
+
+  test('top-level create と state が seatHandSkins を維持する', () => {
+    const result = runCreateApiSeatHandSkinScenario();
+
+    expect(result.createStatus).toBe(200);
+    expect(result.createPayload.seatHandSkins).toEqual({
+      black: 'gacha__n__陽気な手',
+      white: ''
+    });
+    expect(result.stateStatus).toBe(200);
+    expect(result.statePayload.seatHandSkins).toEqual({
+      black: 'gacha__n__陽気な手',
+      white: ''
+    });
   });
 
   test('seatToken なしの stream は SEAT_TOKEN_REQUIRED で拒否する', () => {

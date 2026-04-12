@@ -9,11 +9,13 @@ function createPrng(randomValue = 0) {
   };
 }
 
-function createState(randomValue = 0) {
+function createState(randomValue = 0, options = {}) {
+  const rows = Number.isInteger(options.rows) ? options.rows : 8;
+  const cols = Number.isInteger(options.cols) ? options.cols : rows;
   const prng = createPrng(randomValue);
-  const cardState = CardLogic.createCardState(prng);
+  const cardState = CardLogic.createCardState(prng, { boardConfig: { rows, cols } });
   const gameState = {
-    board: Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY)),
+    board: Array.from({ length: rows }, () => Array(cols).fill(Shared.EMPTY)),
     currentPlayer: Shared.BLACK
   };
   return { cardState, gameState, prng };
@@ -91,6 +93,39 @@ describe('ROBOT_VACUUM_WILL（ロボット掃除機）', () => {
 
     const moveDetail = movedEvent.details[0];
     expect(moveDetail.to).toEqual({ row: 3, col: 4 });
+  });
+
+  test('10x10 でも 8x8 外の敵石を検知して近づく', () => {
+    const { cardState, gameState } = createState(0.99, { rows: 10, cols: 10 });
+
+    gameState.board[8][8] = Shared.BLACK;
+    gameState.board[7][6] = Shared.WHITE;
+    gameState.board[9][6] = Shared.WHITE;
+
+    cardState.markers.push({
+      id: 1502,
+      kind: 'specialStone',
+      row: 8,
+      col: 8,
+      owner: 'black',
+      data: { type: 'ROBOT_VACUUM', remainingOwnerTurns: 5 }
+    });
+
+    const events = [];
+    TurnPipelinePhases.applyTurnStartPhase(
+      CardLogic,
+      { BLACK: Shared.BLACK, WHITE: Shared.WHITE },
+      cardState,
+      gameState,
+      'black',
+      events,
+      createPrng(0.99)
+    );
+
+    const movedEvent = events.find((ev) => ev && ev.type === 'robot_vacuum_moved_start');
+    expect(Array.isArray(movedEvent && movedEvent.details)).toBe(true);
+    expect((movedEvent && movedEvent.details) || []).toHaveLength(1);
+    expect(movedEvent.details[0].to).toEqual({ row: 8, col: 7 });
   });
 
   test('ターン開始で移動→吸い込み破壊し、移動先で挟めても反転せず、1回で最大1個だけ吸い込む（吸い込みで持続+1）', () => {

@@ -189,6 +189,55 @@ describe('regen consume visual event', () => {
     expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 3 && cell.col === -1).owner).toBe(1);
   });
 
+  test('regen on 10x10 right expansion cell can capture back across the board edge', () => {
+    const board = Array(10).fill(null).map(() => Array(10).fill(0));
+    board[0][9] = -1;
+    board[0][8] = 1;
+
+    const cardState = {
+      markers: [
+        { kind: 'specialStone', row: 0, col: 10, owner: 'black', data: { type: 'REGEN', regenRemaining: 1 } }
+      ],
+      presentationEvents: []
+    };
+    const gameState = {
+      board,
+      boardExpansion: {
+        active: false,
+        side: null,
+        row: null,
+        owner: 0,
+        usedByPlayer: { black: false, white: false },
+        cells: [{ side: 'right', row: 0, col: 10, owner: -1 }]
+      }
+    };
+
+    const removeMarkersAt = (cs, r, c, criteria) => {
+      cs.markers = (cs.markers || []).filter(m => !(
+        m &&
+        m.kind === criteria.kind &&
+        m.row === r &&
+        m.col === c &&
+        m.data &&
+        m.data.type === criteria.type
+      ));
+    };
+
+    const res = CardRegen.applyRegenAfterFlips(
+      cardState,
+      gameState,
+      [{ row: 0, col: 10 }],
+      'white',
+      false,
+      { removeMarkersAt, getCardContext: () => ({ protectedStones: [], permaProtectedStones: [] }), clearBombAt: () => {} }
+    );
+
+    expect(res.regened).toEqual([{ row: 0, col: 10 }]);
+    expect(res.captureFlips).toEqual(expect.arrayContaining([{ row: 0, col: 9 }]));
+    expect(gameState.board[0][9]).toBe(1);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 0 && cell.col === 10).owner).toBe(1);
+  });
+
   test('frozen own stone cannot be used as regen capture anchor', () => {
     const board = Array(8).fill(null).map(() => Array(8).fill(0));
     board[3][3] = -1;

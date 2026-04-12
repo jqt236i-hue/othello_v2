@@ -13,6 +13,7 @@ argument-hint: 'story / tutorial のどこを直したいか。overlay, progress
 - tutorial の会話や進行条件が崩れている時
 - story の encounter や unlock 条件を直したい時
 - 閉じた overlay がクリックを奪うなど UI 罠が出ている時
+- `ui/story-deck-lab/*` ではなく story / tutorial 本体の進行や overlay を直す時
 - root と `worker-public/` の二重配置が関わる時
 
 ## Read First
@@ -34,11 +35,12 @@ argument-hint: 'story / tutorial のどこを直したいか。overlay, progress
 - 閉じた overlay が click を奪う状態を残すこと
 - story と tutorial の共有 handler 変更で片側だけ回帰させること
 - 進行状態や unlock 条件の保存を UI だけでずらすこと
+- `ui/story-deck-lab/*` をこの skill の対象に含め、`deck-builder-authoring-workflow` と混線させること
 - root と `worker-public/` のどちらが正本か曖昧なまま直すこと
 
 ## Procedure
 
-1. 不具合が tutorial、story、overlay、progression のどこにあるかを分ける。
+1. 不具合が tutorial、story、overlay、progression のどこにあるかを分け、`ui/story-deck-lab/*` は対象外として `deck-builder-authoring-workflow` へ分ける。
 2. root 側の正本 file を先に決め、mirror は最後に扱う。
 3. dialogue flow、unlock 条件、overlay 表示状態を別責務として整理する。
 4. click block や shared handler の副作用を、実際の進行順に沿って確認する。
@@ -49,7 +51,16 @@ argument-hint: 'story / tutorial のどこを直したいか。overlay, progress
 - `test/ui.story-encounter.test.js`
 - `test/ui.story-steps.test.js`
 - `test/ui.story-battle-ui.test.js`
+- `test/ui.story-handler.test.js`
+- `test/ui.story-controller.test.js`
+- `test/ui.story-state.test.js`
 - `test/ui.tutorial-handler.test.js`
+- `test/ui.tutorial-overlay.test.js`
+- `test/ui.tutorial-controller.test.js`
+- `test/ui.tutorial-runtime.test.js`
+- `test/ui.tutorial-steps.test.js`
+- `test/ui.tutorial-storage.test.js`
+- `test/ui.tutorial-action-wait.test.js`
 
 ## Completion Checklist
 

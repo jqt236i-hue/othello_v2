@@ -11,7 +11,14 @@
             overlay: opts.overlay || null,
             closeBtn: opts.closeBtn || null,
             headerSummary: opts.headerSummary || null,
-            body: opts.body || null
+            body: opts.body || null,
+            boardSizeOpenBtn: opts.boardSizeOpenBtn || null,
+            boardSizeControlSummary: opts.boardSizeControlSummary || null,
+            boardSizeEditor: opts.boardSizeEditor || null,
+            boardSizeRowsInput: opts.boardSizeRowsInput || null,
+            boardSizeColsInput: opts.boardSizeColsInput || null,
+            boardSizeCloseBtn: opts.boardSizeCloseBtn || null,
+            boardSizeEditorNote: opts.boardSizeEditorNote || null
         };
 
         return root.DeckBuilderControllerModule.createDeckBuilderController({

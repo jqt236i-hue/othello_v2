@@ -32,7 +32,7 @@
     --layout-anchor-side-bottom: 54px;
     --layout-anchor-side-width: 300px;
     --layout-anchor-card-detail-width: 320px;
-    --layout-anchor-card-detail-min-height: 132px;
+    --layout-anchor-card-detail-min-height: 112px;
     --layout-anchor-card-detail-gap: 28px;
     --layout-anchor-card-detail-bottom: 170px;
     --layout-anchor-rules-left: 14px;
@@ -112,15 +112,15 @@
     --layout-size-card-large-height: calc(155px * var(--layout-stage-scale));
     --layout-size-card-large-font: calc(17.5px * var(--layout-stage-scale));
 
-    --layout-size-card-badge-font: calc(10px * var(--layout-stage-scale));
-    --layout-size-card-badge-pad-y: calc(2px * var(--layout-stage-scale));
-    --layout-size-card-badge-pad-x: calc(5px * var(--layout-stage-scale));
-    --layout-size-card-badge-radius: calc(3px * var(--layout-stage-scale));
+        --layout-size-card-badge-font: calc(11px * var(--layout-stage-scale));
+        --layout-size-card-badge-pad-y: calc(3px * var(--layout-stage-scale));
+        --layout-size-card-badge-pad-x: calc(6px * var(--layout-stage-scale));
+        --layout-size-card-badge-radius: calc(4px * var(--layout-stage-scale));
     --layout-size-card-badge-offset: calc(4px * var(--layout-stage-scale));
 
-    --layout-size-card-badge-large-font: calc(12px * var(--layout-stage-scale));
-    --layout-size-card-badge-large-pad-y: calc(3px * var(--layout-stage-scale));
-    --layout-size-card-badge-large-pad-x: calc(6px * var(--layout-stage-scale));
+        --layout-size-card-badge-large-font: calc(14px * var(--layout-stage-scale));
+        --layout-size-card-badge-large-pad-y: calc(4px * var(--layout-stage-scale));
+        --layout-size-card-badge-large-pad-x: calc(7px * var(--layout-stage-scale));
     --layout-size-card-badge-large-offset: calc(6px * var(--layout-stage-scale));
 
     --layout-size-chat-toggle-height: calc(34px * var(--layout-stage-scale));

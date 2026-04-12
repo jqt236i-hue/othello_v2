@@ -1,4 +1,6 @@
 const { createLocalMatchServer, resetRoomsForTests } = require('./local-match-server');
+const Core = require('../game/logic/core');
+const SharedBoardUtils = require('../shared/shared-board-utils');
 
 const DEFAULT_BASE = 'http://127.0.0.1:8787';
 const HIDDEN_HAND_TOKEN_RE = /^__hidden_hand__:(black|white):(\d+)$/;
@@ -21,6 +23,27 @@ function normalizeBaseUrl(value) {
 
 function hasExplicitBaseOverride() {
     return !!readArgValue('base') || !!String(process.env.MATCH_SERVER_URL || '').trim();
+}
+
+function readArgInteger(name) {
+    const raw = readArgValue(name);
+    if (!raw) return null;
+    const value = Number(raw);
+    if (!Number.isFinite(value)) return null;
+    return Math.trunc(value);
+}
+
+function resolveRequestedRoomBoardConfig() {
+    const rawRows = readArgValue('rows');
+    const rawCols = readArgValue('cols');
+    if (!rawRows && !rawCols) return null;
+    const rows = readArgInteger('rows');
+    const cols = readArgInteger('cols');
+    assertTrue(rows !== null || cols !== null, '盤面サイズ引数が不正です');
+    return SharedBoardUtils.resolveBoardConfig({
+        rows: rows !== null ? rows : cols,
+        cols: cols !== null ? cols : rows
+    });
 }
 
 async function listenServer(server, host, port) {
@@ -89,6 +112,38 @@ function assertTrue(value, message) {
     if (!value) {
         throw new Error(message);
     }
+}
+
+function getBoardShape(board) {
+    if (!Array.isArray(board)) return null;
+    let cols = 0;
+    for (const row of board) {
+        if (Array.isArray(row)) cols = Math.max(cols, row.length);
+    }
+    if (board.length <= 0 || cols <= 0) return null;
+    return { rows: board.length, cols };
+}
+
+function assertBoardConfigMatches(actual, expected, label) {
+    if (!expected) return;
+    assertTrue(actual && typeof actual === 'object', `${label} がありません`);
+    assertTrue(Number(actual.rows) === Number(expected.rows), `${label} rows が ${expected.rows} ではありません`);
+    assertTrue(Number(actual.cols) === Number(expected.cols), `${label} cols が ${expected.cols} ではありません`);
+}
+
+function assertSnapshotBoardShape(snapshot, expected, label) {
+    if (!expected) return;
+    assertTrue(snapshot && typeof snapshot === 'object', `${label} snapshot がありません`);
+    const shape = getBoardShape(snapshot && snapshot.gameState && snapshot.gameState.board);
+    assertTrue(shape, `${label} snapshot board shape が取得できません`);
+    assertTrue(shape.rows === Number(expected.rows), `${label} snapshot board rows が ${expected.rows} ではありません`);
+    assertTrue(shape.cols === Number(expected.cols), `${label} snapshot board cols が ${expected.cols} ではありません`);
+}
+
+function assertPayloadBoardState(payload, expected, label) {
+    if (!expected) return;
+    assertBoardConfigMatches(payload && payload.roomBoardConfig, expected, `${label} roomBoardConfig`);
+    assertSnapshotBoardShape(payload && payload.snapshot, expected, `${label}`);
 }
 
 function isHiddenHandToken(value, ownerKey, handIndex) {
@@ -206,10 +261,27 @@ function assertSeatProjection(snapshot, seatKey) {
     assertTrue(oppHand.every((id, idx) => isHiddenHandToken(id, oppKey, idx)), `相手手札(${oppKey})が秘匿されていません`);
 }
 
+function choosePublishAction(snapshot) {
+    assertTrue(snapshot && snapshot.gameState, 'publish 用 snapshot がありません');
+    const gameState = snapshot.gameState;
+    const currentPlayer = Number(gameState.currentPlayer);
+    assertTrue(currentPlayer === 1 || currentPlayer === -1, 'publish 用 currentPlayer が不正です');
+    const legalMoves = Core.getLegalMoves(gameState, currentPlayer);
+    assertTrue(Array.isArray(legalMoves) && legalMoves.length > 0, 'publish 用の合法手が見つかりません');
+    const move = legalMoves[0];
+    return {
+        playerKey: currentPlayer === -1 ? 'white' : 'black',
+        row: Number(move.row),
+        col: Number(move.col),
+        turnIndex: Number(snapshot && snapshot.cardState && snapshot.cardState.turnIndex) || 1
+    };
+}
+
 async function main() {
     const managedServerState = await startManagedLocalServerIfNeeded();
     const baseUrl = managedServerState.baseUrl;
     const managedServer = managedServerState.server;
+    const requestedRoomBoardConfig = resolveRequestedRoomBoardConfig();
     let blackStream = null;
 
     if (managedServer) {
@@ -217,7 +289,9 @@ async function main() {
     }
     console.log(`[match-check] base=${baseUrl}`);
     try {
-        const created = await requestJson(baseUrl, 'POST', '/api/match/create', { playerName: 'くろ' });
+        const createBody = { playerName: 'くろ' };
+        if (requestedRoomBoardConfig) createBody.roomBoardConfig = requestedRoomBoardConfig;
+        const created = await requestJson(baseUrl, 'POST', '/api/match/create', createBody);
         assertTrue(created.ok && created.data && created.data.ok === true, '部屋作成に失敗しました');
         const roomId = String(created.data.roomId || '').trim().toUpperCase();
         const seatKey = String(created.data.seatKey || '').trim();
@@ -227,12 +301,14 @@ async function main() {
         assertTrue(seatKey === 'black', '作成側の席が黒ではありません');
         assertTrue(!!seatToken, '作成側の合言葉がありません');
         assertSeatProjection(created.data.snapshot, 'black');
+        assertPayloadBoardState(created.data, requestedRoomBoardConfig, 'create');
         console.log(`[match-check] create ok room=${roomId}`);
 
         const joined = await requestJson(baseUrl, 'POST', '/api/match/join', { roomId, playerName: 'しろ' });
         assertTrue(joined.ok && joined.data && joined.data.ok === true, '参加に失敗しました');
         assertTrue(joined.data.seatKey === 'white', '参加側の席が白ではありません');
         assertSeatProjection(joined.data.snapshot, 'white');
+        assertPayloadBoardState(joined.data, requestedRoomBoardConfig, 'join');
         const joinedSeatToken = String(joined.data.seatToken || '').trim();
         assertTrue(!!joinedSeatToken, '参加側の合言葉がありません');
         console.log('[match-check] join ok seat=white');
@@ -242,37 +318,46 @@ async function main() {
         assertTrue(rejoined.data.seatKey === 'black', '再参加で元の席を復元できませんでした');
         assertTrue(rejoined.data.rejoined === true, '再参加判定がtrueになっていません');
         assertSeatProjection(rejoined.data.snapshot, 'black');
+        assertPayloadBoardState(rejoined.data, requestedRoomBoardConfig, 'rejoin');
         console.log('[match-check] rejoin ok seat=black');
 
         blackStream = await openSseStream(baseUrl, roomId, 'black', seatToken);
         const initialSnapshotEvent = await readSseEvent(blackStream, 1500, (event) => event && event.eventName === 'snapshot');
         assertTrue(!!initialSnapshotEvent.eventId, '初回 stream snapshot に SSE event id がありません');
         assertSeatProjection(initialSnapshotEvent.data && initialSnapshotEvent.data.snapshot, 'black');
+        assertPayloadBoardState(initialSnapshotEvent.data, requestedRoomBoardConfig, 'stream bootstrap');
         const historyEvent = await readSseEvent(blackStream, 1500, (event) => event && event.eventName === 'chat');
         assertTrue(historyEvent.data && historyEvent.data.type === 'history', '初回 stream chat history が取得できませんでした');
         console.log('[match-check] stream bootstrap ok');
 
+        const action = choosePublishAction(rejoined.data.snapshot);
+        const actingSeatToken = action.playerKey === 'white' ? joinedSeatToken : seatToken;
+        const placedValue = action.playerKey === 'white' ? -1 : 1;
+        const expectedNextPlayer = placedValue === 1 ? -1 : 1;
+
         const published = await requestJson(baseUrl, 'POST', '/api/match/publish', {
             roomId,
-            seatKey: 'black',
-            seatToken,
-            playerKey: 'black',
+            seatKey: action.playerKey,
+            seatToken: actingSeatToken,
+            playerKey: action.playerKey,
             actionType: 'place',
             operationId: `smoke_${Date.now()}`,
             baseVersion: Number(rejoined.data.stateVersion || 0),
-            actor: 'black',
-            params: { row: 2, col: 3 },
-            turnIndex: 1,
-            action: { type: 'place', playerKey: 'black', row: 2, col: 3, turnIndex: 1 }
+            actor: action.playerKey,
+            params: { row: action.row, col: action.col },
+            turnIndex: action.turnIndex,
+            action: { type: 'place', playerKey: action.playerKey, row: action.row, col: action.col, turnIndex: action.turnIndex }
         });
         assertTrue(published.ok && published.data && published.data.ok === true, 'publish に失敗しました');
+        assertPayloadBoardState(published.data, requestedRoomBoardConfig, 'publish');
         const streamedPublishSnapshot = await readSseEvent(
             blackStream,
             1500,
-            (event) => event && event.eventName === 'snapshot' && event.data && event.data.playerKey === 'black' && event.data.actionType === 'place'
+            (event) => event && event.eventName === 'snapshot' && event.data && event.data.playerKey === action.playerKey && event.data.actionType === 'place'
         );
-        assertTrue(streamedPublishSnapshot.data.snapshot.gameState.board[2][3] === 1, 'stream snapshot に配置結果が反映されていません');
-        assertTrue(streamedPublishSnapshot.data.snapshot.gameState.currentPlayer === -1, 'stream snapshot の次手番が白になっていません');
+        assertPayloadBoardState(streamedPublishSnapshot.data, requestedRoomBoardConfig, 'stream publish');
+        assertTrue(streamedPublishSnapshot.data.snapshot.gameState.board[action.row][action.col] === placedValue, 'stream snapshot に配置結果が反映されていません');
+        assertTrue(streamedPublishSnapshot.data.snapshot.gameState.currentPlayer === expectedNextPlayer, 'stream snapshot の次手番が期待値と一致しません');
         console.log('[match-check] stream publish ok');
 
         const blackState = await requestJson(
@@ -282,8 +367,9 @@ async function main() {
         );
         assertTrue(blackState.ok && blackState.data && blackState.data.ok === true, 'state(black) 取得に失敗しました');
         assertSeatProjection(blackState.data.snapshot, 'black');
-        assertTrue(blackState.data.snapshot.gameState.board[2][3] === 1, 'state(black) に配置結果が反映されていません');
-        assertTrue(blackState.data.snapshot.gameState.currentPlayer === -1, 'state(black) の次手番が白になっていません');
+        assertPayloadBoardState(blackState.data, requestedRoomBoardConfig, 'state(black)');
+        assertTrue(blackState.data.snapshot.gameState.board[action.row][action.col] === placedValue, 'state(black) に配置結果が反映されていません');
+        assertTrue(blackState.data.snapshot.gameState.currentPlayer === expectedNextPlayer, 'state(black) の次手番が期待値と一致しません');
 
         const whiteState = await requestJson(
             baseUrl,
@@ -292,8 +378,9 @@ async function main() {
         );
         assertTrue(whiteState.ok && whiteState.data && whiteState.data.ok === true, 'state(white) 取得に失敗しました');
         assertSeatProjection(whiteState.data.snapshot, 'white');
-        assertTrue(whiteState.data.snapshot.gameState.board[2][3] === 1, 'state(white) に配置結果が反映されていません');
-        assertTrue(whiteState.data.snapshot.gameState.currentPlayer === -1, 'state(white) の次手番が白になっていません');
+        assertPayloadBoardState(whiteState.data, requestedRoomBoardConfig, 'state(white)');
+        assertTrue(whiteState.data.snapshot.gameState.board[action.row][action.col] === placedValue, 'state(white) に配置結果が反映されていません');
+        assertTrue(whiteState.data.snapshot.gameState.currentPlayer === expectedNextPlayer, 'state(white) の次手番が期待値と一致しません');
 
         const deniedState = await requestJson(baseUrl, 'GET', `/api/match/state?roomId=${encodeURIComponent(roomId)}`);
         assertTrue(!deniedState.ok && deniedState.status === 403, 'seatTokenなしstateが拒否されませんでした');

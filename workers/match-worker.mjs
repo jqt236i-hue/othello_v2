@@ -14,7 +14,9 @@ const PlaybackEventHelpers = playbackEventHelpersModule || {};
 const PLAYER_KEYS = Array.isArray(MatchAuthority.PLAYER_KEYS) ? MatchAuthority.PLAYER_KEYS : Object.freeze(['black', 'white']);
 const CHAT_MAX_LENGTH = 20;
 const CHAT_HISTORY_LIMIT = 40;
-const NETWORK_PLAYER_NAME_MAX = 7;
+const NETWORK_PLAYER_NAME_MAX = Number.isFinite(Number(MatchAuthority.NETWORK_PLAYER_NAME_MAX))
+    ? Number(MatchAuthority.NETWORK_PLAYER_NAME_MAX)
+    : 7;
 const LEADERBOARD_STORAGE_KEY = 'global_score_leaderboard_v3';
 const LEADERBOARD_STORAGE_VERSION = 3;
 const LEADERBOARD_ROOM_ID = '__leaderboard__';
@@ -85,6 +87,13 @@ function getCurrentPlayerKey(gameState) {
     }
     if (!gameState) return 'black';
     return normalizePlayerKey(gameState.currentPlayer);
+}
+
+function normalizeSeatHandSkinId(value) {
+    if (MatchAuthority && typeof MatchAuthority.normalizeSeatHandSkinId === 'function') {
+        return MatchAuthority.normalizeSeatHandSkinId(value);
+    }
+    return String(value || '').trim();
 }
 
 function getOpponentKey(playerKey) {
@@ -297,6 +306,9 @@ function isNetworkDebugFillHandPayload(value) {
 }
 
 function normalizeNetworkPlayerName(value) {
+    if (MatchAuthority && typeof MatchAuthority.normalizeNetworkPlayerName === 'function') {
+        return MatchAuthority.normalizeNetworkPlayerName(value);
+    }
     const normalized = String(value || '').replace(/\s+/g, ' ').trim();
     return Array.from(normalized).slice(0, NETWORK_PLAYER_NAME_MAX).join('');
 }
@@ -627,6 +639,7 @@ function reportPlaybackAssemblyDiagnostics(context, diagnostics, options = {}) {
 function buildPublishPayload(room, viewerSeatKey, options = {}) {
     const serverTime = Number.isFinite(Number(options.serverTime)) ? Number(options.serverTime) : Date.now();
     const networkDebugEnabled = toPublicNetworkDebugEnabled(room);
+    const publicSeatState = buildPublicSeatState(room);
     const payloadOptions = {
         ok: options.ok === true,
         roomId: room && room.roomId,
@@ -634,8 +647,9 @@ function buildPublishPayload(room, viewerSeatKey, options = {}) {
         snapshot: Object.prototype.hasOwnProperty.call(options, 'snapshot')
             ? options.snapshot
             : toPublicSnapshot(room, viewerSeatKey),
-        seats: toPublicSeats(room),
-        seatNames: toPublicSeatNames(room),
+        seats: publicSeatState.seats,
+        seatNames: publicSeatState.seatNames,
+        seatHandSkins: publicSeatState.seatHandSkins,
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled,
@@ -1013,19 +1027,37 @@ function toPublicSnapshot(room, viewerSeatKey) {
     return projectSnapshotForViewer(room, viewerSeatKey || null);
 }
 
-function toPublicSeats(room) {
+function buildPublicSeatState(room) {
+    if (MatchAuthority && typeof MatchAuthority.buildPublicSeatMetadata === 'function') {
+        return MatchAuthority.buildPublicSeatMetadata(room);
+    }
+    const names = (room && room.seatNames && typeof room.seatNames === 'object') ? room.seatNames : {};
     return {
-        black: !!(room && room.seats && room.seats.black),
-        white: !!(room && room.seats && room.seats.white)
+        seats: MatchAuthority && typeof MatchAuthority.normalizePublicSeats === 'function'
+            ? MatchAuthority.normalizePublicSeats(room && room.seats)
+            : {
+                black: !!(room && room.seats && room.seats.black),
+                white: !!(room && room.seats && room.seats.white)
+            },
+        seatNames: {
+            black: normalizeNetworkPlayerName(names.black),
+            white: normalizeNetworkPlayerName(names.white)
+        },
+        seatHandSkins: MatchAuthority && typeof MatchAuthority.normalizeSeatHandSkins === 'function'
+            ? MatchAuthority.normalizeSeatHandSkins(room && room.seatHandSkins)
+            : {
+                black: normalizeSeatHandSkinId(room && room.seatHandSkins && room.seatHandSkins.black),
+                white: normalizeSeatHandSkinId(room && room.seatHandSkins && room.seatHandSkins.white)
+            }
     };
 }
 
-function toPublicSeatNames(room) {
-    const names = (room && room.seatNames && typeof room.seatNames === 'object') ? room.seatNames : {};
-    return {
-        black: normalizeNetworkPlayerName(names.black),
-        white: normalizeNetworkPlayerName(names.white)
-    };
+function withPublicSeatState(room, payload) {
+    return Object.assign(payload, buildPublicSeatState(room));
+}
+
+function toPublicSeatHandSkins(room) {
+    return buildPublicSeatState(room).seatHandSkins;
 }
 
 function normalizeDeckSizeValue(value) {
@@ -1337,13 +1369,11 @@ function parseChatMessageText(value) {
 
 function buildSnapshotPayload(room, meta, viewerSeatKey) {
     const serverTime = Date.now();
-    return {
+    return withPublicSeatState(room, {
         ok: true,
         roomId: room.roomId,
         stateVersion: room.stateVersion,
         snapshot: toPublicSnapshot(room, viewerSeatKey),
-        seats: toPublicSeats(room),
-        seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
@@ -1355,43 +1385,39 @@ function buildSnapshotPayload(room, meta, viewerSeatKey) {
         playerKey: meta && meta.playerKey ? normalizePlayerKey(meta.playerKey) : null,
         actionType: meta && meta.actionType ? String(meta.actionType) : null,
         serverTime
-    };
+    });
 }
 
 function buildPresencePayload(room, meta) {
     const serverTime = Date.now();
     const seatKey = meta && meta.seatKey ? normalizePlayerKey(meta.seatKey) : 'black';
-    const seatNames = toPublicSeatNames(room);
-    return {
+    const publicSeatState = buildPublicSeatState(room);
+    return withPublicSeatState(room, {
         ok: true,
         roomId: room.roomId,
         type: meta && meta.type ? String(meta.type) : 'join',
         seatKey,
-        playerName: normalizeNetworkPlayerName(seatNames[seatKey]),
+        playerName: normalizeNetworkPlayerName(publicSeatState.seatNames[seatKey]),
         rejoined: !!(meta && meta.rejoined),
-        seats: toPublicSeats(room),
-        seatNames,
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
-    };
+    });
 }
 
 function buildHeartbeatPayload(room, serverTime) {
-    return {
+    return withPublicSeatState(room, {
         ok: true,
         roomId: room.roomId,
         stateVersion: Number.isFinite(Number(room.stateVersion)) ? Number(room.stateVersion) : 0,
-        seats: toPublicSeats(room),
-        seatNames: toPublicSeatNames(room),
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
-    };
+    });
 }
 
 function resolveSeatForJoin(room, requestedSeatKey, providedToken) {
@@ -1561,6 +1587,7 @@ async function handleCreate(env, options) {
                 seed,
                 snapshot,
                 playerName: opts.playerName,
+                selectedHandSkinId: opts.selectedHandSkinId,
                 networkDebugEnabled,
                 initialDeckSpecByPlayer,
                 roomDeck,
@@ -1599,7 +1626,7 @@ async function handleMatchApi(request, env) {
         return handleCreate(env, parsed.body || {});
     }
 
-    if (request.method === 'POST' && (pathname === '/api/match/join' || pathname === '/api/match/leave' || pathname === '/api/match/publish' || pathname === '/api/match/chat')) {
+    if (request.method === 'POST' && (pathname === '/api/match/join' || pathname === '/api/match/leave' || pathname === '/api/match/publish' || pathname === '/api/match/chat' || pathname === '/api/match/hand-skin')) {
         const parsed = await parsePostBody(request);
         if (!parsed.ok) return parsed.response;
 
@@ -1893,6 +1920,7 @@ export class MatchRoomDurableObject {
             stateVersion: 0,
             seats: { black: false, white: false },
             seatNames: { black: '', white: '' },
+            seatHandSkins: { black: '', white: '' },
             seatTokens: { black: makeSeatToken(), white: makeSeatToken() },
             turnTimer: {
                 limitSeconds: NETWORK_TURN_LIMIT_SECONDS,
@@ -2055,6 +2083,7 @@ export class MatchRoomDurableObject {
         const seed = Number.isFinite(Number(payload.seed)) ? Number(payload.seed) : Date.now();
         const snapshot = (payload.snapshot && typeof payload.snapshot === 'object') ? payload.snapshot : null;
         const playerName = normalizeNetworkPlayerName(payload.playerName);
+        const selectedHandSkinId = normalizeSeatHandSkinId(payload.selectedHandSkinId);
         const initialDeckSpec = (payload.initialDeckSpec && typeof payload.initialDeckSpec === 'object')
             ? deepClone(payload.initialDeckSpec)
             : null;
@@ -2092,20 +2121,19 @@ export class MatchRoomDurableObject {
         this.sseEventBuffer = [];
         this.room.seats.black = true;
         this.room.seatNames.black = playerName;
+        this.room.seatHandSkins.black = selectedHandSkinId;
         this.room.updatedAt = Date.now();
         await this.refreshTurnTimer({ nowMs: this.room.updatedAt, forceRestart: false });
         await this.saveRoom();
 
         const serverTime = Date.now();
 
-        return jsonResponse(200, {
+        return jsonResponse(200, withPublicSeatState(this.room, {
             ok: true,
             roomId: this.room.roomId,
             seatKey: 'black',
             playerName,
             seatToken: this.room.seatTokens.black,
-            seats: toPublicSeats(this.room),
-            seatNames: toPublicSeatNames(this.room),
             roomDeck: toPublicRoomDeck(this.room),
             roomBoardConfig: toPublicRoomBoardConfig(this.room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(this.room),
@@ -2113,7 +2141,7 @@ export class MatchRoomDurableObject {
             snapshot: toPublicSnapshot(this.room, 'black'),
             turnTimer: toPublicTurnTimer(this.room, serverTime),
             serverTime
-        });
+        }));
     }
 
     async handleJoin(body) {
@@ -2132,6 +2160,7 @@ export class MatchRoomDurableObject {
         }
 
         const playerName = normalizeNetworkPlayerName(body.playerName);
+        const selectedHandSkinId = normalizeSeatHandSkinId(body.selectedHandSkinId);
         if (!playerName) {
             return jsonResponse(400, { ok: false, reason: 'PLAYER_NAME_REQUIRED' });
         }
@@ -2156,6 +2185,8 @@ export class MatchRoomDurableObject {
             ? room.seatNames
             : { black: '', white: '' };
         room.seatNames[seatKey] = playerName;
+        room.seatHandSkins = toPublicSeatHandSkins(room);
+        room.seatHandSkins[seatKey] = selectedHandSkinId;
         if (deckSelection.hasCustomDeck) {
             assignRoomDeckSelection(room, seatKey, deckSelection);
         }
@@ -2200,15 +2231,13 @@ export class MatchRoomDurableObject {
         });
 
         const serverTime = Date.now();
-        return jsonResponse(200, {
+        return jsonResponse(200, withPublicSeatState(room, {
             ok: true,
             roomId: room.roomId,
             seatKey,
             playerName,
             seatToken,
             rejoined: !!rejoined,
-            seats: toPublicSeats(room),
-            seatNames: toPublicSeatNames(room),
             roomDeck: toPublicRoomDeck(room),
             roomBoardConfig: toPublicRoomBoardConfig(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
@@ -2216,7 +2245,7 @@ export class MatchRoomDurableObject {
             snapshot: toPublicSnapshot(room, seatKey),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
-        });
+        }));
     }
 
     async handleLeave(body) {
@@ -2242,6 +2271,8 @@ export class MatchRoomDurableObject {
             ? room.seatNames
             : { black: '', white: '' };
         room.seatNames[seatKey] = '';
+        room.seatHandSkins = toPublicSeatHandSkins(room);
+        room.seatHandSkins[seatKey] = '';
         room.seatTokens = room.seatTokens && typeof room.seatTokens === 'object'
             ? room.seatTokens
             : {};
@@ -2263,14 +2294,59 @@ export class MatchRoomDurableObject {
         }
 
         const serverTime = Date.now();
-        return jsonResponse(200, {
+        return jsonResponse(200, withPublicSeatState(room, {
             ok: true,
-            seats: toPublicSeats(room),
-            seatNames: toPublicSeatNames(room),
             roomBoardConfig: toPublicRoomBoardConfig(room),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
-        });
+        }));
+    }
+
+    async handleHandSkin(body) {
+        await this.loadRoom();
+        const room = this.room;
+
+        if (!room) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+
+        const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
+        const seatToken = String(body.seatToken || '').trim();
+        const seatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, seatToken);
+        if (!seatKey) {
+            return jsonResponse(403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
+        }
+        if (!room.seats[seatKey]) {
+            return jsonResponse(409, { ok: false, reason: 'SEAT_NOT_JOINED' });
+        }
+
+        const selectedHandSkinId = normalizeSeatHandSkinId(body.selectedHandSkinId);
+        room.seatHandSkins = toPublicSeatHandSkins(room);
+        const previousSkinId = room.seatHandSkins[seatKey] || '';
+        room.seatHandSkins[seatKey] = selectedHandSkinId;
+        room.updatedAt = Date.now();
+        await this.saveRoom();
+
+        if (previousSkinId !== selectedHandSkinId) {
+            await this.broadcastPresence({
+                type: 'hand_skin',
+                seatKey,
+                rejoined: false
+            });
+        }
+
+        const serverTime = Date.now();
+        return jsonResponse(200, withPublicSeatState(room, {
+            ok: true,
+            roomId: room.roomId,
+            seatKey,
+            selectedHandSkinId,
+            roomDeck: toPublicRoomDeck(room),
+            roomBoardConfig: toPublicRoomBoardConfig(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            turnTimer: toPublicTurnTimer(room, serverTime),
+            serverTime
+        }));
     }
 
     async handlePublish(body) {
@@ -2563,19 +2639,17 @@ export class MatchRoomDurableObject {
 
         const serverTime = Date.now();
 
-        return jsonResponse(200, {
+        return jsonResponse(200, withPublicSeatState(room, {
             ok: true,
             roomId: room.roomId,
             stateVersion: room.stateVersion,
-            seats: toPublicSeats(room),
-            seatNames: toPublicSeatNames(room),
             roomDeck: toPublicRoomDeck(room),
             roomBoardConfig: toPublicRoomBoardConfig(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
             snapshot: toPublicSnapshot(room, viewerSeatKey),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
-        });
+        }));
     }
 
     async handleStream(request) {
@@ -2634,16 +2708,14 @@ export class MatchRoomDurableObject {
                         return;
                     }
                     await this.sendSse(streamId, 'snapshot', initialPayload);
-                    await this.sendSse(streamId, 'chat', {
+                    await this.sendSse(streamId, 'chat', withPublicSeatState(room, {
                         ok: true,
                         roomId: room.roomId,
                         type: 'history',
-                        seats: toPublicSeats(room),
-                        seatNames: toPublicSeatNames(room),
                         roomDeck: toPublicRoomDeck(room),
                         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
                         messages: toPublicChatMessages(room)
-                    });
+                    }));
                 } catch (e) {
                     this.closeStream(streamId).catch(() => {});
                 }
@@ -2855,6 +2927,12 @@ export class MatchRoomDurableObject {
             return this.handleChat(parsed || {});
         }
 
+        if (request.method === 'POST' && pathname === '/api/match/hand-skin') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleHandSkin(parsed || {});
+        }
+
         if (request.method === 'GET' && pathname === '/api/match/state') {
             return this.handleState(urlObj);
         }
@@ -2879,47 +2957,39 @@ export class MatchRoomDurableObject {
         const seatKey = normalizePlayerKey(body.seatKey);
         const seatToken = String(body.seatToken || '').trim();
         if (!room.seats[seatKey]) {
-            return jsonResponse(403, {
+            return jsonResponse(403, withPublicSeatState(room, {
                 ok: false,
                 reason: 'SEAT_NOT_JOINED',
-                seats: toPublicSeats(room),
-                seatNames: toPublicSeatNames(room),
                 turnTimer: toPublicTurnTimer(room),
                 serverTime: Date.now()
-            });
+            }));
         }
         if (!seatToken || !room.seatTokens || room.seatTokens[seatKey] !== seatToken) {
-            return jsonResponse(403, {
+            return jsonResponse(403, withPublicSeatState(room, {
                 ok: false,
                 reason: 'SEAT_TOKEN_MISMATCH',
-                seats: toPublicSeats(room),
-                seatNames: toPublicSeatNames(room),
                 turnTimer: toPublicTurnTimer(room),
                 serverTime: Date.now()
-            });
+            }));
         }
         if (!room.seats.black || !room.seats.white) {
-            return jsonResponse(409, {
+            return jsonResponse(409, withPublicSeatState(room, {
                 ok: false,
                 reason: 'CHAT_DISABLED',
-                seats: toPublicSeats(room),
-                seatNames: toPublicSeatNames(room),
                 turnTimer: toPublicTurnTimer(room),
                 serverTime: Date.now()
-            });
+            }));
         }
 
         const parsedText = parseChatMessageText(body.message);
         if (!parsedText.ok) {
-            return jsonResponse(400, {
+            return jsonResponse(400, withPublicSeatState(room, {
                 ok: false,
                 reason: parsedText.reason,
-                seats: toPublicSeats(room),
-                seatNames: toPublicSeatNames(room),
                 maxLength: CHAT_MAX_LENGTH,
                 turnTimer: toPublicTurnTimer(room),
                 serverTime: Date.now()
-            });
+            }));
         }
 
         room.chatSeq = Number.isFinite(Number(room.chatSeq)) ? Number(room.chatSeq) : 0;
@@ -2940,28 +3010,24 @@ export class MatchRoomDurableObject {
         room.updatedAt = message.serverTime;
         await this.saveRoom();
 
-        const payload = {
+        const payload = withPublicSeatState(room, {
             ok: true,
             roomId: room.roomId,
             type: 'message',
             message,
-            seats: toPublicSeats(room),
-            seatNames: toPublicSeatNames(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room)
-        };
+        });
 
         await this.broadcastChat(payload);
 
-        return jsonResponse(200, {
+        return jsonResponse(200, withPublicSeatState(room, {
             ok: true,
             roomId: room.roomId,
             message,
-            seats: toPublicSeats(room),
-            seatNames: toPublicSeatNames(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
             turnTimer: toPublicTurnTimer(room),
             serverTime: Date.now()
-        });
+        }));
     }
 }
 

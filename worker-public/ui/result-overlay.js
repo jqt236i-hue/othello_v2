@@ -21,6 +21,7 @@ const SCORE_CONFIG = Object.freeze({
 });
 
 const SCORE_LEADERBOARD_STORAGE_KEY = `othello_cpu_leaderboard_v${SCORE_CONFIG.version}`;
+const _observationStoneRewardByToken = new Map();
 
 // Module-level token: survives gameState replacement by network snapshots.
 // Updated each time showResult() is called so stale delayed callbacks can detect
@@ -34,6 +35,28 @@ const ResultOverlayOwnerHelpersModule = (() => {
     }
     try {
         if (typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) return globalThis.OwnerHelpers;
+    } catch (e) { /* ignore */ }
+    return null;
+})();
+const ResultOverlayGachaHelpersModule = (() => {
+    if (typeof require === 'function') {
+        try {
+            return require('../shared/gacha-helpers.js');
+        } catch (e) { /* ignore */ }
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.GachaHelpersModule) return globalThis.GachaHelpersModule;
+    } catch (e) { /* ignore */ }
+    return null;
+})();
+const ResultOverlayGachaProgressModule = (() => {
+    if (typeof require === 'function') {
+        try {
+            return require('./storage/gacha-progress.js');
+        } catch (e) { /* ignore */ }
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.GachaProgressStorage) return globalThis.GachaProgressStorage;
     } catch (e) { /* ignore */ }
     return null;
 })();
@@ -565,6 +588,123 @@ function createScoreMetaLine(scoreSummary, leaderboardState) {
     return line;
 }
 
+function canUseObservationStoneProgress() {
+    return !!(
+        ResultOverlayGachaHelpersModule
+        && ResultOverlayGachaProgressModule
+        && typeof ResultOverlayGachaProgressModule.getObservationStones === 'function'
+    );
+}
+
+function getObservationStoneBalanceForResult() {
+    if (!canUseObservationStoneProgress()) return 0;
+    const rootRef = (typeof window !== 'undefined' && window)
+        ? window
+        : (typeof globalThis !== 'undefined' ? globalThis : null);
+    return Math.max(0, toFiniteInteger(ResultOverlayGachaProgressModule.getObservationStones(rootRef), 0));
+}
+
+function resolveObservationStoneRewardToken(counts, viewerKey, localOutcomeKey) {
+    if (typeof gameState !== 'undefined' && gameState && Number.isFinite(Number(gameState.__resultToken))) {
+        return `result:${Math.trunc(Number(gameState.__resultToken))}`;
+    }
+
+    const blackCount = Math.max(0, toFiniteInteger(counts && counts.black, 0));
+    const whiteCount = Math.max(0, toFiniteInteger(counts && counts.white, 0));
+    const turnCount = resolveTurnCountForScore();
+    return `fallback:${resolveCurrentMatchMode()}:${String(viewerKey || 'black')}:${String(localOutcomeKey || 'draw')}:${blackCount}:${whiteCount}:${turnCount}`;
+}
+
+function resolveObservationStoneRewardSummary(counts, viewerKey, localOutcomeKey) {
+    const baseSummary = {
+        visible: false,
+        eligible: false,
+        granted: false,
+        base: 0,
+        bonus: 0,
+        total: 0,
+        balance: getObservationStoneBalanceForResult()
+    };
+
+    if (!canUseObservationStoneProgress()) {
+        return baseSummary;
+    }
+    if (!isCpuMatchMode() || isObserverDuelResultActive() || isStoryEncounterResultActive()) {
+        return baseSummary;
+    }
+
+    const token = resolveObservationStoneRewardToken(counts, viewerKey, localOutcomeKey);
+    if (_observationStoneRewardByToken.has(token)) {
+        const cached = _observationStoneRewardByToken.get(token);
+        return Object.assign({}, cached, {
+            balance: getObservationStoneBalanceForResult()
+        });
+    }
+
+    if (localOutcomeKey !== 'win') {
+        const zeroSummary = Object.assign({}, baseSummary, {
+            visible: true,
+            token
+        });
+        _observationStoneRewardByToken.set(token, zeroSummary);
+        return zeroSummary;
+    }
+
+    const rootRef = (typeof window !== 'undefined' && window)
+        ? window
+        : (typeof globalThis !== 'undefined' ? globalThis : null);
+    const baseReward = Math.max(
+        0,
+        toFiniteInteger(ResultOverlayGachaHelpersModule.OBSERVATION_STONE_REWARD_BASE, 100)
+    );
+    const bonusReward = (typeof ResultOverlayGachaHelpersModule.rollObservationBonus === 'function')
+        ? Math.max(0, toFiniteInteger(ResultOverlayGachaHelpersModule.rollObservationBonus(), 0))
+        : 0;
+    const totalReward = baseReward + bonusReward;
+
+    if (typeof ResultOverlayGachaProgressModule.awardObservationStones === 'function') {
+        ResultOverlayGachaProgressModule.awardObservationStones(rootRef, totalReward);
+    }
+
+    const rewardSummary = Object.assign({}, baseSummary, {
+        visible: true,
+        eligible: true,
+        granted: true,
+        base: baseReward,
+        bonus: bonusReward,
+        total: totalReward,
+        token
+    });
+    _observationStoneRewardByToken.set(token, rewardSummary);
+
+    return Object.assign({}, rewardSummary, {
+        balance: getObservationStoneBalanceForResult()
+    });
+}
+
+function createObservationStoneLine(summary) {
+    if (!summary || summary.visible !== true) return null;
+
+    const line = document.createElement('div');
+    line.className = 'result-observation-stones';
+    const icon = document.createElement('span');
+    icon.className = 'observation-stone-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    line.appendChild(icon);
+
+    const text = document.createElement('span');
+    text.className = 'result-observation-stone-text';
+    if (summary.eligible === true) {
+        text.textContent = `観測石 +${summary.total}（基本${summary.base} / 追加${summary.bonus}） / 所持 ${summary.balance}`;
+        line.appendChild(text);
+        return line;
+    }
+
+    text.textContent = `観測石 +0 / 所持 ${summary.balance}`;
+    line.appendChild(text);
+    return line;
+}
+
 function createObserverDuelMetaLine(override) {
     const line = document.createElement('div');
     line.className = 'result-score-meta';
@@ -955,6 +1095,9 @@ function showResultOverlay() {
     const localOutcomeKey = resultView.localOutcomeKey;
     const title = resultView.title;
     const statusClass = resultView.statusClass;
+    const observationStoneSummary = scenarioOverride
+        ? { visible: false }
+        : resolveObservationStoneRewardSummary(counts, viewerKey, localOutcomeKey);
 
     const scoreSummary = computeScoreSummaryForViewer({
         counts,
@@ -1004,6 +1147,11 @@ function showResultOverlay() {
         ? createObserverDuelMetaLine(observerDuelOverride)
         : createScoreMetaLine(scoreSummary, leaderboardState);
     panel.appendChild(scoreMeta);
+
+    const observationStoneLine = createObservationStoneLine(observationStoneSummary);
+    if (observationStoneLine) {
+        panel.appendChild(observationStoneLine);
+    }
 
     const breakdown = document.createElement('div');
     breakdown.className = 'result-score-breakdown';
@@ -1260,6 +1408,8 @@ if (typeof module !== 'undefined' && module.exports) {
         createObserverDuelDialogue,
         getMonsterDialogues,
         computeScoreSummaryForViewer,
+        resolveObservationStoneRewardSummary,
+        createObservationStoneLine,
         resolveCpuLevelForViewer,
         resolveCurrentMatchMode,
         resolveObserverDuelResultOverride

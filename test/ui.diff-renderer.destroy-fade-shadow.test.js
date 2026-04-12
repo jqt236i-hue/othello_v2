@@ -104,6 +104,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
       'legal',
       'legal-free',
       'effect-target-highlight',
+      'effect-target-highlight-positive',
       'selectable-friendly',
       'selectable-friendly-no-circle',
       'time-stop-legal-emphasis'
@@ -114,6 +115,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     expect(cell.classList.contains('legal')).toBe(false);
     expect(cell.classList.contains('legal-free')).toBe(false);
     expect(cell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(cell.classList.contains('effect-target-highlight-positive')).toBe(false);
     expect(cell.classList.contains('selectable-friendly')).toBe(false);
     expect(cell.classList.contains('selectable-friendly-no-circle')).toBe(false);
     expect(cell.classList.contains('time-stop-legal-emphasis')).toBe(false);
@@ -151,7 +153,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     const secondCell = boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
     expect(firstCell).toBeTruthy();
     expect(secondCell).toBeTruthy();
-    expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     global.cardState.pendingEffectByPlayer = {
       black: {
@@ -165,8 +167,9 @@ describe('DiffRenderer destroy-fade cleanup', () => {
 
     diff.renderBoardDiff(boardEl);
 
-    expect(firstCell.classList.contains('effect-target-highlight')).toBe(true);
-    expect(secondCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(secondCell.classList.contains('effect-target-highlight-positive')).toBe(false);
     expect(secondCell.classList.contains('selectable-friendly')).toBe(true);
 
     global.cardState.pendingEffectByPlayer = { black: null, white: null };
@@ -174,6 +177,181 @@ describe('DiffRenderer destroy-fade cleanup', () => {
 
     diff.renderBoardDiff(boardEl);
 
+    expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+  });
+
+  test('updates BOARD_SHRINK_WILL selected-target highlight as pending selection changes', () => {
+    const diff = require('../ui/diff-renderer');
+
+    global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 2 }];
+
+    diff.renderBoardDiff(boardEl);
+
+    const firstCell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    const secondCell = boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
+    const selectableCell = boardEl.querySelector('.cell[data-row="0"][data-col="2"]');
+    expect(firstCell).toBeTruthy();
+    expect(secondCell).toBeTruthy();
+    expect(selectableCell).toBeTruthy();
+    expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+    expect(secondCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+
+    global.cardState.pendingEffectByPlayer = {
+      black: {
+        type: 'BOARD_SHRINK_WILL',
+        stage: 'selectTarget',
+        cardId: 'board_shrink_01',
+        selectedTargets: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
+        selectedCount: 2,
+        maxSelections: 3
+      },
+      white: null
+    };
+
+    diff.renderBoardDiff(boardEl);
+
+    expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(secondCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(selectableCell.classList.contains('effect-target-highlight-positive')).toBe(false);
     expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
+  });
+
+  test('updates BOARD_SHRINK_GOD first-target highlight as pending selection changes', () => {
+    const diff = require('../ui/diff-renderer');
+
+    global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 1 }];
+
+    diff.renderBoardDiff(boardEl);
+
+    const firstCell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    const selectableCell = boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
+    expect(firstCell).toBeTruthy();
+    expect(selectableCell).toBeTruthy();
+    expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+
+    global.cardState.pendingEffectByPlayer = {
+      black: {
+        type: 'BOARD_SHRINK_GOD',
+        stage: 'selectTarget',
+        cardId: 'board_shrink_god_01',
+        firstTarget: { row: 0, col: 0 }
+      },
+      white: null
+    };
+
+    diff.renderBoardDiff(boardEl);
+
+    expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(selectableCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+    expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
+  });
+
+  test('updates BOARD_EXPANSION_GOD selected-target highlight from firstTarget and selectedTargets', () => {
+    const diff = require('../ui/diff-renderer');
+
+    global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 7 }];
+
+    diff.renderBoardDiff(boardEl);
+
+    const firstCell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    const secondSelectedCell = boardEl.querySelector('.cell[data-row="7"][data-col="7"]');
+    const selectableCell = boardEl.querySelector('.cell[data-row="0"][data-col="7"]');
+    expect(firstCell).toBeTruthy();
+    expect(secondSelectedCell).toBeTruthy();
+    expect(selectableCell).toBeTruthy();
+    expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+    expect(secondSelectedCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+
+    global.cardState.pendingEffectByPlayer = {
+      black: {
+        type: 'BOARD_EXPANSION_GOD',
+        stage: 'selectTarget',
+        cardId: 'board_expand_god_01',
+        firstTarget: { row: 0, col: 0 },
+        selectedTargets: [{ row: 0, col: 0 }, { row: 7, col: 7 }],
+        selectedCount: 2,
+        maxSelections: 2
+      },
+      white: null
+    };
+
+    diff.renderBoardDiff(boardEl);
+
+    expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(secondSelectedCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(selectableCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+    expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
+  });
+
+  test('keeps the board grid size fixed even when shrink holes consume the full top edge', () => {
+    const diff = require('../ui/diff-renderer');
+
+    diff.renderBoardDiff(boardEl);
+    expect(boardEl.style.getPropertyValue('--board-rows')).toBe('8');
+    expect(boardEl.querySelector('.cell[data-row="0"][data-col="0"]')).toBeTruthy();
+
+    global.cardState.markers = Array.from({ length: 8 }, (_, col) => ({
+      id: `shrink-top-${col}`,
+      kind: 'specialStone',
+      row: 0,
+      col,
+      owner: 'black',
+      data: { type: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME' }
+    }));
+
+    diff.renderBoardDiff(boardEl);
+
+    expect(boardEl.style.getPropertyValue('--board-rows')).toBe('8');
+    expect(boardEl.querySelector('.cell[data-row="0"][data-col="0"]')).toBeTruthy();
+    expect(boardEl.querySelector('.cell[data-row="1"][data-col="0"]')).toBeTruthy();
+    expect(boardEl.querySelectorAll('.cell:not(.cell-expanded)')).toHaveLength(64);
+    const topLeftCell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    expect(topLeftCell.classList.contains('board-shrink-hole-cell')).toBe(true);
+    const holeMark = topLeftCell.querySelector('.board-shrink-hole-mark');
+    expect(holeMark.querySelector('.board-shrink-hole-inner-edge.inner-edge-bottom')).toBeTruthy();
+  });
+
+  test('renders shrink-created holes with frame styling and rerenders back to meteor styling when the variant changes', () => {
+    const diff = require('../ui/diff-renderer');
+
+    global.cardState.markers = [{
+      id: 'shrink-hole',
+      kind: 'specialStone',
+      row: 0,
+      col: 0,
+      owner: 'black',
+      data: { type: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME' }
+    }];
+
+    diff.renderBoardDiff(boardEl);
+
+    const cell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    expect(cell).toBeTruthy();
+    expect(cell.classList.contains('board-shrink-hole-cell')).toBe(true);
+    expect(cell.classList.contains('meteor-hole-cell')).toBe(false);
+    const shrinkHoleMark = cell.querySelector('.board-shrink-hole-mark');
+    expect(shrinkHoleMark).toBeTruthy();
+    expect(shrinkHoleMark.querySelector('.board-shrink-hole-inner-edge.inner-edge-right')).toBeTruthy();
+    expect(shrinkHoleMark.querySelector('.board-shrink-hole-inner-edge.inner-edge-bottom')).toBeTruthy();
+    expect(cell.querySelector('.meteor-hole-mark')).toBeNull();
+
+    global.cardState.markers = [{
+      id: 'meteor-hole',
+      kind: 'specialStone',
+      row: 0,
+      col: 0,
+      owner: 'black',
+      data: { type: 'METEOR_HOLE' }
+    }];
+
+    diff.renderBoardDiff(boardEl);
+
+    expect(cell.classList.contains('board-shrink-hole-cell')).toBe(false);
+    expect(cell.classList.contains('meteor-hole-cell')).toBe(true);
+    expect(cell.querySelector('.board-shrink-hole-mark')).toBeNull();
+    expect(cell.querySelector('.meteor-hole-mark')).toBeTruthy();
   });
 });

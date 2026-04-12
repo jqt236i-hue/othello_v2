@@ -4,6 +4,7 @@ const { pathToFileURL } = require('url');
 const { spawnSync } = require('child_process');
 const helpers = require('../shared/playback-event-helpers');
 const adapter = require('../game/turn/pipeline_ui_adapter');
+const Core = require('../game/logic/core');
 const TurnPipeline = require('../game/turn/turn_pipeline');
 const MatchAuthority = require('../utils/match-authority');
 const { createLocalMatchServer, resetRoomsForTests } = require('../scripts/local-match-server');
@@ -16,6 +17,10 @@ function clone(value) {
 
 function normalizePlayerKey(value) {
   return MatchAuthority.normalizePlayerKey(value, 'black');
+}
+
+function createBoard(rows = 8, cols = 8) {
+  return Array.from({ length: rows }, () => Array(cols).fill(0));
 }
 
 function requestJson(port, method, path, payload) {
@@ -213,6 +218,7 @@ function runWorkerCommandPlace(snapshot, action, stateVersion) {
     "    seatNames: { black: 'black', white: 'white' },",
     "    turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black', turnStartedAt: null, turnDeadlineAt: null },",
     "    lastAcceptedOperationBySeat: { black: null, white: null },",
+    "    roomBoardConfig: (snapshot && snapshot.gameState && snapshot.gameState.boardConfig) ? snapshot.gameState.boardConfig : null,",
     "    snapshot",
     "  };",
     "  const storage = new Map();",
@@ -269,20 +275,39 @@ function runWorkerCommandPlace(snapshot, action, stateVersion) {
   return JSON.parse(output.slice(markerIndex + WORKER_RESULT_MARKER.length));
 }
 
-function buildCommandAction(turnIndex) {
+function buildCommandAction(turnIndex, overrides = {}) {
   return {
     type: 'place',
     playerKey: 'black',
     row: 2,
     col: 3,
-    turnIndex
+    turnIndex,
+    ...overrides
   };
+}
+
+function buildFirstLegalAction(snapshot) {
+  const gameState = clone(snapshot && snapshot.gameState);
+  const currentPlayer = Number(gameState && gameState.currentPlayer);
+  const legalMoves = Core.getLegalMoves(gameState, currentPlayer);
+  if (!Array.isArray(legalMoves) || legalMoves.length <= 0) {
+    throw new Error('NO_LEGAL_MOVES_FOR_SNAPSHOT');
+  }
+  return buildCommandAction(
+    Number(snapshot && snapshot.cardState && snapshot.cardState.turnIndex) || 1,
+    {
+      playerKey: currentPlayer === -1 ? 'white' : 'black',
+      row: Number(legalMoves[0].row),
+      col: Number(legalMoves[0].col)
+    }
+  );
 }
 
 function buildExpectedAssembly(snapshot, action) {
   const cardState = clone(snapshot.cardState);
   const gameState = clone(snapshot.gameState);
-  const result = TurnPipeline.applyTurnSafe(cardState, gameState, 'black', action);
+  const actingPlayerKey = normalizePlayerKey(action && action.playerKey) || 'black';
+  const result = TurnPipeline.applyTurnSafe(cardState, gameState, actingPlayerKey, action);
   if (!result || result.ok !== true) {
     throw new Error(`TURN_PIPELINE_FAILED:${result && result.rejectedReason ? result.rejectedReason : 'unknown'}`);
   }
@@ -293,7 +318,7 @@ function buildExpectedAssembly(snapshot, action) {
       cardState: result.cardState,
       gameState: result.gameState
     },
-    fallbackPlayerKey: 'black',
+    fallbackPlayerKey: actingPlayerKey,
     adapter,
     normalizePlayerKey
   });
@@ -318,10 +343,15 @@ function collectFlipEvents(events) {
     }));
 }
 
-async function createJoinedLocalRoom() {
+async function createJoinedLocalRoom(options = {}) {
+  const roomBoardConfig = options && options.roomBoardConfig
+    ? clone(options.roomBoardConfig)
+    : null;
   const server = createLocalMatchServer();
   const port = await listen(server);
-  const createResponse = await requestJson(port, 'POST', '/api/match/create', { playerName: 'black' });
+  const createPayload = { playerName: 'black' };
+  if (roomBoardConfig) createPayload.roomBoardConfig = roomBoardConfig;
+  const createResponse = await requestJson(port, 'POST', '/api/match/create', createPayload);
   const roomId = createResponse.data.roomId;
   const blackToken = createResponse.data.seatToken;
   const joinResponse = await requestJson(port, 'POST', '/api/match/join', {
@@ -390,7 +420,7 @@ describe('network playback event assembly contract', () => {
     });
   });
 
-  test('assemblePlaybackEvents reports mismatch warnings when final playback loses place hand events', () => {
+test('assemblePlaybackEvents reports mismatch warnings when final playback loses place hand events', () => {
     const result = helpers.assemblePlaybackEvents({
       rawEvents: [
         { type: 'place', row: 2, col: 3, player: 'black', actionId: 'place-1', turnIndex: 1 }
@@ -413,6 +443,39 @@ describe('network playback event assembly contract', () => {
     expect(result.diagnostics.warnings).toEqual([
       expect.stringContaining('raw place count')
     ]);
+  });
+
+  test('assemblePlaybackEvents keeps edge place events on a 7x9 custom board snapshot', () => {
+    const result = helpers.assemblePlaybackEvents({
+      rawEvents: [
+        { type: 'place', row: 6, col: 8, player: 'white', actionId: 'place-edge-1', turnIndex: 9 }
+      ],
+      presentationEvents: [],
+      snapshot: {
+        cardState: { turnIndex: 9 },
+        gameState: {
+          board: createBoard(7, 9),
+          boardConfig: { rows: 7, cols: 9, standard8x8: false }
+        }
+      },
+      fallbackPlayerKey: 'white',
+      adapter: {
+        normalizePlaybackEvents: jest.fn((events) => events)
+      },
+      normalizePlayerKey
+    });
+
+    expect(result.playbackEvents).toEqual([
+      {
+        type: 'place_hand_animation',
+        phase: 0,
+        rawType: 'place',
+        actionId: 'place-edge-1',
+        turnIndex: 9,
+        targets: [{ r: 6, col: 8, player: 'white', owner: 'white' }]
+      }
+    ]);
+    expect(result.diagnostics.warnings).toEqual([]);
   });
 
   test('shared helper contract stays aligned across UI adapter, worker, and local match server', async () => {
@@ -481,6 +544,96 @@ describe('network playback event assembly contract', () => {
       expectPrefix(publishedSnapshot.playbackEvents, expected.playbackEvents);
       expect(collectFlipEvents(publishedSnapshot.playbackEvents))
         .toEqual(collectFlipEvents(expected.playbackEvents));
+    } finally {
+      if (stream) {
+        await stream.close();
+      }
+      if (room && room.server) {
+        await closeServer(room.server);
+      }
+    }
+  }, 20000);
+
+  test('shared helper contract stays aligned across UI adapter, worker, and local match server on 7x9 room', async () => {
+    let room = null;
+    let stream = null;
+    try {
+      const roomBoardConfig = { rows: 7, cols: 9, standard8x8: false };
+      room = await createJoinedLocalRoom({ roomBoardConfig });
+      expect(room.stateResponse.status).toBe(200);
+      expect(room.stateResponse.data.ok).toBe(true);
+      expect(room.stateResponse.data.roomBoardConfig).toMatchObject(roomBoardConfig);
+
+      const snapshot = room.stateResponse.data.snapshot;
+      expect(snapshot.gameState.board).toHaveLength(7);
+      expect(snapshot.gameState.board[0]).toHaveLength(9);
+      const stateVersion = room.stateResponse.data.stateVersion;
+      const action = buildFirstLegalAction(snapshot);
+      const expected = buildExpectedAssembly(snapshot, action);
+
+      const uiResult = adapter.runTurnWithAdapter(
+        clone(snapshot.cardState),
+        clone(snapshot.gameState),
+        action.playerKey,
+        action,
+        TurnPipeline
+      );
+      expect(uiResult.ok).toBe(true);
+      expect(uiResult.playbackEvents).toEqual(expected.playbackEvents);
+
+      const workerResult = runWorkerCommandPlace(snapshot, action, stateVersion);
+      expect(workerResult.status).toBe(200);
+      expect(workerResult.payload.ok).toBe(true);
+      expect(workerResult.payload.roomBoardConfig).toMatchObject(roomBoardConfig);
+      expect(workerResult.payload.snapshot.gameState.board).toHaveLength(7);
+      expect(workerResult.payload.snapshot.gameState.board[0]).toHaveLength(9);
+      expectPrefix(workerResult.broadcastMeta && workerResult.broadcastMeta.playbackEvents, expected.playbackEvents);
+      expect(collectFlipEvents(workerResult.broadcastMeta && workerResult.broadcastMeta.playbackEvents))
+        .toEqual(collectFlipEvents(expected.playbackEvents));
+
+      stream = await openSseStream(
+        room.port,
+        `/api/match/stream?roomId=${encodeURIComponent(room.roomId)}&seatKey=black&seatToken=${encodeURIComponent(room.blackToken)}`
+      );
+      const initialSnapshot = await stream.nextEvent('snapshot');
+      expect(initialSnapshot).toMatchObject({
+        ok: true,
+        roomId: room.roomId,
+        roomBoardConfig
+      });
+      expect(initialSnapshot.snapshot.gameState.board).toHaveLength(7);
+      expect(initialSnapshot.snapshot.gameState.board[0]).toHaveLength(9);
+
+      const publishResponse = await requestJson(room.port, 'POST', '/api/match/publish', {
+        roomId: room.roomId,
+        seatKey: action.playerKey,
+        playerKey: action.playerKey,
+        seatToken: action.playerKey === 'white' ? room.whiteToken : room.blackToken,
+        baseVersion: stateVersion,
+        operationId: 'op_contract_custom_board_place_1',
+        actionType: 'place',
+        actor: action.playerKey,
+        params: { row: action.row, col: action.col },
+        turnIndex: action.turnIndex,
+        action
+      });
+      expect(publishResponse.status).toBe(200);
+      expect(publishResponse.data.ok).toBe(true);
+      expect(publishResponse.data.roomBoardConfig).toMatchObject(roomBoardConfig);
+      expect(publishResponse.data.snapshot.gameState.board).toHaveLength(7);
+      expect(publishResponse.data.snapshot.gameState.board[0]).toHaveLength(9);
+
+      const publishedSnapshot = await stream.nextEvent('snapshot');
+      expect(publishedSnapshot).toMatchObject({
+        ok: true,
+        roomId: room.roomId,
+        roomBoardConfig
+      });
+      expectPrefix(publishedSnapshot.playbackEvents, expected.playbackEvents);
+      expect(collectFlipEvents(publishedSnapshot.playbackEvents))
+        .toEqual(collectFlipEvents(expected.playbackEvents));
+      expect(publishedSnapshot.snapshot.gameState.board).toHaveLength(7);
+      expect(publishedSnapshot.snapshot.gameState.board[0]).toHaveLength(9);
     } finally {
       if (stream) {
         await stream.close();

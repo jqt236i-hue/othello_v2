@@ -95,6 +95,27 @@ describe('OwnerHelpers network seat helpers', () => {
     expect(OwnerHelpers.resolveLocalPlayerKey(root)).toBe('black');
   });
 
+  test('getFateWillControllerForTurnOwner reads the controller map safely', () => {
+    const cardState = {
+      fateWillControllerByTurnOwner: { black: null, white: 'black' }
+    };
+
+    expect(OwnerHelpers.getFateWillControllerForTurnOwner(cardState, 'white')).toBe('black');
+    expect(OwnerHelpers.getFateWillControllerForTurnOwner(cardState, 'black')).toBeNull();
+    expect(OwnerHelpers.getFateWillControllerForTurnOwner(null, 'white')).toBeNull();
+  });
+
+  test('getFateWillControlledTurnOwnerForPlayer returns the victim turn owner only for the controller', () => {
+    const cardState = {
+      fateWillControllerByTurnOwner: { black: null, white: 'black' }
+    };
+    const gameState = { currentPlayer: -1 };
+
+    expect(OwnerHelpers.getFateWillControlledTurnOwnerForPlayer(cardState, gameState, 'black')).toBe('white');
+    expect(OwnerHelpers.getFateWillControlledTurnOwnerForPlayer(cardState, gameState, 'white')).toBeNull();
+    expect(OwnerHelpers.getFateWillControlledTurnOwnerForPlayer(cardState, { currentPlayer: 1 }, 'black')).toBeNull();
+  });
+
   test('isNetworkMode reflects current mode getter/fallback', () => {
     expect(OwnerHelpers.isNetworkMode({ getCurrentMatchMode: () => 'network' })).toBe(true);
     expect(OwnerHelpers.isNetworkMode({ MATCH_MODE: 'network' })).toBe(true);

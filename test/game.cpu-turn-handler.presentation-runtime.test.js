@@ -18,6 +18,7 @@ describe('game cpu turn handler presentation runtime', () => {
     delete global.cardState;
     delete global.CardLogic;
     delete global.GamePresentationRuntime;
+    delete global.cpuSmartness;
   });
 
   test('scheduleCpuTurn runs only when player and turn still match', () => {
@@ -56,6 +57,7 @@ describe('game cpu turn handler presentation runtime', () => {
       turnNumber: 7,
       board: Array.from({ length: 8 }, () => Array(8).fill(0))
     };
+    global.cpuSmartness = { white: 6 };
     global.gameState.board[3][3] = 1;
     global.gameState.board[3][4] = -1;
 
@@ -69,7 +71,8 @@ describe('game cpu turn handler presentation runtime', () => {
     expect(requestCommentaryMock).toHaveBeenCalledWith(expect.objectContaining({
       eventType: 'card_used_by_enemy',
       playerKey: 'white',
-      cardId: 'swap_01'
+      cardId: 'swap_01',
+      level: 6
     }));
     expect(entry).toMatchObject({
       prefix: '白CPU',

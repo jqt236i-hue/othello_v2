@@ -49,6 +49,32 @@ describe('animation-engine hand_add', () => {
     );
   });
 
+  test('keeps HAND_ADD adaptation thin and leaves visual resolution to draw-hand animation helper', async () => {
+    global.window.resolveHandVisualOptions = jest.fn(() => ({ ownerKey: 'white', cpu: true, cpuLevel: 4 }));
+    const engine = require('../ui/animation-engine');
+    await engine.executeEvent({
+      type: 'hand_add',
+      targets: [{ player: 'white', cardId: 'card_2', count: 1 }]
+    });
+
+    expect(global.window.resolveHandVisualOptions).not.toHaveBeenCalled();
+    expect(global.window.playDrawCardHandAnimation).toHaveBeenCalledWith(
+      expect.objectContaining({ player: 'white', cardId: 'card_2', count: 1, cpu: false })
+    );
+  });
+
+  test('passes through explicit CPU visual metadata already attached to HAND_ADD payload', async () => {
+    const engine = require('../ui/animation-engine');
+    await engine.executeEvent({
+      type: 'hand_add',
+      targets: [{ player: 'white', cardId: 'card_2', count: 1, cpu: true, cpuLevel: 4 }]
+    });
+
+    expect(global.window.playDrawCardHandAnimation).toHaveBeenCalledWith(
+      expect.objectContaining({ player: 'white', cardId: 'card_2', count: 1, cpu: true, cpuLevel: 4 })
+    );
+  });
+
   test('delegates generated throw-chain hand_add to direct hand animation helper', async () => {
     const engine = require('../ui/animation-engine');
     await engine.executeEvent({
@@ -159,7 +185,7 @@ describe('animation-engine hand_add', () => {
     expect(global.window.playHandAnimation).toHaveBeenCalledWith(global.WHITE, 4, 3, expect.any(Function));
   });
 
-  test('skips place_hand_animation for local network moves', async () => {
+  test('plays place_hand_animation for local network moves from authoritative playback', async () => {
     const engine = require('../ui/animation-engine');
     global.window.MATCH_MODE = 'network';
     global.window.LOCAL_PLAYER_KEY = 'black';
@@ -169,7 +195,8 @@ describe('animation-engine hand_add', () => {
       targets: [{ player: 'black', owner: 'black', r: 2, col: 5 }]
     });
 
-    expect(global.window.playHandAnimation).not.toHaveBeenCalled();
+    expect(global.window.playHandAnimation).toHaveBeenCalledTimes(1);
+    expect(global.window.playHandAnimation).toHaveBeenCalledWith(global.BLACK, 2, 5, expect.any(Function));
   });
 
   test('delegates hand_remove to clear-hand animation helper', async () => {

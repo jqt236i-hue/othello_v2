@@ -400,12 +400,17 @@ function handleCellClick(row, col) {
         });
     }
 
+    if (isNetworkModeForTurnManager()) {
+        executeMove(move);
+        return;
+    }
+
     // Notify UI that a hand animation will be played (UI should play animation based on this event)
     try { emitPresentationEventViaBoardOps({ type: 'PLAY_HAND_ANIMATION', player: playerKey, row, col }); } catch (e) { /* do not block move on presentation failures */ }
 
     playHandAnimation(gameState.currentPlayer, row, col, () => {
         executeMove(move);
-    });
+    }, { cpu: false, ownerKey: currentPlayerKey });
 }
 
 function isAnimationInProgress() {
@@ -491,10 +496,11 @@ function resolveNetworkLocalPlayerKey() {
 
 function canLocalUserOperateCurrentTurn() {
     const currentPlayerKey = getPlayerKey(gameState.currentPlayer);
+    const isNetworkMode = isNetworkModeForTurnManager();
     const isHvH = !!(__uiImpl_turn_manager && __uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN);
     // FATE_WILL: if another player controls this turn, only the controller can operate.
     // Applies in network mode and in local non-HvH mode.
-    if (!isHvH) {
+    if (isNetworkMode || !isHvH) {
         const cs = (typeof cardState !== 'undefined' && cardState) ? cardState : null;
         const fwc = cs && cs.fateWillControllerByTurnOwner;
         const controller = fwc && fwc[currentPlayerKey];
@@ -503,7 +509,7 @@ function canLocalUserOperateCurrentTurn() {
             return controller === localPlayerKey;
         }
     }
-    if (!isNetworkModeForTurnManager()) return true;
+    if (!isNetworkMode) return true;
     const localPlayerKey = resolveNetworkLocalPlayerKey();
     return currentPlayerKey === localPlayerKey;
 }
@@ -623,6 +629,8 @@ function resolveBoardPendingSelectionHandlerForTurnManager(dispatchKey) {
         return (typeof handleTrapSelection === 'function') ? handleTrapSelection : null;
     case 'guard':
         return (typeof handleGuardSelection === 'function') ? handleGuardSelection : null;
+    case 'living_will':
+        return (typeof handleLivingWillSelection === 'function') ? handleLivingWillSelection : null;
     case 'hyperactive_inherit':
         return (typeof handleHyperactiveInheritSelection === 'function') ? handleHyperactiveInheritSelection : null;
     case 'extend_life':
@@ -637,12 +645,16 @@ function resolveBoardPendingSelectionHandlerForTurnManager(dispatchKey) {
         return (typeof handlePositionSwapSelection === 'function') ? handlePositionSwapSelection : null;
     case 'board_expansion':
         return (typeof handleBoardExpansionSelection === 'function') ? handleBoardExpansionSelection : null;
+    case 'board_shrink':
+        return (typeof handleBoardShrinkSelection === 'function') ? handleBoardShrinkSelection : null;
     case 'blockade':
         return (typeof handleBlockadeSelection === 'function') ? handleBlockadeSelection : null;
     case 'meteor':
         return (typeof handleMeteorSelection === 'function') ? handleMeteorSelection : null;
     case 'freeze':
         return (typeof handleFreezeSelection === 'function') ? handleFreezeSelection : null;
+    case 'seed':
+        return (typeof handleSeedSelection === 'function') ? handleSeedSelection : null;
     case 'clone':
         return (typeof handleCloneSelection === 'function') ? handleCloneSelection : null;
     case 'split':
@@ -715,8 +727,6 @@ function resetGame() {
         cpuSmartness.white = clampCpuLevel((vals && vals.white) || cpuSmartness.white || 1);
     }
 
-    console.log(`[resetGame] CPU Levels - Black: ${cpuSmartness.black}, White: ${cpuSmartness.white}`);
-
     if (typeof updateCpuCharacter === 'function') {
         updateCpuCharacter();
     }
@@ -742,7 +752,18 @@ function resetGame() {
         }
     }
 
-    gameState = createGameState();
+    let boardConfig = (cardInitOptions && typeof cardInitOptions === 'object' && cardInitOptions.boardConfig)
+        ? cardInitOptions.boardConfig
+        : null;
+    if (!boardConfig && __uiImpl_turn_manager && typeof __uiImpl_turn_manager.readBoardConfig === 'function') {
+        try {
+            boardConfig = __uiImpl_turn_manager.readBoardConfig() || null;
+        } catch (e) {
+            console.warn('[resetGame] readBoardConfig failed:', e && e.message ? e.message : e);
+        }
+    }
+
+    gameState = createGameState(boardConfig);
     try {
         // initCardState may rely on PRNG; if unavailable, tests should mock or skip
         if (typeof initCardState === 'function') initCardState(undefined, cardInitOptions);

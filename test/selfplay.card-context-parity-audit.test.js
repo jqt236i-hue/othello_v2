@@ -12,14 +12,14 @@ describe('card context parity audit script', () => {
         const parsed = parseAuditArgs([
             '--games', '4',
             '--seed', '9',
-            '--types', 'SELL_CARD_WILL,REBUILD_WILL',
+            '--types', 'REBUILD_WILL,WORK_WILL',
             '--type', 'CLONE_WILL',
             '--out', 'tmp/audit.json'
         ]);
 
         expect(parsed.games).toBe(4);
         expect(parsed.seed).toBe(9);
-        expect(parsed.types).toEqual(['SELL_CARD_WILL', 'REBUILD_WILL', 'CLONE_WILL']);
+        expect(parsed.types).toEqual(['REBUILD_WILL', 'WORK_WILL', 'CLONE_WILL']);
         expect(parsed.out).toContain(path.join('tmp', 'audit.json'));
     });
 

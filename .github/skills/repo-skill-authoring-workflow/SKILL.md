@@ -33,6 +33,7 @@ argument-hint: 'どの作業を skill 化したいか。新規追加か既存 sk
 - 一度きりの局所ルールを skill にしてしまうこと
 - repo-wide rule を skill 側で重複定義すること
 - frontmatter や `SKILLS.md` の索引更新を忘れること
+- `SKILLS.md` の `## 3. skill index` だけ直して `## 4. 選び方の近道` を更新しないこと
 - 既存 skill と対象範囲が重なったまま増やすこと
 
 ## Procedure
@@ -41,12 +42,13 @@ argument-hint: 'どの作業を skill 化したいか。新規追加か既存 sk
 2. 対象ファイル、よくある罠、検証束、完了条件が固定できるかを確認する。
 3. skill 名、説明、argument-hint を安定した名前で決める。
 4. `SKILL.md` を workflow 専用で書き、repo-wide rule の再定義を入れない。
-5. `SKILLS.md` の索引と選び方を同じタスクで更新する。
+5. `SKILLS.md` の `## 3. skill index` と `## 4. 選び方の近道` を同じタスクで更新する。
 
 ## Validation Bundle
 
 - frontmatter (`name`, `description`, `argument-hint`) がある
-- `SKILLS.md` に索引がある
+- 本文で挙げた concrete path / test が実在する
+- `SKILLS.md` の `## 3. skill index` と `## 4. 選び方の近道` の両方に反映されている
 - skill の対象範囲が既存 skill と重なりすぎていない
 - sample prompt を 1 つ想定した時に入口が明確
 

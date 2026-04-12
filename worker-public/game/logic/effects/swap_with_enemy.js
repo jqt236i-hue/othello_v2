@@ -7,6 +7,7 @@
     if (typeof module === 'object' && module.exports) {
         module.exports = factory(
             require('../../../shared-constants'),
+            require('../../../shared/shared-board-utils'),
             (function () {
                 try {
                     return require('../cards/utils');
@@ -23,15 +24,44 @@
             })()
         );
     } else {
-        root.SwapWithEnemy = factory(root.SharedConstants, root.CardUtils || null, root.CoreLogic || root.Core || null);
+        root.SwapWithEnemy = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardUtils || null, root.CoreLogic || root.Core || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardUtils, CoreModule) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, SharedBoardUtils, CardUtils, CoreModule) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY, CHARGE_MAX } = SharedConstants || {};
     const P_BLACK = BLACK || 1;
     const P_WHITE = WHITE || -1;
     const P_EMPTY = (typeof EMPTY === 'number') ? EMPTY : 0;
+
+    function resolveBoardBounds(gameState) {
+        if (SharedBoardUtils && typeof SharedBoardUtils.resolveBoardBounds === 'function') {
+            return SharedBoardUtils.resolveBoardBounds(gameState && gameState.board);
+        }
+        const board = gameState && gameState.board;
+        if (!Array.isArray(board) || board.length <= 0) return null;
+        let maxCol = -1;
+        for (const row of board) {
+            if (Array.isArray(row) && row.length > 0) {
+                maxCol = Math.max(maxCol, row.length - 1);
+            }
+        }
+        if (maxCol < 0) return null;
+        return { minRow: 0, maxRow: board.length - 1, minCol: 0, maxCol };
+    }
+
+    function isMainBoardCell(gameState, row, col) {
+        const bounds = resolveBoardBounds(gameState);
+        return !!(
+            bounds &&
+            Number.isInteger(row) &&
+            Number.isInteger(col) &&
+            row >= bounds.minRow &&
+            row <= bounds.maxRow &&
+            col >= bounds.minCol &&
+            col <= bounds.maxCol
+        );
+    }
 
     function normalizeFlips(flips) {
         if (!Array.isArray(flips) || flips.length === 0) return [];
@@ -58,7 +88,7 @@
                     ? cell.col
                     : (
                         cell.side === 'left' ? -1
-                            : (cell.side === 'right' ? 8
+                            : (cell.side === 'right' ? ((resolveBoardBounds(gameState) || {}).maxCol + 1)
                                 : (cell.side === 'top' || cell.side === 'bottom' ? Number(cell.col) : null))
                     );
                 if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
@@ -69,7 +99,7 @@
 
     function getCellValue(gameState, row, col) {
         if (!gameState || !Array.isArray(gameState.board)) return null;
-        if (Number.isInteger(row) && row >= 0 && row < 8 && Number.isInteger(col) && col >= 0 && col < 8) {
+        if (isMainBoardCell(gameState, row, col)) {
             return gameState.board[row][col];
         }
         const expansionCells = getExpansionCells(gameState);
@@ -81,7 +111,7 @@
 
     function setCellValue(gameState, row, col, value) {
         if (!gameState || !Array.isArray(gameState.board)) return false;
-        if (Number.isInteger(row) && row >= 0 && row < 8 && Number.isInteger(col) && col >= 0 && col < 8) {
+        if (isMainBoardCell(gameState, row, col)) {
             gameState.board[row][col] = value;
             return true;
         }
@@ -100,7 +130,7 @@
             const cellRow = Number(cell.row);
             const cellCol = Number.isInteger(cell.col)
                 ? cell.col
-                : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : Number(cell.col)));
+                : (cell.side === 'left' ? -1 : (cell.side === 'right' ? ((resolveBoardBounds(gameState) || {}).maxCol + 1) : Number(cell.col)));
             if (!Number.isInteger(cellRow) || !Number.isInteger(cellCol)) continue;
             if (cellRow !== row || cellCol !== col) continue;
             cells[i] = Object.assign({}, cell, { owner: Number(value) });

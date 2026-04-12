@@ -120,10 +120,10 @@ async function flushAsyncWork() {
 }
 
 describe('SoundEngine default BGM', () => {
-  test('startup default sound effect master volume is 0.7', () => {
+  test('startup default sound effect master volume is 0.56', () => {
     const soundEngine = loadSoundEngine();
 
-    expect(soundEngine.volume).toBe(0.7);
+    expect(soundEngine.volume).toBe(0.56);
   });
 
   test('duration-end revert sound uses the renamed asset mapping', () => {
@@ -295,6 +295,22 @@ describe('SoundEngine default BGM', () => {
 
     expect(soundEngine.getEffectFilePath('strong_will_promoted')).toBe(
       'assets/audio/sound-effect/強い意志の石が進化したタイミング.mp3'
+    );
+  });
+
+  test('seed sprout sound key resolves to the shipped filename', () => {
+    const soundEngine = loadSoundEngine();
+
+    expect(soundEngine.getEffectFilePath('seed_sprout')).toBe(
+      'assets/audio/sound-effect/種まきの意志で芽生えるタイミング.mp3'
+    );
+  });
+
+  test('living will restored sound key resolves to the shipped filename', () => {
+    const soundEngine = loadSoundEngine();
+
+    expect(soundEngine.getEffectFilePath('living_will_restored')).toBe(
+      'assets/audio/sound-effect/生きる意志で復活するタイミング.mp3'
     );
   });
 

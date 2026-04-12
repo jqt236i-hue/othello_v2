@@ -67,18 +67,18 @@ function _getUIGlobals() {
 
 function _hasPendingPlaybackOrPresentation() {
     try {
-        const playbackState = (typeof window !== 'undefined' && window && window.PlaybackStateManager && typeof window.PlaybackStateManager.shouldAllowSelectionEntryDuringPlayback === 'function')
+        const playbackState = (typeof window !== 'undefined' && window && window.PlaybackStateManager && typeof window.PlaybackStateManager.shouldDeferUiSync === 'function')
             ? window.PlaybackStateManager
-            : ((typeof globalThis !== 'undefined' && globalThis && globalThis.PlaybackStateManager && typeof globalThis.PlaybackStateManager.shouldAllowSelectionEntryDuringPlayback === 'function')
+            : ((typeof globalThis !== 'undefined' && globalThis && globalThis.PlaybackStateManager && typeof globalThis.PlaybackStateManager.shouldDeferUiSync === 'function')
                 ? globalThis.PlaybackStateManager
                 : null);
-        if (playbackState && playbackState.shouldAllowSelectionEntryDuringPlayback() === true) {
-            return false;
+        if (playbackState) {
+            return playbackState.shouldDeferUiSync({
+                cardState: (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') ? cardState : null
+            }) === true;
         }
-        const pending = (cardState && Array.isArray(cardState._presentationEventsPersist)) ? cardState._presentationEventsPersist.length : 0;
-        const live = (cardState && Array.isArray(cardState.presentationEvents)) ? cardState.presentationEvents.length : 0;
         const playback = (typeof window !== 'undefined') ? (window.VisualPlaybackActive === true) : false;
-        return playback || pending > 0 || live > 0;
+        return playback;
     } catch (e) {
         return (typeof window !== 'undefined') ? (window.VisualPlaybackActive === true) : false;
     }
@@ -437,6 +437,7 @@ if (typeof GameEvents !== 'undefined' && GameEvents.gameEvents) {
             if (broker && typeof broker.showCommentaryEntry === 'function') {
                 broker.showCommentaryEntry(msg, { log: false });
             }
+            return;
         }
         if (isCardEffectOnlyLogLine(text)) return;
         if (typeof addLog === 'function') addLog(text);

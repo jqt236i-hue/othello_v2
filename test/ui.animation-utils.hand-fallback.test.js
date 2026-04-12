@@ -1,6 +1,7 @@
 const { JSDOM } = require('jsdom');
 const path = require('path');
 const animationSharedPath = path.resolve(__dirname, '..', 'ui', 'animation-shared.js');
+const ALT_GACHA_HAND_SKIN_ID = 'gacha__n__hand-swap';
 
 function createScopedTimerMock() {
   const scopeMap = new Map();
@@ -45,6 +46,23 @@ function createScopedTimerMock() {
   };
 }
 
+function appendCpuLevelSelect(docRef, id, value) {
+  const select = docRef.createElement('select');
+  select.id = id;
+  const option = docRef.createElement('option');
+  option.value = String(value);
+  option.textContent = String(value);
+  select.appendChild(option);
+  select.value = String(value);
+  docRef.body.appendChild(select);
+  return select;
+}
+
+function unlockAltGachaHandSkin(rootRef) {
+  const storageModule = require('../ui/storage/gacha-progress.js');
+  storageModule.unlockHandSkinIds(rootRef, [ALT_GACHA_HAND_SKIN_ID]);
+}
+
 describe('animation-utils hand fallback', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -63,9 +81,9 @@ describe('animation-utils hand fallback', () => {
         <div id="handLayer" style="display:none;"></div>
         <div id="handWrapper"></div>
         <div id="heldStone"></div>
-        <svg id="handSvg"></svg>
+        <img id="handImage" />
       </body></html>
-    `);
+    `, { url: 'https://example.test/' });
     global.window = dom.window;
     global.document = dom.window.document;
 
@@ -108,6 +126,32 @@ describe('animation-utils hand fallback', () => {
     expect(global.SoundEngine.playStoneClack).toHaveBeenCalledTimes(1);
   });
 
+  test('playHandAnimation can force CPU-only hand image for the acting owner', async () => {
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.animate = undefined;
+    unlockAltGachaHandSkin(window);
+    window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
+    window.cpuSmartness = { black: 3, white: 1 };
+    const handSkin = require('../ui/handlers/hand-skin.js');
+    window.syncDisplayedHandSkin = handSkin.syncDisplayedHandSkin;
+    window.resolveHandAnimationContext = handSkin.resolveHandAnimationContext;
+    const mod = require('../ui/animation-utils');
+
+    const promise = new Promise((resolve, reject) => {
+      const to = setTimeout(() => reject(new Error('timeout')), 2200);
+      mod.playHandAnimation(global.BLACK, 0, 0, () => {
+        clearTimeout(to);
+        resolve();
+      }, { cpu: true, cpuLevel: 3, ownerKey: 'black' });
+    });
+
+    await Promise.resolve();
+    expect(document.getElementById('handImage').getAttribute('src')).toBe('assets/images/hand-skin/lv3-5.png');
+    expect(document.getElementById('handImage').getAttribute('data-hand-skin-id')).toBe('cpu-lv3-5');
+
+    await expect(promise).resolves.toBeUndefined();
+  });
+
   test('playDrawCardHandAnimation resolves without Element.animate', async () => {
     const wrapper = document.getElementById('handWrapper');
     wrapper.animate = undefined;
@@ -115,6 +159,50 @@ describe('animation-utils hand fallback', () => {
 
     await expect(mod.playDrawCardHandAnimation({ player: 'black', count: 1 })).resolves.toBeUndefined();
     expect(document.getElementById('handLayer').style.display).toBe('none');
+  });
+
+  test('playDrawCardHandAnimation can force CPU-only hand image for the acting owner', async () => {
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.animate = undefined;
+    unlockAltGachaHandSkin(window);
+    window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
+    window.cpuSmartness = { black: 1, white: 4 };
+    const handSkin = require('../ui/handlers/hand-skin.js');
+    window.syncDisplayedHandSkin = handSkin.syncDisplayedHandSkin;
+    window.resolveHandAnimationContext = handSkin.resolveHandAnimationContext;
+    const mod = require('../ui/animation-utils');
+
+    const promise = mod.playDrawCardHandAnimation({ player: 'white', count: 1, cpu: true, cpuLevel: 4 });
+    await Promise.resolve();
+
+    expect(document.getElementById('handImage').getAttribute('src')).toBe('assets/images/hand-skin/lv4.png');
+    expect(document.getElementById('handImage').getAttribute('data-hand-skin-id')).toBe('cpu-lv4');
+
+    await expect(promise).resolves.toBeUndefined();
+  });
+
+  test('playDrawCardHandAnimation resolves CPU hand from CPU LEVEL selects when window cpuSmartness is unavailable', async () => {
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.animate = undefined;
+    window.MATCH_MODE = 'cpu';
+    unlockAltGachaHandSkin(window);
+    window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
+    appendCpuLevelSelect(document, 'smartBlack', 1);
+    appendCpuLevelSelect(document, 'smartWhite', 4);
+    const handSkin = require('../ui/handlers/hand-skin.js');
+    window.syncDisplayedHandSkin = handSkin.syncDisplayedHandSkin;
+    window.resolveHandAnimationContext = handSkin.resolveHandAnimationContext;
+    const mod = require('../ui/animation-utils');
+
+    expect(window.cpuSmartness).toBeUndefined();
+
+    const promise = mod.playDrawCardHandAnimation({ player: 'white', count: 1 });
+    await Promise.resolve();
+
+    expect(document.getElementById('handImage').getAttribute('src')).toBe('assets/images/hand-skin/lv4.png');
+    expect(document.getElementById('handImage').getAttribute('data-hand-skin-id')).toBe('cpu-lv4');
+
+    await expect(promise).resolves.toBeUndefined();
   });
 
   test('playDrawCardHandAnimation uses bottom-seat orientation when white is on bottom slot', async () => {
@@ -157,7 +245,7 @@ describe('animation-utils hand fallback', () => {
     const promise = mod.playDrawCardHandAnimation({ player: 'white', count: 1 });
     await Promise.resolve();
 
-    expect(wrapper.style.transform).toContain('translate(240px, 300px)');
+    expect(wrapper.style.transform).toContain('translate(210px, 300px)');
     expect(wrapper.style.transform).not.toContain('translate(40px, -40px)');
 
     await expect(promise).resolves.toBeUndefined();
@@ -596,7 +684,9 @@ describe('animation-utils hand fallback', () => {
     const badge = movingCard.querySelector('.card-cost-badge');
     expect(badge).toBeTruthy();
     expect(badge.classList.contains('cost-tier-blue')).toBe(true);
-    expect(badge.textContent).toBe('コスト11');
+    expect(badge.textContent).toBe('11cost');
+    expect(badge.parentElement).toBe(movingCard);
+    expect(movingCard.querySelector('.card-badge-row .card-cost-badge')).toBeNull();
 
     jest.advanceTimersByTime(4000);
     await Promise.resolve();
@@ -653,7 +743,10 @@ describe('animation-utils hand fallback', () => {
     expect(movingCard.classList.contains('cost-tier-gold')).toBe(true);
     expect(movingCard.dataset.cardId).toBeUndefined();
     expect(movingCard.querySelector('.card-name').textContent).toBe('Descriptor Card');
-    expect(movingCard.querySelector('.card-cost-badge').textContent).toBe('コスト21');
+    const costBadge = movingCard.querySelector('.card-cost-badge');
+    expect(costBadge.textContent).toBe('21cost');
+    expect(costBadge.parentElement).toBe(movingCard);
+    expect(movingCard.querySelector('.card-badge-row .card-cost-badge')).toBeNull();
 
     jest.advanceTimersByTime(4000);
     await Promise.resolve();
@@ -708,5 +801,66 @@ describe('animation-utils hand fallback', () => {
     await expect(promise).resolves.toBeUndefined();
     expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('loss_will_reset');
     expect(onDisappear).toHaveBeenCalledTimes(1);
+  });
+
+  test('playCardUseHandAnimation passes ownerKey into createCardFaceElement for moving cards', async () => {
+    jest.useFakeTimers();
+
+    const animateMock = jest.fn(() => ({
+      addEventListener: () => {},
+      finished: Promise.resolve()
+    }));
+    window.Element.prototype.animate = animateMock;
+
+    const handEl = document.getElementById('hand-white');
+    const chargeEl = document.getElementById('charge-white');
+    handEl.getBoundingClientRect = () => ({
+      left: 720,
+      top: 120,
+      width: 260,
+      height: 140,
+      right: 980,
+      bottom: 260
+    });
+    chargeEl.getBoundingClientRect = () => ({
+      left: 980,
+      top: 150,
+      width: 100,
+      height: 40,
+      right: 1080,
+      bottom: 190
+    });
+
+    window.createCardFaceElement = jest.fn((_cardId, options) => {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'card-item visible';
+      cardEl.dataset.receivedOwnerKey = options && options.ownerKey ? options.ownerKey : '';
+      const nameEl = document.createElement('span');
+      nameEl.className = 'card-name';
+      nameEl.textContent = 'Stub Card';
+      cardEl.appendChild(nameEl);
+      return cardEl;
+    });
+
+    const mod = require('../ui/animation-utils');
+    const promise = mod.playCardUseHandAnimation({
+      player: 'white',
+      owner: 'white',
+      cardId: 'udr_01',
+      name: '究極反転龍',
+      cost: 30
+    });
+
+    await Promise.resolve();
+
+    expect(window.createCardFaceElement).toHaveBeenCalledWith('udr_01', expect.objectContaining({ ownerKey: 'white' }));
+    const movingCard = document.querySelector('#handLayer .card-item');
+    expect(movingCard).toBeTruthy();
+    expect(movingCard.dataset.receivedOwnerKey).toBe('white');
+
+    jest.advanceTimersByTime(4000);
+    await Promise.resolve();
+
+    await expect(promise).resolves.toBeUndefined();
   });
 });

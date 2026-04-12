@@ -18,8 +18,8 @@ describe('stone shadow styles', () => {
     test('styles-stone-shadows.css enables only the canonical cell/disc shadow selectors', () => {
         const css = fs.readFileSync(path.join(__dirname, '..', 'styles-stone-shadows.css'), 'utf8');
         expect(css).toMatch(/html\.stone-shadow-enabled\s+\.cell\.has-disc::before/);
-        expect(css).toMatch(/html\.stone-shadow-enabled\s+\.cell:has\(> \.disc\)::before/);
         expect(css).toMatch(/html\.stone-shadow-enabled\s+\.disc::before/);
+        expect(css).not.toMatch(/:has\(/);
         expect(css).not.toMatch(/\.disc::after/);
         expect(css).not.toMatch(/special-stone-img/);
         expect(css).not.toMatch(/drop-shadow/);

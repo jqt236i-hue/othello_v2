@@ -9,7 +9,7 @@ describe('applyAssetManifest', () => {
       this.onload = null; this.onerror = null;
       Object.defineProperty(this, 'src', { set(v) { setTimeout(() => { if (typeof this.onload === 'function') this.onload(); }, 0); } });
     };
-    const res = generateManifest({ root: require('path').resolve(__dirname, '..') }).manifest;
+    const res = generateManifest({ root: require('path').resolve(__dirname, '..'), write: false }).manifest;
     const out = await bootstrap.applyAssetManifest(res, { mode: 'compat' }, { timeoutMs: 1000 });
     assert.strictEqual(out.status, 'ok');
   });

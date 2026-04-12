@@ -18,7 +18,15 @@ function createBaseCardState() {
   };
 }
 
-function createSnapshot(stateVersion) {
+function createBoard(rows = 8, cols = 8) {
+  return Array.from({ length: rows }, () => Array(cols).fill(0));
+}
+
+function createSnapshot(stateVersion, options = {}) {
+  const opts = (options && typeof options === 'object') ? options : {};
+  const gameStateOverrides = (opts.gameState && typeof opts.gameState === 'object')
+    ? opts.gameState
+    : {};
   return {
     stateVersion,
     _meta: {
@@ -30,7 +38,8 @@ function createSnapshot(stateVersion) {
     gameState: {
       currentPlayer: 1,
       turnNumber: stateVersion,
-      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+      board: opts.board || createBoard(8, 8),
+      ...gameStateOverrides
     },
     cardState: createBaseCardState()
   };
@@ -188,6 +197,32 @@ describe('network snapshot pending presentation reconcile', () => {
     expect(applied).toBe(true);
     expect(playbackActive).toBe(true);
     expect(global.VisualPlaybackActive).toBe(true);
+    expect(busyStateCalls).toEqual([
+      { processing: false, cardAnimating: false }
+    ]);
+  });
+
+  test('force snapshot drops preserved queues when board geometry changes on custom board sync', () => {
+    const stateObj = { stateVersion: 10 };
+    const ctrl = createController(stateObj);
+    const liveQueue = createPlaybackBatch(1);
+    const persistQueue = createPlaybackBatch(2);
+
+    global.cardState.presentationEvents = liveQueue.slice();
+    global.cardState._presentationEventsPersist = persistQueue.slice();
+
+    const applied = ctrl.applySnapshot(createSnapshot(11, {
+      board: createBoard(7, 9),
+      gameState: {
+        boardConfig: { rows: 7, cols: 9, standard8x8: false }
+      }
+    }), { playbackEvents: [] });
+
+    expect(applied).toBe(true);
+    expect(global.gameState.board).toHaveLength(7);
+    expect(global.gameState.board[0]).toHaveLength(9);
+    expect(global.cardState.presentationEvents).toEqual([]);
+    expect(global.cardState._presentationEventsPersist).toEqual([]);
     expect(busyStateCalls).toEqual([
       { processing: false, cardAnimating: false }
     ]);

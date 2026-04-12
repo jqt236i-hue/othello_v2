@@ -29,10 +29,14 @@ const getTiming = (key, fallback) => {
     return fallback;
 };
 
+const PHASE_GAP_MS = 200;
+const POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS = Math.round(PHASE_GAP_MS * 1.5);
+
 const AnimationConstants = {
     // Timing (ms)
     FLIP_MS: getTiming('FLIP_ANIMATION_DURATION', 600),
-    PHASE_GAP_MS: 200,
+    PHASE_GAP_MS,
+    POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS,
     TURN_TRANSITION_GAP_MS: 200,
     FADE_IN_MS: 300,
     BREEDING_SPAWN_FADE_MS: getTiming('BREEDING_SPAWN_FADE_MS', 500),

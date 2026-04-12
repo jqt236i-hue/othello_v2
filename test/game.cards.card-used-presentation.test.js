@@ -50,48 +50,4 @@ describe('CardLogic applyCardUsage presentation event', () => {
     expect(cardState.cardUseCountByPlayer.black).toBe(0);
     expect(PendingCoordinator.readPendingSelectionAction('black')).toBeNull();
   });
-
-
-
-  test('SELL_CARD_WILL sells one hand card and gains its cost', () => {
-    const defs = Array.isArray(SharedConstants.CARD_DEFS) ? SharedConstants.CARD_DEFS : [];
-    const sellDef = defs.find(d => d && d.id && d.type === 'SELL_CARD_WILL');
-    const soldDef = defs.find(d => d && d.id && d.type === 'GOLD_STONE');
-    expect(sellDef).toBeTruthy();
-    expect(soldDef).toBeTruthy();
-
-    const prng = { shuffle: () => {}, random: () => 0.5 };
-    const cardState = CardLogic.createCardState(prng);
-    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: 1 };
-    cardState.hands.black = [sellDef.id, soldDef.id];
-    cardState.charge.black = Number.isFinite(sellDef.cost) ? sellDef.cost : 0;
-
-    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', sellDef.id);
-    expect(used).toBe(true);
-    expect(cardState.pendingEffectByPlayer.black && cardState.pendingEffectByPlayer.black.type).toBe('SELL_CARD_WILL');
-
-    const sold = CardLogic.applySellCardWill(cardState, 'black', soldDef.id);
-    expect(sold && sold.applied).toBe(true);
-    expect(sold.gained).toBe(soldDef.cost);
-    expect(cardState.hands.black.includes(soldDef.id)).toBe(false);
-    expect(cardState.discard.includes(soldDef.id)).toBe(true);
-    expect(cardState.charge.black).toBe(soldDef.cost);
-    expect(cardState.pendingEffectByPlayer.black).toBeNull();
-  });
-
-  test('SELL_CARD_WILL cannot be used when no card remains to sell', () => {
-    const defs = Array.isArray(SharedConstants.CARD_DEFS) ? SharedConstants.CARD_DEFS : [];
-    const sellDef = defs.find(d => d && d.id && d.type === 'SELL_CARD_WILL');
-    expect(sellDef).toBeTruthy();
-
-    const prng = { shuffle: () => {}, random: () => 0.5 };
-    const cardState = CardLogic.createCardState(prng);
-    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: 1 };
-    cardState.hands.black = [sellDef.id];
-    cardState.charge.black = Number.isFinite(sellDef.cost) ? sellDef.cost : 0;
-
-    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', sellDef.id);
-    expect(used).toBe(false);
-  });
-
 });

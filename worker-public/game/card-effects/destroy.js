@@ -21,6 +21,7 @@ if (!DestroyOutcomeContract && typeof globalThis !== 'undefined' && globalThis.D
 var DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS) || Object.freeze({
     DESTROYED: 'destroyed',
     REGENERATED: 'regenerated',
+    LIVING_WILL_RESTORED: 'living_will_restored',
     GHOST_BLOCKED: 'ghost_blocked',
     PROLIFERATED: 'proliferated',
     EVADED_MOVE: 'evaded_move'
@@ -31,6 +32,7 @@ function getDestroyOutcomeKind(result) {
         return DestroyOutcomeContract.getDestroyOutcomeKind(result);
     }
     if (!result || typeof result !== 'object') return null;
+    if (result.livingWillRevived === true) return DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED;
     if (result.regenerated === true) return DESTROY_OUTCOME_KINDS.REGENERATED;
     if (result.proliferated === true) return DESTROY_OUTCOME_KINDS.PROLIFERATED;
     if (result.blockedByGhost === true) return DESTROY_OUTCOME_KINDS.GHOST_BLOCKED;
@@ -81,6 +83,10 @@ function emitDestroyAppliedLog(context, playerKey, row, col) {
     }
     if (outcomeKind === DESTROY_OUTCOME_KINDS.REGENERATED) {
         emitLogAdded(`${playerLabel}が破壊神で ${posText} を狙ったが復活された`);
+        return;
+    }
+    if (outcomeKind === DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED) {
+        emitLogAdded(`${playerLabel}が破壊神で ${posText} を狙ったが生きる意志で復活された`);
         return;
     }
     if (outcomeKind === DESTROY_OUTCOME_KINDS.GHOST_BLOCKED) {

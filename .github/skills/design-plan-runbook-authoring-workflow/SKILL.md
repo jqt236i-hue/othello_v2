@@ -14,18 +14,21 @@ argument-hint: 'どの文書を作るか。design, plan, runbook のどれかと
 - 広い変更を phase 分けした実装計画にしたい時
 - バグ撲滅用 runbook や移行計画をまとめたい時
 - 単なるメモではなく、次の実行者がそのまま動ける文書が必要な時
-- 構造問題や再発不具合に対し、局所 patch ではなく段階的な大幅改革を許可したい時
+- 構造問題や再発不具合に対し、責務境界内の修正では足りず、段階的な構造変更を設計したい時
 
 ## Read First
 
 - `01-rulebook.md`
 - `.github/copilot-instructions.md`
 - `AGENTS.md`
+- `docs/README.md`
 - 触る領域に対応する `.github/instructions/*.instructions.md`
 
 ## Primary Files
 
+- `docs/README.md`
 - `docs/*.md` の対象文書
+- 安定した内部契約の置き場所として `docs/architecture-contracts.md`
 - 根拠になる実装ファイルや test
 - 仕様変更がある時だけ `01-rulebook.md`
 - 関連 runbook / plan / report の既存文書
@@ -36,7 +39,8 @@ argument-hint: 'どの文書を作るか。design, plan, runbook のどれかと
 - 未検証の推測を verified fact のように書くこと
 - phase ごとの完了条件や検証束を書かないこと
 - 単なる TODO 置き場になり、次の実行者が動けない文書にすること
-- 構造問題なのに「最小変更だから」で局所延命に寄せてしまうこと
+- 安定した内部契約まで task 固有文書へ閉じ込め、`docs/architecture-contracts.md` を companion / normative destination として使わないこと
+- 構造問題なのに diff size だけを理由に責務境界内の修正へ押し戻してしまうこと
 
 ## Procedure
 
@@ -44,8 +48,9 @@ argument-hint: 'どの文書を作るか。design, plan, runbook のどれかと
 2. 対象、位置づけ、一次情報、非目標、検証済み事実を先に固定する。
 3. 局所修正ではなく段階的置換を選ぶ理由があるなら、その判断を最初に明文化する。
 4. phase 単位で目的、作業、主対象、完了条件を並べる。
-5. 検証束と完了条件を先に決め、後ろに追いやらない。
-6. 仕様変更が必要な場合だけ `01-rulebook.md` との関係を明示する。
+5. 安定した内部契約を文書化するなら、task 固有の plan / runbook と分けて `docs/architecture-contracts.md` を companion / normative destination として使う。
+6. 検証束と完了条件を先に決め、後ろに追いやらない。
+7. 仕様変更が必要な場合だけ `01-rulebook.md` との関係を明示する。
 
 ## Validation Bundle
 
@@ -60,4 +65,4 @@ argument-hint: 'どの文書を作るか。design, plan, runbook のどれかと
 - 次の実行者がそのまま動ける粒度になっている
 - 検証束と完了条件を含めている
 - `01-rulebook.md` 更新有無を報告している
-- 大幅改革を許可する理由と置換境界が明確になっている
+- 構造変更を選ぶ理由と置換境界が明確になっている

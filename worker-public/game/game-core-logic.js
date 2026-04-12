@@ -9,8 +9,8 @@ if (typeof CoreLogic === 'undefined') {
 
 // ===== Game State Management =====
 
-function createGameState() {
-    return CoreLogic.createGameState();
+function createGameState(boardConfig) {
+    return CoreLogic.createGameState(boardConfig);
 }
 
 function copyGameState(state) {

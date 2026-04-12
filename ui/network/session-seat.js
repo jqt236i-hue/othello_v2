@@ -11,6 +11,20 @@
         const cfg = (config && typeof config === 'object') ? config : {};
         const rootRef = cfg.root || (typeof globalThis !== 'undefined' ? globalThis : null);
 
+        function resolveGachaHandCatalogSharedModule() {
+            try {
+                if (rootRef && rootRef.GachaHandCatalogSharedModule) {
+                    return rootRef.GachaHandCatalogSharedModule;
+                }
+            } catch (e) { /* ignore */ }
+            try {
+                if (typeof require === 'function') {
+                    return require('../../shared/gacha-hand-catalog-shared.js');
+                }
+            } catch (e) { /* ignore */ }
+            return null;
+        }
+
         function resolveState() {
             return (typeof cfg.getState === 'function' && cfg.getState()) || {};
         }
@@ -66,6 +80,23 @@
             return {
                 black: normalizePlayerName(value && value.black),
                 white: normalizePlayerName(value && value.white)
+            };
+        }
+
+        function normalizeSeatHandSkinId(value) {
+            const normalized = String(value || '').trim();
+            if (!normalized) return '';
+            const catalogSharedModule = resolveGachaHandCatalogSharedModule();
+            const canonical = (catalogSharedModule && typeof catalogSharedModule.normalizeCatalogItemId === 'function')
+                ? catalogSharedModule.normalizeCatalogItemId(normalized)
+                : normalized;
+            return Array.from(canonical).slice(0, 128).join('');
+        }
+
+        function normalizeSeatHandSkins(value) {
+            return {
+                black: normalizeSeatHandSkinId(value && value.black),
+                white: normalizeSeatHandSkinId(value && value.white)
             };
         }
 
@@ -172,6 +203,7 @@
                     seatKey: state.seatKey,
                     seats: normalizeRoomSeats(state.roomSeats),
                     seatNames: normalizeSeatNames(state.seatNames),
+                    seatHandSkins: normalizeSeatHandSkins(state.seatHandSkins),
                     roomDeck: normalizeRoomDeck(state.roomDeck),
                     roomBoardConfig: active ? normalizeRoomBoardConfig(state.roomBoardConfig) : null,
                     networkDebugEnabled: normalizeNetworkDebugEnabled(state.networkDebugEnabled),
@@ -191,6 +223,10 @@
             }
             if (Object.prototype.hasOwnProperty.call(payload, 'seatNames')) {
                 state.seatNames = normalizeSeatNames(payload.seatNames);
+                changed = true;
+            }
+            if (Object.prototype.hasOwnProperty.call(payload, 'seatHandSkins')) {
+                state.seatHandSkins = normalizeSeatHandSkins(payload.seatHandSkins);
                 changed = true;
             }
             if (Object.prototype.hasOwnProperty.call(payload, 'roomDeck')) {
@@ -290,6 +326,7 @@
             state.chatHistory = [];
             state.roomSeats = normalizeRoomSeats(payload.seats);
             state.seatNames = normalizeSeatNames(payload.seatNames);
+            state.seatHandSkins = normalizeSeatHandSkins(payload.seatHandSkins);
             state.roomDeck = normalizeRoomDeck(payload.roomDeck);
             state.roomBoardConfig = normalizeRoomBoardConfig(payload.roomBoardConfig, {
                 snapshot: payload.snapshot
@@ -326,6 +363,7 @@
             state.seatToken = '';
             state.roomSeats = { black: false, white: false };
             state.seatNames = { black: '', white: '' };
+            state.seatHandSkins = { black: '', white: '' };
             state.roomDeck = null;
             state.roomBoardConfig = null;
             state.networkDebugEnabled = false;
@@ -338,6 +376,7 @@
             normalizePlayerName,
             normalizeRoomSeats,
             normalizeSeatNames,
+            normalizeSeatHandSkins,
             normalizeRoomBoardConfig,
             getSeatDisplayName,
             hasTwoPlayers,

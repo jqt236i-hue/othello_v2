@@ -10,11 +10,13 @@ const PENDING_SELECTION_CONSUMER_SCRIPTS = [
   'game/card-effects/time-bomb.js',
   'game/card-effects/trap.js',
   'game/card-effects/guard.js',
+  'game/card-effects/living-will.js',
   'game/card-effects/hyperactive-inherit.js',
   'game/card-effects/extend-life.js',
   'game/card-effects/swap.js',
   'game/card-effects/position-swap.js',
   'game/card-effects/board-expansion.js',
+  'game/card-effects/board-shrink.js',
   'game/card-effects/blockade.js',
   'game/card-effects/meteor.js',
   'game/card-effects/freeze.js',
@@ -87,6 +89,7 @@ function expectPresentationHelperClassicExportSurvivesLaterScriptLoads(rootPath)
 }
 
 function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
+  const sharedBoardUtilsTag = '<script src="shared/shared-board-utils.js"></script>';
   const selectorsTag = '<script src="game/logic/cards/selectors.js"></script>';
   const prechecksTag = '<script src="game/logic/cards-internal/card-usage-prechecks.js"></script>';
   const orchestratorTag = '<script src="game/logic/cards-internal/selector-orchestrator.js"></script>';
@@ -96,6 +99,7 @@ function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
   const chargeLedgerTag = '<script src="game/logic/cards-internal/charge-ledger.js"></script>';
   const cardsTag = '<script src="game/logic/cards.js"></script>';
 
+  expect(html.includes(sharedBoardUtilsTag)).toBe(true);
   expect(html.includes(selectorsTag)).toBe(true);
   expect(html.includes(prechecksTag)).toBe(true);
   expect(html.includes(orchestratorTag)).toBe(true);
@@ -103,6 +107,7 @@ function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
   expect(html.includes(effectTimingTag)).toBe(true);
   expect(html.includes(pendingStateManagerTag)).toBe(true);
   expect(html.includes(chargeLedgerTag)).toBe(true);
+  expect(html.indexOf(selectorsTag)).toBeGreaterThan(html.indexOf(sharedBoardUtilsTag));
   expect(html.indexOf(prechecksTag)).toBeGreaterThan(html.indexOf(selectorsTag));
   expect(html.indexOf(orchestratorTag)).toBeGreaterThan(html.indexOf(prechecksTag));
   expect(html.indexOf(handManagerTag)).toBeGreaterThan(html.indexOf(orchestratorTag));
@@ -110,6 +115,7 @@ function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
   expect(html.indexOf(pendingStateManagerTag)).toBeGreaterThan(html.indexOf(effectTimingTag));
   expect(html.indexOf(chargeLedgerTag)).toBeGreaterThan(html.indexOf(pendingStateManagerTag));
   expect(html.indexOf(cardsTag)).toBeGreaterThan(html.indexOf(chargeLedgerTag));
+  expect(fs.existsSync(path.resolve(__dirname, rootPath, 'shared/shared-board-utils.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/card-usage-prechecks.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/selector-orchestrator.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/hand-manager.js'))).toBe(true);
@@ -120,23 +126,31 @@ function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
 
 function expectCardLogicModulesLoadedBeforeCards(html, rootPath) {
   const movementTag = '<script src="game/logic/cards/movement.js"></script>';
+  const livingWillTag = '<script src="game/logic/cards/living_will.js"></script>';
   const teleportTag = '<script src="game/logic/cards/teleport.js"></script>';
   const cloneTag = '<script src="game/logic/cards/clone.js"></script>';
   const meteorTag = '<script src="game/logic/cards/meteor.js"></script>';
+  const shrinkTag = '<script src="game/logic/cards/shrink.js"></script>';
   const cardsTag = '<script src="game/logic/cards.js"></script>';
 
   expect(html.includes(movementTag)).toBe(true);
+  expect(html.includes(livingWillTag)).toBe(true);
   expect(html.includes(teleportTag)).toBe(true);
   expect(html.includes(cloneTag)).toBe(true);
   expect(html.includes(meteorTag)).toBe(true);
+  expect(html.includes(shrinkTag)).toBe(true);
   expect(html.indexOf(cardsTag)).toBeGreaterThan(html.indexOf(movementTag));
+  expect(html.indexOf(cardsTag)).toBeGreaterThan(html.indexOf(livingWillTag));
   expect(html.indexOf(cardsTag)).toBeGreaterThan(html.indexOf(teleportTag));
   expect(html.indexOf(cardsTag)).toBeGreaterThan(html.indexOf(cloneTag));
   expect(html.indexOf(cardsTag)).toBeGreaterThan(html.indexOf(meteorTag));
+  expect(html.indexOf(cardsTag)).toBeGreaterThan(html.indexOf(shrinkTag));
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards/movement.js'))).toBe(true);
+  expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards/living_will.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards/teleport.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards/clone.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards/meteor.js'))).toBe(true);
+  expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards/shrink.js'))).toBe(true);
 }
 
 function expectNoLexicalPendingSelectionGlobals(rootPath) {
@@ -205,7 +219,7 @@ describe('card module script includes', () => {
     expect(fs.existsSync(path.resolve(__dirname, '../game/logic/cards/markers.js'))).toBe(true);
   });
 
-  test('index.html loads movement/teleport/clone/meteor logic modules before cards.js', () => {
+  test('index.html loads movement/teleport/clone/meteor/shrink logic modules before cards.js', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     expectCardLogicModulesLoadedBeforeCards(html, '../');
   });
@@ -279,7 +293,7 @@ describe('card module script includes', () => {
     expect(fs.existsSync(path.resolve(__dirname, '../worker-public/game/logic/cards/markers.js'))).toBe(true);
   });
 
-  test('worker-public/index.html loads movement/teleport/clone/meteor logic modules before cards.js', () => {
+  test('worker-public/index.html loads movement/teleport/clone/meteor/shrink logic modules before cards.js', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../worker-public/index.html'), 'utf8');
     expectCardLogicModulesLoadedBeforeCards(html, '../worker-public');
   });

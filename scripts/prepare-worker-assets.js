@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const { generateManifest } = require('./generate-asset-manifest');
+const { generateGachaHandCatalog } = require('./generate-gacha-hand-catalog');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUT_DIR = path.join(ROOT, 'worker-public');
@@ -317,6 +319,7 @@ function verifyMirrors(optionalFiles, generatedAssets, config) {
 
 function prepareWorkerAssets(options) {
     const settings = createPrepareConfig(options);
+    refreshGeneratedCatalogArtifacts(settings);
     rmDirSafe(settings.outDir);
     ensureDir(settings.outDir);
     const copyableOptionalFiles = resolveCopyableOptionalFiles(settings);
@@ -339,6 +342,20 @@ function prepareWorkerAssets(options) {
     return settings;
 }
 
+function refreshGeneratedCatalogArtifacts(settings) {
+    const rootDir = settings && settings.rootDir ? settings.rootDir : ROOT;
+    const assetsDir = path.join(rootDir, 'assets');
+    if (fs.existsSync(assetsDir)) {
+        generateManifest({ root: rootDir });
+    }
+
+    const gachaDir = path.join(rootDir, 'assets', 'images', 'Gacha');
+    const sharedDir = path.join(rootDir, 'shared');
+    if (fs.existsSync(gachaDir) && fs.existsSync(sharedDir)) {
+        generateGachaHandCatalog({ root: rootDir });
+    }
+}
+
 if (require.main === module) {
     prepareWorkerAssets();
 }
@@ -351,6 +368,7 @@ module.exports = {
     OPTIONAL_FILES,
     GENERATED_OPTIONAL_ASSETS,
     createPrepareConfig,
+    refreshGeneratedCatalogArtifacts,
     prepareWorkerAssets,
     verifyMirrors,
     verifyMirroredFile,

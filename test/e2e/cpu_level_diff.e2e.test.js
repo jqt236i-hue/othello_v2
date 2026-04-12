@@ -86,4 +86,61 @@ describe('CPU level difference E2E', () => {
     await page.close();
     page = null;
   }, 30000);
+
+  test('white draw uses CPU hand image from level selects even when window cpuSmartness is not mirrored', async () => {
+    page = await browser.newPage();
+    await page.goto(`http://127.0.0.1:${serverPort}/`);
+
+    await page.waitForSelector('#smartBlack');
+    await page.waitForSelector('#smartWhite');
+    await page.waitForSelector('#autoToggleBtn');
+
+    await page.evaluate(() => {
+      localStorage.setItem('othello.handSkin', 'default');
+      window.__handProbe = [];
+      const origDraw = window.playDrawCardHandAnimation;
+      window.playDrawCardHandAnimation = async function(payload) {
+        const result = origDraw.apply(this, arguments);
+        await Promise.resolve();
+        window.__handProbe.push({
+          player: payload && payload.player ? payload.player : null,
+          src: document.getElementById('handImage')?.getAttribute('src') || null,
+          skinId: document.getElementById('handImage')?.getAttribute('data-hand-skin-id') || null,
+          mirroredCpuSmartness: (typeof window.cpuSmartness === 'undefined') ? null : window.cpuSmartness
+        });
+        return result;
+      };
+    });
+
+    await page.selectOption('#smartBlack', '1').catch(() => {});
+    await page.selectOption('#smartWhite', '4').catch(() => {});
+    await page.evaluate(() => {
+      const b = document.getElementById('smartBlack');
+      const w = document.getElementById('smartWhite');
+      if (b) b.dispatchEvent(new Event('change'));
+      if (w) w.dispatchEvent(new Event('change'));
+    });
+
+    expect(await page.evaluate(() => typeof window.cpuSmartness)).toBe('undefined');
+
+    await page.click('button:has-text("リセット")');
+    await page.click('#autoToggleBtn');
+
+    await page.waitForFunction(
+      () => Array.isArray(window.__handProbe) && window.__handProbe.some((entry) => entry && entry.player === 'white' && entry.skinId === 'cpu-lv4'),
+      null,
+      { timeout: 15000 }
+    );
+
+    const whiteDraw = await page.evaluate(() => {
+      return window.__handProbe.find((entry) => entry && entry.player === 'white' && entry.skinId === 'cpu-lv4') || null;
+    });
+
+    expect(whiteDraw).toBeTruthy();
+    expect(whiteDraw.src).toContain('assets/images/hand-skin/lv4.png');
+    expect(whiteDraw.mirroredCpuSmartness).toBeNull();
+
+    await page.close();
+    page = null;
+  }, 30000);
 });

@@ -14,6 +14,13 @@ const TIME_STOP_STONE_IMAGE_BY_OWNER = {
     '1': 'assets/images/stones/TIME_STOP-black.png',
     '-1': 'assets/images/stones/TIME_STOP-white.png'
 };
+const DEFAULT_CARD_VISUAL_SIDE = '1';
+const NORMAL_STONE_IMAGE_FILE_KEYS = Object.freeze([
+    'normal_stone-black.png',
+    'normal_stone-white.png',
+    'normal-stone-black.png',
+    'normal-stone-white.png'
+]);
 
 /**
  * カード種別 → ビジュアル効果定義
@@ -356,6 +363,117 @@ function getEffectKeyForPendingType(pendingType) {
     return PENDING_TYPE_TO_EFFECT_KEY[pendingType] || null;
 }
 
+function normalizeVisualSide(value, fallbackValue) {
+    if (value === null || typeof value === 'undefined') {
+        return fallbackValue || null;
+    }
+    const normalized = String(value).trim().toLowerCase();
+    if (!normalized) {
+        return fallbackValue || null;
+    }
+    if (normalized === '1' || normalized === 'black' || normalized === 'b') {
+        return '1';
+    }
+    if (normalized === '-1' || normalized === 'white' || normalized === 'w') {
+        return '-1';
+    }
+    return fallbackValue || null;
+}
+
+function collectEffectImagePaths(effect) {
+    if (!effect || typeof effect !== 'object') {
+        return [];
+    }
+    const paths = [];
+    const pushPath = (value) => {
+        if (typeof value !== 'string' || !value || paths.includes(value)) {
+            return;
+        }
+        paths.push(value);
+    };
+
+    pushPath(effect.imagePath);
+    if (effect.imagePathByOwner && typeof effect.imagePathByOwner === 'object') {
+        Object.values(effect.imagePathByOwner).forEach(pushPath);
+    }
+    if (effect.imagePathByPlayer && typeof effect.imagePathByPlayer === 'object') {
+        Object.values(effect.imagePathByPlayer).forEach(pushPath);
+    }
+    return paths;
+}
+
+function isNormalStoneImagePath(imagePath) {
+    const normalized = String(imagePath || '').toLowerCase();
+    if (!normalized) {
+        return false;
+    }
+    return NORMAL_STONE_IMAGE_FILE_KEYS.some((key) => normalized.includes(key));
+}
+
+function _pickMappedImagePath(pathMap, preferredKey, fallbackKey) {
+    if (!pathMap || typeof pathMap !== 'object') {
+        return null;
+    }
+    if (preferredKey && typeof pathMap[preferredKey] === 'string' && pathMap[preferredKey]) {
+        return pathMap[preferredKey];
+    }
+    if (fallbackKey && typeof pathMap[fallbackKey] === 'string' && pathMap[fallbackKey]) {
+        return pathMap[fallbackKey];
+    }
+    const firstPath = Object.values(pathMap).find((value) => typeof value === 'string' && value);
+    return firstPath || null;
+}
+
+function resolveEffectImagePath(effect, options = {}) {
+    if (!effect || typeof effect !== 'object') {
+        return null;
+    }
+    if (typeof effect.imagePath === 'string' && effect.imagePath) {
+        return effect.imagePath;
+    }
+
+    const ownerKey = normalizeVisualSide(options.owner, null);
+    const fallbackOwnerKey = normalizeVisualSide(options.fallbackOwner, DEFAULT_CARD_VISUAL_SIDE) || DEFAULT_CARD_VISUAL_SIDE;
+    const playerKey = normalizeVisualSide(options.player, ownerKey || null);
+    const fallbackPlayerKey = normalizeVisualSide(options.fallbackPlayer, fallbackOwnerKey) || fallbackOwnerKey;
+
+    const ownerPath = _pickMappedImagePath(effect.imagePathByOwner, ownerKey, fallbackOwnerKey);
+    if (ownerPath) {
+        return ownerPath;
+    }
+    const playerPath = _pickMappedImagePath(effect.imagePathByPlayer, playerKey, fallbackPlayerKey);
+    if (playerPath) {
+        return playerPath;
+    }
+
+    const paths = collectEffectImagePaths(effect);
+    return paths.length ? paths[0] : null;
+}
+
+function getCardVisualImagePaths(cardType) {
+    const effectKey = getEffectKeyForPendingType(cardType);
+    if (!effectKey) {
+        return [];
+    }
+    return collectEffectImagePaths(GAME_STONE_VISUAL_EFFECTS[effectKey]);
+}
+
+function resolveCardVisualImagePath(cardType, options = {}) {
+    const effectKey = getEffectKeyForPendingType(cardType);
+    if (!effectKey) {
+        return null;
+    }
+    return resolveEffectImagePath(GAME_STONE_VISUAL_EFFECTS[effectKey], options);
+}
+
+function cardTypeUsesNonNormalStoneImage(cardType) {
+    const paths = getCardVisualImagePaths(cardType);
+    if (!paths.length) {
+        return false;
+    }
+    return paths.some((path) => !isNormalStoneImagePath(path));
+}
+
 // Special stone marker type -> visual effect key (used by board renderer)
 const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'PROTECTED': 'protectedStoneTemporary',
@@ -464,6 +582,12 @@ if (typeof module !== 'undefined' && module.exports) {
         STONE_VISUAL_EFFECTS: GAME_STONE_VISUAL_EFFECTS,
         PENDING_TYPE_TO_EFFECT_KEY,
         getEffectKeyForPendingType,
+        collectEffectImagePaths,
+        resolveEffectImagePath,
+        getCardVisualImagePaths,
+        resolveCardVisualImagePath,
+        isNormalStoneImagePath,
+        cardTypeUsesNonNormalStoneImage,
         SPECIAL_TYPE_TO_EFFECT_KEY,
         getEffectKeyForSpecialType,
         applyStoneVisualEffect,
@@ -485,6 +609,12 @@ try {
         STONE_VISUAL_EFFECTS: GAME_STONE_VISUAL_EFFECTS,
         PENDING_TYPE_TO_EFFECT_KEY,
         getEffectKeyForPendingType,
+        collectEffectImagePaths,
+        resolveEffectImagePath,
+        getCardVisualImagePaths,
+        resolveCardVisualImagePath,
+        isNormalStoneImagePath,
+        cardTypeUsesNonNormalStoneImage,
         SPECIAL_TYPE_TO_EFFECT_KEY,
         getEffectKeyForSpecialType,
         applyStoneVisualEffect,

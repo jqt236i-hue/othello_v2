@@ -175,6 +175,62 @@ function runPublishRejectOpponentHandScenario() {
   return runPublishScenario(runner);
 }
 
+function runHandSkinUpdateScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const room = {",
+    "    roomId: 'ROOMH',",
+    "    seed: 1,",
+    "    stateVersion: 1,",
+    "    updatedAt: Date.now(),",
+    "    seats: { black: true, white: true },",
+    "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    seatNames: { black: 'black', white: 'white' },",
+    "    seatHandSkins: { black: 'gacha__n__hand-swap', white: 'gacha__n__小鬼の手' },",
+    "    turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black', turnStartedAt: null, turnDeadlineAt: null },",
+    "    lastAcceptedOperationBySeat: { black: null, white: null },",
+    "    snapshot: {",
+    "      gameState: { currentPlayer: 1, turnNumber: 1, board: Array.from({ length: 8 }, () => Array(8).fill(0)) },",
+    "      cardState: {}",
+    "    }",
+    "  };",
+    "  const storage = new Map();",
+    "  storage.set('match_room_state_v1', room);",
+    "  const state = {",
+    "    storage: {",
+    "      get: async (key) => storage.get(key),",
+    "      put: async (key, value) => storage.set(key, value),",
+    "      delete: async (key) => storage.delete(key)",
+    "    }",
+    "  };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  let broadcastMeta = null;",
+    "  durableObject.broadcastPresence = async (meta) => { broadcastMeta = meta; };",
+    "  const response = await durableObject.handleHandSkin({",
+    "    roomId: 'ROOMH',",
+    "    seatKey: 'white',",
+    "    seatToken: 'token_white',",
+    "    selectedHandSkinId: 'gacha__n__hand.png'",
+    "  });",
+    "  const payload = await response.json();",
+    "  await durableObject.loadRoom();",
+    `  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({`,
+    "    status: response.status,",
+    "    payload,",
+    "    broadcastMeta,",
+    "    seatHandSkins: durableObject.room.seatHandSkins",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runPublishScenario(runner);
+}
+
 function runPublishTurnStartReconcileScenario() {
   const runner = [
     "(async () => {",
@@ -958,6 +1014,25 @@ describe('match worker publish sanitize', () => {
     expect(result.payload.ok).toBe(false);
     expect(result.payload.rejectedReason).toBe('COMMAND_REQUIRED');
     expect(result.internalCardState.hands.white).toEqual(['gold_stone', 'silver_stone']);
+  });
+
+  test('hand skin update persists seatHandSkins and broadcasts presence meta', () => {
+    const result = runHandSkinUpdateScenario();
+
+    expect(result.status).toBe(200);
+    expect(result.payload.seatHandSkins).toEqual({
+      black: 'gacha__n__陽気な手',
+      white: 'gacha__n__人の手'
+    });
+    expect(result.broadcastMeta).toEqual({
+      type: 'hand_skin',
+      seatKey: 'white',
+      rejoined: false
+    });
+    expect(result.seatHandSkins).toEqual({
+      black: 'gacha__n__陽気な手',
+      white: 'gacha__n__人の手'
+    });
   });
 
   test('command publishでも missed turn-start bookkeeping を補完して永続化する', () => {

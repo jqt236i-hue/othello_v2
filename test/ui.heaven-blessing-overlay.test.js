@@ -9,7 +9,6 @@ describe('HEAVEN_BLESSING overlay flow', () => {
         <div id="card-detail-desc"></div>
         <button id="use-card-btn">使用</button>
         <button id="pass-btn">パス</button>
-        <button id="sell-card-btn" style="display:none;">売却</button>
         <button id="cancel-card-btn" style="display:none;">キャンセル</button>
         <div id="use-card-reason"></div>
       </body></html>
@@ -80,8 +79,6 @@ describe('HEAVEN_BLESSING overlay flow', () => {
 
     expect(document.getElementById('use-card-btn').style.display).toBe('none');
     expect(document.getElementById('pass-btn').style.display).toBe('none');
-    expect(document.getElementById('sell-card-btn').style.display).toBe('none');
-
     const offers = overlay.querySelectorAll('.heaven-offer-card');
     expect(offers.length).toBe(5);
     offers[1].click();

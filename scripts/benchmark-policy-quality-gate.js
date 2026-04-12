@@ -10,6 +10,11 @@ const {
     computeAdoptionDecisionAverage,
     runSeedEvaluations
 } = require('./benchmark-policy-adoption');
+const {
+    POLICY_GATE_PAYLOAD_SCHEMA_VERSION,
+    attachPolicyGateDecisionDiagnostics
+} = require('./policy-gate-result-utils');
+const { buildSeedSchedule } = require('./policy-seed-utils');
 
 const DEFAULT_QUALITY_WEIGHTS = Object.freeze({
     qualityWeightCorner: 0.20,
@@ -123,6 +128,21 @@ function buildQualityGatePayload(adoptionPayload, options, earlyStop) {
             qualityDecision: buildQualitySeedDecision(entry && entry.decision, options.threshold)
         }))
         : [];
+    const sourceSeedSchedule = adoptionPayload && adoptionPayload.seedSchedule
+        ? adoptionPayload.seedSchedule
+        : null;
+    const seedSchedule = buildSeedSchedule(
+        sourceSeedSchedule && Number.isFinite(Number(sourceSeedSchedule.baseSeed))
+            ? Number(sourceSeedSchedule.baseSeed)
+            : options.seed,
+        sourceSeedSchedule && Number.isFinite(Number(sourceSeedSchedule.seedCount))
+            ? Number(sourceSeedSchedule.seedCount)
+            : options.seedCount,
+        sourceSeedSchedule && Number.isFinite(Number(sourceSeedSchedule.seedStride))
+            ? Number(sourceSeedSchedule.seedStride)
+            : options.seedStride,
+        perSeed.map((entry) => entry && entry.seed)
+    );
     const qualitySeedDecisions = perSeed.map((entry) => entry.qualityDecision);
     const maxPossibleSeedUplift = QUALITY_WEIGHT_KEYS.reduce((sum, key) => sum + (Number(options[key]) || 0), 0);
     const qualityDecision = earlyStop
@@ -144,7 +164,7 @@ function buildQualityGatePayload(adoptionPayload, options, earlyStop) {
     const sourceDecision = options && options.qualityGateStrengthFirst
         ? buildStrengthFirstSourceDecision(perSeed, options)
         : rawSourceDecision;
-    const decision = options && options.qualityGateStrengthFirst && sourceDecision
+    const combinedDecision = options && options.qualityGateStrengthFirst && sourceDecision
         ? Object.assign({}, qualityDecision, {
             passed: !!qualityDecision.passed && !!sourceDecision.passed,
             passedByQuality: !!qualityDecision.passed,
@@ -160,11 +180,36 @@ function buildQualityGatePayload(adoptionPayload, options, earlyStop) {
             sourceStrengthRequiredMinSeedPassCount: sourceDecision.requiredMinSeedPassCount
         })
         : qualityDecision;
+    const normalizedSourceDecision = sourceDecision
+        ? attachPolicyGateDecisionDiagnostics(sourceDecision)
+        : null;
+    const normalizedRawSourceDecision = rawSourceDecision && sourceDecision !== rawSourceDecision
+        ? attachPolicyGateDecisionDiagnostics(rawSourceDecision)
+        : null;
+    const decision = attachPolicyGateDecisionDiagnostics(
+        combinedDecision,
+        options && options.qualityGateStrengthFirst && normalizedSourceDecision
+            ? {
+                sourceStrength: {
+                    code: 'source-strength',
+                    passed: normalizedSourceDecision.passed,
+                    actual: normalizedSourceDecision.uplift,
+                    required: normalizedSourceDecision.threshold
+                }
+            }
+            : null
+    );
+    const benchmarkSchemaVersion = adoptionPayload && adoptionPayload.schemaVersion
+        ? adoptionPayload.schemaVersion
+        : null;
 
     return {
         generatedAt: new Date().toISOString(),
-        schemaVersion: adoptionPayload && adoptionPayload.schemaVersion ? adoptionPayload.schemaVersion : null,
+        schemaVersion: benchmarkSchemaVersion,
+        payloadSchemaVersion: POLICY_GATE_PAYLOAD_SCHEMA_VERSION,
         gateType: 'quality',
+        gateFamily: 'quality',
+        benchmarkSchemaVersion,
         config: {
             games: options.games,
             seed: options.seed,
@@ -186,13 +231,14 @@ function buildQualityGatePayload(adoptionPayload, options, earlyStop) {
                 return acc;
             }, {})
         },
+        seedSchedule,
         baseline: adoptionPayload && adoptionPayload.baseline ? adoptionPayload.baseline : null,
         candidate: adoptionPayload && adoptionPayload.candidate ? adoptionPayload.candidate : null,
         earlyStop: earlyStop || null,
         perSeed,
         decision,
-        sourceDecision,
-        rawSourceDecision: rawSourceDecision && sourceDecision !== rawSourceDecision ? rawSourceDecision : null
+        sourceDecision: normalizedSourceDecision,
+        rawSourceDecision: normalizedRawSourceDecision
     };
 }
 
@@ -222,7 +268,7 @@ async function main() {
         `seeds=${d.seedCount || 1} seed_pass=${d.seedPassCount || 0}/${d.seedCount || 0} ` +
         `source_uplift=${source && Number.isFinite(source.uplift) ? source.uplift.toFixed(3) : 'n/a'} ` +
         `source_lb=${source && Number.isFinite(source.upliftLowerBound) ? source.upliftLowerBound.toFixed(3) : 'n/a'} ` +
-        `source_pass=${source && source.passed === true} early_stop=${d.earlyStopReason || 'none'} pass=${d.passed}`
+        `source_pass=${source && source.passed === true} early_stop=${d.earlyStopReason || 'none'} failure_reason=${d.primaryFailureReason || 'none'} pass=${d.passed}`
     );
     process.exit(d.passed ? 0 : 2);
 }

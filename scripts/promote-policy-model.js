@@ -28,6 +28,11 @@ function parseArgs(argv) {
         promotedDir: path.resolve(process.cwd(), 'data', 'models', 'promoted'),
         archiveDir: path.resolve(process.cwd(), 'data', 'models', 'archive'),
         manifestPath: null,
+        quickGatePayloadPath: null,
+        qualityGatePayloadPath: null,
+        finalGatePayloadPath: null,
+        onnxGatePayloadPath: null,
+        warehouseManifestPath: null,
         force: false,
         help: false
     };
@@ -57,6 +62,11 @@ function parseArgs(argv) {
         if (a === '--promoted-dir') { args.promotedDir = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--archive-dir') { args.archiveDir = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--manifest') { args.manifestPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--quick-gate-payload') { args.quickGatePayloadPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--quality-gate-payload') { args.qualityGatePayloadPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--final-gate-payload') { args.finalGatePayloadPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--onnx-gate-payload') { args.onnxGatePayloadPath = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--warehouse-manifest') { args.warehouseManifestPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--force') { args.force = true; continue; }
     }
 
@@ -94,6 +104,11 @@ function printHelp() {
         '      --promoted-dir <path>     Champion/challenger snapshot root (default: data/models/promoted)',
         '      --archive-dir <path>      Archived champion root (default: data/models/archive)',
         '      --manifest <path>         Promotion manifest path (default: <promoted-dir>/promotion-manifest.json)',
+        '      --quick-gate-payload <path> Quick gate payload path to record in manifest',
+        '      --quality-gate-payload <path> Quality gate payload path to record in manifest',
+        '      --final-gate-payload <path> Final gate payload path to record in manifest',
+        '      --onnx-gate-payload <path> ONNX gate payload path to record in manifest',
+        '      --warehouse-manifest <path> Training warehouse manifest path to record in manifest',
         '      --force                   Ignore adoption decision and promote anyway',
         '  -h, --help                    Show this help'
     ].join('\n'));
@@ -170,6 +185,50 @@ function archiveExistingFile(srcPath, targetPath) {
         reason: archived.reason,
         sourcePath: archived.sourcePath,
         targetPath: archived.targetPath
+    };
+}
+
+function summarizeGateDecision(decision) {
+    if (!decision || typeof decision !== 'object') return null;
+    return {
+        passed: decision.passed === true,
+        primaryFailureReason: decision.primaryFailureReason || null,
+        failureReasons: Array.isArray(decision.failureReasons)
+            ? decision.failureReasons.slice()
+            : [],
+        seedCount: Number.isFinite(Number(decision.seedCount)) ? Number(decision.seedCount) : null,
+        seedPassCount: Number.isFinite(Number(decision.seedPassCount)) ? Number(decision.seedPassCount) : null
+    };
+}
+
+function summarizeGatePayload(filePath) {
+    if (!filePath) return null;
+    const summary = {
+        path: filePath,
+        exists: fs.existsSync(filePath),
+        generatedAt: null,
+        gateType: null,
+        gateFamily: null,
+        payloadSchemaVersion: null,
+        seedSchedule: null,
+        decision: null
+    };
+    if (!summary.exists) return summary;
+    const payload = readJson(filePath);
+    summary.generatedAt = payload && payload.generatedAt ? payload.generatedAt : null;
+    summary.gateType = payload && payload.gateType ? payload.gateType : null;
+    summary.gateFamily = payload && payload.gateFamily ? payload.gateFamily : null;
+    summary.payloadSchemaVersion = payload && payload.payloadSchemaVersion ? payload.payloadSchemaVersion : null;
+    summary.seedSchedule = payload && payload.seedSchedule ? payload.seedSchedule : null;
+    summary.decision = summarizeGateDecision(payload && payload.decision ? payload.decision : null);
+    return summary;
+}
+
+function buildArtifactReference(filePath) {
+    if (!filePath) return null;
+    return {
+        path: filePath,
+        exists: fs.existsSync(filePath)
     };
 }
 
@@ -308,6 +367,13 @@ function promoteModel(options) {
             valueOnnx: archivedChampion.valueOnnx,
             valueOnnxMeta: archivedChampion.valueOnnxMeta
         },
+        gatePayloads: {
+            quick: summarizeGatePayload(options.quickGatePayloadPath),
+            quality: summarizeGatePayload(options.qualityGatePayloadPath),
+            final: summarizeGatePayload(options.finalGatePayloadPath),
+            onnx: summarizeGatePayload(options.onnxGatePayloadPath)
+        },
+        trainingWarehouse: buildArtifactReference(options.warehouseManifestPath),
         rollback
     };
     writeJson(manifestPath, manifest);

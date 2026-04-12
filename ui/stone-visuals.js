@@ -72,11 +72,9 @@ function _getVisualEffectsHelperForStoneVisuals(name) {
     return null;
 }
 
-async function crossfadeStoneVisual(disc, options = {}) {
+function applyStoneVisualState(disc, options = {}) {
     const debugVisual = (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true);
-    if (debugVisual) console.log('[VISUAL_DEBUG] crossfadeStoneVisual invoked', options && options.effectKey);
-    // Simplified: remove overlay-based cross-fade and apply final visual state immediately.
-    // This function no longer performs opacity transitions or creates overlays.
+    if (debugVisual) console.log('[VISUAL_DEBUG] applyStoneVisualState invoked', options && options.effectKey);
     const {
         effectKey,
         owner,
@@ -112,9 +110,105 @@ async function crossfadeStoneVisual(disc, options = {}) {
     return;
 }
 
+function _removeStoneFadeOverlay(disc) {
+    if (!disc || !disc.parentElement) return;
+    try {
+        const overlay = disc.parentElement.querySelector('.stone-fade-overlay');
+        if (overlay) overlay.remove();
+    } catch (e) { /* ignore */ }
+}
+
+function _waitForStoneVisualFrame() {
+    return new Promise((resolve) => {
+        try {
+            if (typeof requestAnimationFrame === 'function') {
+                requestAnimationFrame(() => resolve());
+                return;
+            }
+        } catch (e) { /* ignore */ }
+        const timer = _Timer();
+        timer.setTimeout(resolve, 0);
+    });
+}
+
+async function animateStoneVisualTransition(disc, options = {}) {
+    const debugVisual = (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true);
+    if (debugVisual) console.log('[VISUAL_DEBUG] animateStoneVisualTransition invoked', options && options.effectKey);
+    if (!disc || !disc.parentElement) return;
+
+    const durationMs = Number.isFinite(Number(options.durationMs))
+        ? Math.max(0, Math.trunc(Number(options.durationMs)))
+        : 600;
+    if (_isNoAnim() || durationMs <= 0) {
+        applyStoneVisualState(disc, options);
+        return;
+    }
+
+    const container = disc.parentElement;
+    _removeStoneFadeOverlay(disc);
+
+    let overlay = null;
+    let priorContainerPosition = '';
+    let changedContainerPosition = false;
+    try {
+        overlay = disc.cloneNode(true);
+        overlay.classList.add('stone-fade-overlay');
+        overlay.setAttribute('aria-hidden', 'true');
+        try { overlay.removeAttribute('id'); } catch (e) { /* ignore */ }
+
+        const computedPosition = (typeof window !== 'undefined' && window.getComputedStyle)
+            ? window.getComputedStyle(container).position
+            : '';
+        if (computedPosition === 'static') {
+            priorContainerPosition = container.style.position || '';
+            container.style.position = 'relative';
+            changedContainerPosition = true;
+        }
+
+        overlay.style.position = 'absolute';
+        overlay.style.inset = '0';
+        overlay.style.pointerEvents = 'none';
+        overlay.style.opacity = '1';
+        overlay.style.transition = `opacity ${durationMs}ms ease`;
+        overlay.style.zIndex = '2';
+        container.appendChild(overlay);
+    } catch (e) {
+        overlay = null;
+    }
+
+    const priorTransition = disc.style.transition || '';
+    const priorOpacity = disc.style.opacity || '';
+    try {
+        disc.style.transition = `opacity ${durationMs}ms ease`;
+        disc.style.opacity = '0';
+        applyStoneVisualState(disc, options);
+        await _waitForStoneVisualFrame();
+        disc.style.opacity = '1';
+        if (overlay) overlay.style.opacity = '0';
+        await new Promise((resolve) => {
+            const timer = _Timer();
+            timer.setTimeout(resolve, durationMs);
+        });
+    } finally {
+        try { disc.style.transition = priorTransition; } catch (e) { /* ignore */ }
+        try { disc.style.opacity = priorOpacity; } catch (e) { /* ignore */ }
+        if (overlay && overlay.parentElement) {
+            try { overlay.parentElement.removeChild(overlay); } catch (e) { /* ignore */ }
+        }
+        if (changedContainerPosition) {
+            try { container.style.position = priorContainerPosition; } catch (e) { /* ignore */ }
+        }
+    }
+}
+
+async function crossfadeStoneVisual(disc, options = {}) {
+    return animateStoneVisualTransition(disc, options);
+}
+
 // Export for window or module systems
 if (typeof window !== 'undefined') {
     window.crossfadeStoneVisual = crossfadeStoneVisual;
+    window.applyStoneVisualState = applyStoneVisualState;
 }
 
 // --- Additional helpers: centralize stone DOM helpers used across UI ---
@@ -473,10 +567,10 @@ function showChargeDelta(playerKey, delta) {
 }
 if (typeof window !== 'undefined') {
     // Expose helpers to legacy consumers
-    try { window.StoneVisuals = window.StoneVisuals || {}; Object.assign(window.StoneVisuals, { crossfadeStoneVisual, setDiscColorAt, removeBombOverlayAt, clearAllStoneVisualEffectsAt, syncDiscVisualToCurrentState, applyPendingSpecialstoneVisual, showChargeDelta }); } catch (e) {}
+    try { window.StoneVisuals = window.StoneVisuals || {}; Object.assign(window.StoneVisuals, { applyStoneVisualState, animateStoneVisualTransition, crossfadeStoneVisual, setDiscColorAt, removeBombOverlayAt, clearAllStoneVisualEffectsAt, syncDiscVisualToCurrentState, applyPendingSpecialstoneVisual, showChargeDelta }); } catch (e) {}
 }
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { crossfadeStoneVisual, setDiscColorAt, removeBombOverlayAt, clearAllStoneVisualEffectsAt, syncDiscVisualToCurrentState, applyPendingSpecialstoneVisual, showChargeDelta };
+    module.exports = { applyStoneVisualState, animateStoneVisualTransition, crossfadeStoneVisual, setDiscColorAt, removeBombOverlayAt, clearAllStoneVisualEffectsAt, syncDiscVisualToCurrentState, applyPendingSpecialstoneVisual, showChargeDelta };
 }
 
 

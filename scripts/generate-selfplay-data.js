@@ -914,19 +914,161 @@ function appendFileToStream(srcPath, outStream) {
     });
 }
 
-async function mergeShardFiles(shardPaths, outPath) {
-    ensureDir(path.dirname(outPath));
-    const outStream = fs.createWriteStream(outPath, { encoding: 'utf8' });
+function buildMergePartialPath(outPath) {
+    return `${String(outPath || '')}.partial`;
+}
+
+function buildMergeStatePath(outPath) {
+    return `${String(outPath || '')}.merge-state.json`;
+}
+
+function writeJsonFileAtomic(filePath, payload) {
+    const resolvedPath = path.resolve(process.cwd(), filePath);
+    ensureDir(path.dirname(resolvedPath));
+    const tempPath = `${resolvedPath}.tmp-${process.pid}-${Date.now()}`;
+    fs.writeFileSync(tempPath, JSON.stringify(payload, null, 2), 'utf8');
+    fs.renameSync(tempPath, resolvedPath);
+}
+
+function arraysEqual(left, right) {
+    if (!Array.isArray(left) || !Array.isArray(right)) return false;
+    if (left.length !== right.length) return false;
+    for (let i = 0; i < left.length; i++) {
+        if (left[i] !== right[i]) return false;
+    }
+    return true;
+}
+
+function loadMergeState(statePath) {
+    if (!fileExists(statePath)) return null;
     try {
-        for (const one of shardPaths) {
-            await appendFileToStream(one, outStream);
+        const payload = readJsonFile(statePath);
+        if (!payload || payload.schemaVersion !== 'selfplay_merge_state.v1') return null;
+        return payload;
+    } catch (err) {
+        return null;
+    }
+}
+
+function resolveMergeProgress(partialPath, sourceSizes) {
+    if (!fileExists(partialPath)) {
+        return {
+            completedCount: 0,
+            truncateBytes: null
+        };
+    }
+    let partialSize = 0;
+    try {
+        partialSize = fs.statSync(partialPath).size;
+    } catch (err) {
+        return {
+            completedCount: 0,
+            truncateBytes: 0
+        };
+    }
+    let completedCount = 0;
+    let consumedBytes = 0;
+    for (let i = 0; i < sourceSizes.length; i++) {
+        const nextTotal = consumedBytes + Number(sourceSizes[i] || 0);
+        if (partialSize < nextTotal) break;
+        completedCount += 1;
+        consumedBytes = nextTotal;
+    }
+    const truncateBytes = partialSize === consumedBytes ? null : consumedBytes;
+    return {
+        completedCount,
+        truncateBytes
+    };
+}
+
+async function closeWritableStream(stream) {
+    if (!stream) return;
+    await new Promise((resolve, reject) => {
+        let settled = false;
+        const cleanup = () => {
+            stream.off('error', onError);
+            stream.off('finish', onFinish);
+        };
+        const onError = (err) => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            reject(err);
+        };
+        const onFinish = () => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve();
+        };
+        stream.on('error', onError);
+        stream.on('finish', onFinish);
+        stream.end();
+    });
+}
+
+async function mergeShardFiles(shardPaths, outPath) {
+    const resolvedOutPath = path.resolve(process.cwd(), outPath);
+    const resolvedShardPaths = shardPaths.map((one) => path.resolve(process.cwd(), one));
+    const partialPath = buildMergePartialPath(resolvedOutPath);
+    const statePath = buildMergeStatePath(resolvedOutPath);
+    ensureDir(path.dirname(resolvedOutPath));
+    const existingState = loadMergeState(statePath);
+    const reusableState = existingState &&
+        arraysEqual(existingState.shardPaths, resolvedShardPaths) &&
+        Array.isArray(existingState.sourceSizes) &&
+        existingState.sourceSizes.length === resolvedShardPaths.length
+        ? existingState
+        : null;
+    const sourceSizes = reusableState
+        ? reusableState.sourceSizes.slice()
+        : resolvedShardPaths.map((onePath) => {
+            if (!fileExists(onePath)) {
+                throw new Error(`merge source not found: ${onePath}`);
+            }
+            return fs.statSync(onePath).size;
+        });
+
+    const statePayload = {
+        schemaVersion: 'selfplay_merge_state.v1',
+        generatedAt: new Date().toISOString(),
+        outPath: resolvedOutPath,
+        partialPath,
+        shardPaths: resolvedShardPaths,
+        sourceSizes
+    };
+    if (!reusableState) {
+        try { fs.rmSync(partialPath, { force: true }); } catch (err) { /* ignore */ }
+        writeJsonFileAtomic(statePath, statePayload);
+    }
+
+    const progress = resolveMergeProgress(partialPath, sourceSizes);
+    if (progress.truncateBytes !== null) {
+        fs.truncateSync(partialPath, progress.truncateBytes);
+    }
+
+    const outStream = fs.createWriteStream(partialPath, {
+        encoding: 'utf8',
+        flags: progress.completedCount > 0 ? 'a' : 'w'
+    });
+    try {
+        for (let i = progress.completedCount; i < resolvedShardPaths.length; i++) {
+            const onePath = resolvedShardPaths[i];
+            if (!fileExists(onePath)) {
+                throw new Error(`merge source not found: ${onePath}`);
+            }
+            await appendFileToStream(onePath, outStream);
+            try {
+                fs.rmSync(onePath, { force: true });
+            } catch (err) { /* ignore */ }
         }
     } finally {
-        await new Promise((resolve, reject) => {
-            outStream.on('error', reject);
-            outStream.end(resolve);
-        });
+        await closeWritableStream(outStream);
     }
+
+    try { fs.rmSync(resolvedOutPath, { force: true }); } catch (err) { /* ignore */ }
+    fs.renameSync(partialPath, resolvedOutPath);
+    try { fs.rmSync(statePath, { force: true }); } catch (err) { /* ignore */ }
 }
 
 function runShardWorker(task, options) {

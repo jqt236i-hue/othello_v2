@@ -2,20 +2,66 @@ let runtime = null;
 let engine = null;
 const data = require('../data/dialogue/fixed-commentary-data');
 const shared = require('../shared-constants');
+const COMMENTARY_PREFIX_PATTERN = /^(へへっ、|くそっ、|おっと、|ちっ、|よし、|くっ、|グヘヘ、|ケケッ、|グギッ、|ゲヒヒ、|ギャッ、|ケッ、|チッ、|グハハ、|ギリッ、|さて、|フフ、|まだだ、|見せよう、|なるほど、|把握している、|……|いいだろう、|当然だ、|侮るな、|観測どおり、|既定どおり、|想定内だ、|介入する、|誤差か、|把握済みだ、|再計算する、|収束した、|補正する、)+/;
+const CPU_AHEAD_EMOTION_MARKER = /(笑いが漏れる|血が騒ぐ|牙まで鳴る|熱を帯びる|高揚が声まで押し上げる|燃え上がる|観測熱|支配欲が高揚|拍動まで熱)/;
+const CPU_BEHIND_EMOTION_MARKER = /(喉が裂けても吠え返す|煮え立つ|ギラつく|血が沸き返る|執念が喉を焼く|怒りごと盤面へ叩き返す|執念が演算核で燃える|怒りが観測列|熱を帯びる)/;
+const CPU_CARD_AHEAD_MARKER = /(押し切る|差を広げる|逃がさない|まだ上げる)/;
+const CPU_CARD_BEHIND_MARKER = /(まだ返す|逆転へ寄せる|折れずに返す|ここから奪う)/;
+const CPU_CARD_HIT_AHEAD_MARKER = /(まだ押せる|返して黙らせる|主導権は渡さない|まだ崩れない)/;
+const CPU_CARD_HIT_BEHIND_MARKER = /(まだ返す|痛くても噛み返す|ここから立て直す|折れずに返す)/;
+const CPU_CARD_USE_PREFIX_BY_LEVEL = Object.freeze({
+  1: /^ゲヒヒ、/,
+  4: /^見せよう、/,
+  6: /^介入する、/
+});
+const CPU_CARD_HIT_PREFIX_BY_LEVEL = Object.freeze({
+  1: /^ギャッ、/,
+  4: /^なるほど、/,
+  6: /^誤差か、/
+});
+const CPU_LEVEL_SAMPLES = [
+  { label: 'goblin', level: 1, marker: /小鬼|ゴブリン|牙/ },
+  { label: 'boss', level: 4, marker: /支配者|盤上の主|玉座/ },
+  { label: 'finalBoss', level: 6, marker: /観測|盤理|演算/ }
+];
 
 function normalizeCommentaryBody(line) {
   return String(line || '')
-    .replace(/^(へへっ、|くそっ、|おっと、|ちっ、|よし、|くっ、)+/, '')
+    .replace(COMMENTARY_PREFIX_PATTERN, '')
     .replace(/[。！!？?]+$/g, '')
     .trim();
 }
 
-function sanitizeCommentaryLine(line, maxChars = 120) {
+function charLength(line) {
+  return Array.from(String(line || '')).length;
+}
+
+function sanitizeCommentaryLine(line, maxChars = 60) {
   const text = String(line || '').replace(/\s+/g, ' ').trim();
   if (!text) return '';
   const chars = Array.from(text);
   if (!Number.isFinite(maxChars) || maxChars <= 0 || chars.length <= maxChars) return text;
-  return chars.slice(0, maxChars).join('');
+
+  const tokens = text.match(/[^\s、。！!？?]+(?:[、。！!？?]+)?|\s+/g) || [];
+  let compact = '';
+  for (const token of tokens) {
+    const candidate = compact + token;
+    if (charLength(candidate) > maxChars) break;
+    compact = candidate;
+  }
+
+  const normalizedCompact = String(compact || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[、，\s]+$/g, '')
+    .replace(/[。！!？?]+$/g, '');
+  if (normalizedCompact) return normalizedCompact;
+
+  return chars
+    .slice(0, maxChars)
+    .join('')
+    .replace(/[、，\s]+$/g, '')
+    .replace(/[。！!？?]+$/g, '');
 }
 
 function getCatalogCardTypes() {
@@ -23,6 +69,16 @@ function getCatalogCardTypes() {
   return [...new Set(
     defs.map((card) => String(card && card.type ? card.type : '').trim()).filter(Boolean)
   )].sort();
+}
+
+function getCpuSharedPools(level = data.CPU_COMMENTARY_DEFAULT_LEVEL || 3) {
+  return [
+    ['cpuChatterLines', data.getCpuChatterLines(level), 300],
+    ['cpuAheadLines', data.getCpuAheadLines(level), 50],
+    ['cpuBehindLines', data.getCpuBehindLines(level), 50],
+    ['cpuCornerGainLines', data.getCpuCornerGainLines(level), 30],
+    ['cpuCornerLossLines', data.getCpuCornerLossLines(level), 30]
+  ];
 }
 
 describe('cpu commentary runtime', () => {
@@ -33,7 +89,7 @@ describe('cpu commentary runtime', () => {
     delete global.CPU_TALK_ENABLED;
     delete global.location;
     runtime.resetState();
-    runtime.setConfig({ maxChars: 20, recentKeep: 8 });
+    runtime.setConfig({ recentKeep: 8 });
   });
 
   test('can be disabled by global flag', async () => {
@@ -49,7 +105,18 @@ describe('cpu commentary runtime', () => {
 
     expect(typeof text).toBe('string');
     expect(text.length).toBeGreaterThan(0);
-    expect(text.length).toBeLessThanOrEqual(20);
+    expect(runtime.getStatus().maxChars).toBe(60);
+    expect(charLength(text)).toBeLessThanOrEqual(60);
+  });
+
+  test('custom maxChars can shorten commentary further', async () => {
+    global.CPU_TALK_ENABLED = true;
+    runtime.setConfig({ maxChars: 20 });
+
+    const text = await runtime.requestCommentary({ eventType: 'turn_start' });
+
+    expect(typeof text).toBe('string');
+    expect(charLength(text)).toBeLessThanOrEqual(20);
   });
 
   test('card_used line includes card label', async () => {
@@ -64,7 +131,7 @@ describe('cpu commentary runtime', () => {
 
     expect(typeof text).toBe('string');
     expect(text.includes('交換の意志')).toBe(true);
-    expect(text.includes('相手の通常石1つ')).toBe(true);
+    expect(text.includes(data.CARD_EFFECT_SUMMARIES.SWAP_WITH_ENEMY)).toBe(true);
   });
 
   test('card_used_by_enemy line includes card label', async () => {
@@ -79,7 +146,7 @@ describe('cpu commentary runtime', () => {
 
     expect(typeof text).toBe('string');
     expect(text.includes('交換の意志')).toBe(true);
-    expect(text.includes('相手の通常石1つ')).toBe(true);
+    expect(text.includes(data.CARD_EFFECT_SUMMARIES.SWAP_WITH_ENEMY)).toBe(true);
   });
 
   test('speakerRole hero can request hero-side card commentary', async () => {
@@ -97,81 +164,160 @@ describe('cpu commentary runtime', () => {
 
     expect(typeof text).toBe('string');
     expect(text).toContain('交換の意志');
-    expect(text).toContain('相手の通常石1つ');
+    expect(text).toContain(data.CARD_EFFECT_SUMMARIES.SWAP_WITH_ENEMY);
     expect(text).toContain('を切る');
   });
 
-  test('basic pools are fixed to 100000 lines total', () => {
-    const pools = [
-      data.openingLines,
-      data.middleAheadLines,
-      data.middleEvenLines,
-      data.middleBehindLines,
-      data.endAheadLines,
-      data.endEvenLines,
-      data.endBehindLines,
-      data.chatterLines,
-      data.tauntLines,
-      data.negativeLines,
-      data.bluffLines,
-      data.boardSwingLines,
-      data.passLines,
-      data.cardTargetLines
-    ];
-    const total = pools.reduce((n, one) => n + (Array.isArray(one) ? one.length : 0), 0);
-    expect(total).toBe(100000);
-  });
-
-  test('basic pools keep unique lines in each pool', () => {
-    const pools = [
-      data.openingLines,
-      data.middleAheadLines,
-      data.middleEvenLines,
-      data.middleBehindLines,
-      data.endAheadLines,
-      data.endEvenLines,
-      data.endBehindLines,
-      data.chatterLines,
-      data.tauntLines,
-      data.negativeLines,
-      data.bluffLines,
-      data.boardSwingLines,
-      data.passLines,
-      data.cardTargetLines
-    ];
-    for (const one of pools) {
-      expect(Array.isArray(one)).toBe(true);
-      expect(new Set(one).size).toBe(one.length);
+  test.each(CPU_LEVEL_SAMPLES)('cpu fixed pools keep exact rollout sizes for $label tier', ({ level }) => {
+    for (const [, pool, expectedSize] of getCpuSharedPools(level)) {
+      expect(Array.isArray(pool)).toBe(true);
+      expect(pool.length).toBe(expectedSize);
+      expect(new Set(pool).size).toBe(pool.length);
     }
   });
 
-  test('corner commentary pools keep 2400 varied unique lines', () => {
-    const pools = [
-      data.cornerFirstOwnedLines,
-      data.cornerFirstLostLines,
-      data.cornerStreakTwoOwnedLines,
-      data.cornerStreakTwoLostLines,
-      data.cornerStreakThreeOwnedLines,
-      data.cornerStreakThreeLostLines,
-      data.cornerAllOwnedLines,
-      data.cornerAllLostLines
-    ];
-
-    for (const one of pools) {
-      expect(Array.isArray(one)).toBe(true);
-      expect(one.length).toBe(2400);
-      expect(new Set(one).size).toBe(one.length);
-    }
+  test.each(CPU_LEVEL_SAMPLES)('cpu level $level uses $label-style chatter markers', ({ level, marker }) => {
+    const chatterLines = data.getCpuChatterLines(level);
+    expect(chatterLines.length).toBe(300);
+    expect(chatterLines.every((line) => marker.test(line))).toBe(true);
   });
 
-  test('card commentary pools expand to 480 lines per card and advantage context', () => {
-    const useLines = data.getCardUseLines('SWAP_WITH_ENEMY', 'even');
-    const hitLines = data.getCardHitLines('SWAP_WITH_ENEMY', 'even');
+  test.each(CPU_LEVEL_SAMPLES)('cpu level $level keeps multiple chatter lead-in variants', ({ level }) => {
+    const leadIns = new Set(
+      data.getCpuChatterLines(level)
+        .map((line) => String(line || '').split(' ')[0])
+        .filter(Boolean)
+    );
+    expect(leadIns.size).toBeGreaterThanOrEqual(5);
+  });
 
-    expect(useLines.length).toBe(480);
-    expect(hitLines.length).toBe(480);
-    expect(new Set(useLines).size).toBe(useLines.length);
-    expect(new Set(hitLines).size).toBe(hitLines.length);
+  test.each(CPU_LEVEL_SAMPLES)('cpu level $level keeps emotional ahead and behind phrasing', ({ level }) => {
+    expect(data.getCpuAheadLines(level).every((line) => CPU_AHEAD_EMOTION_MARKER.test(line))).toBe(true);
+    expect(data.getCpuBehindLines(level).every((line) => CPU_BEHIND_EMOTION_MARKER.test(line))).toBe(true);
+  });
+
+  test.each(CPU_LEVEL_SAMPLES)('runtime turn_start uses $label-style voice for level $level', async ({ level, marker }) => {
+    global.CPU_TALK_ENABLED = true;
+    runtime.resetState();
+    runtime.setConfig({ maxChars: 200, recentKeep: 8 });
+
+    const text = await runtime.requestCommentary({
+      eventType: 'turn_start',
+      playerKey: 'white',
+      turnNumber: 14,
+      phase: 'middle',
+      advantage: 'even',
+      counts: { black: 12, white: 12 },
+      corners: { own: 0, opp: 0 },
+      level
+    });
+
+    expect(typeof text).toBe('string');
+    expect(text).toMatch(marker);
+  });
+
+  test('legacy cpu pool exports alias reduced shared pools', () => {
+    expect(data.cpuChatterLines).toBe(data.getCpuChatterLines(data.CPU_COMMENTARY_DEFAULT_LEVEL));
+    expect(data.cpuAheadLines).toBe(data.getCpuAheadLines(data.CPU_COMMENTARY_DEFAULT_LEVEL));
+    expect(data.cpuBehindLines).toBe(data.getCpuBehindLines(data.CPU_COMMENTARY_DEFAULT_LEVEL));
+    expect(data.cpuCornerGainLines).toBe(data.getCpuCornerGainLines(data.CPU_COMMENTARY_DEFAULT_LEVEL));
+    expect(data.cpuCornerLossLines).toBe(data.getCpuCornerLossLines(data.CPU_COMMENTARY_DEFAULT_LEVEL));
+
+    expect(data.openingLines).toBe(data.cpuChatterLines);
+    expect(data.middleEvenLines).toBe(data.cpuChatterLines);
+    expect(data.endEvenLines).toBe(data.cpuChatterLines);
+    expect(data.chatterLines).toBe(data.cpuChatterLines);
+    expect(data.boardSwingLines).toBe(data.cpuChatterLines);
+    expect(data.passLines).toBe(data.cpuChatterLines);
+    expect(data.cardTargetLines).toBe(data.cpuChatterLines);
+
+    expect(data.middleAheadLines).toBe(data.cpuAheadLines);
+    expect(data.endAheadLines).toBe(data.cpuAheadLines);
+    expect(data.tauntLines).toBe(data.cpuAheadLines);
+
+    expect(data.middleBehindLines).toBe(data.cpuBehindLines);
+    expect(data.endBehindLines).toBe(data.cpuBehindLines);
+    expect(data.negativeLines).toBe(data.cpuBehindLines);
+    expect(data.bluffLines).toBe(data.cpuBehindLines);
+
+    expect(data.cornerFirstOwnedLines).toBe(data.cpuCornerGainLines);
+    expect(data.cornerStreakTwoOwnedLines).toBe(data.cpuCornerGainLines);
+    expect(data.cornerStreakThreeOwnedLines).toBe(data.cpuCornerGainLines);
+    expect(data.cornerAllOwnedLines).toBe(data.cpuCornerGainLines);
+
+    expect(data.cornerFirstLostLines).toBe(data.cpuCornerLossLines);
+    expect(data.cornerStreakTwoLostLines).toBe(data.cpuCornerLossLines);
+    expect(data.cornerStreakThreeLostLines).toBe(data.cpuCornerLossLines);
+    expect(data.cornerAllLostLines).toBe(data.cpuCornerLossLines);
+  });
+
+  test('cpu card commentary pools keep 10 lines per card for each advantage context', () => {
+    const evenUseLines = data.getCardUseLines('SWAP_WITH_ENEMY', 'even', 4);
+    const aheadUseLines = data.getCardUseLines('SWAP_WITH_ENEMY', 'ahead', 4);
+    const behindUseLines = data.getCardUseLines('SWAP_WITH_ENEMY', 'behind', 4);
+    const evenHitLines = data.getCardHitLines('SWAP_WITH_ENEMY', 'even', 4);
+    const aheadHitLines = data.getCardHitLines('SWAP_WITH_ENEMY', 'ahead', 4);
+    const behindHitLines = data.getCardHitLines('SWAP_WITH_ENEMY', 'behind', 4);
+
+    expect(evenUseLines).not.toEqual(aheadUseLines);
+    expect(evenUseLines).not.toEqual(behindUseLines);
+    expect(aheadUseLines).not.toEqual(behindUseLines);
+    expect(evenHitLines).not.toEqual(aheadHitLines);
+    expect(evenHitLines).not.toEqual(behindHitLines);
+    expect(aheadHitLines).not.toEqual(behindHitLines);
+
+    for (const pool of [evenUseLines, aheadUseLines, behindUseLines, evenHitLines, aheadHitLines, behindHitLines]) {
+      expect(pool.length).toBe(10);
+      expect(new Set(pool).size).toBe(pool.length);
+      expect(pool.every((line) => line.includes('交換の意志'))).toBe(true);
+      expect(pool.every((line) => line.includes(data.CARD_EFFECT_SUMMARIES.SWAP_WITH_ENEMY))).toBe(true);
+    }
+
+    expect(aheadUseLines.some((line) => CPU_CARD_AHEAD_MARKER.test(line))).toBe(true);
+    expect(behindUseLines.some((line) => CPU_CARD_BEHIND_MARKER.test(line))).toBe(true);
+    expect(aheadHitLines.some((line) => CPU_CARD_HIT_AHEAD_MARKER.test(line))).toBe(true);
+    expect(behindHitLines.some((line) => CPU_CARD_HIT_BEHIND_MARKER.test(line))).toBe(true);
+  });
+
+  test.each(CPU_LEVEL_SAMPLES)('cpu level $level keeps multiple card lead-in variants', ({ level }) => {
+    const leadIns = new Set(
+      data.getCardUseLines('SWAP_WITH_ENEMY', 'even', level)
+        .map((line) => String(line || '').split(' ')[0])
+        .filter(Boolean)
+    );
+    expect(leadIns.size).toBeGreaterThanOrEqual(4);
+  });
+
+  test.each(CPU_LEVEL_SAMPLES)('runtime card reactions use the $label tier prefixes', ({ level }) => {
+    engine.resetState();
+    engine.setConfig({ maxChars: 200, regularTurnInterval: 1 });
+
+    const used = engine._buildCommentaryForTest({
+      eventType: 'card_used',
+      playerKey: 'white',
+      phase: 'middle',
+      advantage: 'even',
+      turnNumber: 12,
+      counts: { black: 16, white: 16 },
+      corners: { own: 0, opp: 0 },
+      cardType: 'SWAP_WITH_ENEMY',
+      level
+    });
+    engine.resetState();
+    const hit = engine._buildCommentaryForTest({
+      eventType: 'card_used_by_enemy',
+      playerKey: 'white',
+      phase: 'middle',
+      advantage: 'even',
+      turnNumber: 12,
+      counts: { black: 16, white: 16 },
+      corners: { own: 0, opp: 0 },
+      cardType: 'SWAP_WITH_ENEMY',
+      level
+    });
+
+    expect(used).toMatch(CPU_CARD_USE_PREFIX_BY_LEVEL[level]);
+    expect(hit).toMatch(CPU_CARD_HIT_PREFIX_BY_LEVEL[level]);
   });
 
   test('hero fixed pools keep exact rollout sizes', () => {
@@ -226,86 +372,84 @@ describe('cpu commentary runtime', () => {
     }
   });
 
-  test('in-match dialogue pools match requested totals', () => {
-    const fixedPools = [
-      data.openingLines,
-      data.middleAheadLines,
-      data.middleEvenLines,
-      data.middleBehindLines,
-      data.endAheadLines,
-      data.endEvenLines,
-      data.endBehindLines,
-      data.chatterLines,
-      data.tauntLines,
-      data.negativeLines,
-      data.bluffLines,
-      data.boardSwingLines,
-      data.passLines,
-      data.cardTargetLines,
-      data.cornerFirstOwnedLines,
-      data.cornerFirstLostLines,
-      data.cornerStreakTwoOwnedLines,
-      data.cornerStreakTwoLostLines,
-      data.cornerStreakThreeOwnedLines,
-      data.cornerStreakThreeLostLines,
-      data.cornerAllOwnedLines,
-      data.cornerAllLostLines
-    ];
-    const fixedTotal = fixedPools.reduce((n, one) => n + (Array.isArray(one) ? one.length : 0), 0);
+  test.each(CPU_LEVEL_SAMPLES)('runtime card_used lines always keep effect summaries for $label tier', ({ level }) => {
+    const catalogTypes = getCatalogCardTypes();
+    engine.resetState();
+    engine.setConfig({ maxChars: 60, regularTurnInterval: 1 });
+
+    for (const cardType of catalogTypes) {
+      engine.resetState();
+      const line = engine._buildCommentaryForTest({
+        eventType: 'card_used',
+        playerKey: 'white',
+        phase: 'middle',
+        advantage: 'even',
+        turnNumber: 12,
+        counts: { black: 16, white: 16 },
+        corners: { own: 0, opp: 0 },
+        cardType,
+        level
+      });
+
+      expect(line).toContain(data.CARD_EFFECT_SUMMARIES[cardType]);
+      expect(charLength(line)).toBeLessThanOrEqual(60);
+    }
+  });
+
+  test.each(CPU_LEVEL_SAMPLES)('visible in-match dialogue stays around 60 chars for $label tier', ({ level }) => {
     const cardTypes = Object.keys(data.CARD_TYPE_LABELS || {});
+    const allLines = [];
+
+    for (const [, pool] of getCpuSharedPools(level)) {
+      allLines.push(...pool);
+    }
+    for (const cardType of cardTypes) {
+      for (const advantage of ['ahead', 'even', 'behind']) {
+        allLines.push(...data.getCardUseLines(cardType, advantage, level));
+        allLines.push(...data.getCardHitLines(cardType, advantage, level));
+      }
+    }
+
+    const visible = allLines.map((line) => sanitizeCommentaryLine(line, 60));
+    const avgLength = visible.reduce((sum, line) => sum + charLength(line), 0) / visible.length;
+
+    expect(Math.max(...visible.map(charLength))).toBeLessThanOrEqual(60);
+    expect(avgLength).toBeLessThanOrEqual(60);
+  });
+
+  test.each(CPU_LEVEL_SAMPLES)('in-match dialogue pools match requested totals for $label tier', ({ level }) => {
+    const fixedTotal = getCpuSharedPools(level).reduce((n, [, pool]) => n + pool.length, 0);
+    const cardTypes = Object.keys(data.CARD_TYPE_LABELS || {});
+    const advantages = ['ahead', 'even', 'behind'];
 
     let cardUseTotal = 0;
     let cardHitTotal = 0;
     for (const cardType of cardTypes) {
-      for (const advantage of ['ahead', 'even', 'behind']) {
-        cardUseTotal += data.getCardUseLines(cardType, advantage).length;
-        cardHitTotal += data.getCardHitLines(cardType, advantage).length;
+      for (const advantage of advantages) {
+        cardUseTotal += data.getCardUseLines(cardType, advantage, level).length;
+        cardHitTotal += data.getCardHitLines(cardType, advantage, level).length;
       }
     }
 
-    expect(fixedTotal).toBe(119200);
-    expect(cardUseTotal).toBe(cardTypes.length * 3 * 480);
-    expect(cardHitTotal).toBe(cardTypes.length * 3 * 480);
-    expect(fixedTotal + cardUseTotal + cardHitTotal).toBe(119200 + (cardTypes.length * 3 * 480 * 2));
+    expect(fixedTotal).toBe(460);
+    expect(cardUseTotal).toBe(cardTypes.length * advantages.length * 10);
+    expect(cardHitTotal).toBe(cardTypes.length * advantages.length * 10);
+    expect(fixedTotal + cardUseTotal + cardHitTotal).toBe(460 + (cardTypes.length * advantages.length * 20));
   });
 
-  test('all in-match dialogue lines stay globally unique including sanitized display text', () => {
+  test.each(CPU_LEVEL_SAMPLES)('all in-match dialogue lines stay globally unique for $label tier', ({ level }) => {
     const cardTypes = Object.keys(data.CARD_TYPE_LABELS || {});
+    const advantages = ['ahead', 'even', 'behind'];
     const allLines = [];
 
-    const pools = [
-      data.openingLines,
-      data.middleAheadLines,
-      data.middleEvenLines,
-      data.middleBehindLines,
-      data.endAheadLines,
-      data.endEvenLines,
-      data.endBehindLines,
-      data.chatterLines,
-      data.tauntLines,
-      data.negativeLines,
-      data.bluffLines,
-      data.boardSwingLines,
-      data.passLines,
-      data.cardTargetLines,
-      data.cornerFirstOwnedLines,
-      data.cornerFirstLostLines,
-      data.cornerStreakTwoOwnedLines,
-      data.cornerStreakTwoLostLines,
-      data.cornerStreakThreeOwnedLines,
-      data.cornerStreakThreeLostLines,
-      data.cornerAllOwnedLines,
-      data.cornerAllLostLines
-    ];
-
-    for (const pool of pools) {
+    for (const [, pool] of getCpuSharedPools(level)) {
       allLines.push(...pool);
     }
 
     for (const cardType of cardTypes) {
-      for (const advantage of ['ahead', 'even', 'behind']) {
-        allLines.push(...data.getCardUseLines(cardType, advantage));
-        allLines.push(...data.getCardHitLines(cardType, advantage));
+      for (const advantage of advantages) {
+        allLines.push(...data.getCardUseLines(cardType, advantage, level));
+        allLines.push(...data.getCardHitLines(cardType, advantage, level));
       }
     }
 

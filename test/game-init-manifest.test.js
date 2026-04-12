@@ -5,11 +5,12 @@ const { generateManifest } = require('../scripts/generate-asset-manifest');
 describe('handleGameInit with assetManifest', () => {
   test('handles manifest and sets window flag on success', async () => {
     global.Image = function() { this.onload = null; this.onerror = null; Object.defineProperty(this, 'src', { set(v) { setTimeout(() => { if (typeof this.onload === 'function') this.onload(); }, 0); } }); };
-    const manifest = generateManifest({ root: require('path').resolve(__dirname, '..') }).manifest;
+    const manifest = generateManifest({ root: require('path').resolve(__dirname, '..'), write: false }).manifest;
     const payload = { assetManifest: manifest };
     const res = await bootstrap.handleGameInit(payload, { assetPolicy: { mode: 'compat' }, timeoutMs: 1000 });
     assert.strictEqual(res.status, 'asset_manifest_handled');
     assert.ok(res.result && (res.result.status === 'ok'));
+    assert.strictEqual(bootstrap.getLoadedAssetManifest(), manifest);
   });
 
   test('handles missing manifest gracefully in compat mode', async () => {

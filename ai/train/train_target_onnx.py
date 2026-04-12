@@ -171,13 +171,7 @@ def target_index(rec: dict) -> int | None:
     if not isinstance(selection, dict) or selection.get("kind") != "board_cell":
         return None
 
-    row = selection.get("row")
-    col = selection.get("col")
-    if not isinstance(row, int) or not isinstance(col, int):
-        return None
-    if row < 0 or row >= base.BOARD_SIZE or col < 0 or col >= base.BOARD_SIZE:
-        return None
-    return (row * base.BOARD_SIZE) + col
+    return base.board_cell_index_for_record(rec, selection.get("row"), selection.get("col"))
 
 
 def load_target_dataset(args: argparse.Namespace) -> TargetDatasetBundle:
@@ -484,11 +478,17 @@ def write_meta(
         "baseModelInputDim": TARGET_BASE_INPUT_DIM,
         "outputDim": TARGET_OUTPUT_DIM,
         "boardSize": base.BOARD_SIZE,
-        "actionSpace": "pending_target_8x8",
+        "paddedBoardMinCoord": base.PADDED_BOARD_MIN,
+        "paddedBoardMaxCoord": base.PADDED_BOARD_MAX,
+        "paddedBoardSize": base.PADDED_BOARD_SIZE,
+        "boardEnvelopeField": "boardEnvelope",
+        "boardMinRowField": "boardMinRow",
+        "boardMinColField": "boardMinCol",
+        "actionSpace": "pending_target_padded10",
         "pendingTypes": TARGET_PENDING_TYPES,
         "cardActionIds": base.CARD_ACTION_IDS,
         "featureSpec": [
-            "board_8x8_perspective_flat",
+            "board_padded_10x10_perspective_flat",
             "legal_moves_norm",
             "disc_diff_before_norm",
             "own_charge_norm",
@@ -577,6 +577,10 @@ def maybe_write_checkpoint(
             "baseInputDim": base.BASE_INPUT_DIM,
             "baseModelInputDim": TARGET_BASE_INPUT_DIM,
             "targetOutputDim": TARGET_OUTPUT_DIM,
+            "boardSize": base.BOARD_SIZE,
+            "paddedBoardMinCoord": base.PADDED_BOARD_MIN,
+            "paddedBoardMaxCoord": base.PADDED_BOARD_MAX,
+            "paddedBoardSize": base.PADDED_BOARD_SIZE,
             "pendingTypes": TARGET_PENDING_TYPES,
             "cardActionIds": base.CARD_ACTION_IDS,
         },

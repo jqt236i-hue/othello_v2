@@ -161,9 +161,90 @@ describe('board-renderer fallback legal hints', () => {
     const secondCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
     expect(firstCell).toBeTruthy();
     expect(secondCell).toBeTruthy();
-    expect(firstCell.classList.contains('effect-target-highlight')).toBe(true);
-    expect(secondCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(secondCell.classList.contains('effect-target-highlight-positive')).toBe(false);
     expect(secondCell.classList.contains('selectable-friendly')).toBe(true);
+  });
+
+  test('renderBoardFull highlights already selected perimeter cells during BOARD_SHRINK_WILL targeting', () => {
+    global.getLegalMoves.mockReturnValue([]);
+    global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 2 }]);
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_SHRINK_WILL',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_01',
+      selectedTargets: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
+      selectedCount: 2,
+      maxSelections: 3
+    };
+
+    const boardRenderer = require('../ui/board-renderer');
+    boardRenderer.renderBoardFull();
+
+    const firstCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    const secondCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
+    const selectableCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="2"]');
+    expect(firstCell).toBeTruthy();
+    expect(secondCell).toBeTruthy();
+    expect(selectableCell).toBeTruthy();
+    expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(secondCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(selectableCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+    expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
+  });
+
+  test('renderBoardFull highlights the first selected corner during BOARD_SHRINK_GOD targeting', () => {
+    global.getLegalMoves.mockReturnValue([]);
+    global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 1 }]);
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_SHRINK_GOD',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_god_01',
+      firstTarget: { row: 0, col: 0 }
+    };
+
+    const boardRenderer = require('../ui/board-renderer');
+    boardRenderer.renderBoardFull();
+
+    const firstCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    const selectableCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
+    expect(firstCell).toBeTruthy();
+    expect(selectableCell).toBeTruthy();
+    expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(selectableCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+    expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
+  });
+
+  test('renderBoardFull highlights BOARD_EXPANSION_GOD selected corners from firstTarget and selectedTargets', () => {
+    global.getLegalMoves.mockReturnValue([]);
+    global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 7 }]);
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_EXPANSION_GOD',
+      stage: 'selectTarget',
+      cardId: 'board_expand_god_01',
+      firstTarget: { row: 0, col: 0 },
+      selectedTargets: [{ row: 0, col: 0 }, { row: 7, col: 7 }],
+      selectedCount: 2,
+      maxSelections: 2
+    };
+
+    const boardRenderer = require('../ui/board-renderer');
+    boardRenderer.renderBoardFull();
+
+    const firstCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    const secondSelectedCell = global.boardEl.querySelector('.cell[data-row="7"][data-col="7"]');
+    const selectableCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="7"]');
+    expect(firstCell).toBeTruthy();
+    expect(secondSelectedCell).toBeTruthy();
+    expect(selectableCell).toBeTruthy();
+    expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(secondSelectedCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(selectableCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+    expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
   });
 
   test('renderBoard skips diff render while PLAYBACK_EVENTS are pending', () => {

@@ -184,7 +184,7 @@
             else showBubble(safeEntry.line, safeEntry);
         }
         const logWriter = resolveLogWriter();
-        if (typeof logWriter === 'function' && opts.log !== false) {
+        if (typeof logWriter === 'function' && opts.log === true) {
             logWriter(safeEntry.text);
         }
         return safeEntry;

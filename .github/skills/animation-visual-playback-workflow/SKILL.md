@@ -1,12 +1,12 @@
 ---
 name: 'animation-visual-playback-workflow'
-description: 'PLAYBACK_EVENTS、Single Visual Writer、board render 差分、playback lock、visual regression を、この repo の events 順 / Spec B 前提で安全に直すワークフロー。Use when editing ui/animation-*.js, ui/playback-engine.js, ui/presentation-handler.js, ui/playback-state-manager.js, ui/board-renderer.js, ui/stone-visuals.js, or related animation/visual tests in this card-othello repository.'
+description: 'PLAYBACK_EVENTS、Single Visual Writer、board render 差分、playback lock、visual regression を、この repo の events 順 / Spec B 前提で安全に直すワークフロー。Use when editing ui/animation-*.js, ui/diff-renderer.js, ui/playback-engine.js, ui/presentation-handler.js, ui/playback-state-manager.js, ui/board-renderer.js, ui/stone-visuals.js, or related animation/visual tests in this card-othello repository.'
 argument-hint: 'どの演出崩れや再生崩れを直したいか。flip, board render, playback lock, visual regression なども書く'
 ---
 
 # Animation Visual Playback Workflow
 
-このスキルは、`events[]` の順序、Single Visual Writer、Spec B、board render 差分、playback lock、visual regression をまとめて扱う時の標準手順です。局所不具合は小さく直しつつ、再生契約そのものが壊れている時は phase を切った段階的な置換も許容します。
+このスキルは、`events[]` の順序、Single Visual Writer、Spec B、board render 差分、playback lock、visual regression をまとめて扱う時の標準手順です。差分の小ささより Single Visual Writer と再生契約の整合を優先し、局所不具合はその責務境界で完結するように直します。再生契約そのものが壊れている時は phase を切った段階的な置換も許容します。
 
 ## When to Use
 
@@ -29,6 +29,7 @@ argument-hint: 'どの演出崩れや再生崩れを直したいか。flip, boar
 - `ui/board-renderer.js`
 - `ui/diff-renderer.js`
 - `ui/presentation-handler.js`
+- `ui/playback-engine.js`
 - `ui/playback-state-manager.js`
 - `ui/stone-visuals.js`
 - 関連 test: `test/ui.animation-engine.*`, `test/ui.diff-renderer.flip.test.js`, `test/presentation.board-updated.serial.test.js`
@@ -45,16 +46,18 @@ argument-hint: 'どの演出崩れや再生崩れを直したいか。flip, boar
 1. `01-rulebook.md` の UI / 演出仕様と、今回触る `events[]` の順序を確認する。
 2. 現在どの module が visual write を持っているかを追い、Single Visual Writer を固定する。
 3. 不具合を event source、playback state、board diff、lock timing、visual regression のどこかに分類する。
-4. 分類できたら、その責務を持つ root 側 module から直す。局所不具合なら最小差分、再生契約そのものが壊れているなら phase を切って置換する。
+4. 分類できたら、その責務を持つ root 側 module から直す。局所不具合ならその責務境界で完結するように直し、再生契約そのものが壊れているなら phase を切って置換する。
 5. lock / unlock は playback state に寄せ、演出ロジックを別ファイルへ複製しない。
 6. 最後に順序と見た目の両方を検証する。
 
 ## Validation Bundle
 
 - 近い `test/ui.animation-engine.*`
+- `test/ui.animation-engine.playback-state.test.js`
+- `test/ui.init.playback-runtime.test.js`
 - `test/ui.diff-renderer.flip.test.js`
 - `test/presentation.board-updated.serial.test.js`
-- 画像差分が出るなら `tests/visual-regression/*` を確認する
+- 画像差分が出るなら `npm run test:visual` と `tests/visual-regression/*` を確認する
 
 ## Completion Checklist
 

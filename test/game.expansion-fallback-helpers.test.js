@@ -1,8 +1,8 @@
 const Shared = require('../shared-constants');
 const DragonEffects = require('../game/logic/effects/dragon');
 
-function createBoard() {
-  return Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY));
+function createBoard(rows = 8, cols = rows) {
+  return Array.from({ length: rows }, () => Array(cols).fill(Shared.EMPTY));
 }
 
 function createExpansionState(cells) {
@@ -138,6 +138,33 @@ describe('expansion fallback helpers', () => {
     expect(out.destroyed).toEqual([expect.objectContaining({ row: -1, col: 0, sourceRow: 0, sourceCol: 0 })]);
   });
 
+  test('sniper fallback can target a right expansion cell on 10x10 without BoardOps', () => {
+    const CardSniper = loadWithoutBoardOps('../game/logic/cards/sniper');
+    const cardState = {
+      markers: [{
+        id: 101,
+        kind: 'specialStone',
+        row: 0,
+        col: 9,
+        owner: 'black',
+        data: { type: 'SNIPER', remainingOwnerTurns: 2 }
+      }]
+    };
+    const gameState = {
+      board: createBoard(10, 10),
+      boardExpansion: createExpansionState([
+        { side: 'right', row: 0, col: 10, owner: Shared.WHITE }
+      ])
+    };
+    gameState.board[0][9] = Shared.BLACK;
+
+    const destroyAt = jest.fn(() => true);
+    const out = CardSniper.processSniperWillEffects(cardState, gameState, 'black', { destroyAt, random: () => 0 });
+
+    expect(destroyAt).toHaveBeenCalledWith(cardState, gameState, 0, 10);
+    expect(out.destroyed).toEqual([expect.objectContaining({ row: 0, col: 10, sourceRow: 0, sourceCol: 9 })]);
+  });
+
   test('lightning fallback can target a bottom expansion cell without BoardOps', () => {
     const CardLightning = loadWithoutBoardOps('../game/logic/cards/lightning');
     const cardState = {
@@ -185,6 +212,28 @@ describe('expansion fallback helpers', () => {
 
     expect(out.removed).toBe(true);
     expect(destroyAt).toHaveBeenCalledWith(cardState, gameState, -1, 0);
+  });
+
+  test('time bomb fallback includes a bottom expansion cell on 10x10 without BoardOps', () => {
+    const CardTimeBomb = loadWithoutBoardOps('../game/logic/cards/time_bomb');
+    const cardState = {
+      turnIndex: 3,
+      markers: [
+        { id: 102, kind: 'specialStone', row: 9, col: 9, owner: 'black', createdSeq: 1, data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 1, placedTurn: 0 } }
+      ]
+    };
+    const gameState = {
+      board: createBoard(10, 10),
+      boardExpansion: createExpansionState([
+        { side: 'bottom', row: 10, col: 9, owner: Shared.WHITE }
+      ])
+    };
+
+    const destroyAt = jest.fn(() => true);
+    const out = CardTimeBomb.tickBombAt(cardState, gameState, cardState.markers[0], 'black', { destroyAt });
+
+    expect(out.removed).toBe(true);
+    expect(destroyAt).toHaveBeenCalledWith(cardState, gameState, 10, 9);
   });
 
   test('destroy dragon fallback can target a top expansion neighbor without BoardOps', () => {
@@ -247,6 +296,41 @@ describe('expansion fallback helpers', () => {
     expect(destroyAt).toHaveBeenCalledWith(cardState, gameState, -1, -1);
   });
 
+  test('UDG fallback destroys right and bottom expansion neighbors on 10x10 without BoardOps', () => {
+    const CardUdG = loadWithoutBoardOps('../game/logic/cards/udg');
+    const cardState = {
+      markers: [{
+        id: 103,
+        kind: 'specialStone',
+        row: 9,
+        col: 9,
+        owner: 'black',
+        data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 2 }
+      }]
+    };
+    const gameState = {
+      board: createBoard(10, 10),
+      boardExpansion: createExpansionState([
+        { side: 'right', row: 9, col: 10, owner: Shared.WHITE },
+        { side: 'bottom', row: 10, col: 9, owner: Shared.WHITE },
+        { side: 'bottom', row: 10, col: 10, owner: Shared.WHITE }
+      ])
+    };
+    for (let row = 0; row < 10; row++) {
+      for (let col = 0; col < 10; col++) {
+        gameState.board[row][col] = Shared.WHITE;
+      }
+    }
+    gameState.board[9][9] = Shared.BLACK;
+
+    const destroyAt = jest.fn(() => true);
+    CardUdG.processUltimateDestroyGodEffects(cardState, gameState, 'black', { destroyAt });
+
+    expect(destroyAt).toHaveBeenCalledWith(cardState, gameState, 9, 10);
+    expect(destroyAt).toHaveBeenCalledWith(cardState, gameState, 10, 9);
+    expect(destroyAt).toHaveBeenCalledWith(cardState, gameState, 10, 10);
+  });
+
   test('DESTROY_ONE_STONE fallback clears a top expansion cell without BoardOps', () => {
     const DestroyOneStone = loadWithoutBoardOps('../game/logic/effects/destroy_one_stone');
     const cardState = {
@@ -264,6 +348,26 @@ describe('expansion fallback helpers', () => {
 
     expect(out.destroyed).toBe(true);
     expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === -1 && cell.col === 0).owner).toBe(Shared.EMPTY);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
+  test('DESTROY_ONE_STONE fallback clears a right expansion cell on 10x10 without BoardOps', () => {
+    const DestroyOneStone = loadWithoutBoardOps('../game/logic/effects/destroy_one_stone');
+    const cardState = {
+      markers: [{ id: 104, kind: 'specialStone', row: 0, col: 10, owner: 'white', data: { type: 'REGEN' } }],
+      pendingEffectByPlayer: { black: { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' }, white: null }
+    };
+    const gameState = {
+      board: createBoard(10, 10),
+      boardExpansion: createExpansionState([
+        { side: 'right', row: 0, col: 10, owner: Shared.WHITE }
+      ])
+    };
+
+    const out = DestroyOneStone.applyDestroyOneStone(cardState, gameState, 'black', 0, 10);
+
+    expect(out.destroyed).toBe(true);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 0 && cell.col === 10).owner).toBe(Shared.EMPTY);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 
@@ -295,5 +399,35 @@ describe('expansion fallback helpers', () => {
 
     expect(out).toMatchObject({ gained: 1, removed: true, row: -1, col: 0, removedReason: 'duration_end' });
     expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === -1 && cell.col === 0).owner).toBe(Shared.EMPTY);
+  });
+
+  test('WORK fallback clears a right expansion anchor on 10x10 without BoardOps', () => {
+    const CardWork = loadWithoutBoardOps('../game/logic/cards/work_will', [
+      ['../game/logic/cards/utils', () => ({ isFrozenCell: () => false })]
+    ]);
+    const cardState = {
+      charge: { black: 0, white: 0 },
+      chargeGainedTotal: { black: 0, white: 0 },
+      workAnchorPosByPlayer: { black: { row: 0, col: 10 }, white: null },
+      markers: [{
+        id: 105,
+        kind: 'specialStone',
+        row: 0,
+        col: 10,
+        owner: 'black',
+        data: { type: 'WORK', ownerColor: 'black', workStage: 0, remainingOwnerTurns: 1 }
+      }]
+    };
+    const gameState = {
+      board: createBoard(10, 10),
+      boardExpansion: createExpansionState([
+        { side: 'right', row: 0, col: 10, owner: Shared.BLACK }
+      ])
+    };
+
+    const out = CardWork.processWorkEffects(cardState, gameState, 'black');
+
+    expect(out).toMatchObject({ gained: 1, removed: true, row: 0, col: 10, removedReason: 'duration_end' });
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 0 && cell.col === 10).owner).toBe(Shared.EMPTY);
   });
 });

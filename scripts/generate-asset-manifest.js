@@ -26,12 +26,27 @@ function collectFiles(rootDir, relDir) {
     return results;
 }
 
+function writeManifestFile(outPath, payload) {
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    const tempPath = `${outPath}.tmp-${process.pid}-${Date.now()}`;
+    fs.writeFileSync(tempPath, payload, 'utf8');
+    try { fs.rmSync(outPath, { force: true }); } catch (e) { /* ignore */ }
+    fs.renameSync(tempPath, outPath);
+}
+
 function generateManifest(options = {}) {
     const projectRoot = options.root || path.resolve(__dirname, '..');
     const assetsRoot = path.join(projectRoot, 'assets');
-    const stonesDir = 'images/stones';
+    const assetDirs = [
+        'images/stones',
+        'images/other',
+        'images/hand-skin',
+        'images/Gacha'
+    ];
 
-    const files = collectFiles(assetsRoot, stonesDir).map(p => ({ path: `assets/${p}`, sha256: hashFile(path.join(assetsRoot, p)) }));
+    const files = assetDirs
+        .flatMap((relDir) => collectFiles(assetsRoot, relDir))
+        .map(p => ({ path: `assets/${p}`, sha256: hashFile(path.join(assetsRoot, p)) }));
 
     const manifest = {
         version: new Date().toISOString().slice(0, 10),
@@ -40,8 +55,12 @@ function generateManifest(options = {}) {
     };
 
     const outPath = path.join(projectRoot, 'assets', 'asset-manifest.json');
-    fs.writeFileSync(outPath, JSON.stringify(manifest, null, 2), 'utf8');
-    return { manifest, outPath };
+    const payload = JSON.stringify(manifest, null, 2);
+    const shouldWrite = options.write !== false && options.persist !== false;
+    if (shouldWrite) {
+        writeManifestFile(outPath, payload);
+    }
+    return { manifest, outPath, wroteFile: shouldWrite };
 }
 
 if (require.main === module) {

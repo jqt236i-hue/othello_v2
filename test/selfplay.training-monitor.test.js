@@ -7,6 +7,7 @@ const {
     inferPhaseFromCommand,
     analyzeLauncherLogLines,
     buildMonitorSnapshot,
+    formatMonitorSnapshotText,
     findLatestRunDirectory,
     resolveRunDirectory
 } = require('../scripts/monitor-selfplay-training-run');
@@ -59,15 +60,28 @@ describe('selfplay training monitor script', () => {
             config: {
                 iterations: 20,
                 gateFinalIterationOnly: true,
-                adoptionUseAnchorBaseline: true
+                adoptionUseAnchorBaseline: true,
+                qualityGateEnabled: true,
+                seedBankPath: 'C:/tmp/seed-bank.demo.json'
             },
             latestGuideModelPath: 'C:/tmp/policy-table.candidate.test.it10.json',
             latestResumeCheckpointPath: 'C:/tmp/policy-net.candidate.test.it10.checkpoint.pt',
             latestAnchorModelPath: 'C:/tmp/anchor.json',
+            latestWarehouseManifestPath: path.join(runDir, 'training-warehouse.test.it10.json'),
+            warehouseManifestSchemaVersion: 'training_warehouse_manifest.v1',
             stoppedByTimeBudget: false,
             stopReason: null,
             failure: null,
-            iterations: Array.from({ length: 10 }, (_, index) => ({ iteration: index + 1 }))
+            iterations: Array.from({ length: 10 }, (_, index) => ({
+                iteration: index + 1,
+                quickDecision: index === 9
+                    ? {
+                        passed: false,
+                        primaryFailureReason: 'lower-bound',
+                        failureReasons: ['lower-bound']
+                    }
+                    : { passed: true }
+            }))
         }, null, 2), 'utf8');
         fs.writeFileSync(launcherLogPath, [
             '[training-cycle] iteration 11/20 start',
@@ -84,6 +98,12 @@ describe('selfplay training monitor script', () => {
         expect(snapshot.gateMode).toBe('final-only');
         expect(snapshot.baselineMode).toBe('anchor');
         expect(snapshot.latestGuideModel).toBe('policy-table.candidate.test.it10.json');
+        expect(snapshot.seedBank).toBe('seed-bank.demo.json');
+        expect(snapshot.latestWarehouseManifest).toBe('training-warehouse.test.it10.json');
+        expect(snapshot.latestGateOutcomes.quick).toMatchObject({
+            state: 'failed',
+            primaryFailureReason: 'lower-bound'
+        });
     });
 
     test('builds snapshot from launcher log before summary exists', () => {
@@ -94,13 +114,14 @@ describe('selfplay training monitor script', () => {
         fs.writeFileSync(path.join(runDir, 'config.resolved.json'), JSON.stringify({
             command: {
                 args: [
-                    'scripts/run-selfplay-training-cycle.js',
-                    '--iterations', '8',
-                    '--adoption-use-guide-baseline',
-                    '--gate-final-iteration-only'
-                ]
-            }
-        }, null, 2), 'utf8');
+                        'scripts/run-selfplay-training-cycle.js',
+                        '--iterations', '8',
+                        '--adoption-use-guide-baseline',
+                        '--gate-final-iteration-only',
+                        '--seed-bank', 'data/runs/research_incremental_growth_v1/seed-bank.json'
+                    ]
+                }
+            }, null, 2), 'utf8');
         fs.writeFileSync(path.join(runDir, 'launcher.log'), [
             '[training-cycle] iteration 1/8 start',
             '[training-cycle] run: node scripts/generate-selfplay-data.js --out data/runs/selfplay.train.adaptive_best_current_v1_20260318_010101.it1.ndjson',
@@ -115,6 +136,7 @@ describe('selfplay training monitor script', () => {
         expect(snapshot.phaseProgress).toEqual({ current: 24, total: 1500, unit: 'games' });
         expect(snapshot.gateMode).toBe('final-only');
         expect(snapshot.baselineMode).toBe('guide');
+        expect(snapshot.seedBank).toBe('seed-bank.json');
     });
 
     test('tolerates a null summary payload during startup', () => {
@@ -125,13 +147,14 @@ describe('selfplay training monitor script', () => {
         fs.writeFileSync(path.join(runDir, 'config.resolved.json'), JSON.stringify({
             command: {
                 args: [
-                    'scripts/run-selfplay-training-cycle.js',
-                    '--iterations', '8',
-                    '--adoption-use-guide-baseline',
-                    '--gate-final-iteration-only'
-                ]
-            }
-        }, null, 2), 'utf8');
+                        'scripts/run-selfplay-training-cycle.js',
+                        '--iterations', '8',
+                        '--adoption-use-guide-baseline',
+                        '--gate-final-iteration-only',
+                        '--seed-bank', 'data/runs/adaptive_best_current_v1/seed-bank.json'
+                    ]
+                }
+            }, null, 2), 'utf8');
         fs.writeFileSync(path.join(runDir, 'training-cycle.summary.json'), 'null\n', 'utf8');
         fs.writeFileSync(path.join(runDir, 'launcher.log'), [
             '[training-cycle] iteration 1/8 start',
@@ -145,6 +168,43 @@ describe('selfplay training monitor script', () => {
         expect(snapshot.currentIteration).toBe(1);
         expect(snapshot.gateMode).toBe('final-only');
         expect(snapshot.baselineMode).toBe('guide');
+        expect(snapshot.seedBank).toBe('seed-bank.json');
+    });
+
+    test('formatMonitorSnapshotText includes warehouse and gate failure taxonomy', () => {
+        const text = formatMonitorSnapshotText({
+            runTag: 'demo_run',
+            runDir: 'C:/tmp/demo_run',
+            status: 'running',
+            updatedAt: '2026-04-02T00:00:00.000Z',
+            totalIterations: 10,
+            completedIterations: 3,
+            currentIteration: 4,
+            currentPhaseLabel: '自己対局(train)',
+            phaseProgress: { current: 12, total: 100, unit: 'games' },
+            gateMode: 'every-iteration',
+            baselineMode: 'guide',
+            latestGuideModel: 'policy-table.json',
+            latestResumeCheckpoint: 'policy-net.checkpoint.pt',
+            latestAnchorModel: null,
+            seedBank: 'seed-bank.demo.json',
+            latestWarehouseManifest: 'training-warehouse.demo_run.it03.json',
+            latestWarehouseManifestSchemaVersion: 'training_warehouse_manifest.v1',
+            latestGateOutcomes: {
+                quick: { state: 'failed', primaryFailureReason: 'lower-bound' },
+                quality: { state: 'blocked-by-quick', primaryFailureReason: null },
+                final: { state: 'blocked-by-earlier-gate', primaryFailureReason: null },
+                onnx: { state: 'disabled', primaryFailureReason: null }
+            },
+            stopReason: null,
+            failure: null,
+            failureMessage: null,
+            tailLines: []
+        });
+
+        expect(text).toContain('seed-bank=seed-bank.demo.json');
+        expect(text).toContain('warehouse=training-warehouse.demo_run.it03.json schema=training_warehouse_manifest.v1');
+        expect(text).toContain('latest-gates=quick:failed(lower-bound) quality:blocked-by-quick final:blocked-by-earlier-gate onnx:disabled');
     });
 
     test('resolves latest run directory by freshness', () => {

@@ -369,11 +369,20 @@
         <div id="hero-label">オセロの勇者</div>
     </div>
 
-    <button id="storyBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="storyMenuOverlay">story</button>
-    <button id="tutorialBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="tutorialOverlay">tutorial</button>
-    <button id="debugModeBtn" class="btn-small" type="button" aria-pressed="false"
-        style="background-color: #4a3828; color: #ff6b6b;">DEBUG: OFF</button>
-    <button id="rulesHelpBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="rules-help-panel">help</button>
+    <button id="gachaOpenBtn" class="btn-small" type="button" aria-controls="gachaOverlay" aria-expanded="false">ガチャ</button>
+    <button id="leaderboardOpenBtn" class="btn-small" type="button" aria-controls="leaderboardOverlay" aria-expanded="false">ランキング</button>
+    <button id="deckBuilderOpenBtn" class="btn-small" type="button" aria-controls="deckBuilderOverlay" aria-expanded="false">デッキ</button>
+    <button id="storyBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="storyMenuOverlay">STORY</button>
+    <button id="rulesHelpBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="rules-help-panel">HELP</button>
+    <button id="handSkinBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="handSkinPanel" aria-label="手の見た目設定">SKIN</button>
+
+    <div id="handSkinPanel" aria-hidden="true" role="dialog" aria-modal="false" aria-label="手の見た目設定">
+        <div id="handSkinPanelHeader">
+            <div id="handSkinPanelTitle">手の見た目</div>
+            <button id="handSkinCloseBtn" class="btn-small" type="button" aria-label="手の見た目設定を閉じる">×</button>
+        </div>
+        <div id="handSkinOptions" role="radiogroup" aria-label="手の見た目スキン"></div>
+    </div>
 
     <div id="storyMenuOverlay" aria-hidden="true"></div>
 
@@ -422,7 +431,6 @@
             </div>
             <!-- Card Detail Panel: placed next to player's deck/hand for quick access -->
             <div id="card-detail-panel">
-                <div id="card-detail-header">カード詳細</div>
                 <div id="card-detail-name">-</div>
                 <div id="card-detail-desc">カードを選択してください</div>
                 <div id="card-detail-effect-tags" aria-label="カード効果タグ"></div>
@@ -433,7 +441,6 @@
                     <button id="destroy-card-btn" disabled>破壊</button>
                 </div>
                 <button id="pass-btn" disabled>パス</button>
-                <button id="sell-card-btn" style="display:none;" disabled>売却</button>
                 <button id="cancel-card-btn" style="display:none;" onclick="cancelPendingDestroy()">キャンセル</button>
                 <div id="use-card-reason"></div>
             </div>
@@ -458,20 +465,30 @@
             </div>
 
             <div class="control-group match-mode-group">
-                <div class="control-label">MATCH</div>
+                <div class="control-label">MODE</div>
                 <button id="modeCpuBtn" class="btn-small">CPU</button>
                 <button id="modeNetworkBtn" class="btn-small" type="button" aria-controls="networkOverlay" aria-expanded="false">ネット対戦</button>
-                <button id="leaderboardOpenBtn" class="btn-small" type="button" aria-controls="leaderboardOverlay" aria-expanded="false">ランキング</button>
+                <button id="debugModeBtn" class="btn-small" type="button" aria-pressed="false"
+                    style="background-color: #4a3828; color: #d7ccc8;">DEBUG: OFF</button>
             </div>
-            <div class="control-group deck-builder-group">
-                <div class="control-label">DECK</div>
-                <button id="deckBuilderOpenBtn" class="btn-small" type="button" aria-controls="deckBuilderOverlay" aria-expanded="false">デッキ</button>
-                <div id="deckBuilderControlSummary" class="deck-builder-control-summary">標準デッキ / 41枚</div>
+            <div class="control-group board-size-group">
+                <div class="control-label">BOARD</div>
+                <button id="boardSizeOpenBtn" class="btn-small" type="button" aria-controls="boardSizeEditor" aria-expanded="false">盤面サイズ</button>
+                <div id="boardSizeControlSummary" class="board-size-control-summary">8x8</div>
+            </div>
+            <div id="boardSizeEditor" class="board-size-editor" hidden>
+                <label class="board-size-editor-label" for="boardSizeRowsInput">縦</label>
+                <input id="boardSizeRowsInput" class="compact-number-input" type="number" min="4" max="10" step="1" inputmode="numeric" value="8">
+                <span class="board-size-editor-separator">x</span>
+                <label class="board-size-editor-label" for="boardSizeColsInput">横</label>
+                <input id="boardSizeColsInput" class="compact-number-input" type="number" min="4" max="10" step="1" inputmode="numeric" value="8">
+                <button id="boardSizeCloseBtn" class="btn-small" type="button">閉じる</button>
+                <div id="boardSizeEditorNote" class="board-size-editor-note">次のリセット / 新規対局で反映</div>
             </div>
             <div id="networkTimerStatus" aria-live="polite" aria-atomic="true"></div>
 
             <div class="control-group">
-                <div class="control-label">AI SMART</div>
+                <div class="control-label">CPU LEVEL</div>
                 <label class="small-label">黒</label>
                 <select id="smartBlack" class="compact-select" style="width: 70px;"></select>
                 <label class="small-label">白</label>
@@ -522,6 +539,20 @@
                         />
                     <input id="networkRoomIdInput" type="text" placeholder="部屋番号（3桁）" maxlength="3" autocomplete="off" spellcheck="false"
                         />
+                    <div id="networkBoardSizeRow">
+                        <div id="networkBoardSizeHeader">
+                            <span id="networkBoardSizeTitle">盤面サイズ</span>
+                            <span id="networkBoardSizeSummary" class="board-size-control-summary">8x8</span>
+                        </div>
+                        <div id="networkBoardSizeInputs">
+                            <label class="board-size-editor-label" for="networkBoardSizeRowsInput">縦</label>
+                            <input id="networkBoardSizeRowsInput" class="compact-number-input" type="number" min="4" max="10" step="1" inputmode="numeric" value="8" />
+                            <span class="board-size-editor-separator">x</span>
+                            <label class="board-size-editor-label" for="networkBoardSizeColsInput">横</label>
+                            <input id="networkBoardSizeColsInput" class="compact-number-input" type="number" min="4" max="10" step="1" inputmode="numeric" value="8" />
+                        </div>
+                        <div id="networkBoardSizeNote" class="board-size-editor-note">部屋作成前に変更できます</div>
+                    </div>
                     <label id="networkDebugOptionRow" for="networkEnableDebugCheckbox">
                         <input id="networkEnableDebugCheckbox" type="checkbox" />
                         部屋作成時にデバッグモードを有効化
@@ -555,6 +586,33 @@
         </div>
     </div>
 
+    <div id="gachaOverlay" aria-hidden="true">
+        <div id="gachaModal" role="dialog" aria-modal="true" aria-label="ハンドガチャ">
+            <div id="gachaModalHeader">
+                <div class="gacha-title-wrap">
+                    <div class="gacha-title">ハンドガチャ</div>
+                    <div id="gachaBalanceSummary">
+                        <span class="observation-stone-icon" aria-hidden="true"></span>
+                        <span class="gacha-balance-label">観測石</span>
+                        <span id="gachaBalanceValue">0</span>
+                    </div>
+                </div>
+                <button id="gachaCloseBtn" class="btn-small" type="button" aria-label="ハンドガチャを閉じる">×</button>
+            </div>
+            <div id="gachaModalBody">
+                <div id="gachaStatusText">観測石を集めて手の見た目を解放できます</div>
+                <div id="gachaActionRow">
+                    <button id="gachaDetailToggleBtn" class="btn-small" type="button" aria-expanded="false"
+                        aria-controls="gachaDetailsPanel">詳細</button>
+                    <button id="gachaSinglePullBtn" class="btn-small" type="button">1回ガチャ</button>
+                    <button id="gachaTenPullBtn" class="btn-small" type="button">10連ガチャ</button>
+                </div>
+                <div id="gachaDetailsPanel" hidden></div>
+                <div id="gachaResults" aria-live="polite"></div>
+            </div>
+        </div>
+    </div>
+
     <div id="deckBuilderOverlay" aria-hidden="true">
         <div id="deckBuilderModal" role="dialog" aria-modal="true" aria-label="デッキ構築">
             <div id="deckBuilderModalHeader">
@@ -581,167 +639,15 @@
     </div>
 
     <!-- Hand Animation Elements -->
-    <div id="handLayer">
-        <div id="handWrapper">
-            <svg id="handSvg" viewBox="0 0 200 300" preserveAspectRatio="xMidYMax meet">
-                <defs>
-                    <!-- Warm skin - 3-stop diagonal -->
-                    <linearGradient id="skinGradient" x1="20%" y1="0%" x2="80%" y2="100%">
-                        <stop offset="0%"   stop-color="#f2caa8"/>
-                        <stop offset="50%"  stop-color="#dfa87a"/>
-                        <stop offset="100%" stop-color="#c4885a"/>
-                    </linearGradient>
-                    <!-- Palm shadow overlay -->
-                    <linearGradient id="palmShadow" x1="30%" y1="0%" x2="70%" y2="100%">
-                        <stop offset="0%"   stop-color="#c49060" stop-opacity="0.30"/>
-                        <stop offset="100%" stop-color="#a06838" stop-opacity="0.22"/>
-                    </linearGradient>
-                    <!-- Top-light highlight for finger dorsal -->
-                    <linearGradient id="fingerHL" x1="50%" y1="0%" x2="50%" y2="100%">
-                        <stop offset="0%"   stop-color="#ffe8d0" stop-opacity="0.55"/>
-                        <stop offset="100%" stop-color="#f0c4a0" stop-opacity="0"/>
-                    </linearGradient>
-                    <!-- Fingernail -->
-                    <linearGradient id="nailGrad" x1="50%" y1="0%" x2="50%" y2="100%">
-                        <stop offset="0%"   stop-color="#fce4d4" stop-opacity="0.95"/>
-                        <stop offset="55%"  stop-color="#f0cdb8" stop-opacity="0.90"/>
-                        <stop offset="100%" stop-color="#d8a890" stop-opacity="0.80"/>
-                    </linearGradient>
-                    <!-- Thumb (slightly cooler) -->
-                    <linearGradient id="thumbGrad" x1="0%" y1="20%" x2="100%" y2="80%">
-                        <stop offset="0%"   stop-color="#e8b888"/>
-                        <stop offset="100%" stop-color="#ba7e4e"/>
-                    </linearGradient>
-                    <!-- Knuckle dimple -->
-                    <radialGradient id="knuckle" cx="50%" cy="50%" r="50%">
-                        <stop offset="0%"   stop-color="#9e6838" stop-opacity="0.30"/>
-                        <stop offset="100%" stop-color="#c49060" stop-opacity="0"/>
-                    </radialGradient>
-
-                    <!-- Drop shadow -->
-                    <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur in="SourceAlpha" stdDeviation="3.5"/>
-                        <feOffset dx="2" dy="3" result="offsetblur"/>
-                        <feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>
-                        <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
-                    </filter>
-                    <!-- Soft inner shadow for depth -->
-                    <filter id="innerGlow" x="-10%" y="-10%" width="120%" height="120%">
-                        <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="blur"/>
-                        <feComposite in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1"/>
-                        <feColorMatrix type="matrix" values="0 0 0 0 0.60  0 0 0 0 0.38  0 0 0 0 0.18  0 0 0 0.35 0"/>
-                        <feBlend in2="SourceGraphic" mode="multiply"/>
-                    </filter>
-                </defs>
-
-                <!-- ===== PALM / back of hand ===== -->
-                <!-- wider at knuckle row, tapers toward wrist; fingers sit on top -->
-                <path id="handPath"
-                    d="M 58,295
-                       C 56,275 54,250 55,225
-                       C 55,200 58,180 62,169
-                       C 66,159 71,153 80,151
-                       L 148,151
-                       C 157,151 162,157 164,167
-                       C 167,178 165,200 162,225
-                       C 160,250 157,275 153,295 Z"
-                    fill="url(#skinGradient)" filter="url(#dropShadow)"/>
-                <path
-                    d="M 58,295
-                       C 56,275 54,250 55,225
-                       C 55,200 58,180 62,169
-                       C 66,159 71,153 80,151
-                       L 148,151
-                       C 157,151 162,157 164,167
-                       C 167,178 165,200 162,225
-                       C 160,250 157,275 153,295 Z"
-                    fill="url(#palmShadow)" filter="url(#innerGlow)"/>
-                <!-- back-of-hand tendon suggestions -->
-                <path d="M 80,248 C 81,218 82,188 84,162" fill="none" stroke="#9a6038" stroke-width="0.55" opacity="0.15" stroke-linecap="round"/>
-                <path d="M 98,250 C 100,218 102,186 103,161" fill="none" stroke="#9a6038" stroke-width="0.52" opacity="0.13" stroke-linecap="round"/>
-                <path d="M 118,248 C 120,216 122,185 123,161" fill="none" stroke="#9a6038" stroke-width="0.50" opacity="0.12" stroke-linecap="round"/>
-
-                <!-- ===== PINKY (leftmost, shortest) — leans slightly left ===== -->
-                <path class="finger"
-                    d="M 68,166
-                       C 68,146 68,118 69,95
-                       C 70,79 72,70 75,70
-                       C 78,70 80,79 81,95
-                       C 82,118 83,146 85,166 Z"
-                    fill="url(#skinGradient)" filter="url(#dropShadow)"/>
-                <path d="M 68,166 C 68,146 68,118 69,95 C 70,79 72,70 75,70 C 78,70 80,79 81,95 C 82,118 83,146 85,166 Z"
-                    fill="url(#fingerHL)" opacity="0.20"/>
-                <line x1="69" y1="133" x2="82" y2="132" stroke="#9a6038" stroke-width="0.42" opacity="0.22" stroke-linecap="round"/>
-                <line x1="69" y1="96"  x2="81" y2="95"  stroke="#9a6038" stroke-width="0.38" opacity="0.18" stroke-linecap="round"/>
-                <ellipse cx="75" cy="72" rx="4.8" ry="3.4" fill="url(#nailGrad)" stroke="#cca088" stroke-width="0.30" opacity="0.82"/>
-
-                <!-- ===== RING — slight natural taper ===== -->
-                <path class="finger"
-                    d="M 86,163
-                       C 85,137 85,100 86,64
-                       C 87,43 90,30 94,30
-                       C 98,30 101,43 102,64
-                       C 103,100 103,137 102,163 Z"
-                    fill="url(#skinGradient)" filter="url(#dropShadow)"/>
-                <path d="M 86,163 C 85,137 85,100 86,64 C 87,43 90,30 94,30 C 98,30 101,43 102,64 C 103,100 103,137 102,163 Z"
-                    fill="url(#fingerHL)" opacity="0.19"/>
-                <line x1="86" y1="118" x2="102" y2="117" stroke="#9a6038" stroke-width="0.44" opacity="0.22" stroke-linecap="round"/>
-                <line x1="87" y1="66"  x2="102" y2="65"  stroke="#9a6038" stroke-width="0.40" opacity="0.18" stroke-linecap="round"/>
-                <ellipse cx="94" cy="32" rx="5.5" ry="3.8" fill="url(#nailGrad)" stroke="#cca088" stroke-width="0.30" opacity="0.82"/>
-
-                <!-- ===== MIDDLE (longest) — straight, widest ===== -->
-                <path class="finger"
-                    d="M 103,159
-                       C 102,130 102,92 103,55
-                       C 104,33 108,18 113,18
-                       C 118,18 122,33 123,55
-                       C 124,92 124,130 123,159 Z"
-                    fill="url(#skinGradient)" filter="url(#dropShadow)"/>
-                <path d="M 103,159 C 102,130 102,92 103,55 C 104,33 108,18 113,18 C 118,18 122,33 123,55 C 124,92 124,130 123,159 Z"
-                    fill="url(#fingerHL)" opacity="0.18"/>
-                <line x1="103" y1="110" x2="123" y2="109" stroke="#9a6038" stroke-width="0.44" opacity="0.22" stroke-linecap="round"/>
-                <line x1="103" y1="58"  x2="123" y2="57"  stroke="#9a6038" stroke-width="0.40" opacity="0.18" stroke-linecap="round"/>
-                <ellipse cx="113" cy="20" rx="5.8" ry="4.0" fill="url(#nailGrad)" stroke="#cca088" stroke-width="0.30" opacity="0.82"/>
-
-                <!-- ===== INDEX — leans slightly right ===== -->
-                <path class="finger"
-                    d="M 124,161
-                       C 124,133 125,96 126,63
-                       C 127,43 130,30 134,30
-                       C 138,30 141,43 142,63
-                       C 143,96 143,133 142,161 Z"
-                    fill="url(#skinGradient)" filter="url(#dropShadow)"/>
-                <path d="M 124,161 C 124,133 125,96 126,63 C 127,43 130,30 134,30 C 138,30 141,43 142,63 C 143,96 143,133 142,161 Z"
-                    fill="url(#fingerHL)" opacity="0.17"/>
-                <line x1="125" y1="116" x2="143" y2="115" stroke="#9a6038" stroke-width="0.44" opacity="0.22" stroke-linecap="round"/>
-                <line x1="126" y1="67"  x2="142" y2="66"  stroke="#9a6038" stroke-width="0.40" opacity="0.18" stroke-linecap="round"/>
-                <ellipse cx="134" cy="32" rx="5.5" ry="3.8" fill="url(#nailGrad)" stroke="#cca088" stroke-width="0.30" opacity="0.82"/>
-
-                <!-- knuckle dimples -->
-                <ellipse cx="76"  cy="163" rx="5.2" ry="3.8" fill="url(#knuckle)"/>
-                <ellipse cx="94"  cy="160" rx="6.0" ry="4.2" fill="url(#knuckle)"/>
-                <ellipse cx="113" cy="156" rx="6.5" ry="4.5" fill="url(#knuckle)"/>
-                <ellipse cx="134" cy="158" rx="6.0" ry="4.2" fill="url(#knuckle)"/>
-
-                <!-- ===== THUMB (right side, rounder/pillowy shape) ===== -->
-                <path id="thumbPath"
-                    d="M 140,205
-                       C 145,190 155,176 166,163
-                       C 173,154 179,148 183,146
-                       C 187,144 190,146 190,152
-                       C 190,159 187,168 180,177
-                       C 171,186 159,196 149,203
-                       C 143,207 140,207 140,205 Z"
-                    fill="url(#thumbGrad)" filter="url(#dropShadow)"/>
-                <path d="M 145,200 C 153,186 162,172 172,160 C 177,154 182,149 186,146"
-                    fill="none" stroke="#f0d8c0" stroke-width="1.0" opacity="0.20" stroke-linecap="round"/>
-                <path d="M 164,165 Q 167,172 162,178" fill="none" stroke="#9a6038" stroke-width="0.46" opacity="0.24" stroke-linecap="round"/>
-                <ellipse cx="187" cy="148" rx="5.2" ry="4.4" fill="url(#nailGrad)" stroke="#cca088" stroke-width="0.30" opacity="0.78" transform="rotate(-32,187,148)"/>
-
-                <!-- web between index and thumb -->
-                <path d="M 126,163 C 132,161 138,166 140,178 C 136,171 131,166 126,163 Z"
-                    fill="url(#skinGradient)" opacity="0.65"/>
-            </svg>
+    <div id="handLayer" style="display:none;">
+        <div id="handWrapper" style="display:none;">
+                <img
+                    id="handImage"
+                    src="assets/images/hand-skin/勇者の手.png"
+                    alt=""
+                    aria-hidden="true"
+                    draggable="false"
+                decoding="async">
             <div id="heldStone" class="held-stone black"></div>
         </div>
     </div>
@@ -765,6 +671,7 @@
     <script src="shared/destroy-outcome-contract.js"></script>
     <script src="shared/special-stone-registry.js"></script>
     <script src="shared/stone-status-snapshot.js"></script>
+    <script src="shared/shared-board-utils.js"></script>
     <script src="game/logic/markers_adapter.js"></script>
     <script src="game/logic/board_ops.js"></script>
     <script src="utils/owner-helpers.js"></script>
@@ -794,10 +701,12 @@
     <script src="game/logic/cards/work_will.js"></script>
     <script src="game/logic/cards/expansion.js"></script>
     <script src="game/logic/cards/markers.js"></script>
+    <script src="game/logic/cards/living_will.js"></script>
     <script src="game/logic/cards/movement.js"></script>
     <script src="game/logic/cards/teleport.js"></script>
     <script src="game/logic/cards/clone.js"></script>
     <script src="game/logic/cards/meteor.js"></script>
+    <script src="game/logic/cards/shrink.js"></script>
     <script src="game/logic/effects/dragon.js"></script>
     <script src="game/logic/effects/swap_with_enemy.js"></script>
     <script src="game/logic/effects/destroy_one_stone.js"></script>
@@ -851,7 +760,9 @@
     <script src="ui/animation-resolver.js"></script>
     <script src="ui/animation-shared.js"></script>
     <script src="ui/animation-helpers.js"></script>
+    <script src="ui/playback-runtime.js"></script>
     <script src="ui/playback-state-manager.js"></script>
+    <script src="ui/board-update-dispatch.js"></script>
     <script src="ui/diff-renderer.js"></script>
     <script src="ui/board-renderer.js"></script>
     <script src="ui/status-display.js"></script>
@@ -864,6 +775,17 @@
     <script src="ui/playback-engine.js"></script>
     <script src="ui/move-executor-visuals.js"></script>
     <script src="ui/visual-effects-map.js"></script>
+    <script src="shared/gacha-helpers.js"></script>
+    <script src="shared/gacha-hand-catalog-shared.js"></script>
+    <script src="shared/gacha-hand-catalog.generated.js"></script>
+    <script src="ui/storage/gacha-progress.js"></script>
+    <script src="ui/gacha/gacha-events.js"></script>
+    <script src="ui/gacha/gacha-transaction.js"></script>
+    <script src="ui/gacha/gacha-overlay-view.js"></script>
+    <script src="ui/gacha/gacha-overlay-controller.js"></script>
+    <script src="ui/gacha/gacha-reveal-stage.js"></script>
+    <script src="ui/gacha/gacha-reveal-audio.js"></script>
+    <script src="ui/gacha-reveal-player.js"></script>
     <script src="ui/leaderboard-client.js"></script>
     <script src="ui/result-overlay.js"></script>
     <script src="ui/network/commentary.js"></script>
@@ -916,14 +838,17 @@
     <script src="game/network-turn-handoff.js"></script>
     <script src="game/card-effects/trap.js"></script>
     <script src="game/card-effects/guard.js"></script>
+    <script src="game/card-effects/living-will.js"></script>
     <script src="game/card-effects/hyperactive-inherit.js"></script>
     <script src="game/card-effects/extend-life.js"></script>
     <script src="game/card-effects/swap.js"></script>
     <script src="game/card-effects/position-swap.js"></script>
     <script src="game/card-effects/board-expansion.js"></script>
+    <script src="game/card-effects/board-shrink.js"></script>
     <script src="game/card-effects/blockade.js"></script>
     <script src="game/card-effects/meteor.js"></script>
     <script src="game/card-effects/freeze.js"></script>
+    <script src="game/card-effects/seed.js"></script>
     <script src="game/card-effects/clone.js"></script>
     <script src="game/card-effects-applier.js"></script>
     <!-- CPU Decision Modules (依存関係順: policy → evaluator → decision) -->
@@ -965,6 +890,8 @@
     <script src="ui/handlers/smart.js"></script>
     <script src="ui/handlers/sound.js"></script>
     <script src="ui/handlers/rules-help.js"></script>
+    <script src="ui/handlers/gacha.js"></script>
+    <script src="ui/handlers/hand-skin.js"></script>
     <script src="ui/handlers/story.js"></script>
     <script src="ui/handlers/tutorial.js"></script>
     <script src="ui/handlers/cpu-policy.js"></script>

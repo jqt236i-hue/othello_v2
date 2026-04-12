@@ -17,7 +17,6 @@ function makeDom() {
             <button id="use-card-btn">使用</button>
             <button id="toggle-card-detail-btn">詳細</button>
             <button id="pass-btn">パス</button>
-            <button id="sell-card-btn" style="display:none;">売却</button>
             <button id="cancel-card-btn" style="display:none;">キャンセル</button>
             <div id="use-card-reason"></div>
         </body></html>
@@ -406,10 +405,17 @@ describe('FATE_WILL UI: canLocalUserOperateCurrentTurn', () => {
     afterEach(() => {
         delete global.MATCH_MODE;
         delete global.LOCAL_PLAYER_KEY;
+        delete global.__uiImpl_turn_manager;
     });
 
     test('FATE_WILL: controller (black) can operate white victim turn in network mode', () => {
         const tm = loadTurnManager('white', 'black', true, 'network');
+        expect(tm.canLocalUserOperateCurrentTurn()).toBe(true);
+    });
+
+    test('FATE_WILL: controller (black) can operate white victim turn in network HvH debug mode', () => {
+        const tm = loadTurnManager('white', 'black', true, 'network');
+        tm.setUIImpl({ DEBUG_HUMAN_VS_HUMAN: true });
         expect(tm.canLocalUserOperateCurrentTurn()).toBe(true);
     });
 
@@ -486,6 +492,161 @@ describe('FATE_WILL UI: canLocalUserOperateCurrentTurn', () => {
 
         const tm = require(path.resolve(__dirname, '..', 'game', 'turn-manager.js'));
         expect(tm.canLocalUserOperateCurrentTurn()).toBe(false);
+    });
+});
+
+describe('FATE_WILL UI: network placement auth', () => {
+    let dom;
+
+    function loadNetworkPlacementHarness(options) {
+        jest.resetModules();
+        dom = makeDom();
+        global.window = dom.window;
+        global.document = dom.window.document;
+        global.BLACK = 1;
+        global.WHITE = -1;
+        global.MATCH_MODE = 'network';
+        global.LOCAL_PLAYER_KEY = (options && options.localPlayerKey) || 'black';
+
+        global.gameState = {
+            currentPlayer: options && options.currentPlayer === 'white' ? -1 : 1,
+            board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+            turnNumber: 3
+        };
+        global.cardState = makeBaseCardState({
+            fateWillControllerByTurnOwner: (options && options.fateMap) || { black: null, white: null }
+        });
+
+        global.getAnimationTiming = () => 600;
+        global.cpuSmartness = { white: 1 };
+        global.isGameOver = () => false;
+        global.addLog = jest.fn();
+        global.emitBoardUpdate = jest.fn();
+        global.playHandAnimation = jest.fn((player, row, col, callback) => callback());
+        global.findMoveForCell = jest.fn((player, row, col) => ({ row, col, flips: [], player }));
+        global.getActiveProtectionForPlayer = jest.fn(() => []);
+        global.getFlipBlockers = jest.fn(() => []);
+        global.emitPresentationEventViaBoardOps = jest.fn();
+        global.isProcessing = false;
+        global.isCardAnimating = false;
+        global.PlaybackStateManager = null;
+        global.SoundEngine = { init: jest.fn() };
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.ActionManager = {
+            ActionManager: {
+                createAction: (type, playerKey, extra) => ({ type, playerKey, ...(extra || {}) }),
+                recordAction: jest.fn(),
+                incrementTurnIndex: jest.fn()
+            }
+        };
+        global.TurnPipeline = {};
+        global.TurnPipelineUIAdapter = {
+            runTurnWithAdapter: jest.fn(() => ({
+                ok: true,
+                skippedLocalExecution: true,
+                playbackEvents: [],
+                publishPromise: Promise.resolve({ ok: true }),
+                nextCardState: global.cardState,
+                nextGameState: global.gameState
+            }))
+        };
+
+        require(path.resolve(__dirname, '..', 'game', 'move-executor.js'));
+        const turnManager = require(path.resolve(__dirname, '..', 'game', 'turn-manager.js'));
+        if (options && options.debugHvH) {
+            turnManager.setUIImpl({ DEBUG_HUMAN_VS_HUMAN: true });
+        }
+        return turnManager;
+    }
+
+    afterEach(() => {
+        try {
+            if (dom && dom.window && typeof dom.window.close === 'function') {
+                dom.window.close();
+            }
+        } catch (e) {
+            // ignore
+        }
+        delete global.window;
+        delete global.document;
+        delete global.BLACK;
+        delete global.WHITE;
+        delete global.MATCH_MODE;
+        delete global.LOCAL_PLAYER_KEY;
+        delete global.gameState;
+        delete global.cardState;
+        delete global.getAnimationTiming;
+        delete global.cpuSmartness;
+        delete global.isGameOver;
+        delete global.addLog;
+        delete global.emitBoardUpdate;
+        delete global.playHandAnimation;
+        delete global.findMoveForCell;
+        delete global.getActiveProtectionForPlayer;
+        delete global.getFlipBlockers;
+        delete global.emitPresentationEventViaBoardOps;
+        delete global.isProcessing;
+        delete global.isCardAnimating;
+        delete global.PlaybackStateManager;
+        delete global.__uiImpl_turn_manager;
+        delete global.SoundEngine;
+        delete global.BoardOps;
+        delete global.ActionManager;
+        delete global.TurnPipeline;
+        delete global.TurnPipelineUIAdapter;
+        delete global.executeMove;
+        jest.clearAllMocks();
+    });
+
+    test('controller seat is used for place auth during network FATE_WILL turn', async () => {
+        const tm = loadNetworkPlacementHarness({
+            currentPlayer: 'white',
+            localPlayerKey: 'black',
+            fateMap: { black: null, white: 'black' }
+        });
+
+        tm.handleCellClick(2, 3);
+        await Promise.resolve();
+
+        expect(global.findMoveForCell).toHaveBeenCalledWith(-1, 2, 3, null, [], []);
+        expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            'black',
+            expect.objectContaining({
+                type: 'place',
+                row: 2,
+                col: 3,
+                playerKey: 'black'
+            }),
+            expect.anything()
+        );
+    });
+
+    test('controller seat is used for place auth during network FATE_WILL turn with HvH debug enabled', async () => {
+        const tm = loadNetworkPlacementHarness({
+            currentPlayer: 'white',
+            localPlayerKey: 'black',
+            fateMap: { black: null, white: 'black' },
+            debugHvH: true
+        });
+
+        tm.handleCellClick(2, 3);
+        await Promise.resolve();
+
+        expect(global.findMoveForCell).toHaveBeenCalledWith(-1, 2, 3, null, [], []);
+        expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            'black',
+            expect.objectContaining({
+                type: 'place',
+                row: 2,
+                col: 3,
+                playerKey: 'black'
+            }),
+            expect.anything()
+        );
     });
 });
 
@@ -730,86 +891,6 @@ describe('FATE_WILL UI: victim cannot cancel pending selection', () => {
         global.window.cancelPendingSelection('black');
 
         expect(runMock).toHaveBeenCalled();
-    });
-});
-
-describe('FATE_WILL UI: controller can complete victim SELL_CARD_WILL pending', () => {
-    function setupSellTest(options) {
-        jest.resetModules();
-        const dom = makeDom();
-        global.window = dom.window;
-        global.document = dom.window.document;
-        global.BLACK = 1;
-        global.WHITE = -1;
-
-        global.gameState = {
-            currentPlayer: options.currentPlayer === 'black' ? 1 : -1,
-            board: Array.from({ length: 8 }, () => Array(8).fill(0))
-        };
-        global.cardState = makeBaseCardState({
-            fateWillControllerByTurnOwner: options.fateWillController
-        });
-
-        dom.window.LOCAL_PLAYER_KEY = options.localPlayerKey;
-        if (options.matchMode === 'network') {
-            dom.window.MATCH_MODE = 'network';
-            dom.window.NetworkMatchClient = {
-                getSeatKey: () => options.localPlayerKey,
-                isActive: () => true
-            };
-        }
-
-        global.CardLogic = {
-            getCardDef: (id) => ({ id, name: id, desc: id, cost: 0, type: 'TEST' }),
-            getUsableCardIds: () => ['white_card', 'black_card'],
-            canUseCard: () => true,
-            getCardContext: () => ({ protectedStones: [], permaProtectedStones: [] }),
-            getSelectableTargets: () => []
-        };
-        global.Core = { getLegalMoves: () => [] };
-        global.renderCardUI = jest.fn();
-        global.emitBoardUpdate = jest.fn();
-        global.addLog = jest.fn();
-        global.processPassTurn = jest.fn();
-        const runMock = jest.fn(() => ({ ok: true, nextCardState: global.cardState, nextGameState: global.gameState, playbackEvents: [] }));
-        global.ActionManager = {
-            ActionManager: {
-                createAction: (t, p, x) => ({ type: t, player: p, ...(x || {}) }),
-                recordAction: jest.fn(),
-                incrementTurnIndex: jest.fn()
-            }
-        };
-        global.TurnPipeline = {};
-        global.TurnPipelineUIAdapter = { runTurnWithAdapter: runMock };
-
-        require(path.resolve(__dirname, '..', 'cards', 'card-interaction.js'));
-        return { dom, runMock };
-    }
-
-    test('controller (black) can confirm victim (white) SELL_CARD_WILL selection in local mode', () => {
-        const { runMock } = setupSellTest({
-            localPlayerKey: 'black',
-            currentPlayer: 'white',
-            fateWillController: { black: null, white: 'black' },
-            matchMode: 'cpu'
-        });
-        global.cardState.pendingEffectByPlayer.white = {
-            type: 'SELL_CARD_WILL',
-            cardId: 'sell_01',
-            stage: 'selectTarget'
-        };
-
-        global.window.onCardClick('white_card', 'white');
-        const ok = global.window.confirmSellCardSelection();
-
-        expect(ok).toBe(true);
-        expect(runMock).toHaveBeenCalledWith(
-            expect.anything(),
-            expect.anything(),
-            'black',
-            expect.objectContaining({ type: 'place', sellCardId: 'white_card' }),
-            expect.anything()
-        );
     });
 });
 

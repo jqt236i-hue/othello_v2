@@ -1,10 +1,10 @@
 const Core = require('../game/logic/core');
 const CardLogic = require('../game/logic/cards');
 
-function createStates() {
+function createStates(rows = 8, cols = rows) {
   const cardState = CardLogic.createCardState({ shuffle: (arr) => arr, random: () => 0.5 });
   const gameState = {
-    board: Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY)),
+    board: Array.from({ length: rows }, () => Array(cols).fill(Core.EMPTY)),
     currentPlayer: Core.BLACK,
     turnNumber: 1,
     consecutivePasses: 0,
@@ -62,6 +62,31 @@ describe('move-generator expansion pending regression', () => {
     ]));
   });
 
+  test.each(['FREE_PLACEMENT', 'LAST_RESORT'])('%s includes right expansion cells on 10x10 in move generation', (pendingType) => {
+    const { cardState, gameState } = createStates(10, 10);
+    global.cardState = cardState;
+    global.gameState = gameState;
+    gameState.boardExpansion = {
+      active: true,
+      side: 'right',
+      row: 0,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: true, white: false },
+      cells: [{ side: 'right', row: 0, col: 10, owner: Core.EMPTY }]
+    };
+
+    const MoveGenerator = require('../game/move-generator');
+    const moves = MoveGenerator.generateMovesForPlayer(Core.BLACK, {
+      type: pendingType,
+      stage: 'awaitPlace',
+      placementsRemaining: pendingType === 'LAST_RESORT' ? 3 : undefined
+    }, [], []);
+
+    expect(moves).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 0, col: 10, effectUsed: pendingType, player: Core.BLACK })
+    ]));
+  });
+
   test('SWAP_WITH_ENEMY includes occupied top expansion cells and evaluates swap flips from them', () => {
     const { cardState, gameState } = createStates();
     global.cardState = cardState;
@@ -82,6 +107,37 @@ describe('move-generator expansion pending regression', () => {
         effectUsed: 'SWAP_WITH_ENEMY',
         player: Core.BLACK,
         flips: [[0, 0]]
+      })
+    ]));
+  });
+
+  test('SWAP_WITH_ENEMY includes occupied right expansion cells on 10x10 and evaluates swap flips from them', () => {
+    const { cardState, gameState } = createStates(10, 10);
+    global.cardState = cardState;
+    global.gameState = gameState;
+
+    gameState.boardExpansion = {
+      active: true,
+      side: 'right',
+      row: 0,
+      owner: Core.WHITE,
+      usedByPlayer: { black: true, white: false },
+      cells: [{ side: 'right', row: 0, col: 10, owner: Core.WHITE }]
+    };
+    gameState.board[0][9] = Core.BLACK;
+    gameState.board[1][9] = Core.WHITE;
+    gameState.board[2][8] = Core.WHITE;
+    gameState.board[2][7] = Core.BLACK;
+
+    const MoveGenerator = require('../game/move-generator');
+    const moves = MoveGenerator.generateSwapMoves(Core.BLACK, [], [], []);
+
+    expect(moves).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 0,
+        col: 10,
+        effectUsed: 'SWAP_WITH_ENEMY',
+        player: Core.BLACK
       })
     ]));
   });

@@ -55,6 +55,41 @@
         return (helper && typeof helper.emitPresentationEvent === 'function') ? helper : null;
     }
 
+    function getPrimaryDurationMarker(markersAtCell) {
+        const markers = Array.isArray(markersAtCell) ? markersAtCell.filter(Boolean) : [];
+        return markers.find((marker) => {
+            const type = marker && marker.data ? marker.data.type : null;
+            return type !== 'GUARD';
+        }) || markers[0] || null;
+    }
+
+    function emitDurationChangeStatusTick(cardState, marker, options) {
+        const presentationHelper = getPresentationHelper();
+        if (!presentationHelper || typeof presentationHelper.emitPresentationEvent !== 'function') return;
+        if (!marker || !marker.data) return;
+        const settings = (options && typeof options === 'object') ? options : {};
+        const meta = {
+            special: marker.data.type || null,
+            timer: (typeof marker.data.remainingOwnerTurns === 'number') ? marker.data.remainingOwnerTurns : null,
+            owner: marker.owner || null,
+            reason: settings.reason || null,
+            highlightTone: settings.highlightTone || null
+        };
+        if (typeof marker.data.regenRemaining === 'number') meta.regenRemaining = marker.data.regenRemaining;
+        if (Number.isFinite(Number(marker.data.flipEvadeRemaining))) {
+            meta.flipEvadeRemaining = Math.max(0, Math.trunc(Number(marker.data.flipEvadeRemaining)));
+        }
+        if (Number.isFinite(Number(marker.data.destroyEvadeRemaining))) {
+            meta.destroyEvadeRemaining = Math.max(0, Math.trunc(Number(marker.data.destroyEvadeRemaining)));
+        }
+        presentationHelper.emitPresentationEvent(cardState, {
+            type: 'STATUS_TICK',
+            row: marker.row,
+            col: marker.col,
+            meta
+        });
+    }
+
     function isMainBoardCellForCard(row, col) {
         if (CardExpansionModule && typeof CardExpansionModule.isMainBoardCellForCard === 'function') {
             return CardExpansionModule.isMainBoardCellForCard(row, col);
@@ -254,7 +289,12 @@
         if (CardUtilsModule && typeof CardUtilsModule.getSpecialMarkerAt === 'function') {
             return CardUtilsModule.getSpecialMarkerAt(cardState, row, col);
         }
-        const special = findSpecialMarkerAt(cardState, row, col);
+        const special = getSpecialMarkers(cardState).find((marker) => (
+            marker &&
+            marker.row === row &&
+            marker.col === col &&
+            String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase() !== 'LIVING_WILL'
+        ));
         if (special) return { kind: 'specialStone', category: getMarkerCategory(special), marker: special };
         const bomb = findBombMarkerAt(cardState, row, col);
         if (bomb) return { kind: 'specialStone', category: MARKER_CATEGORIES.BOMB, marker: bomb };
@@ -493,10 +533,7 @@
             return { applied: false, reason: 'no_duration' };
         }
 
-        const primaryMarker = specialsAtCell.find((marker) => {
-            const type = marker && marker.data ? marker.data.type : null;
-            return type !== 'GUARD';
-        }) || specialsAtCell[0];
+        const primaryMarker = getPrimaryDurationMarker(specialsAtCell);
 
         let previousRemainingOwnerTurns = 0;
         let newRemainingOwnerTurns = 0;
@@ -508,6 +545,13 @@
                 previousRemainingOwnerTurns = before;
                 newRemainingOwnerTurns = after;
             }
+        }
+
+        if (primaryMarker) {
+            emitDurationChangeStatusTick(cardState, primaryMarker, {
+                reason: 'extend_life_applied',
+                highlightTone: 'positive'
+            });
         }
 
         cardState.pendingEffectByPlayer[playerKey] = null;
@@ -560,6 +604,23 @@
                 special: marker.data && marker.data.type ? marker.data.type : null,
                 previousRemainingOwnerTurns: before,
                 newRemainingOwnerTurns: after
+            });
+        }
+
+        const primaryMarker = getPrimaryDurationMarker(
+            getSpecialMarkers(cardState).filter((marker) => (
+                marker &&
+                marker.row === row &&
+                marker.col === col &&
+                marker.data &&
+                Number.isFinite(marker.data.remainingOwnerTurns) &&
+                Number(marker.data.remainingOwnerTurns) > 0
+            ))
+        );
+        if (primaryMarker) {
+            emitDurationChangeStatusTick(cardState, primaryMarker, {
+                reason: 'corrosion_applied',
+                highlightTone: 'negative'
             });
         }
 

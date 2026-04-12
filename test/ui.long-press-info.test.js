@@ -107,6 +107,43 @@ describe('board cell long press info', () => {
     expect(global.handleCellClick).toHaveBeenCalledTimes(0);
   });
 
+  test('showSpecialStoneInfoAt keeps normal stone info for living-will aura and adds its badge', () => {
+    global.gameState.board[2][2] = global.BLACK;
+    global.cardState.markers = [{
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      data: { type: 'LIVING_WILL', baseline: { owner: 'black', value: global.BLACK, markers: [] } }
+    }];
+
+    const mod = require('../ui/diff-renderer.js');
+    const shown = mod.showSpecialStoneInfoAt(2, 2);
+
+    expect(shown).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('通常の石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('生きる意志付与');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('特殊石');
+  });
+
+  test('long press on breeding-generated stone shows breeding-generated info', () => {
+    global.gameState.board[4][2] = global.BLACK;
+    global.cardState.breedingSproutByOwner = {
+      black: [{ row: 4, col: 2 }],
+      white: []
+    };
+
+    const mod = require('../ui/diff-renderer.js');
+    const shown = mod.showSpecialStoneInfoAt(4, 2);
+
+    expect(shown).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('黒石（繁殖生成）');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('繁殖の意志でこのターンに生成された石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('繁殖生成石');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('通常石');
+  });
+
   test('showSpecialStoneInfoAt uses shared TIME_STOP rulebook text', () => {
     global.gameState.board[2][2] = global.BLACK;
     global.cardState.markers = [{
@@ -287,6 +324,27 @@ describe('board cell long press info', () => {
     expect(shown).toBe(true);
     expect(document.getElementById('stone-info-name').textContent).toBe('意志狩りの王');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避');
+  });
+
+  test('showSpecialStoneInfoAt adds 破壊回避 tag for extreme hyperactive', () => {
+    global.cardState.markers = [{
+      kind: 'specialStone',
+      row: 5,
+      col: 4,
+      owner: 'black',
+      data: {
+        type: 'EXTREME_HYPERACTIVE',
+        flipEvadeRemaining: 3,
+        destroyEvadeRemaining: 1
+      }
+    }];
+
+    const mod = require('../ui/diff-renderer.js');
+    const shown = mod.showSpecialStoneInfoAt(5, 4);
+    expect(shown).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('極悪多動魔');
     expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避');
     expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避');
   });

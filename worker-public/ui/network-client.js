@@ -322,6 +322,7 @@
         seatToken: '',
         roomSeats: { black: false, white: false },
         seatNames: { black: '', white: '' },
+        seatHandSkins: { black: '', white: '' },
         roomDeck: null,
         roomBoardConfig: null,
         networkDebugEnabled: false,
@@ -535,6 +536,25 @@
         return fallback;
     }
 
+    function resolveHandSkinUiModule() {
+        try {
+            if (root && root.HandSkinUiModule) {
+                return root.HandSkinUiModule;
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof require === 'function') {
+                return require('./handlers/hand-skin.js');
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.HandSkinUiModule) {
+                return globalThis.HandSkinUiModule;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
     function resolveOwnerHelpers() {
         if (ownerHelpers) return ownerHelpers;
 
@@ -706,6 +726,7 @@
             seatKey: normalizePlayerKey(state.seatKey),
             roomSeats: cloneReadableNetworkStateValue(state.roomSeats || { black: false, white: false }, { black: false, white: false }),
             seatNames: cloneReadableNetworkStateValue(state.seatNames || { black: '', white: '' }, { black: '', white: '' }),
+            seatHandSkins: cloneReadableNetworkStateValue(state.seatHandSkins || { black: '', white: '' }, { black: '', white: '' }),
             roomDeck: cloneReadableNetworkStateValue(state.roomDeck, null),
             roomBoardConfig: cloneReadableNetworkStateValue(state.roomBoardConfig, null),
             networkDebugEnabled: state.networkDebugEnabled === true,
@@ -1075,6 +1096,15 @@
         );
     }
 
+    function normalizeSeatHandSkins(value) {
+        return invokeControllerMethod(
+            getNetworkSessionSeatController,
+            'normalizeSeatHandSkins',
+            arguments,
+            () => ({ black: String((value && value.black) || '').trim(), white: String((value && value.white) || '').trim() })
+        );
+    }
+
     function hasTwoPlayers() {
         return invokeControllerMethod(
             getNetworkSessionSeatController,
@@ -1090,6 +1120,22 @@
 
     function updateRoomSeatsFromPayload(payload) {
         invokeControllerMethod(getNetworkSessionSeatController, 'updateRoomSeatsFromPayload', arguments, undefined);
+    }
+
+    function readSelectedHandSkinId() {
+        const handSkinUiModule = resolveHandSkinUiModule();
+        if (handSkinUiModule && typeof handSkinUiModule.readStoredHandSkinId === 'function') {
+            try {
+                return String(handSkinUiModule.readStoredHandSkinId(root)).trim() || 'default';
+            } catch (e) { /* ignore */ }
+        }
+        const storageKey = String((handSkinUiModule && handSkinUiModule.HAND_SKIN_STORAGE_KEY) || 'othello.handSkin').trim() || 'othello.handSkin';
+        try {
+            if (typeof localStorage !== 'undefined') {
+                return String(localStorage.getItem(storageKey) || '').trim() || 'default';
+            }
+        } catch (e) { /* ignore */ }
+        return 'default';
     }
 
     function applyPayloadSessionState(payload) {
@@ -2259,6 +2305,7 @@
         if (opts.roomBoardConfig && typeof opts.roomBoardConfig === 'object') {
             requestPayload.roomBoardConfig = cloneDataForCommandPayload(opts.roomBoardConfig);
         }
+        requestPayload.selectedHandSkinId = readSelectedHandSkinId();
 
         const res = await requestJson('POST', '/api/match/create', requestPayload);
         if (!res.ok || !res.data || res.data.ok !== true) {
@@ -2309,7 +2356,11 @@
             return { ok: false, reason: 'ROOM_ID_INVALID' };
         }
 
-        const joinPayload = { roomId: normalizedRoomId, playerName };
+        const joinPayload = {
+            roomId: normalizedRoomId,
+            playerName,
+            selectedHandSkinId: readSelectedHandSkinId()
+        };
         if (opts.deckCode) {
             joinPayload.deckCode = String(opts.deckCode).trim();
         }
@@ -2323,7 +2374,11 @@
         let res = await requestJson('POST', '/api/match/join', joinPayload);
         if ((!res.ok || !res.data || res.data.ok !== true) && usedStoredClaim && shouldRetryJoinWithoutStoredClaim(res)) {
             clearSeatClaim(normalizedRoomId);
-            const retryPayload = { roomId: normalizedRoomId, playerName };
+            const retryPayload = {
+                roomId: normalizedRoomId,
+                playerName,
+                selectedHandSkinId: joinPayload.selectedHandSkinId
+            };
             if (opts.deckCode) {
                 retryPayload.deckCode = String(opts.deckCode).trim();
             }
@@ -2431,6 +2486,7 @@
             } else {
                 state.active = false;
                 state.seatNames = { black: '', white: '' };
+                state.seatHandSkins = { black: '', white: '' };
             }
             resetPublishTracker();
             resetNetworkTelemetry();
@@ -2473,6 +2529,7 @@
             state.seatToken = '';
             state.roomSeats = { black: false, white: false };
             state.seatNames = { black: '', white: '' };
+            state.seatHandSkins = { black: '', white: '' };
             state.networkDebugEnabled = false;
             state.chatHistory = [];
             state.stateVersion = null;
@@ -2744,6 +2801,10 @@
         return normalizeSeatNames(state.seatNames);
     }
 
+    function getSeatHandSkins() {
+        return normalizeSeatHandSkins(state.seatHandSkins);
+    }
+
     function getRoomDeck() {
         return (state.roomDeck && typeof state.roomDeck === 'object')
             ? Object.assign({}, state.roomDeck)
@@ -2835,6 +2896,44 @@
         };
     }
 
+    async function updateHandSkin(selectedHandSkinId) {
+        if (!isActive()) {
+            return { ok: false, reason: 'INACTIVE' };
+        }
+        if (!state.seatToken) {
+            return { ok: false, reason: 'SEAT_TOKEN_REQUIRED' };
+        }
+
+        const payload = {
+            roomId: state.roomId,
+            seatKey: state.seatKey,
+            seatToken: state.seatToken,
+            selectedHandSkinId: String(selectedHandSkinId || readSelectedHandSkinId()).trim() || 'default'
+        };
+
+        const res = await requestJson('POST', '/api/match/hand-skin', payload);
+        if (!res.ok || !res.data || res.data.ok !== true) {
+            const reason = (res.data && res.data.reason) || 'HAND_SKIN_UPDATE_FAILED';
+            applyPayloadSessionState(res.data);
+
+            if (isMatchApiMissing(res)) {
+                emitStatus('ネット対戦: 手スキン同期API(/api/match/hand-skin)が見つかりません', true);
+            } else if (reason === 'SEAT_NOT_JOINED') {
+                emitStatus('ネット対戦: 部屋参加後に手の見た目を同期できます', true);
+            } else {
+                emitStatus('ネット対戦: 手の見た目の同期に失敗しました', true);
+            }
+
+            return { ok: false, reason };
+        }
+
+        applyPayloadSessionState(res.data);
+        return {
+            ok: true,
+            seatHandSkins: getSeatHandSkins()
+        };
+    }
+
     const api = {
         isActive,
         setStatusWriter,
@@ -2844,10 +2943,12 @@
         setTurnTimerListener,
         getRoomSeats,
         getSeatNames,
+        getSeatHandSkins,
         hasTwoPlayers,
         setChatListener,
         getChatMaxLength,
         sendChatMessage,
+        updateHandSkin,
         createRoom,
         joinRoom,
         leaveRoom,

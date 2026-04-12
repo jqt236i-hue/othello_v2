@@ -173,4 +173,25 @@ describe('animation-engine inherited hyperactive timer rendering', () => {
     expect(flipEvadeTimer).not.toBeNull();
     expect(flipEvadeTimer.textContent).toBe('2');
   });
+
+  test('EXTREME_HYPERACTIVE は破壊回避カウントを表示する', () => {
+    const engine = require('../ui/animation-engine');
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+
+    engine.syncDiscVisual(disc, {
+      color: 1,
+      special: 'EXTREME_HYPERACTIVE',
+      owner: 'black',
+      flipEvadeRemaining: 3,
+      destroyEvadeRemaining: 1
+    });
+
+    const destroyEvadeTimer = disc.querySelector('.destroy-evade-timer');
+    const flipEvadeTimer = disc.querySelector('.flip-evade-timer');
+    expect(destroyEvadeTimer).not.toBeNull();
+    expect(destroyEvadeTimer.textContent).toBe('1');
+    expect(flipEvadeTimer).not.toBeNull();
+    expect(flipEvadeTimer.textContent).toBe('3');
+  });
 });

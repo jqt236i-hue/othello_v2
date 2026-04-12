@@ -476,7 +476,7 @@ function _applyDebugButtonState(debugModeBtn, debugEnabled) {
     if (!debugModeBtn) return;
     debugModeBtn.textContent = debugEnabled ? 'DEBUG: ON' : 'DEBUG: OFF';
     if (debugModeBtn.style) {
-        debugModeBtn.style.color = debugEnabled ? '#6bff6b' : '#ff6b6b';
+        debugModeBtn.style.color = debugEnabled ? '#6bff6b' : '#d7ccc8';
     }
     if (debugModeBtn.dataset) {
         debugModeBtn.dataset.active = debugEnabled ? 'true' : 'false';
@@ -743,7 +743,9 @@ function setupDebugControls(debugModeBtn, humanVsHumanBtn, visualTestBtn) {
                     return;
                 }
                 dbg.applyVisualTestBoard(gameState, cardState);
-                if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+                if (typeof BoardUpdateDispatch !== 'undefined' && BoardUpdateDispatch && typeof BoardUpdateDispatch.requestBoardUpdate === 'function') {
+                    BoardUpdateDispatch.requestBoardUpdate();
+                } else if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
                 else if (typeof renderBoard === 'function') renderBoard();
                 addLog('石ビジュアルテスト表示 (黒:左列 / 白:右列)');
             };

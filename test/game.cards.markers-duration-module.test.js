@@ -28,6 +28,20 @@ describe('CardMarkers duration effects', () => {
     expect(cardState.markers[0].data.remainingOwnerTurns).toBe(10);
     expect(cardState.markers[1].data.remainingOwnerTurns).toBe(6);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(cardState._presentationEventsPersist).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'STATUS_TICK',
+        row: 2,
+        col: 2,
+        meta: expect.objectContaining({
+          special: 'WORK',
+          timer: 10,
+          owner: 'black',
+          reason: 'extend_life_applied',
+          highlightTone: 'positive'
+        })
+      })
+    ]));
   });
 
   test('applyExtendLifeGod quadruples timed markers on the selected cell and clears pending', () => {
@@ -57,6 +71,20 @@ describe('CardMarkers duration effects', () => {
     expect(cardState.markers[0].data.remainingOwnerTurns).toBe(20);
     expect(cardState.markers[1].data.remainingOwnerTurns).toBe(12);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(cardState._presentationEventsPersist).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'STATUS_TICK',
+        row: 2,
+        col: 2,
+        meta: expect.objectContaining({
+          special: 'WORK',
+          timer: 20,
+          owner: 'black',
+          reason: 'extend_life_applied',
+          highlightTone: 'positive'
+        })
+      })
+    ]));
   });
 
   test('applyCorrosionWill halves timed markers on the selected cell and returns detail rows', () => {
@@ -99,5 +127,19 @@ describe('CardMarkers duration effects', () => {
     expect(cardState.markers[1].data.remainingOwnerTurns).toBe(1);
     expect(cardState.markers[2].data.remainingOwnerTurns).toBe(4);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(cardState._presentationEventsPersist).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'STATUS_TICK',
+        row: 3,
+        col: 4,
+        meta: expect.objectContaining({
+          special: 'WORK',
+          timer: 2,
+          owner: 'black',
+          reason: 'corrosion_applied',
+          highlightTone: 'negative'
+        })
+      })
+    ]));
   });
 });

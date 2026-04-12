@@ -20,7 +20,6 @@ describe('network WORK_WILL follow-up placement', () => {
         <button id="destroy-card-btn" type="button"></button>
         <button id="toggle-card-detail-btn" type="button"></button>
         <button id="pass-btn" type="button"></button>
-        <button id="sell-card-btn" type="button"></button>
         <button id="cancel-card-btn" type="button"></button>
         <div id="use-card-reason"></div>
         <div id="card-detail-actions"></div>

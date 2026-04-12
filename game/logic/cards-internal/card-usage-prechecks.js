@@ -28,13 +28,6 @@
         const result = { ok: true, heavenOffers: null, condemnOffers: null };
         if (!cardType) return result;
 
-        if (cardType === 'SELL_CARD_WILL') {
-            const remainingHandCount = (context && context.cardState && context.cardState.hands && context.cardState.hands[context.handKey]
-                ? context.cardState.hands[context.handKey].length
-                : 0) - 1;
-            return remainingHandCount > 0 ? result : buildFailureResult();
-        }
-
         if (cardType === 'LAST_RESORT') {
             if (!context || !context.gameState || typeof context.canUseLastResortForPlayer !== 'function') {
                 return buildFailureResult();
@@ -143,6 +136,8 @@
         case 'GUARD_WILL':
         case 'GUARDIAN_GOD':
             return validateSelectionTargets(context, 'getGuardTargets', 1) ? result : buildFailureResult();
+        case 'LIVING_WILL':
+            return validateSelectionTargets(context, 'getLivingWillTargets', 1) ? result : buildFailureResult();
         case 'HYPERACTIVE_INHERIT_WILL':
             return validateSelectionTargets(context, 'getHyperactiveInheritTargets', 1) ? result : buildFailureResult();
         case 'EXTEND_LIFE_WILL':
@@ -166,12 +161,18 @@
             return validateSelectionTargets(context, 'getBoardExpansionTargets', 1) ? result : buildFailureResult();
         case 'BOARD_EXPANSION_GOD':
             return validateSelectionTargets(context, 'getBoardExpansionGodTargets', 1) ? result : buildFailureResult();
+        case 'BOARD_SHRINK_WILL':
+            return validateSelectionTargets(context, 'getBoardShrinkTargets', 3) ? result : buildFailureResult();
+        case 'BOARD_SHRINK_GOD':
+            return validateSelectionTargets(context, 'getBoardShrinkGodTargets', 1) ? result : buildFailureResult();
         case 'BLOCKADE_WILL':
             return validateSelectionTargets(context, 'getBlockadeTargets', 1) ? result : buildFailureResult();
         case 'METEOR_WILL':
             return validateSelectionTargets(context, 'getMeteorTargets', 1) ? result : buildFailureResult();
         case 'FREEZE_WILL':
             return validateSelectionTargets(context, 'getFreezeTargets', 1) ? result : buildFailureResult();
+        case 'SEED_WILL':
+            return validateSelectionTargets(context, 'getSeedTargets', 1) ? result : buildFailureResult();
         default:
             return result;
         }

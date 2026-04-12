@@ -38,7 +38,7 @@ describe('pipeline_ui_adapter normal logs', () => {
     const out = Adapter.mapEffectLogsFromPipeline([
       { type: 'salvation_will_resolved', player: 'black', spawnedCount: 2, flippedCount: 3 }
     ], [], 'black');
-    expect(out).toEqual(['黒: 救済の意志: 通常石2個を復活、3枚を反転']);
+    expect(out).toEqual(['黒: 救済の意志: 破壊石2個を通常石として救済、3枚を反転']);
   });
 
   test('maps equality resolution to player-facing effect log', () => {

@@ -53,6 +53,18 @@ describe('animation-engine guard timer rendering', () => {
     expect(disc.querySelector('.special-timer')).toBeNull();
   });
 
+  test('syncDiscVisual toggles living will aura without dropping the current special visual', () => {
+    const engine = require('../ui/animation-engine');
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+
+    engine.syncDiscVisual(disc, { color: 1, special: 'WORK', timer: 4, owner: 'black', livingWillAura: true });
+    expect(disc.classList.contains('living-will-aura')).toBe(true);
+
+    engine.syncDiscVisual(disc, { color: 1, special: 'WORK', timer: 4, owner: 'black', livingWillAura: false });
+    expect(disc.classList.contains('living-will-aura')).toBe(false);
+  });
+
   test('STATUS_TICK updates timer without crossfade replay', async () => {
     const crossfadeSpy = jest.fn(() => Promise.resolve());
     jest.doMock('../ui/stone-visuals', () => ({
@@ -89,7 +101,85 @@ describe('animation-engine guard timer rendering', () => {
     expect(disc.querySelectorAll('.guard-timer').length).toBe(1);
   });
 
-  test('strong_will_promoted の STATUS_APPLIED は赤セルハイライトを一瞬出す', async () => {
+  test('延命系の STATUS_TICK は紫セルハイライトを出しつつ timer だけ更新する', async () => {
+    const crossfadeSpy = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/stone-visuals', () => ({
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+
+    const engine = require('../ui/animation-engine');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '0';
+    cell.dataset.col = '1';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone';
+    const timer = document.createElement('div');
+    timer.className = 'stone-timer work-timer';
+    timer.textContent = '5';
+    disc.appendChild(timer);
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
+
+    await engine.handleStatusChange({
+      type: 'status_applied',
+      rawType: 'STATUS_TICK',
+      targets: [{ r: 0, col: 1, after: { color: 1, special: 'WORK', timer: 20, owner: 'black' } }],
+      meta: { special: 'WORK', timer: 20, owner: 'black', reason: 'extend_life_applied', highlightTone: 'positive' }
+    });
+
+    expect(crossfadeSpy).not.toHaveBeenCalled();
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (AnimationConstants.POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
+    expect(disc.querySelector('.work-timer').textContent).toBe('20');
+  });
+
+  test('腐食の STATUS_TICK は赤セルハイライトを出しつつ timer だけ更新する', async () => {
+    const crossfadeSpy = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/stone-visuals', () => ({
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '0';
+    cell.dataset.col = '2';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone';
+    const timer = document.createElement('div');
+    timer.className = 'stone-timer work-timer';
+    timer.textContent = '5';
+    disc.appendChild(timer);
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
+
+    await engine.handleStatusChange({
+      type: 'status_applied',
+      rawType: 'STATUS_TICK',
+      targets: [{ r: 0, col: 2, after: { color: 1, special: 'WORK', timer: 2, owner: 'black' } }],
+      meta: { special: 'WORK', timer: 2, owner: 'black', reason: 'corrosion_applied', highlightTone: 'negative' }
+    });
+
+    expect(crossfadeSpy).not.toHaveBeenCalled();
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(disc.querySelector('.work-timer').textContent).toBe('2');
+  });
+
+  test('strong_will_promoted の STATUS_APPLIED は紫セルハイライトを一瞬出す', async () => {
     const crossfadeSpy = jest.fn(() => Promise.resolve());
     jest.doMock('../ui/stone-visuals', () => ({
       crossfadeStoneVisual: crossfadeSpy
@@ -125,20 +215,20 @@ describe('animation-engine guard timer rendering', () => {
 
     expect(crossfadeSpy).toHaveBeenCalledTimes(1);
     expect(sleepSpy).toHaveBeenCalled();
-    expect(sleepSpy.mock.calls[0][0]).toBeGreaterThan(0);
-    expect(sleepSpy.mock.calls[0][0]).toBeLessThanOrEqual(200);
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(cell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (AnimationConstants.POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(cell.classList.contains('effect-target-highlight-positive')).toBe(false);
   });
 
-  test('通常の STATUS_APPLIED は赤セルハイライトを出さない', async () => {
+  test('GUARD の STATUS_APPLIED は紫セルハイライトを一瞬出す', async () => {
     const crossfadeSpy = jest.fn(() => Promise.resolve());
     jest.doMock('../ui/stone-visuals', () => ({
       crossfadeStoneVisual: crossfadeSpy
     }));
 
     const engine = require('../ui/animation-engine');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
     const board = document.getElementById('board');
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -166,8 +256,156 @@ describe('animation-engine guard timer rendering', () => {
     });
 
     expect(crossfadeSpy).toHaveBeenCalledTimes(1);
+    expect(sleepSpy).toHaveBeenCalled();
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(cell.classList.contains('effect-target-highlight-positive')).toBe(false);
+  });
+
+  test('TIME_BOMB の STATUS_APPLIED は赤セルハイライトを一瞬出す', async () => {
+    const crossfadeSpy = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/stone-visuals', () => ({
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+
+    const engine = require('../ui/animation-engine');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '2';
+    cell.dataset.col = '3';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
+
+    await engine.handleStatusChange({
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      targets: [{ r: 2, col: 3, after: { color: 1, special: 'TIME_BOMB', timer: 3, owner: 'black' } }],
+      meta: {
+        special: 'TIME_BOMB',
+        owner: 'black',
+        timer: 3,
+        reason: 'time_bomb_applied'
+      }
+    });
+
+    expect(crossfadeSpy).toHaveBeenCalledTimes(1);
+    expect(sleepSpy).toHaveBeenCalled();
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(cell.classList.contains('effect-target-highlight')).toBe(false);
+  });
+
+  test('AFTERIMAGE_WILL の STATUS_APPLIED は紫セルハイライトを一瞬出す', async () => {
+    const crossfadeSpy = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/stone-visuals', () => ({
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '2';
+    cell.dataset.col = '3';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
+
+    await engine.handleStatusChange({
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      targets: [{ r: 2, col: 3, after: { color: 1, special: 'AFTERIMAGE_WILL', timer: null, owner: 'black' } }],
+      meta: {
+        special: 'AFTERIMAGE_WILL',
+        owner: 'black'
+      }
+    });
+
+    expect(crossfadeSpy).toHaveBeenCalledTimes(1);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(cell.classList.contains('effect-target-highlight-positive')).toBe(false);
+  });
+
+  test('BLOCKADE の STATUS_APPLIED は赤も紫も出さない', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '2';
+    cell.dataset.col = '4';
+    board.appendChild(cell);
+
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
+
+    await engine.handleStatusChange({
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      targets: [{ r: 2, col: 4, after: { color: 0, special: 'BLOCKADE', timer: 3, owner: 'black' } }],
+      meta: {
+        special: 'BLOCKADE',
+        owner: 'black',
+        timer: 3
+      }
+    });
+
     expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
     expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
+  });
+
+  test('trap_expired_reveal の STATUS_APPLIED は赤セルハイライトを一瞬出す', async () => {
+    const crossfadeSpy = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/stone-visuals', () => ({
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '2';
+    cell.dataset.col = '5';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
+
+    await engine.handleStatusChange({
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      targets: [{ r: 2, col: 5, after: { color: 1, special: 'TRAP_REVEAL', timer: null, owner: 'black' } }],
+      meta: {
+        special: 'TRAP_REVEAL',
+        owner: 'black',
+        reason: 'trap_expired_reveal'
+      }
+    });
+
+    expect(crossfadeSpy).toHaveBeenCalledTimes(1);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
     expect(cell.classList.contains('effect-target-highlight')).toBe(false);
   });
 
@@ -424,6 +662,8 @@ describe('animation-engine guard timer rendering', () => {
     cell.appendChild(disc);
     board.appendChild(cell);
 
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
     const discCrossfadeSpy = jest.spyOn(engine, 'crossfadeDiscToState').mockResolvedValue(undefined);
 
     await engine.handleStatusChange({
@@ -435,6 +675,8 @@ describe('animation-engine guard timer rendering', () => {
 
     expect(discCrossfadeSpy).toHaveBeenCalledTimes(1);
     expect(crossfadeSpy).not.toHaveBeenCalled();
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
   });
 
   test('freeze duration_end の STATUS_REMOVED は freeze overlay fade を使う', async () => {
@@ -450,6 +692,8 @@ describe('animation-engine guard timer rendering', () => {
     cell.appendChild(freezeMark);
     board.appendChild(cell);
 
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
     const freezeFadeSpy = jest.spyOn(engine, 'fadeOutFreezeOverlay').mockResolvedValue(undefined);
 
     await engine.handleStatusChange({
@@ -460,6 +704,10 @@ describe('animation-engine guard timer rendering', () => {
     });
 
     expect(freezeFadeSpy).toHaveBeenCalledTimes(1);
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
   });
 
   test('special stone duration_end の STATUS_REMOVED は通常石へクロスフェードする', async () => {
@@ -481,6 +729,8 @@ describe('animation-engine guard timer rendering', () => {
     cell.appendChild(disc);
     board.appendChild(cell);
 
+    const addSpy = jest.spyOn(cell.classList, 'add');
+    const removeSpy = jest.spyOn(cell.classList, 'remove');
     await engine.handleStatusChange({
       type: 'status_removed',
       rawType: 'STATUS_REMOVED',
@@ -494,6 +744,8 @@ describe('animation-engine guard timer rendering', () => {
       owner: 1,
       fadeIn: false
     }));
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
   });
 
   test('fadeOutFreezeOverlay removes frozen-cell visuals after fade', async () => {
@@ -746,7 +998,7 @@ describe('animation-engine guard timer rendering', () => {
     ['CLONE_WILL', 'clone_spawn'],
     ['SPLIT_WILL', 'split_spawn'],
     ['PROLIFERATION_WILL', 'proliferation_spawn']
-  ])('%s after-state playback hides destination disc until move finishes', async (cause, reason) => {
+  ])('%s after-state playback keeps purple highlight on destination until move finishes', async (cause, reason) => {
     const board = document.getElementById('board');
     const setRect = (el, row, col) => {
       const left = col * 100;
@@ -778,6 +1030,8 @@ describe('animation-engine guard timer rendering', () => {
     const finalDisc = document.createElement('div');
     finalDisc.className = 'disc black';
     toCell.appendChild(finalDisc);
+    const addToSpy = jest.spyOn(toCell.classList, 'add');
+    const removeToSpy = jest.spyOn(toCell.classList, 'remove');
 
     let finishAnimation = null;
     const finished = new Promise((resolve) => {
@@ -826,6 +1080,13 @@ describe('animation-engine guard timer rendering', () => {
     expect(fromCell.querySelector('.disc')).toBe(sourceDisc);
     expect(finalDisc.style.visibility).not.toBe('hidden');
     expect(toCell.querySelector('.disc')).toBe(finalDisc);
+    expect(addToSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeToSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(addToSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeToSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(toCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+    addToSpy.mockRestore();
+    removeToSpy.mockRestore();
   });
 
   test.each([
@@ -1569,7 +1830,7 @@ describe('animation-engine guard timer rendering', () => {
     delete global.animateFadeOutAt;
   });
 
-  test('breeding spawn applies and clears red cell highlight on spawn moment', async () => {
+  test('breeding spawn applies and clears purple cell highlight on spawn moment', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board');
 
@@ -1595,9 +1856,11 @@ describe('animation-engine guard timer rendering', () => {
       }]
     });
 
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(targetCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(targetCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
@@ -1637,7 +1900,7 @@ describe('animation-engine guard timer rendering', () => {
     removeSpy.mockRestore();
   });
 
-  test('Equality Will spawn keeps red cell highlight visible briefly', async () => {
+  test('Equality Will spawn keeps purple cell highlight visible briefly', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board');
 
@@ -1663,19 +1926,21 @@ describe('animation-engine guard timer rendering', () => {
       }]
     });
 
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-spawn');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-spawn');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-spawn');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-spawn');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight');
     expect(sleepSpy).toHaveBeenCalled();
-    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= 100)).toBe(true);
+    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (AnimationConstants.POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
     sleepSpy.mockRestore();
   });
 
-  test('Salvation Will spawn keeps red cell highlight visible briefly', async () => {
+  test('Salvation Will spawn keeps purple cell highlight visible briefly', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board');
 
@@ -1701,12 +1966,54 @@ describe('animation-engine guard timer rendering', () => {
       }]
     });
 
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-spawn');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-spawn');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-spawn');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-spawn');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight');
     expect(sleepSpy).toHaveBeenCalled();
-    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= 100)).toBe(true);
+    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (AnimationConstants.POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+    sleepSpy.mockRestore();
+  });
+
+  test('Reinforcement Will spawn keeps purple cell highlight visible briefly', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '4';
+    targetCell.dataset.col = '6';
+    board.appendChild(targetCell);
+
+    const addSpy = jest.spyOn(targetCell.classList, 'add');
+    const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+
+    await engine.handleSpawn({
+      type: 'spawn',
+      targets: [{
+        r: 4,
+        col: 6,
+        cause: 'REINFORCEMENT_WILL',
+        reason: 'reinforcement_will_spawn',
+        ownerAfter: 'black',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-spawn');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-spawn');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(sleepSpy).toHaveBeenCalled();
+    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (AnimationConstants.POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
@@ -1972,6 +2279,52 @@ describe('animation-engine guard timer rendering', () => {
     removeSpy.mockRestore();
   });
 
+  test('cell teleport move applies and clears red cell highlight at destination', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const fromCell = document.createElement('div');
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '2';
+    fromCell.dataset.col = '2';
+
+    const toCell = document.createElement('div');
+    toCell.className = 'cell';
+    toCell.dataset.row = '-1';
+    toCell.dataset.col = '0';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+    fromCell.appendChild(disc);
+
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    const addSpy = jest.spyOn(toCell.classList, 'add');
+    const removeSpy = jest.spyOn(toCell.classList, 'remove');
+
+    await engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 2, col: 2 },
+        to: { r: -1, col: 0 },
+        ownerAfter: 'black',
+        cause: 'CELL_TELEPORT_WILL',
+        reason: 'teleport_move',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(toCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+
   test('destroy evade move applies and clears red cell highlight at source', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board');
@@ -2070,6 +2423,62 @@ describe('animation-engine guard timer rendering', () => {
     expect(addToSpy).toHaveBeenCalledWith('effect-target-highlight');
     expect(removeFromSpy).toHaveBeenCalledWith('effect-target-highlight');
     expect(removeToSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(fromCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(toCell.classList.contains('effect-target-highlight')).toBe(false);
+
+    addFromSpy.mockRestore();
+    addToSpy.mockRestore();
+    removeFromSpy.mockRestore();
+    removeToSpy.mockRestore();
+  });
+
+  test('flip evade move applies and clears red cell highlight on source cell only', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+
+    const fromCell = document.createElement('div');
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '4';
+    fromCell.dataset.col = '4';
+
+    const toCell = document.createElement('div');
+    toCell.className = 'cell';
+    toCell.dataset.row = '3';
+    toCell.dataset.col = '3';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone';
+    fromCell.appendChild(disc);
+
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    const addFromSpy = jest.spyOn(fromCell.classList, 'add');
+    const addToSpy = jest.spyOn(toCell.classList, 'add');
+    const removeFromSpy = jest.spyOn(fromCell.classList, 'remove');
+    const removeToSpy = jest.spyOn(toCell.classList, 'remove');
+
+    await engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 4, col: 4 },
+        to: { r: 3, col: 3 },
+        ownerAfter: 'black',
+        cause: 'AFTERIMAGE_WILL',
+        reason: 'afterimage_will_flip_evade_move',
+        after: {
+          color: 1,
+          special: 'AFTERIMAGE_WILL',
+          timer: null,
+          owner: 'black'
+        }
+      }]
+    });
+
+    expect(addFromSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeFromSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(addToSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeToSpy).not.toHaveBeenCalledWith('effect-target-highlight');
     expect(fromCell.classList.contains('effect-target-highlight')).toBe(false);
     expect(toCell.classList.contains('effect-target-highlight')).toBe(false);
 

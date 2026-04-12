@@ -253,4 +253,43 @@ describe('special stone speech rollout', () => {
       })
     ]));
   });
+
+  test('living will revival emits a dedicated revival speech bubble instead of the exit line', () => {
+    const prng = createPrng(0);
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = createEmptyGameState();
+    const events = [];
+
+    gameState.board[4][4] = Core.BLACK;
+    cardState.markers.push({
+      id: 3010,
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 1, hyperactiveSeq: 1 },
+      createdSeq: 1
+    });
+    cardState.pendingEffectByPlayer.black = {
+      type: 'LIVING_WILL',
+      stage: 'selectTarget',
+      cardId: 'living_will_01'
+    };
+    expect(CardLogic.applyLivingWill(cardState, gameState, 'black', 4, 4)).toMatchObject({ applied: true });
+
+    TurnPipelinePhases.applyTurnStartPhase(CardLogic, CORE_API, cardState, gameState, 'black', events, prng);
+
+    const bubbles = getSpecialStoneBubbles(CardLogic.flushPresentationEvents(cardState)).filter((event) => (
+      event &&
+      event.special === 'INHERITED_HYPERACTIVE'
+    ));
+
+    expect(bubbles).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        special: 'INHERITED_HYPERACTIVE',
+        scenario: 'living_will_restored'
+      })
+    ]));
+    expect(bubbles.some((event) => event.scenario === 'duration_end' || event.scenario === 'destroy')).toBe(false);
+  });
 });

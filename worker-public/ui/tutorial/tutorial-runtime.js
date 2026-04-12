@@ -34,13 +34,14 @@
 
             const rulesHelpPanel = doc.getElementById('rules-help-panel');
             const networkOverlay = doc.getElementById('networkOverlay');
+            const gachaOverlay = doc.getElementById('gachaOverlay');
             const leaderboardOverlay = doc.getElementById('leaderboardOverlay');
             const resultOverlay = doc.getElementById('result-overlay');
 
-            if (isOpenPanel(rulesHelpPanel) || isOpenPanel(networkOverlay) || isOpenPanel(leaderboardOverlay) || !!resultOverlay) {
+            if (isOpenPanel(rulesHelpPanel) || isOpenPanel(networkOverlay) || isOpenPanel(gachaOverlay) || isOpenPanel(leaderboardOverlay) || !!resultOverlay) {
                 return {
                     ok: false,
-                    message: 'help / ネット対戦設定 / ランキング / リザルトを閉じてから tutorial を開始してください'
+                    message: 'help / ネット対戦設定 / ガチャ / ランキング / リザルトを閉じてから tutorial を開始してください'
                 };
             }
 
@@ -91,7 +92,16 @@
 
         function emitRefresh() {
             try { if (typeof rootRef.emitCardStateChange === 'function') rootRef.emitCardStateChange(); } catch (e) { /* ignore */ }
-            try { if (typeof rootRef.emitBoardUpdate === 'function') rootRef.emitBoardUpdate(); } catch (e) { /* ignore */ }
+            try {
+                if (rootRef.BoardUpdateDispatch && typeof rootRef.BoardUpdateDispatch.requestBoardUpdate === 'function') {
+                    rootRef.BoardUpdateDispatch.requestBoardUpdate({
+                        emitBoardUpdate: rootRef.emitBoardUpdate,
+                        renderBoard: rootRef.renderBoard
+                    });
+                } else if (typeof rootRef.emitBoardUpdate === 'function') {
+                    rootRef.emitBoardUpdate();
+                }
+            } catch (e) { /* ignore */ }
             try { if (typeof rootRef.emitGameStateChange === 'function') rootRef.emitGameStateChange(); } catch (e) { /* ignore */ }
             try { if (typeof rootRef.renderCardUI === 'function') rootRef.renderCardUI(); } catch (e) { /* ignore */ }
             try { if (typeof rootRef.updateCardDetailPanel === 'function') rootRef.updateCardDetailPanel(); } catch (e) { /* ignore */ }
@@ -139,6 +149,13 @@
                 }
             } catch (e) { /* ignore */ }
             try {
+                if (rootRef.BoardUpdateDispatch && typeof rootRef.BoardUpdateDispatch.requestBoardUpdate === 'function') {
+                    rootRef.BoardUpdateDispatch.requestBoardUpdate({
+                        emitBoardUpdate: rootRef.emitBoardUpdate,
+                        renderBoard: rootRef.renderBoard
+                    });
+                    return true;
+                }
                 if (typeof rootRef.renderBoard === 'function') {
                     rootRef.renderBoard();
                     return true;

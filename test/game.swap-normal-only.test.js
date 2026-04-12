@@ -2,11 +2,11 @@ const CardLogic = require('../game/logic/cards');
 const TurnPipeline = require('../game/turn/turn_pipeline');
 
 describe('SWAP_WITH_ENEMY normal-stone only policy', () => {
-  function makeState() {
+  function makeState(rows = 8, cols = rows) {
     const prng = { shuffle: () => {}, random: () => 0.5 };
     const cardState = CardLogic.createCardState(prng);
     const gameState = {
-      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      board: Array.from({ length: rows }, () => Array(cols).fill(0)),
       currentPlayer: 1,
       turnNumber: 1,
       consecutivePasses: 0
@@ -146,6 +146,31 @@ describe('SWAP_WITH_ENEMY normal-stone only policy', () => {
     expect(ok).toBe(true);
     expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 3 && cell.col === -1).owner).toBe(1);
     expect(gameState.board[3][0]).toBe(1);
+    expect(cardState.charge.black).toBe(2);
+  });
+
+  test('SWAP includes occupied right expansion cells on 10x10 and can capture from them', () => {
+    const { cardState, gameState } = makeState(10, 10);
+    cardState.pendingEffectByPlayer.black = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget', cardId: 'swap_01' };
+    gameState.board[0][9] = 1;
+    gameState.board[1][9] = -1;
+    gameState.board[2][8] = 1;
+    gameState.boardExpansion = {
+      active: true,
+      side: 'right',
+      row: 0,
+      owner: -1,
+      usedByPlayer: { black: false, white: false },
+      cells: [{ side: 'right', row: 0, col: 10, owner: -1 }]
+    };
+
+    const targets = CardLogic.getSelectableTargets(cardState, gameState, 'black');
+    expect(targets).toEqual(expect.arrayContaining([{ row: 0, col: 10 }]));
+
+    const ok = CardLogic.applySwapEffect(cardState, gameState, 'black', 0, 10);
+    expect(ok).toBe(true);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 0 && cell.col === 10).owner).toBe(1);
+    expect(gameState.board[1][9]).toBe(1);
     expect(cardState.charge.black).toBe(2);
   });
 

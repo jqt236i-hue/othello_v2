@@ -1,2 +1,0 @@
-[worker-prepare] mirror-verified files=379
-[worker-prepare] output=C:\Users\quarr\Desktop\othello_v2\worker-public

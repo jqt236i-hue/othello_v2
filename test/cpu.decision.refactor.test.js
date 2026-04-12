@@ -83,6 +83,70 @@ describe('cpu decision refactor helpers', () => {
     expect(res.cardId).toBe('c_high');
   });
 
+  test('selectCpuMoveWithPolicy はカスタム盤面で 8x8 学習手筋を使わずコア判断へ戻す', () => {
+    const board = Array.from({ length: 7 }, () => Array(9).fill(0));
+    const candidateMoves = [
+      { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+      { row: 4, col: 5, flips: [{ row: 4, col: 4 }] }
+    ];
+
+    global.gameState = {
+      board,
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 12, black: 12 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.cpuSmartness.white = 6;
+    global.AISystem = null;
+    global.CpuPolicyTableRuntime = {
+      chooseMove: jest.fn(() => candidateMoves[1]),
+      getActionScore: jest.fn(() => 9999)
+    };
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockReturnValue(null);
+    jest.spyOn(cpuPolicyCore, 'chooseMove').mockImplementation((moves) => moves[0]);
+
+    const res = cpuDecision.selectCpuMoveWithPolicy(candidateMoves, 'white');
+
+    expect(res).toEqual(candidateMoves[0]);
+    expect(global.CpuPolicyTableRuntime.chooseMove).not.toHaveBeenCalled();
+    expect(global.CpuPolicyTableRuntime.getActionScore).not.toHaveBeenCalled();
+  });
+
+  test('selectMoveFromOnnxPolicyAsync はカスタム盤面で ONNX 手選択を使わない', async () => {
+    const board = Array.from({ length: 7 }, () => Array(9).fill(0));
+    const candidateMoves = [
+      { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+      { row: 4, col: 5, flips: [{ row: 4, col: 4 }] }
+    ];
+
+    global.gameState = {
+      board,
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 12, black: 12 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.CpuPolicyOnnxRuntime = {
+      chooseMove: jest.fn(async () => candidateMoves[1])
+    };
+
+    const res = await cpuDecision.selectMoveFromOnnxPolicyAsync(candidateMoves, 'white', 6);
+
+    expect(res).toBeNull();
+    expect(global.CpuPolicyOnnxRuntime.chooseMove).not.toHaveBeenCalled();
+  });
+
   test('selectCardToUse follows shared Lv6 policy-table core path for risky learned card choice', () => {
     global.gameState = {
       board: [
@@ -147,6 +211,72 @@ describe('cpu decision refactor helpers', () => {
       expect.objectContaining({ level: 6, legalMovesCount: 2 })
     );
     expect(cpuPolicyCore.chooseCardWithRiskProfile).toHaveBeenCalled();
+  });
+
+  test('selectCardToUse はカスタム盤面で policy-table 学習カード評価を使わない', () => {
+    global.gameState = {
+      board: Array.from({ length: 7 }, () => Array(9).fill(0)),
+      currentPlayer: -1
+    };
+    global.getLegalMoves = () => [
+      { row: 2, col: 3, flips: [{ row: 3, col: 3 }] }
+    ];
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: ['guard_01', 'time_01'], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 20, black: 10 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.CardLogic = {
+      getUsableCardIds: () => ['guard_01', 'time_01'],
+      canUseCard: () => true,
+      getCardDef: (id) => {
+        if (id === 'guard_01') return { id, name: 'guard', type: 'GUARD_WILL' };
+        if (id === 'time_01') return { id, name: 'time', type: 'TIME_BOMB' };
+        return { id, name: id, type: 'TREASURE_BOX' };
+      },
+      getCardCost: (id) => (id === 'time_01' ? 10 : 2)
+    };
+    global.CpuPolicyTableRuntime = {
+      getActionScoreForKey: jest.fn((key) => (key === 'use_card:time_01' ? 9999 : 0))
+    };
+    jest.spyOn(cpuPolicyCore, 'scoreCardUseDecision').mockImplementation((cardId) => {
+      if (cardId === 'guard_01') return { score: 12, shouldUse: true };
+      if (cardId === 'time_01') return { score: 4, shouldUse: false };
+      return { score: 0, shouldUse: false };
+    });
+
+    const res = cpuDecision.selectCardToUse('white');
+
+    expect(res).toBeDefined();
+    expect(res.cardId).toBe('guard_01');
+    expect(global.CpuPolicyTableRuntime.getActionScoreForKey).not.toHaveBeenCalled();
+  });
+
+  test('selectCardFromOnnxPolicyAsync はカスタム盤面で ONNX カード判断を使わない', async () => {
+    global.gameState = {
+      board: Array.from({ length: 7 }, () => Array(9).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: ['guard_01'], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 20, black: 10 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.CpuPolicyOnnxRuntime = {
+      chooseCard: jest.fn(async () => 'guard_01')
+    };
+
+    const res = await cpuDecision.selectCardFromOnnxPolicyAsync('white', 6, 1, ['guard_01']);
+
+    expect(res).toBeNull();
+    expect(global.CpuPolicyOnnxRuntime.chooseCard).not.toHaveBeenCalled();
   });
 
   test('all catalog card types have explicit Lv6 plan pressure profile', () => {
@@ -491,6 +621,10 @@ describe('cpu decision refactor helpers', () => {
   });
 
   test('selectCardFromOnnxPolicyAsync returns onnx-picked card when available', async () => {
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
     global.cardState.hands.white = ['c_low', 'c_high'];
     global.CardLogic = {
       getCardDef: (id) => ({ name: id })
@@ -506,6 +640,10 @@ describe('cpu decision refactor helpers', () => {
   });
 
   test('selectCardFromOnnxPolicyAsync returns hold marker when onnx decides no-card', async () => {
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
     global.cardState.hands.white = ['c_low', 'c_high'];
     global.CardLogic = {
       getCardDef: (id) => ({ name: id })
@@ -522,6 +660,25 @@ describe('cpu decision refactor helpers', () => {
 
     const res = await cpuDecision.selectCardFromOnnxPolicyAsync('white', 6, 4, ['c_low', 'c_high']);
     expect(res).toEqual({ hold: true });
+  });
+
+  test('selectCardFromOnnxPolicyAsync はカスタム盤面で ONNX 学習カード経路を使わない', async () => {
+    global.gameState = {
+      board: Array.from({ length: 7 }, () => Array(9).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState.hands.white = ['c_low', 'c_high'];
+    global.CardLogic = {
+      getCardDef: (id) => ({ name: id })
+    };
+    global.CpuPolicyOnnxRuntime = {
+      chooseCard: jest.fn(async () => 'c_high')
+    };
+
+    const res = await cpuDecision.selectCardFromOnnxPolicyAsync('white', 6, 2, ['c_low', 'c_high']);
+
+    expect(res).toBeNull();
+    expect(global.CpuPolicyOnnxRuntime.chooseCard).not.toHaveBeenCalled();
   });
 
   test('selectCardFromOnnxPolicyAsync reranks risky ONNX card at Lv6', async () => {
@@ -619,6 +776,25 @@ describe('cpu decision refactor helpers', () => {
 
     const move = await cpuDecision.selectMoveFromOnnxPolicyAsync(candidates, 'white', 6);
     expect(move).toBe(candidates[1]);
+  });
+
+  test('selectMoveFromOnnxPolicyAsync はカスタム盤面で ONNX 学習着手を使わない', async () => {
+    const candidates = [
+      { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+      { row: 4, col: 5, flips: [{ row: 4, col: 4 }] }
+    ];
+    global.gameState = {
+      board: Array.from({ length: 7 }, () => Array(9).fill(0)),
+      currentPlayer: -1
+    };
+    global.CpuPolicyOnnxRuntime = {
+      chooseMove: jest.fn(async () => candidates[1])
+    };
+
+    const move = await cpuDecision.selectMoveFromOnnxPolicyAsync(candidates, 'white', 6);
+
+    expect(move).toBeNull();
+    expect(global.CpuPolicyOnnxRuntime.chooseMove).not.toHaveBeenCalled();
   });
 
   test('selectMoveFromOnnxPolicyAsync keeps Lv6 corner candidates ahead of opponent special-flip moves', async () => {
@@ -896,17 +1072,28 @@ describe('cpu decision refactor helpers', () => {
     expect(move.row).toBe(0);
   });
 
-  test('selectCpuMoveWithPolicy prefers policy-table runtime move when available', () => {
-    const candidates = [{ row: 0, col: 0, flips: [] }, { row: 1, col: 1, flips: [] }];
-    global.gameState = { board: [[0, 0], [0, 0]] };
+  test('selectCpuMoveWithPolicy feeds policy-table runtime move into downstream scoring when available', () => {
+    const candidates = [{ row: 2, col: 2, flips: [] }, { row: 3, col: 3, flips: [] }];
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
     global.cpuSmartness.white = 6;
     global.CpuPolicyTableRuntime = {
       chooseMove: jest.fn(() => candidates[1])
     };
+    jest.spyOn(cpuPolicyCore, 'scoreMoveForCornerEdgePlan').mockReturnValue(0);
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockReturnValue(null);
+    const chooseMoveSpy = jest.spyOn(cpuPolicyCore, 'chooseMove').mockImplementation((moves, level, rng, aiSelector, options) => {
+      expect(typeof options.scoreMove).toBe('function');
+      expect(options.scoreMove(candidates[1])).toBeGreaterThan(options.scoreMove(candidates[0]));
+      return moves[1];
+    });
 
     const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
     expect(move).toBe(candidates[1]);
     expect(global.CpuPolicyTableRuntime.chooseMove).toHaveBeenCalled();
+    expect(chooseMoveSpy).toHaveBeenCalled();
   });
 
   test('selectCpuMoveWithPolicy prefers corner plan even when learned score favors inner move', () => {
@@ -2222,6 +2409,53 @@ describe('cpu decision refactor helpers', () => {
     expect(action.guardTarget).toEqual({ row: 3, col: 3 });
   });
 
+  test('cpuSelectLivingWillWithPolicy prefers reviving a valuable timed special stone over a plain corner', async () => {
+    global.gameState = {
+      board: [
+        [-1, 0, 0, 0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.markers = [
+      {
+        kind: 'specialStone',
+        owner: 'white',
+        row: 3,
+        col: 3,
+        data: { type: 'ROBOT_VACUUM', remainingOwnerTurns: 4 }
+      }
+    ];
+    global.cardState.pendingEffectByPlayer.white = { type: 'LIVING_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getLivingWillTargets: () => [{ row: 3, col: 3 }, { row: 0, col: 7 }],
+      applyLivingWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectLivingWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.livingWillTarget).toEqual({ row: 3, col: 3 });
+  });
+
   test('cpuSelectTrapWillWithPolicy uses ONNX pending target when heuristic scores tie', async () => {
     global.cpuSmartness.white = 6;
     global.gameState = {
@@ -2292,6 +2526,40 @@ describe('cpu decision refactor helpers', () => {
     expect(action.trapTarget).toEqual({ row: 2, col: 2 });
   });
 
+  test('cpuSelectTrapWillWithPolicy はカスタム盤面で pending ONNX を使わない', async () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: Array.from({ length: 7 }, () => Array(9).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'TRAP_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 2, col: 2 }, { row: 2, col: 5 }],
+      applyTrapWill: jest.fn(() => ({ applied: true }))
+    };
+    global.CpuPolicyOnnxRuntime = {
+      choosePendingTarget: jest.fn(async (targets) => targets[1])
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectTrapWillWithPolicy('white');
+
+    expect(global.CpuPolicyOnnxRuntime.choosePendingTarget).not.toHaveBeenCalled();
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.trapTarget).toEqual({ row: 2, col: 2 });
+  });
+
   test('cpuSelectDestroyWithPolicy can rerank ONNX target with value model', async () => {
     global.cpuSmartness.white = 6;
     global.gameState = {
@@ -2338,7 +2606,7 @@ describe('cpu decision refactor helpers', () => {
     expect(action.destroyTarget).toEqual({ row: 3, col: 2 });
   });
 
-  test('cpuSelectDestroyWithPolicy includes occupied expansion cells in fallback targets', async () => {
+  test('cpuSelectDestroyWithPolicy keeps occupied expansion cells in fallback targets when ONNX is gated', async () => {
     global.cpuSmartness.white = 6;
     global.gameState = {
       board: Array.from({ length: 8 }, () => Array(8).fill(0)),
@@ -2375,10 +2643,7 @@ describe('cpu decision refactor helpers', () => {
 
     await cpuDecision.cpuSelectDestroyWithPolicy('white');
 
-    expect(global.CpuPolicyOnnxRuntime.choosePendingTarget).toHaveBeenCalled();
-    expect(global.CpuPolicyOnnxRuntime.choosePendingTarget.mock.calls[0][0]).toEqual(
-      expect.arrayContaining([{ row: 0, col: 8 }])
-    );
+    expect(global.CpuPolicyOnnxRuntime.choosePendingTarget).not.toHaveBeenCalled();
     const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
     expect(action.destroyTarget).toEqual({ row: 0, col: 8 });
   });

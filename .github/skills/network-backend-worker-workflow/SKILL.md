@@ -26,30 +26,43 @@ argument-hint: 'backend のどこを直したいか。worker, local server, seat
 
 - `workers/match-worker.mjs`
 - `scripts/local-match-server.js`
+- `shared/network-action-schema.js`
+- `shared/playback-event-helpers.js`
+- `utils/match-authority.js`
 - `scripts/match-network-smoke.js`
-- `shared/network-action-schema.js`, `utils/match-authority.js` があれば一緒に確認する
-- `docs/network-worker-deploy.md` と関連 backend test
+- `docs/network-worker-deploy.md`
 
 ## Common Traps
 
 - local server と worker を別契約のまま進化させること
 - client-authored authority を backend に混ぜ戻すこと
 - seat token, heartbeat, SSE 初回 snapshot の扱いを片側だけ変えること
+- 同じ seat の再参加と leave 後の token rotation / stale token revoke を join, stream, leave で別契約にすること
 - hidden hand や viewer projection の漏れを smoke なしで出荷すること
 
 ## Procedure
 
 1. authority を持つ場所と projection を返す場所を先に固定する。
 2. worker と local server のどちらが正本の契約かを決め、片方だけ先行しないようにする。
-3. seat token, SSE, heartbeat, reconnect, leaderboard の波及を同時に見る。
-4. shared schema や authority helper があるなら、それを先に直して分岐を増やさない。
-5. backend smoke と関連 worker test で契約を確認してから deploy 面を見る。
+3. seat token の新規 join、同 seat への rejoin、leave 後の rotated token、stale token revoke を join / stream / leave 全部で同じ契約にそろえる。
+4. seat token, SSE, heartbeat, reconnect, leaderboard の波及を同時に見る。
+5. `shared/network-action-schema.js`, `shared/playback-event-helpers.js`, `utils/match-authority.js` を先に見て、contract の分岐や event 組み立ての重複を増やさない。
+6. backend smoke と関連 worker / local server test で契約を確認してから deploy 面を見る。
 
 ## Validation Bundle
 
 - `npm run match:check -- --base <url>`
-- 近い `test/workers.match-*`
-- `scripts/match-network-smoke.js` での代表フロー確認
+- `npm run test:network:parity`
+- `test/workers.match-heartbeat-stateversion.test.js`
+- `test/workers.match-turn-timer.test.js`
+- `test/workers.match-publish-sanitize.test.js`
+- `test/workers.match-stream-sse.test.js`
+- `test/workers.match-leave-token-revocation.test.js`
+- `test/workers.match-leaderboard.test.js`
+- `test/local-match-server.publish-contract.test.js`
+- `test/local-match-server.leave-contract.test.js`
+- `test/utils.match-authority.publish-response.test.js`
+- `test/scripts.match-network-smoke.test.js`
 - public asset まで触る時だけ `npm run worker:prepare`
 
 ## Completion Checklist

@@ -220,6 +220,55 @@ function getPortraitSpeechAnchorRect(value) {
     return rect;
 }
 
+function getPortraitSpeechBoardRect() {
+    const boardAnchor = getRoundDisplayBoardAnchorElement();
+    if (!boardAnchor || typeof boardAnchor.getBoundingClientRect !== 'function') return null;
+    const rect = boardAnchor.getBoundingClientRect();
+    if (!Number.isFinite(rect.left) || !Number.isFinite(rect.right) || rect.right <= rect.left) return null;
+    return rect;
+}
+
+function getPortraitSpeechBubbleBaseMaxWidth(viewportWidth) {
+    if (viewportWidth <= 900) {
+        return Math.min(Math.floor(viewportWidth * 0.72), 320);
+    }
+    return Math.min(Math.floor(viewportWidth * 0.46), 420);
+}
+
+function clampPortraitSpeechBubbleToViewport(bubble, fallbackLeft, viewportWidth) {
+    const viewportMargin = 8;
+    const bRect = bubble.getBoundingClientRect();
+    if (bRect.top < viewportMargin) {
+        const currentTop = Number.parseFloat(bubble.style.top) || 24;
+        bubble.style.top = `${currentTop + (viewportMargin - bRect.top)}px`;
+    }
+
+    const adjusted = bubble.getBoundingClientRect();
+    if (adjusted.left < viewportMargin || adjusted.right > viewportWidth - viewportMargin) {
+        const currentLeft = Number.parseFloat(bubble.style.left) || fallbackLeft;
+        if (adjusted.left < viewportMargin) {
+            bubble.style.left = `${currentLeft + (viewportMargin - adjusted.left)}px`;
+        } else if (adjusted.right > viewportWidth - viewportMargin) {
+            bubble.style.left = `${currentLeft - (adjusted.right - (viewportWidth - viewportMargin))}px`;
+        }
+    }
+}
+
+function keepPortraitSpeechBubbleOutsideBoard(bubble, role, boardRect, viewportWidth) {
+    if (!bubble || !boardRect) return;
+    const boardGap = viewportWidth <= 900 ? 8 : 12;
+    const bubbleRect = bubble.getBoundingClientRect();
+    const currentLeft = Number.parseFloat(bubble.style.left) || ((bubbleRect.left + bubbleRect.right) / 2);
+
+    if (role === PORTRAIT_SPEECH_ROLE_HERO && bubbleRect.right > boardRect.left - boardGap) {
+        bubble.style.left = `${currentLeft - (bubbleRect.right - (boardRect.left - boardGap))}px`;
+        return;
+    }
+    if (role === PORTRAIT_SPEECH_ROLE_CPU && bubbleRect.left < boardRect.right + boardGap) {
+        bubble.style.left = `${currentLeft + ((boardRect.right + boardGap) - bubbleRect.left)}px`;
+    }
+}
+
 function positionPortraitSpeechBubble(value) {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
     const config = resolvePortraitSpeechConfig(value);
@@ -230,28 +279,31 @@ function positionPortraitSpeechBubble(value) {
 
     const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
     const gap = viewportWidth <= 900 ? 14 : 18;
+    const anchorCenterX = rect.left + (rect.width / 2);
+    const baseMaxWidth = getPortraitSpeechBubbleBaseMaxWidth(viewportWidth);
+    const boardRect = getPortraitSpeechBoardRect();
+    const boardGap = viewportWidth <= 900 ? 8 : 12;
+    const viewportMargin = 8;
+    let bubbleMaxWidth = baseMaxWidth;
 
-    bubble.style.maxWidth = viewportWidth <= 900
-        ? `min(72vw, 320px)`
-        : `min(46vw, 420px)`;
-    bubble.style.left = `${rect.left + (rect.width / 2)}px`;
-    bubble.style.top = `${Math.max(24, rect.top - gap)}px`;
-
-    const bRect = bubble.getBoundingClientRect();
-    if (bRect.top < 8) {
-        const currentTop = Number.parseFloat(bubble.style.top) || 24;
-        bubble.style.top = `${currentTop + (8 - bRect.top)}px`;
-    }
-
-    const adjusted = bubble.getBoundingClientRect();
-    if (adjusted.left < 8 || adjusted.right > viewportWidth - 8) {
-        const currentLeft = Number.parseFloat(bubble.style.left) || (rect.left + (rect.width / 2));
-        if (adjusted.left < 8) {
-            bubble.style.left = `${currentLeft + (8 - adjusted.left)}px`;
-        } else if (adjusted.right > viewportWidth - 8) {
-            bubble.style.left = `${currentLeft - (adjusted.right - (viewportWidth - 8))}px`;
+    if (boardRect) {
+        const lanePadding = viewportMargin + boardGap;
+        if (config.role === PORTRAIT_SPEECH_ROLE_HERO) {
+            const laneWidth = Math.floor(boardRect.left - lanePadding);
+            if (laneWidth > 0) bubbleMaxWidth = Math.min(bubbleMaxWidth, laneWidth);
+        } else {
+            const laneWidth = Math.floor(viewportWidth - boardRect.right - lanePadding);
+            if (laneWidth > 0) bubbleMaxWidth = Math.min(bubbleMaxWidth, laneWidth);
         }
     }
+
+    bubble.style.maxWidth = `${Math.max(1, Math.round(bubbleMaxWidth))}px`;
+    bubble.style.left = `${anchorCenterX}px`;
+    bubble.style.top = `${Math.max(24, rect.top - gap)}px`;
+
+    clampPortraitSpeechBubbleToViewport(bubble, anchorCenterX, viewportWidth);
+    keepPortraitSpeechBubbleOutsideBoard(bubble, config.role, boardRect, viewportWidth);
+    clampPortraitSpeechBubbleToViewport(bubble, anchorCenterX, viewportWidth);
 }
 
 function positionAllPortraitSpeechBubbles() {
@@ -627,6 +679,12 @@ function updateCpuCharacter() {
     const charImg = getElement('cpuCharacterImg');
     const levelLabel = getElement('cpuLevelLabel');
     const heroLabel = document.getElementById('hero-label');
+
+    try {
+        if (typeof window !== 'undefined' && window && typeof window.syncDisplayedHandSkin === 'function') {
+            window.syncDisplayedHandSkin(window);
+        }
+    } catch (e) { /* ignore */ }
     
     if (charImg && levelLabel) {
         const primaryPath = specialPresentation && specialPresentation.imageSrc

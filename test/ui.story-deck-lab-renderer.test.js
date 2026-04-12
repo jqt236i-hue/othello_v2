@@ -104,11 +104,16 @@ describe('story deck lab renderer', () => {
       }
     );
 
+    const cardEl = document.querySelector('#candidate .deck-builder-card');
     const cardName = document.querySelector('#candidate .card-name');
     expect(cardName).not.toBeNull();
     expect(cardName.textContent).toBe('禁忌の反転');
     const typeBadge = document.querySelector('#candidate .card-type-badge');
     expect(typeBadge).not.toBeNull();
     expect(typeBadge.textContent).toBe('禁忌');
+    const costBadge = cardEl.querySelector('.card-cost-badge');
+    expect(costBadge).not.toBeNull();
+    expect(costBadge.parentElement).toBe(cardEl);
+    expect(cardEl.querySelector('.card-badge-row .card-cost-badge')).toBeNull();
   });
 });

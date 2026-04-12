@@ -1,6 +1,6 @@
 ---
 name: 'new-card-implementation-workflow'
-description: '新カード実装を、既存 type 再利用か新 type 追加かの分岐から、catalog 生成、effect, pending target, CPU, presentation, docs / tests, worker-public 同期まで漏れなく通すワークフロー。Use when implementing one or more brand-new cards in this card-othello repository.'
+description: '新カード実装を、既存 type 再利用か新 type 追加かの分岐から、catalog 生成、effect, pending target / deferred publish, CPU, presentation, docs / tests, worker-public 同期まで漏れなく通すワークフロー。Use when implementing one or more brand-new cards in this card-othello repository.'
 argument-hint: '追加するカードの id, type, cost, desc と、既存 type 再利用か新 type 追加か、pending target の有無、CPU と演出まで触るかを書いてください'
 ---
 
@@ -46,7 +46,7 @@ argument-hint: '追加するカードの id, type, cost, desc と、既存 type 
 - `game/card-effects/*`
 - `game/logic/cards.js`, `game/logic/cards-internal/*`
 - `game/turn-handlers/pending-target-selector.js`
-- `game/cpu-decision.js`, `game/ai/cpu-policy-core.js`
+- `game/cpu-decision.js`, `game/cpu-turn-handler.js`, `game/ai/cpu-policy-core.js`
 - `ui/presentation-handler.js`, `ui/stone-visuals.js`, `game/visual-effects-map.js`
 - `cards/card-interaction-effects.js`, `ui/handlers/rules-help.js`
 - `shared/deck-spec.js`, `shared/story-deck-spec.js`
@@ -62,6 +62,7 @@ argument-hint: '追加するカードの id, type, cost, desc と、既存 type 
 - 新 type を増やしたのに pending target、CPU、presentation のどこかを追っていないこと
 - `npm run generate:catalog` を忘れて browser と headless で card 定義がずれること
 - 新しい classic-script ファイルを足したのに `index.html` の読み込み順と `test/index.card-module-scripts.test.js` を見ていないこと
+- selection / deferred publish カードなのに `pending-selection-flow-workflow` と切り離して contract 差分を作ること
 - `cards/card-interaction-effects.js` の quick / detail 文言を放置し、card detail が catalog の先頭文 fallback だけになること
 - dirty tree のまま `npm run worker:prepare` を流して mirror 差分を雑に混ぜること
 
@@ -72,7 +73,7 @@ argument-hint: '追加するカードの id, type, cost, desc と、既存 type 
 3. `npm run generate:catalog` を実行し、`cards/catalog.js` と `cards/catalog.generated.js` を揃える。
 4. 既存 type 再利用なら、既存 handler と UI 文言で足りるか確認する。足りなければ個別文言と tests を追加する。
 5. 新 type なら `game/card-effects/*` と必要な `game/logic/cards.js` / `game/logic/cards-internal/*` に効果解決を実装する。`game/` に UI 依存は持ち込まない。
-6. 選択式カードなら `game/turn-handlers/pending-target-selector.js` と関連 pending state を更新し、CPU 自動選択の ranking を決める。
+6. 選択式カードや deferred publish が絡むカードなら `game/turn-handlers/pending-target-selector.js` と関連 pending state を更新し、CPU 自動選択の ranking を決める。selection contract が増える時は `pending-selection-flow-workflow` も併用する。
 7. CPU が使うカードなら `game/cpu-decision.js` と必要に応じて `game/ai/cpu-policy-core.js` を更新し、使用タイミングと fallback を決める。
 8. 新 visual や特殊石表示があるなら `ui/presentation-handler.js`, `ui/stone-visuals.js`, `game/visual-effects-map.js` を確認し、Single Visual Writer を崩さずに接続する。
 9. カード詳細や図鑑に個別説明が必要なら `cards/card-interaction-effects.js` と `ui/handlers/rules-help.js` を更新する。story で使うなら `shared/story-deck-spec.js` も確認する。
@@ -86,6 +87,8 @@ argument-hint: '追加するカードの id, type, cost, desc と、既存 type 
 - `npm run test:jest -- --runTestsByPath test/cards.catalog.test.js test/cards.generate.test.js`
 - 新 type や内部 helper を触った時の近いテスト
   - `npm run test:jest -- --runTestsByPath test/game.cards.effect-timing-module.test.js test/game.cards.pending-state-manager-module.test.js`
+- pending target や deferred publish を触った時
+  - `npm run test:jest -- --runTestsByPath test/game.pending-target-selector.test.js test/game.pending-selection-flow.test.js test/cpu.turn-handler.pending.test.js`
 - CPU を触った時
   - `npm run test:jest -- --runTestsByPath test/cpu.decision.refactor.test.js test/game.cpu-policy-core.test.js`
 - classic-script 順を触った時
@@ -99,7 +102,7 @@ argument-hint: '追加するカードの id, type, cost, desc と、既存 type 
 - 新カード定義を `cards/catalog.json` に追加した
 - `npm run generate:catalog` を実行した
 - 既存 type 再利用か新 type 追加かを明示した
-- pending target, CPU, presentation, card detail の要否を判断した
+- pending target / deferred publish, CPU, presentation, card detail の要否を判断した
 - 新しい script / helper を足した時は load order と tests を確認した
 - `cardId`, `type`, 表示名の残り参照を確認した
 - `npm run worker:prepare` の要否を判断し、実行したなら報告した

@@ -1,6 +1,6 @@
 # カードオセロ / Copilot instructions
 
-最終更新: 2026-03-16
+最終更新: 2026-04-04
 
 ## 0. この文書の役割
 
@@ -12,9 +12,10 @@
 
 1. `01-rulebook.md`
 2. このファイル
-3. `AGENTS.md`
-4. `.github/instructions/*.instructions.md`
-5. `SKILLS.md`, `.github/skills/**/SKILL.md`, `.github/agents/*.agent.md`, `README.ai.md`
+3. `docs/architecture-contracts.md`
+4. `AGENTS.md`
+5. `.github/instructions/*.instructions.md`
+6. `SKILLS.md`, `.github/skills/**/SKILL.md`, `.github/agents/*.agent.md`, `README.ai.md`
 
 ## 最小共通ルール
 
@@ -25,9 +26,12 @@
 - `owner` / `player` / 色などの揺れは入口で正規化し、内部表現を混在させない。
 - 定数は `shared-constants.js` と `constants/` を単一ソースにし、重複定義しない。
 - debug 動作は `?debug=1` などの明示条件でだけ有効化し、通常時に副作用を出さない。
+- ユーザー向けの説明では、カード名・効果名・状態名・UI要素名を、まず `01-rulebook.md` や画面表示に沿った日本語名 / 表示名で書く。コード上のID・関数名・event type は必要な時だけ補足として併記する。
 - UI は `events[]` を順番どおりに再生し、再生中の盤面 DOM の書き手は 1 つに絞る。フリップ演出は Spec B を守る。
 - root を正本にし、`worker-public/` は mirror として扱う。必要時は `npm run worker:prepare` で同期する。
-- 既定の実装戦術は差分最小とする。ただし根本原因が構造問題、契約不整合、再発不具合にある時は、master plan / phase / 完了条件 / 検証束を先に固定し、段階的な大幅改革を選んでよい。
+- 既定の実装戦術は、根本原因を最も明快に解消し、責務境界・契約・単一ソースを改善できる経路を選ぶこととする。
+- 差分の小ささは目的ではない。同等に正しい案が複数ある場合の比較要素としてのみ扱う。
+- 局所修正で十分ならその責務境界で完結させる。ただし責務の混線、契約不整合、重複経路、再発不具合がある時は、master plan / phase / 完了条件 / 検証束を先に固定し、抽出・統合・置換を含む構造変更を選ぶ。
 - 修正は根本原因を先に特定し、前後で同条件の確認結果を残す。
 - この共通節を更新する時は `AGENTS.md` と `.github/copilot-instructions.md` の両方に同じ内容を入れる。
 
@@ -35,6 +39,7 @@
 
 - `01-rulebook.md`: ゲーム仕様、カード仕様、UI / 演出の見た目上の仕様、外に見える契約だけを書く。
 - `.github/copilot-instructions.md`: 常時有効の hard rule と完了条件だけを書く。
+- `docs/architecture-contracts.md`: モジュール境界、ランタイム契約、authority・DI・state 契約など内部アーキテクチャ契約だけを書く。
 - `AGENTS.md`: 読む順、調べる順、直す順、確認順だけを書く。
 - `.github/instructions/*.instructions.md`: 対象ディレクトリ専用の差分ルールだけを書く。
 - `SKILLS.md`: skill の索引と選び方だけを書く。
@@ -58,7 +63,7 @@
 - docs-only でも、役割重複、参照漏れ、frontmatter / `applyTo` / file existence を確認する。
 - `01-rulebook.md` を更新したかどうかを必ず報告し、更新しない場合は不要理由を書く。
 - `worker-public/` を同期した場合は `npm run worker:prepare` を実行したことを報告する。
-- 最後に専門用語を避けた短い説明を付ける。
+- 最後に、画面表示や `01-rulebook.md` に沿った日本語名を優先し、専門用語を避けた短い説明を付ける。
 
 ## ここに書かないこと
 

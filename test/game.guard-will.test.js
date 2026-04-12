@@ -4,11 +4,13 @@ const BoardOps = require('../game/logic/board_ops');
 const CardSelectors = require('../game/logic/cards/selectors');
 
 describe('GUARD_WILL / GUARDIAN_GOD (守る意志/守護神)', () => {
-  function makeState() {
+  function makeState(options = {}) {
+    const rows = Number.isInteger(options.rows) ? options.rows : 8;
+    const cols = Number.isInteger(options.cols) ? options.cols : rows;
     const prng = { shuffle: () => {}, random: () => 0.5 };
-    const cardState = CardLogic.createCardState(prng);
+    const cardState = CardLogic.createCardState(prng, { boardConfig: { rows, cols } });
     const gameState = {
-      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      board: Array.from({ length: rows }, () => Array(cols).fill(0)),
       currentPlayer: 1,
       turnNumber: 1,
       consecutivePasses: 0
@@ -264,5 +266,43 @@ describe('GUARD_WILL / GUARDIAN_GOD (守る意志/守護神)', () => {
     expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 5 && cell.col === -1).owner).toBe(SharedConstants.BLACK);
     const marker = cardState.markers.find((entry) => entry && entry.row === 5 && entry.col === -1 && entry.data && entry.data.type === 'DRAGON');
     expect(marker && marker.owner).toBe('black');
+  });
+
+  test('tempt targets include custom-board main and right-edge expansion stones on 10x10', () => {
+    const { cardState, gameState } = makeState({ rows: 10, cols: 10 });
+    gameState.board[9][9] = SharedConstants.WHITE;
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: SharedConstants.EMPTY,
+      usedByPlayer: { black: false, white: false },
+      cells: [{ side: 'right', row: 9, col: 10, owner: SharedConstants.WHITE }]
+    };
+    cardState.markers.push(
+      {
+        id: 401,
+        kind: 'specialStone',
+        row: 9,
+        col: 9,
+        owner: 'white',
+        data: { type: 'DRAGON', remainingOwnerTurns: 4 }
+      },
+      {
+        id: 402,
+        kind: 'specialStone',
+        row: 9,
+        col: 10,
+        owner: 'white',
+        data: { type: 'DRAGON', remainingOwnerTurns: 4 }
+      }
+    );
+
+    const targets = CardLogic.getTemptWillTargets(cardState, gameState, 'black');
+
+    expect(targets).toEqual(expect.arrayContaining([
+      { row: 9, col: 9 },
+      { row: 9, col: 10 }
+    ]));
   });
 });

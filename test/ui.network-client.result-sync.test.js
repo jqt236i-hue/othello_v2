@@ -19,6 +19,10 @@ function withServerMeta(snapshot, metaVersion) {
   }, snapshot || {});
 }
 
+function createBoard(rows = 8, cols = 8) {
+  return Array.from({ length: rows }, () => Array(cols).fill(0));
+}
+
 describe('NetworkMatchClient result sync', () => {
   let dom;
 
@@ -102,6 +106,30 @@ describe('NetworkMatchClient result sync', () => {
     client.applySnapshot(terminalSnapshot, { force: true, skipResultOverlay: true });
 
     expect(global.showResult).not.toHaveBeenCalled();
+  });
+
+  test('custom board の終局 snapshot でも盤面サイズを保ったまま結果表示する', () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    const terminalSnapshot = withServerMeta({
+      stateVersion: 85,
+      gameState: {
+        currentPlayer: -1,
+        turnNumber: 41,
+        __resultShown: true,
+        board: createBoard(7, 9),
+        boardConfig: { rows: 7, cols: 9, standard8x8: false }
+      },
+      cardState: { markers: [] }
+    });
+
+    const applied = client.applySnapshot(terminalSnapshot, { force: true });
+
+    expect(applied).toBe(true);
+    expect(global.gameState.board).toHaveLength(7);
+    expect(global.gameState.board[0]).toHaveLength(9);
+    expect(global.showResult).toHaveBeenCalledTimes(1);
   });
 
   test('playbackEventsがあるスナップショット反映では即時renderCardUIしない', () => {

@@ -21,6 +21,7 @@ function _Timer() { return (__anim_res_utils && typeof __anim_res_utils.getTimer
 })(); }
 let __playback_state_utils = null;
 try { __playback_state_utils = (typeof require === 'function') ? require('./playback-state-manager') : (typeof globalThis !== 'undefined' ? globalThis.PlaybackStateManager : null); } catch (e) { __playback_state_utils = (typeof globalThis !== 'undefined' ? globalThis.PlaybackStateManager : null); }
+let __hand_skin_utils = null;
 function _setCardAnimatingState(locked) {
     if (__playback_state_utils && typeof __playback_state_utils.setCardAnimating === 'function') {
         __playback_state_utils.setCardAnimating(locked);
@@ -96,6 +97,140 @@ function _isOwnerOnBottomSlot(playerKey) {
     return ownerKey === 'black';
 }
 
+const HAND_WRAPPER_WIDTH = 180;
+
+function _resolveHandImageElement() {
+    if (typeof document === 'undefined') return null;
+    return document.getElementById('handImage');
+}
+
+function _getHandSkinUiModule() {
+    if (__hand_skin_utils && typeof __hand_skin_utils === 'object') return __hand_skin_utils;
+    try {
+        if (typeof require === 'function') {
+            __hand_skin_utils = require('./handlers/hand-skin');
+        }
+    } catch (e) { /* ignore */ }
+    if (!__hand_skin_utils) {
+        try {
+            if (typeof window !== 'undefined' && window && window.HandSkinUiModule) {
+                __hand_skin_utils = window.HandSkinUiModule;
+            }
+        } catch (e) { /* ignore */ }
+    }
+    if (!__hand_skin_utils) {
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis && globalThis.HandSkinUiModule) {
+                __hand_skin_utils = globalThis.HandSkinUiModule;
+            }
+        } catch (e) { /* ignore */ }
+    }
+    return __hand_skin_utils;
+}
+
+function _getResolveHandAnimationContext() {
+    const handSkinUi = _getHandSkinUiModule();
+    if (handSkinUi && typeof handSkinUi.resolveHandAnimationContext === 'function') {
+        return handSkinUi.resolveHandAnimationContext;
+    }
+    try {
+        if (typeof window !== 'undefined' && window && typeof window.resolveHandAnimationContext === 'function') {
+            return window.resolveHandAnimationContext;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _getSyncDisplayedHandSkin() {
+    const handSkinUi = _getHandSkinUiModule();
+    if (handSkinUi && typeof handSkinUi.syncDisplayedHandSkin === 'function') {
+        return handSkinUi.syncDisplayedHandSkin;
+    }
+    try {
+        if (typeof window !== 'undefined' && window && typeof window.syncDisplayedHandSkin === 'function') {
+            return window.syncDisplayedHandSkin;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _resolveHandAnimationContext(ownerKey, visualOptions) {
+    const normalizedOwnerKey = _normalizeHandOwnerKey(ownerKey);
+    const options = (visualOptions && typeof visualOptions === 'object')
+        ? Object.assign({}, visualOptions, { ownerKey: normalizedOwnerKey })
+        : { ownerKey: normalizedOwnerKey };
+    const resolveContext = _getResolveHandAnimationContext();
+    if (typeof resolveContext === 'function') {
+        try {
+            const rootRef = (typeof window !== 'undefined' && window)
+                ? window
+                : ((typeof globalThis !== 'undefined' && globalThis) ? globalThis : null);
+            const resolved = resolveContext(rootRef, null, options);
+            if (resolved && typeof resolved === 'object') {
+                return Object.assign({
+                    ownerKey: normalizedOwnerKey,
+                    cpu: false,
+                    cpuLevel: null,
+                    selectedSkinId: null,
+                    renderedSkinId: null,
+                    renderedImagePath: null
+                }, resolved, {
+                    ownerKey: _normalizeHandOwnerKey(resolved.ownerKey || normalizedOwnerKey)
+                });
+            }
+        } catch (e) { /* ignore */ }
+    }
+    return {
+        ownerKey: normalizedOwnerKey,
+        cpu: options.cpu === true,
+        cpuLevel: Number.isFinite(Number(options.cpuLevel)) ? Number(options.cpuLevel) : null,
+        selectedSkinId: null,
+        renderedSkinId: null,
+        renderedImagePath: null
+    };
+}
+
+function _applyResolvedHandAnimationContext(handContext) {
+    const imageEl = _resolveHandImageElement();
+    if (!imageEl || !handContext || !handContext.renderedImagePath) return handContext;
+    imageEl.setAttribute('src', handContext.renderedImagePath);
+    if (handContext.renderedSkinId) {
+        imageEl.setAttribute('data-hand-skin-id', handContext.renderedSkinId);
+    }
+    if (handContext.selectedSkinId) {
+        imageEl.setAttribute('data-hand-selected-skin-id', handContext.selectedSkinId);
+    }
+    return handContext;
+}
+
+function _syncDisplayedHandSkinForAnimation(ownerKey, visualOptions) {
+    try {
+        const handContext = _resolveHandAnimationContext(ownerKey, visualOptions);
+        return _applyResolvedHandAnimationContext(handContext);
+    } catch (e) { /* ignore */ }
+    return _resolveHandAnimationContext(ownerKey, visualOptions);
+}
+
+function _restoreDisplayedHandSkinAfterAnimation() {
+    try {
+        const syncDisplayedHandSkin = _getSyncDisplayedHandSkin();
+        if (typeof syncDisplayedHandSkin !== 'function') return;
+        const rootRef = (typeof window !== 'undefined' && window)
+            ? window
+            : ((typeof globalThis !== 'undefined' && globalThis) ? globalThis : null);
+        syncDisplayedHandSkin(rootRef, null, _resolveHandImageElement());
+    } catch (e) { /* ignore */ }
+}
+
+function _resolveHandLayerElements() {
+    return {
+        layerEl: (typeof handLayer !== 'undefined' && handLayer) ? handLayer : document.getElementById('handLayer'),
+        wrapperEl: (typeof handWrapper !== 'undefined' && handWrapper) ? handWrapper : document.getElementById('handWrapper'),
+        handImageEl: _resolveHandImageElement(),
+        heldStoneEl: (typeof heldStone !== 'undefined' && heldStone) ? heldStone : document.getElementById('heldStone')
+    };
+}
+
 function _resolveHandSelectorByOwner(playerKey) {
     const handEl = _resolveHandElementByOwner(playerKey);
     if (handEl && handEl.id) {
@@ -138,6 +273,23 @@ function _normalizeCardSourceRect(rectLike) {
     return { left, top, width, height, right, bottom };
 }
 
+function _snapRectToWholePixels(rectLike) {
+    const rect = _normalizeCardSourceRect(rectLike);
+    if (!rect) return null;
+    const left = Math.round(rect.left);
+    const top = Math.round(rect.top);
+    const width = Math.max(1, Math.round(rect.width));
+    const height = Math.max(1, Math.round(rect.height));
+    return {
+        left,
+        top,
+        width,
+        height,
+        right: left + width,
+        bottom: top + height
+    };
+}
+
 function _resolveCardUseSourceRect(sourceCardEl, sourceCardRect) {
     let liveRect = null;
     if (sourceCardEl && typeof sourceCardEl.getBoundingClientRect === 'function') {
@@ -163,6 +315,23 @@ function _resolveCreateCardFaceElement() {
     try {
         if (typeof globalThis !== 'undefined' && globalThis && typeof globalThis.createCardFaceElement === 'function') {
             return globalThis.createCardFaceElement;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _resolveApplyCardSpecialArtToFace() {
+    try {
+        if (typeof applyCardSpecialArtToFace === 'function') return applyCardSpecialArtToFace;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && window && typeof window.applyCardSpecialArtToFace === 'function') {
+            return window.applyCardSpecialArtToFace;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis && typeof globalThis.applyCardSpecialArtToFace === 'function') {
+            return globalThis.applyCardSpecialArtToFace;
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -227,7 +396,7 @@ function _normalizeCardUseVisualDescriptor(descriptor, fallbackCardId, fallbackC
     return resolved;
 }
 
-function _buildFallbackCardUseElement(cardId, cardName, cardCost, descriptor) {
+function _buildFallbackCardUseElement(cardId, cardName, cardCost, descriptor, ownerKey) {
     const visualDescriptor = _normalizeCardUseVisualDescriptor(descriptor, cardId, cardName, cardCost);
     const resolvedCardId = visualDescriptor.cardId || null;
     const resolvedCardName = visualDescriptor.name || null;
@@ -235,9 +404,10 @@ function _buildFallbackCardUseElement(cardId, cardName, cardCost, descriptor) {
     const resolvedCostTier = visualDescriptor.costTier || _getFallbackCardCostTier(resolvedCardCost);
     const resolvedTypeLabel = _resolveCardUseDisplayTypeLabel(visualDescriptor, resolvedCardId);
     const createCardFaceElement = _resolveCreateCardFaceElement();
+    const applyCardSpecialArtToFace = _resolveApplyCardSpecialArtToFace();
     if (createCardFaceElement && resolvedCardId) {
         try {
-            const rendered = createCardFaceElement(resolvedCardId);
+            const rendered = createCardFaceElement(resolvedCardId, { ownerKey });
             if (rendered && rendered.nodeType === 1) {
                 return rendered;
             }
@@ -253,32 +423,52 @@ function _buildFallbackCardUseElement(cardId, cardName, cardCost, descriptor) {
         const tierClass = `cost-tier-${resolvedCostTier}`;
         cardEl.classList.add(tierClass);
     }
+    const _typeKeyMap = { '採掘':'mining', '守護':'guard', '戦闘':'battle', '執行':'judgment', '禁忌':'taboo', '殲滅':'annihilation', '繁栄':'prosperity', '特殊':'special' };
+    const resolvedTypeKey = _typeKeyMap[resolvedTypeLabel] || '';
+    if (resolvedTypeKey) {
+        try { cardEl.dataset.cardType = resolvedTypeKey; } catch (e) { /* ignore */ }
+    }
 
     if (resolvedCardName) {
         const label = document.createElement('span');
         label.className = 'card-name';
         label.textContent = resolvedCardName;
         cardEl.appendChild(label);
+        try {
+            if (typeof window !== 'undefined' && typeof window.fitCardNameElement === 'function') {
+                window.fitCardNameElement(label);
+            }
+        } catch (e) { /* ignore */ }
     }
-    if (resolvedTypeLabel || resolvedCardCost !== null) {
+    if (resolvedCardCost !== null) {
+        const badge = document.createElement('div');
+        badge.className = 'card-cost-badge';
+        if (resolvedCostTier) {
+            badge.classList.add(`cost-tier-${resolvedCostTier}`);
+        }
+        const costValue = document.createElement('span');
+        costValue.className = 'cost-value';
+        costValue.textContent = String(resolvedCardCost);
+        const costLabel = document.createElement('span');
+        costLabel.className = 'cost-label';
+        costLabel.textContent = 'cost';
+        badge.appendChild(costValue);
+        badge.appendChild(costLabel);
+        cardEl.appendChild(badge);
+    }
+    if (resolvedTypeLabel) {
         const badgeRow = document.createElement('div');
         badgeRow.className = 'card-badge-row';
-        if (resolvedTypeLabel) {
-            const typeBadge = document.createElement('div');
-            typeBadge.className = 'card-type-badge';
-            typeBadge.textContent = resolvedTypeLabel;
-            badgeRow.appendChild(typeBadge);
-        }
-        if (resolvedCardCost !== null) {
-            const badge = document.createElement('div');
-            badge.className = 'card-cost-badge';
-            if (resolvedCostTier) {
-                badge.classList.add(`cost-tier-${resolvedCostTier}`);
-            }
-            badge.textContent = `コスト${resolvedCardCost}`;
-            badgeRow.appendChild(badge);
-        }
+        const typeBadge = document.createElement('div');
+        typeBadge.className = 'card-type-badge';
+        var _typeIconMap = { '採掘':'\u26CF\uFE0E', '守護':'\u26E8\uFE0E', '戦闘':'\u2694\uFE0E', '執行':'\u2696\uFE0E', '禁忌':'\u26A0\uFE0E', '殲滅':'\u2620\uFE0E', '繁栄':'\u2728', '特殊':'\u2726' };
+        var _typeIcon = _typeIconMap[resolvedTypeLabel] || '';
+        typeBadge.textContent = _typeIcon ? (_typeIcon + ' ' + resolvedTypeLabel) : resolvedTypeLabel;
+        badgeRow.appendChild(typeBadge);
         cardEl.appendChild(badgeRow);
+    }
+    if (applyCardSpecialArtToFace) {
+        applyCardSpecialArtToFace(cardEl, visualDescriptor, { cardId: resolvedCardId, ownerKey });
     }
     return cardEl;
 }
@@ -661,7 +851,7 @@ function animateStrongWillApply(row, col) {
  * @param {number} col - 列
  * @param {Function} onComplete - 完了コールバック
  */
-function playHandAnimation(player, row, col, onComplete) {
+function playHandAnimation(player, row, col, onComplete, visualOptions) {
     return _enqueueHandLayerAnimation(() => new Promise((resolveQueue) => {
         const syncCardAnimating = (locked) => {
             _setCardAnimatingState(locked);
@@ -700,9 +890,7 @@ function playHandAnimation(player, row, col, onComplete) {
             return;
         }
 
-        const layerEl = (typeof handLayer !== 'undefined' && handLayer) ? handLayer : document.getElementById('handLayer');
-        const wrapperEl = (typeof handWrapper !== 'undefined' && handWrapper) ? handWrapper : document.getElementById('handWrapper');
-        const heldStoneEl = (typeof heldStone !== 'undefined' && heldStone) ? heldStone : document.getElementById('heldStone');
+        const { layerEl, wrapperEl, heldStoneEl } = _resolveHandLayerElements();
         if (!layerEl || !wrapperEl || !heldStoneEl || !boardRoot) {
             completeImmediately();
             return;
@@ -720,17 +908,21 @@ function playHandAnimation(player, row, col, onComplete) {
         const boardRect = boardRoot.getBoundingClientRect();
         const cellRect = targetCell.getBoundingClientRect();
 
+        const handContext = _syncDisplayedHandSkinForAnimation(player, visualOptions);
+        const playerKey = handContext && handContext.ownerKey
+            ? handContext.ownerKey
+            : _normalizeHandOwnerKey(player);
         // Setup Hand
         layerEl.style.display = 'block';
+        wrapperEl.style.display = 'block';
         heldStoneEl.style.display = 'block';
         heldStoneEl.className = 'held-stone ' + (player === BLACK ? 'black' : 'white');
 
         // Calculate Position
         const cellCenterX = cellRect.left + (cellRect.width / 2);
         const cellCenterY = cellRect.top + (cellRect.height / 2);
-        const wrapW = 120; // Matches CSS
+        const wrapW = HAND_WRAPPER_WIDTH;
 
-        const playerKey = _normalizeHandOwnerKey(player);
         const fromBottom = _isOwnerOnBottomSlot(playerKey);
         let startY;
         let dropY;
@@ -763,6 +955,9 @@ function playHandAnimation(player, row, col, onComplete) {
         };
         const cleanup = () => {
             layerEl.style.display = 'none';
+            wrapperEl.style.display = 'none';
+            heldStoneEl.style.display = 'none';
+            _restoreDisplayedHandSkinAfterAnimation();
             if (handAnimationTimeout) {
                 _Timer().clearTimeout(handAnimationTimeout);
                 handAnimationTimeout = null;
@@ -1082,11 +1277,11 @@ function playCaptureToHandAnimation(payload) {
             return;
         }
 
-        const targetRect = _normalizeCardSourceRect(targetCardEl.getBoundingClientRect());
+        const targetRect = _snapRectToWholePixels(targetCardEl.getBoundingClientRect());
         const sourceDisc = sourceCell.querySelector('.disc');
         const sourceRect = sourceDisc
-            ? _normalizeCardSourceRect(sourceDisc.getBoundingClientRect())
-            : _normalizeCardSourceRect(sourceCell.getBoundingClientRect());
+            ? _snapRectToWholePixels(sourceDisc.getBoundingClientRect())
+            : _snapRectToWholePixels(sourceCell.getBoundingClientRect());
         if (!sourceRect || !targetRect) {
             done();
             return;
@@ -1168,7 +1363,13 @@ function playCaptureToHandAnimation(payload) {
             }, sc);
 
             movingStone.style.opacity = '0';
-            revealCard = _buildFallbackCardUseElement(descriptor.cardId || null, revealName, revealCost, descriptor);
+            revealCard = _buildFallbackCardUseElement(
+                descriptor.cardId || null,
+                revealName,
+                revealCost,
+                descriptor,
+                _normalizeHandOwnerKey(data.sourceOwner)
+            );
             revealCard.classList.add('visible');
             revealCard.style.position = 'fixed';
             revealCard.style.pointerEvents = 'none';
@@ -1257,11 +1458,14 @@ function playDrawCardHandAnimation(payload) {
             return;
         }
 
-        const deckEl = _resolveDeckElementByOwner(toPlayerKey);
-        const handEl = _resolveHandElementByOwner(toPlayerKey);
-        const layerEl = (typeof handLayer !== 'undefined' && handLayer) ? handLayer : document.getElementById('handLayer');
-        const wrapperEl = (typeof handWrapper !== 'undefined' && handWrapper) ? handWrapper : document.getElementById('handWrapper');
-        const heldStoneEl = (typeof heldStone !== 'undefined' && heldStone) ? heldStone : document.getElementById('heldStone');
+        const handContext = _syncDisplayedHandSkinForAnimation(toPlayerKey, {
+            cpu: data.cpu === true,
+            cpuLevel: data.cpuLevel
+        });
+        const ownerKey = handContext && handContext.ownerKey ? handContext.ownerKey : toPlayerKey;
+        const deckEl = _resolveDeckElementByOwner(ownerKey);
+        const handEl = _resolveHandElementByOwner(ownerKey);
+        const { layerEl, wrapperEl, heldStoneEl } = _resolveHandLayerElements();
 
         if (!deckEl || !handEl || !layerEl || !wrapperEl) {
             done();
@@ -1275,28 +1479,22 @@ function playDrawCardHandAnimation(payload) {
         _setCardAnimatingState(true);
         const sc = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
         let heldCard = null;
-        let timeoutId = _Timer().setTimeout(() => {
-            _setCardAnimatingState(false);
-            try { if (typeof window !== 'undefined') window.__drawHandAnimActive = false; } catch (e) { /* ignore */ }
-            try {
-                if (heldCard && heldCard.parentElement) heldCard.parentElement.removeChild(heldCard);
-            } catch (e) { /* ignore */ }
-            layerEl.style.display = 'none';
-            done();
-        }, 2200, sc);
+        let cleanupStarted = false;
+        let timeoutId = null;
 
         const deckRect = deckEl.getBoundingClientRect();
         const handRect = handEl.getBoundingClientRect();
 
-        const startX = deckRect.left + deckRect.width / 2 - 60;
-        const endX = handRect.left + handRect.width / 2 - 60;
-        const fromBottom = _isOwnerOnBottomSlot(toPlayerKey);
+        const startX = deckRect.left + deckRect.width / 2 - (HAND_WRAPPER_WIDTH / 2);
+        const endX = handRect.left + handRect.width / 2 - (HAND_WRAPPER_WIDTH / 2);
+        const fromBottom = _isOwnerOnBottomSlot(ownerKey);
         const startY = deckRect.top + (fromBottom ? -120 : -20);
         const endY = fromBottom ? (handRect.top - 105) : (handRect.top - 70);
         const rotation = fromBottom ? 0 : 180;
         const scale = fromBottom ? 0.76 : 0.72;
 
         layerEl.style.display = 'block';
+        wrapperEl.style.display = 'block';
         wrapperEl.style.transform = `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`;
 
         heldCard = document.createElement('div');
@@ -1304,10 +1502,15 @@ function playDrawCardHandAnimation(payload) {
         wrapperEl.appendChild(heldCard);
 
         const cleanup = () => {
+            if (cleanupStarted) return;
+            cleanupStarted = true;
             try {
                 if (heldCard && heldCard.parentElement) heldCard.parentElement.removeChild(heldCard);
             } catch (e) { /* ignore */ }
             layerEl.style.display = 'none';
+            wrapperEl.style.display = 'none';
+            if (heldStoneEl) heldStoneEl.style.display = 'none';
+            _restoreDisplayedHandSkinAfterAnimation();
             if (timeoutId) {
                 _Timer().clearTimeout(timeoutId);
                 timeoutId = null;
@@ -1316,6 +1519,7 @@ function playDrawCardHandAnimation(payload) {
             try { if (typeof window !== 'undefined') window.__drawHandAnimActive = false; } catch (e) { /* ignore */ }
             done();
         };
+        timeoutId = _Timer().setTimeout(cleanup, 2200, sc);
         clearResolveFallback = _installAnimationResolveFallback(cleanup, 2600);
 
         (async () => {
@@ -1468,16 +1672,14 @@ function playCardUseHandAnimation(payload) {
 
         const chargeEl = document.getElementById(fromBottom ? 'charge-black' : 'charge-white');
         const handEl = _resolveHandElementByOwner(ownerKey);
-        const layerEl = (typeof handLayer !== 'undefined' && handLayer) ? handLayer : document.getElementById('handLayer');
-        const handSvgEl = document.getElementById('handSvg');
-        const heldStoneEl = (typeof heldStone !== 'undefined' && heldStone) ? heldStone : document.getElementById('heldStone');
+        const { layerEl, handImageEl, heldStoneEl } = _resolveHandLayerElements();
         if (!chargeEl || !handEl || !layerEl) {
             Promise.resolve(runDisappearEffectsOnce()).then(done, fail);
             return;
         }
 
-        const prevHandSvgVisibility = handSvgEl ? handSvgEl.style.visibility : '';
-        if (handSvgEl) handSvgEl.style.visibility = 'hidden';
+        const prevHandImageVisibility = handImageEl ? handImageEl.style.visibility : '';
+        if (handImageEl) handImageEl.style.visibility = 'hidden';
         const prevHeldStoneDisplay = heldStoneEl ? heldStoneEl.style.display : '';
         if (heldStoneEl) heldStoneEl.style.display = 'none';
 
@@ -1511,7 +1713,13 @@ function playCardUseHandAnimation(payload) {
         layerEl.style.display = 'block';
         movingCard = sourceCardEl
             ? sourceCardEl.cloneNode(true)
-            : _buildFallbackCardUseElement(visualDescriptor.cardId || null, cardName, cardCost, visualDescriptor);
+            : _buildFallbackCardUseElement(
+                visualDescriptor.cardId || null,
+                cardName,
+                cardCost,
+                visualDescriptor,
+                ownerKey
+            );
         if (!sourceCardEl) {
             movingCard.classList.add('visible');
         }
@@ -1543,7 +1751,7 @@ function playCardUseHandAnimation(payload) {
             try {
                 if (movingCard && movingCard.parentElement) movingCard.parentElement.removeChild(movingCard);
             } catch (e) { /* ignore */ }
-            if (handSvgEl) handSvgEl.style.visibility = prevHandSvgVisibility;
+            if (handImageEl) handImageEl.style.visibility = prevHandImageVisibility;
             if (heldStoneEl) heldStoneEl.style.display = prevHeldStoneDisplay;
             layerEl.style.display = 'none';
             if (timeoutId) {
@@ -1645,17 +1853,58 @@ function animateHyperactiveMove(from, to, options) {
         fromDisc.classList.remove('destroy-fade', 'shatter');
 
         const fxLayer = document.getElementById('card-fx-layer') || boardEl;
-        const fxRect = fxLayer.getBoundingClientRect();
-        const fromRect = fromCell.getBoundingClientRect();
-        const toRect = toCell.getBoundingClientRect();
+        const fxRect = _snapRectToWholePixels(fxLayer.getBoundingClientRect());
+        const fromRect = _snapRectToWholePixels(fromCell.getBoundingClientRect());
+        const toRect = _snapRectToWholePixels(toCell.getBoundingClientRect());
+        const sourceCellRect = sourceCell && typeof sourceCell.getBoundingClientRect === 'function'
+            ? _snapRectToWholePixels(sourceCell.getBoundingClientRect())
+            : fromRect;
+        const liveDiscRect = fromDisc && typeof fromDisc.getBoundingClientRect === 'function'
+            ? _snapRectToWholePixels(fromDisc.getBoundingClientRect())
+            : null;
+        if (!fxRect || !fromRect || !toRect) return resolve();
 
-        // Follow the board grid linearly (cell-to-cell), including future multi-cell moves.
-        const discScale = 0.82;
-        const discInsetRatio = (1 - discScale) / 2;
-        const startX = (fromRect.left - fxRect.left) + fromRect.width * discInsetRatio;
-        const startY = (fromRect.top - fxRect.top) + fromRect.height * discInsetRatio;
-        const endX = (toRect.left - fxRect.left) + toRect.width * discInsetRatio;
-        const endY = (toRect.top - fxRect.top) + toRect.height * discInsetRatio;
+        let discWidth = liveDiscRect && liveDiscRect.width > 0 ? liveDiscRect.width : 0;
+        let discHeight = liveDiscRect && liveDiscRect.height > 0 ? liveDiscRect.height : 0;
+        let discInsetX = (
+            liveDiscRect &&
+            sourceCellRect &&
+            Number.isFinite(liveDiscRect.left) &&
+            Number.isFinite(sourceCellRect.left)
+        ) ? (liveDiscRect.left - sourceCellRect.left) : NaN;
+        let discInsetY = (
+            liveDiscRect &&
+            sourceCellRect &&
+            Number.isFinite(liveDiscRect.top) &&
+            Number.isFinite(sourceCellRect.top)
+        ) ? (liveDiscRect.top - sourceCellRect.top) : NaN;
+
+        if (!(discWidth > 0) || !(discHeight > 0) || !Number.isFinite(discInsetX) || !Number.isFinite(discInsetY)) {
+            try {
+                if (typeof window !== 'undefined' && boardEl && typeof window.getComputedStyle === 'function') {
+                    const boardStyle = window.getComputedStyle(boardEl);
+                    const cssDiscSize = Number.parseFloat(boardStyle.getPropertyValue('--board-disc-size-px') || '');
+                    const cssDiscInset = Number.parseFloat(boardStyle.getPropertyValue('--board-disc-inset-px') || '');
+                    if (!(discWidth > 0) && Number.isFinite(cssDiscSize) && cssDiscSize > 0) discWidth = cssDiscSize;
+                    if (!(discHeight > 0) && Number.isFinite(cssDiscSize) && cssDiscSize > 0) discHeight = cssDiscSize;
+                    if (!Number.isFinite(discInsetX) && Number.isFinite(cssDiscInset) && cssDiscInset >= 0) discInsetX = cssDiscInset;
+                    if (!Number.isFinite(discInsetY) && Number.isFinite(cssDiscInset) && cssDiscInset >= 0) discInsetY = cssDiscInset;
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        if (!(discWidth > 0)) discWidth = fromRect.width * 0.82;
+        if (!(discHeight > 0)) discHeight = fromRect.height * 0.82;
+        if (!Number.isFinite(discInsetX)) discInsetX = Math.max(0, (fromRect.width - discWidth) / 2);
+        if (!Number.isFinite(discInsetY)) discInsetY = Math.max(0, (fromRect.height - discHeight) / 2);
+
+        // Match the currently rendered disc box so moving stones keep the same sharp size.
+        const startX = Math.round((fromRect.left - fxRect.left) + discInsetX);
+        const startY = Math.round((fromRect.top - fxRect.top) + discInsetY);
+        const endX = Math.round((toRect.left - fxRect.left) + discInsetX);
+        const endY = Math.round((toRect.top - fxRect.top) + discInsetY);
+        const ghostWidth = Math.max(1, Math.round(discWidth));
+        const ghostHeight = Math.max(1, Math.round(discHeight));
         const baseMoveMs = (typeof window !== 'undefined' && window.AnimationConstants && Number.isFinite(window.AnimationConstants.MOVE_MS))
             ? window.AnimationConstants.MOVE_MS
             : 400;
@@ -1678,25 +1927,25 @@ function animateHyperactiveMove(from, to, options) {
         ghost.style.position = 'absolute';
         ghost.style.left = `${startX}px`;
         ghost.style.top = `${startY}px`;
-        ghost.style.width = `${fromRect.width * discScale}px`;
-        ghost.style.height = `${fromRect.height * discScale}px`;
+        ghost.style.width = `${ghostWidth}px`;
+        ghost.style.height = `${ghostHeight}px`;
         ghost.style.pointerEvents = 'none';
+        ghost.style.transform = 'none';
+        ghost.style.transition = 'none';
 
         // Hide source disc; board re-render after the animation will remove it
         fromDisc.style.visibility = 'hidden';
         fxLayer.appendChild(ghost);
 
-        const anim = ghost.animate([
-            { transform: 'translate(0px, 0px)' },
-            { transform: `translate(${endX - startX}px, ${endY - startY}px)` }
-        ], {
-            duration: durationMs,
-            easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)',
-            fill: 'forwards'
-        });
-
         let finished = false;
         let timeoutId = null;
+        let transitionKickoffId = null;
+        const handleTransitionEnd = (event) => {
+            if (!event || event.target !== ghost) return;
+            const propertyName = String(event.propertyName || '');
+            if (propertyName && propertyName !== 'left' && propertyName !== 'top') return;
+            finish();
+        };
         const finish = () => {
             if (finished) return;
             finished = true;
@@ -1704,6 +1953,11 @@ function animateHyperactiveMove(from, to, options) {
                 _Timer().clearTimeout(timeoutId);
                 timeoutId = null;
             }
+            if (transitionKickoffId !== null && typeof cancelAnimationFrame === 'function') {
+                try { cancelAnimationFrame(transitionKickoffId); } catch (e) { /* ignore */ }
+                transitionKickoffId = null;
+            }
+            try { ghost.removeEventListener('transitionend', handleTransitionEnd); } catch (e) { /* ignore */ }
             if (ghost.parentElement) ghost.parentElement.removeChild(ghost);
             // Materialize the moved disc immediately so multiple hyperactive moves
             // don't look like teleporting/reappearing after a batch re-render.
@@ -1725,8 +1979,26 @@ function animateHyperactiveMove(from, to, options) {
             resolve();
         };
 
-        anim.addEventListener('finish', finish, { once: true });
+        ghost.addEventListener('transitionend', handleTransitionEnd);
+        const startTransition = () => {
+            if (finished) return;
+            ghost.style.transition =
+                `left ${durationMs}ms cubic-bezier(0.2, 0.85, 0.3, 1), top ${durationMs}ms cubic-bezier(0.2, 0.85, 0.3, 1)`;
+            ghost.style.left = `${endX}px`;
+            ghost.style.top = `${endY}px`;
+        };
         const sc = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
+        try {
+            if (typeof requestAnimationFrame === 'function') {
+                transitionKickoffId = requestAnimationFrame(startTransition);
+            } else if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+                transitionKickoffId = window.requestAnimationFrame(startTransition);
+            } else {
+                _Timer().setTimeout(startTransition, 0, sc);
+            }
+        } catch (e) {
+            _Timer().setTimeout(startTransition, 0, sc);
+        }
         timeoutId = _Timer().setTimeout(finish, durationMs + 220, sc);
     });
 }

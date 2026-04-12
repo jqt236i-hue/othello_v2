@@ -93,17 +93,31 @@
         const targetCol = normalizeBoardIndex(col);
         if (targetRow === null || targetCol === null) return null;
         const markers = (cardState && cardState.markers) ? cardState.markers : [];
-        const marker = markers.find(m => (
+        const specialMarker = markers.find(m => (
             m &&
-            (isSpecialStoneMarker(m) || isBombCategoryMarker(m)) &&
+            isSpecialStoneMarker(m) &&
+            normalizeBoardIndex(m.row) === targetRow &&
+            normalizeBoardIndex(m.col) === targetCol &&
+            String(m && m.data && m.data.type ? m.data.type : '').toUpperCase() !== 'LIVING_WILL'
+        ));
+        if (specialMarker) {
+            return {
+                kind: 'specialStone',
+                category: getMarkerCategory(specialMarker),
+                marker: specialMarker
+            };
+        }
+        const bombMarker = markers.find(m => (
+            m &&
+            isBombCategoryMarker(m) &&
             normalizeBoardIndex(m.row) === targetRow &&
             normalizeBoardIndex(m.col) === targetCol
         ));
-        if (marker) {
+        if (bombMarker) {
             return {
                 kind: 'specialStone',
-                category: getMarkerCategory(marker),
-                marker
+                category: getMarkerCategory(bombMarker),
+                marker: bombMarker
             };
         }
         return null;

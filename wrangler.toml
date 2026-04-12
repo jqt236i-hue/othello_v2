@@ -1,4 +1,4 @@
-name = "card-othello-match"
+name = "card"
 main = "workers/match-worker.mjs"
 compatibility_date = "2026-02-14"
 workers_dev = true

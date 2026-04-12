@@ -16,6 +16,52 @@ if (!moveExecutorNetworkTurnHandoff && typeof globalThis !== 'undefined' && glob
     moveExecutorNetworkTurnHandoff = globalThis.NetworkTurnHandoff;
 }
 
+let MoveExecutorOwnerHelpersModule = null;
+if (typeof require === 'function') {
+    try { MoveExecutorOwnerHelpersModule = require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
+}
+if (!MoveExecutorOwnerHelpersModule && typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) {
+    MoveExecutorOwnerHelpersModule = globalThis.OwnerHelpers;
+}
+
+function normalizeMoveExecutorPlayerKey(value, fallbackValue) {
+    if (MoveExecutorOwnerHelpersModule && typeof MoveExecutorOwnerHelpersModule.normalizePlayerKey === 'function') {
+        return MoveExecutorOwnerHelpersModule.normalizePlayerKey(value, fallbackValue);
+    }
+    const normalized = (value === null || typeof value === 'undefined')
+        ? ''
+        : String(value).trim().toLowerCase();
+    if (normalized === 'white' || normalized === '-1') return 'white';
+    if (normalized === 'black' || normalized === '1' || normalized === '+1') return 'black';
+    if (value === -1) return 'white';
+    if (value === 1) return 'black';
+    const fallback = (fallbackValue === null || typeof fallbackValue === 'undefined')
+        ? ''
+        : String(fallbackValue).trim().toLowerCase();
+    if (fallback === 'white' || fallback === '-1') return 'white';
+    if (fallback === 'black' || fallback === '1' || fallback === '+1') return 'black';
+    if (fallbackValue === -1) return 'white';
+    return 'black';
+}
+
+function resolveMoveExecutorTurnOwnerKey(move) {
+    const currentTurnOwner = gameState ? gameState.currentPlayer : null;
+    return normalizeMoveExecutorPlayerKey(move && move.player, currentTurnOwner);
+}
+
+function resolveMoveExecutorAuthPlayerKey(turnOwnerKey) {
+    const rootRef = (typeof globalThis !== 'undefined') ? globalThis : null;
+    const localPlayerKey = (MoveExecutorOwnerHelpersModule && typeof MoveExecutorOwnerHelpersModule.resolveLocalPlayerKey === 'function')
+        ? MoveExecutorOwnerHelpersModule.resolveLocalPlayerKey(rootRef)
+        : normalizeMoveExecutorPlayerKey(rootRef && rootRef.LOCAL_PLAYER_KEY, turnOwnerKey);
+    const controlledTurnOwnerKey = (MoveExecutorOwnerHelpersModule && typeof MoveExecutorOwnerHelpersModule.getFateWillControlledTurnOwnerForPlayer === 'function')
+        ? MoveExecutorOwnerHelpersModule.getFateWillControlledTurnOwnerForPlayer(cardState, gameState, localPlayerKey)
+        : null;
+    return controlledTurnOwnerKey === turnOwnerKey
+        ? localPlayerKey
+        : turnOwnerKey;
+}
+
 function getPlaybackStateForMoveExecutor() {
     try {
         if (__uiImpl_move_executor && __uiImpl_move_executor.PlaybackStateManager) {
@@ -156,7 +202,8 @@ async function executeMove(move) {
     try {
         const hadSelection = cardState.selectedCardId !== null;
         cardState.selectedCardId = null;
-        const playerKey = getPlayerKey(move.player);
+        const turnOwnerKey = resolveMoveExecutorTurnOwnerKey(move);
+        const playerKey = resolveMoveExecutorAuthPlayerKey(turnOwnerKey);
         const debugUsePipeline = !!(__uiImpl_move_executor && __uiImpl_move_executor.DEBUG_USE_TURN_PIPELINE) && typeof TurnPipeline !== 'undefined' && typeof TurnPipeline.applyTurn === 'function';
         const pipelineSnapshot = debugUsePipeline ? runPipelineDebugSnapshot(move, playerKey) : null;
         let adapter = (typeof TurnPipelineUIAdapter !== 'undefined') ? TurnPipelineUIAdapter : null;
@@ -177,7 +224,7 @@ async function executeMove(move) {
 
         const safeIsProcessing = (typeof isProcessing !== 'undefined') ? isProcessing : undefined;
         const safeIsCardAnimating = (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined;
-        debugMoveExecutorLog('[DEBUG][executeMove] enter', { playerKey, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, USE_TURN_PIPELINE: !!(__uiImpl_move_executor && __uiImpl_move_executor.USE_TURN_PIPELINE), DEBUG_HUMAN_VS_HUMAN: !!(__uiImpl_move_executor && __uiImpl_move_executor.DEBUG_HUMAN_VS_HUMAN), pendingEffectByPlayer: cardState.pendingEffectByPlayer });
+        debugMoveExecutorLog('[DEBUG][executeMove] enter', { playerKey, turnOwnerKey, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, USE_TURN_PIPELINE: !!(__uiImpl_move_executor && __uiImpl_move_executor.USE_TURN_PIPELINE), DEBUG_HUMAN_VS_HUMAN: !!(__uiImpl_move_executor && __uiImpl_move_executor.DEBUG_HUMAN_VS_HUMAN), pendingEffectByPlayer: cardState.pendingEffectByPlayer });
 
         if (!pipelineAvailable) {
             throw new Error('TurnPipeline/TurnPipelineUIAdapter is not available. Legacy path has been removed.');

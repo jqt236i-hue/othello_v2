@@ -20,6 +20,10 @@ body {
     color: #e0d0b0;
 }
 
+body.board-oversize-active {
+    overflow: auto;
+}
+
 h1 {
     margin-bottom: calc(5px * var(--layout-stage-scale));
     font-size: calc(24px * var(--layout-stage-scale));

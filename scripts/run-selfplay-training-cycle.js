@@ -13,6 +13,18 @@ const {
     detectCheckpointHead,
     isCheckpointNameCompatibleWithHead
 } = require('./training-checkpoint-utils');
+const {
+    TRAINING_WAREHOUSE_MANIFEST_SCHEMA_VERSION,
+    buildIterationWarehouseManifest,
+    writeTrainingWarehouseManifest,
+    cleanupWarehouseSelfplayArtifacts
+} = require('./training-warehouse-manifest-utils');
+const { buildSeedList } = require('./policy-seed-utils');
+const {
+    loadSeedBank,
+    resolveSeedScheduleFromBank,
+    commitSeedBankUsage
+} = require('./seed-bank-manager');
 
 function defaultSelfplayJobs() {
     const cpuCount = Array.isArray(os.cpus()) ? os.cpus().length : 1;
@@ -208,6 +220,9 @@ function parseArgs(argv) {
         onnxValueTargetEdgeWeight: 0.0,
         onnxValueTargetEconomyWeight: 0.0,
         onnxValueTargetCornerEmergencyWeight: 0.0,
+        trainCardEvery: 1,
+        trainTargetEvery: 1,
+        trainValueEvery: 1,
         minVisits: 12,
         shapeImmediate: 0.4,
         quickGames: 500,
@@ -307,6 +322,7 @@ function parseArgs(argv) {
         resumeValueCheckpointPath: null,
         resumeCheckpointPaths: createEmptyResumeCheckpointPaths(),
         carryOverCheckpoint: true,
+        seedBankPath: null,
         runTag: null,
         runsDir: path.resolve(process.cwd(), 'data', 'runs'),
         modelsDir: path.resolve(process.cwd(), 'data', 'models'),
@@ -393,6 +409,9 @@ function parseArgs(argv) {
         if (a === '--onnx-value-target-edge-weight') { args.onnxValueTargetEdgeWeight = Number(argv[++i]); continue; }
         if (a === '--onnx-value-target-economy-weight') { args.onnxValueTargetEconomyWeight = Number(argv[++i]); continue; }
         if (a === '--onnx-value-target-corner-emergency-weight') { args.onnxValueTargetCornerEmergencyWeight = Number(argv[++i]); continue; }
+        if (a === '--train-card-every') { args.trainCardEvery = Number(argv[++i]); continue; }
+        if (a === '--train-target-every') { args.trainTargetEvery = Number(argv[++i]); continue; }
+        if (a === '--train-value-every') { args.trainValueEvery = Number(argv[++i]); continue; }
         if (a === '--min-visits') { args.minVisits = Number(argv[++i]); continue; }
         if (a === '--shape-immediate') { args.shapeImmediate = Number(argv[++i]); continue; }
         if (a === '--quick-games') { args.quickGames = Number(argv[++i]); continue; }
@@ -502,6 +521,7 @@ function parseArgs(argv) {
         if (a === '--resume-value-checkpoint') { args.resumeValueCheckpointPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--carry-over-checkpoint') { args.carryOverCheckpoint = true; continue; }
         if (a === '--no-carry-over-checkpoint') { args.carryOverCheckpoint = false; continue; }
+        if (a === '--seed-bank') { args.seedBankPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--run-tag') { args.runTag = String(argv[++i] || '').trim(); continue; }
         if (a === '--runs-dir') { args.runsDir = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--models-dir') { args.modelsDir = path.resolve(process.cwd(), argv[++i]); continue; }
@@ -514,7 +534,7 @@ function parseArgs(argv) {
     if (args.help) return args;
 
     if (!Number.isFinite(args.iterations) || args.iterations < 1) throw new Error('--iterations must be >= 1');
-    if (!Number.isFinite(args.maxHours) || args.maxHours <= 0) throw new Error('--max-hours must be > 0');
+    if (!Number.isFinite(args.maxHours) || args.maxHours < 0) throw new Error('--max-hours must be >= 0');
     if (!Number.isFinite(args.trainGames) || args.trainGames < 1) throw new Error('--train-games must be >= 1');
     if (!Number.isFinite(args.evalGames) || args.evalGames < 1) throw new Error('--eval-games must be >= 1');
     if (!Number.isFinite(args.selfplayJobs) || args.selfplayJobs < 1) throw new Error('--selfplay-jobs must be >= 1');
@@ -718,6 +738,12 @@ function parseArgs(argv) {
     ) {
         throw new Error('onnx value-target auxiliary weights must sum to <= 0.5');
     }
+    if (!Number.isFinite(args.trainCardEvery) || args.trainCardEvery < 1) throw new Error('--train-card-every must be >= 1');
+    args.trainCardEvery = Math.floor(args.trainCardEvery);
+    if (!Number.isFinite(args.trainTargetEvery) || args.trainTargetEvery < 1) throw new Error('--train-target-every must be >= 1');
+    args.trainTargetEvery = Math.floor(args.trainTargetEvery);
+    if (!Number.isFinite(args.trainValueEvery) || args.trainValueEvery < 1) throw new Error('--train-value-every must be >= 1');
+    args.trainValueEvery = Math.floor(args.trainValueEvery);
     if (!Number.isFinite(args.minVisits) || args.minVisits < 1) throw new Error('--min-visits must be >= 1');
     if (!Number.isFinite(args.shapeImmediate) || args.shapeImmediate < 0 || args.shapeImmediate > 1) {
         throw new Error('--shape-immediate must be in [0,1]');
@@ -1010,6 +1036,9 @@ function parseArgs(argv) {
     }
     args.resumeCheckpointPaths = resolveResumeCheckpointPathsFromArgs(args);
     args.resumeCheckpointPath = getPrimaryResumeCheckpointPath(args.resumeCheckpointPaths);
+    if (args.seedBankPath && !fs.existsSync(args.seedBankPath)) {
+        throw new Error(`--seed-bank not found: ${args.seedBankPath}`);
+    }
     if (!args.runTag) args.runTag = makeRunTag();
     if (!args.summaryOut) args.summaryOut = path.resolve(args.runsDir, `training-cycle.${args.runTag}.json`);
     if (args.restartFromStep) {
@@ -1030,7 +1059,7 @@ function printHelp() {
         '',
         'Options:',
         '  -n, --iterations <n>        Number of full training cycles (default: 1)',
-        '      --max-hours <h>         Time budget in hours (default: 100)',
+        '      --max-hours <h>         Time budget in hours (default: 100, 0=off)',
         '      --train-games <n>       Self-play games for train data (default: 20000)',
         '      --eval-games <n>        Self-play games for eval data (default: 2000)',
         '      --selfplay-jobs <n>     Parallel workers for self-play generation (default: auto, up to 10)',
@@ -1099,6 +1128,9 @@ function printHelp() {
         '      --onnx-value-target-edge-weight <r> Value-target edge blend weight [0..1] (default: 0.0)',
         '      --onnx-value-target-economy-weight <r> Value-target economy blend weight [0..1] (default: 0.0)',
         '      --onnx-value-target-corner-emergency-weight <r> Value-target corner-emergency penalty weight [0..1] (default: 0.0)',
+        '      --train-card-every <n>  Train card specialist every N iterations, starting from iteration 1 (default: 1)',
+        '      --train-target-every <n> Train pending-target specialist every N iterations, starting from iteration 1 (default: 1)',
+        '      --train-value-every <n> Train value specialist every N iterations, starting from iteration 1 (default: 1)',
         '      --min-visits <n>        compatibility policy-table --min-visits (default: 12)',
         '      --shape-immediate <r>   compatibility policy-table --shape-immediate (default: 0.4)',
         '      --quick-games <n>       Adoption quick check games (default: 500)',
@@ -1207,6 +1239,7 @@ function printHelp() {
         '      --resume-value-checkpoint <path>  Resume value ONNX training from checkpoint (.pt)',
         '      --carry-over-checkpoint          Carry candidate checkpoint to next iteration (default: on)',
         '      --no-carry-over-checkpoint       Do not carry checkpoint to next iteration',
+        '      --seed-bank <path>     Optional seed_bank.v1 file for quick/quality/final/onnx gate seeds',
         '      --run-tag <tag>         Tag appended to output filenames',
         '      --runs-dir <path>       Output directory for records/results (default: data/runs)',
         '      --models-dir <path>     Output directory for candidate models (default: data/models)',
@@ -1305,8 +1338,10 @@ function buildIterationPaths(args, iterationIndex) {
         tag,
         trainDataPath: path.resolve(args.runsDir, `selfplay.train.${tag}.ndjson`),
         trainHardcaseDataPath: path.resolve(args.runsDir, `selfplay.train.hardcase.${tag}.ndjson`),
+        trainDataSummaryPath: path.resolve(args.runsDir, `selfplay.train.${tag}.ndjson.summary.json`),
         evalDataPath: path.resolve(args.runsDir, `selfplay.eval.${tag}.ndjson`),
         evalHardcaseDataPath: path.resolve(args.runsDir, `selfplay.eval.hardcase.${tag}.ndjson`),
+        evalDataSummaryPath: path.resolve(args.runsDir, `selfplay.eval.${tag}.ndjson.summary.json`),
         onnxModelPath: path.resolve(args.modelsDir, `policy-net.candidate.${tag}.onnx`),
         onnxMetaPath: path.resolve(args.modelsDir, `policy-net.candidate.${tag}.onnx.meta.json`),
         checkpointPath: path.resolve(args.modelsDir, `policy-net.candidate.${tag}.checkpoint.pt`),
@@ -1327,12 +1362,90 @@ function buildIterationPaths(args, iterationIndex) {
         quickAdoptionPath: path.resolve(args.runsDir, `adoption.quick.${tag}.json`),
         finalAdoptionPath: path.resolve(args.runsDir, `adoption.final.${tag}.json`),
         qualityGatePath: path.resolve(args.runsDir, `adoption.quality.${tag}.json`),
-        onnxGatePath: path.resolve(args.runsDir, `adoption.onnx.${tag}.json`)
+        onnxGatePath: path.resolve(args.runsDir, `adoption.onnx.${tag}.json`),
+        warehouseManifestPath: path.resolve(args.runsDir, `training-warehouse.${tag}.json`)
     };
 }
 
 function fileExists(filePath) {
     return !!filePath && fs.existsSync(filePath);
+}
+
+function writeJsonFileAtomic(filePath, payload) {
+    const resolvedPath = path.resolve(filePath);
+    fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
+    const tempPath = `${resolvedPath}.tmp-${process.pid}-${Date.now()}`;
+    fs.writeFileSync(tempPath, JSON.stringify(payload, null, 2), 'utf8');
+    fs.renameSync(tempPath, resolvedPath);
+}
+
+function buildResumeChunkArtifactDir(dataPath) {
+    return path.resolve(`${String(dataPath || '')}.resume-chunks`);
+}
+
+function buildMergeArtifactPaths(dataPath) {
+    const resolvedPath = path.resolve(String(dataPath || ''));
+    return [
+        `${resolvedPath}.partial`,
+        `${resolvedPath}.merge-state.json`
+    ];
+}
+
+function removePathIfExists(targetPath) {
+    if (!targetPath || !fs.existsSync(targetPath)) return false;
+    const stat = fs.statSync(targetPath);
+    if (stat.isDirectory()) {
+        fs.rmSync(targetPath, { recursive: true, force: true });
+    } else {
+        fs.rmSync(targetPath, { force: true });
+    }
+    return true;
+}
+
+function collectTransientSelfplayArtifactPaths(iterationPaths) {
+    if (!iterationPaths || typeof iterationPaths !== 'object') return [];
+    const out = [
+        iterationPaths.trainDataPath,
+        iterationPaths.trainHardcaseDataPath,
+        iterationPaths.evalDataPath,
+        iterationPaths.evalHardcaseDataPath,
+        buildResumeChunkArtifactDir(iterationPaths.trainDataPath),
+        buildResumeChunkArtifactDir(iterationPaths.evalDataPath)
+    ];
+    for (const basePath of [
+        iterationPaths.trainDataPath,
+        iterationPaths.trainHardcaseDataPath,
+        iterationPaths.evalDataPath,
+        iterationPaths.evalHardcaseDataPath
+    ]) {
+        out.push(...buildMergeArtifactPaths(basePath));
+    }
+    return out.filter(Boolean);
+}
+
+function cleanupTransientSelfplayArtifacts(iterationPaths) {
+    const removed = [];
+    const failed = [];
+    const seen = new Set();
+    for (const onePath of collectTransientSelfplayArtifactPaths(iterationPaths)) {
+        const resolvedPath = path.resolve(onePath);
+        if (seen.has(resolvedPath)) continue;
+        seen.add(resolvedPath);
+        try {
+            if (removePathIfExists(resolvedPath)) {
+                removed.push(resolvedPath);
+            }
+        } catch (err) {
+            failed.push({
+                path: resolvedPath,
+                error: err && err.message ? err.message : String(err)
+            });
+        }
+    }
+    return {
+        removed,
+        failed
+    };
 }
 
 function lineHasCoordinatePendingSelection(line) {
@@ -1474,6 +1587,45 @@ function resolvePromotionEligibility(args, gateState) {
     };
 }
 
+function resolveGateSeedConfig(seedBank, gateType, fallback) {
+    const normalizedFallback = {
+        seed: Number.isFinite(Number(fallback && fallback.seed)) ? Number(fallback.seed) : null,
+        seedCount: Number.isFinite(Number(fallback && fallback.seedCount)) ? Number(fallback.seedCount) : null,
+        seedStride: Number.isFinite(Number(fallback && fallback.seedStride)) ? Number(fallback.seedStride) : null,
+        seedList: Array.isArray(fallback && fallback.seedList) ? fallback.seedList.slice() : []
+    };
+    if (!seedBank) {
+        return Object.assign({}, normalizedFallback, {
+            source: 'config',
+            bankId: null,
+            bankPath: null,
+            purpose: null
+        });
+    }
+    const schedule = resolveSeedScheduleFromBank(seedBank, gateType);
+    return {
+        seed: schedule.baseSeed,
+        seedCount: schedule.seedCount,
+        seedStride: schedule.seedStride,
+        seedList: Array.isArray(schedule.scheduledSeeds) ? schedule.scheduledSeeds.slice() : [],
+        source: 'seed-bank',
+        bankId: seedBank.bankId || null,
+        bankPath: seedBank.__filePath || null,
+        purpose: schedule.purpose || null
+    };
+}
+
+function recordSeedBankGateUsage(seedBank, gateType, gatePayloadPath, iterationIndex, runTag, reused) {
+    if (!seedBank || !seedBank.__filePath || !gatePayloadPath) return null;
+    return commitSeedBankUsage(seedBank.__filePath, {
+        gateType,
+        runTag,
+        iteration: iterationIndex,
+        gatePayloadPath,
+        note: reused ? 'reused-artifact' : 'fresh-run'
+    });
+}
+
 function buildInitialGuideModelPoolPaths(modelsDir, guideModelPath, maxSize, options) {
     const limit = Number.isFinite(maxSize) ? Math.max(1, Math.floor(maxSize)) : 1;
     const includeCandidateFiles = !options || options.includeCandidateFiles !== false;
@@ -1563,6 +1715,16 @@ function shouldRunGateForIteration(args, iterationIndex) {
     return iterationIndex >= totalIterations;
 }
 
+function shouldRunPeriodicTraining(iterationIndex, every) {
+    const safeIteration = Number.isFinite(Number(iterationIndex))
+        ? Math.max(1, Math.floor(Number(iterationIndex)))
+        : 1;
+    const safeEvery = Number.isFinite(Number(every))
+        ? Math.max(1, Math.floor(Number(every)))
+        : 1;
+    return ((safeIteration - 1) % safeEvery) === 0;
+}
+
 function resolveIterationGateControl(args, iterationIndex, guideModelPath, anchorModelPath) {
     const baselineMode = resolveAdoptionBaselineMode(args);
     let baselineModelPath = null;
@@ -1638,9 +1800,26 @@ function resolveNextCarryOverState(args, carryOver, result) {
 
 function buildPromotionCommandArgs(args, iterationPaths, adoptionResultPath, hasTargetTrainingData) {
     const modelsDir = path.resolve(args.modelsDir);
+    const gatePayloadArgs = [];
+    if (iterationPaths.quickAdoptionPath) {
+        gatePayloadArgs.push('--quick-gate-payload', iterationPaths.quickAdoptionPath);
+    }
+    if (iterationPaths.qualityGatePath) {
+        gatePayloadArgs.push('--quality-gate-payload', iterationPaths.qualityGatePath);
+    }
+    if (iterationPaths.finalAdoptionPath) {
+        gatePayloadArgs.push('--final-gate-payload', iterationPaths.finalAdoptionPath);
+    }
+    if (iterationPaths.onnxGatePath) {
+        gatePayloadArgs.push('--onnx-gate-payload', iterationPaths.onnxGatePath);
+    }
+    if (iterationPaths.warehouseManifestPath) {
+        gatePayloadArgs.push('--warehouse-manifest', iterationPaths.warehouseManifestPath);
+    }
     return [
         path.resolve('scripts', 'promote-policy-model.js'),
         '--adoption-result', adoptionResultPath,
+        ...gatePayloadArgs,
         '--candidate-model', iterationPaths.candidateModelPath,
         '--candidate-onnx', iterationPaths.onnxModelPath,
         '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
@@ -1674,9 +1853,10 @@ function buildPromotionCommandArgs(args, iterationPaths, adoptionResultPath, has
 }
 
 function runIteration(args, iterationIndex, deadlineMs, carryOver) {
+    const seedBank = args.seedBankPath
+        ? Object.assign(loadSeedBank(args.seedBankPath), { __filePath: args.seedBankPath })
+        : null;
     const seed = args.seed + ((iterationIndex - 1) * args.seedStride);
-    const quickAdoptionSeed = seed + args.quickAdoptionSeedOffset;
-    const finalAdoptionSeed = seed + args.adoptionFinalSeedOffset;
     const evalSeed = seed + args.evalSeedOffset;
     const selfplayCardUsageRate = resolveSelfplayCardUsageRateForIteration(args, iterationIndex);
     const p = buildIterationPaths(args, iterationIndex);
@@ -1738,7 +1918,6 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const quickAdoptionMinLowerBound = Number.isFinite(args.quickAdoptionMinLowerBound) ? args.quickAdoptionMinLowerBound : args.adoptionMinLowerBound;
     const quickAdoptionMinSeedUplift = Number.isFinite(args.quickAdoptionMinSeedUplift) ? args.quickAdoptionMinSeedUplift : args.adoptionMinSeedUplift;
     const quickAdoptionMinSeedPassCount = Number.isFinite(args.quickAdoptionMinSeedPassCount) ? args.quickAdoptionMinSeedPassCount : args.adoptionMinSeedPassCount;
-    const qualityGateSeed = seed + args.qualityGateSeedOffset;
     const finalAdoptionThreshold = Number.isFinite(args.finalAdoptionThreshold) ? args.finalAdoptionThreshold : args.threshold;
     const finalAdoptionSeedCount = Number.isFinite(args.finalAdoptionSeedCount) ? args.finalAdoptionSeedCount : args.adoptionSeedCount;
     const finalAdoptionSeedStride = Number.isFinite(args.finalAdoptionSeedStride) ? args.finalAdoptionSeedStride : args.adoptionSeedStride;
@@ -1746,6 +1925,38 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const finalAdoptionMinLowerBound = Number.isFinite(args.finalAdoptionMinLowerBound) ? args.finalAdoptionMinLowerBound : args.adoptionMinLowerBound;
     const finalAdoptionMinSeedUplift = Number.isFinite(args.finalAdoptionMinSeedUplift) ? args.finalAdoptionMinSeedUplift : args.adoptionMinSeedUplift;
     const finalAdoptionMinSeedPassCount = Number.isFinite(args.finalAdoptionMinSeedPassCount) ? args.finalAdoptionMinSeedPassCount : args.adoptionMinSeedPassCount;
+    const quickGateSeedConfig = resolveGateSeedConfig(seedBank, 'quick', {
+        seed: seed + args.quickAdoptionSeedOffset,
+        seedCount: quickAdoptionSeedCount,
+        seedStride: quickAdoptionSeedStride,
+        seedList: buildSeedList(seed + args.quickAdoptionSeedOffset, quickAdoptionSeedCount, quickAdoptionSeedStride)
+    });
+    const qualityGateSeedConfig = resolveGateSeedConfig(seedBank, 'quality', {
+        seed: seed + args.qualityGateSeedOffset,
+        seedCount: args.qualityGateSeedCount,
+        seedStride: args.qualityGateSeedStride,
+        seedList: buildSeedList(seed + args.qualityGateSeedOffset, args.qualityGateSeedCount, args.qualityGateSeedStride)
+    });
+    const finalGateSeedConfig = resolveGateSeedConfig(seedBank, 'final', {
+        seed: seed + args.adoptionFinalSeedOffset,
+        seedCount: finalAdoptionSeedCount,
+        seedStride: finalAdoptionSeedStride,
+        seedList: buildSeedList(seed + args.adoptionFinalSeedOffset, finalAdoptionSeedCount, finalAdoptionSeedStride)
+    });
+    const onnxGateSeedConfig = resolveGateSeedConfig(seedBank, 'onnx', {
+        seed: seed + args.onnxGateSeedOffset,
+        seedCount: args.onnxGateSeedCount,
+        seedStride: args.onnxGateSeedStride,
+        seedList: buildSeedList(seed + args.onnxGateSeedOffset, args.onnxGateSeedCount, args.onnxGateSeedStride)
+    });
+    const quickAdoptionSeed = quickGateSeedConfig.seed;
+    const quickAdoptionSeeds = quickGateSeedConfig.seedList;
+    const qualityGateSeed = qualityGateSeedConfig.seed;
+    const qualityGateSeeds = qualityGateSeedConfig.seedList;
+    const finalAdoptionSeed = finalGateSeedConfig.seed;
+    const finalAdoptionSeeds = finalGateSeedConfig.seedList;
+    const onnxGateSeed = onnxGateSeedConfig.seed;
+    const onnxGateSeeds = onnxGateSeedConfig.seedList;
 
     fs.mkdirSync(args.runsDir, { recursive: true });
     fs.mkdirSync(args.modelsDir, { recursive: true });
@@ -1787,6 +1998,17 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         }
         return runStep(name, cmd, stepArgs, options);
     };
+    const recordSkippedStep = (name, reason, extra) => {
+        const result = Object.assign({
+            name,
+            status: 0,
+            elapsedMs: 0,
+            skipped: true,
+            reason
+        }, extra || {});
+        steps.push(result);
+        return result;
+    };
 
     runManagedStep('generate-train', process.execPath, [
         path.resolve('scripts', 'generate-selfplay-data.js'),
@@ -1806,7 +2028,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         shouldReuseStepArtifacts(args, 'generate-train') ? ['--reuse-completed-chunks'] : [],
         verboseArgs
     ), {
-        reuseOutputs: [p.trainDataPath, p.trainHardcaseDataPath, `${p.trainDataPath}.summary.json`]
+        reuseOutputs: [p.trainDataPath, p.trainHardcaseDataPath, p.trainDataSummaryPath]
     });
 
     runManagedStep('generate-eval', process.execPath, [
@@ -1827,7 +2049,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         shouldReuseStepArtifacts(args, 'generate-eval') ? ['--reuse-completed-chunks'] : [],
         verboseArgs
     ), {
-        reuseOutputs: [p.evalDataPath, p.evalHardcaseDataPath, `${p.evalDataPath}.summary.json`]
+        reuseOutputs: [p.evalDataPath, p.evalHardcaseDataPath, p.evalDataSummaryPath]
     });
 
     runManagedStep('train-policy', args.pythonPath, [
@@ -1881,52 +2103,102 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         reuseOutputs: [p.candidateModelPath]
     });
 
+    const trainCardThisIteration = args.allowCardUsage && shouldRunPeriodicTraining(iterationIndex, args.trainCardEvery);
     if (args.allowCardUsage) {
-        runManagedStep('train-card-policy', args.pythonPath, [
-            path.resolve('ai', 'train', 'train_card_onnx.py'),
-            '--input', p.trainDataPath,
-            '--onnx-out', p.cardOnnxModelPath,
-            '--meta-out', p.cardOnnxMetaPath,
-            '--epochs', String(args.onnxEpochs),
-            '--batch-size', String(args.onnxBatchSize),
-            '--lr', String(args.onnxLr),
-            '--hidden-size', String(args.onnxHiddenSize),
-            '--device', args.onnxDevice,
-            '--log-interval-steps', String(args.onnxLogIntervalSteps),
-            '--val-split', String(args.onnxValSplit),
-            '--early-stop-patience', String(args.onnxEarlyStopPatience),
-            '--early-stop-min-delta', String(args.onnxEarlyStopMinDelta),
-            '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
-            '--early-stop-monitor', args.onnxEarlyStopMonitor === 'val_place_loss' ? 'val_loss' : (args.onnxEarlyStopMonitor === 'train_place_loss' ? 'train_loss' : args.onnxEarlyStopMonitor),
-            '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
-            '--card-no-action-weight', String(args.onnxCardNoActionWeight),
-            '--card-class-balance-power', String(args.onnxCardClassBalancePower),
-            '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
-            '--loser-sample-weight', String(args.onnxLoserSampleWeight),
-            '--draw-sample-weight', String(args.onnxDrawSampleWeight),
-            '--corner-emergency-sample-boost', String(args.onnxCornerEmergencySampleBoost),
-            '--negative-future-disc-sample-boost', String(args.onnxNegativeFutureDiscSampleBoost),
-            '--negative-future-disc-threshold', String(args.onnxNegativeFutureDiscThreshold),
-            '--tactical-miss-sample-boost', String(args.onnxTacticalMissSampleBoost),
-            '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
-            '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
-            '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
-            '--metrics-out', p.cardMetricsPath,
-            '--checkpoint-out', p.cardCheckpointPath
-        ]
-            .concat(cardResumeCheckpointPath ? ['--resume-checkpoint', cardResumeCheckpointPath] : [])
-            .concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
-            reuseOutputs: [p.cardOnnxModelPath, p.cardOnnxMetaPath]
-        });
+        if (trainCardThisIteration) {
+            runManagedStep('train-card-policy', args.pythonPath, [
+                path.resolve('ai', 'train', 'train_card_onnx.py'),
+                '--input', p.trainDataPath,
+                '--onnx-out', p.cardOnnxModelPath,
+                '--meta-out', p.cardOnnxMetaPath,
+                '--epochs', String(args.onnxEpochs),
+                '--batch-size', String(args.onnxBatchSize),
+                '--lr', String(args.onnxLr),
+                '--hidden-size', String(args.onnxHiddenSize),
+                '--device', args.onnxDevice,
+                '--log-interval-steps', String(args.onnxLogIntervalSteps),
+                '--val-split', String(args.onnxValSplit),
+                '--early-stop-patience', String(args.onnxEarlyStopPatience),
+                '--early-stop-min-delta', String(args.onnxEarlyStopMinDelta),
+                '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
+                '--early-stop-monitor', args.onnxEarlyStopMonitor === 'val_place_loss' ? 'val_loss' : (args.onnxEarlyStopMonitor === 'train_place_loss' ? 'train_loss' : args.onnxEarlyStopMonitor),
+                '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
+                '--card-no-action-weight', String(args.onnxCardNoActionWeight),
+                '--card-class-balance-power', String(args.onnxCardClassBalancePower),
+                '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
+                '--loser-sample-weight', String(args.onnxLoserSampleWeight),
+                '--draw-sample-weight', String(args.onnxDrawSampleWeight),
+                '--corner-emergency-sample-boost', String(args.onnxCornerEmergencySampleBoost),
+                '--negative-future-disc-sample-boost', String(args.onnxNegativeFutureDiscSampleBoost),
+                '--negative-future-disc-threshold', String(args.onnxNegativeFutureDiscThreshold),
+                '--tactical-miss-sample-boost', String(args.onnxTacticalMissSampleBoost),
+                '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
+                '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
+                '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
+                '--metrics-out', p.cardMetricsPath,
+                '--checkpoint-out', p.cardCheckpointPath
+            ]
+                .concat(cardResumeCheckpointPath ? ['--resume-checkpoint', cardResumeCheckpointPath] : [])
+                .concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
+                reuseOutputs: [p.cardOnnxModelPath, p.cardOnnxMetaPath]
+            });
+        } else {
+            console.log(`[training-cycle] skip train-card-policy iteration=${iterationIndex} cadence_every=${args.trainCardEvery}`);
+            recordSkippedStep('train-card-policy', 'cadence', { every: args.trainCardEvery });
+        }
     }
 
     const hasTargetTrainingData = args.allowCardUsage && hasCoordinatePendingSelectionRecords(p.trainDataPath);
+    const trainTargetThisIteration = hasTargetTrainingData && shouldRunPeriodicTraining(iterationIndex, args.trainTargetEvery);
     if (hasTargetTrainingData) {
-        runManagedStep('train-target-policy', args.pythonPath, [
-            path.resolve('ai', 'train', 'train_target_onnx.py'),
+        if (trainTargetThisIteration) {
+            runManagedStep('train-target-policy', args.pythonPath, [
+                path.resolve('ai', 'train', 'train_target_onnx.py'),
+                '--input', p.trainDataPath,
+                '--onnx-out', p.targetOnnxModelPath,
+                '--meta-out', p.targetOnnxMetaPath,
+                '--epochs', String(args.onnxEpochs),
+                '--batch-size', String(args.onnxBatchSize),
+                '--lr', String(args.onnxLr),
+                '--hidden-size', String(args.onnxHiddenSize),
+                '--device', args.onnxDevice,
+                '--log-interval-steps', String(args.onnxLogIntervalSteps),
+                '--val-split', String(args.onnxValSplit),
+                '--early-stop-patience', String(args.onnxEarlyStopPatience),
+                '--early-stop-min-delta', String(args.onnxEarlyStopMinDelta),
+                '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
+                '--early-stop-monitor', args.onnxEarlyStopMonitor === 'val_place_loss' ? 'val_loss' : (args.onnxEarlyStopMonitor === 'train_place_loss' ? 'train_loss' : args.onnxEarlyStopMonitor),
+                '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
+                '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
+                '--loser-sample-weight', String(args.onnxLoserSampleWeight),
+                '--draw-sample-weight', String(args.onnxDrawSampleWeight),
+                '--corner-emergency-sample-boost', String(args.onnxCornerEmergencySampleBoost),
+                '--negative-future-disc-sample-boost', String(args.onnxNegativeFutureDiscSampleBoost),
+                '--negative-future-disc-threshold', String(args.onnxNegativeFutureDiscThreshold),
+                '--tactical-miss-sample-boost', String(args.onnxTacticalMissSampleBoost),
+                '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
+                '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
+                '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
+                '--metrics-out', p.targetMetricsPath,
+                '--checkpoint-out', p.targetCheckpointPath
+            ]
+                .concat(targetResumeCheckpointPath ? ['--resume-checkpoint', targetResumeCheckpointPath] : [])
+                .concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
+                reuseOutputs: [p.targetOnnxModelPath, p.targetOnnxMetaPath]
+            });
+        } else {
+            console.log(`[training-cycle] skip train-target-policy iteration=${iterationIndex} cadence_every=${args.trainTargetEvery}`);
+            recordSkippedStep('train-target-policy', 'cadence', { every: args.trainTargetEvery });
+        }
+    }
+
+    const trainValueThisIteration = shouldRunPeriodicTraining(iterationIndex, args.trainValueEvery);
+    if (trainValueThisIteration) {
+        runManagedStep('train-value-policy', args.pythonPath, [
+            path.resolve('ai', 'train', 'train_value_onnx.py'),
             '--input', p.trainDataPath,
-            '--onnx-out', p.targetOnnxModelPath,
-            '--meta-out', p.targetOnnxMetaPath,
+            '--onnx-out', p.valueOnnxModelPath,
+            '--meta-out', p.valueOnnxMetaPath,
             '--epochs', String(args.onnxEpochs),
             '--batch-size', String(args.onnxBatchSize),
             '--lr', String(args.onnxLr),
@@ -1949,56 +2221,24 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
             '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
             '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
-            '--metrics-out', p.targetMetricsPath,
-            '--checkpoint-out', p.targetCheckpointPath
+            '--corner-balance-sample-boost', String(args.onnxCornerBalanceSampleBoost),
+            '--edge-balance-sample-boost', String(args.onnxEdgeBalanceSampleBoost),
+            '--economy-balance-sample-boost', String(args.onnxEconomyBalanceSampleBoost),
+            '--metrics-out', p.valueMetricsPath,
+            '--value-target-corner-weight', String(args.onnxValueTargetCornerWeight),
+            '--value-target-edge-weight', String(args.onnxValueTargetEdgeWeight),
+            '--value-target-economy-weight', String(args.onnxValueTargetEconomyWeight),
+            '--value-target-corner-emergency-weight', String(args.onnxValueTargetCornerEmergencyWeight),
+            '--checkpoint-out', p.valueCheckpointPath
         ]
-            .concat(targetResumeCheckpointPath ? ['--resume-checkpoint', targetResumeCheckpointPath] : [])
+            .concat(valueResumeCheckpointPath ? ['--resume-checkpoint', valueResumeCheckpointPath] : [])
             .concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
-            reuseOutputs: [p.targetOnnxModelPath, p.targetOnnxMetaPath]
+            reuseOutputs: [p.valueOnnxModelPath, p.valueOnnxMetaPath]
         });
+    } else {
+        console.log(`[training-cycle] skip train-value-policy iteration=${iterationIndex} cadence_every=${args.trainValueEvery}`);
+        recordSkippedStep('train-value-policy', 'cadence', { every: args.trainValueEvery });
     }
-
-    runManagedStep('train-value-policy', args.pythonPath, [
-        path.resolve('ai', 'train', 'train_value_onnx.py'),
-        '--input', p.trainDataPath,
-        '--onnx-out', p.valueOnnxModelPath,
-        '--meta-out', p.valueOnnxMetaPath,
-        '--epochs', String(args.onnxEpochs),
-        '--batch-size', String(args.onnxBatchSize),
-        '--lr', String(args.onnxLr),
-        '--hidden-size', String(args.onnxHiddenSize),
-        '--device', args.onnxDevice,
-        '--log-interval-steps', String(args.onnxLogIntervalSteps),
-        '--val-split', String(args.onnxValSplit),
-        '--early-stop-patience', String(args.onnxEarlyStopPatience),
-        '--early-stop-min-delta', String(args.onnxEarlyStopMinDelta),
-        '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
-        '--early-stop-monitor', args.onnxEarlyStopMonitor === 'val_place_loss' ? 'val_loss' : (args.onnxEarlyStopMonitor === 'train_place_loss' ? 'train_loss' : args.onnxEarlyStopMonitor),
-        '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
-        '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
-        '--loser-sample-weight', String(args.onnxLoserSampleWeight),
-        '--draw-sample-weight', String(args.onnxDrawSampleWeight),
-        '--corner-emergency-sample-boost', String(args.onnxCornerEmergencySampleBoost),
-        '--negative-future-disc-sample-boost', String(args.onnxNegativeFutureDiscSampleBoost),
-        '--negative-future-disc-threshold', String(args.onnxNegativeFutureDiscThreshold),
-        '--tactical-miss-sample-boost', String(args.onnxTacticalMissSampleBoost),
-        '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
-        '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
-        '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
-        '--corner-balance-sample-boost', String(args.onnxCornerBalanceSampleBoost),
-        '--edge-balance-sample-boost', String(args.onnxEdgeBalanceSampleBoost),
-        '--economy-balance-sample-boost', String(args.onnxEconomyBalanceSampleBoost),
-        '--metrics-out', p.valueMetricsPath,
-        '--value-target-corner-weight', String(args.onnxValueTargetCornerWeight),
-        '--value-target-edge-weight', String(args.onnxValueTargetEdgeWeight),
-        '--value-target-economy-weight', String(args.onnxValueTargetEconomyWeight),
-        '--value-target-corner-emergency-weight', String(args.onnxValueTargetCornerEmergencyWeight),
-        '--checkpoint-out', p.valueCheckpointPath
-    ]
-        .concat(valueResumeCheckpointPath ? ['--resume-checkpoint', valueResumeCheckpointPath] : [])
-        .concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
-        reuseOutputs: [p.valueOnnxModelPath, p.valueOnnxMetaPath]
-    });
 
     let quickPayload = null;
     let quickPassed = false;
@@ -2018,12 +2258,13 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     let onnxGatePassed = !args.onnxGateEnabled;
 
     if (gateControl.gateIterationAllowed) {
-        runManagedStep('adoption-quick', process.execPath, [
+        const quickStep = runManagedStep('adoption-quick', process.execPath, [
             path.resolve('scripts', 'benchmark-policy-adoption.js'),
+            '--gate-phase', 'quick',
             '--games', String(args.quickGames),
             '--seed', String(quickAdoptionSeed),
-            '--seed-count', String(quickAdoptionSeedCount),
-            '--seed-stride', String(quickAdoptionSeedStride),
+            '--seed-count', String(quickGateSeedConfig.seedCount),
+            '--seed-stride', String(quickGateSeedConfig.seedStride),
             '--jobs', String(args.adoptionJobs),
             '--max-plies', String(args.maxPlies),
             '--threshold', String(quickAdoptionThreshold),
@@ -2061,6 +2302,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             allowExitCodes: [0, 2],
             reuseOutputs: [p.quickAdoptionPath]
         });
+        recordSeedBankGateUsage(seedBank, 'quick', p.quickAdoptionPath, iterationIndex, args.runTag, !!quickStep.reused);
         quickPayload = readJsonSafe(p.quickAdoptionPath);
         quickPassed = !!(quickPayload && quickPayload.decision && quickPayload.decision.passed);
         quickDecision = quickPayload && quickPayload.decision ? quickPayload.decision : null;
@@ -2096,12 +2338,12 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
 
         qualityGatePassed = !args.qualityGateEnabled;
         if (quickPassed && args.qualityGateEnabled) {
-            runManagedStep('adoption-quality-gate', process.execPath, [
+            const qualityStep = runManagedStep('adoption-quality-gate', process.execPath, [
                 path.resolve('scripts', 'benchmark-policy-quality-gate.js'),
                 '--games', String(args.qualityGateGames),
                 '--seed', String(qualityGateSeed),
-                '--seed-count', String(args.qualityGateSeedCount),
-                '--seed-stride', String(args.qualityGateSeedStride),
+                '--seed-count', String(qualityGateSeedConfig.seedCount),
+                '--seed-stride', String(qualityGateSeedConfig.seedStride),
                 '--jobs', String(args.adoptionJobs),
                 '--max-plies', String(args.maxPlies),
                 '--threshold', String(args.qualityGateThreshold),
@@ -2141,18 +2383,20 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
                 allowExitCodes: [0, 2],
                 reuseOutputs: [p.qualityGatePath]
             });
+            recordSeedBankGateUsage(seedBank, 'quality', p.qualityGatePath, iterationIndex, args.runTag, !!qualityStep.reused);
             qualityGatePayload = readJsonSafe(p.qualityGatePath);
             qualityGatePassed = !!(qualityGatePayload && qualityGatePayload.decision && qualityGatePayload.decision.passed);
         }
 
         const shouldRunFinalAdoption = quickPassed && qualityGatePassed && args.promotionMode === 'strict';
         if (shouldRunFinalAdoption) {
-            runManagedStep('adoption-final', process.execPath, [
+            const finalStep = runManagedStep('adoption-final', process.execPath, [
                 path.resolve('scripts', 'benchmark-policy-adoption.js'),
+                '--gate-phase', 'final',
                 '--games', String(args.finalGames),
                 '--seed', String(finalAdoptionSeed),
-                '--seed-count', String(finalAdoptionSeedCount),
-                '--seed-stride', String(finalAdoptionSeedStride),
+                '--seed-count', String(finalGateSeedConfig.seedCount),
+                '--seed-stride', String(finalGateSeedConfig.seedStride),
                 '--jobs', String(args.adoptionJobs),
                 '--max-plies', String(args.maxPlies),
                 '--threshold', String(finalAdoptionThreshold),
@@ -2190,6 +2434,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
                 allowExitCodes: [0, 2],
                 reuseOutputs: [p.finalAdoptionPath]
             });
+            recordSeedBankGateUsage(seedBank, 'final', p.finalAdoptionPath, iterationIndex, args.runTag, !!finalStep.reused);
             finalPayload = readJsonSafe(p.finalAdoptionPath);
             finalPassed = !!(finalPayload && finalPayload.decision && finalPayload.decision.passed);
         }
@@ -2197,12 +2442,12 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         onnxGatePassed = !args.onnxGateEnabled;
         const shouldRunOnnxGate = args.onnxGateEnabled && qualityGatePassed && (finalPassed || args.promotionMode === 'onnx-primary');
         if (shouldRunOnnxGate) {
-            runManagedStep('adoption-onnx-gate', process.execPath, [
+            const onnxStep = runManagedStep('adoption-onnx-gate', process.execPath, [
                 path.resolve('scripts', 'benchmark-policy-onnx-gate.js'),
                 '--games', String(args.onnxGateGames),
-                '--seed', String(seed + args.onnxGateSeedOffset),
-                '--seed-count', String(args.onnxGateSeedCount),
-                '--seed-stride', String(args.onnxGateSeedStride),
+                '--seed', String(onnxGateSeed),
+                '--seed-count', String(onnxGateSeedConfig.seedCount),
+                '--seed-stride', String(onnxGateSeedConfig.seedStride),
                 '--jobs', String(args.onnxGateJobs),
                 '--threshold', String(args.onnxGateThreshold),
                 '--min-seed-score', String(args.onnxGateMinSeedScore),
@@ -2225,6 +2470,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
                 allowExitCodes: [0, 2],
                 reuseOutputs: [p.onnxGatePath]
             });
+            recordSeedBankGateUsage(seedBank, 'onnx', p.onnxGatePath, iterationIndex, args.runTag, !!onnxStep.reused);
             onnxGatePayload = readJsonSafe(p.onnxGatePath);
             onnxGatePassed = !!(onnxGatePayload && onnxGatePayload.decision && onnxGatePayload.decision.passed);
         }
@@ -2268,23 +2514,32 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         promoted = true;
     }
 
-    return {
+    const iterationResult = {
         iteration: iterationIndex,
         seed,
         quickAdoptionSeed,
+        qualityGateSeed,
         finalAdoptionSeed,
+        onnxGateSeed,
         evalSeed,
         usedGuideModelPath: guideModelPath,
         usedGuideModelPoolPaths: guideModelPoolPaths,
         usedResumeCheckpointPath: policyResumeCheckpointPath,
         usedResumeCheckpointPaths: cloneResumeCheckpointPaths(resumeCheckpointPaths),
         usedAnchorModelPath: anchorModelPath,
+        seedBankPath: args.seedBankPath,
+        seedBankId: seedBank && seedBank.bankId ? seedBank.bankId : null,
         usedSelfplayCardUsageRate: selfplayCardUsageRate,
         gateControl,
         paths: p,
         quickAdoptionConfig: {
             seed: quickAdoptionSeed,
             seedOffset: args.quickAdoptionSeedOffset,
+            seedList: quickAdoptionSeeds,
+            seedSource: quickGateSeedConfig.source,
+            seedBankId: quickGateSeedConfig.bankId,
+            seedBankPath: quickGateSeedConfig.bankPath,
+            seedPurpose: quickGateSeedConfig.purpose,
             threshold: quickAdoptionThreshold,
             seedCount: quickAdoptionSeedCount,
             seedStride: quickAdoptionSeedStride,
@@ -2297,8 +2552,14 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             enabled: args.qualityGateEnabled,
             games: args.qualityGateGames,
             seed: qualityGateSeed,
+            seedOffset: args.qualityGateSeedOffset,
             seedCount: args.qualityGateSeedCount,
             seedStride: args.qualityGateSeedStride,
+            seedList: qualityGateSeeds,
+            seedSource: qualityGateSeedConfig.source,
+            seedBankId: qualityGateSeedConfig.bankId,
+            seedBankPath: qualityGateSeedConfig.bankPath,
+            seedPurpose: qualityGateSeedConfig.purpose,
             threshold: args.qualityGateThreshold,
             confidenceLevel: args.qualityGateConfidenceLevel,
             minLowerBound: args.qualityGateMinLowerBound,
@@ -2307,6 +2568,13 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             strengthFirst: args.qualityGateStrengthFirst
         },
         finalAdoptionConfig: {
+            seed: finalAdoptionSeed,
+            seedOffset: args.adoptionFinalSeedOffset,
+            seedList: finalAdoptionSeeds,
+            seedSource: finalGateSeedConfig.source,
+            seedBankId: finalGateSeedConfig.bankId,
+            seedBankPath: finalGateSeedConfig.bankPath,
+            seedPurpose: finalGateSeedConfig.purpose,
             threshold: finalAdoptionThreshold,
             seedCount: finalAdoptionSeedCount,
             seedStride: finalAdoptionSeedStride,
@@ -2315,10 +2583,49 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             minSeedUplift: finalAdoptionMinSeedUplift,
             minSeedPassCount: finalAdoptionMinSeedPassCount
         },
+        onnxGateConfig: {
+            enabled: args.onnxGateEnabled,
+            games: args.onnxGateGames,
+            seed: onnxGateSeed,
+            seedOffset: args.onnxGateSeedOffset,
+            seedCount: args.onnxGateSeedCount,
+            seedStride: args.onnxGateSeedStride,
+            seedList: onnxGateSeeds,
+            seedSource: onnxGateSeedConfig.source,
+            seedBankId: onnxGateSeedConfig.bankId,
+            seedBankPath: onnxGateSeedConfig.bankPath,
+            seedPurpose: onnxGateSeedConfig.purpose,
+            threshold: args.onnxGateThreshold,
+            minSeedScore: args.onnxGateMinSeedScore,
+            minSeedPassCount: args.onnxGateMinSeedPassCount,
+            maxAverageLatencyMs: args.onnxGateMaxAverageLatencyMs,
+            maxP95LatencyMs: args.onnxGateMaxP95LatencyMs,
+            maxMaxLatencyMs: args.onnxGateMaxMaxLatencyMs,
+            blackLevel: args.onnxGateBlackLevel,
+            whiteLevel: args.onnxGateWhiteLevel,
+            candidateColorMode: args.onnxGateCandidateColorMode
+        },
         quickDecision,
         qualityGateDecision: qualityGatePayload && qualityGatePayload.decision ? qualityGatePayload.decision : null,
         finalDecision: finalPayload && finalPayload.decision ? finalPayload.decision : null,
         onnxGateDecision: onnxGatePayload && onnxGatePayload.decision ? onnxGatePayload.decision : null,
+        hasTargetTrainingData,
+        specialistTraining: {
+            card: {
+                enabled: args.allowCardUsage,
+                every: args.trainCardEvery,
+                executed: trainCardThisIteration
+            },
+            target: {
+                dataAvailable: hasTargetTrainingData,
+                every: args.trainTargetEvery,
+                executed: trainTargetThisIteration
+            },
+            value: {
+                every: args.trainValueEvery,
+                executed: trainValueThisIteration
+            }
+        },
         promotionDetail: {
             mode: args.promotionMode,
             promoteEligible,
@@ -2355,8 +2662,15 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             onnxGateMinSeedScore
         },
         promoted,
+        warehouseManifest: {
+            schemaVersion: TRAINING_WAREHOUSE_MANIFEST_SCHEMA_VERSION,
+            path: p.warehouseManifestPath
+        },
         steps
     };
+    const warehouseManifest = buildIterationWarehouseManifest(args, iterationResult);
+    writeTrainingWarehouseManifest(p.warehouseManifestPath, warehouseManifest);
+    return iterationResult;
 }
 
 function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guideModelPoolPaths, resumeCheckpointPaths, anchorModelPath, stoppedByTimeBudget, stopReason, failureDetail) {
@@ -2426,6 +2740,9 @@ function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guide
             onnxTacticalMissThreshold: args.onnxTacticalMissThreshold,
             onnxHandPressureSampleBoost: args.onnxHandPressureSampleBoost,
             onnxPendingTargetSampleBoost: args.onnxPendingTargetSampleBoost,
+            trainCardEvery: args.trainCardEvery,
+            trainTargetEvery: args.trainTargetEvery,
+            trainValueEvery: args.trainValueEvery,
             minVisits: args.minVisits,
             shapeImmediate: args.shapeImmediate,
             quickGames: args.quickGames,
@@ -2535,6 +2852,7 @@ function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guide
             resumeValueCheckpointPath: args.resumeValueCheckpointPath,
             resumeCheckpointPaths: cloneResumeCheckpointPaths(args.resumeCheckpointPaths),
             carryOverCheckpoint: args.carryOverCheckpoint,
+            seedBankPath: args.seedBankPath,
             reuseExistingArtifacts: args.reuseExistingArtifacts,
             restartFromStep: args.restartFromStep,
             runTag: args.runTag
@@ -2544,13 +2862,16 @@ function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guide
         latestResumeCheckpointPath: getPrimaryResumeCheckpointPath(latestResumeCheckpointPaths),
         latestResumeCheckpointPaths,
         latestAnchorModelPath: anchorModelPath,
+        warehouseManifestSchemaVersion: TRAINING_WAREHOUSE_MANIFEST_SCHEMA_VERSION,
+        latestWarehouseManifestPath: iterations.length > 0 && iterations[iterations.length - 1].paths
+            ? iterations[iterations.length - 1].paths.warehouseManifestPath
+            : null,
         stoppedByTimeBudget,
         stopReason,
         failure: failureDetail || null,
         iterations
     };
-    fs.mkdirSync(path.dirname(args.summaryOut), { recursive: true });
-    fs.writeFileSync(args.summaryOut, JSON.stringify(payload, null, 2), 'utf8');
+    writeJsonFileAtomic(args.summaryOut, payload);
 }
 
 function main() {
@@ -2575,9 +2896,23 @@ function main() {
         `onnx_primary_min_onnx_gate_avg=${args.onnxPrimaryMinOnnxGateAvg} ` +
         `onnx_primary_min_onnx_gate_min_seed=${args.onnxPrimaryMinOnnxGateMinSeed}`
     );
+    const warehouseCleanup = cleanupWarehouseSelfplayArtifacts(args.runsDir);
+    if (warehouseCleanup.removed.length > 0) {
+        console.log(
+            `[training-cycle] cleaned historical selfplay artifacts=${warehouseCleanup.removed.length} ` +
+            `reclaimed=${warehouseCleanup.totalBytesRemovedHuman}`
+        );
+    }
+    if (warehouseCleanup.failed.length > 0) {
+        for (const failure of warehouseCleanup.failed) {
+            console.warn(`[training-cycle] cleanup warning path=${failure.path} error=${failure.error}`);
+        }
+    }
 
     const startedAt = Date.now();
-    const deadlineMs = startedAt + Math.floor(args.maxHours * 60 * 60 * 1000);
+    const deadlineMs = args.maxHours > 0
+        ? startedAt + Math.floor(args.maxHours * 60 * 60 * 1000)
+        : null;
     const iterations = [];
     let guideModelPath = args.bootstrapPolicyModelPath || null;
     let guideModelPoolPaths = buildInitialGuideModelPoolPaths(
@@ -2598,7 +2933,8 @@ function main() {
     let stopReason = null;
     let failureDetail = null;
     for (let i = 1; i <= args.iterations; i++) {
-        if (getRemainingMs(deadlineMs) <= 0) {
+        const remainingMs = getRemainingMs(deadlineMs);
+        if (remainingMs !== null && remainingMs <= 0) {
             stoppedByTimeBudget = true;
             stopReason = `time budget reached before iteration ${i}`;
             break;
@@ -2687,6 +3023,18 @@ function main() {
                 console.log(`[training-cycle] iteration ${i} checkpoint carry-over skipped (promoted-only mode, promoted=false)`);
             }
         }
+        if (result && result.paths) {
+            const artifactCleanup = cleanupTransientSelfplayArtifacts(result.paths);
+            result.artifactCleanup = artifactCleanup;
+            if (artifactCleanup.removed.length > 0) {
+                console.log(`[training-cycle] iteration ${i} cleaned transient selfplay artifacts=${artifactCleanup.removed.length}`);
+            }
+            if (artifactCleanup.failed.length > 0) {
+                for (const failure of artifactCleanup.failed) {
+                    console.warn(`[training-cycle] cleanup failed path=${failure.path} error=${failure.error}`);
+                }
+            }
+        }
         const quickUpliftLabel = Number.isFinite(quickUplift) ? quickUplift.toFixed(3) : 'n/a';
         const quickCoreDeltaLabel = Number.isFinite(quickCoreDelta) ? quickCoreDelta.toFixed(3) : 'n/a';
         const quickWhiteDeltaLabel = Number.isFinite(quickWhiteDelta) ? quickWhiteDelta.toFixed(3) : 'n/a';
@@ -2739,6 +3087,8 @@ module.exports = {
     shouldReuseStepArtifacts,
     buildInitialGuideModelPoolPaths,
     buildIterationPaths,
+    collectTransientSelfplayArtifactPaths,
+    cleanupTransientSelfplayArtifacts,
     hasCoordinatePendingSelectionRecords,
     iterationTag,
     makeRunTag,
@@ -2750,6 +3100,7 @@ module.exports = {
     resolveResumeCheckpointPathsFromArgs,
     resolveNextCarryOverState,
     buildPromotionCommandArgs,
+    resolveGateSeedConfig,
     resolveQuickComponentDelta,
     resolvePromotionEligibility,
     extractTrainingCycleFailureDetail,

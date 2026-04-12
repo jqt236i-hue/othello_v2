@@ -62,23 +62,6 @@ describe('TurnPipeline destroy_hand_card', () => {
     expect(handRemove).toMatchObject({ player: 'black', count: 1, cardId: second });
   });
 
-  test('SELL_CARD_WILL選択時にHAND_REMOVEを出す', () => {
-    const gameState = Core.createGameState();
-    const cardState = CardLogic.createCardState();
-    cardState.decks.black = [];
-    cardState.hands.black = ['sell_a', 'keep_b'];
-    cardState.pendingEffectByPlayer.black = { type: 'SELL_CARD_WILL', stage: 'selectTarget' };
-
-    const res = TurnPipeline.applyTurn(cardState, gameState, 'black', {
-      type: 'place',
-      sellCardId: 'sell_a'
-    });
-
-    expect(res.cardState.hands.black).toEqual(['keep_b']);
-    const handRemove = findHandRemoveEvent(res.presentationEvents, 'sell_card_will');
-    expect(handRemove).toMatchObject({ player: 'black', count: 1, cardId: 'sell_a' });
-  });
-
   test('CONDEMN_WILL選択時に相手側HAND_REMOVEを出す', () => {
     const gameState = Core.createGameState();
     const cardState = CardLogic.createCardState();

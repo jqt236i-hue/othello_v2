@@ -18,8 +18,13 @@ import train_policy_table as policy_table
 
 MODEL_SCHEMA_VERSION = "policy_onnx.v1"
 BOARD_SIZE = 8
-BASE_INPUT_DIM = 80
-PLACE_OUTPUT_DIM = BOARD_SIZE * BOARD_SIZE
+PADDED_BOARD_MIN = -1
+PADDED_BOARD_MAX = 8
+PADDED_BOARD_SIZE = (PADDED_BOARD_MAX - PADDED_BOARD_MIN) + 1
+BOARD_FEATURE_DIM = PADDED_BOARD_SIZE * PADDED_BOARD_SIZE
+AUX_FEATURE_DIM = 16
+BASE_INPUT_DIM = BOARD_FEATURE_DIM + AUX_FEATURE_DIM
+PLACE_OUTPUT_DIM = BOARD_FEATURE_DIM
 IGNORE_INDEX = -100
 MAX_HAND_SIZE = 5.0
 CHARGE_MAX = 99.0
@@ -292,6 +297,47 @@ def parse_board(board: str) -> list[list[str]]:
     return [list(r) for r in board.split("/")]
 
 
+def safe_int(value: object, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return int(default)
+
+
+def has_shape_aware_board(rec: dict) -> bool:
+    board_envelope = rec.get("boardEnvelope")
+    return isinstance(board_envelope, str) and bool(board_envelope.strip())
+
+
+def resolve_board_matrix(rec: dict) -> tuple[list[list[str]], int, int]:
+    board_envelope = rec.get("boardEnvelope")
+    if isinstance(board_envelope, str) and board_envelope.strip():
+        return (
+            parse_board(board_envelope.strip()),
+            safe_int(rec.get("boardMinRow"), 0),
+            safe_int(rec.get("boardMinCol"), 0),
+        )
+    return parse_board(str(rec.get("board", ""))), 0, 0
+
+
+def padded_board_index(row: int, col: int) -> int | None:
+    if row < PADDED_BOARD_MIN or row > PADDED_BOARD_MAX:
+        return None
+    if col < PADDED_BOARD_MIN or col > PADDED_BOARD_MAX:
+        return None
+    return ((row - PADDED_BOARD_MIN) * PADDED_BOARD_SIZE) + (col - PADDED_BOARD_MIN)
+
+
+def board_cell_index_for_record(rec: dict, row: object, col: object) -> int | None:
+    if not isinstance(row, int) or not isinstance(col, int):
+        return None
+    if 0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE:
+        return padded_board_index(row, col)
+    if not has_shape_aware_board(rec):
+        return None
+    return padded_board_index(row, col)
+
+
 def cell_value_for_player(ch: str, player: str) -> float:
     own = "B" if player == "black" else "W"
     opp = "W" if own == "B" else "B"
@@ -414,10 +460,7 @@ def build_card_counts(card_ids: list[str] | None) -> Counter[str]:
 
 def resolve_card_candidate_ids(rec: dict) -> list[str]:
     action_type = rec.get("actionType")
-    pending_type = rec.get("pendingType")
     if action_type == "destroy_hand_card":
-        source = rec.get("handCards")
-    elif action_type == "place" and pending_type == "SELL_CARD_WILL":
         source = rec.get("handCards")
     else:
         source = rec.get("usableCardIds")
@@ -445,8 +488,6 @@ def resolve_card_target_card_id(rec: dict) -> str | None:
         card_id = rec.get("useCardId")
     elif action_type == "destroy_hand_card":
         card_id = rec.get("destroyCardId")
-    elif action_type == "place" and rec.get("pendingType") == "SELL_CARD_WILL":
-        card_id = rec.get("sellCardId")
     else:
         return None
 
@@ -459,16 +500,18 @@ def resolve_card_target_card_id(rec: dict) -> str | None:
 
 
 def feature_vector(rec: dict) -> list[float]:
-    board = parse_board(str(rec.get("board", "")))
+    board, board_min_row, board_min_col = resolve_board_matrix(rec)
     player = rec.get("player", "white")
     out = [0.0] * INPUT_DIM
 
-    if len(board) == BOARD_SIZE and all(len(row) == BOARD_SIZE for row in board):
-        idx = 0
-        for row in board:
-            for ch in row:
-                out[idx] = cell_value_for_player(ch, player)
-                idx += 1
+    for local_row, row in enumerate(board):
+        if not isinstance(row, list):
+            continue
+        for local_col, ch in enumerate(row):
+            idx = padded_board_index(board_min_row + local_row, board_min_col + local_col)
+            if idx is None or idx >= BOARD_FEATURE_DIM:
+                continue
+            out[idx] = cell_value_for_player(ch, player)
 
     legal_moves = float(rec.get("legalMoves", 0) or 0)
     charge_black = float(rec.get("chargeBlack", 0) or 0)
@@ -493,22 +536,22 @@ def feature_vector(rec: dict) -> list[float]:
     opp_charge = charge_white if player == "black" else charge_black
     disc_diff = (black_before - white_before) if player == "black" else (white_before - black_before)
 
-    out[64] = legal_moves / 60.0
-    out[65] = disc_diff / 64.0
-    out[66] = own_charge / CHARGE_MAX
-    out[67] = opp_charge / CHARGE_MAX
-    out[68] = deck_count / 60.0
-    out[69] = pending_flag
-    out[70] = own_corners / 4.0
-    out[71] = opp_corners / 4.0
-    out[72] = own_edges / 24.0
-    out[73] = opp_edges / 24.0
-    out[74] = max(0.0, min(1.0, has_corner_move))
-    out[75] = max(0.0, min(1.0, has_edge_move))
-    out[76] = max(0.0, min(1.0, corner_emergency))
-    out[77] = max(0.0, min(1.0, corner_hold_mode))
-    out[78] = max(0.0, min(1.0, high_bonus_move))
-    out[79] = max(0.0, min(1.0, max_legal_bonus / 5.0))
+    out[BOARD_FEATURE_DIM + 0] = legal_moves / 60.0
+    out[BOARD_FEATURE_DIM + 1] = disc_diff / 64.0
+    out[BOARD_FEATURE_DIM + 2] = own_charge / CHARGE_MAX
+    out[BOARD_FEATURE_DIM + 3] = opp_charge / CHARGE_MAX
+    out[BOARD_FEATURE_DIM + 4] = deck_count / 60.0
+    out[BOARD_FEATURE_DIM + 5] = pending_flag
+    out[BOARD_FEATURE_DIM + 6] = own_corners / 4.0
+    out[BOARD_FEATURE_DIM + 7] = opp_corners / 4.0
+    out[BOARD_FEATURE_DIM + 8] = own_edges / 24.0
+    out[BOARD_FEATURE_DIM + 9] = opp_edges / 24.0
+    out[BOARD_FEATURE_DIM + 10] = max(0.0, min(1.0, has_corner_move))
+    out[BOARD_FEATURE_DIM + 11] = max(0.0, min(1.0, has_edge_move))
+    out[BOARD_FEATURE_DIM + 12] = max(0.0, min(1.0, corner_emergency))
+    out[BOARD_FEATURE_DIM + 13] = max(0.0, min(1.0, corner_hold_mode))
+    out[BOARD_FEATURE_DIM + 14] = max(0.0, min(1.0, high_bonus_move))
+    out[BOARD_FEATURE_DIM + 15] = max(0.0, min(1.0, max_legal_bonus / 5.0))
 
     if CARD_ACTION_DIM > 0:
         hand_offset = BASE_INPUT_DIM
@@ -532,13 +575,7 @@ def feature_vector(rec: dict) -> list[float]:
 def place_target_index(rec: dict) -> int | None:
     if rec.get("actionType") != "place":
         return None
-    row = rec.get("row")
-    col = rec.get("col")
-    if not isinstance(row, int) or not isinstance(col, int):
-        return None
-    if row < 0 or row >= BOARD_SIZE or col < 0 or col >= BOARD_SIZE:
-        return None
-    return (row * BOARD_SIZE) + col
+    return board_cell_index_for_record(rec, rec.get("row"), rec.get("col"))
 
 
 def card_target_index(rec: dict) -> int | None:
@@ -1302,7 +1339,7 @@ def write_meta(
     device: str,
 ) -> None:
     feature_spec = [
-        "board_8x8_perspective_flat",
+        "board_padded_10x10_perspective_flat",
         "legal_moves_norm",
         "disc_diff_before_norm",
         "own_charge_norm",
@@ -1338,7 +1375,13 @@ def write_meta(
         "outputDim": PLACE_OUTPUT_DIM,
         "cardOutputDim": CARD_ACTION_DIM,
         "boardSize": BOARD_SIZE,
-        "actionSpace": "place_8x8+card_choice",
+        "paddedBoardMinCoord": PADDED_BOARD_MIN,
+        "paddedBoardMaxCoord": PADDED_BOARD_MAX,
+        "paddedBoardSize": PADDED_BOARD_SIZE,
+        "boardEnvelopeField": "boardEnvelope",
+        "boardMinRowField": "boardMinRow",
+        "boardMinColField": "boardMinCol",
+        "actionSpace": "place_padded10+card_choice",
         "cardActionIds": CARD_ACTION_IDS,
         "cardDecisionKinds": ["keep", "use", "destroy", "sell"],
         "featureSpec": feature_spec,
@@ -1420,6 +1463,10 @@ def maybe_write_checkpoint(
             "baseInputDim": BASE_INPUT_DIM,
             "placeOutputDim": PLACE_OUTPUT_DIM,
             "cardOutputDim": CARD_ACTION_DIM,
+            "boardSize": BOARD_SIZE,
+            "paddedBoardMinCoord": PADDED_BOARD_MIN,
+            "paddedBoardMaxCoord": PADDED_BOARD_MAX,
+            "paddedBoardSize": PADDED_BOARD_SIZE,
             "cardActionIds": CARD_ACTION_IDS,
         },
         "training": {

@@ -8,6 +8,7 @@ const {
     buildStrengthFirstSourceDecision,
     buildQualityGatePayload
 } = require('../scripts/benchmark-policy-quality-gate');
+const { POLICY_GATE_PAYLOAD_SCHEMA_VERSION } = require('../scripts/policy-gate-result-utils');
 
 describe('selfplay policy quality gate', () => {
     test('parseArgs applies default quality weights when none are specified', () => {
@@ -122,12 +123,21 @@ describe('selfplay policy quality gate', () => {
 
         expect(payload.gateType).toBe('quality');
         expect(payload.schemaVersion).toBe('selfplay.v2');
+        expect(payload.payloadSchemaVersion).toBe(POLICY_GATE_PAYLOAD_SCHEMA_VERSION);
         expect(payload.perSeed).toHaveLength(2);
+        expect(payload.seedSchedule).toEqual({
+            baseSeed: 11,
+            seedCount: 2,
+            seedStride: 8,
+            scheduledSeeds: [11, 19],
+            completedSeeds: [11, 19]
+        });
         expect(payload.perSeed[0].qualityDecision.uplift).toBeCloseTo(0.12);
         expect(payload.decision.uplift).toBeCloseTo(0.11);
         expect(payload.decision.passedByQuality).toBe(true);
         expect(payload.decision.passedBySourceStrength).toBe(false);
         expect(payload.decision.passed).toBe(false);
+        expect(payload.decision.failureReasons).toContain('source-strength');
         expect(payload.sourceDecision.passed).toBe(false);
         expect(payload.config.qualityWeights.qualityWeightCorner).toBe(DEFAULT_QUALITY_WEIGHTS.qualityWeightCorner);
         expect(payload.config.qualityGateStrengthFirst).toBe(true);
@@ -184,6 +194,7 @@ describe('selfplay policy quality gate', () => {
         expect(payload.decision.passed).toBe(false);
         expect(payload.decision.earlyStop).toBe(true);
         expect(payload.decision.earlyStopReason).toBe('min-seed-pass-count-impossible');
+        expect(payload.decision.primaryFailureReason).toBe('min-seed-pass-count-impossible');
         expect(payload.decision.seedCount).toBe(4);
         expect(payload.earlyStop.reason).toBe('min-seed-pass-count-impossible');
     });

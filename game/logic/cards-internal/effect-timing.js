@@ -27,6 +27,9 @@
             EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT: Number.isFinite(Number(constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT))
                 ? Number(constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT)
                 : 3,
+            EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT: Number.isFinite(Number(constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT))
+                ? Number(constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT)
+                : 1,
             ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT: Number.isFinite(Number(constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT))
                 ? Number(constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT)
                 : 3,
@@ -45,6 +48,9 @@
             OBSERVER_WILL_TURNS: constants.OBSERVER_WILL_TURNS,
             GHOST_WILL_TURNS: constants.GHOST_WILL_TURNS,
             PROLIFERATION_WILL_TURNS: constants.PROLIFERATION_WILL_TURNS,
+            SEED_WILL_TURNS: Number.isFinite(Number(constants.SEED_WILL_TURNS))
+                ? Number(constants.SEED_WILL_TURNS)
+                : 5,
             WILL_HUNTER_KING_TURNS: constants.WILL_HUNTER_KING_TURNS,
             ROBOT_VACUUM_TURNS: constants.ROBOT_VACUUM_TURNS,
             STRONG_WILL_PROMOTION_OWNER_TURNS: constants.STRONG_WILL_PROMOTION_OWNER_TURNS,
@@ -70,20 +76,168 @@
         return context && context.modules ? context.modules.BoardOpsModule : null;
     }
 
-    function resolveNodeModule(path) {
-        if (!(typeof module === 'object' && module.exports) || typeof require !== 'function') return null;
-        try {
-            return require(path);
-        } catch (e) {
-            return null;
-        }
+    function getModules(context) {
+        return (context && context.modules && typeof context.modules === 'object')
+            ? context.modules
+            : {};
     }
 
-    function resolveGlobalModule(name) {
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope && globalScope[name] ? globalScope[name] : null;
+    function getWorkModule(context) {
+        const modules = getModules(context);
+        return modules.CardWorkModule || modules.WorkModule || null;
+    }
+
+    function getPlunderWillModule(context) {
+        const modules = getModules(context);
+        return modules.PlunderWillModule || null;
+    }
+
+    function getProtectedNextStoneModule(context) {
+        const modules = getModules(context);
+        return modules.ProtectedNextStoneModule || null;
+    }
+
+    function getPermaProtectNextStoneModule(context) {
+        const modules = getModules(context);
+        return modules.PermaProtectNextStoneModule || null;
+    }
+
+    function getLivingWillModule(context) {
+        const modules = getModules(context);
+        return modules.CardLivingWillModule || modules.LivingWillModule || null;
+    }
+
+    function getLivingWillRestoreDeps(context, constants) {
+        return {
+            BoardOps: getBoardOps(context),
+            random: context && context.defaultPrng,
+            defaults: {
+                regenReviveLimit: 3,
+                breedingTurns: 5,
+                proliferationTurns: Number.isFinite(Number(constants && constants.PROLIFERATION_WILL_TURNS))
+                    ? Number(constants.PROLIFERATION_WILL_TURNS)
+                    : 10,
+                ultimateDragonTurns: constants && constants.ULTIMATE_DRAGON_TURNS,
+                ultimateDestroyGodTurns: constants && constants.ULTIMATE_DESTROY_GOD_TURNS,
+                sniperTurns: constants && constants.SNIPER_WILL_TURNS,
+                observerTurns: constants && constants.OBSERVER_WILL_TURNS,
+                ghostTurns: constants && constants.GHOST_WILL_TURNS,
+                afterimageFlipEvadeLimit: constants && constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT,
+                afterimageDestroyEvadeLimit: constants && constants.AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT,
+                timeStopTurns: constants && constants.TIME_STOP_GOD_TURNS,
+                willHunterKingTurns: constants && constants.WILL_HUNTER_KING_TURNS,
+                destroyDragonTurns: constants && constants.DESTROY_DRAGON_TURNS,
+                lightningTurns: constants && constants.LIGHTNING_WILL_TURNS,
+                extremeHyperactiveFlipEvadeLimit: constants && constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT,
+                extremeHyperactiveDestroyEvadeLimit: constants && constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT,
+                robotVacuumTurns: constants && constants.ROBOT_VACUUM_TURNS,
+                inheritedHyperactiveTurns: 10,
+                ultimateHyperactiveTurns: constants && constants.ULTIMATE_HYPERACTIVE_TURNS,
+                ultimateHyperactiveFlipEvadeLimit: constants && constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT,
+                ultimateHyperactiveDestroyEvadeLimit: constants && constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT,
+                guardTurns: 3,
+                guardianGodTurns: 10,
+                workTurns: 5
+            }
+        };
+    }
+
+    function getTrackedLivingWillMarker(cardState, row, col, specialType, context) {
+        const livingWillModule = getLivingWillModule(context);
+        if (!livingWillModule ||
+            typeof livingWillModule.findLivingWillMarkerAt !== 'function' ||
+            typeof livingWillModule.shouldTriggerForSpecialLoss !== 'function') {
+            return null;
+        }
+        const livingWillMarker = livingWillModule.findLivingWillMarkerAt(cardState, row, col);
+        if (!livingWillMarker) return null;
+        return livingWillModule.shouldTriggerForSpecialLoss(livingWillMarker, specialType)
+            ? livingWillMarker
+            : null;
+    }
+
+    function restoreTrackedLivingWill(cardState, gameState, livingWillMarker, row, col, specialType, cause, reason, context, constants) {
+        const livingWillModule = getLivingWillModule(context);
+        if (!livingWillMarker || !livingWillModule || typeof livingWillModule.restoreFromLivingWillSnapshot !== 'function') {
+            return null;
+        }
+        return livingWillModule.restoreFromLivingWillSnapshot(
+            cardState,
+            gameState,
+            livingWillMarker,
+            {
+                triggerKind: 'special_loss',
+                sourceRow: row,
+                sourceCol: col,
+                cause: cause || null,
+                reason: reason || null,
+                removedSpecialType: specialType || null
+            },
+            getLivingWillRestoreDeps(context, constants)
+        );
+    }
+
+    function applyPlunderWillEffect(cardState, playerKey, flipCount, moduleApi) {
+        if (!moduleApi || typeof moduleApi.applyPlunderWill !== 'function') {
+            return { plundered: 0 };
+        }
+        const res = moduleApi.applyPlunderWill(cardState, playerKey, flipCount);
+        return {
+            plundered: Number.isFinite(Number(res && res.plundered))
+                ? Number(res.plundered)
+                : 0
+        };
+    }
+
+    function applyProtectedNextStoneEffect(cardState, playerKey, row, col, moduleApi) {
+        if (!moduleApi || typeof moduleApi.applyProtectedNextStone !== 'function') {
+            return { applied: false };
+        }
+        return moduleApi.applyProtectedNextStone(cardState, playerKey, row, col) || { applied: false };
+    }
+
+    function applyPermaProtectNextStoneEffect(cardState, playerKey, row, col, moduleApi) {
+        if (!moduleApi || typeof moduleApi.applyPermaProtectNextStone !== 'function') {
+            return { applied: false };
+        }
+        return moduleApi.applyPermaProtectNextStone(cardState, playerKey, row, col) || { applied: false };
+    }
+
+    function applyArmedWorkPlacement(cardState, gameState, playerKey, row, col, context) {
+        const helpers = getHelpers(context);
+        const workMod = getWorkModule(context);
+        if (!workMod || typeof workMod.placeWorkStone !== 'function') {
+            if (typeof helpers.workDebugLog === 'function') {
+                helpers.workDebugLog(cardState, '[WORK_DEBUG] workMod.placeWorkStone not available, workMod:', !!workMod);
+            }
+            return { applied: false, consumed: false };
+        }
+
+        try {
+            if (typeof helpers.workDebugLog === 'function') {
+                helpers.workDebugLog(cardState, '[WORK_DEBUG] Calling placeWorkStone for', playerKey, row, col);
+            }
+            const result = workMod.placeWorkStone(cardState, gameState, playerKey, row, col, {
+                addMarker: helpers.addMarker
+            });
+            const applied = !!(result && result.placed === true);
+            if (!applied) {
+                if (typeof helpers.workDebugLog === 'function') {
+                    helpers.workDebugLog(cardState, '[WORK_DEBUG] placeWorkStone returned not placed for', playerKey, row, col);
+                }
+                return { applied: false, consumed: false, result };
+            }
+            try {
+                if (typeof globalThis !== 'undefined') globalThis._lastWorkPlaced = { playerKey, row, col };
+                else if (typeof global !== 'undefined') global._lastWorkPlaced = { playerKey, row, col };
+            } catch (e) { /* ignore */ }
+            return { applied: true, consumed: true, result };
+        } catch (e) {
+            if (typeof helpers.workDebugError === 'function') {
+                helpers.workDebugError(cardState, '[WORK_DEBUG] placeWorkStone threw', e && e.message ? e.message : e);
+            }
+            return { applied: false, consumed: false, error: e };
+        }
     }
 
     function getSpecialStoneKind(constants) {
@@ -98,6 +252,78 @@
     function getProliferationOwnerTurns(constants) {
         const raw = Number(constants && constants.PROLIFERATION_WILL_TURNS);
         return Number.isFinite(raw) ? Math.max(1, Math.trunc(raw)) : 10;
+    }
+
+    function normalizeMarkerOwnerKey(owner) {
+        return owner === 'white' || owner === -1 ? 'white' : 'black';
+    }
+
+    function canSeedOccupyCell(cardState, gameState, helpers, row, col) {
+        if (typeof helpers.hasBoardShapeCellForCard === 'function') {
+            return !!helpers.hasBoardShapeCellForCard(cardState, gameState, row, col);
+        }
+        return true;
+    }
+
+    function getSeedCellValue(helpers, gameState, row, col) {
+        if (typeof helpers.getCellValueForCard === 'function') {
+            return helpers.getCellValueForCard(gameState, row, col);
+        }
+        if (!gameState || !Array.isArray(gameState.board) || !Array.isArray(gameState.board[row])) return null;
+        return gameState.board[row][col];
+    }
+
+    function clearSeedMarker(cardState, helpers, specialStoneKind, marker) {
+        if (typeof helpers.removeMarkersAt !== 'function' || !marker) return;
+        helpers.removeMarkersAt(cardState, marker.row, marker.col, {
+            kind: specialStoneKind,
+            type: 'SEED',
+            owner: marker.owner
+        });
+    }
+
+    function resolveSeedExpiration(cardState, gameState, marker, helpers, BoardOpsModule, constants, specialStoneKind) {
+        if (!marker || !Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return { sprouted: false };
+        const row = marker.row;
+        const col = marker.col;
+        const ownerKey = normalizeMarkerOwnerKey(marker.owner);
+
+        emitDurationEndStatusRemoved(cardState, helpers, marker, marker.data || { type: 'SEED' });
+        clearSeedMarker(cardState, helpers, specialStoneKind, marker);
+
+        if (!canSeedOccupyCell(cardState, gameState, helpers, row, col)) {
+            return { sprouted: false, reason: 'cell_unavailable' };
+        }
+        if (getSeedCellValue(helpers, gameState, row, col) !== constants.EMPTY) {
+            return { sprouted: false, reason: 'occupied' };
+        }
+
+        if (BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function') {
+            const spawnRes = BoardOpsModule.spawnAt(
+                cardState,
+                gameState,
+                row,
+                col,
+                ownerKey,
+                'SEED_WILL',
+                'seed_sprout',
+                {
+                    seedSprout: true,
+                    seedOwner: ownerKey
+                }
+            );
+            return { sprouted: !!(spawnRes && spawnRes.spawned), spawnRes };
+        }
+
+        if (typeof helpers.clearStoneIdAtForCard === 'function') {
+            helpers.clearStoneIdAtForCard(cardState, gameState, row, col);
+        }
+        if (typeof helpers.setCellValueForCard === 'function') {
+            helpers.setCellValueForCard(gameState, row, col, ownerKey === 'black' ? constants.BLACK : constants.WHITE);
+            return { sprouted: true };
+        }
+
+        return { sprouted: false, reason: 'spawn_unavailable' };
     }
 
     function emitDurationEndStatusRemoved(cardState, helpers, marker, data) {
@@ -237,25 +463,38 @@
                         }
                     }
                 } else if (typeof helpers.removeMarkersAt === 'function') {
+                    const livingWillMarker = getTrackedLivingWillMarker(cardState, marker.row, marker.col, data.type, context);
                     helpers.removeMarkersAt(cardState, marker.row, marker.col, { kind: specialStoneKind, type: data.type, owner: marker.owner });
+                    restoreTrackedLivingWill(cardState, gameState, livingWillMarker, marker.row, marker.col, data.type, 'SYSTEM', 'duration_end', context, constants);
                 }
                 continue;
             }
-            if (typeof data.remainingOwnerTurns === 'number' && data.remainingOwnerTurns <= 0) {
+            if (typeof data.remainingOwnerTurns === 'number' && data.remainingOwnerTurns <= 0 && dataType !== 'SEED') {
                 if (dataType === 'PROLIFERATION') {
                     emitDurationEndStatusRemoved(cardState, helpers, marker, data);
                 }
                 if (typeof helpers.removeMarkersAt === 'function') {
+                    const livingWillMarker = getTrackedLivingWillMarker(cardState, marker.row, marker.col, data.type, context);
                     helpers.removeMarkersAt(cardState, marker.row, marker.col, { kind: specialStoneKind, type: data.type, owner: marker.owner });
+                    restoreTrackedLivingWill(cardState, gameState, livingWillMarker, marker.row, marker.col, data.type, 'SYSTEM', 'duration_end', context, constants);
                 }
                 continue;
             }
             if (data.type === 'REGEN' && (data.regenRemaining || 0) <= 0) {
                 if (typeof helpers.removeMarkersAt === 'function') {
+                    const livingWillMarker = getTrackedLivingWillMarker(cardState, marker.row, marker.col, data.type, context);
                     helpers.removeMarkersAt(cardState, marker.row, marker.col, { kind: specialStoneKind, type: data.type, owner: marker.owner });
+                    restoreTrackedLivingWill(cardState, gameState, livingWillMarker, marker.row, marker.col, data.type, 'SYSTEM', 'duration_end', context, constants);
                 }
             }
             if (data.type !== 'FREEZE' && typeof helpers.isFrozenCellForCard === 'function' && helpers.isFrozenCellForCard(cardState, marker.row, marker.col)) {
+                continue;
+            }
+            if (dataType === 'SEED' && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
+                data.remainingOwnerTurns -= 1;
+                if (data.remainingOwnerTurns <= 0) {
+                    resolveSeedExpiration(cardState, gameState, marker, helpers, BoardOpsModule, constants, specialStoneKind);
+                }
                 continue;
             }
             if ((dataType === 'GUARD' || dataType === 'BLOCKADE' || dataType === 'FREEZE' || dataType === 'GHOST' || dataType === 'PROLIFERATION') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
@@ -283,25 +522,28 @@
                             }
                         }
                         emitDurationEndStatusRemoved(cardState, helpers, marker, data);
+                        const livingWillMarker = getTrackedLivingWillMarker(cardState, marker.row, marker.col, data.type, context);
                         helpers.removeMarkersAt(cardState, marker.row, marker.col, {
                             kind: specialStoneKind,
                             type: data.type,
                             owner: marker.owner
                         });
+                        restoreTrackedLivingWill(cardState, gameState, livingWillMarker, marker.row, marker.col, data.type, 'SYSTEM', 'duration_end', context, constants);
                         continue;
                     }
                     emitDurationEndStatusRemoved(cardState, helpers, marker, data);
+                    const livingWillMarker = getTrackedLivingWillMarker(cardState, marker.row, marker.col, data.type, context);
                     helpers.removeMarkersAt(cardState, marker.row, marker.col, {
                         kind: specialStoneKind,
                         type: data.type,
                         owner: marker.owner
                     });
+                    restoreTrackedLivingWill(cardState, gameState, livingWillMarker, marker.row, marker.col, data.type, 'SYSTEM', 'duration_end', context, constants);
                 }
             }
         }
 
-        let workMod = resolveNodeModule('../cards/work_will');
-        if (!workMod) workMod = resolveGlobalModule('CardWork');
+        const workMod = getWorkModule(context);
         if (workMod && typeof workMod.processWorkEffects === 'function') {
             try {
                 const res = workMod.processWorkEffects(cardState, gameState, playerKey);
@@ -356,10 +598,7 @@
             effects.freePlacementUsed = true;
         }
         const opponentKey = playerKey === 'black' ? 'white' : 'black';
-        const ownerVal = playerKey === 'black' ? constants.BLACK : constants.WHITE;
-        const opponentVal = -ownerVal;
         const specialStoneKind = getSpecialStoneKind(constants);
-        const bombKind = constants.MARKER_KINDS ? constants.MARKER_KINDS.BOMB : 'bomb';
 
         let chargeGain = flipCount;
 
@@ -384,20 +623,9 @@
         }
 
         if (pending && pending.type === 'PLUNDER_WILL') {
-            const mod = resolveNodeModule('../effects/plunder_will');
-            const plunderEffect = mod && mod.applyPlunderWill;
-            if (typeof plunderEffect === 'function') {
-                const res = plunderEffect(cardState, playerKey, flipCount);
-                chargeGain += (res.plundered || 0);
-                effects.plunderAmount = res.plundered || 0;
-            } else {
-                const stolen = Math.min(flipCount, cardState.charge[opponentKey]);
-                if (typeof helpers.addChargeValue === 'function') {
-                    helpers.addChargeValue(cardState, opponentKey, -stolen, 'plunder_loss');
-                }
-                chargeGain += stolen;
-                effects.plunderAmount = stolen;
-            }
+            const res = applyPlunderWillEffect(cardState, playerKey, flipCount, getPlunderWillModule(context));
+            chargeGain += res.plundered;
+            effects.plunderAmount = res.plundered;
         }
 
         let actualChargeGained = chargeGain;
@@ -417,28 +645,13 @@
         }
 
         if (pending && pending.type === 'PROTECTED_NEXT_STONE') {
-            const mod = resolveNodeModule('../effects/protected_next_stone');
-            if (mod && typeof mod.applyProtectedNextStone === 'function') {
-                const res = mod.applyProtectedNextStone(cardState, playerKey, row, col);
-                if (res.applied) effects.protected = true;
-            } else if (typeof helpers.addMarker === 'function') {
-                helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
-                    type: 'PROTECTED',
-                    expiresForPlayer: playerKey
-                });
-                effects.protected = true;
-            }
+            const res = applyProtectedNextStoneEffect(cardState, playerKey, row, col, getProtectedNextStoneModule(context));
+            if (res && res.applied) effects.protected = true;
         }
 
         if (pending && pending.type === 'PERMA_PROTECT_NEXT_STONE') {
-            const mod = resolveNodeModule('../effects/perma_protect_next_stone');
-            if (mod && typeof mod.applyPermaProtectNextStone === 'function') {
-                const res = mod.applyPermaProtectNextStone(cardState, playerKey, row, col);
-                if (res.applied) effects.permaProtected = true;
-            } else if (typeof helpers.applyStrongWill === 'function') {
-                const res = helpers.applyStrongWill(cardState, playerKey, row, col);
-                if (res && res.applied) effects.permaProtected = true;
-            }
+            const res = applyPermaProtectNextStoneEffect(cardState, playerKey, row, col, getPermaProtectNextStoneModule(context));
+            if (res && res.applied) effects.permaProtected = true;
         }
 
         if (pending && pending.type === 'REGEN_WILL' && typeof helpers.applyRegenWill === 'function') {
@@ -451,28 +664,13 @@
                 helpers.workDebugLog(cardState, '[WORK_DEBUG] workNextPlacementArmedByPlayer state:', cardState.workNextPlacementArmedByPlayer, 'playerKey:', playerKey, 'row:', row, 'col:', col);
             }
             if (cardState.workNextPlacementArmedByPlayer && cardState.workNextPlacementArmedByPlayer[playerKey]) {
-                let workMod = resolveNodeModule('../cards/work_will');
-                if (!workMod) workMod = resolveGlobalModule('CardWork');
-                try {
-                    if (workMod && typeof workMod.placeWorkStone === 'function') {
-                        if (typeof helpers.workDebugLog === 'function') {
-                            helpers.workDebugLog(cardState, '[WORK_DEBUG] Calling placeWorkStone for', playerKey, row, col);
-                        }
-                        workMod.placeWorkStone(cardState, gameState, playerKey, row, col, { addMarker: helpers.addMarker });
-                        effects.workPlaced = true;
-                        try {
-                            if (typeof globalThis !== 'undefined') globalThis._lastWorkPlaced = { playerKey, row, col };
-                            else if (typeof global !== 'undefined') global._lastWorkPlaced = { playerKey, row, col };
-                        } catch (e) { /* ignore */ }
-                    } else if (typeof helpers.workDebugLog === 'function') {
-                        helpers.workDebugLog(cardState, '[WORK_DEBUG] workMod.placeWorkStone not available, workMod:', !!workMod);
-                    }
-                } catch (e) {
-                    if (typeof helpers.workDebugError === 'function') {
-                        helpers.workDebugError(cardState, '[WORK_DEBUG] placeWorkStone threw', e && e.message ? e.message : e);
-                    }
+                const workPlacement = applyArmedWorkPlacement(cardState, gameState, playerKey, row, col, context);
+                if (workPlacement.applied) {
+                    effects.workPlaced = true;
                 }
-                cardState.workNextPlacementArmedByPlayer[playerKey] = false;
+                if (workPlacement.consumed) {
+                    cardState.workNextPlacementArmedByPlayer[playerKey] = false;
+                }
             }
         } catch (e) { /* defensive */ }
 
@@ -595,6 +793,7 @@
             helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
                 type: 'EXTREME_HYPERACTIVE',
                 flipEvadeRemaining: constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT,
+                destroyEvadeRemaining: constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT,
                 hyperactiveSeq: cardState.hyperactiveSeqCounter
             });
             effects.hyperactivePlaced = true;

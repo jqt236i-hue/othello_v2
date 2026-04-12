@@ -4,8 +4,16 @@ const http = require('http');
 const urlModule = require('url');
 const pathModule = require('path');
 
+function finalizeScreenshot(tempPath, outputPath) {
+  try { fs.rmSync(outputPath, { force: true }); } catch (e) {}
+  fs.copyFileSync(tempPath, outputPath);
+  try { fs.rmSync(tempPath, { force: true }); } catch (e) {}
+}
+
 (async () => {
   const root = pathModule.resolve(__dirname, '..', '..');
+  const outDir = pathModule.resolve(__dirname);
+  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
   // Use an ephemeral port by default or honor VIS_PORT env when provided
   const port = process.env.VIS_PORT ? parseInt(process.env.VIS_PORT, 10) : 0;
 
@@ -72,15 +80,19 @@ const pathModule = require('path');
         board.appendChild(o);
       }
     });
-  } catch (e) {}  const board = await page.$('#board');
+  } catch (e) {}
+  const board = await page.$('#board');
   if (!board) {
     console.error('[viz] Could not find #board element');
     await browser.close();
     process.exit(2);
   }
-  const path = 'tests/visual-regression/fallback-board.png';
-  await board.screenshot({ path });
-  console.log('[viz] saved', path);
+  const outputPath = pathModule.join(outDir, 'fallback-board.png');
+  const tempPath = pathModule.join(outDir, `fallback-board.capture.${process.pid}.png`);
+  try { fs.rmSync(tempPath, { force: true }); } catch (e) {}
+  await board.screenshot({ path: tempPath });
+  finalizeScreenshot(tempPath, outputPath);
+  console.log('[viz] saved', outputPath);
   await browser.close();
   // ensure the static server is closed cleanly
   await new Promise((resolve) => server.close(resolve));

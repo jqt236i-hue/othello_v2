@@ -242,4 +242,21 @@ describe('visual-effects map shared between game/ui', () => {
     expect(map.imagePathByOwner['1']).toContain('absolute_protect_next_stone-black.png');
     expect(map.imagePathByOwner['-1']).toContain('absolute_protect_next_stone-white.png');
   });
+
+  test('shared card art helpers resolve owner-specific and fallback card images', () => {
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared).toBeTruthy();
+    expect(shared.resolveCardVisualImagePath('ULTIMATE_REVERSE_DRAGON', { owner: 'white' })).toContain('ultimate_reverse_dragon-white.png');
+    expect(shared.resolveCardVisualImagePath('ULTIMATE_REVERSE_DRAGON')).toContain('ultimate_reverse_dragon-black.png');
+    expect(shared.getCardVisualImagePaths('ULTIMATE_REVERSE_DRAGON')).toEqual(
+      expect.arrayContaining([
+        'assets/images/stones/ultimate_reverse_dragon-black.png',
+        'assets/images/stones/ultimate_reverse_dragon-white.png'
+      ])
+    );
+    expect(shared.cardTypeUsesNonNormalStoneImage('ULTIMATE_REVERSE_DRAGON')).toBe(true);
+    expect(shared.cardTypeUsesNonNormalStoneImage('FREE_PLACEMENT')).toBe(false);
+  });
 });

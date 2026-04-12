@@ -54,7 +54,7 @@ Client:
 
 Design:
 - docs/network-match-design-plan.md (overall architecture)
-- docs/public-network-card-fix-runbook-2026-03-14.md (current known issues & fixes)
+- docs/archive/public-network-card-fix-runbook-2026-03-14.md (historical known issues & fixes)
 
 ## BUG CLASS EVIDENCE
 

@@ -10,6 +10,7 @@
     const DESTROY_OUTCOME_KINDS = Object.freeze({
         DESTROYED: 'destroyed',
         REGENERATED: 'regenerated',
+        LIVING_WILL_RESTORED: 'living_will_restored',
         GHOST_BLOCKED: 'ghost_blocked',
         PROLIFERATED: 'proliferated',
         EVADED_MOVE: 'evaded_move'
@@ -19,6 +20,10 @@
         destroyed: DESTROY_OUTCOME_KINDS.DESTROYED,
         regenerated: DESTROY_OUTCOME_KINDS.REGENERATED,
         revived: DESTROY_OUTCOME_KINDS.REGENERATED,
+        living_will_restored: DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED,
+        livingwillrestored: DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED,
+        living_will: DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED,
+        livingwill: DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED,
         ghost_blocked: DESTROY_OUTCOME_KINDS.GHOST_BLOCKED,
         ghostblocked: DESTROY_OUTCOME_KINDS.GHOST_BLOCKED,
         blocked_by_ghost: DESTROY_OUTCOME_KINDS.GHOST_BLOCKED,
@@ -49,6 +54,7 @@
         const explicit = normalizeDestroyOutcomeKind(result && result.kind);
         if (explicit) return explicit;
         if (!result || typeof result !== 'object') return null;
+        if (result.livingWillRevived === true) return DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED;
         if (result.regenerated === true) return DESTROY_OUTCOME_KINDS.REGENERATED;
         if (result.proliferated === true) return DESTROY_OUTCOME_KINDS.PROLIFERATED;
         if (result.blockedByGhost === true) return DESTROY_OUTCOME_KINDS.GHOST_BLOCKED;
@@ -74,6 +80,7 @@
         const outcome = Object.assign({}, source, {
             destroyed: kind === DESTROY_OUTCOME_KINDS.DESTROYED || source.destroyed === true,
             regenerated: kind === DESTROY_OUTCOME_KINDS.REGENERATED || source.regenerated === true,
+            livingWillRevived: kind === DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED || source.livingWillRevived === true,
             evaded: kind === DESTROY_OUTCOME_KINDS.EVADED_MOVE || source.evaded === true,
             blockedByGhost: kind === DESTROY_OUTCOME_KINDS.GHOST_BLOCKED || source.blockedByGhost === true,
             proliferated: kind === DESTROY_OUTCOME_KINDS.PROLIFERATED || source.proliferated === true

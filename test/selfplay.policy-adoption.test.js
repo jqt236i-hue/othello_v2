@@ -11,6 +11,7 @@ const {
     evaluateEarlyFailure,
     runAdoptionCheck
 } = require('../scripts/benchmark-policy-adoption');
+const { POLICY_GATE_PAYLOAD_SCHEMA_VERSION } = require('../scripts/policy-gate-result-utils');
 
 describe('selfplay policy adoption check', () => {
     beforeEach(() => {
@@ -382,6 +383,16 @@ describe('selfplay policy adoption check', () => {
         });
         expect(out).toHaveProperty('decision');
         expect(out.decision).toHaveProperty('passed');
+        expect(out.payloadSchemaVersion).toBe(POLICY_GATE_PAYLOAD_SCHEMA_VERSION);
+        expect(out.gateFamily).toBe('adoption');
+        expect(Array.isArray(out.decision.failureReasons)).toBe(true);
+        expect(out.seedSchedule).toEqual({
+            baseSeed: 1,
+            seedCount: 2,
+            seedStride: 100,
+            scheduledSeeds: [1, 101],
+            completedSeeds: [1, 101]
+        });
         expect(out.config.seedCount).toBe(2);
         expect(out.perSeed.length).toBe(2);
         expect(out.config.aRate).toBeCloseTo(0.4, 6);

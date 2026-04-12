@@ -11,6 +11,12 @@ function jsonResponse(status, data) {
 function createSnapshot(stateVersion, board) {
   return {
     stateVersion,
+    _meta: {
+      authority: 'server',
+      version: stateVersion,
+      projectedForSeat: null,
+      turnStartReconciled: true
+    },
     gameState: {
       currentPlayer: 1,
       turnNumber: 1,
@@ -119,7 +125,7 @@ describe('NetworkMatchClient effect log dedupe', () => {
     delete global.fetch;
   });
 
-  test('同版 remote snapshot が重複到着しても commentary log は一度しか追加しない', async () => {
+  test('同版 remote snapshot が重複到着しても commentary はログに出ない', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
 
@@ -158,6 +164,6 @@ describe('NetworkMatchClient effect log dedupe', () => {
     const commentaryLines = global.addLog.mock.calls
       .map((args) => args && args[0])
       .filter((line) => line === '白CPU: 重複しない');
-    expect(commentaryLines).toEqual(['白CPU: 重複しない']);
+    expect(commentaryLines).toEqual([]);
   });
 });

@@ -1,7 +1,7 @@
 ---
 description: "計画書 (docs/*-plan*.md) を読み込み、Phase ごとに自律実装して完了条件と検証束を全て通し、実装漏れ 0 で完遂する。Use when implementing a phased plan document end-to-end."
 name: "execute-plan"
-argument-hint: "実装する計画書のパス（例: docs/network-single-writer-plan-2026-03-16.md）"
+argument-hint: "実装する計画書のパス（例: docs/archive/network-single-writer-plan-2026-03-16.md）"
 agent: "agent"
 ---
 
@@ -11,7 +11,7 @@ agent: "agent"
 
 ## 入力
 
-- 計画書パス: `$input`（引数が空なら `docs/` 配下の最新 `*-plan*.md` を自動探索する）
+- 計画書パス: `$input`（引数が空なら `docs/` 配下を探索し、`docs/archive/` も含めて最新 `*-plan*.md` を自動探索する）
 
 ## 制約
 
@@ -49,6 +49,7 @@ agent: "agent"
 - 1 つの作業項目が完了するたびに Todo を更新する。
 - 編集後、構文エラーがないことを確認する（get_errors）。
 - **コピペ分岐を増やさない。** 既存の共通経路を活用する。
+- **差分の小ささを目的にしない。** 根本原因、責務境界、契約、単一ソース、検証が最も自然に揃う実装を選ぶ。
 - **broad catch / 無言 return / success-shaped fallback で不具合を隠さない。**
 
 #### 2c. 完了条件チェック
@@ -112,7 +113,7 @@ agent: "agent"
 | 状況 | 対応 |
 |------|------|
 | テストが計画書の新仕様と矛盾 | テストを計画書に合わせて更新する |
-| 計画書の作業と既存コードの構造が乖離 | 計画書の意図を優先し、最小差分で実現する経路を見つける |
+| 計画書の作業と既存コードの構造が乖離 | 計画書の意図を優先し、責務境界・契約・検証が最も自然に揃う経路を選ぶ |
 | 仕様矛盾が見つかった | ユーザーに確認を求めて止まる |
 | 破壊的変更が必要 | ユーザーに確認を求めて止まる |
 | 3 回同じテストで失敗 | 根本原因を再調査し、アプローチを変える |

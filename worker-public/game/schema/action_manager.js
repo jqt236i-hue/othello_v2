@@ -208,7 +208,8 @@
                 expansionTarget: a.expansionTarget,
                 blockadeTarget: a.blockadeTarget,
                 meteorTarget: a.meteorTarget,
-                freezeTarget: a.freezeTarget
+                freezeTarget: a.freezeTarget,
+                seedTarget: a.seedTarget
             }));
         },
 

@@ -5,12 +5,9 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(
-            require('../../../shared-constants'),
-            require('../../../shared/shared-board-utils')
-        );
+        module.exports = factory(require('../../../shared-constants'), require('../../../shared/shared-board-utils'));
     } else {
-        root.CardHyperactive = factory(root.SharedConstants, root.SharedBoardUtils);
+        root.CardHyperactive = factory(root.SharedConstants, root.SharedBoardUtils || null);
     }
 }(typeof self !== 'undefined' ? self : this, function (SharedConstants, SharedBoardUtils) {
     'use strict';
@@ -20,59 +17,58 @@
     const EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
     const ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
 
-    function resolveBoardConfigSource(gameState) {
-        if (!gameState || typeof gameState !== 'object') return null;
-        if (gameState.boardConfig && typeof gameState.boardConfig === 'object') return gameState.boardConfig;
-        return Array.isArray(gameState.board) ? gameState.board : null;
-    }
-
-    function getBoardExtents(gameState) {
-        const board = gameState && Array.isArray(gameState.board) ? gameState.board : [];
-        const rows = board.length;
-        let cols = 0;
-        for (const row of board) {
-            if (Array.isArray(row)) cols = Math.max(cols, row.length);
+    function resolveBoardConfig(gameState) {
+        if (BoardUtils && typeof BoardUtils.resolveBoardConfig === 'function') {
+            return BoardUtils.resolveBoardConfig(gameState);
         }
-        return { rows, cols };
+        const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
+        const rows = Array.isArray(board) && board.length > 0 ? board.length : 8;
+        const cols = Array.isArray(board) && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
+        return {
+            rows,
+            cols,
+            baseBounds: {
+                minRow: 0,
+                maxRow: rows - 1,
+                minCol: 0,
+                maxCol: cols - 1
+            },
+            outerBounds: {
+                minRow: -1,
+                maxRow: rows,
+                minCol: -1,
+                maxCol: cols
+            }
+        };
     }
 
-    function resolveBoardShapeBoard(gameState) {
-        if (!gameState || !Array.isArray(gameState.board)) return null;
-        if (!BoardUtils || typeof BoardUtils.attachBoardShape !== 'function') return gameState.board;
-        return BoardUtils.attachBoardShape(gameState.board, {
-            boardConfig: resolveBoardConfigSource(gameState) || gameState.board,
-            boardExpansion: gameState.boardExpansion
-        });
-    }
-
-    function isMainBoardCell(gameState, row, col) {
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+    function isMainBoardCell(row, col, gameState) {
         if (BoardUtils && typeof BoardUtils.isMainBoardCell === 'function') {
-            return BoardUtils.isMainBoardCell(row, col, resolveBoardConfigSource(gameState));
+            return BoardUtils.isMainBoardCell(row, col, gameState);
         }
-        const extents = getBoardExtents(gameState);
-        return row >= 0 && row < extents.rows && col >= 0 && col < extents.cols;
+        const config = resolveBoardConfig(gameState);
+        return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < config.rows && col >= 0 && col < config.cols;
     }
 
-    function resolveExpansionSide(gameState, side, row, col) {
+    function resolveExpansionSide(side, row, col, gameState) {
         if (BoardUtils && typeof BoardUtils.resolveExpansionSide === 'function') {
-            return BoardUtils.resolveExpansionSide(side, row, col, resolveBoardConfigSource(gameState));
+            return BoardUtils.resolveExpansionSide(side, row, col, gameState);
         }
-        const extents = getBoardExtents(gameState);
         if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-        if (col === -1) return 'left';
-        if (col === extents.cols) return 'right';
-        if (row === -1) return 'top';
-        if (row === extents.rows) return 'bottom';
+        const config = resolveBoardConfig(gameState);
+        if (col === config.outerBounds.minCol) return 'left';
+        if (col === config.outerBounds.maxCol) return 'right';
+        if (row === config.outerBounds.minRow) return 'top';
+        if (row === config.outerBounds.maxRow) return 'bottom';
         return null;
     }
 
     function getExpansionCellRef(gameState, row, col) {
-        const extents = getBoardExtents(gameState);
         const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
             ? gameState.boardExpansion
             : null;
         if (!expansion) return null;
+        const config = resolveBoardConfig(gameState);
 
         if (Array.isArray(expansion.cells)) {
             for (let index = 0; index < expansion.cells.length; index++) {
@@ -80,7 +76,7 @@
                 if (!cell || typeof cell !== 'object') continue;
                 const cellCol = Number.isInteger(cell.col)
                     ? cell.col
-                    : (cell.side === 'left' ? -1 : (cell.side === 'right' ? extents.cols : null));
+                    : (cell.side === 'left' ? config.outerBounds.minCol : (cell.side === 'right' ? config.outerBounds.maxCol : null));
                 if (!Number.isInteger(cellCol)) continue;
                 if (cell.row === row && cellCol === col) {
                     return { expansion, index, cell, legacy: false };
@@ -91,7 +87,7 @@
         if (expansion.active === true) {
             const legacyCol = Number.isInteger(expansion.col)
                 ? expansion.col
-                : (expansion.side === 'left' ? -1 : (expansion.side === 'right' ? extents.cols : null));
+                : (expansion.side === 'left' ? config.outerBounds.minCol : (expansion.side === 'right' ? config.outerBounds.maxCol : null));
             if (expansion.row === row && legacyCol === col) {
                 return { expansion, index: -1, cell: expansion, legacy: true };
             }
@@ -101,69 +97,58 @@
     }
 
     function hasBoardShapeCell(gameState, row, col) {
-        const board = resolveBoardShapeBoard(gameState);
-        if (board && BoardUtils && typeof BoardUtils.hasPlayableCell === 'function') {
-            return BoardUtils.hasPlayableCell(board, row, col);
-        }
         return getBoardCell(gameState, row, col) !== null;
     }
 
-    function forEachBoardShapeCell(gameState, visitor) {
-        if (typeof visitor !== 'function') return;
-        if (BoardUtils && typeof BoardUtils.forEachBoardShapeCell === 'function') {
-            BoardUtils.forEachBoardShapeCell(gameState, visitor);
-            return;
+    function getExpansionCells(gameState) {
+        if (BoardUtils && typeof BoardUtils.collectExpansionDescriptors === 'function') {
+            return BoardUtils.collectExpansionDescriptors(gameState && gameState.boardExpansion, gameState);
         }
-        const board = resolveBoardShapeBoard(gameState);
-        if (board && BoardUtils && typeof BoardUtils.collectBoardCoordinates === 'function' && typeof BoardUtils.getCellValue === 'function') {
-            for (const cell of BoardUtils.collectBoardCoordinates(board)) {
-                visitor(cell.row, cell.col, BoardUtils.getCellValue(board, cell.row, cell.col));
-            }
-            return;
-        }
-        if (!gameState || !Array.isArray(gameState.board)) return;
-
-        for (let row = 0; row < gameState.board.length; row++) {
-            const boardRow = Array.isArray(gameState.board[row]) ? gameState.board[row] : [];
-            for (let col = 0; col < boardRow.length; col++) {
-                visitor(row, col, boardRow[col]);
-            }
-        }
-
         const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
             ? gameState.boardExpansion
             : null;
-        if (!expansion) return;
+        if (!expansion) return [];
+        const config = resolveBoardConfig(gameState);
 
-        const extents = getBoardExtents(gameState);
         const seen = new Set();
+        const cells = [];
         const pushCell = (source, legacyRow, legacyOwner) => {
             let side = null;
-            let row = null;
-            let col = null;
+            let normalizedRow = null;
+            let normalizedCol = null;
             let owner = legacyOwner;
 
             if (source && typeof source === 'object') {
                 side = source.side;
-                row = source.row;
-                col = source.col;
+                normalizedRow = source.row;
+                normalizedCol = source.col;
                 owner = source.owner;
-                if (!Number.isInteger(col) && side === 'left') col = -1;
-                if (!Number.isInteger(col) && side === 'right') col = extents.cols;
+                if (!Number.isInteger(normalizedCol) && side === 'left') normalizedCol = config.outerBounds.minCol;
+                if (!Number.isInteger(normalizedCol) && side === 'right') normalizedCol = config.outerBounds.maxCol;
             } else {
                 side = source;
-                row = legacyRow;
-                if (side === 'left') col = -1;
-                if (side === 'right') col = extents.cols;
+                normalizedRow = legacyRow;
+                if (side === 'left') normalizedCol = config.outerBounds.minCol;
+                if (side === 'right') normalizedCol = config.outerBounds.maxCol;
             }
 
-            if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-            if (row < -1 || row > extents.rows || col < -1 || col > extents.cols) return;
-            if (isMainBoardCell(gameState, row, col)) return;
-            const key = `${row},${col}`;
+            if (!Number.isInteger(normalizedRow) || !Number.isInteger(normalizedCol)) return;
+            if (
+                normalizedRow < config.outerBounds.minRow ||
+                normalizedRow > config.outerBounds.maxRow ||
+                normalizedCol < config.outerBounds.minCol ||
+                normalizedCol > config.outerBounds.maxCol
+            ) return;
+            if (isMainBoardCell(normalizedRow, normalizedCol, gameState)) return;
+            const key = `${normalizedRow},${normalizedCol}`;
             if (seen.has(key)) return;
             seen.add(key);
-            visitor(row, col, (owner === BLACK || owner === WHITE) ? owner : EMPTY, resolveExpansionSide(gameState, side, row, col));
+            cells.push({
+                side: resolveExpansionSide(side, normalizedRow, normalizedCol, gameState),
+                row: normalizedRow,
+                col: normalizedCol,
+                owner: (owner === BLACK || owner === WHITE) ? owner : EMPTY
+            });
         };
 
         if (Array.isArray(expansion.cells)) {
@@ -176,14 +161,30 @@
         if (seen.size === 0 && expansion.active === true) {
             pushCell(expansion);
         }
+
+        return cells;
+    }
+
+    function forEachBoardShapeCell(gameState, visitor) {
+        if (typeof visitor !== 'function') return;
+        if (!gameState || !Array.isArray(gameState.board)) return;
+        const config = resolveBoardConfig(gameState);
+
+        for (let row = 0; row < config.rows; row++) {
+            const boardRow = Array.isArray(gameState.board[row]) ? gameState.board[row] : [];
+            for (let col = 0; col < config.cols; col++) {
+                visitor(row, col, boardRow[col]);
+            }
+        }
+
+        for (const cell of getExpansionCells(gameState)) {
+            if (!cell) continue;
+            visitor(cell.row, cell.col, Number(cell.owner), cell.side);
+        }
     }
 
     function getBoardCell(gameState, row, col) {
-        const board = resolveBoardShapeBoard(gameState);
-        if (board && BoardUtils && typeof BoardUtils.getCellValue === 'function') {
-            return BoardUtils.getCellValue(board, row, col);
-        }
-        if (isMainBoardCell(gameState, row, col)) {
+        if (isMainBoardCell(row, col, gameState)) {
             if (!gameState || !Array.isArray(gameState.board)) return null;
             const boardRow = gameState.board[row];
             if (!Array.isArray(boardRow)) return null;
@@ -194,7 +195,7 @@
     }
 
     function setBoardCell(gameState, row, col, value) {
-        if (isMainBoardCell(gameState, row, col)) {
+        if (isMainBoardCell(row, col, gameState)) {
             if (!gameState || !Array.isArray(gameState.board)) return false;
             const boardRow = gameState.board[row];
             if (!Array.isArray(boardRow)) return false;
@@ -208,7 +209,7 @@
 
         if (!ref.legacy) {
             ref.expansion.cells[ref.index] = {
-                side: resolveExpansionSide(gameState, ref.cell.side, row, col),
+                side: resolveExpansionSide(ref.cell.side, row, col, gameState),
                 row,
                 col,
                 owner: normalizedOwner
@@ -216,7 +217,7 @@
             return true;
         }
 
-        ref.expansion.side = resolveExpansionSide(gameState, ref.cell.side, row, col);
+        ref.expansion.side = resolveExpansionSide(ref.cell.side, row, col, gameState);
         ref.expansion.row = row;
         ref.expansion.col = col;
         ref.expansion.owner = normalizedOwner;

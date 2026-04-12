@@ -114,6 +114,29 @@ describe('deck builder controller', () => {
     });
   }
 
+  test('controlSummary が無くてもデッキ構築を開ける', () => {
+    const { createDeckBuilderController } = require('../ui/deck-builder-controller');
+    const body = document.getElementById('body');
+
+    document.getElementById('summary').remove();
+
+    const controller = createDeckBuilderController({
+      root: window,
+      refs: {
+        openBtn: document.getElementById('openBtn'),
+        controlSummary: null,
+        overlay: document.getElementById('overlay'),
+        closeBtn: document.getElementById('closeBtn'),
+        headerSummary: document.getElementById('header'),
+        body
+      }
+    });
+
+    expect(() => controller.open()).not.toThrow();
+    expect(document.getElementById('overlay').getAttribute('aria-hidden')).toBe('false');
+    expect(document.getElementById('header').textContent).toContain('ローカル設定');
+  });
+
   test('候補カードはコスト降順で表示する', () => {
     const DeckSpecHelpers = require('../shared/deck-spec');
     const { createDeckBuilderController } = require('../ui/deck-builder-controller');

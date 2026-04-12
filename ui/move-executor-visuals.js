@@ -460,7 +460,11 @@ async function runMoveVisualSequence(move, hadSelection, phases, effects, immedi
 
     if (typeof resetRenderStats === 'function') resetRenderStats();
 
-    emitBoardUpdate();
+    if (typeof BoardUpdateDispatch !== 'undefined' && BoardUpdateDispatch && typeof BoardUpdateDispatch.requestBoardUpdate === 'function') {
+        BoardUpdateDispatch.requestBoardUpdate();
+    } else {
+        emitBoardUpdate();
+    }
     if (hadSelection && typeof emitCardStateChange === 'function') emitCardStateChange();
 
     // Defensive: some special visuals (WORK / HYPERACTIVE) may not be applied during the "pending" placement path

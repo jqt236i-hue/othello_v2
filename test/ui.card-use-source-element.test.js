@@ -19,7 +19,6 @@ describe('card use source element selection', () => {
         <button id="destroy-card-btn" type="button"></button>
         <button id="toggle-card-detail-btn" type="button"></button>
         <button id="pass-btn" type="button"></button>
-        <button id="sell-card-btn" type="button"></button>
         <button id="cancel-card-btn" type="button"></button>
         <div id="use-card-reason"></div>
         <div id="card-detail-actions"></div>
@@ -653,6 +652,7 @@ describe('card use source element selection', () => {
     ['CORROSION_WILL', '腐食の対象となる特殊石を選んでください', 'none'],
     ['BOARD_EXPANSION_WILL', '左右端マスを選んで盤面を拡張してください', 'block'],
     ['BOARD_EXPANSION_GOD', '角マスを選んで盤面を拡張してください', 'block'],
+    ['SEED_WILL', '種をまく空きマスを選んでください', 'block'],
     ['BLOCKADE_WILL', '封鎖する空きマスを選んでください', 'block'],
     ['FREEZE_WILL', '凍結するマスを選んでください', 'block']
   ])('updateCardDetailPanel shows pending prompt for %s', (pendingType, expectedReason, expectedCancelDisplay) => {

@@ -1,7 +1,0 @@
-{
-  "target": "trap",
-  "timestamp": "2026-03-16T06:11:33.786Z",
-  "phase": "attempt_error",
-  "attemptIndex": 1,
-  "error": "page.evaluate: Error: waitForPlaybackIdle timed out: {\"VisualPlaybackActive\":false,\"isCardAnimating\":false,\"isProcessing\":false,\"movingCard\":false,\"heldDrawCard\":false,\"layerVisible\":false,\"animationEnginePlaying\":false,\"hasPendingPresentation\":true,\"playbackStartedAt\":0}\n    at eval (eval at evaluate (:290:30), <anonymous>:58:15)\n    at async <anonymous>:316:30\n    at waitForPlaybackIdle (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-selection-card-flow.js:205:16)\n    at runAttempt (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-selection-card-flow.js:706:28)\n    at async main (C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\verify-selection-card-flow.js:846:29)"
-}

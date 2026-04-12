@@ -385,6 +385,11 @@ function deriveConfigFromResolvedPayload(payload) {
         }
         if (token === '--no-gate-final-iteration-only') {
             config.gateFinalIterationOnly = false;
+            continue;
+        }
+        if (token === '--seed-bank') {
+            config.seedBankPath = String(commandArgs[index + 1] || '').trim() || null;
+            index += 1;
         }
     }
     return config;
@@ -397,6 +402,101 @@ function resolveMonitorConfig(summary, resolvedPayload) {
 function formatIsoTimestamp(value) {
     if (!Number.isFinite(value) || value <= 0) return null;
     return new Date(value).toISOString();
+}
+
+function buildDecisionFailureSummary(decision, fallbackState) {
+    const state = typeof fallbackState === 'string' && fallbackState.trim()
+        ? fallbackState.trim()
+        : 'unknown';
+    if (!decision || typeof decision !== 'object') {
+        return {
+            state,
+            passed: null,
+            primaryFailureReason: null,
+            failureReasons: []
+        };
+    }
+    const passed = decision.passed === true;
+    const failureReasons = Array.isArray(decision.failureReasons)
+        ? decision.failureReasons.slice()
+        : [];
+    const primaryFailureReason = decision.primaryFailureReason
+        || decision.earlyStopReason
+        || (failureReasons.length > 0 ? failureReasons[0] : null)
+        || null;
+    return {
+        state: passed ? 'passed' : 'failed',
+        passed,
+        primaryFailureReason,
+        failureReasons
+    };
+}
+
+function buildLatestGateOutcomes(iteration, config) {
+    const latestIteration = iteration && typeof iteration === 'object' ? iteration : null;
+    if (!latestIteration) return null;
+    const safeConfig = config && typeof config === 'object' ? config : {};
+    const qualityEnabled = !!(
+        (latestIteration.qualityGateConfig && latestIteration.qualityGateConfig.enabled === true) ||
+        safeConfig.qualityGateEnabled === true
+    );
+    const onnxEnabled = !!(
+        safeConfig.onnxGateEnabled === true ||
+        latestIteration.onnxGateDecision
+    );
+    const qualityBlockedByQuick = qualityEnabled && !latestIteration.qualityGateDecision && !(latestIteration.quickDecision && latestIteration.quickDecision.passed === true);
+    const finalBlockedByEarlierGate = !latestIteration.finalDecision && !(
+        latestIteration.quickDecision &&
+        latestIteration.quickDecision.passed === true &&
+        (
+            !qualityEnabled ||
+            (latestIteration.qualityGateDecision && latestIteration.qualityGateDecision.passed === true)
+        )
+    );
+    const onnxBlockedByEarlierGate = onnxEnabled && !latestIteration.onnxGateDecision && !(
+        latestIteration.promotionDetail &&
+        latestIteration.promotionDetail.qualityGatePassed === true &&
+        (
+            (latestIteration.finalDecision && latestIteration.finalDecision.passed === true) ||
+            (latestIteration.promotionDetail && latestIteration.promotionDetail.mode === 'onnx-primary')
+        )
+    );
+
+    return {
+        quick: buildDecisionFailureSummary(
+            latestIteration.quickDecision,
+            latestIteration.gateControl && latestIteration.gateControl.gateIterationAllowed === false ? 'skipped' : 'not-run'
+        ),
+        quality: buildDecisionFailureSummary(
+            latestIteration.qualityGateDecision,
+            qualityEnabled
+                ? (qualityBlockedByQuick ? 'blocked-by-quick' : 'not-run')
+                : 'disabled'
+        ),
+        final: buildDecisionFailureSummary(
+            latestIteration.finalDecision,
+            finalBlockedByEarlierGate ? 'blocked-by-earlier-gate' : 'not-run'
+        ),
+        onnx: buildDecisionFailureSummary(
+            latestIteration.onnxGateDecision,
+            onnxEnabled
+                ? (onnxBlockedByEarlierGate ? 'blocked-by-earlier-gate' : 'not-run')
+                : 'disabled'
+        )
+    };
+}
+
+function formatLatestGateOutcomes(gates) {
+    if (!gates || typeof gates !== 'object') return 'none';
+    const ordered = ['quick', 'quality', 'final', 'onnx'];
+    const parts = [];
+    for (const key of ordered) {
+        const gate = gates[key];
+        if (!gate || typeof gate !== 'object') continue;
+        const reason = gate.primaryFailureReason ? `(${gate.primaryFailureReason})` : '';
+        parts.push(`${key}:${gate.state}${reason}`);
+    }
+    return parts.length > 0 ? parts.join(' ') : 'none';
 }
 
 function buildMonitorSnapshot(runDir, options) {
@@ -441,6 +541,10 @@ function buildMonitorSnapshot(runDir, options) {
         logStat && Number.isFinite(logStat.mtimeMs) ? logStat.mtimeMs : 0
     );
     const failure = summary && summary.failure ? summary.failure : null;
+    const latestIteration = Array.isArray(summary && summary.iterations) && summary.iterations.length > 0
+        ? summary.iterations[summary.iterations.length - 1]
+        : null;
+    const latestGateOutcomes = buildLatestGateOutcomes(latestIteration, monitorConfig);
     const runningPhase = !!(
         parsedLog.currentPhaseKey &&
         parsedLog.currentPhaseKey !== 'iteration-done'
@@ -485,6 +589,14 @@ function buildMonitorSnapshot(runDir, options) {
         latestGuideModel: basenameOrNull(summary && summary.latestGuideModelPath),
         latestResumeCheckpoint: basenameOrNull(summary && summary.latestResumeCheckpointPath),
         latestAnchorModel: basenameOrNull(summary && summary.latestAnchorModelPath),
+        seedBankPath: monitorConfig && monitorConfig.seedBankPath ? String(monitorConfig.seedBankPath) : null,
+        seedBank: basenameOrNull(monitorConfig && monitorConfig.seedBankPath),
+        latestWarehouseManifest: basenameOrNull(summary && summary.latestWarehouseManifestPath),
+        latestWarehouseManifestPath: summary && summary.latestWarehouseManifestPath ? String(summary.latestWarehouseManifestPath) : null,
+        latestWarehouseManifestSchemaVersion: summary && summary.warehouseManifestSchemaVersion
+            ? String(summary.warehouseManifestSchemaVersion)
+            : null,
+        latestGateOutcomes,
         stopReason: (summary && summary.stopReason) || parsedLog.stopReason || null,
         failure,
         failureMessage: (failure && failure.message) || parsedLog.failureMessage || null,
@@ -532,6 +644,16 @@ function formatMonitorSnapshotText(snapshot) {
     if (snapshot.latestGuideModel) lines.push(`[training-monitor] guide=${snapshot.latestGuideModel}`);
     if (snapshot.latestResumeCheckpoint) lines.push(`[training-monitor] checkpoint=${snapshot.latestResumeCheckpoint}`);
     if (snapshot.latestAnchorModel) lines.push(`[training-monitor] anchor=${snapshot.latestAnchorModel}`);
+    if (snapshot.seedBank) lines.push(`[training-monitor] seed-bank=${snapshot.seedBank}`);
+    if (snapshot.latestWarehouseManifest) {
+        const schemaSuffix = snapshot.latestWarehouseManifestSchemaVersion
+            ? ` schema=${snapshot.latestWarehouseManifestSchemaVersion}`
+            : '';
+        lines.push(`[training-monitor] warehouse=${snapshot.latestWarehouseManifest}${schemaSuffix}`);
+    }
+    if (snapshot.latestGateOutcomes) {
+        lines.push(`[training-monitor] latest-gates=${formatLatestGateOutcomes(snapshot.latestGateOutcomes)}`);
+    }
     if (snapshot.stopReason) lines.push(`[training-monitor] stopReason=${snapshot.stopReason}`);
     lines.push(`[training-monitor] failure=${formatFailureDetail(snapshot)}`);
 
@@ -666,6 +788,8 @@ module.exports = {
     analyzeLauncherLogLines,
     buildMonitorSnapshot,
     formatMonitorSnapshotText,
+    formatLatestGateOutcomes,
+    buildLatestGateOutcomes,
     deriveConfigFromResolvedPayload,
     findLatestRunDirectory,
     resolveRunDirectory,

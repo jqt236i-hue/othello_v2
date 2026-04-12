@@ -119,6 +119,74 @@ describe('result overlay seat perspective', () => {
     expect(countsLine && countsLine.nextElementSibling).toBe(totalScore);
   });
 
+  test('CPU勝利時は観測石報酬を表示して保存する', () => {
+    global.countDiscs.mockReturnValue({ black: 48, white: 16 });
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);
+
+    try {
+      const mod = require('../ui/result-overlay.js');
+      const storageModule = require('../ui/storage/gacha-progress.js');
+      mod.showResultOverlay();
+
+      const rewardLine = document.querySelector('.result-observation-stones');
+      expect(rewardLine && rewardLine.textContent).toContain('観測石');
+      expect(rewardLine && rewardLine.textContent).toContain('基本100');
+      expect(rewardLine && rewardLine.textContent).toContain('追加0');
+      expect(rewardLine && rewardLine.textContent).toContain('所持 100');
+      expect(rewardLine && rewardLine.querySelector('.observation-stone-icon')).not.toBeNull();
+      expect(storageModule.getObservationStones(window)).toBe(100);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  test('CPU勝利時は追加観測石の上限1000を表示できる', () => {
+    global.countDiscs.mockReturnValue({ black: 48, white: 16 });
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(1 - Number.EPSILON);
+
+    try {
+      const mod = require('../ui/result-overlay.js');
+      const storageModule = require('../ui/storage/gacha-progress.js');
+      mod.showResultOverlay();
+
+      const rewardLine = document.querySelector('.result-observation-stones');
+      expect(rewardLine && rewardLine.textContent).toContain('追加1000');
+      expect(rewardLine && rewardLine.textContent).toContain('所持 1100');
+      expect(storageModule.getObservationStones(window)).toBe(1100);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  test('CPU敗北時は観測石が増えず結果表示も0になる', () => {
+    global.countDiscs.mockReturnValue({ black: 16, white: 48 });
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+
+    try {
+      const mod = require('../ui/result-overlay.js');
+      const storageModule = require('../ui/storage/gacha-progress.js');
+      mod.showResultOverlay();
+
+      const rewardLine = document.querySelector('.result-observation-stones');
+      expect(rewardLine && rewardLine.textContent).toContain('観測石 +0');
+      expect(rewardLine && rewardLine.querySelector('.observation-stone-icon')).not.toBeNull();
+      expect(storageModule.getObservationStones(window)).toBe(0);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  test('network対戦では観測石報酬行を表示しない', () => {
+    window.MATCH_MODE = 'network';
+    window.NetworkMatchClient = { getSeatKey: () => 'white' };
+    global.countDiscs.mockReturnValue({ black: 24, white: 40 });
+
+    const mod = require('../ui/result-overlay.js');
+    mod.showResultOverlay();
+
+    expect(document.querySelector('.result-observation-stones')).toBeNull();
+  });
+
   test('結果表示 state helper は version/unversioned の表示済みフラグを初期化する', () => {
     const mod = require('../ui/result-overlay.js');
     const state = mod.createEmptyResultPresentationState();

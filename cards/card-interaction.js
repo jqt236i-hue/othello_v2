@@ -75,7 +75,6 @@ const _playbackStateModule = (() => {
     return null;
 })();
 
-const _sellSelectionByPlayer = { black: null, white: null };
 const _heavenSelectionByPlayer = { black: null, white: null };
 let _heavenOverlayRefs = null;
 let _cardDetailExpanded = false;
@@ -108,6 +107,8 @@ const CARD_DETAIL_TAG_MEANINGS = Object.freeze({
     '連鎖反転': '通常反転の後さらに挟める列ができた場合追加で一方向だけ反転させる。',
     '禁忌反転': '挟めなくても反転可能。最も反転枚数が多い列1方向のみ。'
 });
+
+const RIBO_WILL_UNLOCK_TURN_INDEX = 19;
 
 function _resolveChargeMaxText() {
     try {
@@ -239,16 +240,46 @@ function _getCardDisplayTypeLabel(cardDef) {
     return String(cardDef && (cardDef.display_type_ja || cardDef.displayTypeJa) || '').trim();
 }
 
+function _getCardDisplayTypeKey(cardDef) {
+    const typeLabel = _getCardDisplayTypeLabel(cardDef);
+    const typeKeyMap = {
+        '採掘': 'mining',
+        '守護': 'guard',
+        '戦闘': 'battle',
+        '執行': 'judgment',
+        '禁忌': 'taboo',
+        '殲滅': 'annihilation',
+        '繁栄': 'prosperity',
+        '特殊': 'special'
+    };
+    return typeKeyMap[typeLabel] || '';
+}
+
+function _fitCardNameForDisplay(nameEl) {
+    if (!nameEl) return;
+    try {
+        if (typeof window !== 'undefined' && typeof window.fitCardNameElement === 'function') {
+            window.fitCardNameElement(nameEl);
+        }
+    } catch (e) { /* ignore */ }
+}
+
 function _appendCardDisplayBadges(cardEl, cardDef, cost, tier) {
     if (!cardEl) return;
     const badgeRow = document.createElement('div');
     badgeRow.className = 'card-badge-row';
 
     const typeLabel = _getCardDisplayTypeLabel(cardDef);
+    const typeKey = _getCardDisplayTypeKey(cardDef);
+    if (typeKey) {
+        cardEl.dataset.cardType = typeKey;
+    }
     if (typeLabel) {
         const typeBadge = document.createElement('div');
         typeBadge.className = 'card-type-badge';
-        typeBadge.textContent = typeLabel;
+        var _iconMap = { '採掘':'\u26CF\uFE0E', '守護':'\u26E8\uFE0E', '戦闘':'\u2694\uFE0E', '執行':'\u2696\uFE0E', '禁忌':'\u26A0\uFE0E', '殲滅':'\u2620\uFE0E', '繁栄':'\u2728', '特殊':'\u2726' };
+        var _icon = _iconMap[typeLabel] || '';
+        typeBadge.textContent = _icon ? (_icon + ' ' + typeLabel) : typeLabel;
         badgeRow.appendChild(typeBadge);
     }
 
@@ -257,7 +288,14 @@ function _appendCardDisplayBadges(cardEl, cardDef, cost, tier) {
     if (tier) {
         costBadge.classList.add(`cost-tier-${tier}`);
     }
-    costBadge.textContent = cardDef ? `コスト${cost}` : 'コスト?';
+    const costValue = document.createElement('span');
+    costValue.className = 'cost-value';
+    costValue.textContent = cardDef ? String(cost) : '?';
+    const costLabel = document.createElement('span');
+    costLabel.className = 'cost-label';
+    costLabel.textContent = 'cost';
+    costBadge.appendChild(costValue);
+    costBadge.appendChild(costLabel);
     badgeRow.appendChild(costBadge);
 
     cardEl.appendChild(badgeRow);
@@ -328,6 +366,8 @@ function _isCancellablePendingSelectionForCardUi(pendingType) {
         pendingType === 'POSITION_SWAP_WILL' ||
         pendingType === 'BOARD_EXPANSION_WILL' ||
         pendingType === 'BOARD_EXPANSION_GOD' ||
+        pendingType === 'BOARD_SHRINK_WILL' ||
+        pendingType === 'BOARD_SHRINK_GOD' ||
         pendingType === 'BLOCKADE_WILL' ||
         pendingType === 'METEOR_WILL' ||
         pendingType === 'FREEZE_WILL'
@@ -345,8 +385,7 @@ function _isHandOverlayPendingTypeForCardUi(pendingType) {
         }
     }
     return (
-        normalizedType === 'SELL_CARD_WILL'
-        || normalizedType === 'HEAVEN_BLESSING'
+        normalizedType === 'HEAVEN_BLESSING'
         || normalizedType === 'CONDEMN_WILL'
     );
 }
@@ -387,13 +426,6 @@ function _getDetailCardEffect(cardDef) {
     return _fallbackDetailCardEffect(cardDef);
 }
 
-const _NORMAL_STONE_IMAGE_FILE_KEYS = Object.freeze([
-    'normal_stone-black.png',
-    'normal_stone-white.png',
-    'normal-stone-black.png',
-    'normal-stone-white.png'
-]);
-
 function _getGameVisualEffectsMapForCardDetail() {
     try {
         const root = (typeof globalThis !== 'undefined')
@@ -424,42 +456,20 @@ function _getGameVisualEffectsMapForCardDetail() {
 function _collectCardVisualImagePaths(cardType) {
     if (!cardType) return [];
     const map = _getGameVisualEffectsMapForCardDetail();
-    if (!map || !map.STONE_VISUAL_EFFECTS) return [];
-
-    const effectKey = (map.PENDING_TYPE_TO_EFFECT_KEY && map.PENDING_TYPE_TO_EFFECT_KEY[cardType])
-        || (typeof map.getEffectKeyForPendingType === 'function' ? map.getEffectKeyForPendingType(cardType) : null);
-    if (!effectKey) return [];
-
-    const effect = map.STONE_VISUAL_EFFECTS[effectKey];
-    if (!effect || typeof effect !== 'object') return [];
-
-    const paths = [];
-    if (typeof effect.imagePath === 'string') paths.push(effect.imagePath);
-    if (effect.imagePathByOwner && typeof effect.imagePathByOwner === 'object') {
-        for (const value of Object.values(effect.imagePathByOwner)) {
-            if (typeof value === 'string') paths.push(value);
-        }
-    }
-    if (effect.imagePathByPlayer && typeof effect.imagePathByPlayer === 'object') {
-        for (const value of Object.values(effect.imagePathByPlayer)) {
-            if (typeof value === 'string') paths.push(value);
-        }
-    }
-    return paths;
-}
-
-function _isNormalStoneImagePath(imagePath) {
-    const normalized = String(imagePath || '').toLowerCase();
-    if (!normalized) return false;
-    return _NORMAL_STONE_IMAGE_FILE_KEYS.some((key) => normalized.includes(key));
+    if (!map || typeof map.getCardVisualImagePaths !== 'function') return [];
+    return map.getCardVisualImagePaths(cardType);
 }
 
 function _usesNonNormalStoneImage(cardDef) {
     const cardType = cardDef && cardDef.type ? String(cardDef.type) : '';
     if (!cardType) return false;
+    const map = _getGameVisualEffectsMapForCardDetail();
+    if (map && typeof map.cardTypeUsesNonNormalStoneImage === 'function') {
+        return map.cardTypeUsesNonNormalStoneImage(cardType);
+    }
     const paths = _collectCardVisualImagePaths(cardType);
-    if (!paths.length) return false;
-    return paths.some((path) => !_isNormalStoneImagePath(path));
+    if (!paths.length || !map || typeof map.isNormalStoneImagePath !== 'function') return false;
+    return paths.some((path) => !map.isNormalStoneImagePath(path));
 }
 
 function _hasFlipEvasionTagSignal(sourceText) {
@@ -645,6 +655,12 @@ function _getCardDetailLiveStateText(cardDef, ownerKey) {
     if (cardDef.type === 'EQUALITY_WILL') {
         return _getEqualityWillLiveStateText();
     }
+    if (cardDef.type === 'RIBO_WILL') {
+        const turnIndex = Number(cardState && cardState.turnIndex);
+        return Number.isFinite(turnIndex) && turnIndex < RIBO_WILL_UNLOCK_TURN_INDEX
+            ? '18手後使用可能'
+            : '';
+    }
     return '';
 }
 
@@ -815,20 +831,6 @@ function _bindCardDetailTagAutoDismiss() {
     _cardDetailTagAutoDismissBound = true;
 }
 
-function _clearSellSelection(playerKey) {
-    if (!playerKey) return;
-    const prev = _sellSelectionByPlayer[playerKey];
-    _sellSelectionByPlayer[playerKey] = null;
-    if (cardState && cardState.selectedCardId === prev) {
-        const selectedOwnerKey = (cardState.selectedCardOwnerKey === 'white' || cardState.selectedCardOwnerKey === 'black')
-            ? cardState.selectedCardOwnerKey
-            : null;
-        if (!selectedOwnerKey || selectedOwnerKey === _normalizeOwnerKey(playerKey)) {
-            _clearSelectedCardSelection();
-        }
-    }
-}
-
 function _setPendingSelectionBusy(active) {
     if (_pendingSelectionFlowModule && typeof _pendingSelectionFlowModule.setSelectionBusy === 'function') {
         _pendingSelectionFlowModule.setSelectionBusy(active);
@@ -892,54 +894,6 @@ function _finalizePendingSelectionAfterRun(playerKey, pendingType, runResult) {
             try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
         }
     });
-}
-
-function _executeSellSelection(playerKey, sellCardId, options) {
-    if (!sellCardId) return { ok: false, reason: 'no_sell_card' };
-    if (!_canInteractWithCardUi()) return { ok: false, reason: 'busy' };
-    _setPendingSelectionBusy(true);
-    let completed = false;
-    const opts = (options && typeof options === 'object') ? options : {};
-    const selectionOwnerKey = opts.selectionOwnerKey || playerKey;
-
-    try {
-        const soldCardDef = CardLogic.getCardDef(sellCardId);
-        const action = _createPendingSelectionAction(playerKey, 'SELL_CARD_WILL', { sellCardId });
-        const gain = soldCardDef ? (soldCardDef.cost || 0) : 0;
-
-        if (_startNetworkOnlyPendingSelectionPublish({
-            playerKey,
-            action,
-            onSuccess: () => {
-                _clearSellSelection(selectionOwnerKey);
-                if (typeof renderCardUI === 'function') renderCardUI();
-            },
-            onFailure: () => {
-                _clearLocalPlaybackSoundSkip('charge_gain_common');
-                if (typeof renderCardUI === 'function') renderCardUI();
-                addLog('売却に失敗しました');
-                _setPendingSelectionBusy(false);
-            }
-        })) {
-            completed = true;
-            return { ok: true, publishedByNetwork: true };
-        }
-
-        const result = _runPipelineAction(playerKey, action);
-        if (!result.ok) return result;
-
-        addLog(`${playerKey === 'black' ? '黒' : '白'}が${soldCardDef ? soldCardDef.name : sellCardId}を売却（+${gain}）`);
-        _clearSellSelection(selectionOwnerKey);
-        const shouldDelayPostActionHandVisual = _hasHandRemovePlaybackEvent(result);
-        _renderCardUiWithOptionalPlaybackDelay(shouldDelayPostActionHandVisual);
-        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-        else if (typeof renderBoard === 'function') renderBoard();
-        _finalizePendingSelectionAfterRun(playerKey, 'SELL_CARD_WILL', result);
-        completed = true;
-        return { ok: true };
-    } finally {
-        if (!completed) _setPendingSelectionBusy(false);
-    }
 }
 
 function _clearHeavenSelection(playerKey) {
@@ -1158,12 +1112,17 @@ function _renderHeavenOverlay(playerKey) {
         const cost = def ? (def.cost || 0) : 0;
         const tier = getCardCostTier(cost);
         cardEl.classList.add(`cost-tier-${tier}`);
+        const typeKey = _getCardDisplayTypeKey(def);
+        if (typeKey) {
+            cardEl.dataset.cardType = typeKey;
+        }
         if (selectedKey === offerKey) cardEl.classList.add('selected');
 
         const nameSpan = document.createElement('span');
         nameSpan.className = 'card-name';
         nameSpan.textContent = _getCardDisplayLabel(cardId, def);
         cardEl.appendChild(nameSpan);
+        _fitCardNameForDisplay(nameSpan);
 
         _appendCardDisplayBadges(cardEl, def, cost, tier);
 
@@ -2180,7 +2139,6 @@ function updateCardDetailPanel() {
     const destroyBtn = document.getElementById('destroy-card-btn');
     const useBtn = document.getElementById('use-card-btn');
     const passBtn = document.getElementById('pass-btn');
-    const sellBtn = document.getElementById('sell-card-btn');
     const reasonEl = document.getElementById('use-card-reason');
     const cancelBtn = document.getElementById('cancel-card-btn');
 
@@ -2256,12 +2214,7 @@ function updateCardDetailPanel() {
     const noLegalMoves = legalMoves.length === 0;
     const pending = cardState.pendingEffectByPlayer[playerKey];
     const isSelectingTarget = !!(pending && pending.stage === 'selectTarget');
-    const isSellSelecting = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
     const isHeavenSelecting = !!(pending && (pending.type === 'HEAVEN_BLESSING' || pending.type === 'CONDEMN_WILL') && pending.stage === 'selectTarget');
-    const selectedSellCardId = _sellSelectionByPlayer[playerKey];
-    if (!isSellSelecting && selectedSellCardId) {
-        _clearSellSelection(playerKey);
-    }
     if (!isHeavenSelecting) {
         _clearHeavenSelection(playerKey);
     }
@@ -2320,31 +2273,18 @@ function updateCardDetailPanel() {
 
     reasonEl.textContent = reason;
 
-    if (isSellSelecting) {
+    if (isHeavenSelecting) {
         _closeCardDetailTabPanel();
         if (destroyBtn) destroyBtn.style.display = 'none';
         useBtn.style.display = 'none';
         if (detailBtn) detailBtn.style.display = 'none';
         if (detailActionsEl) detailActionsEl.style.display = 'none';
         if (passBtn) passBtn.style.display = 'none';
-        if (sellBtn) {
-            sellBtn.style.display = 'inline-block';
-            sellBtn.disabled = !selectedSellCardId;
-        }
-    } else if (isHeavenSelecting) {
-        _closeCardDetailTabPanel();
-        if (destroyBtn) destroyBtn.style.display = 'none';
-        useBtn.style.display = 'none';
-        if (detailBtn) detailBtn.style.display = 'none';
-        if (detailActionsEl) detailActionsEl.style.display = 'none';
-        if (passBtn) passBtn.style.display = 'none';
-        if (sellBtn) sellBtn.style.display = 'none';
     } else {
         if (destroyBtn) destroyBtn.style.display = 'inline-block';
         useBtn.style.display = 'inline-block';
         if (detailBtn) detailBtn.style.display = 'inline-block';
         if (detailActionsEl) detailActionsEl.style.display = 'flex';
-        if (sellBtn) sellBtn.style.display = 'none';
     }
 
     // 選択モード用のキャンセルボタン表示制御
@@ -2398,22 +2338,32 @@ function updateCardDetailPanel() {
             reasonEl.textContent = '左右端マスを選んで盤面を拡張してください';
         } else if (pending.type === 'BOARD_EXPANSION_GOD') {
             reasonEl.textContent = '角マスを選んで盤面を拡張してください';
+        } else if (pending.type === 'BOARD_SHRINK_WILL') {
+            const selectedCount = Number.isFinite(Number(pending.selectedCount)) ? Number(pending.selectedCount) : 0;
+            const maxSelections = Number.isFinite(Number(pending.maxSelections)) ? Number(pending.maxSelections) : 3;
+            const remainingSelections = Math.max(0, maxSelections - selectedCount);
+            reasonEl.textContent = remainingSelections < maxSelections
+                ? `盤面縮小: 外周マスをあと${remainingSelections}つ選んでください`
+                : '盤面縮小: 外周マスを3つ選んでください';
+        } else if (pending.type === 'BOARD_SHRINK_GOD') {
+            const first = pending.firstTarget;
+            reasonEl.textContent = first
+                ? `盤面縮小神: ${posToNotation(first.row, first.col)}から伸ばす辺方向を選んでください`
+                : '盤面縮小神: 縮小する辺の角マスを選んでください';
         } else if (pending.type === 'EXTEND_LIFE_WILL' || pending.type === 'EXTEND_LIFE_GOD') {
             reasonEl.textContent = pending.type === 'EXTEND_LIFE_GOD'
                 ? '4倍延命する自分の特殊石を選んでください'
                 : '延命する自分の特殊石を選んでください';
         } else if (pending.type === 'CORROSION_WILL') {
             reasonEl.textContent = '腐食の対象となる特殊石を選んでください';
+        } else if (pending.type === 'SEED_WILL') {
+            reasonEl.textContent = '種をまく空きマスを選んでください';
         } else if (pending.type === 'BLOCKADE_WILL') {
             reasonEl.textContent = '封鎖する空きマスを選んでください';
         } else if (pending.type === 'METEOR_WILL') {
             reasonEl.textContent = '隕石で破壊するマスを選んでください';
         } else if (pending.type === 'FREEZE_WILL') {
             reasonEl.textContent = '凍結するマスを選んでください';
-        } else if (pending.type === 'SELL_CARD_WILL') {
-            reasonEl.textContent = selectedSellCardId
-                ? '売却対象を選択済みです。売却ボタンで確定してください'
-                : '売却するカードを手札から1枚選んでください';
         } else if (pending.type === 'HEAVEN_BLESSING') {
             reasonEl.textContent = '候補5枚から1枚選択してください';
         } else if (pending.type === 'CONDEMN_WILL') {
@@ -2424,11 +2374,6 @@ function updateCardDetailPanel() {
     }
 
     if (passBtn) {
-        if (isSellSelecting) {
-            passBtn.style.display = 'none';
-            passBtn.disabled = true;
-            return;
-        }
         const canShowPass = canActThisTurn &&
             noLegalMoves &&
             !isSelectingTarget;
@@ -2491,8 +2436,7 @@ function onCardClick(cardId, ownerKey) {
         ? ownerKey
         : null;
     const pending = cardState.pendingEffectByPlayer[actionOwnerKey];
-    const allowDuringAnimForSell = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
-    if (_isCardAnimatingNow() && !isDebugUnlimited && !allowDuringAnimForSell && !_releaseStaleVisualPlaybackLock()) return;
+    if (_isCardAnimatingNow() && !isDebugUnlimited && !_releaseStaleVisualPlaybackLock()) return;
 
     _closeCardDetailTagTabIfOpen();
 
@@ -2515,20 +2459,6 @@ function onCardClick(cardId, ownerKey) {
     if (pending && (pending.type === 'HEAVEN_BLESSING' || pending.type === 'CONDEMN_WILL') && pending.stage === 'selectTarget') {
         return;
     }
-    if (pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget') {
-        if (!_doesPlayerOwnCard(actionOwnerKey, cardId)) return;
-        if (_sellSelectionByPlayer[actionOwnerKey] === cardId) {
-            _sellSelectionByPlayer[actionOwnerKey] = null;
-            if (cardState.selectedCardId === cardId && _getSelectedCardOwnerKey(actionOwnerKey) === actionOwnerKey) {
-                _clearSelectedCardSelection();
-            }
-        } else {
-            _sellSelectionByPlayer[actionOwnerKey] = cardId;
-            _setSelectedCardSelection(cardId, actionOwnerKey);
-        }
-        renderCardUI();
-        return;
-    }
 
     if (!_doesPlayerOwnCard(actionOwnerKey, cardId)) return;
 
@@ -2541,28 +2471,6 @@ function onCardClick(cardId, ownerKey) {
     }
 
     renderCardUI();
-}
-
-function confirmSellCardSelection() {
-    if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return false;
-    const playerKey = _resolveInputPlayerKey();
-    const actionOwnerKey = _getCardUiActionOwnerKey(playerKey);
-    const pending = cardState.pendingEffectByPlayer[actionOwnerKey];
-    if (!pending || pending.type !== 'SELL_CARD_WILL' || pending.stage !== 'selectTarget') return false;
-
-    const sellCardId = _sellSelectionByPlayer[actionOwnerKey];
-    if (!sellCardId) {
-        addLog('売却するカードを先に選んでください');
-        renderCardUI();
-        return false;
-    }
-
-    const result = _executeSellSelection(playerKey, sellCardId, { selectionOwnerKey: actionOwnerKey });
-    if (!result.ok) {
-        addLog('売却に失敗しました');
-        return false;
-    }
-    return true;
 }
 
 function destroySelectedHandCard() {
@@ -2800,7 +2708,6 @@ window.onCardClick = onCardClick;
 window.destroySelectedHandCard = destroySelectedHandCard;
 window.useSelectedCard = useSelectedCard;
 window.toggleCardDetailExpanded = toggleCardDetailExpanded;
-window.confirmSellCardSelection = confirmSellCardSelection;
 window.passCurrentTurn = passCurrentTurn;
 window.cancelPendingDestroy = cancelPendingDestroy;
 window.cancelPendingSelection = cancelPendingSelection;

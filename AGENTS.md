@@ -1,6 +1,6 @@
 # カードオセロ / AGENTS.md
 
-最終更新: 2026-03-16
+最終更新: 2026-04-04
 
 ## 0. この文書の役割
 
@@ -17,9 +17,12 @@
 - `owner` / `player` / 色などの揺れは入口で正規化し、内部表現を混在させない。
 - 定数は `shared-constants.js` と `constants/` を単一ソースにし、重複定義しない。
 - debug 動作は `?debug=1` などの明示条件でだけ有効化し、通常時に副作用を出さない。
+- ユーザー向けの説明では、カード名・効果名・状態名・UI要素名を、まず `01-rulebook.md` や画面表示に沿った日本語名 / 表示名で書く。コード上のID・関数名・event type は必要な時だけ補足として併記する。
 - UI は `events[]` を順番どおりに再生し、再生中の盤面 DOM の書き手は 1 つに絞る。フリップ演出は Spec B を守る。
 - root を正本にし、`worker-public/` は mirror として扱う。必要時は `npm run worker:prepare` で同期する。
-- 既定の実装戦術は差分最小とする。ただし根本原因が構造問題、契約不整合、再発不具合にある時は、master plan / phase / 完了条件 / 検証束を先に固定し、段階的な大幅改革を選んでよい。
+- 既定の実装戦術は、根本原因を最も明快に解消し、責務境界・契約・単一ソースを改善できる経路を選ぶこととする。
+- 差分の小ささは目的ではない。同等に正しい案が複数ある場合の比較要素としてのみ扱う。
+- 局所修正で十分ならその責務境界で完結させる。ただし責務の混線、契約不整合、重複経路、再発不具合がある時は、master plan / phase / 完了条件 / 検証束を先に固定し、抽出・統合・置換を含む構造変更を選ぶ。
 - 修正は根本原因を先に特定し、前後で同条件の確認結果を残す。
 - この共通節を更新する時は `AGENTS.md` と `.github/copilot-instructions.md` の両方に同じ内容を入れる。
 
@@ -27,14 +30,15 @@
 
 1. 挙動や見た目が絡むなら `01-rulebook.md`
 2. hard rule が必要なら `.github/copilot-instructions.md`
-3. 触るファイルに対応する `.github/instructions/*.instructions.md`
-4. 反復作業や広い作業なら `SKILLS.md` と対応する `.github/skills/**/SKILL.md`
-5. 局所事情だけ必要なら対象ディレクトリの `README.ai.md`
+3. モジュール境界・ランタイム契約・authority・DI・Single Visual Writer が絡むなら `docs/architecture-contracts.md`
+4. 触るファイルに対応する `.github/instructions/*.instructions.md`
+5. 反復作業や広い作業なら `SKILLS.md` と対応する `.github/skills/**/SKILL.md`
+6. 局所事情だけ必要なら対象ディレクトリの `README.ai.md`
 
 ## 着手前に決めること
 
 - 目的、影響ファイル、更新が必要な仕様面を先に固定する。
-- 今回が局所修正か、構造改革かを先に分類する。構造改革なら master plan を先に置く。
+- 今回が責務境界内の修正で完結するか、構造変更が要るかを先に分類する。構造変更なら master plan を先に置く。
 - root 正本ファイルと、生成物 / mirror を切り分ける。
 - 先に関連 test / check / search を決め、変更後に同条件で見直す。
 - 同じ箇所に未コミット変更がある時は、上書き可否を明示してから触る。
@@ -49,6 +53,7 @@
 
 ## 代表的な入口
 
+- 内部アーキテクチャ契約（モジュール境界・ランタイム契約・authority・DI）: `docs/architecture-contracts.md`
 - UI / load order: `index.html`, `ui/bootstrap.js`, `ui/handlers/init.js`
 - ゲーム進行: `game/turn/*`, `game/turn-manager.js`, `game/move-executor.js`
 - カード: `cards/catalog.json`, `game/logic/cards.js`, `game/card-effects/*`
@@ -60,8 +65,8 @@
 ## 編集順
 
 1. 仕様変更が必要なら `01-rulebook.md` を先に直す。
-2. 局所修正なら root 側の正本を最小差分で直す。
-3. 構造問題なら master plan / phase / 完了条件 / 検証束を先に固定し、延命 patch ではなく置換境界を決めて進める。
+2. 局所修正で十分なら、root 側の正本をその責務境界で完結するように直す。不要な拡散は避けるが、差分の小ささ自体は目的にしない。
+3. 局所修正で根本原因を解消できないなら、master plan / phase / 完了条件 / 検証束を先に固定し、抽出・統合・置換を含む構造変更として進める。
 4. 生成物や mirror は最後に揃える。
 5. rename / delete は残り参照を検索してから確定する。
 6. 無関係な掃除を同じ差分に混ぜない。
@@ -79,7 +84,7 @@
 - なぜその置き場所にしたか
 - 実行した test / check と結果
 - `01-rulebook.md` を更新したかどうかと理由
-- 専門用語を避けた短い説明
+- 画面表示や `01-rulebook.md` に沿った日本語名を優先し、専門用語を避けた短い説明
 
 ## 止まる条件
 

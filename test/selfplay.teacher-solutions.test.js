@@ -22,13 +22,11 @@ describe('teacher solution export script', () => {
             gameIndex: 3,
             ply: 11,
             player: 'black',
-            actionType: 'place',
-            row: 2,
-            col: 5,
+            actionType: 'destroy_hand_card',
             board: '......../......../......../...WB.../...BW.../......../......../........',
             legalMoves: 4,
-            pendingType: 'SELL_CARD_WILL',
-            sellCardId: 'last_resort_01',
+            pendingType: 'CONDEMN_WILL',
+            destroyCardId: 'last_resort_01',
             handCards: ['last_resort_01', 'guard_01'],
             usableCardIds: ['guard_01'],
             hardcaseTags: ['pending_target', 'legal_moves_le_2'],
@@ -44,10 +42,10 @@ describe('teacher solution export script', () => {
 
         expect(out.schemaVersion).toBe(TEACHER_SOLUTION_SCHEMA_VERSION);
         expect(out.sourceSchemaVersion).toBe('selfplay.v2');
-        expect(out.actionType).toBe('place');
-        expect(out.sellCardId).toBe('last_resort_01');
-        expect(out.teacherSolution.decisionKind).toBe('sell');
-        expect(out.teacherSolution.selectedActionKey).toBe('sell:last_resort_01');
+        expect(out.actionType).toBe('destroy_hand_card');
+        expect(out.destroyCardId).toBe('last_resort_01');
+        expect(out.teacherSolution.decisionKind).toBe('destroy');
+        expect(out.teacherSolution.selectedActionKey).toBe('destroy:last_resort_01');
         expect(out.teacherSolution.actorView).toEqual(record.actorView);
         expect(out.teacherSolution.candidates).toEqual(expect.arrayContaining([
             expect.objectContaining({ cardId: 'last_resort_01', isSelected: true }),

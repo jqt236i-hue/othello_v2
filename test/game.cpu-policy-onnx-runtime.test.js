@@ -1,5 +1,27 @@
 const path = require('path');
 const runtime = require(path.resolve(__dirname, '..', 'game', 'ai', 'policy-onnx-runtime.js'));
+const SharedBoardUtils = require(path.resolve(__dirname, '..', 'shared', 'shared-board-utils.js'));
+
+function createRightExpansionBoard(cells) {
+  const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
+  SharedBoardUtils.attachBoardShape(board, {
+    boardExpansion: {
+      active: true,
+      side: 'right',
+      row: Array.isArray(cells) && cells.length ? cells[0].row : 0,
+      owner: 0,
+      usedByPlayer: { black: false, white: false },
+      cells: (cells || []).map((cell) => ({
+        side: 'right',
+        row: cell.row,
+        col: 8,
+        owner: cell.owner
+      }))
+    },
+    cardState: null
+  });
+  return board;
+}
 
 describe('policy-onnx-runtime', () => {
   beforeEach(() => {
@@ -86,6 +108,72 @@ describe('policy-onnx-runtime', () => {
       legalMovesCount: candidates.length
     });
     expect(selected).toEqual(candidates[1]);
+  });
+
+  test('chooseMove supports padded 10x10 expansion indexes for new models', async () => {
+    const scores = new Float32Array(100);
+    scores[SharedBoardUtils.toPaddedBoardIndex(0, 0)] = 0.5;
+    scores[SharedBoardUtils.toPaddedBoardIndex(0, 8)] = 4.4;
+    const session = {
+      run: jest.fn(async () => ({
+        logits: { data: scores }
+      }))
+    };
+    runtime.__setLoadedForTest(session, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      outputName: 'logits',
+      inputDim: 116,
+      baseInputDim: 116,
+      outputDim: 100,
+      paddedBoardMinCoord: -1,
+      paddedBoardMaxCoord: 8,
+      paddedBoardSize: 10,
+      actionSpace: 'place_padded10+card_choice'
+    });
+
+    const board = createRightExpansionBoard([{ row: 0, owner: 0 }]);
+    board[0][0] = -1;
+    const candidates = [
+      { row: 0, col: 0, flips: [] },
+      { row: 0, col: 8, flips: [] }
+    ];
+    const selected = await runtime.chooseMove(candidates, {
+      playerKey: 'white',
+      level: 6,
+      board,
+      legalMovesCount: candidates.length
+    });
+
+    expect(selected).toEqual(candidates[1]);
+    const obs = session.run.mock.calls[0][0].obs.data;
+    expect(obs.length).toBe(116);
+    expect(obs[0]).toBe(0);
+    expect(obs[SharedBoardUtils.toPaddedBoardIndex(0, 0)]).toBe(1);
+  });
+
+  test('chooseMove returns null on custom boards when using legacy standard-8x8 model metadata', async () => {
+    const session = {
+      run: jest.fn(async () => ({
+        logits: { data: new Float32Array(64) }
+      }))
+    };
+    runtime.__setLoadedForTest(session, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      outputName: 'logits',
+      inputDim: 70
+    });
+
+    const selected = await runtime.chooseMove([{ row: 0, col: 0, flips: [] }], {
+      playerKey: 'white',
+      level: 6,
+      board: Array.from({ length: 7 }, () => Array.from({ length: 9 }, () => 0)),
+      legalMovesCount: 1
+    });
+
+    expect(selected).toBeNull();
+    expect(session.run).not.toHaveBeenCalled();
   });
 
   test('chooseCard selects highest score among usable cards', async () => {
@@ -315,6 +403,46 @@ describe('policy-onnx-runtime', () => {
     expect(runtime.getStatus().targetModelLoaded).toBe(true);
   });
 
+  test('choosePendingTarget supports padded expansion targets for new models', async () => {
+    const targetScores = new Float32Array(100);
+    targetScores[SharedBoardUtils.toPaddedBoardIndex(1, 0)] = 0.4;
+    targetScores[SharedBoardUtils.toPaddedBoardIndex(0, 8)] = 3.6;
+
+    runtime.__setTargetModelForTest({
+      run: jest.fn(async () => ({
+        target_logits: { data: targetScores }
+      }))
+    }, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      targetOutputName: 'target_logits',
+      inputDim: 118,
+      baseInputDim: 116,
+      outputDim: 100,
+      paddedBoardMinCoord: -1,
+      paddedBoardMaxCoord: 8,
+      paddedBoardSize: 10,
+      actionSpace: 'pending_target_padded10',
+      pendingTypes: ['DESTROY_ONE_STONE', 'TELEPORT_WILL']
+    });
+
+    const board = createRightExpansionBoard([{ row: 0, owner: 0 }]);
+    const targets = [
+      { row: 1, col: 0 },
+      { row: 0, col: 8 }
+    ];
+
+    const selected = await runtime.choosePendingTarget(targets, {
+      playerKey: 'white',
+      level: 6,
+      pendingType: 'TELEPORT_WILL',
+      board,
+      legalMovesCount: 2
+    });
+
+    expect(selected).toEqual(targets[1]);
+  });
+
   test('evaluatePosition returns scalar value from value model', async () => {
     runtime.__setValueModelForTest({
       run: jest.fn(async () => ({
@@ -336,6 +464,37 @@ describe('policy-onnx-runtime', () => {
 
     expect(value).toBeCloseTo(0.625, 6);
     expect(runtime.getStatus().valueModelLoaded).toBe(true);
+  });
+
+  test('evaluatePosition accepts padded board features for new value models', async () => {
+    const session = {
+      run: jest.fn(async () => ({
+        value: { data: new Float32Array([0.25]) }
+      }))
+    };
+    runtime.__setValueModelForTest(session, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      valueOutputName: 'value',
+      inputDim: 116,
+      baseInputDim: 116,
+      paddedBoardMinCoord: -1,
+      paddedBoardMaxCoord: 8,
+      paddedBoardSize: 10,
+      actionSpace: 'position_value'
+    });
+
+    const board = createRightExpansionBoard([{ row: 0, owner: 0 }]);
+    board[0][0] = -1;
+    const value = await runtime.evaluatePosition({
+      playerKey: 'white',
+      level: 6,
+      board,
+      legalMovesCount: 2
+    });
+
+    expect(value).toBeCloseTo(0.25, 6);
+    expect(session.run.mock.calls[0][0].obs.data.length).toBe(116);
   });
 
   test('getStatus exposes latency summaries after ONNX calls', async () => {

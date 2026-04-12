@@ -34,19 +34,36 @@
         return label || '';
     }
 
+    function getCardDisplayTypeKey(cardDef) {
+        const label = getCardDisplayTypeLabel(cardDef);
+        const typeKeyMap = { '採掘':'mining', '守護':'guard', '戦闘':'battle', '執行':'judgment', '禁忌':'taboo', '殲滅':'annihilation', '繁栄':'prosperity', '特殊':'special' };
+        return typeKeyMap[label] || '';
+    }
+
+    function applyCardSpecialArtIfAvailable(cardEl, cardDef) {
+        if (!cardEl || !cardDef) return cardEl;
+        if (typeof window !== 'undefined' && typeof window.applyCardSpecialArtToFace === 'function') {
+            window.applyCardSpecialArtToFace(cardEl, cardDef, { cardId: cardDef.id });
+        }
+        return cardEl;
+    }
+
     function ensureCardBadgeRow(cardEl, cardDef) {
         if (!cardEl || !cardDef) return cardEl;
 
-        let badgeRow = cardEl.querySelector('.card-badge-row');
-        if (!badgeRow) {
-            badgeRow = document.createElement('div');
-            badgeRow.className = 'card-badge-row';
-            cardEl.appendChild(badgeRow);
-        }
-
         const typeLabel = getCardDisplayTypeLabel(cardDef);
-        let typeBadge = badgeRow.querySelector('.card-type-badge');
+        const typeKey = getCardDisplayTypeKey(cardDef);
+        if (typeKey) {
+            cardEl.dataset.cardType = typeKey;
+        }
+        let badgeRow = cardEl.querySelector('.card-badge-row');
+        let typeBadge = badgeRow ? badgeRow.querySelector('.card-type-badge') : null;
         if (typeLabel) {
+            if (!badgeRow) {
+                badgeRow = document.createElement('div');
+                badgeRow.className = 'card-badge-row';
+                cardEl.appendChild(badgeRow);
+            }
             if (!typeBadge) {
                 typeBadge = document.createElement('div');
                 typeBadge.className = 'card-type-badge';
@@ -56,6 +73,10 @@
         } else if (typeBadge) {
             typeBadge.remove();
         }
+        if (badgeRow && !badgeRow.querySelector('.card-type-badge')) {
+            badgeRow.remove();
+            badgeRow = null;
+        }
 
         const cost = Number(cardDef.cost) || 0;
         let costBadge = cardEl.querySelector('.card-cost-badge');
@@ -63,9 +84,17 @@
             costBadge = document.createElement('div');
             costBadge.className = 'card-cost-badge';
         }
-        costBadge.textContent = `コスト${cost}`;
-        if (costBadge.parentElement !== badgeRow) {
-            badgeRow.appendChild(costBadge);
+        costBadge.textContent = '';
+        var _cv = document.createElement('span');
+        _cv.className = 'cost-value';
+        _cv.textContent = String(cost);
+        var _cl = document.createElement('span');
+        _cl.className = 'cost-label';
+        _cl.textContent = 'cost';
+        costBadge.appendChild(_cv);
+        costBadge.appendChild(_cl);
+        if (costBadge.parentElement !== cardEl) {
+            cardEl.appendChild(costBadge);
         }
 
         return cardEl;
@@ -79,7 +108,13 @@
         nameSpan.className = 'card-name';
         nameSpan.textContent = cardDef && (cardDef.name || cardDef.name_ja) ? (cardDef.name || cardDef.name_ja) : String(cardDef && cardDef.id ? cardDef.id : '?');
         cardEl.appendChild(nameSpan);
+        try {
+            if (typeof window !== 'undefined' && typeof window.fitCardNameElement === 'function') {
+                window.fitCardNameElement(nameSpan);
+            }
+        } catch (e) { /* ignore */ }
 
+        applyCardSpecialArtIfAvailable(cardEl, cardDef);
         return ensureCardBadgeRow(cardEl, cardDef);
     }
 
@@ -101,7 +136,13 @@
         if (!String(nameEl.textContent || '').trim()) {
             nameEl.textContent = getCardDisplayName(cardDef);
         }
+        try {
+            if (typeof window !== 'undefined' && typeof window.fitCardNameElement === 'function') {
+                window.fitCardNameElement(nameEl);
+            }
+        } catch (e) { /* ignore */ }
 
+        applyCardSpecialArtIfAvailable(cardEl, cardDef);
         return ensureCardBadgeRow(cardEl, cardDef);
     }
 

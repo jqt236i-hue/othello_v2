@@ -33,6 +33,7 @@
 
     const DEFAULT_DATA = {
         CARD_TYPE_LABELS: {},
+        CPU_COMMENTARY_DEFAULT_LEVEL: 3,
         openingLines: ['開幕だ、盤面の温度を測る'],
         middleAheadLines: ['この流れは押せる、丁寧に詰める'],
         middleEvenLines: ['まだ拮抗、次の一手を研ぐ'],
@@ -70,7 +71,7 @@
 
     const DEFAULT_CONFIG = {
         enabled: true,
-        maxChars: 120,
+        maxChars: 60,
         recentKeep: 8,
         regularTurnInterval: 2,
         unchangedThreshold: 1,
@@ -80,6 +81,44 @@
 
     const config = Object.assign({}, DEFAULT_CONFIG);
     const perSpeakerState = Object.create(null);
+    const CPU_TONE_PREFIXES = Object.freeze({
+        goblin: Object.freeze({
+            default: 'グヘヘ、',
+            ahead: 'ケケッ、',
+            behind: 'グギッ、',
+            card_used: 'ゲヒヒ、',
+            card_used_by_enemy: 'ギャッ、',
+            card_targeted: 'ケッ、',
+            pass: 'チッ、',
+            board_swing: 'グハハ、',
+            corner_owned: 'グヘヘ、',
+            corner_lost: 'ギリッ、'
+        }),
+        boss: Object.freeze({
+            default: 'さて、',
+            ahead: 'フフ、',
+            behind: 'まだだ、',
+            card_used: '見せよう、',
+            card_used_by_enemy: 'なるほど、',
+            card_targeted: '把握している、',
+            pass: '……',
+            board_swing: 'いいだろう、',
+            corner_owned: '当然だ、',
+            corner_lost: '侮るな、'
+        }),
+        finalBoss: Object.freeze({
+            default: '観測どおり、',
+            ahead: '既定どおり、',
+            behind: '想定内だ、',
+            card_used: '介入する、',
+            card_used_by_enemy: '誤差か、',
+            card_targeted: '把握済みだ、',
+            pass: 'まだだ、',
+            board_swing: '再計算する、',
+            corner_owned: '収束した、',
+            corner_lost: '補正する、'
+        })
+    });
 
     let fallbackCardTypeMap = null;
 
@@ -307,6 +346,40 @@
         return 'middle';
     }
 
+    function getDefaultCpuCommentaryLevel() {
+        const raw = Number(DB && DB.CPU_COMMENTARY_DEFAULT_LEVEL);
+        if (Number.isFinite(raw) && raw >= 1) return Math.floor(raw);
+        return 3;
+    }
+
+    function normalizeCpuCommentaryLevel(value) {
+        const raw = Number(value);
+        if (!Number.isFinite(raw)) return getDefaultCpuCommentaryLevel();
+        return Math.max(1, Math.floor(raw));
+    }
+
+    function resolveCpuCommentaryTier(level) {
+        try {
+            if (DB && typeof DB.resolveCpuCommentaryTier === 'function') {
+                const resolved = DB.resolveCpuCommentaryTier(level);
+                if (resolved === 'goblin' || resolved === 'boss' || resolved === 'finalBoss') return resolved;
+            }
+        } catch (e) { /* ignore */ }
+
+        const normalizedLevel = normalizeCpuCommentaryLevel(level);
+        if (normalizedLevel >= 6) return 'finalBoss';
+        if (normalizedLevel >= 3) return 'boss';
+        return 'goblin';
+    }
+
+    function resolveCpuCommentaryLevel(context) {
+        const ctx = context && typeof context === 'object' ? context : {};
+        return normalizeCpuCommentaryLevel(
+            ctx.level !== undefined ? ctx.level
+                : (ctx.cpuLevel !== undefined ? ctx.cpuLevel : ctx.difficultyLevel)
+        );
+    }
+
     function countCornersFromBoard(board, playerKey) {
         if (!Array.isArray(board) || board.length < 8) return { own: 0, opp: 0 };
         const ownVal = playerKey === 'black' ? 1 : -1;
@@ -451,10 +524,43 @@
         if (!text) return '';
         const chars = Array.from(text);
         if (!Number.isFinite(maxChars) || maxChars <= 0 || chars.length <= maxChars) return text;
-        return chars.slice(0, maxChars).join('');
+
+        const tokens = text.match(/[^\s、。！!？?]+(?:[、。！!？?]+)?|\s+/g) || [];
+        let compact = '';
+        for (const token of tokens) {
+            const candidate = compact + token;
+            if (Array.from(candidate).length > maxChars) break;
+            compact = candidate;
+        }
+
+        const normalizedCompact = String(compact || '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .replace(/[、，\s]+$/g, '')
+            .replace(/[。！!？?]+$/g, '');
+        if (normalizedCompact) return normalizedCompact;
+
+        return chars
+            .slice(0, maxChars)
+            .join('')
+            .replace(/[、，\s]+$/g, '')
+            .replace(/[。！!？?]+$/g, '');
     }
 
-    function resolveTonePrefix(eventType, advantage) {
+    function resolveTonePrefix(eventType, advantage, speakerRole, level) {
+        if (speakerRole === 'cpu') {
+            const prefixes = CPU_TONE_PREFIXES[resolveCpuCommentaryTier(level)] || CPU_TONE_PREFIXES.boss;
+            if (eventType === 'card_used') return prefixes.card_used;
+            if (eventType === 'card_used_by_enemy') return prefixes.card_used_by_enemy;
+            if (eventType === 'card_targeted') return prefixes.card_targeted;
+            if (eventType === 'pass') return prefixes.pass;
+            if (eventType === 'board_swing') return prefixes.board_swing;
+            if (isCornerOwnedEventType(eventType)) return prefixes.corner_owned;
+            if (isCornerLostEventType(eventType)) return prefixes.corner_lost;
+            if (advantage === 'ahead') return prefixes.ahead;
+            if (advantage === 'behind') return prefixes.behind;
+            return prefixes.default;
+        }
         if (eventType === 'card_used') return 'へへっ、';
         if (eventType === 'card_used_by_enemy') return 'くそっ、';
         if (eventType === 'card_targeted') return 'おっと、';
@@ -467,15 +573,15 @@
         return 'よし、';
     }
 
-    function applyToneConsistency(line, eventType, advantage) {
+    function applyToneConsistency(line, eventType, advantage, speakerRole, level) {
         const raw = String(line || '').trim();
         if (!raw) return '';
         const body = raw
-            .replace(/^(へへっ、|くそっ、|おっと、|ちっ、|よし、|くっ、)+/, '')
+            .replace(/^(へへっ、|くそっ、|おっと、|ちっ、|よし、|くっ、|グヘヘ、|ケケッ、|グギッ、|ゲヒヒ、|ギャッ、|ケッ、|チッ、|グハハ、|ギリッ、|さて、|フフ、|まだだ、|見せよう、|なるほど、|把握している、|……|いいだろう、|当然だ、|侮るな、|観測どおり、|既定どおり、|想定内だ、|介入する、|誤差か、|把握済みだ、|再計算する、|収束した、|補正する、)+/, '')
             .replace(/[。！!？?]+$/g, '')
             .trim();
         if (!body) return '';
-        const prefix = resolveTonePrefix(eventType, advantage);
+        const prefix = resolveTonePrefix(eventType, advantage, speakerRole, level);
         const end = (eventType === 'card_used' || eventType === 'card_used_by_enemy' || isCornerEventType(eventType)) ? '！' : '。';
         return `${prefix}${body}${end}`;
     }
@@ -533,43 +639,23 @@
         return ((playerState.regularTurnCallCount - 1) % interval) === 0;
     }
 
-    function chooseTurnStartLine(playerState, phase, advantage) {
-        if (phase === 'opening') {
-            return pickRandomLineFromPools(playerState, [DB.tauntLines, DB.chatterLines, DB.openingLines]);
-        }
-
-        if (advantage === 'behind' && playerState.behindStreak >= config.behindThreshold) {
-            return pickRandomLineFromPools(playerState, [DB.negativeLines, DB.bluffLines, DB.middleBehindLines]);
-        }
-
-        if (playerState.unchangedStreak >= config.unchangedThreshold) {
-            if (advantage === 'ahead') {
-                return pickRandomLineFromPools(playerState, [DB.tauntLines, DB.middleAheadLines]);
-            }
-            if (advantage === 'behind') {
-                return pickRandomLineFromPools(playerState, [DB.negativeLines, DB.bluffLines, DB.chatterLines, DB.middleBehindLines]);
-            }
-            return pickRandomLineFromPools(playerState, [DB.chatterLines, DB.tauntLines, DB.bluffLines, DB.middleEvenLines]);
-        }
-
-        if (phase === 'endgame') {
-            if (advantage === 'ahead') {
-                return pickRandomLineFromPools(playerState, [DB.tauntLines, DB.endAheadLines]);
-            }
-            if (advantage === 'behind') {
-                return pickRandomLineFromPools(playerState, [DB.negativeLines, DB.bluffLines, DB.endBehindLines]);
-            }
-            return pickRandomLineFromPools(playerState, [DB.chatterLines, DB.endEvenLines]);
-        }
-
+    function chooseTurnStartLine(playerState, phase, advantage, level) {
         if (advantage === 'ahead') {
-            return pickRandomLineFromPools(playerState, [DB.tauntLines, DB.middleAheadLines]);
+            return pickCpuPoolLine(
+                playerState,
+                resolveCpuFixedPool(DB.getCpuAheadLines, DB.cpuAheadLines, DB.middleAheadLines, DEFAULT_DATA.middleAheadLines, level)
+            );
         }
         if (advantage === 'behind') {
-            return pickRandomLineFromPools(playerState, [DB.negativeLines, DB.bluffLines, DB.middleBehindLines]);
+            return pickCpuPoolLine(
+                playerState,
+                resolveCpuFixedPool(DB.getCpuBehindLines, DB.cpuBehindLines, DB.middleBehindLines, DEFAULT_DATA.middleBehindLines, level)
+            );
         }
-
-        return pickRandomLineFromPools(playerState, [DB.chatterLines, DB.middleEvenLines]);
+        return pickCpuPoolLine(
+            playerState,
+            resolveCpuFixedPool(DB.getCpuChatterLines, DB.cpuChatterLines, DB.chatterLines, DEFAULT_DATA.chatterLines, level)
+        );
     }
 
     function resolveLinePool(primaryLines, fallbackLines) {
@@ -582,6 +668,23 @@
         if (typeof primaryFactory === 'function') return primaryFactory;
         if (typeof fallbackFactory === 'function') return fallbackFactory;
         return function () { return []; };
+    }
+
+    function resolveCpuPool(sharedLines, legacyLines, fallbackLines) {
+        if (Array.isArray(sharedLines) && sharedLines.length) return sharedLines;
+        return resolveLinePool(legacyLines, fallbackLines);
+    }
+
+    function resolveCpuFixedPool(getter, sharedLines, legacyLines, fallbackLines, level) {
+        if (typeof getter === 'function') {
+            const lines = getter(level);
+            if (Array.isArray(lines) && lines.length) return lines;
+        }
+        return resolveCpuPool(sharedLines, legacyLines, fallbackLines);
+    }
+
+    function pickCpuPoolLine(playerState, lines) {
+        return pickRandomLine(playerState, Array.isArray(lines) ? lines : []);
     }
 
     function chooseHeroLine(playerState, eventType, advantage, context) {
@@ -616,52 +719,81 @@
         return pickRandomLine(playerState, resolveLinePool(DB.heroChatterLines, DEFAULT_DATA.heroChatterLines));
     }
 
-    function chooseCpuLine(playerState, eventType, phase, advantage, context) {
+    function chooseCpuLine(playerState, eventType, phase, advantage, context, level) {
         if (eventType === 'game_start') {
-            return pickRandomLine(playerState, DB.openingLines);
+            return pickCpuPoolLine(
+                playerState,
+                resolveCpuFixedPool(DB.getCpuChatterLines, DB.cpuChatterLines, DB.openingLines, DEFAULT_DATA.openingLines, level)
+            );
         }
         if (eventType === 'corner_first_owned') {
-            return pickRandomLine(playerState, DB.cornerFirstOwnedLines || DB.middleAheadLines);
+            return pickCpuPoolLine(
+                playerState,
+                resolveCpuFixedPool(DB.getCpuCornerGainLines, DB.cpuCornerGainLines, DB.cornerFirstOwnedLines, DEFAULT_DATA.middleAheadLines, level)
+            );
         }
         if (eventType === 'corner_first_lost') {
-            return pickRandomLine(playerState, DB.cornerFirstLostLines || DB.middleBehindLines);
+            return pickCpuPoolLine(
+                playerState,
+                resolveCpuFixedPool(DB.getCpuCornerLossLines, DB.cpuCornerLossLines, DB.cornerFirstLostLines, DEFAULT_DATA.middleBehindLines, level)
+            );
         }
         if (eventType === 'corner_streak_two_owned') {
-            return pickRandomLine(playerState, DB.cornerStreakTwoOwnedLines || DB.middleAheadLines);
+            return pickCpuPoolLine(
+                playerState,
+                resolveCpuFixedPool(DB.getCpuCornerGainLines, DB.cpuCornerGainLines, DB.cornerStreakTwoOwnedLines, DEFAULT_DATA.middleAheadLines, level)
+            );
         }
         if (eventType === 'corner_streak_two_lost') {
-            return pickRandomLine(playerState, DB.cornerStreakTwoLostLines || DB.middleBehindLines);
+            return pickCpuPoolLine(
+                playerState,
+                resolveCpuFixedPool(DB.getCpuCornerLossLines, DB.cpuCornerLossLines, DB.cornerStreakTwoLostLines, DEFAULT_DATA.middleBehindLines, level)
+            );
         }
         if (eventType === 'corner_streak_three_owned') {
-            return pickRandomLine(playerState, DB.cornerStreakThreeOwnedLines || DB.endAheadLines);
+            return pickCpuPoolLine(
+                playerState,
+                resolveCpuFixedPool(DB.getCpuCornerGainLines, DB.cpuCornerGainLines, DB.cornerStreakThreeOwnedLines, DEFAULT_DATA.endAheadLines, level)
+            );
         }
         if (eventType === 'corner_streak_three_lost') {
-            return pickRandomLine(playerState, DB.cornerStreakThreeLostLines || DB.endBehindLines);
+            return pickCpuPoolLine(
+                playerState,
+                resolveCpuFixedPool(DB.getCpuCornerLossLines, DB.cpuCornerLossLines, DB.cornerStreakThreeLostLines, DEFAULT_DATA.endBehindLines, level)
+            );
         }
         if (eventType === 'corner_all_owned') {
-            return pickRandomLine(playerState, DB.cornerAllOwnedLines || DB.endAheadLines);
+            return pickCpuPoolLine(
+                playerState,
+                resolveCpuFixedPool(DB.getCpuCornerGainLines, DB.cpuCornerGainLines, DB.cornerAllOwnedLines, DEFAULT_DATA.endAheadLines, level)
+            );
         }
         if (eventType === 'corner_all_lost') {
-            return pickRandomLine(playerState, DB.cornerAllLostLines || DB.endBehindLines);
+            return pickCpuPoolLine(
+                playerState,
+                resolveCpuFixedPool(DB.getCpuCornerLossLines, DB.cpuCornerLossLines, DB.cornerAllLostLines, DEFAULT_DATA.endBehindLines, level)
+            );
         }
         if (eventType === 'board_swing') {
-            return pickRandomLine(playerState, DB.boardSwingLines);
+            return chooseTurnStartLine(playerState, phase, advantage, level);
         }
         if (eventType === 'pass') {
-            return pickRandomLine(playerState, DB.passLines);
+            return chooseTurnStartLine(playerState, phase, advantage, level);
         }
         if (eventType === 'card_targeted') {
-            return pickRandomLine(playerState, DB.cardTargetLines);
+            return chooseTurnStartLine(playerState, phase, advantage, level);
         }
         if (eventType === 'card_used') {
             const type = resolveCardType(context);
-            return pickRandomLine(playerState, DB.getCardUseLines(type, advantage));
+            const factory = resolveLineFactory(DB.getCardUseLines, DEFAULT_DATA.getCardUseLines);
+            return pickRandomLine(playerState, factory(type, advantage, level));
         }
         if (eventType === 'card_used_by_enemy') {
             const type = resolveCardType(context);
-            return pickRandomLine(playerState, DB.getCardHitLines(type, advantage));
+            const factory = resolveLineFactory(DB.getCardHitLines, DEFAULT_DATA.getCardHitLines);
+            return pickRandomLine(playerState, factory(type, advantage, level));
         }
-        return chooseTurnStartLine(playerState, phase, advantage);
+        return chooseTurnStartLine(playerState, phase, advantage, level);
     }
 
     function buildCommentary(context) {
@@ -674,6 +806,7 @@
         const corners = normalizeCorners(ctx, playerKey);
         const phase = normalizePhase(ctx.phase, ctx.turnNumber, (counts.black + counts.white));
         const advantage = resolveAdvantage(ctx, playerKey, counts, corners);
+        const commentaryLevel = speakerRole === 'cpu' ? resolveCpuCommentaryLevel(ctx) : null;
 
         const own = playerKey === 'black' ? counts.black : counts.white;
         const opp = playerKey === 'black' ? counts.white : counts.black;
@@ -712,9 +845,9 @@
 
         const line = speakerRole === 'hero'
             ? chooseHeroLine(playerState, eventType, advantage, ctx)
-            : chooseCpuLine(playerState, eventType, phase, advantage, ctx);
+            : chooseCpuLine(playerState, eventType, phase, advantage, ctx, commentaryLevel);
 
-        const unified = applyToneConsistency(line, eventType, advantage);
+        const unified = applyToneConsistency(line, eventType, advantage, speakerRole, commentaryLevel);
         return sanitize(unified, Number(config.maxChars));
     }
 

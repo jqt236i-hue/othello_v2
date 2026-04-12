@@ -77,6 +77,7 @@
     const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS) || Object.freeze({
         DESTROYED: 'destroyed',
         REGENERATED: 'regenerated',
+        LIVING_WILL_RESTORED: 'living_will_restored',
         GHOST_BLOCKED: 'ghost_blocked',
         PROLIFERATED: 'proliferated',
         EVADED_MOVE: 'evaded_move'
@@ -90,7 +91,8 @@
             ? Object.assign({}, (details && typeof details === 'object') ? details : {}, { kind: kindOrResult })
             : Object.assign({}, (kindOrResult && typeof kindOrResult === 'object') ? kindOrResult : {});
         const kind = (source && source.kind) || (
-            source && source.regenerated ? DESTROY_OUTCOME_KINDS.REGENERATED
+            source && source.livingWillRevived ? DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED
+                : source && source.regenerated ? DESTROY_OUTCOME_KINDS.REGENERATED
                 : source && source.proliferated ? DESTROY_OUTCOME_KINDS.PROLIFERATED
                 : source && source.blockedByGhost ? DESTROY_OUTCOME_KINDS.GHOST_BLOCKED
                     : source && source.evaded ? DESTROY_OUTCOME_KINDS.EVADED_MOVE
@@ -100,6 +102,7 @@
         const outcome = Object.assign({}, source, {
             destroyed: kind === DESTROY_OUTCOME_KINDS.DESTROYED || source.destroyed === true,
             regenerated: kind === DESTROY_OUTCOME_KINDS.REGENERATED || source.regenerated === true,
+            livingWillRevived: kind === DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED || source.livingWillRevived === true,
             evaded: kind === DESTROY_OUTCOME_KINDS.EVADED_MOVE || source.evaded === true,
             blockedByGhost: kind === DESTROY_OUTCOME_KINDS.GHOST_BLOCKED || source.blockedByGhost === true,
             proliferated: kind === DESTROY_OUTCOME_KINDS.PROLIFERATED || source.proliferated === true
@@ -114,7 +117,20 @@
         if (DestroyOutcomeContract && typeof DestroyOutcomeContract.isDestroyOutcomeResolved === 'function') {
             return DestroyOutcomeContract.isDestroyOutcomeResolved(result);
         }
-        return !!(result && (result.destroyed || result.regenerated || result.evaded || result.blockedByGhost || result.proliferated));
+        return !!(result && (result.destroyed || result.regenerated || result.livingWillRevived || result.evaded || result.blockedByGhost || result.proliferated));
+    }
+
+    function applyPostFlipRevives(CardLogic, cardState, gameState, flips, ownerKey) {
+        const regenRes = (CardLogic && typeof CardLogic.applyRegenAfterFlips === 'function')
+            ? CardLogic.applyRegenAfterFlips(cardState, gameState, flips, ownerKey)
+            : { regened: [], captureFlips: [] };
+        const livingWillInputs = []
+            .concat(Array.isArray(flips) ? flips : [])
+            .concat(regenRes && Array.isArray(regenRes.captureFlips) ? regenRes.captureFlips : []);
+        const livingWillRes = (CardLogic && typeof CardLogic.applyLivingWillAfterFlips === 'function')
+            ? CardLogic.applyLivingWillAfterFlips(cardState, gameState, livingWillInputs, ownerKey)
+            : { restored: [] };
+        return { regenRes, livingWillRes };
     }
 
     function normalizePendingTypeForActionPhase(pendingType) {
@@ -548,7 +564,8 @@
         const row = Number(data.row);
         const col = Number(data.col);
         if (!special || !scenario || !Number.isInteger(row) || !Number.isInteger(col)) return false;
-        if (isLegacySpecialStoneBubbleType(special)) return false;
+        const allowLegacy = opts.allowLegacy === true || scenario === 'living_will_restored';
+        if (isLegacySpecialStoneBubbleType(special) && !allowLegacy) return false;
         const explicitText = (typeof data.text === 'string' && data.text.trim()) ? data.text.trim() : null;
         const text = explicitText || pickSpecialStoneBubbleSpeechLine(special, scenario, opts.prng);
         if (!text) return false;
@@ -885,6 +902,28 @@
         return false;
     }
 
+    function hasMatchingSpecialStoneMovedFromPhaseEvent(phaseEvents, item) {
+        const events = Array.isArray(phaseEvents) ? phaseEvents : [];
+        if (!item || !item.type) return false;
+        const specialType = String(item.type || '').trim().toUpperCase();
+        if (!specialType) return false;
+        for (let index = 0; index < events.length; index += 1) {
+            const ev = events[index];
+            if (!ev || typeof ev.type !== 'string' || ev.type.indexOf('_moved_') < 0) continue;
+            const details = Array.isArray(ev.details) ? ev.details : [];
+            for (let detailIndex = 0; detailIndex < details.length; detailIndex += 1) {
+                const detail = details[detailIndex];
+                const from = detail && detail.from;
+                if (!from) continue;
+                if (Number(from.row) !== Number(item.row) || Number(from.col) !== Number(item.col)) continue;
+                const detailSpecial = String((detail && (detail.specialType || detail.type)) || '').trim().toUpperCase();
+                if (detailSpecial && detailSpecial !== specialType) continue;
+                return true;
+            }
+        }
+        return false;
+    }
+
     function hasEscapeExplosionPresentationEventAt(presentationEvents, item) {
         const events = Array.isArray(presentationEvents) ? presentationEvents : [];
         if (!item) return false;
@@ -909,6 +948,36 @@
             return true;
         }
         return false;
+    }
+
+    function isLivingWillRestorePresentationEvent(ev) {
+        if (!ev || (ev.type !== 'SPAWN' && ev.type !== 'CHANGE')) return false;
+        const meta = (ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
+        const cause = String((ev.cause || (meta && meta.cause) || '')).trim().toUpperCase();
+        const reason = String((ev.reason || (meta && meta.reason) || '')).trim().toLowerCase();
+        return !!((meta && meta.livingWillRevived === true) || (cause === 'LIVING_WILL' && reason === 'living_will_restored'));
+    }
+
+    function findMatchingLivingWillRestorePresentationEvent(presentationEvents, itemOrSpecial, rowValue, colValue) {
+        const events = Array.isArray(presentationEvents) ? presentationEvents : [];
+        const item = (itemOrSpecial && typeof itemOrSpecial === 'object')
+            ? itemOrSpecial
+            : { type: itemOrSpecial, row: rowValue, col: colValue };
+        const sourceRow = Number(item && item.row);
+        const sourceCol = Number(item && item.col);
+        if (!Number.isInteger(sourceRow) || !Number.isInteger(sourceCol)) return null;
+        for (let index = 0; index < events.length; index += 1) {
+            const ev = events[index];
+            if (!isLivingWillRestorePresentationEvent(ev)) continue;
+            const meta = (ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
+            const destMatches = Number(ev.row) === sourceRow && Number(ev.col) === sourceCol;
+            const sourceMatches =
+                Number(meta.revivedFromRow) === sourceRow &&
+                Number(meta.revivedFromCol) === sourceCol;
+            if (!destMatches && !sourceMatches) continue;
+            return ev;
+        }
+        return null;
     }
 
     function emitBoardChargeBubblePresentation(CardLogic, cardState, payload) {
@@ -1431,6 +1500,22 @@
             const cause = ev.cause || (ev.meta && ev.meta.cause) || null;
             const player = normalizePlayerKey(ev.player || ev.owner || (ev.meta && ev.meta.owner) || opts.fallbackPlayer);
 
+            if ((ev.type === 'CHANGE' || ev.type === 'SPAWN') && isLivingWillRestorePresentationEvent(ev)) {
+                if (getSpecialStoneBubbleSpeechLines(special, 'living_will_restored')) {
+                    emitBubble({
+                        special,
+                        scenario: 'living_will_restored',
+                        player,
+                        row,
+                        col,
+                        reason: reason || 'living_will_restored',
+                        cause,
+                        meta: Object.assign({}, (ev.meta && typeof ev.meta === 'object') ? ev.meta : {})
+                    });
+                }
+                continue;
+            }
+
             if (ev.type === 'STATUS_APPLIED') {
                 if (!isGenericSpecialStoneBubbleType(special)) continue;
                 if (special === 'ABSOLUTE_PROTECTED' && String(reason || '').toLowerCase() === 'strong_will_promoted') {
@@ -1467,6 +1552,9 @@
                 if (special === 'REGEN' && hasRegenTriggeredPresentationEventAt(presentationEvents, row, col)) {
                     continue;
                 }
+                if (findMatchingLivingWillRestorePresentationEvent(presentationEvents, special, row, col)) {
+                    continue;
+                }
                 if (!durationEnd && !escapeExploded && hasMatchingSpecialStoneStatusAppliedEvent(presentationEvents, special, row, col)) {
                     continue;
                 }
@@ -1499,6 +1587,9 @@
             }
 
             if (ev.type === 'DESTROY' && isGenericSpecialStoneBubbleType(special)) {
+                if (findMatchingLivingWillRestorePresentationEvent(presentationEvents, special, row, col)) {
+                    continue;
+                }
                 const scenario = isProliferationTriggeredSpecialStoneBubbleEvent(ev, reason, cause) && getSpecialStoneBubbleSpeechLines(special, 'proliferation_triggered')
                     ? 'proliferation_triggered'
                     : (isEscapeExplosionSpecialStoneBubbleReason(reason, cause) && getSpecialStoneBubbleSpeechLines(special, 'escape_exploded'))
@@ -1545,7 +1636,9 @@
         for (const item of removed) {
             if (!item || !item.type) continue;
             if (findMatchingSpecialStoneStatusRemovedEvent(presentationEvents, item)) continue;
+            if (hasMatchingSpecialStoneMovedFromPhaseEvent(phaseEvents, item)) continue;
             if (item.type === 'REGEN' && hasRegenTriggeredPresentationEventAt(presentationEvents, item.row, item.col)) continue;
+            if (findMatchingLivingWillRestorePresentationEvent(presentationEvents, item)) continue;
             if (hasMatchingSpecialStoneStatusAppliedEvent(presentationEvents, item)) continue;
             const scenario = hasEscapeExplosionPresentationEventAt(presentationEvents, item) && getSpecialStoneBubbleSpeechLines(item.type, 'escape_exploded')
                 ? 'escape_exploded'
@@ -1621,14 +1714,22 @@
         }
 
         if (cardState.lastTurnStartedFor !== playerKey) {
-            // Set the active turn player for SALVATION_WILL normal-stone destruction tracking,
-            // and reset the opponent's (victim's) tracked destruction list for this new turn.
+            // Set the active turn player for SALVATION_WILL destruction tracking and reset the
+            // opponent's beneficiary ledger so this turn can accumulate every destroyed stone.
             const opponentKeyForSalvation = playerKey === 'black' ? 'white' : 'black';
             cardState._activeTurnPlayer = playerKey;
-            if (!cardState.prevOpponentTurnDestroyedNormalByPlayer) {
-                cardState.prevOpponentTurnDestroyedNormalByPlayer = { black: [], white: [] };
+            if (!cardState.prevOpponentTurnDestroyedStonesByPlayer) {
+                const legacySalvationLedger = (cardState.prevOpponentTurnDestroyedNormalByPlayer && typeof cardState.prevOpponentTurnDestroyedNormalByPlayer === 'object')
+                    ? cardState.prevOpponentTurnDestroyedNormalByPlayer
+                    : null;
+                cardState.prevOpponentTurnDestroyedStonesByPlayer = legacySalvationLedger
+                    ? {
+                        black: Array.isArray(legacySalvationLedger.black) ? legacySalvationLedger.black.map((entry) => ({ ...entry })) : [],
+                        white: Array.isArray(legacySalvationLedger.white) ? legacySalvationLedger.white.map((entry) => ({ ...entry })) : []
+                    }
+                    : { black: [], white: [] };
             }
-            cardState.prevOpponentTurnDestroyedNormalByPlayer[opponentKeyForSalvation] = [];
+            cardState.prevOpponentTurnDestroyedStonesByPlayer[opponentKeyForSalvation] = [];
 
             // Clear FATE_WILL controller for the opponent if the current player was that controller.
             // This means the single controlled opponent turn has already completed.
@@ -1919,17 +2020,22 @@
             const hyperByOwner = hyperAggregated.flippedByOwner || {};
             const regenTriggered = [];
             const regenCaptureFlips = [];
+            const livingWillTriggered = [];
             const regenCaptureByOwner = { black: [], white: [] };
             for (const ownerKey of ['black', 'white']) {
                 const flips = hyperByOwner[ownerKey] || [];
                 if (!flips.length) continue;
-                if (typeof CardLogic.applyRegenAfterFlips !== 'function') continue;
-                const regenRes = CardLogic.applyRegenAfterFlips(cardState, gameState, flips, ownerKey);
+                const reviveRes = applyPostFlipRevives(CardLogic, cardState, gameState, flips, ownerKey);
+                const regenRes = reviveRes.regenRes;
+                const livingWillRes = reviveRes.livingWillRes;
                 if (regenRes && regenRes.regened && regenRes.regened.length) regenTriggered.push(...regenRes.regened);
                 if (regenRes && regenRes.captureFlips && regenRes.captureFlips.length) {
                     regenCaptureFlips.push(...regenRes.captureFlips);
                     regenCaptureByOwner[ownerKey] = regenCaptureByOwner[ownerKey] || [];
                     regenCaptureByOwner[ownerKey].push(...regenRes.captureFlips);
+                }
+                if (livingWillRes && livingWillRes.restored && livingWillRes.restored.length) {
+                    livingWillTriggered.push(...livingWillRes.restored);
                 }
             }
             if (regenCaptureFlips.length && typeof CardLogic.clearHyperactiveAtPositions === 'function') {
@@ -1937,6 +2043,9 @@
             }
             if (regenTriggered.length) {
                 events.push({ type: 'regen_triggered_start', details: regenTriggered });
+            }
+            if (livingWillTriggered.length) {
+                events.push({ type: 'living_will_triggered_start', details: livingWillTriggered });
             }
             if (regenCaptureFlips.length) {
                 // Capture flips grant charge to the regen owner (clamped to CHARGE_MAX).
@@ -2158,7 +2267,9 @@
                     }
                     clearPendingForActionPhase(cardState, playerKey);
                     if (res && Array.isArray(res.flipped) && res.flipped.length && typeof CardLogic.applyRegenAfterFlips === 'function') {
-                        const regenRes = CardLogic.applyRegenAfterFlips(cardState, gameState, res.flipped, playerKey);
+                        const reviveRes = applyPostFlipRevives(CardLogic, cardState, gameState, res.flipped, playerKey);
+                        const regenRes = reviveRes.regenRes;
+                        const livingWillRes = reviveRes.livingWillRes;
                         if (regenRes && regenRes.regened && regenRes.regened.length) {
                             events.push({ type: 'regen_triggered', details: regenRes.regened });
                         }
@@ -2173,6 +2284,9 @@
                                 sourceType: 'regen_capture_immediate'
                             });
                             events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
+                        }
+                        if (livingWillRes && livingWillRes.restored && livingWillRes.restored.length) {
+                            events.push({ type: 'living_will_triggered', details: livingWillRes.restored });
                         }
                     }
                     if (res && Array.isArray(res.flipped) && res.flipped.length) {
@@ -2203,7 +2317,9 @@
                     }
                     clearPendingForActionPhase(cardState, playerKey);
                     if (res && Array.isArray(res.flipped) && res.flipped.length && typeof CardLogic.applyRegenAfterFlips === 'function') {
-                        const regenRes = CardLogic.applyRegenAfterFlips(cardState, gameState, res.flipped, playerKey);
+                        const reviveRes = applyPostFlipRevives(CardLogic, cardState, gameState, res.flipped, playerKey);
+                        const regenRes = reviveRes.regenRes;
+                        const livingWillRes = reviveRes.livingWillRes;
                         if (regenRes && regenRes.regened && regenRes.regened.length) {
                             events.push({ type: 'regen_triggered', details: regenRes.regened });
                         }
@@ -2218,6 +2334,9 @@
                                 sourceType: 'regen_capture_immediate'
                             });
                             events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
+                        }
+                        if (livingWillRes && livingWillRes.restored && livingWillRes.restored.length) {
+                            events.push({ type: 'living_will_triggered', details: livingWillRes.restored });
                         }
                     }
                     if (res && Array.isArray(res.flipped) && res.flipped.length) {
@@ -2375,7 +2494,9 @@
                     }
                     clearPendingForActionPhase(cardState, playerKey);
                     if (res && Array.isArray(res.flipped) && res.flipped.length && typeof CardLogic.applyRegenAfterFlips === 'function') {
-                        const regenRes = CardLogic.applyRegenAfterFlips(cardState, gameState, res.flipped, playerKey);
+                        const reviveRes = applyPostFlipRevives(CardLogic, cardState, gameState, res.flipped, playerKey);
+                        const regenRes = reviveRes.regenRes;
+                        const livingWillRes = reviveRes.livingWillRes;
                         if (regenRes && regenRes.regened && regenRes.regened.length) {
                             events.push({ type: 'regen_triggered', details: regenRes.regened });
                         }
@@ -2390,6 +2511,9 @@
                                 sourceType: 'regen_capture_immediate'
                             });
                             events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
+                        }
+                        if (livingWillRes && livingWillRes.restored && livingWillRes.restored.length) {
+                            events.push({ type: 'living_will_triggered', details: livingWillRes.restored });
                         }
                     }
                     if (res && Array.isArray(res.flipped) && res.flipped.length) {
@@ -2713,26 +2837,6 @@
             } else if (pending && (pending.type === 'TELEPORT_WILL' || pending.type === 'CELL_TELEPORT_WILL') && action.teleportTarget == null) {
                 throw new Error(`${pending.type} requires teleportTarget before placement`);
             }
-            if (pending && pending.type === 'SELL_CARD_WILL' && action.sellCardId) {
-                const res = CardLogic.applySellCardWill(
-                    cardState,
-                    playerKey,
-                    action.sellCardId
-                );
-                events.push({ type: 'sell_selected', player: playerKey, soldCardId: action.sellCardId, applied: !!(res && res.applied), gained: res && res.gained ? res.gained : 0 });
-                if (res && res.applied) {
-                    emitHandRemovePresentation(CardLogic, cardState, {
-                        player: playerKey,
-                        count: 1,
-                        reason: 'sell_card_will',
-                        cardId: res.soldCardId || action.sellCardId || null
-                    });
-                }
-                // Selection-only pre-placement effect: stop after handling selection
-                return;
-            } else if (pending && pending.type === 'SELL_CARD_WILL' && action.sellCardId == null) {
-                throw new Error('SELL_CARD_WILL requires sellCardId before placement');
-            }
             if (pending && pending.type === 'HEAVEN_BLESSING' && action.heavenBlessingCardId) {
                 const res = CardLogic.applyHeavenBlessingChoice(
                     cardState,
@@ -2880,6 +2984,17 @@
                     action.guardTarget.col
                 );
                 events.push({ type: 'guard_selected', player: playerKey, target: action.guardTarget, applied: !!(res && res.applied) });
+                return;
+            }
+            if (requirePendingActionValue(pending, 'LIVING_WILL', action.livingWillTarget, 'LIVING_WILL requires livingWillTarget before placement')) {
+                const res = CardLogic.applyLivingWill(
+                    cardState,
+                    gameState,
+                    playerKey,
+                    action.livingWillTarget.row,
+                    action.livingWillTarget.col
+                );
+                events.push({ type: 'living_will_selected', player: playerKey, target: action.livingWillTarget, applied: !!(res && res.applied) });
                 return;
             }
             if (pending && pending.type === 'HYPERACTIVE_INHERIT_WILL' && action.hyperactiveInheritTarget) {
@@ -3039,6 +3154,38 @@
             } else if (pending && (pending.type === 'BOARD_EXPANSION_WILL' || pending.type === 'BOARD_EXPANSION_GOD') && action.expansionTarget == null) {
                 throw new Error(`${pending.type} requires expansionTarget before placement`);
             }
+            if (pending && (pending.type === 'BOARD_SHRINK_WILL' || pending.type === 'BOARD_SHRINK_GOD') && action.shrinkTarget) {
+                const isGodShrink = pending.type === 'BOARD_SHRINK_GOD';
+                const applyFn = (isGodShrink && typeof CardLogic.applyBoardShrinkGod === 'function')
+                    ? CardLogic.applyBoardShrinkGod
+                    : CardLogic.applyBoardShrinkWill;
+                const res = applyFn(
+                    cardState,
+                    gameState,
+                    playerKey,
+                    action.shrinkTarget.row,
+                    action.shrinkTarget.col
+                );
+                events.push({
+                    type: 'board_shrink_selected',
+                    player: playerKey,
+                    cardType: pending.type,
+                    target: action.shrinkTarget,
+                    firstTarget: res && res.firstTarget ? res.firstTarget : null,
+                    selectedCount: Number.isFinite(Number(res && res.selectedCount)) ? Number(res.selectedCount) : null,
+                    maxSelections: Number.isFinite(Number(res && res.maxSelections)) ? Number(res.maxSelections) : null,
+                    remainingSelections: Number.isFinite(Number(res && res.remainingSelections)) ? Number(res.remainingSelections) : null,
+                    selectedTargets: (res && Array.isArray(res.selectedTargets)) ? res.selectedTargets : null,
+                    lineTargets: (res && Array.isArray(res.lineTargets)) ? res.lineTargets : null,
+                    changedTargets: (res && Array.isArray(res.changedTargets)) ? res.changedTargets : null,
+                    skippedTargets: (res && Array.isArray(res.skippedTargets)) ? res.skippedTargets : null,
+                    applied: !!(res && res.applied),
+                    completed: !(res && res.completed === false)
+                });
+                return;
+            } else if (pending && (pending.type === 'BOARD_SHRINK_WILL' || pending.type === 'BOARD_SHRINK_GOD') && action.shrinkTarget == null) {
+                throw new Error(`${pending.type} requires shrinkTarget before placement`);
+            }
             if (pending && pending.type === 'BLOCKADE_WILL' && action.blockadeTarget) {
                 const res = CardLogic.applyBlockadeWill(
                     cardState,
@@ -3058,7 +3205,8 @@
                     gameState,
                     playerKey,
                     action.meteorTarget.row,
-                    action.meteorTarget.col
+                    action.meteorTarget.col,
+                    p
                 );
                 events.push({
                     type: 'meteor_selected',
@@ -3083,6 +3231,19 @@
                 return;
             } else if (pending && pending.type === 'FREEZE_WILL' && action.freezeTarget == null) {
                 throw new Error('FREEZE_WILL requires freezeTarget before placement');
+            }
+            if (pending && pending.type === 'SEED_WILL' && action.seedTarget) {
+                const res = CardLogic.applySeedWill(
+                    cardState,
+                    gameState,
+                    playerKey,
+                    action.seedTarget.row,
+                    action.seedTarget.col
+                );
+                events.push({ type: 'seed_selected', player: playerKey, target: action.seedTarget, applied: !!(res && res.applied) });
+                return;
+            } else if (pending && pending.type === 'SEED_WILL' && action.seedTarget == null) {
+                throw new Error('SEED_WILL requires seedTarget before placement');
             }
 
             // Determine flips using a safe context helper when possible
@@ -3291,7 +3452,9 @@
 
             // REGEN handling immediately after primary flips
             if (!tabooReverseApplied && flipCount > 0 && typeof CardLogic.applyRegenAfterFlips === 'function') {
-                const regenRes = CardLogic.applyRegenAfterFlips(cardState, gameState, flips, playerKey);
+                const reviveRes = applyPostFlipRevives(CardLogic, cardState, gameState, flips, playerKey);
+                const regenRes = reviveRes.regenRes;
+                const livingWillRes = reviveRes.livingWillRes;
                 if (regenRes.regened && regenRes.regened.length) {
                     events.push({ type: 'regen_triggered', details: regenRes.regened });
                 }
@@ -3299,6 +3462,9 @@
                     flips.push(...regenRes.captureFlips.map(p2 => [p2.row, p2.col]));
                     flipCount = flips.length;
                     events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
+                }
+                if (livingWillRes && livingWillRes.restored && livingWillRes.restored.length) {
+                    events.push({ type: 'living_will_triggered', details: livingWillRes.restored });
                 }
             }
 
@@ -3313,7 +3479,9 @@
 
                 // REGEN after chain flips
                 if (chainRes && chainRes.flips && chainRes.flips.length && typeof CardLogic.applyRegenAfterFlips === 'function') {
-                    const regenRes2 = CardLogic.applyRegenAfterFlips(cardState, gameState, chainRes.flips, playerKey);
+                    const reviveRes2 = applyPostFlipRevives(CardLogic, cardState, gameState, chainRes.flips, playerKey);
+                    const regenRes2 = reviveRes2.regenRes;
+                    const livingWillRes2 = reviveRes2.livingWillRes;
                     if (regenRes2.regened && regenRes2.regened.length) {
                         events.push({ type: 'regen_triggered', details: regenRes2.regened });
                     }
@@ -3321,6 +3489,9 @@
                         flips.push(...regenRes2.captureFlips.map(p3 => [p3.row, p3.col]));
                         flipCount = flips.length;
                         events.push({ type: 'regen_capture_flipped', details: regenRes2.captureFlips });
+                    }
+                    if (livingWillRes2 && livingWillRes2.restored && livingWillRes2.restored.length) {
+                        events.push({ type: 'living_will_triggered', details: livingWillRes2.restored });
                     }
                 }
             }
@@ -3486,7 +3657,9 @@
                     events.push({ type: 'hyperactive_destroyed_immediate', details: instantHyper.destroyed });
                 }
                 if (instantHyper && instantHyper.flipped && instantHyper.flipped.length && typeof CardLogic.applyRegenAfterFlips === 'function') {
-                    const regenRes3 = CardLogic.applyRegenAfterFlips(cardState, gameState, instantHyper.flipped, playerKey);
+                    const reviveRes3 = applyPostFlipRevives(CardLogic, cardState, gameState, instantHyper.flipped, playerKey);
+                    const regenRes3 = reviveRes3.regenRes;
+                    const livingWillRes3 = reviveRes3.livingWillRes;
                     if (regenRes3 && regenRes3.regened && regenRes3.regened.length) {
                         events.push({ type: 'regen_triggered', details: regenRes3.regened });
                     }
@@ -3501,6 +3674,9 @@
                             sourceType: 'regen_capture_immediate'
                         });
                         events.push({ type: 'regen_capture_flipped', details: regenRes3.captureFlips });
+                    }
+                    if (livingWillRes3 && livingWillRes3.restored && livingWillRes3.restored.length) {
+                        events.push({ type: 'living_will_triggered', details: livingWillRes3.restored });
                     }
                 }
             }

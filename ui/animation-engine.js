@@ -1675,7 +1675,9 @@
                                 count: t.count,
                                 reason: t.reason,
                                 sourceType: t.sourceType,
-                                generatedName: t.generatedName
+                                generatedName: t.generatedName,
+                                cpu: t.cpu === true,
+                                cpuLevel: t.cpuLevel
                             });
                         }
                     }

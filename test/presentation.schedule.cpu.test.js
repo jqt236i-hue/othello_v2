@@ -110,7 +110,7 @@ describe('presentation handler CPU scheduling', () => {
       playerKey: 'white',
       cardId: 'swap_01'
     }));
-    expect(global.addLog).toHaveBeenCalledWith('白CPU: うるさいぞ！');
+    expect(global.addLog).not.toHaveBeenCalled();
   });
 
   test('CARD_USED local card event also emits hero card commentary', async () => {
@@ -156,8 +156,7 @@ describe('presentation handler CPU scheduling', () => {
       cardType: 'SWAP_WITH_ENEMY',
       speakerRole: 'hero'
     }));
-    expect(global.addLog).toHaveBeenCalledWith('白CPU: うるさいぞ！');
-    expect(global.addLog).toHaveBeenCalledWith('勇者: 交換の意志で流れを作る。');
+    expect(global.addLog).not.toHaveBeenCalled();
   });
 
   test('PLAYBACK_EVENTS enemy ownerの大文字と空白を正規化してcommentaryを発火する', async () => {
@@ -191,6 +190,6 @@ describe('presentation handler CPU scheduling', () => {
       playerKey: 'white',
       cardId: 'swap_02'
     }));
-    expect(global.addLog).toHaveBeenCalledWith('白CPU: まだだ！');
+    expect(global.addLog).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,16 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const {
+    buildSeedBank,
+    commitSeedBankUsage
+} = require('../scripts/seed-bank-manager');
+const {
+    buildIterationWarehouseManifest,
+    TRAINING_WAREHOUSE_MANIFEST_SCHEMA_VERSION,
+    cleanupWarehouseSelfplayArtifacts,
+    writeTrainingWarehouseManifest
+} = require('../scripts/training-warehouse-manifest-utils');
+const {
     parseArgs,
     TRAINING_CYCLE_STEP_ORDER,
     buildInitialGuideModelPoolPaths,
@@ -18,6 +28,7 @@ const {
     buildPromotionCommandArgs,
     shouldReuseStepArtifacts,
     shouldRunGateForIteration,
+    resolveGateSeedConfig,
     resolveQuickComponentDelta,
     resolvePromotionEligibility,
     extractTrainingCycleFailureDetail,
@@ -142,6 +153,7 @@ describe('selfplay training cycle script', () => {
         expect(args.onnxGateMaxMaxLatencyMs).toBe(0);
         expect(args.gateFinalIterationOnly).toBe(false);
         expect(args.reuseExistingArtifacts).toBe(false);
+        expect(args.seedBankPath).toBeNull();
     });
 
     test('parseArgs enables existing artifact reuse when requested', () => {
@@ -157,7 +169,8 @@ describe('selfplay training cycle script', () => {
 
     test('parseArgs validates range options', () => {
         expect(() => parseArgs(['--iterations', '0'])).toThrow('--iterations must be >= 1');
-        expect(() => parseArgs(['--max-hours', '0'])).toThrow('--max-hours must be > 0');
+        expect(parseArgs(['--max-hours', '0']).maxHours).toBe(0);
+        expect(() => parseArgs(['--max-hours', '-1'])).toThrow('--max-hours must be >= 0');
         expect(() => parseArgs(['--card-usage-rate', '2'])).toThrow('--card-usage-rate must be in [0,1]');
         expect(() => parseArgs(['--selfplay-policy-mix-rate', '2'])).toThrow('--selfplay-policy-mix-rate must be in [0,1]');
         expect(() => parseArgs(['--selfplay-policy-model-pool-size', '0'])).toThrow('--selfplay-policy-model-pool-size must be >= 1');
@@ -463,6 +476,11 @@ describe('selfplay training cycle script', () => {
                 onnxMetaPath: path.join(modelsDir, 'policy-net.candidate.test.it01.onnx.meta.json'),
                 cardOnnxModelPath: path.join(modelsDir, 'policy-card.candidate.test.it01.onnx'),
                 cardOnnxMetaPath: path.join(modelsDir, 'policy-card.candidate.test.it01.onnx.meta.json'),
+                quickAdoptionPath: path.join(tempDir, 'data', 'runs', 'adoption.quick.test.it01.json'),
+                qualityGatePath: path.join(tempDir, 'data', 'runs', 'adoption.quality.test.it01.json'),
+                finalAdoptionPath: path.join(tempDir, 'data', 'runs', 'adoption.final.test.it01.json'),
+                onnxGatePath: path.join(tempDir, 'data', 'runs', 'adoption.onnx.test.it01.json'),
+                warehouseManifestPath: path.join(tempDir, 'data', 'runs', 'training-warehouse.test.it01.json'),
                 targetOnnxModelPath: path.join(modelsDir, 'policy-target.candidate.test.it01.onnx'),
                 targetOnnxMetaPath: path.join(modelsDir, 'policy-target.candidate.test.it01.onnx.meta.json'),
                 valueOnnxModelPath: path.join(modelsDir, 'policy-value.candidate.test.it01.onnx'),
@@ -473,6 +491,11 @@ describe('selfplay training cycle script', () => {
                 '--target-model', path.join(modelsDir, 'policy-table.json'),
                 '--target-onnx', path.join(modelsDir, 'policy-net.onnx'),
                 '--target-onnx-meta', path.join(modelsDir, 'policy-net.onnx.meta.json'),
+                '--quick-gate-payload', path.join(modelsDir, '..', 'data', 'runs', 'adoption.quick.test.it01.json'),
+                '--quality-gate-payload', path.join(modelsDir, '..', 'data', 'runs', 'adoption.quality.test.it01.json'),
+                '--final-gate-payload', path.join(modelsDir, '..', 'data', 'runs', 'adoption.final.test.it01.json'),
+                '--onnx-gate-payload', path.join(modelsDir, '..', 'data', 'runs', 'adoption.onnx.test.it01.json'),
+                '--warehouse-manifest', path.join(modelsDir, '..', 'data', 'runs', 'training-warehouse.test.it01.json'),
                 '--target-card-onnx', path.join(modelsDir, 'policy-card.onnx'),
                 '--target-card-onnx-meta', path.join(modelsDir, 'policy-card.onnx.meta.json'),
                 '--target-target-onnx', path.join(modelsDir, 'policy-target.onnx'),
@@ -740,11 +763,21 @@ describe('selfplay training cycle script', () => {
         const cardCheckpointPath = path.join(tempDir, 'policy-card.resume.checkpoint.pt');
         const targetCheckpointPath = path.join(tempDir, 'policy-target.resume.checkpoint.pt');
         const valueCheckpointPath = path.join(tempDir, 'policy-value.resume.checkpoint.pt');
+        const seedBankPath = path.join(tempDir, 'seed-bank.json');
         fs.writeFileSync(bootstrapPath, '{}\n', 'utf8');
         fs.writeFileSync(policyCheckpointPath, 'policy\n', 'utf8');
         fs.writeFileSync(cardCheckpointPath, 'card\n', 'utf8');
         fs.writeFileSync(targetCheckpointPath, 'target\n', 'utf8');
         fs.writeFileSync(valueCheckpointPath, 'value\n', 'utf8');
+        fs.writeFileSync(seedBankPath, JSON.stringify(buildSeedBank({
+            bankId: 'seed-bank-explicit',
+            gates: {
+                quick: { baseSeed: 9101, seedCount: 2, seedStride: 101 },
+                quality: { baseSeed: 9201, seedCount: 2, seedStride: 103 },
+                final: { baseSeed: 9301, seedCount: 2, seedStride: 107 },
+                onnx: { baseSeed: 9401, seedCount: 2, seedStride: 109 }
+            }
+        }), null, 2), 'utf8');
 
         try {
             const args = parseArgs([
@@ -755,6 +788,7 @@ describe('selfplay training cycle script', () => {
                 '--resume-card-checkpoint', cardCheckpointPath,
                 '--resume-target-checkpoint', targetCheckpointPath,
                 '--resume-value-checkpoint', valueCheckpointPath,
+                '--seed-bank', seedBankPath,
                 '--adoption-seed-count', '3',
                 '--adoption-seed-stride', '2000',
                 '--adoption-final-seed-offset', '500000',
@@ -841,6 +875,7 @@ describe('selfplay training cycle script', () => {
                 target: targetCheckpointPath,
                 value: valueCheckpointPath
             });
+            expect(args.seedBankPath).toBe(seedBankPath);
             expect(args.adoptionSeedCount).toBe(3);
             expect(args.adoptionSeedStride).toBe(2000);
             expect(args.adoptionFinalSeedOffset).toBe(500000);
@@ -927,8 +962,10 @@ describe('selfplay training cycle script', () => {
         expect(p.tag).toBe('abc123.it03');
         expect(p.trainDataPath.endsWith(path.join('data', 'runs', 'selfplay.train.abc123.it03.ndjson'))).toBe(true);
         expect(p.trainHardcaseDataPath.endsWith(path.join('data', 'runs', 'selfplay.train.hardcase.abc123.it03.ndjson'))).toBe(true);
+        expect(p.trainDataSummaryPath.endsWith(path.join('data', 'runs', 'selfplay.train.abc123.it03.ndjson.summary.json'))).toBe(true);
         expect(p.evalDataPath.endsWith(path.join('data', 'runs', 'selfplay.eval.abc123.it03.ndjson'))).toBe(true);
         expect(p.evalHardcaseDataPath.endsWith(path.join('data', 'runs', 'selfplay.eval.hardcase.abc123.it03.ndjson'))).toBe(true);
+        expect(p.evalDataSummaryPath.endsWith(path.join('data', 'runs', 'selfplay.eval.abc123.it03.ndjson.summary.json'))).toBe(true);
         expect(p.onnxModelPath.endsWith(path.join('data', 'models', 'policy-net.candidate.abc123.it03.onnx'))).toBe(true);
         expect(p.onnxMetaPath.endsWith(path.join('data', 'models', 'policy-net.candidate.abc123.it03.onnx.meta.json'))).toBe(true);
         expect(p.checkpointPath.endsWith(path.join('data', 'models', 'policy-net.candidate.abc123.it03.checkpoint.pt'))).toBe(true);
@@ -942,6 +979,368 @@ describe('selfplay training cycle script', () => {
         expect(p.finalAdoptionPath.endsWith(path.join('data', 'runs', 'adoption.final.abc123.it03.json'))).toBe(true);
         expect(p.qualityGatePath.endsWith(path.join('data', 'runs', 'adoption.quality.abc123.it03.json'))).toBe(true);
         expect(p.onnxGatePath.endsWith(path.join('data', 'runs', 'adoption.onnx.abc123.it03.json'))).toBe(true);
+        expect(p.warehouseManifestPath.endsWith(path.join('data', 'runs', 'training-warehouse.abc123.it03.json'))).toBe(true);
+    });
+
+    test('buildIterationWarehouseManifest records dataset lineage and gate summaries', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-warehouse-'));
+        const runsDir = path.join(tempDir, 'runs');
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(runsDir, { recursive: true });
+        fs.mkdirSync(modelsDir, { recursive: true });
+        const summaryOut = path.join(runsDir, 'training-cycle.abc123.json');
+        const args = parseArgs([
+            '--run-tag', 'abc123',
+            '--runs-dir', runsDir,
+            '--models-dir', modelsDir,
+            '--summary-out', summaryOut
+        ]);
+        const p = buildIterationPaths(args, 2);
+        const quickPayload = {
+            schemaVersion: 'selfplay.v2',
+            payloadSchemaVersion: 'policy_gate_result.v1',
+            gateType: 'quick',
+            gateFamily: 'adoption',
+            seedSchedule: {
+                baseSeed: 201001,
+                seedCount: 3,
+                seedStride: 1000,
+                scheduledSeeds: [201001, 202001, 203001],
+                completedSeeds: [201001, 202001, 203001]
+            },
+            decision: {
+                passed: false,
+                primaryFailureReason: 'lower-bound',
+                failureReasons: ['lower-bound'],
+                uplift: -0.01,
+                upliftLowerBound: -0.03,
+                seedCount: 3,
+                seedPassCount: 1
+            }
+        };
+        const onnxPayload = {
+            gateType: 'onnx',
+            gateFamily: 'onnx',
+            seedSchedule: {
+                baseSeed: 801001,
+                seedCount: 2,
+                seedStride: 500,
+                scheduledSeeds: [801001, 801501],
+                completedSeeds: [801001, 801501]
+            },
+            decision: {
+                passed: true,
+                seedCount: 2,
+                seedPassCount: 2
+            }
+        };
+
+        try {
+            fs.writeFileSync(p.trainDataPath, '{}\n', 'utf8');
+            fs.writeFileSync(p.trainDataSummaryPath, JSON.stringify({ schemaVersion: 'selfplay_summary.v1' }, null, 2), 'utf8');
+            fs.writeFileSync(p.trainHardcaseDataPath, '{}\n', 'utf8');
+            fs.writeFileSync(p.evalDataPath, '{}\n', 'utf8');
+            fs.writeFileSync(p.evalDataSummaryPath, JSON.stringify({ schemaVersion: 'selfplay_summary.v1' }, null, 2), 'utf8');
+            fs.writeFileSync(p.evalHardcaseDataPath, '{}\n', 'utf8');
+            fs.writeFileSync(p.candidateModelPath, '{}\n', 'utf8');
+            fs.writeFileSync(p.onnxModelPath, 'onnx\n', 'utf8');
+            fs.writeFileSync(p.quickAdoptionPath, JSON.stringify(quickPayload, null, 2), 'utf8');
+            fs.writeFileSync(p.onnxGatePath, JSON.stringify(onnxPayload, null, 2), 'utf8');
+
+            const manifest = buildIterationWarehouseManifest(args, {
+                iteration: 2,
+                seed: 1001,
+                quickAdoptionSeed: 201001,
+                qualityGateSeed: 251001,
+                finalAdoptionSeed: 501001,
+                onnxGateSeed: 801001,
+                evalSeed: 101001,
+                usedGuideModelPath: path.join(modelsDir, 'policy-table.json'),
+                usedGuideModelPoolPaths: [path.join(modelsDir, 'policy-table.json')],
+                usedResumeCheckpointPaths: {
+                    policy: path.join(modelsDir, 'policy-net.prev.checkpoint.pt')
+                },
+                usedAnchorModelPath: path.join(modelsDir, 'policy-table.anchor.json'),
+                seedBankPath: path.join(modelsDir, 'seed-bank.json'),
+                seedBankId: 'seed-bank-live',
+                usedSelfplayCardUsageRate: 0.3,
+                gateControl: {
+                    gateIterationAllowed: true,
+                    baselineMode: 'guide',
+                    baselineModelPath: path.join(modelsDir, 'policy-table.json')
+                },
+                paths: p,
+                quickAdoptionConfig: { seed: 201001, seedCount: 3, seedList: [201001, 202001, 203001] },
+                qualityGateConfig: { enabled: false, seed: 251001, seedCount: 3, seedList: [251001, 252001, 253001] },
+                finalAdoptionConfig: { seed: 501001, seedCount: 3, seedList: [501001, 502001, 503001] },
+                onnxGateConfig: { enabled: true, seed: 801001, seedCount: 2, seedList: [801001, 801501] },
+                hasTargetTrainingData: true,
+                promoted: false,
+                promotionDetail: {
+                    promoteEligible: false
+                },
+                steps: [
+                    { name: 'generate-train', status: 0, elapsedMs: 12, reused: false }
+                ]
+            });
+
+            expect(manifest.schemaVersion).toBe(TRAINING_WAREHOUSE_MANIFEST_SCHEMA_VERSION);
+            expect(manifest.lineage.baselineMode).toBe('guide');
+            expect(manifest.lineage.seedBankId).toBe('seed-bank-live');
+            expect(manifest.lineage.seedBankPath).toBe(path.join(modelsDir, 'seed-bank.json'));
+            expect(manifest.lineage.seeds.qualityGateSeed).toBe(251001);
+            expect(manifest.lineage.seeds.onnxGateSeed).toBe(801001);
+            expect(manifest.lineage.gateConfig.onnx.seedList).toEqual([801001, 801501]);
+            expect(manifest.datasets.train.selfplay.summaryExists).toBe(true);
+            expect(manifest.gates.quick.seedSchedule.scheduledSeeds).toEqual([201001, 202001, 203001]);
+            expect(manifest.gates.onnx.seedSchedule.completedSeeds).toEqual([801001, 801501]);
+            expect(manifest.gates.quick.decision.primaryFailureReason).toBe('lower-bound');
+            expect(manifest.training.hasTargetTrainingData).toBe(true);
+            expect(manifest.steps[0]).toMatchObject({
+                name: 'generate-train',
+                status: 0
+            });
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('cleanupWarehouseSelfplayArtifacts removes historical manifest-backed selfplay blobs', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-warehouse-cleanup-'));
+        const runsDir = path.join(tempDir, 'runs');
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(runsDir, { recursive: true });
+        fs.mkdirSync(modelsDir, { recursive: true });
+        const summaryOut = path.join(runsDir, 'training-cycle.cleanup.json');
+        const args = parseArgs([
+            '--run-tag', 'cleanup',
+            '--runs-dir', runsDir,
+            '--models-dir', modelsDir,
+            '--summary-out', summaryOut
+        ]);
+        const p = buildIterationPaths(args, 1);
+
+        try {
+            fs.writeFileSync(p.trainDataPath, '{}\n', 'utf8');
+            fs.writeFileSync(p.trainHardcaseDataPath, '{}\n', 'utf8');
+            fs.writeFileSync(p.evalDataPath, '{}\n', 'utf8');
+            fs.writeFileSync(p.evalHardcaseDataPath, '{}\n', 'utf8');
+            fs.writeFileSync(p.trainDataSummaryPath, JSON.stringify({ schemaVersion: 'selfplay_summary.v1' }, null, 2), 'utf8');
+            fs.writeFileSync(p.evalDataSummaryPath, JSON.stringify({ schemaVersion: 'selfplay_summary.v1' }, null, 2), 'utf8');
+            fs.mkdirSync(`${p.trainDataPath}.resume-chunks`, { recursive: true });
+            fs.writeFileSync(path.join(`${p.trainDataPath}.resume-chunks`, 'chunk-00001.ndjson'), '{}\n', 'utf8');
+            fs.writeFileSync(`${p.trainHardcaseDataPath}.partial`, '{}\n', 'utf8');
+            fs.writeFileSync(`${p.evalDataPath}.merge-state.json`, JSON.stringify({ done: false }, null, 2), 'utf8');
+
+            const manifest = buildIterationWarehouseManifest(args, {
+                iteration: 1,
+                seed: 1,
+                evalSeed: 100001,
+                usedSelfplayCardUsageRate: 0.2,
+                gateControl: {
+                    gateIterationAllowed: true,
+                    baselineMode: 'guide',
+                    baselineModelPath: null
+                },
+                paths: p,
+                hasTargetTrainingData: true,
+                promoted: false,
+                promotionDetail: {
+                    promoteEligible: false
+                },
+                steps: [
+                    { name: 'generate-train', status: 0, elapsedMs: 12, reused: false }
+                ]
+            });
+            writeTrainingWarehouseManifest(p.warehouseManifestPath, manifest);
+
+            const result = cleanupWarehouseSelfplayArtifacts(runsDir);
+
+            expect(result.manifestsScanned).toBe(1);
+            expect(result.failed).toEqual([]);
+            expect(result.removed).toEqual(expect.arrayContaining([
+                p.trainDataPath,
+                p.trainHardcaseDataPath,
+                p.evalDataPath,
+                p.evalHardcaseDataPath,
+                `${p.trainDataPath}.resume-chunks`,
+                `${p.trainHardcaseDataPath}.partial`,
+                `${p.evalDataPath}.merge-state.json`
+            ]));
+            expect(result.totalBytesRemoved).toBeGreaterThan(0);
+            expect(fs.existsSync(p.trainDataPath)).toBe(false);
+            expect(fs.existsSync(p.trainHardcaseDataPath)).toBe(false);
+            expect(fs.existsSync(p.evalDataPath)).toBe(false);
+            expect(fs.existsSync(p.evalHardcaseDataPath)).toBe(false);
+            expect(fs.existsSync(`${p.trainDataPath}.resume-chunks`)).toBe(false);
+            expect(fs.existsSync(`${p.trainHardcaseDataPath}.partial`)).toBe(false);
+            expect(fs.existsSync(`${p.evalDataPath}.merge-state.json`)).toBe(false);
+            expect(fs.existsSync(p.trainDataSummaryPath)).toBe(true);
+            expect(fs.existsSync(p.evalDataSummaryPath)).toBe(true);
+            expect(fs.existsSync(p.warehouseManifestPath)).toBe(true);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('cleanupWarehouseSelfplayArtifacts sweeps sibling lanes and only removes stale orphan transients', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-warehouse-root-cleanup-'));
+        const runsRoot = path.join(tempDir, 'data', 'runs');
+        const laneADir = path.join(runsRoot, 'lane-a');
+        const laneBDir = path.join(runsRoot, 'lane-b');
+        const modelsDir = path.join(tempDir, 'data', 'models');
+        fs.mkdirSync(laneADir, { recursive: true });
+        fs.mkdirSync(laneBDir, { recursive: true });
+        fs.mkdirSync(modelsDir, { recursive: true });
+
+        const args = parseArgs([
+            '--run-tag', 'cleanup-root',
+            '--runs-dir', laneADir,
+            '--models-dir', modelsDir,
+            '--summary-out', path.join(laneADir, 'training-cycle.cleanup-root.json')
+        ]);
+        const p = buildIterationPaths(args, 1);
+        const staleNowMs = Date.now();
+        const staleDate = new Date(staleNowMs - (3 * 24 * 60 * 60 * 1000));
+        const stalePartialPath = path.join(laneBDir, 'selfplay.train.stale.it02.ndjson.partial');
+        const staleMergeStatePath = path.join(laneBDir, 'selfplay.eval.stale.it02.ndjson.merge-state.json');
+        const staleResumeDir = path.join(laneBDir, 'selfplay.train.hardcase.stale.it02.ndjson.resume-chunks');
+        const recentPartialPath = path.join(laneBDir, 'selfplay.eval.recent.it03.ndjson.partial');
+        const keepLogPath = path.join(laneBDir, 'launcher.log');
+
+        try {
+            fs.writeFileSync(p.trainDataPath, '{}\n', 'utf8');
+            fs.writeFileSync(p.trainHardcaseDataPath, '{}\n', 'utf8');
+            fs.writeFileSync(p.evalDataPath, '{}\n', 'utf8');
+            fs.writeFileSync(p.evalHardcaseDataPath, '{}\n', 'utf8');
+            fs.writeFileSync(p.trainDataSummaryPath, JSON.stringify({ schemaVersion: 'selfplay_summary.v1' }, null, 2), 'utf8');
+            fs.writeFileSync(p.evalDataSummaryPath, JSON.stringify({ schemaVersion: 'selfplay_summary.v1' }, null, 2), 'utf8');
+
+            const manifest = buildIterationWarehouseManifest(args, {
+                iteration: 1,
+                seed: 1,
+                evalSeed: 100001,
+                usedSelfplayCardUsageRate: 0.2,
+                gateControl: {
+                    gateIterationAllowed: true,
+                    baselineMode: 'guide',
+                    baselineModelPath: null
+                },
+                paths: p,
+                hasTargetTrainingData: true,
+                promoted: false,
+                promotionDetail: {
+                    promoteEligible: false
+                },
+                steps: [
+                    { name: 'generate-train', status: 0, elapsedMs: 12, reused: false }
+                ]
+            });
+            writeTrainingWarehouseManifest(p.warehouseManifestPath, manifest);
+
+            fs.writeFileSync(stalePartialPath, '{}\n', 'utf8');
+            fs.writeFileSync(staleMergeStatePath, JSON.stringify({ done: false }, null, 2), 'utf8');
+            fs.mkdirSync(staleResumeDir, { recursive: true });
+            fs.writeFileSync(path.join(staleResumeDir, 'chunk-00001.ndjson'), '{}\n', 'utf8');
+            fs.writeFileSync(recentPartialPath, '{}\n', 'utf8');
+            fs.writeFileSync(keepLogPath, '[launcher]\n', 'utf8');
+
+            fs.utimesSync(stalePartialPath, staleDate, staleDate);
+            fs.utimesSync(staleMergeStatePath, staleDate, staleDate);
+            fs.utimesSync(staleResumeDir, staleDate, staleDate);
+
+            const result = cleanupWarehouseSelfplayArtifacts(laneADir, {
+                nowMs: staleNowMs,
+                staleOrphanMinAgeMs: 24 * 60 * 60 * 1000
+            });
+
+            expect(result.cleanupRoot).toBe(runsRoot);
+            expect(result.manifestsScanned).toBe(1);
+            expect(result.orphanedArtifactsRemoved).toBe(3);
+            expect(result.failed).toEqual([]);
+            expect(result.removed).toEqual(expect.arrayContaining([
+                p.trainDataPath,
+                p.trainHardcaseDataPath,
+                p.evalDataPath,
+                p.evalHardcaseDataPath,
+                stalePartialPath,
+                staleMergeStatePath,
+                staleResumeDir
+            ]));
+            expect(fs.existsSync(stalePartialPath)).toBe(false);
+            expect(fs.existsSync(staleMergeStatePath)).toBe(false);
+            expect(fs.existsSync(staleResumeDir)).toBe(false);
+            expect(fs.existsSync(recentPartialPath)).toBe(true);
+            expect(fs.existsSync(keepLogPath)).toBe(true);
+            expect(fs.existsSync(p.warehouseManifestPath)).toBe(true);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('resolveGateSeedConfig prefers seed-bank schedule over fallback config', () => {
+        const seedBank = buildSeedBank({
+            bankId: 'seed-bank-preferred',
+            gates: {
+                quick: {
+                    baseSeed: 7001,
+                    seedCount: 4,
+                    seedStride: 37,
+                    scheduledSeeds: [7001, 7038, 7075, 7112]
+                }
+            }
+        });
+
+        const config = resolveGateSeedConfig(seedBank, 'quick', {
+            seed: 1001,
+            seedCount: 2,
+            seedStride: 11,
+            seedList: [1001, 1012]
+        });
+
+        expect(config).toMatchObject({
+            seed: 7001,
+            seedCount: 4,
+            seedStride: 37,
+            source: 'seed-bank',
+            bankId: 'seed-bank-preferred'
+        });
+        expect(config.seedList).toEqual([7001, 7038, 7075, 7112]);
+    });
+
+    test('seed-bank manager records usage entries for live gate payloads', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-seed-bank-'));
+        const seedBankPath = path.join(tempDir, 'seed-bank.json');
+
+        try {
+            fs.writeFileSync(seedBankPath, JSON.stringify(buildSeedBank({
+                bankId: 'seed-bank-usage-test',
+                gates: {
+                    quick: { baseSeed: 1101, seedCount: 2, seedStride: 17 },
+                    quality: { baseSeed: 1201, seedCount: 2, seedStride: 19 }
+                }
+            }), null, 2), 'utf8');
+
+            const bank = commitSeedBankUsage(seedBankPath, {
+                gateType: 'quick',
+                runTag: 'demo-run',
+                iteration: 2,
+                gatePayloadPath: 'C:/tmp/adoption.quick.demo-run.it02.json',
+                note: 'fresh-run'
+            });
+
+            expect(bank.bankId).toBe('seed-bank-usage-test');
+            expect(bank.usage).toHaveLength(1);
+            expect(bank.usage[0]).toMatchObject({
+                gateType: 'quick',
+                runTag: 'demo-run',
+                iteration: 2,
+                gatePayloadPath: 'C:/tmp/adoption.quick.demo-run.it02.json',
+                note: 'fresh-run'
+            });
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
     });
 
     test('hasCoordinatePendingSelectionRecords scans ndjson incrementally', () => {

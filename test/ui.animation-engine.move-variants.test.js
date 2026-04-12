@@ -357,7 +357,6 @@ describe('animation-engine extreme forced swap playback', () => {
     });
 
     const engine = require('../ui/animation-engine');
-    const createDiscSpy = jest.spyOn(engine, 'createDisc');
     const playPromise = engine.handleMove({
       type: 'move',
       meta: { sequence: 'extreme_hyperactive_forced_swap' },
@@ -389,14 +388,13 @@ describe('animation-engine extreme forced swap playback', () => {
     expect(animateCalls[0]).toHaveLength(3);
     expect(String(animateCalls[0][2].transform)).toContain('scale(1.06)');
     expect(sourceDisc.style.visibility).toBe('hidden');
-    expect(targetDisc.style.visibility).not.toBe('hidden');
+    expect(targetDisc.style.visibility).toBe('hidden');
     expect(toCell.querySelectorAll('.disc.white')).toHaveLength(1);
 
     finishFirstAnimation();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(animateCalls).toHaveLength(2);
-    expect(createDiscSpy).toHaveBeenCalledTimes(0);
     expect(fromCell.querySelectorAll('.disc.black')).toHaveLength(0);
     expect(toCell.querySelectorAll('.disc.black')).toHaveLength(1);
 
@@ -404,11 +402,118 @@ describe('animation-engine extreme forced swap playback', () => {
     await playPromise;
 
     expect(animateCalls).toHaveLength(2);
-    expect(createDiscSpy).toHaveBeenCalledTimes(1);
     expect(fromCell.querySelectorAll('.disc.white')).toHaveLength(1);
     expect(fromCell.querySelectorAll('.disc.black')).toHaveLength(0);
     expect(toCell.querySelectorAll('.disc.black')).toHaveLength(1);
     expect(toCell.querySelectorAll('.disc.white')).toHaveLength(0);
+  });
+
+  test('does not duplicate the extreme visual when the board DOM already reflects the swapped state', async () => {
+    const board = document.getElementById('board');
+    const fromCell = document.createElement('div');
+    const toCell = document.createElement('div');
+    const displacedDisc = document.createElement('div');
+    const extremeDisc = document.createElement('div');
+    const animateCalls = [];
+    let finishFirstAnimation = null;
+    let finishSecondAnimation = null;
+
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '4';
+    fromCell.dataset.col = '1';
+    fromCell.getBoundingClientRect = () => ({ left: 20, top: 20, width: 50, height: 50 });
+
+    toCell.className = 'cell';
+    toCell.dataset.row = '4';
+    toCell.dataset.col = '2';
+    toCell.getBoundingClientRect = () => ({ left: 90, top: 20, width: 50, height: 50 });
+
+    displacedDisc.className = 'disc white';
+    extremeDisc.className = 'disc black';
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+    fromCell.appendChild(displacedDisc);
+    toCell.appendChild(extremeDisc);
+
+    global.window.Element.prototype.animate = jest.fn((keyframes) => {
+      animateCalls.push(keyframes);
+      const animationIndex = animateCalls.length;
+      let finished = Promise.resolve();
+      if (animationIndex === 1) {
+        finished = new Promise((resolve) => {
+          finishFirstAnimation = resolve;
+        });
+      } else if (animationIndex === 2) {
+        finished = new Promise((resolve) => {
+          finishSecondAnimation = resolve;
+        });
+      }
+      return {
+        addEventListener(eventName, handler) {
+          if (eventName === 'finish' && typeof handler === 'function') {
+            finished.then(handler);
+          }
+        },
+        removeEventListener() {},
+        finished
+      };
+    });
+
+    const engine = require('../ui/animation-engine');
+    window.getEffectKeyForSpecialType = jest.fn((specialType) => (
+      String(specialType || '').toUpperCase() === 'EXTREME_HYPERACTIVE' ? 'extremeHyperactiveStone' : null
+    ));
+    window.applyStoneVisualEffect = jest.fn((disc, effectKey) => {
+      if (!disc || effectKey !== 'extremeHyperactiveStone') return;
+      disc.classList.add('special-stone', 'extreme-hyperactive-visual');
+    });
+    window.clearStoneVisualEffectState = jest.fn((disc) => {
+      if (!disc) return;
+      disc.classList.remove('special-stone', 'extreme-hyperactive-visual');
+    });
+    window.applyStoneVisualEffect(extremeDisc, 'extremeHyperactiveStone');
+    const playPromise = engine.handleMove({
+      type: 'move',
+      meta: { sequence: 'extreme_hyperactive_forced_swap' },
+      targets: [{
+        from: { r: 4, col: 1 },
+        to: { r: 4, col: 2 },
+        ownerBefore: 'black',
+        ownerAfter: 'black',
+        cause: 'EXTREME_HYPERACTIVE_WILL',
+        reason: 'extreme_hyperactive_forced_swap',
+        extremeForcedSwapRole: 'lead',
+        after: { color: 1, special: 'EXTREME_HYPERACTIVE', timer: 5, owner: 'black' }
+      }, {
+        from: { r: 4, col: 2 },
+        to: { r: 4, col: 1 },
+        ownerBefore: 'white',
+        ownerAfter: 'white',
+        cause: 'EXTREME_HYPERACTIVE_WILL',
+        reason: 'extreme_hyperactive_forced_swap',
+        extremeForcedSwapRole: 'follow',
+        after: { color: -1, special: null, timer: null, owner: 'white' }
+      }]
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(animateCalls).toHaveLength(1);
+
+    finishFirstAnimation();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(animateCalls).toHaveLength(2);
+    expect(document.body.querySelectorAll('.extreme-hyperactive-visual')).toHaveLength(1);
+    expect(document.body.querySelectorAll('.special-stone')).toHaveLength(1);
+
+    finishSecondAnimation();
+    await playPromise;
+
+    expect(fromCell.querySelectorAll('.disc.white')).toHaveLength(1);
+    expect(fromCell.querySelectorAll('.extreme-hyperactive-visual')).toHaveLength(0);
+    expect(toCell.querySelectorAll('.disc.black')).toHaveLength(1);
+    expect(toCell.querySelectorAll('.extreme-hyperactive-visual')).toHaveLength(1);
   });
 
   test('applies the forced-swap final state immediately in no-anim mode', async () => {

@@ -79,6 +79,27 @@
         return playerKey === 'black' ? BLACK : WHITE;
     }
 
+    function applySpawnWithValidation(spawnAt, setCellValueForCard, cardState, gameState, target, playerKey, playerValue, cause, reason, meta) {
+        if (typeof spawnAt === 'function') {
+            const spawnResult = spawnAt(cardState, gameState, target.row, target.col, playerKey, cause, reason, meta);
+            if (!spawnResult || spawnResult.spawned !== true) {
+                return {
+                    applied: false,
+                    reason: (spawnResult && typeof spawnResult.reason === 'string' && spawnResult.reason)
+                        ? spawnResult.reason
+                        : 'spawn_failed'
+                };
+            }
+            return { applied: true, spawnResult };
+        }
+
+        const wroteCell = setCellValueForCard(gameState, target.row, target.col, playerValue);
+        if (wroteCell !== true) {
+            return { applied: false, reason: 'spawn_failed' };
+        }
+        return { applied: true, spawnResult: null };
+    }
+
     function applyCloneWill(cardState, gameState, playerKey, row, col, prng, deps = {}) {
         const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
         if (!pending || pending.type !== 'CLONE_WILL' || pending.stage !== 'selectTarget') {
@@ -111,15 +132,23 @@
         const target = spawnTargets[resolveRandomIndex(randomSource, spawnTargets.length)] || spawnTargets[0];
         const spawned = [];
 
-        if (typeof spawnAt === 'function') {
-            spawnAt(cardState, gameState, target.row, target.col, playerKey, 'CLONE_WILL', 'clone_spawn', {
+        const spawnOutcome = applySpawnWithValidation(
+            spawnAt,
+            setCellValueForCard,
+            cardState,
+            gameState,
+            target,
+            playerKey,
+            playerValue,
+            'CLONE_WILL',
+            'clone_spawn',
+            {
                 fromRow: row,
                 fromCol: col,
                 cloneVisual: true
-            });
-        } else {
-            setCellValueForCard(gameState, target.row, target.col, playerValue);
-        }
+            }
+        );
+        if (!spawnOutcome.applied) return spawnOutcome;
 
         for (const special of sourceSpecials) {
             const owner = special.owner === 'white' ? 'white' : 'black';
@@ -171,15 +200,23 @@
         const target = spawnTargets[resolveRandomIndex(randomSource, spawnTargets.length)] || spawnTargets[0];
         const spawned = [];
 
-        if (typeof spawnAt === 'function') {
-            spawnAt(cardState, gameState, target.row, target.col, playerKey, 'SPLIT_WILL', 'split_spawn', {
+        const spawnOutcome = applySpawnWithValidation(
+            spawnAt,
+            setCellValueForCard,
+            cardState,
+            gameState,
+            target,
+            playerKey,
+            playerValue,
+            'SPLIT_WILL',
+            'split_spawn',
+            {
                 fromRow: row,
                 fromCol: col,
                 cloneVisual: true
-            });
-        } else {
-            setCellValueForCard(gameState, target.row, target.col, playerValue);
-        }
+            }
+        );
+        if (!spawnOutcome.applied) return spawnOutcome;
 
         const durationChanges = [];
         for (const special of sourceSpecials) {

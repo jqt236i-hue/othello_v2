@@ -135,6 +135,10 @@ describe('selfplay runner', () => {
             expect(['black', 'white', 'draw']).toContain(rec.winner);
             expect([-1, 0, 1]).toContain(rec.outcome);
             expect(typeof rec.board).toBe('string');
+            expect(typeof rec.boardEnvelope).toBe('string');
+            expect(rec.boardEnvelope).toBe(rec.board);
+            expect(rec.boardMinRow).toBe(0);
+            expect(rec.boardMinCol).toBe(0);
             expect(Array.isArray(rec.handCards)).toBe(true);
             expect(Array.isArray(rec.usableCardIds)).toBe(true);
             expect(Object.prototype.hasOwnProperty.call(rec, 'tacticalScoreMissRatio')).toBe(true);
@@ -392,7 +396,7 @@ describe('selfplay runner', () => {
         }));
     });
 
-    test('buildCardDecisionContext preserves hand-aware sell-card scoring parity with the in-game CPU context', () => {
+    test('buildCardDecisionContext preserves card scoring parity with the in-game CPU context', () => {
         const gameState = Core.createGameState();
         gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
         gameState.board[3][3] = Core.BLACK;
@@ -401,8 +405,8 @@ describe('selfplay runner', () => {
         gameState.board[4][4] = Core.BLACK;
 
         const cardState = CardLogic.createCardState({ shuffle: (arr) => arr, random: () => 0.5 });
-        cardState.hands.white = ['sell', 'dragon', 'guard', 'silver'];
-        cardState.charge.white = 8;
+        cardState.hands.white = ['work', 'dragon', 'guard', 'silver'];
+        cardState.charge.white = 11;
         cardState.charge.black = 6;
 
         const legalMoves = [
@@ -416,20 +420,20 @@ describe('selfplay runner', () => {
         global.BLACK = Core.BLACK;
         global.WHITE = Core.WHITE;
 
-        const liveContext = CpuDecision.buildCardUseDecisionContext('white', 6, legalMoves.length, legalMoves, ['sell']);
-        const selfplayContext = buildCardDecisionContext(gameState, cardState, 'white', legalMoves.length, legalMoves, ['sell']);
+        const liveContext = CpuDecision.buildCardUseDecisionContext('white', 6, legalMoves.length, legalMoves, ['work']);
+        const selfplayContext = buildCardDecisionContext(gameState, cardState, 'white', legalMoves.length, legalMoves, ['work']);
         const defs = {
-            sell: { id: 'sell', type: 'SELL_CARD_WILL' },
+            work: { id: 'work', type: 'WORK_WILL' },
             dragon: { id: 'dragon', type: 'ULTIMATE_REVERSE_DRAGON' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             silver: { id: 'silver', type: 'SILVER_STONE' }
         };
-        const costs = { sell: 8, dragon: 30, guard: 2, silver: 3 };
+        const costs = { work: 11, dragon: 30, guard: 2, silver: 3 };
         const getCost = (id) => costs[id] || 0;
         const getDef = (id) => defs[id] || null;
 
-        const liveScore = CpuPolicyCore.scoreCardUseDecision('sell', getCost, getDef, liveContext);
-        const selfplayScore = CpuPolicyCore.scoreCardUseDecision('sell', getCost, getDef, selfplayContext);
+        const liveScore = CpuPolicyCore.scoreCardUseDecision('work', getCost, getDef, liveContext);
+        const selfplayScore = CpuPolicyCore.scoreCardUseDecision('work', getCost, getDef, selfplayContext);
 
         expect(selfplayContext.handCardIds).toEqual(liveContext.handCardIds);
         expect(selfplayScore.score).toBe(liveScore.score);
@@ -497,44 +501,34 @@ describe('selfplay runner', () => {
         }));
     });
 
-    test('buildSelectionTrace preserves live sell candidates and selectedActionKey', () => {
+    test('buildSelectionTrace preserves live destroy candidates and selectedActionKey', () => {
         const trace = buildSelectionTrace({
-            actionType: 'place',
-            sellCardId: 'last_resort_01',
-            selectedActionKey: 'sell:last_resort_01',
+            actionType: 'destroy_hand_card',
+            destroyCardId: 'last_resort_01',
+            selectedActionKey: 'destroy:last_resort_01',
             decisionCandidates: [
-                { actionType: 'place', decisionKind: 'sell', cardId: 'last_resort_01', cardType: 'LAST_RESORT', cardCost: 8, score: 12, isSelected: true },
-                { actionType: 'place', decisionKind: 'sell', cardId: 'guard_01', cardType: 'GUARD_WILL', cardCost: 2, score: 42, isSelected: false }
+                { actionType: 'destroy_hand_card', decisionKind: 'destroy', cardId: 'last_resort_01', cardType: 'LAST_RESORT', cardCost: 8, score: 12, isSelected: true },
+                { actionType: 'destroy_hand_card', decisionKind: 'destroy', cardId: 'guard_01', cardType: 'GUARD_WILL', cardCost: 2, score: 42, isSelected: false }
             ],
-            decisionReasonTags: ['decision:sell', 'hand_pressure'],
+            decisionReasonTags: ['decision:destroy', 'hand_pressure'],
             decisionScoreSummary: {
                 selectedRetentionScore: 12,
                 bestRetentionScore: 12,
                 lowerScoreIsBetter: true
-            },
-            pendingSelection: {
-                kind: 'hand_card',
-                pendingType: 'SELL_CARD_WILL',
-                sourceKey: 'sellCardId',
-                cardId: 'last_resort_01'
             }
         });
 
         expect(trace).toEqual(expect.objectContaining({
             kind: 'card',
-            decision: 'sell',
+            decision: 'destroy',
             selectedCardId: 'last_resort_01',
-            selectedActionKey: 'sell:last_resort_01',
-            reasonTags: expect.arrayContaining(['decision:sell', 'hand_pressure']),
+            selectedActionKey: 'destroy:last_resort_01',
+            reasonTags: expect.arrayContaining(['decision:destroy', 'hand_pressure']),
             scoreSummary: expect.objectContaining({ lowerScoreIsBetter: true }),
             candidates: expect.arrayContaining([
                 expect.objectContaining({ cardId: 'last_resort_01', isSelected: true }),
                 expect.objectContaining({ cardId: 'guard_01', isSelected: false })
-            ]),
-            pendingSelection: expect.objectContaining({
-                kind: 'hand_card',
-                cardId: 'last_resort_01'
-            })
+            ])
         }));
     });
 
@@ -869,6 +863,34 @@ describe('selfplay runner', () => {
         );
         expect(decision.action.type).toBe('place');
         expect(decision.action.teleportTarget).toBeTruthy();
+    });
+
+    test('decideAction resolves SEED_WILL pending target instead of canceling', () => {
+        const gameState = Core.createGameState();
+        gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        gameState.currentPlayer = 1;
+
+        const cardState = {
+            pendingEffectByPlayer: {
+                black: { type: 'SEED_WILL', stage: 'selectTarget' },
+                white: null
+            },
+            markers: [],
+            charge: { black: 0, white: 0 },
+            hands: { black: [], white: [] },
+            hasUsedCardThisTurnByPlayer: { black: true, white: false }
+        };
+
+        const decision = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.2 },
+            { allowCardUsage: true, cardUsageRate: 0.25 },
+            { gameState, cardState }
+        );
+        expect(decision.action.type).toBe('place');
+        expect(decision.action.seedTarget).toBeTruthy();
     });
 
     test('decideAction chooses a placement for UDR pending on an otherwise flipless board', () => {

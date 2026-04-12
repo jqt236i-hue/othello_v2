@@ -66,15 +66,6 @@ function buildBoardCellAction(context, selectorName, actionKey) {
     };
 }
 
-function buildSellCardAction(context) {
-    const selector = context.selectors && context.selectors.chooseSellCardTarget;
-    const cardId = typeof selector === 'function'
-        ? selector(context.gameState, context.cardState, context.playerKey, context.rng)
-        : null;
-    if (!cardId) return createCancelCardAction();
-    return { type: 'place', sellCardId: cardId };
-}
-
 function buildHeavenBlessingAction(context) {
     const pending = context.cardState && context.cardState.pendingEffectByPlayer
         ? context.cardState.pendingEffectByPlayer[context.playerKey]
@@ -109,8 +100,8 @@ function buildHeavenBlessingAction(context) {
                 score += (decision.score * 0.95);
                 if (decision.shouldUse === true) score += 18;
             }
-            if (typeof context.cpuPolicyCore.scoreCardRetentionForSell === 'function') {
-                const retention = context.cpuPolicyCore.scoreCardRetentionForSell(
+            if (typeof context.cpuPolicyCore.scoreCardRetentionPriority === 'function') {
+                const retention = context.cpuPolicyCore.scoreCardRetentionPriority(
                     cardId,
                     context.cardLogic.getCardCost,
                     context.cardLogic.getCardDef,
@@ -181,8 +172,6 @@ function buildPendingSelectionAction(context) {
         return buildBoardCellAction(context, 'chooseSuperBuoyancyTarget', 'superBuoyancyTarget');
     case 'SUPER_GRAVITY_WILL':
         return buildBoardCellAction(context, 'chooseSuperGravityTarget', 'superGravityTarget');
-    case 'SELL_CARD_WILL':
-        return buildSellCardAction(context);
     case 'TEMPT_WILL':
         return buildBoardCellAction(context, 'chooseTemptTarget', 'temptTarget');
     case 'CAPTURE_WILL':
@@ -192,13 +181,20 @@ function buildPendingSelectionAction(context) {
     case 'GUARD_WILL':
     case 'GUARDIAN_GOD':
         return buildBoardCellAction(context, 'chooseGuardTarget', 'guardTarget');
+    case 'LIVING_WILL':
+        return buildBoardCellAction(context, 'chooseLivingWillTarget', 'livingWillTarget');
     case 'BOARD_EXPANSION_WILL':
     case 'BOARD_EXPANSION_GOD':
         return buildBoardCellAction(context, 'chooseBoardExpansionTarget', 'expansionTarget');
+    case 'BOARD_SHRINK_WILL':
+    case 'BOARD_SHRINK_GOD':
+        return buildBoardCellAction(context, 'chooseBoardShrinkTarget', 'shrinkTarget');
     case 'BLOCKADE_WILL':
         return buildBoardCellAction(context, 'chooseBlockadeTarget', 'blockadeTarget');
     case 'METEOR_WILL':
         return buildBoardCellAction(context, 'chooseMeteorTarget', 'meteorTarget');
+    case 'SEED_WILL':
+        return buildBoardCellAction(context, 'chooseSeedTarget', 'seedTarget');
     case 'TRAP_WILL':
         return buildBoardCellAction(context, 'chooseTrapTarget', 'trapTarget');
     case 'CLONE_WILL':

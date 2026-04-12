@@ -48,27 +48,274 @@ function _resolveCardDisplayTypeLabel(cardDef, fallbackCardId) {
     return '';
 }
 
-function _createCardBadgeRow(cardDef, cost, tierClass, fallbackCardId) {
+var _DISPLAY_TYPE_ICON_MAP = {
+    '採掘': '\u26CF\uFE0E',
+    '守護': '\u26E8\uFE0E',
+    '戦闘': '\u2694\uFE0E',
+    '執行': '\u2696\uFE0E',
+    '禁忌': '\u26A0\uFE0E',
+    '殲滅': '\u2620\uFE0E',
+    '繁栄': '\u2728',
+    '特殊': '\u2726'
+};
+
+var _DISPLAY_TYPE_KEY_MAP = {
+    '採掘': 'mining',
+    '守護': 'guard',
+    '戦闘': 'battle',
+    '執行': 'judgment',
+    '禁忌': 'taboo',
+    '殲滅': 'annihilation',
+    '繁栄': 'prosperity',
+    '特殊': 'special'
+};
+
+var _CARD_FACE_SPECIAL_ART_OVERRIDES = {
+    seed_01: {
+        effectKey: 'seedStone',
+        imagePath: 'assets/images/other/seed.png'
+    },
+    blockade_01: {
+        effectKey: 'blockadeMark',
+        imagePath: 'assets/images/other/X.png'
+    }
+};
+
+function _resolveCardDisplayTypeKey(cardDef, fallbackCardId) {
+    const typeLabel = _resolveCardDisplayTypeLabel(cardDef, fallbackCardId);
+    return _DISPLAY_TYPE_KEY_MAP[typeLabel] || '';
+}
+
+function _getGameVisualEffectsMapForCardFaces() {
+    try {
+        const root = (typeof globalThis !== 'undefined')
+            ? globalThis
+            : (typeof window !== 'undefined' ? window : null);
+        if (
+            root &&
+            root.GameVisualEffectsMap &&
+            root.GameVisualEffectsMap.STONE_VISUAL_EFFECTS &&
+            typeof root.GameVisualEffectsMap.resolveCardVisualImagePath === 'function'
+        ) {
+            return root.GameVisualEffectsMap;
+        }
+    } catch (e) { /* ignore */ }
+
+    if (typeof require === 'function') {
+        try {
+            const mod = require('../game/visual-effects-map');
+            if (mod && mod.STONE_VISUAL_EFFECTS && typeof mod.resolveCardVisualImagePath === 'function') {
+                return mod;
+            }
+        } catch (e) { /* ignore */ }
+    }
+    return null;
+}
+
+function _normalizeCardFaceVisualSide(value) {
+    if (value === 'white' || value === -1 || value === '-1') return '-1';
+    if (value === 'black' || value === 1 || value === '1') return '1';
+    return null;
+}
+
+function _resolveCardDefForFaceVisual(cardDef, fallbackCardId) {
+    if (cardDef && typeof cardDef === 'object') {
+        return cardDef;
+    }
+
+    const cardId = String(fallbackCardId || '').trim();
+    if (!cardId) {
+        return null;
+    }
+
+    try {
+        if (typeof CARD_DEFS !== 'undefined' && Array.isArray(CARD_DEFS)) {
+            const runtimeDef = CARD_DEFS.find((entry) => entry && entry.id === cardId);
+            if (runtimeDef) {
+                return runtimeDef;
+            }
+        }
+    } catch (e) { /* ignore */ }
+
+    try {
+        if (typeof window !== 'undefined' && window.CardCatalog && Array.isArray(window.CardCatalog.cards)) {
+            const catalogDef = window.CardCatalog.cards.find((entry) => entry && entry.id === cardId);
+            if (catalogDef) {
+                return catalogDef;
+            }
+        }
+    } catch (e) { /* ignore */ }
+
+    return null;
+}
+
+function _resolveCardSpecialArt(cardDef, fallbackCardId, options) {
+    const resolvedCardDef = _resolveCardDefForFaceVisual(cardDef, fallbackCardId);
+    const resolvedCardId = String(resolvedCardDef && resolvedCardDef.id ? resolvedCardDef.id : (fallbackCardId || '')).trim();
+    if (resolvedCardId && _CARD_FACE_SPECIAL_ART_OVERRIDES[resolvedCardId]) {
+        return _CARD_FACE_SPECIAL_ART_OVERRIDES[resolvedCardId];
+    }
+    const cardType = String(resolvedCardDef && resolvedCardDef.type ? resolvedCardDef.type : '').trim();
+    if (!cardType) {
+        return null;
+    }
+
+    const map = _getGameVisualEffectsMapForCardFaces();
+    if (!map) {
+        return null;
+    }
+
+    const effectKey = (typeof map.getEffectKeyForPendingType === 'function')
+        ? map.getEffectKeyForPendingType(cardType)
+        : (map.PENDING_TYPE_TO_EFFECT_KEY && map.PENDING_TYPE_TO_EFFECT_KEY[cardType]);
+    if (!effectKey) {
+        return null;
+    }
+
+    const ownerSide = _normalizeCardFaceVisualSide(options && options.ownerKey);
+    const imagePath = map.resolveCardVisualImagePath(cardType, {
+        owner: ownerSide,
+        player: ownerSide,
+        fallbackOwner: '1',
+        fallbackPlayer: '1'
+    });
+    if (!imagePath) {
+        return null;
+    }
+    if (typeof map.isNormalStoneImagePath === 'function' && map.isNormalStoneImagePath(imagePath)) {
+        return null;
+    }
+
+    return {
+        effectKey,
+        imagePath
+    };
+}
+
+function applyCardSpecialArtToFace(cardEl, cardDef, options) {
+    if (!cardEl || typeof cardEl !== 'object') {
+        return cardEl;
+    }
+
+    const fallbackCardId = options && options.cardId ? options.cardId : (cardDef && cardDef.id);
+    const art = _resolveCardSpecialArt(cardDef, fallbackCardId, options);
+    const existingArtEl = cardEl.querySelector('.card-special-art');
+    if (!art) {
+        cardEl.classList.remove('has-special-art');
+        delete cardEl.dataset.cardVisualEffect;
+        cardEl.style.removeProperty('--card-special-art-image');
+        if (existingArtEl && existingArtEl.parentElement) {
+            existingArtEl.parentElement.removeChild(existingArtEl);
+        }
+        return cardEl;
+    }
+
+    let artEl = existingArtEl;
+    if (!artEl) {
+        artEl = document.createElement('div');
+        artEl.className = 'card-special-art';
+        artEl.setAttribute('aria-hidden', 'true');
+        cardEl.insertBefore(artEl, cardEl.firstChild || null);
+    }
+
+    const escapedPath = String(art.imagePath).replace(/"/g, '\\"');
+    cardEl.classList.add('has-special-art');
+    cardEl.dataset.cardVisualEffect = art.effectKey;
+    cardEl.style.setProperty('--card-special-art-image', `url("${escapedPath}")`);
+    return cardEl;
+}
+
+function _fitCardNameElement(nameEl, retriesRemaining) {
+    if (!nameEl || typeof nameEl !== 'object') return;
+    const retries = Number.isFinite(retriesRemaining) ? retriesRemaining : 6;
+
+    const runFit = () => {
+        try {
+            const availableWidth = Math.max(0, nameEl.clientWidth || nameEl.offsetWidth || 0);
+            if (!availableWidth) {
+                if (retries > 0 && typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+                    window.requestAnimationFrame(() => _fitCardNameElement(nameEl, retries - 1));
+                }
+                return;
+            }
+
+            nameEl.style.removeProperty('font-size');
+            nameEl.style.removeProperty('letter-spacing');
+            const computed = (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function')
+                ? window.getComputedStyle(nameEl)
+                : null;
+            const baseFontPx = computed ? parseFloat(computed.fontSize) : NaN;
+            if (!Number.isFinite(baseFontPx) || baseFontPx <= 0) return;
+
+            const minFontPx = Math.max(8, Math.ceil(baseFontPx * 0.68));
+            let nextFontPx = baseFontPx;
+            const applyFontSize = (fontPx) => {
+                const snappedFontPx = Math.max(minFontPx, Math.floor(fontPx));
+                nameEl.style.fontSize = `${snappedFontPx}px`;
+                nextFontPx = snappedFontPx;
+            };
+            let attempts = 0;
+            while (nameEl.scrollWidth > availableWidth && nextFontPx > minFontPx && attempts < 12) {
+                applyFontSize(nextFontPx - 1);
+                attempts += 1;
+            }
+
+            if (nameEl.scrollWidth > availableWidth) {
+                nameEl.style.letterSpacing = '-0.03em';
+            }
+            attempts = 0;
+            while (nameEl.scrollWidth > availableWidth && nextFontPx > minFontPx && attempts < 8) {
+                applyFontSize(nextFontPx - 1);
+                attempts += 1;
+            }
+        } catch (e) { /* ignore */ }
+    };
+
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(runFit);
+    } else {
+        runFit();
+    }
+}
+
+try {
+    if (typeof window !== 'undefined') {
+        window.fitCardNameElement = _fitCardNameElement;
+        window.applyCardSpecialArtToFace = applyCardSpecialArtToFace;
+    }
+} catch (e) { /* ignore */ }
+
+function _createCardBadgeRow(cardDef, fallbackCardId) {
+    const typeLabel = _resolveCardDisplayTypeLabel(cardDef, fallbackCardId);
+    if (!typeLabel) return null;
+
     const badgeRow = document.createElement('div');
     badgeRow.className = 'card-badge-row';
 
-    const typeLabel = _resolveCardDisplayTypeLabel(cardDef, fallbackCardId);
-    if (typeLabel) {
-        const typeBadge = document.createElement('div');
-        typeBadge.className = 'card-type-badge';
-        typeBadge.textContent = typeLabel;
-        badgeRow.appendChild(typeBadge);
-    }
+    const typeBadge = document.createElement('div');
+    typeBadge.className = 'card-type-badge';
+    const icon = _DISPLAY_TYPE_ICON_MAP[typeLabel] || '';
+    typeBadge.textContent = icon ? (icon + ' ' + typeLabel) : typeLabel;
+    badgeRow.appendChild(typeBadge);
 
+    return badgeRow;
+}
+
+function _createCardCostBadge(cost, tierClass) {
     const costBadge = document.createElement('div');
     costBadge.className = 'card-cost-badge';
     if (tierClass) {
         costBadge.classList.add(tierClass);
     }
-    costBadge.textContent = `コスト${cost}`;
-    badgeRow.appendChild(costBadge);
-
-    return badgeRow;
+    const valueSpan = document.createElement('span');
+    valueSpan.className = 'cost-value';
+    valueSpan.textContent = String(cost);
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'cost-label';
+    labelSpan.textContent = 'cost';
+    costBadge.appendChild(valueSpan);
+    costBadge.appendChild(labelSpan);
+    return costBadge;
 }
 
 var _lastChargeForDelta = { black: null, white: null, turnIndex: null };
@@ -196,6 +443,76 @@ function _getLocalPlayerKeyForNetwork() {
         }
     } catch (e) { /* ignore */ }
     return 'black';
+}
+
+var TIME_STOP_ACTIVE_LABEL = '時間停止発動中';
+
+function _normalizePlayerKeyForRender(playerKey) {
+    if (playerKey === 'black' || playerKey === 1 || playerKey === '1') return 'black';
+    if (playerKey === 'white' || playerKey === -1 || playerKey === '-1') return 'white';
+    return null;
+}
+
+function _getOpposingPlayerKeyForRender(playerKey) {
+    const normalizedPlayerKey = _normalizePlayerKeyForRender(playerKey);
+    if (!normalizedPlayerKey) return null;
+    return normalizedPlayerKey === 'black' ? 'white' : 'black';
+}
+
+function _resolveTimeStopStatusForRender(cardState, viewerPlayerKey, gameState) {
+    const remainingByPlayer = (cardState && cardState.timeStopConsecutiveTurnsRemainingByPlayer && typeof cardState.timeStopConsecutiveTurnsRemainingByPlayer === 'object')
+        ? cardState.timeStopConsecutiveTurnsRemainingByPlayer
+        : null;
+    if (!remainingByPlayer) {
+        return { active: false, activeOwnerKey: null, victimKey: null, viewerRole: null };
+    }
+
+    const blackRemaining = Number(remainingByPlayer.black);
+    const whiteRemaining = Number(remainingByPlayer.white);
+    const blackActive = Number.isFinite(blackRemaining) && blackRemaining > 0;
+    const whiteActive = Number.isFinite(whiteRemaining) && whiteRemaining > 0;
+
+    let activeOwnerKey = null;
+    if (blackActive && !whiteActive) {
+        activeOwnerKey = 'black';
+    } else if (whiteActive && !blackActive) {
+        activeOwnerKey = 'white';
+    } else if (blackActive && whiteActive) {
+        const currentPlayerKey = _normalizePlayerKeyForRender(gameState && gameState.currentPlayer);
+        activeOwnerKey = (currentPlayerKey && Number(remainingByPlayer[currentPlayerKey]) > 0)
+            ? currentPlayerKey
+            : 'black';
+    }
+
+    if (!activeOwnerKey) {
+        return { active: false, activeOwnerKey: null, victimKey: null, viewerRole: null };
+    }
+
+    const viewerKey = _normalizePlayerKeyForRender(viewerPlayerKey);
+    const victimKey = _getOpposingPlayerKeyForRender(activeOwnerKey);
+    let viewerRole = null;
+    if (viewerKey === activeOwnerKey) {
+        viewerRole = 'controller';
+    } else if (viewerKey === victimKey) {
+        viewerRole = 'victim';
+    }
+    return { active: true, activeOwnerKey, victimKey, viewerRole };
+}
+
+function _appendTimeStopChargeBadgeForRender(chargeEl) {
+    if (!chargeEl || typeof document === 'undefined') return;
+    const badgeEl = document.createElement('div');
+    badgeEl.className = 'time-stop-status-badge';
+    badgeEl.textContent = TIME_STOP_ACTIVE_LABEL;
+    chargeEl.appendChild(badgeEl);
+}
+
+function _appendTimeStopHandOverlayForRender(containerEl) {
+    if (!containerEl || typeof document === 'undefined') return;
+    const overlayEl = document.createElement('div');
+    overlayEl.className = 'time-stop-hand-overlay';
+    overlayEl.textContent = TIME_STOP_ACTIVE_LABEL;
+    containerEl.appendChild(overlayEl);
 }
 
 function _resolveCardRendererGameState() {
@@ -371,7 +688,7 @@ function _refreshDebugHandLayoutIfNeeded() {
     } catch (e) { /* ignore */ }
 }
 
-function createCardFaceElement(cardId) {
+function createCardFaceElement(cardId, options) {
     const cardDef = CARD_DEFS.find(c => c.id === cardId);
     const cardEl = document.createElement('div');
     cardEl.className = 'card-item visible';
@@ -380,13 +697,23 @@ function createCardFaceElement(cardId) {
     const costTier = getCardCostTier(cost);
     const tierClass = `cost-tier-${costTier}`;
     cardEl.classList.add(tierClass);
+    const typeKey = _resolveCardDisplayTypeKey(cardDef, cardId);
+    if (typeKey) {
+        cardEl.dataset.cardType = typeKey;
+    }
+    applyCardSpecialArtToFace(cardEl, cardDef, { cardId, ownerKey: options && options.ownerKey });
 
     const nameSpan = document.createElement('span');
     nameSpan.className = 'card-name';
     nameSpan.textContent = cardDef ? cardDef.name : '?';
     cardEl.appendChild(nameSpan);
+    _fitCardNameElement(nameSpan);
 
-    cardEl.appendChild(_createCardBadgeRow(cardDef, cost, tierClass, cardId));
+    cardEl.appendChild(_createCardCostBadge(cost, tierClass));
+    const badgeRow = _createCardBadgeRow(cardDef, cardId);
+    if (badgeRow) {
+        cardEl.appendChild(badgeRow);
+    }
 
     cardEl.dataset.cardId = cardId;
     return cardEl;
@@ -474,7 +801,7 @@ function _shouldRenderChargeDeltaOnHud(ev) {
 }
 
 function _normalizeChargeDeltaOwnerKey(playerKey) {
-    return (playerKey === 'white' || playerKey === -1 || playerKey === '-1') ? 'white' : 'black';
+    return _normalizePlayerKeyForRender(playerKey) === 'white' ? 'white' : 'black';
 }
 
 function _mapChargeDeltaOwnerToVisibleSlot(ownerKey, bottomOwnerKey) {
@@ -629,7 +956,7 @@ function drainVisibleChargeDeltaPopups(options) {
 function renderCardUI() {
     const gameState = _resolveCardRendererGameState();
     const cardState = _normalizeCardStateForRender(_resolveCardRendererCardState());
-    if (!gameState || !Array.isArray(gameState.board) || gameState.board.length !== 8 || !cardState) {
+    if (!gameState || !Array.isArray(gameState.board) || gameState.board.length <= 0 || !cardState) {
         return;
     }
 
@@ -711,8 +1038,8 @@ function renderCardUI() {
         ? currentTurnOwnerKey
         : inputPlayerKey;
     const pending = cardState.pendingEffectByPlayer[pendingOwnerKey];
-    const allowDuringAnimForSell = !!(pending && pending.type === 'SELL_CARD_WILL' && pending.stage === 'selectTarget');
-    const canInteract = !isAnimating || allowDuringAnimForSell || staleVisualPlaybackLock || isDebugUnlimited;
+    const canInteract = !isAnimating || staleVisualPlaybackLock || isDebugUnlimited;
+    const timeStopStatus = _resolveTimeStopStatusForRender(cardState, inputPlayerKey, gameState);
 
     const fadeState = (typeof window !== 'undefined')
         ? (window.__handFadeInState || window.__handFadeInHint || null)
@@ -738,10 +1065,16 @@ function renderCardUI() {
         ? captureReservedState.handIndex
         : null;
 
-    function renderHandSlot(containerEl, ownerKey, revealByDefault) {
+    function renderHandSlot(containerEl, ownerKey, revealByDefault, visibleSlotKey) {
         if (!containerEl) return;
         containerEl.innerHTML = '';
         containerEl.dataset.ownerKey = ownerKey;
+        const showTimeStopVictimOverlay = !!(
+            timeStopStatus.active
+            && timeStopStatus.viewerRole === 'victim'
+            && visibleSlotKey === 'bottom'
+        );
+        containerEl.classList.toggle('time-stop-hand-overlay-active', showTimeStopVictimOverlay);
         const handTrackEl = document.createElement('div');
         handTrackEl.className = 'hand-track';
         containerEl.appendChild(handTrackEl);
@@ -832,7 +1165,7 @@ function renderCardUI() {
                     cardEl = _createHiddenHandCardElement(cardId, ownerKey);
                 } else {
                     const cardDef = CARD_DEFS.find(c => c.id === cardId);
-                    cardEl = createCardFaceElement(cardId);
+                    cardEl = createCardFaceElement(cardId, { ownerKey });
 
                     const cost = cardDef ? (cardDef.cost || 0) : 0;
 
@@ -852,6 +1185,9 @@ function renderCardUI() {
                     if (canInspectOwnerHand && canInteract) {
                         cardEl.classList.add('clickable');
                         cardEl.addEventListener('click', () => onCardClick(cardId, ownerKey));
+                    }
+                    if (canAfford) {
+                        cardEl.classList.add('affordable');
                     }
                     if (usable) {
                         cardEl.classList.add('usable');
@@ -873,10 +1209,17 @@ function renderCardUI() {
 
             handTrackEl.appendChild(cardEl);
         });
+
+        if (showTimeStopVictimOverlay) {
+            _appendTimeStopHandOverlayForRender(containerEl);
+        }
     }
 
-    renderHandSlot(handBlackEl, bottomOwnerKey, true);
-    renderHandSlot(handWhiteEl, topOwnerKey, isDebugHvH === true);
+    renderHandSlot(handBlackEl, bottomOwnerKey, true, 'bottom');
+    renderHandSlot(handWhiteEl, topOwnerKey, isDebugHvH === true, 'top');
+    if (timeStopStatus.active && timeStopStatus.viewerRole === 'controller') {
+        _appendTimeStopChargeBadgeForRender(chargeWhiteEl);
+    }
     _refreshDebugHandLayoutIfNeeded();
 
     // Update Card Detail Panel

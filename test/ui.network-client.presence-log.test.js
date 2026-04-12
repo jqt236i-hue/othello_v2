@@ -77,9 +77,10 @@ describe('NetworkMatchClient presence log', () => {
 
     global.EventSource = MockEventSource;
 
-    global.fetch = jest.fn(async (url) => {
-      const parsedUrl = new URL(String(url));
+    global.fetch = jest.fn(async (url, init) => {
+      const parsedUrl = new URL(String(url), 'http://localhost/');
       const path = parsedUrl.pathname;
+      const requestBody = (init && init.body) ? JSON.parse(init.body) : {};
 
       if (path === '/api/match/create') {
         return jsonResponse(200, {
@@ -88,8 +89,23 @@ describe('NetworkMatchClient presence log', () => {
           seatKey: 'black',
           seatToken: 'seat-token',
           seats: { black: true, white: false },
+          seatNames: { black: 'くろ', white: '' },
+          seatHandSkins: { black: requestBody.selectedHandSkinId || '', white: '' },
           stateVersion: 10,
           snapshot: createSnapshot(10)
+        });
+      }
+
+      if (path === '/api/match/hand-skin') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ROOM1234',
+          seatKey: 'black',
+          seats: { black: true, white: false },
+          seatNames: { black: 'くろ', white: '' },
+          seatHandSkins: { black: requestBody.selectedHandSkinId || '', white: '' },
+          turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black', turnStartedAt: null, turnDeadlineAt: null },
+          serverTime: 1
         });
       }
 
@@ -193,6 +209,61 @@ describe('NetworkMatchClient presence log', () => {
 
     expect(states.length).toBeGreaterThan(0);
     expect(states[states.length - 1].hasTwoPlayers).toBe(true);
+  });
+
+  test('選択中の手スキンを create と update と presence で反映する', async () => {
+    const storageModule = require('../ui/storage/gacha-progress.js');
+    storageModule.unlockHandSkinIds(window, ['gacha__n__hand-swap']);
+    window.localStorage.setItem('othello.handSkin', 'gacha__n__hand-swap');
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const states = [];
+    client.setRoomStateListener((nextState) => {
+      states.push(nextState);
+    });
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const createCall = global.fetch.mock.calls.find(([url]) => new URL(String(url), 'http://localhost/').pathname === '/api/match/create');
+    expect(JSON.parse(createCall[1].body).selectedHandSkinId).toBe('gacha__n__陽気な手');
+    expect(client.getSeatHandSkins()).toEqual({
+      black: 'gacha__n__陽気な手',
+      white: ''
+    });
+
+    const updated = await client.updateHandSkin('gacha__n__小鬼の手');
+    expect(updated.ok).toBe(true);
+
+    const handSkinCall = global.fetch.mock.calls.find(([url]) => new URL(String(url), 'http://localhost/').pathname === '/api/match/hand-skin');
+    expect(JSON.parse(handSkinCall[1].body).selectedHandSkinId).toBe('gacha__n__小鬼の手');
+    expect(client.getSeatHandSkins()).toEqual({
+      black: 'gacha__n__小鬼の手',
+      white: ''
+    });
+
+    const stream = global.EventSource.instances[0];
+    stream.emit('presence', {
+      ok: true,
+      type: 'hand_skin',
+      seatKey: 'white',
+      seats: { black: true, white: true },
+      seatHandSkins: {
+        black: 'gacha__n__小鬼の手',
+        white: 'gacha__n__hand-swap'
+      }
+    });
+
+    expect(client.getSeatHandSkins()).toEqual({
+      black: 'gacha__n__小鬼の手',
+      white: 'gacha__n__陽気な手'
+    });
+    expect(states[states.length - 1].seatHandSkins).toEqual({
+      black: 'gacha__n__小鬼の手',
+      white: 'gacha__n__陽気な手'
+    });
   });
 
   test('chatイベントを受信してチャットリスナーへ渡す', async () => {

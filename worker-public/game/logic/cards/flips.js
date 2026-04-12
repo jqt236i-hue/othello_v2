@@ -5,11 +5,14 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'));
+        module.exports = factory(
+            require('../../../shared-constants'),
+            require('../../../shared/shared-board-utils')
+        );
     } else {
-        root.CardFlips = factory(root.SharedConstants);
+        root.CardFlips = factory(root.SharedConstants, root.SharedBoardUtils || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, SharedBoardUtils) {
     'use strict';
 
     const { BLACK, WHITE, DIRECTIONS, EMPTY } = SharedConstants || {};
@@ -18,16 +21,43 @@
         throw new Error('SharedConstants missing DIRECTIONS/EMPTY');
     }
 
-    function isMainBoardCell(row, col) {
-        return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < 8 && col >= 0 && col < 8;
+    function resolveBoardBounds(gameState) {
+        if (SharedBoardUtils && typeof SharedBoardUtils.resolveBoardBounds === 'function') {
+            return SharedBoardUtils.resolveBoardBounds(gameState && gameState.board);
+        }
+        const board = gameState && gameState.board;
+        if (!Array.isArray(board) || board.length <= 0) return null;
+        let maxCol = -1;
+        for (const row of board) {
+            if (Array.isArray(row) && row.length > 0) {
+                maxCol = Math.max(maxCol, row.length - 1);
+            }
+        }
+        if (maxCol < 0) return null;
+        return { minRow: 0, maxRow: board.length - 1, minCol: 0, maxCol };
     }
 
-    function resolveExpansionSide(side, row, col) {
+    function isMainBoardCell(gameState, row, col) {
+        const bounds = resolveBoardBounds(gameState);
+        return !!(
+            bounds &&
+            Number.isInteger(row) &&
+            Number.isInteger(col) &&
+            row >= bounds.minRow &&
+            row <= bounds.maxRow &&
+            col >= bounds.minCol &&
+            col <= bounds.maxCol
+        );
+    }
+
+    function resolveExpansionSide(side, row, col, gameState) {
+        const bounds = resolveBoardBounds(gameState);
         if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
+        if (!bounds) return null;
         if (col === -1) return 'left';
-        if (col === 8) return 'right';
+        if (col === (bounds.maxCol + 1)) return 'right';
         if (row === -1) return 'top';
-        if (row === 8) return 'bottom';
+        if (row === (bounds.maxRow + 1)) return 'bottom';
         return null;
     }
 
@@ -50,20 +80,22 @@
                 col = source.col;
                 owner = source.owner;
                 if (!Number.isInteger(col) && side === 'left') col = -1;
-                if (!Number.isInteger(col) && side === 'right') col = 8;
+                if (!Number.isInteger(col) && side === 'right') col = ((resolveBoardBounds(gameState) || {}).maxCol + 1);
             } else {
                 side = source;
                 row = legacyRow;
                 if (side === 'left') col = -1;
-                if (side === 'right') col = 8;
+                if (side === 'right') col = ((resolveBoardBounds(gameState) || {}).maxCol + 1);
             }
 
             if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-            if (row < -1 || row > 8 || col < -1 || col > 8) return;
-            if (isMainBoardCell(row, col)) return;
+            const bounds = resolveBoardBounds(gameState);
+            if (!bounds) return;
+            if (row < -1 || row > (bounds.maxRow + 1) || col < -1 || col > (bounds.maxCol + 1)) return;
+            if (isMainBoardCell(gameState, row, col)) return;
             if (cells.some((cell) => cell && cell.row === row && cell.col === col)) return;
             cells.push({
-                side: resolveExpansionSide(side, row, col),
+                side: resolveExpansionSide(side, row, col, gameState),
                 row,
                 col,
                 owner: (owner === BLACK || owner === WHITE) ? owner : EMPTY
@@ -85,7 +117,7 @@
     }
 
     function getCellValue(gameState, row, col) {
-        if (isMainBoardCell(row, col)) {
+        if (isMainBoardCell(gameState, row, col)) {
             return (gameState && Array.isArray(gameState.board) && Array.isArray(gameState.board[row]))
                 ? gameState.board[row][col]
                 : null;

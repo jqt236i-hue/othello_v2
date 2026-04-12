@@ -20,6 +20,327 @@ if (!OwnerHelpersModule) {
     } catch (e) { /* ignore */ }
 }
 
+function _getBoardShapeForBoardRenderer() {
+    const state = (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object')
+        ? gameState
+        : ((typeof window !== 'undefined' && window.gameState && typeof window.gameState === 'object') ? window.gameState : null);
+    const board = state && Array.isArray(state.board) ? state.board : null;
+    let rows = Array.isArray(board) ? board.length : 8;
+    let cols = 0;
+    if (Array.isArray(board)) {
+        for (const row of board) {
+            if (Array.isArray(row)) cols = Math.max(cols, row.length);
+        }
+    }
+    if (!Number.isInteger(rows) || rows <= 0) rows = 8;
+    if (!Number.isInteger(cols) || cols <= 0) cols = 8;
+    return { rows, cols };
+}
+
+let boardPixelSizingObserver = null;
+let boardPixelSizingObservedFrame = null;
+let boardPixelSizingObservedElement = null;
+let boardPixelSizingWindowHandlerInstalled = false;
+const STANDARD_BOARD_BASELINE_ROWS = 8;
+const STANDARD_BOARD_BASELINE_COLS = 8;
+const BOARD_FRAME_OVERSIZE_TOLERANCE_PX = 1;
+
+function _isBoardShapeOversizeForPixelSizing(shape) {
+    const rows = shape && Number.isFinite(shape.rows) ? shape.rows : STANDARD_BOARD_BASELINE_ROWS;
+    const cols = shape && Number.isFinite(shape.cols) ? shape.cols : STANDARD_BOARD_BASELINE_COLS;
+    return rows > STANDARD_BOARD_BASELINE_ROWS || cols > STANDARD_BOARD_BASELINE_COLS;
+}
+
+function _normalizeBoardShapeForPixelSizing(shapeOrState) {
+    const rows = Number(shapeOrState && shapeOrState.rows);
+    const cols = Number(shapeOrState && shapeOrState.cols);
+    if (Number.isFinite(rows) && Number.isFinite(cols)) {
+        return {
+            rows: Math.max(1, Math.trunc(rows)),
+            cols: Math.max(1, Math.trunc(cols))
+        };
+    }
+    return _getBoardShapeForBoardRenderer();
+}
+
+function _clearBoardPixelSizingVars(boardElement) {
+    if (boardElement && boardElement.style) {
+        boardElement.style.removeProperty('width');
+        boardElement.style.removeProperty('height');
+        boardElement.style.removeProperty('left');
+        boardElement.style.removeProperty('top');
+        boardElement.style.removeProperty('transform');
+        boardElement.style.removeProperty('--board-cell-size-px');
+        boardElement.style.removeProperty('--board-disc-inset-px');
+        boardElement.style.removeProperty('--board-disc-size-px');
+    }
+    const frameElement = _getBoardFrameElementForPixelSizing(boardElement);
+    _clearBoardFramePixelSizingVars(frameElement);
+    _setBoardOversizeLayoutState(frameElement, false);
+}
+
+function _getBoardFrameElementForPixelSizing(boardElement) {
+    if (!boardElement) return null;
+    if (typeof boardElement.closest === 'function') {
+        const closestFrame = boardElement.closest('#board-frame');
+        if (closestFrame) return closestFrame;
+    }
+    if (typeof document !== 'undefined' && document && typeof document.getElementById === 'function') {
+        return document.getElementById('board-frame');
+    }
+    return null;
+}
+
+function _clearBoardFramePixelSizingVars(frameElement) {
+    if (!frameElement || !frameElement.style) return;
+    frameElement.style.removeProperty('--board-frame-outer-width');
+    frameElement.style.removeProperty('--board-frame-outer-height');
+}
+
+function _getBoardLayoutContainerForPixelSizing(frameElement) {
+    if (frameElement && typeof frameElement.closest === 'function') {
+        const closestContainer = frameElement.closest('#game-container');
+        if (closestContainer) return closestContainer;
+    }
+    if (typeof document !== 'undefined' && document && typeof document.getElementById === 'function') {
+        return document.getElementById('game-container');
+    }
+    return null;
+}
+
+function _setBoardOversizeLayoutState(frameElement, active) {
+    const oversizeActive = !!active;
+    if (typeof document !== 'undefined' && document && document.body && document.body.classList) {
+        document.body.classList.toggle('board-oversize-active', oversizeActive);
+    }
+    const layoutContainer = _getBoardLayoutContainerForPixelSizing(frameElement);
+    if (layoutContainer && layoutContainer.classList) {
+        layoutContainer.classList.toggle('board-oversize-active', oversizeActive);
+    }
+}
+
+function _measureBoardFrameBaseOuterSize(frameElement) {
+    if (!frameElement || typeof document === 'undefined' || !document || typeof document.createElement !== 'function') {
+        return null;
+    }
+    const probe = document.createElement('div');
+    probe.setAttribute('aria-hidden', 'true');
+    probe.style.position = 'absolute';
+    probe.style.left = '0';
+    probe.style.top = '0';
+    probe.style.width = 'calc(var(--board-frame-inner-size) + (var(--board-frame-padding) * 2))';
+    probe.style.height = 'calc(var(--board-frame-inner-size) + (var(--board-frame-padding) * 2))';
+    probe.style.visibility = 'hidden';
+    probe.style.pointerEvents = 'none';
+    probe.style.boxSizing = 'border-box';
+    probe.style.padding = '0';
+    probe.style.margin = '0';
+    probe.style.border = '0';
+    frameElement.appendChild(probe);
+    let rect = null;
+    if (typeof probe.getBoundingClientRect === 'function') {
+        rect = probe.getBoundingClientRect();
+    }
+    frameElement.removeChild(probe);
+    if (!rect || !(rect.width > 0) || !(rect.height > 0)) return null;
+    return { width: rect.width, height: rect.height };
+}
+
+function _getContentRectSizeForPixelSizing(element) {
+    if (!element || typeof window === 'undefined' || typeof window.getComputedStyle !== 'function' || typeof element.getBoundingClientRect !== 'function') {
+        return null;
+    }
+    const rect = element.getBoundingClientRect();
+    const style = window.getComputedStyle(element);
+    const borderX = Number.parseFloat(style.borderLeftWidth || '0') + Number.parseFloat(style.borderRightWidth || '0');
+    const borderY = Number.parseFloat(style.borderTopWidth || '0') + Number.parseFloat(style.borderBottomWidth || '0');
+    const width = rect.width - (Number.isFinite(borderX) ? borderX : 0);
+    const height = rect.height - (Number.isFinite(borderY) ? borderY : 0);
+    if (!(width > 0) || !(height > 0)) return null;
+    return { width, height };
+}
+
+function _getBoardBoxMetricsForPixelSizing(boardElement) {
+    if (!boardElement || typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') {
+        return { borderX: 0, borderY: 0, boxSizing: '' };
+    }
+    const style = window.getComputedStyle(boardElement);
+    const borderX = Number.parseFloat(style.borderLeftWidth || '0') + Number.parseFloat(style.borderRightWidth || '0');
+    const borderY = Number.parseFloat(style.borderTopWidth || '0') + Number.parseFloat(style.borderBottomWidth || '0');
+    return {
+        borderX: Number.isFinite(borderX) ? borderX : 0,
+        borderY: Number.isFinite(borderY) ? borderY : 0,
+        boxSizing: String(style.boxSizing || '').trim().toLowerCase()
+    };
+}
+
+function _getBoardFrameMetricsForPixelSizing(boardElement) {
+    const frameElement = _getBoardFrameElementForPixelSizing(boardElement);
+    if (frameElement && typeof window !== 'undefined' && typeof window.getComputedStyle === 'function' && typeof frameElement.getBoundingClientRect === 'function') {
+        const frameStyle = window.getComputedStyle(frameElement);
+        const paddingX = Number.parseFloat(frameStyle.paddingLeft || '0') + Number.parseFloat(frameStyle.paddingRight || '0');
+        const paddingY = Number.parseFloat(frameStyle.paddingTop || '0') + Number.parseFloat(frameStyle.paddingBottom || '0');
+        const measuredBaseOuterSize = _measureBoardFrameBaseOuterSize(frameElement);
+        const fallbackRect = frameElement.getBoundingClientRect();
+        const baseOuterWidth = measuredBaseOuterSize && measuredBaseOuterSize.width > 0
+            ? measuredBaseOuterSize.width
+            : fallbackRect.width;
+        const baseOuterHeight = measuredBaseOuterSize && measuredBaseOuterSize.height > 0
+            ? measuredBaseOuterSize.height
+            : fallbackRect.height;
+        const normalizedPaddingX = Number.isFinite(paddingX) ? paddingX : 0;
+        const normalizedPaddingY = Number.isFinite(paddingY) ? paddingY : 0;
+        const innerWidth = baseOuterWidth - normalizedPaddingX;
+        const innerHeight = baseOuterHeight - normalizedPaddingY;
+        if (innerWidth > 0 && innerHeight > 0) {
+            return {
+                frameElement,
+                baseOuterWidth,
+                baseOuterHeight,
+                paddingX: normalizedPaddingX,
+                paddingY: normalizedPaddingY,
+                innerWidth,
+                innerHeight
+            };
+        }
+    }
+    return null;
+}
+
+function _getBoardBaseSizeForPixelSizing(boardElement) {
+    const frameMetrics = _getBoardFrameMetricsForPixelSizing(boardElement);
+    if (frameMetrics) {
+        return {
+            frameMetrics,
+            width: frameMetrics.innerWidth,
+            height: frameMetrics.innerHeight,
+            baselineCellSize: Math.max(1, Math.floor(Math.min(
+                frameMetrics.innerWidth / STANDARD_BOARD_BASELINE_COLS,
+                frameMetrics.innerHeight / STANDARD_BOARD_BASELINE_ROWS
+            )))
+        };
+    }
+    const contentRect = _getContentRectSizeForPixelSizing(boardElement);
+    if (!contentRect) return null;
+    return {
+        frameMetrics: null,
+        width: contentRect.width,
+        height: contentRect.height,
+        baselineCellSize: 0
+    };
+}
+
+function _applyBoardFramePixelSizing(frameMetrics, outerWidth, outerHeight, shape) {
+    if (!frameMetrics || !frameMetrics.frameElement || !frameMetrics.frameElement.style) return;
+    const frameWidth = Math.max(frameMetrics.baseOuterWidth, outerWidth + frameMetrics.paddingX);
+    const frameHeight = Math.max(frameMetrics.baseOuterHeight, outerHeight + frameMetrics.paddingY);
+    const allowFrameExpansion = _isBoardShapeOversizeForPixelSizing(shape);
+    const oversizeActive = allowFrameExpansion && (
+        frameWidth > (frameMetrics.baseOuterWidth + BOARD_FRAME_OVERSIZE_TOLERANCE_PX)
+        || frameHeight > (frameMetrics.baseOuterHeight + BOARD_FRAME_OVERSIZE_TOLERANCE_PX)
+    );
+    if (allowFrameExpansion && frameWidth > (frameMetrics.baseOuterWidth + BOARD_FRAME_OVERSIZE_TOLERANCE_PX)) {
+        frameMetrics.frameElement.style.setProperty('--board-frame-outer-width', `${frameWidth}px`);
+    } else {
+        frameMetrics.frameElement.style.removeProperty('--board-frame-outer-width');
+    }
+    if (allowFrameExpansion && frameHeight > (frameMetrics.baseOuterHeight + BOARD_FRAME_OVERSIZE_TOLERANCE_PX)) {
+        frameMetrics.frameElement.style.setProperty('--board-frame-outer-height', `${frameHeight}px`);
+    } else {
+        frameMetrics.frameElement.style.removeProperty('--board-frame-outer-height');
+    }
+    _setBoardOversizeLayoutState(frameMetrics.frameElement, oversizeActive);
+}
+
+function _handleBoardPixelSizingViewportChange() {
+    if (!boardPixelSizingObservedElement) return;
+    syncBoardPixelSizing(boardPixelSizingObservedElement);
+}
+
+function _ensureBoardPixelSizingObserver(boardElement) {
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function' && !boardPixelSizingWindowHandlerInstalled) {
+        window.addEventListener('resize', _handleBoardPixelSizingViewportChange, { passive: true });
+        boardPixelSizingWindowHandlerInstalled = true;
+    }
+
+    boardPixelSizingObservedElement = boardElement || boardPixelSizingObservedElement;
+    const frameElement = _getBoardFrameElementForPixelSizing(boardElement);
+    if (typeof ResizeObserver !== 'function' || !frameElement) return;
+    if (boardPixelSizingObserver && boardPixelSizingObservedFrame === frameElement) return;
+
+    if (boardPixelSizingObserver && typeof boardPixelSizingObserver.disconnect === 'function') {
+        try {
+            boardPixelSizingObserver.disconnect();
+        } catch (e) { /* ignore */ }
+    }
+
+    boardPixelSizingObservedFrame = frameElement;
+    try {
+        boardPixelSizingObserver = new ResizeObserver(_handleBoardPixelSizingViewportChange);
+        boardPixelSizingObserver.observe(frameElement);
+    } catch (e) {
+        boardPixelSizingObserver = null;
+    }
+}
+
+function syncBoardPixelSizing(boardElement, shapeInput) {
+    const shape = _normalizeBoardShapeForPixelSizing(shapeInput);
+    if (!boardElement || !boardElement.style) return shape;
+
+    _ensureBoardPixelSizingObserver(boardElement);
+    const boxMetrics = _getBoardBoxMetricsForPixelSizing(boardElement);
+    const baseSize = _getBoardBaseSizeForPixelSizing(boardElement);
+    if (!baseSize || !(baseSize.width > 0) || !(baseSize.height > 0)) {
+        _clearBoardPixelSizingVars(boardElement);
+        return shape;
+    }
+
+    const measuredCellSize = Math.max(1, Math.floor(Math.min(baseSize.width / shape.cols, baseSize.height / shape.rows)));
+    const cellSize = Math.max(1, Math.max(measuredCellSize, baseSize.baselineCellSize || 0));
+    if (!(cellSize > 0)) {
+        _clearBoardPixelSizingVars(boardElement);
+        return shape;
+    }
+
+    const discInset = Math.max(1, Math.round(cellSize * 0.0505));
+    const discSize = Math.max(1, cellSize - (discInset * 2));
+    const contentWidth = cellSize * shape.cols;
+    const contentHeight = cellSize * shape.rows;
+    const outerWidth = contentWidth + (boxMetrics.boxSizing === 'border-box' ? boxMetrics.borderX : 0);
+    const outerHeight = contentHeight + (boxMetrics.boxSizing === 'border-box' ? boxMetrics.borderY : 0);
+    boardElement.style.width = `${outerWidth}px`;
+    boardElement.style.height = `${outerHeight}px`;
+    boardElement.style.setProperty('--board-cell-size-px', `${cellSize}px`);
+    boardElement.style.setProperty('--board-disc-inset-px', `${discInset}px`);
+    boardElement.style.setProperty('--board-disc-size-px', `${discSize}px`);
+    _applyBoardFramePixelSizing(baseSize.frameMetrics, outerWidth, outerHeight, shape);
+
+    boardElement.style.removeProperty('left');
+    boardElement.style.removeProperty('top');
+    boardElement.style.removeProperty('transform');
+    if (typeof boardElement.getBoundingClientRect === 'function') {
+        const snappedRect = boardElement.getBoundingClientRect();
+        const snapX = Number.isFinite(snappedRect.left) ? (Math.round(snappedRect.left) - snappedRect.left) : 0;
+        const snapY = Number.isFinite(snappedRect.top) ? (Math.round(snappedRect.top) - snappedRect.top) : 0;
+        if (Math.abs(snapX) > 0.001 || Math.abs(snapY) > 0.001) {
+            // Keep the board aligned to whole pixels without compositing the full board via transform.
+            boardElement.style.left = `${snapX}px`;
+            boardElement.style.top = `${snapY}px`;
+        }
+    }
+    return shape;
+}
+
+function _applyBoardCssVarsForBoardRenderer(boardElement) {
+    const shape = _getBoardShapeForBoardRenderer();
+    if (boardElement && boardElement.style) {
+        boardElement.style.setProperty('--board-rows', String(shape.rows));
+        boardElement.style.setProperty('--board-cols', String(shape.cols));
+    }
+    syncBoardPixelSizing(boardElement, shape);
+    return shape;
+}
+
 var PlaybackStateModule = null;
 if (typeof require === 'function') {
     try { PlaybackStateModule = require('./playback-state-manager'); } catch (e) { /* ignore */ }
@@ -37,28 +358,31 @@ function _isVisualPlaybackActiveForBoardRenderer() {
     return false;
 }
 
-function _hasPendingPlaybackEventsForBoardRenderer() {
+function _getCardStateForBoardRendererPlayback() {
     try {
-        const state = (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object')
-            ? cardState
-            : ((typeof window !== 'undefined' && window.cardState && typeof window.cardState === 'object') ? window.cardState : null);
-        if (!state) return false;
+        if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && window.cardState && typeof window.cardState === 'object') return window.cardState;
+    } catch (e) { /* ignore */ }
+    return null;
+}
 
-        const pending = [];
-        if (Array.isArray(state.presentationEvents)) pending.push(...state.presentationEvents);
-        if (Array.isArray(state._presentationEventsPersist)) pending.push(...state._presentationEventsPersist);
-        return pending.some((ev) => ev && ev.type === 'PLAYBACK_EVENTS');
-    } catch (e) {
-        return false;
+function _hasPendingPlaybackEventsForBoardRenderer() {
+    if (PlaybackStateModule && typeof PlaybackStateModule.hasPendingVisualPlayback === 'function') {
+        try {
+            return PlaybackStateModule.hasPendingVisualPlayback(_getCardStateForBoardRendererPlayback()) === true;
+        } catch (e) { /* ignore */ }
     }
+    return false;
 }
 
 function _shouldSkipBoardRenderForPlayback() {
-    if (PlaybackStateModule && typeof PlaybackStateModule.shouldAllowSelectionEntryDuringPlayback === 'function') {
+    if (PlaybackStateModule && typeof PlaybackStateModule.shouldDeferBoardUpdate === 'function') {
         try {
-            if (PlaybackStateModule.shouldAllowSelectionEntryDuringPlayback() === true) {
-                return false;
-            }
+            return PlaybackStateModule.shouldDeferBoardUpdate({
+                cardState: _getCardStateForBoardRendererPlayback()
+            }) === true;
         } catch (e) { /* ignore */ }
     }
     return _isVisualPlaybackActiveForBoardRenderer() || _hasPendingPlaybackEventsForBoardRenderer();
@@ -104,6 +428,38 @@ function applyTimeStopLegalEmphasis(cell, active) {
     cell.classList.toggle('time-stop-legal-emphasis', shouldEmphasize);
 }
 
+function _addPendingSelectedTargetHighlightKey(out, target) {
+    if (!out || !target) return;
+    const row = Number(target.row);
+    const col = Number(target.col);
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+    out.add(`${row},${col}`);
+}
+
+function collectPendingSelectedTargetHighlightKeys(pending) {
+    const out = new Set();
+    if (!pending || pending.stage !== 'selectTarget') return out;
+
+    const pendingType = String(pending.type || '').toUpperCase();
+    if (
+        pendingType === 'POSITION_SWAP_WILL' ||
+        pendingType === 'BOARD_EXPANSION_GOD' ||
+        pendingType === 'BOARD_SHRINK_GOD'
+    ) {
+        _addPendingSelectedTargetHighlightKey(out, pending.firstTarget);
+    }
+    if (
+        pendingType === 'BOARD_EXPANSION_GOD' ||
+        pendingType === 'BOARD_SHRINK_WILL'
+    ) {
+        const selectedTargets = Array.isArray(pending.selectedTargets) ? pending.selectedTargets : [];
+        for (const target of selectedTargets) {
+            _addPendingSelectedTargetHighlightKey(out, target);
+        }
+    }
+    return out;
+}
+
 function renderBoard() {
     _syncTimeStopClassForBoardRenderer();
     // Single Visual Writer: skip renders while playback is active or already queued.
@@ -129,6 +485,7 @@ function renderBoard() {
     } catch (e) {
         // UI only
     }
+    syncBoardPixelSizing(boardEl);
 
     // Use differential rendering if available
     if (typeof renderBoardDiff === 'function') {
@@ -167,7 +524,7 @@ function _isFlipEvadeSpecialTypeForBoard(type) {
 
 function _isDestroyEvadeSpecialTypeForBoard(type) {
     const typeUpper = String(type || '').toUpperCase();
-    return typeUpper === 'WILL_HUNTER_KING' || typeUpper === 'ULTIMATE_HYPERACTIVE' || typeUpper === 'AFTERIMAGE_WILL';
+    return typeUpper === 'WILL_HUNTER_KING' || typeUpper === 'ULTIMATE_HYPERACTIVE' || typeUpper === 'EXTREME_HYPERACTIVE' || typeUpper === 'AFTERIMAGE_WILL';
 }
 
 function _resolveDestroyEvadeDisplayForBoard(special, inherited) {
@@ -318,6 +675,7 @@ function renderBoardFull() {
         selectableTargets.length > 0
     );
     if (boardEl) boardEl.classList.toggle('selection-mode', isSelectingTarget);
+    const boardShape = _applyBoardCssVarsForBoardRenderer(boardEl);
     const selectableTargetSet = new Set(selectableTargets.map(p => p.row + ',' + p.col));
     const isNetworkMode = !!(OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function'
         ? OwnerHelpersModule.isNetworkMode(typeof window !== 'undefined' ? window : null)
@@ -332,18 +690,9 @@ function renderBoardFull() {
             (window.DEBUG_HUMAN_VS_HUMAN && gameState.currentPlayer === WHITE) ||
             isFateWillControlledTurn);
     const showLegalHints = isHumanTurn && !isSelectingTarget && _canLocalPlayerControlCurrentTurnForBoard();
-    const positionSwapSelectedTargetSet = new Set();
-    if (
-        isHumanTurn &&
-        pending &&
-        pending.type === 'POSITION_SWAP_WILL' &&
-        pending.stage === 'selectTarget' &&
-        pending.firstTarget &&
-        Number.isInteger(pending.firstTarget.row) &&
-        Number.isInteger(pending.firstTarget.col)
-    ) {
-        positionSwapSelectedTargetSet.add(`${pending.firstTarget.row},${pending.firstTarget.col}`);
-    }
+    const selectedTargetHighlightSet = isHumanTurn
+        ? collectPendingSelectedTargetHighlightKeys(pending)
+        : new Set();
 
     let normalLegalSet = new Set();
     if (showLegalHints) {
@@ -353,8 +702,8 @@ function renderBoardFull() {
 
     const tabooLegalSet = new Set();
     if (showLegalHints && isTabooReversePending && typeof CardLogic.getTabooReverseCandidates === 'function') {
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
+        for (let r = 0; r < boardShape.rows; r++) {
+            for (let c = 0; c < boardShape.cols; c++) {
                 if (gameState.board[r][c] !== EMPTY) continue;
                 const candidates = CardLogic.getTabooReverseCandidates(cardState, gameState, playerKey, r, c);
                 if (!Array.isArray(candidates) || candidates.length === 0) continue;
@@ -371,6 +720,7 @@ function renderBoardFull() {
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     const specialMap = new Map();
     const guardMap = new Map();
+    const livingWillMap = new Map();
     const inheritedMap = new Map();
     const bombMap = new Map();
     const sproutMap = new Map();
@@ -410,6 +760,14 @@ function renderBoardFull() {
                 });
                 continue;
             }
+            if (m.data.type === 'LIVING_WILL') {
+                livingWillMap.set(`${m.row},${m.col}`, {
+                    row: m.row,
+                    col: m.col,
+                    owner: m.owner
+                });
+                continue;
+            }
             const markerTypeUpper = String(m.data.type || '').toUpperCase();
             specialMap.set(`${m.row},${m.col}`, {
                 row: m.row,
@@ -421,7 +779,7 @@ function renderBoardFull() {
                     ? (
                         Number.isFinite(Number(m.data.destroyEvadeRemaining))
                             ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))
-                            : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ? 1 : null)
+                            : ((markerTypeUpper === 'ULTIMATE_HYPERACTIVE' || markerTypeUpper === 'EXTREME_HYPERACTIVE') ? 1 : null)
                     )
                     : null,
                 flipEvadeRemaining: _isFlipEvadeSpecialTypeForBoard(markerTypeUpper)
@@ -443,7 +801,7 @@ function renderBoardFull() {
             if (!Array.isArray(positions)) return;
             for (const p of positions) {
                 if (!p || !Number.isInteger(p.row) || !Number.isInteger(p.col)) continue;
-                if (p.row < 0 || p.row >= 8 || p.col < 0 || p.col >= 8) continue;
+                if (p.row < 0 || p.row >= boardShape.rows || p.col < 0 || p.col >= boardShape.cols) continue;
                 if (gameState.board[p.row][p.col] !== ownerVal) continue;
                 sproutMap.set(`${p.row},${p.col}`, true);
             }
@@ -474,8 +832,8 @@ function renderBoardFull() {
         return WHITE;
     };
 
-    for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
+    for (let r = 0; r < boardShape.rows; r++) {
+        for (let c = 0; c < boardShape.cols; c++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
             cell.dataset.row = r;
@@ -483,7 +841,7 @@ function renderBoardFull() {
 
             // Human turn gets legal move hints (Black always, White in HvH)
             const key = r + ',' + c;
-            const isPositionSwapSelectedTarget = positionSwapSelectedTargetSet.has(key);
+            const isSelectedTargetHighlighted = selectedTargetHighlightSet.has(key);
             if (showLegalHints && gameState.board[r][c] === EMPTY) {
                 if (freePlacementActive) {
                     cell.classList.add('legal-free');
@@ -494,8 +852,8 @@ function renderBoardFull() {
                     cell.classList.add('effect-target-highlight');
                 }
             }
-            if (isPositionSwapSelectedTarget) {
-                cell.classList.add('effect-target-highlight');
+            if (isSelectedTargetHighlighted) {
+                cell.classList.add('effect-target-highlight-positive');
             }
             if (isHumanTurn && selectableTargetSet.has(key)) {
                 cell.classList.add('selectable-friendly');
@@ -513,6 +871,7 @@ function renderBoardFull() {
 
                 // Unified special stone visual effect
                 const special = specialMap.get(key);
+                const livingWill = livingWillMap.get(key);
                 const inheritedData = inheritedMap.get(key);
                 const destroyEvadeDisplay = _resolveDestroyEvadeDisplayForBoard(special, inheritedData);
                 const specialCanShowFlipEvade = !!(
@@ -584,6 +943,10 @@ function renderBoardFull() {
                         _applyDoubleDigitTimerClassForBoard(destroyEvadeTimer, destroyEvadeRemaining);
                         discHud.appendChild(destroyEvadeTimer);
                     }
+                }
+
+                if (livingWill) {
+                    disc.classList.add('living-will-aura');
                 }
 
                 // 爆弾チェック
@@ -842,23 +1205,27 @@ function setDiscStoneImage(disc, val) {
 
 // Expose in CommonJS for tests and in browser globals for legacy callers
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        renderBoard,
-        renderBoardFull,
-        updateOccupancyUI,
-        applyTimeStopLegalEmphasis,
-        ensureDiscSkeleton,
-        getDiscHudRoot,
-        applyDiscRenderState,
-        setDiscStoneImage
-    };
+        module.exports = {
+            renderBoard,
+            renderBoardFull,
+            updateOccupancyUI,
+            applyTimeStopLegalEmphasis,
+            collectPendingSelectedTargetHighlightKeys,
+            ensureDiscSkeleton,
+            getDiscHudRoot,
+            applyDiscRenderState,
+            setDiscStoneImage,
+            syncBoardPixelSizing
+        };
 }
 if (typeof window !== 'undefined') {
     // Prefer board-renderer as the canonical renderBoard implementation.
     window.renderBoard = renderBoard;
     window.updateOccupancyUI = window.updateOccupancyUI || updateOccupancyUI;
+    window.collectPendingSelectedTargetHighlightKeys = window.collectPendingSelectedTargetHighlightKeys || collectPendingSelectedTargetHighlightKeys;
     window.ensureDiscSkeleton = window.ensureDiscSkeleton || ensureDiscSkeleton;
     window.getDiscHudRoot = window.getDiscHudRoot || getDiscHudRoot;
     window.applyDiscRenderState = window.applyDiscRenderState || applyDiscRenderState;
     window.setDiscStoneImage = window.setDiscStoneImage || setDiscStoneImage;
+    window.syncBoardPixelSizing = window.syncBoardPixelSizing || syncBoardPixelSizing;
 }

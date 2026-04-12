@@ -1,9 +1,16 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
+const path = require('path');
+
+function finalizeScreenshot(tempPath, outputPath) {
+  try { fs.rmSync(outputPath, { force: true }); } catch (e) {}
+  fs.copyFileSync(tempPath, outputPath);
+  try { fs.rmSync(tempPath, { force: true }); } catch (e) {}
+}
 
 (async () => {
   const url = process.env.TEST_URL || 'http://localhost:8081/?debug=1';
-  const outDir = 'tests/visual-regression';
+  const outDir = path.resolve(__dirname);
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
   // Start a minimal static server on port 8123 (local only)
   const http = require('http');
@@ -78,9 +85,12 @@ const fs = require('fs');
     await browser.close();
     process.exit(2);
   }
-  const path = outDir + '/baseline-board.png';
-  await board.screenshot({ path });
-  console.log('[viz] saved', path);
+  const outputPath = path.join(outDir, 'baseline-board.png');
+  const tempPath = path.join(outDir, `baseline-board.capture.${process.pid}.png`);
+  try { fs.rmSync(tempPath, { force: true }); } catch (e) {}
+  await board.screenshot({ path: tempPath });
+  finalizeScreenshot(tempPath, outputPath);
+  console.log('[viz] saved', outputPath);
   await browser.close();
   // ensure the static server is closed cleanly
   await new Promise((resolve) => server.close(resolve));

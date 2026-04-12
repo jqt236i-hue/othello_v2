@@ -523,8 +523,6 @@
             if (!def) continue;
             const type = def.type;
 
-            if (type === 'SELL_CARD_WILL' && hand.length <= 1) continue;
-
             if (type === 'CONDEMN_WILL') {
                 const opponentKey = playerKey === 'black' ? 'white' : 'black';
                 const opponentHand = (cardState.hands && Array.isArray(cardState.hands[opponentKey]))
@@ -542,8 +540,9 @@
             }
 
             if (type === 'SALVATION_WILL') {
-                const salvationList = cardState.prevOpponentTurnDestroyedNormalByPlayer
-                    && cardState.prevOpponentTurnDestroyedNormalByPlayer[playerKey];
+                const salvationLedger = cardState.prevOpponentTurnDestroyedStonesByPlayer
+                    || cardState.prevOpponentTurnDestroyedNormalByPlayer;
+                const salvationList = salvationLedger && salvationLedger[playerKey];
                 if (!Array.isArray(salvationList) || salvationList.length === 0) continue;
             }
 
@@ -597,9 +596,12 @@
 
                 if (type === 'BOARD_EXPANSION_WILL' && !requireLocalTargets(context, 'getBoardExpansionTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'BOARD_EXPANSION_GOD' && !requireLocalTargets(context, 'getBoardExpansionGodTargets', [cardState, gameState, playerKey], 1)) continue;
+                if (type === 'BOARD_SHRINK_WILL' && !requireLocalTargets(context, 'getBoardShrinkTargets', [cardState, gameState, playerKey], 3)) continue;
+                if (type === 'BOARD_SHRINK_GOD' && !requireLocalTargets(context, 'getBoardShrinkGodTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'BLOCKADE_WILL' && !requireLocalTargets(context, 'getBlockadeTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'METEOR_WILL' && !requireLocalTargets(context, 'getMeteorTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'FREEZE_WILL' && !requireLocalTargets(context, 'getFreezeTargets', [cardState, gameState, playerKey], 1)) continue;
+                if (type === 'SEED_WILL' && !requireLocalTargets(context, 'getSeedTargets', [cardState, gameState, playerKey], 1)) continue;
 
                 if (type === 'DESTROY_ONE_STONE' && !requireModuleTargets(context, 'getDestroyTargets', [cardState, gameState], 1)) continue;
                 if (type === 'STRONG_WIND_WILL' && !requireModuleTargets(context, 'getStrongWindTargets', [cardState, gameState], 1)) continue;
@@ -617,9 +619,12 @@
                 if (type === 'CLONE_WILL' && !requireModuleTargets(context, 'getCloneTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'SPLIT_WILL' && !requireModuleTargets(context, 'getSplitTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'BOARD_EXPANSION_GOD' && !requireModuleTargets(context, 'getBoardExpansionGodTargets', [cardState, gameState, playerKey], 1)) continue;
+                if (type === 'BOARD_SHRINK_WILL' && !requireModuleTargets(context, 'getBoardShrinkTargets', [cardState, gameState, playerKey], 3)) continue;
+                if (type === 'BOARD_SHRINK_GOD' && !requireModuleTargets(context, 'getBoardShrinkGodTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'BLOCKADE_WILL' && !requireModuleTargets(context, 'getBlockadeTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'METEOR_WILL' && !requireModuleTargets(context, 'getMeteorTargets', [cardState, gameState, playerKey], 1)) continue;
                 if (type === 'FREEZE_WILL' && !requireModuleTargets(context, 'getFreezeTargets', [cardState, gameState, playerKey], 1)) continue;
+                if (type === 'SEED_WILL' && !requireModuleTargets(context, 'getSeedTargets', [cardState, gameState, playerKey], 1)) continue;
             }
 
             res.push(cardId);

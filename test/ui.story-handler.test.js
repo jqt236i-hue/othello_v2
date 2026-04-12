@@ -28,13 +28,19 @@ describe('story handler menu rendering', () => {
 
     storyBtn.click();
     let chapterButtons = Array.from(storyMenuOverlay.querySelectorAll('.story-chapter-btn'));
-    expect(chapterButtons).toHaveLength(2);
-    expect(chapterButtons[0].disabled).toBe(true);
-    expect(chapterButtons[0].textContent).toContain('第一章');
-    expect(chapterButtons[0].textContent).toContain('プレイするにはチュートリアルをクリアしてください。');
+    expect(chapterButtons).toHaveLength(3);
+    expect(chapterButtons[0].disabled).toBe(false);
+    expect(chapterButtons[0].dataset.storyEntryKind).toBe('tutorial');
+    expect(chapterButtons[0].textContent).toContain('第零章 チュートリアル');
+    expect(chapterButtons[0].textContent).toContain('playable');
     expect(chapterButtons[1].disabled).toBe(true);
-    expect(chapterButtons[1].textContent).toContain('第二章');
-    expect(chapterButtons[1].textContent).toContain('第一章をクリアすると解放されます。');
+    expect(chapterButtons[1].dataset.storyEntryKind).toBe('story');
+    expect(chapterButtons[1].textContent).toContain('第一章');
+    expect(chapterButtons[1].textContent).toContain('プレイするにはチュートリアルをクリアしてください。');
+    expect(chapterButtons[2].disabled).toBe(true);
+    expect(chapterButtons[2].textContent).toContain('第二章');
+    expect(chapterButtons[2].textContent).toContain('第一章をクリアすると解放されます。');
+    expect(storyMenuOverlay.querySelector('.story-menu-note').textContent).toContain('第零章クリア後に第一章');
 
     storyBtn.click();
     TutorialStorageModule.saveTutorialScenarioCleared('chapter0', true);
@@ -42,15 +48,17 @@ describe('story handler menu rendering', () => {
 
     chapterButtons = Array.from(storyMenuOverlay.querySelectorAll('.story-chapter-btn'));
     expect(chapterButtons[0].disabled).toBe(false);
-    expect(chapterButtons[0].textContent).toContain('playable');
-    expect(chapterButtons[1].disabled).toBe(true);
+    expect(chapterButtons[0].textContent).toContain('clear');
+    expect(chapterButtons[1].disabled).toBe(false);
+    expect(chapterButtons[1].textContent).toContain('playable');
+    expect(chapterButtons[2].disabled).toBe(true);
 
     storyBtn.click();
     TutorialStorageModule.saveStoryChapterUnlocked('chapter2', true);
     storyBtn.click();
 
     chapterButtons = Array.from(storyMenuOverlay.querySelectorAll('.story-chapter-btn'));
-    expect(chapterButtons[1].disabled).toBe(false);
-    expect(chapterButtons[1].textContent).toContain('playable');
+    expect(chapterButtons[2].disabled).toBe(false);
+    expect(chapterButtons[2].textContent).toContain('playable');
   });
 });

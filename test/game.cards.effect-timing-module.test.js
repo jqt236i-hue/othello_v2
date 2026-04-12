@@ -17,10 +17,6 @@ describe('CardEffectTiming module', () => {
       incomeStep: 1
     }));
 
-    jest.doMock('../game/logic/cards/work_will', () => ({
-      processWorkEffects
-    }));
-
     const CardEffectTiming = require('../game/logic/cards-internal/effect-timing');
     const processRiboWillTurnStartEffects = jest.fn(() => ({
       entries: [{ id: 'ribo-1' }],
@@ -69,7 +65,9 @@ describe('CardEffectTiming module', () => {
         isFrozenCellForCard: jest.fn(() => false),
         emitPresentationEvent
       },
-      modules: {}
+      modules: {
+        CardWorkModule: { processWorkEffects }
+      }
     });
 
     expect(summary).toEqual({
@@ -264,5 +262,428 @@ describe('CardEffectTiming module', () => {
     });
     expect(cardState.pendingEffectByPlayer.black).toEqual({ type: 'LAST_RESORT', placementsRemaining: 2 });
     expect(cardState.extraPlaceRemainingByPlayer.black).toBe(1);
+  });
+
+  test('onTurnStart uses injected CardWorkModule when available', () => {
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing');
+    const processWorkEffects = jest.fn(() => ({
+      gained: 2,
+      row: 3,
+      col: 4,
+      removed: false,
+      incomeStep: 1
+    }));
+    const emitPresentationEvent = jest.fn((cardState, event) => {
+      if (!Array.isArray(cardState.presentationEvents)) cardState.presentationEvents = [];
+      cardState.presentationEvents.push(event);
+    });
+    const cardState = {
+      turnCountByPlayer: { black: 0, white: 0 },
+      turnIndex: 0,
+      lastTurnStartedFor: null,
+      breedingSproutByOwner: { black: [], white: [] },
+      _breedingSproutClearedTokenByOwner: { black: null, white: null },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 },
+      presentationEvents: [],
+      debugNoDraw: true
+    };
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
+
+    CardEffectTiming.onTurnStart(cardState, 'black', gameState, null, {
+      defaultPrng: { next: () => 0.5 },
+      constants: {
+        EMPTY: 0,
+        DRAW_INTERVAL: 1,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone' }
+      },
+      helpers: {
+        ensureHandDestroyFlags: jest.fn(),
+        processRiboWillTurnStartEffects: jest.fn(() => ({
+          entries: [],
+          totalRepaid: 0,
+          totalDestroyed: 0,
+          completedCount: 0
+        })),
+        commitDraw: jest.fn(),
+        getSpecialMarkers: jest.fn(() => []),
+        removeMarkersAt: jest.fn(),
+        isFrozenCellForCard: jest.fn(() => false),
+        emitPresentationEvent
+      },
+      modules: {
+        CardWorkModule: { processWorkEffects }
+      }
+    });
+
+    expect(processWorkEffects).toHaveBeenCalledWith(cardState, gameState, 'black');
+    expect(emitPresentationEvent).toHaveBeenCalledWith(cardState, expect.objectContaining({
+      type: 'WORK_INCOME',
+      player: 'black',
+      row: 3,
+      col: 4,
+      gained: 2
+    }));
+  });
+
+  test('applyPlacementEffects uses injected CardWorkModule for armed WORK_WILL placement', () => {
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing');
+    const addMarker = jest.fn((cardState, kind, row, col, owner, data) => {
+      if (!Array.isArray(cardState.markers)) cardState.markers = [];
+      cardState.markers.push({ kind, row, col, owner, data });
+      return { placed: true };
+    });
+    const placeWorkStone = jest.fn((cardState, gameState, playerKey, row, col, deps) => {
+      deps.addMarker(cardState, 'specialStone', row, col, playerKey, {
+        type: 'WORK',
+        ownerColor: playerKey,
+        workStage: 0,
+        remainingOwnerTurns: 5
+      });
+      if (!cardState.workAnchorPosByPlayer) {
+        cardState.workAnchorPosByPlayer = { black: null, white: null };
+      }
+      cardState.workAnchorPosByPlayer[playerKey] = { row, col };
+      return { placed: true };
+    });
+    const cardState = {
+      markers: [],
+      pendingEffectByPlayer: { black: null, white: null },
+      workAnchorPosByPlayer: { black: null, white: null },
+      workNextPlacementArmedByPlayer: { black: true, white: false },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 }
+    };
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
+
+    const effects = CardEffectTiming.applyPlacementEffects(cardState, gameState, 'black', 4, 4, 0, {
+      constants: {
+        BLACK: 1,
+        WHITE: -1,
+        EMPTY: 0,
+        FLIP_CHARGE_MULTIPLIER_EFFECTS: {},
+        DOUBLE_PLACE_EXTRA: 1,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' }
+      },
+      helpers: {
+        addChargeWithTotal: jest.fn(),
+        addMarker,
+        workDebugLog: jest.fn(),
+        workDebugError: jest.fn()
+      },
+      modules: {
+        CardWorkModule: { placeWorkStone }
+      }
+    });
+
+    expect(placeWorkStone).toHaveBeenCalledWith(cardState, gameState, 'black', 4, 4, { addMarker });
+    expect(effects).toMatchObject({ workPlaced: true });
+    expect(cardState.workNextPlacementArmedByPlayer.black).toBe(false);
+    expect(cardState.workAnchorPosByPlayer.black).toEqual({ row: 4, col: 4 });
+    expect(cardState.markers).toEqual([
+      expect.objectContaining({
+        kind: 'specialStone',
+        row: 4,
+        col: 4,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'WORK' })
+      })
+    ]);
+  });
+
+  test('applyPlacementEffects preserves armed WORK_WILL when injected CardWorkModule is missing', () => {
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing');
+    const workDebugLog = jest.fn();
+    const cardState = {
+      markers: [],
+      pendingEffectByPlayer: { black: null, white: null },
+      workAnchorPosByPlayer: { black: null, white: null },
+      workNextPlacementArmedByPlayer: { black: true, white: false },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 }
+    };
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
+
+    const effects = CardEffectTiming.applyPlacementEffects(cardState, gameState, 'black', 4, 4, 0, {
+      constants: {
+        BLACK: 1,
+        WHITE: -1,
+        EMPTY: 0,
+        FLIP_CHARGE_MULTIPLIER_EFFECTS: {},
+        DOUBLE_PLACE_EXTRA: 1,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' }
+      },
+      helpers: {
+        addChargeWithTotal: jest.fn(),
+        addMarker: jest.fn(),
+        workDebugLog,
+        workDebugError: jest.fn()
+      },
+      modules: {}
+    });
+
+    expect(effects.workPlaced).toBeUndefined();
+    expect(cardState.workNextPlacementArmedByPlayer.black).toBe(true);
+    expect(cardState.workAnchorPosByPlayer.black).toBeNull();
+    expect(cardState.markers).toEqual([]);
+    expect(workDebugLog).toHaveBeenCalledWith(cardState, '[WORK_DEBUG] workMod.placeWorkStone not available, workMod:', false);
+  });
+
+  test('applyPlacementEffects preserves armed WORK_WILL when injected CardWorkModule throws', () => {
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing');
+    const workDebugError = jest.fn();
+    const placeWorkStone = jest.fn(() => {
+      throw new Error('boom');
+    });
+    const cardState = {
+      markers: [],
+      pendingEffectByPlayer: { black: null, white: null },
+      workAnchorPosByPlayer: { black: null, white: null },
+      workNextPlacementArmedByPlayer: { black: true, white: false },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 }
+    };
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
+
+    const effects = CardEffectTiming.applyPlacementEffects(cardState, gameState, 'black', 4, 4, 0, {
+      constants: {
+        BLACK: 1,
+        WHITE: -1,
+        EMPTY: 0,
+        FLIP_CHARGE_MULTIPLIER_EFFECTS: {},
+        DOUBLE_PLACE_EXTRA: 1,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' }
+      },
+      helpers: {
+        addChargeWithTotal: jest.fn(),
+        addMarker: jest.fn(),
+        workDebugLog: jest.fn(),
+        workDebugError
+      },
+      modules: {
+        CardWorkModule: { placeWorkStone }
+      }
+    });
+
+    expect(placeWorkStone).toHaveBeenCalled();
+    expect(effects.workPlaced).toBeUndefined();
+    expect(cardState.workNextPlacementArmedByPlayer.black).toBe(true);
+    expect(cardState.markers).toEqual([]);
+    expect(workDebugError).toHaveBeenCalledWith(cardState, '[WORK_DEBUG] placeWorkStone threw', 'boom');
+  });
+
+  test('applyPlacementEffects preserves armed WORK_WILL when injected CardWorkModule reports not placed', () => {
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing');
+    const workDebugLog = jest.fn();
+    const placeWorkStone = jest.fn(() => ({ placed: false }));
+    const cardState = {
+      markers: [],
+      pendingEffectByPlayer: { black: null, white: null },
+      workAnchorPosByPlayer: { black: null, white: null },
+      workNextPlacementArmedByPlayer: { black: true, white: false },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 }
+    };
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
+
+    const effects = CardEffectTiming.applyPlacementEffects(cardState, gameState, 'black', 4, 4, 0, {
+      constants: {
+        BLACK: 1,
+        WHITE: -1,
+        EMPTY: 0,
+        FLIP_CHARGE_MULTIPLIER_EFFECTS: {},
+        DOUBLE_PLACE_EXTRA: 1,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' }
+      },
+      helpers: {
+        addChargeWithTotal: jest.fn(),
+        addMarker: jest.fn(),
+        workDebugLog,
+        workDebugError: jest.fn()
+      },
+      modules: {
+        CardWorkModule: { placeWorkStone }
+      }
+    });
+
+    expect(placeWorkStone).toHaveBeenCalled();
+    expect(effects.workPlaced).toBeUndefined();
+    expect(cardState.workNextPlacementArmedByPlayer.black).toBe(true);
+    expect(workDebugLog).toHaveBeenCalledWith(cardState, '[WORK_DEBUG] placeWorkStone returned not placed for', 'black', 4, 4);
+  });
+
+  test('applyPlacementEffects preserves armed WORK_WILL when injected CardWorkModule returns undefined', () => {
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing');
+    const workDebugLog = jest.fn();
+    const placeWorkStone = jest.fn(() => undefined);
+    const cardState = {
+      markers: [],
+      pendingEffectByPlayer: { black: null, white: null },
+      workAnchorPosByPlayer: { black: null, white: null },
+      workNextPlacementArmedByPlayer: { black: true, white: false },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 }
+    };
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
+
+    const effects = CardEffectTiming.applyPlacementEffects(cardState, gameState, 'black', 4, 4, 0, {
+      constants: {
+        BLACK: 1,
+        WHITE: -1,
+        EMPTY: 0,
+        FLIP_CHARGE_MULTIPLIER_EFFECTS: {},
+        DOUBLE_PLACE_EXTRA: 1,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' }
+      },
+      helpers: {
+        addChargeWithTotal: jest.fn(),
+        addMarker: jest.fn(),
+        workDebugLog,
+        workDebugError: jest.fn()
+      },
+      modules: {
+        CardWorkModule: { placeWorkStone }
+      }
+    });
+
+    expect(placeWorkStone).toHaveBeenCalled();
+    expect(effects.workPlaced).toBeUndefined();
+    expect(cardState.workNextPlacementArmedByPlayer.black).toBe(true);
+    expect(cardState.markers).toEqual([]);
+    expect(workDebugLog).toHaveBeenCalledWith(cardState, '[WORK_DEBUG] placeWorkStone returned not placed for', 'black', 4, 4);
+  });
+
+  test('applyPlacementEffects preserves armed WORK_WILL when injected CardWorkModule returns empty object', () => {
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing');
+    const workDebugLog = jest.fn();
+    const placeWorkStone = jest.fn(() => ({}));
+    const cardState = {
+      markers: [],
+      pendingEffectByPlayer: { black: null, white: null },
+      workAnchorPosByPlayer: { black: null, white: null },
+      workNextPlacementArmedByPlayer: { black: true, white: false },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 }
+    };
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
+
+    const effects = CardEffectTiming.applyPlacementEffects(cardState, gameState, 'black', 4, 4, 0, {
+      constants: {
+        BLACK: 1,
+        WHITE: -1,
+        EMPTY: 0,
+        FLIP_CHARGE_MULTIPLIER_EFFECTS: {},
+        DOUBLE_PLACE_EXTRA: 1,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' }
+      },
+      helpers: {
+        addChargeWithTotal: jest.fn(),
+        addMarker: jest.fn(),
+        workDebugLog,
+        workDebugError: jest.fn()
+      },
+      modules: {
+        CardWorkModule: { placeWorkStone }
+      }
+    });
+
+    expect(placeWorkStone).toHaveBeenCalled();
+    expect(effects.workPlaced).toBeUndefined();
+    expect(cardState.workNextPlacementArmedByPlayer.black).toBe(true);
+    expect(cardState.markers).toEqual([]);
+    expect(workDebugLog).toHaveBeenCalledWith(cardState, '[WORK_DEBUG] placeWorkStone returned not placed for', 'black', 4, 4);
+  });
+
+  test('applyPlacementEffects uses injected placement effect modules', () => {
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing');
+    const addChargeWithTotal = jest.fn((cardState, playerKey, amount) => amount);
+    const applyPlunderWill = jest.fn(() => ({ plundered: 2 }));
+    const applyProtectedNextStone = jest.fn(() => ({ applied: true }));
+    const applyPermaProtectNextStone = jest.fn(() => ({ applied: true }));
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
+
+    const plunderState = {
+      charge: { black: 5, white: 7 },
+      pendingEffectByPlayer: { black: { type: 'PLUNDER_WILL' }, white: null },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 },
+      workNextPlacementArmedByPlayer: { black: false, white: false }
+    };
+    const plunderEffects = CardEffectTiming.applyPlacementEffects(plunderState, gameState, 'black', 4, 4, 3, {
+      constants: {
+        BLACK: 1,
+        WHITE: -1,
+        EMPTY: 0,
+        FLIP_CHARGE_MULTIPLIER_EFFECTS: {},
+        DOUBLE_PLACE_EXTRA: 1,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' }
+      },
+      helpers: {
+        addChargeWithTotal,
+        addMarker: jest.fn(),
+        workDebugLog: jest.fn(),
+        workDebugError: jest.fn()
+      },
+      modules: {
+        PlunderWillModule: { applyPlunderWill }
+      }
+    });
+
+    expect(applyPlunderWill).toHaveBeenCalledWith(plunderState, 'black', 3);
+    expect(plunderEffects).toMatchObject({ chargeGained: 5, plunderAmount: 2 });
+    expect(addChargeWithTotal).toHaveBeenCalledWith(plunderState, 'black', 5, expect.objectContaining({
+      popupKind: 'board',
+      sourceType: 'placement_flip_gain'
+    }));
+
+    const protectedState = {
+      pendingEffectByPlayer: { black: { type: 'PROTECTED_NEXT_STONE' }, white: null },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 },
+      workNextPlacementArmedByPlayer: { black: false, white: false }
+    };
+    const protectedEffects = CardEffectTiming.applyPlacementEffects(protectedState, gameState, 'black', 2, 3, 0, {
+      constants: {
+        BLACK: 1,
+        WHITE: -1,
+        EMPTY: 0,
+        FLIP_CHARGE_MULTIPLIER_EFFECTS: {},
+        DOUBLE_PLACE_EXTRA: 1,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' }
+      },
+      helpers: {
+        addChargeWithTotal: jest.fn(),
+        addMarker: jest.fn(),
+        workDebugLog: jest.fn(),
+        workDebugError: jest.fn()
+      },
+      modules: {
+        ProtectedNextStoneModule: { applyProtectedNextStone }
+      }
+    });
+
+    expect(applyProtectedNextStone).toHaveBeenCalledWith(protectedState, 'black', 2, 3);
+    expect(protectedEffects).toMatchObject({ protected: true });
+
+    const permaState = {
+      pendingEffectByPlayer: { black: { type: 'PERMA_PROTECT_NEXT_STONE' }, white: null },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 },
+      workNextPlacementArmedByPlayer: { black: false, white: false }
+    };
+    const permaEffects = CardEffectTiming.applyPlacementEffects(permaState, gameState, 'black', 1, 1, 0, {
+      constants: {
+        BLACK: 1,
+        WHITE: -1,
+        EMPTY: 0,
+        FLIP_CHARGE_MULTIPLIER_EFFECTS: {},
+        DOUBLE_PLACE_EXTRA: 1,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' }
+      },
+      helpers: {
+        addChargeWithTotal: jest.fn(),
+        addMarker: jest.fn(),
+        workDebugLog: jest.fn(),
+        workDebugError: jest.fn()
+      },
+      modules: {
+        PermaProtectNextStoneModule: { applyPermaProtectNextStone }
+      }
+    });
+
+    expect(applyPermaProtectNextStone).toHaveBeenCalledWith(permaState, 'black', 1, 1);
+    expect(permaEffects).toMatchObject({ permaProtected: true });
   });
 });

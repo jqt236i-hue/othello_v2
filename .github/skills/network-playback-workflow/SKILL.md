@@ -21,12 +21,16 @@ argument-hint: 'network のどこを直したいか。snapshot, reconnect, publi
 - `.github/copilot-instructions.md`
 - `AGENTS.md`
 - 触る領域に対応する `.github/instructions/*.instructions.md`
+- backend authority contract 自体を変える時は `network-backend-worker-workflow`
+- pending defer / multi-stage selection overlap が主因なら `pending-selection-flow-workflow`
 
 ## Primary Files
 
 - `ui/network-client.js`
 - `ui/network/snapshot.js`
 - `ui/network/session-seat.js`
+- `ui/playback-state-manager.js`
+- `shared/playback-event-helpers.js`
 - `workers/match-worker.mjs` の public snapshot projection
 - 関連 test: `test/ui.network-client.result-sync.test.js`, `test/ui.network-client.action-bridge-next-snapshot.test.js`, `test/ui.network-client.trap-deferred-publish.test.js`, `test/ui.network-client.publish-base-version.test.js`, `test/ui.network-client.reconnect-sync.test.js`
 
@@ -36,22 +40,31 @@ argument-hint: 'network のどこを直したいか。snapshot, reconnect, publi
 - stale response で新しい local state を巻き戻すこと
 - `deferNetworkPublish` が立つ action と auto publish を二重に走らせること
 - busy lock 解除をタイミング依存で雑に消すこと
+- `_meta.authority === 'server'` を満たさない snapshot や `_meta.version` を無視した snapshot apply を通すこと
+- `projectedForSeat` が local seat と食い違う snapshot を reject せず通すこと
 
 ## Procedure
 
 1. 壊れ方を snapshot apply、local presentation queue、publish timing、stale rollback、trap defer のどこかに分類する。
-2. root 側の `ui/network-client.js` と `ui/network/snapshot.js` を正本として調べる。
-3. remote snapshot と local presentation queue を別物として扱い、片方の都合をもう片方へ押し込まない。
-4. 早すぎる unlock や二重 publish は state manager / defer flag の責務で止める。
-5. worker 側 projection まで影響するかを最後に確認する。
+2. root 側の `ui/network-client.js`, `ui/network/snapshot.js`, `ui/playback-state-manager.js`, `shared/playback-event-helpers.js` を正本として調べる。
+3. snapshot apply は `_meta.authority === 'server'` と `_meta.version` を前提にし、`projectedForSeat` mismatch は reject する前提で崩れ方を見る。
+4. remote snapshot と local presentation queue を別物として扱い、片方の都合をもう片方へ押し込まない。
+5. 早すぎる unlock や二重 publish は state manager / defer flag の責務で止める。
+6. backend authority contract や snapshot projection 生成そのものを変える話なら `network-backend-worker-workflow` へ切り替える。
+7. pending defer / multi-stage selection overlap が主因なら `pending-selection-flow-workflow` へ切り替える。
+8. worker 側 projection まで影響するかを最後に確認する。
 
 ## Validation Bundle
 
+- `test/ui.network-client.apply-coordinator.test.js`
 - `test/ui.network-client.result-sync.test.js`
 - `test/ui.network-client.action-bridge-next-snapshot.test.js`
 - `test/ui.network-client.trap-deferred-publish.test.js`
 - `test/ui.network-client.publish-base-version.test.js`
 - `test/ui.network-client.reconnect-sync.test.js`
+- `test/ui.network-snapshot.single-writer-baseline.test.js`
+- `test/ui.network-snapshot.pending-presentation-reconcile.test.js`
+- `test/network.playback-event-assembly.contract.test.js`
 
 ## Completion Checklist
 

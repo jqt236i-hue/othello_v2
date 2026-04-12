@@ -1572,7 +1572,7 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 if (cornersAfterMove > cornersBeforeMove) {
                     emitCpuCommentary('turn_start', playerKey, { level });
                 }
-            });
+            }, { cpu: true, cpuLevel: level, ownerKey: playerKey });
         };
 
         if (extraDelayMs > 0) {

@@ -19,14 +19,16 @@ describe('story battle ui', () => {
     const styles = loadLayoutStyles();
     const dom = new JSDOM(
       `<!DOCTYPE html><html><head><style>${styles}</style></head><body>
+        <button id="gachaOpenBtn">ガチャ</button>
+        <button id="leaderboardOpenBtn">ランキング</button>
+        <button id="deckBuilderOpenBtn">デッキ</button>
         <button id="storyBtn">story</button>
-        <button id="tutorialBtn">tutorial</button>
         <button id="rulesHelpBtn">help</button>
         <div id="tutorialOverlay"></div>
         <div id="networkChatPanel"></div>
         <div id="side-panel"></div>
         <button id="muteBtn">🔊 ON</button>
-        <input id="seVolSlider" type="range" value="0.7">
+        <input id="seVolSlider" type="range" value="0.56">
         <input id="bgmVolSlider" type="range" value="0.07">
         <select id="bgmTrackSelect"><option value="1">c-othello-2</option></select>
       </body></html>`,
@@ -35,7 +37,7 @@ describe('story battle ui', () => {
 
     const soundEngine = {
       isMuted: false,
-      volume: 0.7,
+      volume: 0.56,
       bgmVolume: 0.07,
       currentTrackIndex: 1,
       allowBgmPlay: true,
@@ -78,6 +80,8 @@ describe('story battle ui', () => {
 
     expect(ui).toBeTruthy();
     expect(ui.refs.root.getAttribute('aria-hidden')).toBe('true');
+    expect(dom.window.getComputedStyle(dom.window.document.getElementById('leaderboardOpenBtn')).position).toBe('fixed');
+    expect(dom.window.getComputedStyle(dom.window.document.getElementById('deckBuilderOpenBtn')).position).toBe('fixed');
 
     StoryStateModule.beginChapter({ chapterId: 'chapter1', stepId: 'STEP_001', mode: 'dialogue' });
 
@@ -91,6 +95,9 @@ describe('story battle ui', () => {
     expect(dom.window.document.body.classList.contains('story-mode-active')).toBe(true);
     expect(dom.window.document.body.classList.contains('story-battle-active')).toBe(true);
     expect(dom.window.getComputedStyle(dom.window.document.getElementById('side-panel')).display).toBe('none');
+    expect(dom.window.getComputedStyle(dom.window.document.getElementById('gachaOpenBtn')).display).toBe('none');
+    expect(dom.window.getComputedStyle(dom.window.document.getElementById('leaderboardOpenBtn')).display).toBe('none');
+    expect(dom.window.getComputedStyle(dom.window.document.getElementById('deckBuilderOpenBtn')).display).toBe('none');
     expect(dom.window.getComputedStyle(dom.window.document.getElementById('storyBtn')).display).toBe('none');
     expect(ui.refs.settingsButton.textContent).toContain('MENU');
     expect(dom.window.document.getElementById('tutorialOverlay').getAttribute('aria-hidden')).toBe('false');

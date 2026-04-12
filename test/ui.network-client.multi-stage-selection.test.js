@@ -12,13 +12,18 @@ function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function createSnapshot(stateVersion, pendingState) {
+function createBoard(rows = 8, cols = 8) {
+  return Array.from({ length: rows }, () => Array(cols).fill(0));
+}
+
+function createSnapshot(stateVersion, pendingState, gameStateOverrides = {}) {
   return {
     stateVersion,
     gameState: {
       currentPlayer: 1,
       turnNumber: 12,
-      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+      board: createBoard(8, 8),
+      ...gameStateOverrides
     },
     cardState: {
       turnIndex: 5,
@@ -107,7 +112,12 @@ const CASES = [
     handlerName: 'handleBoardExpansionSelection',
     actionField: 'expansionTarget',
     firstTarget: { row: 0, col: 0 },
-    secondTarget: { row: 7, col: 7 },
+    secondTarget: { row: 6, col: 8 },
+    snapshotGameStateOverrides: {
+      board: createBoard(7, 9),
+      boardConfig: { rows: 7, cols: 9, standard8x8: false }
+    },
+    createRoomBoardConfig: { rows: 7, cols: 9, standard8x8: false },
     initialPending: {
       type: 'BOARD_EXPANSION_GOD',
       stage: 'selectTarget',
@@ -148,22 +158,24 @@ const CASES = [
       nextGameState: cloneJson(currentSnapshot.gameState),
       playbackEvents: []
     }),
-    buildFinalResult: (currentSnapshot) => ({
+    buildFinalResult: (currentSnapshot, context) => {
+      const target = (context && context.secondTarget) || { row: 7, col: 7 };
+      return ({
       ok: true,
       rawEvents: [{
         type: 'board_expansion_selected',
         applied: true,
         completed: true,
-        target: { row: 7, col: 7 },
-        selectedTargets: [{ row: 0, col: 0 }, { row: 7, col: 7 }],
-        sources: [{ row: 0, col: 0 }, { row: 7, col: 7 }],
+        target,
+        selectedTargets: [{ row: 0, col: 0 }, target],
+        sources: [{ row: 0, col: 0 }, target],
         added: [
           { row: -1, col: 0 },
           { row: -1, col: -1 },
           { row: 0, col: -1 },
-          { row: 7, col: 8 },
-          { row: 8, col: 8 },
-          { row: 8, col: 7 }
+          { row: target.row, col: target.col + 1 },
+          { row: target.row + 1, col: target.col + 1 },
+          { row: target.row + 1, col: target.col }
         ]
       }],
       nextCardState: {
@@ -175,13 +187,83 @@ const CASES = [
         turnNumber: 13
       },
       playbackEvents: [{ type: 'board_expand', phase: 1 }]
-    }),
+    });
+    },
     expectedTransportState: {
       type: 'BOARD_EXPANSION_GOD',
       stage: 'selectTarget',
       selectedTargets: [{ row: 0, col: 0 }],
       selectedCount: 1,
       maxSelections: 2
+    }
+  },
+  {
+    label: 'BOARD_SHRINK_GOD',
+    pendingType: 'BOARD_SHRINK_GOD',
+    modulePath: '../game/card-effects/board-shrink',
+    handlerName: 'handleBoardShrinkSelection',
+    actionField: 'shrinkTarget',
+    firstTarget: { row: 0, col: 0 },
+    secondTarget: { row: 0, col: 1 },
+    initialPending: {
+      type: 'BOARD_SHRINK_GOD',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_god_01'
+    },
+    intermediatePending: {
+      type: 'BOARD_SHRINK_GOD',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_god_01',
+      firstTarget: { row: 0, col: 0 }
+    },
+    buildFirstResult: (currentSnapshot) => ({
+      ok: true,
+      rawEvents: [{
+        type: 'board_shrink_selected',
+        applied: true,
+        completed: false,
+        firstTarget: { row: 0, col: 0 }
+      }],
+      nextCardState: {
+        ...cloneJson(currentSnapshot.cardState),
+        pendingEffectByPlayer: {
+          black: {
+            type: 'BOARD_SHRINK_GOD',
+            stage: 'selectTarget',
+            cardId: 'board_shrink_god_01',
+            firstTarget: { row: 0, col: 0 }
+          },
+          white: null
+        }
+      },
+      nextGameState: cloneJson(currentSnapshot.gameState),
+      playbackEvents: [{ type: 'selection_marker', phase: 1 }]
+    }),
+    buildFinalResult: (currentSnapshot) => ({
+      ok: true,
+      rawEvents: [{
+        type: 'board_shrink_selected',
+        applied: true,
+        completed: true,
+        firstTarget: { row: 0, col: 0 },
+        target: { row: 0, col: 1 },
+        lineKey: 'row:0',
+        lineTargets: Array.from({ length: 8 }, (_, col) => ({ row: 0, col }))
+      }],
+      nextCardState: {
+        ...cloneJson(currentSnapshot.cardState),
+        pendingEffectByPlayer: { black: null, white: null }
+      },
+      nextGameState: {
+        ...cloneJson(currentSnapshot.gameState),
+        turnNumber: 13
+      },
+      playbackEvents: [{ type: 'board_shrink', phase: 1 }]
+    }),
+    expectedTransportState: {
+      type: 'BOARD_SHRINK_GOD',
+      stage: 'selectTarget',
+      firstTarget: { row: 0, col: 0 }
     }
   }
 ];
@@ -193,6 +275,8 @@ describe.each(CASES)('$label authoritative multi-stage contract', ({
   actionField,
   firstTarget,
   secondTarget,
+  snapshotGameStateOverrides,
+  createRoomBoardConfig,
   initialPending,
   intermediatePending,
   buildFirstResult,
@@ -252,7 +336,7 @@ describe.each(CASES)('$label authoritative multi-stage contract', ({
       close() {}
     };
 
-    roomCreateSnapshot = createSnapshot(60, initialPending);
+    roomCreateSnapshot = createSnapshot(60, initialPending, snapshotGameStateOverrides);
     global.gameState = roomCreateSnapshot.gameState;
     global.cardState = roomCreateSnapshot.cardState;
 
@@ -268,14 +352,18 @@ describe.each(CASES)('$label authoritative multi-stage contract', ({
       const pathName = parsedUrl.pathname;
 
       if (pathName === '/api/match/create') {
-        return jsonResponse(200, {
+        const payload = {
           ok: true,
           roomId: 'MUL',
           seatKey: 'black',
           seatToken: 'seat-token',
           stateVersion: roomCreateSnapshot.stateVersion,
           snapshot: cloneJson(roomCreateSnapshot)
-        });
+        };
+        if (createRoomBoardConfig) {
+          payload.roomBoardConfig = cloneJson(createRoomBoardConfig);
+        }
+        return jsonResponse(200, payload);
       }
 
       if (pathName === '/api/match/publish') {
@@ -332,14 +420,20 @@ describe.each(CASES)('$label authoritative multi-stage contract', ({
   });
 
   test('first selection stays local and does not publish', async () => {
-    runTurnMock.mockImplementation(() => buildFirstResult(roomCreateSnapshot));
+    runTurnMock.mockImplementation(() => buildFirstResult(roomCreateSnapshot, { firstTarget, secondTarget }));
 
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
     global.NetworkMatchClient = client;
 
-    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    const created = await client.createRoom(Object.assign(
+      { serverUrl: 'http://localhost:8787', playerName: 'くろ' },
+      createRoomBoardConfig ? { roomBoardConfig: cloneJson(createRoomBoardConfig) } : {}
+    ));
     expect(created.ok).toBe(true);
+    if (createRoomBoardConfig) {
+      expect(client.getRoomBoardConfig()).toMatchObject(createRoomBoardConfig);
+    }
 
     const handlers = require(modulePath);
     const result = await handlers[handlerName](firstTarget.row, firstTarget.col, 'black');
@@ -362,11 +456,11 @@ describe.each(CASES)('$label authoritative multi-stage contract', ({
   });
 
   test('final selection publishes once with carried pendingSelectionState', async () => {
-    roomCreateSnapshot = createSnapshot(60, intermediatePending);
+    roomCreateSnapshot = createSnapshot(60, intermediatePending, snapshotGameStateOverrides);
     global.gameState = roomCreateSnapshot.gameState;
     global.cardState = roomCreateSnapshot.cardState;
 
-    runTurnMock.mockImplementation(() => buildFinalResult(roomCreateSnapshot));
+    runTurnMock.mockImplementation(() => buildFinalResult(roomCreateSnapshot, { firstTarget, secondTarget }));
     authoritativeSnapshotFactory = () => {
       const previewResult = runTurnMock.mock.results[0] && runTurnMock.mock.results[0].value;
       return {
@@ -380,8 +474,16 @@ describe.each(CASES)('$label authoritative multi-stage contract', ({
     const client = window.NetworkMatchClient;
     global.NetworkMatchClient = client;
 
-    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    const created = await client.createRoom(Object.assign(
+      { serverUrl: 'http://localhost:8787', playerName: 'くろ' },
+      createRoomBoardConfig ? { roomBoardConfig: cloneJson(createRoomBoardConfig) } : {}
+    ));
     expect(created.ok).toBe(true);
+    if (createRoomBoardConfig) {
+      expect(client.getRoomBoardConfig()).toMatchObject(createRoomBoardConfig);
+      expect(global.gameState.board).toHaveLength(7);
+      expect(global.gameState.board[0]).toHaveLength(9);
+    }
 
     const handlers = require(modulePath);
     const result = await handlers[handlerName](secondTarget.row, secondTarget.col, 'black');

@@ -41,7 +41,8 @@ describe('cpu turn handler commentary', () => {
 
     expect(requestCommentaryMock).toHaveBeenCalledWith(expect.objectContaining({
       eventType: 'turn_start',
-      playerKey: 'white'
+      playerKey: 'white',
+      level: 1
     }));
     expect(global.emitLogAdded).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'commentary',
@@ -102,6 +103,7 @@ describe('cpu turn handler commentary', () => {
     expect(requestCommentaryMock).toHaveBeenNthCalledWith(2, expect.objectContaining({
       eventType: 'turn_start',
       playerKey: 'white',
+      level: 1,
       board: expect.any(Array)
     }));
     expect(requestCommentaryMock.mock.calls[1][0].board[0][0]).toBe(-1);

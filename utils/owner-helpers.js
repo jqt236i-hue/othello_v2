@@ -150,6 +150,25 @@
         return explicitSeat || inferredSeat || 'black';
     }
 
+    function getFateWillControllerForTurnOwner(cardState, turnOwnerKey) {
+        const ownerKey = normalizePlayerKeyOptional(turnOwnerKey);
+        if (!ownerKey || !cardState || typeof cardState !== 'object') return null;
+        const controllerMap = (cardState.fateWillControllerByTurnOwner && typeof cardState.fateWillControllerByTurnOwner === 'object')
+            ? cardState.fateWillControllerByTurnOwner
+            : null;
+        if (!controllerMap) return null;
+        return normalizePlayerKeyOptional(controllerMap[ownerKey]);
+    }
+
+    function getFateWillControlledTurnOwnerForPlayer(cardState, gameState, playerKey) {
+        const ownerKey = normalizePlayerKeyOptional(gameState && gameState.currentPlayer);
+        const candidatePlayerKey = normalizePlayerKeyOptional(playerKey);
+        if (!ownerKey || !candidatePlayerKey) return null;
+        return getFateWillControllerForTurnOwner(cardState, ownerKey) === candidatePlayerKey
+            ? ownerKey
+            : null;
+    }
+
     function getCurrentMatchMode(rootRef) {
         const ctx = rootRef || root || (typeof globalThis !== 'undefined' ? globalThis : {});
         try {
@@ -179,6 +198,8 @@
         normalizePlayerKeyOptional: normalizePlayerKeyOptional,
         isHiddenHandToken: isHiddenHandToken,
         resolveLocalPlayerKey: resolveLocalPlayerKey,
+        getFateWillControllerForTurnOwner: getFateWillControllerForTurnOwner,
+        getFateWillControlledTurnOwnerForPlayer: getFateWillControlledTurnOwnerForPlayer,
         getCurrentMatchMode: getCurrentMatchMode,
         isNetworkMode: isNetworkMode
     };

@@ -24,7 +24,7 @@ let elementCache = {
     handWrapper: null,
     heldStone: null,
     cardFxLayer: null,
-    handSvg: null,
+    handImage: null,
     
     // CPU character
     cpuCharacterImg: null,
@@ -92,7 +92,7 @@ function initializeElementCache() {
         handWrapper: 'handWrapper',
         heldStone: 'heldStone',
         cardFxLayer: 'card-fx-layer',
-        handSvg: 'handSvg',
+        handImage: 'handImage',
         cpuCharacterImg: 'cpu-character-img',
         cpuLevelLabel: 'cpu-level-label',
         resetBtn: 'resetBtn',
@@ -149,7 +149,7 @@ function getElement(key) {
             handWrapper: 'handWrapper',
             heldStone: 'heldStone',
             cardFxLayer: 'card-fx-layer',
-            handSvg: 'handSvg',
+            handImage: 'handImage',
             cpuCharacterImg: 'cpu-character-img',
             cpuLevelLabel: 'cpu-level-label'
         };

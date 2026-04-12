@@ -25,11 +25,12 @@
         const getMeteorTargets = deps.getMeteorTargets || (() => []);
         const getCellValueForCard = deps.getCellValueForCard || (() => null);
         const destroyAt = deps.destroyAt || null;
-        const isDestroyResolved = deps.isDestroyResolved || ((result) => !!(result && result.destroyed));
+        const isDestroyResolved = deps.isDestroyResolved || ((result) => !!(result && (result.destroyed || result.livingWillRevived)));
         const clearStoneIdAtForCard = deps.clearStoneIdAtForCard || (() => {});
         const setCellValueForCard = deps.setCellValueForCard || (() => false);
         const removeMarkersAt = deps.removeMarkersAt || (() => {});
         const addMarker = deps.addMarker || (() => false);
+        const random = deps.random || null;
 
         const targets = getMeteorTargets(cardState, gameState, playerKey);
         const allowed = Array.isArray(targets) && targets.some((target) => target && target.row === row && target.col === col);
@@ -41,6 +42,10 @@
         let destroyed = false;
         if (cellValue !== EMPTY) {
             if (typeof destroyAt === 'function') {
+                const destroyOptions = { ignoreGuard: true };
+                if (random && typeof random.random === 'function') {
+                    destroyOptions.random = random;
+                }
                 const result = destroyAt(
                     cardState,
                     gameState,
@@ -48,7 +53,7 @@
                     col,
                     'METEOR_WILL',
                     'meteor_cell_destroy',
-                    { ignoreGuard: true }
+                    destroyOptions
                 );
                 destroyed = isDestroyResolved(result);
                 if (result && result.reason === 'out_of_board') {

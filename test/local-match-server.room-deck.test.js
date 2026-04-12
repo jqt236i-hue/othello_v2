@@ -91,11 +91,13 @@ describe('local match server room deck', () => {
     const server = createLocalMatchServer();
     const port = await listen(server);
     const deckInfo = buildDistinctDeckCodes();
+    const roomBoardConfig = { rows: 7, cols: 9 };
 
     try {
       const created = await requestJson(port, 'POST', '/api/match/create', {
         playerName: 'くろ',
-        deckCode: deckInfo.blackDeckCode
+        deckCode: deckInfo.blackDeckCode,
+        roomBoardConfig
       });
       const roomId = created.data.roomId;
       const blackSeatToken = created.data.seatToken;
@@ -140,9 +142,27 @@ describe('local match server room deck', () => {
 
       expect(state.status).toBe(200);
       expect(state.data.ok).toBe(true);
+      expect(created.data.roomBoardConfig).toMatchObject({
+        rows: 7,
+        cols: 9,
+        standard8x8: false
+      });
+      expect(joined.data.roomBoardConfig).toMatchObject({
+        rows: 7,
+        cols: 9,
+        standard8x8: false
+      });
+      expect(state.data.roomBoardConfig).toMatchObject({
+        rows: 7,
+        cols: 9,
+        standard8x8: false
+      });
       expect(state.data.roomDeck.deckCodeByPlayer.black).toBe(deckInfo.blackDeckCode);
       expect(state.data.roomDeck.deckCodeByPlayer.white).toBe(deckInfo.whiteDeckCode);
       expect(state.data.stateVersion).toBe(2);
+      expect(Array.isArray(state.data.snapshot.gameState.board)).toBe(true);
+      expect(state.data.snapshot.gameState.board).toHaveLength(7);
+      expect(state.data.snapshot.gameState.board[0]).toHaveLength(9);
       expect(internalCardState).toBeTruthy();
       expect(internalCardState.initialDeckSizeByPlayer.black).toBe(30);
       expect(internalCardState.initialDeckSizeByPlayer.white).toBe(30);

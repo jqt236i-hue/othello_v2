@@ -3,7 +3,7 @@ describe('ui commentary broker', () => {
     jest.resetModules();
   });
 
-  test('requestCommentaryAndShow logs and shows CPU commentary directly', async () => {
+  test('requestCommentaryAndShow shows CPU commentary without adding it to the log by default', async () => {
     const addLog = jest.fn();
     const showCpuSpeechBubble = jest.fn();
     const requestCommentary = jest.fn(async () => '読み切った');
@@ -34,7 +34,7 @@ describe('ui commentary broker', () => {
       playerKey: 'white',
       cardId: 'swap_01'
     }));
-    expect(addLog).toHaveBeenCalledWith('白CPU: 読み切った');
+    expect(addLog).not.toHaveBeenCalled();
     expect(showCpuSpeechBubble).toHaveBeenCalledWith('読み切った', expect.objectContaining({
       speakerRole: 'cpu',
       playerKey: 'white',
@@ -81,7 +81,7 @@ describe('ui commentary broker', () => {
     });
 
     expect(requestCommentary).toHaveBeenCalledTimes(1);
-    expect(addLog).toHaveBeenCalledTimes(1);
+    expect(addLog).not.toHaveBeenCalled();
     expect(showHeroSpeechBubble).toHaveBeenCalledTimes(1);
 
     broker.resetState();
@@ -98,7 +98,7 @@ describe('ui commentary broker', () => {
     });
 
     expect(requestCommentary).toHaveBeenCalledTimes(2);
-    expect(addLog).toHaveBeenCalledTimes(2);
+    expect(addLog).not.toHaveBeenCalled();
     expect(showHeroSpeechBubble).toHaveBeenCalledTimes(2);
   });
 });

@@ -58,6 +58,26 @@ function listFilesRecursive(baseDir) {
     return out;
 }
 
+function listResumeChunkDirs(baseDir) {
+    if (!fs.existsSync(baseDir)) return [];
+    const out = [];
+    const stack = [baseDir];
+    while (stack.length > 0) {
+        const current = stack.pop();
+        const entries = fs.readdirSync(current, { withFileTypes: true });
+        for (const entry of entries) {
+            const full = path.join(current, entry.name);
+            if (!entry.isDirectory()) continue;
+            if (entry.name.endsWith('.resume-chunks')) {
+                out.push(full);
+                continue;
+            }
+            stack.push(full);
+        }
+    }
+    return out;
+}
+
 function shouldDeleteModelFile(fileName, keepDeployed) {
     const lower = fileName.toLowerCase();
     const isCheckpoint = lower.endsWith('.checkpoint.pt');
@@ -81,13 +101,23 @@ function shouldDeleteModelFile(fileName, keepDeployed) {
 }
 
 function collectTargets(args) {
-    const runsFiles = listFilesRecursive(args.runsDir);
+    const runsDirs = listResumeChunkDirs(args.runsDir);
+    const runsDirSet = new Set(runsDirs.map((one) => path.resolve(one)));
+    const runsFiles = listFilesRecursive(args.runsDir).filter((onePath) => {
+        const resolved = path.resolve(onePath);
+        for (const dirPath of runsDirSet) {
+            if (resolved.startsWith(`${dirPath}${path.sep}`)) {
+                return false;
+            }
+        }
+        return true;
+    });
     const modelFiles = fs.existsSync(args.modelsDir)
         ? fs.readdirSync(args.modelsDir, { withFileTypes: true })
             .filter((d) => d.isFile() && shouldDeleteModelFile(d.name, args.keepDeployed))
             .map((d) => path.join(args.modelsDir, d.name))
         : [];
-    const targets = runsFiles.concat(modelFiles);
+    const targets = runsFiles.concat(runsDirs, modelFiles);
     targets.sort();
     return targets;
 }
@@ -107,7 +137,17 @@ function formatBytes(n) {
 function summarizeTargets(targets) {
     const totalBytes = targets.reduce((sum, p) => {
         try {
-            return sum + fs.statSync(p).size;
+            const stat = fs.statSync(p);
+            if (stat.isDirectory()) {
+                return sum + listFilesRecursive(p).reduce((dirSum, oneFile) => {
+                    try {
+                        return dirSum + fs.statSync(oneFile).size;
+                    } catch (e) {
+                        return dirSum;
+                    }
+                }, 0);
+            }
+            return sum + stat.size;
         } catch (e) {
             return sum;
         }
@@ -124,7 +164,12 @@ function removeTargets(targets) {
     const failed = [];
     for (const p of targets) {
         try {
-            fs.unlinkSync(p);
+            const stat = fs.statSync(p);
+            if (stat.isDirectory()) {
+                fs.rmSync(p, { recursive: true, force: false });
+            } else {
+                fs.unlinkSync(p);
+            }
             deleted.push(p);
         } catch (err) {
             failed.push({ path: p, error: err && err.message ? err.message : String(err) });

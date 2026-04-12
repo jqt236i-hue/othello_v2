@@ -8,8 +8,40 @@
     let commentaryContextHelpers = null;
     let ownerHelpers = null;
     let commentaryBroker = null;
+    let stoneVisuals = null;
+    let presentationResolver = null;
+    let playbackEngineModule = null;
+
+    function resolvePresentationResolver() {
+        if (presentationResolver) return presentationResolver;
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.AnimationResolver) {
+                presentationResolver = globalThis.AnimationResolver;
+                return presentationResolver;
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof window !== 'undefined' && window && window.AnimationResolver) {
+                presentationResolver = window.AnimationResolver;
+                return presentationResolver;
+            }
+        } catch (e) { /* ignore */ }
+        if (presentationResolver) return presentationResolver;
+        try {
+            if (typeof require === 'function') {
+                presentationResolver = require('./animation-resolver');
+                if (presentationResolver) return presentationResolver;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
 
     function resolveFromGlobal(name) {
+        const resolver = presentationResolver || resolvePresentationResolver();
+        if (resolver && typeof resolver.resolveGlobal === 'function') {
+            const resolved = resolver.resolveGlobal(name);
+            if (resolved) return resolved;
+        }
         try {
             if (typeof globalThis !== 'undefined' && globalThis[name]) {
                 return globalThis[name];
@@ -23,29 +55,67 @@
         return null;
     }
 
+    function resolveModuleOrGlobal(modulePath, globalName) {
+        const resolver = presentationResolver || resolvePresentationResolver();
+        if (resolver && typeof resolver.resolveModuleOrGlobal === 'function') {
+            const resolved = resolver.resolveModuleOrGlobal(modulePath, globalName);
+            if (resolved) return resolved;
+        }
+        const globalResolved = resolveFromGlobal(globalName);
+        if (globalResolved) return globalResolved;
+        if (typeof require === 'function') {
+            try {
+                return require(modulePath);
+            } catch (e) { /* ignore */ }
+        }
+        return null;
+    }
+
     function resolveCommentaryContextHelpers() {
         if (commentaryContextHelpers) return commentaryContextHelpers;
-        commentaryContextHelpers = resolveFromGlobal('CommentaryContextHelpers');
+        commentaryContextHelpers = resolveModuleOrGlobal('../shared/commentary-context-helpers', 'CommentaryContextHelpers');
         if (commentaryContextHelpers) return commentaryContextHelpers;
-        try {
-            if (typeof require === 'function') {
-                commentaryContextHelpers = require('../shared/commentary-context-helpers');
-                if (commentaryContextHelpers) return commentaryContextHelpers;
-            }
-        } catch (e) { /* ignore */ }
         return null;
     }
 
     function resolveCommentaryBroker() {
         if (commentaryBroker) return commentaryBroker;
-        commentaryBroker = resolveFromGlobal('CommentaryBroker');
+        commentaryBroker = resolveModuleOrGlobal('./commentary-broker', 'CommentaryBroker');
         if (commentaryBroker) return commentaryBroker;
-        try {
-            if (typeof require === 'function') {
-                commentaryBroker = require('./commentary-broker');
-                if (commentaryBroker) return commentaryBroker;
-            }
-        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function resolveStoneVisuals() {
+        if (stoneVisuals) return stoneVisuals;
+        stoneVisuals = resolveModuleOrGlobal('./stone-visuals', 'StoneVisuals');
+        if (stoneVisuals) return stoneVisuals;
+        return null;
+    }
+
+    function resolveCrossfadeStoneVisual() {
+        const visuals = resolveStoneVisuals();
+        if (visuals && typeof visuals.crossfadeStoneVisual === 'function') {
+            return visuals.crossfadeStoneVisual.bind(visuals);
+        }
+        if (typeof crossfadeStoneVisual === 'function') return crossfadeStoneVisual;
+        return null;
+    }
+
+    function resolveDiscVisualSync() {
+        const visuals = resolveStoneVisuals();
+        if (visuals && typeof visuals.syncDiscVisualToCurrentState === 'function') {
+            return visuals.syncDiscVisualToCurrentState.bind(visuals);
+        }
+        if (typeof syncDiscVisualToCurrentState === 'function') return syncDiscVisualToCurrentState;
+        return null;
+    }
+
+    function resolveApplyStoneVisualState() {
+        const visuals = resolveStoneVisuals();
+        if (visuals && typeof visuals.applyStoneVisualState === 'function') {
+            return visuals.applyStoneVisualState.bind(visuals);
+        }
+        if (typeof applyStoneVisualState === 'function') return applyStoneVisualState;
         return null;
     }
 
@@ -79,15 +149,15 @@
 
     function resolveOwnerHelpers() {
         if (ownerHelpers) return ownerHelpers;
-        ownerHelpers = resolveFromGlobal('OwnerHelpers');
+        ownerHelpers = resolveModuleOrGlobal('../utils/owner-helpers', 'OwnerHelpers');
         if (ownerHelpers) return ownerHelpers;
-        try {
-            if (typeof require === 'function') {
-                ownerHelpers = require('../utils/owner-helpers');
-                if (ownerHelpers) return ownerHelpers;
-            }
-        } catch (e) { /* ignore */ }
         return null;
+    }
+
+    function resolvePlaybackEngine() {
+        if (playbackEngineModule) return playbackEngineModule;
+        playbackEngineModule = resolveModuleOrGlobal('./playback-engine', 'PlaybackEngine');
+        return playbackEngineModule;
     }
 
     function normalizeCommentaryPlayerKey(value, fallbackKey) {
@@ -254,9 +324,7 @@
             const broker = ensureCommentaryBrokerInitialized();
             if (broker && typeof broker.showCommentaryEntry === 'function') {
                 broker.showCommentaryEntry(entry);
-                return;
             }
-            if (entry && entry.text && typeof addLog === 'function') addLog(entry.text);
         }).catch(() => {
             // Keep presentation flow deterministic.
         });
@@ -345,7 +413,6 @@
             cardType: cardEvent.cardType,
             dedupeScope: 'hero-card',
             dedupeKey: commentaryKey,
-            log: true,
             show: true
         });
     }
@@ -403,6 +470,19 @@
         }
     }
 
+    function getPlaybackDispatchDeps() {
+        const deps = {};
+        const animationEngine = resolveFromGlobal('AnimationEngine');
+        if (animationEngine) deps.AnimationEngine = animationEngine;
+        const scheduleRuntimeMethod = getPresentationRuntimeMethod('scheduleCpuTurn');
+        if (scheduleRuntimeMethod.method) {
+            deps.scheduleCpuTurnEvent = function (ev) {
+                return scheduleRuntimeMethod.method.call(scheduleRuntimeMethod.runtime, ev);
+            };
+        }
+        return deps;
+    }
+
     async function playPlaybackEvents(ev, options) {
         const payload = normalizePlaybackEventsForUi(Array.isArray(ev && ev.events) ? ev.events : []);
         if (!payload.length) return;
@@ -419,18 +499,23 @@
         }
         if (suppressPlayback) return;
 
+        const playbackDispatchDeps = getPlaybackDispatchDeps();
+        const playbackEngine = resolvePlaybackEngine();
         try {
-            if (typeof AnimationEngine !== 'undefined' && AnimationEngine && typeof AnimationEngine.play === 'function') {
-                await AnimationEngine.play(payload);
+            if (playbackEngine && typeof playbackEngine.dispatchPresentationEvent === 'function') {
+                await playbackEngine.dispatchPresentationEvent({
+                    type: 'PLAYBACK_EVENTS',
+                    events: payload
+                }, playbackDispatchDeps);
                 return;
             }
         } catch (e) { /* ignore */ }
 
         try {
-            if (typeof PlaybackEngine !== 'undefined' && PlaybackEngine && typeof PlaybackEngine.playPresentationEvents === 'function') {
-                await PlaybackEngine.playPresentationEvents({
-                    presentationEvents: [{ type: 'PLAYBACK_EVENTS', events: payload }]
-                });
+            const animationEngine = playbackDispatchDeps.AnimationEngine;
+            if (animationEngine && typeof animationEngine.play === 'function') {
+                await animationEngine.play(payload);
+                return;
             }
         } catch (e) {
             try { console.warn('[PresentationHandler] playback failed', e); } catch (e2) { /* ignore */ }
@@ -452,11 +537,14 @@
                 }
 
                 try {
-                    if (typeof syncDiscVisualToCurrentState === 'function') syncDiscVisualToCurrentState(row, col);
+                    const syncDiscVisual = resolveDiscVisualSync();
+                    if (typeof syncDiscVisual === 'function') syncDiscVisual(row, col);
                 } catch (e) { /* ignore */ }
 
-                if (typeof crossfadeStoneVisual === 'function') {
-                    crossfadeStoneVisual(disc, {
+                const applyStoneVisualState = resolveApplyStoneVisualState();
+                const crossfadeStone = resolveCrossfadeStoneVisual();
+                if (typeof crossfadeStone === 'function') {
+                    crossfadeStone(disc, {
                         effectKey: ev.effectKey,
                         owner: ev.owner,
                         newColor: ev.newColor,
@@ -464,6 +552,12 @@
                         autoFadeOut: ev.autoFadeOut,
                         fadeWholeStone: ev.fadeWholeStone
                     }).catch(function () {});
+                } else if (typeof applyStoneVisualState === 'function') {
+                    applyStoneVisualState(disc, {
+                        effectKey: ev.effectKey,
+                        owner: ev.owner,
+                        newColor: ev.newColor
+                    });
                 } else if (typeof applyStoneVisualEffect === 'function') {
                     applyStoneVisualEffect(disc, ev.effectKey, { owner: ev.owner });
                 }
@@ -507,9 +601,13 @@
             }
 
             if (ev.type === 'SCHEDULE_CPU_TURN') {
-                const runtimeMethod = getPresentationRuntimeMethod('scheduleCpuTurn');
-                if (runtimeMethod.method) {
-                    return runtimeMethod.method.call(runtimeMethod.runtime, ev);
+                const playbackEngine = resolvePlaybackEngine();
+                const playbackDispatchDeps = getPlaybackDispatchDeps();
+                if (playbackEngine && typeof playbackEngine.dispatchPresentationEvent === 'function') {
+                    return playbackEngine.dispatchPresentationEvent(ev, playbackDispatchDeps);
+                }
+                if (playbackDispatchDeps.scheduleCpuTurnEvent) {
+                    return playbackDispatchDeps.scheduleCpuTurnEvent(ev);
                 }
                 return;
             }

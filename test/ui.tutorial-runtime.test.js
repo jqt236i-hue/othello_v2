@@ -358,4 +358,21 @@ describe('tutorial runtime staged setup', () => {
     expect(elapsed).toBeGreaterThanOrEqual(70);
     dom.window.close();
   });
+
+  test('getStartAvailability blocks tutorial start while gacha overlay is open', () => {
+    const dom = new JSDOM('<div id="gachaOverlay" class="is-open" aria-hidden="false"></div>');
+    const runtime = TutorialRuntimeModule.createTutorialRuntime({
+      root: {
+        document: dom.window.document,
+        MATCH_MODE: 'cpu'
+      }
+    });
+
+    expect(runtime.getStartAvailability()).toEqual({
+      ok: false,
+      message: 'help / ネット対戦設定 / ガチャ / ランキング / リザルトを閉じてから tutorial を開始してください'
+    });
+
+    dom.window.close();
+  });
 });

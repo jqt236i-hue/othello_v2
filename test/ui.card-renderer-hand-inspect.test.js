@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const { JSDOM } = require('jsdom');
 
-function createBoard() {
-  return Array.from({ length: 8 }, () => Array(8).fill(0));
+function createBoard(rows = 8, cols = 8) {
+  return Array.from({ length: rows }, () => Array(cols).fill(0));
 }
 
 function createRendererContext(options = {}) {
@@ -13,7 +13,9 @@ function createRendererContext(options = {}) {
     includeNetworkClient = (matchMode === 'network'),
     networkClientIsActive = false,
     currentPlayer = 1,
-    hands = { black: [], white: [] }
+    hands = { black: [], white: [] },
+    boardRows = 8,
+    boardCols = 8
   } = options;
 
   const dom = new JSDOM(
@@ -40,7 +42,7 @@ function createRendererContext(options = {}) {
   window.WHITE = -1;
   window.gameState = {
     currentPlayer,
-    board: createBoard()
+    board: createBoard(boardRows, boardCols)
   };
   window.cardState = {
     turnIndex: 1,
@@ -84,6 +86,24 @@ function createRendererContext(options = {}) {
 }
 
 describe('card renderer hand inspection', () => {
+  test('custom boards still update the charge HUD', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      boardRows: 7,
+      boardCols: 7
+    });
+    const { window } = dom;
+
+    window.cardState.charge.black = 3;
+    window.cardState.charge.white = 1;
+    window.renderCardUI();
+
+    expect(window.document.getElementById('charge-black').textContent).toBe('布石: 3 / 99');
+    expect(window.document.getElementById('charge-white').textContent).toBe('布石: 1 / 99');
+
+    dom.window.close();
+  });
+
   test('cpu mode keeps black hand clickable during white turn for effect inspection', () => {
     const dom = createRendererContext({
       matchMode: 'cpu',
@@ -127,6 +147,152 @@ describe('card renderer hand inspection', () => {
     ownCardEl.click();
 
     expect(window.onCardClick).toHaveBeenCalledWith('own_card', 'black');
+
+    dom.window.close();
+  });
+
+  test('visible hand cards keep cost at the card root and type in the badge row', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['own_card'], white: [] }
+    });
+    const { window } = dom;
+
+    window.CARD_DEFS = [
+      { id: 'own_card', name: 'Own Card', desc: 'd', cost: 11, display_type_ja: '採掘' }
+    ];
+
+    window.renderCardUI();
+
+    const ownCardEl = window.document.querySelector('#hand-black .card-item.visible');
+    expect(ownCardEl).not.toBeNull();
+
+    const rootChildren = Array.from(ownCardEl.children);
+    const costBadge = rootChildren.find((el) => el.classList.contains('card-cost-badge'));
+    const badgeRow = rootChildren.find((el) => el.classList.contains('card-badge-row'));
+
+    expect(costBadge).toBeTruthy();
+    expect(costBadge.textContent).toBe('11cost');
+    expect(badgeRow).toBeTruthy();
+    expect(badgeRow.querySelector('.card-type-badge').textContent).toBe('\u26CF\uFE0E 採掘');
+    expect(badgeRow.querySelector('.card-cost-badge')).toBeNull();
+
+    dom.window.close();
+  });
+
+  test('living will hand cards use the guard display type label', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['living_will_01'], white: [] }
+    });
+    const { window } = dom;
+
+    window.CARD_DEFS = [
+      {
+        id: 'living_will_01',
+        name: '生きる意志',
+        desc: 'd',
+        cost: 20,
+        type: 'LIVING_WILL',
+        display_type_ja: '守護'
+      }
+    ];
+
+    window.renderCardUI();
+
+    const ownCardEl = window.document.querySelector('#hand-black .card-item.visible');
+    expect(ownCardEl).not.toBeNull();
+    expect(ownCardEl.dataset.cardType).toBe('guard');
+    expect(ownCardEl.querySelector('.card-type-badge').textContent).toBe('\u26E8\uFE0E 守護');
+
+    dom.window.close();
+  });
+
+  test('createCardFaceElement composites owner-specific special art for special-stone cards', () => {
+    const dom = createRendererContext();
+    const { window } = dom;
+    window.GameVisualEffectsMap = require('../game/visual-effects-map');
+
+    window.CARD_DEFS = [
+      {
+        id: 'dragon_card',
+        name: '究極反転龍',
+        desc: 'd',
+        cost: 30,
+        type: 'ULTIMATE_REVERSE_DRAGON',
+        display_type_ja: '特殊'
+      }
+    ];
+
+    const blackCardEl = window.createCardFaceElement('dragon_card', { ownerKey: 'black' });
+    const whiteCardEl = window.createCardFaceElement('dragon_card', { ownerKey: 'white' });
+
+    expect(blackCardEl.classList.contains('has-special-art')).toBe(true);
+    expect(whiteCardEl.classList.contains('has-special-art')).toBe(true);
+    expect(blackCardEl.querySelector('.card-special-art')).toBeTruthy();
+    expect(whiteCardEl.querySelector('.card-special-art')).toBeTruthy();
+    expect(blackCardEl.style.getPropertyValue('--card-special-art-image')).toContain('ultimate_reverse_dragon-black.png');
+    expect(whiteCardEl.style.getPropertyValue('--card-special-art-image')).toContain('ultimate_reverse_dragon-white.png');
+
+    dom.window.close();
+  });
+
+  test('createCardFaceElement uses blockade image override for blockade will cards', () => {
+    const dom = createRendererContext();
+    const { window } = dom;
+
+    window.CARD_DEFS = [
+      {
+        id: 'blockade_01',
+        name: '封鎖の意志',
+        desc: 'd',
+        cost: 1,
+        type: 'BLOCKADE_WILL',
+        display_type_ja: '特殊'
+      }
+    ];
+
+    const cardEl = window.createCardFaceElement('blockade_01', { ownerKey: 'black' });
+
+    expect(cardEl.classList.contains('has-special-art')).toBe(true);
+    expect(cardEl.querySelector('.card-special-art')).toBeTruthy();
+    expect(cardEl.style.getPropertyValue('--card-special-art-image')).toContain('assets/images/other/X.png');
+    expect(cardEl.dataset.cardVisualEffect).toBe('blockadeMark');
+
+    dom.window.close();
+  });
+
+  test('fitCardNameElement snaps reduced names to integer pixels to avoid blurry text', () => {
+    const dom = createRendererContext();
+    const { window } = dom;
+    const nameEl = window.document.createElement('div');
+
+    window.document.body.appendChild(nameEl);
+    window.requestAnimationFrame = (callback) => callback();
+    window.getComputedStyle = jest.fn(() => ({ fontSize: '15.5px' }));
+
+    Object.defineProperty(nameEl, 'clientWidth', {
+      configurable: true,
+      get: () => 96
+    });
+    Object.defineProperty(nameEl, 'offsetWidth', {
+      configurable: true,
+      get: () => 96
+    });
+    Object.defineProperty(nameEl, 'scrollWidth', {
+      configurable: true,
+      get: () => {
+        const fontPx = parseFloat(nameEl.style.fontSize || '15.5');
+        return Math.ceil(fontPx * 7.4);
+      }
+    });
+
+    window.fitCardNameElement(nameEl, 0);
+
+    expect(nameEl.style.fontSize).toBe('12px');
+    expect(nameEl.style.fontSize).toMatch(/^\d+px$/);
 
     dom.window.close();
   });
@@ -417,6 +583,27 @@ describe('card renderer FATE_WILL hand visibility', () => {
     expect(ownCardEl).not.toBeNull();
     // But it is NOT usable (victim is locked out)
     expect(ownCardEl.classList.contains('usable')).toBe(false);
+
+    dom.window.close();
+  });
+
+  test('network mode: victim sees time stop active overlay above the local hand', () => {
+    const dom = createRendererContext({
+      matchMode: 'network',
+      seatKey: 'white',
+      networkClientIsActive: true,
+      currentPlayer: 1,
+      hands: { black: ['__hidden_hand__:black:0'], white: ['own_card'] }
+    });
+    const { window } = dom;
+
+    window.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 2, white: 0 };
+    window.renderCardUI();
+
+    const ownHandOverlayEl = window.document.querySelector('#hand-black .time-stop-hand-overlay');
+    expect(ownHandOverlayEl).not.toBeNull();
+    expect(ownHandOverlayEl.textContent).toBe('時間停止発動中');
+    expect(window.document.querySelector('#hand-white .time-stop-hand-overlay')).toBeNull();
 
     dom.window.close();
   });

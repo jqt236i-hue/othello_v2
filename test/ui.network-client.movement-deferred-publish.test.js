@@ -37,6 +37,12 @@ function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+const CUSTOM_BOARD_CONFIG = { rows: 7, cols: 9, standard8x8: false };
+
+function createBoard(rows = CUSTOM_BOARD_CONFIG.rows, cols = CUSTOM_BOARD_CONFIG.cols) {
+  return Array.from({ length: rows }, () => Array(cols).fill(0));
+}
+
 function createLiveResponseSnapshot(stateVersion) {
   return {
     stateVersion,
@@ -62,7 +68,9 @@ function createSnapshot(stateVersion, pendingType) {
     },
     gameState: {
       currentPlayer: 1,
-      turnNumber: 11
+      turnNumber: 11,
+      board: createBoard(),
+      boardConfig: cloneJson(CUSTOM_BOARD_CONFIG)
     },
     cardState: {
       selectedCardId: null,
@@ -172,6 +180,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerNam
           seatKey: 'black',
           seatToken: 'seat-token',
           stateVersion: 20,
+          roomBoardConfig: cloneJson(CUSTOM_BOARD_CONFIG),
           snapshot: createSnapshot(20, pendingType)
         });
       }
@@ -266,11 +275,18 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerNam
     expect(client).toBeTruthy();
     global.NetworkMatchClient = client;
 
-    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    const created = await client.createRoom({
+      serverUrl: 'http://localhost:8787',
+      playerName: 'くろ',
+      roomBoardConfig: cloneJson(CUSTOM_BOARD_CONFIG)
+    });
     expect(created.ok).toBe(true);
+    expect(client.getRoomBoardConfig()).toMatchObject(CUSTOM_BOARD_CONFIG);
+    expect(global.gameState.board).toHaveLength(7);
+    expect(global.gameState.board[0]).toHaveLength(9);
 
     const handlers = require('../game/card-effects/strong-wind');
-    const result = await handlers[handlerName](2, 2, 'black');
+    const result = await handlers[handlerName](6, 8, 'black');
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -287,7 +303,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerNam
     expect(publishBodies[0].actor).toBe('black');
     expect(publishBodies[0].params).toEqual({
       player: 'black',
-      [actionField]: { row: 2, col: 2 }
+      [actionField]: { row: 6, col: 8 }
     });
     expect(publishBodies[0].snapshot).toBeUndefined();
     expect(publishBodies[0].playbackEvents).toBeUndefined();

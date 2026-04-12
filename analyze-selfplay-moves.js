@@ -55,7 +55,7 @@ function analyzeRecords(allRecords) {
         // Check if this is a placement action (not a card action)
         const isPlacementAction = record.actionType === 'place' || 
                                   (record.row !== undefined && record.col !== undefined && 
-                                   !record.useCardId && !record.destroyCardId && !record.sellCardId);
+                                   !record.useCardId && !record.destroyCardId);
 
         if (!isPlacementAction) continue;
 
@@ -79,7 +79,6 @@ function analyzeRecords(allRecords) {
                 col,
                 useCardId: record.useCardId,
                 destroyCardId: record.destroyCardId,
-                sellCardId: record.sellCardId,
                 future: record.futureDiscDelta3Ply !== undefined ? record.futureDiscDelta3Ply : 0,
                 handCards: record.handCards,
                 decisionCandidates: record.decisionCandidates
@@ -97,7 +96,6 @@ function analyzeRecords(allRecords) {
                 col,
                 useCardId: record.useCardId,
                 destroyCardId: record.destroyCardId,
-                sellCardId: record.sellCardId,
                 future: record.futureDiscDelta3Ply !== undefined ? record.futureDiscDelta3Ply : 0,
                 handCards: record.handCards,
                 decisionCandidates: record.decisionCandidates

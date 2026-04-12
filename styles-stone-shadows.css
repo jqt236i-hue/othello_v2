@@ -1,8 +1,7 @@
 /* Stone shadows — enabled via html.stone-shadow-enabled */
 /* Projected shadow lives on occupied cells; disc root keeps only the local auxiliary layer. */
 
-html.stone-shadow-enabled .cell.has-disc::before,
-html.stone-shadow-enabled .cell:has(> .disc)::before {
+html.stone-shadow-enabled .cell.has-disc::before {
     opacity: 0.96;
 }
 

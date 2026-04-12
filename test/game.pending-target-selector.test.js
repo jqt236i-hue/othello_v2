@@ -68,7 +68,7 @@ describe('pending-target-selector', () => {
           if (id === 'meteor_01') return { score: 20, shouldUse: false };
           return { score: 42, shouldUse: true };
         },
-        scoreCardRetentionForSell: (id) => {
+        scoreCardRetentionPriority: (id) => {
           if (id === 'meteor_01') return { score: -10 };
           return { score: 30 };
         }
@@ -76,5 +76,39 @@ describe('pending-target-selector', () => {
     });
 
     expect(action).toEqual({ type: 'place', heavenBlessingCardId: 'guard_01' });
+  });
+
+  test('buildPendingSelectionAction uses shrinkTarget payload for board shrink cards', () => {
+    const action = PendingTargetSelector.buildPendingSelectionAction({
+      pendingType: 'BOARD_SHRINK_GOD',
+      gameState: {},
+      cardState: {},
+      playerKey: 'black',
+      selectors: {
+        chooseBoardShrinkTarget: () => ({ row: 0, col: 1 })
+      }
+    });
+
+    expect(action).toEqual({
+      type: 'place',
+      shrinkTarget: { row: 0, col: 1 }
+    });
+  });
+
+  test('buildPendingSelectionAction uses livingWillTarget payload for living will', () => {
+    const action = PendingTargetSelector.buildPendingSelectionAction({
+      pendingType: 'LIVING_WILL',
+      gameState: {},
+      cardState: {},
+      playerKey: 'black',
+      selectors: {
+        chooseLivingWillTarget: () => ({ row: 4, col: 2 })
+      }
+    });
+
+    expect(action).toEqual({
+      type: 'place',
+      livingWillTarget: { row: 4, col: 2 }
+    });
   });
 });

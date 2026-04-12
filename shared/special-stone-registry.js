@@ -71,9 +71,10 @@
         }),
         EXTREME_HYPERACTIVE: Object.freeze({
             name: '極悪多動魔',
-            desc: '両者ターン開始時に周囲8マス（空き・占有）からランダム1マス移動。占有マスを選んだ場合はその石を1マス退避させてから進入し、退避先が無い場合はその石と位置交換して進入。退避も位置交換もできる候補が無い場合は消滅する。移動後に挟めば反転し、隣接1マス（周囲8マス）の石を敵味方問わず遠ざかるように1マス退避させる。退避先が無い石はその場に残る。反転対象時はマス移動で回避し、最大3回まで。',
+            desc: '両者ターン開始時に周囲8マス（空き・占有）からランダム1マス移動。占有マスを選んだ場合はその石を1マス退避させてから進入し、退避先が無い場合はその石と位置交換して進入。退避も位置交換もできる候補が無い場合は消滅する。移動後に挟めば反転し、隣接1マス（周囲8マス）の石を敵味方問わず遠ざかるように1マス退避させる。退避先が無い石はその場に残る。反転対象時はマス移動で回避し、最大3回まで。破壊対象時も1回だけ空きマスへ移動して回避する。',
             mobility: true,
             tagFlipEvadeDefault: 3,
+            tagDestroyEvadeDefault: 1,
             visualFlipEvadeDefault: 3
         }),
         ESCAPE_HYPERACTIVE: Object.freeze({
@@ -104,11 +105,17 @@
             desc: '両者ターン開始時に周囲の空きへ1マス移動。移動後に挟めば反転。反転対象時は1回だけマス移動で回避し、破壊対象時も1回だけ空きマスへ移動して回避する。反転回避後は通常どおり反転される。10ターン持続（所有者ターン開始時のみ減算）。',
             mobility: true,
             tagFlipEvadeDefault: 1,
-            tagDestroyEvadeDefault: 1
+            tagDestroyEvadeDefault: 1,
+            overlayOnlyVisual: true
         }),
         REGEN: Object.freeze({
             name: '復活石',
             desc: '反転または破壊されるたびに、残り復活可能回数を1消費して元の色へ戻り、その位置から挟める列を反転する。'
+        }),
+        LIVING_WILL: Object.freeze({
+            name: '生きる意志',
+            desc: '一度だけ、その石が失われる直前に付与時点の状態へ復活させる。隕石や盤面縮小で元マスが使えない時は別の空きマスへ移る。',
+            overlayOnlyVisual: true
         }),
         GOLD: Object.freeze({
             name: '金石',
@@ -148,7 +155,8 @@
             name: '守る石',
             desc: '3ターン、反転/交換/破壊/誘惑を無効化する。',
             flipProtected: true,
-            destroyProtected: true
+            destroyProtected: true,
+            overlayOnlyVisual: true
         }),
         TRAP: Object.freeze({
             name: '罠石',
@@ -161,6 +169,10 @@
         BLOCKADE: Object.freeze({
             name: '封鎖マス',
             desc: 'このマスには3ターンの間、配置・移動で入れない。'
+        }),
+        SEED: Object.freeze({
+            name: '種マス',
+            desc: '所有者ターン開始時だけ残り回数が減り、5回目で空いたままなら同色の通常石が1個芽生える。種マスには通常どおり配置・移動でき、石が置かれた時点で種は消える。'
         }),
         OBSERVER: Object.freeze({
             name: '盤理の観測者石',
@@ -229,6 +241,11 @@
         return 'special-timer';
     }
 
+    function isOverlayOnlySpecialStoneType(rawType) {
+        const info = getSpecialStoneInfo(rawType);
+        return !!(info && info.overlayOnlyVisual === true);
+    }
+
     return {
         SPECIAL_STONE_REGISTRY,
         SPECIAL_STONE_TYPE_ALIASES,
@@ -236,6 +253,7 @@
         getSpecialStoneInfo,
         getSpecialStoneDisplayName,
         getSpecialStoneDescription,
-        getSpecialStoneTimerClass
+        getSpecialStoneTimerClass,
+        isOverlayOnlySpecialStoneType
     };
 }));

@@ -5,6 +5,8 @@ const fs = require('fs');
 const net = require('net');
 const path = require('path');
 const { spawn } = require('child_process');
+const { generateManifest } = require('./generate-asset-manifest');
+const { generateGachaHandCatalog } = require('./generate-gacha-hand-catalog');
 
 function parseInteger(value, label) {
     const parsed = Number(value);
@@ -144,6 +146,20 @@ function buildHttpServerArgs(entrypoint, options, selectedPort) {
     ].concat(Array.isArray(options.passThrough) ? options.passThrough : []);
 }
 
+function refreshGeneratedCatalogArtifacts(rootPath) {
+    const resolvedRoot = path.resolve(String(rootPath || '.'));
+    const assetsDir = path.join(resolvedRoot, 'assets');
+    if (fs.existsSync(assetsDir)) {
+        generateManifest({ root: resolvedRoot });
+    }
+
+    const gachaDir = path.join(resolvedRoot, 'assets', 'images', 'Gacha');
+    const sharedDir = path.join(resolvedRoot, 'shared');
+    if (fs.existsSync(gachaDir) && fs.existsSync(sharedDir)) {
+        generateGachaHandCatalog({ root: resolvedRoot });
+    }
+}
+
 async function main() {
     const args = parseArgs(process.argv.slice(2));
     if (args.help) {
@@ -152,6 +168,7 @@ async function main() {
     }
 
     const entrypoint = resolveHttpServerEntrypoint();
+    refreshGeneratedCatalogArtifacts(path.resolve(process.cwd(), args.root || '.'));
     const selectedPort = await chooseServePort(args);
     if (selectedPort !== args.preferredPort) {
         console.warn(`[serve] port ${args.preferredPort} is busy; using ${selectedPort} instead`);

@@ -38,7 +38,6 @@ const TARGET_SELECTION_CARD_TYPES = new Set([
     'SWAP_WITH_ENEMY',
     'POSITION_SWAP_WILL',
     'TEMPT_WILL',
-    'SELL_CARD_WILL',
     'HEAVEN_BLESSING',
     'CONDEMN_WILL',
     'TIME_BOMB',
@@ -47,7 +46,8 @@ const TARGET_SELECTION_CARD_TYPES = new Set([
     'BOARD_EXPANSION_WILL',
     'BOARD_EXPANSION_GOD',
     'BLOCKADE_WILL',
-    'METEOR_WILL'
+    'METEOR_WILL',
+    'SEED_WILL'
 ]);
 
 const CANDIDATE_CARD_TYPES = new Set([
@@ -69,6 +69,7 @@ const CANDIDATE_CARD_TYPES = new Set([
     'BOARD_EXPANSION_GOD',
     'BLOCKADE_WILL',
     'METEOR_WILL',
+    'SEED_WILL',
     'CHAIN_WILL',
     'DOUBLE_CHAIN_WILL',
     'TRIPLE_CHAIN_WILL',
@@ -104,7 +105,6 @@ const CANDIDATE_CARD_TYPES = new Set([
     'STRONG_WIND_WILL',
     'SUPER_BUOYANCY_WILL',
     'SUPER_GRAVITY_WILL',
-    'SELL_CARD_WILL',
     'REBUILD_WILL',
     'SWAP_WITH_ENEMY',
     'POSITION_SWAP_WILL',
@@ -233,6 +233,13 @@ function encodeBoard(board) {
     if (!Array.isArray(board)) return '';
     return board
         .map((row) => row.map((v) => (v === Core.BLACK ? 'B' : (v === Core.WHITE ? 'W' : '.'))).join(''))
+        .join('/');
+}
+
+function encodeMainBoard(board) {
+    if (!Array.isArray(board)) return '';
+    return board
+        .map((row) => (Array.isArray(row) ? row : []).map((v) => (v === Core.BLACK ? 'B' : (v === Core.WHITE ? 'W' : '.'))).join(''))
         .join('/');
 }
 
@@ -647,6 +654,7 @@ function buildPendingSelectionRecord(action, pendingType) {
         'splitTarget',
         'blockadeTarget',
         'meteorTarget',
+        'seedTarget',
         'teleportTarget',
         'expansionTarget',
         'trapTarget',
@@ -680,15 +688,6 @@ function buildPendingSelectionRecord(action, pendingType) {
             pendingType: pendingType || null,
             sourceKey: 'heavenBlessingCardId',
             cardId: action.heavenBlessingCardId.trim()
-        };
-    }
-
-    if (pendingType === 'SELL_CARD_WILL' && typeof action.sellCardId === 'string' && action.sellCardId.trim()) {
-        return {
-            kind: 'hand_card',
-            pendingType: pendingType || null,
-            sourceKey: 'sellCardId',
-            cardId: action.sellCardId.trim()
         };
     }
 
@@ -752,11 +751,9 @@ function resolveCardDecisionKind(record, normalizedCandidates) {
     const selectedActionKey = typeof (record && record.selectedActionKey) === 'string'
         ? record.selectedActionKey.trim()
         : '';
-    if (selectedActionKey.startsWith('sell:')) return 'sell';
     if (selectedActionKey.startsWith('use:')) return 'use';
     if (selectedActionKey.startsWith('destroy:')) return 'destroy';
     if (selectedActionKey === 'keep' || selectedActionKey.startsWith('keep:')) return 'keep';
-    if (record && record.sellCardId) return 'sell';
     if (record && record.useCardId) return 'use';
     if (record && record.destroyCardId) return 'destroy';
     const selectedCandidate = Array.isArray(normalizedCandidates)
@@ -782,8 +779,7 @@ function buildCardSelectionTrace(record) {
     const decision = resolveCardDecisionKind(record, candidates);
     if (!decision) return null;
     const selectedCandidate = candidates.find((candidate) => candidate && candidate.isSelected) || null;
-    const selectedCardId = (typeof record.sellCardId === 'string' && record.sellCardId)
-        || (typeof record.useCardId === 'string' && record.useCardId)
+    const selectedCardId = (typeof record.useCardId === 'string' && record.useCardId)
         || (typeof record.destroyCardId === 'string' && record.destroyCardId)
         || (selectedCandidate && selectedCandidate.cardId)
         || null;
@@ -2748,9 +2744,32 @@ function chooseMeteorTarget(gameState, cardState, playerKey, rng) {
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col) =>
-            CardLogic.applyMeteorWill(simCardState, simGameState, onePlayerKey, row, col),
+        (simCardState, simGameState, onePlayerKey, row, col, simRng) =>
+            CardLogic.applyMeteorWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
         (target) => (evaluatePositionValue(target.row, target.col) * 1.35)
+    );
+}
+
+function chooseSeedTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col) =>
+            CardLogic.applySeedWill(simCardState, simGameState, onePlayerKey, row, col),
+        (target, sourceGameState) => {
+            const base = evaluatePositionValue(target.row, target.col) * 1.15;
+            const board = getSelfplayBoard(sourceGameState, cardState);
+            const nearCorner = getCornerProximity(target.row, target.col, board);
+            if (nearCorner && Array.isArray(nearCorner.corner)) {
+                const cornerCell = getBoardCellValue(board, nearCorner.corner[0], nearCorner.corner[1]);
+                if (cornerCell === 0) {
+                    return base + (nearCorner.kind === 'X' ? -900 : -280);
+                }
+            }
+            return base + (isEdge(target.row, target.col, board) ? 180 : 40);
+        }
     );
 }
 
@@ -3083,6 +3102,7 @@ function buildPendingSelectionAction(gameState, cardState, playerKey, pendingTyp
             chooseBoardExpansionTarget,
             chooseBlockadeTarget,
             chooseMeteorTarget,
+            chooseSeedTarget,
             chooseTrapTarget,
             chooseCloneTarget,
             chooseHyperactiveInheritTarget,
@@ -3749,7 +3769,12 @@ function runSingleGame(gameIndex, seed, options) {
             : state.gameState;
         const pendingType = CardLogic.getPendingEffectType(decisionCardState, playerKey);
         const countsBefore = Core.countDiscs(decisionGameState);
-        const boardBefore = encodeBoard(decisionGameState.board);
+        const boardBefore = encodeMainBoard(decisionGameState.board);
+        const runtimeBoardBefore = getSelfplayBoard(decisionGameState, decisionCardState);
+        const boardEnvelope = encodeBoard(runtimeBoardBefore);
+        const boardBounds = (SharedBoardUtils && typeof SharedBoardUtils.resolveBoardBounds === 'function')
+            ? SharedBoardUtils.resolveBoardBounds(runtimeBoardBefore)
+            : null;
         const turnNumberBefore = decisionGameState.turnNumber || 0;
         const handCards = decisionCardState && decisionCardState.hands && Array.isArray(decisionCardState.hands[playerKey])
             ? decisionCardState.hands[playerKey].slice()
@@ -3799,7 +3824,6 @@ function runSingleGame(gameIndex, seed, options) {
             col: Number.isFinite(action.col) ? action.col : null,
             useCardId: action.useCardId || null,
             destroyCardId: action.destroyCardId || null,
-            sellCardId: action.sellCardId || null,
             legalMoves: decision.legalMoves.length,
             pendingType: pendingType || null,
             handBlack: state.cardState.hands.black.length,
@@ -3811,6 +3835,9 @@ function runSingleGame(gameIndex, seed, options) {
             blackCountBefore: countsBefore.black,
             whiteCountBefore: countsBefore.white,
             board: boardBefore,
+            boardEnvelope,
+            boardMinRow: boardBounds && Number.isFinite(boardBounds.minRow) ? Number(boardBounds.minRow) : 0,
+            boardMinCol: boardBounds && Number.isFinite(boardBounds.minCol) ? Number(boardBounds.minCol) : 0,
             ownCornersBefore: Number(planStateBefore.ownCorners || 0),
             oppCornersBefore: Number(planStateBefore.oppCorners || 0),
             ownEdgesBefore: Number(planStateBefore.ownEdges || 0),

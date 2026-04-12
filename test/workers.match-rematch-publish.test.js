@@ -73,6 +73,7 @@ function runOutOfTurnPublishScenario(actionType) {
     "    playerKey: 'white',",
     "    seatToken: joinPayload.seatToken,",
     "    baseVersion: 5,",
+    "    operationId: `op_rematch_${actionType}_1`,",
     "    actionType,",
     "    snapshot: {",
     "      gameState: {",

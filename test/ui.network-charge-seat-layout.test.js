@@ -115,6 +115,45 @@ describe('network charge seat layout', () => {
     dom.window.close();
   });
 
+  test('shows the time stop active badge near the top HUD for the controlling viewer', () => {
+    const dom = createRendererContext({ seatKey: 'white' });
+    const { window } = dom;
+
+    window.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 0, white: 2 };
+    window.gameState.currentPlayer = -1;
+    window.renderCardUI();
+
+    const topBadgeEl = window.document.querySelector('#charge-white .time-stop-status-badge');
+    expect(topBadgeEl).not.toBeNull();
+    expect(topBadgeEl.textContent).toBe('時間停止発動中');
+    expect(window.document.querySelector('#charge-black .time-stop-status-badge')).toBeNull();
+
+    dom.window.close();
+  });
+
+  test('shows the time stop victim overlay above the local hand in network mode', () => {
+    const dom = createRendererContext({
+      seatKey: 'white',
+      hands: {
+        black: ['__hidden_hand__:black:0'],
+        white: ['own_card']
+      }
+    });
+    const { window } = dom;
+
+    window.CARD_DEFS = [{ id: 'own_card', name: 'Own Card', desc: 'd', cost: 1 }];
+    window.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 2, white: 0 };
+    window.gameState.currentPlayer = 1;
+    window.renderCardUI();
+
+    const bottomOverlayEl = window.document.querySelector('#hand-black .time-stop-hand-overlay');
+    expect(bottomOverlayEl).not.toBeNull();
+    expect(bottomOverlayEl.textContent).toBe('時間停止発動中');
+    expect(window.document.querySelector('#hand-white .time-stop-hand-overlay')).toBeNull();
+
+    dom.window.close();
+  });
+
   test('does not infer charge delta popup from raw totals in network mode without queue events', () => {
     const dom = createRendererContext({ seatKey: 'white' });
     const { window } = dom;

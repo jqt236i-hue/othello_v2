@@ -87,6 +87,124 @@ describe('pipeline_ui_adapter move metadata', () => {
     });
   });
 
+  test('guard status_applied on an existing special stone keeps the final visible special', () => {
+    const pres = [
+      {
+        type: 'STATUS_APPLIED',
+        row: 4,
+        col: 4,
+        meta: { special: 'GUARD', timer: 10, owner: 'black' }
+      }
+    ];
+
+    const out = adapter.mapToPlaybackEvents(
+      pres,
+      {
+        markers: [
+          {
+            id: 1,
+            kind: 'specialStone',
+            row: 4,
+            col: 4,
+            owner: 'black',
+            data: { type: 'WORK', remainingOwnerTurns: 5 }
+          },
+          {
+            id: 2,
+            kind: 'specialStone',
+            row: 4,
+            col: 4,
+            owner: 'black',
+            data: { type: 'GUARD', remainingOwnerTurns: 10 }
+          }
+        ]
+      },
+      {
+        board: Array(8).fill(null).map(() => Array(8).fill(0)).map((rowValues, rowIndex) => {
+          if (rowIndex === 4) {
+            const nextRow = rowValues.slice();
+            nextRow[4] = 1;
+            return nextRow;
+          }
+          return rowValues;
+        })
+      }
+    );
+
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('status_applied');
+    expect(out[0].targets[0].after).toMatchObject({
+      color: 1,
+      special: 'WORK',
+      timer: 5,
+      owner: 'black'
+    });
+  });
+
+  test('inherited hyperactive status_applied on an existing special stone keeps the final visible special', () => {
+    const pres = [
+      {
+        type: 'STATUS_APPLIED',
+        row: 4,
+        col: 4,
+        meta: {
+          special: 'INHERITED_HYPERACTIVE',
+          timer: 10,
+          owner: 'black',
+          flipEvadeRemaining: 1,
+          destroyEvadeRemaining: 1
+        }
+      }
+    ];
+
+    const out = adapter.mapToPlaybackEvents(
+      pres,
+      {
+        markers: [
+          {
+            id: 1,
+            kind: 'specialStone',
+            row: 4,
+            col: 4,
+            owner: 'black',
+            data: { type: 'WORK', remainingOwnerTurns: 5 }
+          },
+          {
+            id: 2,
+            kind: 'specialStone',
+            row: 4,
+            col: 4,
+            owner: 'black',
+            data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 1, destroyEvadeRemaining: 1 }
+          }
+        ]
+      },
+      {
+        board: Array(8).fill(null).map(() => Array(8).fill(0)).map((rowValues, rowIndex) => {
+          if (rowIndex === 4) {
+            const nextRow = rowValues.slice();
+            nextRow[4] = 1;
+            return nextRow;
+          }
+          return rowValues;
+        })
+      }
+    );
+
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('status_applied');
+    expect(out[0].targets[0].after).toMatchObject({
+      color: 1,
+      special: 'WORK',
+      timer: 5,
+      owner: 'black',
+      inheritedTimer: 10,
+      inheritedOwner: 'black',
+      inheritedFlipEvadeRemaining: 1,
+      destroyEvadeRemaining: 1
+    });
+  });
+
   test('will hunter king slash destroy and move stay in the same phase with evade counters', () => {
     const pres = [
       {
@@ -200,7 +318,8 @@ describe('pipeline_ui_adapter move metadata', () => {
         meta: {
           special: 'EXTREME_HYPERACTIVE',
           timer: 8,
-          owner: 'black'
+          owner: 'black',
+          destroyEvadeRemaining: 1
         }
       },
       {
@@ -245,7 +364,8 @@ describe('pipeline_ui_adapter move metadata', () => {
         color: 1,
         special: 'EXTREME_HYPERACTIVE',
         owner: 'black',
-        timer: 8
+        timer: 8,
+        destroyEvadeRemaining: 1
       }
     });
     expect(out[0].targets[1]).toMatchObject({

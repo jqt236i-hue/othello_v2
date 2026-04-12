@@ -8,6 +8,8 @@ describe('tutorial steps data', () => {
     expect(scenario.kind).toBe(TutorialStepsModule.SCENARIO_KINDS.TUTORIAL);
     expect(scenario.progressionGroup).toBe(TutorialStepsModule.SCENARIO_KINDS.TUTORIAL);
     expect(scenario.progressionId).toBe('chapter0');
+    expect(scenario.menuLabel).toBe('第零章 チュートリアル');
+    expect(scenario.menuDescription).toBe('盤理の観測者と基本ルールを学ぶ導入章。');
     expect(scenario.entryStepId).toBe('INTRO_SCENE_001');
     expect(scenario.mainEntryStepId).toBe('STEP_001');
     expect(scenario.mainStepIds).toHaveLength(38);

@@ -799,14 +799,15 @@ describe('cpu-policy-core', () => {
         expect(selected).toEqual(innerMove);
     });
 
-    test('chooseMoveByLookahead allows nonstandard stabilizing edge fallback when it improves anchored edge control', () => {
+    test('chooseMoveByLookahead keeps corner-donation veto on nonstandard boards too', () => {
         const board = Array.from({ length: 9 }, () => Array(9).fill(0));
-        board[0][0] = -1;
-        board[0][1] = 1;
+        board[0][1] = -1;
+        board[0][2] = 1;
+        board[0][3] = 1;
         board[4][3] = 1;
 
         const innerMove = { row: 4, col: 4, flips: [{ row: 4, col: 3 }] };
-        const edgeMove = { row: 0, col: 2, flips: [{ row: 0, col: 1 }] };
+        const edgeMove = { row: 0, col: 4, flips: [{ row: 0, col: 3 }] };
 
         const selected = core.chooseMoveByLookahead([innerMove, edgeMove], {
             board,
@@ -820,7 +821,7 @@ describe('cpu-policy-core', () => {
             scoreMove: (move) => (move === innerMove ? 999999 : 0)
         });
 
-        expect(selected).toEqual(edgeMove);
+        expect(selected).toEqual(innerMove);
     });
 
     test('chooseMoveByLookahead does not crash when nonstandard edge neighbors live in expansion cells', () => {
@@ -1916,14 +1917,14 @@ describe('cpu-policy-core', () => {
         expect(riskyEmergency.score).toBeLessThan(bonusEmergency.score);
     });
 
-    test('chooseSellCardTargetByRetention rotates EXTREME_HYPERACTIVE_WILL first when leading in endgame', () => {
+    test('chooseLowestRetentionCard rotates EXTREME_HYPERACTIVE_WILL first when leading in endgame', () => {
         const defs = {
             extreme: { id: 'extreme', type: 'EXTREME_HYPERACTIVE_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             silver: { id: 'silver', type: 'SILVER_STONE' }
         };
         const costs = { extreme: 35, guard: 2, silver: 3 };
-        const selected = core.chooseSellCardTargetByRetention(
+        const selected = core.chooseLowestRetentionCard(
             ['extreme', 'guard', 'silver'],
             (id) => costs[id],
             (id) => defs[id] || null,
@@ -1944,14 +1945,14 @@ describe('cpu-policy-core', () => {
         expect(selected.cardId).toBe('extreme');
     });
 
-    test('chooseSellCardTargetByRetention keeps recovery card and sells lower-impact card when hand is full', () => {
+    test('chooseLowestRetentionCard keeps recovery card and sells lower-impact card when hand is full', () => {
         const defs = {
             guard: { id: 'guard', type: 'GUARD_WILL' },
             dragon: { id: 'dragon', type: 'ULTIMATE_REVERSE_DRAGON' },
             silver: { id: 'silver', type: 'SILVER_STONE' }
         };
         const costs = { guard: 2, dragon: 30, silver: 5 };
-        const selected = core.chooseSellCardTargetByRetention(
+        const selected = core.chooseLowestRetentionCard(
             ['guard', 'dragon', 'silver'],
             (id) => costs[id],
             (id) => defs[id],
@@ -1970,14 +1971,14 @@ describe('cpu-policy-core', () => {
         expect(selected.cardId).toBe('silver');
     });
 
-    test('chooseSellCardTargetByRetention keeps recovery card during corner emergency', () => {
+    test('chooseLowestRetentionCard keeps recovery card during corner emergency', () => {
         const defs = {
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' },
             chain: { id: 'chain', type: 'DOUBLE_CHAIN_WILL' },
             wind: { id: 'wind', type: 'STRONG_WIND_WILL' }
         };
         const costs = { recover: 14, chain: 10, wind: 8 };
-        const selected = core.chooseSellCardTargetByRetention(
+        const selected = core.chooseLowestRetentionCard(
             ['recover', 'chain', 'wind'],
             (id) => costs[id],
             (id) => defs[id],
@@ -1996,14 +1997,14 @@ describe('cpu-policy-core', () => {
         expect(selected.cardId).toBe('chain');
     });
 
-    test('chooseSellCardTargetByRetention prefers selling cost>=20 card in white Lv6 mode', () => {
+    test('chooseLowestRetentionCard prefers selling cost>=20 card in white Lv6 mode', () => {
         const defs = {
             dragon: { id: 'dragon', type: 'ULTIMATE_REVERSE_DRAGON' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             silver: { id: 'silver', type: 'SILVER_STONE' }
         };
         const costs = { dragon: 30, guard: 2, silver: 3 };
-        const selected = core.chooseSellCardTargetByRetention(
+        const selected = core.chooseLowestRetentionCard(
             ['dragon', 'guard', 'silver'],
             (id) => costs[id],
             (id) => defs[id],
@@ -2024,14 +2025,14 @@ describe('cpu-policy-core', () => {
         expect(selected.cardId).toBe('dragon');
     });
 
-    test('chooseSellCardTargetByRetention rotates LAST_RESORT first when it is unusable and hand is crowded', () => {
+    test('chooseLowestRetentionCard rotates LAST_RESORT first when it is unusable and hand is crowded', () => {
         const defs = {
             last: { id: 'last', type: 'LAST_RESORT' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
         };
         const costs = { last: 20, guard: 2, recover: 14 };
-        const selected = core.chooseSellCardTargetByRetention(
+        const selected = core.chooseLowestRetentionCard(
             ['last', 'guard', 'recover'],
             (id) => costs[id],
             (id) => defs[id],
@@ -2052,14 +2053,14 @@ describe('cpu-policy-core', () => {
         expect(selected.cardId).toBe('last');
     });
 
-    test('chooseSellCardTargetByRetention rotates LAST_RESORT first when no legal moves remain but discDiff is non-negative', () => {
+    test('chooseLowestRetentionCard rotates LAST_RESORT first when no legal moves remain but discDiff is non-negative', () => {
         const defs = {
             last: { id: 'last', type: 'LAST_RESORT' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
         };
         const costs = { last: 20, guard: 2, recover: 14 };
-        const selected = core.chooseSellCardTargetByRetention(
+        const selected = core.chooseLowestRetentionCard(
             ['last', 'guard', 'recover'],
             (id) => costs[id],
             (id) => defs[id],
@@ -2080,8 +2081,8 @@ describe('cpu-policy-core', () => {
         expect(selected.cardId).toBe('last');
     });
 
-    test('scoreCardRetentionForSell devalues EQUALITY_WILL when the 10-disc gap is inactive', () => {
-        const live = core.scoreCardRetentionForSell(
+    test('scoreCardRetentionPriority devalues EQUALITY_WILL when the 10-disc gap is inactive', () => {
+        const live = core.scoreCardRetentionPriority(
             'equality',
             () => 15,
             () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
@@ -2099,7 +2100,7 @@ describe('cpu-policy-core', () => {
                 ownCharge: 28
             }
         );
-        const inactive = core.scoreCardRetentionForSell(
+        const inactive = core.scoreCardRetentionPriority(
             'equality',
             () => 15,
             () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
@@ -2122,8 +2123,8 @@ describe('cpu-policy-core', () => {
         expect(inactive.score).toBeLessThan(0);
     });
 
-    test('scoreCardRetentionForSell devalues REINFORCEMENT_WILL when corner recovery pressure is absent', () => {
-        const pressured = core.scoreCardRetentionForSell(
+    test('scoreCardRetentionPriority devalues REINFORCEMENT_WILL when corner recovery pressure is absent', () => {
+        const pressured = core.scoreCardRetentionPriority(
             'reinforcement',
             () => 6,
             () => ({ id: 'reinforcement', type: 'REINFORCEMENT_WILL' }),
@@ -2141,7 +2142,7 @@ describe('cpu-policy-core', () => {
                 ownCharge: 12
             }
         );
-        const stable = core.scoreCardRetentionForSell(
+        const stable = core.scoreCardRetentionPriority(
             'reinforcement',
             () => 6,
             () => ({ id: 'reinforcement', type: 'REINFORCEMENT_WILL' }),
@@ -2162,7 +2163,7 @@ describe('cpu-policy-core', () => {
         expect(pressured.score).toBeGreaterThan(stable.score);
     });
 
-    test('chooseSellCardTargetByRetention rotates SUPER_BUOYANCY_WILL when no corner or edge conversion exists', () => {
+    test('chooseLowestRetentionCard rotates SUPER_BUOYANCY_WILL when no corner or edge conversion exists', () => {
         const defs = {
             super: { id: 'super', type: 'SUPER_BUOYANCY_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
@@ -2170,7 +2171,7 @@ describe('cpu-policy-core', () => {
             work: { id: 'work', type: 'WORK_WILL' }
         };
         const costs = { super: 14, guard: 2, recover: 14, work: 11 };
-        const selected = core.chooseSellCardTargetByRetention(
+        const selected = core.chooseLowestRetentionCard(
             ['super', 'guard', 'recover', 'work'],
             (id) => costs[id],
             (id) => defs[id],
@@ -2194,14 +2195,14 @@ describe('cpu-policy-core', () => {
         expect(selected.cardId).toBe('super');
     });
 
-    test('chooseSellCardTargetByRetention keeps TELEPORT_WILL during corner emergency', () => {
+    test('chooseLowestRetentionCard keeps TELEPORT_WILL during corner emergency', () => {
         const defs = {
             teleport: { id: 'teleport', type: 'TELEPORT_WILL' },
             silver: { id: 'silver', type: 'SILVER_STONE' },
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
         };
         const costs = { teleport: 9, silver: 3, recover: 14 };
-        const selected = core.chooseSellCardTargetByRetention(
+        const selected = core.chooseLowestRetentionCard(
             ['teleport', 'silver', 'recover'],
             (id) => costs[id],
             (id) => defs[id],
@@ -2222,14 +2223,14 @@ describe('cpu-policy-core', () => {
         expect(selected.cardId).toBe('silver');
     });
 
-    test('chooseSellCardTargetByRetention rotates CONDEMN_WILL when opponent hand is nearly empty', () => {
+    test('chooseLowestRetentionCard rotates CONDEMN_WILL when opponent hand is nearly empty', () => {
         const defs = {
             condemn: { id: 'condemn', type: 'CONDEMN_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
         };
         const costs = { condemn: 6, guard: 2, recover: 14 };
-        const selected = core.chooseSellCardTargetByRetention(
+        const selected = core.chooseLowestRetentionCard(
             ['condemn', 'guard', 'recover'],
             (id) => costs[id],
             (id) => defs[id],
@@ -2251,14 +2252,14 @@ describe('cpu-policy-core', () => {
         expect(selected.cardId).toBe('condemn');
     });
 
-    test('chooseSellCardTargetByRetention rotates TEMPT_WILL when opponent has no special stones', () => {
+    test('chooseLowestRetentionCard rotates TEMPT_WILL when opponent has no special stones', () => {
         const defs = {
             tempt: { id: 'tempt', type: 'TEMPT_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
         };
         const costs = { tempt: 6, guard: 2, recover: 14 };
-        const selected = core.chooseSellCardTargetByRetention(
+        const selected = core.chooseLowestRetentionCard(
             ['tempt', 'guard', 'recover'],
             (id) => costs[id],
             (id) => defs[id],
@@ -3071,14 +3072,14 @@ describe('cpu-policy-core', () => {
         expect(lateAhead.shouldUse).toBe(false);
     });
 
-    test('chooseSellCardTargetByRetention rotates taboo card first when white Lv6 is ahead', () => {
+    test('chooseLowestRetentionCard rotates taboo card first when white Lv6 is ahead', () => {
         const defs = {
             taboo: { id: 'taboo', type: 'TABOO_REVERSE_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
         };
         const costs = { taboo: 44, guard: 2, recover: 14 };
-        const selected = core.chooseSellCardTargetByRetention(
+        const selected = core.chooseLowestRetentionCard(
             ['taboo', 'guard', 'recover'],
             (id) => costs[id],
             (id) => defs[id] || null,
@@ -3101,14 +3102,14 @@ describe('cpu-policy-core', () => {
         expect(selected.cardId).toBe('taboo');
     });
 
-    test('chooseSellCardTargetByRetention rotates meteor before stable guard while ahead', () => {
+    test('chooseLowestRetentionCard rotates meteor before stable guard while ahead', () => {
         const defs = {
             meteor: { id: 'meteor', type: 'METEOR_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             treasure: { id: 'treasure', type: 'TREASURE_BOX' }
         };
         const costs = { meteor: 21, guard: 2, treasure: 0 };
-        const selected = core.chooseSellCardTargetByRetention(
+        const selected = core.chooseLowestRetentionCard(
             ['meteor', 'guard', 'treasure'],
             (id) => costs[id],
             (id) => defs[id],

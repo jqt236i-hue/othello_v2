@@ -5,6 +5,7 @@ describe('tutorial action wait locks', () => {
   test('allowed button keeps its parent panel clickable', async () => {
     const dom = new JSDOM(`
       <div id="tutorialOverlay"></div>
+      <button id="gachaOpenBtn">ガチャ</button>
       <div id="card-detail-panel">
         <div id="card-detail-actions">
           <button id="use-card-btn">使用</button>
@@ -18,6 +19,7 @@ describe('tutorial action wait locks', () => {
     const document = dom.window.document;
     const overlay = document.getElementById('tutorialOverlay');
     const panel = document.getElementById('card-detail-panel');
+    const gachaButton = document.getElementById('gachaOpenBtn');
     const useButton = document.getElementById('use-card-btn');
     const destroyButton = document.getElementById('destroy-card-btn');
 
@@ -41,6 +43,7 @@ describe('tutorial action wait locks', () => {
     });
 
     expect(panel.classList.contains('tutorial-disabled-target')).toBe(false);
+    expect(gachaButton.classList.contains('tutorial-disabled-target')).toBe(true);
     expect(useButton.classList.contains('tutorial-highlight-target')).toBe(true);
     expect(useButton.classList.contains('tutorial-disabled-target')).toBe(false);
     expect(destroyButton.classList.contains('tutorial-disabled-target')).toBe(true);

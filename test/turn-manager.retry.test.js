@@ -81,6 +81,25 @@ describe('turn-manager scheduling', () => {
     spy.mockRestore();
   });
 
+  test('network mode skips local place-hand animation and executes move immediately', () => {
+    global.MATCH_MODE = 'network';
+    global.NetworkMatchClient = { getSeatKey: () => 'black' };
+    global.LOCAL_PLAYER_KEY = 'black';
+    global.__LOCAL_PLAYER_KEY = 'black';
+    global.BOARD_VIEWER_KEY = 'black';
+    global.emitPresentationEventViaBoardOps = jest.fn();
+    global.playHandAnimation = jest.fn();
+
+    const rm = require('../game/turn-manager');
+    rm.handleCellClick(0, 0);
+
+    expect(global.executeMove).toHaveBeenCalledTimes(1);
+    expect(global.playHandAnimation).not.toHaveBeenCalled();
+    expect(global.emitPresentationEventViaBoardOps).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'PLAY_HAND_ANIMATION' })
+    );
+  });
+
   test('handleCellClick routes pending GUARDIAN_GOD selection through shared guard dispatch', () => {
     global.cardState = {
       pendingEffectByPlayer: {
@@ -126,10 +145,10 @@ describe('turn-manager scheduling', () => {
     expect(global.executeMove).not.toHaveBeenCalled();
   });
 
-  test('handleCellClick keeps SELL_CARD_WILL hand overlay pending off the board path', () => {
+  test('handleCellClick keeps hand overlay pending off the board path', () => {
     global.cardState = {
       pendingEffectByPlayer: {
-        black: { type: 'SELL_CARD_WILL', stage: 'selectTarget' },
+        black: { type: 'HEAVEN_BLESSING', stage: 'selectTarget', offers: ['offer_1'] },
         white: null
       }
     };

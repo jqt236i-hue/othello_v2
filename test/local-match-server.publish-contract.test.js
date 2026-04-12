@@ -143,6 +143,59 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('seatHandSkins are exposed through create join state and hand-skin update', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', {
+        playerName: 'くろ',
+        selectedHandSkinId: 'gacha__n__hand-swap'
+      });
+      expect(created.status).toBe(200);
+      expect(created.data.seatHandSkins).toEqual({
+        black: 'gacha__n__陽気な手',
+        white: ''
+      });
+
+      const joined = await requestJson(port, 'POST', '/api/match/join', {
+        roomId: created.data.roomId,
+        playerName: 'しろ',
+        selectedHandSkinId: 'gacha__n__小鬼の手'
+      });
+      expect(joined.status).toBe(200);
+      expect(joined.data.seatHandSkins).toEqual({
+        black: 'gacha__n__陽気な手',
+        white: 'gacha__n__小鬼の手'
+      });
+
+      const state = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${created.data.roomId}&seatKey=black&seatToken=${created.data.seatToken}`
+      );
+      expect(state.status).toBe(200);
+      expect(state.data.seatHandSkins).toEqual({
+        black: 'gacha__n__陽気な手',
+        white: 'gacha__n__小鬼の手'
+      });
+
+      const updated = await requestJson(port, 'POST', '/api/match/hand-skin', {
+        roomId: created.data.roomId,
+        seatKey: 'white',
+        seatToken: joined.data.seatToken,
+        selectedHandSkinId: 'gacha__n__hand.png'
+      });
+      expect(updated.status).toBe(200);
+      expect(updated.data.seatHandSkins).toEqual({
+        black: 'gacha__n__陽気な手',
+        white: 'gacha__n__人の手'
+      });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('missing operationId publish is rejected before command handling', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);

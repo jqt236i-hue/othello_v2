@@ -1,6 +1,8 @@
 const CardLogic = require('../game/logic/cards');
 const Core = require('../game/logic/core');
 const SharedConstants = require('../shared-constants');
+const TurnPipelinePhases = require('../game/turn/turn_pipeline_phases');
+const BoardOps = require('../game/logic/board_ops');
 
 function createPrng(randomValue = 0.5) {
   return {
@@ -119,5 +121,89 @@ describe('METEOR_WILL（隕石）', () => {
     const markersAtCell = (cardState.markers || []).filter((m) => m && m.row === 1 && m.col === 1);
     expect(markersAtCell.some((m) => m.data && m.data.type === 'BLOCKADE')).toBe(false);
     expect(markersAtCell.some((m) => m.data && m.data.type === 'METEOR_HOLE')).toBe(true);
+  });
+
+  test('生きる意志付きの石にも隕石を使え、別の空きマスへ復活させたうえで元マスは穴になる', () => {
+    const rng = createPrng(0);
+    const cardState = CardLogic.createCardState(rng);
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.WHITE));
+    gameState.currentPlayer = Core.BLACK;
+    gameState.board[2][2] = Core.BLACK;
+    gameState.board[5][5] = Core.EMPTY;
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'LIVING_WILL',
+      stage: 'selectTarget',
+      cardId: 'living_will_01'
+    };
+    expect(CardLogic.applyLivingWill(cardState, gameState, 'black', 2, 2)).toMatchObject({ applied: true });
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'METEOR_WILL',
+      stage: 'selectTarget',
+      cardId: 'meteor_01'
+    };
+
+    const res = CardLogic.applyMeteorWill(cardState, gameState, 'black', 2, 2, rng);
+    expect(res).toMatchObject({ applied: true, row: 2, col: 2, destroyed: true });
+    expect(gameState.board[2][2]).toBe(Core.EMPTY);
+    expect(gameState.board[5][5]).toBe(Core.BLACK);
+
+    const originMarkers = (cardState.markers || []).filter((m) => m && m.row === 2 && m.col === 2);
+    expect(originMarkers.some((m) => m.data && m.data.type === 'METEOR_HOLE')).toBe(true);
+    expect(originMarkers.some((m) => m.data && m.data.type === 'LIVING_WILL')).toBe(false);
+    expect((cardState.markers || []).some((m) => m && m.row === 5 && m.col === 5 && m.data && m.data.type === 'LIVING_WILL')).toBe(false);
+  });
+
+  test('ターン進行経由でも生きる意志付きの石へ隕石を使える', () => {
+    const rng = createPrng(0);
+    const cardState = CardLogic.createCardState(rng);
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.WHITE));
+    gameState.currentPlayer = Core.BLACK;
+    gameState.board[2][2] = Core.BLACK;
+    gameState.board[5][5] = Core.EMPTY;
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'LIVING_WILL',
+      stage: 'selectTarget',
+      cardId: 'living_will_01'
+    };
+    expect(CardLogic.applyLivingWill(cardState, gameState, 'black', 2, 2)).toMatchObject({ applied: true });
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'METEOR_WILL',
+      stage: 'selectTarget',
+      cardId: 'meteor_01'
+    };
+
+    const events = [];
+    TurnPipelinePhases.applyActionPhase(
+      CardLogic,
+      Core,
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', meteorTarget: { row: 2, col: 2 } },
+      events,
+      rng,
+      BoardOps
+    );
+
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'meteor_selected',
+        applied: true,
+        destroyed: true,
+        target: { row: 2, col: 2 }
+      })
+    ]));
+    expect(gameState.board[2][2]).toBe(Core.EMPTY);
+    expect(gameState.board[5][5]).toBe(Core.BLACK);
   });
 });

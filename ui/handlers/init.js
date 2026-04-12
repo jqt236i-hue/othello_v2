@@ -217,10 +217,20 @@ async function initializeUI() {
     const bgmVolSlider = document.getElementById('bgmVolSlider');
     const storyBtn = document.getElementById('storyBtn');
     const storyMenuOverlay = document.getElementById('storyMenuOverlay');
-    const tutorialBtn = document.getElementById('tutorialBtn');
     const tutorialOverlay = document.getElementById('tutorialOverlay');
     const rulesHelpBtn = document.getElementById('rulesHelpBtn');
     const rulesHelpPanel = document.getElementById('rules-help-panel');
+    const gachaOpenBtn = document.getElementById('gachaOpenBtn');
+    const gachaOverlay = document.getElementById('gachaOverlay');
+    const gachaModal = document.getElementById('gachaModal');
+    const gachaCloseBtn = document.getElementById('gachaCloseBtn');
+    const gachaBalanceValue = document.getElementById('gachaBalanceValue');
+    const gachaDetailToggleBtn = document.getElementById('gachaDetailToggleBtn');
+    const gachaDetailsPanel = document.getElementById('gachaDetailsPanel');
+    const gachaSinglePullBtn = document.getElementById('gachaSinglePullBtn');
+    const gachaTenPullBtn = document.getElementById('gachaTenPullBtn');
+    const gachaStatusText = document.getElementById('gachaStatusText');
+    const gachaResults = document.getElementById('gachaResults');
     const handSkinBtn = document.getElementById('handSkinBtn');
     const handSkinPanel = document.getElementById('handSkinPanel');
     const handSkinCloseBtn = document.getElementById('handSkinCloseBtn');
@@ -396,6 +406,12 @@ async function initializeUI() {
         setupRulesHelp(rulesHelpBtn, rulesHelpPanel);
     }
 
+    if (typeof setupGachaControls === 'function') {
+        setupGachaControls({
+            root: window
+        });
+    }
+
     if (typeof setupHandSkinControls === 'function') {
         setupHandSkinControls({
             button: handSkinBtn,
@@ -421,10 +437,6 @@ async function initializeUI() {
                 bgmTrackSelect
             }
         });
-    }
-
-    if (typeof setupTutorialControls === 'function') {
-        setupTutorialControls(tutorialBtn, tutorialOverlay);
     }
 
     if (sidePanel && sidePanelToggleBtn) {
@@ -519,6 +531,9 @@ async function initializeUI() {
                     const res = await fetch('assets/asset-manifest.json', { cache: 'no-store' });
                     if (res && res.ok) {
                         const manifest = await res.json();
+                        if (typeof UIBootstrap.setLoadedAssetManifest === 'function') {
+                            UIBootstrap.setLoadedAssetManifest(manifest, { root: window, dispatch: true });
+                        }
                         const preloadRes = await UIBootstrap.preloadAssets(manifest, { timeoutMs: 5000 });
                         if (!preloadRes.success) {
                             console.warn('[init] asset preloading incomplete, falling back to CSS-only visuals', preloadRes.failed);

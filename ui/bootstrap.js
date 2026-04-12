@@ -10,6 +10,8 @@
     let _uiGlobals = {};
     let _gameDIInstallResult = null;
     let _stoneBaseImagesReadyPromise = null;
+    let _loadedAssetManifest = null;
+    const ASSET_MANIFEST_UPDATED_EVENT = 'asset-manifest:updated';
     const STONE_BASE_IMAGE_PATHS = [
         'assets/images/stones/normal_stone-black.png',
         'assets/images/stones/normal_stone-white.png'
@@ -1042,6 +1044,59 @@
         return !!_gameDIInstallResult;
     }
 
+    function isAssetManifestShape(manifest) {
+        return !!(manifest && typeof manifest === 'object' && Array.isArray(manifest.files));
+    }
+
+    function resolveAssetManifestEventTarget(preferredRoot) {
+        const candidates = [
+            preferredRoot,
+            (typeof window !== 'undefined' ? window : null),
+            (typeof globalThis !== 'undefined' ? globalThis : null)
+        ];
+        for (let index = 0; index < candidates.length; index += 1) {
+            const candidate = candidates[index];
+            if (!candidate || typeof candidate.dispatchEvent !== 'function') continue;
+            return candidate;
+        }
+        return null;
+    }
+
+    function createAssetManifestUpdatedEvent(target, manifest) {
+        const CustomEventCtor = (target && typeof target.CustomEvent === 'function')
+            ? target.CustomEvent
+            : (typeof CustomEvent === 'function' ? CustomEvent : null);
+        if (CustomEventCtor) {
+            return new CustomEventCtor(ASSET_MANIFEST_UPDATED_EVENT, {
+                detail: manifest
+            });
+        }
+        const EventCtor = (target && typeof target.Event === 'function')
+            ? target.Event
+            : (typeof Event === 'function' ? Event : null);
+        if (!EventCtor) return null;
+        const event = new EventCtor(ASSET_MANIFEST_UPDATED_EVENT);
+        try { event.detail = manifest; } catch (e) { /* ignore */ }
+        return event;
+    }
+
+    function setLoadedAssetManifest(manifest, options = {}) {
+        _loadedAssetManifest = isAssetManifestShape(manifest) ? manifest : null;
+        if (options.dispatch === false) return _loadedAssetManifest;
+
+        const target = resolveAssetManifestEventTarget(options.root);
+        if (!target) return _loadedAssetManifest;
+
+        const event = createAssetManifestUpdatedEvent(target, _loadedAssetManifest);
+        if (!event) return _loadedAssetManifest;
+        try { target.dispatchEvent(event); } catch (e) { /* ignore */ }
+        return _loadedAssetManifest;
+    }
+
+    function getLoadedAssetManifest() {
+        return _loadedAssetManifest;
+    }
+
     function preloadAssets(manifest, opts) {
         try {
             const impl = installGameDI();
@@ -1053,6 +1108,7 @@
 
     async function applyAssetManifest(manifest, policy = { mode: 'compat' }, opts = {}) {
         if (!manifest || !manifest.files) return { status: 'error', details: 'invalid manifest' };
+        setLoadedAssetManifest(manifest, { root: opts.root, dispatch: true });
         try {
             const res = await preloadAssets(manifest, opts || {});
             if (res.success) {
@@ -1083,10 +1139,10 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        return { addLog, debugLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady };
+        return { addLog, debugLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady, setLoadedAssetManifest, getLoadedAssetManifest, ASSET_MANIFEST_UPDATED_EVENT };
     }
 
-    return { addLog, debugLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady };
+    return { addLog, debugLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady, setLoadedAssetManifest, getLoadedAssetManifest, ASSET_MANIFEST_UPDATED_EVENT };
 }));
 
 

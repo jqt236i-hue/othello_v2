@@ -1,13 +1,40 @@
 (function (root, factory) {
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = factory();
+        module.exports = factory(
+            require('../story/story-controller'),
+            require('../tutorial/tutorial-controller'),
+            require('../story/story-steps'),
+            require('../tutorial/tutorial-steps'),
+            require('../tutorial/tutorial-storage')
+        );
     } else {
-        const api = factory();
+        const api = factory(
+            root.StoryControllerModule,
+            root.TutorialControllerModule,
+            root.StoryStepsModule,
+            root.TutorialStepsModule,
+            root.TutorialStorageModule
+        );
         root.StoryHandlerModule = api;
         root.setupStoryControls = api.setupStoryControls;
     }
-}(typeof self !== 'undefined' ? self : this, function () {
+}(typeof self !== 'undefined' ? self : this, function (
+    StoryControllerModule,
+    TutorialControllerModule,
+    StoryStepsModule,
+    TutorialStepsModule,
+    TutorialStorageModule
+) {
     'use strict';
+
+    const DEFAULT_TUTORIAL_SCENARIO_ID = 'chapter0';
+    const DEFAULT_TUTORIAL_MENU_ENTRY = Object.freeze({
+        scenarioId: DEFAULT_TUTORIAL_SCENARIO_ID,
+        menuLabel: '第零章 チュートリアル',
+        menuDescription: '盤理の観測者と基本ルールを学ぶ導入章。',
+        unavailableMessage: 'この build ではチュートリアルを開始できません。'
+    });
+    const STORY_UNAVAILABLE_MESSAGE = 'story は準備中です';
 
     const TEMPLATE = [
         '<div class="story-menu-backdrop"></div>',
@@ -22,16 +49,30 @@
         '</div>'
     ].join('');
 
-    function resolveController(rootRef, tutorialOverlay, storyBtn) {
-        const controllerModule = rootRef && rootRef.StoryControllerModule;
-        if (!controllerModule || typeof controllerModule.createStoryController !== 'function') {
+    function resolveStoryController(rootRef, tutorialOverlay, storyBtn) {
+        if (!StoryControllerModule || typeof StoryControllerModule.createStoryController !== 'function') {
             return null;
         }
         try {
-            return controllerModule.createStoryController({
+            return StoryControllerModule.createStoryController({
                 root: rootRef,
                 overlay: tutorialOverlay,
                 button: storyBtn
+            });
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function resolveTutorialController(rootRef, tutorialOverlay) {
+        if (!TutorialControllerModule || typeof TutorialControllerModule.createTutorialController !== 'function') {
+            return null;
+        }
+        try {
+            return TutorialControllerModule.createTutorialController({
+                root: rootRef,
+                overlay: tutorialOverlay,
+                button: null
             });
         } catch (e) {
             return null;
@@ -68,13 +109,156 @@
         }
     }
 
+    function isTutorialBusy(rootRef) {
+        try {
+            const tutorialStateApi = rootRef && rootRef.Tutorial && rootRef.Tutorial.State;
+            if (!tutorialStateApi) return false;
+            if (typeof tutorialStateApi.isObserverDuelActive === 'function' && tutorialStateApi.isObserverDuelActive()) {
+                return true;
+            }
+            if (typeof tutorialStateApi.isActive === 'function' && tutorialStateApi.isActive()) {
+                return true;
+            }
+        } catch (e) { /* ignore */ }
+        return false;
+    }
+
+    function getTutorialScenarioIds() {
+        if (TutorialStepsModule && typeof TutorialStepsModule.getTutorialScenarioIds === 'function') {
+            const scenarioIds = TutorialStepsModule.getTutorialScenarioIds();
+            if (Array.isArray(scenarioIds) && scenarioIds.length > 0) {
+                return scenarioIds;
+            }
+        }
+        return [DEFAULT_TUTORIAL_SCENARIO_ID];
+    }
+
+    function getTutorialMenuEntry(scenarioId, tutorialController) {
+        const scenario = TutorialStepsModule && typeof TutorialStepsModule.getScenario === 'function'
+            ? TutorialStepsModule.getScenario(scenarioId)
+            : null;
+        const cleared = !!(
+            TutorialStorageModule
+            && typeof TutorialStorageModule.isTutorialScenarioCleared === 'function'
+            && TutorialStorageModule.isTutorialScenarioCleared(scenarioId)
+        );
+        const canOpen = !!(tutorialController && scenario);
+        return {
+            id: scenarioId,
+            kind: 'tutorial',
+            menuLabel: (scenario && scenario.menuLabel) || DEFAULT_TUTORIAL_MENU_ENTRY.menuLabel,
+            menuDescription: (scenario && scenario.menuDescription) || DEFAULT_TUTORIAL_MENU_ENTRY.menuDescription,
+            availability: {
+                unlocked: canOpen,
+                cleared,
+                message: canOpen
+                    ? ''
+                    : ((scenario && scenario.menuUnavailableMessage) || DEFAULT_TUTORIAL_MENU_ENTRY.unavailableMessage)
+            },
+            open: canOpen
+                ? function () {
+                    return tutorialController.open({ scenarioId });
+                }
+                : null
+        };
+    }
+
+    function getStoryChapterIds() {
+        if (!StoryStepsModule || typeof StoryStepsModule.getChapterIds !== 'function') {
+            return [];
+        }
+        return StoryStepsModule.getChapterIds();
+    }
+
+    function getStoryMenuEntry(chapterId, storyController) {
+        const chapter = StoryStepsModule && typeof StoryStepsModule.getChapter === 'function'
+            ? StoryStepsModule.getChapter(chapterId)
+            : null;
+        if (!chapter) return null;
+
+        const availability = storyController && typeof storyController.getChapterAvailability === 'function'
+            ? storyController.getChapterAvailability(chapterId)
+            : {
+                unlocked: false,
+                cleared: !!(
+                    TutorialStorageModule
+                    && typeof TutorialStorageModule.isStoryChapterCleared === 'function'
+                    && TutorialStorageModule.isStoryChapterCleared(chapterId)
+                ),
+                message: STORY_UNAVAILABLE_MESSAGE
+            };
+
+        return {
+            id: chapterId,
+            kind: 'story',
+            menuLabel: chapter.menuLabel || chapter.title || chapterId,
+            menuDescription: chapter.menuDescription || '開始できます。',
+            availability,
+            open: availability.unlocked && storyController
+                ? function () {
+                    return storyController.open({ chapterId });
+                }
+                : null
+        };
+    }
+
+    function getMenuEntries(storyController, tutorialController) {
+        const entries = [];
+        for (const scenarioId of getTutorialScenarioIds()) {
+            entries.push(getTutorialMenuEntry(scenarioId, tutorialController));
+        }
+        for (const chapterId of getStoryChapterIds()) {
+            const entry = getStoryMenuEntry(chapterId, storyController);
+            if (entry) entries.push(entry);
+        }
+        return entries;
+    }
+
+    function createMenuButton(menuRoot, entry, onOpen) {
+        const availability = entry && entry.availability ? entry.availability : {};
+        const button = menuRoot.ownerDocument.createElement('button');
+        button.type = 'button';
+        button.className = 'story-chapter-btn';
+        button.dataset.storyEntryKind = entry && entry.kind ? entry.kind : 'story';
+
+        const stateLabel = availability.cleared
+            ? 'clear'
+            : (availability.unlocked ? 'playable' : 'locked');
+        if (!availability.unlocked) button.classList.add('is-locked');
+        if (!availability.unlocked) button.disabled = true;
+
+        const nameEl = menuRoot.ownerDocument.createElement('div');
+        nameEl.className = 'story-chapter-name';
+        nameEl.textContent = (entry && entry.menuLabel) || '';
+
+        const stateEl = menuRoot.ownerDocument.createElement('div');
+        stateEl.className = 'story-chapter-state';
+        stateEl.textContent = stateLabel;
+
+        const descEl = menuRoot.ownerDocument.createElement('div');
+        descEl.className = 'story-chapter-desc';
+        descEl.textContent = availability.unlocked
+            ? ((entry && entry.menuDescription) || '開始できます。')
+            : (availability.message || '開始できません。');
+
+        button.appendChild(nameEl);
+        button.appendChild(stateEl);
+        button.appendChild(descEl);
+
+        if (availability.unlocked && typeof onOpen === 'function') {
+            button.addEventListener('click', onOpen);
+        }
+
+        return button;
+    }
+
     function setupStoryControls(storyBtn, storyMenuOverlay, tutorialOverlay, options) {
         const opts = (options && typeof options === 'object') ? options : {};
         const rootRef = opts.root || (typeof window !== 'undefined' ? window : globalThis);
-        const controller = resolveController(rootRef, tutorialOverlay, storyBtn);
-        const stepsModule = rootRef && rootRef.StoryStepsModule;
+        const storyController = resolveStoryController(rootRef, tutorialOverlay, storyBtn);
+        const tutorialController = resolveTutorialController(rootRef, tutorialOverlay);
 
-        if (!controller || !stepsModule || !storyMenuOverlay) {
+        if (!storyMenuOverlay) {
             markUnavailable(storyBtn, storyMenuOverlay);
             return null;
         }
@@ -88,55 +272,20 @@
         function renderMenu() {
             if (!list) return;
             list.innerHTML = '';
-            const chapterIds = typeof stepsModule.getChapterIds === 'function'
-                ? stepsModule.getChapterIds()
-                : [];
+            const entries = getMenuEntries(storyController, tutorialController);
 
-            for (const chapterId of chapterIds) {
-                const chapter = stepsModule.getChapter(chapterId);
-                const availability = controller.getChapterAvailability(chapterId);
-                if (!chapter) continue;
-
-                const button = storyMenuOverlay.ownerDocument.createElement('button');
-                button.type = 'button';
-                button.className = 'story-chapter-btn';
-
-                const stateLabel = availability.cleared
-                    ? 'clear'
-                    : (availability.unlocked ? 'playable' : 'locked');
-                if (!availability.unlocked) button.classList.add('is-locked');
-                if (!availability.unlocked) button.disabled = true;
-
-                const nameEl = storyMenuOverlay.ownerDocument.createElement('div');
-                nameEl.className = 'story-chapter-name';
-                nameEl.textContent = chapter.menuLabel || chapter.title || chapterId;
-
-                const stateEl = storyMenuOverlay.ownerDocument.createElement('div');
-                stateEl.className = 'story-chapter-state';
-                stateEl.textContent = stateLabel;
-
-                const descEl = storyMenuOverlay.ownerDocument.createElement('div');
-                descEl.className = 'story-chapter-desc';
-                descEl.textContent = availability.unlocked
-                    ? (chapter.menuDescription || '開始できます。')
-                    : (availability.message || chapter.lockMessage || 'プレイするにはチュートリアルをクリアしてください。');
-
-                button.appendChild(nameEl);
-                button.appendChild(stateEl);
-                button.appendChild(descEl);
-
-                if (availability.unlocked) {
-                    button.addEventListener('click', () => {
-                        setMenuOpen(storyMenuOverlay, storyBtn, false);
-                        controller.open({ chapterId });
-                    });
-                }
-
+            for (const entry of entries) {
+                const button = createMenuButton(storyMenuOverlay, entry, () => {
+                    setMenuOpen(storyMenuOverlay, storyBtn, false);
+                    if (typeof entry.open === 'function') {
+                        entry.open();
+                    }
+                });
                 list.appendChild(button);
             }
 
             if (note) {
-                note.textContent = '0章クリア後に第一章が解放されます。各章クリアで次章が解放されます。';
+                note.textContent = '第零章クリア後に第一章が解放されます。各章クリアで次章が解放されます。';
             }
         }
 
@@ -146,7 +295,10 @@
                 setMenuOpen(storyMenuOverlay, storyBtn, false);
                 return;
             }
-            if (controller.isActive()) {
+            if (storyController && typeof storyController.isActive === 'function' && storyController.isActive()) {
+                return;
+            }
+            if (isTutorialBusy(rootRef)) {
                 return;
             }
             renderMenu();
@@ -181,11 +333,13 @@
             backdrop.dataset.storyBound = '1';
         }
 
-        return controller;
+        return storyController || tutorialController;
     }
 
     return {
-        resolveController,
+        resolveController: resolveStoryController,
+        resolveStoryController,
+        resolveTutorialController,
         markUnavailable,
         setupStoryControls
     };

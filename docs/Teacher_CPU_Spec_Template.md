@@ -81,7 +81,7 @@
 - 展開/手数系:
   - `FREE_PLACEMENT`, `DOUBLE_PLACE`, `SNIPER_WILL`, `HYPERACTIVE_WILL`, `ULTIMATE_HYPERACTIVE_GOD`, `CLONE_WILL`, `BREEDING_WILL`, `BOARD_EXPANSION_WILL`
 - 布石・手札経済系:
-  - `TREASURE_BOX`, `WORK_WILL`, `GOLD_STONE`, `SILVER_STONE`, `PLUNDER_WILL`, `SELL_CARD_WILL`, `HEAVEN_BLESSING`, `CONDEMN_WILL`, `TRAP_WILL`, `DOUBLE_CHAIN_WILL`, `TRIPLE_CHAIN_WILL`, `QUAD_CHAIN_WILL`, `INFINITE_CHAIN_WILL`, `ULTIMATE_REVERSE_DRAGON`
+  - `TREASURE_BOX`, `WORK_WILL`, `GOLD_STONE`, `SILVER_STONE`, `PLUNDER_WILL`, `HEAVEN_BLESSING`, `CONDEMN_WILL`, `TRAP_WILL`, `DOUBLE_CHAIN_WILL`, `TRIPLE_CHAIN_WILL`, `QUAD_CHAIN_WILL`, `INFINITE_CHAIN_WILL`, `ULTIMATE_REVERSE_DRAGON`
 
 ### 6.2 使用禁止条件（利敵回避）
 - 条件1: 使用後1手以内に相手の角確定率が上がるなら禁止。
@@ -107,9 +107,9 @@
   - 持続型は残ターン不足なら温存せず即使用。
 - 布石しきい値:
   - 最低防衛布石を常に `>=8` 残す。
-  - 相手の高コストカード圏（20以上）入りを阻止できるなら吸収/売却を優先。
+  - 相手の高コストカード圏（20以上）入りを阻止できるなら吸収を優先。
 
-### 6.5 全カード一覧（現行42種）
+### 6.5 全カード一覧（現行41種）
 | type | 名称 | cost | 主用途 |
 |---|---|---:|---|
 | TREASURE_BOX | 宝箱 | 0 | 経済 |
@@ -138,7 +138,6 @@
 | ESCAPE_WILL | 逃げる意志 | 12 | 攻撃/攪乱 |
 | ROBOT_VACUUM_WILL | ロボット掃除機 | 17 | 攻撃/経済 |
 | INSTANT_HYPERACTIVE_WILL | 瞬間多動 | 5 | 攻撃 |
-| SELL_CARD_WILL | 売却の意志 | 8 | 経済 |
 | PLUNDER_WILL | 吸収の意志 | 4 | 経済 |
 | WORK_WILL | 出稼ぎの意志 | 11 | 経済 |
 | DOUBLE_PLACE | 二連投石 | 24 | 展開 |

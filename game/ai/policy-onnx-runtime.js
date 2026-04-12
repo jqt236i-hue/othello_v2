@@ -16,6 +16,9 @@ const DEFAULT_TARGET_META_URL = 'data/models/policy-target.onnx.meta.json';
 const DEFAULT_VALUE_MODEL_URL = 'data/models/policy-value.onnx';
 const DEFAULT_VALUE_META_URL = 'data/models/policy-value.onnx.meta.json';
 const BASE_INPUT_DIM = 80;
+const AUX_FEATURE_DIM = 16;
+const LEGACY_BOARD_SIZE = 8;
+const LEGACY_BOARD_FEATURE_DIM = LEGACY_BOARD_SIZE * LEGACY_BOARD_SIZE;
 const MAX_HAND_SIZE = 5;
 let SharedBoardUtils = null;
 try {
@@ -30,6 +33,16 @@ if (!SharedBoardUtils) {
         }
     } catch (e) { /* ignore */ }
 }
+const PADDED_BOARD_MIN = SharedBoardUtils && Number.isFinite(Number(SharedBoardUtils.PADDED_BOARD_MIN))
+    ? Number(SharedBoardUtils.PADDED_BOARD_MIN)
+    : -1;
+const PADDED_BOARD_MAX = SharedBoardUtils && Number.isFinite(Number(SharedBoardUtils.PADDED_BOARD_MAX))
+    ? Number(SharedBoardUtils.PADDED_BOARD_MAX)
+    : 8;
+const PADDED_BOARD_SIZE = SharedBoardUtils && Number.isFinite(Number(SharedBoardUtils.PADDED_BOARD_SIZE))
+    ? Number(SharedBoardUtils.PADDED_BOARD_SIZE)
+    : ((PADDED_BOARD_MAX - PADDED_BOARD_MIN) + 1);
+const PADDED_BOARD_FEATURE_DIM = PADDED_BOARD_SIZE * PADDED_BOARD_SIZE;
 const CHARGE_MAX_NORMALIZER = (() => {
     try {
         if (typeof require === 'function') {
@@ -557,18 +570,116 @@ function sigmoidDelta(delta) {
     return 1 / (1 + Math.exp(-capped));
 }
 
+function getBoardCoordinates(board) {
+    if (!Array.isArray(board)) return [];
+    if (SharedBoardUtils && typeof SharedBoardUtils.collectBoardCoordinates === 'function') {
+        return SharedBoardUtils.collectBoardCoordinates(board);
+    }
+    const out = [];
+    for (let row = 0; row < Math.min(LEGACY_BOARD_SIZE, board.length); row++) {
+        const cells = Array.isArray(board[row]) ? board[row] : [];
+        for (let col = 0; col < Math.min(LEGACY_BOARD_SIZE, cells.length); col++) {
+            out.push({ row, col });
+        }
+    }
+    return out;
+}
+
+function getBoardCellValue(board, row, col) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function') {
+        return SharedBoardUtils.getCellValue(board, row, col);
+    }
+    if (!Array.isArray(board) || !Array.isArray(board[row])) return null;
+    return board[row][col];
+}
+
+function isCornerMoveForBoard(move, board) {
+    if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return false;
+    if (SharedBoardUtils && typeof SharedBoardUtils.isCornerCell === 'function') {
+        return SharedBoardUtils.isCornerCell(Number(move.row), Number(move.col), board);
+    }
+    return (move.row === 0 || move.row === 7) && (move.col === 0 || move.col === 7);
+}
+
+function isEdgeMoveForBoard(move, board) {
+    if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return false;
+    if (SharedBoardUtils && typeof SharedBoardUtils.isEdgeCell === 'function') {
+        return SharedBoardUtils.isEdgeCell(Number(move.row), Number(move.col), board);
+    }
+    return move.row === 0 || move.row === 7 || move.col === 0 || move.col === 7;
+}
+
+function isPaddedActionSpace(modelMeta, outputDimHint) {
+    const paddedSize = modelMeta && Number.isFinite(Number(modelMeta.paddedBoardSize))
+        ? Math.floor(Number(modelMeta.paddedBoardSize))
+        : 0;
+    if (paddedSize > LEGACY_BOARD_SIZE) return true;
+    const actionSpace = modelMeta && typeof modelMeta.actionSpace === 'string'
+        ? modelMeta.actionSpace
+        : '';
+    if (actionSpace.indexOf('padded') >= 0) return true;
+    if (Number.isFinite(outputDimHint) && Number(outputDimHint) > LEGACY_BOARD_FEATURE_DIM) return true;
+    return false;
+}
+
+function supportsPaddedBoardFeatures(modelMeta) {
+    const metaBase = modelMeta && Number.isFinite(Number(modelMeta.baseInputDim))
+        ? Math.floor(Number(modelMeta.baseInputDim))
+        : null;
+    return isPaddedActionSpace(modelMeta, modelMeta && modelMeta.outputDim) ||
+        (Number.isFinite(metaBase) && metaBase >= (PADDED_BOARD_FEATURE_DIM + AUX_FEATURE_DIM));
+}
+
+function resolveBoardFeatureDim(modelMeta, baseInputDim) {
+    if (supportsPaddedBoardFeatures(modelMeta)) {
+        return PADDED_BOARD_FEATURE_DIM;
+    }
+    if (Number.isFinite(baseInputDim) && baseInputDim >= (PADDED_BOARD_FEATURE_DIM + AUX_FEATURE_DIM)) {
+        return PADDED_BOARD_FEATURE_DIM;
+    }
+    return LEGACY_BOARD_FEATURE_DIM;
+}
+
+function resolveActionGrid(modelMeta, outputDimHint) {
+    if (isPaddedActionSpace(modelMeta, outputDimHint)) {
+        return {
+            minCoord: PADDED_BOARD_MIN,
+            size: PADDED_BOARD_SIZE
+        };
+    }
+    return {
+        minCoord: 0,
+        size: LEGACY_BOARD_SIZE
+    };
+}
+
+function actionIndexFromCoord(row, col, modelMeta, outputDimHint) {
+    if (!Number.isFinite(row) || !Number.isFinite(col)) return -1;
+    const grid = resolveActionGrid(modelMeta, outputDimHint);
+    const normalizedRow = Number(row);
+    const normalizedCol = Number(col);
+    const maxCoord = grid.minCoord + grid.size - 1;
+    if (normalizedRow < grid.minCoord || normalizedRow > maxCoord) return -1;
+    if (normalizedCol < grid.minCoord || normalizedCol > maxCoord) return -1;
+    if (grid.minCoord === PADDED_BOARD_MIN && grid.size === PADDED_BOARD_SIZE) {
+        if (SharedBoardUtils && typeof SharedBoardUtils.toPaddedBoardIndex === 'function') {
+            return SharedBoardUtils.toPaddedBoardIndex(normalizedRow, normalizedCol);
+        }
+        return ((normalizedRow - PADDED_BOARD_MIN) * PADDED_BOARD_SIZE) + (normalizedCol - PADDED_BOARD_MIN);
+    }
+    return (normalizedRow * grid.size) + normalizedCol;
+}
+
 function estimateDiscDiffFromBoard(board, playerKey) {
     if (!Array.isArray(board)) return 0;
     const own = playerKey === 'black' ? 1 : -1;
     const opp = -own;
     let ownCount = 0;
     let oppCount = 0;
-    for (let r = 0; r < Math.min(8, board.length); r++) {
-        const row = Array.isArray(board[r]) ? board[r] : [];
-        for (let c = 0; c < Math.min(8, row.length); c++) {
-            if (row[c] === own) ownCount += 1;
-            else if (row[c] === opp) oppCount += 1;
-        }
+    for (const cell of getBoardCoordinates(board)) {
+        const value = getBoardCellValue(board, cell.row, cell.col);
+        if (value === own) ownCount += 1;
+        else if (value === opp) oppCount += 1;
     }
     return ownCount - oppCount;
 }
@@ -606,20 +717,28 @@ function countCornerEdgeControl(board, playerKey) {
     const out = { ownCorners: 0, oppCorners: 0, ownEdges: 0, oppEdges: 0 };
     if (!Array.isArray(board)) return out;
     const own = playerKey === 'black' ? 1 : -1;
+    if (SharedBoardUtils && typeof SharedBoardUtils.countCornerControl === 'function') {
+        const cornerControl = SharedBoardUtils.countCornerControl(board, own);
+        out.ownCorners = Number(cornerControl && cornerControl.ownCorners) || 0;
+        out.oppCorners = Number(cornerControl && cornerControl.oppCorners) || 0;
+    }
+    if (SharedBoardUtils && typeof SharedBoardUtils.countEdgeControl === 'function') {
+        const edgeControl = SharedBoardUtils.countEdgeControl(board, own);
+        out.ownEdges = Number(edgeControl && edgeControl.ownEdges) || 0;
+        out.oppEdges = Number(edgeControl && edgeControl.oppEdges) || 0;
+        return out;
+    }
     const opp = -own;
-    for (let r = 0; r < Math.min(8, board.length); r++) {
-        const row = Array.isArray(board[r]) ? board[r] : [];
-        for (let c = 0; c < Math.min(8, row.length); c++) {
-            const v = row[c];
-            const isCornerCell = (r === 0 || r === 7) && (c === 0 || c === 7);
-            const isEdgeCell = (r === 0 || r === 7 || c === 0 || c === 7) && !isCornerCell;
-            if (isCornerCell) {
-                if (v === own) out.ownCorners += 1;
-                else if (v === opp) out.oppCorners += 1;
-            } else if (isEdgeCell) {
-                if (v === own) out.ownEdges += 1;
-                else if (v === opp) out.oppEdges += 1;
-            }
+    for (const cell of getBoardCoordinates(board)) {
+        const value = getBoardCellValue(board, cell.row, cell.col);
+        const isCorner = isCornerMoveForBoard(cell, board);
+        const isEdge = !isCorner && isEdgeMoveForBoard(cell, board);
+        if (isCorner) {
+            if (value === own) out.ownCorners += 1;
+            else if (value === opp) out.oppCorners += 1;
+        } else if (isEdge) {
+            if (value === own) out.ownEdges += 1;
+            else if (value === opp) out.oppEdges += 1;
         }
     }
     return out;
@@ -643,10 +762,10 @@ function getCornerPlanFeatures(ctx, board, playerKey) {
     const moves = Array.isArray(ctx.candidateMoves) ? ctx.candidateMoves : [];
     const hasCornerMoveNow = Number.isFinite(Number(ctx.hasCornerMoveNow))
         ? toBinaryFlag(ctx.hasCornerMoveNow)
-        : (moves.some((move) => move && (move.row === 0 || move.row === 7) && (move.col === 0 || move.col === 7)) ? 1 : 0);
+        : (moves.some((move) => isCornerMoveForBoard(move, board)) ? 1 : 0);
     const hasEdgeMoveNow = Number.isFinite(Number(ctx.hasEdgeMoveNow))
         ? toBinaryFlag(ctx.hasEdgeMoveNow)
-        : (moves.some((move) => move && (move.row === 0 || move.row === 7 || move.col === 0 || move.col === 7) && !((move.row === 0 || move.row === 7) && (move.col === 0 || move.col === 7))) ? 1 : 0);
+        : (moves.some((move) => isEdgeMoveForBoard(move, board) && !isCornerMoveForBoard(move, board)) ? 1 : 0);
 
     let maxLegalMoveBonus = Number.isFinite(Number(ctx.maxLegalMoveBonus)) ? Number(ctx.maxLegalMoveBonus) : 0;
     if (maxLegalMoveBonus <= 0 && moves.length > 0) {
@@ -680,8 +799,8 @@ function getCornerPlanFeatures(ctx, board, playerKey) {
     };
 }
 
-function resolveBaseInputDim(inputDim, cardDim) {
-    const metaBase = _meta && Number.isFinite(_meta.baseInputDim) ? Math.floor(_meta.baseInputDim) : null;
+function resolveBaseInputDim(modelMeta, inputDim, cardDim) {
+    const metaBase = modelMeta && Number.isFinite(modelMeta.baseInputDim) ? Math.floor(modelMeta.baseInputDim) : null;
     if (Number.isFinite(metaBase) && metaBase >= 64 && metaBase <= inputDim) return metaBase;
     if (Number.isFinite(cardDim) && cardDim > 0) {
         const inferred = inputDim - (cardDim * 2);
@@ -696,17 +815,28 @@ function buildInputVector(context, metaOverride, actionIdsOverride) {
     const playerKey = ctx.playerKey === 'black' ? 'black' : 'white';
     const modelMeta = metaOverride || _meta;
     const actionIds = Array.isArray(actionIdsOverride) ? actionIdsOverride : _cardActionIds;
-    const inputDim = (modelMeta && Number.isFinite(modelMeta.inputDim) && modelMeta.inputDim > 64) ? Math.floor(modelMeta.inputDim) : BASE_INPUT_DIM;
+    const inputDim = (modelMeta && Number.isFinite(modelMeta.inputDim) && modelMeta.inputDim > 0)
+        ? Math.floor(modelMeta.inputDim)
+        : BASE_INPUT_DIM;
     const cardDim = actionIds.length;
-    const baseInputDim = resolveBaseInputDim(inputDim, cardDim);
+    const baseInputDim = resolveBaseInputDim(modelMeta, inputDim, cardDim);
+    const boardFeatureDim = resolveBoardFeatureDim(modelMeta, baseInputDim);
     const out = new Float32Array(inputDim);
 
     if (board.length > 0) {
-        let idx = 0;
-        for (let r = 0; r < Math.min(8, board.length); r++) {
-            const row = Array.isArray(board[r]) ? board[r] : [];
-            for (let c = 0; c < 8; c++) {
-                out[idx++] = perspectiveCell(row[c], playerKey);
+        if (boardFeatureDim > LEGACY_BOARD_FEATURE_DIM) {
+            let idx = 0;
+            for (let row = PADDED_BOARD_MIN; row <= PADDED_BOARD_MAX; row++) {
+                for (let col = PADDED_BOARD_MIN; col <= PADDED_BOARD_MAX; col++) {
+                    out[idx++] = perspectiveCell(getBoardCellValue(board, row, col), playerKey);
+                }
+            }
+        } else {
+            let idx = 0;
+            for (let row = 0; row < LEGACY_BOARD_SIZE; row++) {
+                for (let col = 0; col < LEGACY_BOARD_SIZE; col++) {
+                    out[idx++] = perspectiveCell(getBoardCellValue(board, row, col), playerKey);
+                }
             }
         }
     }
@@ -717,12 +847,10 @@ function buildInputVector(context, metaOverride, actionIdsOverride) {
     if ((!Number.isFinite(ctx.blackCountBefore) || !Number.isFinite(ctx.whiteCountBefore)) && Array.isArray(board)) {
         blackCount = 0;
         whiteCount = 0;
-        for (let r = 0; r < board.length; r++) {
-            const row = Array.isArray(board[r]) ? board[r] : [];
-            for (let c = 0; c < row.length; c++) {
-                if (row[c] === 1) blackCount++;
-                else if (row[c] === -1) whiteCount++;
-            }
+        for (const cell of getBoardCoordinates(board)) {
+            const value = getBoardCellValue(board, cell.row, cell.col);
+            if (value === 1) blackCount++;
+            else if (value === -1) whiteCount++;
         }
     }
     const ownCharge = Number.isFinite(ctx.ownCharge) ? ctx.ownCharge : 0;
@@ -731,23 +859,24 @@ function buildInputVector(context, metaOverride, actionIdsOverride) {
     const pendingFlag = ctx.pendingType ? 1 : 0;
     const discDiff = playerKey === 'black' ? (blackCount - whiteCount) : (whiteCount - blackCount);
     const planFeatures = getCornerPlanFeatures(ctx, board, playerKey);
+    const scalarOffset = boardFeatureDim;
 
-    if (baseInputDim > 64) out[64] = legalMoves / 60;
-    if (baseInputDim > 65) out[65] = discDiff / 64;
-    if (baseInputDim > 66) out[66] = ownCharge / CHARGE_MAX_NORMALIZER;
-    if (baseInputDim > 67) out[67] = oppCharge / CHARGE_MAX_NORMALIZER;
-    if (baseInputDim > 68) out[68] = deckCount / 60;
-    if (baseInputDim > 69) out[69] = pendingFlag;
-    if (baseInputDim > 70) out[70] = planFeatures.ownCorners / 4;
-    if (baseInputDim > 71) out[71] = planFeatures.oppCorners / 4;
-    if (baseInputDim > 72) out[72] = planFeatures.ownEdges / 24;
-    if (baseInputDim > 73) out[73] = planFeatures.oppEdges / 24;
-    if (baseInputDim > 74) out[74] = planFeatures.hasCornerMoveNow;
-    if (baseInputDim > 75) out[75] = planFeatures.hasEdgeMoveNow;
-    if (baseInputDim > 76) out[76] = planFeatures.cornerEmergency;
-    if (baseInputDim > 77) out[77] = planFeatures.cornerHoldMode;
-    if (baseInputDim > 78) out[78] = planFeatures.highBonusMoveAvailable;
-    if (baseInputDim > 79) out[79] = Math.max(0, Math.min(1, planFeatures.maxLegalMoveBonus / 5));
+    if (baseInputDim > (scalarOffset + 0)) out[scalarOffset + 0] = legalMoves / 60;
+    if (baseInputDim > (scalarOffset + 1)) out[scalarOffset + 1] = discDiff / 64;
+    if (baseInputDim > (scalarOffset + 2)) out[scalarOffset + 2] = ownCharge / CHARGE_MAX_NORMALIZER;
+    if (baseInputDim > (scalarOffset + 3)) out[scalarOffset + 3] = oppCharge / CHARGE_MAX_NORMALIZER;
+    if (baseInputDim > (scalarOffset + 4)) out[scalarOffset + 4] = deckCount / 60;
+    if (baseInputDim > (scalarOffset + 5)) out[scalarOffset + 5] = pendingFlag;
+    if (baseInputDim > (scalarOffset + 6)) out[scalarOffset + 6] = planFeatures.ownCorners / 4;
+    if (baseInputDim > (scalarOffset + 7)) out[scalarOffset + 7] = planFeatures.oppCorners / 4;
+    if (baseInputDim > (scalarOffset + 8)) out[scalarOffset + 8] = planFeatures.ownEdges / 24;
+    if (baseInputDim > (scalarOffset + 9)) out[scalarOffset + 9] = planFeatures.oppEdges / 24;
+    if (baseInputDim > (scalarOffset + 10)) out[scalarOffset + 10] = planFeatures.hasCornerMoveNow;
+    if (baseInputDim > (scalarOffset + 11)) out[scalarOffset + 11] = planFeatures.hasEdgeMoveNow;
+    if (baseInputDim > (scalarOffset + 12)) out[scalarOffset + 12] = planFeatures.cornerEmergency;
+    if (baseInputDim > (scalarOffset + 13)) out[scalarOffset + 13] = planFeatures.cornerHoldMode;
+    if (baseInputDim > (scalarOffset + 14)) out[scalarOffset + 14] = planFeatures.highBonusMoveAvailable;
+    if (baseInputDim > (scalarOffset + 15)) out[scalarOffset + 15] = Math.max(0, Math.min(1, planFeatures.maxLegalMoveBonus / 5));
 
     if (cardDim > 0 && inputDim >= (baseInputDim + (cardDim * 2))) {
         const handCounts = buildCardCounts(ctx.handCardIds);
@@ -783,10 +912,9 @@ function buildInputVector(context, metaOverride, actionIdsOverride) {
     return out;
 }
 
-function indexFromMove(move) {
-    if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return -1;
-    if (move.row < 0 || move.row >= 8 || move.col < 0 || move.col >= 8) return -1;
-    return (move.row * 8) + move.col;
+function indexFromMove(move, modelMeta, outputDimHint) {
+    if (!move) return -1;
+    return actionIndexFromCoord(move.row, move.col, modelMeta, outputDimHint);
 }
 
 function isStandardOnnxBoard(board) {
@@ -796,20 +924,24 @@ function isStandardOnnxBoard(board) {
     return false;
 }
 
-function hasOnlyStandardMoveIndexes(moves) {
+function hasOnlySupportedMoveIndexes(moves, modelMeta, outputDimHint) {
     if (!Array.isArray(moves)) return true;
     for (const move of moves) {
-        if (indexFromMove(move) < 0) return false;
+        if (indexFromMove(move, modelMeta, outputDimHint) < 0) return false;
     }
     return true;
 }
 
-function isSupportedOnnxContext(context, candidateMoves) {
+function isSupportedOnnxContext(context, candidateMoves, modelMeta, outputDimHint) {
     const board = Array.isArray(context && context.board) ? context.board : null;
-    if (!isStandardOnnxBoard(board)) return false;
-    if (!hasOnlyStandardMoveIndexes(candidateMoves)) return false;
+    if (supportsPaddedBoardFeatures(modelMeta)) {
+        if (!Array.isArray(board) || board.length <= 0) return false;
+    } else if (!isStandardOnnxBoard(board)) {
+        return false;
+    }
+    if (!hasOnlySupportedMoveIndexes(candidateMoves, modelMeta, outputDimHint)) return false;
     const pendingTarget = context && context.pendingTarget;
-    if (pendingTarget && indexFromMove(pendingTarget) < 0) return false;
+    if (pendingTarget && indexFromMove(pendingTarget, modelMeta, outputDimHint) < 0) return false;
     return true;
 }
 
@@ -831,7 +963,7 @@ async function chooseMove(candidateMoves, context) {
     if (!_config.enabled) return null;
     if (!hasModel()) return null;
     if (!Array.isArray(candidateMoves) || candidateMoves.length === 0) return null;
-    if (!isSupportedOnnxContext(context, candidateMoves)) return null;
+    if (!isSupportedOnnxContext(context, candidateMoves, _meta, _meta && _meta.outputDim)) return null;
 
     const level = Number.isFinite(context && context.level) ? context.level : 1;
     if (level < _config.minLevel) return null;
@@ -847,7 +979,7 @@ async function chooseMove(candidateMoves, context) {
         let best = null;
         let bestScore = -Infinity;
         for (const move of candidateMoves) {
-            const idx = indexFromMove(move);
+            const idx = indexFromMove(move, _meta, scores.length);
             if (idx < 0 || idx >= scores.length) continue;
             const score = Number(scores[idx]);
             if (!Number.isFinite(score)) continue;
@@ -876,7 +1008,6 @@ async function chooseCard(usableCardIds, context) {
     if (!hasModel() && !hasCardSpecialistModel()) return null;
     if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
     if (!hasCardHead()) return null;
-    if (!isSupportedOnnxContext(context, null)) return null;
 
     const level = Number.isFinite(context && context.level) ? context.level : 1;
     if (level < _config.minLevel) return null;
@@ -887,6 +1018,7 @@ async function chooseCard(usableCardIds, context) {
         const activeSession = useCardSpecialist ? _cardSession : _session;
         const activeInputName = useCardSpecialist ? _cardInputName : _inputName;
         const activeMeta = useCardSpecialist ? _cardMeta : _meta;
+        if (!isSupportedOnnxContext(context, null, activeMeta, activeMeta && activeMeta.outputDim)) return null;
         const activeOutputName = useCardSpecialist ? _cardHeadOutputName : _cardOutputName;
         const activeActionIndexById = useCardSpecialist ? _cardModelActionIndexById : _cardActionIndexById;
         const activeNoCardIndex = useCardSpecialist ? _cardModelNoCardActionIndex : _noCardActionIndex;
@@ -942,7 +1074,7 @@ async function choosePendingTarget(candidateTargets, context) {
     if (!_config.enabled) return null;
     if (!hasTargetModel()) return null;
     if (!Array.isArray(candidateTargets) || candidateTargets.length === 0) return null;
-    if (!isSupportedOnnxContext(context, candidateTargets)) return null;
+    if (!isSupportedOnnxContext(context, candidateTargets, _targetMeta, _targetMeta && _targetMeta.outputDim)) return null;
 
     const level = Number.isFinite(context && context.level) ? context.level : 1;
     if (level < _config.minLevel) return null;
@@ -957,7 +1089,7 @@ async function choosePendingTarget(candidateTargets, context) {
         let best = null;
         let bestScore = -Infinity;
         for (const target of candidateTargets) {
-            const idx = indexFromMove(target);
+            const idx = indexFromMove(target, _targetMeta, scores.length);
             if (idx < 0 || idx >= scores.length) continue;
             const score = Number(scores[idx]);
             if (!Number.isFinite(score)) continue;
@@ -984,7 +1116,7 @@ async function choosePendingTarget(candidateTargets, context) {
 async function evaluatePosition(context) {
     if (!_config.enabled) return null;
     if (!hasValueModel()) return null;
-    if (!isSupportedOnnxContext(context, null)) return null;
+    if (!isSupportedOnnxContext(context, null, _valueMeta, _valueMeta && _valueMeta.outputDim)) return null;
 
     const level = Number.isFinite(context && context.level) ? context.level : 1;
     if (level < _config.minLevel) return null;

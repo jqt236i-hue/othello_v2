@@ -24,7 +24,9 @@ the fade-in starts. */
 }
 
 /* Stone flip animation */
-.disc {
+.disc.flip,
+.disc.destroy-fade,
+.disc.hyperactive-moving {
     backface-visibility: hidden;
     transform-style: preserve-3d;
 }
@@ -46,11 +48,13 @@ the fade-in starts. */
 
 /* flip class performs a visible squash-flip (works without 3D perspective) */
 .disc.flip {
+    will-change: transform, filter;
     animation: stone-flip 0.6s cubic-bezier(.2,.85,.3,1);
 }
 
 /* destroy fade fallback (keyframes-based; do not override board styles) */
 .disc.destroy-fade {
+    will-change: transform, opacity;
     animation: fadeOutDestroy 0.5s ease-out forwards !important;
 }
 
@@ -86,4 +90,99 @@ the fade-in starts. */
     background:
         radial-gradient(circle, rgba(255, 244, 198, 0.54) 0%, rgba(255, 244, 198, 0.18) 34%, rgba(255, 244, 198, 0) 72%);
     transform: scale(1.15);
+}
+
+/* ===== Card Design Enhancement Animations ===== */
+
+/* Phase 3: Shimmer for gold/special/rainbow/crystal cards */
+@keyframes card-shimmer {
+    0%, 100% {
+        filter: brightness(1);
+    }
+    50% {
+        filter: brightness(1.08);
+    }
+}
+
+/* Phase 5: Pulsing glow for usable (playable) cards */
+@keyframes card-usable-pulse {
+    0%, 100% {
+        box-shadow:
+            0 0 0 calc(1px * var(--layout-stage-scale, 1)) rgba(255, 241, 186, 0.84),
+            0 10px 20px rgba(0, 0, 0, 0.46);
+        filter:
+            drop-shadow(0 0 calc(6px * var(--layout-stage-scale, 1)) rgba(255, 238, 164, 0.74))
+            drop-shadow(0 0 calc(14px * var(--layout-stage-scale, 1)) rgba(255, 220, 128, 0.46))
+            drop-shadow(0 0 calc(28px * var(--layout-stage-scale, 1)) rgba(255, 215, 120, 0.26))
+            brightness(1.07)
+            saturate(1.08);
+    }
+    50% {
+        box-shadow:
+            0 0 0 calc(2px * var(--layout-stage-scale, 1)) rgba(255, 247, 205, 0.96),
+            0 12px 24px rgba(0, 0, 0, 0.48);
+        filter:
+            drop-shadow(0 0 calc(8px * var(--layout-stage-scale, 1)) rgba(255, 244, 190, 0.96))
+            drop-shadow(0 0 calc(18px * var(--layout-stage-scale, 1)) rgba(255, 224, 134, 0.66))
+            drop-shadow(0 0 calc(34px * var(--layout-stage-scale, 1)) rgba(255, 215, 120, 0.38))
+            brightness(1.14)
+            saturate(1.14);
+    }
+}
+
+/* Phase 5: Border light sweep for selected cards */
+@keyframes card-selected-shine {
+    0% {
+        box-shadow:
+            0 0 0 calc(2px * var(--layout-stage-scale, 1)) rgba(255, 239, 170, 0.98),
+            0 0 0 calc(5px * var(--layout-stage-scale, 1)) rgba(255, 215, 0, 0.18),
+            0 0 24px 8px rgba(255, 215, 0, 0.9),
+            0 0 44px 16px rgba(255, 215, 0, 0.34),
+            0 18px 32px rgba(0, 0, 0, 0.52),
+            inset calc(-42px * var(--layout-stage-scale, 1)) 0 calc(22px * var(--layout-stage-scale, 1)) rgba(255, 245, 200, 0.18);
+    }
+    50% {
+        box-shadow:
+            0 0 0 calc(2px * var(--layout-stage-scale, 1)) rgba(255, 246, 191, 1),
+            0 0 0 calc(6px * var(--layout-stage-scale, 1)) rgba(255, 215, 0, 0.24),
+            0 0 30px 11px rgba(255, 215, 0, 0.96),
+            0 0 56px 22px rgba(255, 215, 0, 0.42),
+            0 20px 36px rgba(0, 0, 0, 0.54),
+            inset calc(42px * var(--layout-stage-scale, 1)) 0 calc(22px * var(--layout-stage-scale, 1)) rgba(255, 245, 200, 0.18);
+    }
+    100% {
+        box-shadow:
+            0 0 0 calc(2px * var(--layout-stage-scale, 1)) rgba(255, 239, 170, 0.98),
+            0 0 0 calc(5px * var(--layout-stage-scale, 1)) rgba(255, 215, 0, 0.18),
+            0 0 24px 8px rgba(255, 215, 0, 0.9),
+            0 0 44px 16px rgba(255, 215, 0, 0.34),
+            0 18px 32px rgba(0, 0, 0, 0.52),
+            inset calc(-42px * var(--layout-stage-scale, 1)) 0 calc(22px * var(--layout-stage-scale, 1)) rgba(255, 245, 200, 0.18);
+    }
+}
+
+/* Round 2B: Foil sweep animation for high-tier cards */
+@keyframes foil-sweep {
+    0%, 100% {
+        background-position: 0% 0%;
+    }
+    50% {
+        background-position: 100% 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card-item.visible.cost-tier-gold,
+    .card-item.visible.cost-tier-special,
+    .card-item.affordable,
+    .card-item.usable,
+    .card-item.selected {
+        animation: none !important;
+    }
+    .card-item.visible.cost-tier-gold::before,
+    .card-item.visible.cost-tier-special::before,
+    .card-item.visible[data-card-id="rainbow_stone"]::before,
+    .card-item.visible[data-card-id="crystal_stone"]::before {
+        animation: none !important;
+    }
 }

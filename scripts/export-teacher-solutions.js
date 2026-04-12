@@ -43,7 +43,6 @@ function inferTeacherDecisionKind(record) {
     if (actionType === 'use_card') return 'use';
     if (actionType === 'destroy_hand_card') return 'destroy';
     if (actionType === 'cancel_card') return 'keep';
-    if (actionType === 'place' && normalizeCardId(record && record.sellCardId)) return 'sell';
     if (actionType === 'place') return 'place';
     if (actionType === 'pass') return 'pass';
     return actionType || 'unknown';
@@ -52,7 +51,6 @@ function inferTeacherDecisionKind(record) {
 function resolveSelectedCardId(record, decisionKind) {
     if (decisionKind === 'use') return normalizeCardId(record && record.useCardId);
     if (decisionKind === 'destroy') return normalizeCardId(record && record.destroyCardId);
-    if (decisionKind === 'sell') return normalizeCardId(record && record.sellCardId);
     return null;
 }
 
@@ -116,7 +114,7 @@ function buildTeacherCandidatesFromSelectionTrace(record, decisionKind) {
 }
 
 function buildCardTeacherCandidates(record, decisionKind, selectedCardId) {
-    const baseIds = (decisionKind === 'destroy' || decisionKind === 'sell')
+    const baseIds = (decisionKind === 'destroy')
         ? (Array.isArray(record && record.handCards) ? record.handCards : [])
         : (Array.isArray(record && record.usableCardIds) ? record.usableCardIds : []);
     const ids = [];
@@ -144,7 +142,7 @@ function buildCardTeacherCandidates(record, decisionKind, selectedCardId) {
         candidates.push({
             actionType: decisionKind === 'destroy'
                 ? 'destroy_hand_card'
-                : (decisionKind === 'keep' ? 'use_card' : (decisionKind === 'sell' ? 'place' : 'use_card')),
+                : (decisionKind === 'keep' ? 'use_card' : 'use_card'),
             decisionKind,
             cardId,
             isSelected: cardId === selectedCardId
@@ -157,7 +155,7 @@ function buildTeacherCandidates(record, decisionKind, selectedCardId) {
     if (decisionKind === 'place') {
         return buildPlaceTeacherCandidates(record);
     }
-    if (decisionKind === 'use' || decisionKind === 'destroy' || decisionKind === 'sell' || decisionKind === 'keep') {
+    if (decisionKind === 'use' || decisionKind === 'destroy' || decisionKind === 'keep') {
         const traceCandidates = buildTeacherCandidatesFromSelectionTrace(record, decisionKind);
         if (traceCandidates.length > 0) return traceCandidates;
         return buildCardTeacherCandidates(record, decisionKind, selectedCardId);
@@ -172,10 +170,6 @@ function buildSelectedActionKey(record, decisionKind, selectedCardId) {
     if (decisionKind === 'place') {
         if (!Number.isInteger(record && record.row) || !Number.isInteger(record && record.col)) return null;
         return `place:${Number(record.row)}:${Number(record.col)}`;
-    }
-    if (decisionKind === 'sell') {
-        if (!selectedCardId) return null;
-        return `sell:${selectedCardId}`;
     }
     if (decisionKind === 'use') {
         if (!selectedCardId) return null;
@@ -223,7 +217,6 @@ function toTeacherSolutionRecord(record, options) {
             col: Number.isInteger(record && record.col) ? Number(record.col) : null,
             useCardId: normalizeCardId(record && record.useCardId),
             destroyCardId: normalizeCardId(record && record.destroyCardId),
-            sellCardId: normalizeCardId(record && record.sellCardId),
             pendingSelection: record && record.pendingSelection && typeof record.pendingSelection === 'object'
                 ? cloneJsonRecord(record.pendingSelection)
                 : null

@@ -38,6 +38,20 @@ describe('UI stone rendering', () => {
     global.cardState = { markers: [], pendingEffectByPlayer: { black: null, white: null } };
   });
 
+  test('static disc CSS avoids transform layer promotion until an animation class is active', () => {
+    const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
+    const animationCss = fs.readFileSync(path.join(__dirname, '..', 'styles-animations.css'), 'utf8');
+    const baseDiscBlock = boardCss.match(/\.disc\s*\{[^{}]*\}/);
+
+    assert.ok(baseDiscBlock, 'base .disc block should exist');
+    assert.ok(!/will-change:\s*transform;/.test(baseDiscBlock[0]), 'base .disc should not keep will-change: transform');
+    assert.ok(
+      /\.disc\.flip,\s*[\r\n\s]*\.disc\.destroy-fade,\s*[\r\n\s]*\.disc\.hyperactive-moving\s*\{[\s\S]*?backface-visibility:\s*hidden;[\s\S]*?transform-style:\s*preserve-3d;/.test(animationCss),
+      'animated disc states should keep the 3D/backface settings'
+    );
+    assert.ok(/\.disc\.flip\s*\{[\s\S]*?will-change:\s*transform,\s*filter;/.test(animationCss), 'flip animation should opt in to transform layer promotion');
+  });
+
   test('setDiscStoneImage helper creates the disc skeleton and sets black base render state', () => {
     const boardRenderer = require('../ui/board-renderer');
     document.documentElement.classList.add('stone-base-images-ready');
@@ -144,6 +158,7 @@ describe('UI stone rendering', () => {
     gameState.board[1][1] = BLACK;
     gameState.board[1][2] = BLACK;
     gameState.board[1][3] = BLACK;
+    gameState.board[1][4] = BLACK;
 
     cardState.markers = [
       { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'DRAGON', remainingOwnerTurns: 10 } },
@@ -158,7 +173,8 @@ describe('UI stone rendering', () => {
       { id: 10, kind: 'specialStone', row: 1, col: 0, owner: 'black', data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 4, flipEvadeRemaining: 1, destroyEvadeRemaining: 1 } },
       { id: 11, kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'PROTECTED', remainingOwnerTurns: 2, flipEvadeRemaining: 0 } },
       { id: 12, kind: 'specialStone', row: 1, col: 2, owner: 'black', data: { type: 'REGEN', regenRemaining: 3 } },
-      { id: 13, kind: 'specialStone', row: 1, col: 3, owner: 'black', data: { type: 'PERMA_PROTECTED', strongWillPromotionOwnerTurnStarts: 4, strongWillPromotionThreshold: 10 } }
+      { id: 13, kind: 'specialStone', row: 1, col: 3, owner: 'black', data: { type: 'PERMA_PROTECTED', strongWillPromotionOwnerTurnStarts: 4, strongWillPromotionThreshold: 10 } },
+      { id: 14, kind: 'specialStone', row: 1, col: 4, owner: 'black', data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3, destroyEvadeRemaining: 1 } }
     ];
 
     const diffRenderer = require('../ui/diff-renderer');
@@ -199,6 +215,10 @@ describe('UI stone rendering', () => {
     const strongWillDisc = boardEl.querySelector('.cell[data-row="1"][data-col="3"] .disc');
     assert.strictEqual(strongWillDisc.querySelector('.countdown-timer').textContent, '6');
     assert.strictEqual(strongWillDisc.querySelector('.special-timer'), null);
+
+    const extremeDisc = boardEl.querySelector('.cell[data-row="1"][data-col="4"] .disc');
+    assert.strictEqual(extremeDisc.querySelector('.flip-evade-timer').textContent, '3');
+    assert.strictEqual(extremeDisc.querySelector('.destroy-evade-timer').textContent, '1');
   });
 
   test('diff-renderer shows bomb countdown for unified TIME_BOMB markers', () => {
@@ -233,6 +253,113 @@ describe('UI stone rendering', () => {
     assert.ok(timer, 'expected time bomb countdown timer');
     assert.strictEqual(timer.textContent, '3');
     assert.strictEqual(disc.querySelector('.special-timer'), null);
+  });
+
+  test('diff-renderer keeps living will aura as an overlay on normal and special stones', () => {
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    gameState.board[2][2] = BLACK;
+    gameState.board[2][3] = BLACK;
+    cardState.markers = [
+      {
+        id: 21,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: { type: 'LIVING_WILL', baseline: { owner: 'black', value: BLACK, markers: [] } }
+      },
+      {
+        id: 22,
+        kind: 'specialStone',
+        row: 2,
+        col: 3,
+        owner: 'black',
+        data: { type: 'WORK', remainingOwnerTurns: 4 }
+      },
+      {
+        id: 23,
+        kind: 'specialStone',
+        row: 2,
+        col: 3,
+        owner: 'black',
+        data: { type: 'LIVING_WILL', baseline: { owner: 'black', value: BLACK, markers: [] } }
+      }
+    ];
+
+    const diffRenderer = require('../ui/diff-renderer');
+    diffRenderer.renderBoardDiff(boardEl);
+
+    const normalDisc = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .disc');
+    assert.ok(normalDisc.classList.contains('living-will-aura'));
+    assert.strictEqual(normalDisc.dataset.renderMode, 'base-only');
+
+    const workDisc = boardEl.querySelector('.cell[data-row="2"][data-col="3"] .disc');
+    assert.ok(workDisc.classList.contains('living-will-aura'));
+    assert.strictEqual(workDisc.querySelector('.work-timer').textContent, '4');
+  });
+
+  test('board-renderer keeps living will aura as an overlay on special stones', () => {
+    const boardRenderer = require('../ui/board-renderer');
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    gameState.board[3][3] = BLACK;
+    cardState.markers = [
+      {
+        id: 31,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'WORK', remainingOwnerTurns: 4 }
+      },
+      {
+        id: 32,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'LIVING_WILL', baseline: { owner: 'black', value: BLACK, markers: [] } }
+      }
+    ];
+
+    boardRenderer.renderBoardFull();
+
+    const disc = boardEl.querySelector('.cell[data-row="3"][data-col="3"] .disc');
+    assert.ok(disc.classList.contains('living-will-aura'));
+    assert.strictEqual(disc.querySelector('.work-timer').textContent, '4');
+  });
+
+  test('diff-renderer renders seed overlay and countdown on empty cells', () => {
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    cardState.markers = [{
+      id: 101,
+      kind: 'specialStone',
+      row: 2,
+      col: 3,
+      owner: 'black',
+      data: { type: 'SEED', remainingOwnerTurns: 5 }
+    }];
+
+    const diffRenderer = require('../ui/diff-renderer');
+    diffRenderer.renderBoardDiff(boardEl);
+
+    const cell = boardEl.querySelector('.cell[data-row="2"][data-col="3"]');
+    assert.ok(cell, 'expected seeded cell');
+    assert.ok(cell.classList.contains('seeded-cell'));
+    assert.strictEqual(cell.querySelector('.disc'), null);
+    assert.ok(cell.querySelector('.seed-mark'));
+    assert.strictEqual(cell.querySelector('.seed-turn.countdown-timer').textContent, '5');
   });
 
   test('diff-renderer shows destroy evade remaining for will hunter king', () => {

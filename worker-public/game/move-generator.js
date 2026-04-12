@@ -129,6 +129,9 @@ function getExpansionCellsForMoveGeneration(state) {
     if (!expansion) return [];
 
     const cells = [];
+    const boardBounds = (MoveGeneratorSharedBoardUtils && typeof MoveGeneratorSharedBoardUtils.resolveBoardBounds === 'function')
+        ? MoveGeneratorSharedBoardUtils.resolveBoardBounds(state && state.board)
+        : null;
     const pushCell = (cellLike) => {
         if (!cellLike || typeof cellLike !== 'object') return;
         const side = cellLike.side;
@@ -136,11 +139,13 @@ function getExpansionCellsForMoveGeneration(state) {
         let col = Number.isInteger(cellLike.col) ? cellLike.col : null;
         if (!Number.isInteger(col)) {
             if (side === 'left') col = -1;
-            else if (side === 'right') col = 8;
+            else if (side === 'right' && boardBounds) col = boardBounds.maxCol + 1;
         }
         if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-        if (row < -1 || row > 8 || col < -1 || col > 8) return;
-        if (row >= 0 && row < 8 && col >= 0 && col < 8) return;
+        if (boardBounds) {
+            if (row < -1 || row > (boardBounds.maxRow + 1) || col < -1 || col > (boardBounds.maxCol + 1)) return;
+            if (row >= boardBounds.minRow && row <= boardBounds.maxRow && col >= boardBounds.minCol && col <= boardBounds.maxCol) return;
+        }
         if (cells.some((cell) => cell && cell.row === row && cell.col === col)) return;
         cells.push({ row, col, side, owner: Number(cellLike.owner) });
     };
@@ -159,7 +164,18 @@ function getExpansionCellsForMoveGeneration(state) {
 
 function setCellValueForMoveGeneration(state, row, col, value) {
     if (!state || !Array.isArray(state.board)) return false;
-    if (Number.isInteger(row) && row >= 0 && row < 8 && Number.isInteger(col) && col >= 0 && col < 8) {
+    const boardBounds = (MoveGeneratorSharedBoardUtils && typeof MoveGeneratorSharedBoardUtils.resolveBoardBounds === 'function')
+        ? MoveGeneratorSharedBoardUtils.resolveBoardBounds(state.board)
+        : null;
+    if (
+        boardBounds &&
+        Number.isInteger(row) &&
+        Number.isInteger(col) &&
+        row >= boardBounds.minRow &&
+        row <= boardBounds.maxRow &&
+        col >= boardBounds.minCol &&
+        col <= boardBounds.maxCol
+    ) {
         state.board[row][col] = value;
         return true;
     }
@@ -181,7 +197,7 @@ function setCellValueForMoveGeneration(state, row, col, value) {
         const cellRow = Number(cell.row);
         const cellCol = Number.isInteger(cell.col)
             ? cell.col
-            : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : null));
+            : (cell.side === 'left' ? -1 : (cell.side === 'right' && boardBounds ? boardBounds.maxCol + 1 : null));
         if (!Number.isInteger(cellRow) || !Number.isInteger(cellCol)) continue;
         if (cellRow !== row || cellCol !== col) continue;
         cells[i] = { ...cell, owner: Number(value) };
@@ -254,9 +270,11 @@ function generateTabooReverseMoves(player, legal) {
         moveMap.set(key, { row, col, flips, effectUsed, player });
     };
 
-    for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-            if (gameState.board[r][c] !== EMPTY) continue;
+    for (let r = 0; r < gameState.board.length; r++) {
+        const boardRow = gameState.board[r];
+        if (!Array.isArray(boardRow)) continue;
+        for (let c = 0; c < boardRow.length; c++) {
+            if (boardRow[c] !== EMPTY) continue;
             upsertMoveIfTabooValid(r, c);
         }
     }
@@ -276,9 +294,11 @@ function generateTabooReverseMoves(player, legal) {
 function generateFreePlacementMoves(player, protection, perma, effectType) {
     const effectUsed = effectType || 'FREE_PLACEMENT';
     const moves = [];
-    for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-            if (gameState.board[r][c] !== EMPTY) continue;
+    for (let r = 0; r < gameState.board.length; r++) {
+        const boardRow = gameState.board[r];
+        if (!Array.isArray(boardRow)) continue;
+        for (let c = 0; c < boardRow.length; c++) {
+            if (boardRow[c] !== EMPTY) continue;
             if (typeof CardLogic !== 'undefined' && typeof CardLogic.isBlockedCell === 'function' && typeof cardState !== 'undefined') {
                 if (CardLogic.isBlockedCell(cardState, r, c, gameState)) continue;
             }
@@ -311,15 +331,16 @@ function generateSwapMoves(player, legal, protection, perma) {
 
     const deepCloneState = (s) => (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') ? globalThis.structuredClone(s) : JSON.parse(JSON.stringify(s));
 
-    for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-            const cellVal = gameState.board[r][c];
+    for (let r = 0; r < gameState.board.length; r++) {
+        const boardRow = gameState.board[r];
+        if (!Array.isArray(boardRow)) continue;
+        for (let c = 0; c < boardRow.length; c++) {
+            const cellVal = boardRow[c];
             const key = r + ',' + c;
 
             if (cellVal === -player && !protectedCells.has(key)) {
                 const hasSpecialOrBomb = markers.some(m => (m.row === r && m.col === c) && isSpecialOrBombMarkerForMoveGeneration(m));
                 if (hasSpecialOrBomb) continue;
-                // Avoid mutating the real game state: work on a shallow clone when computing hypothetical flips
                 const clonedState = deepCloneState(gameState);
                 setCellValueForMoveGeneration(clonedState, r, c, EMPTY);
                 const swapFlips = getFlips(clonedState, r, c, player, protection, perma);

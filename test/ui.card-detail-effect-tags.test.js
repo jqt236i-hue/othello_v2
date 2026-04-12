@@ -15,7 +15,6 @@ describe('card detail effect tags', () => {
           <button id="use-card-btn">使用</button>
           <button id="toggle-card-detail-btn">詳細</button>
           <button id="pass-btn">パス</button>
-          <button id="sell-card-btn" style="display:none;">売却</button>
           <button id="cancel-card-btn" style="display:none;">キャンセル</button>
           <div id="use-card-reason"></div>
         </div>
@@ -289,7 +288,7 @@ describe('card detail effect tags', () => {
       name: '救済の意志',
       type: 'SALVATION_WILL',
       cost: 17,
-      desc: '直前の相手ターンで破壊された自分の通常石をすべてランダムな空きマスへ配置する。対象0枚の時は使用不可。特殊石は対象外。各復活石は、そのマスを起点に通常の挟み反転を行う。'
+      desc: '直前の相手ターンで破壊された全ての石を自分の通常石としてランダムな空きマスへ配置する。対象0枚の時は使用不可。対象は自分・相手、通常石・特殊石を問わない。各復活石は、そのマスを起点に通常の挟み反転を行う。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -303,7 +302,7 @@ describe('card detail effect tags', () => {
     expect(stateEl).not.toBeNull();
     expect(stateEl.textContent).toBe('3個救済可能');
     expect(stateEl.style.display).toBe('block');
-    expect(document.getElementById('card-detail-desc').textContent).toContain('直前の相手ターンで破壊された自分の通常石');
+    expect(document.getElementById('card-detail-desc').textContent).toContain('直前の相手ターンで破壊された全ての石');
   });
 
   test('SALVATION_WILL detail panel shows impossible state when nothing can be salvaged', () => {
@@ -314,7 +313,7 @@ describe('card detail effect tags', () => {
       name: '救済の意志',
       type: 'SALVATION_WILL',
       cost: 17,
-      desc: '直前の相手ターンで破壊された自分の通常石をすべてランダムな空きマスへ配置する。対象0枚の時は使用不可。特殊石は対象外。各復活石は、そのマスを起点に通常の挟み反転を行う。'
+      desc: '直前の相手ターンで破壊された全ての石を自分の通常石としてランダムな空きマスへ配置する。対象0枚の時は使用不可。対象は自分・相手、通常石・特殊石を問わない。各復活石は、そのマスを起点に通常の挟み反転を行う。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -328,6 +327,43 @@ describe('card detail effect tags', () => {
     expect(stateEl).not.toBeNull();
     expect(stateEl.textContent).toBe('救済不可能');
     expect(stateEl.style.display).toBe('block');
+  });
+
+  test('RIBO_WILL detail panel shows effect summary and unlock note separately', () => {
+    require('../cards/card-interaction.js');
+
+    const riboSummary = '布石を30得る。その後9ターンの間4返済。足りない場合は自石2個を消滅させる。';
+    const cardDef = {
+      id: 'ribo_01',
+      name: 'リボ払いの意志',
+      type: 'RIBO_WILL',
+      cost: 0,
+      desc: riboSummary
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.cardState.turnIndex = 18;
+    global.CardLogic.getCardDef = () => cardDef;
+
+    window.updateCardDetailPanel();
+
+    expect(document.getElementById('card-detail-desc').textContent).toBe(riboSummary);
+
+    const stateEl = document.getElementById('card-detail-live-state');
+    expect(stateEl).not.toBeNull();
+    expect(stateEl.textContent).toBe('18手後使用可能');
+    expect(stateEl.style.display).toBe('block');
+
+    const detailMoreEl = document.getElementById('card-detail-more');
+    expect(detailMoreEl.textContent).toContain('自ターン開始ごとに4布石を返済する');
+    expect(detailMoreEl.textContent).toContain('ランダム2個消滅');
+
+    global.cardState.turnIndex = 19;
+    window.updateCardDetailPanel();
+
+    expect(document.getElementById('card-detail-live-state').style.display).toBe('none');
+    expect(document.getElementById('card-detail-more').textContent).toContain('自ターン開始ごとに4布石を返済する');
   });
 
   test('EQUALITY_WILL detail panel shows current board counts as live state', () => {

@@ -2,11 +2,11 @@ const CardLogic = require('../game/logic/cards');
 const BREEDING_OWNER_TURNS = 5;
 
 describe('BREEDING_WILL frontier propagation', () => {
-  function makeState() {
+  function makeState(rows = 8, cols = rows) {
     const prng = { shuffle: (arr) => arr, random: () => 0.5 };
     const cardState = CardLogic.createCardState(prng);
     const gameState = {
-      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      board: Array.from({ length: rows }, () => Array(cols).fill(0)),
       currentPlayer: 1
     };
     return { cardState, gameState };
@@ -158,5 +158,34 @@ describe('BREEDING_WILL frontier propagation', () => {
     expect(immediate.spawned).toHaveLength(1);
     expect(immediate.spawned[0]).toMatchObject({ row: 3, col: 0, anchorRow: 3, anchorCol: -1 });
     expect(gameState.board[3][0]).toBe(1);
+  });
+
+  test('10x10 right expansion breeding anchor can spawn into adjacent main-board cell', () => {
+    const { cardState, gameState } = makeState(10, 10);
+    const prng = { random: () => 0.0 };
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: 0,
+      usedByPlayer: { black: false, white: false },
+      cells: [{ side: 'right', row: 3, col: 10, owner: 1 }]
+    };
+    gameState.board[2][9] = -1;
+    gameState.board[4][9] = -1;
+    cardState.markers.push({
+      id: 302,
+      kind: 'specialStone',
+      row: 3,
+      col: 10,
+      owner: 'black',
+      data: { type: 'BREEDING', remainingOwnerTurns: BREEDING_OWNER_TURNS }
+    });
+
+    const immediate = CardLogic.processBreedingEffectsAtAnchor(cardState, gameState, 'black', 3, 10, prng);
+
+    expect(immediate.spawned).toHaveLength(1);
+    expect(immediate.spawned[0]).toMatchObject({ row: 3, col: 9, anchorRow: 3, anchorCol: 10 });
+    expect(gameState.board[3][9]).toBe(1);
   });
 });

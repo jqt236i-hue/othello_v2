@@ -1,36 +1,78 @@
 /* ===== Media Queries for Mobile/Tablet Responsiveness ===== */
 
 @media (max-width: 56.25em) {
+    #gachaOpenBtn,
+    #leaderboardOpenBtn,
+    #deckBuilderOpenBtn,
     #storyBtn {
         left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
+        min-width: calc(80px * var(--layout-stage-scale));
+        padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+        font-size: calc(11px * var(--layout-stage-scale));
+    }
+
+    #gachaOpenBtn {
+        bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(200px * var(--layout-stage-scale)));
+    }
+
+    #leaderboardOpenBtn {
+        bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(162px * var(--layout-stage-scale)));
+    }
+
+    #deckBuilderOpenBtn {
         bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(124px * var(--layout-stage-scale)));
-        min-width: calc(80px * var(--layout-stage-scale));
-        padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
-        font-size: calc(11px * var(--layout-stage-scale));
     }
 
-    #tutorialBtn {
-        left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
+    #storyBtn {
         bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(86px * var(--layout-stage-scale)));
-        min-width: calc(80px * var(--layout-stage-scale));
-        padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
-        font-size: calc(11px * var(--layout-stage-scale));
-    }
-
-    #debugModeBtn {
-        left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(48px * var(--layout-stage-scale)));
-        min-width: calc(74px * var(--layout-stage-scale));
-        padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
-        font-size: calc(11px * var(--layout-stage-scale));
     }
 
     #rulesHelpBtn {
         left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        bottom: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
+        bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(48px * var(--layout-stage-scale)));
         min-width: calc(56px * var(--layout-stage-scale));
         padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
         font-size: calc(11px * var(--layout-stage-scale));
+    }
+
+    #handSkinBtn {
+        left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
+        bottom: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
+        min-width: calc(56px * var(--layout-stage-scale));
+        min-height: calc(40px * var(--layout-stage-scale));
+        padding: calc(6px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
+        font-size: calc(10px * var(--layout-stage-scale));
+    }
+
+    #handSkinPanel {
+        left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
+        bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(48px * var(--layout-stage-scale)));
+        width: min(calc(240px * var(--layout-stage-scale)), calc(100vw - calc(20px * var(--layout-stage-scale))));
+        padding: calc(10px * var(--layout-stage-scale));
+    }
+
+    #gachaActionRow {
+        flex-direction: column;
+    }
+
+    .gacha-reveal-viewport {
+        width: min(100vw, calc(640px * var(--layout-stage-scale)));
+        min-height: min(100dvh, calc(680px * var(--layout-stage-scale)));
+        padding: calc(18px * var(--layout-stage-scale));
+    }
+
+    #gachaRevealSkipBtn {
+        top: calc(12px * var(--layout-stage-scale));
+        right: calc(12px * var(--layout-stage-scale));
+    }
+
+    .gacha-reveal-hero {
+        width: min(calc(320px * var(--layout-stage-scale)), 78vw);
+    }
+
+    .gacha-reveal-grid {
+        width: min(92vw, calc(520px * var(--layout-stage-scale)));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     #rules-help-panel {
@@ -189,8 +231,7 @@ html.layout-profile-phone-portrait .player-area-bottom {
 }
 
 html.layout-profile-phone-portrait #board {
-    width: min(74vw, calc(420px * var(--layout-stage-scale)), 47dvh);
-    height: min(74vw, calc(420px * var(--layout-stage-scale)), 47dvh);
+    --board-max-size: min(74vw, calc(420px * var(--layout-stage-scale)), 47dvh);
     max-width: none;
     max-height: none;
 }
@@ -266,12 +307,17 @@ html.layout-profile-phone-portrait #rulesHelpBtn {
     bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(44px * var(--layout-stage-scale)));
 }
 
-html.layout-profile-phone-portrait #tutorialBtn {
+html.layout-profile-phone-portrait #leaderboardOpenBtn {
+    left: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-left));
+    bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(176px * var(--layout-stage-scale)));
+}
+
+html.layout-profile-phone-portrait #deckBuilderOpenBtn {
     left: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-left));
     bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(132px * var(--layout-stage-scale)));
 }
 
-html.layout-profile-phone-portrait #debugModeBtn {
+html.layout-profile-phone-portrait #storyBtn {
     left: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-left));
     bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(88px * var(--layout-stage-scale)));
 }
@@ -326,8 +372,8 @@ html.layout-profile-phone-portrait #hand-black .card-item {
 
 html.layout-profile-phone-portrait #hand-black .card-item .card-cost-badge {
     font-size: calc(10px * var(--layout-stage-scale));
-    bottom: calc(4px * var(--layout-stage-scale));
-    right: calc(4px * var(--layout-stage-scale));
+    top: calc(4px * var(--layout-stage-scale));
+    left: calc(4px * var(--layout-stage-scale));
     padding: calc(2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
 }
 
@@ -336,7 +382,6 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row {
     right: calc(4px * var(--layout-stage-scale));
 }
 
-html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-cost-badge,
 html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-type-badge {
     font-size: calc(10px * var(--layout-stage-scale));
     padding: calc(2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
@@ -353,8 +398,7 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
     }
 
     #board {
-        width: min(48vmin, calc(304px * var(--layout-stage-scale)));
-        height: min(48vmin, calc(304px * var(--layout-stage-scale)));
+        --board-max-size: min(48vmin, calc(304px * var(--layout-stage-scale)));
     }
 
     #side-panel {
@@ -509,8 +553,8 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
 
     #hand-black .card-item .card-cost-badge {
         font-size: calc(10px * var(--layout-stage-scale));
-        bottom: calc(4px * var(--layout-stage-scale));
-        right: calc(4px * var(--layout-stage-scale));
+        top: calc(4px * var(--layout-stage-scale));
+        left: calc(4px * var(--layout-stage-scale));
         padding: calc(2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
     }
 
@@ -519,7 +563,6 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
         right: calc(4px * var(--layout-stage-scale));
     }
 
-    #hand-black .card-item .card-badge-row .card-cost-badge,
     #hand-black .card-item .card-badge-row .card-type-badge {
         font-size: calc(10px * var(--layout-stage-scale));
         padding: calc(2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
@@ -537,12 +580,7 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
 
 @media (max-width: 40.625em) {
     #board {
-        grid-template-columns: repeat(8, 1fr);
-        grid-template-rows: repeat(8, 1fr);
-        width: 90vw;
-        height: 90vw;
-        max-width: calc(400px * var(--layout-stage-scale));
-        max-height: calc(400px * var(--layout-stage-scale));
+        --board-max-size: min(90vw, calc(400px * var(--layout-stage-scale)));
     }
 
     .cell {
@@ -557,12 +595,17 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
 }
 
 @media (max-width: 26.25em) {
+    .result-overlay {
+        padding: calc(10px * var(--layout-stage-scale));
+    }
+
     .result-panel {
-        width: min(90vw, calc(340px * var(--layout-stage-scale)));
+        width: min(92vw, calc(360px * var(--layout-stage-scale)));
         min-width: 0;
-        max-width: 90vw;
-        padding: calc(16px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
-        transform: scale(1.3);
+        max-width: 92vw;
+        max-height: min(88dvh, calc(700px * var(--layout-stage-scale)));
+        padding: calc(18px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale));
+        overflow-y: auto;
     }
 
     .result-title {
@@ -570,25 +613,71 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
         letter-spacing: calc(1.4px * var(--layout-stage-scale));
     }
 
+    .result-title::before {
+        font-size: calc(9px * var(--layout-stage-scale));
+        letter-spacing: calc(2.2px * var(--layout-stage-scale));
+    }
+
+    .result-counts {
+        padding: calc(6px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale));
+        font-size: calc(13px * var(--layout-stage-scale));
+        margin-bottom: calc(12px * var(--layout-stage-scale));
+    }
+
+    .result-total-score {
+        padding: calc(12px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
+    }
+
+    .result-total-score-value {
+        font-size: clamp(40px, 12vw, 48px);
+    }
+
+    .result-score-breakdown-row,
     .result-stat-row {
-        padding: calc(6px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
+        padding: calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
         gap: calc(8px * var(--layout-stage-scale));
     }
 
+    .result-score-breakdown-value {
+        font-size: calc(15px * var(--layout-stage-scale));
+    }
+
+    .result-btn-row {
+        gap: calc(10px * var(--layout-stage-scale));
+    }
+
     .premium-btn {
-        min-width: calc(104px * var(--layout-stage-scale));
-        padding: calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+        min-width: 0;
+        padding: calc(9px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
         font-size: calc(13px * var(--layout-stage-scale));
+    }
+
+    .story-result-body {
+        grid-template-columns: 1fr;
+        gap: calc(12px * var(--layout-stage-scale));
+    }
+
+    .story-result-portrait-wrap {
+        min-height: calc(132px * var(--layout-stage-scale));
+    }
+
+    .story-result-panel .result-counts,
+    .story-result-panel .result-score-meta {
+        width: 100%;
+    }
+
+    .story-result-panel .result-counts {
+        justify-content: center;
     }
 
     .result-dialogues .character-name {
         min-width: calc(72px * var(--layout-stage-scale));
-        font-size: calc(13px * var(--layout-stage-scale));
+        font-size: calc(12.5px * var(--layout-stage-scale));
     }
 
     .result-dialogues .dialogue-text {
         font-size: calc(12.5px * var(--layout-stage-scale));
-        line-height: 1.4;
+        line-height: 1.45;
     }
 }
 
@@ -614,8 +703,7 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
     }
 
     #board {
-        width: min(60vmin, calc(460px * var(--layout-stage-scale)));
-        height: min(60vmin, calc(460px * var(--layout-stage-scale)));
+        --board-max-size: min(60vmin, calc(460px * var(--layout-stage-scale)));
     }
 
     #side-panel {
@@ -718,10 +806,7 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
 /* 16:10 and narrower: start tightening side panels before 4:3 */
 @media (max-aspect-ratio: 16/10) {
     #board {
-        width: 66vmin;
-        height: 66vmin;
-        max-width: calc(490px * var(--layout-stage-scale));
-        max-height: calc(490px * var(--layout-stage-scale));
+        --board-max-size: min(66vmin, calc(490px * var(--layout-stage-scale)));
     }
 
     #side-panel {
@@ -785,10 +870,7 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
     }
 
     #board {
-        width: 64vmin;
-        height: 64vmin;
-        max-width: calc(475px * var(--layout-stage-scale));
-        max-height: calc(475px * var(--layout-stage-scale));
+        --board-max-size: min(64vmin, calc(475px * var(--layout-stage-scale)));
     }
 
     #side-panel {
@@ -862,10 +944,7 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
     }
 
     #board {
-        width: 62vmin;
-        height: 62vmin;
-        max-width: calc(460px * var(--layout-stage-scale));
-        max-height: calc(460px * var(--layout-stage-scale));
+        --board-max-size: min(62vmin, calc(460px * var(--layout-stage-scale)));
     }
 
     #side-panel {
@@ -934,10 +1013,7 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
 /* tighter fallback for classic 5:4 monitors */
 @media (max-aspect-ratio: 5/4) {
     #board {
-        width: 58vmin;
-        height: 58vmin;
-        max-width: calc(420px * var(--layout-stage-scale));
-        max-height: calc(420px * var(--layout-stage-scale));
+        --board-max-size: min(58vmin, calc(420px * var(--layout-stage-scale)));
     }
 
     #log {
@@ -962,10 +1038,7 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
 
 /* forced simulation via URL query: ?simAspect=16:10 */
 html.sim-aspect-16-10 #board {
-    width: 66vmin;
-    height: 66vmin;
-    max-width: calc(490px * var(--layout-stage-scale));
-    max-height: calc(490px * var(--layout-stage-scale));
+    --board-max-size: min(66vmin, calc(490px * var(--layout-stage-scale)));
 }
 
 html.sim-aspect-16-10 #side-panel {
@@ -1027,10 +1100,7 @@ html.sim-aspect-3-2 #game-container {
 }
 
 html.sim-aspect-3-2 #board {
-    width: 64vmin;
-    height: 64vmin;
-    max-width: calc(475px * var(--layout-stage-scale));
-    max-height: calc(475px * var(--layout-stage-scale));
+    --board-max-size: min(64vmin, calc(475px * var(--layout-stage-scale)));
 }
 
 html.sim-aspect-3-2 #side-panel {
@@ -1102,10 +1172,7 @@ html.sim-aspect-4-3 #game-container {
 }
 
 html.sim-aspect-4-3 #board {
-    width: 62vmin;
-    height: 62vmin;
-    max-width: calc(460px * var(--layout-stage-scale));
-    max-height: calc(460px * var(--layout-stage-scale));
+    --board-max-size: min(62vmin, calc(460px * var(--layout-stage-scale)));
 }
 
 html.sim-aspect-4-3 #side-panel {
@@ -1172,10 +1239,7 @@ html.sim-aspect-4-3 #hero-label {
 
 /* forced simulation via URL query: ?simAspect=5:4 */
 html.sim-aspect-5-4 #board {
-    width: 58vmin;
-    height: 58vmin;
-    max-width: calc(420px * var(--layout-stage-scale));
-    max-height: calc(420px * var(--layout-stage-scale));
+    --board-max-size: min(58vmin, calc(420px * var(--layout-stage-scale)));
 }
 
 html.sim-aspect-5-4 #log {
@@ -1228,8 +1292,7 @@ html.sim-aspect-5-4 #hero-character-img {
     }
 
     #board {
-        width: min(56vmin, calc(420px * var(--layout-stage-scale)));
-        height: min(56vmin, calc(420px * var(--layout-stage-scale)));
+        --board-max-size: min(56vmin, calc(420px * var(--layout-stage-scale)));
     }
 
     #side-panel {
@@ -1298,8 +1361,8 @@ html.sim-aspect-5-4 #hero-character-img {
 
     #hand-black .card-item .card-cost-badge {
         font-size: calc(11px * var(--layout-stage-scale));
-        bottom: calc(4px * var(--layout-stage-scale));
-        right: calc(4px * var(--layout-stage-scale));
+        top: calc(4px * var(--layout-stage-scale));
+        left: calc(4px * var(--layout-stage-scale));
         padding: calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
     }
 
@@ -1308,7 +1371,6 @@ html.sim-aspect-5-4 #hero-character-img {
         right: calc(4px * var(--layout-stage-scale));
     }
 
-    #hand-black .card-item .card-badge-row .card-cost-badge,
     #hand-black .card-item .card-badge-row .card-type-badge {
         font-size: calc(11px * var(--layout-stage-scale));
         padding: calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
@@ -1344,8 +1406,7 @@ html.sim-aspect-5-4 #hero-character-img {
     }
 
     html.layout-stage-enabled #board {
-        width: calc(var(--layout-anchor-board-size) * var(--layout-stage-scale) * var(--layout-priority-board-scale));
-        height: calc(var(--layout-anchor-board-size) * var(--layout-stage-scale) * var(--layout-priority-board-scale));
+        --board-max-size: calc(var(--layout-anchor-board-size) * var(--layout-stage-scale) * var(--layout-priority-board-scale));
         max-width: none;
         max-height: none;
     }
@@ -1471,8 +1532,8 @@ html.sim-aspect-5-4 #hero-character-img {
 
     html.layout-stage-enabled #hand-black .card-item .card-cost-badge {
         font-size: var(--layout-size-card-badge-large-font);
-        bottom: var(--layout-size-card-badge-large-offset);
-        right: var(--layout-size-card-badge-large-offset);
+        top: var(--layout-size-card-badge-large-offset);
+        left: var(--layout-size-card-badge-large-offset);
         padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
     }
 
@@ -1481,7 +1542,6 @@ html.sim-aspect-5-4 #hero-character-img {
         right: var(--layout-size-card-badge-large-offset);
     }
 
-    html.layout-stage-enabled #hand-black .card-item .card-badge-row .card-cost-badge,
     html.layout-stage-enabled #hand-black .card-item .card-badge-row .card-type-badge {
         font-size: var(--layout-size-card-badge-large-font);
         padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
@@ -1499,8 +1559,7 @@ html.sim-aspect-5-4 #hero-character-img {
     }
 
     html.layout-stage-enabled #board {
-        width: calc(var(--layout-anchor-board-size) * var(--layout-stage-scale) * var(--layout-priority-board-scale));
-        height: calc(var(--layout-anchor-board-size) * var(--layout-stage-scale) * var(--layout-priority-board-scale));
+        --board-max-size: calc(var(--layout-anchor-board-size) * var(--layout-stage-scale) * var(--layout-priority-board-scale));
         max-width: none;
         max-height: none;
     }
@@ -1617,8 +1676,8 @@ html.sim-aspect-5-4 #hero-character-img {
 
     html.layout-stage-enabled #hand-black .card-item .card-cost-badge {
         font-size: var(--layout-size-card-badge-large-font);
-        bottom: var(--layout-size-card-badge-large-offset);
-        right: var(--layout-size-card-badge-large-offset);
+        top: var(--layout-size-card-badge-large-offset);
+        left: var(--layout-size-card-badge-large-offset);
         padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
     }
 
@@ -1627,7 +1686,6 @@ html.sim-aspect-5-4 #hero-character-img {
         right: var(--layout-size-card-badge-large-offset);
     }
 
-    html.layout-stage-enabled #hand-black .card-item .card-badge-row .card-cost-badge,
     html.layout-stage-enabled #hand-black .card-item .card-badge-row .card-type-badge {
         font-size: var(--layout-size-card-badge-large-font);
         padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
@@ -1635,10 +1693,15 @@ html.sim-aspect-5-4 #hero-character-img {
 
     html.layout-stage-enabled #rulesHelpBtn {
         left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
+        bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + calc(52px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
+    }
+
+    html.layout-stage-enabled #handSkinBtn {
+        left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
         bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + var(--layout-stage-bottom-safe-shift));
     }
 
-    html.layout-stage-enabled #debugModeBtn {
+    html.layout-stage-enabled #handSkinPanel {
         left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
         bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + calc(52px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
     }

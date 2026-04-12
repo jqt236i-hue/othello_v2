@@ -2,13 +2,16 @@
 
 const deepClone = require('./deepClone');
 const SharedBoardUtils = require('../shared/shared-board-utils');
+const GachaHandCatalogShared = require('../shared/gacha-hand-catalog-shared.js');
 
 const PLAYER_KEYS = Object.freeze(['black', 'white']);
 const HIDDEN_HAND_TOKEN_PREFIX = '__hidden_hand__:';
 const HIDDEN_HAND_TOKEN_RE = /^__hidden_hand__:(black|white):(\d+)$/;
 const OPERATION_ID_MAX_LENGTH = 128;
+const HAND_SKIN_ID_MAX_LENGTH = 128;
 const SSE_RESUME_BUFFER_LIMIT = 96;
 const ACCEPTED_OPERATION_HISTORY_LIMIT = 16;
+const NETWORK_PLAYER_NAME_MAX = 7;
 const VERSION_REJECTION_REASONS = Object.freeze({
     AHEAD: 'VERSION_AHEAD',
     BEHIND: 'VERSION_BEHIND',
@@ -46,6 +49,49 @@ function normalizeOperationId(value) {
     const normalized = String(value || '').trim();
     if (!normalized) return '';
     return Array.from(normalized).slice(0, OPERATION_ID_MAX_LENGTH).join('');
+}
+
+function normalizeSeatHandSkinId(value) {
+    const normalized = String(value || '').trim();
+    if (!normalized) return '';
+    const canonical = (GachaHandCatalogShared && typeof GachaHandCatalogShared.normalizeCatalogItemId === 'function')
+        ? GachaHandCatalogShared.normalizeCatalogItemId(normalized)
+        : normalized;
+    return Array.from(canonical).slice(0, HAND_SKIN_ID_MAX_LENGTH).join('');
+}
+
+function normalizeSeatHandSkins(value) {
+    const source = (value && typeof value === 'object') ? value : {};
+    return {
+        black: normalizeSeatHandSkinId(source.black),
+        white: normalizeSeatHandSkinId(source.white)
+    };
+}
+
+function normalizeNetworkPlayerName(value) {
+    const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+    return Array.from(normalized).slice(0, NETWORK_PLAYER_NAME_MAX).join('');
+}
+
+function normalizePublicSeats(value) {
+    const source = (value && typeof value === 'object') ? value : {};
+    return {
+        black: !!source.black,
+        white: !!source.white
+    };
+}
+
+function buildPublicSeatMetadata(value) {
+    const source = (value && typeof value === 'object') ? value : {};
+    const seatNames = (source.seatNames && typeof source.seatNames === 'object') ? source.seatNames : {};
+    return {
+        seats: normalizePublicSeats(source.seats),
+        seatNames: {
+            black: normalizeNetworkPlayerName(seatNames.black),
+            white: normalizeNetworkPlayerName(seatNames.white)
+        },
+        seatHandSkins: normalizeSeatHandSkins(source.seatHandSkins)
+    };
 }
 
 function hasRequiredOperationId(value) {
@@ -286,13 +332,20 @@ function resolveRoomBoardConfig(value) {
 
 function buildPublishResponsePayload(options) {
     const opts = (options && typeof options === 'object') ? options : {};
+    const hasSeats = opts.seats && typeof opts.seats === 'object';
+    const hasSeatNames = opts.seatNames && typeof opts.seatNames === 'object';
+    const hasSeatHandSkins = opts.seatHandSkins && typeof opts.seatHandSkins === 'object';
+    const publicSeatMetadata = (hasSeats || hasSeatNames || hasSeatHandSkins)
+        ? buildPublicSeatMetadata(opts)
+        : null;
     const payload = {
         ok: opts.ok === true,
         roomId: opts.roomId ? String(opts.roomId).trim().toUpperCase() : null,
         stateVersion: normalizeStateVersion(opts.stateVersion),
         snapshot: (opts.snapshot && typeof opts.snapshot === 'object') ? opts.snapshot : null,
-        seats: (opts.seats && typeof opts.seats === 'object') ? opts.seats : null,
-        seatNames: (opts.seatNames && typeof opts.seatNames === 'object') ? opts.seatNames : null,
+        seats: (publicSeatMetadata && hasSeats) ? publicSeatMetadata.seats : null,
+        seatNames: (publicSeatMetadata && hasSeatNames) ? publicSeatMetadata.seatNames : null,
+        seatHandSkins: (publicSeatMetadata && hasSeatHandSkins) ? publicSeatMetadata.seatHandSkins : null,
         roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
         networkDebugEnabled: opts.networkDebugEnabled === true,
         turnTimer: (opts.turnTimer && typeof opts.turnTimer === 'object') ? opts.turnTimer : null,
@@ -731,12 +784,18 @@ module.exports = {
     PLAYER_KEYS,
     OPERATION_ID_MAX_LENGTH,
     SSE_RESUME_BUFFER_LIMIT,
+    NETWORK_PLAYER_NAME_MAX,
     VERSION_REJECTION_REASONS,
     parseSeatKeyOptional,
     normalizePlayerKey,
     getCurrentPlayerKey,
     getOpponentKey,
     normalizeOperationId,
+    normalizeSeatHandSkinId,
+    normalizeSeatHandSkins,
+    normalizeNetworkPlayerName,
+    normalizePublicSeats,
+    buildPublicSeatMetadata,
     hasRequiredOperationId,
     ensureAcceptedOperationsBySeat,
     ensureAcceptedOperationHistoryBySeat,

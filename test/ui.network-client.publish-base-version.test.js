@@ -8,7 +8,7 @@ function jsonResponse(status, data) {
   };
 }
 
-function createSnapshot(stateVersion) {
+function createSnapshot(stateVersion, gameStateOverrides = {}) {
   return {
     stateVersion,
     _meta: {
@@ -19,7 +19,8 @@ function createSnapshot(stateVersion) {
     },
     gameState: {
       currentPlayer: 1,
-      turnNumber: 1
+      turnNumber: 1,
+      ...gameStateOverrides
     },
     cardState: {
       selectedCardId: null,
@@ -953,7 +954,7 @@ describe('NetworkMatchClient queued publish', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  test('createRoom は deckCode を送信し player別 roomDeck を保持する', async () => {
+  test('createRoom は deckCode と roomBoardConfig を送信し部屋メタデータを保持する', async () => {
     let createBody = null;
 
     global.fetch = jest.fn(async (url, init = {}) => {
@@ -981,6 +982,10 @@ describe('NetworkMatchClient queued publish', () => {
             },
             source: 'room'
           },
+          roomBoardConfig: {
+            rows: 7,
+            cols: 9
+          },
           stateVersion: 10,
           snapshot: createSnapshot(10)
         });
@@ -996,13 +1001,21 @@ describe('NetworkMatchClient queued publish', () => {
     const created = await client.createRoom({
       serverUrl: 'http://localhost:8787',
       playerName: 'くろ',
-      deckCode: 'D1C1:test_card*3'
+      deckCode: 'D1C1:test_card*3',
+      roomBoardConfig: {
+        rows: 7,
+        cols: 9
+      }
     });
 
     expect(created.ok).toBe(true);
     expect(createBody).toEqual({
       playerName: 'くろ',
-      deckCode: 'D1C1:test_card*3'
+      deckCode: 'D1C1:test_card*3',
+      roomBoardConfig: {
+        rows: 7,
+        cols: 9
+      }
     });
     expect(client.getRoomDeck()).toEqual({
       mode: 'perPlayer',
@@ -1018,9 +1031,14 @@ describe('NetworkMatchClient queued publish', () => {
       },
       source: 'room'
     });
+    expect(client.getRoomBoardConfig()).toMatchObject({
+      rows: 7,
+      cols: 9,
+      standard8x8: false
+    });
   });
 
-  test('joinRoom は deckCode を送信し player別 roomDeck を保持する', async () => {
+  test('joinRoom は deckCode だけを送り roomBoardConfig は部屋正本を保持する', async () => {
     let joinBody = null;
 
     global.fetch = jest.fn(async (url, init = {}) => {
@@ -1048,6 +1066,10 @@ describe('NetworkMatchClient queued publish', () => {
             },
             source: 'room'
           },
+          roomBoardConfig: {
+            rows: 6,
+            cols: 8
+          },
           stateVersion: 10,
           snapshot: createSnapshot(10)
         });
@@ -1063,7 +1085,11 @@ describe('NetworkMatchClient queued publish', () => {
     const joined = await client.joinRoom('ABC', {
       serverUrl: 'http://localhost:8787',
       playerName: 'しろ',
-      deckCode: 'D1C1:white_card*3'
+      deckCode: 'D1C1:white_card*3',
+      roomBoardConfig: {
+        rows: 4,
+        cols: 4
+      }
     });
 
     expect(joined.ok).toBe(true);
@@ -1085,6 +1111,49 @@ describe('NetworkMatchClient queued publish', () => {
         white: 30
       },
       source: 'room'
+    });
+    expect(client.getRoomBoardConfig()).toMatchObject({
+      rows: 6,
+      cols: 8,
+      standard8x8: false
+    });
+  });
+
+  test('createRoom は roomBoardConfig が無くても snapshot の custom boardConfig を保持する', async () => {
+    global.fetch = jest.fn(async (url) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/create') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'black',
+          seatToken: 'seat-token',
+          stateVersion: 10,
+          snapshot: createSnapshot(10, {
+            boardConfig: { rows: 7, cols: 9, standard8x8: false }
+          })
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({
+      serverUrl: 'http://localhost:8787',
+      playerName: 'くろ'
+    });
+
+    expect(created.ok).toBe(true);
+    expect(client.getRoomBoardConfig()).toMatchObject({
+      rows: 7,
+      cols: 9,
+      standard8x8: false
     });
   });
 

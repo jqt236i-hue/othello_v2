@@ -1,8 +1,0 @@
-{
-  "timestamp": "2026-03-26T11:39:37.745Z",
-  "baseUrl": "http://127.0.0.1:8000",
-  "stage": "done",
-  "ok": true,
-  "roomId": "799",
-  "resultPath": "C:\\Users\\quarr\\Desktop\\othello_v2\\tmp\\playwright-network-verify\\reveal-hand-network-seeded-result.json"
-}

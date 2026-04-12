@@ -13,7 +13,6 @@ describe('pass fail-safe when no legal moves', () => {
         <button id="use-card-btn">使用</button>
         <button id="toggle-card-detail-btn">詳細</button>
         <button id="pass-btn">パス</button>
-        <button id="sell-card-btn" style="display:none;">売却</button>
         <button id="cancel-card-btn" style="display:none;">キャンセル</button>
         <div id="use-card-reason"></div>
       </body></html>

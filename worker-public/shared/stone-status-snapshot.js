@@ -27,6 +27,14 @@
         return null;
     }
 
+    function isOverlayOnlySpecialStoneType(rawType) {
+        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isOverlayOnlySpecialStoneType === 'function') {
+            return SpecialStoneRegistry.isOverlayOnlySpecialStoneType(rawType);
+        }
+        const type = normalizeSpecialStoneType(rawType);
+        return type === 'GUARD' || type === 'INHERITED_HYPERACTIVE' || type === 'LIVING_WILL';
+    }
+
     function getSpecialStoneTimerClass(rawType, fallback) {
         if (SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneTimerClass === 'function') {
             return SpecialStoneRegistry.getSpecialStoneTimerClass(rawType, fallback);
@@ -43,6 +51,10 @@
 
     function isInheritedHyperactiveType(type) {
         return normalizeSpecialStoneType(type) === 'INHERITED_HYPERACTIVE';
+    }
+
+    function isLivingWillType(type) {
+        return normalizeSpecialStoneType(type) === 'LIVING_WILL';
     }
 
     function resolveDisplayTimerValue(typeOrInput, timerValue, regenRemainingValue) {
@@ -121,16 +133,19 @@
         const snapshots = items
             .map((input) => createSpecialStoneStatusSnapshot(input, { mode: 'info' }))
             .filter((snapshot) => !!(snapshot && snapshot.type));
+        const nonOverlaySnapshots = snapshots.filter((snapshot) => !isOverlayOnlySpecialStoneType(snapshot && snapshot.type));
         const primaryInput = options && options.primary
             ? options.primary
             : (items.length > 0 ? items[0] : null);
         const primarySnapshot = primaryInput
             ? createSpecialStoneStatusSnapshot(primaryInput, { mode: 'info' })
             : null;
+        const livingWillAura = !!((options && options.livingWillAura) || snapshots.some((snapshot) => isLivingWillType(snapshot && snapshot.type)));
         const tags = [];
 
         if (options && options.hasGuard) tags.push('守る意志適用中');
-        if (!options || options.includeSpecialStone !== false) tags.push('特殊石');
+        if ((!options || options.includeSpecialStone !== false) && nonOverlaySnapshots.length > 0) tags.push('特殊石');
+        if (livingWillAura) tags.push('生きる意志付与');
         if (primarySnapshot && primarySnapshot.hasGhost) tags.push('幽体');
         if (snapshots.some((snapshot) => snapshot.hasMobility)) tags.push('多動状態');
         if (snapshots.some((snapshot) => snapshot.hasFlipEvade)) tags.push('反転回避');
@@ -151,7 +166,8 @@
             inheritedOwner: null,
             flipEvadeRemaining: null,
             inheritedFlipEvadeRemaining: null,
-            destroyEvadeRemaining: null
+            destroyEvadeRemaining: null,
+            livingWillAura: false
         };
 
         const destroyValues = markers
@@ -172,12 +188,16 @@
             out.inheritedFlipEvadeRemaining = toCounterOrNull(inherited.data && inherited.data.flipEvadeRemaining);
         }
 
+        out.livingWillAura = markers.some((marker) => (
+            marker &&
+            marker.data &&
+            isLivingWillType(marker.data.type)
+        ));
+
         const visualSpecial = markers.find((marker) => {
             const type = normalizeSpecialStoneType(marker && marker.data && marker.data.type);
             if (!type) return false;
-            if (type === 'GUARD') return false;
-            if (type === 'INHERITED_HYPERACTIVE') return false;
-            return true;
+            return !isOverlayOnlySpecialStoneType(type);
         });
         if (visualSpecial) {
             const snapshot = createSpecialStoneStatusSnapshot({

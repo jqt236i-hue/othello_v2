@@ -184,6 +184,11 @@ describe('selfplay policy promotion', () => {
         const candidateValueOnnxMeta = path.join(dir, 'candidate.value.lifecycle.test.onnx.meta.json');
         const targetValueOnnx = path.join(dir, 'policy-value.onnx');
         const targetValueOnnxMeta = path.join(dir, 'policy-value.onnx.meta.json');
+        const quickGatePayloadPath = path.join(dir, 'adoption.quick.lifecycle.test.json');
+        const qualityGatePayloadPath = path.join(dir, 'adoption.quality.lifecycle.test.json');
+        const finalGatePayloadPath = path.join(dir, 'adoption.final.lifecycle.test.json');
+        const onnxGatePayloadPath = path.join(dir, 'adoption.onnx.lifecycle.test.json');
+        const warehouseManifestPath = path.join(dir, 'training-warehouse.lifecycle.test.json');
         const promotedDir = path.join(dir, 'promoted');
         const archiveDir = path.join(dir, 'archive');
         const manifestPath = path.join(promotedDir, 'promotion-manifest.json');
@@ -205,10 +210,58 @@ describe('selfplay policy promotion', () => {
         fs.writeFileSync(candidateValueOnnxMeta, JSON.stringify({ schemaVersion: 'policy_onnx.v1', valueOutputName: 'value' }), 'utf8');
         fs.writeFileSync(targetValueOnnx, 'old-value-onnx', 'utf8');
         fs.writeFileSync(targetValueOnnxMeta, JSON.stringify({ schemaVersion: 'policy_onnx.v1', valueOutputName: 'value', tag: 'old-value' }), 'utf8');
+        fs.writeFileSync(quickGatePayloadPath, JSON.stringify({
+            gateType: 'quick',
+            gateFamily: 'adoption',
+            payloadSchemaVersion: 'policy_gate_result.v1',
+            seedSchedule: {
+                baseSeed: 101,
+                seedCount: 3,
+                seedStride: 1000,
+                scheduledSeeds: [101, 1101, 2101],
+                completedSeeds: [101, 1101, 2101]
+            },
+            decision: {
+                passed: true,
+                seedCount: 3,
+                seedPassCount: 3
+            }
+        }, null, 2), 'utf8');
+        fs.writeFileSync(qualityGatePayloadPath, JSON.stringify({
+            gateType: 'quality',
+            gateFamily: 'quality',
+            payloadSchemaVersion: 'policy_gate_result.v1',
+            decision: {
+                passed: true
+            }
+        }, null, 2), 'utf8');
+        fs.writeFileSync(finalGatePayloadPath, JSON.stringify({
+            gateType: 'final',
+            gateFamily: 'adoption',
+            payloadSchemaVersion: 'policy_gate_result.v1',
+            decision: {
+                passed: true
+            }
+        }, null, 2), 'utf8');
+        fs.writeFileSync(onnxGatePayloadPath, JSON.stringify({
+            gateType: 'onnx',
+            gateFamily: 'onnx',
+            decision: {
+                passed: true
+            }
+        }, null, 2), 'utf8');
+        fs.writeFileSync(warehouseManifestPath, JSON.stringify({
+            schemaVersion: 'training_warehouse_manifest.v1'
+        }, null, 2), 'utf8');
 
         const out = promoteModel({
             adoptionResultPath: adoption,
             candidateModelPath: candidate,
+            quickGatePayloadPath,
+            qualityGatePayloadPath,
+            finalGatePayloadPath,
+            onnxGatePayloadPath,
+            warehouseManifestPath,
             candidateOnnxPath: candidateOnnx,
             candidateOnnxMetaPath: candidateOnnxMeta,
             candidateTargetOnnxPath: candidateTargetOnnx,
@@ -254,6 +307,13 @@ describe('selfplay policy promotion', () => {
         expect(manifest.archive.valueOnnx.archived).toBe(true);
         expect(manifest.champion.modelPath).toBe(championModelPath);
         expect(manifest.challenger.modelPath).toBe(challengerModelPath);
+        expect(manifest.gatePayloads.quick.path).toBe(quickGatePayloadPath);
+        expect(manifest.gatePayloads.quick.seedSchedule.scheduledSeeds).toEqual([101, 1101, 2101]);
+        expect(manifest.gatePayloads.quality.gateType).toBe('quality');
+        expect(manifest.trainingWarehouse).toEqual({
+            path: warehouseManifestPath,
+            exists: true
+        });
 
         fs.rmSync(dir, { recursive: true, force: true });
     });
