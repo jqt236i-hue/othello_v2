@@ -387,6 +387,79 @@ function _getDetailCardEffect(cardDef) {
     return _fallbackDetailCardEffect(cardDef);
 }
 
+function _resolveCardDescriptionTextsForCardUi(cardDef) {
+    if (_cardInteractionEffectsModule && typeof _cardInteractionEffectsModule.resolveCardDescriptionTexts === 'function') {
+        return _cardInteractionEffectsModule.resolveCardDescriptionTexts(cardDef, {
+            resolveChargeMaxText: _resolveChargeMaxText,
+            quickTextMaxLength: 32
+        });
+    }
+
+    const quickText = _cardInteractionEffectsModule && typeof _cardInteractionEffectsModule.getQuickCardEffect === 'function'
+        ? _cardInteractionEffectsModule.getQuickCardEffect(cardDef, { maxLength: 32 })
+        : _getQuickCardEffect(cardDef);
+    const detailText = _cardInteractionEffectsModule && typeof _cardInteractionEffectsModule.getDetailCardEffect === 'function'
+        ? _cardInteractionEffectsModule.getDetailCardEffect(cardDef, _resolveChargeMaxText)
+        : _getDetailCardEffect(cardDef);
+    const distinctDetailText = _cardInteractionEffectsModule && typeof _cardInteractionEffectsModule.resolveNonDuplicateDetailText === 'function'
+        ? _cardInteractionEffectsModule.resolveNonDuplicateDetailText(quickText, detailText)
+        : detailText;
+    return {
+        quickText,
+        detailText,
+        distinctDetailText
+    };
+}
+
+function _buildCardDetailDisplayModel(cardDef, ownerKey) {
+    if (!cardDef) {
+        return {
+            cardName: '-',
+            summaryText: 'カードを選択してください',
+            detailText: '',
+            detailPanelText: '',
+            liveStateText: '',
+            tags: []
+        };
+    }
+
+    const descriptionTexts = _resolveCardDescriptionTextsForCardUi(cardDef);
+    const quickText = String(descriptionTexts && descriptionTexts.quickText ? descriptionTexts.quickText : '');
+    const detailText = String(descriptionTexts && descriptionTexts.detailText ? descriptionTexts.detailText : '');
+    const distinctDetailText = String(descriptionTexts && descriptionTexts.distinctDetailText ? descriptionTexts.distinctDetailText : '');
+
+    return {
+        cardName: cardDef.name || '?',
+        summaryText: _stripCardDetailTagPhrases(quickText) || quickText,
+        detailText,
+        detailPanelText: distinctDetailText || detailText,
+        liveStateText: _getCardDetailLiveStateText(cardDef, ownerKey),
+        tags: _collectCardDetailEffectTags(cardDef, quickText, detailText)
+    };
+}
+
+function _applyCardDetailDisplayModel(nameEl, descEl, detailStateEl, detailMoreEl, detailTagsEl, displayModel) {
+    if (!nameEl || !descEl) return;
+    const model = displayModel || _buildCardDetailDisplayModel(null, null);
+    nameEl.textContent = model.cardName;
+    descEl.textContent = model.summaryText;
+    _renderCardDetailLiveState(detailStateEl, model.liveStateText);
+    if (detailMoreEl) detailMoreEl.textContent = model.detailPanelText;
+    _renderCardDetailEffectTags(detailTagsEl, model.tags);
+}
+
+function _getOverlayCardDescriptionText(cardDef, cardId) {
+    if (cardDef && cardDef.desc) return cardDef.desc;
+    if (_isHiddenHandToken(cardId)) return 'この対戦モードでは詳細は非公開です';
+    if (!cardDef) return '説明なし';
+
+    const descriptionTexts = _resolveCardDescriptionTextsForCardUi(cardDef);
+    return String(
+        (descriptionTexts && (descriptionTexts.detailText || descriptionTexts.quickText))
+        || '説明なし'
+    );
+}
+
 const _NORMAL_STONE_IMAGE_FILE_KEYS = Object.freeze([
     'normal_stone-black.png',
     'normal_stone-white.png',
@@ -1184,9 +1257,7 @@ function _renderHeavenOverlay(playerKey) {
         ? CardLogic.getCardDef(selectedCardId)
         : null;
     refs.detailName.textContent = _getCardDisplayLabel(selectedCardId, selectedDef);
-    refs.detailDesc.textContent = selectedDef && selectedDef.desc
-        ? selectedDef.desc
-        : (_isHiddenHandToken(selectedCardId) ? 'この対戦モードでは詳細は非公開です' : '説明なし');
+    refs.detailDesc.textContent = _getOverlayCardDescriptionText(selectedDef, selectedCardId);
 
     refs.selectBtn.textContent = pendingType === 'CONDEMN_WILL' ? '破壊' : '選択';
     refs.selectBtn.disabled = handFull || !selectedOffer;
@@ -2205,23 +2276,9 @@ function updateCardDetailPanel() {
         }
     }
 
-    if (normalizedSelectedId) {
-        const cardDef = CardLogic.getCardDef(normalizedSelectedId);
-        const quickText = _getQuickCardEffect(cardDef);
-        const detailText = _getDetailCardEffect(cardDef);
-        const tags = _collectCardDetailEffectTags(cardDef, quickText, detailText);
-        nameEl.textContent = cardDef ? cardDef.name : '?';
-        descEl.textContent = _stripCardDetailTagPhrases(quickText) || quickText;
-        _renderCardDetailLiveState(detailStateEl, _getCardDetailLiveStateText(cardDef, selectedOwnerKey));
-        if (detailMoreEl) detailMoreEl.textContent = detailText;
-        _renderCardDetailEffectTags(detailTagsEl, tags);
-    } else {
-        nameEl.textContent = '-';
-        descEl.textContent = 'カードを選択してください';
-        _renderCardDetailLiveState(detailStateEl, '');
-        if (detailMoreEl) detailMoreEl.textContent = '';
-        _renderCardDetailEffectTags(detailTagsEl, []);
-    }
+    const selectedCardDef = normalizedSelectedId ? CardLogic.getCardDef(normalizedSelectedId) : null;
+    const displayModel = _buildCardDetailDisplayModel(selectedCardDef, selectedOwnerKey);
+    _applyCardDetailDisplayModel(nameEl, descEl, detailStateEl, detailMoreEl, detailTagsEl, displayModel);
     if (detailBtn) {
         const canToggle = !!selectedId;
         const detailTabOpen = !!(
@@ -2456,8 +2513,8 @@ function toggleCardDetailExpanded() {
     const cardDef = CardLogic && typeof CardLogic.getCardDef === 'function'
         ? CardLogic.getCardDef(selectedId)
         : null;
-    const detailText = _getDetailCardEffect(cardDef);
-    const body = String(detailText || '').trim() || '詳細説明は準備中です。';
+    const displayModel = _buildCardDetailDisplayModel(cardDef, selectedOwnerKey);
+    const body = String(displayModel.detailPanelText || '').trim() || '詳細説明は準備中です。';
     const title = cardDef && cardDef.name
         ? `${cardDef.name} の詳細効果`
         : '詳細効果';

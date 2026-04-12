@@ -213,11 +213,51 @@
             .trim();
     }
 
-    function fallbackQuickCardEffect(cardDef) {
+    function splitCardDescSentences(text) {
+        const lines = String(text || '')
+            .replace(/\r\n?/g, '\n')
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean);
+        const sentences = [];
+        for (const line of lines) {
+            const chunks = line.match(/[^。！？!?]+[。！？!?]?/g);
+            if (!chunks || chunks.length === 0) {
+                sentences.push(line);
+                continue;
+            }
+            for (const chunk of chunks) {
+                const normalized = chunk.trim();
+                if (normalized) sentences.push(normalized);
+            }
+        }
+        return sentences;
+    }
+
+    function buildCardDescComparisonKey(text) {
+        return normalizeCardDescText(text)
+            .replace(/[\s\u3000]/g, '')
+            .replace(/[。\.、,，:：;；!！?？'"“”‘’\-ー／/（）()\[\]{}「」『』【】<>《》・]/g, '')
+            .toLowerCase();
+    }
+
+    function isCardDescPlaceholderText(text) {
+        const key = buildCardDescComparisonKey(text);
+        if (!key) return true;
+        return key === buildCardDescComparisonKey('効果説明は準備中')
+            || key === buildCardDescComparisonKey('詳細説明は準備中')
+            || key === buildCardDescComparisonKey('効果説明が未登録です');
+    }
+
+    function fallbackQuickCardEffect(cardDef, options) {
         const normalized = normalizeCardDescText(cardDef && cardDef.desc ? cardDef.desc : '');
         if (!normalized) return '効果説明は準備中';
+        const configuredMaxLength = Number(options && options.maxLength);
+        const maxLength = Number.isFinite(configuredMaxLength) && configuredMaxLength > 0
+            ? configuredMaxLength
+            : 32;
         const firstSentence = normalized.split('。').map((s) => s.trim()).filter(Boolean)[0] || normalized;
-        return firstSentence.length > 32 ? `${firstSentence.slice(0, 32)}...` : firstSentence;
+        return firstSentence.length > maxLength ? `${firstSentence.slice(0, maxLength)}...` : firstSentence;
     }
 
     function fallbackDetailCardEffect(cardDef) {
@@ -226,10 +266,46 @@
         return normalized.replace(/。/g, '。\n').trim();
     }
 
-    function getQuickCardEffect(cardDef) {
+    function resolveNonDuplicateDetailText(quickText, detailText) {
+        const quick = String(quickText || '').trim();
+        const detail = String(detailText || '').trim();
+        if (!detail) return '';
+        if (!quick) return detail;
+        if (isCardDescPlaceholderText(detail)) return '';
+
+        const quickKey = buildCardDescComparisonKey(quick);
+        const detailKey = buildCardDescComparisonKey(detail);
+        if (!detailKey) return '';
+        if (!quickKey) return detail;
+        if (detailKey === quickKey) return '';
+
+        const detailSentences = splitCardDescSentences(detail);
+        if (detailSentences.length === 0) return '';
+
+        const keepSentences = [];
+        const seenSentenceKeys = new Set();
+        for (const sentence of detailSentences) {
+            const sentenceKey = buildCardDescComparisonKey(sentence);
+            if (!sentenceKey) continue;
+            const isExactDuplicate = sentenceKey === quickKey;
+            const isContainedDuplicate = sentenceKey.length >= 12
+                && quickKey.length >= 12
+                && (quickKey.includes(sentenceKey) || sentenceKey.includes(quickKey));
+            if (isExactDuplicate || isContainedDuplicate) continue;
+            if (seenSentenceKeys.has(sentenceKey)) continue;
+            seenSentenceKeys.add(sentenceKey);
+            keepSentences.push(sentence);
+        }
+
+        if (keepSentences.length === 0) return '';
+        if (keepSentences.length === detailSentences.length) return detail;
+        return keepSentences.join('\n');
+    }
+
+    function getQuickCardEffect(cardDef, options) {
         if (!cardDef) return 'カードを選択してください';
         if (cardDef.type && quickCardEffectByType[cardDef.type]) return quickCardEffectByType[cardDef.type];
-        return fallbackQuickCardEffect(cardDef);
+        return fallbackQuickCardEffect(cardDef, options);
     }
 
     function getDetailCardEffect(cardDef, resolveChargeMaxText) {
@@ -240,12 +316,34 @@
         return fallbackDetailCardEffect(cardDef);
     }
 
+    function resolveCardDescriptionTexts(cardDef, options) {
+        const quickText = getQuickCardEffect(cardDef, {
+            maxLength: options && options.quickTextMaxLength
+        });
+        const detailText = getDetailCardEffect(
+            cardDef,
+            options && typeof options.resolveChargeMaxText === 'function'
+                ? options.resolveChargeMaxText
+                : undefined
+        );
+        return {
+            quickText,
+            detailText,
+            distinctDetailText: resolveNonDuplicateDetailText(quickText, detailText)
+        };
+    }
+
     return {
         quickCardEffectByType,
         detailCardEffectByType,
         normalizeCardDescText,
+        splitCardDescSentences,
+        buildCardDescComparisonKey,
+        isCardDescPlaceholderText,
         fallbackQuickCardEffect,
         fallbackDetailCardEffect,
+        resolveNonDuplicateDetailText,
+        resolveCardDescriptionTexts,
         getQuickCardEffect,
         getDetailCardEffect
     };

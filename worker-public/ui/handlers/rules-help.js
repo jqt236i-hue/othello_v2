@@ -90,7 +90,20 @@ function _formatHelpText(text) {
     return highlighted.replace(/\n/g, '<br>');
 }
 
+const _rulesHelpCardInteractionEffectsModule = (() => {
+    if (typeof CardInteractionEffects !== 'undefined' && CardInteractionEffects) return CardInteractionEffects;
+    if (typeof window !== 'undefined' && window.CardInteractionEffects) return window.CardInteractionEffects;
+    if (typeof require === 'function') {
+        try { return require('../../cards/card-interaction-effects'); } catch (e) { /* ignore */ }
+        try { return require('../cards/card-interaction-effects'); } catch (e) { /* ignore */ }
+    }
+    return null;
+})();
+
 function _normalizeCardDescText(text) {
+    if (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.normalizeCardDescText === 'function') {
+        return _rulesHelpCardInteractionEffectsModule.normalizeCardDescText(text);
+    }
     return String(text || '')
         .replace(/\s+/g, ' ')
         .replace(/。+/g, '。')
@@ -119,6 +132,9 @@ function _splitHelpSentences(text) {
 }
 
 function _buildHelpComparisonKey(text) {
+    if (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.buildCardDescComparisonKey === 'function') {
+        return _rulesHelpCardInteractionEffectsModule.buildCardDescComparisonKey(text);
+    }
     return _normalizeCardDescText(text)
         .replace(/[\s\u3000]/g, '')
         .replace(/[。\.、,，:：;；!！?？'"“”‘’\-ー／/（）()\[\]{}「」『』【】<>《》・]/g, '')
@@ -134,11 +150,14 @@ function _isHelpPlaceholderText(text) {
 }
 
 function _resolveNonDuplicateDetailText(quickText, detailText) {
+    if (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.resolveNonDuplicateDetailText === 'function') {
+        return _rulesHelpCardInteractionEffectsModule.resolveNonDuplicateDetailText(quickText, detailText);
+    }
+
     const quick = _safeText(quickText, '');
     const detail = _safeText(detailText, '');
     if (!detail) return '';
     if (!quick) return detail;
-    if (_isHelpPlaceholderText(detail)) return '';
 
     const quickKey = _buildHelpComparisonKey(quick);
     const detailKey = _buildHelpComparisonKey(detail);
@@ -146,8 +165,12 @@ function _resolveNonDuplicateDetailText(quickText, detailText) {
     if (!quickKey) return detail;
     if (detailKey === quickKey) return '';
 
-    const detailSentences = _splitHelpSentences(detail);
-    if (detailSentences.length === 0) return '';
+    const detailSentences = String(detail)
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+    if (detailSentences.length === 0) return detail;
 
     const keepSentences = [];
     const seenSentenceKeys = new Set();
@@ -169,16 +192,6 @@ function _resolveNonDuplicateDetailText(quickText, detailText) {
     return keepSentences.join('\n');
 }
 
-const _rulesHelpCardInteractionEffectsModule = (() => {
-    if (typeof CardInteractionEffects !== 'undefined' && CardInteractionEffects) return CardInteractionEffects;
-    if (typeof window !== 'undefined' && window.CardInteractionEffects) return window.CardInteractionEffects;
-    if (typeof require === 'function') {
-        try { return require('../../cards/card-interaction-effects'); } catch (e) { /* ignore */ }
-        try { return require('../cards/card-interaction-effects'); } catch (e) { /* ignore */ }
-    }
-    return null;
-})();
-
 function _fallbackQuickCardEffect(cardDef) {
     const normalized = _normalizeCardDescText(cardDef && cardDef.desc ? cardDef.desc : '');
     if (!normalized) return '効果説明は準備中';
@@ -194,7 +207,7 @@ function _fallbackDetailCardEffect(cardDef) {
 
 function _getQuickCardEffect(cardDef) {
     if (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.getQuickCardEffect === 'function') {
-        return _rulesHelpCardInteractionEffectsModule.getQuickCardEffect(cardDef);
+        return _rulesHelpCardInteractionEffectsModule.getQuickCardEffect(cardDef, { maxLength: 38 });
     }
     return _fallbackQuickCardEffect(cardDef);
 }
@@ -204,6 +217,23 @@ function _getDetailCardEffect(cardDef) {
         return _rulesHelpCardInteractionEffectsModule.getDetailCardEffect(cardDef, () => '99');
     }
     return _fallbackDetailCardEffect(cardDef);
+}
+
+function _resolveCardDescriptionTexts(cardDef) {
+    if (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.resolveCardDescriptionTexts === 'function') {
+        return _rulesHelpCardInteractionEffectsModule.resolveCardDescriptionTexts(cardDef, {
+            resolveChargeMaxText: () => '99',
+            quickTextMaxLength: 38
+        });
+    }
+
+    const quickText = _getQuickCardEffect(cardDef);
+    const detailText = _getDetailCardEffect(cardDef);
+    return {
+        quickText,
+        detailText,
+        distinctDetailText: _resolveNonDuplicateDetailText(quickText, detailText)
+    };
 }
 
 function _getSharedVisualEffectsMap() {
@@ -464,8 +494,9 @@ function setupRulesHelp(rulesHelpBtn, rulesHelpPanel) {
         selectedCardId = card.id;
         renderSelectedCardHeading(card);
         if (cardDescEl) {
-            const quick = _safeText(_getQuickCardEffect(card), card.desc);
-            const detail = _resolveNonDuplicateDetailText(quick, _getDetailCardEffect(card));
+            const descriptionTexts = _resolveCardDescriptionTexts(card);
+            const quick = _safeText(descriptionTexts && descriptionTexts.quickText, card.desc);
+            const detail = _safeText(descriptionTexts && descriptionTexts.distinctDetailText, '');
             cardDescEl.innerHTML = '';
             cardDescEl.appendChild(createCardSection('簡易説明', quick));
             if (detail) {

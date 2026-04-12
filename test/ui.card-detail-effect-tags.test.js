@@ -64,6 +64,7 @@ describe('card detail effect tags', () => {
   });
 
   afterEach(() => {
+    delete global.CardInteractionEffects;
     delete global.window;
     delete global.document;
   });
@@ -551,5 +552,38 @@ describe('card detail effect tags', () => {
     expect(detailBtn.textContent).toBe('詳細');
     expect(detailBtn.getAttribute('aria-expanded')).toBe('false');
     expect(detailMoreEl.style.display).toBe('none');
+  });
+
+  test('detail button panel removes duplicated quick lines when shared resolver returns extra detail', () => {
+    global.CardInteractionEffects = {
+      resolveCardDescriptionTexts: () => ({
+        quickText: '反転0でも空きマスに置ける。',
+        detailText: '反転0でも空きマスに置ける。\n次の1手だけ有効。',
+        distinctDetailText: '次の1手だけ有効。'
+      }),
+      getQuickCardEffect: () => '反転0でも空きマスに置ける。',
+      getDetailCardEffect: () => '反転0でも空きマスに置ける。\n次の1手だけ有効。'
+    };
+
+    const cardDef = {
+      id: 'free_01',
+      name: '自由の意志',
+      type: 'FREE_PLACEMENT',
+      cost: 14,
+      desc: '反転0でも空きマスに置ける。'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+    window.toggleCardDetailExpanded();
+
+    const bodyEl = document.getElementById('card-detail-tab-body');
+    expect(bodyEl).not.toBeNull();
+    expect(bodyEl.textContent).toBe('次の1手だけ有効。');
   });
 });
