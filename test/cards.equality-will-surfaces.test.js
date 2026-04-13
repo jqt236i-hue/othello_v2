@@ -7,17 +7,17 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: '平等の意志',
   type: 'EQUALITY_WILL',
   cost: 15,
-  desc_ja: '相手の石数が自分より10個以上多い時のみ使用可。盤面の空きマスへランダムに最大3個、自分色の通常石を生成する。各生成石は、そのマスを起点に通常の挟み反転を行う。',
+  desc_ja: '空きマスに3個石をランダム配置、石数が10個以上負けているときに使用可能。',
   display_type_ja: '繁栄'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
   name: '平等の意志',
-  desc: '相手の石数が自分より10個以上多い時のみ使用可。盤面の空きマスへランダムに最大3個、自分色の通常石を生成する。各生成石は、そのマスを起点に通常の挟み反転を行う。'
+  desc: '空きマスに3個石をランダム配置、石数が10個以上負けているときに使用可能。'
 });
 
-const EXPECTED_QUICK_TEXT = '相手石が10個以上多い時のみ使え、空きマスへ自分の通常石を最大3個生成して通常反転する';
+const EXPECTED_QUICK_TEXT = '空きマスに3個石をランダム配置、石数が10個以上負けているときに使用可能。';
 const EXPECTED_DETAIL_TEXT = '相手の石数が自分より10個以上多い時のみ使用できる。\n使用時、盤面の空きマスからランダムに最大3マスへ、自分色の通常石を1個ずつ生成する。\n各生成石は、そのマスを起点に通常の挟み反転を行う。\n空きマスが3未満なら、存在する空きマス数ぶんだけ生成する。';
 
 function getCardById(catalog, cardId) {

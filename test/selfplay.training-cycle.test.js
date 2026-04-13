@@ -12,6 +12,13 @@ const {
     writeTrainingWarehouseManifest
 } = require('../scripts/training-warehouse-manifest-utils');
 const {
+    buildGenerateSelfplayDataArgs,
+    buildPolicyTrainingCommandArgs
+} = require('../scripts/training-cycle-command-builders');
+const {
+    buildTrainingCycleSummaryPayload
+} = require('../scripts/training-cycle-reporting');
+const {
     parseArgs,
     TRAINING_CYCLE_STEP_ORDER,
     buildInitialGuideModelPoolPaths,
@@ -25,6 +32,9 @@ const {
     getPrimaryResumeCheckpointPath,
     resolveResumeCheckpointPathsFromArgs,
     resolveNextCarryOverState,
+    buildCandidateOnnxBundleArgs,
+    buildTargetOnnxBundleArgs,
+    buildPromotionTargetBundleArgs,
     buildPromotionCommandArgs,
     shouldReuseStepArtifacts,
     shouldRunGateForIteration,
@@ -505,6 +515,156 @@ describe('selfplay training cycle script', () => {
                 '--promoted-dir', path.join(modelsDir, 'promoted'),
                 '--archive-dir', path.join(modelsDir, 'archive'),
                 '--manifest', path.join(modelsDir, 'promoted', 'promotion-manifest.json')
+            ]));
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('buildTargetOnnxBundleArgs scopes onnx gate targets under modelsDir', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-onnx-target-bundle-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--with-cards'
+            ]);
+            const targetBundleArgs = buildTargetOnnxBundleArgs(args, true);
+            const promotionTargetBundleArgs = buildPromotionTargetBundleArgs(args, true);
+
+            expect(targetBundleArgs).toEqual([
+                '--target-onnx', path.join(modelsDir, 'policy-net.onnx'),
+                '--target-onnx-meta', path.join(modelsDir, 'policy-net.onnx.meta.json'),
+                '--target-card-onnx', path.join(modelsDir, 'policy-card.onnx'),
+                '--target-card-onnx-meta', path.join(modelsDir, 'policy-card.onnx.meta.json'),
+                '--target-target-onnx', path.join(modelsDir, 'policy-target.onnx'),
+                '--target-target-onnx-meta', path.join(modelsDir, 'policy-target.onnx.meta.json'),
+                '--target-value-onnx', path.join(modelsDir, 'policy-value.onnx'),
+                '--target-value-onnx-meta', path.join(modelsDir, 'policy-value.onnx.meta.json')
+            ]);
+            expect(promotionTargetBundleArgs).toEqual([
+                '--target-model', path.join(modelsDir, 'policy-table.json'),
+                ...targetBundleArgs
+            ]);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('buildCandidateOnnxBundleArgs keeps candidate auxiliary heads aligned with lane options', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-onnx-candidate-bundle-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--with-cards'
+            ]);
+            const iterationPaths = {
+                onnxModelPath: path.join(modelsDir, 'policy-net.candidate.test.onnx'),
+                onnxMetaPath: path.join(modelsDir, 'policy-net.candidate.test.onnx.meta.json'),
+                cardOnnxModelPath: path.join(modelsDir, 'policy-card.candidate.test.onnx'),
+                cardOnnxMetaPath: path.join(modelsDir, 'policy-card.candidate.test.onnx.meta.json'),
+                targetOnnxModelPath: path.join(modelsDir, 'policy-target.candidate.test.onnx'),
+                targetOnnxMetaPath: path.join(modelsDir, 'policy-target.candidate.test.onnx.meta.json'),
+                valueOnnxModelPath: path.join(modelsDir, 'policy-value.candidate.test.onnx'),
+                valueOnnxMetaPath: path.join(modelsDir, 'policy-value.candidate.test.onnx.meta.json')
+            };
+
+            expect(buildCandidateOnnxBundleArgs(args, iterationPaths, true)).toEqual([
+                '--candidate-onnx', iterationPaths.onnxModelPath,
+                '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
+                '--candidate-card-onnx', iterationPaths.cardOnnxModelPath,
+                '--candidate-card-onnx-meta', iterationPaths.cardOnnxMetaPath,
+                '--candidate-target-onnx', iterationPaths.targetOnnxModelPath,
+                '--candidate-target-onnx-meta', iterationPaths.targetOnnxMetaPath,
+                '--candidate-value-onnx', iterationPaths.valueOnnxModelPath,
+                '--candidate-value-onnx-meta', iterationPaths.valueOnnxMetaPath
+            ]);
+            expect(buildCandidateOnnxBundleArgs(args, iterationPaths, false)).toEqual([
+                '--candidate-onnx', iterationPaths.onnxModelPath,
+                '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
+                '--candidate-card-onnx', iterationPaths.cardOnnxModelPath,
+                '--candidate-card-onnx-meta', iterationPaths.cardOnnxMetaPath,
+                '--candidate-value-onnx', iterationPaths.valueOnnxModelPath,
+                '--candidate-value-onnx-meta', iterationPaths.valueOnnxMetaPath
+            ]);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('buildGenerateSelfplayDataArgs preserves selfplay lane wiring and optional flags', () => {
+        const commandArgs = buildGenerateSelfplayDataArgs({
+            games: 24,
+            seed: 101,
+            maxPlies: 220,
+            outPath: 'train.ndjson',
+            hardcaseOutPath: 'train.hardcase.ndjson',
+            seedFamily: 'train',
+            dataLane: 'train-main',
+            selfplayJobs: 6,
+            generateCardArgs: ['--with-cards', '--card-usage-rate', '0.2'],
+            selfplayDiversityArgs: ['--policy-mix-rate', '0.9'],
+            guideModelArgs: ['--policy-model', 'guide.json', '--policy-model-pool', 'guide.json,older.json'],
+            selfplayResumeArgs: ['--resume-chunk-size', '1000'],
+            reuseCompletedChunks: true,
+            verboseArgs: ['--verbose']
+        });
+
+        expect(commandArgs).toEqual([
+            path.resolve('scripts', 'generate-selfplay-data.js'),
+            '--games', '24',
+            '--seed', '101',
+            '--max-plies', '220',
+            '--out', 'train.ndjson',
+            '--hardcase-out', 'train.hardcase.ndjson',
+            '--seed-family', 'train',
+            '--data-lane', 'train-main',
+            '--jobs', '6',
+            '--with-cards', '--card-usage-rate', '0.2',
+            '--policy-mix-rate', '0.9',
+            '--policy-model', 'guide.json',
+            '--policy-model-pool', 'guide.json,older.json',
+            '--resume-chunk-size', '1000',
+            '--reuse-completed-chunks',
+            '--verbose'
+        ]);
+    });
+
+    test('buildPolicyTrainingCommandArgs keeps checkpoint and optimizer resume wiring', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-policy-builder-'));
+        const runsDir = path.join(tempDir, 'runs');
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(runsDir, { recursive: true });
+        fs.mkdirSync(modelsDir, { recursive: true });
+
+        try {
+            const args = parseArgs([
+                '--runs-dir', runsDir,
+                '--models-dir', modelsDir,
+                '--onnx-resume-optimizer'
+            ]);
+            const iterationPaths = buildIterationPaths(args, 1);
+            const commandArgs = buildPolicyTrainingCommandArgs({
+                args,
+                iterationPaths,
+                resumeCheckpointPath: path.join(modelsDir, 'policy.resume.pt')
+            });
+
+            expect(commandArgs).toEqual(expect.arrayContaining([
+                path.resolve('ai', 'train', 'train_policy_onnx.py'),
+                '--input', iterationPaths.trainDataPath,
+                '--onnx-out', iterationPaths.onnxModelPath,
+                '--meta-out', iterationPaths.onnxMetaPath,
+                '--policy-table-out', iterationPaths.candidateModelPath,
+                '--metrics-out', iterationPaths.onnxMetricsPath,
+                '--checkpoint-out', iterationPaths.checkpointPath,
+                '--resume-checkpoint', path.join(modelsDir, 'policy.resume.pt'),
+                '--resume-optimizer'
             ]));
         } finally {
             fs.rmSync(tempDir, { recursive: true, force: true });
@@ -1417,6 +1577,54 @@ describe('selfplay training cycle script', () => {
         const quickDecision = {};
         expect(resolveQuickComponentDelta(quickPayload, quickDecision, 'baselineCoreScore', 'candidateCoreScore'))
             .toBe(-Infinity);
+    });
+
+    test('buildTrainingCycleSummaryPayload derives latest paths from structured inputs', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-summary-payload-'));
+        const runsDir = path.join(tempDir, 'runs');
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(runsDir, { recursive: true });
+        fs.mkdirSync(modelsDir, { recursive: true });
+
+        try {
+            const args = parseArgs([
+                '--run-tag', 'summarytest',
+                '--runs-dir', runsDir,
+                '--models-dir', modelsDir,
+                '--summary-out', path.join(runsDir, 'training-cycle.summarytest.json')
+            ]);
+            const latestWarehouseManifestPath = path.join(runsDir, 'training-warehouse.summarytest.it01.json');
+            const payload = buildTrainingCycleSummaryPayload(args, {
+                startedAt: Date.now() - 250,
+                iterations: [
+                    {
+                        iteration: 1,
+                        paths: {
+                            warehouseManifestPath: latestWarehouseManifestPath
+                        }
+                    }
+                ],
+                guideModelPath: path.join(modelsDir, 'policy-table.json'),
+                guideModelPoolPaths: [path.join(modelsDir, 'policy-table.json')],
+                resumeCheckpointPaths: {
+                    policy: path.join(modelsDir, 'policy.resume.pt'),
+                    card: null,
+                    target: null,
+                    value: null
+                },
+                anchorModelPath: path.join(modelsDir, 'policy-anchor.json'),
+                stoppedByTimeBudget: false,
+                stopReason: null,
+                failureDetail: null
+            });
+
+            expect(payload.config.runTag).toBe('summarytest');
+            expect(payload.latestResumeCheckpointPath).toBe(path.join(modelsDir, 'policy.resume.pt'));
+            expect(payload.latestWarehouseManifestPath).toBe(latestWarehouseManifestPath);
+            expect(payload.warehouseManifestSchemaVersion).toBe(TRAINING_WAREHOUSE_MANIFEST_SCHEMA_VERSION);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
     });
 
     test('annotates failed step with iteration and exit metadata', () => {

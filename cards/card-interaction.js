@@ -426,6 +426,94 @@ function _getDetailCardEffect(cardDef) {
     return _fallbackDetailCardEffect(cardDef);
 }
 
+function _resolveCardDescriptionTextsForCardUi(cardDef) {
+    if (_cardInteractionEffectsModule && typeof _cardInteractionEffectsModule.resolveCardDescriptionTexts === 'function') {
+        return _cardInteractionEffectsModule.resolveCardDescriptionTexts(cardDef, {
+            resolveChargeMaxText: _resolveChargeMaxText,
+            quickTextMaxLength: 32
+        });
+    }
+
+    const quickText = _cardInteractionEffectsModule && typeof _cardInteractionEffectsModule.getQuickCardEffect === 'function'
+        ? _cardInteractionEffectsModule.getQuickCardEffect(cardDef, { maxLength: 32 })
+        : _getQuickCardEffect(cardDef);
+    const detailText = _cardInteractionEffectsModule && typeof _cardInteractionEffectsModule.getDetailCardEffect === 'function'
+        ? _cardInteractionEffectsModule.getDetailCardEffect(cardDef, _resolveChargeMaxText)
+        : _getDetailCardEffect(cardDef);
+    const distinctDetailText = _cardInteractionEffectsModule && typeof _cardInteractionEffectsModule.resolveNonDuplicateDetailText === 'function'
+        ? _cardInteractionEffectsModule.resolveNonDuplicateDetailText(quickText, detailText)
+        : detailText;
+    const effectTags = _cardInteractionEffectsModule && typeof _cardInteractionEffectsModule.resolveCardEffectTags === 'function'
+        ? _cardInteractionEffectsModule.resolveCardEffectTags(cardDef)
+        : (_cardInteractionEffectsModule && typeof _cardInteractionEffectsModule.resolveCardNumericTags === 'function'
+            ? _cardInteractionEffectsModule.resolveCardNumericTags(cardDef)
+            : [])
+    ;
+    const numericTags = _cardInteractionEffectsModule && typeof _cardInteractionEffectsModule.resolveCardNumericTags === 'function'
+        ? _cardInteractionEffectsModule.resolveCardNumericTags(cardDef)
+        : [];
+    return {
+        quickText,
+        detailText,
+        distinctDetailText,
+        effectTags,
+        numericTags
+    };
+}
+
+function _buildCardDetailDisplayModel(cardDef, ownerKey) {
+    if (!cardDef) {
+        return {
+            cardName: '-',
+            summaryText: 'カードを選択してください',
+            detailText: '',
+            detailPanelText: '',
+            liveStateText: '',
+            tags: []
+        };
+    }
+
+    const descriptionTexts = _resolveCardDescriptionTextsForCardUi(cardDef);
+    const quickText = String(descriptionTexts && descriptionTexts.quickText ? descriptionTexts.quickText : '');
+    const detailText = String(descriptionTexts && descriptionTexts.detailText ? descriptionTexts.detailText : '');
+    const distinctDetailText = String(descriptionTexts && descriptionTexts.distinctDetailText ? descriptionTexts.distinctDetailText : '');
+
+    return {
+        cardName: cardDef.name || '?',
+        summaryText: quickText,
+        detailText,
+        detailPanelText: distinctDetailText || detailText,
+        liveStateText: _getCardDetailLiveStateText(cardDef, ownerKey),
+        tags: Array.isArray(descriptionTexts && descriptionTexts.effectTags)
+            ? descriptionTexts.effectTags
+            : (Array.isArray(descriptionTexts && descriptionTexts.numericTags)
+                ? descriptionTexts.numericTags
+                : [])
+    };
+}
+
+function _applyCardDetailDisplayModel(nameEl, descEl, detailStateEl, detailMoreEl, detailTagsEl, displayModel) {
+    if (!nameEl || !descEl) return;
+    const model = displayModel || _buildCardDetailDisplayModel(null, null);
+    nameEl.textContent = model.cardName;
+    descEl.textContent = model.summaryText;
+    _renderCardDetailLiveState(detailStateEl, model.liveStateText);
+    if (detailMoreEl) detailMoreEl.textContent = model.detailPanelText;
+    _renderCardDetailEffectTags(detailTagsEl, model.tags);
+}
+
+function _getOverlayCardDescriptionText(cardDef, cardId) {
+    if (cardDef && cardDef.desc) return cardDef.desc;
+    if (_isHiddenHandToken(cardId)) return 'この対戦モードでは詳細は非公開です';
+    if (!cardDef) return '説明なし';
+
+    const descriptionTexts = _resolveCardDescriptionTextsForCardUi(cardDef);
+    return String(
+        (descriptionTexts && (descriptionTexts.detailText || descriptionTexts.quickText))
+        || '説明なし'
+    );
+}
+
 function _getGameVisualEffectsMapForCardDetail() {
     try {
         const root = (typeof globalThis !== 'undefined')
@@ -671,32 +759,45 @@ function _renderCardDetailLiveState(stateEl, text) {
     stateEl.style.display = normalized ? 'block' : 'none';
 }
 
+function _normalizeResolvedCardEffectTags(tags) {
+    if (!Array.isArray(tags)) return [];
+    const normalizedTags = [];
+    const seen = new Set();
+    for (const rawTag of tags) {
+        if (!rawTag || typeof rawTag !== 'object') continue;
+        const label = String(rawTag.label || '').trim();
+        if (!label) continue;
+        const kind = String(rawTag.kind || '').trim().toLowerCase();
+        const dedupeKey = `${kind}:${label}`;
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+        normalizedTags.push({ kind, label });
+    }
+    return normalizedTags;
+}
+
+function _getCardEffectTagKindClass(kind) {
+    const normalizedKind = String(kind || '').trim().toLowerCase();
+    if (!normalizedKind) return '';
+    return `is-${normalizedKind.replace(/[^a-z0-9]+/g, '-')}`;
+}
+
 function _renderCardDetailEffectTags(tagsEl, tags) {
     if (!tagsEl) return;
     tagsEl.textContent = '';
-    if (!Array.isArray(tags) || tags.length === 0) {
+    const normalizedTags = _normalizeResolvedCardEffectTags(tags);
+    if (normalizedTags.length === 0) {
         tagsEl.style.display = 'none';
         return;
     }
 
-    const selectedCardId = cardState && cardState.selectedCardId ? String(cardState.selectedCardId) : null;
-    for (const tag of tags) {
-        const chip = document.createElement('button');
-        chip.type = 'button';
-        chip.className = 'card-detail-effect-tag card-detail-effect-tag-button';
-        chip.textContent = tag;
-        chip.setAttribute('aria-label', `${tag}の説明を表示`);
-        chip.addEventListener('click', () => {
-            const meaning = CARD_DETAIL_TAG_MEANINGS[tag] || `${tag}の説明は未登録です。`;
-            _toggleCardDetailTabPanel({
-                mode: 'tag',
-                key: tag,
-                cardId: selectedCardId,
-                title: tag,
-                body: meaning
-            });
-            updateCardDetailPanel();
-        });
+    for (const tag of normalizedTags) {
+        const chip = document.createElement('span');
+        chip.className = 'card-detail-effect-tag';
+        const kindClass = _getCardEffectTagKindClass(tag.kind);
+        if (kindClass) chip.classList.add(kindClass);
+        chip.textContent = tag.label;
+        chip.setAttribute('data-card-tag-kind', tag.kind || '');
         tagsEl.appendChild(chip);
     }
     tagsEl.style.display = 'flex';
@@ -1143,9 +1244,7 @@ function _renderHeavenOverlay(playerKey) {
         ? CardLogic.getCardDef(selectedCardId)
         : null;
     refs.detailName.textContent = _getCardDisplayLabel(selectedCardId, selectedDef);
-    refs.detailDesc.textContent = selectedDef && selectedDef.desc
-        ? selectedDef.desc
-        : (_isHiddenHandToken(selectedCardId) ? 'この対戦モードでは詳細は非公開です' : '説明なし');
+    refs.detailDesc.textContent = _getOverlayCardDescriptionText(selectedDef, selectedCardId);
 
     refs.selectBtn.textContent = pendingType === 'CONDEMN_WILL' ? '破壊' : '選択';
     refs.selectBtn.disabled = handFull || !selectedOffer;
@@ -2163,23 +2262,11 @@ function updateCardDetailPanel() {
         }
     }
 
-    if (normalizedSelectedId) {
-        const cardDef = CardLogic.getCardDef(normalizedSelectedId);
-        const quickText = _getQuickCardEffect(cardDef);
-        const detailText = _getDetailCardEffect(cardDef);
-        const tags = _collectCardDetailEffectTags(cardDef, quickText, detailText);
-        nameEl.textContent = cardDef ? cardDef.name : '?';
-        descEl.textContent = _stripCardDetailTagPhrases(quickText) || quickText;
-        _renderCardDetailLiveState(detailStateEl, _getCardDetailLiveStateText(cardDef, selectedOwnerKey));
-        if (detailMoreEl) detailMoreEl.textContent = detailText;
-        _renderCardDetailEffectTags(detailTagsEl, tags);
-    } else {
-        nameEl.textContent = '-';
-        descEl.textContent = 'カードを選択してください';
-        _renderCardDetailLiveState(detailStateEl, '');
-        if (detailMoreEl) detailMoreEl.textContent = '';
-        _renderCardDetailEffectTags(detailTagsEl, []);
-    }
+    _closeCardDetailTagTabIfOpen();
+
+    const selectedCardDef = normalizedSelectedId ? CardLogic.getCardDef(normalizedSelectedId) : null;
+    const displayModel = _buildCardDetailDisplayModel(selectedCardDef, selectedOwnerKey);
+    _applyCardDetailDisplayModel(nameEl, descEl, detailStateEl, detailMoreEl, detailTagsEl, displayModel);
     if (detailBtn) {
         const canToggle = !!selectedId;
         const detailTabOpen = !!(
@@ -2401,8 +2488,8 @@ function toggleCardDetailExpanded() {
     const cardDef = CardLogic && typeof CardLogic.getCardDef === 'function'
         ? CardLogic.getCardDef(selectedId)
         : null;
-    const detailText = _getDetailCardEffect(cardDef);
-    const body = String(detailText || '').trim() || '詳細説明は準備中です。';
+    const displayModel = _buildCardDetailDisplayModel(cardDef, selectedOwnerKey);
+    const body = String(displayModel.detailPanelText || '').trim() || '詳細説明は準備中です。';
     const title = cardDef && cardDef.name
         ? `${cardDef.name} の詳細効果`
         : '詳細効果';

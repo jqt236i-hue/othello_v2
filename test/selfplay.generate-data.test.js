@@ -2,8 +2,31 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { parseArgs } = require('../scripts/generate-selfplay-data');
+const cpuLv6SharedProfile = require('../constants/cpu-lv6-shared-profile');
 
 describe('selfplay generate data script', () => {
+    test('parseArgs defaults align standalone selfplay with shared Lv6 teacher profile', () => {
+        const teacher = cpuLv6SharedProfile.teacher;
+        const args = parseArgs([]);
+
+        expect(args.policyMixRate).toBeCloseTo(teacher.policyMixRate, 6);
+        expect(args.policyCurrentAnchorRate).toBeCloseTo(teacher.policyCurrentAnchorRate, 6);
+        expect(args.tacticalWeightMin).toBeCloseTo(teacher.tacticalWeightMin, 6);
+        expect(args.tacticalWeightMax).toBeCloseTo(teacher.tacticalWeightMax, 6);
+        expect(args.tacticalDepthOpening).toBe(teacher.tacticalDepthOpening);
+        expect(args.tacticalDepthMid).toBe(teacher.tacticalDepthMid);
+        expect(args.tacticalDepthEnd).toBe(teacher.tacticalDepthEnd);
+        expect(args.tacticalBeamWidth).toBe(teacher.tacticalBeamWidth);
+        expect(args.teacherCommitteeWeightMin).toBeCloseTo(teacher.teacherCommitteeWeightMin, 6);
+        expect(args.teacherCommitteeWeightMax).toBeCloseTo(teacher.teacherCommitteeWeightMax, 6);
+        expect(args.teacherCommitteeConsensusBonusMin).toBeCloseTo(teacher.teacherCommitteeConsensusBonusMin, 6);
+        expect(args.teacherCommitteeConsensusBonusMax).toBeCloseTo(teacher.teacherCommitteeConsensusBonusMax, 6);
+        expect(args.policyScoreWeightMin).toBeCloseTo(teacher.policyScoreWeightMin, 6);
+        expect(args.policyScoreWeightMax).toBeCloseTo(teacher.policyScoreWeightMax, 6);
+        expect(args.heuristicWeightMin).toBeCloseTo(teacher.heuristicWeightMin, 6);
+        expect(args.heuristicWeightMax).toBeCloseTo(teacher.heuristicWeightMax, 6);
+    });
+
     test('parseArgs accepts existing --policy-model path', () => {
         const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-selfplay-'));
         const modelPath = path.join(tempDir, 'policy-table.json');

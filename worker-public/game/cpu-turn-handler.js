@@ -30,6 +30,10 @@ let pendingCoordinator = null;
 if (typeof require === 'function') {
     try { pendingCoordinator = require('./turn/pending-coordinator'); } catch (e) { /* ignore */ }
 }
+let cpuLv6RuntimeCapability = null;
+if (typeof require === 'function') {
+    try { cpuLv6RuntimeCapability = require('../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
+}
 
 // Local safe constants to avoid ReferenceError for undeclared globals in test environments
 const CONST_BLACK = (typeof BLACK !== 'undefined') ? BLACK : ((typeof global !== 'undefined' && typeof global.BLACK !== 'undefined') ? global.BLACK : 1);
@@ -256,8 +260,46 @@ function resolveCpuLv6SharedProfile() {
     return null;
 }
 
+function readExplicitCpuLv6SharedProfile() {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.CPU_LV6_SHARED_PROFILE && typeof globalThis.CPU_LV6_SHARED_PROFILE === 'object') {
+            return globalThis.CPU_LV6_SHARED_PROFILE;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function resolveCpuLv6RuntimeCapabilityModule() {
+    if (
+        cpuLv6RuntimeCapability &&
+        typeof cpuLv6RuntimeCapability.resolveCpuLv6BrowserRuntimeCapability === 'function'
+    ) {
+        return cpuLv6RuntimeCapability;
+    }
+    try {
+        if (
+            typeof globalThis !== 'undefined' &&
+            globalThis.CpuLv6RuntimeCapability &&
+            typeof globalThis.CpuLv6RuntimeCapability.resolveCpuLv6BrowserRuntimeCapability === 'function'
+        ) {
+            cpuLv6RuntimeCapability = globalThis.CpuLv6RuntimeCapability;
+            return cpuLv6RuntimeCapability;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function resolveCpuLv6BrowserRuntimeCapability() {
+    const shared = readExplicitCpuLv6SharedProfile();
+    const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
+    if (!shared || !capabilityModule || typeof capabilityModule.resolveCpuLv6BrowserRuntimeCapability !== 'function') return null;
+    return capabilityModule.resolveCpuLv6BrowserRuntimeCapability(shared);
+}
+
 function shouldUseOnnxCardDecision(level) {
     if (!Number.isFinite(level) || level < 6) return true;
+    const capability = resolveCpuLv6BrowserRuntimeCapability();
+    if (capability) return capability.usesOnnxCardDecision === true;
     let shared = null;
     try {
         if (typeof globalThis !== 'undefined' && globalThis.CPU_LV6_SHARED_PROFILE && typeof globalThis.CPU_LV6_SHARED_PROFILE === 'object') {
@@ -270,6 +312,8 @@ function shouldUseOnnxCardDecision(level) {
 
 function shouldUseOnnxMoveDecision(level) {
     if (!Number.isFinite(level) || level < 6) return true;
+    const capability = resolveCpuLv6BrowserRuntimeCapability();
+    if (capability) return capability.usesOnnxMoveDecision === true;
     const shared = resolveCpuLv6SharedProfile();
     const mode = String(shared && shared.browser && shared.browser.moveDecisionMode || '').trim().toLowerCase();
     return mode !== 'policy-table-lookahead' && mode !== 'browser-policy-lookahead' && mode !== 'policy-table-core';
@@ -972,6 +1016,7 @@ const _pendingSelectRetryStateByPlayer = {
     black: { key: '', count: 0 },
     white: { key: '', count: 0 }
 };
+const _scheduledRetryTimerIds = new Set();
 let _cpuRetryGeneration = 0;
 const MAX_STUCK_PENDING_SELECT_RETRIES = 4;
 
@@ -991,6 +1036,10 @@ function resetCpuTurnHandlerState() {
     _cpuRetryPendingByPlayer.white = null;
     resetPendingSelectRetryState('black');
     resetPendingSelectRetryState('white');
+    for (const tid of _scheduledRetryTimerIds) {
+        try { clearTimeout(tid); } catch (e) { /* ignore */ }
+    }
+    _scheduledRetryTimerIds.clear();
 }
 
 function makePendingSelectRetryKey(pending) {
@@ -1147,7 +1196,11 @@ function scheduleRetry(fn, delayMs = getAnimationRetryDelayMs()) {
     }
 
     // 2) Fallback to setTimeout
-    const tid = setTimeout(() => { try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); } }, delayMs);
+    const tid = setTimeout(() => {
+        _scheduledRetryTimerIds.delete(tid);
+        try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); }
+    }, delayMs);
+    _scheduledRetryTimerIds.add(tid);
     if (tid && typeof tid.unref === 'function') tid.unref();
 }
 

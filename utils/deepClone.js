@@ -9,7 +9,13 @@
  */
 function deepClone(value) {
     if (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') {
-        return globalThis.structuredClone(value);
+        try {
+            return globalThis.structuredClone(value);
+        } catch (e) {
+            // Some persisted playback/presentation metadata still carries transient
+            // helper functions. JSON cloning preserves the serializable state shape
+            // while stripping those non-cloneable helpers.
+        }
     }
     return JSON.parse(JSON.stringify(value));
 }

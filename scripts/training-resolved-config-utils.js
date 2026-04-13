@@ -3,6 +3,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const {
+    stripLeadingScriptArg,
+    collectCliFlagMap,
+    getFlagValue,
+    hasFlag
+} = require('./training-command-args');
 
 function loadResolvedTrainingConfig(filePath) {
     if (!filePath) return null;
@@ -21,36 +27,11 @@ function collectTrainCycleArgs(resolved) {
     if (resolved.command && Array.isArray(resolved.command.args)) {
         args = resolved.command.args.slice();
     }
-    if (args.length > 0 && /\.js$/i.test(String(args[0] || ''))) {
-        args = args.slice(1);
-    }
-    return args.map((one) => String(one));
+    return stripLeadingScriptArg(args);
 }
 
 function buildTrainCycleArgMap(resolved) {
-    const args = collectTrainCycleArgs(resolved);
-    const map = new Map();
-    for (let i = 0; i < args.length; i++) {
-        const token = String(args[i] || '').trim();
-        if (!token.startsWith('--')) continue;
-        const next = String(args[i + 1] || '').trim();
-        if (next && !next.startsWith('--')) {
-            map.set(token, next);
-            i += 1;
-            continue;
-        }
-        map.set(token, true);
-    }
-    return map;
-}
-
-function getFlagValue(argMap, flag) {
-    if (!(argMap instanceof Map)) return undefined;
-    return argMap.has(flag) ? argMap.get(flag) : undefined;
-}
-
-function hasFlag(argMap, flag) {
-    return getFlagValue(argMap, flag) !== undefined;
+    return collectCliFlagMap(collectTrainCycleArgs(resolved));
 }
 
 function setIfMissing(target, specified, key, value) {

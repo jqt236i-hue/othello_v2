@@ -1,6 +1,6 @@
 {
-  "version": "2026-04-12",
-  "generatedAt": "2026-04-12T10:38:52.612Z",
+  "version": "2026-04-13",
+  "generatedAt": "2026-04-13T00:09:06.748Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -293,6 +293,10 @@
     {
       "path": "assets/images/hand-skin/勇者の手.png",
       "sha256": "31dbec8c481d7c27d4e6206159d12cd0ae82e8b65263b5dad89a5ad15662af6e"
+    },
+    {
+      "path": "assets/images/Gacha/EXR/意志.png",
+      "sha256": "f1eb934b000b028ef0d383a392033fe22b98f1b2f28bdbeca968b79a652b14bb"
     },
     {
       "path": "assets/images/Gacha/N/人の手.png",

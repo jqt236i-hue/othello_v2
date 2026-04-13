@@ -69,6 +69,10 @@ if (!SharedBoardUtilsModule) {
         }
     } catch (e) { /* ignore */ }
 }
+let CpuLv6RuntimeCapabilityModule = null;
+if (typeof require === 'function') {
+    try { CpuLv6RuntimeCapabilityModule = require('../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
+}
 
 function readGlobalModule(globalKey) {
     try {
@@ -289,7 +293,10 @@ function getCurrentCpuBoard() {
  */
 function canUseStandardBoardCpuPolicy(boardRef, featureKey, playerKey, level) {
     const board = boardRef || getCurrentCpuBoard();
-    const supported = isStandardBoard8x8(board);
+    const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
+    const supported = capabilityModule && typeof capabilityModule.isStandardBoardCpuPolicyCompatible === 'function'
+        ? capabilityModule.isStandardBoardCpuPolicyCompatible(board)
+        : isStandardBoard8x8(board);
     if (!supported) {
         const tag = String(featureKey || 'cpu-policy');
         const levelLabel = Number.isFinite(level) ? `Lv${level}` : 'Lv?';
@@ -487,6 +494,18 @@ function resolvePolicyOnnxRuntime() {
     return resolvedModule;
 }
 
+function resolveCpuLv6RuntimeCapabilityModule() {
+    const resolvedModule = resolveModuleReference(CpuLv6RuntimeCapabilityModule, {
+        globalKey: 'CpuLv6RuntimeCapability',
+        isValid: (moduleRef) => !!(
+            moduleRef &&
+            typeof moduleRef.resolveCpuLv6BrowserRuntimeCapability === 'function'
+        )
+    });
+    if (resolvedModule) CpuLv6RuntimeCapabilityModule = resolvedModule;
+    return resolvedModule;
+}
+
 function resolvePendingType(playerKey) {
     try {
         if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getPendingEffectType === 'function') {
@@ -623,7 +642,11 @@ function resolveCpuLv6SharedProfile() {
 }
 
 function resolveCpuLv6BrowserProfile() {
+    const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
     const shared = resolveCpuLv6SharedProfile();
+    if (capabilityModule && typeof capabilityModule.resolveCpuLv6BrowserProfile === 'function') {
+        return capabilityModule.resolveCpuLv6BrowserProfile(shared);
+    }
     if (shared && shared.browser && typeof shared.browser === 'object') return shared.browser;
     return null;
 }
@@ -651,7 +674,28 @@ function resolveCpuLv6OnnxRuntimeGuardOverrides() {
     return null;
 }
 
+function readLegacyPendingSelectionBudgetMs() {
+    try {
+        return Number(globalThis && globalThis.CPU_LV6_PENDING_SELECTION_ONNX_MAX_MS);
+    } catch (e) { /* ignore */ }
+    return NaN;
+}
+
+function resolveCpuLv6BrowserRuntimeCapability() {
+    const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
+    const shared = resolveCpuLv6SharedProfile();
+    if (!capabilityModule || typeof capabilityModule.resolveCpuLv6BrowserRuntimeCapability !== 'function') return null;
+    return capabilityModule.resolveCpuLv6BrowserRuntimeCapability(shared, {
+        guardOverrides: resolveCpuLv6OnnxRuntimeGuardOverrides(),
+        legacyPendingSelectionBudgetMs: readLegacyPendingSelectionBudgetMs()
+    });
+}
+
 function resolveCpuLv6OnnxRuntimeGuard() {
+    const capability = resolveCpuLv6BrowserRuntimeCapability();
+    if (capability && capability.onnxRuntimeGuard && typeof capability.onnxRuntimeGuard === 'object') {
+        return capability.onnxRuntimeGuard;
+    }
     const browserProfile = resolveCpuLv6BrowserProfile();
     const configured = browserProfile && browserProfile.onnxRuntimeGuard && typeof browserProfile.onnxRuntimeGuard === 'object'
         ? browserProfile.onnxRuntimeGuard
@@ -665,11 +709,7 @@ function resolveCpuLv6OnnxRuntimeGuard() {
         return fallback;
     };
 
-    let legacyPendingBudgetMs = NaN;
-    try {
-        legacyPendingBudgetMs = Number(globalThis && globalThis.CPU_LV6_PENDING_SELECTION_ONNX_MAX_MS);
-    } catch (e) { /* ignore */ }
-
+    const legacyPendingBudgetMs = readLegacyPendingSelectionBudgetMs();
     const pendingSelectionBudgetMs = Number.isFinite(legacyPendingBudgetMs) && legacyPendingBudgetMs > 0
         ? legacyPendingBudgetMs
         : readNumber('pendingSelectionBudgetMs', Number(browserProfile && browserProfile.pendingSelectionOnnxMaxMs) || 120);
@@ -770,6 +810,15 @@ function logCpuOnnxLatencyDegrade(level, playerKey, operationKey, reason) {
 function resolveLv6LookaheadTimeCaps(playerKey) {
     const isWhite = String(playerKey || '') === 'white';
     const isBrowserUi = (typeof window !== 'undefined' && typeof document !== 'undefined');
+    const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
+    const shared = resolveCpuLv6SharedProfile();
+    if (capabilityModule && typeof capabilityModule.resolveCpuLv6LookaheadTimeCaps === 'function') {
+        const resolved = capabilityModule.resolveCpuLv6LookaheadTimeCaps(shared, {
+            playerKey,
+            isBrowserUi
+        });
+        if (resolved) return resolved;
+    }
     const browserProfile = resolveCpuLv6BrowserProfile();
     const configuredCaps = browserProfile && browserProfile.lookaheadTimeCaps && typeof browserProfile.lookaheadTimeCaps === 'object'
         ? browserProfile.lookaheadTimeCaps
@@ -1285,6 +1334,8 @@ function selectCardFromLearnedPolicy(playerKey, level, legalMovesCount, usableCa
 
 function shouldUseSharedPolicyTableCoreCardDecision(level) {
     if (!Number.isFinite(level) || level < 6) return false;
+    const capability = resolveCpuLv6BrowserRuntimeCapability();
+    if (capability) return capability.usesPolicyTableCoreCardDecision === true;
     const browserProfile = resolveCpuLv6BrowserProfile();
     return !!(browserProfile && browserProfile.cardDecisionMode === 'policy-table-core');
 }

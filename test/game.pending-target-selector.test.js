@@ -111,4 +111,21 @@ describe('pending-target-selector', () => {
       livingWillTarget: { row: 4, col: 2 }
     });
   });
+
+  test('buildPendingSelectionAction uses freezeTarget payload for freeze cards', () => {
+    const action = PendingTargetSelector.buildPendingSelectionAction({
+      pendingType: 'FREEZE_WILL',
+      gameState: {},
+      cardState: {},
+      playerKey: 'black',
+      selectors: {
+        chooseFreezeTarget: () => ({ row: 2, col: 5 })
+      }
+    });
+
+    expect(action).toEqual({
+      type: 'place',
+      freezeTarget: { row: 2, col: 5 }
+    });
+  });
 });

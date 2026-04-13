@@ -2115,6 +2115,14 @@
         return cause === 'ROBOT_VACUUM' && reason.indexOf('robot_vacuum_suck') >= 0;
     }
 
+    function _isBoardShrinkDestroyTarget(target) {
+        const cause = String(target && target.cause ? target.cause : '').toUpperCase();
+        const reason = String(target && target.reason ? target.reason : '').toLowerCase();
+        return cause === 'BOARD_SHRINK_WILL' ||
+            cause === 'BOARD_SHRINK_GOD' ||
+            reason.indexOf('board_shrink') >= 0;
+    }
+
     function _isGoldSilverSelfDestroyTarget(target) {
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
         return reason === 'gold_stone_sacrifice' || reason === 'rainbow_stone_sacrifice' || reason === 'silver_stone_sacrifice' || reason === 'crystal_stone_sacrifice';
@@ -2470,6 +2478,15 @@
             _pushSoundCue(ctx, 'guard_select', guardSelectPhase, 'guard_selected');
         }
 
+        const livingWillPhase = _findPhase(
+            ctx.base,
+            (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'LIVING_WILL',
+            ctx.fallbackPhase
+        );
+        if (_hasRawEvent(ctx.raw, 'living_will_selected', (ev) => !!(ev && ev.applied))) {
+            _pushSoundCue(ctx, 'living_will_selected', livingWillPhase, 'living_will_selected');
+        }
+
         const hyperactiveInheritSelectPhase = _findPhase(
             ctx.base,
             (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'INHERITED_HYPERACTIVE',
@@ -2635,13 +2652,7 @@
             ev &&
             ev.type === 'destroy' &&
             Array.isArray(ev.targets) &&
-            ev.targets.some((target) => {
-                const cause = String(target && target.cause ? target.cause : '').toUpperCase();
-                const reason = String(target && target.reason ? target.reason : '').toLowerCase();
-                return cause === 'BOARD_SHRINK_WILL' ||
-                    cause === 'BOARD_SHRINK_GOD' ||
-                    reason.indexOf('board_shrink') >= 0;
-            })
+            ev.targets.some((target) => _isBoardShrinkDestroyTarget(target))
         ));
         const boardShrinkPhase = _findPhase(
             ctx.base,
@@ -2673,7 +2684,7 @@
                 ev.changedTargets.length > 0
             ))
         ) {
-            _pushSoundCue(ctx, 'stone_destroy', boardShrinkPhase, 'board_shrink_selected');
+            _pushSoundCue(ctx, 'board_shrink_selected', boardShrinkPhase, 'board_shrink_selected');
         }
     }
 
@@ -2783,6 +2794,7 @@
             const cause = String(t && t.cause ? t.cause : '').toUpperCase();
             const reason = String(t && t.reason ? t.reason : '').toLowerCase();
             if (BOMB_DESTROY_CAUSES.has(cause)) return false;
+            if (_isBoardShrinkDestroyTarget(t)) return false;
             if (_isSniperShotDestroyTarget(t)) return false;
             if (_isLightningDestroyTarget(t)) return false;
             if (_isRobotVacuumSuckDestroyTarget(t)) return false;
@@ -2834,6 +2846,15 @@
 
         const goldSilverSelfDestroyPhases = _collectUniquePhases(ctx.base, (ev) => _isGoldSilverSelfDestroyEvent(ev));
         _pushCueForPhases(ctx, goldSilverSelfDestroyPhases, 'charge_gain_common', 'gold_silver_self_destroy');
+
+        const boardShrinkDestroyPhases = _collectUniquePhases(
+            ctx.base,
+            (ev) => ev &&
+                ev.type === 'destroy' &&
+                Array.isArray(ev.targets) &&
+                ev.targets.some((t) => _isBoardShrinkDestroyTarget(t) && _isDestroyRemovalOutcome(t))
+        );
+        _pushCueForPhases(ctx, boardShrinkDestroyPhases, 'board_shrink_selected', 'board_shrink_selected');
 
         if (ctx.base.some(_isGenericDestroyPlaybackEvent)) {
             const genericDestroyPhase = _findPhase(ctx.base, _isGenericDestroyPlaybackEvent, ctx.fallbackPhase);

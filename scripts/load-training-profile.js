@@ -10,6 +10,12 @@ const {
     cloneResumeCheckpointPaths,
     detectCheckpointHead
 } = require('./training-checkpoint-utils');
+const {
+    stripLeadingScriptArg,
+    collectCliFlagMap,
+    getFlagValue,
+    hasFlag
+} = require('./training-command-args');
 
 const PROFILE_SCHEMA_VERSION = 'training_profile.v1';
 const GATE_SCHEMA_VERSION = 'training_gate.v1';
@@ -345,7 +351,7 @@ function resolveExplicitResumeCheckpointPaths(cwd, bootstrap) {
 }
 
 function usesPromotedOnlyGuideMode(trainCycleArgs) {
-    return Array.isArray(trainCycleArgs) && trainCycleArgs.includes('--selfplay-use-promoted-model-only');
+    return resolveGuideModeFromArgs(trainCycleArgs) === 'promoted-only';
 }
 
 function assertNoReservedArgs(passThrough) {
@@ -420,20 +426,177 @@ function formatSharedTeacherValue(type, value) {
     return String(value);
 }
 
-function applySharedTeacherProfileArgs(trainCycleArgs, teacherProfile) {
+function resolveGuideModeFromArgs(args) {
+    if (findFlagIndex(args, '--selfplay-use-promoted-model-only') >= 0) return 'promoted-only';
+    if (findFlagIndex(args, '--selfplay-use-candidate-every-iteration') >= 0) return 'candidate-every-iteration';
+    return null;
+}
+
+function resolveSharedTeacherSyncConfig(profile) {
+    const explicit = profile && profile.sharedTeacherSync && typeof profile.sharedTeacherSync === 'object' && !Array.isArray(profile.sharedTeacherSync)
+        ? profile.sharedTeacherSync
+        : null;
+    if (explicit) {
+        return {
+            enabled: explicit.enabled !== false,
+            mode: explicit.mode === 'override' ? 'override' : 'fill-missing'
+        };
+    }
+    if (profile && profile.syncCpuLv6SharedTeacher === true) {
+        return {
+            enabled: true,
+            mode: 'fill-missing'
+        };
+    }
+    return {
+        enabled: false,
+        mode: 'disabled'
+    };
+}
+
+function getNumericFlagValue(flagMap, flag, fallback) {
+    const raw = getFlagValue(flagMap, flag);
+    if (raw === undefined || raw === true) return fallback;
+    const numeric = Number(raw);
+    return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function buildSeedBankPlan(trainCycleArgs, context) {
+    const normalizedArgs = stripLeadingScriptArg(trainCycleArgs);
+    const flagMap = collectCliFlagMap(normalizedArgs);
+    const seedBankArg = getFlagValue(flagMap, '--seed-bank');
+    if (seedBankArg === undefined || seedBankArg === true) return null;
+    const seedBankPath = resolveMaybePath(
+        context && context.cwd ? context.cwd : process.cwd(),
+        String(seedBankArg || '').trim()
+    );
+    if (!seedBankPath) return null;
+
+    const baseSeed = getNumericFlagValue(flagMap, '--seed', 1);
+    const quickSeedCount = getNumericFlagValue(
+        flagMap,
+        '--quick-adoption-seed-count',
+        getNumericFlagValue(flagMap, '--adoption-seed-count', 1)
+    );
+    const quickSeedStride = getNumericFlagValue(
+        flagMap,
+        '--quick-adoption-seed-stride',
+        getNumericFlagValue(flagMap, '--adoption-seed-stride', 1000)
+    );
+    const quickSeedOffset = getNumericFlagValue(flagMap, '--quick-adoption-seed-offset', 0);
+    const finalSeedCount = getNumericFlagValue(
+        flagMap,
+        '--final-adoption-seed-count',
+        getNumericFlagValue(flagMap, '--adoption-seed-count', 1)
+    );
+    const finalSeedStride = getNumericFlagValue(
+        flagMap,
+        '--final-adoption-seed-stride',
+        getNumericFlagValue(flagMap, '--adoption-seed-stride', 1000)
+    );
+    const finalSeedOffset = getNumericFlagValue(
+        flagMap,
+        '--adoption-final-seed-offset',
+        getNumericFlagValue(flagMap, '--eval-seed-offset', 500000)
+    );
+
+    const gates = {
+        quick: {
+            baseSeed: baseSeed + quickSeedOffset,
+            seedCount: quickSeedCount,
+            seedStride: quickSeedStride,
+            purpose: 'quick adoption gate'
+        },
+        final: {
+            baseSeed: baseSeed + finalSeedOffset,
+            seedCount: finalSeedCount,
+            seedStride: finalSeedStride,
+            purpose: 'final adoption gate'
+        },
+        onnx: {
+            baseSeed: baseSeed + getNumericFlagValue(flagMap, '--onnx-gate-seed-offset', 700000),
+            seedCount: getNumericFlagValue(flagMap, '--onnx-gate-seed-count', 1),
+            seedStride: getNumericFlagValue(flagMap, '--onnx-gate-seed-stride', 1000),
+            purpose: hasFlag(flagMap, '--onnx-gate')
+                ? 'onnx gate'
+                : 'onnx gate schedule'
+        }
+    };
+    if (hasFlag(flagMap, '--quality-gate')) {
+        gates.quality = {
+            baseSeed: baseSeed + getNumericFlagValue(flagMap, '--quality-gate-seed-offset', 250000),
+            seedCount: getNumericFlagValue(flagMap, '--quality-gate-seed-count', 1),
+            seedStride: getNumericFlagValue(flagMap, '--quality-gate-seed-stride', 1000),
+            purpose: 'quality gate'
+        };
+    }
+    return {
+        path: seedBankPath,
+        bankId: `${context && context.profileName ? context.profileName : 'training'}-seed-bank`,
+        description: context && context.runTag
+            ? `Auto-initialized seed bank for ${context.runTag}`
+            : 'Auto-initialized seed bank',
+        gates
+    };
+}
+
+function applySharedTeacherProfileArgs(trainCycleArgs, teacherProfile, options) {
     let nextArgs = Array.isArray(trainCycleArgs) ? trainCycleArgs.slice() : [];
-    if (!teacherProfile || typeof teacherProfile !== 'object') return nextArgs;
+    const syncMode = options && options.mode === 'override' ? 'override' : 'fill-missing';
+    const report = {
+        enabled: true,
+        mode: syncMode,
+        sourcePath: options && options.sourcePath ? options.sourcePath : null,
+        sourceFound: !!(teacherProfile && typeof teacherProfile === 'object'),
+        flagActions: [],
+        guideMode: {
+            desired: null,
+            active: resolveGuideModeFromArgs(nextArgs),
+            status: teacherProfile && typeof teacherProfile === 'object'
+                ? 'preserved-explicit'
+                : 'source-missing'
+        }
+    };
+    if (!teacherProfile || typeof teacherProfile !== 'object') {
+        return { args: nextArgs, report };
+    }
 
     for (const spec of SHARED_TEACHER_ARG_SPECS) {
         const rawValue = teacherProfile[spec.key];
-        if (rawValue == null) continue;
-        if (findFlagIndex(nextArgs, spec.flag) >= 0) continue;
-        nextArgs = upsertFlagValue(nextArgs, spec.flag, formatSharedTeacherValue(spec.type, rawValue));
+        if (rawValue == null) {
+            report.flagActions.push({
+                flag: spec.flag,
+                key: spec.key,
+                status: 'missing-source-value'
+            });
+            continue;
+        }
+        const formattedValue = formatSharedTeacherValue(spec.type, rawValue);
+        const hasExplicitFlag = findFlagIndex(nextArgs, spec.flag) >= 0;
+        if (hasExplicitFlag && syncMode !== 'override') {
+            report.flagActions.push({
+                flag: spec.flag,
+                key: spec.key,
+                teacherValue: rawValue,
+                formattedValue,
+                status: 'preserved-explicit'
+            });
+            continue;
+        }
+        nextArgs = upsertFlagValue(nextArgs, spec.flag, formattedValue);
+        report.flagActions.push({
+            flag: spec.flag,
+            key: spec.key,
+            teacherValue: rawValue,
+            formattedValue,
+            status: hasExplicitFlag ? 'overrode-explicit' : 'applied'
+        });
     }
-    const hasExplicitGuideMode =
-        findFlagIndex(nextArgs, '--selfplay-use-promoted-model-only') >= 0 ||
-        findFlagIndex(nextArgs, '--selfplay-use-candidate-every-iteration') >= 0;
-    if (!hasExplicitGuideMode) {
+    const desiredGuideMode = teacherProfile.usePromotedModelOnly === false
+        ? 'candidate-every-iteration'
+        : 'promoted-only';
+    const explicitGuideMode = resolveGuideModeFromArgs(nextArgs);
+    if (!explicitGuideMode || syncMode === 'override') {
         nextArgs = upsertBooleanFlag(
             nextArgs,
             '--selfplay-use-promoted-model-only',
@@ -444,8 +607,21 @@ function applySharedTeacherProfileArgs(trainCycleArgs, teacherProfile) {
             '--selfplay-use-candidate-every-iteration',
             teacherProfile.usePromotedModelOnly === false
         );
+        report.guideMode = {
+            desired: desiredGuideMode,
+            active: resolveGuideModeFromArgs(nextArgs),
+            status: explicitGuideMode && syncMode === 'override'
+                ? 'overrode-explicit'
+                : 'applied'
+        };
+    } else {
+        report.guideMode = {
+            desired: desiredGuideMode,
+            active: explicitGuideMode,
+            status: 'preserved-explicit'
+        };
     }
-    return nextArgs;
+    return { args: nextArgs, report };
 }
 
 function buildPreflightCommand(resolved) {
@@ -501,16 +677,38 @@ function resolveTrainingProfile(profileRef, options) {
         allowArtifacts: true,
         checkWindow: true
     }, profile.preflight && typeof profile.preflight === 'object' ? profile.preflight : {});
+    const sharedTeacherSyncConfig = resolveSharedTeacherSyncConfig(profile);
+    const sharedTeacherSourcePath = path.resolve(cwd, 'constants', 'cpu-lv6-shared-profile.js');
 
     fs.mkdirSync(runsDir, { recursive: true });
     fs.mkdirSync(modelsDir, { recursive: true });
     fs.mkdirSync(runDir, { recursive: true });
 
-    let profileTrainCycleArgs = ensureArrayOfStrings(profile.trainCycleArgs, 'profile.trainCycleArgs');
-    if (profile.syncCpuLv6SharedTeacher === true) {
+    const rawProfileTrainCycleArgs = ensureArrayOfStrings(profile.trainCycleArgs, 'profile.trainCycleArgs');
+    let profileTrainCycleArgs = rawProfileTrainCycleArgs.slice();
+    let effectiveSharedTeacher = null;
+    let sharedTeacherSync = {
+        enabled: sharedTeacherSyncConfig.enabled,
+        mode: sharedTeacherSyncConfig.mode,
+        sourcePath: sharedTeacherSourcePath,
+        sourceFound: false,
+        flagActions: [],
+        guideMode: {
+            desired: null,
+            active: resolveGuideModeFromArgs(profileTrainCycleArgs),
+            status: sharedTeacherSyncConfig.enabled ? 'source-missing' : 'disabled'
+        }
+    };
+    if (sharedTeacherSyncConfig.enabled) {
         const sharedTeacherProfile = loadCpuLv6SharedTeacherProfile(cwd);
         if (sharedTeacherProfile) {
-            profileTrainCycleArgs = applySharedTeacherProfileArgs(profileTrainCycleArgs, sharedTeacherProfile);
+            effectiveSharedTeacher = Object.assign({}, sharedTeacherProfile);
+            const syncResult = applySharedTeacherProfileArgs(profileTrainCycleArgs, sharedTeacherProfile, {
+                mode: sharedTeacherSyncConfig.mode,
+                sourcePath: sharedTeacherSourcePath
+            });
+            profileTrainCycleArgs = syncResult.args;
+            sharedTeacherSync = syncResult.report;
         }
     }
     const gateTrainCycleArgs = gate ? ensureArrayOfStrings(gate.trainCycleArgs, 'gate.trainCycleArgs') : [];
@@ -578,6 +776,11 @@ function resolveTrainingProfile(profileRef, options) {
         .concat(gateTrainCycleArgs)
         .concat(generatedArgs)
         .concat(passThrough);
+    const seedBankPlan = buildSeedBankPlan(trainCycleArgs, {
+        cwd,
+        profileName,
+        runTag
+    });
 
     const resolved = {
         schemaVersion: RESOLVED_SCHEMA_VERSION,
@@ -612,6 +815,16 @@ function resolveTrainingProfile(profileRef, options) {
             resumeCheckpointPath,
             resumeCheckpointPaths: cloneResumeCheckpointPaths(resumeCheckpointPaths),
             autoResumeLatestCheckpoint: autoResumeLatestCheckpointEnabled
+        },
+        sharedTeacherSync,
+        effectiveSharedTeacher,
+        seedBankPlan,
+        provenance: {
+            rawProfileTrainCycleArgs,
+            effectiveProfileTrainCycleArgs: profileTrainCycleArgs.slice(),
+            gateTrainCycleArgs: gateTrainCycleArgs.slice(),
+            generatedArgs: generatedArgs.slice(),
+            passThrough: passThrough.slice()
         },
         preflight,
         command: {

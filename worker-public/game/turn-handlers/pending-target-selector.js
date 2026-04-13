@@ -193,6 +193,8 @@ function buildPendingSelectionAction(context) {
         return buildBoardCellAction(context, 'chooseBlockadeTarget', 'blockadeTarget');
     case 'METEOR_WILL':
         return buildBoardCellAction(context, 'chooseMeteorTarget', 'meteorTarget');
+    case 'FREEZE_WILL':
+        return buildBoardCellAction(context, 'chooseFreezeTarget', 'freezeTarget');
     case 'SEED_WILL':
         return buildBoardCellAction(context, 'chooseSeedTarget', 'seedTarget');
     case 'TRAP_WILL':

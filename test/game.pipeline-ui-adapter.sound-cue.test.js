@@ -75,6 +75,37 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
+  test('living_will_selected 成功時は LIVING_WILL の status_applied phase で living_will_selected を再生する', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 10,
+      targets: [{ r: 2, col: 3, after: { color: 1, special: null } }],
+      meta: { special: 'LIVING_WILL', owner: 'black' }
+    }];
+    const raw = [{ type: 'living_will_selected', applied: true, target: { row: 2, col: 3 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'living_will_selected');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(10);
+  });
+
+  test('living_will_selected が不成立なら living_will_selected を再生しない', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 10,
+      targets: [{ r: 2, col: 3, after: { color: 1, special: null } }],
+      meta: { special: 'LIVING_WILL', owner: 'black' }
+    }];
+    const raw = [{ type: 'living_will_selected', applied: false, target: { row: 2, col: 3 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'living_will_selected');
+
+    expect(cue).toBeUndefined();
+  });
+
   test('hyperactive_inherit_selected 成功時は INHERITED_HYPERACTIVE の status_applied phase で guard_select を再生する', () => {
     const base = [{
       type: 'status_applied',
@@ -175,7 +206,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
-  test('board_shrink_selected 成功時は METEOR_HOLE の status_applied phase で stone_destroy を再生する', () => {
+  test('board_shrink_selected 成功時は METEOR_HOLE の status_applied phase で board_shrink_selected を再生する', () => {
     const base = [{
       type: 'status_applied',
       phase: 14,
@@ -191,13 +222,13 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
-    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'board_shrink_selected');
 
     expect(cue).toBeTruthy();
     expect(cue.phase).toBe(14);
   });
 
-  test('board_shrink_selected が不成立なら stone_destroy を再生しない', () => {
+  test('board_shrink_selected が不成立なら board_shrink_selected を再生しない', () => {
     const base = [{
       type: 'status_applied',
       phase: 10,
@@ -213,9 +244,25 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
-    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'board_shrink_selected');
 
     expect(cue).toBeUndefined();
+  });
+
+  test('BOARD_SHRINK_WILL の destroy playback は board_shrink_selected だけを再生し stone_destroy は追加しない', () => {
+    const base = [{
+      type: 'destroy',
+      phase: 12,
+      targets: [{ r: 0, col: 7, cause: 'BOARD_SHRINK_WILL', reason: 'board_shrink_destroy', meta: { destroyed: true } }]
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const shrinkCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'board_shrink_selected');
+    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+
+    expect(shrinkCue).toBeTruthy();
+    expect(shrinkCue.phase).toBe(12);
+    expect(stoneCue).toBeUndefined();
   });
 
   test('ROUND_BONUS_BANNER presentation event から round_bonus の sound_effect を追加する', () => {

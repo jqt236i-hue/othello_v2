@@ -3612,6 +3612,26 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     line-height: 1.5;
 }
 
+.rules-help-card-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(6px * var(--layout-stage-scale));
+}
+
+.rules-help-card-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: calc(3.6px * var(--layout-stage-scale)) calc(9.6px * var(--layout-stage-scale));
+    font-size: calc(13.2px * var(--layout-stage-scale));
+    line-height: 1;
+    color: var(--color-text-secondary);
+    border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.14);
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background: rgba(255, 255, 255, 0.04);
+    white-space: nowrap;
+}
+
 .rules-help-term-highlight {
     color: #6ec1ff;
     font-weight: 700;

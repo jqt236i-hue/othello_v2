@@ -22,100 +22,6 @@ const PendingTargetSelector = require('../../game/turn-handlers/pending-target-s
 const SELFPLAY_SCHEMA_VERSION = 'selfplay.v2';
 const LEGACY_SELFPLAY_SCHEMA_VERSION = 'selfplay.v1';
 
-const TARGET_SELECTION_CARD_TYPES = new Set([
-    'DESTROY_ONE_STONE',
-    'TRAP_WILL',
-    'CLONE_WILL',
-    'EXTEND_LIFE_WILL',
-    'EXTEND_LIFE_GOD',
-    'CORROSION_WILL',
-    'HYPERACTIVE_INHERIT_WILL',
-    'TELEPORT_WILL',
-    'CELL_TELEPORT_WILL',
-    'STRONG_WIND_WILL',
-    'SUPER_BUOYANCY_WILL',
-    'SUPER_GRAVITY_WILL',
-    'SWAP_WITH_ENEMY',
-    'POSITION_SWAP_WILL',
-    'TEMPT_WILL',
-    'HEAVEN_BLESSING',
-    'CONDEMN_WILL',
-    'TIME_BOMB',
-    'GUARD_WILL',
-    'GUARDIAN_GOD',
-    'BOARD_EXPANSION_WILL',
-    'BOARD_EXPANSION_GOD',
-    'BLOCKADE_WILL',
-    'METEOR_WILL',
-    'SEED_WILL'
-]);
-
-const CANDIDATE_CARD_TYPES = new Set([
-    'TREASURE_BOX',
-    'FREE_PLACEMENT',
-    'LAST_RESORT',
-    'SNIPER_WILL',
-    'PROTECTED_NEXT_STONE',
-    'PERMA_PROTECT_NEXT_STONE',
-    'EXTEND_LIFE_WILL',
-    'EXTEND_LIFE_GOD',
-    'AFTERIMAGE_WILL',
-    'GHOST_WILL',
-    'CORROSION_WILL',
-    'GUARD_WILL',
-    'GUARDIAN_GOD',
-    'TRAP_WILL',
-    'BOARD_EXPANSION_WILL',
-    'BOARD_EXPANSION_GOD',
-    'BLOCKADE_WILL',
-    'METEOR_WILL',
-    'SEED_WILL',
-    'CHAIN_WILL',
-    'DOUBLE_CHAIN_WILL',
-    'TRIPLE_CHAIN_WILL',
-    'QUAD_CHAIN_WILL',
-    'INFINITE_CHAIN_WILL',
-    'TABOO_REVERSE_WILL',
-    'REGEN_WILL',
-    'TIME_BOMB',
-    'CROSS_BOMB',
-    'X_BOMB',
-    'ULTIMATE_REVERSE_DRAGON',
-    'BREEDING_WILL',
-    'CLONE_WILL',
-    'HYPERACTIVE_WILL',
-    'INSTANT_HYPERACTIVE_WILL',
-    'ESCAPE_WILL',
-    'ROBOT_VACUUM_WILL',
-    'HYPERACTIVE_INHERIT_WILL',
-    'PLUNDER_WILL',
-    'WORK_WILL',
-    'DOUBLE_PLACE',
-    'TRIPLE_PLACE',
-    'QUAD_PLACE',
-    'INFINITE_PLACE',
-    'HEAVEN_BLESSING',
-    'CONDEMN_WILL',
-    'GOLD_STONE',
-    'CRYSTAL_STONE',
-    'SILVER_STONE',
-    'ULTIMATE_HYPERACTIVE_GOD',
-    'ULTIMATE_DESTROY_GOD',
-    'DESTROY_ONE_STONE',
-    'STRONG_WIND_WILL',
-    'SUPER_BUOYANCY_WILL',
-    'SUPER_GRAVITY_WILL',
-    'REBUILD_WILL',
-    'SWAP_WITH_ENEMY',
-    'POSITION_SWAP_WILL',
-    'TEMPT_WILL',
-    'TELEPORT_WILL',
-    'CELL_TELEPORT_WILL',
-    'LOSS_WILL',
-    'OBSERVER_WILL',
-    'DESTROY_DRAGON_WILL'
-]);
-
 const POSITION_WEIGHTS = [
     [120, -20, 20, 5, 5, 20, -20, 120],
     [-20, -40, -5, -5, -5, -5, -40, -20],
@@ -647,6 +553,7 @@ function buildPendingSelectionRecord(action, pendingType) {
         'swapTarget',
         'positionSwapTarget',
         'guardTarget',
+        'livingWillTarget',
         'extendTarget',
         'corrosionTarget',
         'bombTarget',
@@ -654,9 +561,11 @@ function buildPendingSelectionRecord(action, pendingType) {
         'splitTarget',
         'blockadeTarget',
         'meteorTarget',
+        'freezeTarget',
         'seedTarget',
         'teleportTarget',
         'expansionTarget',
+        'shrinkTarget',
         'trapTarget',
         'hyperactiveInheritTarget'
     ];
@@ -2259,15 +2168,15 @@ function getLegalMovesForAction(gameState, cardState, playerKey) {
 function getDirectUsableCardIds(cardState, gameState, playerKey) {
     const ids = CardLogic.getUsableCardIds(cardState, gameState, playerKey);
     if (!Array.isArray(ids)) return [];
-    return ids.filter((cardId) => {
-        let t = '';
-        try {
-            t = CardLogic.getCardType(cardId);
-        } catch (e) {
-            t = resolveCardType(cardId);
-        }
-        return CANDIDATE_CARD_TYPES.has(t);
-    });
+    const usableIds = [];
+    const seen = new Set();
+    for (const rawId of ids) {
+        const cardId = typeof rawId === 'string' ? rawId.trim() : '';
+        if (!cardId || seen.has(cardId)) continue;
+        seen.add(cardId);
+        usableIds.push(cardId);
+    }
+    return usableIds;
 }
 
 function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCount, legalMoves, usableCardIds) {
@@ -2561,8 +2470,22 @@ function chooseDestroyTarget(gameState, cardState, playerKey, rng) {
     });
 }
 
-function chooseTargetBySimulation(gameState, cardState, playerKey, rng, applyEffectFn, fallbackScoreFn, scoreAdjustFn) {
-    const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
+function resolvePendingTargetList(cardState, gameState, playerKey, targetGetterNames) {
+    const getterNames = Array.isArray(targetGetterNames)
+        ? targetGetterNames
+        : [targetGetterNames];
+    for (const getterName of getterNames) {
+        if (!getterName || typeof CardLogic[getterName] !== 'function') continue;
+        const targets = CardLogic[getterName](cardState, gameState, playerKey);
+        if (Array.isArray(targets) && targets.length > 0) {
+            return targets;
+        }
+    }
+    return CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
+}
+
+function chooseTargetBySimulation(gameState, cardState, playerKey, rng, applyEffectFn, fallbackScoreFn, scoreAdjustFn, targetGetterNames) {
+    const targets = resolvePendingTargetList(cardState, gameState, playerKey, targetGetterNames);
     if (!targets.length) return null;
 
     return choosePendingTargetByScore(targets, (target) => {
@@ -2698,6 +2621,20 @@ function chooseGuardTarget(gameState, cardState, playerKey, rng) {
     );
 }
 
+function chooseLivingWillTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col) =>
+            CardLogic.applyLivingWill(simCardState, simGameState, onePlayerKey, row, col),
+        (target) => (evaluatePositionValue(target.row, target.col) * 1.2),
+        null,
+        'getLivingWillTargets'
+    );
+}
+
 function chooseBoardExpansionTarget(gameState, cardState, playerKey, rng) {
     const pending = (cardState && cardState.pendingEffectByPlayer)
         ? cardState.pendingEffectByPlayer[playerKey]
@@ -2726,6 +2663,35 @@ function chooseBoardExpansionTarget(gameState, cardState, playerKey, rng) {
     );
 }
 
+function chooseBoardShrinkTarget(gameState, cardState, playerKey, rng) {
+    const pending = (cardState && cardState.pendingEffectByPlayer)
+        ? cardState.pendingEffectByPlayer[playerKey]
+        : null;
+    const pendingType = pending && typeof pending.type === 'string' ? pending.type : 'BOARD_SHRINK_WILL';
+    const targetGetterName = pendingType === 'BOARD_SHRINK_GOD'
+        ? 'getBoardShrinkGodTargets'
+        : 'getBoardShrinkTargets';
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col) => {
+            const simPending = (simCardState && simCardState.pendingEffectByPlayer)
+                ? simCardState.pendingEffectByPlayer[onePlayerKey]
+                : null;
+            const simPendingType = simPending && typeof simPending.type === 'string' ? simPending.type : pendingType;
+            if (simPendingType === 'BOARD_SHRINK_GOD' && typeof CardLogic.applyBoardShrinkGod === 'function') {
+                return CardLogic.applyBoardShrinkGod(simCardState, simGameState, onePlayerKey, row, col);
+            }
+            return CardLogic.applyBoardShrinkWill(simCardState, simGameState, onePlayerKey, row, col);
+        },
+        () => 0,
+        null,
+        targetGetterName
+    );
+}
+
 function chooseBlockadeTarget(gameState, cardState, playerKey, rng) {
     return chooseTargetBySimulation(
         gameState,
@@ -2747,6 +2713,20 @@ function chooseMeteorTarget(gameState, cardState, playerKey, rng) {
         (simCardState, simGameState, onePlayerKey, row, col, simRng) =>
             CardLogic.applyMeteorWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
         (target) => (evaluatePositionValue(target.row, target.col) * 1.35)
+    );
+}
+
+function chooseFreezeTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col) =>
+            CardLogic.applyFreezeWill(simCardState, simGameState, onePlayerKey, row, col),
+        (target) => (evaluatePositionValue(target.row, target.col) * 1.1),
+        null,
+        'getFreezeTargets'
     );
 }
 
@@ -2794,6 +2774,20 @@ function chooseCloneTarget(gameState, cardState, playerKey, rng) {
         (simCardState, simGameState, onePlayerKey, row, col, simRng) =>
             CardLogic.applyCloneWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
         (target) => (evaluatePositionValue(target.row, target.col) * 1.25)
+    );
+}
+
+function chooseSplitTarget(gameState, cardState, playerKey, rng) {
+    return chooseTargetBySimulation(
+        gameState,
+        cardState,
+        playerKey,
+        rng,
+        (simCardState, simGameState, onePlayerKey, row, col, simRng) =>
+            CardLogic.applySplitWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
+        (target) => (evaluatePositionValue(target.row, target.col) * 1.25),
+        null,
+        'getSplitTargets'
     );
 }
 
@@ -3099,12 +3093,16 @@ function buildPendingSelectionAction(gameState, cardState, playerKey, pendingTyp
             chooseCaptureTarget,
             chooseTimeBombTarget,
             chooseGuardTarget,
+            chooseLivingWillTarget,
             chooseBoardExpansionTarget,
+            chooseBoardShrinkTarget,
             chooseBlockadeTarget,
             chooseMeteorTarget,
+            chooseFreezeTarget,
             chooseSeedTarget,
             chooseTrapTarget,
             chooseCloneTarget,
+            chooseSplitTarget,
             chooseHyperactiveInheritTarget,
             chooseTeleportTarget,
             chooseCellTeleportTarget,

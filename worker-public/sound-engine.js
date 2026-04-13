@@ -35,6 +35,7 @@ const SoundEngine = {
         trap_triggered: '罠が発動したタイミング.mp3',
         trap_misfire: '罠が不発で消えたタイミング.mp3',
         board_expansion_reveal: '盤面が拡張されたタイミング.mp3',
+        board_shrink_selected: '盤面縮小するタイミング.mp3',
         strong_wind_move: '強風で石が移動したタイミング.mp3',
         super_buoyancy_move: '超浮力で石が浮上したタイミング.mp3',
         super_gravity_move: '超重力で石が落下したタイミング.mp3',
@@ -44,6 +45,7 @@ const SoundEngine = {
         treasure_gain: '宝箱で布石を獲得したタイミング.mp3',
         loss_will_reset: '意志の喪失で手札がリセットされるタイミング.mp3',
         strong_will_promoted: '強い意志の石が進化したタイミング.mp3',
+        living_will_selected: '生きる意志を付与するタイミング.mp3',
         living_will_restored: '生きる意志で復活するタイミング.mp3',
         extend_life: '特殊石の持続ターンが延長されたタイミング.mp3',
         corrosion_tick: '特殊石の持続ターンが減少したタイミング.mp3',
@@ -63,7 +65,8 @@ const SoundEngine = {
     effectDefaultVolumeScale: 0.35,
     effectVolumeScales: {
         hand_card_select: 0.5,
-        stone_destroy: 0.7
+        stone_destroy: 0.7,
+        board_shrink_selected: 0.7
     },
     _missingEffectWarned: {},
 

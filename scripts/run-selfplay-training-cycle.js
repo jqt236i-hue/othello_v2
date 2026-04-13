@@ -25,6 +25,26 @@ const {
     resolveSeedScheduleFromBank,
     commitSeedBankUsage
 } = require('./seed-bank-manager');
+const {
+    buildGenerateSelfplayDataArgs,
+    buildPolicyTrainingCommandArgs,
+    buildCardTrainingCommandArgs,
+    buildTargetTrainingCommandArgs,
+    buildValueTrainingCommandArgs,
+    buildQuickAdoptionCommandArgs,
+    buildQualityGateCommandArgs,
+    buildFinalAdoptionCommandArgs,
+    buildCandidateOnnxBundleArgs,
+    buildTargetOnnxBundleArgs,
+    buildOnnxGateCommandArgs,
+    buildPromotionTargetBundleArgs,
+    buildPromotionCommandArgs
+} = require('./training-cycle-command-builders');
+const {
+    extractTrainingCycleFailureDetail,
+    annotateTrainingCycleError,
+    writeSummarySnapshot
+} = require('./training-cycle-reporting');
 
 function defaultSelfplayJobs() {
     const cpuCount = Array.isArray(os.cpus()) ? os.cpus().length : 1;
@@ -1290,44 +1310,6 @@ function runCommand(cmd, args, options) {
     return { status: result.status, elapsedMs };
 }
 
-function extractTrainingCycleFailureDetail(error, context) {
-    if (error && error.trainingCycle && typeof error.trainingCycle === 'object') {
-        return Object.assign({}, error.trainingCycle);
-    }
-    const fallback = context && typeof context === 'object' ? context : {};
-    return {
-        iteration: Number.isFinite(fallback.iteration) ? fallback.iteration : null,
-        step: fallback.step || null,
-        runTag: fallback.runTag || null,
-        iterationTag: fallback.iterationTag || null,
-        summaryOut: fallback.summaryOut || null,
-        message: error && error.message ? error.message : String(error),
-        exitCode: error && Number.isFinite(error.exitCode) ? error.exitCode : null,
-        errorCode: error && error.code ? error.code : null,
-        command: error && error.command ? error.command : null,
-        stepOutputs: Array.isArray(fallback.stepOutputs) ? fallback.stepOutputs.filter((one) => !!one) : [],
-        generatedAt: new Date().toISOString()
-    };
-}
-
-function annotateTrainingCycleError(error, context) {
-    const detail = extractTrainingCycleFailureDetail(error, context);
-    const parts = [];
-    if (Number.isFinite(detail.iteration)) parts.push(`iteration=${detail.iteration}`);
-    if (detail.step) parts.push(`step=${detail.step}`);
-    if (Number.isFinite(detail.exitCode)) parts.push(`exit=${detail.exitCode}`);
-    if (detail.errorCode && detail.errorCode !== 'COMMAND_FAILED') parts.push(`code=${detail.errorCode}`);
-    parts.push(detail.message || 'training cycle failed');
-
-    const wrapped = new Error(parts.join(' '));
-    wrapped.code = detail.errorCode || (error && error.code) || 'TRAINING_CYCLE_FAILED';
-    wrapped.exitCode = Number.isFinite(detail.exitCode) ? detail.exitCode : null;
-    wrapped.command = detail.command || (error && error.command) || null;
-    wrapped.trainingCycle = detail;
-    wrapped.cause = error;
-    return wrapped;
-}
-
 function iterationTag(runTag, iterationIndex) {
     return `${runTag}.it${String(iterationIndex).padStart(2, '0')}`;
 }
@@ -1369,14 +1351,6 @@ function buildIterationPaths(args, iterationIndex) {
 
 function fileExists(filePath) {
     return !!filePath && fs.existsSync(filePath);
-}
-
-function writeJsonFileAtomic(filePath, payload) {
-    const resolvedPath = path.resolve(filePath);
-    fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
-    const tempPath = `${resolvedPath}.tmp-${process.pid}-${Date.now()}`;
-    fs.writeFileSync(tempPath, JSON.stringify(payload, null, 2), 'utf8');
-    fs.renameSync(tempPath, resolvedPath);
 }
 
 function buildResumeChunkArtifactDir(dataPath) {
@@ -1798,60 +1772,6 @@ function resolveNextCarryOverState(args, carryOver, result) {
     return nextState;
 }
 
-function buildPromotionCommandArgs(args, iterationPaths, adoptionResultPath, hasTargetTrainingData) {
-    const modelsDir = path.resolve(args.modelsDir);
-    const gatePayloadArgs = [];
-    if (iterationPaths.quickAdoptionPath) {
-        gatePayloadArgs.push('--quick-gate-payload', iterationPaths.quickAdoptionPath);
-    }
-    if (iterationPaths.qualityGatePath) {
-        gatePayloadArgs.push('--quality-gate-payload', iterationPaths.qualityGatePath);
-    }
-    if (iterationPaths.finalAdoptionPath) {
-        gatePayloadArgs.push('--final-gate-payload', iterationPaths.finalAdoptionPath);
-    }
-    if (iterationPaths.onnxGatePath) {
-        gatePayloadArgs.push('--onnx-gate-payload', iterationPaths.onnxGatePath);
-    }
-    if (iterationPaths.warehouseManifestPath) {
-        gatePayloadArgs.push('--warehouse-manifest', iterationPaths.warehouseManifestPath);
-    }
-    return [
-        path.resolve('scripts', 'promote-policy-model.js'),
-        '--adoption-result', adoptionResultPath,
-        ...gatePayloadArgs,
-        '--candidate-model', iterationPaths.candidateModelPath,
-        '--candidate-onnx', iterationPaths.onnxModelPath,
-        '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
-        ...(args.allowCardUsage ? [
-            '--candidate-card-onnx', iterationPaths.cardOnnxModelPath,
-            '--candidate-card-onnx-meta', iterationPaths.cardOnnxMetaPath
-        ] : []),
-        ...(hasTargetTrainingData ? [
-            '--candidate-target-onnx', iterationPaths.targetOnnxModelPath,
-            '--candidate-target-onnx-meta', iterationPaths.targetOnnxMetaPath
-        ] : []),
-        '--candidate-value-onnx', iterationPaths.valueOnnxModelPath,
-        '--candidate-value-onnx-meta', iterationPaths.valueOnnxMetaPath,
-        '--target-model', path.join(modelsDir, 'policy-table.json'),
-        '--target-onnx', path.join(modelsDir, 'policy-net.onnx'),
-        '--target-onnx-meta', path.join(modelsDir, 'policy-net.onnx.meta.json'),
-        ...(args.allowCardUsage ? [
-            '--target-card-onnx', path.join(modelsDir, 'policy-card.onnx'),
-            '--target-card-onnx-meta', path.join(modelsDir, 'policy-card.onnx.meta.json')
-        ] : []),
-        ...(hasTargetTrainingData ? [
-            '--target-target-onnx', path.join(modelsDir, 'policy-target.onnx'),
-            '--target-target-onnx-meta', path.join(modelsDir, 'policy-target.onnx.meta.json')
-        ] : []),
-        '--target-value-onnx', path.join(modelsDir, 'policy-value.onnx'),
-        '--target-value-onnx-meta', path.join(modelsDir, 'policy-value.onnx.meta.json'),
-        '--promoted-dir', path.join(modelsDir, 'promoted'),
-        '--archive-dir', path.join(modelsDir, 'archive'),
-        '--manifest', path.join(modelsDir, 'promoted', 'promotion-manifest.json')
-    ];
-}
-
 function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const seedBank = args.seedBankPath
         ? Object.assign(loadSeedBank(args.seedBankPath), { __filePath: args.seedBankPath })
@@ -2010,88 +1930,49 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         return result;
     };
 
-    runManagedStep('generate-train', process.execPath, [
-        path.resolve('scripts', 'generate-selfplay-data.js'),
-        '--games', String(args.trainGames),
-        '--seed', String(seed),
-        '--max-plies', String(args.maxPlies),
-        '--out', p.trainDataPath,
-        '--hardcase-out', p.trainHardcaseDataPath,
-        '--seed-family', 'train',
-        '--data-lane', 'train-main',
-        '--jobs', String(args.selfplayJobs)
-    ].concat(
+    runManagedStep('generate-train', process.execPath, buildGenerateSelfplayDataArgs({
+        games: args.trainGames,
+        seed,
+        maxPlies: args.maxPlies,
+        outPath: p.trainDataPath,
+        hardcaseOutPath: p.trainHardcaseDataPath,
+        seedFamily: 'train',
+        dataLane: 'train-main',
+        selfplayJobs: args.selfplayJobs,
         generateCardArgs,
         selfplayDiversityArgs,
         guideModelArgs,
         selfplayResumeArgs,
-        shouldReuseStepArtifacts(args, 'generate-train') ? ['--reuse-completed-chunks'] : [],
+        reuseCompletedChunks: shouldReuseStepArtifacts(args, 'generate-train'),
         verboseArgs
-    ), {
+    }), {
         reuseOutputs: [p.trainDataPath, p.trainHardcaseDataPath, p.trainDataSummaryPath]
     });
 
-    runManagedStep('generate-eval', process.execPath, [
-        path.resolve('scripts', 'generate-selfplay-data.js'),
-        '--games', String(args.evalGames),
-        '--seed', String(evalSeed),
-        '--max-plies', String(args.maxPlies),
-        '--out', p.evalDataPath,
-        '--hardcase-out', p.evalHardcaseDataPath,
-        '--seed-family', 'eval',
-        '--data-lane', 'eval-suite',
-        '--jobs', String(args.selfplayJobs)
-    ].concat(
+    runManagedStep('generate-eval', process.execPath, buildGenerateSelfplayDataArgs({
+        games: args.evalGames,
+        seed: evalSeed,
+        maxPlies: args.maxPlies,
+        outPath: p.evalDataPath,
+        hardcaseOutPath: p.evalHardcaseDataPath,
+        seedFamily: 'eval',
+        dataLane: 'eval-suite',
+        selfplayJobs: args.selfplayJobs,
         generateCardArgs,
         selfplayDiversityArgs,
         guideModelArgs,
         selfplayResumeArgs,
-        shouldReuseStepArtifacts(args, 'generate-eval') ? ['--reuse-completed-chunks'] : [],
+        reuseCompletedChunks: shouldReuseStepArtifacts(args, 'generate-eval'),
         verboseArgs
-    ), {
+    }), {
         reuseOutputs: [p.evalDataPath, p.evalHardcaseDataPath, p.evalDataSummaryPath]
     });
 
-    runManagedStep('train-policy', args.pythonPath, [
-        path.resolve('ai', 'train', 'train_policy_onnx.py'),
-        '--input', p.trainDataPath,
-        '--onnx-out', p.onnxModelPath,
-        '--meta-out', p.onnxMetaPath,
-        '--policy-table-out', p.candidateModelPath,
-        '--epochs', String(args.onnxEpochs),
-        '--batch-size', String(args.onnxBatchSize),
-        '--lr', String(args.onnxLr),
-        '--hidden-size', String(args.onnxHiddenSize),
-        '--device', args.onnxDevice,
-        '--log-interval-steps', String(args.onnxLogIntervalSteps),
-        '--val-split', String(args.onnxValSplit),
-        '--early-stop-patience', String(args.onnxEarlyStopPatience),
-        '--early-stop-min-delta', String(args.onnxEarlyStopMinDelta),
-        '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
-        '--early-stop-monitor', args.onnxEarlyStopMonitor,
-        '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
-        '--card-no-action-weight', String(args.onnxCardNoActionWeight),
-        '--card-class-balance-power', String(args.onnxCardClassBalancePower),
-        '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
-        '--loser-sample-weight', String(args.onnxLoserSampleWeight),
-        '--draw-sample-weight', String(args.onnxDrawSampleWeight),
-        '--corner-emergency-sample-boost', String(args.onnxCornerEmergencySampleBoost),
-        '--negative-future-disc-sample-boost', String(args.onnxNegativeFutureDiscSampleBoost),
-        '--negative-future-disc-threshold', String(args.onnxNegativeFutureDiscThreshold),
-        '--tactical-miss-sample-boost', String(args.onnxTacticalMissSampleBoost),
-        '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
-        '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
-        '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
-        '--corner-balance-sample-boost', String(args.onnxCornerBalanceSampleBoost),
-        '--edge-balance-sample-boost', String(args.onnxEdgeBalanceSampleBoost),
-        '--economy-balance-sample-boost', String(args.onnxEconomyBalanceSampleBoost),
-        '--metrics-out', p.onnxMetricsPath,
-        '--min-visits', String(args.minVisits),
-        '--shape-immediate', String(args.shapeImmediate),
-        '--checkpoint-out', p.checkpointPath
-    ]
-        .concat(policyResumeCheckpointPath ? ['--resume-checkpoint', policyResumeCheckpointPath] : [])
-        .concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
+    runManagedStep('train-policy', args.pythonPath, buildPolicyTrainingCommandArgs({
+        args,
+        iterationPaths: p,
+        resumeCheckpointPath: policyResumeCheckpointPath
+    }), {
         reuseOutputs: [p.onnxModelPath, p.onnxMetaPath, p.candidateModelPath]
     });
 
@@ -2106,40 +1987,11 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const trainCardThisIteration = args.allowCardUsage && shouldRunPeriodicTraining(iterationIndex, args.trainCardEvery);
     if (args.allowCardUsage) {
         if (trainCardThisIteration) {
-            runManagedStep('train-card-policy', args.pythonPath, [
-                path.resolve('ai', 'train', 'train_card_onnx.py'),
-                '--input', p.trainDataPath,
-                '--onnx-out', p.cardOnnxModelPath,
-                '--meta-out', p.cardOnnxMetaPath,
-                '--epochs', String(args.onnxEpochs),
-                '--batch-size', String(args.onnxBatchSize),
-                '--lr', String(args.onnxLr),
-                '--hidden-size', String(args.onnxHiddenSize),
-                '--device', args.onnxDevice,
-                '--log-interval-steps', String(args.onnxLogIntervalSteps),
-                '--val-split', String(args.onnxValSplit),
-                '--early-stop-patience', String(args.onnxEarlyStopPatience),
-                '--early-stop-min-delta', String(args.onnxEarlyStopMinDelta),
-                '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
-                '--early-stop-monitor', args.onnxEarlyStopMonitor === 'val_place_loss' ? 'val_loss' : (args.onnxEarlyStopMonitor === 'train_place_loss' ? 'train_loss' : args.onnxEarlyStopMonitor),
-                '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
-                '--card-no-action-weight', String(args.onnxCardNoActionWeight),
-                '--card-class-balance-power', String(args.onnxCardClassBalancePower),
-                '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
-                '--loser-sample-weight', String(args.onnxLoserSampleWeight),
-                '--draw-sample-weight', String(args.onnxDrawSampleWeight),
-                '--corner-emergency-sample-boost', String(args.onnxCornerEmergencySampleBoost),
-                '--negative-future-disc-sample-boost', String(args.onnxNegativeFutureDiscSampleBoost),
-                '--negative-future-disc-threshold', String(args.onnxNegativeFutureDiscThreshold),
-                '--tactical-miss-sample-boost', String(args.onnxTacticalMissSampleBoost),
-                '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
-                '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
-                '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
-                '--metrics-out', p.cardMetricsPath,
-                '--checkpoint-out', p.cardCheckpointPath
-            ]
-                .concat(cardResumeCheckpointPath ? ['--resume-checkpoint', cardResumeCheckpointPath] : [])
-                .concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
+            runManagedStep('train-card-policy', args.pythonPath, buildCardTrainingCommandArgs({
+                args,
+                iterationPaths: p,
+                resumeCheckpointPath: cardResumeCheckpointPath
+            }), {
                 reuseOutputs: [p.cardOnnxModelPath, p.cardOnnxMetaPath]
             });
         } else {
@@ -2152,38 +2004,11 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const trainTargetThisIteration = hasTargetTrainingData && shouldRunPeriodicTraining(iterationIndex, args.trainTargetEvery);
     if (hasTargetTrainingData) {
         if (trainTargetThisIteration) {
-            runManagedStep('train-target-policy', args.pythonPath, [
-                path.resolve('ai', 'train', 'train_target_onnx.py'),
-                '--input', p.trainDataPath,
-                '--onnx-out', p.targetOnnxModelPath,
-                '--meta-out', p.targetOnnxMetaPath,
-                '--epochs', String(args.onnxEpochs),
-                '--batch-size', String(args.onnxBatchSize),
-                '--lr', String(args.onnxLr),
-                '--hidden-size', String(args.onnxHiddenSize),
-                '--device', args.onnxDevice,
-                '--log-interval-steps', String(args.onnxLogIntervalSteps),
-                '--val-split', String(args.onnxValSplit),
-                '--early-stop-patience', String(args.onnxEarlyStopPatience),
-                '--early-stop-min-delta', String(args.onnxEarlyStopMinDelta),
-                '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
-                '--early-stop-monitor', args.onnxEarlyStopMonitor === 'val_place_loss' ? 'val_loss' : (args.onnxEarlyStopMonitor === 'train_place_loss' ? 'train_loss' : args.onnxEarlyStopMonitor),
-                '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
-                '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
-                '--loser-sample-weight', String(args.onnxLoserSampleWeight),
-                '--draw-sample-weight', String(args.onnxDrawSampleWeight),
-                '--corner-emergency-sample-boost', String(args.onnxCornerEmergencySampleBoost),
-                '--negative-future-disc-sample-boost', String(args.onnxNegativeFutureDiscSampleBoost),
-                '--negative-future-disc-threshold', String(args.onnxNegativeFutureDiscThreshold),
-                '--tactical-miss-sample-boost', String(args.onnxTacticalMissSampleBoost),
-                '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
-                '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
-                '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
-                '--metrics-out', p.targetMetricsPath,
-                '--checkpoint-out', p.targetCheckpointPath
-            ]
-                .concat(targetResumeCheckpointPath ? ['--resume-checkpoint', targetResumeCheckpointPath] : [])
-                .concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
+            runManagedStep('train-target-policy', args.pythonPath, buildTargetTrainingCommandArgs({
+                args,
+                iterationPaths: p,
+                resumeCheckpointPath: targetResumeCheckpointPath
+            }), {
                 reuseOutputs: [p.targetOnnxModelPath, p.targetOnnxMetaPath]
             });
         } else {
@@ -2194,45 +2019,11 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
 
     const trainValueThisIteration = shouldRunPeriodicTraining(iterationIndex, args.trainValueEvery);
     if (trainValueThisIteration) {
-        runManagedStep('train-value-policy', args.pythonPath, [
-            path.resolve('ai', 'train', 'train_value_onnx.py'),
-            '--input', p.trainDataPath,
-            '--onnx-out', p.valueOnnxModelPath,
-            '--meta-out', p.valueOnnxMetaPath,
-            '--epochs', String(args.onnxEpochs),
-            '--batch-size', String(args.onnxBatchSize),
-            '--lr', String(args.onnxLr),
-            '--hidden-size', String(args.onnxHiddenSize),
-            '--device', args.onnxDevice,
-            '--log-interval-steps', String(args.onnxLogIntervalSteps),
-            '--val-split', String(args.onnxValSplit),
-            '--early-stop-patience', String(args.onnxEarlyStopPatience),
-            '--early-stop-min-delta', String(args.onnxEarlyStopMinDelta),
-            '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
-            '--early-stop-monitor', args.onnxEarlyStopMonitor === 'val_place_loss' ? 'val_loss' : (args.onnxEarlyStopMonitor === 'train_place_loss' ? 'train_loss' : args.onnxEarlyStopMonitor),
-            '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
-            '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
-            '--loser-sample-weight', String(args.onnxLoserSampleWeight),
-            '--draw-sample-weight', String(args.onnxDrawSampleWeight),
-            '--corner-emergency-sample-boost', String(args.onnxCornerEmergencySampleBoost),
-            '--negative-future-disc-sample-boost', String(args.onnxNegativeFutureDiscSampleBoost),
-            '--negative-future-disc-threshold', String(args.onnxNegativeFutureDiscThreshold),
-            '--tactical-miss-sample-boost', String(args.onnxTacticalMissSampleBoost),
-            '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
-            '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
-            '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
-            '--corner-balance-sample-boost', String(args.onnxCornerBalanceSampleBoost),
-            '--edge-balance-sample-boost', String(args.onnxEdgeBalanceSampleBoost),
-            '--economy-balance-sample-boost', String(args.onnxEconomyBalanceSampleBoost),
-            '--metrics-out', p.valueMetricsPath,
-            '--value-target-corner-weight', String(args.onnxValueTargetCornerWeight),
-            '--value-target-edge-weight', String(args.onnxValueTargetEdgeWeight),
-            '--value-target-economy-weight', String(args.onnxValueTargetEconomyWeight),
-            '--value-target-corner-emergency-weight', String(args.onnxValueTargetCornerEmergencyWeight),
-            '--checkpoint-out', p.valueCheckpointPath
-        ]
-            .concat(valueResumeCheckpointPath ? ['--resume-checkpoint', valueResumeCheckpointPath] : [])
-            .concat(args.onnxResumeOptimizer ? ['--resume-optimizer'] : []), {
+        runManagedStep('train-value-policy', args.pythonPath, buildValueTrainingCommandArgs({
+            args,
+            iterationPaths: p,
+            resumeCheckpointPath: valueResumeCheckpointPath
+        }), {
             reuseOutputs: [p.valueOnnxModelPath, p.valueOnnxMetaPath]
         });
     } else {
@@ -2258,47 +2049,23 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     let onnxGatePassed = !args.onnxGateEnabled;
 
     if (gateControl.gateIterationAllowed) {
-        const quickStep = runManagedStep('adoption-quick', process.execPath, [
-            path.resolve('scripts', 'benchmark-policy-adoption.js'),
-            '--gate-phase', 'quick',
-            '--games', String(args.quickGames),
-            '--seed', String(quickAdoptionSeed),
-            '--seed-count', String(quickGateSeedConfig.seedCount),
-            '--seed-stride', String(quickGateSeedConfig.seedStride),
-            '--jobs', String(args.adoptionJobs),
-            '--max-plies', String(args.maxPlies),
-            '--threshold', String(quickAdoptionThreshold),
-            '--confidence-level', String(quickAdoptionConfidenceLevel),
-            '--min-lower-bound', String(quickAdoptionMinLowerBound),
-            '--min-seed-uplift', String(quickAdoptionMinSeedUplift),
-            '--min-seed-pass-count', String(quickAdoptionMinSeedPassCount),
-            '--a-rate', String(adoptionCardRate),
-            '--b-rate', String(adoptionCardRate),
-            '--tactical-weight', String(args.adoptionTacticalWeight),
-            '--tactical-depth-opening', String(args.adoptionTacticalDepthOpening),
-            '--tactical-depth-mid', String(args.adoptionTacticalDepthMid),
-            '--tactical-depth-end', String(args.adoptionTacticalDepthEnd),
-            '--tactical-beam-width', String(args.adoptionTacticalBeamWidth),
-            '--policy-score-weight', String(args.adoptionPolicyScoreWeight),
-            '--heuristic-weight', String(args.adoptionHeuristicWeight),
-            '--white-priority', String(args.adoptionWhitePriority),
-            '--quality-weight-corner', String(args.adoptionQualityWeightCorner),
-            '--quality-weight-edge', String(args.adoptionQualityWeightEdge),
-            '--quality-weight-corner-recovery', String(args.adoptionQualityWeightCornerRecovery),
-            '--quality-weight-corner-recapture', String(args.adoptionQualityWeightCornerRecapture),
-            '--quality-weight-edge-recovery', String(args.adoptionQualityWeightEdgeRecovery),
-            '--quality-weight-corner-hold', String(args.adoptionQualityWeightCornerHold),
-            '--quality-weight-corner-hold-turns', String(args.adoptionQualityWeightCornerHoldTurns),
-            '--quality-weight-edge-hold', String(args.adoptionQualityWeightEdgeHold),
-            '--quality-weight-final-corner-share', String(args.adoptionQualityWeightFinalCornerShare),
-            '--quality-weight-final-edge-share', String(args.adoptionQualityWeightFinalEdgeShare),
-            '--quality-weight-bonus', String(args.adoptionQualityWeightBonus),
-            '--quality-weight-card-immediate', String(args.adoptionQualityWeightCardImmediate),
-            '--quality-weight-card-future', String(args.adoptionQualityWeightCardFuture),
-            '--quality-weight-place-delta', String(args.adoptionQualityWeightPlaceDelta),
-            '--candidate-model', p.candidateModelPath,
-            '--out', p.quickAdoptionPath
-        ].concat(adoptionBaselineArgs, verboseArgs), {
+        const quickStep = runManagedStep('adoption-quick', process.execPath, buildQuickAdoptionCommandArgs({
+            args,
+            iterationPaths: p,
+            quickConfig: {
+                seed: quickAdoptionSeed,
+                seedCount: quickGateSeedConfig.seedCount,
+                seedStride: quickGateSeedConfig.seedStride,
+                threshold: quickAdoptionThreshold,
+                confidenceLevel: quickAdoptionConfidenceLevel,
+                minLowerBound: quickAdoptionMinLowerBound,
+                minSeedUplift: quickAdoptionMinSeedUplift,
+                minSeedPassCount: quickAdoptionMinSeedPassCount
+            },
+            adoptionCardRate,
+            adoptionBaselineArgs,
+            verboseArgs
+        }), {
             allowExitCodes: [0, 2],
             reuseOutputs: [p.quickAdoptionPath]
         });
@@ -2338,48 +2105,18 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
 
         qualityGatePassed = !args.qualityGateEnabled;
         if (quickPassed && args.qualityGateEnabled) {
-            const qualityStep = runManagedStep('adoption-quality-gate', process.execPath, [
-                path.resolve('scripts', 'benchmark-policy-quality-gate.js'),
-                '--games', String(args.qualityGateGames),
-                '--seed', String(qualityGateSeed),
-                '--seed-count', String(qualityGateSeedConfig.seedCount),
-                '--seed-stride', String(qualityGateSeedConfig.seedStride),
-                '--jobs', String(args.adoptionJobs),
-                '--max-plies', String(args.maxPlies),
-                '--threshold', String(args.qualityGateThreshold),
-                '--confidence-level', String(args.qualityGateConfidenceLevel),
-                '--min-lower-bound', String(args.qualityGateMinLowerBound),
-                '--min-seed-uplift', String(args.qualityGateMinSeedUplift),
-                '--min-seed-pass-count', String(args.qualityGateMinSeedPassCount),
-                '--a-rate', String(adoptionCardRate),
-                '--b-rate', String(adoptionCardRate),
-                '--tactical-weight', String(args.adoptionTacticalWeight),
-                '--tactical-depth-opening', String(args.adoptionTacticalDepthOpening),
-                '--tactical-depth-mid', String(args.adoptionTacticalDepthMid),
-                '--tactical-depth-end', String(args.adoptionTacticalDepthEnd),
-                '--tactical-beam-width', String(args.adoptionTacticalBeamWidth),
-                '--policy-score-weight', String(args.adoptionPolicyScoreWeight),
-                '--heuristic-weight', String(args.adoptionHeuristicWeight),
-                '--white-priority', String(args.adoptionWhitePriority),
-                '--quality-weight-corner', String(args.adoptionQualityWeightCorner),
-                '--quality-weight-edge', String(args.adoptionQualityWeightEdge),
-                '--quality-weight-corner-recovery', String(args.adoptionQualityWeightCornerRecovery),
-                '--quality-weight-corner-recapture', String(args.adoptionQualityWeightCornerRecapture),
-                '--quality-weight-edge-recovery', String(args.adoptionQualityWeightEdgeRecovery),
-                '--quality-weight-corner-hold', String(args.adoptionQualityWeightCornerHold),
-                '--quality-weight-corner-hold-turns', String(args.adoptionQualityWeightCornerHoldTurns),
-                '--quality-weight-edge-hold', String(args.adoptionQualityWeightEdgeHold),
-                '--quality-weight-final-corner-share', String(args.adoptionQualityWeightFinalCornerShare),
-                '--quality-weight-final-edge-share', String(args.adoptionQualityWeightFinalEdgeShare),
-                '--quality-weight-bonus', String(args.adoptionQualityWeightBonus),
-                '--quality-weight-card-immediate', String(args.adoptionQualityWeightCardImmediate),
-                '--quality-weight-card-future', String(args.adoptionQualityWeightCardFuture),
-                '--quality-weight-place-delta', String(args.adoptionQualityWeightPlaceDelta),
-                '--candidate-model', p.candidateModelPath,
-                '--out', p.qualityGatePath
-            ]
-                .concat(args.qualityGateStrengthFirst ? ['--quality-gate-strength-first'] : [])
-                .concat(adoptionBaselineArgs, verboseArgs), {
+            const qualityStep = runManagedStep('adoption-quality-gate', process.execPath, buildQualityGateCommandArgs({
+                args,
+                iterationPaths: p,
+                qualityConfig: {
+                    seed: qualityGateSeed,
+                    seedCount: qualityGateSeedConfig.seedCount,
+                    seedStride: qualityGateSeedConfig.seedStride
+                },
+                adoptionCardRate,
+                adoptionBaselineArgs,
+                verboseArgs
+            }), {
                 allowExitCodes: [0, 2],
                 reuseOutputs: [p.qualityGatePath]
             });
@@ -2390,47 +2127,23 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
 
         const shouldRunFinalAdoption = quickPassed && qualityGatePassed && args.promotionMode === 'strict';
         if (shouldRunFinalAdoption) {
-            const finalStep = runManagedStep('adoption-final', process.execPath, [
-                path.resolve('scripts', 'benchmark-policy-adoption.js'),
-                '--gate-phase', 'final',
-                '--games', String(args.finalGames),
-                '--seed', String(finalAdoptionSeed),
-                '--seed-count', String(finalGateSeedConfig.seedCount),
-                '--seed-stride', String(finalGateSeedConfig.seedStride),
-                '--jobs', String(args.adoptionJobs),
-                '--max-plies', String(args.maxPlies),
-                '--threshold', String(finalAdoptionThreshold),
-                '--confidence-level', String(finalAdoptionConfidenceLevel),
-                '--min-lower-bound', String(finalAdoptionMinLowerBound),
-                '--min-seed-uplift', String(finalAdoptionMinSeedUplift),
-                '--min-seed-pass-count', String(finalAdoptionMinSeedPassCount),
-                '--a-rate', String(adoptionCardRate),
-                '--b-rate', String(adoptionCardRate),
-                '--tactical-weight', String(args.adoptionTacticalWeight),
-                '--tactical-depth-opening', String(args.adoptionTacticalDepthOpening),
-                '--tactical-depth-mid', String(args.adoptionTacticalDepthMid),
-                '--tactical-depth-end', String(args.adoptionTacticalDepthEnd),
-                '--tactical-beam-width', String(args.adoptionTacticalBeamWidth),
-                '--policy-score-weight', String(args.adoptionPolicyScoreWeight),
-                '--heuristic-weight', String(args.adoptionHeuristicWeight),
-                '--white-priority', String(args.adoptionWhitePriority),
-                '--quality-weight-corner', String(args.adoptionQualityWeightCorner),
-                '--quality-weight-edge', String(args.adoptionQualityWeightEdge),
-                '--quality-weight-corner-recovery', String(args.adoptionQualityWeightCornerRecovery),
-                '--quality-weight-corner-recapture', String(args.adoptionQualityWeightCornerRecapture),
-                '--quality-weight-edge-recovery', String(args.adoptionQualityWeightEdgeRecovery),
-                '--quality-weight-corner-hold', String(args.adoptionQualityWeightCornerHold),
-                '--quality-weight-corner-hold-turns', String(args.adoptionQualityWeightCornerHoldTurns),
-                '--quality-weight-edge-hold', String(args.adoptionQualityWeightEdgeHold),
-                '--quality-weight-final-corner-share', String(args.adoptionQualityWeightFinalCornerShare),
-                '--quality-weight-final-edge-share', String(args.adoptionQualityWeightFinalEdgeShare),
-                '--quality-weight-bonus', String(args.adoptionQualityWeightBonus),
-                '--quality-weight-card-immediate', String(args.adoptionQualityWeightCardImmediate),
-                '--quality-weight-card-future', String(args.adoptionQualityWeightCardFuture),
-                '--quality-weight-place-delta', String(args.adoptionQualityWeightPlaceDelta),
-                '--candidate-model', p.candidateModelPath,
-                '--out', p.finalAdoptionPath
-            ].concat(adoptionBaselineArgs, verboseArgs), {
+            const finalStep = runManagedStep('adoption-final', process.execPath, buildFinalAdoptionCommandArgs({
+                args,
+                iterationPaths: p,
+                finalConfig: {
+                    seed: finalAdoptionSeed,
+                    seedCount: finalGateSeedConfig.seedCount,
+                    seedStride: finalGateSeedConfig.seedStride,
+                    threshold: finalAdoptionThreshold,
+                    confidenceLevel: finalAdoptionConfidenceLevel,
+                    minLowerBound: finalAdoptionMinLowerBound,
+                    minSeedUplift: finalAdoptionMinSeedUplift,
+                    minSeedPassCount: finalAdoptionMinSeedPassCount
+                },
+                adoptionCardRate,
+                adoptionBaselineArgs,
+                verboseArgs
+            }), {
                 allowExitCodes: [0, 2],
                 reuseOutputs: [p.finalAdoptionPath]
             });
@@ -2442,31 +2155,16 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         onnxGatePassed = !args.onnxGateEnabled;
         const shouldRunOnnxGate = args.onnxGateEnabled && qualityGatePassed && (finalPassed || args.promotionMode === 'onnx-primary');
         if (shouldRunOnnxGate) {
-            const onnxStep = runManagedStep('adoption-onnx-gate', process.execPath, [
-                path.resolve('scripts', 'benchmark-policy-onnx-gate.js'),
-                '--games', String(args.onnxGateGames),
-                '--seed', String(onnxGateSeed),
-                '--seed-count', String(onnxGateSeedConfig.seedCount),
-                '--seed-stride', String(onnxGateSeedConfig.seedStride),
-                '--jobs', String(args.onnxGateJobs),
-                '--threshold', String(args.onnxGateThreshold),
-                '--min-seed-score', String(args.onnxGateMinSeedScore),
-                '--min-seed-pass-count', String(args.onnxGateMinSeedPassCount),
-                '--max-average-latency-ms', String(args.onnxGateMaxAverageLatencyMs),
-                '--max-p95-latency-ms', String(args.onnxGateMaxP95LatencyMs),
-                '--max-max-latency-ms', String(args.onnxGateMaxMaxLatencyMs),
-                '--timeout-ms', String(args.onnxGateTimeoutMs),
-                '--black-level', String(args.onnxGateBlackLevel),
-                '--white-level', String(args.onnxGateWhiteLevel),
-                '--candidate-color-mode', String(args.onnxGateCandidateColorMode),
-                '--candidate-onnx', p.onnxModelPath,
-                '--candidate-onnx-meta', p.onnxMetaPath,
-                ...(args.allowCardUsage ? ['--candidate-card-onnx', p.cardOnnxModelPath, '--candidate-card-onnx-meta', p.cardOnnxMetaPath] : []),
-                ...(hasTargetTrainingData ? ['--candidate-target-onnx', p.targetOnnxModelPath, '--candidate-target-onnx-meta', p.targetOnnxMetaPath] : []),
-                '--candidate-value-onnx', p.valueOnnxModelPath,
-                '--candidate-value-onnx-meta', p.valueOnnxMetaPath,
-                '--out', p.onnxGatePath
-            ], {
+            const onnxStep = runManagedStep('adoption-onnx-gate', process.execPath, buildOnnxGateCommandArgs({
+                args,
+                iterationPaths: p,
+                hasTargetTrainingData,
+                onnxConfig: {
+                    seed: onnxGateSeed,
+                    seedCount: onnxGateSeedConfig.seedCount,
+                    seedStride: onnxGateSeedConfig.seedStride
+                }
+            }), {
                 allowExitCodes: [0, 2],
                 reuseOutputs: [p.onnxGatePath]
             });
@@ -2671,207 +2369,6 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const warehouseManifest = buildIterationWarehouseManifest(args, iterationResult);
     writeTrainingWarehouseManifest(p.warehouseManifestPath, warehouseManifest);
     return iterationResult;
-}
-
-function writeSummarySnapshot(args, startedAt, iterations, guideModelPath, guideModelPoolPaths, resumeCheckpointPaths, anchorModelPath, stoppedByTimeBudget, stopReason, failureDetail) {
-    const latestResumeCheckpointPaths = cloneResumeCheckpointPaths(resumeCheckpointPaths);
-    const payload = {
-        generatedAt: new Date().toISOString(),
-        elapsedMs: Date.now() - startedAt,
-        config: {
-            iterations: args.iterations,
-            maxHours: args.maxHours,
-            trainGames: args.trainGames,
-            evalGames: args.evalGames,
-            selfplayJobs: args.selfplayJobs,
-            selfplayResumeChunkSize: args.selfplayResumeChunkSize,
-            adoptionJobs: args.adoptionJobs,
-            onnxGateJobs: args.onnxGateJobs,
-            seed: args.seed,
-            seedStride: args.seedStride,
-            evalSeedOffset: args.evalSeedOffset,
-            maxPlies: args.maxPlies,
-            allowCardUsage: args.allowCardUsage,
-            cardUsageRate: args.cardUsageRate,
-            selfplayPolicyMixRate: args.selfplayPolicyMixRate,
-            selfplayPolicyModelPoolSize: args.selfplayPolicyModelPoolSize,
-            selfplayPolicyPoolSampling: args.selfplayPolicyPoolSampling,
-            selfplayPolicyPoolRecencyDecay: args.selfplayPolicyPoolRecencyDecay,
-            selfplayPolicyCurrentAnchorRate: args.selfplayPolicyCurrentAnchorRate,
-            selfplayCardUsageRateJitter: args.selfplayCardUsageRateJitter,
-            selfplayCardUsageRateScheduleSpec: args.selfplayCardUsageRateScheduleSpec,
-            selfplayTacticalWeightMin: args.selfplayTacticalWeightMin,
-            selfplayTacticalWeightMax: args.selfplayTacticalWeightMax,
-            selfplayTacticalDepthOpening: args.selfplayTacticalDepthOpening,
-            selfplayTacticalDepthMid: args.selfplayTacticalDepthMid,
-            selfplayTacticalDepthEnd: args.selfplayTacticalDepthEnd,
-            selfplayTacticalBeamWidth: args.selfplayTacticalBeamWidth,
-            selfplayTeacherCommitteeWeightMin: args.selfplayTeacherCommitteeWeightMin,
-            selfplayTeacherCommitteeWeightMax: args.selfplayTeacherCommitteeWeightMax,
-            selfplayTeacherCommitteeConsensusBonusMin: args.selfplayTeacherCommitteeConsensusBonusMin,
-            selfplayTeacherCommitteeConsensusBonusMax: args.selfplayTeacherCommitteeConsensusBonusMax,
-            selfplayPolicyScoreWeightMin: args.selfplayPolicyScoreWeightMin,
-            selfplayPolicyScoreWeightMax: args.selfplayPolicyScoreWeightMax,
-            selfplayHeuristicWeightMin: args.selfplayHeuristicWeightMin,
-            selfplayHeuristicWeightMax: args.selfplayHeuristicWeightMax,
-            pythonPath: args.pythonPath,
-            onnxEpochs: args.onnxEpochs,
-            onnxBatchSize: args.onnxBatchSize,
-            onnxLr: args.onnxLr,
-            onnxHiddenSize: args.onnxHiddenSize,
-            onnxDevice: args.onnxDevice,
-            onnxLogIntervalSteps: args.onnxLogIntervalSteps,
-            onnxValSplit: args.onnxValSplit,
-            onnxEarlyStopPatience: args.onnxEarlyStopPatience,
-            onnxEarlyStopMinDelta: args.onnxEarlyStopMinDelta,
-            onnxEarlyStopMinEpochs: args.onnxEarlyStopMinEpochs,
-            onnxEarlyStopMonitor: args.onnxEarlyStopMonitor,
-            onnxEarlyStopSmoothingWindow: args.onnxEarlyStopSmoothingWindow,
-            onnxResumeOptimizer: args.onnxResumeOptimizer,
-            onnxCardNoActionWeight: args.onnxCardNoActionWeight,
-            onnxCardClassBalancePower: args.onnxCardClassBalancePower,
-            onnxWinnerSampleBoost: args.onnxWinnerSampleBoost,
-            onnxLoserSampleWeight: args.onnxLoserSampleWeight,
-            onnxDrawSampleWeight: args.onnxDrawSampleWeight,
-            onnxCornerEmergencySampleBoost: args.onnxCornerEmergencySampleBoost,
-            onnxNegativeFutureDiscSampleBoost: args.onnxNegativeFutureDiscSampleBoost,
-            onnxNegativeFutureDiscThreshold: args.onnxNegativeFutureDiscThreshold,
-            onnxTacticalMissSampleBoost: args.onnxTacticalMissSampleBoost,
-            onnxTacticalMissThreshold: args.onnxTacticalMissThreshold,
-            onnxHandPressureSampleBoost: args.onnxHandPressureSampleBoost,
-            onnxPendingTargetSampleBoost: args.onnxPendingTargetSampleBoost,
-            trainCardEvery: args.trainCardEvery,
-            trainTargetEvery: args.trainTargetEvery,
-            trainValueEvery: args.trainValueEvery,
-            minVisits: args.minVisits,
-            shapeImmediate: args.shapeImmediate,
-            quickGames: args.quickGames,
-            finalGames: args.finalGames,
-            threshold: args.threshold,
-            adoptionSeedCount: args.adoptionSeedCount,
-            adoptionSeedStride: args.adoptionSeedStride,
-            adoptionFinalSeedOffset: args.adoptionFinalSeedOffset,
-            adoptionConfidenceLevel: args.adoptionConfidenceLevel,
-            adoptionMinLowerBound: args.adoptionMinLowerBound,
-            adoptionMinSeedUplift: args.adoptionMinSeedUplift,
-            adoptionMinSeedPassCount: args.adoptionMinSeedPassCount,
-            qualityGateEnabled: args.qualityGateEnabled,
-            qualityGateGames: args.qualityGateGames,
-            qualityGateSeedCount: args.qualityGateSeedCount,
-            qualityGateSeedStride: args.qualityGateSeedStride,
-            qualityGateSeedOffset: args.qualityGateSeedOffset,
-            qualityGateThreshold: args.qualityGateThreshold,
-            qualityGateConfidenceLevel: args.qualityGateConfidenceLevel,
-            qualityGateMinLowerBound: args.qualityGateMinLowerBound,
-            qualityGateMinSeedUplift: args.qualityGateMinSeedUplift,
-            qualityGateMinSeedPassCount: args.qualityGateMinSeedPassCount,
-            qualityGateStrengthFirst: args.qualityGateStrengthFirst,
-            qualityGateEnabled: args.qualityGateEnabled,
-            qualityGateGames: args.qualityGateGames,
-            qualityGateSeedCount: args.qualityGateSeedCount,
-            qualityGateSeedStride: args.qualityGateSeedStride,
-            qualityGateSeedOffset: args.qualityGateSeedOffset,
-            qualityGateThreshold: args.qualityGateThreshold,
-            qualityGateConfidenceLevel: args.qualityGateConfidenceLevel,
-            qualityGateMinLowerBound: args.qualityGateMinLowerBound,
-            qualityGateMinSeedUplift: args.qualityGateMinSeedUplift,
-            qualityGateMinSeedPassCount: args.qualityGateMinSeedPassCount,
-            quickAdoptionThreshold: args.quickAdoptionThreshold,
-            quickAdoptionSeedOffset: args.quickAdoptionSeedOffset,
-            quickAdoptionSeedCount: args.quickAdoptionSeedCount,
-            quickAdoptionSeedStride: args.quickAdoptionSeedStride,
-            quickAdoptionConfidenceLevel: args.quickAdoptionConfidenceLevel,
-            quickAdoptionMinLowerBound: args.quickAdoptionMinLowerBound,
-            quickAdoptionMinSeedUplift: args.quickAdoptionMinSeedUplift,
-            quickAdoptionMinSeedPassCount: args.quickAdoptionMinSeedPassCount,
-            finalAdoptionThreshold: args.finalAdoptionThreshold,
-            finalAdoptionSeedCount: args.finalAdoptionSeedCount,
-            finalAdoptionSeedStride: args.finalAdoptionSeedStride,
-            finalAdoptionConfidenceLevel: args.finalAdoptionConfidenceLevel,
-            finalAdoptionMinLowerBound: args.finalAdoptionMinLowerBound,
-            finalAdoptionMinSeedUplift: args.finalAdoptionMinSeedUplift,
-            finalAdoptionMinSeedPassCount: args.finalAdoptionMinSeedPassCount,
-            adoptionTacticalWeight: args.adoptionTacticalWeight,
-            adoptionTacticalDepthOpening: args.adoptionTacticalDepthOpening,
-            adoptionTacticalDepthMid: args.adoptionTacticalDepthMid,
-            adoptionTacticalDepthEnd: args.adoptionTacticalDepthEnd,
-            adoptionTacticalBeamWidth: args.adoptionTacticalBeamWidth,
-            adoptionPolicyScoreWeight: args.adoptionPolicyScoreWeight,
-            adoptionHeuristicWeight: args.adoptionHeuristicWeight,
-            adoptionWhitePriority: args.adoptionWhitePriority,
-            adoptionQualityWeightCorner: args.adoptionQualityWeightCorner,
-            adoptionQualityWeightEdge: args.adoptionQualityWeightEdge,
-            adoptionQualityWeightCornerRecovery: args.adoptionQualityWeightCornerRecovery,
-            adoptionQualityWeightCornerRecapture: args.adoptionQualityWeightCornerRecapture,
-            adoptionQualityWeightEdgeRecovery: args.adoptionQualityWeightEdgeRecovery,
-            adoptionQualityWeightCornerHold: args.adoptionQualityWeightCornerHold,
-            adoptionQualityWeightCornerHoldTurns: args.adoptionQualityWeightCornerHoldTurns,
-            adoptionQualityWeightEdgeHold: args.adoptionQualityWeightEdgeHold,
-            adoptionQualityWeightFinalCornerShare: args.adoptionQualityWeightFinalCornerShare,
-            adoptionQualityWeightFinalEdgeShare: args.adoptionQualityWeightFinalEdgeShare,
-            adoptionQualityWeightBonus: args.adoptionQualityWeightBonus,
-            adoptionQualityWeightCardImmediate: args.adoptionQualityWeightCardImmediate,
-            adoptionQualityWeightCardFuture: args.adoptionQualityWeightCardFuture,
-            adoptionQualityWeightPlaceDelta: args.adoptionQualityWeightPlaceDelta,
-            adoptionUseGuideBaseline: args.adoptionUseGuideBaseline,
-            adoptionUseAnchorBaseline: args.adoptionUseAnchorBaseline,
-            onnxGateEnabled: args.onnxGateEnabled,
-            onnxGateGames: args.onnxGateGames,
-            onnxGateSeedCount: args.onnxGateSeedCount,
-            onnxGateSeedStride: args.onnxGateSeedStride,
-            onnxGateSeedOffset: args.onnxGateSeedOffset,
-            onnxGateThreshold: args.onnxGateThreshold,
-            onnxGateMinSeedScore: args.onnxGateMinSeedScore,
-            onnxGateMinSeedPassCount: args.onnxGateMinSeedPassCount,
-            onnxGateMaxAverageLatencyMs: args.onnxGateMaxAverageLatencyMs,
-            onnxGateMaxP95LatencyMs: args.onnxGateMaxP95LatencyMs,
-            onnxGateMaxMaxLatencyMs: args.onnxGateMaxMaxLatencyMs,
-            onnxGateTimeoutMs: args.onnxGateTimeoutMs,
-            onnxGateBlackLevel: args.onnxGateBlackLevel,
-            onnxGateWhiteLevel: args.onnxGateWhiteLevel,
-            onnxGateCandidateColorMode: args.onnxGateCandidateColorMode,
-            promotionMode: args.promotionMode,
-            onnxPrimaryMaxQuickRegression: args.onnxPrimaryMaxQuickRegression,
-            onnxPrimaryRequireQuickRegression: args.onnxPrimaryRequireQuickRegression,
-            onnxPrimaryRequireQuickNonRegression: args.onnxPrimaryRequireQuickNonRegression,
-            onnxPrimaryMinQuickCoreDelta: args.onnxPrimaryMinQuickCoreDelta,
-            onnxPrimaryMinQuickWhiteDelta: args.onnxPrimaryMinQuickWhiteDelta,
-            onnxPrimaryMinQuickQualityDelta: args.onnxPrimaryMinQuickQualityDelta,
-            onnxPrimaryMinQuickUplift: args.onnxPrimaryMinQuickUplift,
-            onnxPrimaryMinQuickLowerBound: args.onnxPrimaryMinQuickLowerBound,
-            onnxPrimaryMinOnnxGateAvg: args.onnxPrimaryMinOnnxGateAvg,
-            onnxPrimaryMinOnnxGateMinSeed: args.onnxPrimaryMinOnnxGateMinSeed,
-            gateFinalIterationOnly: args.gateFinalIterationOnly,
-            promoteOnPass: args.promoteOnPass,
-            selfplayUsePromotedModelOnly: args.selfplayUsePromotedModelOnly,
-            bootstrapPolicyModelPath: args.bootstrapPolicyModelPath,
-            resumeCheckpointPath: args.resumeCheckpointPath,
-            resumePolicyCheckpointPath: args.resumePolicyCheckpointPath,
-            resumeCardCheckpointPath: args.resumeCardCheckpointPath,
-            resumeTargetCheckpointPath: args.resumeTargetCheckpointPath,
-            resumeValueCheckpointPath: args.resumeValueCheckpointPath,
-            resumeCheckpointPaths: cloneResumeCheckpointPaths(args.resumeCheckpointPaths),
-            carryOverCheckpoint: args.carryOverCheckpoint,
-            seedBankPath: args.seedBankPath,
-            reuseExistingArtifacts: args.reuseExistingArtifacts,
-            restartFromStep: args.restartFromStep,
-            runTag: args.runTag
-        },
-        latestGuideModelPath: guideModelPath,
-        latestGuideModelPoolPaths: guideModelPoolPaths,
-        latestResumeCheckpointPath: getPrimaryResumeCheckpointPath(latestResumeCheckpointPaths),
-        latestResumeCheckpointPaths,
-        latestAnchorModelPath: anchorModelPath,
-        warehouseManifestSchemaVersion: TRAINING_WAREHOUSE_MANIFEST_SCHEMA_VERSION,
-        latestWarehouseManifestPath: iterations.length > 0 && iterations[iterations.length - 1].paths
-            ? iterations[iterations.length - 1].paths.warehouseManifestPath
-            : null,
-        stoppedByTimeBudget,
-        stopReason,
-        failure: failureDetail || null,
-        iterations
-    };
-    writeJsonFileAtomic(args.summaryOut, payload);
 }
 
 function main() {
@@ -3099,6 +2596,9 @@ module.exports = {
     getPrimaryResumeCheckpointPath,
     resolveResumeCheckpointPathsFromArgs,
     resolveNextCarryOverState,
+    buildCandidateOnnxBundleArgs,
+    buildTargetOnnxBundleArgs,
+    buildPromotionTargetBundleArgs,
     buildPromotionCommandArgs,
     resolveGateSeedConfig,
     resolveQuickComponentDelta,

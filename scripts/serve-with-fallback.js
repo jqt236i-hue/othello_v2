@@ -160,6 +160,73 @@ function refreshGeneratedCatalogArtifacts(rootPath) {
     }
 }
 
+function collectAssetSourceEntries(dirPath, basePath, entries) {
+    if (!fs.existsSync(dirPath)) return;
+    const dirEntries = fs.readdirSync(dirPath, { withFileTypes: true });
+    dirEntries.forEach((entry) => {
+        const entryPath = path.join(dirPath, entry.name);
+        if (entry.isDirectory()) {
+            collectAssetSourceEntries(entryPath, basePath, entries);
+            return;
+        }
+        if (!entry.isFile()) return;
+        const relativePath = path.relative(basePath, entryPath).replace(/\\/g, '/');
+        if (relativePath === 'assets/asset-manifest.json') return;
+        const stats = fs.statSync(entryPath);
+        entries.push(`${relativePath}:${Math.floor(stats.mtimeMs)}:${stats.size}`);
+    });
+}
+
+function computeAssetSourceFingerprint(rootPath) {
+    const resolvedRoot = path.resolve(String(rootPath || '.'));
+    const assetsDir = path.join(resolvedRoot, 'assets');
+    if (!fs.existsSync(assetsDir)) return '';
+    const entries = [];
+    collectAssetSourceEntries(assetsDir, resolvedRoot, entries);
+    entries.sort();
+    return JSON.stringify(entries);
+}
+
+function refreshGeneratedCatalogArtifactsIfNeeded(rootPath, state) {
+    const resolvedRoot = path.resolve(String(rootPath || '.'));
+    const targetState = (state && typeof state === 'object') ? state : {};
+    const nextFingerprint = computeAssetSourceFingerprint(resolvedRoot);
+    if (targetState.lastAssetSourceFingerprint === nextFingerprint) {
+        return { changed: false, fingerprint: nextFingerprint };
+    }
+    refreshGeneratedCatalogArtifacts(resolvedRoot);
+    targetState.lastAssetSourceFingerprint = nextFingerprint;
+    return { changed: true, fingerprint: nextFingerprint };
+}
+
+function startArtifactRefreshLoop(rootPath, options = {}) {
+    const resolvedRoot = path.resolve(String(rootPath || '.'));
+    const intervalMs = Number.isFinite(Number(options.intervalMs))
+        ? Math.max(250, Math.floor(Number(options.intervalMs)))
+        : 500;
+    const state = {
+        lastAssetSourceFingerprint: computeAssetSourceFingerprint(resolvedRoot)
+    };
+    const tick = () => {
+        try {
+            return refreshGeneratedCatalogArtifactsIfNeeded(resolvedRoot, state);
+        } catch (error) {
+            console.warn('[serve] asset refresh failed:', error && error.message ? error.message : error);
+            return { changed: false, fingerprint: state.lastAssetSourceFingerprint, error };
+        }
+    };
+    const timer = setInterval(tick, intervalMs);
+    if (timer && typeof timer.unref === 'function') {
+        timer.unref();
+    }
+    return {
+        tick,
+        dispose() {
+            clearInterval(timer);
+        }
+    };
+}
+
 async function main() {
     const args = parseArgs(process.argv.slice(2));
     if (args.help) {
@@ -168,7 +235,9 @@ async function main() {
     }
 
     const entrypoint = resolveHttpServerEntrypoint();
-    refreshGeneratedCatalogArtifacts(path.resolve(process.cwd(), args.root || '.'));
+    const resolvedRoot = path.resolve(process.cwd(), args.root || '.');
+    refreshGeneratedCatalogArtifacts(resolvedRoot);
+    const artifactRefreshLoop = startArtifactRefreshLoop(resolvedRoot);
     const selectedPort = await chooseServePort(args);
     if (selectedPort !== args.preferredPort) {
         console.warn(`[serve] port ${args.preferredPort} is busy; using ${selectedPort} instead`);
@@ -184,10 +253,12 @@ async function main() {
     });
 
     child.on('error', (error) => {
+        artifactRefreshLoop.dispose();
         console.error('[serve] failed:', error && error.message ? error.message : error);
         process.exit(1);
     });
     child.on('close', (code) => {
+        artifactRefreshLoop.dispose();
         process.exit(Number.isFinite(code) ? code : 0);
     });
 }
@@ -203,5 +274,8 @@ module.exports = {
     parseArgs,
     chooseServePort,
     buildHttpServerArgs,
-    resolveHttpServerEntrypoint
+    resolveHttpServerEntrypoint,
+    computeAssetSourceFingerprint,
+    refreshGeneratedCatalogArtifactsIfNeeded,
+    startArtifactRefreshLoop
 };

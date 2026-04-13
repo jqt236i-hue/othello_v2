@@ -3,6 +3,18 @@
 最終更新: 2026-02-10  
 対象リポジトリ: `othello_v2`
 
+> **2026-04 status note**
+>
+> この文書は元の実装計画として残しているが、現行運用の正本ではない。安定した内部契約は `docs/architecture-contracts.md` §5.2 を優先する。
+>
+> 現行の運用入口は `scripts/resolve-training-profile.js` / `scripts/run-selfplay-training-profile.js` / `scripts/run-selfplay-training-cycle.js` で、profile 解決の正本は `scripts/load-training-profile.js` である。
+>
+> 現在の resolved profile は `sharedTeacherSync`, `effectiveSharedTeacher`, `seedBankPlan`, `provenance` を持ち、launcher はその構造化結果を優先して使う。
+>
+> ブラウザ Lv6 の live path は現状では shared profile の policy-table 系が正系で、ONNX は runtime 条件つきの補助 head として扱う。この live path / 補助 head / latency budget 判定は `shared/cpu-lv6-runtime-capability.js` を正本とする。ONNX gate と promotion は lane ごとの `modelsDir` bundle を対象にし、暗黙の root `data/models/*` を前提にしない。
+>
+> 下の章は profile/gate launcher 導入前の計画文を含むため、現行スクリプトと食い違う場合は歴史的経緯として扱う。
+
 ## 1. 目的
 
 - 人間がほぼ勝てないCPUを、**このリポジトリ内だけで完結**して実装する。
@@ -425,4 +437,3 @@ npm run selfplay:train-preset:cards -- --max-hours 6 --seed 1
   - `data/runs/adoption.20260208-155701.shape0p25.mv5.json`
   - `data/runs/adoption.20260208-155701.shape0p4.mv5.json`
   - いずれも `uplift=0.000`（未採用）
-

@@ -1,6 +1,10 @@
 const { JSDOM } = require('jsdom');
 
 describe('card detail effect tags', () => {
+  function getTagLabels() {
+    return Array.from(document.querySelectorAll('#card-detail-effect-tags .card-detail-effect-tag')).map((el) => el.textContent);
+  }
+
   beforeEach(() => {
     jest.resetModules();
     const dom = new JSDOM(`
@@ -9,6 +13,7 @@ describe('card detail effect tags', () => {
           <div id="card-detail-header"></div>
           <div id="card-detail-name"></div>
           <div id="card-detail-desc"></div>
+          <div id="card-detail-effect-tags" aria-label="カード効果タグ"></div>
           <div id="card-detail-more" style="display:none;"></div>
           <div id="card-detail-actions"></div>
           <button id="destroy-card-btn">破壊</button>
@@ -63,132 +68,35 @@ describe('card detail effect tags', () => {
   });
 
   afterEach(() => {
+    delete global.CardInteractionEffects;
     delete global.window;
     delete global.document;
   });
 
-  test('shows effect tags separately from quick description text', () => {
+  test('card detail panel renders flip protection and duration tags separately from summary text', () => {
     require('../cards/card-interaction.js');
 
     window.updateCardDetailPanel();
 
     const tagsEl = document.getElementById('card-detail-effect-tags');
     expect(tagsEl).not.toBeNull();
-    expect(tagsEl.textContent).toContain('反転保護');
-    expect(tagsEl.textContent).toContain('特殊石');
+    expect(getTagLabels()).toEqual(['反転保護', '5ターン持続']);
+    expect(tagsEl.style.display).toBe('flex');
 
     const desc = document.getElementById('card-detail-desc').textContent;
+    expect(desc).toContain('空きマス自由配置可');
     expect(desc).toContain('置いた石が龍化');
-    expect(desc).not.toContain('反転保護を持つ特殊石');
   });
 
-  test('bomb visual cards are tagged as special stone by image rule', () => {
-    require('../cards/card-interaction.js');
-
-    const bombCards = [
-      {
-        id: 'bomb_01',
-        name: '時限爆弾',
-        type: 'TIME_BOMB',
-        cost: 13,
-        desc: '盤面上の自分の石1つを時限爆弾化。3ターン後にそのマスと周囲1マス（3x3）を爆破。反転されると解除。'
-      },
-      {
-        id: 'cross_bomb_01',
-        name: '十字爆弾',
-        type: 'CROSS_BOMB',
-        cost: 18,
-        desc: '次に置く石を十字爆弾化。通常反転後に即起爆し、その石を起点に縦横2マス（中心含む十字）の石を爆破する。'
-      },
-      {
-        id: 'x_bomb_01',
-        name: 'クロス爆弾',
-        type: 'X_BOMB',
-        cost: 18,
-        desc: '次に置く石をクロス爆弾化。通常反転後に即起爆し、その石を起点に斜め2マス（中心含むX字）の石を爆破する。'
-      }
-    ];
-
-    for (const cardDef of bombCards) {
-      expect(cardDef.desc.includes('特殊石')).toBe(false);
-      global.cardState.selectedCardId = cardDef.id;
-      global.cardState.hands.black = [cardDef.id];
-      global.CardLogic.getCardDef = () => cardDef;
-
-      window.updateCardDetailPanel();
-
-      const tagsEl = document.getElementById('card-detail-effect-tags');
-      expect(tagsEl).not.toBeNull();
-      expect(tagsEl.textContent).toContain('特殊石');
-    }
-  });
-
-  test('flip-evasion cards are tagged even when text does not contain the exact term', () => {
-    require('../cards/card-interaction.js');
-
-    const flipEvadeCards = [
-      {
-        id: 'escape_01',
-        name: '逃亡の意志',
-        type: 'ESCAPE_WILL',
-        cost: 16,
-        desc: '次に置く石を逃亡石化。毎ターン1マス逃げるように移動し、反転対象時は1回回避。移動できるマスがなくなると爆発。'
-      },
-      {
-        id: 'hyperactive_inherit_01',
-        name: '多動の継承',
-        type: 'HYPERACTIVE_INHERIT_WILL',
-        cost: 11,
-        desc: '盤面上の自分の石1つに多動状態を付与する。通常石・特殊石を問わず選択でき、他の状態とも併用可能。両者ターン開始時に1マス移動し、移動後に挟めば反転。反転対象時は1回だけマス移動で回避する。持続は10ターン（所有者ターン開始時のみ減算）。'
-      }
-    ];
-
-    for (const cardDef of flipEvadeCards) {
-      expect(cardDef.desc.includes('反転回避')).toBe(false);
-      global.cardState.selectedCardId = cardDef.id;
-      global.cardState.hands.black = [cardDef.id];
-      global.CardLogic.getCardDef = () => cardDef;
-
-      window.updateCardDetailPanel();
-
-      const tagsEl = document.getElementById('card-detail-effect-tags');
-      expect(tagsEl).not.toBeNull();
-      expect(tagsEl.textContent).toContain('反転回避');
-    }
-  });
-
-  test('destroy-evasion cards are tagged even when text does not contain the exact term', () => {
+  test('ROBOT_VACUUM_WILL shows the base duration as a numeric tag', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
-      id: 'hyperactive_inherit_01',
-      name: '多動の継承',
-      type: 'HYPERACTIVE_INHERIT_WILL',
-      cost: 11,
-      desc: '盤面上の自分の石1つに多動状態を付与する。通常石・特殊石を問わず選択でき、他の状態とも併用可能。両者ターン開始時に1マス移動し、移動後に挟めば反転。反転対象時は1回だけマス移動で回避し、破壊対象時も1回だけ空きマスへ移動して回避する。持続は10ターン（所有者ターン開始時のみ減算）。'
-    };
-
-    expect(cardDef.desc.includes('破壊回避')).toBe(false);
-    global.cardState.selectedCardId = cardDef.id;
-    global.cardState.hands.black = [cardDef.id];
-    global.CardLogic.getCardDef = () => cardDef;
-
-    window.updateCardDetailPanel();
-
-    const tagsEl = document.getElementById('card-detail-effect-tags');
-    expect(tagsEl).not.toBeNull();
-    expect(tagsEl.textContent).toContain('破壊回避');
-  });
-
-  test('cards that only mention special stones as targets do not get the special-stone tag', () => {
-    require('../cards/card-interaction.js');
-
-    const cardDef = {
-      id: 'cell_teleport_01',
-      name: 'マステレポート',
-      type: 'CELL_TELEPORT_WILL',
-      cost: 18,
-      desc: '盤面上の石があるマス1つを選び、盤面拡張・盤面拡張神で追加できる外側マスのどこかへランダムにテレポートさせる。移動元のマスは穴になる。対象は敵味方・通常石・特殊石を問わない。'
+      id: 'robot_vacuum_01',
+      name: 'ロボット掃除機',
+      type: 'ROBOT_VACUUM_WILL',
+      cost: 17,
+      desc: '次に置く石は毎ターン1マス移動し、周囲の敵石を1個吸い込む。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -199,19 +107,19 @@ describe('card detail effect tags', () => {
 
     const tagsEl = document.getElementById('card-detail-effect-tags');
     expect(tagsEl).not.toBeNull();
-    expect(tagsEl.textContent).toBe('');
-    expect(tagsEl.style.display).toBe('none');
+    expect(getTagLabels()).toEqual(['5ターン持続']);
+    expect(document.getElementById('card-detail-desc').textContent).toBe('次に置く石は毎ターン1マス移動し、周囲の敵石を1個吸い込む。吸い込むと持続ターンが1増える。');
   });
 
-  test('GHOST_WILL uses 幽体 tag and avoids 反転保護 mislabeling', () => {
+  test('DESTROY_DRAGON_WILL shows flip protection together with duration', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
-      id: 'ghost_01',
-      name: '幽霊の意志',
-      type: 'GHOST_WILL',
-      cost: 5,
-      desc: '次に置く石を幽体化する。5ターンの間、反転・破壊の対象にはなるがその石自身は受けない。交換の意志の対象外で、入替や他の効果は通常どおり受ける。'
+      id: 'destroy_dragon_01',
+      name: '破壊龍',
+      type: 'DESTROY_DRAGON_WILL',
+      cost: 7,
+      desc: '次に置く石を破壊龍化。配置時と自ターン開始時に周囲1マス（8方向）の敵石をランダム1個だけ破壊する。3ターン持続。反転保護を持つ特殊石。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -220,14 +128,30 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    const tagsEl = document.getElementById('card-detail-effect-tags');
-    expect(tagsEl).not.toBeNull();
-    expect(tagsEl.textContent).toContain('幽体');
-    expect(tagsEl.textContent).toContain('特殊石');
-    expect(tagsEl.textContent).not.toContain('反転保護');
+    expect(getTagLabels()).toEqual(['反転保護', '3ターン持続']);
   });
 
-  test('AFTERIMAGE_WILL shows 特殊石/反転回避/破壊回避 tags together', () => {
+  test('GUARD_WILL shows full protection together with duration', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'guard_01',
+      name: '守る意志',
+      type: 'GUARD_WILL',
+      cost: 1,
+      desc: '自分の石1つに完全保護を付与する。3ターン持続。'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+
+    window.updateCardDetailPanel();
+
+    expect(getTagLabels()).toEqual(['完全保護', '3ターン持続']);
+  });
+
+  test('AFTERIMAGE_WILL shows flip and destroy evasion count tags together', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -235,7 +159,7 @@ describe('card detail effect tags', () => {
       name: '残像の意志',
       type: 'AFTERIMAGE_WILL',
       cost: 8,
-      desc: '次に置く石を残像石化。反転回避3回と破壊回避3回を持つ特殊石になり、両方使い切るまで持続する。'
+      desc: '次に置く石を残像石化する。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -244,14 +168,10 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    const tagsEl = document.getElementById('card-detail-effect-tags');
-    expect(tagsEl).not.toBeNull();
-    expect(tagsEl.textContent).toContain('特殊石');
-    expect(tagsEl.textContent).toContain('反転回避');
-    expect(tagsEl.textContent).toContain('破壊回避');
+    expect(getTagLabels()).toEqual(['反転回避3回', '破壊回避3回']);
   });
 
-  test('TIME_STOP_GOD detail follows rulebook timing text without adding a protection tag', () => {
+  test('TIME_STOP_GOD detail follows rulebook timing text and shows delayed activation tag', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -272,12 +192,30 @@ describe('card detail effect tags', () => {
     expect(desc).toContain('時間停石化');
     const detailText = document.getElementById('card-detail-more').textContent;
     expect(detailText).toContain('5回目の所有者ターン開始時');
-    expect(detailText).toContain('モノクロ表示');
+    expect(detailText).toContain('反転保護は持たない');
 
-    const tagsEl = document.getElementById('card-detail-effect-tags');
-    expect(tagsEl).not.toBeNull();
-    expect(tagsEl.textContent).toContain('特殊石');
-    expect(tagsEl.textContent).not.toContain('反転保護');
+    expect(getTagLabels()).toEqual(['5ターン後に発動']);
+  });
+
+  test('TRAP_WILL keeps opponent-turn wording in text and does not invent a numeric tag', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'trap_01',
+      name: '罠の意志',
+      type: 'TRAP_WILL',
+      cost: 4,
+      desc: '自分石1つを罠化してターン終了。次の相手ターン中に反転されると、相手の布石を最大20奪う＋手札全破壊。'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+
+    window.updateCardDetailPanel();
+
+    expect(getTagLabels()).toEqual([]);
+    expect(document.getElementById('card-detail-effect-tags').style.display).toBe('none');
   });
 
   test('SALVATION_WILL detail panel shows positive salvageable count as live state', () => {
@@ -465,100 +403,6 @@ describe('card detail effect tags', () => {
     }
   });
 
-  test('clicking a tag opens a closable separate tab panel with meaning', () => {
-    require('../cards/card-interaction.js');
-
-    window.updateCardDetailPanel();
-
-    const tagButtons = Array.from(document.querySelectorAll('.card-detail-effect-tag-button'));
-    const specialTagButton = tagButtons.find((el) => el.textContent === '特殊石');
-    expect(specialTagButton).toBeTruthy();
-
-    specialTagButton.click();
-
-    const panelEl = document.getElementById('card-detail-tab-panel');
-    expect(panelEl).not.toBeNull();
-    expect(panelEl.classList.contains('is-open')).toBe(true);
-    expect(panelEl.getAttribute('aria-hidden')).toBe('false');
-
-    const titleEl = document.getElementById('card-detail-tab-title');
-    const bodyEl = document.getElementById('card-detail-tab-body');
-    expect(titleEl.textContent).toBe('特殊石');
-    expect(bodyEl.textContent).toContain('通常石画像を使わない石');
-    expect(bodyEl.textContent).toContain('normal_stone-black.png');
-
-    const closeBtn = document.getElementById('card-detail-tab-close-btn');
-    expect(closeBtn).not.toBeNull();
-    closeBtn.click();
-
-    expect(panelEl.classList.contains('is-open')).toBe(false);
-    expect(panelEl.getAttribute('aria-hidden')).toBe('true');
-  });
-
-  test('tag tab closes when clicking outside of tags/panel', () => {
-    require('../cards/card-interaction.js');
-
-    window.updateCardDetailPanel();
-
-    const tagButtons = Array.from(document.querySelectorAll('.card-detail-effect-tag-button'));
-    const specialTagButton = tagButtons.find((el) => el.textContent === '特殊石');
-    expect(specialTagButton).toBeTruthy();
-    specialTagButton.click();
-
-    const panelEl = document.getElementById('card-detail-tab-panel');
-    expect(panelEl).not.toBeNull();
-    expect(panelEl.classList.contains('is-open')).toBe(true);
-
-    const outsideEventType = (typeof window.PointerEvent === 'function') ? 'pointerdown' : 'mousedown';
-    document.body.dispatchEvent(new window.Event(outsideEventType, { bubbles: true }));
-
-    expect(panelEl.classList.contains('is-open')).toBe(false);
-    expect(panelEl.getAttribute('aria-hidden')).toBe('true');
-  });
-
-  test('tag tab closes when selecting another card', () => {
-    const firstCard = {
-      id: 'udr_01',
-      name: '究極反転龍',
-      type: 'ULTIMATE_REVERSE_DRAGON',
-      cost: 30,
-      desc: '反転0でも空きマスに配置可能。次に置く石を龍化。置いた時に周囲1マス（8方向）を反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転。移動先が無いときはその場で反転。5ターン持続。反転保護を持つ特殊石。'
-    };
-    const secondCard = {
-      id: 'meteor_01',
-      name: '隕石の意志',
-      type: 'METEOR_WILL',
-      cost: 24,
-      desc: '盤面上の任意マス1つを指定し、そのマスの石を破壊する。'
-    };
-
-    global.cardState.selectedCardId = firstCard.id;
-    global.cardState.hands.black = [firstCard.id, secondCard.id];
-    global.CardLogic.getCardDef = (cardId) => {
-      if (cardId === secondCard.id) return secondCard;
-      return firstCard;
-    };
-
-    require('../cards/card-interaction.js');
-
-    window.updateCardDetailPanel();
-
-    const tagButtons = Array.from(document.querySelectorAll('.card-detail-effect-tag-button'));
-    const specialTagButton = tagButtons.find((el) => el.textContent === '特殊石');
-    expect(specialTagButton).toBeTruthy();
-    specialTagButton.click();
-
-    const panelEl = document.getElementById('card-detail-tab-panel');
-    expect(panelEl).not.toBeNull();
-    expect(panelEl.classList.contains('is-open')).toBe(true);
-
-    window.onCardClick(secondCard.id, 'black');
-
-    expect(panelEl.classList.contains('is-open')).toBe(false);
-    expect(panelEl.getAttribute('aria-hidden')).toBe('true');
-    expect(global.cardState.selectedCardId).toBe(secondCard.id);
-  });
-
   test('detail button toggles separate tab panel and keeps inline detail hidden', () => {
     require('../cards/card-interaction.js');
 
@@ -587,5 +431,38 @@ describe('card detail effect tags', () => {
     expect(detailBtn.textContent).toBe('詳細');
     expect(detailBtn.getAttribute('aria-expanded')).toBe('false');
     expect(detailMoreEl.style.display).toBe('none');
+  });
+
+  test('detail button panel removes duplicated quick lines when shared resolver returns extra detail', () => {
+    global.CardInteractionEffects = {
+      resolveCardDescriptionTexts: () => ({
+        quickText: '反転0でも空きマスに置ける。',
+        detailText: '反転0でも空きマスに置ける。\n次の1手だけ有効。',
+        distinctDetailText: '次の1手だけ有効。'
+      }),
+      getQuickCardEffect: () => '反転0でも空きマスに置ける。',
+      getDetailCardEffect: () => '反転0でも空きマスに置ける。\n次の1手だけ有効。'
+    };
+
+    const cardDef = {
+      id: 'free_01',
+      name: '自由の意志',
+      type: 'FREE_PLACEMENT',
+      cost: 14,
+      desc: '反転0でも空きマスに置ける。'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+    window.toggleCardDetailExpanded();
+
+    const bodyEl = document.getElementById('card-detail-tab-body');
+    expect(bodyEl).not.toBeNull();
+    expect(bodyEl.textContent).toBe('次の1手だけ有効。');
   });
 });

@@ -25,6 +25,7 @@ describe('rules help panel', () => {
   });
 
   afterEach(() => {
+    try { delete global.CardInteractionEffects; } catch (e) {}
     try { delete global.window; } catch (e) {}
     try { delete global.document; } catch (e) {}
     try { delete global.Event; } catch (e) {}
@@ -239,6 +240,84 @@ describe('rules help panel', () => {
     const detailBody = detailSection.querySelector('.rules-help-card-section-body');
     expect(detailBody.textContent).toContain('次の1手だけ有効。');
     expect(detailBody.textContent).not.toContain('反転0でも空きマスに置ける。');
+  });
+
+  test('renders effect tag section from shared resolver and omits it when tags are empty', () => {
+    setDom(`<!doctype html><html><body>
+      <button id="rulesHelpBtn" aria-expanded="false"></button>
+      <div id="rules-help-panel" aria-hidden="true">
+        <button id="rules-help-close-btn" type="button"></button>
+        <button data-help-tab="catalog" class="rules-help-tab is-active" type="button"></button>
+        <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="guide" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="counters" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="updates" class="rules-help-tab" type="button"></button>
+        <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page is-active">
+          <div id="rules-help-card-list"></div>
+          <div id="rules-help-card-name"></div>
+          <div id="rules-help-card-desc"></div>
+        </section>
+        <section data-help-page="effects" id="rules-help-page-effects" class="rules-help-page"></section>
+        <section data-help-page="guide" id="rules-help-page-guide" class="rules-help-page"></section>
+        <section data-help-page="counters" id="rules-help-page-counters" class="rules-help-page"></section>
+        <section data-help-page="updates" id="rules-help-page-updates" class="rules-help-page"><div id="rules-help-updates-list"></div></section>
+      </div>
+    </body></html>`);
+
+    window.CardInteractionEffects = {
+      resolveCardDescriptionTexts: (cardDef) => ({
+        quickText: cardDef.id === 'afterimage_will_01'
+          ? '次に置く石は反転または破壊されたとき3回まで復活する。'
+          : '自分石1つに完全保護を付与する。3ターン持続。',
+        detailText: cardDef.id === 'afterimage_will_01'
+          ? '次に置く石を残像石化する。\n回避に成功した時だけ対応する回数を消費する。'
+          : '完全保護中は反転・交換・破壊・誘惑を受けない。',
+        distinctDetailText: cardDef.id === 'afterimage_will_01'
+          ? '次に置く石を残像石化する。\n回避に成功した時だけ対応する回数を消費する。'
+          : '完全保護中は反転・交換・破壊・誘惑を受けない。',
+        effectTags: cardDef.id === 'afterimage_will_01'
+          ? [
+            { kind: 'flip-evasion', value: 3, label: '反転回避3回' },
+            { kind: 'destroy-evasion', value: 3, label: '破壊回避3回' }
+          ]
+          : [
+            { kind: 'full-protection', label: '完全保護' },
+            { kind: 'duration-turns', value: 3, label: '3ターン持続' }
+          ],
+        numericTags: cardDef.id === 'afterimage_will_01'
+          ? [
+            { kind: 'flip-evasion', value: 3, label: '反転回避3回' },
+            { kind: 'destroy-evasion', value: 3, label: '破壊回避3回' }
+          ]
+          : [
+            { kind: 'duration-turns', value: 3, label: '3ターン持続' }
+          ]
+      })
+    };
+    global.CardInteractionEffects = window.CardInteractionEffects;
+    window.CardCatalog = {
+      cards: [
+        { id: 'afterimage_will_01', name: '残像の意志', type: 'AFTERIMAGE_WILL', cost: 1, desc: '効果A' },
+        { id: 'guard_01', name: '守る意志', type: 'GUARD_WILL', cost: 4, desc: '効果B' }
+      ]
+    };
+
+    const mod = require('../ui/handlers/rules-help.js');
+    const btn = document.getElementById('rulesHelpBtn');
+    const panel = document.getElementById('rules-help-panel');
+    mod.setupRulesHelp(btn, panel);
+    btn.click();
+
+    const cardDescEl = document.getElementById('rules-help-card-desc');
+    expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-section-title')).map((el) => el.textContent)).toContain('効果タグ');
+    expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['反転回避3回', '破壊回避3回']);
+
+    const cardButtons = Array.from(document.querySelectorAll('.rules-help-card-item'));
+    cardButtons[1].click();
+
+    expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-section-title')).map((el) => el.textContent)).toContain('効果タグ');
+    expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['完全保護', '3ターン持続']);
+    expect(cardDescEl.textContent).toContain('完全保護中は反転・交換・破壊・誘惑を受けない。');
   });
 
   test('effect glossary list includes 反転回避 and 破壊回避 entries', () => {

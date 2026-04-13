@@ -90,85 +90,6 @@ function _formatHelpText(text) {
     return highlighted.replace(/\n/g, '<br>');
 }
 
-function _normalizeCardDescText(text) {
-    return String(text || '')
-        .replace(/\s+/g, ' ')
-        .replace(/。+/g, '。')
-        .trim();
-}
-
-function _splitHelpSentences(text) {
-    const lines = String(text || '')
-        .replace(/\r\n?/g, '\n')
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean);
-    const sentences = [];
-    for (const line of lines) {
-        const chunks = line.match(/[^。！？!?]+[。！？!?]?/g);
-        if (!chunks || chunks.length === 0) {
-            sentences.push(line);
-            continue;
-        }
-        for (const chunk of chunks) {
-            const normalized = chunk.trim();
-            if (normalized) sentences.push(normalized);
-        }
-    }
-    return sentences;
-}
-
-function _buildHelpComparisonKey(text) {
-    return _normalizeCardDescText(text)
-        .replace(/[\s\u3000]/g, '')
-        .replace(/[。\.、,，:：;；!！?？'"“”‘’\-ー／/（）()\[\]{}「」『』【】<>《》・]/g, '')
-        .toLowerCase();
-}
-
-function _isHelpPlaceholderText(text) {
-    const key = _buildHelpComparisonKey(text);
-    if (!key) return true;
-    return key === _buildHelpComparisonKey('効果説明は準備中')
-        || key === _buildHelpComparisonKey('詳細説明は準備中')
-        || key === _buildHelpComparisonKey('効果説明が未登録です');
-}
-
-function _resolveNonDuplicateDetailText(quickText, detailText) {
-    const quick = _safeText(quickText, '');
-    const detail = _safeText(detailText, '');
-    if (!detail) return '';
-    if (!quick) return detail;
-    if (_isHelpPlaceholderText(detail)) return '';
-
-    const quickKey = _buildHelpComparisonKey(quick);
-    const detailKey = _buildHelpComparisonKey(detail);
-    if (!detailKey) return '';
-    if (!quickKey) return detail;
-    if (detailKey === quickKey) return '';
-
-    const detailSentences = _splitHelpSentences(detail);
-    if (detailSentences.length === 0) return '';
-
-    const keepSentences = [];
-    const seenSentenceKeys = new Set();
-    for (const sentence of detailSentences) {
-        const sentenceKey = _buildHelpComparisonKey(sentence);
-        if (!sentenceKey) continue;
-        const isExactDuplicate = sentenceKey === quickKey;
-        const isContainedDuplicate = sentenceKey.length >= 12
-            && quickKey.length >= 12
-            && (quickKey.includes(sentenceKey) || sentenceKey.includes(quickKey));
-        if (isExactDuplicate || isContainedDuplicate) continue;
-        if (seenSentenceKeys.has(sentenceKey)) continue;
-        seenSentenceKeys.add(sentenceKey);
-        keepSentences.push(sentence);
-    }
-
-    if (keepSentences.length === 0) return '';
-    if (keepSentences.length === detailSentences.length) return detail;
-    return keepSentences.join('\n');
-}
-
 const _rulesHelpCardInteractionEffectsModule = (() => {
     if (typeof CardInteractionEffects !== 'undefined' && CardInteractionEffects) return CardInteractionEffects;
     if (typeof window !== 'undefined' && window.CardInteractionEffects) return window.CardInteractionEffects;
@@ -192,18 +113,122 @@ function _fallbackDetailCardEffect(cardDef) {
     return normalized.replace(/。/g, '。\n').trim();
 }
 
-function _getQuickCardEffect(cardDef) {
-    if (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.getQuickCardEffect === 'function') {
-        return _rulesHelpCardInteractionEffectsModule.getQuickCardEffect(cardDef);
+function _normalizeCardDescText(text) {
+    if (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.normalizeCardDescText === 'function') {
+        return _rulesHelpCardInteractionEffectsModule.normalizeCardDescText(text);
     }
-    return _fallbackQuickCardEffect(cardDef);
+    return String(text || '')
+        .replace(/\s+/g, ' ')
+        .replace(/。+/g, '。')
+        .trim();
 }
 
-function _getDetailCardEffect(cardDef) {
-    if (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.getDetailCardEffect === 'function') {
-        return _rulesHelpCardInteractionEffectsModule.getDetailCardEffect(cardDef, () => '99');
+function _buildHelpComparisonKey(text) {
+    if (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.buildCardDescComparisonKey === 'function') {
+        return _rulesHelpCardInteractionEffectsModule.buildCardDescComparisonKey(text);
     }
-    return _fallbackDetailCardEffect(cardDef);
+    return _normalizeCardDescText(text)
+        .replace(/[\s\u3000]/g, '')
+        .replace(/[。\.、,，:：;；!！?？'"“”‘’\-ー／/（）()\[\]{}「」『』【】<>《》・]/g, '')
+        .toLowerCase();
+}
+
+function _resolveNonDuplicateDetailText(quickText, detailText) {
+    if (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.resolveNonDuplicateDetailText === 'function') {
+        return _rulesHelpCardInteractionEffectsModule.resolveNonDuplicateDetailText(quickText, detailText);
+    }
+
+    const quick = _safeText(quickText, '');
+    const detail = _safeText(detailText, '');
+    if (!detail) return '';
+    if (!quick) return detail;
+
+    const quickKey = _buildHelpComparisonKey(quick);
+    const detailKey = _buildHelpComparisonKey(detail);
+    if (!detailKey) return '';
+    if (!quickKey) return detail;
+    if (detailKey === quickKey) return '';
+
+    const detailSentences = String(detail)
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+    if (detailSentences.length === 0) return detail;
+
+    const keepSentences = [];
+    const seenSentenceKeys = new Set();
+    for (const sentence of detailSentences) {
+        const sentenceKey = _buildHelpComparisonKey(sentence);
+        if (!sentenceKey) continue;
+        const isExactDuplicate = sentenceKey === quickKey;
+        const isContainedDuplicate = sentenceKey.length >= 12
+            && quickKey.length >= 12
+            && (quickKey.includes(sentenceKey) || sentenceKey.includes(quickKey));
+        if (isExactDuplicate || isContainedDuplicate) continue;
+        if (seenSentenceKeys.has(sentenceKey)) continue;
+        seenSentenceKeys.add(sentenceKey);
+        keepSentences.push(sentence);
+    }
+
+    if (keepSentences.length === 0) return '';
+    if (keepSentences.length === detailSentences.length) return detail;
+    return keepSentences.join('\n');
+}
+
+function _resolveCardDescriptionTexts(cardDef) {
+    if (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.resolveCardDescriptionTexts === 'function') {
+        return _rulesHelpCardInteractionEffectsModule.resolveCardDescriptionTexts(cardDef, {
+            resolveChargeMaxText: () => '99',
+            quickTextMaxLength: 38
+        });
+    }
+
+    const quickText = _rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.getQuickCardEffect === 'function'
+        ? _rulesHelpCardInteractionEffectsModule.getQuickCardEffect(cardDef, { maxLength: 38 })
+        : _fallbackQuickCardEffect(cardDef);
+    const detailText = _rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.getDetailCardEffect === 'function'
+        ? _rulesHelpCardInteractionEffectsModule.getDetailCardEffect(cardDef, () => '99')
+        : _fallbackDetailCardEffect(cardDef);
+    const effectTags = _rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.resolveCardEffectTags === 'function'
+        ? _rulesHelpCardInteractionEffectsModule.resolveCardEffectTags(cardDef)
+        : (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.resolveCardNumericTags === 'function'
+            ? _rulesHelpCardInteractionEffectsModule.resolveCardNumericTags(cardDef)
+            : [])
+    ;
+    const numericTags = _rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.resolveCardNumericTags === 'function'
+        ? _rulesHelpCardInteractionEffectsModule.resolveCardNumericTags(cardDef)
+        : [];
+    return {
+        quickText,
+        detailText,
+        distinctDetailText: _resolveNonDuplicateDetailText(quickText, detailText),
+        effectTags,
+        numericTags
+    };
+}
+
+function _normalizeResolvedCardEffectTags(tags) {
+    if (!Array.isArray(tags)) return [];
+    const normalizedTags = [];
+    const seen = new Set();
+    for (const rawTag of tags) {
+        if (!rawTag || typeof rawTag !== 'object') continue;
+        const label = _safeText(rawTag.label, '');
+        if (!label) continue;
+        const kind = _safeText(rawTag.kind, '').toLowerCase();
+        const dedupeKey = `${kind}:${label}`;
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+        normalizedTags.push({ kind, label });
+    }
+    return normalizedTags;
+}
+
+function _getCardEffectTagKindClass(kind) {
+    const normalizedKind = _safeText(kind, '').toLowerCase();
+    if (!normalizedKind) return '';
+    return `is-${normalizedKind.replace(/[^a-z0-9]+/g, '-')}`;
 }
 
 function _getSharedVisualEffectsMap() {
@@ -431,6 +456,33 @@ function setupRulesHelp(rulesHelpBtn, rulesHelpPanel) {
         return section;
     }
 
+    function createCardEffectTagSection(tags) {
+        const normalizedTags = _normalizeResolvedCardEffectTags(tags);
+        if (normalizedTags.length === 0) return null;
+
+        const section = document.createElement('div');
+        section.className = 'rules-help-card-section';
+
+        const titleEl = document.createElement('div');
+        titleEl.className = 'rules-help-card-section-title';
+        titleEl.textContent = '効果タグ';
+        section.appendChild(titleEl);
+
+        const listEl = document.createElement('div');
+        listEl.className = 'rules-help-card-tag-list';
+        for (const tag of normalizedTags) {
+            const chip = document.createElement('span');
+            chip.className = 'rules-help-card-tag';
+            const kindClass = _getCardEffectTagKindClass(tag.kind);
+            if (kindClass) chip.classList.add(kindClass);
+            chip.textContent = tag.label;
+            chip.setAttribute('data-card-tag-kind', tag.kind || '');
+            listEl.appendChild(chip);
+        }
+        section.appendChild(listEl);
+        return section;
+    }
+
     function createSpecialStoneVisual(path) {
         const wrap = document.createElement('div');
         wrap.className = 'rules-help-card-visual';
@@ -464,9 +516,19 @@ function setupRulesHelp(rulesHelpBtn, rulesHelpPanel) {
         selectedCardId = card.id;
         renderSelectedCardHeading(card);
         if (cardDescEl) {
-            const quick = _safeText(_getQuickCardEffect(card), card.desc);
-            const detail = _resolveNonDuplicateDetailText(quick, _getDetailCardEffect(card));
+            const descriptionTexts = _resolveCardDescriptionTexts(card);
+            const effectTags = Array.isArray(descriptionTexts && descriptionTexts.effectTags)
+                ? descriptionTexts.effectTags
+                : (Array.isArray(descriptionTexts && descriptionTexts.numericTags)
+                    ? descriptionTexts.numericTags
+                    : []);
+            const quick = _safeText(descriptionTexts && descriptionTexts.quickText, card.desc);
+            const detail = _safeText(descriptionTexts && descriptionTexts.distinctDetailText, '');
             cardDescEl.innerHTML = '';
+            const tagSectionEl = createCardEffectTagSection(effectTags);
+            if (tagSectionEl) {
+                cardDescEl.appendChild(tagSectionEl);
+            }
             cardDescEl.appendChild(createCardSection('簡易説明', quick));
             if (detail) {
                 cardDescEl.appendChild(createCardSection('詳細効果', detail));

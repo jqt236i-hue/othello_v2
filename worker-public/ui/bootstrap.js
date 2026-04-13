@@ -1097,6 +1097,45 @@
         return _loadedAssetManifest;
     }
 
+    async function refreshLoadedAssetManifest(opts = {}) {
+        try {
+            const fetchFn = (opts.root && typeof opts.root.fetch === 'function')
+                ? opts.root.fetch.bind(opts.root)
+                : (typeof fetch === 'function' ? fetch : null);
+            if (typeof fetchFn !== 'function') {
+                return { status: 'unavailable', reason: 'fetch-unavailable' };
+            }
+            try {
+                const locationRef = (opts.root && opts.root.location)
+                    || (typeof location !== 'undefined' ? location : null);
+                if (locationRef && (locationRef.protocol === 'file:' || locationRef.origin === 'null')) {
+                    return { status: 'skipped', reason: 'file-origin' };
+                }
+            } catch (e) { /* ignore */ }
+
+            const manifestUrl = String(opts.manifestUrl || 'assets/asset-manifest.json').trim() || 'assets/asset-manifest.json';
+            const response = await fetchFn(manifestUrl, { cache: 'no-store' });
+            if (!response || response.ok !== true) {
+                return {
+                    status: 'error',
+                    reason: 'fetch-failed',
+                    code: response && Number.isFinite(Number(response.status)) ? Number(response.status) : null
+                };
+            }
+            const manifest = await response.json();
+            if (!isAssetManifestShape(manifest)) {
+                return { status: 'error', reason: 'invalid-manifest' };
+            }
+            setLoadedAssetManifest(manifest, {
+                root: opts.root,
+                dispatch: opts.dispatch !== false
+            });
+            return { status: 'ok', manifest };
+        } catch (e) {
+            return { status: 'error', reason: String(e) };
+        }
+    }
+
     function preloadAssets(manifest, opts) {
         try {
             const impl = installGameDI();
@@ -1139,10 +1178,10 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        return { addLog, debugLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady, setLoadedAssetManifest, getLoadedAssetManifest, ASSET_MANIFEST_UPDATED_EVENT };
+        return { addLog, debugLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady, setLoadedAssetManifest, getLoadedAssetManifest, refreshLoadedAssetManifest, ASSET_MANIFEST_UPDATED_EVENT };
     }
 
-    return { addLog, debugLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady, setLoadedAssetManifest, getLoadedAssetManifest, ASSET_MANIFEST_UPDATED_EVENT };
+    return { addLog, debugLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady, setLoadedAssetManifest, getLoadedAssetManifest, refreshLoadedAssetManifest, ASSET_MANIFEST_UPDATED_EVENT };
 }));
 
 

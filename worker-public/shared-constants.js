@@ -117,7 +117,7 @@
         { id: 'free_01', name: '自由の意志', type: 'FREE_PLACEMENT', cost: 14, desc: '反転できなくても、空いているマスならどこにでも石を置ける' },
 
         // LAST_RESORT (最後の切り札) - 1 card, cost: 9
-        { id: 'last_resort_01', name: '最後の切り札', type: 'LAST_RESORT', cost: 9, desc: '相手より石数が少なく、通常の合法手がない時だけ使用可能。空きマスに自由配置で3回置ける（固定3回）。' },
+        { id: 'last_resort_01', name: '最後の切り札', type: 'LAST_RESORT', cost: 9, desc: '石数負けかつ合法手0の時に使用可能、空きマスに石を3個配置できる。' },
 
         // SNIPER_WILL (狙撃の意志) - 1 card, cost: 23
         { id: 'sniper_01', name: '狙撃の意志', type: 'SNIPER_WILL', cost: 23, desc: '次に置く石は空きマスならどこでも配置でき、狙撃石化。狙撃石は自ターン開始時に最も近い敵石を1つ破壊する（同距離はランダム）。5ターン持続。' },
@@ -127,10 +127,10 @@
         // PROTECTED_NEXT_STONE (弱い意志) - 1 card, cost: 1
         { id: 'hard_01', name: '弱い意志', type: 'PROTECTED_NEXT_STONE', cost: 1, desc: '次に置いた石は、次の相手ターンの間、反転されない' },
         { id: 'ghost_01', name: '幽霊の意志', type: 'GHOST_WILL', cost: 5, desc: '次に置く石を幽体化する。5ターンの間、反転・破壊の対象にはなるがその石自身は受けない。交換の意志の対象外で、入替や他の効果は通常どおり受ける。' },
-        { id: 'afterimage_will_01', name: '残像の意志', type: 'AFTERIMAGE_WILL', cost: 8, desc: '次に置く石を残像石化。反転回避3回と破壊回避3回を持つ特殊石になり、両方使い切るまで持続する。' },
+        { id: 'afterimage_will_01', name: '残像の意志', type: 'AFTERIMAGE_WILL', cost: 8, desc: '次に置く石は反転または破壊されたとき3回まで復活する、復活後挟める列があれば反転させる。' },
 
         // SWAP_WITH_ENEMY (交換の意志) - 1 card, cost: 17
-        { id: 'swap_01', name: '交換の意志', type: 'SWAP_WITH_ENEMY', cost: 17, desc: '相手の通常石1つを自分色に交換し、その位置で挟める相手石を反転する。石は置かず、そのままターン終了。' },
+        { id: 'swap_01', name: '交換の意志', type: 'SWAP_WITH_ENEMY', cost: 17, desc: '相手通常石1つ選んで自分の通常石に交換する。(反転可能)' },
         // POSITION_SWAP_WILL (入替の意志) - 1 card, cost: 13
         { id: 'position_swap_01', name: '入替の意志', type: 'POSITION_SWAP_WILL', cost: 13, desc: '盤面上の石2つを選び、位置を入れ替える。通常石・特殊石・爆弾を問わず対象にできる。' },
 
@@ -144,12 +144,12 @@
         { id: 'super_gravity_01', name: '超重力', type: 'SUPER_GRAVITY_WILL', cost: 16, desc: '盤面の石1つを選び、下方向へ限界まで移動させる。進行方向上の石は衝突時にすべて破壊して進む。' },
 
         { id: 'trap_01', name: '罠の意志', type: 'TRAP_WILL', cost: 4, desc: '自分の石を1つ罠石にしてターン終了。次の相手ターン中に反転されると、相手の布石を最大20奪う＋手札全破壊。' },
-        { id: 'tempt_01', name: '誘惑の意志', type: 'TEMPT_WILL', cost: 23, desc: '相手の特殊石1つを自分の石にする（残りターン等は維持）。対象が無いと使えない。' },
+        { id: 'tempt_01', name: '誘惑の意志', type: 'TEMPT_WILL', cost: 23, desc: '相手の特殊石を1つ選んで自分の色に変える。' },
         { id: 'capture_01', name: '捕獲の意志', type: 'CAPTURE_WILL', cost: 20, desc: '盤面上の敵の特殊石を1つ捕獲して自分の手札に加える。対象が無いと使えない。' },
-        { id: 'double_chain_01', name: '二連鎖の意志', type: 'DOUBLE_CHAIN_WILL', cost: 22, desc: 'この手で起きた通常反転のあと、追加反転を1回行う。使用後、三連鎖の意志が手札に加わる。' },
-        { id: 'triple_chain_01', name: '三連鎖の意志', type: 'TRIPLE_CHAIN_WILL', cost: 22, desc: 'この手で起きた通常反転のあと、追加反転を2回行う。使用後、四連鎖の意志が手札に加わる。', enabled: false },
-        { id: 'quad_chain_01', name: '四連鎖の意志', type: 'QUAD_CHAIN_WILL', cost: 22, desc: 'この手で起きた通常反転のあと、追加反転を3回行う。使用後、無限連鎖の意志が手札に加わる。', enabled: false },
-        { id: 'infinite_chain_01', name: '無限連鎖の意志', type: 'INFINITE_CHAIN_WILL', cost: 50, desc: 'この手で起きた通常反転のあと、追加反転を可能な限り続ける。追加反転できなくなった時点で終了する。', enabled: false },
+        { id: 'double_chain_01', name: '二連鎖の意志', type: 'DOUBLE_CHAIN_WILL', cost: 22, desc: '反転後新たに挟める列ができた場合、1列追加反転する。使用後、三連鎖の意志が手札に加わる。' },
+        { id: 'triple_chain_01', name: '三連鎖の意志', type: 'TRIPLE_CHAIN_WILL', cost: 22, desc: '反転後新たに挟める列ができた場合、2列追加反転する。使用後、四連鎖の意志が手札に加わる。', enabled: false },
+        { id: 'quad_chain_01', name: '四連鎖の意志', type: 'QUAD_CHAIN_WILL', cost: 22, desc: '反転後新たに挟める列ができた場合、3列追加反転する。使用後、無限連鎖の意志が手札に加わる。', enabled: false },
+        { id: 'infinite_chain_01', name: '無限連鎖の意志', type: 'INFINITE_CHAIN_WILL', cost: 50, desc: '反転後新たに挟める列ができた場合、可能な限り追加反転する。', enabled: false },
 
         { id: 'taboo_reverse_01', name: '禁忌の反転', type: 'TABOO_REVERSE_WILL', cost: 44, desc: '次に置く石は挟めなくても反転可能。最も反転枚数が多い列1方向のみ。' },
 
@@ -162,23 +162,23 @@
         { id: 'bomb_01', name: '時限爆弾', type: 'TIME_BOMB', cost: 13, desc: '盤面上の自分の石1つを時限爆弾化。3ターン後に周囲9マスを破壊。反転されると解除。' },
 
         // TIME_STOP_GOD (時間停石) - 1 card, cost: 0
-        { id: 'time_stop_god_01', name: '時間停石', type: 'TIME_STOP_GOD', cost: 0, desc: '使用時にランダムで自分の石3つを破壊し、次に置く石を時間停石化する。5回目の自ターン開始時に時間停止し、そのターンと次のターンを連続で行動する。発動時に効果は終了し、その石は同色の通常石に戻る。先に消えた場合は不発。' },
+        { id: 'time_stop_god_01', name: '時間停石', type: 'TIME_STOP_GOD', cost: 0, desc: '自分石3つを壊し、次石を時間停石化。5ターン後時間停止を発動し2連続行動できる。' },
 
         // ULTIMATE_REVERSE_DRAGON (究極反転龍) - 1 card, cost: 30
-        { id: 'udr_01', name: '究極反転龍', type: 'ULTIMATE_REVERSE_DRAGON', cost: 30, desc: '反転0でも空きマスに配置可能。次に置く石を龍化。置いた時に周囲1マス（8方向）を反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転し、移動先が無いときはその場で反転する。5ターン持続。反転保護を持つ特殊石。' },
+        { id: 'udr_01', name: '究極反転龍', type: 'ULTIMATE_REVERSE_DRAGON', cost: 30, desc: '空きマス自由配置可。置いた石が龍化し、配置時に周囲1マスを反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マスを反転（5ターン）。' },
 
         // BREEDING_WILL (繁殖の意志) - 1 card, cost: 16
-        { id: 'breeding_01', name: '繁殖の意志', type: 'BREEDING_WILL', cost: 16, desc: '次に置く石を繁殖石化。配置時と自ターン開始時に周囲8マスへランダム1個生成。以後は前回生成石の周囲へ拡散。生成石が反転/消滅した場合は親石起点に戻る。持続5ターン。' },
+        { id: 'breeding_01', name: '繁殖の意志', type: 'BREEDING_WILL', cost: 16, desc: '次に置く石を繁殖化。配置時+自ターン開始時周囲に石を1個生成。(5ターン)' },
         { id: 'proliferation_01', name: '増殖の意志', type: 'PROLIFERATION_WILL', cost: 4, desc: '次に置く石を増殖石化。破壊される時はその破壊を受けず、周囲8マスの空きへランダム1個増殖する。空きがなければ通常どおり破壊。各増殖石は所有者ターン10回持続し、期限切れでは消えずに通常石へ戻る。増殖で生まれた石も親の残りターンを引き継がず毎回10ターン。反転されると増殖状態を失って普通に反転する。' },
         { id: 'clone_01', name: '複製の意志', type: 'CLONE_WILL', cost: 16, desc: '盤面上の自分の石1つを選び、周囲8マスの空きからランダム1マスへ同じ石を複製する。生成では反転しない。特殊石は残り持続ターンなどを引き継ぐ。周囲に空きがない石は対象外。' },
         { id: 'split_01', name: '分裂の意志', type: 'SPLIT_WILL', cost: 12, desc: '盤面上の自分の石1つを選び、周囲8マスの空きからランダム1マスへ同じ石を分裂生成する。生成では反転しない。特殊石の残り持続ターンは元石・生成石とも半分になる。周囲に空きがない石は対象外。' },
         { id: 'teleport_01', name: 'テレポート', type: 'TELEPORT_WILL', cost: 10, desc: '盤面上の石1つを選び、ランダムな空きマスへテレポートさせる。対象は敵味方・通常石・特殊石を問わない。' },
-        { id: 'cell_teleport_01', name: 'マステレポート', type: 'CELL_TELEPORT_WILL', cost: 18, desc: '盤面上の石があるマス1つを選び、盤面拡張・盤面拡張神で追加できる外側マスのどこかへランダムにテレポートさせる。移動元のマスは穴になる。対象は敵味方・通常石・特殊石を問わない。' },
+        { id: 'cell_teleport_01', name: 'マステレポート', type: 'CELL_TELEPORT_WILL', cost: 18, desc: 'マスを1つ選び、盤面外側へランダムテレポートさせ、元マスを穴化。' },
         { id: 'cross_bomb_01', name: '十字爆弾', type: 'CROSS_BOMB', cost: 18, desc: '次に置く石を十字爆弾化。通常反転後に即起爆し、中心と縦横2マス（中心含む十字）の石を爆破する。' },
         { id: 'x_bomb_01', name: 'クロス爆弾', type: 'X_BOMB', cost: 18, desc: '次に置く石をクロス爆弾化。通常反転後に即起爆し、中心と斜め2マス（中心含むX字）の石を爆破する。' },
 
         // HYPERACTIVE_WILL (多動の意志) - 1 card, cost: 8
-        { id: 'hyperactive_01', name: '多動の意志', type: 'HYPERACTIVE_WILL', cost: 8, desc: '次に置く石を多動石化。両者のターン開始時に、周囲8マスの空きへランダムに1マス移動し、移動後に挟める場合は通常反転。反転対象時は1回だけマス移動で回避する。' },
+        { id: 'hyperactive_01', name: '多動の意志', type: 'HYPERACTIVE_WILL', cost: 8, desc: '次に置く石を多動化。両者ターン開始時に1マス移動、反転回避を1回持つ。' },
 
         // HYPERACTIVE_INHERIT_WILL (多動の継承) - 1 card, cost: 11
         { id: 'hyperactive_inherit_01', name: '多動の継承', type: 'HYPERACTIVE_INHERIT_WILL', cost: 11, desc: '盤面上の自分の石1つに多動状態を付与する。通常石・特殊石を問わず選択でき、他の状態とも併用可能。両者ターン開始時に1マス移動し、移動後に挟めば反転。反転対象時は1回だけマス移動で回避し、破壊対象時も1回だけ空きマスへ移動して回避する。持続は10ターン（所有者ターン開始時のみ減算）。' },
@@ -187,14 +187,14 @@
         { id: 'extreme_hyperactive_01', name: '極悪多動魔', type: 'EXTREME_HYPERACTIVE_WILL', cost: 35, desc: '次に置く石を極悪多動魔化。ターン制限なしの多動状態となり、両者ターン開始時に周囲8マス（空き・占有）からランダム1マス移動。占有マスを選んだ場合はその石を1マス退避させてから進入し、退避先が無い場合はその石と位置交換して進入する。退避も位置交換もできる候補が無い場合は消滅する。移動後に挟めば反転し、隣接1マス（周囲8マス）の石を敵味方問わず遠ざかるように1マス退避させる。退避先が無い石はその場に残る。反転対象時はマス移動で回避し、最大3回まで。破壊対象時も1回だけ空きマスへ移動して回避する。' },
 
         // ESCAPE_WILL (逃げる意志) - 1 card, cost: 12
-        { id: 'escape_01', name: '逃げる意志', type: 'ESCAPE_WILL', cost: 12, desc: '次に置く石を逃亡石化。両者ターン開始時に近くの石から逃げるように1マス移動し、移動先で挟める場合は反転。反転対象時は1回だけマス移動で回避し、移動先が無いと周囲8マスを爆破して消滅。' },
+        { id: 'escape_01', name: '逃げる意志', type: 'ESCAPE_WILL', cost: 12, desc: '次に置く石を逃亡石化。毎ターン1マス逃げるように移動し、移動できるマスがなくなると爆発。反転回避を1回持つ。' },
 
         // ROBOT_VACUUM_WILL (ロボット掃除機) - 1 card, cost: 17
-        { id: 'robot_vacuum_01', name: 'ロボット掃除機', type: 'ROBOT_VACUUM_WILL', cost: 17, desc: '次に置く石をロボット掃除機化。両者ターン開始時に敵石へ近づくよう周囲空きへ1マス移動し、移動後に周囲8マスの敵石を吸い込んで破壊する。吸い込み1個につき布石+3。5ターン持続。守る意志の完全保護だけは吸い込めない。' },
+        { id: 'robot_vacuum_01', name: 'ロボット掃除機', type: 'ROBOT_VACUUM_WILL', cost: 17, desc: '次に置く石は毎ターン1マス移動し、周囲の敵石を1個吸い込む。吸い込むと持続ターンが1増える。' },
 
         // GLUTTONOUS_WILL (悪食の意志) - 1 card, cost: 29
         { id: 'gluttonous_will_01', name: '悪食の意志', type: 'GLUTTONOUS_WILL', cost: 29, desc: '使用後、残り手札をすべて破壊し、次に置く石を悪食石化。両者ターン開始時に敵石方向へ1マス移動し、隣接敵石へは優先して進入しながら捕食する。隣接敵石が無い場合は近づくように移動し、2連続で捕食できなければ飢えて消滅する。反転保護を持つ特殊石。' },
-        { id: 'will_hunter_king_01', name: '意志狩りの王', type: 'WILL_HUNTER_KING', cost: 33, desc: '次に置く石を意志狩りの王石化。自ターン開始時、ランダムな敵石1つのマスへ移動しながら破壊する。敵の特殊石がある場合は優先して狙う。8ターン持続。反転回避2回と破壊回避2回を持つ特殊石。' },
+        { id: 'will_hunter_king_01', name: '意志狩りの王', type: 'WILL_HUNTER_KING', cost: 33, desc: '次に置く石を意志狩り化。自ターン開始時、敵石を1つ破壊してそのマスへ移動する。敵の特殊石を優先して狙う。' },
 
         // INSTANT_HYPERACTIVE_WILL (瞬間多動) - 1 card, cost: 5
         { id: 'instant_hyperactive_01', name: '瞬間多動', type: 'INSTANT_HYPERACTIVE_WILL', cost: 5, desc: '次に置く石を瞬間多動石化。配置直後にランダム1マス移動を3回行い、各移動後に挟める場合は通常反転。最後に消滅する。' },
@@ -285,13 +285,13 @@
         { id: 'observer_01', name: '盤理の観測者', type: 'OBSERVER_WILL', cost: 1, desc: '次に置く石を観測者石化。所有者ターン開始時に30%で発動し、布石を1〜5獲得。5ターン持続。' },
 
         // SALVATION_WILL (救済の意志) - 1 card, cost: 17
-        { id: 'salvation_01', name: '救済の意志', type: 'SALVATION_WILL', cost: 17, desc: '直前の相手ターンで破壊された全ての石を自分の通常石としてランダムな空きマスへ配置する。対象0枚の時は使用不可。対象は自分・相手、通常石・特殊石を問わない。各復活石は、そのマスを起点に通常の挟み反転を行う。' },
+        { id: 'salvation_01', name: '救済の意志', type: 'SALVATION_WILL', cost: 17, desc: '直前の相手ターンで破壊された全ての石を救済し、自分の通常石として空きマスにランダム配置。' },
 
         // REINFORCEMENT_WILL (増援の意志) - 1 card, cost: 6
-        { id: 'reinforcement_01', name: '増援の意志', type: 'REINFORCEMENT_WILL', cost: 6, desc: '盤面の角辺以外で石に隣接する空きマスからランダム1マスへ、自分色の通常石を1個配置する。' },
+        { id: 'reinforcement_01', name: '増援の意志', type: 'REINFORCEMENT_WILL', cost: 6, desc: '石に隣接する内側空きマスへランダム1マス通常石を配置する。(反転可能)' },
 
         // EQUALITY_WILL (平等の意志) - 1 card, cost: 15
-        { id: 'equality_will_01', name: '平等の意志', type: 'EQUALITY_WILL', cost: 15, desc: '相手の石数が自分より10個以上多い時のみ使用可。盤面の空きマスへランダムに最大3個、自分色の通常石を生成する。各生成石は、そのマスを起点に通常の挟み反転を行う。' }
+        { id: 'equality_will_01', name: '平等の意志', type: 'EQUALITY_WILL', cost: 15, desc: '空きマスに3個石をランダム配置、石数が10個以上負けているときに使用可能。' }
     ];
 
     const CARD_DEFS = (catalogCards && catalogCards.length) ? catalogCards : CARD_DEFS_FALLBACK;

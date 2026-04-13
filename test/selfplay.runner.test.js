@@ -1127,6 +1127,81 @@ describe('selfplay runner', () => {
         expect(['3,3', '4,4']).toContain(key);
     });
 
+    test.each([
+        {
+            pendingType: 'LIVING_WILL',
+            getterName: 'getLivingWillTargets',
+            applyName: 'applyLivingWill',
+            actionKey: 'livingWillTarget',
+            target: { row: 4, col: 2 }
+        },
+        {
+            pendingType: 'BOARD_SHRINK_WILL',
+            getterName: 'getBoardShrinkTargets',
+            applyName: 'applyBoardShrinkWill',
+            actionKey: 'shrinkTarget',
+            target: { row: 0, col: 1 }
+        },
+        {
+            pendingType: 'BOARD_SHRINK_GOD',
+            getterName: 'getBoardShrinkGodTargets',
+            applyName: 'applyBoardShrinkGod',
+            actionKey: 'shrinkTarget',
+            target: { row: 0, col: 0 }
+        },
+        {
+            pendingType: 'FREEZE_WILL',
+            getterName: 'getFreezeTargets',
+            applyName: 'applyFreezeWill',
+            actionKey: 'freezeTarget',
+            target: { row: 2, col: 5 }
+        },
+        {
+            pendingType: 'SPLIT_WILL',
+            getterName: 'getSplitTargets',
+            applyName: 'applySplitWill',
+            actionKey: 'splitTarget',
+            target: { row: 3, col: 3 }
+        }
+    ])('decideAction resolves $pendingType pending target instead of canceling', ({
+        pendingType,
+        getterName,
+        applyName,
+        actionKey,
+        target
+    }) => {
+        const gameState = Core.createGameState();
+        gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        gameState.board[3][3] = 1;
+        gameState.currentPlayer = 1;
+
+        const cardState = {
+            pendingEffectByPlayer: {
+                black: { type: pendingType, stage: 'selectTarget' },
+                white: null
+            },
+            markers: [],
+            charge: { black: 0, white: 0 },
+            hands: { black: [], white: [] },
+            hasUsedCardThisTurnByPlayer: { black: true, white: false }
+        };
+
+        jest.spyOn(CardLogic, getterName).mockReturnValue([target]);
+        jest.spyOn(CardLogic, applyName).mockReturnValue({ applied: true });
+
+        const decision = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.2 },
+            { allowCardUsage: true, cardUsageRate: 0.25 },
+            { gameState, cardState }
+        );
+
+        expect(decision.action.type).toBe('place');
+        expect(decision.action[actionKey]).toEqual(target);
+    });
+
     test('decideAction resolves STRONG_WIND_WILL on right expansion targets without crashing', () => {
         const gameState = createGameStateWithRightExpansion([
             { row: 2, owner: 1 }
@@ -1494,6 +1569,72 @@ describe('selfplay runner', () => {
         const context = buildCardDecisionContext(gameState, cardState, 'black', 0, []);
 
         expect(context.usableCardIds).toEqual(['afterimage_will_01', 'ghost_01', 'silver_stone']);
+    });
+
+    test('buildCardDecisionContext keeps engine-reported usable cards without a selfplay whitelist', () => {
+        const gameState = Core.createGameState();
+        const cardState = {
+            pendingEffectByPlayer: { black: null, white: null },
+            markers: [],
+            charge: { black: 30, white: 0 },
+            hands: { black: ['board_shrink_01', 'freeze_01', 'will_hunter_king_01'], white: [] },
+            hasUsedCardThisTurnByPlayer: { black: false, white: false },
+            hasDestroyedCardThisTurnByPlayer: { black: false, white: false }
+        };
+
+        jest.spyOn(CardLogic, 'getUsableCardIds').mockReturnValue(['board_shrink_01', 'freeze_01', 'will_hunter_king_01']);
+
+        const context = buildCardDecisionContext(gameState, cardState, 'black', 0, []);
+
+        expect(context.usableCardIds).toEqual(['board_shrink_01', 'freeze_01', 'will_hunter_king_01']);
+    });
+
+    test('decideAction can use engine-reported cards that were previously filtered out of selfplay', () => {
+        const gameState = Core.createGameState();
+        gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        gameState.currentPlayer = 1;
+
+        const cardState = {
+            pendingEffectByPlayer: { black: null, white: null },
+            markers: [],
+            charge: { black: 20, white: 0 },
+            hands: { black: ['board_shrink_01'], white: [] },
+            hasUsedCardThisTurnByPlayer: { black: false, white: false },
+            hasDestroyedCardThisTurnByPlayer: { black: false, white: false }
+        };
+
+        jest.spyOn(CardLogic, 'getUsableCardIds').mockReturnValue(['board_shrink_01']);
+        jest.spyOn(CardLogic, 'getCardCost').mockImplementation((cardId) => (
+            cardId === 'board_shrink_01' ? 8 : 0
+        ));
+        jest.spyOn(CardLogic, 'getCardDef').mockImplementation((cardId) => (
+            cardId === 'board_shrink_01'
+                ? { id: cardId, type: 'BOARD_SHRINK_WILL' }
+                : null
+        ));
+        jest.spyOn(CpuPolicyCore, 'scoreCardUseDecision').mockReturnValue({
+            score: 96,
+            shouldUse: true,
+            minUseScore: 0
+        });
+
+        const decision = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.5 },
+            { allowCardUsage: true, cardUsageRate: 1, enableTacticalLookahead: false },
+            { gameState, cardState }
+        );
+
+        expect(decision.action).toEqual({
+            type: 'use_card',
+            useCardId: 'board_shrink_01',
+            useCardOwnerKey: 'black'
+        });
+        expect(decision.cardDecision).toEqual(expect.objectContaining({
+            selectedActionKey: 'use:board_shrink_01'
+        }));
     });
 
 });

@@ -107,6 +107,30 @@ describe('load-training-profile shared teacher sync', () => {
         expect(getFlagValue(args, '--selfplay-teacher-committee-consensus-bonus-max')).toBe(String(teacher.teacherCommitteeConsensusBonusMax));
         expect(args).toContain('--selfplay-use-promoted-model-only');
         expect(args).not.toContain('--selfplay-use-candidate-every-iteration');
+        expect(resolved.sharedTeacherSync).toMatchObject({
+            enabled: true,
+            mode: 'fill-missing'
+        });
+        expect(resolved.sharedTeacherSync.sourcePath).toMatch(/constants[\\/]cpu-lv6-shared-profile\.js$/);
+        expect(resolved.sharedTeacherSync.guideMode).toMatchObject({
+            desired: 'promoted-only',
+            active: 'promoted-only',
+            status: 'preserved-explicit'
+        });
+        expect(
+            resolved.sharedTeacherSync.flagActions.find((one) => one.flag === '--selfplay-policy-mix-rate')
+        ).toMatchObject({
+            key: 'policyMixRate',
+            status: 'preserved-explicit'
+        });
+        expect(
+            resolved.sharedTeacherSync.flagActions.find((one) => one.flag === '--selfplay-teacher-committee-weight-min')
+        ).toMatchObject({
+            key: 'teacherCommitteeWeightMin',
+            status: 'applied',
+            formattedValue: String(teacher.teacherCommitteeWeightMin)
+        });
+        expect(resolved.seedBankPlan).toBeNull();
     });
 
     test('production_v3 resolves promotion_v3 gate and promoted-only guide mode', () => {
@@ -343,7 +367,7 @@ describe('load-training-profile shared teacher sync', () => {
         expect(args).toContain('--onnx-resume-optimizer');
     });
 
-    test('browser_lv6_deploy_v1_seedbank_canary resolves isolated candidate-carry canary lane', () => {
+    test('browser_lv6_deploy_v1_seedbank_canary resolves isolated quick-only canary lane with seed bank plan', () => {
         const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-training-profile-'));
         const runsDir = path.join(tempRoot, 'runs');
         const modelsDir = path.join(tempRoot, 'models');
@@ -355,33 +379,59 @@ describe('load-training-profile shared teacher sync', () => {
         });
         const args = resolved.command.args;
 
-        expect(resolved.gate && resolved.gate.name).toBe('browser_lv6_deploy_v1');
-        expect(args).toContain('--selfplay-use-candidate-every-iteration');
-        expect(args).not.toContain('--selfplay-use-promoted-model-only');
-        expect(args).toContain('--quality-gate');
-        expect(args).toContain('--adoption-use-guide-baseline');
-        expect(args).not.toContain('--adoption-use-anchor-baseline');
+        expect(resolved.gate && resolved.gate.name).toBe('browser_lv6_deploy_fast_quick_v1');
+        expect(args).toContain('--selfplay-use-promoted-model-only');
+        expect(args).not.toContain('--selfplay-use-candidate-every-iteration');
+        expect(args).toContain('--no-quality-gate');
+        expect(args).not.toContain('--quality-gate');
+        expect(args).toContain('--adoption-use-anchor-baseline');
+        expect(args).not.toContain('--adoption-use-guide-baseline');
         expect(resolved.bootstrap.autoResumeLatestCheckpoint).toBe(true);
-        expect(getFlagValue(args, '--selfplay-jobs')).toBe('8');
+        expect(getFlagValue(args, '--selfplay-jobs')).toBe('10');
         expect(getFlagValue(args, '--adoption-jobs')).toBe('8');
         expect(getFlagValue(args, '--onnx-gate-jobs')).toBe('8');
         expect(getFlagValue(args, '--seed-bank')).toBe('data/runs/browser_lv6_deploy_v1_seedbank_canary/seed-bank.v1.json');
-        expect(getFlagValue(args, '--selfplay-policy-model-pool-size')).toBe('4');
+        expect(getFlagValue(args, '--selfplay-policy-model-pool-size')).toBe('2');
         expect(getFlagValue(args, '--selfplay-policy-pool-sampling')).toBe('recency');
         expect(getFlagValue(args, '--selfplay-policy-pool-recency-decay')).toBe('2.0');
-        expect(getFlagValue(args, '--selfplay-policy-current-anchor-rate')).toBe('0.60');
-        expect(getFlagValue(args, '--selfplay-card-usage-rate-jitter')).toBe('0.04');
-        expect(getFlagValue(args, '--selfplay-tactical-weight-min')).toBe('1.00');
-        expect(getFlagValue(args, '--selfplay-tactical-weight-max')).toBe('1.15');
-        expect(getFlagValue(args, '--selfplay-tactical-beam-width')).toBe('6');
-        expect(getFlagValue(args, '--train-games')).toBe('10000');
+        expect(getFlagValue(args, '--selfplay-policy-current-anchor-rate')).toBe('0.70');
+        expect(getFlagValue(args, '--selfplay-card-usage-rate-jitter')).toBe('0.06');
+        expect(getFlagValue(args, '--selfplay-tactical-weight-min')).toBe('0.95');
+        expect(getFlagValue(args, '--selfplay-tactical-weight-max')).toBe('1.10');
+        expect(getFlagValue(args, '--selfplay-tactical-beam-width')).toBe('12');
+        expect(getFlagValue(args, '--train-games')).toBe('12000');
         expect(getFlagValue(args, '--eval-games')).toBe('2400');
-        expect(getFlagValue(args, '--quick-games')).toBe('120');
-        expect(getFlagValue(args, '--quality-gate-games')).toBe('120');
-        expect(getFlagValue(args, '--final-games')).toBe('240');
-        expect(getFlagValue(args, '--promotion-mode')).toBe('strict');
+        expect(getFlagValue(args, '--quick-games')).toBe('60');
+        expect(getFlagValue(args, '--quality-gate-games')).toBeNull();
+        expect(getFlagValue(args, '--final-games')).toBe('120');
+        expect(getFlagValue(args, '--promotion-mode')).toBe('quick-only');
         expect(getFlagValue(args, '--runs-dir')).toBe(runsDir);
         expect(getFlagValue(args, '--models-dir')).toBe(modelsDir);
+        expect(resolved.seedBankPlan).toMatchObject({
+            path: path.resolve(process.cwd(), 'data', 'runs', 'browser_lv6_deploy_v1_seedbank_canary', 'seed-bank.v1.json'),
+            bankId: 'browser_lv6_deploy_v1_seedbank_canary-seed-bank'
+        });
+        expect(resolved.seedBankPlan.gates.quick).toMatchObject({
+            baseSeed: 1,
+            seedCount: 2,
+            seedStride: 1000
+        });
+        expect(resolved.seedBankPlan.gates.final).toMatchObject({
+            baseSeed: 500001,
+            seedCount: 2,
+            seedStride: 1000
+        });
+        expect(resolved.seedBankPlan.gates.onnx).toMatchObject({
+            baseSeed: 700001,
+            seedCount: 1,
+            seedStride: 1000
+        });
+        expect(resolved.seedBankPlan.gates.quality).toBeUndefined();
+        expect(resolved.sharedTeacherSync.guideMode).toMatchObject({
+            desired: 'promoted-only',
+            active: 'promoted-only',
+            status: 'preserved-explicit'
+        });
     });
 
     test('adaptive_best_current_v1 resolves 10000-game repeated promotion loop', () => {

@@ -133,6 +133,14 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.effectSoundFiles).not.toHaveProperty('special_expired');
   });
 
+  test('living will grant and board shrink use dedicated sound mappings', () => {
+    const soundEngine = loadSoundEngine();
+
+    expect(soundEngine.effectSoundFiles.living_will_selected).toBe('生きる意志を付与するタイミング.mp3');
+    expect(soundEngine.effectSoundFiles.board_shrink_selected).toBe('盤面縮小するタイミング.mp3');
+    expect(soundEngine.effectVolumeScales.board_shrink_selected).toBe(0.7);
+  });
+
   test('startup default track points to c-othello-2', () => {
     const soundEngine = loadSoundEngine();
 

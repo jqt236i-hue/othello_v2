@@ -1069,7 +1069,7 @@
     align-items: center;
     gap: calc(3px * var(--layout-stage-scale));
     margin: calc(2px * var(--layout-stage-scale)) 0 calc(6px * var(--layout-stage-scale));
-    min-height: calc(14px * var(--layout-stage-scale));
+    min-height: calc(17px * var(--layout-stage-scale));
     z-index: 1;
 }
 
@@ -1077,14 +1077,56 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: calc(2px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale));
-    font-size: calc(10px * var(--layout-stage-scale));
+    padding: calc(2.4px * var(--layout-stage-scale)) calc(7.2px * var(--layout-stage-scale));
+    font-size: calc(12px * var(--layout-stage-scale));
     line-height: 1;
     color: var(--color-text-secondary);
     border: var(--layout-size-border-thin) solid var(--color-text-muted);
     border-radius: var(--layout-size-card-badge-radius);
     background: transparent;
     white-space: nowrap;
+}
+
+.card-detail-effect-tag.is-flip-evasion,
+.rules-help-card-tag.is-flip-evasion {
+    color: #7ed7ff;
+    border-color: rgba(126, 215, 255, 0.5);
+    background: rgba(36, 87, 118, 0.18);
+}
+
+.card-detail-effect-tag.is-flip-protection,
+.rules-help-card-tag.is-flip-protection {
+    color: #9fe8ff;
+    border-color: rgba(159, 232, 255, 0.58);
+    background: rgba(28, 95, 120, 0.28);
+}
+
+.card-detail-effect-tag.is-full-protection,
+.rules-help-card-tag.is-full-protection {
+    color: #ffe1aa;
+    border-color: rgba(255, 225, 170, 0.58);
+    background: rgba(114, 79, 24, 0.26);
+}
+
+.card-detail-effect-tag.is-destroy-evasion,
+.rules-help-card-tag.is-destroy-evasion {
+    color: #ffb18a;
+    border-color: rgba(255, 177, 138, 0.5);
+    background: rgba(112, 62, 40, 0.18);
+}
+
+.card-detail-effect-tag.is-duration-turns,
+.rules-help-card-tag.is-duration-turns {
+    color: #e5cf8a;
+    border-color: rgba(229, 207, 138, 0.5);
+    background: rgba(120, 94, 36, 0.18);
+}
+
+.card-detail-effect-tag.is-delayed-activation-turns,
+.rules-help-card-tag.is-delayed-activation-turns {
+    color: #b9df7a;
+    border-color: rgba(185, 223, 122, 0.5);
+    background: rgba(70, 102, 36, 0.18);
 }
 
 .card-detail-effect-tag-button {

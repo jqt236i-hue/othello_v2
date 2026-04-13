@@ -1,9 +1,13 @@
 const net = require('net');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 const {
     parseArgs,
     chooseServePort,
-    buildHttpServerArgs
+    buildHttpServerArgs,
+    computeAssetSourceFingerprint
 } = require('../scripts/serve-with-fallback');
 
 function listenOnce(server, options) {
@@ -56,5 +60,29 @@ describe('serve-with-fallback', () => {
         expect(args).toContain('0.0.0.0');
         expect(args).toContain('-c-1');
         expect(args).toContain('--cors');
+    });
+
+    test('computeAssetSourceFingerprint ignores generated asset-manifest and reacts to new gacha assets', () => {
+        const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'serve-assets-'));
+        const assetsDir = path.join(tmpRoot, 'assets');
+        const gachaDir = path.join(assetsDir, 'images', 'Gacha', 'N');
+        fs.mkdirSync(gachaDir, { recursive: true });
+        fs.writeFileSync(path.join(gachaDir, 'sample.png'), 'sample');
+        fs.writeFileSync(path.join(assetsDir, 'asset-manifest.json'), '{"stale":true}');
+
+        try {
+            const beforeManifestEdit = computeAssetSourceFingerprint(tmpRoot);
+            fs.writeFileSync(path.join(assetsDir, 'asset-manifest.json'), '{"stale":false}');
+            const afterManifestEdit = computeAssetSourceFingerprint(tmpRoot);
+            expect(afterManifestEdit).toBe(beforeManifestEdit);
+
+            const exrDir = path.join(assetsDir, 'images', 'Gacha', 'EXR');
+            fs.mkdirSync(exrDir, { recursive: true });
+            fs.writeFileSync(path.join(exrDir, '意志.png'), 'exr');
+            const afterAssetAdd = computeAssetSourceFingerprint(tmpRoot);
+            expect(afterAssetAdd).not.toBe(beforeManifestEdit);
+        } finally {
+            fs.rmSync(tmpRoot, { recursive: true, force: true });
+        }
     });
 });

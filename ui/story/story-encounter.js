@@ -114,7 +114,22 @@
             return null;
         }
 
+        function resolveSoundEngineAccessModule() {
+            if (typeof require === 'function') {
+                try {
+                    return require('../sound-engine-access.js');
+                } catch (e) { /* ignore */ }
+            }
+            return (rootRef && rootRef.SoundEngineAccessModule)
+                || (typeof SoundEngineAccessModule !== 'undefined' ? SoundEngineAccessModule : null)
+                || (typeof globalThis !== 'undefined' ? globalThis.SoundEngineAccessModule : null);
+        }
+
         function resolveSoundEngine() {
+            const accessModule = resolveSoundEngineAccessModule();
+            if (accessModule && typeof accessModule.resolveSoundEngine === 'function') {
+                return accessModule.resolveSoundEngine(rootRef);
+            }
             return (rootRef && rootRef.SoundEngine)
                 || (typeof SoundEngine !== 'undefined' ? SoundEngine : null)
                 || (typeof globalThis !== 'undefined' ? globalThis.SoundEngine : null);

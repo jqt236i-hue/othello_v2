@@ -116,6 +116,46 @@ function _resolveCpuLv6SharedProfile() {
     return null;
 }
 
+let _cpuLv6RuntimeCapabilityModule = null;
+
+function _resolveCpuLv6RuntimeCapabilityModule() {
+    if (
+        _cpuLv6RuntimeCapabilityModule &&
+        typeof _cpuLv6RuntimeCapabilityModule.resolveCpuLv6BrowserRuntimeCapability === 'function'
+    ) {
+        return _cpuLv6RuntimeCapabilityModule;
+    }
+    try {
+        if (
+            typeof globalThis !== 'undefined' &&
+            globalThis.CpuLv6RuntimeCapability &&
+            typeof globalThis.CpuLv6RuntimeCapability.resolveCpuLv6BrowserRuntimeCapability === 'function'
+        ) {
+            _cpuLv6RuntimeCapabilityModule = globalThis.CpuLv6RuntimeCapability;
+            return _cpuLv6RuntimeCapabilityModule;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof require === 'function') {
+            const moduleRef = require('../../shared/cpu-lv6-runtime-capability.js');
+            if (moduleRef && typeof moduleRef.resolveCpuLv6BrowserRuntimeCapability === 'function') {
+                _cpuLv6RuntimeCapabilityModule = moduleRef;
+                return _cpuLv6RuntimeCapabilityModule;
+            }
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _resolveCpuLv6BrowserRuntimeCapability() {
+    const moduleRef = _resolveCpuLv6RuntimeCapabilityModule();
+    const shared = _resolveCpuLv6SharedProfile();
+    if (!moduleRef || typeof moduleRef.resolveCpuLv6BrowserRuntimeCapability !== 'function') return null;
+    return moduleRef.resolveCpuLv6BrowserRuntimeCapability(shared, {
+        forcePrimaryOnnx: _shouldForceOnnxLoad()
+    });
+}
+
 function _usesOnnxMoveDecision(mode) {
     const normalized = String(mode || '').trim().toLowerCase();
     if (!normalized) return true;
@@ -129,6 +169,10 @@ function _usesOnnxCardDecision(mode) {
 }
 
 function _shouldLoadBrowserOnnxRuntime() {
+    const capability = _resolveCpuLv6BrowserRuntimeCapability();
+    if (capability && typeof capability.shouldLoadPrimaryOnnxRuntime === 'boolean') {
+        return capability.shouldLoadPrimaryOnnxRuntime;
+    }
     if (_shouldForceOnnxLoad()) return true;
 
     const shared = _resolveCpuLv6SharedProfile();
@@ -391,7 +435,10 @@ async function initPolicyOnnxModel() {
         }
     } catch (e) { /* ignore */ }
     if (!runtime || typeof runtime.loadFromUrl !== 'function') return;
+    const capability = _resolveCpuLv6BrowserRuntimeCapability();
     const shouldLoadPrimaryOnnx = _shouldLoadBrowserOnnxRuntime();
+    const shouldLoadAuxiliaryTargetModel = !capability || capability.hasAuxiliaryTargetHead !== false;
+    const shouldLoadAuxiliaryValueModel = !capability || capability.hasAuxiliaryValueHead !== false;
     if (!shouldLoadPrimaryOnnx) {
         _setCpuModelLoadStatus('onnx', {
             loaded: false,
@@ -486,13 +533,17 @@ async function initPolicyOnnxModel() {
 
     if (fetchImpl) {
         const resolvedRoot = shouldLoadPrimaryOnnx ? _deriveResolvedRootFromUrl(modelUrl, modelRel) : '';
-        const resolvedTarget = await _resolveOptionalAssetPair(fetchImpl, targetModelRel, targetMetaRel, resolvedRoot);
+        const resolvedTarget = shouldLoadAuxiliaryTargetModel
+            ? await _resolveOptionalAssetPair(fetchImpl, targetModelRel, targetMetaRel, resolvedRoot)
+            : null;
         if (resolvedTarget) {
             targetModelUrl = resolvedTarget.primaryUrl;
             targetMetaUrl = resolvedTarget.secondaryUrl;
             hasTargetModel = true;
         }
-        const resolvedValue = await _resolveOptionalAssetPair(fetchImpl, valueModelRel, valueMetaRel, resolvedRoot);
+        const resolvedValue = shouldLoadAuxiliaryValueModel
+            ? await _resolveOptionalAssetPair(fetchImpl, valueModelRel, valueMetaRel, resolvedRoot)
+            : null;
         if (resolvedValue) {
             valueModelUrl = resolvedValue.primaryUrl;
             valueMetaUrl = resolvedValue.secondaryUrl;

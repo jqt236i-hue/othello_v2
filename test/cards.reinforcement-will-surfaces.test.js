@@ -7,17 +7,17 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: '増援の意志',
   type: 'REINFORCEMENT_WILL',
   cost: 6,
-  desc_ja: '盤面の角辺以外で石に隣接する空きマスからランダム1マスへ、自分色の通常石を1個配置する。',
+  desc_ja: '石に隣接する内側空きマスへランダム1マス通常石を配置する。(反転可能)',
   display_type_ja: '繁栄'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
   name: '増援の意志',
-  desc: '盤面の角辺以外で石に隣接する空きマスからランダム1マスへ、自分色の通常石を1個配置する。'
+  desc: '石に隣接する内側空きマスへランダム1マス通常石を配置する。(反転可能)'
 });
 
-const EXPECTED_QUICK_TEXT = '石に隣接する内側空きマスへランダム1マス通常石を配置し、通常反転を行う';
+const EXPECTED_QUICK_TEXT = '石に隣接する内側空きマスへランダム1マス通常石を配置する。(反転可能)';
 const EXPECTED_DETAIL_TEXT = '使用時、盤面の角と辺を除く空きマスのうち、いずれかの石に隣接1マス（周囲8マス）で接している候補だけを集める。\n候補からランダム1マスを選び、自分色の通常石を1個配置する。\n候補条件に通常反転の可否は含めず、配置後は通常配置と同じ反転処理を行う。\n候補が無い局面では使用できない。';
 
 function getCardById(catalog, cardId) {

@@ -1,6 +1,6 @@
 # カードオセロ / SKILLS.md
 
-最終更新: 2026-04-03
+最終更新: 2026-04-12
 
 ## 0. この文書の役割
 
@@ -36,6 +36,7 @@
 | `new-card-implementation-workflow` | 新カード実装を type 分岐から end-to-end で通す時 | `cards/catalog.json`, `game/card-effects/*`, `game/cpu-turn-handler.js`, pending target / deferred publish, CPU, presentation, docs / tests |
 | `card-effect-integration-workflow` | 既存カードの削除、既存仕様変更、関連統合作業を end-to-end で通す時 | `cards/catalog.json`, `game/card-effects/*`, pending target, CPU, presentation, deck / rules help |
 | `card-cost-adjustment-workflow` | カードの cost 数値変更を end-to-end で通す時 | `cards/catalog.json`, generated catalog, tier UI, CPU cost scoring, docs / tests |
+| `card-description-surface-workflow` | カードの簡易説明 / 詳細説明 / 重複除外を shared resolver から surface までそろえる時 | `cards/card-interaction-effects.js`, `cards/card-interaction.js`, `ui/handlers/rules-help.js`, description surface tests |
 | `pending-selection-flow-workflow` | pending selection、multi-stage target、deferred publish、selection cache をそろえる時 | `game/turn-handlers/pending-target-selector.js`, `game/turn/pending-coordinator.js`, `game/network-turn-handoff.js`, `game/cpu-turn-handler.js`, `ui/network/snapshot.js`, `ui/network-client.js` |
 | `marker-duration-lifecycle-workflow` | marker の追加、duration、turn-start expire、STATUS_* をそろえる時 | `game/logic/cards/markers.js`, `game/logic/cards-internal/effect-timing.js`, `game/turn/pipeline_ui_adapter.js` |
 | `board-expansion-movement-workflow` | board expansion、movement card、expansion render / sound、CPU target をそろえる時 | `game/logic/core.js`, `game/logic/cards/expansion.js`, `game/logic/cards/movement.js`, `game/card-effects/position-swap.js`, `game/move-generator.js`, `game/cpu-turn-handler.js`, `ui/diff-renderer.js` |
@@ -60,6 +61,7 @@
 - 新カード実装を既存 type 再利用か新 type 追加かの分岐から進め、selection / deferred publish まで通す: `new-card-implementation-workflow`
 - 既存カードの削除 / 仕様変更 / 統合作業: `card-effect-integration-workflow`
 - カードの cost 数値変更と tier / CPU 影響確認: `card-cost-adjustment-workflow`
+- カードの `簡易説明` / `詳細説明` / `詳細効果`、重複除外、shared resolver の整理: `card-description-surface-workflow`
 - pending selection、multi-stage target、deferred publish、selection cache、network handoff: `pending-selection-flow-workflow`
 - marker の追加、duration、turn-start expire、STATUS_*: `marker-duration-lifecycle-workflow`
 - board expansion、movement card、position-swap、expansion render / sound、CPU target: `board-expansion-movement-workflow`

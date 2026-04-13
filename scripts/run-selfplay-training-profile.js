@@ -17,130 +17,78 @@ const {
     writeResolvedConfig,
     runCommand
 } = require('./load-training-profile');
+const {
+    collectCliFlagMap,
+    getFlagValue,
+    hasFlag
+} = require('./training-command-args');
+const {
+    parseTrainingProfileLauncherArgs,
+    formatTrainingProfileLauncherHelp
+} = require('./training-profile-launcher-args');
 
 function parseArgs(argv) {
-    const args = {
-        profile: 'production_v2',
-        gateProfile: null,
-        runTag: null,
-        runsDir: null,
-        modelsDir: null,
-        summaryOut: null,
-        resolvedConfigOut: null,
-        preflightOut: null,
-        launcherLogPath: null,
-        pythonPath: null,
-        refreshBootstrap: false,
-        skipPreflight: false,
-        dryRun: false,
-        passThrough: [],
-        help: false
-    };
-
-    let passThroughMode = false;
-    for (let i = 0; i < argv.length; i++) {
-        const token = argv[i];
-        if (passThroughMode) {
-            args.passThrough.push(token);
-            continue;
-        }
-        if (token === '--') { passThroughMode = true; continue; }
-        if (token === '--help' || token === '-h') { args.help = true; continue; }
-        if (token === '--profile') { args.profile = String(argv[++i] || '').trim() || 'production_v2'; continue; }
-        if (token === '--gate-profile') { args.gateProfile = String(argv[++i] || '').trim() || null; continue; }
-        if (token === '--run-tag') { args.runTag = String(argv[++i] || '').trim() || null; continue; }
-        if (token === '--runs-dir') { args.runsDir = String(argv[++i] || '').trim() || null; continue; }
-        if (token === '--models-dir') { args.modelsDir = String(argv[++i] || '').trim() || null; continue; }
-        if (token === '--summary-out') { args.summaryOut = String(argv[++i] || '').trim() || null; continue; }
-        if (token === '--resolved-config-out' || token === '--out') { args.resolvedConfigOut = String(argv[++i] || '').trim() || null; continue; }
-        if (token === '--preflight-out') { args.preflightOut = String(argv[++i] || '').trim() || null; continue; }
-        if (token === '--launcher-log') { args.launcherLogPath = String(argv[++i] || '').trim() || null; continue; }
-        if (token === '--python') { args.pythonPath = String(argv[++i] || '').trim() || null; continue; }
-        if (token === '--refresh-bootstrap') { args.refreshBootstrap = true; continue; }
-        if (token === '--skip-preflight') { args.skipPreflight = true; continue; }
-        if (token === '--dry-run') { args.dryRun = true; continue; }
-        args.passThrough.push(token);
-    }
-
-    return args;
+    return parseTrainingProfileLauncherArgs(argv, { mode: 'run' });
 }
 
 function printHelp() {
-    console.log([
-        'Usage:',
-        '  node scripts/run-selfplay-training-profile.js [options] [-- extra-options-for-train-cycle]',
-        '',
-        'Options:',
-        '      --profile <name|path>      Training profile name/path (default: production_v2)',
-        '      --gate-profile <name|path> Override gate profile name/path',
-        '      --run-tag <tag>            Fixed run tag',
-        '      --runs-dir <path>          Override runs directory',
-        '      --models-dir <path>        Override models directory',
-        '      --summary-out <path>       Override training summary output path',
-        '      --resolved-config-out <p>  Override resolved config output path',
-        '      --preflight-out <path>     Override preflight report path',
-        '      --launcher-log <path>      Override launcher log path hint',
-        '      --python <path>            Override Python executable path',
-        '      --refresh-bootstrap        Re-copy bootstrap models even if target exists',
-        '      --skip-preflight           Skip preflight check',
-        '      --dry-run                  Resolve profile, write config, run preflight only',
-        '  -h, --help                     Show this help',
-        '',
-        'Example:',
-        '  node scripts/run-selfplay-training-profile.js --profile production_v2 -- --max-hours 100'
-    ].join('\n'));
+    console.log(formatTrainingProfileLauncherHelp({ mode: 'run' }));
 }
 
-function getCommandFlagValue(args, flag) {
-    if (!Array.isArray(args) || !flag) return null;
-    const index = args.indexOf(flag);
-    if (index < 0 || index + 1 >= args.length) return null;
-    return String(args[index + 1] || '').trim() || null;
-}
-
-function hasCommandFlag(args, flag) {
-    return Array.isArray(args) && args.includes(flag);
-}
-
-function getNumericCommandFlagValue(args, flag, fallback) {
-    const raw = getCommandFlagValue(args, flag);
+function getNumericCommandFlagValue(flagMap, flag, fallback) {
+    const raw = getFlagValue(flagMap, flag);
     if (raw == null) return fallback;
     const numeric = Number(raw);
     return Number.isFinite(numeric) ? numeric : fallback;
 }
 
 function buildSeedBankFromResolvedCommand(resolved) {
+    const seedBankPlan = resolved && resolved.seedBankPlan && typeof resolved.seedBankPlan === 'object'
+        ? resolved.seedBankPlan
+        : null;
+    if (seedBankPlan && seedBankPlan.path && seedBankPlan.gates && typeof seedBankPlan.gates === 'object') {
+        return {
+            seedBankPath: path.resolve(seedBankPlan.path),
+            bank: buildSeedBank({
+                bankId: seedBankPlan.bankId,
+                description: seedBankPlan.description,
+                gates: seedBankPlan.gates
+            })
+        };
+    }
+
     const commandArgs = resolved && resolved.command && Array.isArray(resolved.command.args)
         ? resolved.command.args
         : [];
-    const seedBankArg = getCommandFlagValue(commandArgs, '--seed-bank');
+    const flagMap = collectCliFlagMap(commandArgs);
+    const seedBankArg = getFlagValue(flagMap, '--seed-bank');
     if (!seedBankArg) return null;
-    const baseSeed = getNumericCommandFlagValue(commandArgs, '--seed', 1);
+    const baseSeed = getNumericCommandFlagValue(flagMap, '--seed', 1);
     const quickSeedCount = getNumericCommandFlagValue(
-        commandArgs,
+        flagMap,
         '--quick-adoption-seed-count',
-        getNumericCommandFlagValue(commandArgs, '--adoption-seed-count', 1)
+        getNumericCommandFlagValue(flagMap, '--adoption-seed-count', 1)
     );
     const quickSeedStride = getNumericCommandFlagValue(
-        commandArgs,
+        flagMap,
         '--quick-adoption-seed-stride',
-        getNumericCommandFlagValue(commandArgs, '--adoption-seed-stride', 1000)
+        getNumericCommandFlagValue(flagMap, '--adoption-seed-stride', 1000)
     );
-    const quickSeedOffset = getNumericCommandFlagValue(commandArgs, '--quick-adoption-seed-offset', 0);
+    const quickSeedOffset = getNumericCommandFlagValue(flagMap, '--quick-adoption-seed-offset', 0);
     const finalSeedCount = getNumericCommandFlagValue(
-        commandArgs,
+        flagMap,
         '--final-adoption-seed-count',
-        getNumericCommandFlagValue(commandArgs, '--adoption-seed-count', 1)
+        getNumericCommandFlagValue(flagMap, '--adoption-seed-count', 1)
     );
     const finalSeedStride = getNumericCommandFlagValue(
-        commandArgs,
+        flagMap,
         '--final-adoption-seed-stride',
-        getNumericCommandFlagValue(commandArgs, '--adoption-seed-stride', 1000)
+        getNumericCommandFlagValue(flagMap, '--adoption-seed-stride', 1000)
     );
     const finalSeedOffset = getNumericCommandFlagValue(
-        commandArgs,
+        flagMap,
         '--adoption-final-seed-offset',
-        getNumericCommandFlagValue(commandArgs, '--eval-seed-offset', 500000)
+        getNumericCommandFlagValue(flagMap, '--eval-seed-offset', 500000)
     );
     const gates = {
         quick: {
@@ -156,19 +104,19 @@ function buildSeedBankFromResolvedCommand(resolved) {
             purpose: 'final adoption gate'
         }
     };
-    if (hasCommandFlag(commandArgs, '--quality-gate')) {
+    if (hasFlag(flagMap, '--quality-gate')) {
         gates.quality = {
-            baseSeed: baseSeed + getNumericCommandFlagValue(commandArgs, '--quality-gate-seed-offset', 250000),
-            seedCount: getNumericCommandFlagValue(commandArgs, '--quality-gate-seed-count', 1),
-            seedStride: getNumericCommandFlagValue(commandArgs, '--quality-gate-seed-stride', 1000),
+            baseSeed: baseSeed + getNumericCommandFlagValue(flagMap, '--quality-gate-seed-offset', 250000),
+            seedCount: getNumericCommandFlagValue(flagMap, '--quality-gate-seed-count', 1),
+            seedStride: getNumericCommandFlagValue(flagMap, '--quality-gate-seed-stride', 1000),
             purpose: 'quality gate'
         };
     }
     gates.onnx = {
-        baseSeed: baseSeed + getNumericCommandFlagValue(commandArgs, '--onnx-gate-seed-offset', 700000),
-        seedCount: getNumericCommandFlagValue(commandArgs, '--onnx-gate-seed-count', 1),
-        seedStride: getNumericCommandFlagValue(commandArgs, '--onnx-gate-seed-stride', 1000),
-        purpose: hasCommandFlag(commandArgs, '--onnx-gate')
+        baseSeed: baseSeed + getNumericCommandFlagValue(flagMap, '--onnx-gate-seed-offset', 700000),
+        seedCount: getNumericCommandFlagValue(flagMap, '--onnx-gate-seed-count', 1),
+        seedStride: getNumericCommandFlagValue(flagMap, '--onnx-gate-seed-stride', 1000),
+        purpose: hasFlag(flagMap, '--onnx-gate')
             ? 'onnx gate'
             : 'onnx gate schedule'
     };
