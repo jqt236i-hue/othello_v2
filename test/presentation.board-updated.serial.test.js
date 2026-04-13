@@ -85,7 +85,7 @@ describe('presentation handler boardUpdated draining', () => {
     await secondDrain;
 
     expect(global.CardLogic.flushPresentationEvents).toHaveBeenCalledTimes(2);
-    expect(global.renderCardUI).toHaveBeenCalledTimes(2);
+    expect(global.renderCardUI).not.toHaveBeenCalled();
   });
 
   test('queued SCHEDULE_CPU_TURN runs after active playback completes', async () => {
@@ -179,7 +179,7 @@ describe('presentation handler boardUpdated draining', () => {
     await ph.onBoardUpdated();
 
     expect(global.AnimationEngine.play).not.toHaveBeenCalled();
-    expect(global.renderCardUI).toHaveBeenCalledTimes(1);
+    expect(global.renderCardUI).not.toHaveBeenCalled();
   });
 
   test('raw presentation batches are normalized before animation playback', async () => {

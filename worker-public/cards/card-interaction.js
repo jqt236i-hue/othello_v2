@@ -2068,11 +2068,15 @@ function _waitForCardUseAnimationIdle() {
     return waitForCardAnimationIdle();
 }
 
-function _renderCardUiWithOptionalPlaybackDelay(shouldDelay) {
+function _renderCardUiWithOptionalPlaybackDelay(shouldDelay, options) {
     if (typeof renderCardUI !== 'function') return;
+    const opts = (options && typeof options === 'object') ? options : {};
     if (!shouldDelay) {
         renderCardUI();
         return;
+    }
+    if (opts.renderImmediately === true) {
+        renderCardUI();
     }
 
     const waitForPlaybackFn = _getWaitForPlaybackIdleFn();
@@ -2695,7 +2699,7 @@ function useSelectedCard() {
     _applyDeferredGeneratedThrowChainHandReveal(result);
 
     _attachCardUsePlaybackSourceElement(result, usedCardEl, usedCardRect);
-    _primeCaptureReservedHandSlotState(result);
+    const primedCaptureReservedHandSlot = _primeCaptureReservedHandSlotState(result);
     const hasCardUsePlayback = _hasPlaybackEventType(result, 'card_use_animation');
     const willPlayDirectCardUseAnimation = !hasCardUsePlayback && !skippedLocalExecution && typeof playCardUseHandAnimation === 'function';
 
@@ -2722,7 +2726,9 @@ function useSelectedCard() {
     }
     const shouldDelayBoardForSelectionEntry = false;
     const shouldDelayPostUseBoardVisual = _hasBoardMutatingPlaybackEvent(result) || shouldDelayBoardForSelectionEntry;
-    _renderCardUiWithOptionalPlaybackDelay(shouldDelayPostUseHandVisual);
+    _renderCardUiWithOptionalPlaybackDelay(shouldDelayPostUseHandVisual, {
+        renderImmediately: primedCaptureReservedHandSlot
+    });
     _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelayPostUseBoardVisual);
     if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
         try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }

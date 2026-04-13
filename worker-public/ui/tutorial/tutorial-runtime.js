@@ -91,7 +91,12 @@
         }
 
         function emitRefresh() {
-            try { if (typeof rootRef.emitCardStateChange === 'function') rootRef.emitCardStateChange(); } catch (e) { /* ignore */ }
+            let cardStateChangeRequested = false;
+            try {
+                if (typeof rootRef.emitCardStateChange === 'function') {
+                    cardStateChangeRequested = rootRef.emitCardStateChange() === true;
+                }
+            } catch (e) { /* ignore */ }
             try {
                 if (rootRef.BoardUpdateDispatch && typeof rootRef.BoardUpdateDispatch.requestBoardUpdate === 'function') {
                     rootRef.BoardUpdateDispatch.requestBoardUpdate({
@@ -103,7 +108,12 @@
                 }
             } catch (e) { /* ignore */ }
             try { if (typeof rootRef.emitGameStateChange === 'function') rootRef.emitGameStateChange(); } catch (e) { /* ignore */ }
-            try { if (typeof rootRef.renderCardUI === 'function') rootRef.renderCardUI(); } catch (e) { /* ignore */ }
+            try {
+                if (!cardStateChangeRequested) {
+                    if (typeof rootRef.requestCardUiSync === 'function') rootRef.requestCardUiSync('tutorial-runtime:refresh');
+                    else if (typeof rootRef.renderCardUI === 'function') rootRef.renderCardUI();
+                }
+            } catch (e) { /* ignore */ }
             try { if (typeof rootRef.updateCardDetailPanel === 'function') rootRef.updateCardDetailPanel(); } catch (e) { /* ignore */ }
             try { if (typeof rootRef.updateStatus === 'function') rootRef.updateStatus(); } catch (e) { /* ignore */ }
         }

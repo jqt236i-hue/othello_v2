@@ -1125,7 +1125,10 @@
 
     function refreshBoardUi() {
         if (!hasRenderableState()) return;
-        try { if (typeof renderCardUI === 'function') renderCardUI(); } catch (e) { /* ignore */ }
+        try {
+            if (typeof root.requestCardUiSync === 'function') root.requestCardUiSync('match-mode:refresh');
+            else if (typeof renderCardUI === 'function') renderCardUI();
+        } catch (e) { /* ignore */ }
         try {
             if (root.BoardUpdateDispatch && typeof root.BoardUpdateDispatch.requestBoardUpdate === 'function') {
                 root.BoardUpdateDispatch.requestBoardUpdate();

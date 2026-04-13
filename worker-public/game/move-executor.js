@@ -123,6 +123,25 @@ function getTimeNow() {
     return null;
 }
 
+function requestMoveExecutorCardUiSync(reason) {
+    const rootRef = (typeof globalThis !== 'undefined') ? globalThis : null;
+    if (rootRef && typeof rootRef.requestCardUiSync === 'function') {
+        return rootRef.requestCardUiSync(reason, { deferUntilIdle: false });
+    }
+    try {
+        if (typeof requestCardUiSync === 'function') {
+            return requestCardUiSync(reason, { deferUntilIdle: false });
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof renderCardUI === 'function') {
+            renderCardUI();
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
 function shouldRunScheduledCpuTurn(expected) {
     const exp = expected || {};
     try {
@@ -325,9 +344,10 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
             try { if (typeof globalThis !== 'undefined') globalThis.cardState = cardState; } catch (e2) { /* ignore */ }
         }
         if (!hasPlaybackEvents) {
-            try { if (typeof emitCardStateChange === 'function') emitCardStateChange(); } catch (e) { /* ignore */ }
-            if (!hasHandRemovePlayback) {
-                try { if (typeof renderCardUI === 'function') renderCardUI(); } catch (e) { /* ignore */ }
+            let cardStateNotified = false;
+            try { if (typeof emitCardStateChange === 'function') cardStateNotified = emitCardStateChange() === true; } catch (e) { /* ignore */ }
+            if (!hasHandRemovePlayback && !cardStateNotified) {
+                requestMoveExecutorCardUiSync('move-executor:no-playback-fallback');
             }
         }
     }

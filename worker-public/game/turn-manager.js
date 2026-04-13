@@ -1037,7 +1037,11 @@ async function onTurnStart(player) {
             cardState.hands.black.push(...cardState.hands.white);
             cardState.hands.white = [];
             // Update UI again to reflect transfer
-            if (typeof renderCardUI === 'function') renderCardUI();
+            if (typeof globalThis !== 'undefined' && typeof globalThis.requestCardUiSync === 'function') {
+                globalThis.requestCardUiSync('turn-manager:shared-hand-debug');
+            } else if (typeof renderCardUI === 'function') {
+                renderCardUI();
+            }
         }
     }
 

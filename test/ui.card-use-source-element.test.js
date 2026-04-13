@@ -882,6 +882,42 @@ describe('card use source element selection', () => {
       delete global.waitForPlaybackIdle;
     });
 
+    test('hand_remove を含む capture_to_hand_animation は予約スロット表示のため手札を先に 1 回描く', async () => {
+      let resolvePlayback;
+      const playbackPromise = new Promise((resolve) => { resolvePlayback = resolve; });
+      global.waitForPlaybackIdle = jest.fn(() => playbackPromise);
+      global.CardLogic = {
+        getCardDef: (id) => ({ id, type: 'EQUALITY_WILL', name: '平等の意志', desc: 'd', cost: 1 })
+      };
+      global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+        ok: true,
+        nextCardState: global.cardState,
+        nextGameState: global.gameState,
+        playbackEvents: [
+          { type: 'hand_remove', targets: [{ player: 'black', count: 1 }] },
+          { type: 'capture_to_hand_animation', targets: [{ player: 'black', cardId: 'guardian_god_01', sourceRow: 4, sourceCol: 5, insertIndex: 1 }] }
+        ]
+      }));
+
+      require('../cards/card-interaction.js');
+      global.renderCardUI.mockClear();
+      window.useSelectedCard();
+
+      expect(global.renderCardUI).toHaveBeenCalledTimes(1);
+      expect(global.window.__captureReservedHandSlotState).toEqual(expect.objectContaining({
+        playerKey: 'black',
+        handIndex: 1
+      }));
+
+      resolvePlayback();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(2);
+      expect(global.renderCardUI).toHaveBeenCalledTimes(2);
+      delete global.waitForPlaybackIdle;
+    });
+
     test('cancelPendingSelection accepts other cancellable board-target pending types', () => {
       global.cardState.pendingEffectByPlayer.black = { type: 'BOARD_EXPANSION_GOD', stage: 'selectTarget' };
       global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({

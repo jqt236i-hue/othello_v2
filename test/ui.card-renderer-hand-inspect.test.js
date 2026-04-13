@@ -482,6 +482,58 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
+  test('steady-state rerender reuses the hand track and unchanged visible cards', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['own_card', 'opp_card'], white: [] }
+    });
+    const { window } = dom;
+
+    window.renderCardUI();
+
+    const handEl = window.document.getElementById('hand-black');
+    const handTrackBefore = handEl.querySelector('.hand-track');
+    const firstCardBefore = handEl.querySelector('.card-item[data-hand-index="0"]');
+    const secondCardBefore = handEl.querySelector('.card-item[data-hand-index="1"]');
+
+    window.cardState.selectedCardId = 'own_card';
+    window.cardState.selectedCardOwnerKey = 'black';
+    window.renderCardUI();
+
+    expect(handEl.querySelector('.hand-track')).toBe(handTrackBefore);
+    expect(handEl.querySelector('.card-item[data-hand-index="0"]')).toBe(firstCardBefore);
+    expect(handEl.querySelector('.card-item[data-hand-index="1"]')).toBe(secondCardBefore);
+    expect(firstCardBefore.classList.contains('selected')).toBe(true);
+
+    dom.window.close();
+  });
+
+  test('adding a card keeps existing hand DOM and only appends the new slot', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['own_card'], white: [] }
+    });
+    const { window } = dom;
+
+    window.renderCardUI();
+
+    const handEl = window.document.getElementById('hand-black');
+    const handTrackBefore = handEl.querySelector('.hand-track');
+    const firstCardBefore = handEl.querySelector('.card-item[data-hand-index="0"]');
+
+    window.cardState.hands.black.push('opp_card');
+    window.renderCardUI();
+
+    expect(handEl.querySelector('.hand-track')).toBe(handTrackBefore);
+    expect(handEl.querySelector('.card-item[data-hand-index="0"]')).toBe(firstCardBefore);
+    expect(handEl.querySelectorAll('.card-item')).toHaveLength(2);
+    expect(handEl.querySelector('.card-item[data-hand-index="1"]').dataset.cardId).toBe('opp_card');
+
+    dom.window.close();
+  });
+
   test('network mode infers white local hand from projected hidden black hand when seat client is unavailable', () => {
     const dom = createRendererContext({
       matchMode: 'network',

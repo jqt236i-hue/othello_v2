@@ -784,8 +784,13 @@
         function renderCardUiAfterPlaybackIfNeeded() {
             const pending = hasPendingPlaybackOrPresentation();
             const renderCardUI = resolveGlobalFunction('renderCardUI', cfg.renderCardUI);
+            const requestCardUiSync = resolveGlobalFunction('requestCardUiSync', cfg.requestCardUiSync);
 
             try {
+                if (requestCardUiSync) {
+                    requestCardUiSync('network-snapshot:refresh');
+                    return;
+                }
                 if (!renderCardUI) return;
                 if (!pending) {
                     renderCardUI();
@@ -810,9 +815,10 @@
         }
 
         function refreshUi() {
+            let cardStateChangeRequested = false;
             try {
                 const emitCardStateChange = resolveGlobalFunction('emitCardStateChange', cfg.emitCardStateChange);
-                if (emitCardStateChange) emitCardStateChange();
+                if (emitCardStateChange) cardStateChangeRequested = emitCardStateChange() === true;
             } catch (e) { /* ignore */ }
             try {
                 const emitGameStateChange = resolveGlobalFunction('emitGameStateChange', cfg.emitGameStateChange);
@@ -832,7 +838,9 @@
                     else if (renderBoard) renderBoard();
                 }
             } catch (e) { /* ignore */ }
-            renderCardUiAfterPlaybackIfNeeded();
+            if (!cardStateChangeRequested) {
+                renderCardUiAfterPlaybackIfNeeded();
+            }
         }
 
         function resolveResultPresentationSync() {

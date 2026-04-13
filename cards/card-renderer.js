@@ -330,7 +330,40 @@ function _renderChargeDisplay(el, currentValue, maxValue) {
     if (!el) return;
     const safeCurrent = _normalizeChargeValueForRender(currentValue);
     const safeMax = _normalizeChargeValueForRender(maxValue);
-    el.innerHTML = `<span class="charge-label">布石:</span> <span class="charge-current">${safeCurrent}</span><span class="charge-separator"> / </span><span class="charge-max">${safeMax}</span>`;
+    let labelEl = el.querySelector('.charge-label');
+    let currentEl = el.querySelector('.charge-current');
+    let separatorEl = el.querySelector('.charge-separator');
+    let maxEl = el.querySelector('.charge-max');
+    if (!labelEl && typeof document !== 'undefined') {
+        labelEl = document.createElement('span');
+        labelEl.className = 'charge-label';
+    }
+    if (!currentEl && typeof document !== 'undefined') {
+        currentEl = document.createElement('span');
+        currentEl.className = 'charge-current';
+    }
+    if (!separatorEl && typeof document !== 'undefined') {
+        separatorEl = document.createElement('span');
+        separatorEl.className = 'charge-separator';
+    }
+    if (!maxEl && typeof document !== 'undefined') {
+        maxEl = document.createElement('span');
+        maxEl.className = 'charge-max';
+    }
+    const badgeEl = el.querySelector('.time-stop-status-badge');
+    const orderedNodes = [labelEl, currentEl, separatorEl, maxEl].filter(Boolean);
+    let insertBeforeNode = badgeEl || null;
+    for (let i = orderedNodes.length - 1; i >= 0; i -= 1) {
+        const node = orderedNodes[i];
+        if (node.parentElement !== el || node.nextSibling !== insertBeforeNode) {
+            el.insertBefore(node, insertBeforeNode);
+        }
+        insertBeforeNode = node;
+    }
+    if (labelEl) labelEl.textContent = '布石: ';
+    if (currentEl) currentEl.textContent = String(safeCurrent);
+    if (separatorEl) separatorEl.textContent = ' / ';
+    if (maxEl) maxEl.textContent = String(safeMax);
 }
 
 function _resetChargeDeltaBaseline() {
@@ -499,20 +532,42 @@ function _resolveTimeStopStatusForRender(cardState, viewerPlayerKey, gameState) 
     return { active: true, activeOwnerKey, victimKey, viewerRole };
 }
 
-function _appendTimeStopChargeBadgeForRender(chargeEl) {
-    if (!chargeEl || typeof document === 'undefined') return;
-    const badgeEl = document.createElement('div');
+function _syncTimeStopChargeBadgeForRender(chargeEl, active) {
+    if (!chargeEl) return;
+    const existingBadgeEl = chargeEl.querySelector('.time-stop-status-badge');
+    if (!active) {
+        if (existingBadgeEl && existingBadgeEl.parentElement) {
+            existingBadgeEl.parentElement.removeChild(existingBadgeEl);
+        }
+        return;
+    }
+    if (typeof document === 'undefined') return;
+    const badgeEl = existingBadgeEl || document.createElement('div');
     badgeEl.className = 'time-stop-status-badge';
     badgeEl.textContent = TIME_STOP_ACTIVE_LABEL;
-    chargeEl.appendChild(badgeEl);
+    if (badgeEl.parentElement !== chargeEl) {
+        chargeEl.appendChild(badgeEl);
+    }
 }
 
-function _appendTimeStopHandOverlayForRender(containerEl) {
-    if (!containerEl || typeof document === 'undefined') return;
-    const overlayEl = document.createElement('div');
+function _syncTimeStopHandOverlayForRender(containerEl, active) {
+    if (!containerEl) return;
+    const existingOverlayEl = containerEl.querySelector('.time-stop-hand-overlay');
+    if (!active) {
+        if (existingOverlayEl && existingOverlayEl.parentElement) {
+            existingOverlayEl.parentElement.removeChild(existingOverlayEl);
+        }
+        return;
+    }
+    if (typeof document === 'undefined') return;
+    const overlayEl = existingOverlayEl || document.createElement('div');
     overlayEl.className = 'time-stop-hand-overlay';
     overlayEl.textContent = TIME_STOP_ACTIVE_LABEL;
-    containerEl.appendChild(overlayEl);
+    if (overlayEl.parentElement !== containerEl) {
+        containerEl.appendChild(overlayEl);
+    } else if (containerEl.lastElementChild !== overlayEl) {
+        containerEl.appendChild(overlayEl);
+    }
 }
 
 function _resolveCardRendererGameState() {
@@ -666,6 +721,55 @@ function _createCaptureReservedSlotElement() {
     cardEl.style.pointerEvents = 'none';
     cardEl.setAttribute('aria-hidden', 'true');
     return cardEl;
+}
+
+function _detachHandCardClickHandler(cardEl) {
+    if (!cardEl || typeof cardEl !== 'object' || !cardEl.__cardClickHandler) return;
+    try {
+        cardEl.removeEventListener('click', cardEl.__cardClickHandler);
+    } catch (e) { /* ignore */ }
+    cardEl.__cardClickHandler = null;
+}
+
+function _setHandCardClickHandler(cardEl, clickable, cardId, ownerKey) {
+    if (!cardEl || typeof cardEl !== 'object') return;
+    _detachHandCardClickHandler(cardEl);
+    if (!clickable || typeof onCardClick !== 'function') return;
+    const handler = () => onCardClick(cardId, ownerKey);
+    cardEl.__cardClickHandler = handler;
+    cardEl.addEventListener('click', handler);
+}
+
+function _ensureHandTrackElement(containerEl) {
+    if (!containerEl || typeof document === 'undefined') return null;
+    let handTrackEl = containerEl.querySelector('.hand-track');
+    if (!handTrackEl) {
+        handTrackEl = document.createElement('div');
+        handTrackEl.className = 'hand-track';
+        const overlayEl = containerEl.querySelector('.time-stop-hand-overlay');
+        containerEl.insertBefore(handTrackEl, overlayEl || null);
+    }
+    return handTrackEl;
+}
+
+function _canReuseHandCardElement(cardEl, desiredKind, cardId, ownerKey) {
+    if (!cardEl || !cardEl.classList) return false;
+    if (desiredKind === 'placeholder') {
+        return cardEl.classList.contains('capture-reserved-slot');
+    }
+    if (desiredKind === 'hidden') {
+        return cardEl.classList.contains('hidden') && !cardEl.classList.contains('capture-reserved-slot');
+    }
+    if (desiredKind === 'face') {
+        return (
+            cardEl.classList.contains('visible')
+            && !cardEl.classList.contains('hidden')
+            && !cardEl.classList.contains('capture-reserved-slot')
+            && cardEl.dataset.cardId === cardId
+            && cardEl.dataset.ownerKey === ownerKey
+        );
+    }
+    return false;
 }
 
 function _refreshDebugHandLayoutIfNeeded() {
@@ -1067,7 +1171,6 @@ function renderCardUI() {
 
     function renderHandSlot(containerEl, ownerKey, revealByDefault, visibleSlotKey) {
         if (!containerEl) return;
-        containerEl.innerHTML = '';
         containerEl.dataset.ownerKey = ownerKey;
         const showTimeStopVictimOverlay = !!(
             timeStopStatus.active
@@ -1075,9 +1178,8 @@ function renderCardUI() {
             && visibleSlotKey === 'bottom'
         );
         containerEl.classList.toggle('time-stop-hand-overlay-active', showTimeStopVictimOverlay);
-        const handTrackEl = document.createElement('div');
-        handTrackEl.className = 'hand-track';
-        containerEl.appendChild(handTrackEl);
+        const handTrackEl = _ensureHandTrackElement(containerEl);
+        if (!handTrackEl) return;
 
         const ownerHandRaw = (cardState.hands && Array.isArray(cardState.hands[ownerKey])) ? cardState.hands[ownerKey] : [];
         const ownerHand = (revealPlayerKey === ownerKey && Number.isFinite(revealVisibleCount))
@@ -1126,8 +1228,8 @@ function renderCardUI() {
             renderEntries.push({ kind: 'capture_reserved_placeholder', visualIndex: renderEntries.length });
         }
 
+        const existingChildren = Array.from(handTrackEl.children);
         renderEntries.forEach((entry) => {
-            let cardEl = document.createElement('div');
             const visualIndex = entry && Number.isInteger(entry.visualIndex)
                 ? entry.visualIndex
                 : renderEntries.length;
@@ -1140,10 +1242,13 @@ function renderCardUI() {
                 : null;
             const isCaptureReservedSlot = isPlaceholderOnly
                 || (reservedPlayerKey === ownerKey && reservedHandIndex === visualIndex);
+            let desiredKind = isPlaceholderOnly ? 'placeholder' : 'face';
+            let canInspectOwnerHand = false;
+            let canAfford = false;
+            let usable = false;
+            let isSelected = false;
 
-            if (isPlaceholderOnly) {
-                cardEl = _createCaptureReservedSlotElement();
-            } else {
+            if (!isPlaceholderOnly) {
                 const isHiddenToken = _isHiddenHandTokenForRender(cardId);
                 const isLocallyRevealedOpponentCard = !isNetworkMode
                     && !revealByDefault
@@ -1160,19 +1265,16 @@ function renderCardUI() {
                     : (revealByDefault || isLocallyRevealedOpponentCard || fateWillIsViewingVictim);
 
                 if (isCaptureReservedSlot) {
-                    cardEl = _createCaptureReservedSlotElement();
+                    desiredKind = 'placeholder';
                 } else if (!canShowFace || isHiddenToken) {
-                    cardEl = _createHiddenHandCardElement(cardId, ownerKey);
+                    desiredKind = 'hidden';
                 } else {
                     const cardDef = CARD_DEFS.find(c => c.id === cardId);
-                    cardEl = createCardFaceElement(cardId, { ownerKey });
-
                     const cost = cardDef ? (cardDef.cost || 0) : 0;
-
                     const hasNotUsedThisTurn = isDebugUnlimited ? true : !_hasOwnerUsedCardThisActiveTurnForRender(cardState, ownerKey);
-                    const canAfford = isDebugUnlimited ? true : ((cardState.charge[ownerKey] || 0) >= cost);
+                    canAfford = isDebugUnlimited ? true : ((cardState.charge[ownerKey] || 0) >= cost);
                     const isOwnerTurn = ownerKey === 'black' ? isBlackTurn : !isBlackTurn;
-                    const canInspectOwnerHand = isNetworkMode
+                    canInspectOwnerHand = isNetworkMode
                         ? canShowFace
                         : (isDebugHvH ? true : (ownerKey === 'black' || fateWillIsViewingVictim));
                     const canControlOwnerHand = isNetworkMode
@@ -1180,46 +1282,87 @@ function renderCardUI() {
                         : (isDebugHvH
                             ? (isOwnerTurn && !fateWillVictimLockedOut)
                             : ((ownerKey === 'black' && isOwnerTurn && !fateWillVictimLockedOut) || (fateWillIsViewingVictim && isOwnerTurn)));
-                    const usable = canControlOwnerHand && canInteract && hasNotUsedThisTurn && canAfford;
-
-                    if (canInspectOwnerHand && canInteract) {
-                        cardEl.classList.add('clickable');
-                        cardEl.addEventListener('click', () => onCardClick(cardId, ownerKey));
-                    }
-                    if (canAfford) {
-                        cardEl.classList.add('affordable');
-                    }
-                    if (usable) {
-                        cardEl.classList.add('usable');
-                    }
-                    if (cardState.selectedCardId === cardId && selectedOwnerKey === ownerKey) {
-                        cardEl.classList.add('selected');
-                    }
+                    usable = canControlOwnerHand && canInteract && hasNotUsedThisTurn && canAfford;
+                    isSelected = cardState.selectedCardId === cardId && selectedOwnerKey === ownerKey;
                 }
             }
-            if (cardId) {
-                cardEl.dataset.cardId = cardId;
+
+            let cardEl = existingChildren[visualIndex] || null;
+            if (!_canReuseHandCardElement(cardEl, desiredKind, cardId, ownerKey)) {
+                if (cardEl) {
+                    _detachHandCardClickHandler(cardEl);
+                }
+                if (desiredKind === 'placeholder') {
+                    cardEl = _createCaptureReservedSlotElement();
+                } else if (desiredKind === 'hidden') {
+                    cardEl = _createHiddenHandCardElement(cardId, ownerKey);
+                } else {
+                    cardEl = createCardFaceElement(cardId, { ownerKey });
+                }
+                const currentChild = handTrackEl.children[visualIndex] || null;
+                if (currentChild) {
+                    handTrackEl.replaceChild(cardEl, currentChild);
+                } else {
+                    handTrackEl.appendChild(cardEl);
+                }
+            }
+
+            if (desiredKind === 'placeholder') {
+                _detachHandCardClickHandler(cardEl);
+                cardEl.className = 'card-item capture-reserved-slot';
+                cardEl.style.opacity = '0';
+                cardEl.style.pointerEvents = 'none';
+                cardEl.setAttribute('aria-hidden', 'true');
+                delete cardEl.dataset.cardId;
+            } else if (desiredKind === 'hidden') {
+                _detachHandCardClickHandler(cardEl);
+                cardEl.className = 'card-item hidden';
+                cardEl.textContent = 'CARD';
+                cardEl.style.removeProperty('opacity');
+                cardEl.style.removeProperty('pointer-events');
+                cardEl.removeAttribute('aria-hidden');
+                if (cardId) {
+                    cardEl.dataset.cardId = cardId;
+                }
+            } else {
+                _setHandCardClickHandler(cardEl, canInspectOwnerHand && canInteract, cardId, ownerKey);
+                cardEl.classList.toggle('clickable', canInspectOwnerHand && canInteract);
+                cardEl.classList.toggle('affordable', canAfford);
+                cardEl.classList.toggle('usable', usable);
+                cardEl.classList.toggle('selected', isSelected);
+                cardEl.style.removeProperty('opacity');
+                cardEl.style.removeProperty('pointer-events');
+                cardEl.removeAttribute('aria-hidden');
+                if (cardId) {
+                    cardEl.dataset.cardId = cardId;
+                }
             }
             cardEl.dataset.ownerKey = ownerKey;
             cardEl.dataset.handIndex = String(visualIndex);
+            if (!cardId) {
+                delete cardEl.dataset.cardId;
+            }
 
             if (!isPlaceholderOnly && shouldFade && actualIndex >= Math.max(0, ownerHandLen - fadeCount)) {
                 cardEl.classList.add('card-fade-prep');
+            } else {
+                cardEl.classList.remove('card-fade-prep');
             }
-
-            handTrackEl.appendChild(cardEl);
         });
 
-        if (showTimeStopVictimOverlay) {
-            _appendTimeStopHandOverlayForRender(containerEl);
+        while (handTrackEl.children.length > renderEntries.length) {
+            const extraChild = handTrackEl.lastElementChild;
+            if (!extraChild) break;
+            _detachHandCardClickHandler(extraChild);
+            handTrackEl.removeChild(extraChild);
         }
+
+        _syncTimeStopHandOverlayForRender(containerEl, showTimeStopVictimOverlay);
     }
 
     renderHandSlot(handBlackEl, bottomOwnerKey, true, 'bottom');
     renderHandSlot(handWhiteEl, topOwnerKey, isDebugHvH === true, 'top');
-    if (timeStopStatus.active && timeStopStatus.viewerRole === 'controller') {
-        _appendTimeStopChargeBadgeForRender(chargeWhiteEl);
-    }
+    _syncTimeStopChargeBadgeForRender(chargeWhiteEl, timeStopStatus.active && timeStopStatus.viewerRole === 'controller');
     _refreshDebugHandLayoutIfNeeded();
 
     // Update Card Detail Panel

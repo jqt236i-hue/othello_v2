@@ -228,6 +228,34 @@ describe('move-executor presentation emission', () => {
         expect(global.emitCardStateChange).not.toHaveBeenCalled();
     });
 
+    test('再生イベントがないときは CARD_STATE_CHANGED に任せて即時 renderCardUI を重ねない', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
+        global.renderCardUI = jest.fn();
+        global.emitCardStateChange = jest.fn(() => true);
+
+        const moveExecutor = require('../game/move-executor');
+
+        const fakeRes = {
+            ok: true,
+            nextGameState: global.gameState,
+            nextCardState: global.cardState,
+            playbackEvents: [],
+            phases: {},
+            placementEffects: {},
+            immediate: {}
+        };
+
+        const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
+        const move = { row: 2, col: 3, player: 1 };
+
+        await moveExecutor.executeMoveViaPipeline(move, false, 'black', adapter, {});
+
+        expect(global.emitCardStateChange).toHaveBeenCalledTimes(1);
+        expect(global.renderCardUI).not.toHaveBeenCalled();
+    });
+
     test('skipped local execution clears processing through PlaybackStateManager when available', async () => {
         global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
         global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };

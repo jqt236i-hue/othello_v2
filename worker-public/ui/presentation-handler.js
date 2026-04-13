@@ -650,7 +650,6 @@
                 await handlePresentationEvent(ev);
             }
 
-            if (typeof renderCardUI === 'function') renderCardUI();
         } catch (e) {
             console.error('[PresentationHandler] onBoardUpdated error', e);
         }

@@ -85,30 +85,156 @@ function _hasPendingPlaybackOrPresentation() {
 }
 
 let _deferredUiSyncQueued = false;
-function _deferUiSyncUntilPlaybackIdle() {
-    if (_deferredUiSyncQueued) return;
-    _deferredUiSyncQueued = true;
-    const raf = (typeof requestAnimationFrame === 'function')
+let _deferredUiSyncNeedsBoardRender = false;
+let _deferredUiSyncNeedsStatusUpdate = false;
+let _deferredUiSyncNeedsHeroCommentary = false;
+let _cardUiSyncQueued = false;
+let _cardUiSyncFlushScheduled = false;
+let _cardUiSyncDeferredUntilIdle = false;
+let _cardUiSyncReasons = [];
+
+function _getUiSyncRaf() {
+    return (typeof requestAnimationFrame === 'function')
         ? requestAnimationFrame
         : (cb) => setTimeout(cb, 16);
+}
+
+function _queueUiSyncMicrotask(callback) {
+    if (typeof queueMicrotask === 'function') {
+        queueMicrotask(callback);
+        return;
+    }
+    Promise.resolve().then(callback).catch(() => {});
+}
+
+function _queueDeferredUiSyncWork(options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    if (opts.renderBoard === true) _deferredUiSyncNeedsBoardRender = true;
+    if (opts.updateStatus === true) _deferredUiSyncNeedsStatusUpdate = true;
+    if (opts.requestHeroCommentary === true) _deferredUiSyncNeedsHeroCommentary = true;
+}
+
+function _flushDeferredUiSyncWork() {
+    const shouldRenderBoard = _deferredUiSyncNeedsBoardRender;
+    const shouldUpdateStatus = _deferredUiSyncNeedsStatusUpdate;
+    const shouldRequestHeroCommentary = _deferredUiSyncNeedsHeroCommentary;
+    _deferredUiSyncNeedsBoardRender = false;
+    _deferredUiSyncNeedsStatusUpdate = false;
+    _deferredUiSyncNeedsHeroCommentary = false;
+    if (shouldRenderBoard) {
+        try { renderBoard(); } catch (e) { /* ignore */ }
+    }
+    if (shouldUpdateStatus) {
+        try { updateStatus(); } catch (e) { /* ignore */ }
+    }
+    if (shouldRequestHeroCommentary) {
+        try { _requestLocalHeroTurnCommentary(); } catch (e) { /* ignore */ }
+    }
+}
+
+function _deferUiSyncUntilPlaybackIdle(options) {
+    _queueDeferredUiSyncWork(options);
+    if (_deferredUiSyncQueued) return;
+    _deferredUiSyncQueued = true;
+    const raf = _getUiSyncRaf();
     const tick = () => {
         if (_hasPendingPlaybackOrPresentation()) {
             raf(tick);
             return;
         }
         _deferredUiSyncQueued = false;
-        try { renderBoard(); } catch (e) { /* ignore */ }
-        try { updateStatus(); } catch (e) { /* ignore */ }
+        _flushDeferredUiSyncWork();
     };
     raf(tick);
 }
 
-function _runWhenPlaybackIdle(onIdle) {
+function _runWhenPlaybackIdle(onIdle, options) {
     if (_hasPendingPlaybackOrPresentation()) {
-        _deferUiSyncUntilPlaybackIdle();
+        _deferUiSyncUntilPlaybackIdle(options);
         return;
     }
     onIdle();
+}
+
+function _resolveRenderCardUiForSync() {
+    try {
+        if (typeof renderCardUI === 'function') return renderCardUI;
+    } catch (e) { /* ignore */ }
+    try {
+        const globals = _getUIGlobals();
+        if (globals && typeof globals.renderCardUI === 'function') return globals.renderCardUI;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && typeof window.renderCardUI === 'function') return window.renderCardUI;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && typeof globalThis.renderCardUI === 'function') return globalThis.renderCardUI;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _flushCardUiSyncQueue(options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    if (!_cardUiSyncQueued) return false;
+    if (opts.ignorePlayback !== true && _hasPendingPlaybackOrPresentation()) {
+        _deferCardUiSyncUntilPlaybackIdle();
+        return false;
+    }
+    _cardUiSyncQueued = false;
+    _cardUiSyncDeferredUntilIdle = false;
+    _cardUiSyncReasons = [];
+    const renderCardUiFn = _resolveRenderCardUiForSync();
+    if (typeof renderCardUiFn !== 'function') {
+        return false;
+    }
+    try {
+        renderCardUiFn();
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function _scheduleCardUiSyncFlush() {
+    if (_cardUiSyncFlushScheduled) return;
+    _cardUiSyncFlushScheduled = true;
+    _queueUiSyncMicrotask(() => {
+        _cardUiSyncFlushScheduled = false;
+        _flushCardUiSyncQueue();
+    });
+}
+
+function _deferCardUiSyncUntilPlaybackIdle() {
+    if (_cardUiSyncDeferredUntilIdle) return;
+    _cardUiSyncDeferredUntilIdle = true;
+    const raf = _getUiSyncRaf();
+    const tick = () => {
+        if (!_cardUiSyncQueued) {
+            _cardUiSyncDeferredUntilIdle = false;
+            return;
+        }
+        if (_hasPendingPlaybackOrPresentation()) {
+            raf(tick);
+            return;
+        }
+        _cardUiSyncDeferredUntilIdle = false;
+        _scheduleCardUiSyncFlush();
+    };
+    raf(tick);
+}
+
+function requestCardUiSync(reason, options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const normalizedReason = String(reason || opts.reason || '').trim();
+    if (normalizedReason) {
+        _cardUiSyncReasons.push(normalizedReason);
+    }
+    _cardUiSyncQueued = true;
+    if (opts.deferUntilIdle === false) {
+        return _flushCardUiSyncQueue({ ignorePlayback: true });
+    }
+    _scheduleCardUiSyncFlush();
+    return true;
 }
 
 function updateEffectLivePanel(text) {
@@ -397,6 +523,9 @@ if (typeof GameEvents !== 'undefined' && GameEvents.gameEvents) {
         _runWhenPlaybackIdle(() => {
             renderBoard();
             _requestLocalHeroTurnCommentary();
+        }, {
+            renderBoard: true,
+            requestHeroCommentary: true
         });
     });
     GameEvents.gameEvents.on(GameEvents.EVENT_TYPES.GAME_STATE_CHANGED, () => {
@@ -404,12 +533,14 @@ if (typeof GameEvents !== 'undefined' && GameEvents.gameEvents) {
             renderBoard();
             updateStatus();
             _requestLocalHeroTurnCommentary();
+        }, {
+            renderBoard: true,
+            updateStatus: true,
+            requestHeroCommentary: true
         });
     });
     GameEvents.gameEvents.on(GameEvents.EVENT_TYPES.CARD_STATE_CHANGED, () => {
-        _runWhenPlaybackIdle(() => {
-            if (typeof renderCardUI === 'function') renderCardUI();
-        });
+        requestCardUiSync('event:card-state-changed');
     });
     GameEvents.gameEvents.on(GameEvents.EVENT_TYPES.STATUS_UPDATED, () => {
         updateStatus();
@@ -757,6 +888,12 @@ window.initWorkVisualsHelpers = initWorkVisualsHelpers;
 window.preloadImmediateSpecialStoneImages = preloadImmediateSpecialStoneImages;
 window.initWorkVisualDiagnosticsAuto = initWorkVisualDiagnosticsAuto;
 window.clearEffectLivePanel = clearEffectLivePanel;
+window.requestCardUiSync = requestCardUiSync;
+try {
+    if (typeof globalThis !== 'undefined') {
+        globalThis.requestCardUiSync = requestCardUiSync;
+    }
+} catch (e) { /* ignore */ }
 
 
 // ===== BGM UI Helper =====

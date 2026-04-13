@@ -40,6 +40,23 @@ function _setProcessingState(locked) {
     if (typeof window !== 'undefined') window.isProcessing = !!locked;
 }
 
+function _requestCardUiSyncForAnimationUtils(reason) {
+    const requestCardUiSyncFn = (typeof requestCardUiSync === 'function')
+        ? requestCardUiSync
+        : ((typeof window !== 'undefined' && typeof window.requestCardUiSync === 'function') ? window.requestCardUiSync : null);
+    if (typeof requestCardUiSyncFn === 'function') {
+        requestCardUiSyncFn(reason);
+        return true;
+    }
+    try {
+        if (typeof renderCardUI === 'function') {
+            renderCardUI();
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
 function _normalizeHandOwnerKey(value) {
     if (value === 'white' || value === -1 || value === '-1') return 'white';
     return 'black';
@@ -857,9 +874,7 @@ function playHandAnimation(player, row, col, onComplete, visualOptions) {
             _setCardAnimatingState(locked);
         };
         const refreshCardUi = () => {
-            try {
-                if (typeof renderCardUI === 'function') renderCardUI();
-            } catch (e) { /* ignore */ }
+            _requestCardUiSyncForAnimationUtils('animation-utils:play-hand-animation');
         };
         const unlockProcessing = () => {
             _setProcessingState(false);
@@ -1048,9 +1063,7 @@ function playClearHandAnimation(payload) {
             if (hand && hand.length === 0) {
                 _setHandRevealState(null);
             }
-            try {
-                if (typeof renderCardUI === 'function') renderCardUI();
-            } catch (e) { /* ignore */ }
+            _requestCardUiSyncForAnimationUtils('animation-utils:clear-reveal');
             resolve();
         };
 
@@ -1182,7 +1195,7 @@ function _finalizeHandAddAnimation(payload, options) {
     } catch (e) { /* ignore */ }
 
     try {
-        if (typeof renderCardUI === 'function') renderCardUI();
+        _requestCardUiSyncForAnimationUtils('animation-utils:finalize-hand-add');
         _scheduleQueuedHandFadeIn(fadeState, data);
     } catch (e) {
         _clearHandFadeInState(fadeState.token);
@@ -1232,9 +1245,7 @@ function _clearCaptureReservedHandSlotState(expectedToken) {
 function _finalizeCaptureToHandAnimation(payload) {
     const data = payload || {};
     _clearCaptureReservedHandSlotState(data.reservedToken || null);
-    try {
-        if (typeof renderCardUI === 'function') renderCardUI();
-    } catch (e) { /* ignore */ }
+    _requestCardUiSyncForAnimationUtils('animation-utils:finalize-capture-hand');
 }
 
 function _resolveCaptureTargetCardElement(playerKey, handIndex) {

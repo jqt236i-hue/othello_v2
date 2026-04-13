@@ -497,7 +497,6 @@ function renderBoard() {
     }
 
     updateOccupancyUI();
-    renderCardUI();
 }
 
 /**
