@@ -754,6 +754,88 @@ describe('animation-utils hand fallback', () => {
     await expect(promise).resolves.toBeUndefined();
   });
 
+  test('playCardUseHandAnimation builds a lightweight ghost when source element carries hand-state classes', async () => {
+    jest.useFakeTimers();
+
+    const animateMock = jest.fn(() => ({
+      addEventListener: () => {},
+      finished: Promise.resolve()
+    }));
+    window.Element.prototype.animate = animateMock;
+    global.CardLogic = {
+      getCardDef: jest.fn(() => ({ id: 'rainbow_stone', name: '虹の意志', cost: 21, display_type_ja: '特殊' }))
+    };
+
+    const handEl = document.getElementById('hand-black');
+    const chargeEl = document.getElementById('charge-black');
+    handEl.getBoundingClientRect = () => ({
+      left: 180,
+      top: 480,
+      width: 260,
+      height: 140,
+      right: 440,
+      bottom: 620
+    });
+    chargeEl.getBoundingClientRect = () => ({
+      left: 430,
+      top: 410,
+      width: 100,
+      height: 40,
+      right: 530,
+      bottom: 450
+    });
+
+    const sourceCardEl = document.createElement('div');
+    sourceCardEl.className = 'card-item visible clickable usable selected cost-tier-gold';
+    sourceCardEl.dataset.cardId = 'rainbow_stone';
+    sourceCardEl.dataset.cardType = 'special';
+    sourceCardEl.innerHTML = `
+      <span class="card-name">虹の意志</span>
+      <div class="card-cost-badge cost-tier-gold"><span class="cost-value">21</span><span class="cost-label">cost</span></div>
+      <div class="card-badge-row"><div class="card-type-badge">✦ 特殊</div></div>
+    `;
+    sourceCardEl.getBoundingClientRect = () => ({
+      left: 240,
+      top: 500,
+      width: 90,
+      height: 120,
+      right: 330,
+      bottom: 620
+    });
+    handEl.appendChild(sourceCardEl);
+
+    const mod = require('../ui/animation-utils');
+    const promise = mod.playCardUseHandAnimation({
+      player: 'black',
+      owner: 'black',
+      cardId: 'rainbow_stone',
+      sourceCardEl,
+      sourceCardRect: {
+        left: 240,
+        top: 500,
+        width: 90,
+        height: 120,
+        right: 330,
+        bottom: 620
+      }
+    });
+
+    await Promise.resolve();
+
+    const movingCard = document.querySelector('#handLayer .card-item');
+    expect(movingCard).toBeTruthy();
+    expect(movingCard.classList.contains('card-use-ghost')).toBe(true);
+    expect(movingCard.classList.contains('cost-tier-gold')).toBe(true);
+    expect(movingCard.classList.contains('clickable')).toBe(false);
+    expect(movingCard.classList.contains('usable')).toBe(false);
+    expect(movingCard.classList.contains('selected')).toBe(false);
+
+    jest.advanceTimersByTime(4000);
+    await Promise.resolve();
+
+    await expect(promise).resolves.toBeUndefined();
+  });
+
   test('playCardUseHandAnimation plays disappearSoundKey when the moving card is cleaned up', async () => {
     jest.useFakeTimers();
 

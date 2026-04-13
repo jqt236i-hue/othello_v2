@@ -308,6 +308,8 @@ function _snapRectToWholePixels(rectLike) {
 }
 
 function _resolveCardUseSourceRect(sourceCardEl, sourceCardRect) {
+    const snapshotRect = _normalizeCardSourceRect(sourceCardRect);
+    if (snapshotRect && snapshotRect.width > 0 && snapshotRect.height > 0) return snapshotRect;
     let liveRect = null;
     if (sourceCardEl && typeof sourceCardEl.getBoundingClientRect === 'function') {
         try {
@@ -315,8 +317,6 @@ function _resolveCardUseSourceRect(sourceCardEl, sourceCardRect) {
         } catch (e) { /* ignore */ }
     }
     if (liveRect && liveRect.width > 0 && liveRect.height > 0) return liveRect;
-    const snapshotRect = _normalizeCardSourceRect(sourceCardRect);
-    if (snapshotRect) return snapshotRect;
     return liveRect;
 }
 
@@ -411,6 +411,76 @@ function _normalizeCardUseVisualDescriptor(descriptor, fallbackCardId, fallbackC
         resolved.costTier = _getFallbackCardCostTier(resolved.cost);
     }
     return resolved;
+}
+
+function _readCardUseDescriptorFromSourceElement(sourceCardEl) {
+    if (!sourceCardEl || typeof sourceCardEl.querySelector !== 'function') return {};
+    const descriptor = {};
+    try {
+        if (sourceCardEl.dataset && sourceCardEl.dataset.cardId) {
+            descriptor.cardId = String(sourceCardEl.dataset.cardId);
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        const classList = sourceCardEl.classList ? Array.from(sourceCardEl.classList) : [];
+        const costTierClass = classList.find((className) => /^cost-tier-/.test(className));
+        if (costTierClass) {
+            descriptor.costTier = costTierClass.replace(/^cost-tier-/, '');
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (sourceCardEl.dataset && sourceCardEl.dataset.cardType) {
+            descriptor.cardType = String(sourceCardEl.dataset.cardType);
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        const nameEl = sourceCardEl.querySelector('.card-name');
+        const label = String(nameEl && nameEl.textContent || '').trim();
+        if (label) descriptor.name = label;
+    } catch (e) { /* ignore */ }
+    try {
+        const costValueEl = sourceCardEl.querySelector('.card-cost-badge .cost-value');
+        const rawCost = String(costValueEl && costValueEl.textContent || '').trim();
+        const parsedCost = Number(rawCost);
+        if (Number.isFinite(parsedCost)) {
+            descriptor.cost = parsedCost;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        const typeBadgeEl = sourceCardEl.querySelector('.card-type-badge');
+        const rawTypeText = String(typeBadgeEl && typeBadgeEl.textContent || '').trim();
+        if (rawTypeText) {
+            const normalizedTypeText = rawTypeText.replace(/^[^\p{L}\p{N}]+/u, '').trim();
+            if (normalizedTypeText) {
+                descriptor.displayTypeLabel = normalizedTypeText;
+            }
+        }
+    } catch (e) { /* ignore */ }
+    return descriptor;
+}
+
+function _buildCardUseMovingElement(sourceCardEl, descriptor, ownerKey) {
+    const elementDescriptor = _readCardUseDescriptorFromSourceElement(sourceCardEl);
+    const visualDescriptor = _normalizeCardUseVisualDescriptor(
+        Object.assign({}, elementDescriptor, descriptor || {}),
+        elementDescriptor.cardId || (descriptor && descriptor.cardId) || null,
+        elementDescriptor.name || (descriptor && descriptor.name) || null,
+        Number.isFinite(Number(elementDescriptor.cost))
+            ? Number(elementDescriptor.cost)
+            : ((descriptor && Number.isFinite(Number(descriptor.cost))) ? Number(descriptor.cost) : null)
+    );
+    const movingCard = _buildFallbackCardUseElement(
+        visualDescriptor.cardId || null,
+        visualDescriptor.name || null,
+        Number.isFinite(Number(visualDescriptor.cost)) ? Number(visualDescriptor.cost) : null,
+        visualDescriptor,
+        ownerKey
+    );
+    if (movingCard && movingCard.classList) {
+        movingCard.classList.add('card-use-ghost');
+        movingCard.classList.remove('clickable', 'usable', 'affordable', 'selected');
+    }
+    return movingCard;
 }
 
 function _buildFallbackCardUseElement(cardId, cardName, cardCost, descriptor, ownerKey) {
@@ -1722,18 +1792,12 @@ function playCardUseHandAnimation(payload) {
             : ((cardDef && Number.isFinite(Number(cardDef.cost))) ? Number(cardDef.cost) : null);
 
         layerEl.style.display = 'block';
-        movingCard = sourceCardEl
-            ? sourceCardEl.cloneNode(true)
-            : _buildFallbackCardUseElement(
-                visualDescriptor.cardId || null,
-                cardName,
-                cardCost,
-                visualDescriptor,
-                ownerKey
-            );
-        if (!sourceCardEl) {
-            movingCard.classList.add('visible');
-        }
+        movingCard = _buildCardUseMovingElement(sourceCardEl, Object.assign({}, visualDescriptor, {
+            cardId: visualDescriptor.cardId || null,
+            name: cardName,
+            cost: cardCost
+        }), ownerKey);
+        movingCard.classList.add('visible');
         movingCard.style.position = 'fixed';
         movingCard.style.pointerEvents = 'none';
         movingCard.style.zIndex = '1300';
