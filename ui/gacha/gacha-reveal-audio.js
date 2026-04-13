@@ -8,8 +8,6 @@
     'use strict';
 
     const GACHA_PULL_AUDIO_PATH = 'assets/audio/other/gacha.mp3';
-    const GACHA_BGM_RESUME_DELAY_MS = 3000;
-
     function resolveSoundEngineAccessModule(rootRef) {
         if (typeof require === 'function') {
             try {
@@ -76,30 +74,6 @@
         let activePullAudio = null;
         let activePullAudioCleanup = null;
         let shouldResumeBgmAfterAudio = false;
-        let pendingBgmResumeTimer = null;
-
-        function resolveSetTimeoutFn() {
-            if (typeof opts.setTimeout === 'function') return opts.setTimeout;
-            if (rootRef && typeof rootRef.setTimeout === 'function') return rootRef.setTimeout.bind(rootRef);
-            if (typeof setTimeout === 'function') return setTimeout;
-            return null;
-        }
-
-        function resolveClearTimeoutFn() {
-            if (typeof opts.clearTimeout === 'function') return opts.clearTimeout;
-            if (rootRef && typeof rootRef.clearTimeout === 'function') return rootRef.clearTimeout.bind(rootRef);
-            if (typeof clearTimeout === 'function') return clearTimeout;
-            return null;
-        }
-
-        function clearPendingBgmResume() {
-            if (pendingBgmResumeTimer == null) return;
-            const clearTimeoutFn = resolveClearTimeoutFn();
-            if (typeof clearTimeoutFn === 'function') {
-                try { clearTimeoutFn(pendingBgmResumeTimer); } catch (e) { /* ignore */ }
-            }
-            pendingBgmResumeTimer = null;
-        }
 
         function clearPullAudioBindings(audioRef) {
             if (!audioRef || typeof activePullAudioCleanup !== 'function') {
@@ -113,32 +87,15 @@
         function resumeBgmIfNeeded() {
             const engine = resolveSoundEngine(rootRef);
             if (!shouldResumeBgmAfterAudio || !engine || typeof engine.playBgm !== 'function') {
-                clearPendingBgmResume();
                 shouldResumeBgmAfterAudio = false;
                 return false;
             }
-            clearPendingBgmResume();
-            const resumeBgm = function () {
-                pendingBgmResumeTimer = null;
-                if (!shouldResumeBgmAfterAudio) return false;
-                shouldResumeBgmAfterAudio = false;
-                try {
-                    engine.playBgm();
-                    return true;
-                } catch (e) {
-                    return false;
-                }
-            };
-            const setTimeoutFn = resolveSetTimeoutFn();
-            if (typeof setTimeoutFn !== 'function') {
-                return resumeBgm();
-            }
+            shouldResumeBgmAfterAudio = false;
             try {
-                pendingBgmResumeTimer = setTimeoutFn(resumeBgm, GACHA_BGM_RESUME_DELAY_MS);
+                engine.playBgm();
                 return true;
             } catch (e) {
-                pendingBgmResumeTimer = null;
-                return resumeBgm();
+                return false;
             }
         }
 
@@ -153,11 +110,9 @@
         function pauseBgmForPullAudio() {
             const engine = resolveSoundEngine(rootRef);
             if (!engine || typeof engine.pauseBgm !== 'function' || typeof engine.playBgm !== 'function') {
-                clearPendingBgmResume();
                 shouldResumeBgmAfterAudio = false;
                 return false;
             }
-            clearPendingBgmResume();
             if (shouldResumeBgmAfterAudio) {
                 return true;
             }
@@ -249,7 +204,6 @@
     }
 
     return {
-        GACHA_BGM_RESUME_DELAY_MS,
         GACHA_PULL_AUDIO_PATH,
         createPullAudioInstance,
         createGachaRevealAudioSession

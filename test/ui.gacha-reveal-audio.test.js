@@ -32,8 +32,7 @@ describe('gacha reveal audio session', () => {
     jest.useRealTimers();
   });
 
-  test('keeps BGM paused after the pull audio ends and resumes it after destroy with delay', async () => {
-    jest.useFakeTimers();
+  test('keeps BGM paused after the pull audio ends and resumes it when the reveal is closed', async () => {
     const mod = require('../ui/gacha/gacha-reveal-audio.js');
     const audio = createAudioStub();
     const root = {
@@ -68,14 +67,10 @@ describe('gacha reveal audio session', () => {
     expect(root.SoundEngine.playBgm).not.toHaveBeenCalled();
 
     session.destroy();
-    await jest.advanceTimersByTimeAsync(mod.GACHA_BGM_RESUME_DELAY_MS - 1);
-    expect(root.SoundEngine.playBgm).not.toHaveBeenCalled();
-    await jest.advanceTimersByTimeAsync(1);
     expect(root.SoundEngine.playBgm).toHaveBeenCalledTimes(1);
   });
 
-  test('destroy stops active pull audio and resumes paused BGM after delay', async () => {
-    jest.useFakeTimers();
+  test('destroy stops active pull audio and resumes paused BGM immediately', async () => {
     const mod = require('../ui/gacha/gacha-reveal-audio.js');
     const audio = createAudioStub();
     const root = {
@@ -104,13 +99,10 @@ describe('gacha reveal audio session', () => {
     session.destroy();
 
     expect(audio.pause).toHaveBeenCalled();
-    expect(root.SoundEngine.playBgm).not.toHaveBeenCalled();
-    await jest.advanceTimersByTimeAsync(mod.GACHA_BGM_RESUME_DELAY_MS);
     expect(root.SoundEngine.playBgm).toHaveBeenCalledTimes(1);
   });
 
   test('pauses BGM even when the controller does not expose paused=false explicitly', async () => {
-    jest.useFakeTimers();
     const mod = require('../ui/gacha/gacha-reveal-audio.js');
     const audio = createAudioStub();
     const root = {
@@ -140,12 +132,10 @@ describe('gacha reveal audio session', () => {
     audio.emit('ended');
     expect(root.SoundEngine.playBgm).not.toHaveBeenCalled();
     session.destroy();
-    await jest.advanceTimersByTimeAsync(mod.GACHA_BGM_RESUME_DELAY_MS);
     expect(root.SoundEngine.playBgm).toHaveBeenCalledTimes(1);
   });
 
-  test('a later play after destroy cancels the pending resume until the new reveal finishes', async () => {
-    jest.useFakeTimers();
+  test('a later play after destroy can pause and resume BGM again', async () => {
     const mod = require('../ui/gacha/gacha-reveal-audio.js');
     const firstAudio = createAudioStub();
     const secondAudio = createAudioStub();
@@ -177,18 +167,14 @@ describe('gacha reveal audio session', () => {
     session.play();
     await Promise.resolve();
     session.destroy();
-    await jest.advanceTimersByTimeAsync(mod.GACHA_BGM_RESUME_DELAY_MS - 1);
+    expect(root.SoundEngine.playBgm).toHaveBeenCalledTimes(1);
 
     session.play();
     await Promise.resolve();
-    await jest.advanceTimersByTimeAsync(1);
-    expect(root.SoundEngine.playBgm).not.toHaveBeenCalled();
-
     session.destroy();
-    await jest.advanceTimersByTimeAsync(mod.GACHA_BGM_RESUME_DELAY_MS);
 
-    expect(root.SoundEngine.pauseBgm).toHaveBeenCalledTimes(1);
-    expect(root.SoundEngine.playBgm).toHaveBeenCalledTimes(1);
+    expect(root.SoundEngine.pauseBgm).toHaveBeenCalledTimes(2);
+    expect(root.SoundEngine.playBgm).toHaveBeenCalledTimes(2);
     expect(firstAudio.pause).toHaveBeenCalled();
     expect(secondAudio.pause).toHaveBeenCalled();
   });
@@ -210,12 +196,7 @@ describe('gacha reveal audio session', () => {
     const audio = createAudioStub();
     const session = mod.createGachaRevealAudioSession({
       root: window,
-      createAudio: () => audio,
-      setTimeout: (fn) => {
-        fn();
-        return 1;
-      },
-      clearTimeout: () => {}
+      createAudio: () => audio
     });
 
     expect(session.play()).toBe(true);

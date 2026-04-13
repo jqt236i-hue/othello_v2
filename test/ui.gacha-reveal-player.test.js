@@ -103,8 +103,6 @@ describe('gacha reveal player', () => {
     expect(result.highestRarity).toBe('SR');
     expect(stage.getAttribute('aria-hidden')).toBe('true');
     expect(audio.pause).toHaveBeenCalled();
-    expect(window.SoundEngine.playBgm).not.toHaveBeenCalled();
-    await jest.advanceTimersByTimeAsync(3000);
     expect(window.SoundEngine.playBgm).toHaveBeenCalledTimes(1);
   });
 
@@ -158,8 +156,6 @@ describe('gacha reveal player', () => {
     expect(result.finishedWith).toBe('skipped');
     expect(document.getElementById('gachaRevealStage').getAttribute('aria-hidden')).toBe('true');
     expect(audio.pause).toHaveBeenCalled();
-    expect(window.SoundEngine.playBgm).not.toHaveBeenCalled();
-    await jest.advanceTimersByTimeAsync(3000);
     expect(window.SoundEngine.playBgm).toHaveBeenCalledTimes(1);
   });
 
