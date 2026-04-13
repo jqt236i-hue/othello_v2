@@ -100,19 +100,6 @@ const _rulesHelpCardInteractionEffectsModule = (() => {
     return null;
 })();
 
-function _fallbackQuickCardEffect(cardDef) {
-    const normalized = _normalizeCardDescText(cardDef && cardDef.desc ? cardDef.desc : '');
-    if (!normalized) return '効果説明は準備中';
-    const firstSentence = normalized.split('。').map((s) => s.trim()).filter(Boolean)[0] || normalized;
-    return firstSentence.length > 38 ? `${firstSentence.slice(0, 38)}...` : firstSentence;
-}
-
-function _fallbackDetailCardEffect(cardDef) {
-    const normalized = _normalizeCardDescText(cardDef && cardDef.desc ? cardDef.desc : '');
-    if (!normalized) return '詳細説明は準備中';
-    return normalized.replace(/。/g, '。\n').trim();
-}
-
 function _normalizeCardDescText(text) {
     if (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.normalizeCardDescText === 'function') {
         return _rulesHelpCardInteractionEffectsModule.normalizeCardDescText(text);
@@ -123,6 +110,27 @@ function _normalizeCardDescText(text) {
         .trim();
 }
 
+function _splitHelpSentences(text) {
+    const lines = String(text || '')
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+    const sentences = [];
+    for (const line of lines) {
+        const chunks = line.match(/[^。！？!?]+[。！？!?]?/g);
+        if (!chunks || chunks.length === 0) {
+            sentences.push(line);
+            continue;
+        }
+        for (const chunk of chunks) {
+            const normalized = chunk.trim();
+            if (normalized) sentences.push(normalized);
+        }
+    }
+    return sentences;
+}
+
 function _buildHelpComparisonKey(text) {
     if (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.buildCardDescComparisonKey === 'function') {
         return _rulesHelpCardInteractionEffectsModule.buildCardDescComparisonKey(text);
@@ -131,6 +139,14 @@ function _buildHelpComparisonKey(text) {
         .replace(/[\s\u3000]/g, '')
         .replace(/[。\.、,，:：;；!！?？'"“”‘’\-ー／/（）()\[\]{}「」『』【】<>《》・]/g, '')
         .toLowerCase();
+}
+
+function _isHelpPlaceholderText(text) {
+    const key = _buildHelpComparisonKey(text);
+    if (!key) return true;
+    return key === _buildHelpComparisonKey('効果説明は準備中')
+        || key === _buildHelpComparisonKey('詳細説明は準備中')
+        || key === _buildHelpComparisonKey('効果説明が未登録です');
 }
 
 function _resolveNonDuplicateDetailText(quickText, detailText) {
@@ -175,6 +191,18 @@ function _resolveNonDuplicateDetailText(quickText, detailText) {
     if (keepSentences.length === detailSentences.length) return detail;
     return keepSentences.join('\n');
 }
+function _fallbackQuickCardEffect(cardDef) {
+    const normalized = _normalizeCardDescText(cardDef && cardDef.desc ? cardDef.desc : '');
+    if (!normalized) return '効果説明は準備中';
+    const firstSentence = normalized.split('。').map((s) => s.trim()).filter(Boolean)[0] || normalized;
+    return firstSentence.length > 38 ? `${firstSentence.slice(0, 38)}...` : firstSentence;
+}
+
+function _fallbackDetailCardEffect(cardDef) {
+    const normalized = _normalizeCardDescText(cardDef && cardDef.desc ? cardDef.desc : '');
+    if (!normalized) return '詳細説明は準備中';
+    return normalized.replace(/。/g, '。\n').trim();
+}
 
 function _resolveCardDescriptionTexts(cardDef) {
     if (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.resolveCardDescriptionTexts === 'function') {
@@ -206,29 +234,6 @@ function _resolveCardDescriptionTexts(cardDef) {
         effectTags,
         numericTags
     };
-}
-
-function _normalizeResolvedCardEffectTags(tags) {
-    if (!Array.isArray(tags)) return [];
-    const normalizedTags = [];
-    const seen = new Set();
-    for (const rawTag of tags) {
-        if (!rawTag || typeof rawTag !== 'object') continue;
-        const label = _safeText(rawTag.label, '');
-        if (!label) continue;
-        const kind = _safeText(rawTag.kind, '').toLowerCase();
-        const dedupeKey = `${kind}:${label}`;
-        if (seen.has(dedupeKey)) continue;
-        seen.add(dedupeKey);
-        normalizedTags.push({ kind, label });
-    }
-    return normalizedTags;
-}
-
-function _getCardEffectTagKindClass(kind) {
-    const normalizedKind = _safeText(kind, '').toLowerCase();
-    if (!normalizedKind) return '';
-    return `is-${normalizedKind.replace(/[^a-z0-9]+/g, '-')}`;
 }
 
 function _getSharedVisualEffectsMap() {
@@ -454,6 +459,29 @@ function setupRulesHelp(rulesHelpBtn, rulesHelpPanel) {
         bodyEl.innerHTML = _formatHelpText(bodyText);
         section.appendChild(bodyEl);
         return section;
+    }
+
+    function _normalizeResolvedCardEffectTags(tags) {
+        if (!Array.isArray(tags)) return [];
+        const normalizedTags = [];
+        const seen = new Set();
+        for (const rawTag of tags) {
+            if (!rawTag || typeof rawTag !== 'object') continue;
+            const label = _safeText(rawTag.label, '');
+            if (!label) continue;
+            const kind = _safeText(rawTag.kind, '').toLowerCase();
+            const dedupeKey = `${kind}:${label}`;
+            if (seen.has(dedupeKey)) continue;
+            seen.add(dedupeKey);
+            normalizedTags.push({ kind, label });
+        }
+        return normalizedTags;
+    }
+
+    function _getCardEffectTagKindClass(kind) {
+        const normalizedKind = _safeText(kind, '').toLowerCase();
+        if (!normalizedKind) return '';
+        return `is-${normalizedKind.replace(/[^a-z0-9]+/g, '-')}`;
     }
 
     function createCardEffectTagSection(tags) {

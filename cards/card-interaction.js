@@ -480,7 +480,7 @@ function _buildCardDetailDisplayModel(cardDef, ownerKey) {
 
     return {
         cardName: cardDef.name || '?',
-        summaryText: quickText,
+        summaryText: _stripCardDetailTagPhrases(quickText) || quickText,
         detailText,
         detailPanelText: distinctDetailText || detailText,
         liveStateText: _getCardDetailLiveStateText(cardDef, ownerKey),
@@ -513,6 +513,13 @@ function _getOverlayCardDescriptionText(cardDef, cardId) {
         || '説明なし'
     );
 }
+
+const _NORMAL_STONE_IMAGE_FILE_KEYS = Object.freeze([
+    'normal_stone-black.png',
+    'normal_stone-white.png',
+    'normal-stone-black.png',
+    'normal-stone-white.png'
+]);
 
 function _getGameVisualEffectsMapForCardDetail() {
     try {
@@ -2263,7 +2270,6 @@ function updateCardDetailPanel() {
     }
 
     _closeCardDetailTagTabIfOpen();
-
     const selectedCardDef = normalizedSelectedId ? CardLogic.getCardDef(normalizedSelectedId) : null;
     const displayModel = _buildCardDetailDisplayModel(selectedCardDef, selectedOwnerKey);
     _applyCardDetailDisplayModel(nameEl, descEl, detailStateEl, detailMoreEl, detailTagsEl, displayModel);
