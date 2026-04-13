@@ -3,6 +3,9 @@
 
 const fs = require('fs');
 const path = require('path');
+const {
+    classifyTrainingArtifactPath
+} = require('./training-artifact-status');
 
 function parseArgs(argv) {
     const args = {
@@ -155,26 +158,55 @@ function writeJson(p, value) {
     fs.writeFileSync(p, JSON.stringify(value, null, 2), 'utf8');
 }
 
+function decorateTransferArtifact(record, sourcePath, targetPath) {
+    const classification = classifyTrainingArtifactPath(targetPath || sourcePath);
+    return Object.assign({}, record, {
+        sourcePath,
+        targetPath,
+        lifecycle: classification.lifecycle,
+        lifecycleReason: classification.reason,
+        compatibility: classification.compatibility,
+        expectedCheckpointHead: classification.expectedCheckpointHead,
+        detectedCheckpointHead: classification.detectedCheckpointHead
+    });
+}
+
 function copyRequiredFile(srcPath, targetPath, label) {
     if (!srcPath || !fs.existsSync(srcPath)) {
         throw new Error(`${label} is missing: ${srcPath || '(null)'}`);
     }
     fs.mkdirSync(path.dirname(targetPath), { recursive: true });
     fs.copyFileSync(srcPath, targetPath);
-    return { promoted: true, skipped: false, reason: null, sourcePath: srcPath, targetPath };
+    return decorateTransferArtifact({
+        promoted: true,
+        skipped: false,
+        reason: null
+    }, srcPath, targetPath);
 }
 
 function promoteOptionalFile(srcPath, targetPath) {
     if (!srcPath) {
-        return { promoted: false, skipped: true, reason: 'not_requested', sourcePath: null, targetPath };
+        return decorateTransferArtifact({
+            promoted: false,
+            skipped: true,
+            reason: 'not_requested'
+        }, null, targetPath);
     }
     if (!fs.existsSync(srcPath)) {
-        return { promoted: false, skipped: true, reason: 'source_missing', sourcePath: srcPath, targetPath };
+        return decorateTransferArtifact({
+            promoted: false,
+            skipped: true,
+            reason: 'source_missing'
+        }, srcPath, targetPath);
     }
     const targetDir = path.dirname(targetPath);
     fs.mkdirSync(targetDir, { recursive: true });
     fs.copyFileSync(srcPath, targetPath);
-    return { promoted: true, skipped: false, reason: null, sourcePath: srcPath, targetPath };
+    return decorateTransferArtifact({
+        promoted: true,
+        skipped: false,
+        reason: null
+    }, srcPath, targetPath);
 }
 
 function archiveExistingFile(srcPath, targetPath) {
@@ -184,7 +216,12 @@ function archiveExistingFile(srcPath, targetPath) {
         skipped: archived.skipped,
         reason: archived.reason,
         sourcePath: archived.sourcePath,
-        targetPath: archived.targetPath
+        targetPath: archived.targetPath,
+        lifecycle: archived.lifecycle,
+        lifecycleReason: archived.lifecycleReason,
+        compatibility: archived.compatibility,
+        expectedCheckpointHead: archived.expectedCheckpointHead,
+        detectedCheckpointHead: archived.detectedCheckpointHead
     };
 }
 
@@ -203,9 +240,13 @@ function summarizeGateDecision(decision) {
 
 function summarizeGatePayload(filePath) {
     if (!filePath) return null;
+    const classification = classifyTrainingArtifactPath(filePath, { kind: 'gate.payload' });
     const summary = {
         path: filePath,
         exists: fs.existsSync(filePath),
+        lifecycle: classification.lifecycle,
+        lifecycleReason: classification.reason,
+        compatibility: classification.compatibility,
         generatedAt: null,
         gateType: null,
         gateFamily: null,
@@ -226,9 +267,16 @@ function summarizeGatePayload(filePath) {
 
 function buildArtifactReference(filePath) {
     if (!filePath) return null;
+    const resolvedPath = path.resolve(filePath);
+    const classification = classifyTrainingArtifactPath(resolvedPath);
     return {
-        path: filePath,
-        exists: fs.existsSync(filePath)
+        path: resolvedPath,
+        exists: fs.existsSync(resolvedPath),
+        lifecycle: classification.lifecycle,
+        lifecycleReason: classification.reason,
+        compatibility: classification.compatibility,
+        expectedCheckpointHead: classification.expectedCheckpointHead,
+        detectedCheckpointHead: classification.detectedCheckpointHead
     };
 }
 
@@ -330,6 +378,7 @@ function promoteModel(options) {
         adoptionResultPath: options.adoptionResultPath,
         decision,
         candidate: {
+            lifecycle: classifyTrainingArtifactPath(options.candidateModelPath).lifecycle,
             modelPath: options.candidateModelPath,
             onnxPath: candidateOnnxPath,
             onnxMetaPath: candidateOnnxMetaPath,
@@ -342,6 +391,7 @@ function promoteModel(options) {
             schemaVersion: candidate.schemaVersion
         },
         deployed: {
+            lifecycle: classifyTrainingArtifactPath(options.targetModelPath).lifecycle,
             modelPath: options.targetModelPath,
             onnxPath: options.targetOnnxPath,
             onnxMetaPath: options.targetOnnxMetaPath,
@@ -352,9 +402,14 @@ function promoteModel(options) {
             valueOnnxPath: options.targetValueOnnxPath,
             valueOnnxMetaPath: options.targetValueOnnxMetaPath
         },
-        champion: championPaths,
-        challenger: challengerPaths,
+        champion: Object.assign({
+            lifecycle: classifyTrainingArtifactPath(championPaths.rootDir).lifecycle
+        }, championPaths),
+        challenger: Object.assign({
+            lifecycle: classifyTrainingArtifactPath(challengerPaths.rootDir).lifecycle
+        }, challengerPaths),
         archive: {
+            lifecycle: classifyTrainingArtifactPath(archivePaths.rootDir).lifecycle,
             bundleId: promotionId,
             rootDir: archivePaths.rootDir,
             model: archivedChampion.model,
@@ -374,7 +429,9 @@ function promoteModel(options) {
             onnx: summarizeGatePayload(options.onnxGatePayloadPath)
         },
         trainingWarehouse: buildArtifactReference(options.warehouseManifestPath),
-        rollback
+        rollback: Object.assign({
+            lifecycle: classifyTrainingArtifactPath(archivePaths.rootDir).lifecycle
+        }, rollback)
     };
     writeJson(manifestPath, manifest);
 

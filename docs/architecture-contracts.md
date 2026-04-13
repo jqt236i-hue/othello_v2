@@ -142,6 +142,7 @@ For gate/promotion bundle handling, the contract is:
 - isolated or canary lanes must not rely on overwriting unrelated root bundles just to evaluate or promote their candidate artifacts
 
 `promotion-manifest.json` is lane-local promotion metadata and must be interpreted together with the lane's target bundle files, not as a cross-lane singleton source of deploy truth.
+Its artifact entries now carry `lifecycle` tags (`active`, `archived`, `experimental`, `incompatible`) so current deploy truth, archive snapshots, and run outputs can be separated without guessing from filenames alone.
 
 ## 6. Core state contracts
 

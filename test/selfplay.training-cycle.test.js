@@ -1255,6 +1255,10 @@ describe('selfplay training cycle script', () => {
             expect(manifest.gates.quick.seedSchedule.scheduledSeeds).toEqual([201001, 202001, 203001]);
             expect(manifest.gates.onnx.seedSchedule.completedSeeds).toEqual([801001, 801501]);
             expect(manifest.gates.quick.decision.primaryFailureReason).toBe('lower-bound');
+            expect(manifest.models.candidatePolicyTable.lifecycle).toBe('experimental');
+            expect(manifest.models.policyCheckpoint.lifecycle).toBe('experimental');
+            expect(manifest.models.policyCheckpoint.compatibility).toBe('compatible');
+            expect(manifest.gates.quick.lifecycle).toBe('experimental');
             expect(manifest.training.hasTargetTrainingData).toBe(true);
             expect(manifest.steps[0]).toMatchObject({
                 name: 'generate-train',

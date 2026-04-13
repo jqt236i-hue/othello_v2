@@ -6,6 +6,9 @@ const {
     buildSeedSchedule,
     sanitizeSeedList
 } = require('./policy-seed-utils');
+const {
+    classifyTrainingArtifactPath
+} = require('./training-artifact-status');
 
 const TRAINING_WAREHOUSE_MANIFEST_SCHEMA_VERSION = 'training_warehouse_manifest.v1';
 const SELFPLAY_DATA_FILE_PATTERN = /^selfplay\.(train|eval)(\.hardcase)?\..+\.ndjson$/i;
@@ -37,6 +40,15 @@ function buildFileArtifact(filePath, extra) {
         sizeBytes: 0,
         modifiedAt: null
     }, extra || {});
+    const classification = classifyTrainingArtifactPath(resolvedPath, {
+        kind: artifact.kind,
+        expectedCheckpointHead: artifact.expectedCheckpointHead
+    });
+    artifact.lifecycle = classification.lifecycle;
+    artifact.lifecycleReason = classification.reason;
+    artifact.compatibility = classification.compatibility;
+    artifact.expectedCheckpointHead = classification.expectedCheckpointHead;
+    artifact.detectedCheckpointHead = classification.detectedCheckpointHead;
     if (!resolvedPath || !fs.existsSync(resolvedPath)) {
         return artifact;
     }

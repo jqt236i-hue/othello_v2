@@ -302,6 +302,11 @@ describe('selfplay policy promotion', () => {
         const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
         expect(manifest.schemaVersion).toBe('policy_promotion.v3');
         expect(manifest.rollback.modelPath).toBe(out.rollback.modelPath);
+        expect(manifest.candidate.lifecycle).toBe('experimental');
+        expect(manifest.deployed.lifecycle).toBe('active');
+        expect(manifest.champion.lifecycle).toBe('active');
+        expect(manifest.challenger.lifecycle).toBe('experimental');
+        expect(manifest.archive.lifecycle).toBe('archived');
         expect(manifest.archive.model.archived).toBe(true);
         expect(manifest.archive.targetOnnx.archived).toBe(true);
         expect(manifest.archive.valueOnnx.archived).toBe(true);
@@ -310,9 +315,11 @@ describe('selfplay policy promotion', () => {
         expect(manifest.gatePayloads.quick.path).toBe(quickGatePayloadPath);
         expect(manifest.gatePayloads.quick.seedSchedule.scheduledSeeds).toEqual([101, 1101, 2101]);
         expect(manifest.gatePayloads.quality.gateType).toBe('quality');
-        expect(manifest.trainingWarehouse).toEqual({
+        expect(manifest.gatePayloads.quick.lifecycle).toBe('experimental');
+        expect(manifest.trainingWarehouse).toMatchObject({
             path: warehouseManifestPath,
-            exists: true
+            exists: true,
+            lifecycle: 'experimental'
         });
 
         fs.rmSync(dir, { recursive: true, force: true });
