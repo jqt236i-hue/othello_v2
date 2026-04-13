@@ -33,10 +33,33 @@
         '</div>'
     ].join('');
 
+    function resolveSoundEngineAccessModule(rootRef) {
+        if (typeof require === 'function') {
+            try {
+                return require('../sound-engine-access.js');
+            } catch (e) { /* ignore */ }
+        }
+        return (rootRef && rootRef.SoundEngineAccessModule)
+            || (typeof SoundEngineAccessModule !== 'undefined' ? SoundEngineAccessModule : null)
+            || (typeof globalThis !== 'undefined' ? globalThis.SoundEngineAccessModule : null);
+    }
+
     function resolveSoundEngine(rootRef) {
+        const accessModule = resolveSoundEngineAccessModule(rootRef);
+        if (accessModule && typeof accessModule.resolveSoundEngine === 'function') {
+            return accessModule.resolveSoundEngine(rootRef);
+        }
         return (rootRef && rootRef.SoundEngine)
             || (typeof SoundEngine !== 'undefined' ? SoundEngine : null)
             || (typeof globalThis !== 'undefined' ? globalThis.SoundEngine : null);
+    }
+
+    function isBgmOn(engine, rootRef) {
+        const accessModule = resolveSoundEngineAccessModule(rootRef);
+        if (accessModule && typeof accessModule.isBgmPlaying === 'function') {
+            return accessModule.isBgmPlaying(engine);
+        }
+        return !!(engine && engine.allowBgmPlay === true && engine.bgm && engine.bgm.paused !== true);
     }
 
     function ensureHud(documentRef) {
@@ -133,7 +156,7 @@
                 refs.seVolume.value = String(engine.volume);
             }
             if (refs.bgmToggleButton) {
-                const bgmOn = engine.allowBgmPlay === true && !!engine.bgm && engine.bgm.paused !== true;
+                const bgmOn = isBgmOn(engine, rootRef);
                 refs.bgmToggleButton.textContent = bgmOn ? 'BGM ON' : 'BGM OFF';
             }
             if (refs.bgmVolume) {
@@ -218,7 +241,7 @@
             try {
                 if (typeof engine.init === 'function') engine.init();
             } catch (e) { /* ignore */ }
-            const bgmOn = engine.allowBgmPlay === true && !!engine.bgm && engine.bgm.paused !== true;
+            const bgmOn = isBgmOn(engine, rootRef);
             if (bgmOn) {
                 if (typeof engine.pauseBgm === 'function') engine.pauseBgm();
             } else if (typeof engine.playBgm === 'function') {

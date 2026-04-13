@@ -10,7 +10,29 @@
     const GACHA_PULL_AUDIO_PATH = 'assets/audio/other/gacha.mp3';
     const GACHA_BGM_RESUME_DELAY_MS = 3000;
 
+    function resolveSoundEngineAccessModule(rootRef) {
+        if (typeof require === 'function') {
+            try {
+                return require('../sound-engine-access.js');
+            } catch (e) { /* ignore */ }
+        }
+        try {
+            if (rootRef && rootRef.SoundEngineAccessModule) return rootRef.SoundEngineAccessModule;
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof SoundEngineAccessModule !== 'undefined' && SoundEngineAccessModule) return SoundEngineAccessModule;
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.SoundEngineAccessModule) return globalThis.SoundEngineAccessModule;
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
     function resolveSoundEngine(rootRef) {
+        const accessModule = resolveSoundEngineAccessModule(rootRef);
+        if (accessModule && typeof accessModule.resolveSoundEngine === 'function') {
+            return accessModule.resolveSoundEngine(rootRef);
+        }
         if (rootRef && rootRef.SoundEngine) return rootRef.SoundEngine;
         try {
             if (typeof SoundEngine !== 'undefined' && SoundEngine) return SoundEngine;
@@ -19,6 +41,14 @@
             if (typeof globalThis !== 'undefined' && globalThis.SoundEngine) return globalThis.SoundEngine;
         } catch (e) { /* ignore */ }
         return null;
+    }
+
+    function isBgmPlaying(engine, rootRef) {
+        const accessModule = resolveSoundEngineAccessModule(rootRef);
+        if (accessModule && typeof accessModule.isBgmPlaying === 'function') {
+            return accessModule.isBgmPlaying(engine);
+        }
+        return !!(engine && engine.allowBgmPlay === true && engine.bgm && engine.bgm.paused !== true);
     }
 
     function createPullAudioInstance(rootRef, options) {
@@ -131,7 +161,7 @@
             if (shouldResumeBgmAfterAudio) {
                 return true;
             }
-            const bgmIsPlaying = !!(engine.bgm && engine.bgm.paused !== true && engine.allowBgmPlay !== false);
+            const bgmIsPlaying = isBgmPlaying(engine, rootRef);
             if (!bgmIsPlaying) {
                 shouldResumeBgmAfterAudio = false;
                 return false;

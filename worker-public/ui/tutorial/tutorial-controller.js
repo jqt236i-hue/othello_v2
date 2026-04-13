@@ -38,6 +38,17 @@
     const TUTORIAL_TEXT_CLICK_SOUND = 'assets/story/sound-ef/テキストをクリックするとき.mp3';
     const TUTORIAL_CHOICE_SELECT_SOUND = 'assets/story/sound-ef/自分視点選択肢を選ぶとき.mp3';
 
+    function resolveSoundEngineAccessModule(rootRef) {
+        if (typeof require === 'function') {
+            try {
+                return require('../sound-engine-access.js');
+            } catch (e) { /* ignore */ }
+        }
+        return (rootRef && rootRef.SoundEngineAccessModule)
+            || (typeof SoundEngineAccessModule !== 'undefined' ? SoundEngineAccessModule : null)
+            || (typeof globalThis !== 'undefined' ? globalThis.SoundEngineAccessModule : null);
+    }
+
     function composeText(textValue) {
         if (Array.isArray(textValue)) return textValue.join('\n');
         return String(textValue || '');
@@ -145,8 +156,12 @@
         }
 
         function playTutorialEffect(filePath) {
+            const accessModule = resolveSoundEngineAccessModule(rootRef);
             const soundEngine =
-                (typeof SoundEngine !== 'undefined' && SoundEngine)
+                (accessModule && typeof accessModule.resolveSoundEngine === 'function'
+                    ? accessModule.resolveSoundEngine(rootRef)
+                    : null)
+                || (typeof SoundEngine !== 'undefined' && SoundEngine)
                 || (rootRef && rootRef.SoundEngine)
                 || (typeof globalThis !== 'undefined' ? globalThis.SoundEngine : null);
             if (!soundEngine || typeof soundEngine.playEffectByKey !== 'function') return false;

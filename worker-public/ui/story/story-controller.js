@@ -101,6 +101,17 @@
             }
         });
 
+        function resolveSoundEngineAccessModule() {
+            if (typeof require === 'function') {
+                try {
+                    return require('../sound-engine-access.js');
+                } catch (e) { /* ignore */ }
+            }
+            return (rootRef && rootRef.SoundEngineAccessModule)
+                || (typeof SoundEngineAccessModule !== 'undefined' ? SoundEngineAccessModule : null)
+                || (typeof globalThis !== 'undefined' ? globalThis.SoundEngineAccessModule : null);
+        }
+
         function setButtonState(active) {
             if (!button) return;
             button.setAttribute('aria-expanded', active ? 'true' : 'false');
@@ -118,10 +129,12 @@
         }
 
         function playStoryEffect(filePath) {
-            const soundEngine =
-                (typeof SoundEngine !== 'undefined' && SoundEngine)
-                || (rootRef && rootRef.SoundEngine)
-                || (typeof globalThis !== 'undefined' ? globalThis.SoundEngine : null);
+            const accessModule = resolveSoundEngineAccessModule();
+            const soundEngine = accessModule && typeof accessModule.resolveSoundEngine === 'function'
+                ? accessModule.resolveSoundEngine(rootRef)
+                : ((typeof SoundEngine !== 'undefined' && SoundEngine)
+                    || (rootRef && rootRef.SoundEngine)
+                    || (typeof globalThis !== 'undefined' ? globalThis.SoundEngine : null));
             if (!soundEngine || typeof soundEngine.playEffectByKey !== 'function') return false;
             try {
                 if (typeof soundEngine.init === 'function') soundEngine.init();
