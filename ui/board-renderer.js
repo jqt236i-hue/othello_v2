@@ -20,6 +20,11 @@ if (!OwnerHelpersModule) {
     } catch (e) { /* ignore */ }
 }
 
+var BoardRendererSoundEngineAccessModule = null;
+if (typeof require === 'function') {
+    try { BoardRendererSoundEngineAccessModule = require('./sound-engine-access'); } catch (e) { /* ignore */ }
+}
+
 function _getBoardShapeForBoardRenderer() {
     const state = (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object')
         ? gameState
@@ -41,9 +46,52 @@ let boardPixelSizingObserver = null;
 let boardPixelSizingObservedFrame = null;
 let boardPixelSizingObservedElement = null;
 let boardPixelSizingWindowHandlerInstalled = false;
+let timeStopBgmPausedByBoardRenderer = false;
 const STANDARD_BOARD_BASELINE_ROWS = 8;
 const STANDARD_BOARD_BASELINE_COLS = 8;
 const BOARD_FRAME_OVERSIZE_TOLERANCE_PX = 1;
+
+function _resolveSoundEngineAccessForBoardRenderer() {
+    if (BoardRendererSoundEngineAccessModule) return BoardRendererSoundEngineAccessModule;
+    try {
+        if (typeof window !== 'undefined' && window.SoundEngineAccessModule) {
+            BoardRendererSoundEngineAccessModule = window.SoundEngineAccessModule;
+            return BoardRendererSoundEngineAccessModule;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.SoundEngineAccessModule) {
+            BoardRendererSoundEngineAccessModule = globalThis.SoundEngineAccessModule;
+            return BoardRendererSoundEngineAccessModule;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _resolveSoundEngineForBoardRenderer() {
+    const accessModule = _resolveSoundEngineAccessForBoardRenderer();
+    if (accessModule && typeof accessModule.resolveSoundEngine === 'function') {
+        return accessModule.resolveSoundEngine(typeof window !== 'undefined' ? window : globalThis);
+    }
+    try {
+        if (typeof SoundEngine !== 'undefined' && SoundEngine) return SoundEngine;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && window.SoundEngine) return window.SoundEngine;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.SoundEngine) return globalThis.SoundEngine;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _isBgmPlayingForBoardRenderer(engine) {
+    const accessModule = _resolveSoundEngineAccessForBoardRenderer();
+    if (accessModule && typeof accessModule.isBgmPlaying === 'function') {
+        return accessModule.isBgmPlaying(engine);
+    }
+    return !!(engine && engine.allowBgmPlay === true && engine.bgm && engine.bgm.paused !== true);
+}
 
 function _isBoardShapeOversizeForPixelSizing(shape) {
     const rows = shape && Number.isFinite(shape.rows) ? shape.rows : STANDARD_BOARD_BASELINE_ROWS;
@@ -406,6 +454,20 @@ function _isTimeStopActiveForBoardRenderer() {
 function _syncTimeStopClassForBoardRenderer() {
     if (typeof document === 'undefined') return;
     const active = _isTimeStopActiveForBoardRenderer();
+    const soundEngine = _resolveSoundEngineForBoardRenderer();
+    if (soundEngine && typeof soundEngine.pauseBgm === 'function' && typeof soundEngine.playBgm === 'function') {
+        if (active) {
+            if (_isBgmPlayingForBoardRenderer(soundEngine)) {
+                timeStopBgmPausedByBoardRenderer = true;
+                try { soundEngine.pauseBgm(); } catch (e) { timeStopBgmPausedByBoardRenderer = false; }
+            }
+        } else if (timeStopBgmPausedByBoardRenderer) {
+            timeStopBgmPausedByBoardRenderer = false;
+            try { soundEngine.playBgm(); } catch (e) { /* ignore */ }
+        }
+    } else if (!active) {
+        timeStopBgmPausedByBoardRenderer = false;
+    }
     try {
         if (document.documentElement && document.documentElement.classList) {
             document.documentElement.classList.toggle('time-stop-active', active);

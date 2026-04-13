@@ -300,8 +300,15 @@ describe('selfplay policy promotion', () => {
         expect(JSON.parse(fs.readFileSync(challengerModelPath, 'utf8'))).toEqual(candidatePayload);
 
         const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        const deployTruthPath = path.join(promotedDir, 'promotion-deploy-truth.json');
+        const deployTruth = JSON.parse(fs.readFileSync(deployTruthPath, 'utf8'));
         expect(manifest.schemaVersion).toBe('policy_promotion.v3');
         expect(manifest.rollback.modelPath).toBe(out.rollback.modelPath);
+        expect(out.deployTruthPath).toBe(deployTruthPath);
+        expect(manifest.deployTruthPath).toBe(deployTruthPath);
+        expect(manifest.deployTruth.path).toBe(deployTruthPath);
+        expect(manifest.deployTruth.exists).toBe(true);
+        expect(manifest.deployTruth.lifecycle).toBe('active');
         expect(manifest.candidate.lifecycle).toBe('experimental');
         expect(manifest.deployed.lifecycle).toBe('active');
         expect(manifest.champion.lifecycle).toBe('active');
@@ -313,9 +320,14 @@ describe('selfplay policy promotion', () => {
         expect(manifest.champion.modelPath).toBe(championModelPath);
         expect(manifest.challenger.modelPath).toBe(challengerModelPath);
         expect(manifest.gatePayloads.quick.path).toBe(quickGatePayloadPath);
+        expect(manifest.gatePayloads.quick.status).toBe('present');
         expect(manifest.gatePayloads.quick.seedSchedule.scheduledSeeds).toEqual([101, 1101, 2101]);
         expect(manifest.gatePayloads.quality.gateType).toBe('quality');
+        expect(manifest.gatePayloads.quality.status).toBe('present');
         expect(manifest.gatePayloads.quick.lifecycle).toBe('experimental');
+        expect(deployTruth.schemaVersion).toBe('policy_promotion_deploy_truth.v1');
+        expect(deployTruth.deployed.modelPath).toBe(target);
+        expect(deployTruth.rollback.modelPath).toBe(out.rollback.modelPath);
         expect(manifest.trainingWarehouse).toMatchObject({
             path: warehouseManifestPath,
             exists: true,

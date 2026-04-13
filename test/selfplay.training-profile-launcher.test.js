@@ -183,7 +183,7 @@ describe('selfplay training profile launcher logging', () => {
         expect(logger.log).toHaveBeenCalledWith(`[training-profile] seedBank initialized=${seedBankPath}`);
     });
 
-    test('launcher cleanup sweeps the runs root for historical selfplay blobs', () => {
+    test('launcher cleanup stays lane-local by default', () => {
         const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-training-launcher-'));
         const runsRoot = path.join(tempRoot, 'data', 'runs');
         const laneADir = path.join(runsRoot, 'lane-a');
@@ -251,14 +251,15 @@ describe('selfplay training profile launcher logging', () => {
                 }
             }, logger);
 
-            expect(result.cleanupRoot).toBe(runsRoot);
-            expect(result.manifestsScanned).toBe(1);
+            expect(result.cleanupRoot).toBe(laneBDir);
+            expect(result.manifestsScanned).toBe(0);
             expect(result.failed).toEqual([]);
-            expect(fs.existsSync(trainDataPath)).toBe(false);
-            expect(fs.existsSync(evalDataPath)).toBe(false);
+            expect(result.removed).toEqual([]);
+            expect(fs.existsSync(trainDataPath)).toBe(true);
+            expect(fs.existsSync(evalDataPath)).toBe(true);
             expect(fs.existsSync(trainDataSummaryPath)).toBe(true);
             expect(fs.existsSync(warehouseManifestPath)).toBe(true);
-            expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('cleaned historical selfplay artifacts='));
+            expect(logger.log).not.toHaveBeenCalled();
         } finally {
             fs.rmSync(tempRoot, { recursive: true, force: true });
         }

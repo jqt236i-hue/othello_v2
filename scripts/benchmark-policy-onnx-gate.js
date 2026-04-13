@@ -46,14 +46,14 @@ function parseArgs(argv) {
         candidateTargetOnnxMetaPath: null,
         candidateValueOnnxPath: null,
         candidateValueOnnxMetaPath: null,
-        targetOnnxPath: path.resolve(process.cwd(), 'data', 'models', 'policy-net.onnx'),
-        targetOnnxMetaPath: path.resolve(process.cwd(), 'data', 'models', 'policy-net.onnx.meta.json'),
-        targetCardOnnxPath: path.resolve(process.cwd(), 'data', 'models', 'policy-card.onnx'),
-        targetCardOnnxMetaPath: path.resolve(process.cwd(), 'data', 'models', 'policy-card.onnx.meta.json'),
-        targetTargetOnnxPath: path.resolve(process.cwd(), 'data', 'models', 'policy-target.onnx'),
-        targetTargetOnnxMetaPath: path.resolve(process.cwd(), 'data', 'models', 'policy-target.onnx.meta.json'),
-        targetValueOnnxPath: path.resolve(process.cwd(), 'data', 'models', 'policy-value.onnx'),
-        targetValueOnnxMetaPath: path.resolve(process.cwd(), 'data', 'models', 'policy-value.onnx.meta.json'),
+        targetOnnxPath: null,
+        targetOnnxMetaPath: null,
+        targetCardOnnxPath: null,
+        targetCardOnnxMetaPath: null,
+        targetTargetOnnxPath: null,
+        targetTargetOnnxMetaPath: null,
+        targetValueOnnxPath: null,
+        targetValueOnnxMetaPath: null,
         resolvedConfigPath: null,
         out: null,
         verbose: false,
@@ -139,6 +139,20 @@ function parseArgs(argv) {
     if (!args.candidateOnnxMetaPath) args.candidateOnnxMetaPath = `${args.candidateOnnxPath}.meta.json`;
     if (!fs.existsSync(args.candidateOnnxPath)) throw new Error(`candidate onnx not found: ${args.candidateOnnxPath}`);
     if (!fs.existsSync(args.candidateOnnxMetaPath)) throw new Error(`candidate onnx meta not found: ${args.candidateOnnxMetaPath}`);
+    if (!args.targetOnnxPath) throw new Error('--target-onnx is required unless provided by --resolved-config');
+    if (!args.targetOnnxMetaPath) throw new Error('--target-onnx-meta is required unless provided by --resolved-config');
+    if (args.candidateCardOnnxPath) {
+        if (!args.targetCardOnnxPath) throw new Error('--target-card-onnx is required when --candidate-card-onnx is provided or must come from --resolved-config');
+        if (!args.targetCardOnnxMetaPath) throw new Error('--target-card-onnx-meta is required when --candidate-card-onnx is provided or must come from --resolved-config');
+    }
+    if (args.candidateTargetOnnxPath) {
+        if (!args.targetTargetOnnxPath) throw new Error('--target-target-onnx is required when --candidate-target-onnx is provided or must come from --resolved-config');
+        if (!args.targetTargetOnnxMetaPath) throw new Error('--target-target-onnx-meta is required when --candidate-target-onnx is provided or must come from --resolved-config');
+    }
+    if (args.candidateValueOnnxPath) {
+        if (!args.targetValueOnnxPath) throw new Error('--target-value-onnx is required when --candidate-value-onnx is provided or must come from --resolved-config');
+        if (!args.targetValueOnnxMetaPath) throw new Error('--target-value-onnx-meta is required when --candidate-value-onnx is provided or must come from --resolved-config');
+    }
     if (args.candidateCardOnnxPath) {
         if (!args.candidateCardOnnxMetaPath) args.candidateCardOnnxMetaPath = `${args.candidateCardOnnxPath}.meta.json`;
         if (!fs.existsSync(args.candidateCardOnnxPath)) throw new Error(`candidate card onnx not found: ${args.candidateCardOnnxPath}`);
@@ -189,8 +203,8 @@ function printHelp() {
         '      --candidate-target-onnx-meta <path> Candidate pending-target meta path (default: <candidate-target>.meta.json)',
         '      --candidate-value-onnx <path> Optional candidate value ONNX path',
         '      --candidate-value-onnx-meta <path> Candidate value meta path (default: <candidate-value>.meta.json)',
-        '      --target-onnx <path>     Deployed ONNX path used by browser runtime',
-        '      --target-onnx-meta <path> Deployed ONNX meta path used by browser runtime',
+        '      --target-onnx <path>     Deployed ONNX path used by browser runtime (required unless --resolved-config)',
+        '      --target-onnx-meta <path> Deployed ONNX meta path used by browser runtime (required unless --resolved-config)',
         '      --target-card-onnx <path> Deployed card-specialist ONNX path used by browser runtime',
         '      --target-card-onnx-meta <path> Deployed card-specialist meta path used by browser runtime',
         '      --target-target-onnx <path> Deployed pending-target ONNX path used by browser runtime',

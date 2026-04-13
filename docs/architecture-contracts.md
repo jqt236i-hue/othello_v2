@@ -141,7 +141,8 @@ For gate/promotion bundle handling, the contract is:
 - promotion writes back into that same lane-local target bundle and keeps lane-local `promoted/` and `archive/` snapshots alongside it
 - isolated or canary lanes must not rely on overwriting unrelated root bundles just to evaluate or promote their candidate artifacts
 
-`promotion-manifest.json` is lane-local promotion metadata and must be interpreted together with the lane's target bundle files, not as a cross-lane singleton source of deploy truth.
+`promotion-manifest.json` is lane-local promotion attempt metadata and must be interpreted together with the lane's target bundle files, not as a cross-lane singleton source of deploy truth.
+`promotion-deploy-truth.json` is the lane-local deploy truth record used by rollback; it is written alongside the manifest and should be treated as the canonical deployed-state snapshot.
 Its artifact entries now carry `lifecycle` tags (`active`, `archived`, `experimental`, `incompatible`) so current deploy truth, archive snapshots, and run outputs can be separated without guessing from filenames alone.
 
 ## 6. Core state contracts

@@ -651,6 +651,23 @@ function resolveCpuLv6BrowserProfile() {
     return null;
 }
 
+function resolveCpuLv6LookaheadWeights() {
+    const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
+    const shared = resolveCpuLv6SharedProfile();
+    if (capabilityModule && typeof capabilityModule.resolveCpuLv6LookaheadWeights === 'function') {
+        return capabilityModule.resolveCpuLv6LookaheadWeights(shared);
+    }
+    const browserProfile = resolveCpuLv6BrowserProfile();
+    const weightConfig = browserProfile && browserProfile.lookaheadWeights && typeof browserProfile.lookaheadWeights === 'object'
+        ? browserProfile.lookaheadWeights
+        : null;
+    return {
+        onnxRefinePriorWeight: Number(weightConfig && weightConfig.onnxRefinePriorWeight) || 66,
+        policyLookaheadPriorWeight: Number(weightConfig && weightConfig.policyLookaheadPriorWeight) || 62,
+        searchWeight: Number(weightConfig && weightConfig.searchWeight) || 1.8
+    };
+}
+
 function resolveCpuCurrentTurnNumber() {
     const turnNumber = Number(gameState && gameState.turnNumber);
     if (Number.isFinite(turnNumber)) return Math.max(1, Math.floor(turnNumber) + 1);
@@ -964,10 +981,7 @@ function selectMoveByLookahead(candidateMoves, playerKey, level, onnxSelectedMov
     const priorScore = createLookaheadPriorScoreFn(playerKey, level, candidateMoves.length, onnxSelectedMove);
     const lv6Lookahead = buildLv6LookaheadOptions(level, board, candidateMoves.length, playerKey);
     const onSearchMeta = createLookaheadMetaLogger(playerKey, level, 'onnx-lookahead');
-    const browserProfile = resolveCpuLv6BrowserProfile();
-    const weightConfig = browserProfile && browserProfile.lookaheadWeights && typeof browserProfile.lookaheadWeights === 'object'
-        ? browserProfile.lookaheadWeights
-        : null;
+    const weightConfig = resolveCpuLv6LookaheadWeights();
 
     return CpuPolicyCore.chooseMoveByLookahead(candidateMoves, {
         board,
@@ -977,8 +991,8 @@ function selectMoveByLookahead(candidateMoves, playerKey, level, onnxSelectedMov
         maxBranch: lv6Lookahead.maxBranch,
         nodeBudget: lv6Lookahead.nodeBudget,
         scoreMove: priorScore,
-        priorWeight: level >= 6 ? (Number(weightConfig && weightConfig.onnxRefinePriorWeight) || 62) : 82,
-        searchWeight: level >= 6 ? (Number(weightConfig && weightConfig.searchWeight) || 1.55) : 1,
+        priorWeight: level >= 6 ? (Number(weightConfig && weightConfig.onnxRefinePriorWeight) || 66) : 82,
+        searchWeight: level >= 6 ? (Number(weightConfig && weightConfig.searchWeight) || 1.8) : 1,
         endgameSolveEmpties: lv6Lookahead.endgameSolveEmpties || 20,
         endgameDepth: lv6Lookahead.endgameDepth || 16,
         endgameNodeBudget: lv6Lookahead.endgameNodeBudget || 1_500_000,
@@ -3320,10 +3334,7 @@ function selectCpuMoveWithPolicy(candidateMoves, playerKey) {
             : (typeof WHITE !== 'undefined' ? WHITE : -1);
         const lv6Lookahead = buildLv6LookaheadOptions(level, gameState.board, prioritizedCandidateMoves.length, playerKey);
         const onSearchMeta = createLookaheadMetaLogger(playerKey, level, 'policy-lookahead');
-        const browserProfile = resolveCpuLv6BrowserProfile();
-        const weightConfig = browserProfile && browserProfile.lookaheadWeights && typeof browserProfile.lookaheadWeights === 'object'
-            ? browserProfile.lookaheadWeights
-            : null;
+        const weightConfig = resolveCpuLv6LookaheadWeights();
         const looked = CpuPolicyCore.chooseMoveByLookahead(prioritizedCandidateMoves, {
             board: gameState.board,
             playerValue,
@@ -3332,8 +3343,8 @@ function selectCpuMoveWithPolicy(candidateMoves, playerKey) {
             maxBranch: lv6Lookahead.maxBranch,
             nodeBudget: lv6Lookahead.nodeBudget,
             scoreMove: combinedScoreFn,
-            priorWeight: Number(weightConfig && weightConfig.policyLookaheadPriorWeight) || 58,
-            searchWeight: Number(weightConfig && weightConfig.searchWeight) || 1.55,
+            priorWeight: Number(weightConfig && weightConfig.policyLookaheadPriorWeight) || 62,
+            searchWeight: Number(weightConfig && weightConfig.searchWeight) || 1.8,
             endgameSolveEmpties: lv6Lookahead.endgameSolveEmpties || 20,
             endgameDepth: lv6Lookahead.endgameDepth || 16,
             endgameNodeBudget: lv6Lookahead.endgameNodeBudget || 1_500_000,

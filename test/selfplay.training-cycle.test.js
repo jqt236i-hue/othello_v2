@@ -1320,6 +1320,7 @@ describe('selfplay training cycle script', () => {
 
             const result = cleanupWarehouseSelfplayArtifacts(runsDir);
 
+            expect(result.cleanupRoot).toBe(runsDir);
             expect(result.manifestsScanned).toBe(1);
             expect(result.failed).toEqual([]);
             expect(result.removed).toEqual(expect.arrayContaining([
@@ -1415,7 +1416,8 @@ describe('selfplay training cycle script', () => {
 
             const result = cleanupWarehouseSelfplayArtifacts(laneADir, {
                 nowMs: staleNowMs,
-                staleOrphanMinAgeMs: 24 * 60 * 60 * 1000
+                staleOrphanMinAgeMs: 24 * 60 * 60 * 1000,
+                includeSiblingLanes: true
             });
 
             expect(result.cleanupRoot).toBe(runsRoot);

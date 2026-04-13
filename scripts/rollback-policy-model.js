@@ -66,48 +66,53 @@ function rollbackModel(options) {
     if (!manifest || (manifest.schemaVersion !== 'policy_promotion.v2' && manifest.schemaVersion !== 'policy_promotion.v3')) {
         throw new Error('manifest schema must be policy_promotion.v2 or policy_promotion.v3');
     }
-    if (!manifest.rollback || !manifest.rollback.modelPath) {
+    const deployTruth = manifest.deployTruthPath && fs.existsSync(manifest.deployTruthPath)
+        ? readJson(manifest.deployTruthPath)
+        : null;
+    const source = deployTruth && typeof deployTruth === 'object' ? deployTruth : manifest;
+    if (!source.rollback || !source.rollback.modelPath) {
         throw new Error('manifest does not include a rollback model path');
     }
-    if (!manifest.deployed || !manifest.deployed.modelPath) {
+    if (!source.deployed || !source.deployed.modelPath) {
         throw new Error('manifest does not include deployed target paths');
     }
 
     const restoredAt = typeof options.restoredAt === 'string' && options.restoredAt.trim()
         ? options.restoredAt.trim()
         : new Date().toISOString();
-    const deployed = manifest.deployed;
-    const champion = manifest.champion || null;
+    const deployed = source.deployed;
+    const champion = source.champion || null;
 
     const restored = {
-        model: copyRequiredFile(manifest.rollback.modelPath, deployed.modelPath, 'rollback model'),
-        onnx: restoreOptionalFile(manifest.rollback.onnxPath, deployed.onnxPath || null),
-        onnxMeta: restoreOptionalFile(manifest.rollback.onnxMetaPath, deployed.onnxMetaPath || null),
-        cardOnnx: restoreOptionalFile(manifest.rollback.cardOnnxPath, deployed.cardOnnxPath || null),
-        cardOnnxMeta: restoreOptionalFile(manifest.rollback.cardOnnxMetaPath, deployed.cardOnnxMetaPath || null),
-        targetOnnx: restoreOptionalFile(manifest.rollback.targetOnnxPath, deployed.targetOnnxPath || null),
-        targetOnnxMeta: restoreOptionalFile(manifest.rollback.targetOnnxMetaPath, deployed.targetOnnxMetaPath || null),
-        valueOnnx: restoreOptionalFile(manifest.rollback.valueOnnxPath, deployed.valueOnnxPath || null),
-        valueOnnxMeta: restoreOptionalFile(manifest.rollback.valueOnnxMetaPath, deployed.valueOnnxMetaPath || null)
+        model: copyRequiredFile(source.rollback.modelPath, deployed.modelPath, 'rollback model'),
+        onnx: restoreOptionalFile(source.rollback.onnxPath, deployed.onnxPath || null),
+        onnxMeta: restoreOptionalFile(source.rollback.onnxMetaPath, deployed.onnxMetaPath || null),
+        cardOnnx: restoreOptionalFile(source.rollback.cardOnnxPath, deployed.cardOnnxPath || null),
+        cardOnnxMeta: restoreOptionalFile(source.rollback.cardOnnxMetaPath, deployed.cardOnnxMetaPath || null),
+        targetOnnx: restoreOptionalFile(source.rollback.targetOnnxPath, deployed.targetOnnxPath || null),
+        targetOnnxMeta: restoreOptionalFile(source.rollback.targetOnnxMetaPath, deployed.targetOnnxMetaPath || null),
+        valueOnnx: restoreOptionalFile(source.rollback.valueOnnxPath, deployed.valueOnnxPath || null),
+        valueOnnxMeta: restoreOptionalFile(source.rollback.valueOnnxMetaPath, deployed.valueOnnxMetaPath || null)
     };
 
     const championRestore = champion
         ? {
-            model: copyRequiredFile(manifest.rollback.modelPath, champion.modelPath, 'champion rollback model'),
-            onnx: restoreOptionalFile(manifest.rollback.onnxPath, champion.onnxPath || null),
-            onnxMeta: restoreOptionalFile(manifest.rollback.onnxMetaPath, champion.onnxMetaPath || null),
-            cardOnnx: restoreOptionalFile(manifest.rollback.cardOnnxPath, champion.cardOnnxPath || null),
-            cardOnnxMeta: restoreOptionalFile(manifest.rollback.cardOnnxMetaPath, champion.cardOnnxMetaPath || null),
-            targetOnnx: restoreOptionalFile(manifest.rollback.targetOnnxPath, champion.targetOnnxPath || null),
-            targetOnnxMeta: restoreOptionalFile(manifest.rollback.targetOnnxMetaPath, champion.targetOnnxMetaPath || null),
-            valueOnnx: restoreOptionalFile(manifest.rollback.valueOnnxPath, champion.valueOnnxPath || null),
-            valueOnnxMeta: restoreOptionalFile(manifest.rollback.valueOnnxMetaPath, champion.valueOnnxMetaPath || null)
+            model: copyRequiredFile(source.rollback.modelPath, champion.modelPath, 'champion rollback model'),
+            onnx: restoreOptionalFile(source.rollback.onnxPath, champion.onnxPath || null),
+            onnxMeta: restoreOptionalFile(source.rollback.onnxMetaPath, champion.onnxMetaPath || null),
+            cardOnnx: restoreOptionalFile(source.rollback.cardOnnxPath, champion.cardOnnxPath || null),
+            cardOnnxMeta: restoreOptionalFile(source.rollback.cardOnnxMetaPath, champion.cardOnnxMetaPath || null),
+            targetOnnx: restoreOptionalFile(source.rollback.targetOnnxPath, champion.targetOnnxPath || null),
+            targetOnnxMeta: restoreOptionalFile(source.rollback.targetOnnxMetaPath, champion.targetOnnxMetaPath || null),
+            valueOnnx: restoreOptionalFile(source.rollback.valueOnnxPath, champion.valueOnnxPath || null),
+            valueOnnxMeta: restoreOptionalFile(source.rollback.valueOnnxMetaPath, champion.valueOnnxMetaPath || null)
         }
         : null;
 
     return {
         manifestPath: options.manifestPath,
         promotionId: manifest.promotionId || null,
+        deployTruthPath: manifest.deployTruthPath || null,
         restoredAt,
         restored,
         championRestore

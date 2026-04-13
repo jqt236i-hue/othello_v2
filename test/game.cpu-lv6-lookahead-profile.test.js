@@ -1,6 +1,7 @@
 const path = require('path');
 
 const CpuLv6LookaheadProfile = require(path.resolve(__dirname, '..', 'game', 'ai', 'cpu-lv6-lookahead-profile.js'));
+const cpuLv6SharedProfile = require(path.resolve(__dirname, '..', 'constants', 'cpu-lv6-shared-profile.js'));
 
 function makeBoard(fillValue = 0) {
   return Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => fillValue));
@@ -83,5 +84,9 @@ describe('cpu lv6 lookahead profile', () => {
     expect(options.maxBranch).toBe(4);
     expect(options.maxTimeMs).toBeLessThanOrEqual(80);
     expect(options.endgameMaxTimeMs).toBeLessThanOrEqual(160);
+  });
+
+  test('shared lookahead weights resolve from the shared browser profile', () => {
+    expect(CpuLv6LookaheadProfile.resolveLv6LookaheadWeights()).toEqual(cpuLv6SharedProfile.browser.lookaheadWeights);
   });
 });

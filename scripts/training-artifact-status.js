@@ -24,6 +24,8 @@ const EXPECTED_CHECKPOINT_HEAD_BY_KIND = Object.freeze({
     'model.value-checkpoint': 'value'
 });
 
+const DEFAULT_BOARD_SIZE = 8;
+
 function normalizePath(filePath) {
     return filePath ? path.resolve(filePath) : null;
 }
@@ -46,6 +48,24 @@ function classifyLifecycle(filePath, kind) {
     const segments = getPathSegments(resolvedPath);
     const baseName = path.basename(resolvedPath).toLowerCase();
     const normalizedKind = typeof kind === 'string' ? kind.toLowerCase() : '';
+
+    const shapeMatch = baseName.match(/shape(\d+)x(\d+)/i);
+    if (shapeMatch) {
+        const detectedRows = Number(shapeMatch[1]);
+        const detectedCols = Number(shapeMatch[2]);
+        if (
+            Number.isFinite(detectedRows) &&
+            Number.isFinite(detectedCols) &&
+            (detectedRows !== DEFAULT_BOARD_SIZE || detectedCols !== DEFAULT_BOARD_SIZE)
+        ) {
+            return {
+                lifecycle: TRAINING_ARTIFACT_LIFECYCLES.INCOMPATIBLE,
+                reason: 'board-shape-mismatch',
+                expectedBoardSize: DEFAULT_BOARD_SIZE,
+                detectedBoardSize: `${detectedRows}x${detectedCols}`
+            };
+        }
+    }
 
     if (segments.includes('archive')) {
         return {
@@ -162,6 +182,15 @@ function classifyTrainingArtifactPath(filePath, options) {
         ? String(options.expectedCheckpointHead)
         : null;
     const lifecycleInfo = classifyLifecycle(filePath, kind);
+    if (lifecycleInfo.lifecycle === TRAINING_ARTIFACT_LIFECYCLES.INCOMPATIBLE && lifecycleInfo.reason === 'board-shape-mismatch') {
+        return {
+            lifecycle: TRAINING_ARTIFACT_LIFECYCLES.INCOMPATIBLE,
+            reason: lifecycleInfo.reason,
+            compatibility: TRAINING_ARTIFACT_COMPATIBILITY.INCOMPATIBLE,
+            expectedBoardSize: lifecycleInfo.expectedBoardSize,
+            detectedBoardSize: lifecycleInfo.detectedBoardSize
+        };
+    }
     const compatibilityInfo = resolveCheckpointCompatibility(filePath, kind, expectedCheckpointHead);
 
     if (compatibilityInfo.compatibility === TRAINING_ARTIFACT_COMPATIBILITY.INCOMPATIBLE) {

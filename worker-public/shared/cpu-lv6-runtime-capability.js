@@ -22,6 +22,13 @@
             : null;
     }
 
+    function resolveCpuLv6TeacherProfile(sharedProfile) {
+        const shared = sharedProfile && typeof sharedProfile === 'object' ? sharedProfile : null;
+        return shared && shared.teacher && typeof shared.teacher === 'object'
+            ? shared.teacher
+            : null;
+    }
+
     function usesOnnxMoveDecisionMode(mode) {
         const normalized = normalizeCpuLv6DecisionMode(mode);
         if (!normalized) return true;
@@ -147,6 +154,18 @@
         };
     }
 
+    function resolveCpuLv6LookaheadWeights(sharedProfile) {
+        const browserProfile = resolveCpuLv6BrowserProfile(sharedProfile);
+        const configured = browserProfile && browserProfile.lookaheadWeights && typeof browserProfile.lookaheadWeights === 'object'
+            ? browserProfile.lookaheadWeights
+            : null;
+        return {
+            onnxRefinePriorWeight: Number(configured && configured.onnxRefinePriorWeight) || 66,
+            policyLookaheadPriorWeight: Number(configured && configured.policyLookaheadPriorWeight) || 62,
+            searchWeight: Number(configured && configured.searchWeight) || 1.8
+        };
+    }
+
     function isStandardBoardCpuPolicyCompatible(board) {
         try {
             if (SharedBoardUtilsModule && typeof SharedBoardUtilsModule.isStandardBoard8x8 === 'function') {
@@ -163,11 +182,13 @@
     return {
         normalizeCpuLv6DecisionMode,
         resolveCpuLv6BrowserProfile,
+        resolveCpuLv6TeacherProfile,
         usesOnnxMoveDecisionMode,
         usesOnnxCardDecisionMode,
         resolveCpuLv6OnnxRuntimeGuard,
         resolveCpuLv6BrowserRuntimeCapability,
         resolveCpuLv6LookaheadTimeCaps,
+        resolveCpuLv6LookaheadWeights,
         isStandardBoardCpuPolicyCompatible
     };
 }));

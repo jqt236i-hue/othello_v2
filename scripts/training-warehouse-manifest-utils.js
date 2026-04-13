@@ -292,9 +292,11 @@ function removeArtifactPaths(artifactPaths) {
     };
 }
 
-function resolveRunsCleanupRoot(runsDir) {
+function resolveRunsCleanupRoot(runsDir, options) {
     const resolvedDir = normalizePath(runsDir);
     if (!resolvedDir) return null;
+    const includeSiblingLanes = !!(options && options.includeSiblingLanes);
+    if (!includeSiblingLanes) return resolvedDir;
     let current = resolvedDir;
     while (current) {
         if (path.basename(current).toLowerCase() === 'runs') {
@@ -308,7 +310,7 @@ function resolveRunsCleanupRoot(runsDir) {
 }
 
 function cleanupWarehouseSelfplayArtifacts(runsDir, options) {
-    const cleanupRoot = resolveRunsCleanupRoot(runsDir);
+    const cleanupRoot = resolveRunsCleanupRoot(runsDir, options);
     if (!cleanupRoot || !fs.existsSync(cleanupRoot)) {
         return {
             cleanupRoot,

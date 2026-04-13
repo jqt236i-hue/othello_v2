@@ -36,5 +36,13 @@ describe('training artifact status', () => {
             detectedCheckpointHead: 'card',
             expectedCheckpointHead: 'policy'
         });
+
+        expect(classifyTrainingArtifactPath(path.resolve('data', 'runs', 'browser_lv6_deploy_v1_seedbank_canary', 'policy-net.candidate.demo.shape10x10.it01.onnx'))).toMatchObject({
+            lifecycle: 'incompatible',
+            compatibility: 'incompatible',
+            reason: 'board-shape-mismatch',
+            expectedBoardSize: 8,
+            detectedBoardSize: '10x10'
+        });
     });
 });
