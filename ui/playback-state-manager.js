@@ -74,6 +74,18 @@
         return locked;
     }
 
+    function getAnimationEngine(options) {
+        const config = (options && typeof options === 'object') ? options : {};
+        if (config.animationEngine && typeof config.animationEngine === 'object') return config.animationEngine;
+        const target = (config.root && typeof config.root === 'object') ? config.root : getRoot();
+        try {
+            if (target && target.AnimationEngine && typeof target.AnimationEngine === 'object') {
+                return target.AnimationEngine;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
     let activePlaybackAbortHandle = null;
 
     function registerPlaybackAbortHandle(handle) {
@@ -181,6 +193,42 @@
         }
         const value = Number(rawValue);
         return Number.isFinite(value) ? value : null;
+    }
+
+    function getPlaybackStaleMs(options) {
+        const config = (options && typeof options === 'object') ? options : {};
+        if (Object.prototype.hasOwnProperty.call(config, 'staleMs')) {
+            const explicitMs = Number(config.staleMs);
+            if (Number.isFinite(explicitMs) && explicitMs > 0) return explicitMs;
+        }
+        const target = (config.root && typeof config.root === 'object') ? config.root : getRoot();
+        if (target && typeof target === 'object') {
+            const targetMs = Number(target.PASS_STALE_PLAYBACK_MS);
+            if (Number.isFinite(targetMs) && targetMs > 0) return targetMs;
+        }
+        return 3500;
+    }
+
+    function isPlaybackRunning(options) {
+        if (!getPlaybackActive()) return false;
+        const animationEngine = getAnimationEngine(options);
+        if (animationEngine && typeof animationEngine.isPlaying === 'boolean') {
+            return animationEngine.isPlaying === true;
+        }
+        return true;
+    }
+
+    function isPlaybackStale(options) {
+        if (!getPlaybackActive()) return false;
+        const animationEngine = getAnimationEngine(options);
+        if (animationEngine && typeof animationEngine.isPlaying === 'boolean') {
+            return animationEngine.isPlaying !== true;
+        }
+        const startedAt = getPlaybackStartedAt();
+        if (Number.isFinite(startedAt)) {
+            return (Date.now() - startedAt) > getPlaybackStaleMs(options);
+        }
+        return false;
     }
 
     function getPresentationQueueState(source) {
@@ -469,6 +517,7 @@
         clearBoardUpdateContext();
         clearSelectionEntryPlaybackContext();
         setBusyState({ processing: false, cardAnimating: false, playbackActive: false });
+        setPlaybackStartedAt(null);
         setBoardLockActive(false, options);
         return true;
     }
@@ -518,6 +567,9 @@
             setBusyState,
             setInteractionLock,
             getPlaybackStartedAt,
+            getPlaybackStaleMs,
+            isPlaybackRunning,
+            isPlaybackStale,
             getBoardUpdateContext,
             setBoardUpdateContext,
             armBoardUpdateContext,
@@ -586,6 +638,9 @@
         setBusyState,
         setInteractionLock,
         getPlaybackStartedAt,
+        getPlaybackStaleMs,
+        isPlaybackRunning,
+        isPlaybackStale,
         ensurePlaybackStartedAt,
         beginPlayback,
         finalizePlayback,

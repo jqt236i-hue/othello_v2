@@ -10,6 +10,26 @@ if (!PlaybackStateModule) {
     } catch (e) { /* ignore */ }
 }
 
+var OwnerHelpersModule = null;
+if (typeof require === 'function') {
+    try { OwnerHelpersModule = require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
+}
+if (!OwnerHelpersModule) {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) OwnerHelpersModule = globalThis.OwnerHelpers;
+    } catch (e) { /* ignore */ }
+}
+
+var HandAnimationUtilsModule = null;
+if (typeof require === 'function') {
+    try { HandAnimationUtilsModule = require('../ui/animation-utils'); } catch (e) { /* ignore */ }
+}
+if (!HandAnimationUtilsModule) {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.HandAnimationUtilsModule) HandAnimationUtilsModule = globalThis.HandAnimationUtilsModule;
+    } catch (e) { /* ignore */ }
+}
+
 function getCardCostTier(cost) {
     const safeCost = Number.isFinite(cost) ? cost : 0;
     if (safeCost === 0) return 'white';
@@ -442,8 +462,8 @@ function _resolveChargeMaxForRender() {
 
 function _getCurrentMatchMode() {
     try {
-        if (typeof OwnerHelpers !== 'undefined' && OwnerHelpers && typeof OwnerHelpers.getCurrentMatchMode === 'function') {
-            return OwnerHelpers.getCurrentMatchMode(typeof window !== 'undefined' ? window : null);
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.getCurrentMatchMode === 'function') {
+            return OwnerHelpersModule.getCurrentMatchMode(typeof window !== 'undefined' ? window : null);
         }
     } catch (e) { /* ignore */ }
     try {
@@ -459,8 +479,8 @@ function _getCurrentMatchMode() {
 
 function _getLocalPlayerKeyForNetwork() {
     try {
-        if (typeof OwnerHelpers !== 'undefined' && OwnerHelpers && typeof OwnerHelpers.resolveLocalPlayerKey === 'function') {
-            return OwnerHelpers.resolveLocalPlayerKey(typeof window !== 'undefined' ? window : null);
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.resolveLocalPlayerKey === 'function') {
+            return OwnerHelpersModule.resolveLocalPlayerKey(typeof window !== 'undefined' ? window : null);
         }
     } catch (e) { /* ignore */ }
     try {
@@ -481,12 +501,22 @@ function _getLocalPlayerKeyForNetwork() {
 var TIME_STOP_ACTIVE_LABEL = '時間停止発動中';
 
 function _normalizePlayerKeyForRender(playerKey) {
+    try {
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKeyOptional === 'function') {
+            return OwnerHelpersModule.normalizePlayerKeyOptional(playerKey);
+        }
+    } catch (e) { /* ignore */ }
     if (playerKey === 'black' || playerKey === 1 || playerKey === '1') return 'black';
     if (playerKey === 'white' || playerKey === -1 || playerKey === '-1') return 'white';
     return null;
 }
 
 function _getOpposingPlayerKeyForRender(playerKey) {
+    try {
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.getOpposingPlayerKey === 'function') {
+            return OwnerHelpersModule.getOpposingPlayerKey(playerKey);
+        }
+    } catch (e) { /* ignore */ }
     const normalizedPlayerKey = _normalizePlayerKeyForRender(playerKey);
     if (!normalizedPlayerKey) return null;
     return normalizedPlayerKey === 'black' ? 'white' : 'black';
@@ -598,6 +628,13 @@ function _resolveCardRendererCardState() {
 
 function _getCardRendererPlaybackStaleMs() {
     try {
+        if (PlaybackStateModule && typeof PlaybackStateModule.getPlaybackStaleMs === 'function') {
+            return PlaybackStateModule.getPlaybackStaleMs({
+                root: (typeof window !== 'undefined') ? window : null
+            });
+        }
+    } catch (e) { /* ignore */ }
+    try {
         if (typeof window !== 'undefined') {
             const ms = Number(window.PASS_STALE_PLAYBACK_MS);
             if (Number.isFinite(ms) && ms > 0) return ms;
@@ -608,6 +645,11 @@ function _getCardRendererPlaybackStaleMs() {
 
 function _isStaleVisualPlaybackLockForRender() {
     try {
+        if (PlaybackStateModule && typeof PlaybackStateModule.isPlaybackStale === 'function') {
+            return PlaybackStateModule.isPlaybackStale({
+                root: (typeof window !== 'undefined') ? window : null
+            });
+        }
         if (!_isVisualPlaybackActiveForRender()) return false;
         if (typeof window !== 'undefined' && window.AnimationEngine && typeof window.AnimationEngine.isPlaying === 'boolean') {
             return window.AnimationEngine.isPlaying !== true;
@@ -650,8 +692,8 @@ function _isCardAnimatingForRender() {
 
 function _isHiddenHandTokenForRender(cardId) {
     try {
-        if (typeof OwnerHelpers !== 'undefined' && OwnerHelpers && typeof OwnerHelpers.isHiddenHandToken === 'function') {
-            return OwnerHelpers.isHiddenHandToken(cardId);
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.isHiddenHandToken === 'function') {
+            return OwnerHelpersModule.isHiddenHandToken(cardId);
         }
     } catch (e) { /* ignore */ }
     return typeof cardId === 'string' && /^__hidden_hand__:(black|white):(\d+)$/.test(cardId);
@@ -1004,6 +1046,15 @@ function consumeChargeDeltaSourcesForRender(cardState, matchMode, chargeDeltaHan
 function _resolveVisibleChargeOwners(matchMode) {
     const isNetworkMode = matchMode === 'network';
     const localPlayerKey = isNetworkMode ? _getLocalPlayerKeyForNetwork() : null;
+    try {
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.resolveVisibleOwnerLayout === 'function') {
+            return OwnerHelpersModule.resolveVisibleOwnerLayout({
+                bottomOwnerKey: isNetworkMode ? localPlayerKey : 'black',
+                defaultBottomOwnerKey: 'black',
+                defaultTopOwnerKey: 'white'
+            });
+        }
+    } catch (e) { /* ignore */ }
     const bottomOwnerKey = isNetworkMode
         ? localPlayerKey
         : 'black';
@@ -1111,19 +1162,25 @@ function renderCardUI() {
         : (Number.isFinite(cardState.initialDeckSize) ? cardState.initialDeckSize : 30);
     const deckRatioBlack = Math.max(0, Math.min(1, deckCountBlack / Math.max(1, totalBlack)));
     const deckRatioWhite = Math.max(0, Math.min(1, deckCountWhite / Math.max(1, totalWhite)));
+    const deckVisualByOwner = {
+        black: { count: deckCountBlack, total: totalBlack, ratio: deckRatioBlack },
+        white: { count: deckCountWhite, total: totalWhite, ratio: deckRatioWhite }
+    };
+    const bottomDeckVisual = deckVisualByOwner[bottomOwnerKey] || deckVisualByOwner.black;
+    const topDeckVisual = deckVisualByOwner[topOwnerKey] || deckVisualByOwner.white;
 
     // Set visuals for Black deck
     if (deckBlackEl) {
-        deckBlackEl.style.setProperty('--deck-ratio', deckRatioBlack);
+        deckBlackEl.style.setProperty('--deck-ratio', bottomDeckVisual.ratio);
         const countLabel = deckBlackEl.querySelector('.deck-count');
-        if (countLabel) countLabel.textContent = `${deckCountBlack}/${totalBlack}`;
+        if (countLabel) countLabel.textContent = `${bottomDeckVisual.count}/${bottomDeckVisual.total}`;
     }
 
     // Set visuals for White deck
     if (deckWhiteEl) {
-        deckWhiteEl.style.setProperty('--deck-ratio', deckRatioWhite);
+        deckWhiteEl.style.setProperty('--deck-ratio', topDeckVisual.ratio);
         const countLabel = deckWhiteEl.querySelector('.deck-count');
-        if (countLabel) countLabel.textContent = `${deckCountWhite}/${totalWhite}`;
+        if (countLabel) countLabel.textContent = `${topDeckVisual.count}/${topDeckVisual.total}`;
     }
 
     const isBlackTurn = gameState.currentPlayer === BLACK;
@@ -1145,9 +1202,11 @@ function renderCardUI() {
     const canInteract = !isAnimating || staleVisualPlaybackLock || isDebugUnlimited;
     const timeStopStatus = _resolveTimeStopStatusForRender(cardState, inputPlayerKey, gameState);
 
-    const fadeState = (typeof window !== 'undefined')
-        ? (window.__handFadeInState || window.__handFadeInHint || null)
-        : null;
+    const fadeState = (HandAnimationUtilsModule && typeof HandAnimationUtilsModule.getQueuedHandFadeInState === 'function')
+        ? HandAnimationUtilsModule.getQueuedHandFadeInState()
+        : ((typeof window !== 'undefined')
+            ? (window.__handFadeInState || window.__handFadeInHint || null)
+            : null);
     const fadePlayerKey = fadeState && fadeState.playerKey ? fadeState.playerKey : null;
     const fadeCount = fadeState && Number.isFinite(fadeState.count) ? fadeState.count : 0;
     const handRevealState = (typeof window !== 'undefined' && window.__handSequentialRevealState && typeof window.__handSequentialRevealState === 'object')
@@ -1169,50 +1228,35 @@ function renderCardUI() {
         ? captureReservedState.handIndex
         : null;
 
-    function renderHandSlot(containerEl, ownerKey, revealByDefault, visibleSlotKey) {
-        if (!containerEl) return;
-        containerEl.dataset.ownerKey = ownerKey;
-        const showTimeStopVictimOverlay = !!(
-            timeStopStatus.active
-            && timeStopStatus.viewerRole === 'victim'
-            && visibleSlotKey === 'bottom'
-        );
-        containerEl.classList.toggle('time-stop-hand-overlay-active', showTimeStopVictimOverlay);
-        const handTrackEl = _ensureHandTrackElement(containerEl);
-        if (!handTrackEl) return;
-
+    function _getOwnerHandForRender(ownerKey) {
         const ownerHandRaw = (cardState.hands && Array.isArray(cardState.hands[ownerKey])) ? cardState.hands[ownerKey] : [];
-        const ownerHand = (revealPlayerKey === ownerKey && Number.isFinite(revealVisibleCount))
+        return (revealPlayerKey === ownerKey && Number.isFinite(revealVisibleCount))
             ? ownerHandRaw.slice(0, Math.min(ownerHandRaw.length, revealVisibleCount))
             : ownerHandRaw;
-        const shouldFade = fadePlayerKey === ownerKey && fadeCount > 0;
-        const ownerHandLen = ownerHand.length;
-        const selectedOwnerKey = (cardState.selectedCardOwnerKey === 'white' || cardState.selectedCardOwnerKey === 'black')
-            ? cardState.selectedCardOwnerKey
-            : inputPlayerKey;
-        const pendingCaptureReservedIndex = (() => {
-            const ownerPending = cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[ownerKey];
-            if (
-                !ownerPending
-                || ownerPending.type !== 'CAPTURE_WILL'
-                || ownerPending.stage !== 'selectTarget'
-                || !Number.isInteger(ownerPending.sourceHandIndex)
-            ) {
-                return null;
-            }
-            return Math.max(0, Math.trunc(ownerPending.sourceHandIndex));
-        })();
-        const insertedReservedHandIndex = Number.isInteger(pendingCaptureReservedIndex)
-            ? pendingCaptureReservedIndex
-            : (
-                reservedPlayerKey === ownerKey
-                && Number.isInteger(reservedHandIndex)
-                && reservedHandIndex >= ownerHand.length
-                ? reservedHandIndex
-                : null
-            );
-        const renderEntries = [];
+    }
 
+    function _resolveInsertedReservedHandIndex(ownerKey, ownerHandLength) {
+        const ownerPending = cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[ownerKey];
+        if (
+            ownerPending
+            && ownerPending.type === 'CAPTURE_WILL'
+            && ownerPending.stage === 'selectTarget'
+            && Number.isInteger(ownerPending.sourceHandIndex)
+        ) {
+            return Math.max(0, Math.trunc(ownerPending.sourceHandIndex));
+        }
+        if (
+            reservedPlayerKey === ownerKey
+            && Number.isInteger(reservedHandIndex)
+            && reservedHandIndex >= ownerHandLength
+        ) {
+            return reservedHandIndex;
+        }
+        return null;
+    }
+
+    function _buildHandRenderEntries(ownerHand, insertedReservedHandIndex) {
+        const renderEntries = [];
         for (let idx = 0; idx < ownerHand.length; idx += 1) {
             if (Number.isInteger(insertedReservedHandIndex) && insertedReservedHandIndex === renderEntries.length) {
                 renderEntries.push({ kind: 'capture_reserved_placeholder', visualIndex: renderEntries.length });
@@ -1227,127 +1271,181 @@ function renderCardUI() {
         if (Number.isInteger(insertedReservedHandIndex) && insertedReservedHandIndex === renderEntries.length) {
             renderEntries.push({ kind: 'capture_reserved_placeholder', visualIndex: renderEntries.length });
         }
+        return renderEntries;
+    }
 
+    const selectedOwnerKey = (cardState.selectedCardOwnerKey === 'white' || cardState.selectedCardOwnerKey === 'black')
+        ? cardState.selectedCardOwnerKey
+        : inputPlayerKey;
+
+    function _resolveHandEntryViewState(entry, ownerKey, revealByDefault) {
+        const visualIndex = entry && Number.isInteger(entry.visualIndex)
+            ? entry.visualIndex
+            : 0;
+        const isPlaceholderOnly = !!(entry && entry.kind === 'capture_reserved_placeholder');
+        const cardId = entry && entry.kind === 'card'
+            ? entry.cardId
+            : null;
+        const actualIndex = entry && entry.kind === 'card' && Number.isInteger(entry.actualIndex)
+            ? entry.actualIndex
+            : null;
+        const isCaptureReservedSlot = isPlaceholderOnly
+            || (reservedPlayerKey === ownerKey && reservedHandIndex === visualIndex);
+        const state = {
+            visualIndex,
+            isPlaceholderOnly,
+            isCaptureReservedSlot,
+            cardId,
+            actualIndex,
+            desiredKind: isPlaceholderOnly ? 'placeholder' : 'face',
+            canInspectOwnerHand: false,
+            canAfford: false,
+            usable: false,
+            isSelected: false
+        };
+
+        if (isPlaceholderOnly) {
+            return state;
+        }
+
+        const isHiddenToken = _isHiddenHandTokenForRender(cardId);
+        const isLocallyRevealedOpponentCard = !isNetworkMode
+            && !revealByDefault
+            && !isHiddenToken
+            && _isHandCardRevealedToViewerForRender(cardState, localRevealViewerKey, ownerKey, actualIndex);
+        const fateWillIsViewingVictim = fateWillIsActive
+            && ownerKey === fateWillVictimKey
+            && inputPlayerKey === fateWillControllerKey;
+        const fateWillVictimLockedOut = fateWillIsActive
+            && ownerKey === fateWillVictimKey
+            && inputPlayerKey === fateWillVictimKey;
+        const canShowFace = isNetworkMode
+            ? (ownerKey === localPlayerKey || fateWillIsViewingVictim || !isHiddenToken)
+            : (revealByDefault || isLocallyRevealedOpponentCard || fateWillIsViewingVictim);
+
+        if (state.isCaptureReservedSlot) {
+            state.desiredKind = 'placeholder';
+            return state;
+        }
+        if (!canShowFace || isHiddenToken) {
+            state.desiredKind = 'hidden';
+            return state;
+        }
+
+        const cardDef = CARD_DEFS.find(c => c.id === cardId);
+        const cost = cardDef ? (cardDef.cost || 0) : 0;
+        const hasNotUsedThisTurn = isDebugUnlimited ? true : !_hasOwnerUsedCardThisActiveTurnForRender(cardState, ownerKey);
+        const isOwnerTurn = ownerKey === 'black' ? isBlackTurn : !isBlackTurn;
+        const canControlOwnerHand = isNetworkMode
+            ? ((ownerKey === localPlayerKey && isOwnerTurn && !fateWillVictimLockedOut) || (fateWillIsViewingVictim && isOwnerTurn))
+            : (isDebugHvH
+                ? (isOwnerTurn && !fateWillVictimLockedOut)
+                : ((ownerKey === 'black' && isOwnerTurn && !fateWillVictimLockedOut) || (fateWillIsViewingVictim && isOwnerTurn)));
+        state.canAfford = isDebugUnlimited ? true : ((cardState.charge[ownerKey] || 0) >= cost);
+        state.canInspectOwnerHand = isNetworkMode
+            ? canShowFace
+            : (isDebugHvH ? true : (ownerKey === 'black' || fateWillIsViewingVictim));
+        state.usable = canControlOwnerHand && canInteract && hasNotUsedThisTurn && state.canAfford;
+        state.isSelected = cardState.selectedCardId === cardId && selectedOwnerKey === ownerKey;
+        return state;
+    }
+
+    function _ensureRenderedHandElement(handTrackEl, existingChildren, entryState, ownerKey) {
+        let cardEl = existingChildren[entryState.visualIndex] || null;
+        if (_canReuseHandCardElement(cardEl, entryState.desiredKind, entryState.cardId, ownerKey)) {
+            return cardEl;
+        }
+        if (cardEl) {
+            _detachHandCardClickHandler(cardEl);
+        }
+        if (entryState.desiredKind === 'placeholder') {
+            cardEl = _createCaptureReservedSlotElement();
+        } else if (entryState.desiredKind === 'hidden') {
+            cardEl = _createHiddenHandCardElement(entryState.cardId, ownerKey);
+        } else {
+            cardEl = createCardFaceElement(entryState.cardId, { ownerKey });
+        }
+        const currentChild = handTrackEl.children[entryState.visualIndex] || null;
+        if (currentChild) {
+            handTrackEl.replaceChild(cardEl, currentChild);
+        } else {
+            handTrackEl.appendChild(cardEl);
+        }
+        return cardEl;
+    }
+
+    function _applyRenderedHandElementState(cardEl, entryState, ownerKey, shouldFade, ownerHandLen) {
+        if (entryState.desiredKind === 'placeholder') {
+            _detachHandCardClickHandler(cardEl);
+            cardEl.className = 'card-item capture-reserved-slot';
+            cardEl.style.opacity = '0';
+            cardEl.style.pointerEvents = 'none';
+            cardEl.setAttribute('aria-hidden', 'true');
+            delete cardEl.dataset.cardId;
+        } else if (entryState.desiredKind === 'hidden') {
+            _detachHandCardClickHandler(cardEl);
+            cardEl.className = 'card-item hidden';
+            cardEl.textContent = 'CARD';
+            cardEl.style.removeProperty('opacity');
+            cardEl.style.removeProperty('pointer-events');
+            cardEl.removeAttribute('aria-hidden');
+            if (entryState.cardId) {
+                cardEl.dataset.cardId = entryState.cardId;
+            }
+        } else {
+            const canClick = entryState.canInspectOwnerHand && canInteract;
+            _setHandCardClickHandler(cardEl, canClick, entryState.cardId, ownerKey);
+            cardEl.classList.toggle('clickable', canClick);
+            cardEl.classList.toggle('affordable', entryState.canAfford);
+            cardEl.classList.toggle('usable', entryState.usable);
+            cardEl.classList.toggle('selected', entryState.isSelected);
+            cardEl.style.removeProperty('opacity');
+            cardEl.style.removeProperty('pointer-events');
+            cardEl.removeAttribute('aria-hidden');
+            if (entryState.cardId) {
+                cardEl.dataset.cardId = entryState.cardId;
+            }
+        }
+        cardEl.dataset.ownerKey = ownerKey;
+        cardEl.dataset.handIndex = String(entryState.visualIndex);
+        if (!entryState.cardId) {
+            delete cardEl.dataset.cardId;
+        }
+        if (
+            !entryState.isPlaceholderOnly
+            && shouldFade
+            && entryState.actualIndex >= Math.max(0, ownerHandLen - fadeCount)
+        ) {
+            cardEl.classList.add('card-fade-prep');
+        } else {
+            cardEl.classList.remove('card-fade-prep');
+        }
+    }
+
+    function renderHandSlot(containerEl, ownerKey, revealByDefault, visibleSlotKey) {
+        if (!containerEl) return;
+        containerEl.dataset.ownerKey = ownerKey;
+        const showTimeStopVictimOverlay = !!(
+            timeStopStatus.active
+            && timeStopStatus.viewerRole === 'victim'
+            && visibleSlotKey === 'bottom'
+        );
+        containerEl.classList.toggle('time-stop-hand-overlay-active', showTimeStopVictimOverlay);
+        const handTrackEl = _ensureHandTrackElement(containerEl);
+        if (!handTrackEl) return;
+
+        const ownerHand = _getOwnerHandForRender(ownerKey);
+        const shouldFade = fadePlayerKey === ownerKey && fadeCount > 0;
+        const renderEntries = _buildHandRenderEntries(
+            ownerHand,
+            _resolveInsertedReservedHandIndex(ownerKey, ownerHand.length)
+        );
         const existingChildren = Array.from(handTrackEl.children);
+
         renderEntries.forEach((entry) => {
-            const visualIndex = entry && Number.isInteger(entry.visualIndex)
-                ? entry.visualIndex
-                : renderEntries.length;
-            const isPlaceholderOnly = !!(entry && entry.kind === 'capture_reserved_placeholder');
-            const cardId = entry && entry.kind === 'card'
-                ? entry.cardId
-                : null;
-            const actualIndex = entry && entry.kind === 'card' && Number.isInteger(entry.actualIndex)
-                ? entry.actualIndex
-                : null;
-            const isCaptureReservedSlot = isPlaceholderOnly
-                || (reservedPlayerKey === ownerKey && reservedHandIndex === visualIndex);
-            let desiredKind = isPlaceholderOnly ? 'placeholder' : 'face';
-            let canInspectOwnerHand = false;
-            let canAfford = false;
-            let usable = false;
-            let isSelected = false;
-
-            if (!isPlaceholderOnly) {
-                const isHiddenToken = _isHiddenHandTokenForRender(cardId);
-                const isLocallyRevealedOpponentCard = !isNetworkMode
-                    && !revealByDefault
-                    && !isHiddenToken
-                    && _isHandCardRevealedToViewerForRender(cardState, localRevealViewerKey, ownerKey, actualIndex);
-                const fateWillIsViewingVictim = fateWillIsActive
-                    && ownerKey === fateWillVictimKey
-                    && inputPlayerKey === fateWillControllerKey;
-                const fateWillVictimLockedOut = fateWillIsActive
-                    && ownerKey === fateWillVictimKey
-                    && inputPlayerKey === fateWillVictimKey;
-                const canShowFace = isNetworkMode
-                    ? (ownerKey === localPlayerKey || fateWillIsViewingVictim || !isHiddenToken)
-                    : (revealByDefault || isLocallyRevealedOpponentCard || fateWillIsViewingVictim);
-
-                if (isCaptureReservedSlot) {
-                    desiredKind = 'placeholder';
-                } else if (!canShowFace || isHiddenToken) {
-                    desiredKind = 'hidden';
-                } else {
-                    const cardDef = CARD_DEFS.find(c => c.id === cardId);
-                    const cost = cardDef ? (cardDef.cost || 0) : 0;
-                    const hasNotUsedThisTurn = isDebugUnlimited ? true : !_hasOwnerUsedCardThisActiveTurnForRender(cardState, ownerKey);
-                    canAfford = isDebugUnlimited ? true : ((cardState.charge[ownerKey] || 0) >= cost);
-                    const isOwnerTurn = ownerKey === 'black' ? isBlackTurn : !isBlackTurn;
-                    canInspectOwnerHand = isNetworkMode
-                        ? canShowFace
-                        : (isDebugHvH ? true : (ownerKey === 'black' || fateWillIsViewingVictim));
-                    const canControlOwnerHand = isNetworkMode
-                        ? ((ownerKey === localPlayerKey && isOwnerTurn && !fateWillVictimLockedOut) || (fateWillIsViewingVictim && isOwnerTurn))
-                        : (isDebugHvH
-                            ? (isOwnerTurn && !fateWillVictimLockedOut)
-                            : ((ownerKey === 'black' && isOwnerTurn && !fateWillVictimLockedOut) || (fateWillIsViewingVictim && isOwnerTurn)));
-                    usable = canControlOwnerHand && canInteract && hasNotUsedThisTurn && canAfford;
-                    isSelected = cardState.selectedCardId === cardId && selectedOwnerKey === ownerKey;
-                }
-            }
-
-            let cardEl = existingChildren[visualIndex] || null;
-            if (!_canReuseHandCardElement(cardEl, desiredKind, cardId, ownerKey)) {
-                if (cardEl) {
-                    _detachHandCardClickHandler(cardEl);
-                }
-                if (desiredKind === 'placeholder') {
-                    cardEl = _createCaptureReservedSlotElement();
-                } else if (desiredKind === 'hidden') {
-                    cardEl = _createHiddenHandCardElement(cardId, ownerKey);
-                } else {
-                    cardEl = createCardFaceElement(cardId, { ownerKey });
-                }
-                const currentChild = handTrackEl.children[visualIndex] || null;
-                if (currentChild) {
-                    handTrackEl.replaceChild(cardEl, currentChild);
-                } else {
-                    handTrackEl.appendChild(cardEl);
-                }
-            }
-
-            if (desiredKind === 'placeholder') {
-                _detachHandCardClickHandler(cardEl);
-                cardEl.className = 'card-item capture-reserved-slot';
-                cardEl.style.opacity = '0';
-                cardEl.style.pointerEvents = 'none';
-                cardEl.setAttribute('aria-hidden', 'true');
-                delete cardEl.dataset.cardId;
-            } else if (desiredKind === 'hidden') {
-                _detachHandCardClickHandler(cardEl);
-                cardEl.className = 'card-item hidden';
-                cardEl.textContent = 'CARD';
-                cardEl.style.removeProperty('opacity');
-                cardEl.style.removeProperty('pointer-events');
-                cardEl.removeAttribute('aria-hidden');
-                if (cardId) {
-                    cardEl.dataset.cardId = cardId;
-                }
-            } else {
-                _setHandCardClickHandler(cardEl, canInspectOwnerHand && canInteract, cardId, ownerKey);
-                cardEl.classList.toggle('clickable', canInspectOwnerHand && canInteract);
-                cardEl.classList.toggle('affordable', canAfford);
-                cardEl.classList.toggle('usable', usable);
-                cardEl.classList.toggle('selected', isSelected);
-                cardEl.style.removeProperty('opacity');
-                cardEl.style.removeProperty('pointer-events');
-                cardEl.removeAttribute('aria-hidden');
-                if (cardId) {
-                    cardEl.dataset.cardId = cardId;
-                }
-            }
-            cardEl.dataset.ownerKey = ownerKey;
-            cardEl.dataset.handIndex = String(visualIndex);
-            if (!cardId) {
-                delete cardEl.dataset.cardId;
-            }
-
-            if (!isPlaceholderOnly && shouldFade && actualIndex >= Math.max(0, ownerHandLen - fadeCount)) {
-                cardEl.classList.add('card-fade-prep');
-            } else {
-                cardEl.classList.remove('card-fade-prep');
-            }
+            const entryState = _resolveHandEntryViewState(entry, ownerKey, revealByDefault);
+            const cardEl = _ensureRenderedHandElement(handTrackEl, existingChildren, entryState, ownerKey);
+            _applyRenderedHandElementState(cardEl, entryState, ownerKey, shouldFade, ownerHand.length);
         });
 
         while (handTrackEl.children.length > renderEntries.length) {

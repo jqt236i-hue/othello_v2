@@ -21,7 +21,19 @@ function _Timer() { return (__anim_res_utils && typeof __anim_res_utils.getTimer
 })(); }
 let __playback_state_utils = null;
 try { __playback_state_utils = (typeof require === 'function') ? require('./playback-state-manager') : (typeof globalThis !== 'undefined' ? globalThis.PlaybackStateManager : null); } catch (e) { __playback_state_utils = (typeof globalThis !== 'undefined' ? globalThis.PlaybackStateManager : null); }
+let __owner_helpers_utils = null;
+try { __owner_helpers_utils = (typeof require === 'function') ? require('../utils/owner-helpers') : (typeof globalThis !== 'undefined' ? globalThis.OwnerHelpers : null); } catch (e) { __owner_helpers_utils = (typeof globalThis !== 'undefined' ? globalThis.OwnerHelpers : null); }
 let __hand_skin_utils = null;
+function _getOwnerHelpers() {
+    if (__owner_helpers_utils) return __owner_helpers_utils;
+    try {
+        if (typeof OwnerHelpers !== 'undefined' && OwnerHelpers) return OwnerHelpers;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis && globalThis.OwnerHelpers) return globalThis.OwnerHelpers;
+    } catch (e) { /* ignore */ }
+    return null;
+}
 function _setCardAnimatingState(locked) {
     if (__playback_state_utils && typeof __playback_state_utils.setCardAnimating === 'function') {
         __playback_state_utils.setCardAnimating(locked);
@@ -58,25 +70,32 @@ function _requestCardUiSyncForAnimationUtils(reason) {
 }
 
 function _normalizeHandOwnerKey(value) {
+    const ownerHelpers = _getOwnerHelpers();
+    if (ownerHelpers && typeof ownerHelpers.normalizePlayerKey === 'function') {
+        return ownerHelpers.normalizePlayerKey(value, 'black');
+    }
     if (value === 'white' || value === -1 || value === '-1') return 'white';
     return 'black';
 }
 
-function _resolveHandElementByOwner(playerKey) {
-    if (typeof document === 'undefined') return null;
+function _getHandElementsByOwner(playerKey) {
+    if (typeof document === 'undefined') return [];
     const ownerKey = _normalizeHandOwnerKey(playerKey);
     const handBlackEl = document.getElementById('hand-black');
     const handWhiteEl = document.getElementById('hand-white');
     const handElements = [handBlackEl, handWhiteEl].filter(Boolean);
-
-    for (const handEl of handElements) {
-        const slotOwnerKey = handEl && handEl.dataset && handEl.dataset.ownerKey
-            ? _normalizeHandOwnerKey(handEl.dataset.ownerKey)
-            : null;
-        if (slotOwnerKey === ownerKey) return handEl;
+    const ownerHelpers = _getOwnerHelpers();
+    if (ownerHelpers && typeof ownerHelpers.filterOwnerMatchedElements === 'function') {
+        const matched = ownerHelpers.filterOwnerMatchedElements(handElements, ownerKey);
+        if (matched.length > 0) return matched;
     }
+    const fallbackHandEl = document.getElementById(ownerKey === 'white' ? 'hand-white' : 'hand-black');
+    return fallbackHandEl ? [fallbackHandEl] : [];
+}
 
-    return document.getElementById(ownerKey === 'white' ? 'hand-white' : 'hand-black');
+function _resolveHandElementByOwner(playerKey) {
+    const handElements = _getHandElementsByOwner(playerKey);
+    return handElements.length > 0 ? handElements[0] : null;
 }
 
 function _resolveDeckElementByOwner(playerKey) {
@@ -85,6 +104,12 @@ function _resolveDeckElementByOwner(playerKey) {
     const deckBlackEl = document.getElementById('deck-black');
     const deckWhiteEl = document.getElementById('deck-white');
     const deckElements = [deckBlackEl, deckWhiteEl].filter(Boolean);
+    const ownerHelpers = _getOwnerHelpers();
+
+    if (ownerHelpers && typeof ownerHelpers.resolveOwnerMatchedElement === 'function') {
+        const fallbackDeckEl = document.getElementById(ownerKey === 'white' ? 'deck-white' : 'deck-black');
+        return ownerHelpers.resolveOwnerMatchedElement(deckElements, ownerKey, fallbackDeckEl);
+    }
 
     for (const deckEl of deckElements) {
         const slotOwnerKey = deckEl && deckEl.dataset && deckEl.dataset.ownerKey
@@ -102,6 +127,13 @@ function _isOwnerOnBottomSlot(playerKey) {
 
     const bottomEl = document.getElementById('hand-black');
     const topEl = document.getElementById('hand-white');
+    const ownerHelpers = _getOwnerHelpers();
+    if (ownerHelpers && typeof ownerHelpers.isOwnerOnBottomSlot === 'function') {
+        return ownerHelpers.isOwnerOnBottomSlot(ownerKey, bottomEl, topEl, {
+            defaultBottomOwnerKey: 'black',
+            defaultTopOwnerKey: 'white'
+        });
+    }
     const bottomOwnerKey = (bottomEl && bottomEl.dataset && bottomEl.dataset.ownerKey)
         ? _normalizeHandOwnerKey(bottomEl.dataset.ownerKey)
         : 'black';
@@ -514,20 +546,131 @@ function _setHandRevealCount(playerKey, visibleCount, reason) {
 }
 
 const THROW_CHAIN_HAND_FADE_DURATION = '1s';
+const DEFAULT_HAND_FADE_DURATION_MS = 500;
 
-function _clearHandFadeInState(token) {
+function _parseHandFadeDurationMs(rawValue, fallbackMs) {
+    const value = String(rawValue || '').trim();
+    if (!value) return fallbackMs;
+    if (value.endsWith('ms')) {
+        const parsedMs = Number.parseFloat(value.slice(0, -2));
+        return Number.isFinite(parsedMs) ? Math.max(0, parsedMs) : fallbackMs;
+    }
+    if (value.endsWith('s')) {
+        const parsedSeconds = Number.parseFloat(value.slice(0, -1));
+        return Number.isFinite(parsedSeconds) ? Math.max(0, parsedSeconds * 1000) : fallbackMs;
+    }
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : fallbackMs;
+}
+
+function _cancelHandFadeInCleanup(cardEl) {
+    if (!cardEl || typeof cardEl.__cancelHandFadeInCleanup !== 'function') return;
+    const cleanup = cardEl.__cancelHandFadeInCleanup;
+    delete cardEl.__cancelHandFadeInCleanup;
+    try { cleanup(); } catch (e) { /* ignore */ }
+}
+
+function _settleHandFadeInVisualState(cardEl) {
+    if (!cardEl) return;
+    _cancelHandFadeInCleanup(cardEl);
+    cardEl.classList.remove('card-fade-prep');
+    cardEl.classList.remove('card-fade-in');
+    cardEl.style.removeProperty('--card-fade-in-duration');
+}
+
+function _normalizeQueuedHandFadeInState(fadeState) {
+    if (!fadeState || typeof fadeState !== 'object') return null;
+    const token = typeof fadeState.token === 'string' && fadeState.token.trim()
+        ? fadeState.token
+        : null;
+    if (!token) return null;
+    return {
+        playerKey: _normalizeHandOwnerKey(fadeState.playerKey),
+        count: Number.isFinite(fadeState.count) ? Math.max(0, Math.trunc(fadeState.count)) : 0,
+        token
+    };
+}
+
+function getQueuedHandFadeInState() {
+    try {
+        if (typeof window === 'undefined') return null;
+        return _normalizeQueuedHandFadeInState(window.__handFadeInState || window.__handFadeInHint || null);
+    } catch (e) {
+        return null;
+    }
+}
+
+function _setQueuedHandFadeInState(fadeState) {
+    const nextState = _normalizeQueuedHandFadeInState(fadeState);
+    try {
+        if (typeof window === 'undefined') return nextState;
+        window.__handFadeInState = nextState;
+        window.__handFadeInHint = nextState;
+    } catch (e) { /* ignore */ }
+    return nextState;
+}
+
+function _armHandFadeInVisualCleanup(cardEl) {
+    if (!cardEl) return;
+    _cancelHandFadeInCleanup(cardEl);
+    const scope = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
+    const token = {};
+    let timeoutId = null;
+    const cleanup = () => {
+        if (cardEl.__handFadeInCleanupToken !== token) return;
+        cardEl.removeEventListener('animationend', onEnd);
+        if (timeoutId !== null) {
+            try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
+            timeoutId = null;
+        }
+        delete cardEl.__handFadeInCleanupToken;
+        delete cardEl.__cancelHandFadeInCleanup;
+    };
+    const settle = () => {
+        if (cardEl.__handFadeInCleanupToken !== token) return;
+        cleanup();
+        cardEl.classList.remove('card-fade-prep');
+        cardEl.classList.remove('card-fade-in');
+        cardEl.style.removeProperty('--card-fade-in-duration');
+    };
+    const onEnd = (ev) => {
+        if (ev && ev.target && ev.target !== cardEl) return;
+        if (ev && ev.animationName && ev.animationName !== 'card-fade-in') return;
+        settle();
+    };
+    cardEl.__handFadeInCleanupToken = token;
+    cardEl.__cancelHandFadeInCleanup = cleanup;
+    cardEl.addEventListener('animationend', onEnd);
+    const durationMs = _parseHandFadeDurationMs(
+        cardEl.style.getPropertyValue('--card-fade-in-duration'),
+        DEFAULT_HAND_FADE_DURATION_MS
+    );
+    timeoutId = _Timer().setTimeout(() => {
+        timeoutId = null;
+        settle();
+    }, durationMs + 120, scope);
+}
+
+function _clearHandFadeInState(criteria) {
+    const token = (criteria && typeof criteria === 'object')
+        ? (typeof criteria.token === 'string' ? criteria.token : null)
+        : (typeof criteria === 'string' ? criteria : null);
+    const ownerKey = (criteria && typeof criteria === 'object' && typeof criteria.ownerKey !== 'undefined' && criteria.ownerKey !== null)
+        ? _normalizeHandOwnerKey(criteria.ownerKey)
+        : null;
     try {
         if (typeof window === 'undefined') return;
-        const activeState = (window.__handFadeInState && typeof window.__handFadeInState === 'object')
-            ? window.__handFadeInState
-            : null;
-        const activeHint = (window.__handFadeInHint && typeof window.__handFadeInHint === 'object')
-            ? window.__handFadeInHint
-            : null;
-        if (!token || (activeState && activeState.token === token)) {
+        const activeState = getQueuedHandFadeInState();
+        const activeHint = _normalizeQueuedHandFadeInState(window.__handFadeInHint || null);
+        const shouldClearAll = !token && !ownerKey;
+        if (shouldClearAll
+            || (activeState && token && activeState.token === token)
+            || (activeState && ownerKey && activeState.playerKey === ownerKey)) {
             window.__handFadeInState = null;
         }
-        if (!token || (activeHint && activeHint.token === token)) {
+        if (shouldClearAll
+            || (activeHint && token && activeHint.token === token)
+            || (activeHint && ownerKey && activeHint.playerKey === ownerKey)) {
             window.__handFadeInHint = null;
         }
     } catch (e) { /* ignore */ }
@@ -536,26 +679,41 @@ function _clearHandFadeInState(token) {
 function _applyQueuedHandFadeIn(fadeState, payload) {
     if (!fadeState || !fadeState.token) return;
     try {
-        if (typeof window !== 'undefined') {
-            const activeState = (window.__handFadeInState && typeof window.__handFadeInState === 'object')
-                ? window.__handFadeInState
-                : null;
-            if (!activeState || activeState.token !== fadeState.token) return;
-        }
+        const activeState = getQueuedHandFadeInState();
+        if (!activeState || activeState.token !== fadeState.token) return;
 
         const handSelector = _resolveHandSelectorByOwner(fadeState.playerKey);
         const latestCard = document.querySelector(`${handSelector} .card-item:last-child`);
         if (latestCard) {
-            latestCard.classList.remove('card-fade-prep');
+            _settleHandFadeInVisualState(latestCard);
             if (payload && payload.reason === 'generated_throw_chain') {
                 latestCard.style.setProperty('--card-fade-in-duration', THROW_CHAIN_HAND_FADE_DURATION);
             } else {
                 latestCard.style.removeProperty('--card-fade-in-duration');
             }
             latestCard.classList.add('card-fade-in');
+            _armHandFadeInVisualCleanup(latestCard);
         }
     } catch (e) { /* ignore */ }
     _clearHandFadeInState(fadeState.token);
+}
+
+function _queryOwnerHandFadeElements(playerKey) {
+    const handElements = _getHandElementsByOwner(playerKey);
+    const matches = [];
+    handElements.forEach((handEl) => {
+        matches.push(...Array.from(handEl.querySelectorAll('.card-item.card-fade-prep, .card-item.card-fade-in')));
+    });
+    return matches;
+}
+
+function settleOwnerHandFadeIn(playerKey) {
+    const ownerKey = _normalizeHandOwnerKey(playerKey);
+    _queryOwnerHandFadeElements(ownerKey).forEach((cardEl) => {
+        _settleHandFadeInVisualState(cardEl);
+    });
+    _clearHandFadeInState({ ownerKey });
+    return true;
 }
 
 function _scheduleQueuedHandFadeIn(fadeState, payload) {
@@ -1010,7 +1168,11 @@ function playHandAnimation(player, row, col, onComplete, visualOptions) {
             try {
                 if (typeof SoundEngine !== 'undefined' && SoundEngine) {
                     SoundEngine.init();
-                    SoundEngine.playStoneClack();
+                    if (typeof SoundEngine.playStoneClack === 'function') {
+                        SoundEngine.playStoneClack();
+                    } else if (typeof SoundEngine.playEffectByKey === 'function') {
+                        SoundEngine.playEffectByKey('stone_place');
+                    }
                 }
             } catch (e) { /* ignore */ }
             completeMove();
@@ -1187,12 +1349,7 @@ function _finalizeHandAddAnimation(payload, options) {
         _setHandRevealCount(toPlayerKey, Number(revealState.visibleCount) + drawCount, revealState.reason || null);
     }
 
-    try {
-        if (typeof window !== 'undefined') {
-            window.__handFadeInState = fadeState;
-            window.__handFadeInHint = fadeState;
-        }
-    } catch (e) { /* ignore */ }
+    _setQueuedHandFadeInState(fadeState);
 
     try {
         _requestCardUiSyncForAnimationUtils('animation-utils:finalize-hand-add');
@@ -2027,7 +2184,9 @@ if (typeof module !== 'undefined' && module.exports) {
         playTrapPlacementFlash,
         playCardUseHandAnimation,
         animateHyperactiveMove,
-        animateStrongWillApply
+        animateStrongWillApply,
+        getQueuedHandFadeInState,
+        settleOwnerHandFadeIn
     };
 }
 
@@ -2038,4 +2197,8 @@ if (typeof window !== 'undefined') {
     window.playCaptureToHandAnimation = playCaptureToHandAnimation;
     window.playTrapPlacementFlash = playTrapPlacementFlash;
     window.playCardUseHandAnimation = playCardUseHandAnimation;
+    window.HandAnimationUtilsModule = {
+        getQueuedHandFadeInState,
+        settleOwnerHandFadeIn
+    };
 }

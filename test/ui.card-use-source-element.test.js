@@ -226,6 +226,36 @@ describe('card use source element selection', () => {
     expect(call[3].useCardOwnerKey).toBe('white');
   });
 
+  test('switching selected hand cards settles lingering fade on the owner-matched hand container', () => {
+    document.getElementById('hand-black').dataset.ownerKey = 'white';
+    document.getElementById('hand-white').dataset.ownerKey = 'black';
+    document.getElementById('hand-white').innerHTML = `
+      <div class="card-item selected card-fade-in" data-card-id="old_card" data-owner-key="black" style="--card-fade-in-duration: 1s;">Old</div>
+      <div class="card-item clickable" data-card-id="new_card" data-owner-key="black">New</div>
+    `;
+    global.cardState.hands = {
+      black: ['old_card', 'new_card'],
+      white: ['dup_card']
+    };
+    global.cardState.selectedCardId = 'old_card';
+    global.cardState.selectedCardOwnerKey = 'black';
+    global.window.__handFadeInState = { playerKey: 'black', token: 'fade-token', count: 1 };
+    global.window.__handFadeInHint = { playerKey: 'black', token: 'fade-token', count: 1 };
+
+    require('../cards/card-interaction.js');
+    window.onCardClick('new_card', 'black');
+
+    const oldCardEl = document.querySelector('#hand-white .card-item[data-card-id="old_card"]');
+    expect(global.cardState.selectedCardId).toBe('new_card');
+    expect(global.cardState.selectedCardOwnerKey).toBe('black');
+    expect(oldCardEl.classList.contains('card-fade-prep')).toBe(false);
+    expect(oldCardEl.classList.contains('card-fade-in')).toBe(false);
+    expect(oldCardEl.style.getPropertyValue('--card-fade-in-duration')).toBe('');
+    expect(global.window.__handFadeInState).toBeNull();
+    expect(global.window.__handFadeInHint).toBeNull();
+    expect(global.renderCardUI).toHaveBeenCalledTimes(1);
+  });
+
   test('useSelectedCard sends a use_card action through the shared adapter path', () => {
     require('../cards/card-interaction.js');
 
